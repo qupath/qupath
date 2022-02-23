@@ -37,6 +37,7 @@ import java.util.List;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.function.Function;
+import java.util.zip.ZipFile;
 
 import javax.swing.SwingUtilities;
 
@@ -54,6 +55,7 @@ import ij.gui.ShapeRoi;
 import ij.gui.Wand;
 import ij.io.FileInfo;
 import ij.measure.Calibration;
+import ij.plugin.frame.RoiManager;
 import ij.process.Blitter;
 import ij.process.ByteProcessor;
 import ij.process.ColorProcessor;
@@ -342,7 +344,7 @@ public class IJTools {
 	 * @param server
 	 * @return
 	 */
-	public static double estimateDownsampleFactor(final ImagePlus imp, final ImageServer<BufferedImage> server) {
+	public static double estimateDownsampleFactor(final ImagePlus imp, final ImageServer<?> server) {
 		// Try to get the downsample factor from pixel size;
 		// if that doesn't work, resort to trying to get it from the image dimensions
 		double downsampleFactor;
@@ -375,6 +377,7 @@ public class IJTools {
 
 	/**
 	 * Create a {@link PathObject} for a specific ImageJ Roi.
+	 * This method has been deprecated, since its signature was misleading (the server was not used).
 	 * 
 	 * @param imp
 	 * @param server
@@ -383,9 +386,11 @@ public class IJTools {
 	 * @param creator
 	 * @param plane
 	 * @return
+	 * @deprecated use instead {@link #convertToPathObject(Roi, double, double, double, Function, ImagePlane)}
 	 */
+	@Deprecated
 	public static PathObject convertToPathObject(ImagePlus imp, ImageServer<?> server, Roi roi, double downsampleFactor, Function<ROI, PathObject> creator, ImagePlane plane) {
-		Calibration cal = imp.getCalibration();
+		Calibration cal = imp == null ? null : imp.getCalibration();
 		if (plane == null)
 			plane = getImagePlane(roi, imp);
 		ROI pathROI = IJTools.convertToROI(roi, cal, downsampleFactor, plane);
@@ -394,6 +399,164 @@ public class IJTools {
 		PathObject pathObject = creator.apply(pathROI);
 		calibrateObject(pathObject, roi);
 		return pathObject;
+	}
+	
+	/**
+	 * Create a {@link PathObject} for a specific ImageJ Roi.
+	 * 
+	 * @param roi the ImageJ ROI
+	 * @param xOrigin the x-origin to translate the Roi; should be {@link Calibration#xOrigin} if available, or 0 otherwise
+	 * @param yOrigin the y-origin to translate the Roi; should be {@link Calibration#yOrigin} if available, or 0 otherwise
+	 * @param downsampleFactor the downsample factor used for rescaling (or 1.0 for no rescaling)
+	 * @param creator a function
+	 * @param plane the specific plane to use for the QuPath ROI; if null, the ImageJ Roi position properties will be used instead, where possible
+	 * @return a {@link PathObject} or null if no object could be created (e.g. the ImageJ roi is null or incompatible)
+	 * 
+	 * @see #convertToPathObject(Roi, double, Function, ImagePlus)
+	 * @since v0.4.0
+	 */
+	public static PathObject convertToPathObject(Roi roi, double xOrigin, double yOrigin, double downsampleFactor, Function<ROI, PathObject> creator, ImagePlane plane) {
+		ROI pathROI = IJTools.convertToROI(roi, xOrigin, yOrigin, downsampleFactor, plane);
+		if (pathROI == null)
+			return null;
+		PathObject pathObject = creator.apply(pathROI);
+		calibrateObject(pathObject, roi);
+		return pathObject;
+	}
+
+	/**
+	 * Create a {@link PathObject} for a specific ImageJ Roi, using an {@link ImagePlus} to help set properties.
+	 * 
+	 * @param roi the ImageJ ROI
+	 * @param downsampleFactor the downsample factor used for rescaling (or 1.0 for no rescaling)
+	 * @param creator a function
+	 * @param imp the {@link ImagePlus} associated with this Roi; it is used to determine the xOrigin, yOrigin and image plane
+	 * @return a {@link PathObject} or null if no object could be created (e.g. the ImageJ roi is null or incompatible)
+	 * 
+	 * @see #convertToPathObject(Roi, double, double, double, Function, ImagePlane)
+	 * @since v0.4.0
+	 */
+	public static PathObject convertToPathObject(Roi roi, double downsampleFactor, Function<ROI, PathObject> creator, ImagePlus imp) {
+		Calibration cal = imp == null ? null : imp.getCalibration();
+		var plane = getImagePlane(roi, imp);
+		ROI pathROI = IJTools.convertToROI(roi, cal, downsampleFactor, plane);
+		if (pathROI == null)
+			return null;
+		PathObject pathObject = creator.apply(pathROI);
+		calibrateObject(pathObject, roi);
+		return pathObject;
+	}
+
+	/**
+	 * Create an annotation object for a specific ImageJ Roi, using an {@link ImagePlus} to help set properties.
+	 * 
+	 * @param roi the ImageJ ROI
+	 * @param xOrigin the x-origin to translate the Roi; should be {@link Calibration#xOrigin} if available, or 0 otherwise
+	 * @param yOrigin the y-origin to translate the Roi; should be {@link Calibration#yOrigin} if available, or 0 otherwise
+	 * @param downsampleFactor the downsample factor used for rescaling (or 1.0 for no rescaling)
+	 * @param plane the specific plane to use for the QuPath ROI; if null, the ImageJ Roi position properties will be used instead, where possible
+	 * @return a {@link PathObject} or null if no object could be created (e.g. the ImageJ roi is null or incompatible)
+	 * 
+	 * @see #convertToPathObject(ImagePlus, ImageServer, Roi, double, Function, ImagePlane)
+	 * @see #convertToAnnotation(Roi, double, ImagePlus)
+	 * @since v0.4.0
+	 */
+	public static PathObject convertToAnnotation(Roi roi, double xOrigin, double yOrigin, double downsampleFactor, ImagePlane plane) {
+		return convertToPathObject(roi, xOrigin, yOrigin, downsampleFactor, r -> PathObjects.createAnnotationObject(r), plane);
+	}
+
+	/**
+	 * Create a detection object for a specific ImageJ Roi, using an {@link ImagePlus} to help set properties.
+	 * 
+	 * @param roi the ImageJ ROI
+	 * @param xOrigin the x-origin to translate the Roi; should be {@link Calibration#xOrigin} if available, or 0 otherwise
+	 * @param yOrigin the y-origin to translate the Roi; should be {@link Calibration#yOrigin} if available, or 0 otherwise
+	 * @param downsampleFactor the downsample factor used for rescaling (or 1.0 for no rescaling)
+	 * @param plane the specific plane to use for the QuPath ROI; if null, the ImageJ Roi position properties will be used instead, where possible
+	 * @return a {@link PathObject} or null if no object could be created (e.g. the ImageJ roi is null or incompatible)
+	 * 
+	 * @see #convertToPathObject(ImagePlus, ImageServer, Roi, double, Function, ImagePlane)
+	 * @see #convertToDetection(Roi, double, ImagePlus)
+	 * @since v0.4.0
+	 */
+	public static PathObject convertToDetection(Roi roi, double xOrigin, double yOrigin, double downsampleFactor, ImagePlane plane) {
+		return convertToPathObject(roi, xOrigin, yOrigin, downsampleFactor, r -> PathObjects.createDetectionObject(r), plane);
+	}
+
+	/**
+	 * Create an annotation object for a specific ImageJ Roi.
+	 * 
+	 * @param roi the ImageJ ROI
+	 * @param downsampleFactor the downsample factor used for rescaling (or 1.0 for no rescaling)
+	 * @param imp the {@link ImagePlus} associated with this Roi; it is used to determine the xOrigin, yOrigin and image plane
+	 * @return a {@link PathObject} or null if no object could be created (e.g. the ImageJ roi is null or incompatible)
+	 * 
+	 * @see #convertToPathObject(ImagePlus, ImageServer, Roi, double, Function, ImagePlane)
+	 * @see #convertToAnnotation(Roi, double, double, double, ImagePlane)
+	 * @since v0.4.0
+	 */
+	public static PathObject convertToAnnotation(Roi roi, double downsampleFactor, ImagePlus imp) {
+		return convertToPathObject(roi, downsampleFactor, r -> PathObjects.createAnnotationObject(r), imp);
+	}
+	
+	/**
+	 * Create a detection object for a specific ImageJ Roi.
+	 * 
+	 * @param roi the ImageJ ROI
+	 * @param downsampleFactor the downsample factor used for rescaling (or 1.0 for no rescaling)
+	 * @param imp the {@link ImagePlus} associated with this Roi; it is used to determine the xOrigin, yOrigin and image plane
+	 * @return a {@link PathObject} or null if no object could be created (e.g. the ImageJ roi is null or incompatible)
+	 * 
+	 * @see #convertToPathObject(ImagePlus, ImageServer, Roi, double, Function, ImagePlane)
+	 * @see #convertToDetection(Roi, double, double, double, ImagePlane)
+	 * @since v0.4.0
+	 */
+	public static PathObject convertToDetection(Roi roi, double downsampleFactor, ImagePlus imp) {
+		return convertToPathObject(roi, downsampleFactor, r -> PathObjects.createDetectionObject(r), imp);
+	}
+	
+	
+	/**
+	 * Read ImageJ Rois from a .roi or a RoiSet.zip file.
+	 * @param file
+	 * @return
+	 * @implNote this currently uses the {@link RoiManager} internally.
+	 */
+	public static List<Roi> readImageJRois(File file) {
+		// TODO: Reimplement this to avoid dependency on RoiManager, using RoiDecoder directly
+		var rm = new RoiManager(false);
+		rm.runCommand("open", file.getAbsolutePath());
+		var roisIJ = rm.getRoisAsArray();
+		rm.reset();
+		return Arrays.asList(roisIJ);
+	}
+	
+	/**
+	 * Check whether a file is likely to contain an ImageJ ROI, based upon its extension 
+	 * or .zip file contents.
+	 * @param file
+	 * @return true if the file seems to contain ImageJ ROIs, false otherwise
+	 */
+	public static boolean containsImageJRois(File file) {
+		var ext = GeneralTools.getExtension(file).orElse(null);
+		if (ext == null)
+			return false;
+		ext = ext.toLowerCase();
+		if (".roi".equals(ext))
+			return true;
+		if (".zip".equals(ext)) {
+			try (var zipFile = new ZipFile(file)) {
+				for (var enumerator = zipFile.entries(); enumerator.hasMoreElements();) {
+					var entry = enumerator.nextElement();
+					if (entry.getName().toLowerCase().endsWith(".roi"))
+						return true;
+				}
+			} catch (Exception e) {
+				logger.warn("Unable to check zip file for ROIs", e);
+				return false;
+			}
+		}
+		return false;
 	}
 	
 	
@@ -427,8 +590,11 @@ public class IJTools {
 	 * @param downsampleFactor
 	 * @param plane
 	 * @return
+	 * @deprecated use instead {@link #convertToAnnotation(Roi, double, double, double, ImagePlane)}
 	 */
+	@Deprecated
 	public static PathObject convertToAnnotation(ImagePlus imp, ImageServer<?> server, Roi roi, double downsampleFactor, ImagePlane plane) {
+		logger.debug("Called deprecated method convertToAnnotation - please update the method signature for v0.4.0+");
 		return convertToPathObject(imp, server, roi, downsampleFactor, r -> PathObjects.createAnnotationObject(r), plane);
 	}
 	
@@ -440,8 +606,11 @@ public class IJTools {
 	 * @param downsampleFactor
 	 * @param plane
 	 * @return
+	 * @deprecated use instead {@link #convertToDetection(Roi, double, double, double, ImagePlane)}
 	 */
+	@Deprecated
 	public static PathObject convertToDetection(ImagePlus imp, ImageServer<?> server, Roi roi, double downsampleFactor, ImagePlane plane) {
+		logger.debug("Called deprecated method convertToDetection - please update the method signature for v0.4.0+");
 		return convertToPathObject(imp, server, roi, downsampleFactor, r -> PathObjects.createDetectionObject(r), plane);
 	}
 	

@@ -255,8 +255,8 @@ abstract class AbstractPathTool implements EventHandler<MouseEvent> {
 			constrainedRemoveGeometries = new ArrayList<>();
 			for (PathObject child : toRemove) {
 				if (child.isDetection() || child == constrainedParentObject|| !child.hasROI() || 
-						!child.getROI().isArea() || child == selected ||
-						(constrainedStartPoint != null && child.getROI().contains(constrainedStartPoint.getX(), constrainedStartPoint.getY())))
+						!child.getROI().isArea() || child.getROI().getZ() != viewer.getZPosition() || child.getROI().getT() != viewer.getTPosition() || 
+						child == selected ||	(constrainedStartPoint != null && child.getROI().contains(constrainedStartPoint.getX(), constrainedStartPoint.getY())))
 					continue;
 				Geometry childArea = child.getROI().getGeometry();
 				Envelope childEnvelope = childArea.getEnvelopeInternal();
@@ -307,6 +307,7 @@ abstract class AbstractPathTool implements EventHandler<MouseEvent> {
 	 * @param x
 	 * @param y
 	 * @param searchCount - how far up the hierarchy to go, i.e. how many parents to check if objects overlap
+	 * @param addToSelection 
 	 * @return true if any object was selected
 	 */
 	boolean tryToSelect(double x, double y, int searchCount, boolean addToSelection) {

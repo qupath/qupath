@@ -4,6 +4,34 @@ This is a work-in-progress.
 
 ### Bugs fixed
 * Reading from Bio-Formats blocks forever when using multiple series outside a project (https://github.com/qupath/qupath/issues/894)
+* 'Ignore case' in the Find window of the Script editor does not ignore case (https://github.com/qupath/qupath/issues/889)
+* Owner of Find window in the script editor is lost when the script editor window is closed (https://github.com/qupath/qupath/issues/893)
+
+### Enhancements
+* Many script editor improvements, including:
+  * Added 'Replace/Next' and 'Replace all' features to Find window (https://github.com/qupath/qupath/pull/898)
+  * New lines now trigger caret following (https://github.com/qupath/qupath/pull/900)
+  * Proper tab handling (https://github.com/qupath/qupath/pull/902)
+  * Introduction of 'Smart Editing' (enabled through the corresponding persistent preference under 'Edit'), which supports the following features:
+    * Brace block handling (https://github.com/qupath/qupath/pull/901)
+    * Smart parentheses and (double/single) quotes (https://github.com/qupath/qupath/pull/907)
+    * Comment block handling (https://github.com/qupath/qupath/pull/908)
+* Improved support for switching between QuPath objects and ImageJ ROIs
+  * New 'Extensions -> ImageJ -> Import ImageJ ROIs' command
+  * Import .roi and RoiSet.zip files by drag & drop
+  * Built-in ImageJ plugin to send RoiManager ROIs to QuPath (not only overlays)
+  * Retain ROI position information when sending ROIs from ImageJ (hyper)stacks
+
+### Dependency updates
+* Adoptium OpenJDK 17
+* JavaFX 17.0.2
+* Groovy 4.0.0
+* Gson 2.9.0
+* Guava 31.0.1
+* JavaCPP 1.5.7
+* JFreeSVG 5.0.2
+* OpenCV 4.5.5
+* Picocli 4.6.3
 
 
 ## Version 0.3.2

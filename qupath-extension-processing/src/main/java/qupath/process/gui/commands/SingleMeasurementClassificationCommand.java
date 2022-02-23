@@ -297,6 +297,7 @@ public class SingleMeasurementClassificationCommand implements Runnable {
 		
 		/**
 		 * Store the classifications for the current hierarchy, so these may be reset if the user cancels.
+		 * @param hierarchy 
 		 */
 		void storeClassificationMap(PathObjectHierarchy hierarchy) {
 			if (hierarchy == null)
@@ -605,6 +606,7 @@ public class SingleMeasurementClassificationCommand implements Runnable {
 	
 	/**
 	 * Encapsulate the requirements for a intensity classification into a single object.
+	 * @param <T> 
 	 */
 	static class ClassificationRequest<T> {
 		

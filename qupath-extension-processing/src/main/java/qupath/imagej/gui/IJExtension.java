@@ -54,9 +54,11 @@ import java.io.IOException;
 import java.net.URL;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 import javax.swing.SwingUtilities;
 
@@ -89,6 +91,8 @@ import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.tools.IconFactory.PathIcons;
 import qupath.lib.gui.viewer.OverlayOptions;
+import qupath.lib.gui.viewer.QuPathViewer;
+import qupath.lib.gui.viewer.DragDropImportListener.DropHandler;
 import qupath.lib.images.PathImage;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.objects.PathAnnotationObject;
@@ -188,6 +192,7 @@ public class IJExtension implements QuPathExtension {
 		logger.info("Installing QuPath plugins for ImageJ");
 		Menus.installPlugin(QuPath_Send_ROI_to_QuPath.class.getName(), Menus.PLUGINS_MENU, "Send ROI to QuPath", "", imageJ);
 		Menus.installPlugin(QuPath_Send_Overlay_to_QuPath.class.getName(), Menus.PLUGINS_MENU, "Send Overlay to QuPath", "", imageJ);
+		Menus.installPlugin(QuPath_Send_Overlay_to_QuPath.class.getName() + "(\"manager\")", Menus.PLUGINS_MENU, "Send RoiManager ROIs to QuPath", "", imageJ);
 		installedPlugins.add(imageJ);
 	}
 		
@@ -511,6 +516,10 @@ public class IJExtension implements QuPathExtension {
 		@ActionDescription("Create a rendered (RGB) snapshot and send it to ImageJ.")
 		public final Action actionSnapshot;
 		
+		@ActionMenu("Extensions>ImageJ>Import ImageJ ROIs")
+		@ActionDescription("Import ImageJ ROIs from .roi or .zip files, converting them QuPath objects")
+		public final Action actionImportROIs;
+
 		@ActionMenu("Extensions>ImageJ>")
 		public final Action SEP_3 = ActionTools.createSeparator();
 		
@@ -526,7 +535,7 @@ public class IJExtension implements QuPathExtension {
 		@ActionMenu("Extensions>ImageJ>")
 		@ActionDescription("Run ImageJ macros within QuPath.")
 		public final Action actionMacroRunner;
-		
+				
 		IJExtensionCommands(QuPathGUI qupath) {
 			
 			// Experimental brush tool turned off for now
@@ -553,6 +562,9 @@ public class IJExtension implements QuPathExtension {
 			actionPositiveCellDetection = qupath.createPluginAction("Positive cell detection", PositiveCellDetection.class, null);
 			actionCellMembraneDetection = qupath.createPluginAction("Cell + membrane detection", WatershedCellMembraneDetection.class, null);
 			actionSubcellularDetection = qupath.createPluginAction("Subcellular detection (experimental)", SubcellularDetection.class, null);
+			
+			var importRoisCommand = new ImportRoisCommand(qupath);
+			actionImportROIs = qupath.createImageDataAction(imageData -> importRoisCommand.run());
 		}
 
 	}
@@ -566,6 +578,8 @@ public class IJExtension implements QuPathExtension {
 	}
 	
 	
+	private boolean extensionInstalled = false;
+	
 	/**
 	 * 
 	 * Add some commands written using ImageJ to QuPath.
@@ -575,7 +589,7 @@ public class IJExtension implements QuPathExtension {
 	 * @param qupath
 	 */
 	private void addQuPathCommands(final QuPathGUI qupath) {
-		
+				
 		// Add a preference to set the ImageJ path
 		qupath.getPreferencePane().addDirectoryPropertyPreference(
 				imageJPath, "ImageJ plugins directory", "ImageJ",
@@ -617,23 +631,66 @@ public class IJExtension implements QuPathExtension {
 						)
 				);
 		
-		qupath.getDefaultDragDropListener().addFileDropHandler((viewer, list) -> {
-			// TODO: Handle embedding useful running info within ImageJ macro comments
-			if (list.size() > 0 && list.get(0).getName().toLowerCase().endsWith(".ijm")) {
-				String macro;
-				try {
-					macro = GeneralTools.readFileAsString(list.get(0).getAbsolutePath());
-					qupath.runPlugin(new ImageJMacroRunner(qupath), macro, true);
-				} catch (Exception e) {
-					Dialogs.showErrorMessage("Error opening ImageJ macro", e);
-					return false;
-				}
-				return true;
-			}
-			return false;
-		});
+		qupath.getDefaultDragDropListener().addFileDropHandler(new ImageJDropHandler(qupath));
 		
 	}
+	
+	
+	static class ImageJDropHandler implements DropHandler<File> {
+		
+		private QuPathGUI qupath;
+		
+		private ImageJDropHandler(QuPathGUI qupath) {
+			this.qupath = qupath;
+		}
+
+		@Override
+		public boolean handleDrop(QuPathViewer viewer, List<File> list) {
+			if (list.size() == 1) {
+				if (handleMacro(list.get(0)))
+					return true;
+			}
+			return handleRois(viewer, list);
+		}
+		
+		private boolean handleRois(QuPathViewer viewer, List<File> files) {
+			var imageData = viewer == null ? null : viewer.getImageData();
+			if (imageData == null)
+				return false;
+			
+			var roiFiles = files.stream().filter(f -> IJTools.containsImageJRois(f)).collect(Collectors.toList());
+			if (roiFiles.isEmpty())
+				return false;
+			
+			var pathObjects = files.stream().flatMap(f -> IJTools.readImageJRois(f).stream())
+					.map(r -> IJTools.convertToAnnotation(r, 1.0, null))
+					.collect(Collectors.toList());
+			
+			imageData.getHierarchy().addPathObjects(pathObjects);
+			imageData.getHierarchy().getSelectionModel().selectObjects(pathObjects);
+			
+			return true;
+		}
+		
+		
+		private boolean handleMacro(File file) {
+			// TODO: Handle embedding useful running info within ImageJ macro comments
+			if (file.getName().toLowerCase().endsWith(".ijm")) {
+				String macro;
+				try {
+					macro = GeneralTools.readFileAsString(file.getAbsolutePath());
+					qupath.runPlugin(new ImageJMacroRunner(qupath), macro, true);
+					return true;
+				} catch (Exception e) {
+					Dialogs.showErrorMessage("Error opening ImageJ macro", e);
+				}
+			}
+			return false;
+		}
+		
+		
+	}
+	
 
 	
 	/**
@@ -657,6 +714,12 @@ public class IJExtension implements QuPathExtension {
 
 	@Override
 	public void installExtension(QuPathGUI qupath) {
+		
+		if (extensionInstalled)
+			return;
+		
+		extensionInstalled = true;
+
 		Prefs.setThreads(1); // We always want a single thread, due to QuPath's multithreading
 //		Prefs.setIJMenuBar = false;
 		addQuPathCommands(qupath);

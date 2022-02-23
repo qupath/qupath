@@ -1623,6 +1623,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		
 		/**
 		 * Create a structure to count detections inside a specified parent.
+		 * @param hierarchy 
 		 * 
 		 * @param parentObject the parent object.
 		 */

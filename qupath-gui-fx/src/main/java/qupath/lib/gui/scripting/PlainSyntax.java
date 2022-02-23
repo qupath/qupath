@@ -23,31 +23,9 @@
 
 package qupath.lib.gui.scripting;
 
-import java.io.File;
-
-/**
- * Minimal interface for a script editor that the GUI can call.
- * 
- * @author Pete Bankhead
- */
-public interface ScriptEditor {
+class PlainSyntax implements ScriptSyntax {
 	
-	/**
-	 * Show the script editor.
-	 */
-	public void showEditor();
-	
-	/**
-	 * Show the script editor, including a new script with the specified name.
-	 * @param name name of the script to show
-	 * @param script content of the script
-	 */
-	public void showScript(String name, String script);
-	
-	/**
-	 * Show the script editor, opening an existing script file.
-	 * @param file the script file
-	 */
-	public void showScript(File file);
-	
+	PlainSyntax() {
+		// Dummy constructor
+	}
 }

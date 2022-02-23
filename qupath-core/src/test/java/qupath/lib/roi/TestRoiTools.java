@@ -170,6 +170,7 @@ public class TestRoiTools {
 	 * @param seed random number seed
 	 * @param factory geometry factory
 	 * @param nTriangles number of triangles (some will be included within others)
+	 * @param nHoleTriangles number of 'negative' triangles to remove
 	 * @param maxX maximum x coordinate
 	 * @param maxY maximum y coordinate
 	 * @return the (multi)polygon

@@ -586,6 +586,7 @@ class ProjectImportImagesCommand {
 	 * Load potential image paths into a list.
 	 * 
 	 * @param list
+	 * @return 
 	 */
 	static int loadFromClipboard(final List<String> list) {
 		int changes = 0;

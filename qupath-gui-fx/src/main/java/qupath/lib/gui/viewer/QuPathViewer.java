@@ -1330,8 +1330,10 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	 * Create an RGB thumbnail image using the current rendering settings.
 	 * <p>
 	 * Subclasses may choose to override this if a suitable image has been cached already.
+	 * @param imgThumbnail 
 	 * 
 	 * @return
+	 * @throws IOException 
 	 */
 	BufferedImage createThumbnailRGB(BufferedImage imgThumbnail) throws IOException {
 		ImageRenderer renderer = getRenderer();

@@ -105,6 +105,8 @@ public class ImagePlane implements Comparable<ImagePlane> {
 	
 	/**
 	 * Similar to {@code compareTo}, but ignoring the channel, in the order t, z.
+	 * @param o 
+	 * @return 
 	 * 
 	 * @see #compareTo
 	 */
