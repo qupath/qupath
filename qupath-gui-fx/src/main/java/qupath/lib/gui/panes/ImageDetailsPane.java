@@ -42,6 +42,7 @@ import java.util.Locale.Category;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import javax.imageio.ImageIO;
 
@@ -89,9 +90,11 @@ import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.Background;
 import javafx.scene.layout.BackgroundFill;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.ColumnConstraints;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
+import javafx.scene.layout.RowConstraints;
 import javafx.scene.layout.StackPane;
-import javafx.scene.layout.TilePane;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Ellipse;
 import javafx.scene.shape.Rectangle;
@@ -659,21 +662,35 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 		var selectedButton = buttonMap.get(defaultType);
 		group.selectToggle(selectedButton);
 
-		var grid = new TilePane();
+		var grid = new GridPane();
 		int nHorizontal = 3;
-		grid.setPrefColumns(nHorizontal);
-		//content.setHgap(5)
+		int nVertical = (int)Math.ceil(buttons.length / (double)nHorizontal);
+		grid.getColumnConstraints().setAll(IntStream.range(0, nHorizontal).mapToObj(i -> {
+			var c = new ColumnConstraints();
+			c.setPercentWidth(100.0/nHorizontal);
+			return c;
+		}).collect(Collectors.toList()));
+		
+		grid.getRowConstraints().setAll(IntStream.range(0, nVertical).mapToObj(i -> {
+			var c = new RowConstraints();
+			c.setPercentHeight(100.0/nVertical);
+			return c;
+		}).collect(Collectors.toList()));
+		
 		grid.setVgap(5);
+//		grid.setHgap(5);
 		grid.setMaxWidth(Double.MAX_VALUE);
-		grid.setTileAlignment(Pos.CENTER);
-		grid.getChildren().setAll(buttons);
+		for (int i = 0; i < buttons.length; i++) {
+			grid.add(buttons[i], i % nHorizontal, i / nHorizontal);
+		}
+//		grid.getChildren().setAll(buttons);
 
 		var content = new BorderPane(grid);
 		var comboOptions = new ComboBox<ImageTypeSetting>();
 		comboOptions.getItems().setAll(ImageTypeSetting.values());
 		
 		var prompts = Map.of(
-				ImageTypeSetting.AUTO_ESTIMATE, "Always auto-estimate (don't prompt)",
+				ImageTypeSetting.AUTO_ESTIMATE, "Always auto-estimate type (don't prompt)",
 				ImageTypeSetting.PROMPT, "Always prompt me to set type",
 				ImageTypeSetting.NONE, "Don't set the image type"
 				);
@@ -683,20 +700,22 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 		        new Tooltip("Choose whether you want to see these prompts " +
 		                "when opening an image for the first time"));
 		comboOptions.setMaxWidth(Double.MAX_VALUE);
-		comboOptions.prefWidthProperty().bind(grid.widthProperty().subtract(100));
+//		comboOptions.prefWidthProperty().bind(grid.widthProperty().subtract(100));
 		comboOptions.getSelectionModel().select(PathPrefs.imageTypeSettingProperty().get());
 
 		BorderPane.setMargin(comboOptions, new Insets(5, 0, 0, 0));
 		content.setBottom(comboOptions);
 
-		var labelDetails = new Label("The image type is needed for for stain separation.\n"
-				+ "It is used by some commands, e.g. 'Cell detection'.");
+		var labelDetails = new Label("The image type is used for stain separation "
+				+ "by some commands, e.g. 'Cell detection'.");
 //				+ "For 'Brightfield' images you can set the color stain vectors.");
 		labelDetails.setWrapText(true);
 		labelDetails.prefWidthProperty().bind(grid.widthProperty().subtract(10));
 		labelDetails.setMaxHeight(Double.MAX_VALUE);
 		labelDetails.setPrefHeight(Label.USE_COMPUTED_SIZE);
 		labelDetails.setPrefHeight(80);
+		labelDetails.setAlignment(Pos.CENTER);
+		labelDetails.setTextAlignment(TextAlignment.CENTER);
 
 		var dialog = Dialogs.builder()
 		    .title("Set image type")
