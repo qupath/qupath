@@ -20,4 +20,7 @@ configurations {
 dependencies {
   api project(':qupath-core')
   api project(':qupath-core-processing')
+
+  implementation 'org.kordamp.ikonli:ikonli-javafx:12.3.0'
+  implementation 'org.kordamp.ikonli:ikonli-ionicons4-pack:12.3.0'
 }
