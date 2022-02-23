@@ -52,7 +52,7 @@ public class PathIOTest {
 				PathIO.unzippedExtensions(tmpFile));
 		Files.deleteIfExists(tmpFile);
 		
-		for (var zipExtension : Arrays.asList(".zip", ".jar")) {
+		for (var zipExtension : Arrays.asList(".zip", ".jar", ".ZIP", ".ext")) {
 			var tmpZipFile = Files.createTempFile("anything", zipExtension);
 			try (var zos = new ZipOutputStream(Files.newOutputStream(tmpZipFile))) {
 				var tmpEntry = new ZipEntry("something.txt");
@@ -64,7 +64,22 @@ public class PathIOTest {
 			}
 			assertEquals(
 					Set.of(".txt", ".json"),
-					PathIO.unzippedExtensions(tmpZipFile));
+					PathIO.unzippedExtensions(tmpZipFile, zipExtension));
+			assertEquals(
+					Set.of(".txt", ".json"),
+					PathIO.unzippedExtensions(tmpZipFile, ".zip", ".jar", ".ext"));
+			assertEquals(
+					Set.of(zipExtension.toLowerCase()),
+					PathIO.unzippedExtensions(tmpZipFile, ".another"));
+			if (".zip".equals(zipExtension.toLowerCase())) {
+				assertEquals(
+						Set.of(".txt", ".json"),
+						PathIO.unzippedExtensions(tmpZipFile));				
+			} else {
+				assertEquals(
+						Set.of(zipExtension.toLowerCase()),
+						PathIO.unzippedExtensions(tmpZipFile, ".another"));				
+			}
 			Files.deleteIfExists(tmpZipFile);
 		}
 
