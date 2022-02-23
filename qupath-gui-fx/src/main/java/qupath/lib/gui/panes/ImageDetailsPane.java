@@ -599,26 +599,28 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 		// TODO: Create a nicer icon for unspecified type
 		var iconUnspecified = (Group)createImageTypeCell(Color.GRAY, null, null, size);
 		
-		buttonMap.put(
-				ImageType.BRIGHTFIELD_H_E,
-				createImageTypeButton(ImageType.BRIGHTFIELD_H_E, "Brightfield\nH&E",
-						createImageTypeCell(Color.WHITE, Color.PINK, Color.DARKBLUE, size),
-						"Brightfield image with hematoylin & eosin stains\n(8-bit RGB only)", isRGB)
-				);
-		
-		buttonMap.put(
-				ImageType.BRIGHTFIELD_H_DAB,
-				createImageTypeButton(ImageType.BRIGHTFIELD_H_DAB, "Brightfield\nH-DAB",
-						createImageTypeCell(Color.WHITE, Color.rgb(200, 200, 220), Color.rgb(120, 50, 20), size),
-						"Brightfield image with hematoylin & DAB stains\n(8-bit RGB only)", isRGB)
-				);
-		
-		buttonMap.put(
-				ImageType.BRIGHTFIELD_OTHER,
-				createImageTypeButton(ImageType.BRIGHTFIELD_OTHER, "Brightfield\nOther",
-						createImageTypeCell(Color.WHITE, Color.ORANGE, Color.FIREBRICK, size),
-						"Brightfield image with other chromogenic stains\n(8-bit RGB only)", isRGB)
-				);
+		if (isRGB) {
+			buttonMap.put(
+					ImageType.BRIGHTFIELD_H_E,
+					createImageTypeButton(ImageType.BRIGHTFIELD_H_E, "Brightfield\nH&E",
+							createImageTypeCell(Color.WHITE, Color.PINK, Color.DARKBLUE, size),
+							"Brightfield image with hematoylin & eosin stains\n(8-bit RGB only)", isRGB)
+					);
+			
+			buttonMap.put(
+					ImageType.BRIGHTFIELD_H_DAB,
+					createImageTypeButton(ImageType.BRIGHTFIELD_H_DAB, "Brightfield\nH-DAB",
+							createImageTypeCell(Color.WHITE, Color.rgb(200, 200, 220), Color.rgb(120, 50, 20), size),
+							"Brightfield image with hematoylin & DAB stains\n(8-bit RGB only)", isRGB)
+					);
+			
+			buttonMap.put(
+					ImageType.BRIGHTFIELD_OTHER,
+					createImageTypeButton(ImageType.BRIGHTFIELD_OTHER, "Brightfield\nOther",
+							createImageTypeCell(Color.WHITE, Color.ORANGE, Color.FIREBRICK, size),
+							"Brightfield image with other chromogenic stains\n(8-bit RGB only)", isRGB)
+					);
+		}
 		
 		buttonMap.put(
 				ImageType.FLUORESCENCE,
@@ -703,17 +705,21 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 //		comboOptions.prefWidthProperty().bind(grid.widthProperty().subtract(100));
 		comboOptions.getSelectionModel().select(PathPrefs.imageTypeSettingProperty().get());
 
-		BorderPane.setMargin(comboOptions, new Insets(5, 0, 0, 0));
+		if (nVertical > 1)
+			BorderPane.setMargin(comboOptions, new Insets(5, 0, 0, 0));
+		else
+			BorderPane.setMargin(comboOptions, new Insets(10, 0, 0, 0));
 		content.setBottom(comboOptions);
 
 		var labelDetails = new Label("The image type is used for stain separation "
-				+ "by some commands, e.g. 'Cell detection'.");
+				+ "by some commands, e.g. 'Cell detection'.\n"
+				+ "Brightfield types are only available for 8-bit RGB images.");
 //				+ "For 'Brightfield' images you can set the color stain vectors.");
 		labelDetails.setWrapText(true);
 		labelDetails.prefWidthProperty().bind(grid.widthProperty().subtract(10));
 		labelDetails.setMaxHeight(Double.MAX_VALUE);
 		labelDetails.setPrefHeight(Label.USE_COMPUTED_SIZE);
-		labelDetails.setPrefHeight(80);
+		labelDetails.setPrefHeight(100);
 		labelDetails.setAlignment(Pos.CENTER);
 		labelDetails.setTextAlignment(TextAlignment.CENTER);
 
@@ -791,17 +797,16 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 		btn.setTextAlignment(TextAlignment.CENTER);
 		btn.setAlignment(Pos.TOP_CENTER);
 		btn.setContentDisplay(ContentDisplay.BOTTOM);
-		btn.setOpacity(0.65);
+		btn.setOpacity(0.6);
 		btn.selectedProperty().addListener((v, o, n) -> {
 			if (n)
 				btn.setOpacity(1.0);
 			else
-				btn.setOpacity(0.65);
+				btn.setOpacity(0.6);
 		});
 		btn.setUserData(type);
 		if (!isEnabled)
 			btn.setDisable(true);
-		btn.setFocusTraversable(false);
 		return btn;
 	}
 	
