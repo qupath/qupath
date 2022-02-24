@@ -232,6 +232,7 @@ public class PixelClassifierTraining {
     /**
      * Test is a PathObject can be used as a classifier training annotation.
      * @param pathObject
+     * @param checkLocked 
      * @return
      */
     static boolean isTrainableAnnotation(PathObject pathObject, boolean checkLocked) {

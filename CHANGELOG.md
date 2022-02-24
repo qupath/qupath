@@ -2,11 +2,6 @@
 
 This is a work-in-progress.
 
-### Bugs fixed
-* Reading from Bio-Formats blocks forever when using multiple series outside a project (https://github.com/qupath/qupath/issues/894)
-* 'Ignore case' in the Find window of the Script editor does not ignore case (https://github.com/qupath/qupath/issues/889)
-* Owner of Find window in the script editor is lost when the script editor window is closed (https://github.com/qupath/qupath/issues/893)
-
 ### Enhancements
 * Many script editor improvements, including:
   * Added 'Replace/Next' and 'Replace all' features to Find window (https://github.com/qupath/qupath/pull/898)
@@ -21,11 +16,18 @@ This is a work-in-progress.
   * Import .roi and RoiSet.zip files by drag & drop
   * Built-in ImageJ plugin to send RoiManager ROIs to QuPath (not only overlays)
   * Retain ROI position information when sending ROIs from ImageJ (hyper)stacks
+* Updated prompt to set the image type
+
+### Bugs fixed
+* Reading from Bio-Formats blocks forever when using multiple series outside a project (https://github.com/qupath/qupath/issues/894)
+* 'Ignore case' in the Find window of the Script editor does not ignore case (https://github.com/qupath/qupath/issues/889)
+* Owner of Find window in the script editor is lost when the script editor window is closed (https://github.com/qupath/qupath/issues/893)
 
 ### Dependency updates
 * Adoptium OpenJDK 17
 * JavaFX 17.0.2
 * Groovy 4.0.0
+* Gson 2.9.0
 * Guava 31.0.1
 * JavaCPP 1.5.7
 * JFreeSVG 5.0.2

@@ -51,6 +51,7 @@ public class TileRequest {
 	 * Request a collection of <i>all</i> tiles that this server must be capable of returning. 
 	 * The default implementation provides a dense grid of all expected tiles across all resolutions, 
 	 * time points, z-slices and x,y coordinates.
+	 * @param server 
 	 * 
 	 * @return
 	 */

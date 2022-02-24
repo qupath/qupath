@@ -625,7 +625,9 @@ class ExportChartPane {
 	 * 
 	 * @param items
 	 * @param name
+	 * @return 
 	 * @throws IOException
+	 * @throws ClassNotFoundException 
 	 */
 	static boolean loadExportPreferences(final List<Item> items, final String name) throws IOException, ClassNotFoundException {
 

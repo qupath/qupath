@@ -1598,6 +1598,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		
 		/**
 		 * Return to an array of String args.
+		 * @param series 
 		 * @return
 		 */
 		String[] backToArgs(int series) {
