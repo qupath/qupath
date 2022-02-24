@@ -172,7 +172,7 @@ public class PathClassPane {
 			}
 		});
 		
-		listClasses.addEventFilter(KeyEvent.KEY_RELEASED, e -> {
+		listClasses.addEventFilter(KeyEvent.KEY_PRESSED, e -> {
 			if (e.isConsumed())
 				return;
 			if (e.getCode() == KeyCode.BACK_SPACE) {
@@ -609,6 +609,7 @@ public class PathClassPane {
 			return false;
 		}
 		list.add(pathClass);
+		listClasses.getSelectionModel().clearAndSelect(listClasses.getItems().size()-1);
 		return true;
 	}
 	
