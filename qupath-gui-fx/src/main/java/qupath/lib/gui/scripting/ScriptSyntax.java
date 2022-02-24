@@ -95,7 +95,7 @@ public interface ScriptSyntax {
 	 * @param smartEditing whether smart editing is enabled
 	 * @return whether the source event should be consumed
 	 */
-	public default boolean handleBackspace(ScriptEditorControl control, final boolean smartEditing) {
+	public default boolean handleBackspace(ScriptEditorControl control, boolean smartEditing) {
 		return false;
 	}
 	
@@ -104,7 +104,16 @@ public interface ScriptSyntax {
 	 * @param control the text/code area
 	 * @param shiftDown
 	 */
-	public default void handleTabPress(final ScriptEditorControl control, final boolean shiftDown) {
+	public default void handleTabPress(ScriptEditorControl control, boolean shiftDown) {
 		control.insertText(control.getCaretPosition(), tabString);
+	}
+	
+	/**
+	 * Beautifies the specified text, according to the syntax.
+	 * @param text the text to beautify
+	 * @return beautified text
+	 */
+	public default String beautify(String text) {
+		return text;
 	}
 }

@@ -35,3 +35,6 @@
 .semicolon {
     -fx-font-weight: bold;
 }
+.remaining {
+    -fx-fill: darkorange;
+}

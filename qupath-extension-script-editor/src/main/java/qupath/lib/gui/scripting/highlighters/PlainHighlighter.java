@@ -21,21 +21,26 @@
  * #L%
  */
 
-package qupath.lib.gui.scripting;
+package qupath.lib.gui.scripting.highlighters;
+
+import java.util.Collection;
+
+import org.fxmisc.richtext.model.StyleSpans;
 
 /**
- * Class to take care of the Groovy syntax formatting.
+ * Highlighting for plain text (which means no highlighting).
  * @author Melvin Gelbard
  * @since v0.4.0
  */
-class GroovySyntax extends GeneralCodeSyntax {
-	
-	GroovySyntax() {
-		// Empty constructor
-	}
+public class PlainHighlighter implements ScriptHighlighter {
 	
 	@Override
-	public String getLineCommentString() {
-		return "//";
+	public StyleSpans<Collection<String>> computeEditorHighlighting(String text) {
+		return ScriptHighlighter.getPlainStyling(text);
+	}
+
+	@Override
+	public StyleSpans<Collection<String>> computeConsoleHighlighting(String text) {
+		return ScriptHighlighter.getPlainStyling(text);
 	}
 }
