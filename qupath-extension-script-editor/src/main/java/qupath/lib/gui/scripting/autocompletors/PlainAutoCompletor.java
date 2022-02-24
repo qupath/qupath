@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.lib.gui.scripting.richtextfx;
+package qupath.lib.gui.scripting.autocompletors;
 
 import javafx.scene.input.KeyEvent;
 
@@ -30,7 +30,7 @@ import javafx.scene.input.KeyEvent;
  * @author Melvin Gelbard
  * @since v0.4.0
  */
-class PlainAutoCompletor implements ScriptAutoCompletor {
+public class PlainAutoCompletor implements ScriptAutoCompletor {
 
 	@Override
 	public void applyNextCompletion() {

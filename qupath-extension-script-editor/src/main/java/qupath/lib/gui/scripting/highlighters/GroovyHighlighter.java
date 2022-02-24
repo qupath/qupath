@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.lib.gui.scripting.richtextfx;
+package qupath.lib.gui.scripting.highlighters;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -37,7 +37,7 @@ import org.fxmisc.richtext.model.StyleSpansBuilder;
  * @author Melvin Gelbard
  * @since v0.4.0
  */
-public class GroovyHighlighting implements ScriptHighlighting {
+public class GroovyHighlighter implements ScriptHighlighter {
 	
 	private static final String[] KEYWORDS = new String[] {
             "abstract", "assert", "boolean", "break", "byte",
@@ -92,7 +92,10 @@ public class GroovyHighlighting implements ScriptHighlighting {
 		
 	}
 	
-	GroovyHighlighting() {
+	/**
+	 * Empty constructor
+	 */
+	public GroovyHighlighter() {
 		// Empty constructor
 	}
 	

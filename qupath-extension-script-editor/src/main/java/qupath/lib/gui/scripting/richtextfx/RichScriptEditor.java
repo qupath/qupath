@@ -46,6 +46,13 @@ import qupath.lib.common.ThreadTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.scripting.DefaultScriptEditor;
 import qupath.lib.gui.scripting.ScriptEditorControl;
+import qupath.lib.gui.scripting.autocompletors.GroovyAutoCompletor;
+import qupath.lib.gui.scripting.autocompletors.PlainAutoCompletor;
+import qupath.lib.gui.scripting.autocompletors.ScriptAutoCompletor;
+import qupath.lib.gui.scripting.highlighters.GroovyHighlighter;
+import qupath.lib.gui.scripting.highlighters.JsonHighlighter;
+import qupath.lib.gui.scripting.highlighters.PlainHighlighter;
+import qupath.lib.gui.scripting.highlighters.ScriptHighlighter;
 import qupath.lib.gui.tools.MenuTools;
 
 /*
@@ -81,7 +88,7 @@ public class RichScriptEditor extends DefaultScriptEditor {
 	
 	private ExecutorService executor = Executors.newSingleThreadExecutor(ThreadTools.createThreadFactory("rich-text-styling", true));
 	
-	final ObjectProperty<ScriptHighlighting> scriptHighlighting = new SimpleObjectProperty<>();
+	final ObjectProperty<ScriptHighlighter> scriptHighlighter = new SimpleObjectProperty<>();
 	final ObjectProperty<ScriptAutoCompletor> scriptAutoCompletor = new SimpleObjectProperty<>();
 
 	// Delay for async formatting, in milliseconds
@@ -192,7 +199,7 @@ public class RichScriptEditor extends DefaultScriptEditor {
 						Task<StyleSpans<Collection<String>>> task = new Task<>() {
 							@Override
 							protected StyleSpans<Collection<String>> call() {
-								return scriptHighlighting.get().computeEditorHighlighting(codeArea.getText());
+								return scriptHighlighter.get().computeEditorHighlighting(codeArea.getText());
 							}
 						};
 						executor.execute(task);
@@ -213,18 +220,18 @@ public class RichScriptEditor extends DefaultScriptEditor {
 
 			codeArea.getStylesheets().add(getClass().getClassLoader().getResource("scripting_styles.css").toExternalForm());
 			
-			scriptHighlighting.bind(Bindings.createObjectBinding(() -> {
+			scriptHighlighter.bind(Bindings.createObjectBinding(() -> {
 				Language l = getCurrentLanguage();
 				if (l == null)
 					return null;
 				switch(l) {
 				case GROOVY:
-					return new GroovyHighlighting();
+					return new GroovyHighlighter();
 				case JSON:
-					return new JsonHighlighting();
+					return new JsonHighlighter();
 				case PLAIN:
 				default:
-					return new PlainHighlighting();
+					return new PlainHighlighter();
 				}
 			}, currentLanguage));
 			
@@ -243,10 +250,10 @@ public class RichScriptEditor extends DefaultScriptEditor {
 			}, currentLanguage));
 			
 			// Triggered whenever the script styling changes (e.g. change of language)
-			scriptHighlighting.addListener((v, o, n) -> {
+			scriptHighlighter.addListener((v, o, n) -> {
 				if (n == null || (o != null && o.getClass().equals(n.getClass())))
 					return;
-				StyleSpans<Collection<String>> changes = scriptHighlighting.get().computeEditorHighlighting(codeArea.getText());
+				StyleSpans<Collection<String>> changes = scriptHighlighter.get().computeEditorHighlighting(codeArea.getText());
 				codeArea.setStyleSpans(0, changes);
 			});
 
@@ -270,10 +277,10 @@ public class RichScriptEditor extends DefaultScriptEditor {
 				// If anything was removed, do full reformatting
 				if (change.getRemoved().length() != 0 || change.getPosition() == 0) {
 					if (!change.getRemoved().getText().equals(change.getInserted().getText()))
-						codeArea.setStyleSpans(0, scriptHighlighting.get().computeConsoleHighlighting(codeArea.getText()));
+						codeArea.setStyleSpans(0, scriptHighlighter.get().computeConsoleHighlighting(codeArea.getText()));
 				} else {
 					// Otherwise format only from changed position onwards
-					codeArea.setStyleSpans(change.getPosition(), scriptHighlighting.get().computeConsoleHighlighting(change.getInserted().getText()));
+					codeArea.setStyleSpans(change.getPosition(), scriptHighlighter.get().computeConsoleHighlighting(change.getInserted().getText()));
 				}
 			});
 			codeArea.getStylesheets().add(getClass().getClassLoader().getResource("scripting_styles.css").toExternalForm());

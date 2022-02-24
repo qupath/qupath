@@ -38,9 +38,4 @@ class GroovySyntax extends GeneralCodeSyntax {
 	public String getLineCommentString() {
 		return "//";
 	}
-	
-	@Override
-	public void handleLeftParenthesis(final ScriptEditorControl control, final boolean smartEditing) {
-		control.insertText(control.getCaretPosition(), "MELVIN");
-	}
 }

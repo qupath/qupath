@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.lib.gui.scripting.richtextfx;
+package qupath.lib.gui.scripting.autocompletors;
 
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
@@ -33,7 +33,7 @@ import javafx.scene.input.KeyEvent;
  * @author Melvin Gelbard
  * @since v0.4.0
  */
-interface ScriptAutoCompletor {
+public interface ScriptAutoCompletor {
 	
 	/**
 	 * Default key code for code completion

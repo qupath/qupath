@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.lib.gui.scripting.richtextfx;
+package qupath.lib.gui.scripting.highlighters;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -35,7 +35,7 @@ import org.fxmisc.richtext.model.StyleSpansBuilder;
  * @author Melvin Gelbard
  * @since v0.4.0
  */
-public interface ScriptHighlighting {
+public interface ScriptHighlighter {
 
 	/**
 	 * Compute highlighting for the specified {@code text}, considering it will be used in the main editor..

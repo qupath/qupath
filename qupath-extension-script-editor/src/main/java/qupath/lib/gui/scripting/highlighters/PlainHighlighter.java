@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.lib.gui.scripting.richtextfx;
+package qupath.lib.gui.scripting.highlighters;
 
 import java.util.Collection;
 
@@ -32,15 +32,15 @@ import org.fxmisc.richtext.model.StyleSpans;
  * @author Melvin Gelbard
  * @since v0.4.0
  */
-public class PlainHighlighting implements ScriptHighlighting {
+public class PlainHighlighter implements ScriptHighlighter {
 	
 	@Override
 	public StyleSpans<Collection<String>> computeEditorHighlighting(String text) {
-		return ScriptHighlighting.getPlainStyling(text);
+		return ScriptHighlighter.getPlainStyling(text);
 	}
 
 	@Override
 	public StyleSpans<Collection<String>> computeConsoleHighlighting(String text) {
-		return ScriptHighlighting.getPlainStyling(text);
+		return ScriptHighlighter.getPlainStyling(text);
 	}
 }

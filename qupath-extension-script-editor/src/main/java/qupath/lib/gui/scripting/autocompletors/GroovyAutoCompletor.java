@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.lib.gui.scripting.richtextfx;
+package qupath.lib.gui.scripting.autocompletors;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -42,7 +42,7 @@ import qupath.lib.scripting.QP;
  * @author Melvin Gelbard
  * @since v0.4.0
  */
-class GroovyAutoCompletor implements ScriptAutoCompletor {
+public class GroovyAutoCompletor implements ScriptAutoCompletor {
 	
 	private static final Set<String> METHOD_NAMES = new HashSet<>();
 	private final ScriptEditorControl control;
@@ -106,7 +106,11 @@ class GroovyAutoCompletor implements ScriptAutoCompletor {
 		METHOD_NAMES.add("println");
 	}
 	
-	GroovyAutoCompletor(ScriptEditorControl control) {
+	/**
+	 * Constructor for Groovy auto-completor.
+	 * @param control the script editor control onto which apply auto-completion
+	 */
+	public GroovyAutoCompletor(ScriptEditorControl control) {
 		this.control = control;
 	}
 	

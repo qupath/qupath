@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.lib.gui.scripting.richtextfx;
+package qupath.lib.gui.scripting.highlighters;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -37,7 +37,7 @@ import org.fxmisc.richtext.model.StyleSpansBuilder;
  * @author Melvin Gelbard
  * @since v0.4.0
  */
-class JsonHighlighting implements ScriptHighlighting {
+public class JsonHighlighter implements ScriptHighlighter {
 	
 	
 
@@ -57,7 +57,10 @@ class JsonHighlighting implements ScriptHighlighting {
             + "|(?<REMAINING>" + REMAINING_PATTERN + ")"
     );
 	
-	JsonHighlighting() {
+    /**
+     * Empty constructor
+     */
+	public JsonHighlighter() {
 		// Empty constructor
 	}
 
@@ -86,6 +89,6 @@ class JsonHighlighting implements ScriptHighlighting {
 
 	@Override
 	public StyleSpans<Collection<String>> computeConsoleHighlighting(String text) {
-		return ScriptHighlighting.getPlainStyling(text);
+		return ScriptHighlighter.getPlainStyling(text);
 	}
 }
