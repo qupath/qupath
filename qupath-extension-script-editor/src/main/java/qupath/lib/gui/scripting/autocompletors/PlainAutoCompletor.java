@@ -23,22 +23,20 @@
 
 package qupath.lib.gui.scripting.autocompletors;
 
-import javafx.scene.input.KeyEvent;
-
 /**
  * Auto-completor for plain text (which means no auto-complete).
  * @author Melvin Gelbard
  * @since v0.4.0
  */
 public class PlainAutoCompletor implements ScriptAutoCompletor {
-
+	
 	@Override
 	public void applyNextCompletion() {
 		// Do nothing
 	}
 
 	@Override
-	public void resetCompletion(KeyEvent e) {
+	public void resetCompletion() {
 		// Do nothing
 	}
 }

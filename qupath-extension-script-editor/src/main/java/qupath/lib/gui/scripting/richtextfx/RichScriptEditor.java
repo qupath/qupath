@@ -165,7 +165,6 @@ public class RichScriptEditor extends DefaultScriptEditor {
 				}
 			});
 			
-			
 			codeArea.addEventFilter(KeyEvent.KEY_PRESSED, e -> {
 				if (e.isConsumed())
 					return;
@@ -182,11 +181,13 @@ public class RichScriptEditor extends DefaultScriptEditor {
 				} else if (e.getCode() == KeyCode.BACK_SPACE) {
 					if (scriptSyntax.get().handleBackspace(control, smartEditing.get()) && !e.isShortcutDown() && !e.isShiftDown())
 						e.consume();
-				} else if (scriptAutoCompletor.get().getCodeCombination().match(e)) {
+				} else if (completionCodeCombination.match(e)) {
 					scriptAutoCompletor.get().applyNextCompletion();	// TODO: Check again if e.controlDown() is necessary
 					e.isConsumed();
-				} else
-					scriptAutoCompletor.get().resetCompletion(e);
+				} else if (beautifyerCodeCombination.match(e)) {
+					getCurrentTextComponent().setText(scriptSyntax.get().beautify(getCurrentText()));
+				} else if (!e.isControlDown())
+					scriptAutoCompletor.get().resetCompletion();
 			});
 
 			codeArea.setOnContextMenuRequested(e -> menu.show(codeArea.getScene().getWindow(), e.getScreenX(), e.getScreenY()));

@@ -32,7 +32,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import javafx.scene.input.KeyEvent;
 import qupath.lib.gui.scripting.QPEx;
 import qupath.lib.gui.scripting.ScriptEditorControl;
 import qupath.lib.scripting.QP;
@@ -151,15 +150,9 @@ public class GroovyAutoCompletor implements ScriptAutoCompletor {
 	}
 
 	@Override
-	public void resetCompletion(KeyEvent e) {
-		if (!defaultCompletionCode.match(e)) {
-			// Users usually type the CTRL key before the SPACE key, but we don't want to reset in that case
-			if (!e.isControlDown()) {
-				pos = null;
-				lastInsertion = null;
-				idx = 0;
-			}
-			return;
-		}
+	public void resetCompletion() {	
+		pos = null;
+		lastInsertion = null;
+		idx = 0;
 	}
 }

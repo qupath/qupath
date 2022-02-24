@@ -23,6 +23,15 @@
 
 package qupath.lib.gui.scripting;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.gson.Gson;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonSyntaxException;
+
+import qupath.lib.io.GsonTools;
+
 /**
  * Class to take care of JSON syntax.
  * @author Melvin Gelbard
@@ -30,11 +39,24 @@ package qupath.lib.gui.scripting;
  */
 class JsonSyntax extends GeneralCodeSyntax {
 	
+	final static private Logger logger = LoggerFactory.getLogger(JsonSyntax.class);
+	final static private Gson gson = GsonTools.getInstance(true);
+	
 	/**
 	 * JSON does not support comments. Therefore this method does nothing.
 	 */
 	@Override
 	public void handleLineComment(final ScriptEditorControl control) {
 		// Do nothing
+	}
+	
+	@Override
+	public String beautify(String text) {
+		try {
+			return gson.toJson(gson.fromJson(text, JsonElement.class));
+		} catch (JsonSyntaxException ex) {
+			logger.warn("Could not beautify this JSON text", ex.getLocalizedMessage());
+			return text;
+		}
 	}
 }

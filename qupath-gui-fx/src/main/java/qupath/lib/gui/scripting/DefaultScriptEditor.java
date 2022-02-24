@@ -141,21 +141,21 @@ public class DefaultScriptEditor implements ScriptEditor {
 		/**
 		 * Plain text
 		 */
-		PLAIN("None", ".txt", new PlainSyntax()),
+		PLAIN("None", new String[]{".txt"}, new PlainSyntax()),
 		/**
 		 * Javascript support (will cease to be part of the JDK)
 		 */
 		@Deprecated
-		JAVASCRIPT("JavaScript", ".js", new PlainSyntax()),
+		JAVASCRIPT("JavaScript", new String[]{".js"}, new PlainSyntax()),
 		/**
 		 * Jython support
 		 */
 		@Deprecated
-		JYTHON("Jython", ".py", new PlainSyntax()),
+		JYTHON("Jython", new String[]{".py"}, new PlainSyntax()),
 		/**
 		 * Groovy support (default and preferred scripting language for QuPath)
 		 */
-		GROOVY("Groovy", ".groovy", new GroovySyntax()),
+		GROOVY("Groovy", new String[]{".groovy"}, new GroovySyntax()),
 		
 		/**
 		 * JSON support. 
@@ -166,23 +166,23 @@ public class DefaultScriptEditor implements ScriptEditor {
 		 * depending on the file extension (if there is no file yet, it will be PLAIN).
 		 * @since v0.4.0
 		 */
-		JSON("Json", ".json", new JsonSyntax());
+		JSON("Json", new String[]{".json", ".geojson"}, new JsonSyntax());
 		
 		private final String name;
-		private final String ext;
+		private final String[] ext;
 		private final ScriptSyntax syntax;
 		
-		Language(final String name, final String ext, final ScriptSyntax syntax) {
+		Language(final String name, final String[] ext, final ScriptSyntax syntax) {
 			this.name = name;
 			this.ext = ext;
 			this.syntax = syntax;
 		}
 		
 		/**
-		 * Get the file extension for the specified language
-		 * @return
+		 * Get the possible file extensions for the specified language
+		 * @return possible extensions
 		 */
-		public String getExtension() {
+		public String[] getExtensions() {
 			return ext;
 		}
 		
@@ -240,6 +240,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	protected ObjectProperty<Language> currentLanguage = new SimpleObjectProperty<>();
 	protected ObjectProperty<ScriptSyntax> scriptSyntax = new SimpleObjectProperty<>();
 	
+	
 	// Binding to indicate it shouldn't be possible to 'Run' any script right now
 	private BooleanBinding disableRun = runningTask.isNotNull().or(currentLanguage.isNotEqualTo(Language.GROOVY));
 	
@@ -255,6 +256,8 @@ public class DefaultScriptEditor implements ScriptEditor {
 	
 	// Keyboard accelerators
 	protected KeyCombination comboPasteEscape = new KeyCodeCombination(KeyCode.V, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN);
+	protected final KeyCodeCombination completionCodeCombination = new KeyCodeCombination(KeyCode.SPACE, KeyCombination.CONTROL_DOWN);
+	protected final KeyCodeCombination beautifyerCodeCombination = new KeyCodeCombination(KeyCode.L, KeyCombination.CONTROL_DOWN, KeyCombination.ALT_DOWN);
 //	protected KeyCombination comboPaste = new KeyCodeCombination(KeyCode.V, KeyCombination.SHORTCUT_DOWN);
 //	protected KeyCombination comboCopy = new KeyCodeCombination(KeyCode.C, KeyCombination.SHORTCUT_DOWN);
 	
@@ -1179,7 +1182,8 @@ public class DefaultScriptEditor implements ScriptEditor {
 						logger.warn("Problem trying to find project scripts directory: {}", e.getLocalizedMessage());
 					}
 				}
-				File file = Dialogs.getChooser(dialog).promptToSaveFile("Save script file", dir, tab.getName(), "Script file", tab.getRequestedExtension());
+				// TODO: Allow multiple extensions to be used?
+				File file = Dialogs.getChooser(dialog).promptToSaveFile("Save script file", dir, tab.getName(), currentLanguage.getName() + " file", tab.getRequestedExtensions()[0]);
 				if (file == null)
 					return false;
 				tab.saveToFile(file);
@@ -1714,12 +1718,13 @@ public class DefaultScriptEditor implements ScriptEditor {
 	 * @return
 	 */
 	public static Language getLanguageFromName(String name) {
-		name = name.toLowerCase();
 		for (Language l : Language.values()) {
-			if (name.endsWith(l.getExtension()))
-				return l;
+			for (String possibleExt: l.getExtensions()) {
+				if (name.toLowerCase().endsWith(possibleExt))
+					return l;
+			}
 		}
-		return null;
+		return Language.PLAIN;
 	}
 	
 	
@@ -1761,7 +1766,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		
 		
 		protected void readFile(final File file) throws IOException {
-			logger.info("Loading script file {}", file.getAbsolutePath());
+			logger.info("Loading file {} to Script Editor", file.getAbsolutePath());
 			Scanner scanner = new Scanner(file);
 			String content = new String(Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8);
 //			String content = scanner.useDelimiter("\\Z").next();
@@ -1894,8 +1899,8 @@ public class DefaultScriptEditor implements ScriptEditor {
 			this.scriptTabLanguage.set(language);
 		}
 		
-		public String getRequestedExtension() {
-			return scriptTabLanguage.get().getExtension();
+		public String[] getRequestedExtensions() {
+			return scriptTabLanguage.get().getExtensions();
 		}
 		
 		public String getName() {
