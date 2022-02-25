@@ -40,6 +40,7 @@ abstract class AbstractPathBoundedROI extends AbstractPathROI {
 	 * Constructor that sets the ROI to being modified from the start (i.e. initialized from a single mouse event)
 	 * @param x
 	 * @param y
+	 * @param plane 
 	 */
 	AbstractPathBoundedROI(double x, double y, ImagePlane plane) {
 		this(x, y, 0, 0, plane);

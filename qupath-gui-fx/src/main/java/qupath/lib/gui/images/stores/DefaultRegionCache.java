@@ -39,6 +39,7 @@ import qupath.lib.regions.RegionRequest;
  * (other overhead is ignored).
  * 
  * @author Pete Bankhead
+ * @param <T> 
  *
  */
 class DefaultRegionCache<T> implements Map<RegionRequest, T> {

@@ -28,6 +28,7 @@ import ij.ImagePlus;
 import ij.WindowManager;
 import ij.gui.Roi;
 import ij.macro.Interpreter;
+import ij.measure.Calibration;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
@@ -317,7 +318,8 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 				}
 				if (params.getBooleanParameterValue("getROI") && impResult.getRoi() != null) {
 					Roi roi = impResult.getRoi();
-					PathObject pathObjectNew = roi == null ? null : IJTools.convertToAnnotation(impResult, imageData.getServer(), roi, downsampleFactor, region.getPlane());
+					Calibration cal = impResult.getCalibration();
+					PathObject pathObjectNew = roi == null ? null : IJTools.convertToAnnotation(roi, cal.xOrigin, cal.yOrigin, downsampleFactor, region.getPlane());
 					if (pathObjectNew != null) {
 						// If necessary, trim any returned annotation
 						if (pathROI != null && !(pathROI instanceof RectangleROI) && pathObjectNew.isAnnotation() && RoiTools.isShapeROI(pathROI) && RoiTools.isShapeROI(pathObjectNew.getROI())) {
@@ -335,7 +337,8 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 				
 				boolean exportAsDetection = ((String) params.getChoiceParameterValue("getOverlayAs")).equals("Detections") ? true : false;
 				if (params.getBooleanParameterValue("getOverlay") && impResult.getOverlay() != null) {
-					List<PathObject> childObjects = QuPath_Send_Overlay_to_QuPath.createPathObjectsFromROIs(imp, impResult.getOverlay().toArray(), imageData.getServer(), downsampleFactor, exportAsDetection, true, region.getPlane());
+					var overlay = impResult.getOverlay();
+					List<PathObject> childObjects = QuPath_Send_Overlay_to_QuPath.createObjectsFromROIs(imp, Arrays.asList(overlay.toArray()), downsampleFactor, exportAsDetection, true, region.getPlane());
 					if (!childObjects.isEmpty()) {
 						pathObject.addPathObjects(childObjects);
 						changes = true;

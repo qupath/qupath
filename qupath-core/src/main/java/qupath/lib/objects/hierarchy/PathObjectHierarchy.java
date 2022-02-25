@@ -748,6 +748,7 @@ public final class PathObjectHierarchy implements Serializable {
 	 * (i.e. centroids for detections, 'covers' rule for others).
 	 * 
 	 * @param roi
+	 * @param pathObjects 
 	 * @return
 	 */
 	Collection<PathObject> filterObjectsForROI(ROI roi, Collection<PathObject> pathObjects) {

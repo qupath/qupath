@@ -304,6 +304,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 				centerImage();
 				// Make sure the downsample factor is being continually updated
 				downsampleFactor.set(getZoomToFitDownsampleFactor());
+				repaint();
 			} else {
 				updateAffineTransform();
 				repaint();
@@ -314,6 +315,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 				centerImage();
 				// Make sure the downsample factor is being continually updated
 				downsampleFactor.set(getZoomToFitDownsampleFactor());
+				repaint();
 			} else {
 				updateAffineTransform();
 				repaint();
@@ -1330,8 +1332,10 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	 * Create an RGB thumbnail image using the current rendering settings.
 	 * <p>
 	 * Subclasses may choose to override this if a suitable image has been cached already.
+	 * @param imgThumbnail 
 	 * 
 	 * @return
+	 * @throws IOException 
 	 */
 	BufferedImage createThumbnailRGB(BufferedImage imgThumbnail) throws IOException {
 		ImageRenderer renderer = getRenderer();
@@ -2445,8 +2449,11 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	protected double getZoomToFitDownsampleFactor() {
 		if (!hasServer())
 			return Double.NaN;
-		double maxDownsample = (double)getServerWidth() / getWidth();
-		maxDownsample = Math.max(maxDownsample, (double)getServerHeight() / getHeight());
+		double fullWidth = (double)getServerWidth();
+		double fullHeight = (double)getServerHeight();
+		// TODO: Consider handling rotation
+		double maxDownsample = fullWidth / getWidth();
+		maxDownsample = Math.max(maxDownsample, fullHeight / getHeight());
 		return maxDownsample;		
 	}
 

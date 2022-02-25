@@ -40,6 +40,7 @@ import qupath.lib.objects.classes.PathClass;
  * This may be used as an alternative approach of creating a multi-class classifier.
  * 
  * @author Pete Bankhead
+ * @param <T> 
  */
 class CompositeClassifier<T> implements ObjectClassifier<T> {
 
