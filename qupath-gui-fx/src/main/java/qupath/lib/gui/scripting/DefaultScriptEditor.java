@@ -348,7 +348,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 
 			// If the toggle is "None", the language could technically still be JSON, so check that first
 			if (n.getUserData().toString().equals(Language.PLAIN.name))
-				currentLanguage.set(selectedScript.get().file == null ? Language.PLAIN : selectedScript.get().file.toString().toLowerCase().endsWith("json") ? Language.JSON : Language.PLAIN);
+				currentLanguage.set((selectedScript.get() == null || selectedScript.get().file == null) ? Language.PLAIN : selectedScript.get().file.toString().toLowerCase().endsWith("json") ? Language.JSON : Language.PLAIN);
 			else
 				currentLanguage.set(Language.fromString((String) n.getUserData()));
 		});
