@@ -23,8 +23,17 @@ package qupath.lib.gui.panes;
 
 import java.util.function.Function;
 
+import org.kordamp.ikonli.javafx.StackedFontIcon;
+
+import javafx.geometry.Pos;
+import javafx.scene.Node;
+import javafx.scene.control.ContentDisplay;
+import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
+import javafx.scene.control.OverrunStyle;
 import javafx.scene.control.Tooltip;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.StackPane;
 import qupath.lib.gui.tools.IconFactory;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
@@ -37,6 +46,12 @@ public class PathObjectListCell extends ListCell<PathObject> {
 
 	private Tooltip tooltip;
 	private Function<PathObject, String> fun;
+	
+	private int w = 16, h = 16;
+	
+	private StackedFontIcon stack;
+	private Label label;
+	private BorderPane pane;
 	
 	/**
 	 * Constructor, using default {@link PathObject#toString()} method to generate the String representation.
@@ -51,27 +66,54 @@ public class PathObjectListCell extends ListCell<PathObject> {
 	 */
 	public PathObjectListCell(Function<PathObject, String> stringExtractor) {
 		this.fun = stringExtractor;
+		
+		pane = new BorderPane();
+		label = new Label();
+		label.setTextOverrun(OverrunStyle.ELLIPSIS);
+
+		var sp = new StackPane(label);
+		sp.setPrefWidth(1.0);
+		sp.setMinHeight(0.0);
+		StackPane.setAlignment(label, Pos.CENTER_LEFT);
+		pane.setCenter(sp);
+		
+		setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
+		
+		stack = new StackedFontIcon();
+		stack.setIconCodeLiterals("ion4-md-lock");
+		stack.setStyle("-fx-background-color: -fx-background; -fx-icon-color: -fx-text-fill;");
+		var lockedTooltip = new Tooltip("Annotation locked (right-click to unlock)");
+		Tooltip.install(stack, lockedTooltip);
 	}
+	
 
 
 	@Override
 	protected void updateItem(PathObject value, boolean empty) {
 		super.updateItem(value, empty);
-		updateTooltip(value);
 		if (value == null || empty) {
 			setText(null);
 			setGraphic(null);
+			updateTooltip(value);
 			return;
 		}
-		setText(fun.apply(value));
-
-		int w = 16;
-		int h = 16;
-
-		if (value.hasROI())
-			setGraphic(IconFactory.createPathObjectIcon(value, w, h));
-		else
-			setGraphic(null);
+		label.setText(fun.apply(value));
+		updateTooltip(value);
+		
+		if (value.hasROI()) {
+			Node icon = IconFactory.createPathObjectIcon(value, w, h);
+			label.setGraphic(icon);
+		} else {
+			label.setGraphic(null);
+		}
+		setGraphic(pane);
+		
+		if (value.isLocked()) {
+			pane.setRight(stack);
+		} else {
+			pane.setRight(null);
+		}
+		
 	}
 
 	void updateTooltip(final PathObject pathObject) {
@@ -79,18 +121,20 @@ public class PathObjectListCell extends ListCell<PathObject> {
 			if (pathObject == null || !pathObject.isAnnotation())
 				return;
 			tooltip = new Tooltip();
-			setTooltip(tooltip);
+			label.setTooltip(tooltip);
 		} else if (pathObject == null || !pathObject.isAnnotation()) {
-			setTooltip(null);
+			label.setTooltip(null);
 			return;
 		}
 		PathAnnotationObject annotation = (PathAnnotationObject)pathObject;
 		String description = annotation.getDescription();
+		if (description == null)
+			description = label.getText();
 		if (description == null) {
-			setTooltip(null);
+			label.setTooltip(null);
 		} else {
 			tooltip.setText(description);
-			setTooltip(tooltip);
+			label.setTooltip(tooltip);
 		}
 	}
 

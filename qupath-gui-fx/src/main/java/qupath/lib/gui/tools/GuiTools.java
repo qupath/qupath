@@ -56,6 +56,7 @@ import javafx.beans.binding.Bindings;
 import javafx.beans.binding.DoubleBinding;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.StringProperty;
@@ -340,7 +341,7 @@ public class GuiTools {
 			}
 		}
 		if (nDark == 0 && nLight == 0)
-			return ImageData.ImageType.UNSET;
+			return ImageData.ImageType.OTHER;
 		// If we have more dark than light pixels, assume fluorescence
 		if (nDark >= nLight)
 			return ImageData.ImageType.FLUORESCENCE;
@@ -809,12 +810,16 @@ public class GuiTools {
 		panel.add(textField, 1, 0);
 
 		boolean promptForColor = true;
-		ColorPicker panelColor = null;
+		ColorPicker colorPicker = null;
+		var originalColor = ColorToolsFX.getDisplayedColor(annotation);
+		var colorChanged = new SimpleBooleanProperty(false); // Track if the user changed anything, so that we don't set the color unnecessarily
 		if (promptForColor) {
-			panelColor = new ColorPicker(ColorToolsFX.getDisplayedColor(annotation));
+			colorPicker = new ColorPicker(originalColor);
+			// If we don't touch the color picker, don't set the color (because it might be the default)
+			colorPicker.valueProperty().addListener((v, o, n) -> colorChanged.set(true));
 			panel.add(new Label("Color "), 0, 1);
-			panel.add(panelColor, 1, 1);
-			panelColor.prefWidthProperty().bind(textField.widthProperty());
+			panel.add(colorPicker, 1, 1);
+			colorPicker.prefWidthProperty().bind(textField.widthProperty());
 		}
 		
 		Label labDescription = new Label("Description");
@@ -860,8 +865,8 @@ public class GuiTools {
 				temp.setName(name);
 			else
 				temp.setName(null);
-			if (promptForColor)
-				temp.setColorRGB(ColorToolsFX.getARGB(panelColor.getValue()));
+			if (promptForColor && colorChanged.get())
+				temp.setColorRGB(ColorToolsFX.getARGB(colorPicker.getValue()));
 	
 			// Set the description only if we have to
 			String description = textAreaDescription.getText();

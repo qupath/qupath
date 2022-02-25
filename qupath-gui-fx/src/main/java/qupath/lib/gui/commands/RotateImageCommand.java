@@ -31,6 +31,7 @@ import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Tooltip;
+import javafx.scene.effect.DropShadow;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
@@ -85,6 +86,10 @@ final class RotateImageCommand implements ChangeListener<QuPathViewer> {
 			
 			slider.setPadding(new Insets(5, 0, 10, 0));
 			slider.setTooltip(new Tooltip("Double-click to manually set the rotation"));
+			final DropShadow shadow = new DropShadow();
+			shadow.setColor(Color.rgb(0, 0, 0, 0.65));
+			slider.setEffect(shadow);
+			
 			final Button button = new Button("x");
 			button.setTooltip(new Tooltip("Close image rotation slider"));
 			button.setOnMouseClicked(e -> dialog.close());

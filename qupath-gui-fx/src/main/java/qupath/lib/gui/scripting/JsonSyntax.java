@@ -21,19 +21,42 @@
  * #L%
  */
 
-package qupath.lib.gui.scripting.richtextfx;
+package qupath.lib.gui.scripting;
 
-import javafx.scene.input.KeyEvent;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-class PlainAutoCompletor implements ScriptAutoCompletor {
+import com.google.gson.Gson;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonSyntaxException;
 
+import qupath.lib.io.GsonTools;
+
+/**
+ * Class to take care of JSON syntax.
+ * @author Melvin Gelbard
+ * @since v0.4.0
+ */
+class JsonSyntax extends GeneralCodeSyntax {
+	
+	final static private Logger logger = LoggerFactory.getLogger(JsonSyntax.class);
+	final static private Gson gson = GsonTools.getInstance(true);
+	
+	/**
+	 * JSON does not support comments. Therefore this method does nothing.
+	 */
 	@Override
-	public void applyNextCompletion() {
+	public void handleLineComment(final ScriptEditorControl control) {
 		// Do nothing
 	}
-
+	
 	@Override
-	public void resetCompletion(KeyEvent e) {
-		// Do nothing
+	public String beautify(String text) {
+		try {
+			return gson.toJson(gson.fromJson(text, JsonElement.class));
+		} catch (JsonSyntaxException ex) {
+			logger.warn("Could not beautify this JSON text", ex.getLocalizedMessage());
+			return text;
+		}
 	}
 }

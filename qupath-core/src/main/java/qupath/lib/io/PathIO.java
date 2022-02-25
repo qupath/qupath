@@ -48,6 +48,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -899,19 +900,29 @@ public class PathIO {
 	
 	/**
 	 * Get the extension of a file, or of all entries within a zip file.
-	 * This is useful to check the contents of a zip file before attempting to read any of it,
+	 * This is useful to check the contents of a file before attempting to read any of it,
 	 * for example to confirm if the file is likely to contain images or objects.
+	 * <p>
+	 * Note that the identification of the zip file is based solely on the file extension, 
+	 * but the attempt to extracted zipped entries will fail if the file is not a valid zip file.
 	 * 
 	 * @param path path representing a file or zip file
+	 * @param zipExtensions optional list of extensions to treat as representing zip files. 
+	 *                      If none are specified, the default is to use '.zip'. 
+	 *                      If jar files should be included, use {@code unzippedExtensions(path, ".zip", ".jar")}.
 	 * @return the file extensions for entries within a zip file, or the file extension of path itself if it is not 
-	 *         identified as being a zip file.
+	 *         identified as being a zip file. Note that all extensions are converted to lowercase.
 	 * @throws IOException
-	 * @implNote this returns the extension for a non-zip file so that it may be used more easily within a stream.
+	 * @implNote this returns original the extension for a non-zip file so that it may be used more easily within a stream.
 	 * @since v0.4.0
 	 */
-	public static Set<String> unzippedExtensions(Path path) throws IOException {
-		var content = Files.probeContentType(path);
-		if ((content != null && zipContent.contains(content)) || path.toString().toLowerCase().endsWith(".zip")) {
+	public static Set<String> unzippedExtensions(Path path, String... zipExtensions) throws IOException {
+		var ext = GeneralTools.getExtension(path.getFileName().toString()).orElse(null);
+		if (ext == null)
+			return Collections.emptySet();
+		var zipExts = zipExtensions.length == 0 ? Collections.singleton(".zip") : Arrays.stream(zipExtensions).map(z -> z.toLowerCase()).collect(Collectors.toSet());
+		ext = ext.toLowerCase();
+		if (zipExts.contains(ext)) {
 			// In case we have more than one compressed file, iterate through each entry
 			Set<String> extensions = new LinkedHashSet<>();
 			try (var zipfs = FileSystems.newFileSystem(path, (ClassLoader) null)) {
@@ -927,16 +938,9 @@ public class PathIO {
 			}
 			return extensions;
 		} else {
-			var ext = GeneralTools.getExtension(path.getFileName().toString()).orElse(null);
-			return ext == null ? Collections.emptySet() : Collections.singleton(ext);
+			return Collections.singleton(ext);
 		}
 	}
-	
-	private static Set<String> zipContent = Set.of(
-			"application/zip",
-			"application/x-zip-compressed",
-			"application/java-archive"
-			);
 			
 	
 //	private static boolean serializePathObject(File file, PathObject pathObject) {

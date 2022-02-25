@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.lib.gui.scripting.richtextfx;
+package qupath.lib.gui.scripting.autocompletors;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -32,12 +32,16 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import javafx.scene.input.KeyEvent;
 import qupath.lib.gui.scripting.QPEx;
 import qupath.lib.gui.scripting.ScriptEditorControl;
 import qupath.lib.scripting.QP;
 
-class GroovyAutoCompletor implements ScriptAutoCompletor {
+/**
+ * Auto-completor for Groovy code.
+ * @author Melvin Gelbard
+ * @since v0.4.0
+ */
+public class GroovyAutoCompletor implements ScriptAutoCompletor {
 	
 	private static final Set<String> METHOD_NAMES = new HashSet<>();
 	private final ScriptEditorControl control;
@@ -101,7 +105,11 @@ class GroovyAutoCompletor implements ScriptAutoCompletor {
 		METHOD_NAMES.add("println");
 	}
 	
-	GroovyAutoCompletor(ScriptEditorControl control) {
+	/**
+	 * Constructor for Groovy auto-completor.
+	 * @param control the script editor control onto which apply auto-completion
+	 */
+	public GroovyAutoCompletor(ScriptEditorControl control) {
 		this.control = control;
 	}
 	
@@ -142,15 +150,9 @@ class GroovyAutoCompletor implements ScriptAutoCompletor {
 	}
 
 	@Override
-	public void resetCompletion(KeyEvent e) {
-		if (!defaultCompletionCode.match(e)) {
-			// Users usually type the CTRL key before the SPACE key, but we don't want to reset in that case
-			if (!e.isControlDown()) {
-				pos = null;
-				lastInsertion = null;
-				idx = 0;
-			}
-			return;
-		}
+	public void resetCompletion() {	
+		pos = null;
+		lastInsertion = null;
+		idx = 0;
 	}
 }

@@ -23,104 +23,23 @@
 
 package qupath.lib.gui.scripting;
 
-import javafx.scene.control.IndexRange;
-
 /**
- * 
  * Class to take care of the Groovy syntax formatting.
  * @author Melvin Gelbard
+ * @since v0.4.0
  */
-class GroovySyntax implements ScriptSyntax {
+class GroovySyntax extends GeneralCodeSyntax {
+	
+	private static final String ifStatementPattern = "(else\\s*)?if\\s*\\(.*\\)$";
+	private static final String elseStatementPattern = "\\}?\\s*else$";
+	
+	GroovySyntax() {
+		// Empty constructor
+	}
 	
 	@Override
 	public String getLineCommentString() {
 		return "//";
-	}
-
-	/**
-	 * Handle left parentheses '{@code (}' by automatically adding a right parenthesis '{@code )}' after if not already present.
-	 */
-	@Override
-	public void handleLeftParenthesis(final ScriptEditorControl control, final boolean smartEditing) {
-		control.insertText(control.getCaretPosition(), "(");
-		if (!smartEditing)
-			return;
-		control.insertText(control.getCaretPosition(), ")");
-		control.positionCaret(control.getCaretPosition()-1);
-	}
-	
-	/**
-	 * Adds a right parenthesis '{@code )}', except if one is already present at the caret position.
-	 */
-	@Override
-	public void handleRightParenthesis(final ScriptEditorControl control, final boolean smartEditing) {
-		control.insertText(control.getCaretPosition(), ")");
-		if (!smartEditing)
-			return;
-		
-		String text = control.getText();
-		var caretPos = control.getCaretPosition();
-		if (text.length() >= caretPos + 1 && text.charAt(caretPos) == ')') {
-			control.deleteText(caretPos, caretPos + 1);
-		}
-	}
-	
-	/**
-	 * Handle (single/double) quotes by adding a closing one if not already present.
-	 */
-	@Override
-	public void handleQuotes(final ScriptEditorControl control, boolean isDoubleQuote, final boolean smartEditing) {
-		String quotes = isDoubleQuote ? "\"" : "\'";
-		control.insertText(control.getCaretPosition(), quotes);
-		if (!smartEditing)
-			return;
-		
-		String text = control.getText();
-		var caretPos = control.getCaretPosition();
-		if (text.length() >= caretPos + 1 && text.charAt(caretPos) == quotes.charAt(0))
-			control.deleteText(caretPos, caretPos + 1);
-		else {
-			control.insertText(control.getCaretPosition(), quotes);
-			control.positionCaret(control.getCaretPosition()-1);
-		}
-	}
-	
-	/**
-	 * Handle the press of the / key, with/without shift.
-	 * This either inserts comments or uncomments the selected lines, if possible.
-	 */
-	@Override
-	public void handleLineComment(final ScriptEditorControl control) {
-		String commentString = getLineCommentString();
-		if (commentString == null)
-			return;
-
-		String text = control.getText();
-		IndexRange range = control.getSelection();
-		boolean hasSelection = range.getLength() > 0;
-		int startRowPos = getRowStartPosition(text, range.getStart());
-		int endRowPos = getRowEndPosition(text, range.getEnd());
-		String textBetween = text.substring(startRowPos, endRowPos);
-		// Check if every new row starts with a comment string - if so we want to remove these, if not we want to add comments
-		
-		int nNewLines = textBetween.length() - textBetween.replace("\n", "").length();
-		int nCommentLines = (textBetween.length() - textBetween.replace("\n" + commentString, commentString).length());
-		boolean allComments = textBetween.startsWith(commentString) && nNewLines == nCommentLines;
-		
-		String replaceText;
-		if (allComments) {
-			// Remove tabs at start of selected rows
-			replaceText = textBetween.replace("\n"+commentString, "\n");
-			if (replaceText.startsWith(commentString))
-				replaceText = replaceText.substring(commentString.length());
-		} else {
-			replaceText = commentString + textBetween.replace("\n", "\n"+commentString);
-		}
-		
-		control.selectRange(startRowPos, endRowPos);
-		control.paste(replaceText);
-		if (hasSelection)
-			control.selectRange(startRowPos, startRowPos + replaceText.length());
 	}
 	
 	/**
@@ -137,7 +56,15 @@ class GroovySyntax implements ScriptSyntax {
 	 * 
 	 * <p>
 	 * 
-	 * As well as new lines which start with  '/*':
+	 * And new line as part of a non-braced 'if(/else)' statement:
+	 * <li> It indents the line following an if statement without '{'</li>
+	 * <li> It removes the indentation after the line inside a one-line if statement </li>
+	 * <li> It indents the line following an else statement without '{' </li>
+	 * <li> It removes the indentation after the line inside a one-line else statement </li>
+	 * 
+	 * <p>
+	 * 
+	 * As well as new lines which start with '/*':
 	 * <li> It creates a comment block of '/' + '*' + new line + space + * + space + new line + '/' + '*' </li>
 	 * <li> The caret position is set to inside the block </li>
 	 * <li> The original indentation is accounted for </li>
@@ -159,112 +86,63 @@ class GroovySyntax implements ScriptSyntax {
 		int indentation = subString.length() - subString.stripLeading().length();
 		int ind = trimmedSubString.length() == 0 ? subString.length() : subString.indexOf(trimmedSubString);
 		int finalPos = caretPos;
+		String insertText = System.lineSeparator();
 		
-		if (trimmedSubString.startsWith("/*") && !trimmedSubString.contains("*/") && smartEditing) {
-			String insertText = ind == 0 ? "\n" + subString.substring(0, indentation) + " * \n */" : "\n" + subString.substring(0, indentation) + " * \n" + subString.substring(0, indentation) + " */ ";
-			control.insertText(caretPos, insertText);
-			finalPos = caretPos + insertText.length() - (indentation == 0 ? -1 : indentation) - 5;
-		} else if (trimmedSubString.startsWith("*") && !trimmedSubString.contains("*/") && smartEditing) {
-			String insertText = ind == 0 ? "\n* " : "\n" + subString.substring(0, ind) + "* ";
-			control.insertText(caretPos, insertText);
-			finalPos = caretPos + insertText.length();
-		} else if (!trimmedSubString.endsWith("{") || !smartEditing) {
-			String insertText = ind == 0 ? "\n" : "\n" + subString.substring(0, ind);
-			control.insertText(caretPos, insertText);
-			finalPos = caretPos + insertText.length();
-		} else if (smartEditing) {
-			String lineRemainder = text.substring(startRowPos + subString.length(), endRowPos);
-			String insertText =  "\n" + subString.substring(0, indentation) + tabString+ lineRemainder.strip();
-			if (text.replaceAll("[^{]", "").length() != text.replaceAll("[^}]", "").length())
-				insertText += "\n" + subString.substring(0, indentation) + "}";
-			
-			finalPos = caretPos + 1 + indentation + tabString.length() + lineRemainder.strip().length();
-			
-			// If '{' is not preceded by a space, insert one (this is purely aesthetic)
-			if (trimmedSubString.length() >= 2 && trimmedSubString.charAt(trimmedSubString.length() - 2) != ' ')
-				control.insertText(++caretPos - 2, " ");
-			
-			control.insertText(caretPos, insertText);
-			control.deleteText(control.getCaretPosition(), control.getCaretPosition() + lineRemainder.length());
-		}
-		control.positionCaret(finalPos);
-	}
-
-	/**
-	 * Handle backspace if required, otherwise does nothing (and let the original control deal with the backspace).
-	 * <p>
-	 * This was implemented this way because there's no point in rewriting all the rules for backspace 
-	 * (e.g. {@code SHORTCUT} + {@code BACKSPACE}, {@code BACKSPACE} on a selection, etc..).
-	 */
-	@Override
-	public boolean handleBackspace(final ScriptEditorControl control, final boolean smartEditing) {
-		var caretPos = control.getCaretPosition();
-		var selection = control.getSelection();
-		if (caretPos -1 < 0 || selection.getLength() >= 1 || !smartEditing)
-			return false;
-		
-		if (caretPos >= control.getText().length() ||
-				(!(control.getText().charAt(caretPos-1) == '(' && control.getText().charAt(caretPos) == ')') &&
-				!(control.getText().charAt(caretPos-1) == '"' && control.getText().charAt(caretPos) == '"') &&
-				!(control.getText().charAt(caretPos-1) == '\'' && control.getText().charAt(caretPos) == '\'')))
-			return false;
-		
-		control.deleteText(caretPos-1, caretPos+1);
-		return true;
-	}
-	
-	/**
-	 * Handle the press of the tab key, with/without shift.
-	 * <p>
-	 * If there is no selection :
-	 * <li> It inserts a {@code tabString} at the current caret position if shift is not down </li>
-	 * <li> It removes a {@code tabString} at the start of the line if there is one and if shift is down </li>
-	 * <p>
-	 * If there is a selection:
-	 * <li> It indents all the selected rows if shift is not down </li>
-	 * <li> It removes one indentation from all the selected rows if shift is down </li>
-	 */
-	@Override
-	public void handleTabPress(final ScriptEditorControl textArea, final boolean shiftDown) {
-		String text = textArea.getText();
-		IndexRange range = textArea.getSelection() == null ? IndexRange.valueOf("0,0") : textArea.getSelection();
-		int startRowPos = getRowStartPosition(text, range.getStart());
-		int endRowPos = getRowEndPosition(text, range.getEnd());
-		String textBetween = text.substring(startRowPos, endRowPos);
-
-		if (range.getLength() == 0) {
-			int caretPos = textArea.getCaretPosition();
-			if (shiftDown && textBetween.indexOf(tabString) == 0) {
-				textArea.deleteText(startRowPos, startRowPos + tabString.length());
-				textArea.positionCaret(caretPos - tabString.length());
-			} else if (!shiftDown)
-				textArea.insertText(caretPos, tabString);
+		if (!smartEditing) {
+			super.handleNewLine(control, smartEditing);
 			return;
 		}
 
-		String replaceText;
-		if (shiftDown) {
-			// Remove tabs at start of selected rows
-			replaceText = textBetween.replace("\n"+tabString, "\n");
-			if (replaceText.startsWith(tabString))
-				replaceText = replaceText.substring(tabString.length());
-		} else
-			replaceText = tabString + textBetween.replace("\n", "\n"+tabString);
-		
-		textArea.selectRange(startRowPos, endRowPos);
-		textArea.paste(replaceText);
-		textArea.selectRange(startRowPos, startRowPos + replaceText.length());
+		if (trimmedSubString.startsWith("/*") && !trimmedSubString.contains("*/")) {	// Start of a comment block
+			insertText = ind == 0 ? "\n" + subString.substring(0, indentation) + " * \n */" : "\n" + subString.substring(0, indentation) + " * \n" + subString.substring(0, indentation) + " */ ";
+			control.insertText(caretPos, insertText);
+			finalPos += insertText.length() - (indentation == 0 ? -1 : indentation) - 5;
+			return;
+		} else if (trimmedSubString.startsWith("*") && !trimmedSubString.contains("*/")) {	// Inside a comment block
+			insertText = ind == 0 ? "\n* " : "\n" + subString.substring(0, ind) + "* ";
+			control.insertText(caretPos, insertText);
+			finalPos += insertText.length();
+			return;
+		} else if (trimmedSubString.endsWith("{")) {		// Start of a '{'/'}' block
+			String lineRemainder = text.substring(startRowPos + subString.length(), endRowPos);
+			insertText =  "\n" + subString.substring(0, indentation) + tabString + lineRemainder.strip();
+			if (text.replaceAll("[^{]", "").length() != text.replaceAll("[^}]", "").length())
+				insertText += "\n" + subString.substring(0, indentation) + "}";
+			
+			finalPos += 1 + indentation + tabString.length() + lineRemainder.strip().length();
+			
+			// If '{' is not preceded by a space, insert one (this is purely aesthetic)
+			if (trimmedSubString.length() >= 2 && trimmedSubString.charAt(trimmedSubString.length() - 2) != ' ')
+				control.insertText(++caretPos - 2, " ");			
+			control.insertText(caretPos, insertText);
+			control.deleteText(control.getCaretPosition(), control.getCaretPosition() + lineRemainder.length());
+			control.positionCaret(finalPos);
+		} else if (!trimmedSubString.endsWith("{")) {
+			if (trimmedSubString.matches(ifStatementPattern) || trimmedSubString.matches(elseStatementPattern)) {	// Start of a one-line if/else statement
+				insertText = "\n" + subString.substring(0, ind) + tabString;
+				control.insertText(caretPos, insertText);
+				finalPos += insertText.length();
+			} else {	// Normal new line (which keeps indentation, except if part of a one-line if/else statement)
+				if (text.substring(0, startRowPos).contains("\n") && indentation > 0) {
+					int startPrevRowPos = getRowStartPosition(text, startRowPos-1);
+					int endPrevRowPos = getRowEndPosition(text, startPrevRowPos);
+					String prevSubString = text.substring(startPrevRowPos, endPrevRowPos);
+					if (prevSubString.matches(ifStatementPattern) || prevSubString.matches(elseStatementPattern)) {	// If prev line is one-line if/else statement
+						insertText = "\n" + subString.substring(0, ind-tabString.length());
+						control.insertText(caretPos, insertText);
+						finalPos += insertText.length();
+						return;
+					}
+				}
+				
+				// Otherwise treat this new line as normal, and keep the indentation
+				String lineRemainder = text.substring(startRowPos + subString.length(), endRowPos);
+				insertText =  "\n" + subString.substring(0, indentation) + lineRemainder.strip();
+				finalPos += 1 + indentation;
+				control.insertText(caretPos, insertText);
+				control.deleteText(control.getCaretPosition(), control.getCaretPosition() + lineRemainder.length());
+				control.positionCaret(finalPos);
+			}
+		}
 	}
-	
-	private static int getRowStartPosition(final String text, final int pos) {
-		return text.substring(0, pos).lastIndexOf("\n") + 1;
-	}
-
-	private static int getRowEndPosition(final String text, final int pos) {
-		int pos2 = text.substring(pos).indexOf("\n");
-		if (pos2 < 0)
-			return text.length();
-		return pos + pos2;
-	}
-	
 }

@@ -141,37 +141,48 @@ public class DefaultScriptEditor implements ScriptEditor {
 		/**
 		 * Plain text
 		 */
-		PLAIN("None", ".txt", new PlainSyntax()),
+		PLAIN("None", new String[]{".txt"}, new PlainSyntax()),
 		/**
 		 * Javascript support (will cease to be part of the JDK)
 		 */
 		@Deprecated
-		JAVASCRIPT("JavaScript", ".js", new PlainSyntax()),
+		JAVASCRIPT("JavaScript", new String[]{".js"}, new PlainSyntax()),
 		/**
 		 * Jython support
 		 */
 		@Deprecated
-		JYTHON("Jython", ".py", new PlainSyntax()),
+		JYTHON("Jython", new String[]{".py"}, new PlainSyntax()),
 		/**
 		 * Groovy support (default and preferred scripting language for QuPath)
 		 */
-		GROOVY("Groovy", ".groovy", new GroovySyntax());
+		GROOVY("Groovy", new String[]{".groovy"}, new GroovySyntax()),
+		
+		/**
+		 * JSON support. 
+		 * <p>
+		 * Note: while JSON is a 'language' in this enum, the user can only 
+		 * choose between "Groovy" and "None" under the "Language" menu in 
+		 * the GUI. "None" in the GUI is translated to either "PLAIN" or "JSON" here, 
+		 * depending on the file extension (if there is no file yet, it will be PLAIN).
+		 * @since v0.4.0
+		 */
+		JSON("Json", new String[]{".json", ".geojson"}, new JsonSyntax());
 		
 		private final String name;
-		private final String ext;
+		private final String[] ext;
 		private final ScriptSyntax syntax;
 		
-		Language(final String name, final String ext, final ScriptSyntax syntax) {
+		Language(final String name, final String[] ext, final ScriptSyntax syntax) {
 			this.name = name;
 			this.ext = ext;
 			this.syntax = syntax;
 		}
 		
 		/**
-		 * Get the file extension for the specified language
-		 * @return
+		 * Get the possible file extensions for the specified language
+		 * @return possible extensions
 		 */
-		public String getExtension() {
+		public String[] getExtensions() {
 			return ext;
 		}
 		
@@ -205,7 +216,6 @@ public class DefaultScriptEditor implements ScriptEditor {
 		}
 	}
 	
-	
 
 //	private static final List<String> SUPPORTED_LANGUAGES = Collections.unmodifiableList(
 //			Arrays.asList("JavaScript", "Jython", "Groovy", "Ruby"));
@@ -230,6 +240,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	protected ObjectProperty<Language> currentLanguage = new SimpleObjectProperty<>();
 	protected ObjectProperty<ScriptSyntax> scriptSyntax = new SimpleObjectProperty<>();
 	
+	
 	// Binding to indicate it shouldn't be possible to 'Run' any script right now
 	private BooleanBinding disableRun = runningTask.isNotNull().or(currentLanguage.isNotEqualTo(Language.GROOVY));
 	
@@ -245,6 +256,8 @@ public class DefaultScriptEditor implements ScriptEditor {
 	
 	// Keyboard accelerators
 	protected KeyCombination comboPasteEscape = new KeyCodeCombination(KeyCode.V, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN);
+	protected final KeyCodeCombination completionCodeCombination = new KeyCodeCombination(KeyCode.SPACE, KeyCombination.CONTROL_DOWN);
+	protected final KeyCodeCombination beautifyerCodeCombination = new KeyCodeCombination(KeyCode.L, KeyCombination.CONTROL_DOWN, KeyCombination.ALT_DOWN);
 //	protected KeyCombination comboPaste = new KeyCodeCombination(KeyCode.V, KeyCombination.SHORTCUT_DOWN);
 //	protected KeyCombination comboCopy = new KeyCodeCombination(KeyCode.C, KeyCombination.SHORTCUT_DOWN);
 	
@@ -327,25 +340,27 @@ public class DefaultScriptEditor implements ScriptEditor {
 			if (n == null || n.getLanguage() == null)
 				return;
 			currentLanguage.set(n.getLanguage());
-			setToggle(n.getLanguage());
+			setToggle(n.getLanguage() == Language.JSON ? Language.PLAIN : n.getLanguage());
 		});
-		bgLanguages.selectedToggleProperty().addListener((v, o, n) -> currentLanguage.set(Language.fromString((String) n.getUserData())));
+		bgLanguages.selectedToggleProperty().addListener((v, o, n) -> {
+			if (n == null)
+				return;
+
+			// If the toggle is "None", the language could technically still be JSON, so check that first
+			if (n.getUserData().toString().equals(Language.PLAIN.name))
+				currentLanguage.set((selectedScript.get() == null || selectedScript.get().file == null) ? Language.PLAIN : selectedScript.get().file.toString().toLowerCase().endsWith("json") ? Language.JSON : Language.PLAIN);
+			else
+				currentLanguage.set(Language.fromString((String) n.getUserData()));
+		});
 		
 		// Bind the script syntax to the language used
 		scriptSyntax.bind(Bindings.createObjectBinding(() -> {
 			Language l = getCurrentLanguage();
-			if (l == null)
-				return null;
-			switch(l) {
-			case GROOVY:
-				return new GroovySyntax();
-			case PLAIN:
-			default:
+			if (l == null || l.syntax == null)
 				return new PlainSyntax();
-			}
+			return l.syntax;
 		}, currentLanguage));
 	}
-	
 	
 	private void setToggle(Language language) {
 		for (Toggle button : bgLanguages.getToggles()) {
@@ -483,7 +498,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 			
 			// Update the selected language
 			Language language = tab.getLanguage();
-			setToggle(language);
+			setToggle(language == Language.JSON ? Language.PLAIN : language);
 		}
 		
 		selectedScript.set(tab);
@@ -1167,7 +1182,8 @@ public class DefaultScriptEditor implements ScriptEditor {
 						logger.warn("Problem trying to find project scripts directory: {}", e.getLocalizedMessage());
 					}
 				}
-				File file = Dialogs.getChooser(dialog).promptToSaveFile("Save script file", dir, tab.getName(), "Script file", tab.getRequestedExtension());
+				// TODO: Allow multiple extensions to be used?
+				File file = Dialogs.getChooser(dialog).promptToSaveFile("Save script file", dir, tab.getName(), currentLanguage.getName() + " file", tab.getRequestedExtensions()[0]);
 				if (file == null)
 					return false;
 				tab.saveToFile(file);
@@ -1702,12 +1718,13 @@ public class DefaultScriptEditor implements ScriptEditor {
 	 * @return
 	 */
 	public static Language getLanguageFromName(String name) {
-		name = name.toLowerCase();
 		for (Language l : Language.values()) {
-			if (name.endsWith(l.getExtension()))
-				return l;
+			for (String possibleExt: l.getExtensions()) {
+				if (name.toLowerCase().endsWith(possibleExt))
+					return l;
+			}
 		}
-		return null;
+		return Language.PLAIN;
 	}
 	
 	
@@ -1718,7 +1735,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		private long lastModified = -1L;
 		private String lastSavedContents = null;
 		
-		private ObjectProperty<Language> language = new SimpleObjectProperty<>();
+		private ObjectProperty<Language> scriptTabLanguage = new SimpleObjectProperty<>();
 		
 //		private BooleanProperty isModified = new SimpleBooleanProperty();
 		private boolean isModified = false;
@@ -1734,7 +1751,8 @@ public class DefaultScriptEditor implements ScriptEditor {
 		
 		public ScriptTab(final String script, final Language language) {
 			initialize();
-			this.language.set(language);
+			scriptTabLanguage.set(language);
+			currentLanguage.set(language);
 			if (script != null)
 				editor.setText(script);
 			untitledCounter++;
@@ -1748,7 +1766,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		
 		
 		protected void readFile(final File file) throws IOException {
-			logger.info("Loading script file {}", file.getAbsolutePath());
+			logger.info("Loading file {} to Script Editor", file.getAbsolutePath());
 			Scanner scanner = new Scanner(file);
 			String content = new String(Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8);
 //			String content = scanner.useDelimiter("\\Z").next();
@@ -1757,7 +1775,9 @@ public class DefaultScriptEditor implements ScriptEditor {
 			this.file = file;
 			lastModified = file.lastModified();
 			lastSavedContents = content;
-			setLanguage(getLanguageFromName(name));
+			var language = getLanguageFromName(name);
+			scriptTabLanguage.set(language);
+			setToggle(language == Language.JSON ? Language.PLAIN : language);
 			scanner.close();
 			updateIsModified();
 		}
@@ -1872,15 +1892,15 @@ public class DefaultScriptEditor implements ScriptEditor {
 		}
 		
 		public Language getLanguage() {
-			return language.get();
+			return scriptTabLanguage.get();
 		}
 		
 		public void setLanguage(final Language language) {
-			this.language.set(language);
+			this.scriptTabLanguage.set(language);
 		}
 		
-		public String getRequestedExtension() {
-			return language.get().getExtension();
+		public String[] getRequestedExtensions() {
+			return scriptTabLanguage.get().getExtensions();
 		}
 		
 		public String getName() {

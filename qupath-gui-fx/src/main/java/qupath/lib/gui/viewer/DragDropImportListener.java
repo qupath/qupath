@@ -319,8 +319,9 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 				Project<BufferedImage> project = ProjectIO.loadProject(file, BufferedImage.class);
 				qupath.setProject(project);
 			} catch (Exception e) {
-				Dialogs.showErrorMessage("Project error", e);
-//					logger.error("Could not open as project file: {}", e);
+//				Dialogs.showErrorMessage("Project error", e);
+				logger.error("Could not open as project file: {}, opening in the Script Editor instead", e);
+				qupath.getScriptEditor().showScript(file);
 			}
 			return;
 		}
@@ -328,7 +329,9 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 		// Check if it is an object file in GeoJSON format (.geojson)
 		if (PathIO.getObjectFileExtensions(false).containsAll(allUnzippedExtensions)) {
 			if (imageData == null || hierarchy == null) {
-				Dialogs.showErrorMessage("Open object file", "Please open an image first to import objects!");
+				qupath.getScriptEditor().showScript(file);
+				logger.info("Opening the dragged file in the Script Editor as there is no currently opened image in the viewer");
+//				Dialogs.showErrorMessage("Open object file", "Please open an image first to import objects!");
 				return;
 			}
 			
@@ -338,7 +341,8 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 				try {
 					var tempObjects = PathIO.readObjects(tempFile);
 					if (tempObjects.isEmpty()) {
-						logger.warn("No objects found in {}", tempFile.getAbsolutePath());
+						logger.warn("No objects found in {}, opening the dragged file in the Script Editor instead", tempFile.getAbsolutePath());
+						qupath.getScriptEditor().showScript(file);
 						return;
 					}
 					pathObjects.addAll(tempObjects);
@@ -383,7 +387,7 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 		}
 
 
-		// Open Javascript
+		// Open file with an extension supported by the Script Editor
 		ScriptEditor scriptEditor = qupath.getScriptEditor();
 		if (scriptEditor instanceof DefaultScriptEditor && ((DefaultScriptEditor)scriptEditor).supportsFile(file)) {
 			scriptEditor.showScript(file);
