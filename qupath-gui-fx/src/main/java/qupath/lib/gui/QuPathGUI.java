@@ -2392,6 +2392,9 @@ public class QuPathGUI {
 				return;
 			}
 			
+			if (viewer.getZoomToFit())
+				return;
+			
 			// Don't pan with inertia events (use the 'mover' instead)
 			if (e.isInertia()) {
 				e.consume();
@@ -2839,13 +2842,15 @@ public class QuPathGUI {
 //			setInitialLocationAndMagnification(viewer);
 			if (imageData != null && (imageData.getImageType() == null || imageData.getImageType() == ImageType.UNSET)) {
 				var setType = PathPrefs.imageTypeSettingProperty().get();
-				if (setType == ImageTypeSetting.AUTO_ESTIMATE) {
+				if (setType == ImageTypeSetting.AUTO_ESTIMATE || setType == ImageTypeSetting.PROMPT) {
 					var type = GuiTools.estimateImageType(imageData.getServer(), imageRegionStore.getThumbnail(imageData.getServer(), 0, 0, true));
 					logger.info("Image type estimated to be {}", type);
-					imageData.setImageType(type);
-					imageData.setChanged(false); // Don't want to retain this as a change resulting in a prompt to save the data
-				} else if (setType == ImageTypeSetting.PROMPT) {
-					ImageDetailsPane.promptToSetImageType(imageData);
+					if (setType == ImageTypeSetting.PROMPT) {
+						ImageDetailsPane.promptToSetImageType(imageData, type);
+					} else {
+						imageData.setImageType(type);
+						imageData.setChanged(false); // Don't want to retain this as a change resulting in a prompt to save the data
+					}
 				}
 			}
 			return true;
@@ -3080,8 +3085,10 @@ public class QuPathGUI {
 				viewer.setImageData(imageData);
 //				setInitialLocationAndMagnification(viewer);
 
-				if (imageData.getImageType() == ImageType.UNSET && PathPrefs.imageTypeSettingProperty().get() == ImageTypeSetting.PROMPT)
-					ImageDetailsPane.promptToSetImageType(imageData);
+				if (imageData.getImageType() == ImageType.UNSET && PathPrefs.imageTypeSettingProperty().get() == ImageTypeSetting.PROMPT) {
+					var type = GuiTools.estimateImageType(serverNew, imageRegionStore.getThumbnail(serverNew, 0, 0, true));
+					ImageDetailsPane.promptToSetImageType(imageData, type);
+				}
 
 //				// Reset the object hierarchy to clear any ROIs etc.
 //				hierarchy.clearAll();
@@ -3585,8 +3592,15 @@ public class QuPathGUI {
 	 */
 	private static Action createPluginAction(final String name, final Class<? extends PathPlugin> pluginClass, final QuPathGUI qupath, final String arg) {
 		try {
-			PathPlugin<BufferedImage> plugin = qupath.createPlugin(pluginClass);
-			var action = qupath.createPluginAction(name, plugin, arg);
+			var action = new Action(name, event -> {
+				try {
+					PathPlugin<BufferedImage> plugin = qupath.createPlugin(pluginClass);
+					qupath.runPlugin(plugin, arg, true);
+				} catch (Exception e) {
+					logger.error("Error running " + name + ": " + e.getLocalizedMessage(), e);
+				}
+			});
+			// We assume that plugins require image data
 			action.disabledProperty().bind(qupath.noImageData);
 			ActionTools.parseAnnotations(action, pluginClass);
 			return action;
@@ -4391,7 +4405,7 @@ public class QuPathGUI {
 			percentage = 10;
 		} else if (percentage > 90) {
 			logger.warn("No more than 90% of available memory can be used for tile caching (you requested {}%)", percentage);
-			percentage = 00;			
+			percentage = 90;			
 		}
 		long tileCacheSize = Math.round(maxAvailable * (percentage / 100.0));
 		logger.info(String.format("Setting tile cache size to %.2f MB (%.1f%% max memory)", tileCacheSize/(1024.*1024.), percentage));

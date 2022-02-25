@@ -211,7 +211,9 @@ class MemoryMonitorDialog {
 		tfThreads.textProperty().addListener((v, o, n) -> {
 			try {
 				PathPrefs.numCommandThreadsProperty().set(Integer.parseInt(n.trim()));
-			} catch (Exception e) {}
+			} catch (Exception e) {
+				logger.debug(e.getLocalizedMessage(), e);
+			}
 		});
 		labThreads.setLabelFor(tfThreads);
 

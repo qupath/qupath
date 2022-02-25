@@ -48,12 +48,15 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Locale.Category;
 import java.util.Map.Entry;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -331,7 +334,8 @@ public class PathIO {
 				if (imageType != null)
 					imageData.setImageType(imageType);
 				// Set the new hierarchy
-				imageData.getHierarchy().setHierarchy(hierarchy);
+				if (hierarchy != null)
+					imageData.getHierarchy().setHierarchy(hierarchy);
 			}
 			// Set the other properties we have just read
 			if (workflow != null) {
@@ -701,7 +705,7 @@ public class PathIO {
 				return new ArrayList<>(readHierarchy(stream).getRootObject().getChildObjects());	
 			}
 		}
-		logger.warn("Unable to read objects from {}", path.toString());
+		logger.debug("Unable to read objects from {}", path.toString());
 		return Collections.emptyList();
 	}
 	
@@ -791,11 +795,28 @@ public class PathIO {
 	private static String EXT_DATA = ".qpdata";
 	
 	/**
+	 * Get a list of known file extensions that may contain objects, optionally including compressed files.
+	 * @param includeCompressed if true, include extensions for any compressed files that might contain objects (e.g. .zip)
 	 * @return file extensions for files from which objects can be read.
 	 * @see #readObjects(Path)
+	 * @since v0.4.0
 	 */
+	public static List<String> getObjectFileExtensions(boolean includeCompressed) {
+		if (includeCompressed)
+			return Arrays.asList(EXT_JSON, EXT_GEOJSON, EXT_DATA, ".zip");
+		else
+			return Arrays.asList(EXT_JSON, EXT_GEOJSON, EXT_DATA);
+	}
+	
+	/**
+	 * Get a list of known file extensions that may contain objects.
+	 * @return file extensions for files from which objects can be read.
+	 * @see #readObjects(Path)
+	 * @deprecated use {@link #getObjectFileExtensions(boolean)} instead
+	 */
+	@Deprecated
 	public static List<String> getObjectFileExtensions() {
-		return Arrays.asList(EXT_JSON, EXT_GEOJSON, EXT_DATA, ".zip");
+		return getObjectFileExtensions(true);
 	}
 	
 	/**
@@ -876,6 +897,51 @@ public class PathIO {
 		writer.flush();
 	}
 	
+	
+	/**
+	 * Get the extension of a file, or of all entries within a zip file.
+	 * This is useful to check the contents of a file before attempting to read any of it,
+	 * for example to confirm if the file is likely to contain images or objects.
+	 * <p>
+	 * Note that the identification of the zip file is based solely on the file extension, 
+	 * but the attempt to extracted zipped entries will fail if the file is not a valid zip file.
+	 * 
+	 * @param path path representing a file or zip file
+	 * @param zipExtensions optional list of extensions to treat as representing zip files. 
+	 *                      If none are specified, the default is to use '.zip'. 
+	 *                      If jar files should be included, use {@code unzippedExtensions(path, ".zip", ".jar")}.
+	 * @return the file extensions for entries within a zip file, or the file extension of path itself if it is not 
+	 *         identified as being a zip file. Note that all extensions are converted to lowercase.
+	 * @throws IOException
+	 * @implNote this returns original the extension for a non-zip file so that it may be used more easily within a stream.
+	 * @since v0.4.0
+	 */
+	public static Set<String> unzippedExtensions(Path path, String... zipExtensions) throws IOException {
+		var ext = GeneralTools.getExtension(path.getFileName().toString()).orElse(null);
+		if (ext == null)
+			return Collections.emptySet();
+		var zipExts = zipExtensions.length == 0 ? Collections.singleton(".zip") : Arrays.stream(zipExtensions).map(z -> z.toLowerCase()).collect(Collectors.toSet());
+		ext = ext.toLowerCase();
+		if (zipExts.contains(ext)) {
+			// In case we have more than one compressed file, iterate through each entry
+			Set<String> extensions = new LinkedHashSet<>();
+			try (var zipfs = FileSystems.newFileSystem(path, (ClassLoader) null)) {
+				for (var root : zipfs.getRootDirectories()) {
+					var currentExtensions = Files.walk(root).map(p -> {
+						if (Files.isRegularFile(p))
+							return GeneralTools.getExtension(p.getFileName().toString()).orElse(null);
+						else
+							return null;
+					}).filter(e -> e != null).collect(Collectors.toSet());
+					extensions.addAll(currentExtensions);
+				}
+			}
+			return extensions;
+		} else {
+			return Collections.singleton(ext);
+		}
+	}
+			
 	
 //	private static boolean serializePathObject(File file, PathObject pathObject) {
 //		boolean success = false;

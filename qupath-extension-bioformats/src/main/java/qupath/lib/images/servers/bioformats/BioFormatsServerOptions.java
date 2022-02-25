@@ -28,6 +28,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * Container for various options that can customize the behavior of the {@link BioFormatsImageServer}.
  * 
@@ -35,6 +38,8 @@ import java.util.TreeSet;
  *
  */
 public class BioFormatsServerOptions {
+	
+	private final static Logger logger = LoggerFactory.getLogger(BioFormatsServerOptions.class);
 
 	/**
 	 * Enum to determine if Bio-Formats should or should not be used for a specific format.
@@ -52,6 +57,11 @@ public class BioFormatsServerOptions {
 	
 	private boolean bioformatsEnabled = true;
 	
+	/**
+	 * Maximum number of readers to create per server.
+	 */
+	private int maxReaders = -1;
+	
 	private Set<String> skipExtensions = new TreeSet<>();
 	private Set<String> useExtensions = new TreeSet<>();
 	
@@ -67,6 +77,18 @@ public class BioFormatsServerOptions {
 //	private boolean requestChannelZCorrectionVSI = false;
 	
 	private BioFormatsServerOptions() {}
+	
+	int getMaxReaders() {
+		if (maxReaders <= 0) {
+			maxReaders = Math.min(Math.max(2, Runtime.getRuntime().availableProcessors()), 32);
+			logger.info("Setting max Bio-Formats readers to {}", maxReaders);
+		}
+		return requestParallelization ? maxReaders : 1;
+	}
+	
+	void setMaxReaders(int maxReaders) {
+		this.maxReaders = maxReaders;
+	}
 	
 	/**
 	 * Get the path to the directory where memoization files should be written, or null if no path is set.

@@ -1,5 +1,108 @@
-## Version 0.3.0-SNAPSHOT
-*In progress*
+## Version 0.4.0-SNAPSHOT
+
+This is a work-in-progress.
+
+### Enhancements
+* Many script editor improvements, including:
+  * Added 'Replace/Next' and 'Replace all' features to Find window (https://github.com/qupath/qupath/pull/898)
+  * New lines now trigger caret following (https://github.com/qupath/qupath/pull/900)
+  * Proper tab handling (https://github.com/qupath/qupath/pull/902)
+  * Introduction of 'Smart Editing' (enabled through the corresponding persistent preference under 'Edit'), which supports the following features:
+    * Brace block handling (https://github.com/qupath/qupath/pull/901)
+    * Smart parentheses and (double/single) quotes (https://github.com/qupath/qupath/pull/907)
+    * Comment block handling (https://github.com/qupath/qupath/pull/908)
+* Improved support for switching between QuPath objects and ImageJ ROIs
+  * New 'Extensions -> ImageJ -> Import ImageJ ROIs' command
+  * Import .roi and RoiSet.zip files by drag & drop
+  * Built-in ImageJ plugin to send RoiManager ROIs to QuPath (not only overlays)
+  * Retain ROI position information when sending ROIs from ImageJ (hyper)stacks
+* Updated prompt to set the image type
+
+### Bugs fixed
+* Reading from Bio-Formats blocks forever when using multiple series outside a project (https://github.com/qupath/qupath/issues/894)
+* 'Ignore case' in the Find window of the Script editor does not ignore case (https://github.com/qupath/qupath/issues/889)
+* Owner of Find window in the script editor is lost when the script editor window is closed (https://github.com/qupath/qupath/issues/893)
+* 'Zoom to fit' doesn't handle changes in window size
+
+### Dependency updates
+* Adoptium OpenJDK 17
+* JavaFX 17.0.2
+* Groovy 4.0.0
+* Gson 2.9.0
+* Guava 31.0.1
+* JavaCPP 1.5.7
+* JFreeSVG 5.0.2
+* OpenCV 4.5.5
+* Picocli 4.6.3
+
+
+## Version 0.3.2
+
+This is a *minor release* that aims to be fully compatible with v0.3.0 and v0.3.1 while fixing bugs.
+
+### Bugs fixed
+* Some svs files opened with Bio-Formats are not read correctly in v0.3.1
+  * Discussed at https://forum.image.sc/t/problem-about-opening-some-svs-slides-in-qupath-v0-3-1-bio-formats-6-8-0/61404
+* ImageServer pyramid levels are not checked for validity (https://github.com/qupath/qupath/issues/879)
+* Cell detection using 'Hematoxylin' always assumes it is the first stain (https://github.com/qupath/qupath/issues/878)
+* Uninformative / by zero error when setting stain vectors on empty images (https://github.com/qupath/qupath/issues/880)
+  * A warning is now logged, and the image type set to 'Brightfield (other)'
+* Use of Locale.getDefault() can result in inconsistent formatting or parsing (https://github.com/qupath/qupath/issues/886)
+
+### Enhancements
+* 'Create single measurement classifier' does not automatically update combo boxes when the available classifications change
+* Added predicate parameter to Measurement Exporter for scripting (https://github.com/qupath/qupath/pull/824)
+* Renamed 'Delete image(s)' to 'Remove image(s)' within a project, to reduce confusion
+
+### Dependency updates
+* Bio-Formats 6.7.0
+  * Downgrade to fix svs issues, see https://github.com/ome/bioformats/issues/3757 for details
+  * Build from source with -Pbioformats-version=6.8.0 option if required
+
+
+## Version 0.3.1
+
+This is a *minor release* that aims to be fully compatible with v0.3.0 while fixing bugs, updating dependencies and improving performance.
+
+### Bugs fixed
+* 'Add intensity features' does not reinitialize options (including channels) when new images are opened (https://github.com/qupath/qupath/issues/836)
+* Reading images with ImageJ is too slow and memory-hungry (https://github.com/qupath/qupath/issues/860)
+* Generating multiple readers with Bio-Formats can be very slow (https://github.com/qupath/qupath/issues/865)
+* 'Keep settings' in Brightness/Contrast dialog does not always retain channel colors (https://github.com/qupath/qupath/issues/843)
+* 'Create composite classifier' does not store classifier in the workflow when 'Save & Apply' is selected (https://github.com/qupath/qupath/issues/874)
+* ImageServers can request the same tile in multiple threads simultaneously (https://github.com/qupath/qupath/issues/861)
+* Up arrow can cause viewer to move beyond nSlices for Z-stack (https://github.com/qupath/qupath/issues/821)
+* Location text does not update when navigating with keyboard (https://github.com/qupath/qupath/issues/819)
+* Multichannel .tif output is broken in TileExporter (https://github.com/qupath/qupath/issues/838)
+* Main class and classpath missing from app jar (https://github.com/qupath/qupath/issues/818)
+* MeasurementList is ignored for some objects when importing from GeoJSON (https://github.com/qupath/qupath/issues/845)
+* Backspace and delete don't do anything when the annotation list is in focus (https://github.com/qupath/qupath/issues/847)
+* 'Automate -> Show workflow command history' displays empty workflow (https://github.com/qupath/qupath/pull/851)
+* Extensions are sometimes loaded too late when running command line scripts (https://github.com/qupath/qupath/issues/852)
+* ICC Profiles could not be set in the viewer (unused preview feature, https://github.com/qupath/qupath/pull/850)
+* DnnModel implements AutoCloseable, so that calling DnnModel.close() can resolve
+  * GPU memory not freed when using OpenCV DNN (https://github.com/qupath/qupath/issues/841)
+  * QuPath with CUDA doesn’t release GPU memory after StarDist segmentation (https://github.com/qupath/qupath-extension-stardist/issues/11)
+* Image writing fixes, including
+  * convert-ome command doesn't report when it is finished (https://github.com/qupath/qupath/issues/859)
+  * OMEPyramidWriter ignores file extension to always write ome.tif (https://github.com/qupath/qupath/issues/857)
+  * OMEPyramidWriter logic for bigtiff can fail for image pyramids (https://github.com/qupath/qupath/issues/858)
+
+### Dependency updates
+* Bio-Formats 6.8.0
+  * See https://www.openmicroscopy.org/2021/12/09/bio-formats-6-8-0.html for details
+* JavaFX 17.0.1
+  * Introduced to fix UI bugs, e.g. https://github.com/qupath/qupath/issues/833
+* ImageJ 1.53i
+  * Downgrade to support headless, see https://github.com/imagej/imagej1/issues/140
+* ControlsFX 11.1.1
+* Groovy 3.0.9
+* Gson 2.8.9
+* Logback 1.2.9
+* Picocli 4.6.2
+* RichTextFX 0.10.7
+
+## Version 0.3.0
 
 ### Release highlights
 * **New 'Create density map' command** to visualize hotspots & generate annotations based on object densities
@@ -79,9 +182,11 @@ For full details, see the [Commit log](https://github.com/qupath/qupath/commits/
 * New `locateFile(nameOrPath)` scripting method to search for files within the current project and/or user directory
 
 ### Code changes
-* Revised PathClass code to be more strict with invalid class names & prevent accidentally calling the constructor (please report any related bugs!)
+* Revised `PathClass` code to be more strict with invalid class names & prevent accidentally calling the constructor (please report any related bugs!)
 * GeoJSON features now use "properties>object_type" rather than "id" property to map to a QuPath object type (e.g. "annotation", "detection", "cell")
   * 'id' is likely to be used as a unique identifier in a later QuPath version
+* Updates to `TileExporter`, with some change in behavior
+  * Creating a `TileExporter` using `parentObjects` now exports fixed-sized tiles centered on the object ROI. To export the ROI bounding box instead, set `useROIBounds(true)` when creating the exporter.
 * The *'Number of processors for parallel commands'* preference has been renamed to *'Number of parallel threads'*
 * `GeneralTools.readAsString` methods now assume UTF-8 encoding
 * `PixelClassificationOverlay` has moved to the main GUI module
@@ -141,7 +246,7 @@ For full details, see the [Commit log](https://github.com/qupath/qupath/commits/
 * Guava 30.1.1-jre
 * ImageJ 1.53j
 * JavaFX 16
-* Java Topology suite 1.18.1
+* Java Topology suite 1.18.2
 * JavaCPP 1.5.6
 * JFreeSVG 5.0
 * jfxtras 11-r2

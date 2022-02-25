@@ -34,6 +34,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -151,11 +152,14 @@ public class ImageDisplay extends AbstractImageRenderer {
 			// Load any existing color properties
 			loadChannelColorProperties();
 			// Update from the last image, if required
-			if (lastDisplayJSON != null && !lastDisplayJSON.isEmpty())
+			if (lastDisplayJSON != null && !lastDisplayJSON.isEmpty()) {
 				updateFromJSON(lastDisplayJSON);
+			}
 		}
 		changeTimestamp.set(System.currentTimeMillis());
 	}
+	
+	
 	
 	/**
 	 * Get the current image data
@@ -318,7 +322,7 @@ public class ImageDisplay extends AbstractImageRenderer {
 				var option = channelOptions.get(c);
 				if (option instanceof DirectServerChannelInfo && c < server.nChannels()) {
 					var channel = server.getChannel(c);
-					if (option.getColor() != channel.getColor()) {
+					if (!Objects.equals(option.getColor(), channel.getColor())) {
 						((DirectServerChannelInfo)option).setLUTColor(channel.getColor());
 						colorsUpdated = true;
 					}

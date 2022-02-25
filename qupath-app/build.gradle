@@ -18,17 +18,17 @@ buildscript {
   }
 
   dependencies {
-    classpath "org.beryx:badass-runtime-plugin:1.12.5"
-    classpath 'com.github.jk1:gradle-license-report:1.16'
+    classpath "org.beryx:badass-runtime-plugin:1.12.7"
+//    classpath 'com.github.jk1:dependency-license-report:2.0'
   }
 }
 
 plugins {
   id 'qupath.common-conventions'
   id 'application'
-  id 'org.beryx.runtime' version '1.12.5'
+  id 'org.beryx.runtime' version '1.12.7'
 //    id 'org.beryx.jlink' version '2.24.0'  // Can use this when QuPath is modular...
-  id 'com.github.jk1.dependency-license-report' version '1.16'
+  id 'com.github.jk1.dependency-license-report' version '2.0'
 }
 
 
@@ -60,6 +60,21 @@ application {
   mainClass = "qupath.QuPath"
   applicationName = qupathAppName
   applicationDefaultJvmArgs = buildDefaultJvmArgs("${project.buildDir}/natives")
+}
+
+/*
+ * Add classpath and main class to make it easier to launch from jar
+ */
+ afterEvaluate {
+jar {
+  manifest {
+    def manifestAttributes = [
+       "Class-Path": configurations.runtimeClasspath.collect { it.getName() }.join(' '),
+       "Main-Class": "qupath.QuPath"
+    ]
+    attributes(manifestAttributes)
+  }
+}
 }
 
 ext {

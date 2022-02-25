@@ -52,11 +52,33 @@ def useCuda = useCudaRedist || project.hasProperty('cuda')
  * Handle OS-specific decisions
  */
 String platform = properties['platform.shortName']
+String jfxPlatform = platform
 if (properties['platform.name'] == null)
     logger.warn('Unknown operating system!')
 if ("32".equals(System.getProperty("sun.arch.data.model"))) {
-    logger.warn("You appear to be using a 32-bit JDK - the build will probably fail! At the very least, some things won't work.")
+    logger.warn("You appear to be using a 32-bit JDK - it is very possible some things won't work!")
+    logger.warn("You may at least need to replace the OpenSlide dlls with 32-bit versions from https://openslide.org/download/")
+    if (platform == 'win')
+	    jfxPlatform = platform + "-x86"
 }
+
+// Check if we are running using Apple Silicon
+//String osName = System.properties['os.name']?.toLowerCase()
+String osArch = System.properties['os.arch']
+def isAppleSilicon = platform == 'mac' && osArch == 'aarch64'
+if (isAppleSilicon) {
+	project.logger.warn("""
+Apple Silicon support is experimental and incomplete!
+I will try to build anyway, but note that:
+- I may need to use a SNAPSHOT version of OpenCV (subject to change on each build)
+- Parts of the software relying on native libraries are unlikely to work (including OpenSlide)
+If you want to avoid these messages, please use a JDK for x86_64.
+	""".trim())
+	jfxPlatform = "mac-aarch64"
+} else if (platform == 'linux' && osArch == 'aarch64') {
+	jfxPlatform = platform + '-aarch64'
+}
+
 
 /*
  * Preserve the version number
@@ -67,32 +89,33 @@ project.file('src/main/resources/VERSION').setText(gradle.ext.qupathVersion, 'UT
 /*
  * JavaFX version
  */
-def jfxVersion = '16'
+def jfxVersion = '17.0.2'
 def jfxModules = ['javafx.base', 'javafx.controls', 'javafx.graphics', 'javafx.media', 'javafx.web', 'javafx.swing']
 
 ext {
     // Dependency versions
     commonsMathVersion = '3.6.1'
     commonsTextVersion = '1.9'
-    controlsfxVersion  = '11.1.0'
-    groovyVersion      = '3.0.8'
-    gsonVersion        = '2.8.8'
-    guavaVersion       = '30.1.1-jre'
-    imagejVersion      = '1.53j'
+    controlsfxVersion  = '11.1.1'
+    groovyVersion      = '4.0.0'
+    gsonVersion        = '2.9.0'
+    guavaVersion       = '31.0.1-jre'
+    imagejVersion      = '1.53i'
     jfxtrasVersion     = '11-r2'
-    jtsVersion         = '1.18.1'
-    picocliVersion     = '4.6.1'
+    jtsVersion         = '1.18.2'
+    picocliVersion     = '4.6.3'
     
     // Note, if OpenCV is a SNAPSHOT version then it must already be installed locally (with Maven)
-    javacppVersion     = '1.5.6'
-    opencvVersion      = "4.5.3-${javacppVersion}"
-    // Optionally, not used by default
-    cudaVersion        = "11.4-8.2-${javacppVersion}"
+	javacppVersion     = '1.5.7'
+    opencvVersion      = "4.5.5-${javacppVersion}"
+
+	// Optional, not used by default
+	cudaVersion        = "11.6-8.3-${javacppVersion}"
 
     // Additional versions
-    logbackVersion     = '1.2.5'
-    slf4jVersion       = '1.7.32'
-    junitVersion       = '5.7.2'
+    logbackVersion     = '1.2.10'
+    slf4jVersion       = '1.7.36'
+    junitVersion       = '5.8.2'
 }
 
 configurations {
@@ -121,13 +144,13 @@ dependencies {
     // However, the use of simple-json is troublesome since it brings in an old version of junit
 //   jts "org.locationtech.jts.io:jts-io-common:${jtsVersion}"
 
-    groovy "org.codehaus.groovy:groovy:${groovyVersion}"
-    groovy "org.codehaus.groovy:groovy-jsr223:${groovyVersion}"
-    groovy "org.codehaus.groovy:groovy-xml:${groovyVersion}"
+    groovy "org.apache.groovy:groovy:${groovyVersion}"
+    groovy "org.apache.groovy:groovy-jsr223:${groovyVersion}"
+    groovy "org.apache.groovy:groovy-xml:${groovyVersion}"
 
     for (fx in jfxModules.collect{it.replace('.', '-')}) {
         javafx "org.openjfx:${fx}:${jfxVersion}"
-        javafx "org.openjfx:${fx}:${jfxVersion}:${platform}"
+        javafx "org.openjfx:${fx}:${jfxVersion}:${jfxPlatform}"
     }
 
     commonsmath "org.apache.commons:commons-math3:${commonsMathVersion}"

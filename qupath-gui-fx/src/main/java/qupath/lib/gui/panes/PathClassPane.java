@@ -172,7 +172,7 @@ public class PathClassPane {
 			}
 		});
 		
-		listClasses.addEventFilter(KeyEvent.KEY_RELEASED, e -> {
+		listClasses.addEventFilter(KeyEvent.KEY_PRESSED, e -> {
 			if (e.isConsumed())
 				return;
 			if (e.getCode() == KeyCode.BACK_SPACE) {
@@ -501,6 +501,7 @@ public class PathClassPane {
 	
 	/**
 	 * Prompt to populate available class list from the current image.
+	 * @param baseClassesOnly 
 	 * @return true if the class list was changed, false otherwise.
 	 */
 	boolean promptToPopulateFromImage(boolean baseClassesOnly) {
@@ -608,6 +609,7 @@ public class PathClassPane {
 			return false;
 		}
 		list.add(pathClass);
+		listClasses.getSelectionModel().clearAndSelect(listClasses.getItems().size()-1);
 		return true;
 	}
 	

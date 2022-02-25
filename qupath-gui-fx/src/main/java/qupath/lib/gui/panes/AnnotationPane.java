@@ -50,6 +50,8 @@ import javafx.scene.control.MultipleSelectionModel;
 import javafx.scene.control.SelectionMode;
 import javafx.scene.control.SplitPane;
 import javafx.scene.control.Tooltip;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
@@ -222,6 +224,16 @@ public class AnnotationPane implements PathObjectSelectionListener, ChangeListen
 		btnSelectAll.disableProperty().bind(disableButtons);
 		btnDelete.disableProperty().bind(disableButtons);
 		btnMore.disableProperty().bind(disableButtons);
+		
+		// Add support for delete/backspace
+		listAnnotations.addEventFilter(KeyEvent.KEY_RELEASED, e -> {
+			if (e.isConsumed())
+				return;
+			if (e.getCode() == KeyCode.BACK_SPACE || e.getCode() == KeyCode.DELETE) {
+				btnDelete.fire();
+				e.consume();
+			}
+		});
 
 		panelObjects.setBottom(panelButtons);
 		return panelObjects;

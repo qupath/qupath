@@ -44,7 +44,6 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.TypeAdapter;
-import com.google.gson.TypeAdapterFactory;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
 
@@ -71,17 +70,6 @@ class PathObjectTypeAdapters {
 			.setLenient()
 			.create();
 		
-	static class PathObjectTypeAdapterFactory implements TypeAdapterFactory {
-
-		@Override
-		public <T> TypeAdapter<T> create(Gson gson, TypeToken<T> type) {
-			if (Collection.class.isAssignableFrom(type.getRawType())) {
-				System.err.println(type.getType().getTypeName());
-			}
-			return null;
-		}
-		
-	}
 	
 	static class FeatureCollection {
 		
@@ -413,11 +401,11 @@ class PathObjectTypeAdapters {
 			switch (type) {
 			case ("PathTileObject"):
 			case ("tile"):
-				pathObject = PathObjects.createTileObject(roi, pathClass, measurementList);
+				pathObject = PathObjects.createTileObject(roi);
 				break;
 			case ("PathCellObject"):
 			case ("cell"):
-				pathObject = PathObjects.createCellObject(roi, roiNucleus, pathClass, measurementList);
+				pathObject = PathObjects.createCellObject(roi, roiNucleus, null, null);
 				break;
 			case ("TMACoreObject"):
 			case ("tma_core"):
@@ -425,7 +413,7 @@ class PathObjectTypeAdapters {
 				break;
 			case ("PathDetectionObject"):
 			case ("detection"):
-				pathObject = PathObjects.createDetectionObject(roi, pathClass, measurementList);
+				pathObject = PathObjects.createDetectionObject(roi);
 				break;
 			case ("PathRootObject"):
 			case ("root"):
@@ -435,13 +423,22 @@ class PathObjectTypeAdapters {
 			case ("annotation"):
 			case ("unknown"):
 				// Default is to create an annotation
-				pathObject = PathObjects.createAnnotationObject(roi, pathClass);
+				pathObject = PathObjects.createAnnotationObject(roi);
 				break;
 			default:
 				// Should be called if the type has been specified as *something*, but not something we recognize
 				logger.warn("Unknown object type {}, I will create an annotation", type);
-				pathObject = PathObjects.createAnnotationObject(roi, pathClass);
+				pathObject = PathObjects.createAnnotationObject(roi);
 			}
+			if (measurementList != null && !measurementList.isEmpty()) {
+				try (var ml = pathObject.getMeasurementList()) {
+					for (int i = 0; i < measurementList.size(); i++)
+						ml.addMeasurement(measurementList.getMeasurementName(i), measurementList.getMeasurementValue(i));
+				}
+			}
+			if (pathClass != null)
+				pathObject.setPathClass(pathClass);
+			
 			if (name != null)
 				pathObject.setName(name);
 			

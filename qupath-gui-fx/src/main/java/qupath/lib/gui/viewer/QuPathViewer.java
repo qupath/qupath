@@ -102,6 +102,7 @@ import qupath.lib.awt.common.AwtTools;
 import qupath.lib.color.ColorToolsAwt;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.display.DirectServerChannelInfo;
 import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.images.servers.PathHierarchyImageServer;
@@ -123,7 +124,9 @@ import qupath.lib.gui.viewer.tools.MoveTool;
 import qupath.lib.gui.viewer.tools.PathTool;
 import qupath.lib.gui.viewer.tools.PathTools;
 import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
@@ -301,6 +304,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 				centerImage();
 				// Make sure the downsample factor is being continually updated
 				downsampleFactor.set(getZoomToFitDownsampleFactor());
+				repaint();
 			} else {
 				updateAffineTransform();
 				repaint();
@@ -311,6 +315,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 				centerImage();
 				// Make sure the downsample factor is being continually updated
 				downsampleFactor.set(getZoomToFitDownsampleFactor());
+				repaint();
 			} else {
 				updateAffineTransform();
 				repaint();
@@ -989,6 +994,8 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 			tPosition.set(0);
 			return;
 		}
+		
+		updateICCTransform();
 
 		zPosition.set(server.nZSlices() / 2);
 		tPosition.set(0);
@@ -1325,8 +1332,10 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	 * Create an RGB thumbnail image using the current rendering settings.
 	 * <p>
 	 * Subclasses may choose to override this if a suitable image has been cached already.
+	 * @param imgThumbnail 
 	 * 
 	 * @return
+	 * @throws IOException 
 	 */
 	BufferedImage createThumbnailRGB(BufferedImage imgThumbnail) throws IOException {
 		ImageRenderer renderer = getRenderer();
@@ -1542,6 +1551,19 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 			}
 			if (!displaySet)
 				imageDisplay.setImageData(imageDataNew, keepDisplay);
+			
+			// For non-RGB images, the channel colors in our server metadata might now be out of sync with the 
+			// brightness/contrast, based upon whatever we extracted from the image properties or kept from the last image.
+			// If this happens, we need to update the metadata.
+			// See https://github.com/qupath/qupath/issues/843
+			if (server != null && !server.isRGB()) {
+				var colors = imageDisplay.availableChannels().stream()
+						.filter(c -> c instanceof DirectServerChannelInfo)
+						.map(c -> c.getColor())
+						.collect(Collectors.toList());
+				if (server.nChannels() == colors.size())
+					updateServerChannels(server, colors);
+			}
 		}
 		long endTime = System.currentTimeMillis();
 		logger.debug("Setting ImageData time: {} ms", endTime - startTime);
@@ -1587,6 +1609,46 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 			repaint();
 		
 		logger.info("Image data set to {}", imageDataNew);
+	}
+	
+	
+	
+	/**
+	 * Update the channel colors, as stored in the server metadata, to match the specified colors.
+	 * This is used in the fix for See https://github.com/qupath/qupath/issues/843
+	 * @param server
+	 * @param colors
+	 * @return
+	 * @throws IllegalArgumentException if the number of colors does not match the number of channels
+	 */
+	private static boolean updateServerChannels(ImageServer<BufferedImage> server, List<Integer> colors) throws IllegalArgumentException {
+		var channels = server.getMetadata().getChannels();
+		if (channels.size() != colors.size())
+			throw new IllegalArgumentException(String.format("Number of channels (%d) does not match the number of colors (%d)!", channels.size(), colors.size()));
+		var serverChannelColors = channels.stream().map(c -> c.getColor()).collect(Collectors.toList());
+		if (colors.equals(serverChannelColors))
+			return false;
+		channels = new ArrayList<>(channels);
+		int n = 0;
+		for (int i = 0; i < channels.size(); i++) {
+			var channel = channels.get(i);
+			var color = colors.get(i);
+			if (!Objects.equals(channel.getColor(), color)) {
+				channels.set(i, ImageChannel.getInstance(channel.getName(), color));
+				n++;
+			}
+		}
+		if (n == 0)
+			return false; // Shouldn't happen
+		var newMetadata = new ImageServerMetadata.Builder(server.getMetadata())
+			.channels(channels)
+			.build();
+		server.setMetadata(newMetadata);
+		if (n == 1)
+			logger.info("Updating server metadata for 1 channel");
+		else
+			logger.info("Updating server metadata for {} channels", n);			
+		return true;
 	}
 	
 	
@@ -2142,7 +2204,11 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	 * @return the <code>ColorConvertOp</code> if an appropriate conversion could be found, or <code>null</code> otherwise.
 	 */
 	ColorConvertOp createICCConvertOp() {
-		ICC_Profile iccSource = readICC(new File(getServerPath()));
+		var server = getServer();
+		var uris = server == null ? null : server.getURIs();
+		if (uris == null || uris.isEmpty())
+			return null;
+		ICC_Profile iccSource = readICC(new File(uris.iterator().next()));
 		if (iccSource == null)
 			return null;
 		return new ColorConvertOp(new ICC_Profile[]{
@@ -2176,7 +2242,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	}
 	
 	void updateICCTransform() {
-		if (getServerPath() != null && getDoICCTransform())
+		if (getDoICCTransform())
 			iccTransformOp = createICCConvertOp();
 		else
 			iccTransformOp = null;
@@ -2383,8 +2449,11 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	protected double getZoomToFitDownsampleFactor() {
 		if (!hasServer())
 			return Double.NaN;
-		double maxDownsample = (double)getServerWidth() / getWidth();
-		maxDownsample = Math.max(maxDownsample, (double)getServerHeight() / getHeight());
+		double fullWidth = (double)getServerWidth();
+		double fullHeight = (double)getServerHeight();
+		// TODO: Consider handling rotation
+		double maxDownsample = fullWidth / getWidth();
+		maxDownsample = Math.max(maxDownsample, fullHeight / getHeight());
 		return maxDownsample;		
 	}
 
@@ -3238,7 +3307,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 				case UP:
 					if (nZSlices > 1) {
 						int inc = PathPrefs.invertZSliderProperty().get() ? -1 : 1;
-						setZPosition(GeneralTools.clipValue(getZPosition() + inc, 0, nZSlices));	
+						setZPosition(GeneralTools.clipValue(getZPosition() + inc, 0, nZSlices - 1));	
 						event.consume();
 						return;
 					}
@@ -3267,7 +3336,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 				case DOWN:
 					if (nZSlices > 1) {
 						int inc = PathPrefs.invertZSliderProperty().get() ? 1 : -1;
-						setZPosition(GeneralTools.clipValue(getZPosition() + inc, 0, nZSlices));	
+						setZPosition(GeneralTools.clipValue(getZPosition() + inc, 0, nZSlices - 1));	
 						event.consume();
 						return;
 					}

@@ -51,7 +51,6 @@ import javafx.scene.control.MenuItem;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Pane;
-import qupath.imagej.gui.commands.ui.SaveResourcePaneBuilder;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.dialogs.Dialogs;
@@ -78,6 +77,7 @@ import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
 import qupath.lib.projects.Project;
 import qupath.opencv.ml.pixel.PixelClassifierTools;
 import qupath.opencv.ml.pixel.PixelClassifierTools.CreateObjectOptions;
+import qupath.process.gui.commands.ui.SaveResourcePaneBuilder;
 
 /**
  * Helper class for generating standardized UI components for pixel classification.
@@ -312,10 +312,9 @@ public class PixelClassifierUI {
 				);
 		
 		// To avoid confusing the user unnecessarily, if we *only* have ignored classes then set default for includeIgnored to true
-		boolean includeIgnored = false;
 		var labels = classifier.getMetadata().getClassificationLabels();
-		if (!labels.isEmpty() && labels.values().stream().allMatch(p -> p == null || PathClassTools.isIgnoredClass(p)))
-			includeIgnored = true;
+		boolean allIgnored = !labels.isEmpty() && labels.values().stream().allMatch(p -> p == null || PathClassTools.isIgnoredClass(p));
+		boolean includeIgnored = allIgnored;
 
 		var cal = imageData.getServer().getPixelCalibration();
 		var units = cal.unitsMatch2D() ? cal.getPixelWidthUnit()+"^2" : cal.getPixelWidthUnit() + "x" + cal.getPixelHeightUnit();
@@ -362,6 +361,10 @@ public class PixelClassifierUI {
 			options.add(CreateObjectOptions.DELETE_EXISTING);
 		if (includeIgnored)
 			options.add(CreateObjectOptions.INCLUDE_IGNORED);
+		else if (allIgnored) {
+			Dialogs.showErrorMessage(title, "Cannot create objects - all class names have an asterisk to show they should be 'ignored'!");
+			return false;
+		}
 		if (selectNew)
 			options.add(CreateObjectOptions.SELECT_NEW);
 		

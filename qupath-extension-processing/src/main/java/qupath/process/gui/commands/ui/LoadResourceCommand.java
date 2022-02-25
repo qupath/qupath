@@ -19,7 +19,7 @@
  * #L%
  */
 
-package qupath.imagej.gui.commands.ui;
+package qupath.process.gui.commands.ui;
 
 import java.awt.image.BufferedImage;
 import java.io.File;

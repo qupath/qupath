@@ -328,7 +328,7 @@ class TMAEntries {
 			case RANGE:
 				return "Range";
 			default:
-				return null;
+				return "Unknown";
 			}
 		}
 	

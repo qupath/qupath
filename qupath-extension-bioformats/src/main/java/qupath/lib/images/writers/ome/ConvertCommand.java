@@ -35,12 +35,14 @@ import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.extensions.Subcommand;
+import qupath.lib.gui.images.stores.ImageRegionStoreFactory;
+import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ImageServerProvider;
 import qupath.lib.images.servers.ImageServers;
 import qupath.lib.images.servers.bioformats.BioFormatsServerBuilder;
 import qupath.lib.images.writers.ome.OMEPyramidWriter.Builder;
 import qupath.lib.images.writers.ome.OMEPyramidWriter.CompressionType;
-import qupath.lib.regions.RegionRequest;
 
 /**
  * Allows command line option to convert an input image to OME-TIFF
@@ -78,6 +80,10 @@ public class ConvertCommand implements Runnable, Subcommand {
 			"Each pyramidal level is scaled down by the specified factor (> 1)."})
 	private double pyramid;
 	
+	@Option(names = {"--big-tiff"}, defaultValue = Option.NULL_VALUE, description = {"Request to write a big tiff, which is required when writing a TIFF images > 4GB.",
+			"Default is to automatically decide based on image size. Choose --big-tiff=false to force a non-big-tiff to be written."})
+	private Boolean bigTiff;
+	
 	@Option(names = {"--tile-size"}, defaultValue = "-1", description = "Set the tile size (of equal height and width).")
 	private int tileSize;
 	
@@ -107,6 +113,9 @@ public class ConvertCommand implements Runnable, Subcommand {
 	
 	@Override
 	public void run() {
+		
+		long startTime = System.currentTimeMillis();
+		
 		try {
 			if (inputFile == null || outputFile == null)
 				throw new IOException("Incorrect given path(s)");
@@ -133,6 +142,8 @@ public class ConvertCommand implements Runnable, Subcommand {
 		else
 			args = new String[0];
 		
+		createTileCache();
+		
 		try (ImageServer<BufferedImage> server = ImageServers.buildServer(inputFile.toURI(), args)) {
 			
 			// Get compression from user (or CompressionType.DEFAULT)
@@ -144,11 +155,13 @@ public class ConvertCommand implements Runnable, Subcommand {
 				logger.error("Chosen compression " + compressionType.toString() + " is not compatible with the input image.");
 			}
 			
-			// Check if output will be a single tile
-			boolean singleTile = server.getTileRequestManager().getTileRequests(RegionRequest.createInstance(server)).size() == 1;
-			
-			if (singleTile)
-				parallelize = false;
+			// No longer needed because of a494568f - AbstractTileableImageServer now better handles simultaneous tile requests, 
+			// and parallelization can still help when requesting regions from an ImageServer that contains an in-memory image
+//			// Check if output will be a single tile
+//			boolean singleTile = server.getTileRequestManager().getTileRequests(RegionRequest.createInstance(server)).size() == 1;
+//			
+//			if (singleTile)
+//				parallelize = false;
 			
 			if (tileSize > -1) {
 				tileWidth = tileSize;
@@ -159,6 +172,9 @@ public class ConvertCommand implements Runnable, Subcommand {
 					.compression(compressionType)
 					.tileSize(tileWidth, tileHeight)
 					.parallelize(parallelize);
+			
+			if (bigTiff != null)
+				builder = builder.bigTiff(bigTiff.booleanValue());
 			
 			// Make pyramidal, if requested
 			if (downsample < 1)
@@ -228,11 +244,14 @@ public class ConvertCommand implements Runnable, Subcommand {
 					return;
 				}
 			}
-						
-			builder.build().writePyramid(outputFile.getPath());
+			
+			builder.build().writeSeries(outputFile.getPath());
+			
+			long duration = System.currentTimeMillis() - startTime;
+			logger.info(String.format("%s written in %.1f seconds", outputFile.getAbsolutePath(), duration/1000.0));
 
 		} catch (Exception e) {
-			logger.error(e.getLocalizedMessage());
+			logger.error(e.getLocalizedMessage(), e);
 		}
 	}
 	
@@ -268,4 +287,30 @@ public class ConvertCommand implements Runnable, Subcommand {
 //			return CompressionType.DEFAULT;
 //		}
 //	}
+	
+	
+	/**
+	 * The tile cache is usually set when initializing the GUI; here, we need to create one for performance
+	 */
+	private void createTileCache() {
+		// TODO: Refactor this to avoid replicating logic from QuPathGUI private method
+		Runtime rt = Runtime.getRuntime();
+		long maxAvailable = rt.maxMemory(); // Max available memory
+		if (maxAvailable == Long.MAX_VALUE) {
+			logger.warn("No inherent maximum memory set - for caching purposes, will assume 64 GB");
+			maxAvailable = 64L * 1024L * 1024L * 1024L;
+		}
+		double percentage = PathPrefs.tileCachePercentageProperty().get();
+		if (percentage < 10) {
+			percentage = 10;
+		} else if (percentage > 90) {
+			percentage = 90;			
+		}
+		long tileCacheSize = Math.round(maxAvailable * (percentage / 100.0));
+		logger.info(String.format("Setting tile cache size to %.2f MB (%.1f%% max memory)", tileCacheSize/(1024.*1024.), percentage));
+		
+		var imageRegionStore = ImageRegionStoreFactory.createImageRegionStore(tileCacheSize);
+		ImageServerProvider.setCache(imageRegionStore.getCache(), BufferedImage.class);
+	}
+	
 }

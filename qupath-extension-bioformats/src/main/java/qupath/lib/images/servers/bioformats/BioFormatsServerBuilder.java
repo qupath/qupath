@@ -64,7 +64,7 @@ public class BioFormatsServerBuilder implements ImageServerBuilder<BufferedImage
 	public UriImageSupport<BufferedImage> checkImageSupport(URI uri, String...args) throws IOException {
 		float supportLevel = supportLevel(uri, args);
 		if (supportLevel > 0) {
-			try (BioFormatsImageServer server = new BioFormatsImageServer(uri, BioFormatsServerOptions.getInstance(), args)) {
+			try (BioFormatsImageServer server = BioFormatsImageServer.checkSupport(uri, BioFormatsServerOptions.getInstance(), args)) {
 				// If we requested a specified series, just allow one builder
 				Map<String, ServerBuilder<BufferedImage>> builders;
 				// --name is a legacy option, used in v0.1.2 - see https://github.com/qupath/qupath/issues/515

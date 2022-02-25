@@ -100,6 +100,7 @@ class RigidObjectEditorCommand implements Runnable, ChangeListener<ImageData<Buf
 	
 	/**
 	 * Get the currently-selected object if it is compatible, or null if there is no compatible object selected
+	 * @param viewer 
 	 * @return
 	 */
 	PathObject getSelectedObject(final QuPathViewer viewer) {

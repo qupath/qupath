@@ -173,7 +173,7 @@ public class ImageWriterTools {
 				firstException = e;
 			}
 		}
-		if (firstException == null && firstException == null)
+		if (firstException == null)
 			throw new IOException("Unable to write " + path + "!  No compatible writer found.");
 		else
 			throw new IOException("Unable to write " + path + "!", firstException);

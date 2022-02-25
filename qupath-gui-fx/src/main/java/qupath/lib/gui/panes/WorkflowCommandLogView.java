@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,6 +57,11 @@ import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.Tooltip;
+import javafx.scene.input.ClipboardContent;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyCodeCombination;
+import javafx.scene.input.KeyCombination;
+import javafx.scene.input.Clipboard;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Pane;
 import javafx.stage.Stage;
@@ -95,6 +101,8 @@ public class WorkflowCommandLogView implements ChangeListener<ImageData<Buffered
 	
 	private TableView<KeyValue<Object>> table = new TableView<>();
 	
+	private final KeyCodeCombination copyCombination = new KeyCodeCombination(KeyCode.C, KeyCombination.SHORTCUT_DOWN);
+	
 	/**
 	 * Construct a view to display the workflow for the currently-active ImageData within a running QuPath instance.
 	 * 
@@ -106,14 +114,21 @@ public class WorkflowCommandLogView implements ChangeListener<ImageData<Buffered
 //		viewer.addViewerListener(this);
 		qupath.imageDataProperty().addListener(this);
 		ImageData<BufferedImage> imageData = qupath.getImageData();
+		isStaticWorkflow = false;
 		if (imageData != null) {
 			var workflow = imageData.getHistoryWorkflow();
 			workflow.addWorkflowListener(this);
 			workflowProperty.set(workflow);
+			workflowUpdated(workflow);
 		}
-		isStaticWorkflow = false;
+		list.setOnKeyPressed(e -> {
+			if (copyCombination.match(e)) {
+				copyScriptToClipboard(getSelectedIndices());
+				e.consume();
+			}
+		});
 	}
-	
+
 	/**
 	 * Construct a view displaying a static workflow (i.e. not dependent on any particular ImageData).
 	 * 
@@ -129,7 +144,6 @@ public class WorkflowCommandLogView implements ChangeListener<ImageData<Buffered
 		this.isStaticWorkflow = true;
 	}
 	
-	
 	/**
 	 * Get the pane to add to a scene.
 	 * @return
@@ -139,8 +153,6 @@ public class WorkflowCommandLogView implements ChangeListener<ImageData<Buffered
 			pane = createPane();
 		return pane;
 	}
-	
-	
 	
 	protected BorderPane createPane() {
 		BorderPane pane = new BorderPane();
@@ -166,35 +178,38 @@ public class WorkflowCommandLogView implements ChangeListener<ImageData<Buffered
 		});
 		
 		final ContextMenu contextMenu = new ContextMenu();
+		MenuItem miCopyCommand = new MenuItem("Copy command" + (isStaticWorkflow ? "s" : ""));
+		miCopyCommand.setOnAction(e -> {
+			List<Integer> indices = list.getSelectionModel().getSelectedIndices();
+			if (indices == null || indices.isEmpty())
+				return;
+			copyScriptToClipboard(indices);
+		});
+		miCopyCommand.disableProperty().bind(workflowProperty.isNull());
+		contextMenu.getItems().setAll(miCopyCommand);
+		
 		if (isStaticWorkflow) {
 			MenuItem miRemoveSelected = new MenuItem("Remove selected items");
 			miRemoveSelected.setOnAction(e -> {
-				var workflow = getWorkflow();
-				if (workflow == null)
-					return;
-				List<Integer> steps = list.getSelectionModel().getSelectedIndices();
-				if (steps.isEmpty())
+				var steps = getSelectedIndices();
+				if (steps == null || steps.isEmpty())
 					return;
 				String message = steps.size() == 1 ? "Remove workflow step?" : "Remove " + steps.size() + " workflow steps?";
 				if (!Dialogs.showYesNoDialog("Remove workflow steps", message))
 					return;
-				steps = new ArrayList<>(steps);
 				Collections.sort(steps);
 				for (int i = steps.size()-1; i >= 0; i--)
-					workflow.removeStep(steps.get(i));
+					getWorkflow().removeStep(steps.get(i));
 //				workflow.removeSteps(steps);
 			});
 			miRemoveSelected.disableProperty().bind(workflowProperty.isNull());
 			
 			MenuItem miMoveUp = new MenuItem("Move up");
 			miMoveUp.setOnAction(e -> {
+				var indices = getSelectedIndices();
+				if (indices == null || indices.isEmpty() || indices.get(0) <= 0)
+					return;
 				var workflow = getWorkflow();
-				if (workflow == null)
-					return;
-				List<Integer> indices = list.getSelectionModel().getSelectedIndices();
-				if (indices.isEmpty() || indices.get(0) <= 0)
-					return;
-				indices = new ArrayList<>(indices);
 				List<WorkflowStep> steps = new ArrayList<>(workflow.getSteps());
 				WorkflowStep[] stepsRemoved = new WorkflowStep[indices.size()];
 				workflow.removeSteps(steps);
@@ -216,13 +231,10 @@ public class WorkflowCommandLogView implements ChangeListener<ImageData<Buffered
 			
 			MenuItem miMoveDown = new MenuItem("Move down");
 			miMoveDown.setOnAction(e -> {
+				var indices = getSelectedIndices();
 				var workflow = getWorkflow();
-				if (workflow == null)
+				if (indices == null || indices.isEmpty() || indices.get(indices.size()-1) >= workflow.size()-1)
 					return;
-				List<Integer> indices = list.getSelectionModel().getSelectedIndices();
-				if (indices.isEmpty() || indices.get(indices.size()-1) >= workflow.size()-1)
-					return;
-				indices = new ArrayList<>(indices);
 				list.getSelectionModel().clearSelection();
 				Collections.sort(indices);
 				List<WorkflowStep> steps = new ArrayList<>(workflow.getSteps());
@@ -253,7 +265,8 @@ public class WorkflowCommandLogView implements ChangeListener<ImageData<Buffered
 //				list.getSelectionModel().select(step);
 			});
 			miMoveDown.disableProperty().bind(workflowProperty.isNull());
-			contextMenu.getItems().setAll(
+			contextMenu.getItems().addAll(
+					new SeparatorMenuItem(),
 					miMoveUp,
 					miMoveDown,
 					new SeparatorMenuItem(),
@@ -265,24 +278,30 @@ public class WorkflowCommandLogView implements ChangeListener<ImageData<Buffered
 
 			@Override
 			public ListCell<WorkflowStep> call(ListView<WorkflowStep> p) {
-				ListCell<WorkflowStep> cell = new ListCell<WorkflowStep>(){
+				ListCell<WorkflowStep> cell = new ListCell<>(){
 					@Override
 					protected void updateItem(WorkflowStep value, boolean bln) {
 						super.updateItem(value, bln);
 						if (value instanceof WorkflowStep)
-							setText(((WorkflowStep)value).getName());
+							setText(value.getName());
 						else if (value == null)
 							setText(null);
 						else
 							setText(value.toString());
 						
-						if (isStaticWorkflow)
-							this.setContextMenu(contextMenu);
+						setContextMenu(contextMenu);
 
 						setOnMouseClicked(e -> {
 							// Only handle double clicks
 							if (!e.isPopupTrigger() && e.getClickCount() == 2)
 								runWorkflowStepInteractively(qupath, value);
+						});
+						
+						setOnKeyPressed(e -> {
+							if (copyCombination.match(e)) {
+								copyScriptToClipboard(getSelectedIndices());
+								e.consume();
+							}
 						});
 					}
 				};
@@ -326,6 +345,13 @@ public class WorkflowCommandLogView implements ChangeListener<ImageData<Buffered
 		return pane;
 	}
 	
+	private List<Integer> getSelectedIndices() {
+		var workflow = getWorkflow();
+		if (workflow == null)
+			return null;
+		return new ArrayList<>(list.getSelectionModel().getSelectedIndices());
+	}
+	
 	
 	private Workflow getWorkflow() {
 		var workflow = workflowProperty.get();
@@ -335,6 +361,14 @@ public class WorkflowCommandLogView implements ChangeListener<ImageData<Buffered
 		return workflow;
 	}
 	
+	
+	private void copyScriptToClipboard(List<Integer> indices) {
+		var steps = getWorkflow().getSteps();
+		var script = indices.stream().map(index -> ((ScriptableWorkflowStep)steps.get(index)).getScript()).collect(Collectors.joining(System.lineSeparator()));
+		ClipboardContent content = new ClipboardContent();
+		content.putString(script);
+		Clipboard.getSystemClipboard().setContent(content);
+	}
 	
 	static class ParameterTableCell<S, T> extends TableCell<S, T> {
 		
@@ -504,7 +538,4 @@ public class WorkflowCommandLogView implements ChangeListener<ImageData<Buffered
 			workflowUpdated(null);
 		}
 	}
-	
-	
-	
 }

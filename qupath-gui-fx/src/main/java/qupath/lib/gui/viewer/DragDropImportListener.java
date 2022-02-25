@@ -226,6 +226,20 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 		// Gather together the extensions - if this has length one, we know all the files have the same extension
 		Set<String> allExtensions = list.stream().map(f -> GeneralTools.getExtension(f).orElse("")).collect(Collectors.toSet());
 		
+		// If we have a zipped file, create a set that includes the files within the zip image
+		// This helps us determine whether or not a zip file contains an image or objects, for example
+		Set<String> allUnzippedExtensions = allExtensions;
+		if (allExtensions.contains(".zip")) {
+			allUnzippedExtensions = list.stream().flatMap(f -> {
+				try {
+					return PathIO.unzippedExtensions(f.toPath()).stream();
+				} catch (IOException e) {
+					logger.debug(e.getLocalizedMessage(), e);
+					return Arrays.stream(new String[0]);
+				}
+			}).collect(Collectors.toSet());
+		}
+		
 		// Extract the first (and possibly only) file
 		File file = list.get(0);
 		
@@ -305,16 +319,19 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 				Project<BufferedImage> project = ProjectIO.loadProject(file, BufferedImage.class);
 				qupath.setProject(project);
 			} catch (Exception e) {
-				Dialogs.showErrorMessage("Project error", e);
-//					logger.error("Could not open as project file: {}", e);
+//				Dialogs.showErrorMessage("Project error", e);
+				logger.error("Could not open as project file: {}, opening in the Script Editor instead", e);
+				qupath.getScriptEditor().showScript(file);
 			}
 			return;
 		}
 		
 		// Check if it is an object file in GeoJSON format (.geojson)
-		if (allExtensions.size() == 1 && PathIO.getObjectFileExtensions().contains(allExtensions.iterator().next())) {
+		if (PathIO.getObjectFileExtensions(false).containsAll(allUnzippedExtensions)) {
 			if (imageData == null || hierarchy == null) {
-				Dialogs.showErrorMessage("Open object file", "Please open an image first to import objects!");
+				qupath.getScriptEditor().showScript(file);
+				logger.info("Opening the dragged file in the Script Editor as there is no currently opened image in the viewer");
+//				Dialogs.showErrorMessage("Open object file", "Please open an image first to import objects!");
 				return;
 			}
 			
@@ -324,7 +341,8 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 				try {
 					var tempObjects = PathIO.readObjects(tempFile);
 					if (tempObjects.isEmpty()) {
-						logger.warn("No objects found in {}", tempFile.getAbsolutePath());
+						logger.warn("No objects found in {}, opening the dragged file in the Script Editor instead", tempFile.getAbsolutePath());
+						qupath.getScriptEditor().showScript(file);
 						return;
 					}
 					pathObjects.addAll(tempObjects);
@@ -369,7 +387,7 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 		}
 
 
-		// Open Javascript
+		// Open file with an extension supported by the Script Editor
 		ScriptEditor scriptEditor = qupath.getScriptEditor();
 		if (scriptEditor instanceof DefaultScriptEditor && ((DefaultScriptEditor)scriptEditor).supportsFile(file)) {
 			scriptEditor.showScript(file);

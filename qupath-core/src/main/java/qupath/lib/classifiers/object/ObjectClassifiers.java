@@ -176,7 +176,7 @@ public class ObjectClassifiers {
 	 */
 	public static <T> void writeClassifier(ObjectClassifier<T> classifier, Path path) throws IOException {
 		try (var writer = Files.newBufferedWriter(path, StandardCharsets.UTF_8)) {
-			GsonTools.getInstance(true).toJson(classifier, writer);
+			GsonTools.getInstance(true).toJson(classifier, ObjectClassifier.class, writer);
 		}
 	}
 	
