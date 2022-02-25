@@ -248,10 +248,9 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		
 		Action actionOpenImage = new Action("Open image", e -> qupath.openImageEntry(getSelectedEntry()));
 		Action actionRemoveImage = new Action("Remove image(s)", e -> {
-			Collection<ProjectImageEntry<BufferedImage>> entries = getAllSelectedEntries();
-			
 			Collection<ImageRow> imageRows = getSelectedImageRowsRecursive();
 			Collection<ProjectImageEntry<BufferedImage>> entries = ProjectTreeRow.getEntries(imageRows);
+			
 			if (entries.isEmpty())
 				return;
 			
