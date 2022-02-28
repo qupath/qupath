@@ -25,7 +25,11 @@ package qupath.lib.gui.dialogs;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 import org.slf4j.Logger;
@@ -64,7 +68,7 @@ public class QuPathChooserFX implements QuPathChooser {
 	
 	private ExtensionFilter allFiles = new ExtensionFilter("All Files", "*.*");
 	
-	protected File lastDir;
+	private File lastDir;
 	
 	/**
 	 * Create a {@link QuPathChooser} using JavaFX.
@@ -94,7 +98,7 @@ public class QuPathChooserFX implements QuPathChooser {
 		return null;
 	}
 	
-	protected File getUsefulBaseDirectory(File dirBase) {
+	private File getUsefulBaseDirectory(File dirBase) {
 		if (dirBase == null || !dirBase.isDirectory())
 			return getLastDirectory();
 		else
@@ -236,10 +240,10 @@ public class QuPathChooserFX implements QuPathChooser {
 	}
 
 	@Override
-	public File promptToSaveFile(String title, File dirBase, String defaultName, String filterName, String ext) {
+	public File promptToSaveFile(String title, File dirBase, String defaultName, Map<String, String> filters) {
 		
 		if (!Platform.isFxApplicationThread()) {
-			return GuiTools.callOnApplicationThread(() -> promptToSaveFile(title, dirBase, defaultName, filterName, ext));
+			return GuiTools.callOnApplicationThread(() -> promptToSaveFile(title, dirBase, defaultName, filters));
 		}
 
 		File lastDir = getLastDirectory();
@@ -248,22 +252,59 @@ public class QuPathChooserFX implements QuPathChooser {
 			fileChooser.setTitle(title);
 		else
 			fileChooser.setTitle("Save");
-		// Multipart extensions can be troublesome... don't set a filter for these unless on Windows (which seems to cope)
-		if (filterName != null && ext != null && (GeneralTools.isWindows() || !GeneralTools.isMultipartExtension(ext))) {
-			ExtensionFilter filter = getExtensionFilter(filterName, ext);
-			fileChooser.getExtensionFilters().setAll(filter);
-			fileChooser.setSelectedExtensionFilter(filter);
-		} else {
-			fileChooser.getExtensionFilters().clear();
-			fileChooser.setSelectedExtensionFilter(null);
-		}
+		
+		// Extract file extension from default name, if possible.
+		// We want to use this 'provided extension' if it's valid, i.e. it's found within the list of extensions.
+		// But we need to separately retain a default extension until we know if it's valid.
+		// We don't want to strip away anything after a final dot that isn't an intended file extension.
+		String providedExt = defaultName == null ? null : GeneralTools.getExtension(defaultName).orElse(null);
+		String defaultExt = null;
+		
+		// Keep track of which extension filters we are using
+		boolean useExtFilter = filters != null && !filters.isEmpty();
+		var extFilterMap = new HashMap<ExtensionFilter, String>();
+		fileChooser.getExtensionFilters().clear();
+		fileChooser.setSelectedExtensionFilter(null);
+		if (useExtFilter) {
+			for (var entry : filters.entrySet()) {
+				// Major annoyance: multipart extensions such as .ome.tif can be be automatically trimmed to the final component
+				// Windows seems to handle it properly, macOS doesn't (I think Linux doesn't either, but not sure)
+				var filterName = entry.getKey();
+				var ext = entry.getValue();
+				if (filterName != null && ext != null) {
+//				if (filterName != null && ext != null && (GeneralTools.isWindows() || !GeneralTools.isMultipartExtension(ext))) {
+					var filter = getExtensionFilter(filterName, ext);
+					if (!filter.getExtensions().isEmpty()) {
+						String currentExt = filter.getExtensions().get(0).substring(1);
+						// Test if the provided extension is something we can use by default
+						if (Objects.equals(currentExt, providedExt))
+							defaultExt = providedExt;
+						// If we don't have a default, use the current extension (unless we see later the provided extension is available)
+						else if (defaultExt == null && !filter.getExtensions().isEmpty())
+							defaultExt = currentExt;
+					}
+					extFilterMap.put(filter, ext);
+					fileChooser.getExtensionFilters().add(filter);
+					if (Objects.equals(ext, defaultExt))
+						fileChooser.setSelectedExtensionFilter(filter);
+				}
+			}
+		} else 
+			defaultExt = providedExt;
+		
+		// Try to avoid doubling up on the extension
 		if (defaultName != null) {
-			if (ext != null)
-				fileChooser.setInitialFileName(GeneralTools.getNameWithoutExtension(new File(defaultName)));
+			if (defaultExt != null && GeneralTools.isMultipartExtension(defaultExt) && !defaultName.toLowerCase().endsWith(defaultExt.toLowerCase()))
+				fileChooser.setInitialFileName(defaultName + defaultExt);
 			else
 				fileChooser.setInitialFileName(defaultName);
+//			if (fileChooser.getSelectedExtensionFilter() != null)
+//				fileChooser.setInitialFileName(GeneralTools.getNameWithoutExtension(new File(defaultName)));
+//			else
+//				fileChooser.setInitialFileName(defaultName);
 		} else
 			fileChooser.setInitialFileName(null);
+		
 		File fileSelected = fileChooser.showSaveDialog(ownerWindow);
 		if (fileSelected != null) {
 			// Only change the last directory if we didn't specify one
@@ -271,21 +312,35 @@ public class QuPathChooserFX implements QuPathChooser {
 				setLastDirectory(fileSelected);
 			else
 				fileChooser.setInitialDirectory(lastDir);
+			
 			// Ensure the extension is present
 			String name = fileSelected.getName();
-			if (ext != null && !name.toLowerCase().endsWith(ext.toLowerCase())) {
+			String selectedExt = null;
+			if (useExtFilter) {
+				selectedExt = extFilterMap.getOrDefault(fileChooser.getSelectedExtensionFilter(), filters.values().iterator().next());
+			}
+			// Fix the extension if necessary
+			if (selectedExt != null && !name.toLowerCase().endsWith(selectedExt.toLowerCase())) {
+				// Handle multipart extensions; if we have the last part of the extension set, then remove it before adding the full thing
+				var previousName = name;
+				if (GeneralTools.isMultipartExtension(selectedExt)) {
+					var lastExtPart = selectedExt.substring(selectedExt.lastIndexOf("."));
+					if (name.toLowerCase().endsWith(lastExtPart.toLowerCase()))
+						name = name.substring(0, name.length()-lastExtPart.length());
+				}
+				// Add the required extension
 				if (name.endsWith("."))
 					name = name.substring(0, name.length()-1);
-				if (ext.startsWith("."))
-					name = name + ext;
+				if (selectedExt.startsWith("."))
+					name = name + selectedExt;
 				else
-					name = name + "." + ext;
+					name = name + "." + selectedExt;
 				fileSelected = new File(fileSelected.getParentFile(), name);
+				logger.warn("Updating name from {} to {}", previousName, name);
 			}
 		}
 		
 		logger.trace("Returning file to save: {}", fileSelected);
-
 		
 		return fileSelected;
 	}
@@ -346,6 +401,14 @@ public class QuPathChooserFX implements QuPathChooser {
 		logger.trace("Returning path: {}", path);
 	    
 		return path;
+	}
+
+
+	@Override
+	public File promptToSaveFile(String title, File dirBase, String defaultName, String filterName, String ext) {
+		if (filterName != null && !filterName.isEmpty() && ext != null && !ext.isEmpty())
+			return promptToSaveFile(title, dirBase, defaultName, Map.of(filterName, ext));
+		return promptToSaveFile(title, dirBase, defaultName, Collections.emptyMap());
 	}
 
 }

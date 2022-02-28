@@ -119,71 +119,16 @@ abstract class GeneralCodeSyntax implements ScriptSyntax {
 			control.selectRange(startRowPos, startRowPos + replaceText.length());
 	}
 	
-	/**
-	 * Handle adding a new line, by checking current line for appropriate indentation.
-	 * Note: this method should be called <em>instead</em> of simply accepting the newline character,
-	 * i.e. the method itself will add the newline as required.
-	 * <p>
-	 * Additionally, it handles new lines following a '{' character:
-	 * <li> It creates a block of '{' + new line + indentation + new line + '}' </li>
-	 * <li> The caret position is set to inside the block </li>
-	 * <li> If there originally was some text after '{', the text will be included inside the block </li>
-	 * <li> If the amount of '{' and '}' in the text is equal, it will add the new line but won't create a block </li>
-	 * <li> The original indentation is accounted for</li>
-	 * 
-	 * <p>
-	 * 
-	 * As well as new lines which start with  '/*':
-	 * <li> It creates a comment block of '/' + '*' + new line + space + * + space + new line + '/' + '*' </li>
-	 * <li> The caret position is set to inside the block </li>
-	 * <li> The original indentation is accounted for </li>
-	 * 
-	 * <p>
-	 * 
-	 * And new lines which start with  '*':
-	 * <li> The new line will automatically start with '*' + space, as to continue the comment block </li>
-	 * <li> The original indentation is accounted for </li>
-	 */
 	@Override
-	public void handleNewLine(final ScriptEditorControl control, final boolean smartEditing) {
-		int caretPos = control.getCaretPosition();
+	public void handleNewLine(ScriptEditorControl control, final boolean smartEditing) {
 		String text = control.getText();
+		int caretPos = control.getCaretPosition();
 		int startRowPos = getRowStartPosition(text, caretPos);
-		int endRowPos = getRowEndPosition(text, caretPos);
 		String subString = text.substring(startRowPos, caretPos);
-		String trimmedSubString = subString.trim();
-		int indentation = subString.length() - subString.stripLeading().length();
-		int ind = trimmedSubString.length() == 0 ? subString.length() : subString.indexOf(trimmedSubString);
-		int finalPos = caretPos;
-		
-		if (trimmedSubString.startsWith("/*") && !trimmedSubString.contains("*/") && smartEditing) {
-			String insertText = ind == 0 ? "\n" + subString.substring(0, indentation) + " * \n */" : "\n" + subString.substring(0, indentation) + " * \n" + subString.substring(0, indentation) + " */ ";
-			control.insertText(caretPos, insertText);
-			finalPos = caretPos + insertText.length() - (indentation == 0 ? -1 : indentation) - 5;
-		} else if (trimmedSubString.startsWith("*") && !trimmedSubString.contains("*/") && smartEditing) {
-			String insertText = ind == 0 ? "\n* " : "\n" + subString.substring(0, ind) + "* ";
-			control.insertText(caretPos, insertText);
-			finalPos = caretPos + insertText.length();
-		} else if (!trimmedSubString.endsWith("{") || !smartEditing) {
-			String insertText = ind == 0 ? "\n" : "\n" + subString.substring(0, ind);
-			control.insertText(caretPos, insertText);
-			finalPos = caretPos + insertText.length();
-		} else if (smartEditing) {
-			String lineRemainder = text.substring(startRowPos + subString.length(), endRowPos);
-			String insertText =  "\n" + subString.substring(0, indentation) + tabString+ lineRemainder.strip();
-			if (text.replaceAll("[^{]", "").length() != text.replaceAll("[^}]", "").length())
-				insertText += "\n" + subString.substring(0, indentation) + "}";
-			
-			finalPos = caretPos + 1 + indentation + tabString.length() + lineRemainder.strip().length();
-			
-			// If '{' is not preceded by a space, insert one (this is purely aesthetic)
-			if (trimmedSubString.length() >= 2 && trimmedSubString.charAt(trimmedSubString.length() - 2) != ' ')
-				control.insertText(++caretPos - 2, " ");
-			
-			control.insertText(caretPos, insertText);
-			control.deleteText(control.getCaretPosition(), control.getCaretPosition() + lineRemainder.length());
-		}
-		control.positionCaret(finalPos);
+		String indentation = subString.substring(0, subString.length() - subString.stripLeading().length());
+		ScriptSyntax.super.handleNewLine(control, smartEditing);
+		if (smartEditing)
+			control.insertText(control.getCaretPosition(), indentation);
 	}
 
 	/**
@@ -252,11 +197,11 @@ abstract class GeneralCodeSyntax implements ScriptSyntax {
 		textArea.selectRange(startRowPos, startRowPos + replaceText.length());
 	}
 	
-	private static int getRowStartPosition(final String text, final int pos) {
+	static int getRowStartPosition(final String text, final int pos) {
 		return text.substring(0, pos).lastIndexOf("\n") + 1;
 	}
 
-	private static int getRowEndPosition(final String text, final int pos) {
+	static int getRowEndPosition(final String text, final int pos) {
 		int pos2 = text.substring(pos).indexOf("\n");
 		if (pos2 < 0)
 			return text.length();

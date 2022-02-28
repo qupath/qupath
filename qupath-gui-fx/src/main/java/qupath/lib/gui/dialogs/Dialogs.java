@@ -599,6 +599,20 @@ public class Dialogs {
 	public static File promptToSaveFile(String title, File dirBase, String defaultName, String filterName, String ext) {
 		return getSharedChooser().promptToSaveFile(title, dirBase, defaultName, filterName, ext);
 	}
+	
+	/**
+	 * Prompt user to select a file path to save, providing zero or more file extensions as an option.
+	 * 
+	 * @param title the title to display for the dialog (may be null)
+	 * @param dirBase the base directory to display; if null or not an existing directory, the value under getLastDirectory() should be used
+	 * @param defaultName default file name
+	 * @param filters map of file type descriptions (keys) and file extensions (values); may be empty if an 'all files' filter should be used
+	 * @return the File selected by the user, or null if the dialog was cancelled
+	 * @since v0.4.0
+	 */
+	public static File promptToSaveFile(String title, File dirBase, String defaultName, Map<String, String> filters) {
+		return getSharedChooser().promptToSaveFile(title, dirBase, defaultName, filters);
+	}
 
 	/**
 	 * Prompt user to select a file or input a URL.
