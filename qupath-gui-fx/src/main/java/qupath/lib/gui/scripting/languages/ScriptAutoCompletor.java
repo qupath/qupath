@@ -21,21 +21,25 @@
  * #L%
  */
 
-package qupath.lib.gui.scripting;
+package qupath.lib.gui.scripting.languages;
+
+import qupath.lib.gui.scripting.ScriptEditorControl;
 
 /**
- * Class to take care of the Groovy syntax formatting.
+ * Interface for classes that implement auto-completion (e.g. styling classes).
  * @author Melvin Gelbard
  * @since v0.4.0
  */
-class GroovySyntax extends GeneralCodeSyntax {
+public interface ScriptAutoCompletor {
 	
-	GroovySyntax() {
-		// Empty constructor
-	}
+	/**
+	 * Try to match and auto-complete a method name.
+	 * @param control the control onto which apply auto-completion.
+	 */
+	void applyNextCompletion(ScriptEditorControl control);
 	
-	@Override
-	public String getLineCommentString() {
-		return "//";
-	}
+	/**
+	 * Reset the completion process (e.g. if currently iterating through a list of methods, reset the iteration to the first element).
+	 */
+	void resetCompletion();
 }

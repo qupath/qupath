@@ -21,22 +21,33 @@
  * #L%
  */
 
-package qupath.lib.gui.scripting.autocompletors;
+package qupath.lib.gui.scripting.languages;
+
+import java.awt.image.BufferedImage;
+
+import javax.script.ScriptContext;
+import javax.script.ScriptException;
+
+import qupath.lib.images.ImageData;
+import qupath.lib.projects.Project;
 
 /**
- * Interface for classes that implement auto-completion (e.g. styling classes).
+ * Functional interface for {@link ScriptLanguage}s that are runnable (e.g. Groovy, JavaScript).
  * @author Melvin Gelbard
  * @since v0.4.0
  */
-public interface ScriptAutoCompletor {
+public interface RunnableLanguage {
 	
 	/**
-	 * Try to match and auto-complete a method name.
+	 * Execute the given script String.
+	 * @param script 						the script to run
+	 * @param project 						the current project (can be null if none)
+	 * @param imageData 				the current image data (can be null if none)
+	 * @param importDefaultMethods 	whether to import default QuPath methods
+	 * @param context 					the script context to run this script
+	 * @return 
+	 * @throws ScriptException 
 	 */
-	void applyNextCompletion();
-	
-	/**
-	 * Reset the completion process (e.g. if currently iterating through a list of methods, reset the iteration to the first element).
-	 */
-	void resetCompletion();
+	Object executeScript(final String script, final Project<BufferedImage> project, final ImageData<BufferedImage> imageData, final boolean importDefaultMethods, final ScriptContext context) throws ScriptException;
+
 }

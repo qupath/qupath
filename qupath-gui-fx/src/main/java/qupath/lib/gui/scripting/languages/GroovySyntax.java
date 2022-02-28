@@ -21,11 +21,26 @@
  * #L%
  */
 
-package qupath.lib.gui.scripting;
+package qupath.lib.gui.scripting.languages;
 
-class PlainSyntax implements ScriptSyntax {
+/**
+ * Class to take care of the Groovy syntax formatting.
+ * @author Melvin Gelbard
+ * @since v0.4.0
+ */
+class GroovySyntax extends GeneralCodeSyntax {
 	
-	PlainSyntax() {
-		// Dummy constructor
+	private static final GroovySyntax INSTANCE = new GroovySyntax();
+
+	// Empty constructor
+	private GroovySyntax() {}
+	
+	static GroovySyntax getInstance() {
+		return INSTANCE;
+	}
+	
+	@Override
+	public String getLineCommentString() {
+		return "//";
 	}
 }

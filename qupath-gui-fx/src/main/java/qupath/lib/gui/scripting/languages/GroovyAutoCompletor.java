@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.lib.gui.scripting.autocompletors;
+package qupath.lib.gui.scripting.languages;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -44,7 +44,6 @@ import qupath.lib.scripting.QP;
 public class GroovyAutoCompletor implements ScriptAutoCompletor {
 	
 	private static final Set<String> METHOD_NAMES = new HashSet<>();
-	private final ScriptEditorControl control;
 	private List<String> completions = new ArrayList<>();
 	private int idx = 0;
 	private Integer pos = null;
@@ -106,15 +105,14 @@ public class GroovyAutoCompletor implements ScriptAutoCompletor {
 	}
 	
 	/**
-	 * Constructor for Groovy auto-completor.
-	 * @param control the script editor control onto which apply auto-completion
+	 * Empty constructor.
 	 */
-	public GroovyAutoCompletor(ScriptEditorControl control) {
-		this.control = control;
+	public GroovyAutoCompletor() {
+		// Empty constructor
 	}
 	
 	@Override
-	public void applyNextCompletion() {
+	public void applyNextCompletion(ScriptEditorControl control) {
 		if (pos == null) {
 			pos = control.getCaretPosition();
 			String[] split = control.getText().substring(0, pos).split("(\\s+)|(\\()|(\\))|(\\{)|(\\})|(\\[)|(\\])");
@@ -150,7 +148,7 @@ public class GroovyAutoCompletor implements ScriptAutoCompletor {
 	}
 
 	@Override
-	public void resetCompletion() {	
+	public void resetCompletion() {
 		pos = null;
 		lastInsertion = null;
 		idx = 0;

@@ -46,13 +46,8 @@ import qupath.lib.common.ThreadTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.scripting.DefaultScriptEditor;
 import qupath.lib.gui.scripting.ScriptEditorControl;
-import qupath.lib.gui.scripting.autocompletors.GroovyAutoCompletor;
-import qupath.lib.gui.scripting.autocompletors.PlainAutoCompletor;
-import qupath.lib.gui.scripting.autocompletors.ScriptAutoCompletor;
-import qupath.lib.gui.scripting.highlighters.GroovyHighlighter;
-import qupath.lib.gui.scripting.highlighters.JsonHighlighter;
-import qupath.lib.gui.scripting.highlighters.PlainHighlighter;
 import qupath.lib.gui.scripting.highlighters.ScriptHighlighter;
+import qupath.lib.gui.scripting.highlighters.ScriptHighlighterProvider;
 import qupath.lib.gui.tools.MenuTools;
 
 /*
@@ -89,7 +84,6 @@ public class RichScriptEditor extends DefaultScriptEditor {
 	private ExecutorService executor = Executors.newSingleThreadExecutor(ThreadTools.createThreadFactory("rich-text-styling", true));
 	
 	final ObjectProperty<ScriptHighlighter> scriptHighlighter = new SimpleObjectProperty<>();
-	final ObjectProperty<ScriptAutoCompletor> scriptAutoCompletor = new SimpleObjectProperty<>();
 
 	// Delay for async formatting, in milliseconds
 	private static int delayMillis = 100;
@@ -150,44 +144,49 @@ public class RichScriptEditor extends DefaultScriptEditor {
 				if (e.isConsumed())
 					return;
 				
+				var scriptSyntax = currentLanguage.get().getSyntax();
 				if ("(".equals(e.getCharacter())) {
-					scriptSyntax.get().handleLeftParenthesis(control, smartEditing.get());
+					scriptSyntax.handleLeftParenthesis(control, smartEditing.get());
 					e.consume();
 				} else if (")".equals(e.getCharacter())) {
-					scriptSyntax.get().handleRightParenthesis(control, smartEditing.get());
+					scriptSyntax.handleRightParenthesis(control, smartEditing.get());
 					e.consume();
 				} else if ("\"".equals(e.getCharacter())) {
-					scriptSyntax.get().handleQuotes(control, true, smartEditing.get());
+					scriptSyntax.handleQuotes(control, true, smartEditing.get());
 					e.consume();
 				} else if ("\'".equals(e.getCharacter())) {
-					scriptSyntax.get().handleQuotes(control, false, smartEditing.get());
+					scriptSyntax.handleQuotes(control, false, smartEditing.get());
 					e.consume();
 				}
 			});
 			
+			// TODO: Check if DefaultScriptEditor does any of these? It should be able to at least do syntaxing/auto-completion
 			codeArea.addEventFilter(KeyEvent.KEY_PRESSED, e -> {
 				if (e.isConsumed())
 					return;
 				
+				var scriptSyntax = currentLanguage.get().getSyntax();
+				var scriptAutoCompletor = currentLanguage.get().getAutoCompletor();
 				if (e.getCode() == KeyCode.TAB) {
-					scriptSyntax.get().handleTabPress(control, e.isShiftDown());
+					scriptSyntax.handleTabPress(control, e.isShiftDown());
 					e.consume();
 				} else if (e.isShortcutDown() && e.getCode() == KeyCode.SLASH) {
-					scriptSyntax.get().handleLineComment(control);
+					scriptSyntax.handleLineComment(control);
 					e.consume();
 				} else if (e.getCode() == KeyCode.ENTER && codeArea.getSelectedText().length() == 0) {
-					scriptSyntax.get().handleNewLine(control, smartEditing.get());
+					scriptSyntax.handleNewLine(control, smartEditing.get());
 					e.consume();
 				} else if (e.getCode() == KeyCode.BACK_SPACE) {
-					if (scriptSyntax.get().handleBackspace(control, smartEditing.get()) && !e.isShortcutDown() && !e.isShiftDown())
+					if (scriptSyntax.handleBackspace(control, smartEditing.get()) && !e.isShortcutDown() && !e.isShiftDown())
 						e.consume();
 				} else if (completionCodeCombination.match(e)) {
-					scriptAutoCompletor.get().applyNextCompletion();	// TODO: Check again if e.controlDown() is necessary
+					scriptAutoCompletor.applyNextCompletion(control);
 					e.isConsumed();
 				} else if (beautifyerCodeCombination.match(e)) {
-					getCurrentTextComponent().setText(scriptSyntax.get().beautify(getCurrentText()));
+					getCurrentTextComponent().setText(scriptSyntax.beautify(getCurrentText()));
+					e.isConsumed();
 				} else if (!e.isControlDown())
-					scriptAutoCompletor.get().resetCompletion();
+					scriptAutoCompletor.resetCompletion();
 			});
 
 			codeArea.setOnContextMenuRequested(e -> menu.show(codeArea.getScene().getWindow(), e.getScreenX(), e.getScreenY()));
@@ -221,34 +220,7 @@ public class RichScriptEditor extends DefaultScriptEditor {
 
 			codeArea.getStylesheets().add(getClass().getClassLoader().getResource("scripting_styles.css").toExternalForm());
 			
-			scriptHighlighter.bind(Bindings.createObjectBinding(() -> {
-				Language l = getCurrentLanguage();
-				if (l == null)
-					return null;
-				switch(l) {
-				case GROOVY:
-					return new GroovyHighlighter();
-				case JSON:
-					return new JsonHighlighter();
-				case PLAIN:
-				default:
-					return new PlainHighlighter();
-				}
-			}, currentLanguage));
-			
-			scriptAutoCompletor.bind(Bindings.createObjectBinding(() -> {
-				Language l = getCurrentLanguage();
-				if (l == null)
-					return null;
-				switch(l) {
-				case GROOVY:
-					return new GroovyAutoCompletor(control);
-				case JSON:
-				case PLAIN:
-				default:
-					return new PlainAutoCompletor();
-				}
-			}, currentLanguage));
+			scriptHighlighter.bind(Bindings.createObjectBinding(() -> ScriptHighlighterProvider.getHighlighterFromLanguage(getCurrentLanguage()), currentLanguage));
 			
 			// Triggered whenever the script styling changes (e.g. change of language)
 			scriptHighlighter.addListener((v, o, n) -> {

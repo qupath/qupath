@@ -25,6 +25,7 @@ package qupath.lib.gui.scripting.highlighters;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.ServiceLoader;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -38,6 +39,11 @@ import org.fxmisc.richtext.model.StyleSpansBuilder;
  * @since v0.4.0
  */
 public class GroovyHighlighter implements ScriptHighlighter {
+	
+	/**
+	 * Instance of this highlighter. Can't be final because of {@link ServiceLoader}.
+	 */
+	private static GroovyHighlighter INSTANCE;
 	
 	private static final String[] KEYWORDS = new String[] {
             "abstract", "assert", "boolean", "break", "byte",
@@ -89,14 +95,33 @@ public class GroovyHighlighter implements ScriptHighlighter {
 	            "(?<ERROR>" + ERROR_PATTERN + ")"
 	            + "|(?<WARN>" + WARNING_PATTERN + ")"
 	    );
-		
 	}
 	
 	/**
-	 * Empty constructor
+	 * Get the static instance of this class.
+	 * @return instance
+	 */
+	public static ScriptHighlighter getInstance() {
+		return INSTANCE;
+	}
+	
+	/**
+	 * Constructor for a Groovy Highlighter. This constructor should never be 
+	 * called. Instead, use the static {@link #getInstance()} method.
+	 * <p>
+	 * Note: this has to be public for the {@link ServiceLoader} to work.
 	 */
 	public GroovyHighlighter() {
-		// Empty constructor
+		if (INSTANCE != null)
+			throw new UnsupportedOperationException("Highlighter classes cannot be instantiated more than once!");
+		
+		// Because of ServiceLoader, have to assign INSTANCE here.
+		GroovyHighlighter.INSTANCE = this;
+	}
+	
+	@Override
+	public String getLanguageName() {
+		return "Groovy";
 	}
 	
 	@Override

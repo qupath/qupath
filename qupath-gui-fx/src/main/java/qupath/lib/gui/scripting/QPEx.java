@@ -137,7 +137,7 @@ public class QPEx extends QP {
 	 * @param singleLine if true, return imports as a single line (separated by semi-colons)
 	 * @return
 	 */
-	static String getDefaultImports(boolean singleLine) {
+	public static String getDefaultImports(boolean singleLine) {
 		List<String> imports = new ArrayList<>();
 		for (var cls : QPEx.getCoreClasses())
 			imports.add("import " + cls.getName());
