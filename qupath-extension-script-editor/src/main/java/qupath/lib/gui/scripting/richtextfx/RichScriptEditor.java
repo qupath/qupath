@@ -166,27 +166,33 @@ public class RichScriptEditor extends DefaultScriptEditor {
 					return;
 				
 				var scriptSyntax = currentLanguage.get().getSyntax();
-				var scriptAutoCompletor = currentLanguage.get().getAutoCompletor();
-				if (e.getCode() == KeyCode.TAB) {
-					scriptSyntax.handleTabPress(control, e.isShiftDown());
-					e.consume();
-				} else if (e.isShortcutDown() && e.getCode() == KeyCode.SLASH) {
-					scriptSyntax.handleLineComment(control);
-					e.consume();
-				} else if (e.getCode() == KeyCode.ENTER && codeArea.getSelectedText().length() == 0) {
-					scriptSyntax.handleNewLine(control, smartEditing.get());
-					e.consume();
-				} else if (e.getCode() == KeyCode.BACK_SPACE) {
-					if (scriptSyntax.handleBackspace(control, smartEditing.get()) && !e.isShortcutDown() && !e.isShiftDown())
+				if (scriptSyntax != null) {
+					if (e.getCode() == KeyCode.TAB) {
+						scriptSyntax.handleTabPress(control, e.isShiftDown());
 						e.consume();
-				} else if (completionCodeCombination.match(e)) {
-					scriptAutoCompletor.applyNextCompletion(control);
-					e.isConsumed();
-				} else if (beautifyerCodeCombination.match(e)) {
-					getCurrentTextComponent().setText(scriptSyntax.beautify(getCurrentText()));
-					e.isConsumed();
-				} else if (!e.isControlDown())
-					scriptAutoCompletor.resetCompletion();
+					} else if (e.isShortcutDown() && e.getCode() == KeyCode.SLASH) {
+						scriptSyntax.handleLineComment(control);
+						e.consume();
+					} else if (e.getCode() == KeyCode.ENTER && codeArea.getSelectedText().length() == 0) {
+						scriptSyntax.handleNewLine(control, smartEditing.get());
+						e.consume();
+					} else if (e.getCode() == KeyCode.BACK_SPACE) {
+						if (scriptSyntax.handleBackspace(control, smartEditing.get()) && !e.isShortcutDown() && !e.isShiftDown())
+							e.consume();
+					} else if (beautifyerCodeCombination.match(e)) {
+						getCurrentTextComponent().setText(scriptSyntax.beautify(getCurrentText()));
+						e.isConsumed();
+					}
+				}
+				
+				var scriptAutoCompletor = currentLanguage.get().getAutoCompletor();
+				if (scriptAutoCompletor != null) {
+					if (completionCodeCombination.match(e)) {
+						scriptAutoCompletor.applyNextCompletion(control);
+						e.isConsumed();
+					} else if (!e.isControlDown())
+						scriptAutoCompletor.resetCompletion();
+				}
 			});
 
 			codeArea.setOnContextMenuRequested(e -> menu.show(codeArea.getScene().getWindow(), e.getScreenX(), e.getScreenY()));

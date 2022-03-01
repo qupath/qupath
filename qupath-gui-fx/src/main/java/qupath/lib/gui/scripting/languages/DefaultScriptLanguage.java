@@ -50,8 +50,8 @@ public class DefaultScriptLanguage extends ScriptLanguage implements RunnableLan
 		this.scriptEngine = factory.getScriptEngine();
 		this.name = factory.getEngineName();
 		this.exts = factory.getExtensions().toArray(new String[0]);
-		this.syntax = null;
-		this.completor = null;
+		this.syntax = PlainSyntax.getInstance();
+		this.completor = new PlainAutoCompletor();
 	}
 
 	@Override

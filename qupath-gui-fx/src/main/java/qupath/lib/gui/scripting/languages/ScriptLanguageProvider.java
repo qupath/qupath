@@ -76,8 +76,12 @@ public class ScriptLanguageProvider {
 				}
 			}
 			if (!builtIn) {
-				ScriptLanguage l = new DefaultScriptLanguage(factory);
-				languages.add(l);
+				try {
+					ScriptLanguage l = new DefaultScriptLanguage(factory);
+					languages.add(l);
+				} catch (Exception ex) {
+					logger.warn("Could not integrate script engine [{}] in the Script Editor: {}", factory.getEngineName(), ex.getLocalizedMessage());
+				}
 			}
 		}
 		
