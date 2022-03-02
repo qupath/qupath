@@ -67,7 +67,7 @@ public class GroovyLanguage extends DefaultScriptLanguage implements RunnableLan
 	}
 
 	/**
-	 * Get a Java/Groovy-friendly String to import essential classes for scripting.
+	 * Get a Java/Groovy-friendly String to import essential classes for scripting (one-lined).
 	 * @return
 	 */
 	@Override
@@ -80,6 +80,6 @@ public class GroovyLanguage extends DefaultScriptLanguage implements RunnableLan
 			imports.add("import " + cls.getName());
 		for (var cls : defaultStaticClasses)
 			imports.add("import static " + cls.getName() + ".*");
-		return String.join(";"+System.lineSeparator(), imports);
+		return String.join("; ", imports) + ";";
 	}
 }

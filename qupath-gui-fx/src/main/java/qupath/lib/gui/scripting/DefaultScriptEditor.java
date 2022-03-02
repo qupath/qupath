@@ -81,6 +81,7 @@ import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.input.TransferMode;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.text.Font;
 import javafx.stage.Modality;
@@ -131,6 +132,8 @@ public class DefaultScriptEditor implements ScriptEditor {
 	 * Default static classes to import at the start a script, if 'useDefaultBindings' is enabled.
 	 */
 	private static final Collection<Class<?>> defaultStaticClasses = getDefaultStaticClasses();
+	
+	private final ScriptEditorDragDropListener dragDropListener;
 	
 	private ObjectProperty<Future<?>> runningTask = new SimpleObjectProperty<>();
 
@@ -212,6 +215,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	 */
 	public DefaultScriptEditor(final QuPathGUI qupath) {
 		this.qupath = qupath;
+		this.dragDropListener = new ScriptEditorDragDropListener(qupath);
 		initializeActions();
 		selectedScript.addListener((v, o, n) -> {
 			if (n == null || n.getLanguage() == null)
@@ -625,16 +629,19 @@ public class DefaultScriptEditor implements ScriptEditor {
 		dialog.setMinHeight(400);
 		dialog.setWidth(600);
 		dialog.setHeight(400);
+		
+		// Accept Drag and Drop
+		dialog.getScene().setOnDragOver(event -> {
+            event.acceptTransferModes(TransferMode.COPY);
+            event.consume();
+        });
+		dialog.getScene().setOnDragDropped(dragDropListener);
+		
 		splitMain.setDividerPosition(0, 0.25);
 		menubar.useSystemMenuBarProperty().bindBidirectional(PathPrefs.useSystemMenubarProperty());
 //		menubar.setUseSystemMenuBar(true);
 		updateUndoActionState();
 		updateCutCopyActionState();
-		
-		
-		// Support drag & drop
-		if (qupath != null && qupath.getDefaultDragDropListener() != null)
-			qupath.getDefaultDragDropListener().setupTarget(dialog.getScene());
 	}
 	
 	
