@@ -46,13 +46,10 @@ public class JsonLanguage extends ScriptLanguage {
 	 * Note: this has to be public for the {@link ServiceLoader} to work.
 	 */
 	public JsonLanguage() {
+		super("JSON", new String[]{".json", ".geojson"}, JsonSyntax.getInstance(), new PlainAutoCompletor());
+		
 		if (INSTANCE != null)
 			throw new UnsupportedOperationException("Language classes cannot be instantiated more than once!");
-		
-		this.name = "JSON";
-		this.exts = new String[]{".json", ".geojson"};
-		this.syntax = JsonSyntax.getInstance();
-		this.completor = new PlainAutoCompletor();
 		
 		// Because of ServiceLoader, have to assign INSTANCE here.
 		JsonLanguage.INSTANCE = this;

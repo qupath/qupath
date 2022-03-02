@@ -94,14 +94,9 @@ public class ScriptLanguageProvider {
 	 * @param languageString
 	 * @return corresponding script language, or {@link PlainLanguage} if no match
 	 */
+	// TODO: This creates a new instance of custom (ScriptEngine based-) ScriptLanguages each time it's called, is it a problem?
 	public static ScriptLanguage fromString(String languageString) {
-		synchronized (serviceLoader) {
-			for (ScriptLanguage l : serviceLoader) {
-				if (languageString.equals(l.getName()))
-					return l;				
-			}
-		}
-		return PlainLanguage.getInstance();
+		return getAvailableScriptLanguages().stream().filter(l -> l.getName().equals(languageString)).findFirst().orElseGet(() -> PlainLanguage.getInstance());
 	}
 	
 	/**

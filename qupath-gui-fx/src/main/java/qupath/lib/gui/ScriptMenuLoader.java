@@ -209,7 +209,7 @@ class ScriptMenuLoader {
 						try {
 							String script = GeneralTools.readFileAsString(scriptFile.getAbsolutePath());
 							var qupath = QuPathGUI.getInstance();
-							((RunnableLanguage)language).executeScript(script, qupath.getProject(), qupath.getImageData(), true, null);
+							DefaultScriptEditor.executeScript((RunnableLanguage)language, script, qupath.getProject(), qupath.getImageData(), true, null);
 						} catch (Exception e2) {
 							Dialogs.showErrorMessage("Script error", e2);
 						}

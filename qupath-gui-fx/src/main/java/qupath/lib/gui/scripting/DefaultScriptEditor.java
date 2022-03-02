@@ -122,6 +122,16 @@ public class DefaultScriptEditor implements ScriptEditor {
 	
 	private static final List<ScriptLanguage> availableLanguages = ScriptLanguageProvider.getAvailableScriptLanguages();
 	
+	/**
+	 * Default classes to import at the start a script, if 'useDefaultBindings' is enabled.
+	 */
+	private static final Collection<Class<?>> defaultClasses = getDefaultClasses();
+	
+	/**
+	 * Default static classes to import at the start a script, if 'useDefaultBindings' is enabled.
+	 */
+	private static final Collection<Class<?>> defaultStaticClasses = getDefaultStaticClasses();
+	
 	private ObjectProperty<Future<?>> runningTask = new SimpleObjectProperty<>();
 
 	private QuPathGUI qupath;
@@ -225,7 +235,6 @@ public class DefaultScriptEditor implements ScriptEditor {
 			}
 		}
 	}
-
 
 	private void initializeActions() {
 		copyAction = createCopyAction("Copy", null);
@@ -811,7 +820,9 @@ public class DefaultScriptEditor implements ScriptEditor {
 	 * @throws ScriptException 
 	 */
 	public static Object executeScript(final RunnableLanguage language, final String script, final Project<BufferedImage> project, final ImageData<BufferedImage> imageData, final boolean importDefaultMethods, final ScriptContext context) throws ScriptException {
-		return language.executeScript(script, project, imageData, importDefaultMethods, context);
+		if (importDefaultMethods)
+			return language.executeScript(script, project, imageData, defaultClasses, defaultStaticClasses, context);
+		return language.executeScript(script, project, imageData, new ArrayList<>(), new ArrayList<>(), context);					
 	}
 	
 	static class ScriptObjectListCell extends ListCell<ScriptTab> {
@@ -1509,14 +1520,15 @@ public class DefaultScriptEditor implements ScriptEditor {
 			} else if (name.toLowerCase().equals(GeneralTools.SYMBOL_MU + ""))
 				control.paste(GeneralTools.SYMBOL_MU + "");
 			else {	
-				// Imports (end with a new line)
-				if (name.toLowerCase().equals("qpex"))
-					control.insertText(0, "import static qupath.lib.gui.scripting.QPEx.*");
-				else if (name.toLowerCase().equals("qp"))
-					control.insertText(0, "import static qupath.lib.gui.scripting.QP.*");
-				else if (name.toLowerCase().equals("all default"))
-					control.insertText(0, QPEx.getDefaultImports(false));
-				currentLanguage.get().getSyntax().handleNewLine(control, smartEditing.get());
+				// TODO: fix
+//				// Imports (end with a new line)
+//				if (name.toLowerCase().equals("qpex"))
+//					control.insertText(0, "import static qupath.lib.gui.scripting.QPEx.*");
+//				else if (name.toLowerCase().equals("qp"))
+//					control.insertText(0, "import static qupath.lib.gui.scripting.QP.*");
+//				else if (name.toLowerCase().equals("all default"))
+//					control.insertText(0, QPEx.getDefaultImports(false)); 
+//				currentLanguage.get().getSyntax().handleNewLine(control, smartEditing.get());
 			}
 			e.consume();
 		});
@@ -1611,6 +1623,27 @@ public class DefaultScriptEditor implements ScriptEditor {
 			logger.error("Could not load script from {}", file);
 			logger.error("", e);
 		}
+	}
+	
+
+	/**
+	 * Get the collection of classes to import at the start of a script, if desired.
+	 * @return collection of default classes
+	 */
+	public static Collection<Class<?>> getDefaultClasses() {
+		var out = QPEx.getCoreClasses();
+		out.add(QPEx.class);	// Add itself
+		return out;
+	}
+	
+	/**
+	 * Get the collection of static classes to import at the start of a script, if desired.
+	 * @return collection of default static classes
+	 */
+	public static Collection<Class<?>> getDefaultStaticClasses() {
+		List<Class<?>> out = new ArrayList<>();
+		out.add(QPEx.class);
+		return out;
 	}
 
 	static class CustomTextArea extends TextArea {

@@ -46,13 +46,10 @@ public class PlainLanguage extends ScriptLanguage {
 	 * Note: this has to be public for the {@link ServiceLoader} to work.
 	 */
 	public PlainLanguage() {
+		super("None", new String[]{".txt"}, PlainSyntax.getInstance(), new PlainAutoCompletor());
+		
 		if (INSTANCE != null)
 			throw new UnsupportedOperationException("Language classes cannot be instantiated more than once!");
-		
-		this.name = "None";
-		this.exts = new String[]{".txt"};
-		this.syntax = PlainSyntax.getInstance();
-		this.completor = new PlainAutoCompletor();
 		
 		// Because of ServiceLoader, have to assign INSTANCE here.
 		PlainLanguage.INSTANCE = this;

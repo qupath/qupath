@@ -124,31 +124,6 @@ public class QPEx extends QP {
 		return list;
 	}
 	
-	/**
-	 * Get a Java/Groovy-friendly multi-line String to import essential classes for scripting.
-	 * @return
-	 */
-	static String getDefaultImports() {
-		return getDefaultImports(false);
-	}
-	
-	/**
-	 * Get a Java/Groovy-friendly String to import essential classes for scripting.
-	 * @param singleLine if true, return imports as a single line (separated by semi-colons)
-	 * @return
-	 */
-	public static String getDefaultImports(boolean singleLine) {
-		List<String> imports = new ArrayList<>();
-		for (var cls : QPEx.getCoreClasses())
-			imports.add("import " + cls.getName());
-		// Import script class statically and in the normal way
-		imports.add("import " + QPEx.class.getName());
-		imports.add("import static " + QPEx.class.getName() + ".*");
-		if (singleLine)
-			return String.join("; ", imports);
-		return String.join(";"+System.lineSeparator(), imports);
-	}
-	
 	
 	/**
 	 * Export TMA summary data for the current image.

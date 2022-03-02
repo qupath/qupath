@@ -23,8 +23,6 @@
 
 package qupath.lib.gui.scripting.languages;
 
-import com.google.common.base.Objects;
-
 /**
  * Abstract class to represent languages supported by the script editor.
  * @author Melvin Gelbard
@@ -36,6 +34,20 @@ public abstract class ScriptLanguage {
 	protected String[] exts;
 	protected ScriptSyntax syntax;
 	protected ScriptAutoCompletor completor;
+	
+	/**
+	 * Default constructor for a {@link ScriptLanguage}.
+	 * @param name		the language name
+	 * @param exts			the possible extensions for this language
+	 * @param syntax		the syntax object for this language
+	 * @param completor	the auto-completion object for this language
+	 */
+	protected ScriptLanguage(String name, String[] exts, ScriptSyntax syntax, ScriptAutoCompletor completor) {
+		this.name = name;
+		this.exts = exts;
+		this.syntax = syntax;
+		this.completor = completor;
+	}
 	
 	/**
 	 * Get the name of this language
@@ -67,24 +79,6 @@ public abstract class ScriptLanguage {
 	 */
 	public ScriptAutoCompletor getAutoCompletor() {
 		return completor;
-	}
-
-	@Override
-	public int hashCode() {
-		return Objects.hashCode(name);
-	}
-
-	@Override
-	public boolean equals(Object obj) {
-		if (this == obj)
-			return true;
-		if (obj == null)
-			return false;
-		if (getClass() != obj.getClass())
-			return false;
-		
-		ScriptLanguage other = (ScriptLanguage) obj;
-		return other.name.equals(this.name);
 	}
 
 	@Override

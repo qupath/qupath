@@ -24,6 +24,7 @@
 package qupath.lib.gui.scripting.languages;
 
 import java.awt.image.BufferedImage;
+import java.util.Collection;
 
 import javax.script.ScriptContext;
 import javax.script.ScriptException;
@@ -43,11 +44,20 @@ public interface RunnableLanguage {
 	 * @param script 						the script to run
 	 * @param project 						the current project (can be null if none)
 	 * @param imageData 				the current image data (can be null if none)
+	 * @param defaultImports 			a collection of the classes to import
+	 * @param defaultStaticImports 		a collection of classes to import as static classes
 	 * @param importDefaultMethods 	whether to import default QuPath methods
 	 * @param context 					the script context to run this script
 	 * @return 
 	 * @throws ScriptException 
 	 */
-	Object executeScript(final String script, final Project<BufferedImage> project, final ImageData<BufferedImage> imageData, final boolean importDefaultMethods, final ScriptContext context) throws ScriptException;
+	Object executeScript(final String script, final Project<BufferedImage> project, final ImageData<BufferedImage> imageData, final Collection<Class<?>> defaultImports, final Collection<Class<?>> defaultStaticImports, final ScriptContext context) throws ScriptException;
 
+	/**
+	 * Get the default imports as a String, to add at the beginning of the executed script.
+	 * @param defaultClasses  		a collection of the classes to import 
+	 * @param defaultStaticClasses	a collection of classes to import as static classes
+	 * @return default imports
+	 */
+	String getDefaultImports(Collection<Class<?>> defaultClasses, Collection<Class<?>> defaultStaticClasses);
 }

@@ -58,6 +58,7 @@ import qupath.lib.gui.images.stores.ImageRegionStoreFactory;
 import qupath.lib.gui.logging.LogManager;
 import qupath.lib.gui.logging.LogManager.LogLevel;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.scripting.DefaultScriptEditor;
 import qupath.lib.gui.scripting.languages.GroovyLanguage;
 import qupath.lib.gui.scripting.languages.RunnableLanguage;
 import qupath.lib.gui.scripting.languages.ScriptLanguage;
@@ -431,7 +432,7 @@ class ScriptCommand implements Runnable {
 		
 		// Evaluate the script
 		try {
-			result = language.executeScript(script, project, imageData, save, context);
+			result = language.executeScript(script, project, imageData, DefaultScriptEditor.getDefaultClasses(), DefaultScriptEditor.getDefaultStaticClasses(), context);
 		} finally {
 			// Ensure writers are flushed
 			outWriter.flush();
