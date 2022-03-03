@@ -23,10 +23,9 @@
 
 package qupath.lib.gui.scripting.languages;
 
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.List;
 import java.util.ServiceLoader;
+import java.util.stream.Collectors;
 
 /**
  * Class for the representation of the Groovy programming language in QuPath.
@@ -71,15 +70,16 @@ public class GroovyLanguage extends DefaultScriptLanguage implements RunnableLan
 	 * @return
 	 */
 	@Override
-	public String getDefaultImports(Collection<Class<?>> defaultClasses, Collection<Class<?>> defaultStaticClasses) {
-		if (defaultClasses.isEmpty() && defaultStaticClasses.isEmpty())
-			return "";
-		
-		List<String> imports = new ArrayList<>();
-		for (var cls : defaultClasses)
-			imports.add("import " + cls.getName());
-		for (var cls : defaultStaticClasses)
-			imports.add("import static " + cls.getName() + ".*");
-		return String.join("; ", imports) + ";";
+	public String getImportStatements(Collection<Class<?>> classes) {
+		return classes.stream().map(c -> "import " + c.getName()).collect(Collectors.joining("; ")) + (classes.isEmpty() ? "" : ";");
+	}
+	
+	/**
+	 * Get a Java/Groovy-friendly String to import essential static classes for scripting (one-lined).
+	 * @return
+	 */
+	@Override
+	public String getStaticImportStatments(Collection<Class<?>> classes) {
+		return classes.stream().map(c -> "import static " + c.getName() + ".*").collect(Collectors.joining("; ")) + (classes.isEmpty() ? "" : ";");
 	}
 }

@@ -38,6 +38,9 @@ public class PlainLanguage extends ScriptLanguage {
 	 * Instance of this language. Can't be final because of {@link ServiceLoader}.
 	 */
 	private static PlainLanguage INSTANCE;
+	
+	private ScriptSyntax syntax;
+	private ScriptAutoCompletor completor;
 
 	/**
 	 * Constructor for a simple Plain Language. This constructor should never be 
@@ -46,7 +49,9 @@ public class PlainLanguage extends ScriptLanguage {
 	 * Note: this has to be public for the {@link ServiceLoader} to work.
 	 */
 	public PlainLanguage() {
-		super("None", new String[]{".txt"}, PlainSyntax.getInstance(), new PlainAutoCompletor());
+		super("None", new String[]{".txt"});
+		this.syntax = PlainSyntax.getInstance();
+		this.completor = new PlainAutoCompletor();
 		
 		if (INSTANCE != null)
 			throw new UnsupportedOperationException("Language classes cannot be instantiated more than once!");
@@ -62,5 +67,14 @@ public class PlainLanguage extends ScriptLanguage {
 	public static PlainLanguage getInstance() {
 		return INSTANCE;
 	}
+	
+	@Override
+	public ScriptSyntax getSyntax() {
+		return syntax;
+	}
 
+	@Override
+	public ScriptAutoCompletor getAutoCompletor() {
+		return completor;
+	}
 }

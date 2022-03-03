@@ -30,23 +30,17 @@ package qupath.lib.gui.scripting.languages;
  */
 public abstract class ScriptLanguage {
 	
-	protected String name;
-	protected String[] exts;
-	protected ScriptSyntax syntax;
-	protected ScriptAutoCompletor completor;
+	private String name;
+	private String[] exts;
 	
 	/**
 	 * Default constructor for a {@link ScriptLanguage}.
 	 * @param name		the language name
 	 * @param exts			the possible extensions for this language
-	 * @param syntax		the syntax object for this language
-	 * @param completor	the auto-completion object for this language
 	 */
-	protected ScriptLanguage(String name, String[] exts, ScriptSyntax syntax, ScriptAutoCompletor completor) {
+	protected ScriptLanguage(String name, String[] exts) {
 		this.name = name;
 		this.exts = exts;
-		this.syntax = syntax;
-		this.completor = completor;
 	}
 	
 	/**
@@ -67,19 +61,19 @@ public abstract class ScriptLanguage {
 	
 	/**
 	 * Get the {@link ScriptSyntax} object that takes care of this language's syntaxing.
+	 * <p>
+	 * Can return {@code null} if the script language should not handle syntax formatting for this language.
 	 * @return syntax object
 	 */
-	public ScriptSyntax getSyntax() {
-		return syntax;
-	}
+	public abstract ScriptSyntax getSyntax();
 	
 	/**
-	 * Get the {@link ScriptAutoCompletor} object that takes care of this language's auto-completion.
+	 * Get the {@link ScriptAutoCompletor} object that takes care of this language's auto-completion. 
+	 * <p>
+	 * Can return {@code null} if the script editor should not handle auto-completion for this language.
 	 * @return auto-completor
 	 */
-	public ScriptAutoCompletor getAutoCompletor() {
-		return completor;
-	}
+	public abstract ScriptAutoCompletor getAutoCompletor();
 
 	@Override
 	public String toString() {

@@ -62,6 +62,9 @@ public class DefaultScriptLanguage extends ScriptLanguage implements RunnableLan
 	
 	final static private Logger logger = LoggerFactory.getLogger(DefaultScriptLanguage.class);
 	
+	private ScriptSyntax syntax;
+	private ScriptAutoCompletor completor;
+	
 	/**
 	 * Create a map of classes that have changed, and therefore old scripts may use out-of-date import statements.
 	 * This allows us to be a bit more helpful in handling the error message.
@@ -93,7 +96,9 @@ public class DefaultScriptLanguage extends ScriptLanguage implements RunnableLan
 	 * @param factory
 	 */
 	public DefaultScriptLanguage(ScriptEngineFactory factory) {
-		super(factory.getEngineName(), factory.getExtensions().toArray(new String[0]), PlainSyntax.getInstance(), new PlainAutoCompletor());
+		super(factory.getEngineName(), factory.getExtensions().toArray(String[]::new));
+		this.syntax = PlainSyntax.getInstance();
+		this.completor = new PlainAutoCompletor();
 	}
 	
 	/**
@@ -106,11 +111,14 @@ public class DefaultScriptLanguage extends ScriptLanguage implements RunnableLan
 	 * @param completor	the auto-completion object for this language
 	 */
 	public DefaultScriptLanguage(String name, String[] exts, ScriptSyntax syntax, ScriptAutoCompletor completor) {
-		super(name, exts, syntax, completor);
+		super(name, exts);
+		this.syntax = PlainSyntax.getInstance();
+		this.completor = new PlainAutoCompletor();
+		
 	}
 
 	@Override
-	public Object executeScript(String script, Project<BufferedImage> project, ImageData<BufferedImage> imageData, Collection<Class<?>> defaultClasses, Collection<Class<?>> defaultStaticClasses, ScriptContext context) throws ScriptException {
+	public Object executeScript(String script, Project<BufferedImage> project, ImageData<BufferedImage> imageData, Collection<Class<?>> classesToImport, Collection<Class<?>> staticClassesToImport, ScriptContext context) throws ScriptException {
 		// Set the current ImageData if we can
 		QP.setBatchProjectAndImage(project, imageData);
 		
@@ -151,14 +159,14 @@ public class DefaultScriptLanguage extends ScriptLanguage implements RunnableLan
 //			}
 			
 		// Supply default bindings
-		String defaultImportsString = getDefaultImports(defaultClasses, defaultStaticClasses);
-		int extraLines = defaultImportsString.replaceAll("[^\\n]", "").length() + 1; // TODO: Check this
-		script2 = defaultImportsString + System.lineSeparator() + script;
+		String importsString = getImportStatements(classesToImport) + getStaticImportStatments(staticClassesToImport);
+		int extraLines = importsString.replaceAll("[^\\n]", "").length() + 1; // TODO: Check this
+		script2 = importsString + System.lineSeparator() + script;
 		
 		context = context == null ? DefaultScriptEditor.createDefaultContext() : context;
 		
 		try {
-			result = ScriptLanguageProvider.getEngineByName(name).eval(script2, context);
+			result = ScriptLanguageProvider.getEngineByName(getName()).eval(script2, context);
 		} catch (ScriptException e) {
 			try {
 				int line = e.getLineNumber();
@@ -265,16 +273,31 @@ public class DefaultScriptLanguage extends ScriptLanguage implements RunnableLan
 		}
 		return result;
 	}
+	
+	@Override
+	public ScriptSyntax getSyntax() {
+		return syntax;
+	}
 
 	@Override
-	public String getDefaultImports(Collection<Class<?>> defaultClasses, Collection<Class<?>> defaultStaticClasses) {
+	public ScriptAutoCompletor getAutoCompletor() {
+		return completor;
+	}
+
+	@Override
+	public String getImportStatements(Collection<Class<?>> classes) {
 		// Here we can have default import implementation for languages that we know the import format for
-		if (name.toLowerCase().equals("jython")) {
+		if (getName().toLowerCase().equals("jython")) {
 			return String.format(
 					"import qupath\n" +
 					"from %s import *\n",
 					QPEx.class.getName());
 		}
+		return "";
+	}
+	
+	@Override
+	public String getStaticImportStatments(Collection<Class<?>> classes) {
 		return "";
 	}
 }

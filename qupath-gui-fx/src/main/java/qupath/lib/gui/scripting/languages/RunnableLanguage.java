@@ -54,10 +54,16 @@ public interface RunnableLanguage {
 	Object executeScript(final String script, final Project<BufferedImage> project, final ImageData<BufferedImage> imageData, final Collection<Class<?>> defaultImports, final Collection<Class<?>> defaultStaticImports, final ScriptContext context) throws ScriptException;
 
 	/**
-	 * Get the default imports as a String, to add at the beginning of the executed script.
-	 * @param defaultClasses  		a collection of the classes to import 
-	 * @param defaultStaticClasses	a collection of classes to import as static classes
-	 * @return default imports
+	 * Get the import statements as a String, to add at the beginning of the executed script.
+	 * @param classes a collection of the classes to import 
+	 * @return import string
 	 */
-	String getDefaultImports(Collection<Class<?>> defaultClasses, Collection<Class<?>> defaultStaticClasses);
+	String getImportStatements(Collection<Class<?>> classes);
+
+	/**
+	 * Get the static import statements as a String, to add at the beginning of the executed script.
+	 * @param classes	a collection of classes to import as static classes
+	 * @return import string
+	 */
+	String getStaticImportStatments(Collection<Class<?>> classes);
 }

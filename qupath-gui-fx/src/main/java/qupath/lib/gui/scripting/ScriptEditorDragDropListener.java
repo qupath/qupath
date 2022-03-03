@@ -25,6 +25,7 @@ package qupath.lib.gui.scripting;
 
 import java.io.File;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -35,8 +36,9 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.scripting.languages.ScriptLanguageProvider;
 
 /**
- * Drag and drop support for QuPath's script editor, which can support a range of different files (Plain text, JSON, Groovy,..)
+ * Drag and drop support for QuPath's script editor, which can support a range of different files (Plain text, JSON, Groovy,..).
  * @author Melvin Gelbard
+ * @since v0.4.0
  */
 public class ScriptEditorDragDropListener implements EventHandler<DragEvent> {
 
@@ -62,9 +64,8 @@ public class ScriptEditorDragDropListener implements EventHandler<DragEvent> {
 			List<File> jars = list.stream().filter(f -> f.getName().toLowerCase().endsWith(".jar")).collect(Collectors.toList());
 			if (!jars.isEmpty() && qupath.canInstallExtensions())
 				qupath.installExtensions(list);
-			
 			List<File> remainingFiles = list.stream().filter(f -> !f.getName().toLowerCase().endsWith(".jar")).collect(Collectors.toList());
-			var supported = ScriptLanguageProvider.getAvailableScriptLanguages().stream().flatMap(l -> Arrays.stream(l.getExtensions())).collect(Collectors.toList());
+			var supported = ScriptLanguageProvider.getAvailableScriptLanguages().stream().flatMap(l -> Arrays.stream(l.getExtensions())).collect(Collectors.toCollection(HashSet::new));
 			supported.add(".qpproj");	// TODO: Maybe add this as a JsonLanguage ext? so the highlighting is automatically set
 			supported.add(".qpdata");
 			for (File file: remainingFiles) {

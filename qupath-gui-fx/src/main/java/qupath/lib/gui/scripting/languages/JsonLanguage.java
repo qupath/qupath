@@ -39,6 +39,9 @@ public class JsonLanguage extends ScriptLanguage {
 	 */
 	private static JsonLanguage INSTANCE;
 	
+	private ScriptSyntax syntax;
+	private ScriptAutoCompletor completor;
+	
 	/**
 	 * Constructor for JSON language. This constructor should never be 
 	 * called. Instead, use the static {@link #getInstance()} method.
@@ -46,7 +49,9 @@ public class JsonLanguage extends ScriptLanguage {
 	 * Note: this has to be public for the {@link ServiceLoader} to work.
 	 */
 	public JsonLanguage() {
-		super("JSON", new String[]{".json", ".geojson"}, JsonSyntax.getInstance(), new PlainAutoCompletor());
+		super("JSON", new String[]{".json", ".geojson"});
+		this.syntax = JsonSyntax.getInstance();
+		this.completor = new PlainAutoCompletor();
 		
 		if (INSTANCE != null)
 			throw new UnsupportedOperationException("Language classes cannot be instantiated more than once!");
@@ -61,5 +66,15 @@ public class JsonLanguage extends ScriptLanguage {
 	 */
 	public static JsonLanguage getInstance() {
 		return INSTANCE;
+	}
+	
+	@Override
+	public ScriptSyntax getSyntax() {
+		return syntax;
+	}
+
+	@Override
+	public ScriptAutoCompletor getAutoCompletor() {
+		return completor;
 	}
 }
