@@ -21,60 +21,60 @@
  * #L%
  */
 
-package qupath.lib.gui.scripting.highlighters;
+package qupath.lib.gui.scripting.languages;
 
-import java.util.Collection;
 import java.util.ServiceLoader;
 
-import org.fxmisc.richtext.model.StyleSpans;
-
 /**
- * Highlighting for plain text (which means no highlighting).
+ * Class for the representation of JSON syntax in QuPath.
+ * <p>
+ * This class stores the QuPath implementation of JSON syntaxing and a dummy plain auto-completion.
  * @author Melvin Gelbard
  * @since v0.4.0
  */
-public class PlainHighlighter implements ScriptHighlighter {
+public class JsonLanguage extends ScriptLanguage {
 	
 	/**
 	 * Instance of this language. Can't be final because of {@link ServiceLoader}.
 	 */
-	private static PlainHighlighter INSTANCE;
+	private static JsonLanguage INSTANCE;
+	
+	private ScriptSyntax syntax;
+	private ScriptAutoCompletor completor;
+	
+	/**
+	 * Constructor for JSON language. This constructor should never be 
+	 * called. Instead, use the static {@link #getInstance()} method.
+	 * <p>
+	 * Note: this has to be public for the {@link ServiceLoader} to work.
+	 */
+	public JsonLanguage() {
+		super("JSON", new String[]{".json", ".geojson"});
+		this.syntax = JsonSyntax.getInstance();
+		this.completor = new PlainAutoCompletor();
+		
+		if (INSTANCE != null)
+			throw new UnsupportedOperationException("Language classes cannot be instantiated more than once!");
+		
+		// Because of ServiceLoader, have to assign INSTANCE here.
+		JsonLanguage.INSTANCE = this;
+	}
 
 	/**
 	 * Get the static instance of this class.
 	 * @return instance
 	 */
-	public static ScriptHighlighter getInstance() {
+	public static JsonLanguage getInstance() {
 		return INSTANCE;
 	}
 	
-	/**
-	 * Constructor for a simple Plain Highlighter (which does nothing). 
-	 * This constructor should never be called. Instead, use the 
-	 * static {@link #getInstance()} method.
-	 * <p>
-	 * Note: this has to be public for the {@link ServiceLoader} to work.
-	 */
-	public PlainHighlighter() {
-		if (INSTANCE != null)
-			throw new UnsupportedOperationException("Highlighter classes cannot be instantiated more than once!");
-		
-		// Because of ServiceLoader, have to assign INSTANCE here.
-		PlainHighlighter.INSTANCE = this;
-	}
-	
 	@Override
-	public String getLanguageName() {
-		return "None";
-	}
-	
-	@Override
-	public StyleSpans<Collection<String>> computeEditorHighlighting(String text) {
-		return ScriptHighlighter.getPlainStyling(text);
+	public ScriptSyntax getSyntax() {
+		return syntax;
 	}
 
 	@Override
-	public StyleSpans<Collection<String>> computeConsoleHighlighting(String text) {
-		return ScriptHighlighter.getPlainStyling(text);
+	public ScriptAutoCompletor getAutoCompletor() {
+		return completor;
 	}
 }

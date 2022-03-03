@@ -28,34 +28,23 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.Writer;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
-import java.util.Scanner;
 import java.util.concurrent.Future;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import javax.script.ScriptContext;
-import javax.script.ScriptEngine;
-import javax.script.ScriptEngineFactory;
-import javax.script.ScriptEngineManager;
 import javax.script.ScriptException;
 import javax.script.SimpleScriptContext;
 
 import org.apache.commons.text.StringEscapeUtils;
 import org.controlsfx.control.action.Action;
-import org.controlsfx.control.action.ActionUtils;
 import org.controlsfx.dialog.ProgressDialog;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -74,7 +63,6 @@ import javafx.geometry.Orientation;
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.ButtonType;
-import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
@@ -93,12 +81,12 @@ import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.input.TransferMode;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.text.Font;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.util.Callback;
-import qupath.imagej.tools.IJTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.ActionTools;
 import qupath.lib.gui.QuPathGUI;
@@ -107,15 +95,16 @@ import qupath.lib.gui.dialogs.Dialogs.DialogButton;
 import qupath.lib.gui.dialogs.ProjectDialogs;
 import qupath.lib.gui.logging.LogManager;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.scripting.languages.GroovyLanguage;
+import qupath.lib.gui.scripting.languages.PlainLanguage;
+import qupath.lib.gui.scripting.languages.RunnableLanguage;
+import qupath.lib.gui.scripting.languages.ScriptLanguage;
+import qupath.lib.gui.scripting.languages.ScriptLanguageProvider;
 import qupath.lib.gui.tools.MenuTools;
 import qupath.lib.images.ImageData;
-import qupath.lib.objects.PathObjects;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectImageEntry;
 import qupath.lib.projects.Projects;
-import qupath.lib.roi.RoiTools;
-import qupath.lib.roi.ShapeSimplifier;
-import qupath.lib.scripting.QP;
 
 
 /**
@@ -130,103 +119,21 @@ import qupath.lib.scripting.QP;
  */
 public class DefaultScriptEditor implements ScriptEditor {
 
-	final static private Logger logger = LoggerFactory.getLogger(DefaultScriptEditor.class);
+	private static final Logger logger = LoggerFactory.getLogger(DefaultScriptEditor.class);
+	
+	private static final List<ScriptLanguage> availableLanguages = ScriptLanguageProvider.getAvailableScriptLanguages();
 	
 	/**
-	 * Enum representing languages supported by this script editor.
-	 * <p>
-	 * Warning: This is likely to be removed in the future, in favor of stronger support for Groovy only.
+	 * Default classes to import at the start a script, if 'useDefaultBindings' is enabled.
 	 */
-	public enum Language {
-		/**
-		 * Plain text
-		 */
-		PLAIN("None", new String[]{".txt"}, new PlainSyntax()),
-		/**
-		 * Javascript support (will cease to be part of the JDK)
-		 */
-		@Deprecated
-		JAVASCRIPT("JavaScript", new String[]{".js"}, new PlainSyntax()),
-		/**
-		 * Jython support
-		 */
-		@Deprecated
-		JYTHON("Jython", new String[]{".py"}, new PlainSyntax()),
-		/**
-		 * Groovy support (default and preferred scripting language for QuPath)
-		 */
-		GROOVY("Groovy", new String[]{".groovy"}, new GroovySyntax()),
-		
-		/**
-		 * JSON support. 
-		 * <p>
-		 * Note: while JSON is a 'language' in this enum, the user can only 
-		 * choose between "Groovy" and "None" under the "Language" menu in 
-		 * the GUI. "None" in the GUI is translated to either "PLAIN" or "JSON" here, 
-		 * depending on the file extension (if there is no file yet, it will be PLAIN).
-		 * @since v0.4.0
-		 */
-		JSON("Json", new String[]{".json", ".geojson"}, new JsonSyntax());
-		
-		private final String name;
-		private final String[] ext;
-		private final ScriptSyntax syntax;
-		
-		Language(final String name, final String[] ext, final ScriptSyntax syntax) {
-			this.name = name;
-			this.ext = ext;
-			this.syntax = syntax;
-		}
-		
-		/**
-		 * Get the possible file extensions for the specified language
-		 * @return possible extensions
-		 */
-		public String[] getExtensions() {
-			return ext;
-		}
-		
-		/**
-		 * Get the string used to indicate a line comment, e.g. # for Python or // for Java
-		 * @return
-		 */
-		public String getLineCommentString() {
-			return syntax.getLineCommentString();
-		}
-
-		static Language fromString(String languageName) {
-			for (Language l: values()) {
-				if (l.toString().equals(languageName))
-					return l;
-			}
-			return null;
-		}
-		
-		/**
-		 * Get the syntax associated with this language.
-		 * @return syntax
-		 */
-		public ScriptSyntax getSyntax() {
-			return syntax;
-		}
-		
-		@Override
-		public String toString() {
-			return name;
-		}
-	}
+	private static final Collection<Class<?>> defaultClasses = getDefaultClasses();
 	
-
-//	private static final List<String> SUPPORTED_LANGUAGES = Collections.unmodifiableList(
-//			Arrays.asList("JavaScript", "Jython", "Groovy", "Ruby"));
-//	final private static Language DEFAULT_LANGUAGE = Language.JAVASCRIPT;
-//	final private static String NO_LANGUAGE = "None";
+	/**
+	 * Default static classes to import at the start a script, if 'useDefaultBindings' is enabled.
+	 */
+	private static final Collection<Class<?>> defaultStaticClasses = getDefaultStaticClasses();
 	
-	final private static String[] SCRIPT_EXTENSIONS = new String[]{"js", "py", "groovy", "rb", "txt"};
-	
-	private static final List<Language> availableLanguages = new ArrayList<>();
-	
-	private static int untitledCounter = 0; // For incrementing untitled scripts
+	private final ScriptEditorDragDropListener dragDropListener;
 	
 	private ObjectProperty<Future<?>> runningTask = new SimpleObjectProperty<>();
 
@@ -237,12 +144,11 @@ public class DefaultScriptEditor implements ScriptEditor {
 	private Font fontMain = Font.font("Courier");
 	
 	private ObjectProperty<ScriptTab> selectedScript = new SimpleObjectProperty<>();
-	protected ObjectProperty<Language> currentLanguage = new SimpleObjectProperty<>();
-	protected ObjectProperty<ScriptSyntax> scriptSyntax = new SimpleObjectProperty<>();
+	protected ObjectProperty<ScriptLanguage> currentLanguage = new SimpleObjectProperty<>();
 	
 	
 	// Binding to indicate it shouldn't be possible to 'Run' any script right now
-	private BooleanBinding disableRun = runningTask.isNotNull().or(currentLanguage.isNotEqualTo(Language.GROOVY));
+	private BooleanBinding disableRun = runningTask.isNotNull().or(Bindings.createBooleanBinding(() -> !(currentLanguage.get() instanceof RunnableLanguage), currentLanguage));
 	
 	// Binding to indicate it shouldn't be possible to 'Run' any script right now
 	private StringBinding title = Bindings.createStringBinding(() -> {
@@ -301,33 +207,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	// If so, this line should be included at the top of the script
 	private static Pattern patternGuiScript = Pattern.compile("guiscript *?= *?true");
 	
-	private static ScriptEngineManager manager = createManager();
-	
 	private ListView<ScriptTab> listScripts = new ListView<>();
-	
-	/**
-	 * Create a map of classes that have changed, and therefore old scripts may use out-of-date import statements.
-	 * This allows us to be a bit more helpful in handling the error message.
-	 */
-	private static Map<String, Class<?>> CONFUSED_CLASSES;
-	
-	static {	
-		CONFUSED_CLASSES = new HashMap<>();
-		for (Class<?> cls : QP.getCoreClasses()) {
-			CONFUSED_CLASSES.put(cls.getSimpleName(), cls);
-		}
-		CONFUSED_CLASSES.put("PathRoiToolsAwt", RoiTools.class);
-		CONFUSED_CLASSES.put("PathDetectionObject", PathObjects.class);
-		CONFUSED_CLASSES.put("PathAnnotationObject", PathObjects.class);
-		CONFUSED_CLASSES.put("PathCellObject", PathObjects.class);
-		CONFUSED_CLASSES.put("RoiConverterIJ", IJTools.class);
-		CONFUSED_CLASSES.put("QP", QP.class);
-		CONFUSED_CLASSES.put("QPEx", QPEx.class);
-		CONFUSED_CLASSES.put("ShapeSimplifierAwt", ShapeSimplifier.class);
-		CONFUSED_CLASSES.put("ImagePlusServerBuilder", IJTools.class);
-		CONFUSED_CLASSES.put("DisplayHelpers", Dialogs.class);
-		CONFUSED_CLASSES = Collections.unmodifiableMap(CONFUSED_CLASSES);
-	}
 
 	/**
 	 * Constructor.
@@ -335,34 +215,23 @@ public class DefaultScriptEditor implements ScriptEditor {
 	 */
 	public DefaultScriptEditor(final QuPathGUI qupath) {
 		this.qupath = qupath;
+		this.dragDropListener = new ScriptEditorDragDropListener(qupath);
 		initializeActions();
 		selectedScript.addListener((v, o, n) -> {
 			if (n == null || n.getLanguage() == null)
 				return;
 			currentLanguage.set(n.getLanguage());
-			setToggle(n.getLanguage() == Language.JSON ? Language.PLAIN : n.getLanguage());
+			setToggle(n.getLanguage());
 		});
 		bgLanguages.selectedToggleProperty().addListener((v, o, n) -> {
 			if (n == null)
 				return;
 
-			// If the toggle is "None", the language could technically still be JSON, so check that first
-			if (n.getUserData().toString().equals(Language.PLAIN.name))
-				currentLanguage.set((selectedScript.get() == null || selectedScript.get().file == null) ? Language.PLAIN : selectedScript.get().file.toString().toLowerCase().endsWith("json") ? Language.JSON : Language.PLAIN);
-			else
-				currentLanguage.set(Language.fromString((String) n.getUserData()));
+			currentLanguage.set(ScriptLanguageProvider.fromString((String) n.getUserData()));
 		});
-		
-		// Bind the script syntax to the language used
-		scriptSyntax.bind(Bindings.createObjectBinding(() -> {
-			Language l = getCurrentLanguage();
-			if (l == null || l.syntax == null)
-				return new PlainSyntax();
-			return l.syntax;
-		}, currentLanguage));
 	}
 	
-	private void setToggle(Language language) {
+	private void setToggle(ScriptLanguage language) {
 		for (Toggle button : bgLanguages.getToggles()) {
 			if (language.toString().equals(button.getUserData())) {
 				bgLanguages.selectToggle(button);
@@ -370,7 +239,6 @@ public class DefaultScriptEditor implements ScriptEditor {
 			}
 		}
 	}
-
 
 	private void initializeActions() {
 		copyAction = createCopyAction("Copy", null);
@@ -412,9 +280,11 @@ public class DefaultScriptEditor implements ScriptEditor {
 		if (file == null || !file.isFile())
 			return false;
 		String name = file.getName();
-		for (String ext : SCRIPT_EXTENSIONS) {
-			if (name.endsWith(ext))
-				return true;
+		for (ScriptLanguage l: availableLanguages) {
+			for (String ext: l.getExtensions()) {
+				if (name.endsWith(ext))
+					return true;
+			}
 		}
 		return false;
 	}
@@ -422,10 +292,12 @@ public class DefaultScriptEditor implements ScriptEditor {
 
 
 	void maybeRefreshTab(final ScriptTab tab) {
-		if (tab != null && autoRefreshFiles.get())
+		if (tab != null && autoRefreshFiles.get()) {
 			tab.refreshFileContents();
+			setToggle(tab.getLanguage());
+		}
 	}
-	
+
 	/**
 	 * Get the stage for this script editor.
 	 * @return
@@ -443,15 +315,30 @@ public class DefaultScriptEditor implements ScriptEditor {
 		return runningTask.isNotNull();
 	}
 	
-	
 	/**
 	 * Create a new script in the specified language.
 	 * @param script text of the script to add
 	 * @param language language of the script
 	 * @param doSelect if true, select the script when it is added
 	 */
-	public void addNewScript(final String script, final Language language, final boolean doSelect) {
-		ScriptTab tab = new ScriptTab(script, language);
+	public void addNewScript(final String script, final ScriptLanguage language, final boolean doSelect) {
+		ScriptEditorControl editor = getNewEditor();
+		ScriptTab tab = new ScriptTab(editor, getNewConsole(), script, language);
+		
+		// Attach all listeners
+		editor.textProperty().addListener((v, o, n) -> {
+			updateUndoActionState();
+			tab.updateIsModified();
+		});
+		editor.selectedTextProperty().addListener((v, o, n) -> updateCutCopyActionState());
+		editor.focusedProperty().addListener((v, o, n) -> maybeRefreshTab(tab));
+		tab.isModifiedProperty().addListener((v, o, n) ->{
+			if (listScripts != null)
+				listScripts.refresh();
+		});
+		
+		// Update relevant field in script editor
+		currentLanguage.set(language);
 		listScripts.getItems().add(tab);
 		if (doSelect)
 			listScripts.getSelectionModel().select(tab);
@@ -468,7 +355,22 @@ public class DefaultScriptEditor implements ScriptEditor {
 			}
 		}
 		
-		ScriptTab tab = new ScriptTab(file);
+		ScriptEditorControl editor = getNewEditor();
+		ScriptTab tab = new ScriptTab(editor, getNewConsole(), file);
+		
+		// Attach all listeners
+		editor.textProperty().addListener((v, o, n) -> {
+			updateUndoActionState();
+			tab.updateIsModified();
+		});
+		editor.selectedTextProperty().addListener((v, o, n) -> updateCutCopyActionState());
+		editor.focusedProperty().addListener((v, o, n) -> maybeRefreshTab(tab));
+		tab.isModifiedProperty().addListener((v, o, n) -> {
+			// Update the display of the list
+			if (listScripts != null)
+				listScripts.refresh();
+		});
+		setToggle(tab.getLanguage());
 		listScripts.getItems().add(tab);
 		if (doSelect)
 			listScripts.getSelectionModel().select(tab);
@@ -481,7 +383,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 			return;
 		
 		Node lastComponent = splitMain.getItems().get(1);
-		Node newComponent = tab == null ? null : tab.getComponent();
+		Node newComponent = tab == null ? null : tab.getSplitEditor();
 		if (lastComponent == newComponent)
 			return;
 		
@@ -492,53 +394,19 @@ public class DefaultScriptEditor implements ScriptEditor {
 			splitMain.setDividerPosition(0, loc);
 			// Unfortunately need to wait until divider is present before we can set the divider location
 			if (selectedScript.get() == null)
-				tab.splitEditor.setDividerPosition(0, 0.75);
+				tab.getSplitEditor().setDividerPosition(0, 0.75);
 			else
-				tab.splitEditor.setDividerPosition(0, selectedScript.get().splitEditor.getDividers().get(0).getPosition());
+				tab.getSplitEditor().setDividerPosition(0, selectedScript.get().getSplitEditor().getDividers().get(0).getPosition());
 			
 			// Update the selected language
-			Language language = tab.getLanguage();
-			setToggle(language == Language.JSON ? Language.PLAIN : language);
+			setToggle(tab.getLanguage());
 		}
 		
 		selectedScript.set(tab);
 	}
 
-
-	private static ScriptEngineManager createManager() {
-		Thread.currentThread().setContextClassLoader(QuPathGUI.getExtensionClassLoader());
-		ScriptEngineManager manager = new ScriptEngineManager(QuPathGUI.getExtensionClassLoader());
-		//		availableLanguages.add(Language.JAVA);
-		for (ScriptEngineFactory factory : manager.getEngineFactories()) {
-			for (Language supported : Language.values()) {
-				if (factory.getNames().contains(supported.toString().toLowerCase())) {
-					availableLanguages.add(supported);
-					manager.registerEngineName(supported.toString(), factory);
-					//					factories.add(factory);
-
-					logger.trace("-------------------------------");
-					logger.trace(factory.getLanguageName());
-					logger.trace(factory.getLanguageVersion());
-					logger.trace(factory.getEngineName());
-					logger.trace(factory.getEngineVersion());
-					logger.trace("Names: {}", factory.getNames());
-					logger.trace("MIME types: {}", factory.getMimeTypes().toString());
-					logger.trace("Extensions: {}", factory.getExtensions().toString());
-
-					logger.trace(factory.getMethodCallSyntax("QuPath", "runPlugin", "imageData", "\"{ key : value }\""));
-					logger.trace(factory.getOutputStatement("This is my output"));
-
-					break;
-				}
-			}
-		}
-		Collections.sort(availableLanguages);
-		return manager;
-	}
-
-
-	Language getSelectedLanguage() {
-		return getCurrentScriptTab() == null ? null : getCurrentScriptTab().getLanguage();
+	ScriptLanguage getSelectedLanguage() {
+		return getCurrentScriptObject() == null ? null : getCurrentScriptObject().getLanguage();
 	}
 	
 	protected ScriptEditorControl getNewConsole() {
@@ -651,26 +519,29 @@ public class DefaultScriptEditor implements ScriptEditor {
 
 		// Languages menu - ensure each language only gets added once
 		Menu menuLanguages = new Menu("Language");
-		RadioMenuItem radioMenuItem;
-		for (Language language : new LinkedHashSet<>(availableLanguages)) {
+		List<RadioMenuItem> nonRunnableLanguages = new ArrayList<>();
+		for (ScriptLanguage language : new LinkedHashSet<>(availableLanguages)) {
 			String languageName = language.toString();
-			radioMenuItem = new RadioMenuItem(languageName);
-			radioMenuItem.setToggleGroup(bgLanguages);
-			radioMenuItem.setUserData(languageName);
-			menuLanguages.getItems().add(radioMenuItem);
-			radioMenuItem.setOnAction(e -> setCurrentTabLanguage(language));
+			RadioMenuItem item = new RadioMenuItem(languageName);
+			item.setToggleGroup(bgLanguages);
+			item.setUserData(languageName);
+			if (language instanceof RunnableLanguage)
+				menuLanguages.getItems().add(item);
+			else
+				nonRunnableLanguages.add(item);
+			item.setOnAction(e -> setCurrentTabLanguage(language));
 		}
-		menuLanguages.getItems().add(new SeparatorMenuItem());
-		radioMenuItem = new RadioMenuItem(Language.PLAIN.toString());
-		radioMenuItem.setToggleGroup(bgLanguages);
-		radioMenuItem.setUserData(Language.PLAIN.toString());
-		radioMenuItem.setOnAction(e -> setCurrentTabLanguage(Language.PLAIN));
+		
+		if (!nonRunnableLanguages.isEmpty()) {
+			menuLanguages.getItems().add(new SeparatorMenuItem());
+			for (RadioMenuItem item: nonRunnableLanguages) {
+				menuLanguages.getItems().add(item);
+			}
+		}
 		
 		// Setting the default language (Groovy in this case), or if not present, the first one available
-		var defaultLanguage = bgLanguages.getToggles().stream().filter(t -> t.getUserData().equals(Language.GROOVY)).findFirst().orElseGet(() -> bgLanguages.getToggles().get(0));
+		var defaultLanguage = bgLanguages.getToggles().stream().filter(t -> t.getUserData().equals(GroovyLanguage.getInstance())).findFirst().orElseGet(() -> bgLanguages.getToggles().get(0));
 		bgLanguages.selectToggle(defaultLanguage);
-		
-		menuLanguages.getItems().add(radioMenuItem);
 		
 		menubar.getMenus().add(menuLanguages);
 		
@@ -736,7 +607,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	            ListCell<ScriptTab>>() {
 	                @Override 
 	                public ListCell<ScriptTab> call(ListView<ScriptTab> list) {
-	                    return new ScriptTabListCell();
+	                    return new ScriptObjectListCell();
 	                }
 	            }
 	        );
@@ -758,24 +629,27 @@ public class DefaultScriptEditor implements ScriptEditor {
 		dialog.setMinHeight(400);
 		dialog.setWidth(600);
 		dialog.setHeight(400);
+		
+		// Accept Drag and Drop
+		dialog.getScene().setOnDragOver(event -> {
+            event.acceptTransferModes(TransferMode.COPY);
+            event.consume();
+        });
+		dialog.getScene().setOnDragDropped(dragDropListener);
+		
 		splitMain.setDividerPosition(0, 0.25);
 		menubar.useSystemMenuBarProperty().bindBidirectional(PathPrefs.useSystemMenubarProperty());
 //		menubar.setUseSystemMenuBar(true);
 		updateUndoActionState();
 		updateCutCopyActionState();
-		
-		
-		// Support drag & drop
-		if (qupath != null && qupath.getDefaultDragDropListener() != null)
-			qupath.getDefaultDragDropListener().setupTarget(dialog.getScene());
 	}
 	
 	
-	void setCurrentTabLanguage(final Language language) {
-		ScriptTab tab = getCurrentScriptTab();
+	void setCurrentTabLanguage(final ScriptLanguage language) {
+		ScriptTab tab = getCurrentScriptObject();
 		if (tab == null)
 			return;
-		for (Language l : Language.values()) {
+		for (ScriptLanguage l : availableLanguages) {
 			if (l == language) {
 				tab.setLanguage(l);
 				break;
@@ -785,29 +659,29 @@ public class DefaultScriptEditor implements ScriptEditor {
 	
 	
 	
-	protected Language getCurrentLanguage() {
+	protected ScriptLanguage getCurrentLanguage() {
 		return currentLanguage.get();
 	}
 	
-	protected ScriptTab getCurrentScriptTab() {
+	protected ScriptTab getCurrentScriptObject() {
 		return selectedScript.get();
 //		return listScripts == null ? null : listScripts.getSelectionModel().getSelectedItem();
 	}
 	
 	protected ScriptEditorControl getCurrentTextComponent() {
-		ScriptTab tab = getCurrentScriptTab();
+		ScriptTab tab = getCurrentScriptObject();
 		return tab == null ? null : tab.getEditorComponent();
 	}
 	
 	
 	protected ScriptEditorControl getCurrentConsoleComponent() {
-		ScriptTab tab = getCurrentScriptTab();
+		ScriptTab tab = getCurrentScriptObject();
 		return tab == null ? null : tab.getConsoleComponent();
 	}
 
 	protected Node getCurrentScriptComponent() {
-		ScriptTab tab = getCurrentScriptTab();
-		return tab == null ? null : tab.getComponent();
+		ScriptTab tab = getCurrentScriptObject();
+		return tab == null ? null : tab.getSplitEditor();
 	}
 	
 	protected String getSelectedText() {
@@ -837,9 +711,9 @@ public class DefaultScriptEditor implements ScriptEditor {
 	
 	
 	/**
-	 * Execute the script currently shown in the specified ScriptTab.
+	 * Execute the script currently shown in the specified ScriptObject.
 	 * 
-	 * Output will be shown in the console of the ScriptTab.
+	 * Output will be shown in the console of the ScriptObject.
 	 * 
 	 * @param tab
 	 * @param script
@@ -847,8 +721,11 @@ public class DefaultScriptEditor implements ScriptEditor {
 	 * @param imageData
 	 */
 	private void executeScript(final ScriptTab tab, final String script, final Project<BufferedImage> project, final ImageData<BufferedImage> imageData) {
+		if (!(tab.getLanguage() instanceof RunnableLanguage))
+			return;
+	
+		RunnableLanguage runnableLanguage = (RunnableLanguage)tab.getLanguage();
 		ScriptEditorControl console = tab.getConsoleComponent();
-		
 		ScriptContext context = new SimpleScriptContext();
 		context.setAttribute("args", new String[0], ScriptContext.ENGINE_SCOPE);
 		var writer = new ScriptConsoleWriter(console, false);
@@ -863,7 +740,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		if (outputScriptStartTime.get())
 			printWriter.println("Starting script at " + new Date(startTime).toString());
 		try {
-			Object result = executeScript(tab.getLanguage(), script, project, imageData, useDefaultBindings.get(), context);
+			Object result = executeScript(runnableLanguage, script, project, imageData, useDefaultBindings.get(), context);
 			if (result != null) {
 				printWriter.println("Result: " + result);
 			}
@@ -882,8 +759,11 @@ public class DefaultScriptEditor implements ScriptEditor {
 	}
 
 	
-	
-	private static ScriptContext createDefaultContext() {
+	/**
+	 * Create default ScriptContext to run scripts.
+	 * @return default script context
+	 */
+	public static ScriptContext createDefaultContext() {
 		ScriptContext context = new SimpleScriptContext();
 		context.setAttribute("args", new String[0], ScriptContext.ENGINE_SCOPE);
 		context.setWriter(new LoggerInfoWriter());
@@ -946,188 +826,13 @@ public class DefaultScriptEditor implements ScriptEditor {
 	 * @return
 	 * @throws ScriptException 
 	 */
-	public static Object executeScript(final Language language, final String script, final Project<BufferedImage> project, final ImageData<BufferedImage> imageData, final boolean importDefaultMethods, final ScriptContext context) throws ScriptException {
-		ScriptEngine engine = manager.getEngineByName(language.toString());
-		return executeScript(engine, script, project, imageData, importDefaultMethods, context);
+	public static Object executeScript(final RunnableLanguage language, final String script, final Project<BufferedImage> project, final ImageData<BufferedImage> imageData, final boolean importDefaultMethods, final ScriptContext context) throws ScriptException {
+		if (importDefaultMethods)
+			return language.executeScript(script, project, imageData, defaultClasses, defaultStaticClasses, context);
+		return language.executeScript(script, project, imageData, new ArrayList<>(), new ArrayList<>(), context);					
 	}
 	
-	
-	/**
-	 * Execute a script using the specific ScriptEngine.
-	 * 
-	 * @param engine
-	 * @param script
-	 * @param project 
-	 * @param imageData
-	 * @param importDefaultMethods
-	 * @param context
-	 * @return
-	 * @throws ScriptException 
-	 */
-	public static Object executeScript(final ScriptEngine engine, final String script, final Project<BufferedImage> project, final ImageData<BufferedImage> imageData, final boolean importDefaultMethods, final ScriptContext context) throws ScriptException {
-		
-		// Set the current ImageData if we can
-		QP.setBatchProjectAndImage(project, imageData);
-		
-		// We'll actually use script2... which may or may not be the same
-		String script2 = script;
-		
-		// Prepare to return a result
-		Object result = null;
-
-		// Record if any extra lines are added to the script, to help match line numbers of any exceptions
-		int extraLines = 0;
-
-		// Supply default bindings
-		if (importDefaultMethods) {
-			
-			// Class supplying static methods that will be included in the main namespace
-			// TODO: Note: Javascript ignores the 'extends', i.e. loses all the QPEx stuff, so most functions don't work.
-			// This workaround means that command line script running is used with Javascript, whereas Groovy shows progress dialogs etc.
-			String scriptClass = engine.getFactory().getNames().contains("javascript") ? QP.class.getName() : QPEx.class.getName();
-			
-			// Import whatever else is needed into the namespace for the languages we know about
-			if (engine.getFactory().getNames().contains("jython")) {
-				script2 = String.format(
-						"import qupath\n" +
-						"from %s import *\n" +
-						"%s\n",
-						scriptClass, script);
-				extraLines = 2;
-			}
-			if (engine.getFactory().getNames().contains("groovy")) {
-				script2 = QPEx.getDefaultImports(true) + System.lineSeparator() + script;
-//				script2 = String.format(
-//						"import static %s.*;\n" + 
-//						"%s\n",
-//						scriptClass, script);
-				extraLines = 1; // coreImports.size() + 1;
-			}
-			if (engine.getFactory().getNames().contains("javascript")) {
-				script2 = String.format(
-						"var QP = Java.type(\"%s\");\n"
-						+ "with (Object.bindProperties({}, QP)) {\n"
-						+ "%s\n"
-						+ "}\n",
-						scriptClass, script);
-				extraLines = 2;
-			}
-			
-		}
-		
-		try {
-			result = engine.eval(script2, context == null ? createDefaultContext() : context);
-		} catch (ScriptException e) {
-			try {
-				int line = e.getLineNumber();
-				Throwable cause = e;
-				// Try to get to the root of the problem
-				while (cause.getCause() != null && cause.getCause() != cause)
-					cause = cause.getCause();
-				
-				// Sometimes we can still get the line number for a Groovy exception in this awkward way...
-				if (line < 0) {
-					for (StackTraceElement element : cause.getStackTrace()) {
-						if ("run".equals(element.getMethodName()) && element.getClassName() != null && element.getClassName().startsWith("Script")) {
-							line = element.getLineNumber();
-							break;
-						}
-					}
-				}
-				
-				Writer errorWriter = context.getErrorWriter();
-				
-				StringBuilder sb = new StringBuilder();
-				String message = cause.getLocalizedMessage();
-				if (message != null && line < 0) {
-					var lineMatcher = Pattern.compile("@ line ([\\d]+)").matcher(message);
-					if (lineMatcher.find())
-						line = Integer.parseInt(lineMatcher.group(1));
-				}
-				
-				// Check if the error was to do with an import statement
-				if (message != null && !message.isBlank()) {
-					var matcher = Pattern.compile("unable to resolve class ([A-Za-z_.-]+)").matcher(message);
-					if (matcher.find()) {
-						String missingClass = matcher.group(1).strip();
-						sb.append("It looks like you have tried to import a class '" + missingClass + "' that doesn't exist!\n");
-						int ind = missingClass.lastIndexOf(".");
-						if (ind >= 0)
-							missingClass = missingClass.substring(ind+1);
-						Class<?> suggestedClass = CONFUSED_CLASSES.get(missingClass);
-						if (suggestedClass != null) {
-							sb.append("You should probably remove the broken import statement in your script (around line " + line + ").\n");
-							sb.append("Then you may want to check 'Run -> Include default imports' is selected, or alternatively add ");
-							sb.append("\n    import " + suggestedClass.getName() + "\nat the start of the script. Full error message below.\n");
-						}
-					}
-	
-					// Check if the error was to do with a missing property... which can again be thanks to an import statement
-					var matcherProperty = Pattern.compile("No such property: ([A-Za-z_.-]+)").matcher(message);
-					if (matcherProperty.find()) {
-						String missingClass = matcherProperty.group(1).strip();
-						sb.append("I cannot find '" + missingClass + "'!\n");
-						int ind = missingClass.lastIndexOf(".");
-						if (ind >= 0)
-							missingClass = missingClass.substring(ind+1);
-						Class<?> suggestedClass = CONFUSED_CLASSES.get(missingClass);
-						if (suggestedClass != null) {
-							if (!suggestedClass.getSimpleName().equals(missingClass)) {
-								sb.append("You can try replacing ").append(missingClass).append(" with ").append(suggestedClass.getSimpleName()).append("\n");
-							}
-							sb.append("You might want to check 'Run -> Include default imports' is selected, or alternatively add ");
-							sb.append("\n    import " + suggestedClass.getName() + "\nat the start of the script. Full error message below.\n");
-						}
-					}
-					
-					// Check if the error was to do with a special left quote character
-					var matcherQuotationMarks = Pattern.compile("Unexpected input: .*([\\x{2018}|\\x{201c}|\\x{2019}|\\x{201D}]+)' @ line (\\d+), column (\\d+).").matcher(message);
-					if (matcherQuotationMarks.find()) {
-						int nLine = Integer.parseInt(matcherQuotationMarks.group(2));
-						String quotationMark = matcherQuotationMarks.group(1);
-						String suggestion = quotationMark.equals("‘") || quotationMark.equals("’") ? "'" : "\"";
-						sb.append(String.format("At least one invalid quotation mark (%s) was found @ line %s column %s! ", quotationMark, importDefaultMethods ? nLine-1 : nLine, matcherQuotationMarks.group(3)));
-						sb.append(String.format("You can try replacing it with a straight quotation mark (%s).%n", suggestion));
-					}
-				}
-				if (sb.length() > 0)
-					errorWriter.append(sb.toString());
-				
-				if (line >= 0) {
-					line = line - extraLines;
-					if (cause instanceof InterruptedException)
-						errorWriter.append("Script interrupted at line " + line + ": " + message + "\n");
-					else
-						errorWriter.append(cause.getClass().getSimpleName() + " at line " + line + ": " + message + "\n");
-				} else {
-					if (cause instanceof InterruptedException)
-						errorWriter.append("Script interrupted: " + message + "\n");
-					else
-						errorWriter.append(cause.getClass().getSimpleName() + ": " + message + "\n");
-				}
-				var stackTrace = Arrays.stream(cause.getStackTrace()).filter(s -> s != null).map(s -> s.toString())
-						.collect(Collectors.joining("\n" + "    "));
-				if (stackTrace != null)
-					stackTrace += "\n";
-				errorWriter.append(stackTrace);
-//				logger.error("Script error (" + cause.getClass().getSimpleName() + ")", cause);
-			} catch (IOException e1) {
-				logger.error("Script IO error: {}", e1);
-			} catch (Exception e1) {
-				logger.error("Script error: {}", e1.getLocalizedMessage(), e1);
-//				e1.printStackTrace();
-			}
-			throw e;
-		} finally {
-			QP.resetBatchProjectAndImage();
-		}
-		return result;
-	}
-
-	
-	
-	
-	static class ScriptTabListCell extends ListCell<ScriptTab> {
+	static class ScriptObjectListCell extends ListCell<ScriptTab> {
         @Override
         public void updateItem(ScriptTab item, boolean empty) {
             super.updateItem(item, empty);
@@ -1137,7 +842,7 @@ public class DefaultScriptEditor implements ScriptEditor {
              	return;
             }
             var text = item.toString();
-            if (item.isRunning) {
+            if (item.isRunning()) {
             	text = text + " (Running)";
             	setStyle("-fx-font-style: italic;");
             } else
@@ -1153,7 +858,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	boolean save(final ScriptTab tab, final boolean saveAs) {
 		try {
 			if (tab.fileExists() && !saveAs)
-				tab.saveToFile(tab.getFile());
+				tab.saveToFile(getCurrentText(), tab.getFile());
 			else {
 				File dir = tab.getFile();
 //				if (dir == null) {
@@ -1186,7 +891,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 				File file = Dialogs.getChooser(dialog).promptToSaveFile("Save script file", dir, tab.getName(), currentLanguage.getName() + " file", tab.getRequestedExtensions()[0]);
 				if (file == null)
 					return false;
-				tab.saveToFile(file);
+				tab.saveToFile(getCurrentText(), file);
 				listScripts.refresh();
 //				listScripts.getItems().set(tab, modelScripts.indexOf(tab)); // Force a model update
 //				listScripts.repaint();
@@ -1198,41 +903,6 @@ public class DefaultScriptEditor implements ScriptEditor {
 		}
 		return false;
 	}
-	
-	
-	
-	boolean promptToClose(final ScriptTab tab) {
-		int ind = listScripts.getItems().indexOf(tab);
-		if (ind < 0)
-			return false;
-		
-		// Check if we need to save
-		if (tab.isModified() && tab.hasScript()) {
-			// TODO: Consider that this previously had a different parent for the dialog... and probably should
-			DialogButton option = Dialogs.showYesNoCancelDialog("Close " + tab.getName(), String.format("Save %s before closing?", tab.getName()));
-			if (option == DialogButton.CANCEL)
-				return false;
-			if (option == DialogButton.YES) {
-				if (!save(tab, false))
-					return false;
-			}
-		}
-
-		// Update selection, or close window if all scripts have been closed
-		listScripts.getItems().remove(ind);
-		if (ind >= listScripts.getItems().size())
-			ind--;
-		if (ind < 0) {
-			dialog.close();
-			dialog = null;
-		}
-		else
-			listScripts.getSelectionModel().select(ind);
-		return true;
-	}
-	
-
-
 
 //	public static void main(String[] args) {
 //		Platform.runLater(() -> {
@@ -1240,8 +910,6 @@ public class DefaultScriptEditor implements ScriptEditor {
 //			editor.getDialog().show();			
 //		});
 //	}
-
-
 
 	/**
 	 * Writer for outputting either to a logger or a styled document.
@@ -1349,14 +1017,14 @@ public class DefaultScriptEditor implements ScriptEditor {
 				return;
 			}
 			
-			Language language = getSelectedLanguage();
+			ScriptLanguage language = getSelectedLanguage();
 			if (language == null)
 				return;
 //			if (language == Language.JAVA)
 //				language = Language.GROOVY; // Replace Java with Groovy for scripting
 
-			ScriptTab tab = getCurrentScriptTab();
-			if (autoClearConsole.get() && getCurrentScriptTab() != null) {
+			ScriptTab tab = getCurrentScriptObject();
+			if (autoClearConsole.get() && getCurrentScriptObject() != null) {
 				tab.getConsoleComponent().clear();
 			}
 			
@@ -1418,7 +1086,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 			Dialogs.showNoProjectError("Script editor");
 			return;
 		}
-		ScriptTab tab = getCurrentScriptTab();
+		ScriptTab tab = getCurrentScriptObject();
 		if (tab == null || tab.getEditorComponent().getText().trim().length() == 0) {
 			Dialogs.showErrorMessage("Script editor", "No script selected!");
 			return;
@@ -1476,7 +1144,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		});
 		
 		// Clear console if necessary
-		if (autoClearConsole.get() && getCurrentScriptTab() != null) {
+		if (autoClearConsole.get() && getCurrentScriptObject() != null) {
 			tab.getConsoleComponent().clear();
 		}
 		
@@ -1717,206 +1385,15 @@ public class DefaultScriptEditor implements ScriptEditor {
 	 * @param name
 	 * @return
 	 */
-	public static Language getLanguageFromName(String name) {
-		for (Language l : Language.values()) {
+	public static ScriptLanguage getLanguageFromName(String name) {
+		for (ScriptLanguage l : availableLanguages) {
 			for (String possibleExt: l.getExtensions()) {
 				if (name.toLowerCase().endsWith(possibleExt))
 					return l;
 			}
 		}
-		return Language.PLAIN;
+		return PlainLanguage.getInstance();
 	}
-	
-	
-	
-	class ScriptTab {
-		
-		private File file = null;
-		private long lastModified = -1L;
-		private String lastSavedContents = null;
-		
-		private ObjectProperty<Language> scriptTabLanguage = new SimpleObjectProperty<>();
-		
-//		private BooleanProperty isModified = new SimpleBooleanProperty();
-		private boolean isModified = false;
-		
-		private SplitPane splitEditor;
-		private String name;
-		
-		private ScriptEditorControl console;
-		private ScriptEditorControl editor;
-		
-		private boolean isRunning = false;
-		
-		
-		public ScriptTab(final String script, final Language language) {
-			initialize();
-			scriptTabLanguage.set(language);
-			currentLanguage.set(language);
-			if (script != null)
-				editor.setText(script);
-			untitledCounter++;
-			name = "Untitled " + untitledCounter;
-		}
-		
-		public ScriptTab(final File file) throws IOException {
-			initialize();
-			readFile(file);
-		}
-		
-		
-		protected void readFile(final File file) throws IOException {
-			logger.info("Loading file {} to Script Editor", file.getAbsolutePath());
-			Scanner scanner = new Scanner(file);
-			String content = new String(Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8);
-//			String content = scanner.useDelimiter("\\Z").next();
-			editor.setText(content);
-			name = file.getName();
-			this.file = file;
-			lastModified = file.lastModified();
-			lastSavedContents = content;
-			var language = getLanguageFromName(name);
-			scriptTabLanguage.set(language);
-			setToggle(language == Language.JSON ? Language.PLAIN : language);
-			scanner.close();
-			updateIsModified();
-		}
-		
-		
-		protected void refreshFileContents() {
-			try {
-				if (file != null && file.lastModified() > lastModified) {
-					logger.debug("Calling refresh!");
-					readFile(file);
-					updateIsModified();
-				}
-			} catch (IOException e) {
-				logger.error("Cannot refresh script file", e);
-			}
-		}
-		
-		
-		private void initialize() {
-			BorderPane panelMainEditor = new BorderPane();
-			editor = getNewEditor();
-			editor.textProperty().addListener((v, o, n) -> {
-				updateUndoActionState();
-				updateIsModified();
-			});
-			editor.selectedTextProperty().addListener((v, o, n) -> updateCutCopyActionState());
-			editor.focusedProperty().addListener((v, o, n) -> maybeRefreshTab(this));
-			
-			panelMainEditor.setCenter(editor.getControl());
-
-
-			console = getNewConsole();
-			ContextMenu popup = new ContextMenu();
-			popup.getItems().add(ActionUtils.createMenuItem(new Action("Clear console", e -> console.setText(""))));
-			console.setPopup(popup);
-			
-			splitEditor = new SplitPane();
-			splitEditor.setOrientation(Orientation.VERTICAL);
-			splitEditor.getItems().addAll(
-					panelMainEditor,
-					console.getControl());
-			SplitPane.setResizableWithParent(console.getControl(), Boolean.FALSE);
-			splitEditor.setDividerPosition(0, 0.75);
-			
-			updateIsModified();
-		}
-		
-		public Node getComponent() {
-			return splitEditor;
-		}
-		
-		
-		public ScriptEditorControl getEditorComponent() {
-			return editor;
-		}
-		
-		public boolean hasScript() {
-			return editor.getText().length() > 0;
-		}
-
-		public ScriptEditorControl getConsoleComponent() {
-			return console;
-		}
-
-		public File getFile() {
-			return file;
-		}
-		
-		public boolean fileExists() {
-			return file != null && file.exists();
-		}
-		
-		boolean isRunning() {
-			return isRunning;
-		}
-		
-		void setRunning(boolean running) {
-			this.isRunning = running;
-		}
-		
-//		public ReadOnlyBooleanProperty isModifiedProperty() {
-//			return isModified;
-//		}
-		
-		/**
-		 * Return true if the script is modified, i.e. it isn't the same as the last saved version
-		 * 
-		 * @return
-		 */
-		public boolean isModified() {
-			return isModified;
-		}
-
-		private void updateIsModified() {
-			boolean newState = !fileExists() || !editor.getText().equals(lastSavedContents); // TODO: Consider checking disk contents / timestamp
-			if (isModified == newState)
-				return;
-			isModified = newState;
-			// Update the display of the list
-			if (listScripts != null)
-				listScripts.refresh();
-		}
-		
-		public void saveToFile(final File file) throws IOException {
-			String text = getCurrentText();
-			Files.writeString(file.toPath(), text);
-			this.file = file;
-			this.name = file.getName();
-			this.lastSavedContents = text;
-			this.lastModified = file.lastModified();
-			updateIsModified();
-		}
-		
-		public Language getLanguage() {
-			return scriptTabLanguage.get();
-		}
-		
-		public void setLanguage(final Language language) {
-			this.scriptTabLanguage.set(language);
-		}
-		
-		public String[] getRequestedExtensions() {
-			return scriptTabLanguage.get().getExtensions();
-		}
-		
-		public String getName() {
-			return name;
-		}
-		
-		
-		@Override
-		public String toString() {
-			return isModified ? "*" + name : name;
-		}
-
-		
-	}
-	
-	
 	
 	Action createOpenAction(final String name) {
 		Action action = new Action(name, e -> {
@@ -1951,7 +1428,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	
 	Action createCloseAction(final String name) {
 		Action action = new Action(name, e -> {
-			ScriptTab tab = getCurrentScriptTab();
+			ScriptTab tab = getCurrentScriptObject();
 			if (tab == null)
 				return;
 			promptToClose(tab);
@@ -1963,7 +1440,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	
 	Action createSaveAction(final String name, final boolean saveAs) {
 		Action action = new Action(name, e -> {
-			ScriptTab tab = getCurrentScriptTab();
+			ScriptTab tab = getCurrentScriptObject();
 			if (tab == null)
 				return;
 			save(tab, saveAs);
@@ -1978,9 +1455,11 @@ public class DefaultScriptEditor implements ScriptEditor {
 	
 	Action createRevertAction(final String name) {
 		Action action = new Action(name, e -> {
-			ScriptTab tab = getCurrentScriptTab();
-			if (tab != null)
+			ScriptTab tab = getCurrentScriptObject();
+			if (tab != null) {
 				tab.refreshFileContents();
+				setToggle(tab.getLanguage());
+			}
 		});
 		return action;
 	}
@@ -2048,14 +1527,15 @@ public class DefaultScriptEditor implements ScriptEditor {
 			} else if (name.toLowerCase().equals(GeneralTools.SYMBOL_MU + ""))
 				control.paste(GeneralTools.SYMBOL_MU + "");
 			else {	
-				// Imports (end with a new line)
-				if (name.toLowerCase().equals("qpex"))
-					control.insertText(0, "import static qupath.lib.gui.scripting.QPEx.*");
-				else if (name.toLowerCase().equals("qp"))
-					control.insertText(0, "import static qupath.lib.gui.scripting.QP.*");
-				else if (name.toLowerCase().equals("all default"))
-					control.insertText(0, QPEx.getDefaultImports(false));
-				currentLanguage.get().getSyntax().handleNewLine(control, smartEditing.get());
+				// TODO: fix
+//				// Imports (end with a new line)
+//				if (name.toLowerCase().equals("qpex"))
+//					control.insertText(0, "import static qupath.lib.gui.scripting.QPEx.*");
+//				else if (name.toLowerCase().equals("qp"))
+//					control.insertText(0, "import static qupath.lib.gui.scripting.QP.*");
+//				else if (name.toLowerCase().equals("all default"))
+//					control.insertText(0, QPEx.getDefaultImports(false)); 
+//				currentLanguage.get().getSyntax().handleNewLine(control, smartEditing.get());
 			}
 			e.consume();
 		});
@@ -2074,11 +1554,39 @@ public class DefaultScriptEditor implements ScriptEditor {
 	void attemptToQuitScriptEditor() {
 		if (listScripts.getItems().isEmpty())
 			dialog.close();
-		while (promptToClose(getCurrentScriptTab()))
+		while (promptToClose(getCurrentScriptObject()))
 			continue;
 	}
 	
+	boolean promptToClose(final ScriptTab tab) {
+		int ind = listScripts.getItems().indexOf(tab);
+		if (ind < 0)
+			return false;
+		
+		// Check if we need to save
+		if (tab.isModifiedProperty().get() && tab.hasScript()) {
+			// TODO: Consider that this previously had a different parent for the dialog... and probably should
+			DialogButton option = Dialogs.showYesNoCancelDialog("Close " + tab.getName(), String.format("Save %s before closing?", tab.getName()));
+			if (option == DialogButton.CANCEL)
+				return false;
+			if (option == DialogButton.YES) {
+				if (!save(tab, false))
+					return false;
+			}
+		}
 
+		// Update selection, or close window if all scripts have been closed
+		listScripts.getItems().remove(ind);
+		if (ind >= listScripts.getItems().size())
+			ind--;
+		if (ind < 0) {
+			dialog.close();
+			dialog = null;
+		}
+		else
+			listScripts.getSelectionModel().select(ind);
+		return true;
+	}
 
 	@Override
 	public void showEditor() {
@@ -2102,10 +1610,10 @@ public class DefaultScriptEditor implements ScriptEditor {
 	}
 	
 	
-	protected Language getDefaultLanguage() {
-		if (availableLanguages.contains(Language.GROOVY))
-				return Language.GROOVY;
-		return Language.JAVASCRIPT;
+	protected ScriptLanguage getDefaultLanguage() {
+		if (availableLanguages.contains(GroovyLanguage.getInstance()))
+				return GroovyLanguage.getInstance();
+		return PlainLanguage.getInstance();
 	}
 
 
@@ -2122,6 +1630,27 @@ public class DefaultScriptEditor implements ScriptEditor {
 			logger.error("Could not load script from {}", file);
 			logger.error("", e);
 		}
+	}
+	
+
+	/**
+	 * Get the collection of classes to import at the start of a script, if desired.
+	 * @return collection of default classes
+	 */
+	public static Collection<Class<?>> getDefaultClasses() {
+		var out = QPEx.getCoreClasses();
+		out.add(QPEx.class);	// Add itself
+		return out;
+	}
+	
+	/**
+	 * Get the collection of static classes to import at the start of a script, if desired.
+	 * @return collection of default static classes
+	 */
+	public static Collection<Class<?>> getDefaultStaticClasses() {
+		List<Class<?>> out = new ArrayList<>();
+		out.add(QPEx.class);
+		return out;
 	}
 
 	static class CustomTextArea extends TextArea {

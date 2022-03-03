@@ -21,7 +21,9 @@
  * #L%
  */
 
-package qupath.lib.gui.scripting;
+package qupath.lib.gui.scripting.languages;
+
+import qupath.lib.gui.scripting.ScriptEditorControl;
 
 /**
  * Class to take care of the Groovy syntax formatting.
@@ -30,18 +32,23 @@ package qupath.lib.gui.scripting;
  */
 class GroovySyntax extends GeneralCodeSyntax {
 	
+	private static final GroovySyntax INSTANCE = new GroovySyntax();
+	
 	private static final String ifStatementPattern = "(else\\s*)?if\\s*\\(.*\\)$";
 	private static final String elseStatementPattern = "\\}?\\s*else$";
+
+	// Empty constructor
+	private GroovySyntax() {}
 	
-	GroovySyntax() {
-		// Empty constructor
+	static GroovySyntax getInstance() {
+		return INSTANCE;
 	}
 	
 	@Override
 	public String getLineCommentString() {
 		return "//";
 	}
-	
+
 	/**
 	 * Handle adding a new line, by checking current line for appropriate indentation.
 	 * Note: this method should be called <em>instead</em> of simply accepting the newline character,
@@ -87,7 +94,7 @@ class GroovySyntax extends GeneralCodeSyntax {
 		int ind = trimmedSubString.length() == 0 ? subString.length() : subString.indexOf(trimmedSubString);
 		int finalPos = caretPos;
 		String insertText = System.lineSeparator();
-		
+
 		if (!smartEditing) {
 			super.handleNewLine(control, smartEditing);
 			return;
@@ -108,9 +115,9 @@ class GroovySyntax extends GeneralCodeSyntax {
 			insertText =  "\n" + subString.substring(0, indentation) + tabString + lineRemainder.strip();
 			if (text.replaceAll("[^{]", "").length() != text.replaceAll("[^}]", "").length())
 				insertText += "\n" + subString.substring(0, indentation) + "}";
-			
+
 			finalPos += 1 + indentation + tabString.length() + lineRemainder.strip().length();
-			
+
 			// If '{' is not preceded by a space, insert one (this is purely aesthetic)
 			if (trimmedSubString.length() >= 2 && trimmedSubString.charAt(trimmedSubString.length() - 2) != ' ')
 				control.insertText(++caretPos - 2, " ");			
@@ -134,7 +141,7 @@ class GroovySyntax extends GeneralCodeSyntax {
 						return;
 					}
 				}
-				
+
 				// Otherwise treat this new line as normal, and keep the indentation
 				String lineRemainder = text.substring(startRowPos + subString.length(), endRowPos);
 				insertText =  "\n" + subString.substring(0, indentation) + lineRemainder.strip();

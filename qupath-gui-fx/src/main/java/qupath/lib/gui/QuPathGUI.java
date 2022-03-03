@@ -200,7 +200,7 @@ import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.prefs.PathPrefs.ImageTypeSetting;
 import qupath.lib.gui.prefs.QuPathStyleManager;
 import qupath.lib.gui.scripting.ScriptEditor;
-import qupath.lib.gui.scripting.DefaultScriptEditor.Language;
+import qupath.lib.gui.scripting.languages.GroovyLanguage;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.tools.CommandFinderTools;
 import qupath.lib.gui.tools.GuiTools;
@@ -3281,7 +3281,7 @@ public class QuPathGUI {
 	 * @throws ScriptException 
 	 */
 	private Object runScript(final String script, final ImageData<BufferedImage> imageData) throws ScriptException {
-		return DefaultScriptEditor.executeScript(Language.GROOVY, script, getProject(), imageData, true, null);
+		return DefaultScriptEditor.executeScript(GroovyLanguage.getInstance(), script, getProject(), imageData, true, null);
 	}
 	
 	/**

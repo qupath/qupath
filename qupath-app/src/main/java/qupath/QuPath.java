@@ -34,8 +34,6 @@ import java.util.List;
 import java.util.ServiceLoader;
 
 import javax.script.ScriptContext;
-import javax.script.ScriptEngine;
-import javax.script.ScriptEngineManager;
 import javax.script.ScriptException;
 import javax.script.SimpleScriptContext;
 
@@ -61,6 +59,10 @@ import qupath.lib.gui.logging.LogManager;
 import qupath.lib.gui.logging.LogManager.LogLevel;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.scripting.DefaultScriptEditor;
+import qupath.lib.gui.scripting.languages.GroovyLanguage;
+import qupath.lib.gui.scripting.languages.RunnableLanguage;
+import qupath.lib.gui.scripting.languages.ScriptLanguage;
+import qupath.lib.gui.scripting.languages.ScriptLanguageProvider;
 import qupath.lib.gui.tma.QuPathTMAViewer;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
@@ -400,14 +402,15 @@ class ScriptCommand implements Runnable {
 	
 	private Object runScript(Project<BufferedImage> project, ImageData<BufferedImage> imageData) throws IOException, ScriptException {
 		Object result = null;
-		var manager = new ScriptEngineManager();
 		String script = scriptCommand;
-		ScriptEngine engine;
+		RunnableLanguage language;
 		if (script == null) {
 			String ext = scriptFile.substring(scriptFile.lastIndexOf(".")+1);
-			engine = manager.getEngineByExtension(ext);
-			if (engine == null)
+			ScriptLanguage scriptLanguage = ScriptLanguageProvider.getLanguageFromExtension(ext);
+			if (scriptLanguage == null || !(scriptLanguage instanceof RunnableLanguage))
 				throw new IllegalArgumentException("No script engine found for " + scriptFile);
+			
+			language = (RunnableLanguage)scriptLanguage;
 			
 			// Try to run the script
 			// Read script
@@ -415,7 +418,7 @@ class ScriptCommand implements Runnable {
 		} else {
 			if (GeneralTools.isWindows() && !StandardCharsets.US_ASCII.newEncoder().canEncode(script))
 				logger.warn("Non-ASCII characters detected in the specified script! If you experience encoding issues, try passing a script file instead.");
-			engine = manager.getEngineByExtension("groovy");
+			language = GroovyLanguage.getInstance();
 		}
 		
 		
@@ -429,7 +432,7 @@ class ScriptCommand implements Runnable {
 		
 		// Evaluate the script
 		try {
-			result = DefaultScriptEditor.executeScript(engine, script, project, imageData, true, context);
+			result = language.executeScript(script, project, imageData, DefaultScriptEditor.getDefaultClasses(), DefaultScriptEditor.getDefaultStaticClasses(), context);
 		} finally {
 			// Ensure writers are flushed
 			outWriter.flush();

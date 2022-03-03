@@ -21,9 +21,10 @@
  * #L%
  */
 
-package qupath.lib.gui.scripting;
+package qupath.lib.gui.scripting.languages;
 
 import javafx.scene.control.IndexRange;
+import qupath.lib.gui.scripting.ScriptEditorControl;
 
 /**
  * Abstract class to represent the typical syntaxes found in most programming languages.
@@ -31,11 +32,6 @@ import javafx.scene.control.IndexRange;
  * @since v0.4.0
  */
 abstract class GeneralCodeSyntax implements ScriptSyntax {
-	
-	@Override
-	public String getLineCommentString() {
-		return "";
-	}
 
 	/**
 	 * Handle left parentheses '{@code (}' by automatically adding a right parenthesis '{@code )}' after if not already present.
