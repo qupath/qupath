@@ -751,8 +751,8 @@ class Menus {
 		
 		public final Action SEP_6 = ActionTools.createSeparator();
 		
-		@ActionDescription("Record zoom and panning movements within a viewer for later playback.")
-		@ActionMenu("Show view recorder")
+		@ActionDescription("Record zoom and panning movements within a viewer for later playback and analysis.")
+		@ActionMenu("Show view tracker")
 		public final Action VIEW_TRACKER = qupath.createImageDataAction(imageData -> Commands.showViewTracker(qupath));
 
 		@ActionDescription("Show the slide label associated with the image in the active viewer (if available).")

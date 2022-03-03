@@ -102,6 +102,23 @@ public class PathTools {
 		return new DefaultPathTool<>(type, handler, name, icon);
 	}
 	
+	/**
+	 * Return the PathTool corresponding to the specified String.
+	 * @param pathToolString
+	 * @return pathTool
+	 */
+	public static PathTool getTool(String pathToolString) {
+		if (MOVE.getName().toLowerCase().equals(pathToolString)) return MOVE;
+		if (RECTANGLE.getName().toLowerCase().equals(pathToolString)) return RECTANGLE;
+		if (ELLIPSE.getName().toLowerCase().equals(pathToolString)) return ELLIPSE;
+		if (LINE.getName().toLowerCase().equals(pathToolString)) return LINE;
+		if (POLYGON.getName().toLowerCase().equals(pathToolString)) return POLYGON;
+		if (POLYLINE.getName().toLowerCase().equals(pathToolString)) return POLYLINE;
+		if (BRUSH.getName().toLowerCase().equals(pathToolString)) return BRUSH;
+		if (POINTS.getName().toLowerCase().equals(pathToolString)) return POINTS;
+		return null;
+	}
+	
 	
 	static class DefaultPathTool<T extends Event> implements PathTool {
 		

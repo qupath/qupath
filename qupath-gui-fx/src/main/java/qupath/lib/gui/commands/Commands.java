@@ -872,19 +872,7 @@ public class Commands {
 	 * @param qupath
 	 */
 	public static void showViewTracker(QuPathGUI qupath) {
-		var dialog = new Stage();
-		dialog.initOwner(qupath.getStage());
-		dialog.setTitle("Tracking");
-		final ViewTrackerControlPane panel = new ViewTrackerControlPane(qupath.getViewer());
-		StackPane pane = new StackPane(panel.getNode());
-		dialog.setScene(new Scene(pane));
-		dialog.setResizable(false);
-		dialog.setAlwaysOnTop(true);
-		dialog.setOnHidden(e -> {
-			if (panel != null)
-				panel.setRecording(false);
-		});
-		dialog.show();
+		new ViewTrackerControlPane(qupath).run();
 	}
 
 	

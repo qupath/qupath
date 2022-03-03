@@ -207,7 +207,7 @@ public class ColorMaps {
 		int[] vals = new int[nValues];
 		double max = nValues - 1;
 		for (int i = 0; i < nValues; i++) {
-			double value = i/max;
+			double value = i;
 			if (doInvert)
 				value = 1 - value;
 			vals[i] = map.getColor(value, 0, max);
