@@ -38,3 +38,6 @@
 .remaining {
     -fx-fill: darkorange;
 }
+.caret {
+    -fx-stroke: -fx-text-inner-color;
+}

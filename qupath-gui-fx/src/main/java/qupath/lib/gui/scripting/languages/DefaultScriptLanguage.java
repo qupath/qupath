@@ -112,9 +112,8 @@ public class DefaultScriptLanguage extends ScriptLanguage implements RunnableLan
 	 */
 	public DefaultScriptLanguage(String name, String[] exts, ScriptSyntax syntax, ScriptAutoCompletor completor) {
 		super(name, exts);
-		this.syntax = PlainSyntax.getInstance();
-		this.completor = new PlainAutoCompletor();
-		
+		this.syntax = syntax == null ? PlainSyntax.getInstance() : syntax;
+		this.completor = completor == null ? new PlainAutoCompletor() : completor;
 	}
 
 	@Override
