@@ -791,7 +791,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 	 * Get all the {@link ProjectTreeRow.ImageRow}s included in the current selection. 
 	 * This means that selecting a {@link ProjectTreeRow.MetadataRow} will return all the {@link ProjectTreeRow.ImageRow}s that belong to it.
 	 * @return a collection of ImageRows
-	 * @see #getAllSelectedImageEntries()
+	 * @see #getSelectedImageRow()
 	 */
 	private Collection<ImageRow> getSelectedImageRowsRecursive() {
 		List<TreeItem<ProjectTreeRow>> selected = tree.getSelectionModel().getSelectedItems();
@@ -813,7 +813,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 	
 	/**
 	 * Get the selected {@link ProjectTreeRow.ImageRow} and return it. 
-	 * If nothing is selected or the selected {@link #ProjectTreeRow} is not an image entry, return {@code null}.
+	 * If nothing is selected or the selected {@link ProjectTreeRow} is not an image entry, return {@code null}.
 	 * @return selected ImageRow
 	 */
 	private ImageRow getSelectedImageRow() {

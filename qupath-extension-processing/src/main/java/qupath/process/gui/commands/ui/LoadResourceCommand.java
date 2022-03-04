@@ -161,7 +161,8 @@ public final class LoadResourceCommand<S> implements Runnable {
 					}
 					return resource;
 				} catch (Exception ex) {
-					Dialogs.showErrorMessage(resourceType.getDialogTitle(), ex);
+					// TODO: Investigate why this is triggered twice
+					Dialogs.showErrorNotification(resourceType.getDialogTitle(), ex);
 				}
 			}
 			return null;
@@ -196,8 +197,16 @@ public final class LoadResourceCommand<S> implements Runnable {
 			if (resource == null)
 				return;
 			try {
-				var json = GsonTools.getInstance(true).toJson(resource);
-				Dialogs.showTextWindow(qupath.getStage(), name, json, Modality.NONE, false);
+				// Pass the resource class, since it can be required for including the appropriate JSON properties
+				var json = GsonTools.getInstance(true).toJson(resource, resourceType.getResourceClass());
+				if (!name.endsWith(".json"))
+					name = name + ".json";
+				// Show in script editor if possible; this may include better formatting and syntax highlighting
+				var scriptEditor = qupath == null ? null : qupath.getScriptEditor();
+				if (scriptEditor != null)
+					scriptEditor.showScript(name, json);
+				else
+					Dialogs.showTextWindow(qupath.getStage(), name, json, Modality.NONE, false);
 			} catch (Exception ex) {
 				Dialogs.showErrorMessage("Show model as text", "Unable to create a text representation of '" + name + "', sorry!");
 			}

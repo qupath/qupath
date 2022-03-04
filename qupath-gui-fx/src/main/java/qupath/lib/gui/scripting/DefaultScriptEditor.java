@@ -34,6 +34,7 @@ import java.util.Date;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.Future;
 import java.util.regex.Pattern;
@@ -1420,7 +1421,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	
 	
 	Action createNewAction(final String name) {
-		Action action = new Action(name, e -> addNewScript("", getDefaultLanguage(), true));
+		Action action = new Action(name, e -> addNewScript("", getDefaultLanguage(null), true));
 		action.setAccelerator(new KeyCodeCombination(KeyCode.N, KeyCombination.SHORTCUT_DOWN));
 		return action;
 	}
@@ -1604,15 +1605,26 @@ public class DefaultScriptEditor implements ScriptEditor {
 	public void showScript(String name, String script) {
 		if (dialog == null)
 			createDialog();
-		addNewScript(script, getDefaultLanguage(), true);
+		addNewScript(script, getDefaultLanguage(name), true);
 		if (!dialog.isShowing())
 			dialog.show();
 	}
 	
 	
-	protected ScriptLanguage getDefaultLanguage() {
-		if (availableLanguages.contains(GroovyLanguage.getInstance()))
-				return GroovyLanguage.getInstance();
+	private ScriptLanguage getDefaultLanguage(String fileName) {
+		var ext = fileName == null ? null : GeneralTools.getExtension(fileName).orElse(null);
+		if (ext == null) {
+			if (availableLanguages.contains(GroovyLanguage.getInstance()))
+					return GroovyLanguage.getInstance();
+			return PlainLanguage.getInstance();
+		}
+		ext = ext.toLowerCase();
+		for (var language : availableLanguages) {
+			for (var ext2 : language.getExtensions()) {
+				if (Objects.equals(ext, ext2.toLowerCase()))
+					return language;
+			}
+		}
 		return PlainLanguage.getInstance();
 	}
 

@@ -58,7 +58,7 @@ abstract class ProjectTreeRow {
 	}
 
 	/**
-	 * Get the {@link #ProjectImageEntry} corresponding to the specified {@link #ProjectTreeRow}.
+	 * Get the {@link ProjectImageEntry} corresponding to the specified {@link #ProjectTreeRow}.
 	 * <p>
 	 * If the specified object is not an {@link ImageRow} (e.g. {@link MetadataRow}), return {@code null}.
 	 * @param projectTreeRow

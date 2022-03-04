@@ -147,7 +147,6 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 	
 	/**
 	 * Create a view tracker analysis command.
-	 * @param parent the parent pane that this dialog belongs to
 	 * @param qupath 
 	 * @param tracker
 	 */
