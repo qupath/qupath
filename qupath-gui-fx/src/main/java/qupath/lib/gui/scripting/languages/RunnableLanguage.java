@@ -46,7 +46,6 @@ public interface RunnableLanguage {
 	 * @param imageData 				the current image data (can be null if none)
 	 * @param defaultImports 			a collection of the classes to import
 	 * @param defaultStaticImports 		a collection of classes to import as static classes
-	 * @param importDefaultMethods 	whether to import default QuPath methods
 	 * @param context 					the script context to run this script
 	 * @return 
 	 * @throws ScriptException 
