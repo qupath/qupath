@@ -32,7 +32,7 @@ import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
 import qupath.lib.color.ColorModelFactory;
 import qupath.lib.images.ImageData;
-import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
 import qupath.lib.io.UriResource;
 import qupath.lib.regions.RegionRequest;
 import qupath.opencv.ops.ImageDataOp;
@@ -105,10 +105,20 @@ class OpenCVPixelClassifier implements PixelClassifier, UriResource {
 
 	    	var type = getMetadata().getOutputType();
 	    	ColorModel colorModelLocal = null;
-	    	if (type == ImageServerMetadata.ChannelType.PROBABILITY) {
-	    		colorModelLocal = getProbabilityColorModel(matResult.depth() == opencv_core.CV_8U);
-	    	} else if (type == ImageServerMetadata.ChannelType.CLASSIFICATION) {
+	    	if (type == null)
+	    		type = ChannelType.DEFAULT;
+	    	switch(type) {
+			case CLASSIFICATION:
 	    		colorModelLocal = getClassificationsColorModel();
+				break;
+			case DEFAULT:
+			case DENSITY:
+			case FEATURE:
+			case MULTICLASS_PROBABILITY:
+			case PROBABILITY:
+			default:
+	    		colorModelLocal = getProbabilityColorModel(matResult.depth() == opencv_core.CV_8U);
+				break;
 	    	}
 	
 	        // Create & return BufferedImage
