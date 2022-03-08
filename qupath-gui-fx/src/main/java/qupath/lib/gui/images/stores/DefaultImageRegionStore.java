@@ -45,6 +45,7 @@ import org.slf4j.LoggerFactory;
 import qupath.lib.awt.common.AwtTools;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
+import qupath.lib.images.servers.PixelType;
 import qupath.lib.regions.RegionRequest;
 
 
@@ -232,7 +233,7 @@ public class DefaultImageRegionStore extends AbstractImageRegionStore<BufferedIm
 
 		// If we're compositing channels, it's worthwhile to cache RGB tiles for so long as the ImageDisplay remains constant
 //		boolean useDisplayCache = imageDisplay != null && !server.isRGB() && server.nChannels() > 1;
-		boolean useDisplayCache = server != null && !server.isRGB() && server.nChannels() > 1 && server.getMetadata().getChannelType() != ChannelType.CLASSIFICATION;
+		boolean useDisplayCache = server != null && !server.isRGB() && server.getMetadata().getChannelType() != ChannelType.CLASSIFICATION && (server.nChannels() > 1 || server.getPixelType() != PixelType.UINT8);
 		long displayTimestamp = imageDisplay == null ? 0L : imageDisplay.getLastChangeTimestamp();
 		String displayCachePath = null;
 		if (useDisplayCache) {
