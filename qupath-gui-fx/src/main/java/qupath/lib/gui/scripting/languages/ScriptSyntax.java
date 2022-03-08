@@ -21,13 +21,15 @@
  * #L%
  */
 
-package qupath.lib.gui.scripting;
+package qupath.lib.gui.scripting.languages;
 
 import javafx.scene.input.KeyCode;
+import qupath.lib.gui.scripting.ScriptEditorControl;
 
 /**
  * Interface for classes that apply some syntax formatting to a {@link ScriptEditorControl}.
  * @author Melvin Gelbard
+ * @since v0.4.0
  */
 public interface ScriptSyntax {
 	

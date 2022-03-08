@@ -120,14 +120,15 @@ public class IconFactory {
 									
 									POLYLINE_TOOL("V", PathPrefs.colorDefaultObjectsProperty()),
 									
-									PLAYBACK_RECORD("\ue915"),
+									
 									RECTANGLE_TOOL("\ue916", PathPrefs.colorDefaultObjectsProperty()),
 									
 									SHOW_SCALEBAR("\ue917"),
 									SCREENSHOT("\ue918"),
-									STAR("\u2605"),
-									PLAYBACK_RECORD_STOP("\ue919"),
-									PLAYBACK_PLAY_STOP("\ue919"),
+									
+									TRACKING_PAUSE("\u23f8"),
+									TRACKING_RECORD("\ue915", ColorToolsFX.getCachedColor(200, 0, 0)),
+									TRACKING_STOP("\ue919"),
 
 									TABLE("\ue91a"),
 									TMA_GRID("\ue91b", PathPrefs.colorTMAProperty()),

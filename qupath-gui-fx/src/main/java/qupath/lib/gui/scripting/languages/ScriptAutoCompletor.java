@@ -21,11 +21,25 @@
  * #L%
  */
 
-package qupath.lib.gui.scripting;
+package qupath.lib.gui.scripting.languages;
 
-class PlainSyntax implements ScriptSyntax {
+import qupath.lib.gui.scripting.ScriptEditorControl;
+
+/**
+ * Interface for classes that implement auto-completion (e.g. styling classes).
+ * @author Melvin Gelbard
+ * @since v0.4.0
+ */
+public interface ScriptAutoCompletor {
 	
-	PlainSyntax() {
-		// Dummy constructor
-	}
+	/**
+	 * Try to match and auto-complete a method name.
+	 * @param control the control onto which apply auto-completion.
+	 */
+	void applyNextCompletion(ScriptEditorControl control);
+	
+	/**
+	 * Reset the completion process (e.g. if currently iterating through a list of methods, reset the iteration to the first element).
+	 */
+	void resetCompletion();
 }

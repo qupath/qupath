@@ -41,7 +41,9 @@ import javafx.scene.control.SeparatorMenuItem;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.scripting.DefaultScriptEditor;
-import qupath.lib.gui.scripting.DefaultScriptEditor.Language;
+import qupath.lib.gui.scripting.languages.RunnableLanguage;
+import qupath.lib.gui.scripting.languages.ScriptLanguage;
+import qupath.lib.gui.scripting.languages.ScriptLanguageProvider;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.MenuTools;
 
@@ -201,11 +203,13 @@ class ScriptMenuLoader {
 					if (scriptEditor != null)
 						scriptEditor.showScript(scriptFile);
 					else {
-						Language language = DefaultScriptEditor.getLanguageFromName(scriptFile.getName());		
+						ScriptLanguage language = ScriptLanguageProvider.fromString(scriptFile.getName());
+						if (!(language instanceof RunnableLanguage))
+							return;
 						try {
 							String script = GeneralTools.readFileAsString(scriptFile.getAbsolutePath());
 							var qupath = QuPathGUI.getInstance();
-							DefaultScriptEditor.executeScript(language, script, qupath.getProject(), qupath.getImageData(), true, null);
+							DefaultScriptEditor.executeScript((RunnableLanguage)language, script, qupath.getProject(), qupath.getImageData(), true, null);
 						} catch (Exception e2) {
 							Dialogs.showErrorMessage("Script error", e2);
 						}

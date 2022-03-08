@@ -1,0 +1,3 @@
+qupath.lib.gui.scripting.highlighters.PlainHighlighter
+qupath.lib.gui.scripting.highlighters.GroovyHighlighter
+qupath.lib.gui.scripting.highlighters.JsonHighlighter

@@ -50,7 +50,7 @@ public interface QuPathViewerListener extends EventListener {
 
 	/**
 	 * Called when the visible region has changed in a viewer.
-	 * @param viewer the viewer whose visible region hs changed.
+	 * @param viewer the viewer whose visible region has changed.
 	 * @param shape shape representing the new visible region (in image pixel coordinates).
 	 *              This is rectangular, but may also be rotated.
 	 */

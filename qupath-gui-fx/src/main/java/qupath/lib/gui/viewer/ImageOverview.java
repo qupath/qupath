@@ -23,10 +23,7 @@
 
 package qupath.lib.gui.viewer;
 
-import java.awt.Graphics2D;
-import java.awt.RenderingHints;
 import java.awt.Shape;
-import java.awt.Transparency;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.PathIterator;
 import java.awt.image.BufferedImage;
@@ -35,12 +32,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javafx.application.Platform;
-import javafx.embed.swing.SwingFXUtils;
 import javafx.scene.Node;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.image.WritableImage;
 import javafx.scene.paint.Color;
+import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.objects.PathObject;
@@ -210,7 +207,7 @@ class ImageOverview implements QuPathViewerListener {
 		} else {
 			int preferredHeight = (int)(img.getHeight() * (double)(preferredWidth / (double)img.getWidth()));
 			
-			imgPreview = getScaledRGBInstance(img, preferredWidth, preferredHeight);
+			imgPreview = GuiTools.getScaledRGBInstance(img, preferredWidth, preferredHeight);
 
 			canvas.setWidth(imgPreview.getWidth());
 			canvas.setHeight(imgPreview.getHeight());
@@ -274,40 +271,6 @@ class ImageOverview implements QuPathViewerListener {
 	}
 	
 
-
-	/**
-	 * Get a scaled (RGB or ARGB) image, achieving reasonable quality even when scaling down by a considerably amount.
-	 * 
-	 * Code is based on https://today.java.net/article/2007/03/30/perils-imagegetscaledinstance
-	 * 
-	 * @param img
-	 * @param targetWidth
-	 * @param targetHeight
-	 * @return
-	 */
-	static WritableImage getScaledRGBInstance(BufferedImage img, int targetWidth, int targetHeight) {
-		int type = (img.getTransparency() == Transparency.OPAQUE) ?
-				BufferedImage.TYPE_INT_RGB : BufferedImage.TYPE_INT_ARGB;
-		
-		BufferedImage imgResult = (BufferedImage)img;
-		int w = img.getWidth();
-		int h = img.getHeight();
-
-		while (w > targetWidth || h > targetHeight) {
-			
-			w = Math.max(w / 2, targetWidth);
-			h = Math.max(h / 2, targetHeight);
-
-			BufferedImage imgTemp = new BufferedImage(w, h, type);
-			Graphics2D g2 = imgTemp.createGraphics();
-			g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-			g2.drawImage(imgResult, 0, 0, w, h, null);
-			g2.dispose();
-
-			imgResult = imgTemp;			
-		}
-		return SwingFXUtils.toFXImage(imgResult, null);
-	}
 
 	@Override
 	public void selectedObjectChanged(QuPathViewer viewer, PathObject pathObjectSelected) {}

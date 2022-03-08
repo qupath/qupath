@@ -25,6 +25,7 @@ package qupath.lib.gui.scripting.highlighters;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.ServiceLoader;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -39,7 +40,10 @@ import org.fxmisc.richtext.model.StyleSpansBuilder;
  */
 public class JsonHighlighter implements ScriptHighlighter {
 	
-	
+	/**
+	 * Instance of this highlighter. Can't be final because of {@link ServiceLoader}.
+	 */
+	private static JsonHighlighter INSTANCE;
 
     final static String PAREN_PATTERN = "\\(|\\)";
     final static String BRACE_PATTERN = "\\{|\\}";
@@ -56,12 +60,33 @@ public class JsonHighlighter implements ScriptHighlighter {
             + "|(?<SINGLEQUOTES>" + SINGLE_QUOTE_PATTERN + ")"
             + "|(?<REMAINING>" + REMAINING_PATTERN + ")"
     );
+    
 	
-    /**
-     * Empty constructor
-     */
+	/**
+	 * Get the static instance of this class.
+	 * @return instance
+	 */
+	public static ScriptHighlighter getInstance() {
+		return INSTANCE;
+	}
+	
+	/**
+	 * Constructor for a JSON Highlighter. This constructor should never be 
+	 * called. Instead, use the static {@link #getInstance()} method.
+	 * <p>
+	 * Note: this has to be public for the {@link ServiceLoader} to work.
+	 */
 	public JsonHighlighter() {
-		// Empty constructor
+		if (INSTANCE != null)
+			throw new UnsupportedOperationException("Highlighter classes cannot be instantiated more than once!");
+		
+		// Because of ServiceLoader, have to assign INSTANCE here.
+		JsonHighlighter.INSTANCE = this;
+	}
+	
+	@Override
+	public String getLanguageName() {
+		return "JSON";
 	}
 
 	@Override

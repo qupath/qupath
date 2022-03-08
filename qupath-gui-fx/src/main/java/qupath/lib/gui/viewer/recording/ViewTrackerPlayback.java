@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -30,11 +30,14 @@ import java.awt.geom.Point2D;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javafx.animation.Animation;
 import javafx.animation.Animation.Status;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.stage.Window;
@@ -50,11 +53,10 @@ import qupath.lib.roi.interfaces.ROI;
  * Controller for playback for view tracking data.
  * 
  * @author Pete Bankhead
- *
  */
 class ViewTrackerPlayback {
 	
-	final private static Logger logger = LoggerFactory.getLogger(ViewTrackerPlayback.class);
+	private static final Logger logger = LoggerFactory.getLogger(ViewTrackerPlayback.class);
 	
 	private QuPathViewer viewer;
 	private ViewTracker tracker;
@@ -64,8 +66,10 @@ class ViewTrackerPlayback {
 	private Timeline timeline;
 	private long startTimestamp;
 	
-	public ViewTrackerPlayback(final ViewTracker tracker, final QuPathViewer viewer) {
-		this.tracker = tracker;
+	private ViewRecordingFrame firstFrame;
+	private ObjectProperty<ViewRecordingFrame> currentFrame = new SimpleObjectProperty<>();
+	
+	ViewTrackerPlayback(final QuPathViewer viewer) {
 		this.viewer = viewer;
 		this.playing = new SimpleBooleanProperty(false);
 		
@@ -83,29 +87,29 @@ class ViewTrackerPlayback {
 						Duration.millis(50)
 						)
 				);
-		timeline.setCycleCount(Timeline.INDEFINITE);
-
-		
-		
-		
-		this.playing.addListener((v, o, n) -> {
+		timeline.setCycleCount(Animation.INDEFINITE);
+		playing.addListener((v, o, n) -> {
 			if (n)
 				doStartPlayback();
 			else
 				doStopPlayback();
 		});
-		
+	}
+	
+	boolean isPlaying() {
+		return timeline.getStatus() == Status.RUNNING;
 	}
 
 	/**
-	 * Returns true if playback is started, returns false otherwise (i.e. the tracker is empty, so got nothing to play back)
-	 * 
+	 * Return true if playback is started, false otherwise (i.e. the tracker is empty, so got nothing to play back)
 	 * @return
 	 */
 	boolean doStartPlayback() {
-		if (tracker.isEmpty())
+		if (tracker == null || tracker.isEmpty())
 			return false;
+		
 		startTimestamp = System.currentTimeMillis();
+		
 		if (timeline.getStatus() == Status.RUNNING)
 			timeline.playFromStart();
 		else
@@ -114,51 +118,37 @@ class ViewTrackerPlayback {
 		return true;
 	}
 	
+	void doStopPlayback() {
+		if (!isPlaying())
+			return;
+		timeline.stop();
+		playing.set(false);
+	}	
 	
 	static void resizeViewer(QuPathViewer viewer, Dimension newSize) {
-		if (DefaultViewTracker.getSize(viewer).equals(newSize))
+		if (ViewTrackerTools.getSize(viewer).equals(newSize))
 			return;
 		double dw = newSize.width - viewer.getView().getWidth();
 		double dh = newSize.height - viewer.getView().getHeight();
-//		System.out.println("DW: " + dw);
 		Window window = viewer.getView().getScene().getWindow();
 		window.setWidth(window.getWidth() + dw);
 		window.setHeight(window.getHeight() + dh);
 	}
-	
 
-	public boolean isPlaying() {
-		return timeline.getStatus() == Status.RUNNING;
-	}
-
-	void doStopPlayback() {
-		timeline.stop();
-		playing.set(false);
-	}
-		
-	
 	void handleUpdate() {
 		if (tracker.isEmpty())
 			return;
 		
 		long timestamp = System.currentTimeMillis();
-		
-		long timestampOfFirstFrame = tracker.nFrames() > 0 ? tracker.getFrame(0).getTimestamp() : 0;
-		
-		ViewRecordingFrame frame = tracker.getFrameForTime((timestamp - startTimestamp) + timestampOfFirstFrame);
+		ViewRecordingFrame frame = tracker.getFrameForTime(timestamp - startTimestamp + firstFrame.getTimestamp());
 		boolean requestStop;
 		if (frame == null)
 			requestStop = true;
 		else {
+			currentFrame.set(frame);
 			setViewerForFrame(viewer, frame);
 			requestStop = tracker.isLastFrame(frame);
 		}
-		
-//		if (!requestStop) {
-//			// If we are controlling the cursor, check for the spacebar being pressed
-//			viewer.requestFocus();
-//			requestStop = viewer.isSpaceDown();
-//		}
 		
 		// Stop playback, if required
 		if (requestStop) {
@@ -167,35 +157,20 @@ class ViewTrackerPlayback {
 		}
 	}
 	
-	
-	
-	public void setPlaying(final boolean playing) {
-		if (isPlaying() == playing)
-			return;
-		this.playing.set(playing);
-//		if (playing)
-//			doStartPlayback();
-//		else
-//			doStopPlayback();
-	}
-	
-	
-	
-	public static void setViewerForFrame(final QuPathViewer viewer, final ViewRecordingFrame frame) {
+	static void setViewerForFrame(final QuPathViewer viewer, final ViewRecordingFrame frame) {
 		
 		// Resize the viewer (if necessary)
 		resizeViewer(viewer, frame.getSize());
 		
-		Rectangle imageBounds = frame.getImageBounds();
-		Dimension canvasSize = frame.getSize();
-		// Compute & set downsample
-		double downsampleX = (double)imageBounds.width / canvasSize.width;
-		double downsampleY = (double)imageBounds.height / canvasSize.height;
-		double downsample = 0.5 * (downsampleX + downsampleY);
-//		if (Math.abs(viewer.getDownsampleFactor() - downsample)/downsample > 0.0001)
-			viewer.setDownsampleFactor(downsample);
+		// Set downsample
+		viewer.setDownsampleFactor(frame.getDownsampleFactor());
+		
 		// Set location
+		Rectangle imageBounds = frame.getImageBounds();
 		viewer.setCenterPixelLocation(imageBounds.x + imageBounds.width * .5, imageBounds.y + imageBounds.height * .5);
+		
+		// Set rotation
+		viewer.setRotation(frame.getRotation());
 		
 		
 //		if (frame.hasCursorPosition()) {
@@ -223,13 +198,31 @@ class ViewTrackerPlayback {
 			viewer.setSelectedObject(pathObject);
 			logger.debug("Eye position: " + p2d);
 		}
+		
+		if (frame.hasZOrT()) {
+			viewer.setZPosition(frame.getZ());
+			viewer.setTPosition(frame.getT());
+		}
 	}
 	
-	
-	public BooleanProperty playingProperty() {
+	BooleanProperty playingProperty() {
 		return playing;
 	}
 	
+	void setViewTracker(ViewTracker tracker) {
+		this.tracker = tracker;
+		if (!tracker.isEmpty()) {
+			firstFrame = tracker.getFrame(0);
+			currentFrame.set(firstFrame);
+		}
+	}
 	
+	void setFirstFrame(ViewRecordingFrame frame) {
+		firstFrame = frame;
+		currentFrame.set(frame);
+	}
 	
+	ObjectProperty<ViewRecordingFrame> getCurrentFrame() {
+		return currentFrame;
+	}
 }

@@ -30,12 +30,24 @@ import org.fxmisc.richtext.CodeArea;
 import org.fxmisc.richtext.model.StyleSpans;
 import org.fxmisc.richtext.model.StyleSpansBuilder;
 
+import qupath.lib.gui.scripting.languages.ScriptLanguage;
+
 /**
  * Interface for classes that apply some highlighting to a RichTextFX's {@link CodeArea}.
  * @author Melvin Gelbard
  * @since v0.4.0
  */
 public interface ScriptHighlighter {
+	
+	/**
+	 * Get the name of the language for which this {@code ScriptHighlighter} was designed.
+	 * <p>
+	 * Note: The name returned by this method must match <b>exactly</b> that of the 
+	 * corresponding {@link ScriptLanguage} for QuPath to automatically apply it to the script editor 
+	 * when needed..
+	 * @return language name
+	 */
+	String getLanguageName();
 
 	/**
 	 * Compute highlighting for the specified {@code text}, considering it will be used in the main editor..
