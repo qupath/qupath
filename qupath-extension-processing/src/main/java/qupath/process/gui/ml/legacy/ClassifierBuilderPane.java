@@ -1750,6 +1750,8 @@ public class ClassifierBuilderPane<T extends PathObjectClassifier> implements Pa
 		table.getColumns().add(colName);
 		int nColWidth = 80;
 		for (PathClass pathClass : pathClasses) {
+			// TODO: Check if this should use pathClass.toString()!
+			// (Looking at it in March 2022 I think it should, but I'm reluctant to make change in haste)
 			TableColumn<String, Integer> col = new TableColumn<>(pathClass.getName());
 			col.setCellValueFactory(column -> {
 				if (map.get(column.getValue()).get(pathClass) == null)

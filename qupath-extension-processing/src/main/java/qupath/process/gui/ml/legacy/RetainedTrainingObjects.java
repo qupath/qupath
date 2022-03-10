@@ -214,6 +214,8 @@ class RetainedTrainingObjects implements Externalizable {
 			Map<PathClass, List<PathObject>> newMap = new HashMap<>();
 			for (Entry<PathClass, List<PathObject>> entry : oldMap.entrySet()) {
 				PathClass pathClass = entry.getKey();
+				// TODO: Check if this should use pathClass.toString()!
+				// (Looking at it in March 2022 I think it should, but I'm reluctant to make change in haste)
 				newMap.put(PathClassFactory.getPathClass(pathClass.getName(), pathClass.getColor()), entry.getValue());
 			}
 			retainedObjectsMap.put(key, newMap);
