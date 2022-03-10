@@ -680,7 +680,7 @@ public class PathClassPane {
 			label.setPadding(new Insets(5, 0, 10, 0));
 			panelName.setCenter(label);
 		} else {
-			name = pathClass.getName();
+			name = pathClass.toString();
 			if (name == null)
 				name = "";
 			color = ColorToolsFX.getPathClassColor(pathClass);		
