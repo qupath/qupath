@@ -929,7 +929,7 @@ public class OpenCVTools {
 		if (result.length == 0)
 			return result;
 		
-		int n = (int)mat.total();
+		int n = (int)totalPixels(mat);
 //		var matSorted = new Mat();
 //		var mat2 = mat.reshape(1, n);
 //		opencv_core.sort(mat2, matSorted, opencv_core.CV_SORT_ASCENDING + opencv_core.CV_SORT_EVERY_COLUMN);

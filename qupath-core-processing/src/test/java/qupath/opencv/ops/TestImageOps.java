@@ -29,8 +29,13 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+
 import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
+import org.apache.commons.math3.stat.descriptive.rank.Percentile;
 import org.bytedeco.javacpp.PointerScope;
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.opencv_core.Mat;
@@ -310,6 +315,39 @@ public class TestImageOps {
 			assertEquals(matChannels2.channels(), 2);
 	
 			assertThrows(IllegalArgumentException.class, () -> ImageOps.Channels.extract().apply(mat.clone()));
+		}
+	}
+	
+	
+	@Test
+	public void testPercentiles() {
+		try (var scope = new PointerScope()) {
+			var values = IntStream.range(0, 200).mapToDouble(i -> (double)i).toArray();
+			var shuffledValues = Arrays.stream(values).mapToObj(d -> Double.valueOf(d)).collect(Collectors.toList());
+			Collections.shuffle(shuffledValues);
+			
+			var mat = new Mat(shuffledValues.stream().mapToDouble(d -> d.doubleValue()).toArray());
+			
+			double[] requested = new double[] {1, 25, 50, 100};
+			double[] results = OpenCVTools.percentiles(mat, requested);
+			
+			var percentile = new Percentile();
+			percentile.setData(values);
+			
+			for (int i = 0; i < requested.length; i++) {
+				assertEquals(results[i], percentile.evaluate(requested[i]));
+			}
+			
+			
+			// Try after reshaping (to check channels are handled)
+			var mat2 = mat.reshape(4, 5);
+			results = OpenCVTools.percentiles(mat2, requested);
+			for (int i = 0; i < requested.length; i++) {
+				assertEquals(results[i], percentile.evaluate(requested[i]));
+			}
+			
+			mat.close();
+			mat2.close();
 		}
 	}
 	
