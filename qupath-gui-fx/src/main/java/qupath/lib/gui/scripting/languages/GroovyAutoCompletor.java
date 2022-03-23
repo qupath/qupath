@@ -125,7 +125,7 @@ public class GroovyAutoCompletor implements ScriptAutoCompletor {
 		// Use all available completions if we have a dot included
 		if (control.getText().contains("."))
 			completions = METHOD_NAMES.stream()
-					.filter(s -> s.startsWith(start))
+					.filter(s -> s.startsWith(start) && !s.equals(start)) // Don't include start itself, since it looks like we have no completions
 					.sorted()
 					.collect(Collectors.toList());
 		else

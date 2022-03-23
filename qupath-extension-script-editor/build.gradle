@@ -13,5 +13,5 @@ configurations {
 }
 
 dependencies {
-  implementation "org.fxmisc.richtext:richtextfx:0.10.8"
+  implementation "org.fxmisc.richtext:richtextfx:0.10.9"
 }

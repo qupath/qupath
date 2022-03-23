@@ -179,7 +179,7 @@ public class RichScriptEditor extends DefaultScriptEditor {
 					} else if (e.getCode() == KeyCode.BACK_SPACE) {
 						if (scriptSyntax.handleBackspace(control, smartEditing.get()) && !e.isShortcutDown() && !e.isShiftDown())
 							e.consume();
-					} else if (beautifyerCodeCombination.match(e)) {
+					} else if (beautifierCodeCombination.match(e)) {
 						getCurrentTextComponent().setText(scriptSyntax.beautify(getCurrentText()));
 						e.isConsumed();
 					}
