@@ -24,7 +24,10 @@
 package qupath.lib.gui.scripting.richtextfx;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -40,8 +43,10 @@ import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.concurrent.Task;
 import javafx.scene.control.ContextMenu;
+import javafx.scene.control.ListView;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
+import javafx.stage.Popup;
 import qupath.lib.common.ThreadTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.scripting.DefaultScriptEditor;
@@ -161,6 +166,41 @@ public class RichScriptEditor extends DefaultScriptEditor {
 			});
 			
 			// TODO: Check if DefaultScriptEditor does any of these? It should be able to at least do syntaxing/auto-completion
+			var popup = new Popup();
+			var listCompletions = new ListView<String>();
+			listCompletions.setPrefSize(350, 400);
+			popup.getContent().add(listCompletions);
+			listCompletions.setStyle("-fx-font-size: smaller; -fx-font-family: Courier;");
+			var completionsMap = new HashMap<String, String>();
+			Runnable completionFun = () -> {
+				var selected = listCompletions.getSelectionModel().getSelectedItem();
+				if (selected != null) {
+					selected = completionsMap.getOrDefault(selected, selected);
+					var scriptAutoCompletor = currentLanguage.get().getAutoCompletor();
+					if (scriptAutoCompletor != null)
+						scriptAutoCompletor.applyCompletion(control, selected);
+				}
+				popup.hide();
+			};
+			listCompletions.setOnKeyReleased(e -> {
+				if (e.getCode() == KeyCode.ENTER) {
+					completionFun.run();
+					e.consume();
+				}
+			});
+			listCompletions.setOnMouseClicked(e -> {
+				if (e.getClickCount() == 2) {
+					completionFun.run();
+					e.consume();
+				}
+			});
+			listCompletions.setMaxHeight(200);
+			popup.focusedProperty().addListener((v, o, n) -> {
+				if (!n)
+					popup.hide();
+			});
+			
+			
 			codeArea.addEventFilter(KeyEvent.KEY_PRESSED, e -> {
 				if (e.isConsumed())
 					return;
@@ -188,10 +228,28 @@ public class RichScriptEditor extends DefaultScriptEditor {
 				var scriptAutoCompletor = currentLanguage.get().getAutoCompletor();
 				if (scriptAutoCompletor != null) {
 					if (completionCodeCombination.match(e)) {
-						scriptAutoCompletor.applyNextCompletion(control);
-						e.isConsumed();
-					} else if (!e.isControlDown())
-						scriptAutoCompletor.resetCompletion();
+						var completions = scriptAutoCompletor.getCompletions(control);
+						completionsMap.clear();
+						if (!completions.isEmpty()) {
+							completionsMap.putAll(completions);
+							var bounds = codeArea.getCaretBounds().orElse(null);
+							if (bounds != null) {
+								var list = new ArrayList<>(completions.keySet());
+								Collections.sort(list);
+								listCompletions.getItems().setAll(list);
+								popup.show(codeArea, bounds.getMaxX(), bounds.getMaxY());
+								e.consume();
+							}
+						}
+						if (!e.isConsumed() && popup.isShowing()) {
+							popup.hide();
+							e.consume();
+						}
+					} else if (!e.isControlDown()) {
+						listCompletions.getItems().clear();
+						if (popup.isShowing())
+							popup.hide();
+					}
 				}
 			});
 

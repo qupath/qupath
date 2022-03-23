@@ -26,11 +26,16 @@ package qupath.lib.gui.scripting.languages;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.util.ArrayList;
+import java.lang.reflect.Parameter;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import qupath.lib.gui.scripting.QPEx;
 import qupath.lib.gui.scripting.ScriptEditorControl;
@@ -43,66 +48,83 @@ import qupath.lib.scripting.QP;
  */
 public class GroovyAutoCompletor implements ScriptAutoCompletor {
 	
-	private static final Set<String> METHOD_NAMES = new HashSet<>();
-	private List<String> completions = new ArrayList<>();
-	private int idx = 0;
-	private Integer pos = null;
-	private String start; // Starting text
-	private String lastInsertion = null;
+	private final static Logger logger = LoggerFactory.getLogger(GroovyAutoCompletor.class);
+	
+	private static final Map<String, String> ALL_COMPLETIONS = new HashMap<>();
 	
 	
 	static {
 		for (Method method : QPEx.class.getMethods()) {
 			// Exclude deprecated methods (don't want to encourage them...)
 			if (method.getAnnotation(Deprecated.class) == null)
-				METHOD_NAMES.add(method.getName());
+				ALL_COMPLETIONS.put(getMethodString(method, null), getMethodName(method));
 		}
 		
 		// Remove the methods that come from the Object class...
 		// they tend to be quite confusing
 		for (Method method : Object.class.getMethods()) {
 			if (Modifier.isStatic(method.getModifiers()) && Modifier.isPublic(method.getModifiers()))
-				METHOD_NAMES.remove(method.getName());
+				ALL_COMPLETIONS.remove(getMethodString(method, null));
 		}
 		
 		for (Field field : QPEx.class.getFields()) {
-			if (Modifier.isStatic(field.getModifiers()) && Modifier.isPublic(field.getModifiers()))
-				METHOD_NAMES.add(field.getName());
-		}
-		
-		for (Class<?> cls : QP.getCoreClasses()) {
-			int countStatic = 0;
-			for (Method method : cls.getMethods()) {
-				if (Modifier.isStatic(method.getModifiers()) && Modifier.isPublic(method.getModifiers())) {
-					METHOD_NAMES.add(cls.getSimpleName() + "." + method.getName());
-					countStatic++;
-				}
+			if (Modifier.isStatic(field.getModifiers()) && Modifier.isPublic(field.getModifiers())) {
+				ALL_COMPLETIONS.put(field.getName(), field.getName());
 			}
-			if (countStatic > 0)
-				METHOD_NAMES.add(cls.getSimpleName() + ".");
 		}
 		
-//		for (Method method : ImageData.class.getMethods()) {
-//			METHOD_NAMES.add(method.getName());
-//		}
-//		for (Method method : PathObjectHierarchy.class.getMethods()) {
-//			METHOD_NAMES.add(method.getName());
-//		}
-//		for (Method method : PathObject.class.getMethods()) {
-//			METHOD_NAMES.add(method.getName());
-//		}
-//		for (Method method : TMACoreObject.class.getMethods()) {
-//			METHOD_NAMES.add(method.getName());
-//		}
-//		for (Method method : PathCellObject.class.getMethods()) {
-//			METHOD_NAMES.add(method.getName());
-//		}
-//		for (Method method : PathClassFactory.class.getMethods()) {
-//			METHOD_NAMES.add(method.getName());
-//		}
-		METHOD_NAMES.add("print");
-		METHOD_NAMES.add("println");
+		Set<Class<?>> classesToAdd = new HashSet<>(QP.getCoreClasses());
+
+		for (Class<?> cls : classesToAdd) {
+			addStaticMethods(cls);
+		}
+		
+		ALL_COMPLETIONS.put("print", "print");
+		ALL_COMPLETIONS.put("println", "println");
 	}
+	
+	static int addStaticMethods(Class<?> cls) {
+		int countStatic = 0;
+		for (Method method : cls.getMethods()) {
+			if (Modifier.isStatic(method.getModifiers()) && Modifier.isPublic(method.getModifiers())) {
+				String prefix = cls.getSimpleName() + ".";
+				if (ALL_COMPLETIONS.put(
+						getMethodString(method, prefix),
+						prefix + getMethodName(method)) == null)
+					countStatic++;
+			}
+		}
+		if (countStatic > 0) {
+			var text = cls.getSimpleName() + ".";
+			ALL_COMPLETIONS.put(text, text);
+		}
+		return countStatic;
+	}
+	
+	static String getMethodName(Method method) {
+		return method.getName() + "(" + ")";
+	}
+		
+	static String getMethodString(Method method, String prefix) {
+//		return method.getName();
+		var sb = new StringBuilder();
+//		sb.append(method.getReturnType().getSimpleName());
+//		sb.append(" ");
+		if (prefix != null)
+			sb.append(prefix);
+		sb.append(method.getName());
+		sb.append("(");
+		sb.append(Arrays.stream(method.getParameters()).map(p -> getParameterString(p)).collect(Collectors.joining(", ")));
+		sb.append(")");
+		return sb.toString();
+	}
+	
+	private static String getParameterString(Parameter parameter) {
+		if (parameter.isNamePresent())
+			return parameter.getType().getSimpleName() + " " + parameter.getName();
+		return parameter.getType().getSimpleName();
+	}
+	
 	
 	/**
 	 * Empty constructor.
@@ -112,45 +134,64 @@ public class GroovyAutoCompletor implements ScriptAutoCompletor {
 	}
 	
 	@Override
-	public void applyNextCompletion(ScriptEditorControl control) {
-		if (pos == null) {
-			pos = control.getCaretPosition();
-			String[] split = control.getText().substring(0, pos).split("(\\s+)|(\\()|(\\))|(\\{)|(\\})|(\\[)|(\\])");
-			if (split.length == 0)
-				start = "";
-			else
-				start = split[split.length-1].trim();
-		}
+	public Map<String, String> getCompletions(ScriptEditorControl control) {
+		var start = getStart(control);
 		
 		// Use all available completions if we have a dot included
+		Map<String, String> completions;
 		if (control.getText().contains("."))
-			completions = METHOD_NAMES.stream()
-					.filter(s -> s.startsWith(start) && !s.equals(start)) // Don't include start itself, since it looks like we have no completions
-					.sorted()
-					.collect(Collectors.toList());
+			completions = ALL_COMPLETIONS.entrySet()
+					.stream()
+					.filter(e -> e.getKey().startsWith(start) && !e.getKey().equals(start)) // Don't include start itself, since it looks like we have no completions
+//					.sorted()
+					.collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue()));
 		else
 			// Use only partial completions (methods, classes) if no dot
-			completions = METHOD_NAMES.stream()
-			.filter(s -> s.startsWith(start) && (!s.contains(".") || s.lastIndexOf(".") == s.length()-1))
-			.sorted()
-			.collect(Collectors.toList());
-				
-		if (completions.isEmpty())
+			completions = ALL_COMPLETIONS.entrySet()
+			.stream()
+			.filter(s -> s.getKey().startsWith(start) && (!s.getKey().contains(".") || s.getKey().lastIndexOf(".") == s.getKey().length()-1))
+//			.sorted()
+			.collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue()));
+		
+		// Add a new class if needed
+		// (Note this doesn't entirely work... since it doesn't handle the full class name later)
+		if (completions.isEmpty() && start.contains(".")) {
+			var className = start.substring(0, start.lastIndexOf("."));
+			try {
+				var cls = Class.forName(className);
+				if (addStaticMethods(cls) > 0) {
+					return getCompletions(control);
+				}
+			} catch (Exception e) {
+				logger.debug("Unable to find autocomplete methods for class {}", className);
+			}
+		}
+		
+		return completions;
+	}
+	
+	@Override
+	public void applyCompletion(ScriptEditorControl control, String completion) {
+		var start = getStart(control);
+		var insertion = completion.substring(start.length());// + "(";
+		// Avoid adding if caret is already between parentheses
+		if (insertion.startsWith("("))
 			return;
-		if (completions.size() == 0 && lastInsertion != null)
-			return;
-		if (lastInsertion != null && lastInsertion.length() > 0)
-			control.deleteText(pos, pos + lastInsertion.length());
-		lastInsertion = completions.get(idx).substring(start.length());// + "(";
-		control.insertText(pos, lastInsertion);
-		idx++;
-		idx = idx % completions.size();
+		var pos = control.getCaretPosition();
+		control.insertText(pos, insertion);
+		if (insertion.endsWith(")") && control.getCaretPosition() > 0)
+			control.positionCaret(control.getCaretPosition()-1);
+	}
+	
+	private String getStart(ScriptEditorControl control) {
+		var pos = control.getCaretPosition();
+		String[] split = control.getText().substring(0, pos).split("(\\s+)|(\\()|(\\))|(\\{)|(\\})|(\\[)|(\\])");
+		String start;
+		if (split.length == 0)
+			start = "";
+		else
+			start = split[split.length-1].trim();
+		return start;
 	}
 
-	@Override
-	public void resetCompletion() {
-		pos = null;
-		lastInsertion = null;
-		idx = 0;
-	}
 }

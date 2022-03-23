@@ -23,6 +23,9 @@
 
 package qupath.lib.gui.scripting.languages;
 
+import java.util.Collections;
+import java.util.Map;
+
 import qupath.lib.gui.scripting.ScriptEditorControl;
 
 /**
@@ -35,11 +38,37 @@ public interface ScriptAutoCompletor {
 	/**
 	 * Try to match and auto-complete a method name.
 	 * @param control the control onto which apply auto-completion.
+	 * @return 
 	 */
-	void applyNextCompletion(ScriptEditorControl control);
+	default Map<String, String> getCompletions(ScriptEditorControl control) {
+		return Collections.emptyMap();
+	}
 	
 	/**
-	 * Reset the completion process (e.g. if currently iterating through a list of methods, reset the iteration to the first element).
+	 * Apply a specified completion to the provided control.
+	 * This involves figuring out which text to insert and which is already present, so that the completion 
+	 * behaves properly.
+	 * @param control
+	 * @param completion
 	 */
-	void resetCompletion();
+	default void applyCompletion(ScriptEditorControl control, String completion) {
+		throw new UnsupportedOperationException("Completions not supported!");
+	}
+	
+	// May be required to provide more extensive completion
+//	static class Completion {
+//		
+//		private String displayText;
+//		private String completionText;
+//		
+//		public String getDisplayText() {
+//			return displayText;
+//		}
+//		
+//		public String getCompletionText() {
+//			return completionText;
+//		}
+//		
+//	}
+	
 }
