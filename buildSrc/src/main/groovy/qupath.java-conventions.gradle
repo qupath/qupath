@@ -24,6 +24,11 @@ java {
     withJavadocJar()
 }
 
+// Include parameter names, so they are available in the script editor via reflection
+compileJava {
+    options.compilerArgs << '-parameters'
+}
+
 // Avoid 'Entry .gitkeep is a duplicate but no duplicate handling strategy has been set.'
 // when using withSourcesJar()
 tasks.withType(org.gradle.jvm.tasks.Jar) {
