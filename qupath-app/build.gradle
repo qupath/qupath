@@ -152,9 +152,19 @@ tasks.register("extractNatives") {
 	  }
   }
 }
+
+// Create a single javadoc jar
+task mergedJavadocJar(type: Jar, dependsOn: rootProject.tasks.mergedJavadocs) {
+    archiveFileName = "qupath-$qupathVersion-javadoc.jar"
+    destinationDirectory = file("${project.buildDir}/docs/")
+    from rootProject.tasks.mergedJavadocs.destinationDir
+}
+
+
 compileJava.dependsOn extractNatives
 run.dependsOn checkLdLibrary
 startScripts.dependsOn checkLdLibrary
+jpackage.dependsOn mergedJavadocJar
 jpackage.dependsOn checkLdLibrary
 
 /**
@@ -204,6 +214,10 @@ distributions {
       // Copy native libraries
       into('lib') {
         from "${project.buildDir}/natives"
+      }
+      // Copy native libraries
+      into('lib/docs') {
+        from mergedJavadocJar.archiveFile
       }
     }
   }
