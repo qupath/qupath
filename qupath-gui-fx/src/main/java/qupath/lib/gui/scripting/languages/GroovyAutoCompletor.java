@@ -26,11 +26,8 @@ package qupath.lib.gui.scripting.languages;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.lang.reflect.Parameter;
-import java.util.Arrays;
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Map;
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -50,26 +47,30 @@ public class GroovyAutoCompletor implements ScriptAutoCompletor {
 	
 	private final static Logger logger = LoggerFactory.getLogger(GroovyAutoCompletor.class);
 	
-	private static final Map<String, String> ALL_COMPLETIONS = new HashMap<>();
+	private static final Set<Completion> ALL_COMPLETIONS = new HashSet<>();
 	
 	
 	static {
+		
 		for (Method method : QPEx.class.getMethods()) {
 			// Exclude deprecated methods (don't want to encourage them...)
-			if (method.getAnnotation(Deprecated.class) == null)
-				ALL_COMPLETIONS.put(getMethodString(method, null), getMethodName(method));
+			if (method.getAnnotation(Deprecated.class) == null) {
+				ALL_COMPLETIONS.add(ScriptAutoCompletor.Completion.create(method.getDeclaringClass(), method));
+				ALL_COMPLETIONS.add(ScriptAutoCompletor.Completion.create(null, method));
+			}
 		}
 		
-		// Remove the methods that come from the Object class...
-		// they tend to be quite confusing
-		for (Method method : Object.class.getMethods()) {
-			if (Modifier.isStatic(method.getModifiers()) && Modifier.isPublic(method.getModifiers()))
-				ALL_COMPLETIONS.remove(getMethodString(method, null));
-		}
+//		// Remove the methods that come from the Object class...
+//		// they tend to be quite confusing
+//		for (Method method : Object.class.getMethods()) {
+//			if (Modifier.isStatic(method.getModifiers()) && Modifier.isPublic(method.getModifiers()))
+//				ALL_COMPLETIONS.remove(getMethodString(method, null));
+//		}
 		
 		for (Field field : QPEx.class.getFields()) {
 			if (Modifier.isStatic(field.getModifiers()) && Modifier.isPublic(field.getModifiers())) {
-				ALL_COMPLETIONS.put(field.getName(), field.getName());
+				ALL_COMPLETIONS.add(ScriptAutoCompletor.Completion.create(field.getDeclaringClass(), field));
+				ALL_COMPLETIONS.add(ScriptAutoCompletor.Completion.create(null, field));
 			}
 		}
 		
@@ -79,51 +80,24 @@ public class GroovyAutoCompletor implements ScriptAutoCompletor {
 			addStaticMethods(cls);
 		}
 		
-		ALL_COMPLETIONS.put("print", "print");
-		ALL_COMPLETIONS.put("println", "println");
+		ALL_COMPLETIONS.add(ScriptAutoCompletor.Completion.create(null, "print", "print"));
+		ALL_COMPLETIONS.add(ScriptAutoCompletor.Completion.create(null, "println", "println"));
 	}
 	
 	static int addStaticMethods(Class<?> cls) {
 		int countStatic = 0;
 		for (Method method : cls.getMethods()) {
 			if (Modifier.isStatic(method.getModifiers()) && Modifier.isPublic(method.getModifiers())) {
-				String prefix = cls.getSimpleName() + ".";
-				if (ALL_COMPLETIONS.put(
-						getMethodString(method, prefix),
-						prefix + getMethodName(method)) == null)
+				if (ALL_COMPLETIONS.add(ScriptAutoCompletor.Completion.create(method.getDeclaringClass(), method)))
 					countStatic++;
 			}
 		}
 		if (countStatic > 0) {
-			var text = cls.getSimpleName() + ".";
-			ALL_COMPLETIONS.put(text, text);
+			ALL_COMPLETIONS.add(ScriptAutoCompletor.Completion.create(cls));
 		}
 		return countStatic;
 	}
 	
-	static String getMethodName(Method method) {
-		return method.getName() + "(" + ")";
-	}
-		
-	static String getMethodString(Method method, String prefix) {
-//		return method.getName();
-		var sb = new StringBuilder();
-//		sb.append(method.getReturnType().getSimpleName());
-//		sb.append(" ");
-		if (prefix != null)
-			sb.append(prefix);
-		sb.append(method.getName());
-		sb.append("(");
-		sb.append(Arrays.stream(method.getParameters()).map(p -> getParameterString(p)).collect(Collectors.joining(", ")));
-		sb.append(")");
-		return sb.toString();
-	}
-	
-	private static String getParameterString(Parameter parameter) {
-		if (parameter.isNamePresent())
-			return parameter.getType().getSimpleName() + " " + parameter.getName();
-		return parameter.getType().getSimpleName();
-	}
 	
 	
 	/**
@@ -134,24 +108,24 @@ public class GroovyAutoCompletor implements ScriptAutoCompletor {
 	}
 	
 	@Override
-	public Map<String, String> getCompletions(ScriptEditorControl control) {
+	public List<Completion> getCompletions(ScriptEditorControl control) {
 		var start = getStart(control);
 		
 		// Use all available completions if we have a dot included
-		Map<String, String> completions;
+		List<Completion> completions;
 		if (control.getText().contains("."))
-			completions = ALL_COMPLETIONS.entrySet()
+			completions = ALL_COMPLETIONS
 					.stream()
-					.filter(e -> e.getKey().startsWith(start) && !e.getKey().equals(start)) // Don't include start itself, since it looks like we have no completions
+					.filter(e -> e.isCompatible(start))
 //					.sorted()
-					.collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue()));
+					.collect(Collectors.toList());
 		else
 			// Use only partial completions (methods, classes) if no dot
-			completions = ALL_COMPLETIONS.entrySet()
+			completions = ALL_COMPLETIONS
 			.stream()
-			.filter(s -> s.getKey().startsWith(start) && (!s.getKey().contains(".") || s.getKey().lastIndexOf(".") == s.getKey().length()-1))
+			.filter(s -> s.isCompatible(start) && (!s.getCompletionText().contains(".") || s.getCompletionText().lastIndexOf(".") == s.getCompletionText().length()-1))
 //			.sorted()
-			.collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue()));
+			.collect(Collectors.toList());
 		
 		// Add a new class if needed
 		// (Note this doesn't entirely work... since it doesn't handle the full class name later)
@@ -173,7 +147,7 @@ public class GroovyAutoCompletor implements ScriptAutoCompletor {
 	@Override
 	public void applyCompletion(ScriptEditorControl control, String completion) {
 		var start = getStart(control);
-		var insertion = completion.substring(start.length());// + "(";
+		var insertion = completion.startsWith(start) ? completion.substring(start.length()) : completion;// + "(";
 		// Avoid adding if caret is already between parentheses
 		if (insertion.startsWith("("))
 			return;

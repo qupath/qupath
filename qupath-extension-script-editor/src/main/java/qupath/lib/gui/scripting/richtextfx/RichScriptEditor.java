@@ -27,7 +27,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -53,6 +53,8 @@ import qupath.lib.gui.scripting.DefaultScriptEditor;
 import qupath.lib.gui.scripting.ScriptEditorControl;
 import qupath.lib.gui.scripting.highlighters.ScriptHighlighter;
 import qupath.lib.gui.scripting.highlighters.ScriptHighlighterProvider;
+import qupath.lib.gui.scripting.languages.ScriptAutoCompletor;
+import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.MenuTools;
 
 /*
@@ -167,18 +169,20 @@ public class RichScriptEditor extends DefaultScriptEditor {
 			
 			// TODO: Check if DefaultScriptEditor does any of these? It should be able to at least do syntaxing/auto-completion
 			var popup = new Popup();
-			var listCompletions = new ListView<String>();
+			var listCompletions = new ListView<ScriptAutoCompletor.Completion>();
+			
+			listCompletions.setCellFactory(c -> GuiTools.createCustomListCell(c2 -> c2.getDisplayText()));
+			
 			listCompletions.setPrefSize(350, 400);
 			popup.getContent().add(listCompletions);
 			listCompletions.setStyle("-fx-font-size: smaller; -fx-font-family: Courier;");
-			var completionsMap = new HashMap<String, String>();
+			var completionsMap = new HashSet<ScriptAutoCompletor.Completion>();
 			Runnable completionFun = () -> {
 				var selected = listCompletions.getSelectionModel().getSelectedItem();
 				if (selected != null) {
-					selected = completionsMap.getOrDefault(selected, selected);
 					var scriptAutoCompletor = currentLanguage.get().getAutoCompletor();
 					if (scriptAutoCompletor != null)
-						scriptAutoCompletor.applyCompletion(control, selected);
+						scriptAutoCompletor.applyCompletion(control, selected.getCompletionText());
 				}
 				popup.hide();
 			};
@@ -231,10 +235,10 @@ public class RichScriptEditor extends DefaultScriptEditor {
 						var completions = scriptAutoCompletor.getCompletions(control);
 						completionsMap.clear();
 						if (!completions.isEmpty()) {
-							completionsMap.putAll(completions);
+							completionsMap.addAll(completions);
 							var bounds = codeArea.getCaretBounds().orElse(null);
 							if (bounds != null) {
-								var list = new ArrayList<>(completions.keySet());
+								var list = new ArrayList<>(completions);
 								Collections.sort(list);
 								listCompletions.getItems().setAll(list);
 								popup.show(codeArea, bounds.getMaxX(), bounds.getMaxY());

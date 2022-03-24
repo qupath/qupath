@@ -24,7 +24,7 @@
 package qupath.lib.gui.scripting.languages;
 
 import java.util.Collections;
-import java.util.Map;
+import java.util.List;
 
 import qupath.lib.gui.scripting.ScriptEditorControl;
 
@@ -36,8 +36,8 @@ import qupath.lib.gui.scripting.ScriptEditorControl;
 public class PlainAutoCompletor implements ScriptAutoCompletor {
 	
 	@Override
-	public Map<String, String> getCompletions(ScriptEditorControl control) {
-		return Collections.emptyMap();
+	public List<Completion> getCompletions(ScriptEditorControl control) {
+		return Collections.emptyList();
 	}
 
 }
