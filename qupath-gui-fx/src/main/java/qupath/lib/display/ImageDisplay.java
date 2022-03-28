@@ -56,6 +56,7 @@ import javafx.collections.ObservableList;
 import qupath.lib.analysis.stats.Histogram;
 import qupath.lib.color.ColorTransformer;
 import qupath.lib.color.ColorTransformer.ColorTransformMethod;
+import qupath.lib.common.ColorTools;
 import qupath.lib.display.ChannelDisplayInfo.ModifiableChannelDisplayInfo;
 import qupath.lib.gui.images.stores.AbstractImageRenderer;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -578,6 +579,15 @@ public class ImageDisplay extends AbstractImageRenderer {
 			}
 		} catch (Exception e) {
 			logger.error("Error extracting pixels for display", e);
+		}
+
+		// TODO: REMOVE COLOR INVERSION IF NOT NEEDED!
+		for (int i = 0; i < pixels.length; i++) {
+			int val = pixels[i];
+			int r = ColorTools.red(val);
+			int g = ColorTools.green(val);
+			int b = ColorTools.blue(val);
+			pixels[i] = ColorTools.packRGB(255 - r, 255 - g, 255 - b);
 		}
 
 		imgOutput.getRaster().setDataElements(0, 0, imgOutput.getWidth(), imgOutput.getHeight(), pixels);

@@ -49,6 +49,7 @@ public class DirectServerChannelInfo extends AbstractSingleChannelInfo {
 	private int channel;
 
 	transient private ColorModel cm;
+	transient private ColorModel cmInverted;
 	transient private int[] rgbLUT;
 	private int rgb;
 	//		private int rgb, r, g, b;
@@ -111,6 +112,10 @@ public class DirectServerChannelInfo extends AbstractSingleChannelInfo {
 		byte[] rb = new byte[256];
 		byte[] gb = new byte[256];
 		byte[] bb = new byte[256];
+		// For inverted
+		byte[] rbi = new byte[256];
+		byte[] gbi = new byte[256];
+		byte[] bbi = new byte[256];
 		for (int i = 0; i < 256; i++) {
 			rgbLUT[i] = ColorTools.packRGB(
 					ColorTools.do8BitRangeCheck(r / 255.0 * i),
@@ -120,9 +125,14 @@ public class DirectServerChannelInfo extends AbstractSingleChannelInfo {
 			rb[i] = (byte)ColorTools.do8BitRangeCheck(r / 255.0 * i);
 			gb[i] = (byte)ColorTools.do8BitRangeCheck(g / 255.0 * i);
 			bb[i] = (byte)ColorTools.do8BitRangeCheck(b / 255.0 * i);
+			
+			rbi[i] = (byte)ColorTools.do8BitRangeCheck((255 - r) / 255.0 * i);
+			gbi[i] = (byte)ColorTools.do8BitRangeCheck((255 - g) / 255.0 * i);
+			bbi[i] = (byte)ColorTools.do8BitRangeCheck((255 - b) / 255.0 * i);
 		}
 
 		cm = new IndexColorModel(8, 256, rb, gb, bb);
+		cmInverted = new IndexColorModel(8, 256, rbi, gbi, bbi);
 
 		this.rgb = ColorTools.packRGB(r, g, b);
 	}
@@ -144,7 +154,10 @@ public class DirectServerChannelInfo extends AbstractSingleChannelInfo {
 
 	@Override
 	public int getRGB(float value, boolean useColorLUT) {
-		return ColorTransformer.makeScaledRGBwithRangeCheck(value, minDisplay, 255.f/(maxDisplay - minDisplay), useColorLUT ? cm : null);
+		// TODO: Restore original line
+//		return ColorTransformer.makeScaledRGBwithRangeCheck(value, minDisplay, 255.f/(maxDisplay - minDisplay), useColorLUT ? cm : null);
+		// For white background
+		return ColorTransformer.makeScaledRGBwithRangeCheck(value, minDisplay, 255.f/(maxDisplay - minDisplay), useColorLUT ? cmInverted : null);
 	}
 
 	@Override
