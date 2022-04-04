@@ -771,7 +771,12 @@ public final class GeneralTools {
 		
 		// Check for the highest number we currently have
 		int lastInd = 0;
-		var pattern = base.isEmpty() ? Pattern.compile("\\(([\\d]+)\\)") : Pattern.compile(base + " \\(([\\d]+)\\)");
+		Pattern pattern;
+		if (base.isEmpty()) {
+			pattern = Pattern.compile("\\(([\\d]+)\\)");
+		} else {
+			pattern = Pattern.compile(Pattern.quote(base) + " \\(([\\d]+)\\)");
+		}
 		for (var existing : existingNames) {
 			var matcher = pattern.matcher(existing);
 			if (base.isEmpty()) {
