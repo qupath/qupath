@@ -308,6 +308,12 @@ class MeasurementManager {
 		logger.info("Removing measurements: {}", removeString);
 		Class<? extends PathObject> cls = comboBox.getSelectionModel().getSelectedItem();
 		QP.removeMeasurements(imageData.getHierarchy(), cls, selectedItems.toArray(String[]::new));
+		
+		// We need to pass varargs as an array from Groovy if we have too many
+		// See https://github.com/qupath/qupath/issues/915
+		if (selectedItems.size() > 200) {
+			removeString = "[" + removeString + "] as String[]";
+		}
 
 		// Keep for scripting
 		WorkflowStep step = new DefaultScriptableWorkflowStep("Remove measurements",
