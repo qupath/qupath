@@ -408,14 +408,18 @@ public class TestGeneralTools {
 	
 	@Test
 	public void test_generateDistinctName() {
-		List<String> existingNames = Arrays.asList("Alpha", "alpha", "Alpha", "Alpha (1)", "Alpha (2)", "Alpha ()", "beta", "", "(1)");
+		List<String> existingNames = Arrays.asList("Alpha", "alpha", "Alpha", "Alpha (1)", "Alpha (1) (1)", "Alpha (2)", "Alpha ()", "beta", "", "(1)", "Alpha (5");
 		assertEquals("alpha (1)", GeneralTools.generateDistinctName("alpha", existingNames));
 		assertEquals("Alpha (3)", GeneralTools.generateDistinctName("Alpha", existingNames));
 		assertEquals("Alpha (3)", GeneralTools.generateDistinctName("Alpha (1)", existingNames));
 		assertEquals("Alpha (3)", GeneralTools.generateDistinctName("Alpha (2)", existingNames));
+		assertEquals("Alpha (1) (2)", GeneralTools.generateDistinctName("Alpha (1) (1)", existingNames));
+		assertEquals("Alpha (1) (2)", GeneralTools.generateDistinctName("Alpha (1) (2)", existingNames));
 		assertEquals("Alpha () (1)", GeneralTools.generateDistinctName("Alpha ()", existingNames));
 		assertEquals("Alpha beta", GeneralTools.generateDistinctName("Alpha beta", existingNames));
 		assertEquals("(2)", GeneralTools.generateDistinctName("", existingNames));
+		assertEquals("Alpha (4", GeneralTools.generateDistinctName("Alpha (4", existingNames));
+		assertEquals("Alpha (5 (1)", GeneralTools.generateDistinctName("Alpha (5", existingNames));
 		assertEquals(null, GeneralTools.generateDistinctName(null, existingNames));
 	}
 	

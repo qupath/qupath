@@ -23,6 +23,8 @@ This is a work-in-progress.
 * 'Ignore case' in the Find window of the Script editor does not ignore case (https://github.com/qupath/qupath/issues/889)
 * Owner of Find window in the script editor is lost when the script editor window is closed (https://github.com/qupath/qupath/issues/893)
 * 'Zoom to fit' doesn't handle changes in window size
+* Duplicating images with some names can cause an exception (https://github.com/qupath/qupath/issues/942)
+* Removing >255 measurements throws error when reproducing from workflow script (https://github.com/qupath/qupath/issues/915)
 
 ### Dependency updates
 * Adoptium OpenJDK 17

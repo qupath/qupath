@@ -2309,8 +2309,9 @@ public class QP {
 			if (pathObject.getClass() != cls)
 				continue;
 			// Remove the measurements
-			pathObject.getMeasurementList().removeMeasurements(measurementNames);
-			pathObject.getMeasurementList().close();
+			try (var ml = pathObject.getMeasurementList()) {
+				ml.removeMeasurements(measurementNames);
+			}
 		}
 		hierarchy.fireObjectMeasurementsChangedEvent(null, pathObjects);
 	}
