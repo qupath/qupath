@@ -40,6 +40,7 @@ import org.slf4j.LoggerFactory;
 import qupath.lib.color.ColorModelFactory;
 import qupath.lib.common.ColorTools;
 import qupath.lib.display.ChannelDisplayInfo;
+import qupath.lib.display.ChannelDisplayMode;
 import qupath.lib.display.SingleChannelDisplayInfo;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
@@ -126,7 +127,7 @@ public class ChannelDisplayTransformServer extends TransformingImageServer<Buffe
 					logger.error("Unable to apply color transform " + channel.getName() + " - incompatible with previously-applied transforms");
 				}
 			} else if (channels.size() == 1) {
-				int[] rgb = channel.getRGB(img, null, false);
+				int[] rgb = channel.getRGB(img, null, ChannelDisplayMode.COLOR);
 				img.setRGB(0, 0, width, height, rgb, 0, width);
 				return img;
 			} else {

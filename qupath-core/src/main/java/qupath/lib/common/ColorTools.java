@@ -41,7 +41,7 @@ public final class ColorTools {
 	/**
 	 * Packed int representing white.
 	 */
-	final public static int WHITE = packRGB(255, 255, 255);
+	final public static Integer WHITE = packRGB(255, 255, 255);
 
 	/**
 	 * Packed int representing black.

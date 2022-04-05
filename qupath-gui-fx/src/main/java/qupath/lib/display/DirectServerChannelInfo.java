@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -25,7 +25,6 @@ import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
 import java.awt.image.IndexColorModel;
 
-import qupath.lib.color.ColorTransformer;
 import qupath.lib.common.ColorTools;
 import qupath.lib.images.ImageData;
 
@@ -52,7 +51,6 @@ public class DirectServerChannelInfo extends AbstractSingleChannelInfo {
 	transient private ColorModel cmInverted;
 	transient private int[] rgbLUT;
 	private int rgb;
-	//		private int rgb, r, g, b;
 
 	/**
 	 * Constructor.
@@ -98,6 +96,21 @@ public class DirectServerChannelInfo extends AbstractSingleChannelInfo {
 				ColorTools.red(rgb),
 				ColorTools.green(rgb),
 				ColorTools.blue(rgb));
+	}
+	
+	@Override
+	protected ColorModel getColorModel(ChannelDisplayMode mode) {
+		switch (mode) {
+		case INVERTED_GRAYSCALE:
+//			return CM_GRAYSCALE_INVERTED;
+		case GRAYSCALE:
+			return CM_GRAYSCALE;
+		case INVERTED_COLOR:
+			return cmInverted;
+		case COLOR:
+		default:
+			return cm;
+		}
 	}
 
 	/**
@@ -153,14 +166,6 @@ public class DirectServerChannelInfo extends AbstractSingleChannelInfo {
 	}
 
 	@Override
-	public int getRGB(float value, boolean useColorLUT) {
-		// TODO: Restore original line
-//		return ColorTransformer.makeScaledRGBwithRangeCheck(value, minDisplay, 255.f/(maxDisplay - minDisplay), useColorLUT ? cm : null);
-		// For white background
-		return ColorTransformer.makeScaledRGBwithRangeCheck(value, minDisplay, 255.f/(maxDisplay - minDisplay), useColorLUT ? cmInverted : null);
-	}
-
-	@Override
 	public boolean doesSomething() {
 		return true;
 	}
@@ -180,31 +185,5 @@ public class DirectServerChannelInfo extends AbstractSingleChannelInfo {
 		return false;
 	}
 
-	//	@Override
-	//	public int updateRGBAdditive(float value, int rgb) {
-	//		// Just return the (scaled) RGB value for this pixel if we don't have to update anything
-	//		if (rgb == 0)
-	//			return getRGB(value);
-	//		// Don't do anything with an existing pixel if display range is 0, or it is lower than the min display
-	//		if (maxDisplay == minDisplay || value <= minDisplay)
-	//			return rgb;
-	//		//		// Also nothing to do if the pixel is white
-	//		//		if ((rgb & 0xffffff) == 16777215) {
-	//		//			// TODO: REMOVE THIS
-	//		//			System.out.println("I AM SKIPPING A WHITE PIXEL!");
-	//		//			return rgb;
-	//		//		}
-	//		// Figure out how much to scale the pixel's color - zero scale indicates black
-	//		float scale = (value - minDisplay) / (maxDisplay - minDisplay);
-	//		if (scale >= 1)
-	//			scale = 1;
-	//		// Do the scaling & combination
-	//		float r2 = r * scale + ((rgb & ColorTransformer.MASK_RED) >> 16);
-	//		float g2 = g * scale + ((rgb & ColorTransformer.MASK_GREEN) >> 8);
-	//		float b2 = b * scale + (rgb & ColorTransformer.MASK_BLUE);
-	//		return do8BitRangeCheck(r2) << 16 + 
-	//				do8BitRangeCheck(g2) << 8 + 
-	//				do8BitRangeCheck(b2);
-	//	}
 
 }

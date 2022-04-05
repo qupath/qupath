@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -23,7 +23,6 @@
 
 package qupath.lib.display;
 
-import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
@@ -90,6 +89,7 @@ public class ImageDisplay extends AbstractImageRenderer {
 
 	// Image & color transform-related variables
 	private BooleanProperty useGrayscaleLuts = new SimpleBooleanProperty();
+	private BooleanProperty useInvertedBackground = new SimpleBooleanProperty(false);
 
 	private ImageData<BufferedImage> imageData;
 	private ObservableList<ChannelDisplayInfo> channelOptions = FXCollections.observableArrayList();
@@ -113,6 +113,9 @@ public class ImageDisplay extends AbstractImageRenderer {
 		useGrayscaleLuts.addListener((v, o, n) -> {
 			if (n && selectedChannels.size() > 1)
 				setChannelSelected(lastSelectedChannel, true);
+			saveChannelColorProperties();
+		});
+		useInvertedBackground.addListener((v, o, n) -> {
 			saveChannelColorProperties();
 		});
 	}
@@ -192,6 +195,30 @@ public class ImageDisplay extends AbstractImageRenderer {
 	 */
 	public void setUseGrayscaleLuts(boolean useGrayscaleLuts) {
 		this.useGrayscaleLuts.set(useGrayscaleLuts);
+	}
+	
+	/**
+	 * Property that specifies whether the background should be inverted (i.e. to make fluorescence resemble brightfield, and vice versa)
+	 * @return
+	 */
+	public BooleanProperty useInvertedBackgroundProperty() {
+		return useInvertedBackground;
+	}
+	
+	/**
+	 * Get the value of {@link #useInvertedBackgroundProperty()}
+	 * @return
+	 */
+	public boolean useInvertedBackground() {
+		return useInvertedBackground.get();
+	}
+
+	/**
+	 * Set the value of {@link #useInvertedBackgroundProperty()}
+	 * @param useInvertedBackground
+	 */
+	public void setUseInvertedBackground(boolean useInvertedBackground) {
+		this.useInvertedBackground.set(useInvertedBackground);
 	}
 	
 	/**
@@ -513,22 +540,49 @@ public class ImageDisplay extends AbstractImageRenderer {
 	@Override
 	public BufferedImage applyTransforms(BufferedImage imgInput, BufferedImage imgOutput) {
 //		long startTime = System.currentTimeMillis();
-		BufferedImage imgResult = applyTransforms(imgInput, imgOutput, selectedChannels, useGrayscaleLuts());
+		
+		ChannelDisplayMode mode;
+		if (useGrayscaleLuts()) {
+			if (useInvertedBackground())
+				mode = ChannelDisplayMode.INVERTED_GRAYSCALE;
+			else
+				mode = ChannelDisplayMode.GRAYSCALE;
+		} else if (useInvertedBackground())
+			mode = ChannelDisplayMode.INVERTED_COLOR;
+		else
+			mode = ChannelDisplayMode.COLOR;
+		
+		BufferedImage imgResult = applyTransforms(imgInput, imgOutput, selectedChannels, mode);
 //		long endTime = System.currentTimeMillis();
 //		System.err.println("Transform time: " + (endTime - startTime));
 		return imgResult;
 	}
 	
 	/**
-	 * Convert an image too RGB by applying the specified {@linkplain ChannelDisplayInfo ChannelDisplayInfos}.
+	 * Convert an image to RGB by applying the specified {@linkplain ChannelDisplayInfo ChannelDisplayInfos}.
+	 * 
+	 * @param imgInput
+	 * @param imgOutput
+	 * @param selectedChannels
+	 * @param useGrayscaleLuts
+	 * @return
+	 * @deprecated use instead {@link #applyTransforms(BufferedImage, BufferedImage, List, ChannelDisplayMode)}
+	 */
+	@Deprecated
+	public static BufferedImage applyTransforms(BufferedImage imgInput, BufferedImage imgOutput, List<? extends ChannelDisplayInfo> selectedChannels, boolean useGrayscaleLuts) {
+		return applyTransforms(imgInput, imgOutput, selectedChannels, useGrayscaleLuts ? ChannelDisplayMode.GRAYSCALE : ChannelDisplayMode.COLOR);
+	}
+	
+	/**
+	 * Convert an image to RGB by applying the specified {@linkplain ChannelDisplayInfo ChannelDisplayInfos} and {@link ChannelDisplayMode}.
 	 * 
 	 * @param imgInput the input image to transform
 	 * @param imgOutput optional output image (must be the same size as the input image, and RGB)
 	 * @param selectedChannels the channels to use
-	 * @param useGrayscaleLuts if true, prefer grayscale lookup tables rather than color
+	 * @param mode the mode used to determine RGB colors for each channel
 	 * @return an RGB image determined by transforming the input image using the specified channels
 	 */
-	public static BufferedImage applyTransforms(BufferedImage imgInput, BufferedImage imgOutput, List<? extends ChannelDisplayInfo> selectedChannels, boolean useGrayscaleLuts) {
+	public static BufferedImage applyTransforms(BufferedImage imgInput, BufferedImage imgOutput, List<? extends ChannelDisplayInfo> selectedChannels, ChannelDisplayMode mode) {
 		int width = imgInput.getWidth();
 		int height = imgInput.getHeight();
 
@@ -536,19 +590,29 @@ public class ImageDisplay extends AbstractImageRenderer {
 			//			imgOutput = GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice().getDefaultConfiguration().createCompatibleImage(width, height);
 			imgOutput = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
 		}
+		
+		// Ensure we have a mode
+		if (mode == null)
+			mode = ChannelDisplayMode.COLOR;
+		
+		boolean invertBackground = mode.invertColors();
+		boolean isGrayscale = mode == ChannelDisplayMode.GRAYSCALE || mode == ChannelDisplayMode.INVERTED_GRAYSCALE;
 
-		// If we don't have anything, just give a black image
-		if (selectedChannels.isEmpty()) {
-			Graphics2D g2d = imgOutput.createGraphics();
-			g2d.setColor(Color.BLACK);
-			g2d.fillRect(0, 0, width, height);
-			g2d.dispose();
-			return imgOutput;
-		}
-
+//		// If we don't have anything, just give a black image
+//		if (selectedChannels.isEmpty()) {
+//			Graphics2D g2d = imgOutput.createGraphics();
+////			if (invertBackground) // Don't really know if it should be black or white at this point
+//				g2d.setColor(Color.BLACK);
+////			else
+////				g2d.setColor(Color.WHITE); // TODO: Check if this is sensible
+//			g2d.fillRect(0, 0, width, height);
+//			g2d.dispose();
+//			return imgOutput;
+//		}
+				
 		// Check if we have any changes to make - if not, just copy the image
 		// Sometimes the first entry of selectedChannels was null... not sure why... this test is therefore to paper over the cracks...
-		if (selectedChannels.size() == 1 && (selectedChannels.get(0) == null || !selectedChannels.get(0).doesSomething())) {
+		if (selectedChannels.size() == 1 && (selectedChannels.get(0) == null || !selectedChannels.get(0).doesSomething()) && !invertBackground && !isGrayscale) {
 			if (imgInput == imgOutput) {
 				return imgOutput;
 			}
@@ -567,27 +631,28 @@ public class ImageDisplay extends AbstractImageRenderer {
 		
 		// I don't know exactly why, but I can't set this to null if there are multiple channels displayed additively...
 		int[] pixels = selectedChannels.size() <= 1 ? null : new int[imgInput.getWidth() * imgInput.getHeight()];
-
+		
 		try {
 			for (ChannelDisplayInfo info : selectedChannels.toArray(ChannelDisplayInfo[]::new)) {
 				if (firstChannel) {
-					pixels = info.getRGB(imgInput, pixels, !useGrayscaleLuts);
+					pixels = info.getRGB(imgInput, pixels, mode);
 					firstChannel = false;
 				} else {
-					info.updateRGBAdditive(imgInput, pixels, !useGrayscaleLuts);
+					info.updateRGBAdditive(imgInput, pixels, mode);
 				}
 			}
 		} catch (Exception e) {
 			logger.error("Error extracting pixels for display", e);
 		}
 
-		// TODO: REMOVE COLOR INVERSION IF NOT NEEDED!
-		for (int i = 0; i < pixels.length; i++) {
-			int val = pixels[i];
-			int r = ColorTools.red(val);
-			int g = ColorTools.green(val);
-			int b = ColorTools.blue(val);
-			pixels[i] = ColorTools.packRGB(255 - r, 255 - g, 255 - b);
+		// If we have no channels, we might have no pixels
+		// But we allow that to happen because we may still have to invert
+		if (pixels == null)
+			pixels = new int[imgOutput.getWidth() * imgOutput.getHeight()];
+
+		// Apply inversion
+		if (mode.invertColors()) {
+			invertRGB(pixels);
 		}
 
 		imgOutput.getRaster().setDataElements(0, 0, imgOutput.getWidth(), imgOutput.getHeight(), pixels);
@@ -599,6 +664,17 @@ public class ImageDisplay extends AbstractImageRenderer {
 		//		long endTime = System.currentTimeMillis();
 		//		System.out.println("Time taken: " + (endTime - startTime)/1000.);
 		return imgOutput;
+	}
+	
+	
+	private static void invertRGB(int[] pixels) {
+		for (int i = 0; i < pixels.length; i++) {
+			int val = pixels[i];
+			int r = ColorTools.red(val);
+			int g = ColorTools.green(val);
+			int b = ColorTools.blue(val);
+			pixels[i] = ColorTools.packRGB(255 - r, 255 - g, 255 - b);
+		}
 	}
 
 
