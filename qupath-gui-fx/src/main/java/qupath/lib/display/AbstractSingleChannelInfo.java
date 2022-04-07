@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -22,8 +22,12 @@
 package qupath.lib.display;
 
 import java.awt.image.BufferedImage;
+import java.awt.image.ColorModel;
+import java.awt.image.IndexColorModel;
 import java.text.DecimalFormat;
 
+import qupath.lib.color.ColorToolsAwt;
+import qupath.lib.color.ColorTransformer;
 import qupath.lib.common.ColorTools;
 import qupath.lib.images.ImageData;
 
@@ -35,28 +39,41 @@ import qupath.lib.images.ImageData;
 abstract class AbstractSingleChannelInfo extends AbstractChannelInfo implements SingleChannelDisplayInfo {
 
 	protected static final DecimalFormat df = new DecimalFormat("#.##");
+	
+	protected static final IndexColorModel CM_GRAYSCALE = ColorToolsAwt.createIndexColorModel(255, 255, 255, false);
+	protected static final IndexColorModel CM_GRAYSCALE_INVERTED = ColorToolsAwt.createIndexColorModel(0, 0, 0, true);
 
 
 	AbstractSingleChannelInfo(final ImageData<BufferedImage> imageData) {
 		super(imageData);
 	}
-
+	
+	/**
+	 * Get a {@link ColorModel} to use with a specified {@link ChannelDisplayMode} when converting a value to RGB.
+	 * @param mode
+	 * @return
+	 */
+	protected abstract ColorModel getColorModel(ChannelDisplayMode mode);
+	
 	/**
 	 * Get a suitable RGB value for displaying a pixel with the specified value
 	 * 
 	 * @param value
-	 * @param useColorLUT 
+	 * @param mode 
 	 * @return
 	 */
-	public abstract int getRGB(float value, boolean useColorLUT);
+	public int getRGB(float value, ChannelDisplayMode mode) {
+		return ColorTransformer.makeScaledRGBwithRangeCheck(value, minDisplay, 255.f/(maxDisplay - minDisplay), getColorModel(mode));
+	}
+	
 
-	private void updateRGBAdditive(float[] values, int[] rgb, boolean useColorLUT) {
+	private void updateRGBAdditive(float[] values, int[] rgb, ChannelDisplayMode mode) {
 		int n = Math.min(values.length, rgb.length);
 		for (int i = 0; i < n; i++)
-			rgb[i] = updateRGBAdditive(values[i], rgb[i], useColorLUT);
+			rgb[i] = updateRGBAdditive(values[i], rgb[i], mode);
 	}
 
-	private int[] getRGB(float[] values, int[] rgb, boolean useColorLUT) {
+	private int[] getRGB(float[] values, int[] rgb, ChannelDisplayMode mode) {
 		int n = values.length;
 		if (rgb == null)
 			rgb = new int[values.length];
@@ -65,22 +82,22 @@ abstract class AbstractSingleChannelInfo extends AbstractChannelInfo implements 
 
 		//			long start = System.currentTimeMillis();
 		for (int i = 0; i < n; i++)
-			rgb[i] = getRGB(values[i], useColorLUT);
+			rgb[i] = getRGB(values[i], mode);
 		//			System.out.println("Time: " + (System.currentTimeMillis() - start));
 		return rgb;
 	}
 
 	@Override
-	public int getRGB(BufferedImage img, int x, int y, boolean useColorLUT) {
-		return getRGB(getValue(img, x, y), useColorLUT);
+	public int getRGB(BufferedImage img, int x, int y, ChannelDisplayMode mode) {
+		return getRGB(getValue(img, x, y), mode);
 	}
 
-	private int updateRGBAdditive(float value, int rgb, boolean useColorLUT) {
+	private int updateRGBAdditive(float value, int rgb, ChannelDisplayMode mode) {
 		// Don't do anything with an existing pixel if display range is 0, or it is lower than the min display
 		if (maxDisplay == minDisplay)// || value <= minDisplay)
 			return rgb;
 		// Just return the (scaled) RGB value for this pixel if we don't have to update anything
-		int rgbNew = getRGB(value, useColorLUT);
+		int rgbNew = getRGB(value, mode);
 		if (rgb == 0)
 			return rgbNew;
 		if (rgbNew == 0)
@@ -102,20 +119,20 @@ abstract class AbstractSingleChannelInfo extends AbstractChannelInfo implements 
 
 
 	@Override
-	public int[] getRGB(BufferedImage img, int[] rgb, boolean useColorLUT) {
+	public int[] getRGB(BufferedImage img, int[] rgb, ChannelDisplayMode mode) {
 		// TODO: Consider caching (but must be threadsafe)
 		float[] values = getValues(img, 0, 0, img.getWidth(), img.getHeight(), (float[])null);
-		int[] result = getRGB(values, rgb, useColorLUT);
+		int[] result = getRGB(values, rgb, mode);
 		return result;
 	}
 
 	@Override
-	public void updateRGBAdditive(BufferedImage img, int[] rgb, boolean useColorLUT) {
+	public void updateRGBAdditive(BufferedImage img, int[] rgb, ChannelDisplayMode mode) {
 		if (!isAdditive())
 			throw new UnsupportedOperationException(this + " does not support additive display");
 		// TODO: Consider caching (but must be threadsafe)
 		float[] values = getValues(img, 0, 0, img.getWidth(), img.getHeight(), (float[])null);
-		updateRGBAdditive(values, rgb, useColorLUT);
+		updateRGBAdditive(values, rgb, mode);
 	}
 
 

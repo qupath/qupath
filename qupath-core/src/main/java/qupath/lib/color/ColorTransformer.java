@@ -882,9 +882,9 @@ public class ColorTransformer {
 	
 	
 	// Color models
-	final private static IndexColorModel ICM_RED = ColorToolsAwt.createIndexColorModel(Color.RED);
-	final private static IndexColorModel ICM_GREEN = ColorToolsAwt.createIndexColorModel(Color.GREEN);
-	final private static IndexColorModel ICM_BLUE = ColorToolsAwt.createIndexColorModel(Color.BLUE);
+	final private static IndexColorModel ICM_RED = ColorToolsAwt.createIndexColorModel(255, 0, 0);
+	final private static IndexColorModel ICM_GREEN = ColorToolsAwt.createIndexColorModel(0, 255, 0);
+	final private static IndexColorModel ICM_BLUE = ColorToolsAwt.createIndexColorModel(0, 0, 255);
 	final private static IndexColorModel ICM_HUE = ColorToolsAwt.createHueColorModel();
 	final private static IndexColorModel ICM_HEMATOXYLIN;
 	final private static IndexColorModel ICM_EOSIN;
