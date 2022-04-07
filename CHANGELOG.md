@@ -29,12 +29,16 @@ This is a work-in-progress.
 * Duplicating images with some names can cause an exception (https://github.com/qupath/qupath/issues/942)
 * Removing >255 measurements throws error when reproducing from workflow script (https://github.com/qupath/qupath/issues/915)
 
+### Known issues
+* Bio-Formats 6.9.0 has problems with a subset of svs files, see https://github.com/ome/bioformats/issues/3757
+
 ### Dependency updates
 * Adoptium OpenJDK 17
+* Bio-Formats 6.9.0
 * JavaFX 17.0.2
-* Groovy 4.0.0
+* Groovy 4.0.1
 * Gson 2.9.0
-* Guava 31.0.1
+* Guava 31.1
 * JavaCPP 1.5.7
 * JFreeSVG 5.0.2
 * OpenCV 4.5.5
