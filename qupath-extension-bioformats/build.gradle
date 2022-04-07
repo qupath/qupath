@@ -7,7 +7,7 @@ ext.moduleName = 'qupath.extension.bioformats'
 archivesBaseName = 'qupath-extension-bioformats'
 description = "QuPath extension to support image reading and writing using Bio-Formats."
 
-def bioformatsVersion = "6.7.0"
+def bioformatsVersion = "6.9.0"
 def versionOverride = project.properties.getOrDefault('bioformats-version', null)
 if (versionOverride) {
 	println "Using specified Bio-Formats version ${versionOverride}"
