@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -55,6 +55,7 @@ import ij.gui.ShapeRoi;
 import ij.gui.Wand;
 import ij.io.FileInfo;
 import ij.measure.Calibration;
+import ij.plugin.CompositeConverter;
 import ij.plugin.frame.RoiManager;
 import ij.process.Blitter;
 import ij.process.ByteProcessor;
@@ -866,7 +867,7 @@ public class IJTools {
 		// Set colors
 		SampleModel sampleModel = img.getSampleModel();
 		if (!server.isRGB() && sampleModel.getNumBands() > 1) {
-			CompositeImage impComp = new CompositeImage(imp, CompositeImage.COMPOSITE);
+			CompositeImage impComp = imp.isRGB() ? (CompositeImage)CompositeConverter.makeComposite(imp) : new CompositeImage(imp, CompositeImage.COMPOSITE);
 			for (int b = 0; b < sampleModel.getNumBands(); b++) {
 				impComp.setChannelLut(
 						LUT.createLutFromColor(

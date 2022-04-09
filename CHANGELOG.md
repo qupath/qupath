@@ -20,6 +20,7 @@ This is a work-in-progress.
   * Built-in ImageJ plugin to send RoiManager ROIs to QuPath (not only overlays)
   * Retain ROI position information when sending ROIs from ImageJ (hyper)stacks
 * Updated prompt to set the image type
+* Avoid converting the pixel type to 32-bit unnecessarily when sending image regions to ImageJ
 
 ### Bugs fixed
 * Reading from Bio-Formats blocks forever when using multiple series outside a project (https://github.com/qupath/qupath/issues/894)

@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -33,6 +33,7 @@ import java.awt.image.BufferedImage;
 
 import javax.swing.SwingUtilities;
 
+import qupath.lib.awt.common.BufferedImageTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.viewer.QuPathViewer;
@@ -74,6 +75,9 @@ class ScreenshotCommand implements Runnable {
 		String name = "QuPath screenshot";
 		if (viewer.getServer() != null)
 			name = WindowManager.getUniqueName("Screenshot - " + ServerTools.getDisplayableImageName(viewer.getServer()));
+		
+		// Ensure we have a 'normal' RGB image, since otherwise ImageJ can handle the alpha channel in an unexpected way
+		img = BufferedImageTools.ensureBufferedImageType(img, BufferedImage.TYPE_INT_RGB);
 		ImagePlus imp = new ImagePlus(name, img);
 		double pixelWidth = getDisplayedPixelWidthMicrons(viewer);
 		double pixelHeight = getDisplayedPixelHeightMicrons(viewer);
