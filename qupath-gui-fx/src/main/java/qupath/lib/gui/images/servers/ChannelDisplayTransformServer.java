@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -41,6 +41,7 @@ import qupath.lib.color.ColorModelFactory;
 import qupath.lib.common.ColorTools;
 import qupath.lib.display.ChannelDisplayInfo;
 import qupath.lib.display.ChannelDisplayMode;
+import qupath.lib.display.DirectServerChannelInfo;
 import qupath.lib.display.SingleChannelDisplayInfo;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
@@ -90,10 +91,26 @@ public class ChannelDisplayTransformServer extends TransformingImageServer<Buffe
 	private ChannelDisplayTransformServer(ImageServer<BufferedImage> server, List<ChannelDisplayInfo> channels) {
 		super(server);
 		this.channels = channels;
-				
-		this.metadata = new ImageServerMetadata.Builder(server.getMetadata())
-				.channels(channels.stream().map(c -> ImageChannel.getInstance(c.getName(), c.getColor())).collect(Collectors.toList()))
-				.build();
+		if (channels.size() == 1 && !(channels.get(0) instanceof SingleChannelDisplayInfo)) {
+			this.metadata = new ImageServerMetadata.Builder(server.getMetadata())
+					.channels(ImageChannel.getDefaultRGBChannels())
+					.rgb(true)
+					.pixelType(PixelType.UINT8)
+					.build();			
+		} else {
+			var pixelType = server.getPixelType();
+			for (var c : channels) {
+				if (!(c instanceof DirectServerChannelInfo)) {
+					pixelType = PixelType.FLOAT32;
+					break;
+				}
+			}
+			this.metadata = new ImageServerMetadata.Builder(server.getMetadata())
+					.channels(channels.stream().map(c -> ImageChannel.getInstance(c.getName(), c.getColor())).collect(Collectors.toList()))
+					.rgb(false) // Never RGB (because we convert to 32-bit anyway)
+					.pixelType(pixelType)
+					.build();
+		}
 	}
 	
 	@Override
@@ -116,16 +133,37 @@ public class ChannelDisplayTransformServer extends TransformingImageServer<Buffe
 		for (ChannelDisplayInfo channel : channels) {
 			if (channel instanceof SingleChannelDisplayInfo) {
 				if (raster == null) {
-					SampleModel model = new BandedSampleModel(DataBuffer.TYPE_FLOAT, width, height, nChannels());
+					int dataType;
+					switch (getPixelType()) {
+					case FLOAT32:
+						dataType = DataBuffer.TYPE_FLOAT;
+						break;
+					case FLOAT64:
+						dataType = DataBuffer.TYPE_DOUBLE;
+						break;
+					case INT16:
+						dataType = DataBuffer.TYPE_SHORT;
+						break;
+					case INT32:
+						dataType = DataBuffer.TYPE_INT;
+						break;
+					case UINT16:
+						dataType = DataBuffer.TYPE_USHORT;
+						break;
+					case UINT8:
+						dataType = DataBuffer.TYPE_BYTE;
+						break;
+					case INT8:
+					case UINT32:
+					default:
+						throw new IllegalArgumentException("Unsupported pixel type " + getPixelType());
+					}
+					SampleModel model = new BandedSampleModel(dataType, width, height, nChannels());
 					raster = Raster.createWritableRaster(model, null);
 				}
-				if (raster.getTransferType() == DataBuffer.TYPE_FLOAT) {
-					pxFloat = ((SingleChannelDisplayInfo)channel).getValues(img, 0, 0, width, height, pxFloat);
-					raster.setSamples(0, 0, width, height, b, pxFloat);
-					b++;
-				} else {
-					logger.error("Unable to apply color transform " + channel.getName() + " - incompatible with previously-applied transforms");
-				}
+				pxFloat = ((SingleChannelDisplayInfo)channel).getValues(img, 0, 0, width, height, pxFloat);
+				raster.setSamples(0, 0, width, height, b, pxFloat);
+				b++;
 			} else if (channels.size() == 1) {
 				int[] rgb = channel.getRGB(img, null, ChannelDisplayMode.COLOR);
 				img.setRGB(0, 0, width, height, rgb, 0, width);
