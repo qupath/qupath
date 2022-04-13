@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -29,6 +29,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.image.BufferedImage;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Random;
 import java.util.stream.IntStream;
@@ -629,6 +630,27 @@ public class TestOpenCVTools {
 		long endTime = System.currentTimeMillis();
 		logger.debug("Traced {} contours for {} in {} ms with 8-connectivity", objects8.size(), path.getFileName().toString(), endTime - middleTime);
 
+	}
+	
+	
+	@Test
+	void testMerge() {
+		int[] nChannels = {1, 2, opencv_core.CV_CN_MAX, opencv_core.CV_CN_MAX+1};
+		for (int n : nChannels) {
+			try (var scope = new PointerScope()) {
+				var channels = new ArrayList<Mat>();
+				for (int i = 0; i < n; i++) {
+					channels.add(OpenCVTools.scalarMat(i, opencv_core.CV_32F));
+				}
+				if (n > opencv_core.CV_CN_MAX) {
+					assertThrows(IllegalArgumentException.class, () -> OpenCVTools.mergeChannels(channels, null));
+					continue;
+				} else {
+					var merged = OpenCVTools.mergeChannels(channels, null);
+					assertEquals(n, merged.channels());
+				}
+			}
+		}
 	}
 	
 
