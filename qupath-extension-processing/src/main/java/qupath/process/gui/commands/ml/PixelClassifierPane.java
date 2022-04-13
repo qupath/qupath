@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -126,6 +126,7 @@ import qupath.opencv.ml.OpenCVClassifiers.RTreesClassifier;
 import qupath.opencv.ml.pixel.PixelClassifiers;
 import qupath.opencv.ops.ImageOp;
 import qupath.opencv.ops.ImageOps;
+import qupath.process.gui.commands.ml.ImageDataTransformerBuilder.DefaultFeatureCalculatorBuilder;
 import qupath.process.gui.commands.ml.PixelClassifierTraining.ClassifierTrainingData;
 
 /**
@@ -716,7 +717,22 @@ public class PixelClassifierPane {
 	private void updateFeatureCalculator() {
 		var cal = getSelectedResolution();
 		var imageData = qupath.getImageData();
-		helper.setFeatureOp(selectedFeatureCalculatorBuilder.get().build(imageData, cal));
+		
+		// Check we can support the requested channels before proceeding
+		// This is a bit of a hack for the DefaultFeatureCalculatorBuilder because we know it will fail with too many channels 
+		// on a call to OpenCVTools.mergeChannels - and we'd rather show a notification instead of just logging the error
+		var featureOpBuilder = selectedFeatureCalculatorBuilder.get();
+		var featureOp = featureOpBuilder.build(imageData, cal);
+		if (featureOpBuilder instanceof DefaultFeatureCalculatorBuilder) {
+			int nFeatures = featureOp.getChannels(imageData).size();
+			if (nFeatures > opencv_core.CV_CN_MAX) {
+				Dialogs.showErrorNotification("Pixel classifier", "Too many features! Requested " + featureOp.getChannels(imageData).size() + " but maximum is " + opencv_core.CV_CN_MAX + 
+						".\nFeatures will not be updated - please select a smaller number and continue training.");
+//				comboDisplayFeatures.getItems().setAll(DEFAULT_CLASSIFICATION_OVERLAY);
+				return;		
+			}
+		}
+		helper.setFeatureOp(featureOp);
 		var featureServer = helper.getFeatureServer(imageData);
 		if (featureServer == null) {
 			comboDisplayFeatures.getItems().setAll(DEFAULT_CLASSIFICATION_OVERLAY);
