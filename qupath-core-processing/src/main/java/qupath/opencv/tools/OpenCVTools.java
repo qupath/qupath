@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -370,9 +370,10 @@ public class OpenCVTools {
 	 * @param channels separate channels
 	 * @param dest optional destination (may be null)
 	 * @return merged {@link Mat}, which will be the same as dest if provided
+	 * @throws IllegalArgumentException if the number of channels in the output would be greater than {@link opencv_core#CV_CN_MAX}
 	 */
 	@SuppressWarnings("unchecked")
-	public static Mat mergeChannels(Collection<? extends Mat> channels, Mat dest) {
+	public static Mat mergeChannels(Collection<? extends Mat> channels, Mat dest) throws IllegalArgumentException {
 		if (dest == null)
 			dest = new Mat();
 				
@@ -400,6 +401,9 @@ public class OpenCVTools {
 
 		// We can only use OpenCV's merge if all Mats are single-channel
 		boolean mixChannels = !allSingleChannel;		
+		if (nChannels > opencv_core.CV_CN_MAX)
+			throw new IllegalArgumentException("Can't merge more than " + opencv_core.CV_CN_MAX + " channels (you requested " + nChannels + ")");
+		
 		try (var scope = new PointerScope()) {
 			if (mixChannels) {
 				dest.create(rows, cols, opencv_core.CV_MAKETYPE(depth, nChannels));

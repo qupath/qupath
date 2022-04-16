@@ -1,8 +1,8 @@
 plugins {
     id 'qupath.java-conventions'
-    id 'org.bytedeco.gradle-javacpp-platform'
     id 'jacoco'
     id 'io.github.qupath.platform'
+    id 'org.bytedeco.gradle-javacpp-platform'
 }
 
 repositories {
@@ -13,7 +13,7 @@ repositories {
         name 'ImageJ'
         url 'https://maven.imagej.net/content/groups/public' 
     }
-
+    
     // Required for Bio-Formats
     maven {
         name 'Unidata'
@@ -52,14 +52,11 @@ def useCuda = useCudaRedist || project.hasProperty('cuda')
  * Handle OS-specific decisions
  */
 String platform = properties['platform.shortName']
-String jfxPlatform = platform
 if (properties['platform.name'] == null)
     logger.warn('Unknown operating system!')
 if ("32".equals(System.getProperty("sun.arch.data.model"))) {
     logger.warn("You appear to be using a 32-bit JDK - it is very possible some things won't work!")
     logger.warn("You may at least need to replace the OpenSlide dlls with 32-bit versions from https://openslide.org/download/")
-    if (platform == 'win')
-	    jfxPlatform = platform + "-x86"
 }
 
 // Check if we are running using Apple Silicon
@@ -74,9 +71,6 @@ I will try to build anyway, but note that:
 - Parts of the software relying on native libraries are unlikely to work (including OpenSlide)
 If you want to avoid these messages, please use a JDK for x86_64.
 	""".trim())
-	jfxPlatform = "mac-aarch64"
-} else if (platform == 'linux' && osArch == 'aarch64') {
-	jfxPlatform = platform + '-aarch64'
 }
 
 
@@ -86,100 +80,22 @@ If you want to avoid these messages, please use a JDK for x86_64.
 project.file('src/main/resources/VERSION').setText(gradle.ext.qupathVersion, 'UTF-8')
 
 
-/*
- * JavaFX version
- */
-def jfxVersion = '17.0.2'
-def jfxModules = ['javafx.base', 'javafx.controls', 'javafx.graphics', 'javafx.media', 'javafx.web', 'javafx.swing']
-
-ext {
-    // Dependency versions
-    commonsMathVersion = '3.6.1'
-    commonsTextVersion = '1.9'
-    controlsfxVersion  = '11.1.1'
-    groovyVersion      = '4.0.0'
-    gsonVersion        = '2.9.0'
-    guavaVersion       = '31.0.1-jre'
-    imagejVersion      = '1.53i'
-    jfxtrasVersion     = '11-r2'
-    jtsVersion         = '1.18.2'
-    picocliVersion     = '4.6.3'
-    
-    // Note, if OpenCV is a SNAPSHOT version then it must already be installed locally (with Maven)
-	javacppVersion     = '1.5.7'
-    opencvVersion      = "4.5.5-${javacppVersion}"
-
-	// Optional, not used by default
-	cudaVersion        = "11.6-8.3-${javacppVersion}"
-
-    // Additional versions
-    logbackVersion     = '1.2.10'
-    slf4jVersion       = '1.7.36'
-    junitVersion       = '5.8.2'
-}
-
 configurations {
-    jts
-    groovy
-    commonsmath
-    commonstext
-    gson
-    controlsfx
-    jfxtras
     opencv
-    imagej
-    javafx
     guava
-    picocli
-    logback
-
-    // Testing
-    junit
 }
 
 dependencies {
 
-    jts "org.locationtech.jts:jts-core:${jtsVersion}"
-    // Optionally add GeoJSON support (brings in json-simple as sub-dependency)
-    // However, the use of simple-json is troublesome since it brings in an old version of junit
-//   jts "org.locationtech.jts.io:jts-io-common:${jtsVersion}"
-
-    groovy "org.apache.groovy:groovy:${groovyVersion}"
-    groovy "org.apache.groovy:groovy-jsr223:${groovyVersion}"
-    groovy "org.apache.groovy:groovy-xml:${groovyVersion}"
-
-    for (fx in jfxModules.collect{it.replace('.', '-')}) {
-        javafx "org.openjfx:${fx}:${jfxVersion}"
-        javafx "org.openjfx:${fx}:${jfxVersion}:${jfxPlatform}"
-    }
-
-    commonsmath "org.apache.commons:commons-math3:${commonsMathVersion}"
-
-    commonstext "org.apache.commons:commons-text:${commonsTextVersion}"
-
-    gson "com.google.code.gson:gson:${gsonVersion}"
-
-    controlsfx "org.controlsfx:controlsfx:${controlsfxVersion}",  {
-        // ControlsFX 11.0.1 uses a linux classifier to bring in more JavaFX than it may need
-        exclude group: 'org.openjfx'
-    }
-
-    jfxtras "org.jfxtras:jfxtras-menu:${jfxtrasVersion}", {
-        exclude group: 'org.jfxtras', module: 'jfxtras-test-support'
-    }
-
-    if (useCuda) {
-        opencv "org.bytedeco:opencv-platform-gpu:${opencvVersion}"
-        opencv "org.bytedeco:cuda-platform:${cudaVersion}"
-        if (useCudaRedist) {
-	        opencv "org.bytedeco:cuda-platform-redist:${cudaVersion}"
-	    }
+    if (useCudaRedist) {
+        opencv libs.bundles.opencv.cuda
+    } else if (useCuda) {
+        opencv libs.bundles.opencv.gpu
     } else
-        opencv "org.bytedeco:opencv-platform:${opencvVersion}"
+        opencv libs.bundles.opencv
 
-    imagej "net.imagej:ij:${imagejVersion}"
-    
-    guava "com.google.guava:guava:${guavaVersion}", {
+
+    guava libs.guava, {
         exclude group: 'com.google.code.findbugs'
         exclude group: 'org.codehaus.mojo', module: 'animal-sniffer-annotations'
         exclude group: 'com.google.errorprone', module: 'error_prone_annotations'
@@ -187,25 +103,15 @@ dependencies {
         exclude group: 'org.checkerframework', module: 'checker-qual'
     }
 
-    picocli "info.picocli:picocli:${picocliVersion}"
-
-    junit "org.junit.jupiter:junit-jupiter:${junitVersion}"
-//    junit "org.junit.jupiter:junit-jupiter-engine:${junitVersion}"
-
-    logback "ch.qos.logback:logback-classic:${logbackVersion}"
-    logback "org.slf4j:slf4j-api:${slf4jVersion}"
-
 }
 
-
-configurations {
-    implementation.extendsFrom logback
-    testImplementation.extendsFrom junit
-}
 
 dependencies {
-    testImplementation "org.junit.jupiter:junit-jupiter-api:${junitVersion}"
-    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine'
+    testImplementation libs.junit
+    testImplementation libs.junit.api
+    testRuntimeOnly    libs.junit.engine
+    
+    implementation libs.bundles.logging
 }
 
 tasks.named('test') {

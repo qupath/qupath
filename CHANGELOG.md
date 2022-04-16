@@ -3,6 +3,10 @@
 This is a work-in-progress.
 
 ### Enhancements
+
+* Improved measurement tables
+  * Include thumbnail images for each object (can be turned off with 'Include image column in measurement tables' preference)
+  * Center viewer on an object by selecting it & pressing the 'spacebar'
 * Many script editor improvements, including:
   * Added 'Replace/Next' and 'Replace all' features to Find window (https://github.com/qupath/qupath/pull/898)
   * New lines now trigger caret following (https://github.com/qupath/qupath/pull/900)
@@ -11,25 +15,36 @@ This is a work-in-progress.
     * Brace block handling (https://github.com/qupath/qupath/pull/901)
     * Smart parentheses and (double/single) quotes (https://github.com/qupath/qupath/pull/907)
     * Comment block handling (https://github.com/qupath/qupath/pull/908)
+* Improved Brightness/Contrast options, including
+  * Switch between dark and light backgrounds (still experimental)
+  * More consistent behavior with 'Show grayscale' option
 * Improved support for switching between QuPath objects and ImageJ ROIs
   * New 'Extensions -> ImageJ -> Import ImageJ ROIs' command
   * Import .roi and RoiSet.zip files by drag & drop
   * Built-in ImageJ plugin to send RoiManager ROIs to QuPath (not only overlays)
   * Retain ROI position information when sending ROIs from ImageJ (hyper)stacks
 * Updated prompt to set the image type
+* Avoid converting the pixel type to 32-bit unnecessarily when sending image regions to ImageJ
+* Warn if trying to train a pixel classifier with too many features (https://github.com/qupath/qupath/issues/947)
 
 ### Bugs fixed
 * Reading from Bio-Formats blocks forever when using multiple series outside a project (https://github.com/qupath/qupath/issues/894)
 * 'Ignore case' in the Find window of the Script editor does not ignore case (https://github.com/qupath/qupath/issues/889)
 * Owner of Find window in the script editor is lost when the script editor window is closed (https://github.com/qupath/qupath/issues/893)
 * 'Zoom to fit' doesn't handle changes in window size
+* Duplicating images with some names can cause an exception (https://github.com/qupath/qupath/issues/942)
+* Removing >255 measurements throws error when reproducing from workflow script (https://github.com/qupath/qupath/issues/915)
+
+### Known issues
+* Bio-Formats 6.9.0 has problems with a subset of svs files, see https://github.com/ome/bioformats/issues/3757
 
 ### Dependency updates
 * Adoptium OpenJDK 17
+* Bio-Formats 6.9.0
 * JavaFX 17.0.2
-* Groovy 4.0.0
+* Groovy 4.0.1
 * Gson 2.9.0
-* Guava 31.0.1
+* Guava 31.1
 * JavaCPP 1.5.7
 * JFreeSVG 5.0.2
 * OpenCV 4.5.5

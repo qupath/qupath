@@ -53,6 +53,7 @@ import javafx.collections.FXCollections;
 import javafx.collections.transformation.FilteredList;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.chart.NumberAxis;
 import javafx.scene.control.Button;
@@ -88,6 +89,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Text;
+import javafx.scene.text.TextAlignment;
 import javafx.stage.Stage;
 import javafx.util.Callback;
 import qupath.lib.analysis.stats.Histogram;
@@ -150,7 +152,8 @@ public class BrightnessContrastCommand implements Runnable, ChangeListener<Image
 	
 	private Tooltip chartTooltip = new Tooltip(); // Basic stats go here now
 	private ContextMenu popup;
-	private BooleanProperty showGrayscale = new SimpleBooleanProperty();
+	private BooleanProperty showGrayscale = new SimpleBooleanProperty(false);
+	private BooleanProperty invertBackground = new SimpleBooleanProperty(false);
 	
 	private BrightnessContrastKeyListener keyListener = new BrightnessContrastKeyListener();
 	
@@ -178,14 +181,14 @@ public class BrightnessContrastCommand implements Runnable, ChangeListener<Image
 	}
 	
 	
-	protected void initializeSliders() {
+	private void initializeSliders() {
 		sliderMin = new Slider(0, 255, 0);
 		sliderMax = new Slider(0, 255, 255);
 		sliderMin.valueProperty().addListener((v, o, n) -> handleSliderChange());
 		sliderMax.valueProperty().addListener((v, o, n) -> handleSliderChange());
 	}
 	
-	protected Stage createDialog() {
+	private Stage createDialog() {
 		if (!isInitialized())
 			initializeSliders();
 		
@@ -509,12 +512,28 @@ public class BrightnessContrastCommand implements Runnable, ChangeListener<Image
 			Platform.runLater(() -> viewer.repaintEntireImage());
 			table.refresh();
 		});
+		
+		CheckBox cbInvertBackground = new CheckBox("Invert background");
+		cbInvertBackground.selectedProperty().bindBidirectional(invertBackground);
+		cbInvertBackground.setTooltip(new Tooltip("Invert the background for display (i.e. switch between white and black).\n"
+				+ "Use cautiously to avoid becoming confused about how the 'original' image looks (e.g. brightfield or fluorescence)."));
+		if (imageDisplay != null)
+			cbInvertBackground.setSelected(imageDisplay.useInvertedBackground());
+		invertBackground.addListener(o -> {
+			if (imageDisplay == null)
+				return;
+			Platform.runLater(() -> viewer.repaintEntireImage());
+			table.refresh();
+		});
+		
 		CheckBox cbKeepDisplaySettings = new CheckBox("Keep settings");
 		cbKeepDisplaySettings.selectedProperty().bindBidirectional(PathPrefs.keepDisplaySettingsProperty());
 		cbKeepDisplaySettings.setTooltip(new Tooltip("Retain same display settings where possible when opening similar images"));
 		
 		FlowPane paneCheck = new FlowPane();
+		paneCheck.setVgap(5);
 		paneCheck.getChildren().add(cbShowGrayscale);
+		paneCheck.getChildren().add(cbInvertBackground);
 		paneCheck.getChildren().add(cbKeepDisplaySettings);
 		paneCheck.setHgap(10);
 		paneCheck.setPadding(new Insets(5, 0, 0, 0));
@@ -544,11 +563,21 @@ public class BrightnessContrastCommand implements Runnable, ChangeListener<Image
 //		histogramPanel.getChart().setPrefSize(200, 200);
 //		histogramPanel.setPreferredSize(new Dimension(200, 120));
 		
+		var labelWarning = new Label("Inverted background - interpret colors cautiously!");
+		labelWarning.setTooltip(new Tooltip("Inverting the background uses processing trickery that reduces the visual information in the image.\n"
+				+ "Be careful about interpreting colors, especially for images with multiple channels"));
+		labelWarning.setStyle("-fx-text-fill: red;");
+		labelWarning.setAlignment(Pos.CENTER);
+		labelWarning.setTextAlignment(TextAlignment.CENTER);
+		labelWarning.visibleProperty().bind(cbInvertBackground.selectedProperty().and(cbShowGrayscale.selectedProperty().not()));
+		labelWarning.setMaxWidth(Double.MAX_VALUE);
+		panelMinMax.setBottom(labelWarning);
 
 		pane.setBottom(panelMinMax);
 		pane.setPadding(new Insets(10, 10, 10, 10));
 		
-		Scene scene = new Scene(pane, 350, 500);
+		Scene scene = new Scene(pane, 350, 580);
+		scene.addEventHandler(KeyEvent.KEY_TYPED, keyListener);
 		dialog.setScene(scene);
 		dialog.setMinWidth(300);
 		dialog.setMinHeight(400);
@@ -862,6 +891,7 @@ public class BrightnessContrastCommand implements Runnable, ChangeListener<Image
 		} else {
 			table.setItems(imageDisplay.availableChannels().filtered(predicate.get()));
 			showGrayscale.bindBidirectional(imageDisplay.useGrayscaleLutProperty());
+			invertBackground.bindBidirectional(imageDisplay.useInvertedBackgroundProperty());
 		}
 		table.refresh();
 		
@@ -894,6 +924,9 @@ public class BrightnessContrastCommand implements Runnable, ChangeListener<Image
 		if (imageDisplay != null) {
 			showGrayscale.unbindBidirectional(imageDisplay.useGrayscaleLutProperty());
 			imageDisplay.useGrayscaleLutProperty().unbindBidirectional(showGrayscale);
+			
+			invertBackground.unbindBidirectional(imageDisplay.useInvertedBackgroundProperty());
+			imageDisplay.useInvertedBackgroundProperty().unbindBidirectional(invertBackground);
 		}
 		
 		imageDisplay = viewer == null ? null : viewer.getImageDisplay();
@@ -953,8 +986,11 @@ public class BrightnessContrastCommand implements Runnable, ChangeListener<Image
 			if (character != null && character.length() > 0) {
 				int c = (int)event.getCharacter().charAt(0) - '0';
 				if (c >= 1 && c <= Math.min(9, imageDisplay.availableChannels().size())) {
-					if (table != null)
-						table.getSelectionModel().select(c-1);
+					if (table != null) {
+						table.getSelectionModel().clearAndSelect(c-1);
+//						table.scrollTo(c-1);
+//						table.getSelectionModel().select(c-1);
+					}
 					toggleDisplay(imageDisplay.availableChannels().get(c-1));
 					event.consume();
 				}

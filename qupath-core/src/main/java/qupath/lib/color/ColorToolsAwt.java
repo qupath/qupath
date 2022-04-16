@@ -121,16 +121,15 @@ public class ColorToolsAwt {
 	 * <p>
 	 * Based on the getLUTFromColorModel ImageJ function (ij.process.LUT)
 	 * 
-	 * @param color
+	 * @param red
+	 * @param green
+	 * @param blue
 	 * @return
 	 */
-	static IndexColorModel createIndexColorModel(Color color) {
+	static IndexColorModel createIndexColorModel(int red, int green, int blue) {
 		byte[] rLut = new byte[256];
 		byte[] gLut = new byte[256];
 		byte[] bLut = new byte[256];
-		int red = color.getRed();
-		int green = color.getGreen();
-		int blue = color.getBlue();
 		double rIncr = ((double)red)/255d;
 		double gIncr = ((double)green)/255d;
 		double bIncr = ((double)blue)/255d;
@@ -143,23 +142,44 @@ public class ColorToolsAwt {
 	}
 
 
-
-	static IndexColorModel getIndexColorModel(final StainVector stain, boolean whiteBackground) {
+	/**
+	 * Get an {@link IndexColorModel} representing a color deconvolution stain.
+	 * The color is just an approximation for visualization purposes, it does not perfectly match the stain itself.
+	 * @param stain the stain to use
+	 * @param whiteBackground if true, the color model will have a white background; if false, it will have a black background
+	 * @return
+	 */
+	public static IndexColorModel getIndexColorModel(final StainVector stain, boolean whiteBackground) {
+		var c = stain.getColor();
+		return createIndexColorModel(
+				ColorTools.red(c), ColorTools.green(c), ColorTools.blue(c), whiteBackground);
+	}
+	
+	/**
+	 * Get an {@link IndexColorModel} representing a linear LUT based on a RGB color.
+	 * @param red the red value of the color for the maximum value
+	 * @param green the green value of the color for the maximum value
+	 * @param blue the blue value of the color for the maximum value
+	 * @param whiteBackground if true, the color model will have a white background; if false, it will have a black background
+	 * @return
+	 */	
+	public static IndexColorModel createIndexColorModel(int red, int green, int blue, boolean whiteBackground) {
 		if (!whiteBackground)
-			return createIndexColorModel(new Color(stain.getColor()));
-		double r = stain.getRed();
-		double g = stain.getGreen();
-		double b = stain.getBlue();
+			return createIndexColorModel(red, green, blue);
+		
+		// Invert the colors
+		red = 255 - red;
+		green = 255 - green;
+		blue = 255 - blue;
+		
+		// Invert again while creating the LUT
 		byte[] r2 = new byte[256];
 		byte[] g2 = new byte[256];
 		byte[] b2 = new byte[256];
 		for (int i = 0; i < 256; i++) {
-			r2[i] = (byte)ColorTools.clip255(255.0 - r * i);
-			g2[i] = (byte)ColorTools.clip255(255.0 - g * i);
-			b2[i] = (byte)ColorTools.clip255(255.0 - b * i);
-			//		r2[i] = (byte)clip255(Math.exp(-r) * (255 - i));
-			//		g2[i] = (byte)clip255(Math.exp(-g) * (255 - i));
-			//		b2[i] = (byte)clip255(Math.exp(-b) * (255 - i));
+			r2[i] = (byte)ColorTools.clip255(255.0 - red / 255.0 * i);
+			g2[i] = (byte)ColorTools.clip255(255.0 - green / 255.0 * i);
+			b2[i] = (byte)ColorTools.clip255(255.0 - blue / 255.0 * i);
 		}
 		return new IndexColorModel(8, 256, r2, g2, b2);		
 	}

@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -23,6 +23,8 @@ package qupath.lib.display;
 
 import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
+import java.awt.image.IndexColorModel;
+import java.util.Objects;
 
 import qupath.lib.color.ColorDeconvolutionHelper;
 import qupath.lib.color.ColorDeconvolutionStains;
@@ -37,6 +39,7 @@ class RBGColorDeconvolutionInfo extends AbstractSingleChannelInfo {
 	private transient int stainNumber;
 	private transient ColorDeconvolutionStains stains;
 	private transient ColorModel colorModel = null;
+	private transient ColorModel colorModelInverted = null;
 	private transient Integer color;
 
 	private ColorTransformMethod method;
@@ -65,14 +68,34 @@ class RBGColorDeconvolutionInfo extends AbstractSingleChannelInfo {
 	final void ensureStainsUpdated() {
 		ImageData<BufferedImage> imageData = getImageData();
 		stains = imageData == null ? null : imageData.getColorDeconvolutionStains();
+		Integer newColor = null;
+		boolean createColorModel = false;
 		if (stainNumber < 0) {
-			color = ColorTools.packRGB(255, 255, 255);
-			colorModel = ColorTransformer.getDefaultColorModel(method);
+			newColor = ColorTools.packRGB(255, 255, 255);
+			if (!Objects.equals(newColor, color)) {
+				colorModel = ColorTransformer.getDefaultColorModel(method);
+				createColorModel = true;
+			}
 		} else if (stains != null) {
-			color = stains.getStain(stainNumber).getColor();
-			colorModel = ColorToolsAwt.getIndexColorModel(stains.getStain(stainNumber));
+			newColor = stains.getStain(stainNumber).getColor();
+			if (!Objects.equals(newColor, color)) {
+				colorModel = ColorToolsAwt.getIndexColorModel(stains.getStain(stainNumber), true);				
+				createColorModel = true;
+			}
+		}
+		color = newColor;
+		if (createColorModel && colorModel instanceof IndexColorModel) {
+			var s = stains.getStain(stainNumber);
+			int c = s.getColor();
+			colorModelInverted = ColorToolsAwt.createIndexColorModel(
+					255 - ColorTools.red(c),
+					255 - ColorTools.green(c),
+					255 - ColorTools.blue(c),
+					true);
 		}
 	}
+	
+	
 
 	@Override
 	public float getValue(BufferedImage img, int x, int y) {
@@ -108,13 +131,21 @@ class RBGColorDeconvolutionInfo extends AbstractSingleChannelInfo {
 	}
 
 	@Override
-	public int getRGB(float value, boolean useColorLUT) {
-		return ColorTransformer.makeScaledRGBwithRangeCheck(value, minDisplay, 255.f/(maxDisplay - minDisplay), useColorLUT ? colorModel : null);
-		//		transformer.transformImage(buf, bufOutput, method, offset, scale, useColorLUT);
-		// TODO Auto-generated method stub
-		//		return 0;
+	protected ColorModel getColorModel(ChannelDisplayMode mode) {
+		switch (mode) {
+		// Default visualization for deconvolved is with a white background
+		case GRAYSCALE:
+		case INVERTED_GRAYSCALE:
+			return CM_GRAYSCALE_INVERTED;
+		case INVERTED_COLOR:
+			return colorModelInverted;
+		case COLOR:
+		default:
+			return colorModel;
+		}
 	}
-
+	
+	
 	@Override
 	public String getName() {
 		ensureStainsUpdated();
@@ -150,11 +181,5 @@ class RBGColorDeconvolutionInfo extends AbstractSingleChannelInfo {
 	public boolean isMutable() {
 		return true;
 	}
-
-
-	//		@Override
-	//		public boolean isInteger() {
-	//			return false;
-	//		}
 
 }

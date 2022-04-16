@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -135,9 +135,9 @@ abstract class AbstractChannelInfo implements ModifiableChannelDisplayInfo {
 	}
 
 	@Override
-	public int updateRGBAdditive(BufferedImage img, int x, int y, int rgb, boolean useColorLUT) {
+	public int updateRGBAdditive(BufferedImage img, int x, int y, int rgb, ChannelDisplayMode mode) {
 		// Just return the (scaled) RGB value for this pixel if we don't have to update anything
-		int rgbNew = getRGB(img, x, y, useColorLUT);
+		int rgbNew = getRGB(img, x, y, mode);
 		if (rgb == 0)
 			return rgbNew;
 

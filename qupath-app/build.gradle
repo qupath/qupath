@@ -18,7 +18,7 @@ buildscript {
   }
 
   dependencies {
-    classpath "org.beryx:badass-runtime-plugin:1.12.7"
+//    classpath "org.beryx:badass-runtime-plugin:1.12.7"
 //    classpath 'com.github.jk1:dependency-license-report:2.0'
   }
 }
@@ -26,9 +26,9 @@ buildscript {
 plugins {
   id 'qupath.common-conventions'
   id 'application'
-  id 'org.beryx.runtime' version '1.12.7'
 //    id 'org.beryx.jlink' version '2.24.0'  // Can use this when QuPath is modular...
-  id 'com.github.jk1.dependency-license-report' version '2.0'
+  alias(libs.plugins.license.report)
+  alias(libs.plugins.jpackage)
 }
 
 
@@ -114,16 +114,13 @@ startScripts {
 }
 
 
-configurations {
-  implementation.extendsFrom picocli
-}
-
 // Determine which projects to include/exclude as dependencies
 def excludedProjects = [project.name]
 def includedProjects = rootProject.subprojects.findAll {!excludedProjects.contains(it.name)}
 
 dependencies {
   implementation includedProjects
+  implementation libs.picocli
 }
 
 /**

@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -30,6 +30,8 @@ import ij.ImagePlus;
 import ij.gui.Overlay;
 import ij.gui.Roi;
 import ij.macro.Interpreter;
+import ij.process.LUT;
+
 import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
@@ -157,7 +159,8 @@ class ExtractRegionCommand implements Runnable {
 			downsample = resolution / (server.getPixelCalibration().getPixelHeight().doubleValue()/2.0 + server.getPixelCalibration().getPixelWidth().doubleValue()/2.0);
 		
 		// Color transforms are (currently) only applied for brightfield images - for fluorescence we always provide everything as unchanged as possible
-		List<ChannelDisplayInfo> selectedChannels = new ArrayList<>(viewer.getImageDisplay().selectedChannels());
+		var imageDisplay = viewer.getImageDisplay();
+		List<ChannelDisplayInfo> selectedChannels = new ArrayList<>(imageDisplay.selectedChannels());
 		List<ChannelDisplayInfo> channels = doTransforms && !selectedChannels.isEmpty() ? selectedChannels : null;
 		if (channels != null)
 			server = ChannelDisplayTransformServer.createColorTransformServer(server, channels);
@@ -169,8 +172,11 @@ class ExtractRegionCommand implements Runnable {
 		List<ImagePlus> imps = new ArrayList<>();
 		for (PathObject pathObject : pathObjects) {
 			
-			if (Thread.currentThread().isInterrupted() || IJ.escapePressed())
+			if (Thread.currentThread().isInterrupted() || IJ.escapePressed()) {
+				logger.warn("Escape pressed! I will stop showing images.");
+				IJ.resetEscape();
 				return;
+			}
 			
 			int width, height;
 			if (pathObject == null || !pathObject.hasROI()) {
@@ -255,20 +261,49 @@ class ExtractRegionCommand implements Runnable {
 				else
 					imp = IJExtension.extractROIWithOverlay(server, pathObject, null, region, includeROI, options).getImage();			
 				
-				// Set display ranges if we can
+				// Set display ranges and invert LUTs if we should (and can)
+				boolean invertLUTs = imageDisplay.useInvertedBackground();
+				// We can't set the LUTs for an RGB image in ImageJ
+//				if (invertLUTs)
+//					imp = CompositeConverter.makeComposite(imp);
 				if (viewer != null && imp instanceof CompositeImage) {
-					var availableChannels = viewer.getImageDisplay().availableChannels().stream()
+					var tempChannels = channels == null ? imageDisplay.availableChannels() : channels;
+					var availableSingleChannels = tempChannels.stream()
 							.filter(c -> c instanceof SingleChannelDisplayInfo)
 							.map(c -> (SingleChannelDisplayInfo)c)
 							.collect(Collectors.toList());
+					
 					CompositeImage impComp = (CompositeImage)imp;
-					if (availableChannels.size() == imp.getNChannels()) {
-						for (int c = 0; c < availableChannels.size(); c++) {
-							var channel = availableChannels.get(c);
-							imp.setPosition(c+1, 1, 1);
+					// If we're displaying with an inverted background, we need to set this property for the composite mode
+					if (invertLUTs) {
+						impComp.setProp("CompositeProjection", "invert");
+					}
+					if (availableSingleChannels.size() == impComp.getNChannels()) {
+						for (int c = 0; c < availableSingleChannels.size(); c++) {
+							var channel = availableSingleChannels.get(c);
+							impComp.setPosition(c+1, 1, 1);
+							// Need to invert the LUT to have a white background
+							if (invertLUTs) {
+								var lut = impComp.getChannelLut();
+								int n = lut.getMapSize();
+								var r = lut.getRed(n-1);
+								var g = lut.getGreen(n-1);
+								var b = lut.getBlue(n-1);
+								var reds = new byte[n];
+								var greens = new byte[n];
+								var blues = new byte[n];
+								for (int i = 0; i < n; i++) {
+									reds[i] = (byte)(255 - (int)((255 - r)*(i/255.0)));
+									greens[i] = (byte)(255 - (int)((255 - g)*(i/255.0)));
+									blues[i] = (byte)(255 - (int)((255 - b)*(i/255.0)));
+								}
+								lut = new LUT(reds, greens, blues);
+								impComp.setChannelLut(lut);
+							}
+							// Set the display range
 							impComp.setDisplayRange(channel.getMinDisplay(), channel.getMaxDisplay());
 						}
-						imp.setPosition(1);
+						impComp.setPosition(1, 1, 1);
 					}
 				} else if (selectedChannels.size() == 1 && imp.getType() != ImagePlus.COLOR_RGB) {
 					// Setting the display range for non-RGB images can give unexpected results (changing pixel values)
@@ -297,6 +332,11 @@ class ExtractRegionCommand implements Runnable {
 	
 					Interpreter.batchMode = false; // Make sure we aren't in batch mode, so that image will display
 					for (ImagePlus imp : imps) {
+						if (IJ.escapePressed()) {
+							logger.warn("Escape pressed - I'll stop showing images");
+							IJ.resetEscape();
+							return;
+						}
 						imp.show();
 					}
 				} finally {

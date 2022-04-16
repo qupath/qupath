@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -24,6 +24,8 @@
 package qupath.lib.display;
 
 import java.awt.image.BufferedImage;
+import java.awt.image.ColorModel;
+import java.awt.image.SampleModel;
 
 /**
  * Interface used to control the display of single channels of image data, where
@@ -34,7 +36,7 @@ import java.awt.image.BufferedImage;
  * <p>
  * The primary uses are:
  * <ul>
- * 	<li> to extract floating point pixel values for the channel from a BufferedImage
+ * 	<li> to extract floating point pixel values for the channel from a {@link BufferedImage}
  * 		(either directly, or via some color transformation that may involve
  * 		 more than one channel/band from the BufferedImage)
  * 	<li> to generate RGB pixel values suitable for visualizing the raw channel values
@@ -46,7 +48,7 @@ import java.awt.image.BufferedImage;
  * </ul>
  * 
  * <p>
- * As such, its uses lie somewhere between Java's SampleModel and ColorModel classes.
+ * As such, its uses lie somewhere between Java's {@link SampleModel} and {@link ColorModel} classes.
  * <p>
  * Its reason for existing is that sometimes we need to be able to adjust the display of channels
  * individually and to create merges - particularly in the case of fluorescence images - but
@@ -58,17 +60,26 @@ import java.awt.image.BufferedImage;
  * (i.e. not standard RGB/BGR/single-channel images) don't always behave nicely with Graphics objects
  * if we want to paint or scale them.
  * <p>
- * Using the ChannelDisplayInfo approach means that during repainting an (A)RGB image can be produced on-the-fly
+ * Using the {@link ChannelDisplayInfo} approach means that during repainting an (A)RGB image can be produced on-the-fly
  * without needing to create a new image with the desired ColorModel for painting.
  * This potentially ends up requiring a bit more computation that is really necessary - and it may be optimized
  * better in the future - but it was the simplest method I could come up with to provide the features I wanted...
- * 
+ * <p>
+ * Before v0.4.0, some methods supported a boolean parameter to specify whether or not to use color LUTs.
+ * Since v0.4.0, this has been replaced by {@link ChannelDisplayMode} to support different ways of visualizing channels.
+ * In particular, in some cases an inverted display is requested - where 'inverted' refers to the background 
+ * (i.e. switching from black is zero to white is zero, or vice versa depending upon the default display). 
+ * Because only additive combinations of RGB colors are permitted, requesting inversion means that the color used for the 
+ * LUT should be inverted but everything else proceeds are normal. 
+ * The calling code then has the job of inverting the resulting image, as done by 
+ * {@link ImageDisplay#applyTransforms(BufferedImage, BufferedImage, java.util.List, ChannelDisplayMode)}.
  * 
  * @author Pete Bankhead
+ * @see ImageDisplay
  *
  */
 public interface ChannelDisplayInfo {
-
+	
 	/**
 	 * Get the channel name.  This may also be returned by the {@code toString()} method.
 	 * 
@@ -140,20 +151,20 @@ public interface ChannelDisplayInfo {
 	 * @param img
 	 * @param x
 	 * @param y
-	 * @param useColorLUT
+	 * @param mode
 	 * @return
 	 */
-	public abstract int getRGB(BufferedImage img, int x, int y, boolean useColorLUT);
+	public abstract int getRGB(BufferedImage img, int x, int y, ChannelDisplayMode mode);
 	
 	/**
 	 * Get the RGB values that would be used to display all the pixels of an image
 	 * 
 	 * @param img
 	 * @param rgb
-	 * @param useColorLUT
+	 * @param mode
 	 * @return
 	 */
-	public abstract int[] getRGB(BufferedImage img, int[] rgb, boolean useColorLUT);
+	public abstract int[] getRGB(BufferedImage img, int[] rgb, ChannelDisplayMode mode);
 	
 	/**
 	 * Update an existing pixel (packed RGB) additively using the color used to display a specified one
@@ -162,10 +173,10 @@ public interface ChannelDisplayInfo {
 	 * @param x
 	 * @param y
 	 * @param rgb
-	 * @param useColorLUT 
+	 * @param mode 
 	 * @return
 	 */
-	public abstract int updateRGBAdditive(BufferedImage img, int x, int y, int rgb, boolean useColorLUT);
+	public abstract int updateRGBAdditive(BufferedImage img, int x, int y, int rgb, ChannelDisplayMode mode);
 	
 	/**
 	 * Update an array of existing pixels (packed RGB) additively using the colors to display a specified image.
@@ -173,9 +184,9 @@ public interface ChannelDisplayInfo {
 	 * 
 	 * @param img
 	 * @param rgb
-	 * @param useColorLUT
+	 * @param mode
 	 */
-	public void updateRGBAdditive(BufferedImage img, int[] rgb, boolean useColorLUT);
+	public void updateRGBAdditive(BufferedImage img, int[] rgb, ChannelDisplayMode mode);
 
 
 	/**

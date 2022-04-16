@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -23,8 +23,10 @@ package qupath.lib.display;
 
 import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
+import java.awt.image.IndexColorModel;
 
 import qupath.lib.color.ColorTransformer;
+import qupath.lib.common.ColorTools;
 import qupath.lib.images.ImageData;
 
 class RBGColorTransformInfo extends AbstractSingleChannelInfo {
@@ -32,6 +34,7 @@ class RBGColorTransformInfo extends AbstractSingleChannelInfo {
 	private transient int[] buffer = null;
 	private ColorTransformer.ColorTransformMethod method;
 	private transient ColorModel colorModel;
+	private transient ColorModel colorModelInverted = null;
 	
 	private boolean isMutable;
 	private transient Integer color = null;
@@ -46,7 +49,32 @@ class RBGColorTransformInfo extends AbstractSingleChannelInfo {
 		
 		colorModel = ColorTransformer.getDefaultColorModel(method);
 		if (colorModel != null)
-			color = colorModel.getRGB(255);				
+			color = colorModel.getRGB(255);			
+		if (colorModel instanceof IndexColorModel) {
+			colorModelInverted = invertColorModel((IndexColorModel)colorModel);
+		}
+	}
+	
+	private static IndexColorModel invertColorModel(IndexColorModel cm) {
+		
+		int n = cm.getMapSize();
+		int bits = cm.getPixelSize();
+		if (bits > 8)
+			throw new IllegalArgumentException("Unable to invert color model with " + bits + " bits per pixel");
+		
+		// For inverted
+		byte[] rbi = new byte[n];
+		byte[] gbi = new byte[n];
+		byte[] bbi = new byte[n];
+		for (int i = 0; i < n; i++) {
+			int r = cm.getRed(i);
+			int g = cm.getGreen(i);
+			int b = cm.getBlue(i);
+			rbi[i] = (byte)ColorTools.do8BitRangeCheck((255 - r) / 255.0 * i);
+			gbi[i] = (byte)ColorTools.do8BitRangeCheck((255 - g) / 255.0 * i);
+			bbi[i] = (byte)ColorTools.do8BitRangeCheck((255 - b) / 255.0 * i);
+		}
+		return new IndexColorModel(bits, n, rbi, gbi, bbi);
 	}
 	
 	@Override
@@ -71,13 +99,22 @@ class RBGColorTransformInfo extends AbstractSingleChannelInfo {
 		return ColorTransformer.getSimpleTransformedPixels(buffer, method, array);
 	}
 
+
 	@Override
-	public int getRGB(float value, boolean useColorLUT) {
-		return ColorTransformer.makeScaledRGBwithRangeCheck(value, minDisplay, 255.f/(maxDisplay - minDisplay), useColorLUT ? colorModel : null);
-		//		transformer.transformImage(buf, bufOutput, method, offset, scale, useColorLUT);
-		// TODO Auto-generated method stub
-		//		return 0;
+	protected ColorModel getColorModel(ChannelDisplayMode mode) {
+		switch (mode) {
+		case INVERTED_GRAYSCALE:
+		case GRAYSCALE:
+			return CM_GRAYSCALE;
+//			return CM_GRAYSCALE_INVERTED;
+		case INVERTED_COLOR:
+			return colorModelInverted;
+		case COLOR:
+		default:
+			return colorModel;
+		}
 	}
+	
 	
 	@Override
 	public boolean doesSomething() {

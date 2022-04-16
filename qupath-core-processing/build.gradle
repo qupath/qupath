@@ -9,13 +9,15 @@ archivesBaseName = 'qupath-core-processing'
 description = "Core QuPath module containing the main processing operations."
 
 configurations {
-  implementation.extendsFrom commonsmath
-  implementation.extendsFrom guava
-  api.extendsFrom imagej
   api.extendsFrom opencv
+  implementation.extendsFrom guava
 }
 
 dependencies {
   api project(':qupath-core')
+  
+  api libs.imagej
+  implementation libs.commons.math
+  
   testImplementation project(':qupath-core').sourceSets.test.output
 }
