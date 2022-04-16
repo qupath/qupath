@@ -3,6 +3,10 @@
 This is a work-in-progress.
 
 ### Enhancements
+
+* Improved measurement tables
+  * Include thumbnail images for each object (can be turned off with 'Include image column in measurement tables' preference)
+  * Center viewer on an object by selecting it & pressing the 'spacebar'
 * Many script editor improvements, including:
   * Added 'Replace/Next' and 'Replace all' features to Find window (https://github.com/qupath/qupath/pull/898)
   * New lines now trigger caret following (https://github.com/qupath/qupath/pull/900)

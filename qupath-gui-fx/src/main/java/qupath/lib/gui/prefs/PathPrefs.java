@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -93,7 +93,7 @@ public class PathPrefs {
 	/**
 	 * Default name for preference node in this QuPath version
 	 */
-	private final static String DEFAULT_NODE_NAME = "io.github.qupath/0.3";
+	private final static String DEFAULT_NODE_NAME = "io.github.qupath/0.4";
 	
 	/**
 	 * Name for preference node
@@ -116,7 +116,7 @@ public class PathPrefs {
 	 * For now, this isn't supported.
 	 */
 	@SuppressWarnings("unused")
-	private final static String PREVIOUS_NODE_NAME = "io.github.qupath.0.2.0";
+	private final static String PREVIOUS_NODE_NAME = "io.github.qupath/0.3";
 	
 	/**
 	 * Flag used to trigger when properties should be reset to their default values.
@@ -904,6 +904,16 @@ public class PathPrefs {
 		return tableDelimiter;
 	}
 	
+	
+	private static BooleanProperty showMeasurementTableThumbnailsProperty = PathPrefs.createPersistentPreference("showMeasurementTableThumbnailsProperty", true);
+	
+	/**
+	 * Specify whether measurement tables should show thumbnail images by default or not.
+	 * @return
+	 */
+	public static BooleanProperty showMeasurementTableThumbnailsProperty() {
+		return showMeasurementTableThumbnailsProperty;
+	}
 	
 	private static BooleanProperty enableFreehandTools = createPersistentPreference("enableFreehandTools", true);
 	

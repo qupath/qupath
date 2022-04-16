@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -320,6 +320,17 @@ public class PreferencePane {
 				"Set the QuPath user directory - after setting you should restart QuPath");
 
 
+
+		/*
+		 * Drawing tools
+		 */
+		category = "Measurements";
+		addPropertyPreference(PathPrefs.showMeasurementTableThumbnailsProperty(), Boolean.class,
+				"Include image column in measurement tables",
+				category,
+				"Show thumbnail images by default for each object in a measurements table");
+		
+		
 		/*
 		 * Automation
 		 */
