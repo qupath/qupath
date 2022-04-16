@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -34,10 +34,10 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -45,6 +45,8 @@ import org.slf4j.LoggerFactory;
 
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
@@ -53,11 +55,13 @@ import javafx.collections.transformation.SortedList;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.geometry.Side;
 import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonBase;
 import javafx.scene.control.CheckBox;
+import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
@@ -76,6 +80,8 @@ import javafx.scene.control.ToggleButton;
 import javafx.scene.image.Image;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
@@ -90,6 +96,7 @@ import qupath.lib.gui.measure.PathTableData;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PaneTools;
+import qupath.lib.gui.viewer.PathHierarchyPaintingHelper;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.QuPathViewerListener;
 import qupath.lib.images.ImageData;
@@ -108,7 +115,6 @@ import qupath.lib.objects.hierarchy.events.PathObjectSelectionModel;
 import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
 import qupath.lib.plugins.workflow.WorkflowStep;
 import qupath.lib.regions.RegionRequest;
-import qupath.lib.roi.interfaces.ROI;
 
 
 /**
@@ -118,32 +124,12 @@ import qupath.lib.roi.interfaces.ROI;
  */
 public class SummaryMeasurementTableCommand {
 
-	final private static Logger logger = LoggerFactory.getLogger(SummaryMeasurementTableCommand.class);
+	private final static Logger logger = LoggerFactory.getLogger(SummaryMeasurementTableCommand.class);
 
 	private QuPathGUI qupath;
 	
-	/**
-	 * Max thumbnails to store in cache
-	 */
-	private static int MAX_CACHE_SIZE = 200;
+	private BooleanProperty showThumbnailsProperty;
 	
-	/**
-	 * Cache for storing image thumbnails
-	 */
-	private static Map<ROI, Image> cache = new LinkedHashMap<ROI, Image>() {
-		private static final long serialVersionUID = 1L;
-		@Override
-		protected synchronized boolean removeEldestEntry(Map.Entry<ROI, Image> eldest) {
-			return size() > MAX_CACHE_SIZE;
-		}
-
-	};
-	
-	/**
-	 * Max thumbnail size
-	 */
-	private static double maxDimForTMACore = Runtime.getRuntime().maxMemory() > 1024L*1024L*1024L*4L ? 500 : 250;
-
 	/**
 	 * Command to show a summary measurement table, for PathObjects of a specified type (e.g. annotation, detection).
 	 * @param qupath
@@ -163,6 +149,9 @@ public class SummaryMeasurementTableCommand {
 			Dialogs.showNoImageError("Show measurement table");
 			return;
 		}
+		
+		if (showThumbnailsProperty == null)
+			showThumbnailsProperty = new SimpleBooleanProperty(PathPrefs.showMeasurementTableThumbnailsProperty().get());
 
 		final PathObjectHierarchy hierarchy = imageData.getHierarchy();
 
@@ -191,75 +180,39 @@ public class SummaryMeasurementTableCommand {
 		
 
 		// Handle double-click as a way to center on a ROI
-//		var enter = new KeyCodeCombination(KeyCode.ENTER);
+		var centerCode = new KeyCodeCombination(KeyCode.SPACE);
 		table.setRowFactory(params -> {
-			var row = new TableRow<PathObject>() ;
+			var row = new TableRow<PathObject>();
 			row.setOnMouseClicked(e -> {
 				if (e.getClickCount() == 2) {
 					maybeCenterROI(row.getItem());
 				}
 			});
-//			row.setOnKeyPressed(e -> {
-//				if (enter.match(e))
-//					maybeCenterROI(row.getItem());
-//			});
 			return row;
 		});
-
-		// Create columns according to the table model
-//		for (int i = 0; i < model.getColumnCount(); i++) {
-//			// Add string column
-//			if (model.getColumnClass(i).equals(String.class)) {
-//				TableColumn<PathObject, String> col = null;
-//				col = new TableColumn<>(model.getColumnName(i));
-//				col.setCellValueFactory(new Callback<CellDataFeatures<PathObject, String>, ObservableValue<String>>() {
-//					public ObservableValue<String> call(CellDataFeatures<PathObject, String> val) {
-//						return new SimpleStringProperty(val.getValue().getDisplayedName());
-//					}
-//				});
-//				col.setCellFactory(column -> new BasicTableCell<String>());
-//				table.getColumns().add(col);
-//			}
-//		}
+		table.setOnKeyPressed(e -> {
+			if (centerCode.match(e)) {
+				var selected = table.getSelectionModel().getSelectedItem();
+				if (selected != null)
+					maybeCenterROI(selected);
+			}
+		});
+				
+		// Add a column to display images thumbnails
+		TableColumn<PathObject, PathObject> colThumbnails = new TableColumn<>("Image");
+		colThumbnails.setCellValueFactory(val -> new SimpleObjectProperty<>(val.getValue()));
+		colThumbnails.visibleProperty().bind(showThumbnailsProperty);
+		double padding = 10;
+		var viewer = qupath.getViewers().stream().filter(v -> v.getImageData() == imageData).findFirst().orElse(null);
+		colThumbnails.setCellFactory(column -> new TMACoreTableCell(imageData.getServer(), padding, viewer, true));
+//			col.widthProperty().addListener((v, o, n) -> table.refresh());
+//		colThumbnails.setMaxWidth(maxWidth + padding*2);
+		table.getColumns().add(colThumbnails);
 		
+		// Have fewer histogram bins if we have TMA cores (since there aren't usually very many)
 		boolean tmaCoreList = TMACoreObject.class.isAssignableFrom(type);
-		
-		// Add TMA core columns, if suitable
-		if (tmaCoreList) {
-			TableColumn<PathObject, ROI> col = new TableColumn<>("Image");
-			col.setCellValueFactory(val -> new SimpleObjectProperty<>(val.getValue().getROI()));
-			double maxWidth = maxDimForTMACore;
-			double padding = 10;
-			col.setCellFactory(column -> new TMACoreTableCell(table, imageData.getServer(), maxWidth, padding));
-			col.widthProperty().addListener((v, o, n) -> table.refresh());
-			col.setMaxWidth(maxWidth + padding*2);
-			table.getColumns().add(col);
-			
-			// While here, make sure we have fewer bins - don't usually have all that many cores
-			histogramDisplay.setNumBins(10);
-		}
-		
-//		// TODO: Create object columns
-//		TableColumn<PathObject, String> colObject = new TableColumn<>("Object");
-//		colObject.setCellValueFactory(column -> new SimpleStringProperty(column.getValue().getDisplayedName()));
-//		colObject.setCellFactory(column -> new BasicTableCell<>());
-//		table.getColumns().add(colObject);
-//		
-//		if (!tmaCoreList) {
-//			TableColumn<PathObject, String> colClass = new TableColumn<>("Class");
-//			colClass.setCellValueFactory(column -> new SimpleStringProperty(column.getValue().getPathClass() == null ? "-" : column.getValue().getPathClass().toString()));
-//			colClass.setCellFactory(column -> new BasicTableCell<>());
-//			table.getColumns().add(colClass);
-//		}
-		
-//		// If we have annotations, include shape
-//		if (PathAnnotationObject.class.isAssignableFrom(type)) {
-//			TableColumn<PathObject, String> colClass = new TableColumn<>("ROI");
-//			colClass.setCellValueFactory(column -> new SimpleStringProperty(column.getValue().getROI() == null ? "-" : column.getValue().getROI().getROIType()));
-//			colClass.setCellFactory(column -> new BasicTableCell<>());
-//			table.getColumns().add(colClass);
-//		}
-			
+		if (tmaCoreList)
+			histogramDisplay.setNumBins(10);			
 			
 		// Create numeric columns
 		for (String columnName : model.getAllNames()) {
@@ -284,8 +237,7 @@ public class SummaryMeasurementTableCommand {
 		table.setItems(items);
 
 
-
-
+		// Add buttons at the bottom
 		List<ButtonBase> buttons = new ArrayList<>();
 		
 		ToggleButton btnHistogram = new ToggleButton("Show histograms");
@@ -405,17 +357,31 @@ public class SummaryMeasurementTableCommand {
 				return;
 			}
 			for (TableColumn<?, ?> col : table.getColumns()) {
-				col.setVisible(col.getText().toLowerCase().contains(val));
+				if (col == colThumbnails) // Retain thumbnails
+					continue;
+				var name = col.getText().toLowerCase();
+				col.setVisible(name.contains(val));
 			}
 		});
+		
+		// Add some extra options
+		var popup = new ContextMenu();
+		var miShowImages = new CheckMenuItem("Show images");
+		miShowImages.selectedProperty().bindBidirectional(showThumbnailsProperty);
+		popup.getItems().setAll(
+				miShowImages
+				);
+		var btnExtra = GuiTools.createMoreButton(popup, Side.RIGHT);
 
 
 		BorderPane pane = new BorderPane();
 		//		pane.setCenter(table);
 		splitPane.getItems().add(paneTable);
 		pane.setCenter(splitPane);
-		GridPane panelButtons = PaneTools.createColumnGridControls(buttons.toArray(new ButtonBase[0]));
-		pane.setBottom(panelButtons);
+		var paneButtons = PaneTools.createColumnGridControls(buttons.toArray(new ButtonBase[0]));
+		var paneButtons2 = new BorderPane(paneButtons);
+		paneButtons2.setRight(btnExtra);
+		pane.setBottom(paneButtons2);
 
 		
 		PathObjectHierarchyListener listener = new PathObjectHierarchyListener() {
@@ -431,7 +397,10 @@ public class SummaryMeasurementTableCommand {
 				}
 				if (imageData != null)
 					displayedName.set(ServerTools.getDisplayableImageName(imageData.getServer()));
-				model.refreshEntries();
+				if (event.isAddedOrRemovedEvent())
+					model.setImageData(imageData, imageData.getHierarchy().getObjects(null, type));
+				else
+					model.refreshEntries();
 				table.refresh();
 				if (histogramDisplay != null)
 					histogramDisplay.refreshHistogram();
@@ -440,7 +409,6 @@ public class SummaryMeasurementTableCommand {
 		};
 		
 		
-		QuPathViewer viewer = qupath.getViewer();
 		TableViewerListener tableViewerListener = new TableViewerListener(viewer, table);
 
 		frame.setOnShowing(e -> {
@@ -507,73 +475,162 @@ public class SummaryMeasurementTableCommand {
 
 
 
-	class TMACoreTableCell extends TableCell<PathObject, ROI> {
-
-		private TableView<?> table;
+	class TMACoreTableCell extends TableCell<PathObject, PathObject> {
+		
+		private QuPathViewer viewer;
+		private boolean paintObject;
+		
+		private Image image;
+		
 		private ImageServer<BufferedImage> server;
 		private Canvas canvas = new Canvas();
 		private double preferredSize = 100;
-		private double maxDim;
-		private double padding;
+		
+		private Future<?> task;
 
-		TMACoreTableCell(final TableView<?> table, final ImageServer<BufferedImage> server, final double maxDim, final double padding) {
-			this.table = table;
+		TMACoreTableCell(ImageServer<BufferedImage> server, double padding, QuPathViewer viewer, boolean paintObject) {
+			logger.trace("Creating new cell ({})", +System.identityHashCode(this));
 			this.server = server;
-			this.maxDim = maxDim;
-			this.padding = padding;
+			this.viewer = viewer;
+			this.paintObject = paintObject;
+			this.setContentDisplay(ContentDisplay.CENTER);
+			this.setAlignment(Pos.CENTER);
 			canvas.setWidth(preferredSize);
 			canvas.setHeight(preferredSize);
 			canvas.setStyle("-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.5), 4, 0, 1, 1);");
 			canvas.heightProperty().bind(canvas.widthProperty());
+			
+			tableColumnProperty().addListener((v, o, n) -> {
+				canvas.widthProperty().unbind();
+				if (n != null)
+					canvas.widthProperty().bind(n.widthProperty().subtract(padding*2));
+			});
+			
+			if (paintObject && viewer != null) {
+				var options = viewer.getOverlayOptions();
+				options.lastChangeTimestamp().addListener((v, o, n) -> updateImage(getItem(), false));
+				viewer.getImageDisplay().changeTimestampProperty().addListener((v, o, n) -> updateImage(getItem(), false));
+			}
+			// Update image on width changes
+			// Required to handle the fact that object ROIs may need to be repainted
+			// with updated stroke widths
+			canvas.widthProperty().addListener((v, o, n) -> updateImage(getItem(), false));
 		}
 
 
 		@Override
-		protected void updateItem(ROI roi, boolean empty) {
-			super.updateItem(roi, empty);
-			if (empty) {
-				setText(null);
+		protected void updateItem(PathObject pathObject, boolean empty) {
+			super.updateItem(pathObject, empty);
+			setText(null);
+			if (empty || pathObject == null || pathObject.getROI() == null) {
 				setGraphic(null);
 				return;
 			}
-			canvas.setWidth(getTableColumn().getWidth()-padding*2);
 			setGraphic(canvas);
-			this.setContentDisplay(ContentDisplay.CENTER);
-			this.setAlignment(Pos.CENTER);
-			canvas.getGraphicsContext2D().clearRect(0, 0, canvas.getWidth(), canvas.getHeight());
+			updateImage(pathObject, false);
+		}
+		
+		private void updateImage(PathObject pathObject, boolean useCache) {
+			var roi = pathObject == null ? null : pathObject.getROI();
+			if (roi == null) {
+				return;
+			}
 			try {
-				if (roi == null) {
-					setText(null);
-					return;
-				}
-				
-				Image image = cache.get(roi);
-				if (image != null) {
+				if (useCache && image != null && image.getWidth() == canvas.getWidth() && image.getHeight() == canvas.getHeight()) {
 					GuiTools.paintImage(canvas, image);
 					return;
 				}
-				qupath.submitShortTask(() -> {
-					double downsample = Math.max(roi.getBoundsWidth(), roi.getBoundsHeight()) / maxDim;
-					// TODO: Put requests into a background thread!
-					RegionRequest request = RegionRequest.createInstance(server.getPath(), downsample, roi);
-					try {
-						BufferedImage img = server.readBufferedImage(request);
-						Image imageNew = SwingFXUtils.toFXImage(img, null);
-						if (imageNew != null) {
-							cache.put(roi, imageNew);
-							Platform.runLater(() -> table.refresh());
-						}
-					} catch (IOException e) {
-						logger.debug("Unable to return image for " + request, e);
-					}
-				});
+				// Don't draw on a tiny canvas
+				if (canvas.getWidth() <= 2 || canvas.getHeight() <= 2) {
+					clearCanvas();
+					return;
+				}
+				if (task != null)
+					task.cancel(true);
+				
+//				new Thread(new PathObjectThumbnailTask(pathObject)).run();
+				task = ForkJoinPool.commonPool().submit(new PathObjectThumbnailTask(pathObject));
 			} catch (Exception e) {
-				logger.error("Problem reading thumbnail for core {}: {}", roi, e);
-//				setGraphic(null);
+				logger.error("Problem reading thumbnail for {}: {}", pathObject, e);
 			}
+		}
+		
+		
+		private void clearCanvas() {
+			canvas.getGraphicsContext2D().clearRect(0, 0, canvas.getWidth(), canvas.getHeight());
+		}
+		
+		
+		
+		class PathObjectThumbnailTask implements Runnable {
+			
+			private PathObject pathObject;
+			
+			PathObjectThumbnailTask(PathObject pathObject) {
+				super();
+				this.pathObject = pathObject;
+			}
+
+			@Override
+			public void run() {
+				
+				if (Thread.interrupted() || pathObject == null || !pathObject.hasROI())
+					return;
+				
+				var roi = pathObject.getROI();
+				double scaleFactor = 1.2; // Used to give a bit more context around the ROI
+				double downsample = Math.max(roi.getBoundsWidth() * scaleFactor / canvas.getWidth(), roi.getBoundsHeight() * scaleFactor / canvas.getHeight());
+				if (downsample < 1)
+					downsample = 1;
+				
+//				double downsample = Math.max(roi.getBoundsWidth(), roi.getBoundsHeight()) / maxDim;
+				Image imageNew = null;
+				try {
+					BufferedImage img;
+					if (viewer != null) {
+						img = new BufferedImage((int)canvas.getWidth(), (int)canvas.getHeight(), BufferedImage.TYPE_INT_RGB);
+						var g2d = img.createGraphics();
+						g2d.setClip(0, 0, img.getWidth(), img.getHeight());
+						g2d.scale(1.0/downsample, 1.0/downsample);
+						
+						double x = roi.getCentroidX() - img.getWidth() / 2.0 * downsample;
+						double y = roi.getCentroidY() - img.getHeight() / 2.0 * downsample;
+						g2d.translate(-x, -y);
+						
+						var renderer = viewer.getServer() == server ? viewer.getImageDisplay() : null;
+						viewer.getImageRegionStore().paintRegionCompletely(server, g2d, g2d.getClipBounds(), roi.getZ(), roi.getT(), downsample, null, renderer, 500L);
+						if (paintObject) {
+							var options = viewer.getOverlayOptions();
+							PathHierarchyPaintingHelper.paintObject(pathObject, false, g2d, null, options, null, downsample);
+						}
+						g2d.dispose();
+					} else {
+						RegionRequest request = RegionRequest.createInstance(server.getPath(), downsample, roi);
+						img = server.readBufferedImage(request);
+					}
+
+					imageNew = SwingFXUtils.toFXImage(img, null);
+				} catch (Exception e) {
+					logger.error("Unable to draw image for " + pathObject, e);
+				}
+
+				if (imageNew != null) {
+					var imageTemp = imageNew;
+					Platform.runLater(() -> {
+						image = imageTemp;
+						GuiTools.paintImage(canvas, imageTemp);
+					});
+				} else {
+					clearCanvas();
+				}
+			}
+
+			
+			
 		}
 
 	}
+	
 
 
 
