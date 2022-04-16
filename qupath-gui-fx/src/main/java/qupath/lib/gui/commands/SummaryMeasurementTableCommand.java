@@ -477,8 +477,6 @@ public class SummaryMeasurementTableCommand {
 
 	class TMACoreTableCell extends TableCell<PathObject, PathObject> {
 		
-		private final static Logger logger = LoggerFactory.getLogger(TMACoreTableCell.class);
-
 		private QuPathViewer viewer;
 		private boolean paintObject;
 		
