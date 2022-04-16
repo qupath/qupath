@@ -9,10 +9,17 @@ archivesBaseName = 'qupath-core'
 description = "Core QuPath module containing the main classes and datastructures."
 
 configurations {
-  api.extendsFrom gson
-  api.extendsFrom jts
-  implementation.extendsFrom commonsmath
-  implementation.extendsFrom guava
   implementation.extendsFrom opencv
-  implementation.extendsFrom picocli
+  implementation.extendsFrom guava
+}
+
+dependencies {
+  api libs.gson
+  api libs.jts
+  
+  implementation libs.commons.math
+  implementation libs.picocli
+
+//  implementation libs.bundles.opencv
+  
 }

@@ -7,11 +7,7 @@ ext.moduleName = 'qupath.extension.scripteditor'
 archivesBaseName = 'qupath-extension-script-editor'
 description = "QuPath extension to provide an alternative script editor using RichTextFX."
 
-configurations {
-//  implementation.extendsFrom controlsfx
-  implementation.extendsFrom groovy
-}
-
 dependencies {
-  implementation "org.fxmisc.richtext:richtextfx:0.10.9"
+  implementation libs.bundles.groovy
+  implementation libs.richtextfx
 }

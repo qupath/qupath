@@ -7,29 +7,22 @@ ext.moduleName = 'qupath.extension.bioformats'
 archivesBaseName = 'qupath-extension-bioformats'
 description = "QuPath extension to support image reading and writing using Bio-Formats."
 
-def bioformatsVersion = "6.9.0"
+def bioformatsVersion = libs.versions.bioformats.get()
 def versionOverride = project.properties.getOrDefault('bioformats-version', null)
 if (versionOverride) {
 	println "Using specified Bio-Formats version ${versionOverride}"
 	bioformatsVersion = versionOverride
 }
 
-configurations {
-  // Consider using compileOnly for Bio-Formats, and installing bioformats_package.jar separately
-  implementation.extendsFrom bioformats
-  implementation.extendsFrom controlsfx
-  implementation.extendsFrom picocli
-  
-//  testImplementation.extendsFrom bioformats
-//  testImplementation.extendsFrom bioformatsTest
-  testImplementation.extendsFrom imagej
-}
 
 dependencies {
 	// This can be used to include bioformats_package.jar - however it causes warnings with SLF4J
 //  implementation("ome:bioformats_package:${bioformatsVersion}") {
 //  	transitive = false
 //  }
+
+  implementation libs.controlsfx
+  implementation libs.picocli
 
   implementation "ome:formats-gpl:${bioformatsVersion}", {
     exclude group: 'xalan', module: 'serializer'
@@ -44,4 +37,7 @@ dependencies {
 
 //  testImplementation("ome:bioformats_package:${bioformatsVersion}")
   testImplementation "ome:bio-formats_plugins:${bioformatsVersion}"
+  
+  testImplementation libs.imagej
+  
 }
