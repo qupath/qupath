@@ -24,6 +24,11 @@ java {
     withJavadocJar()
 }
 
+// Include parameter names, so they are available in the script editor via reflection
+compileJava {
+    options.compilerArgs << '-parameters'
+}
+
 // Avoid 'Entry .gitkeep is a duplicate but no duplicate handling strategy has been set.'
 // when using withSourcesJar()
 tasks.withType(org.gradle.jvm.tasks.Jar) {
@@ -80,12 +85,19 @@ afterEvaluate {
  * Use -PstrictJavadoc=true to fail on error with doclint (which is rather strict).
  */
 def strictJavadoc = findProperty('strictJavadoc')
-if (!strictJavadoc) {
-    tasks.withType(Javadoc) {
-        options.addStringOption('Xdoclint:none', '-quiet')
-    }
-}
 
+tasks.withType(Javadoc).each { javadocTask ->
+	if (!strictJavadoc) {
+		javadocTask.options.addStringOption('Xdoclint:none', '-quiet')
+	}
+
+	rootProject.tasks.withType(Javadoc) { rootTask ->
+		rootTask.source    += javadocTask.source
+		rootTask.classpath += javadocTask.classpath
+		rootTask.excludes  += javadocTask.excludes
+		rootTask.includes  += javadocTask.includes
+	}
+}
 
 /*
  * On Apple Silicon (at least), there are problems running tests involving JavaCPP 1.5.5 with 
@@ -98,3 +110,4 @@ test {
   else
     maxHeapSize = '2G'
 }
+

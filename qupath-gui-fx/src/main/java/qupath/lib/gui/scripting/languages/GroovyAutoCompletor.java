@@ -26,11 +26,13 @@ package qupath.lib.gui.scripting.languages;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import qupath.lib.gui.scripting.QPEx;
 import qupath.lib.gui.scripting.ScriptEditorControl;
@@ -43,66 +45,60 @@ import qupath.lib.scripting.QP;
  */
 public class GroovyAutoCompletor implements ScriptAutoCompletor {
 	
-	private static final Set<String> METHOD_NAMES = new HashSet<>();
-	private List<String> completions = new ArrayList<>();
-	private int idx = 0;
-	private Integer pos = null;
-	private String start; // Starting text
-	private String lastInsertion = null;
+	private final static Logger logger = LoggerFactory.getLogger(GroovyAutoCompletor.class);
+	
+	private static final Set<Completion> ALL_COMPLETIONS = new HashSet<>();
 	
 	
 	static {
+		
 		for (Method method : QPEx.class.getMethods()) {
 			// Exclude deprecated methods (don't want to encourage them...)
-			if (method.getAnnotation(Deprecated.class) == null)
-				METHOD_NAMES.add(method.getName());
+			if (method.getAnnotation(Deprecated.class) == null) {
+				ALL_COMPLETIONS.add(ScriptAutoCompletor.Completion.create(method.getDeclaringClass(), method));
+				ALL_COMPLETIONS.add(ScriptAutoCompletor.Completion.create(null, method));
+			}
 		}
 		
-		// Remove the methods that come from the Object class...
-		// they tend to be quite confusing
-		for (Method method : Object.class.getMethods()) {
-			if (Modifier.isStatic(method.getModifiers()) && Modifier.isPublic(method.getModifiers()))
-				METHOD_NAMES.remove(method.getName());
-		}
+//		// Remove the methods that come from the Object class...
+//		// they tend to be quite confusing
+//		for (Method method : Object.class.getMethods()) {
+//			if (Modifier.isStatic(method.getModifiers()) && Modifier.isPublic(method.getModifiers()))
+//				ALL_COMPLETIONS.remove(getMethodString(method, null));
+//		}
 		
 		for (Field field : QPEx.class.getFields()) {
-			if (Modifier.isStatic(field.getModifiers()) && Modifier.isPublic(field.getModifiers()))
-				METHOD_NAMES.add(field.getName());
-		}
-		
-		for (Class<?> cls : QP.getCoreClasses()) {
-			int countStatic = 0;
-			for (Method method : cls.getMethods()) {
-				if (Modifier.isStatic(method.getModifiers()) && Modifier.isPublic(method.getModifiers())) {
-					METHOD_NAMES.add(cls.getSimpleName() + "." + method.getName());
-					countStatic++;
-				}
+			if (Modifier.isStatic(field.getModifiers()) && Modifier.isPublic(field.getModifiers())) {
+				ALL_COMPLETIONS.add(ScriptAutoCompletor.Completion.create(field.getDeclaringClass(), field));
+				ALL_COMPLETIONS.add(ScriptAutoCompletor.Completion.create(null, field));
 			}
-			if (countStatic > 0)
-				METHOD_NAMES.add(cls.getSimpleName() + ".");
 		}
 		
-//		for (Method method : ImageData.class.getMethods()) {
-//			METHOD_NAMES.add(method.getName());
-//		}
-//		for (Method method : PathObjectHierarchy.class.getMethods()) {
-//			METHOD_NAMES.add(method.getName());
-//		}
-//		for (Method method : PathObject.class.getMethods()) {
-//			METHOD_NAMES.add(method.getName());
-//		}
-//		for (Method method : TMACoreObject.class.getMethods()) {
-//			METHOD_NAMES.add(method.getName());
-//		}
-//		for (Method method : PathCellObject.class.getMethods()) {
-//			METHOD_NAMES.add(method.getName());
-//		}
-//		for (Method method : PathClassFactory.class.getMethods()) {
-//			METHOD_NAMES.add(method.getName());
-//		}
-		METHOD_NAMES.add("print");
-		METHOD_NAMES.add("println");
+		Set<Class<?>> classesToAdd = new HashSet<>(QP.getCoreClasses());
+
+		for (Class<?> cls : classesToAdd) {
+			addStaticMethods(cls);
+		}
+		
+		ALL_COMPLETIONS.add(ScriptAutoCompletor.Completion.create(null, "print", "print"));
+		ALL_COMPLETIONS.add(ScriptAutoCompletor.Completion.create(null, "println", "println"));
 	}
+	
+	static int addStaticMethods(Class<?> cls) {
+		int countStatic = 0;
+		for (Method method : cls.getMethods()) {
+			if (Modifier.isStatic(method.getModifiers()) && Modifier.isPublic(method.getModifiers())) {
+				if (ALL_COMPLETIONS.add(ScriptAutoCompletor.Completion.create(method.getDeclaringClass(), method)))
+					countStatic++;
+			}
+		}
+		if (countStatic > 0) {
+			ALL_COMPLETIONS.add(ScriptAutoCompletor.Completion.create(cls));
+		}
+		return countStatic;
+	}
+	
+	
 	
 	/**
 	 * Empty constructor.
@@ -112,45 +108,64 @@ public class GroovyAutoCompletor implements ScriptAutoCompletor {
 	}
 	
 	@Override
-	public void applyNextCompletion(ScriptEditorControl control) {
-		if (pos == null) {
-			pos = control.getCaretPosition();
-			String[] split = control.getText().substring(0, pos).split("(\\s+)|(\\()|(\\))|(\\{)|(\\})|(\\[)|(\\])");
-			if (split.length == 0)
-				start = "";
-			else
-				start = split[split.length-1].trim();
-		}
+	public List<Completion> getCompletions(ScriptEditorControl control) {
+		var start = getStart(control);
 		
 		// Use all available completions if we have a dot included
+		List<Completion> completions;
 		if (control.getText().contains("."))
-			completions = METHOD_NAMES.stream()
-					.filter(s -> s.startsWith(start) && !s.equals(start)) // Don't include start itself, since it looks like we have no completions
-					.sorted()
+			completions = ALL_COMPLETIONS
+					.stream()
+					.filter(e -> e.isCompatible(start))
+//					.sorted()
 					.collect(Collectors.toList());
 		else
 			// Use only partial completions (methods, classes) if no dot
-			completions = METHOD_NAMES.stream()
-			.filter(s -> s.startsWith(start) && (!s.contains(".") || s.lastIndexOf(".") == s.length()-1))
-			.sorted()
+			completions = ALL_COMPLETIONS
+			.stream()
+			.filter(s -> s.isCompatible(start) && (!s.getCompletionText().contains(".") || s.getCompletionText().lastIndexOf(".") == s.getCompletionText().length()-1))
+//			.sorted()
 			.collect(Collectors.toList());
-				
-		if (completions.isEmpty())
+		
+		// Add a new class if needed
+		// (Note this doesn't entirely work... since it doesn't handle the full class name later)
+		if (completions.isEmpty() && start.contains(".")) {
+			var className = start.substring(0, start.lastIndexOf("."));
+			try {
+				var cls = Class.forName(className);
+				if (addStaticMethods(cls) > 0) {
+					return getCompletions(control);
+				}
+			} catch (Exception e) {
+				logger.debug("Unable to find autocomplete methods for class {}", className);
+			}
+		}
+		
+		return completions;
+	}
+	
+	@Override
+	public void applyCompletion(ScriptEditorControl control, String completion) {
+		var start = getStart(control);
+		var insertion = completion.startsWith(start) ? completion.substring(start.length()) : completion;// + "(";
+		// Avoid adding if caret is already between parentheses
+		if (insertion.startsWith("("))
 			return;
-		if (completions.size() == 0 && lastInsertion != null)
-			return;
-		if (lastInsertion != null && lastInsertion.length() > 0)
-			control.deleteText(pos, pos + lastInsertion.length());
-		lastInsertion = completions.get(idx).substring(start.length());// + "(";
-		control.insertText(pos, lastInsertion);
-		idx++;
-		idx = idx % completions.size();
+		var pos = control.getCaretPosition();
+		control.insertText(pos, insertion);
+		if (insertion.endsWith(")") && control.getCaretPosition() > 0)
+			control.positionCaret(control.getCaretPosition()-1);
+	}
+	
+	private String getStart(ScriptEditorControl control) {
+		var pos = control.getCaretPosition();
+		String[] split = control.getText().substring(0, pos).split("(\\s+)|(\\()|(\\))|(\\{)|(\\})|(\\[)|(\\])");
+		String start;
+		if (split.length == 0)
+			start = "";
+		else
+			start = split[split.length-1].trim();
+		return start;
 	}
 
-	@Override
-	public void resetCompletion() {
-		pos = null;
-		lastInsertion = null;
-		idx = 0;
-	}
 }
