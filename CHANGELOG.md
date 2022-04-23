@@ -31,6 +31,7 @@ This is a work-in-progress.
 * Missing thumbnails are automatically regenerated when a project is opened
 * Avoid converting the pixel type to 32-bit unnecessarily when sending image regions to ImageJ
 * Warn if trying to train a pixel classifier with too many features (https://github.com/qupath/qupath/issues/947)
+* Directory choosers can now have titles (https://github.com/qupath/qupath/issues/940)
 
 ### Bugs fixed
 * Reading from Bio-Formats blocks forever when using multiple series outside a project (https://github.com/qupath/qupath/issues/894)

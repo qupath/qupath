@@ -122,7 +122,7 @@ class ScriptMenuLoader {
 		if (scriptDirectory instanceof StringProperty) {
 			var actionSetPath = ActionTools.actionBuilder("Set script directory...", e -> {
 				File dirBase = scriptDirectory.get() == null ? null : new File(scriptDirectory.get());
-				File dir = Dialogs.promptForDirectory(dirBase);
+				File dir = Dialogs.promptForDirectory("Set script directory", dirBase);
 				if (dir != null)
 					((StringProperty)scriptDirectory).set(dir.getAbsolutePath());
 			})

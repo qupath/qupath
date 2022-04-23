@@ -562,6 +562,17 @@ public class Dialogs {
 	public static File promptForDirectory(File dirBase) {
 		return getSharedChooser().promptForDirectory(dirBase);
 	}
+	
+	/**
+	 * Prompt user to select a directory.
+	 * 
+	 * @param title the title to display for the dialog (may be null to use default)
+	 * @param dirBase base directory to display; if null or not an existing directory, the value under getLastDirectory() should be used
+	 * @return selected directory, or null if no directory was selected
+	 */
+	public static File promptForDirectory(String title, File dirBase) {
+		return getSharedChooser().promptForDirectory(title, dirBase);
+	}
 
 	/**
 	 * Prompt the user for a file with some kind of file dialog.

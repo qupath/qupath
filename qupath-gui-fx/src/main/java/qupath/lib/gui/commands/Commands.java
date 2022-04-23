@@ -1110,7 +1110,7 @@ public class Commands {
 	 * @return true if a project was created, false otherwise (e.g. the user cancelled).
 	 */
 	public static boolean promptToCreateProject(QuPathGUI qupath) {
-		File dir = Dialogs.promptForDirectory(null);
+		File dir = Dialogs.promptForDirectory("Select empty directory for project", null);
 		if (dir == null)
 			return false;
 		if (!dir.isDirectory()) {
