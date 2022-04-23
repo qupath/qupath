@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -36,7 +36,12 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import qupath.lib.io.PathIO;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.measurements.MeasurementListFactory;
 import qupath.lib.objects.classes.PathClass;
@@ -54,6 +59,12 @@ import qupath.lib.roi.interfaces.ROI;
 public abstract class PathObject implements Externalizable {
 	
 	private static final long serialVersionUID = 1L;
+		
+	private final static Logger logger = LoggerFactory.getLogger(PathObject.class);
+	
+	private final static String METADATA_KEY_ID = "Object ID";
+	
+	private UUID id = UUID.randomUUID();
 	
 	private PathObject parent = null;
 	private Collection<PathObject> childList = null; // Collections.synchronizedList(new ArrayList<>(0));
@@ -76,13 +87,16 @@ public abstract class PathObject implements Externalizable {
 	 * @param measurements
 	 */
 	public PathObject(MeasurementList measurements) {
+		this();
 		this.measurements = measurements;
 	}
 
 	/**
 	 * Default constructor. Used for Externalizable support, not intended to be used by other consumers.
 	 */
-	public PathObject() {}
+	public PathObject() {
+		id = UUID.randomUUID();
+	}
 	
 	/**
 	 * Request the parent object. Each PathObject may have only one parent.
@@ -739,6 +753,46 @@ public abstract class PathObject implements Externalizable {
 		this.color = color;
 	}
 	
+	/**
+	 * Get the ID for this object.
+	 * @return
+	 * @see #setId(UUID)
+	 * @see #updateId()
+	 */
+	public UUID getId() {
+		return id;
+	}
+	
+	/**
+	 * Set the ID for this object.
+	 * <p>
+	 * <b>Important!</b> Use this with caution or, even better, not at all!
+	 * <p>
+	 * In general, the ID for an object should be unique.
+	 * This is best achieved by allowing the ID to be generated randomly when the object 
+	 * is created, and never changing it to anything else.
+	 * <p>
+	 * However, there are times when it is necessary to transfer the ID from an existing object, 
+	 * such as whenever the ROI of an object is being transformed and the original object deleted.
+	 * <p>
+	 * For that reason, it is possible (although discouraged) to set an ID explicitly.
+	 * 
+	 * @param id the ID to use
+	 * @throws IllegalArgumentException if the specified ID is null
+	 */
+	public void setId(UUID id) throws IllegalArgumentException {
+		if (id == null)
+			throw new IllegalArgumentException("ID of an object cannot be null!");
+		this.id = id;
+	}
+	
+	/**
+	 * Regenerate a new random ID.
+	 * @see #setId(UUID)
+	 */
+	public void updateId() {
+		setId(UUID.randomUUID());
+	}
 	
 	/**
 	 * Ensure that we have a child list with a minimum capacity.
@@ -835,10 +889,43 @@ public abstract class PathObject implements Externalizable {
 		out.writeObject(name);
 		out.writeObject(color);
 		
-		if (metadata != null)
-			out.writeObject(metadata);
+		// Write the ID, and an int representing the number of fields to include in the file
+		// This is not currently used, but exists in case future QuPath versions need 
+		// improved flexibility while wanting v0.4.0 to still be able to open the data files.
+		if (PathIO.getRequestedDataFileVersion() >= 4) {
+			out.writeObject(id);
+			// Number of additional fields to write as objects
+			int nFields = 1;
+			if (metadata != null) {
+				nFields++;
+			}
+			out.writeInt(nFields);
+			if (metadata != null)
+				out.writeObject(metadata);
+			out.writeObject(measurements);
+		} else {
+			// v3 method way of writing output - enhanced to write the ID into the metadata map
+			// This isn't as efficient as it could be, but means files can be reopened with earlier QuPath versions
+			var tempMetadata = new MetadataMap();
+			if (metadata != null) {
+				tempMetadata.putAll(metadata);
+			}
+			if (id != null && !tempMetadata.containsKey(METADATA_KEY_ID))
+				tempMetadata.put(METADATA_KEY_ID, id.toString());
+			
+			// We always have metadata now
+			out.writeObject(tempMetadata);
+			
+			// Write measurements as well
+			out.writeObject(measurements);		
+						
+//			// Previous way of writing output
+//			if (metadata != null)
+//				out.writeObject(metadata);
+//			out.writeObject(measurements);			
+		}
 
-		out.writeObject(measurements);
+		// Write number of child objects, followed by those objects
 		int n = nChildObjects();
 		out.writeInt(n);
 		if (n > 0) {
@@ -854,7 +941,7 @@ public abstract class PathObject implements Externalizable {
 	public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
 		
 		name = (String)in.readObject();
-		
+				
 		// Integer check so that legacy (pre-release) data that use Java's AWT Color objects doesn't immediately break
 		// (Could try parsing from Java's AWT Color... but shouldn't need to - it hasn't been used for a long time)
 		Object colorObject = in.readObject();
@@ -864,18 +951,63 @@ public abstract class PathObject implements Externalizable {
 		// Read the next object carefully, to help deal with changes in object specifications
 		Object nextObject = in.readObject();
 		
-		// Read metadata, if we have it
-		if (nextObject instanceof MetadataMap) {
-			metadata = (MetadataMap)nextObject;
-			nextObject = in.readObject();
+		// If we have a UUID, then we're working with a data file version of at least 4
+		if (nextObject instanceof UUID) {
+			id = (UUID)nextObject;
+			// Here we've stored the number of object fields (for future expansion)
+			int nFields = in.readInt();
+			for (int i = 0; i < nFields; i++) {
+				nextObject = in.readObject();
+				if (nextObject instanceof MetadataMap) {
+					// Read metadata, if we have it
+					metadata = (MetadataMap)nextObject;
+				} else if (nextObject instanceof MeasurementList) {
+					// Read a measurement list, if we have one
+					// This is rather hack-ish... but re-closing a list can prompt it to be stored more efficiently
+					measurements = (MeasurementList)nextObject;
+					measurements.close();
+				} else if (nextObject != null) {
+					logger.debug("Unsupported field during deserialization {}", nextObject);
+				} else {
+					logger.debug("Null field during deserialization");					
+				}
+			}
+		} else {
+			// Handle legacy data file version
+			// Here, we maybe have a metadata map and maybe have a measurement list - in that order - but nothing else
+			// before reaching child objects
+		
+			// Read metadata, if we have it
+			if (nextObject instanceof MetadataMap) {
+				metadata = (MetadataMap)nextObject;
+				String idString = metadata.getOrDefault(METADATA_KEY_ID, null);
+				
+				// Try to parse UUID from metadata map if we can
+				if (idString != null && idString.length() <= 36 && idString.contains("-")) {
+					try {
+						id = UUID.fromString(idString);
+						if (metadata.size() == 1)
+							metadata = null;
+						else
+							metadata.remove(METADATA_KEY_ID);
+					} catch (Exception e) {
+						logger.debug("Unable to parse UUID from metadata ID");
+					}
+				}			
+				nextObject = in.readObject();
+			}
+			
+			// Read a measurement list, if we have one
+			// This is rather hack-ish... but re-closing a list can prompt it to be stored more efficiently
+			if (nextObject instanceof MeasurementList) {
+				measurements = (MeasurementList)nextObject;
+				measurements.close();
+			}
 		}
 		
-		// Read a measurement list, if we have one
-		// This is rather hack-ish... but re-closing a list can prompt it to be stored more efficiently
-		if (nextObject instanceof MeasurementList) {
-			measurements = (MeasurementList)nextObject;
-			measurements.close();
-		}
+		// Ensure we have an ID
+		if (id == null)
+			id = UUID.randomUUID();
 		
 		// Read child objects
 		int nChildObjects = in.readInt();

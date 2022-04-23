@@ -48,7 +48,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -99,11 +98,56 @@ public class PathIO {
 	 * Version 1.0 was the first...
 	 * Version 2 switched to integers, and includes Locale information
 	 * Version 3 stores JSON instead of a server path
+	 * Version 4 stores PathObject UUIDs as a separate field
 	 */
 	private final static int DATA_FILE_VERSION = 3;
 	
 	private PathIO() {}
 	
+	private static int requestedDataFileVersion = DATA_FILE_VERSION - 1;
+	
+	/**
+	 * Get the requested version for .qpdata files.
+	 * 
+	 * @return
+	 * @see #setRequestedDataFileVersion(int version)
+	 * @see #getCurrentDataFileVersion()
+	 */
+	public static int getRequestedDataFileVersion() {
+		return requestedDataFileVersion;
+	}
+	
+	/**
+	 * Get the current preferred data file version.
+	 * @return
+	 * @see #setRequestedDataFileVersion(int version)
+	 * @see #getCurrentDataFileVersion()
+	 */
+	public static int getCurrentDataFileVersion() {
+		return DATA_FILE_VERSION;
+	}
+	
+	/**
+	 * Set the requested version for .qpdata files.
+	 * 
+	 * <ul>
+	 * <li><b>1.0</b> Initial version stored in very early .qpdata files (no longer supported)</li>
+	 * <li><b>2</b> Switched versions to use integers, added Locale information (used in QuPath v0.1.2)</li>
+	 * <li><b>3</b> Switched {@link ImageServer} paths to be a JSON representation rather than a single path/URL</li>
+	 * <li><b>4</b> Added support for UUID to be stored in each {@link PathObject} (introducted QuPath v0.4.0)</li>
+	 * </ul>
+	 * 
+	 * @param version integer representation of the requested version
+	 * @see #getRequestedDataFileVersion()
+	 * @see #getCurrentDataFileVersion()
+	 * @since v0.4.0
+	 * @throws IllegalArgumentException if the requested version is less than 2 or greater than {@link #getCurrentDataFileVersion()}
+	 */
+	public static void setRequestedDataFileVersion(int version) throws IllegalArgumentException {
+		if (version < 2 || version > DATA_FILE_VERSION)
+			throw new IllegalArgumentException("Requested data file version must be between 2 and " + DATA_FILE_VERSION);
+		requestedDataFileVersion = version;
+	}
 	
 	
 	/**

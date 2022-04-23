@@ -34,6 +34,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.UUID;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -225,6 +227,13 @@ class PathObjectTypeAdapters {
 //			out.name("id");
 //			out.value(value.getClass().getSimpleName());		
 	
+			// Since v0.4.0
+			var id = value.getId();
+			if (id != null) {
+				out.name("id");
+				out.value(id.toString());		
+			}
+
 			// TODO: Write cell objects as a Geometry collection to include the nucleus as well
 			out.name("geometry");
 			ROITypeAdapters.ROI_ADAPTER_INSTANCE.write(out, value.getROI());
@@ -332,11 +341,21 @@ class PathObjectTypeAdapters {
 			
 			// Get an ID
 			String id = null;
+			UUID uuid = null;
 			if (obj.has("id")) {
 				id = obj.get("id").getAsString();
 				// In v0.2, we (unwisely...) stored the type in an ID
 				if (LEGACY_TYPE_IDS.contains(id))
 					type = id;
+				else {
+					// From v0.4, we use UUID
+					try {
+						uuid = UUID.fromString(id);
+						id = null;
+					} catch (Exception e) {
+						logger.debug("Invalid ID found in GeoJSON");
+					}
+				}
 			}
 			
 			ROI roi = ROITypeAdapters.ROI_ADAPTER_INSTANCE.fromJsonTree(obj.get("geometry"));
@@ -430,6 +449,9 @@ class PathObjectTypeAdapters {
 				logger.warn("Unknown object type {}, I will create an annotation", type);
 				pathObject = PathObjects.createAnnotationObject(roi);
 			}
+			if (uuid != null)
+				pathObject.setId(uuid);
+			
 			if (measurementList != null && !measurementList.isEmpty()) {
 				try (var ml = pathObject.getMeasurementList()) {
 					for (int i = 0; i < measurementList.size(); i++)

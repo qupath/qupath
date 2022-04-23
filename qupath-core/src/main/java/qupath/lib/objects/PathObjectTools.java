@@ -37,6 +37,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.UUID;
 import java.util.Map.Entry;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -947,9 +948,9 @@ public class PathObjectTools {
 		return nChanges > 0;		
 	}
 	
-	
 	/**
-	 * Create a(n optionally) transformed version of a {@link PathObject}.
+	 * Create a transformed version of a {@link PathObject} with a new ID.
+	 * If the transform is null or the identity transform, then a duplicate object is generated instead.
 	 * <p>
 	 * Note: only detections (including tiles and cells) and annotations are fully supported by this method.
 	 * Root objects are duplicated.
@@ -962,8 +963,31 @@ public class PathObjectTools {
 	 * @param copyMeasurements if true, the measurement list of the new object will be populated with the measurements of pathObject
 	 * 
 	 * @return a duplicate of pathObject, with affine transform applied to the object's ROI(s) if required
+	 * @see #transformObject(PathObject, AffineTransform, boolean, boolean)
 	 */
 	public static PathObject transformObject(PathObject pathObject, AffineTransform transform, boolean copyMeasurements) {
+		return transformObject(pathObject, transform, copyMeasurements, false);
+	}
+	
+	/**
+	 * Create a transformed version of a {@link PathObject}, optionally with a new ID.
+	 * If the transform is null or the identity transform, then a duplicate object is generated instead.
+	 * <p>
+	 * Note: only detections (including tiles and cells) and annotations are fully supported by this method.
+	 * Root objects are duplicated.
+	 * TMA core objects are transformed only if the resulting transform creates an ellipse ROI, since this is 
+	 * currently the only ROI type supported for a TMA core (this behavior may change).
+	 * Any other object types result in an {@link UnsupportedOperationException} being thrown.
+	 * 
+	 * @param pathObject the object to transform; this will be unchanged
+	 * @param transform optional affine transform; if {@code null}, this effectively acts to duplicate the object
+	 * @param copyMeasurements if true, the measurement list of the new object will be populated with the measurements of pathObject
+	 * @param createNewIDs if true, create new IDs for each copied object; otherwise, retain the same ID.
+	 * 
+	 * @return a duplicate of pathObject, with affine transform applied to the object's ROI(s) if required
+	 * @since v0.4.0
+	 */
+	public static PathObject transformObject(PathObject pathObject, AffineTransform transform, boolean copyMeasurements, boolean createNewIDs) {
 		ROI roi = maybeTransformROI(pathObject.getROI(), transform);
 		PathClass pathClass = pathObject.getPathClass();
 		PathObject newObject;
@@ -992,23 +1016,44 @@ public class PathObjectTools {
 			}
 			newObject.getMeasurementList().close();
 		}
+		// Retain the ID, if needed
+		if (!createNewIDs)
+			newObject.setId(pathObject.getId());
 		return newObject;
 	}
 	
 	/**
-	 * Create (optionally) transformed versions of the {@link PathObject} and all its descendants, recursively. 
+	 * Create (optionally) transformed versions of the {@link PathObject} and all its descendants, recursively.
+	 * This method can be applied to all objects in a hierarchy by supplying its root object. The parent-children 
+	 * relationships are kept after transformation.
+	 * Measurements are copied to the new object, and new IDs are created.
+	 * 
+	 * @param pathObject the object to transform; this will be unchanged
+	 * @param transform optional affine transform; if {@code null}, this effectively acts to duplicate the object
+	 * @param copyMeasurements if true, the measurement list of the new object will be populated with the measurements of pathObject
+	 * @return the new object, including all child objects
+	 */
+	public static PathObject transformObjectRecursive(PathObject pathObject, AffineTransform transform, boolean copyMeasurements) {
+		return transformObjectRecursive(pathObject, transform, true, true);
+	}
+
+	/**
+	 * Create (optionally) transformed versions of the {@link PathObject} and all its descendants, recursively, optionally assigning
+	 * new IDs to the created objects. 
 	 * This method can be applied to all objects in a hierarchy by supplying its root object. The parent-children 
 	 * relationships are kept after transformation.
 	 * 
-	 * @param pathObject
-	 * @param transform
-	 * @param copyMeasurements
-	 * @return
+	 * @param pathObject the object to transform; this will be unchanged
+	 * @param transform optional affine transform; if {@code null}, this effectively acts to duplicate the object
+	 * @param copyMeasurements if true, the measurement list of the new object will be populated with the measurements of pathObject
+	 * @param createNewIDs if true, create new IDs for each copied object; otherwise, retain the same ID.
+	 * @return the new object, including all child objects
+	 * @since v0.4.0
 	 */
-	public static PathObject transformObjectRecursive(PathObject pathObject, AffineTransform transform, boolean copyMeasurements) {
-		var newObj = transformObject(pathObject, transform, copyMeasurements);
+	public static PathObject transformObjectRecursive(PathObject pathObject, AffineTransform transform, boolean copyMeasurements, boolean createNewIDs) {
+		var newObj = transformObject(pathObject, transform, copyMeasurements, createNewIDs);
 		for (var child: pathObject.getChildObjects()) {
-			newObj.addPathObject(transformObjectRecursive(child, transform, copyMeasurements));
+			newObj.addPathObject(transformObjectRecursive(child, transform, copyMeasurements, createNewIDs));
 		}
 		return newObj;
 	}
@@ -1018,6 +1063,64 @@ public class PathObjectTools {
 			return roi;
 		return RoiTools.transformROI(roi, transform);
 	}
+	
+	/**
+	 * Find objects based on a String representation of their IDs.
+	 * @param ids IDs to match; each will correspond to a key in the output map
+	 * @param pathObjects the objects that may contain corresponding IDs
+	 * @return a map between ids and any matched objects (or null if no matched object was found)
+	 * 
+	 * @see #findByUUID(Collection, Collection)
+	 * @see #matchByID(Collection, Collection)
+	 * @since v0.4.0
+	 */
+	public static Map<String, PathObject> findByStringID(Collection<String> ids, Collection<? extends PathObject> pathObjects) {
+		var map = pathObjects.stream().collect(Collectors.toMap(p -> p.getId().toString(), p -> p));
+		var output = new HashMap<String, PathObject>();
+		for (var id : ids) {
+			output.put(id, map.getOrDefault(id, null));
+		}
+		return output;
+	}
+	
+	/**
+	 * Find objects based on their IDs.
+	 * @param ids IDs to match; each will correspond to a key in the output map
+	 * @param pathObjects the objects that may contain corresponding IDs
+	 * @return a map between ids and any matched objects (or null if no matched object was found)
+	 * 
+	 * @see #findByStringID(Collection, Collection)
+	 * @see #matchByID(Collection, Collection)
+	 * @since v0.4.0
+	 */
+	public static Map<UUID, PathObject> findByUUID(Collection<UUID> ids, Collection<? extends PathObject> pathObjects) {
+		var map = pathObjects.stream().collect(Collectors.toMap(p -> p.getId(), p -> p));
+		var output = new HashMap<UUID, PathObject>();
+		for (var id : ids) {
+			output.put(id, map.getOrDefault(id, null));
+		}
+		return output;
+	}
+
+	/**
+	 * Match objects according to their IDs.
+	 * @param sourceObjects source objects; each will correspond to a key in the output map
+	 * @param targetObjects target objects; each will correspond to a value in the output map provided it has a match in sourceObjects
+	 * @return a map between sourceObjects and any matched target objects (or null if no matched object was found)
+	 * 
+	 * @see #findByUUID(Collection, Collection)
+	 * @see #findByStringID(Collection, Collection)
+	 * @since v0.4.0
+	 */
+	public static Map<PathObject, PathObject> matchByID(Collection<? extends PathObject> sourceObjects, Collection<? extends PathObject> targetObjects) {
+		var map = targetObjects.stream().collect(Collectors.toMap(p -> p.getId(), p -> p));
+		var output = new HashMap<PathObject, PathObject>();
+		for (var sourceObject : sourceObjects) {
+			output.put(sourceObject, map.getOrDefault(sourceObject.getId(), null));
+		}
+		return output;
+	}
+	
 	
 	/**
 	 * Duplicate all the selected objects in a hierarchy.
@@ -1057,16 +1160,31 @@ public class PathObjectTools {
 	}
 	
 	/**
-	 * Duplicate the specified objects.
+	 * Duplicate the specified objects, assigning new IDs for each object.
+	 * 
 	 * @param hierarchy hierarchy containing the objects to duplicate
 	 * @param pathObjects objects that should be duplicated
 	 * @return true if the hierarchy is changed, false otherwise
+	 * @see #duplicateObjects(PathObjectHierarchy, Collection, boolean)
 	 */
 	public static boolean duplicateObjects(PathObjectHierarchy hierarchy, Collection<PathObject> pathObjects) {
+		return duplicateObjects(hierarchy, pathObjects, true);
+	}
+	
+	/**
+	 * Duplicate the specified objects, optionally creating new IDs.
+	 * 
+	 * @param hierarchy hierarchy containing the objects to duplicate
+	 * @param pathObjects objects that should be duplicated
+	 * @return true if the hierarchy is changed, false otherwise
+	 * 
+	 * @since v0.4.0
+	 */
+	public static boolean duplicateObjects(PathObjectHierarchy hierarchy, Collection<PathObject> pathObjects, boolean createNewIDs) {
 		var map = pathObjects
 				.stream()
 				.collect(Collectors.toMap(p -> p,
-						p -> PathObjectTools.transformObject(p, null, true)));
+						p -> PathObjectTools.transformObject(p, null, true, createNewIDs)));
 		if (map.isEmpty()) {
 			logger.error("No selected objects to duplicate!");
 			return false;
