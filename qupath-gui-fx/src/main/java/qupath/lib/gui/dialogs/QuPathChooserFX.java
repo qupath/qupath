@@ -106,13 +106,14 @@ public class QuPathChooserFX implements QuPathChooser {
 	}
 
 	@Override
-	public File promptForDirectory(File dirBase) {
+	public File promptForDirectory(String title, File dirBase) {
 		
 		if (!Platform.isFxApplicationThread()) {
-			return GuiTools.callOnApplicationThread(() -> promptForDirectory(dirBase));
+			return GuiTools.callOnApplicationThread(() -> promptForDirectory(title, dirBase));
 		}
 		
 		File lastDir = getLastDirectory();
+		directoryChooser.setTitle(title);
 		directoryChooser.setInitialDirectory(getUsefulBaseDirectory(dirBase));
 		File dirSelected = directoryChooser.showDialog(ownerWindow);
 		if (dirSelected != null) {

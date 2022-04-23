@@ -1798,7 +1798,7 @@ public class QuPathGUI {
 				}
 				PathPrefs.userPathProperty().set(dirDefault.getAbsolutePath());
 			} else {
-				File dirUser = Dialogs.promptForDirectory(dirDefault);
+				File dirUser = Dialogs.promptForDirectory("Set user directory", dirDefault);
 				if (dirUser == null) {
 					logger.info("No QuPath user directory set - extensions not installed");
 					return;

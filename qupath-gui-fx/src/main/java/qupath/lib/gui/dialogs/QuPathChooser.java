@@ -78,7 +78,18 @@ public interface QuPathChooser {
 	 * @param dirBase base directory to display; if null or not an existing directory, the value under getLastDirectory() should be used
 	 * @return selected directory, or null if no directory was selected
 	 */
-	public abstract File promptForDirectory(File dirBase);
+	public default File promptForDirectory(File dirBase) {
+		return promptForDirectory(null, dirBase);
+	}
+	
+	/**
+	 * Prompt user to select a directory.
+	 * 
+	 * @param title the title to display for the dialog (may be null to use default)
+	 * @param dirBase base directory to display; if null or not an existing directory, the value under getLastDirectory() should be used
+	 * @return selected directory, or null if no directory was selected
+	 */
+	public abstract File promptForDirectory(String title, File dirBase);
 
 	/**
 	 * Prompt the user for a file with some kind of file dialog.

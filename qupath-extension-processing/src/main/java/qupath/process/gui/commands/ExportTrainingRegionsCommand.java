@@ -628,7 +628,7 @@ public class ExportTrainingRegionsCommand implements Runnable {
 			if (dirExport == null && project != null) {
 				dirExport = Projects.getBaseDirectory(project);
 			}
-			File dirSelected = Dialogs.getChooser(pane.getScene().getWindow()).promptForDirectory(dirExport);
+			File dirSelected = Dialogs.getChooser(pane.getScene().getWindow()).promptForDirectory("Export training regions", dirExport);
 			if (dirSelected == null)
 				return null;
 			dirExport = dirSelected;
