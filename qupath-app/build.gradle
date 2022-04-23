@@ -53,13 +53,16 @@ ext {
   qupathAppName = "QuPath-${qupathVersion}"
 }
 
+// Determine java version associated with toolchain
+def toolchainJavaVersion = getToolchainJavaVersion()
+
 // Put the output in the main directory so it is easier to find
 project.buildDir = rootProject.file('build')
 
 application {
   mainClass = "qupath.QuPath"
   applicationName = qupathAppName
-  applicationDefaultJvmArgs = buildDefaultJvmArgs("${project.buildDir}/natives")
+  applicationDefaultJvmArgs = buildDefaultJvmArgs("${project.buildDir}/natives", toolchainJavaVersion)
 }
 
 /*
@@ -364,7 +367,7 @@ JPackageParams buildParameters() {
   params.appVersion = appVersion
   params.imageName = qupathAppName // Will need to be removed for some platforms
   params.installerName = "QuPath"
-  params.jvmArgs += buildDefaultJvmArgs()
+  params.jvmArgs += buildDefaultJvmArgs('$APPDIR', toolchainJavaVersion)
 
   // Configure according to the current platform
   def platform = properties['platform.name']
@@ -515,10 +518,29 @@ def setFileAssociations(JPackageParams params) {
 }
 
 /**
+ * Get the JavaVersion used with the current toolchain.
+ * This is useful for JVM-specific arguments.
+ */ 
+JavaVersion getToolchainJavaVersion() {
+	try {
+		// Certainly feels like there should be a more direct way, but I couldn't find it
+		def toolchain = project.getExtensions().getByType(JavaPluginExtension.class).getToolchain()
+		def service = project.getExtensions().getByType(JavaToolchainService.class)
+		def version = service.compilerFor(toolchain).get().getMetadata().getJvmVersion()
+		return JavaVersion.toVersion(version)
+	} catch (Exception e) {
+		println "Unable to determine Java version from toolchain: ${e.getLocalizedMessage()}"
+		return JavaVersion.current()
+	}
+	if (toolchain == null)
+	return JavaVersion.toVersion(toolchain.getJavaLanguageVersion())
+}
+
+/**
  * Get default JVM arguments (e.g. to set memory, library path)
  * @return
  */
-static List<String> buildDefaultJvmArgs(String libraryPath = '$APPDIR') {
+static List<String> buildDefaultJvmArgs(String libraryPath = '$APPDIR', JavaVersion javaVersion = JavaVersion.current()) {
   // Set up the main Java options
   def javaOptions = []
 
@@ -532,8 +554,12 @@ static List<String> buildDefaultJvmArgs(String libraryPath = '$APPDIR') {
   //   ERROR: QuPath exception: class org.controlsfx.control.textfield.AutoCompletionBinding
   //   (in unnamed module @0x298a5e20) cannot access class com.sun.javafx.event.EventHandlerManager
   //   (in module javafx.base) because module javafx.base does not export com.sun.javafx.event to unnamed module
-  // This Java option will hopefully be temporary, until dependencies are updated to make it unnecessary.
-  javaOptions << '--illegal-access=permit'
+  // This Java option is not supported in Java 17+.
+  // It is useful in Java 16, particularly for Bio-Formats memoization
+  if (javaVersion == JavaVersion.VERSION_16) {
+      println "Setting --illegal-access=permit for pre-Java 16 behavior"
+	  javaOptions << '--illegal-access=permit'
+  }
 
   // Default to using 50% available memory
   javaOptions << '-XX:MaxRAMPercentage=50'

@@ -1161,7 +1161,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			int memoizationTimeMillis = options.getMemoizationTimeMillis();
 			File dir = null;
 			// We can only use memoization if we don't have an illegal character
-			if (memoizationTimeMillis >= 0 && !id.contains(":")) {
+			if (BioFormatsServerOptions.allowMemoization() && memoizationTimeMillis >= 0 && !id.contains(":")) {
 				// Try to use a specified directory
 				String pathMemoization = options.getPathMemoization();
 				if (pathMemoization != null && !pathMemoization.trim().isEmpty()) {

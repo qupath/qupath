@@ -42,6 +42,46 @@ public class BioFormatsServerOptions {
 	private final static Logger logger = LoggerFactory.getLogger(BioFormatsServerOptions.class);
 
 	/**
+	 * System property controlling whether memoization is allowed or not.
+	 * If set to false, this is a hint that memoization should not be supported - but it is up to consumers to enforce that.
+	 * <p>
+	 * Default is to set status based upon Java version, with 17+ turning memoization off.
+	 * <p>
+	 * See https://github.com/qupath/qupath/issues/957
+	 */
+	public static String ALLOW_MEMOIZATION_PROPERTY = "qupath.bioformats.allow.memoization";
+	
+	private static boolean allowMemoization = true;
+	
+	static {
+		String prop = System.getProperty(ALLOW_MEMOIZATION_PROPERTY);
+		if (prop != null)
+			prop = prop.strip().toLowerCase();
+		if ("true".equals(prop)) {
+			logger.info("Bio-Formats memoization is turned ON (based on system property)");
+			allowMemoization = true;
+		} else if ("false".equals(prop)) {
+			logger.info("Bio-Formats memoization is turned OFF (based on system property)");
+			allowMemoization = false;
+		} else {
+			try {
+				var javaVersion = Runtime.version();
+				if (javaVersion.feature() >= 17) {
+					logger.info("Bio-Formats memoization is turned OFF (based on Java version " + javaVersion + ")");
+					allowMemoization = false;
+				} else {
+					// Note that this does require --illegal-access=permit as a VM arg
+					logger.info("Bio-Formats memoization is turned ON (based on Java version " + javaVersion + ")");
+					allowMemoization = true;
+				}
+			} catch (Exception e) {
+				logger.info("Bio-Formats memoization is turned ON (default value, unknown Java version)");
+				allowMemoization = true;				
+			}
+		}
+	}
+	
+	/**
 	 * Enum to determine if Bio-Formats should or should not be used for a specific format.
 	 * <p>
 	 * Its purpose is to allow the user to customize whether to turn it on or off for certain extensions, 
@@ -254,4 +294,17 @@ public class BioFormatsServerOptions {
 		return useExtensions;
 	}
 
+	
+	/**
+	 * Check whether memoization should be allowed or not.
+	 * This returns true, unless the system property {@link #ALLOW_MEMOIZATION_PROPERTY} specifies that it should be false.
+	 * The reason it exists is that memoization can fail
+	 * 
+	 * @return true if memoization should be allowed, false otherwise
+	 * @since v0.4.0
+	 */
+	public static boolean allowMemoization() {
+		return allowMemoization;
+	}
+	
 }
