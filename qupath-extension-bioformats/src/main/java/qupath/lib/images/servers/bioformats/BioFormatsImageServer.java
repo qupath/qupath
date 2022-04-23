@@ -568,15 +568,73 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 				channels.addAll(ImageChannel.getDefaultRGBChannels());
 			}
 			else {
-				for (int c = 0; c < nChannels; c++) {
-					ome.xml.model.primitives.Color color = null;
-					String channelName = null;
-					try {
-						channelName = meta.getChannelName(series, c);
-						color = meta.getChannelColor(series, c);
-					} catch (Exception e) {
-						logger.warn("Unable to parse color", e);
+				// Get channel colors and names
+				var tempColors = new ArrayList<ome.xml.model.primitives.Color>(nChannels);
+				var tempNames = new ArrayList<String>(nChannels);
+				// Be prepared to use default channels if something goes wrong
+				try {
+					int metaChannelCount = meta.getChannelCount(series);
+					// Handle the easy case where the number of channels matches our expectations
+					if (metaChannelCount == nChannels) {
+						for (int c = 0; c < nChannels; c++) {
+							try {
+								// try/catch from old code, before we explicitly checked channel count
+								// No exception should occur now
+								var channelName = meta.getChannelName(series, c);
+								var color = meta.getChannelColor(series, c);
+								tempNames.add(channelName);
+								tempColors.add(color);
+							} catch (Exception e) {
+								logger.warn("Unable to parse name or color for channel {}", c);
+								logger.debug("Unable to parse color", e);
+							}
+						}
+					} else {
+						// Handle the harder case, where we have a different number of channels
+						// I've seen this with a polarized light CZI image, with a channel count of 2 
+						// but in which each of these had 3 samples (resulting in a total of 6 channels)
+						logger.debug("Attempting to parse {} channels with metadata channel count", nChannels, metaChannelCount);
+						int ind = 0;
+						for (int cInd = 0; cInd < metaChannelCount; cInd++) {
+							int nSamples = meta.getChannelSamplesPerPixel(series, cInd).getValue();
+							var baseChannelName = meta.getChannelName(series, cInd);
+							if (baseChannelName != null && baseChannelName.isBlank())
+								baseChannelName = null;
+							// I *expect* this to be null for interleaved channels, in which case it will be filled in later
+							var color = meta.getChannelColor(series, cInd);
+							for (int sampleInd = 0; sampleInd < nSamples; sampleInd++) {
+								String channelName;
+								if (baseChannelName == null)
+									channelName = "Channel " + (ind + 1);
+								else
+									channelName = baseChannelName.strip() + " " + (sampleInd + 1);
+								
+								tempNames.add(channelName);
+								tempColors.add(color);
+								
+								ind++;
+							}
+						}
 					}
+				} catch (Exception e) {
+					logger.warn("Exception parsing channels " + e.getLocalizedMessage(), e);
+				}
+				if (nChannels != tempNames.size() || tempNames.size() != tempColors.size()) {
+					logger.warn("The channel names and colors read from the metadata don't match the expected number of channels!");
+					logger.warn("Be very cautious working with channels, since the names and colors may be misaligned, incorrect or default values.");
+					long nNames = tempNames.stream().filter(n -> n != null && !n.isBlank()).count();
+					long nColors = tempColors.stream().filter(n -> n != null).count();
+					logger.warn("(I expected {} channels, but found {} names and {} colors)", nChannels, nNames, nColors);
+					// Could reset them, but may help to use what we can
+//					tempNames.clear();
+//					tempColors.clear();
+				}
+				
+					
+				// Now loop through whatever we could parse and add QuPath ImageChannel objects
+				for (int c = 0; c < nChannels; c++) {
+					String channelName = c < tempNames.size() ? tempNames.get(c) : null;
+					var color = c < tempColors.size() ? tempColors.get(c) : null; 
 					Integer channelColor = null;
 					if (color != null)
 						channelColor = ColorTools.packARGB(color.getAlpha(), color.getRed(), color.getGreen(), color.getBlue());
@@ -591,6 +649,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 						channelName = "Channel " + (c + 1);
 					channels.add(ImageChannel.getInstance(channelName, channelColor));
 				}
+				assert nChannels == channels.size();
 				// Update RGB status if needed - sometimes we might really have an RGB image, but the Bio-Formats flag doesn't show this - 
 				// and we want to take advantage of the optimizations where we can
 				if (nChannels == 3 && 
@@ -631,7 +690,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 					int lastTimepoint = -1;
 					int count = 0;
 					timepoints = new double[nTimepoints];
-					logger.debug("PLANE COUNT: " + meta.getPlaneCount(series));
+					logger.debug("Plane count: " + meta.getPlaneCount(series));
 					for (int plane = 0; plane < meta.getPlaneCount(series); plane++) {
 						int timePoint = meta.getPlaneTheT(series, plane).getValue();
 						logger.debug("Checking " + timePoint);
@@ -1102,7 +1161,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			int memoizationTimeMillis = options.getMemoizationTimeMillis();
 			File dir = null;
 			// We can only use memoization if we don't have an illegal character
-			if (memoizationTimeMillis >= 0 && !id.contains(":")) {
+			if (BioFormatsServerOptions.allowMemoization() && memoizationTimeMillis >= 0 && !id.contains(":")) {
 				// Try to use a specified directory
 				String pathMemoization = options.getPathMemoization();
 				if (pathMemoization != null && !pathMemoization.trim().isEmpty()) {
@@ -1362,6 +1421,33 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 						offsets[b] = b * tileWidth * tileHeight;
 					sampleModel = new ComponentSampleModel(dataBuffer.getDataType(), tileWidth, tileHeight, 1, tileWidth, offsets);
 				}
+			} else if (sizeC > effectiveC) {
+				// Handle multiple bands, but still interleaved
+				// See https://forum.image.sc/t/qupath-cant-open-polarized-light-scans/65951
+				int[] offsets = new int[sizeC];
+				int[] bandInds = new int[sizeC];
+				int ind = 0;
+				
+				int channelCount = metadata.getChannelCount(series);
+				for (int cInd = 0; cInd < channelCount; cInd++) {
+					int nSamples = metadata.getChannelSamplesPerPixel(series, cInd).getValue();
+					for (int s = 0; s < nSamples; s++) {
+						bandInds[ind] = cInd;
+						if (interleaved) {
+							offsets[ind] = s;
+						} else {
+							offsets[ind] = s * tileWidth * tileHeight;							
+						}
+						ind++;
+					}
+				}
+				// TODO: Check this! It works for the only test image I have... (2 channels with 3 samples each)
+				// I would guess it fails if pixelStride does not equal nSamples, and if nSamples is different for different 'channels' - 
+				// but I don't know if this occurs in practice.
+				// If it does, I don't see a way to use a ComponentSampleModel... which could complicate things quite a bit
+				int pixelStride = sizeC / effectiveC;
+				int scanlineStride = pixelStride*tileWidth;
+				sampleModel = new ComponentSampleModel(dataBuffer.getDataType(), tileWidth, tileHeight, pixelStride, scanlineStride, bandInds, offsets);
 			} else {
 				// Merge channels on different planes
 				sampleModel = new BandedSampleModel(dataBuffer.getDataType(), tileWidth, tileHeight, sizeC);

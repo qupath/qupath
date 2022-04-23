@@ -34,13 +34,21 @@ This is a work-in-progress.
 * 'Zoom to fit' doesn't handle changes in window size
 * Duplicating images with some names can cause an exception (https://github.com/qupath/qupath/issues/942)
 * Removing >255 measurements throws error when reproducing from workflow script (https://github.com/qupath/qupath/issues/915)
+* QuPath doesn't support some channel combinations through Bio-Formats (https://github.com/qupath/qupath/issues/956)
 
-### Known issues
-* Bio-Formats 6.9.0 has problems with a subset of svs files, see https://github.com/ome/bioformats/issues/3757
+### Changes through Bio-Formats 6.9.1
+* Bio-Formats 6.9.1 brings several important new features to QuPath, including:
+  * Support for reading DICOM whole slide images
+  * Improved handling of brightfield CZI images (i.e. filling unscanned regions in white, not black)
+  * Substantial performance improvements for reading/writing some formats (including OME-TIFF)
+* Bio-Formats in combination with Java 17 also has some known issues
+  * Unable to properly read a subset of svs files (https://github.com/ome/bioformats/issues/3757)
+  * Memoization is not possible with Java 17, and turned off in QuPath by default (https://github.com/qupath/qupath/issues/957)
+* For details, see https://docs.openmicroscopy.org/bio-formats/6.9.1/about/whats-new.html
 
 ### Dependency updates
 * Adoptium OpenJDK 17
-* Bio-Formats 6.9.0
+* Bio-Formats 6.9.1
 * JavaFX 17.0.2
 * Groovy 4.0.1
 * Gson 2.9.0

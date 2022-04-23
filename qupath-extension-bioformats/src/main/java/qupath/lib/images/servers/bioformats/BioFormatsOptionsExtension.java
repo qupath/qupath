@@ -125,10 +125,14 @@ public class BioFormatsOptionsExtension implements QuPathExtension {
 		prefs.addPropertyPreference(useParallelization, Boolean.class, "Enable Bio-Formats tile parallelization", "Bio-Formats", "Enable reading image tiles in parallel when using Bio-Formats");
 //		prefs.addPropertyPreference(parallelizeMultichannel, Boolean.class, "Enable Bio-Formats channel parallelization (experimental)", "Bio-Formats", "Request multiple image channels in parallel, even if parallelization of tiles is turned off - "
 //				+ "only relevant for multichannel images, and may fail for some image formats");
-		prefs.addPropertyPreference(memoizationTimeMillis, Integer.class, "Bio-Formats memoization time (ms)", "Bio-Formats", "Specify how long a file requires to open before Bio-Formats will create a .bfmemo file to improve performance (set < 0 to never use memoization)");
 		
-		prefs.addDirectoryPropertyPreference(pathMemoization, "Bio-Formats memoization directory", "Bio-Formats",
-				"Choose directory where Bio-Formats should write cache files for memoization; by default the directory where the image is stored will be used");
+		if (BioFormatsServerOptions.allowMemoization()) {
+			prefs.addPropertyPreference(memoizationTimeMillis, Integer.class, "Bio-Formats memoization time (ms)", "Bio-Formats", "Specify how long a file requires to open before Bio-Formats will create a .bfmemo file to improve performance (set < 0 to never use memoization)");
+			
+			prefs.addDirectoryPropertyPreference(pathMemoization, "Bio-Formats memoization directory", "Bio-Formats",
+					"Choose directory where Bio-Formats should write cache files for memoization; by default the directory where the image is stored will be used");
+		}
+		
 		prefs.addPropertyPreference(useExtensions, String.class, "Always use Bio-Formats for specified image extensions", "Bio-Formats", 
 				"Request that Bio-Formats is always the file reader used for images with specific extensions; enter as a list with spaces between each entry");
 		prefs.addPropertyPreference(skipExtensions, String.class, "Never use Bio-Formats for specified image extensions", "Bio-Formats", 

@@ -1164,7 +1164,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 										objectCell = objectTemp;
 										tree.refresh();
 									} catch (Exception ex) {
-										logger.warn("Error opening ImageServer (thumbnail generation): " + ex.getLocalizedMessage());
+										logger.warn("Error opening ImageServer (thumbnail generation): " + ex.getLocalizedMessage(), ex);
 										Platform.runLater(() -> setGraphic(IconFactory.createNode(15, 15, PathIcons.INACTIVE_SERVER)));
 										serversFailed.add(item);
 									}
