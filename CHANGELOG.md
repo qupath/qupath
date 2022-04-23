@@ -34,6 +34,7 @@ This is a work-in-progress.
 * 'Zoom to fit' doesn't handle changes in window size
 * Duplicating images with some names can cause an exception (https://github.com/qupath/qupath/issues/942)
 * Removing >255 measurements throws error when reproducing from workflow script (https://github.com/qupath/qupath/issues/915)
+* QuPath doesn't support some channel combinations through Bio-Formats (https://github.com/qupath/qupath/issues/956)
 
 ### Enhancements through Bio-Formats 6.9.1
 * Bio-Formats 6.9.1 brings several important new features to QuPath, including:
