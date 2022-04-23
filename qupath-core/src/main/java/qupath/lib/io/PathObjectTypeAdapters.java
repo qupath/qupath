@@ -228,7 +228,7 @@ class PathObjectTypeAdapters {
 //			out.value(value.getClass().getSimpleName());		
 	
 			// Since v0.4.0
-			var id = value.getID();
+			var id = value.getId();
 			if (id != null) {
 				out.name("id");
 				out.value(id.toString());		
@@ -450,7 +450,7 @@ class PathObjectTypeAdapters {
 				pathObject = PathObjects.createAnnotationObject(roi);
 			}
 			if (uuid != null)
-				pathObject.setID(uuid);
+				pathObject.setId(uuid);
 			
 			if (measurementList != null && !measurementList.isEmpty()) {
 				try (var ml = pathObject.getMeasurementList()) {

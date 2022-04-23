@@ -103,7 +103,7 @@ public class DefaultPathObjectComparator implements Comparator<PathObject> {
 			return 1;
 		
 		// Shouldn't end up here much...
-		return o1.getID().compareTo(o2.getID());
+		return o1.getId().compareTo(o2.getId());
 	}
 	
 	/**

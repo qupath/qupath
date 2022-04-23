@@ -756,10 +756,10 @@ public abstract class PathObject implements Externalizable {
 	/**
 	 * Get the ID for this object.
 	 * @return
-	 * @see #setID(UUID)
-	 * @see #updateID()
+	 * @see #setId(UUID)
+	 * @see #updateId()
 	 */
-	public UUID getID() {
+	public UUID getId() {
 		return id;
 	}
 	
@@ -780,7 +780,7 @@ public abstract class PathObject implements Externalizable {
 	 * @param id the ID to use
 	 * @throws IllegalArgumentException if the specified ID is null
 	 */
-	public void setID(UUID id) throws IllegalArgumentException {
+	public void setId(UUID id) throws IllegalArgumentException {
 		if (id == null)
 			throw new IllegalArgumentException("ID of an object cannot be null!");
 		this.id = id;
@@ -788,10 +788,10 @@ public abstract class PathObject implements Externalizable {
 	
 	/**
 	 * Regenerate a new random ID.
-	 * @see #setID(UUID)
+	 * @see #setId(UUID)
 	 */
-	public void updateID() {
-		setID(UUID.randomUUID());
+	public void updateId() {
+		setId(UUID.randomUUID());
 	}
 	
 	/**

@@ -83,11 +83,11 @@ public class TestPathObjectTools extends TestPathObject {
 		assertEquals(pathObjects.size(), mapNewIds.size());
 		assertEquals(0L, mapNewIds.values().stream().filter(p -> p != null).count());
 
-		var mapNewIds2 = PathObjectTools.findByUUID(pathObjects.stream().map(p -> p.getID()).collect(Collectors.toList()), duplicateObjectsNewIds);
+		var mapNewIds2 = PathObjectTools.findByUUID(pathObjects.stream().map(p -> p.getId()).collect(Collectors.toList()), duplicateObjectsNewIds);
 		assertEquals(pathObjects.size(), mapNewIds2.size());
 		assertEquals(0L, mapNewIds2.values().stream().filter(p -> p != null).count());
 
-		var mapNewIds3 = PathObjectTools.findByStringID(pathObjects.stream().map(p -> p.getID().toString()).collect(Collectors.toList()), duplicateObjectsNewIds);
+		var mapNewIds3 = PathObjectTools.findByStringID(pathObjects.stream().map(p -> p.getId().toString()).collect(Collectors.toList()), duplicateObjectsNewIds);
 		assertEquals(pathObjects.size(), mapNewIds3.size());
 		assertEquals(0L, mapNewIds3.values().stream().filter(p -> p != null).count());
 
@@ -95,11 +95,11 @@ public class TestPathObjectTools extends TestPathObject {
 		assertEquals(pathObjects.size(), mapSameIds.size());
 		assertEquals(pathObjects.size(), mapSameIds.values().stream().filter(p -> p != null).count());
 		
-		var mapSameIds2 = PathObjectTools.findByUUID(pathObjects.stream().map(p -> p.getID()).collect(Collectors.toList()), duplicateObjectsSameIds);
+		var mapSameIds2 = PathObjectTools.findByUUID(pathObjects.stream().map(p -> p.getId()).collect(Collectors.toList()), duplicateObjectsSameIds);
 		assertEquals(pathObjects.size(), mapSameIds2.size());
 		assertEquals(pathObjects.size(), mapSameIds2.values().stream().filter(p -> p != null).count());
 
-		var mapSameIds3 = PathObjectTools.findByStringID(pathObjects.stream().map(p -> p.getID().toString()).collect(Collectors.toList()), duplicateObjectsSameIds);
+		var mapSameIds3 = PathObjectTools.findByStringID(pathObjects.stream().map(p -> p.getId().toString()).collect(Collectors.toList()), duplicateObjectsSameIds);
 		assertEquals(pathObjects.size(), mapSameIds3.size());
 		assertEquals(pathObjects.size(), mapSameIds3.values().stream().filter(p -> p != null).count());
 	}
@@ -110,9 +110,9 @@ public class TestPathObjectTools extends TestPathObject {
 		assertEquals(p1.getROI(), p2.getROI());
 		assertEquals(p1.getPathClass(), p2.getPathClass());
 		if (sameIDs) {
-			assertEquals(p1.getID(), p2.getID());			
+			assertEquals(p1.getId(), p2.getId());			
 		} else {
-			assertNotEquals(p1.getID(), p2.getID());			
+			assertNotEquals(p1.getId(), p2.getId());			
 		}
 	}
 	

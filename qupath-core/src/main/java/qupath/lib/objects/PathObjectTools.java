@@ -1018,7 +1018,7 @@ public class PathObjectTools {
 		}
 		// Retain the ID, if needed
 		if (!createNewIDs)
-			newObject.setID(pathObject.getID());
+			newObject.setId(pathObject.getId());
 		return newObject;
 	}
 	
@@ -1075,7 +1075,7 @@ public class PathObjectTools {
 	 * @since v0.4.0
 	 */
 	public static Map<String, PathObject> findByStringID(Collection<String> ids, Collection<? extends PathObject> pathObjects) {
-		var map = pathObjects.stream().collect(Collectors.toMap(p -> p.getID().toString(), p -> p));
+		var map = pathObjects.stream().collect(Collectors.toMap(p -> p.getId().toString(), p -> p));
 		var output = new HashMap<String, PathObject>();
 		for (var id : ids) {
 			output.put(id, map.getOrDefault(id, null));
@@ -1094,7 +1094,7 @@ public class PathObjectTools {
 	 * @since v0.4.0
 	 */
 	public static Map<UUID, PathObject> findByUUID(Collection<UUID> ids, Collection<? extends PathObject> pathObjects) {
-		var map = pathObjects.stream().collect(Collectors.toMap(p -> p.getID(), p -> p));
+		var map = pathObjects.stream().collect(Collectors.toMap(p -> p.getId(), p -> p));
 		var output = new HashMap<UUID, PathObject>();
 		for (var id : ids) {
 			output.put(id, map.getOrDefault(id, null));
@@ -1113,10 +1113,10 @@ public class PathObjectTools {
 	 * @since v0.4.0
 	 */
 	public static Map<PathObject, PathObject> matchByID(Collection<? extends PathObject> sourceObjects, Collection<? extends PathObject> targetObjects) {
-		var map = targetObjects.stream().collect(Collectors.toMap(p -> p.getID(), p -> p));
+		var map = targetObjects.stream().collect(Collectors.toMap(p -> p.getId(), p -> p));
 		var output = new HashMap<PathObject, PathObject>();
 		for (var sourceObject : sourceObjects) {
-			output.put(sourceObject, map.getOrDefault(sourceObject.getID(), null));
+			output.put(sourceObject, map.getOrDefault(sourceObject.getId(), null));
 		}
 		return output;
 	}
