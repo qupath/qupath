@@ -4,6 +4,10 @@ This is a work-in-progress.
 
 ### Enhancements
 
+* Objects now have IDs
+  * This aims to make it much easier to match up objects whenever some further analysis is done elsewhere (e.g. classification or clustering in Python or R)
+  * See https://github.com/qupath/qupath/pull/959
+* Completely rewritten 'View -> Show view tracker' command
 * Improved measurement tables
   * Include thumbnail images for each object (can be turned off with 'Include image column in measurement tables' preference)
   * Center viewer on an object by selecting it & pressing the 'spacebar'
@@ -24,6 +28,7 @@ This is a work-in-progress.
   * Built-in ImageJ plugin to send RoiManager ROIs to QuPath (not only overlays)
   * Retain ROI position information when sending ROIs from ImageJ (hyper)stacks
 * Updated prompt to set the image type
+* Missing thumbnails are automatically regenerated when a project is opened
 * Avoid converting the pixel type to 32-bit unnecessarily when sending image regions to ImageJ
 * Warn if trying to train a pixel classifier with too many features (https://github.com/qupath/qupath/issues/947)
 
