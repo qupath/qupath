@@ -191,7 +191,11 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 				containsRoot = true;
 		}
 		boolean detectionsAnywhere = imageData == null ? containsDetections : !imageData.getHierarchy().getDetectionObjects().isEmpty();
-		
+
+		// Include object ID if we have anything other than root objects
+		if (containsAnnotations || containsDetections || containsTMACores)
+			builderMap.put("Object ID", new ObjectIdMeasurementBuilder());
+
 		// Include the object displayed name
 //		if (containsDetections || containsAnnotations || containsTMACores)
 		builderMap.put("Name", new ObjectNameMeasurementBuilder());
@@ -523,8 +527,6 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		}
 		
 	}
-	
-	
 	
 	class ObjectTypeCountMeasurement extends IntegerBinding {
 		
@@ -1154,6 +1156,24 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 	}
 	
 	
+	static class ObjectIdMeasurementBuilder extends StringMeasurementBuilder {
+		
+		@Override
+		public String getName() {
+			return "Object ID";
+		}
+
+		@Override
+		protected String getMeasurementValue(PathObject pathObject) {
+			var id = pathObject.getID(); // Shouldn't be null!
+			if (id == null) {
+				logger.warn("ID null for {}", pathObject);
+				return null;
+			}
+			return id.toString();
+		}
+		
+	}
 	
 	
 	static class ObjectNameMeasurementBuilder extends StringMeasurementBuilder {

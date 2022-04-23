@@ -26,6 +26,7 @@ package qupath.lib.io;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.ByteArrayInputStream;
@@ -115,13 +116,18 @@ public class PathObjectIOTest {
 			// Test whether po has a ROI
 			assertTrue(po.hasROI());
 			
+			assertNotNull(po.getROI());
+			assertNotNull(po.getID());
+			
 			if (po.isTile()) {
 				assertEquals(po.getPathClass(), PathClassFactory.getPathClass("PathClassTest2", ColorTools.GREEN));
+				assertEquals(po.getID(), myPTO.getID());
 				assertSameROIs(po.getROI(), roiTile);
 				assertFalse(po.hasMeasurements());
 				countCheck[0]++;
 			} else if (po.isCell()) {
 				assertEquals(po.getPathClass(), PathClassFactory.getPathClass("PathClassTest2", ColorTools.GREEN));
+				assertEquals(po.getID(), myPCO.getID());
 				assertSameROIs(po.getROI(), roiCell1);
 				assertSameROIs(((PathCellObject)po).getNucleusROI(), roiCell2);
 				if (keepMeasurements) {
@@ -132,6 +138,7 @@ public class PathObjectIOTest {
 				countCheck[1]++;
 			} else if (po.isDetection()) {
 				assertEquals(po.getPathClass(), PathClassFactory.getPathClass("PathClassTest1", ColorTools.BLACK));
+				assertEquals(po.getID(), myPDO.getID());
 				assertSameROIs(po.getROI(), roiDetection);
 				if (keepMeasurements) {
 					assertTrue(po.hasMeasurements());
@@ -141,10 +148,12 @@ public class PathObjectIOTest {
 				countCheck[2]++;
 			} else if (po.isAnnotation()) {
 				assertEquals(po.getPathClass(), PathClassFactory.getPathClass("PathClassTest1", ColorTools.BLACK));
+				assertEquals(po.getID(), myPAO.getID());
 				assertSameROIs(po.getROI(), roiAnnotation);
 				assertFalse(po.hasMeasurements());
 				countCheck[3]++;
 			} else if (po.isTMACore()) {
+				assertEquals(po.getID(), myTMA.getID());
 				assertFalse(po.hasMeasurements());
 				assertSameROIs(po.getROI(), myTMA.getROI());
 				countCheck[4]++;
