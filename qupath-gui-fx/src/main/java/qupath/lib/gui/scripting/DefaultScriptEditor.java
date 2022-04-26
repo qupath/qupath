@@ -1593,6 +1593,12 @@ public class DefaultScriptEditor implements ScriptEditor {
 	public void showEditor() {
 		if (dialog == null)
 			createDialog();
+		else {
+			// Set explicitly, to avoid repositioning
+			// If this isn't called, the dialog will be centered on screen
+			dialog.setX(dialog.getX());
+			dialog.setY(dialog.getY());
+		}
 		// Create a new script if we need one
 		if (listScripts.getItems().isEmpty())
 			showScript(null, null);
