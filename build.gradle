@@ -1,4 +1,6 @@
-
+plugins {
+    id 'qupath.java-conventions'
+}
 
 // See https://discuss.gradle.org/t/best-approach-gradle-multi-module-project-generate-just-one-global-javadoc/18657
 task mergedJavadocs(type: Javadoc, 
