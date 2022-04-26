@@ -18,6 +18,7 @@ java {
         logger.info("Setting toolchain to {}", version)
         toolchain {
             languageVersion = JavaLanguageVersion.of(version)
+            vendor = JvmVendorSpec.matching("Eclipse Adoptium")
         }
     }
     withSourcesJar()
