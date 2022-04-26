@@ -1176,8 +1176,8 @@ public class PathObjectTools {
 	 * 
 	 * @param hierarchy hierarchy containing the objects to duplicate
 	 * @param pathObjects objects that should be duplicated
+	 * @param createNewIDs if true, create new IDs for each copied object; otherwise, retain the same ID.
 	 * @return true if the hierarchy is changed, false otherwise
-	 * 
 	 * @since v0.4.0
 	 */
 	public static boolean duplicateObjects(PathObjectHierarchy hierarchy, Collection<PathObject> pathObjects, boolean createNewIDs) {
