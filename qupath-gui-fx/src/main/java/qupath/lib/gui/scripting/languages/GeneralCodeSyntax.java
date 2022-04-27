@@ -175,16 +175,24 @@ abstract class GeneralCodeSyntax implements ScriptSyntax {
 
 		if (range.getLength() == 0) {
 			int caretPos = textArea.getCaretPosition();
-			if (shiftDown && textBetween.indexOf(tabString) == 0) {
-				textArea.deleteText(startRowPos, startRowPos + tabString.length());
-				textArea.positionCaret(caretPos - tabString.length());
-			} else if (!shiftDown)
+			if (shiftDown) {
+				if (textBetween.startsWith(tabString)) {
+					textArea.deleteText(startRowPos, startRowPos + tabString.length());
+					textArea.positionCaret(caretPos - tabString.length());
+				} else if (textBetween.startsWith("\t")) {
+					// Handle 'real' tabs
+					textArea.deleteText(startRowPos, startRowPos + "\t".length());
+					textArea.positionCaret(caretPos - "\t".length());
+				}
+			} else
 				textArea.insertText(caretPos, tabString);
 			return;
 		}
 
 		String replaceText;
 		if (shiftDown) {
+			// Handle 'real' tabs
+			textBetween = textBetween.replaceAll("\t", tabString);
 			// Remove tabs at start of selected rows
 			replaceText = textBetween.replace("\n"+tabString, "\n");
 			if (replaceText.startsWith(tabString))
