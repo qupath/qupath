@@ -36,7 +36,6 @@ import org.slf4j.LoggerFactory;
 
 import qupath.lib.gui.scripting.QPEx;
 import qupath.lib.gui.scripting.ScriptEditorControl;
-import qupath.lib.scripting.QP;
 
 /**
  * Auto-completor for Groovy code.
@@ -153,7 +152,10 @@ public class GroovyAutoCompletor implements ScriptAutoCompletor {
 			return;
 		var pos = control.getCaretPosition();
 		control.insertText(pos, insertion);
-		if (insertion.endsWith(")") && control.getCaretPosition() > 0)
+		// If we have a method that includes arguments, 
+		// then we want to position the caret within the parentheses
+		// (whereas for a method without arguments, we want the caret outside)
+		if (insertion.endsWith("()") && control.getCaretPosition() > 0 && !completion.getDisplayText().endsWith("()"))
 			control.positionCaret(control.getCaretPosition()-1);
 	}
 	

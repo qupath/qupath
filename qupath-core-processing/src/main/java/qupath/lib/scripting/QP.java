@@ -233,7 +233,7 @@ public class QP {
 	}
 
 	
-	private final static List<Class<?>> CORE_CLASSES = Collections.unmodifiableList(Arrays.asList(
+	private final static Set<Class<?>> CORE_CLASSES = Collections.unmodifiableSet(new HashSet<>(Arrays.asList(
 			// Core datastructures
 			ImageData.class,
 			ImageServer.class,
@@ -274,6 +274,9 @@ public class QP {
 			ServerTools.class,
 			PixelClassifierTools.class,
 			
+			DensityMaps.class,
+			ColorTransforms.class,
+			
 			ImageOps.class,
 			DelaunayTools.class,
 			CellTools.class,
@@ -294,7 +297,7 @@ public class QP {
 			
 			// External classes
 			BufferedImage.class
-			));
+			)));
 	
 	/**
 	 * List the fields and methods of a specified object.
@@ -392,7 +395,7 @@ public class QP {
 	 * or to import these automatically at the beginning of scripts.
 	 * @return
 	 */
-	public static List<Class<?>> getCoreClasses() {
+	public static Collection<Class<?>> getCoreClasses() {
 		return CORE_CLASSES;
 	}
 	
