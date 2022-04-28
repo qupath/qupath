@@ -34,7 +34,7 @@ import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Label;
 import javafx.scene.paint.Color;
-import javafx.scene.shape.Line;
+import javafx.scene.shape.StrokeLineCap;
 import javafx.scene.text.TextAlignment;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -61,11 +61,12 @@ class Scalebar implements QuPathViewerListener {
 	protected static DecimalFormat df = new DecimalFormat("#.##");
 	private double scaledLength = Double.NaN;
 	private double scaledLengthPixels = Double.NaN;
+	private double lastLineThickness = Double.NaN;
 	
 	private Label label = new Label();
 	
 	private Canvas canvas = new Canvas();
-	private Line scaleLine = new Line();
+//	private Line scaleLine = new Line();
 	
 	private Color color = ColorToolsFX.TRANSLUCENT_BLACK_FX;
 	
@@ -83,10 +84,20 @@ class Scalebar implements QuPathViewerListener {
 		
 		label.setTextAlignment(TextAlignment.CENTER);
 		var fontBinding = Bindings.createStringBinding(() -> {
-				var temp = PathPrefs.viewerFontSizeProperty().get();
-				return temp == null ? null : "-fx-font-size: " + temp.getFontSize();
-		}, PathPrefs.viewerFontSizeProperty());
+				var fontSize = PathPrefs.scalebarFontSizeProperty().get();
+				if (fontSize == null)
+					return null;
+				var style = "-fx-font-size: " + fontSize.getFontSize();
+				var fontWeight = PathPrefs.scalebarFontWeightProperty().get();
+				if (fontWeight == null)
+					return style;
+				return style + "; -fx-font-weight: " + fontWeight.getWeight();
+		}, PathPrefs.scalebarFontSizeProperty(), PathPrefs.scalebarFontWeightProperty());
 		label.styleProperty().bind(fontBinding);
+		
+		PathPrefs.scalebarLineWidthProperty().addListener((v, o, n) -> {
+			updateScalebar();
+		});
 	}
 	
 	
@@ -116,15 +127,16 @@ class Scalebar implements QuPathViewerListener {
 
 	public void updateScalebar() {
 		if (viewer == null) {
-			scaleLine.setVisible(false);
+//			scaleLine.setVisible(false);
 //			setText("");
 //			setText(null);
 		}
 		try {
-			scaleLine.setVisible(true);
+//			scaleLine.setVisible(true);
 			// Check the downsample has changed
+			double lineThickness = PathPrefs.scalebarLineWidthProperty().get();
 			double currentDownsample = viewer.getDownsampleFactor();
-			if (lastDownsample == currentDownsample)
+			if (lastDownsample == currentDownsample && lastLineThickness == lineThickness)
 				return;
 			
 //			System.out.println("UPDATING SCALE BAR! " + currentDownsample);
@@ -144,12 +156,10 @@ class Scalebar implements QuPathViewerListener {
 			scaledLength = getPermittedScale(pxSize * preferredLength);
 			scaledLengthPixels = scaledLength / pxSize;
 			// Switch to mm if appropriate
-			String labelText = df.format(scaledLength) + unit;
+			String labelText = df.format(scaledLength) + " " + unit;
 			if (scaledLength >= 1000 && GeneralTools.micrometerSymbol().equals(unit)) {
-				labelText = df.format(scaledLength / 1000) + "mm";
+				labelText = df.format(scaledLength / 1000) + " mm";
 			}
-			
-			
 			
 //			String label = String.format("%f %s", scaledLength, unit);
 			// If it make sense, could convert microns to mm... but let's not do that for now
@@ -158,24 +168,30 @@ class Scalebar implements QuPathViewerListener {
 			
 			
 			double width = scaledLengthPixels;
-			double height = 5;
-			canvas.setWidth(width+2);
-			canvas.setHeight(height);
-			GraphicsContext gc = canvas.getGraphicsContext2D();
-			gc.clearRect(0, 0, width+2, height);
-			gc.save();
-			int x = 1;
-			gc.setStroke(color);
-			gc.setLineWidth(2);
-			gc.strokeLine(x, 0, x, height);
-			gc.strokeLine(x, height/2, x+width, height/2);
-			gc.strokeLine(x+width, 0, x+width, height);
-			gc.restore();
+			lastLineThickness = lineThickness;
+			if (lineThickness > 0) {
+				double totalThickness = lineThickness;
+				canvas.setWidth(width+2);
+				canvas.setHeight(totalThickness);
+				GraphicsContext gc = canvas.getGraphicsContext2D();
+				gc.clearRect(0, 0, canvas.getWidth(), canvas.getHeight());
+				gc.save();
+				int x = 1;
+				gc.setStroke(color);
+				gc.setLineWidth(lineThickness);
+	//			gc.strokeLine(x, 0, x, totalThickness);
+				gc.strokeLine(x, totalThickness/2, x+width, totalThickness/2);
+	//			gc.strokeLine(x+width, 0, x+width, totalThickness);
+				gc.restore();
+			} else {
+				GraphicsContext gc = canvas.getGraphicsContext2D();
+				gc.clearRect(0, 0, canvas.getWidth(), canvas.getHeight());
+			}
 			
-			scaleLine.setStartX(0.0);
-			scaleLine.setStartY(0.0);
-			scaleLine.setEndY(0.0);
-			scaleLine.setEndX(scaledLength);
+//			scaleLine.setStartX(0.0);
+//			scaleLine.setStartY(0.0);
+//			scaleLine.setEndY(0.0);
+//			scaleLine.setEndX(scaledLength);
 			
 			
 			

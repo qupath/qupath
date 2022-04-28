@@ -44,6 +44,7 @@ import javafx.scene.Node;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.paint.Color;
+import javafx.scene.text.FontWeight;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.logging.LogManager;
@@ -281,12 +282,30 @@ public class PreferencePane {
 				category,
 				"Zoom in when double-clicking on image (if not inside an object) with move tool; zoom out if Alt or Ctrl/Cmd is held down");
 
-		addPropertyPreference(PathPrefs.viewerFontSizeProperty(),
+		addPropertyPreference(PathPrefs.scalebarFontSizeProperty(),
 				FontSize.class,
-				"Viewer font size",
+				"Scalebar font size",
 				category,
-				"Adjust font size for scalebar and location text");
+				"Adjust font size for scalebar");
+		
+		addPropertyPreference(PathPrefs.scalebarFontWeightProperty(),
+				FontWeight.class,
+				"Scalebar font weight",
+				category,
+				"Adjust font weight for the scalebar");
 
+		addPropertyPreference(PathPrefs.scalebarLineWidthProperty(),
+				Double.class,
+				"Scalebar thickness",
+				category,
+				"Adjust line thickness for the scalebar");
+
+		addPropertyPreference(PathPrefs.locationFontSizeProperty(),
+				FontSize.class,
+				"Location text font size",
+				category,
+				"Adjust font size for location text");
+		
 		addPropertyPreference(PathPrefs.useCalibratedLocationStringProperty(), Boolean.class,
 				"Use calibrated location text",
 				category,

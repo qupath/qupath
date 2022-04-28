@@ -258,7 +258,7 @@ public class HierarchyOverlay extends AbstractOverlay {
 		if (overlayOptions.getShowNames() && !objectsWithNames.isEmpty()) {
 			
 			double requestedFontSize;
-			switch (PathPrefs.viewerFontSizeProperty().get()) {
+			switch (PathPrefs.locationFontSizeProperty().get()) {
 			case HUGE:
 				requestedFontSize = 24;
 				break;

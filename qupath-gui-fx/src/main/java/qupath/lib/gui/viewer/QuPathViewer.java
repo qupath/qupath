@@ -230,7 +230,8 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	// Keep a record of when the spacebar is pressed, to help with dragging to pan
 	private boolean spaceDown = false;
 
-	protected Color colorOverlaySuggested = null;
+	// Suggested overlay color, based upon the local background
+	private Color colorOverlaySuggested = null;
 	
 	// Requested cursor - but this may be overridden temporarily
 	private Cursor requestedCursor = Cursor.DEFAULT;
@@ -792,7 +793,10 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		manager.attachListener(PathPrefs.colorTMAProperty(), repainter);
 		manager.attachListener(PathPrefs.colorTMAMissingProperty(), repainter);
 		manager.attachListener(PathPrefs.alwaysPaintSelectedObjectsProperty(), repainter);
-		manager.attachListener(PathPrefs.viewerFontSizeProperty(), repainter);
+		manager.attachListener(PathPrefs.locationFontSizeProperty(), repainter);
+		manager.attachListener(PathPrefs.scalebarFontSizeProperty(), repainter);
+		manager.attachListener(PathPrefs.scalebarFontWeightProperty(), repainter);
+		manager.attachListener(PathPrefs.scalebarLineWidthProperty(), repainter);
 
 		manager.attachListener(PathPrefs.gridSpacingXProperty(), repainter);
 		manager.attachListener(PathPrefs.gridSpacingYProperty(), repainter);
