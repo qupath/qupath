@@ -58,7 +58,7 @@ public interface ScriptAutoCompletor {
 	 * @param control
 	 * @param completion
 	 */
-	default void applyCompletion(ScriptEditorControl control, String completion) {
+	default void applyCompletion(ScriptEditorControl control, Completion completion) {
 		throw new UnsupportedOperationException("Completions not supported!");
 	}
 	
@@ -97,6 +97,28 @@ public interface ScriptAutoCompletor {
 		 */
 		public String getCompletionText() {
 			return completionText;
+		}
+		
+		/**
+		 * Get the string to insert, given the provided starting text.
+		 * This involves stripping off any overlapping part of the completion, 
+		 * so that it can be appended to the startText.
+		 * @param startText existing text
+		 * @return the text to insert
+		 */
+		public String getInsertion(String startText) {
+			// Easy approach (fails with classes)
+			var completionText = getCompletionText();
+			if (parentClass != null && !completionText.contains(".")) {
+				// We could use the parent class name, but *possibly* 
+				// we have used an alias during import
+				int lastDot = startText.lastIndexOf(".");
+				if (lastDot >= 0 && lastDot != startText.length()-1) {
+					startText = startText.substring(lastDot+1);
+				}
+			}
+			var insertion = completionText.startsWith(startText) ? completionText.substring(startText.length()) : completionText;// + "(";
+			return insertion;
 		}
 		
 		/**

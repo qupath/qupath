@@ -36,6 +36,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import org.slf4j.Logger;
@@ -95,7 +96,7 @@ public class QPEx extends QP {
 	final private static Logger logger = LoggerFactory.getLogger(QPEx.class);
 	
 	
-	private final static List<Class<?>> CORE_CLASSES = Collections.unmodifiableList(Arrays.asList(
+	private final static Collection<Class<?>> CORE_CLASSES = Collections.unmodifiableSet(new HashSet<>(Arrays.asList(
 			// QuPath classes
 			QuPathGUI.class,
 			Dialogs.class,
@@ -110,7 +111,7 @@ public class QPEx extends QP {
 			
 			// JavaFX classes
 			Platform.class
-			));
+			)));
 	
 	/**
 	 * Get a list of core classes that are likely to be useful for scripting.
@@ -118,10 +119,10 @@ public class QPEx extends QP {
 	 * or to import these automatically at the beginning of scripts.
 	 * @return
 	 */
-	public static List<Class<?>> getCoreClasses() {
-		var list = new ArrayList<>(QP.getCoreClasses());
-		list.addAll(CORE_CLASSES);
-		return list;
+	public static Collection<Class<?>> getCoreClasses() {
+		var set = new LinkedHashSet<>(QP.getCoreClasses());
+		set.addAll(CORE_CLASSES);
+		return set;
 	}
 	
 	

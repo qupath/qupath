@@ -182,7 +182,7 @@ public class RichScriptEditor extends DefaultScriptEditor {
 				if (selected != null) {
 					var scriptAutoCompletor = currentLanguage.get().getAutoCompletor();
 					if (scriptAutoCompletor != null)
-						scriptAutoCompletor.applyCompletion(control, selected.getCompletionText());
+						scriptAutoCompletor.applyCompletion(control, selected);
 				}
 				popup.hide();
 			};
