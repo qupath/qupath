@@ -74,7 +74,7 @@ public class GroovyAutoCompletor implements ScriptAutoCompletor {
 			}
 		}
 		
-		Set<Class<?>> classesToAdd = new HashSet<>(QP.getCoreClasses());
+		Set<Class<?>> classesToAdd = new HashSet<>(QPEx.getCoreClasses());
 
 		for (Class<?> cls : classesToAdd) {
 			addStaticMethods(cls);
@@ -145,11 +145,11 @@ public class GroovyAutoCompletor implements ScriptAutoCompletor {
 	}
 	
 	@Override
-	public void applyCompletion(ScriptEditorControl control, String completion) {
+	public void applyCompletion(ScriptEditorControl control, Completion completion) {
 		var start = getStart(control);
-		var insertion = completion.startsWith(start) ? completion.substring(start.length()) : completion;// + "(";
-		// Avoid adding if caret is already between parentheses
-		if (insertion.startsWith("("))
+		var insertion = completion.getInsertion(start);
+		// Avoid inserting if caret is already between parentheses
+		if (insertion == null || insertion.isEmpty() || insertion.startsWith("("))
 			return;
 		var pos = control.getCaretPosition();
 		control.insertText(pos, insertion);
