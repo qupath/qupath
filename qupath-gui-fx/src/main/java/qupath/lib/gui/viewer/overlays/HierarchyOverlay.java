@@ -257,24 +257,27 @@ public class HierarchyOverlay extends AbstractOverlay {
 		// Paint labels
 		if (overlayOptions.getShowNames() && !objectsWithNames.isEmpty()) {
 			
-			double requestedFontSize;
-			switch (PathPrefs.locationFontSizeProperty().get()) {
-			case HUGE:
-				requestedFontSize = 24;
-				break;
-			case LARGE:
-				requestedFontSize = 18;
-				break;
-			case SMALL:
-				requestedFontSize = 10;
-				break;
-			case TINY:
-				requestedFontSize = 8;
-				break;
-			case MEDIUM:
-			default:
-				requestedFontSize = 14;
-				break;
+			double requestedFontSize = overlayOptions.getFontSize();
+			if (requestedFontSize <= 0 || !Double.isFinite(requestedFontSize)) {
+				// Get it from the location font size instead
+				switch (PathPrefs.locationFontSizeProperty().get()) {
+				case HUGE:
+					requestedFontSize = 24;
+					break;
+				case LARGE:
+					requestedFontSize = 18;
+					break;
+				case SMALL:
+					requestedFontSize = 10;
+					break;
+				case TINY:
+					requestedFontSize = 8;
+					break;
+				case MEDIUM:
+				default:
+					requestedFontSize = 14;
+					break;
+				}
 			}
 			float fontSize = (float)(requestedFontSize * downsampleFactor);
 			if (!GeneralTools.almostTheSame(font.getSize2D(), fontSize, 0.001))

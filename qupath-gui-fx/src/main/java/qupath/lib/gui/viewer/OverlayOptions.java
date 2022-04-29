@@ -86,6 +86,8 @@ public class OverlayOptions {
 	private BooleanProperty showPixelClassification = new SimpleBooleanProperty(true);
 	private ObjectProperty<RegionFilter> pixelClassificationFilter = new SimpleObjectProperty<>(RegionFilter.StandardRegionFilters.EVERYWHERE);
 
+	private FloatProperty fontSize = new SimpleFloatProperty();
+
 	private ObservableSet<PathClass> hiddenClasses = FXCollections.observableSet();
 
 	private ObjectProperty<DetectionDisplayMode> cellDisplayMode = new SimpleObjectProperty<>(DetectionDisplayMode.NUCLEI_AND_BOUNDARIES);
@@ -121,6 +123,7 @@ public class OverlayOptions {
 		hiddenClasses.addListener(timestamper);
 		cellDisplayMode.addListener(timestamper);
 		opacity.addListener(timestamper);
+		fontSize.addListener(timestamper);
 	}
 	
 	/**
@@ -145,6 +148,7 @@ public class OverlayOptions {
 		this.showTMACoreLabels.set(options.showTMACoreLabels.get());
 		this.showTMAGrid.set(options.showTMAGrid.get());
 		this.pixelClassificationFilter.set(options.pixelClassificationFilter.get());
+		this.fontSize.set(options.fontSize.get());
 		this.timestamp.set(options.timestamp.get());
 	}
 	
@@ -267,6 +271,14 @@ public class OverlayOptions {
 	}
 	
 	/**
+	 * Set the requested font size for the 'Show names' option
+	 * @param size 
+	 */
+	public void setFontSize(float size) {
+		fontSize.set(size);
+	}
+	
+	/**
 	 * Show the objects as an overlay on the image.
 	 * 
 	 * @param show
@@ -360,6 +372,13 @@ public class OverlayOptions {
 	 */
 	public boolean getShowNames() {
 		return showNames.get();
+	}
+	
+	/**
+	 * @return the requested font size for showing annotation names on the viewer
+	 */
+	public float getFontSize() {
+		return fontSize.get();
 	}
 	
 	/**
@@ -523,6 +542,13 @@ public class OverlayOptions {
 	 */
 	public BooleanProperty showNamesProperty() {
 		return showNames;
+	}
+	
+	/**
+	 * @return the float property indicating the font size that should be used for displaying names
+	 */
+	public FloatProperty fontSizeProperty() {
+		return fontSize;
 	}
 	
 	/**

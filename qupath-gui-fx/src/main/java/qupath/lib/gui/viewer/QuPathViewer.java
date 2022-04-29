@@ -973,6 +973,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 			overlayOptionsManager.attachListener(overlayOptions.showGridProperty(), repainter);
 			overlayOptionsManager.attachListener(overlayOptions.showTMAGridProperty(), repainter);
 			overlayOptionsManager.attachListener(overlayOptions.opacityProperty(), repainter);
+			overlayOptionsManager.attachListener(overlayOptions.fontSizeProperty(), repainter);
 
 		}
 		if (isShowing())
