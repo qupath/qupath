@@ -24,7 +24,12 @@
 package qupath.lib.gui.panes;
 
 import java.io.File;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Function;
+
 import org.controlsfx.control.PropertySheet;
 import org.controlsfx.control.PropertySheet.Item;
 import org.controlsfx.control.PropertySheet.Mode;
@@ -41,6 +46,7 @@ import javafx.beans.property.Property;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.ObservableList;
 import javafx.scene.Node;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.paint.Color;
@@ -48,12 +54,14 @@ import javafx.scene.text.FontWeight;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.logging.LogManager;
+import qupath.lib.gui.logging.LogManager.LogLevel;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.prefs.PathPrefs.FontSize;
 import qupath.lib.gui.prefs.PathPrefs.ImageTypeSetting;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.tools.CommandFinderTools;
 import qupath.lib.gui.tools.CommandFinderTools.CommandBarDisplay;
+import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.prefs.QuPathStyleManager;
 
 /**
@@ -774,12 +782,19 @@ public class PreferencePane {
 		}
 
 	}
+	
+	// We want to reformat the display of these to avoid using all uppercase
+	private static List<Class<?>> reformatTypes = Arrays.asList(
+			FontWeight.class,
+			LogLevel.class
+			);
 
 	/**
 	 * Extends {@link DefaultPropertyEditorFactory} to handle setting directories and creating choice editors.
 	 */
 	public static class PropertyEditorFactory extends DefaultPropertyEditorFactory {
 
+		@SuppressWarnings("unchecked")
 		@Override
 		public PropertyEditor<?> call(Item item) {
 			if (item.getType() == File.class) {
@@ -788,7 +803,21 @@ public class PreferencePane {
 			if (item instanceof ChoicePropertyItem) {
 				return Editors.createChoiceEditor(item, ((ChoicePropertyItem<?>)item).getChoices());
 			}
-			return super.call(item);
+			var editor = super.call(item);
+			if (reformatTypes.contains(item.getType()) && editor.getEditor() instanceof ComboBox) {
+				@SuppressWarnings("rawtypes")
+				var combo = (ComboBox)editor.getEditor();
+				Function<?, String> stringFun = obj -> {
+					var s = Objects.toString(obj);
+					s = s.replaceAll("_", " ");
+					if (Objects.equals(s, s.toUpperCase()))
+						return s.substring(0, 1) + s.substring(1).toLowerCase();
+					return s;
+				};
+				combo.setCellFactory(obj -> GuiTools.createCustomListCell(stringFun));
+				combo.setButtonCell(GuiTools.createCustomListCell(stringFun));
+			}
+			return editor;
 		}
 	}
 	
