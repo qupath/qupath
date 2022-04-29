@@ -117,9 +117,9 @@ public class QuPathViewerPlus extends QuPathViewer {
 		labelLocation.setTextFill(Color.WHITE);
 		labelLocation.setTextAlignment(TextAlignment.CENTER);
 		var fontBinding = Bindings.createStringBinding(() -> {
-				var temp = PathPrefs.viewerFontSizeProperty().get();
+				var temp = PathPrefs.locationFontSizeProperty().get();
 				return temp == null ? null : "-fx-font-size: " + temp.getFontSize();
-		}, PathPrefs.viewerFontSizeProperty());
+		}, PathPrefs.locationFontSizeProperty());
 		labelLocation.styleProperty().bind(fontBinding);
 //		labelLocation.setStyle("-fx-font-size: 0.8em;");
 		panelLocation.setStyle("-fx-background-color: rgba(0, 0, 0, 0.4);");

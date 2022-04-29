@@ -62,6 +62,7 @@ import javafx.beans.property.StringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener.Change;
 import javafx.collections.ObservableList;
+import javafx.scene.text.FontWeight;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.ThreadTools;
@@ -1231,15 +1232,49 @@ public class PathPrefs {
 		}
 	}
 	
-	private static ObjectProperty<FontSize> fontSize = PathPrefs.createPersistentPreference(
-			"locationFontSize", FontSize.MEDIUM, FontSize.class);
+	private static ObjectProperty<FontSize> scalebarFontSize = PathPrefs.createPersistentPreference(
+			"scalebarFontSize", FontSize.MEDIUM, FontSize.class);
 	
 	/**
-	 * Preferred font size in the viewer.
+	 * Preferred font size for the scalebar in the viewer.
 	 * @return
 	 */
-	public static ObjectProperty<FontSize> viewerFontSizeProperty() {
-		return fontSize;
+	public static ObjectProperty<FontSize> scalebarFontSizeProperty() {
+		return scalebarFontSize;
+	}
+
+	private static ObjectProperty<FontSize> locationFontSize = PathPrefs.createPersistentPreference(
+			"locationFontSize", FontSize.MEDIUM, FontSize.class);
+
+	/**
+	 * Preferred font size for the location text in the viewer.
+	 * @return
+	 */
+	public static ObjectProperty<FontSize> locationFontSizeProperty() {
+		return locationFontSize;
+	}
+	
+	private static ObjectProperty<FontWeight> scalebarFontWeight = PathPrefs.createPersistentPreference(
+			"scalebarFontWeight", FontWeight.NORMAL, FontWeight.class);
+
+	/**
+	 * Preferred font weight in the viewer.
+	 * @return
+	 */
+	public static ObjectProperty<FontWeight> scalebarFontWeightProperty() {
+		return scalebarFontWeight;
+	}
+	
+	
+	private static DoubleProperty scalebarLineWidth = PathPrefs.createPersistentPreference(
+			"scalebarLineWidth", 3.0);
+
+	/**
+	 * Preferred line width for the scalebar.
+	 * @return
+	 */
+	public static DoubleProperty scalebarLineWidthProperty() {
+		return scalebarLineWidth;
 	}
 	
 	
