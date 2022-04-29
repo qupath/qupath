@@ -135,7 +135,7 @@ class GroovySyntax extends GeneralCodeSyntax {
 					int endPrevRowPos = getRowEndPosition(text, startPrevRowPos);
 					String prevSubString = text.substring(startPrevRowPos, endPrevRowPos);
 					if (prevSubString.matches(ifStatementPattern) || prevSubString.matches(elseStatementPattern)) {	// If prev line is one-line if/else statement
-						insertText = "\n" + subString.substring(0, ind-tabString.length());
+						insertText = "\n" + subString.substring(0, Math.max(0, ind-tabString.length()));
 						control.insertText(caretPos, insertText);
 						finalPos += insertText.length();
 						return;
