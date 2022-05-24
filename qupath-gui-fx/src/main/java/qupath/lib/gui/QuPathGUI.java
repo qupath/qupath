@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -64,7 +64,6 @@ import java.util.Objects;
 import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.Optional;
-import java.util.Locale.Category;
 import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -93,6 +92,7 @@ import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.value.ChangeListener;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ListChangeListener.Change;
@@ -162,6 +162,7 @@ import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Font;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
+import javafx.stage.Window;
 import javafx.stage.WindowEvent;
 import javafx.util.Duration;
 import jfxtras.scene.menu.CirclePopupMenu;
@@ -876,7 +877,7 @@ public class QuPathGUI {
 		initializePathClasses();
 		
 		logger.trace("Time to tools: {} ms", (System.currentTimeMillis() - startTime));
-		
+				
 		// Initialize all tools
 //		initializeTools();
 
@@ -1219,6 +1220,12 @@ public class QuPathGUI {
 				});
 			}
 		}
+		
+		// Refresh what we can if the locale changes
+		ChangeListener<Locale> localeListener = (v, o, n) -> updateListsAndTables();
+//		PathPrefs.defaultLocaleProperty() // Handled by update to other two
+		PathPrefs.defaultLocaleDisplayProperty().addListener(localeListener);
+		PathPrefs.defaultLocaleFormatProperty().addListener(localeListener);
 	}
 	
 	
@@ -1840,7 +1847,7 @@ public class QuPathGUI {
 	 */
 	private void initializePathClasses() {
 		availablePathClasses = FXCollections.observableArrayList();
-		List<PathClass> pathClasses = new ArrayList<>();		
+		Set<PathClass> pathClasses = new LinkedHashSet<>();		
 		try {
 			pathClasses.addAll(loadPathClasses());			
 		} catch (Exception e) {
@@ -1851,10 +1858,22 @@ public class QuPathGUI {
 		else
 			availablePathClasses.setAll(pathClasses);
 		availablePathClasses.addListener((Change<? extends PathClass> c) -> {
+			// We need a list for UI components (e.g. ListViews), but we want it to behave like a set
+			// Therefore if we find some non-unique nor null elements, correct the list as soon as possible
+			var list = c.getList();
+			var set = new LinkedHashSet<PathClass>();
+			set.add(PathClassFactory.getPathClassUnclassified());
+			set.addAll(list);
+			set.remove(null);
+			if (!(set.size() == list.size() && set.containsAll(list))) {
+				logger.info("Invalid PathClass list modification: {} will be corrected to {}", list, set);
+				Platform.runLater(() -> availablePathClasses.setAll(set));
+				return;
+			}
 			Project<?> project = getProject();
 			if (project != null) {
 				// Write the project, if necessary
-				project.setPathClasses(c.getList());
+				project.setPathClasses(set);
 //				if (project.setPathClasses(c.getList())
 //					ProjectBrowser.syncProject(project);
 			}
@@ -1938,10 +1957,6 @@ public class QuPathGUI {
 			pane.setLeft(imagePane);
 		}
 
-		Map<String, Locale> localeMap = Arrays.stream(Locale.getAvailableLocales()).collect(Collectors.toMap(l -> l.getDisplayName(Locale.US), l -> l));
-		localeMap.remove("");
-		List<String> localeList = new ArrayList<>(localeMap.keySet());
-		Collections.sort(localeList);
 		
 		long maxMemoryMB = Runtime.getRuntime().maxMemory() / 1024 / 1024;
 		String maxMemoryString = String.format("Current maximum memory is %.2f GB.", maxMemoryMB/1024.0);
@@ -1973,14 +1988,7 @@ public class QuPathGUI {
 							"See the QuPath installation instructions for more details.");
 		}
 		
-		paramsSetup.addTitleParameter("Region")
-				.addEmptyParameter("Set the region for QuPath to use for displaying numbers and messages.\n" + 
-						"Note: It is *highly recommended* to keep the default (English, US) region settings.\n" +
-						"Support for regions that use different number formatting (e.g. commas as decimal marks)\n" +
-						"is still experimental, and may give unexpected results.")
-				.addChoiceParameter("localeFormatting", "Numbers & dates", Locale.getDefault(Category.FORMAT).getDisplayName(), localeList, "Choose region settings used to format numbers and dates")
-//				.addChoiceParameter("localeDisplay", "Messages", Locale.getDefault(Category.DISPLAY).getDisplayName(), localeList, "Choose region settings used for other formatting, e.g. in dialog boxes")
-				.addTitleParameter("Updates")
+		paramsSetup.addTitleParameter("Updates")
 				.addBooleanParameter("checkForUpdates", "Check for updates on startup (recommended)", PathPrefs.doAutoUpdateCheckProperty().get(), "Specify whether to automatically prompt to download the latest QuPath on startup (required internet connection)")	
 				;
 
@@ -2006,12 +2014,6 @@ public class QuPathGUI {
 		if (!result.isPresent() || !ButtonType.APPLY.equals(result.get()))
 			return false;
 		
-		Locale localeFormatting = localeMap.get(paramsSetup.getChoiceParameterValue("localeFormatting"));
-//		Locale localeDisplay = localeMap.get(paramsSetup.getChoiceParameterValue("localeDisplay"));
-		
-		PathPrefs.defaultLocaleFormatProperty().set(localeFormatting);
-//		PathPrefs.defaultLocaleDisplayProperty().set(localeDisplay);
-		
 		PathPrefs.doAutoUpdateCheckProperty().set(paramsSetup.getBooleanParameterValue("checkForUpdates"));
 		
 		if (canSetMemory && paramsSetup.containsKey("maxMemoryGB")) {
@@ -2027,18 +2029,26 @@ public class QuPathGUI {
 			}
 		}
 		
-		// Try to update display
-		if (getStage() != null && getStage().isShowing())
-			updateListsAndTables(getStage().getScene().getRoot());
-		
 		return true;
 	}
 	
+	
 	/**
 	 * Make an effort at updating all the trees, tables or lists that we can find.
+	 * This is useful after a locale change.
 	 * 
 	 * @param parent
 	 */
+	private static void updateListsAndTables() {
+		for (var window : Window.getWindows()) {
+			if (!window.isShowing())
+				continue;
+			var scene = window.getScene();
+			if (scene != null)
+				updateListsAndTables(scene.getRoot());
+		}
+	}
+	
 	private static void updateListsAndTables(final Parent parent) {
 		if (parent == null)
 			return;

@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -133,23 +133,13 @@ public class CommandFinderTools {
 	
 
 	
-	private static ObjectProperty<CommandBarDisplay> commandBarDisplay;
+	private static ObjectProperty<CommandBarDisplay> commandBarDisplay = PathPrefs.createPersistentPreference("commandFinderDisplayMode", CommandBarDisplay.NEVER, CommandBarDisplay.class);
 	
 	/**
 	 * Property specifying where the command bar should be displayed relative to the main viewer window.
 	 * @return
 	 */
-	public synchronized static ObjectProperty<CommandBarDisplay> commandBarDisplayProperty() {
-		if (commandBarDisplay == null) {
-			String name = PathPrefs.getUserPreferences().get("commandFinderDisplayMode", CommandBarDisplay.NEVER.name());
-			CommandBarDisplay display = CommandBarDisplay.valueOf(name);
-			if (display == null)
-				display = CommandBarDisplay.HOVER;
-			commandBarDisplay = new SimpleObjectProperty<>(display);
-			commandBarDisplay.addListener((v, o, n) -> {
-				PathPrefs.getUserPreferences().put("commandFinderDisplayMode", n.name());
-			});			
-		}
+	public static ObjectProperty<CommandBarDisplay> commandBarDisplayProperty() {
 		return commandBarDisplay;
 	}
 	
