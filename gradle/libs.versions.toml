@@ -1,6 +1,6 @@
 [versions]
-groovy        = "4.0.1"
-javafx        = "18"
+groovy        = "4.0.2"
+javafx        = "18.0.1"
 ikonli        = "12.3.0"
 junit         = "5.8.2"
 javacpp       = "1.5.7"
@@ -27,7 +27,7 @@ commons-text  = { module = "org.apache.commons:commons-text",  version = "1.9" }
 controlsfx    = { module = "org.controlsfx:controlsfx",        version = "11.1.1" }
 jfxtras       = { module = "org.jfxtras:jfxtras-menu",         version = "11-r2" }
 guava         = { module = "com.google.guava:guava",           version = "31.1-jre" }
-imagej        = { module = "net.imagej:ij",                    version = "1.53q" }
+imagej        = { module = "net.imagej:ij",                    version = "1.53s" }
 picocli       = { module = "info.picocli:picocli",             version = "4.6.3" }
 
 richtextfx    = { module = "org.fxmisc.richtext:richtextfx",   version = "0.10.9" }
