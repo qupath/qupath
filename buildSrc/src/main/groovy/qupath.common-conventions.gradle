@@ -9,11 +9,11 @@ repositories {
     mavenCentral()
 
     // May be required for snapshot ImageJ2 jars
-    maven { 
+    maven {
         name 'ImageJ'
-        url 'https://maven.imagej.net/content/groups/public' 
+        url 'https://maven.imagej.net/content/groups/public'
     }
-    
+
     // Required for Bio-Formats
     maven {
         name 'Unidata'
@@ -21,18 +21,18 @@ repositories {
     }
     maven {
         name 'Open Microscopy'
-        url 'https://artifacts.openmicroscopy.org/artifactory/maven/' 
+        url 'https://artifacts.openmicroscopy.org/artifactory/maven/'
     }
 
     // May be required for snapshot JavaCPP jars
-    maven { 
+    maven {
         name 'Sonatype snapshots'
-        url 'https://oss.sonatype.org/content/repositories/snapshots' 
+        url 'https://oss.sonatype.org/content/repositories/snapshots'
     }
 
     // Currently required for OpenSlide
     maven { url "../maven/repo" }
-    
+
 }
 
 
@@ -64,7 +64,7 @@ if ("32".equals(System.getProperty("sun.arch.data.model"))) {
 String osArch = System.properties['os.arch']
 def isAppleSilicon = platform == 'mac' && osArch == 'aarch64'
 if (isAppleSilicon) {
-	project.logger.warn("""
+    project.logger.warn("""
 Apple Silicon support is experimental and incomplete!
 I will try to build anyway, but note that:
 - I may need to use a SNAPSHOT version of OpenCV (subject to change on each build)
@@ -109,8 +109,8 @@ dependencies {
 dependencies {
     testImplementation libs.junit
     testImplementation libs.junit.api
-    testRuntimeOnly    libs.junit.engine
-    
+    testRuntimeOnly libs.junit.engine
+
     implementation libs.bundles.logging
 }
 
