@@ -2,16 +2,21 @@ plugins {
     id 'qupath.java-conventions'
 }
 
+// We don't want to generate javadocs for the root project
+javadoc.enabled = false
+
 // See https://discuss.gradle.org/t/best-approach-gradle-multi-module-project-generate-just-one-global-javadoc/18657
 task mergedJavadocs(type: Javadoc, 
 		description: 'Generate merged javadocs for all projects',
 		group: 'Documentation',
 		dependsOn: subprojects.tasks.collect {it.withType(Javadoc)} ) {
 
-	destinationDir = file("$buildDir/docs/javadoc")
+	destinationDir = file("$buildDir/docs-merged/javadoc")
 	title = "QuPath $gradle.ext.qupathVersion"
-	options.author true
-	options.addStringOption 'Xdoclint:none', '-quiet'
+
+	// See https://docs.gradle.org/current/javadoc/org/gradle/external/javadoc/StandardJavadocDocletOptions.html
+	options.author(true)
+	options.addStringOption('Xdoclint:none', '-quiet')
 
 	options.links 'https://docs.oracle.com/en/java/javase/11/docs/api/'
 	options.links 'https://openjfx.io/javadoc/18/'
