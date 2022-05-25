@@ -66,10 +66,10 @@ afterEvaluate {
             inputs.property("moduleName", moduleName)
             manifest {
                 def manifestAttributes = [
-                        "Implementation-Vendor": "QuPath developers",
+                        "Implementation-Vendor" : "QuPath developers",
                         "Implementation-Version": project.version,
-                        'Automatic-Module-Name': "io.github." + moduleName,
-                        "QuPath-build-time": new Date().format("yyyy-MM-dd, HH:mm")
+                        'Automatic-Module-Name' : "io.github." + moduleName,
+                        "QuPath-build-time"     : new Date().format("yyyy-MM-dd, HH:mm")
                 ]
 
                 if (latestGitCommit != null)
@@ -89,16 +89,16 @@ afterEvaluate {
 def strictJavadoc = findProperty('strictJavadoc')
 
 tasks.withType(Javadoc).each { javadocTask ->
-	if (!strictJavadoc) {
-		javadocTask.options.addStringOption('Xdoclint:none', '-quiet')
-	}
+    if (!strictJavadoc) {
+        javadocTask.options.addStringOption('Xdoclint:none', '-quiet')
+    }
 
-	rootProject.tasks.withType(Javadoc) { rootTask ->
-		rootTask.source    += javadocTask.source
-		rootTask.classpath += javadocTask.classpath
-		rootTask.excludes  += javadocTask.excludes
-		rootTask.includes  += javadocTask.includes
-	}
+    rootProject.tasks.withType(Javadoc) { rootTask ->
+        rootTask.source += javadocTask.source
+        rootTask.classpath += javadocTask.classpath
+        rootTask.excludes += javadocTask.excludes
+        rootTask.includes += javadocTask.includes
+    }
 }
 
 /*
@@ -107,9 +107,9 @@ tasks.withType(Javadoc).each { javadocTask ->
  * https://github.com/bytedeco/javacpp/issues/468
  */
 test {
-  if ("32".equals(System.getProperty("sun.arch.data.model")))
-    maxHeapSize = '1G'
-  else
-    maxHeapSize = '2G'
+    if ("32".equals(System.getProperty("sun.arch.data.model")))
+        maxHeapSize = '1G'
+    else
+        maxHeapSize = '2G'
 }
 
