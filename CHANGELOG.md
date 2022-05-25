@@ -58,8 +58,8 @@ This is a work-in-progress.
 ### Dependency updates
 * Adoptium OpenJDK 17
 * Bio-Formats 6.9.1
-* JavaFX 17.0.2
-* Groovy 4.0.1
+* JavaFX 18.0.1
+* Groovy 4.0.2
 * Gson 2.9.0
 * Guava 31.1
 * JavaCPP 1.5.7

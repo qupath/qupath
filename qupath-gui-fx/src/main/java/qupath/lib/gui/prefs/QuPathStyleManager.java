@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -24,6 +24,7 @@
 package qupath.lib.gui.prefs;
 
 import java.lang.reflect.Method;
+import java.util.Objects;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,7 +32,6 @@ import org.slf4j.LoggerFactory;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import qupath.lib.common.GeneralTools;
@@ -59,8 +59,13 @@ public class QuPathStyleManager {
 //			new CustomStylesheet("Modena Dark (Helvetica)", "Darker version of JavaFX Modena stylesheet with Helvetica", "css/dark.css", "css/helvetica.css")
 			);
 	
-	private static ObjectProperty<StyleOption> selectedStyle = new SimpleObjectProperty<>();
+	private static ObjectProperty<StyleOption> selectedStyle = PathPrefs.createPersistentPreference("qupathStylesheet", DEFAULT_STYLE, s -> s.getName(), QuPathStyleManager::findByName);
 
+	
+	private static StyleOption findByName(String name) {
+		return styles.stream().filter(s -> Objects.equals(s.getName(), name)).findFirst().orElse(null);
+	}
+	
 	/**
 	 * Available font families.
 	 */
@@ -114,29 +119,20 @@ public class QuPathStyleManager {
 		selectedStyle.addListener((v, o, n) -> updateStyle());
 		selectedFont.addListener((v, o, n) -> updateStyle());
 		
-		// Try to load preference
-		Platform.runLater(() -> {
-			String stylesheetName = PathPrefs.getUserPreferences().get("qupathStylesheet", null);
-			if (stylesheetName != null) {
-				for (StyleOption option : styles) {
-					if (stylesheetName.equals(option.getName())) {
-						selectedStyle.set(option);
-					}
-				}
-			} else
-				selectedStyle.set(DEFAULT_STYLE);
-			updateStyle();
-		});
+		// Ensure we have set the style
+		updateStyle();
 	}
 	
-	static void updateStyle() {
+	private static void updateStyle() {
+		// Support calling updateStyle from different threads
+		if (!Platform.isFxApplicationThread()) {
+			Platform.runLater(() -> updateStyle());
+			return;
+		}
 		StyleOption n = selectedStyle.get();
 		if (n != null) {
-			PathPrefs.getUserPreferences().put("qupathStylesheet", n.getName());
 			n.setStyle();
 		} else {
-			// Default
-			PathPrefs.getUserPreferences().remove("qupathStylesheet");
 			Application.setUserAgentStylesheet(null);
 		}
 		// Set the font if required
