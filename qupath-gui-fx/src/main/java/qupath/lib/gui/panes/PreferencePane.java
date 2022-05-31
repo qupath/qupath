@@ -864,6 +864,7 @@ public class PreferencePane {
 	 * 
 	 * Appears as a text field that can be double-clicked to launch a directory chooser.
 	 * Note: This may fire too many events, see https://github.com/controlsfx/controlsfx/issues/1413
+	 * @param <T> 
 	 */
 	static class SearchableChoiceEditor<T> extends AbstractPropertyEditor<T, SearchableComboBox<T>> {
 
