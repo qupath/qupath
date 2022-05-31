@@ -30,6 +30,9 @@ This is a work-in-progress.
   * Import .roi and RoiSet.zip files by drag & drop
   * Built-in ImageJ plugin to send RoiManager ROIs to QuPath (not only overlays)
   * Retain ROI position information when sending ROIs from ImageJ (hyper)stacks
+* OpenCV is no longer a dependency of qupath-core (https://github.com/qupath/qupath/issues/961)
+  * Moved `OpenCVTypeAdapters` to qupath-core-processing
+  * Switched `BufferedImageTools.resize` to use ImageJ internally
 * Updated prompt to set the image type
 * Missing thumbnails are automatically regenerated when a project is opened
 * Avoid converting the pixel type to 32-bit unnecessarily when sending image regions to ImageJ
@@ -38,6 +41,7 @@ This is a work-in-progress.
 
 ### Bugs fixed
 * Reading from Bio-Formats blocks forever when using multiple series outside a project (https://github.com/qupath/qupath/issues/894)
+* Image resizing bug affecting labeled image export (https://github.com/qupath/qupath/issues/974)
 * 'Ignore case' in the Find window of the Script editor does not ignore case (https://github.com/qupath/qupath/issues/889)
 * Owner of Find window in the script editor is lost when the script editor window is closed (https://github.com/qupath/qupath/issues/893)
 * 'Zoom to fit' doesn't handle changes in window size

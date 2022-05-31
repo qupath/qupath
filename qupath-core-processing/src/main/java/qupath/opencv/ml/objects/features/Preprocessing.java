@@ -34,7 +34,7 @@ import com.google.gson.annotations.JsonAdapter;
 
 import qupath.lib.analysis.stats.RunningStatistics;
 import qupath.lib.classifiers.Normalization;
-import qupath.lib.io.OpenCVTypeAdapters;
+import qupath.opencv.io.OpenCVTypeAdapters;
 
 /**
  * Helper class for preprocessing input for machine learning algorithms using OpenCV Mats.

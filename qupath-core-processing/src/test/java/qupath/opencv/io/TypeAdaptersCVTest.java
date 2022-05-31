@@ -19,7 +19,7 @@
  * #L%
  */
 
-package qupath.lib.io;
+package qupath.opencv.io;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -37,6 +37,8 @@ import org.junit.jupiter.api.Test;
 import org.bytedeco.opencv.opencv_core.TermCriteria;
 
 import com.google.gson.GsonBuilder;
+
+import qupath.opencv.io.OpenCVTypeAdapters;
 
 
 @SuppressWarnings("javadoc")
