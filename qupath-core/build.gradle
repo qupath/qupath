@@ -9,8 +9,8 @@ archivesBaseName = 'qupath-core'
 description = "Core QuPath module containing the main classes and datastructures."
 
 configurations {
-  implementation.extendsFrom opencv
   implementation.extendsFrom guava
+  implementation.extendsFrom opencv
 }
 
 dependencies {
@@ -19,7 +19,6 @@ dependencies {
   
   implementation libs.commons.math
   implementation libs.picocli
-
-//  implementation libs.bundles.opencv
+  implementation libs.imagej
   
 }
