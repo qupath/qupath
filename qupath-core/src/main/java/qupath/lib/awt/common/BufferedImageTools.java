@@ -404,6 +404,18 @@ public final class BufferedImageTools {
 		return new BufferedImage(img.getColorModel(), raster2, img.isAlphaPremultiplied(), null); 
 	}
 
+	private static boolean isIntType(int type) {
+		switch (type) {
+		case DataBuffer.TYPE_BYTE:
+		case DataBuffer.TYPE_INT:
+		case DataBuffer.TYPE_SHORT:
+		case DataBuffer.TYPE_USHORT:
+			return true;
+		default:
+			return false;
+		}
+	}
+	
 	/**
 	 * Resize the image to have the requested width/height, using area averaging and bilinear interpolation.
 	 * 
@@ -435,9 +447,12 @@ public final class BufferedImageTools {
 		int w = img.getWidth();
 		int h = img.getHeight();
 		
-		Mat matInput = new Mat(h, w, opencv_core.CV_32FC1);
+		int cvType = opencv_core.CV_32F;
+		boolean isIntType = isIntType(img.getRaster().getTransferType());
+		
+		Mat matInput = new Mat(h, w, cvType);
 		Size sizeOutput = new Size(finalWidth, finalHeight);
-		Mat matOutput = new Mat(sizeOutput, opencv_core.CV_32FC1);
+		Mat matOutput = new Mat(sizeOutput, cvType);
 		FloatIndexer idxInput = matInput.createIndexer(true);
 		FloatIndexer idxOutput = matOutput.createIndexer(true);
 		float[] pixels = new float[w*h];
@@ -449,11 +464,19 @@ public final class BufferedImageTools {
 			idxInput.put(0L, pixels);
 			opencv_imgproc.resize(matInput, matOutput, sizeOutput, 0, 0, interp);
 			idxOutput.get(0, pixelsOut);
+			// If we have integer input, make sure we have integer output
+			// Fixes bug in QuPath v0.3 (and probably v0.2) where resizing a constant 
+			// region could result in new values due to subtle precision errors and 
+			// strict rounding down within raster.setSamples.
+			if (isIntType) {
+				for (int i = 0; i < pixelsOut.length; i++)
+					pixelsOut[i] = Math.round(pixelsOut[i]);
+			}
 			raster2.setSamples(0, 0, finalWidth, finalHeight, b, pixelsOut);
 		}
 		
-		idxInput.release();
-		idxOutput.release();
+		idxInput.close();
+		idxOutput.close();
 		matInput.close();
 		matOutput.close();
 		sizeOutput.close();
