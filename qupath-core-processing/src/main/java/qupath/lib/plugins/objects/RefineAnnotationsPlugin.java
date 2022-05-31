@@ -27,8 +27,11 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import qupath.lib.common.GeneralTools;
@@ -129,10 +132,10 @@ public class RefineAnnotationsPlugin<T> extends AbstractInteractivePlugin<T> {
 		
 		// Want to reset selection
 		PathObject selected = hierarchy.getSelectionModel().getSelectedObject();
-		Collection<PathObject> previousSelection = new ArrayList<>(hierarchy.getSelectionModel().getSelectedObjects());
+		Set<PathObject> previousSelection = new LinkedHashSet<>(hierarchy.getSelectionModel().getSelectedObjects());
 		
 		tasks.add(() -> {
-			List<PathObject> toRemove = new ArrayList<>();
+			Set<PathObject> toRemove = new HashSet<>();
 			Map<PathROIObject, ROI> toUpdate = new HashMap<>();
 			for (PathObject pathObject : parentObjects) {
 				ROI roiOrig = pathObject.getROI();
@@ -155,8 +158,14 @@ public class RefineAnnotationsPlugin<T> extends AbstractInteractivePlugin<T> {
 				toUpdate.forEach((p, r) -> p.setROI(r));
 				hierarchy.addPathObjects(toUpdate.keySet());
 			}
-			hierarchy.getSelectionModel().selectObjects(previousSelection);
-			hierarchy.getSelectionModel().setSelectedObject(selected, true);
+			previousSelection.removeAll(toRemove);
+			if (previousSelection.size() == 1)
+				hierarchy.getSelectionModel().setSelectedObject(previousSelection.iterator().next());
+			else if (previousSelection.size() > 1) {
+				hierarchy.getSelectionModel().selectObjects(previousSelection);
+				if (selected != null && !toRemove.contains(selected))
+					hierarchy.getSelectionModel().setSelectedObject(selected, true);
+			}
 		});
 		return tasks;
 	}
