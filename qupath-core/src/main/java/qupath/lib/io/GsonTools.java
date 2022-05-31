@@ -76,7 +76,6 @@ public class GsonTools {
 			.serializeSpecialFloatingPointValues()
 			.setLenient()
 			.registerTypeAdapterFactory(new QuPathTypeAdapterFactory())
-			.registerTypeAdapterFactory(OpenCVTypeAdapters.getOpenCVTypeAdaptorFactory())
 			.registerTypeAdapter(AffineTransform.class, AffineTransformTypeAdapter.INSTANCE);
 			//.create();
 	

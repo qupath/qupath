@@ -19,7 +19,7 @@
  * #L%
  */
 
-package qupath.lib.io;
+package qupath.opencv.io;
 
 import java.io.IOException;
 import java.util.Map;

@@ -44,8 +44,8 @@ import com.google.gson.stream.JsonWriter;
 
 import qupath.lib.common.GeneralTools;
 import qupath.lib.io.GsonTools;
-import qupath.lib.io.OpenCVTypeAdapters;
 import qupath.lib.plugins.parameters.ParameterList;
+import qupath.opencv.io.OpenCVTypeAdapters;
 import qupath.opencv.tools.OpenCVTools;
 
 /**

@@ -10,7 +10,6 @@ description = "Core QuPath module containing the main classes and datastructures
 
 configurations {
   implementation.extendsFrom guava
-  implementation.extendsFrom opencv
 }
 
 dependencies {

@@ -129,6 +129,7 @@ import qupath.lib.roi.ROIs;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
 import qupath.opencv.dnn.DnnTools;
+import qupath.opencv.io.OpenCVTypeAdapters;
 import qupath.opencv.ml.objects.OpenCVMLClassifier;
 import qupath.opencv.ml.objects.features.FeatureExtractors;
 import qupath.opencv.ml.pixel.PixelClassifierTools;
@@ -216,6 +217,7 @@ public class QP {
 			.registerTypeAdapterFactory(PixelClassifiers.getTypeAdapterFactory())
 			.registerTypeAdapterFactory(FeatureExtractors.getTypeAdapterFactory())
 			.registerTypeAdapterFactory(ObjectClassifiers.getTypeAdapterFactory())
+			.registerTypeAdapterFactory(OpenCVTypeAdapters.getOpenCVTypeAdaptorFactory())
 			.registerTypeAdapter(ColorTransforms.ColorTransform.class, new ColorTransforms.ColorTransformTypeAdapter());
 		
 		// Currently, the type adapters are registered within the class... so we need to initialize the class
