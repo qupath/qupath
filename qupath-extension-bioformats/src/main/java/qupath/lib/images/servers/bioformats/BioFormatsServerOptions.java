@@ -66,16 +66,21 @@ public class BioFormatsServerOptions {
 		} else {
 			try {
 				var javaVersion = Runtime.version();
-				if (javaVersion.feature() >= 17) {
-					logger.info("Bio-Formats memoization is turned OFF (based on Java version " + javaVersion + ")");
+//				var bfVersionString = BioFormatsServerBuilder.getBioFormatsVersion();
+//				var bfVersion = bfVersionString == null? null : Version.parse(bfVersionString);
+//				boolean compatibleBioFormats = bfVersion == null ? true : bfVersion.compareTo(Version.parse("6.10.0")) >= 0;
+				var bfVersion = BioFormatsServerBuilder.getBioFormatsVersion();
+				boolean compatibleBioFormats = false; // Currently, the latest Bio-Formats (6.10.0) is not compatible
+				if (javaVersion.feature() >= 17 && !compatibleBioFormats) {
+					logger.info("Bio-Formats memoization is turned OFF (based on Java " + javaVersion + ", Bio-Formats " + bfVersion + ")");
 					allowMemoization = false;
 				} else {
 					// Note that this does require --illegal-access=permit as a VM arg
-					logger.info("Bio-Formats memoization is turned ON (based on Java version " + javaVersion + ")");
+					logger.info("Bio-Formats memoization is turned ON (based on Java " + javaVersion + ", Bio-Formats " + bfVersion + ")");
 					allowMemoization = true;
 				}
 			} catch (Exception e) {
-				logger.info("Bio-Formats memoization is turned ON (default value, unknown Java version)");
+				logger.info("Bio-Formats memoization is turned ON (default value, unknown Java or Bio-Formats version)");
 				allowMemoization = true;				
 			}
 		}

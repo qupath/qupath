@@ -2036,8 +2036,6 @@ public class QuPathGUI {
 	/**
 	 * Make an effort at updating all the trees, tables or lists that we can find.
 	 * This is useful after a locale change.
-	 * 
-	 * @param parent
 	 */
 	private static void updateListsAndTables() {
 		for (var window : Window.getWindows()) {
