@@ -251,7 +251,12 @@ public class QuPath {
 		"By default, this will not save changes to any data files."})
 class ScriptCommand implements Runnable {
 	
-	final private static Logger logger = LoggerFactory.getLogger(ScriptCommand.class);
+	private final static Logger logger = LoggerFactory.getLogger(ScriptCommand.class);
+	
+	/**
+	 * Default extension for scripting (when not specified)
+	 */
+	private final static String DEFAULT_SCRIPT_EXTENSION = ".groovy";
 	
 	@Parameters(index = "0", description = "Path to the script file (.groovy).", arity = "0..1", paramLabel = "script")
 	private String scriptFile;
@@ -404,23 +409,24 @@ class ScriptCommand implements Runnable {
 		Object result = null;
 		String script = scriptCommand;
 		RunnableLanguage language;
+		
+		String ext = DEFAULT_SCRIPT_EXTENSION;
+		if (scriptFile != null)
+			ext = GeneralTools.getExtension(scriptFile).orElse(DEFAULT_SCRIPT_EXTENSION);
+		
+		ScriptLanguage scriptLanguage = ScriptLanguageProvider.getLanguageFromExtension(ext);
+		if (scriptLanguage == null || !(scriptLanguage instanceof RunnableLanguage))
+			throw new IllegalArgumentException("No runnable script language found for " + scriptFile);
+			
+		language = (RunnableLanguage)scriptLanguage;
+			
+			// Read & try to run the script
 		if (script == null) {
-			String ext = scriptFile.substring(scriptFile.lastIndexOf(".")+1);
-			ScriptLanguage scriptLanguage = ScriptLanguageProvider.getLanguageFromExtension(ext);
-			if (scriptLanguage == null || !(scriptLanguage instanceof RunnableLanguage))
-				throw new IllegalArgumentException("No script engine found for " + scriptFile);
-			
-			language = (RunnableLanguage)scriptLanguage;
-			
-			// Try to run the script
-			// Read script
 			script = GeneralTools.readFileAsString(QuPath.getEncodedPath(scriptFile));
 		} else {
 			if (GeneralTools.isWindows() && !StandardCharsets.US_ASCII.newEncoder().canEncode(script))
 				logger.warn("Non-ASCII characters detected in the specified script! If you experience encoding issues, try passing a script file instead.");
-			language = GroovyLanguage.getInstance();
 		}
-		
 		
 		// Try to make sure that the standard outputs are used
 		ScriptContext context = new SimpleScriptContext();
