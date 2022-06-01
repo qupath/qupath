@@ -644,11 +644,15 @@ public class MiniViewers {
 			public BufferedImage applyTransforms(BufferedImage imgInput, BufferedImage imgOutput) {
 				ImageDisplay imageDisplay = mainViewer.getImageDisplay();
 				if (channel >= 0) {
+					// Display individual channel
 					List<ChannelDisplayInfo> channels = imageDisplay.availableChannels();
 					if (channel < channels.size()) {
-						return ImageDisplay.applyTransforms(imgInput, imgOutput, Collections.singletonList(channels.get(channel)), imageDisplay.useGrayscaleLuts());
+						return ImageDisplay.applyTransforms(imgInput, imgOutput,
+								Collections.singletonList(channels.get(channel)),
+								imageDisplay.displayMode().getValue());
 					}
 				}
+				// Use the default for the current image
 				return imageDisplay.applyTransforms(imgInput, imgOutput);
 			}
 			
