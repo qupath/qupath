@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -67,6 +67,8 @@ import org.slf4j.LoggerFactory;
 import javafx.application.Platform;
 import javafx.beans.InvalidationListener;
 import javafx.beans.Observable;
+import javafx.beans.binding.Bindings;
+import javafx.beans.binding.ObjectBinding;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.IntegerProperty;
@@ -191,14 +193,19 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	// image is needed to determine pixel values as the mouse moves over the image
 	private BufferedImage imgBuffer = null;
 	//	private BufferedImage imgTemp = null;
-
+	
 	// Keep a reference to a thumbnail image here, and apply color transforms to it
 	//	private BufferedImage imgThumbnail;
 	private BufferedImage imgThumbnailRGB; // An RGB thumbnail, which may have been transformed (or null if imgThumbnail is already RGB)
 	private boolean thumbnailIsFullImage = false;
 
-	// Flag used to indicates that the image was updated for a repaint (otherwise it's assumed only the overlay may have changed)
+	/**
+	 *  Flag used to indicate that the image was updated for a repaint (otherwise it's assumed only the overlay may have changed)
+	 */
 	protected boolean imageUpdated = false;
+	/**
+	 * Flag used to indicate that the visible region in the viewer has changed
+	 */
 	protected boolean locationUpdated = false;
 	
 	// Flag that is temporarily set to true while the ImageData is being set
@@ -216,6 +223,8 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	private DoubleProperty downsampleFactor = new SimpleDoubleProperty(1.0);
 	private DoubleProperty rotationProperty = new SimpleDoubleProperty(0);
 	private BooleanProperty zoomToFit = new SimpleBooleanProperty(false);
+	
+	private DoubleProperty gammaProperty = new SimpleDoubleProperty(1.0);
 	
 	// Affine transform used to apply rotation
 	private AffineTransform transform = new AffineTransform();
@@ -781,7 +790,11 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		// We need a simple repaint for color changes & simple (thick) line changes
 		manager.attachListener(PathPrefs.annotationStrokeThicknessProperty(), repainter);
 		
-		manager.attachListener(PathPrefs.viewerGammaProperty(), repainterEntire);
+		gammaProperty.set(PathPrefs.viewerGammaProperty().get());
+		gammaProperty.bind(PathPrefs.viewerGammaProperty());
+		manager.attachListener(gammaProperty, repainterEntire);
+		
+//		manager.attachListener(PathPrefs.viewerGammaProperty(), repainterEntire);
 		manager.attachListener(PathPrefs.viewerInterpolateBilinearProperty(), repainterEntire);
 		manager.attachListener(PathPrefs.viewerBackgroundColorProperty(), repainterEntire);
 		
@@ -1722,7 +1735,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		imageUpdated = true;
 		if (imageDisplay != null)
 			lastDisplayChangeTimestamp = imageDisplay.getLastChangeTimestamp();
-		ensureGammaUpdated();
+//		ensureGammaUpdated();
 		updateThumbnail();
 		repaint();		
 	}
@@ -2060,7 +2073,8 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		if (iccTransformOp != null) {
 			iccTransformOp.filter(this.imgBuffer.getRaster(), this.imgBuffer.getRaster());
 		}
-		ensureGammaUpdated();
+		var gammaOp = getGammaOp();
+//		ensureGammaUpdated();
 		if (gammaOp != null) {
 			gammaOp.filter(this.imgBuffer.getRaster(), this.imgBuffer.getRaster());
 		}
@@ -2222,28 +2236,58 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	}
 	
 	
-	private double gamma = 1.0;
-	private LookupOp gammaOp = null;
+	private ObjectBinding<LookupOp> gammaOp = Bindings.createObjectBinding(() -> {
+		double gamma = gammaProperty.get();
+		if (gamma == 1.0 || gamma <= 0 || !Double.isFinite(gamma))
+			return null;
+		else
+			return createGammaOp(gamma);
+	}, gammaProperty);
 	
 	private ColorConvertOp iccTransformOp = null;
 	private boolean doICCTransform = false;
 	
-	void setGamma(final double gamma) {
-		if (this.gamma == gamma)
-			return;
-		if (gamma == 1 || gamma <= 0 || !Double.isFinite(gamma))
-			gammaOp = null;
-		else
-			gammaOp = createGammaOp(gamma);
-		this.gamma = gamma;
+	/**
+	 * Get a {@link LookupOp} that can perform any requested gamma correction in this viewer.
+	 * Note that the gamma is applied to the RGB image (not the original data).
+	 * @return a gamma op if specified, or null if no gamma adjustment is required (gamma is 1.0, or invalid)
+	 */
+	public LookupOp getGammaOp() {
+		return gammaOp.get();
 	}
 	
-	void ensureGammaUpdated() {
-		var gammaProperty = PathPrefs.viewerGammaProperty().get();
-		if (gamma != gammaProperty) {
-			setGamma(gammaProperty);
-			imageUpdated = true;
+	/**
+	 * Get the gamma value used for this viewer.
+	 * @return
+	 */
+	public double getGamma() {
+		return gammaProperty.get();
+	}
+	
+	/**
+	 * Set the gamma value for this viewer.
+	 * Note that if the property is bound (as it is by default, the method does not
+	 * change the gamma value but rather logs a warning that {@code viewer.gammaProperty().unbind()}
+	 * should be called first.
+	 * @param gamma
+	 */
+	public void setGamma(double gamma) {
+		// If we're bound to the preferences value, we can't set the gamma
+		if (gammaProperty.isBound()) {
+			logger.warn("Unable to set gamma for viewer - property is bound.");
+			logger.warn("Call viewer.gammaProperty().unbind() first.");
+			return;
 		}
+		gammaProperty.set(gamma);
+	}
+	
+	/**
+	 * Get the gamma property for this viewer.
+	 * By default, this is bound to {@link PathPrefs#viewerGammaProperty()}.
+	 * @return
+	 */
+	public DoubleProperty gammaProperty() {
+		return gammaProperty;
 	}
 	
 	void updateICCTransform() {

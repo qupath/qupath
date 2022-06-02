@@ -86,6 +86,7 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Text;
@@ -93,6 +94,7 @@ import javafx.scene.text.TextAlignment;
 import javafx.stage.Stage;
 import javafx.util.Callback;
 import qupath.lib.analysis.stats.Histogram;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.display.ChannelDisplayInfo;
 import qupath.lib.display.DirectServerChannelInfo;
 import qupath.lib.display.ImageDisplay;
@@ -128,6 +130,7 @@ public class BrightnessContrastCommand implements Runnable, ChangeListener<Image
 	
 	private Slider sliderMin;
 	private Slider sliderMax;
+	private Slider sliderGamma;
 	private Stage dialog;
 	
 	private boolean slidersUpdating = false;
@@ -186,6 +189,8 @@ public class BrightnessContrastCommand implements Runnable, ChangeListener<Image
 		sliderMax = new Slider(0, 255, 255);
 		sliderMin.valueProperty().addListener((v, o, n) -> handleSliderChange());
 		sliderMax.valueProperty().addListener((v, o, n) -> handleSliderChange());
+		sliderGamma = new Slider(0.01, 5, 0.01);
+		sliderGamma.valueProperty().bindBidirectional(PathPrefs.viewerGammaProperty());
 	}
 	
 	private Stage createDialog() {
@@ -201,9 +206,13 @@ public class BrightnessContrastCommand implements Runnable, ChangeListener<Image
 		GridPane box = new GridPane();
 		String blank = "      ";
 		Label labelMin = new Label("Min display");
+		Tooltip tooltipMin = new Tooltip("Set minimum lookup table value - double-click the value to edit manually");
 //		labelMin.setTooltip(new Tooltip("Set minimum lookup table value - double-click to edit manually"));
 		Label labelMinValue = new Label(blank);
-		labelMinValue.setTooltip(new Tooltip("Set minimum lookup table value - double-click to edit manually"));
+		labelMinValue.setTooltip(tooltipMin);
+		labelMin.setTooltip(tooltipMin);
+		sliderMin.setTooltip(tooltipMin);
+		labelMin.setLabelFor(sliderMin);
 		labelMinValue.textProperty().bind(Bindings.createStringBinding(() -> {
 //			if (table.getSelectionModel().getSelectedItem() == null)
 //				return blank;
@@ -215,9 +224,12 @@ public class BrightnessContrastCommand implements Runnable, ChangeListener<Image
 		box.add(labelMinValue, 2, 0);
 		
 		Label labelMax = new Label("Max display");
-		labelMax.setTooltip(new Tooltip("Set maximum lookup table value - double-click to edit manually"));
+		Tooltip tooltipMax = new Tooltip("Set maximum lookup table value - double-click the value to edit manually");
+		labelMax.setTooltip(tooltipMax);
 		Label labelMaxValue = new Label(blank);
-		labelMaxValue.setTooltip(new Tooltip("Set maximum lookup table value - double-click to edit manually"));
+		labelMaxValue.setTooltip(tooltipMax);
+		sliderMax.setTooltip(tooltipMax);
+		labelMax.setLabelFor(sliderMax);
 		labelMaxValue.textProperty().bind(Bindings.createStringBinding(() -> {
 //				if (table.getSelectionModel().getSelectedItem() == null)
 //					return blank;
@@ -228,6 +240,39 @@ public class BrightnessContrastCommand implements Runnable, ChangeListener<Image
 		box.add(sliderMax, 1, 1);
 		box.add(labelMaxValue, 2, 1);
 		box.setVgap(5);
+		
+		Label labelGamma = new Label("Gamma");
+		Label labelGammaValue = new Label(blank);
+		Tooltip tooltipGamma = new Tooltip("Set gamma value, for all viewers.\n"
+				+ "Double-click the value to edit manually, shift-click to reset to 1.\n"
+				+ "It is recommended to leave this value at 1, to avoid unnecessary nonlinear contrast adjustment.");
+		labelGammaValue.setTooltip(tooltipGamma);
+		labelGammaValue.textProperty().bind(Bindings.createStringBinding(() -> {
+			return GeneralTools.formatNumber(sliderGamma.getValue(), 2);
+			}, table.getSelectionModel().selectedItemProperty(), sliderGamma.valueProperty()));
+		sliderGamma.setTooltip(tooltipGamma);
+		labelGamma.setLabelFor(sliderGamma);
+		labelGamma.setTooltip(tooltipGamma);
+		labelGammaValue.setOnMouseClicked(e -> {
+			if (e.getClickCount() >= 3 || e.isShiftDown())
+				sliderGamma.setValue(1.0);
+			else {
+				var newGamma = Dialogs.showInputDialog("Gamma", "Set gamma value", sliderGamma.getValue());
+				if (newGamma != null)
+					sliderGamma.setValue(newGamma);
+			}
+		});
+		labelGammaValue.styleProperty().bind(Bindings.createStringBinding(() -> {
+			if (sliderGamma.getValue() == 1.0)
+				return null;
+			return "-fx-text-fill: red;";
+		}, sliderGamma.valueProperty()));
+		
+		box.add(labelGamma, 0, 2);
+		box.add(sliderGamma, 1, 2);
+		box.add(labelGammaValue, 2, 2);
+			
+		
 		GridPane.setFillWidth(sliderMin, Boolean.TRUE);
 		GridPane.setFillWidth(sliderMax, Boolean.TRUE);
 		box.prefWidthProperty().bind(pane.widthProperty());
@@ -489,7 +534,7 @@ public class BrightnessContrastCommand implements Runnable, ChangeListener<Image
 //		table.getColumnModel().getColumn(0).setCellRenderer(new ChannelCellRenderer());
 //		table.getColumnModel().getColumn(1).setMaxWidth(table.getColumnModel().getColumn(1).getPreferredWidth());
 		
-		BorderPane panelColor = new BorderPane();
+		BorderPane paneColor = new BorderPane();
 //		panelColor.setBorder(BorderFactory.createTitledBorder("Color display"));
 		BorderPane paneTableAndFilter = new BorderPane(table);
 		TextField tfFilter = new TextField("");
@@ -499,7 +544,7 @@ public class BrightnessContrastCommand implements Runnable, ChangeListener<Image
 		paneTableAndFilter.setBottom(tfFilter);
 		predicate.addListener((v, o, n) -> updatePredicate());
 		
-		panelColor.setCenter(paneTableAndFilter);
+		paneColor.setCenter(paneTableAndFilter);
 		
 		CheckBox cbShowGrayscale = new CheckBox("Show grayscale");
 		cbShowGrayscale.selectedProperty().bindBidirectional(showGrayscale);
@@ -537,8 +582,8 @@ public class BrightnessContrastCommand implements Runnable, ChangeListener<Image
 		paneCheck.getChildren().add(cbKeepDisplaySettings);
 		paneCheck.setHgap(10);
 		paneCheck.setPadding(new Insets(5, 0, 0, 0));
-		panelColor.setBottom(paneCheck);		
-		pane.setCenter(panelColor);
+		paneColor.setBottom(paneCheck);		
+		pane.setCenter(paneColor);
 		
 		// Create brightness/contrast panel
 		BorderPane panelSliders = new BorderPane();
@@ -550,16 +595,19 @@ public class BrightnessContrastCommand implements Runnable, ChangeListener<Image
 		panelSliders.setBottom(panelButtons);
 		panelSliders.setPadding(new Insets(5, 0, 5, 0));
 		
-		BorderPane panelMinMax = new BorderPane();
+		BorderPane paneMinMax = new BorderPane();
+		paneMinMax.setPrefHeight(280);
 //		panelMinMax.setBorder(BorderFactory.createTitledBorder("Brightness/Contrast"));
-		panelMinMax.setTop(panelSliders);
+		paneMinMax.setTop(panelSliders);
 		
 		histogramPanel.setShowTickLabels(false);
 		histogramPanel.getChart().setAnimated(false);
 //		histogramPanel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
 //		panelMinMax.setCenter(histogramPanel.getChart());
-		panelMinMax.setCenter(chartWrapper.getPane());
-		chartWrapper.getPane().setPrefSize(200, 200);
+		var chartPane = chartWrapper.getPane();
+		paneMinMax.setCenter(chartPane);
+//		chartPane.setPrefSize(200, 200);
+		chartPane.setPrefWidth(200);
 //		histogramPanel.getChart().setPrefSize(200, 200);
 //		histogramPanel.setPreferredSize(new Dimension(200, 120));
 		
@@ -571,9 +619,28 @@ public class BrightnessContrastCommand implements Runnable, ChangeListener<Image
 		labelWarning.setTextAlignment(TextAlignment.CENTER);
 		labelWarning.visibleProperty().bind(cbInvertBackground.selectedProperty().and(cbShowGrayscale.selectedProperty().not()));
 		labelWarning.setMaxWidth(Double.MAX_VALUE);
-		panelMinMax.setBottom(labelWarning);
-
-		pane.setBottom(panelMinMax);
+		labelWarning.managedProperty().bind(labelWarning.visibleProperty()); // Remove if not visible
+		
+		var labelWarningGamma = new Label("Gamma is not equal to 1.0 - shift+click to reset");
+		labelWarningGamma.setOnMouseClicked(e -> {
+			if (e.isShiftDown())
+				sliderGamma.setValue(1.0);
+		});
+		labelWarningGamma.setTooltip(new Tooltip("Adjusting the gamma results in a nonlinear contrast adjustment -\n"
+				+ "in science, such changes should usually be disclosed in any figure legends"));
+		labelWarningGamma.setStyle("-fx-text-fill: red;");
+		labelWarningGamma.setAlignment(Pos.CENTER);
+		labelWarningGamma.setTextAlignment(TextAlignment.CENTER);
+		labelWarningGamma.visibleProperty().bind(sliderGamma.valueProperty().isNotEqualTo(1.0, 0.0));
+		labelWarningGamma.setMaxWidth(Double.MAX_VALUE);
+		labelWarningGamma.managedProperty().bind(labelWarningGamma.visibleProperty()); // Remove if not visible
+		
+		var vboxWarnings = new VBox();
+		vboxWarnings.getChildren().setAll(labelWarning, labelWarningGamma);
+				
+		paneMinMax.setBottom(vboxWarnings);
+		
+		pane.setBottom(paneMinMax);
 		pane.setPadding(new Insets(10, 10, 10, 10));
 		
 		Scene scene = new Scene(pane, 350, 580);
@@ -609,7 +676,38 @@ public class BrightnessContrastCommand implements Runnable, ChangeListener<Image
 		Histogram histogram = (imageDisplay == null || infoSelected == null) ? null : imageDisplay.getHistogram(infoSelected);
 //		histogram = histogramMap.get(infoSelected);
 		if (histogram == null) {
-			histogramPanel.getHistogramData().clear();
+//			histogramPanel.getHistogramData().clear();
+			
+			// Try to show RGB channels together
+			if (infoSelected != null && imageDisplay != null && 
+					imageDisplay.getImageData() != null && 
+					imageDisplay.getImageData().getServer().isRGB() &&
+					"original".equalsIgnoreCase(infoSelected.getName())) {
+				List<HistogramData> data = new ArrayList<>();
+				for (var c : imageDisplay.availableChannels()) {
+					var method = c.getMethod();
+					if (method == null)
+						continue;
+					switch (method) {
+					case Red:
+					case Green:
+					case Blue:
+						var hist = imageDisplay.getHistogram(c);
+						if (hist != null) {
+							var histogramData = HistogramPanelFX.createHistogramData(hist, true, c.getColor());
+							histogramData.setNormalizeCounts(true);
+							data.add(histogramData);
+							if (histogram == null || hist.getMaxCount() > histogram.getMaxCount())
+								histogram = hist;
+						}
+						break;
+					default:
+						break;
+					}
+				}
+				histogramPanel.getHistogramData().setAll(data);
+			} else
+				histogramPanel.getHistogramData().clear();
 		}
 		else {
 			// Any animation is slightly nicer if we can modify the current data, rather than creating a new one
@@ -982,6 +1080,8 @@ public class BrightnessContrastCommand implements Runnable, ChangeListener<Image
 
 		@Override
 		public void handle(KeyEvent event) {
+			if (imageDisplay == null)
+				return;
 			String character = event.getCharacter();
 			if (character != null && character.length() > 0) {
 				int c = (int)event.getCharacter().charAt(0) - '0';

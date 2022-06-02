@@ -716,6 +716,10 @@ public class MiniViewers {
 						null,
 						renderer);
 				
+				var gammaOp = mainViewer.getGammaOp();
+				if (gammaOp != null)
+					gammaOp.filter(img.getRaster(), img.getRaster());
+				
 				float opacity = mainViewer.getOverlayOptions().getOpacity();
 				if (showOverlays.get() && opacity > 0) {
 					if (opacity < 1f)

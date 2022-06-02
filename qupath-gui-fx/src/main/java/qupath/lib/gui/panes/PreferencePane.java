@@ -284,9 +284,9 @@ public class PreferencePane {
 				"Auto Brightness/Contrast saturation %", category, 
 				"Set % bright and % dark pixels that should be saturated when applying 'Auto' brightness/contrast settings");
 		
-		addPropertyPreference(PathPrefs.viewerGammaProperty(), Double.class,
-				"Gamma value (display only)", category, 
-				"Set the gamma value applied to the image in the viewer for display - recommended to leave at default value of 1");
+//		addPropertyPreference(PathPrefs.viewerGammaProperty(), Double.class,
+//				"Gamma value (display only)", category, 
+//				"Set the gamma value applied to the image in the viewer for display - recommended to leave at default value of 1");
 		
 		addPropertyPreference(PathPrefs.invertZSliderProperty(), Boolean.class,
 				"Invert z-position slider",
