@@ -164,6 +164,13 @@ class ExtractRegionCommand implements Runnable {
 		List<ChannelDisplayInfo> channels = doTransforms && !selectedChannels.isEmpty() ? selectedChannels : null;
 		if (channels != null)
 			server = ChannelDisplayTransformServer.createColorTransformServer(server, channels);
+		
+		// We don't support applying gamma for now
+		if (doTransforms) {
+			var gamma = viewer.getGammaOp();
+			if (gamma != null)
+				logger.warn("Gamma transform not supported when sending image to ImageJ");
+		}
 
 		// Loop through all selected objects
 		Collection<PathObject> pathObjects = viewer.getHierarchy().getSelectionModel().getSelectedObjects();

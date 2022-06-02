@@ -7,6 +7,13 @@ This is a work-in-progress.
 * Objects now have IDs
   * This aims to make it much easier to match up objects whenever some further analysis is done elsewhere (e.g. classification or clustering in Python or R)
   * See https://github.com/qupath/qupath/pull/959
+* Improved Brightness/Contrast options, including
+  * Switch between dark and light backgrounds (still experimental)
+  * More consistent behavior with 'Show grayscale' option
+  * Show RGB histograms
+* Improved gamma support
+  * Adjust gamma with a slider in Brightness/Contrast window (no longer in preferences)
+  * Apply gamma to mini/channel viewers
 * Completely rewritten 'View -> Show view tracker' command
 * Improved channel viewer
   * Show only the visible/most relevant channels by default, based on image type
@@ -25,9 +32,6 @@ This is a work-in-progress.
     * Brace block handling (https://github.com/qupath/qupath/pull/901)
     * Smart parentheses and (double/single) quotes (https://github.com/qupath/qupath/pull/907)
     * Comment block handling (https://github.com/qupath/qupath/pull/908)
-* Improved Brightness/Contrast options, including
-  * Switch between dark and light backgrounds (still experimental)
-  * More consistent behavior with 'Show grayscale' option
 * Improved support for switching between QuPath objects and ImageJ ROIs
   * New 'Extensions -> ImageJ -> Import ImageJ ROIs' command
   * Import .roi and RoiSet.zip files by drag & drop
