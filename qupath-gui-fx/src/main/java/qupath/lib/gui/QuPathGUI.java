@@ -950,6 +950,15 @@ public class QuPathGUI {
 		
 		stage.setOnCloseRequest(e -> {
 			
+			// Added to try to resolve macOS issue in which pressing Cmd+Q multiple times 
+			// resulted in multiple save prompts appearing - https://github.com/qupath/qupath/issues/941
+			// Must be checked on other platforms
+			if (Platform.isNestedLoopRunning()) {
+				logger.debug("Close request from nested loop - will be discarded");
+				e.consume();
+				return;
+			}
+			
 			Set<QuPathViewer> unsavedViewers = new LinkedHashSet<>();
 			for (QuPathViewer viewer : viewerManager.getViewers()) {
 				if (viewer.getImageData() != null && viewer.getImageData().isChanged())
