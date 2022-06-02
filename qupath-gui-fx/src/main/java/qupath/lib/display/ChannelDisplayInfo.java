@@ -27,6 +27,9 @@ import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
 import java.awt.image.SampleModel;
 
+import qupath.lib.color.ColorTransformer;
+import qupath.lib.color.ColorTransformer.ColorTransformMethod;
+
 /**
  * Interface used to control the display of single channels of image data, where
  * 'single channel' means one value per pixel (in Java's parlance, one band for the
@@ -204,6 +207,16 @@ public interface ChannelDisplayInfo {
 	 */
 	public Integer getColor();
 	
+	/**
+	 * Get the {@link ColorTransformMethod} associated with this channel, or null
+	 * if no method is relevant.
+	 * 
+	 * @return
+	 */
+	public default ColorTransformer.ColorTransformMethod getMethod() {
+		return null;
+	}
+	
 
 	/**
 	 * Helper interface to indicate that the display ranges can be modified.
@@ -248,6 +261,7 @@ public interface ChannelDisplayInfo {
 		 */
 		public abstract void setMaxDisplay(float maxDisplay);
 		
+
 	}
 
 }

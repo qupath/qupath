@@ -46,6 +46,8 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.reflect.TypeToken;
 
+import javafx.beans.binding.Bindings;
+import javafx.beans.binding.ObjectBinding;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.LongProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -98,6 +100,9 @@ public class ImageDisplay extends AbstractImageRenderer {
 	private ChannelDisplayInfo lastSelectedChannel = null;
 
 	private LongProperty changeTimestamp = new SimpleLongProperty(System.currentTimeMillis());
+	
+	private ObjectBinding<ChannelDisplayMode> displayMode = Bindings.createObjectBinding(() -> calculateDisplayMode(),
+			useGrayscaleLutProperty(), useInvertedBackgroundProperty());
 	
 	transient private static Map<String, HistogramManager> cachedHistograms = Collections.synchronizedMap(new HashMap<>());
 	private HistogramManager histogramManager = null;
@@ -211,6 +216,26 @@ public class ImageDisplay extends AbstractImageRenderer {
 	 */
 	public boolean useInvertedBackground() {
 		return useInvertedBackground.get();
+	}
+	
+	/**
+	 * Get the value of {@link #useInvertedBackgroundProperty()}
+	 * @return
+	 */
+	public ObjectBinding<ChannelDisplayMode> displayMode() {
+		return displayMode;
+	}
+	
+	private ChannelDisplayMode calculateDisplayMode() {
+		if (useGrayscaleLuts()) {
+			if (useInvertedBackground())
+				return ChannelDisplayMode.INVERTED_GRAYSCALE;
+			else
+				return ChannelDisplayMode.GRAYSCALE;
+		} else if (useInvertedBackground())
+			return ChannelDisplayMode.INVERTED_COLOR;
+		else
+			return ChannelDisplayMode.COLOR;
 	}
 
 	/**
@@ -541,18 +566,7 @@ public class ImageDisplay extends AbstractImageRenderer {
 	public BufferedImage applyTransforms(BufferedImage imgInput, BufferedImage imgOutput) {
 //		long startTime = System.currentTimeMillis();
 		
-		ChannelDisplayMode mode;
-		if (useGrayscaleLuts()) {
-			if (useInvertedBackground())
-				mode = ChannelDisplayMode.INVERTED_GRAYSCALE;
-			else
-				mode = ChannelDisplayMode.GRAYSCALE;
-		} else if (useInvertedBackground())
-			mode = ChannelDisplayMode.INVERTED_COLOR;
-		else
-			mode = ChannelDisplayMode.COLOR;
-		
-		BufferedImage imgResult = applyTransforms(imgInput, imgOutput, selectedChannels, mode);
+		BufferedImage imgResult = applyTransforms(imgInput, imgOutput, selectedChannels, displayMode().getValue());
 //		long endTime = System.currentTimeMillis();
 //		System.err.println("Transform time: " + (endTime - startTime));
 		return imgResult;

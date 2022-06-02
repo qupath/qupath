@@ -26,6 +26,7 @@ import java.lang.ref.WeakReference;
 import java.util.Collections;
 import java.util.Map;
 
+import qupath.lib.display.ChannelDisplayMode;
 import qupath.lib.display.DirectServerChannelInfo;
 import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.images.stores.AbstractImageRenderer;
@@ -106,7 +107,9 @@ class FeatureRenderer extends AbstractImageRenderer {
 
 		@Override
 		public BufferedImage applyTransforms(BufferedImage imgInput, BufferedImage imgOutput) {
-			return ImageDisplay.applyTransforms(imgInput, imgOutput, Collections.singletonList(selectedChannel), true);
+			return ImageDisplay.applyTransforms(imgInput, imgOutput,
+					Collections.singletonList(selectedChannel),
+					ChannelDisplayMode.GRAYSCALE);
 		}
 				
 	}

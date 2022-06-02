@@ -8,6 +8,9 @@ This is a work-in-progress.
   * This aims to make it much easier to match up objects whenever some further analysis is done elsewhere (e.g. classification or clustering in Python or R)
   * See https://github.com/qupath/qupath/pull/959
 * Completely rewritten 'View -> Show view tracker' command
+* Improved channel viewer
+  * Show only the visible/most relevant channels by default, based on image type
+  * Right-click to optionally show all available channels
 * Improved scalebar preferences
   * New preferences to control font size/weight & line width (bottom left)
   * Independently adjust font size for location text (bottom right)

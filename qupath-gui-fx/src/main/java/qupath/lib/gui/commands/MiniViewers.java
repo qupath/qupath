@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -30,13 +30,18 @@ import java.awt.geom.Point2D;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.stream.Collectors;
 
 import org.controlsfx.control.action.Action;
 import org.controlsfx.control.action.ActionUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javafx.application.Platform;
 import javafx.beans.InvalidationListener;
@@ -73,9 +78,11 @@ import javafx.scene.image.Image;
 import javafx.scene.image.WritableImage;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.AnchorPane;
+import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.RowConstraints;
 import javafx.stage.Stage;
 import qupath.lib.awt.common.AwtTools;
 import qupath.lib.color.ColorToolsAwt;
@@ -102,6 +109,10 @@ import qupath.lib.regions.ImageRegion;
  *
  */
 public class MiniViewers {
+	
+	private final static Logger logger = LoggerFactory.getLogger(MiniViewers.class);
+	
+	private static BooleanProperty showAllChannels = PathPrefs.createPersistentPreference("channelViewerAllChannels", false);
 
 	/**
 	 * Style binding to use the same background color as the main viewer.
@@ -112,27 +123,41 @@ public class MiniViewers {
 	}, PathPrefs.viewerBackgroundColorProperty());
 
 	static Stage createDialog(QuPathViewer viewer, boolean channelViewer) {
+		if (channelViewer)
+			logger.debug("Creating channel viewer for {}", viewer);
+		else
+			logger.debug("Creating mini viewer for {}", viewer);
+		
 		final Stage dialog = new Stage();
 		dialog.initOwner(viewer.getView().getScene().getWindow());
 		
-		ObservableList<ChannelDisplayInfo> channels = viewer.getImageDisplay().availableChannels();
-		MiniViewerManager manager = new MiniViewerManager(viewer, channelViewer ? channels.size() : 0);
+		
+		var channels = getChannels(viewer.getImageDisplay());
+		MiniViewerManager manager = createManager(viewer, channelViewer ? channels : Collections.emptyList());
 		manager.getPane().styleProperty().bind(style);
 		if (channelViewer) {
 			dialog.setTitle("Channel viewer");
 			Scene scene = new Scene(manager.getPane(), 400, 400);
+			
+			// Listen for changes to all channels or selected channels
+			ObservableList<ChannelDisplayInfo> allChannels = viewer.getImageDisplay().availableChannels();
+			ObservableList<ChannelDisplayInfo> selectedChannels = viewer.getImageDisplay().selectedChannels();
 			ListChangeListener<ChannelDisplayInfo> listChangeListener = new ListChangeListener<ChannelDisplayInfo>() {
 				@Override
 				public void onChanged(Change<? extends ChannelDisplayInfo> c) {
-					if (c.getList().size() != manager.nChannels()) {
-						manager.setChannels(channels.size());
-						scene.setRoot(manager.getPane());
-					}
+					updateChannels(viewer, manager, scene);
 				}
 			};
-			channels.addListener(listChangeListener);
+			allChannels.addListener(listChangeListener);
+			selectedChannels.addListener(listChangeListener);
+			
+			ChangeListener<Boolean> showAllListener = (v, o, n) -> updateChannels(viewer, manager, scene);
+			showAllChannels.addListener(showAllListener);
+			
 			dialog.setOnHiding(e -> {
-				channels.removeListener(listChangeListener);
+				allChannels.removeListener(listChangeListener);
+				selectedChannels.removeListener(listChangeListener);
+				showAllChannels.removeListener(showAllListener);
 				manager.close();
 				manager.getPane().styleProperty().unbind();
 			});
@@ -146,17 +171,90 @@ public class MiniViewers {
 				manager.getPane().styleProperty().unbind();
 			});
 		}
-		createPopup(manager);
+		createPopup(manager, channelViewer);
 		return dialog;
 	}
+	
+	
+	private static void updateChannels(QuPathViewer viewer, MiniViewerManager manager, Scene scene) {
+		var newChannels = getChannels(viewer.getImageDisplay());
+		if (newChannels.equals(manager.channels))
+			return;
+		manager.setChannels(newChannels);
+		scene.setRoot(manager.getPane());
+	}
+	
+	
+	
+	private static boolean isColorDeconvolutionChannel(ChannelDisplayInfo c) {
+		var method = c.getMethod();
+		if (method == null)
+			return false;
+		switch (method) {
+		case Stain_1:
+		case Stain_2:
+		case Stain_3:
+		case Optical_density_sum:
+			return true;
+		default:
+			return false;
+		}
+	}
+	
+	private static boolean isRGBChannel(ChannelDisplayInfo c) {
+		var method = c.getMethod();
+		if (method == null)
+			return false;
+		switch (method) {
+		case Red:
+		case Green:
+		case Blue:
+			return true;
+		default:
+			return false;
+		}
+	}
+	
+	private static List<ChannelDisplayInfo> getChannels(ImageDisplay display) {
+		return getChannels(display, showAllChannels.get());
+	}
+	
+	private static List<ChannelDisplayInfo> getChannels(ImageDisplay display, boolean allChannels) {
+		var imageData = display == null ? null : display.getImageData();
+		if (allChannels || imageData == null) {
+			return display.availableChannels();
+		}
+		if (imageData.getServer().isRGB()) {
+			if (imageData.getColorDeconvolutionStains() != null) {
+				return display.availableChannels()
+						.stream()
+						.filter(MiniViewers::isColorDeconvolutionChannel)
+						.collect(Collectors.toList());
+			} else {
+				return display.availableChannels()
+						.stream()
+						.filter(MiniViewers::isRGBChannel)
+						.collect(Collectors.toList());
+			}			
+		} else {
+			// We want the selected channels, but retaining the original order
+			var selected = new HashSet<>(display.selectedChannels());
+			return display.availableChannels()
+					.stream()
+					.filter(c -> selected.contains(c))
+					.collect(Collectors.toList());
+		}
+	}
+	
 	
 	/**
 	 * Create and install a popup menu in a MiniViewerManager.
 	 * 
 	 * @param manager
+	 * @param isChannelViewer 
 	 * @return
 	 */
-	static ContextMenu createPopup(final MiniViewerManager manager) {
+	static ContextMenu createPopup(final MiniViewerManager manager, boolean isChannelViewer) {
 		
 		List<RadioMenuItem> radioItems = Arrays.asList(
 				ActionUtils.createRadioMenuItem(createDownsampleAction("400 %", manager.downsample, 0.25)),
@@ -179,6 +277,13 @@ public class MiniViewers {
 		menuZoom.getItems().addAll(radioItems);
 
 		ContextMenu popup = new ContextMenu();
+		
+		if (isChannelViewer) {
+			popup.getItems().add(
+					ActionUtils.createCheckMenuItem(ActionTools.createSelectableAction(showAllChannels, "Show all channels"))
+					);
+		}
+
 		popup.getItems().addAll(
 				ActionUtils.createCheckMenuItem(ActionTools.createSelectableAction(manager.synchronizeToMainViewer, "Synchronize to main viewer")),
 				menuZoom,
@@ -189,7 +294,7 @@ public class MiniViewers {
 				);
 
 		group.selectToggle(radioItems.get(2));
-		
+				
 		Pane pane = manager.getPane();
 		pane.setOnContextMenuRequested(e -> {
 			popup.show(pane, e.getScreenX(), e.getScreenY());
@@ -211,6 +316,27 @@ public class MiniViewers {
 		return new Action(text, e -> downsampleValue.set(downsample));
 	}
 	
+	/**
+	 * Create a {@link MiniViewerManager} associated with a specified viewer.
+	 * @param viewer
+	 * @return
+	 * @since v0.4.0
+	 */
+	public static MiniViewerManager createManager(QuPathViewer viewer) {
+		return new MiniViewerManager(viewer, Collections.emptyList());
+	}
+	
+	/**
+	 * Create a {@link MiniViewerManager} displaying multiple channels and 
+	 * associated with a specified viewer.
+	 * @param viewer
+	 * @param channels
+	 * @return
+	 * @since v0.4.0
+	 */
+	public static MiniViewerManager createManager(QuPathViewer viewer, Collection<? extends ChannelDisplayInfo> channels) {
+		return new MiniViewerManager(viewer, channels);
+	}
 	
 	
 	/**
@@ -237,7 +363,7 @@ public class MiniViewers {
 		private boolean requestUpdate = false;
 		
 		private QuPathViewer mainViewer;
-		private int nChannels;
+		private List<ChannelDisplayInfo> channels = new ArrayList<>();
 		
 		private Point2D centerPosition = new Point2D.Double();
 		private Point2D mousePosition;
@@ -271,19 +397,17 @@ public class MiniViewers {
 			
 		};
 		
-		
-		private int nChannels() {
-			return nChannels;
-		}
-		
 		/**
 		 * Constructor specifying a primary viewer and number of channels.
 		 * @param mainViewer the viewer that the mini viewers relate to (i.e. tracking the cursor location)
-		 * @param nChannels the number of channels to include
+		 * @param channels the channels to include
+		 * 
+		 * @deprecated use {@link MiniViewers#createManager(QuPathViewer, Collection)} instead.
 		 */
-		public MiniViewerManager(final QuPathViewer mainViewer, final int nChannels) {
+		@Deprecated
+		public MiniViewerManager(final QuPathViewer mainViewer, final Collection<? extends ChannelDisplayInfo> channels) {
 			this.mainViewer = mainViewer;
-			setChannels(nChannels);
+			setChannels(channels);
 
 			mainViewer.zPositionProperty().addListener(changeListener);
 			mainViewer.tPositionProperty().addListener(changeListener);
@@ -312,15 +436,17 @@ public class MiniViewers {
 			mainViewer.getView().removeEventFilter(MouseEvent.MOUSE_MOVED, this);
 		}
 		
-		void setChannels(int nChannels) {
+		void setChannels(Collection<? extends ChannelDisplayInfo> channels) {
 			
 			miniViewers.stream().forEach(v -> v.close());
 			miniViewers.clear();
 			
+			int nChannels = channels.size();
 			int nCols = (int)Math.ceil(Math.sqrt(nChannels + 1));
 			int nRows = (int)Math.ceil((nChannels + 1) / (double)nCols);
 			
-			this.nChannels = nChannels;
+			this.channels.clear();
+			this.channels.addAll(channels);
 			List<Node> nodes = new ArrayList<>();
 			for (int c = 0; c < nChannels; c++) {
 				MiniViewer canvas = new MiniViewer(new ImageDisplaySingleChannelRenderer(c));
@@ -335,6 +461,26 @@ public class MiniViewers {
 			
 			pane.setVgap(5);
 			pane.setHgap(5);
+			
+			var rowConstraints = pane.getRowConstraints();
+			if (rowConstraints.size() != nRows) {
+				rowConstraints.clear();
+				for (int r = 0; r < nRows; r++) {
+					var rc = new RowConstraints();
+					rc.setPercentHeight(100.0/nRows);
+					rowConstraints.add(rc);
+				}
+			}
+			var colConstraints = pane.getColumnConstraints();
+			if (colConstraints.size() != nCols) {
+				colConstraints.clear();
+				for (int c = 0; c < nCols; c++) {
+					var cc = new ColumnConstraints();
+					cc.setPrefWidth(100.0/nCols);
+					colConstraints.add(cc);
+				}
+			}
+			
 
 			pane.getChildren().setAll(nodes);
 			
@@ -354,7 +500,6 @@ public class MiniViewers {
 					Priority.ALWAYS, Priority.ALWAYS);
 			GridPane.setFillHeight(tempPane, Boolean.TRUE);
 			GridPane.setFillWidth(tempPane, Boolean.TRUE);
-			
 			
 			Label label = new Label();
 			label.textProperty().bind(canvas.nameBinding);
@@ -413,11 +558,12 @@ public class MiniViewers {
 		}
 		
 		void requestUpdate() {
-//			if (requestUpdate)
-//				return;
+			if (requestUpdate)
+				return;
 			// TODO: Look to improve the performance of this & discard requests appropriately
 			requestUpdate = true;
-			updateViewers();
+			Platform.runLater(() -> updateViewers());
+//			updateViewers();
 		}
 		
 		void updateViewers() {
@@ -468,15 +614,14 @@ public class MiniViewers {
 			public MiniViewer(ImageRenderer renderer) {
 				this.renderer = renderer;
 				
-				this.widthProperty().addListener(v -> repaint());
-				this.heightProperty().addListener(v -> repaint());
+				this.widthProperty().addListener(v -> requestUpdate());
+				this.heightProperty().addListener(v -> requestUpdate());
 				
 				// Create binding to indicate the current channel name
 				nameBinding.bind(Bindings.createStringBinding(() -> {
 						if (renderer instanceof ImageDisplaySingleChannelRenderer) {
 							ImageDisplaySingleChannelRenderer channelRenderer = (ImageDisplaySingleChannelRenderer)renderer;
 							int channel = channelRenderer.channel;
-							List<ChannelDisplayInfo> channels = mainViewer.getImageDisplay().availableChannels();
 							if (channel < 0 || channel >= channels.size())
 								return null;
 							return channels.get(channel).getName();
@@ -644,11 +789,14 @@ public class MiniViewers {
 			public BufferedImage applyTransforms(BufferedImage imgInput, BufferedImage imgOutput) {
 				ImageDisplay imageDisplay = mainViewer.getImageDisplay();
 				if (channel >= 0) {
-					List<ChannelDisplayInfo> channels = imageDisplay.availableChannels();
+					// Display individual channel
 					if (channel < channels.size()) {
-						return ImageDisplay.applyTransforms(imgInput, imgOutput, Collections.singletonList(channels.get(channel)), imageDisplay.useGrayscaleLuts());
+						return ImageDisplay.applyTransforms(imgInput, imgOutput,
+								Collections.singletonList(channels.get(channel)),
+								imageDisplay.displayMode().getValue());
 					}
 				}
+				// Use the default for the current image
 				return imageDisplay.applyTransforms(imgInput, imgOutput);
 			}
 			
