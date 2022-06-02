@@ -429,7 +429,7 @@ public class PixelClassifierPane {
 		PaneTools.setHGrowPriority(Priority.ALWAYS, comboResolutions, comboClassifier, comboFeatures);
 		PaneTools.setFillWidth(Boolean.TRUE, comboResolutions, comboClassifier, comboFeatures);
 		
-		miniViewer = new MiniViewers.MiniViewerManager(qupath.getViewer(), 0);
+		miniViewer = MiniViewers.createManager(qupath.getViewer());
 		var viewerPane = miniViewer.getPane();
 		Tooltip.install(viewerPane, new Tooltip("View image at classification resolution"));
 		

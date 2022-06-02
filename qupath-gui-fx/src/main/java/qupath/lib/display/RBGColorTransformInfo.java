@@ -143,6 +143,9 @@ class RBGColorTransformInfo extends AbstractSingleChannelInfo {
 		return isMutable;
 	}
 
-
+	@Override
+	public ColorTransformer.ColorTransformMethod getMethod() {
+		return method;
+	}
 
 }

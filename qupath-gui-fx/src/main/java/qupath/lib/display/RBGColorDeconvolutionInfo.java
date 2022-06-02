@@ -181,5 +181,10 @@ class RBGColorDeconvolutionInfo extends AbstractSingleChannelInfo {
 	public boolean isMutable() {
 		return true;
 	}
+	
+	@Override
+	public ColorTransformer.ColorTransformMethod getMethod() {
+		return method;
+	}
 
 }
