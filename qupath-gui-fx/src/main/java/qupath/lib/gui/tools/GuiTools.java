@@ -720,6 +720,7 @@ public class GuiTools {
 	 * 
 	 * @param textField
 	 * @param allowDecimals
+	 * @implNote this is often used alongside {@link #resetSpinnerNullToPrevious(Spinner)}
 	 */
 	public static void restrictTextFieldInputToNumber(TextField textField, boolean allowDecimals) {
 		NumberFormat format;
@@ -748,8 +749,14 @@ public class GuiTools {
 		    			newText.toUpperCase().contains("E"))
 		    		return c;
 		    	
-		    	// Accept any deletion of characters (which means the text area might be left in an invalid state)
-		    	if (newText.length() < text.length())
+//		    	// Accept any deletion of characters (which means the text area might be left in an invalid state)
+		    	// Note: This was removed, because it could result in errors if selecting a longer number 
+		    	// and replacing it with an invalid character in a single edit (e.g. '=')
+//		    	if (newText.length() < text.length())
+//		    		return c;
+		    	
+		    	// Accept removing everything (which means the text area might be left in an invalid state)
+		    	if (newText.isEmpty())
 		    		return c;
 
 		        ParsePosition parsePosition = new ParsePosition(0);
@@ -762,6 +769,25 @@ public class GuiTools {
 		};
 		TextFormatter<Integer> normalizeFormatter = new TextFormatter<Integer>(filter);
 		textField.setTextFormatter(normalizeFormatter);
+	}
+	
+	/**
+	 * Add a listener to the value of a spinner, resetting it to its previous value if it 
+	 * becomes null.
+	 * @param <T>
+	 * @param spinner
+	 * @implNote this is often used alongside {@link #restrictTextFieldInputToNumber(TextField, boolean)}
+	 */
+	public static <T> void resetSpinnerNullToPrevious(Spinner<T> spinner) {
+		spinner.valueProperty().addListener((v, o, n) -> {
+			try {
+				if (n == null) {
+					spinner.getValueFactory().setValue(o);
+				}
+			} catch (Exception e) {
+				logger.warn(e.getLocalizedMessage(), e);
+			}
+		});
 	}
 	
 

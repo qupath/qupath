@@ -889,23 +889,7 @@ public class QuPathGUI {
 			instance = this;
 		
 		// Ensure the user is notified of any errors from now on
-		Thread.setDefaultUncaughtExceptionHandler(new UncaughtExceptionHandler() {
-			@Override
-			public void uncaughtException(Thread t, Throwable e) {
-				if (e instanceof OutOfMemoryError) {
-					// Try to reclaim any memory we can
-					getViewer().getImageRegionStore().clearCache(true, true);
-					Dialogs.showErrorNotification("Out of memory error",
-							"Out of memory! You may need to decrease the 'Number of parallel threads' in the preferences, "
-							+ "then restart QuPath.");
-					logger.error(e.getLocalizedMessage(), e);
-				} else {
-					Dialogs.showErrorNotification("QuPath exception", e);
-					if (defaultActions.SHOW_LOG != null)
-						defaultActions.SHOW_LOG.handle(null);
-				}
-			}
-		});
+		Thread.setDefaultUncaughtExceptionHandler(new QuPathUncaughtExceptionHandler());
 		
 		
 		logger.trace("Time to main component: {} ms", (System.currentTimeMillis() - startTime));
@@ -5097,6 +5081,53 @@ public class QuPathGUI {
 			
 		}
 		
+		
+	}
+	
+	
+	class QuPathUncaughtExceptionHandler implements UncaughtExceptionHandler {
+		
+		private long lastExceptionTimestamp = 0L;
+		private String lastExceptionMessage = null;
+		
+		private long sameExceptionCount = 0;
+		private long minDelay = 1000;
+		
+		@Override
+		public void uncaughtException(Thread t, Throwable e) {
+			// Avoid showing the same message repeatedly
+			String msg = e.getLocalizedMessage();
+			long timestamp = System.currentTimeMillis();
+			try {
+				if (timestamp - lastExceptionTimestamp < minDelay && 
+						Objects.equals(msg, lastExceptionMessage)) {
+					sameExceptionCount++;
+					// Don't continually log the full stack trace
+					if (sameExceptionCount > 3)
+						logger.error("{} (see full stack trace above, or use 'debug' log level)", e.getLocalizedMessage());
+					else
+						logger.debug(e.getLocalizedMessage(), e);
+					return;
+				} else
+					sameExceptionCount = 0;
+	
+				if (e instanceof OutOfMemoryError) {
+					// Try to reclaim any memory we can
+					getViewer().getImageRegionStore().clearCache(true, true);
+					Dialogs.showErrorNotification("Out of memory error",
+							"Out of memory! You may need to decrease the 'Number of parallel threads' in the preferences, "
+							+ "then restart QuPath.");
+					logger.error(e.getLocalizedMessage(), e);
+				} else {
+					Dialogs.showErrorNotification("QuPath exception", e);
+					if (defaultActions.SHOW_LOG != null)
+						defaultActions.SHOW_LOG.handle(null);
+				}
+			} finally {
+				lastExceptionMessage = msg;
+				lastExceptionTimestamp = timestamp;				
+			}
+		}
 		
 	}
 

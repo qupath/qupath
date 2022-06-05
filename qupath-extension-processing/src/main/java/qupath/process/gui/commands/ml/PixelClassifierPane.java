@@ -485,11 +485,14 @@ public class PixelClassifierPane {
 		spinFeatureMin.disableProperty().bind(featureDisableBinding);
 		spinFeatureMin.setEditable(true);
 		GuiTools.restrictTextFieldInputToNumber(spinFeatureMin.getEditor(), true);
+		GuiTools.resetSpinnerNullToPrevious(spinFeatureMin);
+		
 		spinFeatureMax.disableProperty().bind(featureDisableBinding);
 		spinFeatureMax.setEditable(true);
 		GuiTools.restrictTextFieldInputToNumber(spinFeatureMax.getEditor(), true);
-		var paneFeatures = new GridPane();
-		comboDisplayFeatures.setTooltip(new Tooltip("Choose classification result or feature overlay to display (Warning: This requires a lot of memory & computation!)"));
+		GuiTools.resetSpinnerNullToPrevious(spinFeatureMax);
+		
+		var paneFeatures = new GridPane();spinFeatureMax.setTooltip(new Tooltip("Choose classification result or feature overlay to display (Warning: This requires a lot of memory & computation!)"));
 		spinFeatureMin.setTooltip(new Tooltip("Min display value for feature overlay"));
 		spinFeatureMax.setTooltip(new Tooltip("Max display value for feature overlay"));
 		sliderFeatureOpacity.setTooltip(new Tooltip("Adjust classification/feature overlay opacity"));
@@ -812,7 +815,7 @@ public class PixelClassifierPane {
 	
 	
 	private void updateFeatureDisplayRange() {
-		if (featureRenderer == null)
+		if (featureRenderer == null || spinFeatureMin.getValue() == null || spinFeatureMax.getValue() == null)
 			return;
 		featureRenderer.setRange(spinFeatureMin.getValue(), spinFeatureMax.getValue());
 		qupath.repaintViewers();
