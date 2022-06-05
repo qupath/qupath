@@ -329,6 +329,7 @@ abstract class ImageDataTransformerBuilder {
 			normalizationSigma = spinnerNormalize.valueProperty();
 			spinnerNormalize.setEditable(true);
 			GuiTools.restrictTextFieldInputToNumber(spinnerNormalize.getEditor(), true);
+			GuiTools.resetSpinnerNullToPrevious(spinnerNormalize);
 			spinnerNormalize.focusedProperty().addListener((v, o, n) -> {
 				if (spinnerNormalize.getEditor().getText().equals(""))
 					spinnerNormalize.getValueFactory().valueProperty().set(0.0);

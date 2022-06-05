@@ -401,6 +401,7 @@ public class DensityMapDialog {
 		spinner.setEditable(true);
 		spinner.getEditor().setPrefColumnCount(6);
 		GuiTools.restrictTextFieldInputToNumber(spinner.getEditor(), true);
+		GuiTools.resetSpinnerNullToPrevious(spinner);
 		return spinner;
 	}
 	

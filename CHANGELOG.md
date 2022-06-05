@@ -57,6 +57,8 @@ This is a work-in-progress.
 * Removing >255 measurements throws error when reproducing from workflow script (https://github.com/qupath/qupath/issues/915)
 * Calling Quit multiple times results in multiple dialogs appearing (https://github.com/qupath/qupath/issues/941)
 * QuPath doesn't support some channel combinations through Bio-Formats (https://github.com/qupath/qupath/issues/956)
+* 'Cannot invoke “java.lang.Double.doubleValue()”' exception in 'Create Thresholder' (https://github.com/qupath/qupath/issues/988)
+* Uncaught exceptions can fill the screen with duplicate error notifications (https://github.com/qupath/qupath/issues/990)
 
 ### Changes through Bio-Formats 6.10.0
 * Bio-Formats 6.10.0 brings several important new features to QuPath, including:
