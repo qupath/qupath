@@ -652,6 +652,8 @@ public class OpenCVDnn implements UriResource, DnnModel<Mat> {
 		private transient StringVector outputLayerNamesVector;
 		
 		// Experimental code - can use a ThreadLocal Net, but doesn't seem to improve performance overall
+		// and can even slightly reduce it
+		// (tested 06/22 using StarDist on an Apple M1 Max with 32 GB RAM)
 //		private transient ThreadLocal<Net> localNet = ThreadLocal.withInitial(() -> {
 //			ensureInitialized();
 //			if (net != null) {

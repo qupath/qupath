@@ -32,7 +32,10 @@ import java.util.stream.Collectors;
 import org.locationtech.jts.algorithm.Centroid;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.GeometryCollection;
+import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.util.AffineTransformation;
+import org.locationtech.jts.geom.util.GeometryFixer;
 import org.locationtech.jts.index.strtree.STRtree;
 import org.locationtech.jts.simplify.VWSimplifier;
 import org.slf4j.Logger;
@@ -153,6 +156,13 @@ public class CellTools {
 			if (geomNucleusHull.getNumGeometries() == 1 && geomCell.getNumGeometries() == 1 && !geomCell.covers(geomNucleusHull))
 				geomCell = GeometryTools.attemptOperation(geomCell, g -> g.union(geomNucleusHull));
 		}
+		// Sometimes buffer creates invalid geometries - we should try to avoid that
+		// We expect that we should (almost) always have a polygon as output, not a collection
+		if (geomCell instanceof GeometryCollection && geomNucleus instanceof Polygon && !geomCell.isValid()) {
+			geomCell = GeometryFixer.fix(geomCell);
+			logger.debug("Used GeometryFixer to fix an invalid cell boundary geometry");
+		}
+			
 		return geomCell;
 	}
 	
@@ -245,34 +255,56 @@ public class CellTools {
 				logger.warn("Missing boundary information for {} - will skip", detection);
 				continue;
 			}
-			var geomCell = face;
+			
+			// Wrap everything in a try/catch block - that way, if it fails then we lose one cell rather than all of them
 			try {
-				geomCell = GeometryTools.ensurePolygonal(face.intersection(bounds));
-				geomCell = VWSimplifier.simplify(geomCell, 1.0);
-			} catch (Exception e) {
-				if (face.getArea() > bounds.getArea()) {
-					geomCell = bounds;
-					logger.warn("Error computing intersection between cell boundary and Voronoi face - will use bounds result: " + e.getLocalizedMessage(), e);
-				} else
-					logger.warn("Error computing intersection between cell boundary and Voronoi face - will use Voronoi result: " + e.getLocalizedMessage(), e);
-			}
-			var roiNucleus = PathObjectTools.getROI(detection, true);
-			var roiCell = roiNucleus;
-			if (geomCell.isEmpty()) {
-				logger.warn("Unable to create cell ROI for {} - I'll use the nucleus ROI instead", detection);
-			} else {
-				var geomNucleus = roiNucleus.getGeometry();
-				if (!geomCell.covers(geomNucleus)) {
-					try {
-						geomNucleus = geomCell.intersection(geomNucleus);
-						roiNucleus = GeometryTools.geometryToROI(geomNucleus, roiNucleus.getImagePlane());
-					} catch (Exception e) {
-						logger.debug("Error constraining nucleus to cell: {}", e.getLocalizedMessage());
+				var geomCell = face;
+				try {
+					geomCell = face.intersection(bounds);
+					geomCell = GeometryTools.ensurePolygonal(geomCell);
+					geomCell = VWSimplifier.simplify(geomCell, 1.0);
+				} catch (Exception e) {
+					// Debugging code used to create GeoJSON objects that could later be import for visualization
+	//				if (bounds instanceof GeometryCollection)
+	//					System.err.println("Collection FAILED");
+	//				else
+	//					System.err.println("Non-collection FAILED");
+	//				
+	//				var gson = GsonTools.getInstance(true);
+	//				var failedObjects = Arrays.asList(
+	//						detection,
+	//						PathObjects.createAnnotationObject(GeometryTools.geometryToROI(bounds, ImagePlane.getDefaultPlane()), PathClassFactory.getPathClass("Temporary")),
+	//						PathObjects.createAnnotationObject(GeometryTools.geometryToROI(face, ImagePlane.getDefaultPlane()), PathClassFactory.getPathClass("Temporary face"))						
+	//						);
+	//				System.err.println(gson.toJson(GsonTools.wrapFeatureCollection(failedObjects)));
+	
+					if (face.getArea() > bounds.getArea()) {
+						geomCell = bounds;
+						logger.warn("Error computing intersection between cell boundary and Voronoi face - will use bounds result: " + e.getLocalizedMessage(), e);
+					} else {
+						logger.warn("Error computing intersection between cell boundary and Voronoi face - will use Voronoi result: " + e.getLocalizedMessage(), e);
 					}
 				}
-				roiCell = GeometryTools.geometryToROI(geomCell, roiNucleus.getImagePlane());
+				var roiNucleus = PathObjectTools.getROI(detection, true);
+				var roiCell = roiNucleus;
+				if (geomCell.isEmpty()) {
+					logger.warn("Unable to create cell ROI for {} - I'll use the nucleus ROI instead", detection);
+				} else {
+					var geomNucleus = roiNucleus.getGeometry();
+					if (!geomCell.covers(geomNucleus)) {
+						try {
+							geomNucleus = geomCell.intersection(geomNucleus);
+							roiNucleus = GeometryTools.geometryToROI(geomNucleus, roiNucleus.getImagePlane());
+						} catch (Exception e) {
+							logger.debug("Error constraining nucleus to cell: {}", e.getLocalizedMessage());
+						}
+					}
+					roiCell = GeometryTools.geometryToROI(geomCell, roiNucleus.getImagePlane());
+				}
+				cells.add(PathObjects.createCellObject(roiCell, roiNucleus, detection.getPathClass(), detection.getMeasurementList()));
+			} catch (Exception ex) {
+				logger.warn("Exception creating cell for {} - will skip", PathObjectTools.getROI(detection, true));
 			}
-			cells.add(PathObjects.createCellObject(roiCell, roiNucleus, detection.getPathClass(), detection.getMeasurementList()));
 		}
 		return cells;
 	}
