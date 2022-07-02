@@ -234,7 +234,7 @@ public class RoiTools {
 				// Compute the intersection
 				g = geom.intersection(g);
 				// If we have a collection, we need to ensure homogeneity - intersections between two areas can result in lines occurring
-				g = GeometryTools.homogenizeGeometryCollection(geom.intersection(g));
+				g = GeometryTools.homogenizeGeometryCollection(g);
 				// Return the intersection if it is non-null, and also avoids any 'collapse', e.g. an area becoming a line
 				if (!g.isEmpty()) {
 					var r2 = GeometryTools.geometryToROI(g, r.getImagePlane());
