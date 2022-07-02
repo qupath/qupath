@@ -59,7 +59,6 @@ import qupath.lib.gui.logging.LogManager;
 import qupath.lib.gui.logging.LogManager.LogLevel;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.scripting.DefaultScriptEditor;
-import qupath.lib.gui.scripting.languages.GroovyLanguage;
 import qupath.lib.gui.scripting.languages.RunnableLanguage;
 import qupath.lib.gui.scripting.languages.ScriptLanguage;
 import qupath.lib.gui.scripting.languages.ScriptLanguageProvider;
@@ -193,6 +192,25 @@ public class QuPath {
 		}
 	
 		return;
+	}
+	
+	
+	static void initializeProperties() {
+		initializeJTS();
+	}
+	
+	
+	/**
+	 * Use OverlayNG with Java Topology Suite by default.
+	 * This can greatly reduce TopologyExceptions.
+	 * Use -Djts.overlay=old to turn off this behavior.
+	 */
+	static void initializeJTS() {
+		var prop = System.getProperty("jts.overlay");
+		if (prop == null) {
+			logger.debug("Setting -Djts.overlay=ng");
+			System.setProperty("jts.overlay", "ng");
+		}
 	}
 	
 	

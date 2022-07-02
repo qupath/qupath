@@ -17,7 +17,7 @@ gson          = { module = "com.google.code.gson:gson", version = "2.9.0" }
 
 # Optionally add GeoJSON support (brings in json-simple as sub-dependency)
 # However, the use of simple-json is troublesome since it brings in an old version of junit
-jts           = { module = "org.locationtech.jts:jts-core",    version = "1.18.2" }
+jts           = { module = "org.locationtech.jts:jts-core",    version = "1.19.0" }
 
 logback       = { module = "ch.qos.logback:logback-classic",   version = "1.2.11" }
 slf4j         = { module = "org.slf4j:slf4j-api",              version = "1.7.36" }

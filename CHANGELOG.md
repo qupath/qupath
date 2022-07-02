@@ -40,6 +40,8 @@ This is a work-in-progress.
 * OpenCV is no longer a dependency of qupath-core (https://github.com/qupath/qupath/issues/961)
   * Moved `OpenCVTypeAdapters` to qupath-core-processing
   * Switched `BufferedImageTools.resize` to use ImageJ internally
+* Use `-Djts.overlay=ng` system property by default with Java Topology Suite
+  * This should resolve many occurrences of the dreaded `TopologyException` when manipulating ROIs & geometries
 * Updated prompt to set the image type
 * Missing thumbnails are automatically regenerated when a project is opened
 * Avoid converting the pixel type to 32-bit unnecessarily when sending image regions to ImageJ
@@ -74,6 +76,7 @@ This is a work-in-progress.
 * Adoptium OpenJDK 17
 * Bio-Formats 6.10.0
 * JavaFX 18.0.1
+* Java Topology Suite 1.19.0
 * Groovy 4.0.2
 * Gson 2.9.0
 * Guava 31.1
