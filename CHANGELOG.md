@@ -77,11 +77,12 @@ This is a work-in-progress.
 * Bio-Formats 6.10.0
 * JavaFX 18.0.1
 * Java Topology Suite 1.19.0
-* Groovy 4.0.2
+* Groovy 4.0.3
 * Gson 2.9.0
 * Guava 31.1
+* ikonli 12.3.1
 * JavaCPP 1.5.7
-* JFreeSVG 5.0.2
+* JFreeSVG 5.0.3
 * OpenCV 4.5.5
 * Picocli 4.6.3
 
