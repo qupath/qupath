@@ -29,7 +29,6 @@ import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
 import java.awt.image.DataBuffer;
 import java.awt.image.DataBufferByte;
-import java.awt.image.IndexColorModel;
 import java.awt.image.WritableRaster;
 import java.io.IOException;
 import java.net.URI;
@@ -51,6 +50,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.classifiers.PathClassifierTools;
+import qupath.lib.color.ColorMaps;
 import qupath.lib.color.ColorModelFactory;
 import qupath.lib.color.ColorToolsAwt;
 import qupath.lib.common.ColorTools;
@@ -85,9 +85,11 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 	
 	private final static Logger logger = LoggerFactory.getLogger(LabeledImageServer.class);
 	
-	static long counter = 0;
-	
 	private ImageServerMetadata originalMetadata;
+	
+	// Easy way to get the default color models...
+	private final static ColorModel COLOR_MODEL_GRAY_UINT8 = new BufferedImage(1, 1, BufferedImage.TYPE_BYTE_GRAY).getColorModel();
+	private final static ColorModel COLOR_MODEL_GRAY_UINT16 = new BufferedImage(1, 1, BufferedImage.TYPE_USHORT_GRAY).getColorModel();
 	
 	private PathObjectHierarchy hierarchy;
 		
@@ -117,9 +119,12 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 		// Generate mapping for labels; it is permissible to have multiple classes for the same labels, in which case a derived class will be used
 		Map<Integer, PathClass> classificationLabels = new TreeMap<>();
 		if (params.createInstanceLabels) {
-			var pathObjects = imageData.getHierarchy().getObjects(null, null).stream().filter(params.objectFilter).collect(Collectors.toCollection(ArrayList::new));
+			var pathObjects = imageData.getHierarchy().getObjects(null, null).stream()
+					.filter(params.objectFilter)
+					.collect(Collectors.toCollection(ArrayList::new));
 			// Shuffle the objects, this helps when using grayscale lookup tables, since labels for neighboring objects are otherwise very similar
-			Collections.shuffle(pathObjects, new Random(100L));
+			if (params.shuffleInstanceLabels)
+				Collections.shuffle(pathObjects, new Random(100L));
 			Integer count = multichannelOutput ? 0 : 1;
 			instanceClassMap = new HashMap<>();
 			instanceClassMapInverse = new HashMap<>();
@@ -182,6 +187,9 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 				throw new IllegalArgumentException("Labels for multichannel output must be consecutive integers starting from 0! Requested labels " + classificationLabels.keySet());
 			}
 			var channels = PathClassifierTools.classificationLabelsToChannels(classificationLabels, false);
+			// It's a bit sad... but if we want grayscale output, we need to set the channels here
+			if (params.grayscaleLut)
+				channels = channels.stream().map(c -> ImageChannel.getInstance(c.getName(), ColorTools.WHITE)).collect(Collectors.toList());
 			metadataBuilder = metadataBuilder
 					.channelType(ChannelType.MULTICLASS_PROBABILITY)
 					.channels(channels)
@@ -210,13 +218,31 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 				colors.put(key, value);
 			}
 			
-			if (maxLabel < 65536) {
-				colorModel = ColorModelFactory.createIndexedColorModel(colors, false);
-				if (maxLabel > 255)
+			if (params.grayscaleLut) {
+				if (maxLabel < 255)
+					colorModel = COLOR_MODEL_GRAY_UINT8;
+				else if (maxLabel < 65536){
+					colorModel = COLOR_MODEL_GRAY_UINT16;
 					metadataBuilder.pixelType(PixelType.UINT16);
+				} else {
+					colorModel = ColorModelFactory.createColorModel(PixelType.FLOAT32,
+							ColorMaps.createColorMap("labels", 255, 255, 255),
+							0,
+							0,
+							maxLabel,
+							-1,
+							null);
+					metadataBuilder.pixelType(PixelType.FLOAT32);
+				}
 			} else {
-				colorModel = ColorModelFactory.getDummyColorModel(32);
-				metadataBuilder.channels(ImageChannel.getDefaultRGBChannels());
+				if (maxLabel < 65536) {
+					colorModel = ColorModelFactory.createIndexedColorModel(colors, false);
+					if (maxLabel > 255)
+						metadataBuilder.pixelType(PixelType.UINT16);
+				} else {
+					colorModel = ColorModelFactory.getDummyColorModel(32);
+					metadataBuilder.channels(ImageChannel.getDefaultRGBChannels());
+				}
 			}
 		}
 		
@@ -316,7 +342,11 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 		private Function<PathObject, ROI> roiFunction = p -> p.getROI();
 		
 		private boolean createInstanceLabels = false;
+		private boolean shuffleInstanceLabels = true; // Only if using instance labels
+		
 		private int maxOutputChannelLimit = 256;
+		
+		private boolean grayscaleLut = false;
 		
 		private float lineThickness = 1.0f;
 		private Map<PathClass, Integer> labels = new LinkedHashMap<>();
@@ -338,6 +368,8 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 			this.createInstanceLabels = params.createInstanceLabels;
 			this.maxOutputChannelLimit = params.maxOutputChannelLimit;
 			this.roiFunction = params.roiFunction;
+			this.grayscaleLut = params.grayscaleLut;
+			this.shuffleInstanceLabels = params.shuffleInstanceLabels;
 		}
 		
 	}
@@ -352,7 +384,7 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 		private int tileWidth, tileHeight;
 		
 		private boolean multichannelOutput = false;
-
+		
 		private LabeledServerParameters params = new LabeledServerParameters();
 		
 		/**
@@ -420,6 +452,29 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 		}
 		
 		/**
+		 * Use grayscale LUT, rather than deriving colors from classifications.
+		 * This can streamline import in software that automatically converts paletted images to RGB.
+		 * @return
+		 * @since v0.4.0
+		 * @see #grayscale(boolean)
+		 */
+		public Builder grayscale() {
+			return grayscale(true);
+		}
+		
+		/**
+		 * Optionally use grayscale LUT, rather than deriving colors from classifications.
+		 * This can streamline import in software that automatically converts paletted images to RGB.
+		 * @return
+		 * @since v0.4.0
+		 * @see #grayscale()
+		 */
+		public Builder grayscale(boolean grayscaleLut) {
+			params.grayscaleLut = grayscaleLut;
+			return this;
+		}
+		
+		/**
 		 * Specify downsample factor. This is <i>very</i> important because it defines 
 		 * the resolution at which shapes will be drawn and the line thickness is determined.
 		 * @param downsample
@@ -477,9 +532,38 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 		 * Request that unique labels are used for all objects, rather than classifications.
 		 * If this flag is set, all other label requests are ignored.
 		 * @return
+		 * @see #useInstanceLabels(boolean)
+		 * @see #shuffleInstanceLabels(boolean)
 		 */
 		public Builder useInstanceLabels() {
-			params.createInstanceLabels = true;
+			return useInstanceLabels(true);
+		}
+		
+		/**
+		 * Optionally request that unique labels are used for all objects, rather than classifications.
+		 * If this flag is set, all other label requests are ignored.
+		 * @return
+		 * @since v0.4.0
+		 * @see #useInstanceLabels()
+		 * @see #shuffleInstanceLabels(boolean)
+		 */
+		public Builder useInstanceLabels(boolean instanceLabels) {
+			params.createInstanceLabels = instanceLabels;
+			return this;
+		}
+		
+		
+		/**
+		 * Optionally request that instance labels are shuffled.
+		 * Default is true.
+		 * Only has an effect if {@link #useInstanceLabels(boolean)} is called with {@code true}.
+		 * @return
+		 * @since v0.4.0
+		 * @see #useInstanceLabels()
+		 * @see #useInstanceLabels(boolean)
+		 */
+		public Builder shuffleInstanceLabels(boolean doShuffle) {
+			params.shuffleInstanceLabels = doShuffle;
 			return this;
 		}
 		
@@ -991,10 +1075,46 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 		g2d.dispose();
 		if (doRGB) {
 			// Resort to RGB if we have to
-			if (maxLabel >= 65536)
+			WritableRaster shortRaster = null;
+			int w = img.getWidth();
+			int h = img.getHeight();
+			switch (getPixelType()) {
+			case UINT8:
 				return img;
-			// Convert to unsigned short if we can
-			var shortRaster = WritableRaster.createBandedRaster(DataBuffer.TYPE_USHORT, width, height, 1, null);
+			case FLOAT32:
+				shortRaster = WritableRaster.createWritableRaster(
+						new BandedSampleModel(DataBuffer.TYPE_FLOAT, w, h, 1),
+						null);
+				break;
+			case FLOAT64:
+				shortRaster = WritableRaster.createWritableRaster(
+						new BandedSampleModel(DataBuffer.TYPE_DOUBLE, w, h, 1),
+						null);
+				break;
+			case INT16:
+				shortRaster = WritableRaster.createWritableRaster(
+						new BandedSampleModel(DataBuffer.TYPE_SHORT, w, h, 1),
+						null);
+				break;
+			case INT8:
+			case UINT16:
+				shortRaster = WritableRaster.createWritableRaster(
+						new BandedSampleModel(DataBuffer.TYPE_USHORT, w, h, 1),
+						null);
+				break;
+			case INT32:
+			case UINT32:
+				shortRaster = WritableRaster.createWritableRaster(
+						new BandedSampleModel(DataBuffer.TYPE_INT, w, h, 1),
+						null);
+				break;
+			default:
+				break;
+			}
+			if (maxLabel >= 65536 || shortRaster == null) {
+				return img;
+			}
+			// Transfer RGB values as labels to the new raster
 			int[] samples = img.getRGB(0, 0, width, height, null, 0, width);
 			shortRaster.setSamples(0, 0, width, height, 0, samples);
 //			System.err.println("Before: " + Arrays.stream(samples).summaryStatistics());
@@ -1002,7 +1122,8 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 //			samples = raster.getSamples(0, 0, width, height, 0, (int[])null);
 //			System.err.println("After: " + Arrays.stream(samples).summaryStatistics());
 		}
-		return new BufferedImage((IndexColorModel)colorModel, raster, false, null);
+		return new BufferedImage(colorModel, raster, false, null);
+//		return new BufferedImage((IndexColorModel)colorModel, raster, false, null);
 	}
 	
 
