@@ -42,6 +42,9 @@ This is a work-in-progress.
   * Switched `BufferedImageTools.resize` to use ImageJ internally
 * Use `-Djts.overlay=ng` system property by default with Java Topology Suite
   * This should resolve many occurrences of the dreaded `TopologyException` when manipulating ROIs & geometries
+* Improved `LabeledImageServer.Builder` options
+  * Use `grayscale()` to export images without an extra lookup table (easier to import in some other software; see https://github.com/qupath/qupath/issues/993)
+  * Use `.shuffleInstanceLabels(false)` to avoid shuffling objects with `useInstanceLabels()`
 * Updated prompt to set the image type
 * Missing thumbnails are automatically regenerated when a project is opened
 * Avoid converting the pixel type to 32-bit unnecessarily when sending image regions to ImageJ
