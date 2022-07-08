@@ -32,6 +32,7 @@ import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import qupath.lib.geom.Point2;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
@@ -146,18 +147,18 @@ public class PointsTool extends AbstractPathTool {
 	 * Alt-clicks remove the selected point, or selects a new 'family' of points (i.e. a different object) if
 	 * a point from the current object isn't clicked.
 	 * 
+	 * @param viewer
 	 * @param x
 	 * @param y
 	 * @param currentObject
 	 * @return
 	 */
-	private boolean handleAltClick(double x, double y, PathObject currentObject) {
-		var viewer = getViewer();
+	private boolean handleAltClick(QuPathViewer viewer, double x, double y, PathObject currentObject) {
 		var viewerPlane = viewer.getImagePlane();
 		PathObjectHierarchy hierarchy = viewer.getHierarchy();
 		double distance = PathPrefs.pointRadiusProperty().get();
 		// Remove a point if the current selection has one
-		if (currentObject != null && PathObjectTools.hasPointROI(currentObject)) {
+		if (currentObject != null && !currentObject.isLocked() && PathObjectTools.hasPointROI(currentObject)) {
 			PointsROI points = (PointsROI)currentObject.getROI();
 			if (points.getImagePlane().equals(viewerPlane)) {
 				ROI points2 = removeNearbyPoint(points, x, y, distance);
@@ -171,19 +172,28 @@ public class PointsTool extends AbstractPathTool {
 		}
 		
 		// Activate a points object if there is one
+		boolean currentIsValid = false;
 		for (PathObject pathObject : hierarchy.getPointObjects(PathObject.class)) {
-			// Don't check the current object again
-			if (pathObject == currentObject || !pathObject.getROI().getImagePlane().equals(viewerPlane))
+			if (!pathObject.getROI().getImagePlane().equals(viewerPlane))
 				continue;
 			// See if we've almost clicked on a point
 			if (((PointsROI)pathObject.getROI()).getNearest(x, y, distance) != null) {
-				viewer.setSelectedObject(pathObject);
-//				hierarchy.getSelectionModel().setSelectedPathObject(pathObject);
-				return true;
+				// If the current object is an option, don't choose it immediately - 
+				// give another object the chance 
+				// (i.e. avoid locking the user into not being able to select different 
+				// objects because one always 'wins')
+				if (pathObject == currentObject)
+					currentIsValid = true;
+				else {
+					viewer.setSelectedObject(pathObject);
+	//				hierarchy.getSelectionModel().setSelectedPathObject(pathObject);
+					return true;
+				}
 			}
 		}
 		// Select nothing
-		viewer.setSelectedObject(null);
+		if (!currentIsValid)
+			viewer.setSelectedObject(null);
 		
 		return true;
 	}
@@ -219,6 +229,7 @@ public class PointsTool extends AbstractPathTool {
 			return;
 		PathROIObject currentObject = (PathROIObject)currentObjectTemp;
 		ROI currentROI = currentObject == null ? null : currentObject.getROI();
+		boolean currentUnlocked = currentObject == null ? false : !currentObject.isLocked();
 		
 		RoiEditor editor = viewer.getROIEditor();
 		double radius = PathPrefs.pointRadiusProperty().get();
@@ -229,10 +240,10 @@ public class PointsTool extends AbstractPathTool {
 		
 		// If Alt is pressed, try to delete a point
 		if (e.isAltDown()) {
-			handleAltClick(xx, yy, currentObject);
+			handleAltClick(viewer, xx, yy, currentObject);
 		} 
 		// Create a new ROI if we've got Alt & Shift pressed - or we just don't have a point ROI
-		else if (points == null || (!PathPrefs.multipointToolProperty().get() && !editor.grabHandle(xx, yy, radius, e.isShiftDown()))
+		else if (points == null || !currentUnlocked || (!PathPrefs.multipointToolProperty().get() && !editor.grabHandle(xx, yy, radius, e.isShiftDown()))
 				|| (e.isShiftDown() && e.getClickCount() > 1)) {
 			// PathPoints is effectively ready from the start - don't need to finalize
 			points = ROIs.createPointsROI(xx, yy, viewerPlane);
