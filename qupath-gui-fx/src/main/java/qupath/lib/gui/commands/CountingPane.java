@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -49,11 +49,11 @@ import javafx.scene.shape.Rectangle;
 import qupath.lib.geom.Point2;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
-import qupath.lib.gui.panes.PathObjectListCell;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PaneTools;
+import qupath.lib.gui.tools.PathObjectCells;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
@@ -182,7 +182,7 @@ class CountingPane implements PathObjectSelectionListener, PathObjectHierarchyLi
 		menu.getItems().addAll(menuSetClass, miCopy);
 		listCounts.setContextMenu(menu);
 		
-		listCounts.setCellFactory(v -> new PathObjectListCell(p -> p.toString().replace(" (Points)", "")));
+		listCounts.setCellFactory(v -> PathObjectCells.createListCell(p -> p.toString().replace(" (Points)", "")));
 		
 		
 		PathPrefs.colorDefaultObjectsProperty().addListener((v, o, n) -> listCounts.refresh());
