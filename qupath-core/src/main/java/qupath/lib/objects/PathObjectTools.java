@@ -74,7 +74,7 @@ import qupath.lib.roi.interfaces.ROI;
  */
 public class PathObjectTools {
 	
-	final private static Logger logger = LoggerFactory.getLogger(PathObjectTools.class);
+	private final static Logger logger = LoggerFactory.getLogger(PathObjectTools.class);
 
 	/**
 	 * Remove objects with PointsROI from a collection.
@@ -1384,6 +1384,101 @@ public class PathObjectTools {
 			}
 		}
 		return output;
+	}
+	
+	
+	
+	/**
+	 * Set selected objects to have the specified 'locked' status.
+	 * @param hierarchy the hierarchy; if provided, an event will be fired if any objects have their status changed
+	 * @param pathObjects the objects to update
+	 * @param setToLocked the target locked status
+	 */
+	private static void setSelectedObjectsLocked(final PathObjectHierarchy hierarchy,
+			final Collection<? extends PathObject> pathObjects, 
+			final boolean setToLocked) {
+		
+		List<PathObject> changed = new ArrayList<>();
+		for (var pathObject : pathObjects) {
+			if (pathObject instanceof PathROIObject) {
+				if (pathObject.isLocked() != setToLocked) {
+					pathObject.setLocked(setToLocked);
+					changed.add(pathObject);
+				}
+			}
+		}
+		
+		if (hierarchy != null && !changed.isEmpty())
+			hierarchy.fireObjectsChangedEvent(PathObjectTools.class, changed);
+	}
+	
+	/**
+	 * Set specified objects to be 'locked'.
+	 * @param hierarchy if not null, fire an update event if the locked status for any object is changed
+	 * @param pathObjects the objects to update
+	 */
+	public static void lockObjects(final PathObjectHierarchy hierarchy, final Collection<? extends PathObject> pathObjects) {
+		setSelectedObjectsLocked(hierarchy, pathObjects, true);
+	}
+	
+	/**
+	 * Set specified objects to be 'unlocked'.
+	 * @param hierarchy if not null, fire an update event if the locked status for any object is changed
+	 * @param pathObjects the objects to update
+	 */
+	public static void unlockObjects(final PathObjectHierarchy hierarchy, final Collection<? extends PathObject> pathObjects) {
+		setSelectedObjectsLocked(hierarchy, pathObjects, false);
+	}
+	
+	/**
+	 * Set selected objects to be 'locked', firing an update event if the status of any object is changed.
+	 * @param hierarchy
+	 */
+	public static void lockSelectedObjects(final PathObjectHierarchy hierarchy) {
+		if (hierarchy == null)
+			return;
+		setSelectedObjectsLocked(hierarchy, hierarchy.getSelectionModel().getSelectedObjects(), true);
+	}
+	
+	/**
+	 * Set selected objects to be 'unlocked', firing an update event if the status of any object is changed.
+	 * @param hierarchy
+	 */
+	public static void unlockSelectedObjects(final PathObjectHierarchy hierarchy) {
+		if (hierarchy == null)
+			return;
+		setSelectedObjectsLocked(hierarchy, hierarchy.getSelectionModel().getSelectedObjects(), false);
+	}
+	
+	/**
+	 * Toggle the 'locked' status of selected objects, firing an update event if the status of any object is changed.
+	 * @param hierarchy
+	 */
+	public static void toggleSelectedObjectsLocked(final PathObjectHierarchy hierarchy) {
+		if (hierarchy == null)
+			return;
+		toggleObjectsLocked(hierarchy, hierarchy.getSelectionModel().getSelectedObjects());
+	}
+	
+	/**
+	 * Toggle the 'locked' status of specified objects.
+	 * @param hierarchy if not null, fire an update event if the locked status for any object is changed
+	 * @param pathObjects the objects to update
+	 */
+	public static void toggleObjectsLocked(final PathObjectHierarchy hierarchy, final Collection<? extends PathObject> pathObjects) {
+		if (hierarchy == null)
+			return;
+		
+		List<PathObject> changed = new ArrayList<>();
+		for (var pathObject : pathObjects) {
+			if (pathObject instanceof PathROIObject) {
+				pathObject.setLocked(!pathObject.isLocked());
+				changed.add(pathObject);
+			}
+		}
+		
+		if (hierarchy != null && !changed.isEmpty())
+			hierarchy.fireObjectsChangedEvent(PathObjectTools.class, changed);
 	}
 	
 }

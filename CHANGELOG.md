@@ -45,7 +45,12 @@ This is a work-in-progress.
 * Improved `LabeledImageServer.Builder` options
   * Use `grayscale()` to export images without an extra lookup table (easier to import in some other software; see https://github.com/qupath/qupath/issues/993)
   * Use `.shuffleInstanceLabels(false)` to avoid shuffling objects with `useInstanceLabels()`
+* New 'Objects -> Lock... ->' commands
+  * Enables annotations & TMA cores to be locked so they cannot accidentally be moved or edited (deletion is still possible)
+  * Toggle the 'locked' status of any selected object with `Ctrl/Cmd + K`
+  * View locked status for annotations under the 'Annotation' tab
 * Updated prompt to set the image type
+* Added `QuPathGUI.lookupAccelerator(combo)` methods to check if a key combinations are already registered
 * Missing thumbnails are automatically regenerated when a project is opened
 * Avoid converting the pixel type to 32-bit unnecessarily when sending image regions to ImageJ
 * Warn if trying to train a pixel classifier with too many features (https://github.com/qupath/qupath/issues/947)
@@ -64,6 +69,7 @@ This is a work-in-progress.
 * QuPath doesn't support some channel combinations through Bio-Formats (https://github.com/qupath/qupath/issues/956)
 * 'Cannot invoke “java.lang.Double.doubleValue()”' exception in 'Create Thresholder' (https://github.com/qupath/qupath/issues/988)
 * Uncaught exceptions can fill the screen with duplicate error notifications (https://github.com/qupath/qupath/issues/990)
+* Locked point annotations can still be edited (https://github.com/qupath/qupath/issues/1001)
 
 ### Changes through Bio-Formats 6.10.0
 * Bio-Formats 6.10.0 brings several important new features to QuPath, including:

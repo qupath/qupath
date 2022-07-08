@@ -63,6 +63,7 @@ import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.logging.LogManager;
 import qupath.lib.gui.logging.LogManager.LogLevel;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.prefs.PathPrefs.DetectionTreeDisplayModes;
 import qupath.lib.gui.prefs.PathPrefs.FontSize;
 import qupath.lib.gui.prefs.PathPrefs.ImageTypeSetting;
 import qupath.lib.gui.tools.ColorToolsFX;
@@ -198,6 +199,10 @@ public class PreferencePane {
 				category,
 				"Include menu items related to legacy commands (no longer intended for use)");
 
+		addPropertyPreference(PathPrefs.detectionTreeDisplayModeProperty(), DetectionTreeDisplayModes.class,
+				"Hierarchy detection display",
+				"General",
+				"Choose how to display detections in the hierarchy tree view - choose 'None' for the best performance");
 		
 		/*
 		 * Locale

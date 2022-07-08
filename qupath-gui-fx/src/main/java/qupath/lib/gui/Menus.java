@@ -58,6 +58,7 @@ import qupath.lib.gui.tools.IconFactory.PathIcons;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathCellObject;
 import qupath.lib.objects.PathDetectionObject;
+import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathTileObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.plugins.objects.DilateAnnotationPlugin;
@@ -490,7 +491,22 @@ class Menus {
 		@ActionDescription("Select objects based upon their classification.")
 		@ActionMenu("Select...>Select objects by classification")
 		public final Action SELECT_BY_CLASSIFICATION = qupath.createImageDataAction(imageData -> Commands.promptToSelectObjectsByClassification(qupath, imageData));
-		
+
+		@ActionDescription("Lock all currently selected objects.")
+		@ActionMenu("Lock...>Lock selected objects")
+		@ActionAccelerator("shortcut+shift+k")
+		public final Action LOCK_SELECTED_OBJECTS = qupath.createImageDataAction(imageData -> PathObjectTools.lockSelectedObjects(imageData.getHierarchy()));
+
+		@ActionDescription("Unlock all currently selected objects.")
+		@ActionMenu("Lock...>Unlock selected objects")
+		@ActionAccelerator("shortcut+alt+k")
+		public final Action UNLOCK_SELECTED_OBJECTS = qupath.createImageDataAction(imageData -> PathObjectTools.unlockSelectedObjects(imageData.getHierarchy()));
+
+		@ActionDescription("Toggle the 'locked' state of all currently selected objects.")
+		@ActionMenu("Lock...>Toggle selected objects locked")
+		@ActionAccelerator("shortcut+k")
+		public final Action TOGGLE_SELECTED_OBJECTS_LOCKED = qupath.createImageDataAction(imageData -> PathObjectTools.toggleSelectedObjectsLocked(imageData.getHierarchy()));
+
 		public final Action SEP_4 = ActionTools.createSeparator();
 		
 		@ActionDescription("Create a rectangle or ellipse annotation with the specified properties.")

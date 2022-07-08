@@ -1277,6 +1277,59 @@ public class PathPrefs {
 	}
 	
 	
+	
+	/**
+	 * Enum for different ways that detections can be displayed in lists and trees.
+	 * @since v0.4.0
+	 * @see #detectionTreeDisplayModeProperty
+	 */
+	public static enum DetectionTreeDisplayModes {
+		/**
+		 * Do not show detections
+		 */
+		NONE,
+		/**
+		 * Show detections without ROI icons
+		 */
+		WITHOUT_ICONS,
+		/**
+		 * Show detections with ROI icons
+		 */
+		WITH_ICONS;
+			@Override
+			public String toString() {
+				switch(this) {
+				case NONE:
+					return "None";
+				case WITHOUT_ICONS:
+					return "Without icons";
+				case WITH_ICONS:
+					return "With icons";
+				default:
+					return "Unknown";
+				}
+			}
+	}
+	
+	/**
+	 * TODO: Move this into a more sensible location
+	 */
+	private static ObjectProperty<DetectionTreeDisplayModes> detectionTreeDisplayMode = PathPrefs.createPersistentPreference(
+			"detectionTreeDisplayMode", DetectionTreeDisplayModes.WITH_ICONS, DetectionTreeDisplayModes.class);
+	
+	
+	/**
+	 * Define how detections should be displayed in lists and tree views.
+	 * <p>
+	 * Showing all detections can be a bad idea, since there may be serious performance issues 
+	 * (especially when selecting/deselecting objects on an expanded tree).
+	 * @return
+	 */
+	public static ObjectProperty<DetectionTreeDisplayModes> detectionTreeDisplayModeProperty() {
+		return detectionTreeDisplayMode;
+	}
+	
+	
 	/**
 	 * Enum to control font size.
 	 */

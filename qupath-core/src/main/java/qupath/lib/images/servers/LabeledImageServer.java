@@ -465,6 +465,7 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 		/**
 		 * Optionally use grayscale LUT, rather than deriving colors from classifications.
 		 * This can streamline import in software that automatically converts paletted images to RGB.
+		 * @param grayscaleLut 
 		 * @return
 		 * @since v0.4.0
 		 * @see #grayscale()
@@ -542,6 +543,7 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 		/**
 		 * Optionally request that unique labels are used for all objects, rather than classifications.
 		 * If this flag is set, all other label requests are ignored.
+		 * @param instanceLabels 
 		 * @return
 		 * @since v0.4.0
 		 * @see #useInstanceLabels()
@@ -557,6 +559,7 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 		 * Optionally request that instance labels are shuffled.
 		 * Default is true.
 		 * Only has an effect if {@link #useInstanceLabels(boolean)} is called with {@code true}.
+		 * @param doShuffle 
 		 * @return
 		 * @since v0.4.0
 		 * @see #useInstanceLabels()
