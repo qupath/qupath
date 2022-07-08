@@ -934,8 +934,8 @@ public class GuiTools {
 		// Add annotation options
 		CheckMenuItem miLockAnnotations = new CheckMenuItem("Lock");
 		CheckMenuItem miUnlockAnnotations = new CheckMenuItem("Unlock");
-		miLockAnnotations.setOnAction(e -> setSelectedAnnotationLock(qupath.getImageData(), true));
-		miUnlockAnnotations.setOnAction(e -> setSelectedAnnotationLock(qupath.getImageData(), false));
+		miLockAnnotations.setOnAction(e -> setSelectedAnnotationsLocked(qupath.getImageData(), true));
+		miUnlockAnnotations.setOnAction(e -> setSelectedAnnotationsLocked(qupath.getImageData(), false));
 		
 		MenuItem miSetProperties = new MenuItem("Set properties");
 		miSetProperties.setOnAction(e -> {
@@ -1033,40 +1033,20 @@ public class GuiTools {
 				);
 	}
 	
-	/**
-	 * Set selected TMA cores to have the specified 'locked' status.
-	 * 
-	 * @param hierarchy
-	 * @param setToLocked
-	 */
-	private static void setSelectedAnnotationLock(final PathObjectHierarchy hierarchy, final boolean setToLocked) {
-		if (hierarchy == null)
-			return;
-		PathObject pathObject = hierarchy.getSelectionModel().getSelectedObject();
-		List<PathObject> changed = new ArrayList<>();
-		if (pathObject instanceof PathAnnotationObject) {
-			PathAnnotationObject annotation = (PathAnnotationObject)pathObject;
-			annotation.setLocked(setToLocked);
-			changed.add(annotation);
-			// Update any other selected cores to have the same status
-			for (PathObject pathObject2 : hierarchy.getSelectionModel().getSelectedObjects()) {
-				if (pathObject2 instanceof PathAnnotationObject) {
-					annotation = (PathAnnotationObject)pathObject2;
-					if (annotation.isLocked() != setToLocked) {
-						annotation.setLocked(setToLocked);
-						changed.add(annotation);
-					}
-				}
-			}
-		}
-		if (!changed.isEmpty())
-			hierarchy.fireObjectsChangedEvent(GuiTools.class, changed);
-	}
 	
-	private static void setSelectedAnnotationLock(final ImageData<?> imageData, final boolean setToLocked) {
+	private static void setSelectedAnnotationsLocked(final ImageData<?> imageData, final boolean setToLocked) {
 		if (imageData == null)
 			return;
-		setSelectedAnnotationLock(imageData.getHierarchy(), setToLocked);
+		var selectedAnnotations = imageData.getHierarchy()
+				.getSelectionModel()
+				.getSelectedObjects()
+				.stream()
+				.filter(p -> p.isAnnotation())
+				.collect(Collectors.toList());
+		if (setToLocked)
+			PathObjectTools.lockObjects(imageData.getHierarchy(), selectedAnnotations);
+		else
+			PathObjectTools.unlockObjects(imageData.getHierarchy(), selectedAnnotations);			
 	}
 	
 	

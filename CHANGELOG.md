@@ -45,6 +45,10 @@ This is a work-in-progress.
 * Improved `LabeledImageServer.Builder` options
   * Use `grayscale()` to export images without an extra lookup table (easier to import in some other software; see https://github.com/qupath/qupath/issues/993)
   * Use `.shuffleInstanceLabels(false)` to avoid shuffling objects with `useInstanceLabels()`
+* New 'Objects -> Lock... ->' commands
+  * Enables annotations & TMA cores to be locked so they cannot accidentally be moved or edited (deletion is still possible)
+  * Toggle the 'locked' status of any selected object with `Ctrl/Cmd + K`
+  * View locked status for annotations under the 'Annotation' tab
 * Updated prompt to set the image type
 * Added `QuPathGUI.lookupAccelerator(combo)` methods to check if a key combinations are already registered
 * Missing thumbnails are automatically regenerated when a project is opened
