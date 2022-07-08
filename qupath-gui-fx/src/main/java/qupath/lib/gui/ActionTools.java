@@ -650,7 +650,9 @@ public class ActionTools {
 	private static ToggleButton getActionToggleButton(Action action, boolean hideActionText, ToggleGroup group) {
 		ToggleButton button = ActionUtils.createToggleButton(action, hideActionText ? ActionTextBehavior.HIDE : ActionTextBehavior.SHOW);
 		if (hideActionText && action.getText() != null) {
-			Tooltip.install(button, new Tooltip(action.getText()));
+			var tooltip = new Tooltip();
+			tooltip.textProperty().bind(action.textProperty());
+			Tooltip.install(button, tooltip);
 		}
 		if (group != null)
 			button.setToggleGroup(group);
