@@ -46,6 +46,7 @@ This is a work-in-progress.
   * Use `grayscale()` to export images without an extra lookup table (easier to import in some other software; see https://github.com/qupath/qupath/issues/993)
   * Use `.shuffleInstanceLabels(false)` to avoid shuffling objects with `useInstanceLabels()`
 * Updated prompt to set the image type
+* Added `QuPathGUI.lookupAccelerator(combo)` methods to check if a key combinations are already registered
 * Missing thumbnails are automatically regenerated when a project is opened
 * Avoid converting the pixel type to 32-bit unnecessarily when sending image regions to ImageJ
 * Warn if trying to train a pixel classifier with too many features (https://github.com/qupath/qupath/issues/947)

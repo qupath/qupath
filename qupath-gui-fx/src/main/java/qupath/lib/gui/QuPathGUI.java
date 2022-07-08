@@ -3443,7 +3443,71 @@ public class QuPathGUI {
 		return menuBar;
 	}
 	
+	/**
+	 * Get the action or menu item associated with an accelerator.
+	 * This is particularly useful to check whether a key combination is in use before using it 
+	 * for a new command.
+	 * 
+	 * @param combo
+	 * @return an {@link Action} or {@link MenuItem} associated with the accelerator, or null
+	 * @since v0.4.0
+	 */
+	public Object lookupAccelerator(String combo) {
+		return lookupAccelerator(KeyCombination.valueOf(combo));
+	}
 	
+	/**
+	 * Get the action or menu item associated with an key combination.
+	 * This is particularly useful to check whether a key combination is in use before using it 
+	 * for a new command.
+	 * 
+	 * @param combo
+	 * @return an {@link Action} or {@link MenuItem} associated with the accelerator, or null
+	 * @since v0.4.0
+	 */
+	public Object lookupAccelerator(KeyCombination combo) {
+		for (var action : actions) {
+			var accelerator = action.getAccelerator();
+			if (accelerator != null && Objects.equals(accelerator, combo))
+				return action;
+		}
+		
+		var menuItems = MenuTools.getFlattenedMenuItems(menuBar.getMenus(), false);
+		for (var mi : menuItems) {
+			var accelerator = mi.getAccelerator();
+			if (accelerator != null && Objects.equals(accelerator, combo)) {
+				var action = ActionTools.getActionProperty(mi);
+				return action == null ? mi : action;
+			}
+		}
+		
+		return null;
+	}
+	
+//	public Map<KeyCombination, String> getAccelerators() {
+//		
+//		var map = new HashMap<KeyCombination, String>();
+//		var menuItems = MenuTools.getFlattenedMenuItems(menuBar.getMenus(), true);
+//		for (var mi : menuItems) {
+//			var accelerator = mi.getAccelerator();
+//			if (accelerator != null)
+//				map.put(accelerator, mi.getText());
+//		}
+//		
+//		for (var action : actions) {
+//			var accelerator = action.getAccelerator();
+//			if (accelerator != null) {
+//				var text = action.getText();
+//				var existingText = map.put(accelerator, text);
+//				if (existingText != null && !Objects.equals(text, existingText) && 
+//						!existingText.contains(text)) {
+//					map.put(accelerator, text + ", " + existingText);
+//				}
+//			}
+//		}
+//		
+//		return map;
+//	}
 	
 	
 	/**
