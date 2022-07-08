@@ -494,10 +494,12 @@ class Menus {
 
 		@ActionDescription("Lock all currently selected objects.")
 		@ActionMenu("Lock...>Lock selected objects")
+		@ActionAccelerator("shortcut+shift+k")
 		public final Action LOCK_SELECTED_OBJECTS = qupath.createImageDataAction(imageData -> PathObjectTools.lockSelectedObjects(imageData.getHierarchy()));
 
 		@ActionDescription("Unlock all currently selected objects.")
 		@ActionMenu("Lock...>Unlock selected objects")
+		@ActionAccelerator("shortcut+alt+k")
 		public final Action UNLOCK_SELECTED_OBJECTS = qupath.createImageDataAction(imageData -> PathObjectTools.unlockSelectedObjects(imageData.getHierarchy()));
 
 		@ActionDescription("Toggle the 'locked' state of all currently selected objects.")
