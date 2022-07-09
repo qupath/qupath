@@ -592,7 +592,7 @@ public class PathIO {
 				if (entry.getValue() instanceof Serializable)
 					map.put(entry.getKey(), entry.getValue());
 				else
-					logger.error("Property not serializable and will not be saved!  Key: " + entry.getKey() + ", Value: " + entry.getValue());
+					logger.warn("Property not serializable and will not be saved!  Key: " + entry.getKey() + ", Value: " + entry.getValue());
 			}
 			if (map != null)
 				outStream.writeObject(map);
