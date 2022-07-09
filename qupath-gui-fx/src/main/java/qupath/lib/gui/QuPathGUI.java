@@ -106,6 +106,7 @@ import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
 import javafx.geometry.Rectangle2D;
+import javafx.geometry.Side;
 import javafx.scene.Cursor;
 import javafx.scene.Node;
 import javafx.scene.Parent;
@@ -190,6 +191,7 @@ import qupath.lib.gui.extensions.UpdateChecker.ReleaseVersion;
 import qupath.lib.gui.images.stores.DefaultImageRegionStore;
 import qupath.lib.gui.images.stores.ImageRegionStoreFactory;
 import qupath.lib.gui.logging.LogManager;
+import qupath.lib.gui.panes.ObjectDescriptionPane;
 import qupath.lib.gui.panes.AnnotationPane;
 import qupath.lib.gui.panes.ImageDetailsPane;
 import qupath.lib.gui.panes.PathObjectHierarchyView;
@@ -4081,9 +4083,16 @@ public class QuPathGUI {
 		splitAnnotations.setOrientation(Orientation.VERTICAL);
 		var annotationPane = new AnnotationPane(this, imageDataProperty());
 		annotationPane.disableUpdatesProperty().bind(tabAnnotations.selectedProperty().not());
+		
+		var tabAnnotationsBottom = new TabPane();
+		tabAnnotationsBottom.setSide(Side.BOTTOM);
+		tabAnnotationsBottom.getTabs().add(new Tab("Measurements", annotationMeasurementsTable));
+		tabAnnotationsBottom.getTabs().add(new Tab("Description", new ObjectDescriptionPane(this).getPane()));
+		tabAnnotationsBottom.setTabClosingPolicy(TabClosingPolicy.UNAVAILABLE);
+		
 		splitAnnotations.getItems().addAll(
 				annotationPane.getPane(),
-				annotationMeasurementsTable);
+				tabAnnotationsBottom);
 		tabAnnotations.setContent(splitAnnotations);
 		analysisPanel.getTabs().add(tabAnnotations);
 //		analysisPanel.getSelectionModel().selectedItemProperty()
