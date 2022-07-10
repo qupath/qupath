@@ -1221,6 +1221,8 @@ public class QuPathGUI {
 //		PathPrefs.defaultLocaleProperty() // Handled by update to other two
 		PathPrefs.defaultLocaleDisplayProperty().addListener(localeListener);
 		PathPrefs.defaultLocaleFormatProperty().addListener(localeListener);
+		
+		QuPathStyleManager.refresh();
 	}
 	
 	

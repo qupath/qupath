@@ -24,6 +24,9 @@
 package qupath.lib.gui.prefs;
 
 import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 
 import org.slf4j.Logger;
@@ -50,6 +53,9 @@ public class QuPathStyleManager {
 	private static Logger logger = LoggerFactory.getLogger(QuPathStyleManager.class);
 	
 	private static JavaFXStylesheet DEFAULT_STYLE = new JavaFXStylesheet("Modena Light", Application.STYLESHEET_MODENA);
+
+	// Maintain a record of what we've added, so we can try to clean up later if needed
+	private static List<String> previouslyAddedStyleSheets = new ArrayList<>();
 
 	private static ObservableList<StyleOption> styles = FXCollections.observableArrayList(
 			DEFAULT_STYLE,
@@ -142,6 +148,15 @@ public class QuPathStyleManager {
 			if (url != null)
 				addStyleSheets(url);
 		}
+	}
+	
+	/**
+	 * Refresh the current style.
+	 * This should not normally be required, but may be useful during startup to ensure 
+	 * that the style is properly set at the appropriate time.
+	 */
+	public static void refresh() {
+		updateStyle();
 	}
 	
 	/**
@@ -278,7 +293,33 @@ public class QuPathStyleManager {
 	
 	private static void setStyleSheets(String... urls) {
 		Application.setUserAgentStylesheet(null);
+		// Check if we need to do anything
+		var toAdd = Arrays.asList(urls);
+		if (previouslyAddedStyleSheets.equals(toAdd))
+			return;
+		// Replace previous stylesheets with the new ones
+		removePreviousStyleSheets();
 		addStyleSheets(urls);
+	}
+		
+	private static void removePreviousStyleSheets(String... urls) {
+		if (previouslyAddedStyleSheets.isEmpty())
+			return;
+		try {
+			Class<?> cStyleManager = Class.forName("com.sun.javafx.css.StyleManager");
+			Object styleManager = cStyleManager.getMethod("getInstance").invoke(null);
+			Method m = styleManager.getClass().getMethod("removeUserAgentStylesheet", String.class);
+			var iterator = previouslyAddedStyleSheets.iterator();
+			while (iterator.hasNext()) {
+				var url = iterator.next();
+				iterator.remove();
+				m.invoke(styleManager, url);
+				logger.debug("Stylesheet removed {}", url);
+			}
+//			System.err.println("After removal: " + previouslyAddedStyleSheets);
+		} catch (Exception e) {
+			logger.error("Unable to call removeUserAgentStylesheet", e);
+		}
 	}
 	
 	private static void addStyleSheets(String... urls) {
@@ -286,8 +327,14 @@ public class QuPathStyleManager {
 			Class<?> cStyleManager = Class.forName("com.sun.javafx.css.StyleManager");
 			Object styleManager = cStyleManager.getMethod("getInstance").invoke(null);
 			Method m = styleManager.getClass().getMethod("addUserAgentStylesheet", String.class);
-			for (String url : urls)
+			for (String url : urls) {
+				if (previouslyAddedStyleSheets.contains(url))
+					continue;
 				m.invoke(styleManager, url);
+				previouslyAddedStyleSheets.add(url);
+				logger.debug("Stylesheet added {}", url);
+			}
+//			System.err.println("After adding: " + previouslyAddedStyleSheets);
 		} catch (Exception e) {
 			logger.error("Unable to call addUserAgentStylesheet", e);
 		}
