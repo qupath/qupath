@@ -25,6 +25,8 @@ dependencies {
   implementation libs.commons.math
 
   implementation libs.bundles.ikonli
+  
+  implementation "org.commonmark:commonmark:0.19.0"
 }
 
 javafx {

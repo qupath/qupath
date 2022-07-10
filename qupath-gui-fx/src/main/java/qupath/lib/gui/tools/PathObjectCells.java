@@ -25,6 +25,7 @@ import java.util.function.Function;
 
 import org.kordamp.ikonli.javafx.StackedFontIcon;
 
+import javafx.event.ActionEvent;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.ContentDisplay;
@@ -37,6 +38,7 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.TilePane;
+import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.prefs.PathPrefs.DetectionTreeDisplayModes;
 import qupath.lib.objects.PathAnnotationObject;
@@ -167,6 +169,16 @@ public class PathObjectCells {
 			descriptionIcon = new StackedFontIcon();
 			descriptionIcon.setIconCodeLiterals("ion4-md-list");
 			descriptionIcon.setStyle(iconStyle);
+			var qupath = QuPathGUI.getInstance();
+			var actions = qupath == null ? null : qupath.getDefaultActions();
+			if (actions != null) {
+				descriptionIcon.setOnMouseClicked(e -> {
+					if (e.getClickCount() == 2) {
+						actions.SHOW_OBJECT_DESCRIPTIONS.handle(new ActionEvent());
+						e.consume();
+					}
+				});
+			}
 			
 			Tooltip.install(descriptionIcon, descriptionTooltip);
 			

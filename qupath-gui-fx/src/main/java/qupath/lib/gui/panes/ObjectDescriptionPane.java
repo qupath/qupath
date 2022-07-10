@@ -21,10 +21,16 @@
 
 package qupath.lib.gui.panes;
 
-import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
+import java.util.WeakHashMap;
+
+import org.commonmark.parser.Parser;
+import org.commonmark.renderer.html.HtmlRenderer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.ObjectBinding;
@@ -35,10 +41,14 @@ import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
-import javafx.scene.control.TextArea;
+import javafx.scene.Scene;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Pane;
+import javafx.scene.paint.Color;
+import javafx.scene.web.WebEngine;
+import javafx.stage.Stage;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.tools.WebViews;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
@@ -51,39 +61,100 @@ import qupath.lib.objects.hierarchy.events.PathObjectSelectionListener;
  * Wraps a pane used to display an object description, if one is available.
  * 
  * @author Pete Bankhead
+ * @since v0.4.0
  */
-public class ObjectDescriptionPane {
+public class ObjectDescriptionPane<T> {
 	
-	private ObjectObserver<BufferedImage> observer;
+	private final static Logger logger = LoggerFactory.getLogger(ObjectDescriptionPane.class);
 	
-	private TextArea textArea = new TextArea();
-	private BorderPane pane = new BorderPane();
+	private ObservableValue<ImageData<T>> imageData;
+	private ObjectObserver<T> observer;
+	private BorderPane pane;
 	
-	public ObjectDescriptionPane(QuPathGUI qupath) {
-		observer = new ObjectObserver<>(qupath.imageDataProperty());
+	private ObjectDescriptionPane(ObservableValue<ImageData<T>> imageData) {
+		this.imageData = imageData;
+		this.observer = new ObjectObserver<>(imageData);
 		
-		observer.getSelectedObjectProperty().addListener((v, o, n) -> updateText(n));
+		var converter = new MarkdownConverter();
+		var webview = WebViews.create(true);
+
+		observer.getSelectedObjectProperty().addListener((v, o, n) -> updateText(converter, webview.getEngine(), n));
 		observer.addHierarchyListener(event -> {
-			updateText(observer.getSelectedObjectProperty().get());
+			updateText(converter, webview.getEngine(), observer.getSelectedObjectProperty().get());
 		});
 		
-		pane.setCenter(textArea);
+		pane = new BorderPane();
+		pane.setCenter(webview);
+		
+		webview.setPageFill(Color.TRANSPARENT);
+		webview.setFontScale(0.9);
+		
+		updateText(converter, webview.getEngine(), observer.getSelectedObjectProperty().get());
+	}
+
+	private Pane getPane() {
+		return pane;
+	}
+
+	
+	public static <T> Pane createPane(ObservableValue<ImageData<T>> imageData) {
+		return new ObjectDescriptionPane<>(imageData).getPane();
+	}
+	
+	public static <T> Stage createWindow(QuPathGUI qupath) {
+		var pane = createPane(qupath.imageDataProperty());
+		var scene = new Scene(pane);
+		var stage = new Stage();
+		stage.setScene(scene);
+		stage.initOwner(qupath.getStage());
+		stage.setTitle("Object description");
+		return stage;
 	}
 	
 	
-	private void updateText(PathObject n) {
+	
+	private static void updateText(MarkdownConverter converter, WebEngine engine, PathObject n) {
+		
+		logger.debug("Updating details pane for {}", n);
+		
 		var annotation = n == null || !n.isAnnotation() ? null : (PathAnnotationObject)n;
 		var description = annotation == null ? null : annotation.getDescription();
 		if (description == null)
-			textArea.setText("");
+			engine.loadContent("No description available");
 		else {
-			textArea.setText(description);
+			if (description.startsWith("https://")) {
+				engine.load(description.strip());
+				return;
+			}
+			String html;
+			if (description.trim().startsWith("<html>"))
+				html = description;
+			else
+				html = converter.toHtml(description);
+			
+			engine.loadContent(html);
 		}
 	}
 	
 	
-	public Pane getPane() {
-		return pane;
+	static class MarkdownConverter {
+		
+		private Map<String, String> cache = new WeakHashMap<>();
+		
+		private Parser parser = Parser.builder().build();
+		private HtmlRenderer renderer = HtmlRenderer.builder().build();
+		
+		public String toHtml(String markdown) {
+			if (markdown == null)
+				return "";
+			return cache.computeIfAbsent(markdown, this::convertToHtml);
+		}
+		
+		private String convertToHtml(String markdown) {
+			var doc = parser.parse(markdown);
+			return renderer.render(doc);
+		}
+		
 	}
 	
 	
@@ -118,12 +189,18 @@ public class ObjectDescriptionPane {
 		
 		private ObjectObserver(ObservableValue<ImageData<T>> imageData) {
 			imageDataOriginal = imageData;
-			imageDataOriginal.addListener((v, o, n) -> {
-				imageDataProperty.set(n);
-			});
+//			imageDataOriginal.addListener((v, o, n) -> {
+//				imageDataProperty.set(n);
+//			});
+//			imageDataProperty.set(imageDataOriginal.getValue());
 //			imageDataProperty.bind(imageDataOriginal); // This didn't work... not sure why not
 			hierarchyProperty.bind(hierarchyBinding);
 			hierarchyProperty.addListener(this);
+			
+			imageDataProperty.set(imageDataOriginal.getValue());
+			imageDataOriginal.addListener((v, o, n) -> {
+				imageDataProperty.set(n);
+			});
 		}
 		
 		public ReadOnlyObjectProperty<ImageData<T>> getImageDataProperty() {

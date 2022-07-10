@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -37,6 +37,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.function.Function;
@@ -68,6 +69,7 @@ import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.ColorPicker;
@@ -90,9 +92,13 @@ import javafx.scene.image.Image;
 import javafx.scene.image.WritableImage;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
+import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.paint.Color;
 import javafx.scene.robot.Robot;
+import javafx.stage.Modality;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
 import javafx.stage.Window;
@@ -850,8 +856,8 @@ public class GuiTools {
 		
 		Label labDescription = new Label("Description");
 		TextArea textAreaDescription = new TextArea(annotation.getDescription());
-		textAreaDescription.setPrefRowCount(3);
-		textAreaDescription.setPrefColumnCount(25);
+		textAreaDescription.setPrefRowCount(8);
+		textAreaDescription.setPrefColumnCount(40);
 		labDescription.setLabelFor(textAreaDescription);
 		panel.add(labDescription, 0, 2);
 		panel.add(textAreaDescription, 1, 2);
@@ -875,9 +881,34 @@ public class GuiTools {
 			panel.add(cbAll, 1, 4);
 		}
 		
-
-		if (!Dialogs.showConfirmDialog("Set annotation properties", panel))
+		PaneTools.setToExpandGridPaneWidth(textField, colorPicker, textAreaDescription, cbLocked, cbAll);
+//		PaneTools.setHGrowPriority(Priority.NEVER, labDescription);
+		PaneTools.setHGrowPriority(Priority.ALWAYS, colorPicker, textAreaDescription, cbLocked, cbAll);
+		PaneTools.setVGrowPriority(Priority.NEVER, colorPicker);
+		PaneTools.setToExpandGridPaneHeight(textAreaDescription);
+		
+		panel.getColumnConstraints().setAll(
+				new ColumnConstraints(Region.USE_COMPUTED_SIZE),
+				new ColumnConstraints(00, 400, Double.MAX_VALUE)
+				);
+				
+		var dialog = Dialogs.builder()
+			.title("Set annotation properties")
+			.content(panel)
+			.modality(Modality.APPLICATION_MODAL)
+			.buttons(ButtonType.APPLY, ButtonType.CANCEL)
+			.resizable()
+			.build();
+		
+//		dialog.getDialogPane().setMinSize(400, 400);
+			
+		var response = dialog.showAndWait();
+		
+		if (!Objects.equals(ButtonType.APPLY, response.orElse(ButtonType.CANCEL)))
 			return false;
+		
+//		if (!Dialogs.showMessageDialog("Set annotation properties", panel))
+//			return false;
 		
 		List<PathAnnotationObject> toChange = new ArrayList<>();
 		toChange.add(annotation);

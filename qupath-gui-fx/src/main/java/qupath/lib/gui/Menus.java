@@ -507,6 +507,11 @@ class Menus {
 		@ActionAccelerator("shortcut+k")
 		public final Action TOGGLE_SELECTED_OBJECTS_LOCKED = qupath.createImageDataAction(imageData -> PathObjectTools.toggleSelectedObjectsLocked(imageData.getHierarchy()));
 
+		@ActionDescription("Show descriptions for the currently-selected object, where available. "
+				+ "Descriptions can be any plain text, markdown or html added as the 'description' property to an object (currently, only annotations are supported).")
+		@ActionMenu("Show object descriptions")
+		public final Action SHOW_OBJECT_DESCRIPTIONS = qupath.getDefaultActions().SHOW_OBJECT_DESCRIPTIONS;
+		
 		public final Action SEP_4 = ActionTools.createSeparator();
 		
 		@ActionDescription("Create a rectangle or ellipse annotation with the specified properties.")

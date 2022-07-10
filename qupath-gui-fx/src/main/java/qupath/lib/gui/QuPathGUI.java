@@ -173,6 +173,7 @@ import qupath.lib.common.Version;
 import qupath.lib.gui.ActionTools.ActionAccelerator;
 import qupath.lib.gui.ActionTools.ActionDescription;
 import qupath.lib.gui.ActionTools.ActionIcon;
+import qupath.lib.gui.ActionTools.ActionMenu;
 import qupath.lib.gui.commands.BrightnessContrastCommand;
 import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.commands.CountingPanelCommand;
@@ -700,6 +701,12 @@ public class QuPathGUI {
 		@ActionIcon(PathIcons.MEASURE)
 		@ActionAccelerator("shift+a")
 		public final Action SHOW_ANALYSIS_PANE = createShowAnalysisPaneAction();
+		
+		/**
+		 * Show descriptions for the selected object
+		 */
+		public final Action SHOW_OBJECT_DESCRIPTIONS = Commands.createSingleStageAction(() -> Commands.createObjectDescriptionsDialog(QuPathGUI.this));
+
 		
 		/**
 		 * Show summary measurement table for TMA cores.
@@ -4089,7 +4096,7 @@ public class QuPathGUI {
 		var tabAnnotationsBottom = new TabPane();
 		tabAnnotationsBottom.setSide(Side.BOTTOM);
 		tabAnnotationsBottom.getTabs().add(new Tab("Measurements", annotationMeasurementsTable));
-		tabAnnotationsBottom.getTabs().add(new Tab("Description", new ObjectDescriptionPane(this).getPane()));
+		tabAnnotationsBottom.getTabs().add(new Tab("Description", ObjectDescriptionPane.createPane(imageDataProperty())));
 		tabAnnotationsBottom.setTabClosingPolicy(TabClosingPolicy.UNAVAILABLE);
 		
 		splitAnnotations.getItems().addAll(
