@@ -60,7 +60,7 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PaneTools;
-import qupath.lib.gui.tools.PathObjectCells;
+import qupath.lib.gui.tools.PathObjectLabels;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
@@ -174,7 +174,7 @@ public class AnnotationPane implements PathObjectSelectionListener, ChangeListen
 		listAnnotations = new ListView<>();
 		hierarchyChanged(null); // Force update
 
-		listAnnotations.setCellFactory(v -> PathObjectCells.createListCell());
+		listAnnotations.setCellFactory(v -> PathObjectLabels.createListCell());
 
 		listAnnotations.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
 		listAnnotations.getSelectionModel().getSelectedItems().addListener(

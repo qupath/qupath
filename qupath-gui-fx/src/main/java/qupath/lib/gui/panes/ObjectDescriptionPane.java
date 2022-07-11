@@ -52,9 +52,9 @@ import javafx.scene.web.WebView;
 import javafx.stage.Stage;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.tools.GuiTools;
-import qupath.lib.gui.tools.PathObjectCells;
+import qupath.lib.gui.tools.PathObjectLabels;
 import qupath.lib.gui.tools.WebViews;
-import qupath.lib.gui.tools.PathObjectCells.PathObjectMiniPane;
+import qupath.lib.gui.tools.PathObjectLabels.PathObjectMiniPane;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
@@ -87,17 +87,15 @@ public class ObjectDescriptionPane<T> {
 		this.observer = new ObjectObserver<>(imageData);
 		
 
-		observer.selectedObjectProperty().addListener((v, o, n) -> updateItem(n));
-		observer.addHierarchyListener(event -> {
-			updateItem(observer.selectedObjectProperty().get());
-		});
+		observer.selectedObjectProperty().addListener((v, o, n) -> updateItem());
+		observer.addHierarchyListener(event -> updateItem());
 		
 		pane = new BorderPane();
 		pane.setCenter(webview);
 		
 		if (includeTitle) {
 			// Add a pane at the top to indicate the object & optionally edit the description
-			pathObjectPane = PathObjectCells.createPane();
+			pathObjectPane = PathObjectLabels.createPane();
 			var title = pathObjectPane.getNode();
 			title.setStyle("-fx-padding: 5 10 5 5;");
 			
@@ -127,7 +125,7 @@ public class ObjectDescriptionPane<T> {
 		
 				
 		
-		updateItem(observer.selectedObjectProperty().get());
+		updateItem();
 	}
 
 	private Pane getPane() {
@@ -155,18 +153,33 @@ public class ObjectDescriptionPane<T> {
 	
 	
 	
-	private void updateItem(PathObject n) {
+	private void updateItem() {
+				
+		PathObject n = null;
+		if (observer != null) {
+			n = observer.selectedObjectProperty().get();
+			if (n == null) {
+				var hierarchy = observer.hierarchyProperty().get();
+				n = hierarchy == null ? null : hierarchy.getRootObject();
+			}
+		}
 		
 		logger.debug("Updating details pane for {}", n);
-		
+
 		var annotation = n == null || !n.isAnnotation() ? null : (PathAnnotationObject)n;
 		var description = annotation == null ? null : annotation.getDescription();
 		var engine = webview.getEngine();
 		if (description == null) {
+			String msg = "No description available";
 			if (n == null)
-				engine.loadContent("No object selected");
+				msg = "No object selected";
 			else if (!n.isAnnotation())
-				engine.loadContent("No description available");
+				msg = "Selected object doesn't support descriptions";
+			else
+				msg = "No description set";
+			
+			String spanString = "<span style=\"color: rgba(127, 127, 127, 0.8);\">%s</span>";
+			engine.loadContent(String.format(spanString, msg));
 		} else {
 			if (description.startsWith("https://")) {
 				engine.load(description.strip());

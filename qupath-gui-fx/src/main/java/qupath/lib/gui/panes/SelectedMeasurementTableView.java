@@ -83,6 +83,8 @@ public class SelectedMeasurementTableView implements PathObjectSelectionListener
 	
 	private ObservableMeasurementTableData tableModel = new ObservableMeasurementTableData();
 	
+	private boolean delayedUpdate = false;
+	
 	/**
 	 * Constructor.
 	 * @param imageDataProperty the {@link ImageData} associated with this table
@@ -136,6 +138,12 @@ public class SelectedMeasurementTableView implements PathObjectSelectionListener
 	        	copyMeasurementsToClipboard(tableMeasurements.getSelectionModel().getSelectedItems());
 	        e.consume();
 	    });
+		
+		// Ensure we are up-to-date if visibility status changes
+		tableMeasurements.visibleProperty().addListener((v, o, n) -> {
+			if (n && delayedUpdate)
+				updateTableModel();
+		});
 
 		return tableMeasurements;
 	}
@@ -189,11 +197,27 @@ public class SelectedMeasurementTableView implements PathObjectSelectionListener
 			Platform.runLater(() -> updateTableModel());
 			return;
 		}
-		tableModel.setImageData(this.imageData, getSelectedObjectList());
-		tableMeasurements.getItems().setAll(tableModel.getAllNames());
 		
-		tableMeasurements.refresh();
-		
+		if (!tableMeasurements.isVisible()) {
+			
+			logger.debug("Measurement table update skipped (not visible)");
+			
+			tableModel.setImageData(null, Collections.emptyList());
+
+			// Don't want to do expensive calculations for a table that isn't visible
+			tableMeasurements.getItems().clear();
+			delayedUpdate = true; 
+		} else {
+			
+			logger.debug("Measurement table update requested");
+			
+			tableModel.setImageData(this.imageData, getSelectedObjectList());
+			tableMeasurements.getItems().setAll(tableModel.getAllNames());
+			
+			tableMeasurements.refresh();
+			delayedUpdate = false;
+		}
+
 //		// Check if objects are outside hierarchy
 //		if (imageData != null) {
 //			for (PathObject pathObject : getSelectedObjectList()) {

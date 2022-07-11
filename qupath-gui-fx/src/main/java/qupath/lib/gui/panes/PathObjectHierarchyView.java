@@ -42,7 +42,7 @@ import javafx.scene.layout.Pane;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.prefs.PathPrefs.DetectionTreeDisplayModes;
-import qupath.lib.gui.tools.PathObjectCells;
+import qupath.lib.gui.tools.PathObjectLabels;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.DefaultPathObjectComparator;
 import qupath.lib.objects.PathObject;
@@ -103,7 +103,7 @@ public class PathObjectHierarchyView implements ChangeListener<ImageData<Buffere
 		
 		// Handle display changes
 		treeView = new TreeView<>(createNode(new PathRootObject()));
-		treeView.setCellFactory(t -> PathObjectCells.createTreeCell());
+		treeView.setCellFactory(t -> PathObjectLabels.createTreeCell());
 		
 		PathPrefs.colorDefaultObjectsProperty().addListener((v, o, n) -> treeView.refresh());
 		

@@ -47,16 +47,27 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.TMACoreObject;
 
 /**
- * Create standardized {@link ListCell} and {@link TreeCell} instances for displaying a {@link PathObject}.
+ * Create standardized {@link ListCell} and {@link TreeCell} instances for displaying a {@link PathObject}, 
+ * or a generic pane to use elsewhere.
  * 
  * @author Pete Bankhead
+ * @since v0.4.0
  */
-public class PathObjectCells {
+public class PathObjectLabels {
 
+	/**
+	 * Create a {@link PathObjectMiniPane} using the default {@link PathObject#toString()} method.
+	 * @return
+	 */
 	public static PathObjectMiniPane createPane() {
 		return createPane(PathObject::toString);
 	}
 
+	/**
+	 * Create a {@link PathObjectMiniPane} using a custom method to create a string representation of the object.
+	 * @param stringExtractor
+	 * @return
+	 */
 	public static PathObjectMiniPane createPane(Function<PathObject, String> stringExtractor) {
 		var pane = new PathObjectMiniPane(stringExtractor);
 		pane.pane.setPadding(new Insets(5.0));
@@ -64,18 +75,34 @@ public class PathObjectCells {
 		return pane;
 	}
 	
+	/**
+	 * Create a {@link ListCell} for displaying a {@link PathObject} using the default {@link PathObject#toString()} method.
+	 * @return
+	 */
 	public static ListCell<PathObject> createListCell() {
 		return createListCell(PathObject::toString);
 	}
 	
+	/**
+	 * Create a {@link ListCell} for displaying a {@link PathObject} using a custom method to create a string representation of the object.
+	 * @return
+	 */
 	public static ListCell<PathObject> createListCell(Function<PathObject, String> stringExtractor) {
 		return new PathObjectListCell(stringExtractor);
 	}
 	
+	/**
+	 * Create a {@link TreeCell} for displaying a {@link PathObject} using the default {@link PathObject#toString()} method.
+	 * @return
+	 */
 	public static TreeCell<PathObject> createTreeCell() {
 		return createTreeCell(PathObject::toString);
 	}
 	
+	/**
+	 * Create a {@link TreeCell} for displaying a {@link PathObject} using a custom method to create a string representation of the object.
+	 * @return
+	 */
 	public static TreeCell<PathObject> createTreeCell(Function<PathObject, String> stringExtractor) {
 		return new PathObjectTreeCell(stringExtractor);
 	}
@@ -195,7 +222,7 @@ public class PathObjectCells {
 			
 			iconPane = new TilePane();
 
-			var lockedTooltip = new Tooltip("Object locked");
+			var lockedTooltip = new Tooltip("ROI locked");
 			Tooltip.install(lockIcon, lockedTooltip);
 			
 			BorderPane.setAlignment(label, Pos.CENTER_LEFT);
@@ -214,7 +241,7 @@ public class PathObjectCells {
 				pane.setRight(null);
 				return;
 			}
-			
+
 			label.setText(fun.apply(value));
 			
 			String description = getDescription(value);			

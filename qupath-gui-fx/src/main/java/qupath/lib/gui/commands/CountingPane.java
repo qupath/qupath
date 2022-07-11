@@ -53,7 +53,7 @@ import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PaneTools;
-import qupath.lib.gui.tools.PathObjectCells;
+import qupath.lib.gui.tools.PathObjectLabels;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
@@ -182,7 +182,7 @@ class CountingPane implements PathObjectSelectionListener, PathObjectHierarchyLi
 		menu.getItems().addAll(menuSetClass, miCopy);
 		listCounts.setContextMenu(menu);
 		
-		listCounts.setCellFactory(v -> PathObjectCells.createListCell(p -> p.toString().replace(" (Points)", "")));
+		listCounts.setCellFactory(v -> PathObjectLabels.createListCell(p -> p.toString().replace(" (Points)", "")));
 		
 		
 		PathPrefs.colorDefaultObjectsProperty().addListener((v, o, n) -> listCounts.refresh());

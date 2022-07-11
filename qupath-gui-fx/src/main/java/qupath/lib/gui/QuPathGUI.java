@@ -4106,14 +4106,19 @@ public class QuPathGUI {
 		var tabpaneObjectsShared = new TabPane();
 		var objectMeasurementsTable = new SelectedMeasurementTableView(imageDataProperty());
 		tabpaneObjectsShared.setSide(Side.BOTTOM);
-		tabpaneObjectsShared.getTabs().add(new Tab("Measurements", objectMeasurementsTable.getTable()));
-		tabpaneObjectsShared.getTabs().add(new Tab("Description", ObjectDescriptionPane.createPane(imageDataProperty(), true)));
+		var tabSharedTable = new Tab("Measurements", objectMeasurementsTable.getTable());
+		tabpaneObjectsShared.getTabs().add(tabSharedTable);
+		var tabSharedDescription = new Tab("Description", ObjectDescriptionPane.createPane(imageDataProperty(), true));
+		tabpaneObjectsShared.getTabs().add(tabSharedDescription);
 		tabpaneObjectsShared.setTabClosingPolicy(TabClosingPolicy.UNAVAILABLE);
 
 		// We could try to avoid updating when not visible
 //		var annotationTabImageData = Bindings.createObjectBinding(() -> {
 //			return tabAnnotations.isSelected() ? imageDataProperty.get() : null;
 //		}, tabAnnotations.selectedProperty(), imageDataProperty());
+		
+		// We need to add somewhere, otherwise the tableview was slow to update
+		splitAnnotations.getItems().add(tabpaneObjectsShared);
 		
 		analysisPanel.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {
 			// Update split locations
@@ -4136,6 +4141,9 @@ public class QuPathGUI {
 					splitAnnotations.getItems().set(1, tabpaneObjectsShared);
 			}
 		});
+		
+		// Bind visibility to tab selection - this makes it possible to reduce expensive table updates
+		objectMeasurementsTable.getTable().visibleProperty().bind(tabSharedTable.selectedProperty());
 		
 		var commandLogView = new WorkflowCommandLogView(this);
 		TitledPane titledLog = new TitledPane("Command history", commandLogView.getPane());
