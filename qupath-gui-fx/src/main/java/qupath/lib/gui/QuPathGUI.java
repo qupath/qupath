@@ -4096,7 +4096,7 @@ public class QuPathGUI {
 		var tabAnnotationsBottom = new TabPane();
 		tabAnnotationsBottom.setSide(Side.BOTTOM);
 		tabAnnotationsBottom.getTabs().add(new Tab("Measurements", annotationMeasurementsTable));
-		tabAnnotationsBottom.getTabs().add(new Tab("Description", ObjectDescriptionPane.createPane(imageDataProperty())));
+		tabAnnotationsBottom.getTabs().add(new Tab("Description", ObjectDescriptionPane.createPane(imageDataProperty(), true)));
 		tabAnnotationsBottom.setTabClosingPolicy(TabClosingPolicy.UNAVAILABLE);
 		
 		splitAnnotations.getItems().addAll(

@@ -859,6 +859,8 @@ public class GuiTools {
 		textAreaDescription.setPrefRowCount(8);
 		textAreaDescription.setPrefColumnCount(40);
 		labDescription.setLabelFor(textAreaDescription);
+		textAreaDescription.setStyle("-fx-font-family: monospaced;");
+		textAreaDescription.setWrapText(true);
 		panel.add(labDescription, 0, 2);
 		panel.add(textAreaDescription, 1, 2);
 		

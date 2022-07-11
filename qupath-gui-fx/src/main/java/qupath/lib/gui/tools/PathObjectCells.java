@@ -26,6 +26,7 @@ import java.util.function.Function;
 import org.kordamp.ikonli.javafx.StackedFontIcon;
 
 import javafx.event.ActionEvent;
+import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.ContentDisplay;
@@ -51,7 +52,17 @@ import qupath.lib.objects.TMACoreObject;
  * @author Pete Bankhead
  */
 public class PathObjectCells {
-	
+
+	public static PathObjectMiniPane createPane() {
+		return createPane(PathObject::toString);
+	}
+
+	public static PathObjectMiniPane createPane(Function<PathObject, String> stringExtractor) {
+		var pane = new PathObjectMiniPane(stringExtractor);
+		pane.pane.setPadding(new Insets(5.0));
+		pane.pane.setPrefHeight(pane.h+16);
+		return pane;
+	}
 	
 	public static ListCell<PathObject> createListCell() {
 		return createListCell(PathObject::toString);
@@ -83,7 +94,7 @@ public class PathObjectCells {
 		@Override
 		protected void updateItem(PathObject value, boolean empty) {
 			super.updateItem(value, empty);
-			this.miniPane.setValue(empty ? null : value);
+			this.miniPane.setPathObject(empty ? null : value);
 			if (value == null || empty) {
 				setText(null);
 				setGraphic(null);
@@ -108,7 +119,7 @@ public class PathObjectCells {
 		@Override
 		protected void updateItem(PathObject value, boolean empty) {
 			super.updateItem(value, empty);
-			this.miniPane.setValue(empty ? null : value);
+			this.miniPane.setPathObject(empty ? null : value);
 			if (value == null || empty) {
 				setText(null);
 				setGraphic(null);
@@ -124,7 +135,7 @@ public class PathObjectCells {
 	 * Manage a small pane that can be used to display a {@link PathObject}.
 	 * Intended for use creating standardized list and tree cells.
 	 */
-	private static class PathObjectMiniPane {
+	public static class PathObjectMiniPane {
 
 		private Tooltip tooltip = new Tooltip();
 		private Function<PathObject, String> fun;
@@ -160,7 +171,7 @@ public class PathObjectCells {
 			StackPane.setAlignment(label, Pos.CENTER_LEFT);
 			pane.setCenter(sp);
 			
-			String iconStyle = "-fx-background-color: -fx-background; -fx-icon-color: -fx-text-fill; -fx-opacity: 0.6;";
+			String iconStyle = "-fx-background-color: -fx-background; -fx-icon-color: -fx-text-background-color; -fx-opacity: 0.6;";
 			
 			lockIcon = new StackedFontIcon();
 			lockIcon.setIconCodeLiterals("ion4-md-lock");
@@ -186,10 +197,17 @@ public class PathObjectCells {
 
 			var lockedTooltip = new Tooltip("Object locked");
 			Tooltip.install(lockIcon, lockedTooltip);
+			
+			BorderPane.setAlignment(label, Pos.CENTER_LEFT);
+			BorderPane.setAlignment(iconPane, Pos.CENTER_RIGHT);
 		}
 		
-
-		protected void setValue(PathObject value) {
+		
+		/**
+		 * Set the {@link PathObject} to display (may be null).
+		 * @param value
+		 */
+		public void setPathObject(PathObject value) {
 			if (value == null) {
 				label.setText(null);
 				label.setGraphic(null);
@@ -250,7 +268,7 @@ public class PathObjectCells {
 		 * Get the node to display.
 		 * @return
 		 */
-		public Node getNode() {
+		public Pane getNode() {
 			return pane;
 		}
 

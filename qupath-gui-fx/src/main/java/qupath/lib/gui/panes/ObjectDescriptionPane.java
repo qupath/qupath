@@ -41,14 +41,20 @@ import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.geometry.Pos;
 import javafx.scene.Scene;
+import javafx.scene.control.Button;
+import javafx.scene.control.Tooltip;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
-import javafx.scene.web.WebEngine;
+import javafx.scene.web.WebView;
 import javafx.stage.Stage;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.tools.GuiTools;
+import qupath.lib.gui.tools.PathObjectCells;
 import qupath.lib.gui.tools.WebViews;
+import qupath.lib.gui.tools.PathObjectCells.PathObjectMiniPane;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
@@ -71,25 +77,57 @@ public class ObjectDescriptionPane<T> {
 	private ObjectObserver<T> observer;
 	private BorderPane pane;
 	
-	private ObjectDescriptionPane(ObservableValue<ImageData<T>> imageData) {
+	private PathObjectMiniPane pathObjectPane;
+	
+	private MarkdownConverter converter = new MarkdownConverter();
+	private WebView webview = WebViews.create(true);
+	
+	private ObjectDescriptionPane(ObservableValue<ImageData<T>> imageData, boolean includeTitle) {
 		this.imageData = imageData;
 		this.observer = new ObjectObserver<>(imageData);
 		
-		var converter = new MarkdownConverter();
-		var webview = WebViews.create(true);
 
-		observer.getSelectedObjectProperty().addListener((v, o, n) -> updateText(converter, webview.getEngine(), n));
+		observer.selectedObjectProperty().addListener((v, o, n) -> updateItem(n));
 		observer.addHierarchyListener(event -> {
-			updateText(converter, webview.getEngine(), observer.getSelectedObjectProperty().get());
+			updateItem(observer.selectedObjectProperty().get());
 		});
 		
 		pane = new BorderPane();
 		pane.setCenter(webview);
 		
+		if (includeTitle) {
+			// Add a pane at the top to indicate the object & optionally edit the description
+			pathObjectPane = PathObjectCells.createPane();
+			var title = pathObjectPane.getNode();
+			title.setStyle("-fx-padding: 5 10 5 5;");
+			
+			var topPane = new BorderPane(pathObjectPane.getNode());
+			topPane.setStyle("-fx-padding: 5px; -fx-border-color: -fx-body-color;");
+			
+			var btnEdit = new Button("Edit");
+			btnEdit.disableProperty().bind(Bindings.createBooleanBinding(() -> {
+				var selected = observer.selectedObjectProperty().get();
+				return !(selected instanceof PathAnnotationObject);
+			}, observer.selectedObjectProperty()));
+			
+			btnEdit.setOnAction(e -> {
+				GuiTools.promptToSetActiveAnnotationProperties(observer.hierarchyProperty().get());
+			});
+			btnEdit.setTooltip(new Tooltip("Edit properties (only available for annotations)"));
+			
+			BorderPane.setAlignment(btnEdit, Pos.CENTER_RIGHT);
+			topPane.setRight(btnEdit);
+			
+			pane.setTop(topPane);
+		} else
+			pane.setCenter(webview);
+		
 		webview.setPageFill(Color.TRANSPARENT);
 		webview.setFontScale(0.9);
 		
-		updateText(converter, webview.getEngine(), observer.getSelectedObjectProperty().get());
+				
+		
+		updateItem(observer.selectedObjectProperty().get());
 	}
 
 	private Pane getPane() {
@@ -98,11 +136,15 @@ public class ObjectDescriptionPane<T> {
 
 	
 	public static <T> Pane createPane(ObservableValue<ImageData<T>> imageData) {
-		return new ObjectDescriptionPane<>(imageData).getPane();
+		return new ObjectDescriptionPane<>(imageData, false).getPane();
+	}
+	
+	public static <T> Pane createPane(ObservableValue<ImageData<T>> imageData, boolean includeCell) {
+		return new ObjectDescriptionPane<>(imageData, includeCell).getPane();
 	}
 	
 	public static <T> Stage createWindow(QuPathGUI qupath) {
-		var pane = createPane(qupath.imageDataProperty());
+		var pane = createPane(qupath.imageDataProperty(), true);
 		var scene = new Scene(pane);
 		var stage = new Stage();
 		stage.setScene(scene);
@@ -113,15 +155,19 @@ public class ObjectDescriptionPane<T> {
 	
 	
 	
-	private static void updateText(MarkdownConverter converter, WebEngine engine, PathObject n) {
+	private void updateItem(PathObject n) {
 		
 		logger.debug("Updating details pane for {}", n);
 		
 		var annotation = n == null || !n.isAnnotation() ? null : (PathAnnotationObject)n;
 		var description = annotation == null ? null : annotation.getDescription();
-		if (description == null)
-			engine.loadContent("No description available");
-		else {
+		var engine = webview.getEngine();
+		if (description == null) {
+			if (n == null)
+				engine.loadContent("No object selected");
+			else if (!n.isAnnotation())
+				engine.loadContent("No description available");
+		} else {
 			if (description.startsWith("https://")) {
 				engine.load(description.strip());
 				return;
@@ -134,6 +180,12 @@ public class ObjectDescriptionPane<T> {
 			
 			engine.loadContent(html);
 		}
+		
+		
+		if (pathObjectPane != null) {
+			pathObjectPane.setPathObject(n);
+		}
+		
 	}
 	
 	
@@ -203,19 +255,19 @@ public class ObjectDescriptionPane<T> {
 			});
 		}
 		
-		public ReadOnlyObjectProperty<ImageData<T>> getImageDataProperty() {
+		public ReadOnlyObjectProperty<ImageData<T>> imageDataProperty() {
 			return imageDataProperty;
 		}
 		
-		public ReadOnlyObjectProperty<PathObjectHierarchy> getHierarchyProperty() {
+		public ReadOnlyObjectProperty<PathObjectHierarchy> hierarchyProperty() {
 			return hierarchyProperty;
 		}
 		
-		public ReadOnlyObjectProperty<PathObject> getSelectedObjectProperty() {
+		public ReadOnlyObjectProperty<PathObject> selectedObjectProperty() {
 			return selectedObject;
 		}
 		
-		public ObservableList<PathObject> getSelectedObjectsProperty() {
+		public ObservableList<PathObject> selectedObjectsProperty() {
 			return selectedObjectsUnmodifiable;
 		}
 		
