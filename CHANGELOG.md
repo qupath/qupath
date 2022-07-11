@@ -4,9 +4,13 @@ This is a work-in-progress.
 
 ### Enhancements
 
-* Objects now have IDs
-  * This aims to make it much easier to match up objects whenever some further analysis is done elsewhere (e.g. classification or clustering in Python or R)
-  * See https://github.com/qupath/qupath/pull/959
+* Object improvements
+  * Annotations can now have visible descriptions
+    * Visible at the bottom of the 'Annotation' and 'Hierarchy' tabs or in a standalone window
+    * Support plain text, markdown and html
+  * All objects can now have IDs
+    * This aims to make it much easier to match up objects whenever some further analysis is done elsewhere (e.g. classification or clustering in Python or R)
+    * See https://github.com/qupath/qupath/pull/959
 * Improved Brightness/Contrast options, including
   * Switch between dark and light backgrounds (still experimental)
   * More consistent behavior with 'Show grayscale' option
