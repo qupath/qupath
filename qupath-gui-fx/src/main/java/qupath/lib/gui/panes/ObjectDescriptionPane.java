@@ -32,6 +32,7 @@ import org.commonmark.renderer.html.HtmlRenderer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.ObjectBinding;
 import javafx.beans.property.ObjectProperty;
@@ -154,6 +155,11 @@ public class ObjectDescriptionPane<T> {
 	
 	
 	private void updateItem() {
+		if (!Platform.isFxApplicationThread()) {
+			Platform.runLater(this::updateItem);
+			return;
+		}
+			
 				
 		PathObject n = null;
 		if (observer != null) {
