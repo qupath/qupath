@@ -361,7 +361,7 @@ public class OMEPyramidWriter {
 		
 		private ByteOrder endian = ByteOrder.BIG_ENDIAN;
 		
-		private boolean parallelExport = false;
+		private int parallelThreads = 1;
 		
 		private Boolean bigTiff;
 		private ChannelExportType channelExportType = ChannelExportType.DEFAULT;
@@ -665,12 +665,6 @@ public class OMEPyramidWriter {
 					int zi = 0;
 					for (int z = zStart; z < zEnd; z += zInc) {
 						
-						/*
-						 *  It appears we can use parallelization for tile writing (thanks to synchronization in the writer),
-						 *  provided we write the (0,0) tile first.
-						 */
-						long planeStartTime = System.currentTimeMillis();
-						
 						// Create a list of all required requests, extracting the first
 						List<ImageRegion> regions = new ArrayList<>();
 						for (int yy = 0; yy < h; yy += tileHeight) {
@@ -695,6 +689,13 @@ public class OMEPyramidWriter {
 						// Loop through effective channels (which is 1 if we are writing interleaved)
 						for (int ci = 0; ci < effectiveSizeC; ci++) {
 							
+							/*
+							 *  It appears we can use parallelization for tile writing (thanks to synchronization in the writer),
+							 *  provided we write the (0,0) tile first.
+							 */
+							long planeStartTime = System.currentTimeMillis();
+							count.set(0);
+							
 							int plane = ti * sizeZ * effectiveSizeC + zi * effectiveSizeC + ci;
 							IFD ifd = isTiff ? map.get(Integer.valueOf(plane)) : null;
 							int[] localChannels = effectiveSizeC == channels.length ? new int[] {channels[ci]} : channels;
@@ -704,6 +705,13 @@ public class OMEPyramidWriter {
 							// We *must* write the first region first
 							writeRegion(writer, plane, ifd, firstRegion, d, isRGB, localChannels);
 							if (!regions.isEmpty()) {
+								
+								// Reversing the regions means that for a large image we can still get some tiles from the cache
+								if (ci > 0) {
+									logger.trace("Reversing list if {} regions", regions.size());
+									Collections.reverse(regions);
+								}
+								
 								var localWriter = writer;
 								var tasks = regions.stream().map(region -> new Runnable() {
 									@Override
@@ -727,8 +735,8 @@ public class OMEPyramidWriter {
 									}
 								}).collect(Collectors.toList());
 								
-								if (parallelExport) {
-									var pool = Executors.newWorkStealingPool(4);
+								if (parallelThreads > 1) {
+									var pool = Executors.newWorkStealingPool(parallelThreads);
 									for (var task : tasks) {
 										pool.submit(task);
 									}
@@ -748,6 +756,7 @@ public class OMEPyramidWriter {
 										}
 										task.run();
 									}
+									logger.info("Plane written in {} ms", System.currentTimeMillis() - planeStartTime);
 								}
 							}
 						}
@@ -1111,6 +1120,16 @@ public class OMEPyramidWriter {
 		}
 		
 		/**
+		 * Request no compression.
+		 * @return
+		 * @since v0.4.0
+		 */
+		public Builder uncompressed() {
+			series.compression = CompressionType.UNCOMPRESSED;
+			return this;
+		}
+		
+		/**
 		 * Parallelize tile export, if possible.
 		 * 
 		 * @return this builder
@@ -1120,13 +1139,29 @@ public class OMEPyramidWriter {
 		}
 
 		/**
-		 * Specify if tile export should be parallelized if possible.
+		 * Specify if tile export should be parallelized if possible, with the default number of threads (current 4).
 		 * 
 		 * @param doParallel
 		 * @return
+		 * @see #parallelize(int)
 		 */
 		public Builder parallelize(boolean doParallel) {
-			series.parallelExport = doParallel;
+			return parallelize(doParallel ? 4 : 1);
+		}
+		
+		/**
+		 * Specify if tile export should be parallelized if possible, with the requested number of threads.
+		 * <p>
+		 * Note that increasing the number of threads may not give improved performance, since it I/O and compression may well 
+		 * become a bottleneck. The main purpose of this option is to parallelize requesting and writing tiles, which can 
+		 * be achieved with just a few threads.
+		 * 
+		 * @param nThreads number of threads for parallel export; use &leq; 1 to turn off parallelization.
+		 * @return
+		 * @since v0.4.0
+		 */
+		public Builder parallelize(int nThreads) {
+			series.parallelThreads = nThreads;
 			return this;
 		}
 
