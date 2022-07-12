@@ -64,7 +64,6 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
-import javafx.scene.layout.StackPane;
 import javafx.scene.text.TextAlignment;
 import javafx.stage.Modality;
 import javafx.stage.Screen;
@@ -78,6 +77,7 @@ import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.Dialogs.DialogButton;
 import qupath.lib.gui.images.servers.RenderedImageServer;
 import qupath.lib.gui.panes.MeasurementMapPane;
+import qupath.lib.gui.panes.ObjectDescriptionPane;
 import qupath.lib.gui.panes.PathClassPane;
 import qupath.lib.gui.panes.WorkflowCommandLogView;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -701,6 +701,17 @@ public class Commands {
 		stage.setTitle("Specify annotation");
 		stage.initOwner(qupath.getStage());
 		return stage;
+	}
+	
+	
+	
+	/**
+	 * Create a stage to display object descriptions.
+	 * @param qupath
+	 * @return 
+	 */
+	public static Stage createObjectDescriptionsDialog(QuPathGUI qupath) {
+		return ObjectDescriptionPane.createWindow(qupath);
 	}
 	
 	
@@ -1669,6 +1680,7 @@ public class Commands {
 		MiniViewers.createDialog(viewer, false).show();
 	}
 
+	
 	/**
 	 * Show a channel viewer window associated with a specific viewer.
 	 * @param viewer the viewer with which to associate this window

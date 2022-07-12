@@ -4,9 +4,22 @@ This is a work-in-progress.
 
 ### Enhancements
 
-* Objects now have IDs
-  * This aims to make it much easier to match up objects whenever some further analysis is done elsewhere (e.g. classification or clustering in Python or R)
-  * See https://github.com/qupath/qupath/pull/959
+* Object improvements
+  * Annotations can now have visible descriptions
+    * Visible at the bottom of the 'Annotation' and 'Hierarchy' tabs or in a standalone window
+    * Support plain text, markdown and html
+  * All objects can now have IDs
+    * This aims to make it much easier to match up objects whenever some further analysis is done elsewhere (e.g. classification or clustering in Python or R)
+    * See https://github.com/qupath/qupath/pull/959
+* Many script editor improvements, including:
+  * Support for writing Markdown documents
+  * Added 'Replace/Next' and 'Replace all' features to Find window (https://github.com/qupath/qupath/pull/898)
+  * New lines now trigger caret following (https://github.com/qupath/qupath/pull/900)
+  * Proper tab handling (https://github.com/qupath/qupath/pull/902)
+  * Introduction of 'Smart Editing' (enabled through the corresponding persistent preference under 'Edit'), which supports the following features:
+    * Brace block handling (https://github.com/qupath/qupath/pull/901)
+    * Smart parentheses and (double/single) quotes (https://github.com/qupath/qupath/pull/907)
+    * Comment block handling (https://github.com/qupath/qupath/pull/908)
 * Improved Brightness/Contrast options, including
   * Switch between dark and light backgrounds (still experimental)
   * More consistent behavior with 'Show grayscale' option
@@ -24,14 +37,6 @@ This is a work-in-progress.
 * Improved measurement tables
   * Include thumbnail images for each object (can be turned off with 'Include image column in measurement tables' preference)
   * Center viewer on an object by selecting it & pressing the 'spacebar'
-* Many script editor improvements, including:
-  * Added 'Replace/Next' and 'Replace all' features to Find window (https://github.com/qupath/qupath/pull/898)
-  * New lines now trigger caret following (https://github.com/qupath/qupath/pull/900)
-  * Proper tab handling (https://github.com/qupath/qupath/pull/902)
-  * Introduction of 'Smart Editing' (enabled through the corresponding persistent preference under 'Edit'), which supports the following features:
-    * Brace block handling (https://github.com/qupath/qupath/pull/901)
-    * Smart parentheses and (double/single) quotes (https://github.com/qupath/qupath/pull/907)
-    * Comment block handling (https://github.com/qupath/qupath/pull/908)
 * Improved support for switching between QuPath objects and ImageJ ROIs
   * New 'Extensions -> ImageJ -> Import ImageJ ROIs' command
   * Import .roi and RoiSet.zip files by drag & drop

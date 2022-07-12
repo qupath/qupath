@@ -90,7 +90,7 @@ public class RichScriptEditor extends DefaultScriptEditor {
 	
 	private ExecutorService executor = Executors.newSingleThreadExecutor(ThreadTools.createThreadFactory("rich-text-styling", true));
 	
-	final ObjectProperty<ScriptHighlighter> scriptHighlighter = new SimpleObjectProperty<>();
+	private final ObjectProperty<ScriptHighlighter> scriptHighlighter = new SimpleObjectProperty<>();
 
 	// Delay for async formatting, in milliseconds
 	private static int delayMillis = 100;
@@ -151,7 +151,7 @@ public class RichScriptEditor extends DefaultScriptEditor {
 				if (e.isConsumed())
 					return;
 				
-				var scriptSyntax = currentLanguage.get().getSyntax();
+				var scriptSyntax = getCurrentLanguage().getSyntax();
 				if ("(".equals(e.getCharacter())) {
 					scriptSyntax.handleLeftParenthesis(control, smartEditing.get());
 					e.consume();
@@ -180,7 +180,7 @@ public class RichScriptEditor extends DefaultScriptEditor {
 			Runnable completionFun = () -> {
 				var selected = listCompletions.getSelectionModel().getSelectedItem();
 				if (selected != null) {
-					var scriptAutoCompletor = currentLanguage.get().getAutoCompletor();
+					var scriptAutoCompletor = getCurrentLanguage().getAutoCompletor();
 					if (scriptAutoCompletor != null)
 						scriptAutoCompletor.applyCompletion(control, selected);
 				}
@@ -209,7 +209,7 @@ public class RichScriptEditor extends DefaultScriptEditor {
 				if (e.isConsumed())
 					return;
 				
-				var scriptSyntax = currentLanguage.get().getSyntax();
+				var scriptSyntax = getCurrentLanguage().getSyntax();
 				if (scriptSyntax != null) {
 					if (e.getCode() == KeyCode.TAB) {
 						scriptSyntax.handleTabPress(control, e.isShiftDown());
@@ -229,7 +229,7 @@ public class RichScriptEditor extends DefaultScriptEditor {
 					}
 				}
 				
-				var scriptAutoCompletor = currentLanguage.get().getAutoCompletor();
+				var scriptAutoCompletor = getCurrentLanguage().getAutoCompletor();
 				if (scriptAutoCompletor != null) {
 					if (completionCodeCombination.match(e)) {
 						var completions = scriptAutoCompletor.getCompletions(control);
@@ -288,14 +288,19 @@ public class RichScriptEditor extends DefaultScriptEditor {
 
 			codeArea.getStylesheets().add(getClass().getClassLoader().getResource("scripting_styles.css").toExternalForm());
 			
-			scriptHighlighter.bind(Bindings.createObjectBinding(() -> ScriptHighlighterProvider.getHighlighterFromLanguage(getCurrentLanguage()), currentLanguage));
+			scriptHighlighter.bind(Bindings.createObjectBinding(() -> ScriptHighlighterProvider.getHighlighterFromLanguage(getCurrentLanguage()), currentLanguageProperty()));
 			
 			// Triggered whenever the script styling changes (e.g. change of language)
 			scriptHighlighter.addListener((v, o, n) -> {
-				if (n == null || (o != null && o.getClass().equals(n.getClass())))
+				if (n == null) {
+					codeArea.setStyle(null);
 					return;
-				StyleSpans<Collection<String>> changes = scriptHighlighter.get().computeEditorHighlighting(codeArea.getText());
+				}
+				String baseStyle = n.getBaseStyle();
+				codeArea.setStyle(baseStyle);
+				StyleSpans<Collection<String>> changes = n.computeEditorHighlighting(codeArea.getText());
 				codeArea.setStyleSpans(0, changes);
+				codeArea.requestFocus(); // Seems necessary to trigger the update when switching between scripts
 			});
 
 			return control;

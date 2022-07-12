@@ -76,4 +76,15 @@ public interface ScriptHighlighter {
 		spansBuilder.add(Collections.emptyList(), text.length());
 		return spansBuilder.create();
 	}
+	
+	/**
+	 * Optionally return a base style for the code area.
+	 * The default is to return null, but one use is to return "-fx-font-family: sans-serif" if the language should 
+	 * not be formatted as code.
+	 * @return
+	 */
+	default String getBaseStyle() {
+		return null;
+	}
+	
 }

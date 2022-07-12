@@ -25,6 +25,8 @@ import java.util.function.Function;
 
 import org.kordamp.ikonli.javafx.StackedFontIcon;
 
+import javafx.event.ActionEvent;
+import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.ContentDisplay;
@@ -34,32 +36,73 @@ import javafx.scene.control.OverrunStyle;
 import javafx.scene.control.Tooltip;
 import javafx.scene.control.TreeCell;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
+import javafx.scene.layout.TilePane;
+import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.prefs.PathPrefs.DetectionTreeDisplayModes;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.TMACoreObject;
 
 /**
- * Create standardized {@link ListCell} and {@link TreeCell} instances for displaying a {@link PathObject}.
+ * Create standardized {@link ListCell} and {@link TreeCell} instances for displaying a {@link PathObject}, 
+ * or a generic pane to use elsewhere.
  * 
  * @author Pete Bankhead
+ * @since v0.4.0
  */
-public class PathObjectCells {
+public class PathObjectLabels {
+
+	/**
+	 * Create a {@link PathObjectMiniPane} using the default {@link PathObject#toString()} method.
+	 * @return
+	 */
+	public static PathObjectMiniPane createPane() {
+		return createPane(PathObject::toString);
+	}
+
+	/**
+	 * Create a {@link PathObjectMiniPane} using a custom method to create a string representation of the object.
+	 * @param stringExtractor
+	 * @return
+	 */
+	public static PathObjectMiniPane createPane(Function<PathObject, String> stringExtractor) {
+		var pane = new PathObjectMiniPane(stringExtractor);
+		pane.pane.setPadding(new Insets(5.0));
+		pane.pane.setPrefHeight(pane.h+16);
+		return pane;
+	}
 	
-	
+	/**
+	 * Create a {@link ListCell} for displaying a {@link PathObject} using the default {@link PathObject#toString()} method.
+	 * @return
+	 */
 	public static ListCell<PathObject> createListCell() {
 		return createListCell(PathObject::toString);
 	}
 	
+	/**
+	 * Create a {@link ListCell} for displaying a {@link PathObject} using a custom method to create a string representation of the object.
+	 * @return
+	 */
 	public static ListCell<PathObject> createListCell(Function<PathObject, String> stringExtractor) {
 		return new PathObjectListCell(stringExtractor);
 	}
 	
+	/**
+	 * Create a {@link TreeCell} for displaying a {@link PathObject} using the default {@link PathObject#toString()} method.
+	 * @return
+	 */
 	public static TreeCell<PathObject> createTreeCell() {
 		return createTreeCell(PathObject::toString);
 	}
 	
+	/**
+	 * Create a {@link TreeCell} for displaying a {@link PathObject} using a custom method to create a string representation of the object.
+	 * @return
+	 */
 	public static TreeCell<PathObject> createTreeCell(Function<PathObject, String> stringExtractor) {
 		return new PathObjectTreeCell(stringExtractor);
 	}
@@ -78,12 +121,12 @@ public class PathObjectCells {
 		@Override
 		protected void updateItem(PathObject value, boolean empty) {
 			super.updateItem(value, empty);
-			this.miniPane.setValue(empty ? null : value);
+			this.miniPane.setPathObject(empty ? null : value);
 			if (value == null || empty) {
 				setText(null);
 				setGraphic(null);
 				return;
-			}
+			}			
 			setGraphic(this.miniPane.getNode());
 		}
 		
@@ -103,7 +146,7 @@ public class PathObjectCells {
 		@Override
 		protected void updateItem(PathObject value, boolean empty) {
 			super.updateItem(value, empty);
-			this.miniPane.setValue(empty ? null : value);
+			this.miniPane.setPathObject(empty ? null : value);
 			if (value == null || empty) {
 				setText(null);
 				setGraphic(null);
@@ -119,14 +162,19 @@ public class PathObjectCells {
 	 * Manage a small pane that can be used to display a {@link PathObject}.
 	 * Intended for use creating standardized list and tree cells.
 	 */
-	private static class PathObjectMiniPane {
+	public static class PathObjectMiniPane {
 
-		private Tooltip tooltip;
+		private Tooltip tooltip = new Tooltip();
 		private Function<PathObject, String> fun;
 		
 		private int w = 16, h = 16;
 		
-		private StackedFontIcon stack;
+		private StackedFontIcon lockIcon;
+		private StackedFontIcon descriptionIcon;
+		private Pane iconPane;
+
+		private Tooltip descriptionTooltip = new Tooltip();
+
 		private Label label;
 		private BorderPane pane;
 		
@@ -150,26 +198,54 @@ public class PathObjectCells {
 			StackPane.setAlignment(label, Pos.CENTER_LEFT);
 			pane.setCenter(sp);
 			
-			stack = new StackedFontIcon();
-			stack.setIconCodeLiterals("ion4-md-lock");
-			stack.setStyle("-fx-background-color: -fx-background; -fx-icon-color: -fx-text-fill;");
-			var lockedTooltip = new Tooltip("Object locked");
-			Tooltip.install(stack, lockedTooltip);
+			String iconStyle = "-fx-background-color: -fx-background; -fx-icon-color: -fx-text-background-color; -fx-opacity: 0.6;";
+			
+			lockIcon = new StackedFontIcon();
+			lockIcon.setIconCodeLiterals("ion4-md-lock");
+			lockIcon.setStyle(iconStyle);
+
+			descriptionIcon = new StackedFontIcon();
+			descriptionIcon.setIconCodeLiterals("ion4-md-list");
+			descriptionIcon.setStyle(iconStyle);
+			var qupath = QuPathGUI.getInstance();
+			var actions = qupath == null ? null : qupath.getDefaultActions();
+			if (actions != null) {
+				descriptionIcon.setOnMouseClicked(e -> {
+					if (e.getClickCount() == 2) {
+						actions.SHOW_OBJECT_DESCRIPTIONS.handle(new ActionEvent());
+						e.consume();
+					}
+				});
+			}
+			
+			Tooltip.install(descriptionIcon, descriptionTooltip);
+			
+			iconPane = new TilePane();
+
+			var lockedTooltip = new Tooltip("ROI locked");
+			Tooltip.install(lockIcon, lockedTooltip);
+			
+			BorderPane.setAlignment(label, Pos.CENTER_LEFT);
+			BorderPane.setAlignment(iconPane, Pos.CENTER_RIGHT);
 		}
 		
-
-		protected void setValue(PathObject value) {
+		
+		/**
+		 * Set the {@link PathObject} to display (may be null).
+		 * @param value
+		 */
+		public void setPathObject(PathObject value) {
 			if (value == null) {
 				label.setText(null);
 				label.setGraphic(null);
 				pane.setRight(null);
 				return;
 			}
-			
-			stack.setStyle("-fx-background-color: -fx-background; -fx-icon-color: -fx-text-fill; -fx-opacity: 0.6;");
-			
+
 			label.setText(fun.apply(value));
-			updateTooltip(value);
+			
+			String description = getDescription(value);			
+			updateTooltips(value, description);
 			
 			if (showRoiIcon(value)) {
 				Node icon = IconFactory.createPathObjectIcon(value, w, h);
@@ -178,12 +254,33 @@ public class PathObjectCells {
 				label.setGraphic(null);
 			}
 			
-			if (value.isLocked()) {
-				pane.setRight(stack);
-			} else {
-				pane.setRight(null);
-			}
+			boolean hasDescription = description != null && !description.isBlank();
+			if (hasDescription)
+				descriptionTooltip.setText(description);
+			else
+				descriptionTooltip.setText("No description");
+			boolean isLocked = value.isLocked();
 			
+			if (hasDescription && isLocked) {
+				iconPane.getChildren().setAll(descriptionIcon, lockIcon);
+			} else if (hasDescription)
+				iconPane.getChildren().setAll(descriptionIcon);
+			else if (isLocked)
+				iconPane.getChildren().setAll(lockIcon);
+			else {
+				pane.setRight(null);
+				return;
+			}
+			pane.setRight(iconPane);
+		}
+		
+		
+		private String getDescription(PathObject pathObject) {
+			if (pathObject instanceof PathAnnotationObject)
+				return ((PathAnnotationObject)pathObject).getDescription();
+			if (pathObject instanceof TMACoreObject)
+				return ((TMACoreObject)pathObject).getMetadataString("Note"); // TODO: Improve naming of TMA note!
+			return null;
 		}
 		
 		
@@ -198,32 +295,21 @@ public class PathObjectCells {
 		 * Get the node to display.
 		 * @return
 		 */
-		public Node getNode() {
+		public Pane getNode() {
 			return pane;
 		}
 
-		private void updateTooltip(final PathObject pathObject) {
-			if (tooltip == null) {
-				if (pathObject == null || !pathObject.isAnnotation())
-					return;
-				tooltip = new Tooltip();
-				label.setTooltip(tooltip);
-			} else if (pathObject == null || !pathObject.isAnnotation()) {
+		private void updateTooltips(PathObject pathObject, String description) {
+			if (pathObject == null) { // || !pathObject.isAnnotation()) {
 				label.setTooltip(null);
 				return;
 			}
-			if (pathObject instanceof PathAnnotationObject) {
-				PathAnnotationObject annotation = (PathAnnotationObject)pathObject;
-				String description = annotation.getDescription();
-				if (description == null)
-					description = label.getText();
-				if (description == null) {
-					label.setTooltip(null);
-				} else {
-					tooltip.setText(description);
-					label.setTooltip(tooltip);
-				}
-			}
+			tooltip.setText(label.getText());
+			label.setTooltip(tooltip);
+			if (description == null)
+				descriptionTooltip.setText("No description");
+			else
+				descriptionTooltip.setText(description);
 		}
 
 	}

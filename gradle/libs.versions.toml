@@ -39,13 +39,14 @@ opencv-gpu    = { module = "org.bytedeco:opencv-platform-gpu",  version.ref = "o
 cuda          = { module = "org.bytedeco:cuda-platform",        version.ref = "cuda" }
 cuda-redist   = { module = "org.bytedeco:cuda-platform-redist", version.ref = "cuda" }
 
-ikonli-javafx           = { module = "org.kordamp.ikonli:ikonli-javafx",  version.ref = "ikonli" }
+ikonli-javafx    = { module = "org.kordamp.ikonli:ikonli-javafx",  version.ref = "ikonli" }
 ikonli-ionicons4 = { module = "org.kordamp.ikonli:ikonli-ionicons4-pack", version.ref = "ikonli" }
 
 junit         = { module = "org.junit.jupiter:junit-jupiter",        version.ref = "junit" }
 junit-api     = { module = "org.junit.jupiter:junit-jupiter-api",    version.ref = "junit" }
 junit-engine  = { module = "org.junit.jupiter:junit-jupiter-engine", version.ref = "junit" }
 
+commonmark    = { module = "org.commonmark:commonmark", version = "0.19.0" }
 
 [bundles]
 groovy        = ["groovy-core", "groovy-jsr223", "groovy-xml"]
@@ -54,6 +55,7 @@ logging       = ["slf4j", "logback"]
 opencv        = ["javacpp", "opencv"]
 opencv-gpu    = ["javacpp", "opencv-gpu", "cuda"]
 opencv-cuda   = ["javacpp", "opencv-gpu", "cuda", "cuda-redist"]
+markdown      = ["commonmark"]
 
 [plugins]
 # Use the javafx plugin to add modules

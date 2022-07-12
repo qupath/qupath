@@ -33,9 +33,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
-import javafx.beans.property.SimpleObjectProperty;
 import javafx.geometry.Orientation;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.SplitPane;
@@ -66,7 +64,7 @@ public class ScriptTab {
 	
 	private static int untitledCounter = 0;
 	
-	private ObjectProperty<ScriptLanguage> language = new SimpleObjectProperty<>();
+	private ScriptLanguage language;
 	
 	private BooleanProperty isModified = new SimpleBooleanProperty(false);
 	
@@ -82,7 +80,7 @@ public class ScriptTab {
 		this.editor = editor;
 		this.console = console;
 		initialize();
-		this.language.set(language);
+		this.language = language;
 		if (script != null)
 			editor.setText(script);
 		untitledCounter++;
@@ -113,7 +111,7 @@ public class ScriptTab {
 		this.file = file;
 		lastModified = file.lastModified();
 		lastSavedContents = content;
-		this.language.set(DefaultScriptEditor.getLanguageFromName(name));
+		this.language = DefaultScriptEditor.getLanguageFromName(name);
 //		scanner.close();
 		updateIsModified();
 	}
@@ -222,15 +220,15 @@ public class ScriptTab {
 	}
 	
 	ScriptLanguage getLanguage() {
-		return language.get();
+		return language;
 	}
 	
 	void setLanguage(final ScriptLanguage language) {
-		this.language.set(language);
+		this.language = language;
 	}
 	
 	String[] getRequestedExtensions() {
-		return language.get().getExtensions();
+		return language.getExtensions();
 	}
 	
 	String getName() {

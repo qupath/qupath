@@ -106,6 +106,7 @@ import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
 import javafx.geometry.Rectangle2D;
+import javafx.geometry.Side;
 import javafx.scene.Cursor;
 import javafx.scene.Node;
 import javafx.scene.Parent;
@@ -172,6 +173,7 @@ import qupath.lib.common.Version;
 import qupath.lib.gui.ActionTools.ActionAccelerator;
 import qupath.lib.gui.ActionTools.ActionDescription;
 import qupath.lib.gui.ActionTools.ActionIcon;
+import qupath.lib.gui.ActionTools.ActionMenu;
 import qupath.lib.gui.commands.BrightnessContrastCommand;
 import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.commands.CountingPanelCommand;
@@ -190,6 +192,7 @@ import qupath.lib.gui.extensions.UpdateChecker.ReleaseVersion;
 import qupath.lib.gui.images.stores.DefaultImageRegionStore;
 import qupath.lib.gui.images.stores.ImageRegionStoreFactory;
 import qupath.lib.gui.logging.LogManager;
+import qupath.lib.gui.panes.ObjectDescriptionPane;
 import qupath.lib.gui.panes.AnnotationPane;
 import qupath.lib.gui.panes.ImageDetailsPane;
 import qupath.lib.gui.panes.PathObjectHierarchyView;
@@ -698,6 +701,12 @@ public class QuPathGUI {
 		@ActionIcon(PathIcons.MEASURE)
 		@ActionAccelerator("shift+a")
 		public final Action SHOW_ANALYSIS_PANE = createShowAnalysisPaneAction();
+		
+		/**
+		 * Show descriptions for the selected object
+		 */
+		public final Action SHOW_OBJECT_DESCRIPTIONS = Commands.createSingleStageAction(() -> Commands.createObjectDescriptionsDialog(QuPathGUI.this));
+
 		
 		/**
 		 * Show summary measurement table for TMA cores.
@@ -1219,6 +1228,8 @@ public class QuPathGUI {
 //		PathPrefs.defaultLocaleProperty() // Handled by update to other two
 		PathPrefs.defaultLocaleDisplayProperty().addListener(localeListener);
 		PathPrefs.defaultLocaleFormatProperty().addListener(localeListener);
+		
+		QuPathStyleManager.refresh();
 	}
 	
 	
@@ -4071,43 +4082,69 @@ public class QuPathGUI {
 		 * TODO: Handle analysis pane being entirely hidden.
 		 */
 		
-		// Create annotation tab
+		// Create a tab for annotations and one for the full object hierarchy
 		var tabAnnotations = new Tab("Annotations");
-		var annotationTabImageData = Bindings.createObjectBinding(() -> {
-			return tabAnnotations.isSelected() ? imageDataProperty.get() : null;
-		}, tabAnnotations.selectedProperty(), imageDataProperty());
-		var annotationMeasurementsTable = new SelectedMeasurementTableView(annotationTabImageData).getTable();
 		SplitPane splitAnnotations = new SplitPane();
 		splitAnnotations.setOrientation(Orientation.VERTICAL);
 		var annotationPane = new AnnotationPane(this, imageDataProperty());
-		annotationPane.disableUpdatesProperty().bind(tabAnnotations.selectedProperty().not());
-		splitAnnotations.getItems().addAll(
-				annotationPane.getPane(),
-				annotationMeasurementsTable);
+		annotationPane.disableUpdatesProperty().bind(tabAnnotations.selectedProperty().not());		
+		splitAnnotations.getItems().add(annotationPane.getPane());
 		tabAnnotations.setContent(splitAnnotations);
-		analysisPanel.getTabs().add(tabAnnotations);
-//		analysisPanel.getSelectionModel().selectedItemProperty()
-
-		// Create hierarchy tab
+		analysisPanel.getTabs().add(tabAnnotations);		
+		
 		var tabHierarchy = new Tab("Hierarchy");
-		var hierarchyTabImageData = Bindings.createObjectBinding(() -> {
-			return tabHierarchy.isSelected() ? imageDataProperty.get() : null;
-		}, imageDataProperty(), tabHierarchy.selectedProperty());
 		final PathObjectHierarchyView paneHierarchy = new PathObjectHierarchyView(this, imageDataProperty());
 		paneHierarchy.disableUpdatesProperty().bind(tabHierarchy.selectedProperty().not());
 		SplitPane splitHierarchy = new SplitPane();
 		splitHierarchy.setOrientation(Orientation.VERTICAL);
-		splitHierarchy.getItems().addAll(
-				paneHierarchy.getPane(),
-				new SelectedMeasurementTableView(hierarchyTabImageData).getTable());
+		splitHierarchy.getItems().add(paneHierarchy.getPane());
 		tabHierarchy.setContent(splitHierarchy);
 		analysisPanel.getTabs().add(tabHierarchy);
 		
-		// Bind the split pane dividers to create a more consistent appearance
-		splitAnnotations.getDividers().get(0).positionProperty().bindBidirectional(
-				splitHierarchy.getDividers().get(0).positionProperty()
-				);
+		// We want to show measurements/descriptions using the same component at the bottom, 
+		// switching its location if the tabs change
+		var tabpaneObjectsShared = new TabPane();
+		var objectMeasurementsTable = new SelectedMeasurementTableView(imageDataProperty());
+		tabpaneObjectsShared.setSide(Side.BOTTOM);
+		var tabSharedTable = new Tab("Measurements", objectMeasurementsTable.getTable());
+		tabpaneObjectsShared.getTabs().add(tabSharedTable);
+		var tabSharedDescription = new Tab("Description", ObjectDescriptionPane.createPane(imageDataProperty(), true));
+		tabpaneObjectsShared.getTabs().add(tabSharedDescription);
+		tabpaneObjectsShared.setTabClosingPolicy(TabClosingPolicy.UNAVAILABLE);
 
+		// We could try to avoid updating when not visible
+//		var annotationTabImageData = Bindings.createObjectBinding(() -> {
+//			return tabAnnotations.isSelected() ? imageDataProperty.get() : null;
+//		}, tabAnnotations.selectedProperty(), imageDataProperty());
+		
+		// We need to add somewhere, otherwise the tableview was slow to update
+		splitAnnotations.getItems().add(tabpaneObjectsShared);
+		
+		analysisPanel.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {
+			// Update split locations
+			if (o == tabAnnotations)
+				splitHierarchy.setDividerPosition(0, splitAnnotations.getDividerPositions()[0]);
+			else if (o == tabHierarchy) {
+				splitAnnotations.setDividerPosition(0, splitHierarchy.getDividerPositions()[0]);				
+			}
+			
+			// Update shared pane location
+			if (n == tabHierarchy) {
+				if (splitHierarchy.getItems().size() <= 1)
+					splitHierarchy.getItems().add(tabpaneObjectsShared);
+				else
+					splitHierarchy.getItems().set(1, tabpaneObjectsShared);
+			} else if (n == tabAnnotations) {
+				if (splitAnnotations.getItems().size() <= 1)
+					splitAnnotations.getItems().add(tabpaneObjectsShared);
+				else
+					splitAnnotations.getItems().set(1, tabpaneObjectsShared);
+			}
+		});
+		
+		// Bind visibility to tab selection - this makes it possible to reduce expensive table updates
+		objectMeasurementsTable.getTable().visibleProperty().bind(tabSharedTable.selectedProperty());
+		
 		var commandLogView = new WorkflowCommandLogView(this);
 		TitledPane titledLog = new TitledPane("Command history", commandLogView.getPane());
 		titledLog.setCollapsible(false);
