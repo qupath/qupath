@@ -71,7 +71,8 @@ public interface ScriptSyntax {
 	 * @param smartEditing whether smart editing is enabled
 	 */
 	default void handleQuotes(ScriptEditorControl control, boolean isDoubleQuote, final boolean smartEditing) {
-		control.insertText(control.getCaretPosition(), "\"");
+		String quote = isDoubleQuote ? "\"" : "'";
+		control.paste(quote);
 	}
 	
 	/**

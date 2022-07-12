@@ -41,3 +41,57 @@
 .caret {
     -fx-stroke: -fx-text-inner-color;
 }
+
+
+.md {
+    -fx-fill: -fx-text-inner-color;
+    -fx-font-family: sans-serif;
+}
+.md.h1 {
+    -fx-font-weight: bold;
+    -fx-font-size: 175%;
+}
+.md.h2 {
+    -fx-font-weight: bold;
+    -fx-font-size: 150%;
+}
+.md.h3 {
+    -fx-font-weight: bold;
+    -fx-font-size: 135%;
+}
+.md.h4 {
+    -fx-font-weight: bold;
+    -fx-font-size: 120%;
+}
+.md.h5 {
+    -fx-font-weight: bold;
+    -fx-font-size: 110%;
+}
+.md.h6 {
+    -fx-font-weight: bold;
+}
+.md.strong {
+    -fx-font-weight: bold;
+}
+.md.emph {
+    -fx-font-style: italic;
+}
+.md.list {
+    -fx-fill: darkorange;
+}
+.md.link {
+    -fx-fill: purple;
+}
+.md.code {
+	-fx-font-family: monospace;
+}
+.md.quote {
+	-fx-fill: rgb(128, 128, 128);
+}
+.md.image {
+	-fx-fill: seagreen;
+}
+.md.raw {
+	-fx-font-family: monospace;
+	-fx-fill: red;
+}
