@@ -75,6 +75,7 @@ This is a work-in-progress.
 * 'Cannot invoke “java.lang.Double.doubleValue()”' exception in 'Create Thresholder' (https://github.com/qupath/qupath/issues/988)
 * Uncaught exceptions can fill the screen with duplicate error notifications (https://github.com/qupath/qupath/issues/990)
 * Locked point annotations can still be edited (https://github.com/qupath/qupath/issues/1001)
+* 'Normalized OD colors' should not be available for RGB fluorescence images (https://github.com/qupath/qupath/issues/1006)
 
 ### Changes through Bio-Formats 6.10.0
 * Bio-Formats 6.10.0 brings several important new features to QuPath, including:

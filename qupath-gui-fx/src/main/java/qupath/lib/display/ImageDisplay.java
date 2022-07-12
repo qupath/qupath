@@ -348,9 +348,9 @@ public class ImageDisplay extends AbstractImageRenderer {
 			// Add color deconvolution options if we have a brightfield image
 			if (imageData.isBrightfield()) {
 				tempChannelOptions.addAll(rgbBrightfieldChannels);
+				tempChannelOptions.add(rgbNormalizedChannelInfo);
 			}
 			if (showAllRGBTransforms.get()) {
-				tempChannelOptions.add(rgbNormalizedChannelInfo);
 				tempChannelOptions.addAll(rgbBasicChannels);
 				tempChannelOptions.addAll(rgbChromaticityChannels);
 			}
