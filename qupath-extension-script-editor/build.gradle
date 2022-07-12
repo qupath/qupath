@@ -9,5 +9,6 @@ description = "QuPath extension to provide an alternative script editor using Ri
 
 dependencies {
   implementation libs.bundles.groovy
+  implementation libs.bundles.markdown
   implementation libs.richtextfx
 }
