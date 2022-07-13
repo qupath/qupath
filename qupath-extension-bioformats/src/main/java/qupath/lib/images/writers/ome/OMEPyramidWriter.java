@@ -718,7 +718,7 @@ public class OMEPyramidWriter {
 						List<TileRequest> tiles = new ArrayList<>();
 						
 						// Use tiles directly if we aren't cropping and they exist as the requested resolution level
-						// This may not be necessary; it i is a minor *potential* optimization intended to help ensure 
+						// This may not be necessary; it is a minor *potential* optimization intended to help ensure 
 						// we avoid any rounding errors that could thwart caching or introduce oddness
 						int levelTemp = ServerTools.getPreferredResolutionLevel(server, d);
 						if (d == server.getDownsampleForResolution(levelTemp) && 
@@ -729,10 +729,12 @@ public class OMEPyramidWriter {
 							
 							logger.debug("Using tile requests directly for level {}", level);
 							logger.trace("Tiled level: {}", level, server.getMetadata().getLevel(level));
-							
+							int thisZ = z;
+							int thisT = t;
 							server.getTileRequestManager()
 								.getTileRequestsForLevel(levelTemp)
 								.stream()
+								.filter(tile -> tile.getZ() == thisZ && tile.getT() == thisT)
 								.forEachOrdered(tiles::add);
 						} else {
 							// Create new tile requests
