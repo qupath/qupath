@@ -714,6 +714,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 					logger.error("Unable to save ImageData: " + e.getLocalizedMessage(), e);
 				}
 			}
+			qupath.refreshProject();
 		}
 	}
 
