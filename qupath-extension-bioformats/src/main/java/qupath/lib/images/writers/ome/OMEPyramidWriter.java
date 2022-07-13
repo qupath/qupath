@@ -513,10 +513,19 @@ public class OMEPyramidWriter {
 			// TODO: Consider setting the magnification
 	
 			// Set resolutions
+			var exportServer = getExportServer();
+			boolean isCropped = x != 0 || y != 0 || width != exportServer.getWidth() || height != exportServer.getHeight();
 			for (int level = 0; level < downsamples.length; level++) {
 				double d = downsamples[level];
 				int w = (int)(width / d);
 				int h = (int)(height / d);
+				int exportLevel = ServerTools.getPreferredResolutionLevel(exportServer, d);
+				// If the image we're exporting has an exact matching level, then use its dimensions
+				if (!isCropped && exportServer.getDownsampleForResolution(exportLevel) == d) {
+					w = exportServer.getMetadata().getLevel(exportLevel).getWidth();
+					h = exportServer.getMetadata().getLevel(exportLevel).getHeight();
+				}
+				logger.debug("Setting resolution {}: {} x {}", level, w, h);
 				((IPyramidStore)meta).setResolutionSizeX(new PositiveInteger(w), series, level);
 				((IPyramidStore)meta).setResolutionSizeY(new PositiveInteger(h), series, level);
 			}
@@ -664,7 +673,7 @@ public class OMEPyramidWriter {
 			
 			boolean isTiff = writer instanceof TiffWriter;
 			Map<Integer, IFD> map = new HashMap<>();
-	
+			
 			writer.setSeries(series);
 			for (int level = 0; level < downsamples.length; level++) {
 				
@@ -686,9 +695,14 @@ public class OMEPyramidWriter {
 				}
 	
 				double d = downsamples[level];
-								
-				int w = (int)(width * downsamples[0] / d);
-				int h = (int)(height * downsamples[0] / d);
+				
+				// Make extra sure we're using the same width & height that we said we'd use for the resolution level
+				int w = width;
+				int h = height;
+				if (meta instanceof IPyramidStore && level > 0) {
+					w = ((IPyramidStore)meta).getResolutionSizeX(series, level).getValue().intValue();
+					h = ((IPyramidStore)meta).getResolutionSizeY(series, level).getValue().intValue();
+				}
 	
 				int tInc = tEnd >= tStart ? 1 : -1;
 				int zInc = zEnd >= zStart ? 1 : -1;
@@ -704,14 +718,23 @@ public class OMEPyramidWriter {
 						List<TileRequest> tiles = new ArrayList<>();
 						
 						// Use tiles directly if we aren't cropping and they exist as the requested resolution level
+						// This may not be necessary; it is a minor *potential* optimization intended to help ensure 
+						// we avoid any rounding errors that could thwart caching or introduce oddness
 						int levelTemp = ServerTools.getPreferredResolutionLevel(server, d);
 						if (d == server.getDownsampleForResolution(levelTemp) && 
-								x == 0 && y == 0 && this.width == server.getWidth() && this.height == server.getHeight() &&
+								x == 0 && y == 0 &&
+								w == server.getMetadata().getLevel(levelTemp).getWidth() &&
+								h == server.getMetadata().getLevel(levelTemp).getHeight() &&
 								tileWidth == server.getMetadata().getPreferredTileWidth() && tileHeight == server.getMetadata().getPreferredTileHeight()) {
+							
 							logger.debug("Using tile requests directly for level {}", level);
+							logger.trace("Tiled level: {}", level, server.getMetadata().getLevel(level));
+							int thisZ = z;
+							int thisT = t;
 							server.getTileRequestManager()
 								.getTileRequestsForLevel(levelTemp)
 								.stream()
+								.filter(tile -> tile.getZ() == thisZ && tile.getT() == thisT)
 								.forEachOrdered(tiles::add);
 						} else {
 							// Create new tile requests
