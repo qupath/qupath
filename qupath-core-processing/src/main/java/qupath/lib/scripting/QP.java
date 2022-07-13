@@ -748,6 +748,24 @@ public class QP {
 	}
 	
 	/**
+	 * Get the name of the current image.
+	 * This first checks the name associated with {@link #getProjectEntry()}, if available.
+	 * If no name is found (e.g. because no project is in use, then the name is extracted 
+	 * from the metadata of {@link #getCurrentServer()}.
+	 * If this is also missing, then {@code null} is returned.
+	 * @return
+	 */
+	public static String getCurrentImageName() {
+		var entry = getProjectEntry();
+		if (entry != null && !entry.getImageName().isBlank())
+			return entry.getImageName();
+		var server = getCurrentServer();
+		if (server != null)
+			return server.getMetadata().getName();
+		return null;
+	}
+	
+	/**
 	 * Get the selected objects within the current {@code PathObjectHierarchy}.
 	 * <p>
 	 * Note: this implementation returns the selected objects directly.  The returned collection 
