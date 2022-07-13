@@ -68,6 +68,7 @@ import qupath.lib.objects.hierarchy.events.PathObjectSelectionListener;
  * Wraps a pane used to display an object description, if one is available.
  * 
  * @author Pete Bankhead
+ * @param <T> generic parameter for {@link ImageData}
  * @since v0.4.0
  */
 public class ObjectDescriptionPane<T> {
