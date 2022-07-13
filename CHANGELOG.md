@@ -27,6 +27,9 @@ This is a work-in-progress.
 * Improved gamma support
   * Adjust gamma with a slider in Brightness/Contrast window (no longer in preferences)
   * Apply gamma to mini/channel viewers
+* Improved OME-TIFF export
+  * Better performance when writing large & multi-channel images
+  * Optionally cast to a different pixel type, via `OMEPyramidWriter.Builder.pixelType(type)`
 * Completely rewritten 'View -> Show view tracker' command
 * Improved channel viewer
   * Show only the visible/most relevant channels by default, based on image type
@@ -60,7 +63,6 @@ This is a work-in-progress.
 * Avoid converting the pixel type to 32-bit unnecessarily when sending image regions to ImageJ
 * Warn if trying to train a pixel classifier with too many features (https://github.com/qupath/qupath/issues/947)
 * Directory choosers can now have titles (https://github.com/qupath/qupath/issues/940)
-* Improved performance writing large, multi-channel OME-TIFF images
 
 ### Bugs fixed
 * Reading from Bio-Formats blocks forever when using multiple series outside a project (https://github.com/qupath/qupath/issues/894)
