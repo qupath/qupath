@@ -315,6 +315,18 @@ public class RegionRequest extends ImageRegion {
 	}
 	
 	/**
+	 * Create a {@link RegionRequest} equivalent to this one with the x and y coordinates updated by translation.
+	 * @param dx value to add to the x coordinate
+	 * @param dy value to add to the y coordinate
+	 * @return {@link RegionRequest} with the specified path value (may be this object unchanged).
+	 */
+	public RegionRequest translate(int dx, int dy) {
+		if (dx == 0 && dy == 0)
+			return this;
+		return RegionRequest.createInstance(path, getDownsample(), getX()+dx, getY()+dy, getWidth(), getHeight(), getZ(), getT());
+	}
+	
+	/**
 	 * Add symmetric padding to the x and y dimensions of a request.
 	 * @param xPad padding to add along the x dimension; the width will be adjusted by {@code xPad * 2}
 	 * @param yPad padding to add along the y dimension; the height will be adjusted by {@code yPad * 2}

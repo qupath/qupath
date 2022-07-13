@@ -69,6 +69,7 @@ import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.ServerTools;
+import qupath.lib.images.servers.TileRequest;
 import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
 import qupath.lib.images.servers.ImageServers;
 import qupath.lib.regions.ImageRegion;
@@ -700,43 +701,35 @@ public class OMEPyramidWriter {
 					int zi = 0;
 					for (int z = zStart; z < zEnd; z += zInc) {
 						
-						// Create a list of all required requests, extracting the first
-						List<ImageRegion> regions = new ArrayList<>();
-						for (int yy = 0; yy < h; yy += tileHeight) {
-							int hh = Math.min(h - yy, tileHeight);
-							for (int xx = 0; xx < w; xx += tileWidth) {
-								int ww = Math.min(w - xx, tileWidth);
-								regions.add(ImageRegion.createInstance(xx, yy, ww, hh, z, t));
+						List<TileRequest> tiles = new ArrayList<>();
+						
+						// Use tiles directly if we aren't cropping and they exist as the requested resolution level
+						int levelTemp = ServerTools.getPreferredResolutionLevel(server, d);
+						if (d == server.getDownsampleForResolution(levelTemp) && 
+								x == 0 && y == 0 && this.width == server.getWidth() && this.height == server.getHeight() &&
+								tileWidth == server.getMetadata().getPreferredTileWidth() && tileHeight == server.getMetadata().getPreferredTileHeight()) {
+							logger.debug("Using tile requests directly for level {}", level);
+							server.getTileRequestManager()
+								.getTileRequestsForLevel(levelTemp)
+								.stream()
+								.forEachOrdered(tiles::add);
+						} else {
+							// Create new tile requests
+							for (int yy = 0; yy < h; yy += tileHeight) {
+								int hh = Math.min(h - yy, tileHeight);
+								for (int xx = 0; xx < w; xx += tileWidth) {
+									int ww = Math.min(w - xx, tileWidth);
+									var region = ImageRegion.createInstance(xx, yy, ww, hh, z, t);
+									tiles.add(TileRequest.createInstance(server.getPath(), level, d, region));
+								}
 							}
 						}
 						
-//						int levelTemp = ServerTools.getPreferredResolutionLevel(server, d);
-//						// Use tiles directly if we aren't cropping and they exist as the requested resolution level
-//						if (d == server.getDownsampleForResolution(levelTemp) && 
-//								x == 0 && y == 0 && this.width == server.getWidth() && this.height == server.getHeight() &&
-//								tileWidth == server.getMetadata().getPreferredTileWidth() && tileHeight == server.getMetadata().getPreferredTileHeight()) {
-//							logger.info("USING TILES DIRECTLY FOR REGIONS");
-//							server.getTileRequestManager()
-//								.getTileRequestsForLevel(levelTemp)
-//								.stream()
-//								.map(tile -> tile.getRegionRequest())
-//								.forEachOrdered(regions::add);
-//						} else {
-//							// Legacy code to generate regions, possibly involving cropping
-//							for (int yy = 0; yy < h; yy += tileHeight) {
-//								int hh = Math.min(h - yy, tileHeight);
-//								for (int xx = 0; xx < w; xx += tileWidth) {
-//									int ww = Math.min(w - xx, tileWidth);
-//									regions.add(ImageRegion.createInstance(xx, yy, ww, hh, z, t));
-//								}
-//							}
-//						}
-						
-						int total = regions.size() * (tEnd - tStart) * (zEnd - zStart);
+						int total = tiles.size() * (tEnd - tStart) * (zEnd - zStart);
 						if (z == zStart && t == tStart)
 							logger.info("Writing resolution {} of {} (downsample={}, {} tiles)", level+1, downsamples.length, d, total);
 
-						ImageRegion firstRegion = regions.remove(0);
+						TileRequest firstTile = tiles.remove(0);
 						
 						// Show progress at key moments
 						int inc = total > 1000 ? 20 : 10;
@@ -760,29 +753,29 @@ public class OMEPyramidWriter {
 							logger.info("Writing plane {}/{}", plane+1, nPlanes);
 								
 							// We *must* write the first region first
-							writeRegion(writer, plane, ifd, server, firstRegion, d, isRGB, localChannels);
-							if (!regions.isEmpty()) {
+							writeRegion(writer, plane, ifd, server, firstTile, isRGB, localChannels);
+							if (!tiles.isEmpty()) {
 								
 								// Reversing the regions means that for a large image we can still get some tiles from the cache
 								// Do this for channels and levels, since we sometimes need to request the same tiles when exporting 
 								// at a lower resolution
 								if (ci > 0 || level > 0) {
-									logger.trace("Reversing list if {} regions", regions.size());
-									Collections.reverse(regions);
+									logger.trace("Reversing list if {} regions", tiles.size());
+									Collections.reverse(tiles);
 								}
 								
 								var localWriter = writer;
-								var tasks = regions.stream().map(region -> new Runnable() {
+								var tasks = tiles.stream().map(tile -> new Runnable() {
 									@Override
 									public void run() {
 										try {
 											if (Thread.currentThread().isInterrupted())
 												return;
-											writeRegion(localWriter, plane, ifd, server, region, d, isRGB, localChannels);
+											writeRegion(localWriter, plane, ifd, server, tile, isRGB, localChannels);
 										} catch (Exception e) {
 											logger.error(String.format(
 													"Error writing %s (downsample=%.2f)",
-													region.toString(), d),
+													tile.toString(), d),
 													e);
 										} finally {
 											int localCount = count.incrementAndGet();
@@ -801,7 +794,7 @@ public class OMEPyramidWriter {
 									}
 									pool.shutdown();
 									try {
-										pool.awaitTermination(regions.size(), TimeUnit.MINUTES);
+										pool.awaitTermination(tiles.size(), TimeUnit.MINUTES);
 										logger.info("Plane written in {} ms", System.currentTimeMillis() - planeStartTime);
 									} catch (InterruptedException e) {
 										logger.warn("OME-TIFF export interrupted!");
@@ -828,28 +821,6 @@ public class OMEPyramidWriter {
 			if (writer instanceof FormatWriter)
 				logger.trace("Plane count: {}", ((TiffWriter)writer).getPlaneCount());
 			logger.trace("Resolution count: {}", writer.getResolutionCount());
-		}
-	
-		
-		/**
-		 * Convert a region in the export coordinate space for a specific plane 
-		 * into a RegionRequest for the original ImageServer.
-		 * 
-		 * @param region
-		 * @param downsample 
-		 * @return
-		 */
-		RegionRequest downsampledRegionToRequest(String path, ImageRegion region, double downsample) {
-//			if (region instanceof RegionRequest && ((RegionRequest) region).getDownsample() == downsample)
-//				return ((RegionRequest)region).updatePath(path);
-			return RegionRequest.createInstance(
-					path, downsample, 
-					(int)(region.getX() * downsample) + x, 
-					(int)(region.getY() * downsample) + y, 
-					(int)(region.getWidth() * downsample), 
-					(int)(region.getHeight() * downsample),
-					region.getZ(),
-					region.getT());
 		}
 		
 		/**
@@ -880,27 +851,27 @@ public class OMEPyramidWriter {
 		 * @param plane
 		 * @param ifd
 		 * @param server the image to export
-		 * @param region
-		 * @param downsample
+		 * @param tile the tile to export; this incorporates the export coordinates and the full resolution coordinates (via the associated {@link RegionRequest})
 		 * @param isRGB export as RGB; this assumes both the input and export images are RGB (i.e. no extra conversions, channel reordering etc.)
 		 * @param channels
 		 * @throws FormatException
 		 * @throws IOException
 		 */
-		private void writeRegion(IFormatWriter writer, int plane, IFD ifd, ImageServer<BufferedImage> server, ImageRegion region, double downsample, boolean isRGB, int[] channels) throws FormatException, IOException {
+		private void writeRegion(IFormatWriter writer, int plane, IFD ifd, ImageServer<BufferedImage> server, TileRequest tile, boolean isRGB, int[] channels) throws FormatException, IOException {
 			
-			RegionRequest request = downsampledRegionToRequest(server.getPath(), region, downsample);
+			// Get the region request - and make sure to translate it to the origin
+			RegionRequest request = tile.getRegionRequest().translate(this.x, this.y);
 			BufferedImage img = server.readBufferedImage(request);
 			
 			var pixelType = getExportPixelType();
 			int bytesPerPixel = pixelType.getBytesPerPixel();
 			int nChannels = channels.length;
 			if (img == null) {
-				byte[] zeros = new byte[region.getWidth() * region.getHeight() * bytesPerPixel * nChannels];
+				byte[] zeros = new byte[tile.getTileWidth() * tile.getTileHeight() * bytesPerPixel * nChannels];
 				if (writer instanceof TiffWriter)
-					((TiffWriter)writer).saveBytes(plane, zeros, ifd, region.getX(), region.getY(), region.getWidth(), region.getHeight());
+					((TiffWriter)writer).saveBytes(plane, zeros, ifd, tile.getTileX(), tile.getTileY(), tile.getTileWidth(), tile.getTileHeight());
 				else
-					writer.saveBytes(plane, zeros, region.getX(), region.getY(), region.getWidth(), region.getHeight());
+					writer.saveBytes(plane, zeros, tile.getTileX(), tile.getTileY(), tile.getTileWidth(), tile.getTileHeight());
 				return;
 			}
 			
@@ -927,9 +898,9 @@ public class OMEPyramidWriter {
 				}
 			}
 			if (writer instanceof TiffWriter)
-				((TiffWriter)writer).saveBytes(plane, buf.array(), ifd, region.getX(), region.getY(), ww, hh);
+				((TiffWriter)writer).saveBytes(plane, buf.array(), ifd, tile.getTileX(), tile.getTileY(), ww, hh);
 			else
-				writer.saveBytes(plane, buf.array(), region.getX(), region.getY(), ww, hh);
+				writer.saveBytes(plane, buf.array(), tile.getTileX(), tile.getTileY(), ww, hh);
 		}
 		
 		/**
