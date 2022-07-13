@@ -92,20 +92,47 @@ public class TileRequest {
 	}
 	
 	/**
-	 * Create a new tile request for a specified region and resolution level.
+	 * Create a new tile request for a specified region and resolution level of an image.
+	 * <p>
+	 * Most of the time this should not be needed: use {@link ImageServer#getTileRequestManager()} instead 
+	 * to get the tiles that are actually available for an image.
+	 * 
 	 * @param server
 	 * @param level
 	 * @param tileRegion
 	 * @return
+	 * @see #createInstance(ImageServer, int, ImageRegion)
 	 */
-	private static TileRequest createInstance(ImageServer<?> server, int level, ImageRegion tileRegion) {
-		double downsample = server.getDownsampleForResolution(level);
+	public static TileRequest createInstance(ImageServer<?> server, int level, ImageRegion tileRegion) {
+		return createInstance(server.getPath(), level, server.getDownsampleForResolution(level), tileRegion);
+	}
+	
+	
+	/**
+	 * Create a new tile request for a specified region, downsample and resolution level.
+	 * <p>
+	 * Most of the time this should not be needed: use {@link ImageServer#getTileRequestManager()} instead.
+	 * <p>
+	 * In cases where a new {@link TileRequest} is necessary, it is better to use {@link #createInstance(ImageServer, int, ImageRegion)}
+	 * where possible.
+	 * The current method exists for cases where a {@link TileRequest} is a useful data structure but it isn't 
+	 * associated with a specific image.
+	 * 
+	 * @param path
+	 * @param level
+	 * @param downsample
+	 * @param tileRegion
+	 * @return
+	 * @see #createInstance(ImageServer, int, ImageRegion)
+	 */
+	public static TileRequest createInstance(String path, int level, double downsample, ImageRegion tileRegion) {
 		return new TileRequest(
-				getRegionRequest(server.getPath(), downsample, tileRegion),
+				getRegionRequest(path, downsample, tileRegion),
 				level,
 				tileRegion
 				);
 	}
+	
 
 	private static RegionRequest getRegionRequest(String path, double downsample, ImageRegion tileRegion) {
 		double x1 = tileRegion.getX() * downsample;
