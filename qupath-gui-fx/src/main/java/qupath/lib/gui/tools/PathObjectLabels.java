@@ -85,6 +85,7 @@ public class PathObjectLabels {
 	
 	/**
 	 * Create a {@link ListCell} for displaying a {@link PathObject} using a custom method to create a string representation of the object.
+	 * @param stringExtractor 
 	 * @return
 	 */
 	public static ListCell<PathObject> createListCell(Function<PathObject, String> stringExtractor) {
@@ -101,6 +102,7 @@ public class PathObjectLabels {
 	
 	/**
 	 * Create a {@link TreeCell} for displaying a {@link PathObject} using a custom method to create a string representation of the object.
+	 * @param stringExtractor 
 	 * @return
 	 */
 	public static TreeCell<PathObject> createTreeCell(Function<PathObject, String> stringExtractor) {
