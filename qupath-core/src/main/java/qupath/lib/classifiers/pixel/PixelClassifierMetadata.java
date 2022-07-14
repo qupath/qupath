@@ -29,12 +29,12 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import qupath.lib.classifiers.PathClassifierTools;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.images.servers.PixelType;
+import qupath.lib.images.servers.ServerTools;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
 
@@ -131,7 +131,7 @@ public class PixelClassifierMetadata {
      */
     public synchronized List<ImageChannel> getOutputChannels() {
     	if ((outputChannels == null || outputChannels.isEmpty()) && classificationLabels != null) {
-    		outputChannels = PathClassifierTools.classificationLabelsToChannels(classificationLabels, true);
+    		outputChannels = ServerTools.classificationLabelsToChannels(classificationLabels, true);
     	}
     	return outputChannels == null ? Collections.emptyList() : Collections.unmodifiableList(outputChannels);
     }

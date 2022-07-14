@@ -224,8 +224,8 @@ public class PathIO {
 	
 	
 	/**
-	 * Create a new {@link ObjectInputStream}, setting the default {@link ObjectInputFilter} for QuPath-related 
-	 * and core Java classes only.
+	 * Create a new {@link ObjectInputStream}, setting the default {@link ObjectInputFilter} for core QuPath-related 
+	 * and Java classes only.
 	 * @param stream
 	 * @return
 	 * @throws IOException
@@ -1048,9 +1048,8 @@ public class PathIO {
 
 			// Accept from QuPath lib packages
 			// TODO: Perform stricter check (and/or update for modularization)
-			// Can increase to qupath.lib after PathObjectClassifier deprecated
 			String packageName = serialClass.getPackageName();
-			if (packageName != null && packageName.startsWith("qupath."))
+			if (packageName != null && packageName.startsWith("qupath.lib"))
 				return true;
 		}
 		System.err.println(serialClass);

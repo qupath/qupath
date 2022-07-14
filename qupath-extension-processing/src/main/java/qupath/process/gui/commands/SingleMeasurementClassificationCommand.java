@@ -56,7 +56,6 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.paint.Color;
 import javafx.stage.Modality;
 import qupath.lib.analysis.stats.Histogram;
-import qupath.lib.classifiers.PathClassifierTools;
 import qupath.lib.classifiers.object.ObjectClassifier;
 import qupath.lib.classifiers.object.ObjectClassifiers.ClassifyByMeasurementBuilder;
 import qupath.lib.common.ColorTools;
@@ -72,6 +71,7 @@ import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectFilter;
+import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.process.gui.commands.ml.ProjectClassifierBindings;
@@ -305,7 +305,7 @@ public class SingleMeasurementClassificationCommand implements Runnable {
 			var pathObjects = hierarchy.getFlattenedObjectList(null);
 			mapPrevious.put(
 					hierarchy,
-					PathClassifierTools.createClassificationMap(pathObjects)
+					PathObjectTools.createClassificationMap(pathObjects)
 					);
 		}
 		
@@ -472,7 +472,7 @@ public class SingleMeasurementClassificationCommand implements Runnable {
 		
 		void resetClassifications(PathObjectHierarchy hierarchy, Map<PathObject, PathClass> mapPrevious) {
 			// Restore classifications if the user cancelled
-			var changed = PathClassifierTools.restoreClassificationsFromMap(mapPrevious);
+			var changed = PathObjectTools.restoreClassificationsFromMap(mapPrevious);
 			if (hierarchy != null && !changed.isEmpty())
 				hierarchy.fireObjectClassificationsChangedEvent(this, changed);
 		}
@@ -502,7 +502,7 @@ public class SingleMeasurementClassificationCommand implements Runnable {
 		 * Update measurements according to current image and filter.
 		 */
 		void updateAvailableMeasurements() {
-			var measurements = PathClassifierTools.getAvailableFeatures(getCurrentObjects());
+			var measurements = PathObjectTools.getAvailableFeatures(getCurrentObjects());
 			this.measurements.setAll(measurements);
 		}
 		

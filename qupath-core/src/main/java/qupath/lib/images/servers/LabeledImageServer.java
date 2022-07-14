@@ -49,7 +49,6 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.lib.classifiers.PathClassifierTools;
 import qupath.lib.color.ColorMaps;
 import qupath.lib.color.ColorModelFactory;
 import qupath.lib.color.ColorToolsAwt;
@@ -186,7 +185,7 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 			if (minLabel != 0 || nLabels != classificationLabels.size()) {
 				throw new IllegalArgumentException("Labels for multichannel output must be consecutive integers starting from 0! Requested labels " + classificationLabels.keySet());
 			}
-			var channels = PathClassifierTools.classificationLabelsToChannels(classificationLabels, false);
+			var channels = ServerTools.classificationLabelsToChannels(classificationLabels, false);
 			// It's a bit sad... but if we want grayscale output, we need to set the channels here
 			if (params.grayscaleLut)
 				channels = channels.stream().map(c -> ImageChannel.getInstance(c.getName(), ColorTools.WHITE)).collect(Collectors.toList());

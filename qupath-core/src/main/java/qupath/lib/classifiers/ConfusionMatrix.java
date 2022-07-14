@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.process.gui.ml.legacy;
+package qupath.lib.classifiers;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -29,12 +29,14 @@ import java.util.List;
 import java.util.function.Function;
 
 /**
- * Helper class for creating a confusion matrix.
+ * Legacy class for creating a confusion matrix.
+ * <p>
+ * Not currently used, but retained for now in case it comes in useful later.
  * 
  * @author Pete Bankhead
  * @param <T> 
  *
- * @deprecated This class is scheduled for removal in the next QuPath release (unless it finds a new use).
+ * @deprecated This class is scheduled for removal in a future QuPath release (unless it finds a new use).
  */
 @Deprecated
 class ConfusionMatrix<T> {

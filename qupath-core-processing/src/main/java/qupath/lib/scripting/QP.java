@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -71,8 +71,6 @@ import qupath.lib.analysis.heatmaps.DensityMaps;
 import qupath.lib.analysis.heatmaps.DensityMaps.DensityMapBuilder;
 import qupath.lib.analysis.images.ContourTracing;
 import qupath.lib.awt.common.BufferedImageTools;
-import qupath.lib.classifiers.PathClassifierTools;
-import qupath.lib.classifiers.PathObjectClassifier;
 import qupath.lib.classifiers.object.ObjectClassifier;
 import qupath.lib.classifiers.object.ObjectClassifiers;
 import qupath.lib.classifiers.pixel.PixelClassifier;
@@ -115,7 +113,6 @@ import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.TMAGrid;
 import qupath.lib.plugins.CommandLinePluginRunner;
 import qupath.lib.plugins.PathPlugin;
-import qupath.lib.plugins.workflow.RunSavedClassifierWorkflowStep;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectIO;
 import qupath.lib.projects.ProjectImageEntry;
@@ -261,7 +258,6 @@ public class QP {
 			RoiTools.class,
 			GsonTools.class,
 			BufferedImageTools.class,
-			PathClassifierTools.class,
 			ColorTools.class,
 			GeneralTools.class,
 			DistanceTools.class,
@@ -1425,55 +1421,6 @@ public class QP {
 	}
 	
 	
-	/**
-	 * Run an detection object classifier for the specified image data
-	 * @param imageData
-	 * @param classifier
-	 * @deprecated this refers to old-style (&leq; v.1.2) object classifiers, which have been replaced by {@link ObjectClassifier}.
-	 *             See instead {@link #runObjectClassifier(ImageData, String...)}.
-	 */
-	@Deprecated
-	public static void runClassifier(final ImageData<?> imageData, final PathObjectClassifier classifier) {
-		if (imageData != null)
-			runClassifier(imageData.getHierarchy(), classifier);
-	}
-	
-	/**
-	 * Run a detection object classifier for the specified image hierarchy
-	 * @param hierarchy
-	 * @param classifier
-	 * @deprecated this refers to old-style (&leq; v.1.2) object classifiers, which have been replaced by {@link ObjectClassifier}.
-	 *             See instead {@link #runObjectClassifier(ImageData, String...)}.
-	 */
-	@Deprecated
-	public static void runClassifier(final PathObjectHierarchy hierarchy, final PathObjectClassifier classifier) {
-		logger.warn("runClassifier() is a legacy command for 'old' detection classifiers in QuPath v0.1.2 and earlier, and may be removed in a future version");
-		PathClassifierTools.runClassifier(hierarchy, classifier);
-	}
-	
-	/**
-	 * Run a detection object classifier for the current image data, reading the classifier from a specified path
-	 * @param path
-	 * @deprecated this refers to old-style (&leq; v.1.2) object classifiers, which have been replaced by {@link ObjectClassifier}.
-	 *             See instead {@link #runObjectClassifier(String...)}.
-	 */
-	@Deprecated
-	public static void runClassifier(final String path) {
-		ImageData<?> imageData = getCurrentImageData();
-		if (imageData == null)
-			return;
-		PathObjectClassifier classifier = PathClassifierTools.loadClassifier(new File(path));
-		if (classifier == null) {
-			logger.error("Could not load classifier from {}", path);
-			return;
-		}
-		runClassifier(imageData, classifier);
-		
-		// Log the step
-		imageData.getHistoryWorkflow().addStep(new RunSavedClassifierWorkflowStep(path));
-	}
-	
-	
 //	public static void classifyDetection(final Predicate<PathObject> p, final String className) {
 //		PathObjectHierarchy hierarchy = getCurrentHierarchy();
 //		if (hierarchy == null)
@@ -2539,7 +2486,7 @@ public class QP {
 	 * @param thresholds either 1 or 3 thresholds, depending upon whether objects should be classified as Positive/Negative or Negative/1+/2+/3+
 	 */
 	public static void setIntensityClassifications(final Collection<? extends PathObject> pathObjects, final String measurementName, final double... thresholds) {
-		PathClassifierTools.setIntensityClassifications(pathObjects, measurementName, thresholds);
+		PathObjectTools.setIntensityClassifications(pathObjects, measurementName, thresholds);
 	}
 	
 	/**

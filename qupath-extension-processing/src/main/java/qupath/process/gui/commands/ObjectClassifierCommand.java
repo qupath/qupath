@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -100,7 +100,6 @@ import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import javafx.stage.Stage;
 import qupath.lib.classifiers.Normalization;
-import qupath.lib.classifiers.PathClassifierTools;
 import qupath.lib.classifiers.object.ObjectClassifier;
 import qupath.lib.classifiers.object.ObjectClassifiers;
 import qupath.lib.common.GeneralTools;
@@ -640,7 +639,7 @@ public class ObjectClassifierCommand implements Runnable {
 					.stream()
 					.filter(filter)
 					.collect(Collectors.toList());
-			return PathClassifierTools.getAvailableFeatures(detections);
+			return PathObjectTools.getAvailableFeatures(detections);
 		}
 		
 

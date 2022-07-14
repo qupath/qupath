@@ -45,7 +45,6 @@ import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
 import javafx.scene.paint.Color;
 import qupath.lib.analysis.stats.Histogram;
-import qupath.lib.classifiers.PathClassifierTools;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.ThreadTools;
 import qupath.lib.gui.QuPathGUI;
@@ -54,6 +53,7 @@ import qupath.lib.gui.charts.HistogramPanelFX.ThresholdedChartWrapper;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PaneTools;
+import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
 import qupath.lib.plugins.workflow.WorkflowStep;
@@ -101,13 +101,13 @@ public class CellIntensityClassificationCommand implements Runnable {
 			Dialogs.showErrorMessage(title, "No cells found in the current image!");
 			return;
 		}
-		var measurements = PathClassifierTools.getAvailableFeatures(detections);
+		var measurements = PathObjectTools.getAvailableFeatures(detections);
 		if (measurements.isEmpty()) {
 			Dialogs.showErrorMessage(title, "No cell measurements found in the current image!");
 			return;
 		}
 
-		var currentClassifications = PathClassifierTools.createClassificationMap(detections);
+		var currentClassifications = PathObjectTools.createClassificationMap(detections);
 		
 		var comboMeasurements = new ComboBox<String>();
 		comboMeasurements.getItems().setAll(measurements);
@@ -233,7 +233,7 @@ public class CellIntensityClassificationCommand implements Runnable {
 			imageData.getHistoryWorkflow().addStep(nextRequest.toWorkflowStep());
 		} else {
 			// Restore classifications if the user cancelled
-			var changed = PathClassifierTools.restoreClassificationsFromMap(currentClassifications);
+			var changed = PathObjectTools.restoreClassificationsFromMap(currentClassifications);
 			if (!changed.isEmpty())
 				hierarchy.fireObjectClassificationsChangedEvent(this, changed);
 		}

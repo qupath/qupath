@@ -1480,5 +1480,143 @@ public class PathObjectTools {
 		if (hierarchy != null && !changed.isEmpty())
 			hierarchy.fireObjectsChangedEvent(PathObjectTools.class, changed);
 	}
+
+	/**
+	 * Get a set containing the names of all measurements found in the measurement lists of a specified object collection.
+	 * 
+	 * @param pathObjects
+	 * @return
+	 */
+	public static Set<String> getAvailableFeatures(final Collection<? extends PathObject> pathObjects) {
+		Set<String> featureSet = new LinkedHashSet<>();
+		// This has a small optimization that takes into consideration the fact that many objects share references to exactly the same MeasurementLists -
+		// so by checking the last list that was added, there is no need to bother the set to add the same thing again.
+		List<String> lastNames = null;
+		for (PathObject pathObject : pathObjects) {
+			if (!pathObject.hasMeasurements())
+				continue;
+			List<String> list = pathObject.getMeasurementList().getMeasurementNames();
+			if (lastNames != list)
+				featureSet.addAll(list);
+			lastNames = list;
+		}
+		return featureSet;
+	}
+
+	/**
+	 * Create a mapping between {@linkplain PathObject PathObjects} and their current {@linkplain PathClass PathClasses}.
+	 * This can be useful to preserve a classification so that it may be reset later.
+	 * <p>
+	 * Note: classification probabilities are not retained using this approach.
+	 * @param pathObjects the objects containing classifications
+	 * @return a mapping between objects and their current classifications
+	 * @see PathObjectTools#restoreClassificationsFromMap(Map)
+	 */
+	public static Map<PathObject, PathClass> createClassificationMap(Collection<? extends PathObject> pathObjects) {
+		Map<PathObject, PathClass> mapPrevious = new HashMap<>();
+		for (var pathObject : pathObjects) {
+			mapPrevious.put(pathObject, pathObject.getPathClass());
+		}
+		return mapPrevious;
+	}
+
+	/**
+	 * Reassign classifications to objects, as were previously obtained using {@link #createClassificationMap(Collection)}.
+	 * 
+	 * @param classificationMap the map containing objects and the classifications that should be applied
+	 * @return a collection containing all objects with classifications that were changed. This can be used to fire update events.
+	 * @see #createClassificationMap(Collection)
+	 */
+	public static Collection<PathObject> restoreClassificationsFromMap(Map<PathObject, PathClass> classificationMap) {
+		var changed = new ArrayList<PathObject>();
+		for (var entry : classificationMap.entrySet()) {
+			var pathObject = entry.getKey();
+			var pathClass = entry.getValue();
+			if (pathClass == PathClassFactory.getPathClassUnclassified())
+				pathClass = null;
+			if (!Objects.equals(pathObject.getPathClass(), pathClass)) {
+				pathObject.setPathClass(pathClass);
+				changed.add(pathObject);
+			}
+		}
+		return changed;
+	}
+
+	/**
+	 * Get a set of the represented path classes, i.e. those with at least 1 manually-labelled object.
+	 * @param hierarchy 
+	 * @param cls 
+	 * 
+	 * @return
+	 */
+	public static Set<PathClass> getRepresentedPathClasses(final PathObjectHierarchy hierarchy, final Class<? extends PathObject> cls) {
+		Set<PathClass> pathClassSet = new LinkedHashSet<>();
+		for (PathObject pathObject : hierarchy.getObjects(null, cls)) {
+			if (pathObject.getPathClass() != null)
+				pathClassSet.add(pathObject.getPathClass());
+		}
+		return pathClassSet;
+	}
+
+	/**
+	 * Assign cell classifications as positive or negative based upon a specified measurement, using up to 3 intensity bins.
+	 * 
+	 * An IllegalArgumentException is thrown if &lt; 1 or &gt; 3 intensity thresholds are provided.<p>
+	 * If the object does not have the required measurement, its {@link PathClass} will be set to its 
+	 * first 'non-intensity' ancestor {@link PathClass}.
+	 * <p>
+	 * Note that as of v0.3.0, all ignored classes (see {@link PathClassTools#isIgnoredClass(PathClass)} are ignored and therefore 
+	 * will not be 'intensity classified'.
+	 * 
+	 * @param pathObject 		the object to classify.
+	 * @param measurementName 	the name of the measurement to use for thresholding.
+	 * @param thresholds 		between 1 and 3 intensity thresholds, used to indicate negative/positive, or negative/1+/2+/3+
+	 * @return 					the PathClass of the object after running this method.
+	 */
+	public static PathClass setIntensityClassification(final PathObject pathObject, final String measurementName, final double... thresholds) {
+		if (thresholds.length == 0 || thresholds.length > 3)
+			throw new IllegalArgumentException("Between 1 and 3 intensity thresholds required!");
+		
+		// Can't perform any classification if measurement is null or blank
+		if (measurementName == null || measurementName.isEmpty())
+			throw new IllegalArgumentException("Measurement name cannot be empty or null!");
+		
+		PathClass baseClass = PathClassTools.getNonIntensityAncestorClass(pathObject.getPathClass());
+		
+		// Don't do anything with the 'ignore' class
+		if (!PathClassTools.isNullClass(baseClass) && PathClassTools.isIgnoredClass(baseClass))
+			return pathObject.getPathClass();
+		
+		double intensityValue = pathObject.getMeasurementList().getMeasurementValue(measurementName);
+		
+		boolean singleThreshold = thresholds.length == 1;
+	
+		if (Double.isNaN(intensityValue))	// If the measurement is missing, reset to base class
+			pathObject.setPathClass(baseClass);
+		else if (intensityValue < thresholds[0])
+			pathObject.setPathClass(PathClassFactory.getNegative(baseClass));
+		else {
+			if (singleThreshold)
+				pathObject.setPathClass(PathClassFactory.getPositive(baseClass));
+			else if (thresholds.length >= 3 && intensityValue >= thresholds[2])
+				pathObject.setPathClass(PathClassFactory.getThreePlus(baseClass));				
+			else if (thresholds.length >= 2 && intensityValue >= thresholds[1])
+				pathObject.setPathClass(PathClassFactory.getTwoPlus(baseClass));				
+			else if (intensityValue >= thresholds[0])
+				pathObject.setPathClass(PathClassFactory.getOnePlus(baseClass));				
+		}
+		return pathObject.getPathClass();
+	}
+
+	/**
+	 * Set the intensity classifications for the specified objects.
+	 * 
+	 * @param pathObjects
+	 * @param measurementName measurement to threshold
+	 * @param thresholds either 1 or 3 thresholds, depending upon whether objects should be classified as Positive/Negative or Negative/1+/2+/3+
+	 */
+	public static void setIntensityClassifications(final Collection<? extends PathObject> pathObjects, final String measurementName, final double... thresholds) {
+		pathObjects.stream().forEach(p -> setIntensityClassification(p, measurementName, thresholds));
+	}
 	
 }

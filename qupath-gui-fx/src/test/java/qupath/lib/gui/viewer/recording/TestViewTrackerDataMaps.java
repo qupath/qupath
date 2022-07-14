@@ -1,12 +1,8 @@
 package qupath.lib.gui.viewer.recording;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.fail;
-
 import java.awt.Dimension;
 import java.awt.Rectangle;
 import java.awt.image.DataBufferDouble;
-import java.lang.reflect.Method;
 import java.util.function.BiFunction;
 
 import org.junit.jupiter.api.BeforeAll;
@@ -14,8 +10,6 @@ import org.junit.jupiter.api.Test;
 
 import qupath.lib.color.ColorMaps;
 import qupath.lib.color.ColorMaps.ColorMap;
-import qupath.lib.gui.viewer.recording.ViewTrackerDataMaps.Feature;
-import qupath.lib.regions.ImageRegion;
 
 // TODO: Check magnification
 @SuppressWarnings("javadoc")
