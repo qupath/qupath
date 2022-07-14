@@ -33,6 +33,9 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.ObjectInputFilter;
+import java.io.ObjectInputFilter.FilterInfo;
+import java.io.ObjectInputFilter.Status;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
@@ -91,7 +94,7 @@ import qupath.lib.roi.GeometryTools;
  */
 public class PathIO {
 	
-	final private static Logger logger = LoggerFactory.getLogger(PathIO.class);
+	private final static Logger logger = LoggerFactory.getLogger(PathIO.class);
 	
 	/**
 	 * Data file version identifier, written within the .qpdata file.
@@ -101,6 +104,21 @@ public class PathIO {
 	 * Version 4 stores PathObject UUIDs as a separate field
 	 */
 	private final static int DATA_FILE_VERSION = 3;
+	
+	/**
+	 * Input filter for deserialization that is limited to QuPath-related classes.
+	 */
+	private final static ObjectInputFilter QUPATH_INPUT_FILTER = PathIO::qupathInputFilter;
+	// Less restrictive ObjectInputFilter
+//	private final static ObjectInputFilter CLASS_LOADER_INPUT_FILTER = PathIO::classLoaderInputFilter;
+	
+//	static {
+//		/**
+//		 * TODO: Consider setting global filter.
+//		 * However note that this then impacts scripts and extensions, so could become restrictive.
+//		 */
+//		ObjectInputFilter.Config.setSerialFilter(OBJECT_INPUT_FILTER);
+//	}
 	
 	private PathIO() {}
 	
@@ -166,7 +184,8 @@ public class PathIO {
 	public static String readSerializedServerPath(final File file) throws FileNotFoundException, IOException, ClassNotFoundException {
 		String serverPath = null;
 		try (FileInputStream fileIn = new FileInputStream(file)) {
-			ObjectInputStream inStream = new ObjectInputStream(new BufferedInputStream(fileIn));
+			ObjectInputStream inStream = createObjectInputStream(new BufferedInputStream(fileIn));
+			
 			// Check the first line, then read the server path if it is valid
 			String firstLine = inStream.readUTF();
 			if (firstLine.startsWith("Data file version")) {
@@ -187,7 +206,8 @@ public class PathIO {
 	 */
 	public static <T> ServerBuilder<T> extractServerBuilder(Path file) throws IOException {
 		try (InputStream fileIn = Files.newInputStream(file)) {
-			ObjectInputStream inStream = new ObjectInputStream(new BufferedInputStream(fileIn));
+			ObjectInputStream inStream = createObjectInputStream(new BufferedInputStream(fileIn));
+			
 			// Check the first line, then read the server path if it is valid
 			String firstLine = inStream.readUTF();
 			if (firstLine.startsWith("Data file version")) {
@@ -200,6 +220,20 @@ public class PathIO {
 		} catch (IOException e) {
 			throw e;
 		}
+	}
+	
+	
+	/**
+	 * Create a new {@link ObjectInputStream}, setting the default {@link ObjectInputFilter} for QuPath-related 
+	 * and core Java classes only.
+	 * @param stream
+	 * @return
+	 * @throws IOException
+	 */
+	public final static ObjectInputStream createObjectInputStream(InputStream stream) throws IOException {
+		ObjectInputStream inStream = new ObjectInputStream(stream);
+		inStream.setObjectInputFilter(QUPATH_INPUT_FILTER);
+		return inStream;
 	}
 	
 	
@@ -281,7 +315,8 @@ public class PathIO {
 		Locale locale = Locale.getDefault(Category.FORMAT);
 		boolean localeChanged = false;
 
-		try (ObjectInputStream inStream = new ObjectInputStream(new BufferedInputStream(stream))) {
+		try (ObjectInputStream inStream = createObjectInputStream(new BufferedInputStream(stream))) {
+			
 			ServerBuilder<T> serverBuilder = null;
 			PathObjectHierarchy hierarchy = null;
 			ImageData.ImageType imageType = null;
@@ -589,7 +624,7 @@ public class PathIO {
 			// Write any remaining (serializable) properties
 			Map<String, Object> map = new HashMap<>();
 			for (Entry<String, Object> entry : imageData.getProperties().entrySet()) {
-				if (entry.getValue() instanceof Serializable)
+				if (serializableObject(entry.getValue()))
 					map.put(entry.getKey(), entry.getValue());
 				else
 					logger.warn("Property not serializable and will not be saved!  Key: " + entry.getKey() + ", Value: " + entry.getValue());
@@ -647,7 +682,8 @@ public class PathIO {
 		Locale locale = Locale.getDefault(Category.FORMAT);
 		boolean localeChanged = false;
 
-		try (ObjectInputStream inStream = new ObjectInputStream(new BufferedInputStream(fileIn))) {
+		try (ObjectInputStream inStream = createObjectInputStream(new BufferedInputStream(fileIn))) {
+			
 			if (!inStream.readUTF().startsWith("Data file version")) {
 				logger.error("Input stream is not from a valid QuPath data file!");
 			}
@@ -985,34 +1021,61 @@ public class PathIO {
 			return Collections.singleton(ext);
 		}
 	}
-			
 	
-//	private static boolean serializePathObject(File file, PathObject pathObject) {
-//		boolean success = false;
-//		if (file == null)
-//			return false;
-//		BufferedOutputStream outputStream = null;
-//		try {
-//			logger.info("Writing {}", pathObject);
-//			FileOutputStream fileOutMain = new FileOutputStream(file);
-//			outputStream = new BufferedOutputStream(fileOutMain);
-//			ObjectOutputStream outStream = new ObjectOutputStream(outputStream);
-//			outStream.writeObject(pathObject);
-//			outStream.close();
-//			success = true;
-//		} catch (IOException e) {
-//			e.printStackTrace();
-//		} finally {
-//			if (outputStream != null)
-//				try {
-//					outputStream.close();
-//				} catch (IOException e) {
-//					// TODO Auto-generated catch block
-//					e.printStackTrace();
-//				}
-//		}
-//		return success;
-//	}
+	private final static boolean serializableObject(Object obj) {
+		return obj == null ? true : checkQuPathSerializableClass(obj.getClass());
+	}
+	
+	/**
+	 * Check if a class is part of java.base or qupath.lib.
+	 * @param serialClass
+	 * @return
+	 */
+	private final static boolean checkQuPathSerializableClass(Class<?> serialClass) {
+		if (serialClass == null)
+			return true;
+		
+		if (!(serialClass instanceof Serializable))
+			return false;
+		
+		// Require 
+		if (checkClassLoader(serialClass)) {
+		
+			// Accept from java.base module
+			var module = serialClass.getModule();
+			if (module != null && Objects.equals(module.getName(), "java.base"))
+				return true;
+
+			// Accept from QuPath lib packages
+			// TODO: Perform stricter check (and/or update for modularization)
+			// Can increase to qupath.lib after PathObjectClassifier deprecated
+			String packageName = serialClass.getPackageName();
+			if (packageName != null && packageName.startsWith("qupath."))
+				return true;
+		}
+		System.err.println(serialClass);
+		return false;
+	}
+	
+	/**
+	 * Check if a class was loaded by the bootstrap, platform or system classloader.
+	 * @param serialClass
+	 * @return
+	 */
+	private final static boolean checkClassLoader(Class<?> serialClass) {
+		if (serialClass == null)
+			return true;
+		var classloader = serialClass.getClassLoader();
+		return classloader == null || classloader == ClassLoader.getPlatformClassLoader() || classloader == ClassLoader.getSystemClassLoader();
+	}
+	
+	private final static Status classLoaderInputFilter(FilterInfo filterInfo) {
+		return checkClassLoader(filterInfo.serialClass()) ? Status.ALLOWED : Status.REJECTED;
+	}
+	
+	private final static Status qupathInputFilter(FilterInfo filterInfo) {
+		return checkQuPathSerializableClass(filterInfo.serialClass()) ? Status.ALLOWED : Status.REJECTED;
+	}
 	
 	
 }

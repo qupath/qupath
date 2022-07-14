@@ -21,12 +21,7 @@
 
 package qupath.lib.projects;
 
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.io.Serializable;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -293,32 +288,34 @@ public class ResourceManager {
 	}
 
 
-	static class SerializableFileResourceManager<T extends Serializable> extends FileResourceManager<T> {
-
-		private Class<T> cls;
-		
-		SerializableFileResourceManager(Path dir, Class<T> cls) {
-			super(dir, ".serialized");
-			this.cls = cls;
-		}
-
-		@Override
-		protected T readFromFile(Path path) throws IOException {
-			try (var stream = Files.newInputStream(path)) {
-				return cls.cast(new ObjectInputStream(new BufferedInputStream(stream)).readObject());
-			} catch (ClassNotFoundException e) {
-				throw new IOException(e);
-			}
-		}
-
-		@Override
-		protected void writeToFile(Path path, T resource) throws IOException {
-			try (var stream = Files.newOutputStream(path)) {
-				new ObjectOutputStream(new BufferedOutputStream(stream)).writeObject(resource);
-			}
-		}
-		
-	}
+	// Removed v0.4.0 because unused... and don't really want to encourage further use of serialization
+	// May be reinstated if it has a proper use.
+//	static class SerializableFileResourceManager<T extends Serializable> extends FileResourceManager<T> {
+//
+//		private Class<T> cls;
+//		
+//		SerializableFileResourceManager(Path dir, Class<T> cls) {
+//			super(dir, ".serialized");
+//			this.cls = cls;
+//		}
+//
+//		@Override
+//		protected T readFromFile(Path path) throws IOException {
+//			try (var stream = Files.newInputStream(path)) {
+//				return cls.cast(new ObjectInputStream(new BufferedInputStream(stream)).readObject());
+//			} catch (ClassNotFoundException e) {
+//				throw new IOException(e);
+//			}
+//		}
+//
+//		@Override
+//		protected void writeToFile(Path path, T resource) throws IOException {
+//			try (var stream = Files.newOutputStream(path)) {
+//				new ObjectOutputStream(new BufferedOutputStream(stream)).writeObject(resource);
+//			}
+//		}
+//		
+//	}
 
 
 	static class JsonFileResourceManager<T> extends FileResourceManager<T> {

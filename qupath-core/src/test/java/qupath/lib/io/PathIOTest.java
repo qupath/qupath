@@ -24,17 +24,34 @@
 package qupath.lib.io;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InvalidClassException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 import org.junit.jupiter.api.Test;
+
+import qupath.lib.images.ImageData;
+import qupath.lib.objects.PathObjects;
+import qupath.lib.objects.classes.PathClassFactory;
+import qupath.lib.objects.hierarchy.PathObjectHierarchy;
+import qupath.lib.roi.ROIs;
 
 @SuppressWarnings("javadoc")
 public class PathIOTest {
@@ -84,6 +101,78 @@ public class PathIOTest {
 		}
 
 	}
+	
+	@Test
+	public void test_deserialization() {
+		
+		var roi = ROIs.createEmptyROI();
+		var pathClass = PathClassFactory.getPathClass("Anything");
+		var pathObject = PathObjects.createAnnotationObject(roi, pathClass);
+		var hierarchy = new PathObjectHierarchy();
+		
+		var mapValid = new HashMap<>();
+		mapValid.put("Something", "else");
+		
+		// These shouldn't work with the filterd ObjectInputStream, because they use serialized non-QuPath classes
+		var geometry = roi.getGeometry();
 
+		var mapInvalid = new HashMap<>();
+		mapInvalid.put("Something", geometry);
+
+		// With a standard ObjectInputStream, everything should work
+		assertEquals(roi.getClass(), serializeDeserializeStandard(roi).getClass());
+		assertEquals(pathClass.getClass(), serializeDeserializeStandard(pathClass).getClass());
+		assertEquals(pathObject.getClass(), serializeDeserializeStandard(pathObject).getClass());
+		assertEquals(hierarchy.getClass(), serializeDeserializeStandard(hierarchy).getClass());
+
+		assertEquals(mapValid.getClass(), serializeDeserializeStandard(mapValid).getClass());
+		assertEquals(geometry.getClass(), serializeDeserializeStandard(geometry).getClass());
+		assertEquals(mapInvalid.getClass(), serializeDeserializeStandard(mapInvalid).getClass());
+		
+		// With a filtered ObjectInputStream, only some should work
+		assertEquals(roi.getClass(), serializeDeserializeFiltered(roi).getClass());
+		assertEquals(pathClass.getClass(), serializeDeserializeFiltered(pathClass).getClass());
+		assertEquals(pathObject.getClass(), serializeDeserializeFiltered(pathObject).getClass());
+		assertEquals(hierarchy.getClass(), serializeDeserializeFiltered(hierarchy).getClass());
+
+		assertEquals(mapValid.getClass(), serializeDeserializeFiltered(mapValid).getClass());
+		assertThrows(RuntimeException.class, () -> serializeDeserializeFiltered(geometry));
+		assertThrows(RuntimeException.class, () -> serializeDeserializeFiltered(mapInvalid));
+
+	}
+	
+	private static <T> T serializeDeserializeStandard(T obj) {
+		try {
+			var bytesOut = new ByteArrayOutputStream();
+			try (var stream = new ObjectOutputStream(bytesOut)) {
+				stream.writeObject(obj);
+			}
+			var bytesIn = new ByteArrayInputStream(bytesOut.toByteArray());
+			try (var stream = new ObjectInputStream(bytesIn)) {
+					return (T)stream.readObject();
+			}
+		} catch (ClassNotFoundException | IOException e) {
+			fail(e);
+			return null;
+		}
+	}
+	
+	private static <T> T serializeDeserializeFiltered(T obj) {
+		try {
+			var bytesOut = new ByteArrayOutputStream();
+			try (var stream = new ObjectOutputStream(bytesOut)) {
+				stream.writeObject(obj);
+			}
+			var bytesIn = new ByteArrayInputStream(bytesOut.toByteArray());
+			try (var stream = PathIO.createObjectInputStream(bytesIn)) {
+				return (T)stream.readObject();
+			}
+		} catch (InvalidClassException e) {
+			throw new RuntimeException(e);
+		} catch (ClassNotFoundException | IOException e) {
+			fail(e);
+			return null;
+		}
+	}
 	
 }

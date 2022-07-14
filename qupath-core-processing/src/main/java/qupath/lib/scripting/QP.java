@@ -1429,6 +1429,8 @@ public class QP {
 	 * Run an detection object classifier for the specified image data
 	 * @param imageData
 	 * @param classifier
+	 * @deprecated this refers to old-style (&leq; v.1.2) object classifiers, which have been replaced by {@link ObjectClassifier}.
+	 *             See instead {@link #runObjectClassifier(ImageData, String...)}.
 	 */
 	@Deprecated
 	public static void runClassifier(final ImageData<?> imageData, final PathObjectClassifier classifier) {
@@ -1440,6 +1442,8 @@ public class QP {
 	 * Run a detection object classifier for the specified image hierarchy
 	 * @param hierarchy
 	 * @param classifier
+	 * @deprecated this refers to old-style (&leq; v.1.2) object classifiers, which have been replaced by {@link ObjectClassifier}.
+	 *             See instead {@link #runObjectClassifier(ImageData, String...)}.
 	 */
 	@Deprecated
 	public static void runClassifier(final PathObjectHierarchy hierarchy, final PathObjectClassifier classifier) {
@@ -1450,6 +1454,8 @@ public class QP {
 	/**
 	 * Run a detection object classifier for the current image data, reading the classifier from a specified path
 	 * @param path
+	 * @deprecated this refers to old-style (&leq; v.1.2) object classifiers, which have been replaced by {@link ObjectClassifier}.
+	 *             See instead {@link #runObjectClassifier(String...)}.
 	 */
 	@Deprecated
 	public static void runClassifier(final String path) {

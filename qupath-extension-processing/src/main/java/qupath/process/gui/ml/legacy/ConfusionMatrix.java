@@ -34,7 +34,9 @@ import java.util.function.Function;
  * @author Pete Bankhead
  * @param <T> 
  *
+ * @deprecated This class is scheduled for removal in the next QuPath release (unless it finds a new use).
  */
+@Deprecated
 class ConfusionMatrix<T> {
 
 	private List<T> classes = new ArrayList<>();

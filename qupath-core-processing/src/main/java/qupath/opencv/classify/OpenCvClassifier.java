@@ -42,6 +42,7 @@ import java.util.Map;
 import qupath.lib.analysis.stats.RunningStatistics;
 import qupath.lib.classifiers.Normalization;
 import qupath.lib.classifiers.PathObjectClassifier;
+import qupath.lib.classifiers.object.ObjectClassifier;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
@@ -62,19 +63,23 @@ import org.slf4j.LoggerFactory;
 /**
  * Abstract base class for OpenCV classifiers.
  * <p>
- * Note: We cannot directly serialize an OpenCV classifier, so instead the training data is serialized and the classifier
- * rebuilt as required.  This means that potentially if a classifier is reloaded with a different version of the OpenCV library,
- * if the training algorithm has changed then there may be a different result.
+ * @implNote At the time this was written, we could not directly serialize an OpenCV classifier, so instead the training data
+ * was serialized and the classifier rebuilt as required.
+ * This means that potentially if a classifier is reloaded with a different version of the OpenCV library,
+ * there could be a different result if the training algorithm had changed.
  * 
  * @author Pete Bankhead
  * @param <T> 
  *
+ * @deprecated This was based on the deprecated {@link PathObjectClassifier}, replaced by {@link ObjectClassifier}. 
+ *             This class is scheduled for removal in the next QuPath release.
  */
+@Deprecated
 public abstract class OpenCvClassifier<T extends StatModel> implements PathObjectClassifier, Externalizable {
 	
 	private static final long serialVersionUID = -7974734731360344083L;
 
-	final private static Logger logger = LoggerFactory.getLogger(OpenCvClassifier.class);
+	private final static Logger logger = LoggerFactory.getLogger(OpenCvClassifier.class);
 	
 	private long timestamp = System.currentTimeMillis();
 	private Normalization normalization = Normalization.NONE;

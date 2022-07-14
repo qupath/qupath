@@ -31,6 +31,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
+import qupath.lib.classifiers.object.ObjectClassifier;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
@@ -43,8 +44,11 @@ import qupath.lib.objects.PathObject;
  * after applying another classifier to distinguish cell types.
  * 
  * @author Pete Bankhead
- *
+ * 
+ * @deprecated Superinterface replaced by {@link ObjectClassifier}, which has different behavior regarding intensity (sub)classes.
+ *             This class is scheduled for removal in the next QuPath release.
  */
+@Deprecated
 class PathIntensityClassifier implements Serializable, PathObjectClassifier {
 	
 	private static final long serialVersionUID = 1L;

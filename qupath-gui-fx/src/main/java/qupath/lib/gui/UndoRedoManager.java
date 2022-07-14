@@ -49,6 +49,7 @@ import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.QuPathViewerListener;
 import qupath.lib.gui.viewer.QuPathViewerPlus;
 import qupath.lib.images.ImageData;
+import qupath.lib.io.PathIO;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
@@ -421,7 +422,7 @@ public class UndoRedoManager implements ChangeListener<QuPathViewerPlus>, QuPath
 		@SuppressWarnings("unchecked")
 		private T deserialize(byte[] bytes) {
 			try (ByteArrayInputStream stream = new ByteArrayInputStream(bytes)) {
-				ObjectInputStream in = new ObjectInputStream(stream);
+				ObjectInputStream in = PathIO.createObjectInputStream(stream);
 				return (T)in.readObject();
 			} catch (ClassNotFoundException | IOException e) {
 				logger.error("Error deserializing object", e);

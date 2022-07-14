@@ -53,7 +53,7 @@ import qupath.lib.roi.PointsROI;
  * 
  * @author Pete Bankhead
  *
- * @Deprecated
+ * @deprecated This class is scheduled for removal in the next QuPath release.
  */
 class PathClassificationLabellingHelper {
 	

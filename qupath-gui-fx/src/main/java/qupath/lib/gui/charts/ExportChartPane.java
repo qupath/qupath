@@ -23,12 +23,8 @@
 
 package qupath.lib.gui.charts;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URL;
@@ -84,6 +80,7 @@ import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.panes.PreferencePane;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.PaneTools;
+import qupath.lib.io.GsonTools;
 
 /**
  * Class for displaying a chart in an export-friendly way.
@@ -609,15 +606,10 @@ class ExportChartPane {
 	 */
 	static void saveExportPreferences(final List<Item> items, final String name) throws IOException {
 		Map<String, Serializable> map = getPreferenceMap(items);
-		try (ByteArrayOutputStream b = new ByteArrayOutputStream()){
-			try (ObjectOutputStream o = new ObjectOutputStream(b)){
-				o.writeObject(map);
-			}
-			byte[] bytes = b.toByteArray();
-			
-			// TODO: Next line might break as Preferences values' size is limited to 0.75*MAX_VALUE_LENGTH 
-			PathPrefs.getUserPreferences().putByteArray(EXPORT_CHART_PREFS_KEY + name, bytes);
-		}
+		
+		var json = GsonTools.getInstance(false).toJson(map);
+		// TODO: Next line might break as Preferences values' size is limited to 0.75*MAX_VALUE_LENGTH 
+		PathPrefs.getUserPreferences().put(EXPORT_CHART_PREFS_KEY + name, json);
 	}
 
 	/**
@@ -631,18 +623,12 @@ class ExportChartPane {
 	 */
 	static boolean loadExportPreferences(final List<Item> items, final String name) throws IOException, ClassNotFoundException {
 
-		byte[] prefsArray = PathPrefs.getUserPreferences().getByteArray(EXPORT_CHART_PREFS_KEY + name, null);
-		if (prefsArray == null)
+		String json = PathPrefs.getUserPreferences().get(EXPORT_CHART_PREFS_KEY + name, null);
+		if (json == null)
 			return false;
-
-		Map<?, ?> map = null;
-		try (ByteArrayInputStream b = new ByteArrayInputStream(prefsArray)){
-			try (ObjectInputStream o = new ObjectInputStream(b)){
-				Object object = o.readObject();
-				if (object instanceof Map)
-					map = (Map<?, ?>)object;
-			}
-		}
+		
+		Map<?, ?> map = GsonTools.getInstance(false).fromJson(json, Map.class);
+		
 		if (map == null)
 			return false;
 		
@@ -651,9 +637,18 @@ class ExportChartPane {
 			// Don't want to load Series properties - these might vary
 			if ("Series".equals(item.getCategory()))
 				continue;
-			Object value = map.get(item.getName());
+			Object value = map.getOrDefault(item.getName(), null);
 			if (value != null) {
-				item.setValue(value);
+				try {
+					var cls = item.getType();
+					if (cls.isInstance(value))
+						item.setValue(value);
+					else if (cls.isEnum() && value instanceof String) {
+						item.setValue(Enum.valueOf((Class<? extends Enum>)cls, (String)value));
+					}
+				} catch (Exception e) {
+					logger.warn(e.getLocalizedMessage(), e);
+				}
 				count++;
 			}
 		}
