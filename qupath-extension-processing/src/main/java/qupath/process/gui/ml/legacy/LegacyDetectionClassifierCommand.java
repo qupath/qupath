@@ -49,8 +49,9 @@ import qupath.opencv.classify.SVMClassifier;
  * Command used to create and show a suitable dialog box for interactive display of OpenCV classifiers.
  * 
  * @author Pete Bankhead
- *
+ * @deprecated This class is scheduled for removal in the next QuPath release.
  */
+@Deprecated
 public class LegacyDetectionClassifierCommand implements Runnable {
 	
 	final private static String name = "Create detection classifier";

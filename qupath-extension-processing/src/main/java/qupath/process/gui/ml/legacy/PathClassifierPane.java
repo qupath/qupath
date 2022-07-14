@@ -54,6 +54,7 @@ import qupath.lib.plugins.workflow.RunSavedClassifierWorkflowStep;
  * 
  * @author Pete Bankhead
  *
+ * @deprecated This class is scheduled for removal in the next QuPath release.
  */
 @Deprecated
 public class PathClassifierPane {

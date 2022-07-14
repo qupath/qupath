@@ -34,6 +34,7 @@ import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 
+import qupath.lib.classifiers.object.ObjectClassifier;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
 
@@ -42,8 +43,10 @@ import qupath.lib.objects.classes.PathClass;
  * 
  * @author Pete Bankhead
  *
+ * @deprecated Replaced by {@link ObjectClassifier} and {@link qupath.lib.classifiers.object.CompositeClassifier}.
+ *             This class is scheduled for removal in the next QuPath release.
  */
-// TODO: Guarding more against invalid classifiers
+@Deprecated
 class CompositeClassifier implements PathObjectClassifier, Serializable {
 	
 	private static final long serialVersionUID = 1L;

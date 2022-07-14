@@ -68,8 +68,9 @@ import qupath.lib.objects.PathObject;
  * 
  * 
  * @author Pete Bankhead
- *
+ * @deprecated This class is scheduled for removal in the next QuPath release.
  */
+@Deprecated
 class FeatureSelectionPane {
 
 	private QuPathGUI qupath;

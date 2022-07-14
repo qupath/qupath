@@ -74,8 +74,9 @@ import qupath.lib.plugins.parameters.ParameterList;
  * In the future, it is (tentatively) planned to address this and support ParameterChangeListeners instead.
  * 
  * @author Pete Bankhead
- *
+ * @deprecated
  */
+@Deprecated
 class PathIntensityClassifierPane implements PathObjectSelectionListener {
 	
 	final private static Logger logger = LoggerFactory.getLogger(PathIntensityClassifierPane.class);

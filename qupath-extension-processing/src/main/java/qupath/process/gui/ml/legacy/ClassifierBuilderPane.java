@@ -119,7 +119,9 @@ import qupath.process.gui.ml.legacy.PathClassificationLabellingHelper.SplitType;
  * @author Pete Bankhead
  *
  * @param <T>
+ * @deprecated
  */
+@Deprecated
 public class ClassifierBuilderPane<T extends PathObjectClassifier> implements PathObjectHierarchyListener, ChangeListener<ImageData<BufferedImage>> {
 
 	private final static Logger logger = LoggerFactory.getLogger(ClassifierBuilderPane.class);

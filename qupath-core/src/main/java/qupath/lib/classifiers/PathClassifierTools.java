@@ -40,6 +40,7 @@ import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import qupath.lib.classifiers.object.ObjectClassifier;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
@@ -55,11 +56,15 @@ import qupath.lib.objects.hierarchy.TMAGrid;
  * Static methods to load &amp; run a detection object classifier.
  * 
  * @author Pete Bankhead
- *
+ * 
+ * @deprecated These methods were associated with the legacy {@link PathObjectClassifier}, which 
+ *             has been replaced by {@link ObjectClassifier}.
+ *             This class is scheduled for removal in the next QuPath release.
  */
+@Deprecated
 public final class PathClassifierTools {
 	
-	final private static Logger logger = LoggerFactory.getLogger(PathClassifierTools.class);
+	private final static Logger logger = LoggerFactory.getLogger(PathClassifierTools.class);
 
 	// Suppress default constructor for non-instantiability
 	private PathClassifierTools() {
@@ -70,7 +75,9 @@ public final class PathClassifierTools {
 	 * Apply a classifier to the detection objects in a hierarchy.
 	 * @param hierarchy
 	 * @param classifier
+	 * @deprecated
 	 */
+	@Deprecated
 	public static void runClassifier(final PathObjectHierarchy hierarchy, final PathObjectClassifier classifier) {
 		// Apply classifier to everything
 		// If we have a TMA grid, do one core at a time
@@ -108,7 +115,9 @@ public final class PathClassifierTools {
 	 * @param pathObjects the objects containing classifications
 	 * @return a mapping between objects and their current classifications
 	 * @see #restoreClassificationsFromMap(Map)
+	 * @deprecated
 	 */
+	@Deprecated
 	public static Map<PathObject, PathClass> createClassificationMap(Collection<? extends PathObject> pathObjects) {
 		Map<PathObject, PathClass> mapPrevious = new HashMap<>();
 		for (var pathObject : pathObjects) {
@@ -123,7 +132,9 @@ public final class PathClassifierTools {
 	 * @param classificationMap the map containing objects and the classifications that should be applied
 	 * @return a collection containing all objects with classifications that were changed. This can be used to fire update events.
 	 * @see #createClassificationMap(Collection)
+	 * @deprecated
 	 */
+	@Deprecated
 	public static Collection<PathObject> restoreClassificationsFromMap(Map<PathObject, PathClass> classificationMap) {
 		var changed = new ArrayList<PathObject>();
 		for (var entry : classificationMap.entrySet()) {
@@ -169,7 +180,9 @@ public final class PathClassifierTools {
 	 * Load a classifier that has previously been serialized to a file.
 	 * @param file
 	 * @return
+	 * @deprecated
 	 */
+	@Deprecated
 	public static PathObjectClassifier loadClassifier(File file) {
 		// TODO: Put this into another method
 		PathObjectClassifier classifier = null;

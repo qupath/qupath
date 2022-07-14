@@ -45,6 +45,8 @@ This is a work-in-progress.
   * Import .roi and RoiSet.zip files by drag & drop
   * Built-in ImageJ plugin to send RoiManager ROIs to QuPath (not only overlays)
   * Retain ROI position information when sending ROIs from ImageJ (hyper)stacks
+* Reduced use of Java serialization
+  * Serialization filters now used to better control deserialized classes
 * OpenCV is no longer a dependency of qupath-core (https://github.com/qupath/qupath/issues/961)
   * Moved `OpenCVTypeAdapters` to qupath-core-processing
   * Switched `BufferedImageTools.resize` to use ImageJ internally

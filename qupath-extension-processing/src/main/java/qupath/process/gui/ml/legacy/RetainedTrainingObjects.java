@@ -52,8 +52,10 @@ import qupath.lib.objects.classes.PathClassFactory;
  * Within this map, objects are further separated by 'ground truth' PathClass.
  * 
  * @author Pete Bankhead
- *
+ * 
+ * @deprecated This class is scheduled for removal in the next QuPath release.
  */
+@Deprecated
 class RetainedTrainingObjects implements Externalizable {
 	
 	private static final long serialVersionUID = 1L;

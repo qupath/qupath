@@ -27,15 +27,18 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
+import qupath.lib.classifiers.object.ObjectClassifier;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
 
 /**
- * Interface to define a basic object classifier.
+ * Legacy interface to define a basic object classifier.
  * 
  * @author Pete Bankhead
- *
+ * @deprecated Replaced by {@link ObjectClassifier}.
+ *             This class is scheduled for removal in the next QuPath release.
  */
+@Deprecated
 public interface PathObjectClassifier {
 
 	/**

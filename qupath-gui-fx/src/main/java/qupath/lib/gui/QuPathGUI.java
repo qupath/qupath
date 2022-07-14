@@ -1923,7 +1923,7 @@ public class QuPathGUI {
 		if (bytes == null || bytes.length == 0)
 			return Collections.emptyList();
 		ByteArrayInputStream stream = new ByteArrayInputStream(bytes);
-		try (ObjectInputStream in = new ObjectInputStream(stream)) {
+		try (ObjectInputStream in = PathIO.createObjectInputStream(stream)) {
 			List<PathClass> pathClassesOriginal = (List<PathClass>)in.readObject();
 			List<PathClass> pathClasses = new ArrayList<>();
 			for (PathClass pathClass : pathClassesOriginal) {
