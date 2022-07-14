@@ -29,6 +29,7 @@ import java.nio.IntBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -703,7 +704,9 @@ public class ObjectClassifierCommand implements Runnable {
 			for (var annotation : trainingAnnotations) {
 				var pathClass = annotation.getPathClass();
 				if (selectedClasses == null || selectedClasses.contains(pathClass)) {
-					var set = map.computeIfAbsent(pathClass, p -> new HashSet<>());
+					// Use a TreeSet ordered by ID
+					// This is to overcome https://github.com/qupath/qupath/issues/1016
+					var set = map.computeIfAbsent(pathClass, p -> new TreeSet<>(Comparator.comparing(PathObject::getId)));
 					var roi = annotation.getROI();
 					if (roi.isPoint()) {
 						for (Point2 p : annotation.getROI().getAllPoints()) {
