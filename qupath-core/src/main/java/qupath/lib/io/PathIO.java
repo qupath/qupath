@@ -1048,8 +1048,9 @@ public class PathIO {
 
 			// Accept from QuPath lib packages
 			// TODO: Perform stricter check (and/or update for modularization)
+			// Can increase to qupath.lib after PathObjectClassifier deprecated
 			String packageName = serialClass.getPackageName();
-			if (packageName != null && packageName.startsWith("qupath.lib"))
+			if (packageName != null && packageName.startsWith("qupath."))
 				return true;
 		}
 		System.err.println(serialClass);

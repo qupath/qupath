@@ -42,6 +42,7 @@ import org.slf4j.LoggerFactory;
 
 import qupath.lib.classifiers.object.ObjectClassifier;
 import qupath.lib.images.servers.ImageChannel;
+import qupath.lib.io.PathIO;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
@@ -188,7 +189,7 @@ public final class PathClassifierTools {
 		PathObjectClassifier classifier = null;
 		ObjectInputStream inStream = null;
 		try {
-			inStream = new ObjectInputStream(new FileInputStream(file));
+			inStream = PathIO.createObjectInputStream(new FileInputStream(file));
 			classifier = (PathObjectClassifier)inStream.readObject();
 			inStream.close();
 			logger.info(String.format("Reading classifier %s complete!", classifier.toString()));

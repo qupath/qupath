@@ -92,6 +92,7 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.ParameterPanelFX;
 import qupath.lib.images.ImageData;
+import qupath.lib.io.PathIO;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
@@ -335,7 +336,7 @@ public class ClassifierBuilderPane<T extends PathObjectClassifier> implements Pa
 
 
 	private boolean loadRetainedObjects(final File file) {
-		try (ObjectInputStream inStream = new ObjectInputStream(new BufferedInputStream(new FileInputStream(file)))) {
+		try (ObjectInputStream inStream = PathIO.createObjectInputStream(new BufferedInputStream(new FileInputStream(file)))) {
 			Object input = inStream.readObject();
 			if (input instanceof RetainedTrainingObjects) {
 				this.retainedObjectsMap = (RetainedTrainingObjects)input;
