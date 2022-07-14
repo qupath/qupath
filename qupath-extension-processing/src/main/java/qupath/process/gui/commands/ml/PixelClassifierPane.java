@@ -92,7 +92,6 @@ import javafx.util.Callback;
 import qupath.imagej.gui.IJExtension;
 import qupath.imagej.tools.IJTools;
 import qupath.lib.classifiers.Normalization;
-import qupath.lib.classifiers.PathClassifierTools;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
 import qupath.lib.common.GeneralTools;
@@ -111,6 +110,7 @@ import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.PixelCalibration;
+import qupath.lib.images.servers.ServerTools;
 import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
@@ -1070,7 +1070,7 @@ public class PixelClassifierPane {
 			 if (previous != null)
 				 logger.warn("Duplicate label found! {} matches with {} and {}, only the latter be used", entry.getValue(), previous, entry.getKey());
 		 }
-		 var channels = PathClassifierTools.classificationLabelsToChannels(labels2, true);
+		 var channels = ServerTools.classificationLabelsToChannels(labels2, true);
 		 
 		 PixelClassifierMetadata metadata = new PixelClassifierMetadata.Builder()
 				 .inputResolution(cal)

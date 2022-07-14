@@ -40,7 +40,6 @@ import qupath.lib.gui.ActionTools;
 import qupath.lib.gui.ActionTools.ActionAccelerator;
 import qupath.lib.gui.ActionTools.ActionDescription;
 import qupath.lib.gui.ActionTools.ActionMenu;
-import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.extensions.QuPathExtension;
 import qupath.lib.gui.tools.IconFactory;
@@ -63,7 +62,6 @@ import qupath.process.gui.commands.SimpleThresholdCommand;
 import qupath.process.gui.commands.SingleMeasurementClassificationCommand;
 import qupath.process.gui.commands.SplitProjectTrainingCommand;
 import qupath.process.gui.commands.ui.LoadResourceCommand;
-import qupath.process.gui.ml.legacy.LegacyDetectionClassifierCommand;
 
 /**
  * General-purpose processing and machine learning commands.
@@ -120,36 +118,6 @@ public class ProcessingExtension implements QuPathExtension {
 
 		}
 
-	}
-	
-	
-	
-	
-	
-	@ActionMenu("Classify>Object classification")
-	@SuppressWarnings("javadoc")
-	public static class LegacyClassifiers {
-		
-		public final Action SEP = ActionTools.createSeparator();
-		
-		@ActionMenu("Older classifiers>Create detection classifier")
-		@ActionDescription("QuPath's original detection classifier. "
-				+ "\n\nThis is being replaced by a new and more flexible approach to object classification.")
-		@Deprecated
-		public final Action actionObjectClassifier;
-		
-		@ActionDescription("Load an old-style detection classifier. " + 
-				"Note that it is not a good idea to mix classifiers across different QuPath versions.")
-		@ActionMenu("Older classifiers>Load detection classifier")
-		@Deprecated
-		public final Action actionLegacyDetectionLoad;
-		
-		private LegacyClassifiers(QuPathGUI qupath) {
-			var classifierCommand = new LegacyDetectionClassifierCommand(qupath);
-			actionObjectClassifier = qupath.createImageDataAction(imageData -> classifierCommand.run());
-			actionLegacyDetectionLoad = Commands.createSingleStageAction(() -> LegacyDetectionClassifierCommand.createLegacyLoadDetectionClassifierCommand(qupath));
-		}
-		
 	}
 	
 	
@@ -312,7 +280,6 @@ public class ProcessingExtension implements QuPathExtension {
     	qupath.installActions(ActionTools.getAnnotatedActions(new PixelClassificationCommands(qupath)));
     	qupath.installActions(ActionTools.getAnnotatedActions(new ObjectClassificationCommands(qupath)));
     	qupath.installActions(ActionTools.getAnnotatedActions(new OtherCommands(qupath)));
-    	qupath.installActions(ActionTools.getAnnotatedActions(new LegacyClassifiers(qupath)));
     	
     	installWand(qupath);
     	

@@ -60,7 +60,6 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.TextAlignment;
-import qupath.lib.classifiers.PathClassifierTools;
 import qupath.lib.color.ColorMaps;
 import qupath.lib.color.ColorMaps.ColorMap;
 import qupath.lib.gui.QuPathGUI;
@@ -70,6 +69,7 @@ import qupath.lib.gui.tools.MeasurementMapper;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 
 
@@ -420,7 +420,7 @@ public class MeasurementMapPane {
 		}
 		
 		Collection<PathObject> pathObjects = hierarchy.getDetectionObjects();
-		Set<String> measurements = PathClassifierTools.getAvailableFeatures(pathObjects);
+		Set<String> measurements = PathObjectTools.getAvailableFeatures(pathObjects);
 		for (PathObject pathObject : pathObjects) {
 			if (!Double.isNaN(pathObject.getClassProbability())) {
 				measurements.add("Class probability");

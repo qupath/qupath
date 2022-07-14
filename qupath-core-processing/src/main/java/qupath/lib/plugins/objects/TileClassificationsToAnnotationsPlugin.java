@@ -37,7 +37,6 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.lib.classifiers.PathClassifierTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
@@ -116,7 +115,7 @@ public class TileClassificationsToAnnotationsPlugin<T> extends AbstractDetection
 	@Override
 	public ParameterList getDefaultParameterList(final ImageData<T> imageData) {
 		if (!parametersInitialized) {
-			Set<PathClass> pathClasses = PathClassifierTools.getRepresentedPathClasses(imageData.getHierarchy(), PathTileObject.class);
+			Set<PathClass> pathClasses = PathObjectTools.getRepresentedPathClasses(imageData.getHierarchy(), PathTileObject.class);
 			List<PathClass> choices = new ArrayList<>(pathClasses);
 			Collections.sort(choices, new Comparator<PathClass>() {
 	

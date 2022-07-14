@@ -38,8 +38,6 @@ import org.bytedeco.opencv.opencv_core.TermCriteria;
 
 import com.google.gson.GsonBuilder;
 
-import qupath.opencv.io.OpenCVTypeAdapters;
-
 
 @SuppressWarnings("javadoc")
 public class TypeAdaptersCVTest {

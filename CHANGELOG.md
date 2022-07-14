@@ -66,6 +66,8 @@ This is a work-in-progress.
 * Warn if trying to train a pixel classifier with too many features (https://github.com/qupath/qupath/issues/947)
 * Directory choosers can now have titles (https://github.com/qupath/qupath/issues/940)
 * Added `getCurrentImageName()` method to `QP` for scripting (https://github.com/qupath/qupath/issues/1009)
+* Code cleaned up and simplified, with older (previously deprecated) detection classifiers removed
+  * `PathClassifierTools` methods have been moved to `PathObjectTools` and `ServerTools`
 
 ### Bugs fixed
 * Reading from Bio-Formats blocks forever when using multiple series outside a project (https://github.com/qupath/qupath/issues/894)

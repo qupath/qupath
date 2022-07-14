@@ -30,10 +30,15 @@ import java.net.URI;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
 import qupath.lib.common.GeneralTools;
+import qupath.lib.objects.classes.PathClass;
+import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.regions.Padding;
 import qupath.lib.regions.RegionRequest;
 
@@ -283,6 +288,36 @@ public class ServerTools {
 			img = new BufferedImage(img.getColorModel(), rasterPadded, img.isAlphaPremultiplied(), null);
 		}
 		return img;
+	}
+
+	/**
+	 * Create a list of channels from classification labels.
+	 * Note that the labels must be &ge; 0 or else an {@link IllegalArgumentException} will be thrown.
+	 * It is also expected that the labels densely represent integer values from 0 up to some maximum, although this is 
+	 * not strictly enforced and channels will be generated from any missing labels.
+	 * 
+	 * @param classificationLabels
+	 * @param ignoredTransparent
+	 * @return
+	 */
+	public static List<ImageChannel> classificationLabelsToChannels(Map<Integer, PathClass> classificationLabels, boolean ignoredTransparent) {
+		var labels = classificationLabels.keySet().stream().mapToInt(i -> i).summaryStatistics();
+		if (labels.getMin() < 0)
+			throw new IllegalArgumentException("Classification labels must be >= 0!");
+		int nChannels = labels.getMax() + 1;
+		List<ImageChannel> channels = new ArrayList<>();
+		int unclassifiedCount = 0;
+		for (int i = 0; i < nChannels; i++) {
+			var pathClass = classificationLabels.getOrDefault(i, null);
+			if (pathClass == null) {
+				unclassifiedCount++;
+				channels.add(ImageChannel.getInstance("Unclassified " + unclassifiedCount, null));
+			} else {
+				Integer color = ignoredTransparent && PathClassTools.isIgnoredClass(pathClass) ? null : pathClass.getColor();
+				channels.add(ImageChannel.getInstance(pathClass.toString(), color));
+			}
+		}
+		return channels;
 	}
 	
 

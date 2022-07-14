@@ -45,11 +45,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.analysis.stats.RunningStatistics;
-import qupath.lib.classifiers.PathClassifierTools;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.PathCellObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectConnectionGroup;
+import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.roi.interfaces.ROI;
 
@@ -85,7 +85,7 @@ public class DelaunayTriangulation implements PathObjectConnectionGroup {
 		this.limitByClass = limitByClass;
 		computeDelaunay(pathObjects, pixelWidth, pixelHeight);
 		
-		Collection<String> measurements = PathClassifierTools.getAvailableFeatures(pathObjects);
+		Collection<String> measurements = PathObjectTools.getAvailableFeatures(pathObjects);
 		for (String name : measurements) {
 			RunningStatistics stats = new RunningStatistics();
 			pathObjects.stream().forEach(p -> stats.addValue(p.getMeasurementList().getMeasurementValue(name)));
@@ -432,7 +432,7 @@ public class DelaunayTriangulation implements PathObjectConnectionGroup {
 		
 		String key = "Cluster ";
 		List<String> measurementNames = new ArrayList<>();
-		for (String s : PathClassifierTools.getAvailableFeatures(nodeMap.keySet())) {
+		for (String s : PathObjectTools.getAvailableFeatures(nodeMap.keySet())) {
 			if (!s.startsWith(key))
 				measurementNames.add(s);
 		}
