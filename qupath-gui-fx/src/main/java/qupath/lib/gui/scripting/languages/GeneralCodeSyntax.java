@@ -41,7 +41,15 @@ abstract class GeneralCodeSyntax implements ScriptSyntax {
 		control.insertText(control.getCaretPosition(), "(");
 		if (!smartEditing)
 			return;
-		control.insertText(control.getCaretPosition(), ")");
+		String text = control.getText();
+		var pos = control.getCaretPosition();
+		// If the next character is a letter or digit, we don't want to close the parentheses
+		if (pos < text.length()) {
+			char nextChar = text.charAt(pos);
+			if (Character.isLetterOrDigit(nextChar))
+				return;
+		}
+		control.insertText(pos, ")");
 		control.positionCaret(control.getCaretPosition()-1);
 	}
 	
@@ -67,17 +75,54 @@ abstract class GeneralCodeSyntax implements ScriptSyntax {
 	@Override
 	public void handleQuotes(final ScriptEditorControl control, boolean isDoubleQuote, final boolean smartEditing) {
 		String quotes = isDoubleQuote ? "\"" : "\'";
-		control.insertText(control.getCaretPosition(), quotes);
+		if (control.getSelection().getLength() == 0)
+			control.insertText(control.getCaretPosition(), quotes);
+		else
+			control.paste(quotes);
 		if (!smartEditing)
 			return;
 		
 		String text = control.getText();
 		var caretPos = control.getCaretPosition();
-		if (text.length() >= caretPos + 1 && text.charAt(caretPos) == quotes.charAt(0))
-			control.deleteText(caretPos, caretPos + 1);
-		else {
-			control.insertText(control.getCaretPosition(), quotes);
-			control.positionCaret(control.getCaretPosition()-1);
+		
+		// Check for triple quotes
+		if (caretPos >= 3 && text.substring(caretPos-3, caretPos).equals("\"\"\"")) {
+			// Triple quotes are awkward... the following works well for opening them, but not for closing them
+			// For now, we don't try to handle them in a smarter way
+//			int followingQuotes = 0;
+//			for (int i = caretPos; i < text.length(); i++) {
+//				if (text.charAt(i) == '"')
+//					followingQuotes++;
+//				else
+//					break;
+//			}
+//			String toInsert = null;
+//			switch (followingQuotes) {
+//			case 0:
+//				toInsert = "\"\"\"";
+//				break;
+//			case 1:
+//				toInsert = "\"\"";
+//				break;
+//			case 2:
+//				toInsert = "\"";
+//				break;
+//			case 3:
+//			default:
+//				break;
+//			}
+//			if (toInsert != null) {
+//				control.insertText(control.getCaretPosition(), toInsert);
+//				control.positionCaret(control.getCaretPosition()-toInsert.length());
+//			}
+		} else {
+			// Handle closing if we don't have triple quotes
+			if (text.length() >= caretPos + 1 && text.charAt(caretPos) == quotes.charAt(0))
+				control.deleteText(caretPos, caretPos + 1);
+			else {
+				control.insertText(control.getCaretPosition(), quotes);
+				control.positionCaret(control.getCaretPosition()-1);
+			}
 		}
 	}
 	

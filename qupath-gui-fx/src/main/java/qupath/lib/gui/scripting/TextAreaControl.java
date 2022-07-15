@@ -23,6 +23,7 @@
 
 package qupath.lib.gui.scripting;
 
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableValue;
@@ -154,6 +155,11 @@ class TextAreaControl implements ScriptEditorControl {
 	@Override
 	public void selectRange(int startIdx, int endIdx) {
 		textArea.selectRange(startIdx, endIdx);
+	}
+	
+	@Override
+	public BooleanProperty wrapTextProperty() {
+		return textArea.wrapTextProperty();
 	}
 
 	@Override

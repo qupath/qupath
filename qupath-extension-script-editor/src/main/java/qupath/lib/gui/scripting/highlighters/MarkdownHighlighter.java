@@ -100,7 +100,7 @@ public class MarkdownHighlighter implements ScriptHighlighter {
 	 */
 	@Override
 	public String getBaseStyle() {
-		return "-fx-font-family: sans-serif";
+		return "-fx-font-family: sans-serif;";
 	}
 	
 	private static Parser parser = Parser.builder()

@@ -23,6 +23,7 @@
 
 package qupath.lib.gui.scripting;
 
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableValue;
@@ -179,6 +180,12 @@ public interface ScriptEditorControl extends TextAppendable {
 	 * @param index
 	 */
 	public void positionCaret(int index);
+	
+	/**
+	 * Request wordwrap.
+	 * @return
+	 */
+	public BooleanProperty wrapTextProperty();
 
 	/**
 	 * Request that the X and Y scrolls are adjusted to ensure the caret is visible.

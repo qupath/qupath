@@ -42,7 +42,9 @@ class JsonSyntax extends GeneralCodeSyntax {
 	
 	private static final JsonSyntax INSTANCE = new JsonSyntax();
 	private static final Logger logger = LoggerFactory.getLogger(JsonSyntax.class);
+	
 	private static final Gson gson = GsonTools.getInstance(true);
+	private static final Gson gsonCompress = GsonTools.getInstance(false);
 	
 	// Empty constructor
 	private JsonSyntax() {}
@@ -68,4 +70,25 @@ class JsonSyntax extends GeneralCodeSyntax {
 			return text;
 		}
 	}
+	
+	@Override
+	public boolean canBeautify() {
+		return true;
+	}
+
+	@Override
+	public boolean canCompress() {
+		return true;
+	}
+	
+	@Override
+	public String compress(String text) {
+		try {
+			return gsonCompress.toJson(gsonCompress.fromJson(text, JsonElement.class));
+		} catch (JsonSyntaxException ex) {
+			logger.warn("Could not compress this JSON text", ex.getLocalizedMessage());
+			return text;
+		}
+	}
+	
 }
