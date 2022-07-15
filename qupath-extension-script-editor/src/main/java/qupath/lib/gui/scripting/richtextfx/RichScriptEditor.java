@@ -293,11 +293,14 @@ public class RichScriptEditor extends DefaultScriptEditor {
 			// Triggered whenever the script styling changes (e.g. change of language)
 			scriptHighlighter.addListener((v, o, n) -> {
 				if (n == null) {
-					codeArea.setStyle(null);
+					codeArea.setStyle(styleBackground);
 					return;
 				}
 				String baseStyle = n.getBaseStyle();
-				codeArea.setStyle(baseStyle);
+				if (baseStyle == null || baseStyle.isBlank())
+					codeArea.setStyle(styleBackground);
+				else
+					codeArea.setStyle(styleBackground + " " + baseStyle);
 				StyleSpans<Collection<String>> changes = n.computeEditorHighlighting(codeArea.getText());
 				codeArea.setStyleSpans(0, changes);
 				codeArea.requestFocus(); // Seems necessary to trigger the update when switching between scripts
@@ -311,11 +314,14 @@ public class RichScriptEditor extends DefaultScriptEditor {
 		}
 	}
 	
+	private static String styleBackground = "-fx-background-color: -fx-control-inner-background;";
+	
+	
 	@Override
 	protected ScriptEditorControl getNewConsole() {
 		try {
 			CodeArea codeArea = new CodeArea();
-			codeArea.setStyle("-fx-background-color: -fx-control-inner-background;");
+			codeArea.setStyle(styleBackground);
 			
 			codeArea.richChanges()
 			.successionEnds(Duration.ofMillis(delayMillis))

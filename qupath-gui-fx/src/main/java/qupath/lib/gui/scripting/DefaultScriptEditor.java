@@ -1619,6 +1619,11 @@ public class DefaultScriptEditor implements ScriptEditor {
 
 	@Override
 	public void showEditor() {
+		if (!Platform.isFxApplicationThread()) {
+			Platform.runLater(this::showEditor);
+			return;
+		}
+
 		if (dialog == null)
 			createDialog();
 		else {
@@ -1637,6 +1642,10 @@ public class DefaultScriptEditor implements ScriptEditor {
 
 	@Override
 	public void showScript(String name, String script) {
+		if (!Platform.isFxApplicationThread()) {
+			Platform.runLater(() -> showScript(name, script));
+			return;
+		}
 		if (dialog == null)
 			createDialog();
 		addNewScript(script, getDefaultLanguage(name), true);
@@ -1665,6 +1674,10 @@ public class DefaultScriptEditor implements ScriptEditor {
 
 	@Override
 	public void showScript(File file) {
+		if (!Platform.isFxApplicationThread()) {
+			Platform.runLater(() -> showScript(file));
+			return;
+		}
 		try {
 			if (dialog == null)
 				createDialog();

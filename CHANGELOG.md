@@ -12,7 +12,7 @@ This is a work-in-progress.
     * This aims to make it much easier to match up objects whenever some further analysis is done elsewhere (e.g. classification or clustering in Python or R)
     * See https://github.com/qupath/qupath/pull/959
 * Many script editor improvements, including:
-  * Support for writing Markdown documents
+  * Syntax highlighting for Markdown, JSON and XML documents
   * Added 'Replace/Next' and 'Replace all' features to Find window (https://github.com/qupath/qupath/pull/898)
   * New lines now trigger caret following (https://github.com/qupath/qupath/pull/900)
   * Proper tab handling (https://github.com/qupath/qupath/pull/902)

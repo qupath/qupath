@@ -95,3 +95,22 @@
 	-fx-font-family: monospace;
 	-fx-fill: red;
 }
+
+.xml.body {
+	-fx-fill: -fx-text-inner-color;
+}
+.xml.attribute {
+	-fx-fill: royalblue;
+}
+.xml.tagmark {
+	-fx-fill: -fx-text-inner-color;
+}
+.xml.anytag {
+	-fx-fill: darkorange;
+}
+.xml.avalue {
+	-fx-fill: seagreen;
+}
+.xml.comment {
+    -fx-fill: rgb(128, 128, 128);
+}
