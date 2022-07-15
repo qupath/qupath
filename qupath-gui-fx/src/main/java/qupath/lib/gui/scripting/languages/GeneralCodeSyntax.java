@@ -41,7 +41,15 @@ abstract class GeneralCodeSyntax implements ScriptSyntax {
 		control.insertText(control.getCaretPosition(), "(");
 		if (!smartEditing)
 			return;
-		control.insertText(control.getCaretPosition(), ")");
+		String text = control.getText();
+		var pos = control.getCaretPosition();
+		// If the next character is a letter or digit, we don't want to close the parentheses
+		if (pos < text.length()) {
+			char nextChar = text.charAt(pos);
+			if (Character.isLetterOrDigit(nextChar))
+				return;
+		}
+		control.insertText(pos, ")");
 		control.positionCaret(control.getCaretPosition()-1);
 	}
 	

@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.Writer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashSet;
@@ -37,6 +38,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.Future;
+import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -210,6 +212,9 @@ public class DefaultScriptEditor implements ScriptEditor {
 	protected Action undoAction;
 	protected Action redoAction;
 	
+	private Action zapGremlinsAction = createReplaceTextAction("Zap gremlins", GeneralTools::zapGremlins, true);
+	private Action replaceQuotesAction = createReplaceTextAction("Replace curly quotes", GeneralTools::replaceCurlyQuotes, true);
+	
 	protected Action runScriptAction;
 	protected Action runSelectedAction;
 	protected Action runProjectScriptAction;
@@ -313,6 +318,28 @@ public class DefaultScriptEditor implements ScriptEditor {
 		
 		smartEditingAction = ActionTools.createSelectableAction(smartEditing, "Enable smart editing");
 	}
+	
+	
+	Action createReplaceTextAction(String name, Function<String, String> fun, boolean limitToSelected) {
+		var action = new Action(name, e -> replaceCurrentEditorText(fun, limitToSelected));
+		action.disabledProperty().bind(selectedScript.isNull());
+		return action;
+	}
+	
+	void replaceCurrentEditorText(Function<String, String> fun, boolean limitToSelected) {
+		var editor = getCurrentTextComponent();
+		if (editor == null)
+			return;
+		var selected = editor.getSelectedText();
+		if (limitToSelected && !selected.isEmpty()) {
+			var updated = fun.apply(selected);
+			if (!Objects.equals(selected, updated)) {
+				editor.paste(updated);
+			}
+		} else
+			editor.setText(fun.apply(editor.getText()));
+	}
+
 	
 	/**
 	 * Query whether a file represents a supported script.
@@ -555,6 +582,8 @@ public class DefaultScriptEditor implements ScriptEditor {
 				null,
 				beautifySourceAction,
 				compressSourceAction,
+				zapGremlinsAction,
+				replaceQuotesAction,
 				null,
 				smartEditingAction,
 				miWrapLines
@@ -1721,7 +1750,6 @@ public class DefaultScriptEditor implements ScriptEditor {
 		}
 		return PlainLanguage.getInstance();
 	}
-
 
 	@Override
 	public void showScript(File file) {

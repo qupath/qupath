@@ -20,7 +20,7 @@ This is a work-in-progress.
     * Brace block handling (https://github.com/qupath/qupath/pull/901)
     * Smart parentheses and (double/single) quotes (https://github.com/qupath/qupath/pull/907)
     * Comment block handling (https://github.com/qupath/qupath/pull/908)
-  * New 'Edit -> Wrap lines' option
+  * New 'Edit -> Wrap lines', 'Edit -> Replace curly quotes' and 'Edit -> Zap gremlins' options
 * Improved Brightness/Contrast options, including
   * Switch between dark and light backgrounds (still experimental)
   * More consistent behavior with 'Show grayscale' option

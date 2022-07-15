@@ -862,6 +862,70 @@ public final class GeneralTools {
 	}
 	
 	/**
+	 * Remove non-printable characters from a String.
+	 * @param text
+	 * @return the modified String, or the original if no changes were made
+	 */
+	public static String zapGremlins(String text) {
+		return replaceGremlins(text, null);
+	}
+	
+	/**
+	 * Replace non-printable characters from a String with a specified replacement (may be null).
+	 * @param text
+	 * @return the modified String, or the original if no changes were made
+	 */
+	public static String replaceGremlins(String text, CharSequence replacement) {
+		var sb = new StringBuilder();
+		int skipCount = 0;
+		for (var c : text.toCharArray()) {
+			if (c != '\n' && c != '\t' && (c < 32 || c > 127)) {
+				skipCount++;
+				if (replacement != null)
+					sb.append(replacement);
+			} else
+				sb.append(c);
+		}
+		if (skipCount == 1)
+			logger.info("Zapped 1 gremlin");
+		else
+			logger.info("Zapped {} gremlins", skipCount);
+		if (skipCount > 0)
+			return sb.toString();
+		return text;
+	}
+	
+	/**
+	 * Replace different kinds of 'curly quote' in a String with straight quotes.
+	 * This is particularly useful when working with a script editor.
+	 * 
+	 * @param text
+	 * @return the modified String, or the original if no changes were made
+	 */
+	public static String replaceCurlyQuotes(String text) {
+		var sb = new StringBuilder();
+		int replacedCount = 0;
+		for (var c : text.toCharArray()) {
+			if (c == '\u2018' || c == '\u2019' || c == '\u201B' || c == '\u275B' || c == '\u275C') {
+				sb.append("'");
+				replacedCount++;
+			} else if (c == '\u201C' || c == '\u201D' || c == '\u201F' || c == '\u275D' || c == '\u275E' || c == '\u301D' || c == '\u301E') {
+				sb.append("\"");
+				replacedCount++;				
+			} else
+				sb.append(c);
+		}
+		if (replacedCount == 1)
+			logger.warn("Replaced 1 quotes");
+		else
+			logger.info("Replaced {} quotes", replacedCount);
+		if (replacedCount > 0)
+			return sb.toString();
+		return text;
+	}
+	
+	
+	/**
 	 * Helper class for smart-sorting.
 	 * @param <T>
 	 */

@@ -60,7 +60,7 @@ import qupath.lib.scripting.QP;
  */
 public class DefaultScriptLanguage extends ScriptLanguage implements RunnableLanguage {
 	
-	final static private Logger logger = LoggerFactory.getLogger(DefaultScriptLanguage.class);
+	private final static Logger logger = LoggerFactory.getLogger(DefaultScriptLanguage.class);
 	
 	private ScriptSyntax syntax;
 	private ScriptAutoCompletor completor;
