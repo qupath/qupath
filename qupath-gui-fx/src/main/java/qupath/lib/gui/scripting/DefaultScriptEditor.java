@@ -65,6 +65,7 @@ import javafx.geometry.Orientation;
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
@@ -146,7 +147,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	private ObjectProperty<ScriptTab> selectedScript = new SimpleObjectProperty<>();
 	
 	private ObjectProperty<ScriptLanguage> currentLanguage = new SimpleObjectProperty<>();
-	
+		
 	// Binding to indicate it shouldn't be possible to 'Run' any script right now
 	private BooleanBinding disableRun = runningTask.isNotNull().or(Bindings.createBooleanBinding(() -> !(currentLanguage.getValue() instanceof RunnableLanguage), currentLanguage));
 	
@@ -234,6 +235,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	private BooleanProperty autoClearConsole = PathPrefs.createPersistentPreference("scriptingAutoClearConsole", true);
 	private BooleanProperty clearCache = PathPrefs.createPersistentPreference("scriptingClearCache", false);
 	protected BooleanProperty smartEditing = PathPrefs.createPersistentPreference("scriptingSmartEditing", true);
+	private BooleanProperty wrapTextProperty = PathPrefs.createPersistentPreference("scriptingWrapText", false);
 	
 
 	// Regex pattern used to identify whether a script should be run in the JavaFX Platform thread
@@ -366,6 +368,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	 */
 	public void addNewScript(final String script, final ScriptLanguage language, final boolean doSelect) {
 		ScriptEditorControl editor = getNewEditor();
+		editor.wrapTextProperty().bindBidirectional(wrapTextProperty);
 		ScriptTab tab = new ScriptTab(editor, getNewConsole(), script, language);
 		
 		// Attach all listeners
@@ -403,6 +406,8 @@ public class DefaultScriptEditor implements ScriptEditor {
 		}
 		
 		ScriptEditorControl editor = getNewEditor();
+		editor.wrapTextProperty().bindBidirectional(wrapTextProperty);
+		
 		ScriptTab tab = new ScriptTab(editor, getNewConsole(), file);
 		
 		// Attach all listeners
@@ -469,7 +474,6 @@ public class DefaultScriptEditor implements ScriptEditor {
 
 	protected ScriptEditorControl getNewEditor() {
 		TextArea editor = new CustomTextArea();
-		editor.setWrapText(false);
 		editor.setFont(fontMain);
 		
 		TextAreaControl control = new TextAreaControl(editor);
@@ -532,6 +536,8 @@ public class DefaultScriptEditor implements ScriptEditor {
 		
 		menubar.getMenus().add(menuFile);
 		
+		var miWrapLines = new CheckMenuItem("Wrap lines");
+		miWrapLines.selectedProperty().bindBidirectional(wrapTextProperty);
 
 		// Edit menu
 		Menu menuEdit = new Menu("Edit");
@@ -550,7 +556,8 @@ public class DefaultScriptEditor implements ScriptEditor {
 				beautifySourceAction,
 				compressSourceAction,
 				null,
-				smartEditingAction
+				smartEditingAction,
+				miWrapLines
 				);
 //		menuEdit.setMnemonic(KeyEvent.VK_E);
 //
@@ -1351,6 +1358,9 @@ public class DefaultScriptEditor implements ScriptEditor {
 		var text = getClipboardText(escapeCharacters);
 		if (text == null)
 			return false;
+		
+		
+		
 		control.paste(text);
 		return true;
 	}

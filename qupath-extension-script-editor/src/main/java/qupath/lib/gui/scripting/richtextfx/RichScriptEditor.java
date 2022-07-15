@@ -126,7 +126,6 @@ public class RichScriptEditor extends DefaultScriptEditor {
 	protected ScriptEditorControl getNewEditor() {
 		try {
 			CodeArea codeArea = new CustomCodeArea();
-			codeArea.setWrapText(true);
 			CodeAreaControl control = new CodeAreaControl(codeArea);
 			
 			/*

@@ -26,6 +26,7 @@ package qupath.lib.gui.scripting.richtextfx;
 import org.fxmisc.flowless.VirtualizedScrollPane;
 import org.fxmisc.richtext.CodeArea;
 
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
@@ -172,6 +173,11 @@ public class CodeAreaControl implements ScriptEditorControl {
 	@Override
 	public void setPopup(ContextMenu menu) {
 		textArea.setContextMenu(menu);
+	}
+	
+	@Override
+	public BooleanProperty wrapTextProperty() {
+		return textArea.wrapTextProperty();
 	}
 
 	@Override

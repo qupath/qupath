@@ -16,10 +16,11 @@ This is a work-in-progress.
   * Added 'Replace/Next' and 'Replace all' features to Find window (https://github.com/qupath/qupath/pull/898)
   * New lines now trigger caret following (https://github.com/qupath/qupath/pull/900)
   * Proper tab handling (https://github.com/qupath/qupath/pull/902)
-  * Introduction of 'Smart Editing' (enabled through the corresponding persistent preference under 'Edit'), which supports the following features:
+  * Introduction of 'Smart Editing' (enabled through the corresponding preference under 'Edit'), which supports the following features:
     * Brace block handling (https://github.com/qupath/qupath/pull/901)
     * Smart parentheses and (double/single) quotes (https://github.com/qupath/qupath/pull/907)
     * Comment block handling (https://github.com/qupath/qupath/pull/908)
+  * New 'Edit -> Wrap lines' option
 * Improved Brightness/Contrast options, including
   * Switch between dark and light backgrounds (still experimental)
   * More consistent behavior with 'Show grayscale' option
