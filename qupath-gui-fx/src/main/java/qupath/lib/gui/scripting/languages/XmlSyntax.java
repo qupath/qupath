@@ -25,8 +25,11 @@ import java.io.StringReader;
 import java.io.StringWriter;
 
 import javax.xml.transform.OutputKeys;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerConfigurationException;
 import javax.xml.transform.TransformerException;
 import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.TransformerFactoryConfigurationError;
 import javax.xml.transform.stream.StreamResult;
 import javax.xml.transform.stream.StreamSource;
 
@@ -54,19 +57,15 @@ class XmlSyntax extends GeneralCodeSyntax {
 		return INSTANCE;
 	}
 	
-	/**
-	 * XML does not easily support line comments comments. Therefore this method does nothing.
-	 */
 	@Override
 	public void handleLineComment(final ScriptEditorControl control) {
-		// Do nothing
-		
 		String text = control.getText();
 		IndexRange range = control.getSelection();
 		boolean hasSelection = range.getLength() > 0;
 		boolean hasMultilineSelection = hasSelection && control.getSelectedText().contains("\n");
 		String textBetween = control.getSelectedText();
 		if (hasSelection && !hasMultilineSelection && !textBetween.startsWith("<!--") && !textBetween.startsWith("-->")) {
+			// Add inline comment
 			String newText = "<!--" + textBetween + "-->";
 			control.paste(newText);
 			control.selectRange(range.getStart(), range.getStart() + newText.length());
@@ -92,29 +91,74 @@ class XmlSyntax extends GeneralCodeSyntax {
 				control.selectRange(startRowPos, endRowPos);
 				control.paste(newText);
 				control.selectRange(startRowPos, startRowPos + newText.length());
-//				control.positionCaret(pos + 4);
 			}
 		}	
 	}
 	
+	// With thanks to https://stackoverflow.com/questions/5511096/java-convert-formatted-xml-file-to-one-line-string
+	private static String trimWhitespace = "<?xml version=\"1.0\"?>\n"
+			+ "<xsl:stylesheet version=\"1.0\" xmlns:xsl=\"http://www.w3.org/1999/XSL/Transform\">\n"
+			+ "    <xsl:output indent=\"no\" />\n"
+			+ "    <xsl:strip-space elements=\"*\"/>\n"
+			+ "    <xsl:template match=\"@*|node()\">\n"
+			+ "        <xsl:copy>\n"
+			+ "            <xsl:apply-templates select=\"@*|node()\"/>\n"
+			+ "        </xsl:copy>\n"
+			+ "    </xsl:template>\n"
+			+ "</xsl:stylesheet>";
+	
+	
+	private static Transformer createTransformer(boolean indent) throws TransformerConfigurationException, TransformerFactoryConfigurationError {
+		var transformer = TransformerFactory.newInstance().newTransformer(new StreamSource(new StringReader(trimWhitespace)));
+		if (indent) {
+			transformer.setOutputProperty(OutputKeys.INDENT, "yes");
+			transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "2");
+		} else {
+			transformer.setOutputProperty(OutputKeys.INDENT, "no");
+		}
+		transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "yes");		
+		return transformer;
+	}
+	
+	private static String applyTransform(Transformer transformer, String text) throws TransformerException {
+		var source = new StreamSource(new StringReader(text));
+		var writer = new StringWriter();
+		var result = new StreamResult(writer);
+		transformer.transform(source, result);
+		return result.getWriter().toString();
+	}
+	
+	
 	@Override
 	public String beautify(String text) {
 		try {
-			var transformer = TransformerFactory.newInstance().newTransformer();
-			transformer.setOutputProperty(OutputKeys.INDENT, "yes");
-			transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "2");
-			transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "yes");
-			
-			var source = new StreamSource(new StringReader(text));
-			var writer = new StringWriter();
-			var result = new StreamResult(writer);
-			
-			transformer.transform(source, result);
-			
-			return result.getWriter().toString();
-		} catch (TransformerException ex) {
+			var transformer = createTransformer(true);
+			return applyTransform(transformer, text);
+		} catch (Exception ex) {
 			logger.warn("Could not beautify this XML", ex.getLocalizedMessage());
 			return text;
 		}
 	}
+	
+	@Override
+	public boolean canBeautify() {
+		return true;
+	}
+
+	@Override
+	public boolean canCompress() {
+		return true;
+	}
+
+	@Override
+	public String compress(String text) {
+		try {
+			var transformer = createTransformer(false);
+			return applyTransform(transformer, text);
+		} catch (Exception ex) {
+			logger.warn("Could not compress this XML", ex.getLocalizedMessage());
+			return text;
+		}
+	}
+	
 }

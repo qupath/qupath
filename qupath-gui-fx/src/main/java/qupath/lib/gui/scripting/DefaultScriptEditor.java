@@ -114,8 +114,6 @@ import qupath.lib.projects.Projects;
  * Default multilingual script editor.
  * <p>
  * Lacks syntax highlighting and other pleasant features, unfortunately.
- * <p>
- * Warning: This is likely to be replaced by a monolingual editor, supporting Groovy only.
  * 
  * @author Pete Bankhead
  */
@@ -165,7 +163,42 @@ public class DefaultScriptEditor implements ScriptEditor {
 	// Keyboard accelerators
 	protected KeyCombination comboPasteEscape = new KeyCodeCombination(KeyCode.V, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN);
 	protected final KeyCodeCombination completionCodeCombination = new KeyCodeCombination(KeyCode.SPACE, KeyCombination.CONTROL_DOWN);
-	protected final KeyCodeCombination beautifierCodeCombination = new KeyCodeCombination(KeyCode.L, KeyCombination.SHORTCUT_DOWN, KeyCombination.ALT_DOWN);
+
+	protected Action beautifySourceAction = ActionTools.createAction(this::beautifySource, "Beautify source");
+	protected Action compressSourceAction = ActionTools.createAction(this::compressSource, "Compress source");
+	
+	private BooleanBinding canBeautifyBinding = Bindings.createBooleanBinding(() -> {
+		var language = getCurrentLanguage();
+		var syntax = language == null ? null : language.getSyntax();
+		return syntax == null || !syntax.canBeautify();
+	}, currentLanguageProperty());
+	
+	private BooleanBinding canCompressBinding = Bindings.createBooleanBinding(() -> {
+		var language = getCurrentLanguage();
+		var syntax = language == null ? null : language.getSyntax();
+		return syntax == null || !syntax.canCompress();
+	}, currentLanguageProperty());
+	
+	private void beautifySource() {
+		var tab = getCurrentScriptObject();
+		var editor = tab == null ? null : tab.getEditorComponent();
+		var language = tab == null ? null : tab.getLanguage();
+		var syntax = language == null ? null : language.getSyntax();
+		if (editor == null || syntax == null || !syntax.canBeautify())
+			return;
+		editor.setText(syntax.beautify(editor.getText()));
+	}
+
+	private void compressSource() {
+		var tab = getCurrentScriptObject();
+		var editor = tab == null ? null : tab.getEditorComponent();
+		var language = tab == null ? null : tab.getLanguage();
+		var syntax = language == null ? null : language.getSyntax();
+		if (editor == null || syntax == null || !syntax.canCompress())
+			return;
+		editor.setText(syntax.compress(editor.getText()));		
+	}
+
 	
 	// Note: it doesn't seem to work to set the accelerators...
 	// this leads to the actions being called twice, due to the built-in behaviour of TextAreas
@@ -265,6 +298,10 @@ public class DefaultScriptEditor implements ScriptEditor {
 		insertPixelClassifiersAction = createInsertAction("Pixel classifiers");
 		insertObjectClassifiersAction = createInsertAction("Object classifiers");
 		insertDetectionMeasurementsAction = createInsertAction("Detection");
+		
+		beautifySourceAction.setAccelerator(new KeyCodeCombination(KeyCode.L, KeyCombination.SHORTCUT_DOWN, KeyCombination.ALT_DOWN));
+		beautifySourceAction.disabledProperty().bind(canBeautifyBinding);
+		compressSourceAction.disabledProperty().bind(canCompressBinding);
 		
 		qupath.projectProperty().addListener((v, o, n) -> {
 			previousImages.clear();
@@ -510,6 +547,9 @@ public class DefaultScriptEditor implements ScriptEditor {
 				null,
 				findAction,
 				null,
+				beautifySourceAction,
+				compressSourceAction,
+				null,
 				smartEditingAction
 				);
 //		menuEdit.setMnemonic(KeyEvent.VK_E);
@@ -571,6 +611,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 //		toggleLanguages.selectToggle(defaultLanguage);
 		
 		menubar.getMenus().add(menuLanguages);
+						
 		
 		// Insert menu
 		Menu menuInsert = new Menu("Insert");

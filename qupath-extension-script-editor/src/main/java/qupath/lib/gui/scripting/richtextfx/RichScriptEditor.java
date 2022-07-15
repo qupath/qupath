@@ -126,6 +126,7 @@ public class RichScriptEditor extends DefaultScriptEditor {
 	protected ScriptEditorControl getNewEditor() {
 		try {
 			CodeArea codeArea = new CustomCodeArea();
+			codeArea.setWrapText(true);
 			CodeAreaControl control = new CodeAreaControl(codeArea);
 			
 			/*
@@ -223,9 +224,6 @@ public class RichScriptEditor extends DefaultScriptEditor {
 					} else if (e.getCode() == KeyCode.BACK_SPACE) {
 						if (scriptSyntax.handleBackspace(control, smartEditing.get()) && !e.isShortcutDown() && !e.isShiftDown())
 							e.consume();
-					} else if (beautifierCodeCombination.match(e)) {
-						getCurrentTextComponent().setText(scriptSyntax.beautify(getCurrentText()));
-						e.isConsumed();
 					}
 				}
 				

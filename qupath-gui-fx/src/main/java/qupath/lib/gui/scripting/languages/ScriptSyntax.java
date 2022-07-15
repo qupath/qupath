@@ -119,4 +119,30 @@ public interface ScriptSyntax {
 	public default String beautify(String text) {
 		return text;
 	}
+	
+	/**
+	 * Returns {@code true} if {@link #beautify(String)} is capable of beautifying the text, {@code false} otherwise.
+	 * @return
+	 */
+	public default boolean canBeautify() {
+		return false;
+	}
+	
+	/**
+	 * Compresses the specified text by removing extra space, according to the syntax.
+	 * @param text the text to compress
+	 * @return beautified text
+	 */
+	public default String compress(String text) {
+		return text;
+	}
+	
+	/**
+	 * Returns {@code true} if {@link #compress(String)} is capable of compressing the text, {@code false} otherwise.
+	 * @return
+	 */
+	public default boolean canCompress() {
+		return false;
+	}
+	
 }
