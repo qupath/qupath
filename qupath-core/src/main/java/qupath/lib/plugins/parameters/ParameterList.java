@@ -35,6 +35,8 @@ import java.util.Map.Entry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import qupath.lib.io.GsonTools;
+
 
 /**
  * A collection of Parameters, which can be used for analysis &amp; queried to construct appropriate GUIs.
@@ -567,7 +569,10 @@ public class ParameterList implements Serializable {
 	 * @param params
 	 * @param delimiter
 	 * @return
+	 * @deprecated use {@link #convertToJson(ParameterList)} instead.
+	 * @implNote this failed to escape strings, which could cause problems https://github.com/qupath/qupath/issues/1022
 	 */
+	@Deprecated
 	public static String getParameterListJSON(final ParameterList params, final String delimiter) {
 		Map<String, Object> map = params.getKeyValueParameters(false);
 		return getParameterListJSON(map, delimiter);
@@ -581,7 +586,10 @@ public class ParameterList implements Serializable {
 	 * @param map
 	 * @param delimiter
 	 * @return
+	 * @deprecated use {@link #convertToJson(Map)} instead.
+	 * @implNote this failed to escape strings, which could cause problems https://github.com/qupath/qupath/issues/1022
 	 */
+	@Deprecated
 	public static String getParameterListJSON(final Map<String, ?> map, final String delimiter) {
 		StringBuilder sb = new StringBuilder();
 		int counter = 0;
@@ -608,6 +616,30 @@ public class ParameterList implements Serializable {
 		sb.append("}");
 		return sb.toString();
 	}
+	
+	/**
+	 * Convert a {@link Map} to a one-line JSON representation, omitting hidden parameters.
+	 * This is useful for scripting.
+	 * @param map
+	 * @return
+	 * @see #convertToJson(ParameterList)
+	 */
+	public static String convertToJson(Map<String, ?> map) {
+		return GsonTools.getInstance(false).toJson(map);		
+	}
+	
+	/**
+	 * Convert a {@link ParameterList} a one-line JSON representation, omitting hidden parameters.
+	 * This is useful for scripting.
+	 * @param params
+	 * @return
+	 * @see #convertToJson(Map)
+	 */
+	public static String convertToJson(ParameterList params) {
+		var map = params.getKeyValueParameters(false);
+		return convertToJson(map);
+	}
+	
 	
 //	/**
 //	 * Put a parameter into the list, possibly replacing a previous parameter.
