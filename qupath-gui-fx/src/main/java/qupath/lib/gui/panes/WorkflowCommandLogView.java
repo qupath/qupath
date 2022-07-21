@@ -428,7 +428,7 @@ public class WorkflowCommandLogView implements ChangeListener<ImageData<Buffered
 					Map<String, ?> parameterMap = pluginStep.getParameterMap();
 					String arg = null;
 					if (parameterMap != null && !parameterMap.isEmpty()) {
-						arg = ParameterList.getParameterListJSON(parameterMap, " ");
+						arg = ParameterList.convertToJson(parameterMap);
 					}
 					
 					qupath.runPlugin(plugin, arg, true);

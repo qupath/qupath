@@ -189,7 +189,7 @@ class ParameterDialogWrapper<T> {
 				public void run() {
 					try {
 						WorkflowStep lastStep = pluginRunner.getImageData().getHistoryWorkflow().getLastStep();
-						boolean success = plugin.runPlugin(pluginRunner, ParameterList.getParameterListJSON(params, "  "));
+						boolean success = plugin.runPlugin(pluginRunner, ParameterList.convertToJson(params));
 						WorkflowStep lastStepNew = pluginRunner.getImageData().getHistoryWorkflow().getLastStep();
 						if (success && lastStep != lastStepNew)
 							lastWorkflowStep = lastStepNew;

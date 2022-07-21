@@ -86,6 +86,7 @@ This is a work-in-progress.
 * Locked point annotations can still be edited (https://github.com/qupath/qupath/issues/1001)
 * 'Normalized OD colors' should not be available for RGB fluorescence images (https://github.com/qupath/qupath/issues/1006)
 * Training a new object classifier with the same settings and annotations can give a different result when an image is reopened (https://github.com/qupath/qupath/issues/1016)
+# It isn't possible to run cell detection on channels with " in the name (https://github.com/qupath/qupath/issues/1022)
 
 ### Changes through Bio-Formats 6.10.0
 * Bio-Formats 6.10.0 brings several important new features to QuPath, including:
