@@ -113,6 +113,8 @@ This is a work-in-progress.
 * Fix occasional "One of the arguments' values is out of range" exception with Delaunay triangulation
 * The colors used in pie chart legends were sometimes incorrect (https://github.com/qupath/qupath/issues/1062)
 * Delaunay connection lines could be broken or slow to display (https://github.com/qupath/qupath/pull/1069)
+* TMA-related fixes
+  * Attempting to add a row or column to a grid with a single core produces weird results
 
 ### Changes through Bio-Formats 6.11.0
 * Bio-Formats 6.11.0 brings several important new features to QuPath, including:

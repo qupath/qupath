@@ -328,8 +328,11 @@ public class TMACommands {
 		
 		// Check we have enough rows/columns - if not, this is just a clear operation
 		if ((removeRow && grid.getGridHeight() <= 1) || (!removeRow && grid.getGridWidth() <= 1)) {
-			if (Dialogs.showConfirmDialog(title, "Are you sure you want to delete the entire TMA grid?"))
+			if (Dialogs.showConfirmDialog(title, "Are you sure you want to delete the entire TMA grid?")) {
 				hierarchy.setTMAGrid(null);
+				if (selected instanceof TMACoreObject || hierarchy.getSelectionModel().getSelectedObjects().stream().anyMatch(p -> p.isTMACore()))
+					hierarchy.getSelectionModel().clearSelection();
+			}
 			return false;
 		}
 		
@@ -362,7 +365,7 @@ public class TMACommands {
 	
 	
 	
-private static enum TMAAddType {ROW_AFTER, ROW_BEFORE, COLUMN_AFTER, COLUMN_BEFORE;
+	private static enum TMAAddType {ROW_AFTER, ROW_BEFORE, COLUMN_AFTER, COLUMN_BEFORE;
 		
 		private String commandName() {
 			switch(this) {
@@ -584,6 +587,12 @@ private static enum TMAAddType {ROW_AFTER, ROW_BEFORE, COLUMN_AFTER, COLUMN_BEFO
 		double meanDx = statsDx.getMean();
 		double meanDy = statsDy.getMean();
 		double diameter = (meanWidth + meanHeight) / 2;
+		
+		// If we don't have finite displacements (i.e. likely just got a single core), then use half width or height
+		if (!Double.isFinite(meanDx))
+			meanDx = meanWidth * 1.25;
+		if (!Double.isFinite(meanDy))
+			meanDy = meanHeight * 1.25;
 		
 		// Create a new list of cores, adding where necessary
 		List<TMACoreObject> coresNew = new ArrayList<>();
