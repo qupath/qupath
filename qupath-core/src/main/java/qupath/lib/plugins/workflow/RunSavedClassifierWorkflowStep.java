@@ -80,7 +80,7 @@ public class RunSavedClassifierWorkflowStep implements ScriptableWorkflowStep {
 	
 	@Override
 	public String getScript() {
-		return "runClassifier('" + classifierPath + "');";
+		return "runClassifier('" + classifierPath + "')";
 	}
 	
 	

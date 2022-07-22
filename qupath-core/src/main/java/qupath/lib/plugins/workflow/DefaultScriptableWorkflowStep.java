@@ -43,7 +43,7 @@ public class DefaultScriptableWorkflowStep implements ScriptableWorkflowStep {
 
 	/**
 	 * Constructor that takes a parameter map for display.
-	 * 
+	 * <p>
 	 * The parameter map isn't embedded in the script by default - this script that is passed should be complete.
 	 * 
 	 * @param name
