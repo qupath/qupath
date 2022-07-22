@@ -69,6 +69,7 @@ This is a work-in-progress.
 * Added `getCurrentImageName()` method to `QP` for scripting (https://github.com/qupath/qupath/issues/1009)
 * Code cleaned up and simplified, with older (previously deprecated) detection classifiers removed
   * `PathClassifierTools` methods have been moved to `PathObjectTools` and `ServerTools`
+* Support passing arguments via a map to `runPlugin`, rather than only a JSON-encoded String
 
 ### Bugs fixed
 * Reading from Bio-Formats blocks forever when using multiple series outside a project (https://github.com/qupath/qupath/issues/894)

@@ -44,6 +44,25 @@ public class SimplePluginWorkflowStep implements ScriptableWorkflowStep, Externa
 	
 	private static final long serialVersionUID = 1L;
 	
+	/**
+	 * System property key to control how workflow args are included in a script
+	 * Currently this is private (experimental feature for testing)
+	 * @since v0.4.0
+	 */
+	private final static String PROP_KEY_WORKFLOW_ARGS = "script.workflow.args";
+	
+	/**
+	 * Include workflow args as a {@code Map<String, ?>}, where possible
+	 * @since v0.4.0
+	 */
+	private final static String PROP_WORKFLOW_ARGS_MAP = "map";
+	
+	/**
+	 * Include workflow args as a String (default)
+	 * @since v0.4.0
+	 */
+	private final static String PROP_WORKFLOW_ARGS_STRING = "string";
+	
 	private String name;
 	private String pluginClass;
 	private String arg;
@@ -126,18 +145,62 @@ public class SimplePluginWorkflowStep implements ScriptableWorkflowStep, Externa
 		StringBuilder sb = new StringBuilder();
 		if (scriptBefore != null)
 			sb.append(scriptBefore);
+		
+		String argString = getArgs();
+		
 		sb.append("runPlugin(").
 			append("'").
 			append(pluginClass).
 			append("', ").
-			append("'").
-			append(arg).
-			append("'").
-			append(");");
+			append(argString).
+			append(")");
 		if (scriptAfter != null)
 			sb.append(scriptAfter);
 		return sb.toString();
 	}
+	
+	/**
+	 * Get a String representation of the args, depending upon {@link #PROP_KEY_WORKFLOW_ARGS}.
+	 * @return
+	 */
+	private String getArgs() {
+		if (arg == null || arg.isEmpty())
+			return "''";
+		
+		String prop = System.getProperty(PROP_KEY_WORKFLOW_ARGS, "script");
+		switch (prop.toLowerCase()) {
+		case PROP_WORKFLOW_ARGS_MAP:
+			if (arg == null) {
+				return "''";
+			} else if (arg.startsWith("{") && arg.endsWith("}") && !getParameterMap().isEmpty()) {
+				return "[" + arg.substring(1, arg.length()-1) + "]";
+			} else {
+				return "'" + arg + "'";
+			}
+		case PROP_WORKFLOW_ARGS_STRING:
+		default:
+			return "'" + arg + "'";
+		}
+	}
+	
+	
+//	@Override
+//	public String getScript() {
+//		StringBuilder sb = new StringBuilder();
+//		if (scriptBefore != null)
+//			sb.append(scriptBefore);
+//		sb.append("runPlugin(").
+//			append("'").
+//			append(pluginClass).
+//			append("', ").
+//			append("'").
+//			append(arg).
+//			append("'").
+//			append(")");
+//		if (scriptAfter != null)
+//			sb.append(scriptAfter);
+//		return sb.toString();
+//	}
 
 	@Override
 	public void writeExternal(ObjectOutput out) throws IOException {

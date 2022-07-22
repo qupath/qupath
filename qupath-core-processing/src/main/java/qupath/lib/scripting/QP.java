@@ -1220,8 +1220,8 @@ public class QP {
 	/**
 	 * Run the specified plugin on the current {@code ImageData}.
 	 * 
-	 * @param className
-	 * @param args
+	 * @param className the full Java class name for the plugin
+	 * @param args any arguments required by the plugin (usually a JSON-encoded map)
 	 * @return
 	 * @throws InterruptedException
 	 * 
@@ -1238,9 +1238,9 @@ public class QP {
 	/**
 	 * Run the specified plugin on the specified {@code ImageData}.
 	 * 
-	 * @param className
-	 * @param imageData
-	 * @param args
+	 * @param className the full Java class name for the plugin
+	 * @param imageData the ImageData to which the plugin should be applied
+	 * @param args any arguments required by the plugin (usually a JSON-encoded map)
 	 * @return
 	 * @throws InterruptedException
 	 */
@@ -1258,6 +1258,87 @@ public class QP {
 			logger.error("Unable to run plugin " + className, e);
 			return false;
 		}
+	}
+	
+	/**
+	 * Run the specified plugin on the current {@code ImageData}, using a map for arguments.
+	 * 
+	 * @param className the full Java class name for the plugin
+	 * @param args the arguments
+	 * @return
+	 * @throws InterruptedException
+	 * 
+	 * @see #getCurrentImageData
+	 * 
+	 * @since v0.4.0
+	 * @implNote this is currently a convenience method that converts the arguments to a JSON-encoded string and calls 
+	 *           {@link #runPlugin(String, String)}
+	 */
+	public static boolean runPlugin(final String className, final Map<String, ?> args) throws InterruptedException {
+		var json = args == null ? "" : GsonTools.getInstance().toJson(args);
+		return runPlugin(className, json);
+	}
+	
+	/**
+	 * Run the specified plugin on the specified {@code ImageData}, using a map for arguments.
+	 * 
+	 * @param className the full Java class name for the plugin
+	 * @param imageData the ImageData to which the plugin should be applied
+	 * @param args the arguments
+	 * @return
+	 * @throws InterruptedException
+	 * 
+	 * @since v0.4.0
+	 * @implNote this is currently a convenience method that converts the arguments to a JSON-encoded string and calls 
+	 *           {@link #runPlugin(String, ImageData, String)}
+	 */
+	public static boolean runPlugin(final String className, final ImageData<?> imageData, final Map<String, ?> args) throws InterruptedException {
+		var json = args == null ? "" : GsonTools.getInstance().toJson(args);
+		return runPlugin(className, imageData, json);
+	}
+	
+	/**
+	 * Run the specified plugin on the current {@code ImageData}, with Groovy keyword argument support.
+	 * <p>
+	 * This reason is that this Groovy supports keyword arguments, but only if a {@link Map} is the first argument to a method.
+	 * This therefore makes it possible to change only non-default arguments with a call like this:
+	 * <pre><code>
+	 * runPlugin('qupath.imagej.detect.cells.WatershedCellDetection', cellExpansionMicrons: 3, detectionImage: "DAPI", threshold: 1.0)
+	 * </code></pre>
+	 * It is not even essential to provide the required {@code className} in the first position.
+	 * 
+	 * @param className the full Java class name for the plugin
+	 * @param args the arguments
+	 * @return
+	 * @throws InterruptedException
+	 * 
+	 * @since v0.4.0
+	 * @implNote this calls {@link #runPlugin(String, Map)}
+	 */
+	public static boolean runPlugin(final Map<String, ?> args, final String className) throws InterruptedException {
+		return runPlugin(className, args);
+	}
+
+	/**
+	 * Run the specified plugin on the specified {@code ImageData}, with Groovy keyword argument support.
+	 * <p>
+	 * This reason is that this Groovy supports keyword arguments, but only if a {@link Map} is the first argument to a method.
+	 * This therefore makes it possible to change only non-default arguments with a call like this:
+	 * <pre><code>
+	 * runPlugin('qupath.imagej.detect.cells.WatershedCellDetection', imageData, cellExpansionMicrons: 3, detectionImage: "DAPI", threshold: 1.0)
+	 * </code></pre>
+	 * It is not even essential to provide the required {@code className} in the first position.
+	 * 
+	 * @param className the full Java class name for the plugin
+	 * @param args the arguments
+	 * @return
+	 * @throws InterruptedException
+	 * 
+	 * @since v0.4.0
+	 * @implNote this calls {@link #runPlugin(String, ImageData, Map)}
+	 */
+	public static boolean runPlugin(final Map<String, ?> args, final String className, final ImageData<?> imageData) throws InterruptedException {
+		return runPlugin(className, imageData, args);
 	}
 	
 	
