@@ -76,7 +76,9 @@ import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.panes.ProjectBrowser;
+import qupath.lib.gui.panes.ServerSelector;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.ImageData.ImageType;
@@ -108,7 +110,7 @@ class ProjectImportImagesCommand {
 	
 	private final static BooleanProperty pyramidalizeProperty = PathPrefs.createPersistentPreference("projectImportPyramidalize", true);
 	private final static BooleanProperty importObjectsProperty = PathPrefs.createPersistentPreference("projectImportObjects", false);
-
+	private final static BooleanProperty showImageSelectorProperty = PathPrefs.createPersistentPreference("showImageSelectorProperty", false);
 	
 	/**
 	 * Prompt to import images to the current project.
@@ -202,10 +204,13 @@ class ProjectImportImagesCommand {
 		
 		CheckBox cbImportObjects = new CheckBox("Import objects");
 		cbImportObjects.setSelected(importObjectsProperty.get());
+		
+		CheckBox cbImageSelector = new CheckBox("Show image selector");
+		cbImageSelector.setSelected(showImageSelectorProperty.get());
 
-		PaneTools.setMaxWidth(Double.MAX_VALUE, comboBuilder, comboType, comboRotate, cbPyramidalize, cbImportObjects, tfArgs);
-		PaneTools.setFillWidth(Boolean.TRUE, comboBuilder, comboType, comboRotate, cbPyramidalize, cbImportObjects, tfArgs);
-		PaneTools.setHGrowPriority(Priority.ALWAYS, comboBuilder, comboType, comboRotate, cbPyramidalize, cbImportObjects, tfArgs);
+		PaneTools.setMaxWidth(Double.MAX_VALUE, comboBuilder, comboType, comboRotate, cbPyramidalize, cbImportObjects, tfArgs, cbImageSelector);
+		PaneTools.setFillWidth(Boolean.TRUE, comboBuilder, comboType, comboRotate, cbPyramidalize, cbImportObjects, tfArgs, cbImageSelector);
+		PaneTools.setHGrowPriority(Priority.ALWAYS, comboBuilder, comboType, comboRotate, cbPyramidalize, cbImportObjects, tfArgs, cbImageSelector);
 		
 		GridPane paneType = new GridPane();
 		paneType.setPadding(new Insets(5));
@@ -219,6 +224,8 @@ class ProjectImportImagesCommand {
 		PaneTools.addGridRow(paneType, row++, 0, "Optionally pass reader-specific arguments to the image provider.\nUsually this should just be left empty.", labelArgs, tfArgs);
 		PaneTools.addGridRow(paneType, row++, 0, "Dynamically create image pyramids for large, single-resolution images", cbPyramidalize, cbPyramidalize);
 		PaneTools.addGridRow(paneType, row++, 0, "Read and import objects (e.g. annotations) from the image file, if possible", cbImportObjects, cbImportObjects);
+		PaneTools.addGridRow(paneType, row++, 0, "Show the 'Image selector' window whenever the same URI contains multiple images.\n"
+				+ "If this is turned off, then all images will be import.", cbImageSelector, cbImageSelector);
 		
 		paneImages.setCenter(paneList);
 		paneImages.setBottom(paneType);
@@ -290,8 +297,10 @@ class ProjectImportImagesCommand {
 		Rotation rotation = comboRotate.getValue();
 		boolean pyramidalize = cbPyramidalize.isSelected();
 		boolean importObjects = cbImportObjects.isSelected();
+		boolean showSelector = cbImageSelector.isSelected();
 		pyramidalizeProperty.set(pyramidalize);
 		importObjectsProperty.set(importObjects);
+		showImageSelectorProperty.set(showSelector);
 		
 		ImageServerBuilder<BufferedImage> requestedBuilder = requestBuilder ? comboBuilder.getSelectionModel().getSelectedItem() : builder;
 		
@@ -388,10 +397,25 @@ class ProjectImportImagesCommand {
 				long max = builders.size();
 				if (!builders.isEmpty()) {
 					if (max == 1)
-						updateMessage("Adding 1 image to project");
+						updateMessage("Preparing to add 1 image to project");
 					else
-						updateMessage("Adding " + max + " images to project");
+						updateMessage("Preparing " + max + " images");
 					
+					
+					if (showSelector && max > 1) {
+						var selector = ServerSelector.createFromBuilders(builders);
+						var selected = GuiTools.callOnApplicationThread(() -> {
+							return selector.promptToSelectImages("Import");
+						});
+						builders.clear();
+						if (selected != null) {
+							for (var s : selected) {
+								builders.add(s.getBuilder());							
+								s.close(); // TODO: Don't waste open images by closing them again...
+							}
+						}
+					}
+						
 					// Add everything in order first
 					List<ProjectImageEntry<BufferedImage>> entries = new ArrayList<>();
 					for (var builder : builders) {

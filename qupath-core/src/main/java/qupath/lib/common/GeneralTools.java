@@ -872,7 +872,8 @@ public final class GeneralTools {
 	
 	/**
 	 * Replace non-printable characters from a String with a specified replacement (may be null).
-	 * @param text
+	 * @param text the input text
+	 * @param replacement the replacement text (often an empty string or null)
 	 * @return the modified String, or the original if no changes were made
 	 */
 	public static String replaceGremlins(String text, CharSequence replacement) {

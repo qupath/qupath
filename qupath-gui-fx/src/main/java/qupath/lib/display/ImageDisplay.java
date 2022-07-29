@@ -1013,6 +1013,7 @@ public class ImageDisplay extends AbstractImageRenderer {
 					return server.getDefaultThumbnail(z, t);
 				} catch (IOException e) {
 					logger.error("Error requesting default thumbnail for {} (z={}, t={})", server.getPath(), z, t);
+					logger.error(e.getLocalizedMessage(), e);
 					return null;
 				}
 			}).filter(img -> img != null).collect(Collectors.toList());

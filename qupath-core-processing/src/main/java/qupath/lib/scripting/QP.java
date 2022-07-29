@@ -1331,6 +1331,7 @@ public class QP {
 	 * 
 	 * @param className the full Java class name for the plugin
 	 * @param args the arguments
+	 * @param imageData 
 	 * @return
 	 * @throws InterruptedException
 	 * 

@@ -19,7 +19,7 @@
  * #L%
  */
 
-package qupath.lib.gui;
+package qupath.lib.gui.panes;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
@@ -28,40 +28,55 @@ import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javafx.application.Platform;
+import javafx.beans.binding.Bindings;
 import javafx.beans.property.ReadOnlyObjectWrapper;
+import javafx.beans.value.ObservableValue;
+import javafx.collections.FXCollections;
 import javafx.embed.swing.SwingFXUtils;
-import javafx.event.EventHandler;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.Dialog;
+import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
+import javafx.scene.control.SelectionMode;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
+import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.control.ButtonBar.ButtonData;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
-import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
+import javafx.stage.Modality;
+import javafx.stage.Stage;
+import javafx.stage.Window;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.ThreadTools;
+import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.ProjectCommands;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.images.servers.ImageServer;
@@ -69,17 +84,21 @@ import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 
 /**
  * Helper class for selecting one image server out of a collection.
+ * 
  */
-class ServerSelector {
+public class ServerSelector {
 
 	private static final Logger logger = LoggerFactory.getLogger(ServerSelector.class);
 	
 	private List<ImageServer<BufferedImage>> serverList = new ArrayList<>();
+	private boolean closeAfterPrompt = false;
+	
+	private static boolean buildParallel = true;
 	
 	private static enum Attribute {
 		PATH("Full Path"),
 		TYPE("Server Type"),
-		INDEX("Image index"),
+		INDEX("Image index"), // Index in the list of builders (*sometimes* meaningful, e.g. when builders represent series in a Bio-Format server, in order)
 		WIDTH("Width"),
 		HEIGHT("Height"),
 		DIMENSIONS("Dimensions (CZT)"),
@@ -100,49 +119,120 @@ class ServerSelector {
 		
 	}
 	
-	ServerSelector(Collection<ServerBuilder<BufferedImage>> builders) {
-		// TODO: Build servers on demand, rather than all at the start
-		for (var builder : builders) {
+	public static ServerSelector createFromBuilders(Collection<? extends ServerBuilder<BufferedImage>> builders) {
+		// TODO: Consider building servers on demand, rather than all at the start
+		var stream = builders.stream();
+		if (buildParallel)
+			stream = stream.parallel();
+		
+		var list = stream.map(b -> {
 			try {
-				serverList.add(builder.build());
+				return b.build();
 			} catch (Exception e) {
-				logger.warn("Unable to build series {}", builder);
+				logger.warn("Unable to build {}", b);
+				return null;
 			}
-		}
+		}).filter(s -> s != null).collect(Collectors.toList());
+		return new ServerSelector(list, true);
 	}
 	
-	@SuppressWarnings("unchecked")
-	public ImageServer<BufferedImage> promptToSelectServer() {	
-		if (serverList.isEmpty()) {
-			logger.warn("No series available!");
-			return null;
-		} else if (serverList.size() == 1) {
-			logger.warn("Only one server available!");
-			return serverList.get(0);
+	public static ServerSelector create(Collection<? extends ImageServer<BufferedImage>> servers) {
+		return new ServerSelector(servers, false);
+	}
+	
+	private ServerSelector(Collection<? extends ImageServer<BufferedImage>> servers, boolean closeAfterPrompt) {
+		this.serverList.addAll(servers);
+		this.closeAfterPrompt = closeAfterPrompt;
+	}
+	
+	
+	/**
+	 * Prompt to select a single {@link ImageServer}.
+	 * @param prompt a one-word prompt to use in the title or button; typically "Open", "Import" or "Select"
+	 * @param alwaysShow if true, always show the prompt; if false, it won't be shown if it isn't necessary (i.e. there are 0 or 1 servers).
+	 * @return the selected server, or null if no server was selected
+	 */
+	public ImageServer<BufferedImage> promptToSelectImage(String prompt, boolean alwaysShow) {	
+		if (!alwaysShow) {
+			if (serverList.isEmpty()) {
+				logger.warn("No images available!");
+				return null;
+			} else if (serverList.size() == 1) {
+				logger.warn("Only one image available!");
+				return serverList.get(0);
+			}
 		}
+		var result = promptToSelectServers(false, prompt);
+		return result.isEmpty() ? null : result.iterator().next();
+	}
+	
+	/**
+	 * Prompt to select multiple {@linkplain ImageServer ImageServers}.
+	 * @param prompt a one-word prompt to use in the title or button; typically "Open", "Import" or "Select"
+	 * @return the selected servers, or empty list if no servers were selected
+	 */
+	public List<ImageServer<BufferedImage>> promptToSelectImages(String prompt) {	
+		return promptToSelectServers(true, prompt);
+	}
+		
+		
+	@SuppressWarnings("unchecked")
+	private List<ImageServer<BufferedImage>> promptToSelectServers(boolean multiSelection, String promptBase) {	
+		
+		var prompt = promptBase == null ? "Select" : promptBase;
+		
 		// Get thumbnails in separate thread
 		ExecutorService executor = Executors.newSingleThreadExecutor(ThreadTools.createThreadFactory("thumbnail-loader", true));
 
 		ListView<ImageServer<BufferedImage>> listSeries = new ListView<>();
 		listSeries.setPrefWidth(480);
 		listSeries.setMinHeight(100);
+		if (multiSelection)
+			listSeries.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
+		else
+			listSeries.getSelectionModel().setSelectionMode(SelectionMode.SINGLE);
 		
 		// thumbnailBank is the map for storing thumbnails
 		Map<String, BufferedImage> thumbnailBank = new HashMap<String, BufferedImage>();
 		for (ImageServer<BufferedImage> server: serverList) {
-			executor.submit(() -> {
-				try {
-					thumbnailBank.put(server.getMetadata().getName(), ProjectCommands.getThumbnailRGB(server));
-					Platform.runLater( () -> listSeries.refresh());
-				} catch (IOException e) {
-					logger.warn("Error loading thumbnail: " + e.getLocalizedMessage(), e);
-				}
-			});
+			// Check the image size before trying to get a thumbnail
+			double downsample = server.getDownsampleForResolution(server.nResolutions()-1);
+			double width = server.getWidth() / downsample;
+			double height = server.getHeight() / downsample;
+			if (width * height < 10_000 * 10_000) {
+				executor.submit(() -> {
+					try {
+						thumbnailBank.put(server.getMetadata().getName(), ProjectCommands.getThumbnailRGB(server));
+						Platform.runLater( () -> listSeries.refresh());
+					} catch (IOException e) {
+						logger.warn("Error loading thumbnail: " + e.getLocalizedMessage(), e);
+					}
+				});
+			} else {
+				logger.warn("Image too big! Not generating thumbnail for {}", server);
+			}
 		};
 		
 		double thumbnailSize = 80;
 		listSeries.setCellFactory(v -> new ImageAndNameListCell(thumbnailBank, thumbnailSize, thumbnailSize));
-		listSeries.getItems().setAll(serverList);
+		
+		// Create a filter to make finding images easier
+		var items = FXCollections.observableArrayList(serverList).filtered(p -> true);
+		
+		var tfFilter = new TextField();
+		var filterText = tfFilter.textProperty();
+		ObservableValue<Predicate<ImageServer<BufferedImage>>> predicateProperty = Bindings.createObjectBinding(() -> {
+			var text = filterText.get();
+			if (text == null || text.isEmpty())
+				return s -> true;
+			var textLower = text.toLowerCase();
+			return s -> {
+				var name = s.getMetadata().getName();
+				return name != null && name.toLowerCase().contains(textLower);
+			};
+		}, filterText);
+		items.predicateProperty().bind(predicateProperty);
+		listSeries.setItems(items);
 
 		
 		// Info table - Changes according to selected series
@@ -152,8 +242,7 @@ class ServerSelector {
 		
 		// First column (attribute names)
 		TableColumn<Attribute, String> attributeCol = new TableColumn<>("Attribute");
-		attributeCol.setMinWidth(242);
-		attributeCol.setResizable(false);
+		attributeCol.setResizable(true);
 		attributeCol.setCellValueFactory(cellData -> {
 			return new ReadOnlyObjectWrapper<>(cellData.getValue() == null ? null : cellData.getValue().getText());
 		});
@@ -161,7 +250,7 @@ class ServerSelector {
 		// Second column (attribute values)
 		TableColumn<Attribute, String> valueCol = new TableColumn<>("Value");
 		valueCol.setMinWidth(242);
-		valueCol.setResizable(false);
+		valueCol.setResizable(true);
 		valueCol.setCellValueFactory(cellData -> {
 			int ind = listSeries.getSelectionModel().getSelectedIndex();
 			if (ind >= 0 && ind < serverList.size())
@@ -169,6 +258,7 @@ class ServerSelector {
 			else
 				return null;
 		});
+		tableInfo.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
 		
 		
 		// Adding the values on hover over the info table
@@ -188,15 +278,28 @@ class ServerSelector {
 		
 		// Set items to info table
 		tableInfo.getItems().setAll(Attribute.values());
+		// Remove index as an attribute if we have images associated with different URIs
+		if (!sameUri())
+			tableInfo.getItems().remove(Attribute.INDEX);
 		tableInfo.getColumns().addAll(attributeCol, valueCol);
 		
 
 		// Pane structure
-		BorderPane paneSelector = new BorderPane();
-		BorderPane paneSeries = new BorderPane(listSeries);
-		BorderPane paneInfo = new BorderPane(tableInfo);
+		var paneSelector = new BorderPane();
+		var paneSeries = new BorderPane(listSeries);
+		var paneInfo = new BorderPane(tableInfo);
 		paneInfo.setMaxHeight(100);
 		paneSelector.setCenter(paneSeries);
+		
+		var paneFilter = new BorderPane(tfFilter);
+		var labelFilter = new Label("Search: ");
+		labelFilter.setAlignment(Pos.CENTER_LEFT);
+		labelFilter.setMaxHeight(Double.MAX_VALUE);
+		labelFilter.setLabelFor(tfFilter);
+		paneFilter.setLeft(labelFilter);
+		paneInfo.setBottom(paneFilter);
+		paneFilter.setPadding(new Insets(5, 0, 5, 0));
+		
 		paneSelector.setBottom(paneInfo);
 
 		BorderPane pane = new BorderPane();
@@ -205,54 +308,111 @@ class ServerSelector {
 		
 		Dialog<ButtonType> dialog = new Dialog<>();
 		var qupath = QuPathGUI.getInstance();
-		if (qupath != null)
-			dialog.initOwner(qupath.getStage());
-		dialog.setTitle("Open image");
-		ButtonType typeImport = new ButtonType("Open", ButtonData.OK_DONE);
-		dialog.getDialogPane().getButtonTypes().addAll(typeImport, ButtonType.CANCEL);
+		
+		// Try to ensure we have a suitable owner, even if a progress dialog is visible
+		var mainStage = qupath == null ? null : qupath.getStage();
+		var owner = Window.getWindows().stream()
+//				.filter(w -> w.isFocused())
+				.map(w -> w instanceof Stage ? (Stage)w : null)
+				.filter(s -> s != null)
+				.filter(s -> s.isFocused() && s.getModality() != Modality.NONE)
+				.findFirst()
+				.orElse(mainStage);
+		dialog.initOwner(owner);
+		
+		if (multiSelection)
+			dialog.setTitle(prompt + " images");
+		else
+			dialog.setTitle(prompt + " image");
+		ButtonType typeImportSelected = new ButtonType(prompt + " selected", ButtonData.OK_DONE);
+		dialog.getDialogPane().getButtonTypes().addAll(typeImportSelected, ButtonType.CANCEL);
+
 		dialog.getDialogPane().setContent(pane);
 		
 		listSeries.getSelectionModel().selectedItemProperty().addListener((obs, previousSelectedRow, selectedRow) -> {
 		    tableInfo.refresh();
 		});
 		
-		listSeries.setOnMouseClicked(new EventHandler<MouseEvent>() {
+		// If we accept a single selection, then handle double click
+		if (!multiSelection) {
+			listSeries.setOnMouseClicked(click -> {
+			    	var selectedItem = listSeries.getSelectionModel().getSelectedItem();
+			        if (click.getClickCount() == 2 && selectedItem != null) {
+			        	Button acceptButton = (Button) dialog.getDialogPane().lookupButton(typeImportSelected);
+			        	acceptButton.fire();
+			        }
+			    });
+		}
+		
+		var nSelected = Bindings.createIntegerBinding(() -> {
+			return listSeries.getSelectionModel().getSelectedIndices().size();
+		}, listSeries.getSelectionModel().getSelectedItems());
+		
+		var selectAll = Bindings.createBooleanBinding(() -> {
+			var n = nSelected.get();
+			return n == 0 || n >= serverList.size();
+		}, nSelected);
 
-		    @Override
-		    public void handle(MouseEvent click) {
-		    	ImageServer<BufferedImage> selectedItem = listSeries.getSelectionModel().getSelectedItem();
-
-		        if (click.getClickCount() == 2 && selectedItem != null) {
-		        	Button okButton = (Button) dialog.getDialogPane().lookupButton(typeImport);
-		        	okButton.fire();
-		        }
-		    }
-		});
+		// Update button with the number currently selected
+		var btnSelected = (Button)dialog.getDialogPane().lookupButton(typeImportSelected);
+		if (multiSelection) {
+			btnSelected.textProperty().bind(Bindings.createStringBinding(() -> {
+				return selectAll.get() ? prompt + " all" : prompt + " " + nSelected.get();
+			}, selectAll));
+		} else {
+			btnSelected.disableProperty().bind(nSelected.isNotEqualTo(1));
+		}
 		
 		Optional<ButtonType> result = dialog.showAndWait();
 		
-		var selectedToReturn = listSeries.getSelectionModel().getSelectedItem();
+		Set<ImageServer<BufferedImage>> selectedToReturn;
+		var resultType = result.orElse(ButtonType.CANCEL);
+		if (resultType == ButtonType.CANCEL) {
+			selectedToReturn = Collections.emptySet();
+		} else if (multiSelection && selectAll.get()) {
+			selectedToReturn = new LinkedHashSet<>(serverList);
+		} else {
+			selectedToReturn = new LinkedHashSet<>(listSeries.getSelectionModel().getSelectedItems());
+		}
+		
+		var returnNothing = !result.isPresent() || result.get() != typeImportSelected || result.get() == ButtonType.CANCEL;
+		if (returnNothing)
+			selectedToReturn = Collections.emptySet();
 		
 		try {
 			executor.shutdownNow();
 		} catch (Exception e) {
 			logger.warn(e.getLocalizedMessage(), e);
 		} finally {
-			try {
-				for (ImageServer<BufferedImage> server: serverList) {
-					if (server != selectedToReturn)
-						server.close();
+			// Close servers that we aren't returning, if required
+			if (closeAfterPrompt) {
+				try {
+					for (ImageServer<BufferedImage> server: serverList) {
+						if (!selectedToReturn.contains(server))
+							server.close();
+					}
+				} catch (Exception e) {
+					logger.debug(e.getLocalizedMessage(), e);
 				}
-			} catch (Exception e) {
-				logger.debug(e.getLocalizedMessage(), e);
 			}
 		}		
 		
-		if (!result.isPresent() || result.get() != typeImport || result.get() == ButtonType.CANCEL)
-			return null;
+		if (selectedToReturn.isEmpty())
+			return Collections.emptyList();
 		
-		return selectedToReturn;
+		return new ArrayList<>(selectedToReturn);
 	}
+	
+	
+	
+	private boolean sameUri() {
+		var set = new HashSet<URI>();
+		for (var server : serverList) {
+			set.addAll(server.getURIs());
+		}
+		return set.size() <= 1;
+	}
+	
 	
 	
 	private static String getServerAttribute(ImageServer<?> server, Attribute attribute, int index) {

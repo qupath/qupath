@@ -21,6 +21,10 @@ This is a work-in-progress.
     * Smart parentheses and (double/single) quotes (https://github.com/qupath/qupath/pull/907)
     * Comment block handling (https://github.com/qupath/qupath/pull/908)
   * New 'Edit -> Wrap lines', 'Edit -> Replace curly quotes' and 'Edit -> Zap gremlins' options
+* Better support for opening/importing from files containing multiple images
+  * New 'Show image selector' option when adding images to a project
+  * Image selector dialog has a filter to find images more easily
+  * Image selector dialog shows all image dimension and pyramid level information
 * Improved Brightness/Contrast options, including
   * Switch between dark and light backgrounds (still experimental)
   * More consistent behavior with 'Show grayscale' option
