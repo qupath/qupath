@@ -2,7 +2,7 @@
 name: Questions (and everything else)
 about: Please use https://forum.image.sc/tags/qupath instead!
 title: ''
-labels: ''
+labels: question (please use image.sc!)
 assignees: ''
 
 ---
