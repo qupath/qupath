@@ -23,23 +23,25 @@ package qupath.lib.gui;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.net.URI;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javafx.application.Platform;
 import javafx.beans.property.ReadOnlyObjectWrapper;
-import javafx.beans.value.ObservableValue;
-import javafx.collections.FXCollections;
-import javafx.collections.ObservableList;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.event.EventHandler;
 import javafx.scene.canvas.Canvas;
@@ -73,7 +75,30 @@ class ServerSelector {
 	private static final Logger logger = LoggerFactory.getLogger(ServerSelector.class);
 	
 	private List<ImageServer<BufferedImage>> serverList = new ArrayList<>();
-	private ImageServer<BufferedImage> selectedSeries = null;
+	
+	private static enum Attribute {
+		PATH("Full Path"),
+		TYPE("Server Type"),
+		INDEX("Image index"),
+		WIDTH("Width"),
+		HEIGHT("Height"),
+		DIMENSIONS("Dimensions (CZT)"),
+		PIXEL_WIDTH("Pixel Width"),
+		PIXEL_HEIGHT("Pixel Height"),
+		PIXEL_TYPE("Pixel Type"),
+		PYRAMID("Pyramid");
+		
+		private String text;
+		
+		private Attribute(String text) {
+			this.text = text;
+		}
+		
+		public String getText() {
+			return text;
+		}
+		
+	}
 	
 	ServerSelector(Collection<ServerBuilder<BufferedImage>> builders) {
 		// TODO: Build servers on demand, rather than all at the start
@@ -121,41 +146,40 @@ class ServerSelector {
 
 		
 		// Info table - Changes according to selected series
-		String[] attributes = new String[] {"Full Path", "Server Type", "Width", "Height", "Pixel Width", "Pixel Height", "Pixel Type", "Number of Channels", "Number of Resolutions"};
-		Integer[] indices = new Integer[9];
-		for (int index = 0; index < 9; index++) indices[index] = index;
-		ObservableList<Integer> indexList = FXCollections.observableArrayList(indices);
-		
-		TableView<Integer> tableInfo = new TableView<>();
+		TableView<Attribute> tableInfo = new TableView<>();
 		tableInfo.setMinHeight(200);
 		tableInfo.setMinWidth(500);
 		
 		// First column (attribute names)
-		TableColumn<Integer, String> attributeCol = new TableColumn<Integer, String>("Attribute");
+		TableColumn<Attribute, String> attributeCol = new TableColumn<>("Attribute");
 		attributeCol.setMinWidth(242);
 		attributeCol.setResizable(false);
 		attributeCol.setCellValueFactory(cellData -> {
-			return new ReadOnlyObjectWrapper<String>(attributes[cellData.getValue()]);
+			return new ReadOnlyObjectWrapper<>(cellData.getValue() == null ? null : cellData.getValue().getText());
 		});
 		
 		// Second column (attribute values)
-		TableColumn<Integer, String> valueCol = new TableColumn<Integer, String>("Value");
+		TableColumn<Attribute, String> valueCol = new TableColumn<>("Value");
 		valueCol.setMinWidth(242);
 		valueCol.setResizable(false);
 		valueCol.setCellValueFactory(cellData -> {
-			if (selectedSeries != null) return getSeriesQuickInfo(selectedSeries, cellData.getValue());
-			else return null;
+			int ind = listSeries.getSelectionModel().getSelectedIndex();
+			if (ind >= 0 && ind < serverList.size())
+				return new ReadOnlyObjectWrapper<>(getServerAttribute(serverList.get(ind), cellData.getValue(), ind));
+			else
+				return null;
 		});
 		
 		
 		// Adding the values on hover over the info table
 		tableInfo.setRowFactory(tableView -> {
-            final TableRow<Integer> row = new TableRow<>();
+            final TableRow<Attribute> row = new TableRow<>();
             row.hoverProperty().addListener((observable) -> {
                 final var element = row.getItem();
-                if (row.isHover() && selectedSeries != null) {
-                	ObservableValue<String> value = getSeriesQuickInfo(selectedSeries, element);
-                	Tooltip tooltip = new Tooltip(value.getValue());
+    			int ind = listSeries.getSelectionModel().getSelectedIndex();
+                if (row.isHover() && ind >= 0 && ind < serverList.size()) {
+                	var value = getServerAttribute(serverList.get(ind), element, ind);
+                	Tooltip tooltip = new Tooltip(value);
                 	Tooltip.install(row, tooltip);
                 }
             });
@@ -163,7 +187,7 @@ class ServerSelector {
 		});
 		
 		// Set items to info table
-		tableInfo.setItems(indexList);
+		tableInfo.getItems().setAll(Attribute.values());
 		tableInfo.getColumns().addAll(attributeCol, valueCol);
 		
 
@@ -189,11 +213,7 @@ class ServerSelector {
 		dialog.getDialogPane().setContent(pane);
 		
 		listSeries.getSelectionModel().selectedItemProperty().addListener((obs, previousSelectedRow, selectedRow) -> {
-		    if (selectedRow != null) {
-		    	selectedSeries = selectedRow;
-		    	indexList.removeAll(indexList);
-		    	indexList.addAll(indices);
-		    }
+		    tableInfo.refresh();
 		});
 		
 		listSeries.setOnMouseClicked(new EventHandler<MouseEvent>() {
@@ -226,7 +246,6 @@ class ServerSelector {
 			} catch (Exception e) {
 				logger.debug(e.getLocalizedMessage(), e);
 			}
-			selectedSeries = null;
 		}		
 		
 		if (!result.isPresent() || result.get() != typeImport || result.get() == ButtonType.CANCEL)
@@ -236,21 +255,49 @@ class ServerSelector {
 	}
 	
 	
-	private static ObservableValue<String> getSeriesQuickInfo(ImageServer<BufferedImage> imageServer, int index) {
-		String filePath = imageServer.getURIs().iterator().next().toString();
-		String serverType = imageServer.getServerType();
-		String width = "" + imageServer.getWidth() + " px";
-		String height = "" + imageServer.getHeight() + " px";
-		double pixelWidthTemp = imageServer.getPixelCalibration().getPixelWidth().doubleValue();
-		String pixelWidth = GeneralTools.formatNumber(pixelWidthTemp, 4) + " " + imageServer.getPixelCalibration().getPixelWidthUnit();
-		double pixelHeightTemp = imageServer.getPixelCalibration().getPixelHeight().doubleValue();
-		String pixelHeight = GeneralTools.formatNumber(pixelHeightTemp, 4) + " " + imageServer.getPixelCalibration().getPixelHeightUnit();
-		String pixelType = imageServer.getPixelType().toString();
-		String nChannels = String.valueOf(imageServer.nChannels());
-		String nResolutions = String.valueOf(imageServer.nResolutions());
-		String[] outString = new String[] {filePath, serverType, width, height, pixelWidth, pixelHeight, pixelType, nChannels, nResolutions};
-		ObservableValue<String> out = new ReadOnlyObjectWrapper<String>(outString[index]);
-		return out;
+	private static String getServerAttribute(ImageServer<?> server, Attribute attribute, int index) {
+		switch (attribute) {
+		case INDEX:
+			return String.valueOf(index);
+		case PATH:
+			var uris = server.getURIs();
+			if (uris.size() == 1)
+				return uriToString(uris.iterator().next());
+			return "[" + server.getURIs().stream().map(ServerSelector::uriToString).collect(Collectors.joining(", ")) + "]";
+		case PIXEL_HEIGHT:
+			double pixelHeightTemp = server.getPixelCalibration().getPixelHeight().doubleValue();
+			return GeneralTools.formatNumber(pixelHeightTemp, 4) + " " + server.getPixelCalibration().getPixelHeightUnit();
+		case PIXEL_TYPE:
+			return server.getPixelType().toString();
+		case PIXEL_WIDTH:
+			double pixelWidthTemp = server.getPixelCalibration().getPixelWidth().doubleValue();
+			return GeneralTools.formatNumber(pixelWidthTemp, 4) + " " + server.getPixelCalibration().getPixelWidthUnit();
+		case TYPE:
+			return server.getServerType();
+		case WIDTH:
+			return server.getWidth() + " px";
+		case HEIGHT:
+			return server.getHeight() + " px";
+		case DIMENSIONS:
+			return String.format("%d x %d x %d", server.nChannels(), server.nZSlices(), server.nTimepoints());
+		case PYRAMID:
+			if (server.nResolutions() == 1)
+				return "No";
+			return GeneralTools.arrayToString(Locale.getDefault(Locale.Category.FORMAT), server.getPreferredDownsamples(), 1);
+		default:
+			return null;
+		}
+	}
+	
+	
+	private static String uriToString(URI uri) {
+		if (uri == null)
+			return "";
+		try {
+			return URLDecoder.decode(uri.toString(), StandardCharsets.UTF_8);
+		} catch (Exception e) {
+			return uri.toString();
+		}
 	}
 	
 	
@@ -296,6 +343,9 @@ class ServerSelector {
 			}
 			
 			String name = entry.getMetadata().getName();
+			String text = name == null || name.isBlank() ? "(No image name)" : name + "\n";
+			text = text + "(Image " + (getIndex()+1) + ")";
+			
 			var thumbnail = imageCache.get(name);
 			if (thumbnail != null)
 				img =  SwingFXUtils.toFXImage(thumbnail, null);
@@ -314,7 +364,7 @@ class ServerSelector {
 			imageView.setPreserveRatio(true);
 			tooltip.setGraphic(imageView);
 
-			setTooltip(new Tooltip(name));
+			setTooltip(new Tooltip(text));
 
 		}
 		
