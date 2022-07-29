@@ -198,6 +198,7 @@ import qupath.lib.gui.panes.PathObjectHierarchyView;
 import qupath.lib.gui.panes.PreferencePane;
 import qupath.lib.gui.panes.ProjectBrowser;
 import qupath.lib.gui.panes.SelectedMeasurementTableView;
+import qupath.lib.gui.panes.ServerSelector;
 import qupath.lib.gui.panes.WorkflowCommandLogView;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.prefs.PathPrefs.ImageTypeSetting;
@@ -3050,8 +3051,8 @@ public class QuPathGUI {
 					logger.error("Error building server: " + e.getLocalizedMessage(), e);
 				}
 			} else {
-				var selector = new ServerSelector(builders);
-				serverNew = selector.promptToSelectServer();
+				var selector = ServerSelector.createFromBuilders(builders);
+				serverNew = selector.promptToSelectImage("Open", false);
 				if (serverNew == null)
 					return false;
 			}
