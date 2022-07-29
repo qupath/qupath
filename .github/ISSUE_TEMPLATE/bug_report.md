@@ -2,7 +2,7 @@
 name: Bug report
 about: Report a bug in QuPath
 title: ''
-labels: ''
+labels: bug
 assignees: ''
 
 ---
@@ -44,7 +44,7 @@ If applicable, add screenshots to help explain your problem.
 
 **Desktop (please complete the following information):**
  - OS: [e.g. Windows, macOS, Ubuntu...]
- - QuPath Version [e.g. 0.2.2]
+ - QuPath Version: [e.g. 0.2.2]
 
 **Additional context**
 Add any other context about the problem here.
