@@ -1700,7 +1700,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 				args.add(seriesName);				
 			}
 			if (swapDimensions != null && !swapDimensions.isBlank()) {
-				args.add("--swap");
+				args.add("--dims");
 				args.add(swapDimensions);
 			}
 			for (var option : readerOptions.entrySet()) {
