@@ -4025,13 +4025,6 @@ public class QuPathGUI {
 	}
 	
 	/**
-	 * Get the previously selected tool.
-	 * @return
-	 */
-	public PathTool getPreviouslySelectedTool() {
-		return previousTool;
-	}
-	/**
 	 * Property containing the currently-selected {@link PathTool}.
 	 * @return
 	 */
