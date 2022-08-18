@@ -77,6 +77,8 @@ This is a work-in-progress.
 
 ### Bugs fixed
 * Reading from Bio-Formats blocks forever when using multiple series outside a project (https://github.com/qupath/qupath/issues/894)
+* Can't swap dimensions for Bio-Formats using optional args (https://github.com/qupath/qupath/issues/1036)
+  * Fix broken support for optional args, e.g. `--dims XYTCZ` when adding images to a project
 * Image resizing bug affecting labeled image export (https://github.com/qupath/qupath/issues/974)
 * Remove fragments & holes doesn't remove small objects from the current selection (https://github.com/qupath/qupath/issues/976)
 * 'Ignore case' in the Find window of the Script editor does not ignore case (https://github.com/qupath/qupath/issues/889)
