@@ -93,8 +93,8 @@ This is a work-in-progress.
 * Training a new object classifier with the same settings and annotations can give a different result when an image is reopened (https://github.com/qupath/qupath/issues/1016)
 # It isn't possible to run cell detection on channels with " in the name (https://github.com/qupath/qupath/issues/1022)
 
-### Changes through Bio-Formats 6.10.0
-* Bio-Formats 6.10.0 brings several important new features to QuPath, including:
+### Changes through Bio-Formats 6.10.1
+* Bio-Formats 6.10.1 brings several important new features to QuPath, including:
   * Support for reading DICOM whole slide images
   * Improved handling of brightfield CZI images (i.e. filling unscanned regions in white, not black)
   * Substantial performance improvements for reading/writing some formats (including OME-TIFF)
@@ -105,11 +105,11 @@ This is a work-in-progress.
 
 ### Dependency updates
 * Adoptium OpenJDK 17
-* Bio-Formats 6.10.0
-* JavaFX 18.0.1
+* Bio-Formats 6.10.1
+* JavaFX 18.0.2
 * Java Topology Suite 1.19.0
-* Groovy 4.0.3
-* Gson 2.9.0
+* Groovy 4.0.4
+* Gson 2.9.1
 * Guava 31.1
 * ikonli 12.3.1
 * JavaCPP 1.5.7
