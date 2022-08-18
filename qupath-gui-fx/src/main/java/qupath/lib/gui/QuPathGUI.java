@@ -360,6 +360,8 @@ public class QuPathGUI {
 	private BooleanBinding uiBlocked = pluginRunning.or(scriptRunning);
 	
 	private SimpleBooleanProperty showInputDisplayProperty = new SimpleBooleanProperty(false);
+
+	private PathTool previousTool = PathTools.MOVE;
 	
 	/**
 	 * Create an {@link Action} that depends upon an {@link ImageData}.
@@ -1056,6 +1058,13 @@ public class QuPathGUI {
 						}
 					}
 				}
+			}
+			else if (e.isMiddleButtonDown()) {
+				// Here we toggle between the MOVE tool and any previously selected tool
+				if (getSelectedTool() == PathTools.MOVE)
+					setSelectedTool(previousTool);
+				else
+					setSelectedTool(PathTools.MOVE);
 			}
 		});
 		
@@ -3912,6 +3921,9 @@ public class QuPathGUI {
 	 * @param tool
 	 */
 	public void setSelectedTool(PathTool tool) {
+		// Record which tools was currently selected
+		previousTool = getSelectedTool();
+
 		if (!Platform.isFxApplicationThread()) {
 			Platform.runLater(() -> setSelectedTool(tool));
 			return;
