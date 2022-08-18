@@ -31,6 +31,7 @@ import org.locationtech.jts.algorithm.distance.DistanceToPoint;
 import org.locationtech.jts.algorithm.distance.PointPairDistance;
 import org.locationtech.jts.algorithm.locate.IndexedPointInAreaLocator;
 import org.locationtech.jts.algorithm.locate.PointOnGeometryLocator;
+import org.locationtech.jts.algorithm.locate.SimplePointInAreaLocator;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
@@ -69,8 +70,35 @@ public class DistanceTools {
 	 * @param imageData
 	 * @param splitClassNames if true, split the classification name. For example, if an image contains classifications for both "CD3: CD4" and "CD3: CD8",
 	 *                        distances will be calculated for all components (e.g. "CD3", "CD4" and "CD8").
+	 * @see DistanceTools#detectionToAnnotationDistances(ImageData, boolean, boolean)
 	 */
 	public static void detectionToAnnotationDistances(ImageData<?> imageData, boolean splitClassNames) {
+		detectionToAnnotationDistances(imageData, splitClassNames, false);
+	}
+	
+	/**
+	 * Compute the signed distance for all detection object centroids to the closest annotation with each valid, not-ignored classification and add 
+	 * the result to the detection measurement list.
+	 * @param imageData
+	 * @param splitClassNames if true, split the classification name. For example, if an image contains classifications for both "CD3: CD4" and "CD3: CD8",
+	 *                        distances will be calculated for all components (e.g. "CD3", "CD4" and "CD8").
+	 * @see DistanceTools#detectionToAnnotationDistances(ImageData, boolean, boolean)
+	 * @since v0.4.0
+	 */
+	public static void detectionToAnnotationDistancesSigned(ImageData<?> imageData, boolean splitClassNames) {
+		detectionToAnnotationDistances(imageData, splitClassNames, true);
+	}
+
+	/**
+	 * Compute the distance for all detection object centroids to the closest annotation with each valid, not-ignored classification and add 
+	 * the result to the detection measurement list.
+	 * @param imageData
+	 * @param splitClassNames if true, split the classification name. For example, if an image contains classifications for both "CD3: CD4" and "CD3: CD8",
+	 *                        distances will be calculated for all components (e.g. "CD3", "CD4" and "CD8").
+	 * @param signedDistances optionally calculate signed distances, i.e. negative values for source centroids that occur inside target objects representing the distance to the target object boundary
+	 * @since v0.4.0
+	 */
+	public static void detectionToAnnotationDistances(ImageData<?> imageData, boolean splitClassNames, boolean signedDistances) {
 		var server = imageData.getServer();
 		var hierarchy = imageData.getHierarchy();
 		var annotations = hierarchy.getAnnotationObjects();
@@ -88,6 +116,7 @@ public class DistanceTools {
 				.collect(Collectors.toSet());
 		
 		var cal = server.getPixelCalibration();
+		String distanceString = signedDistances ? "Signed distance" : "Distance";
 		String xUnit = cal.getPixelWidthUnit();
 		String yUnit = cal.getPixelHeightUnit();
 		double pixelWidth = cal.getPixelWidth().doubleValue();
@@ -103,16 +132,16 @@ public class DistanceTools {
 					logger.debug("Computing distances for {}", pathClass);
 					var filteredAnnotations = annotations.stream().filter(a -> PathClassTools.containsName(a.getPathClass(), name)).collect(Collectors.toList());
 					if (!filteredAnnotations.isEmpty()) {
-						String measurementName = "Distance to annotation with " + name + " " + unit;
-						centroidToBoundsDistance2D(detections, filteredAnnotations, pixelWidth, pixelHeight, measurementName);
+						String measurementName = distanceString + " to annotation with " + name + " " + unit;
+						centroidToBoundsDistance2D(detections, filteredAnnotations, pixelWidth, pixelHeight, measurementName, signedDistances);
 					}
 				}
 			} else {
 				logger.debug("Computing distances for {}", pathClass);
 				var filteredAnnotations = annotations.stream().filter(a -> a.getPathClass() == pathClass).collect(Collectors.toList());
 				if (!filteredAnnotations.isEmpty()) {
-					String name = "Distance to annotation " + pathClass + " " + unit;
-					centroidToBoundsDistance2D(detections, filteredAnnotations, pixelWidth, pixelHeight, name);
+					String name = distanceString + " to annotation " + pathClass + " " + unit;
+					centroidToBoundsDistance2D(detections, filteredAnnotations, pixelWidth, pixelHeight, name, signedDistances);
 				}
 			}
 		}
@@ -185,6 +214,23 @@ public class DistanceTools {
 	 * @param measurementName the name of the measurement to add to the measurement list
 	 */
 	public static void centroidToBoundsDistance2D(Collection<PathObject> sourceObjects, Collection<PathObject> targetObjects, double pixelWidth, double pixelHeight, String measurementName) {		
+		centroidToBoundsDistance2D(sourceObjects, targetObjects, pixelWidth, pixelHeight, measurementName, false);
+	}
+	
+	
+	/**
+	 * Calculate the (optionally signed) distance between source object centroids and the boundary of specified target objects, adding the result to the measurement list of the source objects.
+	 * Calculations are all made in 2D; distances will not be calculated between objects occurring on different z-planes of at different timepoints.
+	 * 
+	 * @param sourceObjects source objects; measurements will be added based on centroid distances
+	 * @param targetObjects target objects; no measurements will be added
+	 * @param pixelWidth pixel width to use in Geometry conversion (use 1 for pixel units)
+	 * @param pixelHeight pixel height to use in Geometry conversion (use 1 for pixel units)
+	 * @param measurementName the name of the measurement to add to the measurement list
+	 * @param signedDistances optionally calculate signed distances, i.e. negative values for source centroids that occur inside target objects representing the distance to the target object boundary
+	 * @since v0.4.0
+	 */
+	public static void centroidToBoundsDistance2D(Collection<PathObject> sourceObjects, Collection<PathObject> targetObjects, double pixelWidth, double pixelHeight, String measurementName, boolean signedDistances) {		
 		
 		boolean preferNucleus = true;
 		
@@ -286,8 +332,8 @@ public class DistanceTools {
 					precisionModel.makePrecise(coord);
 					
 					double pointDistance = pointCoords == null ? Double.POSITIVE_INFINITY : computeCoordinateDistance(coord, pointCoords, pointTree, coordinateDistance);
-					double lineDistance = lineGeometry == null ? Double.POSITIVE_INFINITY : computeDistance(coord, lineGeometry, null);
-					double shapeDistance = shapeGeometry == null ? Double.POSITIVE_INFINITY : computeDistance(coord, shapeGeometry, locator);
+					double lineDistance = lineGeometry == null ? Double.POSITIVE_INFINITY : computeDistance(coord, lineGeometry, null, false);
+					double shapeDistance = shapeGeometry == null ? Double.POSITIVE_INFINITY : computeDistance(coord, shapeGeometry, locator, signedDistances);
 					double distance = Math.min(lineDistance, Math.min(pointDistance, shapeDistance));
 					
 					try (var ml = p.getMeasurementList()) {
@@ -386,17 +432,42 @@ public class DistanceTools {
 	}
 	
 	/**
-	 * Compute the shortest distance from a coordinate to a target geometry.
+	 * Compute the (unsigned) shortest distance from a coordinate to a target geometry, or zero if the coordinate occurs 
+	 * within
+	 * 
 	 * @param coord the coordinate
 	 * @param geometry the target geometry
 	 * @param locator a locator created for the target Geometry or null; if available, computations may be faster
 	 * @return
+	 * @see DistanceTools#computeDistance(Coordinate, Geometry, PointOnGeometryLocator, boolean)
 	 */
 	public static double computeDistance(Coordinate coord, Geometry geometry, PointOnGeometryLocator locator) {
+		return computeDistance(coord, geometry, locator, false);
+	}
+	
+	/**
+	 * Compute the shortest distance from a coordinate to a target geometry.
+	 * This is primarily intended for computing distances for exterior coordinates, however a signed distance can 
+	 * optionally be returned for interior coordinates.
+	 * 
+	 * @param coord the coordinate
+	 * @param geometry the target geometry
+	 * @param locator a locator created for the target Geometry or null; if available, computations may be faster
+	 * @param signedDistance if false, return 0 for coordinates occurring inside areas;
+	 *                       if true, return a negative value representing the distance to the boundary of the area
+	 *                       
+	 * @return
+	 * @since v0.4.0
+	 */
+	public static double computeDistance(Coordinate coord, Geometry geometry, PointOnGeometryLocator locator, boolean signedDistance) {
 		if (locator == null) {
 			PointPairDistance dist = new PointPairDistance();
 			DistanceToPoint.computeDistance(geometry, coord, dist);
-			return dist.getDistance();
+			double distance = dist.getDistance();
+			if (signedDistance && distance != 0.0 && SimplePointInAreaLocator.isContained(coord, geometry)) {
+				return -distance;
+			} else
+				return distance;
 		}
 		int location = locator.locate(coord);
 		double distance = 0;
@@ -404,6 +475,10 @@ public class DistanceTools {
 			PointPairDistance dist = new PointPairDistance();
 			DistanceToPoint.computeDistance(geometry, coord, dist);
 			distance = dist.getDistance();
+		} else if (signedDistance && location == Location.INTERIOR) {
+			PointPairDistance dist = new PointPairDistance();
+			DistanceToPoint.computeDistance(geometry, coord, dist);
+			distance = -dist.getDistance();
 		}
 		return distance;
 	}

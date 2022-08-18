@@ -251,10 +251,16 @@ class Menus {
 //		@Deprecated
 //		public final Action SHAPE_FEATURES = qupath.createPluginAction("Add shape features", ShapeFeaturesPlugin.class, null);
 
-		@ActionDescription("Calculate distances between detection centroids and the closest annotation for each classification. " +
+		@ActionDescription("Calculate distances between detection centroids and the closest annotation for each classification, using zero if the centroid is inside the annotation. " +
 				"For example, this may be used to identify the distance of every cell from 'bigger' region that has been annotated (e.g. an area of tumor, a blood vessel).")
 		@ActionMenu("Spatial analysis>Distance to annotations 2D")
-		public final Action DISTANCE_TO_ANNOTATIONS = qupath.createImageDataAction(imageData -> Commands.distanceToAnnotations2D(imageData));
+		public final Action DISTANCE_TO_ANNOTATIONS = qupath.createImageDataAction(imageData -> Commands.distanceToAnnotations2D(imageData, false));
+		
+		@ActionDescription("Calculate distances between detection centroids and the closest annotation for each classification, using the negative distance to the boundary if the centroid is inside the annotation. " +
+				"For example, this may be used to identify the distance of every cell from 'bigger' region that has been annotated (e.g. an area of tumor, a blood vessel).")
+		@ActionMenu("Spatial analysis>Signed distance to annotations 2D")
+		public final Action SIGNED_DISTANCE_TO_ANNOTATIONS = qupath.createImageDataAction(imageData -> Commands.distanceToAnnotations2D(imageData, true));
+		
 		@ActionDescription("Calculate distances between detection centroids for each classification. " +
 				"For example, this may be used to identify the closest cell of a specified type.")
 		@ActionMenu("Spatial analysis>Detect centroid distances 2D")

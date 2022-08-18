@@ -2808,9 +2808,11 @@ public class QP {
 	/**
 	 * Compute the distance for all detection object centroids to the closest annotation with each valid, not-ignored classification and add 
 	 * the result to the detection measurement list.
+	 * If the centroid falls inside an annotation, the distance is zero.
 	 * @param imageData
 	 * @param splitClassNames 
 	 * @see DistanceTools#detectionToAnnotationDistances(ImageData, boolean)
+	 * @see QP#detectionToAnnotationDistancesSigned(ImageData, boolean)
 	 */
 	public static void detectionToAnnotationDistances(ImageData<?> imageData, boolean splitClassNames) {
 		DistanceTools.detectionToAnnotationDistances(imageData, splitClassNames);
@@ -2831,11 +2833,40 @@ public class QP {
 	/**
 	 * Compute the distance for all detection object centroids to the closest annotation with each valid, not-ignored classification and add 
 	 * the result to the detection measurement list for the current ImageData.
+	 * If the centroid falls inside an annotation, the distance is zero.
 	 * @param splitClassNames 
 	 * @see DistanceTools#detectionToAnnotationDistances(ImageData, boolean)
+	 * @see QP#detectionToAnnotationDistancesSigned(boolean)
 	 */
 	public static void detectionToAnnotationDistances(boolean splitClassNames) {
 		detectionToAnnotationDistances(getCurrentImageData(), splitClassNames);
+	}
+	
+	/**
+	 * Compute the signed distance for all detection object centroids to the closest annotation with each valid, not-ignored classification and add 
+	 * the result to the detection measurement list.
+	 * If the centroid falls inside an annotation, the negative distance to the annotation boundary is used.
+	 * @param imageData
+	 * @param splitClassNames 
+	 * @see DistanceTools#detectionToAnnotationDistancesSigned(ImageData, boolean)
+	 * @see QP#detectionToAnnotationDistances(ImageData, boolean)
+	 * @since v0.4.0
+	 */
+	public static void detectionToAnnotationDistancesSigned(ImageData<?> imageData, boolean splitClassNames) {
+		DistanceTools.detectionToAnnotationDistancesSigned(imageData, splitClassNames);
+	}
+	
+	/**
+	 * Compute the signed distance for all detection object centroids to the closest annotation with each valid, not-ignored classification and add 
+	 * the result to the detection measurement list for the current ImageData.
+	 * If the centroid falls inside an annotation, the negative distance to the annotation boundary is used.
+	 * @param splitClassNames 
+	 * @see DistanceTools#detectionToAnnotationDistancesSigned(ImageData, boolean)
+	 * @see QP#detectionToAnnotationDistances(boolean)
+	 * @since v0.4.0
+	 */
+	public static void detectionToAnnotationDistancesSigned(boolean splitClassNames) {
+		detectionToAnnotationDistancesSigned(getCurrentImageData(), splitClassNames);
 	}
 
 	/**
