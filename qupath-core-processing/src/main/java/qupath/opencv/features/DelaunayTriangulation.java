@@ -167,11 +167,11 @@ public class DelaunayTriangulation implements PathObjectConnectionGroup {
 			}
 			if (x < minX)
 				minX = x;
-			else if (x > maxX)
+			if (x > maxX)
 				maxX = x;
 			if (y < minY)
 				minY = y;
-			else if (y > maxY)
+			if (y > maxY)
 				maxY = y;
 			
 			centroids.add(new Point2f((float)x, (float)y));
