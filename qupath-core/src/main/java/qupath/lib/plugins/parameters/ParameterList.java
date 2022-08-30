@@ -52,7 +52,7 @@ public class ParameterList implements Serializable {
 	
 	private static final long serialVersionUID = 1L;
 	
-	private final static Logger logger = LoggerFactory.getLogger(ParameterList.class);
+	private static final Logger logger = LoggerFactory.getLogger(ParameterList.class);
 	
 	private Map<String, Parameter<?>> params = new LinkedHashMap<>();
 	

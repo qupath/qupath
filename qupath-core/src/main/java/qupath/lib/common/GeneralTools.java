@@ -77,10 +77,10 @@ import com.google.gson.reflect.TypeToken;
  */
 public final class GeneralTools {
 	
-	final private static Logger logger = LoggerFactory.getLogger(GeneralTools.class);
+	private static final Logger logger = LoggerFactory.getLogger(GeneralTools.class);
 	
 	
-	private final static String LATEST_VERSION = getCurrentVersion();
+	private static final String LATEST_VERSION = getCurrentVersion();
 	
 	/**
 	 * Request the version of QuPath.
@@ -521,7 +521,7 @@ public final class GeneralTools {
 	 * @param maxDecimalPlaces
 	 * @return
 	 */
-	public synchronized static String formatNumber(final double value, final int maxDecimalPlaces) {
+	public static synchronized String formatNumber(final double value, final int maxDecimalPlaces) {
 		return formatNumber(Locale.getDefault(Category.FORMAT), value, maxDecimalPlaces);
 	}
 	
@@ -533,7 +533,7 @@ public final class GeneralTools {
 	 * @param maxDecimalPlaces
 	 * @return
 	 */
-	public synchronized static String formatNumber(Locale locale, final double value, final int maxDecimalPlaces) {
+	public static synchronized String formatNumber(Locale locale, final double value, final int maxDecimalPlaces) {
 		if (locale == null)
 			locale = Locale.getDefault(Category.FORMAT);
 		NumberFormat nf = formatters.get(locale);
@@ -571,24 +571,24 @@ public final class GeneralTools {
 	 * 
 	 * @return
 	 */
-	public final static String micrometerSymbol() {
+	public static final String micrometerSymbol() {
 		return SYMBOL_MICROMETER;
 	}
 	
 	/**
 	 * Small Green mu (useful for micrometers)
 	 */
-	public final static char SYMBOL_MU = '\u00B5';
+	public static final char SYMBOL_MU = '\u00B5';
 
 	/**
 	 * Small Greek sigma (useful for Gaussian filter sizes, standard deviations)
 	 */
-	public final static char SYMBOL_SIGMA = '\u03C3';
+	public static final char SYMBOL_SIGMA = '\u03C3';
 
 	/**
 	 * String to represent um (but with the proper 'mu' symbol)
 	 */
-	public final static String SYMBOL_MICROMETER = '\u00B5' + "m";
+	public static final String SYMBOL_MICROMETER = '\u00B5' + "m";
 	
 	
 	/**
@@ -932,7 +932,7 @@ public final class GeneralTools {
 	 */
 	private static class StringPartsSorter<T> implements Comparable<StringPartsSorter<T>> {
 		
-		private final static Pattern PATTERN = Pattern.compile("(\\d+)");
+		private static final Pattern PATTERN = Pattern.compile("(\\d+)");
 		
 		private T obj;
 		private List<Object> parts;

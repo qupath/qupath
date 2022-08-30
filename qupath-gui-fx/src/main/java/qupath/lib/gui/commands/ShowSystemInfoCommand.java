@@ -45,7 +45,7 @@ import qupath.lib.gui.QuPathGUI;
  */
 class ShowSystemInfoCommand {
 	
-	final private static Logger logger = LoggerFactory.getLogger(ShowSystemInfoCommand.class);
+	private static final Logger logger = LoggerFactory.getLogger(ShowSystemInfoCommand.class);
 	
 	public static Stage createShowSystemInfoDialog(QuPathGUI qupath) {
 		var dialog = new Stage();

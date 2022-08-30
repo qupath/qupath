@@ -77,7 +77,7 @@ import qupath.lib.roi.interfaces.ROI;
  */
 public class DelaunayTools {
 	
-	private final static Logger logger = LoggerFactory.getLogger(DelaunayTools.class);
+	private static final Logger logger = LoggerFactory.getLogger(DelaunayTools.class);
 	
 	private static boolean calibrated(PixelCalibration cal) {
 		return cal != null && (cal.getPixelHeight().doubleValue() != 1 || cal.getPixelWidth().doubleValue() != 1);
@@ -592,7 +592,7 @@ public class DelaunayTools {
 	 */
 	public static class Subdivision {
 		
-		private final static Logger logger = LoggerFactory.getLogger(Subdivision.class);
+		private static final Logger logger = LoggerFactory.getLogger(Subdivision.class);
 		
 		private Set<PathObject> pathObjects = new LinkedHashSet<>();
 		private Map<Coordinate, PathObject> coordinateMap = new HashMap<>();

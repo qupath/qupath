@@ -82,13 +82,13 @@ import qupath.lib.roi.interfaces.ROI;
  */
 public class LabeledImageServer extends AbstractTileableImageServer implements GeneratingImageServer<BufferedImage> {
 	
-	private final static Logger logger = LoggerFactory.getLogger(LabeledImageServer.class);
+	private static final Logger logger = LoggerFactory.getLogger(LabeledImageServer.class);
 	
 	private ImageServerMetadata originalMetadata;
 	
 	// Easy way to get the default color models...
-	private final static ColorModel COLOR_MODEL_GRAY_UINT8 = new BufferedImage(1, 1, BufferedImage.TYPE_BYTE_GRAY).getColorModel();
-	private final static ColorModel COLOR_MODEL_GRAY_UINT16 = new BufferedImage(1, 1, BufferedImage.TYPE_USHORT_GRAY).getColorModel();
+	private static final ColorModel COLOR_MODEL_GRAY_UINT8 = new BufferedImage(1, 1, BufferedImage.TYPE_BYTE_GRAY).getColorModel();
+	private static final ColorModel COLOR_MODEL_GRAY_UINT16 = new BufferedImage(1, 1, BufferedImage.TYPE_USHORT_GRAY).getColorModel();
 	
 	private PathObjectHierarchy hierarchy;
 		

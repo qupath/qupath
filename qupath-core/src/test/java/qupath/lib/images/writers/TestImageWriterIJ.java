@@ -35,7 +35,7 @@ import javax.imageio.ImageIO;
 import org.junit.jupiter.api.Test;
 
 @SuppressWarnings("javadoc")
-public class ImageWriterIJTest {
+public class TestImageWriterIJ {
 
 	@Test
 	public void testWriters() {

@@ -48,7 +48,7 @@ import qupath.lib.roi.interfaces.ROI;
 
 @SuppressWarnings("javadoc")
 @TestMethodOrder(MethodOrderer.Alphanumeric.class)
-public class PointIOTest {
+public class TestPointIO {
 
 	static Map<Integer, Double[][]> map;
 	static File file;

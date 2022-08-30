@@ -41,7 +41,7 @@ import qupath.lib.common.Version;
  */
 public class BuildInfo {
 
-	private final static Logger logger = LoggerFactory.getLogger(BuildInfo.class);
+	private static final Logger logger = LoggerFactory.getLogger(BuildInfo.class);
 
 	private String buildString = null;
 	private String versionString = null;
@@ -52,7 +52,7 @@ public class BuildInfo {
 	 */
 	private String latestCommitTag = null;
 	
-	private final static BuildInfo INSTANCE = new BuildInfo();
+	private static final BuildInfo INSTANCE = new BuildInfo();
 
 	/**
 	 * Attempt to parse version information

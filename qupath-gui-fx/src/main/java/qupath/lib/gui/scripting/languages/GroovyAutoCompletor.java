@@ -44,7 +44,7 @@ import qupath.lib.gui.scripting.ScriptEditorControl;
  */
 public class GroovyAutoCompletor implements ScriptAutoCompletor {
 	
-	private final static Logger logger = LoggerFactory.getLogger(GroovyAutoCompletor.class);
+	private static final Logger logger = LoggerFactory.getLogger(GroovyAutoCompletor.class);
 	
 	private static final Set<Completion> ALL_COMPLETIONS = new HashSet<>();
 	

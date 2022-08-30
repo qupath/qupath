@@ -73,7 +73,7 @@ import qupath.lib.roi.interfaces.ROI;
  */
 public class ObjectMeasurements {
 	
-	private final static Logger logger = LoggerFactory.getLogger(ObjectMeasurements.class);
+	private static final Logger logger = LoggerFactory.getLogger(ObjectMeasurements.class);
 	
 	/**
 	 * Cell compartments.
@@ -170,7 +170,7 @@ public class ObjectMeasurements {
 	}
 	
 	
-	private final static Collection<ShapeFeatures> ALL_SHAPE_FEATURES = Collections.unmodifiableSet(new HashSet<>(Arrays.asList(ShapeFeatures.values())));
+	private static final Collection<ShapeFeatures> ALL_SHAPE_FEATURES = Collections.unmodifiableSet(new HashSet<>(Arrays.asList(ShapeFeatures.values())));
 	
 	/**
 	 * Add shape measurements for one object. If this is a cell, measurements will be made for both the 

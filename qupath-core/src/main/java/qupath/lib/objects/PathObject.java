@@ -60,9 +60,9 @@ public abstract class PathObject implements Externalizable {
 	
 	private static final long serialVersionUID = 1L;
 		
-	private final static Logger logger = LoggerFactory.getLogger(PathObject.class);
+	private static final Logger logger = LoggerFactory.getLogger(PathObject.class);
 	
-	private final static String METADATA_KEY_ID = "Object ID";
+	private static final String METADATA_KEY_ID = "Object ID";
 	
 	private UUID id = UUID.randomUUID();
 	
@@ -75,7 +75,7 @@ public abstract class PathObject implements Externalizable {
 	private String name = null;
 	private Integer color;
 
-	transient private Collection<PathObject> cachedUnmodifiableChildren = null;
+	private transient Collection<PathObject> cachedUnmodifiableChildren = null;
 	
 
 	/**

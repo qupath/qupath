@@ -118,7 +118,7 @@ import qupathj.QuPath_Send_ROI_to_QuPath;
  */
 public class IJExtension implements QuPathExtension {
 	
-	final private static Logger logger = LoggerFactory.getLogger(IJExtension.class);
+	private static final Logger logger = LoggerFactory.getLogger(IJExtension.class);
 	
 	// Path to ImageJ - used to determine plugins directory
 	private static StringProperty imageJPath = null;

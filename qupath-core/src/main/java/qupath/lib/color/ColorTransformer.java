@@ -192,13 +192,13 @@ public class ColorTransformer {
 	
 	
 	// LUT for faster optical density computations (assuming white value of 255)
-	private final static double[] od_lut;
+	private static final double[] od_lut;
 	
 	/**
 	 * Inverse of default H-DAB color deconvolution matrix.
 	 */
-	private final static double[][] inv_H_DAB;
-	private final static double[][] inv_H_E;
+	private static final double[][] inv_H_DAB;
+	private static final double[][] inv_H_E;
 
 	static {
 		od_lut = ColorDeconvolutionHelper.makeODLUT(255, 256);
@@ -882,15 +882,15 @@ public class ColorTransformer {
 	
 	
 	// Color models
-	final private static IndexColorModel ICM_RED = ColorToolsAwt.createIndexColorModel(255, 0, 0);
-	final private static IndexColorModel ICM_GREEN = ColorToolsAwt.createIndexColorModel(0, 255, 0);
-	final private static IndexColorModel ICM_BLUE = ColorToolsAwt.createIndexColorModel(0, 0, 255);
-	final private static IndexColorModel ICM_HUE = ColorToolsAwt.createHueColorModel();
-	final private static IndexColorModel ICM_HEMATOXYLIN;
-	final private static IndexColorModel ICM_EOSIN;
-	final private static IndexColorModel ICM_DAB;
+	private static final IndexColorModel ICM_RED = ColorToolsAwt.createIndexColorModel(255, 0, 0);
+	private static final IndexColorModel ICM_GREEN = ColorToolsAwt.createIndexColorModel(0, 255, 0);
+	private static final IndexColorModel ICM_BLUE = ColorToolsAwt.createIndexColorModel(0, 0, 255);
+	private static final IndexColorModel ICM_HUE = ColorToolsAwt.createHueColorModel();
+	private static final IndexColorModel ICM_HEMATOXYLIN;
+	private static final IndexColorModel ICM_EOSIN;
+	private static final IndexColorModel ICM_DAB;
 
-	final private static Map<ColorTransformer.ColorTransformMethod, ColorModel> COLOR_MODEL_MAP;
+	private static final Map<ColorTransformer.ColorTransformMethod, ColorModel> COLOR_MODEL_MAP;
 	
 	
 	static {
@@ -1079,9 +1079,9 @@ public class ColorTransformer {
 	
 	
 	
-	private final static double POW_10_INC = 0.0015;
-	private final static double[] POW_10_TABLE = new double[2500];
-	private final static double LOG_10 = Math.log(10);
+	private static final double POW_10_INC = 0.0015;
+	private static final double[] POW_10_TABLE = new double[2500];
+	private static final double LOG_10 = Math.log(10);
 	
 	static {
 		

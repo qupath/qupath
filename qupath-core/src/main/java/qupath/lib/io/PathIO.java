@@ -94,7 +94,7 @@ import qupath.lib.roi.GeometryTools;
  */
 public class PathIO {
 	
-	private final static Logger logger = LoggerFactory.getLogger(PathIO.class);
+	private static final Logger logger = LoggerFactory.getLogger(PathIO.class);
 	
 	/**
 	 * Data file version identifier, written within the .qpdata file.
@@ -103,14 +103,14 @@ public class PathIO {
 	 * Version 3 stores JSON instead of a server path
 	 * Version 4 stores PathObject UUIDs as a separate field
 	 */
-	private final static int DATA_FILE_VERSION = 3;
+	private static final int DATA_FILE_VERSION = 3;
 	
 	/**
 	 * Input filter for deserialization that is limited to QuPath-related classes.
 	 */
-	private final static ObjectInputFilter QUPATH_INPUT_FILTER = PathIO::qupathInputFilter;
+	private static final ObjectInputFilter QUPATH_INPUT_FILTER = PathIO::qupathInputFilter;
 	// Less restrictive ObjectInputFilter
-//	private final static ObjectInputFilter CLASS_LOADER_INPUT_FILTER = PathIO::classLoaderInputFilter;
+//	private static final ObjectInputFilter CLASS_LOADER_INPUT_FILTER = PathIO::classLoaderInputFilter;
 	
 //	static {
 //		/**
@@ -230,7 +230,7 @@ public class PathIO {
 	 * @return
 	 * @throws IOException
 	 */
-	public final static ObjectInputStream createObjectInputStream(InputStream stream) throws IOException {
+	public static final ObjectInputStream createObjectInputStream(InputStream stream) throws IOException {
 		ObjectInputStream inStream = new ObjectInputStream(stream);
 		inStream.setObjectInputFilter(QUPATH_INPUT_FILTER);
 		return inStream;
@@ -1022,7 +1022,7 @@ public class PathIO {
 		}
 	}
 	
-	private final static boolean serializableObject(Object obj) {
+	private static final boolean serializableObject(Object obj) {
 		return obj == null ? true : checkQuPathSerializableClass(obj.getClass());
 	}
 	
@@ -1031,7 +1031,7 @@ public class PathIO {
 	 * @param serialClass
 	 * @return
 	 */
-	private final static boolean checkQuPathSerializableClass(Class<?> serialClass) {
+	private static final boolean checkQuPathSerializableClass(Class<?> serialClass) {
 		if (serialClass == null)
 			return true;
 		
@@ -1061,18 +1061,18 @@ public class PathIO {
 	 * @param serialClass
 	 * @return
 	 */
-	private final static boolean checkClassLoader(Class<?> serialClass) {
+	private static final boolean checkClassLoader(Class<?> serialClass) {
 		if (serialClass == null)
 			return true;
 		var classloader = serialClass.getClassLoader();
 		return classloader == null || classloader == ClassLoader.getPlatformClassLoader() || classloader == ClassLoader.getSystemClassLoader();
 	}
 	
-	private final static Status classLoaderInputFilter(FilterInfo filterInfo) {
+	private static final Status classLoaderInputFilter(FilterInfo filterInfo) {
 		return checkClassLoader(filterInfo.serialClass()) ? Status.ALLOWED : Status.REJECTED;
 	}
 	
-	private final static Status qupathInputFilter(FilterInfo filterInfo) {
+	private static final Status qupathInputFilter(FilterInfo filterInfo) {
 		return checkQuPathSerializableClass(filterInfo.serialClass()) ? Status.ALLOWED : Status.REJECTED;
 	}
 	

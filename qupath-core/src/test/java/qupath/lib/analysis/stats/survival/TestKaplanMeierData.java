@@ -35,11 +35,11 @@ import org.junit.jupiter.api.Test;
 @SuppressWarnings("javadoc")
 public class TestKaplanMeierData {
 	private static KaplanMeierData km;
-	private final static double[] times = new double[] {0.0, 5.0, 7.5, 15.0, 15.0, 17.5, 25.0, 37.5, 37.5, 40.0, 67.5, 78.0, 80.0};
-	private final static boolean[] censored = new boolean[] {false, true, false, false, false, true, false, false, false, false, false, false};
-	private final static int[] eventsAtTime = new int[] {0, 1, 0, 2, 2, 1, 0, 2, 2, 1, 1, 1, 1};
-	private final static int[] atRisk = new int[] {12, 12, 11, 10, 10, 8, 7, 6, 6, 4, 3, 2, 1};
-	private final static double[] stats = new double[times.length-2];
+	private static final double[] times = new double[] {0.0, 5.0, 7.5, 15.0, 15.0, 17.5, 25.0, 37.5, 37.5, 40.0, 67.5, 78.0, 80.0};
+	private static final boolean[] censored = new boolean[] {false, true, false, false, false, true, false, false, false, false, false, false};
+	private static final int[] eventsAtTime = new int[] {0, 1, 0, 2, 2, 1, 0, 2, 2, 1, 1, 1, 1};
+	private static final int[] atRisk = new int[] {12, 12, 11, 10, 10, 8, 7, 6, 6, 4, 3, 2, 1};
+	private static final double[] stats = new double[times.length-2];
 	
 	@BeforeAll
 	public static void init() {

@@ -54,7 +54,7 @@ import qupath.lib.common.ColorTools;
  */
 public class EstimateStainVectors {
 	
-	final private static Logger logger = LoggerFactory.getLogger(EstimateStainVectors.class);
+	private static final Logger logger = LoggerFactory.getLogger(EstimateStainVectors.class);
 	
 	/**
 	 * Estimate two stains from a BufferedImage, with default parameter settings.

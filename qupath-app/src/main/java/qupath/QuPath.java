@@ -86,7 +86,7 @@ import qupath.lib.scripting.QP;
 			}, mixinStandardHelpOptions = true, versionProvider = QuPath.VersionProvider.class)
 public class QuPath {
 	
-	private final static Logger logger = LoggerFactory.getLogger(QuPath.class);
+	private static final Logger logger = LoggerFactory.getLogger(QuPath.class);
 	
 	@Parameters(arity = "0..1", description = {"Path to image or project to open"}, hidden = true)
 	private String path;
@@ -269,12 +269,12 @@ public class QuPath {
 		"By default, this will not save changes to any data files."})
 class ScriptCommand implements Runnable {
 	
-	private final static Logger logger = LoggerFactory.getLogger(ScriptCommand.class);
+	private static final Logger logger = LoggerFactory.getLogger(ScriptCommand.class);
 	
 	/**
 	 * Default extension for scripting (when not specified)
 	 */
-	private final static String DEFAULT_SCRIPT_EXTENSION = ".groovy";
+	private static final String DEFAULT_SCRIPT_EXTENSION = ".groovy";
 	
 	@Parameters(index = "0", description = "Path to the script file (.groovy).", arity = "0..1", paramLabel = "script")
 	private String scriptFile;

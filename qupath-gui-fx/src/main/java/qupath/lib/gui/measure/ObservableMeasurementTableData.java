@@ -86,7 +86,7 @@ import qupath.opencv.ml.pixel.PixelClassificationMeasurementManager;
  */
 public class ObservableMeasurementTableData implements PathTableData<PathObject> {
 	
-	final static Logger logger = LoggerFactory.getLogger(ObservableMeasurementTableData.class);
+	static final Logger logger = LoggerFactory.getLogger(ObservableMeasurementTableData.class);
 	
 	private ImageData<?> imageData;
 	
@@ -1138,7 +1138,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 	
 	
 	
-	static abstract class StringMeasurementBuilder implements MeasurementBuilder<String> {
+	abstract static class StringMeasurementBuilder implements MeasurementBuilder<String> {
 		
 		protected abstract String getMeasurementValue(final PathObject pathObject);
 		
@@ -1386,7 +1386,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 	
 	
 	
-	static abstract class NumericMeasurementBuilder implements MeasurementBuilder<Number> {
+	abstract static class NumericMeasurementBuilder implements MeasurementBuilder<Number> {
 		
 		public double computeValue(final PathObject pathObject) {
 			// TODO: Flip this around!  Create binding from value, not value from binding...
@@ -1427,7 +1427,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 	
 	
 	
-	static abstract class RoiMeasurementBuilder extends NumericMeasurementBuilder {
+	abstract static class RoiMeasurementBuilder extends NumericMeasurementBuilder {
 		
 		private ImageData<?> imageData;
 		

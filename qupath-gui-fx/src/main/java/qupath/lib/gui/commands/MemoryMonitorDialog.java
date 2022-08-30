@@ -71,7 +71,7 @@ import qupath.lib.gui.prefs.PathPrefs;
  */
 class MemoryMonitorDialog {
 
-	private final static Logger logger = LoggerFactory.getLogger(MemoryMonitorDialog.class);
+	private static final Logger logger = LoggerFactory.getLogger(MemoryMonitorDialog.class);
 
 	private QuPathGUI qupath;
 
@@ -94,8 +94,8 @@ class MemoryMonitorDialog {
 	private LongProperty undoRedoSizeBytes = new SimpleLongProperty();
 
 	// Let's sometimes scale to MB, sometimes to GB
-	private final static double scaleMB = 1.0/1024.0/1024.0;
-	private final static double scaleGB = scaleMB/1024.0;
+	private static final double scaleMB = 1.0/1024.0/1024.0;
+	private static final double scaleGB = scaleMB/1024.0;
 	
 	private final MemoryService service = new MemoryService();
 	

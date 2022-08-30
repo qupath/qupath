@@ -221,23 +221,23 @@ class ClosedShapeStatistics implements Serializable {
 	}
 	
 	
-	final public double getBoundsX() {
+	public final double getBoundsX() {
 		return minX;
 	}
 
-	final public double getBoundsY() {
+	public final double getBoundsY() {
 		return minY;
 	}
 
-	final public double getBoundsWidth() {
+	public final double getBoundsWidth() {
 		return maxX - minX;
 	}
 
-	final public double getBoundsHeight() {
+	public final double getBoundsHeight() {
 		return maxY - minY;
 	}
 	
-	final private void updateMinMax(final double x, final double y) {
+	private final void updateMinMax(final double x, final double y) {
 		if (x < minX)
 			minX = x;
 		if (x > maxX)
@@ -249,19 +249,19 @@ class ClosedShapeStatistics implements Serializable {
 	}
 	
 	
-	final public double getCentroidX() {
+	public final double getCentroidX() {
 		return centroidXCached;
 	}
 
-	final public double getCentroidY() {
+	public final double getCentroidY() {
 		return centroidYCached;
 	}
 
-	final public double getArea() {
+	public final double getArea() {
 		return areaCached;
 	}
 
-	final public double getPerimeter() {
+	public final double getPerimeter() {
 		return perimeterCached;
 	}
 	
@@ -274,7 +274,7 @@ class ClosedShapeStatistics implements Serializable {
 //		maxY += dy;
 //	}
 	
-	final public int getNVertices() {
+	public final int getNVertices() {
 		return nVertices;
 	}
 	

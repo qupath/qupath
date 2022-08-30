@@ -58,7 +58,7 @@ import qupath.lib.images.servers.PixelType;
 public class TestOpenCVTools {
 	
 	@SuppressWarnings("unused")
-	private final static Logger logger = LoggerFactory.getLogger(TestOpenCVTools.class);
+	private static final Logger logger = LoggerFactory.getLogger(TestOpenCVTools.class);
 
 	/**
 	 * Test creation of BufferedImages of different types, and conversions between BufferedImage, Mat and ImagePlus.

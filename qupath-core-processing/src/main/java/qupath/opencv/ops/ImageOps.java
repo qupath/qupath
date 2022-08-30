@@ -91,7 +91,7 @@ import qupath.opencv.tools.OpenCVTools;
  */
 public class ImageOps {
 	
-	private final static Logger logger = LoggerFactory.getLogger(ImageOps.class);
+	private static final Logger logger = LoggerFactory.getLogger(ImageOps.class);
 	
 	
 	@Target(ElementType.TYPE)
@@ -1078,7 +1078,7 @@ public class ImageOps {
 			
 		}
 		
-		static abstract class MorphOp extends PaddedOp {
+		abstract static class MorphOp extends PaddedOp {
 			
 			private int radius;
 			private transient Mat kernel;
@@ -1577,7 +1577,7 @@ public class ImageOps {
 			
 		}
 		
-		static abstract class ReduceChannelsOp implements ImageOp {
+		abstract static class ReduceChannelsOp implements ImageOp {
 
 			@Override
 			public Mat apply(Mat input) {
@@ -1701,7 +1701,7 @@ public class ImageOps {
 			return new MedianAbsDevThresholdOp(k);
 		}
 		
-		static abstract class AbstractThresholdOp implements ImageOp {
+		abstract static class AbstractThresholdOp implements ImageOp {
 			
 			@Override
 			public Mat apply(Mat input) {
@@ -2373,7 +2373,7 @@ public class ImageOps {
 		@OpType("sequential")
 		static class SequentialMultiOp extends PaddedOp {
 			
-			private final static Logger logger = LoggerFactory.getLogger(SequentialMultiOp.class);
+			private static final Logger logger = LoggerFactory.getLogger(SequentialMultiOp.class);
 			
 			private List<ImageOp> ops;
 			
@@ -2749,7 +2749,7 @@ public class ImageOps {
 		@OpType("opencv-dnn")
 		static class DnnOp<T> extends PaddedOp {
 			
-			private final static Logger logger = LoggerFactory.getLogger(DnnOp.class);
+			private static final Logger logger = LoggerFactory.getLogger(DnnOp.class);
 
 			private DnnModel<T> model;
 			private int inputWidth;
@@ -3027,7 +3027,7 @@ public class ImageOps {
 	/**
 	 * Abstract {@link ImageOp} to simplify the process of handling padding.
 	 */
-	public static abstract class PaddedOp implements ImageOp {
+	public abstract static class PaddedOp implements ImageOp {
 		
 		private transient Padding padding;
 		

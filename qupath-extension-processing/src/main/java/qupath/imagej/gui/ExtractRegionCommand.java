@@ -81,7 +81,7 @@ class ExtractRegionCommand implements Runnable {
 	
 	private QuPathGUI qupath;
 	
-	private final static String PIXELS_UNIT = "Pixels (downsample)";
+	private static final String PIXELS_UNIT = "Pixels (downsample)";
 	
 	private double resolution = 1;
 	private String resolutionUnit = PIXELS_UNIT;

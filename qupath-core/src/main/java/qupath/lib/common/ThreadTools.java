@@ -40,7 +40,7 @@ import org.slf4j.LoggerFactory;
  */
 public class ThreadTools {
 	
-	private final static Logger logger = LoggerFactory.getLogger(ThreadTools.class);
+	private static final Logger logger = LoggerFactory.getLogger(ThreadTools.class);
 	
 	private static int requestedThreads = ForkJoinPool.getCommonPoolParallelism();
 	

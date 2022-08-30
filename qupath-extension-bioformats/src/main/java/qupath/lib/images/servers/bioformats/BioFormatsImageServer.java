@@ -1038,12 +1038,12 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 	 */
 	static class ReaderPool implements AutoCloseable {
 		
-		private final static Logger logger = LoggerFactory.getLogger(ReaderPool.class);
+		private static final Logger logger = LoggerFactory.getLogger(ReaderPool.class);
 		
 		/**
 		 * Absolute maximum number of permitted readers (queue capacity)
 		 */
-		private final static int MAX_QUEUE_CAPACITY = 128;
+		private static final int MAX_QUEUE_CAPACITY = 128;
 		
 		private String id;
 		private BioFormatsServerOptions options;

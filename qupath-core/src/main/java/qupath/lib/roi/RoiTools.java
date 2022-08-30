@@ -64,7 +64,7 @@ import qupath.lib.roi.interfaces.ROI;
  */
 public class RoiTools {
 
-	private final static Logger logger = LoggerFactory.getLogger(RoiTools.class);
+	private static final Logger logger = LoggerFactory.getLogger(RoiTools.class);
 
 	/**
 	 * Methods of combining two ROIs.

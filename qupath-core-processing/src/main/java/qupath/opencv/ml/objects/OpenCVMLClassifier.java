@@ -60,7 +60,7 @@ import qupath.opencv.ml.OpenCVClassifiers.OpenCVStatModel;
  */
 public class OpenCVMLClassifier<T> extends AbstractObjectClassifier<T> {
 	
-	private final static Logger logger = LoggerFactory.getLogger(OpenCVMLClassifier.class);
+	private static final Logger logger = LoggerFactory.getLogger(OpenCVMLClassifier.class);
 	
 	/**
 	 * Extract features from objects

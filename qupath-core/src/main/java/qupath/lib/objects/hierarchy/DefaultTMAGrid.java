@@ -40,7 +40,7 @@ public class DefaultTMAGrid implements TMAGrid {
 	
 	private static final long serialVersionUID = 1L;
 	
-	private final static Logger logger = LoggerFactory.getLogger(DefaultTMAGrid.class);
+	private static final Logger logger = LoggerFactory.getLogger(DefaultTMAGrid.class);
 	
 	private List<TMACoreObject> cores = new ArrayList<>();
 	private int gridWidth = -1;

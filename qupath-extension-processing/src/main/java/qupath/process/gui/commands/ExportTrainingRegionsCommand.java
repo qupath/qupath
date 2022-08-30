@@ -112,7 +112,7 @@ import qupath.lib.roi.interfaces.ROI;
  */
 public class ExportTrainingRegionsCommand implements Runnable {
 	
-	private final static Logger logger = LoggerFactory.getLogger(ExportTrainingRegionsCommand.class);
+	private static final Logger logger = LoggerFactory.getLogger(ExportTrainingRegionsCommand.class);
 	
 	private final QuPathGUI qupath;
 	private Stage stage;

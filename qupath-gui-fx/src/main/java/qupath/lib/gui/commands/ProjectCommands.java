@@ -63,7 +63,7 @@ import qupath.lib.projects.Projects;
  */
 public class ProjectCommands {
 	
-	private final static Logger logger = LoggerFactory.getLogger(ProjectCommands.class);
+	private static final Logger logger = LoggerFactory.getLogger(ProjectCommands.class);
 
 	/**
 	 * Check the URIs within a project, prompting the user to correct any broken links if required.

@@ -91,7 +91,7 @@ import qupath.lib.roi.interfaces.ROI;
  */
 public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImage> {
 	
-	private final static Logger logger = LoggerFactory.getLogger(SubcellularDetection.class);
+	private static final Logger logger = LoggerFactory.getLogger(SubcellularDetection.class);
 	
 	
 	@Override
@@ -491,7 +491,7 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 	@Deprecated
 	static class SubcellularObject extends PathDetectionObject {
 		
-		final private static long serialVersionUID = 1L;
+		private static final long serialVersionUID = 1L;
 		
 		static Integer color = ColorTools.packRGB(200, 200, 50);
 		

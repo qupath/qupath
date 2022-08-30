@@ -105,7 +105,7 @@ public class ResourceManager {
 		 * @return true if a resource with the name exists, false otherwise
 		 * @throws IOException
 		 */
-		default public boolean contains(String name) throws IOException {
+		public default boolean contains(String name) throws IOException {
 			var names = getNames();
 			for (var n : names) {
 				if (name.equalsIgnoreCase(n))
@@ -146,7 +146,7 @@ public class ResourceManager {
 
 	abstract static class FileResourceManager<T> implements Manager<T> {
 		
-		private final static Logger logger = LoggerFactory.getLogger(FileResourceManager.class);
+		private static final Logger logger = LoggerFactory.getLogger(FileResourceManager.class);
 		
 		protected String ext;
 		protected Path dir;

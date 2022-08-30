@@ -64,7 +64,7 @@ import qupath.lib.gui.tools.ColorToolsFX;
  */
 public class HistogramPanelFX {
 	
-	private final static Logger logger = LoggerFactory.getLogger(HistogramPanelFX.class);
+	private static final Logger logger = LoggerFactory.getLogger(HistogramPanelFX.class);
 
 	private final NumberAxis xAxis = new NumberAxis();
 	private final NumberAxis yAxis = new NumberAxis();

@@ -25,7 +25,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import org.junit.jupiter.api.Test;
 
-class DialogsTest {
+class TestDialogs {
 
 	/**
 	 * Ensure there are no exceptions when showing basic messages and notifications without the UI.

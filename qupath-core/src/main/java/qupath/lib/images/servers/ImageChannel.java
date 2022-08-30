@@ -53,17 +53,17 @@ public class ImageChannel {
 	/**
 	 * Default red channel for RGB images.
 	 */
-	public final static ImageChannel RED   = getInstance("Red", ColorTools.packRGB(255, 0, 0));
+	public static final ImageChannel RED   = getInstance("Red", ColorTools.packRGB(255, 0, 0));
 	
 	/**
 	 * Default green channel for RGB images.
 	 */
-	public final static ImageChannel GREEN = getInstance("Green", ColorTools.packRGB(0, 255, 0));
+	public static final ImageChannel GREEN = getInstance("Green", ColorTools.packRGB(0, 255, 0));
 	
 	/**
 	 * Default blue channel for RGB images.
 	 */
-	public final static ImageChannel BLUE  = getInstance("Blue", ColorTools.packRGB(0, 0, 255));
+	public static final ImageChannel BLUE  = getInstance("Blue", ColorTools.packRGB(0, 0, 255));
 	
 	/**
 	 * Get a channel instance with the specified name and color.
@@ -72,7 +72,7 @@ public class ImageChannel {
 	 * @param color Color as a packed (A)RGB value.
 	 * @return
 	 */
-	public synchronized static ImageChannel getInstance(String name, Integer color) {
+	public static synchronized ImageChannel getInstance(String name, Integer color) {
 		name = Objects.requireNonNull(name);
 		var key = name + "::" + color;
 		var channel = cache.get(key);
@@ -88,7 +88,7 @@ public class ImageChannel {
 	 * @param names the names of the channels
 	 * @return a list of {@link ImageChannel}, where channel names are taken from the input array
 	 */
-	public synchronized static List<ImageChannel> getChannelList(String... names) {
+	public static synchronized List<ImageChannel> getChannelList(String... names) {
 		var list = new ArrayList<ImageChannel>();
 		int i = 0;
 		for (String name : names)

@@ -58,7 +58,7 @@ import qupath.lib.roi.interfaces.ROI;
  */
 public class AreaROI extends AbstractPathROI implements Serializable {
 	
-//	final static private Logger logger = LoggerFactory.getLogger(AreaROI.class);
+//	private static final Logger logger = LoggerFactory.getLogger(AreaROI.class);
 	
 	private static final long serialVersionUID = 1L;
 	
@@ -68,7 +68,7 @@ public class AreaROI extends AbstractPathROI implements Serializable {
 
 	// We potentially spend a lot of time drawing polygons & assessing whether or not to draw them...
 	// By caching the bounds this can be speeded up
-	transient private ClosedShapeStatistics stats = null;
+	private transient ClosedShapeStatistics stats = null;
 	
 	// TODO: Consider making this protected - better not to use directly, to ensure validity of vertices
 	AreaROI(List<? extends Vertices> vertices, ImagePlane plane) {

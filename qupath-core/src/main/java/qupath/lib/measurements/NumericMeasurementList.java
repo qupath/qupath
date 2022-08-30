@@ -57,7 +57,7 @@ import org.slf4j.LoggerFactory;
  */
 class NumericMeasurementList {
 	
-	final private static Logger logger = LoggerFactory.getLogger(NumericMeasurementList.class);
+	private static final Logger logger = LoggerFactory.getLogger(NumericMeasurementList.class);
 	
 	private static Map<List<String>, NameMap> namesPool = Collections.synchronizedMap(new WeakHashMap<>());
 	
@@ -93,7 +93,7 @@ class NumericMeasurementList {
 	
 	
 	
-	private static abstract class AbstractNumericMeasurementList implements MeasurementList {
+	private abstract static class AbstractNumericMeasurementList implements MeasurementList {
 		
 		private static final long serialVersionUID = 1L;
 		
@@ -177,7 +177,7 @@ class NumericMeasurementList {
 	    }
 		
 		@Override
-		final public int size() {
+		public final int size() {
 			return names.size();
 		}
 

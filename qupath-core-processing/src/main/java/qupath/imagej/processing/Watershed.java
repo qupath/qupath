@@ -199,15 +199,15 @@ public class Watershed {
 	
 	static class WatershedQueueWrapper {
 
-		final private PriorityQueue<PixelWithValue> queue = new PriorityQueue<>();
-		final private boolean[] queued;
-		final private int width, height;
-		final private ImageProcessor ip;
+		private final PriorityQueue<PixelWithValue> queue = new PriorityQueue<>();
+		private final boolean[] queued;
+		private final int width, height;
+		private final ImageProcessor ip;
 		
 		private long counter = 0;//Long.MIN_VALUE;
 		
 		// Keep a pool of objects so they can be reused... not normally worth the effort, but we are likely to have *a lot*
-		final private ArrayDeque<PixelWithValue> dequePool;
+		private final ArrayDeque<PixelWithValue> dequePool;
 		
 		
 		public WatershedQueueWrapper(final ImageProcessor ip, final ImageProcessor ipLabels, final double minThreshold) {
@@ -302,9 +302,9 @@ public class Watershed {
 		public float value;
 		public long count;
 		
-//		final public int x, y;
-//		final public float value;
-//		final public long count;
+//		public final int x, y;
+//		public final float value;
+//		public final long count;
 		
 		public PixelWithValue(final int x, final int y, final float value, final long count) {
 			this.x = x;

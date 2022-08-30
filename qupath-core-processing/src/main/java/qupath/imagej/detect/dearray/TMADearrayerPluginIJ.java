@@ -72,11 +72,11 @@ import qupath.lib.roi.interfaces.ROI;
  */
 public class TMADearrayerPluginIJ extends AbstractInteractivePlugin<BufferedImage> {
 	
-	final private static Logger logger = LoggerFactory.getLogger(TMADearrayerPluginIJ.class);
+	private static final Logger logger = LoggerFactory.getLogger(TMADearrayerPluginIJ.class);
 	
 	private ParameterList params;
 	
-	transient private Dearrayer dearrayer;
+	private transient Dearrayer dearrayer;
 	
 	/**
 	 * Default constructor.
@@ -163,7 +163,7 @@ public class TMADearrayerPluginIJ extends AbstractInteractivePlugin<BufferedImag
 	
 	static class Dearrayer implements ObjectDetector<BufferedImage> {
 		
-		final private static Logger logger = LoggerFactory.getLogger(Dearrayer.class);
+		private static final Logger logger = LoggerFactory.getLogger(Dearrayer.class);
 		
 		private ImageProcessor ip;
 		

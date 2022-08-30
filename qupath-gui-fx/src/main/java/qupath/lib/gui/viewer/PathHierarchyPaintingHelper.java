@@ -92,7 +92,7 @@ import qupath.lib.roi.interfaces.ROI;
  */
 public class PathHierarchyPaintingHelper {
 	
-	final private static Logger logger = LoggerFactory.getLogger(PathHierarchyPaintingHelper.class);
+	private static final Logger logger = LoggerFactory.getLogger(PathHierarchyPaintingHelper.class);
 
 	private static ShapeProvider shapeProvider = new ShapeProvider();
 	
@@ -473,7 +473,7 @@ public class PathHierarchyPaintingHelper {
 	}
 	
 
-	static abstract class ShapePool<T extends Shape> {
+	abstract static class ShapePool<T extends Shape> {
 		
 		private Map<Thread, T> map = new WeakHashMap<>();
 		

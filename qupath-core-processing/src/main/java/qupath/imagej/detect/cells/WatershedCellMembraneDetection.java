@@ -118,7 +118,7 @@ public class WatershedCellMembraneDetection extends AbstractTileableDetectionPlu
 		"cellExpansion",
 		};
 	
-	transient private CellDetector detector;
+	private transient CellDetector detector;
 	
 	static String IMAGE_OPTICAL_DENSITY = "Optical density sum";
 	static String IMAGE_HEMATOXYLIN = "Hematoxylin";
@@ -389,7 +389,7 @@ public class WatershedCellMembraneDetection extends AbstractTileableDetectionPlu
 	
 	static class WatershedCellDetector {
 		
-		final private static Logger logger = LoggerFactory.getLogger(WatershedCellDetector.class);
+		private static final Logger logger = LoggerFactory.getLogger(WatershedCellDetector.class);
 		
 		private boolean refineBoundary = true; // TODO: Consider making this variable accessible
 		

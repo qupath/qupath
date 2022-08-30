@@ -46,7 +46,7 @@ public class StainVector implements Externalizable {
 	
 	private static final long serialVersionUID = 1L;
 	
-	final private static Logger logger = LoggerFactory.getLogger(StainVector.class);
+	private static final Logger logger = LoggerFactory.getLogger(StainVector.class);
 	
 	/**
 	 * Enum representing default stains.

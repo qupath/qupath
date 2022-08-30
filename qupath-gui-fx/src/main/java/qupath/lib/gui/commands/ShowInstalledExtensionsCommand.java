@@ -66,7 +66,7 @@ import qupath.lib.images.servers.ImageServerProvider;
  */
 class ShowInstalledExtensionsCommand {
 	
-	final private static Logger logger = LoggerFactory.getLogger(ShowInstalledExtensionsCommand.class);
+	private static final Logger logger = LoggerFactory.getLogger(ShowInstalledExtensionsCommand.class);
 	
 	
 	public static void showInstalledExtensions(final QuPathGUI qupath) {

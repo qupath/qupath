@@ -38,7 +38,7 @@ import qupath.lib.roi.interfaces.ROI;
  */
 public class DefaultROIComparator implements Comparator<ROI>{
 	
-	private final static DefaultROIComparator instance = new DefaultROIComparator();
+	private static final DefaultROIComparator instance = new DefaultROIComparator();
 
 	@Override
 	public int compare(ROI o1, ROI o2) {

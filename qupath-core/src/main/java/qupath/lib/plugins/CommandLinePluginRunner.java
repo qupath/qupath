@@ -72,7 +72,7 @@ public class CommandLinePluginRunner<T> extends AbstractPluginRunner<T> {
 	 */
 	public static class CommandLineProgressMonitor implements SimpleProgressMonitor {
 		
-		final private static Logger logger = LoggerFactory.getLogger(CommandLineProgressMonitor.class);
+		private static final Logger logger = LoggerFactory.getLogger(CommandLineProgressMonitor.class);
 		
 		private long startTime;
 		private AtomicInteger progress = new AtomicInteger(0);

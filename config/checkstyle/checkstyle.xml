@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE module PUBLIC "-//Checkstyle//DTD Checkstyle Configuration 1.3//EN" "https://checkstyle.org/dtds/configuration_1_3.dtd">
+
+<!--
+    This configuration file was written by the eclipse-cs plugin configuration editor
+-->
+<!--
+    Checkstyle-Configuration: QuPath style
+    Description: none
+-->
+<module name="Checker">
+  <property name="severity" value="warning"/>
+  <module name="TreeWalker">
+    <module name="ModifierOrder">
+      <property name="severity" value="error"/>
+    </module>
+    <module name="RedundantImport">
+      <property name="severity" value="error"/>
+    </module>
+    <module name="UnusedImports">
+      <property name="severity" value="warning"/>
+    </module>
+    <module name="IllegalImport">
+      <property name="severity" value="warning"/>
+    </module>
+  </module>
+  <module name="JavadocPackage">
+    <property name="severity" value="warning"/>
+  </module>
+  <module name="RegexpOnFilename">
+    <property name="severity" value="error"/>
+    <property name="folderPattern" value="src/test/java"/>
+    <property name="fileNamePattern" value="^Test.*"/>
+    <property name="match" value="false"/>
+    <property name="fileExtensions" value=".java"/>
+  </module>
+</module>

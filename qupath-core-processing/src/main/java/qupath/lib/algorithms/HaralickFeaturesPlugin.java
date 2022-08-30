@@ -75,7 +75,7 @@ import qupath.lib.roi.interfaces.ROI;
  */
 public class HaralickFeaturesPlugin extends AbstractInteractivePlugin<BufferedImage> {
 	
-	private final static Logger logger = LoggerFactory.getLogger(HaralickFeaturesPlugin.class);
+	private static final Logger logger = LoggerFactory.getLogger(HaralickFeaturesPlugin.class);
 	
 	private ParameterList params;
 	

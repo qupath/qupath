@@ -82,7 +82,7 @@ import qupath.lib.objects.hierarchy.PathObjectHierarchy;
  */
 public class MeasurementMapPane {
 	
-	private final static Logger logger = LoggerFactory.getLogger(MeasurementMapPane.class);
+	private static final Logger logger = LoggerFactory.getLogger(MeasurementMapPane.class);
 	
 	private QuPathGUI qupath;
 	

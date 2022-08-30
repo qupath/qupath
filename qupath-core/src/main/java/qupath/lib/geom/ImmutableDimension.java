@@ -34,12 +34,12 @@ public class ImmutableDimension {
 	/**
 	 * Width of the ImmutableDimension.
 	 */
-	final public int width;
+	public final int width;
 	
 	/**
 	 * Height of the ImmutableDimension.
 	 */
-	final public int height;
+	public final int height;
 	
 	/**
 	 * Constructor for a new ImmutableDimension.

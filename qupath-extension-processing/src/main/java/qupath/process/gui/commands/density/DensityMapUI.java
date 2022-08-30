@@ -107,9 +107,9 @@ import qupath.process.gui.commands.ui.SaveResourcePaneBuilder;
  */
 public class DensityMapUI {
 	
-	private final static Logger logger = LoggerFactory.getLogger(DensityMapUI.class);
+	private static final Logger logger = LoggerFactory.getLogger(DensityMapUI.class);
 	
-	private final static String title = "Density maps";
+	private static final String title = "Density maps";
 	
 	/**
 	 * Create a pane that can be used to save a {@link DensityMapBuilder}, with standardized display and prompts.
@@ -334,7 +334,7 @@ public class DensityMapUI {
 	 * Abstract base class for an action that operates on a density map.
 	 * Only intended for internal use.
 	 */
-	private static abstract class DensityMapButtonCommand {
+	private abstract static class DensityMapButtonCommand {
 		
 		protected QuPathGUI qupath;
 		protected ObjectExpression<PixelClassificationOverlay> overlay;
@@ -1027,7 +1027,7 @@ public class DensityMapUI {
 	 */
 	static class ThresholdColorModels {
 	
-		static abstract class ColorModelThreshold {
+		abstract static class ColorModelThreshold {
 			
 			private int transferType;
 						

@@ -68,7 +68,7 @@ import qupath.process.gui.commands.ui.LoadResourceCommand;
  */
 public class ProcessingExtension implements QuPathExtension {
 	
-	private final static Logger logger = LoggerFactory.getLogger(ProcessingExtension.class);
+	private static final Logger logger = LoggerFactory.getLogger(ProcessingExtension.class);
 	
 	static {
 		// TODO: Consider a better way to force initialization of key processing classes

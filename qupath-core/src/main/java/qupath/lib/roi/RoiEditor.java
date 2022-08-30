@@ -57,7 +57,7 @@ import qupath.lib.roi.interfaces.ROI;
  */
 public class RoiEditor {
 	
-	final private static Logger logger = LoggerFactory.getLogger(RoiEditor.class);
+	private static final Logger logger = LoggerFactory.getLogger(RoiEditor.class);
 	
 	private ROI pathROI;
 	private MutablePoint activeHandle;
@@ -68,7 +68,7 @@ public class RoiEditor {
 	private MutablePoint pTranslateCurrent;
 	private boolean translateSnapToPixel;
 	
-	transient private RoiHandleAdjuster<?> adjuster;
+	private transient RoiHandleAdjuster<?> adjuster;
 	
 	// Don't instantiate directly - implementation may change
 	private RoiEditor() {};
@@ -352,7 +352,7 @@ public class RoiEditor {
 	
 	
 	
-	static abstract class RoiHandleAdjuster<T extends ROI> {
+	abstract static class RoiHandleAdjuster<T extends ROI> {
 		
 		final int TOP_LEFT = 0;
 		final int TOP_CENTER = 1;
@@ -395,7 +395,7 @@ public class RoiEditor {
 	
 	
 	
-	static abstract class BoundedHandleAdjuster<T extends AbstractPathBoundedROI> extends RoiHandleAdjuster<T> {
+	abstract static class BoundedHandleAdjuster<T extends AbstractPathBoundedROI> extends RoiHandleAdjuster<T> {
 				
 		private T roi;
 		private List<MutablePoint> handles = new ArrayList<>(8);

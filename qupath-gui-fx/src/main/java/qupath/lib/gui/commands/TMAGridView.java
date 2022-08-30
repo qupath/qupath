@@ -103,7 +103,7 @@ import qupath.lib.roi.interfaces.ROI;
  */
 class TMAGridView implements Runnable, ChangeListener<ImageData<BufferedImage>>, PathObjectHierarchyListener {
 	
-	final private static Logger logger = LoggerFactory.getLogger(TMAGridView.class);
+	private static final Logger logger = LoggerFactory.getLogger(TMAGridView.class);
 	
 	private QuPathGUI qupath;
 	private Stage stage;

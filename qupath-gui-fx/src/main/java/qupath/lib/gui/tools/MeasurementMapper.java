@@ -44,7 +44,7 @@ import qupath.lib.objects.PathTileObject;
  */
 public class MeasurementMapper {
 	
-	private final static Logger logger = LoggerFactory.getLogger(MeasurementMapper.class);
+	private static final Logger logger = LoggerFactory.getLogger(MeasurementMapper.class);
 	
 	private ColorMap colorMapper;
 

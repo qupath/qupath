@@ -69,12 +69,12 @@ public class PixelClassifiers {
 		
 		private static String typeName = "pixel_classifier_type";
 		
-		private final static SubTypeAdapterFactory<PixelClassifier> pixelClassifierTypeAdapter = 
+		private static final SubTypeAdapterFactory<PixelClassifier> pixelClassifierTypeAdapter = 
 				GsonTools.createSubTypeAdapterFactory(PixelClassifier.class, typeName)
 				.registerSubtype(OpenCVPixelClassifier.class)
 				.registerSubtype(ThresholdPixelClassifier.class);
 		
-		private final static TypeAdapterFactory classifierFunctionTypeAdapter = GsonTools.createSubTypeAdapterFactory(ClassifierFunction.class, "classifier_function")
+		private static final TypeAdapterFactory classifierFunctionTypeAdapter = GsonTools.createSubTypeAdapterFactory(ClassifierFunction.class, "classifier_function")
 				.registerSubtype(ClassifierGreaterEquals.class)
 				.registerSubtype(ClassifierGreater.class)
 				.registerSubtype(MultiThresholdClassifierFunction.class);
@@ -99,7 +99,7 @@ public class PixelClassifiers {
 		
 	}
 	
-	private final static TypeAdapterFactory factory = new PixelClassifierTypeAdapterFactory();
+	private static final TypeAdapterFactory factory = new PixelClassifierTypeAdapterFactory();
 		
 	/**
 	 * Get the {@link TypeAdapterFactory} default used for {@link PixelClassifier} objects.
@@ -220,7 +220,7 @@ static class ThresholdClassifierBuilder {
 		
 	}
 	
-	static abstract class SingleThresholdClassifierFunction implements ClassifierFunction {
+	abstract static class SingleThresholdClassifierFunction implements ClassifierFunction {
 		
 		private int band;
 		protected float threshold;

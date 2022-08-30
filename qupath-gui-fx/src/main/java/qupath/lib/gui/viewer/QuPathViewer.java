@@ -155,7 +155,7 @@ import qupath.lib.roi.interfaces.ROI;
  */
 public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHierarchyListener, PathObjectSelectionListener {
 
-	private final static Logger logger = LoggerFactory.getLogger(QuPathViewer.class);
+	private static final Logger logger = LoggerFactory.getLogger(QuPathViewer.class);
 
 	private static final double MIN_ROTATION = 0;
 	private static final double MAX_ROTATION = 360 * Math.PI / 180;
@@ -253,7 +253,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 	private ObjectProperty<PathTool> currentTool = new SimpleObjectProperty<>(PathTools.MOVE);
 	private ImageDisplay imageDisplay;
-	transient private long lastDisplayChangeTimestamp = 0; // Used to indicate imageDisplay changes
+	private transient long lastDisplayChangeTimestamp = 0; // Used to indicate imageDisplay changes
 
 	private LongProperty lastRepaintTimestamp = new SimpleLongProperty(0L); // Used for debugging repaint times
 	

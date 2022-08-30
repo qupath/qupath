@@ -42,9 +42,9 @@ import qupath.lib.regions.RegionRequest;
  */
 class PathImagePlus implements PathImage<ImagePlus> {
 	
-	final private static Logger logger = LoggerFactory.getLogger(PathImagePlus.class);
+	private static final Logger logger = LoggerFactory.getLogger(PathImagePlus.class);
 	
-	transient private ImagePlus imp = null;
+	private transient ImagePlus imp = null;
 	private RegionRequest request;
 	
 	private PixelCalibration calibration;

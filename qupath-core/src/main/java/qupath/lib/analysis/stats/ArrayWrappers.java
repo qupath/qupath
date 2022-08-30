@@ -116,7 +116,7 @@ public class ArrayWrappers {
 	
 	static class UnsignedByteArrayWrapper implements ArrayWrapper {
 		
-		final private byte[] array;
+		private final byte[] array;
 		
 		public UnsignedByteArrayWrapper(byte[] array) {
 			this.array = array;
@@ -142,7 +142,7 @@ public class ArrayWrappers {
 	
 	static class UnsignedShortArrayWrapper implements ArrayWrapper {
 		
-		final private short[] array;
+		private final short[] array;
 		
 		public UnsignedShortArrayWrapper(short[] array) {
 			this.array = array;
@@ -168,7 +168,7 @@ public class ArrayWrappers {
 	
 	static class IntArrayWrapper implements ArrayWrapper {
 		
-		final private int[] array;
+		private final int[] array;
 		
 		public IntArrayWrapper(int[] array) {
 			this.array = array;
@@ -194,7 +194,7 @@ public class ArrayWrappers {
 	
 	static class FloatArrayWrapper implements ArrayWrapper  {
 		
-		final private float[] array;
+		private final float[] array;
 		
 		public FloatArrayWrapper(float[] array) {
 			this.array = array;
@@ -220,7 +220,7 @@ public class ArrayWrappers {
 	
 	static class DoubleArrayWrapper implements ArrayWrapper  {
 		
-		final private double[] array;
+		private final double[] array;
 		
 		public DoubleArrayWrapper(double[] array) {
 			this.array = array;

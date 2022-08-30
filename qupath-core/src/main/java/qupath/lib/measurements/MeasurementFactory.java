@@ -62,8 +62,8 @@ class DoubleMeasurement implements Measurement {
 	
 	private static final long serialVersionUID = 1L;
 	
-	final private String name;
-	final private double value;
+	private final String name;
+	private final double value;
 	
 	DoubleMeasurement(String name, double value) {
 		// There may be many measurements... so interning the names can help considerably
@@ -99,8 +99,8 @@ class FloatMeasurement implements Measurement {
 	
 	private static final long serialVersionUID = 1L;
 	
-	final private String name;
-	final private float value;
+	private final String name;
+	private final float value;
 	
 	FloatMeasurement(String name, double value) {
 		// There may be many measurements... so interning the names can help considerably

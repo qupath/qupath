@@ -169,7 +169,7 @@ import qupath.lib.projects.ProjectImageEntry;
  */
 public class TMASummaryViewer {
 	
-	private final static Logger logger = LoggerFactory.getLogger(TMASummaryViewer.class);
+	private static final Logger logger = LoggerFactory.getLogger(TMASummaryViewer.class);
 	
 	private IntegerProperty maxSmallWidth = new SimpleIntegerProperty(150);
 	

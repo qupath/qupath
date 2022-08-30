@@ -42,9 +42,9 @@ import qupath.lib.plugins.parameters.ParameterList;
  */
 public abstract class AbstractInteractivePlugin<T> extends AbstractPlugin<T> implements PathInteractivePlugin<T> {
 	
-	transient protected ParameterList params;
+	protected transient ParameterList params;
 	
-	private final static Logger logger = LoggerFactory.getLogger(AbstractInteractivePlugin.class);
+	private static final Logger logger = LoggerFactory.getLogger(AbstractInteractivePlugin.class);
 	
 	/**
 	 * This should return a default ParameterList containing any information that is needed to repeat the task exactly.

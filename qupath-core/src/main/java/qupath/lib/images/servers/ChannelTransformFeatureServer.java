@@ -51,7 +51,7 @@ import qupath.lib.regions.RegionRequest;
  */
 public class ChannelTransformFeatureServer extends TransformingImageServer<BufferedImage> {
 	
-	private final static Logger logger = LoggerFactory.getLogger(ChannelTransformFeatureServer.class);
+	private static final Logger logger = LoggerFactory.getLogger(ChannelTransformFeatureServer.class);
 	
 	private List<ColorTransforms.ColorTransform> transforms;
 	private ImageServerMetadata metadata;

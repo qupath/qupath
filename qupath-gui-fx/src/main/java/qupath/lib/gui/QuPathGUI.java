@@ -259,7 +259,7 @@ import qupath.lib.gui.scripting.DefaultScriptEditor;
  */
 public class QuPathGUI {
 	
-	private final static Logger logger = LoggerFactory.getLogger(QuPathGUI.class);
+	private static final Logger logger = LoggerFactory.getLogger(QuPathGUI.class);
 	
 	private static QuPathGUI instance;
 	
@@ -289,7 +289,7 @@ public class QuPathGUI {
 	/**
 	 * Preferred size for toolbar icons.
 	 */
-	final public static int TOOLBAR_ICON_SIZE = 16;
+	public static final int TOOLBAR_ICON_SIZE = 16;
 
 	MultiviewManager viewerManager;
 	

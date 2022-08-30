@@ -51,7 +51,7 @@ import qupath.lib.gui.tools.GuiTools;
  */
 class ImageTableCell extends TreeTableCell<TMAEntry, TMAEntry> {
 		
-		final private Canvas canvas = new Canvas();
+		private final Canvas canvas = new Canvas();
 		
 		private TMAImageCache cache;
 		private boolean isOverlay;

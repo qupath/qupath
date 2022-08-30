@@ -68,7 +68,7 @@ import qupath.lib.objects.hierarchy.events.PathObjectSelectionListener;
 public class SelectedMeasurementTableView implements PathObjectSelectionListener, ChangeListener<ImageData<BufferedImage>>,
 	PathObjectHierarchyListener, PropertyChangeListener {
 	
-	private final static Logger logger = LoggerFactory.getLogger(SelectedMeasurementTableView.class);
+	private static final Logger logger = LoggerFactory.getLogger(SelectedMeasurementTableView.class);
 	
 	private static int nDecimalPlaces = 4;
 	

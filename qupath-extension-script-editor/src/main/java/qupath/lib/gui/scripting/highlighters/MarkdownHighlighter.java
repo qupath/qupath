@@ -61,7 +61,7 @@ import org.slf4j.LoggerFactory;
  */
 public class MarkdownHighlighter implements ScriptHighlighter {
 	
-	private final static Logger logger = LoggerFactory.getLogger(MarkdownHighlighter.class);
+	private static final Logger logger = LoggerFactory.getLogger(MarkdownHighlighter.class);
 	
 	/**
 	 * Instance of this highlighter. Can't be final because of {@link ServiceLoader}.

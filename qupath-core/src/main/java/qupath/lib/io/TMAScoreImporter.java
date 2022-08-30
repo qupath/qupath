@@ -59,7 +59,7 @@ import qupath.lib.objects.hierarchy.TMAGrid;
  */
 public class TMAScoreImporter {
 	
-	final private static Logger logger = LoggerFactory.getLogger(TMAScoreImporter.class);
+	private static final Logger logger = LoggerFactory.getLogger(TMAScoreImporter.class);
 	
 	/**
 	 * Import TMA scores from a file into the TMAGrid of an object hierarchy.

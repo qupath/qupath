@@ -142,7 +142,7 @@ import qupath.lib.scripting.QP;
  */
 public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>>, PropertyChangeListener {
 	
-	final private static Logger logger = LoggerFactory.getLogger(ImageDetailsPane.class);
+	private static final Logger logger = LoggerFactory.getLogger(ImageDetailsPane.class);
 	
 	private QuPathGUI qupath;
 	

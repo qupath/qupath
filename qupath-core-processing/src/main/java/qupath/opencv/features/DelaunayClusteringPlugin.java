@@ -62,7 +62,7 @@ import qupath.lib.plugins.parameters.ParameterList;
  */
 public class DelaunayClusteringPlugin<T> extends AbstractInteractivePlugin<T> {
 
-	private final static Logger logger = LoggerFactory.getLogger(DelaunayClusteringPlugin.class);
+	private static final Logger logger = LoggerFactory.getLogger(DelaunayClusteringPlugin.class);
 	
 	/**
 	 * Constructor.

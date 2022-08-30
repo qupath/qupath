@@ -62,7 +62,7 @@ import qupath.lib.roi.interfaces.ROI;
  */
 public class DelaunayTriangulation implements PathObjectConnectionGroup {
 	
-	private final static Logger logger = LoggerFactory.getLogger(DelaunayTriangulation.class);
+	private static final Logger logger = LoggerFactory.getLogger(DelaunayTriangulation.class);
 	
 	private double distanceThreshold = Double.NaN;
 	private boolean limitByClass = false;

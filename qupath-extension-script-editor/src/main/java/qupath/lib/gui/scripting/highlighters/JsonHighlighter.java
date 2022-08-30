@@ -45,12 +45,12 @@ public class JsonHighlighter implements ScriptHighlighter {
 	 */
 	private static JsonHighlighter INSTANCE;
 
-    final static String PAREN_PATTERN = "\\(|\\)";
-    final static String BRACE_PATTERN = "\\{|\\}";
-    final static String BRACKET_PATTERN = "\\[|\\]";
-    final static String DOUBLE_QUOTE_PATTERN = "\"([^\"\\\\]|\\\\.)*\"";
-    final static String SINGLE_QUOTE_PATTERN = "'([^'\\\\]|\\\\.)*\'";
-    final static String REMAINING_PATTERN = "[^,.:]";
+    static final String PAREN_PATTERN = "\\(|\\)";
+    static final String BRACE_PATTERN = "\\{|\\}";
+    static final String BRACKET_PATTERN = "\\[|\\]";
+    static final String DOUBLE_QUOTE_PATTERN = "\"([^\"\\\\]|\\\\.)*\"";
+    static final String SINGLE_QUOTE_PATTERN = "'([^'\\\\]|\\\\.)*\'";
+    static final String REMAINING_PATTERN = "[^,.:]";
 	
     private static Pattern PATTERN = Pattern.compile(
             "(?<PAREN>" + PAREN_PATTERN + ")"

@@ -71,7 +71,7 @@ public class IconFactory {
 
 	private static GlyphFont icoMoon = GlyphFontRegistry.font("icomoon");
 	
-	final private static Logger logger = LoggerFactory.getLogger(IconFactory.class);
+	private static final Logger logger = LoggerFactory.getLogger(IconFactory.class);
 	
 	/**
 	 * Default icons for QuPath commands.

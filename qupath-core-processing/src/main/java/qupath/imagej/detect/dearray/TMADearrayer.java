@@ -178,9 +178,9 @@ public class TMADearrayer {
 	
 	static class TMAGridShape {
 		
-		final public int nVertical;
-		final public int nHorizontal;
-		final public Polygon polyGrid;
+		public final int nVertical;
+		public final int nHorizontal;
+		public final Polygon polyGrid;
 		
 		private TMAGridShape(final Polygon polyGrid, final int nVertical, final int nHorizontal) {
 			this.polyGrid = polyGrid;

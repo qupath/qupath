@@ -22,6 +22,7 @@ gradle.properties
 .settings/
 .project
 .classpath
+.checkstyle
 
 # Mac
 .DS_Store

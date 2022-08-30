@@ -50,7 +50,7 @@ import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.roi.ROIs;
 
 @SuppressWarnings("javadoc")
-public class PathIOTest {
+public class TestPathIO {
 	
 	@Test
 	public void test_unzippedExtensions() throws IOException {

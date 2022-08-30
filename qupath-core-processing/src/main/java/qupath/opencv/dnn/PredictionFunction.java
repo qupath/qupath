@@ -47,12 +47,12 @@ public interface PredictionFunction<T> {
 	/**
 	 * Default name to use for single input.
 	 */
-	public final static String DEFAULT_INPUT_NAME = "input";
+	public static final String DEFAULT_INPUT_NAME = "input";
 	
 	/**
 	 * Default name to use for single output.
 	 */
-	public final static String DEFAULT_OUTPUT_NAME = "output";
+	public static final String DEFAULT_OUTPUT_NAME = "output";
 	
 	/**
 	 * Call a function that takes one or more inputs to produce zero or more outputs.

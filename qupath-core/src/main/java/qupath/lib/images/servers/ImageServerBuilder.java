@@ -153,7 +153,7 @@ public interface ImageServerBuilder<T> {
 	 *
 	 * @param <T>
 	 */
-	static abstract class AbstractServerBuilder<T> implements ServerBuilder<T> {
+	abstract static class AbstractServerBuilder<T> implements ServerBuilder<T> {
 		
 		private ImageServerMetadata metadata;
 		

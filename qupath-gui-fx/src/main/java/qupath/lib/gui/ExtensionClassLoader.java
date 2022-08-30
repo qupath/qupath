@@ -40,7 +40,7 @@ import org.slf4j.LoggerFactory;
  */
 public class ExtensionClassLoader extends URLClassLoader {
 	
-	private final static Logger logger = LoggerFactory.getLogger(ExtensionClassLoader.class);
+	private static final Logger logger = LoggerFactory.getLogger(ExtensionClassLoader.class);
 
 	/**
 	 * Constructor.

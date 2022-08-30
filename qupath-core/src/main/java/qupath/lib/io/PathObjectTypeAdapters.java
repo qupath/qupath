@@ -187,7 +187,7 @@ class PathObjectTypeAdapters {
 	
 	static class PathObjectTypeAdapter extends TypeAdapter<PathObject> {
 		
-		private final static Logger logger = LoggerFactory.getLogger(PathObjectTypeAdapter.class);
+		private static final Logger logger = LoggerFactory.getLogger(PathObjectTypeAdapter.class);
 		
 		static PathObjectTypeAdapter INSTANCE = new PathObjectTypeAdapter();
 		

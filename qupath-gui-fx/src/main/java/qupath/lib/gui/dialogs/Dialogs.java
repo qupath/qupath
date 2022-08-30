@@ -69,7 +69,7 @@ import qupath.lib.plugins.parameters.ParameterList;
  */
 public class Dialogs {
 	
-	private final static Logger logger = LoggerFactory.getLogger(Dialogs.class);
+	private static final Logger logger = LoggerFactory.getLogger(Dialogs.class);
 	
 	/**
 	 * Possible buttons pressed in a yes/no/cancel dialog.

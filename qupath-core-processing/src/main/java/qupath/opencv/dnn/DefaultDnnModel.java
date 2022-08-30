@@ -39,7 +39,7 @@ import org.slf4j.LoggerFactory;
  */
 class DefaultDnnModel<T> implements DnnModel<T> {
 	
-	private final static Logger logger = LoggerFactory.getLogger(DefaultDnnModel.class);
+	private static final Logger logger = LoggerFactory.getLogger(DefaultDnnModel.class);
 	
 	private static final Set<String> DEFAULT_NAMES = Set.of(DEFAULT_INPUT_NAME, DEFAULT_OUTPUT_NAME);
 	

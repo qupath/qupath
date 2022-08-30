@@ -471,7 +471,7 @@ public class ServerSelector {
 	static class ImageAndNameListCell extends ListCell<ImageServer<BufferedImage>> {
 		
 		private Map<String, BufferedImage> imageCache;
-		final private Canvas canvas = new Canvas();
+		private final Canvas canvas = new Canvas();
 		
 		private Image img;
 		

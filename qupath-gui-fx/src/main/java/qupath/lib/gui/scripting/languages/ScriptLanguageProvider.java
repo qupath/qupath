@@ -43,7 +43,7 @@ import qupath.lib.gui.QuPathGUI;
  */
 public class ScriptLanguageProvider {
 	
-	final static private Logger logger = LoggerFactory.getLogger(ScriptLanguageProvider.class);
+	private static final Logger logger = LoggerFactory.getLogger(ScriptLanguageProvider.class);
 	
 	private static ServiceLoader<ScriptLanguage> serviceLoader = ServiceLoader.load(ScriptLanguage.class);
 	private static final ScriptEngineManager manager = createManager();
