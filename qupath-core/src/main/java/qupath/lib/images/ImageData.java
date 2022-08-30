@@ -106,11 +106,11 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 		
 	}
 
-	final private static Logger logger = LoggerFactory.getLogger(ImageData.class);
+	private static final Logger logger = LoggerFactory.getLogger(ImageData.class);
 
-	transient private PropertyChangeSupport pcs;
+	private transient PropertyChangeSupport pcs;
 	
-	transient private ImageServer<T> server;
+	private transient ImageServer<T> server;
 	
 	private String lastSavedPath = null;
 	

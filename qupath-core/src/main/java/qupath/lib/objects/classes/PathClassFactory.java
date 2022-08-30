@@ -126,13 +126,13 @@ public final class PathClassFactory {
 
 	private static Map<String, PathClass> mapPathClasses = new HashMap<>();
 
-	private final static PathClass NULL_CLASS = PathClass.getNullClass();
+	private static final PathClass NULL_CLASS = PathClass.getNullClass();
 	
-	final static String POSITIVE = "Positive";
-	final static String NEGATIVE = "Negative";
-	final static String ONE_PLUS = "1+";
-	final static String TWO_PLUS = "2+";
-	final static String THREE_PLUS = "3+";
+	static final String POSITIVE = "Positive";
+	static final String NEGATIVE = "Negative";
+	static final String ONE_PLUS = "1+";
+	static final String TWO_PLUS = "2+";
+	static final String THREE_PLUS = "3+";
 	static List<String> intensityClassNames = Arrays.asList(ONE_PLUS, TWO_PLUS, THREE_PLUS);
 	
 	private static final Integer COLOR_POSITIVE = ColorTools.packRGB(200, 50, 50);

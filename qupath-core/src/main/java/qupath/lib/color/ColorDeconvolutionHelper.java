@@ -39,7 +39,7 @@ import qupath.lib.common.ColorTools;
  */
 public class ColorDeconvolutionHelper {
 	
-	final private static Logger logger = LoggerFactory.getLogger(ColorDeconvolutionHelper.class);
+	private static final Logger logger = LoggerFactory.getLogger(ColorDeconvolutionHelper.class);
 
 	/**
 	 * Convert a single pixel value to an optical density as {@code max(0, -log10(val/max)}. where {@code val} is clipped to be &gt;= 1.

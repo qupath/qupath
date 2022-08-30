@@ -73,7 +73,7 @@ import qupath.lib.roi.interfaces.ROI;
  */
 public class TMADataIO {
 
-	final private static Logger logger = LoggerFactory.getLogger(TMADataIO.class);
+	private static final Logger logger = LoggerFactory.getLogger(TMADataIO.class);
 
 	@SuppressWarnings("javadoc")
 	final public static String TMA_DEARRAYING_DATA_EXTENSION = ".qptma";

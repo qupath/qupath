@@ -67,7 +67,7 @@ public interface ScriptAutoCompletor {
 	 */
 	static class Completion implements Comparable<Completion> {
 		
-		private final static Comparator<Completion> COMPARATOR = 
+		private static final Comparator<Completion> COMPARATOR = 
 				Comparator.comparing(Completion::getCompletionText)
 					.thenComparing(Completion::getDisplayText);
 		

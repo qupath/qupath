@@ -107,9 +107,9 @@ import qupath.process.gui.commands.ui.SaveResourcePaneBuilder;
  */
 public class DensityMapUI {
 	
-	private final static Logger logger = LoggerFactory.getLogger(DensityMapUI.class);
+	private static final Logger logger = LoggerFactory.getLogger(DensityMapUI.class);
 	
-	private final static String title = "Density maps";
+	private static final String title = "Density maps";
 	
 	/**
 	 * Create a pane that can be used to save a {@link DensityMapBuilder}, with standardized display and prompts.

@@ -92,7 +92,7 @@ import qupath.lib.roi.interfaces.ROI;
  */
 public class PathHierarchyPaintingHelper {
 	
-	final private static Logger logger = LoggerFactory.getLogger(PathHierarchyPaintingHelper.class);
+	private static final Logger logger = LoggerFactory.getLogger(PathHierarchyPaintingHelper.class);
 
 	private static ShapeProvider shapeProvider = new ShapeProvider();
 	

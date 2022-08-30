@@ -53,7 +53,7 @@ import qupath.lib.regions.RegionRequest;
  */
 public abstract class AbstractImageServer<T> implements ImageServer<T> {
 	
-	final private static Logger logger = LoggerFactory.getLogger(AbstractImageServer.class);
+	private static final Logger logger = LoggerFactory.getLogger(AbstractImageServer.class);
 	
 	/**
 	 * User-defined metadata (e.g. if pixel sizes needed to be set explicitly).

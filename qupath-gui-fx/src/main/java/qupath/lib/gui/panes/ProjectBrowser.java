@@ -120,7 +120,7 @@ import qupath.lib.projects.ProjectImageEntry;
  */
 public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> {
 
-	final private static Logger logger = LoggerFactory.getLogger(ProjectBrowser.class);
+	private static final Logger logger = LoggerFactory.getLogger(ProjectBrowser.class);
 
 	private Project<BufferedImage> project;
 

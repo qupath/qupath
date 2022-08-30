@@ -70,7 +70,7 @@ import qupath.lib.gui.prefs.PathPrefs;
  */
 public class LogViewerCommand implements Runnable {
 	
-	final private static Logger logger = LoggerFactory.getLogger(LogViewerCommand.class);
+	private static final Logger logger = LoggerFactory.getLogger(LogViewerCommand.class);
 	
 	private QuPathGUI qupath;
 	private Stage dialog = null;

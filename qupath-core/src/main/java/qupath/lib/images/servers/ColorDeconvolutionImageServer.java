@@ -56,7 +56,7 @@ import qupath.lib.regions.RegionRequest;
  */
 class ColorDeconvolutionImageServer extends TransformingImageServer<BufferedImage> {
 	
-	private final static Logger logger = LoggerFactory.getLogger(ColorDeconvolutionImageServer.class);
+	private static final Logger logger = LoggerFactory.getLogger(ColorDeconvolutionImageServer.class);
 	
 	private ColorDeconvolutionStains stains;
 	private List<ColorTransformMethod> methods;

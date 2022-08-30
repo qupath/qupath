@@ -39,7 +39,7 @@ import qupath.lib.roi.interfaces.ROI;
 
 abstract class AbstractPolyROITool extends AbstractPathROITool {
 	
-	private final static Logger logger = LoggerFactory.getLogger(AbstractPolyROITool.class);
+	private static final Logger logger = LoggerFactory.getLogger(AbstractPolyROITool.class);
 
 	boolean isFreehandPolyROI = false;
 

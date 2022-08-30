@@ -62,7 +62,7 @@ import qupath.lib.objects.classes.PathClass;
  */
 public class DnnObjectClassifier<T> extends AbstractObjectClassifier<BufferedImage> implements UriResource {
 	
-	private final static Logger logger = LoggerFactory.getLogger(DnnObjectClassifier.class);
+	private static final Logger logger = LoggerFactory.getLogger(DnnObjectClassifier.class);
 	
 	private DnnModel<T> model;
 	private List<PathClass> pathClasses;

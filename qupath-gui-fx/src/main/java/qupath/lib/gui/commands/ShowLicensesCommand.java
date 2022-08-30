@@ -59,7 +59,7 @@ import qupath.lib.gui.tools.GuiTools;
  */
 class ShowLicensesCommand {
 
-	final private static Logger logger = LoggerFactory.getLogger(ShowLicensesCommand.class);
+	private static final Logger logger = LoggerFactory.getLogger(ShowLicensesCommand.class);
 
 	public static Stage createLicensesDialog(QuPathGUI qupath) {
 

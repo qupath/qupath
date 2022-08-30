@@ -57,7 +57,7 @@ import qupath.lib.roi.ConvexHull;
  */
 public class FindConvexHullDetectionsPlugin<T> extends AbstractInteractivePlugin<T> {
 	
-	private final static String commandName = "Find convex hull detections (TMA)";
+	private static final String commandName = "Find convex hull detections (TMA)";
 	
 	private transient AtomicInteger nObjectsRemoved = new AtomicInteger();
 	

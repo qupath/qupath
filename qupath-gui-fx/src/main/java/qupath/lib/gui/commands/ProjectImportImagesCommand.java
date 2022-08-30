@@ -104,13 +104,13 @@ import qupath.lib.projects.ProjectImageEntry;
  */
 class ProjectImportImagesCommand {
 	
-	private final static Logger logger = LoggerFactory.getLogger(ProjectImportImagesCommand.class);
+	private static final Logger logger = LoggerFactory.getLogger(ProjectImportImagesCommand.class);
 		
-	private final static String commandName = "Import images";
+	private static final String commandName = "Import images";
 	
-	private final static BooleanProperty pyramidalizeProperty = PathPrefs.createPersistentPreference("projectImportPyramidalize", true);
-	private final static BooleanProperty importObjectsProperty = PathPrefs.createPersistentPreference("projectImportObjects", false);
-	private final static BooleanProperty showImageSelectorProperty = PathPrefs.createPersistentPreference("showImageSelectorProperty", false);
+	private static final BooleanProperty pyramidalizeProperty = PathPrefs.createPersistentPreference("projectImportPyramidalize", true);
+	private static final BooleanProperty importObjectsProperty = PathPrefs.createPersistentPreference("projectImportObjects", false);
+	private static final BooleanProperty showImageSelectorProperty = PathPrefs.createPersistentPreference("showImageSelectorProperty", false);
 	
 	/**
 	 * Prompt to import images to the current project.

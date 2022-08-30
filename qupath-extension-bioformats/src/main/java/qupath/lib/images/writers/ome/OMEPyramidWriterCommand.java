@@ -62,7 +62,7 @@ import qupath.lib.regions.RegionRequest;
  */
 public class OMEPyramidWriterCommand implements Runnable {
 
-	private final static Logger logger = LoggerFactory.getLogger(OMEPyramidWriterCommand.class);
+	private static final Logger logger = LoggerFactory.getLogger(OMEPyramidWriterCommand.class);
 	
 	private static ObjectProperty<CompressionType> defaultPyramidCompression = PathPrefs.createPersistentPreference(
 			"ome-pyramid-compression", CompressionType.DEFAULT, CompressionType.class);

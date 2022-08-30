@@ -59,7 +59,7 @@ import qupath.lib.common.GeneralTools;
  */
 public class Thinning {
 	
-	private final static Logger logger = LoggerFactory.getLogger(Thinning.class);
+	private static final Logger logger = LoggerFactory.getLogger(Thinning.class);
 	
 	private static final AdjacencyTree adjacencyTree = new AdjacencyTree();
 	

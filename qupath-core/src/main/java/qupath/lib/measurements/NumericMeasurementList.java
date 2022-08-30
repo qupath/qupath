@@ -57,7 +57,7 @@ import org.slf4j.LoggerFactory;
  */
 class NumericMeasurementList {
 	
-	final private static Logger logger = LoggerFactory.getLogger(NumericMeasurementList.class);
+	private static final Logger logger = LoggerFactory.getLogger(NumericMeasurementList.class);
 	
 	private static Map<List<String>, NameMap> namesPool = Collections.synchronizedMap(new WeakHashMap<>());
 	

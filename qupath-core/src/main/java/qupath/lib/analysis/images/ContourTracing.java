@@ -85,7 +85,7 @@ import qupath.lib.roi.interfaces.ROI;
  */
 public class ContourTracing {
 	
-	private final static Logger logger = LoggerFactory.getLogger(ContourTracing.class);
+	private static final Logger logger = LoggerFactory.getLogger(ContourTracing.class);
 	
 	
 	/**

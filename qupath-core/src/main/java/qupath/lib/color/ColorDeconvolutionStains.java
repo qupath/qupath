@@ -55,7 +55,7 @@ public class ColorDeconvolutionStains implements Externalizable {
 	
 	private static final long serialVersionUID = 1L;
 	
-	final private static Logger logger = LoggerFactory.getLogger(ColorDeconvolutionStains.class);
+	private static final Logger logger = LoggerFactory.getLogger(ColorDeconvolutionStains.class);
 
 	private static int version = 1;
 	
@@ -112,7 +112,7 @@ public class ColorDeconvolutionStains implements Externalizable {
 	private StainVector stain1, stain2, stain3;
 	private double maxRed, maxGreen, maxBlue;
 	
-	transient private double[][] matInverse = null;
+	private transient double[][] matInverse = null;
 	
 	/**
 	 * Create a ColorDeconvolutionStains for a default stain combination, and default max values (255 for all channels).

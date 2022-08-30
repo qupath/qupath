@@ -55,7 +55,7 @@ import qupath.lib.objects.TMACoreObject;
  */
 class TMASummaryEntry implements TMAEntry {
 	
-	private final static Logger logger = LoggerFactory.getLogger(TMASummaryEntry.class);
+	private static final Logger logger = LoggerFactory.getLogger(TMASummaryEntry.class);
 	
 	private ObservableValue<TMAEntries.MeasurementCombinationMethod> method;
 	private ObservableBooleanValue skipMissing;

@@ -54,7 +54,7 @@ import qupath.lib.regions.RegionRequest;
  */
 public class ImageServerProvider {
 	
-	final private static Logger logger = LoggerFactory.getLogger(ImageServerProvider.class);
+	private static final Logger logger = LoggerFactory.getLogger(ImageServerProvider.class);
 	
 	private static Map<Class<?>, Map<RegionRequest, ?>> cacheMap = new HashMap<>();
 	

@@ -51,7 +51,7 @@ import qupath.lib.images.writers.ome.OMEPyramidWriterCommand;
  */
 public class BioFormatsOptionsExtension implements QuPathExtension {
 	
-	private final static Logger logger = LoggerFactory.getLogger(BioFormatsOptionsExtension.class);
+	private static final Logger logger = LoggerFactory.getLogger(BioFormatsOptionsExtension.class);
 	
 	private String bfVersion = null;
 

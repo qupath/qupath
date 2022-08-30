@@ -81,7 +81,7 @@ public class ParameterPanelFX {
 
 	private List<ParameterChangeListener> listeners = Collections.synchronizedList(new ArrayList<>());
 
-	private final static Logger logger = LoggerFactory.getLogger(ParameterPanelFX.class);
+	private static final Logger logger = LoggerFactory.getLogger(ParameterPanelFX.class);
 	
 	private static int DEFAULT_NUMERIC_TEXT_COLS = 8;
 	

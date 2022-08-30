@@ -93,10 +93,10 @@ import qupath.lib.scripting.QP;
  */
 public class QPEx extends QP {
 
-	final private static Logger logger = LoggerFactory.getLogger(QPEx.class);
+	private static final Logger logger = LoggerFactory.getLogger(QPEx.class);
 	
 	
-	private final static Collection<Class<?>> CORE_CLASSES = Collections.unmodifiableSet(new HashSet<>(Arrays.asList(
+	private static final Collection<Class<?>> CORE_CLASSES = Collections.unmodifiableSet(new HashSet<>(Arrays.asList(
 			// QuPath classes
 			QuPathGUI.class,
 			Dialogs.class,

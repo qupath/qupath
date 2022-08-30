@@ -86,7 +86,7 @@ import qupath.opencv.ml.pixel.PixelClassificationMeasurementManager;
  */
 public class ObservableMeasurementTableData implements PathTableData<PathObject> {
 	
-	final static Logger logger = LoggerFactory.getLogger(ObservableMeasurementTableData.class);
+	static final Logger logger = LoggerFactory.getLogger(ObservableMeasurementTableData.class);
 	
 	private ImageData<?> imageData;
 	

@@ -91,7 +91,7 @@ import qupath.opencv.tools.OpenCVTools;
  */
 public class ImageOps {
 	
-	private final static Logger logger = LoggerFactory.getLogger(ImageOps.class);
+	private static final Logger logger = LoggerFactory.getLogger(ImageOps.class);
 	
 	
 	@Target(ElementType.TYPE)
@@ -2373,7 +2373,7 @@ public class ImageOps {
 		@OpType("sequential")
 		static class SequentialMultiOp extends PaddedOp {
 			
-			private final static Logger logger = LoggerFactory.getLogger(SequentialMultiOp.class);
+			private static final Logger logger = LoggerFactory.getLogger(SequentialMultiOp.class);
 			
 			private List<ImageOp> ops;
 			
@@ -2749,7 +2749,7 @@ public class ImageOps {
 		@OpType("opencv-dnn")
 		static class DnnOp<T> extends PaddedOp {
 			
-			private final static Logger logger = LoggerFactory.getLogger(DnnOp.class);
+			private static final Logger logger = LoggerFactory.getLogger(DnnOp.class);
 
 			private DnnModel<T> model;
 			private int inputWidth;

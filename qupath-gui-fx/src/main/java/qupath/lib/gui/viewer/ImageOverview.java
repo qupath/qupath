@@ -51,7 +51,7 @@ import qupath.lib.objects.PathObject;
  */
 class ImageOverview implements QuPathViewerListener {
 
-	final static private Logger logger = LoggerFactory.getLogger(ImageOverview.class);
+	private static final Logger logger = LoggerFactory.getLogger(ImageOverview.class);
 
 	private QuPathViewer viewer;
 	

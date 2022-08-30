@@ -73,7 +73,7 @@ import qupath.lib.objects.hierarchy.events.PathObjectSelectionListener;
  */
 public class ObjectDescriptionPane<T> {
 	
-	private final static Logger logger = LoggerFactory.getLogger(ObjectDescriptionPane.class);
+	private static final Logger logger = LoggerFactory.getLogger(ObjectDescriptionPane.class);
 	
 	private ObservableValue<ImageData<T>> imageData;
 	private ObjectObserver<T> observer;

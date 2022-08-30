@@ -61,7 +61,7 @@ import qupath.lib.projects.ProjectImageEntry;
  */
 public class MeasurementExporter {
 	
-	private final static Logger logger = LoggerFactory.getLogger(MeasurementExporter.class);
+	private static final Logger logger = LoggerFactory.getLogger(MeasurementExporter.class);
 	
 	private List<String> includeOnlyColumns = new ArrayList<>();
 	private List<String> excludeColumns = new ArrayList<>();

@@ -47,7 +47,7 @@ import qupath.lib.projects.ProjectIO;
  */
 public class QuPathApp extends Application {
 	
-	final static Logger logger = LoggerFactory.getLogger(QuPathApp.class);
+	static final Logger logger = LoggerFactory.getLogger(QuPathApp.class);
 
 	@Override
 	public void start(Stage stage) throws Exception {

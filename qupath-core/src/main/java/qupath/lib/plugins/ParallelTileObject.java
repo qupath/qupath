@@ -65,7 +65,7 @@ import qupath.lib.roi.interfaces.ROI;
  */
 public class ParallelTileObject extends PathTileObject implements TemporaryObject {
 
-	final private static Logger logger = LoggerFactory.getLogger(ParallelTileObject.class);
+	private static final Logger logger = LoggerFactory.getLogger(ParallelTileObject.class);
 	
 	/**
 	 * Current processing status for the tile.

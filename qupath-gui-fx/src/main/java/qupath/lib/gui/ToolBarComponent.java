@@ -54,7 +54,7 @@ import qupath.lib.gui.viewer.tools.PathTool;
 
 class ToolBarComponent {
 	
-	private final static Logger logger = LoggerFactory.getLogger(ToolBarComponent.class);
+	private static final Logger logger = LoggerFactory.getLogger(ToolBarComponent.class);
 		
 		private QuPathGUI qupath;
 		

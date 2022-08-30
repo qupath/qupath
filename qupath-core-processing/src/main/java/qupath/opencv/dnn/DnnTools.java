@@ -81,16 +81,16 @@ import qupath.opencv.tools.OpenCVTools;
  */
 public class DnnTools {
 	
-	private final static Logger logger = LoggerFactory.getLogger(DnnTools.class);
+	private static final Logger logger = LoggerFactory.getLogger(DnnTools.class);
 	
 	@SuppressWarnings("rawtypes")
-	private final static SubTypeAdapterFactory<DnnModel> dnnAdapter;
+	private static final SubTypeAdapterFactory<DnnModel> dnnAdapter;
 	
 	@SuppressWarnings("rawtypes")
-	private final static SubTypeAdapterFactory<BlobFunction> blobAdapter;
+	private static final SubTypeAdapterFactory<BlobFunction> blobAdapter;
 	
 	@SuppressWarnings("rawtypes")
-	private final static SubTypeAdapterFactory<PredictionFunction> predictionAdapter;
+	private static final SubTypeAdapterFactory<PredictionFunction> predictionAdapter;
 	
 	static {
 		

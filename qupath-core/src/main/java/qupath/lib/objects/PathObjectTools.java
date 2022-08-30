@@ -74,7 +74,7 @@ import qupath.lib.roi.interfaces.ROI;
  */
 public class PathObjectTools {
 	
-	private final static Logger logger = LoggerFactory.getLogger(PathObjectTools.class);
+	private static final Logger logger = LoggerFactory.getLogger(PathObjectTools.class);
 
 	/**
 	 * Remove objects with PointsROI from a collection.

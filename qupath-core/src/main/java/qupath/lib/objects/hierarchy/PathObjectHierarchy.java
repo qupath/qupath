@@ -75,7 +75,7 @@ public final class PathObjectHierarchy implements Serializable {
 	
 	private static final long serialVersionUID = 1L;
 	
-	final private static Logger logger = LoggerFactory.getLogger(PathObjectHierarchy.class);
+	private static final Logger logger = LoggerFactory.getLogger(PathObjectHierarchy.class);
 			
 	// TODO: Make this a choice - currently a cell object is considered 'inside' if its nucleus is fully contained (as cell boundaries themselves are a little more questionable)
 	/*
@@ -100,11 +100,11 @@ public final class PathObjectHierarchy implements Serializable {
 	private TMAGrid tmaGrid = null;
 	private PathObject rootObject = new PathRootObject();
 	
-	transient private PathObjectSelectionModel selectionModel = new PathObjectSelectionModel();
-	transient private List<PathObjectHierarchyListener> listeners = new ArrayList<>();
+	private transient PathObjectSelectionModel selectionModel = new PathObjectSelectionModel();
+	private transient List<PathObjectHierarchyListener> listeners = new ArrayList<>();
 
 	// Cache enabling faster access of objects according to location
-	transient private PathObjectTileCache tileCache = new PathObjectTileCache(this);
+	private transient PathObjectTileCache tileCache = new PathObjectTileCache(this);
 
 	/**
 	 * Default constructor, creates an empty hierarchy.

@@ -59,7 +59,7 @@ import qupath.lib.objects.classes.PathClassTools;
  */
 public final class ColorModelFactory {
 	
-	private final static Logger logger = LoggerFactory.getLogger(ColorModelFactory.class);
+	private static final Logger logger = LoggerFactory.getLogger(ColorModelFactory.class);
 	
 //	private static Map<Map<Integer, PathClass>, IndexColorModel> classificationModels = Collections.synchronizedMap(new HashMap<>());
 

@@ -67,7 +67,7 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 	
 	private static final int DEFAULT_THUMBNAIL_WIDTH = 1000;
 	
-	private final static Logger logger = LoggerFactory.getLogger(AbstractImageRegionStore.class);
+	private static final Logger logger = LoggerFactory.getLogger(AbstractImageRegionStore.class);
 	
 	// Collection of SwingWorkers used to request image tiles
 	private List<TileWorker<T>> workers = Collections.synchronizedList(new ArrayList<>());
@@ -560,7 +560,7 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 	
 	class TileRequestManager {
 		
-		final static int MAX_Z_SEPARATION = 10;
+		static final int MAX_Z_SEPARATION = 10;
 		private List<TileRequestCollection<T>> list = new ArrayList<>();
 		
 		private TileRequestComparator<T> comparator = new TileRequestComparator<>();

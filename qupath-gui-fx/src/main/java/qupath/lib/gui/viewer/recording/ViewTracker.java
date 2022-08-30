@@ -78,8 +78,8 @@ public class ViewTracker implements QuPathViewerListener {
 	protected static final DecimalFormat df = new DecimalFormat("#.##");
 	protected static final String LOG_DELIMITER = "\t";
 
-	transient private QuPathGUI qupath;
-	transient private QuPathViewer viewer;
+	private transient QuPathGUI qupath;
+	private transient QuPathViewer viewer;
 	
 	private boolean hasZAndT;
 	

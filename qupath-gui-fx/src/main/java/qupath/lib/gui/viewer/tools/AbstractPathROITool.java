@@ -54,7 +54,7 @@ import qupath.lib.roi.interfaces.ROI;
  */
 abstract class AbstractPathROITool extends AbstractPathTool {
 	
-	final private static Logger logger = LoggerFactory.getLogger(AbstractPathROITool.class);
+	private static final Logger logger = LoggerFactory.getLogger(AbstractPathROITool.class);
 
 	/**
 	 * Create a new ROI with the given starting coordinates.

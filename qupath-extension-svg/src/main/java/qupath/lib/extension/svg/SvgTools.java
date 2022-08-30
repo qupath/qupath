@@ -64,7 +64,7 @@ import qupath.lib.regions.RegionRequest;
  */
 public class SvgTools {
 	
-//	private final static Logger logger = LoggerFactory.getLogger(SvgTools.class);
+//	private static final Logger logger = LoggerFactory.getLogger(SvgTools.class);
 	
 	/**
 	 * Write an SVG image representing the contents of the specified viewer.
@@ -89,7 +89,7 @@ public class SvgTools {
 	 */
 	public static class SvgBuilder {
 		
-		private final static Logger logger = LoggerFactory.getLogger(SvgBuilder.class);
+		private static final Logger logger = LoggerFactory.getLogger(SvgBuilder.class);
 		
 		/**
 		 * Enum defining ways in which raster images may be included in the SVG file.

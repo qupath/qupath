@@ -56,7 +56,7 @@ public class PathClass implements Comparable<PathClass>, Serializable {
 	private final String name;
 	private Integer colorRGB;
 	
-	private final static UUID secret = UUID.randomUUID();
+	private static final UUID secret = UUID.randomUUID();
 	
 	/**
 	 * Cached String representation

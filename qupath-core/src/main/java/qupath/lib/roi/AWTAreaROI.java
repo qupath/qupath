@@ -54,7 +54,7 @@ class AWTAreaROI extends AreaROI implements Serializable {
 	
 	// We potentially spend a lot of time drawing polygons & assessing whether or not to draw them...
 	// By caching the bounds this can be speeded up
-	transient private ClosedShapeStatistics stats = null;
+	private transient ClosedShapeStatistics stats = null;
 	
 	AWTAreaROI(Shape shape, ImagePlane plane) {
 		super(RoiTools.getVertices(shape), plane);

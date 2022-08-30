@@ -96,7 +96,7 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 	
 	private String macroText = null;
 
-	transient private Stage dialog;
+	private transient Stage dialog;
 		
 	/**
 	 * Constructor.

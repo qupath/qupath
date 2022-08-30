@@ -42,9 +42,9 @@ public class ImagePlane implements Comparable<ImagePlane> {
 	
 	private static ImagePlane DEFAULT_PLANE = new ImagePlane(-1, 0, 0);
 	
-	private final static int NUM_DEFAULTS = 10;
-	private final static ImagePlane[][] DEFAULTS_WITHOUT_CHANNEL = new ImagePlane[NUM_DEFAULTS][NUM_DEFAULTS];
-	private final static ImagePlane[][][] DEFAULTS_WITH_CHANNEL = new ImagePlane[NUM_DEFAULTS][NUM_DEFAULTS][NUM_DEFAULTS];
+	private static final int NUM_DEFAULTS = 10;
+	private static final ImagePlane[][] DEFAULTS_WITHOUT_CHANNEL = new ImagePlane[NUM_DEFAULTS][NUM_DEFAULTS];
+	private static final ImagePlane[][][] DEFAULTS_WITH_CHANNEL = new ImagePlane[NUM_DEFAULTS][NUM_DEFAULTS][NUM_DEFAULTS];
 	
 	static {
 		for (int t = 0; t < NUM_DEFAULTS; t++) {

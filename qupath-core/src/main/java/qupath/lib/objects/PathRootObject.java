@@ -42,7 +42,7 @@ public class PathRootObject extends PathObject {
 
 	private static final long serialVersionUID = 1L;
 	
-	final private static Logger logger = LoggerFactory.getLogger(PathRootObject.class);
+	private static final Logger logger = LoggerFactory.getLogger(PathRootObject.class);
 	
 	@Override
 	public boolean isRootObject() {

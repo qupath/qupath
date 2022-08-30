@@ -42,7 +42,7 @@ import javafx.stage.Stage;
  */
 public class QuPathTMAViewer extends Application {
 	
-	final private static Logger logger = LoggerFactory.getLogger(QuPathTMAViewer.class);
+	private static final Logger logger = LoggerFactory.getLogger(QuPathTMAViewer.class);
 	
 	@Override
 	public void start(Stage primaryStage) throws Exception {

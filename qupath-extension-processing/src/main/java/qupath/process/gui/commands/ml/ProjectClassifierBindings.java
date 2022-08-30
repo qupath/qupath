@@ -42,7 +42,7 @@ import qupath.lib.projects.Project;
  */
 public class ProjectClassifierBindings {
 	
-	private final static Logger logger = LoggerFactory.getLogger(ProjectClassifierBindings.class);
+	private static final Logger logger = LoggerFactory.getLogger(ProjectClassifierBindings.class);
 	
 	/**
 	 * Set styling for a text field to use pixel classifier names for the current project.

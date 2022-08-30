@@ -62,7 +62,7 @@ import qupath.lib.roi.GeometryTools;
  */
 public class DistanceTools {
 	
-	private final static Logger logger = LoggerFactory.getLogger(DistanceTools.class);
+	private static final Logger logger = LoggerFactory.getLogger(DistanceTools.class);
 	
 	/**
 	 * Compute the distance for all detection object centroids to the closest annotation with each valid, not-ignored classification and add 

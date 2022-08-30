@@ -78,7 +78,7 @@ import qupath.lib.roi.interfaces.ROI;
  */
 class RigidObjectEditorCommand implements Runnable, ChangeListener<ImageData<BufferedImage>>, QuPathViewerListener {
 
-	private final static Logger logger = LoggerFactory.getLogger(RigidObjectEditorCommand.class);
+	private static final Logger logger = LoggerFactory.getLogger(RigidObjectEditorCommand.class);
 	
 	private QuPathGUI qupath;
 	

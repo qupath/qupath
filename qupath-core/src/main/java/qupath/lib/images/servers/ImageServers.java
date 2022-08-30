@@ -78,7 +78,7 @@ import qupath.lib.regions.ImageRegion;
  */
 public class ImageServers {
 	
-	private final static Logger logger = LoggerFactory.getLogger(ImageServers.class);
+	private static final Logger logger = LoggerFactory.getLogger(ImageServers.class);
 	
 	private static SubTypeAdapterFactory<ServerBuilder> serverBuilderFactory = 
 			GsonTools.createSubTypeAdapterFactory(ServerBuilder.class, "builderType")

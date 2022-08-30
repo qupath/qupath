@@ -259,7 +259,7 @@ import qupath.lib.gui.scripting.DefaultScriptEditor;
  */
 public class QuPathGUI {
 	
-	private final static Logger logger = LoggerFactory.getLogger(QuPathGUI.class);
+	private static final Logger logger = LoggerFactory.getLogger(QuPathGUI.class);
 	
 	private static QuPathGUI instance;
 	

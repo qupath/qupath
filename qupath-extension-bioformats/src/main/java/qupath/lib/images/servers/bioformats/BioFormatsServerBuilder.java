@@ -47,7 +47,7 @@ import qupath.lib.images.servers.bioformats.BioFormatsServerOptions.UseBioformat
  */
 public class BioFormatsServerBuilder implements ImageServerBuilder<BufferedImage> {
 	
-	final private static Logger logger = LoggerFactory.getLogger(BioFormatsServerBuilder.class);
+	private static final Logger logger = LoggerFactory.getLogger(BioFormatsServerBuilder.class);
 	
 	@Override
 	public ImageServer<BufferedImage> buildServer(URI uri, String...args) {

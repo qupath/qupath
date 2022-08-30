@@ -82,7 +82,7 @@ import qupath.lib.projects.ResourceManager.Manager;
  */
 class DefaultProject implements Project<BufferedImage> {
 
-	public final static String IMAGE_ID = "PROJECT_ENTRY_ID";
+	public static final String IMAGE_ID = "PROJECT_ENTRY_ID";
 
 	private static String ext = "qpproj";
 	

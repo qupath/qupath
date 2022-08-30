@@ -53,17 +53,17 @@ public class ImageChannel {
 	/**
 	 * Default red channel for RGB images.
 	 */
-	public final static ImageChannel RED   = getInstance("Red", ColorTools.packRGB(255, 0, 0));
+	public static final ImageChannel RED   = getInstance("Red", ColorTools.packRGB(255, 0, 0));
 	
 	/**
 	 * Default green channel for RGB images.
 	 */
-	public final static ImageChannel GREEN = getInstance("Green", ColorTools.packRGB(0, 255, 0));
+	public static final ImageChannel GREEN = getInstance("Green", ColorTools.packRGB(0, 255, 0));
 	
 	/**
 	 * Default blue channel for RGB images.
 	 */
-	public final static ImageChannel BLUE  = getInstance("Blue", ColorTools.packRGB(0, 0, 255));
+	public static final ImageChannel BLUE  = getInstance("Blue", ColorTools.packRGB(0, 0, 255));
 	
 	/**
 	 * Get a channel instance with the specified name and color.

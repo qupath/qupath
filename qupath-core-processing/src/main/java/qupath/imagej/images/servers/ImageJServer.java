@@ -83,7 +83,7 @@ import qupath.lib.regions.RegionRequest;
  */
 public class ImageJServer extends AbstractImageServer<BufferedImage> implements PathObjectReader {
 	
-	final private static Logger logger = LoggerFactory.getLogger(ImageJServer.class);
+	private static final Logger logger = LoggerFactory.getLogger(ImageJServer.class);
 	
 	private ImageServerMetadata originalMetadata;
 	

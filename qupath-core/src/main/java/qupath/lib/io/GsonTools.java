@@ -70,7 +70,7 @@ import qupath.lib.roi.interfaces.ROI;
  */
 public class GsonTools {
 	
-	private final static Logger logger = LoggerFactory.getLogger(GsonTools.class);
+	private static final Logger logger = LoggerFactory.getLogger(GsonTools.class);
 	
 	private static GsonBuilder builder = new GsonBuilder()
 			.serializeSpecialFloatingPointValues()
@@ -167,7 +167,7 @@ public class GsonTools {
 	 */
 	public static class SubTypeAdapterFactory<T> implements TypeAdapterFactory {
 		
-		private final static Logger logger = LoggerFactory.getLogger(SubTypeAdapterFactory.class);
+		private static final Logger logger = LoggerFactory.getLogger(SubTypeAdapterFactory.class);
 		
 		private final Class<?> baseType;
 		private final String typeFieldName;

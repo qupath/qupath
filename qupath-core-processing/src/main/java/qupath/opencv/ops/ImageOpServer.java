@@ -46,7 +46,7 @@ import qupath.opencv.tools.OpenCVTools;
  */
 class ImageOpServer extends AbstractTileableImageServer implements ImageDataServer<BufferedImage> {
 	
-	private final static Logger logger = LoggerFactory.getLogger(ImageOpServer.class);
+	private static final Logger logger = LoggerFactory.getLogger(ImageOpServer.class);
 	
 	private ImageData<BufferedImage> imageData;
 	private ImageDataOp dataOp;

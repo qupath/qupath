@@ -45,7 +45,7 @@ import qupath.lib.images.servers.FileFormatInfo.ImageCheckType;
  */
 public class OpenslideServerBuilder implements ImageServerBuilder<BufferedImage> {
 	
-	private static Logger logger = LoggerFactory.getLogger(OpenslideServerBuilder.class);
+	private static final Logger logger = LoggerFactory.getLogger(OpenslideServerBuilder.class);
 	private static boolean openslideUnavailable = false;
 	
 	private static List<String> WIN_LIBRARIES = Arrays.asList(

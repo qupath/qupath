@@ -86,7 +86,7 @@ import qupath.lib.gui.tools.MenuTools;
  */
 public class RichScriptEditor extends DefaultScriptEditor {
 	
-	final private static Logger logger = LoggerFactory.getLogger(RichScriptEditor.class);
+	private static final Logger logger = LoggerFactory.getLogger(RichScriptEditor.class);
 	
 	private ExecutorService executor = Executors.newSingleThreadExecutor(ThreadTools.createThreadFactory("rich-text-styling", true));
 	

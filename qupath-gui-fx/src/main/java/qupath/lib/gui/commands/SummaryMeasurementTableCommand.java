@@ -124,7 +124,7 @@ import qupath.lib.regions.RegionRequest;
  */
 public class SummaryMeasurementTableCommand {
 
-	private final static Logger logger = LoggerFactory.getLogger(SummaryMeasurementTableCommand.class);
+	private static final Logger logger = LoggerFactory.getLogger(SummaryMeasurementTableCommand.class);
 
 	private QuPathGUI qupath;
 	

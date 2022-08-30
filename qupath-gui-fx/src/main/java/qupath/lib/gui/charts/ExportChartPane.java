@@ -93,7 +93,7 @@ import qupath.lib.io.GsonTools;
  */
 class ExportChartPane {
 
-	private final static Logger logger = LoggerFactory.getLogger(ExportChartPane.class);
+	private static final Logger logger = LoggerFactory.getLogger(ExportChartPane.class);
 
 	public static enum ChartStyle {
 		COLOR("Color"), GRAY("Gray"), BLACK("Black");

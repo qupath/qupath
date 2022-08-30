@@ -35,7 +35,7 @@ import qupath.process.gui.commands.density.DensityMapDialog;
  */
 public class DensityMapCommand implements Runnable {
 	
-	private final static Logger logger = LoggerFactory.getLogger(DensityMapCommand.class);
+	private static final Logger logger = LoggerFactory.getLogger(DensityMapCommand.class);
 	
 	private QuPathGUI qupath;
 	private DensityMapDialog dialog;

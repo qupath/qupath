@@ -70,7 +70,7 @@ import qupath.lib.roi.RoiTools;
  */
 public class TileExporter  {
 
-	private final static Logger logger = LoggerFactory.getLogger(TileExporter.class);
+	private static final Logger logger = LoggerFactory.getLogger(TileExporter.class);
 
 	private ImageData<BufferedImage> imageData;
 	private ImageServer<BufferedImage> server;

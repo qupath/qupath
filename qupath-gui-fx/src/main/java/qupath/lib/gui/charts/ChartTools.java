@@ -64,7 +64,7 @@ import javafx.scene.shape.Rectangle;
  */
 public class ChartTools {
 	
-	private final static Logger logger = LoggerFactory.getLogger(ChartTools.class);
+	private static final Logger logger = LoggerFactory.getLogger(ChartTools.class);
 	
 	/**
 	 * Cache of stylesheets for pie charts, which are temp files.

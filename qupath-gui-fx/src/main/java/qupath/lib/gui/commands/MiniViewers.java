@@ -110,7 +110,7 @@ import qupath.lib.regions.ImageRegion;
  */
 public class MiniViewers {
 	
-	private final static Logger logger = LoggerFactory.getLogger(MiniViewers.class);
+	private static final Logger logger = LoggerFactory.getLogger(MiniViewers.class);
 	
 	private static BooleanProperty showAllChannels = PathPrefs.createPersistentPreference("channelViewerAllChannels", false);
 

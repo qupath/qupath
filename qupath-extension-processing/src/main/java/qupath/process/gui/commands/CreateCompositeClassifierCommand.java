@@ -63,7 +63,7 @@ import qupath.process.gui.commands.ml.ProjectClassifierBindings;
  */
 public class CreateCompositeClassifierCommand implements Runnable {
 	
-	private final static Logger logger = LoggerFactory.getLogger(CreateCompositeClassifierCommand.class);
+	private static final Logger logger = LoggerFactory.getLogger(CreateCompositeClassifierCommand.class);
 	
 	private static String title = "Create composite classifier";
 	

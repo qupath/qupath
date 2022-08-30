@@ -75,12 +75,12 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 	
 	public static int DEFAULT_TILE_SIZE = 1024;
 	
-	final private static Logger logger = LoggerFactory.getLogger(PathObjectTileCache.class);
+	private static final Logger logger = LoggerFactory.getLogger(PathObjectTileCache.class);
 	
 	/**
 	 * Largest positive envelope, used when all objects are requested.
 	 */
-	private final static Envelope MAX_ENVELOPE = new Envelope(-Double.MAX_VALUE, Double.MAX_VALUE, -Double.MAX_VALUE, Double.MAX_VALUE);
+	private static final Envelope MAX_ENVELOPE = new Envelope(-Double.MAX_VALUE, Double.MAX_VALUE, -Double.MAX_VALUE, Double.MAX_VALUE);
 	
 	/**
 	 * Keep a map of envelopes per ROI; ROIs should be immutable.
@@ -100,9 +100,9 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 	/**
 	 * Map to cache Geometries, specifically for annotations.
 	 */
-	final private static Map<ROI, Geometry> geometryMap = Collections.synchronizedMap(new WeakHashMap<>());
-	final private static Map<ROI, PointOnGeometryLocator> locatorMap = Collections.synchronizedMap(new WeakHashMap<>());
-//	final private static Map<ROI, Coordinate> centroidMap = Collections.synchronizedMap(new WeakHashMap<>());
+	private static final Map<ROI, Geometry> geometryMap = Collections.synchronizedMap(new WeakHashMap<>());
+	private static final Map<ROI, PointOnGeometryLocator> locatorMap = Collections.synchronizedMap(new WeakHashMap<>());
+//	private static final Map<ROI, Coordinate> centroidMap = Collections.synchronizedMap(new WeakHashMap<>());
 
 	private PathObjectHierarchy hierarchy;
 	private boolean isActive = false;

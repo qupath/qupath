@@ -82,7 +82,7 @@ import qupath.lib.objects.hierarchy.events.PathObjectSelectionListener;
  */
 public class AnnotationPane implements PathObjectSelectionListener, ChangeListener<ImageData<BufferedImage>>, PathObjectHierarchyListener {
 
-	private final static Logger logger = LoggerFactory.getLogger(AnnotationPane.class);
+	private static final Logger logger = LoggerFactory.getLogger(AnnotationPane.class);
 
 	private QuPathGUI qupath;
 	

@@ -88,7 +88,7 @@ import qupath.lib.plugins.workflow.WorkflowStep;
  */
 public class WorkflowCommandLogView implements ChangeListener<ImageData<BufferedImage>>, WorkflowListener {
 
-	private final static Logger logger = LoggerFactory.getLogger(WorkflowCommandLogView.class);
+	private static final Logger logger = LoggerFactory.getLogger(WorkflowCommandLogView.class);
 	
 	private QuPathGUI qupath;
 	

@@ -136,7 +136,7 @@ import qupath.process.gui.commands.ml.PixelClassifierTraining.ClassifierTraining
  */
 public class PixelClassifierPane {
 	
-	final static Logger logger = LoggerFactory.getLogger(PixelClassifierPane.class);
+	private static final Logger logger = LoggerFactory.getLogger(PixelClassifierPane.class);
 	
 	private static ObservableList<ImageDataTransformerBuilder> defaultFeatureCalculatorBuilders = FXCollections.observableArrayList();
 	

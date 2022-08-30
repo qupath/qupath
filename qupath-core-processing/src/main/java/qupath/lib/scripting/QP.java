@@ -154,7 +154,7 @@ import qupath.opencv.tools.OpenCVTools;
  */
 public class QP {
 	
-	final private static Logger logger = LoggerFactory.getLogger(QP.class);
+	private static final Logger logger = LoggerFactory.getLogger(QP.class);
 	
 	/**
 	 * Brightfield image type with hematoxylin and DAB staining
@@ -232,7 +232,7 @@ public class QP {
 	}
 
 	
-	private final static Set<Class<?>> CORE_CLASSES = Collections.unmodifiableSet(new HashSet<>(Arrays.asList(
+	private static final Set<Class<?>> CORE_CLASSES = Collections.unmodifiableSet(new HashSet<>(Arrays.asList(
 			// Core datastructures
 			ImageData.class,
 			ImageServer.class,

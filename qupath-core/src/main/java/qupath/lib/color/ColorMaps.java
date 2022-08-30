@@ -57,7 +57,7 @@ import qupath.lib.common.GeneralTools;
  */
 public class ColorMaps {
 	
-	private final static Logger logger = LoggerFactory.getLogger(ColorMaps.class);
+	private static final Logger logger = LoggerFactory.getLogger(ColorMaps.class);
 	
 	private static ColorMap LEGACY_COLOR_MAP = new PseudoColorMap();
 	

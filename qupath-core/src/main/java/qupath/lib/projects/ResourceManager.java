@@ -146,7 +146,7 @@ public class ResourceManager {
 
 	abstract static class FileResourceManager<T> implements Manager<T> {
 		
-		private final static Logger logger = LoggerFactory.getLogger(FileResourceManager.class);
+		private static final Logger logger = LoggerFactory.getLogger(FileResourceManager.class);
 		
 		protected String ext;
 		protected Path dir;

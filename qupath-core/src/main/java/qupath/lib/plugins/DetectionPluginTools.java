@@ -70,7 +70,7 @@ public class DetectionPluginTools {
 
 	static class DetectionRunnable<T> implements PathTask {
 
-		final private static Logger logger = LoggerFactory.getLogger(DetectionPluginTools.class);
+		private static final Logger logger = LoggerFactory.getLogger(DetectionPluginTools.class);
 
 		ObjectDetector<T> detector;
 		private ParameterList params;

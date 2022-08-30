@@ -80,7 +80,7 @@ import qupath.lib.gui.prefs.QuPathStyleManager;
  */
 public class PreferencePane {
 
-	final private static Logger logger = LoggerFactory.getLogger(PreferencePane.class);
+	private static final Logger logger = LoggerFactory.getLogger(PreferencePane.class);
 
 	private PropertySheet propSheet = new PropertySheet();
 

@@ -49,7 +49,7 @@ public class FeatureExtractors {
 		
 		private static String typeName = "feature_extractor_type";
 		
-		private final static SubTypeAdapterFactory<FeatureExtractor> featureCalculatorTypeAdapter = 
+		private static final SubTypeAdapterFactory<FeatureExtractor> featureCalculatorTypeAdapter = 
 				GsonTools.createSubTypeAdapterFactory(FeatureExtractor.class, typeName)
 					.registerSubtype(DefaultFeatureExtractor.class)
 					.registerSubtype(NormalizedFeatureExtractor.class)
@@ -66,7 +66,7 @@ public class FeatureExtractors {
 		
 	}
 	
-	private final static TypeAdapterFactory factory = new FeatureExtractorTypeAdapterFactory();
+	private static final TypeAdapterFactory factory = new FeatureExtractorTypeAdapterFactory();
 	
 	/**
 	 * Get the {@link TypeAdapterFactory} default used for {@link FeatureExtractor} objects.

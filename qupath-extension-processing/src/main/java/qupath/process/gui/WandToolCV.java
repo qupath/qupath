@@ -78,7 +78,7 @@ import qupath.lib.roi.GeometryTools;
  */
 public class WandToolCV extends BrushTool {
 	
-	final private static Logger logger = LoggerFactory.getLogger(WandToolCV.class);
+	private static final Logger logger = LoggerFactory.getLogger(WandToolCV.class);
 	
 	/**
 	 * Enum reflecting different color images that may be used by the Wand tool.

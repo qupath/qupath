@@ -47,9 +47,9 @@ public class DirectServerChannelInfo extends AbstractSingleChannelInfo {
 
 	private int channel;
 
-	transient private ColorModel cm;
-	transient private ColorModel cmInverted;
-	transient private int[] rgbLUT;
+	private transient ColorModel cm;
+	private transient ColorModel cmInverted;
+	private transient int[] rgbLUT;
 	private int rgb;
 
 	/**

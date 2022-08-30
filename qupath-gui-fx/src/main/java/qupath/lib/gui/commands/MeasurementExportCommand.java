@@ -99,7 +99,7 @@ import qupath.lib.projects.Projects;
 public class MeasurementExportCommand implements Runnable {
 	
 	private QuPathGUI qupath;
-	private final static Logger logger = LoggerFactory.getLogger(MeasurementExportCommand.class);
+	private static final Logger logger = LoggerFactory.getLogger(MeasurementExportCommand.class);
 	private ObjectProperty<Future<?>> runningTask = new SimpleObjectProperty<>();
 	
 	private Dialog<ButtonType> dialog = null;

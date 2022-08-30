@@ -65,7 +65,7 @@ import qupath.lib.plugins.parameters.ParameterList;
  */
 public class HistogramDisplay implements ParameterChangeListener {
 
-	final static Logger logger = LoggerFactory.getLogger(HistogramDisplay.class);
+	static final Logger logger = LoggerFactory.getLogger(HistogramDisplay.class);
 
 	private PathTableData<?> model;
 	private BorderPane pane = new BorderPane();

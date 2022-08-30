@@ -55,7 +55,7 @@ public class ShapeFeaturesPlugin<T> extends AbstractInteractivePlugin<T> {
 	
 	private ParameterList params;
 	
-	final private static Logger logger = LoggerFactory.getLogger(ShapeFeaturesPlugin.class);
+	private static final Logger logger = LoggerFactory.getLogger(ShapeFeaturesPlugin.class);
 	
 	/**
 	 * Constructor.

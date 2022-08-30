@@ -76,7 +76,7 @@ import qupath.lib.projects.Project;
  */
 public final class ObjectClassifierLoadCommand implements Runnable {
 	
-	private final static Logger logger = LoggerFactory.getLogger(ObjectClassifierLoadCommand.class);
+	private static final Logger logger = LoggerFactory.getLogger(ObjectClassifierLoadCommand.class);
 	private final String title = "Object Classifiers";
 	
 	private QuPathGUI qupath;

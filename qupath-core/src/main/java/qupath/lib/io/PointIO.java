@@ -69,7 +69,7 @@ import qupath.lib.roi.interfaces.ROI;
  */
 public class PointIO {
 	
-	final private static Logger logger = LoggerFactory.getLogger(PointIO.class);
+	private static final Logger logger = LoggerFactory.getLogger(PointIO.class);
 	
 	/**
 	 * Read a list of point annotations from a stream.
