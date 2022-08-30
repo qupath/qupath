@@ -334,7 +334,7 @@ public class DensityMapUI {
 	 * Abstract base class for an action that operates on a density map.
 	 * Only intended for internal use.
 	 */
-	private static abstract class DensityMapButtonCommand {
+	private abstract static class DensityMapButtonCommand {
 		
 		protected QuPathGUI qupath;
 		protected ObjectExpression<PixelClassificationOverlay> overlay;
@@ -1027,7 +1027,7 @@ public class DensityMapUI {
 	 */
 	static class ThresholdColorModels {
 	
-		static abstract class ColorModelThreshold {
+		abstract static class ColorModelThreshold {
 			
 			private int transferType;
 						

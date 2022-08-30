@@ -46,27 +46,27 @@ public class TMACoreObject extends PathROIObject implements MetadataStore {
 	/**
 	 * Metadata key for the TMA core unique patient ID;
 	 */
-	final public static String KEY_UNIQUE_ID = "Unique ID";
+	public static final String KEY_UNIQUE_ID = "Unique ID";
 	
 	/**
 	 * Metadata key for an overall survival (temporal) value.
 	 */
-	final public static String KEY_OVERALL_SURVIVAL = "Overall survival";
+	public static final String KEY_OVERALL_SURVIVAL = "Overall survival";
 	
 	/**
 	 * Metadata key for an recurrence-free survival (temporal) value.
 	 */
-	final public static String KEY_RECURRENCE_FREE_SURVIVAL = "Recurrence-free survival";
+	public static final String KEY_RECURRENCE_FREE_SURVIVAL = "Recurrence-free survival";
 	
 	/**
 	 * Metadata key for an overall survival censored flag.
 	 */
-	final public static String KEY_OS_CENSORED = "OS censored";
+	public static final String KEY_OS_CENSORED = "OS censored";
 	
 	/**
 	 * Metadata key for an recurrence-free survival censored flag.
 	 */
-	final public static String KEY_RFS_CENSORED = "RFS censored";
+	public static final String KEY_RFS_CENSORED = "RFS censored";
 	
 	private boolean isMissing = false;
 	

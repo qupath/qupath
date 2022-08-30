@@ -622,7 +622,7 @@ public class PreferencePane {
 	/**
 	 * Base implementation of {@link Item}.
 	 */
-	public static abstract class PropertyItem implements PropertySheet.Item {
+	public abstract static class PropertyItem implements PropertySheet.Item {
 
 		private String name;
 		private String category;

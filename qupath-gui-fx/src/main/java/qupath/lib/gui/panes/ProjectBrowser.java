@@ -1011,7 +1011,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 	 * @param name
 	 * @return
 	 */
-	private synchronized static <T> boolean setProjectEntryImageName(final ProjectImageEntry<T> entry, final String name) {
+	private static synchronized <T> boolean setProjectEntryImageName(final ProjectImageEntry<T> entry, final String name) {
 		
 		if (entry.getImageName().equals(name)) {
 			logger.warn("Project image name already set to {} - will be left unchanged", name);

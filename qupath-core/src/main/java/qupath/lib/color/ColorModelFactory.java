@@ -517,7 +517,7 @@ public final class ColorModelFactory {
 	/**
 	 * Abstract color model that handles all types of transfer.
 	 */
-	static abstract class DefaultAbstractColorModel extends ColorModel {
+	abstract static class DefaultAbstractColorModel extends ColorModel {
 		
 		private PixelType pixelType;
 		private int nBands;

@@ -72,7 +72,7 @@ public class ImageChannel {
 	 * @param color Color as a packed (A)RGB value.
 	 * @return
 	 */
-	public synchronized static ImageChannel getInstance(String name, Integer color) {
+	public static synchronized ImageChannel getInstance(String name, Integer color) {
 		name = Objects.requireNonNull(name);
 		var key = name + "::" + color;
 		var channel = cache.get(key);
@@ -88,7 +88,7 @@ public class ImageChannel {
 	 * @param names the names of the channels
 	 * @return a list of {@link ImageChannel}, where channel names are taken from the input array
 	 */
-	public synchronized static List<ImageChannel> getChannelList(String... names) {
+	public static synchronized List<ImageChannel> getChannelList(String... names) {
 		var list = new ArrayList<ImageChannel>();
 		int i = 0;
 		for (String name : names)

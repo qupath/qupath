@@ -182,7 +182,7 @@ public class OpenCVTypeAdapters {
 	 * TypeAdapter that helps include OpenCV-based objects within a Java object being serialized to JSON.
 	 * @param <T> 
 	 */
-	public static abstract class OpenCVTypeAdapter<T> extends TypeAdapter<T> {
+	public abstract static class OpenCVTypeAdapter<T> extends TypeAdapter<T> {
 		
 		Gson gson = new GsonBuilder().setLenient().create();
 

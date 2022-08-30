@@ -521,7 +521,7 @@ public final class GeneralTools {
 	 * @param maxDecimalPlaces
 	 * @return
 	 */
-	public synchronized static String formatNumber(final double value, final int maxDecimalPlaces) {
+	public static synchronized String formatNumber(final double value, final int maxDecimalPlaces) {
 		return formatNumber(Locale.getDefault(Category.FORMAT), value, maxDecimalPlaces);
 	}
 	
@@ -533,7 +533,7 @@ public final class GeneralTools {
 	 * @param maxDecimalPlaces
 	 * @return
 	 */
-	public synchronized static String formatNumber(Locale locale, final double value, final int maxDecimalPlaces) {
+	public static synchronized String formatNumber(Locale locale, final double value, final int maxDecimalPlaces) {
 		if (locale == null)
 			locale = Locale.getDefault(Category.FORMAT);
 		NumberFormat nf = formatters.get(locale);

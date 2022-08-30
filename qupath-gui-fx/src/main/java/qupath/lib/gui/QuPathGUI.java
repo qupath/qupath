@@ -289,7 +289,7 @@ public class QuPathGUI {
 	/**
 	 * Preferred size for toolbar icons.
 	 */
-	final public static int TOOLBAR_ICON_SIZE = 16;
+	public static final int TOOLBAR_ICON_SIZE = 16;
 
 	MultiviewManager viewerManager;
 	

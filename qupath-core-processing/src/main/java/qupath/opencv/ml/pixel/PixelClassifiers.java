@@ -220,7 +220,7 @@ static class ThresholdClassifierBuilder {
 		
 	}
 	
-	static abstract class SingleThresholdClassifierFunction implements ClassifierFunction {
+	abstract static class SingleThresholdClassifierFunction implements ClassifierFunction {
 		
 		private int band;
 		protected float threshold;

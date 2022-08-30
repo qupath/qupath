@@ -473,7 +473,7 @@ public class PathHierarchyPaintingHelper {
 	}
 	
 
-	static abstract class ShapePool<T extends Shape> {
+	abstract static class ShapePool<T extends Shape> {
 		
 		private Map<Thread, T> map = new WeakHashMap<>();
 		

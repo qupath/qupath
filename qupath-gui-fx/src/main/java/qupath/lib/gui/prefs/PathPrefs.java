@@ -396,7 +396,7 @@ public class PathPrefs {
 	 * 
 	 * @return
 	 */
-	public synchronized static IntegerProperty maxMemoryMBProperty() {
+	public static synchronized IntegerProperty maxMemoryMBProperty() {
 		if (maxMemoryMB == null) {
 			maxMemoryMB = createPersistentPreference("maxMemoryMB", -1);
 			long requestedMaxMemoryMB = maxMemoryMB.get();
@@ -492,7 +492,7 @@ public class PathPrefs {
 	 * Save the preferences.
 	 * @return
 	 */
-	public synchronized static boolean savePreferences() {
+	public static synchronized boolean savePreferences() {
 		try {
 			Preferences prefs = getUserPreferences();
 			prefs.flush();
@@ -507,7 +507,7 @@ public class PathPrefs {
 	/**
 	 * Reset the preferences to their defaults. This requires QuPath to be restarted.
 	 */
-	public synchronized static void resetPreferences() {
+	public static synchronized void resetPreferences() {
 		try {
 			Preferences prefs = getUserPreferences();
 			prefs.removeNode();

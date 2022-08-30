@@ -404,7 +404,7 @@ public class ColorTransforms {
 	}
 	
 	
-	static abstract class CombineChannels implements ColorTransform {
+	abstract static class CombineChannels implements ColorTransform {
 				
 		@Override
 		public float[] extractChannel(ImageServer<BufferedImage> server, BufferedImage img, float[] pixels) {

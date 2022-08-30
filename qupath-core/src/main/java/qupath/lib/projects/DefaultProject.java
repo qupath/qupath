@@ -153,7 +153,7 @@ class DefaultProject implements Project<BufferedImage> {
 	 * @param ext
 	 * @return
 	 */
-	synchronized static File getUniqueFile(File dir, String name, String ext) {
+	static synchronized File getUniqueFile(File dir, String name, String ext) {
 		if (!ext.startsWith("."))
 			ext = "." + ext;
 		File file = new File(dir, name + ext);

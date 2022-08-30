@@ -104,7 +104,7 @@ public class PathObjectPredicates {
 		
 	}
 	
-	static abstract class AbstractPathObjectPredicate implements PathObjectPredicate {
+	abstract static class AbstractPathObjectPredicate implements PathObjectPredicate {
 		
 		@Override
 		public PathObjectPredicate and(PathObjectPredicate p) {

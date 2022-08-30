@@ -352,7 +352,7 @@ public class RoiEditor {
 	
 	
 	
-	static abstract class RoiHandleAdjuster<T extends ROI> {
+	abstract static class RoiHandleAdjuster<T extends ROI> {
 		
 		final int TOP_LEFT = 0;
 		final int TOP_CENTER = 1;
@@ -395,7 +395,7 @@ public class RoiEditor {
 	
 	
 	
-	static abstract class BoundedHandleAdjuster<T extends AbstractPathBoundedROI> extends RoiHandleAdjuster<T> {
+	abstract static class BoundedHandleAdjuster<T extends AbstractPathBoundedROI> extends RoiHandleAdjuster<T> {
 				
 		private T roi;
 		private List<MutablePoint> handles = new ArrayList<>(8);

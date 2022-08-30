@@ -128,11 +128,11 @@ public class PathClass implements Comparable<PathClass>, Serializable {
 		return true;
 	}
 	
-	synchronized static PathClass getNullClass() {
+	static synchronized PathClass getNullClass() {
 		return NULL_CLASS;
 	}
 	
-	synchronized static PathClass getInstance(PathClass parent, String name, Integer colorRGB) {
+	static synchronized PathClass getInstance(PathClass parent, String name, Integer colorRGB) {
 		if (parent == getNullClass())
 			parent = null;
 		

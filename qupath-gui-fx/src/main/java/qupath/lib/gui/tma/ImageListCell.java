@@ -42,10 +42,10 @@ import qupath.lib.gui.tools.GuiTools;
  */
 class ImageListCell extends ListCell<TMAEntry> {
 
-	final private TMAImageCache imageCache;
+	private final TMAImageCache imageCache;
 	
-	final private Canvas canvas = new Canvas();
-	final private ObservableValue<Boolean> showOverlay;
+	private final Canvas canvas = new Canvas();
+	private final ObservableValue<Boolean> showOverlay;
 	
 	private Image img; // Keep a reference to the last image, so the cache doesn't throw it away
 

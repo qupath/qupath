@@ -68,13 +68,13 @@ public class LocalNormalization {
 		/**
 		 * Smoothing scale for Gaussian subtraction.
 		 */
-		final public SmoothingScale scale;
+		public final SmoothingScale scale;
 		/**
 		 * Smoothing scale for Gaussian-weighted standard deviation estimate.
 		 */
-		final public SmoothingScale scaleVariance;
+		public final SmoothingScale scaleVariance;
 		
-//		final private boolean subtractOnly;
+//		private final boolean subtractOnly;
 
 		private LocalNormalizationType(SmoothingScale scale, SmoothingScale scaleVariance) {
 			this.scale = scale;
@@ -133,8 +133,8 @@ public class LocalNormalization {
 	 */
 	public static class SmoothingScale {
 		
-		final private double sigma;
-		final private ScaleType scaleType;
+		private final double sigma;
+		private final ScaleType scaleType;
 		
 		private SmoothingScale(ScaleType scaleType, double sigma) {
 			this.sigma = sigma;

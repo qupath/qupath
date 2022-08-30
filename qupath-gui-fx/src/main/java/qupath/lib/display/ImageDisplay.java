@@ -104,7 +104,7 @@ public class ImageDisplay extends AbstractImageRenderer {
 	private ObjectBinding<ChannelDisplayMode> displayMode = Bindings.createObjectBinding(() -> calculateDisplayMode(),
 			useGrayscaleLutProperty(), useInvertedBackgroundProperty());
 	
-	private transient static Map<String, HistogramManager> cachedHistograms = Collections.synchronizedMap(new HashMap<>());
+	private static transient Map<String, HistogramManager> cachedHistograms = Collections.synchronizedMap(new HashMap<>());
 	private HistogramManager histogramManager = null;
 	
 	private static BooleanProperty showAllRGBTransforms = PathPrefs.createPersistentPreference("showAllRGBTransforms", true);

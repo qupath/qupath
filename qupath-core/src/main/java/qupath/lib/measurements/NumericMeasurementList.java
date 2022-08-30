@@ -93,7 +93,7 @@ class NumericMeasurementList {
 	
 	
 	
-	private static abstract class AbstractNumericMeasurementList implements MeasurementList {
+	private abstract static class AbstractNumericMeasurementList implements MeasurementList {
 		
 		private static final long serialVersionUID = 1L;
 		
@@ -177,7 +177,7 @@ class NumericMeasurementList {
 	    }
 		
 		@Override
-		final public int size() {
+		public final int size() {
 			return names.size();
 		}
 
