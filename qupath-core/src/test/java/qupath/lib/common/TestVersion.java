@@ -31,7 +31,7 @@ import java.util.Random;
 import org.junit.jupiter.api.Test;
 
 @SuppressWarnings("javadoc")
-public class VersionTest {
+public class TestVersion {
 
 	@Test
 	public void test() {
