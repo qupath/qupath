@@ -22,7 +22,7 @@ It describes some (potentially) useful things to know if you want to
 
 * All dependencies **must** be compatible with the GPL
   * Care must be taken to give attribution and adhere to all dependency requirements (e.g. including copyright notices)
-  * Code with restrictions (e.g. non-commercial only) can't be incorporated into QuPath
+  * Code with incompatible restrictions (e.g. non-commercial use only) can't be incorporated into QuPath
   * See [Various Licenses and Comments about Them](https://www.gnu.org/licenses/license-list.en.html) for more details and info about license compatibility
 
 ### New code
@@ -61,7 +61,7 @@ It describes some (potentially) useful things to know if you want to
 
 * **QuPath v0.2 - v0.4** target **Java 11** for source code compatibility
   * Compatibility is checked via [GitHub Actions](https://github.com/qupath/qupath/blob/main/.github/workflows/gradle.yml)
-  * Because `jpackage` was only added in Java 14 and stabilized in Java 16, a later JDK can be required to build packages -- and the Gradle build scripts for those releases may only work with that JDK
+  * Because `jpackage` was only added in Java 14 and stabilized in Java 16, a later JDK can be required to build packages - and the Gradle build scripts for those releases may only work with that JDK
     * **QuPath v0.4** is intended to be built with **Java 17**
     * **QuPath v0.3** is intended to be built with **Java 16**
     * **QuPath v0.2** was intended to be built with **Java 14**
@@ -81,9 +81,9 @@ It describes some (potentially) useful things to know if you want to
     * `qupath-gui-fx` depends upon the two core jars
   * An app jar
     * `qupath-app`, which brings everything together and adds command line scripting support
-* Extension jars, including
-  * `ImageServer` extensions, to add support for image types
-  * General extensions, to add support for anything & everything else
+  * Extension jars, including
+    * `ImageServer` extensions, to add support for image types
+    * General extensions, to add support for anything & everything else
 * Extensions are all optional; QuPath should be able to launch without them
 
 
@@ -108,7 +108,7 @@ It describes some (potentially) useful things to know if you want to
 
 * QuPath is currently developed using [eclipse](https://www.eclipse.org)
   * See instructions at https://qupath.readthedocs.io/en/stable/docs/reference/building.html#running-from-an-ide
-  * While it may be tempting to use another IDE (e.g. IntelliJ), I've found it very difficult to set this up smoothly... once we've embraced the [Java Platform Module System may help](#modularity) this will hopefully improve
+  * While it may be tempting to use another IDE (e.g. IntelliJ), I've found it very difficult to set this up smoothly... once we've embraced the [Java Platform Module System](#modularity) this will hopefully improve
 
 
 ### Testing
@@ -147,7 +147,7 @@ It describes some (potentially) useful things to know if you want to
 * The API shouldn't change significantly for any 0.x.X release
 * API changes are permitted for 0.X.x releases
   * But be cautious! Changes frequently break scripts... and thereby annoy users
-  * It's preferable to break a script completely rather than subtly change its behavior (since no results are better than wrong results)
+  * It's preferable to break a script completely rather than subtly change its behavior (since no results flag a problem, while wrong results can slip through unnoticed)
 
 ### Code style
 
@@ -160,19 +160,19 @@ It describes some (potentially) useful things to know if you want to
 * Aim to make the API stable and maintainable
   * Add `public` and `protected` methods and fields with caution - prefer `private` where possible
 * Always use `@override` when overriding a method
-* Use full import lists, not starred imports
+* Use full import lists at the top of each class, not starred imports for all classes in a package
 
 
 ### Javadoc
 
 * Docs are currently at https://qupath.github.io/javadoc/docs/
   * This currently includes all QuPath jars together for ease of search & cross-referencing
-  * When QuPath is properly modularized, the docs should represent this
+  * When QuPath is properly modularized, the docs should be reorganized by module
 * All `public` and `protected` classes, methods and fields should have doc comments and list all parameters
 * It isn't essential to explain what `return` returns unless it's very surprising
 * Use annotations as appropriate
   * `@since` annotations should be added for new methods (although it's easy to forget...)
-  * `@deprecated` annotations should be added for regrettable old methods for at least one release
+  * `@deprecated` annotations should be added for regrettable old methods for at least one release before the methods are removed
 
 
 ### Saving & loading
@@ -180,11 +180,11 @@ It describes some (potentially) useful things to know if you want to
 * When something needs to be persistent, try to avoid Java serialization
   * Serialization is currently used for `.qpdata` files, but ultimately this should be removed
 * Prefer JSON to other kinds of serialization
+  * Thinking *'could I read this in Python if I wanted to?'* can be a good guide when choosing a format
   * Use `qupath.lib.io.GsonTools` to help
-  * Thinking *'could I read this in Python if I wanted to?'* can be a good guide
   * Keep forwards and backwards compatibility in mind... serialization is hard
 * Use UTF-8 encoding consistently with text files
-  * This should be the default from Java 18... but best specify just in case
+  * This should be the default from Java 18 - but best specify just in case
 
 ### Scripting
 
