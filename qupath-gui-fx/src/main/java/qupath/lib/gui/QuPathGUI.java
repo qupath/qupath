@@ -1059,13 +1059,6 @@ public class QuPathGUI {
 					}
 				}
 			}
-			else if (e.isMiddleButtonDown()) {
-				// Here we toggle between the MOVE tool and any previously selected tool
-				if (getSelectedTool() == PathTools.MOVE)
-					setSelectedTool(previousTool);
-				else
-					setSelectedTool(PathTools.MOVE);
-			}
 		});
 		
 		// Ensure spacebar presses are noted, irrespective of which component has the focus
@@ -2699,6 +2692,24 @@ public class QuPathGUI {
 			if (e.isPopupTrigger() || e.isSecondaryButtonDown()) {
 				popup.show(viewer.getView().getScene().getWindow(), e.getScreenX(), e.getScreenY());				
 				e.consume();
+			}
+		});
+
+		//Handle tool selection swap via scrollwheel button click
+		viewer.getView().addEventHandler(MouseEvent.MOUSE_PRESSED, e -> {
+			if (e.isMiddleButtonDown()) {
+				/* 
+				if (!e.isStillSincePress() ) {
+					logger.warn("The mouse moved! {}", System.currentTimeMillis());
+					return;
+				}
+				*/
+
+				// Here we toggle between the MOVE tool and any previously selected tool
+				if (getSelectedTool() == PathTools.MOVE)
+					setSelectedTool(previousTool);
+				else
+					setSelectedTool(PathTools.MOVE);
 			}
 		});
 		
