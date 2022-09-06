@@ -967,6 +967,12 @@ public class Dialogs {
 			
 			dialog.setResizable(resizable);
 			dialog.initModality(modality);
+			
+			// There's an annoying visual bug with no AlertType and dark mode resulting in a white/light 
+			// thin line at the bottom of the dialog
+			if (alertType == null || alertType == AlertType.NONE)
+				dialog.getDialogPane().setStyle("-fx-padding: 1px;");
+			
 			return dialog;
 		}
 		
