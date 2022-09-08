@@ -144,7 +144,7 @@ import qupath.process.gui.commands.ml.ProjectClassifierBindings;
  */
 public class ObjectClassifierCommand implements Runnable {
 
-	final private static String name = "Train object classifier";
+	private static final String name = "Train object classifier";
 
 	private QuPathGUI qupath;
 
@@ -208,7 +208,7 @@ public class ObjectClassifierCommand implements Runnable {
 
 	static class ObjectClassifierPane implements ChangeListener<ImageData<BufferedImage>>, PathObjectHierarchyListener {
 
-		private final static Logger logger = LoggerFactory.getLogger(ObjectClassifierPane.class);
+		private static final Logger logger = LoggerFactory.getLogger(ObjectClassifierPane.class);
 
 		private QuPathGUI qupath;
 

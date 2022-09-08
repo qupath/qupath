@@ -60,7 +60,7 @@ import qupath.lib.roi.GeometryTools;
  */
 public class SparseImageServer extends AbstractTileableImageServer {
 	
-	private final static Logger logger = LoggerFactory.getLogger(SparseImageServer.class);
+	private static final Logger logger = LoggerFactory.getLogger(SparseImageServer.class);
 	
 	private final ImageServerMetadata metadata;
 	

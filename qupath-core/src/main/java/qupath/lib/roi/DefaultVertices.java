@@ -242,7 +242,7 @@ class DefaultVertices implements Vertices {
 //	
 //	static class DefaultVerticesIterator implements VerticesIterator {
 //
-//		final private DefaultVertices vertices;
+//		private final DefaultVertices vertices;
 //		private int ind = 0;
 //
 //		private DefaultVerticesIterator(final DefaultVertices vertices) {
@@ -250,12 +250,12 @@ class DefaultVertices implements Vertices {
 //		}
 //
 //		@Override
-//		final public boolean hasNext() {
+//		public final boolean hasNext() {
 //			return ind < vertices.size();
 //		}
 //
 //		@Override
-//		final public void next() {
+//		public final void next() {
 //			this.ind++;
 //		}
 //		
@@ -268,7 +268,7 @@ class DefaultVertices implements Vertices {
 //		}
 //
 //		@Override
-//		final public void currentVertex(float[] coords) {
+//		public final void currentVertex(float[] coords) {
 //			coords[0] = vertices.x[ind];
 //			coords[1] = vertices.y[ind];
 //		}

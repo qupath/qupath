@@ -74,7 +74,7 @@ public class TMACommands {
 		}
 	};
 	
-	private final static String NOTE_NAME = "Note";
+	private static final String NOTE_NAME = "Note";
 	
 	
 	

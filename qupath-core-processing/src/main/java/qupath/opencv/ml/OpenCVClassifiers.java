@@ -164,7 +164,7 @@ public class OpenCVClassifiers {
 	 * parameters can be set.
 	 */
 	@JsonAdapter(OpenCVClassifierTypeAdapter.class)
-	public static abstract class OpenCVStatModel {
+	public abstract static class OpenCVStatModel {
 		
 		/**
 		 * Classifier can handle missing (NaN) values
@@ -276,7 +276,7 @@ public class OpenCVClassifiers {
 	
 	
 	
-	static abstract class AbstractOpenCVClassifierML<T extends StatModel> extends OpenCVStatModel {
+	abstract static class AbstractOpenCVClassifierML<T extends StatModel> extends OpenCVStatModel {
 
 		@JsonAdapter(OpenCVTypeAdapters.OpenCVTypeAdaptorFactory.class)
 		private T model;
@@ -586,7 +586,7 @@ public class OpenCVClassifiers {
 		
 	}
 	
-	static abstract class AbstractTreeClassifier<T extends DTrees> extends AbstractOpenCVClassifierML<T> {
+	abstract static class AbstractTreeClassifier<T extends DTrees> extends AbstractOpenCVClassifierML<T> {
 
 		AbstractTreeClassifier() {
 			super();

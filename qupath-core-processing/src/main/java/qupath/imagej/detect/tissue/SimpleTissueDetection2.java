@@ -89,7 +89,7 @@ import qupath.lib.roi.interfaces.ROI;
  */
 public class SimpleTissueDetection2 extends AbstractDetectionPlugin<BufferedImage> {
 	
-	final private static Logger logger = LoggerFactory.getLogger(SimpleTissueDetection2.class);
+	private static final Logger logger = LoggerFactory.getLogger(SimpleTissueDetection2.class);
 	
 	private ParameterList params;
 

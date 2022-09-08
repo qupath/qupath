@@ -100,7 +100,7 @@ import qupath.lib.images.ImageData;
  */
 class ScriptInterpreter {
 
-	final private static Logger logger = LoggerFactory.getLogger(ScriptInterpreter.class);
+	private static final Logger logger = LoggerFactory.getLogger(ScriptInterpreter.class);
 
 	private QuPathGUI qupath;
 	private Stage stage;

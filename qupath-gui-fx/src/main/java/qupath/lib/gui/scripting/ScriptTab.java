@@ -56,7 +56,7 @@ import qupath.lib.gui.scripting.languages.ScriptLanguage;
  */
 public class ScriptTab {
 	
-	final static private Logger logger = LoggerFactory.getLogger(ScriptTab.class);
+	private static final Logger logger = LoggerFactory.getLogger(ScriptTab.class);
 	
 	private File file = null;
 	private long lastModified = -1L;

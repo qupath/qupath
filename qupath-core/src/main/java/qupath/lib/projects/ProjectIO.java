@@ -42,7 +42,7 @@ import org.slf4j.LoggerFactory;
  */
 public class ProjectIO {
 
-	final private static Logger logger = LoggerFactory.getLogger(ProjectIO.class);
+	private static final Logger logger = LoggerFactory.getLogger(ProjectIO.class);
 	
 	/**
 	 * Default file name for a QuPath project.

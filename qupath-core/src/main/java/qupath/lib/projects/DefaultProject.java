@@ -82,7 +82,7 @@ import qupath.lib.projects.ResourceManager.Manager;
  */
 class DefaultProject implements Project<BufferedImage> {
 
-	public final static String IMAGE_ID = "PROJECT_ENTRY_ID";
+	public static final String IMAGE_ID = "PROJECT_ENTRY_ID";
 
 	private static String ext = "qpproj";
 	
@@ -153,7 +153,7 @@ class DefaultProject implements Project<BufferedImage> {
 	 * @param ext
 	 * @return
 	 */
-	synchronized static File getUniqueFile(File dir, String name, String ext) {
+	static synchronized File getUniqueFile(File dir, String name, String ext) {
 		if (!ext.startsWith("."))
 			ext = "." + ext;
 		File file = new File(dir, name + ext);

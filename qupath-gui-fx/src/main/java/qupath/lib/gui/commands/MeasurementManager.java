@@ -83,7 +83,7 @@ import qupath.lib.scripting.QP;
  */
 class MeasurementManager {
 	
-	private final static Logger logger = LoggerFactory.getLogger(MeasurementManager.class);
+	private static final Logger logger = LoggerFactory.getLogger(MeasurementManager.class);
 	
 	private ComboBox<Class<? extends PathObject>> comboBox;
 	private ListView<String> listView;

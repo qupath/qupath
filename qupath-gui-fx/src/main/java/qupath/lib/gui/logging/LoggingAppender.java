@@ -146,7 +146,7 @@ class LoggingAppender extends AppenderBase<ILoggingEvent> {
 	 * Get the static {@link LoggingAppender} instance currently used for logging.
 	 * @return
 	 */
-	public synchronized static LoggingAppender getInstance() {
+	public static synchronized LoggingAppender getInstance() {
 		if (instance == null)
 			instance = new LoggingAppender();
 		return instance;

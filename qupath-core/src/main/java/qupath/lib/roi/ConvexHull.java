@@ -39,7 +39,7 @@ import qupath.lib.geom.Point2;
  */
 public class ConvexHull {
 	
-	final private static Logger logger = LoggerFactory.getLogger(ConvexHull.class);
+	private static final Logger logger = LoggerFactory.getLogger(ConvexHull.class);
 
 	
 	/**

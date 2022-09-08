@@ -272,7 +272,7 @@ public interface ProjectImageEntry<T> extends UriResource {
 	 * 
 	 * @return
 	 */
-	default public String getMetadataSummaryString() {
+	public default String getMetadataSummaryString() {
 		StringBuilder sb = new StringBuilder();
 		sb.append("{");
 		for (Entry<String, String> entry : getMetadataMap().entrySet()) {

@@ -167,7 +167,7 @@ public class XmlHighlighter implements ScriptHighlighter {
         return spansBuilder.create();
     }
 	
-	private final static Collection<String> BASE_STYLE = Collections.singletonList("xml");
+	private static final Collection<String> BASE_STYLE = Collections.singletonList("xml");
 	
 	private static void appendSpan(StyleSpansBuilder<Collection<String>> spansBuilder, String style, int length) {
 		if (style == null || style.isEmpty())

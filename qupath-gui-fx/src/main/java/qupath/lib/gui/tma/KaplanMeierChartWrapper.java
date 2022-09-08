@@ -77,7 +77,7 @@ import qupath.lib.gui.charts.ChartTools;
  */
 class KaplanMeierChartWrapper {
 	
-	final private static Logger logger = LoggerFactory.getLogger(KaplanMeierChartWrapper.class);
+	private static final Logger logger = LoggerFactory.getLogger(KaplanMeierChartWrapper.class);
 
 	private List<KaplanMeierData> kmList = new ArrayList<>();
 

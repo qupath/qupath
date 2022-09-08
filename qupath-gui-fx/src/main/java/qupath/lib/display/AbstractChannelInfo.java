@@ -126,11 +126,11 @@ abstract class AbstractChannelInfo implements ModifiableChannelDisplayInfo {
 		return maxDisplay;
 	}
 
-	final static int do8BitRangeCheck(float v) {
+	static final int do8BitRangeCheck(float v) {
 		return v < 0 ? 0 : (v > 255 ? 255 : (int)v);
 	}
 
-	final static int do8BitRangeCheck(int v) {
+	static final int do8BitRangeCheck(int v) {
 		return v < 0 ? 0 : (v > 255 ? 255 : v);
 	}
 

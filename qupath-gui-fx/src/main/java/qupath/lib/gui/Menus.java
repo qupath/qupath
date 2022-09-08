@@ -70,12 +70,12 @@ import qupath.lib.plugins.objects.SplitAnnotationsPlugin;
 
 class Menus {
 	
-	private final static String URL_DOCS       = "https://qupath.readthedocs.io";
-	private final static String URL_VIDEOS     = "https://www.youtube.com/c/QuPath";
-	private final static String URL_CITATION   = "https://qupath.readthedocs.io/en/latest/docs/intro/citing.html";
-	private final static String URL_BUGS       = "https://github.com/qupath/qupath/issues";
-	private final static String URL_FORUM      = "https://forum.image.sc/tags/qupath";
-	private final static String URL_SOURCE     = "https://github.com/qupath/qupath";
+	private static final String URL_DOCS       = "https://qupath.readthedocs.io";
+	private static final String URL_VIDEOS     = "https://www.youtube.com/c/QuPath";
+	private static final String URL_CITATION   = "https://qupath.readthedocs.io/en/latest/docs/intro/citing.html";
+	private static final String URL_BUGS       = "https://github.com/qupath/qupath/issues";
+	private static final String URL_FORUM      = "https://forum.image.sc/tags/qupath";
+	private static final String URL_SOURCE     = "https://github.com/qupath/qupath";
 
 	
 	private QuPathGUI qupath;
@@ -251,10 +251,16 @@ class Menus {
 //		@Deprecated
 //		public final Action SHAPE_FEATURES = qupath.createPluginAction("Add shape features", ShapeFeaturesPlugin.class, null);
 
-		@ActionDescription("Calculate distances between detection centroids and the closest annotation for each classification. " +
+		@ActionDescription("Calculate distances between detection centroids and the closest annotation for each classification, using zero if the centroid is inside the annotation. " +
 				"For example, this may be used to identify the distance of every cell from 'bigger' region that has been annotated (e.g. an area of tumor, a blood vessel).")
 		@ActionMenu("Spatial analysis>Distance to annotations 2D")
-		public final Action DISTANCE_TO_ANNOTATIONS = qupath.createImageDataAction(imageData -> Commands.distanceToAnnotations2D(imageData));
+		public final Action DISTANCE_TO_ANNOTATIONS = qupath.createImageDataAction(imageData -> Commands.distanceToAnnotations2D(imageData, false));
+		
+		@ActionDescription("Calculate distances between detection centroids and the closest annotation for each classification, using the negative distance to the boundary if the centroid is inside the annotation. " +
+				"For example, this may be used to identify the distance of every cell from 'bigger' region that has been annotated (e.g. an area of tumor, a blood vessel).")
+		@ActionMenu("Spatial analysis>Signed distance to annotations 2D")
+		public final Action SIGNED_DISTANCE_TO_ANNOTATIONS = qupath.createImageDataAction(imageData -> Commands.distanceToAnnotations2D(imageData, true));
+		
 		@ActionDescription("Calculate distances between detection centroids for each classification. " +
 				"For example, this may be used to identify the closest cell of a specified type.")
 		@ActionMenu("Spatial analysis>Detect centroid distances 2D")

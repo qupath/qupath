@@ -49,7 +49,7 @@ public class PolylineROI extends AbstractPathROI implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 	
-//	final private static Logger logger = LoggerFactory.getLogger(PolylineROI.class);
+//	private static final Logger logger = LoggerFactory.getLogger(PolylineROI.class);
 	
 	private Vertices vertices;
 	

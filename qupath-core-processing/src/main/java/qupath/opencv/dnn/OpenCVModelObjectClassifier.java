@@ -56,7 +56,7 @@ import qupath.opencv.dnn.OpenCVDnn.ModelType;
  */
 public class OpenCVModelObjectClassifier extends AbstractObjectClassifier<BufferedImage> implements UriResource {
 	
-	private final static Logger logger = LoggerFactory.getLogger(OpenCVModelObjectClassifier.class);
+	private static final Logger logger = LoggerFactory.getLogger(OpenCVModelObjectClassifier.class);
 	
 	private OpenCVDnn model;
 	private List<PathClass> pathClasses;

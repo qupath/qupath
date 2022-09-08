@@ -61,7 +61,7 @@ import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
  */
 public class OpenslideImageServer extends AbstractTileableImageServer {
 	
-	final private static Logger logger = LoggerFactory.getLogger(OpenslideImageServer.class);
+	private static final Logger logger = LoggerFactory.getLogger(OpenslideImageServer.class);
 
 	private static boolean useBoundingBoxes = true;
 	

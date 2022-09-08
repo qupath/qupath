@@ -96,12 +96,12 @@ public class GeometryTools {
 	
 	private static Logger logger = LoggerFactory.getLogger(GeometryTools.class);
 	
-	private final static GeometryFactory DEFAULT_FACTORY = new GeometryFactory(
+	private static final GeometryFactory DEFAULT_FACTORY = new GeometryFactory(
 			new PrecisionModel(100.0),
 			0,
 			PackedCoordinateSequenceFactory.FLOAT_FACTORY);
 
-	private final static PrecisionModel INTEGER_PRECISION_MODEL = new PrecisionModel(1);
+	private static final PrecisionModel INTEGER_PRECISION_MODEL = new PrecisionModel(1);
     
     private static GeometryConverter DEFAULT_INSTANCE = new GeometryConverter.Builder()
     		.build();

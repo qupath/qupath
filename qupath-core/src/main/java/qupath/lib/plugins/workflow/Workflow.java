@@ -51,11 +51,11 @@ public class Workflow implements Externalizable {
 	
 	private static final long serialVersionUID = 1L;
 	
-	final private static Logger logger = LoggerFactory.getLogger(Workflow.class);
+	private static final Logger logger = LoggerFactory.getLogger(Workflow.class);
 	
 	static int version = 1;
 	
-	transient private List<WorkflowListener> listeners = Collections.synchronizedList(new ArrayList<>());
+	private transient List<WorkflowListener> listeners = Collections.synchronizedList(new ArrayList<>());
 	
 	private List<WorkflowStep> steps = new ArrayList<>();
 	

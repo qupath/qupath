@@ -58,7 +58,7 @@ import qupath.lib.common.GeneralTools;
  */
 public class FileFormatInfo {
 	
-	final private static Logger logger = LoggerFactory.getLogger(FileFormatInfo.class);
+	private static final Logger logger = LoggerFactory.getLogger(FileFormatInfo.class);
 	
 	private static Map<URI, ImageCheckType> cache = new HashMap<>();
 	

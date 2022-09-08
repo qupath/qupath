@@ -105,7 +105,7 @@ import qupath.lib.roi.interfaces.ROI;
  */
 public class IJTools {
 	
-	final private static Logger logger = LoggerFactory.getLogger(IJTools.class);
+	private static final Logger logger = LoggerFactory.getLogger(IJTools.class);
 	
 	private static List<String> micronList = Arrays.asList("micron", "microns", "um", GeneralTools.micrometerSymbol());
 	

@@ -55,7 +55,7 @@ import qupath.lib.gui.tools.MenuTools;
  */
 class ScriptMenuLoader {
 	
-	private final static Logger logger = LoggerFactory.getLogger(ScriptMenuLoader.class);
+	private static final Logger logger = LoggerFactory.getLogger(ScriptMenuLoader.class);
 	
 	private ObservableStringValue scriptDirectory;
 	private Menu menu;

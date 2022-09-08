@@ -90,12 +90,12 @@ import qupath.opencv.ml.pixel.PixelClassifierTools.CreateObjectOptions;
  */
 public class DensityMaps {
 	
-	private final static Logger logger = LoggerFactory.getLogger(DensityMaps.class);
+	private static final Logger logger = LoggerFactory.getLogger(DensityMaps.class);
 	
 	/**
 	 * Channel name for the channel with all object counts (not always present).
 	 */
-	public final static String CHANNEL_ALL_OBJECTS = "Counts";
+	public static final String CHANNEL_ALL_OBJECTS = "Counts";
 	
 	private static int preferredTileSize = 2048;
 	

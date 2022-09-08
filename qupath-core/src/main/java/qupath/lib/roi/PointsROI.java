@@ -52,10 +52,10 @@ public class PointsROI extends AbstractPathROI implements Serializable {
 //	@Deprecated
 //	protected double pointRadius = -1;
 	
-	transient private double xMin = Double.NaN, yMin = Double.NaN, xMax = Double.NaN, yMax = Double.NaN;
-	transient private double xCentroid = Double.NaN, yCentroid = Double.NaN;
-	transient private ROI convexHull = null;
-//	transient protected Point2 pointAdjusting = null;
+	private transient double xMin = Double.NaN, yMin = Double.NaN, xMax = Double.NaN, yMax = Double.NaN;
+	private transient double xCentroid = Double.NaN, yCentroid = Double.NaN;
+	private transient ROI convexHull = null;
+//	protected transient Point2 pointAdjusting = null;
 	
 	PointsROI() {
 		this(Double.NaN, Double.NaN);

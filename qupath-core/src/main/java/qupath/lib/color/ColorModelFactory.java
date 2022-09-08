@@ -59,7 +59,7 @@ import qupath.lib.objects.classes.PathClassTools;
  */
 public final class ColorModelFactory {
 	
-	private final static Logger logger = LoggerFactory.getLogger(ColorModelFactory.class);
+	private static final Logger logger = LoggerFactory.getLogger(ColorModelFactory.class);
 	
 //	private static Map<Map<Integer, PathClass>, IndexColorModel> classificationModels = Collections.synchronizedMap(new HashMap<>());
 
@@ -517,7 +517,7 @@ public final class ColorModelFactory {
 	/**
 	 * Abstract color model that handles all types of transfer.
 	 */
-	static abstract class DefaultAbstractColorModel extends ColorModel {
+	abstract static class DefaultAbstractColorModel extends ColorModel {
 		
 		private PixelType pixelType;
 		private int nBands;

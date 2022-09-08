@@ -73,7 +73,7 @@ import qupath.lib.regions.RegionRequest;
  */
 public class HierarchyOverlay extends AbstractOverlay {
 	
-	final static private Logger logger = LoggerFactory.getLogger(HierarchyOverlay.class);
+	private static final Logger logger = LoggerFactory.getLogger(HierarchyOverlay.class);
 
 	private ImageData<BufferedImage> imageData;
 	private PathHierarchyImageServer overlayServer = null;
@@ -90,7 +90,7 @@ public class HierarchyOverlay extends AbstractOverlay {
 	 * Comparator to determine the order in which detections should be painted.
 	 * This should be used with caution! Check out the docs for the class for details.
 	 */
-	transient private DetectionComparator comparator = new DetectionComparator();
+	private transient DetectionComparator comparator = new DetectionComparator();
 
 	/**
 	 * Constructor. Note that a {@link HierarchyOverlay} cannot adapt very efficient to changes in {@link ImageData}, and therefore 

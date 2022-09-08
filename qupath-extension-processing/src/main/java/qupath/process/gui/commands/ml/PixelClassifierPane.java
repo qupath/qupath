@@ -136,7 +136,7 @@ import qupath.process.gui.commands.ml.PixelClassifierTraining.ClassifierTraining
  */
 public class PixelClassifierPane {
 	
-	final static Logger logger = LoggerFactory.getLogger(PixelClassifierPane.class);
+	private static final Logger logger = LoggerFactory.getLogger(PixelClassifierPane.class);
 	
 	private static ObservableList<ImageDataTransformerBuilder> defaultFeatureCalculatorBuilders = FXCollections.observableArrayList();
 	
@@ -669,7 +669,7 @@ public class PixelClassifierPane {
 	 * 
 	 * @return true if the builder was added, false otherwise.
 	 */
-	public synchronized static boolean installDefaultFeatureClassificationBuilder(ImageDataTransformerBuilder builder) {
+	public static synchronized boolean installDefaultFeatureClassificationBuilder(ImageDataTransformerBuilder builder) {
 		if (!defaultFeatureCalculatorBuilders.contains(builder)) {
 			defaultFeatureCalculatorBuilders.add(builder);
 			return true;

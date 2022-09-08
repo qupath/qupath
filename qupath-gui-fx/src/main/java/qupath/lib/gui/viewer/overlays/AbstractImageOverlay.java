@@ -42,7 +42,7 @@ import qupath.lib.regions.ImageRegion;
  */
 public abstract class AbstractImageOverlay extends AbstractOverlay {
 	
-	private final static Logger logger = LoggerFactory.getLogger(AbstractImageOverlay.class);
+	private static final Logger logger = LoggerFactory.getLogger(AbstractImageOverlay.class);
 	
     private ObjectProperty<ImageInterpolation> interpolation = new SimpleObjectProperty<>(ImageInterpolation.NEAREST);
 

@@ -46,27 +46,27 @@ public class Version implements Comparable<Version> {
 	/**
 	 * Compare major versions only.
 	 */
-	public final static Comparator<Version> COMPARATOR_MAJOR = Comparator.comparingInt(Version::getMajor);
+	public static final Comparator<Version> COMPARATOR_MAJOR = Comparator.comparingInt(Version::getMajor);
 
 	/**
 	 * Compare major then minor versions.
 	 */
-	public final static Comparator<Version> COMPARATOR_MAJOR_MINOR = COMPARATOR_MAJOR
+	public static final Comparator<Version> COMPARATOR_MAJOR_MINOR = COMPARATOR_MAJOR
 																			.thenComparing(Version::getMinor);
 
 	/**
 	 * Compare major then minor then patch versions (ignoring suffixes).
 	 */
-	public final static Comparator<Version> COMPARATOR_MAJOR_MINOR_PATCH = COMPARATOR_MAJOR_MINOR
+	public static final Comparator<Version> COMPARATOR_MAJOR_MINOR_PATCH = COMPARATOR_MAJOR_MINOR
 																			.thenComparing(Version::getPatch);
 
 	/**
 	 * Compare full version, including any suffixes.
 	 */
-	public final static Comparator<Version> COMPARATOR_FULL = COMPARATOR_MAJOR_MINOR_PATCH
+	public static final Comparator<Version> COMPARATOR_FULL = COMPARATOR_MAJOR_MINOR_PATCH
 																		.thenComparing(Version::getSuffix, (s1, s2) -> compareSuffixes(s1, s2));
 
-	private final static Comparator<String> COMPARATOR_SUFFIX = GeneralTools.smartStringComparator();
+	private static final Comparator<String> COMPARATOR_SUFFIX = GeneralTools.smartStringComparator();
 	
 	private int major;
 	private int minor;

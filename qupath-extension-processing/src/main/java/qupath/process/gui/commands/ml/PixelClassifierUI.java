@@ -86,9 +86,9 @@ import qupath.process.gui.commands.ui.SaveResourcePaneBuilder;
  */
 public class PixelClassifierUI {
 	
-	private final static Logger logger = LoggerFactory.getLogger(PixelClassifierUI.class);
+	private static final Logger logger = LoggerFactory.getLogger(PixelClassifierUI.class);
 	
-	private final static String title = "Pixel classifier";
+	private static final String title = "Pixel classifier";
 
 	/**
 	 * Create a {@link ComboBox} that can be used to select the pixel classification region filter.

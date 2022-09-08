@@ -74,7 +74,7 @@ import qupath.lib.objects.hierarchy.TMAGrid;
  */
 class TMADataImporter {
 
-	final private static Logger logger = LoggerFactory.getLogger(TMADataImporter.class);
+	private static final Logger logger = LoggerFactory.getLogger(TMADataImporter.class);
 	
 	private static String TITLE = "Import TMA data";
 	

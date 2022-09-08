@@ -103,7 +103,7 @@ import qupath.lib.plugins.parameters.ParameterList;
  */
 class KaplanMeierDisplay implements ParameterChangeListener, PathObjectHierarchyListener {
 
-	final private static Logger logger = LoggerFactory.getLogger(KaplanMeierDisplay.class);
+	private static final Logger logger = LoggerFactory.getLogger(KaplanMeierDisplay.class);
 
 	// Flag to enable/disable calculating all P-values, and allowing threshold to be set to the lowest
 	private boolean calculateAllPValues = true;

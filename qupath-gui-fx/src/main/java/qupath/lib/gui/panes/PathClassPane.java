@@ -99,7 +99,7 @@ import qupath.lib.scripting.QP;
  */
 public class PathClassPane {
 	
-	private final static Logger logger = LoggerFactory.getLogger(PathClassPane.class);
+	private static final Logger logger = LoggerFactory.getLogger(PathClassPane.class);
 	
 	private QuPathGUI qupath;
 	

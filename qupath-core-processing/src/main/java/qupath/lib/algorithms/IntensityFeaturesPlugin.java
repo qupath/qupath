@@ -83,7 +83,7 @@ import qupath.lib.roi.interfaces.ROI;
  */
 public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedImage> {
 	
-	private final static Logger logger = LoggerFactory.getLogger(IntensityFeaturesPlugin.class);
+	private static final Logger logger = LoggerFactory.getLogger(IntensityFeaturesPlugin.class);
 	
 	private boolean parametersInitialized = false;
 	

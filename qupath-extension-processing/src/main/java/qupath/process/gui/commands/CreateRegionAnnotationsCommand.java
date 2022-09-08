@@ -84,7 +84,7 @@ public class CreateRegionAnnotationsCommand implements Runnable {
 	
 	static class RegionMaker {
 		
-		private final static Logger logger = LoggerFactory.getLogger(RegionMaker.class);
+		private static final Logger logger = LoggerFactory.getLogger(RegionMaker.class);
 		
 		public static enum RegionLocation {VIEW_CENTER, IMAGE_CENTER, RANDOM;
 			

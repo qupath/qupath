@@ -39,7 +39,7 @@ import org.slf4j.LoggerFactory;
  */
 public class BioFormatsServerOptions {
 	
-	private final static Logger logger = LoggerFactory.getLogger(BioFormatsServerOptions.class);
+	private static final Logger logger = LoggerFactory.getLogger(BioFormatsServerOptions.class);
 
 	/**
 	 * System property controlling whether memoization is allowed or not.

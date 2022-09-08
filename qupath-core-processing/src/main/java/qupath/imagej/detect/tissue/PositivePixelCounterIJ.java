@@ -72,9 +72,9 @@ import qupath.lib.roi.interfaces.ROI;
  */
 public class PositivePixelCounterIJ extends AbstractDetectionPlugin<BufferedImage> {
 	
-	private final static Logger logger = LoggerFactory.getLogger(PositivePixelCounterIJ.class);
+	private static final Logger logger = LoggerFactory.getLogger(PositivePixelCounterIJ.class);
 	
-	transient private PositivePixelDetector detector;
+	private transient PositivePixelDetector detector;
 	
 	
 	static class PositivePixelDetector implements ObjectDetector<BufferedImage> {

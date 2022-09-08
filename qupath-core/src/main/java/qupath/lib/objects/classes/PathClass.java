@@ -56,7 +56,7 @@ public class PathClass implements Comparable<PathClass>, Serializable {
 	private final String name;
 	private Integer colorRGB;
 	
-	private final static UUID secret = UUID.randomUUID();
+	private static final UUID secret = UUID.randomUUID();
 	
 	/**
 	 * Cached String representation
@@ -128,11 +128,11 @@ public class PathClass implements Comparable<PathClass>, Serializable {
 		return true;
 	}
 	
-	synchronized static PathClass getNullClass() {
+	static synchronized PathClass getNullClass() {
 		return NULL_CLASS;
 	}
 	
-	synchronized static PathClass getInstance(PathClass parent, String name, Integer colorRGB) {
+	static synchronized PathClass getInstance(PathClass parent, String name, Integer colorRGB) {
 		if (parent == getNullClass())
 			parent = null;
 		

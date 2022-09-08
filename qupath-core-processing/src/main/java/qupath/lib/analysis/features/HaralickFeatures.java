@@ -36,15 +36,15 @@ public class HaralickFeatures {
 	/**
 	 * Value of {@code Math.log(2)} (natural logarithm).
 	 */
-	private final static double LOG2 = Math.log(2);
+	private static final double LOG2 = Math.log(2);
 	// Add a small constant to avoid log of zero
-//	public final static double eps = 0.0000001;
+//	public static final double eps = 0.0000001;
 	
 	private CoocMatrix matrix;
 	
 	private double[] f = new double[13];
 	
-	private final static String[] FEATURE_NAMES = new String[]{
+	private static final String[] FEATURE_NAMES = new String[]{
 		"Angular second moment",
 		"Contrast",
 		"Correlation",

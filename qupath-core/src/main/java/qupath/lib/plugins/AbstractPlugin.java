@@ -48,7 +48,7 @@ import qupath.lib.plugins.workflow.WorkflowStep;
  */
 public abstract class AbstractPlugin<T> implements PathPlugin<T> {
 	
-	final private static Logger logger = LoggerFactory.getLogger(AbstractPlugin.class);
+	private static final Logger logger = LoggerFactory.getLogger(AbstractPlugin.class);
 	
 	
 	/**

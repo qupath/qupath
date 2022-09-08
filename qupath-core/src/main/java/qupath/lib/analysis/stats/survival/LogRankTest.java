@@ -37,7 +37,7 @@ import qupath.lib.common.GeneralTools;
  */
 public class LogRankTest {
 
-	final private static Logger logger = LoggerFactory.getLogger(LogRankTest.class);
+	private static final Logger logger = LoggerFactory.getLogger(LogRankTest.class);
 
 	private static ChiSquaredDistribution chi2 = new ChiSquaredDistribution(1);
 

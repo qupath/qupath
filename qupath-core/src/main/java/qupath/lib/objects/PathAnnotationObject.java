@@ -45,7 +45,7 @@ public class PathAnnotationObject extends PathROIObject {
 	
 	private static final long serialVersionUID = 1L;
 	
-	private final static String KEY_ANNOTATION_TEXT = "ANNOTATION_DESCRIPTION";
+	private static final String KEY_ANNOTATION_TEXT = "ANNOTATION_DESCRIPTION";
 	
 	/**
 	 * Default constructor. Should not be used directly, instead use {@link PathObjects#createAnnotationObject(ROI)}.

@@ -48,7 +48,7 @@ import qupath.lib.roi.interfaces.ROI;
  * @author Pete Bankhead
  *
  */
-public class ObservableMeasurementTableDataTest {
+public class TestObservableMeasurementTableData {
 
 	private static final double EPSILON = 1e-15;
 	

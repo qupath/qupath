@@ -74,9 +74,9 @@ import qupath.opencv.tools.OpenCVTools;
  */
 public class DetectCytokeratinCV extends AbstractDetectionPlugin<BufferedImage> {
 
-	private final static Logger logger = LoggerFactory.getLogger(DetectCytokeratinCV.class);
+	private static final Logger logger = LoggerFactory.getLogger(DetectCytokeratinCV.class);
 
-	transient private CytokeratinDetector detector;
+	private transient CytokeratinDetector detector;
 
 
 	static class CytokeratinDetector implements ObjectDetector<BufferedImage> {
@@ -84,8 +84,8 @@ public class DetectCytokeratinCV extends AbstractDetectionPlugin<BufferedImage> 
 		// TODO: REQUEST DOWNSAMPLE IN PLUGINS
 		private List< PathObject> pathObjects = new ArrayList<>();
 
-		transient private RegionRequest lastRequest = null;
-		transient private BufferedImage img = null;
+		private transient RegionRequest lastRequest = null;
+		private transient BufferedImage img = null;
 		
 		private String lastResultsDescription = null;
 

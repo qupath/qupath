@@ -50,7 +50,7 @@ import qupath.lib.roi.interfaces.ROI;
  */
 public class TestRoiTools {
 	
-	private final static Logger logger = LoggerFactory.getLogger(TestRoiTools.class);
+	private static final Logger logger = LoggerFactory.getLogger(TestRoiTools.class);
 	
 	/**
 	 * Compare conversion of {@link AffineTransform} and {@link AffineTransformation} objects.

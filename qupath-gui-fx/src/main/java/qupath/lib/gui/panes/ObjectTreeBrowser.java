@@ -57,7 +57,7 @@ import qupath.lib.io.GsonTools;
  */
 public class ObjectTreeBrowser {
 
-	final private static Logger logger = LoggerFactory.getLogger(ObjectTreeBrowser.class);
+	private static final Logger logger = LoggerFactory.getLogger(ObjectTreeBrowser.class);
 
 	private static <T> TreeTableView<T> createTreeTable() {
 		

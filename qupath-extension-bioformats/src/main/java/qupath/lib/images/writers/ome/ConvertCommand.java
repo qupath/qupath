@@ -52,7 +52,7 @@ import qupath.lib.images.writers.ome.OMEPyramidWriter.CompressionType;
 @Command(name = "convert-ome", description = "Converts an input image to OME-TIFF.", sortOptions = false)
 public class ConvertCommand implements Runnable, Subcommand {
 	
-	private final static Logger logger = LoggerFactory.getLogger(ConvertCommand.class);
+	private static final Logger logger = LoggerFactory.getLogger(ConvertCommand.class);
 	
 	@Parameters(index = "0", description="Path to the file to convert.", paramLabel = "input")
 	private File inputFile;

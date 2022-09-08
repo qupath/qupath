@@ -45,7 +45,7 @@ import qupath.lib.gui.dialogs.Dialogs;
  */
 class DragDropTMADataImportListener implements EventHandler<DragEvent> {
 	
-	final private static Logger logger = LoggerFactory.getLogger(DragDropTMADataImportListener.class);
+	private static final Logger logger = LoggerFactory.getLogger(DragDropTMADataImportListener.class);
 
 	private TMASummaryViewer tmaViewer;
 

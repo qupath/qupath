@@ -107,7 +107,7 @@ import qupath.process.gui.commands.density.DensityMapUI.MinMax;
  */
 public class DensityMapDialog {
 	
-	private final static Logger logger = LoggerFactory.getLogger(DensityMapDialog.class);
+	private static final Logger logger = LoggerFactory.getLogger(DensityMapDialog.class);
 	
 	private QuPathGUI qupath;
 			
@@ -501,7 +501,7 @@ public class DensityMapDialog {
 	 */
 	static class ObservableColorModelBuilder {
 		
-		private final static Logger logger = LoggerFactory.getLogger(ObservableColorModelBuilder.class);
+		private static final Logger logger = LoggerFactory.getLogger(ObservableColorModelBuilder.class);
 
 		private final ObjectProperty<ColorMap> colorMap = new SimpleObjectProperty<>();
 
@@ -660,7 +660,7 @@ public class DensityMapDialog {
 	 */
 	static class ObservableDensityMapBuilder {
 		
-		private final static Logger logger = LoggerFactory.getLogger(ObservableDensityMapBuilder.class);
+		private static final Logger logger = LoggerFactory.getLogger(ObservableDensityMapBuilder.class);
 
 		private ObjectProperty<DensityMapObjects> allObjectTypes = new SimpleObjectProperty<>(DensityMapObjects.DETECTIONS);
 		private ObjectProperty<PathClass> allObjectClass = new SimpleObjectProperty<>(DensityMapUI.ANY_CLASS);
@@ -810,7 +810,7 @@ public class DensityMapDialog {
 	 */
 	static class HierarchyClassifierOverlayManager implements PathObjectHierarchyListener, QuPathViewerListener {
 		
-		private final static Logger logger = LoggerFactory.getLogger(HierarchyClassifierOverlayManager.class);
+		private static final Logger logger = LoggerFactory.getLogger(HierarchyClassifierOverlayManager.class);
 
 		private final QuPathGUI qupath;
 

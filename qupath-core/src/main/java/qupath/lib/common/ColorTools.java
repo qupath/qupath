@@ -41,62 +41,62 @@ public final class ColorTools {
 	/**
 	 * Packed int representing white.
 	 */
-	final public static Integer WHITE = packRGB(255, 255, 255);
+	public static final Integer WHITE = packRGB(255, 255, 255);
 
 	/**
 	 * Packed int representing black.
 	 */
-	final public static Integer BLACK = packRGB(0, 0, 0);
+	public static final Integer BLACK = packRGB(0, 0, 0);
 
 	/**
 	 * Packed int representing red.
 	 */
-	final public static Integer RED = packRGB(255, 0, 0);
+	public static final Integer RED = packRGB(255, 0, 0);
 
 	/**
 	 * Packed int representing green.
 	 */
-	final public static Integer GREEN = packRGB(0, 255, 0);
+	public static final Integer GREEN = packRGB(0, 255, 0);
 
 	/**
 	 * Packed int representing blue.
 	 */
-	final public static Integer BLUE = packRGB(0, 0, 255);
+	public static final Integer BLUE = packRGB(0, 0, 255);
 
 	/**
 	 * Packed int representing magenta.
 	 */
-	final public static Integer MAGENTA = packRGB(255, 0, 255);
+	public static final Integer MAGENTA = packRGB(255, 0, 255);
 
 	/**
 	 * Packed int representing cyan.
 	 */
-	final public static Integer CYAN = packRGB(0, 255, 255);
+	public static final Integer CYAN = packRGB(0, 255, 255);
 
 	/**
 	 * Packed int representing yellow.
 	 */
-	final public static Integer YELLOW = packRGB(255, 255, 0);
+	public static final Integer YELLOW = packRGB(255, 255, 0);
 
 	/**
 	 * Mask for use when extracting the alpha component from a packed ARGB int value.
 	 */
-	final public static Integer MASK_ALPHA = 0xff000000;
+	public static final Integer MASK_ALPHA = 0xff000000;
 	
 	/**
 	 * Mask for use when extracting the red component from a packed (A)RGB int value.
 	 */
-	final public static Integer MASK_RED = 0xff0000;
+	public static final Integer MASK_RED = 0xff0000;
 	
 	/**
 	 * Mask for use when extracting the green component from a packed (A)RGB int value.
 	 */
-	final public static Integer MASK_GREEN = 0xff00;
+	public static final Integer MASK_GREEN = 0xff00;
 	
 	/**
 	 * Mask for use when extracting the blue component from a packed (A)RGB int value.
 	 */
-	final public static Integer MASK_BLUE = 0xff;
+	public static final Integer MASK_BLUE = 0xff;
 
 	/**
 	 * Make a packed RGB value from specified input values.

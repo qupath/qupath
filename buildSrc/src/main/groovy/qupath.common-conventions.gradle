@@ -3,6 +3,7 @@ plugins {
     id 'jacoco'
     id 'io.github.qupath.platform'
     id 'org.bytedeco.gradle-javacpp-platform'
+    id 'checkstyle'
 }
 
 repositories {

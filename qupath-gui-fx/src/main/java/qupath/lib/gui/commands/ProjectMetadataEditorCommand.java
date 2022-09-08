@@ -75,9 +75,9 @@ import qupath.lib.projects.ProjectImageEntry;
  */
 class ProjectMetadataEditorCommand {
 	
-	private final static Logger logger = LoggerFactory.getLogger(ProjectMetadataEditorCommand.class);
+	private static final Logger logger = LoggerFactory.getLogger(ProjectMetadataEditorCommand.class);
 
-	private final static String IMAGE_NAME = "Image name";
+	private static final String IMAGE_NAME = "Image name";
 
 	
 	public static void showProjectMetadataEditor(Project<?> project) {

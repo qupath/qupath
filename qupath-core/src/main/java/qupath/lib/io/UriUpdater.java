@@ -55,7 +55,7 @@ import qupath.lib.projects.Project;
  */
 public class UriUpdater<T extends UriResource> {
 
-	private final static Logger logger = LoggerFactory.getLogger(UriUpdater.class);
+	private static final Logger logger = LoggerFactory.getLogger(UriUpdater.class);
 
 	private Collection<T> resources;
 	private Collection<SingleUriItem> items;

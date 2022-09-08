@@ -43,7 +43,7 @@ public class ClassificationResolution {
 	private static List<String> resolutionNames = Arrays.asList("Full", "Very high", "High", "Moderate", "Low", "Very low", "Extremely low");
 
 	
-	final private String name;
+	private final String name;
 	final PixelCalibration cal;
 	
 	ClassificationResolution(String name, PixelCalibration cal) {

@@ -21,6 +21,7 @@ This is a work-in-progress.
     * Smart parentheses and (double/single) quotes (https://github.com/qupath/qupath/pull/907)
     * Comment block handling (https://github.com/qupath/qupath/pull/908)
   * New 'Edit -> Wrap lines', 'Edit -> Replace curly quotes' and 'Edit -> Zap gremlins' options
+* New 'Analyze -> Spatial analysis -> Signed distance to annotations 2D' command (https://github.com/qupath/qupath/issues/1032)
 * Better support for opening/importing from files containing multiple images
   * New 'Show image selector' option when adding images to a project
   * Image selector dialog has a filter to find images more easily
@@ -77,6 +78,8 @@ This is a work-in-progress.
 
 ### Bugs fixed
 * Reading from Bio-Formats blocks forever when using multiple series outside a project (https://github.com/qupath/qupath/issues/894)
+* Can't swap dimensions for Bio-Formats using optional args (https://github.com/qupath/qupath/issues/1036)
+  * Fix broken support for optional args, e.g. `--dims XYTCZ` when adding images to a project
 * Image resizing bug affecting labeled image export (https://github.com/qupath/qupath/issues/974)
 * Remove fragments & holes doesn't remove small objects from the current selection (https://github.com/qupath/qupath/issues/976)
 * 'Ignore case' in the Find window of the Script editor does not ignore case (https://github.com/qupath/qupath/issues/889)
@@ -91,10 +94,11 @@ This is a work-in-progress.
 * Locked point annotations can still be edited (https://github.com/qupath/qupath/issues/1001)
 * 'Normalized OD colors' should not be available for RGB fluorescence images (https://github.com/qupath/qupath/issues/1006)
 * Training a new object classifier with the same settings and annotations can give a different result when an image is reopened (https://github.com/qupath/qupath/issues/1016)
-# It isn't possible to run cell detection on channels with " in the name (https://github.com/qupath/qupath/issues/1022)
+* It isn't possible to run cell detection on channels with " in the name (https://github.com/qupath/qupath/issues/1022)
+* Fix occasional "One of the arguments' values is out of range" exception with Delaunay triangulation
 
-### Changes through Bio-Formats 6.10.0
-* Bio-Formats 6.10.0 brings several important new features to QuPath, including:
+### Changes through Bio-Formats 6.10.1
+* Bio-Formats 6.10.1 brings several important new features to QuPath, including:
   * Support for reading DICOM whole slide images
   * Improved handling of brightfield CZI images (i.e. filling unscanned regions in white, not black)
   * Substantial performance improvements for reading/writing some formats (including OME-TIFF)
@@ -105,11 +109,11 @@ This is a work-in-progress.
 
 ### Dependency updates
 * Adoptium OpenJDK 17
-* Bio-Formats 6.10.0
-* JavaFX 18.0.1
+* Bio-Formats 6.10.1
+* JavaFX 18.0.2
 * Java Topology Suite 1.19.0
-* Groovy 4.0.3
-* Gson 2.9.0
+* Groovy 4.0.4
+* Gson 2.9.1
 * Guava 31.1
 * ikonli 12.3.1
 * JavaCPP 1.5.7

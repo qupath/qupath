@@ -49,19 +49,19 @@ public class SimplePluginWorkflowStep implements ScriptableWorkflowStep, Externa
 	 * Currently this is private (experimental feature for testing)
 	 * @since v0.4.0
 	 */
-	private final static String PROP_KEY_WORKFLOW_ARGS = "script.workflow.args";
+	private static final String PROP_KEY_WORKFLOW_ARGS = "script.workflow.args";
 	
 	/**
 	 * Include workflow args as a {@code Map<String, ?>}, where possible
 	 * @since v0.4.0
 	 */
-	private final static String PROP_WORKFLOW_ARGS_MAP = "map";
+	private static final String PROP_WORKFLOW_ARGS_MAP = "map";
 	
 	/**
 	 * Include workflow args as a String (default)
 	 * @since v0.4.0
 	 */
-	private final static String PROP_WORKFLOW_ARGS_STRING = "string";
+	private static final String PROP_WORKFLOW_ARGS_STRING = "string";
 	
 	private String name;
 	private String pluginClass;

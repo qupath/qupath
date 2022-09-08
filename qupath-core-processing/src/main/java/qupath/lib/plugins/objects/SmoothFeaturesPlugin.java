@@ -65,7 +65,7 @@ public class SmoothFeaturesPlugin<T> extends AbstractInteractivePlugin<T> {
 	
 	private ParameterList params;
 	
-	final private static Logger logger = LoggerFactory.getLogger(SmoothFeaturesPlugin.class);
+	private static final Logger logger = LoggerFactory.getLogger(SmoothFeaturesPlugin.class);
 	
 	/**
 	 * Default constructor.

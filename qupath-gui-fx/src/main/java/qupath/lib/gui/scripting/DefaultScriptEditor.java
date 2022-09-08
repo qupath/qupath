@@ -29,7 +29,6 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.Writer;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashSet;
@@ -878,7 +877,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	}
 	
 	
-	private static abstract class LoggerWriter extends Writer {
+	private abstract static class LoggerWriter extends Writer {
 
 		@Override
 		public void write(char[] cbuf, int off, int len) throws IOException {

@@ -41,7 +41,7 @@ import qupath.lib.analysis.images.SimpleModifiableImage;
  */
 public class Watershed {
 	
-	final private static Logger logger = LoggerFactory.getLogger(Watershed.class);
+	private static final Logger logger = LoggerFactory.getLogger(Watershed.class);
 	
 	/**
 	 * Apply a 2D watershed transform.
@@ -177,7 +177,7 @@ public class Watershed {
 		queue.add(x+1, y+1);
 	}
 	
-	private final static class WatershedQueueWrapper {
+	private static final class WatershedQueueWrapper {
 
 		private PriorityQueue<PixelWithValue> queue = new PriorityQueue<>();
 		private boolean[] queued = null;
@@ -252,7 +252,7 @@ public class Watershed {
 	}
 
 
-	private final static class PixelWithValue implements Comparable<PixelWithValue> {
+	private static final class PixelWithValue implements Comparable<PixelWithValue> {
 		
 		public int x, y;
 		public float value;

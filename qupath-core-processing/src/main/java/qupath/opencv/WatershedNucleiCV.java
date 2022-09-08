@@ -86,7 +86,7 @@ public class WatershedNucleiCV extends AbstractTileableDetectionPlugin<BufferedI
 
 	private static Logger logger = LoggerFactory.getLogger(WatershedNucleiCV.class);
 
-	transient private WatershedNuclei detector;
+	private transient WatershedNuclei detector;
 
 
 	class WatershedNuclei implements ObjectDetector<BufferedImage> {

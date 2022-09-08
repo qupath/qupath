@@ -52,7 +52,7 @@ import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
 
 @SuppressWarnings("javadoc")
-public class PathObjectIOTest {
+public class TestPathObjectIO {
 	
 	/**
 	 * Test if importing back exported objects are unchanged (GeoJSON).

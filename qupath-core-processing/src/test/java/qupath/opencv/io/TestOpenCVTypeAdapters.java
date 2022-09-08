@@ -40,7 +40,7 @@ import com.google.gson.GsonBuilder;
 
 
 @SuppressWarnings("javadoc")
-public class TypeAdaptersCVTest {
+public class TestOpenCVTypeAdapters {
 
 	@SuppressWarnings("unchecked")
 	@Test

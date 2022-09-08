@@ -137,9 +137,9 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 			"maxBackground"
 	};
 
-	transient private CellDetector detector;
+	private transient CellDetector detector;
 	
-	private final static Logger logger = LoggerFactory.getLogger(WatershedCellDetection.class);
+	private static final Logger logger = LoggerFactory.getLogger(WatershedCellDetection.class);
 	
 	static String IMAGE_OPTICAL_DENSITY = "Optical density sum";
 	static String IMAGE_HEMATOXYLIN = "Hematoxylin OD";

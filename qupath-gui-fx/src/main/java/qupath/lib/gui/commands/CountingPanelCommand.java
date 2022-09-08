@@ -72,7 +72,7 @@ import qupath.lib.objects.hierarchy.PathObjectHierarchy;
  */
 public class CountingPanelCommand implements Runnable, ChangeListener<ImageData<BufferedImage>> {
 
-	final private static Logger logger = LoggerFactory.getLogger(CountingPanelCommand.class);
+	private static final Logger logger = LoggerFactory.getLogger(CountingPanelCommand.class);
 	
 	private QuPathGUI qupath;
 	private PathObjectHierarchy hierarchy;

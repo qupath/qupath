@@ -42,7 +42,7 @@ import qupath.lib.gui.ActionTools;
  */
 public class MenuTools {
 	
-	private final static Logger logger = LoggerFactory.getLogger(MenuTools.class);
+	private static final Logger logger = LoggerFactory.getLogger(MenuTools.class);
 	
 	/**
 	 * Create a menu, optionally add new menu items with {@link #addMenuItems(List, Object...)}.

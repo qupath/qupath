@@ -80,7 +80,7 @@ import qupath.lib.gui.prefs.PathPrefs;
  */
 public class InputDisplayCommand implements EventHandler<InputEvent> {
 
-	private final static Logger logger = LoggerFactory.getLogger(InputDisplayCommand.class);
+	private static final Logger logger = LoggerFactory.getLogger(InputDisplayCommand.class);
 	
 	// To ensure single input command per window
 	private static WeakHashMap<Window, InputDisplayCommand> map = new WeakHashMap<>();

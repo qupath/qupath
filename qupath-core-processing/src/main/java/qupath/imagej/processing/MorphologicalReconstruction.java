@@ -518,7 +518,7 @@ public class MorphologicalReconstruction {
 	
 	private static class IntDequeue {
 		
-		final private static int MAX_EXPANSION = 1024*10;
+		private static final int MAX_EXPANSION = 1024*10;
 		
 		private int[] array;
 		private int head = 0; // Points to location of first element in queue

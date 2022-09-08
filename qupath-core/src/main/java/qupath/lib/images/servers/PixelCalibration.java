@@ -42,17 +42,17 @@ public class PixelCalibration {
 	/**
 	 * String to represent 'pixel' units. This is the default when no pixel size calibration is known.
 	 */
-	public final static String PIXEL = "px";
+	public static final String PIXEL = "px";
 
 	/**
 	 * String to represent 'micrometer' units.
 	 */
-	public final static String MICROMETER = GeneralTools.micrometerSymbol();
+	public static final String MICROMETER = GeneralTools.micrometerSymbol();
 
 	/**
 	 * String to represent 'z-slice' units.
 	 */
-	public final static String Z_SLICE = "z-slice";
+	public static final String Z_SLICE = "z-slice";
 	
 	private SimpleQuantity pixelWidth = SimpleQuantity.DEFAULT_PIXEL_SIZE;
 	private SimpleQuantity pixelHeight = SimpleQuantity.DEFAULT_PIXEL_SIZE;

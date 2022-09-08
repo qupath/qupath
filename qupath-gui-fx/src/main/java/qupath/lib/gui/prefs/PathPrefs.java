@@ -93,20 +93,20 @@ public class PathPrefs {
 	 * Allow preference node name to be specified in system property.
 	 * This is especially useful for debugging without using the same user directory.
 	 */
-	private final static String PROP_PREFS = "qupath.prefs.name";
+	private static final String PROP_PREFS = "qupath.prefs.name";
 	
-//	private final static String PROP_USER_PATH = "qupath.path.user";
+//	private static final String PROP_USER_PATH = "qupath.path.user";
 	
 	
 	/**
 	 * Default name for preference node in this QuPath version
 	 */
-	private final static String DEFAULT_NODE_NAME = "io.github.qupath/0.4";
+	private static final String DEFAULT_NODE_NAME = "io.github.qupath/0.4";
 	
 	/**
 	 * Name for preference node
 	 */
-	private final static String NODE_NAME;
+	private static final String NODE_NAME;
 	
 	static {
 		var name = System.getProperty(PROP_PREFS);
@@ -124,7 +124,7 @@ public class PathPrefs {
 	 * For now, this isn't supported.
 	 */
 	@SuppressWarnings("unused")
-	private final static String PREVIOUS_NODE_NAME = "io.github.qupath/0.3";
+	private static final String PREVIOUS_NODE_NAME = "io.github.qupath/0.3";
 	
 	/**
 	 * Flag used to trigger when properties should be reset to their default values.
@@ -396,7 +396,7 @@ public class PathPrefs {
 	 * 
 	 * @return
 	 */
-	public synchronized static IntegerProperty maxMemoryMBProperty() {
+	public static synchronized IntegerProperty maxMemoryMBProperty() {
 		if (maxMemoryMB == null) {
 			maxMemoryMB = createPersistentPreference("maxMemoryMB", -1);
 			long requestedMaxMemoryMB = maxMemoryMB.get();
@@ -492,7 +492,7 @@ public class PathPrefs {
 	 * Save the preferences.
 	 * @return
 	 */
-	public synchronized static boolean savePreferences() {
+	public static synchronized boolean savePreferences() {
 		try {
 			Preferences prefs = getUserPreferences();
 			prefs.flush();
@@ -507,7 +507,7 @@ public class PathPrefs {
 	/**
 	 * Reset the preferences to their defaults. This requires QuPath to be restarted.
 	 */
-	public synchronized static void resetPreferences() {
+	public static synchronized void resetPreferences() {
 		try {
 			Preferences prefs = getUserPreferences();
 			prefs.removeNode();

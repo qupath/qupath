@@ -51,7 +51,7 @@ import qupath.lib.projects.ProjectImageEntry;
  */
 public class SplitProjectTrainingCommand implements Runnable {
 	
-	private final static Logger logger = LoggerFactory.getLogger(SplitProjectTrainingCommand.class);
+	private static final Logger logger = LoggerFactory.getLogger(SplitProjectTrainingCommand.class);
 	
 	/**
 	 * Metadata key for the flag indicating the image type (Train, Validation, Test or None).

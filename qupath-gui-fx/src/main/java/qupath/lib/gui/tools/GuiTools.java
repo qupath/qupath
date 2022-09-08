@@ -187,7 +187,7 @@ public class GuiTools {
 		FULL_SCREENSHOT
 	}
 
-	private final static Logger logger = LoggerFactory.getLogger(GuiTools.class);
+	private static final Logger logger = LoggerFactory.getLogger(GuiTools.class);
 
 	/**
 	 * Open the directory containing a file for browsing.
@@ -1373,7 +1373,7 @@ public class GuiTools {
 
 	
 	
-	private final static String KEY_REGIONS = "processRegions";
+	private static final String KEY_REGIONS = "processRegions";
 	
 	/**
 	 * Get the parent objects to use when running the plugin, or null if no suitable parent objects are found.

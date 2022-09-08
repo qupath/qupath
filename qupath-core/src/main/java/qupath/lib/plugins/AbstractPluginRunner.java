@@ -53,7 +53,7 @@ import qupath.lib.images.ImageData;
  */
 public abstract class AbstractPluginRunner<T> implements PluginRunner<T> {
 	
-	final private static Logger logger = LoggerFactory.getLogger(AbstractPluginRunner.class);
+	private static final Logger logger = LoggerFactory.getLogger(AbstractPluginRunner.class);
 
 	private static int counter = 0;
 

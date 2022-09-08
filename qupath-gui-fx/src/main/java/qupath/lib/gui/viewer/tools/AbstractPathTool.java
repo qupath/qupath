@@ -61,7 +61,7 @@ import qupath.lib.roi.interfaces.ROI;
  */
 abstract class AbstractPathTool implements EventHandler<MouseEvent> {
 	
-	private final static Logger logger = LoggerFactory.getLogger(AbstractPathTool.class);
+	private static final Logger logger = LoggerFactory.getLogger(AbstractPathTool.class);
 
 //	private QuPathViewer viewer;
 	

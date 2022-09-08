@@ -61,7 +61,7 @@ import qupath.opencv.tools.MultiscaleFeatures.MultiscaleFeature;
  */
 abstract class ImageDataTransformerBuilder {
 	
-	private final static Logger logger = LoggerFactory.getLogger(ImageDataTransformerBuilder.class);
+	private static final Logger logger = LoggerFactory.getLogger(ImageDataTransformerBuilder.class);
 
 	public abstract ImageDataOp build(ImageData<BufferedImage> imageData, PixelCalibration resolution);
 
@@ -108,7 +108,7 @@ abstract class ImageDataTransformerBuilder {
 
 //	static class ExtractNeighborsFeatureCalculatorBuilder extends FeatureCalculatorBuilder {
 //		
-//		private final static Logger logger = LoggerFactory.getLogger(ExtractNeighborsFeatureCalculatorBuilder.class);
+//		private static final Logger logger = LoggerFactory.getLogger(ExtractNeighborsFeatureCalculatorBuilder.class);
 //
 //		private GridPane pane;
 //		private CheckComboBox<String> comboChannels;
@@ -225,7 +225,7 @@ abstract class ImageDataTransformerBuilder {
 
 	static class DefaultFeatureCalculatorBuilder extends ImageDataTransformerBuilder {
 		
-		private final static Logger logger = LoggerFactory.getLogger(DefaultFeatureCalculatorBuilder.class);
+		private static final Logger logger = LoggerFactory.getLogger(DefaultFeatureCalculatorBuilder.class);
 		
 		private static enum NormalizationType {
 			NONE,

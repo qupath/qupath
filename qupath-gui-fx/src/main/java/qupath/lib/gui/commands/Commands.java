@@ -1190,9 +1190,10 @@ public class Commands {
 	/**
 	 * Compute the distance between all detections and the closest annotation, for all annotation classifications.
 	 * @param imageData the image data to process
+	 * @param signedDistances if true, use signed distances
 	 */
-	public static void distanceToAnnotations2D(ImageData<?> imageData) {
-		String title = "Distance to annotations 2D";
+	public static void distanceToAnnotations2D(ImageData<?> imageData, boolean signedDistances) {
+		String title = signedDistances ? "Signed distance to annotations 2D" : "Distance to annotations 2D";
 		if (imageData == null) {
 			Dialogs.showNoImageError(title);
 			return;
@@ -1206,6 +1207,7 @@ public class Commands {
 				return;
 			}
 		}
+		
 		var result = Dialogs.showYesNoCancelDialog(title, "Split multi-part classifications?\nIf yes, each component of classifications such as \"Class1: Class2\" will be treated separately.");
 		boolean doSplit = false;
 		if (result == DialogButton.YES)
@@ -1213,11 +1215,17 @@ public class Commands {
 		else if (result != DialogButton.NO)
 			return;
 
-		
-		DistanceTools.detectionToAnnotationDistances(imageData, doSplit);
-		imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep(
-				"Distance to annotations 2D",
-				doSplit ? "detectionToAnnotationDistances(true)" : "detectionToAnnotationDistances(false)"));
+		if (signedDistances) {
+			DistanceTools.detectionToAnnotationDistancesSigned(imageData, doSplit);
+			imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep(
+					"Signed distance to annotations 2D",
+					doSplit ? "detectionToAnnotationDistancesSigned(true)" : "detectionToAnnotationDistancesSigned(false)"));
+		} else {
+			DistanceTools.detectionToAnnotationDistances(imageData, doSplit);
+			imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep(
+					"Distance to annotations 2D",
+					doSplit ? "detectionToAnnotationDistances(true)" : "detectionToAnnotationDistances(false)"));
+		}
 	}
 	
 	/**

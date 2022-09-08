@@ -60,14 +60,14 @@ public class ObjectClassifiers {
 		
 		private static String typeName = "object_classifier_type";
 		
-		private final static SubTypeAdapterFactory<ObjectClassifier> objectClassifierTypeAdapter = 
+		private static final SubTypeAdapterFactory<ObjectClassifier> objectClassifierTypeAdapter = 
 				GsonTools.createSubTypeAdapterFactory(ObjectClassifier.class, typeName)
 //					.registerSubtype(OpenCVMLClassifier.class)
 					.registerSubtype(CompositeClassifier.class)
 					.registerSubtype(SimpleClassifier.class);
 //					.registerSubtype(ResetClassifier.class);
 		
-		private final static SubTypeAdapterFactory<Function> classifierFunTypeAdapter = 
+		private static final SubTypeAdapterFactory<Function> classifierFunTypeAdapter = 
 				GsonTools.createSubTypeAdapterFactory(Function.class, "classifier_fun")
 					.registerSubtype(ClassifyByMeasurementFunction.class);
 		
@@ -89,7 +89,7 @@ public class ObjectClassifiers {
 		
 	}
 	
-	private final static TypeAdapterFactory factory = new ObjectClassifierTypeAdapterFactory();
+	private static final TypeAdapterFactory factory = new ObjectClassifierTypeAdapterFactory();
 	
 	/**
 	 * Get a {@link TypeAdapterFactory} to handle {@link ObjectClassifier} instances.

@@ -58,7 +58,7 @@ import qupath.lib.projects.ProjectImageEntry;
  */
 public class ProjectDialogs {
 	
-	private final static Logger logger = LoggerFactory.getLogger(ProjectDialogs.class);
+	private static final Logger logger = LoggerFactory.getLogger(ProjectDialogs.class);
 	
 	/**
 	 * Populates a given {@link ListSelectionView} with all the project entries.

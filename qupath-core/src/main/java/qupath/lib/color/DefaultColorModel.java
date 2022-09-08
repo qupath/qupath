@@ -46,7 +46,7 @@ import qupath.lib.images.servers.PixelType;
  */
 class DefaultColorModel extends ColorModel {
 	
-	private final static Logger logger = LoggerFactory.getLogger(DefaultColorModel.class);
+	private static final Logger logger = LoggerFactory.getLogger(DefaultColorModel.class);
 		
 	public static final int BACKGROUND_COLOR = ColorTools.packARGB(0, 255, 253, 254); // TODO: See PixelClassifierOutputChannel.TRANSPARENT;
 

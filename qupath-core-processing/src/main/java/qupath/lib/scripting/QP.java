@@ -154,32 +154,32 @@ import qupath.opencv.tools.OpenCVTools;
  */
 public class QP {
 	
-	final private static Logger logger = LoggerFactory.getLogger(QP.class);
+	private static final Logger logger = LoggerFactory.getLogger(QP.class);
 	
 	/**
 	 * Brightfield image type with hematoxylin and DAB staining
 	 */
-	final public static ImageData.ImageType BRIGHTFIELD_H_DAB = ImageData.ImageType.BRIGHTFIELD_H_DAB;
+	public static final ImageData.ImageType BRIGHTFIELD_H_DAB = ImageData.ImageType.BRIGHTFIELD_H_DAB;
 	
 	/**
 	 * Brightfield image type with hematoxylin and eosin staining
 	 */
-	final public static ImageData.ImageType BRIGHTFIELD_H_E = ImageData.ImageType.BRIGHTFIELD_H_E;
+	public static final ImageData.ImageType BRIGHTFIELD_H_E = ImageData.ImageType.BRIGHTFIELD_H_E;
 	
 	/**
 	 * Brightfield image type
 	 */
-	final public static ImageData.ImageType BRIGHTFIELD_OTHER = ImageData.ImageType.BRIGHTFIELD_OTHER;
+	public static final ImageData.ImageType BRIGHTFIELD_OTHER = ImageData.ImageType.BRIGHTFIELD_OTHER;
 	
 	/**
 	 * Fluorescence image type
 	 */
-	final public static ImageData.ImageType FLUORESCENCE = ImageData.ImageType.FLUORESCENCE;
+	public static final ImageData.ImageType FLUORESCENCE = ImageData.ImageType.FLUORESCENCE;
 	
 	/**
 	 * Any other image type (neither brightfield nor fluorescence)
 	 */
-	final public static ImageData.ImageType OTHER = ImageData.ImageType.OTHER;
+	public static final ImageData.ImageType OTHER = ImageData.ImageType.OTHER;
 	
 	/**
 	 * Store ImageData accessible to the script thread
@@ -198,7 +198,7 @@ public class QP {
 	 *   var path = buildFilePath(PROJECT_BASE_DIR, 'subdir', 'name.txt')
 	 * </pre>
 	 */
-	final public static String PROJECT_BASE_DIR = "{%PROJECT}";
+	public static final String PROJECT_BASE_DIR = "{%PROJECT}";
 	
 	
 	/**
@@ -232,7 +232,7 @@ public class QP {
 	}
 
 	
-	private final static Set<Class<?>> CORE_CLASSES = Collections.unmodifiableSet(new HashSet<>(Arrays.asList(
+	private static final Set<Class<?>> CORE_CLASSES = Collections.unmodifiableSet(new HashSet<>(Arrays.asList(
 			// Core datastructures
 			ImageData.class,
 			ImageServer.class,
@@ -2808,9 +2808,11 @@ public class QP {
 	/**
 	 * Compute the distance for all detection object centroids to the closest annotation with each valid, not-ignored classification and add 
 	 * the result to the detection measurement list.
+	 * If the centroid falls inside an annotation, the distance is zero.
 	 * @param imageData
 	 * @param splitClassNames 
 	 * @see DistanceTools#detectionToAnnotationDistances(ImageData, boolean)
+	 * @see QP#detectionToAnnotationDistancesSigned(ImageData, boolean)
 	 */
 	public static void detectionToAnnotationDistances(ImageData<?> imageData, boolean splitClassNames) {
 		DistanceTools.detectionToAnnotationDistances(imageData, splitClassNames);
@@ -2831,11 +2833,40 @@ public class QP {
 	/**
 	 * Compute the distance for all detection object centroids to the closest annotation with each valid, not-ignored classification and add 
 	 * the result to the detection measurement list for the current ImageData.
+	 * If the centroid falls inside an annotation, the distance is zero.
 	 * @param splitClassNames 
 	 * @see DistanceTools#detectionToAnnotationDistances(ImageData, boolean)
+	 * @see QP#detectionToAnnotationDistancesSigned(boolean)
 	 */
 	public static void detectionToAnnotationDistances(boolean splitClassNames) {
 		detectionToAnnotationDistances(getCurrentImageData(), splitClassNames);
+	}
+	
+	/**
+	 * Compute the signed distance for all detection object centroids to the closest annotation with each valid, not-ignored classification and add 
+	 * the result to the detection measurement list.
+	 * If the centroid falls inside an annotation, the negative distance to the annotation boundary is used.
+	 * @param imageData
+	 * @param splitClassNames 
+	 * @see DistanceTools#detectionToAnnotationDistancesSigned(ImageData, boolean)
+	 * @see QP#detectionToAnnotationDistances(ImageData, boolean)
+	 * @since v0.4.0
+	 */
+	public static void detectionToAnnotationDistancesSigned(ImageData<?> imageData, boolean splitClassNames) {
+		DistanceTools.detectionToAnnotationDistancesSigned(imageData, splitClassNames);
+	}
+	
+	/**
+	 * Compute the signed distance for all detection object centroids to the closest annotation with each valid, not-ignored classification and add 
+	 * the result to the detection measurement list for the current ImageData.
+	 * If the centroid falls inside an annotation, the negative distance to the annotation boundary is used.
+	 * @param splitClassNames 
+	 * @see DistanceTools#detectionToAnnotationDistancesSigned(ImageData, boolean)
+	 * @see QP#detectionToAnnotationDistances(boolean)
+	 * @since v0.4.0
+	 */
+	public static void detectionToAnnotationDistancesSigned(boolean splitClassNames) {
+		detectionToAnnotationDistancesSigned(getCurrentImageData(), splitClassNames);
 	}
 
 	/**

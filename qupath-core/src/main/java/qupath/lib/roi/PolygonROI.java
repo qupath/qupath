@@ -49,11 +49,11 @@ public class PolygonROI extends AbstractPathROI implements Serializable {
 	
 	private static final long serialVersionUID = 1L;
 	
-//	final private static Logger logger = LoggerFactory.getLogger(PolygonROI.class);
+//	private static final Logger logger = LoggerFactory.getLogger(PolygonROI.class);
 	
 	private Vertices vertices;
 	
-	transient private ClosedShapeStatistics stats = null;
+	private transient ClosedShapeStatistics stats = null;
 	
 
 	PolygonROI() {

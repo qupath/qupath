@@ -74,7 +74,7 @@ import qupath.lib.gui.scripting.DefaultScriptEditor;
  */
 public class DragDropImportListener implements EventHandler<DragEvent> {
 	
-	final private static Logger logger = LoggerFactory.getLogger(DragDropImportListener.class);
+	private static final Logger logger = LoggerFactory.getLogger(DragDropImportListener.class);
 
 	private QuPathGUI qupath;
 	

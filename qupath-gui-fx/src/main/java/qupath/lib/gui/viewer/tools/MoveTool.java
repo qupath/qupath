@@ -59,7 +59,7 @@ import qupath.lib.roi.interfaces.ROI;
  */
 public class MoveTool extends AbstractPathTool {
 	
-	final static private Logger logger = LoggerFactory.getLogger(MoveTool.class);
+	private static final Logger logger = LoggerFactory.getLogger(MoveTool.class);
 
 	private static boolean requestDynamicDragging = true;
 	

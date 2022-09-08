@@ -66,7 +66,7 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 	
 	private transient Set<TileRequest> emptyTiles = new HashSet<>();
 	
-	private final static Long ZERO = Long.valueOf(0L);
+	private static final Long ZERO = Long.valueOf(0L);
 	
 	// Maintain a record of tiles that could not be cached, so we warn for each only once
 	private transient Set<RegionRequest> failedCacheTiles = new HashSet<>();

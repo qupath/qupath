@@ -37,12 +37,12 @@ import javafx.scene.control.ToggleGroup;
  */
 public class SelectableItem<T> {
 
-	final private ObjectProperty<T> selected;
-	final private BooleanProperty itemSelected = new SimpleBooleanProperty();
-	final private T item;
+	private final ObjectProperty<T> selected;
+	private final BooleanProperty itemSelected = new SimpleBooleanProperty();
+	private final T item;
 	
-	final private ChangeListener<T> selectedListener;
-	final private ChangeListener<Boolean> itemSelectedListener;
+	private final ChangeListener<T> selectedListener;
+	private final ChangeListener<Boolean> itemSelectedListener;
 	
 	/**
 	 * Constructor.

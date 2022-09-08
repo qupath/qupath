@@ -71,7 +71,7 @@ public class Charts {
 	
 	// See https://stackoverflow.com/questions/17164375/subclassing-a-java-builder-class/34741836#34741836 
 	// for a great description of what is going on here...
-	static abstract class ChartBuilder<T extends ChartBuilder<T, S>, S extends Chart> {
+	abstract static class ChartBuilder<T extends ChartBuilder<T, S>, S extends Chart> {
 	
 		protected QuPathViewer viewer;
 		protected ImageData<?> imageData;
@@ -436,7 +436,7 @@ public class Charts {
 	}
 	
 	
-	static abstract class XYChartBuilder<T extends XYChartBuilder<T, S, X, Y>, S extends XYChart<X, Y>, X, Y> extends ChartBuilder<T, S> {
+	abstract static class XYChartBuilder<T extends XYChartBuilder<T, S, X, Y>, S extends XYChart<X, Y>, X, Y> extends ChartBuilder<T, S> {
 		
 		protected String xLabel, yLabel;
 		
@@ -463,7 +463,7 @@ public class Charts {
 	}
 	
 	
-	static abstract class XYNumberChartBuilder<T extends XYNumberChartBuilder<T, S>, S extends XYChart<Number, Number>> extends XYChartBuilder<T, S, Number, Number> {
+	abstract static class XYNumberChartBuilder<T extends XYNumberChartBuilder<T, S>, S extends XYChart<Number, Number>> extends XYChartBuilder<T, S, Number, Number> {
 		
 		protected abstract S createNewChart(Axis<Number> xAxis, Axis<Number> yAxis);
 

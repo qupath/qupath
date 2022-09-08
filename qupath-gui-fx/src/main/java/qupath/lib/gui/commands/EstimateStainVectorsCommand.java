@@ -83,7 +83,7 @@ import qupath.lib.roi.interfaces.ROI;
  */
 class EstimateStainVectorsCommand {
 	
-	final private static Logger logger = LoggerFactory.getLogger(EstimateStainVectorsCommand.class);
+	private static final Logger logger = LoggerFactory.getLogger(EstimateStainVectorsCommand.class);
 	
 	static int MAX_PIXELS = 4000*4000;
 	
