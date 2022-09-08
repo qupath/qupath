@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -27,6 +27,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -171,7 +172,7 @@ public class ImageServerProvider {
 
 	private static <T> List<UriImageSupport<T>> getServerBuilders(final Class<T> cls, final String path, String...args) throws IOException {
 		URI uri = legacyPathToURI(path);
-		if ("file".equals(uri.getScheme()) && !Paths.get(uri).toFile().exists()) {
+		if ("file".equals(uri.getScheme()) && !Files.exists(Paths.get(uri))) {
 			throw new IOException(uri.toString() + " does not exist!");
 		}
 
