@@ -59,10 +59,7 @@ public class QuPathStyleManager {
 
 	private static ObservableList<StyleOption> styles = FXCollections.observableArrayList(
 			DEFAULT_STYLE,
-//			new JavaFXStylesheet("Caspian", Application.STYLESHEET_CASPIAN),
-//			new CustomStylesheet("Modena (Helvetica)", "JavaFX Modena stylesheet with Helvetica", "css/helvetica.css"),
 			new CustomStylesheet("Modena Dark", "Darker version of JavaFX Modena stylesheet", "css/dark.css")
-//			new CustomStylesheet("Modena Dark (Helvetica)", "Darker version of JavaFX Modena stylesheet with Helvetica", "css/dark.css", "css/helvetica.css")
 			);
 	
 	private static ObjectProperty<StyleOption> selectedStyle = PathPrefs.createPersistentPreference("qupathStylesheet", DEFAULT_STYLE, s -> s.getName(), QuPathStyleManager::findByName);
@@ -124,15 +121,12 @@ public class QuPathStyleManager {
 		// Add listener to adjust style as required
 		selectedStyle.addListener((v, o, n) -> updateStyle());
 		selectedFont.addListener((v, o, n) -> updateStyle());
-		
-		// Ensure we have set the style
-		updateStyle();
 	}
 	
 	private static void updateStyle() {
 		// Support calling updateStyle from different threads
 		if (!Platform.isFxApplicationThread()) {
-			Platform.runLater(() -> updateStyle());
+			Platform.runLater(QuPathStyleManager::updateStyle);
 			return;
 		}
 		StyleOption n = selectedStyle.get();
@@ -237,6 +231,7 @@ public class QuPathStyleManager {
 		@Override
 		public void setStyle() {
 			Application.setUserAgentStylesheet(cssName);
+			removePreviousStyleSheets(cssName);
 		}
 
 		@Override
