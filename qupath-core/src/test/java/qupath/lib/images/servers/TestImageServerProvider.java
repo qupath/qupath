@@ -27,15 +27,18 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 
 @SuppressWarnings("javadoc")
 public class TestImageServerProvider {
 
 	@Test
+	@EnabledOnOs(value = { OS.WINDOWS })
 	public void test() {
 		// this should not raise java.lang.IllegalArgumentException: URI has an authority component
 		assertThrows(IOException.class, () -> {
-		    ImageServerProvider.getPreferredUriImageSupport(BufferedImage.class, "file://localhost/C$/image.svs");
+		    ImageServerProvider.getPreferredUriImageSupport(BufferedImage.class, "file://localhost/c$/does-not-exist.svs");
 		});
 	}
 }
