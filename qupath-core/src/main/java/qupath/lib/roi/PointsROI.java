@@ -406,6 +406,14 @@ public class PointsROI extends AbstractPathROI implements Serializable {
 	}
 	
 	
+	@Override
+	public ROI updatePlane(ImagePlane plane) {
+		return new PointsROI(
+				points,
+				plane);
+	}
+	
+	
 	private Object writeReplace() {
 		return new SerializationProxy(this);
 	}

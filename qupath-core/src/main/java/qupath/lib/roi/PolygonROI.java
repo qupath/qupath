@@ -260,6 +260,13 @@ public class PolygonROI extends AbstractPathROI implements Serializable {
 	}
 	
 	
+	@Override
+	public ROI updatePlane(ImagePlane plane) {
+		return new PolygonROI(
+				getAllPoints(),
+				plane);
+	}
+	
 	
 	/* (non-Javadoc)
 	 * @see qupath.lib.rois.PolygonROI#getPolygonPoints()
