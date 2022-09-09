@@ -2287,7 +2287,24 @@ public class QuPathGUI {
 			}
 		});
 		
-		viewer.getView().addEventFilter(MouseEvent.MOUSE_PRESSED, e -> viewer.getView().requestFocus());
+		viewer.getView().addEventFilter(MouseEvent.MOUSE_PRESSED, e -> {
+			viewer.getView().requestFocus();
+			if (e.isMiddleButtonDown()) {
+				/* 
+				if (!e.isStillSincePress() ) {
+					logger.warn("The mouse moved! {}", System.currentTimeMillis());
+					return;
+				}
+				*/
+
+				// Here we toggle between the MOVE tool and any previously selected tool
+				if (getSelectedTool() == PathTools.MOVE)
+					setSelectedTool(previousTool);
+				else
+					setSelectedTool(PathTools.MOVE);
+			}
+
+		});
 
 		viewer.zoomToFitProperty().bind(zoomToFit);
 		
@@ -2692,24 +2709,6 @@ public class QuPathGUI {
 			if (e.isPopupTrigger() || e.isSecondaryButtonDown()) {
 				popup.show(viewer.getView().getScene().getWindow(), e.getScreenX(), e.getScreenY());				
 				e.consume();
-			}
-		});
-
-		//Handle tool selection swap via scrollwheel button click
-		viewer.getView().addEventHandler(MouseEvent.MOUSE_PRESSED, e -> {
-			if (e.isMiddleButtonDown()) {
-				/* 
-				if (!e.isStillSincePress() ) {
-					logger.warn("The mouse moved! {}", System.currentTimeMillis());
-					return;
-				}
-				*/
-
-				// Here we toggle between the MOVE tool and any previously selected tool
-				if (getSelectedTool() == PathTools.MOVE)
-					setSelectedTool(previousTool);
-				else
-					setSelectedTool(PathTools.MOVE);
 			}
 		});
 		
