@@ -33,6 +33,7 @@ import java.awt.geom.Path2D;
 import java.awt.geom.PathIterator;
 import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -116,12 +117,13 @@ public class RoiTools {
 	}
 	
 	/**
-	 * Create union of multiple ROIs. This assumes that ROIs fall on the same plane, if not an {@link IllegalArgumentException} 
+	 * Create union of multiple ROIs from a collection.
+	 * This assumes that ROIs fall on the same plane, if not an {@link IllegalArgumentException} 
 	 * will be thrown. Similarly, ROIs must be of a similar type (e.g. area, point) or an exception will be thrown by Java Topology Suite.
 	 * @param rois
 	 * @return
 	 */
-	public static ROI union(Collection<ROI> rois) {
+	public static ROI union(Collection<? extends ROI> rois) {
 		logger.trace("Calculating union of {} ROIs", rois.size());
 		if (rois.isEmpty())
 			return ROIs.createEmptyROI();
@@ -139,13 +141,27 @@ public class RoiTools {
 		return GeometryTools.geometryToROI(GeometryTools.union(geometries), plane);
 	}
 	
+	
 	/**
-	 * Create intersection of multiple ROIs. This assumes that ROIs fall on the same plane, if not an {@link IllegalArgumentException} 
-	 * will be thrown. Similarly, ROIs must be of a similar type (e.g. area, point) or an exception will be thrown by Java Topology Suite.
+	 * Create union of multiple ROIs. 
+	 * ROIs must be of a similar type (e.g. area, point) or an exception will be thrown by Java Topology Suite.
 	 * @param rois
 	 * @return
+	 * @throws IllegalArgumentException if the ROIs do not fall in the same plane
 	 */
-	public static ROI intersection(Collection<ROI> rois) {
+	public static ROI union(ROI... rois) {
+		return union(Arrays.asList(rois));
+	}
+	
+	
+	/**
+	 * Create intersection of multiple ROIs from a collection.
+	 * ROIs must be of a similar type (e.g. area, point) or an exception will be thrown by Java Topology Suite.
+	 * @param rois
+	 * @return
+	 * @throws IllegalArgumentException if the ROIs do not fall in the same plane
+	 */
+	public static ROI intersection(Collection<? extends ROI> rois) {
 		if (rois.isEmpty())
 			return ROIs.createEmptyROI();
 		if (rois.size() == 1)
@@ -164,6 +180,102 @@ public class RoiTools {
 			first = first.intersection(geom);
 		return GeometryTools.geometryToROI(first, plane);
 	}
+	
+	
+	/**
+	 * Create intersection of multiple ROIs.
+	 * This assumes that ROIs fall on the same plane, if not an {@link IllegalArgumentException} 
+	 * will be thrown. Similarly, ROIs must be of a similar type (e.g. area, point) or an exception will be thrown by Java Topology Suite.
+	 * @param rois
+	 * @return
+	 */
+	public static ROI intersection(ROI... rois) {
+		return intersection(Arrays.asList(rois));
+	}
+	
+	/**
+	 * Compute the difference between two ROIs.
+	 * This is equivalent to calling {@link RoiTools#subtract(ROI, ROI...)} to subtract roi2 from roi1.
+	 * 
+	 * @param roi1 the main ROI
+	 * @param roi2 the ROI to subtract
+	 * @return
+	 * @throws IllegalArgumentException if the ROIs do not fall in the same plane
+	 */
+	public static ROI difference(ROI roi1, ROI roi2) {
+		var plane = roi1.getImagePlane();
+		if (!roi2.getImagePlane().equals(plane)) {
+			throw new IllegalArgumentException("Cannot compute difference - found plane " 
+					+ roi2.getImagePlane() + " but expected " + plane);
+		}
+		var geom = roi1.getGeometry().difference(roi2.getGeometry());
+		return GeometryTools.geometryToROI(geom, plane);
+	}
+	
+	/**
+	 * Compute the symmetric difference between two ROIs (XOR).
+	 * 
+	 * @param roi1 the first ROI
+	 * @param roi2 the second ROI
+	 * @return
+	 * @throws IllegalArgumentException if the ROIs do not fall in the same plane
+	 */	
+	public static ROI symDifference(ROI roi1, ROI roi2) {
+		var plane = roi1.getImagePlane();
+		if (!roi2.getImagePlane().equals(plane)) {
+			throw new IllegalArgumentException("Cannot compute symmetric difference - found plane " 
+					+ roi2.getImagePlane() + " but expected " + plane);
+		}
+		var geom = roi1.getGeometry().symDifference(roi2.getGeometry());
+		return GeometryTools.geometryToROI(geom, plane);
+	}
+	
+	
+	/**
+	 * Subtract one or more ROIs from another ROI.
+	 * @param roiMain the main ROI, defining the positive area
+	 * @param roisToSubtract the ROIs to remove from roiMain
+	 * @return
+	 * @throws IllegalArgumentException if the ROIs do not fall in the same plane
+	 */
+	public static ROI subtract(ROI roiMain, ROI... roisToSubtract) {
+		return subtract(roiMain, Arrays.asList(roisToSubtract));
+	}
+	
+	
+	/**
+	 * Subtract a collection of ROIs from another ROI.
+	 * @param roiMain the main ROI, defining the positive area
+	 * @param roisToSubtract the ROIs to remove from roiMain
+	 * @return
+	 * @throws IllegalArgumentException if the ROIs do not fall in the same plane
+	 */
+	public static ROI subtract(ROI roiMain, Collection<? extends ROI> roisToSubtract) {
+		if (roisToSubtract.isEmpty())
+			return roiMain;
+		
+		if (roisToSubtract.size() == 1)
+			return difference(roiMain, roisToSubtract.iterator().next());
+		
+//		// Seems slower (at least if there are many small roisToSubtract)
+//		for (var r : roisToSubtract)
+//			roiMain = difference(roiMain, r);
+
+		// Filter out ROIs that don't overlap the bounding box of the main one
+		var region = ImageRegion.createInstance(roiMain);
+		var roisToSubtract2 = roisToSubtract
+				.stream()
+				.filter(r -> region.intersects(r.getBoundsX(), r.getBoundsY(), r.getBoundsWidth(), r.getBoundsHeight()))
+				.collect(Collectors.toList());
+		
+		// Quick method using the union of ROIs to subtract
+		// Could *possibly* be improved by iteratively removing ROIs if they are large
+		roiMain = difference(roiMain, union(roisToSubtract2));
+
+		return roiMain;
+	}
+
+	
 	
 	/**
 	 * Test whether a {@link ROI} and an {@link ImageRegion} intersect.
@@ -219,7 +331,7 @@ public class RoiTools {
 	 * @param rois a collection of ROIs that should be intersected with parent
 	 * @return list of intersected ROIs; this may be shorter than rois if some lie completely outside parent
 	 */
-	public static List<ROI> clipToROI(ROI parent, Collection<ROI> rois) {
+	public static List<ROI> clipToROI(ROI parent, Collection<? extends ROI> rois) {
 		logger.trace("Clipping {} ROIs to {}", rois.size(), parent);
 		var geom = parent.getGeometry();
 		List<ROI> results = new ArrayList<>();

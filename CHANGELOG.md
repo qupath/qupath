@@ -75,6 +75,7 @@ This is a work-in-progress.
 * Code cleaned up and simplified, with older (previously deprecated) detection classifiers removed
   * `PathClassifierTools` methods have been moved to `PathObjectTools` and `ServerTools`
 * Support passing arguments via a map to `runPlugin`, rather than only a JSON-encoded String
+* Add `difference`, `symDifference` and `subtract` methods to `RoiTools` (https://github.com/qupath/qupath/issues/995)
 
 ### Bugs fixed
 * Reading from Bio-Formats blocks forever when using multiple series outside a project (https://github.com/qupath/qupath/issues/894)
