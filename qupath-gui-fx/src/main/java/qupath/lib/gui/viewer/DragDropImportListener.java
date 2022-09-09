@@ -174,7 +174,7 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
         if (viewer == null && qupath.getViewers().size() == 1)
         	viewer = qupath.getViewer();
         
-        var files = dragboard.getFiles();
+        var files = dragboard.hasFiles() ? new ArrayList<>(dragboard.getFiles()) : null;
         var url = dragboard.getUrl();
         var viewer2 = viewer;
         if (files != null || url != null) {
@@ -183,10 +183,10 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 	        	try {
 					if (files != null) {
 				        logger.debug("Files dragged onto {}", source);
-						handleFileDrop(viewer2, dragboard.getFiles());
+						handleFileDrop(viewer2, files);
 					} else if (url != null) {
 						logger.debug("URL dragged onto {}", source);
-						handleURLDrop(viewer2, dragboard.getUrl());
+						handleURLDrop(viewer2, url);
 					}
 	        	} catch (IOException e) {
 					Dialogs.showErrorMessage("Drag & Drop", e.getLocalizedMessage());
