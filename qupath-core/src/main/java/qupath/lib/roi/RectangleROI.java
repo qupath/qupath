@@ -139,6 +139,16 @@ public class RectangleROI extends AbstractPathBoundedROI implements Serializable
 	}
 	
 	@Override
+	public ROI updatePlane(ImagePlane plane) {
+		return new RectangleROI(
+				getBoundsX(),
+				getBoundsY(),
+				getBoundsWidth(),
+				getBoundsHeight(),
+				plane);
+	}
+	
+	@Override
 	public ROI scale(double scaleX, double scaleY, double originX, double originY) {
 		double x1 = RoiTools.scaleOrdinate(getBoundsX(), scaleX, originX);
 		double y1 = RoiTools.scaleOrdinate(getBoundsY(), scaleY, originY);

@@ -345,6 +345,13 @@ public class GeometryROI extends AbstractPathROI implements Serializable {
 		var transform = AffineTransformation.scaleInstance(scaleX, scaleY, originX, originY);
 		return new GeometryROI(transform.transform(geometry), getImagePlane());
 	}
+	
+	@Override
+	public ROI updatePlane(ImagePlane plane) {
+		return new GeometryROI(
+				this.geometry,
+				plane);
+	}
 
 //	@Override
 //	public double getMaxDiameter() {

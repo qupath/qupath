@@ -217,6 +217,13 @@ public class LineROI extends AbstractPathROI implements Serializable {
 		return new Line2D.Double(x, y, x2, y2);
 	}
 	
+	@Override
+	public ROI updatePlane(ImagePlane plane) {
+		return new LineROI(
+				x, y, x2, y2,
+				plane);
+	}
+	
 	
 //	public Geometry getGeometry() {
 //		GeometryFactory factory = new GeometryFactory();

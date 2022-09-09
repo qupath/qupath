@@ -301,6 +301,14 @@ public class AreaROI extends AbstractPathROI implements Serializable {
 	}
 	
 	
+	/**
+	 * @throws UnsupportedOperationException because AreaROI is a legacy class that is no longer supported
+	 */
+	@Override
+	public ROI updatePlane(ImagePlane plane) {
+		throw new UnsupportedOperationException("Updating the plane for an AreaROI is not supported!");
+	}
+	
 	
 	private Object writeReplace() {
 		return new SerializationProxy(this);
