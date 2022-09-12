@@ -32,11 +32,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javafx.application.Platform;
 import javafx.event.EventHandler;
 import javafx.scene.Node;
 import javafx.scene.Scene;
@@ -79,6 +82,16 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 	private QuPathGUI qupath;
 	
 	private List<DropHandler<File>> dropHandlers = new ArrayList<>();
+	
+	/**
+	 * Flag to indeicate
+	 */
+	private boolean taskRunning = false;
+	
+	/**
+	 * Schedule long-running tasks
+	 */
+	private Timer timer = new Timer("drag-drop-timer", true);
 
 	/**
 	 * Constructor.
@@ -93,12 +106,9 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 	 * @param target
 	 */
 	public void setupTarget(final Node target) {
-		target.setOnDragOver(event -> {
-        	// Remove this condition if the user can drag onto anything, not only a canvas
-            event.acceptTransferModes(TransferMode.COPY);
-            event.consume();
-        });
+		target.setOnDragOver(this);
 		target.setOnDragDropped(this);
+		target.setOnDragDone(this);
 	}
 	
 	/**
@@ -106,19 +116,40 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 	 * @param target
 	 */
 	public void setupTarget(final Scene target) {
-		target.setOnDragOver(event -> {
-        	// Remove this condition if the user can drag onto anything, not only a canvas
-            event.acceptTransferModes(TransferMode.COPY);
-            event.consume();
-        });
+		target.setOnDragOver(this);
 		target.setOnDragDropped(this);
+		target.setOnDragDone(this);
 	}
 	
 	
     @Override
     public void handle(DragEvent event) {
+    	
+    	// Reject drag/drop if a task is already running (e.g. we're waiting on a response 
+    	// to a dialog that showed when opening an image)
+    	if (taskRunning)
+    		return;
+    	
+    	var type = event.getEventType();
+    	if (type == DragEvent.DRAG_DONE) {
+    		logger.debug("Drag-drop done");
+    		return;
+    	} else if (type == DragEvent.DRAG_OVER) {
+    		// Start drag/drop
+    		var dragboard = event.getDragboard();
+    		if (dragboard.hasFiles() || dragboard.hasUrl()) {
+    			event.acceptTransferModes(TransferMode.COPY);
+                event.consume();
+                return;
+    		}
+    	} else if (type != DragEvent.DRAG_DROPPED) {
+    		logger.warn("Unexpected drag-drop event {}", event);
+    		return;
+    	}
+    	
         Dragboard dragboard = event.getDragboard();
         Object source = event.getSource();
+        
         // Look for the viewer that we dragged on to - may be null, if drag was on
         QuPathViewer viewer = null;
         for (QuPathViewer viewer2 : qupath.getViewers()) {
@@ -127,28 +158,71 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
         		break;
         	}
         }
+        
+        // The gesture source is null if originating from another application
+        // In that case, we don't want to process everything here because we can end up 
+        // blocking the other application until things are finished
+        // (i.e. weird non-responsiveness was spotted on macOS Finder,
+        //  as well as odd shadowed icons lingering behind open dialogs on Windows)
+        long delay = 0L;
+        if (event.getGestureSource() == null) {
+        	delay = 50L;
+        	logger.debug("Setting drag-drop delay to {} ms", delay);
+        }
+        
         // If only one viewer is available, there is no ambiguity... use it
         if (viewer == null && qupath.getViewers().size() == 1)
         	viewer = qupath.getViewer();
         
-		if (dragboard.hasFiles()) {
-	        logger.debug("Files dragged onto {}", source);
-			try {
-				handleFileDrop(viewer, dragboard.getFiles());
-			} catch (IOException e) {
-				Dialogs.showErrorMessage("Drag & Drop", e);
-			}
-		} else if (dragboard.hasUrl()) {
-			logger.debug("URL dragged onto {}", source);
-			try {
-				handleURLDrop(viewer, dragboard.getUrl());
-			} catch (IOException e) {
-				Dialogs.showErrorMessage("Drag & Drop", e.getLocalizedMessage());
-			}
-		}
-		event.setDropCompleted(true);
+        var files = dragboard.hasFiles() ? new ArrayList<>(dragboard.getFiles()) : null;
+        var url = dragboard.getUrl();
+        var viewer2 = viewer;
+        if (files != null || url != null) {
+	        invokeLater(() -> {
+	        	taskRunning = true;
+	        	try {
+					if (files != null) {
+				        logger.debug("Files dragged onto {}", source);
+						handleFileDrop(viewer2, files);
+					} else if (url != null) {
+						logger.debug("URL dragged onto {}", source);
+						handleURLDrop(viewer2, url);
+					}
+	        	} catch (IOException e) {
+					Dialogs.showErrorMessage("Drag & Drop", e.getLocalizedMessage());
+	        		
+	        	} finally {
+	        		taskRunning = false;
+	        	}
+	        }, delay);
+			event.setDropCompleted(true);
+        } else
+        	event.setDropCompleted(false);
+
 		event.consume();
     }
+    
+    
+    /**
+     * Invoke a task, possibly after a delay
+     * @param runnable
+     * @param millis
+     */
+    void invokeLater(Runnable runnable, long millis) {
+    	assert Platform.isAccessibilityActive();
+    	if (millis <= 0)
+    		runnable.run();
+    	else {
+    		var task = new TimerTask() {
+    			@Override
+    			public void run() {
+    				Platform.runLater(runnable);
+    			}
+    		};
+    		timer.schedule(task, millis);
+    	}
+    }
+    
 
 
 	/**
