@@ -2349,6 +2349,9 @@ public class QuPathGUI {
 				// Handle side-to-side clicks (or SHIFT+MouseWheel as substitute when not available)
 				// While testing, wrote the logic this way so it can be commented out if needed
 				if (e.getDeltaX() != 0) {
+					// When using scroll touch gestures, disable the tool switching behaviour
+					if (PathPrefs.useScrollGesturesProperty().get())
+						return;
 		  			logger.debug("Side-to-side wheel logic. DeltaX={}",e.getDeltaX());
 					int direction = (e.getDeltaX() > 0)? 1 : -1;
 
