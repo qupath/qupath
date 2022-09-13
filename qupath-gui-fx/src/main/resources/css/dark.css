@@ -9,3 +9,7 @@
     -fx-control-inner-background:  rgb(45, 48, 50);
     -fx-light-text-color: rgb(200, 200, 200);
 }
+
+.text-input {  
+    -fx-prompt-text-fill: derive(-fx-control-inner-background, 70%) !important;
+}
