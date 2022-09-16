@@ -540,7 +540,7 @@ public class JavadocViewer {
 					throw new IOException("Unable to find index file " + file);
 			} else if (Files.isRegularFile(baseDir)) {
 				// Attempt to handle zip and jar files, with the help of a ZipFileSystem
-				var fs = FileSystems.newFileSystem(baseDir);
+				var fs = FileSystems.newFileSystem(baseDir, (ClassLoader)null);
 				var file = fs.getPath("/" + indexName);
 				return parseJavadocSearchItems(file, cls);			
 			} else
