@@ -93,6 +93,7 @@ import javafx.stage.Stage;
 import javafx.util.Callback;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.ActionTools;
+import qupath.lib.gui.JavadocViewer;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.Dialogs.DialogButton;
@@ -213,6 +214,8 @@ public class DefaultScriptEditor implements ScriptEditor {
 	
 	private Action zapGremlinsAction = createReplaceTextAction("Zap gremlins", GeneralTools::zapGremlins, true);
 	private Action replaceQuotesAction = createReplaceTextAction("Replace curly quotes", GeneralTools::replaceCurlyQuotes, true);
+	
+	private Action showJavadocsAction = ActionTools.createAction(() -> JavadocViewer.getInstance().getStage().show(), "Show Javadocs");
 	
 	protected Action runScriptAction;
 	protected Action runSelectedAction;
@@ -696,6 +699,13 @@ public class DefaultScriptEditor implements ScriptEditor {
 				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(clearCache, "Clear cache (batch processing)"))
 				);
 		menubar.getMenus().add(menuRun);
+		
+		// Help menu
+		Menu menuHelp = new Menu("Help");
+		MenuTools.addMenuItems(menuHelp,
+				showJavadocsAction
+				);
+		menubar.getMenus().add(menuHelp);
 
 		// File list
 		BorderPane panelList = new BorderPane();
