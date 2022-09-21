@@ -112,16 +112,18 @@ This is a work-in-progress.
 ### Dependency updates
 * Adoptium OpenJDK 17
 * Bio-Formats 6.10.1
-* JavaFX 18.0.2
+* JavaFX 19.0.0
 * Java Topology Suite 1.19.0
-* Groovy 4.0.4
+* Groovy 4.0.5
 * Gson 2.9.1
 * Guava 31.1
 * ikonli 12.3.1
 * JavaCPP 1.5.7
 * JFreeSVG 5.0.3
+* Logback 1.3.1
 * OpenCV 4.5.5
 * Picocli 4.6.3
+* SLF4J 2.0.0
 
 
 ## Version 0.3.2
