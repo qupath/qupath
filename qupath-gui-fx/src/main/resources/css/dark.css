@@ -17,7 +17,7 @@
 
 /*Expandable component text*/
 .dialog-pane > .button-bar > .container > .details-button {
-    -fx-text-fill:-fx-light-text-color;
+    -fx-text-fill:-fx-text-background-color;
 }
 
 /*Expandable component icon*/
