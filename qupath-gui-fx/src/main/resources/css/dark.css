@@ -10,6 +10,17 @@
     -fx-light-text-color: rgb(200, 200, 200);
 }
 
+/*Input prompt text colour*/
 .text-input {  
     -fx-prompt-text-fill: derive(-fx-control-inner-background, 70%) !important;
+}
+
+/*Expandable component text*/
+.dialog-pane > .button-bar > .container > .details-button {
+    -fx-text-fill:-fx-light-text-color;
+}
+
+/*Expandable component icon*/
+.dialog-pane > .button-bar > .container > * > .image-view {
+    -fx-blend-mode: soft-light;
 }
