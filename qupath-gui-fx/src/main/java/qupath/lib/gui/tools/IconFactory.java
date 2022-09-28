@@ -37,6 +37,8 @@ import org.slf4j.LoggerFactory;
 
 import javafx.beans.binding.Bindings;
 import javafx.beans.value.ObservableIntegerValue;
+import javafx.css.StyleOrigin;
+import javafx.css.StyleableObjectProperty;
 import javafx.scene.Node;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.ClosePath;
@@ -141,7 +143,7 @@ public class IconFactory {
 									;
 		
 		private String code;
-		private javafx.scene.paint.Color color = javafx.scene.paint.Color.GRAY;
+		private javafx.scene.paint.Color color;// = javafx.scene.paint.Color.GRAY;
 		private ObservableIntegerValue observableColor;
 		
 		PathIcons(String code) {
@@ -164,6 +166,7 @@ public class IconFactory {
 		
 		private Glyph createGlyph(int size) {
 			Glyph g = icoMoon.create(getCode()).size(size);
+			g.getStyleClass().add("qupath-icon");
 			if (observableColor == null || observableColor.getValue() == null) {
 				if (color != null)
 					g.color(color);
@@ -174,12 +177,7 @@ public class IconFactory {
 					return ColorToolsFX.getCachedColor(observableColor.get());
 				}, observableColor));
 			}
-//				observableColor.addListener((v, o, n) -> {
-//					if (n != null) {
-//						g.setTextFill(ColorToolsFX.getCachedColor(n.intValue()));
-//					}
-//				});
-			return g;
+			return new DuplicatableGlyph(g);
 		}
 		
 	};
@@ -197,7 +195,19 @@ public class IconFactory {
 			setFontFamily(glyph.getFontFamily());
 	        setIcon(glyph.getIcon());
 	        setFontSize(glyph.getFontSize());
-	        textFillProperty().bind(glyph.textFillProperty());
+	        getStyleClass().setAll(glyph.getStyleClass());
+	        
+	        setStyle(glyph.getStyle());
+
+	        // Be careful with setting the text fill, since an apparent controlsfx bug means this 
+	        // can be locked to become black.
+	        // Here, we check if it's a bound property; if so we use that.
+	        // Otherwise, we only set the value if the StyleOrigin is USER (otherwise we let the default be used)
+	        var textFill = glyph.textFillProperty();
+	        if (textFill.isBound())
+	        	textFillProperty().bind(glyph.textFillProperty());
+	        else if (textFill instanceof StyleableObjectProperty<?> && ((StyleableObjectProperty<?>)textFill).getStyleOrigin() == StyleOrigin.USER)
+	        	setTextFill(textFill.get());
 		}
 		
 		@Override

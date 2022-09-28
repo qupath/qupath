@@ -1,8 +1,11 @@
 /*
-* See https://tomsondev.bestsolution.at/2014/03/13/eclipse-on-javafx-get-dark-the-power-of-javafx-css/
-* 
-* Improvements welcome...
-*/
+ * QuPath's default dark mode.
+ * Should be applied after main.css.
+ *
+ * See https://tomsondev.bestsolution.at/2014/03/13/eclipse-on-javafx-get-dark-the-power-of-javafx-css/
+ * for some useful info about JavaFX styling via CSS.
+ * 
+ */
 .root {
     -fx-base: rgb(45, 48, 50);
     -fx-background: rgb(45, 48, 50);
@@ -10,17 +13,17 @@
     -fx-light-text-color: rgb(200, 200, 200);
 }
 
-/*Input prompt text colour*/
+/* Input prompt text colour */
 .text-input {  
     -fx-prompt-text-fill: derive(-fx-control-inner-background, 70%) !important;
 }
 
-/*Expandable component text*/
+/* Expandable dialog text */
 .dialog-pane > .button-bar > .container > .details-button {
-    -fx-text-fill:-fx-text-background-color;
+    -fx-text-fill: -fx-text-background-color;
 }
 
-/*Expandable component icon*/
+/* Expandable dialog icon */
 .dialog-pane > .button-bar > .container > * > .image-view {
     -fx-blend-mode: soft-light;
 }

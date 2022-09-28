@@ -40,7 +40,6 @@ import org.controlsfx.control.PropertySheet.Mode;
 import org.controlsfx.control.SearchableComboBox;
 import org.controlsfx.property.editor.AbstractPropertyEditor;
 import org.controlsfx.property.editor.DefaultPropertyEditorFactory;
-import org.controlsfx.property.editor.Editors;
 import org.controlsfx.property.editor.PropertyEditor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -865,17 +864,18 @@ public class PreferencePane {
 	
 	
 	/**
-	 * Editor for selecting directory paths.
-	 * 
-	 * Appears as a text field that can be double-clicked to launch a directory chooser.
-	 * Note: This may fire too many events, see https://github.com/controlsfx/controlsfx/issues/1413
+	 * Editor for choosing from a longer list of items, aided by a searchable combo box.
 	 * @param <T> 
 	 */
 	static class SearchableChoiceEditor<T> extends AbstractPropertyEditor<T, SearchableComboBox<T>> {
 
 		public SearchableChoiceEditor(Item property, Collection<? extends T> choices) {
+			this(property, FXCollections.observableArrayList(choices));
+		}
+
+		public SearchableChoiceEditor(Item property, ObservableList<T> choices) {
 			super(property, new SearchableComboBox<T>());
-			getEditor().getItems().setAll(choices);
+			getEditor().setItems(choices);
 		}
 
 		@Override
@@ -890,9 +890,39 @@ public class PreferencePane {
 			return getEditor().getSelectionModel().selectedItemProperty();
 		}
 		
-		
+	}
+	
+	/**
+	 * Editor for choosing from a combo box, which will use an observable list directly if it can 
+	 * (which differs from ControlsFX's default behavior).
+	 *
+	 * @param <T>
+	 */
+	static class ChoiceEditor<T> extends AbstractPropertyEditor<T, ComboBox<T>> {
+
+		public ChoiceEditor(Item property, Collection<? extends T> choices) {
+			this(property, FXCollections.observableArrayList(choices));
+		}
+
+		public ChoiceEditor(Item property, ObservableList<T> choices) {
+			super(property, new ComboBox<T>());
+			getEditor().setItems(choices);
+		}
+
+		@Override
+		public void setValue(T value) {
+			// Only set the value if it's available as a choice
+			if (getEditor().getItems().contains(value))
+				getEditor().getSelectionModel().select(value);
+		}
+
+		@Override
+		protected ObservableValue<T> getObservableValue() {
+			return getEditor().getSelectionModel().selectedItemProperty();
+		}
 		
 	}
+	
 	
 	// We want to reformat the display of these to avoid using all uppercase
 	private static Map<Class<?>, Function<?, String>> reformatTypes = Map.of(
@@ -930,7 +960,9 @@ public class PreferencePane {
 				if (choiceItem.makeSearchable()) {
 					editor = new SearchableChoiceEditor<>(choiceItem, choiceItem.getChoices());
 				} else
-					editor = Editors.createChoiceEditor(item, choiceItem.getChoices());
+					// Use this rather than Editors because it wraps an existing ObservableList where available
+					editor = new ChoiceEditor<>(choiceItem, choiceItem.getChoices());
+//					editor = Editors.createChoiceEditor(item, choiceItem.getChoices());
 			} else
 				editor = super.call(item);
 			

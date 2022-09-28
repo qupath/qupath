@@ -737,7 +737,8 @@ public class PathPrefs {
 	
 	/**
 	 * Get the path to where extensions should be stored. This depends upon {@link #userPathProperty()}.
-	 * @return
+	 * @return the path if available, or null if {@link #getUserPath()} returns null
+	 * @implSpec a non-null return value does not guarantee that the path exists, rather it just represents the expected extensions directory.
 	 */
 	public static String getExtensionsPath() {
 		String userPath = getUserPath();
@@ -747,8 +748,22 @@ public class PathPrefs {
 	}
 	
 	/**
+	 * Get the path to where user directory for storing CSS styles. This depends upon {@link #userPathProperty()}.
+	 * @return the path if available, or null if {@link #getUserPath()} returns null
+	 * @implSpec a non-null return value does not guarantee that the path exists, rather it just represents the expected CSS directory.
+	 * @since v0.4.0
+	 */
+	public static String getCssStylesPath() {
+		String userPath = getUserPath();
+		if (userPath == null)
+			return null;
+		return new File(userPath, "css").getAbsolutePath();
+	}
+	
+	/**
 	 * Get the path to where log files should be written. This depends upon {@link #userPathProperty()}.
-	 * @return
+	 * @return the path if available, or null if {@link #getUserPath()} returns null
+	 * @implSpec a non-null return value does not guarantee that the path exists, rather it just represents the expected log file directory.
 	 */
 	public static String getLoggingPath() {
 		String userPath = getUserPath();
