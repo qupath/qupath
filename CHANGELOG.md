@@ -11,6 +11,7 @@ This is a work-in-progress.
   * All objects can now have IDs
     * This aims to make it much easier to match up objects whenever some further analysis is done elsewhere (e.g. classification or clustering in Python or R)
     * See https://github.com/qupath/qupath/pull/959
+* Support user styling via CSS (https://github.com/qupath/qupath/pull/1063)
 * Many script editor improvements, including:
   * Syntax highlighting for Markdown, JSON and XML documents
   * Added 'Replace/Next' and 'Replace all' features to Find window (https://github.com/qupath/qupath/pull/898)

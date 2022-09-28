@@ -1458,19 +1458,6 @@ public class QuPathGUI {
 			return Paths.get(System.getProperty("user.home"), "QuPath").toFile();
 	}
 	
-	
-	
-	/**
-	 * Check if extensions can be installed.
-	 * 
-	 * Generally, extensions can only be added if running from within a jar.
-	 * 
-	 * @return
-	 */
-	public boolean canInstallExtensions() {
-		return true;
-	}
-		
 	/**
 	 * Get the directory containing the QuPath code
 	 * @return {@link File} object representing the code directory, or null if this cannot be determined
@@ -1679,6 +1666,7 @@ public class QuPathGUI {
 	 * @param showNotification if true, display a notification if a new extension has been loaded
 	 */
 	public void refreshExtensions(final boolean showNotification) {
+		
 		boolean initializing = initializingMenus.get();
 		initializingMenus.set(true);
 		
@@ -1767,56 +1755,13 @@ public class QuPathGUI {
 			logger.debug("No extensions to install!");
 			return;
 		}
-		if (!canInstallExtensions()) {
-			Dialogs.showErrorMessage("Install extension", "Cannot install extensions when not running QuPath from a .jar file (application), sorry!");
-			return;
-		}
+
 		File dir = getExtensionDirectory();
 		if (dir == null || !dir.isDirectory()) {
 			logger.info("No extension directory found!");
-			// Prompt to create an extensions directory
-			File dirDefault = getDefaultQuPathUserDirectory();
-			String msg;
-			if (dirDefault.exists()) {
-				msg = dirDefault.getAbsolutePath() + " already exists.\n" +
-						"Do you want to use this default, or specify another directory?";
-			} else {
-				msg = String.format("Do you want to create a new user directory at %s?\n",
-						dirDefault.getAbsolutePath());
-			}
-			
-			Dialog<ButtonType> dialog = new Dialog<>();
-			dialog.initOwner(getStage());
-
-			ButtonType btUseDefault = new ButtonType("Use default", ButtonData.YES);
-			ButtonType btChooseDirectory = new ButtonType("Choose directory", ButtonData.NO);
-			ButtonType btCancel = new ButtonType("Cancel", ButtonData.CANCEL_CLOSE);
-			dialog.getDialogPane().getButtonTypes().setAll(btUseDefault, btChooseDirectory, btCancel);
-
-			dialog.setHeaderText(null);
-			dialog.setTitle("Choose extensions directory");
-			dialog.setHeaderText("No user directory set.");
-			dialog.setContentText(msg);
-			Optional<ButtonType> result = dialog.showAndWait();
-			if (!result.isPresent() || result.get() == btCancel) {
-				logger.info("No extension directory set - extensions not installed");
+			var dirUser = requestUserDirectory(true);
+			if (dirUser == null)
 				return;
-			}
-			if (result.get() == btUseDefault) {
-				if (!dirDefault.exists() && !dirDefault.mkdirs()) {
-					Dialogs.showErrorMessage("Extension error", "Unable to create directory at \n" + dirDefault.getAbsolutePath());
-					return;
-				}
-				PathPrefs.userPathProperty().set(dirDefault.getAbsolutePath());
-			} else {
-				File dirUser = Dialogs.promptForDirectory("Set user directory", dirDefault);
-				if (dirUser == null) {
-					logger.info("No QuPath user directory set - extensions not installed");
-					return;
-				}
-				PathPrefs.userPathProperty().set(dirUser.getAbsolutePath());
-			}
-			// Now get the extensions directory (within the user directory)
 			dir = getExtensionDirectory();
 		}
 		// Create directory if we need it
@@ -1844,6 +1789,135 @@ public class QuPathGUI {
 		}
 		refreshExtensions(true);
 	}
+	
+	
+    /**
+     * Handle installing CSS files (which can be used to style QuPath).
+     * @param list list of css files
+     * @return
+     */
+	public boolean installStyles(final Collection<File> list) {
+		var dir = requestUserDirectory(true);
+		if (dir == null)
+			return false;
+		
+		var pathCssString = PathPrefs.getCssStylesPath();
+		
+		int nInstalled = 0;
+		try {
+			// If we have a user directory, add a CSS subdirectory if needed
+			var pathCss = Paths.get(pathCssString);
+			if (!Files.exists(pathCss)) {
+				if (Files.isDirectory(pathCss.getParent()))
+					Files.createDirectory(pathCss);
+			}
+			// If we still don't have a css directory, return
+			if (!Files.isDirectory(pathCss))
+				return false;
+			
+			// Copy over the files
+			Boolean overwriteExisting = null;
+			for (var file : list) {
+				if (!file.getName().toLowerCase().endsWith(".css")) {
+					logger.warn("Cannot install style for {} - not a .css file!", file);
+					continue;
+				}
+				var source = file.toPath();
+				var target = pathCss.resolve(file.getName());
+				if (Objects.equals(source, target)) {
+					logger.warn("Can't copy CSS - source and target files are the same!");
+					continue;
+				}
+				if (Files.exists(target)) {
+					// Check if we want to overwrite - if so, retain the response so we don't 
+					// have to prompt multiple times if there are multiple files
+					if (overwriteExisting == null) {
+						var response = Dialogs.showYesNoCancelDialog("Install CSS", "Do you want to overwrite existing CSS files?");
+						if (response == DialogButton.YES)
+							overwriteExisting = Boolean.TRUE;
+						else if (response == DialogButton.NO)
+							overwriteExisting = Boolean.FALSE;
+						else // cancelled
+							return false;
+					}
+					// Skip
+					if (!overwriteExisting)
+						continue;
+				}
+				logger.info("Copying {} -> {}", source, target);
+				Files.copy(source, target, StandardCopyOption.REPLACE_EXISTING);	
+				nInstalled++;
+			}
+		} catch (IOException e) {
+			logger.error("Exception installing CSS files: " + e.getLocalizedMessage(), e);
+			return false;
+		}
+		if (nInstalled > 0)
+			QuPathStyleManager.updateAvailableStyles();
+		return true;
+	}
+	
+	
+	/**
+	 * Request the current user directory, optionally prompting the user to request a director if none is available.
+	 * @param promptIfMissing 
+	 * @return
+	 */
+	public File requestUserDirectory(boolean promptIfMissing) {
+		
+		var pathUser = PathPrefs.getUserPath();
+		var dir = pathUser == null ? null : new File(pathUser);
+		if (dir != null && dir.isDirectory())
+			return dir;
+		
+		if (!promptIfMissing)
+			return null;
+		
+		// Prompt to create an extensions directory
+		File dirDefault = getDefaultQuPathUserDirectory();
+		String msg;
+		if (dirDefault.exists()) {
+			msg = dirDefault.getAbsolutePath() + " already exists.\n" +
+					"Do you want to use this default, or specify another directory?";
+		} else {
+			msg = String.format("Do you want to create a new user directory at %s?\n",
+					dirDefault.getAbsolutePath());
+		}
+		
+		ButtonType btUseDefault = new ButtonType("Use default", ButtonData.YES);
+		ButtonType btChooseDirectory = new ButtonType("Choose directory", ButtonData.NO);
+		ButtonType btCancel = new ButtonType("Cancel", ButtonData.CANCEL_CLOSE);
+		
+		var result = Dialogs.builder()
+			.title("Choose user directory")
+			.headerText("No user directory set")
+			.contentText(msg)
+			.buttons(btUseDefault, btChooseDirectory, btCancel)
+			.showAndWait()
+			.orElse(btCancel);
+			
+		if (result == btCancel) {
+			logger.info("Dialog cancelled - no user directory set");
+			return null;
+		}
+		if (result == btUseDefault) {
+			if (!dirDefault.exists() && !dirDefault.mkdirs()) {
+				Dialogs.showErrorMessage("Extension error", "Unable to create directory at \n" + dirDefault.getAbsolutePath());
+				return null;
+			}
+			dir = dirDefault;
+		} else {
+			File dirUser = Dialogs.promptForDirectory("Set user directory", dirDefault);
+			if (dirUser == null) {
+				logger.info("No QuPath user directory set!");
+				return null;
+			}
+			dir = dirUser;
+		}
+		PathPrefs.userPathProperty().set(dir.getAbsolutePath());
+		return dir;
+	}
+	
 	
 	
 	/**

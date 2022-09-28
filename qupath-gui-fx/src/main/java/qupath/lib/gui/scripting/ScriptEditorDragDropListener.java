@@ -62,7 +62,7 @@ public class ScriptEditorDragDropListener implements EventHandler<DragEvent> {
 				return;
 			
 			List<File> jars = list.stream().filter(f -> f.getName().toLowerCase().endsWith(".jar")).collect(Collectors.toList());
-			if (!jars.isEmpty() && qupath.canInstallExtensions())
+			if (!jars.isEmpty())
 				qupath.installExtensions(list);
 			List<File> remainingFiles = list.stream().filter(f -> !f.getName().toLowerCase().endsWith(".jar")).collect(Collectors.toList());
 			var supported = ScriptLanguageProvider.getAvailableScriptLanguages().stream().flatMap(l -> Arrays.stream(l.getExtensions())).collect(Collectors.toCollection(HashSet::new));

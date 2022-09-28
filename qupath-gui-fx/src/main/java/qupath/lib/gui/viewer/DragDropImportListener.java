@@ -26,6 +26,8 @@ package qupath.lib.gui.viewer;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -52,6 +54,7 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.ProjectCommands;
 import qupath.lib.gui.dialogs.Dialogs;
+import qupath.lib.gui.dialogs.Dialogs.DialogButton;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.scripting.ScriptEditor;
 import qupath.lib.gui.tma.TMADataIO;
@@ -275,17 +278,23 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 			return;
 		}
 		
-		// Check if we have only jar files
+		// Check if we have only jar or css files
 		int nJars = 0;
+		int nCss = 0;
 		for (File file : list) {
-			if (file.getName().toLowerCase().endsWith(".jar"))
+			var ext = GeneralTools.getExtension(file).orElse("").toLowerCase();
+			if (ext.equals(".jar"))
 				nJars++;
+			else if (ext.equals(".css"))
+				nCss++;
 		}
 		if (nJars == list.size()) {
-			if (qupath.canInstallExtensions())
-				qupath.installExtensions(list);
-			else
-				Dialogs.showErrorMessage("Install extensions", "Sorry, extensions can only be installed when QuPath is run as a standalone application.");
+			qupath.installExtensions(list);
+			return;
+		}
+		// Handle installing CSS files (styles)
+		if (nCss == list.size()) {
+			qupath.installStyles(list);
 			return;
 		}
 		
@@ -504,6 +513,8 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 		else
 			Dialogs.showErrorMessage("Drag & drop", "Sorry, I couldn't figure out what to do with " + list.get(0).getName());
 	}
+    
+        
     
     
     /**

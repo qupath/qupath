@@ -717,13 +717,21 @@ public class PathPrefs {
 	}
 		
 	
-	private static StringProperty userPath = createPersistentPreference("userPath", (String)null); // Base directory containing extensions
+	private static ObjectProperty<String> userPath = createPersistentPreference("userPath", (String)null, PathPrefs::blankStringToNull, PathPrefs::blankStringToNull); // Base directory containing extensions
 
+	
+	private static String blankStringToNull(String input) {
+		if (input == null)
+			return null;
+		return input.isBlank() ? null : input;
+	}
+	
+	
 	/**
 	 * A path where additional files may be stored, such as extensions and log files.
 	 * @return
 	 */
-	public static StringProperty userPathProperty() {
+	public static ObjectProperty<String> userPathProperty() {
 		return userPath;
 	}
 	
@@ -737,7 +745,8 @@ public class PathPrefs {
 	
 	/**
 	 * Get the path to where extensions should be stored. This depends upon {@link #userPathProperty()}.
-	 * @return
+	 * @return the path if available, or null if {@link #getUserPath()} returns null
+	 * @implSpec a non-null return value does not guarantee that the path exists, rather it just represents the expected extensions directory.
 	 */
 	public static String getExtensionsPath() {
 		String userPath = getUserPath();
@@ -747,8 +756,22 @@ public class PathPrefs {
 	}
 	
 	/**
+	 * Get the path to where user directory for storing CSS styles. This depends upon {@link #userPathProperty()}.
+	 * @return the path if available, or null if {@link #getUserPath()} returns null
+	 * @implSpec a non-null return value does not guarantee that the path exists, rather it just represents the expected CSS directory.
+	 * @since v0.4.0
+	 */
+	public static String getCssStylesPath() {
+		String userPath = getUserPath();
+		if (userPath == null)
+			return null;
+		return new File(userPath, "css").getAbsolutePath();
+	}
+	
+	/**
 	 * Get the path to where log files should be written. This depends upon {@link #userPathProperty()}.
-	 * @return
+	 * @return the path if available, or null if {@link #getUserPath()} returns null
+	 * @implSpec a non-null return value does not guarantee that the path exists, rather it just represents the expected log file directory.
 	 */
 	public static String getLoggingPath() {
 		String userPath = getUserPath();
@@ -1641,7 +1664,9 @@ public class PathPrefs {
 				getUserPreferences().remove(name);
 			else {
 				var string = serializer.apply(n);
-				if (string.length() > Preferences.MAX_VALUE_LENGTH)
+				if (string == null) {
+					getUserPreferences().remove(name);
+				} else if (string.length() > Preferences.MAX_VALUE_LENGTH)
 					logger.warn("Unable to set preference {} to {} - String representation exceeds maximum length ({})", name, n, Preferences.MAX_VALUE_LENGTH);
 				else
 					getUserPreferences().put(name, string);
