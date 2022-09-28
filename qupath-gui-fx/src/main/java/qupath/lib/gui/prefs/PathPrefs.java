@@ -717,13 +717,21 @@ public class PathPrefs {
 	}
 		
 	
-	private static StringProperty userPath = createPersistentPreference("userPath", (String)null); // Base directory containing extensions
+	private static ObjectProperty<String> userPath = createPersistentPreference("userPath", (String)null, PathPrefs::blankStringToNull, PathPrefs::blankStringToNull); // Base directory containing extensions
 
+	
+	private static String blankStringToNull(String input) {
+		if (input == null)
+			return null;
+		return input.isBlank() ? null : input;
+	}
+	
+	
 	/**
 	 * A path where additional files may be stored, such as extensions and log files.
 	 * @return
 	 */
-	public static StringProperty userPathProperty() {
+	public static ObjectProperty<String> userPathProperty() {
 		return userPath;
 	}
 	
@@ -1656,7 +1664,9 @@ public class PathPrefs {
 				getUserPreferences().remove(name);
 			else {
 				var string = serializer.apply(n);
-				if (string.length() > Preferences.MAX_VALUE_LENGTH)
+				if (string == null) {
+					getUserPreferences().remove(name);
+				} else if (string.length() > Preferences.MAX_VALUE_LENGTH)
 					logger.warn("Unable to set preference {} to {} - String representation exceeds maximum length ({})", name, n, Preferences.MAX_VALUE_LENGTH);
 				else
 					getUserPreferences().put(name, string);

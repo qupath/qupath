@@ -168,21 +168,8 @@ public class QuPathStyleManager {
 		
 		/**
 		 * Add custom user styles, if available.
-		 * We need to do this before setting the default (since the last used style might be one of these)
+		 * We need to do this before setting the default (since the last used style might be one of these).
 		 */
-		try {
-			var cssPathString = PathPrefs.getCssStylesPath();
-			if (cssPathString != null) {
-				var cssPath = Paths.get(cssPathString);
-				watcher = new CssStylesWatcher(cssPath);
-				watcher.styles.addListener((Change<? extends StyleOption> c) -> {
-					updateAvailableStyles();
-				});
-			}
-		} catch (Exception e) {
-			logger.warn("Exception searching for css files: " + e.getLocalizedMessage(), e);
-		}
-
 		updateAvailableStyles();
 		selectedStyle = PathPrefs.createPersistentPreference("qupathStylesheet", DEFAULT_STYLE, s -> s.getName(), QuPathStyleManager::findByName);
 		
@@ -212,7 +199,33 @@ public class QuPathStyleManager {
 		}
 	}
 	
-	private static void updateAvailableStyles() {
+	/**
+	 * Request that the list of available styles is updated.
+	 * It makes sense to call this when a new user directory has been set, so that a check for CSS files 
+	 * can be performed.
+	 */
+	public static void updateAvailableStyles() {
+		
+		// Make sure we're still watching the correct directory for custom styles
+		var cssPathString = PathPrefs.getCssStylesPath();
+		if (cssPathString != null) {
+			// Create a new watcher if needed, or else check the CSS path is still correct
+			var cssPath = Paths.get(cssPathString);
+			if (watcher == null) {
+				try {
+					watcher = new CssStylesWatcher(cssPath);
+					watcher.styles.addListener((Change<? extends StyleOption> c) -> {
+						updateAvailableStyles();
+					});
+				} catch (Exception e) {
+					logger.warn("Exception searching for css files: " + e.getLocalizedMessage(), e);
+				}
+			} else if (!Objects.equals(watcher.cssPath, cssPath)) {
+				watcher.setCssPath(cssPath);
+			}
+		}
+		
+		
 		// Cache the current selection, since it could become lost during the update
 		var previouslySelected = selectedStyle == null ? null : selectedStyle.get();
 		
