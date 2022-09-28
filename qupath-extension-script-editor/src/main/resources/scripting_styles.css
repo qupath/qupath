@@ -46,7 +46,7 @@
 
 
 .md {
-    -fx-fill: -qp-script-text-color:
+    -fx-fill: -qp-script-text-color;
     -fx-font-family: sans-serif;
 }
 .md.h1 {
@@ -88,7 +88,7 @@
 	-fx-font-family: monospace;
 }
 .md.quote {
-	-fx-fill: -qp-script-comment-color:
+	-fx-fill: -qp-script-comment-color;
 }
 .md.image {
 	-fx-fill: -qp-script-attribute-color;
@@ -99,20 +99,20 @@
 }
 
 .xml.body {
-	-fx-fill: -qp-script-text-color:
+	-fx-fill: -qp-script-text-color;
 }
 .xml.attribute {
 	-fx-fill: -qp-script-attribute-color;
 }
 .xml.tagmark {
-	-fx-fill: -qp-script-text-color:
+	-fx-fill: -qp-script-text-color;
 }
 .xml.anytag {
-	-fx-fill: -qp-script-tag-color:;
+	-fx-fill: -qp-script-tag-color;
 }
 .xml.avalue {
 	-fx-fill: -qp-script-string-color;
 }
 .xml.comment {
-    -fx-fill: -qp-script-comment-color:
+    -fx-fill: -qp-script-comment-color;
 }
