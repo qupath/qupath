@@ -49,6 +49,8 @@ import java.util.stream.Collectors;
 import javax.swing.SwingUtilities;
 
 import org.controlsfx.control.CheckComboBox;
+import org.controlsfx.control.ListSelectionView;
+import org.controlsfx.glyphfont.Glyph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -62,6 +64,8 @@ import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableValue;
+import javafx.css.StyleOrigin;
+import javafx.css.StyleableObjectProperty;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.geometry.Side;
 import javafx.scene.Node;
@@ -233,6 +237,84 @@ public class GuiTools {
 		}
 		return false;
 	}
+	
+	
+	/**
+	 * Create a new {@link ListSelectionView}.
+	 * This should be used instead of simply calling the constructor whenever the {@link ListSelectionView}
+	 * is expected to respond well to styles, since ControlsFX's default will stubbornly use black arrows 
+	 * to move between source and target lists.
+	 * @param <T>
+	 * @return
+	 * @since v0.4.0
+	 * @see #ensureDuplicatableGlyph(Glyph)
+	 */
+	public static <T> ListSelectionView<T> createListSelectionView() {
+		var listSelectionView = new ListSelectionView<T>();
+		
+		for (var action : listSelectionView.getActions()) {
+			var graphic = action.getGraphic();
+			if (graphic instanceof Glyph) {
+				action.graphicProperty().unbind();
+				action.setGraphic(ensureDuplicatableGlyph((Glyph)graphic));
+			}
+		}
+		
+		return listSelectionView;
+	}
+	
+	
+	/**
+	 * Ensure that a {@link Glyph} is 'duplicatable', without losing its key properties.
+	 * This is needed to have glyphs that behave well with css styles. 
+	 * ControlsFX's default implementation tends to lose the fill color otherwise.
+	 * @param glyph
+	 * @return
+	 * @since v0.4.0
+	 */
+	public static Glyph ensureDuplicatableGlyph(Glyph glyph) {
+		if (glyph instanceof DuplicatableGlyph)
+			return glyph;
+		return new DuplicatableGlyph(glyph);
+	}
+	
+	
+	/**
+	 * This exists because Glyph.duplicate() does not bind to fill color changes.
+	 * The duplicate method is called each time a new GUI component is created, because the same node 
+	 * cannot appear more than once in the scene graph.
+	 */
+	private static class DuplicatableGlyph extends Glyph {
+		
+		DuplicatableGlyph(Glyph glyph) {
+			super();
+			setText(glyph.getText());
+			setFontFamily(glyph.getFontFamily());
+	        setIcon(glyph.getIcon());
+	        setFontSize(glyph.getFontSize());
+	        getStyleClass().setAll(glyph.getStyleClass());
+	        
+	        setStyle(glyph.getStyle());
+
+	        // Be careful with setting the text fill, since an apparent ControlsFX bug means this 
+	        // can be locked to become black.
+	        // Here, we check if it's a bound property; if so we use that.
+	        // Otherwise, we only set the value if the StyleOrigin is USER (otherwise we let the default be used)
+	        var textFill = glyph.textFillProperty();
+	        if (textFill.isBound())
+	        	textFillProperty().bind(glyph.textFillProperty());
+	        else if (textFill instanceof StyleableObjectProperty<?> && ((StyleableObjectProperty<?>)textFill).getStyleOrigin() == StyleOrigin.USER)
+	        	setTextFill(textFill.get());
+		}
+		
+		@Override
+		public Glyph duplicate() {
+			return new DuplicatableGlyph(this);
+		}
+		
+	}
+	
+	
 
 	/**
 	 * Try to open a URI in a web browser.
