@@ -50,6 +50,7 @@ import qupath.lib.classifiers.object.ObjectClassifiers;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
+import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
 import qupath.lib.plugins.workflow.WorkflowStep;
@@ -80,8 +81,7 @@ public class CreateCompositeClassifierCommand implements Runnable {
 	@Override
 	public void run() {
 		
-		ListSelectionView<ClassifierWrapper<BufferedImage>> view = new ListSelectionView<>();
-		
+		ListSelectionView<ClassifierWrapper<BufferedImage>> view = GuiTools.createListSelectionView();
 		try {
 			updateAvailableClassifiers(view);
 		} catch (IOException e) {

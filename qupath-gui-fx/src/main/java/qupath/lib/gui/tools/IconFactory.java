@@ -37,8 +37,6 @@ import org.slf4j.LoggerFactory;
 
 import javafx.beans.binding.Bindings;
 import javafx.beans.value.ObservableIntegerValue;
-import javafx.css.StyleOrigin;
-import javafx.css.StyleableObjectProperty;
 import javafx.scene.Node;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.ClosePath;
@@ -172,50 +170,17 @@ public class IconFactory {
 					g.color(color);
 			} else {
 				// Respond to color changes
-				g = new DuplicatableGlyph(g);
+				g = GuiTools.ensureDuplicatableGlyph(g);
 				g.textFillProperty().bind(Bindings.createObjectBinding(() -> {
 					return ColorToolsFX.getCachedColor(observableColor.get());
 				}, observableColor));
 			}
-			return new DuplicatableGlyph(g);
+			return GuiTools.ensureDuplicatableGlyph(g);
 		}
 		
 	};
 	
-	/**
-	 * This exists because Glyph.duplicate() does not bind to fill color changes.
-	 * The duplicate method is called each time a new GUI component is created, because the same node 
-	 * cannot appear more than once in the scene graph.
-	 */
-	private static class DuplicatableGlyph extends Glyph {
-		
-		DuplicatableGlyph(Glyph glyph) {
-			super();
-			setText(glyph.getText());
-			setFontFamily(glyph.getFontFamily());
-	        setIcon(glyph.getIcon());
-	        setFontSize(glyph.getFontSize());
-	        getStyleClass().setAll(glyph.getStyleClass());
-	        
-	        setStyle(glyph.getStyle());
-
-	        // Be careful with setting the text fill, since an apparent controlsfx bug means this 
-	        // can be locked to become black.
-	        // Here, we check if it's a bound property; if so we use that.
-	        // Otherwise, we only set the value if the StyleOrigin is USER (otherwise we let the default be used)
-	        var textFill = glyph.textFillProperty();
-	        if (textFill.isBound())
-	        	textFillProperty().bind(glyph.textFillProperty());
-	        else if (textFill instanceof StyleableObjectProperty<?> && ((StyleableObjectProperty<?>)textFill).getStyleOrigin() == StyleOrigin.USER)
-	        	setTextFill(textFill.get());
-		}
-		
-		@Override
-		public Glyph duplicate() {
-			return new DuplicatableGlyph(this);
-		}
-		
-	}
+	
 	
 	/**
 	 * Create an icon depicting a PathObject.

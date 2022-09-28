@@ -50,6 +50,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.paint.Color;
 import javafx.scene.text.TextAlignment;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.projects.ProjectImageEntry;
 
@@ -74,7 +75,7 @@ public class ProjectDialogs {
 								List<ProjectImageEntry<BufferedImage>> selectedImages,
 								String openImageWarning) {
 		
-		ListSelectionView<ProjectImageEntry<BufferedImage>> listSelectionView = new ListSelectionView<>();
+		ListSelectionView<ProjectImageEntry<BufferedImage>> listSelectionView = GuiTools.createListSelectionView();
 		listSelectionView.getSourceItems().setAll(availableImages);
 //		if (selectedImages != null && !selectedImages.isEmpty()) {
 //			listSelectionView.getSourceItems().removeAll(selectedImages);
