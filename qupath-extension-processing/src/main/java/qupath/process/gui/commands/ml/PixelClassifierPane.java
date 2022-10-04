@@ -367,6 +367,7 @@ public class PixelClassifierPane {
 		pane.add(btnLive, 0, row++, pane.getColumnCount(), 1);
 		
 		pieChart = new PieChart();
+		pieChart.setAnimated(false);
 		
 //		var hierarchy = viewer.getHierarchy();
 //		Map<PathClass, List<PathObject>> map = hierarchy == null ? Collections.emptyMap() : PathClassificationLabellingHelper.getClassificationMap(hierarchy, false);

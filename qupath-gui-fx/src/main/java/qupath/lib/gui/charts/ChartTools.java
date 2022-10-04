@@ -28,6 +28,8 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
@@ -47,6 +49,7 @@ import javafx.scene.chart.XYChart.Data;
 import javafx.scene.chart.XYChart.Series;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
+import javafx.scene.control.Labeled;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.MouseEvent;
@@ -286,77 +289,79 @@ public class ChartTools {
 		public static <T> void setPieChartData(PieChart chart, Map<T, ? extends Number> counts,
 				Function<T, String> stringFun, Function<T, Color> colorFun, boolean convertToPercentages, boolean includeTooltips) {
 			
-			StringBuilder style = null;
-			if (colorFun != null)
-				style = new StringBuilder();
-	
+			// Add the counts in case we need them
 			double sum = counts.values().stream().mapToDouble(i -> i.doubleValue()).sum();
-			var newData = new ArrayList<PieChart.Data>();
-			int ind = 0;
-			var tooltips = new HashMap<PieChart.Data, Tooltip>();
+			
+			// Store a map of names & styles so we can update the legend
+			var legendStyleMap = new LinkedHashMap<String, String>();
+			
+			// Keep a reference to previous data so we can remove it later
+			var previousData = new LinkedHashSet<>(chart.getData());
+			
+			// Add each data point
 			for (Entry<T, ? extends Number> entry : counts.entrySet()) {
+				
+				// Compute name
 				var item = entry.getKey();
 				String name;
 				if (stringFun != null)
 					name = stringFun.apply(item);
 				else
 					name = Objects.toString(item);
+				
+				// Compute value
 				double value = entry.getValue().doubleValue();
 				if (convertToPercentages)
 					value = value / sum * 100.0;
 				var datum = new PieChart.Data(name, value);
-				newData.add(datum);
+				
+				// Add to the chart immediately so that we can access the node
+				chart.getData().add(datum);
+				var node = datum.getNode();
 	
-				if (style != null) {
-					var color = colorFun.apply(item);
-					if (color != null) {
-						String colorString;
-						// TODO: Use alpha?
-	//					if (color.isOpaque())
-							colorString = String.format("rgb(%d, %d, %d)", (int)(color.getRed()*255), (int)(color.getGreen()*255), (int)(color.getBlue()*255));
-	//					else
-	//						colorString = String.format("rgba(%f, %f, %f, %f)", color.getRed(), color.getGreen(), color.getBlue(), 1.0-color.getOpacity());
-						style.append(String.format(".default-color%d.chart-pie { -fx-pie-color: %s; }", ind, colorString)).append("\n");
-					}
-					ind++;
+				// Set style if we have a color
+				String styleString = "";
+				var color = colorFun.apply(item);
+				if (color != null) {
+					String colorString =
+							String.format("rgb(%d, %d, %d)", (int)(color.getRed()*255), (int)(color.getGreen()*255), (int)(color.getBlue()*255));
+					
+					// Warning! This assumes the use of modena.css, which styles using -fx-pie-color
+					styleString = String.format("-fx-pie-color: %s", colorString);
+					datum.getNode().setStyle(styleString);
 				}
-	
+				
+				// Store the style
+				var previousStyle = legendStyleMap.put(name, styleString);
+				if (previousStyle != null && !Objects.equals(styleString, previousStyle)) {
+					logger.warn("Multiple slices with the label '{}' but different colors - legend colors may be inconsistent!", name);
+				}
+
+				// Set the tooltip if needed
 				if (includeTooltips) {
-					var text = String.format("%s: %.1f%%", name, value);
-					tooltips.put(datum, new Tooltip(text));
+					String text;
+					if (convertToPercentages)
+						text = String.format("%s: %.1f%%", name, value);
+					else
+						text = String.format("%s: %.1f", name, value);
+					Tooltip.install(node, new Tooltip(text));
 				}
 			}
-	
-			if (style != null) {
-				var styleString = style.toString();
-				var sheet = piechartStyleSheets.get(styleString);
-				sheet = null;
-				if (sheet == null) {
-					try {
-						var file = File.createTempFile("chart", ".css");
-						file.deleteOnExit();
-						var writer = new PrintWriter(file);
-						writer.println(styleString);
-						writer.close();
-						sheet = file.toURI().toURL().toString();
-						piechartStyleSheets.put(styleString, sheet);
-					} catch (IOException e) {
-						logger.error("Error creating temporary piechart stylesheet", e);
-					}			
-				}
-				if (sheet != null)
-					chart.getStylesheets().setAll(sheet);
+			// Remove previous data, if needed
+			if (!previousData.isEmpty()) {
+				chart.getData().removeAll(previousData);
 			}
-	
-			chart.setAnimated(false);
-			chart.getData().setAll(newData);
-	
-			if (includeTooltips) {
-				for (var entry : tooltips.entrySet()) {
-					Tooltip.install(entry.getKey().getNode(), entry.getValue());
+
+			// Try to update the style for the legend
+			for (var item : chart.lookupAll(".chart-legend-item")) {
+				if (item instanceof Labeled) {
+					var label = (Labeled)item;
+					var style = legendStyleMap.getOrDefault(label.getText(), null);
+					if (style != null)
+						label.getGraphic().setStyle(style);
 				}
 			}
-	
+
 		}
 	
 	

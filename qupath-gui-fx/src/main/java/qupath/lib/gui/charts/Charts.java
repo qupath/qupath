@@ -47,6 +47,7 @@ import javafx.scene.chart.XYChart.Data;
 import javafx.scene.chart.XYChart.Series;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import javafx.stage.Window;
 import qupath.lib.common.ColorTools;
@@ -340,7 +341,10 @@ public class Charts {
 	public static class PieChartBuilder extends ChartBuilder<PieChartBuilder, PieChart> {
 		
 		private Map<Object, Number> data = new LinkedHashMap<>();
-		private Map<Object, Function<Object, String>> stringFun = new LinkedHashMap<>();
+		private Function<Object, String> stringFun = null;
+		
+		private boolean tooltips = true;
+		private boolean convertToPercentages = false;
 		
 		private PieChartBuilder() {
 			this.legendVisible = true;
@@ -353,7 +357,9 @@ public class Charts {
 
 		@Override
 		protected PieChart createNewChart() {
-			return new PieChart();
+			var pieChart = new PieChart();
+			pieChart.setAnimated(false); // Don't animate by default
+			return pieChart;
 		}
 		
 		@Override
@@ -375,6 +381,26 @@ public class Charts {
 		}
 		
 		/**
+		 * Request that pie chart values are converted to percentages for tooltips.
+		 * @param doConvert
+		 * @return
+		 */
+		public PieChartBuilder convertToPercentages(boolean doConvert) {
+			this.convertToPercentages = doConvert;
+			return this;
+		}
+		
+		/**
+		 * Request tooltips to be shown when the cursor hovers over the pie chart.
+		 * @param showTooltips
+		 * @return
+		 */
+		public PieChartBuilder tooltips(boolean showTooltips) {
+			this.tooltips = showTooltips;
+			return this;
+		}
+		
+		/**
 		 * Add a slice to the pie.
 		 * @param name object the slice represents
 		 * @param value number that determines the proportion of the pie for the given slice
@@ -388,48 +414,18 @@ public class Charts {
 		@Override
 		protected void updateChart(PieChart chart) {
 			super.updateChart(chart);
-			var dataMap = new LinkedHashMap<Object, PieChart.Data>();
-			double sum = 0;
-			for (var entry : data.entrySet()) {
-				var key = entry.getKey();
-				double val = entry.getValue().doubleValue();
-				sum += val;
-				
-				String str;
-				Function<Object, String> fun = stringFun.get(key);
-				if (fun == null)
-					str = key == null ? "No key" : key.toString();
-				else
-					str = fun.apply(key);
-				
-				var d = new PieChart.Data(str, val);
-				dataMap.put(key, d);
-			}
-			chart.getData().setAll(dataMap.values());
-			for (var entry : dataMap.entrySet()) {
-				var key = entry.getKey();
-				var data = entry.getValue();
-				var str = data.getName();
-				var node = data.getNode();
-				var val = this.data.get(key).doubleValue();
-				
-				String tip = String.format("%s (%.1f %%)", str, val/sum*100.0);
-				Tooltip.install(node, new Tooltip(tip));
-				
-				// Set to a meaningful color... if we have one
-				Integer rgb = null;
-				if (key instanceof PathClass)
-					rgb = ((PathClass)key).getColor();
-				else if (key instanceof PathObject)
-					rgb = ColorToolsFX.getDisplayedColorARGB((PathObject)key);
-				if (rgb != null) {
-					node.setStyle(String.format("-fx-background-color: rgb(%d, %d, %d)",
-							ColorTools.red(rgb),
-							ColorTools.green(rgb),
-							ColorTools.blue(rgb)));
-				}
-
-			}
+			ChartTools.setPieChartData(chart, data,
+					stringFun,
+					PieChartBuilder::colorExtractor, convertToPercentages, tooltips);
+		}
+		
+		static Color colorExtractor(Object key) {
+			Integer rgb = null;
+			if (key instanceof PathClass)
+				rgb = ((PathClass)key).getColor();
+			else if (key instanceof PathObject)
+				rgb = ColorToolsFX.getDisplayedColorARGB((PathObject)key);
+			return rgb == null ? null : ColorToolsFX.getCachedColor(rgb);
 		}
 		
 		
