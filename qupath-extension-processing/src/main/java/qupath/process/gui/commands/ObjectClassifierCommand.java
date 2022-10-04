@@ -1316,6 +1316,7 @@ public class ObjectClassifierCommand implements Runnable {
 			 * Training proportions (pie chart)
 			 */
 			pieChart = new PieChart();
+			pieChart.setAnimated(false);
 
 			pieChart.setLabelsVisible(false);
 			pieChart.setLegendVisible(true);

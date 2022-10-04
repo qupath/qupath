@@ -99,6 +99,7 @@ This is a work-in-progress.
 * Training a new object classifier with the same settings and annotations can give a different result when an image is reopened (https://github.com/qupath/qupath/issues/1016)
 * It isn't possible to run cell detection on channels with " in the name (https://github.com/qupath/qupath/issues/1022)
 * Fix occasional "One of the arguments' values is out of range" exception with Delaunay triangulation
+* The colors used in pie chart legends were sometimes incorrect (https://github.com/qupath/qupath/issues/1062)
 
 ### Changes through Bio-Formats 6.10.1
 * Bio-Formats 6.10.1 brings several important new features to QuPath, including:
