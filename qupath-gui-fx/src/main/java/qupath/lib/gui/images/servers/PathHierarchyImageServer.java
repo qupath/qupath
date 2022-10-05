@@ -237,7 +237,13 @@ public class PathHierarchyImageServer extends AbstractTileableImageServer implem
 		
 		// See if we have any connections to draw
 		if (connections != null) {
-			PathHierarchyPaintingHelper.paintConnections(connections, hierarchy, g2d, imageData.isFluorescence() ? ColorToolsAwt.TRANSLUCENT_WHITE : ColorToolsAwt.TRANSLUCENT_BLACK, downsampleFactor);
+			PathHierarchyPaintingHelper.paintConnections(
+					connections,
+					hierarchy,
+					g2d,
+					imageData.isFluorescence() ? ColorToolsAwt.TRANSLUCENT_WHITE : ColorToolsAwt.TRANSLUCENT_BLACK,
+					downsampleFactor,
+					tileRequest.getPlane());
 		}
 		
 		
