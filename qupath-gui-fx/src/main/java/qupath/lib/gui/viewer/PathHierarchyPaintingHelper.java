@@ -854,7 +854,7 @@ public class PathHierarchyPaintingHelper {
 			float alpha = (float)(1f - downsampleFactor / 5);
 			alpha = Math.min(alpha, 0.4f);
 			float thickness = PathPrefs.detectionStrokeThicknessProperty().get();
-			if (alpha < .1f || thickness / downsampleFactor <= 0.5)
+			if (alpha < .1f || thickness / downsampleFactor <= 0.25)
 				return;
 
 			g2d = (Graphics2D)g2d.create();
@@ -877,10 +877,7 @@ public class PathHierarchyPaintingHelper {
 			// but their connecting line intersects the bounds.
 			// However, this can be a *major* performance issue (until a spatial cache is used), so instead we expand the bounds 
 			// and hope that's enough to get all the objects we need.
-			int factor = 1;
-			Rectangle bounds2 = factor > 0 ? new Rectangle(bounds.x-bounds.width*factor, bounds.y-bounds.height*factor, bounds.width*(factor*2+1), bounds.height*(factor*2+1)) : bounds;
-			ImageRegion imageRegion = AwtTools.getImageRegion(bounds2, plane.getZ(), plane.getT());
-			var possibleObjects = hierarchy.getObjectsForRegion(PathDetectionObject.class, imageRegion, new HashSet<>());
+			ImageRegion imageRegion = AwtTools.getImageRegion(bounds, plane.getZ(), plane.getT());
 			
 			// Keep reference to visited objects, to avoid painting the same line twice
 			// (which happened in v0.3.2 and earlier)
@@ -894,9 +891,7 @@ public class PathHierarchyPaintingHelper {
 			long startTime = System.currentTimeMillis();
 			for (PathObjectConnectionGroup dt : connections.getConnectionGroups()) {
 				vistedObjects.clear();
-				for (var pathObject : dt.getPathObjects()) {
-					if (!possibleObjects.contains(pathObject))
-						continue;
+				for (var pathObject : dt.getPathObjectsForRegion(imageRegion)) {
 					
 					vistedObjects.add(pathObject);
 					ROI roi = PathObjectTools.getROI(pathObject, true);
