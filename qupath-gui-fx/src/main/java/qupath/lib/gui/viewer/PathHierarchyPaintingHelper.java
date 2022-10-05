@@ -43,8 +43,10 @@ import java.awt.geom.RectangularShape;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.WeakHashMap;
 
 import org.slf4j.Logger;
@@ -73,6 +75,7 @@ import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.TMAGrid;
 import qupath.lib.objects.hierarchy.events.PathObjectSelectionModel;
 import qupath.lib.plugins.ParallelTileObject;
+import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.roi.EllipseROI;
 import qupath.lib.roi.LineROI;
@@ -842,15 +845,16 @@ public class PathHierarchyPaintingHelper {
 		 * @param g2d
 		 * @param color
 		 * @param downsampleFactor
+		 * @param plane
 		 */
-		public static void paintConnections(final PathObjectConnections connections, final PathObjectHierarchy hierarchy, Graphics2D g2d, final Color color, final double downsampleFactor) {
+		public static void paintConnections(final PathObjectConnections connections, final PathObjectHierarchy hierarchy, Graphics2D g2d, final Color color, final double downsampleFactor, final ImagePlane plane) {
 			if (hierarchy == null || connections == null || connections.isEmpty())
 				return;
 
 			float alpha = (float)(1f - downsampleFactor / 5);
-			alpha = Math.min(alpha, 0.25f);
+			alpha = Math.min(alpha, 0.4f);
 			float thickness = PathPrefs.detectionStrokeThicknessProperty().get();
-			if (alpha < .1f || thickness / downsampleFactor <= 0.5)
+			if (alpha < .1f || thickness / downsampleFactor <= 0.25)
 				return;
 
 			g2d = (Graphics2D)g2d.create();
@@ -861,81 +865,61 @@ public class PathHierarchyPaintingHelper {
 			//		g2d.setColor(ColorToolsAwt.getColorWithOpacity(getPreferredOverlayColor(), 1));
 
 			g2d.setColor(ColorToolsAwt.getColorWithOpacity(color.getRGB(), alpha));
-//			g2d.setColor(Color.BLACK);
-			Line2D line = new Line2D.Double();
 			
-			// We can have trouble whenever two objects are outside the clip, but their connections would be inside it
-			// Here, we just enlarge the region (by quite a lot)
-			// It's not guaranteed to work, but it usually does... and avoids much expensive computations
+			// We only need to draw connections that intersect with the bounds
 			Rectangle bounds = g2d.getClipBounds();
-			int factor = 1;
-			Rectangle bounds2 = factor > 0 ? new Rectangle(bounds.x-bounds.width*factor, bounds.y-bounds.height*factor, bounds.width*(factor*2+1), bounds.height*(factor*2+1)) : bounds;
-			ImageRegion imageRegion = AwtTools.getImageRegion(bounds2, 0, 0);
-//			ImageRegion imageRegion = AwtTools.getImageRegion(bounds, 0, 0);
 
 			g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
 			g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_SPEED);
-
-//			g2d.draw(g2d.getClipBounds());
 			
-			Collection<PathObject> pathObjects = hierarchy.getObjectsForRegion(PathDetectionObject.class, imageRegion, null);
-//			Collection<PathObject> pathObjects = hierarchy.getObjects(null, PathDetectionObject.class);
-			//		double threshold = downsampleFactor*downsampleFactor*4;
-				for (PathObject pathObject : pathObjects) {
+			
+			// We need all the detections since *potentially* both ends might be outside the visible bounds, 
+			// but their connecting line intersects the bounds.
+			// However, this can be a *major* performance issue (until a spatial cache is used), so instead we expand the bounds 
+			// and hope that's enough to get all the objects we need.
+			ImageRegion imageRegion = AwtTools.getImageRegion(bounds, plane.getZ(), plane.getT());
+			
+			// Keep reference to visited objects, to avoid painting the same line twice
+			// (which happened in v0.3.2 and earlier)
+			Set<PathObject> vistedObjects = new HashSet<>();
+
+			// Reuse the line and record counts
+			Line2D line = new Line2D.Double();
+			int nDrawn = 0;
+			int nSkipped = 0;
+
+			long startTime = System.currentTimeMillis();
+			for (PathObjectConnectionGroup dt : connections.getConnectionGroups()) {
+				vistedObjects.clear();
+				for (var pathObject : dt.getPathObjectsForRegion(imageRegion)) {
+					
+					vistedObjects.add(pathObject);
 					ROI roi = PathObjectTools.getROI(pathObject, true);
 					double x1 = roi.getCentroidX();
 					double y1 = roi.getCentroidY();
-					for (PathObjectConnectionGroup dt : connections.getConnectionGroups()) {
 					for (PathObject siblingObject : dt.getConnectedObjects(pathObject)) {
+						if (vistedObjects.contains(siblingObject))
+							continue;
 						ROI roi2 = PathObjectTools.getROI(siblingObject, true);
 						double x2 = roi2.getCentroidX();
 						double y2 = roi2.getCentroidY();
 						if (bounds.intersectsLine(x1, y1, x2, y2)) {
 							line.setLine(x1, y1, x2, y2);
 							g2d.draw(line);
+							// Doesn't seem to be more efficient
+							// g2d.drawLine((int)x1, (int)y1, (int)x2, (int)y2);
+							nDrawn++;
+						} else {
+							nSkipped++;
 						}
 					}
+
 				}
 			}
-
+			long endTime = System.currentTimeMillis();
+			logger.trace("Drawn {} connections in {} ms ({} skipped)", nDrawn, endTime - startTime, nSkipped);
 			g2d.dispose();
 		}
 
-	
-//	@Override
-//	public void draw(Graphics g, Color colorStroke, Color colorFill) {
-//		if (colorStroke == null && colorFill == null)
-//			return;
-//		
-//		// Complex shapes can be very slow to draw - if we require a highly downsampled version,
-//		// then first cache a simplified version and draw that instead
-//		Graphics2D g2d = (Graphics2D)g.create();
-//		// Determine the scale (squared - no need to compute square root)
-//		AffineTransform transform = g2d.getTransform();
-//		double scaleSquared = transform.getScaleX()*transform.getScaleX() + transform.getShearX()*transform.getShearX();
-//		if (scaleSquared > 0.1*0.1) {
-//			super.draw(g, colorStroke, colorFill);
-//			return;
-//		}
-//		
-////		shapeSimplified = null;
-//		if (shapeSimplified == null) {
-//			shapeSimplified = ShapeSimplifier.simplifyPath(shape, 25);
-//		}
-//		if (colorFill != null) {
-//			g2d.setColor(colorFill);
-//			g2d.fill(shapeSimplified); 
-//		}
-//		if (colorStroke != null) {
-//			g2d.setColor(colorStroke);
-//			g2d.draw(shapeSimplified);
-//		}
-//		g2d.dispose();
-//	}
-	
-	
-//	public void draw(Graphics g, Color colorStroke, Color colorFill);
-	
-		
 	
 }

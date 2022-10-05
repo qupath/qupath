@@ -33,14 +33,19 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
+import org.locationtech.jts.geom.Envelope;
+import org.locationtech.jts.index.SpatialIndex;
+import org.locationtech.jts.index.quadtree.Quadtree;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import qupath.lib.regions.ImageRegion;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
- * Simple, default implementation of PathObjectConnectionGroup.
+ * Simple, default implementation of {@link PathObjectConnectionGroup}.
  * 
  * @author Pete Bankhead
  *
@@ -52,6 +57,8 @@ public class DefaultPathObjectConnectionGroup implements PathObjectConnectionGro
 	private static final Logger logger = LoggerFactory.getLogger(DefaultPathObjectConnectionGroup.class);
 	
 	private Map<PathObject, ObjectConnector> map = new LinkedHashMap<>();
+	
+	private transient SpatialIndex index;
 	
 	/**
 	 * Key to use when storing object connections as a property of an ImageData object.
@@ -71,11 +78,6 @@ public class DefaultPathObjectConnectionGroup implements PathObjectConnectionGro
 	public DefaultPathObjectConnectionGroup(final PathObjectConnectionGroup connections) {
 		connections.getPathObjects().stream().forEach(p -> map.put(p, new ObjectConnector(p, connections.getConnectedObjects(p))));
 	}
-	
-	private void breakConnection(final PathObject pathObject1, final PathObject pathObject2) {
-		if (map.get(pathObject1).breakConnection(pathObject2))
-			map.get(pathObject2).breakConnection(pathObject1);		
-	}
 
 	@Override
 	public Collection<PathObject> getPathObjects() {
@@ -87,21 +89,7 @@ public class DefaultPathObjectConnectionGroup implements PathObjectConnectionGro
 		ObjectConnector connector = map.get(pathObject);
 		if (connector == null)
 			return Collections.emptyList();
-		return Collections.unmodifiableList(connector.getConnections());
-	}
-	
-	
-	private void sortByDistance() {
-		for (ObjectConnector connector : map.values())
-			connector.sortConnectionsByDistance();
-	}
-	
-	private static double centroidDistance(final PathObject pathObject1, final PathObject pathObject2) {
-		return Math.sqrt(centroidDistanceSquared(pathObject1.getROI(), pathObject2.getROI()));
-	}
-	
-	private static double centroidDistance(final ROI roi1, final ROI roi2) {
-		return Math.sqrt(centroidDistanceSquared(roi1, roi2));
+		return connector.getConnections();
 	}
 	
 	private static double centroidDistanceSquared(final PathObject pathObject1, final PathObject pathObject2) {
@@ -115,6 +103,57 @@ public class DefaultPathObjectConnectionGroup implements PathObjectConnectionGro
 	}
 	
 	
+	@Override
+	public Collection<PathObject> getPathObjectsForRegion(ImageRegion region) {
+		if (index == null) {
+			synchronized(this) {
+				if (index == null)
+					index = buildIndex();
+			}
+		}
+		var envelope = getEnvelope(region);
+		return ((Collection<PathObject>)index.query(envelope))
+				.stream()
+				.filter(p -> p.getROI().getZ() == region.getZ() && p.getROI().getT() == region.getT())
+				.collect(Collectors.toSet());
+	}
+	
+	
+	private SpatialIndex buildIndex() {
+		long startTime = System.currentTimeMillis();
+		var index = new Quadtree();
+		
+		for (var entry : map.entrySet()) {
+			var pathObject = entry.getKey();
+			var envelope = getEnvelope(pathObject.getROI());
+			
+			var connector = entry.getValue();
+			if (connector != null) {
+				var connectedObjects = connector.getConnections();
+				for (var connected : connectedObjects) {
+					envelope.expandToInclude(getEnvelope(connected.getROI()));
+				}
+			}
+			
+			index.insert(envelope, pathObject);
+		}
+		long endTime = System.currentTimeMillis();
+		logger.debug("Spatial index built in {} ms", endTime - startTime);
+		return index;
+	}
+	
+	
+	private static Envelope getEnvelope(ImageRegion region) {
+		return new Envelope(region.getMinX(), region.getMaxX(), region.getMinY(), region.getMaxY());
+	}
+	
+	
+	private static Envelope getEnvelope(ROI roi) {
+		return new Envelope(roi.getBoundsX(), roi.getBoundsX() + roi.getBoundsWidth(),
+				roi.getBoundsY(), roi.getBoundsY() + roi.getBoundsHeight());
+	}
+	
+	
 	
 	
 	static class ObjectConnector implements Externalizable {
@@ -123,6 +162,8 @@ public class DefaultPathObjectConnectionGroup implements PathObjectConnectionGro
 		
 		private PathObject pathObject;
 		private List<PathObject> connections = new ArrayList<>();
+		
+		private transient List<PathObject> connectionsUnmodifiable;
 		
 		public ObjectConnector() {}
 		
@@ -149,6 +190,12 @@ public class DefaultPathObjectConnectionGroup implements PathObjectConnectionGro
 		
 		public List<PathObject> getConnections() {
 			return connections;
+		}
+		
+		public List<PathObject> getConnectionsUnmodifiable() {
+			if (connectionsUnmodifiable == null)
+				connectionsUnmodifiable = Collections.unmodifiableList(connections);
+			return connectionsUnmodifiable;
 		}
 		
 		public void sortConnectionsByDistance() {

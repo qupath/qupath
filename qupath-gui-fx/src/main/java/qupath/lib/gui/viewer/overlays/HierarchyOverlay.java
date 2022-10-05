@@ -201,7 +201,12 @@ public class HierarchyOverlay extends AbstractOverlay {
 				if (overlayOptions.getShowConnections()) {
 					Object connections = imageData.getProperty(DefaultPathObjectConnectionGroup.KEY_OBJECT_CONNECTIONS);
 					if (connections instanceof PathObjectConnections)
-							PathHierarchyPaintingHelper.paintConnections((PathObjectConnections)connections, hierarchy, g2d, imageData.isFluorescence() ? ColorToolsAwt.TRANSLUCENT_WHITE : ColorToolsAwt.TRANSLUCENT_BLACK, downsampleFactor);
+							PathHierarchyPaintingHelper.paintConnections((PathObjectConnections)connections,
+									hierarchy,
+									g2d,
+									imageData.isFluorescence() ? ColorToolsAwt.TRANSLUCENT_WHITE : ColorToolsAwt.TRANSLUCENT_BLACK,
+											downsampleFactor,
+											imageRegion.getPlane());
 				}
 				
 			} else {					

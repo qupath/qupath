@@ -100,6 +100,7 @@ This is a work-in-progress.
 * It isn't possible to run cell detection on channels with " in the name (https://github.com/qupath/qupath/issues/1022)
 * Fix occasional "One of the arguments' values is out of range" exception with Delaunay triangulation
 * The colors used in pie chart legends were sometimes incorrect (https://github.com/qupath/qupath/issues/1062)
+# Delaunay connection lines could be broken or slow to display (https://github.com/qupath/qupath/pull/1069)
 
 ### Changes through Bio-Formats 6.10.1
 * Bio-Formats 6.10.1 brings several important new features to QuPath, including:

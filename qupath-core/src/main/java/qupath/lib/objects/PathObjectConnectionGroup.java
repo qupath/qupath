@@ -25,6 +25,9 @@ package qupath.lib.objects;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.stream.Collectors;
+
+import qupath.lib.regions.ImageRegion;
 
 /**
  * Interface defining a basic structure to represent relationships between PathObjects that do not fit with  
@@ -63,5 +66,20 @@ public interface PathObjectConnectionGroup {
 	 * @return
 	 */
 	public List<PathObject> getConnectedObjects(final PathObject pathObject);
+	
+	
+	/**
+	 * Get all the objects with connections that <i>may</i> intersect the specified region.
+	 * @param region
+	 * @return 
+	 * @implNote the default implementation simply checks the z and t values of the region, and ensures they 
+	 *           match with the ROI of an object being returned. Subclasses should provide more optimized implementations.
+	 */
+	public default Collection<PathObject> getPathObjectsForRegion(ImageRegion region) {
+		return getPathObjects()
+				.stream()
+				.filter(p -> p.getROI().getZ() == region.getZ() && p.getROI().getT() == region.getT())
+				.collect(Collectors.toList());
+	}
 
 }
