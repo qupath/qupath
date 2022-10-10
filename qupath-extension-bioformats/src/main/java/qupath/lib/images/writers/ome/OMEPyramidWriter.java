@@ -884,7 +884,7 @@ public class OMEPyramidWriter {
 			
 			// Get the region request - and make sure to translate it to the origin
 			RegionRequest request = tile.getRegionRequest().translate(this.x, this.y);
-			BufferedImage img = server.readBufferedImage(request);
+			BufferedImage img = server.readRegion(request);
 			
 			var pixelType = getExportPixelType();
 			int bytesPerPixel = pixelType.getBytesPerPixel();

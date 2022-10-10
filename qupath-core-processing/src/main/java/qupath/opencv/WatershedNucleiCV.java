@@ -136,7 +136,7 @@ public class WatershedNucleiCV extends AbstractTileableDetectionPlugin<BufferedI
 					//		logger.info("BOUNDS: " + bounds);
 
 					// Read the buffered image
-					BufferedImage img = server.readBufferedImage(RegionRequest.createInstance(server.getPath(), downsample, pathROI));
+					BufferedImage img = server.readRegion(RegionRequest.createInstance(server.getPath(), downsample, pathROI));
 
 					// Extract the color deconvolved channels
 					// TODO: Support alternative stain vectors

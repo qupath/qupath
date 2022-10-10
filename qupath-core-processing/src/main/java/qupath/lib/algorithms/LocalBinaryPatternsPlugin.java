@@ -183,7 +183,7 @@ public class LocalBinaryPatternsPlugin extends AbstractInteractivePlugin<Buffere
 //		System.out.println(bounds);
 //		System.out.println("Size: " + size);
 
-		BufferedImage img = server.readBufferedImage(region);
+		BufferedImage img = server.readRegion(region);
 
 //		System.out.println("Image size: " + img.getWidth() + " x " + img.getHeight() + " pixels");
 

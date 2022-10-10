@@ -418,7 +418,7 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 		try {
 			// Last resort... shouldn't happen
 			logger.warn("Fallback to requesting thumbnail directly...");
-			return server.readBufferedImage(request);
+			return server.readRegion(request);
 		} catch (IOException e) {
 			logger.error("Unable to obtain thumbnail for " + request, e);
 			return null;
@@ -793,12 +793,12 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 			    		return imgTile;
 			    	// TODO: Investigate the (current) purpose of ensureTileReturned... doesn't seem to do anything here
 			    	if (ensureTileReturned)
-			    		return server.readBufferedImage(request);	
+			    		return server.readRegion(request);	
 			    	// Check if we still need the tile... if not, and we go searching, there can be a backlog
 			    	// making any requests slower to fulfill
 			    	// (Also, grab a snapshot of the listener list to avoid concurrent modifications)
 //			    	long t1 = System.currentTimeMillis();
-			    	T img = server.readBufferedImage(request);
+			    	T img = server.readRegion(request);
 //			    	long t2 = System.currentTimeMillis();
 //			    	System.out.println("Tile request time: " + (t2 - t1));
 			    	return img;

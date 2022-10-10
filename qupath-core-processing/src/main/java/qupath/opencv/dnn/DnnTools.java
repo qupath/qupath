@@ -453,7 +453,7 @@ public class DnnTools {
 	
 	
 	private static Mat readMat(ImageServer<BufferedImage> server, RegionRequest request) throws IOException {
-		var img = server.readBufferedImage(request);
+		var img = server.readRegion(request);
 		return OpenCVTools.imageToMat(img);
 	}
 	

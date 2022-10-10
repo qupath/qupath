@@ -147,7 +147,7 @@ public class TestBioFormatsImageServer {
 				}
 				
 				// Check image dimensions
-				var img = server.readBufferedImage(RegionRequest.createInstance(server));
+				var img = server.readRegion(RegionRequest.createInstance(server));
 				assertEquals(server.getWidth(), img.getWidth());
 				assertEquals(server.getHeight(), img.getHeight());
 				
@@ -165,7 +165,7 @@ public class TestBioFormatsImageServer {
 					assertEquals(server.nTimepoints(), server2.nTimepoints());
 					assertEquals(server.isRGB(), server2.isRGB());
 					
-					var img2 = server2.readBufferedImage(RegionRequest.createInstance(server2));
+					var img2 = server2.readRegion(RegionRequest.createInstance(server2));
 					
 					// Check we have the same pixels
 					if (server.isRGB()) {
@@ -186,7 +186,7 @@ public class TestBioFormatsImageServer {
 				// If we have an RGB image, try switching channel order
 				if (server.isRGB()) {
 					try (var serverSwapped = ImageServers.buildServer(uri, "--order", "BGR")) {
-						var imgSwapped = serverSwapped.readBufferedImage(RegionRequest.createInstance(serverSwapped));
+						var imgSwapped = serverSwapped.readRegion(RegionRequest.createInstance(serverSwapped));
 						int[] samples = null;
 						int[] samples2 = null;
 						for (int c = 0; c < server.nChannels(); c++) {
@@ -283,7 +283,7 @@ public class TestBioFormatsImageServer {
 						w, h,
 						z, t
 						);
-				img = server.readBufferedImage(request);
+				img = server.readRegion(request);
 				
 				// Read an ImageJ version of the same region
 				// Note that this will contain all z-slices & time points

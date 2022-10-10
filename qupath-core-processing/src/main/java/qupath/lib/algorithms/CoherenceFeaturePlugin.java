@@ -185,7 +185,7 @@ public class CoherenceFeaturePlugin extends AbstractInteractivePlugin<BufferedIm
 //		System.out.println(bounds);
 //		System.out.println("Size: " + size);
 
-		BufferedImage img = server.readBufferedImage(region);
+		BufferedImage img = server.readRegion(region);
 
 		// Get a buffer containing the image pixels
 		int w = img.getWidth();

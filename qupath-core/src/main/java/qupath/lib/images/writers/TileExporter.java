@@ -848,7 +848,7 @@ public class TileExporter  {
 		BufferedImage img;
 		double xProp = 0, yProp = 0;
 		if (request.getX() >= 0 && request.getY() >= 0 && request.getMaxX() <= server.getWidth() && request.getMaxY() <= server.getHeight()) {
-			img = server.readBufferedImage(request);			
+			img = server.readRegion(request);			
 		} else {
 			int x = GeneralTools.clipValue(request.getMinX(), 0, server.getWidth());
 			int x2 = GeneralTools.clipValue(request.getMaxX(), 0, server.getWidth());
@@ -858,7 +858,7 @@ public class TileExporter  {
 			double downsample = request.getDownsample();
 			var request2 = RegionRequest.createInstance(server.getPath(), downsample, x, y, x2-x, y2-y, request.getPlane());
 			
-			img = server.readBufferedImage(request2);
+			img = server.readRegion(request2);
 			
 			// Pad if required
 			if (height > img.getHeight() || width > img.getWidth()) {

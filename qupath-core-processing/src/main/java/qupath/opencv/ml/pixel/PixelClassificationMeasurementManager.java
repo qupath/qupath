@@ -227,7 +227,7 @@ public class PixelClassificationMeasurementManager {
         for (TileRequest request : requests) {
         	BufferedImage tile = null;
 			try {
-				tile = cachedOnly ? classifierServer.getCachedTile(request) : classifierServer.readBufferedImage(request.getRegionRequest());
+				tile = cachedOnly ? classifierServer.getCachedTile(request) : classifierServer.readRegion(request.getRegionRequest());
 			} catch (IOException e) {
 				logger.error("Error requesting tile " + request, e);
 			}

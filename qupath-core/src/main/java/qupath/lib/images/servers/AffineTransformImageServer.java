@@ -187,7 +187,7 @@ public class AffineTransformImageServer extends TransformingImageServer<Buffered
 	}
 	
 	@Override
-	public BufferedImage readBufferedImage(final RegionRequest request) throws IOException {
+	public BufferedImage readRegion(final RegionRequest request) throws IOException {
 		
 		double downsample = request.getDownsample();
 		
@@ -211,7 +211,7 @@ public class AffineTransformImageServer extends TransformingImageServer<Buffered
 				);
 		
 		
-		BufferedImage img = getWrappedServer().readBufferedImage(requestTransformed);
+		BufferedImage img = getWrappedServer().readRegion(requestTransformed);
 		if (img == null)
 			return img;
 

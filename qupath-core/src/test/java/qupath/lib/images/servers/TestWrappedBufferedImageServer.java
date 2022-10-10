@@ -64,8 +64,8 @@ public class TestWrappedBufferedImageServer {
 			
 			try {
 				for (var region : regions) {
-					var tempRGB = serverRGB.readBufferedImage(region.updatePath(serverRGB.getPath()));
-					var tempGBR = serverTest.readBufferedImage(region.updatePath(serverTest.getPath()));
+					var tempRGB = serverRGB.readRegion(region.updatePath(serverRGB.getPath()));
+					var tempGBR = serverTest.readRegion(region.updatePath(serverTest.getPath()));
 					
 					assertArrayEquals(getRGB(tempRGB), getRGB(tempGBR));
 				}

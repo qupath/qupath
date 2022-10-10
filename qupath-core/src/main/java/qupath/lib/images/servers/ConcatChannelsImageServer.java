@@ -111,13 +111,13 @@ class ConcatChannelsImageServer extends TransformingImageServer<BufferedImage> {
 	}
 	
 	@Override
-	public BufferedImage readBufferedImage(RegionRequest request) throws IOException {
+	public BufferedImage readRegion(RegionRequest request) throws IOException {
 		
 		List<WritableRaster> rasters = new ArrayList<>();
 		boolean premultiplied = false;
 		int nBands = 0;
 		for (var server : allServers) {
-			var img = server.readBufferedImage(request);
+			var img = server.readRegion(request);
 			if (img == null) {
 				rasters.add(null);
 				nBands += server.nChannels();

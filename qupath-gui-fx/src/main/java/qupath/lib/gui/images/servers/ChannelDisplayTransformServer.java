@@ -119,10 +119,10 @@ public class ChannelDisplayTransformServer extends TransformingImageServer<Buffe
 	}
 	
 	@Override
-	public BufferedImage readBufferedImage(final RegionRequest request) throws IOException {
+	public BufferedImage readRegion(final RegionRequest request) throws IOException {
 		
 		// Transform the pixels, if required
-		BufferedImage img = getWrappedServer().readBufferedImage(request);
+		BufferedImage img = getWrappedServer().readRegion(request);
 		int width = img.getWidth();
 		int height = img.getHeight();
 		

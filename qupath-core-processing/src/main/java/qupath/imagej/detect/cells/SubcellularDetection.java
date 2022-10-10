@@ -707,7 +707,7 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 			if (cachedRegions.containsKey(region))
 				return cachedRegions.get(region);
 			
-			BufferedImage img = imageData.getServer().readBufferedImage(region);
+			BufferedImage img = imageData.getServer().readRegion(region);
 			cachedRegions.put(region, img);
 			return img;
 		}

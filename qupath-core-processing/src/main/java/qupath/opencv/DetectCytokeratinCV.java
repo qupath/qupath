@@ -126,7 +126,7 @@ public class DetectCytokeratinCV extends AbstractDetectionPlugin<BufferedImage> 
 			// Read the image, if necessary
 			RegionRequest request = RegionRequest.createInstance(imageData.getServerPath(), downsample, pathROI);
 			if (img == null || !request.equals(lastRequest)) {
-				img = imageData.getServer().readBufferedImage(request);
+				img = imageData.getServer().readRegion(request);
 				lastRequest = request;
 			}
 

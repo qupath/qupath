@@ -314,7 +314,7 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 			ind--;
 		double downsample = downsamples[ind];
 		RegionRequest request = RegionRequest.createInstance(getPath(), downsample, 0, 0, getWidth(), getHeight(), z, t);
-		return readBufferedImage(request);
+		return readRegion(request);
 	}
 		
 	

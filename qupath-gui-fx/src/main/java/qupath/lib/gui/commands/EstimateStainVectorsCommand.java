@@ -128,7 +128,7 @@ class EstimateStainVectorsCommand {
 		BufferedImage img = null;
 		
 		try {
-			img = imageData.getServer().readBufferedImage(request);
+			img = imageData.getServer().readRegion(request);
 		} catch (IOException e) {
 			Dialogs.showErrorMessage("Estimate stain vectors", e);
 			logger.error("Unable to obtain pixels for " + request.toString(), e);

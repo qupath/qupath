@@ -296,7 +296,7 @@ public class DensityMapUI {
 				var region = tile.getRegionRequest();
 				if (server.isEmptyRegion(region))
 					continue;
-				var imgTile = server.readBufferedImage(region);
+				var imgTile = server.readRegion(region);
 				if (imgTile != null)
 					map.put(region, imgTile);
 			}

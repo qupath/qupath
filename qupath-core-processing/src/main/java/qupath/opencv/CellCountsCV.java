@@ -147,7 +147,7 @@ public class CellCountsCV extends AbstractTileableDetectionPlugin<BufferedImage>
 			// Read the buffered image
 			ImageServer<BufferedImage> server = imageData.getServer();
 			RegionRequest request = RegionRequest.createInstance(server.getPath(), downsample, pathROI);
-			BufferedImage img = server.readBufferedImage(request);
+			BufferedImage img = server.readRegion(request);
 			
 			// Get the top left corner for later adjustments
 			double x = request.getX();

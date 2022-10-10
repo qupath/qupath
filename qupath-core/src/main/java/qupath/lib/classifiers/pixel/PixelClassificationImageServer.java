@@ -300,7 +300,7 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 			if (tileRequest.getDownsample() != fullResDownsample && Math.abs(tileRequest.getDownsample() - fullResDownsample) > 1e-6) {
 				// If we're generating lower-resolution tiles, we need to request the higher-resolution data accordingly
 				var request2 = RegionRequest.createInstance(getPath(), fullResDownsample, tileRequest.getRegionRequest());
-				img = readBufferedImage(request2);
+				img = readRegion(request2);
 				img = BufferedImageTools.resize(img, tileRequest.getTileWidth(), tileRequest.getTileHeight(), allowSmoothInterpolation());
 			} else {
 				// Classify at this resolution if need be

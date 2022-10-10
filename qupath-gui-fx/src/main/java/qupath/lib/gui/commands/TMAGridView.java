@@ -260,7 +260,7 @@ class TMAGridView implements Runnable, ChangeListener<ImageData<BufferedImage>>,
 
 					BufferedImage img;
 					try {
-						img = server.readBufferedImage(request);
+						img = server.readRegion(request);
 					} catch (IOException e) {
 						logger.debug("Unable to get tile for " + request, e);
 						latch.countDown();

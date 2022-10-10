@@ -568,7 +568,7 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 	//		System.out.println(bounds);
 	//		System.out.println("Size: " + size);
 	
-			BufferedImage img = server.readBufferedImage(region);
+			BufferedImage img = server.readRegion(region);
 			if (img == null) {
 				logger.error("Could not read image - unable to compute intensity features for {}", pathObject);
 				return false;
