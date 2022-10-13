@@ -20,7 +20,7 @@ dependencies {
 
   api libs.controlsfx
   
-  api libs.snakeyaml
+  implementation libs.snakeyaml
   
   implementation libs.jfxtras
   implementation libs.commons.text
