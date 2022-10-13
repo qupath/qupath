@@ -35,6 +35,7 @@ javafx {
 	           "javafx.controls",
 	           "javafx.graphics",
 	           "javafx.media",
+	           "javafx.fxml",
 	           "javafx.web",
 	           "javafx.swing"]
 	configuration = 'api'

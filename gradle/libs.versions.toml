@@ -6,7 +6,7 @@ junit         = "5.8.2"
 javacpp       = "1.5.7"
 opencv        = "4.5.5-1.5.7"
 cuda          = "11.6-8.3-1.5.7"
-bioformats    = "6.10.1"
+bioformats    = "6.11.0"
 
 [libraries]
 groovy-core   = { module = "org.apache.groovy:groovy", version.ref = "groovy" }
