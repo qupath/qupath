@@ -20,6 +20,8 @@ dependencies {
 
   api libs.controlsfx
   
+  implementation libs.snakeyaml
+  
   implementation libs.jfxtras
   implementation libs.commons.text
   implementation libs.commons.math
@@ -35,6 +37,7 @@ javafx {
 	           "javafx.controls",
 	           "javafx.graphics",
 	           "javafx.media",
+	           "javafx.fxml",
 	           "javafx.web",
 	           "javafx.swing"]
 	configuration = 'api'

@@ -102,8 +102,8 @@ This is a work-in-progress.
 * The colors used in pie chart legends were sometimes incorrect (https://github.com/qupath/qupath/issues/1062)
 # Delaunay connection lines could be broken or slow to display (https://github.com/qupath/qupath/pull/1069)
 
-### Changes through Bio-Formats 6.10.1
-* Bio-Formats 6.10.1 brings several important new features to QuPath, including:
+### Changes through Bio-Formats 6.11.0
+* Bio-Formats 6.11.0 brings several important new features to QuPath, including:
   * Support for reading DICOM whole slide images
   * Improved handling of brightfield CZI images (i.e. filling unscanned regions in white, not black)
   * Substantial performance improvements for reading/writing some formats (including OME-TIFF)
@@ -114,7 +114,7 @@ This is a work-in-progress.
 
 ### Dependency updates
 * Adoptium OpenJDK 17
-* Bio-Formats 6.10.1
+* Bio-Formats 6.11.0
 * JavaFX 19.0.0
 * Java Topology Suite 1.19.0
 * Groovy 4.0.5
