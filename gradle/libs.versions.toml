@@ -48,6 +48,8 @@ junit-engine  = { module = "org.junit.jupiter:junit-jupiter-engine", version.ref
 
 commonmark    = { module = "org.commonmark:commonmark", version = "0.19.0" }
 
+snakeyaml     = { module = "org.yaml:snakeyaml", version = "1.33" }
+
 [bundles]
 groovy        = ["groovy-core", "groovy-jsr223", "groovy-xml"]
 ikonli        = ["ikonli-javafx", "ikonli-ionicons4"]
