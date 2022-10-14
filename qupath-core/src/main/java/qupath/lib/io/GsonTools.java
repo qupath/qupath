@@ -42,8 +42,10 @@ import com.google.gson.TypeAdapter;
 import com.google.gson.TypeAdapterFactory;
 import com.google.gson.reflect.TypeToken;
 import com.google.gson.stream.JsonReader;
+import com.google.gson.stream.JsonToken;
 import com.google.gson.stream.JsonWriter;
 
+import qupath.lib.common.ColorTools;
 import qupath.lib.io.PathObjectTypeAdapters.FeatureCollection;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.PathObject;
@@ -346,18 +348,99 @@ public class GsonTools {
 		// TODO: Consider writing just the toString() representation & ensure recreate-able from that (but lacking color?)
 		@Override
 		public void write(JsonWriter out, PathClass value) throws IOException {
-			// Write in the default way
-			gson.toJson(value, PathClass.class, out);
-//			Streams.write(gson.toJsonTree(value), out);
+			// Use a proxy object for easier use elsewhere
+			if (value == null || value == PathClassFactory.getPathClassUnclassified()) {
+				// Write in the default way
+				gson.toJson(value, PathClass.class, out);				
+			} else {
+				// Write in a simplified way, with toString() and an array of RGB values
+				var proxy = new PathClassProxy();
+				proxy.name = value.toString();
+				proxy.color = rgbToArray(value.getColor());
+				gson.toJson(proxy, PathClassProxy.class, out);	
+			}
 		}
 
 		@Override
 		public PathClass read(JsonReader in) throws IOException {
-			// Read in the default way, then replace with a singleton instance
-			PathClass pathClass = gson.fromJson(in, PathClass.class);
-			return PathClassFactory.getSingletonPathClass(pathClass);
+			// Check what kind of representation we have
+			var token = in.peek();
+			
+			// Handle no (null) classification
+			if (token == JsonToken.NULL)
+				return null;
+			
+			// Accept a classification just from a string (i.e. no color specified)
+			if (token == JsonToken.STRING)
+				return PathClassFactory.getPathClass(in.nextString());
+			
+			// Handle objects
+			if (token == JsonToken.BEGIN_OBJECT) {
+				JsonObject pathClassObject = gson.fromJson(in, JsonObject.class);	
+				// Check if we have just serialized in the default way (with the usual private field name for color)
+				// This also should be used with PathClassFactory.getPathClassUnclassified() (which has an empty object)
+				if (pathClassObject.size() == 0 || pathClassObject.has("colorRGB") || pathClassObject.has("parentClass")) {
+					// Read in the default way, then replace with a singleton instance
+					PathClass pathClass = gson.fromJson(pathClassObject, PathClass.class);
+					return PathClassFactory.getSingletonPathClass(pathClass);					
+				}
+				
+				// Check if we have a proxy object
+				if (pathClassObject.has("name")) {
+					PathClassProxy proxy = gson.fromJson(pathClassObject, PathClassProxy.class);
+					return proxy.getPathClass();
+				}
+				
+			}
+			throw new JsonParseException("Unable to parse PathClass from " + in);
 		}
+		
+		
+		private static class PathClassProxy {
+			
+			private String name;
+			private int[] color;
+			
+			private PathClass getPathClass() {
+				if (name == null)
+					return null;
+				Integer rgb = arrayToRgb(color);
+				return PathClassFactory.getPathClass(name, rgb);
+			}
+			
+		}
+		
 
+	}
+	
+	
+	/**
+	 * Convert packed RGB value to an array
+	 * @param rgb
+	 * @return
+	 */
+	private static int[] rgbToArray(Integer rgb) {
+		if (rgb == null)
+			return new int[0];
+		else
+			return new int[] {
+				ColorTools.red(rgb.intValue()),
+				ColorTools.green(rgb.intValue()),
+				ColorTools.blue(rgb.intValue())
+			};
+	}
+	
+	/**
+	 * Convert array to a packed RGB value
+	 * @param rgb
+	 * @return
+	 */
+	private static Integer arrayToRgb(int[] rgb) {
+		if (rgb == null || rgb.length == 0)
+			return null;
+		if (rgb.length < 3)
+			return rgb[0];
+		return ColorTools.packRGB(rgb[0], rgb[1], rgb[2]);
 	}
 	
 	
