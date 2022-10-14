@@ -13,7 +13,7 @@ This is a work-in-progress.
     * See https://github.com/qupath/qupath/pull/959
 * Support user styling via CSS (https://github.com/qupath/qupath/pull/1063)
 * Many script editor improvements, including:
-  * Syntax highlighting for Markdown, JSON and XML documents
+  * Syntax highlighting for Markdown, JSON, YAML and XML documents
   * Added 'Replace/Next' and 'Replace all' features to Find window (https://github.com/qupath/qupath/pull/898)
   * New lines now trigger caret following (https://github.com/qupath/qupath/pull/900)
   * Proper tab handling (https://github.com/qupath/qupath/pull/902)

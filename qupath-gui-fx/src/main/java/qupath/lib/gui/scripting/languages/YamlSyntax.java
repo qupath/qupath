@@ -23,48 +23,41 @@ package qupath.lib.gui.scripting.languages;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.gson.Gson;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonSyntaxException;
-
-import qupath.lib.gui.scripting.ScriptEditorControl;
-import qupath.lib.io.GsonTools;
+import org.yaml.snakeyaml.DumperOptions;
+import org.yaml.snakeyaml.Yaml;
 
 /**
- * Class that takes care of JSON syntax.
- * @author Melvin Gelbard
+ * Class that takes care of YAML syntax.
+ * @author Pete Bankhead
  * @since v0.4.0
  */
-class JsonSyntax extends GeneralCodeSyntax {
+class YamlSyntax extends GeneralCodeSyntax {
 	
-	private static final JsonSyntax INSTANCE = new JsonSyntax();
-	private static final Logger logger = LoggerFactory.getLogger(JsonSyntax.class);
-	
-	private static final Gson gson = GsonTools.getInstance(true);
-	private static final Gson gsonCompress = GsonTools.getInstance(false);
-	
+	private static final YamlSyntax INSTANCE = new YamlSyntax();
+	private static final Logger logger = LoggerFactory.getLogger(YamlSyntax.class);
+		
 	// Empty constructor
-	private JsonSyntax() {}
+	private YamlSyntax() {}
 	
-	static JsonSyntax getInstance() {
+	static YamlSyntax getInstance() {
 		return INSTANCE;
 	}
 	
-	/**
-	 * JSON does not support comments. Therefore this method does nothing.
-	 */
 	@Override
-	public void handleLineComment(final ScriptEditorControl control) {
-		// Do nothing
+	public String getLineCommentString() {
+		return "#";
 	}
 	
 	@Override
 	public String beautify(String text) {
 		try {
-			return gson.toJson(gson.fromJson(text, JsonElement.class));
-		} catch (JsonSyntaxException ex) {
-			logger.warn("Could not beautify this JSON text", ex.getLocalizedMessage());
+			var options = new DumperOptions();
+			options.setPrettyFlow(true);
+			Yaml yaml = new Yaml(options);
+			var obj = yaml.load(text);
+			return yaml.dump(obj);
+		} catch (Exception ex) {
+			logger.warn("Could not beautify this YAML text", ex.getLocalizedMessage());
 			return text;
 		}
 	}
@@ -82,9 +75,11 @@ class JsonSyntax extends GeneralCodeSyntax {
 	@Override
 	public String compress(String text) {
 		try {
-			return gsonCompress.toJson(gsonCompress.fromJson(text, JsonElement.class));
-		} catch (JsonSyntaxException ex) {
-			logger.warn("Could not compress this JSON text", ex.getLocalizedMessage());
+			Yaml yaml = new Yaml();
+			var obj = yaml.load(text);
+			return yaml.dump(obj);
+		} catch (Exception ex) {
+			logger.warn("Could not compress this YAML text", ex.getLocalizedMessage());
 			return text;
 		}
 	}
