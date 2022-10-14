@@ -133,8 +133,8 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 	private RangeSlider timeDisplayedSlider;
 	
 	private static final Node iconPlay = IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, IconFactory.PathIcons.PLAYBACK_PLAY);
-	private static final Node iconPause = IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, IconFactory.PathIcons.TRACKING_PAUSE);
 	private static final Node iconStop = IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, IconFactory.PathIcons.TRACKING_STOP);
+	private static final Node iconRewind = IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, IconFactory.PathIcons.TRACKING_REWIND);
 	
 	private ViewTrackerSlideOverview slideOverview;
 	private ViewTrackerDataMaps dataMaps;
@@ -316,21 +316,24 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 				}
 			});
 			
-			Button btnStop = new Button();
-			btnStop.setGraphic(iconStop);
-			btnStop.setOnAction(e -> {
+			Button btnRewind = new Button();
+			btnRewind.setGraphic(iconRewind);
+			btnRewind.setOnAction(e -> {
+				boolean isPlaying = playback.isPlaying();
 				playback.doStopPlayback();
 				timeSlider.setValue(tracker.getFrame(0).getTimestamp());
+				if (isPlaying)
+					playback.doStartPlayback();
 			});
 			
 			// If we have a total of 0 or 1 frame in recording, disable playback
 			btnPlay.disableProperty().bind(new SimpleBooleanProperty(tracker.nFrames() <= 1));
-			btnStop.disableProperty().bind(new SimpleBooleanProperty(tracker.nFrames() <= 1));
+			btnRewind.disableProperty().bind(new SimpleBooleanProperty(tracker.nFrames() <= 1));
 			
 			
 			playback.playingProperty().addListener((v, o, n) -> {
 				if (n) {
-					btnPlay.setGraphic(iconPause);
+					btnPlay.setGraphic(iconStop);
 					//btnPlay.setText("Pause");
 					zSlider.setDisable(true);
 					tSlider.setDisable(true);
@@ -544,13 +547,13 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 //			normalizedByPane.addRow(0, timeNormalizedRadio, downsampleNormalizedRadio, progressIndicator);
 //			normalizedByPane.addRow(0, progressIndicator);
 			timelinePane.addRow(0, timeLabelLeft, timeSlider, timeLabelRight);
-			playbackPane.addRow(0, btnPlay, btnStop);
+			playbackPane.addRow(0, btnPlay, btnRewind);
 			timelinePane.setAlignment(Pos.CENTER);
 			playbackPane.setAlignment(Pos.CENTER);
 			canvasPane.setAlignment(Pos.CENTER);
 			
 			btnPlay.setTooltip(new Tooltip("Play the recording"));
-			btnStop.setTooltip(new Tooltip("Rewind the recording"));
+			btnRewind.setTooltip(new Tooltip("Rewind the recording"));
 
 			int row = 0;
 			PaneTools.addGridRow(slideOverviewPane, row++, 0, null, new HBox(), canvasPane);

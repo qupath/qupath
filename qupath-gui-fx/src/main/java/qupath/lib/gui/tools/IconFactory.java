@@ -29,6 +29,7 @@ import java.awt.geom.PathIterator;
 import java.util.Map;
 import java.util.WeakHashMap;
 
+import org.controlsfx.glyphfont.FontAwesome;
 import org.controlsfx.glyphfont.Glyph;
 import org.controlsfx.glyphfont.GlyphFont;
 import org.controlsfx.glyphfont.GlyphFontRegistry;
@@ -70,6 +71,7 @@ public class IconFactory {
     }
 
 	private static GlyphFont icoMoon = GlyphFontRegistry.font("icomoon");
+	private static GlyphFont fontAwesome = GlyphFontRegistry.font("FontAwesome");
 	
 	private static final Logger logger = LoggerFactory.getLogger(IconFactory.class);
 	
@@ -77,93 +79,100 @@ public class IconFactory {
 	 * Default icons for QuPath commands.
 	 */
 	@SuppressWarnings("javadoc")
-	public static enum PathIcons {	ACTIVE_SERVER("\ue915", ColorToolsFX.getCachedColor(0, 200, 0)),
-									ANNOTATIONS("\ue901", PathPrefs.colorDefaultObjectsProperty()),
-									ANNOTATIONS_FILL("\ue900", PathPrefs.colorDefaultObjectsProperty()),
+	public static enum PathIcons {	ACTIVE_SERVER(icoMoon, '\ue915', ColorToolsFX.getCachedColor(0, 200, 0)),
+									ANNOTATIONS(icoMoon, '\ue901', PathPrefs.colorDefaultObjectsProperty()),
+									ANNOTATIONS_FILL(icoMoon, '\ue900', PathPrefs.colorDefaultObjectsProperty()),
 									
-									BRUSH_TOOL("\ue902", PathPrefs.colorDefaultObjectsProperty()),
+									BRUSH_TOOL(icoMoon, '\ue902', PathPrefs.colorDefaultObjectsProperty()),
 									
-									CELL_NUCLEI_BOTH("\ue903"),
-									CELL_ONLY("\ue904"),
-									CENTROIDS_ONLY("\ue913"),
+									CELL_NUCLEI_BOTH(icoMoon, '\ue903'),
+									CELL_ONLY(icoMoon, '\ue904'),
+									CENTROIDS_ONLY(icoMoon, '\ue913'),
 									
-									COG("\ue905"),
-									CONTRAST("\ue906"),
+									COG(icoMoon, '\ue905'),
+									CONTRAST(icoMoon, '\ue906'),
 									
-									DETECTIONS("\ue908", javafx.scene.paint.Color.rgb(20, 180, 120, 0.9)),
-									DETECTIONS_FILL("\ue907", javafx.scene.paint.Color.rgb(20, 180, 120, 0.9)),
+									DETECTIONS(icoMoon, '\ue908', javafx.scene.paint.Color.rgb(20, 180, 120, 0.9)),
+									DETECTIONS_FILL(icoMoon, '\ue907', javafx.scene.paint.Color.rgb(20, 180, 120, 0.9)),
 
-									ELLIPSE_TOOL("\ue909", PathPrefs.colorDefaultObjectsProperty()),
-									EXTRACT_REGION("\ue90a"),
+									ELLIPSE_TOOL(icoMoon, '\ue909', PathPrefs.colorDefaultObjectsProperty()),
+									EXTRACT_REGION(icoMoon, '\ue90a'),
 
-									SELECTION_MODE("S"),
+									SELECTION_MODE(icoMoon, 'S'),
 									
-									GRID("\ue90b"),
+									GRID(icoMoon, '\ue90b'),
 									
-									INACTIVE_SERVER("\ue915", ColorToolsFX.getCachedColor(200, 0, 0)),
+									INACTIVE_SERVER(icoMoon, '\ue915', ColorToolsFX.getCachedColor(200, 0, 0)),
 									
-									LINE_TOOL("\ue90c", PathPrefs.colorDefaultObjectsProperty()),
-									LOCATION("\ue90d"),
+									LINE_TOOL(icoMoon, '\ue90c', PathPrefs.colorDefaultObjectsProperty()),
+									LOCATION(icoMoon, '\ue90d'),
 									
-									MEASURE("\ue90e"),
-									MOVE_TOOL("\ue90f"),
+									MEASURE(icoMoon, '\ue90e'),
+									MOVE_TOOL(icoMoon, '\ue90f'),
 									
-									NUCLEI_ONLY("\ue910"),
+									NUCLEI_ONLY(icoMoon, '\ue910'),
 									
-									OVERVIEW("\ue911"),
+									OVERVIEW(icoMoon, '\ue911'),
 									
-									PIXEL_CLASSIFICATION("C"),
+									PIXEL_CLASSIFICATION(icoMoon, 'C'),
 									
-									PLAYBACK_PLAY("\ue912"),
-									POINTS_TOOL("\ue913", PathPrefs.colorDefaultObjectsProperty()),
-									POLYGON_TOOL("\ue914", PathPrefs.colorDefaultObjectsProperty()),
+									PLAYBACK_PLAY(icoMoon, '\ue912'),
+									POINTS_TOOL(icoMoon, '\ue913', PathPrefs.colorDefaultObjectsProperty()),
+									POLYGON_TOOL(icoMoon, '\ue914', PathPrefs.colorDefaultObjectsProperty()),
 									
-									POLYLINE_TOOL("V", PathPrefs.colorDefaultObjectsProperty()),
+									POLYLINE_TOOL(icoMoon, 'V', PathPrefs.colorDefaultObjectsProperty()),
 									
 									
-									RECTANGLE_TOOL("\ue916", PathPrefs.colorDefaultObjectsProperty()),
+									RECTANGLE_TOOL(icoMoon, '\ue916', PathPrefs.colorDefaultObjectsProperty()),
 									
-									SHOW_SCALEBAR("\ue917"),
-									SCREENSHOT("\ue918"),
+									SHOW_SCALEBAR(icoMoon, '\ue917'),
+									SCREENSHOT(icoMoon, '\ue918'),
 									
-									TRACKING_PAUSE("\u23f8"),
-									TRACKING_RECORD("\ue915", ColorToolsFX.getCachedColor(200, 0, 0)),
-									TRACKING_STOP("\ue919"),
+									TRACKING_REWIND(fontAwesome, FontAwesome.Glyph.BACKWARD.getChar()),
+									TRACKING_RECORD(icoMoon, '\ue915', ColorToolsFX.getCachedColor(200, 0, 0)),
+									TRACKING_STOP(icoMoon, '\ue919'),
 
-									TABLE("\ue91a"),
-									TMA_GRID("\ue91b", PathPrefs.colorTMAProperty()),
+									TABLE(icoMoon, '\ue91a'),
+									TMA_GRID(icoMoon, '\ue91b', PathPrefs.colorTMAProperty()),
 
-									WAND_TOOL("\ue91c", PathPrefs.colorDefaultObjectsProperty()),
+									WAND_TOOL(icoMoon, '\ue91c', PathPrefs.colorDefaultObjectsProperty()),
 									
-									ZOOM_IN("\ue91d"),
-									ZOOM_OUT("\ue91e"),
-									ZOOM_TO_FIT("\ue91f")
+									ZOOM_IN(icoMoon, '\ue91d'),
+									ZOOM_OUT(icoMoon, '\ue91e'),
+									ZOOM_TO_FIT(icoMoon, '\ue91f')
 									;
 		
-		private String code;
+		private GlyphFont font;
+		
+		private char code;
 		private javafx.scene.paint.Color color;// = javafx.scene.paint.Color.GRAY;
 		private ObservableIntegerValue observableColor;
 		
-		PathIcons(String code) {
+		PathIcons(GlyphFont font, char code) {
+			this.font = font;
 			this.code = code;
 		};
 		
-		PathIcons(String code, javafx.scene.paint.Color color) {
+		PathIcons(GlyphFont font, char code, javafx.scene.paint.Color color) {
+			this.font = font;
 			this.code = code;
 			this.color = color;
 		};
 
-		PathIcons(String code, ObservableIntegerValue observableColor) {
+		PathIcons(GlyphFont font, char code, ObservableIntegerValue observableColor) {
+			this.font = font;
 			this.code = code;
 			this.observableColor = observableColor;
 		};
 
-		private String getCode() {
+		private char getCode() {
 			return code;
 		}
 		
 		private Glyph createGlyph(int size) {
-			Glyph g = icoMoon.create(getCode()).size(size);
+			var code = getCode();
+			Glyph g = font.create(code).size(size);
+			g.setIcon(code);
 			g.getStyleClass().add("qupath-icon");
 			if (observableColor == null || observableColor.getValue() == null) {
 				if (color != null)
