@@ -403,7 +403,7 @@ public class TMASummaryViewer {
 //				promptForComment();
 //		});
 		
-		table.setPlaceholder(new Text("Drag TMA data folder onto window, or choose File -> Open"));
+		table.setPlaceholder(new Label("Drag TMA data folder onto window, or choose File -> Open"));
 		table.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
 		
 		BorderPane pane = new BorderPane();

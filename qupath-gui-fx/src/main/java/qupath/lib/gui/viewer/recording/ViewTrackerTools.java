@@ -266,7 +266,7 @@ final class ViewTrackerTools {
 			tracker.setName(GeneralTools.getNameWithoutExtension(in.toFile()));
 			return tracker;
 		} catch (Exception ex) {
-			Dialogs.showErrorMessage("View tracking import", "Unable to read tracking data from " + in + ": " + ex.getLocalizedMessage());
+			Dialogs.showErrorNotification("View tracking import", "Unable to read tracking data from " + in + ": " + ex.getLocalizedMessage());
 		}
 		return null;
 	}
