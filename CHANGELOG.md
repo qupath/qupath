@@ -22,6 +22,7 @@ This is a work-in-progress.
     * Smart parentheses and (double/single) quotes (https://github.com/qupath/qupath/pull/907)
     * Comment block handling (https://github.com/qupath/qupath/pull/908)
   * New 'Edit -> Wrap lines', 'Edit -> Replace curly quotes' and 'Edit -> Zap gremlins' options
+* Making measurements from a pixel classifier should (usually) be much faster
 * New 'Analyze -> Spatial analysis -> Signed distance to annotations 2D' command (https://github.com/qupath/qupath/issues/1032)
 * Better support for opening/importing from files containing multiple images
   * New 'Show image selector' option when adding images to a project
