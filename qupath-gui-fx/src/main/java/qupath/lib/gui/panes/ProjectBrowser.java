@@ -506,6 +506,16 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 			ProjectImageEntry<BufferedImage> selectedEntry = selected == null ? null : ProjectTreeRow.getEntry(selected.getValue());
 			var entries = getSelectedImageRowsRecursive();
 			boolean isImageEntry = selectedEntry != null;
+			
+			int nSelectedEntries = ProjectTreeRow.getEntries(entries).size();
+			if (nSelectedEntries == 1) {
+				actionDuplicateImages.setText("Duplicate image");
+				actionRemoveImage.setText("Remove image");
+			} else {
+				actionDuplicateImages.setText("Duplicate " + nSelectedEntries + " images");
+				actionRemoveImage.setText("Remove " + nSelectedEntries + " images");				
+			}
+			
 //			miOpenProjectDirectory.setVisible(project != null && project.getBaseDirectory().exists());
 			miOpenImage.setVisible(isImageEntry);
 			miDuplicateImage.setVisible(isImageEntry);
