@@ -38,6 +38,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javafx.application.Platform;
+import javafx.geometry.Insets;
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
@@ -968,9 +969,9 @@ public class Dialogs {
 			dialog.setResizable(resizable);
 			dialog.initModality(modality);
 			
-			// There's an annoying visual bug with no AlertType and dark mode resulting in a white/light 
-			// thin line at the bottom of the dialog
-			if (alertType == null || alertType == AlertType.NONE)
+			// There's sometimes annoying visual bug in dark mode that results in a white/light 
+			// thin line at the bottom of the dialog - padding seems to fix it
+			if (Insets.EMPTY.equals(dialog.getDialogPane().getPadding()))
 				dialog.getDialogPane().setStyle("-fx-padding: 1px;");
 			
 			return dialog;

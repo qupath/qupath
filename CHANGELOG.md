@@ -118,6 +118,7 @@ This is a work-in-progress.
 ### Dependency updates
 * Adoptium OpenJDK 17
 * Bio-Formats 6.11.0
+* ControlsFX 11.1.2
 * JavaFX 19.0.0
 * Java Topology Suite 1.19.0
 * Groovy 4.0.5
