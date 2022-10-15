@@ -265,21 +265,22 @@ public class PixelClassificationMeasurementManager {
         }
         
 
-        // Try to get all cached tiles - if this fails, return quickly (can't calculate measurement)
+        // Try to get all cached tiles - if this fails, we need to return quickly if cachedOnly==true
         // TODO: Avoid pre-caching all tiles; this will fail on large regions + low memory, when not all tiles can be stored in the cache
         Map<TileRequest, BufferedImage> localCache = new HashMap<>();
+        List<TileRequest> tilesToRequest = new ArrayList<>();
         for (TileRequest request : requests) {
-        	BufferedImage tile = null;
-			try {
-				tile = classifierServer.getCachedTile(request);
-				if (tile == null && !cachedOnly)
-					tile = classifierServer.readBufferedImage(request.getRegionRequest());
-			} catch (IOException e) {
-				logger.error("Error requesting tile " + request, e);
+        	BufferedImage tile = classifierServer.getCachedTile(request);
+			// If we only accept cached tiles, and we don't have one, return immediately
+			if (cachedOnly && tile == null) {
+				return null;
 			}
-        	if (tile == null)
-	  			return null;
-        	localCache.put(request, tile);
+			// Preserve tiles in a local cache, to avoid risk that they could
+			// be cleared from the main tile cache before we use them
+			tilesToRequest.add(request);
+			if (tile != null)
+				localCache.put(request, tile);
+			// TODO: Consider enabling requests to be made here
         }
         
         // Calculate stained proportions
@@ -293,14 +294,31 @@ public class PixelClassificationMeasurementManager {
     	
     	long startTime = System.currentTimeMillis();
     	
-        for (Map.Entry<TileRequest, BufferedImage> entry : localCache.entrySet()) {
-        	TileRequest region = entry.getKey();
-        	BufferedImage tile = entry.getValue();
+        for (var region : tilesToRequest) {
+        	// Remove from the local cache (so eligible for garbage collection sooner)
+        	BufferedImage tile = localCache.remove(region);
+        	
+        	// If null, we need to request the prediction now
+        	if (!cachedOnly && tile == null) {
+	        	try {
+	        		// Try the cache again... just in case
+					tile = classifierServer.getCachedTile(region);
+					if (tile == null)
+						tile = classifierServer.readBufferedImage(region.getRegionRequest());
+				} catch (IOException e) {
+					logger.error("Error requesting tile " + region, e);
+				}
+        	}
+        	// We failed to get a required tile - return
+        	if (tile == null)
+        		return null;
+        	
         	// Create a binary mask that is at least as big as the current tile 
         	if (imgMask == null || imgMask.getWidth() < tile.getWidth() || imgMask.getHeight() < tile.getHeight() || imgMask.getType() != BufferedImage.TYPE_BYTE_GRAY) {
         		imgMask = new BufferedImage(tile.getWidth(), tile.getHeight(), BufferedImage.TYPE_BYTE_GRAY);
         		imgTileMask.set(imgMask);
         	}
+
         	
     		// Check if the entire image is within the mask
     		boolean fullMask = false;
@@ -403,7 +421,7 @@ public class PixelClassificationMeasurementManager {
 							counts = new long[nChannels];
 						double threshold = getProbabilityThreshold(tile.getRaster());
 						for (int c = 0; c < nChannels; c++)
-							counts[c] += BufferedImageTools.computeAboveThresholdCounts(tile.getRaster(), c, threshold, fullMask ? null : imgMask.getRaster());
+							counts[c] += BufferedImageTools.computeAboveThresholdCounts(tile.getRaster(), c, threshold, fullMask ? null : imgMask.getRaster(), bounds);
 					case DEFAULT:
 					case FEATURE:
 					default:
