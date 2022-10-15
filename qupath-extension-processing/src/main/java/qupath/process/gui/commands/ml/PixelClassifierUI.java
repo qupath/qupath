@@ -98,7 +98,7 @@ public class PixelClassifierUI {
 	public static ComboBox<RegionFilter> createRegionFilterCombo(OverlayOptions options) {
 		var comboRegion = new ComboBox<RegionFilter>();
 //		comboRegion.getItems().addAll(StandardRegionFilters.values());
-		comboRegion.getItems().addAll(StandardRegionFilters.EVERYWHERE, StandardRegionFilters.ANY_OBJECTS, StandardRegionFilters.ANY_ANNOTATIONS);
+		comboRegion.getItems().addAll(StandardRegionFilters.values());
 		var selected = options.getPixelClassificationRegionFilter();
 		if (!comboRegion.getItems().contains(selected))
 			comboRegion.getItems().add(selected);
