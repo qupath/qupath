@@ -653,7 +653,7 @@ public class PixelClassifierTools {
 		
 		int xx = (int)Math.floor(x / tile.getDownsample() - tile.getTileX());
 		int yy = (int)Math.floor(y / tile.getDownsample() - tile.getTileY());
-		var img = server.readBufferedImage(tile.getRegionRequest());
+		var img = server.readRegion(tile.getRegionRequest());
 		
 		if (xx >= img.getWidth())
 			xx = img.getWidth() - 1;

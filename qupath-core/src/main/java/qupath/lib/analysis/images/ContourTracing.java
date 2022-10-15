@@ -238,7 +238,7 @@ public class ContourTracing {
 		}
 		if (img == null) {
 			var server = ImageServers.buildServer(path.toUri());
-			img = server.readBufferedImage(request);
+			img = server.readRegion(request);
 		}
 		return new RequestImage(request, img);
 	}
@@ -1154,7 +1154,7 @@ public class ContourTracing {
 		var request = tile.getRegionRequest();
 		var list = new ArrayList<GeometryWrapper>();
 
-		var img = server.readBufferedImage(request);
+		var img = server.readRegion(request);
 		// Get an image to threshold
 		var channelType = server.getMetadata().getChannelType();
 		int h = img.getHeight();

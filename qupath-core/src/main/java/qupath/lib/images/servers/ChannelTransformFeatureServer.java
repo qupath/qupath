@@ -135,8 +135,8 @@ public class ChannelTransformFeatureServer extends TransformingImageServer<Buffe
 	}
 	
 	@Override
-	public BufferedImage readBufferedImage(final RegionRequest request) throws IOException {
-		BufferedImage img = getWrappedServer().readBufferedImage(request);
+	public BufferedImage readRegion(final RegionRequest request) throws IOException {
+		BufferedImage img = getWrappedServer().readRegion(request);
 		if (img == null)
 			return null;
 		

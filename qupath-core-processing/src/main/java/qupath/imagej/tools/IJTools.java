@@ -860,7 +860,7 @@ public class IJTools {
 	 */
 	public static PathImage<ImagePlus> convertToImagePlus(String title, ImageServer<BufferedImage> server, BufferedImage img, RegionRequest request) throws IOException {
 		if (img == null)
-			img = server.readBufferedImage(request);
+			img = server.readRegion(request);
 		ImagePlus imp = convertToUncalibratedImagePlus(title, img);
 		// Set dimensions - because RegionRequest is only 2D, every 'slice' is a channel
 		imp.setDimensions(imp.getNSlices(), 1, 1);

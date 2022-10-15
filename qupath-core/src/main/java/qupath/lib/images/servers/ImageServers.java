@@ -30,6 +30,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -80,6 +81,8 @@ public class ImageServers {
 	
 	private static final Logger logger = LoggerFactory.getLogger(ImageServers.class);
 	
+	private static Set<String> loggedWarnings = new HashSet<>();
+	
 	private static SubTypeAdapterFactory<ServerBuilder> serverBuilderFactory = 
 			GsonTools.createSubTypeAdapterFactory(ServerBuilder.class, "builderType")
 			.registerSubtype(DefaultImageServerBuilder.class, "uri")
@@ -98,6 +101,13 @@ public class ImageServers {
 		GsonTools.getDefaultBuilder()
 			.registerTypeAdapterFactory(ImageServers.getImageServerTypeAdapterFactory(true))
 			.registerTypeAdapterFactory(ImageServers.getServerBuilderFactory());
+	}
+	
+	
+	static void logFirstDeprecatedReadCall(Class<? extends ImageServer> cls) {
+		String warning = cls.getSimpleName() + ".readBufferedImage(RegionRequest) is deprecated - please use " + cls.getSimpleName() + ".readRegion(RegionRequest) instead";
+		if (loggedWarnings.add(warning))
+			LoggerFactory.getLogger(cls).warn(warning);
 	}
 	
 	/**

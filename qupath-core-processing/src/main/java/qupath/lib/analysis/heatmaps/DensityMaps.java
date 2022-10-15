@@ -601,7 +601,7 @@ public class DensityMaps {
 				// Read the image
 				var plane = roi.getImagePlane();
 				RegionRequest request = RegionRequest.createInstance(densityServer.getPath(), downsample, 0, 0, densityServer.getWidth(), densityServer.getHeight(), plane.getZ(), plane.getT());
-				var img = densityServer.readBufferedImage(request);
+				var img = densityServer.readRegion(request);
 								
 				// Create a mask
 				var imgMask = BufferedImageTools.createROIMask(img.getWidth(), img.getHeight(), roiEroded, request);

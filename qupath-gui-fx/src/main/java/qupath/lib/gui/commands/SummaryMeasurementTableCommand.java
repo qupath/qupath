@@ -606,7 +606,7 @@ public class SummaryMeasurementTableCommand {
 						g2d.dispose();
 					} else {
 						RegionRequest request = RegionRequest.createInstance(server.getPath(), downsample, roi);
-						img = server.readBufferedImage(request);
+						img = server.readRegion(request);
 					}
 
 					imageNew = SwingFXUtils.toFXImage(img, null);

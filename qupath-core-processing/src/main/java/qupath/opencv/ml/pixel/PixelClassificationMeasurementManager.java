@@ -304,7 +304,7 @@ public class PixelClassificationMeasurementManager {
 	        		// Try the cache again... just in case
 					tile = classifierServer.getCachedTile(region);
 					if (tile == null)
-						tile = classifierServer.readBufferedImage(region.getRegionRequest());
+						tile = classifierServer.readRegion(region.getRegionRequest());
 				} catch (IOException e) {
 					logger.error("Error requesting tile " + region, e);
 				}

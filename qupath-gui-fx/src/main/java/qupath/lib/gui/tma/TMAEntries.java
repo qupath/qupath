@@ -454,7 +454,7 @@ class TMAEntries {
 			}
 			
 			try {
-				BufferedImage img = imageData.getServer().readBufferedImage(
+				BufferedImage img = imageData.getServer().readRegion(
 						RegionRequest.createInstance(imageData.getServerPath(), downsample, roi));
 				return SwingFXUtils.toFXImage(img, null);
 			} catch (IOException e) {

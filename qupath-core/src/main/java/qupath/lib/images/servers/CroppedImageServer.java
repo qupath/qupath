@@ -79,7 +79,7 @@ public class CroppedImageServer extends TransformingImageServer<BufferedImage> {
 	}
 	
 	@Override
-	public BufferedImage readBufferedImage(final RegionRequest request) throws IOException {
+	public BufferedImage readRegion(final RegionRequest request) throws IOException {
 		RegionRequest request2 = RegionRequest.createInstance(
 				request.getPath(), request.getDownsample(),
 				request.getX() + region.getX(),
@@ -87,7 +87,7 @@ public class CroppedImageServer extends TransformingImageServer<BufferedImage> {
 				request.getWidth(),
 				request.getHeight(),
 				request.getZ(), request.getT());
-		BufferedImage img = getWrappedServer().readBufferedImage(request2);
+		BufferedImage img = getWrappedServer().readRegion(request2);
 		// TODO: Mask as ellipse, if necessary?
 		return img;
 	}

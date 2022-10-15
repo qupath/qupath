@@ -544,7 +544,7 @@ public class PixelClassificationOverlay extends AbstractImageOverlay  {
             	var changed = new ArrayList<PathObject>();
                 var hierarchy = imageData == null ? null : imageData.getHierarchy();
                 try {
-                	classifierServer.readBufferedImage(tile.getRegionRequest());
+                	classifierServer.readRegion(tile.getRegionRequest());
 //                    viewer.repaint();
                 	QuPathGUI.getInstance().repaintViewers();
                     var channelType = classifierServer.getMetadata().getChannelType();

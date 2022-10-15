@@ -160,8 +160,8 @@ class ColorDeconvolutionImageServer extends TransformingImageServer<BufferedImag
 	}
 	
 	@Override
-	public BufferedImage readBufferedImage(final RegionRequest request) throws IOException {
-		BufferedImage img = getWrappedServer().readBufferedImage(request);
+	public BufferedImage readRegion(final RegionRequest request) throws IOException {
+		BufferedImage img = getWrappedServer().readRegion(request);
 		if (img == null)
 			return null;
 		

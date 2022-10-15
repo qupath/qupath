@@ -141,7 +141,7 @@ public class DefaultImageRegionStore extends AbstractImageRegionStore<BufferedIm
 				else {
 					if (worker.cancel(false)) {
 						try {
-							imgTile = server.readBufferedImage(request);
+							imgTile = server.readRegion(request);
 							if (imgTile != null)
 								cache.put(request, imgTile);
 						} catch (IOException e1) {

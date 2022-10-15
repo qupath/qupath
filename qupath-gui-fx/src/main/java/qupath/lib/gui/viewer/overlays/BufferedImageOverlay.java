@@ -146,7 +146,7 @@ public class BufferedImageOverlay extends AbstractImageOverlay implements Change
     		var region = tile.getRegionRequest();
     		if (server.isEmptyRegion(region))
     			continue;
-    		var img = server.readBufferedImage(region);
+    		var img = server.readRegion(region);
     		if (img != null)
     			regions.put(region, img);
     	}

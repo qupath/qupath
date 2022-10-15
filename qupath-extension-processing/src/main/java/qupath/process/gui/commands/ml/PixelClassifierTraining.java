@@ -438,7 +438,7 @@ public class PixelClassifierTraining {
     		if (matFeatures != null && matTargets != null)
     			return;
     		
-    		var features = featureServer.readBufferedImage(request);
+    		var features = featureServer.readRegion(request);
     		
     		// TODO: Handle differing boundary thicknesses
     		double downsample = request.getDownsample();

@@ -313,7 +313,7 @@ public class ImageOps {
 		public Mat apply(ImageData<BufferedImage> imageData, RegionRequest request) throws IOException {
 			BufferedImage img;
 			if (op == null) {
-				img = imageData.getServer().readBufferedImage(request);
+				img = imageData.getServer().readRegion(request);
 				return OpenCVTools.imageToMat(img);
 			} else {
 				var padding = op.getPadding();
@@ -401,7 +401,7 @@ public class ImageOps {
 		public Mat apply(ImageData<BufferedImage> imageData, RegionRequest request) throws IOException {
 			BufferedImage img;
 			if (op == null)
-				img = imageData.getServer().readBufferedImage(request);
+				img = imageData.getServer().readRegion(request);
 			else
 				img = ServerTools.getPaddedRequest(imageData.getServer(), request, op.getPadding());
 			

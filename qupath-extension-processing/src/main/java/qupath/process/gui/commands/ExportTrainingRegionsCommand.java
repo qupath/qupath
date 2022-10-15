@@ -540,7 +540,7 @@ public class ExportTrainingRegionsCommand implements Runnable {
 				RegionRequest request = RegionRequest.createInstance(server.getPath(), downsample, annotation.getROI());
 			    BufferedImage img;
 				try {
-					img = server.readBufferedImage(request);
+					img = server.readRegion(request);
 				} catch (IOException e1) {
 					logger.error("Error exporting " + request, e1);
 					continue;
