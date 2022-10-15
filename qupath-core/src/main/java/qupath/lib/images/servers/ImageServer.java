@@ -151,9 +151,14 @@ public interface ImageServer<T> extends AutoCloseable {
 	 * Get a cached tile, or null if the tile has not been cached.
 	 * <p>
 	 * This is useful whenever it is important to return quickly rather than wait for a tile to be fetched or generated.
+	 * <p>
+	 * <b>Warning!</b> This method should be used very cautiously, as it is permitted to return the tile stored internally 
+	 * in the cache for performance. This <b>must not be modified</b> by any code requesting the tile.
 	 * 
 	 * @param tile
 	 * @return the tile if it has been cached, or null if no cached tile is available for the request.
+	 * @implSpec because this method exists for performance, the tile may be returned directly without defensive copying.
+	 *           If the tile is mutable, consumers must be extremely careful to avoid modifying the tile.
 	 */
 	public T getCachedTile(TileRequest tile);
 	

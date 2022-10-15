@@ -13,7 +13,7 @@ This is a work-in-progress.
     * See https://github.com/qupath/qupath/pull/959
 * Support user styling via CSS (https://github.com/qupath/qupath/pull/1063)
 * Many script editor improvements, including:
-  * Syntax highlighting for Markdown, JSON and XML documents
+  * Syntax highlighting for Markdown, JSON, YAML and XML documents
   * Added 'Replace/Next' and 'Replace all' features to Find window (https://github.com/qupath/qupath/pull/898)
   * New lines now trigger caret following (https://github.com/qupath/qupath/pull/900)
   * Proper tab handling (https://github.com/qupath/qupath/pull/902)
@@ -22,6 +22,9 @@ This is a work-in-progress.
     * Smart parentheses and (double/single) quotes (https://github.com/qupath/qupath/pull/907)
     * Comment block handling (https://github.com/qupath/qupath/pull/908)
   * New 'Edit -> Wrap lines', 'Edit -> Replace curly quotes' and 'Edit -> Zap gremlins' options
+* Pixel classifier improvements
+  * Making measurements is *much* faster in some circumstances (https://github.com/qupath/qupath/pull/1076)
+  * It's possible to restrict live prediction more closely to annotated regions ((https://github.com/qupath/qupath/pull/1076))
 * New 'Analyze -> Spatial analysis -> Signed distance to annotations 2D' command (https://github.com/qupath/qupath/issues/1032)
 * Better support for opening/importing from files containing multiple images
   * New 'Show image selector' option when adding images to a project

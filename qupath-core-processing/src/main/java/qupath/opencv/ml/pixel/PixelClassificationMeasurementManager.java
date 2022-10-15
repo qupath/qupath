@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -24,7 +24,10 @@ package qupath.opencv.ml.pixel;
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Graphics2D;
+import java.awt.Rectangle;
+import java.awt.RenderingHints;
 import java.awt.Shape;
+import java.awt.geom.Point2D;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBuffer;
 import java.awt.image.WritableRaster;
@@ -40,6 +43,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.stream.Collectors;
+import java.util.stream.LongStream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -181,7 +185,41 @@ public class PixelClassificationMeasurementManager {
 		return measurementNames == null ? Collections.emptyList() : measurementNames;
 	}
 	
-		    
+	
+	/**
+	 * Check if a ROI shape completely contains tile. This should err on the side of caution and 
+	 * only return true if it is very confident that all pixels of the tile are inside the shape.
+	 * @param shape
+	 * @param tile
+	 * @param padding pad the tile to make the estimate more conservative (and deal with non-zero stroke thickness for shape masks)
+	 * @return
+	 */
+	private static boolean completelyContainsTile(Shape shape, TileRequest tile, double padding) {
+		return shape.contains(
+				tile.getImageX()-padding,
+				tile.getImageY()-padding,
+				tile.getImageWidth()+padding*2,
+    			tile.getImageHeight()+padding*2     
+				);
+	}
+	
+	/**
+	 * Check if a ROI shape could intersect a tile. This should err on the side of caution and 
+	 * only eliminate cases where there is definitely no intersection.
+	 * @param shape
+	 * @param tile
+	 * @param padding pad the tile to make the estimate more conservative (and deal with non-zero stroke thickness for shape masks)
+	 * @return
+	 */
+	private static boolean mayIntersectTile(Shape shape, TileRequest tile, double padding) {
+		return shape.intersects(
+				tile.getImageX()-padding,
+				tile.getImageY()-padding,
+				tile.getImageWidth()+padding*2,
+    			tile.getImageHeight()+padding*2     
+				);
+	}
+	
 	/**
 	 * Calculate measurements for a specified ROI if possible.
 	 * 
@@ -213,6 +251,11 @@ public class PixelClassificationMeasurementManager {
         } else if (!roi.isEmpty()) {
 	        var regionRequest = RegionRequest.createInstance(server.getPath(), requestedDownsample, roi);
 	        requests = server.getTileRequestManager().getTileRequests(regionRequest);
+	        // Skip tiles that don't intersect with the ROI shape
+	        if (shape != null) {
+	        	var shapeTemp = shape;
+	        	requests = requests.stream().filter(r -> mayIntersectTile(shapeTemp, r, r.getDownsample())).collect(Collectors.toList());
+	        }
         } else
         	requests = Collections.emptyList();
         
@@ -222,57 +265,134 @@ public class PixelClassificationMeasurementManager {
         }
         
 
-        // Try to get all cached tiles - if this fails, return quickly (can't calculate measurement)
+        // Try to get all cached tiles - if this fails, we need to return quickly if cachedOnly==true
+        // TODO: Avoid pre-caching all tiles; this will fail on large regions + low memory, when not all tiles can be stored in the cache
         Map<TileRequest, BufferedImage> localCache = new HashMap<>();
+        List<TileRequest> tilesToRequest = new ArrayList<>();
         for (TileRequest request : requests) {
-        	BufferedImage tile = null;
-			try {
-				tile = cachedOnly ? classifierServer.getCachedTile(request) : classifierServer.readRegion(request.getRegionRequest());
-			} catch (IOException e) {
-				logger.error("Error requesting tile " + request, e);
+        	BufferedImage tile = classifierServer.getCachedTile(request);
+			// If we only accept cached tiles, and we don't have one, return immediately
+			if (cachedOnly && tile == null) {
+				return null;
 			}
-        	if (tile == null)
-	  			return null;
-        	localCache.put(request, tile);
+			// Preserve tiles in a local cache, to avoid risk that they could
+			// be cleared from the main tile cache before we use them
+			tilesToRequest.add(request);
+			if (tile != null)
+				localCache.put(request, tile);
+			// TODO: Consider enabling requests to be made here
         }
         
         // Calculate stained proportions
         BasicStroke stroke = null;
         byte[] mask = null;
     	BufferedImage imgMask = imgTileMask.get();
-        for (Map.Entry<TileRequest, BufferedImage> entry : localCache.entrySet()) {
-        	TileRequest region = entry.getKey();
-        	BufferedImage tile = entry.getValue();
-        	// Create a binary mask corresponding to the current tile        	
+    	
+    	Rectangle bounds = new Rectangle();
+    	Point2D p1 = new Point2D.Double();
+    	Point2D p2 = new Point2D.Double();
+    	
+    	long startTime = System.currentTimeMillis();
+    	
+        for (var region : tilesToRequest) {
+        	// Remove from the local cache (so eligible for garbage collection sooner)
+        	BufferedImage tile = localCache.remove(region);
+        	
+        	// If null, we need to request the prediction now
+        	if (!cachedOnly && tile == null) {
+	        	try {
+	        		// Try the cache again... just in case
+					tile = classifierServer.getCachedTile(region);
+					if (tile == null)
+						tile = classifierServer.readRegion(region.getRegionRequest());
+				} catch (IOException e) {
+					logger.error("Error requesting tile " + region, e);
+				}
+        	}
+        	// We failed to get a required tile - return
+        	if (tile == null)
+        		return null;
+        	
+        	// Create a binary mask that is at least as big as the current tile 
         	if (imgMask == null || imgMask.getWidth() < tile.getWidth() || imgMask.getHeight() < tile.getHeight() || imgMask.getType() != BufferedImage.TYPE_BYTE_GRAY) {
         		imgMask = new BufferedImage(tile.getWidth(), tile.getHeight(), BufferedImage.TYPE_BYTE_GRAY);
         		imgTileMask.set(imgMask);
         	}
+
         	
-        	// Get the tile, which is needed for sub-pixel accuracy
-        	if (roi.isLine() || roi.isArea()) {
-	        	Graphics2D g2d = imgMask.createGraphics();
-	        	g2d.setColor(Color.BLACK);
-	        	g2d.fillRect(0, 0, tile.getWidth(), tile.getHeight());
-	        	g2d.setColor(Color.WHITE);
-	        	g2d.scale(1.0/region.getDownsample(), 1.0/region.getDownsample());
-	        	g2d.translate(-region.getTileX() * region.getDownsample(), -region.getTileY() * region.getDownsample());
-	        	if (roi.isLine()) {
-	        		float fDownsample = (float)region.getDownsample();
-	        		if (stroke == null || stroke.getLineWidth() != fDownsample)
-	        			stroke = new BasicStroke((float)fDownsample);
-	        		g2d.setStroke(stroke);
-	        		g2d.draw(shape);
-	        	} else if (roi.isArea())
-	        		g2d.fill(shape);
-	        	g2d.dispose();
-        	} else if (roi.isPoint()) {
-        		for (var p : roi.getAllPoints()) {
-        			int x = (int)((p.getX() - region.getImageX()) / region.getDownsample());
-        			int y = (int)((p.getY() - region.getImageY()) / region.getDownsample());
-        			if (x >= 0 && y >= 0 && x < imgMask.getWidth() && y < imgMask.getHeight())
-        				imgMask.getRaster().setSample(x, y, 0, 255);
-        		}
+    		// Check if the entire image is within the mask
+    		boolean fullMask = false;
+
+        	if (shape != null && completelyContainsTile(shape, region, region.getDownsample())) {
+        		// Quickly test if the entire image is masked
+        		// If so, we can save time by avoiding creating and testing the mask
+        		fullMask = true;
+        		bounds.setRect(0, 0, tile.getWidth(), tile.getHeight());
+        	} else {
+        	
+	        	// Initialize the bounds
+	    		bounds.setBounds(0, 0, -1, -1);
+	    		        	
+	        	// Get the tile, which is needed for sub-pixel accuracy
+	        	if (roi.isLine() || roi.isArea()) {
+	        		
+	        		Graphics2D g2d = imgMask.createGraphics();
+	        		g2d.setColor(Color.BLACK);
+	        		g2d.fillRect(0, 0, tile.getWidth(), tile.getHeight());
+	        		g2d.setColor(Color.WHITE);
+	        		g2d.scale(1.0/region.getDownsample(), 1.0/region.getDownsample());
+	        		g2d.translate(-region.getTileX() * region.getDownsample(), -region.getTileY() * region.getDownsample());
+	        		g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
+	        		g2d.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_OFF);
+	        		if (roi.isLine()) {
+	        			float fDownsample = (float)region.getDownsample();
+	        			if (stroke == null || stroke.getLineWidth() != fDownsample)
+	        				stroke = new BasicStroke((float)fDownsample);
+	        			g2d.setStroke(stroke);
+	        			g2d.draw(shape);
+	        		} else if (roi.isArea())
+	        			g2d.fill(shape);
+
+	        		// Use the Graphics2D transform to set a bounding box that contains the ROI
+	        		// This can dramatically reduce the number of samples that need to be checked sometimes
+	        		var transform = g2d.getTransform();
+	        		p1.setLocation(roi.getBoundsX(), roi.getBoundsY());
+	        		transform.transform(p1, p1);
+	        		p2.setLocation(roi.getBoundsX() + roi.getBoundsWidth(), roi.getBoundsY() + roi.getBoundsHeight());
+	        		transform.transform(p2, p2);
+	        		bounds.x = (int)Math.max(0, p1.getX() - 1);
+	        		bounds.y = (int)Math.max(0, p1.getY() - 1);
+	        		bounds.width = (int)Math.min(tile.getWidth(), Math.ceil(p2.getX() + 1)) - bounds.x;
+	        		bounds.height = (int)Math.min(tile.getHeight(), Math.ceil(p2.getY() + 1)) - bounds.y;
+
+	        		g2d.dispose();
+	        		
+	        	} else if (roi.isPoint()) {
+	        		// Check if we are adding any points, so we can skip if not
+	        		boolean anyPoints = false;
+	        		for (var p : roi.getAllPoints()) {
+	        			int x = (int)((p.getX() - region.getImageX()) / region.getDownsample());
+	        			int y = (int)((p.getY() - region.getImageY()) / region.getDownsample());
+	        			// Check if point within range
+	        			if (x >= 0 && y >= 0 && x < tile.getWidth() && y < tile.getHeight()) {
+	        				// Clear the raster
+	        				if (!anyPoints) {
+	        					Graphics2D g2d = imgMask.createGraphics();
+	        	        		g2d.setColor(Color.BLACK);
+	        	        		g2d.fillRect(0, 0, tile.getWidth(), tile.getHeight());
+	        	        		g2d.dispose();
+		                		anyPoints = true;
+	        				}
+	        				imgMask.getRaster().setSample(x, y, 0, 255);
+	                		bounds.add(x, y);
+	                		bounds.add(x+1, y+1);
+	        			}
+	        		}
+	        		if (!anyPoints) {
+//	        			logger.trace("Skipping - just no point");
+	        			continue;
+	        		}
+	        	}
         	}
         	
 			int h = tile.getHeight();
@@ -286,12 +406,12 @@ public class PixelClassificationMeasurementManager {
 				switch (type) {
 					case CLASSIFICATION:
 						// Calculate histogram to get labelled image counts
-						counts = BufferedImageTools.computeUnsignedIntHistogram(tile.getRaster(), counts, imgMask.getRaster());
+						counts = BufferedImageTools.computeUnsignedIntHistogram(tile.getRaster(), counts, fullMask ? null : imgMask.getRaster(), bounds);
 						break;
 					case PROBABILITY:
 						// Take classification from the channel with the highest value
 						if (nChannels > 1) {
-							counts = BufferedImageTools.computeArgMaxHistogram(tile.getRaster(), counts, imgMask.getRaster());
+							counts = BufferedImageTools.computeArgMaxHistogram(tile.getRaster(), counts, fullMask ? null : imgMask.getRaster(), bounds);
 							break;
 						}
 						// For one channel, fall through & treat as multiclass
@@ -301,7 +421,7 @@ public class PixelClassificationMeasurementManager {
 							counts = new long[nChannels];
 						double threshold = getProbabilityThreshold(tile.getRaster());
 						for (int c = 0; c < nChannels; c++)
-							counts[c] += BufferedImageTools.computeAboveThresholdCounts(tile.getRaster(), c, threshold, imgMask.getRaster());
+							counts[c] += BufferedImageTools.computeAboveThresholdCounts(tile.getRaster(), c, threshold, fullMask ? null : imgMask.getRaster(), bounds);
 					case DEFAULT:
 					case FEATURE:
 					default:
@@ -314,6 +434,13 @@ public class PixelClassificationMeasurementManager {
 					logger.error("There are {} channels - are you sure this is really a classification image?", nChannels);
 			}
         }
+        
+    	long endTime = System.currentTimeMillis();
+    	if (logger.isDebugEnabled()) {
+    		long totalCounts = LongStream.of(counts).sum();
+    		logger.debug("Counted {} pixels in {} ms (area {} {})", totalCounts, endTime - startTime, GeneralTools.formatNumber(totalCounts*pixelArea, 2), pixelAreaUnits);
+    	}
+
     	return updateMeasurements(classificationLabels, counts, pixelArea, pixelAreaUnits);
     }
 	
