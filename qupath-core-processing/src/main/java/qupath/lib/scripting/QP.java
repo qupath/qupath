@@ -77,6 +77,7 @@ import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.common.Version;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.ImageData.ImageType;
 import qupath.lib.images.servers.ColorTransforms;
@@ -202,6 +203,13 @@ public class QP {
 	
 	
 	/**
+	 * The current QuPath version, parsed according to semantic versioning.
+	 * May be null if the version is not known.
+	 */
+	public static final Version VERSION = GeneralTools.getSemanticVersion();
+	
+	
+	/**
 	 * TODO: Figure out where this should go...
 	 * Its purpose is to prompt essential type adapters to be registered so that they function 
 	 * within scripts. See https://github.com/qupath/qupath/issues/514
@@ -260,6 +268,9 @@ public class QP {
 			BufferedImageTools.class,
 			ColorTools.class,
 			GeneralTools.class,
+			
+			Version.class,
+			
 			DistanceTools.class,
 //			ImageWriter.class,
 			ImageWriterTools.class,
@@ -3684,5 +3695,61 @@ public class QP {
 	public static void classifyDetectionsByCentroid(String classifierName) {
 		classifyDetectionsByCentroid(loadPixelClassifier(classifierName));
 	}
+	
+	/**
+	 * Check whether the current QuPath version is &geq; the specified version.
+	 * This can be added at the beginning of a script to prevent the script running if it is known to be incompatible.
+	 * <p>
+	 * It throws an exception if the test is failed so that it can be added in a single line, with the script stopping 
+	 * if the criterion is not met.
+	 * <p>
+	 * Using this successfully depends upon {@link #VERSION} being available.
+	 * To avoid an exception if it is not, use
+	 * <code>
+	 * <pre>{@code 
+	 * if (VERSION != null)
+	 *   checkMinVersion("0.4.0");
+	 * }
+	 * </pre>
+	 * @param version last known compatible version (inclusive)
+	 * @throws UnsupportedOperationException if the version test is not passed, of version information is unavailable
+	 * @see #checkVersionRange(String, String)
+	 * @since v0.4.0
+	 */
+	public static void checkMinVersion(String version) throws UnsupportedOperationException {
+		if (VERSION == null)
+			throw new UnsupportedOperationException("Can't check version - QuPath version is unknown!");
+		var versionToCompare = Version.parse(version);
+		if (versionToCompare.compareTo(VERSION) > 0)
+			throw new UnsupportedOperationException("Mininum version " + versionToCompare + " exceeds current QuPath version " + VERSION);
+	}
+	
+	/**
+	 * Check whether the current QuPath version is &geq; the specified minimum version, and &lt; the specified maximum.
+	 * This can be added at the beginning of a script to prevent the script running if it is known to be incompatible.
+	 * <p>
+	 * The minimum is inclusive and maximum is exclusive so that the maximum can be given as the first version known to 
+	 * introduce a breaking change.
+	 * <p>
+	 * Using this successfully depends upon {@link #VERSION} being available.
+	 * To avoid an exception if it is not, use
+	 * <code>
+	 * <pre>{@code 
+	 * if (VERSION != null)
+	 *   checkVersionRange("0.4.0", "0.5.0");
+	 * }
+	 * </pre>
+	 * @param minVersion last known compatible version (inclusive)
+	 * @param maxVersion next known incompatible version
+	 * @throws UnsupportedOperationException if the version test is not passed, of version information is unavailable
+	 * @see #checkMinVersion(String)
+	 * @since v0.4.0
+	 */	public static void checkVersionRange(String minVersion, String maxVersion) throws UnsupportedOperationException {
+		checkMinVersion(minVersion);
+		var versionMax = Version.parse(maxVersion);
+		if (versionMax.compareTo(VERSION) <= 0)
+			throw new UnsupportedOperationException("Current QuPath version " + VERSION + " is >= the specified (non-inclusive) maximum " + versionMax);			
+	}
+	
 	
 }

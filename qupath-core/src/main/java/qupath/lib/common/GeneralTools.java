@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -79,24 +79,48 @@ public final class GeneralTools {
 	
 	private static final Logger logger = LoggerFactory.getLogger(GeneralTools.class);
 	
-	
-	private static final String LATEST_VERSION = getCurrentVersion();
+	/**
+	 * The current QuPath version.
+	 * Package-private for testing purposes.
+	 */
+	private static final String CURRENT_VERSION_STRING = findCurrentVersionString();
+
 	
 	/**
-	 * Request the version of QuPath.
-	 * 
-	 * @return
+	 * Get a String representation of QuPath's version, if known.
+	 * @return a String representation of the version, or null if the version is unknown
+	 * @see #getSemanticVersion()
+	 * @implNote this is the version of the core module containing this class.
 	 */
 	public static String getVersion() {
-		return LATEST_VERSION;
+		return CURRENT_VERSION_STRING;
 	}
+
+
+	/**
+	 * Get a representation of QuPath's version, parsed according to the rules of semantic versioning if possible.
+	 * @return the current version, or null if the version is unknown or cannot be parsed from {@link #getVersion}
+	 * @see #getVersion()
+	 * @implNote this is the version of the core module containing this class.
+	 */
+	public static Version getSemanticVersion() {
+		if (CURRENT_VERSION_STRING == null)
+			return null;
+		try {
+			return Version.parse(CURRENT_VERSION_STRING);
+		} catch (Exception e) {
+			logger.warn("Unable to parse version from " + CURRENT_VERSION_STRING, e);
+			return null;
+		}
+	}
+
 	
 	/**
-	 * Get the current QuPath version.
+	 * Find the current QuPath version.
 	 * @return
 	 */
-	private static String getCurrentVersion() {
-		var version = getPackageVersion(GeneralTools.class);
+	private static String findCurrentVersionString() {
+		var version = GeneralTools.getPackageVersion(GeneralTools.class);
 		// v0.2, less reliable way
 		if (version == null) {
 			var path = Paths.get("VERSION");
@@ -116,6 +140,7 @@ public final class GeneralTools {
 		}
 		return version.strip();
 	}
+	
 	
 	/**
 	 * Try to determine the version of a jar containing a specified class.
