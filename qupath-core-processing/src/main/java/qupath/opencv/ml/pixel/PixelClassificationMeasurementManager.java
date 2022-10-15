@@ -296,7 +296,7 @@ public class PixelClassificationMeasurementManager {
         for (Map.Entry<TileRequest, BufferedImage> entry : localCache.entrySet()) {
         	TileRequest region = entry.getKey();
         	BufferedImage tile = entry.getValue();
-        	// Create a binary mask corresponding to the current tile        	
+        	// Create a binary mask that is at least as big as the current tile 
         	if (imgMask == null || imgMask.getWidth() < tile.getWidth() || imgMask.getHeight() < tile.getHeight() || imgMask.getType() != BufferedImage.TYPE_BYTE_GRAY) {
         		imgMask = new BufferedImage(tile.getWidth(), tile.getHeight(), BufferedImage.TYPE_BYTE_GRAY);
         		imgTileMask.set(imgMask);
@@ -344,8 +344,8 @@ public class PixelClassificationMeasurementManager {
 	        		transform.transform(p2, p2);
 	        		bounds.x = (int)Math.max(0, p1.getX() - 1);
 	        		bounds.y = (int)Math.max(0, p1.getY() - 1);
-	        		bounds.width = (int)Math.min(imgMask.getWidth(), Math.ceil(p2.getX() + 1)) - bounds.x;
-	        		bounds.height = (int)Math.min(imgMask.getHeight(), Math.ceil(p2.getY() + 1)) - bounds.y;
+	        		bounds.width = (int)Math.min(tile.getWidth(), Math.ceil(p2.getX() + 1)) - bounds.x;
+	        		bounds.height = (int)Math.min(tile.getHeight(), Math.ceil(p2.getY() + 1)) - bounds.y;
 
 	        		g2d.dispose();
 	        		
@@ -355,7 +355,8 @@ public class PixelClassificationMeasurementManager {
 	        		for (var p : roi.getAllPoints()) {
 	        			int x = (int)((p.getX() - region.getImageX()) / region.getDownsample());
 	        			int y = (int)((p.getY() - region.getImageY()) / region.getDownsample());
-	        			if (x >= 0 && y >= 0 && x < imgMask.getWidth() && y < imgMask.getHeight()) {
+	        			// Check if point within range
+	        			if (x >= 0 && y >= 0 && x < tile.getWidth() && y < tile.getHeight()) {
 	        				// Clear the raster
 	        				if (!anyPoints) {
 	        					Graphics2D g2d = imgMask.createGraphics();
