@@ -21,10 +21,13 @@
 
 package qupath.lib.gui.viewer;
 
+import java.util.Collection;
 import java.util.function.BiPredicate;
 
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathAnnotationObject;
+import qupath.lib.objects.PathObject;
+import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
 
 /**
@@ -45,17 +48,25 @@ public interface RegionFilter extends BiPredicate<ImageData<?>, RegionRequest> {
 		 */
 		EVERYWHERE,
 		/**
-		 * Accept all requests for the image where the region is non-empty
-		 */
-		IMAGE,
-		/**
-		 * Regions overlapping any objects
+		 * Regions overlapping the ROIs of any objects
 		 */
 		ANY_OBJECTS,
 		/**
-		 * Annotated-regions only
+		 * Regions overlapping the ROIs of any annotations
 		 */
-		ANY_ANNOTATIONS;
+		ANY_ANNOTATIONS,
+		/**
+		 * Regions overlapping the bounding box of any objects
+		 */
+		ANY_OBJECTS_BOUNDS,
+		/**
+		 * Regions overlapping the bounding box of any annotations
+		 */
+		ANY_ANNOTATIONS_BOUNDS,
+		/**
+		 * Accept all requests for the image where the region is non-empty
+		 */
+		IMAGE;
 		
 		@Override
 		public String toString() {
@@ -65,9 +76,13 @@ public interface RegionFilter extends BiPredicate<ImageData<?>, RegionRequest> {
 			case IMAGE:
 				return "Image (non-empty regions)";
 			case ANY_OBJECTS:
-				return "Any objects";
+				return "Any object ROI";
 			case ANY_ANNOTATIONS:
-				return "Any annotations";
+				return "Any annotation ROI";
+			case ANY_OBJECTS_BOUNDS:
+				return "Any object bounds (fast)";
+			case ANY_ANNOTATIONS_BOUNDS:
+				return "Any annotation bounds (fast)";
 			default:
 				return "Unknown";
 			}
@@ -77,17 +92,42 @@ public interface RegionFilter extends BiPredicate<ImageData<?>, RegionRequest> {
 		public boolean test(ImageData<?> imageData, RegionRequest region) {
 			switch (this) {
 			case ANY_ANNOTATIONS:
-				return imageData.getHierarchy().hasObjectsForRegion(PathAnnotationObject.class, region);
+				var annotations = imageData.getHierarchy().getObjectsForRegion(PathAnnotationObject.class, region, null);
+				return overlapsObjects(annotations, region);
 			case ANY_OBJECTS:
-				return imageData.getHierarchy().hasObjectsForRegion(null, region);
+				var pathObjects = imageData.getHierarchy().getObjectsForRegion(null, region, null);
+				return overlapsObjects(pathObjects, region);
 			case IMAGE:
 				return !imageData.getServer().isEmptyRegion(region);
-			case EVERYWHERE:
+			case ANY_OBJECTS_BOUNDS:
+				return imageData.getHierarchy().hasObjectsForRegion(null, region);
+			case ANY_ANNOTATIONS_BOUNDS:
+				return imageData.getHierarchy().hasObjectsForRegion(PathAnnotationObject.class, region);
 			default:
 				return true;
 			}
 		}
 		
 	}
+	
+	private static boolean overlapsObjects(Collection<? extends PathObject> pathObjects, ImageRegion region) {
+		for (var pathObject : pathObjects) {
+			var roi = pathObject.getROI();
+			if (roi == null)
+				continue;
+			if (roi.isPoint()) {
+				for (var p : roi.getAllPoints()) {
+					if (region.contains((int)p.getX(), (int)p.getY(), roi.getZ(), roi.getT()))
+						return true;
+				}
+			} else {
+				var shape = roi.getShape();
+				if (shape.intersects(region.getX(), region.getY(), region.getWidth(), region.getHeight()))
+					return true;
+			}
+		}
+		return false;
+	}
+	
 	
 }
