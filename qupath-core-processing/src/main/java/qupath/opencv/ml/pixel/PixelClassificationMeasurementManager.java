@@ -28,7 +28,6 @@ import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.Shape;
 import java.awt.geom.Point2D;
-import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBuffer;
 import java.awt.image.WritableRaster;
@@ -186,7 +185,41 @@ public class PixelClassificationMeasurementManager {
 		return measurementNames == null ? Collections.emptyList() : measurementNames;
 	}
 	
-		    
+	
+	/**
+	 * Check if a ROI shape completely contains tile. This should err on the side of caution and 
+	 * only return true if it is very confident that all pixels of the tile are inside the shape.
+	 * @param shape
+	 * @param tile
+	 * @param padding pad the tile to make the estimate more conservative (and deal with non-zero stroke thickness for shape masks)
+	 * @return
+	 */
+	private static boolean completelyContainsTile(Shape shape, TileRequest tile, double padding) {
+		return shape.contains(
+				tile.getImageX()-padding,
+				tile.getImageY()-padding,
+				tile.getImageWidth()+padding*2,
+    			tile.getImageHeight()+padding*2     
+				);
+	}
+	
+	/**
+	 * Check if a ROI shape could intersect a tile. This should err on the side of caution and 
+	 * only eliminate cases where there is definitely no intersection.
+	 * @param shape
+	 * @param tile
+	 * @param padding pad the tile to make the estimate more conservative (and deal with non-zero stroke thickness for shape masks)
+	 * @return
+	 */
+	private static boolean mayIntersectTile(Shape shape, TileRequest tile, double padding) {
+		return shape.intersects(
+				tile.getImageX()-padding,
+				tile.getImageY()-padding,
+				tile.getImageWidth()+padding*2,
+    			tile.getImageHeight()+padding*2     
+				);
+	}
+	
 	/**
 	 * Calculate measurements for a specified ROI if possible.
 	 * 
@@ -218,6 +251,11 @@ public class PixelClassificationMeasurementManager {
         } else if (!roi.isEmpty()) {
 	        var regionRequest = RegionRequest.createInstance(server.getPath(), requestedDownsample, roi);
 	        requests = server.getTileRequestManager().getTileRequests(regionRequest);
+	        // Skip tiles that don't intersect with the ROI shape
+	        if (shape != null) {
+	        	var shapeTemp = shape;
+	        	requests = requests.stream().filter(r -> mayIntersectTile(shapeTemp, r, r.getDownsample())).collect(Collectors.toList());
+	        }
         } else
         	requests = Collections.emptyList();
         
@@ -228,6 +266,7 @@ public class PixelClassificationMeasurementManager {
         
 
         // Try to get all cached tiles - if this fails, return quickly (can't calculate measurement)
+        // TODO: Avoid pre-caching all tiles; this will fail on large regions + low memory, when not all tiles can be stored in the cache
         Map<TileRequest, BufferedImage> localCache = new HashMap<>();
         for (TileRequest request : requests) {
         	BufferedImage tile = null;
@@ -254,10 +293,6 @@ public class PixelClassificationMeasurementManager {
     	
     	long startTime = System.currentTimeMillis();
     	
-    	// Create a generous representation of the tile bounds to check for contains/intersects
-    	// It needs to be generous because of the stroke width
-    	Rectangle2D expandedTileBounds = new Rectangle2D.Double();
-
         for (Map.Entry<TileRequest, BufferedImage> entry : localCache.entrySet()) {
         	TileRequest region = entry.getKey();
         	BufferedImage tile = entry.getValue();
@@ -267,27 +302,14 @@ public class PixelClassificationMeasurementManager {
         		imgTileMask.set(imgMask);
         	}
         	
-        	// Create expanded tile bounds
-        	// If our ROI completely contains this, then we know the mask covers all pixels
-        	// If our ROI doesn't intersect this, then we know we can skip it
-        	expandedTileBounds.setRect(
-                	region.getImageX()-region.getDownsample(),
-        			region.getImageY()-region.getDownsample(),
-        			region.getImageWidth()+region.getDownsample()*2,
-        			region.getImageHeight()+region.getDownsample()*2        			
-        			);
-        	
     		// Check if the entire image is within the mask
     		boolean fullMask = false;
 
-        	if (shape != null && shape.contains(expandedTileBounds)) {
+        	if (shape != null && completelyContainsTile(shape, region, region.getDownsample())) {
         		// Quickly test if the entire image is masked
         		// If so, we can save time by avoiding creating and testing the mask
         		fullMask = true;
         		bounds.setRect(0, 0, tile.getWidth(), tile.getHeight());
-        	} else if (shape != null && !shape.intersects(expandedTileBounds)) {
-        		// Quickly test if we have nothing to do
-        		continue;
         	} else {
         	
 	        	// Initialize the bounds
@@ -328,6 +350,7 @@ public class PixelClassificationMeasurementManager {
 	        		g2d.dispose();
 	        		
 	        	} else if (roi.isPoint()) {
+	        		// Check if we are adding any points, so we can skip if not
 	        		boolean anyPoints = false;
 	        		for (var p : roi.getAllPoints()) {
 	        			int x = (int)((p.getX() - region.getImageX()) / region.getDownsample());
