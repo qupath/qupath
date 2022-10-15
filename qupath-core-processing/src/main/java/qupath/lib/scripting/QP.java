@@ -1381,7 +1381,7 @@ public class QP {
 		PathObjectHierarchy hierarchy = getCurrentHierarchy();
 		if (hierarchy == null)
 			return Collections.emptyList();
-		return hierarchy.getObjects(null, PathAnnotationObject.class);
+		return hierarchy.getAnnotationObjects();
 	}
 
 	/**
@@ -1408,7 +1408,22 @@ public class QP {
 		PathObjectHierarchy hierarchy = getCurrentHierarchy();
 		if (hierarchy == null)
 			return Collections.emptyList();
-		return hierarchy.getObjects(null, PathDetectionObject.class);
+		return hierarchy.getDetectionObjects();
+	}
+	
+	/**
+	 * Get a list of the current tile objects.
+	 * 
+	 * @return
+	 * 
+	 * @see #getCurrentHierarchy
+	 * @since v0.4.0
+	 */
+	public static Collection<PathObject> getTileObjects() {
+		PathObjectHierarchy hierarchy = getCurrentHierarchy();
+		if (hierarchy == null)
+			return Collections.emptyList();
+		return hierarchy.getTileObjects();
 	}
 	
 	/**
@@ -1422,7 +1437,7 @@ public class QP {
 		PathObjectHierarchy hierarchy = getCurrentHierarchy();
 		if (hierarchy == null)
 			return Collections.emptyList();
-		return hierarchy.getObjects(null, PathCellObject.class);
+		return hierarchy.getCellObjects();
 	}
 
 	/**
@@ -1438,8 +1453,8 @@ public class QP {
 			return new PathObject[0];
 		var objList = hierarchy.getFlattenedObjectList(null);
 		if (includeRootObject)
-			return objList.toArray(new PathObject[0]);
-		return objList.parallelStream().filter(e -> !e.isRootObject()).toArray(PathObject[]::new);
+			return objList.toArray(PathObject[]::new);
+		return objList.stream().filter(e -> !e.isRootObject()).toArray(PathObject[]::new);
 	}
 
 	/**
