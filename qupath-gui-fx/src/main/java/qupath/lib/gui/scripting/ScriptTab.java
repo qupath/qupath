@@ -40,6 +40,7 @@ import javafx.scene.control.SplitPane;
 import javafx.scene.layout.BorderPane;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.scripting.languages.ScriptLanguage;
+import qupath.lib.gui.scripting.languages.ScriptLanguageProvider;
 
 /**
  * Class representing a script tab (e.g. on the right side of the script editor).
@@ -103,15 +104,12 @@ public class ScriptTab {
 	protected void readFile(final File file) throws IOException {
 		logger.info("Loading file {} to Script Editor", file.getAbsolutePath());
 		String content = GeneralTools.readFileAsString(file.getPath());
-//		Scanner scanner = new Scanner(file);
-//		String content = new String(Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8);
-//		String content = scanner.useDelimiter("\\Z").next();
 		editor.setText(content);
 		name = file.getName();
 		this.file = file;
 		lastModified = file.lastModified();
 		lastSavedContents = content;
-		this.language = DefaultScriptEditor.getLanguageFromName(name);
+		this.language = ScriptLanguageProvider.getLanguageFromName(name);
 //		scanner.close();
 		updateIsModified();
 	}

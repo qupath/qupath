@@ -21,11 +21,8 @@
 
 package qupath.lib.gui.scripting.languages;
 
-import java.awt.image.BufferedImage;
-import java.util.Collection;
 import java.util.ServiceLoader;
 
-import javax.script.ScriptContext;
 import javax.script.ScriptException;
 
 import org.commonmark.parser.Parser;
@@ -37,13 +34,13 @@ import javafx.scene.web.WebView;
 import javafx.stage.Stage;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.tools.WebViews;
-import qupath.lib.images.ImageData;
-import qupath.lib.projects.Project;
+import qupath.lib.scripting.ScriptParameters;
 
 /**
  * Class for the representation of JSON syntax in QuPath.
  * <p>
  * This class stores the QuPath implementation of Markdown syntaxing and a dummy plain auto-completion.
+ * 
  * @author Pete Bankhead (based on Melvin Gelbard's code)
  * @since v0.4.0
  */
@@ -119,12 +116,10 @@ public class MarkdownLanguage extends ScriptLanguage implements RunnableLanguage
 	}
 
 	@Override
-	public Object executeScript(String script, Project<BufferedImage> project, ImageData<BufferedImage> imageData,
-			Collection<Class<?>> defaultImports, Collection<Class<?>> defaultStaticImports, ScriptContext context)
-			throws ScriptException {
+	public Object executeScript(ScriptParameters params) throws ScriptException {
 		
 		try {
-			var doc = Parser.builder().build().parse(script);
+			var doc = Parser.builder().build().parse(params.getScript());
 			var html = HtmlRenderer.builder().build().render(doc);
 			showHtml(html);
 			return html;
@@ -133,13 +128,4 @@ public class MarkdownLanguage extends ScriptLanguage implements RunnableLanguage
 		}
 	}
 
-	@Override
-	public String getImportStatements(Collection<Class<?>> classes) {
-		return null;
-	}
-
-	@Override
-	public String getStaticImportStatments(Collection<Class<?>> classes) {
-		return null;
-	}
 }

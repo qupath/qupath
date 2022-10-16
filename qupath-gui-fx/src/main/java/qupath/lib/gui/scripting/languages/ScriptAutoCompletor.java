@@ -34,6 +34,7 @@ import qupath.lib.gui.scripting.ScriptEditorControl;
 
 /**
  * Interface for classes that implement auto-completion (e.g. styling classes).
+ * 
  * @author Melvin Gelbard
  * @author Pete Bankhead
  * @since v0.4.0

@@ -30,6 +30,7 @@ import java.io.PrintWriter;
 import java.io.Writer;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -41,10 +42,7 @@ import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import javax.script.ScriptContext;
 import javax.script.ScriptException;
-import javax.script.SimpleScriptContext;
-
 import org.apache.commons.text.StringEscapeUtils;
 import org.controlsfx.control.action.Action;
 import org.controlsfx.dialog.ProgressDialog;
@@ -110,6 +108,7 @@ import qupath.lib.images.ImageData;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectImageEntry;
 import qupath.lib.projects.Projects;
+import qupath.lib.scripting.ScriptParameters;
 
 
 /**
@@ -123,19 +122,7 @@ import qupath.lib.projects.Projects;
 public class DefaultScriptEditor implements ScriptEditor {
 
 	private static final Logger logger = LoggerFactory.getLogger(DefaultScriptEditor.class);
-	
-	private static final List<ScriptLanguage> availableLanguages = ScriptLanguageProvider.getAvailableScriptLanguages();
-	
-	/**
-	 * Default classes to import at the start a script, if 'useDefaultBindings' is enabled.
-	 */
-	private static final Collection<Class<?>> defaultClasses = getDefaultClasses();
-	
-	/**
-	 * Default static classes to import at the start a script, if 'useDefaultBindings' is enabled.
-	 */
-	private static final Collection<Class<?>> defaultStaticClasses = getDefaultStaticClasses();
-	
+			
 	private final ScriptEditorDragDropListener dragDropListener;
 	
 	private ObjectProperty<Future<?>> runningTask = new SimpleObjectProperty<>();
@@ -353,7 +340,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		if (file == null || !file.isFile())
 			return false;
 		String name = file.getName();
-		for (ScriptLanguage l: availableLanguages) {
+		for (ScriptLanguage l: ScriptLanguageProvider.getAvailableLanguages()) {
 			for (String ext: l.getExtensions()) {
 				if (name.endsWith(ext))
 					return true;
@@ -616,7 +603,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		// Languages menu - ensure each language only gets added once
 		Menu menuLanguages = new Menu("Language");
 		List<RadioMenuItem> nonRunnableLanguages = new ArrayList<>();
-		for (ScriptLanguage language : new LinkedHashSet<>(availableLanguages)) {
+		for (ScriptLanguage language : new LinkedHashSet<>(ScriptLanguageProvider.getAvailableLanguages())) {
 			String languageName = language.toString();
 			RadioMenuItem item = new RadioMenuItem(languageName);
 			item.setToggleGroup(toggleLanguages);
@@ -762,7 +749,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		ScriptTab tab = getCurrentScriptObject();
 		if (tab == null)
 			return;
-		for (ScriptLanguage l : availableLanguages) {
+		for (ScriptLanguage l : ScriptLanguageProvider.getAvailableLanguages()) {
 			if (l == language) {
 				tab.setLanguage(l);
 				break;
@@ -835,17 +822,28 @@ public class DefaultScriptEditor implements ScriptEditor {
 	 * @param project 
 	 * @param imageData
 	 */
-	private void executeScript(final ScriptTab tab, final String script, final Project<BufferedImage> project, final ImageData<BufferedImage> imageData) {
+	private void executeScript(final ScriptTab tab, final String script, final Project<BufferedImage> project, final ImageData<BufferedImage> imageData, int batchIndex, int batchSize) {
 		if (!(tab.getLanguage() instanceof RunnableLanguage))
 			return;
 	
 		RunnableLanguage runnableLanguage = (RunnableLanguage)tab.getLanguage();
 		ScriptEditorControl console = tab.getConsoleComponent();
-		ScriptContext context = new SimpleScriptContext();
-		context.setAttribute("args", new String[0], ScriptContext.ENGINE_SCOPE);
+		
 		var writer = new ScriptConsoleWriter(console, false);
-		context.setWriter(writer);
-		context.setErrorWriter(new ScriptConsoleWriter(console, true));
+		
+		var params = ScriptParameters.builder()
+				.setDefaultImports(QPEx.getCoreClasses())
+				.setDefaultStaticImports(Collections.singletonList(QPEx.class))
+				.setWriter(writer)
+				.setErrorWriter(new ScriptConsoleWriter(console, true))
+				.setScript(script)
+				.setFile(tab.getFile())
+				.setProject(project)
+				.setImageData(imageData)
+				.setBatchIndex(batchIndex)
+				.setBatchSize(batchSize)
+				.build();
+		
 		var printWriter = new PrintWriter(writer);
 		
 		boolean attachToLog = sendLogToConsole.get();
@@ -855,7 +853,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		if (outputScriptStartTime.get())
 			printWriter.println("Starting script at " + new Date(startTime).toString());
 		try {
-			Object result = executeScript(runnableLanguage, script, project, imageData, useDefaultBindings.get(), context);
+			Object result = runnableLanguage.executeScript(params);
 			if (result != null) {
 				printWriter.println("Result: " + result);
 			}
@@ -872,80 +870,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 				Platform.runLater(() -> LogManager.removeTextAppendableFX(console));	
 		}
 	}
-
 	
-	/**
-	 * Create default ScriptContext to run scripts.
-	 * @return default script context
-	 */
-	public static ScriptContext createDefaultContext() {
-		ScriptContext context = new SimpleScriptContext();
-		context.setAttribute("args", new String[0], ScriptContext.ENGINE_SCOPE);
-		context.setWriter(new LoggerInfoWriter());
-		context.setErrorWriter(new LoggerErrorWriter());
-		return context;
-	}
-	
-	
-	private abstract static class LoggerWriter extends Writer {
-
-		@Override
-		public void write(char[] cbuf, int off, int len) throws IOException {
-			// Don't need to log newlines
-			if (len == 1 && cbuf[off] == '\n')
-				return;
-			String s = String.valueOf(cbuf, off, len);
-			// Skip newlines on Windows too...
-			if (s.equals(System.lineSeparator()))
-				return;
-			log(s);
-		}
-		
-		protected abstract void log(String s);
-
-		@Override
-		public void flush() throws IOException {}
-		
-		@Override
-		public void close() throws IOException {
-			flush();
-		}
-	}
-	
-	private static class LoggerInfoWriter extends LoggerWriter {
-
-		@Override
-		protected void log(String s) {
-			logger.info(s);
-		}
-	}
-	
-	private static class LoggerErrorWriter extends LoggerWriter {
-
-		@Override
-		protected void log(String s) {
-			logger.error(s);
-		}
-	}
-	
-	
-	/**
-	 * Execute a script using an appropriate ScriptEngine for a specified scripting language.
-	 * 
-	 * @param language
-	 * @param script
-	 * @param project 
-	 * @param imageData
-	 * @param importDefaultMethods
-	 * @param context
-	 * @return
-	 * @throws ScriptException 
-	 */
-	public static Object executeScript(final RunnableLanguage language, final String script, final Project<BufferedImage> project, final ImageData<BufferedImage> imageData, final boolean importDefaultMethods, final ScriptContext context) throws ScriptException {
-		if (importDefaultMethods)
-			return language.executeScript(script, project, imageData, defaultClasses, defaultStaticClasses, context);
-		return language.executeScript(script, project, imageData, new ArrayList<>(), new ArrayList<>(), context);					
-	}
 	
 	static class ScriptObjectListCell extends ListCell<ScriptTab> {
         @Override
@@ -1152,7 +1077,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 				logger.info("Running script in Platform thread...");
 				try {
 					tab.setRunning(true);
-					executeScript(tab, script, qupath.getProject(), qupath.getImageData());
+					executeScript(tab, script, qupath.getProject(), qupath.getImageData(), 0, 1);
 				} finally {
 					tab.setRunning(false);
 					runningTask.setValue(null);
@@ -1163,7 +1088,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 					public void run() {
 						try {
 							tab.setRunning(true);
-							executeScript(tab, script, qupath.getProject(), qupath.getImageData());
+							executeScript(tab, script, qupath.getProject(), qupath.getImageData(), 0, 1);
 						} finally {
 							tab.setRunning(false);
 							Platform.runLater(() -> runningTask.setValue(null));
@@ -1299,6 +1224,8 @@ public class DefaultScriptEditor implements ScriptEditor {
 			tab.setRunning(true);
 			
 			int counter = 0;
+			int batchSize = imagesToProcess.size();
+			int batchIndex = 0;
 			for (ProjectImageEntry<BufferedImage> entry : imagesToProcess) {
 				try {
 					// Stop
@@ -1321,7 +1248,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 						continue;
 					}
 //					QPEx.setBatchImageData(imageData);
-					executeScript(tab, tab.getEditorComponent().getText(), project, imageData);
+					executeScript(tab, tab.getEditorComponent().getText(), project, imageData, batchIndex, batchSize);
 					if (doSave)
 						entry.saveImageData(imageData);
 					imageData.getServer().close();
@@ -1339,6 +1266,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 				} catch (Exception e) {
 					logger.error("Error running batch script: {}", e);
 				}
+				batchIndex++;
 			}
 			updateProgress(imagesToProcess.size(), imagesToProcess.size());
 			
@@ -1495,23 +1423,6 @@ public class DefaultScriptEditor implements ScriptEditor {
 //		return new Action(e -> handleTabPress(textArea, shiftDown));
 //	}
 	
-	
-	
-	/**
-	 * Given a file name, determine the associated language - or null if no suitable (supported) language can be found.
-	 * 
-	 * @param name
-	 * @return
-	 */
-	public static ScriptLanguage getLanguageFromName(String name) {
-		for (ScriptLanguage l : availableLanguages) {
-			for (String possibleExt: l.getExtensions()) {
-				if (name.toLowerCase().endsWith(possibleExt))
-					return l;
-			}
-		}
-		return PlainLanguage.getInstance();
-	}
 	
 	Action createOpenAction(final String name) {
 		Action action = new Action(name, e -> {
@@ -1745,6 +1656,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	
 	private ScriptLanguage getDefaultLanguage(String fileName) {
 		var ext = fileName == null ? null : GeneralTools.getExtension(fileName).orElse(null);
+		var availableLanguages = ScriptLanguageProvider.getAvailableLanguages();
 		if (ext == null) {
 			if (availableLanguages.contains(GroovyLanguage.getInstance()))
 					return GroovyLanguage.getInstance();
@@ -1777,27 +1689,6 @@ public class DefaultScriptEditor implements ScriptEditor {
 			logger.error("Could not load script from {}", file);
 			logger.error("", e);
 		}
-	}
-	
-
-	/**
-	 * Get the collection of classes to import at the start of a script, if desired.
-	 * @return collection of default classes
-	 */
-	public static Collection<Class<?>> getDefaultClasses() {
-		var out = QPEx.getCoreClasses();
-		out.add(QPEx.class);	// Add itself
-		return out;
-	}
-	
-	/**
-	 * Get the collection of static classes to import at the start of a script, if desired.
-	 * @return collection of default static classes
-	 */
-	public static Collection<Class<?>> getDefaultStaticClasses() {
-		List<Class<?>> out = new ArrayList<>();
-		out.add(QPEx.class);
-		return out;
 	}
 
 	static class CustomTextArea extends TextArea {

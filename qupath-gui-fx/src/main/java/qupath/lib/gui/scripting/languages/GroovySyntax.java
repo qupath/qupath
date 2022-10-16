@@ -99,6 +99,8 @@ class GroovySyntax extends GeneralCodeSyntax {
 			super.handleNewLine(control, smartEditing);
 			return;
 		}
+		
+		var tabString = getTabString();
 
 		if (trimmedSubString.startsWith("/*") && !trimmedSubString.contains("*/")) {	// Start of a comment block
 			insertText = ind == 0 ? "\n" + subString.substring(0, indentation) + " * \n */" : "\n" + subString.substring(0, indentation) + " * \n" + subString.substring(0, indentation) + " */ ";

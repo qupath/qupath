@@ -216,6 +216,8 @@ abstract class GeneralCodeSyntax implements ScriptSyntax {
 		int endRowPos = getRowEndPosition(text, range.getEnd());
 		String textBetween = text.substring(startRowPos, endRowPos);
 
+		var tabString = getTabString();
+		
 		if (range.getLength() == 0) {
 			int caretPos = textArea.getCaretPosition();
 			if (shiftDown) {

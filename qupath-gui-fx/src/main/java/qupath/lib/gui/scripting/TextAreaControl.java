@@ -33,7 +33,7 @@ import javafx.scene.control.IndexRange;
 import javafx.scene.control.TextArea;
 
 /**
- * SImple text area control (JavafX) with basic operations.
+ * Simple text area control (JavaFX) with basic operations.
  * @author Pete Bankhead
  *
  */

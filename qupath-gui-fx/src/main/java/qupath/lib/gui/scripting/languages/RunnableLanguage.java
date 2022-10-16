@@ -21,14 +21,9 @@
 
 package qupath.lib.gui.scripting.languages;
 
-import java.awt.image.BufferedImage;
-import java.util.Collection;
-
-import javax.script.ScriptContext;
 import javax.script.ScriptException;
 
-import qupath.lib.images.ImageData;
-import qupath.lib.projects.Project;
+import qupath.lib.scripting.ScriptParameters;
 
 /**
  * Functional interface for {@link ScriptLanguage}s that are runnable (e.g. Groovy, JavaScript).
@@ -39,28 +34,10 @@ public interface RunnableLanguage {
 	
 	/**
 	 * Execute the given script String.
-	 * @param script 						the script to run
-	 * @param project 						the current project (can be null if none)
-	 * @param imageData 				the current image data (can be null if none)
-	 * @param defaultImports 			a collection of the classes to import
-	 * @param defaultStaticImports 		a collection of classes to import as static classes
-	 * @param context 					the script context to run this script
+	 * @param params 
 	 * @return 
 	 * @throws ScriptException 
 	 */
-	Object executeScript(final String script, final Project<BufferedImage> project, final ImageData<BufferedImage> imageData, final Collection<Class<?>> defaultImports, final Collection<Class<?>> defaultStaticImports, final ScriptContext context) throws ScriptException;
+	Object executeScript(final ScriptParameters params) throws ScriptException;
 
-	/**
-	 * Get the import statements as a String, to add at the beginning of the executed script.
-	 * @param classes a collection of the classes to import 
-	 * @return import string
-	 */
-	String getImportStatements(Collection<Class<?>> classes);
-
-	/**
-	 * Get the static import statements as a String, to add at the beginning of the executed script.
-	 * @param classes	a collection of classes to import as static classes
-	 * @return import string
-	 */
-	String getStaticImportStatments(Collection<Class<?>> classes);
 }

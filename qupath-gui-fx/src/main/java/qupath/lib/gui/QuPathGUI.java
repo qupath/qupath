@@ -205,6 +205,9 @@ import qupath.lib.gui.prefs.PathPrefs.ImageTypeSetting;
 import qupath.lib.gui.prefs.QuPathStyleManager;
 import qupath.lib.gui.scripting.ScriptEditor;
 import qupath.lib.gui.scripting.languages.GroovyLanguage;
+import qupath.lib.gui.scripting.languages.RunnableLanguage;
+import qupath.lib.gui.scripting.languages.ScriptLanguage;
+import qupath.lib.gui.scripting.languages.ScriptLanguageProvider;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.tools.CommandFinderTools;
 import qupath.lib.gui.tools.GuiTools;
@@ -247,7 +250,9 @@ import qupath.lib.projects.ProjectImageEntry;
 import qupath.lib.projects.Projects;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
+import qupath.lib.scripting.ScriptParameters;
 import qupath.lib.gui.scripting.DefaultScriptEditor;
+import qupath.lib.gui.scripting.QPEx;
 
 
 
@@ -3252,8 +3257,8 @@ public class QuPathGUI {
 	public MenuItem installGroovyCommand(String menuPath, final File file) {
 		return installCommand(menuPath, () -> {
 			try {
-				runScript(file, getImageData());
-			} catch (IOException | ScriptException e) {
+				runScript(file, null);
+			} catch (ScriptException e) {
 				Dialogs.showErrorMessage("Script error", e);
 			}
 		});
@@ -3271,7 +3276,7 @@ public class QuPathGUI {
 	public MenuItem installGroovyCommand(String menuPath, final String script) {
 		return installCommand(menuPath, () -> {
 			try {
-				runScript(script, getImageData());
+				runScript(null, script);
 			} catch (ScriptException e) {
 				Dialogs.showErrorMessage("Script error", e);
 			}
@@ -3360,28 +3365,34 @@ public class QuPathGUI {
 		
 	
 	/**
-	 * Convenience method to execute a Groovy script.
+	 * Convenience method to execute a script.
+	 * Either a script file or the text of the script must be provided, or both.
+	 * <p>
+	 * If only the script text is given, the language is assumed to be Groovy.
+	 * 
+	 * @param file the file containing the script to run
 	 * @param script the script to run
-	 * @param imageData an {@link ImageData} object for the current image (may be null)
 	 * @return result of the script execution
 	 * @throws ScriptException 
+	 * @throws IllegalArgumentException if both file and script are null
 	 */
-	private Object runScript(final String script, final ImageData<BufferedImage> imageData) throws ScriptException {
-		return DefaultScriptEditor.executeScript(GroovyLanguage.getInstance(), script, getProject(), imageData, true, null);
-	}
-	
-	/**
-	 * Convenience method to execute a Groovy from a file.
-	 * The file will be reloaded each time it is required.
-	 * @param file File containing the script to run
-	 * @param imageData an {@link ImageData} object for the current image (may be null)
-	 * @return result of the script execution
-	 * @throws IOException 
-	 * @throws ScriptException 
-	 */
-	private Object runScript(final File file, final ImageData<BufferedImage> imageData) throws IOException, ScriptException {
-		var script = GeneralTools.readFileAsString(file.getAbsolutePath());
-		return runScript(script, imageData);
+	public Object runScript(final File file, final String script) throws ScriptException, IllegalArgumentException {
+		var params = ScriptParameters.builder()
+						.setProject(getProject())
+						.setImageData(getImageData())
+						.setDefaultImports(QPEx.getCoreClasses())
+						.setDefaultStaticImports(Collections.singletonList(QPEx.class))
+						.setFile(file)
+						.setScript(script)
+						.useLogWriters()
+						.build();
+		ScriptLanguage language = null;
+		if (file != null) {
+			language = ScriptLanguageProvider.fromString(file.getName());
+		}
+		if (!(language instanceof RunnableLanguage))
+			language = GroovyLanguage.getInstance();
+		return ((RunnableLanguage)language).executeScript(params);
 	}
 	
 	

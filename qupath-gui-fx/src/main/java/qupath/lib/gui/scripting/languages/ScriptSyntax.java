@@ -33,8 +33,11 @@ public interface ScriptSyntax {
 	
 	/**
 	 * String to insert when tab key pressed
+	 * @return 
 	 */
-	final String tabString = "    ";
+	default String getTabString() {
+		return "    ";
+	}
 	
 	/**
 	 * Get the String that represents the start of a comment line.
@@ -106,7 +109,7 @@ public interface ScriptSyntax {
 	 * @param shiftDown
 	 */
 	public default void handleTabPress(ScriptEditorControl control, boolean shiftDown) {
-		control.insertText(control.getCaretPosition(), tabString);
+		control.insertText(control.getCaretPosition(), getTabString());
 	}
 	
 	/**

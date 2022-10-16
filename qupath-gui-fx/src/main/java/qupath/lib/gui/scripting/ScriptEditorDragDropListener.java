@@ -40,7 +40,7 @@ import qupath.lib.gui.scripting.languages.ScriptLanguageProvider;
  * @author Melvin Gelbard
  * @since v0.4.0
  */
-public class ScriptEditorDragDropListener implements EventHandler<DragEvent> {
+class ScriptEditorDragDropListener implements EventHandler<DragEvent> {
 
 	private final QuPathGUI qupath;
 
@@ -64,8 +64,9 @@ public class ScriptEditorDragDropListener implements EventHandler<DragEvent> {
 			List<File> jars = list.stream().filter(f -> f.getName().toLowerCase().endsWith(".jar")).collect(Collectors.toList());
 			if (!jars.isEmpty())
 				qupath.installExtensions(list);
+			
 			List<File> remainingFiles = list.stream().filter(f -> !f.getName().toLowerCase().endsWith(".jar")).collect(Collectors.toList());
-			var supported = ScriptLanguageProvider.getAvailableScriptLanguages().stream().flatMap(l -> Arrays.stream(l.getExtensions())).collect(Collectors.toCollection(HashSet::new));
+			var supported = ScriptLanguageProvider.getAvailableLanguages().stream().flatMap(l -> Arrays.stream(l.getExtensions())).collect(Collectors.toCollection(HashSet::new));
 			supported.add(".qpproj");	// TODO: Maybe add this as a JsonLanguage ext? so the highlighting is automatically set
 			supported.add(".qpdata");
 			for (File file: remainingFiles) {

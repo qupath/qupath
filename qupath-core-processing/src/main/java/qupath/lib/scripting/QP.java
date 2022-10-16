@@ -242,6 +242,9 @@ public class QP {
 
 	
 	private static final Set<Class<?>> CORE_CLASSES = Collections.unmodifiableSet(new HashSet<>(Arrays.asList(
+			
+			QP.class,
+			
 			// Core datastructures
 			ImageData.class,
 			ImageServer.class,
@@ -271,6 +274,7 @@ public class QP {
 			GeneralTools.class,
 			
 			Timeit.class,
+			ScriptAttributes.class,
 			
 			Version.class,
 			

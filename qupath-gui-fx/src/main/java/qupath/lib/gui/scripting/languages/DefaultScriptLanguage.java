@@ -38,13 +38,13 @@ import javax.script.ScriptContext;
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineFactory;
 import javax.script.ScriptException;
+import javax.script.SimpleScriptContext;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.imagej.tools.IJTools;
 import qupath.lib.gui.dialogs.Dialogs;
-import qupath.lib.gui.scripting.DefaultScriptEditor;
 import qupath.lib.gui.scripting.QPEx;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObjects;
@@ -52,6 +52,8 @@ import qupath.lib.projects.Project;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.ShapeSimplifier;
 import qupath.lib.scripting.QP;
+import qupath.lib.scripting.ScriptAttributes;
+import qupath.lib.scripting.ScriptParameters;
 
 /**
  * Default implementation for a {@link ScriptLanguage}, based on a {@link ScriptEngine}.
@@ -117,11 +119,12 @@ public class DefaultScriptLanguage extends ScriptLanguage implements RunnableLan
 	}
 
 	@Override
-	public Object executeScript(String script, Project<BufferedImage> project, ImageData<BufferedImage> imageData, Collection<Class<?>> classesToImport, Collection<Class<?>> staticClassesToImport, ScriptContext context) throws ScriptException {
+	public Object executeScript(ScriptParameters params) throws ScriptException {
 		// Set the current ImageData if we can
-		QP.setBatchProjectAndImage(project, imageData);
+		QP.setBatchProjectAndImage((Project<BufferedImage>)params.getProject(), (ImageData<BufferedImage>)params.getImageData());
 		
 		// We'll actually use script2... which may or may not be the same
+		String script = params.getScript();
 		String script2 = script;
 		
 		// Prepare to return a result
@@ -129,43 +132,24 @@ public class DefaultScriptLanguage extends ScriptLanguage implements RunnableLan
 
 		// Record if any extra lines are added to the script, to help match line numbers of any exceptions
 			
-//			// Class supplying static methods that will be included in the main namespace
-//			// TODO: Note: Javascript ignores the 'extends', i.e. loses all the QPEx stuff, so most functions don't work.
-//			// This workaround means that command line script running is used with Javascript, whereas Groovy shows progress dialogs etc.
-//			String scriptClass = scriptEngine.getFactory().getNames().contains("javascript") ? QP.class.getName() : QPEx.class.getName();
-//			
-//			// Import whatever else is needed into the namespace for the languages we know about
-//			if (scriptEngine.getFactory().getNames().contains("jython")) {
-//				script2 = String.format(
-//						"import qupath\n" +
-//						"from %s import *\n" +
-//						"%s\n",
-//						scriptClass, script);
-//				extraLines = 2;
-//			}
-//			if (scriptEngine.getFactory().getNames().contains("groovy")) {
-//				script2 = QPEx.getDefaultImports(true) + System.lineSeparator() + script;
-//				extraLines = 1; // coreImports.size() + 1;
-//			}
-//			if (scriptEngine.getFactory().getNames().contains("javascript")) {
-//				script2 = String.format(
-//						"var QP = Java.type(\"%s\");\n"
-//						+ "with (Object.bindProperties({}, QP)) {\n"
-//						+ "%s\n"
-//						+ "}\n",
-//						scriptClass, script);
-//				extraLines = 2;
-//			}
-			
 		// Supply default bindings
-		String importsString = getImportStatements(classesToImport) + getStaticImportStatments(staticClassesToImport);
+		String importsString = getImportStatements(params.getDefaultImports()) + getStaticImportStatments(params.getDefaultStaticImports());
 		int extraLines = importsString.replaceAll("[^\\n]", "").length() + 1; // TODO: Check this
 		script2 = importsString + System.lineSeparator() + script;
 		
-		context = context == null ? DefaultScriptEditor.createDefaultContext() : context;
+		var context = createContext(params);
 		
 		try {
-			result = ScriptLanguageProvider.getEngineByName(getName()).eval(script2, context);
+			var engine =  ScriptLanguageProvider.getEngineByName(getName());
+			if (engine == null)
+				throw new ScriptException("Unable to find ScriptEngine for " + getName());
+			
+			engine.put(ScriptEngine.ARGV, params.getArgs());
+			var file = params.getFile();
+			if (file != null)
+				engine.put(ScriptEngine.FILENAME, file.getAbsolutePath());
+			
+			result = engine.eval(script2, context);
 		} catch (ScriptException e) {
 			try {
 				int line = e.getLineNumber();
@@ -273,6 +257,34 @@ public class DefaultScriptLanguage extends ScriptLanguage implements RunnableLan
 		return result;
 	}
 	
+	
+	/**
+	 * Create a {@link ScriptContext} containing information from the {@link ScriptParameters}.
+	 * @param params
+	 * @return
+	 */
+	protected ScriptContext createContext(ScriptParameters params) {
+		var context = new SimpleScriptContext();
+		
+		String filePath = params.getFile() == null ? null : params.getFile().getAbsolutePath();
+		context.setAttribute(ScriptAttributes.ARGS, params.getArgs(), ScriptContext.ENGINE_SCOPE);
+		context.setAttribute(ScriptAttributes.FILE_PATH, filePath, ScriptContext.ENGINE_SCOPE);
+		
+		context.setAttribute(ScriptAttributes.BATCH_SIZE, params.getBatchSize(), ScriptContext.ENGINE_SCOPE);
+		context.setAttribute(ScriptAttributes.BATCH_INDEX, params.getBatchIndex(), ScriptContext.ENGINE_SCOPE);
+		context.setAttribute(ScriptAttributes.BATCH_LAST, params.getBatchIndex() == params.getBatchSize()-1, ScriptContext.ENGINE_SCOPE);
+		
+		// Remove for now because of fears of memory leaks
+//		context.setAttribute(ScriptAttributes.PROJECT, params.getProject(), ScriptContext.ENGINE_SCOPE);
+//		context.setAttribute(ScriptAttributes.IMAGE_DATA, params.getImageData(), ScriptContext.ENGINE_SCOPE);
+		
+		context.setWriter(params.getWriter());
+		context.setErrorWriter(params.getErrorWriter());
+		
+		return context;
+	}
+	
+	
 	@Override
 	public ScriptSyntax getSyntax() {
 		return syntax;
@@ -283,7 +295,11 @@ public class DefaultScriptLanguage extends ScriptLanguage implements RunnableLan
 		return completor;
 	}
 
-	@Override
+	/**
+	 * Get the import statements as a String, to add at the beginning of the executed script.
+	 * @param classes a collection of the classes to import 
+	 * @return import string
+	 */
 	public String getImportStatements(Collection<Class<?>> classes) {
 		// Here we can have default import implementation for languages that we know the import format for
 		if (getName().toLowerCase().equals("jython")) {
@@ -295,7 +311,11 @@ public class DefaultScriptLanguage extends ScriptLanguage implements RunnableLan
 		return "";
 	}
 	
-	@Override
+	/**
+	 * Get the static import statements as a String, to add at the beginning of the executed script.
+	 * @param classes	a collection of classes to import as static classes
+	 * @return import string
+	 */
 	public String getStaticImportStatments(Collection<Class<?>> classes) {
 		return "";
 	}
