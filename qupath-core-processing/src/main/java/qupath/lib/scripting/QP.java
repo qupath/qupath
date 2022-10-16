@@ -77,6 +77,7 @@ import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.common.Timeit;
 import qupath.lib.common.Version;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.ImageData.ImageType;
@@ -268,6 +269,8 @@ public class QP {
 			BufferedImageTools.class,
 			ColorTools.class,
 			GeneralTools.class,
+			
+			Timeit.class,
 			
 			Version.class,
 			
