@@ -93,7 +93,7 @@ public class RichScriptEditor extends DefaultScriptEditor {
 	private final ObjectProperty<ScriptHighlighter> scriptHighlighter = new SimpleObjectProperty<>();
 
 	// Delay for async formatting, in milliseconds
-	private static int delayMillis = 100;
+	private static int delayMillis = 20;
 
 	private ContextMenu menu;
 	
@@ -127,7 +127,7 @@ public class RichScriptEditor extends DefaultScriptEditor {
 		try {
 			CodeArea codeArea = new CustomCodeArea();
 			CodeAreaControl control = new CodeAreaControl(codeArea);
-			
+						
 			/*
 			 * Using LineNumberFactory.get(codeArea) gives errors related to the new paragraph folding introduced in RichTextFX 0.10.6.
 			 *  java.lang.IllegalArgumentException: Visible paragraphs' last index is [-1] but visibleParIndex was [0]
@@ -260,6 +260,7 @@ public class RichScriptEditor extends DefaultScriptEditor {
 			var cleanup = codeArea
 					.multiPlainChanges()
 					.successionEnds(Duration.ofMillis(delayMillis))
+					.retainLatestUntilLater(executor)
 					.supplyTask(() -> {
 						Task<StyleSpans<Collection<String>>> task = new Task<>() {
 							@Override
@@ -274,7 +275,6 @@ public class RichScriptEditor extends DefaultScriptEditor {
 					.filterMap(t -> {
 						if (t.isSuccess())
 							return Optional.of(t.get());
-						
 						var exception = t.getFailure();
 						String message = exception.getLocalizedMessage() == null ? exception.getClass().getSimpleName() : exception.getLocalizedMessage();
 						logger.error("Error applying syntax highlighting: {}", message);

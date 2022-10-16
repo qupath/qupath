@@ -151,6 +151,7 @@ class GroovySyntax extends GeneralCodeSyntax {
 				control.insertText(caretPos, insertText);
 				control.deleteText(control.getCaretPosition(), control.getCaretPosition() + lineRemainder.length());
 				control.positionCaret(finalPos);
+				control.requestFollowCaret();
 			}
 		}
 	}

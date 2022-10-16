@@ -91,6 +91,7 @@ public interface ScriptSyntax {
 	 */
 	default void handleNewLine(ScriptEditorControl control, final boolean smartEditing) {
 		control.insertText(control.getCaretPosition(), System.lineSeparator());
+		control.requestFollowCaret();
 	}
 	
 	/**
