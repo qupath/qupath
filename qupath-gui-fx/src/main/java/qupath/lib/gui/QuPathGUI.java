@@ -248,6 +248,7 @@ import qupath.lib.projects.ProjectImageEntry;
 import qupath.lib.projects.Projects;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
+import qupath.lib.scripting.QP;
 import qupath.lib.scripting.ScriptParameters;
 import qupath.lib.scripting.languages.ExecutableLanguage;
 import qupath.lib.scripting.languages.ScriptLanguage;
@@ -1202,6 +1203,10 @@ public class QuPathGUI {
 		// Show a startup message, if we have one
 		if (!startupQuietly)
 			showStartupMessage();
+		
+		// Add listeners to set default project and image data
+		imageDataProperty.addListener((v, o, n) -> QP.setDefaultImageDatat(n));
+		projectProperty.addListener((v, o, n) -> QP.setDefaultProject(n));
 		
 		// Run startup script, if we can
 		try {

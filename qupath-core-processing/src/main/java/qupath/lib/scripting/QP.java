@@ -416,6 +416,38 @@ public class QP {
 	}
 	
 	
+	private static Project<BufferedImage> defaultProject;
+
+	private static ImageData<BufferedImage> defaultImageData;
+
+	/**
+	 * Set the default project, which will be returned by {@link #getProject()} if it would otherwise return null 
+	 * (i.e. there has been no project set for the calling thread via {@link #setBatchProjectAndImage(Project, ImageData)}).
+	 * <p>
+	 * The intended use is for QuPath to set this to be the current project in the user interface, when running interactively.
+	 * 
+	 * @param project
+	 */
+	public static void setDefaultProject(final Project<BufferedImage> project) {
+		defaultProject = project;
+		logger.debug("Default project set to {}", project);
+	}
+	
+	/**
+	 * Set the default image data, which will be returned by {@link #getCurrentImageData()} if it would otherwise return null 
+	 * (i.e. there has been no project set for the calling thread via {@link #setBatchProjectAndImage(Project, ImageData)}).
+	 * <p>
+	 * The intended use is for QuPath to set this to be the current image data in the user interface, when running interactively.
+	 * This is not necessarily always the image that is 'current' when running scripts, e.g. when batch processing.
+	 * 
+	 * @param imageData
+	 */
+	public static void setDefaultImageData(final ImageData<BufferedImage> imageData) {
+		defaultImageData = imageData;
+		logger.debug("Default image data set to {}", defaultImageData);
+	}
+	
+	
 	/**
 	 * Set the {@link Project} and {@link ImageData} to use for batch processing for the current thread.
 	 * @param project
@@ -605,28 +637,53 @@ public class QP {
 	/**
 	 * Get the path to the current {@code ImageData}.
 	 * <p>
-	 * In this implementation, it is the same as calling {@link #getBatchImageData()}.
-	 * 
+	 * This returns {@link #getBatchImageData()} if it is not null; otherwise, it returns 
+	 * the default image data last set through {@link #setDefaultImageDatat(ImageData)}.
 	 * @return
 	 * 
 	 * @see #getBatchImageData()
 	 */
-	public static ImageData<BufferedImage> getCurrentImageData() {
-		return getBatchImageData();
+	public synchronized static ImageData<BufferedImage> getCurrentImageData() {
+		var defaultTemp = defaultImageData;
+		var imageData = getBatchImageData();
+		if (imageData != null || defaultTemp == null)
+			return imageData;
+		// If we don't have any other possible image data, return with debug logging
+		var batchImages = batchImageData.values();
+		if (batchImages.isEmpty() || (batchImages.size() == 1 && batchImages.contains(defaultTemp))) {
+			logger.debug("Returning the default ImageData: {}", defaultTemp);
+			return defaultTemp;
+		}
+		// If we have other options, return with a warning
+		logger.warn("No batch image data for the current thread, returning the default image data instead: {}", defaultTemp);
+		return defaultTemp;
 	}
 	
 	
 	/**
 	 * Get the current project.
 	 * <p>
-	 * In this implementation, it is the same as calling {@link #getBatchProject()}.
-	 * 
+	 * This returns {@link #getBatchProject()} if it is not null; otherwise, it returns 
+	 * the default project last set through {@link #setDefaultProject(Project)}.
 	 * @return
 	 * 
 	 * @see #getBatchProject()
 	 */
 	public static Project<BufferedImage> getProject() {
-		return getBatchProject();
+		var defaultTemp = defaultProject;
+		// Return batch project or null if that's all we can do
+		var project = getBatchProject();
+		if (project != null || defaultTemp == null)
+			return project;
+		// If we don't have any other possible project, return with debug logging
+		var batchProjects = batchProject.values();
+		if (batchProjects.isEmpty() || (batchProjects.size() == 1 && batchProjects.contains(defaultTemp))) {
+			logger.debug("Returning the default project: {}", defaultTemp);
+			return defaultTemp;
+		}
+		// If we have other options, return with a warning
+		logger.warn("No batch project for the current thread, returning the default project instead {}", defaultTemp);
+		return defaultTemp;
 	}
 	
 	/**
