@@ -854,7 +854,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 			LogManager.addTextAppendableFX(console);
 		long startTime = System.nanoTime();
 		if (outputScriptStartTime.get())
-			printWriter.println("Starting script at " + new Date(startTime).toString());
+			printWriter.println("Starting script at " + new Date(System.currentTimeMillis()).toString());
 		try {
 			Object result = ((ExecutableLanguage)language).execute(params);
 			if (result != null) {
