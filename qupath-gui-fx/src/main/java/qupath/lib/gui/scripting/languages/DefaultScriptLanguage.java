@@ -55,7 +55,7 @@ import qupath.lib.roi.ShapeSimplifier;
 import qupath.lib.scripting.QP;
 import qupath.lib.scripting.ScriptAttributes;
 import qupath.lib.scripting.ScriptParameters;
-import qupath.lib.scripting.languages.RunnableLanguage;
+import qupath.lib.scripting.languages.ExecutableLanguage;
 import qupath.lib.scripting.languages.ScriptAutoCompletor;
 import qupath.lib.scripting.languages.ScriptLanguage;
 import qupath.lib.scripting.languages.ScriptSyntax;
@@ -65,7 +65,7 @@ import qupath.lib.scripting.languages.ScriptSyntax;
  * @author Melvin Gelbard
  * @since v0.4.0
  */
-public class DefaultScriptLanguage extends ScriptLanguage implements RunnableLanguage {
+public class DefaultScriptLanguage extends ScriptLanguage implements ExecutableLanguage {
 	
 	private static final Logger logger = LoggerFactory.getLogger(DefaultScriptLanguage.class);
 	
@@ -97,7 +97,7 @@ public class DefaultScriptLanguage extends ScriptLanguage implements RunnableLan
 	}
 	
 	/**
-	 * Constructor for a {@link RunnableLanguage} based on a {@link ScriptEngineFactory}.
+	 * Constructor for a {@link ExecutableLanguage} based on a {@link ScriptEngineFactory}.
 	 * <p>
 	 * Note: the scriptEngine is not stored within this class. It is always fetched via {@link ScriptLanguageProvider}.
 	 * @param factory
@@ -108,7 +108,7 @@ public class DefaultScriptLanguage extends ScriptLanguage implements RunnableLan
 	}
 	
 	/**
-	 * Constructor for a {@link RunnableLanguage}.
+	 * Constructor for a {@link ExecutableLanguage}.
 	 * <p>
 	 * Note: the scriptEngine is not stored within this class. It is always fetched via {@link ScriptLanguageProvider}.
 	 * @param name		the language name
@@ -123,7 +123,7 @@ public class DefaultScriptLanguage extends ScriptLanguage implements RunnableLan
 	}
 
 	@Override
-	public Object executeScript(ScriptParameters params) throws ScriptException {
+	public Object execute(ScriptParameters params) throws ScriptException {
 		// Set the current ImageData if we can
 		QP.setBatchProjectAndImage((Project<BufferedImage>)params.getProject(), (ImageData<BufferedImage>)params.getImageData());
 		

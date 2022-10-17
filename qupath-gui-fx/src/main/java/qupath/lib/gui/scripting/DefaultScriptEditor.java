@@ -85,6 +85,7 @@ import javafx.scene.input.KeyEvent;
 import javafx.scene.input.TransferMode;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.text.Font;
+import javafx.scene.web.WebView;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.util.Callback;
@@ -98,15 +99,17 @@ import qupath.lib.gui.dialogs.ProjectDialogs;
 import qupath.lib.gui.logging.LogManager;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.scripting.languages.GroovyLanguage;
+import qupath.lib.gui.scripting.languages.HtmlRenderer;
 import qupath.lib.gui.scripting.languages.PlainLanguage;
 import qupath.lib.gui.scripting.languages.ScriptLanguageProvider;
 import qupath.lib.gui.tools.MenuTools;
+import qupath.lib.gui.tools.WebViews;
 import qupath.lib.images.ImageData;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectImageEntry;
 import qupath.lib.projects.Projects;
 import qupath.lib.scripting.ScriptParameters;
-import qupath.lib.scripting.languages.RunnableLanguage;
+import qupath.lib.scripting.languages.ExecutableLanguage;
 import qupath.lib.scripting.languages.ScriptLanguage;
 
 
@@ -137,7 +140,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	private ObjectProperty<ScriptLanguage> currentLanguage = new SimpleObjectProperty<>();
 		
 	// Binding to indicate it shouldn't be possible to 'Run' any script right now
-	private BooleanBinding disableRun = runningTask.isNotNull().or(Bindings.createBooleanBinding(() -> !(currentLanguage.getValue() instanceof RunnableLanguage), currentLanguage));
+	private BooleanBinding disableRun = runningTask.isNotNull().or(Bindings.createBooleanBinding(() -> !(currentLanguage.getValue() instanceof ExecutableLanguage), currentLanguage));
 	
 	// Binding to indicate it shouldn't be possible to 'Run' any script right now
 	private StringBinding title = Bindings.createStringBinding(() -> {
@@ -607,7 +610,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 			RadioMenuItem item = new RadioMenuItem(languageName);
 			item.setToggleGroup(toggleLanguages);
 			item.setUserData(languageName);
-			if (language instanceof RunnableLanguage)
+			if (language instanceof ExecutableLanguage)
 				menuLanguages.getItems().add(item);
 			else
 				nonRunnableLanguages.add(item);
@@ -822,10 +825,11 @@ public class DefaultScriptEditor implements ScriptEditor {
 	 * @param imageData
 	 */
 	private void executeScript(final ScriptTab tab, final String script, final Project<BufferedImage> project, final ImageData<BufferedImage> imageData, int batchIndex, int batchSize) {
-		if (!(tab.getLanguage() instanceof RunnableLanguage))
+		var language = tab.getLanguage();
+		
+		if (!(language instanceof ExecutableLanguage))
 			return;
 	
-		RunnableLanguage runnableLanguage = (RunnableLanguage)tab.getLanguage();
 		ScriptEditorControl console = tab.getConsoleComponent();
 		
 		var writer = new ScriptConsoleWriter(console, false);
@@ -848,16 +852,18 @@ public class DefaultScriptEditor implements ScriptEditor {
 		boolean attachToLog = sendLogToConsole.get();
 		if (attachToLog)
 			LogManager.addTextAppendableFX(console);
-		long startTime = System.currentTimeMillis();
+		long startTime = System.nanoTime();
 		if (outputScriptStartTime.get())
 			printWriter.println("Starting script at " + new Date(startTime).toString());
 		try {
-			Object result = runnableLanguage.executeScript(params);
+			Object result = ((ExecutableLanguage)language).execute(params);
 			if (result != null) {
 				printWriter.println("Result: " + result);
 			}
+			if (result instanceof String && language instanceof HtmlRenderer)
+				showHtml(tab.getName(), (String)result);
 			if (outputScriptStartTime.get())
-				printWriter.println(String.format("Script run time: %.2f seconds", (System.currentTimeMillis() - startTime)/1000.0));
+				printWriter.println(String.format("Total run time: %.2f seconds", (System.nanoTime() - startTime)/1e9));
 		} catch (ScriptException e) {
 			// TODO: Consider exception logging here, rather than via the called method
 		} catch (Throwable t) {
@@ -868,6 +874,32 @@ public class DefaultScriptEditor implements ScriptEditor {
 			if (attachToLog)
 				Platform.runLater(() -> LogManager.removeTextAppendableFX(console));	
 		}
+	}
+	
+	
+	private static Stage stageHtml;
+	private static WebView webview;
+	
+	private void showHtml(String title, String html) {
+		var qupath = QuPathGUI.getInstance();
+		if (qupath == null || qupath.getStage() == null)
+			return;
+		if (!Platform.isFxApplicationThread()) {
+			Platform.runLater(() -> showHtml(title, html));
+			return;			
+		}
+		if (webview == null) {
+			webview = WebViews.create(true);
+			stageHtml = new Stage();
+			stageHtml.setScene(new Scene(webview));
+			stageHtml.setTitle(title);
+			stageHtml.initOwner(QuPathGUI.getInstance().getStage());
+		}
+		webview.getEngine().loadContent(html);
+		if (!stageHtml.isShowing())
+			stageHtml.show();
+		else
+			stageHtml.toFront();
 	}
 	
 	

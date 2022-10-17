@@ -249,7 +249,7 @@ import qupath.lib.projects.Projects;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
 import qupath.lib.scripting.ScriptParameters;
-import qupath.lib.scripting.languages.RunnableLanguage;
+import qupath.lib.scripting.languages.ExecutableLanguage;
 import qupath.lib.scripting.languages.ScriptLanguage;
 import qupath.lib.gui.scripting.DefaultScriptEditor;
 import qupath.lib.gui.scripting.QPEx;
@@ -3390,9 +3390,9 @@ public class QuPathGUI {
 		if (file != null) {
 			language = ScriptLanguageProvider.fromString(file.getName());
 		}
-		if (!(language instanceof RunnableLanguage))
+		if (!(language instanceof ExecutableLanguage))
 			language = GroovyLanguage.getInstance();
-		return ((RunnableLanguage)language).executeScript(params);
+		return ((ExecutableLanguage)language).execute(params);
 	}
 	
 	

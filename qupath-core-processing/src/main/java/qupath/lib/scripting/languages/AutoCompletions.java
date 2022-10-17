@@ -117,9 +117,9 @@ public class AutoCompletions {
 		public String getDisplayText();
 		
 		/**
-		 * Get the string to insert, given the provided starting text.
+		 * Get the string to insert, given the provided text and position.
 		 * This involves stripping off any overlapping part of the completion, 
-		 * so that it can be appended to the startText.
+		 * so that it can be inserted at pos.
 		 * 
 		 * @param text the full text
 		 * @param pos the current caret position
@@ -132,6 +132,7 @@ public class AutoCompletions {
 		
 		/**
 		 * Test if this completion is compatible with the provided text.
+		 * 
 		 * @param text the full text
 		 * @param pos the current caret position
 		 * @param lastToken the final token, as output by {@link #getTokenizer()}.
@@ -162,7 +163,7 @@ public class AutoCompletions {
 	
 	
 	/**
-	 * Create a new completion with fixed text.
+	 * Create a new completion with fixed display and completion text.
 	 * @param declaringClass the declaring class; choose null for static imports
 	 * @param displayText the text to display
 	 * @param completionText the text to use in the completion

@@ -19,25 +19,18 @@
  * #L%
  */
 
-package qupath.lib.scripting.languages;
+package qupath.lib.gui.scripting.languages;
 
-import javax.script.ScriptException;
-
-import qupath.lib.scripting.ScriptParameters;
+import qupath.lib.scripting.languages.ExecutableLanguage;
 
 /**
- * Functional interface for scripting languages that are runnable (e.g. Groovy, JavaScript).
- * @author Melvin Gelbard
+ * Marker interface that indicates an executable language renders HTML.
+ * This really exists to support markdown rendering.
+ * 
+ * @author Pete Bankhead
  * @since v0.4.0
  */
-public interface RunnableLanguage {
+public interface HtmlRenderer extends ExecutableLanguage {
 	
-	/**
-	 * Execute the given script String.
-	 * @param params 
-	 * @return 
-	 * @throws ScriptException 
-	 */
-	Object executeScript(final ScriptParameters params) throws ScriptException;
 
 }

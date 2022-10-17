@@ -25,7 +25,7 @@ package qupath.lib.gui.scripting.languages;
 
 import java.util.Collections;
 import java.util.ServiceLoader;
-import qupath.lib.scripting.languages.RunnableLanguage;
+import qupath.lib.scripting.languages.ExecutableLanguage;
 
 /**
  * Class for the representation of the Groovy programming language in QuPath.
@@ -35,7 +35,7 @@ import qupath.lib.scripting.languages.RunnableLanguage;
  * @author Pete Bankhead
  * @since v0.4.0
  */
-public class GroovyLanguage extends DefaultScriptLanguage implements RunnableLanguage {
+public class GroovyLanguage extends DefaultScriptLanguage implements ExecutableLanguage {
 	
 	/**
 	 * Instance of this language. Can't be final because of {@link ServiceLoader}.

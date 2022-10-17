@@ -29,14 +29,7 @@ import javax.script.ScriptException;
 import org.commonmark.parser.Parser;
 import org.commonmark.renderer.html.HtmlRenderer;
 
-import javafx.application.Platform;
-import javafx.scene.Scene;
-import javafx.scene.web.WebView;
-import javafx.stage.Stage;
-import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.tools.WebViews;
 import qupath.lib.scripting.ScriptParameters;
-import qupath.lib.scripting.languages.RunnableLanguage;
 import qupath.lib.scripting.languages.ScriptAutoCompletor;
 import qupath.lib.scripting.languages.ScriptLanguage;
 import qupath.lib.scripting.languages.ScriptSyntax;
@@ -49,7 +42,7 @@ import qupath.lib.scripting.languages.ScriptSyntax;
  * @author Pete Bankhead (based on Melvin Gelbard's code)
  * @since v0.4.0
  */
-public class MarkdownLanguage extends ScriptLanguage implements RunnableLanguage {
+public class MarkdownLanguage extends ScriptLanguage implements qupath.lib.gui.scripting.languages.HtmlRenderer {
 	
 	/**
 	 * Instance of this language. Can't be final because of {@link ServiceLoader}.
@@ -94,39 +87,12 @@ public class MarkdownLanguage extends ScriptLanguage implements RunnableLanguage
 		return completor;
 	}
 	
-	private static Stage stage;
-	private static WebView webview;
-	
-	private void showHtml(String html) {
-		var qupath = QuPathGUI.getInstance();
-		if (qupath == null || qupath.getStage() == null)
-			return;
-		if (!Platform.isFxApplicationThread()) {
-			Platform.runLater(() -> showHtml(html));
-			return;			
-		}
-		if (webview == null) {
-			webview = WebViews.create(true);
-			stage = new Stage();
-			stage.setScene(new Scene(webview));
-			stage.setTitle("Rendered markdown");
-			stage.initOwner(QuPathGUI.getInstance().getStage());
-		}
-		webview.getEngine().loadContent(html);
-		if (!stage.isShowing())
-			stage.show();
-		else
-			stage.toFront();
-	}
 
 	@Override
-	public Object executeScript(ScriptParameters params) throws ScriptException {
-		
+	public Object execute(ScriptParameters params) throws ScriptException {
 		try {
 			var doc = Parser.builder().build().parse(params.getScript());
-			var html = HtmlRenderer.builder().build().render(doc);
-			showHtml(html);
-			return html;
+			return HtmlRenderer.builder().build().render(doc);
 		} catch (Exception e) {
 			throw new ScriptException(e);
 		}

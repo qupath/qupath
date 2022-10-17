@@ -69,7 +69,7 @@ import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectIO;
 import qupath.lib.scripting.QP;
 import qupath.lib.scripting.ScriptParameters;
-import qupath.lib.scripting.languages.RunnableLanguage;
+import qupath.lib.scripting.languages.ExecutableLanguage;
 import qupath.lib.scripting.languages.ScriptLanguage;
 
 /**
@@ -438,17 +438,17 @@ class ScriptCommand implements Runnable {
 	private Object runBatchScript(Project<BufferedImage> project, ImageData<BufferedImage> imageData, int batchIndex, int batchSize) throws IOException, ScriptException {
 		Object result = null;
 		String script = scriptCommand;
-		RunnableLanguage language;
+		ExecutableLanguage language;
 		
 		String ext = DEFAULT_SCRIPT_EXTENSION;
 		if (scriptFile != null)
 			ext = GeneralTools.getExtension(scriptFile).orElse(DEFAULT_SCRIPT_EXTENSION);
 		
 		ScriptLanguage scriptLanguage = ScriptLanguageProvider.getLanguageFromExtension(ext);
-		if (scriptLanguage == null || !(scriptLanguage instanceof RunnableLanguage))
+		if (scriptLanguage == null || !(scriptLanguage instanceof ExecutableLanguage))
 			throw new IllegalArgumentException("No runnable script language found for " + scriptFile);
 			
-		language = (RunnableLanguage)scriptLanguage;
+		language = (ExecutableLanguage)scriptLanguage;
 			
 			// Read & try to run the script
 		File file = null;
@@ -480,7 +480,7 @@ class ScriptCommand implements Runnable {
 		
 		// Evaluate the script
 		try {
-			result = language.executeScript(params);
+			result = language.execute(params);
 		} finally {
 			// Ensure writers are flushed
 			outWriter.flush();
