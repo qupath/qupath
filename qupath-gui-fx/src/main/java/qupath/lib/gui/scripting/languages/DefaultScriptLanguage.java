@@ -105,7 +105,6 @@ public class DefaultScriptLanguage extends ScriptLanguage implements RunnableLan
 	public DefaultScriptLanguage(ScriptEngineFactory factory) {
 		super(factory.getEngineName(), factory.getExtensions());
 		this.syntax = PlainSyntax.getInstance();
-		this.completor = new PlainAutoCompletor();
 	}
 	
 	/**
@@ -120,7 +119,7 @@ public class DefaultScriptLanguage extends ScriptLanguage implements RunnableLan
 	public DefaultScriptLanguage(String name, Collection<String> exts, ScriptSyntax syntax, ScriptAutoCompletor completor) {
 		super(name, exts);
 		this.syntax = syntax == null ? PlainSyntax.getInstance() : syntax;
-		this.completor = completor == null ? new PlainAutoCompletor() : completor;
+		this.completor = completor;
 	}
 
 	@Override

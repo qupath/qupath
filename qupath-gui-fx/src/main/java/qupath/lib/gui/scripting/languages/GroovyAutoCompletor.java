@@ -33,11 +33,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.gui.scripting.QPEx;
+import qupath.lib.scripting.languages.AutoCompletions;
+import qupath.lib.scripting.languages.AutoCompletions.Completion;
 import qupath.lib.scripting.languages.EditableText;
 import qupath.lib.scripting.languages.ScriptAutoCompletor;
 
 /**
  * Auto-completor for Groovy code.
+ * 
  * @author Melvin Gelbard
  * @author Pete Bankhead
  * @since v0.4.0
@@ -54,8 +57,8 @@ public class GroovyAutoCompletor implements ScriptAutoCompletor {
 		for (Method method : QPEx.class.getMethods()) {
 			// Exclude deprecated methods (don't want to encourage them...)
 			if (method.getAnnotation(Deprecated.class) == null) {
-				ALL_COMPLETIONS.add(ScriptAutoCompletor.Completion.create(method.getDeclaringClass(), method));
-				ALL_COMPLETIONS.add(ScriptAutoCompletor.Completion.create(null, method));
+				ALL_COMPLETIONS.add(AutoCompletions.createJavaCompletion(method.getDeclaringClass(), method));
+				ALL_COMPLETIONS.add(AutoCompletions.createJavaCompletion(null, method));
 			}
 		}
 		
@@ -68,8 +71,8 @@ public class GroovyAutoCompletor implements ScriptAutoCompletor {
 		
 		for (Field field : QPEx.class.getFields()) {
 			if (Modifier.isStatic(field.getModifiers()) && Modifier.isPublic(field.getModifiers())) {
-				ALL_COMPLETIONS.add(ScriptAutoCompletor.Completion.create(field.getDeclaringClass(), field));
-				ALL_COMPLETIONS.add(ScriptAutoCompletor.Completion.create(null, field));
+				ALL_COMPLETIONS.add(AutoCompletions.createJavaCompletion(field.getDeclaringClass(), field));
+				ALL_COMPLETIONS.add(AutoCompletions.createJavaCompletion(null, field));
 			}
 		}
 		
@@ -79,20 +82,20 @@ public class GroovyAutoCompletor implements ScriptAutoCompletor {
 			addStaticMethods(cls);
 		}
 		
-		ALL_COMPLETIONS.add(ScriptAutoCompletor.Completion.create(null, "print", "print"));
-		ALL_COMPLETIONS.add(ScriptAutoCompletor.Completion.create(null, "println", "println"));
+		ALL_COMPLETIONS.add(AutoCompletions.createJavaCompletion(null, "print", "print"));
+		ALL_COMPLETIONS.add(AutoCompletions.createJavaCompletion(null, "println", "println"));
 	}
 	
 	static int addStaticMethods(Class<?> cls) {
 		int countStatic = 0;
 		for (Method method : cls.getMethods()) {
 			if (Modifier.isStatic(method.getModifiers()) && Modifier.isPublic(method.getModifiers())) {
-				if (ALL_COMPLETIONS.add(ScriptAutoCompletor.Completion.create(method.getDeclaringClass(), method)))
+				if (ALL_COMPLETIONS.add(AutoCompletions.createJavaCompletion(method.getDeclaringClass(), method)))
 					countStatic++;
 			}
 		}
 		if (countStatic > 0) {
-			ALL_COMPLETIONS.add(ScriptAutoCompletor.Completion.create(cls));
+			ALL_COMPLETIONS.add(AutoCompletions.createJavaCompletion(cls));
 		}
 		return countStatic;
 	}
@@ -107,33 +110,38 @@ public class GroovyAutoCompletor implements ScriptAutoCompletor {
 	}
 	
 	@Override
-	public List<Completion> getCompletions(EditableText control) {
-		var start = getStart(control);
+	public List<Completion> getCompletions(String text, int pos) {
+		// Precompute all tokens
+		var tokenMap = ALL_COMPLETIONS.stream()
+				.map(c -> c.getTokenizer())
+				.distinct()
+				.collect(Collectors.toMap(c -> c, c -> c.getToken(text, pos)));
 		
 		// Use all available completions if we have a dot included
 		List<Completion> completions;
-		if (control.getText().contains("."))
+		if (text.contains("."))
 			completions = ALL_COMPLETIONS
 					.stream()
-					.filter(e -> e.isCompatible(start))
+					.filter(e -> e.isCompatible(text, pos, tokenMap.getOrDefault(e, null)))
 //					.sorted()
 					.collect(Collectors.toList());
 		else
 			// Use only partial completions (methods, classes) if no dot
 			completions = ALL_COMPLETIONS
 			.stream()
-			.filter(s -> s.isCompatible(start) && (!s.getCompletionText().contains(".") || s.getCompletionText().lastIndexOf(".") == s.getCompletionText().length()-1))
+			.filter(s -> s.isCompatible(text, pos, tokenMap.getOrDefault(s, null)) && (!s.getCompletionText().contains(".") || s.getCompletionText().lastIndexOf(".") == s.getCompletionText().length()-1))
 //			.sorted()
 			.collect(Collectors.toList());
 		
 		// Add a new class if needed
 		// (Note this doesn't entirely work... since it doesn't handle the full class name later)
+		var start = AutoCompletions.JAVA_TOKENIZER.getToken(text, pos);
 		if (completions.isEmpty() && start.contains(".")) {
 			var className = start.substring(0, start.lastIndexOf("."));
 			try {
 				var cls = Class.forName(className);
 				if (addStaticMethods(cls) > 0) {
-					return getCompletions(control);
+					return getCompletions(text, pos);
 				}
 			} catch (Exception e) {
 				logger.debug("Unable to find autocomplete methods for class {}", className);
@@ -141,33 +149,6 @@ public class GroovyAutoCompletor implements ScriptAutoCompletor {
 		}
 		
 		return completions;
-	}
-	
-	@Override
-	public void applyCompletion(EditableText control, Completion completion) {
-		var start = getStart(control);
-		var insertion = completion.getInsertion(start);
-		// Avoid inserting if caret is already between parentheses
-		if (insertion == null || insertion.isEmpty() || insertion.startsWith("("))
-			return;
-		var pos = control.getCaretPosition();
-		control.insertText(pos, insertion);
-		// If we have a method that includes arguments, 
-		// then we want to position the caret within the parentheses
-		// (whereas for a method without arguments, we want the caret outside)
-		if (insertion.endsWith("()") && control.getCaretPosition() > 0 && !completion.getDisplayText().endsWith("()"))
-			control.positionCaret(control.getCaretPosition()-1);
-	}
-	
-	private String getStart(EditableText control) {
-		var pos = control.getCaretPosition();
-		String[] split = control.getText().substring(0, pos).split("(\\s+)|(\\()|(\\))|(\\{)|(\\})|(\\[)|(\\])");
-		String start;
-		if (split.length == 0)
-			start = "";
-		else
-			start = split[split.length-1].trim();
-		return start;
 	}
 
 }

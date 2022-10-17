@@ -41,7 +41,7 @@ public class YamlLanguage extends ScriptLanguage {
 	private static YamlLanguage INSTANCE;
 	
 	private ScriptSyntax syntax;
-	private ScriptAutoCompletor completor;
+	private ScriptAutoCompletor completor = null;
 	
 	/**
 	 * Constructor for YAML language. This constructor should never be 
@@ -52,7 +52,6 @@ public class YamlLanguage extends ScriptLanguage {
 	public YamlLanguage() {
 		super("YAML", ".yaml");
 		this.syntax = YamlSyntax.getInstance();
-		this.completor = new PlainAutoCompletor();
 		
 		if (INSTANCE != null)
 			throw new UnsupportedOperationException("Language classes cannot be instantiated more than once!");

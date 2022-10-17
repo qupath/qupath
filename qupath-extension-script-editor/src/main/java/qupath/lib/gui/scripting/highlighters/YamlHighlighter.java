@@ -59,7 +59,7 @@ public class YamlHighlighter implements ScriptHighlighter {
 	}
 	
 	/**
-	 * Constructor for a Markdown Highlighter. This constructor should never be 
+	 * Constructor for a YAML Highlighter. This constructor should never be 
 	 * called. Instead, use the static {@link #getInstance()} method.
 	 * <p>
 	 * Note: this has to be public for the {@link ServiceLoader} to work.

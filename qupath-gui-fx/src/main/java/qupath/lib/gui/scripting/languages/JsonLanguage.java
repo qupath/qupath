@@ -43,7 +43,7 @@ public class JsonLanguage extends ScriptLanguage {
 	private static JsonLanguage INSTANCE;
 	
 	private ScriptSyntax syntax;
-	private ScriptAutoCompletor completor;
+	private ScriptAutoCompletor completor = null;
 	
 	/**
 	 * Constructor for JSON language. This constructor should never be 
@@ -54,7 +54,6 @@ public class JsonLanguage extends ScriptLanguage {
 	public JsonLanguage() {
 		super("JSON", Set.of(".json", ".geojson"));
 		this.syntax = JsonSyntax.getInstance();
-		this.completor = new PlainAutoCompletor();
 		
 		if (INSTANCE != null)
 			throw new UnsupportedOperationException("Language classes cannot be instantiated more than once!");

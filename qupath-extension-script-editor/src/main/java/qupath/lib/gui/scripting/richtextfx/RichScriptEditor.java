@@ -56,7 +56,9 @@ import qupath.lib.gui.scripting.highlighters.ScriptHighlighter;
 import qupath.lib.gui.scripting.highlighters.ScriptHighlighterProvider;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.MenuTools;
-import qupath.lib.scripting.languages.ScriptAutoCompletor;
+import qupath.lib.scripting.languages.AutoCompletions;
+import qupath.lib.scripting.languages.AutoCompletions.Completion;
+import qupath.lib.scripting.languages.EditableText;
 
 /*
  * 
@@ -172,20 +174,18 @@ public class RichScriptEditor extends DefaultScriptEditor {
 			
 			// TODO: Check if DefaultScriptEditor does any of these? It should be able to at least do syntaxing/auto-completion
 			var popup = new Popup();
-			var listCompletions = new ListView<ScriptAutoCompletor.Completion>();
+			var listCompletions = new ListView<Completion>();
 			
 			listCompletions.setCellFactory(c -> GuiTools.createCustomListCell(c2 -> c2.getDisplayText()));
 			
 			listCompletions.setPrefSize(350, 400);
 			popup.getContent().add(listCompletions);
 			listCompletions.setStyle("-fx-font-size: smaller; -fx-font-family: Courier;");
-			var completionsMap = new HashSet<ScriptAutoCompletor.Completion>();
+			var completionsMap = new HashSet<Completion>();
 			Runnable completionFun = () -> {
 				var selected = listCompletions.getSelectionModel().getSelectedItem();
 				if (selected != null) {
-					var scriptAutoCompletor = getCurrentLanguage().getAutoCompletor();
-					if (scriptAutoCompletor != null)
-						scriptAutoCompletor.applyCompletion(control, selected);
+					applyCompletion(control, selected);
 				}
 				popup.hide();
 			};
@@ -232,14 +232,14 @@ public class RichScriptEditor extends DefaultScriptEditor {
 				var scriptAutoCompletor = getCurrentLanguage().getAutoCompletor();
 				if (scriptAutoCompletor != null) {
 					if (completionCodeCombination.match(e)) {
-						var completions = scriptAutoCompletor.getCompletions(control);
+						var completions = scriptAutoCompletor.getCompletions(control.getText(), control.getCaretPosition());
 						completionsMap.clear();
 						if (!completions.isEmpty()) {
 							completionsMap.addAll(completions);
 							var bounds = codeArea.getCaretBounds().orElse(null);
 							if (bounds != null) {
 								var list = new ArrayList<>(completions);
-								Collections.sort(list);
+								Collections.sort(list, AutoCompletions.getComparator());
 								listCompletions.getItems().setAll(list);
 								popup.show(codeArea, bounds.getMaxX(), bounds.getMaxY());
 								e.consume();
@@ -313,6 +313,30 @@ public class RichScriptEditor extends DefaultScriptEditor {
 			return super.getNewEditor();
 		}
 	}
+	
+	
+	/**
+	 * Insert the text from the completion to the editable text.
+	 * @param control
+	 * @param completion
+	 */
+	protected void applyCompletion(EditableText control, Completion completion) {
+		String text = control.getText();
+		int pos = control.getCaretPosition();
+		
+		var insertion = completion.getInsertion(text, pos, null);
+		// Avoid inserting if caret is already between parentheses
+		if (insertion == null || insertion.isEmpty() || insertion.startsWith("("))
+			return;
+		control.insertText(pos, insertion);
+		// If we have a method that includes arguments, 
+		// then we want to position the caret within the parentheses
+		// (whereas for a method without arguments, we want the caret outside)
+		if (insertion.endsWith("()") && control.getCaretPosition() > 0 && !completion.getDisplayText().endsWith("()"))
+			control.positionCaret(control.getCaretPosition()-1);		
+	}
+	
+	
 	
 	private static String styleBackground = "-fx-background-color: -fx-control-inner-background;";
 	

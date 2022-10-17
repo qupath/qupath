@@ -43,7 +43,6 @@ public class PlainLanguage extends ScriptLanguage {
 	private static PlainLanguage INSTANCE;
 	
 	private ScriptSyntax syntax;
-	private ScriptAutoCompletor completor;
 
 	/**
 	 * Constructor for a simple Plain Language. This constructor should never be 
@@ -54,7 +53,6 @@ public class PlainLanguage extends ScriptLanguage {
 	public PlainLanguage() {
 		super("None", Set.of(".txt", ".tsv", ".csv"));
 		this.syntax = PlainSyntax.getInstance();
-		this.completor = new PlainAutoCompletor();
 		
 		if (INSTANCE != null)
 			throw new UnsupportedOperationException("Language classes cannot be instantiated more than once!");
@@ -78,6 +76,6 @@ public class PlainLanguage extends ScriptLanguage {
 
 	@Override
 	public ScriptAutoCompletor getAutoCompletor() {
-		return completor;
+		return null;
 	}
 }
