@@ -27,6 +27,8 @@ import java.util.Collection;
 import java.util.ServiceLoader;
 import java.util.stream.Collectors;
 
+import qupath.lib.scripting.RunnableLanguage;
+
 /**
  * Class for the representation of the Groovy programming language in QuPath.
  * <p>

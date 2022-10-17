@@ -100,7 +100,6 @@ import qupath.lib.gui.logging.LogManager;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.scripting.languages.GroovyLanguage;
 import qupath.lib.gui.scripting.languages.PlainLanguage;
-import qupath.lib.gui.scripting.languages.RunnableLanguage;
 import qupath.lib.gui.scripting.languages.ScriptLanguage;
 import qupath.lib.gui.scripting.languages.ScriptLanguageProvider;
 import qupath.lib.gui.tools.MenuTools;
@@ -108,6 +107,7 @@ import qupath.lib.images.ImageData;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectImageEntry;
 import qupath.lib.projects.Projects;
+import qupath.lib.scripting.RunnableLanguage;
 import qupath.lib.scripting.ScriptParameters;
 
 

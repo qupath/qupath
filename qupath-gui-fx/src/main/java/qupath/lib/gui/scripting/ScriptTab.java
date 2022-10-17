@@ -103,7 +103,7 @@ public class ScriptTab {
 	 */
 	protected void readFile(final File file) throws IOException {
 		logger.info("Loading file {} to Script Editor", file.getAbsolutePath());
-		String content = GeneralTools.readFileAsString(file.getPath());
+		String content = GeneralTools.readFileAsString(file);
 		editor.setText(content);
 		name = file.getName();
 		this.file = file;

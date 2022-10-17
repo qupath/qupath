@@ -617,7 +617,7 @@ public final class GeneralTools {
 	
 	
 	/**
-	 * Read the entire contents of a file into a single String.
+	 * Read the entire contents of a file given by the specified path into a single String.
 	 * <p>
 	 * Note that from QuPath v0.3 this assumes UTF8 encoding. 
 	 * Previously, platform-specific encoding was assumed.
@@ -628,6 +628,20 @@ public final class GeneralTools {
 	 */
 	public static String readFileAsString(final String path) throws IOException {
 		return Files.readString(Paths.get(path), StandardCharsets.UTF_8);
+	}
+	
+	/**
+	 * Read the entire contents of a file into a single String.
+	 * <p>
+	 * Note that from QuPath v0.3 this assumes UTF8 encoding. 
+	 * Previously, platform-specific encoding was assumed.
+	 * 
+	 * @param file
+	 * @return
+	 * @throws IOException
+	 */
+	public static String readFileAsString(final File file) throws IOException {
+		return Files.readString(file.toPath(), StandardCharsets.UTF_8);
 	}
 	
 	

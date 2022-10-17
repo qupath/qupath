@@ -33,8 +33,8 @@ public abstract class ScriptLanguage {
 	
 	/**
 	 * Default constructor for a {@link ScriptLanguage}.
-	 * @param name		the language name
-	 * @param exts			the possible extensions for this language
+	 * @param name the language name
+	 * @param exts the possible file extensions for this language
 	 */
 	protected ScriptLanguage(String name, String[] exts) {
 		this.name = name;

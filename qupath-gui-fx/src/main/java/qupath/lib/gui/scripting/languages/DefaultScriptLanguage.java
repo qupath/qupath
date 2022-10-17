@@ -52,6 +52,7 @@ import qupath.lib.projects.Project;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.ShapeSimplifier;
 import qupath.lib.scripting.QP;
+import qupath.lib.scripting.RunnableLanguage;
 import qupath.lib.scripting.ScriptAttributes;
 import qupath.lib.scripting.ScriptParameters;
 

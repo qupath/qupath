@@ -34,6 +34,7 @@ import javafx.scene.web.WebView;
 import javafx.stage.Stage;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.tools.WebViews;
+import qupath.lib.scripting.RunnableLanguage;
 import qupath.lib.scripting.ScriptParameters;
 
 /**
