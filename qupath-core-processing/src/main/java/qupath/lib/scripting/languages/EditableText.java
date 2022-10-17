@@ -48,14 +48,12 @@ public interface EditableText {
 	 * @param text the text to be appended
 	 */
 	public void appendText(final String text);
-
+	
 	/**
-	 * Request paste the specified text.
-	 * This differs from {@link #insertText(int, String)} in that it uses the current 
-	 * caret position and replaces any selection.
-	 * @param text 
+	 * Insert the specified text, replacing any existing selection.
+	 * @param text the text to insert
 	 */
-	public void paste(String text);
+	public void replaceSelection(String text);
 		
 	/**
 	 * Request clear the contents of the control.

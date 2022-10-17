@@ -63,6 +63,12 @@ public interface ScriptEditorControl extends TextAppendable, EditableText {
 	public default int getSelectionEnd() {
 		return getSelection().getEnd();
 	}
+	
+	/**
+	 * Request paste from the system clipboard.
+	 */
+	public void paste();
+
 
 	/**
 	 * Text currently selected in the editor control.

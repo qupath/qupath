@@ -70,7 +70,7 @@ class XmlSyntax extends GeneralCodeSyntax {
 		if (hasSelection && !hasMultilineSelection && !textBetween.startsWith("<!--") && !textBetween.startsWith("-->")) {
 			// Add inline comment
 			String newText = "<!--" + textBetween + "-->";
-			control.paste(newText);
+			control.replaceSelection(newText);
 			control.selectRange(rangeStart, rangeStart + newText.length());
 		} else {
 			int startRowPos = getRowStartPosition(text, rangeStart);
@@ -85,14 +85,14 @@ class XmlSyntax extends GeneralCodeSyntax {
 				if (indEnd2 > indStart2 + 4) {
 					control.selectRange(startRowPos, endRowPos);
 					String newText = textBetween.substring(indStart2+4, indEnd2);
-					control.paste(newText);
+					control.replaceSelection(newText);
 					control.selectRange(startRowPos, startRowPos + newText.length());
 				}
 			} else {
 				// Add comment
 				String newText = "<!--" + textBetween + "-->";
 				control.selectRange(startRowPos, endRowPos);
-				control.paste(newText);
+				control.replaceSelection(newText);
 				control.selectRange(startRowPos, startRowPos + newText.length());
 			}
 		}	

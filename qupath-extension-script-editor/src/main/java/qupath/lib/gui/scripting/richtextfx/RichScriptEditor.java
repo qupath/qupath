@@ -44,6 +44,7 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.concurrent.Task;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.ListView;
+import javafx.scene.input.Clipboard;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.stage.Popup;
@@ -351,8 +352,12 @@ public class RichScriptEditor extends DefaultScriptEditor {
 		@Override
 		public void paste() {
 			var text = getClipboardText(false);
-			if (text != null)
-				replaceSelection(text);
+			if (text != null) {
+				if (text.equals(Clipboard.getSystemClipboard().getString()))
+					super.paste();
+				else
+					replaceSelection(text);
+			}
 		}
 	}
 }

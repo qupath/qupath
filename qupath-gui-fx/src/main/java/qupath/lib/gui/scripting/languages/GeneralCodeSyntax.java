@@ -76,7 +76,7 @@ abstract class GeneralCodeSyntax implements ScriptSyntax {
 		if (control.getSelectionLength() == 0)
 			control.insertText(control.getCaretPosition(), quotes);
 		else
-			control.paste(quotes);
+			control.replaceSelection(quotes);
 		if (!smartEditing)
 			return;
 		
@@ -157,7 +157,7 @@ abstract class GeneralCodeSyntax implements ScriptSyntax {
 		}
 		
 		control.selectRange(startRowPos, endRowPos);
-		control.paste(replaceText);
+		control.replaceSelection(replaceText);
 		if (hasSelection)
 			control.selectRange(startRowPos, startRowPos + replaceText.length());
 	}
@@ -250,7 +250,7 @@ abstract class GeneralCodeSyntax implements ScriptSyntax {
 			replaceText = tabString + textBetween.replace("\n", "\n"+tabString);
 		
 		textArea.selectRange(startRowPos, endRowPos);
-		textArea.paste(replaceText);
+		textArea.replaceSelection(replaceText);
 		textArea.selectRange(startRowPos, startRowPos + replaceText.length());
 	}
 	

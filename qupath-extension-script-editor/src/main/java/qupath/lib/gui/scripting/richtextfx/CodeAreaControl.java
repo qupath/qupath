@@ -64,8 +64,8 @@ public class CodeAreaControl implements ScriptEditorControl {
 
 	@Override
 	public void setText(String text) {
-		textArea.clear();
-		textArea.insertText(0, text);
+		textArea.replaceText(text);
+		requestFollowCaret();
 	}
 
 	@Override
@@ -119,14 +119,14 @@ public class CodeAreaControl implements ScriptEditorControl {
 	}
 
 	@Override
-	public void paste(String text) {
-		if (text != null)
-			textArea.replaceSelection(text);
+	public void paste() {
+		textArea.paste();
 	}
 	
 	@Override
 	public void appendText(final String text) {
 		textArea.appendText(text);
+		requestFollowCaret();
 	}
 
 	@Override
@@ -142,11 +142,13 @@ public class CodeAreaControl implements ScriptEditorControl {
 	@Override
 	public void insertText(int pos, String text) {
 		textArea.insertText(pos, text);
+		requestFollowCaret();
 	}
 	
 	@Override
 	public void deleteText(int startIdx, int endIdx) {
 		textArea.deleteText(startIdx, endIdx);
+		requestFollowCaret();
 	}
 
 	@Override
@@ -178,4 +180,11 @@ public class CodeAreaControl implements ScriptEditorControl {
 	public void requestFollowCaret() {
 		textArea.requestFollowCaret();
 	}
+	
+	@Override
+	public void replaceSelection(String text) {
+		textArea.replaceSelection(text);
+		requestFollowCaret();
+	}
+
 }

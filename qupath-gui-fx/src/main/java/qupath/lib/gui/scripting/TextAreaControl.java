@@ -104,10 +104,8 @@ class TextAreaControl implements ScriptEditorControl {
 	}
 
 	@Override
-	public void paste(String text) {
-		if (text != null)
-			textArea.replaceSelection(text);
-//		textArea.paste();
+	public void paste() {
+		textArea.paste();
 	}
 
 	@Override
@@ -158,5 +156,10 @@ class TextAreaControl implements ScriptEditorControl {
 	@Override
 	public void positionCaret(int index) {
 		textArea.positionCaret(index);
+	}
+
+	@Override
+	public void replaceSelection(String text) {
+		textArea.replaceSelection(text);
 	}
 }

@@ -323,7 +323,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		if (limitToSelected && !selected.isEmpty()) {
 			var updated = fun.apply(selected);
 			if (!Objects.equals(selected, updated)) {
-				editor.paste(updated);
+				editor.replaceSelection(updated);
 			}
 		} else
 			editor.setText(fun.apply(editor.getText()));
@@ -441,10 +441,10 @@ public class DefaultScriptEditor implements ScriptEditor {
 			if (listScripts != null)
 				listScripts.refresh();
 		});
-		setToggle(tab.getLanguage());
 		listScripts.getItems().add(tab);
 		if (doSelect)
 			listScripts.getSelectionModel().select(tab);
+		setToggle(tab.getLanguage());
 	}
 	
 	
@@ -603,7 +603,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		// Languages menu - ensure each language only gets added once
 		Menu menuLanguages = new Menu("Language");
 		List<RadioMenuItem> nonRunnableLanguages = new ArrayList<>();
-		for (ScriptLanguage language : new LinkedHashSet<>(ScriptLanguageProvider.getAvailableLanguages())) {
+		for (ScriptLanguage language : ScriptLanguageProvider.getAvailableLanguages()) {
 			String languageName = language.toString();
 			RadioMenuItem item = new RadioMenuItem(languageName);
 			item.setToggleGroup(toggleLanguages);
@@ -1327,9 +1327,10 @@ public class DefaultScriptEditor implements ScriptEditor {
 		if (text == null)
 			return false;
 		
-		
-		
-		control.paste(text);
+		if (text.equals(Clipboard.getSystemClipboard().getString()))
+			control.paste();
+		else
+			control.replaceSelection(text);
 		return true;
 	}
 	
@@ -1526,7 +1527,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 							.map(classifierName -> "\"" + classifierName + "\"")
 							.collect(Collectors.joining(join));
 					String s = classifiers.isEmpty() ? "[]" : String.format(listFormat, classifiers);
-					control.paste(s);
+					control.replaceSelection(s);
 				} catch (IOException ex) {
 					logger.error("Could not fetch classifiers", ex.getLocalizedMessage());
 				}
@@ -1536,7 +1537,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 							.map(classifierName -> "\"" + classifierName + "\"")
 							.collect(Collectors.joining(join));
 					String s = classifiers.isEmpty() ? "[]" : String.format(listFormat, classifiers);
-					control.paste(s);
+					control.replaceSelection(s);
 				} catch (IOException ex) {
 					logger.error("Could not fetch classifiers", ex.getLocalizedMessage());
 				}
@@ -1554,9 +1555,9 @@ public class DefaultScriptEditor implements ScriptEditor {
 							;
 				}
 				String s = measurements.isEmpty() ? "[]" : String.format(listFormat, measurements);
-				control.paste(s);
+				control.replaceSelection(s);
 			} else if (name.toLowerCase().equals(GeneralTools.SYMBOL_MU + ""))
-				control.paste(GeneralTools.SYMBOL_MU + "");
+				control.replaceSelection(GeneralTools.SYMBOL_MU + "");
 			else {	
 				// TODO: fix
 //				// Imports (end with a new line)

@@ -71,7 +71,7 @@ public interface ScriptSyntax {
 	 */
 	default void handleQuotes(EditableText control, boolean isDoubleQuote, final boolean smartEditing) {
 		String quote = isDoubleQuote ? "\"" : "'";
-		control.paste(quote);
+		control.replaceSelection(quote);
 	}
 	
 	/**
