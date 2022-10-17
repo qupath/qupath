@@ -638,7 +638,7 @@ public class QP {
 	 * Get the path to the current {@code ImageData}.
 	 * <p>
 	 * This returns {@link #getBatchImageData()} if it is not null; otherwise, it returns 
-	 * the default image data last set through {@link #setDefaultImageDatat(ImageData)}.
+	 * the default image data last set through {@link #setDefaultImageData(ImageData)}.
 	 * @return
 	 * 
 	 * @see #getBatchImageData()

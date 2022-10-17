@@ -277,6 +277,7 @@ public class DefaultScriptLanguage extends ScriptLanguage implements ExecutableL
 		context.setAttribute(ScriptAttributes.BATCH_SIZE, params.getBatchSize(), ScriptContext.ENGINE_SCOPE);
 		context.setAttribute(ScriptAttributes.BATCH_INDEX, params.getBatchIndex(), ScriptContext.ENGINE_SCOPE);
 		context.setAttribute(ScriptAttributes.BATCH_LAST, params.getBatchIndex() == params.getBatchSize()-1, ScriptContext.ENGINE_SCOPE);
+		context.setAttribute(ScriptAttributes.BATCH_SAVE, params.getBatchSaveResult(), ScriptContext.ENGINE_SCOPE);
 		
 		// Remove for now because of fears of memory leaks
 //		context.setAttribute(ScriptAttributes.PROJECT, params.getProject(), ScriptContext.ENGINE_SCOPE);

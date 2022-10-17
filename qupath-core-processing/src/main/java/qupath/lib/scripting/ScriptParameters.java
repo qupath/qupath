@@ -63,6 +63,7 @@ public class ScriptParameters {
 	
 	private int batchSize = 1;
 	private int batchIndex = 0;
+	private boolean batchSaveResult;
 	
 	private ScriptParameters() {}
 	
@@ -147,6 +148,14 @@ public class ScriptParameters {
 	}
 	
 	/**
+	 * Get whether changes to the image data should be saved.
+	 * @return true if changes should be saved after running the script, false if they should not or if it is unknown
+	 */
+	public Boolean getBatchSaveResult() {
+		return batchSaveResult;
+	}
+	
+	/**
 	 * Get an optional array of string arguments passed to the script.
 	 * @return
 	 */
@@ -227,6 +236,7 @@ public class ScriptParameters {
 		
 		private int batchSize = 1;
 		private int batchIndex = 0;
+		private boolean batchSaveResult = false;
 		
 		private Builder() {}
 		
@@ -320,6 +330,16 @@ public class ScriptParameters {
 		}
 		
 		/**
+		 * Specify whether the script that is running should save results or not.
+		 * @param doSave
+		 * @return
+		 */
+		public Builder setBatchSaveResult(boolean doSave) {
+			this.batchSaveResult = doSave;
+			return this;
+		}
+		
+		/**
 		 * Set optional string args to pass to the script.
 		 * @param args
 		 * @return
@@ -374,6 +394,7 @@ public class ScriptParameters {
 			params.args = this.args;
 			params.batchSize = this.batchSize;
 			params.batchIndex = this.batchIndex;
+			params.batchSaveResult = this.batchSaveResult;
 			
 			return params;
 		}

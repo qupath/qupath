@@ -823,8 +823,12 @@ public class DefaultScriptEditor implements ScriptEditor {
 	 * @param script
 	 * @param project 
 	 * @param imageData
+	 * @param batchIndex
+	 * @param batchSize
+	 * @param batchSave
 	 */
-	private void executeScript(final ScriptTab tab, final String script, final Project<BufferedImage> project, final ImageData<BufferedImage> imageData, int batchIndex, int batchSize) {
+	private void executeScript(final ScriptTab tab, final String script, final Project<BufferedImage> project, final ImageData<BufferedImage> imageData, 
+			int batchIndex, int batchSize, boolean batchSave) {
 		var language = tab.getLanguage();
 		
 		if (!(language instanceof ExecutableLanguage))
@@ -845,6 +849,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 				.setImageData(imageData)
 				.setBatchIndex(batchIndex)
 				.setBatchSize(batchSize)
+				.setBatchSaveResult(batchSave)
 				.build();
 		
 		var printWriter = new PrintWriter(writer);
@@ -1110,7 +1115,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 				logger.info("Running script in Platform thread...");
 				try {
 					tab.setRunning(true);
-					executeScript(tab, script, qupath.getProject(), qupath.getImageData(), 0, 1);
+					executeScript(tab, script, qupath.getProject(), qupath.getImageData(), 0, 1, false);
 				} finally {
 					tab.setRunning(false);
 					runningTask.setValue(null);
@@ -1121,7 +1126,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 					public void run() {
 						try {
 							tab.setRunning(true);
-							executeScript(tab, script, qupath.getProject(), qupath.getImageData(), 0, 1);
+							executeScript(tab, script, qupath.getProject(), qupath.getImageData(), 0, 1, false);
 						} finally {
 							tab.setRunning(false);
 							Platform.runLater(() -> runningTask.setValue(null));
@@ -1281,7 +1286,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 						continue;
 					}
 //					QPEx.setBatchImageData(imageData);
-					executeScript(tab, tab.getEditorComponent().getText(), project, imageData, batchIndex, batchSize);
+					executeScript(tab, tab.getEditorComponent().getText(), project, imageData, batchIndex, batchSize, doSave);
 					if (doSave)
 						entry.saveImageData(imageData);
 					imageData.getServer().close();

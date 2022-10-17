@@ -1205,7 +1205,7 @@ public class QuPathGUI {
 			showStartupMessage();
 		
 		// Add listeners to set default project and image data
-		imageDataProperty.addListener((v, o, n) -> QP.setDefaultImageDatat(n));
+		imageDataProperty.addListener((v, o, n) -> QP.setDefaultImageData(n));
 		projectProperty.addListener((v, o, n) -> QP.setDefaultProject(n));
 		
 		// Run startup script, if we can
@@ -3389,6 +3389,7 @@ public class QuPathGUI {
 						.setDefaultStaticImports(Collections.singletonList(QPEx.class))
 						.setFile(file)
 						.setScript(script)
+						.setBatchSaveResult(false)
 						.useLogWriters()
 						.build();
 		ScriptLanguage language = null;

@@ -349,7 +349,7 @@ class ScriptCommand implements Runnable {
 					logger.info("Running script for {} ({}/{})", entry.getImageName(), batchIndex, batchSize);
 					imageData = entry.readImageData();
 					try {
-						Object result = runBatchScript(project, imageData, batchIndex, batchSize);
+						Object result = runBatchScript(project, imageData, batchIndex, batchSize, save);
 						if (result != null)
 							logger.info("Script result: {}", result);
 						if (save)
@@ -432,10 +432,10 @@ class ScriptCommand implements Runnable {
 	
 	
 	private Object runSingleScript(Project<BufferedImage> project, ImageData<BufferedImage> imageData) throws IOException, ScriptException {
-		return runBatchScript(project, imageData, 0, 1);
+		return runBatchScript(project, imageData, 0, 1, false);
 	}
 	
-	private Object runBatchScript(Project<BufferedImage> project, ImageData<BufferedImage> imageData, int batchIndex, int batchSize) throws IOException, ScriptException {
+	private Object runBatchScript(Project<BufferedImage> project, ImageData<BufferedImage> imageData, int batchIndex, int batchSize, boolean batchSave) throws IOException, ScriptException {
 		Object result = null;
 		String script = scriptCommand;
 		ExecutableLanguage language;
@@ -474,6 +474,7 @@ class ScriptCommand implements Runnable {
 				.setScript(script)
 				.setBatchSize(batchSize)
 				.setBatchIndex(batchIndex)
+				.setBatchSaveResult(batchSave)
 				.setWriter(outWriter)
 				.setErrorWriter(errWriter)
 				.build();

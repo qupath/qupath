@@ -62,7 +62,13 @@ public class ScriptAttributes {
 	/**
 	 * Boolean flag to indicate if the current script is the last in a batch.
 	 */
-	public static final String BATCH_LAST = "qupath.script.project";
+	public static final String BATCH_LAST = "qupath.script.batchLast";
+
+	/**
+	 * Boolean flag to indicate whether changes to the image data should automatically be saved.
+	 */
+	public static final String BATCH_SAVE = "qupath.script.batchSave";
+
 	
 	// TODO: Consider adding in the future... but concern is they could cause memory leaks
 	// for scripts that create UIs.
