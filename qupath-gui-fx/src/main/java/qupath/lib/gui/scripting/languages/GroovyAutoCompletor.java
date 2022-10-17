@@ -2,8 +2,6 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
- * Contact: IP Management (ipmanagement@qub.ac.uk)
  * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
@@ -35,11 +33,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.gui.scripting.QPEx;
-import qupath.lib.gui.scripting.ScriptEditorControl;
+import qupath.lib.scripting.languages.EditableText;
+import qupath.lib.scripting.languages.ScriptAutoCompletor;
 
 /**
  * Auto-completor for Groovy code.
  * @author Melvin Gelbard
+ * @author Pete Bankhead
  * @since v0.4.0
  */
 public class GroovyAutoCompletor implements ScriptAutoCompletor {
@@ -107,7 +107,7 @@ public class GroovyAutoCompletor implements ScriptAutoCompletor {
 	}
 	
 	@Override
-	public List<Completion> getCompletions(ScriptEditorControl control) {
+	public List<Completion> getCompletions(EditableText control) {
 		var start = getStart(control);
 		
 		// Use all available completions if we have a dot included
@@ -144,7 +144,7 @@ public class GroovyAutoCompletor implements ScriptAutoCompletor {
 	}
 	
 	@Override
-	public void applyCompletion(ScriptEditorControl control, Completion completion) {
+	public void applyCompletion(EditableText control, Completion completion) {
 		var start = getStart(control);
 		var insertion = completion.getInsertion(start);
 		// Avoid inserting if caret is already between parentheses
@@ -159,7 +159,7 @@ public class GroovyAutoCompletor implements ScriptAutoCompletor {
 			control.positionCaret(control.getCaretPosition()-1);
 	}
 	
-	private String getStart(ScriptEditorControl control) {
+	private String getStart(EditableText control) {
 		var pos = control.getCaretPosition();
 		String[] split = control.getText().substring(0, pos).split("(\\s+)|(\\()|(\\))|(\\{)|(\\})|(\\[)|(\\])");
 		String start;

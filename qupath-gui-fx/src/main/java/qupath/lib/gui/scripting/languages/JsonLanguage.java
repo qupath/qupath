@@ -22,6 +22,11 @@
 package qupath.lib.gui.scripting.languages;
 
 import java.util.ServiceLoader;
+import java.util.Set;
+
+import qupath.lib.scripting.languages.ScriptAutoCompletor;
+import qupath.lib.scripting.languages.ScriptLanguage;
+import qupath.lib.scripting.languages.ScriptSyntax;
 
 /**
  * Class for the representation of JSON syntax in QuPath.
@@ -47,7 +52,7 @@ public class JsonLanguage extends ScriptLanguage {
 	 * Note: this has to be public for the {@link ServiceLoader} to work.
 	 */
 	public JsonLanguage() {
-		super("JSON", new String[]{".json", ".geojson"});
+		super("JSON", Set.of(".json", ".geojson"));
 		this.syntax = JsonSyntax.getInstance();
 		this.completor = new PlainAutoCompletor();
 		

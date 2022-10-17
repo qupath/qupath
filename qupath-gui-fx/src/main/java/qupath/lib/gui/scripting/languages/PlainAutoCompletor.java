@@ -24,7 +24,8 @@ package qupath.lib.gui.scripting.languages;
 import java.util.Collections;
 import java.util.List;
 
-import qupath.lib.gui.scripting.ScriptEditorControl;
+import qupath.lib.scripting.languages.EditableText;
+import qupath.lib.scripting.languages.ScriptAutoCompletor;
 
 /**
  * Auto-completor for plain text (which means no auto-complete).
@@ -34,7 +35,7 @@ import qupath.lib.gui.scripting.ScriptEditorControl;
 public class PlainAutoCompletor implements ScriptAutoCompletor {
 	
 	@Override
-	public List<Completion> getCompletions(ScriptEditorControl control) {
+	public List<Completion> getCompletions(EditableText control) {
 		return Collections.emptyList();
 	}
 

@@ -27,17 +27,16 @@ import org.fxmisc.flowless.VirtualizedScrollPane;
 import org.fxmisc.richtext.CodeArea;
 
 import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableValue;
-import javafx.scene.control.ContextMenu;
 import javafx.scene.control.IndexRange;
 import javafx.scene.layout.Region;
 import qupath.lib.gui.scripting.ScriptEditorControl;
 
 /**
- * Code area (e.g. RichTextFX) for writing code.
+ * Code area control using RichTextFX.
+ * 
  * @author Pete Bankhead
  */
 public class CodeAreaControl implements ScriptEditorControl {
@@ -149,11 +148,6 @@ public class CodeAreaControl implements ScriptEditorControl {
 	public void deleteText(int startIdx, int endIdx) {
 		textArea.deleteText(startIdx, endIdx);
 	}
-	
-	@Override
-	public ReadOnlyBooleanProperty focusedProperty() {
-		return textArea.focusedProperty();
-	}
 
 	@Override
 	public void deselect() {
@@ -168,11 +162,6 @@ public class CodeAreaControl implements ScriptEditorControl {
 	@Override
 	public void selectRange(int startIdx, int endIdx) {
 		textArea.selectRange(startIdx, endIdx);
-	}
-
-	@Override
-	public void setPopup(ContextMenu menu) {
-		textArea.setContextMenu(menu);
 	}
 	
 	@Override

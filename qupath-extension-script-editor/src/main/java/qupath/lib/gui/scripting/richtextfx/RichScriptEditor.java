@@ -53,9 +53,9 @@ import qupath.lib.gui.scripting.DefaultScriptEditor;
 import qupath.lib.gui.scripting.ScriptEditorControl;
 import qupath.lib.gui.scripting.highlighters.ScriptHighlighter;
 import qupath.lib.gui.scripting.highlighters.ScriptHighlighterProvider;
-import qupath.lib.gui.scripting.languages.ScriptAutoCompletor;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.MenuTools;
+import qupath.lib.scripting.languages.ScriptAutoCompletor;
 
 /*
  * 
@@ -152,18 +152,20 @@ public class RichScriptEditor extends DefaultScriptEditor {
 					return;
 				
 				var scriptSyntax = getCurrentLanguage().getSyntax();
-				if ("(".equals(e.getCharacter())) {
-					scriptSyntax.handleLeftParenthesis(control, smartEditing.get());
-					e.consume();
-				} else if (")".equals(e.getCharacter())) {
-					scriptSyntax.handleRightParenthesis(control, smartEditing.get());
-					e.consume();
-				} else if ("\"".equals(e.getCharacter())) {
-					scriptSyntax.handleQuotes(control, true, smartEditing.get());
-					e.consume();
-				} else if ("\'".equals(e.getCharacter())) {
-					scriptSyntax.handleQuotes(control, false, smartEditing.get());
-					e.consume();
+				if (scriptSyntax != null) {
+					if ("(".equals(e.getCharacter())) {
+						scriptSyntax.handleLeftParenthesis(control, smartEditing.get());
+						e.consume();
+					} else if (")".equals(e.getCharacter())) {
+						scriptSyntax.handleRightParenthesis(control, smartEditing.get());
+						e.consume();
+					} else if ("\"".equals(e.getCharacter())) {
+						scriptSyntax.handleQuotes(control, true, smartEditing.get());
+						e.consume();
+					} else if ("\'".equals(e.getCharacter())) {
+						scriptSyntax.handleQuotes(control, false, smartEditing.get());
+						e.consume();
+					}
 				}
 			});
 			

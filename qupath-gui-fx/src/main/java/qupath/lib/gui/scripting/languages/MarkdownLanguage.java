@@ -22,6 +22,7 @@
 package qupath.lib.gui.scripting.languages;
 
 import java.util.ServiceLoader;
+import java.util.Set;
 
 import javax.script.ScriptException;
 
@@ -34,8 +35,11 @@ import javafx.scene.web.WebView;
 import javafx.stage.Stage;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.tools.WebViews;
-import qupath.lib.scripting.RunnableLanguage;
 import qupath.lib.scripting.ScriptParameters;
+import qupath.lib.scripting.languages.RunnableLanguage;
+import qupath.lib.scripting.languages.ScriptAutoCompletor;
+import qupath.lib.scripting.languages.ScriptLanguage;
+import qupath.lib.scripting.languages.ScriptSyntax;
 
 /**
  * Class for the representation of JSON syntax in QuPath.
@@ -62,7 +66,7 @@ public class MarkdownLanguage extends ScriptLanguage implements RunnableLanguage
 	 * Note: this has to be public for the {@link ServiceLoader} to work.
 	 */
 	public MarkdownLanguage() {
-		super("Markdown", new String[]{".md", ".markdown"});
+		super("Markdown", Set.of(".md", ".markdown"));
 		this.syntax = PlainSyntax.getInstance();
 		this.completor = new PlainAutoCompletor();
 		

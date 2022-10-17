@@ -19,7 +19,7 @@
  * #L%
  */
 
-package qupath.lib.gui.scripting.languages;
+package qupath.lib.scripting.languages;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -29,8 +29,6 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
-
-import qupath.lib.gui.scripting.ScriptEditorControl;
 
 /**
  * Interface for classes that implement auto-completion (e.g. styling classes).
@@ -46,7 +44,7 @@ public interface ScriptAutoCompletor {
 	 * @param control the control onto which apply auto-completion.
 	 * @return 
 	 */
-	default List<Completion> getCompletions(ScriptEditorControl control) {
+	default List<Completion> getCompletions(EditableText control) {
 		return Collections.emptyList();
 	}
 	
@@ -57,7 +55,7 @@ public interface ScriptAutoCompletor {
 	 * @param control
 	 * @param completion
 	 */
-	default void applyCompletion(ScriptEditorControl control, Completion completion) {
+	default void applyCompletion(EditableText control, Completion completion) {
 		throw new UnsupportedOperationException("Completions not supported!");
 	}
 	

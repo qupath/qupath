@@ -27,7 +27,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.ServiceLoader;
 
-import qupath.lib.gui.scripting.languages.ScriptLanguage;
+import qupath.lib.scripting.languages.ScriptLanguage;
 
 /**
  * Class with static methods to fetch all the available {@link ScriptHighlighter}s.

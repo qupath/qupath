@@ -22,9 +22,14 @@
 package qupath.lib.gui.scripting.languages;
 
 import java.util.ServiceLoader;
+import java.util.Set;
+
+import qupath.lib.scripting.languages.ScriptAutoCompletor;
+import qupath.lib.scripting.languages.ScriptLanguage;
+import qupath.lib.scripting.languages.ScriptSyntax;
 
 /**
- * Class for the representation of Plain text in QuPath.
+ * Class for the representation of plain text in QuPath.
  * <p>
  * This class stores the QuPath implementation of Plain syntaxing and plain auto-completion (both do nothing, as it's plain text).
  * @author Melvin Gelbard
@@ -47,7 +52,7 @@ public class PlainLanguage extends ScriptLanguage {
 	 * Note: this has to be public for the {@link ServiceLoader} to work.
 	 */
 	public PlainLanguage() {
-		super("None", new String[]{".txt"});
+		super("None", Set.of(".txt", ".tsv", ".csv"));
 		this.syntax = PlainSyntax.getInstance();
 		this.completor = new PlainAutoCompletor();
 		

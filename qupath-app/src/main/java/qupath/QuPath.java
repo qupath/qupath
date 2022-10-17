@@ -58,7 +58,6 @@ import qupath.lib.gui.logging.LogManager;
 import qupath.lib.gui.logging.LogManager.LogLevel;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.scripting.QPEx;
-import qupath.lib.gui.scripting.languages.ScriptLanguage;
 import qupath.lib.gui.scripting.languages.ScriptLanguageProvider;
 import qupath.lib.gui.tma.QuPathTMAViewer;
 import qupath.lib.images.ImageData;
@@ -69,8 +68,9 @@ import qupath.lib.images.servers.ImageServers;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectIO;
 import qupath.lib.scripting.QP;
-import qupath.lib.scripting.RunnableLanguage;
 import qupath.lib.scripting.ScriptParameters;
+import qupath.lib.scripting.languages.RunnableLanguage;
+import qupath.lib.scripting.languages.ScriptLanguage;
 
 /**
  * Main QuPath launcher.

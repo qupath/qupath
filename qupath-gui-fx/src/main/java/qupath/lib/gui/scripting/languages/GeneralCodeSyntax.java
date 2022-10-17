@@ -21,8 +21,8 @@
 
 package qupath.lib.gui.scripting.languages;
 
-import javafx.scene.control.IndexRange;
-import qupath.lib.gui.scripting.ScriptEditorControl;
+import qupath.lib.scripting.languages.EditableText;
+import qupath.lib.scripting.languages.ScriptSyntax;
 
 /**
  * Abstract class to represent the typical syntaxes found in most programming languages.
@@ -35,7 +35,7 @@ abstract class GeneralCodeSyntax implements ScriptSyntax {
 	 * Handle left parentheses '{@code (}' by automatically adding a right parenthesis '{@code )}' after if not already present.
 	 */
 	@Override
-	public void handleLeftParenthesis(final ScriptEditorControl control, final boolean smartEditing) {
+	public void handleLeftParenthesis(final EditableText control, final boolean smartEditing) {
 		control.insertText(control.getCaretPosition(), "(");
 		if (!smartEditing)
 			return;
@@ -55,7 +55,7 @@ abstract class GeneralCodeSyntax implements ScriptSyntax {
 	 * Adds a right parenthesis '{@code )}', except if one is already present at the caret position.
 	 */
 	@Override
-	public void handleRightParenthesis(final ScriptEditorControl control, final boolean smartEditing) {
+	public void handleRightParenthesis(final EditableText control, final boolean smartEditing) {
 		control.insertText(control.getCaretPosition(), ")");
 		if (!smartEditing)
 			return;
@@ -71,9 +71,9 @@ abstract class GeneralCodeSyntax implements ScriptSyntax {
 	 * Handle (single/double) quotes by adding a closing one if not already present.
 	 */
 	@Override
-	public void handleQuotes(final ScriptEditorControl control, boolean isDoubleQuote, final boolean smartEditing) {
+	public void handleQuotes(final EditableText control, boolean isDoubleQuote, final boolean smartEditing) {
 		String quotes = isDoubleQuote ? "\"" : "\'";
-		if (control.getSelection().getLength() == 0)
+		if (control.getSelectionLength() == 0)
 			control.insertText(control.getCaretPosition(), quotes);
 		else
 			control.paste(quotes);
@@ -129,16 +129,16 @@ abstract class GeneralCodeSyntax implements ScriptSyntax {
 	 * This either inserts comments or uncomments the selected lines, if possible.
 	 */
 	@Override
-	public void handleLineComment(final ScriptEditorControl control) {
+	public void handleLineComment(final EditableText control) {
 		String commentString = getLineCommentString();
 		if (commentString == null)
 			return;
 
 		String text = control.getText();
-		IndexRange range = control.getSelection();
-		boolean hasSelection = range.getLength() > 0;
-		int startRowPos = getRowStartPosition(text, range.getStart());
-		int endRowPos = getRowEndPosition(text, range.getEnd());
+
+		boolean hasSelection = control.getSelectionLength() > 0;
+		int startRowPos = getRowStartPosition(text, control.getSelectionStart());
+		int endRowPos = getRowEndPosition(text, control.getSelectionEnd());
 		String textBetween = text.substring(startRowPos, endRowPos);
 		// Check if every new row starts with a comment string - if so we want to remove these, if not we want to add comments
 		
@@ -163,7 +163,7 @@ abstract class GeneralCodeSyntax implements ScriptSyntax {
 	}
 	
 	@Override
-	public void handleNewLine(ScriptEditorControl control, final boolean smartEditing) {
+	public void handleNewLine(EditableText control, final boolean smartEditing) {
 		String text = control.getText();
 		int caretPos = control.getCaretPosition();
 		int startRowPos = getRowStartPosition(text, caretPos);
@@ -181,10 +181,10 @@ abstract class GeneralCodeSyntax implements ScriptSyntax {
 	 * (e.g. {@code SHORTCUT} + {@code BACKSPACE}, {@code BACKSPACE} on a selection, etc..).
 	 */
 	@Override
-	public boolean handleBackspace(final ScriptEditorControl control, final boolean smartEditing) {
+	public boolean handleBackspace(final EditableText control, final boolean smartEditing) {
 		var caretPos = control.getCaretPosition();
-		var selection = control.getSelection();
-		if (caretPos -1 < 0 || selection.getLength() >= 1 || !smartEditing)
+		var selectionLength = control.getSelectionLength();
+		if (caretPos -1 < 0 || selectionLength >= 1 || !smartEditing)
 			return false;
 		
 		if (caretPos >= control.getText().length() ||
@@ -209,16 +209,20 @@ abstract class GeneralCodeSyntax implements ScriptSyntax {
 	 * <li> It removes one indentation from all the selected rows if shift is down </li>
 	 */
 	@Override
-	public void handleTabPress(final ScriptEditorControl textArea, final boolean shiftDown) {
+	public void handleTabPress(final EditableText textArea, final boolean shiftDown) {
 		String text = textArea.getText();
-		IndexRange range = textArea.getSelection() == null ? IndexRange.valueOf("0,0") : textArea.getSelection();
-		int startRowPos = getRowStartPosition(text, range.getStart());
-		int endRowPos = getRowEndPosition(text, range.getEnd());
+		
+		int rangeStart = textArea.getSelectionStart();
+		int rangeEnd = textArea.getSelectionEnd();
+		int rangeLength = textArea.getSelectionLength();
+		
+		int startRowPos = getRowStartPosition(text, rangeStart);
+		int endRowPos = getRowEndPosition(text, rangeEnd);
 		String textBetween = text.substring(startRowPos, endRowPos);
 
 		var tabString = getTabString();
 		
-		if (range.getLength() == 0) {
+		if (rangeLength == 0) {
 			int caretPos = textArea.getCaretPosition();
 			if (shiftDown) {
 				if (textBetween.startsWith(tabString)) {
@@ -250,11 +254,23 @@ abstract class GeneralCodeSyntax implements ScriptSyntax {
 		textArea.selectRange(startRowPos, startRowPos + replaceText.length());
 	}
 	
-	static int getRowStartPosition(final String text, final int pos) {
+	/**
+	 * Get the starting position for the row when the caret is at pos.
+	 * @param text
+	 * @param pos
+	 * @return
+	 */
+	protected int getRowStartPosition(final String text, final int pos) {
 		return text.substring(0, pos).lastIndexOf("\n") + 1;
 	}
 
-	static int getRowEndPosition(final String text, final int pos) {
+	/**
+	 * Get the ending position for the row when the caret is at pos.
+	 * @param text
+	 * @param pos
+	 * @return
+	 */
+	protected int getRowEndPosition(final String text, final int pos) {
 		int pos2 = text.substring(pos).indexOf("\n");
 		if (pos2 < 0)
 			return text.length();

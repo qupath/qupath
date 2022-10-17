@@ -205,7 +205,6 @@ import qupath.lib.gui.prefs.PathPrefs.ImageTypeSetting;
 import qupath.lib.gui.prefs.QuPathStyleManager;
 import qupath.lib.gui.scripting.ScriptEditor;
 import qupath.lib.gui.scripting.languages.GroovyLanguage;
-import qupath.lib.gui.scripting.languages.ScriptLanguage;
 import qupath.lib.gui.scripting.languages.ScriptLanguageProvider;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.tools.CommandFinderTools;
@@ -249,8 +248,9 @@ import qupath.lib.projects.ProjectImageEntry;
 import qupath.lib.projects.Projects;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
-import qupath.lib.scripting.RunnableLanguage;
 import qupath.lib.scripting.ScriptParameters;
+import qupath.lib.scripting.languages.RunnableLanguage;
+import qupath.lib.scripting.languages.ScriptLanguage;
 import qupath.lib.gui.scripting.DefaultScriptEditor;
 import qupath.lib.gui.scripting.QPEx;
 

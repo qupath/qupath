@@ -21,6 +21,8 @@
 
 package qupath.lib.gui.scripting.languages;
 
+import qupath.lib.scripting.languages.ScriptSyntax;
+
 class PlainSyntax implements ScriptSyntax {
 	
 	private static final PlainSyntax INSTANCE = new PlainSyntax();

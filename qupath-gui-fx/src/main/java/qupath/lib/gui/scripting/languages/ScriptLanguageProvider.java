@@ -37,6 +37,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.scripting.languages.ScriptLanguage;
 
 /**
  * Class with static methods to fetch all the available {@linkplain ScriptLanguage ScriptLanguages}.

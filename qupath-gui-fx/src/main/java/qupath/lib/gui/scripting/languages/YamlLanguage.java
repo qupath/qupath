@@ -23,6 +23,10 @@ package qupath.lib.gui.scripting.languages;
 
 import java.util.ServiceLoader;
 
+import qupath.lib.scripting.languages.ScriptAutoCompletor;
+import qupath.lib.scripting.languages.ScriptLanguage;
+import qupath.lib.scripting.languages.ScriptSyntax;
+
 /**
  * Class for the representation of YAML syntax in QuPath.
  * 
@@ -46,7 +50,7 @@ public class YamlLanguage extends ScriptLanguage {
 	 * Note: this has to be public for the {@link ServiceLoader} to work.
 	 */
 	public YamlLanguage() {
-		super("YAML", new String[]{".yaml"});
+		super("YAML", ".yaml");
 		this.syntax = YamlSyntax.getInstance();
 		this.completor = new PlainAutoCompletor();
 		

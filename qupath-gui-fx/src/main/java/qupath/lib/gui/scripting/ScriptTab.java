@@ -26,6 +26,7 @@ package qupath.lib.gui.scripting;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.util.Set;
 
 import org.controlsfx.control.action.Action;
 import org.controlsfx.control.action.ActionUtils;
@@ -39,8 +40,8 @@ import javafx.scene.control.ContextMenu;
 import javafx.scene.control.SplitPane;
 import javafx.scene.layout.BorderPane;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.gui.scripting.languages.ScriptLanguage;
 import qupath.lib.gui.scripting.languages.ScriptLanguageProvider;
+import qupath.lib.scripting.languages.ScriptLanguage;
 
 /**
  * Class representing a script tab (e.g. on the right side of the script editor).
@@ -133,7 +134,9 @@ public class ScriptTab {
 
 		ContextMenu popup = new ContextMenu();
 		popup.getItems().add(ActionUtils.createMenuItem(new Action("Clear console", e -> console.setText(""))));
-		console.setPopup(popup);
+		
+		console.getControl().setOnContextMenuRequested(e -> popup.show(console.getControl(), e.getScreenX(), e.getScreenY()));
+//		console.setPopup(popup);
 
 		splitEditor = new SplitPane();
 		splitEditor.setOrientation(Orientation.VERTICAL);
@@ -225,7 +228,7 @@ public class ScriptTab {
 		this.language = language;
 	}
 	
-	String[] getRequestedExtensions() {
+	Set<String> getRequestedExtensions() {
 		return language.getExtensions();
 	}
 	

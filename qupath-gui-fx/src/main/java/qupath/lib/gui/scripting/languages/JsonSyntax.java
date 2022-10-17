@@ -28,8 +28,8 @@ import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonSyntaxException;
 
-import qupath.lib.gui.scripting.ScriptEditorControl;
 import qupath.lib.io.GsonTools;
+import qupath.lib.scripting.languages.EditableText;
 
 /**
  * Class that takes care of JSON syntax.
@@ -55,7 +55,7 @@ class JsonSyntax extends GeneralCodeSyntax {
 	 * JSON does not support comments. Therefore this method does nothing.
 	 */
 	@Override
-	public void handleLineComment(final ScriptEditorControl control) {
+	public void handleLineComment(final EditableText control) {
 		// Do nothing
 	}
 	

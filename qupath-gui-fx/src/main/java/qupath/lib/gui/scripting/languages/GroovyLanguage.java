@@ -23,17 +23,16 @@
 
 package qupath.lib.gui.scripting.languages;
 
-import java.util.Collection;
+import java.util.Collections;
 import java.util.ServiceLoader;
-import java.util.stream.Collectors;
-
-import qupath.lib.scripting.RunnableLanguage;
+import qupath.lib.scripting.languages.RunnableLanguage;
 
 /**
  * Class for the representation of the Groovy programming language in QuPath.
  * <p>
  * This class stores the QuPath implementation of Groovy syntaxing and Groovy auto-completion.
  * @author Melvin Gelbard
+ * @author Pete Bankhead
  * @since v0.4.0
  */
 public class GroovyLanguage extends DefaultScriptLanguage implements RunnableLanguage {
@@ -50,7 +49,7 @@ public class GroovyLanguage extends DefaultScriptLanguage implements RunnableLan
 	 * Note: this has to be public for the {@link ServiceLoader} to work.
 	 */
 	public GroovyLanguage() {
-		super("Groovy", new String[] {".groovy"}, GroovySyntax.getInstance(), new GroovyAutoCompletor());
+		super("Groovy", Collections.singleton(".groovy"), GroovySyntax.getInstance(), new GroovyAutoCompletor());
 		
 		if (INSTANCE != null)
 			throw new UnsupportedOperationException("Language classes cannot be instantiated more than once!");
@@ -66,22 +65,10 @@ public class GroovyLanguage extends DefaultScriptLanguage implements RunnableLan
 	public static GroovyLanguage getInstance() {
 		return INSTANCE;
 	}
-
-	/**
-	 * Get a Java/Groovy-friendly String to import essential classes for scripting (one-lined).
-	 * @return
-	 */
-	@Override
-	public String getImportStatements(Collection<Class<?>> classes) {
-		return classes.stream().map(c -> "import " + c.getName()).collect(Collectors.joining("; ")) + (classes.isEmpty() ? "" : ";");
-	}
 	
-	/**
-	 * Get a Java/Groovy-friendly String to import essential static classes for scripting (one-lined).
-	 * @return
-	 */
 	@Override
-	public String getStaticImportStatments(Collection<Class<?>> classes) {
-		return classes.stream().map(c -> "import static " + c.getName() + ".*").collect(Collectors.joining("; ")) + (classes.isEmpty() ? "" : ";");
+	protected ImportStatementGenerator getImportStatementGenerator() {
+		return JAVA_IMPORTER;
 	}
+
 }

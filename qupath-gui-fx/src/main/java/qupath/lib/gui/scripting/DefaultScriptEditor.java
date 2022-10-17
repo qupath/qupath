@@ -100,15 +100,15 @@ import qupath.lib.gui.logging.LogManager;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.scripting.languages.GroovyLanguage;
 import qupath.lib.gui.scripting.languages.PlainLanguage;
-import qupath.lib.gui.scripting.languages.ScriptLanguage;
 import qupath.lib.gui.scripting.languages.ScriptLanguageProvider;
 import qupath.lib.gui.tools.MenuTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectImageEntry;
 import qupath.lib.projects.Projects;
-import qupath.lib.scripting.RunnableLanguage;
 import qupath.lib.scripting.ScriptParameters;
+import qupath.lib.scripting.languages.RunnableLanguage;
+import qupath.lib.scripting.languages.ScriptLanguage;
 
 
 /**
@@ -393,7 +393,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 			tab.updateIsModified();
 		});
 		editor.selectedTextProperty().addListener((v, o, n) -> updateCutCopyActionState());
-		editor.focusedProperty().addListener((v, o, n) -> {
+		editor.getControl().focusedProperty().addListener((v, o, n) -> {
 			if (n)
 				maybeRefreshTab(tab, false);
 		});
@@ -432,7 +432,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 			tab.updateIsModified();
 		});
 		editor.selectedTextProperty().addListener((v, o, n) -> updateCutCopyActionState());
-		editor.focusedProperty().addListener((v, o, n) -> {
+		editor.getControl().focusedProperty().addListener((v, o, n) -> {
 			if (n)
 				maybeRefreshTab(tab, false);
 		});
@@ -928,7 +928,9 @@ public class DefaultScriptEditor implements ScriptEditor {
 					}
 				}
 				// TODO: Allow multiple extensions to be used?
-				File file = Dialogs.getChooser(dialog).promptToSaveFile("Save script file", dir, tab.getName(), currentLanguage.getValue().getName() + " file", tab.getRequestedExtensions()[0]);
+				Collection<String> extensions = tab.getRequestedExtensions();
+				String ext = extensions.isEmpty() ? null : extensions.iterator().next();
+				File file = Dialogs.getChooser(dialog).promptToSaveFile("Save script file", dir, tab.getName(), currentLanguage.getValue().getName() + " file", ext);
 				if (file == null)
 					return false;
 				tab.saveToFile(getCurrentText(), file);

@@ -31,6 +31,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -52,9 +53,12 @@ import qupath.lib.projects.Project;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.ShapeSimplifier;
 import qupath.lib.scripting.QP;
-import qupath.lib.scripting.RunnableLanguage;
 import qupath.lib.scripting.ScriptAttributes;
 import qupath.lib.scripting.ScriptParameters;
+import qupath.lib.scripting.languages.RunnableLanguage;
+import qupath.lib.scripting.languages.ScriptAutoCompletor;
+import qupath.lib.scripting.languages.ScriptLanguage;
+import qupath.lib.scripting.languages.ScriptSyntax;
 
 /**
  * Default implementation for a {@link ScriptLanguage}, based on a {@link ScriptEngine}.
@@ -99,7 +103,7 @@ public class DefaultScriptLanguage extends ScriptLanguage implements RunnableLan
 	 * @param factory
 	 */
 	public DefaultScriptLanguage(ScriptEngineFactory factory) {
-		super(factory.getEngineName(), factory.getExtensions().toArray(String[]::new));
+		super(factory.getEngineName(), factory.getExtensions());
 		this.syntax = PlainSyntax.getInstance();
 		this.completor = new PlainAutoCompletor();
 	}
@@ -113,7 +117,7 @@ public class DefaultScriptLanguage extends ScriptLanguage implements RunnableLan
 	 * @param syntax		the syntax object for this language
 	 * @param completor	the auto-completion object for this language
 	 */
-	public DefaultScriptLanguage(String name, String[] exts, ScriptSyntax syntax, ScriptAutoCompletor completor) {
+	public DefaultScriptLanguage(String name, Collection<String> exts, ScriptSyntax syntax, ScriptAutoCompletor completor) {
 		super(name, exts);
 		this.syntax = syntax == null ? PlainSyntax.getInstance() : syntax;
 		this.completor = completor == null ? new PlainAutoCompletor() : completor;
@@ -302,15 +306,14 @@ public class DefaultScriptLanguage extends ScriptLanguage implements RunnableLan
 	 * @return import string
 	 */
 	public String getImportStatements(Collection<Class<?>> classes) {
-		// Here we can have default import implementation for languages that we know the import format for
-		if (getName().toLowerCase().equals("jython")) {
-			return String.format(
-					"import qupath\n" +
-					"from %s import *\n",
-					QPEx.class.getName());
+		if (classes != null && !classes.isEmpty()) {
+			var generator = getImportStatementGenerator();
+			if (generator != null)
+				return generator.getImportStatments(classes);
 		}
 		return "";
 	}
+	
 	
 	/**
 	 * Get the static import statements as a String, to add at the beginning of the executed script.
@@ -318,6 +321,83 @@ public class DefaultScriptLanguage extends ScriptLanguage implements RunnableLan
 	 * @return import string
 	 */
 	public String getStaticImportStatments(Collection<Class<?>> classes) {
+		if (classes != null && !classes.isEmpty()) {
+			var generator = getImportStatementGenerator();
+			if (generator != null)
+				return generator.getStaticImportStatments(classes);
+		}
 		return "";
 	}
+	
+	/**
+	 * Get an {@link ImportStatementGenerator}.
+	 * This attempts to make an educated guess, returning JAVA_IMPORTER or PYTHON_IMPORTER based on the 
+	 * name
+	 * @return
+	 */
+	protected ImportStatementGenerator getImportStatementGenerator() {
+		String name = getName().toLowerCase();
+		
+		if (Set.of("java", "groovy", "kotlin", "scala").contains(name))
+			return JAVA_IMPORTER;
+		
+		if (Set.of("jython", "python", "ipython", "cpython").contains(name))
+			return PYTHON_IMPORTER;
+		
+		return null;
+	}
+		
+	/**
+	 * Java-like import statements
+	 */
+	protected static final ImportStatementGenerator JAVA_IMPORTER = new JavaImportStatementGenerator();
+
+	/**
+	 * Pythonic import statements
+	 */
+	protected static final ImportStatementGenerator PYTHON_IMPORTER = new PythonImportStatementGenerator();
+
+	
+	/**
+	 * Interface defining how the import statements should be generated for the language.
+	 * The purpose of this is to enable standard methods for common languages (currently Java and Python).
+	 */
+	protected static interface ImportStatementGenerator {
+		
+		public String getImportStatments(Collection<Class<?>> classes);
+		
+		public String getStaticImportStatments(Collection<Class<?>> classes);
+		
+	}
+	
+	static class PythonImportStatementGenerator implements ImportStatementGenerator {
+
+		@Override
+		public String getImportStatments(Collection<Class<?>> classes) {
+			return classes.stream().map(c -> "import " + c.getName() + ";").collect(Collectors.joining(" "));
+		}
+
+		@Override
+		public String getStaticImportStatments(Collection<Class<?>> classes) {
+			return classes.stream().map(c -> "from " + c.getName() + " import *;").collect(Collectors.joining(" "));	
+		}
+		
+	}
+	
+	static class JavaImportStatementGenerator implements ImportStatementGenerator {
+
+		@Override
+		public String getImportStatments(Collection<Class<?>> classes) {
+			return classes.stream().map(c -> "import " + c.getName() + ";").collect(Collectors.joining(" "));
+		}
+
+		@Override
+		public String getStaticImportStatments(Collection<Class<?>> classes) {
+			return classes.stream().map(c -> "import static " + c.getName() + ".*").collect(Collectors.joining(" "));
+		}
+		
+		
+		
+	}
+	
 }

@@ -19,28 +19,47 @@
  * #L%
  */
 
-package qupath.lib.gui.scripting.languages;
+package qupath.lib.scripting.languages;
+
+import java.util.Collection;
+import java.util.Collections;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
 /**
  * Abstract class to represent languages supported by the script editor.
  * @author Melvin Gelbard
+ * @author Pete Bankhead
  * @since v0.4.0
  */
 public abstract class ScriptLanguage {
 	
 	private String name;
-	private String[] exts;
+	private Set<String> exts;
 	
 	/**
 	 * Default constructor for a {@link ScriptLanguage}.
 	 * @param name the language name
-	 * @param exts the possible file extensions for this language
+	 * @param exts all supported file extensions for this language, in the form {@code .ext} (lowercase)
 	 */
-	protected ScriptLanguage(String name, String[] exts) {
+	protected ScriptLanguage(String name, Collection<String> exts) {
 		this.name = name;
-		this.exts = exts;
+		if (exts != null && !exts.isEmpty())
+			this.exts = Collections.unmodifiableSet(new LinkedHashSet<>(exts));
+		else
+			this.exts = Collections.emptySet();
 	}
 	
+	/**
+	 * Default constructor for a {@link ScriptLanguage}.
+	 * @param name the language name
+	 * @param ext the file extensions for this language, in the form {@code .ext} (lowercase)
+	 */
+	protected ScriptLanguage(String name, String ext) {
+		this.name = name;
+		this.exts = ext == null ? Collections.emptySet() : Collections.singleton(ext);
+	}
+
 	/**
 	 * Get the name of this language
 	 * @return name
@@ -50,10 +69,10 @@ public abstract class ScriptLanguage {
 	}
 	
 	/**
-	 * Get a String array with the possible extensions for this language.
+	 * Get an unmodifiable set containing the possible extensions for this language.
 	 * @return extension array
 	 */
-	public String[] getExtensions() {
+	public Set<String> getExtensions() {
 		return exts;
 	}
 	
@@ -63,7 +82,9 @@ public abstract class ScriptLanguage {
 	 * Can return {@code null} if the script language should not handle syntax formatting for this language.
 	 * @return syntax object
 	 */
-	public abstract ScriptSyntax getSyntax();
+	public ScriptSyntax getSyntax() {
+		return null;
+	}
 	
 	/**
 	 * Get the {@link ScriptAutoCompletor} object that takes care of this language's auto-completion. 
@@ -71,7 +92,9 @@ public abstract class ScriptLanguage {
 	 * Can return {@code null} if the script editor should not handle auto-completion for this language.
 	 * @return auto-completor
 	 */
-	public abstract ScriptAutoCompletor getAutoCompletor();
+	public ScriptAutoCompletor getAutoCompletor() {
+		return null;
+	}
 
 	@Override
 	public String toString() {

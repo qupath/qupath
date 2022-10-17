@@ -24,10 +24,8 @@
 package qupath.lib.gui.scripting;
 
 import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableValue;
-import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Control;
 import javafx.scene.control.IndexRange;
 import javafx.scene.control.TextArea;
@@ -121,11 +119,6 @@ class TextAreaControl implements ScriptEditorControl {
 	public void appendText(final String text) {
 		textArea.appendText(text);
 	}
-
-	@Override
-	public ReadOnlyBooleanProperty focusedProperty() {
-		return textArea.focusedProperty();
-	}
 	
 	@Override
 	public int getCaretPosition() {
@@ -160,11 +153,6 @@ class TextAreaControl implements ScriptEditorControl {
 	@Override
 	public BooleanProperty wrapTextProperty() {
 		return textArea.wrapTextProperty();
-	}
-
-	@Override
-	public void setPopup(ContextMenu menu) {
-		textArea.setContextMenu(menu);
 	}
 
 	@Override
