@@ -1398,7 +1398,7 @@ public class PixelClassifierPane {
 			return false;
 		
 		trainingEntries.clear();
-		trainingEntries.addAll(ProjectDialogs.getTargetItems(listView));
+		trainingEntries.addAll(listView.getTargetItems());
 		
 		return true;
 	}

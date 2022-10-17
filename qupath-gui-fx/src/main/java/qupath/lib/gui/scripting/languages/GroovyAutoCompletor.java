@@ -35,7 +35,6 @@ import org.slf4j.LoggerFactory;
 import qupath.lib.gui.scripting.QPEx;
 import qupath.lib.scripting.languages.AutoCompletions;
 import qupath.lib.scripting.languages.AutoCompletions.Completion;
-import qupath.lib.scripting.languages.EditableText;
 import qupath.lib.scripting.languages.ScriptAutoCompletor;
 
 /**

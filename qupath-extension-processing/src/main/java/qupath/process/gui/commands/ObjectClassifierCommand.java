@@ -478,7 +478,7 @@ public class ObjectClassifierCommand implements Runnable {
 				return false;
 			
 			trainingEntries.clear();
-			trainingEntries.addAll(ProjectDialogs.getTargetItems(listView));
+			trainingEntries.addAll(listView.getTargetItems());
 			
 			return true;
 		}

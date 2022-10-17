@@ -1177,7 +1177,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		// Ensure that the previous images remain selected if the project still contains them
 //		FilteredList<ProjectImageEntry<?>> sourceList = new FilteredList<>(FXCollections.observableArrayList(project.getImageList()));
 		
-		String sameImageWarning = doSave ? "A selected image is open in the viewer!\nUse 'File>Reload data' to see changes." : null;
+		String sameImageWarning = "A selected image is open in the viewer!\nAny unsaved changes will be ignored.";
 		var listSelectionView = ProjectDialogs.createImageChoicePane(qupath, project.getImageList(), previousImages, sameImageWarning);
 		
 		Dialog<ButtonType> dialog = new Dialog<>();
@@ -1193,9 +1193,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 			return;
 		
 		previousImages.clear();
-//		previousImages.addAll(listSelectionView.getTargetItems());
-
-		previousImages.addAll(ProjectDialogs.getTargetItems(listSelectionView));
+		previousImages.addAll(listSelectionView.getTargetItems());
 
 		if (previousImages.isEmpty())
 			return;
@@ -1228,7 +1226,31 @@ public class DefaultScriptEditor implements ScriptEditor {
 		
 		// Create & run task
 		runningTask.set(qupath.createSingleThreadExecutor(this).submit(worker));
-		progress.show();
+		progress.showAndWait();
+		
+		if (doSave) {
+			Boolean reload = null;
+			for (var viewer: qupath.getViewers()) {
+				var imageData = viewer.getImageData();
+				var entry = imageData == null ? null : project.getEntry(imageData);
+				if (entry != null && imagesToProcess.contains(entry)) {
+					if (reload == null) {
+						reload = Dialogs.showYesNoDialog("Script editor", "Refresh open images?\n"
+								+ "This will show any changes from the script - \n"
+								+ "but unsaved changes in the current viewer will be lost.");
+					}
+					if (reload) {
+						try {
+							var imageDataReloaded = entry.readImageData();
+							viewer.setImageData(imageDataReloaded);
+						} catch (IOException e) {
+							Dialogs.showErrorNotification("Script editor", "Error reloading data: " + e.getLocalizedMessage());
+							logger.error(e.getLocalizedMessage(), e);
+						}
+					}
+				}
+			}
+		}
 	}
 	
 	class ProjectTask extends Task<Void> {
