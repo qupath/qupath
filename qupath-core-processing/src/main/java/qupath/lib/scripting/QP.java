@@ -1001,7 +1001,7 @@ public class QP {
 	 * @param pathObjects
 	 * @param keepChildren
 	 */
-	public static void removeObjects(Collection<PathObject> pathObjects, boolean keepChildren) {
+	public static void removeObjects(Collection<? extends PathObject> pathObjects, boolean keepChildren) {
 		PathObjectHierarchy hierarchy = getCurrentHierarchy();
 		if (hierarchy == null)
 			return;
@@ -1433,19 +1433,6 @@ public class QP {
 	}
 
 	/**
-	 * Get a array of the current annotation objects.
-	 * <p>
-	 * This has been deprecated, because Groovy gives ways to quickly switch between arrays and lists 
-	 * using {@code as}, so in most scripts it should not really be needed as a separate method.
-	 * 
-	 * @return
-	 */
-	@Deprecated
-	public static PathObject[] getAnnotationObjectsAsArray() {
-		return getAnnotationObjects().toArray(new PathObject[0]);
-	}
-	
-	/**
 	 * Get a list of the current annotation objects.
 	 * 
 	 * @return
@@ -1459,19 +1446,6 @@ public class QP {
 		return hierarchy.getAnnotationObjects();
 	}
 
-	/**
-	 * Get a array of the current detection objects.
-	 * <p>
-	 * This has been deprecated, because Groovy gives ways to quickly switch between arrays and lists 
-	 * using {@code as}, so in most scripts it should not really be needed as a separate method.
-	 * 
-	 * @return
-	 */
-	@Deprecated
-	public static PathObject[] getDetectionObjectsAsArray() {
-		return getDetectionObjects().toArray(new PathObject[0]);
-	}
-	
 	/**
 	 * Get a list of the current detection objects.
 	 * 
@@ -1516,31 +1490,31 @@ public class QP {
 	}
 
 	/**
-	 * Get an array of all objects in the current hierarchy.
+	 * Get all objects in the current hierarchy.
 	 * 
 	 * @param includeRootObject
 	 * @return
 	 * @see #getCurrentHierarchy
 	 */
-	public static PathObject[] getAllObjects(boolean includeRootObject) {
+	public static Collection<PathObject> getAllObjects(boolean includeRootObject) {
 		PathObjectHierarchy hierarchy = getCurrentHierarchy();
 		if (hierarchy == null)
-			return new PathObject[0];
+			return Collections.emptyList();
 		var objList = hierarchy.getFlattenedObjectList(null);
 		if (includeRootObject)
-			return objList.toArray(PathObject[]::new);
-		return objList.stream().filter(e -> !e.isRootObject()).toArray(PathObject[]::new);
+			return objList;
+		return objList.stream().filter(e -> !e.isRootObject()).collect(Collectors.toList());
 	}
 
 	/**
-	 * Get an array of all objects in the current hierarchy. 
-	 * Note that this includes the root object.
+	 * Get all objects in the current hierarchy, including the root object.
 	 * 
 	 * @return
 	 * 
 	 * @see #getCurrentHierarchy
+	 * @see #getAllObjects(boolean)
 	 */
-	public static PathObject[] getAllObjects() {
+	public static Collection<PathObject> getAllObjects() {
 		return getAllObjects(true);
 	}
 	
@@ -1899,7 +1873,7 @@ public class QP {
 	 * Set all objects in a collection to be selected, without any being chosen as the main object.
 	 * @param pathObjects
 	 */
-	public static void selectObjects(final Collection<PathObject> pathObjects) {
+	public static void selectObjects(final Collection<? extends PathObject> pathObjects) {
 		selectObjects(pathObjects, null);
 	}
 	
@@ -1908,7 +1882,7 @@ public class QP {
 	 * @param pathObjects
 	 * @param mainSelection
 	 */
-	public static void selectObjects(final Collection<PathObject> pathObjects, PathObject mainSelection) {
+	public static void selectObjects(final Collection<? extends PathObject> pathObjects, PathObject mainSelection) {
 		PathObjectHierarchy hierarchy = getCurrentHierarchy();
 		if (hierarchy != null)
 			hierarchy.getSelectionModel().setSelectedObjects(pathObjects, mainSelection);
@@ -2280,7 +2254,7 @@ public class QP {
 	 * @throws IOException
 	 */
 	public static void exportAllObjectsToGeoJson(String path, GeoJsonExportOptions... options) throws IOException {
-		exportObjectsToGeoJson(Arrays.asList(getAllObjects(false)), path, options);
+		exportObjectsToGeoJson(getAllObjects(false), path, options);
 	}
 	
 	/**
@@ -3609,6 +3583,14 @@ public class QP {
 		DensityMaps.threshold(imageData.getHierarchy(), densityServer, thresholds, pathClassName, options);
 	}
 	
+	
+	/**
+	 * Get the logger associated with this class.
+	 * @return
+	 */
+	public static Logger getLogger() {
+		return logger;
+	}
 	
 	
 	/**
