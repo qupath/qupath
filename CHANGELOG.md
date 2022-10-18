@@ -22,6 +22,13 @@ This is a work-in-progress.
     * Smart parentheses and (double/single) quotes (https://github.com/qupath/qupath/pull/907)
     * Comment block handling (https://github.com/qupath/qupath/pull/908)
   * New 'Edit -> Wrap lines', 'Edit -> Replace curly quotes' and 'Edit -> Zap gremlins' options
+  * Prompt the user to reload data if 'Run for project' may have made changes for any images that are currently open
+* Other scripting improvements
+  * *See https://github.com/qupath/qupath/pull/1078 for more detail*
+  * Added `getTileObjects()` scripting method (https://github.com/qupath/qupath/issues/1065)
+  * Added `checkMinVersion(version)` and `checkVersionRange(min, max)` methods to block scripts running with the wrong QuPath version
+  * Added `Timeit` class to checkpoint & report running times
+  * Adapted `getCurrentImageData()` and `getProject()` to return those open in the viewer if not called from a running script (rather than null)
 * Pixel classifier improvements
   * Making measurements is *much* faster in some circumstances (https://github.com/qupath/qupath/pull/1076)
   * It's possible to restrict live prediction more closely to annotated regions ((https://github.com/qupath/qupath/pull/1076))
