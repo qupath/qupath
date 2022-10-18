@@ -19,18 +19,27 @@
  * #L%
  */
 
-package qupath.lib.gui.scripting.languages;
+package qupath.lib.scripting.languages;
 
-import qupath.lib.scripting.languages.ScriptSyntax;
+import javax.script.ScriptException;
 
-class PlainSyntax implements ScriptSyntax {
+import qupath.lib.scripting.ScriptParameters;
+
+/**
+ * Functional interface for scripting languages that are runnable (e.g. Groovy, JavaScript).
+ * 
+ * @author Melvin Gelbard
+ * @author Pete Bankhead
+ * @since v0.4.0
+ */
+public interface ExecutableLanguage {
 	
-	private static final PlainSyntax INSTANCE = new PlainSyntax();
-	
-	// Empty constructor
-	private PlainSyntax() {}
-	
-	static PlainSyntax getInstance() {
-		return INSTANCE;
-	}
+	/**
+	 * Execute the given script String.
+	 * @param params 
+	 * @return 
+	 * @throws ScriptException 
+	 */
+	Object execute(final ScriptParameters params) throws ScriptException;
+
 }

@@ -24,16 +24,14 @@
 package qupath.lib.gui.scripting;
 
 import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableValue;
-import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Control;
 import javafx.scene.control.IndexRange;
 import javafx.scene.control.TextArea;
 
 /**
- * SImple text area control (JavafX) with basic operations.
+ * Simple text area control (JavaFX) with basic operations.
  * @author Pete Bankhead
  *
  */
@@ -106,10 +104,8 @@ class TextAreaControl implements ScriptEditorControl {
 	}
 
 	@Override
-	public void paste(String text) {
-		if (text != null)
-			textArea.replaceSelection(text);
-//		textArea.paste();
+	public void paste() {
+		textArea.paste();
 	}
 
 	@Override
@@ -120,11 +116,6 @@ class TextAreaControl implements ScriptEditorControl {
 	@Override
 	public void appendText(final String text) {
 		textArea.appendText(text);
-	}
-
-	@Override
-	public ReadOnlyBooleanProperty focusedProperty() {
-		return textArea.focusedProperty();
 	}
 	
 	@Override
@@ -163,12 +154,12 @@ class TextAreaControl implements ScriptEditorControl {
 	}
 
 	@Override
-	public void setPopup(ContextMenu menu) {
-		textArea.setContextMenu(menu);
+	public void positionCaret(int index) {
+		textArea.positionCaret(index);
 	}
 
 	@Override
-	public void positionCaret(int index) {
-		textArea.positionCaret(index);
+	public void replaceSelection(String text) {
+		textArea.replaceSelection(text);
 	}
 }

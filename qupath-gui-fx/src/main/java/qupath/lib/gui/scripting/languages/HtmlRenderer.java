@@ -21,21 +21,16 @@
 
 package qupath.lib.gui.scripting.languages;
 
-import java.util.Collections;
-import java.util.List;
-
-import qupath.lib.gui.scripting.ScriptEditorControl;
+import qupath.lib.scripting.languages.ExecutableLanguage;
 
 /**
- * Auto-completor for plain text (which means no auto-complete).
- * @author Melvin Gelbard
+ * Marker interface that indicates an executable language renders HTML.
+ * This really exists to support markdown rendering.
+ * 
+ * @author Pete Bankhead
  * @since v0.4.0
  */
-public class PlainAutoCompletor implements ScriptAutoCompletor {
+public interface HtmlRenderer extends ExecutableLanguage {
 	
-	@Override
-	public List<Completion> getCompletions(ScriptEditorControl control) {
-		return Collections.emptyList();
-	}
 
 }

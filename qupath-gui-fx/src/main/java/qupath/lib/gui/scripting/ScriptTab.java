@@ -26,6 +26,7 @@ package qupath.lib.gui.scripting;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.util.Set;
 
 import org.controlsfx.control.action.Action;
 import org.controlsfx.control.action.ActionUtils;
@@ -39,7 +40,8 @@ import javafx.scene.control.ContextMenu;
 import javafx.scene.control.SplitPane;
 import javafx.scene.layout.BorderPane;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.gui.scripting.languages.ScriptLanguage;
+import qupath.lib.gui.scripting.languages.ScriptLanguageProvider;
+import qupath.lib.scripting.languages.ScriptLanguage;
 
 /**
  * Class representing a script tab (e.g. on the right side of the script editor).
@@ -102,16 +104,13 @@ public class ScriptTab {
 	 */
 	protected void readFile(final File file) throws IOException {
 		logger.info("Loading file {} to Script Editor", file.getAbsolutePath());
-		String content = GeneralTools.readFileAsString(file.getPath());
-//		Scanner scanner = new Scanner(file);
-//		String content = new String(Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8);
-//		String content = scanner.useDelimiter("\\Z").next();
+		String content = GeneralTools.readFileAsString(file);
 		editor.setText(content);
 		name = file.getName();
 		this.file = file;
 		lastModified = file.lastModified();
 		lastSavedContents = content;
-		this.language = DefaultScriptEditor.getLanguageFromName(name);
+		this.language = ScriptLanguageProvider.getLanguageFromName(name);
 //		scanner.close();
 		updateIsModified();
 	}
@@ -135,7 +134,9 @@ public class ScriptTab {
 
 		ContextMenu popup = new ContextMenu();
 		popup.getItems().add(ActionUtils.createMenuItem(new Action("Clear console", e -> console.setText(""))));
-		console.setPopup(popup);
+		
+		console.getControl().setOnContextMenuRequested(e -> popup.show(console.getControl(), e.getScreenX(), e.getScreenY()));
+//		console.setPopup(popup);
 
 		splitEditor = new SplitPane();
 		splitEditor.setOrientation(Orientation.VERTICAL);
@@ -227,7 +228,7 @@ public class ScriptTab {
 		this.language = language;
 	}
 	
-	String[] getRequestedExtensions() {
+	Set<String> getRequestedExtensions() {
 		return language.getExtensions();
 	}
 	

@@ -23,7 +23,7 @@
 
 package qupath.lib.gui.scripting.languages;
 
-import qupath.lib.gui.scripting.ScriptEditorControl;
+import qupath.lib.scripting.languages.EditableText;
 
 /**
  * Class to take care of the Groovy syntax formatting.
@@ -83,7 +83,7 @@ class GroovySyntax extends GeneralCodeSyntax {
 	 * <li> The original indentation is accounted for </li>
 	 */
 	@Override
-	public void handleNewLine(final ScriptEditorControl control, final boolean smartEditing) {
+	public void handleNewLine(final EditableText control, final boolean smartEditing) {
 		int caretPos = control.getCaretPosition();
 		String text = control.getText();
 		int startRowPos = getRowStartPosition(text, caretPos);
@@ -99,6 +99,8 @@ class GroovySyntax extends GeneralCodeSyntax {
 			super.handleNewLine(control, smartEditing);
 			return;
 		}
+		
+		var tabString = getTabString();
 
 		if (trimmedSubString.startsWith("/*") && !trimmedSubString.contains("*/")) {	// Start of a comment block
 			insertText = ind == 0 ? "\n" + subString.substring(0, indentation) + " * \n */" : "\n" + subString.substring(0, indentation) + " * \n" + subString.substring(0, indentation) + " */ ";
@@ -149,6 +151,7 @@ class GroovySyntax extends GeneralCodeSyntax {
 				control.insertText(caretPos, insertText);
 				control.deleteText(control.getCaretPosition(), control.getCaretPosition() + lineRemainder.length());
 				control.positionCaret(finalPos);
+//				control.requestFollowCaret();
 			}
 		}
 	}

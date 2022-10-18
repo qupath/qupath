@@ -35,6 +35,7 @@ import org.fxmisc.richtext.model.StyleSpansBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.yaml.snakeyaml.Yaml;
+import org.yaml.snakeyaml.events.ScalarEvent;
 
 /**
  * Highlighting to apply to a {@link CodeArea}, based on YAML syntax.
@@ -59,7 +60,7 @@ public class YamlHighlighter implements ScriptHighlighter {
 	}
 	
 	/**
-	 * Constructor for a Markdown Highlighter. This constructor should never be 
+	 * Constructor for a YAML Highlighter. This constructor should never be 
 	 * called. Instead, use the static {@link #getInstance()} method.
 	 * <p>
 	 * Note: this has to be public for the {@link ServiceLoader} to work.
@@ -113,6 +114,12 @@ public class YamlHighlighter implements ScriptHighlighter {
 					break;
 				case Scalar:
 					style = "string";
+					if (event instanceof ScalarEvent) {
+						var scalar = (ScalarEvent)event;
+						var value = scalar.getValue();
+						if (isNumeric(value))
+							style = "number";
+					}
 					break;
 				case SequenceEnd:
 					style = "bracket";
@@ -145,6 +152,19 @@ public class YamlHighlighter implements ScriptHighlighter {
         
         return styles;
 	}
+	
+	
+	private static boolean isNumeric(String value) {
+		if (value == null || value.isEmpty())
+			return false;
+		try {
+			Double.parseDouble(value);
+			return true;
+		} catch (NumberFormatException e) {
+			return false;
+		}
+	}
+	
 
 	@Override
 	public StyleSpans<Collection<String>> computeConsoleHighlighting(String text) {
@@ -163,6 +183,7 @@ public class YamlHighlighter implements ScriptHighlighter {
 
 		StyleSpanVisitor(String text) {
 			this.text = text;
+//			this.currentStyle.add("code");
 			var lengths = text.lines().mapToInt(l -> l.length()+1).toArray();
 			lineSums = new int[lengths.length+1];
 			for (int i = 0; i < lengths.length; i++) {

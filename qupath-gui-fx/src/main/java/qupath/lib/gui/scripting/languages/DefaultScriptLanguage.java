@@ -31,6 +31,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -38,13 +39,13 @@ import javax.script.ScriptContext;
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineFactory;
 import javax.script.ScriptException;
+import javax.script.SimpleScriptContext;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.imagej.tools.IJTools;
 import qupath.lib.gui.dialogs.Dialogs;
-import qupath.lib.gui.scripting.DefaultScriptEditor;
 import qupath.lib.gui.scripting.QPEx;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObjects;
@@ -52,13 +53,19 @@ import qupath.lib.projects.Project;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.ShapeSimplifier;
 import qupath.lib.scripting.QP;
+import qupath.lib.scripting.ScriptAttributes;
+import qupath.lib.scripting.ScriptParameters;
+import qupath.lib.scripting.languages.ExecutableLanguage;
+import qupath.lib.scripting.languages.ScriptAutoCompletor;
+import qupath.lib.scripting.languages.ScriptLanguage;
+import qupath.lib.scripting.languages.ScriptSyntax;
 
 /**
  * Default implementation for a {@link ScriptLanguage}, based on a {@link ScriptEngine}.
  * @author Melvin Gelbard
  * @since v0.4.0
  */
-public class DefaultScriptLanguage extends ScriptLanguage implements RunnableLanguage {
+public class DefaultScriptLanguage extends ScriptLanguage implements ExecutableLanguage {
 	
 	private static final Logger logger = LoggerFactory.getLogger(DefaultScriptLanguage.class);
 	
@@ -90,19 +97,18 @@ public class DefaultScriptLanguage extends ScriptLanguage implements RunnableLan
 	}
 	
 	/**
-	 * Constructor for a {@link RunnableLanguage} based on a {@link ScriptEngineFactory}.
+	 * Constructor for a {@link ExecutableLanguage} based on a {@link ScriptEngineFactory}.
 	 * <p>
 	 * Note: the scriptEngine is not stored within this class. It is always fetched via {@link ScriptLanguageProvider}.
 	 * @param factory
 	 */
 	public DefaultScriptLanguage(ScriptEngineFactory factory) {
-		super(factory.getEngineName(), factory.getExtensions().toArray(String[]::new));
+		super(factory.getEngineName(), factory.getExtensions());
 		this.syntax = PlainSyntax.getInstance();
-		this.completor = new PlainAutoCompletor();
 	}
 	
 	/**
-	 * Constructor for a {@link RunnableLanguage}.
+	 * Constructor for a {@link ExecutableLanguage}.
 	 * <p>
 	 * Note: the scriptEngine is not stored within this class. It is always fetched via {@link ScriptLanguageProvider}.
 	 * @param name		the language name
@@ -110,18 +116,19 @@ public class DefaultScriptLanguage extends ScriptLanguage implements RunnableLan
 	 * @param syntax		the syntax object for this language
 	 * @param completor	the auto-completion object for this language
 	 */
-	public DefaultScriptLanguage(String name, String[] exts, ScriptSyntax syntax, ScriptAutoCompletor completor) {
+	public DefaultScriptLanguage(String name, Collection<String> exts, ScriptSyntax syntax, ScriptAutoCompletor completor) {
 		super(name, exts);
 		this.syntax = syntax == null ? PlainSyntax.getInstance() : syntax;
-		this.completor = completor == null ? new PlainAutoCompletor() : completor;
+		this.completor = completor;
 	}
 
 	@Override
-	public Object executeScript(String script, Project<BufferedImage> project, ImageData<BufferedImage> imageData, Collection<Class<?>> classesToImport, Collection<Class<?>> staticClassesToImport, ScriptContext context) throws ScriptException {
+	public Object execute(ScriptParameters params) throws ScriptException {
 		// Set the current ImageData if we can
-		QP.setBatchProjectAndImage(project, imageData);
+		QP.setBatchProjectAndImage((Project<BufferedImage>)params.getProject(), (ImageData<BufferedImage>)params.getImageData());
 		
 		// We'll actually use script2... which may or may not be the same
+		String script = params.getScript();
 		String script2 = script;
 		
 		// Prepare to return a result
@@ -129,43 +136,24 @@ public class DefaultScriptLanguage extends ScriptLanguage implements RunnableLan
 
 		// Record if any extra lines are added to the script, to help match line numbers of any exceptions
 			
-//			// Class supplying static methods that will be included in the main namespace
-//			// TODO: Note: Javascript ignores the 'extends', i.e. loses all the QPEx stuff, so most functions don't work.
-//			// This workaround means that command line script running is used with Javascript, whereas Groovy shows progress dialogs etc.
-//			String scriptClass = scriptEngine.getFactory().getNames().contains("javascript") ? QP.class.getName() : QPEx.class.getName();
-//			
-//			// Import whatever else is needed into the namespace for the languages we know about
-//			if (scriptEngine.getFactory().getNames().contains("jython")) {
-//				script2 = String.format(
-//						"import qupath\n" +
-//						"from %s import *\n" +
-//						"%s\n",
-//						scriptClass, script);
-//				extraLines = 2;
-//			}
-//			if (scriptEngine.getFactory().getNames().contains("groovy")) {
-//				script2 = QPEx.getDefaultImports(true) + System.lineSeparator() + script;
-//				extraLines = 1; // coreImports.size() + 1;
-//			}
-//			if (scriptEngine.getFactory().getNames().contains("javascript")) {
-//				script2 = String.format(
-//						"var QP = Java.type(\"%s\");\n"
-//						+ "with (Object.bindProperties({}, QP)) {\n"
-//						+ "%s\n"
-//						+ "}\n",
-//						scriptClass, script);
-//				extraLines = 2;
-//			}
-			
 		// Supply default bindings
-		String importsString = getImportStatements(classesToImport) + getStaticImportStatments(staticClassesToImport);
+		String importsString = getImportStatements(params.getDefaultImports()) + getStaticImportStatments(params.getDefaultStaticImports());
 		int extraLines = importsString.replaceAll("[^\\n]", "").length() + 1; // TODO: Check this
 		script2 = importsString + System.lineSeparator() + script;
 		
-		context = context == null ? DefaultScriptEditor.createDefaultContext() : context;
+		var context = createContext(params);
 		
 		try {
-			result = ScriptLanguageProvider.getEngineByName(getName()).eval(script2, context);
+			var engine =  ScriptLanguageProvider.getEngineByName(getName());
+			if (engine == null)
+				throw new ScriptException("Unable to find ScriptEngine for " + getName());
+			
+			engine.put(ScriptEngine.ARGV, params.getArgs());
+			var file = params.getFile();
+			if (file != null)
+				engine.put(ScriptEngine.FILENAME, file.getAbsolutePath());
+			
+			result = engine.eval(script2, context);
 		} catch (ScriptException e) {
 			try {
 				int line = e.getLineNumber();
@@ -273,6 +261,35 @@ public class DefaultScriptLanguage extends ScriptLanguage implements RunnableLan
 		return result;
 	}
 	
+	
+	/**
+	 * Create a {@link ScriptContext} containing information from the {@link ScriptParameters}.
+	 * @param params
+	 * @return
+	 */
+	protected ScriptContext createContext(ScriptParameters params) {
+		var context = new SimpleScriptContext();
+		
+		String filePath = params.getFile() == null ? null : params.getFile().getAbsolutePath();
+		context.setAttribute(ScriptAttributes.ARGS, params.getArgs(), ScriptContext.ENGINE_SCOPE);
+		context.setAttribute(ScriptAttributes.FILE_PATH, filePath, ScriptContext.ENGINE_SCOPE);
+		
+		context.setAttribute(ScriptAttributes.BATCH_SIZE, params.getBatchSize(), ScriptContext.ENGINE_SCOPE);
+		context.setAttribute(ScriptAttributes.BATCH_INDEX, params.getBatchIndex(), ScriptContext.ENGINE_SCOPE);
+		context.setAttribute(ScriptAttributes.BATCH_LAST, params.getBatchIndex() == params.getBatchSize()-1, ScriptContext.ENGINE_SCOPE);
+		context.setAttribute(ScriptAttributes.BATCH_SAVE, params.getBatchSaveResult(), ScriptContext.ENGINE_SCOPE);
+		
+		// Remove for now because of fears of memory leaks
+//		context.setAttribute(ScriptAttributes.PROJECT, params.getProject(), ScriptContext.ENGINE_SCOPE);
+//		context.setAttribute(ScriptAttributes.IMAGE_DATA, params.getImageData(), ScriptContext.ENGINE_SCOPE);
+		
+		context.setWriter(params.getWriter());
+		context.setErrorWriter(params.getErrorWriter());
+		
+		return context;
+	}
+	
+	
 	@Override
 	public ScriptSyntax getSyntax() {
 		return syntax;
@@ -283,20 +300,104 @@ public class DefaultScriptLanguage extends ScriptLanguage implements RunnableLan
 		return completor;
 	}
 
-	@Override
+	/**
+	 * Get the import statements as a String, to add at the beginning of the executed script.
+	 * @param classes a collection of the classes to import 
+	 * @return import string
+	 */
 	public String getImportStatements(Collection<Class<?>> classes) {
-		// Here we can have default import implementation for languages that we know the import format for
-		if (getName().toLowerCase().equals("jython")) {
-			return String.format(
-					"import qupath\n" +
-					"from %s import *\n",
-					QPEx.class.getName());
+		if (classes != null && !classes.isEmpty()) {
+			var generator = getImportStatementGenerator();
+			if (generator != null)
+				return generator.getImportStatments(classes);
 		}
 		return "";
 	}
 	
-	@Override
+	
+	/**
+	 * Get the static import statements as a String, to add at the beginning of the executed script.
+	 * @param classes	a collection of classes to import as static classes
+	 * @return import string
+	 */
 	public String getStaticImportStatments(Collection<Class<?>> classes) {
+		if (classes != null && !classes.isEmpty()) {
+			var generator = getImportStatementGenerator();
+			if (generator != null)
+				return generator.getStaticImportStatments(classes);
+		}
 		return "";
 	}
+	
+	/**
+	 * Get an {@link ImportStatementGenerator}.
+	 * This attempts to make an educated guess, returning JAVA_IMPORTER or PYTHON_IMPORTER based on the 
+	 * name
+	 * @return
+	 */
+	protected ImportStatementGenerator getImportStatementGenerator() {
+		String name = getName().toLowerCase();
+		
+		if (Set.of("java", "groovy", "kotlin", "scala").contains(name))
+			return JAVA_IMPORTER;
+		
+		if (Set.of("jython", "python", "ipython", "cpython").contains(name))
+			return PYTHON_IMPORTER;
+		
+		return null;
+	}
+		
+	/**
+	 * Java-like import statements
+	 */
+	protected static final ImportStatementGenerator JAVA_IMPORTER = new JavaImportStatementGenerator();
+
+	/**
+	 * Pythonic import statements
+	 */
+	protected static final ImportStatementGenerator PYTHON_IMPORTER = new PythonImportStatementGenerator();
+
+	
+	/**
+	 * Interface defining how the import statements should be generated for the language.
+	 * The purpose of this is to enable standard methods for common languages (currently Java and Python).
+	 */
+	protected static interface ImportStatementGenerator {
+		
+		public String getImportStatments(Collection<Class<?>> classes);
+		
+		public String getStaticImportStatments(Collection<Class<?>> classes);
+		
+	}
+	
+	static class PythonImportStatementGenerator implements ImportStatementGenerator {
+
+		@Override
+		public String getImportStatments(Collection<Class<?>> classes) {
+			return classes.stream().map(c -> "import " + c.getName() + ";").collect(Collectors.joining(" "));
+		}
+
+		@Override
+		public String getStaticImportStatments(Collection<Class<?>> classes) {
+			return classes.stream().map(c -> "from " + c.getName() + " import *;").collect(Collectors.joining(" "));	
+		}
+		
+	}
+	
+	static class JavaImportStatementGenerator implements ImportStatementGenerator {
+
+		@Override
+		public String getImportStatments(Collection<Class<?>> classes) {
+			return classes.stream().map(c -> "import " + c.getName() + ";").collect(Collectors.joining(" "));
+		}
+
+		@Override
+		public String getStaticImportStatments(Collection<Class<?>> classes) {
+			return classes.stream().map(c -> "import static " + c.getName() + ".*").collect(Collectors.joining(" "));
+		}
+		
+		
+		
+	}
+	
 }

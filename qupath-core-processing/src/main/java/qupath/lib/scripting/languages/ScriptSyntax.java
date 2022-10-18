@@ -19,22 +19,23 @@
  * #L%
  */
 
-package qupath.lib.gui.scripting.languages;
-
-import javafx.scene.input.KeyCode;
-import qupath.lib.gui.scripting.ScriptEditorControl;
+package qupath.lib.scripting.languages;
 
 /**
- * Interface for classes that apply some syntax formatting to a {@link ScriptEditorControl}.
+ * Interface for classes that apply some syntax formatting to an {@link EditableText}.
  * @author Melvin Gelbard
+ * @author Pete Bankhead
  * @since v0.4.0
  */
 public interface ScriptSyntax {
 	
 	/**
 	 * String to insert when tab key pressed
+	 * @return 
 	 */
-	final String tabString = "    ";
+	default String getTabString() {
+		return "    ";
+	}
 	
 	/**
 	 * Get the String that represents the start of a comment line.
@@ -49,7 +50,7 @@ public interface ScriptSyntax {
 	 * @param control the text/code area
 	 * @param smartEditing whether smart editing is enabled
 	 */
-	default void handleLeftParenthesis(ScriptEditorControl control, final boolean smartEditing) {
+	default void handleLeftParenthesis(EditableText control, final boolean smartEditing) {
 		control.insertText(control.getCaretPosition(), "(");
 	}
 	
@@ -58,7 +59,7 @@ public interface ScriptSyntax {
 	 * @param control the text/code area
 	 * @param smartEditing whether smart editing is enabled
 	 */
-	default void handleRightParenthesis(ScriptEditorControl control, final boolean smartEditing) {
+	default void handleRightParenthesis(EditableText control, final boolean smartEditing) {
 		control.insertText(control.getCaretPosition(), ")");
 	}
 	
@@ -68,16 +69,16 @@ public interface ScriptSyntax {
 	 * @param isDoubleQuote whether the input is single/double quotes
 	 * @param smartEditing whether smart editing is enabled
 	 */
-	default void handleQuotes(ScriptEditorControl control, boolean isDoubleQuote, final boolean smartEditing) {
+	default void handleQuotes(EditableText control, boolean isDoubleQuote, final boolean smartEditing) {
 		String quote = isDoubleQuote ? "\"" : "'";
-		control.paste(quote);
+		control.replaceSelection(quote);
 	}
 	
 	/**
 	 * Handle line comments.
 	 * @param control the text/code area
 	 */
-	default void handleLineComment(ScriptEditorControl control) {
+	default void handleLineComment(EditableText control) {
 		// Do nothing
 	}
 	
@@ -86,7 +87,7 @@ public interface ScriptSyntax {
 	 * @param control the text/code area
 	 * @param smartEditing whether smart editing is enabled
 	 */
-	default void handleNewLine(ScriptEditorControl control, final boolean smartEditing) {
+	default void handleNewLine(EditableText control, final boolean smartEditing) {
 		control.insertText(control.getCaretPosition(), System.lineSeparator());
 	}
 	
@@ -96,17 +97,17 @@ public interface ScriptSyntax {
 	 * @param smartEditing whether smart editing is enabled
 	 * @return whether the source event should be consumed
 	 */
-	public default boolean handleBackspace(ScriptEditorControl control, boolean smartEditing) {
+	public default boolean handleBackspace(EditableText control, boolean smartEditing) {
 		return false;
 	}
 	
 	/**
-	 * Handle TAB {@link KeyCode}.
+	 * Handle tab key.
 	 * @param control the text/code area
 	 * @param shiftDown
 	 */
-	public default void handleTabPress(ScriptEditorControl control, boolean shiftDown) {
-		control.insertText(control.getCaretPosition(), tabString);
+	public default void handleTabPress(EditableText control, boolean shiftDown) {
+		control.insertText(control.getCaretPosition(), getTabString());
 	}
 	
 	/**

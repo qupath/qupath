@@ -27,17 +27,16 @@ import org.fxmisc.flowless.VirtualizedScrollPane;
 import org.fxmisc.richtext.CodeArea;
 
 import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableValue;
-import javafx.scene.control.ContextMenu;
 import javafx.scene.control.IndexRange;
 import javafx.scene.layout.Region;
 import qupath.lib.gui.scripting.ScriptEditorControl;
 
 /**
- * Code area (e.g. RichTextFX) for writing code.
+ * Code area control using RichTextFX.
+ * 
  * @author Pete Bankhead
  */
 public class CodeAreaControl implements ScriptEditorControl {
@@ -65,8 +64,8 @@ public class CodeAreaControl implements ScriptEditorControl {
 
 	@Override
 	public void setText(String text) {
-		textArea.clear();
-		textArea.insertText(0, text);
+		textArea.replaceText(text);
+		requestFollowCaret();
 	}
 
 	@Override
@@ -120,14 +119,14 @@ public class CodeAreaControl implements ScriptEditorControl {
 	}
 
 	@Override
-	public void paste(String text) {
-		if (text != null)
-			textArea.replaceSelection(text);
+	public void paste() {
+		textArea.paste();
 	}
 	
 	@Override
 	public void appendText(final String text) {
 		textArea.appendText(text);
+		requestFollowCaret();
 	}
 
 	@Override
@@ -143,16 +142,13 @@ public class CodeAreaControl implements ScriptEditorControl {
 	@Override
 	public void insertText(int pos, String text) {
 		textArea.insertText(pos, text);
+		requestFollowCaret();
 	}
 	
 	@Override
 	public void deleteText(int startIdx, int endIdx) {
 		textArea.deleteText(startIdx, endIdx);
-	}
-	
-	@Override
-	public ReadOnlyBooleanProperty focusedProperty() {
-		return textArea.focusedProperty();
+		requestFollowCaret();
 	}
 
 	@Override
@@ -169,11 +165,6 @@ public class CodeAreaControl implements ScriptEditorControl {
 	public void selectRange(int startIdx, int endIdx) {
 		textArea.selectRange(startIdx, endIdx);
 	}
-
-	@Override
-	public void setPopup(ContextMenu menu) {
-		textArea.setContextMenu(menu);
-	}
 	
 	@Override
 	public BooleanProperty wrapTextProperty() {
@@ -189,4 +180,11 @@ public class CodeAreaControl implements ScriptEditorControl {
 	public void requestFollowCaret() {
 		textArea.requestFollowCaret();
 	}
+	
+	@Override
+	public void replaceSelection(String text) {
+		textArea.replaceSelection(text);
+		requestFollowCaret();
+	}
+
 }

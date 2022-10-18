@@ -77,6 +77,8 @@ import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.common.Timeit;
+import qupath.lib.common.Version;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.ImageData.ImageType;
 import qupath.lib.images.servers.ColorTransforms;
@@ -202,6 +204,13 @@ public class QP {
 	
 	
 	/**
+	 * The current QuPath version, parsed according to semantic versioning.
+	 * May be null if the version is not known.
+	 */
+	public static final Version VERSION = GeneralTools.getSemanticVersion();
+	
+	
+	/**
 	 * TODO: Figure out where this should go...
 	 * Its purpose is to prompt essential type adapters to be registered so that they function 
 	 * within scripts. See https://github.com/qupath/qupath/issues/514
@@ -233,6 +242,9 @@ public class QP {
 
 	
 	private static final Set<Class<?>> CORE_CLASSES = Collections.unmodifiableSet(new HashSet<>(Arrays.asList(
+			
+			QP.class,
+			
 			// Core datastructures
 			ImageData.class,
 			ImageServer.class,
@@ -260,6 +272,12 @@ public class QP {
 			BufferedImageTools.class,
 			ColorTools.class,
 			GeneralTools.class,
+			
+			Timeit.class,
+			ScriptAttributes.class,
+			
+			Version.class,
+			
 			DistanceTools.class,
 //			ImageWriter.class,
 			ImageWriterTools.class,
@@ -395,6 +413,38 @@ public class QP {
 	 */
 	public static Collection<Class<?>> getCoreClasses() {
 		return CORE_CLASSES;
+	}
+	
+	
+	private static Project<BufferedImage> defaultProject;
+
+	private static ImageData<BufferedImage> defaultImageData;
+
+	/**
+	 * Set the default project, which will be returned by {@link #getProject()} if it would otherwise return null 
+	 * (i.e. there has been no project set for the calling thread via {@link #setBatchProjectAndImage(Project, ImageData)}).
+	 * <p>
+	 * The intended use is for QuPath to set this to be the current project in the user interface, when running interactively.
+	 * 
+	 * @param project
+	 */
+	public static void setDefaultProject(final Project<BufferedImage> project) {
+		defaultProject = project;
+		logger.debug("Default project set to {}", project);
+	}
+	
+	/**
+	 * Set the default image data, which will be returned by {@link #getCurrentImageData()} if it would otherwise return null 
+	 * (i.e. there has been no project set for the calling thread via {@link #setBatchProjectAndImage(Project, ImageData)}).
+	 * <p>
+	 * The intended use is for QuPath to set this to be the current image data in the user interface, when running interactively.
+	 * This is not necessarily always the image that is 'current' when running scripts, e.g. when batch processing.
+	 * 
+	 * @param imageData
+	 */
+	public static void setDefaultImageData(final ImageData<BufferedImage> imageData) {
+		defaultImageData = imageData;
+		logger.debug("Default image data set to {}", defaultImageData);
 	}
 	
 	
@@ -587,28 +637,53 @@ public class QP {
 	/**
 	 * Get the path to the current {@code ImageData}.
 	 * <p>
-	 * In this implementation, it is the same as calling {@link #getBatchImageData()}.
-	 * 
+	 * This returns {@link #getBatchImageData()} if it is not null; otherwise, it returns 
+	 * the default image data last set through {@link #setDefaultImageData(ImageData)}.
 	 * @return
 	 * 
 	 * @see #getBatchImageData()
 	 */
 	public static ImageData<BufferedImage> getCurrentImageData() {
-		return getBatchImageData();
+		var defaultTemp = defaultImageData;
+		var imageData = getBatchImageData();
+		if (imageData != null || defaultTemp == null)
+			return imageData;
+		// If we don't have any other possible image data, return with debug logging
+		var batchImages = batchImageData.values();
+		if (batchImages.isEmpty() || (batchImages.size() == 1 && batchImages.contains(defaultTemp))) {
+			logger.debug("Returning the default ImageData: {}", defaultTemp);
+			return defaultTemp;
+		}
+		// If we have other options, return with a warning
+		logger.warn("No batch image data for the current thread, returning the default image data instead: {}", defaultTemp);
+		return defaultTemp;
 	}
 	
 	
 	/**
 	 * Get the current project.
 	 * <p>
-	 * In this implementation, it is the same as calling {@link #getBatchProject()}.
-	 * 
+	 * This returns {@link #getBatchProject()} if it is not null; otherwise, it returns 
+	 * the default project last set through {@link #setDefaultProject(Project)}.
 	 * @return
 	 * 
 	 * @see #getBatchProject()
 	 */
 	public static Project<BufferedImage> getProject() {
-		return getBatchProject();
+		var defaultTemp = defaultProject;
+		// Return batch project or null if that's all we can do
+		var project = getBatchProject();
+		if (project != null || defaultTemp == null)
+			return project;
+		// If we don't have any other possible project, return with debug logging
+		var batchProjects = batchProject.values();
+		if (batchProjects.isEmpty() || (batchProjects.size() == 1 && batchProjects.contains(defaultTemp))) {
+			logger.debug("Returning the default project: {}", defaultTemp);
+			return defaultTemp;
+		}
+		// If we have other options, return with a warning
+		logger.warn("No batch project for the current thread, returning the default project instead {}", defaultTemp);
+		return defaultTemp;
 	}
 	
 	/**
@@ -926,7 +1001,7 @@ public class QP {
 	 * @param pathObjects
 	 * @param keepChildren
 	 */
-	public static void removeObjects(Collection<PathObject> pathObjects, boolean keepChildren) {
+	public static void removeObjects(Collection<? extends PathObject> pathObjects, boolean keepChildren) {
 		PathObjectHierarchy hierarchy = getCurrentHierarchy();
 		if (hierarchy == null)
 			return;
@@ -1358,19 +1433,6 @@ public class QP {
 	}
 
 	/**
-	 * Get a array of the current annotation objects.
-	 * <p>
-	 * This has been deprecated, because Groovy gives ways to quickly switch between arrays and lists 
-	 * using {@code as}, so in most scripts it should not really be needed as a separate method.
-	 * 
-	 * @return
-	 */
-	@Deprecated
-	public static PathObject[] getAnnotationObjectsAsArray() {
-		return getAnnotationObjects().toArray(new PathObject[0]);
-	}
-	
-	/**
 	 * Get a list of the current annotation objects.
 	 * 
 	 * @return
@@ -1381,22 +1443,9 @@ public class QP {
 		PathObjectHierarchy hierarchy = getCurrentHierarchy();
 		if (hierarchy == null)
 			return Collections.emptyList();
-		return hierarchy.getObjects(null, PathAnnotationObject.class);
+		return hierarchy.getAnnotationObjects();
 	}
 
-	/**
-	 * Get a array of the current detection objects.
-	 * <p>
-	 * This has been deprecated, because Groovy gives ways to quickly switch between arrays and lists 
-	 * using {@code as}, so in most scripts it should not really be needed as a separate method.
-	 * 
-	 * @return
-	 */
-	@Deprecated
-	public static PathObject[] getDetectionObjectsAsArray() {
-		return getDetectionObjects().toArray(new PathObject[0]);
-	}
-	
 	/**
 	 * Get a list of the current detection objects.
 	 * 
@@ -1408,7 +1457,22 @@ public class QP {
 		PathObjectHierarchy hierarchy = getCurrentHierarchy();
 		if (hierarchy == null)
 			return Collections.emptyList();
-		return hierarchy.getObjects(null, PathDetectionObject.class);
+		return hierarchy.getDetectionObjects();
+	}
+	
+	/**
+	 * Get a list of the current tile objects.
+	 * 
+	 * @return
+	 * 
+	 * @see #getCurrentHierarchy
+	 * @since v0.4.0
+	 */
+	public static Collection<PathObject> getTileObjects() {
+		PathObjectHierarchy hierarchy = getCurrentHierarchy();
+		if (hierarchy == null)
+			return Collections.emptyList();
+		return hierarchy.getTileObjects();
 	}
 	
 	/**
@@ -1422,35 +1486,35 @@ public class QP {
 		PathObjectHierarchy hierarchy = getCurrentHierarchy();
 		if (hierarchy == null)
 			return Collections.emptyList();
-		return hierarchy.getObjects(null, PathCellObject.class);
+		return hierarchy.getCellObjects();
 	}
 
 	/**
-	 * Get an array of all objects in the current hierarchy.
+	 * Get all objects in the current hierarchy.
 	 * 
 	 * @param includeRootObject
 	 * @return
 	 * @see #getCurrentHierarchy
 	 */
-	public static PathObject[] getAllObjects(boolean includeRootObject) {
+	public static Collection<PathObject> getAllObjects(boolean includeRootObject) {
 		PathObjectHierarchy hierarchy = getCurrentHierarchy();
 		if (hierarchy == null)
-			return new PathObject[0];
+			return Collections.emptyList();
 		var objList = hierarchy.getFlattenedObjectList(null);
 		if (includeRootObject)
-			return objList.toArray(new PathObject[0]);
-		return objList.parallelStream().filter(e -> !e.isRootObject()).toArray(PathObject[]::new);
+			return objList;
+		return objList.stream().filter(e -> !e.isRootObject()).collect(Collectors.toList());
 	}
 
 	/**
-	 * Get an array of all objects in the current hierarchy. 
-	 * Note that this includes the root object.
+	 * Get all objects in the current hierarchy, including the root object.
 	 * 
 	 * @return
 	 * 
 	 * @see #getCurrentHierarchy
+	 * @see #getAllObjects(boolean)
 	 */
-	public static PathObject[] getAllObjects() {
+	public static Collection<PathObject> getAllObjects() {
 		return getAllObjects(true);
 	}
 	
@@ -1809,7 +1873,7 @@ public class QP {
 	 * Set all objects in a collection to be selected, without any being chosen as the main object.
 	 * @param pathObjects
 	 */
-	public static void selectObjects(final Collection<PathObject> pathObjects) {
+	public static void selectObjects(final Collection<? extends PathObject> pathObjects) {
 		selectObjects(pathObjects, null);
 	}
 	
@@ -1818,7 +1882,7 @@ public class QP {
 	 * @param pathObjects
 	 * @param mainSelection
 	 */
-	public static void selectObjects(final Collection<PathObject> pathObjects, PathObject mainSelection) {
+	public static void selectObjects(final Collection<? extends PathObject> pathObjects, PathObject mainSelection) {
 		PathObjectHierarchy hierarchy = getCurrentHierarchy();
 		if (hierarchy != null)
 			hierarchy.getSelectionModel().setSelectedObjects(pathObjects, mainSelection);
@@ -2190,7 +2254,7 @@ public class QP {
 	 * @throws IOException
 	 */
 	public static void exportAllObjectsToGeoJson(String path, GeoJsonExportOptions... options) throws IOException {
-		exportObjectsToGeoJson(Arrays.asList(getAllObjects(false)), path, options);
+		exportObjectsToGeoJson(getAllObjects(false), path, options);
 	}
 	
 	/**
@@ -3520,6 +3584,14 @@ public class QP {
 	}
 	
 	
+	/**
+	 * Get the logger associated with this class.
+	 * @return
+	 */
+	public static Logger getLogger() {
+		return logger;
+	}
+	
 	
 	/**
 	 * Load a pixel classifier for a project or file path.
@@ -3669,5 +3741,61 @@ public class QP {
 	public static void classifyDetectionsByCentroid(String classifierName) {
 		classifyDetectionsByCentroid(loadPixelClassifier(classifierName));
 	}
+	
+	/**
+	 * Check whether the current QuPath version is &geq; the specified version.
+	 * This can be added at the beginning of a script to prevent the script running if it is known to be incompatible.
+	 * <p>
+	 * It throws an exception if the test is failed so that it can be added in a single line, with the script stopping 
+	 * if the criterion is not met.
+	 * <p>
+	 * Using this successfully depends upon {@link #VERSION} being available.
+	 * To avoid an exception if it is not, use
+	 * <code>
+	 * <pre>{@code 
+	 * if (VERSION != null)
+	 *   checkMinVersion("0.4.0");
+	 * }
+	 * </pre>
+	 * @param version last known compatible version (inclusive)
+	 * @throws UnsupportedOperationException if the version test is not passed, of version information is unavailable
+	 * @see #checkVersionRange(String, String)
+	 * @since v0.4.0
+	 */
+	public static void checkMinVersion(String version) throws UnsupportedOperationException {
+		if (VERSION == null)
+			throw new UnsupportedOperationException("Can't check version - QuPath version is unknown!");
+		var versionToCompare = Version.parse(version);
+		if (versionToCompare.compareTo(VERSION) > 0)
+			throw new UnsupportedOperationException("Mininum version " + versionToCompare + " exceeds current QuPath version " + VERSION);
+	}
+	
+	/**
+	 * Check whether the current QuPath version is &geq; the specified minimum version, and &lt; the specified maximum.
+	 * This can be added at the beginning of a script to prevent the script running if it is known to be incompatible.
+	 * <p>
+	 * The minimum is inclusive and maximum is exclusive so that the maximum can be given as the first version known to 
+	 * introduce a breaking change.
+	 * <p>
+	 * Using this successfully depends upon {@link #VERSION} being available.
+	 * To avoid an exception if it is not, use
+	 * <code>
+	 * <pre>{@code 
+	 * if (VERSION != null)
+	 *   checkVersionRange("0.4.0", "0.5.0");
+	 * }
+	 * </pre>
+	 * @param minVersion last known compatible version (inclusive)
+	 * @param maxVersion next known incompatible version
+	 * @throws UnsupportedOperationException if the version test is not passed, of version information is unavailable
+	 * @see #checkMinVersion(String)
+	 * @since v0.4.0
+	 */	public static void checkVersionRange(String minVersion, String maxVersion) throws UnsupportedOperationException {
+		checkMinVersion(minVersion);
+		var versionMax = Version.parse(maxVersion);
+		if (versionMax.compareTo(VERSION) <= 0)
+			throw new UnsupportedOperationException("Current QuPath version " + VERSION + " is >= the specified (non-inclusive) maximum " + versionMax);			
+	}
+	
 	
 }

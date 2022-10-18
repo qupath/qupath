@@ -23,9 +23,11 @@
 
 package qupath.lib.gui.scripting.languages;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.ServiceLoader;
+import java.util.Set;
 
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineFactory;
@@ -35,10 +37,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.scripting.languages.ScriptLanguage;
 
 /**
- * Class with static methods to fetch all the available {@link ScriptLanguage}s.
+ * Class with static methods to fetch all the available {@linkplain ScriptLanguage ScriptLanguages}.
+ * 
  * @author Melvin Gelbard
+ * @author Pete Bankhead
  * @since v0.4.0
  */
 public class ScriptLanguageProvider {
@@ -47,14 +52,17 @@ public class ScriptLanguageProvider {
 	
 	private static ServiceLoader<ScriptLanguage> serviceLoader = ServiceLoader.load(ScriptLanguage.class);
 	private static final ScriptEngineManager manager = createManager();
+	
+	private static final Collection<ScriptLanguage> availableLanguages = loadAvailableScriptLanguages();
+
 
 	/**
 	 * Get all the currently installed {@link ScriptLanguage}s in a list (i.e. custom {@link ScriptEngine}s 
 	 * without a built-in {@link ScriptLanguage} implementation won't be included).
 	 * @return list of installed languages
 	 */
-	public static List<ScriptLanguage> getAvailableScriptLanguages() {
-		List<ScriptLanguage> languages = new ArrayList<>();
+	private static Collection<ScriptLanguage> loadAvailableScriptLanguages() {
+		Set<ScriptLanguage> languages = new LinkedHashSet<>();
 		
 		// Load all built-in implementations of ScriptLanguage
 		synchronized (serviceLoader) {
@@ -88,15 +96,43 @@ public class ScriptLanguageProvider {
 		return languages;
 	}
 	
+	
+	/**
+	 * Get the available script languages.
+	 * 
+	 * @return
+	 */
+	public static Collection<ScriptLanguage> getAvailableLanguages() {
+		return Collections.unmodifiableCollection(availableLanguages);
+	}
+	
+	
+	/**
+	 * Given a file name, determine the associated language - or null if no suitable (supported) language can be found.
+	 * 
+	 * @param name
+	 * @return
+	 */
+	public static ScriptLanguage getLanguageFromName(String name) {
+		for (ScriptLanguage l : availableLanguages) {
+			for (String possibleExt: l.getExtensions()) {
+				if (name.toLowerCase().endsWith(possibleExt))
+					return l;
+			}
+		}
+		return PlainLanguage.getInstance();
+	}
+	
+	
+	
 	/**
 	 * Get the {@link ScriptLanguage} object corresponding to the specified String. 
 	 * If the string cannot be matched, {@link PlainLanguage} is returned.
 	 * @param languageString
 	 * @return corresponding script language, or {@link PlainLanguage} if no match
 	 */
-	// TODO: This creates a new instance of custom (ScriptEngine based-) ScriptLanguages each time it's called, is it a problem?
 	public static ScriptLanguage fromString(String languageString) {
-		return getAvailableScriptLanguages().stream().filter(l -> l.getName().equals(languageString)).findFirst().orElseGet(() -> PlainLanguage.getInstance());
+		return getAvailableLanguages().stream().filter(l -> l.getName().equals(languageString)).findFirst().orElseGet(() -> PlainLanguage.getInstance());
 	}
 	
 	/**

@@ -19,18 +19,27 @@
  * #L%
  */
 
-package qupath.lib.gui.scripting.languages;
+package qupath.lib.scripting.languages;
 
-import qupath.lib.scripting.languages.ScriptSyntax;
+import java.util.List;
+import qupath.lib.scripting.languages.AutoCompletions.Completion;
 
-class PlainSyntax implements ScriptSyntax {
+/**
+ * Interface for classes that implement auto-completion (e.g. styling classes).
+ * 
+ * @author Melvin Gelbard
+ * @author Pete Bankhead
+ * @since v0.4.0
+ */
+public interface ScriptAutoCompletor {
 	
-	private static final PlainSyntax INSTANCE = new PlainSyntax();
+	/**
+	 * Get a list of possible auto-completions for the given text 
+	 * with the caret at the specified position.
+	 * @param text the full text
+	 * @param pos the current caret position
+	 * @return 
+	 */
+	public List<Completion> getCompletions(String text, int pos);
 	
-	// Empty constructor
-	private PlainSyntax() {}
-	
-	static PlainSyntax getInstance() {
-		return INSTANCE;
-	}
 }

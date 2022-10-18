@@ -30,13 +30,12 @@ import java.io.PrintWriter;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.ServiceLoader;
+import java.util.stream.Collectors;
 
-import javax.script.ScriptContext;
 import javax.script.ScriptException;
-import javax.script.SimpleScriptContext;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,9 +57,7 @@ import qupath.lib.gui.images.stores.ImageRegionStoreFactory;
 import qupath.lib.gui.logging.LogManager;
 import qupath.lib.gui.logging.LogManager.LogLevel;
 import qupath.lib.gui.prefs.PathPrefs;
-import qupath.lib.gui.scripting.DefaultScriptEditor;
-import qupath.lib.gui.scripting.languages.RunnableLanguage;
-import qupath.lib.gui.scripting.languages.ScriptLanguage;
+import qupath.lib.gui.scripting.QPEx;
 import qupath.lib.gui.scripting.languages.ScriptLanguageProvider;
 import qupath.lib.gui.tma.QuPathTMAViewer;
 import qupath.lib.images.ImageData;
@@ -71,6 +68,9 @@ import qupath.lib.images.servers.ImageServers;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectIO;
 import qupath.lib.scripting.QP;
+import qupath.lib.scripting.ScriptParameters;
+import qupath.lib.scripting.languages.ExecutableLanguage;
+import qupath.lib.scripting.languages.ScriptLanguage;
 
 /**
  * Main QuPath launcher.
@@ -332,16 +332,24 @@ class ScriptCommand implements Runnable {
 			ImageData<BufferedImage> imageData;
 			
 			if (projectPath != null && !projectPath.equals("")) {
-								
+				
 				String path = QuPath.getEncodedPath(projectPath);
-				Project<BufferedImage> project = ProjectIO.loadProject(new File(path), BufferedImage.class);
-				for (var entry: project.getImageList()) {
-					if (imagePath != null && !imagePath.equals("") && !imagePath.equals(entry.getImageName()))
-						continue;
-					logger.info("Running script for {}", entry.getImageName());
+				var project = ProjectIO.loadProject(new File(path), BufferedImage.class);
+				var imageList = project.getImageList();
+				// Filter out the images we need (usually all of them)
+				if (imagePath != null && !imagePath.equals("")) {
+					imageList = imageList.stream().filter(e -> imagePath.equals(e.getImageName())).collect(Collectors.toList());
+				}
+					
+				int batchSize = imageList.size();
+				
+				for (int batchIndex = 0; batchSize < batchSize; batchIndex++) {
+					var entry = imageList.get(batchIndex);
+					logger.info("Running script for {} ({}/{})", entry.getImageName(), batchIndex, batchSize);
+					logger.info("Running script for {} ({}/{})", entry.getImageName(), batchIndex, batchSize);
 					imageData = entry.readImageData();
 					try {
-						Object result = runScript(project, imageData);
+						Object result = runBatchScript(project, imageData, batchIndex, batchSize, save);
 						if (result != null)
 							logger.info("Script result: {}", result);
 						if (save)
@@ -361,12 +369,12 @@ class ScriptCommand implements Runnable {
 				URI uri = GeneralTools.toURI(path);
 				ImageServer<BufferedImage> server = ImageServers.buildServer(uri, parseArgs(serverArgs));
 				imageData = new ImageData<>(server);
-				Object result = runScript(null, imageData);
+				Object result = runSingleScript(null, imageData);
 				if (result != null)
 					logger.info("Script result: {}", result);
 				server.close();
 			} else {
-				Object result = runScript(null, null);
+				Object result = runSingleScript(null, null);
 				if (result != null)
 					logger.info("Script result: {}", result);
 			}
@@ -423,46 +431,62 @@ class ScriptCommand implements Runnable {
 	}
 	
 	
-	private Object runScript(Project<BufferedImage> project, ImageData<BufferedImage> imageData) throws IOException, ScriptException {
+	private Object runSingleScript(Project<BufferedImage> project, ImageData<BufferedImage> imageData) throws IOException, ScriptException {
+		return runBatchScript(project, imageData, 0, 1, false);
+	}
+	
+	private Object runBatchScript(Project<BufferedImage> project, ImageData<BufferedImage> imageData, int batchIndex, int batchSize, boolean batchSave) throws IOException, ScriptException {
 		Object result = null;
 		String script = scriptCommand;
-		RunnableLanguage language;
+		ExecutableLanguage language;
 		
 		String ext = DEFAULT_SCRIPT_EXTENSION;
 		if (scriptFile != null)
 			ext = GeneralTools.getExtension(scriptFile).orElse(DEFAULT_SCRIPT_EXTENSION);
 		
 		ScriptLanguage scriptLanguage = ScriptLanguageProvider.getLanguageFromExtension(ext);
-		if (scriptLanguage == null || !(scriptLanguage instanceof RunnableLanguage))
+		if (scriptLanguage == null || !(scriptLanguage instanceof ExecutableLanguage))
 			throw new IllegalArgumentException("No runnable script language found for " + scriptFile);
 			
-		language = (RunnableLanguage)scriptLanguage;
+		language = (ExecutableLanguage)scriptLanguage;
 			
 			// Read & try to run the script
+		File file = null;
 		if (script == null) {
-			script = GeneralTools.readFileAsString(QuPath.getEncodedPath(scriptFile));
+			var filePath = QuPath.getEncodedPath(scriptFile);
+			file = new File(filePath);
+			script = GeneralTools.readFileAsString(filePath);
 		} else {
 			if (GeneralTools.isWindows() && !StandardCharsets.US_ASCII.newEncoder().canEncode(script))
 				logger.warn("Non-ASCII characters detected in the specified script! If you experience encoding issues, try passing a script file instead.");
 		}
 		
 		// Try to make sure that the standard outputs are used
-		ScriptContext context = new SimpleScriptContext();
-		context.setAttribute("args", parseArgs(args), ScriptContext.ENGINE_SCOPE);
 		PrintWriter outWriter = new PrintWriter(System.out, true);
 		PrintWriter errWriter = new PrintWriter(System.err, true);
-		context.setWriter(outWriter);
-		context.setErrorWriter(errWriter);
+		var params = ScriptParameters.builder()
+				.setArgs(parseArgs(args))
+				.setProject(project)
+				.setImageData(imageData)
+				.setDefaultImports(QPEx.getCoreClasses()) // TODO: Consider adding QP rather than QPEx
+				.setDefaultStaticImports(Collections.singletonList(QPEx.class))
+				.setFile(file)
+				.setScript(script)
+				.setBatchSize(batchSize)
+				.setBatchIndex(batchIndex)
+				.setBatchSaveResult(batchSave)
+				.setWriter(outWriter)
+				.setErrorWriter(errWriter)
+				.build();
 		
 		// Evaluate the script
 		try {
-			result = language.executeScript(script, project, imageData, DefaultScriptEditor.getDefaultClasses(), DefaultScriptEditor.getDefaultStaticClasses(), context);
+			result = language.execute(params);
 		} finally {
 			// Ensure writers are flushed
 			outWriter.flush();
 			errWriter.flush();
 		}
-		
 		
 		// return output, which may be null
 		return result;

@@ -30,7 +30,7 @@ import org.fxmisc.richtext.CodeArea;
 import org.fxmisc.richtext.model.StyleSpans;
 import org.fxmisc.richtext.model.StyleSpansBuilder;
 
-import qupath.lib.gui.scripting.languages.ScriptLanguage;
+import qupath.lib.scripting.languages.ScriptLanguage;
 
 /**
  * Interface for classes that apply some highlighting to a RichTextFX's {@link CodeArea}.

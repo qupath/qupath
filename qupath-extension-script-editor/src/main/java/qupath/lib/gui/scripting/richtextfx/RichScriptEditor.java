@@ -44,6 +44,7 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.concurrent.Task;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.ListView;
+import javafx.scene.input.Clipboard;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.stage.Popup;
@@ -53,9 +54,11 @@ import qupath.lib.gui.scripting.DefaultScriptEditor;
 import qupath.lib.gui.scripting.ScriptEditorControl;
 import qupath.lib.gui.scripting.highlighters.ScriptHighlighter;
 import qupath.lib.gui.scripting.highlighters.ScriptHighlighterProvider;
-import qupath.lib.gui.scripting.languages.ScriptAutoCompletor;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.MenuTools;
+import qupath.lib.scripting.languages.AutoCompletions;
+import qupath.lib.scripting.languages.AutoCompletions.Completion;
+import qupath.lib.scripting.languages.EditableText;
 
 /*
  * 
@@ -93,7 +96,7 @@ public class RichScriptEditor extends DefaultScriptEditor {
 	private final ObjectProperty<ScriptHighlighter> scriptHighlighter = new SimpleObjectProperty<>();
 
 	// Delay for async formatting, in milliseconds
-	private static int delayMillis = 100;
+	private static int delayMillis = 20;
 
 	private ContextMenu menu;
 	
@@ -127,7 +130,7 @@ public class RichScriptEditor extends DefaultScriptEditor {
 		try {
 			CodeArea codeArea = new CustomCodeArea();
 			CodeAreaControl control = new CodeAreaControl(codeArea);
-			
+						
 			/*
 			 * Using LineNumberFactory.get(codeArea) gives errors related to the new paragraph folding introduced in RichTextFX 0.10.6.
 			 *  java.lang.IllegalArgumentException: Visible paragraphs' last index is [-1] but visibleParIndex was [0]
@@ -152,37 +155,37 @@ public class RichScriptEditor extends DefaultScriptEditor {
 					return;
 				
 				var scriptSyntax = getCurrentLanguage().getSyntax();
-				if ("(".equals(e.getCharacter())) {
-					scriptSyntax.handleLeftParenthesis(control, smartEditing.get());
-					e.consume();
-				} else if (")".equals(e.getCharacter())) {
-					scriptSyntax.handleRightParenthesis(control, smartEditing.get());
-					e.consume();
-				} else if ("\"".equals(e.getCharacter())) {
-					scriptSyntax.handleQuotes(control, true, smartEditing.get());
-					e.consume();
-				} else if ("\'".equals(e.getCharacter())) {
-					scriptSyntax.handleQuotes(control, false, smartEditing.get());
-					e.consume();
+				if (scriptSyntax != null) {
+					if ("(".equals(e.getCharacter())) {
+						scriptSyntax.handleLeftParenthesis(control, smartEditing.get());
+						e.consume();
+					} else if (")".equals(e.getCharacter())) {
+						scriptSyntax.handleRightParenthesis(control, smartEditing.get());
+						e.consume();
+					} else if ("\"".equals(e.getCharacter())) {
+						scriptSyntax.handleQuotes(control, true, smartEditing.get());
+						e.consume();
+					} else if ("\'".equals(e.getCharacter())) {
+						scriptSyntax.handleQuotes(control, false, smartEditing.get());
+						e.consume();
+					}
 				}
 			});
 			
 			// TODO: Check if DefaultScriptEditor does any of these? It should be able to at least do syntaxing/auto-completion
 			var popup = new Popup();
-			var listCompletions = new ListView<ScriptAutoCompletor.Completion>();
+			var listCompletions = new ListView<Completion>();
 			
 			listCompletions.setCellFactory(c -> GuiTools.createCustomListCell(c2 -> c2.getDisplayText()));
 			
 			listCompletions.setPrefSize(350, 400);
 			popup.getContent().add(listCompletions);
 			listCompletions.setStyle("-fx-font-size: smaller; -fx-font-family: Courier;");
-			var completionsMap = new HashSet<ScriptAutoCompletor.Completion>();
+			var completionsMap = new HashSet<Completion>();
 			Runnable completionFun = () -> {
 				var selected = listCompletions.getSelectionModel().getSelectedItem();
 				if (selected != null) {
-					var scriptAutoCompletor = getCurrentLanguage().getAutoCompletor();
-					if (scriptAutoCompletor != null)
-						scriptAutoCompletor.applyCompletion(control, selected);
+					applyCompletion(control, selected);
 				}
 				popup.hide();
 			};
@@ -229,14 +232,14 @@ public class RichScriptEditor extends DefaultScriptEditor {
 				var scriptAutoCompletor = getCurrentLanguage().getAutoCompletor();
 				if (scriptAutoCompletor != null) {
 					if (completionCodeCombination.match(e)) {
-						var completions = scriptAutoCompletor.getCompletions(control);
+						var completions = scriptAutoCompletor.getCompletions(control.getText(), control.getCaretPosition());
 						completionsMap.clear();
 						if (!completions.isEmpty()) {
 							completionsMap.addAll(completions);
 							var bounds = codeArea.getCaretBounds().orElse(null);
 							if (bounds != null) {
 								var list = new ArrayList<>(completions);
-								Collections.sort(list);
+								Collections.sort(list, AutoCompletions.getComparator());
 								listCompletions.getItems().setAll(list);
 								popup.show(codeArea, bounds.getMaxX(), bounds.getMaxY());
 								e.consume();
@@ -260,6 +263,7 @@ public class RichScriptEditor extends DefaultScriptEditor {
 			var cleanup = codeArea
 					.multiPlainChanges()
 					.successionEnds(Duration.ofMillis(delayMillis))
+					.retainLatestUntilLater(executor)
 					.supplyTask(() -> {
 						Task<StyleSpans<Collection<String>>> task = new Task<>() {
 							@Override
@@ -274,7 +278,6 @@ public class RichScriptEditor extends DefaultScriptEditor {
 					.filterMap(t -> {
 						if (t.isSuccess())
 							return Optional.of(t.get());
-						
 						var exception = t.getFailure();
 						String message = exception.getLocalizedMessage() == null ? exception.getClass().getSimpleName() : exception.getLocalizedMessage();
 						logger.error("Error applying syntax highlighting: {}", message);
@@ -310,6 +313,30 @@ public class RichScriptEditor extends DefaultScriptEditor {
 			return super.getNewEditor();
 		}
 	}
+	
+	
+	/**
+	 * Insert the text from the completion to the editable text.
+	 * @param control
+	 * @param completion
+	 */
+	protected void applyCompletion(EditableText control, Completion completion) {
+		String text = control.getText();
+		int pos = control.getCaretPosition();
+		
+		var insertion = completion.getInsertion(text, pos, null);
+		// Avoid inserting if caret is already between parentheses
+		if (insertion == null || insertion.isEmpty() || insertion.startsWith("("))
+			return;
+		control.insertText(pos, insertion);
+		// If we have a method that includes arguments, 
+		// then we want to position the caret within the parentheses
+		// (whereas for a method without arguments, we want the caret outside)
+		if (insertion.endsWith("()") && control.getCaretPosition() > 0 && !completion.getDisplayText().endsWith("()"))
+			control.positionCaret(control.getCaretPosition()-1);		
+	}
+	
+	
 	
 	private static String styleBackground = "-fx-background-color: -fx-control-inner-background;";
 	
@@ -349,8 +376,12 @@ public class RichScriptEditor extends DefaultScriptEditor {
 		@Override
 		public void paste() {
 			var text = getClipboardText(false);
-			if (text != null)
-				replaceSelection(text);
+			if (text != null) {
+				if (text.equals(Clipboard.getSystemClipboard().getString()))
+					super.paste();
+				else
+					replaceSelection(text);
+			}
 		}
 	}
 }

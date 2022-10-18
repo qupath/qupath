@@ -36,8 +36,7 @@ import javax.xml.transform.stream.StreamSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javafx.scene.control.IndexRange;
-import qupath.lib.gui.scripting.ScriptEditorControl;
+import qupath.lib.scripting.languages.EditableText;
 
 /**
  * Class that takes care of XML syntax.
@@ -58,20 +57,24 @@ class XmlSyntax extends GeneralCodeSyntax {
 	}
 	
 	@Override
-	public void handleLineComment(final ScriptEditorControl control) {
+	public void handleLineComment(final EditableText control) {
 		String text = control.getText();
-		IndexRange range = control.getSelection();
-		boolean hasSelection = range.getLength() > 0;
+		
+		int rangeStart = control.getSelectionStart();
+		int rangeEnd = control.getSelectionEnd();
+		int rangeLength = control.getSelectionLength();
+		
+		boolean hasSelection = rangeLength > 0;
 		boolean hasMultilineSelection = hasSelection && control.getSelectedText().contains("\n");
 		String textBetween = control.getSelectedText();
 		if (hasSelection && !hasMultilineSelection && !textBetween.startsWith("<!--") && !textBetween.startsWith("-->")) {
 			// Add inline comment
 			String newText = "<!--" + textBetween + "-->";
-			control.paste(newText);
-			control.selectRange(range.getStart(), range.getStart() + newText.length());
+			control.replaceSelection(newText);
+			control.selectRange(rangeStart, rangeStart + newText.length());
 		} else {
-			int startRowPos = getRowStartPosition(text, range.getStart());
-			int endRowPos = getRowEndPosition(text, range.getEnd());
+			int startRowPos = getRowStartPosition(text, rangeStart);
+			int endRowPos = getRowEndPosition(text, rangeEnd);
 			textBetween = text.substring(startRowPos, endRowPos);
 			if (textBetween.trim().startsWith("<!--") && textBetween.trim().endsWith("-->")) {
 				// Remove comment
@@ -82,14 +85,14 @@ class XmlSyntax extends GeneralCodeSyntax {
 				if (indEnd2 > indStart2 + 4) {
 					control.selectRange(startRowPos, endRowPos);
 					String newText = textBetween.substring(indStart2+4, indEnd2);
-					control.paste(newText);
+					control.replaceSelection(newText);
 					control.selectRange(startRowPos, startRowPos + newText.length());
 				}
 			} else {
 				// Add comment
 				String newText = "<!--" + textBetween + "-->";
 				control.selectRange(startRowPos, endRowPos);
-				control.paste(newText);
+				control.replaceSelection(newText);
 				control.selectRange(startRowPos, startRowPos + newText.length());
 			}
 		}	
