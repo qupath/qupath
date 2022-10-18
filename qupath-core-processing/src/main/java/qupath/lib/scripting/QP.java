@@ -643,7 +643,7 @@ public class QP {
 	 * 
 	 * @see #getBatchImageData()
 	 */
-	public synchronized static ImageData<BufferedImage> getCurrentImageData() {
+	public static ImageData<BufferedImage> getCurrentImageData() {
 		var defaultTemp = defaultImageData;
 		var imageData = getBatchImageData();
 		if (imageData != null || defaultTemp == null)
