@@ -166,11 +166,6 @@ public class YamlHighlighter implements ScriptHighlighter {
 	}
 	
 
-	@Override
-	public StyleSpans<Collection<String>> computeConsoleHighlighting(String text) {
-		return ScriptHighlighter.getPlainStyling(text);
-	}
-	
 	static class StyleSpanVisitor {
 
 		private String text;

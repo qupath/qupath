@@ -136,25 +136,42 @@ public class DefaultScriptLanguage extends ScriptLanguage implements ExecutableL
 
 		// Record if any extra lines are added to the script, to help match line numbers of any exceptions
 			
-		// Supply default bindings
+		// Prepend default bindings if we need them
 		String importsString = getImportStatements(params.getDefaultImports()) + getStaticImportStatments(params.getDefaultStaticImports());
-		int extraLines = importsString.replaceAll("[^\\n]", "").length() + 1; // TODO: Check this
-		script2 = importsString + System.lineSeparator() + script;
+		int extraLines = 0;
+		if (importsString.isBlank())
+			script2 = script;
+		else {
+			extraLines = importsString.replaceAll("[^\\n]", "").length() + 1; // TODO: Check this
+			script2 = importsString + System.lineSeparator() + script;
+		}
 		
 		var context = createContext(params);
+		
+		var file = params.getFile();
+		String filename;
+		if (file != null)
+			filename = file.getName();
+		else
+			filename = getDefaultScriptName();
 		
 		try {
 			var engine =  ScriptLanguageProvider.getEngineByName(getName());
 			if (engine == null)
 				throw new ScriptException("Unable to find ScriptEngine for " + getName());
 			
-			engine.put(ScriptEngine.ARGV, params.getArgs());
-			var file = params.getFile();
-			if (file != null)
-				engine.put(ScriptEngine.FILENAME, file.getAbsolutePath());
+			// Ensure we have set the attributes
+			context.setAttribute(ScriptEngine.ARGV, params.getArgs(), ScriptContext.ENGINE_SCOPE);
+			context.setAttribute(ScriptEngine.FILENAME, filename, ScriptContext.ENGINE_SCOPE);
 			
 			result = engine.eval(script2, context);
 		} catch (ScriptException e) {
+			
+			// If we have no extra lines, just propagate the exception
+			if (extraLines == 0)
+				throw e;
+			
+			// If we have extra lines, we'd ideally like to correct the line number in the exception and stack trace
 			try {
 				int line = e.getLineNumber();
 				Throwable cause = e;
@@ -162,103 +179,148 @@ public class DefaultScriptLanguage extends ScriptLanguage implements ExecutableL
 				while (cause.getCause() != null && cause.getCause() != cause)
 					cause = cause.getCause();
 				
-				// Sometimes we can still get the line number for a Groovy exception in this awkward way...
-				if (line < 0) {
-					for (StackTraceElement element : cause.getStackTrace()) {
-						if ("run".equals(element.getMethodName()) && element.getClassName() != null && element.getClassName().startsWith("Script")) {
-							line = element.getLineNumber();
-							break;
-						}
-					}
-				}
-				
-				Writer errorWriter = context.getErrorWriter();
-				
-				StringBuilder sb = new StringBuilder();
+				// Attempt to get the line number from the message
 				String message = cause.getLocalizedMessage();
 				if (message != null && line < 0) {
 					var lineMatcher = Pattern.compile("@ line ([\\d]+)").matcher(message);
-					if (lineMatcher.find())
+					if (lineMatcher.find()) {
 						line = Integer.parseInt(lineMatcher.group(1));
+						
+						message = message.substring(0, lineMatcher.start(1)) + 
+								(line - extraLines) + 
+								message.substring(lineMatcher.end(1));
+					}
 				}
 				
-				// Check if the error was to do with an import statement
-				if (message != null && !message.isBlank()) {
-					var matcher = Pattern.compile("unable to resolve class ([A-Za-z_.-]+)").matcher(message);
-					if (matcher.find()) {
-						String missingClass = matcher.group(1).strip();
-						sb.append("It looks like you have tried to import a class '" + missingClass + "' that doesn't exist!\n");
-						int ind = missingClass.lastIndexOf(".");
-						if (ind >= 0)
-							missingClass = missingClass.substring(ind+1);
-						Class<?> suggestedClass = CONFUSED_CLASSES.get(missingClass);
-						if (suggestedClass != null) {
-							sb.append("You should probably remove the broken import statement in your script (around line " + line + ").\n");
-							sb.append("Then you may want to check 'Run -> Include default imports' is selected, or alternatively add ");
-							sb.append("\n    import " + suggestedClass.getName() + "\nat the start of the script. Full error message below.\n");
+				// Sometimes we can still get the line number for a Groovy exception in this awkward way...
+				var stackTraceTemp = cause.getStackTrace();
+				for (int i = 0; i < stackTraceTemp.length; i++) {
+					var element = stackTraceTemp[i];
+					String elementFileName = element.getFileName();
+					if (elementFileName != null && elementFileName.equals(filename)) {
+						boolean updateStackTrace = (line - extraLines) != element.getLineNumber();
+						if (line < 0)
+							line = element.getLineNumber();
+						
+						if (updateStackTrace) {
+							// Update the line
+							var element2 = new StackTraceElement(
+									element.getClassName(),
+									element.getMethodName(),
+									element.getFileName(),
+									line - extraLines);
+							stackTraceTemp[i] = element2;
+							cause.setStackTrace(stackTraceTemp);
 						}
-					}
-	
-					// Check if the error was to do with a missing property... which can again be thanks to an import statement
-					var matcherProperty = Pattern.compile("No such property: ([A-Za-z_.-]+)").matcher(message);
-					if (matcherProperty.find()) {
-						String missingClass = matcherProperty.group(1).strip();
-						sb.append("I cannot find '" + missingClass + "'!\n");
-						int ind = missingClass.lastIndexOf(".");
-						if (ind >= 0)
-							missingClass = missingClass.substring(ind+1);
-						Class<?> suggestedClass = CONFUSED_CLASSES.get(missingClass);
-						if (suggestedClass != null) {
-							if (!suggestedClass.getSimpleName().equals(missingClass)) {
-								sb.append("You can try replacing ").append(missingClass).append(" with ").append(suggestedClass.getSimpleName()).append("\n");
-							}
-							sb.append("You might want to check 'Run -> Include default imports' is selected, or alternatively add ");
-							sb.append("\n    import " + suggestedClass.getName() + "\nat the start of the script. Full error message below.\n");
-						}
-					}
-					
-					// Check if the error was to do with a special left quote character
-					var matcherQuotationMarks = Pattern.compile("Unexpected input: .*([\\x{2018}|\\x{201c}|\\x{2019}|\\x{201D}]+)' @ line (\\d+), column (\\d+).").matcher(message);
-					if (matcherQuotationMarks.find()) {
-						int nLine = Integer.parseInt(matcherQuotationMarks.group(2));
-						String quotationMark = matcherQuotationMarks.group(1);
-						String suggestion = quotationMark.equals("‘") || quotationMark.equals("’") ? "'" : "\"";
-						sb.append(String.format("At least one invalid quotation mark (%s) was found @ line %s column %s! ", quotationMark, nLine-1, matcherQuotationMarks.group(3)));
-						sb.append(String.format("You can try replacing it with a straight quotation mark (%s).%n", suggestion));
+						break;
 					}
 				}
-				if (sb.length() > 0)
-					errorWriter.append(sb.toString());
+								
+				// Try to interpret the message in a user-friendly way
+				Writer errorWriter = context.getErrorWriter();
+				String extra = tryToInterpretMessage(cause, line - extraLines);
+				if (!extra.isBlank())
+					errorWriter.append(extra);
 				
-				if (line >= 0) {
-					line = line - extraLines;
-					if (cause instanceof InterruptedException)
-						errorWriter.append("Script interrupted at line " + line + ": " + message + "\n");
-					else
-						errorWriter.append(cause.getClass().getSimpleName() + " at line " + line + ": " + message + "\n");
-				} else {
-					if (cause instanceof InterruptedException)
-						errorWriter.append("Script interrupted: " + message + "\n");
-					else
-						errorWriter.append(cause.getClass().getSimpleName() + ": " + message + "\n");
-				}
-				var stackTrace = Arrays.stream(cause.getStackTrace()).filter(s -> s != null).map(s -> s.toString())
-						.collect(Collectors.joining("\n" + "    "));
-				if (stackTrace != null)
-					stackTrace += "\n";
-				errorWriter.append(stackTrace);
-//								logger.error("Script error (" + cause.getClass().getSimpleName() + ")", cause);
-			} catch (IOException e1) {
-				logger.error("Script IO error: {}", e1);
-			} catch (Exception e1) {
-				logger.error("Script error: {}", e1.getLocalizedMessage(), e1);
-//								e1.printStackTrace();
+				// Throw a new exception with a more readable message
+				String newMessage = message;
+//				if (line >= 0) {
+//					line = line - extraLines;
+//					if (cause instanceof InterruptedException)
+//						newMessage = "Script interrupted at line " + line + ": " + message;
+//					else
+//						newMessage = "Exception at line " + line + ": " + message;
+//				} else {
+//					if (cause instanceof InterruptedException)
+//						newMessage = "Script interrupted: " + message;
+//					else
+//						newMessage = message;
+//				}
+				
+				var updatedException = new ScriptException(newMessage, filename, line - extraLines, e.getColumnNumber());
+				updatedException.initCause(cause);
+//				updatedException.setStackTrace(cause.getStackTrace());
+				throw updatedException;
+			} catch (IOException | RuntimeException e2) {
+				logger.debug("Error fixing script exception: " + e2.getLocalizedMessage(), e2);
+				throw e;
 			}
-			throw e;
 		} finally {
 			QP.resetBatchProjectAndImage();
 		}
 		return result;
+	}
+	
+	
+	protected String tryToInterpretMessage(Throwable cause, int line) {
+		
+		String message = cause.getLocalizedMessage();
+		if (message == null || message.isBlank())
+			return "";
+		
+		var sb = new StringBuilder();
+		var matcher = Pattern.compile("unable to resolve class ([A-Za-z_.-]+)").matcher(message);
+		
+		if (matcher.find()) {
+			String missingClass = matcher.group(1).strip();
+			sb.append("It looks like you have tried to import a class '" + missingClass + "' that doesn't exist\n");
+			int ind = missingClass.lastIndexOf(".");
+			if (ind >= 0)
+				missingClass = missingClass.substring(ind+1);
+			Class<?> suggestedClass = CONFUSED_CLASSES.get(missingClass);
+			if (suggestedClass != null) {
+				if (line >= 0)
+					sb.append("You should probably remove the broken import statement in your script (around line " + line + ").\n");
+				else
+					sb.append("You should probably remove the broken import statement in your script.\n");
+				sb.append("Then you may want to check 'Run -> Include default imports' is selected, or alternatively add ");
+				sb.append("\n    import " + suggestedClass.getName() + "\nat the start of the script. Full error message below.\n");
+			}
+		}
+
+		// Check if the error was to do with a missing property... which can again be thanks to an import statement
+		var matcherProperty = Pattern.compile("No such property: ([A-Za-z_.-]+)").matcher(message);
+		if (matcherProperty.find()) {
+			String missingProperty = matcherProperty.group(1).strip();
+			sb.append("It looks like you have tried to access a property '" + missingProperty + "' that doesn't exist\n");
+			int ind = missingProperty.lastIndexOf(".");
+			if (ind >= 0)
+				missingProperty = missingProperty.substring(ind+1);
+			Class<?> suggestedClass = CONFUSED_CLASSES.get(missingProperty);
+			if (suggestedClass != null) {
+				if (!suggestedClass.getSimpleName().equals(missingProperty)) {
+					sb.append("You can try replacing ").append(missingProperty).append(" with ").append(suggestedClass.getSimpleName()).append("\n");
+				}
+				sb.append("You might want to check 'Run -> Include default imports' is selected, or alternatively add ");
+				sb.append("\n    import " + suggestedClass.getName() + "\nat the start of the script. Full error message below.\n");
+			}
+		}
+		
+		// Check if the error was to do with a missing property... which can again be thanks to an import statement
+		var matcherMethod = Pattern.compile("No signature of method").matcher(message);
+		if (matcherMethod.find()) {
+			sb.append("It looks like you have tried to access a method that doesn't exist.\n");
+			sb.append("You might want to check 'Run -> Include default imports' is selected.");
+		}
+		
+		// Check if the error was to do with a special left quote character
+		var matcherQuotationMarks = Pattern.compile("Unexpected input: .*([\\x{2018}|\\x{201c}|\\x{2019}|\\x{201D}]+)' @ line (\\d+), column (\\d+).").matcher(message);
+		if (matcherQuotationMarks.find()) {
+			int nLine = Integer.parseInt(matcherQuotationMarks.group(2));
+			String quotationMark = matcherQuotationMarks.group(1);
+			String suggestion = quotationMark.equals("‘") || quotationMark.equals("’") ? "'" : "\"";
+			sb.append(String.format("At least one invalid quotation mark (%s) was found @ line %s column %s! ", quotationMark, nLine-1, matcherQuotationMarks.group(3)));
+			sb.append(String.format("You can try replacing it with a straight quotation mark (%s).%n", suggestion));
+		}
+		if (sb.length() > 0)
+			sb.append("\n");
+		
+		return sb.toString();
+	}
+	
+	
+	protected String getDefaultScriptName() {
+		return "QuPathScript";
 	}
 	
 	
@@ -269,11 +331,14 @@ public class DefaultScriptLanguage extends ScriptLanguage implements ExecutableL
 	 */
 	protected ScriptContext createContext(ScriptParameters params) {
 		var context = new SimpleScriptContext();
-		
-		String filePath = params.getFile() == null ? null : params.getFile().getAbsolutePath();
+
 		context.setAttribute(ScriptAttributes.ARGS, params.getArgs(), ScriptContext.ENGINE_SCOPE);
-		context.setAttribute(ScriptAttributes.FILE_PATH, filePath, ScriptContext.ENGINE_SCOPE);
-		
+
+		var file = params.getFile();
+		if (file != null) {
+			context.setAttribute(ScriptAttributes.FILE_PATH, file.getAbsolutePath(), ScriptContext.ENGINE_SCOPE);
+		}
+
 		context.setAttribute(ScriptAttributes.BATCH_SIZE, params.getBatchSize(), ScriptContext.ENGINE_SCOPE);
 		context.setAttribute(ScriptAttributes.BATCH_INDEX, params.getBatchIndex(), ScriptContext.ENGINE_SCOPE);
 		context.setAttribute(ScriptAttributes.BATCH_LAST, params.getBatchIndex() == params.getBatchSize()-1, ScriptContext.ENGINE_SCOPE);

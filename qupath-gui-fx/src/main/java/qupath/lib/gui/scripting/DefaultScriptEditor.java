@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.Writer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
@@ -56,6 +57,7 @@ import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.value.ObservableBooleanValue;
 import javafx.beans.value.ObservableValue;
 import javafx.concurrent.Task;
 import javafx.event.ActionEvent;
@@ -838,9 +840,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		
 		var writer = new ScriptConsoleWriter(console, false);
 		
-		var params = ScriptParameters.builder()
-				.setDefaultImports(QPEx.getCoreClasses())
-				.setDefaultStaticImports(Collections.singletonList(QPEx.class))
+		var builder = ScriptParameters.builder()
 				.setWriter(writer)
 				.setErrorWriter(new ScriptConsoleWriter(console, true))
 				.setScript(script)
@@ -849,8 +849,14 @@ public class DefaultScriptEditor implements ScriptEditor {
 				.setImageData(imageData)
 				.setBatchIndex(batchIndex)
 				.setBatchSize(batchSize)
-				.setBatchSaveResult(batchSave)
-				.build();
+				.setBatchSaveResult(batchSave);
+		
+		if (useDefaultBindings.get()) {
+			builder.setDefaultImports(QPEx.getCoreClasses())
+					.setDefaultStaticImports(Collections.singletonList(QPEx.class));
+		}
+				
+		var params = builder.build();
 		
 		var printWriter = new PrintWriter(writer);
 		
@@ -870,7 +876,24 @@ public class DefaultScriptEditor implements ScriptEditor {
 			if (outputScriptStartTime.get())
 				printWriter.println(String.format("Total run time: %.2f seconds", (System.nanoTime() - startTime)/1e9));
 		} catch (ScriptException e) {
+			
+			var errorWriter = params.getErrorWriter();
+			try {
+				errorWriter.append(e.getLocalizedMessage());
+				
+				var cause = e.getCause();
+				var stackTrace = Arrays.stream(cause.getStackTrace()).filter(s -> s != null).map(s -> s.toString())
+						.collect(Collectors.joining("\n" + "    "));
+				if (stackTrace != null)
+					stackTrace += "\n";
+				errorWriter.append(stackTrace);
+			} catch (IOException exIO) {
+				logger.error(exIO.getLocalizedMessage(), exIO);
+			}
+			
 			// TODO: Consider exception logging here, rather than via the called method
+		} catch (Exception e1) {
+			logger.error("Script error: " + e1.getLocalizedMessage(), e1);
 		} catch (Throwable t) {
 			// This can happen when something goes very wrong - like attempting to load a missing native library
 			// We need to somehow let the user know, rather than swallowing the problem silently
@@ -981,6 +1004,17 @@ public class DefaultScriptEditor implements ScriptEditor {
 		}
 		return false;
 	}
+	
+	
+	/**
+	 * Boolean property indicating whether the console should display the log, rather than 
+	 * directly-printed information.
+	 * @return
+	 */
+	protected ObservableBooleanValue sendLogToConsoleProperty() {
+		return sendLogToConsole;
+	}
+	
 
 //	public static void main(String[] args) {
 //		Platform.runLater(() -> {

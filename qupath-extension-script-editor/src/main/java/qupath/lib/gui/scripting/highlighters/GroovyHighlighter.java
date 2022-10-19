@@ -60,7 +60,6 @@ public class GroovyHighlighter implements ScriptHighlighter {
     };
 	
 	private static Pattern PATTERN;
-	private static Pattern PATTERN_CONSOLE;
 	
 	static {
 		final String KEYWORD_PATTERN = "\\b(" + String.join("|", KEYWORDS) + ")\\b";
@@ -87,14 +86,6 @@ public class GroovyHighlighter implements ScriptHighlighter {
 	            + "|(?<COMMENT>" + COMMENT_PATTERN + ")"
 	    );
 	    
-	    
-	    final String WARNING_PATTERN = "WARN[^\n]*";
-	    final String ERROR_PATTERN = "ERROR:[^\n]*";
-	    
-	    PATTERN_CONSOLE = Pattern.compile(
-	            "(?<ERROR>" + ERROR_PATTERN + ")"
-	            + "|(?<WARN>" + WARNING_PATTERN + ")"
-	    );
 	}
 	
 	/**
@@ -149,22 +140,5 @@ public class GroovyHighlighter implements ScriptHighlighter {
         spansBuilder.add(Collections.emptyList(), text.length() - lastKwEnd);
         return spansBuilder.create();
     }
-
-	@Override
-	public StyleSpans<Collection<String>> computeConsoleHighlighting(final String text) {
-        Matcher matcher = PATTERN_CONSOLE.matcher(text);
-        int lastKwEnd = 0;
-        StyleSpansBuilder<Collection<String>> spansBuilder = new StyleSpansBuilder<>();
-        while (matcher.find()) {
-            String styleClass =
-                    matcher.group("ERROR") != null ? "error" :
-                    null; /* never happens */
-            assert styleClass != null;
-            spansBuilder.add(Collections.emptyList(), matcher.start() - lastKwEnd);
-            spansBuilder.add(Collections.singleton(styleClass), matcher.end() - matcher.start());
-            lastKwEnd = matcher.end();
-        }
-        spansBuilder.add(Collections.emptyList(), text.length() - lastKwEnd);
-        return spansBuilder.create();
-    }
+	
 }

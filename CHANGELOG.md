@@ -23,6 +23,7 @@ This is a work-in-progress.
     * Comment block handling (https://github.com/qupath/qupath/pull/908)
   * New 'Edit -> Wrap lines', 'Edit -> Replace curly quotes' and 'Edit -> Zap gremlins' options
   * Prompt the user to reload data if 'Run for project' may have made changes for any images that are currently open
+  * Better formatting for log messages
 * Other scripting improvements
   * *See https://github.com/qupath/qupath/pull/1078 for more detail*
   * Added `getTileObjects()` scripting method (https://github.com/qupath/qupath/issues/1065)

@@ -122,11 +122,6 @@ public class MarkdownHighlighter implements ScriptHighlighter {
         
         return styles;
 	}
-
-	@Override
-	public StyleSpans<Collection<String>> computeConsoleHighlighting(String text) {
-		return ScriptHighlighter.getPlainStyling(text);
-	}
 	
 	static class StyleSpanVisitor extends AbstractVisitor {
 

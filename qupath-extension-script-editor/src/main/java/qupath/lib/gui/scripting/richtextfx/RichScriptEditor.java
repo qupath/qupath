@@ -346,17 +346,25 @@ public class RichScriptEditor extends DefaultScriptEditor {
 		try {
 			CodeArea codeArea = new CodeArea();
 			codeArea.setStyle(styleBackground);
-			
-			codeArea.richChanges()
-			.successionEnds(Duration.ofMillis(delayMillis))
+			codeArea.multiPlainChanges()
+			.successionEnds(Duration.ofMillis(50))
 			.subscribe(change -> {
 				// If anything was removed, do full reformatting
-				if (change.getRemoved().length() != 0 || change.getPosition() == 0) {
-					if (!change.getRemoved().getText().equals(change.getInserted().getText()))
-						codeArea.setStyleSpans(0, scriptHighlighter.get().computeConsoleHighlighting(codeArea.getText()));
-				} else {
-					// Otherwise format only from changed position onwards
-					codeArea.setStyleSpans(change.getPosition(), scriptHighlighter.get().computeConsoleHighlighting(change.getInserted().getText()));
+				// Otherwise, format from the position of the edit
+				int start = Integer.MAX_VALUE;
+				for (var c : change) {
+					if (!c.getRemoved().isEmpty()) {
+						start = 0;
+						break;
+					} else
+						start = Math.min(start, c.getPosition());
+				}
+				if (start < Integer.MAX_VALUE) {
+					String text = codeArea.getText();
+					if (start > 0)
+						text = text.substring(start);
+//					System.err.println("REFORMATING: " + start + " (changes=" + change.size() + ")");
+					codeArea.setStyleSpans(start, scriptHighlighter.get().computeConsoleHighlighting(text, sendLogToConsoleProperty().get()));
 				}
 			});
 			codeArea.getStylesheets().add(getClass().getClassLoader().getResource("scripting_styles.css").toExternalForm());

@@ -112,8 +112,4 @@ public class JsonHighlighter implements ScriptHighlighter {
         return spansBuilder.create();
 	}
 
-	@Override
-	public StyleSpans<Collection<String>> computeConsoleHighlighting(String text) {
-		return ScriptHighlighter.getPlainStyling(text);
-	}
 }

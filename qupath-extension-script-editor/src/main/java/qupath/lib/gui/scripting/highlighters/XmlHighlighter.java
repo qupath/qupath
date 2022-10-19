@@ -116,11 +116,6 @@ public class XmlHighlighter implements ScriptHighlighter {
 		return computeHighlighting(text);
 	}
 
-	@Override
-	public StyleSpans<Collection<String>> computeConsoleHighlighting(String text) {
-		return ScriptHighlighter.getPlainStyling(text);
-	}
-	
 	
 	private static StyleSpans<Collection<String>> computeHighlighting(String text) {
     	

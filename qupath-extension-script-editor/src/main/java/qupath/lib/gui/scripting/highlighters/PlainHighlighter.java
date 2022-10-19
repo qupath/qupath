@@ -70,11 +70,7 @@ public class PlainHighlighter implements ScriptHighlighter {
 	
 	@Override
 	public StyleSpans<Collection<String>> computeEditorHighlighting(String text) {
-		return ScriptHighlighter.getPlainStyling(text);
+		return ScriptHighlighterProvider.getPlainStyling(text);
 	}
-
-	@Override
-	public StyleSpans<Collection<String>> computeConsoleHighlighting(String text) {
-		return ScriptHighlighter.getPlainStyling(text);
-	}
+	
 }
