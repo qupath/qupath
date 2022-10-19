@@ -368,6 +368,7 @@ public class RichScriptEditor extends DefaultScriptEditor {
 				}
 			});
 			codeArea.getStylesheets().add(getClass().getClassLoader().getResource("scripting_styles.css").toExternalForm());
+			codeArea.setEditable(false);
 			return new CodeAreaControl(codeArea);
 		} catch (Exception e) {
 			// Default to superclass implementation

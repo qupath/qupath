@@ -35,9 +35,7 @@ import org.slf4j.LoggerFactory;
 
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
-import javafx.geometry.Orientation;
 import javafx.scene.control.ContextMenu;
-import javafx.scene.control.SplitPane;
 import javafx.scene.layout.BorderPane;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.scripting.languages.ScriptLanguageProvider;
@@ -140,7 +138,7 @@ public class ScriptTab {
 		updateIsModified();
 	}
 	
-	ScriptEditorControl getEditorComponent() {
+	ScriptEditorControl getEditorControl() {
 		return editor;
 	}
 	
@@ -148,7 +146,7 @@ public class ScriptTab {
 		return editor.getText().length() > 0;
 	}
 
-	ScriptEditorControl getConsoleComponent() {
+	ScriptEditorControl getConsoleControl() {
 		return console;
 	}
 
