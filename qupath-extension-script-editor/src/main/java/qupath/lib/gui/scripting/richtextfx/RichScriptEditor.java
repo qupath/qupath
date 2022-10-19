@@ -346,24 +346,24 @@ public class RichScriptEditor extends DefaultScriptEditor {
 		try {
 			CodeArea codeArea = new CodeArea();
 			codeArea.setStyle(styleBackground);
-			codeArea.multiPlainChanges()
-			.successionEnds(Duration.ofMillis(50))
-			.subscribe(change -> {
+			codeArea.plainTextChanges()
+			.subscribe(c -> {
 				// If anything was removed, do full reformatting
 				// Otherwise, format from the position of the edit
 				int start = Integer.MAX_VALUE;
-				for (var c : change) {
-					if (!c.getRemoved().isEmpty()) {
-						start = 0;
-						break;
-					} else
-						start = Math.min(start, c.getPosition());
-				}
+				if (!c.getRemoved().isEmpty()) {
+					start = 0;
+				} else
+					start = Math.min(start, c.getPosition());
 				if (start < Integer.MAX_VALUE) {
 					String text = codeArea.getText();
-					if (start > 0)
+					// Make sure we return to the last newline
+					while (start > 0 && text.charAt(start) != '\n')
+						start--;
+					
+					if (start > 0) {
 						text = text.substring(start);
-//					System.err.println("REFORMATING: " + start + " (changes=" + change.size() + ")");
+					}
 					codeArea.setStyleSpans(start, scriptStyler.get().computeConsoleStyles(text, sendLogToConsoleProperty().get()));
 				}
 			});

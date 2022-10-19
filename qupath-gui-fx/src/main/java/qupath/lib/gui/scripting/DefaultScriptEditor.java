@@ -30,6 +30,7 @@ import java.io.PrintWriter;
 import java.io.Writer;
 import java.net.URI;
 import java.nio.file.Files;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -51,6 +52,7 @@ import org.controlsfx.dialog.ProgressDialog;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javafx.animation.AnimationTimer;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
@@ -167,6 +169,37 @@ public class DefaultScriptEditor implements ScriptEditor {
 	private ObjectProperty<ScriptLanguage> currentLanguage = new SimpleObjectProperty<>();
 
 	private ObjectProperty<ScriptSyntax> currentSyntax = new SimpleObjectProperty<>();
+	
+	
+	
+	private StringProperty timeProperty = new SimpleStringProperty();
+	
+	/**
+	 * Timer for the current running script
+	 */
+	private AnimationTimer timer = new AnimationTimer() {
+		
+		private long startTime = 0;
+		
+		@Override
+		public void start() {
+			startTime = System.nanoTime();
+			super.start();
+		}
+
+		@Override
+		public void stop() {
+			super.stop();
+		}
+
+		@Override
+		public void handle(long now) {
+			var duration = Duration.ofNanos(System.nanoTime() - startTime);
+			String time = String.format("%d:%02d:%02d", duration.toHours(), duration.toMinutesPart(), duration.toSecondsPart());
+			timeProperty.set(time);
+		}
+		
+	};
 	
 	// Binding to indicate it shouldn't be possible to 'Run' any script right now
 	private StringBinding title = Bindings.createStringBinding(() -> {
@@ -784,7 +817,13 @@ public class DefaultScriptEditor implements ScriptEditor {
 	            }
 	        );
 		listScripts.setMinWidth(150);
-		runningTask.addListener((v, o, n) -> listScripts.refresh());
+		runningTask.addListener((v, o, n) -> {
+			listScripts.refresh();
+			if (n != null)
+				timer.start();
+			else
+				timer.stop();
+		});
 
 		// Split pane for holding code and console
 		var splitCode = new SplitPane();
@@ -857,9 +896,29 @@ public class DefaultScriptEditor implements ScriptEditor {
 		var btnMore = GuiTools.createMoreButton(popup, Side.RIGHT);
 		
 		var labelRunning = new Label();
-		labelRunning.textProperty().bind(Bindings.createStringBinding(() -> {
-			return runningTask.get() == null ? "" : "Running...";
+//		labelRunning.textProperty().bind(timeProperty);
+		labelRunning.setOpacity(0.5);
+//		var runningGraphic = new Circle(5);
+//		runningGraphic.styleProperty().bind(Bindings.createStringBinding(() -> {
+//			if (runningTask.get() == null)
+//				return "-fx-fill: -fx-text-fill;";
+//			else
+//				return "-fx-fill: rgba(20, 200, 20);";
+//		}, runningTask));
+		var tooltip = new Tooltip();
+		tooltip.textProperty().bind(Bindings.createStringBinding(() -> {
+			return runningTask.get() == null ? "No script running" : "Script run time";
 		}, runningTask));
+//		labelRunning.setGraphic(runningGraphic);
+		labelRunning.setTooltip(tooltip);
+		labelRunning.textProperty().bind(Bindings.createStringBinding(() -> {
+			if (runningTask.get() == null) {
+				if (timeProperty.getValueSafe().isEmpty())
+					return "";
+				return "Stopped: " + timeProperty.get();
+			} else
+				return "Running: " + timeProperty.get();
+		}, runningTask, timeProperty));
 //		
 		paneRun.add(labelRunning, 0, 0);
 		var paneSpace = new Pane();
