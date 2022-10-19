@@ -64,12 +64,15 @@ import javafx.beans.value.ObservableValue;
 import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
 import javafx.event.ActionEvent;
+import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
-import javafx.scene.Node;
+import javafx.geometry.Side;
 import javafx.scene.Scene;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckMenuItem;
+import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Dialog;
+import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.control.Menu;
@@ -89,6 +92,9 @@ import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.TransferMode;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.GridPane;
+import javafx.scene.layout.Pane;
+import javafx.scene.layout.Priority;
 import javafx.scene.text.Font;
 import javafx.scene.web.WebView;
 import javafx.stage.Modality;
@@ -110,6 +116,7 @@ import qupath.lib.gui.scripting.languages.ScriptLanguageProvider;
 import qupath.lib.gui.scripting.syntax.ScriptSyntaxProvider;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.MenuTools;
+import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.tools.WebViews;
 import qupath.lib.images.ImageData;
 import qupath.lib.projects.Project;
@@ -142,6 +149,16 @@ public class DefaultScriptEditor implements ScriptEditor {
 	private SplitPane splitMain;
 	private ToggleGroup toggleLanguages = new ToggleGroup();
 	private Font fontMain = Font.font("Courier");
+	
+	/**
+	 * Pane to hold the main code component in its center
+	 */
+	private BorderPane paneCode = new BorderPane();
+	
+	/**
+	 * Pane to hold the main console in its center
+	 */
+	private BorderPane paneConsole = new BorderPane();
 	
 	private ObjectProperty<ScriptTab> selectedScript = new SimpleObjectProperty<>();
 	
@@ -230,6 +247,8 @@ public class DefaultScriptEditor implements ScriptEditor {
 	protected Action runSelectedAction;
 	protected Action runProjectScriptAction;
 	protected Action runProjectScriptNoSaveAction;
+	
+	protected Action killRunningScriptAction;
 
 	protected Action insertMuAction;
 	protected Action insertQPImportAction;
@@ -323,9 +342,10 @@ public class DefaultScriptEditor implements ScriptEditor {
 		redoAction = createRedoAction("Redo", null);
 		
 		runScriptAction = createRunScriptAction("Run", false);
-		runSelectedAction = createRunScriptAction("Run selected", true);
+		runSelectedAction = createRunScriptAction("Run selected code", true);
 		runProjectScriptAction = createRunProjectScriptAction("Run for project", true);
-		runProjectScriptNoSaveAction = createRunProjectScriptAction("Run for project (without save)", false);
+		runProjectScriptNoSaveAction = createRunProjectScriptAction("Run for project (without saving)", false);
+		killRunningScriptAction = createKillRunningScriptAction("Kill running script");
 		
 		insertMuAction = createInsertAction(GeneralTools.SYMBOL_MU + "");
 		insertQPImportAction = createInsertAction("QP");
@@ -433,7 +453,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 			tab.updateIsModified();
 		});
 		editor.selectedTextProperty().addListener((v, o, n) -> updateCutCopyActionState());
-		editor.getControl().focusedProperty().addListener((v, o, n) -> {
+		editor.getRegion().focusedProperty().addListener((v, o, n) -> {
 			if (n)
 				maybeRefreshTab(tab, false);
 		});
@@ -472,7 +492,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 			tab.updateIsModified();
 		});
 		editor.selectedTextProperty().addListener((v, o, n) -> updateCutCopyActionState());
-		editor.getControl().focusedProperty().addListener((v, o, n) -> {
+		editor.getRegion().focusedProperty().addListener((v, o, n) -> {
 			if (n)
 				maybeRefreshTab(tab, false);
 		});
@@ -493,27 +513,19 @@ public class DefaultScriptEditor implements ScriptEditor {
 		if (tab == selectedScript.get())
 			return;
 		
-		Node lastComponent = splitMain.getItems().get(1);
-		Node newComponent = tab == null ? null : tab.getSplitEditor();
-		if (lastComponent == newComponent)
-			return;
-		
-		double loc = splitMain.getDividers().get(0).getPosition();
 		if (tab != null) {
-			splitMain.getItems().set(1, newComponent);
+			paneCode.setCenter(tab.getEditorComponent().getRegion());
+			paneConsole.setCenter(tab.getConsoleComponent().getRegion());
 			maybeRefreshTab(tab, false);
-			splitMain.setDividerPosition(0, loc);
-			// Unfortunately need to wait until divider is present before we can set the divider location
-			if (selectedScript.get() == null)
-				tab.getSplitEditor().setDividerPosition(0, 0.75);
-			else
-				tab.getSplitEditor().setDividerPosition(0, selectedScript.get().getSplitEditor().getDividers().get(0).getPosition());
 			
 			// Update the selected language
 			selectedScript.set(tab);
 			setToggle(tab.getLanguage());
-		} else
+		} else {
 			selectedScript.set(tab);
+			paneCode.setCenter(null);
+			paneConsole.setCenter(null);
+		}
 //		else
 //			splitMain.getItems().set(1, newComponent);
 	}
@@ -719,7 +731,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 				runProjectScriptAction,
 				runProjectScriptNoSaveAction,
 				null,
-				createKillRunningScriptAction("Kill running script"),
+				killRunningScriptAction,
 				null,
 				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(useDefaultBindings, "Include default imports")),
 				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(sendLogToConsole, "Show log in console")),
@@ -756,8 +768,27 @@ public class DefaultScriptEditor implements ScriptEditor {
 		listScripts.setMinWidth(150);
 		runningTask.addListener((v, o, n) -> listScripts.refresh());
 
+		// Split pane for holding code and console
+		var splitCode = new SplitPane();
+		splitCode.setOrientation(Orientation.VERTICAL);
+		var paneRun = createRunPane();
+		paneConsole.setBottom(paneRun);
+
+		// Set the components if we have them
+		var textComponent = getCurrentTextComponent();
+		if (textComponent != null)
+			paneCode.setCenter(textComponent.getRegion());
+		var consoleComponent = getCurrentConsoleComponent();
+		if (consoleComponent != null)
+			paneConsole.setCenter(consoleComponent.getRegion());
+
+		// Set divider position
+		splitCode.getItems().setAll(paneCode, paneConsole);
+		splitCode.setDividerPosition(0, 0.6);
+		SplitPane.setResizableWithParent(paneConsole, Boolean.FALSE);
+				
 		splitMain = new SplitPane();
-		splitMain.getItems().addAll(panelList, getCurrentScriptComponent());
+		splitMain.getItems().addAll(panelList, splitCode);
 		splitMain.setOrientation(Orientation.HORIZONTAL);
 		SplitPane.setResizableWithParent(panelList, Boolean.FALSE);
 //		splitMain.setResizeWeight(0);
@@ -785,6 +816,50 @@ public class DefaultScriptEditor implements ScriptEditor {
 		updateUndoActionState();
 		updateCutCopyActionState();
 	}
+	
+	
+	private Pane createRunPane() {
+		var paneRun = new GridPane();
+		
+		var btnRun = ActionTools.createButton(runScriptAction, false);
+		btnRun.setPadding(new Insets(0, 20, 0, 20));
+		
+		var popup = new ContextMenu(
+				ActionTools.createMenuItem(runProjectScriptAction),
+				ActionTools.createMenuItem(runProjectScriptNoSaveAction),
+				new SeparatorMenuItem(),
+				ActionTools.createMenuItem(killRunningScriptAction),
+				new SeparatorMenuItem(),
+				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(useDefaultBindings, "Include default imports")),
+				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(sendLogToConsole, "Show log in console")),
+				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(outputScriptStartTime, "Log script time")),
+				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(autoClearConsole, "Auto clear console")),
+				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(clearCache, "Clear cache (batch processing)"))
+				);
+		var btnMore = GuiTools.createMoreButton(popup, Side.RIGHT);
+		
+		var labelRunning = new Label();
+		labelRunning.textProperty().bind(Bindings.createStringBinding(() -> {
+			return runningTask.get() == null ? "" : "Running...";
+		}, runningTask));
+//		
+		paneRun.add(labelRunning, 0, 0);
+		var paneSpace = new Pane();
+		paneRun.add(paneSpace, 1, 0);
+		paneRun.add(btnRun, 2, 0);
+		paneRun.add(btnMore, 3, 0);
+		paneRun.setPadding(new Insets(5));
+//		paneRun.setHgap(5.0);
+
+		PaneTools.setHGrowPriority(Priority.ALWAYS, paneSpace);
+		PaneTools.setFillWidth(Boolean.TRUE, paneSpace);
+		PaneTools.setMaxHeight(Double.MAX_VALUE, labelRunning, paneSpace, btnRun, btnMore);
+		PaneTools.setMaxWidth(Double.MAX_VALUE, labelRunning, paneSpace, btnRun, btnMore);
+		PaneTools.setFillHeight(Boolean.TRUE, labelRunning, paneSpace, btnRun, btnMore);
+		
+		return paneRun;
+	}
+	
 	
 	
 	void setCurrentTabLanguage(final ScriptLanguage language) {
@@ -831,11 +906,6 @@ public class DefaultScriptEditor implements ScriptEditor {
 		return tab == null ? null : tab.getConsoleComponent();
 	}
 
-	protected Node getCurrentScriptComponent() {
-		ScriptTab tab = getCurrentScriptObject();
-		return tab == null ? null : tab.getSplitEditor();
-	}
-	
 	protected String getSelectedText() {
 		ScriptEditorControl comp = getCurrentTextComponent();
 		return comp != null ? comp.getSelectedText() : null;
@@ -1168,6 +1238,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 				future.cancel(true);
 		});
 		action.disabledProperty().bind(runningTask.isNull());
+		action.setLongText("Try to stop the script that's currently running");
 		return action;
 	}
 	
@@ -1246,6 +1317,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		else
 			action.setAccelerator(new KeyCodeCombination(KeyCode.R, KeyCombination.SHORTCUT_DOWN));
 		
+		action.setLongText("Run the current script");
 		action.disabledProperty().bind(disableRun);
 		
 		return action;
@@ -1255,6 +1327,10 @@ public class DefaultScriptEditor implements ScriptEditor {
 	Action createRunProjectScriptAction(final String name, final boolean doSave) {
 		Action action = new Action(name, e -> handleRunProject(doSave));
 		action.disabledProperty().bind(disableRun.or(qupath.projectProperty().isNull()));
+		if (doSave)
+			action.setLongText("Run the current script for multiple images in the project and save the results");
+		else
+			action.setLongText("Run the current script for multiple images in the project but don't save the results");
 		return action;
 	}
 	

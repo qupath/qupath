@@ -92,7 +92,7 @@ public interface ScriptEditorControl extends TextAppendable, EditableText {
 	 * Get the region representing this control, so it may be added to a scene.
 	 * @return
 	 */
-	public Region getControl();
+	public Region getRegion();
 	
 	/**
 	 * Request undo.
