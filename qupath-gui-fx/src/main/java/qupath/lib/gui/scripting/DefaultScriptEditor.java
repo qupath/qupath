@@ -28,7 +28,11 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.Writer;
+import java.net.URI;
+import java.nio.file.Files;
+import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
@@ -48,6 +52,7 @@ import org.controlsfx.dialog.ProgressDialog;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javafx.animation.AnimationTimer;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
@@ -56,15 +61,22 @@ import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
+import javafx.beans.value.ObservableBooleanValue;
 import javafx.beans.value.ObservableValue;
+import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
 import javafx.event.ActionEvent;
+import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
-import javafx.scene.Node;
+import javafx.geometry.Side;
 import javafx.scene.Scene;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckMenuItem;
+import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Dialog;
+import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.control.Menu;
@@ -84,6 +96,9 @@ import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.TransferMode;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.GridPane;
+import javafx.scene.layout.Pane;
+import javafx.scene.layout.Priority;
 import javafx.scene.text.Font;
 import javafx.scene.web.WebView;
 import javafx.stage.Modality;
@@ -102,7 +117,11 @@ import qupath.lib.gui.scripting.languages.GroovyLanguage;
 import qupath.lib.gui.scripting.languages.HtmlRenderer;
 import qupath.lib.gui.scripting.languages.PlainLanguage;
 import qupath.lib.gui.scripting.languages.ScriptLanguageProvider;
+import qupath.lib.gui.scripting.syntax.ScriptSyntax;
+import qupath.lib.gui.scripting.syntax.ScriptSyntaxProvider;
+import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.MenuTools;
+import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.tools.WebViews;
 import qupath.lib.images.ImageData;
 import qupath.lib.projects.Project;
@@ -135,12 +154,52 @@ public class DefaultScriptEditor implements ScriptEditor {
 	private ToggleGroup toggleLanguages = new ToggleGroup();
 	private Font fontMain = Font.font("Courier");
 	
+	/**
+	 * Pane to hold the main code component in its center
+	 */
+	private BorderPane paneCode = new BorderPane();
+	
+	/**
+	 * Pane to hold the main console in its center
+	 */
+	private BorderPane paneConsole = new BorderPane();
+	
 	private ObjectProperty<ScriptTab> selectedScript = new SimpleObjectProperty<>();
 	
 	private ObjectProperty<ScriptLanguage> currentLanguage = new SimpleObjectProperty<>();
+
+	private ObjectProperty<ScriptSyntax> currentSyntax = new SimpleObjectProperty<>();
+	
+	
+	
+	private StringProperty timeProperty = new SimpleStringProperty();
+	
+	/**
+	 * Timer for the current running script
+	 */
+	private AnimationTimer timer = new AnimationTimer() {
 		
-	// Binding to indicate it shouldn't be possible to 'Run' any script right now
-	private BooleanBinding disableRun = runningTask.isNotNull().or(Bindings.createBooleanBinding(() -> !(currentLanguage.getValue() instanceof ExecutableLanguage), currentLanguage));
+		private long startTime = 0;
+		
+		@Override
+		public void start() {
+			startTime = System.nanoTime();
+			super.start();
+		}
+
+		@Override
+		public void stop() {
+			super.stop();
+		}
+
+		@Override
+		public void handle(long now) {
+			var duration = Duration.ofNanos(System.nanoTime() - startTime);
+			String time = String.format("%d:%02d:%02d", duration.toHours(), duration.toMinutesPart(), duration.toSecondsPart());
+			timeProperty.set(time);
+		}
+		
+	};
 	
 	// Binding to indicate it shouldn't be possible to 'Run' any script right now
 	private StringBinding title = Bindings.createStringBinding(() -> {
@@ -159,37 +218,56 @@ public class DefaultScriptEditor implements ScriptEditor {
 	protected Action beautifySourceAction = ActionTools.createAction(this::beautifySource, "Beautify source");
 	protected Action compressSourceAction = ActionTools.createAction(this::compressSource, "Compress source");
 	
+	private StringProperty scriptText = new SimpleStringProperty();
+	private StringProperty selectedScriptText = new SimpleStringProperty();
+	
+	// Binding to indicate it shouldn't be possible to 'Run' any script right now
+	private BooleanBinding disableRun = runningTask.isNotNull()
+			.or(Bindings.createBooleanBinding(() -> !(currentLanguage.getValue() instanceof ExecutableLanguage), currentLanguage))
+			.or(scriptText.isEmpty());
+
+	private BooleanBinding disableRunSelected = disableRun.or(selectedScriptText.isEmpty());
+	
 	private BooleanBinding canBeautifyBinding = Bindings.createBooleanBinding(() -> {
-		var language = getCurrentLanguage();
-		var syntax = language == null ? null : language.getSyntax();
+		var syntax = getCurrentSyntax();
 		return syntax == null || !syntax.canBeautify();
-	}, currentLanguageProperty());
+	}, currentSyntaxProperty());
 	
 	private BooleanBinding canCompressBinding = Bindings.createBooleanBinding(() -> {
-		var language = getCurrentLanguage();
-		var syntax = language == null ? null : language.getSyntax();
+		var syntax = getCurrentSyntax();
 		return syntax == null || !syntax.canCompress();
-	}, currentLanguageProperty());
+	}, currentSyntaxProperty());
 	
 	private void beautifySource() {
-		var tab = getCurrentScriptObject();
-		var editor = tab == null ? null : tab.getEditorComponent();
-		var language = tab == null ? null : tab.getLanguage();
-		var syntax = language == null ? null : language.getSyntax();
+		var tab = getCurrentScriptTab();
+		var editor = tab == null ? null : tab.getEditorControl();
+		var syntax = getCurrentSyntax();
 		if (editor == null || syntax == null || !syntax.canBeautify())
 			return;
 		editor.setText(syntax.beautify(editor.getText()));
 	}
 
 	private void compressSource() {
-		var tab = getCurrentScriptObject();
-		var editor = tab == null ? null : tab.getEditorComponent();
-		var language = tab == null ? null : tab.getLanguage();
-		var syntax = language == null ? null : language.getSyntax();
+		var tab = getCurrentScriptTab();
+		var editor = tab == null ? null : tab.getEditorControl();
+		var syntax = getCurrentSyntax();
 		if (editor == null || syntax == null || !syntax.canCompress())
 			return;
 		editor.setText(syntax.compress(editor.getText()));		
 	}
+	
+	
+	
+	
+	/**
+	 * Get a script syntax for a given language.
+	 * @param language
+	 * @return a script syntax, or null if language is null
+	 */
+	private ScriptSyntax getSyntax(ScriptLanguage language) {
+		return language == null ? null : ScriptSyntaxProvider.getSyntaxFromName(language.getName());
+	}
+	
 
 	
 	// Note: it doesn't seem to work to set the accelerators...
@@ -210,6 +288,8 @@ public class DefaultScriptEditor implements ScriptEditor {
 	protected Action runSelectedAction;
 	protected Action runProjectScriptAction;
 	protected Action runProjectScriptNoSaveAction;
+	
+	protected Action killRunningScriptAction;
 
 	protected Action insertMuAction;
 	protected Action insertQPImportAction;
@@ -254,10 +334,38 @@ public class DefaultScriptEditor implements ScriptEditor {
 			return language == null ? null : ScriptLanguageProvider.fromString((String)language.getUserData());
 		}, toggleLanguages.selectedToggleProperty()));
 		
+		currentSyntax.bind(Bindings.createObjectBinding(() -> {
+			return getSyntax(currentLanguage.get());
+		}, currentLanguage));
+
+		
 		selectedScript.addListener((v, o, n) -> {
-			if (n == null || n.getLanguage() == null)
+			scriptText.unbind();
+			selectedScriptText.unbind();
+
+			if (n == null || n.getLanguage() == null) {
 				return;
+			}
 			setToggle(n.getLanguage());
+			
+			// Update recent scripts if needed
+			var file = n.getFile();
+			if (file != null) {
+				var uri = file.toURI();
+				var list = PathPrefs.getRecentScriptsList();
+				if (list.contains(uri)) {
+					if (!uri.equals(list.get(0))) {
+						list.remove(uri);
+						list.add(0, uri);
+					}
+				} else
+					list.add(0, uri);
+			}
+			
+			// Sort bindings
+			scriptText.bind(n.getEditorControl().textProperty());
+			selectedScriptText.bind(n.getEditorControl().selectedTextProperty());
+			
 		});
 	}
 	
@@ -285,9 +393,10 @@ public class DefaultScriptEditor implements ScriptEditor {
 		redoAction = createRedoAction("Redo", null);
 		
 		runScriptAction = createRunScriptAction("Run", false);
-		runSelectedAction = createRunScriptAction("Run selected", true);
+		runSelectedAction = createRunScriptAction("Run selected code", true);
 		runProjectScriptAction = createRunProjectScriptAction("Run for project", true);
-		runProjectScriptNoSaveAction = createRunProjectScriptAction("Run for project (without save)", false);
+		runProjectScriptNoSaveAction = createRunProjectScriptAction("Run for project (without saving)", false);
+		killRunningScriptAction = createKillRunningScriptAction("Kill running script");
 		
 		insertMuAction = createInsertAction(GeneralTools.SYMBOL_MU + "");
 		insertQPImportAction = createInsertAction("QP");
@@ -318,7 +427,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	}
 	
 	void replaceCurrentEditorText(Function<String, String> fun, boolean limitToSelected) {
-		var editor = getCurrentTextComponent();
+		var editor = getCurrentEditorControl();
 		if (editor == null)
 			return;
 		var selected = editor.getSelectedText();
@@ -395,7 +504,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 			tab.updateIsModified();
 		});
 		editor.selectedTextProperty().addListener((v, o, n) -> updateCutCopyActionState());
-		editor.getControl().focusedProperty().addListener((v, o, n) -> {
+		editor.getRegion().focusedProperty().addListener((v, o, n) -> {
 			if (n)
 				maybeRefreshTab(tab, false);
 		});
@@ -434,7 +543,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 			tab.updateIsModified();
 		});
 		editor.selectedTextProperty().addListener((v, o, n) -> updateCutCopyActionState());
-		editor.getControl().focusedProperty().addListener((v, o, n) -> {
+		editor.getRegion().focusedProperty().addListener((v, o, n) -> {
 			if (n)
 				maybeRefreshTab(tab, false);
 		});
@@ -455,33 +564,25 @@ public class DefaultScriptEditor implements ScriptEditor {
 		if (tab == selectedScript.get())
 			return;
 		
-		Node lastComponent = splitMain.getItems().get(1);
-		Node newComponent = tab == null ? null : tab.getSplitEditor();
-		if (lastComponent == newComponent)
-			return;
-		
-		double loc = splitMain.getDividers().get(0).getPosition();
 		if (tab != null) {
-			splitMain.getItems().set(1, newComponent);
+			paneCode.setCenter(tab.getEditorControl().getRegion());
+			paneConsole.setCenter(tab.getConsoleControl().getRegion());
 			maybeRefreshTab(tab, false);
-			splitMain.setDividerPosition(0, loc);
-			// Unfortunately need to wait until divider is present before we can set the divider location
-			if (selectedScript.get() == null)
-				tab.getSplitEditor().setDividerPosition(0, 0.75);
-			else
-				tab.getSplitEditor().setDividerPosition(0, selectedScript.get().getSplitEditor().getDividers().get(0).getPosition());
 			
 			// Update the selected language
 			selectedScript.set(tab);
 			setToggle(tab.getLanguage());
-		} else
+		} else {
 			selectedScript.set(tab);
+			paneCode.setCenter(null);
+			paneConsole.setCenter(null);
+		}
 //		else
 //			splitMain.getItems().set(1, newComponent);
 	}
 
 	ScriptLanguage getSelectedLanguage() {
-		return getCurrentScriptObject() == null ? null : getCurrentScriptObject().getLanguage();
+		return getCurrentScriptTab() == null ? null : getCurrentScriptTab().getLanguage();
 	}
 	
 	protected ScriptEditorControl getNewConsole() {
@@ -499,14 +600,15 @@ public class DefaultScriptEditor implements ScriptEditor {
 			var language = currentLanguage.getValue();
 			if (language == null)
 				return;
+			var syntax = getSyntax(language);
 	        if (e.getCode() == KeyCode.TAB) {
-	        	language.getSyntax().handleTabPress(control, e.isShiftDown());
+	        	syntax.handleTabPress(control, e.isShiftDown());
 	        	e.consume();
 	        } else if (e.isShortcutDown() && e.getCode() == KeyCode.SLASH) {
-	        	language.getSyntax().handleLineComment(control);
+	        	syntax.handleLineComment(control);
 	        	e.consume();
 	        } else if (e.getCode() == KeyCode.ENTER && control.getSelectedText().length() == 0) {
-	        	language.getSyntax().handleNewLine(control, smartEditing.get());
+	        	syntax.handleNewLine(control, smartEditing.get());
 				e.consume();
 			}
 	    });
@@ -539,6 +641,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 				menuFile,
 				createNewAction("New"),
 				createOpenAction("Open..."),
+				createRecentScriptsMenu(),
 				null,
 				createSaveAction("Save", false),
 				createSaveAction("Save As...", true),
@@ -679,7 +782,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 				runProjectScriptAction,
 				runProjectScriptNoSaveAction,
 				null,
-				createKillRunningScriptAction("Kill running script"),
+				killRunningScriptAction,
 				null,
 				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(useDefaultBindings, "Include default imports")),
 				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(sendLogToConsole, "Show log in console")),
@@ -714,10 +817,35 @@ public class DefaultScriptEditor implements ScriptEditor {
 	            }
 	        );
 		listScripts.setMinWidth(150);
-		runningTask.addListener((v, o, n) -> listScripts.refresh());
+		runningTask.addListener((v, o, n) -> {
+			listScripts.refresh();
+			if (n != null)
+				timer.start();
+			else
+				timer.stop();
+		});
 
+		// Split pane for holding code and console
+		var splitCode = new SplitPane();
+		splitCode.setOrientation(Orientation.VERTICAL);
+		var paneRun = createRunPane();
+		paneConsole.setBottom(paneRun);
+
+		// Set the components if we have them
+		var textComponent = getCurrentEditorControl();
+		if (textComponent != null)
+			paneCode.setCenter(textComponent.getRegion());
+		var consoleComponent = getCurrentConsoleControl();
+		if (consoleComponent != null)
+			paneConsole.setCenter(consoleComponent.getRegion());
+
+		// Set divider position
+		splitCode.getItems().setAll(paneCode, paneConsole);
+		splitCode.setDividerPosition(0, 0.6);
+		SplitPane.setResizableWithParent(paneConsole, Boolean.FALSE);
+				
 		splitMain = new SplitPane();
-		splitMain.getItems().addAll(panelList, getCurrentScriptComponent());
+		splitMain.getItems().addAll(panelList, splitCode);
 		splitMain.setOrientation(Orientation.HORIZONTAL);
 		SplitPane.setResizableWithParent(panelList, Boolean.FALSE);
 //		splitMain.setResizeWeight(0);
@@ -747,8 +875,72 @@ public class DefaultScriptEditor implements ScriptEditor {
 	}
 	
 	
+	private Pane createRunPane() {
+		var paneRun = new GridPane();
+		
+		var btnRun = ActionTools.createButton(runScriptAction, false);
+		btnRun.setPadding(new Insets(0, 20, 0, 20));
+		
+		var popup = new ContextMenu(
+				ActionTools.createMenuItem(runProjectScriptAction),
+				ActionTools.createMenuItem(runProjectScriptNoSaveAction),
+				new SeparatorMenuItem(),
+				ActionTools.createMenuItem(killRunningScriptAction),
+				new SeparatorMenuItem(),
+				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(useDefaultBindings, "Include default imports")),
+				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(sendLogToConsole, "Show log in console")),
+				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(outputScriptStartTime, "Log script time")),
+				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(autoClearConsole, "Auto clear console")),
+				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(clearCache, "Clear cache (batch processing)"))
+				);
+		var btnMore = GuiTools.createMoreButton(popup, Side.RIGHT);
+		
+		var labelRunning = new Label();
+//		labelRunning.textProperty().bind(timeProperty);
+		labelRunning.setOpacity(0.5);
+//		var runningGraphic = new Circle(5);
+//		runningGraphic.styleProperty().bind(Bindings.createStringBinding(() -> {
+//			if (runningTask.get() == null)
+//				return "-fx-fill: -fx-text-fill;";
+//			else
+//				return "-fx-fill: rgba(20, 200, 20);";
+//		}, runningTask));
+		var tooltip = new Tooltip();
+		tooltip.textProperty().bind(Bindings.createStringBinding(() -> {
+			return runningTask.get() == null ? "No script running" : "Script run time";
+		}, runningTask));
+//		labelRunning.setGraphic(runningGraphic);
+		labelRunning.setTooltip(tooltip);
+		labelRunning.textProperty().bind(Bindings.createStringBinding(() -> {
+			if (runningTask.get() == null) {
+				if (timeProperty.getValueSafe().isEmpty())
+					return "";
+				return "Stopped: " + timeProperty.get();
+			} else
+				return "Running: " + timeProperty.get();
+		}, runningTask, timeProperty));
+//		
+		paneRun.add(labelRunning, 0, 0);
+		var paneSpace = new Pane();
+		paneRun.add(paneSpace, 1, 0);
+		paneRun.add(btnRun, 2, 0);
+		paneRun.add(btnMore, 3, 0);
+		paneRun.setPadding(new Insets(5));
+//		paneRun.setHgap(5.0);
+
+		PaneTools.setHGrowPriority(Priority.ALWAYS, paneSpace);
+		PaneTools.setFillWidth(Boolean.TRUE, paneSpace);
+		PaneTools.setMaxHeight(Double.MAX_VALUE, labelRunning, paneSpace, btnRun, btnMore);
+		PaneTools.setMaxWidth(Double.MAX_VALUE, labelRunning, paneSpace, btnRun, btnMore);
+		PaneTools.setFillHeight(Boolean.TRUE, labelRunning, paneSpace, btnRun, btnMore);
+		
+		return paneRun;
+	}
+	
+	
+	
 	void setCurrentTabLanguage(final ScriptLanguage language) {
-		ScriptTab tab = getCurrentScriptObject();
+		ScriptTab tab = getCurrentScriptTab();
 		if (tab == null)
 			return;
 		for (ScriptLanguage l : ScriptLanguageProvider.getAvailableLanguages()) {
@@ -763,38 +955,41 @@ public class DefaultScriptEditor implements ScriptEditor {
 		return currentLanguage;
 	}
 	
+	protected ReadOnlyObjectProperty<ScriptSyntax> currentSyntaxProperty() {
+		return currentSyntax;
+	}
+	
 	protected ScriptLanguage getCurrentLanguage() {
 		return currentLanguage.get();
 	}
 	
-	protected ScriptTab getCurrentScriptObject() {
+	protected ScriptSyntax getCurrentSyntax() {
+		return currentSyntax.get();
+	}
+	
+	protected ScriptTab getCurrentScriptTab() {
 		return selectedScript.get();
 //		return listScripts == null ? null : listScripts.getSelectionModel().getSelectedItem();
 	}
 	
-	protected ScriptEditorControl getCurrentTextComponent() {
-		ScriptTab tab = getCurrentScriptObject();
-		return tab == null ? null : tab.getEditorComponent();
+	protected ScriptEditorControl getCurrentEditorControl() {
+		ScriptTab tab = getCurrentScriptTab();
+		return tab == null ? null : tab.getEditorControl();
 	}
 	
 	
-	protected ScriptEditorControl getCurrentConsoleComponent() {
-		ScriptTab tab = getCurrentScriptObject();
-		return tab == null ? null : tab.getConsoleComponent();
+	protected ScriptEditorControl getCurrentConsoleControl() {
+		ScriptTab tab = getCurrentScriptTab();
+		return tab == null ? null : tab.getConsoleControl();
 	}
 
-	protected Node getCurrentScriptComponent() {
-		ScriptTab tab = getCurrentScriptObject();
-		return tab == null ? null : tab.getSplitEditor();
-	}
-	
 	protected String getSelectedText() {
-		ScriptEditorControl comp = getCurrentTextComponent();
+		ScriptEditorControl comp = getCurrentEditorControl();
 		return comp != null ? comp.getSelectedText() : null;
 	}
 	
 	protected String getCurrentText() {
-		ScriptEditorControl comp = getCurrentTextComponent();
+		ScriptEditorControl comp = getCurrentEditorControl();
 		return comp != null ? comp.getText() : "";
 	}
 	
@@ -808,7 +1003,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	
 	
 	void updateUndoActionState() {
-		ScriptEditorControl editor = getCurrentTextComponent();
+		ScriptEditorControl editor = getCurrentEditorControl();
 		undoAction.setDisabled(editor == null || !editor.isUndoable());
 		redoAction.setDisabled(editor == null || !editor.isRedoable());
 	}
@@ -834,13 +1029,11 @@ public class DefaultScriptEditor implements ScriptEditor {
 		if (!(language instanceof ExecutableLanguage))
 			return;
 	
-		ScriptEditorControl console = tab.getConsoleComponent();
+		ScriptEditorControl console = tab.getConsoleControl();
 		
 		var writer = new ScriptConsoleWriter(console, false);
 		
-		var params = ScriptParameters.builder()
-				.setDefaultImports(QPEx.getCoreClasses())
-				.setDefaultStaticImports(Collections.singletonList(QPEx.class))
+		var builder = ScriptParameters.builder()
 				.setWriter(writer)
 				.setErrorWriter(new ScriptConsoleWriter(console, true))
 				.setScript(script)
@@ -849,8 +1042,14 @@ public class DefaultScriptEditor implements ScriptEditor {
 				.setImageData(imageData)
 				.setBatchIndex(batchIndex)
 				.setBatchSize(batchSize)
-				.setBatchSaveResult(batchSave)
-				.build();
+				.setBatchSaveResult(batchSave);
+		
+		if (useDefaultBindings.get()) {
+			builder.setDefaultImports(QPEx.getCoreClasses())
+					.setDefaultStaticImports(Collections.singletonList(QPEx.class));
+		}
+				
+		var params = builder.build();
 		
 		var printWriter = new PrintWriter(writer);
 		
@@ -870,7 +1069,24 @@ public class DefaultScriptEditor implements ScriptEditor {
 			if (outputScriptStartTime.get())
 				printWriter.println(String.format("Total run time: %.2f seconds", (System.nanoTime() - startTime)/1e9));
 		} catch (ScriptException e) {
+			
+			var errorWriter = params.getErrorWriter();
+			try {
+				errorWriter.append(e.getLocalizedMessage());
+				
+				var cause = e.getCause();
+				var stackTrace = Arrays.stream(cause.getStackTrace()).filter(s -> s != null).map(s -> s.toString())
+						.collect(Collectors.joining("\n" + "    "));
+				if (stackTrace != null)
+					stackTrace += "\n";
+				errorWriter.append(stackTrace);
+			} catch (IOException exIO) {
+				logger.error(exIO.getLocalizedMessage(), exIO);
+			}
+			
 			// TODO: Consider exception logging here, rather than via the called method
+		} catch (Exception e1) {
+			logger.error("Script error: " + e1.getLocalizedMessage(), e1);
 		} catch (Throwable t) {
 			// This can happen when something goes very wrong - like attempting to load a missing native library
 			// We need to somehow let the user know, rather than swallowing the problem silently
@@ -882,6 +1098,34 @@ public class DefaultScriptEditor implements ScriptEditor {
 	}
 	
 	
+	
+	
+	private Menu createRecentScriptsMenu() {
+		
+		// Create a recent projects list in the File menu
+		ObservableList<URI> recentScripts = PathPrefs.getRecentScriptsList();
+		Menu menuRecent = GuiTools.createRecentItemsMenu("Recent scripts...", recentScripts, uri -> {
+			try {
+				var path = GeneralTools.toPath(uri);
+				if (path != null && Files.isRegularFile(path)) {
+					showScript(path.toFile());
+				} else {
+					Dialogs.showErrorMessage("Open script", "No script found for " + path);
+				}
+			} catch (Exception e1) {
+				Dialogs.showErrorMessage("Open script", "Cannot load script " + uri);
+				logger.error("Error loading script", e1);
+			}
+		});
+		
+		return menuRecent;
+	}
+	
+	
+	
+	/**
+	 * Stage for displaying HTML content (e.g. rendered markdown) if needed
+	 */
 	private static Stage stageHtml;
 	private static WebView webview;
 	
@@ -981,6 +1225,17 @@ public class DefaultScriptEditor implements ScriptEditor {
 		}
 		return false;
 	}
+	
+	
+	/**
+	 * Boolean property indicating whether the console should display the log, rather than 
+	 * directly-printed information.
+	 * @return
+	 */
+	protected ObservableBooleanValue sendLogToConsoleProperty() {
+		return sendLogToConsole;
+	}
+	
 
 //	public static void main(String[] args) {
 //		Platform.runLater(() -> {
@@ -1062,6 +1317,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 				future.cancel(true);
 		});
 		action.disabledProperty().bind(runningTask.isNull());
+		action.setLongText("Try to stop the script that's currently running");
 		return action;
 	}
 	
@@ -1101,9 +1357,9 @@ public class DefaultScriptEditor implements ScriptEditor {
 //			if (language == Language.JAVA)
 //				language = Language.GROOVY; // Replace Java with Groovy for scripting
 
-			ScriptTab tab = getCurrentScriptObject();
-			if (autoClearConsole.get() && getCurrentScriptObject() != null) {
-				tab.getConsoleComponent().clear();
+			ScriptTab tab = getCurrentScriptTab();
+			if (autoClearConsole.get() && getCurrentScriptTab() != null) {
+				tab.getConsoleControl().clear();
 			}
 			
 			// It's generally not a good idea to run in the Platform thread... since this will make the GUI unresponsive
@@ -1135,12 +1391,16 @@ public class DefaultScriptEditor implements ScriptEditor {
 				}));
 			}
 		});
-		if (selectedText)
-			action.setAccelerator(new KeyCodeCombination(KeyCode.R, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
-		else
-			action.setAccelerator(new KeyCodeCombination(KeyCode.R, KeyCombination.SHORTCUT_DOWN));
 		
-		action.disabledProperty().bind(disableRun);
+		action.setLongText("Run the current script");
+
+		if (selectedText) {
+			action.setAccelerator(new KeyCodeCombination(KeyCode.R, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
+			action.disabledProperty().bind(disableRunSelected);
+		} else {
+			action.setAccelerator(new KeyCodeCombination(KeyCode.R, KeyCombination.SHORTCUT_DOWN));
+			action.disabledProperty().bind(disableRun);
+		}
 		
 		return action;
 	}
@@ -1149,6 +1409,10 @@ public class DefaultScriptEditor implements ScriptEditor {
 	Action createRunProjectScriptAction(final String name, final boolean doSave) {
 		Action action = new Action(name, e -> handleRunProject(doSave));
 		action.disabledProperty().bind(disableRun.or(qupath.projectProperty().isNull()));
+		if (doSave)
+			action.setLongText("Run the current script for multiple images in the project and save the results");
+		else
+			action.setLongText("Run the current script for multiple images in the project but don't save the results");
 		return action;
 	}
 	
@@ -1164,8 +1428,8 @@ public class DefaultScriptEditor implements ScriptEditor {
 			Dialogs.showNoProjectError("Script editor");
 			return;
 		}
-		ScriptTab tab = getCurrentScriptObject();
-		if (tab == null || tab.getEditorComponent().getText().trim().length() == 0) {
+		ScriptTab tab = getCurrentScriptTab();
+		if (tab == null || tab.getEditorControl().getText().trim().length() == 0) {
 			Dialogs.showErrorMessage("Script editor", "No script selected!");
 			return;
 		}
@@ -1220,8 +1484,8 @@ public class DefaultScriptEditor implements ScriptEditor {
 		});
 		
 		// Clear console if necessary
-		if (autoClearConsole.get() && getCurrentScriptObject() != null) {
-			tab.getConsoleComponent().clear();
+		if (autoClearConsole.get() && getCurrentScriptTab() != null) {
+			tab.getConsoleControl().clear();
 		}
 		
 		// Create & run task
@@ -1308,7 +1572,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 						continue;
 					}
 //					QPEx.setBatchImageData(imageData);
-					executeScript(tab, tab.getEditorComponent().getText(), project, imageData, batchIndex, batchSize, doSave);
+					executeScript(tab, tab.getEditorControl().getText(), project, imageData, batchIndex, batchSize, doSave);
 					if (doSave)
 						entry.saveImageData(imageData);
 					imageData.getServer().close();
@@ -1398,7 +1662,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		Action action = new Action(name, e -> {
 			if (e.isConsumed())
 				return;
-			ScriptEditorControl editor = getCurrentTextComponent();
+			ScriptEditorControl editor = getCurrentEditorControl();
 			if (editor != null) {
 				editor.copy();
 			}
@@ -1416,7 +1680,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		Action action = new Action(name, e -> {
 			if (e.isConsumed())
 				return;
-			ScriptEditorControl editor = getCurrentTextComponent();
+			ScriptEditorControl editor = getCurrentEditorControl();
 			if (editor != null) {
 				editor.cut();
 			}
@@ -1433,7 +1697,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		Action action = new Action(name, e -> {
 			if (e.isConsumed())
 				return;
-			ScriptEditorControl editor = getCurrentTextComponent();
+			ScriptEditorControl editor = getCurrentEditorControl();
 			if (editor != null)
 				pasteFromClipboard(editor, doEscape);
 			e.consume();
@@ -1448,7 +1712,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	
 	Action createUndoAction(final String name, final KeyCombination accelerator) {
 		Action action = new Action(name, e -> {
-			ScriptEditorControl editor = getCurrentTextComponent();
+			ScriptEditorControl editor = getCurrentEditorControl();
 			if (editor != null && editor.isUndoable())
 				editor.undo();
 			e.consume();
@@ -1462,7 +1726,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	
 	Action createRedoAction(final String name, final KeyCombination accelerator) {
 		Action action = new Action(name, e -> {
-			ScriptEditorControl editor = getCurrentTextComponent();
+			ScriptEditorControl editor = getCurrentEditorControl();
 			if (editor != null && editor.isRedoable())
 				editor.redo();
 			e.consume();
@@ -1474,15 +1738,6 @@ public class DefaultScriptEditor implements ScriptEditor {
 		return action;
 	}
 
-	
-	
-
-
-	
-	
-//	Action createTabIndenterAction(final TextArea textArea, final boolean shiftDown) {
-//		return new Action(e -> handleTabPress(textArea, shiftDown));
-//	}
 	
 	
 	Action createOpenAction(final String name) {
@@ -1518,7 +1773,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	
 	Action createCloseAction(final String name) {
 		Action action = new Action(name, e -> {
-			ScriptTab tab = getCurrentScriptObject();
+			ScriptTab tab = getCurrentScriptTab();
 			if (tab == null)
 				return;
 			promptToClose(tab);
@@ -1530,7 +1785,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	
 	Action createSaveAction(final String name, final boolean saveAs) {
 		Action action = new Action(name, e -> {
-			ScriptTab tab = getCurrentScriptObject();
+			ScriptTab tab = getCurrentScriptTab();
 			if (tab == null)
 				return;
 			save(tab, saveAs);
@@ -1545,7 +1800,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	
 	Action createRevertAction(final String name) {
 		Action action = new Action(name, e -> {
-			ScriptTab tab = getCurrentScriptObject();
+			ScriptTab tab = getCurrentScriptTab();
 			if (tab != null) {
 				tab.refreshFileContents();
 				setToggle(tab.getLanguage());
@@ -1575,7 +1830,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	
 	Action createInsertAction(final String name) {
 		Action action = new Action(name, e -> {
-			var control = getCurrentTextComponent();
+			var control = getCurrentEditorControl();
 
 			String join = "," + System.lineSeparator() + "  ";
 			String listFormat = "[" + System.lineSeparator() + "  %s" + System.lineSeparator() + "]";
@@ -1644,7 +1899,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	void attemptToQuitScriptEditor() {
 		if (listScripts.getItems().isEmpty())
 			dialog.close();
-		while (promptToClose(getCurrentScriptObject()))
+		while (promptToClose(getCurrentScriptTab()))
 			continue;
 	}
 	

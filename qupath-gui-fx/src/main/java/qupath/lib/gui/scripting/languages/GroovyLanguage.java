@@ -25,6 +25,8 @@ package qupath.lib.gui.scripting.languages;
 
 import java.util.Collections;
 import java.util.ServiceLoader;
+
+import qupath.lib.gui.scripting.completors.GroovyAutoCompletor;
 import qupath.lib.scripting.languages.ExecutableLanguage;
 
 /**
@@ -49,7 +51,7 @@ public class GroovyLanguage extends DefaultScriptLanguage implements ExecutableL
 	 * Note: this has to be public for the {@link ServiceLoader} to work.
 	 */
 	public GroovyLanguage() {
-		super("Groovy", Collections.singleton(".groovy"), GroovySyntax.getInstance(), new GroovyAutoCompletor());
+		super("Groovy", Collections.singleton(".groovy"), new GroovyAutoCompletor(true));
 		
 		if (INSTANCE != null)
 			throw new UnsupportedOperationException("Language classes cannot be instantiated more than once!");

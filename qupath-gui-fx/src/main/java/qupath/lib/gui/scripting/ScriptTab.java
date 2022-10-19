@@ -35,9 +35,7 @@ import org.slf4j.LoggerFactory;
 
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
-import javafx.geometry.Orientation;
 import javafx.scene.control.ContextMenu;
-import javafx.scene.control.SplitPane;
 import javafx.scene.layout.BorderPane;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.scripting.languages.ScriptLanguageProvider;
@@ -70,7 +68,6 @@ public class ScriptTab {
 	
 	private BooleanProperty isModified = new SimpleBooleanProperty(false);
 	
-	private SplitPane splitEditor;
 	private String name;
 	
 	private ScriptEditorControl console;
@@ -130,31 +127,18 @@ public class ScriptTab {
 	
 	void initialize() {
 		BorderPane panelMainEditor = new BorderPane();
-		panelMainEditor.setCenter(editor.getControl());
+		panelMainEditor.setCenter(editor.getRegion());
 
 		ContextMenu popup = new ContextMenu();
 		popup.getItems().add(ActionUtils.createMenuItem(new Action("Clear console", e -> console.setText(""))));
 		
-		console.getControl().setOnContextMenuRequested(e -> popup.show(console.getControl(), e.getScreenX(), e.getScreenY()));
+		console.getRegion().setOnContextMenuRequested(e -> popup.show(console.getRegion(), e.getScreenX(), e.getScreenY()));
 //		console.setPopup(popup);
-
-		splitEditor = new SplitPane();
-		splitEditor.setOrientation(Orientation.VERTICAL);
-		splitEditor.getItems().addAll(
-				panelMainEditor,
-				console.getControl());
-		SplitPane.setResizableWithParent(console.getControl(), Boolean.FALSE);
-		splitEditor.setDividerPosition(0, 0.75);
 		
 		updateIsModified();
 	}
 	
-	SplitPane getSplitEditor() {
-		return splitEditor;
-	}
-	
-	
-	ScriptEditorControl getEditorComponent() {
+	ScriptEditorControl getEditorControl() {
 		return editor;
 	}
 	
@@ -162,7 +146,7 @@ public class ScriptTab {
 		return editor.getText().length() > 0;
 	}
 
-	ScriptEditorControl getConsoleComponent() {
+	ScriptEditorControl getConsoleControl() {
 		return console;
 	}
 

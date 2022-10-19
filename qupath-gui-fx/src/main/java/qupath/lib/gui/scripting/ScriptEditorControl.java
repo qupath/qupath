@@ -29,7 +29,6 @@ import javafx.beans.value.ObservableValue;
 import javafx.scene.control.IndexRange;
 import javafx.scene.layout.Region;
 import qupath.lib.gui.logging.TextAppendable;
-import qupath.lib.scripting.languages.EditableText;
 
 /**
  * Basic script editor control using JavaFX.
@@ -92,7 +91,7 @@ public interface ScriptEditorControl extends TextAppendable, EditableText {
 	 * Get the region representing this control, so it may be added to a scene.
 	 * @return
 	 */
-	public Region getControl();
+	public Region getRegion();
 	
 	/**
 	 * Request undo.

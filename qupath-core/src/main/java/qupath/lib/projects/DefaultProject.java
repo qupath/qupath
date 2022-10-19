@@ -398,10 +398,6 @@ class DefaultProject implements Project<BufferedImage> {
 	}
 	
 	
-	private String EXT_SCRIPT = ".groovy";
-//	private String EXT_OBJECT_CLASSIFIER = ".classifier.pixels.json";
-//	private String EXT_PIXEL_CLASSIFIER = ".classifier.objects.json";
-	
 	Path ensureDirectoryExists(Path path) throws IOException {
 		if (!Files.isDirectory(path))
 			Files.createDirectories(path);

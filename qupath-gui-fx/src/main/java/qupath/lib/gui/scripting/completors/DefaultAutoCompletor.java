@@ -19,11 +19,12 @@
  * #L%
  */
 
-package qupath.lib.gui.scripting.languages;
+package qupath.lib.gui.scripting.completors;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -38,26 +39,25 @@ import qupath.lib.scripting.languages.AutoCompletions.Completion;
 import qupath.lib.scripting.languages.ScriptAutoCompletor;
 
 /**
- * Auto-completor for Groovy code.
+ * Default auto-completor for JVM-based languages, optionally including QuPath default imports.
  * 
  * @author Melvin Gelbard
  * @author Pete Bankhead
  * @since v0.4.0
  */
-public class GroovyAutoCompletor implements ScriptAutoCompletor {
+public class DefaultAutoCompletor implements ScriptAutoCompletor {
 	
-	private static final Logger logger = LoggerFactory.getLogger(GroovyAutoCompletor.class);
+	private static final Logger logger = LoggerFactory.getLogger(DefaultAutoCompletor.class);
 	
-	private static final Set<Completion> ALL_COMPLETIONS = new HashSet<>();
-	
+	private static final Set<Completion> DEFAULT_QUPATH_JAVA_COMPLETIONS = new HashSet<>();
 	
 	static {
 		
 		for (Method method : QPEx.class.getMethods()) {
 			// Exclude deprecated methods (don't want to encourage them...)
 			if (method.getAnnotation(Deprecated.class) == null) {
-				ALL_COMPLETIONS.add(AutoCompletions.createJavaCompletion(method.getDeclaringClass(), method));
-				ALL_COMPLETIONS.add(AutoCompletions.createJavaCompletion(null, method));
+				DEFAULT_QUPATH_JAVA_COMPLETIONS.add(AutoCompletions.createJavaCompletion(method.getDeclaringClass(), method));
+				DEFAULT_QUPATH_JAVA_COMPLETIONS.add(AutoCompletions.createJavaCompletion(null, method));
 			}
 		}
 		
@@ -70,48 +70,64 @@ public class GroovyAutoCompletor implements ScriptAutoCompletor {
 		
 		for (Field field : QPEx.class.getFields()) {
 			if (Modifier.isStatic(field.getModifiers()) && Modifier.isPublic(field.getModifiers())) {
-				ALL_COMPLETIONS.add(AutoCompletions.createJavaCompletion(field.getDeclaringClass(), field));
-				ALL_COMPLETIONS.add(AutoCompletions.createJavaCompletion(null, field));
+				DEFAULT_QUPATH_JAVA_COMPLETIONS.add(AutoCompletions.createJavaCompletion(field.getDeclaringClass(), field));
+				DEFAULT_QUPATH_JAVA_COMPLETIONS.add(AutoCompletions.createJavaCompletion(null, field));
 			}
 		}
 		
 		Set<Class<?>> classesToAdd = new HashSet<>(QPEx.getCoreClasses());
 
 		for (Class<?> cls : classesToAdd) {
-			addStaticMethods(cls);
+			addStaticMethods(cls, DEFAULT_QUPATH_JAVA_COMPLETIONS);
 		}
 		
-		ALL_COMPLETIONS.add(AutoCompletions.createJavaCompletion(null, "print", "print"));
-		ALL_COMPLETIONS.add(AutoCompletions.createJavaCompletion(null, "println", "println"));
 	}
 	
-	static int addStaticMethods(Class<?> cls) {
+	static int addStaticMethods(Class<?> cls, Collection<? super Completion> completions) {
 		int countStatic = 0;
 		for (Method method : cls.getMethods()) {
 			if (Modifier.isStatic(method.getModifiers()) && Modifier.isPublic(method.getModifiers())) {
-				if (ALL_COMPLETIONS.add(AutoCompletions.createJavaCompletion(method.getDeclaringClass(), method)))
+				if (completions.add(AutoCompletions.createJavaCompletion(method.getDeclaringClass(), method)))
 					countStatic++;
 			}
 		}
 		if (countStatic > 0) {
-			ALL_COMPLETIONS.add(AutoCompletions.createJavaCompletion(cls));
+			completions.add(AutoCompletions.createJavaCompletion(cls));
 		}
 		return countStatic;
 	}
 	
 	
+	private final Set<Completion> allCompletions = new HashSet<>();
 	
 	/**
-	 * Empty constructor.
+	 * Constructor.
+	 * @param addQuPathCompletions if true, add standard Java completions for core QuPath classes.
 	 */
-	public GroovyAutoCompletor() {
-		// Empty constructor
+	public DefaultAutoCompletor(boolean addQuPathCompletions) {
+		if (addQuPathCompletions)
+			allCompletions.addAll(DEFAULT_QUPATH_JAVA_COMPLETIONS);
 	}
+	
+	protected void addCompletion(Completion completion) {
+		allCompletions.add(completion);		
+	}
+
+	protected void addCompletions(Completion... completions) {
+		for (var c : completions)
+			addCompletion(c);
+	}
+	
+	protected void addCompletions(Collection<? extends Completion> completions) {
+		for (var c : completions)
+			addCompletion(c);
+	}
+
 	
 	@Override
 	public List<Completion> getCompletions(String text, int pos) {
 		// Precompute all tokens
-		var tokenMap = ALL_COMPLETIONS.stream()
+		var tokenMap = allCompletions.stream()
 				.map(c -> c.getTokenizer())
 				.distinct()
 				.collect(Collectors.toMap(c -> c, c -> c.getToken(text, pos)));
@@ -119,14 +135,14 @@ public class GroovyAutoCompletor implements ScriptAutoCompletor {
 		// Use all available completions if we have a dot included
 		List<Completion> completions;
 		if (text.contains("."))
-			completions = ALL_COMPLETIONS
+			completions = allCompletions
 					.stream()
 					.filter(e -> e.isCompatible(text, pos, tokenMap.getOrDefault(e, null)))
 //					.sorted()
 					.collect(Collectors.toList());
 		else
 			// Use only partial completions (methods, classes) if no dot
-			completions = ALL_COMPLETIONS
+			completions = allCompletions
 			.stream()
 			.filter(s -> s.isCompatible(text, pos, tokenMap.getOrDefault(s, null)) && (!s.getCompletionText().contains(".") || s.getCompletionText().lastIndexOf(".") == s.getCompletionText().length()-1))
 //			.sorted()
@@ -139,7 +155,7 @@ public class GroovyAutoCompletor implements ScriptAutoCompletor {
 			var className = start.substring(0, start.lastIndexOf("."));
 			try {
 				var cls = Class.forName(className);
-				if (addStaticMethods(cls) > 0) {
+				if (addStaticMethods(cls, allCompletions) > 0) {
 					return getCompletions(text, pos);
 				}
 			} catch (Exception e) {

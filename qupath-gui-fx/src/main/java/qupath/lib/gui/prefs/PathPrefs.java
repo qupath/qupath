@@ -839,6 +839,46 @@ public class PathPrefs {
 	}
 	
 	
+	
+	private static int nRecentScripts = 8;
+	private static ObservableList<URI> recentScripts = FXCollections.observableArrayList();
+	
+	static {
+		// Try to load the recent scripts
+		for (int i = 0; i < nRecentScripts; i++) {
+			String project = getUserPreferences().get("recentScript" + i, null);
+			if (project == null || project.length() == 0)
+				break;
+			try {
+				recentScripts.add(GeneralTools.toURI(project));
+			} catch (URISyntaxException e) {
+				logger.warn("Unable to parse URI from " + project, e);
+			}
+		}
+		// Add a listener to keep storing the preferences, as required
+		recentScripts.addListener((Change<? extends URI> c) -> {
+			int i = 0;
+			for (URI project : recentScripts) {
+				getUserPreferences().put("recentScript" + i, project.toString());
+				i++;
+			}
+			while (i < nRecentScripts) {
+				getUserPreferences().put("recentScript" + i, "");
+				i++;
+			}
+		});
+	}
+	
+	/**
+	 * Get a list of the most recent scripts that were opened.
+	 * @return
+	 */
+	public static ObservableList<URI> getRecentScriptsList() {
+		return recentScripts;
+	}
+	
+	
+	
 	private static BooleanProperty invertScrolling = createPersistentPreference("invertScrolling", !GeneralTools.isMac());
 	
 	/**

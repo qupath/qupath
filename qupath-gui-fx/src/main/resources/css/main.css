@@ -2,8 +2,19 @@
  * Some CSS that should be applied in QuPath.
  */
 
-/* Define colors that may be used by script editors */
+/* Define colors that may be used by script editors and log viewers */
 .root {
+
+  -qp-script-error-color: ladder(-qp-script-background-color, red 30%, darkred 50%, red 70%);
+
+  -qp-script-warn-color: ladder(-qp-script-background-color, orange 30%, darkorange 50%, orange 70%);
+
+  -qp-script-info-color: -fx-text-base-color;
+
+  -qp-script-debug-color: ladder(-qp-script-background-color, derive(royalblue, 25%) 49%, derive(royalblue, -5%) 50%);
+
+  -qp-script-trace-color: ladder(-qp-script-background-color, derive(-qp-script-text-color, -30%) 49%, derive(-qp-script-text-color, 30%) 50%);
+
   
   -qp-script-background-color: -fx-background;
   
@@ -25,10 +36,6 @@
 
   -qp-script-comment-color: ladder(-qp-script-background-color, derive(-qp-script-text-color, -30%) 49%, derive(-qp-script-text-color, 30%) 50%);
   
-  -qp-script-error-color: ladder(-qp-script-background-color, red 30%, darkred 50%, red 70%);
-
-  -qp-script-warning-color: ladder(-qp-script-background-color, orange 30%, darkorange 50%, orange 70%);
-
   -qp-script-link-color: ladder(-qp-script-background-color, derive(purple, 25%) 49%, derive(purple, -5%) 50%);
 
   -qp-script-tag-color: ladder(-qp-script-background-color, derive(orange, 25%) 49%, derive(orange, -5%) 50%);

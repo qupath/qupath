@@ -19,18 +19,18 @@
  * #L%
  */
 
-package qupath.lib.gui.scripting.languages;
+package qupath.lib.gui.scripting.syntax;
 
-import qupath.lib.scripting.languages.ScriptSyntax;
+import java.util.Set;
 
 class PlainSyntax implements ScriptSyntax {
 	
-	private static final PlainSyntax INSTANCE = new PlainSyntax();
-	
 	// Empty constructor
-	private PlainSyntax() {}
+	PlainSyntax() {}
 	
-	static PlainSyntax getInstance() {
-		return INSTANCE;
+	@Override
+	public Set<String> getLanguageNames() {
+		return Set.of("text");
 	}
+	
 }

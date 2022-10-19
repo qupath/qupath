@@ -21,11 +21,12 @@
  * #L%
  */
 
-package qupath.lib.gui.scripting.highlighters;
+package qupath.lib.gui.scripting.richtextfx.stylers;
 
 import java.util.Collection;
 import java.util.Collections;
 import java.util.ServiceLoader;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -34,16 +35,16 @@ import org.fxmisc.richtext.model.StyleSpans;
 import org.fxmisc.richtext.model.StyleSpansBuilder;
 
 /**
- * Highlighting to apply to a {@link CodeArea}, based on JSON syntax.
+ * Styling to apply to a {@link CodeArea}, based on JSON syntax.
  * @author Melvin Gelbard
  * @since v0.4.0
  */
-public class JsonHighlighter implements ScriptHighlighter {
+public class JsonStyler implements ScriptStyler {
 	
 	/**
-	 * Instance of this highlighter. Can't be final because of {@link ServiceLoader}.
+	 * Instance of this styler. Can't be final because of {@link ServiceLoader}.
 	 */
-	private static JsonHighlighter INSTANCE;
+	private static JsonStyler INSTANCE;
 
     static final String PAREN_PATTERN = "\\(|\\)";
     static final String BRACE_PATTERN = "\\{|\\}";
@@ -66,31 +67,31 @@ public class JsonHighlighter implements ScriptHighlighter {
 	 * Get the static instance of this class.
 	 * @return instance
 	 */
-	public static ScriptHighlighter getInstance() {
+	public static ScriptStyler getInstance() {
 		return INSTANCE;
 	}
 	
 	/**
-	 * Constructor for a JSON Highlighter. This constructor should never be 
+	 * Constructor for a JSON styler. This constructor should never be 
 	 * called. Instead, use the static {@link #getInstance()} method.
 	 * <p>
 	 * Note: this has to be public for the {@link ServiceLoader} to work.
 	 */
-	public JsonHighlighter() {
+	public JsonStyler() {
 		if (INSTANCE != null)
-			throw new UnsupportedOperationException("Highlighter classes cannot be instantiated more than once!");
+			throw new UnsupportedOperationException("ScriptStyler classes cannot be instantiated more than once!");
 		
 		// Because of ServiceLoader, have to assign INSTANCE here.
-		JsonHighlighter.INSTANCE = this;
+		JsonStyler.INSTANCE = this;
 	}
 	
 	@Override
-	public String getLanguageName() {
-		return "JSON";
+	public Set<String> getLanguageNames() {
+		return Set.of("json");
 	}
 
 	@Override
-	public StyleSpans<Collection<String>> computeEditorHighlighting(String text) {
+	public StyleSpans<Collection<String>> computeEditorStyles(String text) {
 		Matcher matcher = PATTERN.matcher(text);
         int lastKwEnd = 0;
         StyleSpansBuilder<Collection<String>> spansBuilder = new StyleSpansBuilder<>();
@@ -112,8 +113,4 @@ public class JsonHighlighter implements ScriptHighlighter {
         return spansBuilder.create();
 	}
 
-	@Override
-	public StyleSpans<Collection<String>> computeConsoleHighlighting(String text) {
-		return ScriptHighlighter.getPlainStyling(text);
-	}
 }

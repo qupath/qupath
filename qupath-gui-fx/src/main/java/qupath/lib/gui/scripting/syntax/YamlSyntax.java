@@ -19,7 +19,9 @@
  * #L%
  */
 
-package qupath.lib.gui.scripting.languages;
+package qupath.lib.gui.scripting.syntax;
+
+import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,15 +35,10 @@ import org.yaml.snakeyaml.Yaml;
  */
 class YamlSyntax extends GeneralCodeSyntax {
 	
-	private static final YamlSyntax INSTANCE = new YamlSyntax();
 	private static final Logger logger = LoggerFactory.getLogger(YamlSyntax.class);
 		
 	// Empty constructor
-	private YamlSyntax() {}
-	
-	static YamlSyntax getInstance() {
-		return INSTANCE;
-	}
+	YamlSyntax() {}
 	
 	@Override
 	public String getLineCommentString() {
@@ -82,6 +79,11 @@ class YamlSyntax extends GeneralCodeSyntax {
 			logger.warn("Could not compress this YAML text", ex.getLocalizedMessage());
 			return text;
 		}
+	}
+	
+	@Override
+	public Set<String> getLanguageNames() {
+		return Set.of("yaml");
 	}
 	
 }

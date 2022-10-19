@@ -21,60 +21,57 @@
  * #L%
  */
 
-package qupath.lib.gui.scripting.highlighters;
+package qupath.lib.gui.scripting.richtextfx.stylers;
 
 import java.util.Collection;
 import java.util.ServiceLoader;
+import java.util.Set;
 
 import org.fxmisc.richtext.model.StyleSpans;
 
 /**
- * Highlighting for plain text (which means no highlighting).
+ * Styling for plain text (which really means no styling).
  * @author Melvin Gelbard
  * @since v0.4.0
  */
-public class PlainHighlighter implements ScriptHighlighter {
+public class PlainStyler implements ScriptStyler {
 	
 	/**
-	 * Instance of this language. Can't be final because of {@link ServiceLoader}.
+	 * Instance of this styler. Can't be final because of {@link ServiceLoader}.
 	 */
-	private static PlainHighlighter INSTANCE;
+	private static PlainStyler INSTANCE;
 
 	/**
 	 * Get the static instance of this class.
 	 * @return instance
 	 */
-	public static ScriptHighlighter getInstance() {
+	public static ScriptStyler getInstance() {
 		return INSTANCE;
 	}
 	
 	/**
-	 * Constructor for a simple Plain Highlighter (which does nothing). 
+	 * Constructor for a simple plain styler (which does nothing). 
 	 * This constructor should never be called. Instead, use the 
 	 * static {@link #getInstance()} method.
 	 * <p>
 	 * Note: this has to be public for the {@link ServiceLoader} to work.
 	 */
-	public PlainHighlighter() {
+	public PlainStyler() {
 		if (INSTANCE != null)
-			throw new UnsupportedOperationException("Highlighter classes cannot be instantiated more than once!");
+			throw new UnsupportedOperationException("ScriptStyler classes cannot be instantiated more than once!");
 		
 		// Because of ServiceLoader, have to assign INSTANCE here.
-		PlainHighlighter.INSTANCE = this;
+		PlainStyler.INSTANCE = this;
 	}
 	
 	@Override
-	public String getLanguageName() {
-		return "None";
+	public Set<String> getLanguageNames() {
+		return Set.of("none", "text");
 	}
 	
 	@Override
-	public StyleSpans<Collection<String>> computeEditorHighlighting(String text) {
-		return ScriptHighlighter.getPlainStyling(text);
+	public StyleSpans<Collection<String>> computeEditorStyles(String text) {
+		return ScriptStylerProvider.getPlainStyling(text);
 	}
-
-	@Override
-	public StyleSpans<Collection<String>> computeConsoleHighlighting(String text) {
-		return ScriptHighlighter.getPlainStyling(text);
-	}
+	
 }

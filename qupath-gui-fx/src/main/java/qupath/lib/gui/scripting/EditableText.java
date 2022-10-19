@@ -19,7 +19,7 @@
  * #L%
  */
 
-package qupath.lib.scripting.languages;
+package qupath.lib.gui.scripting;
 
 
 /**

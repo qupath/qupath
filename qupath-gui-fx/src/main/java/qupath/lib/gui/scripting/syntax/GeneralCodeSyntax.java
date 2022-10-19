@@ -19,10 +19,9 @@
  * #L%
  */
 
-package qupath.lib.gui.scripting.languages;
+package qupath.lib.gui.scripting.syntax;
 
-import qupath.lib.scripting.languages.EditableText;
-import qupath.lib.scripting.languages.ScriptSyntax;
+import qupath.lib.gui.scripting.EditableText;
 
 /**
  * Abstract class to represent the typical syntaxes found in most programming languages.

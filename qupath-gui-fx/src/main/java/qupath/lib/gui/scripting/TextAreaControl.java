@@ -69,7 +69,7 @@ class TextAreaControl implements ScriptEditorControl {
 	}
 
 	@Override
-	public Control getControl() {
+	public Control getRegion() {
 		return textArea;
 	}
 

@@ -84,7 +84,7 @@ public class CodeAreaControl implements ScriptEditorControl {
 	}
 
 	@Override
-	public Region getControl() {
+	public Region getRegion() {
 		return scrollpane;
 	}
 

@@ -51,14 +51,14 @@ import javafx.stage.Popup;
 import qupath.lib.common.ThreadTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.scripting.DefaultScriptEditor;
+import qupath.lib.gui.scripting.EditableText;
 import qupath.lib.gui.scripting.ScriptEditorControl;
-import qupath.lib.gui.scripting.highlighters.ScriptHighlighter;
-import qupath.lib.gui.scripting.highlighters.ScriptHighlighterProvider;
+import qupath.lib.gui.scripting.richtextfx.stylers.ScriptStyler;
+import qupath.lib.gui.scripting.richtextfx.stylers.ScriptStylerProvider;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.MenuTools;
 import qupath.lib.scripting.languages.AutoCompletions;
 import qupath.lib.scripting.languages.AutoCompletions.Completion;
-import qupath.lib.scripting.languages.EditableText;
 
 /*
  * 
@@ -93,7 +93,7 @@ public class RichScriptEditor extends DefaultScriptEditor {
 	
 	private ExecutorService executor = Executors.newSingleThreadExecutor(ThreadTools.createThreadFactory("rich-text-styling", true));
 	
-	private final ObjectProperty<ScriptHighlighter> scriptHighlighter = new SimpleObjectProperty<>();
+	private final ObjectProperty<ScriptStyler> scriptStyler = new SimpleObjectProperty<>();
 
 	// Delay for async formatting, in milliseconds
 	private static int delayMillis = 20;
@@ -154,7 +154,7 @@ public class RichScriptEditor extends DefaultScriptEditor {
 				if (e.isConsumed())
 					return;
 				
-				var scriptSyntax = getCurrentLanguage().getSyntax();
+				var scriptSyntax = getCurrentSyntax();
 				if (scriptSyntax != null) {
 					if ("(".equals(e.getCharacter())) {
 						scriptSyntax.handleLeftParenthesis(control, smartEditing.get());
@@ -212,7 +212,7 @@ public class RichScriptEditor extends DefaultScriptEditor {
 				if (e.isConsumed())
 					return;
 				
-				var scriptSyntax = getCurrentLanguage().getSyntax();
+				var scriptSyntax = getCurrentSyntax();
 				if (scriptSyntax != null) {
 					if (e.getCode() == KeyCode.TAB) {
 						scriptSyntax.handleTabPress(control, e.isShiftDown());
@@ -268,7 +268,7 @@ public class RichScriptEditor extends DefaultScriptEditor {
 						Task<StyleSpans<Collection<String>>> task = new Task<>() {
 							@Override
 							protected StyleSpans<Collection<String>> call() {
-								return scriptHighlighter.get().computeEditorHighlighting(codeArea.getText());
+								return scriptStyler.get().computeEditorStyles(codeArea.getText());
 							}
 						};
 						executor.execute(task);
@@ -288,10 +288,10 @@ public class RichScriptEditor extends DefaultScriptEditor {
 
 			codeArea.getStylesheets().add(getClass().getClassLoader().getResource("scripting_styles.css").toExternalForm());
 			
-			scriptHighlighter.bind(Bindings.createObjectBinding(() -> ScriptHighlighterProvider.getHighlighterFromLanguage(getCurrentLanguage()), currentLanguageProperty()));
+			scriptStyler.bind(Bindings.createObjectBinding(() -> ScriptStylerProvider.getStylerFromLanguage(getCurrentLanguage()), currentLanguageProperty()));
 			
 			// Triggered whenever the script styling changes (e.g. change of language)
-			scriptHighlighter.addListener((v, o, n) -> {
+			scriptStyler.addListener((v, o, n) -> {
 				if (n == null) {
 					codeArea.setStyle(styleBackground);
 					return;
@@ -301,7 +301,7 @@ public class RichScriptEditor extends DefaultScriptEditor {
 					codeArea.setStyle(styleBackground);
 				else
 					codeArea.setStyle(styleBackground + " " + baseStyle);
-				StyleSpans<Collection<String>> changes = n.computeEditorHighlighting(codeArea.getText());
+				StyleSpans<Collection<String>> changes = n.computeEditorStyles(codeArea.getText());
 				codeArea.setStyleSpans(0, changes);
 				codeArea.requestFocus(); // Seems necessary to trigger the update when switching between scripts
 			});
@@ -346,20 +346,29 @@ public class RichScriptEditor extends DefaultScriptEditor {
 		try {
 			CodeArea codeArea = new CodeArea();
 			codeArea.setStyle(styleBackground);
-			
-			codeArea.richChanges()
-			.successionEnds(Duration.ofMillis(delayMillis))
-			.subscribe(change -> {
+			codeArea.plainTextChanges()
+			.subscribe(c -> {
 				// If anything was removed, do full reformatting
-				if (change.getRemoved().length() != 0 || change.getPosition() == 0) {
-					if (!change.getRemoved().getText().equals(change.getInserted().getText()))
-						codeArea.setStyleSpans(0, scriptHighlighter.get().computeConsoleHighlighting(codeArea.getText()));
-				} else {
-					// Otherwise format only from changed position onwards
-					codeArea.setStyleSpans(change.getPosition(), scriptHighlighter.get().computeConsoleHighlighting(change.getInserted().getText()));
+				// Otherwise, format from the position of the edit
+				int start = Integer.MAX_VALUE;
+				if (!c.getRemoved().isEmpty()) {
+					start = 0;
+				} else
+					start = Math.min(start, c.getPosition());
+				if (start < Integer.MAX_VALUE) {
+					String text = codeArea.getText();
+					// Make sure we return to the last newline
+					while (start > 0 && text.charAt(start) != '\n')
+						start--;
+					
+					if (start > 0) {
+						text = text.substring(start);
+					}
+					codeArea.setStyleSpans(start, scriptStyler.get().computeConsoleStyles(text, sendLogToConsoleProperty().get()));
 				}
 			});
 			codeArea.getStylesheets().add(getClass().getClassLoader().getResource("scripting_styles.css").toExternalForm());
+			codeArea.setEditable(false);
 			return new CodeAreaControl(codeArea);
 		} catch (Exception e) {
 			// Default to superclass implementation

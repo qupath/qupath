@@ -19,7 +19,7 @@
  * #L%
  */
 
-package qupath.lib.gui.scripting.highlighters;
+package qupath.lib.gui.scripting.richtextfx.stylers;
 
 import java.io.StringReader;
 import java.util.ArrayDeque;
@@ -28,6 +28,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Deque;
 import java.util.ServiceLoader;
+import java.util.Set;
 
 import org.fxmisc.richtext.CodeArea;
 import org.fxmisc.richtext.model.StyleSpans;
@@ -38,52 +39,52 @@ import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.events.ScalarEvent;
 
 /**
- * Highlighting to apply to a {@link CodeArea}, based on YAML syntax.
+ * Styling to apply to a {@link CodeArea}, based on YAML syntax.
  * @author Pete Bankhead
  * @since v0.4.0
  */
-public class YamlHighlighter implements ScriptHighlighter {
+public class YamlStyler implements ScriptStyler {
 	
-	private static final Logger logger = LoggerFactory.getLogger(YamlHighlighter.class);
+	private static final Logger logger = LoggerFactory.getLogger(YamlStyler.class);
 	
 	/**
-	 * Instance of this highlighter. Can't be final because of {@link ServiceLoader}.
+	 * Instance of this styler. Can't be final because of {@link ServiceLoader}.
 	 */
-	private static YamlHighlighter INSTANCE;
+	private static YamlStyler INSTANCE;
 	
 	/**
 	 * Get the static instance of this class.
 	 * @return instance
 	 */
-	public static ScriptHighlighter getInstance() {
+	public static ScriptStyler getInstance() {
 		return INSTANCE;
 	}
 	
 	/**
-	 * Constructor for a YAML Highlighter. This constructor should never be 
+	 * Constructor for a YAML styler. This constructor should never be 
 	 * called. Instead, use the static {@link #getInstance()} method.
 	 * <p>
 	 * Note: this has to be public for the {@link ServiceLoader} to work.
 	 */
-	public YamlHighlighter() {
+	public YamlStyler() {
 		if (INSTANCE != null)
-			throw new UnsupportedOperationException("Highlighter classes cannot be instantiated more than once!");
+			throw new UnsupportedOperationException("ScriptStyler classes cannot be instantiated more than once!");
 		
 		// Because of ServiceLoader, have to assign INSTANCE here.
-		YamlHighlighter.INSTANCE = this;
+		YamlStyler.INSTANCE = this;
 	}
 	
 	@Override
-	public String getLanguageName() {
-		return "YAML";
+	public Set<String> getLanguageNames() {
+		return Set.of("yaml");
 	}
 	
 	private static Yaml yaml = new Yaml();
 
-	// TODO: Simplify this if we onlyl handle comments!
-	// Code here for potentially more informative highlighting some day
+	// TODO: Simplify this if we only handle comments?
+	// Code here for potentially more informative styling some day
 	@Override
-	public StyleSpans<Collection<String>> computeEditorHighlighting(String text) {
+	public StyleSpans<Collection<String>> computeEditorStyles(String text) {
 		long startTime = System.currentTimeMillis();
 		
 		var visitor = new StyleSpanVisitor(text);
@@ -148,7 +149,7 @@ public class YamlHighlighter implements ScriptHighlighter {
 		
 		long endTime = System.currentTimeMillis();
 		
-		logger.trace("YAML highlight time: {}", (endTime - startTime));
+		logger.trace("YAML styling time: {}", (endTime - startTime));
         
         return styles;
 	}
@@ -166,11 +167,6 @@ public class YamlHighlighter implements ScriptHighlighter {
 	}
 	
 
-	@Override
-	public StyleSpans<Collection<String>> computeConsoleHighlighting(String text) {
-		return ScriptHighlighter.getPlainStyling(text);
-	}
-	
 	static class StyleSpanVisitor {
 
 		private String text;

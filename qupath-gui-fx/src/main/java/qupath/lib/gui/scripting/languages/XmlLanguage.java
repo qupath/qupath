@@ -26,7 +26,6 @@ import java.util.ServiceLoader;
 
 import qupath.lib.scripting.languages.ScriptAutoCompletor;
 import qupath.lib.scripting.languages.ScriptLanguage;
-import qupath.lib.scripting.languages.ScriptSyntax;
 
 /**
  * Class for representing XML in QuPath.
@@ -63,11 +62,6 @@ public class XmlLanguage extends ScriptLanguage {
 	 */
 	public static XmlLanguage getInstance() {
 		return INSTANCE;
-	}
-
-	@Override
-	public ScriptSyntax getSyntax() {
-		return XmlSyntax.getInstance();
 	}
 
 	@Override

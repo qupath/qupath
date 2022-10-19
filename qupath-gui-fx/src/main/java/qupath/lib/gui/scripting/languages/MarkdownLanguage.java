@@ -32,7 +32,6 @@ import org.commonmark.renderer.html.HtmlRenderer;
 import qupath.lib.scripting.ScriptParameters;
 import qupath.lib.scripting.languages.ScriptAutoCompletor;
 import qupath.lib.scripting.languages.ScriptLanguage;
-import qupath.lib.scripting.languages.ScriptSyntax;
 
 /**
  * Class for the representation of JSON syntax in QuPath.
@@ -49,7 +48,6 @@ public class MarkdownLanguage extends ScriptLanguage implements qupath.lib.gui.s
 	 */
 	private static MarkdownLanguage INSTANCE;
 	
-	private ScriptSyntax syntax;
 	private ScriptAutoCompletor completor = null;
 	
 	/**
@@ -60,7 +58,6 @@ public class MarkdownLanguage extends ScriptLanguage implements qupath.lib.gui.s
 	 */
 	public MarkdownLanguage() {
 		super("Markdown", Set.of(".md", ".markdown"));
-		this.syntax = PlainSyntax.getInstance();
 		
 		if (INSTANCE != null)
 			throw new UnsupportedOperationException("Language classes cannot be instantiated more than once!");
@@ -75,11 +72,6 @@ public class MarkdownLanguage extends ScriptLanguage implements qupath.lib.gui.s
 	 */
 	public static MarkdownLanguage getInstance() {
 		return INSTANCE;
-	}
-	
-	@Override
-	public ScriptSyntax getSyntax() {
-		return syntax;
 	}
 
 	@Override

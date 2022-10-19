@@ -19,7 +19,9 @@
  * #L%
  */
 
-package qupath.lib.gui.scripting.languages;
+package qupath.lib.gui.scripting.syntax;
+
+import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,8 +30,8 @@ import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonSyntaxException;
 
+import qupath.lib.gui.scripting.EditableText;
 import qupath.lib.io.GsonTools;
-import qupath.lib.scripting.languages.EditableText;
 
 /**
  * Class that takes care of JSON syntax.
@@ -38,18 +40,13 @@ import qupath.lib.scripting.languages.EditableText;
  */
 class JsonSyntax extends GeneralCodeSyntax {
 	
-	private static final JsonSyntax INSTANCE = new JsonSyntax();
 	private static final Logger logger = LoggerFactory.getLogger(JsonSyntax.class);
 	
 	private static final Gson gson = GsonTools.getInstance(true);
 	private static final Gson gsonCompress = GsonTools.getInstance(false);
 	
 	// Empty constructor
-	private JsonSyntax() {}
-	
-	static JsonSyntax getInstance() {
-		return INSTANCE;
-	}
+	JsonSyntax() {}
 	
 	/**
 	 * JSON does not support comments. Therefore this method does nothing.
@@ -87,6 +84,11 @@ class JsonSyntax extends GeneralCodeSyntax {
 			logger.warn("Could not compress this JSON text", ex.getLocalizedMessage());
 			return text;
 		}
+	}
+
+	@Override
+	public Set<String> getLanguageNames() {
+		return Set.of("json");
 	}
 	
 }
