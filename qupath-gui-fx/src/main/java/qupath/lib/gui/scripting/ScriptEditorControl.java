@@ -29,7 +29,6 @@ import javafx.beans.value.ObservableValue;
 import javafx.scene.control.IndexRange;
 import javafx.scene.layout.Region;
 import qupath.lib.gui.logging.TextAppendable;
-import qupath.lib.scripting.languages.EditableText;
 
 /**
  * Basic script editor control using JavaFX.

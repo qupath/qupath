@@ -19,9 +19,11 @@
  * #L%
  */
 
-package qupath.lib.scripting.languages;
+package qupath.lib.gui.scripting.syntax;
 
 import java.util.Set;
+
+import qupath.lib.gui.scripting.EditableText;
 
 /**
  * Interface for classes that apply some syntax formatting to an {@link EditableText}.

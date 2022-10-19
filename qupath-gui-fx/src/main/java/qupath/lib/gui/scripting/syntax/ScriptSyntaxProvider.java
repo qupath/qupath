@@ -28,8 +28,6 @@ import java.util.ServiceLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.lib.scripting.languages.ScriptSyntax;
-
 /**
  * Class with static methods to fetch all the available {@linkplain ScriptSyntax ScriptSyntaxes}.
  * 

@@ -51,6 +51,7 @@ import javafx.stage.Popup;
 import qupath.lib.common.ThreadTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.scripting.DefaultScriptEditor;
+import qupath.lib.gui.scripting.EditableText;
 import qupath.lib.gui.scripting.ScriptEditorControl;
 import qupath.lib.gui.scripting.richtextfx.stylers.ScriptStyler;
 import qupath.lib.gui.scripting.richtextfx.stylers.ScriptStylerProvider;
@@ -58,7 +59,6 @@ import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.MenuTools;
 import qupath.lib.scripting.languages.AutoCompletions;
 import qupath.lib.scripting.languages.AutoCompletions.Completion;
-import qupath.lib.scripting.languages.EditableText;
 
 /*
  * 

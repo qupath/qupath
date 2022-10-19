@@ -23,8 +23,6 @@ package qupath.lib.gui.scripting.syntax;
 
 import java.util.Set;
 
-import qupath.lib.scripting.languages.ScriptSyntax;
-
 class PlainSyntax implements ScriptSyntax {
 	
 	// Empty constructor

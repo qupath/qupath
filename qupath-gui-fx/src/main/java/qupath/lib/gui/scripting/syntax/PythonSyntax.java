@@ -24,7 +24,7 @@ package qupath.lib.gui.scripting.syntax;
 
 import java.util.Set;
 
-import qupath.lib.scripting.languages.EditableText;
+import qupath.lib.gui.scripting.EditableText;
 
 class PythonSyntax extends GeneralCodeSyntax {
 	
