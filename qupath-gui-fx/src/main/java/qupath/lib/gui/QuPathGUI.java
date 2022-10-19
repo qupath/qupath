@@ -100,7 +100,6 @@ import javafx.collections.ObservableList;
 import javafx.embed.swing.JFXPanel;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.event.ActionEvent;
-import javafx.event.Event;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
@@ -2174,6 +2173,27 @@ public class QuPathGUI {
 	
 	
 	
+	
+	private Menu createRecentProjectsMenu() {
+		
+		// Create a recent projects list in the File menu
+		ObservableList<URI> recentProjects = PathPrefs.getRecentProjectList();
+		Menu menuRecent = GuiTools.createRecentItemsMenu("Recent projects...", recentProjects, uri -> {
+			Project<BufferedImage> project;
+			try {
+				project = ProjectIO.loadProject(uri, BufferedImage.class);
+				setProject(project);
+			} catch (Exception e1) {
+				Dialogs.showErrorMessage("Project error", "Cannot find project " + uri);
+				logger.error("Error loading project", e1);
+			}
+		}, Project::getNameFromURI);
+		
+		return menuRecent;
+	}
+	
+	
+	
 	private BorderPane initializeMainComponent() {
 		
 		pane = new BorderPane();
@@ -3657,45 +3677,6 @@ public class QuPathGUI {
 		poolMultipleThreads.submit(runnable);
 	}
 	
-	
-	private Menu createRecentProjectsMenu() {
-		
-		// Create a recent projects list in the File menu
-		ObservableList<URI> recentProjects = PathPrefs.getRecentProjectList();
-		Menu menuRecent = MenuTools.createMenu("Recent projects...");
-		
-		EventHandler<Event> validationHandler = e -> {
-			menuRecent.getItems().clear();
-			for (URI uri : recentProjects) {
-				if (uri == null)
-					continue;
-				String name = Project.getNameFromURI(uri);
-				name = ".../" + name;
-				MenuItem item = new MenuItem(name);
-				item.setOnAction(e2 -> {
-					Project<BufferedImage> project;
-					try {
-						project = ProjectIO.loadProject(uri, BufferedImage.class);
-						setProject(project);
-					} catch (Exception e1) {
-						Dialogs.showErrorMessage("Project error", "Cannot find project " + uri);
-						logger.error("Error loading project", e1);
-					}
-				});
-				menuRecent.getItems().add(item);
-			}
-		};
-		
-		// Ensure the menu is populated
-		menuRecent.parentMenuProperty().addListener((v, o, n) -> {
-			if (o != null && o.getOnMenuValidation() == validationHandler)
-				o.setOnMenuValidation(null);
-			if (n != null)
-				n.setOnMenuValidation(validationHandler);
-		});
-		
-		return menuRecent;
-	}
 	
 	
 	

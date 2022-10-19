@@ -28,6 +28,8 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.Writer;
+import java.net.URI;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -59,6 +61,7 @@ import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableBooleanValue;
 import javafx.beans.value.ObservableValue;
+import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
 import javafx.event.ActionEvent;
 import javafx.geometry.Orientation;
@@ -105,6 +108,7 @@ import qupath.lib.gui.scripting.languages.HtmlRenderer;
 import qupath.lib.gui.scripting.languages.PlainLanguage;
 import qupath.lib.gui.scripting.languages.ScriptLanguageProvider;
 import qupath.lib.gui.scripting.syntax.ScriptSyntaxProvider;
+import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.MenuTools;
 import qupath.lib.gui.tools.WebViews;
 import qupath.lib.images.ImageData;
@@ -279,6 +283,19 @@ public class DefaultScriptEditor implements ScriptEditor {
 			if (n == null || n.getLanguage() == null)
 				return;
 			setToggle(n.getLanguage());
+			// Update recent scripts if needed
+			var file = n.getFile();
+			if (file != null) {
+				var uri = file.toURI();
+				var list = PathPrefs.getRecentScriptsList();
+				if (list.contains(uri)) {
+					if (!uri.equals(list.get(0))) {
+						list.remove(uri);
+						list.add(0, uri);
+					}
+				} else
+					list.add(0, uri);
+			}
 		});
 	}
 	
@@ -561,6 +578,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 				menuFile,
 				createNewAction("New"),
 				createOpenAction("Open..."),
+				createRecentScriptsMenu(),
 				null,
 				createSaveAction("Save", false),
 				createSaveAction("Save As...", true),
@@ -931,6 +949,32 @@ public class DefaultScriptEditor implements ScriptEditor {
 				Platform.runLater(() -> LogManager.removeTextAppendableFX(console));	
 		}
 	}
+	
+	
+	
+	
+	private Menu createRecentScriptsMenu() {
+		
+		// Create a recent projects list in the File menu
+		ObservableList<URI> recentScripts = PathPrefs.getRecentScriptsList();
+		Menu menuRecent = GuiTools.createRecentItemsMenu("Recent scripts...", recentScripts, uri -> {
+			try {
+				var path = GeneralTools.toPath(uri);
+				if (path != null && Files.isRegularFile(path)) {
+					showScript(path.toFile());
+				} else {
+					Dialogs.showErrorMessage("Open script", "No script found for " + path);
+				}
+			} catch (Exception e1) {
+				Dialogs.showErrorMessage("Open script", "Cannot load script " + uri);
+				logger.error("Error loading script", e1);
+			}
+		});
+		
+		return menuRecent;
+	}
+	
+	
 	
 	
 	private static Stage stageHtml;

@@ -19,7 +19,7 @@ task mergedJavadocs(type: Javadoc,
 	options.addStringOption('Xdoclint:none', '-quiet')
 
 	options.links 'https://docs.oracle.com/en/java/javase/11/docs/api/'
-	options.links 'https://openjfx.io/javadoc/18/'
+	options.links 'https://openjfx.io/javadoc/19/'
 	options.links 'https://javadoc.io/doc/org.bytedeco/javacpp/1.5.7/'
 	options.links 'https://javadoc.io/doc/org.bytedeco/opencv/4.5.5-1.5.7/'
 	options.links 'https://javadoc.io/doc/com.google.code.gson/gson/2.9.0/'

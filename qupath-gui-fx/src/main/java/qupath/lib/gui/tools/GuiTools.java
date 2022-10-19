@@ -40,6 +40,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.UnaryOperator;
 import java.util.regex.Matcher;
@@ -64,9 +65,12 @@ import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableValue;
+import javafx.collections.ObservableList;
 import javafx.css.StyleOrigin;
 import javafx.css.StyleableObjectProperty;
 import javafx.embed.swing.SwingFXUtils;
+import javafx.event.Event;
+import javafx.event.EventHandler;
 import javafx.geometry.Side;
 import javafx.scene.Node;
 import javafx.scene.Scene;
@@ -1453,6 +1457,75 @@ public class GuiTools {
 		}, value);
 	}
 
+	
+	
+	
+	private static String getNameFromURI(URI uri) {
+		if (uri == null)
+			return "No URI";
+			
+		String[] path = uri.getPath().split("/");
+		if (path.length == 0)
+			return "";
+		String name = path[path.length-1];
+		// Strip extension if we have one
+		if (path.length == 1)
+			return name;
+		return path[path.length-2] + "/" + name;
+	}
+	
+	
+	/**
+	 * Create a menu that displays recent items, stored in the form of URIs, using default text to show for the menu item.
+	 * 
+	 * @param menuTitle
+	 * @param recentItems
+	 * @param consumer
+	 * @return
+	 */
+	public static Menu createRecentItemsMenu(String menuTitle, ObservableList<URI> recentItems, Consumer<URI> consumer) {
+		return createRecentItemsMenu(menuTitle, recentItems, consumer, GuiTools::getNameFromURI);
+	}
+	
+	
+	/**
+	 * Create a menu that displays recent items, stored in the form of URIs, customizing the text displayed for the menu items.
+	 * 
+	 * @param menuTitle
+	 * @param recentItems
+	 * @param consumer
+	 * @param menuitemText 
+	 * @return
+	 */
+	public static Menu createRecentItemsMenu(String menuTitle, ObservableList<URI> recentItems, Consumer<URI> consumer, Function<URI, String> menuitemText) {
+		// Create a recent projects list in the File menu
+		Menu menuRecent = MenuTools.createMenu(menuTitle);
+
+		EventHandler<Event> validationHandler = e -> {
+			menuRecent.getItems().clear();
+			for (URI uri : recentItems) {
+				if (uri == null)
+					continue;
+				String name = getNameFromURI(uri);
+				name = ".../" + name;
+				MenuItem item = new MenuItem(name);
+				item.setOnAction(event -> consumer.accept(uri));
+				menuRecent.getItems().add(item);
+			}
+		};
+
+		// Ensure the menu is populated
+		menuRecent.parentMenuProperty().addListener((v, o, n) -> {
+			if (o != null && o.getOnMenuValidation() == validationHandler)
+				o.setOnMenuValidation(null);
+			if (n != null)
+				n.setOnMenuValidation(validationHandler);
+		});
+
+		return menuRecent;
+
+	}
+	
 	
 	
 	private static final String KEY_REGIONS = "processRegions";
