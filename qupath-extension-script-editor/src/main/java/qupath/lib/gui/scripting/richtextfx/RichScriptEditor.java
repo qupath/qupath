@@ -52,8 +52,8 @@ import qupath.lib.common.ThreadTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.scripting.DefaultScriptEditor;
 import qupath.lib.gui.scripting.ScriptEditorControl;
-import qupath.lib.gui.scripting.highlighters.ScriptHighlighter;
-import qupath.lib.gui.scripting.highlighters.ScriptHighlighterProvider;
+import qupath.lib.gui.scripting.richtextfx.stylers.ScriptStyler;
+import qupath.lib.gui.scripting.richtextfx.stylers.ScriptStylerProvider;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.MenuTools;
 import qupath.lib.scripting.languages.AutoCompletions;
@@ -93,7 +93,7 @@ public class RichScriptEditor extends DefaultScriptEditor {
 	
 	private ExecutorService executor = Executors.newSingleThreadExecutor(ThreadTools.createThreadFactory("rich-text-styling", true));
 	
-	private final ObjectProperty<ScriptHighlighter> scriptHighlighter = new SimpleObjectProperty<>();
+	private final ObjectProperty<ScriptStyler> scriptStyler = new SimpleObjectProperty<>();
 
 	// Delay for async formatting, in milliseconds
 	private static int delayMillis = 20;
@@ -268,7 +268,7 @@ public class RichScriptEditor extends DefaultScriptEditor {
 						Task<StyleSpans<Collection<String>>> task = new Task<>() {
 							@Override
 							protected StyleSpans<Collection<String>> call() {
-								return scriptHighlighter.get().computeEditorHighlighting(codeArea.getText());
+								return scriptStyler.get().computeEditorStyles(codeArea.getText());
 							}
 						};
 						executor.execute(task);
@@ -288,10 +288,10 @@ public class RichScriptEditor extends DefaultScriptEditor {
 
 			codeArea.getStylesheets().add(getClass().getClassLoader().getResource("scripting_styles.css").toExternalForm());
 			
-			scriptHighlighter.bind(Bindings.createObjectBinding(() -> ScriptHighlighterProvider.getHighlighterFromLanguage(getCurrentLanguage()), currentLanguageProperty()));
+			scriptStyler.bind(Bindings.createObjectBinding(() -> ScriptStylerProvider.getStylerFromLanguage(getCurrentLanguage()), currentLanguageProperty()));
 			
 			// Triggered whenever the script styling changes (e.g. change of language)
-			scriptHighlighter.addListener((v, o, n) -> {
+			scriptStyler.addListener((v, o, n) -> {
 				if (n == null) {
 					codeArea.setStyle(styleBackground);
 					return;
@@ -301,7 +301,7 @@ public class RichScriptEditor extends DefaultScriptEditor {
 					codeArea.setStyle(styleBackground);
 				else
 					codeArea.setStyle(styleBackground + " " + baseStyle);
-				StyleSpans<Collection<String>> changes = n.computeEditorHighlighting(codeArea.getText());
+				StyleSpans<Collection<String>> changes = n.computeEditorStyles(codeArea.getText());
 				codeArea.setStyleSpans(0, changes);
 				codeArea.requestFocus(); // Seems necessary to trigger the update when switching between scripts
 			});
@@ -364,7 +364,7 @@ public class RichScriptEditor extends DefaultScriptEditor {
 					if (start > 0)
 						text = text.substring(start);
 //					System.err.println("REFORMATING: " + start + " (changes=" + change.size() + ")");
-					codeArea.setStyleSpans(start, scriptHighlighter.get().computeConsoleHighlighting(text, sendLogToConsoleProperty().get()));
+					codeArea.setStyleSpans(start, scriptStyler.get().computeConsoleStyles(text, sendLogToConsoleProperty().get()));
 				}
 			});
 			codeArea.getStylesheets().add(getClass().getClassLoader().getResource("scripting_styles.css").toExternalForm());

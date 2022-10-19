@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.lib.gui.scripting.highlighters;
+package qupath.lib.gui.scripting.richtextfx.stylers;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -40,52 +40,52 @@ import org.fxmisc.richtext.model.StyleSpansBuilder;
 import qupath.lib.scripting.languages.ScriptLanguage;
 
 /**
- * Class with static methods to fetch all the available {@link ScriptHighlighter}s.
+ * Class with static methods to fetch all the available {@link ScriptStyler}s.
  * @author Melvin Gelbard
  * @since v0.4.0
  */
-public class ScriptHighlighterProvider {
+public class ScriptStylerProvider {
 	
-	private static ServiceLoader<ScriptHighlighter> serviceLoader = ServiceLoader.load(ScriptHighlighter.class);
+	private static ServiceLoader<ScriptStyler> serviceLoader = ServiceLoader.load(ScriptStyler.class);
 	
 	/**
-	 * Get all the currently installed {@link ScriptHighlighter}s in a list.
-	 * @return list of installed highlighters
+	 * Get all the currently installed {@link ScriptStyler}s in a list.
+	 * @return list of installed stylers
 	 */
-	public static List<ScriptHighlighter> getInstalledScriptHighlighters() {
-		List<ScriptHighlighter> highlighters = new ArrayList<>();
+	public static List<ScriptStyler> getInstalledStylers() {
+		List<ScriptStyler> stylers = new ArrayList<>();
 		synchronized (serviceLoader) {
-			for (ScriptHighlighter h : serviceLoader) {
-				highlighters.add(h);
+			for (ScriptStyler s : serviceLoader) {
+				stylers.add(s);
 			}
 		}
-		return highlighters;
+		return stylers;
 	}
 
 	/**
-	 * Get the {@link ScriptHighlighter} object corresponding to the specified {@link ScriptLanguage}. 
-	 * If the language cannot be matched, {@link PlainHighlighter} is returned.
+	 * Get the {@link ScriptStyler} object corresponding to the specified {@link ScriptLanguage}. 
+	 * If the language cannot be matched, {@link PlainStyler} is returned.
 	 * @param language
-	 * @return corresponding highlighter, or {@link PlainHighlighter} if no match.
+	 * @return corresponding stylers, or {@link PlainStyler} if no match.
 	 */
-	public static ScriptHighlighter getHighlighterFromLanguage(ScriptLanguage language) {
+	public static ScriptStyler getStylerFromLanguage(ScriptLanguage language) {
 		String name = language.getName().toLowerCase();
 		synchronized (serviceLoader) {
-			for (ScriptHighlighter h : serviceLoader) {
-				for (var supported : h.getLanguageNames()) {
+			for (ScriptStyler s : serviceLoader) {
+				for (var supported : s.getLanguageNames()) {
 					if (name.equalsIgnoreCase(supported))
-						return h;
+						return s;
 				}
 			}
 		}
-		return PlainHighlighter.getInstance();
+		return PlainStyler.getInstance();
 	}
 	
 	
 	
 	/**
 	 * Get simple styling that does not apply any classes.
-	 * @param text the text to process highlighting for
+	 * @param text the text to process styling for
 	 * @return
 	 */
 	static StyleSpans<Collection<String>> getPlainStyling(String text) {
@@ -99,7 +99,7 @@ public class ScriptHighlighterProvider {
 	
 	/**
 	 * Get styling for use with a logger.
-	 * @param text the text to process highlighting for
+	 * @param text the text to process styling for
 	 * @return
 	 */
 	static StyleSpans<Collection<String>> getLogStyling(String text) {

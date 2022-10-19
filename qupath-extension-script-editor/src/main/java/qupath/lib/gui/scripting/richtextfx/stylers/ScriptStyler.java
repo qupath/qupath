@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.lib.gui.scripting.highlighters;
+package qupath.lib.gui.scripting.richtextfx.stylers;
 
 import java.util.Collection;
 import java.util.Set;
@@ -31,17 +31,18 @@ import org.fxmisc.richtext.model.StyleSpans;
 import qupath.lib.scripting.languages.ScriptLanguage;
 
 /**
- * Interface for classes that apply some highlighting to a RichTextFX's {@link CodeArea}.
+ * Interface for classes that apply some styling to a RichTextFX's {@link CodeArea}.
  * @author Melvin Gelbard
+ * @author Pete Bankhead
  * @since v0.4.0
  */
-public interface ScriptHighlighter {
+public interface ScriptStyler {
 	
 	
 	/**
 	 * Get a set of the scripting languages supported by this styler.
 	 * <p>
-	 * Note: One of the names returned by this method must match <b>exactly</b> (but case-insensitve) 
+	 * Note: One of the names returned by this method must match <b>exactly</b> (but case-insensitive) 
 	 * that of the corresponding {@link ScriptLanguage} for QuPath to automatically apply it to the script editor 
 	 * when needed.
 	 * @return
@@ -49,23 +50,23 @@ public interface ScriptHighlighter {
 	Set<String> getLanguageNames();
 
 	/**
-	 * Compute highlighting for the specified {@code text}, considering it will be used in the main editor..
-	 * @param text 			the text to process highlighting for
+	 * Compute styling for the specified {@code text}, considering it will be used in the main editor.
+	 * @param text 			the text to process styling for
 	 * @return 				stylespans 	the {@link StyleSpans} to apply
 	 */
-	StyleSpans<Collection<String>> computeEditorHighlighting(final String text);
+	StyleSpans<Collection<String>> computeEditorStyles(final String text);
 	
 	
 	/**
-	 * Compute highlighting for the specified {@code text}, considering it will be used in the console.
-	 * @param 				text the text to process highlighting for
+	 * Compute styling for the specified {@code text}, considering it will be used in the console.
+	 * @param 				text the text to process styling for
 	 * @param logConsole if true, the console prints to the log rather than directly
 	 * @return 				stylespans 	the {@link StyleSpans} to apply
 	 */
-	default StyleSpans<Collection<String>> computeConsoleHighlighting(final String text, boolean logConsole) {
+	default StyleSpans<Collection<String>> computeConsoleStyles(final String text, boolean logConsole) {
 		if (logConsole)
-			return ScriptHighlighterProvider.getLogStyling(text);
-		return ScriptHighlighterProvider.getPlainStyling(text);
+			return ScriptStylerProvider.getLogStyling(text);
+		return ScriptStylerProvider.getPlainStyling(text);
 	}
 	
 

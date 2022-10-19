@@ -19,7 +19,7 @@
  * #L%
  */
 
-package qupath.lib.gui.scripting.highlighters;
+package qupath.lib.gui.scripting.richtextfx.stylers;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -34,7 +34,7 @@ import org.fxmisc.richtext.model.StyleSpans;
 import org.fxmisc.richtext.model.StyleSpansBuilder;
 
 /**
- * Highlighting to apply to a {@link CodeArea} for XML.
+ * Styling to apply to a {@link CodeArea} for XML.
  * <p>
  * This is based on {@code XMLEditorDemo.java} from RichTextFX, available at 
  * https://github.com/FXMisc/RichTextFX/blob/master/richtextfx-demos/src/main/java/org/fxmisc/richtext/demo/XMLEditorDemo.java
@@ -64,12 +64,12 @@ import org.fxmisc.richtext.model.StyleSpansBuilder;
  * @author Pete Bankhead
  * @since v0.4.0
  */
-public class XmlHighlighter implements ScriptHighlighter {
+public class XmlStyler implements ScriptStyler {
 	
 	/**
-	 * Instance of this highlighter. Can't be final because of {@link ServiceLoader}.
+	 * Instance of this styler. Can't be final because of {@link ServiceLoader}.
 	 */
-	private static XmlHighlighter INSTANCE;
+	private static XmlStyler INSTANCE;
 
 	private static final Pattern XML_TAG = Pattern.compile("(?<ELEMENT>(</?\\h*)(\\w+)([^<>]*)(\\h*/?>))"
     		+"|(?<COMMENT><!--(.|\\v)+?-->)");
@@ -89,22 +89,22 @@ public class XmlHighlighter implements ScriptHighlighter {
 	 * Get the static instance of this class.
 	 * @return instance
 	 */
-	public static ScriptHighlighter getInstance() {
+	public static ScriptStyler getInstance() {
 		return INSTANCE;
 	}
 	
 	/**
-	 * Constructor for a JSON Highlighter. This constructor should never be 
+	 * Constructor for an XML styler. This constructor should never be 
 	 * called. Instead, use the static {@link #getInstance()} method.
 	 * <p>
 	 * Note: this has to be public for the {@link ServiceLoader} to work.
 	 */
-	public XmlHighlighter() {
+	public XmlStyler() {
 		if (INSTANCE != null)
-			throw new UnsupportedOperationException("Highlighter classes cannot be instantiated more than once!");
+			throw new UnsupportedOperationException("ScriptStyler classes cannot be instantiated more than once!");
 		
 		// Because of ServiceLoader, have to assign INSTANCE here.
-		XmlHighlighter.INSTANCE = this;
+		XmlStyler.INSTANCE = this;
 	}
 	
 	@Override
@@ -113,12 +113,12 @@ public class XmlHighlighter implements ScriptHighlighter {
 	}
 
 	@Override
-	public StyleSpans<Collection<String>> computeEditorHighlighting(String text) {
-		return computeHighlighting(text);
+	public StyleSpans<Collection<String>> computeEditorStyles(String text) {
+		return computeStyling(text);
 	}
 
 	
-	private static StyleSpans<Collection<String>> computeHighlighting(String text) {
+	private static StyleSpans<Collection<String>> computeStyling(String text) {
     	
         Matcher matcher = XML_TAG.matcher(text);
         int lastKwEnd = 0;

@@ -19,7 +19,7 @@
  * #L%
  */
 
-package qupath.lib.gui.scripting.highlighters;
+package qupath.lib.gui.scripting.richtextfx.stylers;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -56,39 +56,39 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Highlighting to apply to a {@link CodeArea}, based on Markdown syntax.
+ * Styling to apply to a {@link CodeArea}, based on Markdown syntax.
  * @author Pete Bankhead
  * @since v0.4.0
  */
-public class MarkdownHighlighter implements ScriptHighlighter {
+public class MarkdownStyler implements ScriptStyler {
 	
-	private static final Logger logger = LoggerFactory.getLogger(MarkdownHighlighter.class);
+	private static final Logger logger = LoggerFactory.getLogger(MarkdownStyler.class);
 	
 	/**
-	 * Instance of this highlighter. Can't be final because of {@link ServiceLoader}.
+	 * Instance of this styler. Can't be final because of {@link ServiceLoader}.
 	 */
-	private static MarkdownHighlighter INSTANCE;
+	private static MarkdownStyler INSTANCE;
 	
 	/**
 	 * Get the static instance of this class.
 	 * @return instance
 	 */
-	public static ScriptHighlighter getInstance() {
+	public static ScriptStyler getInstance() {
 		return INSTANCE;
 	}
 	
 	/**
-	 * Constructor for a Markdown Highlighter. This constructor should never be 
+	 * Constructor for a Markdown styler. This constructor should never be 
 	 * called. Instead, use the static {@link #getInstance()} method.
 	 * <p>
 	 * Note: this has to be public for the {@link ServiceLoader} to work.
 	 */
-	public MarkdownHighlighter() {
+	public MarkdownStyler() {
 		if (INSTANCE != null)
-			throw new UnsupportedOperationException("Highlighter classes cannot be instantiated more than once!");
+			throw new UnsupportedOperationException("ScriptStyler classes cannot be instantiated more than once!");
 		
 		// Because of ServiceLoader, have to assign INSTANCE here.
-		MarkdownHighlighter.INSTANCE = this;
+		MarkdownStyler.INSTANCE = this;
 	}
 	
 	@Override
@@ -109,7 +109,7 @@ public class MarkdownHighlighter implements ScriptHighlighter {
 			.build();
 
 	@Override
-	public StyleSpans<Collection<String>> computeEditorHighlighting(String text) {
+	public StyleSpans<Collection<String>> computeEditorStyles(String text) {
 		
 		long startTime = System.currentTimeMillis();
 		var doc = parser.parse(text);
@@ -119,7 +119,7 @@ public class MarkdownHighlighter implements ScriptHighlighter {
 		
 		long endTime = System.currentTimeMillis();
 		
-		logger.trace("Markdown highlight time: {}", (endTime - startTime));
+		logger.trace("Markdown styling time: {}", (endTime - startTime));
         
         return styles;
 	}

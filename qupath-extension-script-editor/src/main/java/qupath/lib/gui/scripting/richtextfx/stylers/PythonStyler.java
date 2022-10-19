@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.lib.gui.scripting.highlighters;
+package qupath.lib.gui.scripting.richtextfx.stylers;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -35,37 +35,37 @@ import org.fxmisc.richtext.model.StyleSpans;
 import org.fxmisc.richtext.model.StyleSpansBuilder;
 
 /**
- * Highlighting to apply to a {@link CodeArea}, based on Groovy syntax.
- * @author Melvin Gelbard
+ * Styling to apply to a {@link CodeArea}, based on Python syntax.
+ * @author Pete Bankhead
  * @since v0.4.0
  */
-public class GroovyHighlighter implements ScriptHighlighter {
+public class PythonStyler implements ScriptStyler {
 	
 	/**
-	 * Instance of this highlighter. Can't be final because of {@link ServiceLoader}.
+	 * Instance of this styler. Can't be final because of {@link ServiceLoader}.
 	 */
-	private static GroovyHighlighter INSTANCE;
+	private static PythonStyler INSTANCE;
 	
+	/**
+	 * Can be generated from Python with
+	 * <pre>{@code 
+	 * import keyword
+	 * print(", ".join([f'"{kw}"' for kw in sorted(keyword.kwlist)]))
+	 * }</pre>
+	 */
 	private static final String[] KEYWORDS = new String[] {
-            "abstract", "assert", "boolean", "break", "byte",
-            "case", "catch", "char", "class", "const",
-            "continue", "default", "do", "double", "else",
-            "enum", "extends", "final", "finally", "float",
-            "for", "goto", "if", "implements", "import",
-            "instanceof", "int", "interface", "long", "native",
-            "new", "null", "package", "private", "protected", "public",
-            "return", "short", "static", "strictfp", "super",
-            "switch", "synchronized", "this", "throw", "throws",
-            "transient", "try", "void", "volatile", "while",
-            "def", "in", "with", "trait", "true", "false", "var"
+			"False", "None", "True", "and", "as", "assert", "async", 
+			"await", "break", "class", "continue", "def", "del", 
+			"elif", "else", "except", "finally", "for", "from",
+			"global", "if", "import", "in", "is", "lambda", 
+			"nonlocal", "not", "or", "pass", "raise", 
+			"return", "try", "while", "with", "yield"
     };
 	
 	private static Pattern PATTERN;
 	
 	static {
 		final String KEYWORD_PATTERN = "\\b(" + String.join("|", KEYWORDS) + ")\\b";
-//		final String METHOD_PATTERN = "[a-zA-Z]+\\(";
-//		final String METHOD_PATTERN = "\\b(" + String.join("|", METHOD_NAMES) + ")\\b";
 	    final String PAREN_PATTERN = "\\(|\\)";
 	    final String BRACE_PATTERN = "\\{|\\}";
 	    final String BRACKET_PATTERN = "\\[|\\]";
@@ -73,7 +73,7 @@ public class GroovyHighlighter implements ScriptHighlighter {
 	    final String TRIPLE_QUOTE_PATTERN = "\"\"\"([^\"\"\"\\\\]|\\\\.)*\"\"\"";
 	    final String DOUBLE_QUOTE_PATTERN = "\"([^\"\\\\]|\\\\.)*\"";
 	    final String SINGLE_QUOTE_PATTERN = "'([^'\\\\]|\\\\.)*\'";
-	    final String COMMENT_PATTERN = "//[^\n]*" + "|" + "/\\*(.|\\R)*?\\*/";
+	    final String COMMENT_PATTERN = "#[^\n]*";
 	    
 	    PATTERN = Pattern.compile(
 	            "(?<KEYWORD>" + KEYWORD_PATTERN + ")"
@@ -93,31 +93,31 @@ public class GroovyHighlighter implements ScriptHighlighter {
 	 * Get the static instance of this class.
 	 * @return instance
 	 */
-	public static ScriptHighlighter getInstance() {
+	public static ScriptStyler getInstance() {
 		return INSTANCE;
 	}
 	
 	/**
-	 * Constructor for a Groovy Highlighter. This constructor should never be 
+	 * Constructor for a Python styler. This constructor should never be 
 	 * called. Instead, use the static {@link #getInstance()} method.
 	 * <p>
 	 * Note: this has to be public for the {@link ServiceLoader} to work.
 	 */
-	public GroovyHighlighter() {
+	public PythonStyler() {
 		if (INSTANCE != null)
-			throw new UnsupportedOperationException("Highlighter classes cannot be instantiated more than once!");
+			throw new UnsupportedOperationException("ScriptStyler classes cannot be instantiated more than once!");
 		
 		// Because of ServiceLoader, have to assign INSTANCE here.
-		GroovyHighlighter.INSTANCE = this;
+		PythonStyler.INSTANCE = this;
 	}
 	
 	@Override
 	public Set<String> getLanguageNames() {
-		return Set.of("groovy", "java");
+		return Set.of("python", "jython", "cpython", "python py4j");
 	}
 	
 	@Override
-	public StyleSpans<Collection<String>> computeEditorHighlighting(final String text) {
+	public StyleSpans<Collection<String>> computeEditorStyles(final String text) {
         Matcher matcher = PATTERN.matcher(text);
         int lastKwEnd = 0;
         StyleSpansBuilder<Collection<String>> spansBuilder = new StyleSpansBuilder<>();
