@@ -25,7 +25,6 @@ import java.util.ServiceLoader;
 
 import qupath.lib.scripting.languages.ScriptAutoCompletor;
 import qupath.lib.scripting.languages.ScriptLanguage;
-import qupath.lib.scripting.languages.ScriptSyntax;
 
 /**
  * Class for representing CSS in QuPath.
@@ -40,7 +39,6 @@ public class CssLanguage extends ScriptLanguage {
 	 */
 	private static CssLanguage INSTANCE;
 	
-	private ScriptSyntax syntax;
 	private ScriptAutoCompletor completor = null;
 	
 	/**
@@ -51,7 +49,6 @@ public class CssLanguage extends ScriptLanguage {
 	 */
 	public CssLanguage() {
 		super("CSS", ".css");
-		this.syntax = PlainSyntax.getInstance();
 		
 		if (INSTANCE != null)
 			throw new UnsupportedOperationException("Language classes cannot be instantiated more than once!");
@@ -66,11 +63,6 @@ public class CssLanguage extends ScriptLanguage {
 	 */
 	public static CssLanguage getInstance() {
 		return INSTANCE;
-	}
-	
-	@Override
-	public ScriptSyntax getSyntax() {
-		return syntax;
 	}
 
 	@Override

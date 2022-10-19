@@ -24,6 +24,8 @@
 package qupath.lib.gui.scripting.highlighters;
 
 import java.util.Collection;
+import java.util.Set;
+
 import org.fxmisc.richtext.CodeArea;
 import org.fxmisc.richtext.model.StyleSpans;
 import qupath.lib.scripting.languages.ScriptLanguage;
@@ -35,15 +37,16 @@ import qupath.lib.scripting.languages.ScriptLanguage;
  */
 public interface ScriptHighlighter {
 	
+	
 	/**
-	 * Get the name of the language for which this {@code ScriptHighlighter} was designed.
+	 * Get a set of the scripting languages supported by this styler.
 	 * <p>
-	 * Note: The name returned by this method must match <b>exactly</b> that of the 
-	 * corresponding {@link ScriptLanguage} for QuPath to automatically apply it to the script editor 
+	 * Note: One of the names returned by this method must match <b>exactly</b> (but case-insensitve) 
+	 * that of the corresponding {@link ScriptLanguage} for QuPath to automatically apply it to the script editor 
 	 * when needed.
-	 * @return language name
+	 * @return
 	 */
-	String getLanguageName();
+	Set<String> getLanguageNames();
 
 	/**
 	 * Compute highlighting for the specified {@code text}, considering it will be used in the main editor..

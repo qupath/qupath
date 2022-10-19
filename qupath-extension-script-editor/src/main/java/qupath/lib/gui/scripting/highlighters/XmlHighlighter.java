@@ -25,6 +25,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.ServiceLoader;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -107,8 +108,8 @@ public class XmlHighlighter implements ScriptHighlighter {
 	}
 	
 	@Override
-	public String getLanguageName() {
-		return "XML";
+	public Set<String> getLanguageNames() {
+		return Set.of("xml");
 	}
 
 	@Override

@@ -26,6 +26,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 
@@ -172,7 +173,7 @@ public class AutoCompletions {
 	public static Completion createJavaCompletion(Class<?> declaringClass, String displayText, String completionText) {
 		return new JavaCompletion(declaringClass, displayText, completionText);
 	}
-	
+		
 	/**
 	 * Create a new completion for a class.
 	 * @param cls the class to complete
@@ -310,8 +311,25 @@ public class AutoCompletions {
 		public CompletionTokenizer getTokenizer() {
 			return JAVA_TOKENIZER;
 		}
-		
-				
+
+		@Override
+		public int hashCode() {
+			return Objects.hash(completionText, displayText, parentClass);
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (this == obj)
+				return true;
+			if (obj == null)
+				return false;
+			if (getClass() != obj.getClass())
+				return false;
+			JavaCompletion other = (JavaCompletion) obj;
+			return Objects.equals(completionText, other.completionText)
+					&& Objects.equals(displayText, other.displayText) && Objects.equals(parentClass, other.parentClass);
+		}
+						
 	}
 	
 

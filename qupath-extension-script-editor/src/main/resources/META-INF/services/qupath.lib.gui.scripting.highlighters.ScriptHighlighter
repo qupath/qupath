@@ -4,3 +4,4 @@ qupath.lib.gui.scripting.highlighters.JsonHighlighter
 qupath.lib.gui.scripting.highlighters.MarkdownHighlighter
 qupath.lib.gui.scripting.highlighters.XmlHighlighter
 qupath.lib.gui.scripting.highlighters.YamlHighlighter
+qupath.lib.gui.scripting.highlighters.PythonHighlighter

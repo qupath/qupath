@@ -154,7 +154,7 @@ public class RichScriptEditor extends DefaultScriptEditor {
 				if (e.isConsumed())
 					return;
 				
-				var scriptSyntax = getCurrentLanguage().getSyntax();
+				var scriptSyntax = getCurrentSyntax();
 				if (scriptSyntax != null) {
 					if ("(".equals(e.getCharacter())) {
 						scriptSyntax.handleLeftParenthesis(control, smartEditing.get());
@@ -212,7 +212,7 @@ public class RichScriptEditor extends DefaultScriptEditor {
 				if (e.isConsumed())
 					return;
 				
-				var scriptSyntax = getCurrentLanguage().getSyntax();
+				var scriptSyntax = getCurrentSyntax();
 				if (scriptSyntax != null) {
 					if (e.getCode() == KeyCode.TAB) {
 						scriptSyntax.handleTabPress(control, e.isShiftDown());

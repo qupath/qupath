@@ -28,6 +28,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Deque;
 import java.util.ServiceLoader;
+import java.util.Set;
 
 import org.fxmisc.richtext.CodeArea;
 import org.fxmisc.richtext.model.StyleSpans;
@@ -74,13 +75,13 @@ public class YamlHighlighter implements ScriptHighlighter {
 	}
 	
 	@Override
-	public String getLanguageName() {
-		return "YAML";
+	public Set<String> getLanguageNames() {
+		return Set.of("yaml");
 	}
 	
 	private static Yaml yaml = new Yaml();
 
-	// TODO: Simplify this if we onlyl handle comments!
+	// TODO: Simplify this if we only handle comments?
 	// Code here for potentially more informative highlighting some day
 	@Override
 	public StyleSpans<Collection<String>> computeEditorHighlighting(String text) {

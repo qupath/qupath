@@ -19,10 +19,11 @@
  * #L%
  */
 
-package qupath.lib.gui.scripting.languages;
+package qupath.lib.gui.scripting.syntax;
 
 import java.io.StringReader;
 import java.io.StringWriter;
+import java.util.Set;
 
 import javax.xml.transform.OutputKeys;
 import javax.xml.transform.Transformer;
@@ -46,15 +47,10 @@ import qupath.lib.scripting.languages.EditableText;
  */
 class XmlSyntax extends GeneralCodeSyntax {
 	
-	private static final XmlSyntax INSTANCE = new XmlSyntax();
 	private static final Logger logger = LoggerFactory.getLogger(XmlSyntax.class);
 	
 	// Empty constructor
-	private XmlSyntax() {}
-	
-	static XmlSyntax getInstance() {
-		return INSTANCE;
-	}
+	XmlSyntax() {}
 	
 	@Override
 	public void handleLineComment(final EditableText control) {
@@ -162,6 +158,11 @@ class XmlSyntax extends GeneralCodeSyntax {
 			logger.warn("Could not compress this XML", ex.getLocalizedMessage());
 			return text;
 		}
+	}
+	
+	@Override
+	public Set<String> getLanguageNames() {
+		return Set.of("xml");
 	}
 	
 }

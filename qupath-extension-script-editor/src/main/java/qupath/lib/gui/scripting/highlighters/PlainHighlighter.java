@@ -25,6 +25,7 @@ package qupath.lib.gui.scripting.highlighters;
 
 import java.util.Collection;
 import java.util.ServiceLoader;
+import java.util.Set;
 
 import org.fxmisc.richtext.model.StyleSpans;
 
@@ -64,8 +65,8 @@ public class PlainHighlighter implements ScriptHighlighter {
 	}
 	
 	@Override
-	public String getLanguageName() {
-		return "None";
+	public Set<String> getLanguageNames() {
+		return Set.of("none", "text");
 	}
 	
 	@Override

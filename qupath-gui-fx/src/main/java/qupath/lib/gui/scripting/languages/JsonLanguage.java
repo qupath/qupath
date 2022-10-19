@@ -26,7 +26,6 @@ import java.util.Set;
 
 import qupath.lib.scripting.languages.ScriptAutoCompletor;
 import qupath.lib.scripting.languages.ScriptLanguage;
-import qupath.lib.scripting.languages.ScriptSyntax;
 
 /**
  * Class for the representation of JSON syntax in QuPath.
@@ -42,7 +41,6 @@ public class JsonLanguage extends ScriptLanguage {
 	 */
 	private static JsonLanguage INSTANCE;
 	
-	private ScriptSyntax syntax;
 	private ScriptAutoCompletor completor = null;
 	
 	/**
@@ -53,7 +51,6 @@ public class JsonLanguage extends ScriptLanguage {
 	 */
 	public JsonLanguage() {
 		super("JSON", Set.of(".json", ".geojson"));
-		this.syntax = JsonSyntax.getInstance();
 		
 		if (INSTANCE != null)
 			throw new UnsupportedOperationException("Language classes cannot be instantiated more than once!");
@@ -68,11 +65,6 @@ public class JsonLanguage extends ScriptLanguage {
 	 */
 	public static JsonLanguage getInstance() {
 		return INSTANCE;
-	}
-	
-	@Override
-	public ScriptSyntax getSyntax() {
-		return syntax;
 	}
 
 	@Override

@@ -26,7 +26,6 @@ import java.util.Set;
 
 import qupath.lib.scripting.languages.ScriptAutoCompletor;
 import qupath.lib.scripting.languages.ScriptLanguage;
-import qupath.lib.scripting.languages.ScriptSyntax;
 
 /**
  * Class for the representation of plain text in QuPath.
@@ -41,8 +40,6 @@ public class PlainLanguage extends ScriptLanguage {
 	 * Instance of this language. Can't be final because of {@link ServiceLoader}.
 	 */
 	private static PlainLanguage INSTANCE;
-	
-	private ScriptSyntax syntax;
 
 	/**
 	 * Constructor for a simple Plain Language. This constructor should never be 
@@ -52,7 +49,6 @@ public class PlainLanguage extends ScriptLanguage {
 	 */
 	public PlainLanguage() {
 		super("None", Set.of(".txt", ".tsv", ".csv"));
-		this.syntax = PlainSyntax.getInstance();
 		
 		if (INSTANCE != null)
 			throw new UnsupportedOperationException("Language classes cannot be instantiated more than once!");
@@ -69,11 +65,6 @@ public class PlainLanguage extends ScriptLanguage {
 		return INSTANCE;
 	}
 	
-	@Override
-	public ScriptSyntax getSyntax() {
-		return syntax;
-	}
-
 	@Override
 	public ScriptAutoCompletor getAutoCompletor() {
 		return null;

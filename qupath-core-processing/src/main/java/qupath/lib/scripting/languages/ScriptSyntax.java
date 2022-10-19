@@ -21,6 +21,8 @@
 
 package qupath.lib.scripting.languages;
 
+import java.util.Set;
+
 /**
  * Interface for classes that apply some syntax formatting to an {@link EditableText}.
  * @author Melvin Gelbard
@@ -28,6 +30,12 @@ package qupath.lib.scripting.languages;
  * @since v0.4.0
  */
 public interface ScriptSyntax {
+	
+	/**
+	 * Get a set of the scripting languages supported by this syntax.
+	 * @return
+	 */
+	public Set<String> getLanguageNames();
 	
 	/**
 	 * String to insert when tab key pressed
@@ -95,7 +103,7 @@ public interface ScriptSyntax {
 	 * Handle a backspace.
 	 * @param control 
 	 * @param smartEditing whether smart editing is enabled
-	 * @return whether the source event should be consumed
+	 * @return whether the source event should be consumed; if this returns false then backspace is handled elsewhere
 	 */
 	public default boolean handleBackspace(EditableText control, boolean smartEditing) {
 		return false;

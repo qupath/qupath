@@ -26,6 +26,7 @@ package qupath.lib.gui.scripting.highlighters;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.ServiceLoader;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -111,8 +112,8 @@ public class GroovyHighlighter implements ScriptHighlighter {
 	}
 	
 	@Override
-	public String getLanguageName() {
-		return "Groovy";
+	public Set<String> getLanguageNames() {
+		return Set.of("groovy", "java");
 	}
 	
 	@Override

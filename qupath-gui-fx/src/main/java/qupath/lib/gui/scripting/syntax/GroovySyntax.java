@@ -21,7 +21,9 @@
  * #L%
  */
 
-package qupath.lib.gui.scripting.languages;
+package qupath.lib.gui.scripting.syntax;
+
+import java.util.Set;
 
 import qupath.lib.scripting.languages.EditableText;
 
@@ -32,17 +34,11 @@ import qupath.lib.scripting.languages.EditableText;
  */
 class GroovySyntax extends GeneralCodeSyntax {
 	
-	private static final GroovySyntax INSTANCE = new GroovySyntax();
-	
 	private static final String ifStatementPattern = "(else\\s*)?if\\s*\\(.*\\)$";
 	private static final String elseStatementPattern = "\\}?\\s*else$";
 
 	// Empty constructor
-	private GroovySyntax() {}
-	
-	static GroovySyntax getInstance() {
-		return INSTANCE;
-	}
+	GroovySyntax() {}
 	
 	@Override
 	public String getLineCommentString() {
@@ -155,4 +151,11 @@ class GroovySyntax extends GeneralCodeSyntax {
 			}
 		}
 	}
+	
+	
+	@Override
+	public Set<String> getLanguageNames() {
+		return Set.of("groovy", "java");
+	}
+	
 }

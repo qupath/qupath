@@ -69,10 +69,13 @@ public class ScriptHighlighterProvider {
 	 * @return corresponding highlighter, or {@link PlainHighlighter} if no match.
 	 */
 	public static ScriptHighlighter getHighlighterFromLanguage(ScriptLanguage language) {
+		String name = language.getName().toLowerCase();
 		synchronized (serviceLoader) {
 			for (ScriptHighlighter h : serviceLoader) {
-				if (language.getName().equals(h.getLanguageName()))
-					return h;				
+				for (var supported : h.getLanguageNames()) {
+					if (name.equalsIgnoreCase(supported))
+						return h;
+				}
 			}
 		}
 		return PlainHighlighter.getInstance();

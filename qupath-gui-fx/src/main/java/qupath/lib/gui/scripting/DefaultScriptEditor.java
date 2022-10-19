@@ -104,6 +104,7 @@ import qupath.lib.gui.scripting.languages.GroovyLanguage;
 import qupath.lib.gui.scripting.languages.HtmlRenderer;
 import qupath.lib.gui.scripting.languages.PlainLanguage;
 import qupath.lib.gui.scripting.languages.ScriptLanguageProvider;
+import qupath.lib.gui.scripting.syntax.ScriptSyntaxProvider;
 import qupath.lib.gui.tools.MenuTools;
 import qupath.lib.gui.tools.WebViews;
 import qupath.lib.images.ImageData;
@@ -113,6 +114,7 @@ import qupath.lib.projects.Projects;
 import qupath.lib.scripting.ScriptParameters;
 import qupath.lib.scripting.languages.ExecutableLanguage;
 import qupath.lib.scripting.languages.ScriptLanguage;
+import qupath.lib.scripting.languages.ScriptSyntax;
 
 
 /**
@@ -140,7 +142,9 @@ public class DefaultScriptEditor implements ScriptEditor {
 	private ObjectProperty<ScriptTab> selectedScript = new SimpleObjectProperty<>();
 	
 	private ObjectProperty<ScriptLanguage> currentLanguage = new SimpleObjectProperty<>();
-		
+
+	private ObjectProperty<ScriptSyntax> currentSyntax = new SimpleObjectProperty<>();
+
 	// Binding to indicate it shouldn't be possible to 'Run' any script right now
 	private BooleanBinding disableRun = runningTask.isNotNull().or(Bindings.createBooleanBinding(() -> !(currentLanguage.getValue() instanceof ExecutableLanguage), currentLanguage));
 	
@@ -161,23 +165,21 @@ public class DefaultScriptEditor implements ScriptEditor {
 	protected Action beautifySourceAction = ActionTools.createAction(this::beautifySource, "Beautify source");
 	protected Action compressSourceAction = ActionTools.createAction(this::compressSource, "Compress source");
 	
+	
 	private BooleanBinding canBeautifyBinding = Bindings.createBooleanBinding(() -> {
-		var language = getCurrentLanguage();
-		var syntax = language == null ? null : language.getSyntax();
+		var syntax = getCurrentSyntax();
 		return syntax == null || !syntax.canBeautify();
-	}, currentLanguageProperty());
+	}, currentSyntaxProperty());
 	
 	private BooleanBinding canCompressBinding = Bindings.createBooleanBinding(() -> {
-		var language = getCurrentLanguage();
-		var syntax = language == null ? null : language.getSyntax();
+		var syntax = getCurrentSyntax();
 		return syntax == null || !syntax.canCompress();
-	}, currentLanguageProperty());
+	}, currentSyntaxProperty());
 	
 	private void beautifySource() {
 		var tab = getCurrentScriptObject();
 		var editor = tab == null ? null : tab.getEditorComponent();
-		var language = tab == null ? null : tab.getLanguage();
-		var syntax = language == null ? null : language.getSyntax();
+		var syntax = getCurrentSyntax();
 		if (editor == null || syntax == null || !syntax.canBeautify())
 			return;
 		editor.setText(syntax.beautify(editor.getText()));
@@ -186,12 +188,24 @@ public class DefaultScriptEditor implements ScriptEditor {
 	private void compressSource() {
 		var tab = getCurrentScriptObject();
 		var editor = tab == null ? null : tab.getEditorComponent();
-		var language = tab == null ? null : tab.getLanguage();
-		var syntax = language == null ? null : language.getSyntax();
+		var syntax = getCurrentSyntax();
 		if (editor == null || syntax == null || !syntax.canCompress())
 			return;
 		editor.setText(syntax.compress(editor.getText()));		
 	}
+	
+	
+	
+	
+	/**
+	 * Get a script syntax for a given language.
+	 * @param language
+	 * @return a script syntax, or null if language is null
+	 */
+	private ScriptSyntax getSyntax(ScriptLanguage language) {
+		return language == null ? null : ScriptSyntaxProvider.getSyntaxFromName(language.getName());
+	}
+	
 
 	
 	// Note: it doesn't seem to work to set the accelerators...
@@ -255,6 +269,11 @@ public class DefaultScriptEditor implements ScriptEditor {
 			var language = toggleLanguages.getSelectedToggle();
 			return language == null ? null : ScriptLanguageProvider.fromString((String)language.getUserData());
 		}, toggleLanguages.selectedToggleProperty()));
+		
+		currentSyntax.bind(Bindings.createObjectBinding(() -> {
+			return getSyntax(currentLanguage.get());
+		}, currentLanguage));
+
 		
 		selectedScript.addListener((v, o, n) -> {
 			if (n == null || n.getLanguage() == null)
@@ -501,14 +520,15 @@ public class DefaultScriptEditor implements ScriptEditor {
 			var language = currentLanguage.getValue();
 			if (language == null)
 				return;
+			var syntax = getSyntax(language);
 	        if (e.getCode() == KeyCode.TAB) {
-	        	language.getSyntax().handleTabPress(control, e.isShiftDown());
+	        	syntax.handleTabPress(control, e.isShiftDown());
 	        	e.consume();
 	        } else if (e.isShortcutDown() && e.getCode() == KeyCode.SLASH) {
-	        	language.getSyntax().handleLineComment(control);
+	        	syntax.handleLineComment(control);
 	        	e.consume();
 	        } else if (e.getCode() == KeyCode.ENTER && control.getSelectedText().length() == 0) {
-	        	language.getSyntax().handleNewLine(control, smartEditing.get());
+	        	syntax.handleNewLine(control, smartEditing.get());
 				e.consume();
 			}
 	    });
@@ -765,8 +785,16 @@ public class DefaultScriptEditor implements ScriptEditor {
 		return currentLanguage;
 	}
 	
+	protected ReadOnlyObjectProperty<ScriptSyntax> currentSyntaxProperty() {
+		return currentSyntax;
+	}
+	
 	protected ScriptLanguage getCurrentLanguage() {
 		return currentLanguage.get();
+	}
+	
+	protected ScriptSyntax getCurrentSyntax() {
+		return currentSyntax.get();
 	}
 	
 	protected ScriptTab getCurrentScriptObject() {

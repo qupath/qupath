@@ -77,16 +77,6 @@ public abstract class ScriptLanguage {
 	}
 	
 	/**
-	 * Get the {@link ScriptSyntax} object that takes care of this language's syntaxing.
-	 * <p>
-	 * Can return {@code null} if the script language should not handle syntax formatting for this language.
-	 * @return syntax object
-	 */
-	public ScriptSyntax getSyntax() {
-		return null;
-	}
-	
-	/**
 	 * Get the {@link ScriptAutoCompletor} object that takes care of this language's auto-completion. 
 	 * <p>
 	 * Can return {@code null} if the script editor should not handle auto-completion for this language.

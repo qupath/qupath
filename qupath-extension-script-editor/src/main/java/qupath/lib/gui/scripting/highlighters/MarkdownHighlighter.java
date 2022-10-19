@@ -27,6 +27,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Deque;
 import java.util.ServiceLoader;
+import java.util.Set;
 
 import org.commonmark.node.AbstractVisitor;
 import org.commonmark.node.BlockQuote;
@@ -91,8 +92,8 @@ public class MarkdownHighlighter implements ScriptHighlighter {
 	}
 	
 	@Override
-	public String getLanguageName() {
-		return "Markdown";
+	public Set<String> getLanguageNames() {
+		return Set.of("markdown");
 	}
 	
 	/**

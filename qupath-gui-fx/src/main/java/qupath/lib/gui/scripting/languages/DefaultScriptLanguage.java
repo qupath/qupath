@@ -26,7 +26,6 @@ package qupath.lib.gui.scripting.languages;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.Writer;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -47,6 +46,9 @@ import org.slf4j.LoggerFactory;
 import qupath.imagej.tools.IJTools;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.scripting.QPEx;
+import qupath.lib.gui.scripting.completors.DefaultAutoCompletor;
+import qupath.lib.gui.scripting.completors.GroovyAutoCompletor;
+import qupath.lib.gui.scripting.completors.PythonAutoCompletor;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.projects.Project;
@@ -58,7 +60,6 @@ import qupath.lib.scripting.ScriptParameters;
 import qupath.lib.scripting.languages.ExecutableLanguage;
 import qupath.lib.scripting.languages.ScriptAutoCompletor;
 import qupath.lib.scripting.languages.ScriptLanguage;
-import qupath.lib.scripting.languages.ScriptSyntax;
 
 /**
  * Default implementation for a {@link ScriptLanguage}, based on a {@link ScriptEngine}.
@@ -69,7 +70,6 @@ public class DefaultScriptLanguage extends ScriptLanguage implements ExecutableL
 	
 	private static final Logger logger = LoggerFactory.getLogger(DefaultScriptLanguage.class);
 	
-	private ScriptSyntax syntax;
 	private ScriptAutoCompletor completor;
 	
 	/**
@@ -104,7 +104,27 @@ public class DefaultScriptLanguage extends ScriptLanguage implements ExecutableL
 	 */
 	public DefaultScriptLanguage(ScriptEngineFactory factory) {
 		super(factory.getEngineName(), factory.getExtensions());
-		this.syntax = PlainSyntax.getInstance();
+		String name = factory.getLanguageName().toLowerCase();
+		completor = getDefaultAutoCompletor(name);
+	}
+
+	
+	/**
+	 * Default method to get a suitable auto completor for the given language name.
+	 * @param languageName
+	 * @return
+	 */
+	protected ScriptAutoCompletor getDefaultAutoCompletor(String languageName) {
+		String name = languageName.toLowerCase();
+		
+		if ("groovy".equals(name))
+			return new GroovyAutoCompletor(true);
+		else if ("java".equals(name))
+			return new DefaultAutoCompletor(true);
+		else if (Set.of("python", "cpython", "python py4j", "jython").contains(name))
+			return new PythonAutoCompletor(true);
+		
+		return null;
 	}
 	
 	/**
@@ -113,12 +133,10 @@ public class DefaultScriptLanguage extends ScriptLanguage implements ExecutableL
 	 * Note: the scriptEngine is not stored within this class. It is always fetched via {@link ScriptLanguageProvider}.
 	 * @param name		the language name
 	 * @param exts			the possible extensions for this language
-	 * @param syntax		the syntax object for this language
 	 * @param completor	the auto-completion object for this language
 	 */
-	public DefaultScriptLanguage(String name, Collection<String> exts, ScriptSyntax syntax, ScriptAutoCompletor completor) {
+	public DefaultScriptLanguage(String name, Collection<String> exts, ScriptAutoCompletor completor) {
 		super(name, exts);
-		this.syntax = syntax == null ? PlainSyntax.getInstance() : syntax;
 		this.completor = completor;
 	}
 
@@ -352,12 +370,6 @@ public class DefaultScriptLanguage extends ScriptLanguage implements ExecutableL
 		context.setErrorWriter(params.getErrorWriter());
 		
 		return context;
-	}
-	
-	
-	@Override
-	public ScriptSyntax getSyntax() {
-		return syntax;
 	}
 
 	@Override
