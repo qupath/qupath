@@ -26,7 +26,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Deque;
-import java.util.ServiceLoader;
 import java.util.Set;
 
 import org.commonmark.node.AbstractVisitor;
@@ -65,31 +64,9 @@ public class MarkdownStyler implements ScriptStyler {
 	private static final Logger logger = LoggerFactory.getLogger(MarkdownStyler.class);
 	
 	/**
-	 * Instance of this styler. Can't be final because of {@link ServiceLoader}.
+	 * Constructor.
 	 */
-	private static MarkdownStyler INSTANCE;
-	
-	/**
-	 * Get the static instance of this class.
-	 * @return instance
-	 */
-	public static ScriptStyler getInstance() {
-		return INSTANCE;
-	}
-	
-	/**
-	 * Constructor for a Markdown styler. This constructor should never be 
-	 * called. Instead, use the static {@link #getInstance()} method.
-	 * <p>
-	 * Note: this has to be public for the {@link ServiceLoader} to work.
-	 */
-	public MarkdownStyler() {
-		if (INSTANCE != null)
-			throw new UnsupportedOperationException("ScriptStyler classes cannot be instantiated more than once!");
-		
-		// Because of ServiceLoader, have to assign INSTANCE here.
-		MarkdownStyler.INSTANCE = this;
-	}
+	MarkdownStyler() {}
 	
 	@Override
 	public Set<String> getLanguageNames() {

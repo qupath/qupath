@@ -37,6 +37,7 @@ import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.Region;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.scripting.languages.ScriptLanguageProvider;
 import qupath.lib.scripting.languages.ScriptLanguage;
@@ -70,12 +71,12 @@ public class ScriptTab {
 	
 	private String name;
 	
-	private ScriptEditorControl console;
-	private ScriptEditorControl editor;
+	private ScriptEditorControl<? extends Region> console;
+	private ScriptEditorControl<? extends Region> editor;
 	
 	private boolean isRunning = false;
 	
-	ScriptTab(final ScriptEditorControl editor, final ScriptEditorControl console, final String script, final ScriptLanguage language) {
+	ScriptTab(final ScriptEditorControl<? extends Region> editor, final ScriptEditorControl<? extends Region> console, final String script, final ScriptLanguage language) {
 		this.editor = editor;
 		this.console = console;
 		initialize();
@@ -86,7 +87,7 @@ public class ScriptTab {
 		name = "Untitled " + untitledCounter;
 	}
 	
-	ScriptTab(final ScriptEditorControl editor, final ScriptEditorControl console, final File file) throws IOException {
+	ScriptTab(final ScriptEditorControl<? extends Region> editor, final ScriptEditorControl<? extends Region> console, final File file) throws IOException {
 		this.editor = editor;
 		this.console = console;
 		initialize();
@@ -132,13 +133,13 @@ public class ScriptTab {
 		ContextMenu popup = new ContextMenu();
 		popup.getItems().add(ActionUtils.createMenuItem(new Action("Clear console", e -> console.setText(""))));
 		
-		console.getRegion().setOnContextMenuRequested(e -> popup.show(console.getRegion(), e.getScreenX(), e.getScreenY()));
+		console.setContextMenu(popup);
 //		console.setPopup(popup);
 		
 		updateIsModified();
 	}
 	
-	ScriptEditorControl getEditorControl() {
+	ScriptEditorControl<? extends Region> getEditorControl() {
 		return editor;
 	}
 	
@@ -146,7 +147,7 @@ public class ScriptTab {
 		return editor.getText().length() > 0;
 	}
 
-	ScriptEditorControl getConsoleControl() {
+	ScriptEditorControl<? extends Region> getConsoleControl() {
 		return console;
 	}
 

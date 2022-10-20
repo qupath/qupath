@@ -23,6 +23,8 @@
 
 package qupath.lib.gui.scripting.richtextfx;
 
+import java.util.Objects;
+
 import org.fxmisc.flowless.VirtualizedScrollPane;
 import org.fxmisc.richtext.CodeArea;
 
@@ -30,8 +32,8 @@ import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableValue;
+import javafx.scene.control.ContextMenu;
 import javafx.scene.control.IndexRange;
-import javafx.scene.layout.Region;
 import qupath.lib.gui.scripting.ScriptEditorControl;
 
 /**
@@ -39,14 +41,20 @@ import qupath.lib.gui.scripting.ScriptEditorControl;
  * 
  * @author Pete Bankhead
  */
-public class CodeAreaControl implements ScriptEditorControl {
+public class CodeAreaControl implements ScriptEditorControl<VirtualizedScrollPane<CodeArea>> {
 	
 	private VirtualizedScrollPane<CodeArea> scrollpane;
 	private CodeArea textArea;
 	private StringProperty textProperty = new SimpleStringProperty();
 	
-	CodeAreaControl(final CodeArea codeArea) {
+	CodeAreaControl(boolean isEditable) {
+		this(new CodeArea(), isEditable);
+	}
+	
+	CodeAreaControl(final CodeArea codeArea, boolean isEditable) {
+		Objects.nonNull(codeArea);
 		this.textArea = codeArea;
+		this.textArea.setEditable(isEditable);
 		textArea.textProperty().addListener((o, v, n) -> textProperty.set(n));
 		textProperty.addListener((o, v, n) -> {
 			if (n.equals(textArea.getText()))
@@ -84,7 +92,7 @@ public class CodeAreaControl implements ScriptEditorControl {
 	}
 
 	@Override
-	public Region getRegion() {
+	public VirtualizedScrollPane<CodeArea> getRegion() {
 		return scrollpane;
 	}
 
@@ -185,6 +193,16 @@ public class CodeAreaControl implements ScriptEditorControl {
 	public void replaceSelection(String text) {
 		textArea.replaceSelection(text);
 		requestFollowCaret();
+	}
+	
+	@Override
+	public void setContextMenu(ContextMenu menu) {
+		textArea.setContextMenu(menu);
+	}
+
+	@Override
+	public ContextMenu getContextMenu() {
+		return textArea.getContextMenu();
 	}
 
 }

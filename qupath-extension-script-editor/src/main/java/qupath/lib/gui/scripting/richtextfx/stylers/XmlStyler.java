@@ -24,7 +24,6 @@ package qupath.lib.gui.scripting.richtextfx.stylers;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -66,11 +65,6 @@ import org.fxmisc.richtext.model.StyleSpansBuilder;
  */
 public class XmlStyler implements ScriptStyler {
 	
-	/**
-	 * Instance of this styler. Can't be final because of {@link ServiceLoader}.
-	 */
-	private static XmlStyler INSTANCE;
-
 	private static final Pattern XML_TAG = Pattern.compile("(?<ELEMENT>(</?\\h*)(\\w+)([^<>]*)(\\h*/?>))"
     		+"|(?<COMMENT><!--(.|\\v)+?-->)");
     
@@ -86,26 +80,9 @@ public class XmlStyler implements ScriptStyler {
     
 	
 	/**
-	 * Get the static instance of this class.
-	 * @return instance
+	 * Constructor.
 	 */
-	public static ScriptStyler getInstance() {
-		return INSTANCE;
-	}
-	
-	/**
-	 * Constructor for an XML styler. This constructor should never be 
-	 * called. Instead, use the static {@link #getInstance()} method.
-	 * <p>
-	 * Note: this has to be public for the {@link ServiceLoader} to work.
-	 */
-	public XmlStyler() {
-		if (INSTANCE != null)
-			throw new UnsupportedOperationException("ScriptStyler classes cannot be instantiated more than once!");
-		
-		// Because of ServiceLoader, have to assign INSTANCE here.
-		XmlStyler.INSTANCE = this;
-	}
+	XmlStyler() {}
 	
 	@Override
 	public Set<String> getLanguageNames() {

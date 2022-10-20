@@ -25,7 +25,6 @@ package qupath.lib.gui.scripting.richtextfx.stylers;
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -41,12 +40,7 @@ import org.fxmisc.richtext.model.StyleSpansBuilder;
  */
 public class JsonStyler implements ScriptStyler {
 	
-	/**
-	 * Instance of this styler. Can't be final because of {@link ServiceLoader}.
-	 */
-	private static JsonStyler INSTANCE;
-
-    static final String PAREN_PATTERN = "\\(|\\)";
+	static final String PAREN_PATTERN = "\\(|\\)";
     static final String BRACE_PATTERN = "\\{|\\}";
     static final String BRACKET_PATTERN = "\\[|\\]";
     static final String DOUBLE_QUOTE_PATTERN = "\"([^\"\\\\]|\\\\.)*\"";
@@ -64,26 +58,9 @@ public class JsonStyler implements ScriptStyler {
     
 	
 	/**
-	 * Get the static instance of this class.
-	 * @return instance
+	 * Constructor.
 	 */
-	public static ScriptStyler getInstance() {
-		return INSTANCE;
-	}
-	
-	/**
-	 * Constructor for a JSON styler. This constructor should never be 
-	 * called. Instead, use the static {@link #getInstance()} method.
-	 * <p>
-	 * Note: this has to be public for the {@link ServiceLoader} to work.
-	 */
-	public JsonStyler() {
-		if (INSTANCE != null)
-			throw new UnsupportedOperationException("ScriptStyler classes cannot be instantiated more than once!");
-		
-		// Because of ServiceLoader, have to assign INSTANCE here.
-		JsonStyler.INSTANCE = this;
-	}
+	JsonStyler() {}
 	
 	@Override
 	public Set<String> getLanguageNames() {
