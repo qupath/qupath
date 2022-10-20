@@ -28,10 +28,11 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Deque;
-import java.util.List;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Objects;
 import java.util.ServiceLoader;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 import org.fxmisc.richtext.model.StyleSpans;
@@ -49,16 +50,61 @@ public class ScriptStylerProvider {
 	private static ServiceLoader<ScriptStyler> serviceLoader = ServiceLoader.load(ScriptStyler.class);
 	
 	/**
+	 * Plain styler (no highlighting)
+	 */
+	public static final ScriptStyler PLAIN = new PlainStyler();
+	
+	/**
+	 * Styler for markdown
+	 */
+	public static final ScriptStyler MARKDOWN = new MarkdownStyler();
+	
+	/**
+	 * Styler for Groovy
+	 */
+	public static final ScriptStyler GROOVY = new GroovyStyler();
+
+	/**
+	 * Styler for JSON
+	 */
+	public static final ScriptStyler JSON = new JsonStyler();
+
+	/**
+	 * Styler for Python
+	 */
+	public static final ScriptStyler PYTHON = new PythonStyler();
+
+	/**
+	 * Styler for XML
+	 */
+	public static final ScriptStyler XML = new XmlStyler();
+
+	/**
+	 * Styler for YAML
+	 */
+	public static final ScriptStyler YAML = new YamlStyler();
+
+	
+	private static Set<ScriptStyler> availableStylers = loadAvailableStylers();
+	
+	/**
 	 * Get all the currently installed {@link ScriptStyler}s in a list.
 	 * @return list of installed stylers
 	 */
-	public static List<ScriptStyler> getInstalledStylers() {
-		List<ScriptStyler> stylers = new ArrayList<>();
+	private static Set<ScriptStyler> loadAvailableStylers() {
+		var stylers = new LinkedHashSet<ScriptStyler>();
 		synchronized (serviceLoader) {
 			for (ScriptStyler s : serviceLoader) {
 				stylers.add(s);
 			}
 		}
+		stylers.add(PLAIN);
+		stylers.add(GROOVY);
+		stylers.add(MARKDOWN);
+		stylers.add(JSON);
+		stylers.add(PYTHON);
+		stylers.add(XML);
+		stylers.add(YAML);
 		return stylers;
 	}
 
@@ -70,15 +116,13 @@ public class ScriptStylerProvider {
 	 */
 	public static ScriptStyler getStylerFromLanguage(ScriptLanguage language) {
 		String name = language.getName().toLowerCase();
-		synchronized (serviceLoader) {
-			for (ScriptStyler s : serviceLoader) {
-				for (var supported : s.getLanguageNames()) {
-					if (name.equalsIgnoreCase(supported))
-						return s;
-				}
+		for (ScriptStyler s : availableStylers) {
+			for (var supported : s.getLanguageNames()) {
+				if (name.equalsIgnoreCase(supported))
+					return s;
 			}
 		}
-		return PlainStyler.getInstance();
+		return PLAIN;
 	}
 	
 	
@@ -88,7 +132,7 @@ public class ScriptStylerProvider {
 	 * @param text the text to process styling for
 	 * @return
 	 */
-	static StyleSpans<Collection<String>> getPlainStyling(String text) {
+	public static StyleSpans<Collection<String>> getPlainStyling(String text) {
 		StyleSpansBuilder<Collection<String>> spansBuilder = new StyleSpansBuilder<>();
 		spansBuilder.add(Collections.emptyList(), text.length());
 		return spansBuilder.create();
@@ -102,7 +146,7 @@ public class ScriptStylerProvider {
 	 * @param text the text to process styling for
 	 * @return
 	 */
-	static StyleSpans<Collection<String>> getLogStyling(String text) {
+	public static StyleSpans<Collection<String>> getLogStyling(String text) {
 		var builder = new StyleSpansCollectionBuilder(text);
 		
 		var logClassMap = Map.of("INFO:", "info", "WARN:", "warning", "ERROR:", "error", "DEBUG:", "debug", "TRACE:", "trace");

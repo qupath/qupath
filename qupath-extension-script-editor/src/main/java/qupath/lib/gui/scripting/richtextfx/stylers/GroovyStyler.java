@@ -25,7 +25,6 @@ package qupath.lib.gui.scripting.richtextfx.stylers;
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -40,11 +39,6 @@ import org.fxmisc.richtext.model.StyleSpansBuilder;
  * @since v0.4.0
  */
 public class GroovyStyler implements ScriptStyler {
-	
-	/**
-	 * Instance of this styler. Can't be final because of {@link ServiceLoader}.
-	 */
-	private static GroovyStyler INSTANCE;
 	
 	private static final String[] KEYWORDS = new String[] {
             "abstract", "assert", "boolean", "break", "byte",
@@ -90,26 +84,9 @@ public class GroovyStyler implements ScriptStyler {
 	}
 	
 	/**
-	 * Get the static instance of this class.
-	 * @return instance
+	 * Constructor.
 	 */
-	public static ScriptStyler getInstance() {
-		return INSTANCE;
-	}
-	
-	/**
-	 * Constructor for a Groovy styler. This constructor should never be 
-	 * called. Instead, use the static {@link #getInstance()} method.
-	 * <p>
-	 * Note: this has to be public for the {@link ServiceLoader} to work.
-	 */
-	public GroovyStyler() {
-		if (INSTANCE != null)
-			throw new UnsupportedOperationException("ScriptStyler classes cannot be instantiated more than once!");
-		
-		// Because of ServiceLoader, have to assign INSTANCE here.
-		GroovyStyler.INSTANCE = this;
-	}
+	GroovyStyler() {}
 	
 	@Override
 	public Set<String> getLanguageNames() {

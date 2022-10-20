@@ -26,6 +26,7 @@ package qupath.lib.gui.scripting;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableValue;
+import javafx.scene.control.ContextMenu;
 import javafx.scene.control.IndexRange;
 import javafx.scene.layout.Region;
 import qupath.lib.gui.logging.TextAppendable;
@@ -38,8 +39,9 @@ import qupath.lib.gui.logging.TextAppendable;
  * Note: This is rather cumbersome, and may be removed in the future if the script editor design is revised.
  * 
  * @author Pete Bankhead
+ * @param <T> the tile of component used for display
  */
-public interface ScriptEditorControl extends TextAppendable, EditableText {
+public interface ScriptEditorControl<T extends Region>  extends TextAppendable, EditableText {
 	
 	/**
 	 * Text currently in the editor control.
@@ -91,7 +93,7 @@ public interface ScriptEditorControl extends TextAppendable, EditableText {
 	 * Get the region representing this control, so it may be added to a scene.
 	 * @return
 	 */
-	public Region getRegion();
+	public T getRegion();
 	
 	/**
 	 * Request undo.
@@ -128,4 +130,9 @@ public interface ScriptEditorControl extends TextAppendable, EditableText {
 	public default void requestFollowCaret() {
 		return;
 	}
+	
+	public void setContextMenu(ContextMenu menu);
+
+	public ContextMenu getContextMenu();
+	
 }

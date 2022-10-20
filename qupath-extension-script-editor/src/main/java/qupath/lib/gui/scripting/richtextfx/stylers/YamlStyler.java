@@ -27,7 +27,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Deque;
-import java.util.ServiceLoader;
 import java.util.Set;
 
 import org.fxmisc.richtext.CodeArea;
@@ -48,31 +47,9 @@ public class YamlStyler implements ScriptStyler {
 	private static final Logger logger = LoggerFactory.getLogger(YamlStyler.class);
 	
 	/**
-	 * Instance of this styler. Can't be final because of {@link ServiceLoader}.
+	 * Constructor.
 	 */
-	private static YamlStyler INSTANCE;
-	
-	/**
-	 * Get the static instance of this class.
-	 * @return instance
-	 */
-	public static ScriptStyler getInstance() {
-		return INSTANCE;
-	}
-	
-	/**
-	 * Constructor for a YAML styler. This constructor should never be 
-	 * called. Instead, use the static {@link #getInstance()} method.
-	 * <p>
-	 * Note: this has to be public for the {@link ServiceLoader} to work.
-	 */
-	public YamlStyler() {
-		if (INSTANCE != null)
-			throw new UnsupportedOperationException("ScriptStyler classes cannot be instantiated more than once!");
-		
-		// Because of ServiceLoader, have to assign INSTANCE here.
-		YamlStyler.INSTANCE = this;
-	}
+	YamlStyler() {}
 	
 	@Override
 	public Set<String> getLanguageNames() {

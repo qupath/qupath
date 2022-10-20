@@ -99,6 +99,7 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.text.Font;
 import javafx.scene.web.WebView;
 import javafx.stage.Modality;
@@ -494,7 +495,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	 * @param doSelect if true, select the script when it is added
 	 */
 	public void addNewScript(final String script, final ScriptLanguage language, final boolean doSelect) {
-		ScriptEditorControl editor = getNewEditor();
+		var editor = getNewEditor();
 		editor.wrapTextProperty().bindBidirectional(wrapTextProperty);
 		ScriptTab tab = new ScriptTab(editor, getNewConsole(), script, language);
 		
@@ -532,7 +533,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 			}
 		}
 		
-		ScriptEditorControl editor = getNewEditor();
+		var editor = getNewEditor();
 		editor.wrapTextProperty().bindBidirectional(wrapTextProperty);
 		
 		ScriptTab tab = new ScriptTab(editor, getNewConsole(), file);
@@ -585,17 +586,15 @@ public class DefaultScriptEditor implements ScriptEditor {
 		return getCurrentScriptTab() == null ? null : getCurrentScriptTab().getLanguage();
 	}
 	
-	protected ScriptEditorControl getNewConsole() {
-		TextArea consoleArea = new TextArea();
-		consoleArea.setEditable(false);
-		return new TextAreaControl(consoleArea);
+	protected ScriptEditorControl<?> getNewConsole() {
+		return new TextAreaControl(false);
 	}
 
-	protected ScriptEditorControl getNewEditor() {
+	protected ScriptEditorControl<?> getNewEditor() {
 		TextArea editor = new CustomTextArea();
 		editor.setFont(fontMain);
 		
-		TextAreaControl control = new TextAreaControl(editor);
+		TextAreaControl control = new TextAreaControl(editor, true);
 		editor.addEventFilter(KeyEvent.KEY_PRESSED, (KeyEvent e) -> {
 			var language = currentLanguage.getValue();
 			if (language == null)
@@ -972,24 +971,24 @@ public class DefaultScriptEditor implements ScriptEditor {
 //		return listScripts == null ? null : listScripts.getSelectionModel().getSelectedItem();
 	}
 	
-	protected ScriptEditorControl getCurrentEditorControl() {
+	protected ScriptEditorControl<? extends Region> getCurrentEditorControl() {
 		ScriptTab tab = getCurrentScriptTab();
 		return tab == null ? null : tab.getEditorControl();
 	}
 	
 	
-	protected ScriptEditorControl getCurrentConsoleControl() {
+	protected ScriptEditorControl<? extends Region> getCurrentConsoleControl() {
 		ScriptTab tab = getCurrentScriptTab();
 		return tab == null ? null : tab.getConsoleControl();
 	}
 
 	protected String getSelectedText() {
-		ScriptEditorControl comp = getCurrentEditorControl();
+		var comp = getCurrentEditorControl();
 		return comp != null ? comp.getSelectedText() : null;
 	}
 	
 	protected String getCurrentText() {
-		ScriptEditorControl comp = getCurrentEditorControl();
+		var comp = getCurrentEditorControl();
 		return comp != null ? comp.getText() : "";
 	}
 	
@@ -1003,7 +1002,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	
 	
 	void updateUndoActionState() {
-		ScriptEditorControl editor = getCurrentEditorControl();
+		var editor = getCurrentEditorControl();
 		undoAction.setDisabled(editor == null || !editor.isUndoable());
 		redoAction.setDisabled(editor == null || !editor.isRedoable());
 	}
@@ -1029,7 +1028,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		if (!(language instanceof ExecutableLanguage))
 			return;
 	
-		ScriptEditorControl console = tab.getConsoleControl();
+		var console = tab.getConsoleControl();
 		
 		var writer = new ScriptConsoleWriter(console, false);
 		
@@ -1249,12 +1248,12 @@ public class DefaultScriptEditor implements ScriptEditor {
 	 */
 	class ScriptConsoleWriter extends Writer {
 
-		private ScriptEditorControl doc;
+		private ScriptEditorControl<?> doc;
 		private boolean isErrorWriter = false;
 //		private int flushCount = 0;
 		private StringBuilder sb = new StringBuilder();
 
-		ScriptConsoleWriter(final ScriptEditorControl doc, final boolean isErrorWriter) {
+		ScriptConsoleWriter(final ScriptEditorControl<?> doc, final boolean isErrorWriter) {
 			super();
 			this.doc = doc;
 			this.isErrorWriter = isErrorWriter;
@@ -1643,7 +1642,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		return text;
 	}
 	
-	protected static boolean pasteFromClipboard(ScriptEditorControl control, boolean escapeCharacters) {
+	protected static boolean pasteFromClipboard(ScriptEditorControl<?> control, boolean escapeCharacters) {
 		// Intercept clipboard if we have files, to create a suitable string representation as well
 		var text = getClipboardText(escapeCharacters);
 		if (text == null)
@@ -1662,7 +1661,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		Action action = new Action(name, e -> {
 			if (e.isConsumed())
 				return;
-			ScriptEditorControl editor = getCurrentEditorControl();
+			var editor = getCurrentEditorControl();
 			if (editor != null) {
 				editor.copy();
 			}
@@ -1680,7 +1679,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		Action action = new Action(name, e -> {
 			if (e.isConsumed())
 				return;
-			ScriptEditorControl editor = getCurrentEditorControl();
+			var editor = getCurrentEditorControl();
 			if (editor != null) {
 				editor.cut();
 			}
@@ -1697,7 +1696,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		Action action = new Action(name, e -> {
 			if (e.isConsumed())
 				return;
-			ScriptEditorControl editor = getCurrentEditorControl();
+			var editor = getCurrentEditorControl();
 			if (editor != null)
 				pasteFromClipboard(editor, doEscape);
 			e.consume();
@@ -1712,7 +1711,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	
 	Action createUndoAction(final String name, final KeyCombination accelerator) {
 		Action action = new Action(name, e -> {
-			ScriptEditorControl editor = getCurrentEditorControl();
+			var editor = getCurrentEditorControl();
 			if (editor != null && editor.isUndoable())
 				editor.undo();
 			e.consume();
@@ -1726,7 +1725,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	
 	Action createRedoAction(final String name, final KeyCombination accelerator) {
 		Action action = new Action(name, e -> {
-			ScriptEditorControl editor = getCurrentEditorControl();
+			var editor = getCurrentEditorControl();
 			if (editor != null && editor.isRedoable())
 				editor.redo();
 			e.consume();

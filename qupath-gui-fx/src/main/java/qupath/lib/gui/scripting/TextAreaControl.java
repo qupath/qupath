@@ -23,24 +23,41 @@
 
 package qupath.lib.gui.scripting;
 
+import java.util.Objects;
+
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableValue;
-import javafx.scene.control.Control;
+import javafx.scene.control.ContextMenu;
 import javafx.scene.control.IndexRange;
 import javafx.scene.control.TextArea;
 
 /**
- * Simple text area control (JavaFX) with basic operations.
+ * Simple text area control (JavaFX) with basic operations and no styling support.
+ * 
  * @author Pete Bankhead
- *
  */
-class TextAreaControl implements ScriptEditorControl {
+public class TextAreaControl implements ScriptEditorControl<TextArea> {
 	
 	private TextArea textArea;
 	
-	TextAreaControl(final TextArea textArea) {
+	/**
+	 * Constructor to create a new text area and wrap it in a {@link TextAreaControl}.
+	 * @param isEditable whether the text area should be editable or not
+	 */
+	public TextAreaControl(boolean isEditable) {
+		this(new TextArea(), isEditable);
+	}
+	
+	/**
+	 * Constructor to wrap an existing text area and wrap it in a {@link TextAreaControl}.
+	 * @param textArea the text area to wrap
+	 * @param isEditable whether the text area should be editable or not
+	 */
+	public TextAreaControl(final TextArea textArea, boolean isEditable) {
+		Objects.nonNull(textArea);
 		this.textArea = textArea;
+		this.textArea.setEditable(isEditable);
 	}
 
 	@Override
@@ -69,7 +86,7 @@ class TextAreaControl implements ScriptEditorControl {
 	}
 
 	@Override
-	public Control getRegion() {
+	public TextArea getRegion() {
 		return textArea;
 	}
 
@@ -162,4 +179,15 @@ class TextAreaControl implements ScriptEditorControl {
 	public void replaceSelection(String text) {
 		textArea.replaceSelection(text);
 	}
+	
+	@Override
+	public void setContextMenu(ContextMenu menu) {
+		textArea.setContextMenu(menu);
+	}
+
+	@Override
+	public ContextMenu getContextMenu() {
+		return textArea.getContextMenu();
+	}
+	
 }

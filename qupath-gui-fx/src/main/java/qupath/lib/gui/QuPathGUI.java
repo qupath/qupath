@@ -203,6 +203,7 @@ import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.prefs.PathPrefs.ImageTypeSetting;
 import qupath.lib.gui.prefs.QuPathStyleManager;
 import qupath.lib.gui.scripting.ScriptEditor;
+import qupath.lib.gui.scripting.ScriptEditorControl;
 import qupath.lib.gui.scripting.languages.GroovyLanguage;
 import qupath.lib.gui.scripting.languages.ScriptLanguageProvider;
 import qupath.lib.gui.tools.ColorToolsFX;
@@ -365,6 +366,8 @@ public class QuPathGUI {
 	private BooleanBinding uiBlocked = pluginRunning.or(scriptRunning);
 	
 	private SimpleBooleanProperty showInputDisplayProperty = new SimpleBooleanProperty(false);
+	
+	private LogViewerCommand logViewerCommand = new LogViewerCommand(QuPathGUI.this);
 	
 	/**
 	 * Create an {@link Action} that depends upon an {@link ImageData}.
@@ -698,7 +701,7 @@ public class QuPathGUI {
 		 * Show the main log window.
 		 */
 		@ActionAccelerator("shortcut+shift+l")
-		public final Action SHOW_LOG = ActionTools.createAction(new LogViewerCommand(QuPathGUI.this), "Show log");
+		public final Action SHOW_LOG = ActionTools.createAction(logViewerCommand, "Show log");
 
 		/**
 		 * Toggle the visibility of the 'Analysis pane' in the main viewer.
@@ -4066,6 +4069,14 @@ public class QuPathGUI {
 			scriptRunning.set(false);
 	}
 	
+	
+	/**
+	 * Set the control used to display log messages.
+	 * @param control
+	 */
+	public void setLogControl(final ScriptEditorControl<?> control) {
+		logViewerCommand.setLogControl(control);
+	}
 	
 	
 	/**

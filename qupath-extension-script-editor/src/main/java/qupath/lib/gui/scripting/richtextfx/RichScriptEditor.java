@@ -41,12 +41,15 @@ import org.slf4j.LoggerFactory;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.value.ObservableBooleanValue;
+import javafx.beans.value.ObservableObjectValue;
 import javafx.concurrent.Task;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.ListView;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.layout.Region;
 import javafx.stage.Popup;
 import qupath.lib.common.ThreadTools;
 import qupath.lib.gui.QuPathGUI;
@@ -126,10 +129,10 @@ public class RichScriptEditor extends DefaultScriptEditor {
 	}
 
 	@Override
-	protected ScriptEditorControl getNewEditor() {
+	protected ScriptEditorControl<? extends Region> getNewEditor() {
 		try {
 			CodeArea codeArea = new CustomCodeArea();
-			CodeAreaControl control = new CodeAreaControl(codeArea);
+			CodeAreaControl control = new CodeAreaControl(codeArea, true);
 						
 			/*
 			 * Using LineNumberFactory.get(codeArea) gives errors related to the new paragraph folding introduced in RichTextFX 0.10.6.
@@ -341,35 +344,42 @@ public class RichScriptEditor extends DefaultScriptEditor {
 	private static String styleBackground = "-fx-background-color: -fx-control-inner-background;";
 	
 	
-	@Override
-	protected ScriptEditorControl getNewConsole() {
-		try {
-			CodeArea codeArea = new CodeArea();
-			codeArea.setStyle(styleBackground);
-			codeArea.plainTextChanges()
+	static CodeAreaControl createLogConsole(ObservableObjectValue<ScriptStyler> scriptStyler, ObservableBooleanValue useLogHighlighting) {
+		
+		CodeArea codeArea = new CodeArea();
+		codeArea.setStyle(styleBackground);
+		codeArea.plainTextChanges()
 			.subscribe(c -> {
-				// If anything was removed, do full reformatting
-				// Otherwise, format from the position of the edit
-				int start = Integer.MAX_VALUE;
-				if (!c.getRemoved().isEmpty()) {
-					start = 0;
-				} else
-					start = Math.min(start, c.getPosition());
-				if (start < Integer.MAX_VALUE) {
-					String text = codeArea.getText();
-					// Make sure we return to the last newline
-					while (start > 0 && text.charAt(start) != '\n')
-						start--;
-					
-					if (start > 0) {
-						text = text.substring(start);
-					}
-					codeArea.setStyleSpans(start, scriptStyler.get().computeConsoleStyles(text, sendLogToConsoleProperty().get()));
+			// If anything was removed, do full reformatting
+			// Otherwise, format from the position of the edit
+			int start = Integer.MAX_VALUE;
+			if (!c.getRemoved().isEmpty()) {
+				start = 0;
+			} else
+				start = Math.min(start, c.getPosition());
+			if (start < Integer.MAX_VALUE) {
+				String text = codeArea.getText();
+				// Make sure we return to the last newline
+				while (start > 0 && text.charAt(start) != '\n')
+					start--;
+				
+				if (start > 0) {
+					text = text.substring(start);
 				}
-			});
-			codeArea.getStylesheets().add(getClass().getClassLoader().getResource("scripting_styles.css").toExternalForm());
-			codeArea.setEditable(false);
-			return new CodeAreaControl(codeArea);
+				codeArea.setStyleSpans(start, scriptStyler.get().computeConsoleStyles(text, useLogHighlighting.get()));
+			}
+		});
+		codeArea.getStylesheets().add(RichScriptEditor.class.getClassLoader().getResource("scripting_styles.css").toExternalForm());
+		codeArea.setEditable(false);
+		return new CodeAreaControl(codeArea, false);
+		
+	}
+	
+	
+	@Override
+	protected ScriptEditorControl<? extends Region> getNewConsole() {
+		try {
+			return createLogConsole(scriptStyler, sendLogToConsoleProperty());
 		} catch (Exception e) {
 			// Default to superclass implementation
 			logger.error("Unable to create console area", e);

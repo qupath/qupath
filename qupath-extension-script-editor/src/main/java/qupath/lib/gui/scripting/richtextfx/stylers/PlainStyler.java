@@ -24,7 +24,6 @@
 package qupath.lib.gui.scripting.richtextfx.stylers;
 
 import java.util.Collection;
-import java.util.ServiceLoader;
 import java.util.Set;
 
 import org.fxmisc.richtext.model.StyleSpans;
@@ -37,32 +36,9 @@ import org.fxmisc.richtext.model.StyleSpans;
 public class PlainStyler implements ScriptStyler {
 	
 	/**
-	 * Instance of this styler. Can't be final because of {@link ServiceLoader}.
+	 * Constructor.
 	 */
-	private static PlainStyler INSTANCE;
-
-	/**
-	 * Get the static instance of this class.
-	 * @return instance
-	 */
-	public static ScriptStyler getInstance() {
-		return INSTANCE;
-	}
-	
-	/**
-	 * Constructor for a simple plain styler (which does nothing). 
-	 * This constructor should never be called. Instead, use the 
-	 * static {@link #getInstance()} method.
-	 * <p>
-	 * Note: this has to be public for the {@link ServiceLoader} to work.
-	 */
-	public PlainStyler() {
-		if (INSTANCE != null)
-			throw new UnsupportedOperationException("ScriptStyler classes cannot be instantiated more than once!");
-		
-		// Because of ServiceLoader, have to assign INSTANCE here.
-		PlainStyler.INSTANCE = this;
-	}
+	PlainStyler() {}
 	
 	@Override
 	public Set<String> getLanguageNames() {
@@ -73,5 +49,7 @@ public class PlainStyler implements ScriptStyler {
 	public StyleSpans<Collection<String>> computeEditorStyles(String text) {
 		return ScriptStylerProvider.getPlainStyling(text);
 	}
+	
+	
 	
 }

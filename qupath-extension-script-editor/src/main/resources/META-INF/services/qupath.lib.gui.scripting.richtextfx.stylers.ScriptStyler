@@ -1,7 +1,0 @@
-qupath.lib.gui.scripting.richtextfx.stylers.PlainStyler
-qupath.lib.gui.scripting.richtextfx.stylers.GroovyStyler
-qupath.lib.gui.scripting.richtextfx.stylers.JsonStyler
-qupath.lib.gui.scripting.richtextfx.stylers.MarkdownStyler
-qupath.lib.gui.scripting.richtextfx.stylers.XmlStyler
-qupath.lib.gui.scripting.richtextfx.stylers.YamlStyler
-qupath.lib.gui.scripting.richtextfx.stylers.PythonStyler
