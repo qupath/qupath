@@ -23,7 +23,6 @@ This is a work-in-progress.
     * Comment block handling (https://github.com/qupath/qupath/pull/908)
   * New 'Edit -> Wrap lines', 'Edit -> Replace curly quotes' and 'Edit -> Zap gremlins' options
   * Prompt the user to reload data if 'Run for project' may have made changes for any images that are currently open
-  * Better formatting for log messages
   * New 'Recent scripts...' menu item to reopen scripts more easily
 * Other scripting improvements
   * *See https://github.com/qupath/qupath/pull/1078 for more detail*
@@ -31,6 +30,7 @@ This is a work-in-progress.
   * Added `checkMinVersion(version)` and `checkVersionRange(min, max)` methods to block scripts running with the wrong QuPath version
   * Added `Timeit` class to checkpoint & report running times
   * Adapted `getCurrentImageData()` and `getProject()` to return those open in the viewer if not called from a running script (rather than null)
+* Log messages are now color-coded, making errors and warnings easier to spot (https://github.com/qupath/qupath/pull/1079)
 * Pixel classifier improvements
   * Making measurements is *much* faster in some circumstances (https://github.com/qupath/qupath/pull/1076)
   * It's possible to restrict live prediction more closely to annotated regions ((https://github.com/qupath/qupath/pull/1076))
@@ -112,7 +112,7 @@ This is a work-in-progress.
 * It isn't possible to run cell detection on channels with " in the name (https://github.com/qupath/qupath/issues/1022)
 * Fix occasional "One of the arguments' values is out of range" exception with Delaunay triangulation
 * The colors used in pie chart legends were sometimes incorrect (https://github.com/qupath/qupath/issues/1062)
-# Delaunay connection lines could be broken or slow to display (https://github.com/qupath/qupath/pull/1069)
+* Delaunay connection lines could be broken or slow to display (https://github.com/qupath/qupath/pull/1069)
 
 ### Changes through Bio-Formats 6.11.0
 * Bio-Formats 6.11.0 brings several important new features to QuPath, including:
