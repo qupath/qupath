@@ -624,11 +624,8 @@ public class IJExtension implements QuPathExtension {
 		Menu menuTMA = qupath.getMenu("TMA", true);
 		var actionTMADearray = qupath.createPluginAction("TMA dearrayer", TMADearrayerPluginIJ.class, null);
 		actionTMADearray.setLongText("Identify cores and grid arrangement of a tissue microarray.");
-		menuTMA.getItems().addAll(0,
-				Arrays.asList(
-						ActionTools.createMenuItem(actionTMADearray),
-						new SeparatorMenuItem()
-						)
+		menuTMA.getItems().add(0,
+						ActionTools.createMenuItem(actionTMADearray)
 				);
 		
 		qupath.getDefaultDragDropListener().addFileDropHandler(new ImageJDropHandler(qupath));

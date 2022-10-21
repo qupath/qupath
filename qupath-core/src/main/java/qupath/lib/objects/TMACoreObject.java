@@ -157,8 +157,7 @@ public class TMACoreObject extends PathROIObject implements MetadataStore {
 	
 	@Override
 	public String toString() {
-		return super.toString();
-//		return getDisplayedName() + objectCountPostfix();
+		return getDisplayedName() + objectCountPostfix();
 	}
 	
 	

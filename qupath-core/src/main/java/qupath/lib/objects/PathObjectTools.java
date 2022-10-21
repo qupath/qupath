@@ -51,10 +51,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.geom.Point2;
+import qupath.lib.images.ImageData;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.classes.PathClassTools;
+import qupath.lib.objects.hierarchy.DefaultTMAGrid;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.TMAGrid;
 import qupath.lib.regions.ImagePlane;
@@ -436,6 +438,116 @@ public class PathObjectTools {
 		return null;
 	}
 	
+	/**
+	 * Create a new regular {@link TMAGrid} and set it as active on the hierarchy for an image.
+	 * <p>
+	 * For the label string format, see see {@link #parseTMALabelString(String)}.
+	 * 
+	 * @param imageData the image to which the TMA grid should be added. This is used to determine 
+	 *                  dimensions and pixel calibration. If there is a ROI selected, it will be used 
+	 *                  to define the bounding box for the grid.
+	 * @param hLabels a String representing horizontal labels
+	 * @param vLabels a String representing vertical labels
+	 * @param rowFirst true if the horizontal label should be added before the vertical label, false otherwise
+	 * @param diameterCalibrated the diameter of each core, in calibrated units
+	 */
+	public static void addTMAGrid(ImageData<?> imageData, String hLabels, String vLabels, boolean rowFirst, double diameterCalibrated) {
+		// Convert diameter to pixels
+		double diameterPixels = diameterCalibrated / imageData.getServer().getPixelCalibration().getAveragedPixelSize().doubleValue();
+		
+		// Get the current ROI
+		var hierarchy = imageData.getHierarchy();
+		var selected = hierarchy.getSelectionModel().getSelectedObject();
+		var roi = selected == null ? null : selected.getROI();
+		var region = roi == null ? 
+				ImageRegion.createInstance(0, 0, imageData.getServer().getWidth(), imageData.getServer().getHeight(), 0, 0) :
+					ImageRegion.createInstance(roi);
+		
+		var tmaGrid = createTMAGrid(hLabels, vLabels, rowFirst, diameterPixels, region);
+		hierarchy.setTMAGrid(tmaGrid);
+	}
+	
+	/**
+	 * Create a new regular {@link TMAGrid}, fit within a specified region.
+	 * <p>
+	 * For the label string format, see see {@link #parseTMALabelString(String)}.
+	 * 
+	 * @param hLabels a String representing horizontal labels
+	 * @param vLabels a String representing vertical labels
+	 * @param rowFirst true if the horizontal label should be added before the vertical label, false otherwise
+	 * @param diameterPixels the diameter of each core, in pixels
+	 * @param region bounding box and spacing for the grid (required)
+	 * @return
+	 */
+	public static TMAGrid createTMAGrid(String hLabels, String vLabels, boolean rowFirst, double diameterPixels, ImageRegion region) {
+		// TODO: Consider method that uses a polygonal ROI to create a warped/rotated grid
+		
+		// Enter the number of horizontal & vertical cores here
+		var hLabelsSplit = PathObjectTools.parseTMALabelString(hLabels);
+		var vLabelsSplit = PathObjectTools.parseTMALabelString(vLabels);
+		int numHorizontal = hLabelsSplit.length;
+		int numVertical = vLabelsSplit.length;
+		
+		// Create the cores
+		var cores = new ArrayList<TMACoreObject>();
+		double xSpacing = (region.getWidth() - diameterPixels) / Math.max(1, numHorizontal - 1);
+		double ySpacing = (region.getHeight() - diameterPixels) / Math.max(1, numVertical - 1);
+		for (int i = 0; i < numVertical; i++) {
+		    for (int j = 0; j < numHorizontal; j++) {
+		        double x = numHorizontal <= 1 ? region.getMinX() + region.getWidth()/2.0 : region.getMinX() + diameterPixels / 2 + xSpacing * j;
+		        double y = numVertical <= 1 ? region.getMinY() + region.getHeight()/2.0 : region.getMinY() + diameterPixels / 2 + ySpacing * i;
+		        cores.add(PathObjects.createTMACoreObject(x, y, diameterPixels, false, region.getPlane()));
+		    }
+		}
+		// Create & set the grid
+		var grid = DefaultTMAGrid.create(cores, numHorizontal);
+		
+		relabelTMAGrid(grid, hLabels, vLabels, rowFirst);
+		
+		return grid;
+	}
+	
+	
+	/**
+	 * Relabel a TMA grid.  This will only be effective if enough labels are supplied for the full grid - otherwise no changes will be made.
+	 * <p>
+	 * For a TMA core at column c and row r, the label format will be 'Hc-Vr' or 'Hc-Vr', where H is the horizontal label and V the vertical label, 
+	 * depending upon the status of the 'rowFirst' flag.
+	 * <p>
+	 * An examples of label would be 'A-1', 'A-2', 'B-1', 'B-2' etc.
+	 * 
+	 * @param grid the TMA grid to relabel
+	 * @param labelsHorizontal a String containing labels for each TMA column, separated by spaces, or a numeric or alphabetic range (e.g. 1-10, or A-G)
+	 * @param labelsVertical a String containing labels for each TMA row, separated by spaces, or a numeric or alphabetic range (e.g. 1-10, or A-G)
+	 * @param rowFirst true if the horizontal label should be added before the vertical label, false otherwise
+	 * @return true if there were sufficient horizontal and vertical labels to label the entire grid, false otherwise.
+	 */
+	public static boolean relabelTMAGrid(final TMAGrid grid, final String labelsHorizontal, final String labelsVertical, final boolean rowFirst) {
+		String[] columnLabels = PathObjectTools.parseTMALabelString(labelsHorizontal);
+		String[] rowLabels = PathObjectTools.parseTMALabelString(labelsVertical);
+		if (columnLabels.length < grid.getGridWidth()) {
+			logger.error("Cannot relabel full TMA grid - not enough column labels specified!");
+			return false;			
+		}
+		if (rowLabels.length < grid.getGridHeight()) {
+			logger.error("Cannot relabel full TMA grid - not enough row labels specified!");
+			return false;			
+		}
+		
+		for (int r = 0; r < grid.getGridHeight(); r++) {
+			for (int c = 0; c < grid.getGridWidth(); c++) {
+				String name;
+				if (rowFirst)
+					name = rowLabels[r] + "-" + columnLabels[c];
+				else
+					name = columnLabels[c] + "-" + rowLabels[r];
+				grid.getTMACore(r, c).setName(name);
+			}			
+		}
+		return true;
+	}
+	
+	
 	
 	/**
 	 * Convert a collection of PathObjects to Point annotations, based on ROI centroids, and add the points to the hierarchy.
@@ -635,6 +747,15 @@ public class PathObjectTools {
 	
 	/**
 	 * Parse a string input representing potential TMA core labels.
+	 * This can be a space-separated list, or an ascending or descending numeric or alphabetic range.
+	 * <p>
+	 * Examples:
+	 * <ul>
+	 * <li>{@code "A-H"}<li>
+	 * <li>{@code "1-9"}<li>
+	 * <li>{@code "H-A"}<li>
+	 * <li>{@code "A B D E"}<li>
+	 * </ul>
 	 * 
 	 * @param labelString
 	 * @return

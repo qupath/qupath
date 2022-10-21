@@ -31,6 +31,7 @@ import java.util.WeakHashMap;
 import java.util.stream.Collectors;
 
 import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.StringProperty;
 import qupath.lib.analysis.stats.RunningStatistics;
 import qupath.lib.common.GeneralTools;
@@ -192,6 +193,7 @@ public class TMACommands {
 	private static StringProperty rowLabelsProperty = PathPrefs.createPersistentPreference("tmaRowLabels", "A-J");
 	private static StringProperty columnLabelsProperty = PathPrefs.createPersistentPreference("tmaColumnLabels", "1-16");
 	private static BooleanProperty rowFirstProperty = PathPrefs.createPersistentPreference("tmaLabelRowFirst", true);
+	private static DoubleProperty coreDiameterProperty = PathPrefs.createPersistentPreference("tmaCoreDiameter", 1000.0);
 
 	
 	/**
@@ -383,6 +385,68 @@ public class TMACommands {
 		}
 	
 	};
+	
+	
+	/**
+	 * Prompt the user to manually create a new TMA grid.
+	 * 
+	 * @param imageData
+	 * @return
+	 * @see PathObjectTools#createTMAGrid(String, String, boolean, double, qupath.lib.regions.ImageRegion)
+	 */
+	public static boolean promptToCreateTMAGrid(final ImageData<?> imageData) {
+		String title = "Create TMA grid";
+		if (imageData == null) {
+			Dialogs.showNoImageError(title);
+			return false;
+		}
+		if (imageData.getHierarchy().getTMAGrid() != null) {
+			if (!Dialogs.showConfirmDialog(title, "Existing TMA grid will be removed - are you sure?"))
+				return false;
+		}
+		
+		var units = imageData.getServer().getPixelCalibration().getPixelWidthUnit();
+		
+		ParameterList params = new ParameterList();
+		params.addStringParameter("labelsHorizontal", "Column labels", columnLabelsProperty.get(), "Enter column labels.\nThis can be a continuous range of letters or numbers (e.g. 1-10 or A-J),\nor a discontinuous list separated by spaces (e.g. A B C E F G).");
+		params.addStringParameter("labelsVertical", "Row labels", rowLabelsProperty.get(), "Enter row labels.\nThis can be a continuous range of letters or numbers (e.g. 1-10 or A-J),\nor a discontinuous list separated by spaces (e.g. A B C E F G).");
+		params.addChoiceParameter("labelOrder", "Label order", rowFirstProperty.get() ? "Row first" : "Column first", Arrays.asList("Column first", "Row first"), "Create TMA labels either in the form Row-Column or Column-Row");
+		params.addDoubleParameter("coreDiameter", "Core diameter", coreDiameterProperty.get(), units, "Diameter of each individual TMA core");
+		params.addEmptyParameter("Tip: You can control the size of the grid by drawing a rectangle annotation");
+		
+		if (!Dialogs.showParameterDialog(title, params))
+			return false;
+		
+		// Parse the arguments
+		String labelsHorizontal = params.getStringParameterValue("labelsHorizontal");
+		String labelsVertical = params.getStringParameterValue("labelsVertical");
+		boolean rowFirst = "Row first".equals(params.getChoiceParameterValue("labelOrder"));
+		double diameter = params.getDoubleParameterValue("coreDiameter");
+		
+		if (diameter <= 0) {
+			Dialogs.showErrorMessage(title, "Core diameter must be > 0!");
+			return false;
+		}
+		
+		PathObjectTools.addTMAGrid(imageData, labelsHorizontal, labelsVertical, rowFirst, diameter);
+		
+		// Add to workflow history
+		imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep("Relabel TMA grid",
+				String.format("createTMAGrid(\"%s\", \"%s\", %s, %s)",
+						GeneralTools.escapeFilePath(labelsHorizontal),
+						GeneralTools.escapeFilePath(labelsVertical),
+						Boolean.toString(rowFirst),
+						diameter)));
+		
+		
+		// Store values
+		rowLabelsProperty.set(labelsVertical);
+		columnLabelsProperty.set(labelsHorizontal);
+		rowFirstProperty.set(rowFirst);
+		coreDiameterProperty.set(diameter);
+		
+		return false;
+	}
 	
 	
 	/**

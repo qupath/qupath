@@ -1699,39 +1699,16 @@ public class QP {
 	 * @param hierarchy The hierarchy containing the TMA grid to be relabelled.
 	 * @param labelsHorizontal A String containing labels for each TMA column, separated by spaces, or a numeric or alphabetic range (e.g. 1-10, or A-G)
 	 * @param labelsVertical A String containing labels for each TMA row, separated by spaces, or a numeric or alphabetic range (e.g. 1-10, or A-G)
-	 * @param rowFirst TRUE if the horizontal label should be added before the vertical label, FALSE otherwise
-	 * @return TRUE if there were sufficient horizontal and vertical labels to label the entire grid, FALSE otherwise.
+	 * @param rowFirst true if the horizontal label should be added before the vertical label, false otherwise
+	 * @return true if there were sufficient horizontal and vertical labels to label the entire grid, false otherwise.
 	 */
 	public static boolean relabelTMAGrid(final PathObjectHierarchy hierarchy, final String labelsHorizontal, final String labelsVertical, final boolean rowFirst) {
 		if (hierarchy == null || hierarchy.getTMAGrid() == null) {
 			logger.error("Cannot relabel TMA grid - no grid found!");
 			return false;
 		}
-		
 		TMAGrid grid = hierarchy.getTMAGrid();
-		String[] columnLabels = PathObjectTools.parseTMALabelString(labelsHorizontal);
-		String[] rowLabels = PathObjectTools.parseTMALabelString(labelsVertical);
-		if (columnLabels.length < grid.getGridWidth()) {
-			logger.error("Cannot relabel full TMA grid - not enough column labels specified!");
-			return false;			
-		}
-		if (rowLabels.length < grid.getGridHeight()) {
-			logger.error("Cannot relabel full TMA grid - not enough row labels specified!");
-			return false;			
-		}
-		
-		for (int r = 0; r < grid.getGridHeight(); r++) {
-			for (int c = 0; c < grid.getGridWidth(); c++) {
-				String name;
-				if (rowFirst)
-					name = rowLabels[r] + "-" + columnLabels[c];
-				else
-					name = columnLabels[c] + "-" + rowLabels[r];
-				grid.getTMACore(r, c).setName(name);
-			}			
-		}
-		hierarchy.fireObjectsChangedEvent(null, new ArrayList<>(grid.getTMACoreList()));
-		return true;
+		return PathObjectTools.relabelTMAGrid(grid, labelsHorizontal, labelsVertical, rowFirst);
 	}
 	
 	/**
@@ -1743,6 +1720,39 @@ public class QP {
 	 */
 	public static boolean relabelTMAGrid(final String labelsHorizontal, final String labelsVertical, final boolean rowFirst) {
 		return relabelTMAGrid(getCurrentHierarchy(), labelsHorizontal, labelsVertical, rowFirst);
+	}
+	
+	/**
+	 * Create a new regular {@link TMAGrid} and set it as active on the hierarchy for an image.
+	 * <p>
+	 * For the label string format, see see {@link PathObjectTools#parseTMALabelString(String)}.
+	 * 
+	 * @param imageData the image to which the TMA grid should be added. This is used to determine 
+	 *                  dimensions and pixel calibration. If there is a ROI selected, it will be used 
+	 *                  to define the bounding box for the grid.
+	 * @param hLabels a String representing horizontal labels
+	 * @param vLabels a String representing vertical labels
+	 * @param rowFirst true if the horizontal label should be added before the vertical label, false otherwise
+	 * @param diameterCalibrated the diameter of each core, in calibrated units
+	 * @see PathObjectTools#addTMAGrid(ImageData, String, String, boolean, double)
+	 */
+	public static void createTMAGrid(ImageData<?> imageData, String hLabels, String vLabels, boolean rowFirst, double diameterCalibrated) {
+		PathObjectTools.addTMAGrid(imageData, hLabels, vLabels, rowFirst, diameterCalibrated);
+	}
+	
+	/**
+	 * Create a new regular {@link TMAGrid} and set it as active on the hierarchy for the current image.
+	 * <p>
+	 * For the label string format, see see {@link PathObjectTools#parseTMALabelString(String)}.
+	 * 
+	 * @param hLabels a String representing horizontal labels
+	 * @param vLabels a String representing vertical labels
+	 * @param rowFirst true if the horizontal label should be added before the vertical label, false otherwise
+	 * @param diameterCalibrated the diameter of each core, in calibrated units
+	 * @see PathObjectTools#addTMAGrid(ImageData, String, String, boolean, double)
+	 */
+	public static void createTMAGrid(String hLabels, String vLabels, boolean rowFirst, double diameterCalibrated) {
+		createTMAGrid(getCurrentImageData(), hLabels, vLabels, rowFirst, diameterCalibrated);
 	}
 	
 	
