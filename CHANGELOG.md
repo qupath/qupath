@@ -78,6 +78,7 @@ This is a work-in-progress.
   * Enables annotations & TMA cores to be locked so they cannot accidentally be moved or edited (deletion is still possible)
   * Toggle the 'locked' status of any selected object with `Ctrl/Cmd + K`
   * View locked status for annotations under the 'Annotation' tab
+* New 'TMA -> Specify TMA grid' command to manually specify a TMA grid (rather than relying on the dearrayer)
 * Updated prompt to set the image type
 * Added `QuPathGUI.lookupAccelerator(combo)` methods to check if a key combinations are already registered
 * Missing thumbnails are automatically regenerated when a project is opened
@@ -113,6 +114,7 @@ This is a work-in-progress.
 * Fix occasional "One of the arguments' values is out of range" exception with Delaunay triangulation
 * The colors used in pie chart legends were sometimes incorrect (https://github.com/qupath/qupath/issues/1062)
 * Delaunay connection lines could be broken or slow to display (https://github.com/qupath/qupath/pull/1069)
+* Attempting to add a row or column to a TMA grid with a single core produced weird results
 
 ### Changes through Bio-Formats 6.11.0
 * Bio-Formats 6.11.0 brings several important new features to QuPath, including:

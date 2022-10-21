@@ -608,6 +608,13 @@ class Menus {
 	@ActionMenu("TMA")
 	public class TMAMenuManager {
 		
+		@ActionDescription("Create a manual TMA grid, by defining labels and the core diameter. "
+				+ "This can optionally be restricted to a rectangular annotation.")
+		@ActionMenu("Specify TMA grid")
+		public final Action CREATE_MANUAL = qupath.createImageDataAction(imageData -> TMACommands.promptToCreateTMAGrid(imageData));
+
+		public final Action SEP_0 = ActionTools.createSeparator();
+		
 		@ActionDescription("Add a row to the TMA grid before (above) the row containing the current selected object.")
 		@ActionMenu("Add...>Add TMA row before")
 		public final Action ADD_ROW_BEFORE = qupath.createImageDataAction(imageData -> TMACommands.promptToAddRowBeforeSelected(imageData));
@@ -648,7 +655,7 @@ class Menus {
 		@ActionMenu("TMA grid summary view")
 		public final Action SUMMARY_GRID = qupath.createImageDataAction(imageData -> TMACommands.showTMAGridView(qupath));
 
-		public final Action SEP_0 = ActionTools.createSeparator();
+		public final Action SEP_1 = ActionTools.createSeparator();
 		
 		@ActionDescription("Find all detections occurring on the convex hull of the detections within a TMA core. "
 				+ "This can be used to find cells occurring towards the edge of the core, which can then be deleted if necessary. "

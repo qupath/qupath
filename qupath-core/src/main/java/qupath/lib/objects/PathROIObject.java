@@ -117,17 +117,20 @@ public abstract class PathROIObject extends PathObject {
 	}
 
 	/**
-	 * Currently, a ROI is editable if it isn't locked.
-	 *  
-	 *  TODO: Consider whether this is a good basis on which to make the decision!
+	 * Return true if {@link #isLocked()} is false, otherwise returns false.
+	 * <p>
+	 * This method existed before {@link #isLocked()} to try to automatically determine whether 
+	 * an object should be locked or not. Now the {@link #isLocked()} flag should be used instead.
+	 * @deprecated since v0.4.0
 	 */
+	@Deprecated
 	@Override
 	public boolean isEditable() {
 		// Note on commented out code (Pete):
 		// Previous code that attempted to automatically set locked status (effectively) without storing it in a variable
 		// Kind of worked for common use cases, but not a great long-term solution
 //J		return !PathObjectTools.containsChildOfClass(this, PathDetectionObject.class, false) || getParent() == null || !getParent().isRootObject();
-		return !this.lockedROI;
+		return !isLocked();
 	}
 	
 	@Override

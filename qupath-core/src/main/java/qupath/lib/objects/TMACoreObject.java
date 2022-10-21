@@ -158,29 +158,28 @@ public class TMACoreObject extends PathROIObject implements MetadataStore {
 	@Override
 	public String toString() {
 		return getDisplayedName() + objectCountPostfix();
-//		if (getROI() != null)
-//			return getROI().getName() + objectCountPostfix();
-//		return "Unnamed TMA core"; // Entire image
 	}
 	
 	
-	/**
-	 * TMA core cannot be edited if it contains any detections.
-	 */
-	@Override
-	public boolean isEditable() {
-		return super.isEditable() && !containsChildOfClass(this, PathDetectionObject.class, true);
-	}
-	
-	private static boolean containsChildOfClass(final PathObject pathObject, final Class<? extends PathObject> cls, final boolean allDescendants) {
-		for (PathObject childObject : pathObject.getChildObjectsAsArray()) {
-			if (cls.isAssignableFrom(childObject.getClass()))
-				return true;
-			if (childObject.hasChildren() && allDescendants && containsChildOfClass(childObject, cls, allDescendants))
-				return true;
-		}
-		return false;
-	}
+//	/**
+//	 * TMA core cannot be edited if it contains any detections.
+//	 * (Removed for v0.4.0 to rely on locking like other objects instead - 
+//	 * see https://github.com/qupath/qupath/issues/1021
+//	 */
+//	@Override
+//	public boolean isEditable() {
+//		return super.isEditable() && !containsChildOfClass(this, PathDetectionObject.class, true);
+//	}
+//	
+//	private static boolean containsChildOfClass(final PathObject pathObject, final Class<? extends PathObject> cls, final boolean allDescendants) {
+//		for (PathObject childObject : pathObject.getChildObjectsAsArray()) {
+//			if (cls.isAssignableFrom(childObject.getClass()))
+//				return true;
+//			if (childObject.hasChildren() && allDescendants && containsChildOfClass(childObject, cls, allDescendants))
+//				return true;
+//		}
+//		return false;
+//	}
 	
 	@Override
 	public void writeExternal(ObjectOutput out) throws IOException {
