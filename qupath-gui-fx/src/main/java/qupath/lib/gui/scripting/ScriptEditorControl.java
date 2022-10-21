@@ -131,8 +131,16 @@ public interface ScriptEditorControl<T extends Region>  extends TextAppendable, 
 		return;
 	}
 	
+	/**
+	 * Set the context menu for the control.
+	 * @param menu
+	 */
 	public void setContextMenu(ContextMenu menu);
-
+	
+	/**
+	 * Get the context menu for the control.
+	 * @return
+	 */
 	public ContextMenu getContextMenu();
 	
 }

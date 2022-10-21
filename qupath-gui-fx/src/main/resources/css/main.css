@@ -4,31 +4,30 @@
 
 /* Define colors that may be used by script editors and log viewers */
 .root {
+	
+  -qp-script-text-color: -fx-text-background-color;
+	
+  -qp-script-background-color: -fx-control-inner-background;
 
   -qp-script-error-color: ladder(-qp-script-background-color, red 30%, darkred 50%, red 70%);
 
   -qp-script-warn-color: ladder(-qp-script-background-color, orange 30%, darkorange 50%, orange 70%);
 
-  -qp-script-info-color: -fx-text-base-color;
+  -qp-script-info-color: -qp-script-text-color;
 
   -qp-script-debug-color: ladder(-qp-script-background-color, derive(royalblue, 25%) 49%, derive(royalblue, -5%) 50%);
 
   -qp-script-trace-color: ladder(-qp-script-background-color, derive(-qp-script-text-color, -30%) 49%, derive(-qp-script-text-color, 30%) 50%);
-
-  
-  -qp-script-background-color: -fx-background;
-  
-  -qp-script-text-color: -fx-text-base-color;
   
   -qp-script-keyword-color: ladder(-qp-script-background-color, darkorange 50%, orange 51%);
   
-  -qp-script-paren-color: -fx-text-base-color;
+  -qp-script-paren-color: -qp-script-text-color;
 
-  -qp-script-bracket-color: -fx-text-base-color;
+  -qp-script-bracket-color: -qp-script-text-color;
 
-  -qp-script-brace-color: -fx-text-base-color;
+  -qp-script-brace-color: -qp-script-text-color;
 
-  -qp-script-semicolon-color: -fx-text-base-color;
+  -qp-script-semicolon-color: -qp-script-text-color;
 
   -qp-script-string-color: ladder(-qp-script-background-color, derive(seagreen, 50%) 49%, derive(seagreen, -5%) 50%);
 
@@ -42,7 +41,7 @@
 
   -qp-script-attribute-color: ladder(-qp-script-background-color, derive(royalblue, 25%) 49%, derive(royalblue, -5%) 50%);
 
-  -qp-script-tag-color: -fx-text-base-color;
+  -qp-script-tag-color: -qp-script-text-color;
 
 }
 
