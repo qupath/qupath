@@ -131,7 +131,9 @@ public class RichScriptEditor extends DefaultScriptEditor {
 	@Override
 	protected ScriptEditorControl<? extends Region> getNewEditor() {
 		try {
-			CodeArea codeArea = new CustomCodeArea();
+			CodeArea codeArea = createCodeArea();
+
+			
 			CodeAreaControl control = new CodeAreaControl(codeArea, true);
 						
 			/*
@@ -287,7 +289,7 @@ public class RichScriptEditor extends DefaultScriptEditor {
 						logger.debug("{}", t);
 						return Optional.empty();
 					})
-					.subscribe(change -> codeArea.setStyleSpans(0, change));
+					.subscribe(styles -> codeArea.setStyleSpans(0, styles));
 
 			codeArea.getStylesheets().add(getClass().getClassLoader().getResource("scripting_styles.css").toExternalForm());
 			
@@ -296,14 +298,12 @@ public class RichScriptEditor extends DefaultScriptEditor {
 			// Triggered whenever the script styling changes (e.g. change of language)
 			scriptStyler.addListener((v, o, n) -> {
 				if (n == null) {
-					codeArea.setStyle(styleBackground);
+					codeArea.setStyle(null);
 					return;
 				}
 				String baseStyle = n.getBaseStyle();
-				if (baseStyle == null || baseStyle.isBlank())
-					codeArea.setStyle(styleBackground);
-				else
-					codeArea.setStyle(styleBackground + " " + baseStyle);
+				if (baseStyle != null && !baseStyle.isBlank())
+					codeArea.setStyle(baseStyle);
 				StyleSpans<Collection<String>> changes = n.computeEditorStyles(codeArea.getText());
 				codeArea.setStyleSpans(0, changes);
 				codeArea.requestFocus(); // Seems necessary to trigger the update when switching between scripts
@@ -340,14 +340,9 @@ public class RichScriptEditor extends DefaultScriptEditor {
 	}
 	
 	
-	
-	private static String styleBackground = "-fx-background-color: -fx-control-inner-background;";
-	
-	
 	static CodeAreaControl createLogConsole(ObservableObjectValue<ScriptStyler> scriptStyler, ObservableBooleanValue useLogHighlighting) {
 		
-		CodeArea codeArea = new CodeArea();
-		codeArea.setStyle(styleBackground);
+		CodeArea codeArea = createCodeArea();
 		codeArea.plainTextChanges()
 			.subscribe(c -> {
 			// If anything was removed, do full reformatting
@@ -369,11 +364,26 @@ public class RichScriptEditor extends DefaultScriptEditor {
 				codeArea.setStyleSpans(start, scriptStyler.get().computeConsoleStyles(text, useLogHighlighting.get()));
 			}
 		});
-		codeArea.getStylesheets().add(RichScriptEditor.class.getClassLoader().getResource("scripting_styles.css").toExternalForm());
 		codeArea.setEditable(false);
 		return new CodeAreaControl(codeArea, false);
 		
 	}
+	
+	
+	/**
+	 * Create a code area with some 'standard' customizations (e.g. style sheet).
+	 * @return 
+	 */
+	static CodeArea createCodeArea() {
+		var codeArea = new CustomCodeArea();
+		// Turned off by default in CodeArea... but I think it helps by retaining the most recent style
+		// Particularly noticeable with markdown
+		codeArea.setUseInitialStyleForInsertion(false);
+		// Be sure to add stylesheet
+		codeArea.getStylesheets().add(RichScriptEditor.class.getClassLoader().getResource("scripting_styles.css").toExternalForm());
+		return codeArea;
+	}
+	
 	
 	
 	@Override

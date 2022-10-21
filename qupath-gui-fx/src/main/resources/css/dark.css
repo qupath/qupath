@@ -5,12 +5,26 @@
  * See https://tomsondev.bestsolution.at/2014/03/13/eclipse-on-javafx-get-dark-the-power-of-javafx-css/
  * for some useful info about JavaFX styling via CSS.
  * 
+ * See also https://openjfx.io/javadoc/11/javafx.graphics/javafx/scene/doc-files/cssref.html
  */
 .root {
     -fx-base: rgb(45, 48, 50);
-    -fx-background: rgb(45, 48, 50);
-    -fx-control-inner-background:  rgb(45, 48, 50);
+    
+    -fx-background: derive(-fx-base, -10%);
+    
+    -fx-control-inner-background: derive(-fx-base, 10%);
+    -fx-control-inner-background-alt: derive(-fx-control-inner-background,1%);
+    
     -fx-light-text-color: rgb(200, 200, 200);
+    
+    -fx-accent: rgb(195, 223, 255, 0.5);
+    
+    -qp-script-error-color: rgb(255, 60, 60);
+    -qp-script-string-color: rgb(255, 240, 60);
+}
+
+.code-area * {
+  -fx-highlight-fill: derive(-fx-base, 40%);
 }
 
 /* Input prompt text colour */

@@ -149,7 +149,7 @@ public class ScriptStylerProvider {
 	public static StyleSpans<Collection<String>> getLogStyling(String text) {
 		var builder = new StyleSpansCollectionBuilder(text);
 		
-		var logClassMap = Map.of("INFO:", "info", "WARN:", "warning", "ERROR:", "error", "DEBUG:", "debug", "TRACE:", "trace");
+		var logClassMap = Map.of("INFO:", "info", "WARN:", "warn", "ERROR:", "error", "DEBUG:", "debug", "TRACE:", "trace");
 		var logKeys = logClassMap.keySet();
 		
 		var matcher = PATTERN_NEWLINES.matcher(text);
