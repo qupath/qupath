@@ -391,7 +391,7 @@ public class BrushTool extends AbstractPathROITool {
 			PathObject pathObjectNew = PathObjects.createAnnotationObject(roiNew, PathPrefs.autoSetAnnotationClassProperty().get());
 			if (currentObject != null) {
 				pathObjectNew.setName(currentObject.getName());
-				pathObjectNew.setColorRGB(currentObject.getColorRGB());
+				pathObjectNew.setColor(currentObject.getColor());
 				pathObjectNew.setPathClass(currentObject.getPathClass());
 			}
 			return pathObjectNew;

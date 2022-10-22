@@ -41,6 +41,8 @@ import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import qupath.lib.common.ColorTools;
+import qupath.lib.common.LogTools;
 import qupath.lib.io.PathIO;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.measurements.MeasurementListFactory;
@@ -738,19 +740,65 @@ public abstract class PathObject implements Externalizable {
 	/**
 	 * Return any stored color as a packed RGB value.
 	 * <p>
+	 * This may be null if no color has been set.
+	 * @return
+	 * @see #setColorRGB(Integer)
+	 * @see ColorTools#red(int)
+	 * @see ColorTools#green(int)
+	 * @see ColorTools#blue(int)
+	 * @since v0.4.0
+	 */
+	public Integer getColor() {
+		return color;
+	}
+	
+	/**
+	 * Return any stored color as a packed RGB value.
+	 * <p>
 	 * This may be null if no color has been set
 	 * @return
+	 * @deprecated since v0.4.0, use {@link #getColor()} instead.
 	 */
+	@Deprecated
 	public Integer getColorRGB() {
-		return color;
+		LogTools.warnOnce(logger, "PathObject.getColorRGB() is deprecated since v0.4.0 - use getColor() instead");
+		return getColor();
 	}
 	
 	/**
 	 * Set the display color.
 	 * @param color
+	 * @deprecated since v0.4.0, use {@link #setColor(Integer)} instead.
 	 */
+	@Deprecated
 	public void setColorRGB(Integer color) {
+		LogTools.warnOnce(logger, "PathObject.setColorRGB(Integer) is deprecated since v0.4.0 - use setColor(Integer) instead");
+		setColor(color);
+	}
+	
+	/**
+	 * Set the display color as a packed (A)RGB integer (alpha may not be used 
+	 * by viewing code).
+	 * @param color packed (A)RGB value, or null if a color should not stored
+	 * @since v0.4.0
+	 * @see #setColor(int, int, int)
+	 * @see ColorTools#packRGB(int, int, int)
+	 * @implNote any alpha value is retained, but may not be used; it is recommended to 
+	 *           use only RGB values with alpha 255.
+	 */
+	public void setColor(Integer color) {
 		this.color = color;
+	}
+	
+	/**
+	 * Set the display color as 8-bit RGB values
+	 * @param red 
+	 * @param green 
+	 * @param blue 
+	 * @since v0.4.0
+	 */
+	public void setColor(int red, int green, int blue) {
+		setColor(ColorTools.packRGB(red, green, blue));
 	}
 	
 	/**

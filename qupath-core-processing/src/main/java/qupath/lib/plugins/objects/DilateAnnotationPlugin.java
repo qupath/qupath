@@ -243,7 +243,7 @@ public class DilateAnnotationPlugin<T> extends AbstractInteractivePlugin<T> {
 		// Create a new annotation, with properties based on the original
 		PathObject annotation2 = PathObjects.createAnnotationObject(roi2, pathObject.getPathClass());
 		annotation2.setName(pathObject.getName());
-		annotation2.setColorRGB(pathObject.getColorRGB());
+		annotation2.setColor(pathObject.getColor());
 
 		if (constrainToParent || isErosion)
 		    hierarchy.addPathObjectBelowParent(parent, annotation2, true);

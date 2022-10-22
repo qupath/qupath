@@ -23,11 +23,13 @@
 
 package qupath.lib.color;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Locale;
+import java.util.Random;
 
 import org.junit.jupiter.api.Test;
 
@@ -263,6 +265,44 @@ public class TestColors {
 //		ColorDeconvolution.colorDeconvolveReconvolveRGBArray(new int[]{MIN_RGB, MAX_RGB}, myCDS2, myCDS2, false, buf_output);
 		
 	}
+	
+	
+	@Test
+	public void test_ColorTools() {
+		
+		var random = new Random(100L);
+		for (int i = 0; i < 10; i++) {
+			
+			int a = random.nextInt(255);
+			int r = random.nextInt(255);
+			int g = random.nextInt(255);
+			int b = random.nextInt(255);
+			
+			int rgb = ColorTools.packRGB(r, g, b);
+			assertEquals(255, ColorTools.alpha(rgb));
+			assertEquals(r, ColorTools.red(rgb));
+			assertEquals(g, ColorTools.green(rgb));
+			assertEquals(b, ColorTools.blue(rgb));
+			
+			assertArrayEquals(new int[] {r, g, b}, ColorTools.unpackRGB(rgb));
+			assertArrayEquals(new int[] {255, r, g, b}, ColorTools.unpackARGB(rgb));
+			
+			assertArrayEquals(new int[] {r, g, b}, ColorTools.unpackRGB(rgb));
+			assertArrayEquals(new int[] {255, r, g, b}, ColorTools.unpackARGB(rgb));
+
+			int argb = ColorTools.packARGB(a, r, g, b);
+			assertEquals(a, ColorTools.alpha(argb));
+			assertEquals(r, ColorTools.red(argb));
+			assertEquals(g, ColorTools.green(argb));
+			assertEquals(b, ColorTools.blue(argb));
+
+			assertArrayEquals(new int[] {r, g, b}, ColorTools.unpackRGB(argb));
+			assertArrayEquals(new int[] {a, r, g, b}, ColorTools.unpackARGB(argb));
+		}
+		
+		
+	}
+	
 	
 }
 

@@ -569,7 +569,7 @@ public class DelaunayTools {
 			Integer color = pathClass == null ? null : pathClass.getColor();
 			for (var pathObject : cluster) {
 				pathObject.setName(name);
-				pathObject.setColorRGB(color);
+				pathObject.setColor(color);
 				list.add(pathObject);
 			}
 			c++;
