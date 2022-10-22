@@ -153,7 +153,7 @@ public abstract class PathROIObject extends PathObject {
 		this.classProbability = classProbability;
 		// Forget any previous color, if we have a PathClass
 		if (this.pathClass != null)
-			setColorRGB(null);
+			setColor(null);
 	}
 	
 	@Override

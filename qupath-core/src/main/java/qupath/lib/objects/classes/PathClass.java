@@ -223,6 +223,17 @@ public class PathClass implements Comparable<PathClass>, Serializable {
 	}
 	
 	/**
+	 * Set the color as 8-bit RGB values
+	 * @param red 
+	 * @param green 
+	 * @param blue 
+	 * @since v0.4.0
+	 */
+	public void setColor(int red, int green, int blue) {
+		setColor(ColorTools.packRGB(red, green, blue));
+	}
+	
+	/**
 	 * Get the color that should be used to display objects with this classification.
 	 * @return packed (A)RGB value representing the classification color.
 	 */

@@ -30,6 +30,11 @@ This is a work-in-progress.
   * Added `checkMinVersion(version)` and `checkVersionRange(min, max)` methods to block scripts running with the wrong QuPath version
   * Added `Timeit` class to checkpoint & report running times
   * Adapted `getCurrentImageData()` and `getProject()` to return those open in the viewer if not called from a running script (rather than null)
+* API changes (improvements...)
+  * Replaced `ImageServer.readBufferedImage()` with `readRegion()`, and made `RegionRequest` optional
+    * Retrieve pixels with `server.readRegion(downsample, x, y, width, height, z, t)` (https://github.com/qupath/qupath/pull/1072)
+  * Replaced `PathObject.get/setColorRGB(Integer)` with `PathObject.get/setColor(Integer)` and `PathObject.setColor(int, int, int)` (https://github.com/qupath/qupath/issues/1086)
+    * Improved consistency with `PathClass`, optionally provide unpacked r, g and b values
 * Log messages are now color-coded, making errors and warnings easier to spot (https://github.com/qupath/qupath/pull/1079)
 * Pixel classifier improvements
   * Making measurements is *much* faster in some circumstances (https://github.com/qupath/qupath/pull/1076)

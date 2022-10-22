@@ -137,6 +137,66 @@ public final class ColorTools {
 	}
 	
 	/**
+	 * Unpack a packed (A)RGB int into red, green and blue values, 
+	 * returning the result as a 3-element int array.
+	 * @param rgb
+	 * @return
+	 * @since v0.4.0
+	 */
+	public static int[] unpackRGB(int rgb) {
+		return unpackRGB(rgb, null);
+	}
+	
+	/**
+	 * Unpack a packed (A)RGB int into red, green and blue values, 
+	 * into a 3-element int array.
+	 * @param rgb
+	 * @param array optional preallocated input array
+	 * @return the red, green and blue values in {@code array} if provided and long enough, 
+	 *         otherwise a new int array storing the values
+	 * @since v0.4.0
+	 */
+	public static int[] unpackRGB(int rgb, int[] array) {
+		if (array == null || array.length < 3)
+			array = new int[3];
+		array[0] = red(rgb);
+		array[1] = green(rgb);
+		array[2] = blue(rgb);
+		return array;
+	}
+	
+	/**
+	 * Unpack a packed ARGB int into red, green and blue values, 
+	 * returning the result as a 4-element int array.
+	 * @param rgb
+	 * @return
+	 * @since v0.4.0
+	 */
+	public static int[] unpackARGB(int rgb) {
+		return unpackARGB(rgb, null);
+	}
+	
+	/**
+	 * Unpack a packed ARGB int into red, green and blue values, 
+	 * into a 4-element int array.
+	 * @param rgb
+	 * @param array optional preallocated input array
+	 * @return the alpha, red, green and blue values in {@code array} if provided and long enough, 
+	 *         otherwise a new int array storing the values
+	 * @since v0.4.0
+	 */
+	public static int[] unpackARGB(int rgb, int[] array) {
+		if (array == null || array.length < 4)
+			array = new int[4];
+		array[0] = alpha(rgb);
+		array[1] = red(rgb);
+		array[2] = green(rgb);
+		array[3] = blue(rgb);
+		return array;
+	}
+	
+	
+	/**
 	 * Make a packed RGB value from specified input values, clipping to the range 0-255.
 	 * This is equivalent to an ARGB value with alpha set to 255, following Java {@link Color}.
 	 * <p>

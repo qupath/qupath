@@ -578,7 +578,7 @@ public class IJTools {
 			pathObject.setPathClass(PathClassFactory.getPathClass("Group " + roi.getGroup(), colorRGB));
 		}
 		if (colorRGB != null && pathObject.getPathClass() == null) {
-			pathObject.setColorRGB(colorRGB);
+			pathObject.setColor(colorRGB);
 		}
 	}
 	

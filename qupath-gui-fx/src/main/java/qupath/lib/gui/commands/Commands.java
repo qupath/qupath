@@ -980,7 +980,7 @@ public class Commands {
 		if (!newROI.isEmpty()) {
 			newObject = PathObjects.createAnnotationObject(newROI, pathObject.getPathClass());
 			newObject.setName(pathObject.getName());
-			newObject.setColorRGB(pathObject.getColorRGB());
+			newObject.setColor(pathObject.getColor());
 		}
 
 		// Remove previous objects

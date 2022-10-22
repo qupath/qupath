@@ -729,7 +729,7 @@ public class PathObjectTools {
 	public static void swapNameAndClass(PathObject pathObject, boolean includeColor) {
 		var pathClass = pathObject.getPathClass();
 		var name = pathObject.getName();
-		var color = pathObject.getColorRGB();
+		var color = pathObject.getColor();
 		if (name == null)
 			pathObject.setPathClass(null);
 		else
@@ -737,11 +737,11 @@ public class PathObjectTools {
 		if (pathClass == null) {
 			pathObject.setName(null);
 			if (includeColor)
-				pathObject.setColorRGB(null);
+				pathObject.setColor(null);
 		} else {
 			pathObject.setName(pathClass.toString());
 			if (includeColor)
-				pathObject.setColorRGB(pathClass.getColor());				
+				pathObject.setColor(pathClass.getColor());				
 		}
 	}
 	

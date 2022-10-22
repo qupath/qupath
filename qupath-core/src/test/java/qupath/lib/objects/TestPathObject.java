@@ -203,11 +203,11 @@ class TestPathObject {
 	}
 	//@Test
 	public void test_getColorRGB(PathObject myPO, Integer colorrgb) {
-		assertEquals(myPO.getColorRGB(), colorrgb);
+		assertEquals(myPO.getColor(), colorrgb);
 	}
 	//@Test
 	public void test_setColorRGB(PathObject myPO, Integer colorrgb) {
-		myPO.setColorRGB(colorrgb);
-		assertEquals((Integer)myPO.getColorRGB(), colorrgb);
+		myPO.setColor(colorrgb);
+		assertEquals((Integer)myPO.getColor(), colorrgb);
 	}
 }

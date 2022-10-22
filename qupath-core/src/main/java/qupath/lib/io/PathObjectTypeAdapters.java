@@ -263,7 +263,7 @@ class PathObjectTypeAdapters {
 				out.value(name);
 			}
 			
-			Integer color = value.getColorRGB();
+			Integer color = value.getColor();
 			if (color != null) {
 				out.name("color");
 				out.beginArray();
@@ -465,7 +465,7 @@ class PathObjectTypeAdapters {
 				pathObject.setName(name);
 			
 			if (color != null)
-				pathObject.setColorRGB(color);
+				pathObject.setColor(color);
 			
 			if (isLocked)
 				pathObject.setLocked(isLocked);

@@ -147,7 +147,7 @@ public class TestPointIO {
 				pathObject.setName("bar");
 			}
 			
-			pathObject.setColorRGB(colors[entry.getKey()-1]);
+			pathObject.setColor(colors[entry.getKey()-1]);
 			pathObjects.add(pathObject);
 		}
 

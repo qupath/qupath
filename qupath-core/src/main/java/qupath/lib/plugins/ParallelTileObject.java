@@ -109,7 +109,7 @@ public class ParallelTileObject extends PathTileObject implements TemporaryObjec
 		this.bounds = getBounds2D(pathROI);
 		this.hierarchy = hierarchy;
 		this.countdown = countdown;
-		setColorRGB(ColorTools.packRGB(128, 128, 128));
+		setColor(ColorTools.packRGB(128, 128, 128));
 	}
 
 

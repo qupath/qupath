@@ -1011,7 +1011,7 @@ public class GuiTools {
 			else
 				temp.setName(null);
 			if (promptForColor && colorChanged.get())
-				temp.setColorRGB(ColorToolsFX.getARGB(colorPicker.getValue()));
+				temp.setColor(ColorToolsFX.getARGB(colorPicker.getValue()));
 	
 			// Set the description only if we have to
 			String description = textAreaDescription.getText();
