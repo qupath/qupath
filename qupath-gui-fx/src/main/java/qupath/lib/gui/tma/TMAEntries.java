@@ -405,8 +405,12 @@ class TMAEntries {
 
 		@Override
 		public String getMetadataValue(final String name) {
-			return (String)core.getMetadataValue(name);
-//			return data.getStringValue(core, name);
+			var val = (String)core.getMetadataValue(name);
+			if (val != null)
+				return val;
+			if (data.getMetadataNames().contains(name))
+				return data.getStringValue(core, name);
+			return null;
 		}
 
 		@Override

@@ -133,6 +133,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
 import javafx.scene.text.TextAlignment;
+import javafx.scene.text.TextFlow;
 import javafx.stage.Stage;
 import javafx.util.Callback;
 import qupath.lib.common.GeneralTools;
@@ -157,16 +158,23 @@ import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.hierarchy.DefaultTMAGrid;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.TMAGrid;
+import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
+import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectImageEntry;
 
 
 /**
  * Standalone viewer for looking at TMA summary results.
+ * <p>
+ * <b>Important!</b> This was used a lot when QuPath was released back in 2016,
+ * but has not been properly maintained ever since.
+ * It is now marked as deprecated, and may be removed or replaced in the future.
  * 
  * @author Pete Bankhead
- *
+ * @deprecated since v0.4.0
  */
+@Deprecated
 public class TMASummaryViewer {
 	
 	private static final Logger logger = LoggerFactory.getLogger(TMASummaryViewer.class);
@@ -205,12 +213,13 @@ public class TMASummaryViewer {
 	
 	private Scene scene;
 
+	private ImageData<BufferedImage> imageData;
+	private PathObjectHierarchyListener hierarchyListener = this::handleHierarchyChange;
 	
 	private static enum ImageAvailability {IMAGE_ONLY, OVERLAY_ONLY, BOTH, NONE}
 	private static ObjectProperty<ImageAvailability> imageAvailability = new SimpleObjectProperty<>(ImageAvailability.NONE);
 	
-	
-	
+		
 	/**
 	 * A combo-box representing the main measurement.
 	 * This will be used for any survival curves.
@@ -518,10 +527,15 @@ public class TMASummaryViewer {
 								TMAEntry entry = row.getItem();
 								if (entry == null || entry instanceof TMASummaryEntry)
 									return "";
-								else if (entry.isMissing())
-									return "-fx-background-color:rgb(225,225,232)";				
-								else
-									return "-fx-background-color:rgb(240,240,245)";	
+								else if (entry.isMissing()) {
+									var style = "-fx-background-color: derive(-fx-control-inner-background, -4%); "
+											+ "-fx-text-fill: ladder(" // text fill not working - need to change elsewhere
+											+ "-fx-control-inner-background, "
+											+ "derive(-fx-text-inner-color,-50%) 49%, "
+											+ "derive(-fx-text-inner-color,50%) 50%);";
+								    return style;
+								} else
+									return "";	
 							},
 							row.itemProperty(),
 							row.selectedProperty())
@@ -596,7 +610,44 @@ public class TMASummaryViewer {
 		});
 //		predicate.set(new TablePredicate("\"Tumor\" > 100"));
 		
-		scene = new Scene(pane);
+		boolean showWarning = true;
+		if (showWarning) {
+			var paneWithWarning = new BorderPane(pane);
+			
+			var warning = new Text("Warning! ");
+			warning.setStyle("-fx-font-weight: bold; -fx-fill: -fx-text-inner-color");
+			var message = new Text("The TMA data viewer is not actively maintained - "
+					+ "please use cautiously and report any bugs with 'Help > Report bug'");
+			message.setStyle("-fx-fill: -fx-text-inner-color");
+			
+			var textflow = new TextFlow(warning, message);
+			textflow.setTextAlignment(TextAlignment.CENTER);
+			textflow.setStyle("-fx-background-color: rgba(150, 0, 0, 0.25);");
+			textflow.setMaxWidth(Double.MAX_VALUE);
+			textflow.setPadding(new Insets(10));
+			Tooltip.install(textflow, new Tooltip("The TMA data viewer isn't often used and isn't actively maintained, "
+					+ "which means there is a higher risk of unreported bugs.\n"
+					+ "You can double-click this warning to make it disappear."));
+			paneWithWarning.setBottom(textflow);
+			textflow.setOnMouseClicked(e -> {
+				if (e.getClickCount() == 2) {
+					logger.warn("Hiding warning, but it remains the case that the TMA viewer isn't maintained - use it cautiously!");
+					textflow.setVisible(false);
+					paneWithWarning.setBottom(null);
+				}
+			});
+			
+//			var labelWarning = new Label("Warning! The TMA viewer is not actively maintained - "
+//					+ "please use cautiously and use 'Help -> Report bug' to report any bugs");
+//			labelWarning.setContentDisplay(ContentDisplay.CENTER);
+//			labelWarning.setAlignment(Pos.CENTER);
+//			labelWarning.setStyle("-fx-background-color: rgba(150, 0, 0, 0.25); -fx-font-weight: bold;");
+//			labelWarning.setMaxWidth(Double.MAX_VALUE);
+//			labelWarning.setPadding(new Insets(10));
+//			paneWithWarning.setBottom(labelWarning);
+			scene = new Scene(paneWithWarning);
+		} else
+			scene = new Scene(pane);
 		
 		scene.addEventHandler(KeyEvent.KEY_PRESSED, e -> {
 			KeyCode code = e.getCode();
@@ -634,6 +685,7 @@ public class TMASummaryViewer {
 		histogramDisplay.refreshHistogram();
 		updateSurvivalCurves();
 		scatterPane.updateChart();
+		table.sort(); // Make sure we're still sorted, if need be
 	}
 	
 	
@@ -1164,8 +1216,15 @@ public class TMASummaryViewer {
 	 * @param imageData
 	 */
 	public void setTMAEntriesFromImageData(final ImageData<BufferedImage> imageData) {
-		setTMAEntries(getEntriesForTMAData(imageData));
-		stage.setTitle("TMA Viewer: " + ServerTools.getDisplayableImageName(imageData.getServer()));
+		if (this.imageData != null) {
+			this.imageData.getHierarchy().removePathObjectListener(hierarchyListener);
+		}
+		if (imageData != null) {
+			this.imageData = imageData;
+			this.imageData.getHierarchy().addPathObjectListener(hierarchyListener);
+			setTMAEntries(getEntriesForTMAData(imageData));
+			stage.setTitle("TMA Viewer: " + ServerTools.getDisplayableImageName(imageData.getServer()));
+		}
 	}
 	
 
@@ -1308,8 +1367,26 @@ public class TMASummaryViewer {
 	}
 
 	
+	/**
+	 * Refresh the table; this should update values for cells that wrap a mutable object, 
+	 * but not make any other table changes.
+	 * @see #refreshTableData()
+	 */
+	private void refreshTable() {
+		if (table != null)
+			table.refresh();
+	}
 	
+	private void handleHierarchyChange(PathObjectHierarchyEvent event) {
+		if (table != null && !event.isChanging())
+			table.refresh();
+	}
+
 	
+	/**
+	 * Refresh all the data in the table
+	 * @see #refreshTable()
+	 */
 	private void refreshTableData() {
 		
 //		int nn = 0;
