@@ -1071,6 +1071,16 @@ public class PathPrefs {
 		return showMeasurementTableThumbnailsProperty;
 	}
 	
+	private static BooleanProperty showMeasurementTableObjectIDsProperty = PathPrefs.createPersistentPreference("showMeasurementTableObjectIDsProperty", true);
+	
+	/**
+	 * Specify whether measurement tables should show object IDs by default or not.
+	 * @return
+	 */
+	public static BooleanProperty showMeasurementTableObjectIDsProperty() {
+		return showMeasurementTableObjectIDsProperty;
+	}
+	
 	private static BooleanProperty enableFreehandTools = createPersistentPreference("enableFreehandTools", true);
 	
 	

@@ -233,6 +233,22 @@ public class Commands {
 	}
 	
 	/**
+	 * Show a grid view for annotation objects.
+	 * @param qupath the QuPath instance
+	 */
+	public static void showAnnotationGridView(QuPathGUI qupath) {
+		PathObjectGridView.createAnnotationView(qupath).show();
+	}
+
+	/**
+	 * Show a grid view for TMA core objects.
+	 * @param qupath the QuPath instance
+	 */
+	public static void showTMACoreGridView(QuPathGUI qupath) {
+		PathObjectGridView.createTmaCoreView(qupath).show();
+	}
+
+	/**
 	 * Show a measurement table for all detection objects.
 	 * @param qupath the QuPath instance
 	 * @param imageData the image data for which to show measurements
@@ -1311,7 +1327,7 @@ public class Commands {
 			return;
 		}
 		
-		if (Dialogs.showConfirmDialog("Reload", "Revert to last saved version?  All changes will be lost.")) {
+		if (Dialogs.showConfirmDialog("Reload", "Reload last saved version?\nAny unsaved changes will be lost.")) {
 			try {
 				var project = qupath.getProject();
 				var entry = project == null ? null : project.getEntry(imageData);

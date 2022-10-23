@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -24,18 +24,15 @@
 package qupath.lib.gui.commands;
 
 import java.awt.image.BufferedImage;
-import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Map.Entry;
+import java.util.concurrent.ForkJoinPool;
 import java.util.WeakHashMap;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 
-import org.controlsfx.control.GridCell;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,8 +42,10 @@ import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.IntegerProperty;
+import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleIntegerProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.beans.value.ChangeListener;
@@ -55,13 +54,11 @@ import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
-import javafx.embed.swing.SwingFXUtils;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.Scene;
-import javafx.scene.canvas.Canvas;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.ContentDisplay;
@@ -72,74 +69,63 @@ import javafx.scene.control.Separator;
 import javafx.scene.control.ToolBar;
 import javafx.scene.control.Tooltip;
 import javafx.scene.effect.DropShadow;
-import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
 import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.Pane;
+import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
-import javafx.scene.text.TextAlignment;
+import javafx.scene.text.Text;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.measure.ObservableMeasurementTableData;
-import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.images.ImageData;
-import qupath.lib.images.servers.ImageServer;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.TMACoreObject;
+import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
-import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
- * Grid display of TMA cores.
+ * Grid display of objects.
+ * <p>
+ * Previously this was {@code TMAGridView}, but it was generalized for v0.4.0 to support other kinds of object.
  * <p>
  * This requires cores in memory, so does not scale wonderfully... but it can be quite useful for individual slides.
  * 
  * @author Pete Bankhead
  *
  */
-class TMAGridView implements Runnable, ChangeListener<ImageData<BufferedImage>>, PathObjectHierarchyListener {
+public class PathObjectGridView implements ChangeListener<ImageData<BufferedImage>>, PathObjectHierarchyListener {
 	
-	private static final Logger logger = LoggerFactory.getLogger(TMAGridView.class);
+	private static final Logger logger = LoggerFactory.getLogger(PathObjectGridView.class);
 	
 	private QuPathGUI qupath;
 	private Stage stage;
 	
+	private StringProperty title = new SimpleStringProperty("Object grid view");
+	
 	private QuPathGridView grid = new QuPathGridView();
-	private ObservableList<TMACoreObject> backingList = FXCollections.observableArrayList();
-	private FilteredList<TMACoreObject> filteredList = new FilteredList<>(backingList);
+	
+	private ComboBox<String> comboMeasurement;
+	
+	private ObservableList<PathObject> backingList = FXCollections.observableArrayList();
+	private FilteredList<PathObject> filteredList = new FilteredList<>(backingList);
 	
 	private ObservableMeasurementTableData model = new ObservableMeasurementTableData();
 
-	private ImageData<BufferedImage> imageData;
+	private ObjectProperty<ImageData<BufferedImage>> imageDataProperty = new SimpleObjectProperty<>();
+	
 	
 	private StringProperty measurement = new SimpleStringProperty();
 	private BooleanProperty showMeasurement = new SimpleBooleanProperty(true);
 	private BooleanProperty descending = new SimpleBooleanProperty(false);
 	private BooleanProperty doAnimate = new SimpleBooleanProperty(true);
 	
-	/**
-	 * Max thumbnails to store in cache.
-	 * This ends up ~< 180MB, assuming RGBA.
-	 */
-	private static int MAX_CACHE_SIZE = 500;
-	
-	/**
-	 * Cache for storing image thumbnails
-	 */
-	private static Map<RegionRequest, Image> cache = Collections.synchronizedMap(new LinkedHashMap<RegionRequest, Image>() {
-		private static final long serialVersionUID = 1L;
-		@Override
-		protected synchronized boolean removeEldestEntry(Map.Entry<RegionRequest, Image> eldest) {
-			return size() > MAX_CACHE_SIZE;
-		}
+	private Function<PathObjectHierarchy, Collection<? extends PathObject>> objectExtractor;
 
-	});
 	
-	public static enum CoreDisplaySize {
+	public static enum GridDisplaySize {
 			TINY("Tiny", 60),
 			SMALL("Small", 100),
 			MEDIUM("Medium", 200),
@@ -148,7 +134,7 @@ class TMAGridView implements Runnable, ChangeListener<ImageData<BufferedImage>>,
 		private String name;
 		private int size;
 		
-		CoreDisplaySize(final String name, final int size) {
+		GridDisplaySize(final String name, final int size) {
 			this.name = name;
 			this.size = size;
 		}
@@ -165,21 +151,94 @@ class TMAGridView implements Runnable, ChangeListener<ImageData<BufferedImage>>,
 	};
 	
 
-	public TMAGridView(final QuPathGUI qupath) {
+	private PathObjectGridView(final QuPathGUI qupath, final Function<PathObjectHierarchy, Collection<? extends PathObject>> extractor) {
 		this.qupath = qupath;
-		this.qupath.imageDataProperty().addListener(this);
-	}
-
-	@Override
-	public void run() {
-		if (stage == null)
-			initializeGUI();
-		else if (!stage.isShowing())
-			stage.show();
-		initializeData(qupath.getImageData());
+		this.objectExtractor = extractor;
+		this.imageDataProperty().bind(qupath.imageDataProperty());
+		this.imageDataProperty().addListener(this);
 	}
 	
-	private static void sortCores(final ObservableList<TMACoreObject> cores, final ObservableMeasurementTableData model, final String measurementName, final boolean doDescending) {
+	/**
+	 * Create a grid view for a custom object extractor.
+	 * @param qupath QuPath instance
+	 * @param objectExtractor function to select the objects to display
+	 * @return
+	 */
+	public static PathObjectGridView createGridView(QuPathGUI qupath, Function<PathObjectHierarchy, Collection<? extends PathObject>> objectExtractor) {
+		return new PathObjectGridView(qupath, objectExtractor);
+	}
+	
+	/**
+	 * Create a grid view for TMA core objects.
+	 * @param qupath
+	 * @return
+	 */
+	public static PathObjectGridView createTmaCoreView(QuPathGUI qupath) {
+		var view = createGridView(qupath, PathObjectGridView::getTmaCores);
+		view.title.set("TMA core grid view");
+		return view;
+	}
+
+	/**
+	 * Create a grid view for annotations.
+	 * @param qupath
+	 * @return
+	 */
+	public static PathObjectGridView createAnnotationView(QuPathGUI qupath) {
+		var view = createGridView(qupath, PathObjectGridView::getAnnotations);
+		view.title.set("Annotation object grid view");
+		return view;
+	}
+
+	
+	private static List<PathObject> getTmaCores(PathObjectHierarchy hierarchy) {
+		var grid = hierarchy == null ? null : hierarchy.getTMAGrid();
+		if (grid != null)
+			return new ArrayList<>(grid.getTMACoreList());
+		else
+			return Collections.emptyList();
+	}
+	
+	private static List<PathObject> getAnnotations(PathObjectHierarchy hierarchy) {
+		if (hierarchy != null)
+			return new ArrayList<>(hierarchy.getAnnotationObjects());
+		else
+			return Collections.emptyList();
+	}
+	
+	/**
+	 * Get the stage used to show the grid view.
+	 * @return
+	 */
+	public Stage getStage() {
+		if (stage == null)
+			initializeGUI();
+		return stage;
+	}
+	
+	/**
+	 * Create the stage and show the grid view.
+	 */
+	public void show() {
+		var stage = getStage();
+		if (!stage.isShowing())
+			stage.show();
+	}
+	
+	/**
+	 * Refresh the data in the grid view
+	 */
+	public void refresh() {
+		initializeData(qupath.getImageData());		
+	}
+	
+	
+	public ObjectProperty<ImageData<BufferedImage>> imageDataProperty() {
+		return imageDataProperty;
+	}
+	
+	
+	private static void sortPathObjects(final ObservableList<? extends PathObject> cores, final ObservableMeasurementTableData model, final String measurementName, final boolean doDescending) {
 		cores.sort((t1, t2) -> {
 			double m1 = model.getNumericValue(t1, measurementName);
 			double m2 = model.getNumericValue(t2, measurementName);
@@ -209,13 +268,18 @@ class TMAGridView implements Runnable, ChangeListener<ImageData<BufferedImage>>,
 	public void changed(ObservableValue<? extends ImageData<BufferedImage>> source, ImageData<BufferedImage> imageDataOld,
 			ImageData<BufferedImage> imageDataNew) {
 		
-		if (this.imageData != null) {
-			imageData.getHierarchy().removePathObjectListener(this);
-			this.imageData = null;
+		var currentImageData = imageDataProperty.get();
+		if (currentImageData != null) {
+			currentImageData.getHierarchy().removePathObjectListener(this);
+			currentImageData = null;
 		}
 		
 		// Ensure we aren't holding on a reference to anything
 		grid.getItems().clear();
+		
+		// Listen for changes
+		if (imageDataNew != null)
+			imageDataNew.getHierarchy().addPathObjectListener(this);
 		
 		// Don't do anything if not displaying
 		if (imageDataNew == null || stage == null || !stage.isShowing())
@@ -227,75 +291,31 @@ class TMAGridView implements Runnable, ChangeListener<ImageData<BufferedImage>>,
 	
 
 	private void initializeData(ImageData<BufferedImage> imageData) {
-		if (this.imageData != imageData) {
-			if (this.imageData != null)
-				this.imageData.getHierarchy().removePathObjectListener(this);
-			this.imageData = imageData;
-			if (imageData != null) {
-				imageData.getHierarchy().addPathObjectListener(this);
-			}
-		}
 		
-		if (imageData == null || imageData.getHierarchy().getTMAGrid() == null) {
+		List<PathObject> pathObjects = imageData == null ? Collections.emptyList() : new ArrayList<>(objectExtractor.apply(imageData.getHierarchy()));
+		
+		if (imageData == null || pathObjects.isEmpty()) {
 			model.setImageData(null, Collections.emptyList());
 			grid.getItems().clear();
 			return;
 		}
 		
-		// Request all core thumbnails now
-		List<TMACoreObject> cores = imageData.getHierarchy().getTMAGrid().getTMACoreList();
-
-		ImageServer<BufferedImage> server = imageData.getServer();
-						
-		CountDownLatch latch = new CountDownLatch(cores.size());
-		for (TMACoreObject core : cores) {
-			ROI roi = core.getROI();
-			if (roi != null) {
-				qupath.submitShortTask(() -> {
-					RegionRequest request = createRegionRequest(core);
-					if (cache.containsKey(request)) {
-						latch.countDown();
-						return;
-					}
-
-					BufferedImage img;
-					try {
-						img = server.readRegion(request);
-					} catch (IOException e) {
-						logger.debug("Unable to get tile for " + request, e);
-						latch.countDown();
-						return;
-					}
-					Image imageNew = SwingFXUtils.toFXImage(img, null);
-					if (imageNew != null) {
-						cache.put(request, imageNew);
-//						Platform.runLater(() -> updateGridDisplay());
-					}
-					latch.countDown();
-				});
-			} else
-				latch.countDown();
-		}
-
-		long startTime = System.currentTimeMillis();
-		try {
-			latch.await(10, TimeUnit.SECONDS);
-		} catch (InterruptedException e1) {
-			if (latch.getCount() > 0)
-				logger.warn("Loaded {} cores in 10 seconds", cores.size() - latch.getCount());
-		}
-		logger.info("Countdown complete in {} seconds", (System.currentTimeMillis() - startTime)/1000.0);
-		
-		
-		model.setImageData(imageData, cores);
-		backingList.setAll(cores);
+		model.setImageData(imageData, pathObjects);
+		backingList.setAll(pathObjects);
 		
 		String m = measurement.getValue();
-		sortCores(backingList, model, m, descending.get());
+		sortPathObjects(backingList, model, m, descending.get());
 		filteredList.setPredicate(p -> {
-			return !(p.isMissing() || Double.isNaN(model.getNumericValue(p, m)));
+			return !(isMissingCore(p) || Double.isNaN(model.getNumericValue(p, m)));
 		});
 		grid.getItems().setAll(filteredList);
+		
+		// Select the first measurement if necessary
+		var names = model.getMeasurementNames();
+		if (m == null || !names.contains(m)) {
+			if (!comboMeasurement.getItems().isEmpty())
+				comboMeasurement.getSelectionModel().selectFirst();
+		}
 		
 	}
 	
@@ -306,15 +326,15 @@ class TMAGridView implements Runnable, ChangeListener<ImageData<BufferedImage>>,
 //		grid.setHorizontalCellSpacing(5);
 	
 		
-		ComboBox<CoreDisplaySize> comboDisplaySize = new ComboBox<>();
-		comboDisplaySize.getItems().setAll(CoreDisplaySize.values());
+		ComboBox<GridDisplaySize> comboDisplaySize = new ComboBox<>();
+		comboDisplaySize.getItems().setAll(GridDisplaySize.values());
 		comboDisplaySize.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {
 			grid.imageSize.set(n.getSize());
 //			grid.setCellWidth(n.getSize());
 //			grid.setCellHeight(n.getSize());
 //			updateGridDisplay();
 		});
-		comboDisplaySize.getSelectionModel().select(CoreDisplaySize.SMALL);
+		comboDisplaySize.getSelectionModel().select(GridDisplaySize.SMALL);
 		
 		
 		ComboBox<String> comboOrder = new ComboBox<>();
@@ -323,7 +343,7 @@ class TMAGridView implements Runnable, ChangeListener<ImageData<BufferedImage>>,
 		descending.bind(Bindings.createBooleanBinding(() -> "Descending".equals(comboOrder.getSelectionModel().getSelectedItem()), comboOrder.getSelectionModel().selectedItemProperty()));
 		
 
-		ComboBox<String> comboMeasurement = new ComboBox<>();
+		comboMeasurement = new ComboBox<>();
 		comboMeasurement.setItems(model.getMeasurementNames());
 		if (!comboMeasurement.getItems().isEmpty())
 			comboMeasurement.getSelectionModel().select(0);
@@ -332,13 +352,10 @@ class TMAGridView implements Runnable, ChangeListener<ImageData<BufferedImage>>,
 		measurement.bind(comboMeasurement.getSelectionModel().selectedItemProperty());
 		
 		comboOrder.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {
-//			sortCores(backingList, model, comboMeasurement.getSelectionModel().getSelectedItem(), "Descending".equals(n));
-//			filteredList.setPredicate(p -> !(p.isMissing() || Double.isNaN(model.getNumericValue(p, comboMeasurement.getSelectionModel().getSelectedItem()))));
-			
 			String m = measurement.getValue();
-			sortCores(backingList, model, m, descending.get());
+			sortPathObjects(backingList, model, m, descending.get());
 			filteredList.setPredicate(p -> {
-				return m == null || !(p.isMissing() || Double.isNaN(model.getNumericValue(p, m)));
+				return m == null || !(isMissingCore(p) || Double.isNaN(model.getNumericValue(p, m)));
 			});
 
 			
@@ -347,13 +364,10 @@ class TMAGridView implements Runnable, ChangeListener<ImageData<BufferedImage>>,
 		
 		comboMeasurement.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {
 			String m = measurement.getValue();
-			sortCores(backingList, model, m, descending.get());
+			sortPathObjects(backingList, model, m, descending.get());
 			filteredList.setPredicate(p -> {
-				return m == null || !(p.isMissing() || Double.isNaN(model.getNumericValue(p, m)));
+				return m == null || !(isMissingCore(p) || Double.isNaN(model.getNumericValue(p, m)));
 			});
-			
-//			sortCores(backingList, model, n, descending.get());
-//			filteredList.setPredicate(p -> !(p.isMissing() || Double.isNaN(model.getNumericValue(p, n))));
 			grid.getItems().setAll(filteredList);
 		});
 		
@@ -362,9 +376,9 @@ class TMAGridView implements Runnable, ChangeListener<ImageData<BufferedImage>>,
 		showMeasurement.bind(cbShowMeasurement.selectedProperty());
 		showMeasurement.addListener(c -> {
 			String m = measurement.getValue();
-			sortCores(backingList, model, m, descending.get());
+			sortPathObjects(backingList, model, m, descending.get());
 			filteredList.setPredicate(p -> {
-				return m == null || !(p.isMissing() || Double.isNaN(model.getNumericValue(p, m)));
+				return m == null || !(isMissingCore(p) || Double.isNaN(model.getNumericValue(p, m)));
 			});
 			grid.getItems().setAll(filteredList);
 		}); // Force an update
@@ -406,7 +420,7 @@ class TMAGridView implements Runnable, ChangeListener<ImageData<BufferedImage>>,
 		
 		pane.setTop(paneTop);
 		
-		ScrollPane scrollPane = new ScrollPane(grid);
+		var scrollPane = new ScrollPane(grid);
 		scrollPane.setFitToWidth(true);
 //		scrollPane.setFitToHeight(true);
 		scrollPane.setVbarPolicy(ScrollBarPolicy.AS_NEEDED);
@@ -420,108 +434,24 @@ class TMAGridView implements Runnable, ChangeListener<ImageData<BufferedImage>>,
 		
 		stage = new Stage();
 		stage.initOwner(qupath.getStage());
-		stage.setTitle("TMA grid view");
+		stage.titleProperty().bindBidirectional(title);
 		stage.setScene(scene);
+		stage.setOnShowing(e -> refresh());
 		stage.show();
 	}
 	
 	
-	
-	private String getServerPath() {
-		return imageData == null ? null : imageData.getServer().getPath();
+	/**
+	 * Check if an object is a TMA core flagged as missing
+	 * @param pathObject
+	 * @return
+	 */
+	private static boolean isMissingCore(PathObject pathObject) {
+		if (pathObject instanceof TMACoreObject)
+			return ((TMACoreObject)pathObject).isMissing();
+		return false;
 	}
 	
-	private RegionRequest createRegionRequest(final PathObject core) {
-		ROI roi = core.getROI();
-		double downsample = Math.max(roi.getBoundsWidth(), roi.getBoundsHeight()) / CoreDisplaySize.LARGE.getSize();
-//		downsample = Math.round(downsample);
-		return RegionRequest.createInstance(getServerPath(), downsample, roi);
-	}
-	
-	
-	
-	class TMACoreGridCell extends GridCell<TMACoreObject> {
-
-		private ObservableMeasurementTableData model;
-		private ObservableValue<String> measurement;
-		private ObservableValue<Boolean> showMeasurement;
-		
-		private Canvas canvas = new Canvas();
-		private double preferredSize = 100;
-		private double padding;
-		private TMACoreObject core;
-		
-		TMACoreGridCell(
-				final ObservableMeasurementTableData model,
-				final ObservableValue<String> measurement,
-				final ObservableValue<Boolean> showMeasurement,
-				final double padding) {
-			this.model = model;
-			this.measurement = measurement;
-			this.showMeasurement = showMeasurement;
-			this.padding = padding;
-			canvas.setWidth(preferredSize);
-			canvas.setHeight(preferredSize);
-			canvas.setStyle("-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.5), 4, 0, 1, 1);");
-		}
-
-		public TMACoreObject getCore() {
-			return core;
-		}
-
-		@Override
-		protected void updateItem(TMACoreObject core, boolean empty) {
-			super.updateItem(core, empty);
-			if (empty) {
-				setText(null);
-				setGraphic(null);
-				return;
-			}
-			this.core = core;
-			
-			canvas.setWidth(getWidth()-padding*2);
-			canvas.setHeight(getHeight()-padding*2-25);
-			
-//			this.setContentDisplay(ContentDisplay.CENTER);
-//			this.setAlignment(Pos.CENTER);
-			canvas.getGraphicsContext2D().clearRect(0, 0, canvas.getWidth(), canvas.getHeight());
-//			canvas.setOnMouseClicked(e -> {
-//				if (e.isShiftDown()) {
-//					qupath.getImageData().getHierarchy().getSelectionModel().setSelectedObject(core);
-//				}
-//			});
-			setGraphic(canvas);
-			try {
-				if (core == null) {
-					setText(null);
-					return;
-				}
-				
-				RegionRequest request = createRegionRequest(core);
-//				System.err.println(request + ": " + cache.containsKey(request));
-				Image image = cache.get(request);
-				if (image != null) {
-					GuiTools.paintImage(canvas, image);
-				} else
-					logger.trace("No image found for {}", core);
-			} catch (Exception e) {
-				logger.error("Problem reading thumbnail for core {}: {}", core, e);
-//				setGraphic(null);
-			}
-			
-			
-			if (measurement.getValue() != null && showMeasurement.getValue()) {
-				double value = model.getNumericValue(core, measurement.getValue());
-				setText(GeneralTools.formatNumber(value, 2));
-				setTextAlignment(TextAlignment.CENTER);
-				setAlignment(Pos.BOTTOM_CENTER);
-			} else
-				setText(" "); // To prevent jumping
-			setContentDisplay(ContentDisplay.TOP);
-		}
-
-	}
-
 	
 	private boolean requestUpdate = false;
 	
@@ -542,6 +472,7 @@ class TMAGridView implements Runnable, ChangeListener<ImageData<BufferedImage>>,
 
 	@Override
 	public void hierarchyChanged(PathObjectHierarchyEvent event) {
+		var imageData = imageDataProperty.get();
 		if (!event.isChanging() && imageData != null && imageData.getHierarchy() == event.getHierarchy() && stage != null && stage.isShowing()) {
 			// This is some fairly aggressive updating...
 			requestUpdate(imageData);
@@ -550,48 +481,61 @@ class TMAGridView implements Runnable, ChangeListener<ImageData<BufferedImage>>,
 	
 	
 	
-	class QuPathGridView extends Pane {
+	class QuPathGridView extends StackPane {
 		
-		private ObservableList<TMACoreObject> list = FXCollections.observableArrayList();
+		private ObservableList<PathObject> list = FXCollections.observableArrayList();
 		private WeakHashMap<Node, TranslateTransition> translationMap = new WeakHashMap<>();
-		private WeakHashMap<TMACoreObject, Label> nodeMap = new WeakHashMap<>();
+		private WeakHashMap<PathObject, Label> nodeMap = new WeakHashMap<>();
 		
 		private IntegerProperty imageSize = new SimpleIntegerProperty();
+		
+		private Text textEmpty = new Text("No objects available!");
 		
 		QuPathGridView() {
 			imageSize.addListener(v -> {
 				updateChildren();
 			});
-			list.addListener(new ListChangeListener<TMACoreObject>() {
+			list.addListener(new ListChangeListener<PathObject>() {
 				@Override
-				public void onChanged(javafx.collections.ListChangeListener.Change<? extends TMACoreObject> c) {
+				public void onChanged(javafx.collections.ListChangeListener.Change<? extends PathObject> c) {
 					updateChildren();
 				}
 			});
 			updateChildren();
+			textEmpty.setStyle("-fx-fill: -fx-text-base-color;");
+			StackPane.setAlignment(textEmpty, Pos.CENTER);
 		}
 		
-		public ObservableList<TMACoreObject> getItems() {
+		public ObservableList<PathObject> getItems() {
 			return list;
 		}
 		
 		private void updateChildren() {
+			if (list.isEmpty()) {
+				getChildren().setAll(textEmpty);
+				return;
+			}
 			List<Node> images = new ArrayList<>();
-			for (TMACoreObject pathObject : list) {
-				Label	 viewNode = nodeMap.get(pathObject);
+			for (PathObject pathObject : list) {
+				Label viewNode = nodeMap.get(pathObject);
 				if (viewNode == null) {
-					ImageView view = new ImageView();
-					view.fitWidthProperty().bind(imageSize);
-					view.fitHeightProperty().bind(imageSize);
-					if (pathObject.hasROI()) {
-						RegionRequest request = createRegionRequest(pathObject);
-						Image image = cache.get(request);
-						if (image != null)
-							view.setImage(image);
-					}
-					viewNode = new Label("", view);
+					
+					var painter = PathObjectImageManagers.createImageViewPainter(
+							 qupath.getViewer(), imageDataProperty.get().getServer(), true, 
+							 ForkJoinPool.commonPool());
+
+					var imageView = painter.getNode();
+					imageView.fitWidthProperty().bind(imageSize);
+					imageView.fitHeightProperty().bind(imageSize);
+					
+					painter.setPathObject(pathObject);
+					
+					viewNode = new Label("", imageView);
+					StackPane.setAlignment(viewNode, Pos.TOP_LEFT);
+					
 					Tooltip.install(viewNode, new Tooltip(pathObject.getName()));
 					viewNode.setOnMouseClicked(e -> {
+						var imageData = imageDataProperty.get();
 						if (imageData != null) {
 							imageData.getHierarchy().getSelectionModel().setSelectedObject(pathObject);
 							if (e.getClickCount() > 1 && pathObject.hasROI()) {
@@ -601,23 +545,19 @@ class TMAGridView implements Runnable, ChangeListener<ImageData<BufferedImage>>,
 							}
 						}
 					});
+					
+					viewNode.setEffect(new DropShadow(8, -2, 2, Color.GRAY));
 					nodeMap.put(pathObject, viewNode);
 				}
 				images.add(viewNode);
 			}
 			updateMeasurementText();
 			getChildren().setAll(images);
-			
-//			Parent p = getParent();
-//			while (p != null && !(p instanceof ScrollPane))
-//				p = p.getParent();
-//			if (p != null)
-//				((ScrollPane)p)
 		}
 		
 		void updateMeasurementText() {
 			String m = measurement == null ? null : measurement.get();
-			for (Entry<TMACoreObject, Label> entry : nodeMap.entrySet()) {
+			for (Entry<PathObject, Label> entry : nodeMap.entrySet()) {
 				if (m == null || !showMeasurement.get())
 					entry.getValue().setText(" ");
 				else {
@@ -632,6 +572,13 @@ class TMAGridView implements Runnable, ChangeListener<ImageData<BufferedImage>>,
 		@Override
 		protected void layoutChildren() {
 			super.layoutChildren();
+			
+			if (list.isEmpty()) {
+				setHeight(200);
+				setPrefHeight(200);
+				return;
+			}
+			
 			int padding = 5;
 			
 			int w = (int)getWidth();
@@ -642,6 +589,7 @@ class TMAGridView implements Runnable, ChangeListener<ImageData<BufferedImage>>,
 			
 			int x = spaceX/2;
 			int y = padding;
+			
 			for (Node node : getChildren()) {
 				if (x + dx > w) {
 					x = spaceX/2;
@@ -650,9 +598,6 @@ class TMAGridView implements Runnable, ChangeListener<ImageData<BufferedImage>>,
 					else
 						y += imageSize.get() + spaceX + 2;
 				}
-				
-//				if (node.getEffect() == null)
-					node.setEffect(new DropShadow(8, -2, 2, Color.GRAY));
 				
 				if (doAnimate.get()) {
 					TranslateTransition translate = translationMap.get(node);

@@ -561,6 +561,7 @@ public class QuPathGUI {
 		 */
 		@ActionAccelerator("shift+s")
 		@ActionIcon(PathIcons.SELECTION_MODE)
+		@ActionDescription("Turn on/off selection mode - this converts drawing tools into selection tools")
 		public final Action SELECTION_MODE = ActionTools.createSelectableAction(PathPrefs.selectionModeProperty(), "Selection mode");
 		
 		// Toolbar actions
@@ -569,28 +570,33 @@ public class QuPathGUI {
 		 */
 		@ActionIcon(PathIcons.CONTRAST)
 		@ActionAccelerator("shift+c")
+		@ActionDescription("Open brightness & contrast dialog - also used to adjust channels and colors")
 		public final Action BRIGHTNESS_CONTRAST = ActionTools.createAction(new BrightnessContrastCommand(QuPathGUI.this), "Brightness/Contrast");
 		
 		/**
 		 * Toggle the image overview display on the viewers.
 		 */
 		@ActionIcon(PathIcons.OVERVIEW)
+		@ActionDescription("Show/hide overview image (top right)")
 		public final Action SHOW_OVERVIEW = ActionTools.createSelectableAction(viewerDisplayOptions.showOverviewProperty(), "Show slide overview");
 		/**
 		 * Toggle the cursor location display on the viewers.
 		 */
 		@ActionIcon(PathIcons.LOCATION)
+		@ActionDescription("Show/hide location text (bottom right)")
 		public final Action SHOW_LOCATION = ActionTools.createSelectableAction(viewerDisplayOptions.showLocationProperty(), "Show cursor location");
 		/**
 		 * Toggle the scalebar display on the viewers.
 		 */
 		@ActionIcon(PathIcons.SHOW_SCALEBAR)
+		@ActionDescription("Show/hide scalebar (bottom left)")
 		public final Action SHOW_SCALEBAR = ActionTools.createSelectableAction(viewerDisplayOptions.showScalebarProperty(), "Show scalebar");
 		/**
 		 * Toggle the counting grid display on the viewers.
 		 */
 		@ActionIcon(PathIcons.GRID)
 		@ActionAccelerator("shift+g")
+		@ActionDescription("Show/hide counting grid overlay")
 		public final Action SHOW_GRID = ActionTools.createSelectableAction(overlayOptions.showGridProperty(), "Show grid");
 		/**
 		 * Prompt to set the spacing for the counting grid.
@@ -607,6 +613,7 @@ public class QuPathGUI {
 		 */
 		@ActionIcon(PathIcons.PIXEL_CLASSIFICATION)
 		@ActionAccelerator("c")
+		@ActionDescription("Show/hide pixel classification overlay (when available)")
 		public final Action SHOW_PIXEL_CLASSIFICATION = ActionTools.createSelectableAction(overlayOptions.showPixelClassificationProperty(), "Show pixel classification");
 			
 		// TMA actions
@@ -642,12 +649,15 @@ public class QuPathGUI {
 		 */
 		@ActionIcon(PathIcons.ANNOTATIONS)
 		@ActionAccelerator("a")
+		@ActionDescription("Show/hide annotation objects")
 		public final Action SHOW_ANNOTATIONS = ActionTools.createSelectableAction(overlayOptions.showAnnotationsProperty(), "Show annotations");
 		
 		/**
 		 * Toggle the display of annotation names.
 		 */
+		@ActionIcon(PathIcons.SHOW_NAMES)
 		@ActionAccelerator("n")
+		@ActionDescription("Show/hide annotation names (where available)")
 		public final Action SHOW_NAMES = ActionTools.createSelectableAction(overlayOptions.showNamesProperty(), "Show names");
 		
 		/**
@@ -655,6 +665,7 @@ public class QuPathGUI {
 		 */
 		@ActionIcon(PathIcons.ANNOTATIONS_FILL)
 		@ActionAccelerator("shift+f")
+		@ActionDescription("Full/unfill annotation objects")
 		public final Action FILL_ANNOTATIONS = ActionTools.createSelectableAction(overlayOptions.fillAnnotationsProperty(), "Fill annotations");	
 		
 		/**
@@ -662,6 +673,7 @@ public class QuPathGUI {
 		 */
 		@ActionIcon(PathIcons.TMA_GRID)
 		@ActionAccelerator("g")
+		@ActionDescription("Show/hide TMA grid")
 		public final Action SHOW_TMA_GRID = ActionTools.createSelectableAction(overlayOptions.showTMAGridProperty(), "Show TMA grid");
 		/**
 		 * Toggle the display of TMA grid labels.
@@ -673,6 +685,7 @@ public class QuPathGUI {
 		 */
 		@ActionIcon(PathIcons.DETECTIONS)
 		@ActionAccelerator("d")
+		@ActionDescription("Show/hide detection objects")
 		public final Action SHOW_DETECTIONS = ActionTools.createSelectableAction(overlayOptions.showDetectionsProperty(), "Show detections");
 		
 		/**
@@ -680,6 +693,7 @@ public class QuPathGUI {
 		 */
 		@ActionIcon(PathIcons.DETECTIONS_FILL)
 		@ActionAccelerator("f")
+		@ActionDescription("Fill/unfill detection objects")
 		public final Action FILL_DETECTIONS = ActionTools.createSelectableAction(overlayOptions.fillDetectionsProperty(), "Fill detections");	
 		/**
 		 * Display the convex hull of point ROIs.
@@ -734,6 +748,18 @@ public class QuPathGUI {
 		@ActionDescription("Show summary measurements for detection objects")
 		public final Action MEASURE_DETECTIONS = createImageDataAction(imageData -> Commands.showDetectionMeasurementTable(QuPathGUI.this, imageData), "Show detection measurements");
 		
+		/**
+		 * Show grid view for annotation measurements.
+		 */
+		@ActionDescription("Show grid view annotation objects")
+		public final Action MEASURE_GRID_ANNOTATIONS = createImageDataAction(imageData -> Commands.showAnnotationGridView(QuPathGUI.this), "Show annotation grid view");
+
+		/**
+		 * Show grid view for TMA core measurements.
+		 */
+		@ActionDescription("Show grid view TMA cores")
+		public final Action MEASURE_GRID_TMA_CORES = createImageDataAction(imageData -> Commands.showAnnotationGridView(QuPathGUI.this), "Show TMA core grid view");
+
 		private DefaultActions() {
 			// This has the effect of applying the annotations
 			ActionTools.getAnnotatedActions(this);

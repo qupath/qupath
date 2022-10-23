@@ -651,10 +651,6 @@ class Menus {
 		@ActionMenu("Delete TMA grid")
 		public final Action CLEAR_CORES = qupath.createImageDataAction(imageData -> Commands.promptToDeleteObjects(imageData, TMACoreObject.class));
 		
-		@ActionDescription("Show an interactive summary view of all the TMA cores in the current image.")
-		@ActionMenu("TMA grid summary view")
-		public final Action SUMMARY_GRID = qupath.createImageDataAction(imageData -> TMACommands.showTMAGridView(qupath));
-
 		public final Action SEP_1 = ActionTools.createSeparator();
 		
 		@ActionDescription("Find all detections occurring on the convex hull of the detections within a TMA core. "
@@ -887,6 +883,17 @@ class Menus {
 		
 		@ActionDescription("Show a measurement table for detection objects.")
 		public final Action DETECTIONS = qupath.getDefaultActions().MEASURE_DETECTIONS;
+		
+
+		@ActionDescription("Show all the annotations in the current image in a grid view, which can be ranked by measurements.")
+		@ActionMenu("Grid views>Annotation grid summary view")
+		public final Action GRID_ANNOTATIONS = qupath.createImageDataAction(imageData -> Commands.showAnnotationGridView(qupath));
+
+		
+		@ActionDescription("Show all the TMA cores in the current image in a grid view, which can be ranked by measurements.")
+		@ActionMenu("Grid views>TMA grid summary view")
+		public final Action GRID_TMA = qupath.createImageDataAction(imageData -> Commands.showTMACoreGridView(qupath));
+
 		
 		public final Action SEP_2 = ActionTools.createSeparator();
 
