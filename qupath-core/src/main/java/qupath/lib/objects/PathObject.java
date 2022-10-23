@@ -672,6 +672,7 @@ public abstract class PathObject implements Externalizable {
 	/**
 	 * Reset the classification (i.e. set it to null).
 	 * @return true if the classification has changed, false otherwise (i.e. it was already null)
+	 * @since v0.4.0
 	 */
 	public boolean resetPathClass() {
 		var previous = getPathClass();

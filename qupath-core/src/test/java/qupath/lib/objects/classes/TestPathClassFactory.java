@@ -24,6 +24,8 @@
 package qupath.lib.objects.classes;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Arrays;
 import java.util.UUID;
@@ -110,6 +112,20 @@ public class TestPathClassFactory {
 		for (var clazz: invalidClasses) {
 			Assertions.assertThrows(IllegalArgumentException.class, () -> PathClassFactory.getPathClass(clazz, ColorTools.CYAN));
 		}
+	}
+	
+	@Test
+	public void test_duplicatePathClass() {
+		// Failed in v0.3.2 and before because second part not stripped
+		var pc1 = PathClassFactory.getPathClass("Something", "else ");
+		var pc2 = PathClassFactory.getPathClass("Something", "else ");
+		assertSame(pc1, pc2);
+		assertTrue(pc1 == pc2);
+
+		var pc3 = PathClassFactory.getPathClass("Something", "else ", " entirely");
+		var pc4 = PathClassFactory.getPathClass("Something", "else ", "\tentirely");
+		assertSame(pc3, pc4);
+		assertTrue(pc3 == pc4);
 	}
 	
 	@Test
