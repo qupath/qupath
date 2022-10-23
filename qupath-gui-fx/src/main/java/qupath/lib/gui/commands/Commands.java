@@ -233,6 +233,22 @@ public class Commands {
 	}
 	
 	/**
+	 * Show a grid view for annotation objects.
+	 * @param qupath the QuPath instance
+	 */
+	public static void showAnnotationGridView(QuPathGUI qupath) {
+		PathObjectGridView.createAnnotationView(qupath).show();
+	}
+
+	/**
+	 * Show a grid view for TMA core objects.
+	 * @param qupath the QuPath instance
+	 */
+	public static void showTMACoreGridView(QuPathGUI qupath) {
+		PathObjectGridView.createTmaCoreView(qupath).show();
+	}
+
+	/**
 	 * Show a measurement table for all detection objects.
 	 * @param qupath the QuPath instance
 	 * @param imageData the image data for which to show measurements

@@ -26,8 +26,6 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
-import java.util.WeakHashMap;
 import java.util.stream.Collectors;
 
 import javafx.beans.property.BooleanProperty;
@@ -76,22 +74,6 @@ public class TMACommands {
 	};
 	
 	private static final String NOTE_NAME = "Note";
-	
-	
-	
-	private static Map<QuPathGUI, TMAGridView> gridViewMap = new WeakHashMap<>();
-	
-	/**
-	 * Show a TMA core grid view.
-	 * <p>
-	 * Note that this method may change in future versions to be tied to a specified image data, 
-	 * rather than a specific QuPath instance.
-	 * @param qupath the QuPath instance for which the grid should be shown
-	 */
-	public static void showTMAGridView(QuPathGUI qupath) {
-		var gridView = gridViewMap.computeIfAbsent(qupath, q -> new TMAGridView(q));
-		gridView.run();
-	}
 	
 	
 	/**
@@ -156,7 +138,9 @@ public class TMACommands {
 			return;
 		}
 		
-		var overlayOptions = qupath.getViewers().stream().filter(v -> v.getImageData() == imageData).map(v -> v.getOverlayOptions()).findFirst().orElse(qupath.getOverlayOptions());
+		var overlayOptions = qupath.getViewers().stream()
+				.filter(v -> v.getImageData() == imageData)
+				.map(v -> v.getOverlayOptions()).findFirst().orElse(qupath.getOverlayOptions());
 
 		String defaultName = ServerTools.getDisplayableImageName(imageData.getServer());
 		File file = Dialogs.promptToSaveFile(null, null, defaultName, "TMA data", ".qptma");

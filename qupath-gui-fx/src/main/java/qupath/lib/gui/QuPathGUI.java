@@ -734,6 +734,18 @@ public class QuPathGUI {
 		@ActionDescription("Show summary measurements for detection objects")
 		public final Action MEASURE_DETECTIONS = createImageDataAction(imageData -> Commands.showDetectionMeasurementTable(QuPathGUI.this, imageData), "Show detection measurements");
 		
+		/**
+		 * Show grid view for annotation measurements.
+		 */
+		@ActionDescription("Show grid view annotation objects")
+		public final Action MEASURE_GRID_ANNOTATIONS = createImageDataAction(imageData -> Commands.showAnnotationGridView(QuPathGUI.this), "Show annotation grid view");
+
+		/**
+		 * Show grid view for TMA core measurements.
+		 */
+		@ActionDescription("Show grid view TMA cores")
+		public final Action MEASURE_GRID_TMA_CORES = createImageDataAction(imageData -> Commands.showAnnotationGridView(QuPathGUI.this), "Show TMA core grid view");
+
 		private DefaultActions() {
 			// This has the effect of applying the annotations
 			ActionTools.getAnnotatedActions(this);
