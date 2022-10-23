@@ -135,7 +135,7 @@ class PathObjectImageManagers {
 	}
 	
 	
-	public static abstract class PathObjectViewer<T extends Node> {
+	public abstract static class PathObjectViewer<T extends Node> {
 		
 		private static final Logger logger = LoggerFactory.getLogger(PathObjectViewer.class);
 		

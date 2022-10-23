@@ -125,6 +125,7 @@ public class IconFactory {
 									
 									RECTANGLE_TOOL(icoMoon, '\ue916', PathPrefs.colorDefaultObjectsProperty()),
 									
+									SHOW_NAMES(icoMoon, 'N', PathPrefs.colorDefaultObjectsProperty()),
 									SHOW_SCALEBAR(icoMoon, '\ue917'),
 									SCREENSHOT(icoMoon, '\ue918'),
 									
