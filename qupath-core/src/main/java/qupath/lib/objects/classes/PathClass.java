@@ -252,7 +252,7 @@ public class PathClass implements Comparable<PathClass>, Serializable {
 	}
 	
 	static String derivedClassToString(PathClass parent, String name) {
-		return parent == null ? name : parent.toString() + ": " + name;
+		return parent == null ? name : parent.toString() + ": " + name.strip();
 	}
 	
 	@Override

@@ -161,7 +161,7 @@ class TestPathObject {
 	}
 	//@Test
 	public void test_setPathClass(PathObject myPO, String ErrMsg, ByteArrayOutputStream errContent) {
-		myPO.setPathClass(null);
+		myPO.resetPathClass();
 		assertEquals(ErrMsg, errContent.toString());
 	}
 	//@Test

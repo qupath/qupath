@@ -668,6 +668,19 @@ public abstract class PathObject implements Externalizable {
 	public void setPathClass(PathClass pc) {
 		setPathClass(pc, Double.NaN);
 	}
+	
+	/**
+	 * Reset the classification (i.e. set it to null).
+	 * @return true if the classification has changed, false otherwise (i.e. it was already null)
+	 * @since v0.4.0
+	 */
+	public boolean resetPathClass() {
+		var previous = getPathClass();
+		if (previous == null)
+			return false;
+		setPathClass((PathClass)null);
+		return true;
+	}
 
 	/**
 	 * Set the classification of the object, specifying a classification probability.

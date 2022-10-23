@@ -135,20 +135,18 @@ public abstract class PathROIObject extends PathObject {
 	
 	@Override
 	public void setPathClass(PathClass pathClass, double classProbability) {
-		if (pathClass != null && !pathClass.isValid()) {
-			logger.warn("Classification {} is invalid! Will be set to null instead", pathClass);
-			pathClass = null;
-		}
 		if (pathClass == null) {
-//			if (pathROI != null && this.pathClass != null && this.pathClass.getName().equals(pathROI.getName()))
-//				pathROI.setName(null);
 			this.pathClass = pathClass;
 			this.classProbability = classProbability;
 			return;
 		}
-//		if (pathROI != null) {
-//			pathROI.setName(pathClass.getName());
-//		}
+		if (pathClass == PathClassFactory.getPathClassUnclassified()) {
+			logger.warn("Please use PathObject.resetPathClass() instead of setting to PathClassFactory.getPathClassUnclassified()");	
+			pathClass = null;
+		} else if (!pathClass.isValid()) {
+			logger.warn("Classification {} is invalid! Will be set to null instead", pathClass);
+			pathClass = null;
+		}
 		this.pathClass = pathClass;
 		this.classProbability = classProbability;
 		// Forget any previous color, if we have a PathClass

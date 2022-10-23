@@ -27,7 +27,11 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Random;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import qupath.lib.common.ColorTools;
 
@@ -41,6 +45,8 @@ import qupath.lib.common.ColorTools;
  *
  */
 public final class PathClassFactory {
+	
+	private static final Logger logger = LoggerFactory.getLogger(PathClassFactory.class);
 	
 	// Suppressed default constructor for non-instantiability
 	private PathClassFactory() {
@@ -170,7 +176,11 @@ public final class PathClassFactory {
 			return NULL_CLASS;
 		
 		
-		name = name.strip();
+		String nameStripped = name.strip();
+		if (!Objects.equals(name, nameStripped)) {
+			logger.warn("Stripping whitespace from '{}', attempting to generate PathClass from '{}'", name, nameStripped);
+		}
+		name = nameStripped;
 		if (name.isEmpty() || name.equals(NULL_CLASS.toString()) || name.equals(NULL_CLASS.getName()))
 			return NULL_CLASS;
 		
