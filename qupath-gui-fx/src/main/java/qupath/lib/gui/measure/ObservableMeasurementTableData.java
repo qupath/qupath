@@ -86,7 +86,12 @@ import qupath.opencv.ml.pixel.PixelClassificationMeasurementManager;
  */
 public class ObservableMeasurementTableData implements PathTableData<PathObject> {
 	
-	static final Logger logger = LoggerFactory.getLogger(ObservableMeasurementTableData.class);
+	private static final Logger logger = LoggerFactory.getLogger(ObservableMeasurementTableData.class);
+	
+	/**
+	 * The name used for the Object ID column
+	 */
+	public static final String NAME_OBJECT_ID = "Object ID";
 	
 	private ImageData<?> imageData;
 	
@@ -1159,7 +1164,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		
 		@Override
 		public String getName() {
-			return "Object ID";
+			return NAME_OBJECT_ID;
 		}
 
 		@Override

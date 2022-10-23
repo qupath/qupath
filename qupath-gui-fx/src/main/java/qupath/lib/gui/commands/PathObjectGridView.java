@@ -24,20 +24,15 @@
 package qupath.lib.gui.commands;
 
 import java.awt.image.BufferedImage;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Map.Entry;
+import java.util.concurrent.ForkJoinPool;
 import java.util.WeakHashMap;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
-import org.controlsfx.control.GridCell;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,13 +54,11 @@ import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
-import javafx.embed.swing.SwingFXUtils;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.Scene;
-import javafx.scene.canvas.Canvas;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.ContentDisplay;
@@ -76,26 +69,22 @@ import javafx.scene.control.Separator;
 import javafx.scene.control.ToolBar;
 import javafx.scene.control.Tooltip;
 import javafx.scene.effect.DropShadow;
-import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Pane;
+import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
-import javafx.scene.text.TextAlignment;
+import javafx.scene.text.Text;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.measure.ObservableMeasurementTableData;
-import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.images.ImageData;
-import qupath.lib.images.servers.ImageServer;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
-import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
@@ -115,7 +104,12 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 	private QuPathGUI qupath;
 	private Stage stage;
 	
+	private StringProperty title = new SimpleStringProperty("Object grid view");
+	
 	private QuPathGridView grid = new QuPathGridView();
+	
+	private ComboBox<String> comboMeasurement;
+	
 	private ObservableList<PathObject> backingList = FXCollections.observableArrayList();
 	private FilteredList<PathObject> filteredList = new FilteredList<>(backingList);
 	
@@ -123,30 +117,14 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 
 	private ObjectProperty<ImageData<BufferedImage>> imageDataProperty = new SimpleObjectProperty<>();
 	
+	
 	private StringProperty measurement = new SimpleStringProperty();
 	private BooleanProperty showMeasurement = new SimpleBooleanProperty(true);
 	private BooleanProperty descending = new SimpleBooleanProperty(false);
 	private BooleanProperty doAnimate = new SimpleBooleanProperty(true);
 	
 	private Function<PathObjectHierarchy, Collection<? extends PathObject>> objectExtractor;
-	
-	/**
-	 * Max thumbnails to store in cache.
-	 * This ends up ~< 180MB, assuming RGBA.
-	 */
-	private static int MAX_CACHE_SIZE = 500;
-	
-	/**
-	 * Cache for storing image thumbnails
-	 */
-	private static Map<RegionRequest, Image> cache = Collections.synchronizedMap(new LinkedHashMap<RegionRequest, Image>() {
-		private static final long serialVersionUID = 1L;
-		@Override
-		protected synchronized boolean removeEldestEntry(Map.Entry<RegionRequest, Image> eldest) {
-			return size() > MAX_CACHE_SIZE;
-		}
 
-	});
 	
 	public static enum GridDisplaySize {
 			TINY("Tiny", 60),
@@ -197,7 +175,9 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 	 * @return
 	 */
 	public static PathObjectGridView createTmaCoreView(QuPathGUI qupath) {
-		return createGridView(qupath, PathObjectGridView::getTmaCores);
+		var view = createGridView(qupath, PathObjectGridView::getTmaCores);
+		view.title.set("TMA core grid view");
+		return view;
 	}
 
 	/**
@@ -206,7 +186,9 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 	 * @return
 	 */
 	public static PathObjectGridView createAnnotationView(QuPathGUI qupath) {
-		return createGridView(qupath, PathObjectGridView::getAnnotations);
+		var view = createGridView(qupath, PathObjectGridView::getAnnotations);
+		view.title.set("Annotation object grid view");
+		return view;
 	}
 
 	
@@ -319,48 +301,6 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 			return;
 		}
 		
-		ImageServer<BufferedImage> server = imageData.getServer();
-						
-		CountDownLatch latch = new CountDownLatch(pathObjects.size());
-		for (PathObject pathObject : pathObjects) {
-			ROI roi = pathObject.getROI();
-			if (roi != null) {
-				qupath.submitShortTask(() -> {
-					RegionRequest request = createRegionRequest(pathObject);
-					if (cache.containsKey(request)) {
-						latch.countDown();
-						return;
-					}
-
-					BufferedImage img;
-					try {
-						img = server.readRegion(request);
-					} catch (IOException e) {
-						logger.debug("Unable to get tile for " + request, e);
-						latch.countDown();
-						return;
-					}
-					Image imageNew = SwingFXUtils.toFXImage(img, null);
-					if (imageNew != null) {
-						cache.put(request, imageNew);
-//						Platform.runLater(() -> updateGridDisplay());
-					}
-					latch.countDown();
-				});
-			} else
-				latch.countDown();
-		}
-
-		long startTime = System.currentTimeMillis();
-		try {
-			latch.await(10, TimeUnit.SECONDS);
-		} catch (InterruptedException e1) {
-			if (latch.getCount() > 0)
-				logger.warn("Loaded {} cores in 10 seconds", pathObjects.size() - latch.getCount());
-		}
-		logger.info("Countdown complete in {} seconds", (System.currentTimeMillis() - startTime)/1000.0);
-		
-		
 		model.setImageData(imageData, pathObjects);
 		backingList.setAll(pathObjects);
 		
@@ -370,6 +310,13 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 			return !(isMissingCore(p) || Double.isNaN(model.getNumericValue(p, m)));
 		});
 		grid.getItems().setAll(filteredList);
+		
+		// Select the first measurement if necessary
+		var names = model.getMeasurementNames();
+		if (m == null || !names.contains(m)) {
+			if (!comboMeasurement.getItems().isEmpty())
+				comboMeasurement.getSelectionModel().selectFirst();
+		}
 		
 	}
 	
@@ -397,7 +344,7 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 		descending.bind(Bindings.createBooleanBinding(() -> "Descending".equals(comboOrder.getSelectionModel().getSelectedItem()), comboOrder.getSelectionModel().selectedItemProperty()));
 		
 
-		ComboBox<String> comboMeasurement = new ComboBox<>();
+		comboMeasurement = new ComboBox<>();
 		comboMeasurement.setItems(model.getMeasurementNames());
 		if (!comboMeasurement.getItems().isEmpty())
 			comboMeasurement.getSelectionModel().select(0);
@@ -474,7 +421,7 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 		
 		pane.setTop(paneTop);
 		
-		ScrollPane scrollPane = new ScrollPane(grid);
+		var scrollPane = new ScrollPane(grid);
 		scrollPane.setFitToWidth(true);
 //		scrollPane.setFitToHeight(true);
 		scrollPane.setVbarPolicy(ScrollBarPolicy.AS_NEEDED);
@@ -488,7 +435,7 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 		
 		stage = new Stage();
 		stage.initOwner(qupath.getStage());
-		stage.setTitle("TMA grid view");
+		stage.titleProperty().bindBidirectional(title);
 		stage.setScene(scene);
 		stage.setOnShowing(e -> refresh());
 		stage.show();
@@ -506,104 +453,6 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 		return false;
 	}
 	
-	
-	
-	private String getServerPath() {
-		var currentImageData = imageDataProperty.get();
-		return currentImageData == null ? null : currentImageData.getServer().getPath();
-	}
-	
-	private RegionRequest createRegionRequest(final PathObject pathObject) {
-		ROI roi = pathObject.getROI();
-		double downsample = Math.max(roi.getBoundsWidth(), roi.getBoundsHeight()) / GridDisplaySize.LARGE.getSize();
-//		downsample = Math.round(downsample);
-		return RegionRequest.createInstance(getServerPath(), downsample, roi);
-	}
-	
-	
-	
-	class PathObjectGridCell extends GridCell<PathObject> {
-
-		private ObservableMeasurementTableData model;
-		private ObservableValue<String> measurement;
-		private ObservableValue<Boolean> showMeasurement;
-		
-		private Canvas canvas = new Canvas();
-		private double preferredSize = 100;
-		private double padding;
-		private PathObject pathObject;
-		
-		PathObjectGridCell(
-				final ObservableMeasurementTableData model,
-				final ObservableValue<String> measurement,
-				final ObservableValue<Boolean> showMeasurement,
-				final double padding) {
-			this.model = model;
-			this.measurement = measurement;
-			this.showMeasurement = showMeasurement;
-			this.padding = padding;
-			canvas.setWidth(preferredSize);
-			canvas.setHeight(preferredSize);
-			canvas.setStyle("-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.5), 4, 0, 1, 1);");
-		}
-
-		public PathObject getPathObject() {
-			return pathObject;
-		}
-
-		@Override
-		protected void updateItem(PathObject value, boolean empty) {
-			super.updateItem(value, empty);
-			if (empty) {
-				setText(null);
-				setGraphic(null);
-				return;
-			}
-			this.pathObject = value;
-			
-			canvas.setWidth(getWidth()-padding*2);
-			canvas.setHeight(getHeight()-padding*2-25);
-			
-//			this.setContentDisplay(ContentDisplay.CENTER);
-//			this.setAlignment(Pos.CENTER);
-			canvas.getGraphicsContext2D().clearRect(0, 0, canvas.getWidth(), canvas.getHeight());
-//			canvas.setOnMouseClicked(e -> {
-//				if (e.isShiftDown()) {
-//					qupath.getImageData().getHierarchy().getSelectionModel().setSelectedObject(core);
-//				}
-//			});
-			setGraphic(canvas);
-			try {
-				if (value == null) {
-					setText(null);
-					return;
-				}
-				
-				RegionRequest request = createRegionRequest(value);
-//				System.err.println(request + ": " + cache.containsKey(request));
-				Image image = cache.get(request);
-				if (image != null) {
-					GuiTools.paintImage(canvas, image);
-				} else
-					logger.trace("No image found for {}", value);
-			} catch (Exception e) {
-				logger.error("Problem reading thumbnail for core {}: {}", value, e);
-//				setGraphic(null);
-			}
-			
-			
-			if (measurement.getValue() != null && showMeasurement.getValue()) {
-				double val = model.getNumericValue(value, measurement.getValue());
-				setText(GeneralTools.formatNumber(val, 2));
-				setTextAlignment(TextAlignment.CENTER);
-				setAlignment(Pos.BOTTOM_CENTER);
-			} else
-				setText(" "); // To prevent jumping
-			setContentDisplay(ContentDisplay.TOP);
-		}
-
-	}
-
 	
 	private boolean requestUpdate = false;
 	
@@ -633,13 +482,15 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 	
 	
 	
-	class QuPathGridView extends Pane {
+	class QuPathGridView extends StackPane {
 		
 		private ObservableList<PathObject> list = FXCollections.observableArrayList();
 		private WeakHashMap<Node, TranslateTransition> translationMap = new WeakHashMap<>();
 		private WeakHashMap<PathObject, Label> nodeMap = new WeakHashMap<>();
 		
 		private IntegerProperty imageSize = new SimpleIntegerProperty();
+		
+		private Text textEmpty = new Text("No objects available!");
 		
 		QuPathGridView() {
 			imageSize.addListener(v -> {
@@ -652,6 +503,8 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 				}
 			});
 			updateChildren();
+			textEmpty.setStyle("-fx-fill: -fx-text-base-color;");
+			StackPane.setAlignment(textEmpty, Pos.CENTER);
 		}
 		
 		public ObservableList<PathObject> getItems() {
@@ -659,20 +512,28 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 		}
 		
 		private void updateChildren() {
+			if (list.isEmpty()) {
+				getChildren().setAll(textEmpty);
+				return;
+			}
 			List<Node> images = new ArrayList<>();
 			for (PathObject pathObject : list) {
-				Label	 viewNode = nodeMap.get(pathObject);
+				Label viewNode = nodeMap.get(pathObject);
 				if (viewNode == null) {
-					ImageView view = new ImageView();
-					view.fitWidthProperty().bind(imageSize);
-					view.fitHeightProperty().bind(imageSize);
-					if (pathObject.hasROI()) {
-						RegionRequest request = createRegionRequest(pathObject);
-						Image image = cache.get(request);
-						if (image != null)
-							view.setImage(image);
-					}
-					viewNode = new Label("", view);
+					
+					var painter = PathObjectImageManagers.createImageViewPainter(
+							 qupath.getViewer(), imageDataProperty.get().getServer(), true, 
+							 ForkJoinPool.commonPool());
+
+					var imageView = painter.getNode();
+					imageView.fitWidthProperty().bind(imageSize);
+					imageView.fitHeightProperty().bind(imageSize);
+					
+					painter.setPathObject(pathObject);
+					
+					viewNode = new Label("", imageView);
+					StackPane.setAlignment(viewNode, Pos.TOP_LEFT);
+					
 					Tooltip.install(viewNode, new Tooltip(pathObject.getName()));
 					viewNode.setOnMouseClicked(e -> {
 						var imageData = imageDataProperty.get();
@@ -685,18 +546,14 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 							}
 						}
 					});
+					
+					viewNode.setEffect(new DropShadow(8, -2, 2, Color.GRAY));
 					nodeMap.put(pathObject, viewNode);
 				}
 				images.add(viewNode);
 			}
 			updateMeasurementText();
 			getChildren().setAll(images);
-			
-//			Parent p = getParent();
-//			while (p != null && !(p instanceof ScrollPane))
-//				p = p.getParent();
-//			if (p != null)
-//				((ScrollPane)p)
 		}
 		
 		void updateMeasurementText() {
@@ -716,6 +573,13 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 		@Override
 		protected void layoutChildren() {
 			super.layoutChildren();
+			
+			if (list.isEmpty()) {
+				setHeight(200);
+				setPrefHeight(200);
+				return;
+			}
+			
 			int padding = 5;
 			
 			int w = (int)getWidth();
@@ -726,6 +590,7 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 			
 			int x = spaceX/2;
 			int y = padding;
+			
 			for (Node node : getChildren()) {
 				if (x + dx > w) {
 					x = spaceX/2;
@@ -734,9 +599,6 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 					else
 						y += imageSize.get() + spaceX + 2;
 				}
-				
-//				if (node.getEffect() == null)
-					node.setEffect(new DropShadow(8, -2, 2, Color.GRAY));
 				
 				if (doAnimate.get()) {
 					TranslateTransition translate = translationMap.get(node);

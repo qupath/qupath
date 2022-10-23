@@ -406,10 +406,14 @@ public class PreferencePane {
 		 */
 		category = "Measurements";
 		addPropertyPreference(PathPrefs.showMeasurementTableThumbnailsProperty(), Boolean.class,
-				"Include image column in measurement tables",
+				"Include thumbnail column in measurement tables",
 				category,
 				"Show thumbnail images by default for each object in a measurements table");
 		
+		addPropertyPreference(PathPrefs.showMeasurementTableObjectIDsProperty(), Boolean.class,
+				"Include object ID column in measurement tables",
+				category,
+				"Show object ID column by default in a measurements table");
 		
 		/*
 		 * Automation

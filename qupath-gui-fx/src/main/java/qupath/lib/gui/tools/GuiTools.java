@@ -765,22 +765,37 @@ public class GuiTools {
 	 * @param image
 	 */
 	public static void paintImage(final Canvas canvas, final Image image) {
+		paintImage(canvas, image, -1);
+	}
+	
+	/**
+	 * Paint an image centered within a canvas, scaled by the specified scale factor.
+	 * If the scale factor is &leq; 0, the image will be scaled to be as large as possible 
+	 * while maintaining its aspect ratio.
+	 * 
+	 * Background is transparent.
+	 * 
+	 * @param canvas
+	 * @param image
+	 * @param scale 
+	 */
+	public static void paintImage(final Canvas canvas, final Image image, double scale) {
 		GraphicsContext gc = canvas.getGraphicsContext2D();
 		double w = canvas.getWidth();
 		double h = canvas.getHeight();
 		gc.setFill(Color.TRANSPARENT);
+		gc.clearRect(0, 0, w, h);
 		if (image == null) {
-			gc.clearRect(0, 0, w, h);
 			return;
 		}
-		double scale = Math.min(
+		if (scale <= 0)
+			scale = Math.min(
 				w/image.getWidth(),
 				h/image.getHeight());
 		double sw = image.getWidth()*scale;
 		double sh = image.getHeight()*scale;
 		double sx = (w - sw)/2;
 		double sy = (h - sh)/2;
-		gc.clearRect(0, 0, w, h);
 		gc.drawImage(image, sx, sy, sw, sh);
 	}
 

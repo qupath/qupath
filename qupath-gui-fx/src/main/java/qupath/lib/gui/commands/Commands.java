@@ -1327,7 +1327,7 @@ public class Commands {
 			return;
 		}
 		
-		if (Dialogs.showConfirmDialog("Reload", "Revert to last saved version?  All changes will be lost.")) {
+		if (Dialogs.showConfirmDialog("Reload", "Reload last saved version?\nAny unsaved changes will be lost.")) {
 			try {
 				var project = qupath.getProject();
 				var entry = project == null ? null : project.getEntry(imageData);
