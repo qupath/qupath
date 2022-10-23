@@ -1782,7 +1782,7 @@ public class QP {
 		}
 		for (PathObject pathObject : objects) {
 			if (pathObject.getPathClass() != null)
-				pathObject.setPathClass(null);
+				pathObject.resetPathClass();
 		}
 		hierarchy.fireObjectClassificationsChangedEvent(QP.class, objects);
 	}

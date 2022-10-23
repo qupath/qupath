@@ -731,7 +731,7 @@ public class PathObjectTools {
 		var name = pathObject.getName();
 		var color = pathObject.getColor();
 		if (name == null)
-			pathObject.setPathClass(null);
+			pathObject.resetPathClass();
 		else
 			pathObject.setPathClass(PathClassFactory.getPathClass(name, color));
 		if (pathClass == null) {

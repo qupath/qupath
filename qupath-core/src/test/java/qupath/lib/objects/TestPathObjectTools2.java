@@ -144,9 +144,9 @@ public class TestPathObjectTools2 {
 		assertEquals(manualMap.keySet(), map.keySet());
 		
 		// Set random PathClasses
-		po1.setPathClass(null);
-		po2.setPathClass(null);
-		po3.setPathClass(null);
+		po1.resetPathClass();
+		po2.setPathClass((PathClass)null);
+		po3.resetPathClass();
 		po4.setPathClass(pathClass1);
 		po5.setPathClass(pathClass2);
 		po6.setPathClass(pathClass3);
@@ -167,9 +167,9 @@ public class TestPathObjectTools2 {
 		assertEquals(null, po9.getPathClass());
 		
 		// Set random PathClasses
-		po1.setPathClass(null);
-		po2.setPathClass(null);
-		po3.setPathClass(null);
+		po1.resetPathClass();
+		po2.setPathClass((PathClass)null); // Should also reset
+		po3.resetPathClass();
 		po4.setPathClass(pathClass1);
 		po5.setPathClass(pathClass2);
 		po6.setPathClass(pathClass3);

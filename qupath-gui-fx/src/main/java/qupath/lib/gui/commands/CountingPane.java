@@ -205,7 +205,7 @@ class CountingPane implements PathObjectSelectionListener, PathObjectHierarchyLi
 		mi.setOnAction(e -> {
 			var pathObject = listCounts.getSelectionModel().getSelectedItem();
 			if (pathClass == PathClassFactory.getPathClassUnclassified())
-				pathObject.setPathClass(null);
+				pathObject.resetPathClass();
 			else
 				pathObject.setPathClass(pathClass);
 			if (hierarchy != null)

@@ -56,7 +56,7 @@ class SimpleClassifier<T> extends AbstractObjectClassifier<T> {
 		for (var pathObject : pathObjects) {
 			var previousClass = pathObject.getPathClass();
 			if (resetExistingClass)
-				pathObject.setPathClass(null);
+				pathObject.resetPathClass();
 			
 			var pathClass = function.apply(pathObject);
 			if (pathClass != null) {
