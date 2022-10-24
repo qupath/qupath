@@ -99,7 +99,7 @@ class DensityMapDataOp implements ImageDataOp {
 			PathObjectPredicate allObjects,
 			DensityMapType densityType) {
 		
-		Objects.nonNull(densityType);
+		Objects.requireNonNull(densityType);
 		if (radius < 0)
 			throw new IllegalArgumentException("Density map radius must be >= 0!");
 		

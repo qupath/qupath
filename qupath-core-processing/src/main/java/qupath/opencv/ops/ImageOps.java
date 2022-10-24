@@ -165,8 +165,8 @@ public class ImageOps {
 	 * @param label an identifying label; that this must be unique. If it does not start with "op." a warning will be logged.
 	 */
 	public static void registerOp(Class<? extends ImageOp> cls, String label) {
-		Objects.nonNull(cls);
-		Objects.nonNull(label);
+		Objects.requireNonNull(cls);
+		Objects.requireNonNull(label);
 		logger.debug("Registering ImageOp {} with label {}", cls, label);
 		if (!label.startsWith("op."))
 			logger.warn("ImageOp label '{}' does not begin with 'op.'", label);
@@ -182,8 +182,8 @@ public class ImageOps {
 	 * @param label an identifying label; that this must be unique. If it does not start with "data.op." a warning will be logged.
 	 */
 	public static void registerDataOp(Class<? extends ImageDataOp> cls, String label) {
-		Objects.nonNull(cls);
-		Objects.nonNull(label);
+		Objects.requireNonNull(cls);
+		Objects.requireNonNull(label);
 		logger.debug("Registering ImageOp {} with label {}", cls, label);
 		if (!label.startsWith("data.op."))
 			logger.warn("ImageDataOp label '{}' does not begin with 'data.op.'", label);
@@ -2553,7 +2553,7 @@ public class ImageOps {
 			private ImageOp op2;
 			
 			SplitCombineOp(ImageOp op1, ImageOp op2, SplitCombineType combine) {
-				Objects.nonNull(combine);
+				Objects.requireNonNull(combine);
 				if (op1 == null)
 					this.op1 = new IdentityOp();
 				else

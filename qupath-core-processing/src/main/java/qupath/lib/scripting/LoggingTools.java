@@ -42,7 +42,7 @@ public class LoggingTools {
 	 * @return
 	 */
 	public static Writer createLogWriter(Logger logger, Level level) {
-		Objects.nonNull(level);
+		Objects.requireNonNull(level);
 		var localLogger = logger == null ? defaultLogger : logger;
 		if (level == Level.INFO)
 			return new LoggerInfoWriter(localLogger);

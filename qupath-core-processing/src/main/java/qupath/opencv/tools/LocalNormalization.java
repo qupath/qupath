@@ -89,7 +89,7 @@ public class LocalNormalization {
 		 * @return
 		 */
 		public static LocalNormalizationType getInstance(SmoothingScale scale, SmoothingScale scaleVariance) {
-			Objects.nonNull(scale);
+			Objects.requireNonNull(scale);
 			return new LocalNormalizationType(scale, scaleVariance);
 		}
 		
@@ -101,7 +101,7 @@ public class LocalNormalization {
 		 * @return
 		 */
 		public static LocalNormalizationType getInstance(SmoothingScale scale, double varianceScaleRatio) {
-			Objects.nonNull(scale);
+			Objects.requireNonNull(scale);
 			if (varianceScaleRatio <= 0)
 				return getInstance(scale, null);
 			return getInstance(scale, SmoothingScale.getInstance(scale.scaleType, scale.getSigma() * varianceScaleRatio));

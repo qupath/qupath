@@ -195,7 +195,7 @@ public final class GeneralTools {
 	 * see #getNameWithoutExtension(File)
 	 */
 	public static Optional<String> getExtension(File file) {
-		Objects.nonNull(file);
+		Objects.requireNonNull(file);
 		return getExtension(file.getName());
 	}
 	
@@ -215,7 +215,7 @@ public final class GeneralTools {
 	 * @see #getNameWithoutExtension(File)
 	 */
 	public static Optional<String> getExtension(String name) {
-		Objects.nonNull(name);
+		Objects.requireNonNull(name);
 		var lower = name.toLowerCase();
 		String ext = null;
 		for (var temp : DEFAULT_EXTENSIONS) {

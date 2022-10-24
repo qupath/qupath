@@ -482,7 +482,7 @@ public class Timeit {
 		private long nano;
 		
 		private Checkpoint(String name) {
-			Objects.nonNull(name);
+			Objects.requireNonNull(name);
 			this.name = name;
 			this.nano = System.nanoTime();
 		}
