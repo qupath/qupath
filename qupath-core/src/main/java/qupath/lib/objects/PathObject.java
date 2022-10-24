@@ -747,9 +747,9 @@ public abstract class PathObject implements Externalizable {
 	public Collection<String> getClassifications() {
 		var pc = getPathClass();
 		if (pc == null)
-			return Collections.emptySet();
+			return Collections.emptyList();
 		else if (!pc.isDerivedClass())
-			return Collections.singleton(pc.toString());
+			return Collections.singletonList(pc.toString());
 		else
 			return Collections.unmodifiableList(PathClassTools.splitNames(pc));
 	}
