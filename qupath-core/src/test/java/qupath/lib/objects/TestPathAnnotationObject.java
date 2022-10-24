@@ -39,7 +39,7 @@ import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
 
 @SuppressWarnings("javadoc")
-public class TestPathAnnotationObject extends TestPathObject { 
+public class TestPathAnnotationObject extends TestPathObjectMethods { 
 	private final Integer nPO = 10; // number of (child) objects to be added
 	private final Double classprobability = 0.5;
 	private final Double line_x = 0.0;

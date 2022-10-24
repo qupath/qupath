@@ -61,7 +61,7 @@ public class TestMeasurementListFactory {
 			map.put(name, val);
 			names.add(name);
 			// We can use addMeasurement because it's empty
-			list.addMeasurement(name, val);
+			list.putMeasurement(name, val);
 		}
 		
 		// Change same names

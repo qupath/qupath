@@ -26,6 +26,10 @@ package qupath.lib.measurements;
 import java.io.Serializable;
 import java.util.List;
 
+import org.slf4j.LoggerFactory;
+
+import qupath.lib.common.LogTools;
+
 /**
  * Interface defining a feature measurement list, consisting of key value pairs.
  * <p>
@@ -65,8 +69,28 @@ public interface MeasurementList extends Serializable, AutoCloseable {
 	 * @return
 	 * 
 	 * @see #putMeasurement(String, double)
+	 * @deprecated v0.4.0 use {@link #putMeasurement(String, double)} instead
+	 * @implNote Since v0.4.0 the default implementation delegates to {@link #putMeasurement(String, double)}, 
+	 *           and will therefore replace any existing value with the same name.
+	 *           This different behavior is introduced to facilitate moving measurement lists towards 
+	 *           a map implementation for improved performance, consistency and scripting.
 	 */
-	public boolean addMeasurement(String name, double value);
+	@Deprecated
+	public default boolean addMeasurement(String name, double value) {
+		synchronized (this) {
+			boolean contains = containsNamedMeasurement(name);
+			var logger = LoggerFactory.getLogger(getClass());
+			if (contains) {
+				logger.warn("Duplicate '{}' not allowed - previous measurement will be dropped (duplicate names no longer permitted since v0.4.0)", name);
+				logger.warn("MeasurementList.addMeasurement(String, double) is deprecated in QuPath v0.4.0 - calling putMeasurement(String, double) instead");
+			} else {
+				LogTools.warnOnce(logger,
+						"MeasurementList.addMeasurement(String, double) is deprecated in QuPath v0.4.0 - calling putMeasurement(String, double) instead");
+			}
+			putMeasurement(name, value);
+			return contains;
+		}
+	}
 	
 	/**
 	 * Put a measurement into the list, replacing any previous measurement with the same name.
@@ -80,7 +104,10 @@ public interface MeasurementList extends Serializable, AutoCloseable {
 	 * 
 	 * @param measurement
 	 * @return
+	 * @deprecated since v0.4.0, since there is no real need to create a {@link Measurement} object and 
+	 *             we don't currently use dynamic measurements
 	 */
+	@Deprecated
 	public Measurement putMeasurement(Measurement measurement);
 	
 	/**
@@ -124,7 +151,6 @@ public interface MeasurementList extends Serializable, AutoCloseable {
 	 * @param name
 	 * @return
 	 * 
-	 * @see #addMeasurement(String, double)
 	 * @see #putMeasurement(String, double)
 	 */
 	public double getMeasurementValue(String name);
@@ -152,6 +178,9 @@ public interface MeasurementList extends Serializable, AutoCloseable {
 	 * Returns true if the list supports dynamic measurements. 
 	 * Dynamic measurements can change their values, and in the interests of efficiency 
 	 * are not supported by all MeasurementList implementations.
+	 * <p>
+	 * Use of this is strongly discouraged.
+	 * 
 	 * @return
 	 */
 	public boolean supportsDynamicMeasurements();

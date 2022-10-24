@@ -1133,7 +1133,7 @@ public class PathObjectTools {
 			for (int i = 0; i < measurements.size(); i++) {
 				String name = measurements.getMeasurementName(i);
 				double value = measurements.getMeasurementValue(i);
-				newObject.getMeasurementList().addMeasurement(name, value);
+				newObject.getMeasurementList().putMeasurement(name, value);
 			}
 			newObject.getMeasurementList().close();
 		}

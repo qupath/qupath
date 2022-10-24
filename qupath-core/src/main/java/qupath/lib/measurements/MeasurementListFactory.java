@@ -23,6 +23,9 @@
 
 package qupath.lib.measurements;
 
+import java.util.Collections;
+import java.util.Map;
+
 /**
  * Factory for creating new measurement lists.
  * <p>
@@ -51,6 +54,15 @@ public class MeasurementListFactory {
 		default:
 			return new DefaultMeasurementList(capacity);
 		}
+	}
+	
+	/**
+	 * Wrap in a map representation, backed by the list.
+	 * @param list
+	 * @return
+	 */
+	public static Map<String, Double> wrapList(MeasurementList list) {
+		return Collections.synchronizedMap(new MeasurementsMap(list));
 	}
 
 }

@@ -268,16 +268,16 @@ public class WatershedNucleiCV extends AbstractTileableDetectionPlugin<BufferedI
 							MeasurementList measurementList = MeasurementListFactory.createMeasurementList(20, MeasurementList.MeasurementListType.FLOAT);
 							PathObject pathObject = PathObjects.createDetectionObject(pathPolygon, null, measurementList);
 
-							measurementList.addMeasurement("Area", pathPolygon.getArea());
-							measurementList.addMeasurement("Perimeter", pathPolygon.getLength());
-							measurementList.addMeasurement("Circularity", RoiTools.getCircularity(pathPolygon));
-							measurementList.addMeasurement("Solidity", pathPolygon.getSolidity());
+							measurementList.putMeasurement("Area", pathPolygon.getArea());
+							measurementList.putMeasurement("Perimeter", pathPolygon.getLength());
+							measurementList.putMeasurement("Circularity", RoiTools.getCircularity(pathPolygon));
+							measurementList.putMeasurement("Solidity", pathPolygon.getSolidity());
 
 							// I am making an assumption regarding square pixels here...
 							RotatedRect rrect = opencv_imgproc.minAreaRect(contour);
 							Size2f size = rrect.size();
-							measurementList.addMeasurement("Min axis", Math.min(size.width(), size.height()) * downsample);
-							measurementList.addMeasurement("Max axis", Math.max(size.width(), size.height()) * downsample);
+							measurementList.putMeasurement("Min axis", Math.min(size.width(), size.height()) * downsample);
+							measurementList.putMeasurement("Max axis", Math.max(size.width(), size.height()) * downsample);
 
 							// Store the object
 							pathObjects.add(pathObject);
@@ -301,19 +301,19 @@ public class WatershedNucleiCV extends AbstractTileableDetectionPlugin<BufferedI
 						MeasurementList measurementList = pathObject.getMeasurementList();
 						RunningStatistics statsHaem = statsHematoxylinList.get(ind);
 						//    	pathObject.addMeasurement("Area (px)", statsHaem.nPixels() * downsample * downsample);
-						measurementList.addMeasurement("Hematoxylin mean", statsHaem.getMean());
-						measurementList.addMeasurement("Hematoxylin std dev", statsHaem.getStdDev());
-						measurementList.addMeasurement("Hematoxylin min", statsHaem.getMin());
-						measurementList.addMeasurement("Hematoxylin max", statsHaem.getMax());
-						measurementList.addMeasurement("Hematoxylin range", statsHaem.getRange());
+						measurementList.putMeasurement("Hematoxylin mean", statsHaem.getMean());
+						measurementList.putMeasurement("Hematoxylin std dev", statsHaem.getStdDev());
+						measurementList.putMeasurement("Hematoxylin min", statsHaem.getMin());
+						measurementList.putMeasurement("Hematoxylin max", statsHaem.getMax());
+						measurementList.putMeasurement("Hematoxylin range", statsHaem.getRange());
 
 						if (pxDAB != null) {
 							RunningStatistics statsDAB = statsDABList.get(ind);
-							measurementList.addMeasurement("DAB mean", statsDAB.getMean());
-							measurementList.addMeasurement("DAB std dev", statsDAB.getStdDev());
-							measurementList.addMeasurement("DAB min", statsDAB.getMin());
-							measurementList.addMeasurement("DAB max", statsDAB.getMax());
-							measurementList.addMeasurement("DAB range", statsDAB.getRange());
+							measurementList.putMeasurement("DAB mean", statsDAB.getMean());
+							measurementList.putMeasurement("DAB std dev", statsDAB.getStdDev());
+							measurementList.putMeasurement("DAB min", statsDAB.getMin());
+							measurementList.putMeasurement("DAB max", statsDAB.getMax());
+							measurementList.putMeasurement("DAB range", statsDAB.getRange());
 						}
 
 						measurementList.close();

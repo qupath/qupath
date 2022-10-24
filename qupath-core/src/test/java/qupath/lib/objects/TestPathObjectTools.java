@@ -36,7 +36,7 @@ import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.ROIs;
 
 @SuppressWarnings("javadoc")
-public class TestPathObjectTools extends TestPathObject { 
+public class TestPathObjectTools extends TestPathObjectMethods { 
 	
 	@Test
 	public void test_BasicPO() {

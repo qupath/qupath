@@ -37,7 +37,7 @@ import qupath.lib.objects.classes.PathClassFactory;
 
 
 @SuppressWarnings("javadoc")
-public class TestPathRootObject extends TestPathObject {
+public class TestPathRootObject extends TestPathObjectMethods {
 	private final ByteArrayOutputStream errContent = new ByteArrayOutputStream();
 	private final Integer nPO = 10;
 	PathRootObject myPO = new PathRootObject();

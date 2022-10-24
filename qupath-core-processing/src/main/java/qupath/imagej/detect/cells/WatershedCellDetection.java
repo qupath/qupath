@@ -847,12 +847,12 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 					for (String key : channels.keySet()) {
 						List<RunningStatistics> statsList = statsMap.get(key);
 						RunningStatistics stats = statsList.get(i);
-						measurementList.addMeasurement("Nucleus: " + key + " mean", stats.getMean());
-						measurementList.addMeasurement("Nucleus: " + key + " sum", stats.getSum());
-						measurementList.addMeasurement("Nucleus: " + key + " std dev", stats.getStdDev());
-						measurementList.addMeasurement("Nucleus: " + key + " max", stats.getMax());
-						measurementList.addMeasurement("Nucleus: " + key + " min", stats.getMin());
-						measurementList.addMeasurement("Nucleus: " + key + " range", stats.getRange());
+						measurementList.putMeasurement("Nucleus: " + key + " mean", stats.getMean());
+						measurementList.putMeasurement("Nucleus: " + key + " sum", stats.getSum());
+						measurementList.putMeasurement("Nucleus: " + key + " std dev", stats.getStdDev());
+						measurementList.putMeasurement("Nucleus: " + key + " max", stats.getMax());
+						measurementList.putMeasurement("Nucleus: " + key + " min", stats.getMin());
+						measurementList.putMeasurement("Nucleus: " + key + " range", stats.getRange());
 					}
 				}
 				
@@ -948,10 +948,10 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 						for (String key : channelsCell.keySet()) {
 							if (statsMapCell.containsKey(key)) {
 								RunningStatistics stats = statsMapCell.get(key).get(i);
-								measurementList.addMeasurement("Cell: " + key + " mean", stats.getMean());
-								measurementList.addMeasurement("Cell: " + key + " std dev", stats.getStdDev());
-								measurementList.addMeasurement("Cell: " + key + " max", stats.getMax());
-								measurementList.addMeasurement("Cell: " + key + " min", stats.getMin());
+								measurementList.putMeasurement("Cell: " + key + " mean", stats.getMean());
+								measurementList.putMeasurement("Cell: " + key + " std dev", stats.getStdDev());
+								measurementList.putMeasurement("Cell: " + key + " max", stats.getMax());
+								measurementList.putMeasurement("Cell: " + key + " min", stats.getMin());
 		//						pathObject.addMeasurement("Cytoplasm: " + key + " range", stats.getRange());
 							}
 						}
@@ -960,10 +960,10 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 						for (String key : channelsCell.keySet()) {
 							if (statsMapCytoplasm.containsKey(key)) {
 								RunningStatistics stats = statsMapCytoplasm.get(key).get(i);
-								measurementList.addMeasurement("Cytoplasm: " + key + " mean", stats.getMean());
-								measurementList.addMeasurement("Cytoplasm: " + key + " std dev", stats.getStdDev());
-								measurementList.addMeasurement("Cytoplasm: " + key + " max", stats.getMax());
-								measurementList.addMeasurement("Cytoplasm: " + key + " min", stats.getMin());
+								measurementList.putMeasurement("Cytoplasm: " + key + " mean", stats.getMean());
+								measurementList.putMeasurement("Cytoplasm: " + key + " std dev", stats.getStdDev());
+								measurementList.putMeasurement("Cytoplasm: " + key + " max", stats.getMax());
+								measurementList.putMeasurement("Cytoplasm: " + key + " min", stats.getMin());
 		//						pathObject.addMeasurement("Cytoplasm: " + key + " range", stats.getRange());
 							}
 						}
@@ -972,7 +972,7 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 						if (nucleus != null && nucleus.getROI().isArea()) {
 							double nucleusArea = nucleus.getROI().getArea();
 							double cellArea = pathROI.getArea();
-							measurementList.addMeasurement("Nucleus/Cell area ratio", Math.min(nucleusArea / cellArea, 1.0));
+							measurementList.putMeasurement("Nucleus/Cell area ratio", Math.min(nucleusArea / cellArea, 1.0));
 	//						measurementList.addMeasurement("Nucleus/Cell expansion", cellArea - nucleusArea);
 						}
 					}

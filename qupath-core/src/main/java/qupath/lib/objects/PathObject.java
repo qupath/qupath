@@ -177,6 +177,38 @@ public abstract class PathObject implements Externalizable {
 		return measurements;
 	}
 	
+	private transient Map<String, Double> measurementsMap;
+	
+	/**
+	 * Get a map-based view on {@link #getMeasurementList()}.
+	 * This is likely to be less efficient (because it does not support primitives), but has several advantages 
+	 * <ul>
+	 * <li>it uses a familiar and standard API</li>
+	 * <li>it is much more amenable for scripting, especially in Groovy</li>
+	 * <li>it is possible to return {@code null} for missing values, rather than only {@code Double.NaN}</li>
+	 * </ul>
+	 * The {@link MeasurementList} is retained for backwards-compatibility, particularly the ability to 
+	 * read older data files.
+	 * Changes made to the map are propagated through to the {@link MeasurementList}, so it should be possible to 
+	 * use them interchangeably - however note that there may be some loss of precision if the backing measurement 
+	 * list uses floats rather than doubles.
+	 * <p>
+	 * It is possible that a map implementation becomes the standard in the future and {@link #getMeasurementList()} 
+	 * <i>may</i> be deprecated; this is an experimental feature introduced in v0.4.0 for testing.
+	 * 
+	 * @return
+	 * @since v0.4.0
+	 */
+	public Map<String, Double> getMeasurements() {
+		if (measurementsMap == null) {
+			synchronized(this) {
+				if (measurementsMap == null)
+					measurementsMap = MeasurementListFactory.wrapList(measurements);
+			}
+		}
+		return measurementsMap;
+	}
+	
 	/**
 	 * Create a new MeasurementList of the preferred type for this object.
 	 * <p>
@@ -672,7 +704,6 @@ public abstract class PathObject implements Externalizable {
 	/**
 	 * Reset the classification (i.e. set it to null).
 	 * @return true if the classification has changed, false otherwise (i.e. it was already null)
-	 * @since v0.4.0
 	 */
 	public boolean resetPathClass() {
 		var previous = getPathClass();
@@ -681,6 +712,28 @@ public abstract class PathObject implements Externalizable {
 		setPathClass((PathClass)null);
 		return true;
 	}
+	
+	
+	// Still to come...
+//	public void setClassifications(Collection<String> classifications) {
+//		if (classifications.isEmpty())
+//			setPathClass((PathClass)null);
+//		else {
+//			setPathClass(PathClassFactory.getPathClass(new ArrayList<>(classifications)));
+//		}
+//	}
+//	
+//	
+//	public Set<String> getClassifications() {
+//		var pc = getPathClass();
+//		if (pc == null)
+//			return Collections.emptySet();
+//		else if (!pc.isDerivedClass())
+//			return Collections.singleton(pc.toString());
+//		else
+//			return new LinkedHashSet<>(PathClassTools.splitNames(pc));
+//	}
+	
 
 	/**
 	 * Set the classification of the object, specifying a classification probability.

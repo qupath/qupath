@@ -200,7 +200,7 @@ public class TMAScoreImporter {
 				// If we have a numeric column, add to measurement list
 				for (int i : cores.keySet()) {
 					for (TMACoreObject core : cores.get(i)) {
-						core.getMeasurementList().addMeasurement(entry.getKey(), vals[i]);
+						core.getMeasurementList().putMeasurement(entry.getKey(), vals[i]);
 					}
 				}
 			}

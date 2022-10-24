@@ -170,12 +170,6 @@ class NumericMeasurementList {
 			return names.indexOf(name);
 		}
 		
-		private boolean add(Measurement measurement) {
-			if (measurement.isDynamic())
-				throw new UnsupportedOperationException("This MeasurementList does not support dynamic measurements");
-			return addMeasurement(measurement.getName(), measurement.getValue());
-	    }
-		
 		@Override
 		public final int size() {
 			return names.size();
@@ -234,23 +228,17 @@ class NumericMeasurementList {
 		}
 		
 		@Override
-		public synchronized boolean addMeasurement(String name, double value) {
-			// If the list is closed, we have to reopen it
-			ensureListOpen();
-			names.add(name);
-			setValue(size()-1, value);
-			return true;
-		}
-		
-		
-		@Override
 		public synchronized void putMeasurement(String name, double value) {
 			ensureListOpen();
 			int index = getMeasurementIndex(name);
 			if (index >= 0)
 				setValue(index, value);
-			else
-				addMeasurement(name, value);
+			else {
+				// If the list is closed, we have to reopen it
+				ensureListOpen();
+				names.add(name);
+				setValue(size()-1, value);
+			}
 		}
 		
 
@@ -271,16 +259,7 @@ class NumericMeasurementList {
 		public Measurement putMeasurement(Measurement measurement) {
 			if (measurement.isDynamic())
 				throw new UnsupportedOperationException("This MeasurementList does not support dynamic measurements");
-			ensureListOpen();
-			String name = measurement.getName();
-			double value = measurement.getValue();
-			int ind = getMeasurementIndex(name);
-			if (ind >= 0) {
-				Measurement temp = MeasurementFactory.createMeasurement(name, value);
-				setValue(ind, value);
-				return temp;
-			}
-			add(measurement);
+			putMeasurement(measurement.getName(), measurement.getValue());
 			return null;
 		}
 		

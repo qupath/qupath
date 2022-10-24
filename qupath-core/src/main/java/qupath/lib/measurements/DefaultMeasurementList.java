@@ -53,11 +53,6 @@ class DefaultMeasurementList implements MeasurementList {
 	}
 	
 	@Override
-	public synchronized boolean addMeasurement(String name, double value) {
-		return add(MeasurementFactory.createMeasurement(name, value));
-	}
-	
-	@Override
 	public synchronized void clear() {
 		this.list.clear();
 	}
@@ -144,10 +139,6 @@ class DefaultMeasurementList implements MeasurementList {
 		}
 		list.add(measurement);
 		return null;
-	}
-	
-	private synchronized boolean add(Measurement measurement) {
-		return list.add(measurement);
 	}
 
 //	@Override
