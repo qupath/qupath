@@ -697,7 +697,7 @@ public class QP {
 		if (base != null)
 			return path.replace(PROJECT_BASE_DIR, base);
 		else if (path.contains(PROJECT_BASE_DIR))
-			throw new IllegalArgumentException("No project base directory available - I can't resolve path '" + path + "'");
+			throw new IllegalArgumentException("No project base directory available - '" + path + "' cannot be resolved");
 		return
 			path;
 	}
