@@ -1072,7 +1072,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 			
 			var errorWriter = params.getErrorWriter();
 			try {
-				errorWriter.append(e.getLocalizedMessage());
+				errorWriter.append("ERROR: " + e.getLocalizedMessage() + "\n");
 				
 				var cause = e.getCause();
 				var stackTrace = Arrays.stream(cause.getStackTrace()).filter(s -> s != null).map(s -> s.toString())
