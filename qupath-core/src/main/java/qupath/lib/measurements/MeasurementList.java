@@ -25,6 +25,7 @@ package qupath.lib.measurements;
 
 import java.io.Serializable;
 import java.util.List;
+import java.util.Map;
 
 import org.slf4j.LoggerFactory;
 
@@ -35,6 +36,14 @@ import qupath.lib.common.LogTools;
  * <p>
  * To help enable efficiency for large sets of PathObjects requiring measurement lists,
  * only String keys and numeric values are included.
+ * <p>
+ * <b>QuPath v0.4.0: </b> MeasurementList was updated to have more map-like behavior, 
+ * while still using primitive values. In particular, {@link #addMeasurement(String, double)} 
+ * was deprecated and now simply defers to {@link #put(String, double)}.
+ * <p>
+ * Additionally, the wordy {@link #putMeasurement(String, double)} and {@link #getMeasurementValue(String)} 
+ * were joined by {@link #put(String, double)} and {@link #get(String)} - which do the same thing, 
+ * but with more familiar syntax.
  * 
  * @author Pete Bankhead
  *
@@ -87,7 +96,7 @@ public interface MeasurementList extends Serializable, AutoCloseable {
 				LogTools.warnOnce(logger,
 						"MeasurementList.addMeasurement(String, double) is deprecated in QuPath v0.4.0 - calling putMeasurement(String, double) instead");
 			}
-			putMeasurement(name, value);
+			put(name, value);
 			return contains;
 		}
 	}
@@ -113,7 +122,7 @@ public interface MeasurementList extends Serializable, AutoCloseable {
 	/**
 	 * Put a measurement value into the list, replacing any previous measurement with the same name.
 	 * <p>
-	 * This is similar to add, but with a check to remove any existing measurement with the same name
+	 * This is similar to adding, but with a check to remove any existing measurement with the same name
 	 * (if multiple measurements have the same name, the first will be replaced).
 	 * <p>
 	 * While it's probably a good idea for measurements to always have unique names, for some implementations
@@ -124,6 +133,119 @@ public interface MeasurementList extends Serializable, AutoCloseable {
 	 * @param value
 	 */
 	public void putMeasurement(String name, double value);
+	
+	/**
+	 * Get the specified measurement, or the provided default value if it is not contained in the list.
+	 * <p>
+	 * This provides an alternative to {@link #get(String)} which always uses a default of {@code Double.NaN}.
+	 * 
+	 * @param name
+	 * @param defaultValue
+	 * @return
+	 * @since v0.4.0
+	 */
+	public default double getOrDefault(String name, double defaultValue) {
+		synchronized (this) {
+			double val = getMeasurementValue(name);
+			if (Double.isNaN(val)) {
+				if (Double.isNaN(defaultValue) || containsNamedMeasurement(name))
+					return val;
+				else
+					return defaultValue;
+			}
+			return val;
+		}
+	}
+	
+	/**
+	 * Query if a value with the specified name is in the list.
+	 * @param name
+	 * @return
+	 * @since v0.4.0
+	 */
+	public default boolean containsKey(String name) {
+		return containsNamedMeasurement(name);
+	}
+	
+	/**
+	 * Get all measurement values as a double array
+	 * @return
+	 * @since v0.4.0
+	 */
+	public default double[] values() {
+		synchronized(this) {
+			double[] values = new double[size()];
+			for (int i = 0; i < size(); i++)
+				values[i] = getMeasurementValue(i);
+			return values;
+		}
+	}
+	
+	/**
+	 * Get the measurement with the specified name.
+	 * Alternative method to call {@link #getMeasurementValue(String)}
+	 * @param name
+	 * @return the value, or Double.NaN if no
+	 * @since v0.4.0
+	 */
+	public default double get(String name) {
+		return getMeasurementValue(name);
+	}
+	
+	/**
+	 * Alternative method to call {@link #putMeasurement(String, double)}
+	 * @param name
+	 * @param value 
+	 * @since v0.4.0
+	 */
+	public default void put(String name, double value) {
+		putMeasurement(name, value);
+	}
+	
+	/**
+	 * Remove a named measurement
+	 * @param name
+	 * @return the value that was removed, or Double.NaN if the value was not in the list
+	 * @since v0.4.0
+	 */
+	public default double remove(String name) {
+		synchronized (this) {
+			int sizeBefore = size();
+			int ind = getMeasurementNames().indexOf(name);
+			double val = Double.NaN;
+			if (ind >= 0) {
+				val = getMeasurementValue(ind);
+				removeMeasurements(name);
+			}
+			assert sizeBefore == size() + 1;
+			return val;
+		}
+	}
+	
+	/**
+	 * Put all the values from the specified  map into this list
+	 * @param map
+	 * @since v0.4.0
+	 */
+	public default void putAll(Map<String, ? extends Number> map) {
+		for (var entry : map.entrySet()) {
+			put(entry.getKey(), entry.getValue().doubleValue());			
+		}
+	}
+	
+	/**
+	 * Put all the values from the specified list into this one
+	 * @param list
+	 * @since v0.4.0
+	 */
+	public default void putAll(MeasurementList list) {
+		synchronized (list) {
+			for (int i = 0; i < list.size(); i++) {
+				put(list.getMeasurementName(i), list.getMeasurementValue(i));			
+			}
+			
+		}
+	}
 
 	/**
 	 * Get the names of all measurements currently in the list.
@@ -182,7 +304,9 @@ public interface MeasurementList extends Serializable, AutoCloseable {
 	 * Use of this is strongly discouraged.
 	 * 
 	 * @return
+	 * @deprecated since v0.4.0; the initial implementation of dynamic measurements was never used
 	 */
+	@Deprecated
 	public boolean supportsDynamicMeasurements();
 	
 	/**
@@ -196,11 +320,18 @@ public interface MeasurementList extends Serializable, AutoCloseable {
 	 * Remove all the measurements with the specified names.
 	 * @param measurementNames
 	 */
-	public void removeMeasurements(String...measurementNames);
+	public void removeMeasurements(String... measurementNames);
 	
 	/**
 	 * Remove all the measurements from the list.
 	 */
 	public void clear();
+	
+//	/**
+//	 * Return a Map view over this list. Changes made to the map will be stored in the list.
+//	 * @return
+//	 */
+//	public Map<String, Double> asMap();
+	
 
 }

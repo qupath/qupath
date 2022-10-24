@@ -24,7 +24,9 @@ package qupath.lib.objects;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -54,6 +56,19 @@ public class TestPathObject {
 				);
 	}
 	
+	@ParameterizedTest
+	@MethodSource("provideObjects")
+	public void test_measurementOrDefault(PathObject p) {
+		
+		var list = p.getMeasurementList();
+		
+		list.put("Something", 100.0);
+		assertTrue(Double.isNaN(list.get("Something else")));
+		assertTrue(Double.isNaN(list.getOrDefault("Something else", Double.NaN)));
+		assertFalse(Double.isNaN(list.getOrDefault("Something else", Double.NEGATIVE_INFINITY)));
+		assertEquals(-1, list.getOrDefault("Something else", -1));
+		
+	}
 	
 	@ParameterizedTest
 	@MethodSource("provideObjects")
@@ -69,6 +84,10 @@ public class TestPathObject {
 		
 		assertEquals(n, list.size());
 		assertEquals(n, map.size());
+		
+		// Closing shouldn't make a difference
+		list.close();
+		assertEquals(n, list.size());
 		
 		map.clear();
 
@@ -148,6 +167,11 @@ public class TestPathObject {
 		assertEquals(1, p.getMeasurements().size());
 
 		checkSameKeysAndValues(p);
+		
+		p.getMeasurementList().close();
+		checkSameKeysAndValues(p);
+		assertEquals(1, p.getMeasurementList().size());
+		assertEquals(1, p.getMeasurements().size());
 	}
 	
 	
@@ -162,6 +186,7 @@ public class TestPathObject {
 		
 		double[] listValues = new double[p.getMeasurementList().size()];
 		double[] listValuesByName = new double[p.getMeasurementList().size()];
+		double[] listValuesAsArray = p.getMeasurementList().values();
 		for (int i = 0; i < listValues.length; i++) {
 			listValues[i] = p.getMeasurementList().getMeasurementValue(i);
 			listValuesByName[i] = p.getMeasurementList().getMeasurementValue(p.getMeasurementList().getMeasurementName(i));
@@ -173,6 +198,7 @@ public class TestPathObject {
 			mapValuesByIterator[count++] = entry.getValue();
 		}
 		
+		assertArrayEquals(listValues, listValuesAsArray);
 		assertArrayEquals(listValues, listValuesByName);
 		assertArrayEquals(listValues, mapValues);
 		assertArrayEquals(listValues, mapValuesByIterator);
