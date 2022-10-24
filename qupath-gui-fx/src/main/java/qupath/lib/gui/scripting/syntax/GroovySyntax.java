@@ -122,6 +122,17 @@ class GroovySyntax extends GeneralCodeSyntax {
 			control.insertText(caretPos, insertText);
 			control.deleteText(control.getCaretPosition(), control.getCaretPosition() + lineRemainder.length());
 			control.positionCaret(finalPos);
+		} else if (trimmedSubString.endsWith("[")) {		// Start of a '['/']' block (e.g. list or map)
+			String lineRemainder = text.substring(startRowPos + subString.length(), endRowPos);
+			insertText =  "\n" + subString.substring(0, indentation) + tabString + lineRemainder.strip();
+			if (text.replaceAll("[^\\[]", "").length() != text.replaceAll("[^\\]]", "").length())
+				insertText += "\n" + subString.substring(0, indentation) + "]";
+
+			finalPos += 1 + indentation + tabString.length() + lineRemainder.strip().length();
+
+			control.insertText(caretPos, insertText);
+			control.deleteText(control.getCaretPosition(), control.getCaretPosition() + lineRemainder.length());
+			control.positionCaret(finalPos);
 		} else if (!trimmedSubString.endsWith("{")) {
 			if (trimmedSubString.matches(ifStatementPattern) || trimmedSubString.matches(elseStatementPattern)) {	// Start of a one-line if/else statement
 				insertText = "\n" + subString.substring(0, ind) + tabString;

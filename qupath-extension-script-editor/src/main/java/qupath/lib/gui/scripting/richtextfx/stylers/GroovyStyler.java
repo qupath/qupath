@@ -119,4 +119,9 @@ public class GroovyStyler implements ScriptStyler {
         return spansBuilder.create();
     }
 	
+	@Override
+	public StyleSpans<Collection<String>> computeConsoleStyles(final String text, boolean logConsole) {
+		return ScriptStylerProvider.getLogStyling(text);
+	}
+	
 }

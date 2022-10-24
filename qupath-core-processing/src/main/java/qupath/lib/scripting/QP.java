@@ -690,13 +690,14 @@ public class QP {
 	 * Resolve a path, replacing any placeholders. Currently, this means only {@link #PROJECT_BASE_DIR}.
 	 * @param path
 	 * @return
+	 * @throws IllegalArgumentException if {@link #PROJECT_BASE_DIR} is used but no project is available
 	 */
-	public static String resolvePath(final String path) {
+	public static String resolvePath(final String path) throws IllegalArgumentException {
 		String base = getProjectBaseDirectory();
 		if (base != null)
 			return path.replace(PROJECT_BASE_DIR, base);
 		else if (path.contains(PROJECT_BASE_DIR))
-			throw new IllegalArgumentException("Cannot resolve path '" + path + "' - no project base directory available");
+			throw new IllegalArgumentException("No project base directory available - '" + path + "' cannot be resolved");
 		return
 			path;
 	}
@@ -704,17 +705,110 @@ public class QP {
 	/**
 	 * Build a file path from multiple components.
 	 * A common use of this is
-	 * <pre>
-	 *   String path = buildFilePath(PROJECT_BASE_DIR, "export")
-	 * </pre>
-	 * @param path
+	 * <pre>{@code
+	 *   String path = buildFilePath(PROJECT_BASE_DIR, "export");
+	 * }</pre>
+	 * although that can now be replaced by {@link #buildPathInProject(String...)}
+	 * @param first the first component of the file path
+	 * @param more additional path components to append
 	 * @return
+	 * @see #buildPathInProject(String...)
+	 * @see #makePathInProject(String...)
+	 * @see #makeFileInProject(String...)
+	 * @throws IllegalArgumentException if {@link #PROJECT_BASE_DIR} is used but no project is available
 	 */
-	public static String buildFilePath(String...path) {
-		File file = new File(resolvePath(path[0]));
-		for (int i = 1; i < path.length; i++)
-			file = new File(file, path[i]);
-		return file.getAbsolutePath();
+	public static String buildFilePath(String first, String... more) throws IllegalArgumentException {
+		File file = new File(resolvePath(first));
+		for (int i = 0; i < more.length; i++) {
+			var part = more[i];
+			if (part == null)
+				throw new IllegalArgumentException("Part of the file path given to buildFilePath() is null!");
+			else if (PROJECT_BASE_DIR.equals(part))
+				throw new IllegalArgumentException("PROJECT_BASE_DIR must be the first element given to buildFilePath()");
+			file = new File(file, part);
+		}
+		var path = file.getAbsolutePath();
+		// TODO: Consider checking for questionable characters
+		return path;
+	}
+	
+	/**
+	 * Build a file or directory path relative to the current project, but do not make 
+	 * any changes on the file system.
+	 * This is equivalent to calling
+	 * <pre>{@code
+	 *   String path = buildFilePath(PROJECT_BASE_DIR, more);
+	 * }</pre>
+	 * <p>
+	 * If you want to additionally create the directory, see {@link #makePathInProject(String...)}
+	 * 
+	 * @param more additional path components to append
+	 * @return
+	 * @throws IllegalArgumentException if no project path is available
+	 * @since v0.4.0
+	 * @see #makePathInProject(String...)
+	 * @see #makeFileInProject(String...)
+	 */
+	public static String buildPathInProject(String... more) throws IllegalArgumentException {
+		return buildFilePath(PROJECT_BASE_DIR, more);
+	}
+	
+	/**
+	 * Build a file or directory path relative to the current project, and ensure that it exists.
+	 * If it does not, an attempt will be made to create a directory with the specified name, 
+	 * and all necessary parent directories.
+	 * <p>
+	 * This is equivalent to calling
+	 * <pre>{@code
+	 *   String path = buildPathInProject(PROJECT_BASE_DIR, more);
+	 *   mkdirs(path);
+	 * }</pre>
+	 * <p>
+	 * Note that if you need a file and not a directory, see {@link #makeFileInProject(String...)}.
+	 *  
+	 * @param more additional path components to append
+	 * @return
+	 * @throws IllegalArgumentException if no project path is available
+	 * @since v0.4.0
+	 * @see #buildPathInProject(String...)
+	 * @see #makeFileInProject(String...)
+	 */
+	public static String makePathInProject(String... more) throws IllegalArgumentException {
+		String path = buildPathInProject(more);
+		mkdirs(path);
+		return path;
+	}
+	
+	/**
+	 * Build a file path relative to the current project, and create a {@link File} object.
+	 * An attempt will be made to create any required directories needed to create the file. 
+	 * <p>
+	 * The purpose is to reduce the lines of code needed to build a usable file in a QuPath 
+	 * script. 
+	 * A Groovy script showing this method in action:
+	 * <pre>
+	 *   File file = makeFileInProject("export", "file.txt")
+	 *   file.text = "Some text here"
+	 * </pre>
+	 * <p>
+	 * Note that, if the file does not already exist, it will not be created by this method - 
+	 * only the directories leading to it.
+	 * Additionally, if the file refers to an existing directory then the directory will be 
+	 * returned - and will not be writable as a file.
+	 *  
+	 * @param more additional path components to append
+	 * @return the file object, which may or may not refer to a file or directory that exists
+	 * @throws IllegalArgumentException if no project path is available
+	 * @since v0.4.0
+	 * @see #makePathInProject(String...)
+	 * @see #buildPathInProject(String...)
+	 */
+	public static File makeFileInProject(String... more) throws IllegalArgumentException {
+		if (more.length == 0)
+			return new File(makePathInProject());
+		String basePath = makePathInProject(Arrays.copyOfRange(more, 0, more.length-1));
+		Path path = Paths.get(basePath, more[more.length-1]);
+		return path.toFile();
 	}
 	
 	/**
@@ -820,11 +914,14 @@ public class QP {
 	
 	/**
 	 * Get the name of the current image.
+	 * <p>
 	 * This first checks the name associated with {@link #getProjectEntry()}, if available.
 	 * If no name is found (e.g. because no project is in use, then the name is extracted 
 	 * from the metadata of {@link #getCurrentServer()}.
 	 * If this is also missing, then {@code null} is returned.
 	 * @return
+	 * @since v0.4.0
+	 * @see #getCurrentImageNameWithoutExtension()
 	 */
 	public static String getCurrentImageName() {
 		var entry = getProjectEntry();
@@ -834,6 +931,21 @@ public class QP {
 		if (server != null)
 			return server.getMetadata().getName();
 		return null;
+	}
+	
+	/**
+	 * Get the name of the current image, removing any file extension.
+	 * Equivalent to
+	 * <pre>{@code 
+	 * var name = GeneralTools.getNameWithoutExtension(getCurrentName());
+	 * }</pre>
+	 * @return
+	 * @since v0.4.0
+	 * @see #getCurrentImageName()
+	 */
+	public static String getCurrentImageNameWithoutExtension() {
+		var name = getCurrentImageName();
+		return name == null ? null : GeneralTools.getNameWithoutExtension(name);
 	}
 	
 	/**
