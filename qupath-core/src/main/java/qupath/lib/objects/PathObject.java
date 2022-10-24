@@ -47,6 +47,8 @@ import qupath.lib.io.PathIO;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.measurements.MeasurementListFactory;
 import qupath.lib.objects.classes.PathClass;
+import qupath.lib.objects.classes.PathClassFactory;
+import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.roi.interfaces.ROI;
 
@@ -714,25 +716,43 @@ public abstract class PathObject implements Externalizable {
 	}
 	
 	
-	// Still to come...
-//	public void setClassifications(Collection<String> classifications) {
-//		if (classifications.isEmpty())
-//			setPathClass((PathClass)null);
-//		else {
-//			setPathClass(PathClassFactory.getPathClass(new ArrayList<>(classifications)));
-//		}
-//	}
-//	
-//	
-//	public Set<String> getClassifications() {
-//		var pc = getPathClass();
-//		if (pc == null)
-//			return Collections.emptySet();
-//		else if (!pc.isDerivedClass())
-//			return Collections.singleton(pc.toString());
-//		else
-//			return new LinkedHashSet<>(PathClassTools.splitNames(pc));
-//	}
+	/**
+	 * Set the {@link PathClass} from a collection of names according to the rules:
+	 * <ul>
+	 * <li>If the collection is empty, reset the PathClass</li>
+	 * <li>If the collection has one element, set it to be the name of the PathClass</li>
+	 * <li>If the collection has multiple element, create and set a derived PathClass with each element 
+	 * the name of a PathClass component</li>
+	 * </ul>
+	 * Ultimately, a single {@link PathClass} object is created to encapsulate the classification 
+	 * and the color used for display - but this provides a different (complementary) way to think of 
+	 * classifications within QuPath.
+	 * @param classifications
+	 * @since v0.4.0
+	 */
+	public void setClassifications(Collection<String> classifications) {
+		if (classifications.isEmpty())
+			resetPathClass();
+		else {
+			setPathClass(PathClassFactory.getPathClass(new ArrayList<>(classifications)));
+		}
+	}
+	
+	/**
+	 * Get the components of the {@link PathClass} as an unmodifiable collection.
+	 * @return an empty collection is the PathClass is null, otherwise a collection of strings 
+	 *         where each string gives the name of one component of the PathClass
+	 * @since v0.4.0
+	 */
+	public Collection<String> getClassifications() {
+		var pc = getPathClass();
+		if (pc == null)
+			return Collections.emptySet();
+		else if (!pc.isDerivedClass())
+			return Collections.singleton(pc.toString());
+		else
+			return Collections.unmodifiableList(PathClassTools.splitNames(pc));
+	}
 	
 
 	/**
