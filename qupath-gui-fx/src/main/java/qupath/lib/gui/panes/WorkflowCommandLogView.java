@@ -137,7 +137,7 @@ public class WorkflowCommandLogView implements ChangeListener<ImageData<Buffered
 	 */
 	public WorkflowCommandLogView(final QuPathGUI qupath, final Workflow workflow) {
 		this.qupath = qupath;
-		Objects.nonNull(workflow);
+		Objects.requireNonNull(workflow);
 		workflowProperty.set(workflow);
 		workflow.addWorkflowListener(this);
 		this.list.getItems().addAll(workflow.getSteps());

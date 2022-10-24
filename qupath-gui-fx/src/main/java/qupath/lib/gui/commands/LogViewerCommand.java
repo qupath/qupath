@@ -105,7 +105,7 @@ public class LogViewerCommand implements Runnable, TextAppendable {
 	
 	
 	private LogViewerCommand(final QuPathGUI qupath, ScriptEditorControl<?> control) {
-		Objects.nonNull(control);
+		Objects.requireNonNull(control);
 		this.qupath = qupath;
 		LogManager.addTextAppendableFX(this);
 		init();
@@ -217,7 +217,7 @@ public class LogViewerCommand implements Runnable, TextAppendable {
 	public void setLogControl(ScriptEditorControl<?> control) {
 		if (this.control == control)
 			return;
-		Objects.nonNull(control);
+		Objects.requireNonNull(control);
 		// Copy over any existing text
 		if (this.control != null) {
 			control.setText(this.control.getText());

@@ -152,7 +152,7 @@ public final class ColorModelFactory {
      * @return
      */
     public static IndexColorModel createIndexedColorModel8bit(ColorMap map, int transparentPixel) {
-    	Objects.nonNull(map);
+    	Objects.requireNonNull(map);
     	return new IndexColorModel(8, 256, ColorMaps.getColors(map, 256, false), 0, false, transparentPixel, DataBuffer.TYPE_BYTE);
     }
     
@@ -181,7 +181,7 @@ public final class ColorModelFactory {
      * @return
      */
     public static ColorModel createColorModel(PixelType pixelType, ColorMap map, int band, double min, double max, int alphaChannel, DoubleToIntFunction alphaFun) {
-    	Objects.nonNull(map);
+    	Objects.requireNonNull(map);
     	if (alphaFun == null && alphaChannel >= 0)
     		alphaFun = createLinearFunction(pixelType);
     	return new ColorMapModel(pixelType, map, band, min, max, alphaChannel, alphaFun);

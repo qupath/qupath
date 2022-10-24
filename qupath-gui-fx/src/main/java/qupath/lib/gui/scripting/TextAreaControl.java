@@ -55,7 +55,7 @@ public class TextAreaControl implements ScriptEditorControl<TextArea> {
 	 * @param isEditable whether the text area should be editable or not
 	 */
 	public TextAreaControl(final TextArea textArea, boolean isEditable) {
-		Objects.nonNull(textArea);
+		Objects.requireNonNull(textArea);
 		this.textArea = textArea;
 		this.textArea.setEditable(isEditable);
 	}

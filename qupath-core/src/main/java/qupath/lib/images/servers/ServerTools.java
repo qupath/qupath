@@ -152,8 +152,8 @@ public class ServerTools {
 	 * @return true if the metadata was updated, false otherwise (i.e. if the name is unchanged)
 	 */
 	public static boolean setImageName(ImageServer<?> server, String name) {
-		Objects.nonNull(server);
-		Objects.nonNull(name);
+		Objects.requireNonNull(server);
+		Objects.requireNonNull(name);
 		if (name.equals(server.getMetadata().getName()))
 			return false;
 		var metadata2 = new ImageServerMetadata.Builder(server.getMetadata())

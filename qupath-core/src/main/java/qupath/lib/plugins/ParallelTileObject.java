@@ -136,7 +136,7 @@ public class ParallelTileObject extends PathTileObject implements TemporaryObjec
 	 * @param status
 	 */
 	public synchronized void updateStatus(Status status) {
-		Objects.nonNull(status);
+		Objects.requireNonNull(status);
 		this.status = status;
 		switch(status) {
 		case DONE:

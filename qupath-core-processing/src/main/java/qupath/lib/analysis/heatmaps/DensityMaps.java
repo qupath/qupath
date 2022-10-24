@@ -268,12 +268,12 @@ public class DensityMaps {
 		private ColorModelBuilder colorModelBuilder = null;
 		
 		private DensityMapBuilder(DensityMapParameters params) {
-			Objects.nonNull(params);
+			Objects.requireNonNull(params);
 			this.params = new DensityMapParameters(params);
 		}
 		
 		private DensityMapBuilder(PathObjectPredicate allObjects) {
-			Objects.nonNull(allObjects);
+			Objects.requireNonNull(allObjects);
 			params = new DensityMapParameters();
 			params.mainObjectFilter = allObjects;
 		}

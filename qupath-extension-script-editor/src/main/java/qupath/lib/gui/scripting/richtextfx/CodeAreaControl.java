@@ -52,7 +52,7 @@ public class CodeAreaControl implements ScriptEditorControl<VirtualizedScrollPan
 	}
 	
 	CodeAreaControl(final CodeArea codeArea, boolean isEditable) {
-		Objects.nonNull(codeArea);
+		Objects.requireNonNull(codeArea);
 		this.textArea = codeArea;
 		this.textArea.setEditable(isEditable);
 		textArea.textProperty().addListener((o, v, n) -> textProperty.set(n));
