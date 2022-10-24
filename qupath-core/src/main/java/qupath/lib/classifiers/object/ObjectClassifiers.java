@@ -415,7 +415,7 @@ public class ObjectClassifiers {
 
 		@Override
 		public PathClass apply(PathObject pathObject) {
-			double val = pathObject.getMeasurementList().getMeasurementValue(measurement);
+			double val = pathObject.getMeasurementList().get(measurement);
 			if (Double.isNaN(val))
 				return null;
 			if (val > threshold)

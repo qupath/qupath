@@ -72,10 +72,10 @@ public class TestDistanceTools {
 				Arrays.asList(detection), Arrays.asList(tumorAnnotationT2), 1.0, 1.0, "Distance 4");
 		
 		double expectedDistance = Math.sqrt(2 * 50.0 * 50.0) - 50.0;
-		assertEquals(expectedDistance, detection.getMeasurementList().getMeasurementValue("Distance 1"), 0.05);
-		assertEquals(detection.getMeasurementList().getMeasurementValue("Distance 1") * 2.0, detection.getMeasurementList().getMeasurementValue("Distance 2"), 0.01);
-		assertTrue(Double.isNaN(detection.getMeasurementList().getMeasurementValue("Distance 3")));
-		assertTrue(Double.isNaN(detection.getMeasurementList().getMeasurementValue("Distance 4")));
+		assertEquals(expectedDistance, detection.getMeasurementList().get("Distance 1"), 0.05);
+		assertEquals(detection.getMeasurementList().get("Distance 1") * 2.0, detection.getMeasurementList().get("Distance 2"), 0.01);
+		assertTrue(Double.isNaN(detection.getMeasurementList().get("Distance 3")));
+		assertTrue(Double.isNaN(detection.getMeasurementList().get("Distance 4")));
 	}
 	
 	@Test
@@ -111,29 +111,29 @@ public class TestDistanceTools {
 		
 					// Distance to stroma, default pixels
 					DistanceTools.centroidToCentroidDistance2D(tumorDetections, stromaDetections, 1.0, 1.0, "Distance to stroma");
-					assertEquals(tumorDetections.get(0).getMeasurementList().getMeasurementValue("Distance to stroma"), 20, 0.0001);
-					assertEquals(tumorDetections.get(1).getMeasurementList().getMeasurementValue("Distance to stroma"), 10, 0.0001);
-					assertEquals(tumorDetections.get(2).getMeasurementList().getMeasurementValue("Distance to stroma"), Math.sqrt(30*30+50*50), 0.0001);
+					assertEquals(tumorDetections.get(0).getMeasurementList().get("Distance to stroma"), 20, 0.0001);
+					assertEquals(tumorDetections.get(1).getMeasurementList().get("Distance to stroma"), 10, 0.0001);
+					assertEquals(tumorDetections.get(2).getMeasurementList().get("Distance to stroma"), Math.sqrt(30*30+50*50), 0.0001);
 					
 					// Distance to stroma, scaled pixels
 					DistanceTools.centroidToCentroidDistance2D(tumorDetections, stromaDetections, 2.0, 2.0, "Distance to stroma");
-					assertEquals(tumorDetections.get(0).getMeasurementList().getMeasurementValue("Distance to stroma"), 20*2, 0.0001);
-					assertEquals(tumorDetections.get(1).getMeasurementList().getMeasurementValue("Distance to stroma"), 10*2, 0.0001);
-					assertEquals(tumorDetections.get(2).getMeasurementList().getMeasurementValue("Distance to stroma"), Math.sqrt(30*30*4+50*50*4), 0.0001);
+					assertEquals(tumorDetections.get(0).getMeasurementList().get("Distance to stroma"), 20*2, 0.0001);
+					assertEquals(tumorDetections.get(1).getMeasurementList().get("Distance to stroma"), 10*2, 0.0001);
+					assertEquals(tumorDetections.get(2).getMeasurementList().get("Distance to stroma"), Math.sqrt(30*30*4+50*50*4), 0.0001);
 					
 					// Distance to stroma, scaled non-square pixels
 					DistanceTools.centroidToCentroidDistance2D(tumorDetections, stromaDetections, 1.4, 1.6, "Distance to stroma");
-					assertEquals(tumorDetections.get(0).getMeasurementList().getMeasurementValue("Distance to stroma"), 20*1.4, 0.0001);
-					assertEquals(tumorDetections.get(1).getMeasurementList().getMeasurementValue("Distance to stroma"), 10*1.6, 0.0001);
-					assertEquals(tumorDetections.get(2).getMeasurementList().getMeasurementValue("Distance to stroma"), Math.sqrt(30*30*1.4*1.4+50*50*1.6*1.6), 0.0001);
+					assertEquals(tumorDetections.get(0).getMeasurementList().get("Distance to stroma"), 20*1.4, 0.0001);
+					assertEquals(tumorDetections.get(1).getMeasurementList().get("Distance to stroma"), 10*1.6, 0.0001);
+					assertEquals(tumorDetections.get(2).getMeasurementList().get("Distance to stroma"), Math.sqrt(30*30*1.4*1.4+50*50*1.6*1.6), 0.0001);
 					
 					// Ensure no other measurements added
 					for (var stroma : stromaDetections) {
-						assertFalse(stroma.getMeasurementList().containsNamedMeasurement("Distance to stroma"));
-						assertTrue(Double.isNaN(stroma.getMeasurementList().getMeasurementValue("Distance to stroma")));
+						assertFalse(stroma.getMeasurementList().containsKey("Distance to stroma"));
+						assertTrue(Double.isNaN(stroma.getMeasurementList().get("Distance to stroma")));
 					}
 					for (var tumor : tumorDetections) {
-						assertTrue(tumor.getMeasurementList().containsNamedMeasurement("Distance to stroma"));
+						assertTrue(tumor.getMeasurementList().containsKey("Distance to stroma"));
 					}
 				} else {
 					// Ensure no measurements added
@@ -141,11 +141,11 @@ public class TestDistanceTools {
 					for (var tumor : tumorDetections) {
 						// Currently, we don't add a measurement if not on the same plane
 //						assertTrue(tumor.getMeasurementList().containsNamedMeasurement("Distance to stroma"));
-						assertTrue(Double.isNaN(tumor.getMeasurementList().getMeasurementValue("Distance to stroma")));
+						assertTrue(Double.isNaN(tumor.getMeasurementList().get("Distance to stroma")));
 					}
 					for (var stroma : stromaDetections) {
-						assertFalse(stroma.getMeasurementList().containsNamedMeasurement("Distance to stroma"));
-						assertTrue(Double.isNaN(stroma.getMeasurementList().getMeasurementValue("Distance to stroma")));
+						assertFalse(stroma.getMeasurementList().containsKey("Distance to stroma"));
+						assertTrue(Double.isNaN(stroma.getMeasurementList().get("Distance to stroma")));
 					}
 				}
 			}

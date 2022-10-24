@@ -72,7 +72,7 @@ class TestPathObjectMethods {
 		var keys = ML.getMeasurementNames();
 		assertArrayEquals(keys.toArray(), ML2.getMeasurementNames().toArray());
 		for (String name: keys) {
-			assertEquals(ML.getMeasurementValue(name), ML2.getMeasurementValue(name));
+			assertEquals(ML.get(name), ML2.get(name));
 		}
 	}
 	//@Test

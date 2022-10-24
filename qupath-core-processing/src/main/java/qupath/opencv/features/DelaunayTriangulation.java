@@ -88,7 +88,7 @@ public class DelaunayTriangulation implements PathObjectConnectionGroup {
 		Collection<String> measurements = PathObjectTools.getAvailableFeatures(pathObjects);
 		for (String name : measurements) {
 			RunningStatistics stats = new RunningStatistics();
-			pathObjects.stream().forEach(p -> stats.addValue(p.getMeasurementList().getMeasurementValue(name)));
+			pathObjects.stream().forEach(p -> stats.addValue(p.getMeasurementList().get(name)));
 		}
 	}
 	
@@ -451,7 +451,7 @@ public class DelaunayTriangulation implements PathObjectConnectionGroup {
 				MeasurementList ml = pathObject.getMeasurementList();
 				for (int i = 0; i < measurementNames.size(); i++) {
 					String name = measurementNames.get(i);
-					double val = ml.getMeasurementValue(name);
+					double val = ml.get(name);
 					if (Double.isFinite(val)) {
 						averagedMeasurements[i].addValue(val);
 					} else
@@ -462,9 +462,9 @@ public class DelaunayTriangulation implements PathObjectConnectionGroup {
 			for (PathObject pathObject : cluster) {
 				MeasurementList ml = pathObject.getMeasurementList();
 				for (int i = 0; i < measurementNames.size(); i++) {
-					ml.putMeasurement(key + "mean: " + measurementNames.get(i), averagedMeasurements[i].getMean());
+					ml.put(key + "mean: " + measurementNames.get(i), averagedMeasurements[i].getMean());
 				}
-				ml.putMeasurement(key + "size", n);
+				ml.put(key + "size", n);
 				ml.close();
 			}
 
@@ -515,7 +515,7 @@ public class DelaunayTriangulation implements PathObjectConnectionGroup {
 					double sum = 0;
 					int n = 0;
 					for (PathObject tempObject : neighborSet) {
-						double value = tempObject.getMeasurementList().getMeasurementValue(name);
+						double value = tempObject.getMeasurementList().get(name);
 						if (Double.isNaN(value))
 							continue;
 						sum += value;
@@ -526,15 +526,15 @@ public class DelaunayTriangulation implements PathObjectConnectionGroup {
 			}
 			
 			// TODO: PUT MEASUREMENTS IN UNITS OTHER THAN PIXELS????
-			measurementList.putMeasurement("Delaunay: Num neighbors", node.nNeighbors());
-			measurementList.putMeasurement("Delaunay: Mean distance", node.meanDistance());
-			measurementList.putMeasurement("Delaunay: Median distance", node.medianDistance());
-			measurementList.putMeasurement("Delaunay: Max distance", node.maxDistance());
-			measurementList.putMeasurement("Delaunay: Min distance", node.minDistance());
+			measurementList.put("Delaunay: Num neighbors", node.nNeighbors());
+			measurementList.put("Delaunay: Mean distance", node.meanDistance());
+			measurementList.put("Delaunay: Median distance", node.medianDistance());
+			measurementList.put("Delaunay: Max distance", node.maxDistance());
+			measurementList.put("Delaunay: Min distance", node.minDistance());
 //			measurementList.putMeasurement("Delaunay: Displacement sum mag", node.magDisplacementSum());
 			
-			measurementList.putMeasurement("Delaunay: Mean triangle area", node.getMeanTriangleArea());
-			measurementList.putMeasurement("Delaunay: Max triangle area", node.getMaxTriangleArea());
+			measurementList.put("Delaunay: Mean triangle area", node.getMeanTriangleArea());
+			measurementList.put("Delaunay: Max triangle area", node.getMaxTriangleArea());
 			
 			
 			// Put in averaged measurements using immediate neighbours
@@ -543,7 +543,7 @@ public class DelaunayTriangulation implements PathObjectConnectionGroup {
 					String name = measurementNames[i];
 					if (name == null || name.startsWith("Delaunay"))
 						continue;
-					measurementList.putMeasurement("Delaunay averaged (" + averagingSeparation + "): " + name, averagedMeasurements[i]);
+					measurementList.put("Delaunay averaged (" + averagingSeparation + "): " + name, averagedMeasurements[i]);
 				}			
 			}
 			
@@ -694,7 +694,7 @@ public class DelaunayTriangulation implements PathObjectConnectionGroup {
 		
 		
 		private double getMeasurementValue(final String measurement) {
-			return pathObject.getMeasurementList().getMeasurementValue(measurement);
+			return pathObject.getMeasurementList().get(measurement);
 		}
 		
 		

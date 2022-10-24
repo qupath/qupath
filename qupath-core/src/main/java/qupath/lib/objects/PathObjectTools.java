@@ -1133,7 +1133,7 @@ public class PathObjectTools {
 			for (int i = 0; i < measurements.size(); i++) {
 				String name = measurements.getMeasurementName(i);
 				double value = measurements.getMeasurementValue(i);
-				newObject.getMeasurementList().putMeasurement(name, value);
+				newObject.getMeasurementList().put(name, value);
 			}
 			newObject.getMeasurementList().close();
 		}
@@ -1708,7 +1708,7 @@ public class PathObjectTools {
 		if (!PathClassTools.isNullClass(baseClass) && PathClassTools.isIgnoredClass(baseClass))
 			return pathObject.getPathClass();
 		
-		double intensityValue = pathObject.getMeasurementList().getMeasurementValue(measurementName);
+		double intensityValue = pathObject.getMeasurementList().get(measurementName);
 		
 		boolean singleThreshold = thresholds.length == 1;
 	

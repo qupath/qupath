@@ -81,7 +81,7 @@ class SimpleClassifier<T> extends AbstractObjectClassifier<T> {
 			var name = ((ClassifyByMeasurementFunction)function).getMeasurement();
 			if (name != null) {
 				for (var pathObject : pathObjects) {
-					if (!pathObject.getMeasurementList().containsNamedMeasurement(name))
+					if (!pathObject.getMeasurementList().containsKey(name))
 						nMissing++;
 				}
 			}

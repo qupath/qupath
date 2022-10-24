@@ -590,7 +590,7 @@ public class PixelClassifierTools {
 				for (String name : manager.getMeasurementNames()) {
 					Number value = manager.getMeasurementValue(pathObject, name, false);
 					double val = value == null ? Double.NaN : value.doubleValue();
-					ml.putMeasurement(measurementID + name, val);
+					ml.put(measurementID + name, val);
 				}
 			}
 			// We really want to lock objects so we don't end up with wrong measurements

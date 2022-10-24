@@ -145,7 +145,7 @@ public class PositiveCellDetection extends WatershedCellDetection {
 			double threshold3 = params.getDoubleParameterValue("thresholdPositive3");
 			boolean singleThreshold = params.getBooleanParameterValue("singleThreshold");
 			for (PathObject pathObject : detections) {
-				double val = pathObject.getMeasurementList().getMeasurementValue(measurement);
+				double val = pathObject.getMeasurementList().get(measurement);
 				if (singleThreshold) {
 					if (val >= threshold1) {
 						pathObject.setPathClass(PathClassFactory.getPositive(pathObject.getPathClass()));

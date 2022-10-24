@@ -94,20 +94,20 @@ public class TestPathObjectTools2 {
 		ml4 = MeasurementListFactory.createMeasurementList(16, MeasurementList.MeasurementListType.GENERAL);
 		
 		// Adding measurement to list2 (all measurements)
-		ml2.putMeasurement("intensityMeasurement1", 0.0);
-		ml2.putMeasurement("intensityMeasurement2", 0.2);
-		ml2.putMeasurement("intensityMeasurement3", 0.6);
-		ml2.putMeasurement("intensityMeasurement4", -4.6);
+		ml2.put("intensityMeasurement1", 0.0);
+		ml2.put("intensityMeasurement2", 0.2);
+		ml2.put("intensityMeasurement3", 0.6);
+		ml2.put("intensityMeasurement4", -4.6);
 		
 		// Adding measurement to list3 (missing intensityMeasurement3)
-		ml3.putMeasurement("intensityMeasurement1", -1.0);
-		ml3.putMeasurement("intensityMeasurement2", 0.9999);
-		ml3.putMeasurement("intensityMeasurement4", 0.999);
+		ml3.put("intensityMeasurement1", -1.0);
+		ml3.put("intensityMeasurement2", 0.9999);
+		ml3.put("intensityMeasurement4", 0.999);
 		
 		// Adding measurement to list4 (missing intensityMeasurement4)
-		ml4.putMeasurement("intensityMeasurement1", 0.2);
-		ml4.putMeasurement("intensityMeasurement2", 0.3);
-		ml4.putMeasurement("intensityMeasurement3", 0.5);
+		ml4.put("intensityMeasurement1", 0.2);
+		ml4.put("intensityMeasurement2", 0.3);
+		ml4.put("intensityMeasurement3", 0.5);
 		
 		po1 = PathObjects.createDetectionObject(ROIs.createRectangleROI(0, 0, 10, 10, ImagePlane.getDefaultPlane()), pathClass1, ml1);
 		po2 = PathObjects.createDetectionObject(ROIs.createEllipseROI(0, 0, 10, 10, ImagePlane.getDefaultPlane()), pathClass2, ml2);

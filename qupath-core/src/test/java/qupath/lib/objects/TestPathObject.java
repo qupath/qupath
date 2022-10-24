@@ -80,7 +80,7 @@ public class TestPathObject {
 		int n = 1000;
 		IntStream.range(0, n)
 			.parallel()
-			.forEach(i ->list.putMeasurement("Measurement " + i, i));
+			.forEach(i ->list.put("Measurement " + i, i));
 		
 		assertEquals(n, list.size());
 		assertEquals(n, map.size());
@@ -108,7 +108,7 @@ public class TestPathObject {
 		
 		IntStream.range(0, n)
 		.parallel()
-		.forEach(i -> list.putMeasurement("Measurement " + i, (double)i));
+		.forEach(i -> list.put("Measurement " + i, (double)i));
 		
 		IntStream.range(0, n)
 		.parallel()
@@ -130,13 +130,13 @@ public class TestPathObject {
 		assertEquals(1, p.getMeasurementList().size());
 		p.getMeasurementList().addMeasurement("added", 2);
 		assertEquals(1, p.getMeasurementList().size());
-		assertEquals(2, p.getMeasurementList().getMeasurementValue("added"));
+		assertEquals(2, p.getMeasurementList().get("added"));
 		
-		p.getMeasurementList().putMeasurement("put", 3);
+		p.getMeasurementList().put("put", 3);
 		assertEquals(2, p.getMeasurementList().size());
-		p.getMeasurementList().putMeasurement("put", 4);
+		p.getMeasurementList().put("put", 4);
 		assertEquals(2, p.getMeasurementList().size());
-		assertEquals(4, p.getMeasurementList().getMeasurementValue("put"));
+		assertEquals(4, p.getMeasurementList().get("put"));
 		
 		assertEquals(2, p.getMeasurements().size());
 		assertEquals(2, p.getMeasurements().keySet().size());
@@ -150,7 +150,7 @@ public class TestPathObject {
 		Double val = 5.5; // Note 5.1 wouldn't work because of loss of precision if using a float measurement list!
 		p.getMeasurements().put("mapAdded", val);
 		assertEquals(val, p.getMeasurements().get("mapAdded"));
-		assertEquals(val, p.getMeasurementList().getMeasurementValue("mapAdded"));
+		assertEquals(val, p.getMeasurementList().get("mapAdded"));
 		// Not expected to pass! val is unboxed internally, precise value not stored
 //		assertSame(val, p.getMeasurements().get("mapAdded"));
 		
@@ -189,7 +189,7 @@ public class TestPathObject {
 		double[] listValuesAsArray = p.getMeasurementList().values();
 		for (int i = 0; i < listValues.length; i++) {
 			listValues[i] = p.getMeasurementList().getMeasurementValue(i);
-			listValuesByName[i] = p.getMeasurementList().getMeasurementValue(p.getMeasurementList().getMeasurementName(i));
+			listValuesByName[i] = p.getMeasurementList().get(p.getMeasurementList().getMeasurementName(i));
 		}
 		double[] mapValues = p.getMeasurements().values().stream().mapToDouble(v -> v.doubleValue()).toArray();
 		double[] mapValuesByIterator = new double[p.getMeasurements().size()];

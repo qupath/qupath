@@ -237,7 +237,7 @@ public class ObjectMeasurements {
 				double pixelWidth = cal.getPixelWidth().doubleValue();
 				double pixelHeight = cal.getPixelHeight().doubleValue();
 				double nucleusCellAreaRatio = GeneralTools.clipValue(roiNucleus.getScaledArea(pixelWidth, pixelHeight) / roiCell.getScaledArea(pixelWidth, pixelHeight), 0, 1);
-				ml.putMeasurement("Nucleus/Cell area ratio", nucleusCellAreaRatio);
+				ml.put("Nucleus/Cell area ratio", nucleusCellAreaRatio);
 			}
 		}
 		
@@ -323,26 +323,26 @@ public class ObjectMeasurements {
 		double pixelHeight = cal.getPixelHeight().doubleValue();
 		
 		if (features.contains(ShapeFeatures.AREA))
-			ml.putMeasurement(baseName + "Area " + units2, ellipse.getScaledArea(pixelWidth, pixelHeight));
+			ml.put(baseName + "Area " + units2, ellipse.getScaledArea(pixelWidth, pixelHeight));
 		if (features.contains(ShapeFeatures.LENGTH))
-			ml.putMeasurement(baseName + "Length " + units, ellipse.getLength());
+			ml.put(baseName + "Length " + units, ellipse.getLength());
 		
 		if (features.contains(ShapeFeatures.CIRCULARITY)) {
-			ml.putMeasurement(baseName + "Circularity", 1.0);
+			ml.put(baseName + "Circularity", 1.0);
 		}
 		
 		if (features.contains(ShapeFeatures.SOLIDITY)) {
-			ml.putMeasurement(baseName + "Solidity", 1.0);
+			ml.put(baseName + "Solidity", 1.0);
 		}
 		
 		if (features.contains(ShapeFeatures.MAX_DIAMETER)) {
 			double maxDiameter = Math.max(ellipse.getBoundsWidth() * pixelWidth, ellipse.getBoundsHeight() * pixelHeight);
-			ml.putMeasurement(baseName + "Max diameter " + units, maxDiameter);
+			ml.put(baseName + "Max diameter " + units, maxDiameter);
 		}
 
 		if (features.contains(ShapeFeatures.MIN_DIAMETER)) {
 			double minDiameter = Math.min(ellipse.getBoundsWidth() * pixelWidth, ellipse.getBoundsHeight() * pixelHeight);
-			ml.putMeasurement(baseName + "Min diameter " + units, minDiameter);
+			ml.put(baseName + "Min diameter " + units, minDiameter);
 		}
 	}
 	
@@ -358,9 +358,9 @@ public class ObjectMeasurements {
 		double length = geom.getLength();
 		
 		if (isArea && features.contains(ShapeFeatures.AREA))
-			ml.putMeasurement(baseName + "Area " + units2, area);
+			ml.put(baseName + "Area " + units2, area);
 		if ((isArea || isLine) && features.contains(ShapeFeatures.LENGTH))
-			ml.putMeasurement(baseName + "Length " + units, length);
+			ml.put(baseName + "Length " + units, length);
 		
 		if (isArea && features.contains(ShapeFeatures.CIRCULARITY)) {
 			if (geom instanceof Polygon) {
@@ -375,7 +375,7 @@ public class ObjectMeasurements {
 					ringLength = Length.ofLine(ring);
 				}
 				double circularity = Math.PI * 4 * ringArea / (ringLength * ringLength);
-				ml.putMeasurement(baseName + "Circularity", circularity);
+				ml.put(baseName + "Circularity", circularity);
 			} else {
 				logger.debug("Cannot compute circularity for {}", geom.getClass());
 			}
@@ -383,17 +383,17 @@ public class ObjectMeasurements {
 		
 		if (isArea && features.contains(ShapeFeatures.SOLIDITY)) {
 			double solidity = area / geom.convexHull().getArea();
-			ml.putMeasurement(baseName + "Solidity", solidity);
+			ml.put(baseName + "Solidity", solidity);
 		}
 		
 		if (features.contains(ShapeFeatures.MAX_DIAMETER)) {
 			double minCircleRadius = new MinimumBoundingCircle(geom).getRadius();
-			ml.putMeasurement(baseName + "Max diameter " + units, minCircleRadius*2);
+			ml.put(baseName + "Max diameter " + units, minCircleRadius*2);
 		}
 
 		if (features.contains(ShapeFeatures.MIN_DIAMETER)) {
 			double minDiameter = new MinimumDiameter(geom).getLength();
-			ml.putMeasurement(baseName + "Min diameter " + units, minDiameter);
+			ml.put(baseName + "Min diameter " + units, minDiameter);
 		}
 
 	}
@@ -615,7 +615,7 @@ public class ObjectMeasurements {
 			var stats = allStats[i];
 			try (var ml = pathObject.getMeasurementList()) {
 				for (var m : measurements) {
-					ml.putMeasurement(baseName + ": " + m.getMeasurementName(), m.getMeasurement(stats));
+					ml.put(baseName + ": " + m.getMeasurementName(), m.getMeasurement(stats));
 				}
 			}
 		}

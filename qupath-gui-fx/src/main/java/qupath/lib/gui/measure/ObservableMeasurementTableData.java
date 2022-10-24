@@ -457,7 +457,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		}
 		// Good news! We just need a regular measurement
 		for (int i = 0; i < filterList.size(); i++)
-			values[i] = filterList.get(i).getMeasurementList().getMeasurementValue(column);
+			values[i] = filterList.get(i).getMeasurementList().get(column);
 		return values;
 	}
 	
@@ -474,7 +474,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 			else
 				return Double.NaN;
 		}
-		return pathObject.getMeasurementList().getMeasurementValue(column);
+		return pathObject.getMeasurementList().get(column);
 	}
 	
 	@Override
@@ -512,7 +512,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 
 		@Override
 		protected double computeValue() {
-			return pathObject.getMeasurementList().getMeasurementValue(name);
+			return pathObject.getMeasurementList().get(name);
 		}
 		
 	}
@@ -1845,7 +1845,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 			logger.warn("Requested measurement {} for null object! Returned empty String.", column);
 			return "";
 		}
-		double val = pathObject.getMeasurementList().getMeasurementValue(column);
+		double val = pathObject.getMeasurementList().get(column);
 		if (Double.isNaN(val))
 			return "NaN";
 		return GeneralTools.formatNumber(val, 4);

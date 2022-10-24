@@ -155,7 +155,7 @@ public class CellIntensityClassificationCommand implements Runnable {
 			if (o != null)
 				map.put(o, parseValues(sliders));
 			
-			double[] measurementValues = detections.stream().mapToDouble(p -> p.getMeasurementList().getMeasurementValue(n))
+			double[] measurementValues = detections.stream().mapToDouble(p -> p.getMeasurementList().get(n))
 					.filter(d -> Double.isFinite(d)).toArray();
 			var stats = new DescriptiveStatistics(measurementValues);
 			var histogram = new Histogram(measurementValues, 100, stats.getMin(), stats.getMax());

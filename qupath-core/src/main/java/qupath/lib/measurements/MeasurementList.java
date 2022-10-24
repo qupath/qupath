@@ -24,8 +24,11 @@
 package qupath.lib.measurements;
 
 import java.io.Serializable;
+import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.slf4j.LoggerFactory;
 
@@ -42,7 +45,7 @@ import qupath.lib.common.LogTools;
  * was deprecated and now simply defers to {@link #put(String, double)}.
  * <p>
  * Additionally, the wordy {@link #putMeasurement(String, double)} and {@link #getMeasurementValue(String)} 
- * were joined by {@link #put(String, double)} and {@link #get(String)} - which do the same thing, 
+ * were deprecated in favor of {@link #put(String, double)} and {@link #get(String)} - which do the same thing, 
  * but with more familiar syntax.
  * 
  * @author Pete Bankhead
@@ -72,14 +75,14 @@ public interface MeasurementList extends Serializable, AutoCloseable {
 	
 	/**
 	 * Add a new measurement. No check is made to ensure the name is unique, and 
-	 * in general {@link #putMeasurement(String, double)} is to be preferred.
+	 * in general {@link #put(String, double)} is to be preferred.
 	 * @param name
 	 * @param value
 	 * @return
 	 * 
-	 * @see #putMeasurement(String, double)
-	 * @deprecated v0.4.0 use {@link #putMeasurement(String, double)} instead
-	 * @implNote Since v0.4.0 the default implementation delegates to {@link #putMeasurement(String, double)}, 
+	 * @see #put(String, double)
+	 * @deprecated v0.4.0 use {@link #put(String, double)} instead
+	 * @implNote Since v0.4.0 the default implementation delegates to {@link #put(String, double)}, 
 	 *           and will therefore replace any existing value with the same name.
 	 *           This different behavior is introduced to facilitate moving measurement lists towards 
 	 *           a map implementation for improved performance, consistency and scripting.
@@ -87,7 +90,7 @@ public interface MeasurementList extends Serializable, AutoCloseable {
 	@Deprecated
 	public default boolean addMeasurement(String name, double value) {
 		synchronized (this) {
-			boolean contains = containsNamedMeasurement(name);
+			boolean contains = containsKey(name);
 			var logger = LoggerFactory.getLogger(getClass());
 			if (contains) {
 				logger.warn("Duplicate '{}' not allowed - previous measurement will be dropped (duplicate names no longer permitted since v0.4.0)", name);
@@ -124,15 +127,12 @@ public interface MeasurementList extends Serializable, AutoCloseable {
 	 * <p>
 	 * This is similar to adding, but with a check to remove any existing measurement with the same name
 	 * (if multiple measurements have the same name, the first will be replaced).
-	 * <p>
-	 * While it's probably a good idea for measurements to always have unique names, for some implementations
-	 * putMeasurement can be must slower than add or addMeasurement - so adding should be preferred if it is
-	 * known that a measurement with the same name is not present.
 	 * 
 	 * @param name
 	 * @param value
+	 * @since v0.4.0
 	 */
-	public void putMeasurement(String name, double value);
+	public void put(String name, double value);
 	
 	/**
 	 * Get the specified measurement, or the provided default value if it is not contained in the list.
@@ -146,9 +146,9 @@ public interface MeasurementList extends Serializable, AutoCloseable {
 	 */
 	public default double getOrDefault(String name, double defaultValue) {
 		synchronized (this) {
-			double val = getMeasurementValue(name);
+			double val = get(name);
 			if (Double.isNaN(val)) {
-				if (Double.isNaN(defaultValue) || containsNamedMeasurement(name))
+				if (Double.isNaN(defaultValue) || containsKey(name))
 					return val;
 				else
 					return defaultValue;
@@ -161,10 +161,11 @@ public interface MeasurementList extends Serializable, AutoCloseable {
 	 * Query if a value with the specified name is in the list.
 	 * @param name
 	 * @return
-	 * @since v0.4.0
+	 * @deprecated since v0.4.0; replaced by {@link #containsKey(String)}
 	 */
-	public default boolean containsKey(String name) {
-		return containsNamedMeasurement(name);
+	@Deprecated
+	public default boolean containsNamedMeasurement(String name) {
+		return containsKey(name);
 	}
 	
 	/**
@@ -183,23 +184,23 @@ public interface MeasurementList extends Serializable, AutoCloseable {
 	
 	/**
 	 * Get the measurement with the specified name.
-	 * Alternative method to call {@link #getMeasurementValue(String)}
 	 * @param name
-	 * @return the value, or Double.NaN if no
-	 * @since v0.4.0
+	 * @return the value, or Double.NaN if no measurement is available with the specified name
+	 * @deprecated since v0.4.0; use {@link #get(String)} instead
 	 */
-	public default double get(String name) {
-		return getMeasurementValue(name);
+	@Deprecated
+	public default double getMeasurementValue(String name) {
+		return get(name);
 	}
 	
 	/**
 	 * Alternative method to call {@link #putMeasurement(String, double)}
 	 * @param name
 	 * @param value 
-	 * @since v0.4.0
+	 * @deprecated since v0.4.0; replaced by {@link #put(String, double)}
 	 */
-	public default void put(String name, double value) {
-		putMeasurement(name, value);
+	public default void putMeasurement(String name, double value) {
+		put(name, value);
 	}
 	
 	/**
@@ -246,6 +247,27 @@ public interface MeasurementList extends Serializable, AutoCloseable {
 			
 		}
 	}
+	
+	/**
+	 * Get all available names as a set.
+	 * @return
+	 * @implNote the current implementation is much less efficient than {@link #getMeasurementNames()}, 
+	 *           but is included to more closely resemble Map behavior.
+	 *           The list of names and size of the returned set here should be identical; if they aren't, 
+	 *           duplicate names seem to be present and a warning is logged.
+	 *           This <i>shouldn't</i> be possible with new code, but could conceivably occur if a list from 
+	 *           a pre-v0.4.0 QuPath version is deserialized (or there is a bad bug somewhere here - if so, 
+	 *           please report it!).
+	 */
+	public default Set<String> keySet() {
+		var names = getMeasurementNames();
+		var set = new LinkedHashSet<>(names);
+		// Shouldn't happen now that addMeasurements is ineffective... but conceivably could with legacy lists
+		if (set.size() < names.size()) {
+			LoggerFactory.getLogger(getClass()).warn("Duplicate measurement names detected! Set size {}, list size {}", set.size(), names.size());
+		}
+		return Collections.unmodifiableSet(set);
+	}
 
 	/**
 	 * Get the names of all measurements currently in the list.
@@ -257,32 +279,36 @@ public interface MeasurementList extends Serializable, AutoCloseable {
 	 * Get name for the measurement at the specified index in the list.
 	 * @param ind
 	 * @return
+	 * @deprecated since v0.4.0; using names is preferred over indexing but {@link #getMeasurementNames()} can still be used
 	 */
+	@Deprecated
 	public String getMeasurementName(int ind);
 
 	/**
 	 * Get value for the measurement at the specified index in the list.
 	 * @param ind
 	 * @return
+	 * @deprecated since v0.4.0; using {@link #get(String)} is preferred over using an index
 	 */
+	@Deprecated
 	public double getMeasurementValue(int ind);
 
 	/**
 	 * Get value for the measurement with the specified name.
-	 * Note that the behavior is undefined if multiple measurements have the same name.
 	 * @param name
-	 * @return
-	 * 
-	 * @see #putMeasurement(String, double)
+	 * @return the measurement value, or Double.NaN if the measurement is not available
+	 * @see #put(String, double)
+	 * @since v0.4.0
 	 */
-	public double getMeasurementValue(String name);
+	public double get(String name);
 
 	/**
 	 * Returns true if this list contains a measurement with the specified name.
 	 * @param name
 	 * @return
+	 * @since v0.4.0
 	 */
-	public boolean containsNamedMeasurement(String name);
+	public boolean containsKey(String name);
 
 	/**
 	 * Returns true if the list does not contain any measurements.

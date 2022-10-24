@@ -174,7 +174,7 @@ public class PixelClassificationMeasurementManager {
 				return null;
 			map.put(roi, ml);
 		}
-		return ml.getMeasurementValue(name);
+		return ml.get(name);
 	}
 
 	/**
@@ -518,9 +518,9 @@ public class PixelClassificationMeasurementManager {
 			if (counts != null) {
 				long count = entry.getValue();
 				if (pathClassTotals.size() > 1)
-					measurementList.putMeasurement(namePercentage, (double)count/totalWithoutIgnored * 100.0);
+					measurementList.put(namePercentage, (double)count/totalWithoutIgnored * 100.0);
 				if (!Double.isNaN(pixelArea)) {
-					measurementList.putMeasurement(nameArea, count * pixelArea);
+					measurementList.put(nameArea, count * pixelArea);
 				}
 			}
     	}
@@ -533,8 +533,8 @@ public class PixelClassificationMeasurementManager {
     			tempList.add(nameArea);
     			tempList.add(nameAreaWithoutIgnored);
     		}
-			measurementList.putMeasurement(nameArea, totalWithoutIgnored * pixelArea);
-			measurementList.putMeasurement(nameAreaWithoutIgnored, total * pixelArea);
+			measurementList.put(nameArea, totalWithoutIgnored * pixelArea);
+			measurementList.put(nameAreaWithoutIgnored, total * pixelArea);
 		}
 
     	measurementList.close();

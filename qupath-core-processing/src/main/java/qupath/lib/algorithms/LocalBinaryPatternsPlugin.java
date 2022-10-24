@@ -263,11 +263,11 @@ public class LocalBinaryPatternsPlugin extends AbstractInteractivePlugin<Buffere
 
 	static void addBasicStatistics(final SimpleImage img, final MeasurementList measurementList, final String name) {
 		RunningStatistics stats = StatisticsHelper.computeRunningStatistics(img);
-		measurementList.putMeasurement(name + " Mean", stats.getMean());
-		measurementList.putMeasurement(name + " Min", stats.getMin());
-		measurementList.putMeasurement(name + " Max", stats.getMax());
-		measurementList.putMeasurement(name + " Range", stats.getRange());
-		measurementList.putMeasurement(name + " Std.dev.", stats.getStdDev());
+		measurementList.put(name + " Mean", stats.getMean());
+		measurementList.put(name + " Min", stats.getMin());
+		measurementList.put(name + " Max", stats.getMax());
+		measurementList.put(name + " Range", stats.getRange());
+		measurementList.put(name + " Std.dev.", stats.getStdDev());
 		
 //		measurementList.addMeasurement(String.format("%s Mean", name), stats.getMean());
 //		measurementList.addMeasurement(String.format("%s Min", name), stats.getMin());
@@ -279,7 +279,7 @@ public class LocalBinaryPatternsPlugin extends AbstractInteractivePlugin<Buffere
 	
 	static void addLocalBinaryFeatures(final double[] histogram, final MeasurementList measurementList, final String name) {
 		for (int i = 0; i < histogram.length; i++) {
-			measurementList.putMeasurement(String.format("%s LBP %d", name,
+			measurementList.put(String.format("%s LBP %d", name,
 					i+1), histogram[i]);
 		}
 	}

@@ -337,7 +337,7 @@ public class DistanceTools {
 					double distance = Math.min(lineDistance, Math.min(pointDistance, shapeDistance));
 					
 					try (var ml = p.getMeasurementList()) {
-						ml.putMeasurement(measurementName, distance);
+						ml.put(measurementName, distance);
 					}
 				});
 			}

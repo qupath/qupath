@@ -149,11 +149,11 @@ public class ShapeFeaturesPlugin<T> extends AbstractInteractivePlugin<T> {
 	private static void addMeasurements(final MeasurementList measurementList, final ROI roi, final String prefix, final double pixelWidth, final double pixelHeight, final String unit,
 			final boolean doArea, final boolean doPerimeter, final boolean doCircularity) {
 		if (doArea)
-			measurementList.putMeasurement(prefix + "Area " + unit + "^2", roi.getScaledArea(pixelWidth, pixelHeight));
+			measurementList.put(prefix + "Area " + unit + "^2", roi.getScaledArea(pixelWidth, pixelHeight));
 		if (doPerimeter)
-			measurementList.putMeasurement(prefix + "Perimeter " + unit, roi.getScaledLength(pixelWidth, pixelHeight));
+			measurementList.put(prefix + "Perimeter " + unit, roi.getScaledLength(pixelWidth, pixelHeight));
 		if (doCircularity)
-			measurementList.putMeasurement(prefix + "Circularity", RoiTools.getCircularity(roi));		
+			measurementList.put(prefix + "Circularity", RoiTools.getCircularity(roi));		
 	}
 	
 	

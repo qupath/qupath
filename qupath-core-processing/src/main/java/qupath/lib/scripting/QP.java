@@ -1915,7 +1915,7 @@ public class QP {
 	 * @return
 	 */
 	public static boolean hasMeasurement(final PathObject pathObject, final String measurementName) {
-		return pathObject != null && pathObject.getMeasurementList().containsNamedMeasurement(measurementName);
+		return pathObject != null && pathObject.getMeasurementList().containsKey(measurementName);
 	}
 
 	/**
@@ -1926,7 +1926,7 @@ public class QP {
 	 * @return
 	 */
 	public static double measurement(final PathObject pathObject, final String measurementName) {
-		return pathObject == null ? Double.NaN : pathObject.getMeasurementList().getMeasurementValue(measurementName);
+		return pathObject == null ? Double.NaN : pathObject.getMeasurementList().get(measurementName);
 	}
 
 	
@@ -2280,8 +2280,8 @@ public class QP {
 				double value = scanner.nextDouble();
 
 				Predicate<PathObject> predicateNew = p -> {
-					double v = p.getMeasurementList().getMeasurementValue(measurement);
-					return !Double.isNaN(v) && mapComparison.get(comparison).test(Double.compare(p.getMeasurementList().getMeasurementValue(measurement), value));
+					double v = p.getMeasurementList().get(measurement);
+					return !Double.isNaN(v) && mapComparison.get(comparison).test(Double.compare(p.getMeasurementList().get(measurement), value));
 				};
 				if (negate)
 					predicateNew = predicateNew.negate();

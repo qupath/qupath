@@ -61,7 +61,7 @@ class MeasurementsMap extends AbstractMap<String, Double> implements Map<String,
 	
 	@Override
 	public boolean containsKey(Object key) {
-		return key instanceof String && this.list.containsNamedMeasurement((String)key);
+		return key instanceof String && this.list.containsKey((String)key);
 	}
 	
 	@Override
@@ -91,8 +91,8 @@ class MeasurementsMap extends AbstractMap<String, Double> implements Map<String,
 			return null;
 		String name = (String)key;
 		synchronized(list) {
-			if (list.containsNamedMeasurement(name))
-				return list.getMeasurementValue(name);
+			if (list.containsKey(name))
+				return list.get(name);
 		}
 		return null;
 	}
@@ -109,9 +109,9 @@ class MeasurementsMap extends AbstractMap<String, Double> implements Map<String,
 		Objects.requireNonNull(value);
 		Double current = null;
 		synchronized(list) {
-			if (list.containsNamedMeasurement(name))
-				current = list.getMeasurementValue(name);
-			list.putMeasurement(name, value.doubleValue());
+			if (list.containsKey(name))
+				current = list.get(name);
+			list.put(name, value.doubleValue());
 			list.close();
 		}
 		return current;
@@ -124,7 +124,7 @@ class MeasurementsMap extends AbstractMap<String, Double> implements Map<String,
 			// and don't need to extract previous values
 			for (Map.Entry<? extends String, ? extends Number> e : map.entrySet()) {
 				Objects.requireNonNull(e.getValue()); // Don't support null values
-				list.putMeasurement(e.getKey(), e.getValue().doubleValue());
+				list.put(e.getKey(), e.getValue().doubleValue());
 			}
 			list.close();
 		}

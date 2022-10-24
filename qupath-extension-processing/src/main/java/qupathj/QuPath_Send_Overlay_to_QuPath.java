@@ -205,7 +205,7 @@ public class QuPath_Send_Overlay_to_QuPath implements PlugIn {
 					for (String h : headings) {
 						if ("Label".equals(h))
 							continue;
-						ml.putMeasurement(h, rt.getValue(h, row));
+						ml.put(h, rt.getValue(h, row));
 					}
 					ml.close();
 				}

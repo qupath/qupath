@@ -842,7 +842,7 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 		public void addMeasurements(PathObject pathObject, String name, ParameterList params) {
 			// Handle Hue special case
 			if (hueStats != null) {
-				pathObject.getMeasurementList().putMeasurement(name + " Mean", hueStats.getMeanHue());
+				pathObject.getMeasurementList().put(name + " Mean", hueStats.getMeanHue());
 				return;
 			}
 			
@@ -852,12 +852,12 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 			
 			MeasurementList measurementList = pathObject.getMeasurementList();
 			if (params.getBooleanParameterValue(Feature.MEAN.key))
-				measurementList.putMeasurement(name + " Mean", stats.getMean());
+				measurementList.put(name + " Mean", stats.getMean());
 			if (params.getBooleanParameterValue(Feature.STD_DEV.key))
-				measurementList.putMeasurement(name + " Std.dev.", stats.getStdDev());
+				measurementList.put(name + " Std.dev.", stats.getStdDev());
 			if (params.getBooleanParameterValue(Feature.MIN_MAX.key)) {
-				measurementList.putMeasurement(name + " Min", stats.getMin());
-				measurementList.putMeasurement(name + " Max", stats.getMax());
+				measurementList.put(name + " Min", stats.getMin());
+				measurementList.put(name + " Max", stats.getMax());
 			}
 			
 			logger.trace("Measured pixel count: {}", stats.size());
@@ -1015,7 +1015,7 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 			
 			// Add to measurement list
 			MeasurementList measurementList = pathObject.getMeasurementList();
-			measurementList.putMeasurement(name + " Median", median);
+			measurementList.put(name + " Median", median);
 		}
 		
 	}
@@ -1084,7 +1084,7 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 			MeasurementList measurementList = pathObject.getMeasurementList();
 			HaralickFeatures haralickFeatures = matrices.getMeanFeatures();
 			for (int i = 0; i < haralickFeatures.nFeatures(); i++) {
-				measurementList.putMeasurement(String.format("%s Haralick %s (F%d)", name,
+				measurementList.put(String.format("%s Haralick %s (F%d)", name,
 						haralickFeatures.getFeatureName(i),
 						i), haralickFeatures.getFeature(i));
 			}
@@ -1260,7 +1260,7 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 			NumberFormat formatter = GeneralTools.createFormatter(3);
 			for (int i = 0; i < histogram.length; i++) {
 				double value = minBin + i * binWidth;
-				measurementList.putMeasurement(name + " >= " + formatter.format(value), proportions[i]);
+				measurementList.put(name + " >= " + formatter.format(value), proportions[i]);
 			}
 		}
 		

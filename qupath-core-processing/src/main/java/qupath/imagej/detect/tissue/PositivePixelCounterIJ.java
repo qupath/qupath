@@ -214,13 +214,13 @@ public class PositivePixelCounterIJ extends AbstractDetectionPlugin<BufferedImag
 				PathObject pathObject = PathObjects.createDetectionObject(roiTissue);
 				PathClass pathClass = null;
 				if (useLegacyMeasurements) {
-					pathObject.getMeasurementList().putMeasurement("Num pixels", nNegative);
-					pathObject.getMeasurementList().putMeasurement("Mean hematoxylin OD", meanNegative);
+					pathObject.getMeasurementList().put("Num pixels", nNegative);
+					pathObject.getMeasurementList().put("Mean hematoxylin OD", meanNegative);
 					pathClass = PathClassFactory.getNegative(null);
 				} else {
 					areaNegative = roiTissue.getScaledArea(pixelWidth, pixelHeight);
-					pathObject.getMeasurementList().putMeasurement("Stained area " + areaUnits + paramsString, areaNegative);
-					pathObject.getMeasurementList().putMeasurement("Mean " + stains.getStain(1).getName() + " OD" + paramsString, meanNegative);
+					pathObject.getMeasurementList().put("Stained area " + areaUnits + paramsString, areaNegative);
+					pathObject.getMeasurementList().put("Mean " + stains.getStain(1).getName() + " OD" + paramsString, meanNegative);
 					pathClass = PathClassFactory.getPathClass("Pixel count negative", ColorTools.makeScaledRGB(PathClassFactory.getNegative(null).getColor(), 1.25));
 				}
 				pathObject.setPathClass(pathClass);
@@ -233,13 +233,13 @@ public class PositivePixelCounterIJ extends AbstractDetectionPlugin<BufferedImag
 				PathClass pathClass = null;
 				PathObject pathObject = PathObjects.createDetectionObject(roiPositive);
 				if (useLegacyMeasurements) {
-					pathObject.getMeasurementList().putMeasurement("Num pixels", nPositive);
-					pathObject.getMeasurementList().putMeasurement("Mean DAB OD", meanPositive);
+					pathObject.getMeasurementList().put("Num pixels", nPositive);
+					pathObject.getMeasurementList().put("Mean DAB OD", meanPositive);
 					pathClass = PathClassFactory.getPositive(null);
 				} else {
 					areaPositive = roiPositive.getScaledArea(pixelWidth, pixelHeight);
-					pathObject.getMeasurementList().putMeasurement("Stained area " + areaUnits + paramsString, areaPositive);
-					pathObject.getMeasurementList().putMeasurement("Mean " + stains.getStain(2).getName() + " OD" + paramsString, meanPositive);
+					pathObject.getMeasurementList().put("Stained area " + areaUnits + paramsString, areaPositive);
+					pathObject.getMeasurementList().put("Mean " + stains.getStain(2).getName() + " OD" + paramsString, meanPositive);
 					pathClass = PathClassFactory.getPathClass("Pixel count positive", ColorTools.makeScaledRGB(PathClassFactory.getPositive(null).getColor(), 1.25));
 				}
 				pathObject.setPathClass(pathClass);
@@ -257,17 +257,17 @@ public class PositivePixelCounterIJ extends AbstractDetectionPlugin<BufferedImag
 			
 			if (addMeasurements) {
 				if (useLegacyMeasurements) {
-					parent.getMeasurementList().putMeasurement("Positive pixel %", positivePercentage);
-					parent.getMeasurementList().putMeasurement("Positive pixel count", nPositive);
-					parent.getMeasurementList().putMeasurement("Negative pixel count", nNegative);
-					parent.getMeasurementList().putMeasurement("Mean positive DAB staining OD", meanPositive);
-					parent.getMeasurementList().putMeasurement("Stained pixel count", nPositive + nNegative);
+					parent.getMeasurementList().put("Positive pixel %", positivePercentage);
+					parent.getMeasurementList().put("Positive pixel count", nPositive);
+					parent.getMeasurementList().put("Negative pixel count", nNegative);
+					parent.getMeasurementList().put("Mean positive DAB staining OD", meanPositive);
+					parent.getMeasurementList().put("Stained pixel count", nPositive + nNegative);
 					parent.getMeasurementList().close();
 				} else {
-					parent.getMeasurementList().putMeasurement("Positive % of stained pixels" + paramsString, positivePercentage);
-					parent.getMeasurementList().putMeasurement("Positive pixel area " + areaUnits + paramsString, areaPositive);
-					parent.getMeasurementList().putMeasurement("Negative pixel area " + areaUnits + paramsString, areaNegative);
-					parent.getMeasurementList().putMeasurement("Stained area (Positive + Negative)" + areaUnits + paramsString, areaPositive + areaNegative);					
+					parent.getMeasurementList().put("Positive % of stained pixels" + paramsString, positivePercentage);
+					parent.getMeasurementList().put("Positive pixel area " + areaUnits + paramsString, areaPositive);
+					parent.getMeasurementList().put("Negative pixel area " + areaUnits + paramsString, areaNegative);
+					parent.getMeasurementList().put("Stained area (Positive + Negative)" + areaUnits + paramsString, areaPositive + areaNegative);					
 					//					parent.getMeasurementList().putMeasurement("Positive pixel count (full image)", nPositive * downsample * downsample);
 //					parent.getMeasurementList().putMeasurement("Negative pixel count (full image)", nNegative * downsample * downsample);
 //					// Uncalibrated counts really only might be useful for a sanity check
@@ -284,9 +284,9 @@ public class PositivePixelCounterIJ extends AbstractDetectionPlugin<BufferedImag
 					if (roisMatch && roiParent.isArea()) {
 						// Clip to 100% (could conceivably go slightly above because of sub-pixel errors)
 						double areaROI = roiParent.getScaledArea(pixelWidth, pixelHeight);
-						parent.getMeasurementList().putMeasurement("Total ROI area " + areaUnits + paramsString, areaROI);					
+						parent.getMeasurementList().put("Total ROI area " + areaUnits + paramsString, areaROI);					
 //						parent.getMeasurementList().putMeasurement("Stained % of total ROI area" + paramsString, Math.min(100, (areaPositive + areaNegative) / areaROI * 100.0));					
-						parent.getMeasurementList().putMeasurement("Positive % of total ROI area" + paramsString, Math.min(100, areaPositive / areaROI * 100.0));
+						parent.getMeasurementList().put("Positive % of total ROI area" + paramsString, Math.min(100, areaPositive / areaROI * 100.0));
 					}
 					
 					parent.getMeasurementList().close();					

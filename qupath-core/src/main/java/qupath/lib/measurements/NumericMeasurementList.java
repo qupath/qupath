@@ -194,12 +194,12 @@ class NumericMeasurementList {
 		}
 		
 		@Override
-		public double getMeasurementValue(String name) {
+		public double get(String name) {
 			return getMeasurementValue(getMeasurementIndex(name));
 		}
 
 		@Override
-		public boolean containsNamedMeasurement(String measurementName) {
+		public boolean containsKey(String measurementName) {
 			if (!isClosed)
 				logger.trace("containsNamedMeasurement called on open NumericMeasurementList - consider closing list earlier for efficiency");
 			return names.contains(measurementName);
@@ -228,7 +228,7 @@ class NumericMeasurementList {
 		}
 		
 		@Override
-		public synchronized void putMeasurement(String name, double value) {
+		public synchronized void put(String name, double value) {
 			ensureListOpen();
 			int index = getMeasurementIndex(name);
 			if (index >= 0)
@@ -259,7 +259,7 @@ class NumericMeasurementList {
 		public Measurement putMeasurement(Measurement measurement) {
 			if (measurement.isDynamic())
 				throw new UnsupportedOperationException("This MeasurementList does not support dynamic measurements");
-			putMeasurement(measurement.getName(), measurement.getValue());
+			put(measurement.getName(), measurement.getValue());
 			return null;
 		}
 		

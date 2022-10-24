@@ -359,14 +359,14 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 				}
 				if (spotOrCluster != null) {
 					
-					boolean isCluster = spotOrCluster.getMeasurementList().getMeasurementValue("Num spots") > 1;
+					boolean isCluster = spotOrCluster.getMeasurementList().get("Num spots") > 1;
 					int rgb = imageWrapper.getChannelColor(channelName);
 					rgb = isCluster ? ColorTools.makeScaledRGB(rgb, 0.5) : ColorTools.makeScaledRGB(rgb, 1.5);
 					PathClass pathClass = PathClassFactory.getDerivedPathClass(spotOrCluster.getPathClass(), channelName + " object", rgb);
 					spotOrCluster.setPathClass(pathClass);
 					
-					spotOrCluster.getMeasurementList().putMeasurement("Subcellular cluster: " + channelName + ": Area", stats.pixelCount * pixelWidth * pixelHeight);					
-					spotOrCluster.getMeasurementList().putMeasurement("Subcellular cluster: " + channelName +  ": Mean channel intensity", stats.mean);
+					spotOrCluster.getMeasurementList().put("Subcellular cluster: " + channelName + ": Area", stats.pixelCount * pixelWidth * pixelHeight);					
+					spotOrCluster.getMeasurementList().put("Subcellular cluster: " + channelName +  ": Mean channel intensity", stats.mean);
 //					cluster.getMeasurementList().putMeasurement("Subcellular cluster: " + channelName +  ": Max channel intensity", stats.max);
 					spotOrCluster.getMeasurementList().close();
 					if (isCluster)
@@ -378,9 +378,9 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 
 			// Add measurements
 			MeasurementList measurementList = pathObject.getMeasurementList();
-			measurementList.putMeasurement("Subcellular: " + channelName +  ": Num spots estimated", estimatedSpots);
-			measurementList.putMeasurement("Subcellular: " + channelName +  ": Num single spots", spotObjects.size());
-			measurementList.putMeasurement("Subcellular: " + channelName +  ": Num clusters", clusterObjects.size());
+			measurementList.put("Subcellular: " + channelName +  ": Num spots estimated", estimatedSpots);
+			measurementList.put("Subcellular: " + channelName +  ": Num single spots", spotObjects.size());
+			measurementList.put("Subcellular: " + channelName +  ": Num clusters", clusterObjects.size());
 
 			// Add spots
 			pathObject.addPathObjects(spotObjects);
@@ -474,7 +474,7 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 			pathObject.setPathClass(PathClassFactory.getPathClass("Subcellular cluster", ColorTools.packRGB(220, 200, 50)));
 		else
 			pathObject.setPathClass(PathClassFactory.getPathClass("Subcellular spot", ColorTools.packRGB(100, 220, 50)));
-		pathObject.getMeasurementList().putMeasurement("Num spots", nSpots);
+		pathObject.getMeasurementList().put("Num spots", nSpots);
 		pathObject.getMeasurementList().close();
 		return pathObject;
 	}
@@ -505,7 +505,7 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 				setPathClass(PathClassFactory.getPathClass("Subcellular cluster", ColorTools.packRGB(220, 200, 50)));
 			else
 				setPathClass(PathClassFactory.getPathClass("Subcellular spot", ColorTools.packRGB(100, 220, 50)));
-			getMeasurementList().putMeasurement("Num spots", nSpots);
+			getMeasurementList().put("Num spots", nSpots);
 			getMeasurementList().close();
 //			color = isCluster ? ColorTools.makeRGB(220, 200, 50) : ColorTools.makeRGB(100, 220, 50);
 		}

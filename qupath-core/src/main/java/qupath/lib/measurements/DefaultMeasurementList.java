@@ -73,7 +73,7 @@ class DefaultMeasurementList implements MeasurementList {
 	}
 
 	@Override
-	public synchronized double getMeasurementValue(String name) {
+	public synchronized double get(String name) {
 		for (Measurement m : list) {
 			if (m.getName().equals(name))
 				return m.getValue();
@@ -82,7 +82,7 @@ class DefaultMeasurementList implements MeasurementList {
 	}
 		
 	@Override
-	public synchronized boolean containsNamedMeasurement(String measurement) {
+	public synchronized boolean containsKey(String measurement) {
 		for (Measurement m : list)
 			if (m.getName().equals(measurement))
 				return true;
@@ -152,7 +152,7 @@ class DefaultMeasurementList implements MeasurementList {
 	}
 
 	@Override
-	public synchronized void putMeasurement(String name, double value) {
+	public synchronized void put(String name, double value) {
 		putMeasurement(MeasurementFactory.createMeasurement(name, value));
 	}
 

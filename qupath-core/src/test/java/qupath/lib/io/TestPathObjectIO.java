@@ -95,10 +95,10 @@ public class TestPathObjectIO {
 		ByteArrayOutputStream bos = new ByteArrayOutputStream();
 		
 		// Add measurements
-		mlDetection.putMeasurement("TestMeasurement1", 5.0);
-		mlDetection.putMeasurement("TestMeasurement2", 10.0);
-		mlCell.putMeasurement("TestMeasurement3", 15.0);
-		mlCell.putMeasurement("TestMeasurement4", 20.0);
+		mlDetection.put("TestMeasurement1", 5.0);
+		mlDetection.put("TestMeasurement2", 10.0);
+		mlCell.put("TestMeasurement3", 15.0);
+		mlCell.put("TestMeasurement4", 20.0);
 		
 		// Export to GeoJSON
 		PathIO.exportObjectsAsGeoJSON(bos, objs, options);
