@@ -51,6 +51,7 @@ import org.controlsfx.control.action.Action;
 import org.controlsfx.dialog.ProgressDialog;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.event.Level;
 
 import javafx.animation.AnimationTimer;
 import javafx.application.Platform;
@@ -1263,22 +1264,34 @@ public class DefaultScriptEditor implements ScriptEditor {
 		@Override
 		public synchronized void write(char[] cbuf, int off, int len) throws IOException {
 			// If we aren't showing the log in the console, we need to handle each message
+			Level level = isErrorWriter ? Level.ERROR : Level.INFO;
+			String s = String.valueOf(cbuf, off, len);
 			if (!sendLogToConsole.get()) {
-				String s = String.valueOf(cbuf, off, len);
 				sb.append(s);
 				flush();
 			}
+			// Switch level if need be
+			// This makes it possible to use print("WARN: Something")
+			if (s.startsWith("WARN: ")) {
+				level = Level.WARN;
+				s = s.substring("WARN: ".length());
+			} else if (s.startsWith("INFO: ")) {
+				level = Level.INFO;
+				s = s.substring("INFO: ".length());										
+			} else if (s.startsWith("ERROR: ")) {
+				level = Level.ERROR;
+				s = s.substring("ERROR: ".length());										
+			} else if (s.startsWith("DEBUG: ")) {
+				level = Level.DEBUG;
+				s = s.substring("DEBUG: ".length());					
+			} else if (s.startsWith("TRACE: ")) {
+				level = Level.TRACE;
+				s = s.substring("TRACE: ".length());										
+			}
 			// Don't need to log newlines
-			if (len == 1 && cbuf[off] == '\n')
+			if ((len == 1 && cbuf[off] == '\n') || s.equals(System.lineSeparator()))
 				return;
-			String s = String.valueOf(cbuf, off, len);
-			// Skip newlines on Windows too...
-			if (s.equals(System.lineSeparator()))
-				return;
-			if (isErrorWriter)
-				logger.error(s);
-			else
-				logger.info(s);
+			logger.atLevel(level).log(s);
 		}
 
 		@Override
