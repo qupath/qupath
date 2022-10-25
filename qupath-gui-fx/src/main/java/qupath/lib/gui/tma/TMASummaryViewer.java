@@ -1460,9 +1460,9 @@ public class TMASummaryViewer {
 				columnOverlay.widthProperty().addListener((v, o, n) -> {
 					if (n.doubleValue() == columnOverlay.getPrefWidth())
 						return;
-					columnImage.setPrefWidth(n.doubleValue());
 					if (hasImages)
-						table.refresh();
+						columnImage.setPrefWidth(n.doubleValue());
+					table.refresh();
 				});
 				columns.add(columnOverlay);
 			}
