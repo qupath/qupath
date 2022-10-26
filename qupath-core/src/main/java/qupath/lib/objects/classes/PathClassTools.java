@@ -57,7 +57,8 @@ public final class PathClassTools {
 	 * @return
 	 */
 	public static boolean isGradedIntensityClass(final PathClass pathClass) {
-		return pathClass != null && gradedIntensityClassNames.contains(pathClass.getName());
+		return pathClass != null && pathClass != PathClass.NULL_CLASS
+				&& gradedIntensityClassNames.contains(pathClass.getName());
 	}
 	
 	/**

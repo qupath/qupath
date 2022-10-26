@@ -485,7 +485,7 @@ public final class PathClass implements Comparable<PathClass>, Serializable {
 	private static String getCacheString(Collection<String> names) {
 		if (names.isEmpty())
 			return "";
-		if (names.contains(null))
+		if (names.stream().anyMatch(p -> p == null))
 			throw new IllegalArgumentException("PathClass cannot contain 'null' name: " + names);
 		return names.stream().map(n -> validateNameStripped(n, false)).collect(Collectors.joining("\n"));
 	}
