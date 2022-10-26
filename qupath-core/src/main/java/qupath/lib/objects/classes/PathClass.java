@@ -27,9 +27,11 @@ import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 
 import qupath.lib.common.ColorTools;
@@ -63,11 +65,13 @@ public class PathClass implements Comparable<PathClass>, Serializable {
 	 */
 	private transient String stringRep = null;
 	
-	private static PathClass NULL_CLASS = new PathClass(secret);
+	private static final PathClass NULL_CLASS = new PathClass(secret);
 	
-	private static List<String> illegalCharacters = Arrays.asList("\n", ":", "\r");
+	private static final List<String> illegalCharacters = Arrays.asList("\n", ":", "\r");
 	
-	private static Map<String, PathClass> existingClasses = Collections.synchronizedMap(new HashMap<>());
+	private static final Map<String, PathClass> existingClasses = Collections.synchronizedMap(new HashMap<>());
+	
+	private transient Set<String> set;
 
 	private PathClass(UUID mySecret) {
 		if (!Objects.equals(secret, mySecret))
@@ -281,6 +285,58 @@ public class PathClass implements Comparable<PathClass>, Serializable {
 	public boolean isValid() {
 		return name != null;
 	}
+	
+	
+	/**
+	 * Return a view of this path class as an unmodifiable set, with 
+	 * each element representing the name of a path class component names.
+	 * <p>
+	 * <b>Important!</b> If any path class component names are duplicates, these will 
+	 * (necessarily) be removed from the set. Therefore it is <i>not</i> guaranteed that 
+	 * calling {@link PathClass#fromSet(Set)} on the output will return the same {@link PathClass} object.
+	 * <pre>{@code 
+	 * var pathClass = ...;
+	 * var pathClass2 = PathClass.fromSet(pathClass.toSet());
+	 * assert pathClass == pathClass2; // This may not be true!
+	 * }</pre>
+	 * <p>
+	 * However the {@link PathClass} objects should be the same if the name components are all valid and 
+	 * there are no duplicates (which should normally be the case).
+	 * @return
+	 */
+	public Set<String> asSet() {
+		if (set == null) {
+			synchronized (this) {
+				if (set == null)
+					set = createSet();
+			}
+		}
+		return set;
+	}
+	
+	/**
+	 * Create a 
+	 * @param names
+	 * @return
+	 */
+	public static PathClass fromSet(Set<String> names) {
+		return PathClassFactory.getPathClass(names);
+	}
+	
+	
+	private Set<String> createSet() {
+		if (this == PathClassFactory.getPathClassUnclassified())
+			return Collections.emptySet();
+		if (!isDerivedClass())
+			return	Collections.singleton(toString());
+		return Collections.unmodifiableSet(
+					new LinkedHashSet<>(
+							PathClassTools.splitNames(this)
+							)
+					);
+	}
+	
+	
 
 	/**
 	 * This is now equivalent to {@code this.toString().compareTo(o.toString())}.

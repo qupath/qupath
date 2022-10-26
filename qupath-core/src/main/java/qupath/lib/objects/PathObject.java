@@ -48,7 +48,6 @@ import qupath.lib.measurements.MeasurementList;
 import qupath.lib.measurements.MeasurementListFactory;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
-import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.roi.interfaces.ROI;
 
@@ -721,37 +720,65 @@ public abstract class PathObject implements Externalizable {
 	 * <ul>
 	 * <li>If the collection is empty, reset the PathClass</li>
 	 * <li>If the collection has one element, set it to be the name of the PathClass</li>
-	 * <li>If the collection has multiple element, create and set a derived PathClass with each element 
-	 * the name of a PathClass component</li>
+	 * <li>If the collection has multiple element, create and set a derived PathClass with each 
+	 * <b>unique</b> element the name of a PathClass component</li>
 	 * </ul>
+	 * The uniqueness is equivalent to copying the elements into a set; if a set is provided 
+	 * as input then a defensive copy will be made..
+	 * <p>
 	 * Ultimately, a single {@link PathClass} object is created to encapsulate the classification 
-	 * and the color used for display - but this provides a different (complementary) way to think of 
+	 * and the color used for display - but {@link #setClassifications(Collection)} and 
+	 * {@link #getClassifications()} provides a different (complementary) way to think of 
 	 * classifications within QuPath.
+	 * <p>
+	 * <b>Important: </b> This is an experimental feature introduced in QuPath v0.4.0 to 
+	 * provide an alternative way to interact with classifications and to add support for 
+	 * multiple classifications. It is possible that this becomes the 'standard' approach 
+	 * in future versions, with {@link PathClass} being deprecated.
+	 * <p>
+	 * Feedback or discussion on the approach is welcome on the forum at 
+	 * <a href="https://forum.image.sc/tag/qupath">image.sc</a>.
+	 * 
 	 * @param classifications
 	 * @since v0.4.0
+	 * @see #getClassifications()
 	 */
 	public void setClassifications(Collection<String> classifications) {
 		if (classifications.isEmpty())
 			resetPathClass();
-		else {
-			setPathClass(PathClassFactory.getPathClass(new ArrayList<>(classifications)));
+		else if (classifications instanceof Set) {
+			setPathClass(PathClass.fromSet((Set<String>)classifications));
+		} else {
+			// Use LinkedHashSet to maintain ordering
+			var set = new LinkedHashSet<>(classifications);
+			if (set.size() < classifications.size())
+				logger.warn("Input to setClassifications() contains duplicate elements - {} will be replaced by {}", classifications, set);
+			setPathClass(PathClassFactory.getPathClass(set));
 		}
 	}
 	
 	/**
-	 * Get the components of the {@link PathClass} as an unmodifiable collection.
+	 * Get the components of the {@link PathClass} as an unmodifiable set.
+	 * 
+	 * <b>Important: </b> This is an experimental feature introduced in QuPath v0.4.0 to 
+	 * provide an alternative way to interact with classifications and to add support for 
+	 * multiple classifications. It is possible that this becomes the 'standard' approach 
+	 * in future versions, with {@link PathClass} being deprecated.
+	 * <p>
+	 * Feedback or discussion on the approach is welcome on the forum at 
+	 * <a href="https://forum.image.sc/tag/qupath">image.sc</a>.
+	 * 
 	 * @return an empty collection is the PathClass is null, otherwise a collection of strings 
 	 *         where each string gives the name of one component of the PathClass
 	 * @since v0.4.0
+	 * @see #setClassifications(Collection)
 	 */
-	public Collection<String> getClassifications() {
+	public Set<String> getClassifications() {
 		var pc = getPathClass();
 		if (pc == null)
-			return Collections.emptyList();
-		else if (!pc.isDerivedClass())
-			return Collections.singletonList(pc.toString());
+			return Collections.emptySet();
 		else
-			return Collections.unmodifiableList(PathClassTools.splitNames(pc));
+			return pc.asSet();
 	}
 	
 

@@ -24,6 +24,7 @@
 package qupath.lib.objects.classes;
 
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -258,10 +259,22 @@ public final class PathClassFactory {
 	 * 
 	 * @see #getPathClass(String, String...)
 	 */
-	public static PathClass getPathClass(List<String> names) {
+	public static PathClass getPathClass(Collection<String> names) {
 		if (names.isEmpty())
 			return null;//getPathClassUnclassified();
-		return getPathClass(names.get(0), names.subList(1, names.size()).toArray(String[]::new));
+		if (names.size() == 1)
+			return getPathClass(names.iterator().next());
+		String first = null;
+		String[] rest = new String[names.size()-1];
+		int i = 0;
+		for (var name : names) {
+			if (i == 0)
+				first = name;
+			else
+				rest[i-1] = name;
+			i++;
+		}
+		return getPathClass(first, rest);
 	}
 	
 	
