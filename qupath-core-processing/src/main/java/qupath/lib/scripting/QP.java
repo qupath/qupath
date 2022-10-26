@@ -3919,5 +3919,84 @@ public class QP {
 			throw new UnsupportedOperationException("Current QuPath version " + VERSION + " is >= the specified (non-inclusive) maximum " + versionMax);			
 	}
 	
+	 
+	 
+	 /*
+	  * If Groovy finds a getXXX() it's liable to make xXX look like a variable...
+	  * then if the user tries to *create* (or set) a variable with that name, 
+	  * it will attempt to call setXXX(something).
+	  * That could then fail quietly and be confusing.
+	  * So these methods exist to make it fail noisily, and with a proposed solution.
+	  */
+	 
+	 
+	 private static void setTMACoreList(Object o) throws UnsupportedOperationException {
+		 warnAboutSetter("tMACoreList");
+	 }
+
+	 private static void setCellObjects(Object o) throws UnsupportedOperationException {
+		 warnAboutSetter("cellObjects");
+	 }
+
+	 private static void setTileObjects(Object o) throws UnsupportedOperationException {
+		 warnAboutSetter("tileObjects");
+	 }
+
+	 private static void setDetectionObjects(Object o) throws UnsupportedOperationException {
+		 warnAboutSetter("detectionObjects");
+	 }
+
+	 private static void setAnnotationObjects(Object o) throws UnsupportedOperationException {
+		 warnAboutSetter("annotationObjects");
+	 }
+
+	 private static void setAllObjects(Object o) throws UnsupportedOperationException {
+		 warnAboutSetter("allObjects");
+	 }
+
+	 private static void setCurrentHierarchy(Object o) throws UnsupportedOperationException {
+		 warnAboutSetter("currentHierarchy");
+	 }
+
+	 private static void setCurrentImageData(Object o) throws UnsupportedOperationException {
+		 warnAboutSetter("currentImageData");
+	 }
+
+	 private static void setCurrentServer(Object o) throws UnsupportedOperationException {
+		 warnAboutSetter("currentServer");
+	 }
+
+	 private static void setCurrentServerPath(Object o) throws UnsupportedOperationException {
+		 warnAboutSetter("currentServerPath");
+	 }
+
+	 private static void setProject(Object o) throws UnsupportedOperationException {
+		 warnAboutSetter("project");
+	 }
+
+	 private static void setProjectEntry(Object o) throws UnsupportedOperationException {
+		 warnAboutSetter("projectEntry");
+	 }
+
+	 private static void setCoreClasses(Object o) throws UnsupportedOperationException {
+		 warnAboutSetter("coreClasses");
+	 }
+
+	 private static void setCurrentImageName(Object o) throws UnsupportedOperationException {
+		 warnAboutSetter("currentImageName");
+	 }
+
+
+	 /**
+	  * Warn about attempt to set a property in Groovy, which really there is just a getter that isn't meant to be set.
+	  * @param name
+	  * @throws UnsupportedOperationException
+	  */
+	 private static void warnAboutSetter(String name) throws UnsupportedOperationException {
+		 logger.warn("Unsupported attempt to set {}. This can happen in a Groovy script if you use "
+				 + "'{}' as a global variable name - please use a different name instead, "
+				 + "or default a local variable with 'def {}'", name, name, name);
+		 throw new UnsupportedOperationException(name + " cannot be set!");
+	 }
 	
 }
