@@ -1441,10 +1441,9 @@ public class TMASummaryViewer {
 				columnImage.widthProperty().addListener((v, o, n) -> {
 					if (n.doubleValue() == columnImage.getPrefWidth())
 						return;
-					if (hasOverlay){
+					if (hasOverlay)
 						columnOverlay.setPrefWidth(n.doubleValue());
-						table.refresh();
-					}
+					table.refresh();
 				});
 				columns.add(columnImage);
 			}
@@ -1461,10 +1460,9 @@ public class TMASummaryViewer {
 				columnOverlay.widthProperty().addListener((v, o, n) -> {
 					if (n.doubleValue() == columnOverlay.getPrefWidth())
 						return;
-					if (hasImages){
+					if (hasImages)
 						columnImage.setPrefWidth(n.doubleValue());
-						table.refresh();
-					}
+					table.refresh();
 				});
 				columns.add(columnOverlay);
 			}
