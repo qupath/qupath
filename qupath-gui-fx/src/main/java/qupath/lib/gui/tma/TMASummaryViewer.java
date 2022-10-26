@@ -1626,7 +1626,7 @@ public class TMASummaryViewer {
 			if (id == null && entry.getMeasurement(TMACoreObject.KEY_UNIQUE_ID) != null)
 				id = entry.getMeasurement(TMACoreObject.KEY_UNIQUE_ID).toString();
 			if (id == null || id.trim().length() == 0) {
-				if (!"True".equals(entry.getMetadataValue(MISSING_COLUMN)))
+				if (!"true".equalsIgnoreCase(entry.getMetadataValue(MISSING_COLUMN)))
 					logger.trace("No ID found for {}", entry);
 				continue;
 			}
@@ -1712,7 +1712,7 @@ public class TMASummaryViewer {
 				if (idColumn != null && "NaN".equals(idColumn.get(i)))
 					continue;
 				String name = nameColumn == null ? idColumn.get(i) : nameColumn.get(i);
-				boolean missing = missingColumn != null && "True".equals(missingColumn.get(i));
+				boolean missing = missingColumn != null && "true".equalsIgnoreCase(missingColumn.get(i));
 				File fileImage = new File(dirData, name + ".jpg");
 				File fileOverlayImage = new File(dirData, name + "-overlay.jpg");
 				if (!fileOverlayImage.exists())
