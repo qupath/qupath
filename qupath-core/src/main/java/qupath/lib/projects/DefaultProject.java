@@ -1084,10 +1084,13 @@ class DefaultProject implements Project<BufferedImage> {
 		
 		JsonArray pathClassArray = new JsonArray();
 		for (PathClass pathClass : pathClasses) {
-			JsonObject jsonEntry = new JsonObject();
-			jsonEntry.addProperty("name", pathClass.toString());
-			jsonEntry.addProperty("color", pathClass.getColor());
-			pathClassArray.add(jsonEntry);
+			// Store any non-default (null) class
+			if (pathClass != PathClass.NULL_CLASS) {
+				JsonObject jsonEntry = new JsonObject();
+				jsonEntry.addProperty("name", pathClass.toString());
+				jsonEntry.addProperty("color", pathClass.getColor());
+				pathClassArray.add(jsonEntry);
+			}
 		}
 		
 		var element = new JsonObject();
@@ -1113,6 +1116,11 @@ class DefaultProject implements Project<BufferedImage> {
 					JsonObject pathClassObject = pathClassesArray.get(i).getAsJsonObject();
 					if (pathClassObject.has("name")) {
 						String name = pathClassObject.get("name").getAsString();
+						if (PathClass.NULL_CLASS.toString().equals(name)) {
+							logger.debug("Skipping PathClass '{}' - shares a name with the null class", name);
+							continue;
+						}
+						
 						Integer color = null;
 						if (pathClassObject.has("color") && !pathClassObject.get("color").isJsonNull()) {
 							color = pathClassObject.get("color").getAsInt();							

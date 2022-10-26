@@ -140,8 +140,8 @@ public abstract class PathROIObject extends PathObject {
 			this.classProbability = classProbability;
 			return;
 		}
-		if (pathClass == PathClassFactory.getPathClassUnclassified()) {
-			logger.warn("Please use PathObject.resetPathClass() instead of setting to PathClassFactory.getPathClassUnclassified()");	
+		if (pathClass == PathClass.NULL_CLASS) {
+			logger.warn("Please use PathObject.resetPathClass() instead of setting to PathClassFactory.NULL_CLASS");	
 			pathClass = null;
 		} else if (!pathClass.isValid()) {
 			logger.warn("Classification {} is invalid! Will be set to null instead", pathClass);
@@ -150,8 +150,12 @@ public abstract class PathROIObject extends PathObject {
 		this.pathClass = pathClass;
 		this.classProbability = classProbability;
 		// Forget any previous color, if we have a PathClass
-		if (this.pathClass != null)
-			setColor(null);
+		if (this.pathClass != null) {
+			if (getColor() != null) {
+				logger.debug("Resetting PathObject color to use the color of the PathClass instead");
+				setColor(null);
+			}
+		}
 	}
 	
 	@Override

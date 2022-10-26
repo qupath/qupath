@@ -28,6 +28,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import qupath.lib.common.ColorTools;
@@ -44,6 +45,10 @@ public final class PathClassTools {
 		throw new AssertionError();
 	}
 
+	private static Set<String> gradedIntensityClassNames = Set.of(
+			PathClass.NAME_ONE_PLUS, PathClass.NAME_TWO_PLUS, PathClass.NAME_THREE_PLUS);
+
+	
 	/**
 	 * Return true if the PathClass represents a built-in intensity class.
 	 * Here, this means its name is equal to "1+", "2+" or "3+".
@@ -52,7 +57,7 @@ public final class PathClassTools {
 	 * @return
 	 */
 	public static boolean isGradedIntensityClass(final PathClass pathClass) {
-		return pathClass != null && PathClassFactory.intensityClassNames.contains(pathClass.getName());
+		return pathClass != null && gradedIntensityClassNames.contains(pathClass.getName());
 	}
 	
 	/**
@@ -99,7 +104,7 @@ public final class PathClassTools {
 	 * @return
 	 */
 	public static boolean isOnePlus(final PathClass pathClass) {
-		return pathClass != null && PathClassFactory.ONE_PLUS.equals(pathClass.getName());
+		return pathClass != null && PathClass.NAME_ONE_PLUS.equals(pathClass.getName());
 	}
 
 	/**
@@ -108,7 +113,7 @@ public final class PathClassTools {
 	 * @return
 	 */
 	public static boolean isTwoPlus(final PathClass pathClass) {
-		return pathClass != null && PathClassFactory.TWO_PLUS.equals(pathClass.getName());
+		return pathClass != null && PathClass.NAME_TWO_PLUS.equals(pathClass.getName());
 	}
 
 	/**
@@ -117,7 +122,7 @@ public final class PathClassTools {
 	 * @return
 	 */
 	public static boolean isThreePlus(final PathClass pathClass) {
-		return pathClass != null && PathClassFactory.THREE_PLUS.equals(pathClass.getName());
+		return pathClass != null && PathClass.NAME_THREE_PLUS.equals(pathClass.getName());
 	}
 
 	/**
@@ -127,7 +132,7 @@ public final class PathClassTools {
 	 * @return
 	 */
 	public static boolean isPositiveClass(final PathClass pathClass) {
-		return pathClass != null && PathClassFactory.POSITIVE.equals(pathClass.getName());
+		return pathClass != null && PathClass.NAME_POSITIVE.equals(pathClass.getName());
 	}
 	
 	/**
@@ -146,7 +151,7 @@ public final class PathClassTools {
 	 * @return
 	 */
 	public static boolean isNegativeClass(final PathClass pathClass) {
-		return pathClass != null && PathClassFactory.NEGATIVE.equals(pathClass.getName());
+		return pathClass != null && PathClass.NAME_NEGATIVE.equals(pathClass.getName());
 	}
 
 	/**

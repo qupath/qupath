@@ -1978,7 +1978,7 @@ public class QuPathGUI {
 			// Therefore if we find some non-unique nor null elements, correct the list as soon as possible
 			var list = c.getList();
 			var set = new LinkedHashSet<PathClass>();
-			set.add(PathClassFactory.getPathClassUnclassified());
+			set.add(PathClass.NULL_CLASS);
 			set.addAll(list);
 			set.remove(null);
 			if (!(set.size() == list.size() && set.containsAll(list))) {

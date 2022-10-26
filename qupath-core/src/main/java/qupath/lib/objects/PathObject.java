@@ -47,7 +47,6 @@ import qupath.lib.io.PathIO;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.measurements.MeasurementListFactory;
 import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.roi.interfaces.ROI;
 
@@ -753,7 +752,7 @@ public abstract class PathObject implements Externalizable {
 			var set = new LinkedHashSet<>(classifications);
 			if (set.size() < classifications.size())
 				logger.warn("Input to setClassifications() contains duplicate elements - {} will be replaced by {}", classifications, set);
-			setPathClass(PathClassFactory.getPathClass(set));
+			setPathClass(PathClass.getInstance(set));
 		}
 	}
 	
@@ -778,7 +777,7 @@ public abstract class PathObject implements Externalizable {
 		if (pc == null)
 			return Collections.emptySet();
 		else
-			return pc.asSet();
+			return pc.toSet();
 	}
 	
 

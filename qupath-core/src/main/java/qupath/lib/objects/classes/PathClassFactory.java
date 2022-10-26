@@ -23,14 +23,8 @@
 
 package qupath.lib.objects.classes;
 
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashMap;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Random;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,7 +47,7 @@ public final class PathClassFactory {
 	private PathClassFactory() {
 		throw new AssertionError();
 	}
-	
+		
 	/**
 	 * Enum representing standard classifications. Exists mostly to ensure consisting naming (including capitalization).
 	 */
@@ -131,28 +125,6 @@ public final class PathClassFactory {
 		
 	}
 
-	private static Map<String, PathClass> mapPathClasses = new HashMap<>();
-
-	private static final PathClass NULL_CLASS = PathClass.getNullClass();
-	
-	static final String POSITIVE = "Positive";
-	static final String NEGATIVE = "Negative";
-	static final String ONE_PLUS = "1+";
-	static final String TWO_PLUS = "2+";
-	static final String THREE_PLUS = "3+";
-	static List<String> intensityClassNames = Arrays.asList(ONE_PLUS, TWO_PLUS, THREE_PLUS);
-	
-	private static final Integer COLOR_POSITIVE = ColorTools.packRGB(200, 50, 50);
-	private static final Integer COLOR_NEGATIVE = ColorTools.packRGB(90, 90, 180);
-	private static final Integer COLOR_ONE_PLUS = ColorTools.packRGB(255, 215, 0);
-	private static final Integer COLOR_TWO_PLUS = ColorTools.packRGB(225, 150, 50);
-	private static final Integer COLOR_THREE_PLUS = ColorTools.packRGB(200, 50, 50);
-	
-	
-	
-	static boolean classExists(String classString) {
-		return mapPathClasses.containsKey(classString);
-	}
 	
 	/**
 	 * Get a {@link PathClass}, without specifying any color.
@@ -174,61 +146,11 @@ public final class PathClassFactory {
 	 */
 	public static PathClass getPathClass(String name, Integer rgb) {
 		if (name == null)
-			return NULL_CLASS;
-		
-		
-		String nameStripped = name.strip();
-		if (!Objects.equals(name, nameStripped)) {
-			logger.warn("Stripping whitespace from '{}', attempting to generate PathClass from '{}'", name, nameStripped);
-		}
-		name = nameStripped;
-		if (name.isEmpty() || name.equals(NULL_CLASS.toString()) || name.equals(NULL_CLASS.getName()))
-			return NULL_CLASS;
-		
-		// Handle requests for derived classes
-		var split = name.split(":");
-		if (split.length > 1) {
-			var pathClass = getPathClass(split[0], rgb);
-			for (int i = 1; i < split.length; i++) {
-				var temp = split[i].strip();
-				if (!temp.isBlank())
-					pathClass = getDerivedPathClass(pathClass, temp, rgb);
-			}
-			return pathClass;
-		}
-		
-		synchronized (mapPathClasses) {
-			PathClass pathClass = mapPathClasses.get(name);
-			if (pathClass == null) {
-				if (rgb == null) {
-					// Use default colors for intensity classes
-					if (name.equals(ONE_PLUS)) {
-						rgb = ColorTools.makeScaledRGB(COLOR_ONE_PLUS, 1.25);
-					} else if (name.equals(TWO_PLUS)) {
-						rgb = ColorTools.makeScaledRGB(COLOR_TWO_PLUS, 1.25);
-					} else if (name.equals(THREE_PLUS))
-						rgb = ColorTools.makeScaledRGB(COLOR_THREE_PLUS, 1.25);
-					else if (name.equals(POSITIVE)) {
-						rgb = ColorTools.makeScaledRGB(COLOR_POSITIVE, 1.25);
-					} else if (name.equals(NEGATIVE)) {
-						rgb = ColorTools.makeScaledRGB(COLOR_NEGATIVE, 1.25);
-					} else {
-						// Create a random color
-						// Use the hashcode of the String as a seed - so that the same 
-						// color is generated reproducibly for the same name.
-						Random random = new Random(name.hashCode());
-						rgb = ColorTools.packRGB(
-								random.nextInt(256),
-								random.nextInt(256),
-								random.nextInt(256));
-					}
-				}
-				pathClass = PathClass.getInstance(null, name, rgb);
-				mapPathClasses.put(pathClass.toString(), pathClass);
-			}
-			return pathClass;
-		}
+			return PathClass.NULL_CLASS;
+		return PathClass.getInstanceFromString(name, rgb);
 	}
+		
+		
 	/**
 	 * Get a derived {@link PathClass} object representing all the provided names, 
 	 * using default colors.
@@ -244,10 +166,18 @@ public final class PathClassFactory {
 	 * @see #getPathClass(String, Integer)
 	 */
 	public static PathClass getPathClass(String baseName, String... names) {
-		var pathClass = getPathClass(baseName, (Integer)null);
-		for (String n : names)
-			pathClass = getDerivedPathClass(pathClass, n, null);
-		return pathClass;
+		if (names.length == 0)
+			return PathClass.getInstance(baseName);
+		List<String> list;
+		if (names.length == 1)
+			list = List.of(baseName, names[0]);
+		else {
+			list = new ArrayList<String>();
+			list.add(baseName);
+			for (var n : names)
+				list.add(n);
+		}
+		return PathClass.getInstance(list);
 	}
 	
 	/**
@@ -259,22 +189,8 @@ public final class PathClassFactory {
 	 * 
 	 * @see #getPathClass(String, String...)
 	 */
-	public static PathClass getPathClass(Collection<String> names) {
-		if (names.isEmpty())
-			return null;//getPathClassUnclassified();
-		if (names.size() == 1)
-			return getPathClass(names.iterator().next());
-		String first = null;
-		String[] rest = new String[names.size()-1];
-		int i = 0;
-		for (var name : names) {
-			if (i == 0)
-				first = name;
-			else
-				rest[i-1] = name;
-			i++;
-		}
-		return getPathClass(first, rest);
+	public static PathClass getPathClass(List<String> names) {
+		return PathClass.getInstance(names);
 	}
 	
 	
@@ -286,9 +202,7 @@ public final class PathClassFactory {
 	 * @return
 	 */
 	public static PathClass getSingletonPathClass(PathClass pathClass) {
-		if (pathClass.getParentClass() == null)
-			return getPathClass(pathClass.getName(), pathClass.getColor());
-		return getDerivedPathClass(getSingletonPathClass(pathClass.getParentClass()), pathClass.getName(), pathClass.getColor());
+		return PathClass.getSingleton(pathClass);
 	}
 	
 	/**
@@ -300,37 +214,7 @@ public final class PathClassFactory {
 	 * @return
 	 */
 	public static PathClass getDerivedPathClass(PathClass parentClass, String name, Integer rgb) {
-		if (parentClass == null || !parentClass.isValid())
-			return getPathClass(name, rgb);
-		String nameNew = PathClass.derivedClassToString(parentClass, name);
-//		mapPathDerivedClasses.clear();
-		synchronized (mapPathClasses) {
-			PathClass pathClass = mapPathClasses.get(nameNew);
-			if (pathClass == null) {
-				if (rgb == null) {
-					boolean isTumor = getPathClass(StandardPathClasses.TUMOR) == parentClass;
-					int parentRGB = parentClass.getColor();
-					if (name.equals(ONE_PLUS)) {
-						rgb = isTumor ? COLOR_ONE_PLUS : ColorTools.makeScaledRGB(parentRGB, 0.9);
-					} else if (name.equals(TWO_PLUS)) {
-						rgb = isTumor ? COLOR_TWO_PLUS : ColorTools.makeScaledRGB(parentRGB, 0.6);
-					} else if (name.equals(THREE_PLUS))
-						rgb = isTumor ? COLOR_THREE_PLUS : ColorTools.makeScaledRGB(parentRGB, 0.4);
-					else if (name.equals(POSITIVE)) {
-						rgb = isTumor ? COLOR_POSITIVE : ColorTools.makeScaledRGB(parentRGB, 0.75);
-					} else if (name.equals(NEGATIVE)) {
-						rgb = isTumor ? COLOR_NEGATIVE : ColorTools.makeScaledRGB(parentRGB, 1.25);
-					} else {
-						double scale = 1.5;
-						rgb = ColorTools.makeScaledRGB(parentRGB, scale);
-					}
-				}
-	//				rgb = new Color(parentClass.getColor()).brighter().getRGB();
-				pathClass = PathClass.getInstance(parentClass, name, rgb);
-				mapPathClasses.put(pathClass.toString(), pathClass);
-			}
-			return pathClass;
-		}
+		return PathClass.getInstance(parentClass, name, rgb);
 	}
 	
 	/**
@@ -339,7 +223,7 @@ public final class PathClassFactory {
 	 * @return
 	 */
 	public static PathClass getOnePlus(PathClass parentClass) {
-		return getDerivedPathClass(parentClass, ONE_PLUS, null);
+		return getDerivedPathClass(parentClass, PathClass.NAME_ONE_PLUS, null);
 	}
 
 	/**
@@ -348,7 +232,7 @@ public final class PathClassFactory {
 	 * @return
 	 */
 	public static PathClass getTwoPlus(PathClass parentClass) {
-		return getDerivedPathClass(parentClass, TWO_PLUS, null);
+		return getDerivedPathClass(parentClass, PathClass.NAME_TWO_PLUS, null);
 	}
 
 	/**
@@ -357,7 +241,7 @@ public final class PathClassFactory {
 	 * @return
 	 */
 	public static PathClass getThreePlus(PathClass parentClass) {
-		return getDerivedPathClass(parentClass, THREE_PLUS, null);
+		return getDerivedPathClass(parentClass, PathClass.NAME_THREE_PLUS, null);
 	}
 	
 	/**
@@ -366,7 +250,7 @@ public final class PathClassFactory {
 	 * @return
 	 */
 	public static PathClass getNegative(PathClass parentClass) {
-		return getDerivedPathClass(parentClass, NEGATIVE, null);
+		return getDerivedPathClass(parentClass, PathClass.NAME_NEGATIVE, null);
 	}
 	
 	/**
@@ -375,7 +259,7 @@ public final class PathClassFactory {
 	 * @return
 	 */
 	public static PathClass getPositive(PathClass parentClass) {
-		return getDerivedPathClass(parentClass, POSITIVE, null);
+		return getDerivedPathClass(parentClass, PathClass.NAME_POSITIVE, null);
 	}
 	
 	/**
@@ -396,7 +280,7 @@ public final class PathClassFactory {
 	 * @return
 	 */
 	public static PathClass getPathClassUnclassified() {
-		return NULL_CLASS;
+		return PathClass.NULL_CLASS;
 	}
 
 }
