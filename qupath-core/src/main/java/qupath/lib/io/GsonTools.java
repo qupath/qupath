@@ -50,7 +50,6 @@ import qupath.lib.io.PathObjectTypeAdapters.FeatureCollection;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.interfaces.ROI;
 
@@ -349,7 +348,7 @@ public class GsonTools {
 		@Override
 		public void write(JsonWriter out, PathClass value) throws IOException {
 			// Use a proxy object for easier use elsewhere
-			if (value == null || value == PathClassFactory.getPathClassUnclassified()) {
+			if (value == null || value == PathClass.NULL_CLASS) {
 				// Write in the default way
 				gson.toJson(value, PathClass.class, out);				
 			} else {
@@ -372,17 +371,17 @@ public class GsonTools {
 			
 			// Accept a classification just from a string (i.e. no color specified)
 			if (token == JsonToken.STRING)
-				return PathClassFactory.getPathClass(in.nextString());
+				return PathClass.fromString(in.nextString());
 			
 			// Handle objects
 			if (token == JsonToken.BEGIN_OBJECT) {
 				JsonObject pathClassObject = gson.fromJson(in, JsonObject.class);	
 				// Check if we have just serialized in the default way (with the usual private field name for color)
-				// This also should be used with PathClassFactory.getPathClassUnclassified() (which has an empty object)
+				// This also should be used with PathClass.NULL_CLASS (which has an empty object)
 				if (pathClassObject.size() == 0 || pathClassObject.has("colorRGB") || pathClassObject.has("parentClass")) {
 					// Read in the default way, then replace with a singleton instance
 					PathClass pathClass = gson.fromJson(pathClassObject, PathClass.class);
-					return PathClassFactory.getSingletonPathClass(pathClass);					
+					return PathClass.getSingleton(pathClass);					
 				}
 				
 				// Check if we have a proxy object
@@ -405,7 +404,7 @@ public class GsonTools {
 				if (name == null)
 					return null;
 				Integer rgb = arrayToRgb(color);
-				return PathClassFactory.getPathClass(name, rgb);
+				return PathClass.fromString(name, rgb);
 			}
 			
 		}

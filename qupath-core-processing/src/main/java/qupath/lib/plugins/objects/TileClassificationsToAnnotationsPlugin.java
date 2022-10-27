@@ -46,7 +46,6 @@ import qupath.lib.objects.PathRootObject;
 import qupath.lib.objects.PathTileObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.plugins.AbstractDetectionPlugin;
@@ -125,7 +124,7 @@ public class TileClassificationsToAnnotationsPlugin<T> extends AbstractDetection
 				}
 				
 			});
-			PathClass allClasses = PathClassFactory.getPathClass("All classes");
+			PathClass allClasses = PathClass.getInstance("All classes");
 			PathClass defaultChoice = allClasses;
 			choices.add(0, allClasses);
 //			PathClass classTumor = PathClassFactory.getDefaultPathClass(PathClasses.TUMOR); // Tumor is the most likely choice, so default to it if available

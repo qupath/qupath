@@ -45,7 +45,7 @@ import java.util.zip.ZipOutputStream;
 import org.junit.jupiter.api.Test;
 
 import qupath.lib.objects.PathObjects;
-import qupath.lib.objects.classes.PathClassFactory;
+import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.roi.ROIs;
 
@@ -102,7 +102,7 @@ public class TestPathIO {
 	public void test_deserialization() {
 		
 		var roi = ROIs.createEmptyROI();
-		var pathClass = PathClassFactory.getPathClass("Anything");
+		var pathClass = PathClass.getInstance("Anything");
 		var pathObject = PathObjects.createAnnotationObject(roi, pathClass);
 		var hierarchy = new PathObjectHierarchy();
 		

@@ -54,7 +54,6 @@ import qupath.lib.geom.Point2;
 import qupath.lib.images.ImageData;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.objects.hierarchy.DefaultTMAGrid;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
@@ -733,7 +732,7 @@ public class PathObjectTools {
 		if (name == null)
 			pathObject.resetPathClass();
 		else
-			pathObject.setPathClass(PathClassFactory.getPathClass(name, color));
+			pathObject.setPathClass(PathClass.fromString(name, color));
 		if (pathClass == null) {
 			pathObject.setName(null);
 			if (includeColor)
@@ -1653,7 +1652,7 @@ public class PathObjectTools {
 		for (var entry : classificationMap.entrySet()) {
 			var pathObject = entry.getKey();
 			var pathClass = entry.getValue();
-			if (pathClass == PathClassFactory.getPathClassUnclassified())
+			if (pathClass == PathClass.NULL_CLASS)
 				pathClass = null;
 			if (!Objects.equals(pathObject.getPathClass(), pathClass)) {
 				pathObject.setPathClass(pathClass);
@@ -1715,16 +1714,16 @@ public class PathObjectTools {
 		if (Double.isNaN(intensityValue))	// If the measurement is missing, reset to base class
 			pathObject.setPathClass(baseClass);
 		else if (intensityValue < thresholds[0])
-			pathObject.setPathClass(PathClassFactory.getNegative(baseClass));
+			pathObject.setPathClass(PathClass.getNegative(baseClass));
 		else {
 			if (singleThreshold)
-				pathObject.setPathClass(PathClassFactory.getPositive(baseClass));
+				pathObject.setPathClass(PathClass.getPositive(baseClass));
 			else if (thresholds.length >= 3 && intensityValue >= thresholds[2])
-				pathObject.setPathClass(PathClassFactory.getThreePlus(baseClass));				
+				pathObject.setPathClass(PathClass.getThreePlus(baseClass));				
 			else if (thresholds.length >= 2 && intensityValue >= thresholds[1])
-				pathObject.setPathClass(PathClassFactory.getTwoPlus(baseClass));				
+				pathObject.setPathClass(PathClass.getTwoPlus(baseClass));				
 			else if (intensityValue >= thresholds[0])
-				pathObject.setPathClass(PathClassFactory.getOnePlus(baseClass));				
+				pathObject.setPathClass(PathClass.getOnePlus(baseClass));				
 		}
 		return pathObject.getPathClass();
 	}

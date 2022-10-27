@@ -32,7 +32,6 @@ import org.slf4j.LoggerFactory;
 
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
@@ -203,7 +202,7 @@ public abstract class PathROIObject extends PathObject {
 		// TODO: STORE PATHCLASSES AS STRINGS OR SOMETHING BETTER THAN JUST USING SERIALIZATION!
 		// Go via the factory to ensure that we don't end up with multiple classes with the same name
 		if (pathClass != null)
-			pathClass = PathClassFactory.getSingletonPathClass(pathClass);
+			pathClass = PathClass.getSingleton(pathClass);
 		pathROI = (ROI)in.readObject();
 		classProbability = in.readDouble();
 	}

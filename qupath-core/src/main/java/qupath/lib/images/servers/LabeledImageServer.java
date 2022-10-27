@@ -60,7 +60,6 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectFilter;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
@@ -141,8 +140,8 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 				var pathClass = getPathClass(entry.getKey());
 				var label = entry.getValue();
 				var previousClass = classificationLabels.put(label, pathClass);
-				if (previousClass != null && previousClass != PathClassFactory.getPathClassUnclassified()) {
-					classificationLabels.put(label, PathClassFactory.getDerivedPathClass(previousClass, pathClass.getName(), null));
+				if (previousClass != null && previousClass != PathClass.NULL_CLASS) {
+					classificationLabels.put(label, PathClass.getInstance(previousClass, pathClass.getName(), null));
 				}
 			}
 		}
@@ -151,8 +150,8 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 			var pathClass = getPathClass(entry.getKey());
 			var label = entry.getValue();
 			var previousClass = classificationLabels.put(label, pathClass);
-			if (previousClass != null && previousClass != PathClassFactory.getPathClassUnclassified()) {
-				classificationLabels.put(label, PathClassFactory.getDerivedPathClass(previousClass, pathClass.getName(), null));
+			if (previousClass != null && previousClass != PathClass.NULL_CLASS) {
+				classificationLabels.put(label, PathClass.getInstance(previousClass, pathClass.getName(), null));
 			}
 		}
 		
@@ -254,7 +253,7 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 	 * @return the input classification, or the unclassified classification if the input is null
 	 */
 	private static PathClass getPathClass(PathClass pathClass) {
-		return pathClass == null ? PathClassFactory.getPathClassUnclassified() : pathClass;
+		return pathClass == null ? PathClass.NULL_CLASS : pathClass;
 	}
 	
 	/**
@@ -275,7 +274,7 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 	private static PathClass instanceLabelToClass(Integer label) {
 		if (label == null)
 			return null;
-		return PathClassFactory.getPathClass("Label " + label);
+		return PathClass.getInstance("Label " + label);
 	}
 	
 //	/**
@@ -335,7 +334,7 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 		 * Previously, this was achieved with a UUID - although this looks strange if exporting classes.
 		 */
 //		private PathClass unannotatedClass = PathClassFactory.getPathClass("Unannotated " + UUID.randomUUID().toString());
-		private PathClass unannotatedClass = PathClassFactory.getPathClass("*Background*");
+		private PathClass unannotatedClass = PathClass.getInstance("*Background*");
 		
 		private Predicate<PathObject> objectFilter = PathObjectFilter.ANNOTATIONS;
 		private Function<PathObject, ROI> roiFunction = p -> p.getROI();
@@ -648,7 +647,7 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 		 * @return
 		 */
 		public Builder addLabel(String pathClassName, int label, Integer color) {
-			return addLabel(PathClassFactory.getPathClass(pathClassName), label, color);
+			return addLabel(PathClass.fromString(pathClassName), label, color);
 		}
 
 		/**
@@ -682,7 +681,7 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 		 * @return
 		 */
 		public Builder addUnclassifiedLabel(int label, Integer color) {
-			return addLabel(params.labels, PathClassFactory.getPathClassUnclassified(), label, color);
+			return addLabel(params.labels, PathClass.NULL_CLASS, label, color);
 		}
 		
 		/**
@@ -692,7 +691,7 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 		 * @return
 		 */
 		public Builder addUnclassifiedLabel(int label) {
-			return addLabel(params.labels, PathClassFactory.getPathClassUnclassified(), label, null);
+			return addLabel(params.labels, PathClass.NULL_CLASS, label, null);
 		}
 		
 		
@@ -736,7 +735,7 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 		 * @return
 		 */
 		public Builder setBoundaryLabel(String pathClassName, int label, Integer color) {
-			return setBoundaryLabel(PathClassFactory.getPathClass(pathClassName), label, color);
+			return setBoundaryLabel(PathClass.fromString(pathClassName), label, color);
 		}
 		
 		private Builder addLabel(Map<PathClass, Integer> map, PathClass pathClass, int label, Integer color) {

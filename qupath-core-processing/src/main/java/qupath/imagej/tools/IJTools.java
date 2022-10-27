@@ -83,7 +83,7 @@ import qupath.lib.images.servers.ServerTools;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
-import qupath.lib.objects.classes.PathClassFactory;
+import qupath.lib.objects.classes.PathClass;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
@@ -575,7 +575,7 @@ public class IJTools {
 			pathObject.setName(name);
 		} else if (roi.getGroup() > 0) {
 			// If the group is set, use it as a classification
-			pathObject.setPathClass(PathClassFactory.getPathClass("Group " + roi.getGroup(), colorRGB));
+			pathObject.setPathClass(PathClass.getInstance("Group " + roi.getGroup(), colorRGB));
 		}
 		if (colorRGB != null && pathObject.getPathClass() == null) {
 			pathObject.setColor(colorRGB);

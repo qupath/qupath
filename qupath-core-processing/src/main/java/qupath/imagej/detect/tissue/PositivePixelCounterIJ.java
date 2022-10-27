@@ -52,7 +52,6 @@ import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.plugins.AbstractDetectionPlugin;
 import qupath.lib.plugins.DetectionPluginTools;
 import qupath.lib.plugins.ObjectDetector;
@@ -63,7 +62,7 @@ import qupath.lib.roi.interfaces.ROI;
 
 /**
  * Simple command to detect regions with positive staining.
- * 
+ * <p>
  * For versions &lt;= v0.1.2 this gave simple measurements that were influenced by the downsample values used.
  * Later versions make calibrated measurements and give more flexibility in terms of output.
  * 
@@ -216,12 +215,12 @@ public class PositivePixelCounterIJ extends AbstractDetectionPlugin<BufferedImag
 				if (useLegacyMeasurements) {
 					pathObject.getMeasurementList().put("Num pixels", nNegative);
 					pathObject.getMeasurementList().put("Mean hematoxylin OD", meanNegative);
-					pathClass = PathClassFactory.getNegative(null);
+					pathClass = PathClass.getNegative(null);
 				} else {
 					areaNegative = roiTissue.getScaledArea(pixelWidth, pixelHeight);
 					pathObject.getMeasurementList().put("Stained area " + areaUnits + paramsString, areaNegative);
 					pathObject.getMeasurementList().put("Mean " + stains.getStain(1).getName() + " OD" + paramsString, meanNegative);
-					pathClass = PathClassFactory.getPathClass("Pixel count negative", ColorTools.makeScaledRGB(PathClassFactory.getNegative(null).getColor(), 1.25));
+					pathClass = PathClass.getInstance("Pixel count negative", ColorTools.makeScaledRGB(PathClass.getNegative(null).getColor(), 1.25));
 				}
 				pathObject.setPathClass(pathClass);
 				pathObject.getMeasurementList().close();
@@ -235,12 +234,12 @@ public class PositivePixelCounterIJ extends AbstractDetectionPlugin<BufferedImag
 				if (useLegacyMeasurements) {
 					pathObject.getMeasurementList().put("Num pixels", nPositive);
 					pathObject.getMeasurementList().put("Mean DAB OD", meanPositive);
-					pathClass = PathClassFactory.getPositive(null);
+					pathClass = PathClass.getPositive(null);
 				} else {
 					areaPositive = roiPositive.getScaledArea(pixelWidth, pixelHeight);
 					pathObject.getMeasurementList().put("Stained area " + areaUnits + paramsString, areaPositive);
 					pathObject.getMeasurementList().put("Mean " + stains.getStain(2).getName() + " OD" + paramsString, meanPositive);
-					pathClass = PathClassFactory.getPathClass("Pixel count positive", ColorTools.makeScaledRGB(PathClassFactory.getPositive(null).getColor(), 1.25));
+					pathClass = PathClass.getInstance("Pixel count positive", ColorTools.makeScaledRGB(PathClass.getPositive(null).getColor(), 1.25));
 				}
 				pathObject.setPathClass(pathClass);
 				pathObject.getMeasurementList().close();

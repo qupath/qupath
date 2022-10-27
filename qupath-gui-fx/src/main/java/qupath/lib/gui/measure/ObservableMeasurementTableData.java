@@ -67,7 +67,6 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.regions.ImagePlane;
@@ -623,7 +622,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 //			pathClasses.addAll(basePathClasses);
 
 			pathClasses.remove(null);
-			pathClasses.remove(PathClassFactory.getPathClassUnclassified());
+			pathClasses.remove(PathClass.NULL_CLASS);
 
 			Set<PathClass> parentIntensityClasses = new LinkedHashSet<>();
 			Set<PathClass> parentPositiveNegativeClasses = new LinkedHashSet<>();
@@ -640,7 +639,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 			if (!parentPositiveNegativeClasses.isEmpty()) {
 				List<PathClass> pathClassList = new ArrayList<>(parentPositiveNegativeClasses);
 				pathClassList.remove(null);
-				pathClassList.remove(PathClassFactory.getPathClassUnclassified());
+				pathClassList.remove(PathClass.NULL_CLASS);
 				Collections.sort(pathClassList);
 				for (PathClass pathClass : pathClassList) {
 					builders.add(new ClassCountMeasurementBuilder(pathClass, true));

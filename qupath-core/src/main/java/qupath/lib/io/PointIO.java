@@ -54,7 +54,7 @@ import qupath.lib.geom.Point2;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
-import qupath.lib.objects.classes.PathClassFactory;
+import qupath.lib.objects.classes.PathClass;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.PointsROI;
 import qupath.lib.roi.ROIs;
@@ -118,7 +118,7 @@ public class PointIO {
 			if (name != null && name.length() > 0 && !"null".equals(name))
 				pathObject.setName(name);
 			if (pathClass != null && pathClass.length() > 0 && !"null".equals(pathClass))
-				pathObject.setPathClass(PathClassFactory.getPathClass(pathClass, color));
+				pathObject.setPathClass(PathClass.fromString(pathClass, color));
 			pathObject.setColor(color);
 			
 			if (pathObject != null)

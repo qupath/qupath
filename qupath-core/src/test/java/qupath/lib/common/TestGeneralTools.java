@@ -58,8 +58,6 @@ import org.slf4j.LoggerFactory;
 import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.color.ColorDeconvolutionStains.DefaultColorDeconvolutionStains;
 import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.classes.PathClassFactory;
-import qupath.lib.objects.classes.PathClassFactory.StandardPathClasses;
 
 @SuppressWarnings("javadoc")
 public class TestGeneralTools {
@@ -291,7 +289,8 @@ public class TestGeneralTools {
 		
 		// Objects (here PathClass)
 		assertEquals("", GeneralTools.arrayToString(new PathClass[] {}, ","));
-		assertEquals("Ignore*, Positive", GeneralTools.arrayToString(new Object[] {PathClassFactory.getPathClass(StandardPathClasses.IGNORE), PathClassFactory.getPathClass(StandardPathClasses.POSITIVE)}, ", "));
+		assertEquals("Ignore*, Positive", GeneralTools.arrayToString(new Object[] {
+				PathClass.StandardPathClasses.IGNORE, PathClass.StandardPathClasses.POSITIVE}, ", "));
 	}
 	
 	@Test

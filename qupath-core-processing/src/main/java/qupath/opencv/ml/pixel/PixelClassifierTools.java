@@ -38,7 +38,6 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.classes.Reclassifier;
 import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
@@ -331,7 +330,7 @@ public class PixelClassifierTools {
 		var labels = new LinkedHashMap<Integer, PathClass>();
 		for (var entry : labelsOrig.entrySet()) {
 			var pathClass = entry.getValue();
-			if (pathClass == null || pathClass == PathClassFactory.getPathClassUnclassified() || (!includeIgnored && PathClassTools.isIgnoredClass(pathClass)))				
+			if (pathClass == null || pathClass == PathClass.NULL_CLASS || (!includeIgnored && PathClassTools.isIgnoredClass(pathClass)))				
 				continue;
 			labels.put(entry.getKey(), pathClass);
 		}

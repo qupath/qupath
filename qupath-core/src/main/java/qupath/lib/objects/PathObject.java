@@ -746,13 +746,13 @@ public abstract class PathObject implements Externalizable {
 		if (classifications.isEmpty())
 			resetPathClass();
 		else if (classifications instanceof Set) {
-			setPathClass(PathClass.fromSet((Set<String>)classifications));
+			setPathClass(PathClass.fromCollection((Set<String>)classifications));
 		} else {
 			// Use LinkedHashSet to maintain ordering
 			var set = new LinkedHashSet<>(classifications);
 			if (set.size() < classifications.size())
 				logger.warn("Input to setClassifications() contains duplicate elements - {} will be replaced by {}", classifications, set);
-			setPathClass(PathClass.getInstance(set));
+			setPathClass(PathClass.fromCollection(set));
 		}
 	}
 	

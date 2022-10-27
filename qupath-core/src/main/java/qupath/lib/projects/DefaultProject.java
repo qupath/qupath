@@ -69,7 +69,6 @@ import qupath.lib.io.PathIO;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.projects.ResourceManager.ImageResourceManager;
 import qupath.lib.projects.ResourceManager.Manager;
@@ -1125,7 +1124,7 @@ class DefaultProject implements Project<BufferedImage> {
 						if (pathClassObject.has("color") && !pathClassObject.get("color").isJsonNull()) {
 							color = pathClassObject.get("color").getAsInt();							
 						}
-						PathClass pathClass = PathClassFactory.getPathClass(name, color);
+						PathClass pathClass = PathClass.fromString(name, color);
 						if (color != null)
 							pathClass.setColor(color); // Make sure we have the color we want
 						pathClasses.add(pathClass);

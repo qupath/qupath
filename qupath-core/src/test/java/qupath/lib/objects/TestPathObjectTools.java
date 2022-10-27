@@ -31,7 +31,7 @@ import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.Test;
 
-import qupath.lib.objects.classes.PathClassFactory;
+import qupath.lib.objects.classes.PathClass;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.ROIs;
 
@@ -48,9 +48,9 @@ public class TestPathObjectTools extends TestPathObjectMethods {
 				);
 		
 		var pathClasses = Arrays.asList(
-				PathClassFactory.getPathClass("First"),
-				PathClassFactory.getPathClass("Second"),
-				PathClassFactory.getPathClass("Third: Fourth"),
+				PathClass.fromString("First"),
+				PathClass.getInstance("Second"),
+				PathClass.fromString("Third: Fourth"),
 				null
 				);
 		

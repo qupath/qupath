@@ -36,7 +36,6 @@ import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.ServerTools;
 import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.classes.PathClassFactory;
 
 /**
  * Metadata to control the behavior of a pixel classifier.
@@ -146,7 +145,7 @@ public class PixelClassifierMetadata {
     		classificationLabels = new LinkedHashMap<>();
     		for (int i = 0; i < outputChannels.size(); i++) {
     			var channel = outputChannels.get(i);
-    			classificationLabels.put(i, PathClassFactory.getPathClass(channel.getName(), channel.getColor()));
+    			classificationLabels.put(i, PathClass.fromString(channel.getName(), channel.getColor()));
     		}
     	}
     	return classificationLabels == null ? Collections.emptyMap() : Collections.unmodifiableMap(classificationLabels);

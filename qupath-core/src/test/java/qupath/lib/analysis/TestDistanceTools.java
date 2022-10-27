@@ -33,8 +33,7 @@ import org.junit.jupiter.api.Test;
 
 import qupath.lib.geom.Point2;
 import qupath.lib.objects.PathObjects;
-import qupath.lib.objects.classes.PathClassFactory;
-import qupath.lib.objects.classes.PathClassFactory.StandardPathClasses;
+import qupath.lib.objects.classes.PathClass;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.ROIs;
 
@@ -101,11 +100,11 @@ public class TestDistanceTools {
 			
 				var tumorDetections = tumorCoordinates.stream().map(p -> PathObjects.createDetectionObject(
 						ROIs.createEllipseROI(p.getX()-radius, p.getY()-radius, radius*2, radius*2, sourcePlane),
-						PathClassFactory.getPathClass(StandardPathClasses.TUMOR))).collect(Collectors.toList());
+						PathClass.StandardPathClasses.TUMOR)).collect(Collectors.toList());
 				
 				var stromaDetections = stromaCoordinates.stream().map(p -> PathObjects.createDetectionObject(
 						ROIs.createEllipseROI(p.getX()-radius, p.getY()-radius, radius*2, radius*2, targetPlane),
-						PathClassFactory.getPathClass(StandardPathClasses.STROMA))).collect(Collectors.toList());
+						PathClass.StandardPathClasses.STROMA)).collect(Collectors.toList());
 				
 				if (sourcePlane.equals(targetPlane)) {
 		

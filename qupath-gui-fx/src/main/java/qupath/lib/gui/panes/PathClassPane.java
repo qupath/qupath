@@ -84,8 +84,6 @@ import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.classes.PathClassFactory;
-import qupath.lib.objects.classes.PathClassFactory.StandardPathClasses;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
 import qupath.lib.projects.Project;
@@ -131,7 +129,7 @@ public class PathClassPane {
 			return p -> true;
 		String text2 = text.toLowerCase();
 		return (PathClass p) -> {
-			return p == null || p == PathClassFactory.getPathClassUnclassified() ||
+			return p == null || p == PathClass.NULL_CLASS ||
 					p.toString().toLowerCase().contains(text2);
 		};
 	}
@@ -216,7 +214,7 @@ public class PathClassPane {
 			if (hierarchy == null)
 				return;
 			PathClass pathClass = getSelectedPathClass();
-			if (pathClass == PathClassFactory.getPathClassUnclassified())
+			if (pathClass == PathClass.NULL_CLASS)
 				pathClass = null;
 			var pathObjects = new ArrayList<>(hierarchy.getSelectionModel().getSelectedObjects());
 			List<PathObject> changed = new ArrayList<>();
@@ -277,7 +275,7 @@ public class PathClassPane {
 
 		actionRemoveClass.disabledProperty().bind(Bindings.createBooleanBinding(() -> {
 			PathClass item = listClasses.getSelectionModel().getSelectedItem();
-			return item == null || PathClassFactory.getPathClassUnclassified() == item;
+			return item == null || PathClass.NULL_CLASS == item;
 		},
 		listClasses.getSelectionModel().selectedItemProperty()
 		));
@@ -327,7 +325,7 @@ public class PathClassPane {
 //		miToggleClassVisible.setOnAction(e -> {
 //			OverlayOptions overlayOptions = qupath.getViewer().getOverlayOptions();
 //			for (var pathClass : getSelectedPathClasses()) {
-//				if (pathClass == null || pathClass == PathClassFactory.getPathClassUnclassified())
+//				if (pathClass == null || pathClass == PathClass.NULL_CLASS)
 //					continue;
 //				overlayOptions.setPathClassHidden(pathClass, !overlayOptions.isPathClassHidden(pathClass));
 //			}
@@ -343,7 +341,7 @@ public class PathClassPane {
 			var selected = getSelectedPathClasses();
 			boolean hasClasses = !selected.isEmpty();
 //			boolean hasClasses = selected.size() > 1 || 
-//					(selected.size() == 1 && selected.get(0) != null && selected.get(0) != PathClassFactory.getPathClassUnclassified());
+//					(selected.size() == 1 && selected.get(0) != null && selected.get(0) != PathClass.NULL_CLASS);
 			miSetVisible.setDisable(!hasClasses);
 			miSetHidden.setDisable(!hasClasses);
 //			miRemoveClass.setDisable(!hasClasses);
@@ -387,7 +385,7 @@ public class PathClassPane {
 		}
 		QP.selectObjectsByPathClass(hierarchy, pathClasses);
 		var s = Arrays.stream(pathClasses)
-				.map(p -> p == null || p == PathClassFactory.getPathClassUnclassified() ? "null" : "\"" + p.toString() + "\"").collect(Collectors.joining(", "));
+				.map(p -> p == null || p == PathClass.NULL_CLASS ? "null" : "\"" + p.toString() + "\"").collect(Collectors.joining(", "));
 		imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep("Select objects by classification",
 				"selectObjectsByClassification(" + s + ");"));
 		return true;
@@ -419,7 +417,7 @@ public class PathClassPane {
 	void setSelectedClassesVisibility(boolean visible) {
 		OverlayOptions overlayOptions = qupath.getViewer().getOverlayOptions();
 		for (var pathClass : getSelectedPathClasses()) {
-//			if (pathClass == null || pathClass == PathClassFactory.getPathClassUnclassified())
+//			if (pathClass == null || pathClass == PathClass.NULL_CLASS)
 //				continue;
 			overlayOptions.setPathClassHidden(pathClass, !visible);
 		}
@@ -431,7 +429,7 @@ public class PathClassPane {
 		if (doAutoSetPathClass.get()) {
 			pathClass = getSelectedPathClass();
 		}
-		if (pathClass == null || pathClass == PathClassFactory.getPathClassUnclassified())
+		if (pathClass == null || pathClass == PathClass.NULL_CLASS)
 			PathPrefs.autoSetAnnotationClassProperty().set(null);
 		else
 			PathPrefs.autoSetAnnotationClassProperty().set(pathClass);
@@ -454,7 +452,7 @@ public class PathClassPane {
 		var server = imageData.getServer();
 		List<PathClass> newClasses = new ArrayList<>();
 		for (var channel : server.getMetadata().getChannels()) {
-			newClasses.add(PathClassFactory.getPathClass(channel.getName(), channel.getColor()));
+			newClasses.add(PathClass.fromString(channel.getName(), channel.getColor()));
 		}
 		if (newClasses.isEmpty()) {
 			Dialogs.showErrorMessage("Set available classes", "No channels found, somehow!");
@@ -468,7 +466,7 @@ public class PathClassPane {
 			return false;
 		}
 		// Always need to be able to ignore...
-		newClasses.add(PathClassFactory.getPathClass(StandardPathClasses.IGNORE));
+		newClasses.add(PathClass.StandardPathClasses.IGNORE);
 		
 		var btn = DialogButton.YES;
 		if (qupath.getAvailablePathClasses().size() > 1)
@@ -477,7 +475,7 @@ public class PathClassPane {
 			newClasses.removeAll(qupath.getAvailablePathClasses());
 			return qupath.getAvailablePathClasses().addAll(newClasses);
 		} else if (btn == DialogButton.NO) {
-			newClasses.add(0, PathClassFactory.getPathClassUnclassified());
+			newClasses.add(0, PathClass.NULL_CLASS);
 			return qupath.getAvailablePathClasses().setAll(newClasses);
 		} else
 			return false;
@@ -489,10 +487,10 @@ public class PathClassPane {
 	 */
 	boolean promptToClearClasses() {
 		var available = qupath.getAvailablePathClasses();
-		if (available.isEmpty() || (available.size() == 1 && available.get(0) == PathClassFactory.getPathClassUnclassified()))
+		if (available.isEmpty() || (available.size() == 1 && available.get(0) == PathClass.NULL_CLASS))
 			return false;
 		if (Dialogs.showConfirmDialog("Remove classifications", "Remove all available classes?")) {
-			available.setAll(PathClassFactory.getPathClassUnclassified());
+			available.setAll(PathClass.NULL_CLASS);
 			return true;
 		} else
 			return false;
@@ -512,7 +510,7 @@ public class PathClassPane {
 		Set<PathClass> representedClasses = hierarchy.getFlattenedObjectList(null).stream()
 				.filter(p -> !p.isRootObject())
 				.map(p -> p.getPathClass())
-				.filter(p -> p != null && p != PathClassFactory.getPathClassUnclassified())
+				.filter(p -> p != null && p != PathClass.NULL_CLASS)
 				.map(p -> baseClassesOnly ? p.getBaseClass() : p)
 				.collect(Collectors.toSet());
 		
@@ -524,7 +522,7 @@ public class PathClassPane {
 			return false;
 		}
 		
-		newClasses.add(PathClassFactory.getPathClass(StandardPathClasses.IGNORE));
+		newClasses.add(PathClass.StandardPathClasses.IGNORE);
 		
 		List<PathClass> currentClasses = new ArrayList<>(qupath.getAvailablePathClasses());
 		currentClasses.remove(null);
@@ -540,7 +538,7 @@ public class PathClassPane {
 			newClasses.removeAll(qupath.getAvailablePathClasses());
 			return qupath.getAvailablePathClasses().addAll(newClasses);
 		} else if (btn == DialogButton.NO) {
-			newClasses.add(0, PathClassFactory.getPathClassUnclassified());
+			newClasses.add(0, PathClass.NULL_CLASS);
 			return qupath.getAvailablePathClasses().setAll(newClasses);
 		} else
 			return false;
@@ -599,7 +597,7 @@ public class PathClassPane {
 		String input = Dialogs.showInputDialog("Add class", "Class name", "");
 		if (input == null || input.trim().isEmpty())
 			return false;
-		PathClass pathClass = PathClassFactory.getPathClass(input);
+		PathClass pathClass = PathClass.fromString(input);
 		var list = qupath.getAvailablePathClasses();
 		if (list.contains(pathClass)) {
 			Dialogs.showErrorMessage("Add class", "Class '" + input + "' already exists!");
@@ -660,7 +658,7 @@ public class PathClassPane {
 	 * @return
 	 */
 	public static boolean promptToEditClass(final PathClass pathClass) {
-		if (pathClass == null || pathClass == PathClassFactory.getPathClassUnclassified())
+		if (pathClass == null || pathClass == PathClass.NULL_CLASS)
 			return false;
 
 		boolean defaultColor = pathClass == null;
@@ -733,7 +731,7 @@ public class PathClassPane {
 	boolean promptToRemoveSelectedClasses() {
 		List<PathClass> pathClasses = getSelectedPathClasses()
 				.stream()
-				.filter(p -> p != null && p != PathClassFactory.getPathClassUnclassified())
+				.filter(p -> p != null && p != PathClass.NULL_CLASS)
 				.collect(Collectors.toList());
 		if (pathClasses.isEmpty())
 			return false;

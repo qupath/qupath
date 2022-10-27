@@ -52,7 +52,7 @@ import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
-import qupath.lib.objects.classes.PathClassFactory;
+import qupath.lib.objects.classes.PathClass;
 import qupath.lib.plugins.AbstractTileableDetectionPlugin;
 import qupath.lib.plugins.ObjectDetector;
 import qupath.lib.plugins.parameters.ParameterList;
@@ -325,9 +325,9 @@ public class CellCountsCV extends AbstractTileableDetectionPlugin<BufferedImage>
 					int cy = (int)((tempROI.getCentroidY() - y)/scaleY);
 					float stain2Value = indexerStain2.get(cy, cx);
 					if (detectInPositiveChannel || stain2Value >= stain2Threshold)
-						pathObject.setPathClass(PathClassFactory.getPositive(null));
+						pathObject.setPathClass(PathClass.getPositive(null));
 					else
-						pathObject.setPathClass(PathClassFactory.getNegative(null));
+						pathObject.setPathClass(PathClass.getNegative(null));
 					pathObject.getMeasurementList().put(stain2Name + " OD", stain2Value);
 					pathObject.getMeasurementList().close();
 				} else

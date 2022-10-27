@@ -73,7 +73,6 @@ import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.plugins.AbstractInteractivePlugin;
 import qupath.lib.plugins.PluginRunner;
@@ -362,7 +361,7 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 					boolean isCluster = spotOrCluster.getMeasurementList().get("Num spots") > 1;
 					int rgb = imageWrapper.getChannelColor(channelName);
 					rgb = isCluster ? ColorTools.makeScaledRGB(rgb, 0.5) : ColorTools.makeScaledRGB(rgb, 1.5);
-					PathClass pathClass = PathClassFactory.getDerivedPathClass(spotOrCluster.getPathClass(), channelName + " object", rgb);
+					PathClass pathClass = PathClass.getInstance(spotOrCluster.getPathClass(), channelName + " object", rgb);
 					spotOrCluster.setPathClass(pathClass);
 					
 					spotOrCluster.getMeasurementList().put("Subcellular cluster: " + channelName + ": Area", stats.pixelCount * pixelWidth * pixelHeight);					
@@ -471,9 +470,9 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 	static PathObject createSubcellularObject(final ROI roi, final double nSpots) {
 		var pathObject = PathObjects.createDetectionObject(roi);
 		if (nSpots != 1)
-			pathObject.setPathClass(PathClassFactory.getPathClass("Subcellular cluster", ColorTools.packRGB(220, 200, 50)));
+			pathObject.setPathClass(PathClass.getInstance("Subcellular cluster", ColorTools.packRGB(220, 200, 50)));
 		else
-			pathObject.setPathClass(PathClassFactory.getPathClass("Subcellular spot", ColorTools.packRGB(100, 220, 50)));
+			pathObject.setPathClass(PathClass.getInstance("Subcellular spot", ColorTools.packRGB(100, 220, 50)));
 		pathObject.getMeasurementList().put("Num spots", nSpots);
 		pathObject.getMeasurementList().close();
 		return pathObject;
@@ -502,9 +501,9 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 		SubcellularObject(final ROI roi, final double nSpots) {
 			super(roi, null);
 			if (nSpots != 1)
-				setPathClass(PathClassFactory.getPathClass("Subcellular cluster", ColorTools.packRGB(220, 200, 50)));
+				setPathClass(PathClass.getInstance("Subcellular cluster", ColorTools.packRGB(220, 200, 50)));
 			else
-				setPathClass(PathClassFactory.getPathClass("Subcellular spot", ColorTools.packRGB(100, 220, 50)));
+				setPathClass(PathClass.getInstance("Subcellular spot", ColorTools.packRGB(100, 220, 50)));
 			getMeasurementList().put("Num spots", nSpots);
 			getMeasurementList().close();
 //			color = isCluster ? ColorTools.makeRGB(220, 200, 50) : ColorTools.makeRGB(100, 220, 50);

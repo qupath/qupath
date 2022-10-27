@@ -27,7 +27,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
@@ -51,7 +50,7 @@ public class PathRootObject extends PathObject {
 
 	@Override
 	public PathClass getPathClass() {
-		return PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.IMAGE_ROOT);
+		return PathClass.StandardPathClasses.IMAGE_ROOT;
 	}
 
 	@Override

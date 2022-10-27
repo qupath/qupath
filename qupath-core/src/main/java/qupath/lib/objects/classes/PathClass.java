@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2021 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -45,16 +45,19 @@ import org.slf4j.LoggerFactory;
 import qupath.lib.common.ColorTools;
 
 /**
- * Representation of an object's classification - which can be defined using any unique string identifier (e.g. tumour, lymphocyte, gland, benign, malignant).
+ * Representation of an object's classification - which can be defined using any unique string
+ * identifier (e.g. tumour, lymphocyte, gland, benign, malignant).
  * <p>
- * The constructors in this class should never be called directly, because there should only ever be one instance of each classification - 
+ * The constructors in this class should never be called directly, because there should only ever
+ * be one instance of each classification - 
  * shared among all objects with that classification.
  * This is important for checking if classifications are identical, and also assigning colors to them for display.
  * <p>
- * To achieve this, be sure to use one of the {@code getInstance()} methods each time you want to access or create a new {@link PathClass} instance.
+ * To achieve this, be sure to use one of the {@code getInstance()} or {@code fromXXX()} methods each time
+ * you want to access or create a new {@link PathClass} instance.
  * <p>
- * This class has been with QuPath since the beginning, but was thoroughly revised for v0.4.0 to simplify the code, improve the validation, and 
- * make it easier to use.
+ * This class has been with QuPath since the beginning, but was thoroughly revised for v0.4.0 to simplify the code,
+ * improve the validation, and make it easier to use.
  * 
  * @see PathClassFactory
  * 
@@ -93,6 +96,12 @@ public final class PathClass implements Comparable<PathClass>, Serializable {
 	 * Default name for a class representing "3+" staining intensity (i.e. strongly positive)
 	 */
 	public static final String NAME_THREE_PLUS = "3+";
+	
+//	
+//	public static Set<String> PERMITTED_CHARACTERS = Arrays.stream(
+//			"[](){}\\/,''@£$#+-_"
+//			.split("")).collect(Collectors.toSet());
+	
 		
 	private static final Integer COLOR_POSITIVE = ColorTools.packRGB(200, 50, 50);
 	private static final Integer COLOR_NEGATIVE = ColorTools.packRGB(90, 90, 180);
@@ -177,7 +186,7 @@ public final class PathClass implements Comparable<PathClass>, Serializable {
 	}
 
 	/**
-	 * This constructor should <i>not<i> be called explicitly; rather, use {@link PathClassFactory}. 
+	 * This constructor should <i>not<i> be called explicitly; rather, use one of the static {@code getInstance()} methods.
 	 * <p>
 	 * Only one instance of a PathClass should exist for any given name and list of ancestors.
 	 * 
@@ -218,7 +227,7 @@ public final class PathClass implements Comparable<PathClass>, Serializable {
 		else
 			this.colorRGB = colorRGB;
 		
-		if (existingClasses.containsKey(getCacheString(this)))
+		if (existingClasses.containsKey(createCacheString(this)))
 			throw new IllegalStateException("Cannot create the same PathClass more than once!");
 		
 	}
@@ -326,22 +335,29 @@ public final class PathClass implements Comparable<PathClass>, Serializable {
 		return name;
 	}
 	
-	static String derivedClassToString(PathClass parent, String name) {
-		return parent == null ? name : parent.toString() + ": " + name.strip();
-	}
-	
 	@Override
 	public String toString() {
 		if (stringRep == null) {
-			if (name == null)
-				stringRep = defaultName;
-			else if (isDerivedClass())
-				stringRep = derivedClassToString(parentClass, name);
-			else
-				stringRep = name;
+			stringRep = toString(DELIMITER + " ");
 		}
 		return stringRep;
 	}
+	
+	/**
+	 * Create a string representation, using the specified delimiter between 
+	 * elements of derived PathClasses.
+	 * @param delimiter
+	 * @return
+	 */
+	public String toString(String delimiter) {
+		if (name == null)
+			return defaultName;
+		else if (isDerivedClass())
+			return createString(parentClass, name, delimiter);
+		else
+			return name;
+	}
+	
 	
 	/**
 	 * A PathClass is valid if its name is not null.
@@ -364,11 +380,11 @@ public final class PathClass implements Comparable<PathClass>, Serializable {
 	 * <p>
 	 * <b>Important!</b> If any path class component names are duplicates, these will 
 	 * (necessarily) be removed from the set. Therefore it is <i>not</i> guaranteed that 
-	 * calling {@link PathClass#fromSet(Set)} on the output will return the same {@link PathClass} object.
+	 * calling {@link PathClass#fromCollection(Collection)} on the output will return the same {@link PathClass} object.
 	 * <pre>{@code 
 	 * var pathClass = ...;
-	 * var pathClass2 = PathClass.fromSet(pathClass.toSet());
-	 * assert pathClass == pathClass2; // This may not be true!
+	 * var pathClass2 = PathClass.getInstance(pathClass.toSet());
+	 * assert pathClass == pathClass2; // This may or may not be true!
 	 * }</pre>
 	 * <p>
 	 * However the {@link PathClass} objects should be the same if the name components are all valid and 
@@ -385,16 +401,6 @@ public final class PathClass implements Comparable<PathClass>, Serializable {
 		return set;
 	}
 	
-	/**
-	 * Create a {@link PathClass} from a set of names, each giving a component of the class.
-	 * This can be used to convert multiple classifications into a single representative object.
-	 * @param names
-	 * @return
-	 */
-	public static PathClass fromSet(Set<String> names) {
-		return getInstance(names);
-	}
-	
 	
 	List<String> toList() {
 		if (list == null) {
@@ -407,7 +413,7 @@ public final class PathClass implements Comparable<PathClass>, Serializable {
 	}
 	
 	private List<String> createList() {
-		if (this == PathClassFactory.getPathClassUnclassified())
+		if (this == PathClass.NULL_CLASS)
 			return Collections.emptyList();
 		if (!isDerivedClass())
 			return	Collections.singletonList(getName());
@@ -416,7 +422,7 @@ public final class PathClass implements Comparable<PathClass>, Serializable {
 	
 	
 	private Set<String> createSet() {
-		if (this == PathClassFactory.getPathClassUnclassified())
+		if (this == PathClass.NULL_CLASS)
 			return Collections.emptySet();
 		if (!isDerivedClass())
 			return	Collections.singleton(getName());
@@ -462,61 +468,131 @@ public final class PathClass implements Comparable<PathClass>, Serializable {
 	}
 	
 	
-	
-	static PathClass getNullClass() {
+	/**
+	 * Get the value of {@link #NULL_CLASS}, used to represent no classification.
+	 * In most cases, {@code null} should be used instead; this exists only as a 
+	 * representation in cases where {@code null} is not permitted (e.g. in some collection 
+	 * implementations).
+	 * @return
+	 */
+	public static PathClass getNullClass() {
 		return NULL_CLASS;
 	}
 	
-	
-	private static String getCacheString(PathClass pathClass) {
-		// Avoid creating list if we don't have to
-		if (pathClass == null || !pathClass.isDerivedClass())
-			return getCacheString(pathClass.getName());
-		return getCacheString(pathClass.toList());
+	/**
+	 * Delimiter to use when creating the cache string
+	 * Newline since that isn't normally permitted
+	 */
+	private static final String CACHE_DELIMITER = "\n";
+
+	private static String createCacheStringForNameCollection(Collection<String> names) {
+		return createStringForNameCollection(names, CACHE_DELIMITER);
 	}
 
-	private static String getCacheString(PathClass parent, String name) {
-		if (parent == null)
-			return getCacheString(name);
-		return getCacheString(parent) + "\n" + getCacheString(name);
+	private static String createCacheString(PathClass parent) {
+		return createString(parent, null, CACHE_DELIMITER); // Use newlines, since they aren't permitted normally
 	}
 
+	private static String createCacheString(PathClass parent, String name) {
+		return createString(parent, name, CACHE_DELIMITER); // Use newlines, since they aren't permitted normally
+	}
+
+	private static String createString(PathClass parent, String name, String delimiter) {
+		if (parent == null || parent == NULL_CLASS)
+			return createStringForSingleName(name);
+		String start;
+		if (!parent.isDerivedClass())
+			start = createStringForSingleName(parent.getName());
+		else
+			start = createStringForNameCollection(parent.toList(), delimiter);
+		if (name == null)
+			return start;
+		return start + delimiter + createStringForSingleName(name);
+	}
 	
-	private static String getCacheString(Collection<String> names) {
+	private static String createStringForNameCollection(Collection<String> names, String delimiter) {
 		if (names.isEmpty())
 			return "";
 		if (names.stream().anyMatch(p -> p == null))
 			throw new IllegalArgumentException("PathClass cannot contain 'null' name: " + names);
-		return names.stream().map(n -> validateNameStripped(n, false)).collect(Collectors.joining("\n"));
+		return names.stream().map(n -> validateNameStripped(n, false)).collect(Collectors.joining(delimiter));
 	}
 
-	private static String getCacheString(String name) {
+	private static String createStringForSingleName(String name) {
 		if (name == null)
 			return "";
 		return validateNameStripped(name, false);
 	}
 
+	/**
+	 * Get a PathClass instance from a string representation, without specifying a default color.
+	 * <p>
+	 * This calls {@link #fromString(String, Integer)} with the second argument as {@code null}.
+	 * @param string
+	 * @return
+	 */
+	public static PathClass fromString(String string) {
+		return fromString(string, null);
+	}
 	
-	static PathClass getInstanceFromString(String string, Integer color) {
+	/**
+	 * Get a PathClass instance from a string representation, optionally providing a default color 
+	 * if a new instance needs to be created.
+	 * <p>
+	 * This ultimately calls {@link #getInstance(PathClass, String, Integer)} but differs in that it 
+	 * accepts a string representation that may include the {@link #DELIMITER}.
+	 * If so, this is used to split the string into different name components that are passed to 
+	 * {@link #fromCollection(Collection, Integer)}.
+	 * @param string a string representation containing one or more name elements, separated by {@link #DELIMITER}
+	 * @param color a default color (optional, may be null)
+	 * @return
+	 */
+	public static PathClass fromString(String string, Integer color) {
+		if (string == null)
+			return NULL_CLASS;
 		var names = Arrays.stream(string.split(DELIMITER)).map(s -> s.strip()).collect(Collectors.toList());
-		return getInstance(names, color);
+		return fromCollection(names, color);
 	}
 
-	public static PathClass getInstance(Collection<String> names) {
-		return getInstance(names, null);
+	/**
+	 * Get a PathClass using all the name elements specified in the collection, 
+	 * without providing a default color.
+	 * @param names
+	 * @return
+	 * @see #fromCollection(Collection)
+	 */
+	public static PathClass fromCollection(Collection<String> names) {
+		return fromCollection(names, null);
 	}
 	
-	static PathClass getInstance(Collection<String> names, Integer color) {
+	/**
+	 * Get a PathClass instance using all the name elements specified in 
+	 * the collection, with optional default color if a new instance is created.
+	 * The rules are:
+	 * <ul>
+	 * <li>If the collection is empty, {@link #NULL_CLASS} is returned</li>
+	 * <li>If the collection has one element, this is equivalent to calling {@link #getInstance(String, Integer)}</li>
+	 * <li>If the collection has multiple element, this is equivalent to creating a base class from 
+	 * the first element and deriving subclassifications by calling  {@link #getInstance(PathClass, String, Integer)} 
+	 * for each element, in the order returned by the collection's iterator</li>
+	 * </ul>
+	 * 
+	 * @param names
+	 * @param color
+	 * @return
+	 * @see #getInstance(PathClass, String, Integer)
+	 */
+	public static PathClass fromCollection(Collection<String> names, Integer color) {
 		if (names.isEmpty())
 			return NULL_CLASS;
 		
 		// Single name
 		if (names.size() == 1)
-			return getInstance(null, names.iterator().next(), color);
+			return getInstance(names.iterator().next(), color);
 		
 		// Multiple names - need derived PathClass
 		// Attempt to speed things up for checking for cached classes
-		var string = getCacheString(names);
+		var string = createCacheStringForNameCollection(names);
 		var pathClass = existingClasses.getOrDefault(string, null);
 		if (pathClass != null)
 			return pathClass;
@@ -531,24 +607,73 @@ public final class PathClass implements Comparable<PathClass>, Serializable {
 		return pathClass;
 	}
 	
-	static PathClass getInstance(String name) {
+	public static PathClass getInstance(String name) {
 		return getInstance(name, null);
 	}
 	
-	static PathClass getInstance(String name, Integer color) {
+	/**
+	 * Get a base PathClass instance, without any parent PathClass.
+	 * <p>
+	 * This is equivalent to calling {@link #getInstance(PathClass, String, Integer)} with 
+	 * the first argument as {@code null}.
+	 * 
+	 * @param name
+	 * @param color
+	 * @return
+	 * @see #getInstance(PathClass, String, Integer)
+	 */
+	public static PathClass getInstance(String name, Integer color) {
 		return getInstance(null, name, color);
 	}
 	
 	
-	static PathClass getInstance(PathClass parent, String name, Integer color) {
+	/**
+	 * Get a derived PathClass instance with the specified parent.
+	 * <p>
+	 * This will be derived from the parent PathClass (if provided) and have the specified 
+	 * name, stripped to remove any leading or training whitespace.
+	 * <p>
+	 * Note that the name should generally be an alphanumeric string, optionally including 
+	 * punctuation symbols but <b>not</b> including {@link #DELIMITER}.
+	 * <p>
+	 * The delimiter is currently a colon {@code ":"} but it is advised not to rely upon 
+	 * this and to avoid punctuation where possible, because the delimiter may possibly change 
+	 * in a future release - primarily because the choice of colon can be problematic in some 
+	 * cases, e.g. <a href="https://github.com/qupath/qupath/issues/507">when using ontologies</a>.
+	 * 
+	 * 
+	 * @param parent parent class (optional, may be null)
+	 * @param name name of the PathClass
+	 * @param color color to use if a new instance is created (may be null to use the default)
+	 * @return a PathClass instance; the same instance will be returned given the same parent and name
+	 * 
+	 * @implSpec the color is only used if a new PathClass instance needs to be created.
+	 *           If a suitable instance has already been created, then that will be returned instead 
+	 *           and the color will not be created.
+	 *           
+	 * @see #fromString(String, Integer)
+	 * @see #fromCollection(Collection, Integer)
+	 */
+	public static PathClass getInstance(PathClass parent, String name, Integer color) {
 		if (parent == NULL_CLASS)
 			parent = null;
+		
+		if (name != null && name.contains(DELIMITER)) {
+//			if (parent == null) {
+//				logger.warn("Name '{}' contains the delimiter '{}' - switching to use getInstanceFromString instead", name, DELIMITER);
+//				return getInstanceFromString(name, color);
+//			} else {
+				throw new IllegalArgumentException(
+						String.format("Name '%s' contains the delimiter '%s' - please use a valid name or getInstanceFromString()", 
+								name, DELIMITER));				
+//			}
+		}
 		
 		if (parent == null) {
 			if (name == null)
 				return NULL_CLASS;
 			
-			var string = getCacheString(name);
+			var string = createStringForSingleName(name);
 			var pathClass = existingClasses.getOrDefault(string, null);
 			if (pathClass != null)
 				return pathClass;
@@ -561,18 +686,65 @@ public final class PathClass implements Comparable<PathClass>, Serializable {
 			if (name == null)
 				throw new IllegalArgumentException("Cannot derive a PathClass with a null name and non-null parent");
 			
-			var string = getCacheString(parent, name);
+			var string = createCacheString(parent, name);
 			var pathClass = existingClasses.getOrDefault(string, null);
 			if (pathClass != null)
 				return pathClass;
 			
 			var parent2 = parent;
-			var rgb = getDefaultColor(null, name, color, string);
+			var rgb = getDefaultColor(parent, name, color, string);
 			synchronized (existingClasses) {
 				return existingClasses.computeIfAbsent(string, s -> new PathClass(secret, parent2, name, rgb));
 			}
 		}
 	}
+	
+	
+	/**
+	 * Get a standalone or derived 1+ classification, indicating weak positivity
+	 * @param parentClass parent classification (may be null)
+	 * @return
+	 */
+	public static PathClass getOnePlus(PathClass parentClass) {
+		return PathClass.getInstance(parentClass, PathClass.NAME_ONE_PLUS, null);
+	}
+
+	/**
+	 * Get a standalone or derived 2+ classification, indicating moderate positivity
+	 * @param parentClass parent classification (may be null)
+	 * @return
+	 */
+	public static PathClass getTwoPlus(PathClass parentClass) {
+		return PathClass.getInstance(parentClass, PathClass.NAME_TWO_PLUS, null);
+	}
+
+	/**
+	 * Get a standalone or derived 3+ classification, indicating strong positivity
+	 * @param parentClass parent classification (may be null)
+	 * @return
+	 */
+	public static PathClass getThreePlus(PathClass parentClass) {
+		return PathClass.getInstance(parentClass, PathClass.NAME_THREE_PLUS, null);
+	}
+	
+	/**
+	 * Get a standalone or derived Negative classification
+	 * @param parentClass parent classification (may be null)
+	 * @return
+	 */
+	public static PathClass getNegative(PathClass parentClass) {
+		return PathClass.getInstance(parentClass, PathClass.NAME_NEGATIVE, null);
+	}
+	
+	/**
+	 * Get a standalone or derived Positive classification
+	 * @param parentClass parent classification (may be null)
+	 * @return
+	 */
+	public static PathClass getPositive(PathClass parentClass) {
+		return PathClass.getInstance(parentClass, PathClass.NAME_POSITIVE, null);
+	}
+	
 	
 	
 	private static Integer getDefaultColor(PathClass parent, String name, Integer integer, String cacheName) {
@@ -626,15 +798,43 @@ public final class PathClass implements Comparable<PathClass>, Serializable {
 				);
 	}
 	
-	
-	static synchronized PathClass getSingleton(PathClass pathClass) {
+	/**
+	 * Get the singleton PathClass that is equivalent to the PathClass provided.
+	 * <p>
+	 * This is important because there should only ever be one PathClass instance for 
+	 * any classification - and accessing PathClasses only via the {@code getInstance()} 
+	 * methods here should ensure that.
+	 * <p>
+	 * However, if receiving a PathClass from some other source then it is <i>possible</i> 
+	 * that the PathClass was created some other way and duplicates could emerge. 
+	 * Calling this method returns resolves that problem by returning the single instance 
+	 * that should be used.
+	 * <p>
+	 * This is significant if the PathClass has been created via Java deserialization, 
+	 * which skips the required use of {@code getInstance()} by default.
+	 * 
+	 * @param pathClass
+	 * @return either the input PathClass, or an equivalent that should be used
+	 */
+	public static synchronized PathClass getSingleton(PathClass pathClass) {
 		if (pathClass == null)
 			return null;
 		// This can occur during deserialization
 		if (!pathClass.isDerivedClass() && pathClass.getName() == null)
 			return NULL_CLASS;
-		var previous = existingClasses.putIfAbsent(getCacheString(pathClass), pathClass);
+		var previous = existingClasses.putIfAbsent(createCacheString(pathClass), pathClass);
 		return previous == null ? pathClass : previous;
+	}
+	
+	/**
+	 * Get a PathClass from an array of individual names.
+	 * @param names
+	 * @return
+	 * @see #fromCollection(Collection)
+	 * @see #getInstance(PathClass, String, Integer)
+	 */
+	public static PathClass fromArray(String... names) {
+		return fromCollection(Arrays.asList(names));
 	}
 	
 	
@@ -665,7 +865,7 @@ public final class PathClass implements Comparable<PathClass>, Serializable {
 	/**
 	 * Accept any letter (including from different languages), numbers, 
 	 */
-	private static final Pattern PATTERN_NAME = Pattern.compile("[\\w\\p{L}\\d .#\\+\\*\\$\\?]+");
+	private static final Pattern PATTERN_NAME = Pattern.compile("[\\w\\p{L}\\d\\p{Punct}]+");
 	
 	private static String validateNameCharacters(String name, boolean exceptOnFail) {
 		if (name.contains(DELIMITER))
@@ -678,6 +878,64 @@ public final class PathClass implements Comparable<PathClass>, Serializable {
 		else
 			logger.warn("PathClass name '{}' contains invalid characters - this may fail on later QuPath versions", name);
 		return name;
+	}
+	
+	
+	
+	/**
+	 * Enum representing standard classifications. Exists mostly to ensure consisting naming (including capitalization).
+	 */
+	public static class StandardPathClasses { 
+		/**
+		 * Tumor classification
+		 */
+		public static final PathClass TUMOR = getInstance("Tumor", ColorTools.packRGB(200, 0, 0));
+		/**
+		 * Stroma classification
+		 */
+		public static final PathClass STROMA = PathClass.getInstance("Stroma", ColorTools.packRGB(150, 200, 150));
+		/**
+		 * Immune cell classification
+		 */
+		public static final PathClass IMMUNE_CELLS = PathClass.getInstance("Immune cells", ColorTools.packRGB(160, 90, 160));
+		/**
+		 * Ignore classification, indicating what should not be further measured (e.g. background, whitespace)
+		 */
+		public static final PathClass IGNORE = PathClass.getInstance("Ignore*", ColorTools.packRGB(180, 180, 180));
+		/**
+		 * Root object classification
+		 */
+		public static final PathClass IMAGE_ROOT = PathClass.getInstance("Image", ColorTools.packRGB(128, 128, 128));
+		/**
+		 * Necrosis classification
+		 */
+		public static final PathClass NECROSIS = PathClass.getInstance("Necrosis", ColorTools.packRGB(50, 50, 50));
+		/**
+		 * Other classification
+		 */
+		public static final PathClass OTHER = PathClass.getInstance("Other", ColorTools.packRGB(255, 200, 0));
+		/**
+		 * Region class. This behaves slightly differently from other classes, e.g. it is not filled in when applied to
+		 * annotations.  Consequently it is good to heavily annotated regions, or possibly detected tissue 
+		 * containing further annotations inside.
+		 */
+		public static final PathClass REGION = PathClass.getInstance("Region*", ColorTools.packRGB(0, 0, 180));
+		/**
+		 * General class to represent something 'positive'
+		 */
+		public static final PathClass POSITIVE = PathClass.getPositive(null);
+		/**
+		 * General class to represent something 'negative'
+		 */
+		public static final PathClass NEGATIVE = PathClass.getNegative(null);
+		
+//		public static PathClass values() {
+//			return new PathClass[] {
+//					TUMOR, STROMA, IMMUNE_CELLS, IGNORE, NECROSIS, OTHER, REGION, POSITIVE, NEGATIVE
+//			}
+//		}
+
+		
 	}
 	
 	

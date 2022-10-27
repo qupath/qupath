@@ -34,7 +34,7 @@ import java.util.Set;
 import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
-import qupath.lib.objects.classes.PathClassFactory;
+import qupath.lib.objects.classes.PathClass;
 import qupath.lib.plugins.ObjectDetector;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.roi.interfaces.ROI;
@@ -148,19 +148,19 @@ public class PositiveCellDetection extends WatershedCellDetection {
 				double val = pathObject.getMeasurementList().get(measurement);
 				if (singleThreshold) {
 					if (val >= threshold1) {
-						pathObject.setPathClass(PathClassFactory.getPositive(pathObject.getPathClass()));
+						pathObject.setPathClass(PathClass.getPositive(pathObject.getPathClass()));
 					} else {
-						pathObject.setPathClass(PathClassFactory.getNegative(pathObject.getPathClass()));
+						pathObject.setPathClass(PathClass.getNegative(pathObject.getPathClass()));
 					}
 				} else {
 					if (val >= threshold3) {
-						pathObject.setPathClass(PathClassFactory.getThreePlus(pathObject.getPathClass()));
+						pathObject.setPathClass(PathClass.getThreePlus(pathObject.getPathClass()));
 					} else if (val >= threshold2){
-						pathObject.setPathClass(PathClassFactory.getTwoPlus(pathObject.getPathClass()));
+						pathObject.setPathClass(PathClass.getTwoPlus(pathObject.getPathClass()));
 					} else if (val >= threshold1){
-						pathObject.setPathClass(PathClassFactory.getOnePlus(pathObject.getPathClass()));
+						pathObject.setPathClass(PathClass.getOnePlus(pathObject.getPathClass()));
 					} else
-						pathObject.setPathClass(PathClassFactory.getNegative(pathObject.getPathClass()));
+						pathObject.setPathClass(PathClass.getNegative(pathObject.getPathClass()));
 				}
 			}
 			return detections;
