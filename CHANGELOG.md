@@ -143,7 +143,7 @@ This is a work-in-progress.
 * JavaFX 19.0.0
 * Java Topology Suite 1.19.0
 * Groovy 4.0.5
-* Gson 2.9.1
+* Gson 2.10
 * Guava 31.1
 * ikonli 12.3.1
 * JavaCPP 1.5.7
