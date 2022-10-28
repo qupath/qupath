@@ -47,9 +47,11 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.TypeAdapter;
 import com.google.gson.stream.JsonReader;
+import com.google.gson.stream.JsonToken;
 import com.google.gson.stream.JsonWriter;
 
 import qupath.lib.common.ColorTools;
+import qupath.lib.common.LogTools;
 import qupath.lib.io.GsonTools.PathClassTypeAdapter;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.measurements.MeasurementList.MeasurementListType;
@@ -208,7 +210,7 @@ class PathObjectTypeAdapters {
 				PathCellObject.class, "cell",
 				PathDetectionObject.class, "detection",
 				PathAnnotationObject.class, "annotation",
-				TMACoreObject.class, "tma_core",
+				TMACoreObject.class, "tmaCore",
 				PathRootObject.class, "root"
 				);
 		
@@ -251,7 +253,8 @@ class PathObjectTypeAdapters {
 			
 			String objectType = MAP_TYPES.getOrDefault(value.getClass(), null);
 			if (objectType != null) {
-				out.name("object_type");
+//				out.name("object_type"); // Switch to camelCase consistently
+				out.name("objectType");
 				out.value(objectType);
 			} else {
 				logger.warn("Unknown object type {}", value.getClass().getSimpleName());
@@ -398,13 +401,16 @@ class PathObjectTypeAdapters {
 				if (properties.has("isLocked") && properties.get("isLocked").isJsonPrimitive()) {
 					isLocked = properties.get("isLocked").getAsBoolean();
 				}
-				if (properties.has("measurements") && properties.get("measurements").isJsonArray()) {
+				if (properties.has("measurements") && (properties.get("measurements").isJsonArray() || properties.get("measurements").isJsonObject())) {
 					measurementList = MeasurementListTypeAdapter.INSTANCE.fromJsonTree(properties.get("measurements"));
 				}
 				if (properties.has("metadata") && properties.get("metadata").isJsonObject()) {
 					metadata = properties.get("metadata").getAsJsonObject();
 				}
-				if (properties.has("object_type")) {
+				if (properties.has("objectType")) {
+					type = properties.get("objectType").getAsString();					
+				} else if (properties.has("object_type")) {
+					LogTools.warnOnce(logger, "PathObject using 'object_type' property - this should be updated to 'objectType'");
 					type = properties.get("object_type").getAsString();
 				} else if (properties.has("type")) {
 					// Allow 'type' to be used as an alias
@@ -427,6 +433,7 @@ class PathObjectTypeAdapters {
 				pathObject = PathObjects.createCellObject(roi, roiNucleus, null, null);
 				break;
 			case ("TMACoreObject"):
+			case ("tmaCore"):
 			case ("tma_core"):
 				pathObject = PathObjects.createTMACoreObject(roi.getBoundsX(), roi.getBoundsY(), roi.getBoundsWidth(), roi.getBoundsHeight(), isMissing);
 				break;
@@ -455,7 +462,7 @@ class PathObjectTypeAdapters {
 			if (measurementList != null && !measurementList.isEmpty()) {
 				try (var ml = pathObject.getMeasurementList()) {
 					for (int i = 0; i < measurementList.size(); i++)
-						ml.put(measurementList.getMeasurementName(i), measurementList.getMeasurementValue(i));
+						ml.putAll(measurementList);
 				}
 			}
 			if (pathClass != null)
@@ -488,30 +495,51 @@ class PathObjectTypeAdapters {
 
 		@Override
 		public void write(JsonWriter out, MeasurementList value) throws IOException {
-			out.beginArray();
-			for (int i = 0; i < value.size(); i++) {
-				out.beginObject();
-				out.name("name");
-				out.value(value.getMeasurementName(i));
-				
-				out.name("value");
-				out.value(value.getMeasurementValue(i));
-				
-				out.endObject();
+			out.beginObject();
+			if (value != null) {
+				for (var entry : value.asMap().entrySet()) {
+					out.name(entry.getKey());
+					out.value(entry.getValue());
+				}				
 			}
-			out.endArray();
+			out.endObject();
+			
+			// Approach used before v0.4.0
+//			out.beginArray();
+//			for (int i = 0; i < value.size(); i++) {
+//				out.beginObject();
+//				out.name("name");
+//				out.value(value.getMeasurementName(i));
+//				
+//				out.name("value");
+//				out.value(value.getMeasurementValue(i));
+//				
+//				out.endObject();
+//			}
+//			out.endArray();
 		}
 
 		@Override
 		public MeasurementList read(JsonReader in) throws IOException {
-			JsonArray array = gson.fromJson(in, JsonArray.class);
-			MeasurementList list = MeasurementListFactory.createMeasurementList(array.size(), MeasurementListType.DOUBLE);
-			for (int i = 0; i < array.size(); i++) {
-				JsonObject obj = array.get(i).getAsJsonObject();
-				list.put(obj.get("name").getAsString(), obj.get("value").getAsDouble());
+			var token = in.peek();
+			if (token == JsonToken.BEGIN_ARRAY) {
+				JsonArray array = gson.fromJson(in, JsonArray.class);
+				MeasurementList list = MeasurementListFactory.createMeasurementList(array.size(), MeasurementListType.DOUBLE);
+				for (int i = 0; i < array.size(); i++) {
+					JsonObject obj = array.get(i).getAsJsonObject();
+					list.put(obj.get("name").getAsString(), obj.get("value").getAsDouble());
+				}
+				list.close();
+				return list;
+			} else if (token == JsonToken.BEGIN_OBJECT) {
+				Map<String, Double> map = gson.fromJson(in, Map.class);
+				MeasurementList list = MeasurementListFactory.createMeasurementList(map.size(), MeasurementListType.DOUBLE);
+				list.putAll(map);
+				list.close();
+				return list;
+			} else {
+				return null;
 			}
-			list.close();
-			return list;
 		}
 		
 	}
