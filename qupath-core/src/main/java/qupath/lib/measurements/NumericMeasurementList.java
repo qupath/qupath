@@ -104,6 +104,8 @@ class NumericMeasurementList {
 		boolean isClosed = false;
 
 		private Map<String, Integer> map; // Optional map for fast measurement lookup
+		
+		private transient Map<String, Double> mapView;
 
 		AbstractNumericMeasurementList(int capacity) {
 			names = new ArrayList<>(capacity);
@@ -261,6 +263,17 @@ class NumericMeasurementList {
 				throw new UnsupportedOperationException("This MeasurementList does not support dynamic measurements");
 			put(measurement.getName(), measurement.getValue());
 			return null;
+		}
+		
+		@Override
+		public Map<String, Double> asMap() {
+			if (mapView == null) {
+				synchronized(this) {
+					if (mapView == null)
+						mapView = new MeasurementsMap(this);
+				}
+			}
+			return mapView;
 		}
 		
 		

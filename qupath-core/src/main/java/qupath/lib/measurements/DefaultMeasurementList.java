@@ -26,6 +26,7 @@ package qupath.lib.measurements;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 /**
  * A MeasurementList implementation that simply stores a list of Measurement objects.
@@ -43,6 +44,8 @@ class DefaultMeasurementList implements MeasurementList {
 	private static final long serialVersionUID = 1L;
 	
 	private ArrayList<Measurement> list;
+	
+	private transient Map<String, Double> mapView;
 	
 	DefaultMeasurementList() {
 		list = new ArrayList<>();
@@ -171,6 +174,16 @@ class DefaultMeasurementList implements MeasurementList {
 		}
 	}
 
+	@Override
+	public Map<String, Double> asMap() {
+		if (mapView == null) {
+			synchronized(this) {
+				if (mapView == null)
+					mapView = new MeasurementsMap(this);
+			}
+		}
+		return mapView;
+	}
 	
 	@Override
 	public synchronized String toString() {

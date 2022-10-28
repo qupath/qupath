@@ -203,7 +203,7 @@ public abstract class PathObject implements Externalizable {
 		if (measurementsMap == null) {
 			synchronized(this) {
 				if (measurementsMap == null)
-					measurementsMap = MeasurementListFactory.wrapList(measurements);
+					measurementsMap = measurements.asMap();
 			}
 		}
 		return measurementsMap;

@@ -353,6 +353,19 @@ public interface MeasurementList extends Serializable, AutoCloseable {
 	 */
 	public void clear();
 	
+	/**
+	 * Get a map view of this measurements list. 
+	 * This is a map that is backed by the list, which means that putting or retrieving elements 
+	 * modifies the list. It also means that there can be some loss of precision if the list does 
+	 * not support Double (e.g. it uses a float array for storage).
+	 * <p>
+	 * @return a map view of this measurement list
+	 * @implSpec The returned map should already be synchronized.
+	 */
+	public default Map<String, Double> asMap() {
+		return Collections.synchronizedMap(new MeasurementsMap(this));
+	}
+	
 //	/**
 //	 * Return a Map view over this list. Changes made to the map will be stored in the list.
 //	 * @return
