@@ -1137,8 +1137,8 @@ public class RoiTools {
 		
 		if (random == null)
 			random = new Random();
-		double x = width == mask.getWidth() ? 0 : mask.getMinX() + random.nextDouble(mask.getWidth() - width);
-		double y = height == mask.getHeight() ? 0 : mask.getMinY() + random.nextDouble(mask.getHeight() - height);
+		double x = width == mask.getWidth() ? 0 : mask.getMinX() + random.nextDouble() * mask.getWidth() - width;
+		double y = height == mask.getHeight() ? 0 : mask.getMinY() + random.nextDouble() * mask.getHeight() - height;
 		return ROIs.createRectangleROI(x, y, width, height, mask.getImagePlane());
 	}
 	
@@ -1199,11 +1199,11 @@ public class RoiTools {
 			if (width == mask.getBoundsWidth())
 				x = mask.getBoundsX();
 			else
-				x = mask.getBoundsX() + random.nextDouble(mask.getBoundsWidth() - width);
+				x = mask.getBoundsX() + random.nextDouble() * (mask.getBoundsWidth() - width);
 			if (height == mask.getBoundsHeight())
 				y = mask.getBoundsY();
 			else
-				y = mask.getBoundsY() + random.nextDouble(mask.getBoundsHeight() - height);
+				y = mask.getBoundsY() + random.nextDouble() * (mask.getBoundsHeight() - height);
 			var rect = GeometryTools.createRectangle(x, y, width, height);
 			if (prepared.covers(rect)) {
 				success = true;
