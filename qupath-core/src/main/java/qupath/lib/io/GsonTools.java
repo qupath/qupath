@@ -394,10 +394,21 @@ public class GsonTools {
 				if (color != null) {
 					out.name("color");
 					var alpha = ColorTools.alpha(color);
-					if (alpha != 0 && alpha != 255)
-						out.jsonValue(String.format("[%d, %d, %d, %d]", ColorTools.red(color), ColorTools.green(color), ColorTools.blue(color), ColorTools.alpha(color)));
-					else
-						out.jsonValue(String.format("[%d, %d, %d]", ColorTools.red(color), ColorTools.green(color), ColorTools.blue(color)));
+					try {
+						if (alpha != 0 && alpha != 255)
+							out.jsonValue(String.format("[%d, %d, %d, %d]", ColorTools.red(color), ColorTools.green(color), ColorTools.blue(color), ColorTools.alpha(color)));
+						else
+							out.jsonValue(String.format("[%d, %d, %d]", ColorTools.red(color), ColorTools.green(color), ColorTools.blue(color)));
+					} catch (UnsupportedOperationException e) {
+						// TODO: Consider not trying to write json value, since it isn't always supported
+						out.beginArray();
+						out.value(ColorTools.red(color));
+						out.value(ColorTools.green(color));
+						out.value(ColorTools.blue(color));
+						if (alpha != 0 && alpha != 255)
+							ColorTools.alpha(color);
+						out.endArray();
+					}
 				}
 				out.endObject();
 				

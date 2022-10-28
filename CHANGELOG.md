@@ -101,6 +101,14 @@ This is a work-in-progress.
 * Add `ROI.updatePlane(plane)` method to move a ROI to a different z-slice or timepoint (https://github.com/qupath/qupath/issues/1052)
 * 'Classify -> Training images -> Create region annotations' supports adding regions in a selected annotation
   * `RoiTools.createRandomRectangle()` methods created for scripting
+* GeoJSON improvements (https://github.com/qupath/qupath/pull/1099)
+  * Simplified representation of `PathClass`
+    * Store either `name` (single name) or `names` (array) field, and `color` (3-element int array)
+  * Flag ellipse ROIs so these can be deserialized as ellipses, not polygons
+    * A polygon representation is still stored for use in other software, if required
+  * Store measurements directly as a JSON object / map (rather than an array of name/value elements)
+  * Optionally support child objects in export
+    * Serializing the root object now involves serializing the whole hierarchy
 
 ### Bugs fixed
 * Reading from Bio-Formats blocks forever when using multiple series outside a project (https://github.com/qupath/qupath/issues/894)
