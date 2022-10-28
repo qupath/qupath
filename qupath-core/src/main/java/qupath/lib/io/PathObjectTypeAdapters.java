@@ -72,6 +72,7 @@ class PathObjectTypeAdapters {
 	
 	static Gson gson = new GsonBuilder()
 			.setLenient()
+			.serializeSpecialFloatingPointValues()
 			.create();
 		
 	
@@ -85,6 +86,14 @@ class PathObjectTypeAdapters {
 		
 		public Collection<? extends PathObject> getPathObjects() {
 			return pathObjects;
+		}
+		
+	}
+	
+	static class HierarchyFeatureCollection extends FeatureCollection {
+		
+		HierarchyFeatureCollection(Collection<? extends PathObject> pathObjects) {
+			super(pathObjects);
 		}
 		
 	}
@@ -132,10 +141,18 @@ class PathObjectTypeAdapters {
 	
 	static class PathObjectCollectionTypeAdapter extends TypeAdapter<FeatureCollection> {
 		
-		static PathObjectCollectionTypeAdapter INSTANCE = new PathObjectCollectionTypeAdapter();
-		
+		static PathObjectCollectionTypeAdapter INSTANCE = new PathObjectCollectionTypeAdapter(PathObjectTypeAdapter.INSTANCE);
+
+		static PathObjectCollectionTypeAdapter INSTANCE_HIERARCHY = new PathObjectCollectionTypeAdapter(PathObjectTypeAdapter.INSTANCE_HIERARCHY);
+
 		static Type TYPE = new TypeToken<Collection<PathObject>>() {}.getType();	
 
+		private PathObjectTypeAdapter adapter;
+		
+		private PathObjectCollectionTypeAdapter(PathObjectTypeAdapter adapter) {
+			this.adapter = adapter;
+		}
+		
 		@Override
 		public void write(JsonWriter out, FeatureCollection value) throws IOException {
 			out.beginObject();
@@ -145,8 +162,9 @@ class PathObjectTypeAdapters {
 
 			out.name("features");
 			out.beginArray();
-			for (PathObject pathObject : value.getPathObjects())
-				PathObjectTypeAdapter.INSTANCE.write(out, pathObject);
+			for (PathObject pathObject : value.getPathObjects()) {
+				adapter.write(out, pathObject);
+			}
 			out.endArray();
 
 			out.endObject();
@@ -156,11 +174,20 @@ class PathObjectTypeAdapters {
 		public FeatureCollection read(JsonReader in) throws IOException {
 			List<PathObject> list = new ArrayList<>();
 			
-			JsonObject obj = gson.fromJson(in, JsonObject.class);
-			if (obj.has("features") && obj.get("features").isJsonArray()) {
-				JsonArray array = obj.get("features").getAsJsonArray();
+			JsonArray array = null;
+			var token = in.peek();
+			if (token == JsonToken.BEGIN_ARRAY) {
+				array = gson.fromJson(in, JsonArray.class);
+			} else {
+				JsonObject obj = gson.fromJson(in, JsonObject.class);
+				if (obj.has("features") && obj.get("features").isJsonArray()) {
+					array = obj.get("features").getAsJsonArray();
+				}
+			}
+			
+			if (array != null) {
 				for (JsonElement element : array) {
-					list.add(PathObjectTypeAdapter.INSTANCE.fromJsonTree(element));
+					list.add(adapter.fromJsonTree(element));
 				}
 			}
 			return new FeatureCollection(list);
@@ -191,7 +218,15 @@ class PathObjectTypeAdapters {
 		
 		private static final Logger logger = LoggerFactory.getLogger(PathObjectTypeAdapter.class);
 		
-		static PathObjectTypeAdapter INSTANCE = new PathObjectTypeAdapter();
+		/**
+		 * Get an instance that serializes a 'flat' object, ignoring child objects
+		 */
+		static PathObjectTypeAdapter INSTANCE = new PathObjectTypeAdapter(false);
+		
+		/**
+		 * Get an instance that serializes the object hierarchy - which means including child objects
+		 */
+		static PathObjectTypeAdapter INSTANCE_HIERARCHY = new PathObjectTypeAdapter(true);
 		
 		/**
 		 * In v0.2 we unwisely stored object type in an "id" property.
@@ -216,6 +251,13 @@ class PathObjectTypeAdapters {
 		
 		
 		private boolean flattenProperties = false;
+		
+		private boolean doHierarchy = false;
+		
+		private PathObjectTypeAdapter(boolean doHierarchy) {
+			this.doHierarchy = doHierarchy;
+		}
+		
 
 		@Override
 		public void write(JsonWriter out, PathObject value) throws IOException {
@@ -297,6 +339,8 @@ class PathObjectTypeAdapters {
 			
 			MeasurementList measurements = value.getMeasurementList();
 			if (flattenProperties) {
+				// Flatting properties probably not a good idea!
+				
 				// Add measurements
 				if (!measurements.isEmpty()) {
 					out.name("Measurement count");
@@ -334,6 +378,16 @@ class PathObjectTypeAdapters {
 				}
 			}
 			
+			if (doHierarchy && value.hasChildren()) {
+				out.name("children");
+				out.beginArray();
+				for (var child : value.getChildObjectsAsArray()) {
+					write(out, child);
+//					gson.toJson(child, PathObject.class, out);
+				}
+				out.endArray();
+			}
+			
 			out.endObject();
 	
 			out.endObject();
@@ -343,6 +397,12 @@ class PathObjectTypeAdapters {
 		public PathObject read(JsonReader in) throws IOException {
 			
 			JsonObject obj = gson.fromJson(in, JsonObject.class);
+			
+			return parseObject(obj);
+		}
+			
+			
+		private PathObject parseObject(JsonObject obj) {
 						
 			// Object type (annotation, detection etc.)
 			String type = "unknown";
@@ -374,6 +434,7 @@ class PathObjectTypeAdapters {
 			boolean isLocked = false;
 			String name = null;
 			Integer color = null;
+			List<PathObject> childObjects = null;
 			
 			MeasurementList measurementList = null;
 			JsonObject metadata = null;
@@ -421,6 +482,15 @@ class PathObjectTypeAdapters {
 				} else if (properties.has("type")) {
 					// Allow 'type' to be used as an alias
 					type = properties.get("type").getAsString();
+				}
+				if (properties.has("children") && properties.get("children").isJsonArray()) {
+					var children = properties.get("children").getAsJsonArray();
+					childObjects = new ArrayList<>();
+					for (var child : children) {
+						var childObject = parseObject(child.getAsJsonObject());
+						if (childObject != null)
+							childObjects.add(childObject);
+					}
 				}
 			}
 			ROI roiNucleus = null;
@@ -480,7 +550,7 @@ class PathObjectTypeAdapters {
 			if (color != null)
 				pathObject.setColor(color);
 			
-			if (isLocked)
+			if (isLocked && !pathObject.isRootObject())
 				pathObject.setLocked(isLocked);
 			
 			if (metadata != null && pathObject instanceof MetadataStore) {
@@ -488,6 +558,9 @@ class PathObjectTypeAdapters {
 					if (entry.getValue().isJsonPrimitive())
 						((MetadataStore)pathObject).putMetadataValue(entry.getKey(), entry.getValue().getAsString());
 			}
+			
+			if (childObjects != null)
+				pathObject.addPathObjects(childObjects);
 			
 			return pathObject;
 		}

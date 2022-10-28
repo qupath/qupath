@@ -48,8 +48,10 @@ import com.google.gson.stream.JsonWriter;
 
 import qupath.lib.common.ColorTools;
 import qupath.lib.io.PathObjectTypeAdapters.FeatureCollection;
+import qupath.lib.io.PathObjectTypeAdapters.HierarchyFeatureCollection;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathRootObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.regions.ImagePlane;
@@ -109,11 +111,18 @@ public class GsonTools {
 		
 		@SuppressWarnings("unchecked")
 		static <T> TypeAdapter<T> getTypeAdaptor(Class<T> cls) {
+			// No point serializing the root object alone - serialize the whole hierarchy instead
+			if (PathRootObject.class.isAssignableFrom(cls))
+				return (TypeAdapter<T>)PathObjectTypeAdapters.PathObjectTypeAdapter.INSTANCE_HIERARCHY;
+			
 			if (PathObject.class.isAssignableFrom(cls))
 				return (TypeAdapter<T>)PathObjectTypeAdapters.PathObjectTypeAdapter.INSTANCE;
 
 			if (MeasurementList.class.isAssignableFrom(cls))
 				return (TypeAdapter<T>)PathObjectTypeAdapters.MeasurementListTypeAdapter.INSTANCE;
+
+			if (HierarchyFeatureCollection.class.isAssignableFrom(cls))
+				return (TypeAdapter<T>)PathObjectTypeAdapters.PathObjectCollectionTypeAdapter.INSTANCE_HIERARCHY;
 
 			if (FeatureCollection.class.isAssignableFrom(cls))
 				return (TypeAdapter<T>)PathObjectTypeAdapters.PathObjectCollectionTypeAdapter.INSTANCE;
@@ -306,11 +315,26 @@ public class GsonTools {
 	/**
 	 * Wrap a collection of PathObjects as a FeatureCollection. The purpose of this is to enable 
 	 * exporting a GeoJSON FeatureCollection that may be reused in other software.
-	 * @param pathObjects
-	 * @return
+	 * @param pathObjects a collection of path objects to store in a feature collection
+	 * @return a feature collection that can be used with {@link GsonTools}
 	 */
 	public static FeatureCollection wrapFeatureCollection(Collection<? extends PathObject> pathObjects) {
-		return new FeatureCollection(pathObjects);
+		return wrapFeatureCollection(pathObjects, false);
+	}
+	
+	/**
+	 * Wrap a collection of PathObjects as a FeatureCollection. The purpose of this is to enable 
+	 * exporting a GeoJSON FeatureCollection that may be reused in other software.
+	 * @param pathObjects a collection of path objects to store in a feature collection
+	 * @param includeChildObjects if true, include child object in the feature collection.
+	 *                            Note that no checks are made to avoid duplicate objects.
+	 * @return a feature collection that can be used with {@link GsonTools}
+	 */
+	public static FeatureCollection wrapFeatureCollection(Collection<? extends PathObject> pathObjects, boolean includeChildObjects) {
+		if (includeChildObjects)
+			return new HierarchyFeatureCollection(pathObjects);
+		else
+			return new FeatureCollection(pathObjects);			
 	}
 	
 	/**
