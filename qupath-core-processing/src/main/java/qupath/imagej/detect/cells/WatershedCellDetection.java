@@ -78,7 +78,7 @@ import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
-import qupath.lib.objects.classes.PathClassFactory;
+import qupath.lib.objects.classes.PathClass;
 import qupath.lib.plugins.AbstractTileableDetectionPlugin;
 import qupath.lib.plugins.ObjectDetector;
 import qupath.lib.plugins.parameters.DoubleParameter;
@@ -362,8 +362,8 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 				return "1 nucleus detected";
 			String s = String.format("%d nuclei detected", nDetections);
 			if (nucleiClassified) {
-				int nPositive = PathObjectTools.countObjectsWithClass(pathObjects, PathClassFactory.getNegative(null), false);
-				int nNegative = PathObjectTools.countObjectsWithClass(pathObjects, PathClassFactory.getPositive(null), false);
+				int nPositive = PathObjectTools.countObjectsWithClass(pathObjects, PathClass.getNegative(null), false);
+				int nNegative = PathObjectTools.countObjectsWithClass(pathObjects, PathClass.getPositive(null), false);
 				return String.format("%s (%.3f%% positive)", s, ((double)nPositive * 100.0 / (nPositive + nNegative)));			
 			} else
 				return s;
@@ -847,12 +847,12 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 					for (String key : channels.keySet()) {
 						List<RunningStatistics> statsList = statsMap.get(key);
 						RunningStatistics stats = statsList.get(i);
-						measurementList.addMeasurement("Nucleus: " + key + " mean", stats.getMean());
-						measurementList.addMeasurement("Nucleus: " + key + " sum", stats.getSum());
-						measurementList.addMeasurement("Nucleus: " + key + " std dev", stats.getStdDev());
-						measurementList.addMeasurement("Nucleus: " + key + " max", stats.getMax());
-						measurementList.addMeasurement("Nucleus: " + key + " min", stats.getMin());
-						measurementList.addMeasurement("Nucleus: " + key + " range", stats.getRange());
+						measurementList.put("Nucleus: " + key + " mean", stats.getMean());
+						measurementList.put("Nucleus: " + key + " sum", stats.getSum());
+						measurementList.put("Nucleus: " + key + " std dev", stats.getStdDev());
+						measurementList.put("Nucleus: " + key + " max", stats.getMax());
+						measurementList.put("Nucleus: " + key + " min", stats.getMin());
+						measurementList.put("Nucleus: " + key + " range", stats.getRange());
 					}
 				}
 				
@@ -948,10 +948,10 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 						for (String key : channelsCell.keySet()) {
 							if (statsMapCell.containsKey(key)) {
 								RunningStatistics stats = statsMapCell.get(key).get(i);
-								measurementList.addMeasurement("Cell: " + key + " mean", stats.getMean());
-								measurementList.addMeasurement("Cell: " + key + " std dev", stats.getStdDev());
-								measurementList.addMeasurement("Cell: " + key + " max", stats.getMax());
-								measurementList.addMeasurement("Cell: " + key + " min", stats.getMin());
+								measurementList.put("Cell: " + key + " mean", stats.getMean());
+								measurementList.put("Cell: " + key + " std dev", stats.getStdDev());
+								measurementList.put("Cell: " + key + " max", stats.getMax());
+								measurementList.put("Cell: " + key + " min", stats.getMin());
 		//						pathObject.addMeasurement("Cytoplasm: " + key + " range", stats.getRange());
 							}
 						}
@@ -960,10 +960,10 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 						for (String key : channelsCell.keySet()) {
 							if (statsMapCytoplasm.containsKey(key)) {
 								RunningStatistics stats = statsMapCytoplasm.get(key).get(i);
-								measurementList.addMeasurement("Cytoplasm: " + key + " mean", stats.getMean());
-								measurementList.addMeasurement("Cytoplasm: " + key + " std dev", stats.getStdDev());
-								measurementList.addMeasurement("Cytoplasm: " + key + " max", stats.getMax());
-								measurementList.addMeasurement("Cytoplasm: " + key + " min", stats.getMin());
+								measurementList.put("Cytoplasm: " + key + " mean", stats.getMean());
+								measurementList.put("Cytoplasm: " + key + " std dev", stats.getStdDev());
+								measurementList.put("Cytoplasm: " + key + " max", stats.getMax());
+								measurementList.put("Cytoplasm: " + key + " min", stats.getMin());
 		//						pathObject.addMeasurement("Cytoplasm: " + key + " range", stats.getRange());
 							}
 						}
@@ -972,7 +972,7 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 						if (nucleus != null && nucleus.getROI().isArea()) {
 							double nucleusArea = nucleus.getROI().getArea();
 							double cellArea = pathROI.getArea();
-							measurementList.addMeasurement("Nucleus/Cell area ratio", Math.min(nucleusArea / cellArea, 1.0));
+							measurementList.put("Nucleus/Cell area ratio", Math.min(nucleusArea / cellArea, 1.0));
 	//						measurementList.addMeasurement("Nucleus/Cell expansion", cellArea - nucleusArea);
 						}
 					}

@@ -45,7 +45,6 @@ import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectFilter;
 import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.objects.classes.Reclassifier;
 import qupath.opencv.ml.objects.features.FeatureExtractor;
@@ -210,7 +209,7 @@ public class OpenCVMLClassifier<T> extends AbstractObjectClassifier<T> {
 									classifications.add(pathClass.getName());
 							}
 						}
-						var pathClass = PathClassFactory.getPathClass(classifications);
+						var pathClass = PathClass.fromCollection(classifications);
 						if (PathClassTools.isIgnoredClass(pathClass)) {
 							pathClass = null;
 						}

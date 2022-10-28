@@ -621,7 +621,7 @@ public class DnnTools {
 		boolean changed = pathClass != pathObject.getPathClass();
 		pathObject.setPathClass(pathClass);
 		if (predictionMeasurement != null) {
-			pathObject.getMeasurementList().putMeasurement(predictionMeasurement, result.second());
+			pathObject.getMeasurementList().put(predictionMeasurement, result.second());
 			pathObject.getMeasurementList().close();
 		}
 		result.close();
@@ -727,7 +727,7 @@ public class DnnTools {
 				var pathObject = creator.apply(roi);
 				pathObject.setPathClass(pathClass);
 				try (var ml = pathObject.getMeasurementList()) {
-					ml.putMeasurement("Probability", pred);
+					ml.put("Probability", pred);
 				}
 				pathObjects.add(pathObject);
 			}

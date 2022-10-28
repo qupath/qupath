@@ -43,8 +43,6 @@ import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.SparseImageServer;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.classes.PathClassFactory;
-import qupath.lib.objects.classes.PathClassFactory.StandardPathClasses;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectImageEntry;
@@ -63,7 +61,7 @@ public class CreateTrainingImageCommand {
 	
 	private static String NAME = "Create training image";
 
-	private static PathClass pathClass = PathClassFactory.getPathClass(StandardPathClasses.REGION);
+	private static PathClass pathClass = PathClass.StandardPathClasses.REGION;
 	private static int maxWidth = 50000;
 	private static boolean doZ = false;
 	private static boolean rectanglesOnly = false;
@@ -142,7 +140,7 @@ public class CreateTrainingImageCommand {
 	}
 
 	static Predicate<PathObject> createPredicate(PathClass pathClass, boolean rectanglesOnly) {
-		var pathClass2 = pathClass == PathClassFactory.getPathClassUnclassified() ? null : pathClass;
+		var pathClass2 = pathClass == PathClass.NULL_CLASS ? null : pathClass;
 		if (rectanglesOnly)
 			return (PathObject p) -> p.isAnnotation() && p.getPathClass() == pathClass2 && p.getROI() instanceof RectangleROI;
 		else

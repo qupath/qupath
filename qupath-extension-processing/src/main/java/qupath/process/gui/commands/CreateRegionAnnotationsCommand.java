@@ -45,8 +45,6 @@ import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.classes.PathClassFactory;
-import qupath.lib.objects.classes.PathClassFactory.StandardPathClasses;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.ROIs;
 
@@ -149,10 +147,10 @@ public class CreateRegionAnnotationsCommand implements Runnable {
 				comboUnits.getSelectionModel().select(RegionUnits.MICRONS);
 			
 			comboClassification.setItems(qupath.getAvailablePathClasses());
-			if (comboClassification.getItems().contains(PathClassFactory.getPathClass(StandardPathClasses.REGION)))
-				comboClassification.getSelectionModel().select(PathClassFactory.getPathClass(StandardPathClasses.REGION));
+			if (comboClassification.getItems().contains(PathClass.StandardPathClasses.REGION))
+				comboClassification.getSelectionModel().select(PathClass.StandardPathClasses.REGION);
 			else
-				comboClassification.getSelectionModel().select(PathClassFactory.getPathClassUnclassified());
+				comboClassification.getSelectionModel().select(PathClass.NULL_CLASS);
 			
 			comboLocation.getItems().setAll(RegionLocation.values());
 			comboLocation.getSelectionModel().select(RegionLocation.VIEW_CENTER);
@@ -198,7 +196,7 @@ public class CreateRegionAnnotationsCommand implements Runnable {
 			double height = tfRegionHeight.getText().isEmpty() ? width : Double.parseDouble(tfRegionHeight.getText());
 			RegionUnits requestedUnits = comboUnits.getSelectionModel().getSelectedItem();
 			PathClass pathClass = comboClassification.getSelectionModel().getSelectedItem();
-			if (pathClass == PathClassFactory.getPathClassUnclassified())
+			if (pathClass == PathClass.NULL_CLASS)
 				pathClass = null;
 			RegionLocation location = comboLocation.getSelectionModel().getSelectedItem();
 			

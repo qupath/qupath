@@ -33,13 +33,12 @@ import qupath.lib.measurements.MeasurementFactory;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.measurements.MeasurementListFactory;
 import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
 
 @SuppressWarnings("javadoc")
-public class TestPathAnnotationObject extends TestPathObject { 
+public class TestPathAnnotationObject extends TestPathObjectMethods { 
 	private final Integer nPO = 10; // number of (child) objects to be added
 	private final Double classprobability = 0.5;
 	private final Double line_x = 0.0;
@@ -48,7 +47,7 @@ public class TestPathAnnotationObject extends TestPathObject {
 	private final Double valueML = 10.0;
 	//private final double epsilon = 1e-15; 
 	ROI myROI = ROIs.createLineROI(line_x,line_y, ImagePlane.getDefaultPlane());
-	PathClass myPC = PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.IMAGE_ROOT);
+	PathClass myPC = PathClass.StandardPathClasses.IMAGE_ROOT;
 	PathAnnotationObject myPO = new PathAnnotationObject();
 	PathAnnotationObject myPO2 = new PathAnnotationObject(myROI);
 	PathAnnotationObject myPO3 = new PathAnnotationObject(myROI, myPC);
@@ -130,11 +129,11 @@ public class TestPathAnnotationObject extends TestPathObject {
 	@Test
 	public void test_SetGetPathClass() {
 		test_getPathClass(myPO, null); 
-		test_setPathClass(myPO, PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.IMAGE_ROOT));
+		test_setPathClass(myPO, PathClass.StandardPathClasses.IMAGE_ROOT);
 		test_getClassProbability(myPO, Double.NaN);
-		test_setPathClass(myPO, PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.IMAGE_ROOT), classprobability);
+		test_setPathClass(myPO, PathClass.StandardPathClasses.IMAGE_ROOT, classprobability);
 		test_getClassProbability(myPO, classprobability);
-		test_getPathClass(myPO3, PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.IMAGE_ROOT));
+		test_getPathClass(myPO3, PathClass.StandardPathClasses.IMAGE_ROOT);
 		test_getClassProbability(myPO3, Double.NaN);
 	}
 /*	@Test

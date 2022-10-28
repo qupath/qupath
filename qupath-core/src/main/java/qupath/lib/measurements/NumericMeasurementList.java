@@ -104,6 +104,8 @@ class NumericMeasurementList {
 		boolean isClosed = false;
 
 		private Map<String, Integer> map; // Optional map for fast measurement lookup
+		
+		private transient Map<String, Double> mapView;
 
 		AbstractNumericMeasurementList(int capacity) {
 			names = new ArrayList<>(capacity);
@@ -170,12 +172,6 @@ class NumericMeasurementList {
 			return names.indexOf(name);
 		}
 		
-		private boolean add(Measurement measurement) {
-			if (measurement.isDynamic())
-				throw new UnsupportedOperationException("This MeasurementList does not support dynamic measurements");
-			return addMeasurement(measurement.getName(), measurement.getValue());
-	    }
-		
 		@Override
 		public final int size() {
 			return names.size();
@@ -200,12 +196,12 @@ class NumericMeasurementList {
 		}
 		
 		@Override
-		public double getMeasurementValue(String name) {
+		public double get(String name) {
 			return getMeasurementValue(getMeasurementIndex(name));
 		}
 
 		@Override
-		public boolean containsNamedMeasurement(String measurementName) {
+		public boolean containsKey(String measurementName) {
 			if (!isClosed)
 				logger.trace("containsNamedMeasurement called on open NumericMeasurementList - consider closing list earlier for efficiency");
 			return names.contains(measurementName);
@@ -234,23 +230,17 @@ class NumericMeasurementList {
 		}
 		
 		@Override
-		public synchronized boolean addMeasurement(String name, double value) {
-			// If the list is closed, we have to reopen it
-			ensureListOpen();
-			names.add(name);
-			setValue(size()-1, value);
-			return true;
-		}
-		
-		
-		@Override
-		public synchronized void putMeasurement(String name, double value) {
+		public synchronized void put(String name, double value) {
 			ensureListOpen();
 			int index = getMeasurementIndex(name);
 			if (index >= 0)
 				setValue(index, value);
-			else
-				addMeasurement(name, value);
+			else {
+				// If the list is closed, we have to reopen it
+				ensureListOpen();
+				names.add(name);
+				setValue(size()-1, value);
+			}
 		}
 		
 
@@ -271,17 +261,19 @@ class NumericMeasurementList {
 		public Measurement putMeasurement(Measurement measurement) {
 			if (measurement.isDynamic())
 				throw new UnsupportedOperationException("This MeasurementList does not support dynamic measurements");
-			ensureListOpen();
-			String name = measurement.getName();
-			double value = measurement.getValue();
-			int ind = getMeasurementIndex(name);
-			if (ind >= 0) {
-				Measurement temp = MeasurementFactory.createMeasurement(name, value);
-				setValue(ind, value);
-				return temp;
-			}
-			add(measurement);
+			put(measurement.getName(), measurement.getValue());
 			return null;
+		}
+		
+		@Override
+		public Map<String, Double> asMap() {
+			if (mapView == null) {
+				synchronized(this) {
+					if (mapView == null)
+						mapView = new MeasurementsMap(this);
+				}
+			}
+			return mapView;
 		}
 		
 		

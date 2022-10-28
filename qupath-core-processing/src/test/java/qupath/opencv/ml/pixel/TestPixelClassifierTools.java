@@ -54,7 +54,6 @@ import qupath.lib.images.servers.ImageServers;
 import qupath.lib.images.servers.WrappedBufferedImageServer;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.opencv.ml.pixel.PixelClassifierTools.CreateObjectOptions;
 
@@ -137,7 +136,7 @@ class TestPixelClassifierTools {
 		var classificationLabels = new LinkedHashMap<Integer, PathClass>();
 		var classificationLabelsReverse = new HashMap<PathClass, Integer>();
 		for (int i = 0; i <= max; i++) {
-			var pathClass = PathClassFactory.getPathClass("Class " + i);
+			var pathClass = PathClass.getInstance("Class " + i);
 			classificationLabels.put(i, pathClass);
 			classificationLabelsReverse.put(pathClass, i);
 		}

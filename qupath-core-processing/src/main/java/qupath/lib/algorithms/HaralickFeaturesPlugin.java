@@ -348,7 +348,7 @@ public class HaralickFeaturesPlugin extends AbstractInteractivePlugin<BufferedIm
 				sinX += Math.sin(alpha);
 				cosX += Math.cos(alpha);
 			}
-			measurementList.putMeasurement("Mean hue", Math.atan2(sinX, cosX) / (2 * Math.PI) + 0.5);
+			measurementList.put("Mean hue", Math.atan2(sinX, cosX) / (2 * Math.PI) + 0.5);
 //			measurementList.putMeasurement("Mean saturation", hsb[1]);
 //			measurementList.putMeasurement("Mean brightness", hsb[2]);
 			processTransformedImage(SimpleImages.createFloatImage(pixelsSaturation, w, h), buf, pixelsSaturation, measurementList, "Saturation"+postfix, null, minValue, maxValue, d, nBins, stains, maskBytes, includeStats, doCircular);
@@ -401,11 +401,11 @@ public class HaralickFeaturesPlugin extends AbstractInteractivePlugin<BufferedIm
 
 	static void addBasicStatistics(final SimpleImage img, final MeasurementList measurementList, final String name) {
 		RunningStatistics stats = StatisticsHelper.computeRunningStatistics(img);
-		measurementList.putMeasurement(name + " Mean", stats.getMean());
-		measurementList.putMeasurement(name + " Min", stats.getMin());
-		measurementList.putMeasurement(name + " Max", stats.getMax());
-		measurementList.putMeasurement(name + " Range", stats.getRange());
-		measurementList.putMeasurement(name + " Std.dev.", stats.getStdDev());
+		measurementList.put(name + " Mean", stats.getMean());
+		measurementList.put(name + " Min", stats.getMin());
+		measurementList.put(name + " Max", stats.getMax());
+		measurementList.put(name + " Range", stats.getRange());
+		measurementList.put(name + " Std.dev.", stats.getStdDev());
 		
 		// Compute skewness and kurtosis
 		double m = stats.getMean();
@@ -429,14 +429,14 @@ public class HaralickFeaturesPlugin extends AbstractInteractivePlugin<BufferedIm
 ////		double sigma = stats.getStdDev();
 ////		System.out.println("Variance difference: " + variance + ",  " + stats.getVariance());
 ////		measurementList.putMeasurement(name + " Variance (again)", variance);
-		measurementList.putMeasurement(name + " Skewness", skewness/(variance*Math.sqrt(variance)));
-		measurementList.putMeasurement(name + " Kurtosis", kurtosis/(variance*variance));
+		measurementList.put(name + " Skewness", skewness/(variance*Math.sqrt(variance)));
+		measurementList.put(name + " Kurtosis", kurtosis/(variance*variance));
 	}
 
 	
 	static void addHaralickFeatures(final HaralickFeatures haralickFeatures, final MeasurementList measurementList, final String name) {
 		for (int i = 0; i < haralickFeatures.nFeatures(); i++) {
-			measurementList.putMeasurement(String.format("%s Haralick %s (F%d)", name,
+			measurementList.put(String.format("%s Haralick %s (F%d)", name,
 					haralickFeatures.getFeatureName(i),
 					i), haralickFeatures.getFeature(i));
 		}

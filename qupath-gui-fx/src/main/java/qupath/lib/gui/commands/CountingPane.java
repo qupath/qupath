@@ -59,7 +59,6 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
@@ -107,7 +106,7 @@ class CountingPane implements PathObjectSelectionListener, PathObjectHierarchyLi
 		var hierarchy = viewer.getHierarchy();
 		var availableClasses = qupath.getAvailablePathClasses()
 				.stream()
-				.filter(p -> p != null && p != PathClassFactory.getPathClassUnclassified())
+				.filter(p -> p != null && p != PathClass.NULL_CLASS)
 				.collect(Collectors.toList());
 		if (hierarchy == null || availableClasses.isEmpty())
 			return;
@@ -204,7 +203,7 @@ class CountingPane implements PathObjectSelectionListener, PathObjectHierarchyLi
 		mi.setGraphic(rect);
 		mi.setOnAction(e -> {
 			var pathObject = listCounts.getSelectionModel().getSelectedItem();
-			if (pathClass == PathClassFactory.getPathClassUnclassified())
+			if (pathClass == PathClass.NULL_CLASS)
 				pathObject.resetPathClass();
 			else
 				pathObject.setPathClass(pathClass);

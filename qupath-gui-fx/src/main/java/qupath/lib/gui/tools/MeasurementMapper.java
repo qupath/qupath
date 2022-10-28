@@ -162,7 +162,7 @@ public class MeasurementMapper {
 		if (isClassProbability)
 			value = pathObject.getClassProbability();
 		else
-			value = pathObject.getMeasurementList().getMeasurementValue(measurement);
+			value = pathObject.getMeasurementList().get(measurement);
 		// Convert NaN to zero
 		if (Double.isNaN(value))
 			value = nanValue;

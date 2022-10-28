@@ -26,7 +26,7 @@ package qupath.lib.objects;
 import org.junit.jupiter.api.Test;
 
 @SuppressWarnings("javadoc")
-public class TestPathDetectionObject extends TestPathObject {
+public class TestPathDetectionObject extends TestPathObjectMethods {
 	PathDetectionObject myPO = new PathDetectionObject();
 	
 	// leaving only those tests that should perform different from Annotations

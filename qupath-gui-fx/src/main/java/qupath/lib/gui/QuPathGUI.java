@@ -236,7 +236,6 @@ import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.TMAGrid;
 import qupath.lib.plugins.PathInteractivePlugin;
@@ -1978,7 +1977,7 @@ public class QuPathGUI {
 			// Therefore if we find some non-unique nor null elements, correct the list as soon as possible
 			var list = c.getList();
 			var set = new LinkedHashSet<PathClass>();
-			set.add(PathClassFactory.getPathClassUnclassified());
+			set.add(PathClass.NULL_CLASS);
 			set.addAll(list);
 			set.remove(null);
 			if (!(set.size() == list.size() && set.containsAll(list))) {
@@ -2004,16 +2003,16 @@ public class QuPathGUI {
 	 */
 	public boolean resetAvailablePathClasses() {
 		List<PathClass> pathClasses = Arrays.asList(
-				PathClassFactory.getPathClassUnclassified(),
-				PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.TUMOR),
-				PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.STROMA),
-				PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.IMMUNE_CELLS),
-				PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.NECROSIS),
-				PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.OTHER),
-				PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.REGION),
-				PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.IGNORE),
-				PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.POSITIVE),
-				PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.NEGATIVE)
+				PathClass.NULL_CLASS,
+				PathClass.StandardPathClasses.TUMOR,
+				PathClass.StandardPathClasses.STROMA,
+				PathClass.StandardPathClasses.IMMUNE_CELLS,
+				PathClass.StandardPathClasses.NECROSIS,
+				PathClass.StandardPathClasses.OTHER,
+				PathClass.StandardPathClasses.REGION,
+				PathClass.StandardPathClasses.IGNORE,
+				PathClass.StandardPathClasses.POSITIVE,
+				PathClass.StandardPathClasses.NEGATIVE
 				);
 		
 		if (availablePathClasses == null) {
@@ -2039,7 +2038,7 @@ public class QuPathGUI {
 			List<PathClass> pathClassesOriginal = (List<PathClass>)in.readObject();
 			List<PathClass> pathClasses = new ArrayList<>();
 			for (PathClass pathClass : pathClassesOriginal) {
-				PathClass singleton = PathClassFactory.getSingletonPathClass(pathClass);
+				PathClass singleton = PathClass.getSingleton(pathClass);
 				// Ensure the color is set
 				if (singleton != null && pathClass.getColor() != null)
 					singleton.setColor(pathClass.getColor());
@@ -4468,9 +4467,9 @@ public class QuPathGUI {
 				project.setPathClasses(getAvailablePathClasses());
 			} else {
 				// Update the available classes
-				if (!pathClasses.contains(PathClassFactory.getPathClassUnclassified())) {
+				if (!pathClasses.contains(PathClass.NULL_CLASS)) {
 					pathClasses = new ArrayList<>(pathClasses);
-					pathClasses.add(0, PathClassFactory.getPathClassUnclassified());
+					pathClasses.add(0, PathClass.NULL_CLASS);
 				}
 				getAvailablePathClasses().setAll(pathClasses);
 			}

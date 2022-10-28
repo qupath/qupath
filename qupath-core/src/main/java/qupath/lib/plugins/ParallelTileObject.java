@@ -47,7 +47,6 @@ import qupath.lib.objects.PathROIObject;
 import qupath.lib.objects.PathTileObject;
 import qupath.lib.objects.TemporaryObject;
 import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.plugins.AbstractTileableDetectionPlugin.ParallelDetectionTileManager;
 import qupath.lib.regions.ImageRegion;
@@ -84,13 +83,13 @@ public class ParallelTileObject extends PathTileObject implements TemporaryObjec
 		 */
 		DONE }
 	
-	private static PathClass pathClassPending = PathClassFactory.getPathClass(
+	private static PathClass pathClassPending = PathClass.getInstance(
 			"Tile-Pending", ColorTools.packRGB(50, 50, 200));
 
-	private static PathClass pathClassProcessing = PathClassFactory.getPathClass(
+	private static PathClass pathClassProcessing = PathClass.getInstance(
 			"Tile-Processing", ColorTools.packRGB(50, 200, 50));
 
-	private static PathClass pathClassDone = PathClassFactory.getPathClass(
+	private static PathClass pathClassDone = PathClass.getInstance(
 			"Tile-Done", ColorTools.packRGB(100, 20, 20));
 
 	private ParallelDetectionTileManager manager;

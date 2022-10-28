@@ -89,8 +89,6 @@ import qupath.lib.images.servers.ServerTools;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.classes.PathClassFactory;
-import qupath.lib.objects.classes.PathClassFactory.StandardPathClasses;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectImageEntry;
@@ -339,7 +337,7 @@ public class ExportTrainingRegionsCommand implements Runnable {
 			String s = "";
 			int i = 1;
 			// Handle 'regions' separately
-			PathClass regionClass = PathClassFactory.getPathClass(StandardPathClasses.REGION);
+			PathClass regionClass = PathClass.StandardPathClasses.REGION;
 			for (PathClass pathClass : pathClasses) {
 				if (pathClass == regionClass)
 					continue;
@@ -395,7 +393,7 @@ public class ExportTrainingRegionsCommand implements Runnable {
 				int val = entry.getValue();
 				mapLabelColor.put(entry.getKey(), new Color(val, val, val));
 				// Set color for color model
-				PathClass pathClass = PathClassFactory.getPathClass(entry.getKey());
+				PathClass pathClass = PathClass.fromString(entry.getKey());
 				cmap[val] = pathClass.getColor();
 				display.add(new PathClassDisplay(entry.getKey(), val, pathClass.getColor()));
 			}
@@ -522,7 +520,7 @@ public class ExportTrainingRegionsCommand implements Runnable {
 				downsample = resolution;
 			
 			// Split by region & non-region classified annotations
-			PathClass regionClass = PathClassFactory.getPathClass(StandardPathClasses.REGION);
+			PathClass regionClass = PathClass.StandardPathClasses.REGION;
 			List<PathObject> regionAnnotations = hierarchy.getAnnotationObjects().stream().filter(p -> p.getPathClass() == regionClass).collect(Collectors.toList());
 			List<PathObject> otherAnnotations = hierarchy.getAnnotationObjects().stream().filter(p -> p.getPathClass() != regionClass && p.getROI().isArea()).collect(Collectors.toList());
 

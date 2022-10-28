@@ -34,7 +34,6 @@ import org.junit.jupiter.api.Test;
 
 import qupath.lib.objects.PathObjectPredicates.PathObjectPredicate;
 import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.roi.ROIs;
 
 
@@ -45,18 +44,18 @@ public class TestPathObjectPredicates {
 	public void test_predicates() {
 		
 		// Create lots of objects
-		var tumorClass = PathClassFactory.getPathClass("Tumor", (Integer)null);
-		var tumorPositive = PathClassFactory.getDerivedPathClass(tumorClass, "Positive", null);
-		var tumorNegative = PathClassFactory.getDerivedPathClass(tumorClass, "Negative", null);
-		var tumorOnePlus = PathClassFactory.getPathClass("Tumor", "1+");
-		var tumorTwoPlus = PathClassFactory.getPathClass("Tumor", "2+");
-		var tumorThreePlus = PathClassFactory.getPathClass("Tumor", "3+");
+		var tumorClass = PathClass.getInstance("Tumor", (Integer)null);
+		var tumorPositive = PathClass.getInstance(tumorClass, "Positive", null);
+		var tumorNegative = PathClass.getInstance(tumorClass, "Negative", null);
+		var tumorOnePlus = PathClass.fromArray("Tumor", "1+");
+		var tumorTwoPlus = PathClass.fromArray("Tumor", "2+");
+		var tumorThreePlus = PathClass.fromArray("Tumor", "3+");
 		
-		var stromaClass = PathClassFactory.getPathClass("Stroma", (Integer)null);
-		var stromaPositive = PathClassFactory.getDerivedPathClass(stromaClass, "Positive", null);
-		var stromaNegative = PathClassFactory.getDerivedPathClass(stromaClass, "Negative", null);
+		var stromaClass = PathClass.getInstance("Stroma", (Integer)null);
+		var stromaPositive = PathClass.getInstance(stromaClass, "Positive", null);
+		var stromaNegative = PathClass.getInstance(stromaClass, "Negative", null);
 
-		var tumorStromaOtherClass = PathClassFactory.getPathClass("Tumor: Stroma: Other");
+		var tumorStromaOtherClass = PathClass.fromString("Tumor: Stroma: Other");
 		
 		int n = 10;
 		

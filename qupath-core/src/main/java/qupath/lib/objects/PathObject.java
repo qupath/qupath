@@ -177,6 +177,38 @@ public abstract class PathObject implements Externalizable {
 		return measurements;
 	}
 	
+	private transient Map<String, Double> measurementsMap;
+	
+	/**
+	 * Get a map-based view on {@link #getMeasurementList()}.
+	 * This is likely to be less efficient (because it does not support primitives), but has several advantages 
+	 * <ul>
+	 * <li>it uses a familiar and standard API</li>
+	 * <li>it is much more amenable for scripting, especially in Groovy</li>
+	 * <li>it is possible to return {@code null} for missing values, rather than only {@code Double.NaN}</li>
+	 * </ul>
+	 * The {@link MeasurementList} is retained for backwards-compatibility, particularly the ability to 
+	 * read older data files.
+	 * Changes made to the map are propagated through to the {@link MeasurementList}, so it should be possible to 
+	 * use them interchangeably - however note that there may be some loss of precision if the backing measurement 
+	 * list uses floats rather than doubles.
+	 * <p>
+	 * It is possible that a map implementation becomes the standard in the future and {@link #getMeasurementList()} 
+	 * <i>may</i> be deprecated; this is an experimental feature introduced in v0.4.0 for testing.
+	 * 
+	 * @return
+	 * @since v0.4.0
+	 */
+	public Map<String, Double> getMeasurements() {
+		if (measurementsMap == null) {
+			synchronized(this) {
+				if (measurementsMap == null)
+					measurementsMap = measurements.asMap();
+			}
+		}
+		return measurementsMap;
+	}
+	
 	/**
 	 * Create a new MeasurementList of the preferred type for this object.
 	 * <p>
@@ -672,7 +704,6 @@ public abstract class PathObject implements Externalizable {
 	/**
 	 * Reset the classification (i.e. set it to null).
 	 * @return true if the classification has changed, false otherwise (i.e. it was already null)
-	 * @since v0.4.0
 	 */
 	public boolean resetPathClass() {
 		var previous = getPathClass();
@@ -681,6 +712,74 @@ public abstract class PathObject implements Externalizable {
 		setPathClass((PathClass)null);
 		return true;
 	}
+	
+	
+	/**
+	 * Set the {@link PathClass} from a collection of names according to the rules:
+	 * <ul>
+	 * <li>If the collection is empty, reset the PathClass</li>
+	 * <li>If the collection has one element, set it to be the name of the PathClass</li>
+	 * <li>If the collection has multiple element, create and set a derived PathClass with each 
+	 * <b>unique</b> element the name of a PathClass component</li>
+	 * </ul>
+	 * The uniqueness is equivalent to copying the elements into a set; if a set is provided 
+	 * as input then a defensive copy will be made..
+	 * <p>
+	 * Ultimately, a single {@link PathClass} object is created to encapsulate the classification 
+	 * and the color used for display - but {@link #setClassifications(Collection)} and 
+	 * {@link #getClassifications()} provides a different (complementary) way to think of 
+	 * classifications within QuPath.
+	 * <p>
+	 * <b>Important: </b> This is an experimental feature introduced in QuPath v0.4.0 to 
+	 * provide an alternative way to interact with classifications and to add support for 
+	 * multiple classifications. It is possible that this becomes the 'standard' approach 
+	 * in future versions, with {@link PathClass} being deprecated.
+	 * <p>
+	 * Feedback or discussion on the approach is welcome on the forum at 
+	 * <a href="https://forum.image.sc/tag/qupath">image.sc</a>.
+	 * 
+	 * @param classifications
+	 * @since v0.4.0
+	 * @see #getClassifications()
+	 */
+	public void setClassifications(Collection<String> classifications) {
+		if (classifications.isEmpty())
+			resetPathClass();
+		else if (classifications instanceof Set) {
+			setPathClass(PathClass.fromCollection((Set<String>)classifications));
+		} else {
+			// Use LinkedHashSet to maintain ordering
+			var set = new LinkedHashSet<>(classifications);
+			if (set.size() < classifications.size())
+				logger.warn("Input to setClassifications() contains duplicate elements - {} will be replaced by {}", classifications, set);
+			setPathClass(PathClass.fromCollection(set));
+		}
+	}
+	
+	/**
+	 * Get the components of the {@link PathClass} as an unmodifiable set.
+	 * 
+	 * <b>Important: </b> This is an experimental feature introduced in QuPath v0.4.0 to 
+	 * provide an alternative way to interact with classifications and to add support for 
+	 * multiple classifications. It is possible that this becomes the 'standard' approach 
+	 * in future versions, with {@link PathClass} being deprecated.
+	 * <p>
+	 * Feedback or discussion on the approach is welcome on the forum at 
+	 * <a href="https://forum.image.sc/tag/qupath">image.sc</a>.
+	 * 
+	 * @return an empty collection is the PathClass is null, otherwise a collection of strings 
+	 *         where each string gives the name of one component of the PathClass
+	 * @since v0.4.0
+	 * @see #setClassifications(Collection)
+	 */
+	public Set<String> getClassifications() {
+		var pc = getPathClass();
+		if (pc == null)
+			return Collections.emptySet();
+		else
+			return pc.toSet();
+	}
+	
 
 	/**
 	 * Set the classification of the object, specifying a classification probability.

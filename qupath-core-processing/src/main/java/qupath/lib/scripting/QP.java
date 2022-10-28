@@ -154,6 +154,7 @@ import qupath.opencv.tools.OpenCVTools;
  * @author Pete Bankhead
  *
  */
+@SuppressWarnings("deprecation")
 public class QP {
 	
 	private static final Logger logger = LoggerFactory.getLogger(QP.class);
@@ -1915,7 +1916,7 @@ public class QP {
 	 * @return
 	 */
 	public static boolean hasMeasurement(final PathObject pathObject, final String measurementName) {
-		return pathObject != null && pathObject.getMeasurementList().containsNamedMeasurement(measurementName);
+		return pathObject != null && pathObject.getMeasurementList().containsKey(measurementName);
 	}
 
 	/**
@@ -1926,7 +1927,7 @@ public class QP {
 	 * @return
 	 */
 	public static double measurement(final PathObject pathObject, final String measurementName) {
-		return pathObject == null ? Double.NaN : pathObject.getMeasurementList().getMeasurementValue(measurementName);
+		return pathObject == null ? Double.NaN : pathObject.getMeasurementList().get(measurementName);
 	}
 
 	
@@ -2224,7 +2225,7 @@ public class QP {
 		if (pathClasses == null)
 			pathClassSet = Set.of((PathClass)null);
 		else
-			pathClassSet = Arrays.stream(pathClasses).map(p -> p == PathClassFactory.getPathClassUnclassified() ? null : p).collect(Collectors.toCollection(HashSet::new));
+			pathClassSet = Arrays.stream(pathClasses).map(p -> p == PathClass.NULL_CLASS ? null : p).collect(Collectors.toCollection(HashSet::new));
 		selectObjects(hierarchy, p -> pathClassSet.contains(p.getPathClass()));
 	}
 
@@ -2280,8 +2281,8 @@ public class QP {
 				double value = scanner.nextDouble();
 
 				Predicate<PathObject> predicateNew = p -> {
-					double v = p.getMeasurementList().getMeasurementValue(measurement);
-					return !Double.isNaN(v) && mapComparison.get(comparison).test(Double.compare(p.getMeasurementList().getMeasurementValue(measurement), value));
+					double v = p.getMeasurementList().get(measurement);
+					return !Double.isNaN(v) && mapComparison.get(comparison).test(Double.compare(p.getMeasurementList().get(measurement), value));
 				};
 				if (negate)
 					predicateNew = predicateNew.negate();
@@ -2340,7 +2341,7 @@ public class QP {
 	 * @param pathClassName
 	 */
 	public static void classifySelected(final PathObjectHierarchy hierarchy, final String pathClassName) {
-		PathClass pathClass = PathClassFactory.getPathClass(pathClassName);
+		PathClass pathClass = PathClass.fromString(pathClassName);
 		Collection<PathObject> selected = hierarchy.getSelectionModel().getSelectedObjects();
 		if (selected.isEmpty()) {
 			logger.info("No objects selected");
@@ -2474,7 +2475,7 @@ public class QP {
 	 * @return
 	 */
 	public static PathClass getPathClass(final String name) {
-		return PathClassFactory.getPathClass(name);
+		return PathClass.fromString(name);
 	}
 
 	/**
@@ -2492,7 +2493,7 @@ public class QP {
 	 * @see ColorTools#makeRGB
 	 */
 	public static PathClass getPathClass(final String name, final Integer rgb) {
-		return PathClassFactory.getPathClass(name, rgb);
+		return PathClass.fromString(name, rgb);
 	}
 
 	/**
@@ -2526,7 +2527,7 @@ public class QP {
 	 * @return
 	 */
 	public static PathClass getDerivedPathClass(final PathClass baseClass, final String name, final Integer rgb) {
-		return PathClassFactory.getDerivedPathClass(baseClass, name, rgb);
+		return PathClass.getInstance(baseClass, name, rgb);
 	}
 
 	/**
@@ -3152,9 +3153,9 @@ public class QP {
 	 * @param newClass
 	 */
 	public static void replaceClassification(Collection<PathObject> pathObjects, PathClass originalClass, PathClass newClass) {
-		if (PathClassFactory.getPathClassUnclassified() == originalClass)
+		if (PathClass.NULL_CLASS == originalClass)
 			originalClass = null;
-		if (PathClassFactory.getPathClassUnclassified() == newClass)
+		if (PathClass.NULL_CLASS == newClass)
 			newClass = null;
 		for (var pathObject : pathObjects) {
 			if (pathObject.getPathClass() == originalClass)
@@ -3650,7 +3651,7 @@ public class QP {
 	public static void findDensityMapHotspots(ImageData<BufferedImage> imageData, DensityMapBuilder densityMap, int channel, int numHotspots, double minCounts, boolean deleteExisting, boolean peaksOnly) throws IOException {
 		var densityServer = densityMap.buildServer(imageData);
 		double radius = densityMap.buildParameters().getRadius();
-		var pathClass = PathClassFactory.getPathClass(densityServer.getChannel(channel).getName());
+		var pathClass = PathClass.fromString(densityServer.getChannel(channel).getName());
 		DensityMaps.findHotspots(imageData.getHierarchy(), densityServer, channel, numHotspots, radius, minCounts, pathClass, deleteExisting, peaksOnly);
 	}
 

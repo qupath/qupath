@@ -72,12 +72,12 @@ public class Reclassifier {
 	public boolean apply() {
 		var previousClass = pathObject.getPathClass();
 		var pathClass = this.pathClass;
-		if (pathClass == PathClassFactory.getPathClassUnclassified())
+		if (pathClass == PathClass.NULL_CLASS)
 			pathClass = null;
 		else if (retainIntensityClass && previousClass != null &&
 				(PathClassTools.isPositiveOrGradedIntensityClass(previousClass) || PathClassTools.isNegativeClass(previousClass)) && 
 				(!previousClass.isDerivedClass() || previousClass.getBaseClass() == previousClass.getParentClass())) {
-			pathClass = PathClassFactory.getDerivedPathClass(pathClass, previousClass.getName(), null);
+			pathClass = PathClass.getInstance(pathClass, previousClass.getName(), null);
 		}
 		pathObject.setPathClass(pathClass, probability);
 		return previousClass != pathClass;

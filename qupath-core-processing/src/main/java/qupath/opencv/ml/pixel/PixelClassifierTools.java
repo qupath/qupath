@@ -38,7 +38,6 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.classes.Reclassifier;
 import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
@@ -331,7 +330,7 @@ public class PixelClassifierTools {
 		var labels = new LinkedHashMap<Integer, PathClass>();
 		for (var entry : labelsOrig.entrySet()) {
 			var pathClass = entry.getValue();
-			if (pathClass == null || pathClass == PathClassFactory.getPathClassUnclassified() || (!includeIgnored && PathClassTools.isIgnoredClass(pathClass)))				
+			if (pathClass == null || pathClass == PathClass.NULL_CLASS || (!includeIgnored && PathClassTools.isIgnoredClass(pathClass)))				
 				continue;
 			labels.put(entry.getKey(), pathClass);
 		}
@@ -590,7 +589,7 @@ public class PixelClassifierTools {
 				for (String name : manager.getMeasurementNames()) {
 					Number value = manager.getMeasurementValue(pathObject, name, false);
 					double val = value == null ? Double.NaN : value.doubleValue();
-					ml.putMeasurement(measurementID + name, val);
+					ml.put(measurementID + name, val);
 				}
 			}
 			// We really want to lock objects so we don't end up with wrong measurements

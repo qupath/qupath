@@ -433,7 +433,7 @@ class TMAEntries {
 
 		@Override
 		public void putMeasurement(String name, Number number) {
-			core.getMeasurementList().putMeasurement(name, number == null ? Double.NaN : number.doubleValue());
+			core.getMeasurementList().put(name, number == null ? Double.NaN : number.doubleValue());
 			if (imageData != null)
 				imageData.getHierarchy().fireObjectMeasurementsChangedEvent(this, Collections.singletonList(core));
 			data.updateMeasurementList();

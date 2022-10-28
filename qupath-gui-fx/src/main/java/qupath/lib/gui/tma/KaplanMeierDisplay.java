@@ -305,17 +305,17 @@ class KaplanMeierDisplay implements ParameterChangeListener, PathObjectHierarchy
 			for (int i = 0; i < cores.size(); i++) {
 				TMACoreObject core = cores.get(i);
 				MeasurementList ml = core.getMeasurementList();
-				survival[i] = core.getMeasurementList().getMeasurementValue(survivalColumn);
-				double censoredValue = core.getMeasurementList().getMeasurementValue(censoredColumn);
+				survival[i] = core.getMeasurementList().get(survivalColumn);
+				double censoredValue = core.getMeasurementList().get(censoredColumn);
 				boolean hasCensoredValue = !Double.isNaN(censoredValue) && (censoredValue == 0 || censoredValue == 1);
 				censored[i] = censoredValue != 0;
 				if (!hasCensoredValue) {
 					// If we don't have a censored value, ensure we mask out everything else
 					scores[i] = Double.NaN;
 					survival[i] = Double.NaN;
-				} else if (ml.containsNamedMeasurement(scoreColumn))
+				} else if (ml.containsKey(scoreColumn))
 					// Get the score if we can
-					scores[i] = ml.getMeasurementValue(scoreColumn);
+					scores[i] = ml.get(scoreColumn);
 				else {
 //					// Try to compute score if we need to
 //					Map<String, Number> map = ROIMeaningfulMeasurements.getPathClassSummaryMeasurements(core.getChildObjects(), true);

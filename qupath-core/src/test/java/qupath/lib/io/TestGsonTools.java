@@ -29,7 +29,6 @@ import org.junit.jupiter.api.Test;
 
 import qupath.lib.common.ColorTools;
 import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.classes.PathClassFactory;
 
 @SuppressWarnings("javadoc")
 public class TestGsonTools {
@@ -38,12 +37,12 @@ public class TestGsonTools {
 	public void test_PathClasses() throws IOException {
 		
 		testToJson(null);
-		testToJson(PathClassFactory.getPathClassUnclassified());
-		testToJson(PathClassFactory.getPathClass("Tumor"));
-		testToJson(PathClassFactory.getPathClass("Tumor: Positive"));
-		testToJson(PathClassFactory.getPathClass("Tumor: Positive: Other", ColorTools.packRGB(1, 2, 3)));
+		testToJson(PathClass.NULL_CLASS);
+		testToJson(PathClass.getInstance("Tumor"));
+		testToJson(PathClass.fromString("Tumor: Positive"));
+		testToJson(PathClass.fromString("Tumor: Positive: Other", ColorTools.packRGB(1, 2, 3)));
 
-		testToJson(PathClassFactory.getPathClass(Arrays.asList("Class 1", "Class 2", "Class 3")));
+		testToJson(PathClass.fromCollection(Arrays.asList("Class 1", "Class 2", "Class 3")));
 	}
 	
 	

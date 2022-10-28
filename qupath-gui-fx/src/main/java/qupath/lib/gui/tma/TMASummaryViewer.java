@@ -800,10 +800,10 @@ public class TMASummaryViewer {
 
 			core.putMetadataValue(TMACoreObject.KEY_UNIQUE_ID, entry.getKey());
 //			System.err.println("Putting: " + list.get(0).getMeasurement(colSurvival).doubleValue() + " LIST: " + list.size());
-			ml.putMeasurement(colSurvival, list.get(0).getMeasurementAsDouble(colSurvival));
-			ml.putMeasurement(colCensoredRequested, list.get(0).getMeasurementAsDouble(colCensored));
+			ml.put(colSurvival, list.get(0).getMeasurementAsDouble(colSurvival));
+			ml.put(colCensoredRequested, list.get(0).getMeasurementAsDouble(colCensored));
 			if (colScore != null)
-				ml.putMeasurement(colScore, score);
+				ml.put(colScore, score);
 
 			cores.add(core);
 			

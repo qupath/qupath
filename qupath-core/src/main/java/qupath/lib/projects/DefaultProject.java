@@ -69,7 +69,6 @@ import qupath.lib.io.PathIO;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.projects.ResourceManager.ImageResourceManager;
 import qupath.lib.projects.ResourceManager.Manager;
@@ -1084,10 +1083,13 @@ class DefaultProject implements Project<BufferedImage> {
 		
 		JsonArray pathClassArray = new JsonArray();
 		for (PathClass pathClass : pathClasses) {
-			JsonObject jsonEntry = new JsonObject();
-			jsonEntry.addProperty("name", pathClass.toString());
-			jsonEntry.addProperty("color", pathClass.getColor());
-			pathClassArray.add(jsonEntry);
+			// Store any non-default (null) class
+			if (pathClass != PathClass.NULL_CLASS) {
+				JsonObject jsonEntry = new JsonObject();
+				jsonEntry.addProperty("name", pathClass.toString());
+				jsonEntry.addProperty("color", pathClass.getColor());
+				pathClassArray.add(jsonEntry);
+			}
 		}
 		
 		var element = new JsonObject();
@@ -1113,11 +1115,16 @@ class DefaultProject implements Project<BufferedImage> {
 					JsonObject pathClassObject = pathClassesArray.get(i).getAsJsonObject();
 					if (pathClassObject.has("name")) {
 						String name = pathClassObject.get("name").getAsString();
+						if (PathClass.NULL_CLASS.toString().equals(name)) {
+							logger.debug("Skipping PathClass '{}' - shares a name with the null class", name);
+							continue;
+						}
+						
 						Integer color = null;
 						if (pathClassObject.has("color") && !pathClassObject.get("color").isJsonNull()) {
 							color = pathClassObject.get("color").getAsInt();							
 						}
-						PathClass pathClass = PathClassFactory.getPathClass(name, color);
+						PathClass pathClass = PathClass.fromString(name, color);
 						if (color != null)
 							pathClass.setColor(color); // Make sure we have the color we want
 						pathClasses.add(pathClass);

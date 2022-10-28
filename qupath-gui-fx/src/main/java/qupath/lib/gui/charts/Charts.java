@@ -643,8 +643,8 @@ public class Charts {
 			return series(
 					null,
 					pathObjects,
-					(PathObject p) -> p.getMeasurementList().getMeasurementValue(xMeasurement),
-					(PathObject p) -> p.getMeasurementList().getMeasurementValue(yMeasurement));
+					(PathObject p) -> p.getMeasurementList().get(xMeasurement),
+					(PathObject p) -> p.getMeasurementList().get(yMeasurement));
 		}
 		
 		/**

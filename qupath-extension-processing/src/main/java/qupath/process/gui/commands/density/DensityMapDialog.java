@@ -93,7 +93,6 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectPredicates;
 import qupath.lib.objects.PathObjectPredicates.PathObjectPredicate;
 import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
 import qupath.process.gui.commands.density.DensityMapUI.DensityMapObjects;
@@ -469,7 +468,7 @@ public class DensityMapDialog {
 	
 	private String classificationText(PathClass pathClass) {
 		if (pathClass == null)
-			pathClass = PathClassFactory.getPathClassUnclassified();
+			pathClass = PathClass.NULL_CLASS;
 		if (pathClass == DensityMapUI.ANY_CLASS)
 			return "Any";
 		if (pathClass == DensityMapUI.ANY_POSITIVE_CLASS)
@@ -778,7 +777,7 @@ public class DensityMapDialog {
 				else if (bothAnyObject)
 					densityClassName = "Density";
 				
-				String primaryClassName = primaryClass == null ? PathClassFactory.getPathClassUnclassified().toString()
+				String primaryClassName = primaryClass == null ? PathClass.NULL_CLASS.toString()
 						                                       : primaryClass.toString();
 				
 				if (primaryClass == DensityMapUI.ANY_CLASS)

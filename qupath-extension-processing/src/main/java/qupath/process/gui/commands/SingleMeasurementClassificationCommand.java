@@ -486,7 +486,7 @@ public class SingleMeasurementClassificationCommand implements Runnable {
 				sliderThreshold.setValue(0);
 				return;
 			}
-			double[] allValues = pathObjects.stream().mapToDouble(p -> p.getMeasurementList().getMeasurementValue(measurement))
+			double[] allValues = pathObjects.stream().mapToDouble(p -> p.getMeasurementList().get(measurement))
 					.filter(d -> Double.isFinite(d)).toArray();
 			var stats = new DescriptiveStatistics(allValues);
 			var histogram = new Histogram(allValues, 100, stats.getMin(), stats.getMax());

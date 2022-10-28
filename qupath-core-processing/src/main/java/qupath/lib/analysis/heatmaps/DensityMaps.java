@@ -62,8 +62,6 @@ import qupath.lib.objects.PathObjectPredicates.PathObjectPredicate;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.classes.PathClassFactory;
-import qupath.lib.objects.classes.PathClassFactory.StandardPathClasses;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.projects.Project;
 import qupath.lib.regions.ImagePlane;
@@ -497,8 +495,8 @@ public class DensityMaps {
 		logger.debug("Thresholding {} with thresholds {}, options", densityServer, thresholds, Arrays.asList(options));
 
 		// Apply threshold to densities
-		PathClass lessThan = PathClassFactory.getPathClass(StandardPathClasses.IGNORE);
-		PathClass greaterThan = PathClassFactory.getPathClass(pathClassName);
+		PathClass lessThan = PathClass.StandardPathClasses.IGNORE;
+		PathClass greaterThan = PathClass.fromString(pathClassName);
 		
 		// If we request to delete existing objects, apply this only to annotations with the target class
 		var optionsList = Arrays.asList(options);

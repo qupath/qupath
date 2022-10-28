@@ -455,7 +455,7 @@ class PathObjectTypeAdapters {
 			if (measurementList != null && !measurementList.isEmpty()) {
 				try (var ml = pathObject.getMeasurementList()) {
 					for (int i = 0; i < measurementList.size(); i++)
-						ml.addMeasurement(measurementList.getMeasurementName(i), measurementList.getMeasurementValue(i));
+						ml.put(measurementList.getMeasurementName(i), measurementList.getMeasurementValue(i));
 				}
 			}
 			if (pathClass != null)
@@ -508,7 +508,7 @@ class PathObjectTypeAdapters {
 			MeasurementList list = MeasurementListFactory.createMeasurementList(array.size(), MeasurementListType.DOUBLE);
 			for (int i = 0; i < array.size(); i++) {
 				JsonObject obj = array.get(i).getAsJsonObject();
-				list.addMeasurement(obj.get("name").getAsString(), obj.get("value").getAsDouble());
+				list.put(obj.get("name").getAsString(), obj.get("value").getAsDouble());
 			}
 			list.close();
 			return list;

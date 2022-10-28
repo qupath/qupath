@@ -67,7 +67,6 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.regions.ImagePlane;
@@ -457,7 +456,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		}
 		// Good news! We just need a regular measurement
 		for (int i = 0; i < filterList.size(); i++)
-			values[i] = filterList.get(i).getMeasurementList().getMeasurementValue(column);
+			values[i] = filterList.get(i).getMeasurementList().get(column);
 		return values;
 	}
 	
@@ -474,7 +473,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 			else
 				return Double.NaN;
 		}
-		return pathObject.getMeasurementList().getMeasurementValue(column);
+		return pathObject.getMeasurementList().get(column);
 	}
 	
 	@Override
@@ -512,7 +511,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 
 		@Override
 		protected double computeValue() {
-			return pathObject.getMeasurementList().getMeasurementValue(name);
+			return pathObject.getMeasurementList().get(name);
 		}
 		
 	}
@@ -623,7 +622,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 //			pathClasses.addAll(basePathClasses);
 
 			pathClasses.remove(null);
-			pathClasses.remove(PathClassFactory.getPathClassUnclassified());
+			pathClasses.remove(PathClass.NULL_CLASS);
 
 			Set<PathClass> parentIntensityClasses = new LinkedHashSet<>();
 			Set<PathClass> parentPositiveNegativeClasses = new LinkedHashSet<>();
@@ -640,7 +639,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 			if (!parentPositiveNegativeClasses.isEmpty()) {
 				List<PathClass> pathClassList = new ArrayList<>(parentPositiveNegativeClasses);
 				pathClassList.remove(null);
-				pathClassList.remove(PathClassFactory.getPathClassUnclassified());
+				pathClassList.remove(PathClass.NULL_CLASS);
 				Collections.sort(pathClassList);
 				for (PathClass pathClass : pathClassList) {
 					builders.add(new ClassCountMeasurementBuilder(pathClass, true));
@@ -1845,7 +1844,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 			logger.warn("Requested measurement {} for null object! Returned empty String.", column);
 			return "";
 		}
-		double val = pathObject.getMeasurementList().getMeasurementValue(column);
+		double val = pathObject.getMeasurementList().get(column);
 		if (Double.isNaN(val))
 			return "NaN";
 		return GeneralTools.formatNumber(val, 4);

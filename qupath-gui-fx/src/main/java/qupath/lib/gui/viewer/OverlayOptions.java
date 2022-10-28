@@ -38,7 +38,6 @@ import javafx.collections.ObservableSet;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.MeasurementMapper;
 import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.classes.PathClassTools;
 
 /**
@@ -502,8 +501,8 @@ public class OverlayOptions {
 	public boolean isPathClassHidden(final PathClass pathClass) {
 		if (hiddenClasses.isEmpty())
 			return false;
-		if (pathClass == null || pathClass == PathClassFactory.getPathClassUnclassified())
-			return hiddenClasses.contains(null) || hiddenClasses.contains(PathClassFactory.getPathClassUnclassified());
+		if (pathClass == null || pathClass == PathClass.NULL_CLASS)
+			return hiddenClasses.contains(null) || hiddenClasses.contains(PathClass.NULL_CLASS);
 		return hiddenClasses.contains(pathClass) || 
 				((PathClassTools.isPositiveOrGradedIntensityClass(pathClass) || PathClassTools.isNegativeClass(pathClass)) && pathClass.isDerivedClass() && isPathClassHidden(pathClass.getParentClass()));
 	}

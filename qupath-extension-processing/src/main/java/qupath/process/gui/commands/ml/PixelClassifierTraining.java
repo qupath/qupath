@@ -38,8 +38,6 @@ import org.bytedeco.opencv.opencv_core.MatVector;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.classes.PathClassFactory;
-import qupath.lib.objects.classes.PathClassFactory.StandardPathClasses;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.interfaces.ROI;
 import qupath.opencv.ops.ImageDataOp;
@@ -227,7 +225,7 @@ public class PixelClassifierTraining {
     
 
     
-	private static PathClass REGION_CLASS = PathClassFactory.getPathClass(StandardPathClasses.REGION);
+	private static PathClass REGION_CLASS = PathClass.StandardPathClasses.REGION;
 
     /**
      * Test is a PathObject can be used as a classifier training annotation.
