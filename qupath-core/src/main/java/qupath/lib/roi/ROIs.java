@@ -85,7 +85,7 @@ public class ROIs {
 	 * @return
 	 */
 	public static ROI createRectangleROI(ImageRegion region) {
-		return new RectangleROI(region.getX(), region.getY(), region.getWidth(), region.getHeight(), region.getPlane());
+		return new RectangleROI(region.getX(), region.getY(), region.getWidth(), region.getHeight(), region.getImagePlane());
 	}
 
 	/**

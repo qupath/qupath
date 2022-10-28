@@ -73,12 +73,12 @@ public class TestRegionRequest {
 		// Change other properties
 		var request7 = request.updateZ(2);
 		assertNotEquals(request, request7);
-		assertNotEquals(request.getPlane(), request7.getPlane());
+		assertNotEquals(request.getImagePlane(), request7.getImagePlane());
 		sameRegion2D(request, request7);
 		
 		var request8 = request.updateT(2);
 		assertNotEquals(request, request8);
-		assertNotEquals(request.getPlane(), request8.getPlane());
+		assertNotEquals(request.getImagePlane(), request8.getImagePlane());
 		sameRegion2D(request, request8);
 		
 		var request9 = request.updatePath("Anything else");
@@ -116,7 +116,7 @@ public class TestRegionRequest {
 	}
 	
 	static boolean samePlane(ImageRegion r1, ImageRegion r2) {		
-		assertEquals(r1.getPlane(), r2.getPlane());
+		assertEquals(r1.getImagePlane(), r2.getImagePlane());
 		return true;
 	}
 	

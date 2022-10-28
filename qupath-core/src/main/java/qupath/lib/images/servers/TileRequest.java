@@ -24,6 +24,10 @@ package qupath.lib.images.servers;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import qupath.lib.common.LogTools;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
@@ -42,6 +46,8 @@ import qupath.lib.regions.RegionRequest;
  * the full resolution image space.  They wrap a RegionRequest, because this is still used for caching purposes. 
  */
 public class TileRequest {
+	
+	private static final Logger logger = LoggerFactory.getLogger(TileRequest.class);
 			
 	private final int level;
 	private final ImageRegion tileRegion;
@@ -261,11 +267,21 @@ public class TileRequest {
 	/**
 	 * Get the ImagePlane for this request.
 	 * @return
+	 * @since v0.4.0 (replaces {@link #getPlane()} for better consistency with other classes)
 	 */
-	public ImagePlane getPlane() {
-		return tileRegion.getPlane();
+	public ImagePlane getImagePlane() {
+		return tileRegion.getImagePlane();
 	}
-	
+	/**
+	 * Get the ImagePlane for this request.
+	 * @return
+	 * @deprecated v0.4.0 use {@link #getImagePlane()} instead (changed for better consistency with other classes)
+	 */
+	@Deprecated
+	public ImagePlane getPlane() {
+		LogTools.warnOnce(logger, "TileRequest.getPlane() is deprecated in v0.4.0 - use getImagePlane() instead");
+		return getImagePlane();
+	}
 	
 	
 	@Override

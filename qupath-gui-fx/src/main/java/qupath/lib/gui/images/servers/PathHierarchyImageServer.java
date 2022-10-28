@@ -243,7 +243,7 @@ public class PathHierarchyImageServer extends AbstractTileableImageServer implem
 					g2d,
 					imageData.isFluorescence() ? ColorToolsAwt.TRANSLUCENT_WHITE : ColorToolsAwt.TRANSLUCENT_BLACK,
 					downsampleFactor,
-					tileRequest.getPlane());
+					tileRequest.getImagePlane());
 		}
 		
 		

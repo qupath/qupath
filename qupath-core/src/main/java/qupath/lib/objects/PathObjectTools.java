@@ -495,7 +495,7 @@ public class PathObjectTools {
 		    for (int j = 0; j < numHorizontal; j++) {
 		        double x = numHorizontal <= 1 ? region.getMinX() + region.getWidth()/2.0 : region.getMinX() + diameterPixels / 2 + xSpacing * j;
 		        double y = numVertical <= 1 ? region.getMinY() + region.getHeight()/2.0 : region.getMinY() + diameterPixels / 2 + ySpacing * i;
-		        cores.add(PathObjects.createTMACoreObject(x, y, diameterPixels, false, region.getPlane()));
+		        cores.add(PathObjects.createTMACoreObject(x, y, diameterPixels, false, region.getImagePlane()));
 		    }
 		}
 		// Create & set the grid

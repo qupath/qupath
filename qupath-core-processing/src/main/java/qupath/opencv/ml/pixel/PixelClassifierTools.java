@@ -402,7 +402,7 @@ public class PixelClassifierTools {
 			var labelMap = labels;
 			pathObjects.addAll(
 					geometryMap.entrySet().parallelStream()
-						.flatMap(e -> geometryToObjects(e.getValue(), creator, labelMap.get(e.getKey()), minAreaPixels, minHoleAreaPixels, doSplit, regionRequest.getPlane()).stream())
+						.flatMap(e -> geometryToObjects(e.getValue(), creator, labelMap.get(e.getKey()), minAreaPixels, minHoleAreaPixels, doSplit, regionRequest.getImagePlane()).stream())
 						.collect(Collectors.toList())
 						);
 			

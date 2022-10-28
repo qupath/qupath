@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -40,6 +40,8 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Random;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -47,10 +49,12 @@ import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.prep.PreparedGeometry;
 import org.locationtech.jts.geom.prep.PreparedGeometryFactory;
 import org.locationtech.jts.geom.util.AffineTransformation;
+import org.locationtech.jts.shape.random.RandomPointsBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.awt.common.AwtTools;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.geom.ImmutableDimension;
 import qupath.lib.geom.Point2;
 import qupath.lib.regions.ImagePlane;
@@ -1101,6 +1105,151 @@ public class RoiTools {
 
 		return polyOutput;
 	}
+	
+	
+	/**
+	 * Create a randomly-located rectangle ROI with the specified width and height, constrained to fall within the provided mask region.
+	 * @param mask region defining the area in which the rectangle can be located, including the image plane information
+	 * @param width width of the rectangle to create
+	 * @param height height of the rectangle to create
+	 * @return a rectangle with the specified width and height, covered by the mask
+	 * @throws IllegalArgumentException if either the mask width or height is too small for the requested width and height
+	 */
+	public static ROI createRandomRectangle(ImageRegion mask, double width, double height) throws IllegalArgumentException {
+		return createRandomRectangle(mask, width, height, null);
+	}
+
+	/**
+	 * Create a randomly-located rectangle ROI with the specified width and height, constrained to fall within the provided mask region.
+	 * @param mask region defining the area in which the rectangle can be located, including the image plane information
+	 * @param width width of the rectangle to create
+	 * @param height height of the rectangle to create
+	 * @param random random number generator to use (may be null to use a default)
+	 * @return a rectangle with the specified width and height, covered by the mask
+	 * @throws IllegalArgumentException if either the mask width or height is too small for the requested width and height
+	 */
+	public static ROI createRandomRectangle(ImageRegion mask, double width, double height, Random random) throws IllegalArgumentException {
+		Objects.requireNonNull(mask, "Cannot create random rectangle - region mask must not be null");
+		if (mask.getWidth() < width || mask.getHeight() < height)
+			throw new IllegalArgumentException(
+					"Cannot create random rectangle - region mask " + mask + " is too small to create a " + 
+							GeneralTools.formatNumber(width, 2) + " x " + GeneralTools.formatNumber(height, 2) + " region");
+		
+		if (random == null)
+			random = new Random();
+		double x = width == mask.getWidth() ? 0 : mask.getMinX() + random.nextDouble(mask.getWidth() - width);
+		double y = height == mask.getHeight() ? 0 : mask.getMinY() + random.nextDouble(mask.getHeight() - height);
+		return ROIs.createRectangleROI(x, y, width, height, mask.getImagePlane());
+	}
+	
+	/**
+	 * Create a randomly-located rectangle ROI with the specified width and height, constrained to fall within the provided mask ROI.
+	 * <p>
+	 * For greater control, see {@link #createRandomRectangle(ROI, double, double, int, boolean, Random)}.
+	 * 
+	 * @param mask region defining the area in which the rectangle can be located, including the image plane information
+	 * @param width width of the rectangle to create
+	 * @param height height of the rectangle to create
+	 * @return a rectangle with the specified width and height and covered by the mask, or null if it was not possible to find a rectangle 
+	 *         that meets this criterion
+	 * @throws IllegalArgumentException if either the mask width or height is too small for the requested width and height
+	 * @see #createRandomRectangle(ROI, double, double, int, boolean, Random)
+	 */
+	public static ROI createRandomRectangle(ROI mask, double width, double height) throws IllegalArgumentException {
+		return createRandomRectangle(mask, width, height, 1000, true, null);
+	}
+	
+	/**
+	 * Create a randomly-located rectangle ROI with the specified width and height, constrained to fall within the provided mask ROI, 
+	 * using a specified maximum number of attempts.
+	 * 
+	 * @param mask region defining the area in which the rectangle can be located, including the image plane information
+	 * @param width width of the rectangle to create
+	 * @param height height of the rectangle to create
+	 * @param maxAttempts the maximum number of attempts to make when attempting to fit the rectangle within the ROI
+	 * @param permitErosion optionally make an additional attempt to locate a rectangle by eroding the mask and using the remaining 
+	 *                      region. For a non-square rectangle, this uses the length of the longest side for erosion - and therefore 
+	 *                      may exclude some possible rectangles from consideration.
+	 * @param random random number generator to use for the initial attempts (may be null to use a default)
+	 * @return a rectangle with the specified width and height and covered by the mask, or null if it was not possible to find a rectangle 
+	 *         that meets this criterion
+	 * @throws IllegalArgumentException if either the mask width or height is too small for the requested width and height
+	 * @see #createRandomRectangle(ROI, double, double)
+	 * @implNote The initial effort generates nAttempts randomly-located rectangles within the ROI bounding box, and checks each to see if it 
+	 *           falls completely within the ROI itself or not. A future implementation might use a smarter method that better handles cases 
+	 *           where most of the bounding box is not part of the ROI.
+	 */
+	public static ROI createRandomRectangle(ROI mask, double width, double height, int maxAttempts, boolean permitErosion, Random random) throws IllegalArgumentException {
+		Objects.requireNonNull(mask, "Cannot create random rectangle - region mask must not be null");
+		if (mask.getBoundsWidth() < width || mask.getBoundsHeight() < height || mask.getArea() < width * height)
+			throw new IllegalArgumentException(
+					"Cannot create random rectangle - region mask " + mask + " is too small to create a " + 
+							GeneralTools.formatNumber(width, 2) + " x " + GeneralTools.formatNumber(height, 2) + " region");
+
+		if (random == null)
+			random = new Random();
+
+		// Get prepared geometry just in case it's a complex region
+		var geometry = mask.getGeometry();
+		var prepared = PreparedGeometryFactory.prepare(geometry);
+		boolean success = false;
+		double x = 0;
+		double y = 0;
+		for (int i = 0; i < maxAttempts; i++) {
+			if (width == mask.getBoundsWidth())
+				x = mask.getBoundsX();
+			else
+				x = mask.getBoundsX() + random.nextDouble(mask.getBoundsWidth() - width);
+			if (height == mask.getBoundsHeight())
+				y = mask.getBoundsY();
+			else
+				y = mask.getBoundsY() + random.nextDouble(mask.getBoundsHeight() - height);
+			var rect = GeometryTools.createRectangle(x, y, width, height);
+			if (prepared.covers(rect)) {
+				success = true;
+				break;
+			}
+		}
+		
+		if (!success && permitErosion) {
+			// If we are creating a square, we can try eroding the geometry and finding a random point 
+			// within what's left - as a more expensive way of finding a point inside
+			try {
+				// We need to erode by half the length of the square's diagonal
+				double erode = Math.sqrt(2) * Math.max(width/2.0, height/2.0);
+				var geometrySmaller = geometry.buffer(-erode);
+				if (!geometrySmaller.isEmpty()) {
+					var builder = new RandomPointsBuilder(geometrySmaller.getFactory());
+					builder.setExtent(geometrySmaller);
+					builder.setNumPoints(1);
+					var points = builder.getGeometry();
+					var c = points.getCoordinate();
+					x = c.getX() - width/2.0;
+					y = c.getY() - height/2.0;
+					var rect = GeometryTools.createRectangle(x, y, width, height);
+					if (prepared.covers(rect)) {
+						if (GeneralTools.almostTheSame(width, height, 0.001))
+							logger.debug("Creating square region with RandomPointsBuilder");
+						else
+							logger.warn("Creating non-square region with RandomPointsBuilder - this will be constrained to the center of the ROI based on the largest side length (i.e. requested width or height)");
+						success = true;
+					} else {
+						logger.warn("Can't created random region - the one created with RandomPointsBuilder was not covered by the original ROI! This is unexpected...");
+					}
+				}
+			} catch (Exception e) {
+				logger.warn(e.getLocalizedMessage(), e);
+			}
+		}
+		if (!success) {
+			logger.warn("Unable to find a large enough random region within the selected object after {} attempts, sorry", maxAttempts);
+			return null;						
+		}
+		return ROIs.createRectangleROI(x, y, width, height, mask.getImagePlane());
+	}
+	
+	
+	
 
 	static PolygonROI[][] splitAreaToPolygons(final ROI pathROI) {
 		return splitAreaToPolygons(getArea(pathROI), pathROI.getC(), pathROI.getZ(), pathROI.getT());
