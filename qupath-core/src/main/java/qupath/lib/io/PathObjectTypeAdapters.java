@@ -269,21 +269,26 @@ class PathObjectTypeAdapters {
 			Integer color = value.getColor();
 			if (color != null) {
 				out.name("color");
-				out.beginArray();
-				out.value(ColorTools.red(color));
-				out.value(ColorTools.green(color));
-				out.value(ColorTools.blue(color));
-				out.endArray();
+				out.jsonValue(String.format("[%d, %d, %d]", ColorTools.red(color), ColorTools.green(color), ColorTools.blue(color)));
+//				out.beginArray();
+//				out.value(ColorTools.red(color));
+//				out.value(ColorTools.green(color));
+//				out.value(ColorTools.blue(color));
+//				out.endArray();
 			}
 			
+			// Write classification
 			PathClass pathClass = value.getPathClass();
 			if (pathClass != null) {
 				out.name("classification");
 				PathClassTypeAdapter.INSTANCE.write(out, pathClass);
 			}
 			
-			out.name("isLocked");
-			out.value(value.isLocked());
+			// Write locked status only if locked
+			if (value.isLocked()) {
+				out.name("isLocked");
+				out.value(true);
+			}
 			
 			if (value instanceof TMACoreObject) {
 				out.name("isMissing");
@@ -392,6 +397,7 @@ class PathObjectTypeAdapters {
 									);
 					}
 				}
+				
 				if (properties.has("classification")) {
 					pathClass = PathClassTypeAdapter.INSTANCE.fromJsonTree(properties.get("classification"));
 				}

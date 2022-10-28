@@ -25,6 +25,7 @@ import java.awt.geom.AffineTransform;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -50,6 +51,7 @@ import qupath.lib.io.PathObjectTypeAdapters.FeatureCollection;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
+import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.interfaces.ROI;
 
@@ -352,11 +354,37 @@ public class GsonTools {
 				// Write in the default way
 				gson.toJson(value, PathClass.class, out);				
 			} else {
-				// Write in a simplified way, with toString() and an array of RGB values
-				var proxy = new PathClassProxy();
-				proxy.name = value.toString();
-				proxy.color = rgbToArray(value.getColor());
-				gson.toJson(proxy, PathClassProxy.class, out);	
+				out.beginObject();
+				var names = PathClassTools.splitNames(value);
+				if (names.size() == 1) {
+					out.name("name");
+					out.value(names.get(0));
+				} else {
+					out.name("names");
+					out.beginArray();
+					for (var name : names)
+						out.value(name);					
+					out.endArray();
+				}
+				var color = value.getColor();
+				if (color != null) {
+					out.name("color");
+					var alpha = ColorTools.alpha(color);
+					if (alpha != 0 && alpha != 255)
+						out.jsonValue(String.format("[%d, %d, %d, %d]", ColorTools.red(color), ColorTools.green(color), ColorTools.blue(color), ColorTools.alpha(color)));
+					else
+						out.jsonValue(String.format("[%d, %d, %d]", ColorTools.red(color), ColorTools.green(color), ColorTools.blue(color)));
+				}
+				out.endObject();
+				
+//				// Write in a simplified way, with toString() and an array of RGB values
+//				var proxy = new PathClassProxy();
+//				if (names.size() == 1)
+//					proxy.name = names.get(0);
+//				else
+//					proxy.names = names;
+//				proxy.color = rgbToArray(value.getColor());
+//				gson.toJson(proxy, PathClassProxy.class, out);	
 			}
 		}
 
@@ -378,18 +406,17 @@ public class GsonTools {
 				JsonObject pathClassObject = gson.fromJson(in, JsonObject.class);	
 				// Check if we have just serialized in the default way (with the usual private field name for color)
 				// This also should be used with PathClass.NULL_CLASS (which has an empty object)
+				// (It was the method used before v0.4.0)
 				if (pathClassObject.size() == 0 || pathClassObject.has("colorRGB") || pathClassObject.has("parentClass")) {
 					// Read in the default way, then replace with a singleton instance
 					PathClass pathClass = gson.fromJson(pathClassObject, PathClass.class);
 					return PathClass.getSingleton(pathClass);					
 				}
-				
 				// Check if we have a proxy object
-				if (pathClassObject.has("name")) {
+				if ((pathClassObject.has("name") || pathClassObject.has("names")) && pathClassObject.has("color")) {
 					PathClassProxy proxy = gson.fromJson(pathClassObject, PathClassProxy.class);
 					return proxy.getPathClass();
 				}
-				
 			}
 			throw new JsonParseException("Unable to parse PathClass from " + in);
 		}
@@ -397,13 +424,17 @@ public class GsonTools {
 		
 		private static class PathClassProxy {
 			
+			private List<String> names;
 			private String name;
 			private int[] color;
 			
 			private PathClass getPathClass() {
-				if (name == null)
-					return null;
-				Integer rgb = arrayToRgb(color);
+				Integer rgb = color == null ? null : arrayToRgb(color);
+				if (name == null) {
+					if (names == null || names.isEmpty())
+						return null;
+					return PathClass.fromCollection(names, rgb);
+				}
 				return PathClass.fromString(name, rgb);
 			}
 			
@@ -437,9 +468,14 @@ public class GsonTools {
 	private static Integer arrayToRgb(int[] rgb) {
 		if (rgb == null || rgb.length == 0)
 			return null;
-		if (rgb.length < 3)
+		if (rgb.length == 1)
 			return rgb[0];
-		return ColorTools.packRGB(rgb[0], rgb[1], rgb[2]);
+		if (rgb.length == 3)
+			return ColorTools.packRGB(rgb[0], rgb[1], rgb[2]);
+		if (rgb.length == 4)
+			// Alpha last in the array!
+			return ColorTools.packARGB(rgb[3], rgb[0], rgb[1], rgb[2]);
+		throw new IllegalArgumentException("RGB array should have length 0, 1, 3 or 4 - not " + rgb.length);
 	}
 	
 	
