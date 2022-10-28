@@ -789,7 +789,7 @@ public class WatershedCellMembraneDetection extends AbstractTileableDetectionPlu
 			// TODO: Set the measurement capacity to improve efficiency
 			List<PathObject> nucleiObjects = new ArrayList<>();
 			Calibration cal = pathImage.getImage().getCalibration();
-			ImagePlane plane = pathImage.getImageRegion().getPlane();
+			ImagePlane plane = pathImage.getImageRegion().getImagePlane();
 			for (int i = 0; i < roisNuclei.size(); i++) {
 				PolygonRoi r = roisNuclei.get(i);
 				

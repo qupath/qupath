@@ -258,7 +258,7 @@ public class SimpleThresholding {
 				roiIJ,
 				-request.getX()/request.getDownsample(),
 				-request.getY()/request.getDownsample(),
-				request.getDownsample(), request.getPlane());
+				request.getDownsample(), request.getImagePlane());
 	}
 
 	static ROI thresholdToROI(ImageProcessor ip, TileRequest request) {
@@ -285,7 +285,7 @@ public class SimpleThresholding {
 				roiIJ,
 				-request.getTileX(),
 				-request.getTileY(),
-				request.getDownsample(), request.getPlane());
+				request.getDownsample(), request.getImagePlane());
 	}
 	
 }

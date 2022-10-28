@@ -548,6 +548,8 @@ public final class PathObjectHierarchy implements Serializable {
 	 * @return
 	 */
 	public synchronized boolean addPathObjectBelowParent(PathObject pathObjectParent, PathObject pathObject, boolean fireUpdate) {
+		if (pathObjectParent == pathObject)
+			throw new IllegalArgumentException("Cannot add a PathObject as a descendent of itself!");
 		if (pathObjectParent == null)
 			return addPathObject(pathObject, fireUpdate);
 		else

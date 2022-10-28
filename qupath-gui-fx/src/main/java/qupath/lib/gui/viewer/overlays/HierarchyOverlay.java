@@ -206,7 +206,7 @@ public class HierarchyOverlay extends AbstractOverlay {
 									g2d,
 									imageData.isFluorescence() ? ColorToolsAwt.TRANSLUCENT_WHITE : ColorToolsAwt.TRANSLUCENT_BLACK,
 											downsampleFactor,
-											imageRegion.getPlane());
+											imageRegion.getImagePlane());
 				}
 				
 			} else {					

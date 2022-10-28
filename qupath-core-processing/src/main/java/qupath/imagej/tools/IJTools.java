@@ -1013,7 +1013,7 @@ public class IJTools {
 			cal = pathImage.getImage().getCalibration();
 			downsampleFactor = pathImage.getDownsampleFactor();
 		}
-		return convertToROI(roi, cal, downsampleFactor, region.getPlane());	
+		return convertToROI(roi, cal, downsampleFactor, region.getImagePlane());	
 	}
 
 	/**

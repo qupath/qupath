@@ -216,7 +216,7 @@ public class DetectCytokeratinCV extends AbstractDetectionPlugin<BufferedImage> 
 					areaTissue.intersect(areaROI);
 
 				if (!areaTissue.isEmpty()) {
-					ROI roiTissue = RoiTools.getShapeROI(areaTissue, request.getPlane());
+					ROI roiTissue = RoiTools.getShapeROI(areaTissue, request.getImagePlane());
 					roiTissue = ShapeSimplifier.simplifyShape(roiTissue, simplifyAmount);
 					pathObjects.add(PathObjects.createAnnotationObject(roiTissue, PathClass.StandardPathClasses.STROMA));
 				}
@@ -227,7 +227,7 @@ public class DetectCytokeratinCV extends AbstractDetectionPlugin<BufferedImage> 
 					areaDAB.intersect(areaROI);
 
 				if (!areaDAB.isEmpty()) {
-					ROI roiDAB = RoiTools.getShapeROI(areaDAB, request.getPlane());
+					ROI roiDAB = RoiTools.getShapeROI(areaDAB, request.getImagePlane());
 					roiDAB = ShapeSimplifier.simplifyShape(roiDAB, simplifyAmount);
 					pathObjects.add(PathObjects.createAnnotationObject(roiDAB, PathClass.StandardPathClasses.TUMOR));
 				}

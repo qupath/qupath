@@ -856,7 +856,7 @@ public class TileExporter  {
 			int y2 = GeneralTools.clipValue(request.getMaxY(), 0, server.getHeight());
 			
 			double downsample = request.getDownsample();
-			var request2 = RegionRequest.createInstance(server.getPath(), downsample, x, y, x2-x, y2-y, request.getPlane());
+			var request2 = RegionRequest.createInstance(server.getPath(), downsample, x, y, x2-x, y2-y, request.getImagePlane());
 			
 			img = server.readRegion(request2);
 			

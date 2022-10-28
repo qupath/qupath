@@ -635,7 +635,7 @@ public class ContourTracing {
 	 */
 	public static ROI createTracedROI(Raster raster, double minThresholdInclusive, double maxThresholdInclusive, int band, RegionRequest request) {
 		var geom = createTracedGeometry(raster, minThresholdInclusive, maxThresholdInclusive, band, request);
-		return GeometryTools.geometryToROI(geom, request == null ? ImagePlane.getDefaultPlane() : request.getPlane());
+		return GeometryTools.geometryToROI(geom, request == null ? ImagePlane.getDefaultPlane() : request.getImagePlane());
 	}
 	
 	/**
@@ -651,7 +651,7 @@ public class ContourTracing {
 	 */
 	public static ROI createTracedROI(SimpleImage image, double minThresholdInclusive, double maxThresholdInclusive, RegionRequest request) {
 		var geom = createTracedGeometry(image, minThresholdInclusive, maxThresholdInclusive, request);
-		return geom == null ? null : GeometryTools.geometryToROI(geom, request == null ? ImagePlane.getDefaultPlane() : request.getPlane());
+		return geom == null ? null : GeometryTools.geometryToROI(geom, request == null ? ImagePlane.getDefaultPlane() : request.getImagePlane());
 	}
 	
 	

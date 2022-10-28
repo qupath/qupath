@@ -707,7 +707,7 @@ public class DnnTools {
 			}
 
 			double downsample = request == null ? 1.0 : request.getDownsample();
-			ImagePlane plane = request == null ? ImagePlane.getDefaultPlane() : request.getPlane();
+			ImagePlane plane = request == null ? ImagePlane.getDefaultPlane() : request.getImagePlane();
 			double xOrigin = request == null ? 0 : request.getX();
 			double yOrigin = request == null ? 0 : request.getY();
 
@@ -784,7 +784,7 @@ public class DnnTools {
 			if (mask == null || mask.contains(x, y))
 				points.add(new Point2(x, y));
 		}
-		return ROIs.createPointsROI(points, request.getPlane());
+		return ROIs.createPointsROI(points, request.getImagePlane());
 	}
 	
 	

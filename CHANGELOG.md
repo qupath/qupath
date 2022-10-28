@@ -11,6 +11,7 @@ This is a work-in-progress.
   * All objects can now have IDs
     * This aims to make it much easier to match up objects whenever some further analysis is done elsewhere (e.g. classification or clustering in Python or R)
     * See https://github.com/qupath/qupath/pull/959
+  * Much improved scripting support for classifications and measurements (https://github.com/qupath/qupath/pull/1094)
 * Support user styling via CSS (https://github.com/qupath/qupath/pull/1063)
 * Many script editor improvements, including:
   * Syntax highlighting for Markdown, JSON, YAML and XML documents
@@ -98,6 +99,8 @@ This is a work-in-progress.
 * Support passing arguments via a map to `runPlugin`, rather than only a JSON-encoded String
 * Add `difference`, `symDifference` and `subtract` methods to `RoiTools` (https://github.com/qupath/qupath/issues/995)
 * Add `ROI.updatePlane(plane)` method to move a ROI to a different z-slice or timepoint (https://github.com/qupath/qupath/issues/1052)
+* 'Classify -> Training images -> Create region annotations' supports adding regions in a selected annotation
+  * `RoiTools.createRandomRectangle()` methods created for scripting
 
 ### Bugs fixed
 * Reading from Bio-Formats blocks forever when using multiple series outside a project (https://github.com/qupath/qupath/issues/894)
