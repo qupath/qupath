@@ -17,6 +17,8 @@ task mergedJavadocs(type: Javadoc,
 	// See https://docs.gradle.org/current/javadoc/org/gradle/external/javadoc/StandardJavadocDocletOptions.html
 	options.author(true)
 	options.addStringOption('Xdoclint:none', '-quiet')
+	
+	options.encoding = 'UTF-8'
 
 	options.links 'https://docs.oracle.com/en/java/javase/11/docs/api/'
 	options.links 'https://openjfx.io/javadoc/19/'
