@@ -96,9 +96,7 @@ public abstract class PathObject implements Externalizable {
 	/**
 	 * Default constructor. Used for Externalizable support, not intended to be used by other consumers.
 	 */
-	public PathObject() {
-		id = UUID.randomUUID();
-	}
+	public PathObject() {}
 	
 	/**
 	 * Request the parent object. Each PathObject may have only one parent.
@@ -920,6 +918,15 @@ public abstract class PathObject implements Externalizable {
 	 * @see #updateId()
 	 */
 	public UUID getId() {
+		// Make extra sure we always have an ID when requested
+		if (id == null) {
+			synchronized (this) {
+				if (id == null) {
+					logger.debug("Generating a new UUID on request");
+					id = UUID.randomUUID();
+				}
+			}
+		}
 		return id;
 	}
 	
