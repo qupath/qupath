@@ -865,7 +865,7 @@ public final class PathClass implements Comparable<PathClass>, Serializable {
 	/**
 	 * Accept any letter (including from different languages), numbers, 
 	 */
-	private static final Pattern PATTERN_NAME = Pattern.compile("[\\w\\p{L}\\d\\p{Punct}]+");
+	private static final Pattern PATTERN_NAME = Pattern.compile("[\\w\\p{L}\\d\\p{Punct} ]+");
 	
 	private static String validateNameCharacters(String name, boolean exceptOnFail) {
 		if (name.contains(DELIMITER))
