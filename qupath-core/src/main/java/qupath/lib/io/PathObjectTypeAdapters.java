@@ -47,9 +47,11 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.TypeAdapter;
 import com.google.gson.stream.JsonReader;
+import com.google.gson.stream.JsonToken;
 import com.google.gson.stream.JsonWriter;
 
 import qupath.lib.common.ColorTools;
+import qupath.lib.common.LogTools;
 import qupath.lib.io.GsonTools.PathClassTypeAdapter;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.measurements.MeasurementList.MeasurementListType;
@@ -70,6 +72,7 @@ class PathObjectTypeAdapters {
 	
 	static Gson gson = new GsonBuilder()
 			.setLenient()
+			.serializeSpecialFloatingPointValues()
 			.create();
 		
 	
@@ -83,6 +86,14 @@ class PathObjectTypeAdapters {
 		
 		public Collection<? extends PathObject> getPathObjects() {
 			return pathObjects;
+		}
+		
+	}
+	
+	static class HierarchyFeatureCollection extends FeatureCollection {
+		
+		HierarchyFeatureCollection(Collection<? extends PathObject> pathObjects) {
+			super(pathObjects);
 		}
 		
 	}
@@ -130,10 +141,18 @@ class PathObjectTypeAdapters {
 	
 	static class PathObjectCollectionTypeAdapter extends TypeAdapter<FeatureCollection> {
 		
-		static PathObjectCollectionTypeAdapter INSTANCE = new PathObjectCollectionTypeAdapter();
-		
+		static PathObjectCollectionTypeAdapter INSTANCE = new PathObjectCollectionTypeAdapter(PathObjectTypeAdapter.INSTANCE);
+
+		static PathObjectCollectionTypeAdapter INSTANCE_HIERARCHY = new PathObjectCollectionTypeAdapter(PathObjectTypeAdapter.INSTANCE_HIERARCHY);
+
 		static Type TYPE = new TypeToken<Collection<PathObject>>() {}.getType();	
 
+		private PathObjectTypeAdapter adapter;
+		
+		private PathObjectCollectionTypeAdapter(PathObjectTypeAdapter adapter) {
+			this.adapter = adapter;
+		}
+		
 		@Override
 		public void write(JsonWriter out, FeatureCollection value) throws IOException {
 			out.beginObject();
@@ -143,8 +162,9 @@ class PathObjectTypeAdapters {
 
 			out.name("features");
 			out.beginArray();
-			for (PathObject pathObject : value.getPathObjects())
-				PathObjectTypeAdapter.INSTANCE.write(out, pathObject);
+			for (PathObject pathObject : value.getPathObjects()) {
+				adapter.write(out, pathObject);
+			}
 			out.endArray();
 
 			out.endObject();
@@ -154,11 +174,20 @@ class PathObjectTypeAdapters {
 		public FeatureCollection read(JsonReader in) throws IOException {
 			List<PathObject> list = new ArrayList<>();
 			
-			JsonObject obj = gson.fromJson(in, JsonObject.class);
-			if (obj.has("features") && obj.get("features").isJsonArray()) {
-				JsonArray array = obj.get("features").getAsJsonArray();
+			JsonArray array = null;
+			var token = in.peek();
+			if (token == JsonToken.BEGIN_ARRAY) {
+				array = gson.fromJson(in, JsonArray.class);
+			} else {
+				JsonObject obj = gson.fromJson(in, JsonObject.class);
+				if (obj.has("features") && obj.get("features").isJsonArray()) {
+					array = obj.get("features").getAsJsonArray();
+				}
+			}
+			
+			if (array != null) {
 				for (JsonElement element : array) {
-					list.add(PathObjectTypeAdapter.INSTANCE.fromJsonTree(element));
+					list.add(adapter.fromJsonTree(element));
 				}
 			}
 			return new FeatureCollection(list);
@@ -189,7 +218,15 @@ class PathObjectTypeAdapters {
 		
 		private static final Logger logger = LoggerFactory.getLogger(PathObjectTypeAdapter.class);
 		
-		static PathObjectTypeAdapter INSTANCE = new PathObjectTypeAdapter();
+		/**
+		 * Get an instance that serializes a 'flat' object, ignoring child objects
+		 */
+		static PathObjectTypeAdapter INSTANCE = new PathObjectTypeAdapter(false);
+		
+		/**
+		 * Get an instance that serializes the object hierarchy - which means including child objects
+		 */
+		static PathObjectTypeAdapter INSTANCE_HIERARCHY = new PathObjectTypeAdapter(true);
 		
 		/**
 		 * In v0.2 we unwisely stored object type in an "id" property.
@@ -208,12 +245,19 @@ class PathObjectTypeAdapters {
 				PathCellObject.class, "cell",
 				PathDetectionObject.class, "detection",
 				PathAnnotationObject.class, "annotation",
-				TMACoreObject.class, "tma_core",
+				TMACoreObject.class, "tmaCore",
 				PathRootObject.class, "root"
 				);
 		
 		
 		private boolean flattenProperties = false;
+		
+		private boolean doHierarchy = false;
+		
+		private PathObjectTypeAdapter(boolean doHierarchy) {
+			this.doHierarchy = doHierarchy;
+		}
+		
 
 		@Override
 		public void write(JsonWriter out, PathObject value) throws IOException {
@@ -251,7 +295,8 @@ class PathObjectTypeAdapters {
 			
 			String objectType = MAP_TYPES.getOrDefault(value.getClass(), null);
 			if (objectType != null) {
-				out.name("object_type");
+//				out.name("object_type"); // Switch to camelCase consistently
+				out.name("objectType");
 				out.value(objectType);
 			} else {
 				logger.warn("Unknown object type {}", value.getClass().getSimpleName());
@@ -266,21 +311,26 @@ class PathObjectTypeAdapters {
 			Integer color = value.getColor();
 			if (color != null) {
 				out.name("color");
-				out.beginArray();
-				out.value(ColorTools.red(color));
-				out.value(ColorTools.green(color));
-				out.value(ColorTools.blue(color));
-				out.endArray();
+				out.jsonValue(String.format("[%d, %d, %d]", ColorTools.red(color), ColorTools.green(color), ColorTools.blue(color)));
+//				out.beginArray();
+//				out.value(ColorTools.red(color));
+//				out.value(ColorTools.green(color));
+//				out.value(ColorTools.blue(color));
+//				out.endArray();
 			}
 			
+			// Write classification
 			PathClass pathClass = value.getPathClass();
 			if (pathClass != null) {
 				out.name("classification");
 				PathClassTypeAdapter.INSTANCE.write(out, pathClass);
 			}
 			
-			out.name("isLocked");
-			out.value(value.isLocked());
+			// Write locked status only if locked
+			if (value.isLocked()) {
+				out.name("isLocked");
+				out.value(true);
+			}
 			
 			if (value instanceof TMACoreObject) {
 				out.name("isMissing");
@@ -289,6 +339,8 @@ class PathObjectTypeAdapters {
 			
 			MeasurementList measurements = value.getMeasurementList();
 			if (flattenProperties) {
+				// Flatting properties probably not a good idea!
+				
 				// Add measurements
 				if (!measurements.isEmpty()) {
 					out.name("Measurement count");
@@ -326,6 +378,16 @@ class PathObjectTypeAdapters {
 				}
 			}
 			
+			if (doHierarchy && value.hasChildren()) {
+				out.name("children");
+				out.beginArray();
+				for (var child : value.getChildObjectsAsArray()) {
+					write(out, child);
+//					gson.toJson(child, PathObject.class, out);
+				}
+				out.endArray();
+			}
+			
 			out.endObject();
 	
 			out.endObject();
@@ -335,6 +397,12 @@ class PathObjectTypeAdapters {
 		public PathObject read(JsonReader in) throws IOException {
 			
 			JsonObject obj = gson.fromJson(in, JsonObject.class);
+			
+			return parseObject(obj);
+		}
+			
+			
+		private PathObject parseObject(JsonObject obj) {
 						
 			// Object type (annotation, detection etc.)
 			String type = "unknown";
@@ -366,6 +434,7 @@ class PathObjectTypeAdapters {
 			boolean isLocked = false;
 			String name = null;
 			Integer color = null;
+			List<PathObject> childObjects = null;
 			
 			MeasurementList measurementList = null;
 			JsonObject metadata = null;
@@ -389,6 +458,7 @@ class PathObjectTypeAdapters {
 									);
 					}
 				}
+				
 				if (properties.has("classification")) {
 					pathClass = PathClassTypeAdapter.INSTANCE.fromJsonTree(properties.get("classification"));
 				}
@@ -398,17 +468,29 @@ class PathObjectTypeAdapters {
 				if (properties.has("isLocked") && properties.get("isLocked").isJsonPrimitive()) {
 					isLocked = properties.get("isLocked").getAsBoolean();
 				}
-				if (properties.has("measurements") && properties.get("measurements").isJsonArray()) {
+				if (properties.has("measurements") && (properties.get("measurements").isJsonArray() || properties.get("measurements").isJsonObject())) {
 					measurementList = MeasurementListTypeAdapter.INSTANCE.fromJsonTree(properties.get("measurements"));
 				}
 				if (properties.has("metadata") && properties.get("metadata").isJsonObject()) {
 					metadata = properties.get("metadata").getAsJsonObject();
 				}
-				if (properties.has("object_type")) {
+				if (properties.has("objectType")) {
+					type = properties.get("objectType").getAsString();					
+				} else if (properties.has("object_type")) {
+					LogTools.warnOnce(logger, "PathObject using 'object_type' property - this should be updated to 'objectType'");
 					type = properties.get("object_type").getAsString();
 				} else if (properties.has("type")) {
 					// Allow 'type' to be used as an alias
 					type = properties.get("type").getAsString();
+				}
+				if (properties.has("children") && properties.get("children").isJsonArray()) {
+					var children = properties.get("children").getAsJsonArray();
+					childObjects = new ArrayList<>();
+					for (var child : children) {
+						var childObject = parseObject(child.getAsJsonObject());
+						if (childObject != null)
+							childObjects.add(childObject);
+					}
 				}
 			}
 			ROI roiNucleus = null;
@@ -427,6 +509,7 @@ class PathObjectTypeAdapters {
 				pathObject = PathObjects.createCellObject(roi, roiNucleus, null, null);
 				break;
 			case ("TMACoreObject"):
+			case ("tmaCore"):
 			case ("tma_core"):
 				pathObject = PathObjects.createTMACoreObject(roi.getBoundsX(), roi.getBoundsY(), roi.getBoundsWidth(), roi.getBoundsHeight(), isMissing);
 				break;
@@ -455,7 +538,7 @@ class PathObjectTypeAdapters {
 			if (measurementList != null && !measurementList.isEmpty()) {
 				try (var ml = pathObject.getMeasurementList()) {
 					for (int i = 0; i < measurementList.size(); i++)
-						ml.put(measurementList.getMeasurementName(i), measurementList.getMeasurementValue(i));
+						ml.putAll(measurementList);
 				}
 			}
 			if (pathClass != null)
@@ -467,7 +550,7 @@ class PathObjectTypeAdapters {
 			if (color != null)
 				pathObject.setColor(color);
 			
-			if (isLocked)
+			if (isLocked && !pathObject.isRootObject())
 				pathObject.setLocked(isLocked);
 			
 			if (metadata != null && pathObject instanceof MetadataStore) {
@@ -475,6 +558,9 @@ class PathObjectTypeAdapters {
 					if (entry.getValue().isJsonPrimitive())
 						((MetadataStore)pathObject).putMetadataValue(entry.getKey(), entry.getValue().getAsString());
 			}
+			
+			if (childObjects != null)
+				pathObject.addPathObjects(childObjects);
 			
 			return pathObject;
 		}
@@ -488,30 +574,51 @@ class PathObjectTypeAdapters {
 
 		@Override
 		public void write(JsonWriter out, MeasurementList value) throws IOException {
-			out.beginArray();
-			for (int i = 0; i < value.size(); i++) {
-				out.beginObject();
-				out.name("name");
-				out.value(value.getMeasurementName(i));
-				
-				out.name("value");
-				out.value(value.getMeasurementValue(i));
-				
-				out.endObject();
+			out.beginObject();
+			if (value != null) {
+				for (var entry : value.asMap().entrySet()) {
+					out.name(entry.getKey());
+					out.value(entry.getValue());
+				}				
 			}
-			out.endArray();
+			out.endObject();
+			
+			// Approach used before v0.4.0
+//			out.beginArray();
+//			for (int i = 0; i < value.size(); i++) {
+//				out.beginObject();
+//				out.name("name");
+//				out.value(value.getMeasurementName(i));
+//				
+//				out.name("value");
+//				out.value(value.getMeasurementValue(i));
+//				
+//				out.endObject();
+//			}
+//			out.endArray();
 		}
 
 		@Override
 		public MeasurementList read(JsonReader in) throws IOException {
-			JsonArray array = gson.fromJson(in, JsonArray.class);
-			MeasurementList list = MeasurementListFactory.createMeasurementList(array.size(), MeasurementListType.DOUBLE);
-			for (int i = 0; i < array.size(); i++) {
-				JsonObject obj = array.get(i).getAsJsonObject();
-				list.put(obj.get("name").getAsString(), obj.get("value").getAsDouble());
+			var token = in.peek();
+			if (token == JsonToken.BEGIN_ARRAY) {
+				JsonArray array = gson.fromJson(in, JsonArray.class);
+				MeasurementList list = MeasurementListFactory.createMeasurementList(array.size(), MeasurementListType.DOUBLE);
+				for (int i = 0; i < array.size(); i++) {
+					JsonObject obj = array.get(i).getAsJsonObject();
+					list.put(obj.get("name").getAsString(), obj.get("value").getAsDouble());
+				}
+				list.close();
+				return list;
+			} else if (token == JsonToken.BEGIN_OBJECT) {
+				Map<String, Double> map = gson.fromJson(in, Map.class);
+				MeasurementList list = MeasurementListFactory.createMeasurementList(map.size(), MeasurementListType.DOUBLE);
+				list.putAll(map);
+				list.close();
+				return list;
+			} else {
+				return null;
 			}
-			list.close();
-			return list;
 		}
 		
 	}

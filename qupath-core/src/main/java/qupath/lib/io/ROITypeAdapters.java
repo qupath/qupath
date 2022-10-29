@@ -50,7 +50,9 @@ import com.google.gson.stream.JsonWriter;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.io.GsonTools.ImagePlaneTypeAdapter;
 import qupath.lib.regions.ImagePlane;
+import qupath.lib.roi.EllipseROI;
 import qupath.lib.roi.GeometryTools;
+import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
@@ -74,18 +76,29 @@ class ROITypeAdapters {
 		@Override
 		public void write(JsonWriter out, ROI roi) throws IOException {
 			
-			Geometry geometry = roi.getGeometry();
-			
 			out.beginObject();
-			writeGeometry(geometry, out, numDecimalPlaces);
 			
-			// Write the plane info if it isn't the default
-			ImagePlane plane = roi.getImagePlane();
-			if (!ImagePlane.getDefaultPlane().equals(plane)) {
-				out.name("plane");
-				ImagePlaneTypeAdapter.INSTANCE.write(out, plane);
+			if (roi != null) {
+				Geometry geometry = roi.getGeometry();
+				writeGeometry(geometry, out, numDecimalPlaces);
+				
+				// Write the plane info if it isn't the default
+				ImagePlane plane = roi.getImagePlane();
+				if (!ImagePlane.getDefaultPlane().equals(plane)) {
+					out.name("plane");
+					ImagePlaneTypeAdapter.INSTANCE.write(out, plane);
+				}
+				
+				// Can't represent ellipses properly with GeoJSON, but still want to deserialize them if we can
+				// Rather than use a non-standard ellipse representation, we use a polygon but store a foreign 
+				// member to indicate that this should be treated as an ellipse; the bounding box can then be used 
+				// when reading
+				if (roi instanceof EllipseROI) {
+					out.name("isEllipse");
+					out.value(Boolean.TRUE);
+				}
 			}
-			
+						
 			out.endObject();
 		}
 	
@@ -93,13 +106,29 @@ class ROITypeAdapters {
 		public ROI read(JsonReader in) throws IOException {
 			
 			JsonObject obj = gson.fromJson(in, JsonObject.class);
+			
 			Geometry geometry = parseGeometry(obj, new GeometryFactory());
+			
+			if (geometry == null)
+				return null;
 			
 			ImagePlane plane;
 			if (obj.has("plane"))
 				plane = ImagePlaneTypeAdapter.INSTANCE.fromJsonTree(obj.get("plane"));
 			else
 				plane = ImagePlane.getDefaultPlane();
+			
+			// If we have an ellipse, correct that here
+			if (obj.has("isEllipse") && obj.get("isEllipse").getAsBoolean()) {
+				var envelope = geometry.getEnvelopeInternal();
+				return ROIs.createEllipseROI(
+						envelope.getMinX(),
+						envelope.getMinY(),
+						envelope.getWidth(),
+						envelope.getHeight(),
+						plane);
+			}
+
 			
 			return GeometryTools.geometryToROI(geometry, plane);
 		}
@@ -129,6 +158,9 @@ class ROITypeAdapters {
 	
 	
 	static Geometry parseGeometry(JsonObject obj, GeometryFactory factory) {
+		if (!obj.has("type"))
+			return null;
+		
 		String type = obj.get("type").getAsString();
 		JsonArray coordinates = null;
 		if (obj.has("coordinates"))

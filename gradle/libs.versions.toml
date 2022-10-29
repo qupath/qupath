@@ -13,7 +13,7 @@ groovy-core   = { module = "org.apache.groovy:groovy", version.ref = "groovy" }
 groovy-jsr223 = { module = "org.apache.groovy:groovy-jsr223", version.ref = "groovy" }
 groovy-xml    = { module = "org.apache.groovy:groovy-xml", version.ref = "groovy" }
 
-gson          = { module = "com.google.code.gson:gson", version = "2.9.1" }
+gson          = { module = "com.google.code.gson:gson", version = "2.10" }
 
 # Optionally add GeoJSON support (brings in json-simple as sub-dependency)
 # However, the use of simple-json is troublesome since it brings in an old version of junit
