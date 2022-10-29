@@ -135,25 +135,42 @@ class Menus {
 		public final Action SEP_0 = ActionTools.createSeparator();
 
 		// Copy actions
-		@ActionMenu("Copy to clipboard...>Current viewer")
+
+		@ActionMenu("Copy selected objects to clipboard")
+		@ActionDescription("Copy the contents of the current viewer to the clipboard. " + 
+				"Note that this creates an RGB image, which does not necessarily contain the original pixel values.")
+		@ActionAccelerator("shortcut+c")
+		public final Action COPY_SELECTED_OBJECTS = qupath.createImageDataAction(imageData -> Commands.copyObjectsToClipboard(qupath, imageData));
+//
+		public final Action SEP_00 = ActionTools.createSeparator();
+
+		@ActionMenu("Copy image to clipboard...>Current viewer")
 		@ActionDescription("Copy the contents of the current viewer to the clipboard. " + 
 				"Note that this creates an RGB image, which does not necessarily contain the original pixel values.")
 		public final Action COPY_VIEW = createAction(() -> copyViewToClipboard(qupath, GuiTools.SnapshotType.VIEWER));
 		
 		@ActionDescription("Copy the contents of the main QuPath window to the clipboard. " + 
 				"This ignores any additional overlapping windows and dialog boxes.")
-		@ActionMenu("Copy to clipboard...>Main window content")
+		@ActionMenu("Copy image to clipboard...>Main window content")
 		public final Action COPY_WINDOW = createAction(() -> copyViewToClipboard(qupath, GuiTools.SnapshotType.MAIN_SCENE));
 		
 		@ActionDescription("Copy the area of the screen corresponding to the main QuPath window to the clipboard. " + 
 				"This includes any additional overlapping windows and dialog boxes.")
-		@ActionMenu("Copy to clipboard...>Main window screenshot")
+		@ActionMenu("Copy image to clipboard...>Main window screenshot")
 		public final Action COPY_WINDOW_SCREENSHOT = createAction(() -> copyViewToClipboard(qupath, GuiTools.SnapshotType.MAIN_WINDOW_SCREENSHOT));			
 		
 		@ActionDescription("Make a screenshot and copy it to the clipboard.")
-		@ActionMenu("Copy to clipboard...>Full screenshot")
+		@ActionMenu("Copy image to clipboard...>Full screenshot")
 		public final Action COPY_FULL_SCREENSHOT = createAction(() -> copyViewToClipboard(qupath, GuiTools.SnapshotType.FULL_SCREENSHOT));
 
+		
+		@ActionMenu("Paste")
+		@ActionDescription("Copy the contents of the current viewer to the clipboard. " + 
+				"Note that this creates an RGB image, which does not necessarily contain the original pixel values.")
+		@ActionAccelerator("shortcut+v")
+		public final Action PASTE = createAction(() -> Commands.pasteFromClipboard(qupath));
+
+		
 		public final Action SEP_1 = ActionTools.createSeparator();
 		
 		@ActionMenu("Preferences...")
@@ -407,11 +424,11 @@ class Menus {
 		public final Action SEP_6 = ActionTools.createSeparator();
 
 		@ActionDescription("Import objects from GeoJSON or .qpdata files.")
-		@ActionMenu("Object data...>Import objects")
+		@ActionMenu("Import objects from file")
 		public final Action OBJECT_IMPORT= qupath.createImageDataAction(imageData -> Commands.runObjectImport(qupath, imageData));
 
 		@ActionDescription("Export objects in GeoJSON format to file.")
-		@ActionMenu("Object data...>Export as GeoJSON")
+		@ActionMenu("Export objects as GeoJSON")
 		public final Action EXPORT_GEOJSON = qupath.createImageDataAction(imageData -> Commands.runGeoJsonObjectExport(qupath, imageData));
 		
 		public final Action SEP_7 = ActionTools.createSeparator();

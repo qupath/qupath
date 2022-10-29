@@ -60,6 +60,8 @@ import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.zip.GZIPInputStream;
+import java.util.zip.GZIPOutputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -774,17 +776,25 @@ public class PathIO {
 				return allObjects;
 			}
 		}
-		if (name.endsWith(EXT_JSON) || name.endsWith(EXT_GEOJSON)) {
-			// Prepare template
-			try (var stream = Files.newInputStream(path)) {
-				return readObjectsFromGeoJSON(stream);
+		
+		
+		try (var stream = new BufferedInputStream(Files.newInputStream(path))) {
+			InputStream stream2;
+			// Handle gzip compression
+			if (name.endsWith(EXT_GZIP)) {
+				stream2 = new GZIPInputStream(stream);
+				name = name.substring(0, name.length()-EXT_GZIP.length());
+			} else {
+				stream2 = stream;
+			}
+			if (name.endsWith(EXT_JSON) || name.endsWith(EXT_GEOJSON)) {
+				return readObjectsFromGeoJSON(stream2);
+			}
+			if (name.endsWith(EXT_DATA)) {
+				return new ArrayList<>(readHierarchy(stream2).getRootObject().getChildObjects());	
 			}
 		}
-		if (name.endsWith(EXT_DATA)) {
-			try (var stream = new BufferedInputStream(Files.newInputStream(path))) {
-				return new ArrayList<>(readHierarchy(stream).getRootObject().getChildObjects());	
-			}
-		}
+			
 		logger.debug("Unable to read objects from {}", path.toString());
 		return Collections.emptyList();
 	}
@@ -870,6 +880,8 @@ public class PathIO {
 	}
 	
 	
+	private static String EXT_ZIP = ".zip";
+	private static String EXT_GZIP = ".gz";
 	private static String EXT_JSON = ".json";
 	private static String EXT_GEOJSON = ".geojson";
 	private static String EXT_DATA = ".qpdata";
@@ -883,7 +895,7 @@ public class PathIO {
 	 */
 	public static List<String> getObjectFileExtensions(boolean includeCompressed) {
 		if (includeCompressed)
-			return Arrays.asList(EXT_JSON, EXT_GEOJSON, EXT_DATA, ".zip");
+			return Arrays.asList(EXT_JSON, EXT_GEOJSON, EXT_DATA, EXT_ZIP, EXT_GZIP);
 		else
 			return Arrays.asList(EXT_JSON, EXT_GEOJSON, EXT_DATA);
 	}
@@ -946,6 +958,10 @@ public class PathIO {
 				exportObjectsAsGeoJSON(zos, pathObjects, options);
 				zos.closeEntry();
 			}
+		} else if (name.toLowerCase().endsWith(".gz")) {
+			try (var gzos = new GZIPOutputStream(new BufferedOutputStream(Files.newOutputStream(path)))) {
+				exportObjectsAsGeoJSON(gzos, pathObjects, options);
+			}
 		} else {
 			try (var stream = Files.newOutputStream(path)) {
 				exportObjectsAsGeoJSON(stream, pathObjects, options);
@@ -1000,7 +1016,7 @@ public class PathIO {
 		var ext = GeneralTools.getExtension(path.getFileName().toString()).orElse(null);
 		if (ext == null)
 			return Collections.emptySet();
-		var zipExts = zipExtensions.length == 0 ? Collections.singleton(".zip") : Arrays.stream(zipExtensions).map(z -> z.toLowerCase()).collect(Collectors.toSet());
+		var zipExts = zipExtensions.length == 0 ? Collections.singleton(EXT_ZIP) : Arrays.stream(zipExtensions).map(z -> z.toLowerCase()).collect(Collectors.toSet());
 		ext = ext.toLowerCase();
 		if (zipExts.contains(ext)) {
 			// In case we have more than one compressed file, iterate through each entry
@@ -1017,6 +1033,8 @@ public class PathIO {
 				}
 			}
 			return extensions;
+		} else if (ext.endsWith(".gz")) {
+			return Collections.singleton(ext.substring(0, ext.length()-3));
 		} else {
 			return Collections.singleton(ext);
 		}

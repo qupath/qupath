@@ -60,6 +60,9 @@ import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.control.cell.CheckBoxListCell;
+import javafx.scene.input.Clipboard;
+import javafx.scene.input.ClipboardContent;
+import javafx.scene.input.DataFormat;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
@@ -94,6 +97,7 @@ import qupath.lib.images.servers.ImageServers;
 import qupath.lib.images.servers.ServerTools;
 import qupath.lib.images.writers.ImageWriter;
 import qupath.lib.images.writers.ImageWriterTools;
+import qupath.lib.io.GsonTools;
 import qupath.lib.io.PathIO;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathCellObject;
@@ -1721,12 +1725,49 @@ public class Commands {
 	 * @param imageData
 	 */
 	public static void runObjectImport(QuPathGUI qupath, ImageData<BufferedImage> imageData) {
-		try {
-			ImportObjectsCommand.runObjectImport(qupath);
-		} catch (IOException e) {
-			Dialogs.showErrorNotification("Import error", e.getLocalizedMessage());
+		InteractiveObjectImporter.promptToImportObjectsFromFile(imageData, null);
+	}
+	
+	/**
+	 * Attempt to objects to the system clipboard, if available
+	 * @param qupath
+	 * @param imageData
+	 */
+	public static void copyObjectsToClipboard(QuPathGUI qupath, ImageData<BufferedImage> imageData) {
+		var selected = imageData == null ? null : imageData.getHierarchy().getSelectionModel().getSelectedObjects();
+		if (selected == null || selected.isEmpty())
+			return;
+		var gson = GsonTools.getInstance(false);
+		String json;
+		if (selected.size() == 1) {
+			json = gson.toJson(selected.iterator().next());
+		} else {
+			json = gson.toJson(GsonTools.wrapFeatureCollection(selected));
 		}
-
+		var clipboard = Clipboard.getSystemClipboard();
+		var content = new ClipboardContent();
+		content.putString(json);
+		var format = InteractiveObjectImporter.getGeoJsonDataFormat();
+		if (format != null)
+			content.put(format, json);
+		clipboard.setContent(content);
+	}
+	
+	/**
+	 * Attempt to paste objects from the system clipboard to the current image, if available, 
+	 * or otherwise open the script editor to display any clipboard text.
+	 * @param qupath
+	 */
+	public static void pasteFromClipboard(QuPathGUI qupath) {
+		var imageData = qupath.getImageData();
+		if (imageData != null) {
+			if (InteractiveObjectImporter.promptToPasteObjectsFromClipboard(imageData, true))
+				return;
+		}
+		var text = (String)Clipboard.getSystemClipboard().getContent(DataFormat.PLAIN_TEXT);
+		if (text != null && !text.isEmpty()) {
+			qupath.getScriptEditor().showScript("Clipboard text", text);
+		}
 	}
 
 	/**
