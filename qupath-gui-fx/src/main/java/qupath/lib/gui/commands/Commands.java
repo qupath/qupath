@@ -47,7 +47,6 @@ import org.slf4j.LoggerFactory;
 
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.DoubleProperty;
-import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableDoubleValue;
 import javafx.geometry.Insets;

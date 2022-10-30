@@ -140,6 +140,7 @@ public class DefaultScriptLanguage extends ScriptLanguage implements ExecutableL
 		this.completor = completor;
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
 	public Object execute(ScriptParameters params) throws ScriptException {
 		// Set the current ImageData if we can
@@ -157,11 +158,13 @@ public class DefaultScriptLanguage extends ScriptLanguage implements ExecutableL
 		// Prepend default bindings if we need them
 		String importsString = getImportStatements(params.getDefaultImports()) + getStaticImportStatments(params.getDefaultStaticImports());
 		int extraLines = 0;
+		boolean defaultImportsAvailable = false;
 		if (importsString.isBlank())
 			script2 = script;
 		else {
 			extraLines = importsString.replaceAll("[^\\n]", "").length() + 1; // TODO: Check this
 			script2 = importsString + System.lineSeparator() + script;
+			defaultImportsAvailable = true;
 		}
 		
 		var context = createContext(params);
@@ -183,11 +186,15 @@ public class DefaultScriptLanguage extends ScriptLanguage implements ExecutableL
 			context.setAttribute(ScriptEngine.FILENAME, filename, ScriptContext.ENGINE_SCOPE);
 			
 			result = engine.eval(script2, context);
+			
+			if (params.doUpdateHierarchy() && params.getImageData() != null)
+				params.getImageData().getHierarchy().fireHierarchyChangedEvent(params);
+			
 		} catch (ScriptException e) {
 			
-			// If we have no extra lines, just propagate the exception
-			if (extraLines == 0)
-				throw e;
+//			// If we have no extra lines, just propagate the exception
+//			if (extraLines == 0)
+//				throw e;
 			
 			// If we have extra lines, we'd ideally like to correct the line number in the exception and stack trace
 			try {
@@ -236,7 +243,7 @@ public class DefaultScriptLanguage extends ScriptLanguage implements ExecutableL
 								
 				// Try to interpret the message in a user-friendly way
 				Writer errorWriter = context.getErrorWriter();
-				String extra = tryToInterpretMessage(cause, line - extraLines);
+				String extra = tryToInterpretMessage(cause, line - extraLines, defaultImportsAvailable);
 				if (!extra.isBlank())
 					errorWriter.append(extra);
 				
@@ -270,7 +277,7 @@ public class DefaultScriptLanguage extends ScriptLanguage implements ExecutableL
 	}
 	
 	
-	protected String tryToInterpretMessage(Throwable cause, int line) {
+	protected String tryToInterpretMessage(Throwable cause, int line, boolean defaultImportsAvailable) {
 		
 		String message = cause.getLocalizedMessage();
 		if (message == null || message.isBlank())
@@ -281,18 +288,22 @@ public class DefaultScriptLanguage extends ScriptLanguage implements ExecutableL
 		
 		if (matcher.find()) {
 			String missingClass = matcher.group(1).strip();
-			sb.append("It looks like you have tried to import a class '" + missingClass + "' that doesn't exist\n");
+			sb.append("It looks like you have tried to import a class '" + missingClass + "' that couldn't be found\n");
+			if (!defaultImportsAvailable) {
+				sb.append("Turning on 'Run -> Include default imports' *may* help fix this.\n");
+			}
 			int ind = missingClass.lastIndexOf(".");
 			if (ind >= 0)
 				missingClass = missingClass.substring(ind+1);
 			Class<?> suggestedClass = CONFUSED_CLASSES.get(missingClass);
 			if (suggestedClass != null) {
 				if (line >= 0)
-					sb.append("You should probably remove the broken import statement in your script (around line " + line + ").\n");
-				else
-					sb.append("You should probably remove the broken import statement in your script.\n");
-				sb.append("Then you may want to check 'Run -> Include default imports' is selected, or alternatively add ");
-				sb.append("\n    import " + suggestedClass.getName() + "\nat the start of the script. Full error message below.\n");
+					sb.append("You should probably remove the broken import statement in your script (around line " + line + "), and include\n");
+				else {
+					sb.append("You should probably remove the broken import statement in your script, and include \n");
+				}
+				sb.append("\n    import " + suggestedClass.getName() + "\nat the start of the script.");
+				sb.append("Full error message below.");
 			}
 		}
 
@@ -301,24 +312,19 @@ public class DefaultScriptLanguage extends ScriptLanguage implements ExecutableL
 		if (matcherProperty.find()) {
 			String missingProperty = matcherProperty.group(1).strip();
 			sb.append("It looks like you have tried to access a property '" + missingProperty + "' that doesn't exist\n");
-			int ind = missingProperty.lastIndexOf(".");
-			if (ind >= 0)
-				missingProperty = missingProperty.substring(ind+1);
-			Class<?> suggestedClass = CONFUSED_CLASSES.get(missingProperty);
-			if (suggestedClass != null) {
-				if (!suggestedClass.getSimpleName().equals(missingProperty)) {
-					sb.append("You can try replacing ").append(missingProperty).append(" with ").append(suggestedClass.getSimpleName()).append("\n");
-				}
-				sb.append("You might want to check 'Run -> Include default imports' is selected, or alternatively add ");
-				sb.append("\n    import " + suggestedClass.getName() + "\nat the start of the script. Full error message below.\n");
+			if (!defaultImportsAvailable) {
+				sb.append("This error can sometimes by fixed by turning on 'Run -> Include default imports'.\n");
 			}
+			sb.append("Full error message below.");
 		}
 		
 		// Check if the error was to do with a missing property... which can again be thanks to an import statement
 		var matcherMethod = Pattern.compile("No signature of method").matcher(message);
 		if (matcherMethod.find()) {
 			sb.append("It looks like you have tried to access a method that doesn't exist.\n");
-			sb.append("You might want to check 'Run -> Include default imports' is selected.");
+			if (!defaultImportsAvailable) {
+				sb.append("This error can sometimes by fixed by turning on 'Run -> Include default imports'.\n");
+			}
 		}
 		
 		// Check if the error was to do with a special left quote character
