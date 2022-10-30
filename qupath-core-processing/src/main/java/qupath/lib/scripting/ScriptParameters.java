@@ -56,6 +56,8 @@ public class ScriptParameters {
 	private Project<?> project;
 	private ImageData<?> imageData;
 	
+	private boolean requestHierarchyUpdate = true;
+	
 	private Writer writer;
 	private Writer errorWriter;
 	
@@ -191,6 +193,18 @@ public class ScriptParameters {
 	public List<Class<?>> getDefaultImports() {
 		return defaultImports;
 	}
+	
+	/**
+	 * Request whether to fire an update event for the object hierarchy, if an image data 
+	 * object is available.
+	 * <p>
+	 * The purpose of this is to avoid requiring the caller to fire a hierarchy update as 
+	 * boilerplate at the end of a script.
+	 * @return
+	 */
+	public boolean doUpdateHierarchy() {
+		return requestHierarchyUpdate;
+	}
 
 	/**
 	 * Get default static imports that should be included with the script, where possible.
@@ -233,6 +247,8 @@ public class ScriptParameters {
 		private Writer errorWriter;
 		
 		private String[] args;
+		
+		private boolean requestHierarchyUpdate = true;
 		
 		private int batchSize = 1;
 		private int batchIndex = 0;
@@ -370,6 +386,17 @@ public class ScriptParameters {
 		}
 		
 		/**
+		 * Optionally request a hierarchy update event after running a script
+		 * (default is true for scripts that operate on image data).
+		 * @param requestUpdate
+		 * @return
+		 */
+		public Builder doUpdateHierarchy(boolean requestUpdate) {
+			this.requestHierarchyUpdate = requestUpdate;
+			return this;
+		}
+		
+		/**
 		 * Build the {@link ScriptParameters} with the current options.
 		 * @return
 		 * @throws IllegalArgumentException if neither file nor script are set
@@ -390,6 +417,8 @@ public class ScriptParameters {
 			
 			params.writer = this.writer == null ? new PrintWriter(System.out) : this.writer;
 			params.errorWriter = this.errorWriter == null ? new PrintWriter(System.err) : this.errorWriter;
+			
+			params.requestHierarchyUpdate = this.requestHierarchyUpdate;
 			
 			params.args = this.args;
 			params.batchSize = this.batchSize;

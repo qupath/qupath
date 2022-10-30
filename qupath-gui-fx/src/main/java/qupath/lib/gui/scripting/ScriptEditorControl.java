@@ -24,6 +24,7 @@
 package qupath.lib.gui.scripting;
 
 import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.ReadOnlyIntegerProperty;
 import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.scene.control.ContextMenu;
@@ -130,6 +131,14 @@ public interface ScriptEditorControl<T extends Region>  extends TextAppendable, 
 	public default void requestFollowCaret() {
 		return;
 	}
+	
+	/**
+	 * Property for the current caret position.
+	 * @return
+	 * @see #getCaretPosition()
+	 * @see #positionCaret(int)
+	 */
+	public ReadOnlyIntegerProperty caretPositionProperty();
 	
 	/**
 	 * Set the context menu for the control.

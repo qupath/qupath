@@ -54,6 +54,8 @@ import org.fxmisc.richtext.model.StyleSpansBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import qupath.lib.common.LogTools;
+
 /**
  * Styling to apply to a {@link CodeArea}, based on Markdown syntax.
  * @author Pete Bankhead
@@ -87,6 +89,13 @@ public class MarkdownStyler implements ScriptStyler {
 
 	@Override
 	public StyleSpans<Collection<String>> computeEditorStyles(String text) {
+		
+		// Stop quickly if we have really long lines, which can cause QuPath to freeze
+		int longLine = ScriptStylerTools.DEFAULT_LONG_LINE_LENGTH;
+		if (ScriptStylerTools.containsLongLines(text, longLine)) {
+			LogTools.logOnce(logger, "Text contains lines longer than " + longLine + " - no styling will be applied");
+			return ScriptStylerProvider.getPlainStyling(text);
+		}
 		
 		long startTime = System.currentTimeMillis();
 		var doc = parser.parse(text);

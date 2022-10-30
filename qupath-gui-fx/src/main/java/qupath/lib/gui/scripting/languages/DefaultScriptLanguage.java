@@ -28,6 +28,7 @@ import java.io.IOException;
 import java.io.Writer;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.ConcurrentModificationException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -140,6 +141,7 @@ public class DefaultScriptLanguage extends ScriptLanguage implements ExecutableL
 		this.completor = completor;
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
 	public Object execute(ScriptParameters params) throws ScriptException {
 		// Set the current ImageData if we can
@@ -157,11 +159,13 @@ public class DefaultScriptLanguage extends ScriptLanguage implements ExecutableL
 		// Prepend default bindings if we need them
 		String importsString = getImportStatements(params.getDefaultImports()) + getStaticImportStatments(params.getDefaultStaticImports());
 		int extraLines = 0;
+		boolean defaultImportsAvailable = false;
 		if (importsString.isBlank())
 			script2 = script;
 		else {
 			extraLines = importsString.replaceAll("[^\\n]", "").length() + 1; // TODO: Check this
 			script2 = importsString + System.lineSeparator() + script;
+			defaultImportsAvailable = true;
 		}
 		
 		var context = createContext(params);
@@ -183,11 +187,15 @@ public class DefaultScriptLanguage extends ScriptLanguage implements ExecutableL
 			context.setAttribute(ScriptEngine.FILENAME, filename, ScriptContext.ENGINE_SCOPE);
 			
 			result = engine.eval(script2, context);
+			
+			if (params.doUpdateHierarchy() && params.getImageData() != null)
+				params.getImageData().getHierarchy().fireHierarchyChangedEvent(params);
+			
 		} catch (ScriptException e) {
 			
-			// If we have no extra lines, just propagate the exception
-			if (extraLines == 0)
-				throw e;
+//			// If we have no extra lines, just propagate the exception
+//			if (extraLines == 0)
+//				throw e;
 			
 			// If we have extra lines, we'd ideally like to correct the line number in the exception and stack trace
 			try {
@@ -236,7 +244,7 @@ public class DefaultScriptLanguage extends ScriptLanguage implements ExecutableL
 								
 				// Try to interpret the message in a user-friendly way
 				Writer errorWriter = context.getErrorWriter();
-				String extra = tryToInterpretMessage(cause, line - extraLines);
+				String extra = tryToInterpretMessage(cause, line - extraLines, defaultImportsAvailable);
 				if (!extra.isBlank())
 					errorWriter.append(extra);
 				
@@ -270,29 +278,39 @@ public class DefaultScriptLanguage extends ScriptLanguage implements ExecutableL
 	}
 	
 	
-	protected String tryToInterpretMessage(Throwable cause, int line) {
+	protected String tryToInterpretMessage(Throwable cause, int line, boolean defaultImportsAvailable) {
 		
 		String message = cause.getLocalizedMessage();
-		if (message == null || message.isBlank())
-			return "";
-		
+		if (message == null)
+			message = "";
+
 		var sb = new StringBuilder();
+		
+		if (cause instanceof ConcurrentModificationException) {
+			sb.append("ERROR: ConcurrentModificationException! "
+					+ "This usually happen when two threads try to modify a collection (e.g. a list) at the same time.\n"
+					+ "It might indicate a QuPath bug (or just something wrong in the script).\n");
+		}
+		
 		var matcher = Pattern.compile("unable to resolve class ([A-Za-z_.-]+)").matcher(message);
 		
 		if (matcher.find()) {
 			String missingClass = matcher.group(1).strip();
-			sb.append("It looks like you have tried to import a class '" + missingClass + "' that doesn't exist\n");
+			sb.append("ERROR: It looks like you've tried to import a class '" + missingClass + "' that couldn't be found\n");
+			if (!defaultImportsAvailable) {
+				sb.append("Turning on 'Run -> Include default imports' *may* help fix this.\n");
+			}
 			int ind = missingClass.lastIndexOf(".");
 			if (ind >= 0)
 				missingClass = missingClass.substring(ind+1);
 			Class<?> suggestedClass = CONFUSED_CLASSES.get(missingClass);
 			if (suggestedClass != null) {
 				if (line >= 0)
-					sb.append("You should probably remove the broken import statement in your script (around line " + line + ").\n");
-				else
-					sb.append("You should probably remove the broken import statement in your script.\n");
-				sb.append("Then you may want to check 'Run -> Include default imports' is selected, or alternatively add ");
-				sb.append("\n    import " + suggestedClass.getName() + "\nat the start of the script. Full error message below.\n");
+					sb.append("You should probably remove the broken import statement in your script (around line " + line + "), and include\n");
+				else {
+					sb.append("You should probably remove the broken import statement in your script, and include \n");
+				}
+				sb.append("\n    import " + suggestedClass.getName() + "\nat the start of the script.");
 			}
 		}
 
@@ -300,26 +318,30 @@ public class DefaultScriptLanguage extends ScriptLanguage implements ExecutableL
 		var matcherProperty = Pattern.compile("No such property: ([A-Za-z_.-]+)").matcher(message);
 		if (matcherProperty.find()) {
 			String missingProperty = matcherProperty.group(1).strip();
-			sb.append("It looks like you have tried to access a property '" + missingProperty + "' that doesn't exist\n");
-			int ind = missingProperty.lastIndexOf(".");
-			if (ind >= 0)
-				missingProperty = missingProperty.substring(ind+1);
-			Class<?> suggestedClass = CONFUSED_CLASSES.get(missingProperty);
-			if (suggestedClass != null) {
-				if (!suggestedClass.getSimpleName().equals(missingProperty)) {
-					sb.append("You can try replacing ").append(missingProperty).append(" with ").append(suggestedClass.getSimpleName()).append("\n");
-				}
-				sb.append("You might want to check 'Run -> Include default imports' is selected, or alternatively add ");
-				sb.append("\n    import " + suggestedClass.getName() + "\nat the start of the script. Full error message below.\n");
+			sb.append("ERROR: It looks like you've tried to access a property '" + missingProperty + "' that doesn't exist\n");
+			if (!defaultImportsAvailable) {
+				sb.append("This error can sometimes by fixed by turning on 'Run -> Include default imports'.\n");
 			}
 		}
 		
 		// Check if the error was to do with a missing property... which can again be thanks to an import statement
 		var matcherMethod = Pattern.compile("No signature of method").matcher(message);
 		if (matcherMethod.find()) {
-			sb.append("It looks like you have tried to access a method that doesn't exist.\n");
-			sb.append("You might want to check 'Run -> Include default imports' is selected.");
+			sb.append("ERROR: It looks like you've tried to access a method that doesn't exist.\n");
+			if (!defaultImportsAvailable) {
+				sb.append("This error can sometimes by fixed by turning on 'Run -> Include default imports'.\n");
+			}
 		}
+		
+		// Check for JavaFX thread
+		if (message.contains("Not on FX application thread")) {
+			sb.append("ERROR: The script involves interacting with JavaFX, and should be called on the JavaFX Application thread.\n");			
+			sb.append("You can often fix this by passing your code to 'Platform.runLater()', e.g. in Groovy use \n\n"
+					+ "    Platform.runLater {\n"
+					+ "        // your code\n"
+					+ "    }\n");			
+		}
+		
 		
 		// Check if the error was to do with a special left quote character
 		var matcherQuotationMarks = Pattern.compile("Unexpected input: .*([\\x{2018}|\\x{201c}|\\x{2019}|\\x{201D}]+)' @ line (\\d+), column (\\d+).").matcher(message);
@@ -330,6 +352,7 @@ public class DefaultScriptLanguage extends ScriptLanguage implements ExecutableL
 			sb.append(String.format("At least one invalid quotation mark (%s) was found @ line %s column %s! ", quotationMark, nLine-1, matcherQuotationMarks.group(3)));
 			sb.append(String.format("You can try replacing it with a straight quotation mark (%s).%n", suggestion));
 		}
+		
 		if (sb.length() > 0)
 			sb.append("\n");
 		

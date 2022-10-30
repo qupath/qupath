@@ -29,6 +29,9 @@ import org.fxmisc.flowless.VirtualizedScrollPane;
 import org.fxmisc.richtext.CodeArea;
 
 import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.IntegerProperty;
+import javafx.beans.property.ReadOnlyIntegerProperty;
+import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableValue;
@@ -46,6 +49,8 @@ public class CodeAreaControl implements ScriptEditorControl<VirtualizedScrollPan
 	private VirtualizedScrollPane<CodeArea> scrollpane;
 	private CodeArea textArea;
 	private StringProperty textProperty = new SimpleStringProperty();
+	
+	private ContextMenu contextMenu;
 	
 	CodeAreaControl(boolean isEditable) {
 		this(new CodeArea(), isEditable);
@@ -197,12 +202,35 @@ public class CodeAreaControl implements ScriptEditorControl<VirtualizedScrollPan
 	
 	@Override
 	public void setContextMenu(ContextMenu menu) {
-		textArea.setContextMenu(menu);
+		// Try this approach, because otherwise some styling feeds through to the context menu 
+		// & can look weird (e.g. making it use a monospaced font)
+		this.contextMenu = menu;
+		textArea.setContextMenu(null);
+		textArea.setOnContextMenuRequested(e -> {
+			var popup = textArea.getContextMenu() == null ? contextMenu : textArea.getContextMenu();
+			if (popup != null)
+				popup.show(textArea.getScene().getWindow(), e.getScreenX(), e.getScreenY());
+		});
 	}
 
 	@Override
 	public ContextMenu getContextMenu() {
-		return textArea.getContextMenu();
+		var popup = textArea.getContextMenu();
+		if (popup != null)
+			return popup;
+		return contextMenu;
+	}
+
+	private ReadOnlyIntegerProperty caretReadOnly;
+	
+	@Override
+	public ReadOnlyIntegerProperty caretPositionProperty() {
+		if (caretReadOnly == null) {
+			var caret = new SimpleIntegerProperty();
+			caret.bind(textArea.caretPositionProperty());
+			caretReadOnly = IntegerProperty.readOnlyIntegerProperty(caret);
+		}
+		return caretReadOnly;
 	}
 
 }

@@ -46,6 +46,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import javax.script.ScriptException;
+
 import org.apache.commons.text.StringEscapeUtils;
 import org.controlsfx.control.action.Action;
 import org.controlsfx.dialog.ProgressDialog;
@@ -59,12 +60,15 @@ import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.binding.StringBinding;
 import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
+import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableBooleanValue;
+import javafx.beans.value.ObservableStringValue;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
@@ -172,8 +176,6 @@ public class DefaultScriptEditor implements ScriptEditor {
 
 	private ObjectProperty<ScriptSyntax> currentSyntax = new SimpleObjectProperty<>();
 	
-	
-	
 	private StringProperty timeProperty = new SimpleStringProperty();
 	
 	/**
@@ -220,8 +222,31 @@ public class DefaultScriptEditor implements ScriptEditor {
 	protected Action beautifySourceAction = ActionTools.createAction(this::beautifySource, "Beautify source");
 	protected Action compressSourceAction = ActionTools.createAction(this::compressSource, "Compress source");
 	
+	private IntegerProperty caretPosition = new SimpleIntegerProperty();
+	
 	private StringProperty scriptText = new SimpleStringProperty();
 	private StringProperty selectedScriptText = new SimpleStringProperty();
+	
+	
+	private ObservableStringValue caretPositionText = Bindings.createStringBinding(() -> {
+		String text = scriptText.get();
+		// There's probably a more efficient way to figure out line number and column...
+		int pos = caretPosition.getValue();
+		int lineNumber = 1;
+		int col = pos + 1;
+		if (text != null && pos > 0) {
+			if (pos < text.length())
+				text = text.substring(0, pos);
+			text = text + " ";
+			var lines = text.lines().collect(Collectors.toList());
+			lineNumber = lines.size();
+			col = lines.get(lines.size()-1).length();
+			if (col == 0)
+				col = 1;
+		}
+		return "[" + lineNumber + ":" + col + "]";
+	}, caretPosition, scriptText, selectedScriptText);
+
 	
 	// Binding to indicate it shouldn't be possible to 'Run' any script right now
 	private BooleanBinding disableRun = runningTask.isNotNull()
@@ -344,6 +369,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		selectedScript.addListener((v, o, n) -> {
 			scriptText.unbind();
 			selectedScriptText.unbind();
+			caretPosition.unbind();
 
 			if (n == null || n.getLanguage() == null) {
 				return;
@@ -365,6 +391,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 			}
 			
 			// Sort bindings
+			caretPosition.bind(n.getEditorControl().caretPositionProperty());
 			scriptText.bind(n.getEditorControl().textProperty());
 			selectedScriptText.bind(n.getEditorControl().selectedTextProperty());
 			
@@ -884,8 +911,11 @@ public class DefaultScriptEditor implements ScriptEditor {
 		var popup = new ContextMenu(
 				ActionTools.createMenuItem(runProjectScriptAction),
 				ActionTools.createMenuItem(runProjectScriptNoSaveAction),
+				ActionTools.createMenuItem(runSelectedAction),
 				new SeparatorMenuItem(),
 				ActionTools.createMenuItem(killRunningScriptAction),
+				new SeparatorMenuItem(),
+				ActionTools.createMenuItem(showJavadocsAction),
 				new SeparatorMenuItem(),
 				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(useDefaultBindings, "Include default imports")),
 				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(sendLogToConsole, "Show log in console")),
@@ -894,6 +924,13 @@ public class DefaultScriptEditor implements ScriptEditor {
 				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(clearCache, "Clear cache (batch processing)"))
 				);
 		var btnMore = GuiTools.createMoreButton(popup, Side.RIGHT);
+		
+		var labelPosition = new Label();
+		labelPosition.textProperty().bind(caretPositionText);
+		labelPosition.setOpacity(0.5);
+		labelPosition.setPadding(new Insets(0, 10, 0, 0));
+		labelPosition.setTooltip(new Tooltip("Caret position [line:column]"));
+		
 		
 		var labelRunning = new Label();
 //		labelRunning.textProperty().bind(timeProperty);
@@ -920,11 +957,14 @@ public class DefaultScriptEditor implements ScriptEditor {
 				return "Running: " + timeProperty.get();
 		}, runningTask, timeProperty));
 //		
-		paneRun.add(labelRunning, 0, 0);
+		int col = 0;
+		paneRun.add(labelPosition, col++, 0);
+//		paneRun.add(new Separator(Orientation.VERTICAL), col++, 0);
+		paneRun.add(labelRunning, col++, 0);
 		var paneSpace = new Pane();
-		paneRun.add(paneSpace, 1, 0);
-		paneRun.add(btnRun, 2, 0);
-		paneRun.add(btnMore, 3, 0);
+		paneRun.add(paneSpace, col++, 0);
+		paneRun.add(btnRun, col++, 0);
+		paneRun.add(btnMore, col++, 0);
 		paneRun.setPadding(new Insets(5));
 //		paneRun.setHgap(5.0);
 
@@ -1080,6 +1120,13 @@ public class DefaultScriptEditor implements ScriptEditor {
 				if (stackTrace != null)
 					stackTrace += "\n";
 				errorWriter.append(stackTrace);
+				
+				errorWriter.append("\nFor help interpreting this error, please search the forum at "
+						+ "https://forum.image.sc/tag/qupath\n"
+						+ "You can also start a new discussion there, "
+						+ "including both your script & the messages in this log.");
+
+				
 			} catch (IOException exIO) {
 				logger.error(exIO.getLocalizedMessage(), exIO);
 			}

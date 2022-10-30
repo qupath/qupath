@@ -26,6 +26,7 @@ package qupath.lib.gui.scripting;
 import java.util.Objects;
 
 import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.ReadOnlyIntegerProperty;
 import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.scene.control.ContextMenu;
@@ -188,6 +189,11 @@ public class TextAreaControl implements ScriptEditorControl<TextArea> {
 	@Override
 	public ContextMenu getContextMenu() {
 		return textArea.getContextMenu();
+	}
+	
+	@Override
+	public ReadOnlyIntegerProperty caretPositionProperty() {
+		return textArea.caretPositionProperty();
 	}
 	
 }

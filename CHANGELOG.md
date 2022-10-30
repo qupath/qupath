@@ -33,6 +33,7 @@ This is a work-in-progress.
   * Added `checkMinVersion(version)` and `checkVersionRange(min, max)` methods to block scripts running with the wrong QuPath version
   * Added `Timeit` class to checkpoint & report running times
   * Adapted `getCurrentImageData()` and `getProject()` to return those open in the viewer if not called from a running script (rather than null)
+  * Call `fireHierarchyUpdate()` automatically, so there's no need to remember to add it to many scripts
 * API changes (improvements...)
   * Replaced `ImageServer.readBufferedImage()` with `readRegion()`, and made `RegionRequest` optional
     * Retrieve pixels with `server.readRegion(downsample, x, y, width, height, z, t)` (https://github.com/qupath/qupath/pull/1072)
