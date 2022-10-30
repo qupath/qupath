@@ -61,7 +61,7 @@ markdown      = ["commonmark"]
 
 [plugins]
 # Use the javafx plugin to add modules
-javafx         = { id = 'org.openjfx.javafxplugin', version = '0.0.12' }
+javafx         = { id = 'org.openjfx.javafxplugin', version = '0.0.13' }
 javacpp        = { id = 'org.bytedeco.gradle-javacpp-platform', version = '1.5.7' }
 jpackage       = { id = 'org.beryx.runtime', version = '1.12.7' }
 license-report = { id = 'com.github.jk1.dependency-license-report', version = '2.0' }

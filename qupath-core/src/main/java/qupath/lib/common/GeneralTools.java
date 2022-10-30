@@ -218,6 +218,15 @@ public final class GeneralTools {
 		Objects.requireNonNull(name);
 		var lower = name.toLowerCase();
 		String ext = null;
+		// Handle .gz, which is generally appended after another extension
+		if (lower.endsWith(".gz")) {
+			String previousExt = getExtension(lower.substring(0, lower.length()-3)).orElse(null);
+			if (previousExt == null)
+				return Optional.of(".gz");
+			else
+				return Optional.of(previousExt + ".gz");
+		}
+		
 		for (var temp : DEFAULT_EXTENSIONS) {
 			if (lower.endsWith(temp)) {
 				ext = temp;

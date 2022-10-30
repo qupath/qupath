@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -135,6 +135,15 @@ class Menus {
 		public final Action SEP_0 = ActionTools.createSeparator();
 
 		// Copy actions
+
+		@ActionMenu("Copy to clipboard...>Selected objects")
+		@ActionDescription("Copy the selected objects to the system clipboard as GeoJSON.")
+//		@ActionAccelerator("shortcut+c")
+		public final Action COPY_SELECTED_OBJECTS = qupath.createImageDataAction(imageData -> Commands.copyObjectsToClipboard(qupath, imageData));
+//
+		@ActionMenu("Copy to clipboard...>")
+		public final Action SEP_00 = ActionTools.createSeparator();
+
 		@ActionMenu("Copy to clipboard...>Current viewer")
 		@ActionDescription("Copy the contents of the current viewer to the clipboard. " + 
 				"Note that this creates an RGB image, which does not necessarily contain the original pixel values.")
@@ -154,6 +163,15 @@ class Menus {
 		@ActionMenu("Copy to clipboard...>Full screenshot")
 		public final Action COPY_FULL_SCREENSHOT = createAction(() -> copyViewToClipboard(qupath, GuiTools.SnapshotType.FULL_SCREENSHOT));
 
+		
+		@ActionMenu("Paste")
+		@ActionDescription("Paste the contents of the system clipboard, if possible.\n" + 
+				"If the clipboard contents are GeoJSON objects, the objects will be pasted to the current image. "
+				+ "Otherwise, any text found will be shown in a the script editor.")
+		@ActionAccelerator("shortcut+v")
+		public final Action PASTE = createAction(() -> Commands.pasteFromClipboard(qupath));
+
+		
 		public final Action SEP_1 = ActionTools.createSeparator();
 		
 		@ActionMenu("Preferences...")
@@ -407,11 +425,11 @@ class Menus {
 		public final Action SEP_6 = ActionTools.createSeparator();
 
 		@ActionDescription("Import objects from GeoJSON or .qpdata files.")
-		@ActionMenu("Object data...>Import objects")
+		@ActionMenu("Import objects from file")
 		public final Action OBJECT_IMPORT= qupath.createImageDataAction(imageData -> Commands.runObjectImport(qupath, imageData));
 
 		@ActionDescription("Export objects in GeoJSON format to file.")
-		@ActionMenu("Object data...>Export as GeoJSON")
+		@ActionMenu("Export objects as GeoJSON")
 		public final Action EXPORT_GEOJSON = qupath.createImageDataAction(imageData -> Commands.runGeoJsonObjectExport(qupath, imageData));
 		
 		public final Action SEP_7 = ActionTools.createSeparator();

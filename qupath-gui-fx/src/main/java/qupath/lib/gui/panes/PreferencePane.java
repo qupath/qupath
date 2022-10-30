@@ -57,6 +57,7 @@ import javafx.scene.control.Tooltip;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.paint.Color;
 import javafx.scene.text.FontWeight;
+import javafx.util.Duration;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.logging.LogManager;
@@ -88,19 +89,12 @@ public class PreferencePane {
 		setupPanel();
 	}
 
-
-	private void setupPanel() {
-		//		propSheet.setMode(Mode.CATEGORY);
-		propSheet.setMode(Mode.CATEGORY);
-		propSheet.setPropertyEditorFactory(new PropertyEditorFactory());
-
-		String category;
-
-		
+	
+	private void addCategoryAppearance() {
 		/*
 		 * Appearance
 		 */
-		category = "Appearance";
+		String category = "Appearance";
 		addChoicePropertyPreference(QuPathStyleManager.selectedStyleProperty(),
 				QuPathStyleManager.availableStylesProperty(),
 				QuPathStyleManager.StyleOption.class,
@@ -114,11 +108,13 @@ public class PreferencePane {
 				"Font",
 				category,
 				"Main font for the QuPath user interface");
-		
+	}
+	
+	private void addCategoryGeneral() {
 		/*
 		 * General
 		 */
-		category = "General";
+		String category = "General";
 		
 		addPropertyPreference(PathPrefs.doAutoUpdateCheckProperty(), Boolean.class,
 				"Check for updates on startup",
@@ -202,11 +198,14 @@ public class PreferencePane {
 				"Hierarchy detection display",
 				"General",
 				"Choose how to display detections in the hierarchy tree view - choose 'None' for the best performance");
-		
+	}
+	
+	
+	private void addCategoryLocale() {
 		/*
 		 * Locale
 		 */
-		category = "Locale";
+		String category = "Locale";
 		var localeList = FXCollections.observableArrayList(
 				Arrays.stream(Locale.getAvailableLocales())
 				.filter(l -> !l.getLanguage().isBlank())
@@ -243,12 +242,13 @@ public class PreferencePane {
 						+ "decimal numbers (using . as the decimal separator).\n\n"
 						+ "You can reset the locale by double-clicking on the dropdown menu.",
 				localeSearchable);
-
-
+	}
+	
+	private void addCategoryInputOutput() {
 		/*
-		 * Export
+		 * Input/output
 		 */
-		category = "Input/Output";
+		String category = "Input/Output";
 		
 		addPropertyPreference(PathPrefs.minPyramidDimensionProperty(), Integer.class,
 				"Minimize image dimension for pyramidalizing",
@@ -260,12 +260,13 @@ public class PreferencePane {
 			"TMA export downsample factor",
 			category,
 			"Amount to downsample TMA core images when exporting; higher downsample values give smaller image, choosing 1 exports cores at full-resolution (which may be slow)");
+	}
 
-
+	private void addCategoryViewer() {
 		/*
 		 * Viewer
 		 */
-		category = "Viewer";
+		String category = "Viewer";
 		
 		addColorPropertyPreference(PathPrefs.viewerBackgroundColorProperty(),
 				"Viewer background color",
@@ -387,24 +388,25 @@ public class PreferencePane {
 				"Grid spacing in " + GeneralTools.micrometerSymbol(),
 				category,
 				"Use " + GeneralTools.micrometerSymbol() + " units where possible when defining grid spacing");
+	}
 
-		
-
+	private void addCategoryExtensions() {
 		/*
 		 * Extensions
 		 */
-		category = "Extensions";
+		String category = "Extensions";
 		addDirectoryPropertyPreference(PathPrefs.userPathProperty(),
 				"QuPath user directory",
 				category,
 				"Set the QuPath user directory - after setting you should restart QuPath");
 
-
-
+	}
+	
+	private void addCategoryMeasurements() {
 		/*
 		 * Drawing tools
 		 */
-		category = "Measurements";
+		String category = "Measurements";
 		addPropertyPreference(PathPrefs.showMeasurementTableThumbnailsProperty(), Boolean.class,
 				"Include thumbnail column in measurement tables",
 				category,
@@ -414,20 +416,26 @@ public class PreferencePane {
 				"Include object ID column in measurement tables",
 				category,
 				"Show object ID column by default in a measurements table");
-		
+
+	}
+	
+	private void addCategoryAutomation() {
 		/*
 		 * Automation
 		 */
-		category = "Automation";
+		String category = "Automation";
 		addDirectoryPropertyPreference(PathPrefs.scriptsPathProperty(),
 				"Script directory",
 				category,
 				"Set the script directory");
 
+	}
+
+	private void addCategoryDrawingTools() {
 		/*
 		 * Drawing tools
 		 */
-		category = "Drawing tools";
+		String category = "Drawing tools";
 		addPropertyPreference(PathPrefs.returnToMoveModeProperty(), Boolean.class,
 				"Return to Move Tool automatically",
 				category,
@@ -468,12 +476,20 @@ public class PreferencePane {
 				"Point radius",
 				category,
 				"Set the default point radius");
-
-
+	}
+	
+	private void addCategoryObjects() {
 		/*
 		 * Object colors
 		 */
-		category = "Objects";
+		String category = "Objects";
+		
+		addPropertyPreference(PathPrefs.maxObjectsToClipboardProperty(), Integer.class,
+				"Maximum number of clipboard objects",
+				category,
+				"The maximum number of objects that can be copied to the system clipboard.\n"
+				+ "Attempting to copy too many may fail, or cause QuPath to hang.\n"
+				+ "If you need more objects, it is better to export as GeoJSON and then import later.");
 
 		addPropertyPreference(PathPrefs.annotationStrokeThicknessProperty(), Float.class,
 				"Annotation line thickness",
@@ -509,7 +525,23 @@ public class PreferencePane {
 				"TMA missing core color",
 				category,
 				"Set the default color for missing TMA core objects");
+	}
 
+	private void setupPanel() {
+		//		propSheet.setMode(Mode.CATEGORY);
+		propSheet.setMode(Mode.CATEGORY);
+		propSheet.setPropertyEditorFactory(new PropertyEditorFactory());
+
+		addCategoryAppearance();
+		addCategoryGeneral();
+		addCategoryLocale();
+		addCategoryInputOutput();
+		addCategoryViewer();
+		addCategoryExtensions();
+		addCategoryMeasurements();
+		addCategoryAutomation();
+		addCategoryDrawingTools();
+		addCategoryObjects();
 	}
 
 	/**
@@ -838,8 +870,12 @@ public class PreferencePane {
 						setValue(dirNew);
 				}
 			});
-			if (property.getDescription() != null)
-				control.setTooltip(new Tooltip(property.getDescription()));
+			if (property.getDescription() != null) {
+				var description = property.getDescription();
+				var tooltip = new Tooltip(description);
+				tooltip.setShowDuration(Duration.millis(10_000));
+				control.setTooltip(tooltip);
+			}
 			
 			// Bind to the text property
 			if (property instanceof DirectoryPropertyItem) {
