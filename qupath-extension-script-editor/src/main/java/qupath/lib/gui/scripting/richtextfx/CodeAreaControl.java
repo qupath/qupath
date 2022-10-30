@@ -29,6 +29,9 @@ import org.fxmisc.flowless.VirtualizedScrollPane;
 import org.fxmisc.richtext.CodeArea;
 
 import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.IntegerProperty;
+import javafx.beans.property.ReadOnlyIntegerProperty;
+import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableValue;
@@ -203,6 +206,18 @@ public class CodeAreaControl implements ScriptEditorControl<VirtualizedScrollPan
 	@Override
 	public ContextMenu getContextMenu() {
 		return textArea.getContextMenu();
+	}
+
+	private ReadOnlyIntegerProperty caretReadOnly;
+	
+	@Override
+	public ReadOnlyIntegerProperty caretPositionProperty() {
+		if (caretReadOnly == null) {
+			var caret = new SimpleIntegerProperty();
+			caret.bind(textArea.caretPositionProperty());
+			caretReadOnly = IntegerProperty.readOnlyIntegerProperty(caret);
+		}
+		return caretReadOnly;
 	}
 
 }

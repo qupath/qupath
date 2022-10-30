@@ -32,6 +32,10 @@ import java.util.regex.Pattern;
 import org.fxmisc.richtext.CodeArea;
 import org.fxmisc.richtext.model.StyleSpans;
 import org.fxmisc.richtext.model.StyleSpansBuilder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import qupath.lib.common.LogTools;
 
 /**
  * Styling to apply to a {@link CodeArea}, based on JSON syntax.
@@ -39,6 +43,8 @@ import org.fxmisc.richtext.model.StyleSpansBuilder;
  * @since v0.4.0
  */
 public class JsonStyler implements ScriptStyler {
+	
+	private static final Logger logger = LoggerFactory.getLogger(JsonStyler.class);
 	
 	static final String PAREN_PATTERN = "\\(|\\)";
     static final String BRACE_PATTERN = "\\{|\\}";
@@ -69,6 +75,14 @@ public class JsonStyler implements ScriptStyler {
 
 	@Override
 	public StyleSpans<Collection<String>> computeEditorStyles(String text) {
+		
+		// Stop quickly if we have really long lines, which can cause QuPath to freeze
+		int longLine = ScriptStylerTools.DEFAULT_LONG_LINE_LENGTH;
+		if (ScriptStylerTools.containsLongLines(text, longLine)) {
+			LogTools.logOnce(logger, "Text contains lines longer than " + longLine + " - no styling will be applied");
+			return ScriptStylerProvider.getPlainStyling(text);
+		}
+		
 		Matcher matcher = PATTERN.matcher(text);
         int lastKwEnd = 0;
         StyleSpansBuilder<Collection<String>> spansBuilder = new StyleSpansBuilder<>();
