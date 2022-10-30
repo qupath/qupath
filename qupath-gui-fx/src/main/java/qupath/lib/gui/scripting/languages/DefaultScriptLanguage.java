@@ -28,6 +28,7 @@ import java.io.IOException;
 import java.io.Writer;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.ConcurrentModificationException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -280,15 +281,22 @@ public class DefaultScriptLanguage extends ScriptLanguage implements ExecutableL
 	protected String tryToInterpretMessage(Throwable cause, int line, boolean defaultImportsAvailable) {
 		
 		String message = cause.getLocalizedMessage();
-		if (message == null || message.isBlank())
-			return "";
-		
+		if (message == null)
+			message = "";
+
 		var sb = new StringBuilder();
+		
+		if (cause instanceof ConcurrentModificationException) {
+			sb.append("ERROR: ConcurrentModificationException! "
+					+ "This usually happen when two threads try to modify a collection (e.g. a list) at the same time.\n"
+					+ "It might indicate a QuPath bug (or just something wrong in the script).\n");
+		}
+		
 		var matcher = Pattern.compile("unable to resolve class ([A-Za-z_.-]+)").matcher(message);
 		
 		if (matcher.find()) {
 			String missingClass = matcher.group(1).strip();
-			sb.append("It looks like you have tried to import a class '" + missingClass + "' that couldn't be found\n");
+			sb.append("ERROR: It looks like you've tried to import a class '" + missingClass + "' that couldn't be found\n");
 			if (!defaultImportsAvailable) {
 				sb.append("Turning on 'Run -> Include default imports' *may* help fix this.\n");
 			}
@@ -303,7 +311,6 @@ public class DefaultScriptLanguage extends ScriptLanguage implements ExecutableL
 					sb.append("You should probably remove the broken import statement in your script, and include \n");
 				}
 				sb.append("\n    import " + suggestedClass.getName() + "\nat the start of the script.");
-				sb.append("Full error message below.");
 			}
 		}
 
@@ -311,21 +318,30 @@ public class DefaultScriptLanguage extends ScriptLanguage implements ExecutableL
 		var matcherProperty = Pattern.compile("No such property: ([A-Za-z_.-]+)").matcher(message);
 		if (matcherProperty.find()) {
 			String missingProperty = matcherProperty.group(1).strip();
-			sb.append("It looks like you have tried to access a property '" + missingProperty + "' that doesn't exist\n");
+			sb.append("ERROR: It looks like you've tried to access a property '" + missingProperty + "' that doesn't exist\n");
 			if (!defaultImportsAvailable) {
 				sb.append("This error can sometimes by fixed by turning on 'Run -> Include default imports'.\n");
 			}
-			sb.append("Full error message below.");
 		}
 		
 		// Check if the error was to do with a missing property... which can again be thanks to an import statement
 		var matcherMethod = Pattern.compile("No signature of method").matcher(message);
 		if (matcherMethod.find()) {
-			sb.append("It looks like you have tried to access a method that doesn't exist.\n");
+			sb.append("ERROR: It looks like you've tried to access a method that doesn't exist.\n");
 			if (!defaultImportsAvailable) {
 				sb.append("This error can sometimes by fixed by turning on 'Run -> Include default imports'.\n");
 			}
 		}
+		
+		// Check for JavaFX thread
+		if (message.contains("Not on FX application thread")) {
+			sb.append("ERROR: The script involves interacting with JavaFX, and should be called on the JavaFX Application thread.\n");			
+			sb.append("You can often fix this by passing your code to 'Platform.runLater()', e.g. in Groovy use \n\n"
+					+ "    Platform.runLater {\n"
+					+ "        // your code\n"
+					+ "    }\n");			
+		}
+		
 		
 		// Check if the error was to do with a special left quote character
 		var matcherQuotationMarks = Pattern.compile("Unexpected input: .*([\\x{2018}|\\x{201c}|\\x{2019}|\\x{201D}]+)' @ line (\\d+), column (\\d+).").matcher(message);
@@ -336,6 +352,7 @@ public class DefaultScriptLanguage extends ScriptLanguage implements ExecutableL
 			sb.append(String.format("At least one invalid quotation mark (%s) was found @ line %s column %s! ", quotationMark, nLine-1, matcherQuotationMarks.group(3)));
 			sb.append(String.format("You can try replacing it with a straight quotation mark (%s).%n", suggestion));
 		}
+		
 		if (sb.length() > 0)
 			sb.append("\n");
 		

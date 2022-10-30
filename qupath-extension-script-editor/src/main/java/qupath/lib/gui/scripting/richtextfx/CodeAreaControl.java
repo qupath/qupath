@@ -50,6 +50,8 @@ public class CodeAreaControl implements ScriptEditorControl<VirtualizedScrollPan
 	private CodeArea textArea;
 	private StringProperty textProperty = new SimpleStringProperty();
 	
+	private ContextMenu contextMenu;
+	
 	CodeAreaControl(boolean isEditable) {
 		this(new CodeArea(), isEditable);
 	}
@@ -200,12 +202,23 @@ public class CodeAreaControl implements ScriptEditorControl<VirtualizedScrollPan
 	
 	@Override
 	public void setContextMenu(ContextMenu menu) {
-		textArea.setContextMenu(menu);
+		// Try this approach, because otherwise some styling feeds through to the context menu 
+		// & can look weird (e.g. making it use a monospaced font)
+		this.contextMenu = menu;
+		textArea.setContextMenu(null);
+		textArea.setOnContextMenuRequested(e -> {
+			var popup = textArea.getContextMenu() == null ? contextMenu : textArea.getContextMenu();
+			if (popup != null)
+				popup.show(textArea.getScene().getWindow(), e.getScreenX(), e.getScreenY());
+		});
 	}
 
 	@Override
 	public ContextMenu getContextMenu() {
-		return textArea.getContextMenu();
+		var popup = textArea.getContextMenu();
+		if (popup != null)
+			return popup;
+		return contextMenu;
 	}
 
 	private ReadOnlyIntegerProperty caretReadOnly;

@@ -130,13 +130,17 @@ public class ScriptTab {
 		BorderPane panelMainEditor = new BorderPane();
 		panelMainEditor.setCenter(editor.getRegion());
 
-		ContextMenu popup = new ContextMenu();
+		var popup = console.getContextMenu();
+		if (popup == null) {
+			popup = new ContextMenu();
+			popup.getItems().add(ActionUtils.createMenuItem(new Action("Copy", e -> console.copy())));
+		}
 		popup.getItems().add(ActionUtils.createMenuItem(new Action("Clear console", e -> console.setText(""))));
-		
+		popup.getStyleClass().setAll("context-menu");		
 		console.setContextMenu(popup);
 //		console.setPopup(popup);
 		
-		updateIsModified();
+ 		updateIsModified();
 	}
 	
 	ScriptEditorControl<? extends Region> getEditorControl() {

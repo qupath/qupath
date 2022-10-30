@@ -1120,6 +1120,13 @@ public class DefaultScriptEditor implements ScriptEditor {
 				if (stackTrace != null)
 					stackTrace += "\n";
 				errorWriter.append(stackTrace);
+				
+				errorWriter.append("\nFor help interpreting this error, please search the forum at "
+						+ "https://forum.image.sc/tag/qupath\n"
+						+ "You can also start a new discussion there, "
+						+ "including both your script & the messages in this log.");
+
+				
 			} catch (IOException exIO) {
 				logger.error(exIO.getLocalizedMessage(), exIO);
 			}
