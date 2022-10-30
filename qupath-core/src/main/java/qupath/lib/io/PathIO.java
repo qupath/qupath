@@ -71,6 +71,8 @@ import org.slf4j.LoggerFactory;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonParseException;
+import com.google.gson.JsonSyntaxException;
 import com.google.gson.reflect.TypeToken;
 import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.common.GeneralTools;
@@ -79,7 +81,6 @@ import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerBuilder.DefaultImageServerBuilder;
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.images.servers.ImageServerProvider;
-import qupath.lib.io.PathObjectTypeAdapters.FeatureCollection;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
@@ -816,8 +817,10 @@ public class PathIO {
 	 * @param stream the input stream containing JSON data to read
 	 * @return a list containing any PathObjects that could be parsed from the stream
 	 * @throws IOException
+	 * @throws JsonSyntaxException 
+	 * @throws JsonParseException 
 	 */
-	public static List<PathObject> readObjectsFromGeoJSON(InputStream stream) throws IOException {
+	public static List<PathObject> readObjectsFromGeoJSON(InputStream stream) throws IOException, JsonSyntaxException, JsonParseException {
 		// Prepare template
 		var gson = GsonTools.getInstance();
 		try (var reader = new InputStreamReader(new BufferedInputStream(stream))) {
@@ -978,13 +981,16 @@ public class PathIO {
 	 */
 	public static void exportObjectsAsGeoJSON(OutputStream stream, Collection<? extends PathObject> pathObjects, GeoJsonExportOptions... options) throws IOException {
 		Collection<GeoJsonExportOptions> optionList = Arrays.asList(options);
+		
 		// If exclude measurements, 'transform' each PathObject to get rid of measurements
 		if (optionList.contains(GeoJsonExportOptions.EXCLUDE_MEASUREMENTS))
 			pathObjects = pathObjects.stream().map(e -> PathObjectTools.transformObject(e, null, false)).collect(Collectors.toList());
+		
 		var writer = new OutputStreamWriter(new BufferedOutputStream(stream), StandardCharsets.UTF_8);
 		var gson = GsonTools.getInstance(optionList.contains(GeoJsonExportOptions.PRETTY_JSON));
+		
 		if (optionList.contains(GeoJsonExportOptions.FEATURE_COLLECTION))
-			gson.toJson(GsonTools.wrapFeatureCollection(pathObjects), writer);
+			gson.toJson(FeatureCollection.wrap(pathObjects), writer);
 		else if (pathObjects.size() == 1) {
 			gson.toJson(pathObjects.iterator().next(), writer);
 		} else {

@@ -23,7 +23,6 @@ package qupath.lib.io;
 
 import java.awt.geom.AffineTransform;
 import java.io.IOException;
-import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -47,8 +46,6 @@ import com.google.gson.stream.JsonToken;
 import com.google.gson.stream.JsonWriter;
 
 import qupath.lib.common.ColorTools;
-import qupath.lib.io.PathObjectTypeAdapters.FeatureCollection;
-import qupath.lib.io.PathObjectTypeAdapters.HierarchyFeatureCollection;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathRootObject;
@@ -121,8 +118,8 @@ public class GsonTools {
 			if (MeasurementList.class.isAssignableFrom(cls))
 				return (TypeAdapter<T>)PathObjectTypeAdapters.MeasurementListTypeAdapter.INSTANCE;
 
-			if (HierarchyFeatureCollection.class.isAssignableFrom(cls))
-				return (TypeAdapter<T>)PathObjectTypeAdapters.PathObjectCollectionTypeAdapter.INSTANCE_HIERARCHY;
+//			if (HierarchyFeatureCollection.class.isAssignableFrom(cls))
+//				return (TypeAdapter<T>)PathObjectTypeAdapters.PathObjectCollectionTypeAdapter.INSTANCE_HIERARCHY;
 
 			if (FeatureCollection.class.isAssignableFrom(cls))
 				return (TypeAdapter<T>)PathObjectTypeAdapters.PathObjectCollectionTypeAdapter.INSTANCE;
@@ -313,31 +310,6 @@ public class GsonTools {
 	
 	
 	/**
-	 * Wrap a collection of PathObjects as a FeatureCollection. The purpose of this is to enable 
-	 * exporting a GeoJSON FeatureCollection that may be reused in other software.
-	 * @param pathObjects a collection of path objects to store in a feature collection
-	 * @return a feature collection that can be used with {@link GsonTools}
-	 */
-	public static FeatureCollection wrapFeatureCollection(Collection<? extends PathObject> pathObjects) {
-		return wrapFeatureCollection(pathObjects, false);
-	}
-	
-	/**
-	 * Wrap a collection of PathObjects as a FeatureCollection. The purpose of this is to enable 
-	 * exporting a GeoJSON FeatureCollection that may be reused in other software.
-	 * @param pathObjects a collection of path objects to store in a feature collection
-	 * @param includeChildObjects if true, include child object in the feature collection.
-	 *                            Note that no checks are made to avoid duplicate objects.
-	 * @return a feature collection that can be used with {@link GsonTools}
-	 */
-	public static FeatureCollection wrapFeatureCollection(Collection<? extends PathObject> pathObjects, boolean includeChildObjects) {
-		if (includeChildObjects)
-			return new HierarchyFeatureCollection(pathObjects);
-		else
-			return new FeatureCollection(pathObjects);			
-	}
-	
-	/**
 	 * Get default Gson, capable of serializing/deserializing some key QuPath classes.
 	 * @return
 	 * 
@@ -479,21 +451,21 @@ public class GsonTools {
 	}
 	
 	
-	/**
-	 * Convert packed RGB value to an array
-	 * @param rgb
-	 * @return
-	 */
-	private static int[] rgbToArray(Integer rgb) {
-		if (rgb == null)
-			return new int[0];
-		else
-			return new int[] {
-				ColorTools.red(rgb.intValue()),
-				ColorTools.green(rgb.intValue()),
-				ColorTools.blue(rgb.intValue())
-			};
-	}
+//	/**
+//	 * Convert packed RGB value to an array
+//	 * @param rgb
+//	 * @return
+//	 */
+//	private static int[] rgbToArray(Integer rgb) {
+//		if (rgb == null)
+//			return new int[0];
+//		else
+//			return new int[] {
+//				ColorTools.red(rgb.intValue()),
+//				ColorTools.green(rgb.intValue()),
+//				ColorTools.blue(rgb.intValue())
+//			};
+//	}
 	
 	/**
 	 * Convert array to a packed RGB value

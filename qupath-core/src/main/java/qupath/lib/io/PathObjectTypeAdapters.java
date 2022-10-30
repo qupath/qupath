@@ -76,28 +76,6 @@ class PathObjectTypeAdapters {
 			.create();
 		
 	
-	static class FeatureCollection {
-		
-		private Collection<? extends PathObject> pathObjects;
-		
-		FeatureCollection(Collection<? extends PathObject> pathObjects) {
-			this.pathObjects = pathObjects;
-		}
-		
-		public Collection<? extends PathObject> getPathObjects() {
-			return pathObjects;
-		}
-		
-	}
-	
-	static class HierarchyFeatureCollection extends FeatureCollection {
-		
-		HierarchyFeatureCollection(Collection<? extends PathObject> pathObjects) {
-			super(pathObjects);
-		}
-		
-	}
-	
 	static class PathObjectCollection extends AbstractCollection<PathObject> {
 		
 		private List<PathObject> pathObjects = new ArrayList<>();
@@ -141,24 +119,18 @@ class PathObjectTypeAdapters {
 	
 	static class PathObjectCollectionTypeAdapter extends TypeAdapter<FeatureCollection> {
 		
-		static PathObjectCollectionTypeAdapter INSTANCE = new PathObjectCollectionTypeAdapter(PathObjectTypeAdapter.INSTANCE);
-
-		static PathObjectCollectionTypeAdapter INSTANCE_HIERARCHY = new PathObjectCollectionTypeAdapter(PathObjectTypeAdapter.INSTANCE_HIERARCHY);
-
+		static PathObjectCollectionTypeAdapter INSTANCE = new PathObjectCollectionTypeAdapter();
+		
 		static Type TYPE = new TypeToken<Collection<PathObject>>() {}.getType();	
 
-		private PathObjectTypeAdapter adapter;
-		
-		private PathObjectCollectionTypeAdapter(PathObjectTypeAdapter adapter) {
-			this.adapter = adapter;
-		}
-		
 		@Override
 		public void write(JsonWriter out, FeatureCollection value) throws IOException {
 			out.beginObject();
 			
 			out.name("type");
 			out.value("FeatureCollection");
+
+			var adapter = value.getIncludeChildren() ? PathObjectTypeAdapter.INSTANCE_HIERARCHY : PathObjectTypeAdapter.INSTANCE;
 
 			out.name("features");
 			out.beginArray();
@@ -187,10 +159,10 @@ class PathObjectTypeAdapters {
 			
 			if (array != null) {
 				for (JsonElement element : array) {
-					list.add(adapter.fromJsonTree(element));
+					list.add(PathObjectTypeAdapter.INSTANCE.fromJsonTree(element));
 				}
 			}
-			return new FeatureCollection(list);
+			return FeatureCollection.wrap(list);
 			
 //			in.beginObject();
 //			

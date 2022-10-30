@@ -1403,6 +1403,21 @@ public class PathPrefs {
 	}
 	
 	
+	
+	private static IntegerProperty maxObjectsToClipboard = PathPrefs.createPersistentPreference("maxObjectsToClipboard", 5_000);
+
+	/**
+	 * The maximum number of objects that can be copied to the system clipboard.
+	 * This is to avoid accidentally putting very large amounts of data on the clipboard (causing the app to slow down or freeze), 
+	 * or attempting to create strings that are too long.
+	 * @return
+	 */
+	public static IntegerProperty maxObjectsToClipboardProperty() {
+		return maxObjectsToClipboard;
+	}
+	
+	
+	
 	/**
 	 * Enum to control font size.
 	 */

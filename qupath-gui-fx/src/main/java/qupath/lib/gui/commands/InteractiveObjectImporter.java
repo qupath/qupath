@@ -28,6 +28,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
@@ -35,6 +36,9 @@ import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.gson.JsonParseException;
+import com.google.gson.JsonSyntaxException;
 
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.DataFormat;
@@ -106,14 +110,16 @@ public final class InteractiveObjectImporter {
 		}
 	}
 	
-
+	
 	/**
-	 * Prompt to paste objects from the system clipboard, if possible.
+	 * Try to read objects from the system clipboard.
 	 * @param imageData the image to which the objects should be added
-	 * @param failQuietly if true, return without notifying the user; this makes it possible to try other options to paste clipboard data
-	 * @return true if objects were added, false otherwise
+	 * @return true a list of objects read from the system clipboard, or empty list if none could be found
+	 * @throws IOException 
+	 * @throws JsonSyntaxException 
+	 * @throws JsonParseException 
 	 */
-	public static boolean promptToPasteObjectsFromClipboard(ImageData<BufferedImage> imageData, boolean failQuietly) {
+	public static List<PathObject> readObjectsFromClipboard(ImageData<BufferedImage> imageData) throws IOException, JsonSyntaxException, JsonParseException {
 		Objects.requireNonNull(imageData, "Can't import objects - ImageData is null");
 		
 		var clipboard = Clipboard.getSystemClipboard();
@@ -123,20 +129,30 @@ public final class InteractiveObjectImporter {
 		}
 		
 		if (geojson == null || !(geojson.contains("\"feature\"") || geojson.contains("\"geometry\""))) {
-			if (!failQuietly)
-				Dialogs.showWarningNotification("Paste objects", "No objects found on the clipboard!");
-			return false;
+			return Collections.emptyList();
 		}
 		
-		List<PathObject> pathObjects;
-		try (var stream = new ByteArrayInputStream(geojson.getBytes(StandardCharsets.UTF_8))){
-			pathObjects = PathIO.readObjectsFromGeoJSON(stream);
-			if (failQuietly && pathObjects.isEmpty())
+		try (var stream = new ByteArrayInputStream(geojson.getBytes(StandardCharsets.UTF_8))) {
+			return PathIO.readObjectsFromGeoJSON(stream);
+		}
+	}
+	
+
+	/**
+	 * Prompt to paste objects from the system clipboard, if possible.
+	 * @param imageData the image to which the objects should be added
+	 * @return true if objects were added, false otherwise
+	 */
+	public static boolean promptToPasteObjectsFromClipboard(ImageData<BufferedImage> imageData) {
+		try {
+			var pathObjects = readObjectsFromClipboard(imageData);
+			if (pathObjects.isEmpty()) {
+				Dialogs.showWarningNotification("Paste objects", "No objects found on the clipboard!");
 				return false;
+			}
 			return promptToImportObjects(imageData.getHierarchy(), pathObjects);
 		} catch (Exception e) {
-			if (!failQuietly)
-				Dialogs.showErrorNotification("Paste objects from clipboard", e.getLocalizedMessage());
+			Dialogs.showErrorMessage("Paste objects", "Unable to paste objects: " + e.getLocalizedMessage());
 			return false;
 		}
 	}
@@ -219,21 +235,22 @@ public final class InteractiveObjectImporter {
 		String message;
 		if (containsDuplicates) {
 			message = "Update IDs for the new objects?\n\n"
-					+ "This is strongly recommended to avoid multiple object having the same ID.\n\n"
+					+ "This is strongly recommended to avoid multiple objects having the same ID.\n\n"
 					+ "Only skip this step if you plan to handle duplicate IDs later.";
+			var result = Dialogs.showYesNoCancelDialog("Import " + objString, message);
+			if (result == DialogButton.CANCEL)
+				return false;
+			fixDuplicates = result == DialogButton.YES;
 		} else {
-			message = "Update object IDs?\n"
-					+ "The objects being imported do not share IDs with any existing objects.";
+			logger.info("Pasting {} - IDs unchanged (no duplicates)", objString);
 		}
-		var result = Dialogs.showYesNoCancelDialog("Import " + objString, message);
-		if (result == DialogButton.CANCEL)
-			return false;
-		fixDuplicates = result == DialogButton.YES;
-		
+
 		if (fixDuplicates) {
 			for (var toAdd : flatSet) {
 				toAdd.updateId();
 			}
+		} else if (!containsDuplicates) {
+			logger.warn("{} being added - IDs not updated, so there will be duplicates!", objString);
 		}
 		
 		hierarchy.addPathObjects(pathObjects);

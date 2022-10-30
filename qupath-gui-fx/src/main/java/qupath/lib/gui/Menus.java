@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -136,37 +136,38 @@ class Menus {
 
 		// Copy actions
 
-		@ActionMenu("Copy selected objects to clipboard")
-		@ActionDescription("Copy the contents of the current viewer to the clipboard. " + 
-				"Note that this creates an RGB image, which does not necessarily contain the original pixel values.")
-		@ActionAccelerator("shortcut+c")
+		@ActionMenu("Copy to clipboard...>Selected objects")
+		@ActionDescription("Copy the selected objects to the system clipboard as GeoJSON.")
+//		@ActionAccelerator("shortcut+c")
 		public final Action COPY_SELECTED_OBJECTS = qupath.createImageDataAction(imageData -> Commands.copyObjectsToClipboard(qupath, imageData));
 //
+		@ActionMenu("Copy to clipboard...>")
 		public final Action SEP_00 = ActionTools.createSeparator();
 
-		@ActionMenu("Copy image to clipboard...>Current viewer")
+		@ActionMenu("Copy to clipboard...>Current viewer")
 		@ActionDescription("Copy the contents of the current viewer to the clipboard. " + 
 				"Note that this creates an RGB image, which does not necessarily contain the original pixel values.")
 		public final Action COPY_VIEW = createAction(() -> copyViewToClipboard(qupath, GuiTools.SnapshotType.VIEWER));
 		
 		@ActionDescription("Copy the contents of the main QuPath window to the clipboard. " + 
 				"This ignores any additional overlapping windows and dialog boxes.")
-		@ActionMenu("Copy image to clipboard...>Main window content")
+		@ActionMenu("Copy to clipboard...>Main window content")
 		public final Action COPY_WINDOW = createAction(() -> copyViewToClipboard(qupath, GuiTools.SnapshotType.MAIN_SCENE));
 		
 		@ActionDescription("Copy the area of the screen corresponding to the main QuPath window to the clipboard. " + 
 				"This includes any additional overlapping windows and dialog boxes.")
-		@ActionMenu("Copy image to clipboard...>Main window screenshot")
+		@ActionMenu("Copy to clipboard...>Main window screenshot")
 		public final Action COPY_WINDOW_SCREENSHOT = createAction(() -> copyViewToClipboard(qupath, GuiTools.SnapshotType.MAIN_WINDOW_SCREENSHOT));			
 		
 		@ActionDescription("Make a screenshot and copy it to the clipboard.")
-		@ActionMenu("Copy image to clipboard...>Full screenshot")
+		@ActionMenu("Copy to clipboard...>Full screenshot")
 		public final Action COPY_FULL_SCREENSHOT = createAction(() -> copyViewToClipboard(qupath, GuiTools.SnapshotType.FULL_SCREENSHOT));
 
 		
 		@ActionMenu("Paste")
-		@ActionDescription("Copy the contents of the current viewer to the clipboard. " + 
-				"Note that this creates an RGB image, which does not necessarily contain the original pixel values.")
+		@ActionDescription("Paste the contents of the system clipboard, if possible.\n" + 
+				"If the clipboard contents are GeoJSON objects, the objects will be pasted to the current image. "
+				+ "Otherwise, any text found will be shown in a the script editor.")
 		@ActionAccelerator("shortcut+v")
 		public final Action PASTE = createAction(() -> Commands.pasteFromClipboard(qupath));
 

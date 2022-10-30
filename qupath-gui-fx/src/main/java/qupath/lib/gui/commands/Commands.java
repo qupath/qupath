@@ -25,6 +25,7 @@ import java.awt.Window;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.io.StringWriter;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -46,6 +47,7 @@ import org.slf4j.LoggerFactory;
 
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableDoubleValue;
 import javafx.geometry.Insets;
@@ -97,6 +99,7 @@ import qupath.lib.images.servers.ImageServers;
 import qupath.lib.images.servers.ServerTools;
 import qupath.lib.images.writers.ImageWriter;
 import qupath.lib.images.writers.ImageWriterTools;
+import qupath.lib.io.FeatureCollection;
 import qupath.lib.io.GsonTools;
 import qupath.lib.io.PathIO;
 import qupath.lib.objects.PathAnnotationObject;
@@ -1737,13 +1740,38 @@ public class Commands {
 		var selected = imageData == null ? null : imageData.getHierarchy().getSelectionModel().getSelectedObjects();
 		if (selected == null || selected.isEmpty())
 			return;
-		var gson = GsonTools.getInstance(false);
-		String json;
-		if (selected.size() == 1) {
-			json = gson.toJson(selected.iterator().next());
-		} else {
-			json = gson.toJson(GsonTools.wrapFeatureCollection(selected));
+		
+		int max = PathPrefs.maxObjectsToClipboardProperty().get();
+		if (max >= 0 && max < selected.size()) {
+			Dialogs.showWarningNotification("Copy objects to clipboard",
+					String.format("Number of selected objects (%d) exceeds the maximum that can be copied (%d)!\n"
+							+ "Either export the objects to a GeoJSON file, or increase the maximum number of "
+							+ "clipboard objects in the preferences.", selected.size(), max));
+			return;
 		}
+		
+		String json;
+		try {
+			if (selected.size() == 1) {
+				var gson = GsonTools.getInstance(true);
+				json = gson.toJson(selected.iterator().next());
+			} else {
+				// We could use pretty printing with a minimal indent
+				// This avoids increasing the size enormously, while 
+				// also avoiding the use of very long individual lines 
+				// (which cause major problems if pasted into the script editor)
+				var gson = GsonTools.getInstance(false);
+				var writer = new StringWriter();
+				var jsonWriter = gson.newJsonWriter(writer);
+				jsonWriter.setIndent(" ");
+				var features = FeatureCollection.wrap(selected);
+				gson.toJson(features, features.getClass(), jsonWriter);
+				json = writer.toString();
+			}
+		} catch (Exception e) {
+			return ;
+		}
+		
 		var clipboard = Clipboard.getSystemClipboard();
 		var content = new ClipboardContent();
 		content.putString(json);
@@ -1754,18 +1782,27 @@ public class Commands {
 	}
 	
 	/**
-	 * Attempt to paste objects from the system clipboard to the current image, if available, 
-	 * or otherwise open the script editor to display any clipboard text.
+	 * Attempt to paste objects from the system clipboard to the current image, if available; 
+	 * otherwise, check for text on the clipboard and paste it into a new script editor tab
 	 * @param qupath
 	 */
 	public static void pasteFromClipboard(QuPathGUI qupath) {
 		var imageData = qupath.getImageData();
+		// If we have an image and objects on the clipboard, paste them
 		if (imageData != null) {
-			if (InteractiveObjectImporter.promptToPasteObjectsFromClipboard(imageData, true))
-				return;
+			try {
+				var pathObjects = InteractiveObjectImporter.readObjectsFromClipboard(imageData);
+				if (!pathObjects.isEmpty()) {
+					InteractiveObjectImporter.promptToImportObjects(imageData.getHierarchy(), pathObjects);
+					return;
+				}
+			} catch (Exception e) {
+				logger.error(e.getLocalizedMessage(), e);
+			}
 		}
+		// No objects - paste text in the script editor instead
 		var text = (String)Clipboard.getSystemClipboard().getContent(DataFormat.PLAIN_TEXT);
-		if (text != null && !text.isEmpty()) {
+		if (text != null && !text.isEmpty() && qupath.getScriptEditor() != null) {
 			qupath.getScriptEditor().showScript("Clipboard text", text);
 		}
 	}
