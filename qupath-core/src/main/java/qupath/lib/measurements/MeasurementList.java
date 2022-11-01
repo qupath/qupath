@@ -199,6 +199,7 @@ public interface MeasurementList extends Serializable, AutoCloseable {
 	 * @param value 
 	 * @deprecated since v0.4.0; replaced by {@link #put(String, double)}
 	 */
+	@Deprecated
 	public default void putMeasurement(String name, double value) {
 		put(name, value);
 	}
