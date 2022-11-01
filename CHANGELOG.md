@@ -12,6 +12,8 @@ This is a work-in-progress.
     * This aims to make it much easier to match up objects whenever some further analysis is done elsewhere (e.g. classification or clustering in Python or R)
     * See https://github.com/qupath/qupath/pull/959
   * Much improved scripting support for classifications and measurements (https://github.com/qupath/qupath/pull/1094)
+* 'Rotate annotation' command renamed to 'Transform annotation'
+  * Optionally apply transform to *all* objects, not just the selected annotation
 * Support user styling via CSS (https://github.com/qupath/qupath/pull/1063)
 * Many script editor improvements, including:
   * Syntax highlighting for Markdown, JSON, YAML and XML documents

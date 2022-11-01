@@ -1130,12 +1130,16 @@ public class PathObjectTools {
 		if (copyMeasurements && !pathObject.getMeasurementList().isEmpty()) {
 			MeasurementList measurements = pathObject.getMeasurementList();
 			for (int i = 0; i < measurements.size(); i++) {
-				String name = measurements.getMeasurementName(i);
-				double value = measurements.getMeasurementValue(i);
-				newObject.getMeasurementList().put(name, value);
+				newObject.getMeasurementList().putAll(measurements);
 			}
 			newObject.getMeasurementList().close();
 		}
+		// Copy name & color properties
+		newObject.setName(pathObject.getName());
+		newObject.setColor(pathObject.getColor());
+		// Copy over metadata if we have it
+		if (newObject instanceof MetadataStore)
+			((MetadataStore)newObject).getMetadataMap().putAll(pathObject.getUnmodifiableMetadataMap());
 		// Retain the ID, if needed
 		if (!createNewIDs)
 			newObject.setId(pathObject.getId());

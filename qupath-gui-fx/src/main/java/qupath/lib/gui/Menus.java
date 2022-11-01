@@ -566,8 +566,8 @@ class Menus {
 		@ActionMenu("Annotations...>")
 		public final Action SEP_6 = ActionTools.createSeparator();
 
-		@ActionDescription("Interactively rotate the current selected annotation.")
-		@ActionMenu("Annotations...>Rotate annotation")
+		@ActionDescription("Interactively translate and/or rotate the current selected annotation.")
+		@ActionMenu("Annotations...>Transform annotation")
 		@ActionAccelerator("shortcut+shift+alt+r")
 		public final Action RIGID_OBJECT_EDITOR = qupath.createImageDataAction(imageData -> Commands.editSelectedAnnotation(qupath));
 		

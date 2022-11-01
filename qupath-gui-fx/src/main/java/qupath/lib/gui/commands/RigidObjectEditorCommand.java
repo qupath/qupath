@@ -31,6 +31,7 @@ import java.awt.geom.Ellipse2D;
 import java.awt.geom.Line2D;
 import java.awt.geom.Point2D;
 import java.awt.image.BufferedImage;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -45,11 +46,13 @@ import org.slf4j.LoggerFactory;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.event.EventHandler;
+import javafx.scene.control.ButtonType;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import qupath.lib.color.ColorToolsAwt;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
-import qupath.lib.gui.dialogs.Dialogs.DialogButton;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.PathHierarchyPaintingHelper;
@@ -59,6 +62,7 @@ import qupath.lib.gui.viewer.overlays.AbstractOverlay;
 import qupath.lib.gui.viewer.overlays.PathOverlay;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathROIObject;
@@ -91,6 +95,8 @@ class RigidObjectEditorCommand implements Runnable, ChangeListener<ImageData<Buf
 	private RoiAffineTransformer transformer = null;
 	
 	private RigidMouseListener mouseListener = new RigidMouseListener();
+	
+	private KeyHandler keyListener = new KeyHandler();
 
 	public RigidObjectEditorCommand(final QuPathGUI qupath) {
 		this.qupath = qupath;
@@ -164,6 +170,7 @@ class RigidObjectEditorCommand implements Runnable, ChangeListener<ImageData<Buf
 		qupath.setToolSwitchingEnabled(false);
 		viewer.addViewerListener(this);
 		viewer.getView().addEventHandler(MouseEvent.ANY, mouseListener);
+		viewer.getView().addEventFilter(KeyEvent.KEY_PRESSED, keyListener);
 		
 //		// Remove selected object & create an overlay showing the currently-being-edited version
 //		viewer.getHierarchy().removeObject(originalObject, true, true);
@@ -196,20 +203,39 @@ class RigidObjectEditorCommand implements Runnable, ChangeListener<ImageData<Buf
 		if (this.originalObject == null)
 			return;
 		
-//		PathObject pathObject = null;
-		if (!ignoreChanges) {
+		var transform = transformer.transform;
 		
-			DialogButton option = Dialogs.showYesNoCancelDialog(
-					"Affine object editing", "Confirm object changes?");
+		var hierarchy = viewer.getHierarchy();
+		boolean keepSelection = true;
+		
+//		PathObject pathObject = null;
+		if (!ignoreChanges && !transform.isIdentity()) {
+		
+			var btSelected = new ButtonType("Selected object");
+			var btAll = new ButtonType("All objects");
 			
-			if (option == DialogButton.CANCEL)
-				return;
+			ButtonType option = Dialogs.builder()
+					.title("Affine object editing")
+					.contentText("Confirm object changes?")
+					.buttons(btSelected, btAll, ButtonType.CANCEL)
+					.showAndWait()
+					.orElse(ButtonType.CANCEL);
 			
-			if (option == DialogButton.NO) {
+			if (option == ButtonType.CANCEL) {
+				for (Entry<PathObject, ROI> entry : originalObjectROIs.entrySet()) {
+					((PathROIObject)entry.getKey()).setROI(entry.getValue());
+				}
+			} else if (option == btAll) {
 				for (Entry<PathObject, ROI> entry : originalObjectROIs.entrySet())
 					((PathROIObject)entry.getKey()).setROI(entry.getValue());
+				
+				var newRoot = PathObjectTools.transformObjectRecursive(hierarchy.getRootObject(),
+						GeometryTools.convertTransform(transform),
+						true, false);
+				hierarchy.clearAll();
+				hierarchy.addPathObjects(new ArrayList<>(newRoot.getChildObjects()));
+				keepSelection = false;
 			} else {
-				var transform = transformer.transform;
 				var values = transform.getMatrixEntries();
 				logger.info("Applied ROI transform: {}",
 						String.format("\n %f, %f, %f,\n%f, %f, %f",
@@ -220,7 +246,7 @@ class RigidObjectEditorCommand implements Runnable, ChangeListener<ImageData<Buf
 					ROI roiTransformed = transformer.getTransformedROI(entry.getValue(), true);
 					((PathROIObject)entry.getKey()).setROI(roiTransformed);
 				}
-				viewer.getHierarchy().fireHierarchyChangedEvent(this, originalObject);
+				hierarchy.fireHierarchyChangedEvent(this, originalObject);
 			}
 		}
 
@@ -230,6 +256,7 @@ class RigidObjectEditorCommand implements Runnable, ChangeListener<ImageData<Buf
 			viewer.setActiveTool(qupath.getSelectedTool());
 		
 		viewer.getView().removeEventHandler(MouseEvent.ANY, mouseListener);
+		viewer.getView().removeEventFilter(KeyEvent.KEY_PRESSED, keyListener);
 		viewer.getCustomOverlayLayers().remove(overlay);
 		viewer.removeViewerListener(this);
 		
@@ -238,6 +265,9 @@ class RigidObjectEditorCommand implements Runnable, ChangeListener<ImageData<Buf
 		
 //		// Ensure the object is selected
 //		viewer.setSelectedObject(pathObject);
+
+		if (!keepSelection)
+			hierarchy.getSelectionModel().clearSelection();
 
 		viewer = null;
 		overlay = null;
@@ -385,6 +415,17 @@ class RigidObjectEditorCommand implements Runnable, ChangeListener<ImageData<Buf
 	}
 	
 	
+	class KeyHandler implements EventHandler<KeyEvent> {
+
+		@Override
+		public void handle(KeyEvent event) {
+			if (event.getCode() == KeyCode.ENTER) {
+				commitChanges(false);
+				event.consume();
+			}
+		}
+		
+	}
 	
 	
 	static class RoiAffineTransformer {
