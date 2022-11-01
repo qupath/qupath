@@ -1047,7 +1047,11 @@ public class PathIO {
 	}
 	
 	private static final boolean serializableObject(Object obj) {
-		return obj == null ? true : checkQuPathSerializableClass(obj.getClass());
+		if (obj == null)
+			return true;
+		if (obj instanceof Serializable)
+			return checkQuPathSerializableClass(obj.getClass());
+		return false;
 	}
 	
 	/**
@@ -1059,7 +1063,7 @@ public class PathIO {
 		if (serialClass == null)
 			return true;
 		
-		if (!(serialClass instanceof Serializable))
+		if (!(Serializable.class.isAssignableFrom(serialClass)))
 			return false;
 		
 		// Require 
@@ -1076,7 +1080,7 @@ public class PathIO {
 			if (packageName != null && packageName.startsWith("qupath.lib"))
 				return true;
 		}
-		System.err.println(serialClass);
+		logger.debug("Serialization not permitted for {}", serialClass);
 		return false;
 	}
 	
