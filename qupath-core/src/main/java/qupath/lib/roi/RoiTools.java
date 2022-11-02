@@ -423,6 +423,15 @@ public class RoiTools {
 		else if (area.isSingular() && (area.isPolygonal() || flatness > 0)) {
 			Path2D path = new Path2D.Float(area);
 			List<Point2> points = flatness > 0 ? RoiTools.getLinearPathPoints(path, path.getPathIterator(null, flatness)) : RoiTools.getLinearPathPoints(path, path.getPathIterator(null));
+			if (points.size() > 2) {
+				// Remove end point if it is a duplicate of the start point
+				// since the polygon will be closed anyway
+				// This avoids a point being 'doubled-up' when rotating a rectangle
+				var pStart = points.get(0);
+				var pEnd = points.get(points.size()-1);
+				if (pEnd.equals(pStart))
+					points.remove(points.size()-1);
+			}
 			return ROIs.createPolygonROI(points, plane);
 		}
 		return ROIs.createAreaROI(area, plane);		
