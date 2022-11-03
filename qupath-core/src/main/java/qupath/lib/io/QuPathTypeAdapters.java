@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -66,14 +66,16 @@ import qupath.lib.objects.PathRootObject;
 import qupath.lib.objects.PathTileObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.classes.PathClass;
+import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.roi.interfaces.ROI;
 
-class PathObjectTypeAdapters {
+class QuPathTypeAdapters {
 	
 	static Gson gson = new GsonBuilder()
 			.setLenient()
 			.serializeSpecialFloatingPointValues()
 			.create();
+		
 		
 	
 	static class PathObjectCollection extends AbstractCollection<PathObject> {
@@ -115,6 +117,35 @@ class PathObjectTypeAdapters {
 		}
 		
 	}
+	
+	
+	static class HierarchyTypeAdapter extends TypeAdapter<PathObjectHierarchy> {
+		
+		static HierarchyTypeAdapter INSTANCE = new HierarchyTypeAdapter();
+
+		@Override
+		public void write(JsonWriter out, PathObjectHierarchy value) throws IOException {
+			if (value == null)
+				PathObjectTypeAdapter.INSTANCE_HIERARCHY.write(out, null);
+			else
+				PathObjectTypeAdapter.INSTANCE_HIERARCHY.write(out, value.getRootObject());
+		}
+
+		@Override
+		public PathObjectHierarchy read(JsonReader in) throws IOException {
+			var rootObject = PathObjectTypeAdapter.INSTANCE_HIERARCHY.read(in);
+			if (rootObject == null)
+				return null;
+			if (!rootObject.isRootObject())
+				throw new IOException("Cannot deserialize PathObjectHierarchy - root object not found");
+			var hierarchy = new PathObjectHierarchy();
+			hierarchy.addObjects(new ArrayList<>(rootObject.getChildObjects()));
+			return hierarchy;
+		}
+
+		
+	}
+
 	
 	
 	static class PathObjectCollectionTypeAdapter extends TypeAdapter<FeatureCollection> {
