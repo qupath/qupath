@@ -104,6 +104,7 @@ This is a work-in-progress.
 * Add `ROI.updatePlane(plane)` method to move a ROI to a different z-slice or timepoint (https://github.com/qupath/qupath/issues/1052)
 * 'Classify -> Training images -> Create region annotations' supports adding regions within a selected annotation
   * `RoiTools.createRandomRectangle()` methods created for scripting
+* Updated method names in `PathObjectHierarchy` for better consistency (https://github.com/qupath/qupath/pull/1109)
 * GeoJSON improvements (https://github.com/qupath/qupath/pull/1099)
   * Simplified representation of `PathClass`
     * Store either `name` (single name) or `names` (array) field, and `color` (3-element int array)
