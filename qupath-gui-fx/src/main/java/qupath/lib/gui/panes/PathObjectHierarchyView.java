@@ -414,12 +414,12 @@ public class PathObjectHierarchyView implements ChangeListener<ImageData<Buffere
 	void setImageData(ImageData<BufferedImage> imageData) {
 		if (hierarchy != null) {
 			hierarchy.getSelectionModel().removePathObjectSelectionListener(this);
-			hierarchy.removePathObjectListener(this);
+			hierarchy.removeListener(this);
 		}
 		
 		this.hierarchy = imageData == null ? null : imageData.getHierarchy();
 		if (hierarchy != null) {
-			hierarchy.addPathObjectListener(this);
+			hierarchy.addListener(this);
 			hierarchy.getSelectionModel().addPathObjectSelectionListener(this);
 			treeView.setRoot(createNode(hierarchy.getRootObject()));
 		} else

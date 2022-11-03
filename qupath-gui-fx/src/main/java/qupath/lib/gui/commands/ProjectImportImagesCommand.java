@@ -709,7 +709,7 @@ class ProjectImportImagesCommand {
 			if (type != null || server != server2 || !pathObjects.isEmpty()) {
 				var imageData = new ImageData<>(server2, type);
 				if (!pathObjects.isEmpty())
-					imageData.getHierarchy().addPathObjects(pathObjects);
+					imageData.getHierarchy().addObjects(pathObjects);
 				entry.saveImageData(imageData);
 			}
 			if (server != server2)

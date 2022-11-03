@@ -81,7 +81,7 @@ public class QuPath_Send_ROI_to_QuPath implements PlugIn {
 		}
 		
 		Platform.runLater(() -> {
-			imageData.getHierarchy().addPathObject(pathObject);
+			imageData.getHierarchy().addObject(pathObject);
 			imageData.getHierarchy().getSelectionModel().setSelectedObject(pathObject);
 			viewer.setZPosition(pathObject.getROI().getZ());
 			viewer.setTPosition(pathObject.getROI().getT());

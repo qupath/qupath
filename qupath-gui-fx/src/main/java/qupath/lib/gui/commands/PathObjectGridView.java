@@ -270,7 +270,7 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 		
 		var currentImageData = imageDataProperty.get();
 		if (currentImageData != null) {
-			currentImageData.getHierarchy().removePathObjectListener(this);
+			currentImageData.getHierarchy().removeListener(this);
 			currentImageData = null;
 		}
 		
@@ -279,7 +279,7 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 		
 		// Listen for changes
 		if (imageDataNew != null)
-			imageDataNew.getHierarchy().addPathObjectListener(this);
+			imageDataNew.getHierarchy().addListener(this);
 		
 		// Don't do anything if not displaying
 		if (imageDataNew == null || stage == null || !stage.isShowing())

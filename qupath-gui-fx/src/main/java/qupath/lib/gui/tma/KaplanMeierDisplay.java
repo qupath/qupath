@@ -192,7 +192,7 @@ class KaplanMeierDisplay implements ParameterChangeListener, PathObjectHierarchy
 	public KaplanMeierDisplay(final PathObjectHierarchy hierarchy, final String scoreColumn, final String survivalColumn, final String censoredColumn) {
 		this.hierarchy = hierarchy;
 		if (this.hierarchy != null)
-			this.hierarchy.addPathObjectListener(this);
+			this.hierarchy.addListener(this);
 		this.scoreColumn = scoreColumn;
 		this.survivalColumn = survivalColumn;
 		this.censoredColumn = censoredColumn;
@@ -217,7 +217,7 @@ class KaplanMeierDisplay implements ParameterChangeListener, PathObjectHierarchy
 
 		frame.setOnCloseRequest(e -> {
 			if (hierarchy != null)
-				hierarchy.removePathObjectListener(KaplanMeierDisplay.this);
+				hierarchy.removeListener(KaplanMeierDisplay.this);
 			panelParams.removeParameterChangeListener(KaplanMeierDisplay.this);
 			frame.hide();
 		});
@@ -260,12 +260,12 @@ class KaplanMeierDisplay implements ParameterChangeListener, PathObjectHierarchy
 	 */
 	public void setHierarchy(final PathObjectHierarchy hierarchy, final String survivalKey, final String censoredKey) {
 		if (this.hierarchy != null)
-			this.hierarchy.removePathObjectListener(this);
+			this.hierarchy.removeListener(this);
 		this.survivalColumn = survivalKey;
 		this.censoredColumn = censoredKey;
 		this.hierarchy = hierarchy;
 		if (this.hierarchy != null)
-			this.hierarchy.addPathObjectListener(this);
+			this.hierarchy.addListener(this);
 		generatePlot();
 	}
 

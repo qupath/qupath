@@ -661,7 +661,7 @@ public class IJExtension implements QuPathExtension {
 					.map(r -> IJTools.convertToAnnotation(r, 1.0, null))
 					.collect(Collectors.toList());
 			
-			imageData.getHierarchy().addPathObjects(pathObjects);
+			imageData.getHierarchy().addObjects(pathObjects);
 			imageData.getHierarchy().getSelectionModel().selectObjects(pathObjects);
 			
 			return true;

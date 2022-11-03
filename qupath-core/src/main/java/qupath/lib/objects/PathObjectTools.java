@@ -564,7 +564,7 @@ public class PathObjectTools {
 		var points = convertToPoints(pathObjects, preferNucleus);
 		if (deleteObjects)
 			hierarchy.removeObjects(pathObjects, true);
-		hierarchy.addPathObjects(points);
+		hierarchy.addObjects(points);
 	}
 	
 	
@@ -1021,7 +1021,7 @@ public class PathObjectTools {
 		if (toAdd.isEmpty() && toRemove.isEmpty())
 			return false;
 		hierarchy.removeObjects(toRemove, true);
-		hierarchy.addPathObjects(toAdd);
+		hierarchy.addObjects(toAdd);
 		return true;
 	}
 	
@@ -1325,7 +1325,7 @@ public class PathObjectTools {
 			return false;
 		}
 		// Add objects using the default add method (not trying to resolve location)
-		hierarchy.addPathObjects(map.values());
+		hierarchy.addObjects(map.values());
 //		// Add objects, inserting with the same parents as the originals
 //		for (var entry : map.entrySet()) {
 //			entry.getKey().getParent().addPathObject(entry.getValue());

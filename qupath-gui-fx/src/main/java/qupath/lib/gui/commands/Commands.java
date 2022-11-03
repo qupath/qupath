@@ -212,7 +212,7 @@ public class Commands {
 		}
 		
 		PathObject pathObject = PathObjects.createAnnotationObject(roi);
-		hierarchy.addPathObject(pathObject);
+		hierarchy.addObject(pathObject);
 		viewer.setSelectedObject(pathObject);
 		
 		// Log in the history
@@ -1008,7 +1008,7 @@ public class Commands {
 		// Remove previous objects
 		hierarchy.removeObjects(pathObjects, true);
 		if (newObject != null)
-			hierarchy.addPathObject(newObject);
+			hierarchy.addObject(newObject);
 		return true;
 	}
 	

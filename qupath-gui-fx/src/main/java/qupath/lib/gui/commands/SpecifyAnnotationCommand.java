@@ -312,7 +312,7 @@ class SpecifyAnnotationCommand {
 			if (cbLock.isSelected())
 				((PathAnnotationObject)annotation).setLocked(true);
 
-			hierarchy.addPathObject(annotation);
+			hierarchy.addObject(annotation);
 		});
 
 		btnAdd.setMaxWidth(Double.MAX_VALUE);

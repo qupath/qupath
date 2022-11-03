@@ -94,7 +94,7 @@ class ImportRoisCommand implements Runnable {
 		var pathObjects = rois.stream().map(r -> IJTools.convertToAnnotation(r, xOrigin, yOrigin, downsample, null)).collect(Collectors.toList());
 
 		var hierarchy = imageData.getHierarchy();
-		hierarchy.addPathObjects(pathObjects);
+		hierarchy.addObjects(pathObjects);
 		hierarchy.getSelectionModel().selectObjects(pathObjects);
 		
 	}

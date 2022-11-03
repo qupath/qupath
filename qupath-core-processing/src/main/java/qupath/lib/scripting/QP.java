@@ -1044,7 +1044,7 @@ public class QP {
 		PathObjectHierarchy hierarchy = getCurrentHierarchy();
 		if (hierarchy == null)
 			return;
-		hierarchy.addPathObject(pathObject);
+		hierarchy.addObject(pathObject);
 	}
 	
 	/**
@@ -1070,7 +1070,7 @@ public class QP {
 		PathObjectHierarchy hierarchy = getCurrentHierarchy();
 		if (hierarchy == null)
 			return;
-		hierarchy.addPathObjects(pathObjects);
+		hierarchy.addObjects(pathObjects);
 	}
 	
 	/**
@@ -1774,7 +1774,7 @@ public class QP {
 		PathObject pathObject = PathObjects.createAnnotationObject(
 				ROIs.createRectangleROI(0, 0, server.getWidth(), server.getHeight(), ImagePlane.getPlane(z, t))
 				);
-		imageData.getHierarchy().addPathObject(pathObject);
+		imageData.getHierarchy().addObject(pathObject);
 		if (setSelected)
 			imageData.getHierarchy().getSelectionModel().setSelectedObject(pathObject);
 	}
@@ -1821,7 +1821,7 @@ public class QP {
 			transformed.add(PathObjectTools.transformObject(pathObject, transform, true, false));
 		
 		hierarchy.removeObjects(selected, true);
-		hierarchy.addPathObjects(transformed);
+		hierarchy.addObjects(transformed);
 		
 		// Set selected objects
 		var newPrimary = primary == null ? null : selected.stream().filter(p -> p.getId().equals(primary.getId())).findFirst().orElse(null);
@@ -1862,7 +1862,7 @@ public class QP {
 				.collect(Collectors.toSet());
 		var transformed = PathObjectTools.transformObjectRecursive(hierarchy.getRootObject(), transform, true, false);
 		hierarchy.clearAll();
-		hierarchy.addPathObjects(new ArrayList<>(transformed.getChildObjects()));
+		hierarchy.addObjects(new ArrayList<>(transformed.getChildObjects()));
 		
 		// Restore the selection, now with the transformed objects
 		if (!selectedIDs.isEmpty()) {
@@ -2548,7 +2548,7 @@ public class QP {
 	 */
 	public static boolean importObjectsFromFile(String path) throws FileNotFoundException, IllegalArgumentException, IOException, ClassNotFoundException {
 		var objs = PathIO.readObjects(new File(path));
-		return getCurrentHierarchy().addPathObjects(objs);
+		return getCurrentHierarchy().addObjects(objs);
 	}
 	
 	/**
@@ -3413,7 +3413,7 @@ public class QP {
 		else
 			logger.warn("Cannot assign class unambiguously - " + pathClasses.size() + " classes represented in selection");
 		hierarchy.removeObjects(merged, true);
-		hierarchy.addPathObject(pathObjectNew);
+		hierarchy.addObject(pathObjectNew);
 		hierarchy.getSelectionModel().setSelectedObject(pathObjectNew);
 		//				pathObject.removePathObjects(children);
 		//				pathObject.addPathObject(pathObjectNew);

@@ -1217,11 +1217,11 @@ public class TMASummaryViewer {
 	 */
 	public void setTMAEntriesFromImageData(final ImageData<BufferedImage> imageData) {
 		if (this.imageData != null) {
-			this.imageData.getHierarchy().removePathObjectListener(hierarchyListener);
+			this.imageData.getHierarchy().removeListener(hierarchyListener);
 		}
 		if (imageData != null) {
 			this.imageData = imageData;
-			this.imageData.getHierarchy().addPathObjectListener(hierarchyListener);
+			this.imageData.getHierarchy().addListener(hierarchyListener);
 			setTMAEntries(getEntriesForTMAData(imageData));
 			stage.setTitle("TMA Viewer: " + ServerTools.getDisplayableImageName(imageData.getServer()));
 		}

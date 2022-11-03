@@ -157,7 +157,7 @@ public class CountingPanelCommand implements Runnable, ChangeListener<ImageData<
 					
 					if (pointsList != null) {
 						for (PathObject points : pointsList)
-							hierarchy.addPathObject(points);
+							hierarchy.addObject(points);
 					}
 				} catch (IOException e) {
 					Dialogs.showErrorMessage("Load points error", e);

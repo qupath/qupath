@@ -133,7 +133,7 @@ public class SplitAnnotationsPlugin<T> extends AbstractInteractivePlugin<T> {
 				}
 				if (pathObject.hasChildren()) {
 					for (var temp : localSplit)
-						hierarchy.addPathObjectBelowParent(pathObject, temp, false);
+						hierarchy.addObjectBelowParent(pathObject, temp, false);
 				} else 
 					pathObject.addPathObjects(localSplit);
 				toAdd.addAll(localSplit);

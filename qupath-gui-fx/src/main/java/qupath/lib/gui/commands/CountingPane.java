@@ -86,7 +86,7 @@ class CountingPane implements PathObjectSelectionListener, PathObjectHierarchyLi
 	
 	private Action btnAdd = new Action("Add", e -> {
 		PathObject pathObjectCounts = PathObjects.createAnnotationObject(ROIs.createPointsROI(ImagePlane.getDefaultPlane()));
-		hierarchy.addPathObject(pathObjectCounts);
+		hierarchy.addObject(pathObjectCounts);
 //		hierarchy.fireChangeEvent(pathObjectCounts.getParent());
 		hierarchy.getSelectionModel().setSelectedObject(pathObjectCounts);
 //		promptToSetProperties();
@@ -115,7 +115,7 @@ class CountingPane implements PathObjectSelectionListener, PathObjectHierarchyLi
 		for (PathClass pathClass : availableClasses) {
 			pathObjects.add(PathObjects.createAnnotationObject(ROIs.createPointsROI(plane), pathClass));
 		}
-		hierarchy.addPathObjects(pathObjects);
+		hierarchy.addObjects(pathObjects);
 	});
 	
 	
@@ -234,7 +234,7 @@ class CountingPane implements PathObjectSelectionListener, PathObjectHierarchyLi
 			return;
 		if (this.hierarchy != null) {
 			this.hierarchy.getSelectionModel().removePathObjectSelectionListener(this);
-			this.hierarchy.removePathObjectListener(this);
+			this.hierarchy.removeListener(this);
 		}
 		this.hierarchy = hierarchy;
 		PathObject objectSelected = null;
@@ -243,7 +243,7 @@ class CountingPane implements PathObjectSelectionListener, PathObjectHierarchyLi
 			PathObjectSelectionModel model = this.hierarchy.getSelectionModel();
 			model.addPathObjectSelectionListener(this);
 			objectSelected = model.getSelectedObject();
-			this.hierarchy.addPathObjectListener(this);
+			this.hierarchy.addListener(this);
 		}
 		// Update selected object in list, if suitable
 		if (objectSelected != null && PathObjectTools.hasPointROI(objectSelected))

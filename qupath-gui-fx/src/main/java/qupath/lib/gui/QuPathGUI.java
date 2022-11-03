@@ -5100,7 +5100,7 @@ public class QuPathGUI {
 //			hierarchy.addPathObject(annotation, false);
 			
 //			// Make sure any core parent is set
-			hierarchy.addPathObjectBelowParent(coreNewParent, annotation, true);
+			hierarchy.addObjectBelowParent(coreNewParent, annotation, true);
 			
 			activeViewer.setSelectedObject(annotation);
 			return true;

@@ -1469,9 +1469,9 @@ public class ObjectClassifierCommand implements Runnable {
 		public void changed(ObservableValue<? extends ImageData<BufferedImage>> source, ImageData<BufferedImage> imageDataOld,
 				ImageData<BufferedImage> imageDataNew) {
 			if (imageDataOld != null)
-				imageDataOld.getHierarchy().removePathObjectListener(this);
+				imageDataOld.getHierarchy().removeListener(this);
 			if (imageDataNew != null)
-				imageDataNew.getHierarchy().addPathObjectListener(this);
+				imageDataNew.getHierarchy().addListener(this);
 
 			invalidateClassifier();
 		}

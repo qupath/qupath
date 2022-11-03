@@ -253,7 +253,7 @@ public final class InteractiveObjectImporter {
 			logger.warn("{} being added - IDs not updated, so there will be duplicates!", objString);
 		}
 		
-		hierarchy.addPathObjects(pathObjects);
+		hierarchy.addObjects(pathObjects);
 		return true;
 	}
 }
