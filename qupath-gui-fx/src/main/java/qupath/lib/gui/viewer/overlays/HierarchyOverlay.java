@@ -168,8 +168,12 @@ public class HierarchyOverlay extends AbstractOverlay {
 			shapeRegion = AwtTools.getBounds(imageRegion);
 		var boundsDisplayed = shapeRegion.getBounds();
 		
+		// Note: the following was commented out for v0.4.0, because objects becoming invisible 
+		// when outside the image turned out to be problematic more than helpful
+		
 		// Ensure the bounds do not extend beyond what the server actually contains
-		boundsDisplayed = boundsDisplayed.intersection(serverBounds);
+//		boundsDisplayed = boundsDisplayed.intersection(serverBounds);
+		
 		if (boundsDisplayed.width <= 0 || boundsDisplayed.height <= 0)
 			return;
 
