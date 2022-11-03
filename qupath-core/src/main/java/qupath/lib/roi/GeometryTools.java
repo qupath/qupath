@@ -281,6 +281,7 @@ public class GeometryTools {
      */
     public static Geometry createRectangle(double x, double y, double width, double height) {
     	var shapeFactory = new GeometricShapeFactory(DEFAULT_FACTORY);
+    	shapeFactory.setNumPoints(4); // Probably 5, but should be increased automatically
 		shapeFactory.setEnvelope(
 				new Envelope(
 						x, x+width, y, y+height)
@@ -838,8 +839,10 @@ public class GeometryTools {
 	    				);
 	    		if (roi instanceof EllipseROI)
 	    			return shapeFactory.createEllipse();
-	    		else
+	    		else {
+	    			shapeFactory.setNumPoints(4); // May well be 5 (for the end point)
 	    			return shapeFactory.createRectangle();
+	    		}
 	    	}
 	    	// TODO: Test if this is as reliable
 	    	// Exploratory code for v0.4.0, but rejected to reduce risk.
