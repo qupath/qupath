@@ -175,7 +175,7 @@ public class HierarchyOverlay extends AbstractOverlay {
 
 		// Get the annotations & selected objects (which must be painted directly)
 		Collection<PathObject> selectedObjects = new ArrayList<>(hierarchy.getSelectionModel().getSelectedObjects());
-		selectedObjects.removeIf(p -> !p.hasROI() || (p.getROI().getZ() != z || p.getROI().getT() != t));
+		selectedObjects.removeIf(p -> p == null || !p.hasROI() || (p.getROI().getZ() != z || p.getROI().getT() != t));
 
 		ImageRegion region = AwtTools.getImageRegion(boundsDisplayed, z, t);
 		

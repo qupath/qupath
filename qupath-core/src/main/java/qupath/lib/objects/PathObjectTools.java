@@ -1096,8 +1096,7 @@ public class PathObjectTools {
 	 * Create a transformed version of a {@link PathObject}, optionally with a new ID.
 	 * If the transform is null or the identity transform, then a duplicate object is generated instead.
 	 * <p>
-	 * Note: only detections (including tiles and cells) and annotations are fully supported by this method.
-	 * Root objects are duplicated.
+	 * Note: only detections (including tiles and cells), annotations and root objects are fully supported by this method.
 	 * TMA core objects are transformed only if the resulting transform creates an ellipse ROI, since this is 
 	 * currently the only ROI type supported for a TMA core (this behavior may change).
 	 * Any other object types result in an {@link UnsupportedOperationException} being thrown.
