@@ -133,7 +133,7 @@ public class SmoothFeaturesPlugin<T> extends AbstractInteractivePlugin<T> {
 			@Override
 			public void run() {
 				try {
-					if (!parentObject.hasChildren())
+					if (!parentObject.hasChildObjects())
 						return;
 	//				System.out.println("Smoothing with FWHM " +fwhmPixels);
 					// TODO: MAKE A MORE ELEGANT LIST!!!!
@@ -404,12 +404,12 @@ public class SmoothFeaturesPlugin<T> extends AbstractInteractivePlugin<T> {
 		if (hierarchy.getTMAGrid() != null) {
 			logger.info("Smoothing using TMA cores");
 			for (TMACoreObject core : hierarchy.getTMAGrid().getTMACoreList()) {
-				if (core.hasChildren())
+				if (core.hasChildObjects())
 					parents.add(core);
 			}
 		} else {
 			for (PathObject pathObject : hierarchy.getSelectionModel().getSelectedObjects()) {
-				if (pathObject.isAnnotation() && pathObject.hasChildren())
+				if (pathObject.isAnnotation() && pathObject.hasChildObjects())
 					parents.add(pathObject);
 			}			
 			if (!parents.isEmpty())

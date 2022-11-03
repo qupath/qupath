@@ -293,12 +293,12 @@ public class ParallelTileObject extends PathTileObject implements TemporaryObjec
 					double threshold = 0.1;
 					if (firstArea >= secondArea) {
 						if (intersectionArea / secondArea > threshold) {
-							second.removePathObject(secondObject);
+							second.removeChildObject(secondObject);
 							nRemoved++;
 						}
 					} else {
 						if (intersectionArea / firstArea > threshold) {
-							first.removePathObject(firstObject);
+							first.removeChildObject(firstObject);
 							nRemoved++;
 							break;
 						}
@@ -355,11 +355,11 @@ public class ParallelTileObject extends PathTileObject implements TemporaryObjec
 						parallelObjects.add(temp);
 					}
 				}
-				parent.removePathObjects(parallelObjects);
+				parent.removeChildObjects(parallelObjects);
 				for (PathObject temp : parallelObjects)
-					parent.addPathObjects(temp.getChildObjects());
+					parent.addChildObjects(temp.getChildObjects());
 
-				if (parent.hasChildren() && parent instanceof PathROIObject)
+				if (parent.hasChildObjects() && parent instanceof PathROIObject)
 					((PathROIObject)parent).setLocked(true);
 
 				hierarchy.fireHierarchyChangedEvent(parent);

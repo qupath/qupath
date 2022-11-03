@@ -860,7 +860,7 @@ public class PathObjectTools {
 	 * @return
 	 */
 	public static Collection<PathObject> getDescendantObjects(PathObject pathObject, Collection<PathObject> pathObjects, Class<? extends PathObject> cls) {
-		if (pathObject == null || !pathObject.hasChildren())
+		if (pathObject == null || !pathObject.hasChildObjects())
 			return pathObjects == null ? Collections.emptyList() : pathObjects;
 		
 		if (pathObjects == null)
@@ -882,7 +882,7 @@ public class PathObjectTools {
 			if (cls == null || cls.isInstance(childObject)) {
 				pathObjects.add(childObject);
 			}
-			if (childObject.hasChildren())
+			if (childObject.hasChildObjects())
 				addPathObjectsRecursively(childObject.getChildObjectsAsArray(), pathObjects, cls);
 		}
 	}
@@ -1178,13 +1178,13 @@ public class PathObjectTools {
 	public static PathObject transformObjectRecursive(PathObject pathObject, AffineTransform transform, boolean copyMeasurements, boolean createNewIDs) {
 		var newObj = transformObject(pathObject, transform, copyMeasurements, createNewIDs);
 		// Parallelization can help
-		if (pathObject.hasChildren()) {
+		if (pathObject.hasChildObjects()) {
 			var newChildObjects = pathObject.getChildObjects()
 				.parallelStream()
 				.map(p -> transformObjectRecursive(p, transform, copyMeasurements, createNewIDs))
 				.collect(Collectors.toList());
 			
-			newObj.addPathObjects(newChildObjects);
+			newObj.addChildObjects(newChildObjects);
 //			for (var child: pathObject.getChildObjects()) {
 //				newObj.addPathObject(transformObjectRecursive(child, transform, copyMeasurements, createNewIDs));
 //			}

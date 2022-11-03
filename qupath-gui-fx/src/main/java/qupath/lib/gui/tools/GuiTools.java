@@ -666,7 +666,7 @@ public class GuiTools {
 		// Deselect first
 		hierarchy.getSelectionModel().deselectObject(pathObjectSelected);
 
-		if (pathObjectSelected.hasChildren()) {
+		if (pathObjectSelected.hasChildObjects()) {
 			int nDescendants = PathObjectTools.countDescendants(pathObjectSelected);
 			String message = nDescendants == 1 ? "Keep descendant object?" : String.format("Keep %d descendant objects?", nDescendants);
 			Dialogs.DialogButton confirm = Dialogs.showYesNoCancelDialog("Delete object", message);

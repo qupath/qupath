@@ -424,7 +424,7 @@ public class PathHierarchyPaintingHelper {
 							if ((overlayOptions.getFillAnnotations() &&
 									pathObject.isAnnotation() && 
 									pathObject.getPathClass() != PathClass.StandardPathClasses.REGION &&
-									(pathObject.getPathClass() != null || !pathObject.hasChildren()))
+									(pathObject.getPathClass() != null || !pathObject.hasChildObjects()))
 									|| (pathObject.isTMACore() && overlayOptions.getShowTMACoreLabels()))
 								paintROI(pathROI, g, colorStroke, stroke, ColorToolsAwt.getMoreTranslucentColor(colorStroke), downsample);
 							else
@@ -440,7 +440,7 @@ public class PathHierarchyPaintingHelper {
 			for (PathObject childObject : pathObject.getChildObjectsAsArray()) {
 				// Only call the painting method if required
 				ROI childROI = childObject.getROI();
-				if ((childROI != null && boundsDisplayed.intersects(childROI.getBoundsX(), childROI.getBoundsY(), childROI.getBoundsWidth(), childROI.getBoundsHeight())) || childObject.hasChildren())
+				if ((childROI != null && boundsDisplayed.intersects(childROI.getBoundsX(), childROI.getBoundsY(), childROI.getBoundsWidth(), childROI.getBoundsHeight())) || childObject.hasChildObjects())
 					painted = paintObject(childObject, paintChildren, g, boundsDisplayed, overlayOptions, selectionModel, downsample) | painted;
 			}
 		}

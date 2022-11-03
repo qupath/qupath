@@ -667,7 +667,7 @@ public class DensityMaps {
 				else if (hotspots.size() < nHotspots) {
 					logger.warn("Only {}/{} hotspots could be found in {}", hotspots.size(), nHotspots, parent);
 				}
-				parent.addPathObjects(hotspots);
+				parent.addChildObjects(hotspots);
 			}
 			
 			hierarchy.fireHierarchyChangedEvent(DensityMaps.class);

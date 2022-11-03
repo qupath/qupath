@@ -350,7 +350,7 @@ class PathObjectTypeAdapters {
 				}
 			}
 			
-			if (doHierarchy && value.hasChildren()) {
+			if (doHierarchy && value.hasChildObjects()) {
 				out.name("children");
 				out.beginArray();
 				for (var child : value.getChildObjectsAsArray()) {
@@ -532,7 +532,7 @@ class PathObjectTypeAdapters {
 			}
 			
 			if (childObjects != null)
-				pathObject.addPathObjects(childObjects);
+				pathObject.addChildObjects(childObjects);
 			
 			return pathObject;
 		}

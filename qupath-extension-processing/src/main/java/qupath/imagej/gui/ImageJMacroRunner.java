@@ -312,8 +312,8 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 				
 				
 				boolean changes = false;
-				if (params.getBooleanParameterValue("clearObjects") && pathObject.hasChildren()) {
-					pathObject.clearPathObjects();
+				if (params.getBooleanParameterValue("clearObjects") && pathObject.hasChildObjects()) {
+					pathObject.clearChildObjects();
 					changes = true;
 				}
 				if (params.getBooleanParameterValue("getROI") && impResult.getRoi() != null) {
@@ -328,7 +328,7 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 						}
 						// Only add if we have something
 						if (pathObjectNew.getROI() instanceof LineROI || !pathObjectNew.getROI().isEmpty()) {
-							pathObject.addPathObject(pathObjectNew);
+							pathObject.addChildObject(pathObjectNew);
 							//			imageData.getHierarchy().addPathObject(IJHelpers.convertToPathObject(imp, imageData.getServer(), imp.getRoi(), downsampleFactor, false), true);
 							changes = true;
 						}
@@ -340,7 +340,7 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 					var overlay = impResult.getOverlay();
 					List<PathObject> childObjects = QuPath_Send_Overlay_to_QuPath.createObjectsFromROIs(imp, Arrays.asList(overlay.toArray()), downsampleFactor, exportAsDetection, true, region.getImagePlane());
 					if (!childObjects.isEmpty()) {
-						pathObject.addPathObjects(childObjects);
+						pathObject.addChildObjects(childObjects);
 						changes = true;
 					}
 //					for (Roi roi : impResult.getOverlay().toArray()) {

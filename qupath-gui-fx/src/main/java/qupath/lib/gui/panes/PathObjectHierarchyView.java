@@ -478,7 +478,7 @@ public class PathObjectHierarchyView implements ChangeListener<ImageData<Buffere
 						assert child != value;
 						if (child.isTMACore())
 							tmaCores.add(child);
-						else if (child.isAnnotation() || child.hasChildren())
+						else if (child.isAnnotation() || child.hasChildObjects())
 							sortable.add(child);
 						else if (includeDetections)
 							others.add(child);
@@ -505,7 +505,7 @@ public class PathObjectHierarchyView implements ChangeListener<ImageData<Buffere
 		public boolean isLeaf() {
 			if (isLeaf == null) {
 				var pathObject = getValue();
-				if (!pathObject.hasChildren())
+				if (!pathObject.hasChildObjects())
 					isLeaf = true;
 				else if (PathPrefs.detectionTreeDisplayModeProperty().get() != DetectionTreeDisplayModes.NONE) {
 					isLeaf = false;

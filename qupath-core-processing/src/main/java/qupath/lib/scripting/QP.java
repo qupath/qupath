@@ -3544,7 +3544,7 @@ public class QP {
 		// Create the new ROI
 		ROI shapeNew = GeometryTools.geometryToROI(geometry, plane);
 		PathObject pathObjectNew = PathObjects.createAnnotationObject(shapeNew);
-		parent.addPathObject(pathObjectNew);
+		parent.addChildObject(pathObjectNew);
 		hierarchy.fireHierarchyChangedEvent(parent);	
 		hierarchy.getSelectionModel().setSelectedObject(pathObjectNew);
 		return true;

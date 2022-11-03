@@ -232,7 +232,7 @@ public abstract class PathObject implements Externalizable {
 			else
 				return String.format(" (%d points)", nPoints);
 		}
-		if (!hasChildren())
+		if (!hasChildObjects())
 			return "";
 		int nChildren = nChildObjects();
 		int nDescendants = PathObjectTools.countDescendants(this);
@@ -289,14 +289,26 @@ public abstract class PathObject implements Externalizable {
 	/**
 	 * Add an object to the child list of this object.
 	 * @param pathObject
+	 * @since v0.4.0
 	 */
-	public synchronized void addPathObject(PathObject pathObject) {
+	public synchronized void addChildObject(PathObject pathObject) {
 		if (pathObject instanceof PathRootObject) //J
 			throw new IllegalArgumentException("PathRootObject cannot be added as child to another PathObject"); //J 
-		addPathObjectImpl(pathObject);
+		addChildObjectImpl(pathObject);
 	}
 	
-	private synchronized void addPathObjectImpl(PathObject pathObject) {
+	/**
+	 * Legacy method to add a single child object.
+	 * @param pathObject
+	 * @deprecated since v0.4.0, replaced by {@link #addChildObject(PathObject)}
+	 */
+	@Deprecated
+	public void addPathObject(PathObject pathObject) {
+		LogTools.warnOnce(logger, "addPathObject(Collection) is deprecated - use addChildObject(Collection) instead");
+		addChildObject(pathObject);
+	}
+	
+	private synchronized void addChildObjectImpl(PathObject pathObject) {
 		ensureChildList(nChildObjects() + 1);
 		// Make sure the object is removed from any other parent
 		if (pathObject.parent != this) {
@@ -311,7 +323,7 @@ public abstract class PathObject implements Externalizable {
 	}
 
 	
-	private synchronized void addPathObjectsImpl(Collection<? extends PathObject> pathObjects) {
+	private synchronized void addChildObjectsImpl(Collection<? extends PathObject> pathObjects) {
 		if (pathObjects == null || pathObjects.isEmpty())
 			return;
 		ensureChildList(nChildObjects() + pathObjects.size());
@@ -386,83 +398,33 @@ public abstract class PathObject implements Externalizable {
 		list.removeAll(toRemove);
 	}
 	
-//	/**
-//	 * Remove all items from a list, but optionally using a (temporary) set 
-//	 * to improve performance.
-//	 * 
-//	 * @param list
-//	 * @param toRemove
-//	 */
-//	private static <T> void removeAllQuickly(List<T> list, Collection<T> toRemove) {
-//		// This is rather implementation-specific, based on how ArrayLists do their object removal.
-//		// In some implementations it might be better to switch the list to a set temporarily?
-//		int size = 10;
-//		if (list.size() > size || toRemove.size() > size) {
-//			var tempSet = new LinkedHashSet<>(list);
-//			tempSet.removeAll(toRemove);
-//			list.clear();
-//			list.addAll(tempSet);
-//		} else {
-//			if (!(toRemove instanceof Set)  && toRemove.size() > size) {
-//				toRemove = new HashSet<>(toRemove);
-//			}
-//			list.removeAll(toRemove);
-//		}
-////		list.removeAll(toRemove);
-//	}
-	
-	
-//	public void addPathObjects(int index, Collection<? extends PathObject> pathObjects) {
-//		if (pathObjects == null || pathObjects.isEmpty())
-//			return;
-//		ensureChildList(pathObjects.size());
-//		// Make sure the object is removed from any other parent
-//		Iterator<? extends PathObject> iter = pathObjects.iterator();
-//		boolean isChildList = false;
-//		PathObject previousParent = null;
-//		while (iter.hasNext()) {
-//			PathObject pathObject = iter.next();
-//			previousParent = pathObject.parent;
-//			if (pathObject.parent != this) {
-//				// Remove objects from previous parent
-//				if (previousParent != null && previousParent.childList != null) {
-//					// Check if we were given the list directly... if so, remove using the iterator
-////					if (pathObjects == previousParent.childList)
-//					isChildList = pathObjects.equals(previousParent.childList);
-//					if (!isChildList) {
-//						// Should be able to remove from previous parent without a concurrent exception
-////						logger.info("Calling remove " + pathObject);
-//						previousParent.childList.remove(pathObject);
-//					}
-//				}
-//				// Set the parent
-//				pathObject.parent = this;
-//			}
-//		}
-////		logger.info("Adding all " + pathObjects.size());
-//		childList.addAll(index, pathObjects);
-//		// If we have all the children of a pathObject, clear that objects children
-//		if (isChildList)
-//			previousParent.childList.clear();
-//		
-////		for (PathObject pathObject : pathObjects)
-////			addPathObject(index++, pathObject);
-//	}
-	
 	/**
 	 * Add a collection of objects to the child list of this object.
 	 * @param pathObjects
+	 * @since v0.4.0
 	 */
-	public synchronized void addPathObjects(Collection<? extends PathObject> pathObjects) {
-		addPathObjectsImpl(pathObjects);
+	public synchronized void addChildObjects(Collection<? extends PathObject> pathObjects) {
+		addChildObjectsImpl(pathObjects);
+	}
+	
+	/**
+	 * Legacy method to add child objects.
+	 * @param pathObjects
+	 * @deprecated since v0.4.0, replaced by {@link #addChildObjects(Collection)}
+	 */
+	@Deprecated
+	public void addPathObjects(Collection<? extends PathObject> pathObjects) {
+		LogTools.warnOnce(logger, "addPathObjects(Collection) is deprecated - use addChildObjects(Collection) instead");
+		addChildObjects(pathObjects);
 	}
 
 	/**
 	 * Remove a single object from the child list of this object.
 	 * @param pathObject
+	 * @since v0.4.0
 	 */
-	public void removePathObject(PathObject pathObject) {
-		if (!hasChildren())
+	public void removeChildObject(PathObject pathObject) {
+		if (!hasChildObjects())
 			return;
 		if (pathObject.parent == this)
 			pathObject.parent = null; //.setParent(null);
@@ -470,11 +432,23 @@ public abstract class PathObject implements Externalizable {
 	}
 	
 	/**
+	 * Legacy method to remove a single child object.
+	 * @param pathObject
+	 * @deprecated since v0.4.0, replaced by {@link #removeChildObject(PathObject)}
+	 */
+	@Deprecated
+	public void removePathObject(PathObject pathObject) {
+		LogTools.warnOnce(logger, "removePathObject(PathObject) is deprecated - use removeChildObject(PathObject) instead");
+		removeChildObject(pathObject);
+	}
+	
+	/**
 	 * Remove multiple objects from the child list of this object.
 	 * @param pathObjects
+	 * @since v0.4.0
 	 */
-	public synchronized void removePathObjects(Collection<PathObject> pathObjects) {
-		if (!hasChildren())
+	public synchronized void removeChildObjects(Collection<PathObject> pathObjects) {
+		if (!hasChildObjects())
 			return;
 		for (PathObject pathObject : pathObjects) {
 			if (pathObject.parent == this)
@@ -486,10 +460,22 @@ public abstract class PathObject implements Externalizable {
 	}
 	
 	/**
-	 * Remove all child objects.
+	 * Legacy method to remove specified child objects.
+	 * @param pathObjects 
+	 * @deprecated since v0.4.0, replaced by {@link #removeChildObjects(Collection)}
 	 */
-	public void clearPathObjects() {
-		if (!hasChildren())
+	@Deprecated
+	public void removePathObjects(Collection<PathObject> pathObjects) {
+		LogTools.warnOnce(logger, "removePathObjects(Collection) is deprecated - use removeChildObjects(Collection) instead");
+		removeChildObjects(pathObjects);
+	}
+	
+	/**
+	 * Remove all child objects.
+	 * @since v0.4.0
+	 */
+	public void clearChildObjects() {
+		if (!hasChildObjects())
 			return;
 		synchronized (childList) {
 			for (PathObject pathObject : childList) {
@@ -498,6 +484,16 @@ public abstract class PathObject implements Externalizable {
 			}
 			childList.clear();
 		}
+	}
+	
+	/**
+	 * Legacy method to remove all child objects.
+	 * @deprecated since v0.4.0, replaced by {@link #clearChildObjects()}
+	 */
+	@Deprecated
+	public void clearPathObjects() {
+		LogTools.warnOnce(logger, "clearPathObjects() is deprecated, use clearChildObjects() instead");
+		clearChildObjects();
 	}
 	
 	/**
@@ -520,7 +516,7 @@ public abstract class PathObject implements Externalizable {
 	 * @see #nChildObjects()
 	 */
 	public int nDescendants() {
-		if (!hasChildren())
+		if (!hasChildObjects())
 			return 0;
 		// This could be used if needed - but with childList being synchronized I think it isn't necessary
 //		var childArray = getChildObjectsAsArray();
@@ -534,9 +530,21 @@ public abstract class PathObject implements Externalizable {
 	/**
 	 * Check if this object has children, or if its child object list is empty.
 	 * @return
+	 * @since v0.4.0, replaces {@link #hasChildren()} for more consistent naming
 	 */
-	public boolean hasChildren() {
+	public boolean hasChildObjects() {
 		return childList != null && !childList.isEmpty();
+	}
+	
+	/**
+	 * Legacy method to check for child objects.
+	 * @return
+	 * @deprecated since v0.4.0, replaced by {@link #hasChildObjects()}
+	 */
+	@Deprecated
+	public boolean hasChildren() {
+		LogTools.warnOnce(logger, "hasChildren() is deprecated - use hasChildObjects() instead");
+		return hasChildObjects();
 	}
 	
 	/**
@@ -636,7 +644,7 @@ public abstract class PathObject implements Externalizable {
 	 * @return
 	 */
 	public Collection<PathObject> getChildObjects() {
-		if (!hasChildren())
+		if (!hasChildObjects())
 			return Collections.emptyList();
 		return cachedUnmodifiableChildren;
 	}
@@ -650,7 +658,7 @@ public abstract class PathObject implements Externalizable {
 	public Collection<PathObject> getChildObjects(Collection<PathObject> children) {
 		if (children == null)
 			return getChildObjects();
-		if (!hasChildren())
+		if (!hasChildObjects())
 			return children;
 		children.addAll(childList);
 		return children;
@@ -663,14 +671,14 @@ public abstract class PathObject implements Externalizable {
 	 * @return collection containing all descendant object (the same as {@code descendants} if provided)
 	 */
 	public Collection<PathObject> getDescendantObjects(Collection<PathObject> descendants) {
-		if (!hasChildren())
+		if (!hasChildObjects())
 			return Collections.emptyList();
 		if (descendants == null)
 			descendants = new ArrayList<>();
 //		descendants.addAll(childList);
 		for (var child : childList) {
 			descendants.add(child);
-			if (child.hasChildren())
+			if (child.hasChildObjects())
 				child.getDescendantObjects(descendants);
 		}
 		return descendants;
@@ -678,6 +686,7 @@ public abstract class PathObject implements Externalizable {
 	
 	/**
 	 * Get a defensive copy of child objects as an array.
+	 * <p>
 	 * Why? Well perhaps you want to iterate through it and {@link #getChildObjects()} may result in synchronization problems if 
 	 * the list is modified by another thread. In such a case a defensive copy may already be required, and it is more efficient to request 
 	 * it here.

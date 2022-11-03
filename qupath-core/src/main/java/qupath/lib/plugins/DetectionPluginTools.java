@@ -147,14 +147,14 @@ public class DetectionPluginTools {
 			try {
 //				// Tile objects handle their own completion
 				if (parentObject instanceof ParallelTileObject) {
-					parentObject.clearPathObjects();
-					parentObject.addPathObjects(pathObjectsDetected);
+					parentObject.clearChildObjects();
+					parentObject.addChildObjects(pathObjectsDetected);
 					((ParallelTileObject)parentObject).setComplete(wasCancelled);
 				} else {
 					if (!wasCancelled) {
-						parentObject.clearPathObjects();
+						parentObject.clearChildObjects();
 						if (pathObjectsDetected != null) {
-							parentObject.addPathObjects(pathObjectsDetected);
+							parentObject.addChildObjects(pathObjectsDetected);
 							tryToSetObjectLock(parentObject, !pathObjectsDetected.isEmpty());
 						}
 						imageData.getHierarchy().fireObjectsChangedEvent(this, Collections.singletonList(parentObject));
