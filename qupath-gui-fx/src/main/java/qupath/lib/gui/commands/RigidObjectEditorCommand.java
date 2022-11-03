@@ -263,7 +263,7 @@ class RigidObjectEditorCommand implements Runnable, ChangeListener<ImageData<Buf
 							GeometryTools.convertTransform(transform),
 							true, false);
 					hierarchy.clearAll();
-					hierarchy.addPathObjects(new ArrayList<>(newRoot.getChildObjects()));
+					hierarchy.addObjects(new ArrayList<>(newRoot.getChildObjects()));
 					// Need to reset the selection, so that it doesn't persist in the viewer as phantom objects
 					keepSelection = false;
 					

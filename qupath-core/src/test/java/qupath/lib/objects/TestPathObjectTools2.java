@@ -208,7 +208,7 @@ public class TestPathObjectTools2 {
 	
 	@Test
 	public void test_getRepresentedPathClasses() {
-		hierarchy.addPathObjects(Arrays.asList(po1, po2, po3, po4, po5, po6));
+		hierarchy.addObjects(Arrays.asList(po1, po2, po3, po4, po5, po6));
 		
 		var classes = PathObjectTools.getRepresentedPathClasses(hierarchy, PathAnnotationObject.class);
 		assertEquals(new HashSet<>(), classes); 

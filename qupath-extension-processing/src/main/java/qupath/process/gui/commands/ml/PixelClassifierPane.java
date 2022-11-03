@@ -198,9 +198,9 @@ public class PixelClassifierPane {
 		public void changed(ObservableValue<? extends ImageData<BufferedImage>> observable,
 				ImageData<BufferedImage> oldValue, ImageData<BufferedImage> newValue) {
 			if (oldValue != null)
-				oldValue.getHierarchy().removePathObjectListener(hierarchyListener);
+				oldValue.getHierarchy().removeListener(hierarchyListener);
 			if (newValue != null)
-				newValue.getHierarchy().addPathObjectListener(hierarchyListener);
+				newValue.getHierarchy().addListener(hierarchyListener);
 			updateTitle();
 			updateAvailableResolutions(newValue);
 		}
@@ -572,7 +572,7 @@ public class PixelClassifierPane {
 		
 		qupath.imageDataProperty().addListener(imageDataListener);
 		if (qupath.getImageData() != null)
-			qupath.getImageData().getHierarchy().addPathObjectListener(hierarchyListener);
+			qupath.getImageData().getHierarchy().addListener(hierarchyListener);
 		
 		stage.focusedProperty().addListener((v, o, n) -> {
 			if (n) {
@@ -1170,7 +1170,7 @@ public class PixelClassifierPane {
 //			viewer.imageDataProperty().removeListener(imageDataListener);
 			var hierarchy = viewer.getHierarchy();
 			if (hierarchy != null)
-				hierarchy.removePathObjectListener(hierarchyListener);
+				hierarchy.removeListener(hierarchyListener);
 		}
 		featureOverlay = null;
 		overlay = null;

@@ -115,7 +115,7 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 	public PathObjectTileCache(PathObjectHierarchy hierarchy) {
 		this.hierarchy = hierarchy;
 		if (hierarchy != null)
-			hierarchy.addPathObjectListener(this);
+			hierarchy.addListener(this);
 	}
 	
 	public void resetCache() {

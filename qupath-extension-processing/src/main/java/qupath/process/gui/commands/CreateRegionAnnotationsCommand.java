@@ -294,9 +294,9 @@ public class CreateRegionAnnotationsCommand implements Runnable {
 					rectangle,
 					pathClass);
 			if (parentObject != null)
-				imageData.getHierarchy().addPathObjectBelowParent(parentObject, annotation, true);
+				imageData.getHierarchy().addObjectBelowParent(parentObject, annotation, true);
 			else
-				imageData.getHierarchy().addPathObject(annotation);
+				imageData.getHierarchy().addObject(annotation);
 		}
 		
 		

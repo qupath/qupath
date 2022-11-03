@@ -856,7 +856,7 @@ public class DensityMapDialog {
 					viewer.addViewerListener(this);
 					var hierarchy = viewer.getHierarchy();
 					if (hierarchy != null)
-						hierarchy.addPathObjectListener(this);
+						hierarchy.addListener(this);
 					currentViewers.add(viewer);
 					updateDensityServer(viewer);
 				}
@@ -877,10 +877,10 @@ public class DensityMapDialog {
 
 			logger.debug("ImageData changed from {} to {}", imageDataOld, imageDataNew);
 			if (imageDataOld != null)
-				imageDataOld.getHierarchy().removePathObjectListener(this);
+				imageDataOld.getHierarchy().removeListener(this);
 
 			if (imageDataNew != null) {
-				imageDataNew.getHierarchy().addPathObjectListener(this);
+				imageDataNew.getHierarchy().addListener(this);
 			}
 			updateDensityServer(viewer);
 		}

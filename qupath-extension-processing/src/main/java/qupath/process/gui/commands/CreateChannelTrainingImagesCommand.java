@@ -132,7 +132,7 @@ public class CreateChannelTrainingImagesCommand implements Runnable {
 				if (initializePoints) {
 					var imageData2 = entry2.readImageData();
 					imageData2.getHierarchy()
-						.addPathObjects(Arrays.asList(
+						.addObjects(Arrays.asList(
 								PathObjects.createAnnotationObject(
 										ROIs.createPointsROI(ImagePlane.getDefaultPlane()),
 										PathClass.getInstance(channelName, channel.getColor())),

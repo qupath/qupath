@@ -312,12 +312,12 @@ public class ObjectDescriptionPane<T> {
 				PathObjectHierarchy newValue) {
 			
 			if (oldValue != null) {
-				oldValue.removePathObjectListener(this);
+				oldValue.removeListener(this);
 				oldValue.getSelectionModel().removePathObjectSelectionListener(this);
 			}
 			
 			if (newValue != null) {
-				newValue.addPathObjectListener(this);
+				newValue.addListener(this);
 				newValue.getSelectionModel().addPathObjectSelectionListener(this);
 				selectedObject.set(newValue.getSelectionModel().getSelectedObject());
 				selectedObjects.setAll(newValue.getSelectionModel().getSelectedObjects());

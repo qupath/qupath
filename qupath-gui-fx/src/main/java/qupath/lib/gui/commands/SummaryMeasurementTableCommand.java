@@ -436,11 +436,11 @@ public class SummaryMeasurementTableCommand {
 		TableViewerListener tableViewerListener = new TableViewerListener(viewer, table);
 
 		frame.setOnShowing(e -> {
-			hierarchy.addPathObjectListener(listener);
+			hierarchy.addListener(listener);
 			viewer.addViewerListener(tableViewerListener);
 		});
 		frame.setOnHiding(e -> {
-			hierarchy.removePathObjectListener(listener);
+			hierarchy.removeListener(listener);
 			viewer.removeViewerListener(tableViewerListener);
 		});
 

@@ -1528,7 +1528,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		// Remove listeners for previous hierarchy
 		ImageData<BufferedImage> imageDataOld = this.imageDataProperty.get();
 		if (imageDataOld != null) {
-			imageDataOld.getHierarchy().removePathObjectListener(this);
+			imageDataOld.getHierarchy().removeListener(this);
 			imageDataOld.getHierarchy().getSelectionModel().removePathObjectSelectionListener(this);
 		}
 		
@@ -1616,7 +1616,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 		if (imageDataNew != null) {
 			//			hierarchyPainter = new PathHierarchyPainter(hierarchy);
-			hierarchy.addPathObjectListener(this);
+			hierarchy.addListener(this);
 			hierarchy.getSelectionModel().addPathObjectSelectionListener(this);
 		}
 

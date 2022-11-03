@@ -25,12 +25,15 @@ package qupath.lib.objects.hierarchy.events;
 
 import java.util.EventListener;
 
+import qupath.lib.objects.hierarchy.PathObjectHierarchy;
+
 /**
- * A listener for modifications to a PathObjectHierarchy (i.e. objects added, removed, classified etc.)
+ * A listener for modifications to a {@link PathObjectHierarchy} (i.e. objects added, removed, classified etc.)
  * 
  * @author Pete Bankhead
  *
  */
+@FunctionalInterface
 public interface PathObjectHierarchyListener extends EventListener {
 	
 	/**

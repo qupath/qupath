@@ -149,7 +149,7 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 		setImageType(type);
 		
 		// Add listeners for changes
-		this.hierarchy.addPathObjectListener(this);
+		this.hierarchy.addListener(this);
 		workflow.addWorkflowListener(this);
 		
 		// Discard any changes during construction

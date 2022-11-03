@@ -246,9 +246,9 @@ public class DilateAnnotationPlugin<T> extends AbstractInteractivePlugin<T> {
 		annotation2.setColor(pathObject.getColor());
 
 		if (constrainToParent || isErosion)
-		    hierarchy.addPathObjectBelowParent(parent, annotation2, true);
+		    hierarchy.addObjectBelowParent(parent, annotation2, true);
 		else
-			hierarchy.addPathObject(annotation2);
+			hierarchy.addObject(annotation2);
 		
 	}
 	
