@@ -46,6 +46,7 @@ import java.util.stream.Collectors;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.prep.PreparedGeometry;
 import org.locationtech.jts.geom.prep.PreparedGeometryFactory;
+import org.locationtech.jts.geom.util.AffineTransformation;
 import org.locationtech.jts.index.strtree.STRtree;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -1068,6 +1069,8 @@ public class PathObjectTools {
 		return nChanges > 0;		
 	}
 	
+	
+	
 	/**
 	 * Create a transformed version of a {@link PathObject} with a new ID.
 	 * If the transform is null or the identity transform, then a duplicate object is generated instead.
@@ -1093,15 +1096,14 @@ public class PathObjectTools {
 	 * Create a transformed version of a {@link PathObject}, optionally with a new ID.
 	 * If the transform is null or the identity transform, then a duplicate object is generated instead.
 	 * <p>
-	 * Note: only detections (including tiles and cells) and annotations are fully supported by this method.
-	 * Root objects are duplicated.
+	 * Note: only detections (including tiles and cells), annotations and root objects are fully supported by this method.
 	 * TMA core objects are transformed only if the resulting transform creates an ellipse ROI, since this is 
 	 * currently the only ROI type supported for a TMA core (this behavior may change).
 	 * Any other object types result in an {@link UnsupportedOperationException} being thrown.
 	 * 
 	 * @param pathObject the object to transform; this will be unchanged
 	 * @param transform optional affine transform; if {@code null}, this effectively acts to duplicate the object
-	 * @param copyMeasurements if true, the measurement list of the new object will be populated with the measurements of pathObject
+	 * @param copyMeasurements if true, the measurements and metadata maps of the new object will be populated with those from the pathObject
 	 * @param createNewIDs if true, create new IDs for each copied object; otherwise, retain the same ID.
 	 * 
 	 * @return a duplicate of pathObject, with affine transform applied to the object's ROI(s) if required
@@ -1129,13 +1131,16 @@ public class PathObjectTools {
 			throw new UnsupportedOperationException("Unable to transform object " + pathObject);
 		if (copyMeasurements && !pathObject.getMeasurementList().isEmpty()) {
 			MeasurementList measurements = pathObject.getMeasurementList();
-			for (int i = 0; i < measurements.size(); i++) {
-				String name = measurements.getMeasurementName(i);
-				double value = measurements.getMeasurementValue(i);
-				newObject.getMeasurementList().put(name, value);
-			}
+			newObject.getMeasurementList().putAll(measurements);
 			newObject.getMeasurementList().close();
 		}
+		// Copy name, color & locked properties
+		newObject.setName(pathObject.getName());
+		newObject.setColor(pathObject.getColor());
+		newObject.setLocked(pathObject.isLocked());
+		// Copy over metadata if we have it
+		if (copyMeasurements && newObject instanceof MetadataStore)
+			((MetadataStore)newObject).getMetadataMap().putAll(pathObject.getUnmodifiableMetadataMap());
 		// Retain the ID, if needed
 		if (!createNewIDs)
 			newObject.setId(pathObject.getId());
@@ -1172,9 +1177,19 @@ public class PathObjectTools {
 	 */
 	public static PathObject transformObjectRecursive(PathObject pathObject, AffineTransform transform, boolean copyMeasurements, boolean createNewIDs) {
 		var newObj = transformObject(pathObject, transform, copyMeasurements, createNewIDs);
-		for (var child: pathObject.getChildObjects()) {
-			newObj.addPathObject(transformObjectRecursive(child, transform, copyMeasurements, createNewIDs));
+		// Parallelization can help
+		if (pathObject.hasChildren()) {
+			var newChildObjects = pathObject.getChildObjects()
+				.parallelStream()
+				.map(p -> transformObjectRecursive(p, transform, copyMeasurements, createNewIDs))
+				.collect(Collectors.toList());
+			
+			newObj.addPathObjects(newChildObjects);
+//			for (var child: pathObject.getChildObjects()) {
+//				newObj.addPathObject(transformObjectRecursive(child, transform, copyMeasurements, createNewIDs));
+//			}
 		}
+		
 		return newObj;
 	}
 	

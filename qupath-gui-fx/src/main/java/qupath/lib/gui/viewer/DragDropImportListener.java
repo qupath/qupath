@@ -367,6 +367,7 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 					f.getAbsolutePath().toLowerCase().endsWith(ProjectIO.getProjectExtension())).collect(Collectors.toList());
 			if (projectFiles.size() == 1) {
 				file = projectFiles.get(0);
+				fileName = file.getName().toLowerCase();
 				logger.warn("Selecting project file {}", file);
 			} else if (projectFiles.size() > 1) {
 				// Prompt to select which project file to open
@@ -376,6 +377,7 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 				if (selectedName == null)
 					return;
 				file = new File(file, selectedName);
+				fileName = file.getName().toLowerCase();
 			} else if (filesInDirectory.length == 0) {
 				// If we have an empty directory, offer to set it as a project
 				if (Dialogs.showYesNoDialog("Create project", "Create project for empty directory?")) {

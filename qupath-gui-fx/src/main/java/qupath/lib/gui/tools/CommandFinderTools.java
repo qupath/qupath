@@ -25,6 +25,7 @@ package qupath.lib.gui.tools;
 
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.io.Writer;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -312,24 +313,27 @@ public class CommandFinderTools {
 	}
 	
 	
-	
-//	public static void menusToMarkdown(final QuPathGUI qupath, Writer writer) throws IOException {
-//		MenuManager menuManager = new MenuManager(qupath.getMenuBar());
-//		menuManager.refresh(false);
-//		PrintWriter printWriter = toPrintWriter(writer);
-//		for (var item : menuManager.getCommands()) {
-//			toMarkdown(item, printWriter);
-//		}
-//		printWriter.flush();
-//	}
+	/**
+	 * Create a markdown representation of the menus for inclusion in the documentation, 
+	 * using the current QuPath instance.
+	 * @return 
+	 * @throws IOException
+	 */
+	public static String menusToMarkdown() throws IOException {
+		var qupath = QuPathGUI.getInstance();
+		Objects.requireNonNull(qupath, "No QuPath instance!");
+		var writer = new StringWriter();
+		menusToMarkdown(qupath, writer);
+		return writer.toString();
+	}
 	
 	/**
-	 * Create a Sphinx representation of the menus for inclusion in the documentation.
+	 * Write a markdown representation of the menus for inclusion in the documentation.
 	 * @param qupath
 	 * @param writer
 	 * @throws IOException
 	 */
-	public static void menusToSphinx(final QuPathGUI qupath, Writer writer) throws IOException {
+	public static void menusToMarkdown(final QuPathGUI qupath, Writer writer) throws IOException {
 		MenuManager menuManager = new MenuManager(qupath.getMenuBar());
 		menuManager.refresh(false);
 		PrintWriter printWriter = toPrintWriter(writer);
@@ -339,42 +343,31 @@ public class CommandFinderTools {
 			if (menuPath != null) {
 				String menu = menuPath.split("\u2192")[0].strip();
 				if (!Objects.equals(menu, lastMenu)) {
-					underlineHeader(menu, "=", printWriter);
-					printWriter.println();
+					printWriter.println("## " + menu);
 					lastMenu = menu;
 				}
 			}
-			toSphinx(item, printWriter);
+			toMarkdown(item, printWriter);
 		}
 		printWriter.flush();
 	}
 
-	static PrintWriter toPrintWriter(Writer writer) {
+	
+	private static PrintWriter toPrintWriter(Writer writer) {
 		return writer instanceof PrintWriter ? (PrintWriter)writer : new PrintWriter(writer);
 	}
 	
-	
-//	static void toMarkdown(CommandEntry entry, PrintWriter writer) {
-//		throw new NotImplementedException();
-//	}
-	
-	static void underlineHeader(String text, String character, PrintWriter writer) {
-		writer.println(text);
-		for (int i = 0; i < text.length(); i++)
-			writer.print(character);
-		writer.println();
-	}
-	
-	static void toSphinx(CommandEntry entry, PrintWriter writer) {
+	private static void toMarkdown(CommandEntry entry, PrintWriter writer) {
 		
-		String title = entry.getText();
-		underlineHeader(title, "-", writer);
+		String title = "### " + entry.getText();
+		writer.println(title);
 
 		String subtitle = entry.getCommandPath();
-		writer.print("*" + subtitle + "*");
+		writer.print("{menuselection}`" + subtitle.replaceAll("\u2192", "-->") + "`");
 		String accelerator = entry.getAcceleratorText();
 		if (worthwhile(accelerator)) {
-			writer.print(String.format("  - :kbd:`%s`", cleanAccelerator(accelerator)));
+			String a = entry.getMenuItem().getAccelerator().toString();
+			writer.print(String.format("  - {kbd}`%s`", cleanAccelerator(a)));
 		}
 		writer.println();
 		writer.println();
@@ -387,16 +380,19 @@ public class CommandFinderTools {
 	}
 	
 	
-	static boolean worthwhile(String s) {
+	private static boolean worthwhile(String s) {
 		return s != null && !s.isBlank();
 	}
 	
-	static String cleanAccelerator(String accelerator) {
-		return accelerator.replace("shortcut", "Ctrl").replace("shift", "Shift").replace("alt", "Alt");
+	private static String cleanAccelerator(String accelerator) {
+		return accelerator.replace("shortcut", "Ctrl")
+				.replace("Shortcut", "Ctrl")
+				.replace("shift", "Shift")
+				.replace("alt", "Alt");
 	}
 	
 	
-	static class TooltipCellFactory<S, T> extends TableCell<S, T> {
+	private static class TooltipCellFactory<S, T> extends TableCell<S, T> {
 		
 		private Function<S, String> funTip;
 		private Tooltip tooltip = new Tooltip();

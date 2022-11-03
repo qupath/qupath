@@ -31,9 +31,12 @@ import java.awt.geom.Ellipse2D;
 import java.awt.geom.Line2D;
 import java.awt.geom.Point2D;
 import java.awt.image.BufferedImage;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.stream.Collectors;
 
 import org.locationtech.jts.algorithm.locate.SimplePointInAreaLocator;
 import org.locationtech.jts.geom.Coordinate;
@@ -45,11 +48,13 @@ import org.slf4j.LoggerFactory;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.event.EventHandler;
+import javafx.scene.control.ButtonType;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import qupath.lib.color.ColorToolsAwt;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
-import qupath.lib.gui.dialogs.Dialogs.DialogButton;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.PathHierarchyPaintingHelper;
@@ -57,11 +62,14 @@ import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.QuPathViewerListener;
 import qupath.lib.gui.viewer.overlays.AbstractOverlay;
 import qupath.lib.gui.viewer.overlays.PathOverlay;
+import qupath.lib.gui.viewer.tools.PathTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathROIObject;
+import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.roi.GeometryTools;
@@ -80,6 +88,8 @@ class RigidObjectEditorCommand implements Runnable, ChangeListener<ImageData<Buf
 
 	private static final Logger logger = LoggerFactory.getLogger(RigidObjectEditorCommand.class);
 	
+	private static final String TITLE = "Transform annotations";
+	
 	private QuPathGUI qupath;
 	
 	private QuPathViewer viewer = null;
@@ -91,6 +101,8 @@ class RigidObjectEditorCommand implements Runnable, ChangeListener<ImageData<Buf
 	private RoiAffineTransformer transformer = null;
 	
 	private RigidMouseListener mouseListener = new RigidMouseListener();
+	
+	private KeyHandler keyListener = new KeyHandler();
 
 	public RigidObjectEditorCommand(final QuPathGUI qupath) {
 		this.qupath = qupath;
@@ -119,51 +131,68 @@ class RigidObjectEditorCommand implements Runnable, ChangeListener<ImageData<Buf
 	public void run() {
 		// Object is already being edited
 		if (this.originalObject != null) {
-//			transformer.rotate(Math.PI / 10);
-////			viewer.repaint();
-//			tempObject = createTransformedObject();
-//			((PathAnnotationObject)tempObject).setLocked(true);
-//			viewer.setSelectedObject(tempObject);
 			return;
 		}
 		
 		// Get the selected object
 		viewer = qupath.getViewer();
-		PathObject pathObject = getSelectedObject(viewer);
-		if (pathObject == null || !(pathObject.isAnnotation() || pathObject.isTMACore())) {
-			Dialogs.showErrorNotification("Rotate annotation", "No annotation selected!");
+		var hierarchy = viewer.getHierarchy();
+		if (hierarchy == null)
+			return;
+		
+		PathObject pathObject = hierarchy.getSelectionModel().getSelectedObject();
+		List<PathObject> allSelected = hierarchy.getSelectionModel().getSelectedObjects()
+				.stream()
+				.filter(p -> p.isAnnotation())
+				.collect(Collectors.toCollection(ArrayList::new));
+		
+		if (pathObject == null || !pathObject.isAnnotation()) {
+			Dialogs.showErrorNotification(TITLE, "Please select an annotation!");
 			return;
 		}
-		if (pathObject.isLocked()) {
-			Dialogs.showErrorNotification("Rotate annotation", "Selected annotation is locked!");
-			return;
+		if (pathObject.isLocked() || allSelected.stream().anyMatch(p -> p.isLocked())) {
+			var response = Dialogs.builder()
+				.title(TITLE)
+				.contentText("Selection includes at least one locked annotation - do you want to transform them anyway?")
+				.buttons(ButtonType.YES, ButtonType.NO)
+				.showAndWait()
+				.orElse(ButtonType.NO);
+			if (response == ButtonType.NO)
+				return;
 		}
-//		if (pathObject.getROI().isPoint()) {
-//			Dialogs.showErrorNotification("Rotate annotation", "Point annotations cannot be rotated, sorry!");
-//			return;
-//		}
+		
+		// Shouldn't happen... but conceivably could if we permit TMA cores to be the main selection
+		// In any case, best sort it out sooner rather than later
+		if (!allSelected.contains(pathObject)) {
+			allSelected.add(0, pathObject);
+		}
+		
 		ImageRegion bounds = viewer.getServerBounds();
 		
-		if (pathObject.isTMACore()) {
-			for (PathObject child : pathObject.getChildObjectsAsArray()) {
-				if (isSuitableAnnotation(child)) {
-					originalObjectROIs.put(child, child.getROI());
-				}
-			}
-			if (originalObjectROIs.isEmpty()) {
-				Dialogs.showErrorMessage("Rigid refinement problem", "TMA core must contain empty annotations objects for rigid refinement");
-				return;
-			}
-		}
-		originalObjectROIs.put(pathObject, pathObject.getROI());
+//		if (pathObject.isTMACore()) {
+//			for (PathObject child : pathObject.getChildObjectsAsArray()) {
+//				if (isSuitableAnnotation(child)) {
+//					originalObjectROIs.put(child, child.getROI());
+//				}
+//			}
+//			if (originalObjectROIs.isEmpty()) {
+//				Dialogs.showErrorMessage(TITLE, "TMA core should only contain empty annotations objects ");
+//				return;
+//			}
+//		}
+		
+		for (var selected : allSelected)
+			originalObjectROIs.put(selected, selected.getROI());
 		
 		this.originalObject = pathObject;
 		
 		
-		viewer.setActiveTool(null);
+		viewer.setActiveTool(PathTools.MOVE);
 		qupath.setToolSwitchingEnabled(false);
 		viewer.addViewerListener(this);
-		viewer.getView().addEventHandler(MouseEvent.ANY, mouseListener);
+		// Intercept events
+		viewer.getView().addEventFilter(MouseEvent.ANY, mouseListener);
+		viewer.getView().addEventFilter(KeyEvent.KEY_PRESSED, keyListener);
 		
 //		// Remove selected object & create an overlay showing the currently-being-edited version
 //		viewer.getHierarchy().removeObject(originalObject, true, true);
@@ -196,31 +225,70 @@ class RigidObjectEditorCommand implements Runnable, ChangeListener<ImageData<Buf
 		if (this.originalObject == null)
 			return;
 		
-//		PathObject pathObject = null;
-		if (!ignoreChanges) {
+		var transform = transformer.transform;
 		
-			DialogButton option = Dialogs.showYesNoCancelDialog(
-					"Affine object editing", "Confirm object changes?");
+		var imageData = viewer.getImageData();
+		var hierarchy = viewer.getHierarchy();
+		boolean keepSelection = true;
+		
+		if (!ignoreChanges && !transform.isIdentity()) {
+		
+			var btSelected = originalObjectROIs.size() == 1 ? new ButtonType("Selected object") : new ButtonType("Selected objects");
+			var btAll = new ButtonType("All objects");
 			
-			if (option == DialogButton.CANCEL)
-				return;
+			ButtonType option = Dialogs.builder()
+					.title(TITLE)
+					.contentText("Confirm object changes?")
+					.buttons(btSelected, btAll, ButtonType.CANCEL)
+					.showAndWait()
+					.orElse(ButtonType.CANCEL);
 			
-			if (option == DialogButton.NO) {
-				for (Entry<PathObject, ROI> entry : originalObjectROIs.entrySet())
-					((PathROIObject)entry.getKey()).setROI(entry.getValue());
-			} else {
-				var transform = transformer.transform;
-				var values = transform.getMatrixEntries();
-				logger.info("Applied ROI transform: {}",
-						String.format("\n %f, %f, %f,\n%f, %f, %f",
-								values[0], values[1], values[2],
-								values[3], values[4], values[5]));
-				// Apply clipping now
+			if (option == ButtonType.CANCEL) {
 				for (Entry<PathObject, ROI> entry : originalObjectROIs.entrySet()) {
-					ROI roiTransformed = transformer.getTransformedROI(entry.getValue(), true);
-					((PathROIObject)entry.getKey()).setROI(roiTransformed);
+					((PathROIObject)entry.getKey()).setROI(entry.getValue());
 				}
-				viewer.getHierarchy().fireHierarchyChangedEvent(this, originalObject);
+			} else {
+				var values = transform.getMatrixEntries();
+				String transformString = String.format("[[%f, %f, %f],\n [%f, %f, %f]]",
+						values[0], values[1], values[2],
+						values[3], values[4], values[5]);
+				logger.info("Applied ROI transform: \n{}", transformString);
+				
+				if (option == btAll) {
+					// Handle all objects recursively
+					for (Entry<PathObject, ROI> entry : originalObjectROIs.entrySet())
+						((PathROIObject)entry.getKey()).setROI(entry.getValue());
+					
+					var newRoot = PathObjectTools.transformObjectRecursive(hierarchy.getRootObject(),
+							GeometryTools.convertTransform(transform),
+							true, false);
+					hierarchy.clearAll();
+					hierarchy.addPathObjects(new ArrayList<>(newRoot.getChildObjects()));
+					// Need to reset the selection, so that it doesn't persist in the viewer as phantom objects
+					keepSelection = false;
+					
+					String scriptString = String.format(
+							"transformAllObjects(AffineTransforms.fromRows(%f, %f, %f, %f, %f, %f))",
+							values[0], values[1], values[2], values[3], values[4], values[5]);
+					imageData.getHistoryWorkflow().addStep(
+							new DefaultScriptableWorkflowStep("Transform all objects", scriptString)
+							);
+					
+				} else {
+					// Handle selected objects only
+					for (Entry<PathObject, ROI> entry : originalObjectROIs.entrySet()) {
+						ROI roiTransformed = transformer.getTransformedROI(entry.getValue(), true);
+						((PathROIObject)entry.getKey()).setROI(roiTransformed);
+					}
+					hierarchy.fireHierarchyChangedEvent(this, originalObject);
+					
+					String scriptString = String.format(
+							"transformSelectedObjects(AffineTransforms.fromRows(%f, %f, %f, %f, %f, %f))",
+							values[0], values[1], values[2], values[3], values[4], values[5]);
+					imageData.getHistoryWorkflow().addStep(
+							new DefaultScriptableWorkflowStep("Transform selected objects", scriptString)
+							);
+				}
 			}
 		}
 
@@ -229,15 +297,13 @@ class RigidObjectEditorCommand implements Runnable, ChangeListener<ImageData<Buf
 		if (viewer == qupath.getViewer())
 			viewer.setActiveTool(qupath.getSelectedTool());
 		
-		viewer.getView().removeEventHandler(MouseEvent.ANY, mouseListener);
+		viewer.getView().removeEventFilter(MouseEvent.ANY, mouseListener);
+		viewer.getView().removeEventFilter(KeyEvent.KEY_PRESSED, keyListener);
 		viewer.getCustomOverlayLayers().remove(overlay);
 		viewer.removeViewerListener(this);
 		
-//		if (pathObject != null)
-//			viewer.getHierarchy().addPathObject(pathObject, true);
-		
-//		// Ensure the object is selected
-//		viewer.setSelectedObject(pathObject);
+		if (!keepSelection)
+			hierarchy.getSelectionModel().clearSelection();
 
 		viewer = null;
 		overlay = null;
@@ -325,11 +391,12 @@ class RigidObjectEditorCommand implements Runnable, ChangeListener<ImageData<Buf
 			if (transformer.getRotationHandle(viewer.getDownsampleFactor()).contains(p)) {
 				isRotating = true;
 				lastPoint = p;
+				e.consume();
 			} else if (contains(transformer.getTransformedBounds(), p.getX(), p.getY())) {
 				isTranslating = true;
 				lastPoint = p;				
+				e.consume();
 			}
-			e.consume();
 		}
 		
 		
@@ -339,10 +406,12 @@ class RigidObjectEditorCommand implements Runnable, ChangeListener<ImageData<Buf
 		
 
 		public void mouseReleased(MouseEvent e) {
-			isRotating = false;
-			isTranslating = false;
-			lastPoint = null;
-			e.consume();
+			if (lastPoint != null) {
+				isRotating = false;
+				isTranslating = false;
+				lastPoint = null;
+				e.consume();
+			}
 		}
 
 		public void mouseDragged(MouseEvent e) {
@@ -385,6 +454,59 @@ class RigidObjectEditorCommand implements Runnable, ChangeListener<ImageData<Buf
 	}
 	
 	
+	class KeyHandler implements EventHandler<KeyEvent> {
+
+		@Override
+		public void handle(KeyEvent event) {
+			var code = event.getCode();
+			if (code == KeyCode.ENTER) {
+				commitChanges(false);
+				event.consume();
+			} else if (event.isShortcutDown()) {
+				double downsample = viewer.getDownsampleFactor();
+				if (event.isShiftDown()) {
+					double thetaIncrement = Math.PI/1000.0;
+					if (code == KeyCode.RIGHT) {
+						transformer.theta += thetaIncrement;
+						event.consume();
+					} else if (code == KeyCode.LEFT) {
+						transformer.theta -= thetaIncrement;
+						event.consume();
+					} else 	if (code == KeyCode.UP) {
+						transformer.theta += thetaIncrement/10.0;
+						event.consume();
+					} else if (code == KeyCode.DOWN) {
+						transformer.theta -= thetaIncrement/10.0;
+						event.consume();
+					}
+				} else {
+					if (code == KeyCode.RIGHT) {
+						transformer.translate(downsample, 0);
+						event.consume();
+					} else if (code == KeyCode.LEFT) {
+						transformer.translate(-downsample, 0);					
+						event.consume();
+					} else if (code == KeyCode.UP) {
+						transformer.translate(0, -downsample);					
+						event.consume();
+					} else if (code == KeyCode.DOWN) {
+						transformer.translate(0, downsample);										
+						event.consume();
+					}					
+				}
+				
+				transformer.resetCachedShapes();
+				if (event.isConsumed()) {
+					for (Entry<PathObject, ROI> entry : originalObjectROIs.entrySet()) {
+						ROI roiTransformed = transformer.getTransformedROI(entry.getValue(), false);
+						((PathROIObject)entry.getKey()).setROI(roiTransformed);
+					}
+					viewer.repaint();
+				}
+			}
+		}
+		
+	}
 	
 	
 	static class RoiAffineTransformer {

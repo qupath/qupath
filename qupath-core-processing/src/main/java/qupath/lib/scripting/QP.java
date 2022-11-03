@@ -23,6 +23,7 @@
 
 package qupath.lib.scripting;
 
+import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -47,8 +48,10 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.Scanner;
 import java.util.Set;
+import java.util.UUID;
 import java.util.WeakHashMap;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
@@ -70,6 +73,7 @@ import qupath.lib.analysis.heatmaps.ColorModels;
 import qupath.lib.analysis.heatmaps.DensityMaps;
 import qupath.lib.analysis.heatmaps.DensityMaps.DensityMapBuilder;
 import qupath.lib.analysis.images.ContourTracing;
+import qupath.lib.awt.common.AffineTransforms;
 import qupath.lib.awt.common.BufferedImageTools;
 import qupath.lib.classifiers.object.ObjectClassifier;
 import qupath.lib.classifiers.object.ObjectClassifiers;
@@ -267,6 +271,7 @@ public class QP {
 			Projects.class,
 			
 			// Tools and static classes
+			AffineTransforms.class,
 			PathObjectTools.class,
 			RoiTools.class,
 			GsonTools.class,
@@ -1773,6 +1778,104 @@ public class QP {
 		if (setSelected)
 			imageData.getHierarchy().getSelectionModel().setSelectedObject(pathObject);
 	}
+	
+//	public static boolean removeObjectsOutsideImage() {
+//		return removeObjectsOutsideImage(getCurrentServer(), getCurrentHierarchy());
+//	}
+//
+//	public static boolean removeObjectsOutsideImage(ImageServer<?> server, PathObjectHierarchy hierarchy) {
+//		hierarchy.getAllObjects()
+//	}
+
+	/**
+	 * Apply an affine transform to all objects in the current hierarchy, retaining parent-child relationships between objects.
+	 * @param transform
+	 * @implNote Currently, existing objects will be removed, and replaced with new ones that have had their ROIs transformed 
+	 *           and the same IDs retained. However it is best not to rely upon this behavior; it is possible that in the future 
+	 *           the ROIs will be updated in-place to improve efficiency.
+	 * @since v0.4.0
+	 */
+	public static void transformSelectedObjects(AffineTransform transform) {
+		transformSelectedObjects(getCurrentHierarchy(), transform);
+	}
+
+	/**
+	 * Apply an affine transform to all objects in the specified hierarchy, retaining parent-child relationships between objects.
+	 * @param hierarchy
+	 * @param transform
+	 * @implNote Currently, existing objects will be removed, and replaced with new ones that have had their ROIs transformed 
+	 *           and the same IDs retained. However it is best not to rely upon this behavior; it is possible that in the future 
+	 *           the ROIs will be updated in-place to improve efficiency.
+	 * @since v0.4.0
+	 */
+	public static void transformSelectedObjects(PathObjectHierarchy hierarchy, AffineTransform transform) {
+		Objects.requireNonNull(hierarchy, "Can't transform selected objects - hierarchy is null!");
+		var selected = hierarchy.getSelectionModel().getSelectedObjects();
+		if (selected.isEmpty()) {
+			logger.warn("Cannot transform selected objects - no objects are selected");
+			return;
+		}
+		var primary = hierarchy.getSelectionModel().getSelectedObject();
+		List<PathObject> transformed = new ArrayList<>();
+		for (var pathObject : selected.toArray(PathObject[]::new))
+			transformed.add(PathObjectTools.transformObject(pathObject, transform, true, false));
+		
+		hierarchy.removeObjects(selected, true);
+		hierarchy.addPathObjects(transformed);
+		
+		// Set selected objects
+		var newPrimary = primary == null ? null : selected.stream().filter(p -> p.getId().equals(primary.getId())).findFirst().orElse(null);
+		hierarchy.getSelectionModel().setSelectedObjects(transformed, newPrimary);
+	}
+	
+	/**
+	 * Apply an affine transform to all selected objects in the current hierarchy.
+	 * The selected objects will be replaced by new ones, but parent-child relationships will be lost;
+	 * if these are needed, consider calling {@link #resolveHierarchy()} afterwards.
+	 * @param transform
+	 * @implNote Currently, existing objects will be removed, and replaced with new ones that have had their ROIs transformed 
+	 *           and the same IDs retained. However it is best not to rely upon this behavior; it is possible that in the future 
+	 *           the ROIs will be updated in-place to improve efficiency.
+	 * @since v0.4.0
+	 */
+	public static void transformAllObjects(AffineTransform transform) {
+		transformAllObjects(getCurrentHierarchy(), transform);
+	}
+	
+	/**
+	 * Apply an affine transform to all selected objects in the specified hierarchy.
+	 * The selected objects will be replaced by new ones, but parent-child relationships will be lost;
+	 * if these are needed, consider calling {@link #resolveHierarchy(PathObjectHierarchy)} afterwards.
+	 * @param hierarchy 
+	 * @param transform
+	 * @implNote Currently, existing objects will be removed, and replaced with new ones that have had their ROIs transformed 
+	 *           and the same IDs retained. However it is best not to rely upon this behavior; it is possible that in the future 
+	 *           the ROIs will be updated in-place to improve efficiency.
+	 * @since v0.4.0
+	 */
+	public static void transformAllObjects(PathObjectHierarchy hierarchy, AffineTransform transform) {
+		Objects.requireNonNull(hierarchy, "Can't transform all objects - hierarchy is null!");
+		var primary = hierarchy.getSelectionModel().getSelectedObject();
+		Set<UUID> selectedIDs = hierarchy.getSelectionModel().getSelectedObjects()
+				.stream()
+				.map(p -> p.getId())
+				.collect(Collectors.toSet());
+		var transformed = PathObjectTools.transformObjectRecursive(hierarchy.getRootObject(), transform, true, false);
+		hierarchy.clearAll();
+		hierarchy.addPathObjects(new ArrayList<>(transformed.getChildObjects()));
+		
+		// Restore the selection, now with the transformed objects
+		if (!selectedIDs.isEmpty()) {
+			var toSelect = PathObjectTools.findByUUID(selectedIDs, hierarchy.getFlattenedObjectList(null)).values();
+			var newPrimary = primary == null ? null : toSelect.stream().filter(p -> p.getId().equals(primary.getId())).findFirst().orElse(null);
+			hierarchy.getSelectionModel().setSelectedObjects(toSelect, newPrimary);
+		}
+	}
+
+	
+	
+	
+	
 
 	/**
 	 * Remove all TMA metadata from the current TMA grid.

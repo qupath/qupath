@@ -1917,7 +1917,7 @@ public class QuPathGUI {
 			msg = dirDefault.getAbsolutePath() + " already exists.\n" +
 					"Do you want to use this default, or specify another directory?";
 		} else {
-			msg = String.format("Do you want to create a new user directory at %s?\n",
+			msg = String.format("Do you want to create a new user directory at\n %s?",
 					dirDefault.getAbsolutePath());
 		}
 		

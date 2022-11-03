@@ -31,6 +31,8 @@ import java.io.Serializable;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.locationtech.jts.geom.Geometry;
+
 import qupath.lib.common.GeneralTools;
 import qupath.lib.geom.Point2;
 import qupath.lib.regions.ImagePlane;
@@ -123,6 +125,14 @@ public class PolygonROI extends AbstractPathROI implements Serializable {
 //		setPoints(vertices.getPoints()); // TODO: Implement this more efficiency, if it remains...
 //		isAdjusting = false;
 //	}
+	
+	
+	@Override
+	public Geometry getGeometry() {
+		// This can be a performance bottleneck - consider caching in the future
+		// (at least for complex polygons)
+		return super.getGeometry();
+	}
 	
 	/**
 	 * Get the total number of vertices in the polygon.
