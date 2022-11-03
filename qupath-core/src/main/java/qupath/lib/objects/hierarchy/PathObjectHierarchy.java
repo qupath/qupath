@@ -538,6 +538,29 @@ public final class PathObjectHierarchy implements Serializable {
 	public boolean addPathObjectWithoutUpdate(PathObject pathObject) {
 		return addPathObject(pathObject, false);
 	}
+		
+//	/**
+//	 * Add an object to the hierarchy, firing an event.
+//	 * @param pathObject
+//	 * @return
+//	 * @deprecated since v0.4.0, use {@link #addPathObject(PathObject)} instead (for naming consistency)
+//	 */
+//	@Deprecated
+//	public boolean addObject2(PathObject pathObject) {
+//		return addPathObject(pathObject);
+//	}
+//
+//	/**
+//	 * Add an object to the hierarchy, without firing an event.
+//	 * @param pathObject
+//	 * @return
+//	 * @deprecated since v0.4.0, use {@link #addPathObjectWithoutUpdate(PathObject)} instead (for naming consistency)
+//	 */
+//	@Deprecated
+//	public boolean addObjectWithoutUpdate2(PathObject pathObject) {
+//		return addPathObjectWithoutUpdate(pathObject);
+//	}
+
 	
 	/**
 	 * Add path object as descendant of the requested parent.
@@ -698,13 +721,35 @@ public final class PathObjectHierarchy implements Serializable {
 	 * {@code getFlattenedObjectList(null).stream().filter(p -> !p.isRootObject()).collect(Collectors.toList())}
 	 * @param list
 	 * @return
+	 * @since {@link #getAllObjects(boolean)}
 	 */
 	public synchronized List<PathObject> getFlattenedObjectList(List<PathObject> list) {
 		if (list == null)
-			list = new ArrayList<>(nObjects());
+			list = new ArrayList<>(nObjects()+ 1);
 		getObjects(list, PathObject.class);
 		return list;
 	}
+	
+	/**
+	 * Get all the objects in the hierarchy, optionally including the root object.
+	 * @param includeRoot
+	 * @return
+	 * @since v0.4.0
+	 */
+	public synchronized Collection<PathObject> getAllObjects(boolean includeRoot) {
+		var set = new LinkedHashSet<PathObject>(nObjects() + 1, 1f);
+		getObjects(set, PathObject.class);
+		if (includeRoot) {
+			// Root already be included
+			if (set.add(getRootObject())) {
+				logger.warn("Root object was added!");
+			}
+		} else {
+			set.remove(getRootObject());
+		}
+		return set;
+	}
+	
 	
 	/**
 	 * Number of objects in the hierarchy, excluding the root.
