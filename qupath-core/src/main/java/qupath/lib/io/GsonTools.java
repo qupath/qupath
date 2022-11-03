@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -51,6 +51,7 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathRootObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassTools;
+import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.interfaces.ROI;
 
@@ -110,20 +111,23 @@ public class GsonTools {
 		static <T> TypeAdapter<T> getTypeAdaptor(Class<T> cls) {
 			// No point serializing the root object alone - serialize the whole hierarchy instead
 			if (PathRootObject.class.isAssignableFrom(cls))
-				return (TypeAdapter<T>)PathObjectTypeAdapters.PathObjectTypeAdapter.INSTANCE_HIERARCHY;
+				return (TypeAdapter<T>)QuPathTypeAdapters.PathObjectTypeAdapter.INSTANCE_HIERARCHY;
 			
 			if (PathObject.class.isAssignableFrom(cls))
-				return (TypeAdapter<T>)PathObjectTypeAdapters.PathObjectTypeAdapter.INSTANCE;
+				return (TypeAdapter<T>)QuPathTypeAdapters.PathObjectTypeAdapter.INSTANCE;
 
 			if (MeasurementList.class.isAssignableFrom(cls))
-				return (TypeAdapter<T>)PathObjectTypeAdapters.MeasurementListTypeAdapter.INSTANCE;
+				return (TypeAdapter<T>)QuPathTypeAdapters.MeasurementListTypeAdapter.INSTANCE;
 
 //			if (HierarchyFeatureCollection.class.isAssignableFrom(cls))
 //				return (TypeAdapter<T>)PathObjectTypeAdapters.PathObjectCollectionTypeAdapter.INSTANCE_HIERARCHY;
 
 			if (FeatureCollection.class.isAssignableFrom(cls))
-				return (TypeAdapter<T>)PathObjectTypeAdapters.PathObjectCollectionTypeAdapter.INSTANCE;
-			
+				return (TypeAdapter<T>)QuPathTypeAdapters.PathObjectCollectionTypeAdapter.INSTANCE;
+
+			if (PathObjectHierarchy.class.isAssignableFrom(cls))
+				return (TypeAdapter<T>)QuPathTypeAdapters.HierarchyTypeAdapter.INSTANCE;
+
 			if (ROI.class.isAssignableFrom(cls))
 				return (TypeAdapter<T>)ROITypeAdapters.ROI_ADAPTER_INSTANCE;
 						
