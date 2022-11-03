@@ -80,28 +80,28 @@ public class TestObservableMeasurementTableData {
 			ROI smallROI = ROIs.createRectangleROI(500, 500, 1, 1, ImagePlane.getDefaultPlane());
 			for (int i = 0; i < 100; i++) {
 				if (i < 25)
-					parent.addPathObject(PathObjects.createDetectionObject(smallROI, PathClass.getNegative(tumorClass)));
+					parent.addChildObject(PathObjects.createDetectionObject(smallROI, PathClass.getNegative(tumorClass)));
 				else if (i < 50)
-					parent.addPathObject(PathObjects.createDetectionObject(smallROI, PathClass.getOnePlus(tumorClass)));
+					parent.addChildObject(PathObjects.createDetectionObject(smallROI, PathClass.getOnePlus(tumorClass)));
 				else if (i < 75)
-					parent.addPathObject(PathObjects.createDetectionObject(smallROI, PathClass.getTwoPlus(tumorClass)));
+					parent.addChildObject(PathObjects.createDetectionObject(smallROI, PathClass.getTwoPlus(tumorClass)));
 				else if (i < 100)
-					parent.addPathObject(PathObjects.createDetectionObject(smallROI, PathClass.getThreePlus(tumorClass)));
+					parent.addChildObject(PathObjects.createDetectionObject(smallROI, PathClass.getThreePlus(tumorClass)));
 			}
 			// Create 100 stroma detections
 			for (int i = 0; i < 100; i++) {
 				if (i < 50)
-					parent.addPathObject(PathObjects.createDetectionObject(smallROI, PathClass.getNegative(stromaClass)));
+					parent.addChildObject(PathObjects.createDetectionObject(smallROI, PathClass.getNegative(stromaClass)));
 				else if (i < 60)
-					parent.addPathObject(PathObjects.createDetectionObject(smallROI, PathClass.getOnePlus(stromaClass)));
+					parent.addChildObject(PathObjects.createDetectionObject(smallROI, PathClass.getOnePlus(stromaClass)));
 				else if (i < 70)
-					parent.addPathObject(PathObjects.createDetectionObject(smallROI, PathClass.getTwoPlus(stromaClass)));
+					parent.addChildObject(PathObjects.createDetectionObject(smallROI, PathClass.getTwoPlus(stromaClass)));
 				else if (i < 100)
-					parent.addPathObject(PathObjects.createDetectionObject(smallROI, PathClass.getThreePlus(stromaClass)));
+					parent.addChildObject(PathObjects.createDetectionObject(smallROI, PathClass.getThreePlus(stromaClass)));
 			}
 			// Create 50 artefact detections
 			for (int i = 0; i < 50; i++) {
-				parent.addPathObject(PathObjects.createDetectionObject(smallROI, artefactClass));
+				parent.addChildObject(PathObjects.createDetectionObject(smallROI, artefactClass));
 			}
 			
 			hierarchy.addObject(parent);
@@ -127,7 +127,7 @@ public class TestObservableMeasurementTableData {
 	
 			// Check tumor H-score unaffected when tumor detections added without intensity classification
 			for (int i = 0; i < 10; i++)
-				parent.addPathObject(PathObjects.createDetectionObject(smallROI, tumorClass));
+				parent.addChildObject(PathObjects.createDetectionObject(smallROI, tumorClass));
 			hierarchy.fireHierarchyChangedEvent(this);
 			model.refreshEntries();
 	//		model.setImageData(imageData, Collections.singletonList(parent));
@@ -154,11 +154,11 @@ public class TestObservableMeasurementTableData {
 			PathObject parentAllred = PathObjects.createAnnotationObject(ROIs.createRectangleROI(4000, 4000, 1000, 1000, ImagePlane.getDefaultPlane()));
 			ROI newROI = ROIs.createEllipseROI(4500, 4500, 10, 10, ImagePlane.getDefaultPlane());
 			for (int i = 0; i < 100; i++)
-				parentAllred.addPathObject(PathObjects.createDetectionObject(newROI, PathClass.getNegative(tumorClass)));
+				parentAllred.addChildObject(PathObjects.createDetectionObject(newROI, PathClass.getNegative(tumorClass)));
 			hierarchy.addObject(parentAllred);
 			model.refreshEntries();
 			assertEquals(0, model.getNumericValue(parentAllred, "Tumor: Allred score"), EPSILON);
-			parentAllred.addPathObject(PathObjects.createDetectionObject(newROI, PathClass.getThreePlus(tumorClass)));
+			parentAllred.addChildObject(PathObjects.createDetectionObject(newROI, PathClass.getThreePlus(tumorClass)));
 			hierarchy.fireHierarchyChangedEvent(parentAllred);
 			model.refreshEntries();
 			assertEquals(4, model.getNumericValue(parentAllred, "Tumor: Allred score"), EPSILON);

@@ -121,7 +121,7 @@ public final class PathObjectHierarchy implements Serializable {
 	 * @return
 	 */
 	public synchronized boolean isEmpty() {
-		return (tmaGrid == null || tmaGrid.nCores() == 0) && !rootObject.hasChildren();// && featureMaps.isEmpty();
+		return (tmaGrid == null || tmaGrid.nCores() == 0) && !rootObject.hasChildObjects();// && featureMaps.isEmpty();
 	}
 	
 	/**
@@ -375,9 +375,9 @@ public final class PathObjectHierarchy implements Serializable {
 				// Beware that we could have 'orphaned' detections
 				if (possibleParent.isTMACore())
 					possibleParent.getParent().getChildObjects().stream().filter(p -> p.isDetection()).forEach(previousChildren::add);
-				possibleParent.addPathObject(pathObject);
+				possibleParent.addChildObject(pathObject);
 				if (!previousChildren.isEmpty()) {
-					pathObject.addPathObjects(filterObjectsForROI(pathObject.getROI(), previousChildren));
+					pathObject.addChildObjects(filterObjectsForROI(pathObject.getROI(), previousChildren));
 				}
 				
 				// Notify listeners of changes, if required
@@ -428,15 +428,15 @@ public final class PathObjectHierarchy implements Serializable {
 		}
 
 		// Can't keep children if there aren't any
-		boolean hasChildren = pathObject.hasChildren();
+		boolean hasChildren = pathObject.hasChildObjects();
 		
-		pathObjectParent.removePathObject(pathObject);
+		pathObjectParent.removeChildObject(pathObject);
 
 		// Assign the children to the parent object, if necessary
 		if (keepChildren && hasChildren) {
 			// We create a new array list because getPathObjectList returns an unmodifiable collection
 //			List<PathObject> list = new ArrayList<>(pathObject.getPathObjectList());
-			pathObjectParent.addPathObjects(pathObject.getChildObjects());
+			pathObjectParent.addChildObjects(pathObject.getChildObjects());
 //			pathObject.clearPathObjects(); // Clear child objects, just in case
 		}
 		if (fireEvent) {
@@ -485,7 +485,7 @@ public final class PathObjectHierarchy implements Serializable {
 		for (Entry<PathObject, List<PathObject>> entry : map.entrySet()) {
 			PathObject parent = entry.getKey();
 			List<PathObject> children = entry.getValue();
-			parent.removePathObjects(children);
+			parent.removeChildObjects(children);
 			if (keepChildren) {
 				for (PathObject child : children)
 					childrenToKeep.addAll(child.getChildObjects());
@@ -538,7 +538,7 @@ public final class PathObjectHierarchy implements Serializable {
 	
 	// TODO: Be very cautious about this!!!!  Use of tileCache inside a synchronized method might lead to deadlocks?
 	private synchronized boolean addPathObjectToList(PathObject pathObjectParent, PathObject pathObject, boolean fireChangeEvents) {
-		pathObjectParent.addPathObject(pathObject);
+		pathObjectParent.addChildObject(pathObject);
 		// Notify listeners of changes, if required
 		if (fireChangeEvents)
 			fireObjectAddedEvent(this, pathObject);
@@ -679,7 +679,7 @@ public final class PathObjectHierarchy implements Serializable {
 	 * Remove all objects from the hierarchy.
 	 */
 	public synchronized void clearAll() {
-		getRootObject().clearPathObjects();
+		getRootObject().clearChildObjects();
 		tmaGrid = null;
 		fireHierarchyChangedEvent(getRootObject());
 	}

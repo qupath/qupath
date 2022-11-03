@@ -244,9 +244,9 @@ public class PixelClassifierTools {
 		for (var entry : map.entrySet()) {
 			var parent = entry.getKey();
 			var children = entry.getValue();
-			if (clearExisting && parent.hasChildren())
-				parent.clearPathObjects();
-			parent.addPathObjects(children);
+			if (clearExisting && parent.hasChildObjects())
+				parent.clearChildObjects();
+			parent.addChildObjects(children);
 			if (!parent.isRootObject())
 				parent.setLocked(true);
 		}

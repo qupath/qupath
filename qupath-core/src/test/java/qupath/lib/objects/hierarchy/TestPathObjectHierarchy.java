@@ -73,8 +73,8 @@ public class TestPathObjectHierarchy {
 		myPOHL.setFiredState(0);
 		
 		// Creating structure of POs
-		myChild1PAO.addPathObject(myChild3PAO);
-		myPRO.addPathObject(myChild1PAO);
+		myChild1PAO.addChildObject(myChild3PAO);
+		myPRO.addChildObject(myChild1PAO);
 		assertEquals(myPRO.nChildObjects(), 1);
 		assertEquals(myChild1PAO.getParent(), myPRO);
 		

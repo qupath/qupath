@@ -142,7 +142,7 @@ public abstract class AbstractTileableDetectionPlugin<T> extends AbstractDetecti
 		AtomicInteger countdown = new AtomicInteger(pathROIs.size());
 		for (ROI pathROI : pathROIs) {
 			ParallelTileObject tile = new ParallelTileObject(manager, pathROI, imageData.getHierarchy(), countdown);
-			parentObject.addPathObject(tile);
+			parentObject.addChildObject(tile);
 			for (ParallelTileObject tileTemp : tileList) {
 				if (tileTemp.suggestNeighbor(tile))
 					tile.suggestNeighbor(tileTemp);
@@ -174,8 +174,8 @@ public abstract class AbstractTileableDetectionPlugin<T> extends AbstractDetecti
 		public void setTiles(Collection<ParallelTileObject> tiles) {
 			this.tiles = new ArrayList<>(tiles);
 			countdown = new AtomicInteger(tiles.size());
-			this.parent.clearPathObjects();
-			this.parent.addPathObjects(tiles);
+			this.parent.clearChildObjects();
+			this.parent.addChildObjects(tiles);
 		}
 		
 		public void tileComplete(PathObject tile, boolean wasCancelled) {
@@ -187,17 +187,17 @@ public abstract class AbstractTileableDetectionPlugin<T> extends AbstractDetecti
 		}
 		
 		private void postprocess() {
-			parent.clearPathObjects();
+			parent.clearChildObjects();
 			if (wasCancelled) {
 				// If anything was cancelled, then replace the original objects
-				parent.addPathObjects(originalChildObjects);
+				parent.addChildObjects(originalChildObjects);
 			} else {
 				// Add the objects from all the children
 				for (var tile : tiles) {
 					tile.resolveOverlaps();
-					parent.addPathObjects(tile.getChildObjects());
+					parent.addChildObjects(tile.getChildObjects());
 				}
-				if (parent.hasChildren())
+				if (parent.hasChildObjects())
 					parent.setLocked(true);
 			}
 //			hierarchy.fireObjectsChangedEvent(this, Collections.singletonList(parent));

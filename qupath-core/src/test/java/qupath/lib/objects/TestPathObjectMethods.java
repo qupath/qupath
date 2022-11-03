@@ -89,27 +89,27 @@ class TestPathObjectMethods {
 	}
 	//@Test
 	public void test_addPathObject(PathObject myPO, PathObject tPO, Integer nchildren) {
-		myPO.addPathObject(tPO);
+		myPO.addChildObject(tPO);
 		assertEquals((Integer)myPO.nChildObjects(), nchildren);
 	}
 	//@Test
 	public void test_addPathObjects(PathObject myPO, Collection<PathObject> colPO, Integer nchildren) {
-		myPO.addPathObjects(colPO);
+		myPO.addChildObjects(colPO);
 		assertEquals((Integer)myPO.nChildObjects(), nchildren);
 	}
 	//@Test
 	public void test_removePathObject(PathObject myPO, PathObject tPO, Integer nchildren) {
-		myPO.removePathObject(tPO);
+		myPO.removeChildObject(tPO);
 		assertEquals((Integer)myPO.nChildObjects(), nchildren);
 	}
 	//@Test
 	public void test_removePathObjects(PathObject myPO, Collection<PathObject> colPO, Integer nchildren) {
-		myPO.removePathObjects(colPO);
+		myPO.removeChildObjects(colPO);
 		assertEquals((Integer)myPO.nChildObjects(), nchildren);
 	}
 	//@Test
 	public void test_clearPathObjects(PathObject myPO, Integer nchildren) {
-		myPO.clearPathObjects();
+		myPO.clearChildObjects();
 		assertEquals((Integer)myPO.nChildObjects(), nchildren);
 	}
 	//@Test

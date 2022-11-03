@@ -180,7 +180,7 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 		}
 		
 		// Add the children
-		if (includeChildren && !(pathObject instanceof TemporaryObject) && pathObject.hasChildren()) {
+		if (includeChildren && !(pathObject instanceof TemporaryObject) && pathObject.hasChildObjects()) {
 			for (PathObject child : pathObject.getChildObjectsAsArray())
 				addToCache(child, includeChildren, limitToClass);
 		}
