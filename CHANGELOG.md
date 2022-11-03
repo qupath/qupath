@@ -157,10 +157,10 @@ This is a work-in-progress.
 * Gson 2.10
 * Guava 31.1
 * ikonli 12.3.1
-* JavaCPP 1.5.7
+* JavaCPP 1.5.8
 * JFreeSVG 5.0.3
 * Logback 1.3.1
-* OpenCV 4.5.5
+* OpenCV 4.6.0
 * Picocli 4.6.3
 * SLF4J 2.0.0
 
