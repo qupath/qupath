@@ -827,7 +827,7 @@ public class GeometryTools {
 	    private Geometry areaToGeometry(ROI roi) {
 	    	if (roi.isEmpty())
 	    		return factory.createPolygon();
-	    	if (roi instanceof EllipseROI) {
+	    	if (roi instanceof EllipseROI || roi instanceof RectangleROI) {
 	    		var shapeFactory = new GeometricShapeFactory(factory);
 	    		shapeFactory.setEnvelope(
 	    				new Envelope(
@@ -836,8 +836,31 @@ public class GeometryTools {
 	    						roi.getBoundsY() * pixelHeight,
 	    						(roi.getBoundsY()+roi.getBoundsHeight()) * pixelHeight)
 	    				);
-	    		return shapeFactory.createEllipse();
+	    		if (roi instanceof EllipseROI)
+	    			return shapeFactory.createEllipse();
+	    		else
+	    			return shapeFactory.createRectangle();
 	    	}
+	    	// TODO: Test if this is as reliable
+	    	// Exploratory code for v0.4.0, but rejected to reduce risk.
+	    	// Seems marginally faster, but not by a huge amount
+//	    	if (roi instanceof PolygonROI) {
+//		    	PrecisionModel precisionModel = factory.getPrecisionModel();
+//		    	Polygonizer polygonizer = new Polygonizer(true);
+//		    	List<Coordinate> coords = new ArrayList<>();
+//		    	for (var p : roi.getAllPoints()) {
+//		    		var c = new Coordinate(p.getX(), p.getY());
+//		    		precisionModel.makePrecise(c);
+//		    		coords.add(c);
+//		    	}
+//		    	// Close if needed
+//		    	if (!coords.get(0).equals(coords.get(coords.size()-1)))
+//		    		coords.add(coords.get(0).copy());
+//	    		LineString lineString = factory.createLineString(coords.toArray(Coordinate[]::new));
+//		    	polygonizer.add(lineString.union());
+//		    	return polygonizer.getGeometry();
+//	    	}
+	    	
 	    	Area shape = RoiTools.getArea(roi);
 	    	return areaToGeometry(shape);
 	    }

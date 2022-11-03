@@ -102,7 +102,7 @@ This is a work-in-progress.
 * Support passing arguments via a map to `runPlugin`, rather than only a JSON-encoded String
 * Add `difference`, `symDifference` and `subtract` methods to `RoiTools` (https://github.com/qupath/qupath/issues/995)
 * Add `ROI.updatePlane(plane)` method to move a ROI to a different z-slice or timepoint (https://github.com/qupath/qupath/issues/1052)
-* 'Classify -> Training images -> Create region annotations' supports adding regions in a selected annotation
+* 'Classify -> Training images -> Create region annotations' supports adding regions within a selected annotation
   * `RoiTools.createRandomRectangle()` methods created for scripting
 * GeoJSON improvements (https://github.com/qupath/qupath/pull/1099)
   * Simplified representation of `PathClass`

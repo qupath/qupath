@@ -242,10 +242,9 @@ public interface MeasurementList extends Serializable, AutoCloseable {
 	 */
 	public default void putAll(MeasurementList list) {
 		synchronized (list) {
-			for (int i = 0; i < list.size(); i++) {
-				put(list.getMeasurementName(i), list.getMeasurementValue(i));			
+			for (String name : list.getMeasurementNames()) {
+				put(name, list.getMeasurementValue(name));			
 			}
-			
 		}
 	}
 	

@@ -110,13 +110,15 @@ public abstract class PathObject implements Externalizable {
 	/**
 	 * Set locked status, if possible.
 	 * <p>
-	 * Subclasses should override this method to support locking or unlocking. 
-	 * Default implementation throws an {@link UnsupportedOperationException}.
+	 * Subclasses should override this method to support locking or unlocking.
+	 * Default implementation throws an {@link UnsupportedOperationException} if an 
+	 * attempt is made to unlock the object.
 	 * 
 	 * @param locked
 	 */
 	public void setLocked(boolean locked) {
-		throw new UnsupportedOperationException("Locked status cannot be set!");
+		if (!locked)
+			throw new UnsupportedOperationException("Locked status cannot be unset!");
 	}
 
 	/**
