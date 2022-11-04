@@ -1124,8 +1124,9 @@ public class PathObjectTools {
 			newObject = PathObjects.createAnnotationObject(roi, pathClass, null);
 		} else if (pathObject instanceof PathRootObject) {
 			newObject = new PathRootObject();
-		} else if (pathObject instanceof TMACoreObject && roi instanceof EllipseROI) {
+		} else if (pathObject instanceof TMACoreObject) {
 			var core = (TMACoreObject)pathObject;
+			// TODO: Consider supporting non-ellipse ROIs for TMA cores
 			newObject = PathObjects.createTMACoreObject(roi.getBoundsX(), roi.getBoundsY(), roi.getBoundsWidth(), roi.getBoundsHeight(), core.isMissing());
 		} else
 			throw new UnsupportedOperationException("Unable to transform object " + pathObject);

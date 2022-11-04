@@ -115,6 +115,7 @@ import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.classes.PathClassTools;
+import qupath.lib.objects.hierarchy.DefaultTMAGrid;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.TMAGrid;
 import qupath.lib.plugins.CommandLinePluginRunner;
@@ -1824,7 +1825,7 @@ public class QP {
 		hierarchy.addObjects(transformed);
 		
 		// Set selected objects
-		var newPrimary = primary == null ? null : selected.stream().filter(p -> p.getId().equals(primary.getId())).findFirst().orElse(null);
+		var newPrimary = primary == null ? null : transformed.stream().filter(p -> p.getId().equals(primary.getId())).findFirst().orElse(null);
 		hierarchy.getSelectionModel().setSelectedObjects(transformed, newPrimary);
 	}
 	
@@ -1861,8 +1862,37 @@ public class QP {
 				.map(p -> p.getId())
 				.collect(Collectors.toSet());
 		var transformed = PathObjectTools.transformObjectRecursive(hierarchy.getRootObject(), transform, true, false);
+		
+		var newObjects = new ArrayList<>(transformed.getChildObjects());
+		
+		// Handle TMA grid... which is rather more awkward
+		var tmaGrid = hierarchy.getTMAGrid();
+		TMAGrid newTmaGrid = null;
+		if (tmaGrid != null && !tmaGrid.getTMACoreList().isEmpty()) {
+			var originalCores = tmaGrid.getTMACoreList();
+			var newCores = PathObjectTools.getFlattenedObjectList(transformed, null, true)
+					.stream()
+					.filter(p -> p.isTMACore())
+					.collect(Collectors.toList());
+			
+			var matches = PathObjectTools.matchByID(originalCores, newCores);
+			var newCoresOrdered = new ArrayList<TMACoreObject>();
+			for (var oldCore : originalCores) {
+				var newCore = matches.getOrDefault(oldCore, null);
+				if (newCore != null)
+					newCoresOrdered.add((TMACoreObject)newCore);
+			}
+			if (newCoresOrdered.size() == originalCores.size()) {
+				newTmaGrid = DefaultTMAGrid.create(newCoresOrdered, tmaGrid.getGridWidth());
+				newObjects.removeAll(newCoresOrdered);
+			} else
+				logger.warn("Unable to match old and new TMA cores!");
+		}
+		
 		hierarchy.clearAll();
-		hierarchy.addObjects(new ArrayList<>(transformed.getChildObjects()));
+		if (newTmaGrid != null)
+			hierarchy.setTMAGrid(newTmaGrid);
+		hierarchy.addObjects(newObjects);
 		
 		// Restore the selection, now with the transformed objects
 		if (!selectedIDs.isEmpty()) {
