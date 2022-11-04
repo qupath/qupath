@@ -76,6 +76,7 @@ import qupath.lib.roi.GeometryTools;
 import qupath.lib.roi.PolylineROI;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
+import qupath.lib.scripting.QP;
 
 /**
  * Action enabling a selected annotation object to be modified interactively by a rigid transformation,
@@ -229,67 +230,19 @@ class RigidObjectEditorCommand implements Runnable, ChangeListener<ImageData<Buf
 		
 		var imageData = viewer.getImageData();
 		var hierarchy = viewer.getHierarchy();
-		boolean keepSelection = true;
 		
+		ButtonType option = ButtonType.CANCEL;
+		var btSelected = originalObjectROIs.size() == 1 ? new ButtonType("Selected object") : new ButtonType("Selected objects");
+		var btAll = new ButtonType("All objects");
+
 		if (!ignoreChanges && !transform.isIdentity()) {
-		
-			var btSelected = originalObjectROIs.size() == 1 ? new ButtonType("Selected object") : new ButtonType("Selected objects");
-			var btAll = new ButtonType("All objects");
-			
-			ButtonType option = Dialogs.builder()
+					
+			option = Dialogs.builder()
 					.title(TITLE)
 					.contentText("Confirm object changes?")
 					.buttons(btSelected, btAll, ButtonType.CANCEL)
 					.showAndWait()
 					.orElse(ButtonType.CANCEL);
-			
-			if (option == ButtonType.CANCEL) {
-				for (Entry<PathObject, ROI> entry : originalObjectROIs.entrySet()) {
-					((PathROIObject)entry.getKey()).setROI(entry.getValue());
-				}
-			} else {
-				var values = transform.getMatrixEntries();
-				String transformString = String.format("[[%f, %f, %f],\n [%f, %f, %f]]",
-						values[0], values[1], values[2],
-						values[3], values[4], values[5]);
-				logger.info("Applied ROI transform: \n{}", transformString);
-				
-				if (option == btAll) {
-					// Handle all objects recursively
-					for (Entry<PathObject, ROI> entry : originalObjectROIs.entrySet())
-						((PathROIObject)entry.getKey()).setROI(entry.getValue());
-					
-					var newRoot = PathObjectTools.transformObjectRecursive(hierarchy.getRootObject(),
-							GeometryTools.convertTransform(transform),
-							true, false);
-					hierarchy.clearAll();
-					hierarchy.addObjects(new ArrayList<>(newRoot.getChildObjects()));
-					// Need to reset the selection, so that it doesn't persist in the viewer as phantom objects
-					keepSelection = false;
-					
-					String scriptString = String.format(
-							"transformAllObjects(AffineTransforms.fromRows(%f, %f, %f, %f, %f, %f))",
-							values[0], values[1], values[2], values[3], values[4], values[5]);
-					imageData.getHistoryWorkflow().addStep(
-							new DefaultScriptableWorkflowStep("Transform all objects", scriptString)
-							);
-					
-				} else {
-					// Handle selected objects only
-					for (Entry<PathObject, ROI> entry : originalObjectROIs.entrySet()) {
-						ROI roiTransformed = transformer.getTransformedROI(entry.getValue(), true);
-						((PathROIObject)entry.getKey()).setROI(roiTransformed);
-					}
-					hierarchy.fireHierarchyChangedEvent(this, originalObject);
-					
-					String scriptString = String.format(
-							"transformSelectedObjects(AffineTransforms.fromRows(%f, %f, %f, %f, %f, %f))",
-							values[0], values[1], values[2], values[3], values[4], values[5]);
-					imageData.getHistoryWorkflow().addStep(
-							new DefaultScriptableWorkflowStep("Transform selected objects", scriptString)
-							);
-				}
-			}
 		}
 
 		// Update the mode if the viewer is still active
@@ -302,14 +255,45 @@ class RigidObjectEditorCommand implements Runnable, ChangeListener<ImageData<Buf
 		viewer.getCustomOverlayLayers().remove(overlay);
 		viewer.removeViewerListener(this);
 		
-		if (!keepSelection)
-			hierarchy.getSelectionModel().clearSelection();
-
 		viewer = null;
 		overlay = null;
-		originalObjectROIs.clear();
 		originalObject = null;
 		transformer = null;
+		
+		
+		// Make the changes now - this needs to be after we've stopped listening to changes
+		for (Entry<PathObject, ROI> entry : originalObjectROIs.entrySet()) {
+			((PathROIObject)entry.getKey()).setROI(entry.getValue());
+		}
+
+		originalObjectROIs.clear();
+
+		if (option != ButtonType.CANCEL) {
+			var values = transform.getMatrixEntries();
+			String transformString = String.format("[[%f, %f, %f], [%f, %f, %f]]",
+					values[0], values[1], values[2],
+					values[3], values[4], values[5]);
+			logger.info("Applied annotation transform: {}", transformString);
+			
+			if (option == btAll) {
+				QP.transformAllObjects(hierarchy, GeometryTools.convertTransform(transform));
+				String scriptString = String.format(
+						"transformAllObjects(AffineTransforms.fromRows(%f, %f, %f, %f, %f, %f))",
+						values[0], values[1], values[2], values[3], values[4], values[5]);
+				imageData.getHistoryWorkflow().addStep(
+						new DefaultScriptableWorkflowStep("Transform all objects", scriptString)
+						);
+			} else {
+				// Handle selected objects only
+				QP.transformSelectedObjects(hierarchy, GeometryTools.convertTransform(transform));
+				String scriptString = String.format(
+						"transformSelectedObjects(AffineTransforms.fromRows(%f, %f, %f, %f, %f, %f))",
+						values[0], values[1], values[2], values[3], values[4], values[5]);
+				imageData.getHistoryWorkflow().addStep(
+						new DefaultScriptableWorkflowStep("Transform selected objects", scriptString)
+						);
+			}
+		}
 	}
 	
 	
