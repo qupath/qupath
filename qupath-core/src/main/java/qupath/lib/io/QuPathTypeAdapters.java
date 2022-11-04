@@ -402,7 +402,7 @@ class QuPathTypeAdapters {
 			
 			MeasurementList measurements = value.getMeasurementList();
 			if (flattenProperties) {
-				// Flatting properties probably not a good idea!
+				// Flattening properties probably not a good idea!
 				
 				// Add measurements
 				if (!measurements.isEmpty()) {
@@ -600,8 +600,7 @@ class QuPathTypeAdapters {
 			
 			if (measurementList != null && !measurementList.isEmpty()) {
 				try (var ml = pathObject.getMeasurementList()) {
-					for (int i = 0; i < measurementList.size(); i++)
-						ml.putAll(measurementList);
+					ml.putAll(measurementList);
 				}
 			}
 			if (pathClass != null)
