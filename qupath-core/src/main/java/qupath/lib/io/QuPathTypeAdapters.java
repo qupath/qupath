@@ -33,6 +33,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.stream.Collectors;
 import java.util.Set;
 import java.util.UUID;
 
@@ -66,7 +67,9 @@ import qupath.lib.objects.PathRootObject;
 import qupath.lib.objects.PathTileObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.classes.PathClass;
+import qupath.lib.objects.hierarchy.DefaultTMAGrid;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
+import qupath.lib.objects.hierarchy.TMAGrid;
 import qupath.lib.roi.interfaces.ROI;
 
 class QuPathTypeAdapters {
@@ -121,30 +124,87 @@ class QuPathTypeAdapters {
 	
 	static class HierarchyTypeAdapter extends TypeAdapter<PathObjectHierarchy> {
 		
+		private static final Logger logger = LoggerFactory.getLogger(HierarchyTypeAdapter.class);
+		
 		static HierarchyTypeAdapter INSTANCE = new HierarchyTypeAdapter();
 
 		@Override
 		public void write(JsonWriter out, PathObjectHierarchy value) throws IOException {
-			if (value == null)
-				PathObjectTypeAdapter.INSTANCE_HIERARCHY.write(out, null);
-			else
-				PathObjectTypeAdapter.INSTANCE_HIERARCHY.write(out, value.getRootObject());
+			
+			if (value == null && out.getSerializeNulls()) {
+				out.nullValue();
+				return;
+			}
+			
+			out.beginObject();
+			
+			out.name("root");
+			PathObjectTypeAdapter.INSTANCE_HIERARCHY.write(out, value.getRootObject());
+			
+			// Store TMA core IDs only, to avoid duplicating the objects themselves
+			var tmaGrid = value.getTMAGrid();
+			if (tmaGrid != null) {
+				out.name("tmaGrid");
+				var proxy = new TMAGridProxy(tmaGrid);
+				gson.toJson(proxy, proxy.getClass(), out);
+			}
+			
+			out.endObject();
 		}
 
 		@Override
 		public PathObjectHierarchy read(JsonReader in) throws IOException {
-			var rootObject = PathObjectTypeAdapter.INSTANCE_HIERARCHY.read(in);
-			if (rootObject == null)
+			
+			var token = in.peek();
+			if (token == JsonToken.NULL)
 				return null;
-			if (!rootObject.isRootObject())
-				throw new IOException("Cannot deserialize PathObjectHierarchy - root object not found");
+			if (token != JsonToken.BEGIN_OBJECT)
+				throw new IOException("Expected BEGIN_OBJECT but found " + token);
+			
 			var hierarchy = new PathObjectHierarchy();
-			hierarchy.addObjects(new ArrayList<>(rootObject.getChildObjects()));
+			
+			JsonObject obj = gson.fromJson(in, JsonObject.class);
+			if (obj.has("root")) {
+				PathObject rootObject = PathObjectTypeAdapter.INSTANCE_HIERARCHY.fromJsonTree(obj.get("root"));
+				hierarchy.getRootObject().addChildObjects(new ArrayList<>(rootObject.getChildObjects()));
+			}
+			if (obj.has("tmaGrid")) {
+				TMAGridProxy proxy = gson.fromJson(obj.get("tmaGrid").getAsJsonObject(), TMAGridProxy.class);
+				
+				var allCores = hierarchy.getAllObjects(false).stream().collect(Collectors.toMap(c -> c.getId(), c -> c));
+				var sortedCores = proxy.cores
+						.stream()
+						.map(i -> (TMACoreObject)allCores.getOrDefault(i, null))
+						.filter(c -> c != null)
+						.collect(Collectors.toList());
+				
+				if (sortedCores.size() == proxy.cores.size()) {
+					var tmaGrid = DefaultTMAGrid.create(sortedCores, proxy.width);
+					hierarchy.setTMAGrid(tmaGrid);
+				} else {
+					logger.warn("Cannot deserialize TMA grid - matched {}/{} cores", sortedCores.size(), allCores.size());
+				}
+			}
 			return hierarchy;
 		}
 
 		
 	}
+	
+	
+	@SuppressWarnings("unused")
+	static class TMAGridProxy {
+		
+		private int width;
+		private List<UUID> cores;
+		
+		TMAGridProxy(TMAGrid grid) {
+			this.width = grid.getGridWidth();
+			cores = grid.getTMACoreList().stream().map(c -> c.getId()).collect(Collectors.toList());
+		}
+		
+	}
+	
 
 	
 	
