@@ -168,7 +168,7 @@ class Menus {
 		@ActionDescription("Paste the contents of the system clipboard, if possible.\n" + 
 				"If the clipboard contents are GeoJSON objects, the objects will be pasted to the current image. "
 				+ "Otherwise, any text found will be shown in a the script editor.")
-		@ActionAccelerator("shortcut+v")
+//		@ActionAccelerator("shortcut+v") // No shortcut because it gets fired too often
 		public final Action PASTE = createAction(() -> Commands.pasteFromClipboard(qupath));
 
 		
@@ -691,6 +691,11 @@ class Menus {
 		@ActionMenu("Show command list")
 		@ActionAccelerator("shortcut+l")
 		public final Action COMMAND_LIST = Commands.createSingleStageAction(() -> CommandFinderTools.createCommandFinderDialog(qupath));
+
+		@ActionDescription("Show a list containing recently-used commands.")
+		@ActionMenu("Show recent commands")
+		@ActionAccelerator("shift+shortcut+up")
+		public final Action RECENT_COMMAND_LIST = Commands.createSingleStageAction(() -> CommandFinderTools.createRecentCommandsDialog(qupath));
 
 		public final Action SEP_0 = ActionTools.createSeparator();
 		

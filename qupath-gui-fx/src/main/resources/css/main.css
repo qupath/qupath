@@ -47,8 +47,13 @@
 
 
 /* Soften the main toolbar icons */
-.tool-bar .qupath-icon {
+.tool-bar .qupath-icon * {
   -fx-text-fill: -fx-text-background-color;
   -fx-opacity: 0.8;
 }
 
+/* Used in command finder for help text */
+.popover * {
+    -fx-background-color: -fx-base;
+    -fx-text-fill: -fx-text-base-color;
+}
