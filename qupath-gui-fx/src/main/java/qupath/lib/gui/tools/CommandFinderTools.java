@@ -30,7 +30,9 @@ import java.io.Writer;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.WeakHashMap;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
@@ -47,12 +49,16 @@ import javafx.beans.property.ReadOnlyStringProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
+import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableBooleanValue;
 import javafx.beans.value.ObservableObjectValue;
+import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
+import javafx.collections.ListChangeListener.Change;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import javafx.collections.transformation.SortedList;
+import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.geometry.Bounds;
 import javafx.geometry.Insets;
@@ -83,6 +89,7 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.text.TextAlignment;
 import javafx.stage.Popup;
 import javafx.stage.Stage;
+import javafx.stage.Window;
 import qupath.lib.gui.ActionTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -157,7 +164,7 @@ public class CommandFinderTools {
 	 * @return
 	 */
 	public static HiddenSidesPane createCommandFinderPane(final QuPathGUI qupath, final Node node, final ObjectProperty<CommandBarDisplay> displayMode) {
-		MenuManager menuManager = new MenuManager(qupath.getMenuBar());
+		MenuManager menuManager = MenuManager.getInstance(qupath.getMenuBar());
 		
 		FilteredList<CommandEntry> commands = new FilteredList<>(menuManager.getCommands());
 		TableView<CommandEntry> table = createCommandTable(commands);
@@ -245,6 +252,7 @@ public class CommandFinderTools {
 	}
 	
 	
+	
 	/**
 	 * Create a dialog showing a filtered list of menu commands, for fast selection.
 	 * 
@@ -252,27 +260,106 @@ public class CommandFinderTools {
 	 * @return
 	 */
 	public static Stage createCommandFinderDialog(final QuPathGUI qupath) {
+		return createCommandFinderDialog(qupath.getMenuBar(), qupath.getStage());
+	}
+	
+	/**
+	 * Create a dialog showing a filtered list of recently-used commands, for fast selection.
+	 * 
+	 * @param qupath
+	 * @return
+	 */
+	public static Stage createRecentCommandsDialog(final QuPathGUI qupath) {
+		return createRecentCommandDialog(qupath.getMenuBar(), qupath.getStage());
+	}
+	
+	private static Stage createRecentCommandDialog(final MenuBar menubar, final Window owner) {
 		// TODO: Explore updating this with the action list changes
-		MenuManager menuManager = new MenuManager(qupath.getMenuBar());
+		MenuManager menuManager = MenuManager.getInstance(menubar);
+		menuManager.refresh(true);
+
+		Stage stage = new Stage();
+		stage.initOwner(owner);
+		stage.setTitle("Recent Commands");
+
+		FilteredList<CommandEntry> commands = new FilteredList<>(menuManager.getRecentCommands());
+		TableView<CommandEntry> table = createCommandTable(commands);
+		TextField textField = createTextField(table, commands, false, stage, null);
+		textField.setPromptText("Search recent commands");
+
+		// Control focus of the text field
+		stage.focusedProperty().addListener((v, o, n) -> {
+			if (n) {
+				table.requestFocus();
+				if (!table.getItems().isEmpty() && textField.textProperty().isEmpty().get())
+					table.getSelectionModel().selectLast();
+			}
+		});
+		
+		commands.addListener((Change<? extends CommandEntry> c) -> {
+			if (table.isVisible() && !table.getItems().isEmpty() && textField.textProperty().isEmpty().get()) {
+				table.scrollTo(table.getItems().size()-1);
+				table.getSelectionModel().selectLast();
+			}
+		});
+
+		// Make it possible to type immediately (alternative would be to reset text when hiding)
+		stage.setOnShown(e -> textField.selectAll());
+
+		BorderPane pane = new BorderPane();
+		pane.setCenter(table);
+		pane.setBottom(textField);
+
+		stage.setScene(new Scene(pane, 600, 400));
+
+		stage.getScene().addEventFilter(KeyEvent.KEY_PRESSED, e -> {
+			if (e.getCode() == KeyCode.ESCAPE) {
+				stage.hide();
+				e.consume();
+			}
+		});
+
+		textField.textProperty().addListener((v, o, n) -> {
+			// Ensure the table is up to date if we are just starting
+			if (o.isEmpty() && !n.isEmpty())
+				menuManager.refresh(true);
+		});
+
+		table.setOnMouseClicked(e -> {
+			if (e.getClickCount() > 1) {
+				runSelectedCommand(table.getSelectionModel().getSelectedItem());
+			}
+		});
+
+		return stage;
+	}
+
+	
+	private static Stage createCommandFinderDialog(final MenuBar menubar, final Window owner) {
+		// TODO: Explore updating this with the action list changes
+		MenuManager menuManager = MenuManager.getInstance(menubar);
 		menuManager.refresh(true);
 		
 		Stage stage = new Stage();
-		stage.initOwner(qupath.getStage());
+		stage.initOwner(owner);
 		stage.setTitle("Command List");
 		
 		CheckBox cbAutoClose = new CheckBox("Auto close");
 		cbAutoClose.selectedProperty().bindBidirectional(autoCloseCommandListProperty);
 		cbAutoClose.setPadding(new Insets(2, 2, 2, 2));
 
-		FilteredList<CommandEntry> commands = new FilteredList<>(menuManager.getCommands());
+		FilteredList<CommandEntry> commands = new FilteredList<>(menuManager.getCommands());			
 		TableView<CommandEntry> table = createCommandTable(commands);
 		TextField textField = createTextField(table, commands, false, stage, cbAutoClose.selectedProperty());
-
+		textField.setPromptText("Search all commands");
+		
 		// Control focus of the text field
+		// This actually controls the table itself
 		stage.focusedProperty().addListener((v, o, n) -> {
 			if (n)
 				textField.requestFocus();
 		});
+		
 		// Make it possible to type immediately (alternative would be to reset text when hiding)
 		stage.setOnShown(e -> textField.selectAll());
 
@@ -334,7 +421,7 @@ public class CommandFinderTools {
 	 * @throws IOException
 	 */
 	public static void menusToMarkdown(final QuPathGUI qupath, Writer writer) throws IOException {
-		MenuManager menuManager = new MenuManager(qupath.getMenuBar());
+		MenuManager menuManager = MenuManager.getInstance(qupath.getMenuBar());
 		menuManager.refresh(false);
 		PrintWriter printWriter = toPrintWriter(writer);
 		String lastMenu = null;
@@ -541,7 +628,7 @@ public class CommandFinderTools {
 			else if (item instanceof SeparatorMenuItem)
 				continue;
 			else if (item.getText() != null)
-				commands.add(new CommandEntry(item, menuPath));
+				commands.add(CommandEntry.getInstance(item, menuPath));
 		}
 	}
 	
@@ -580,6 +667,16 @@ public class CommandFinderTools {
 				}
 			};
 		});
+		
+		
+		table.setOnKeyPressed(e -> {
+			if (e.isConsumed() || e.getCode() != KeyCode.ENTER)
+				return;
+			var selected = table.getSelectionModel().getSelectedItem();
+			if (selected != null)
+				runSelectedCommand(selected);
+		});
+		
 		
 		col1.prefWidthProperty().bind(table.widthProperty().multiply(0.4).subtract(6));
 		col2.prefWidthProperty().bind(table.widthProperty().multiply(0.4).subtract(6));
@@ -625,11 +722,29 @@ public class CommandFinderTools {
 		private MenuBar menubar;
 		private ObservableList<CommandEntry> commandsBase = FXCollections.observableArrayList();
 		
-		public MenuManager(final MenuBar menubar) {
+		private ObservableList<CommandEntry> recentCommands = FXCollections.observableArrayList();
+		
+		private static Map<MenuBar, MenuManager> managerMap = new WeakHashMap<>();
+		
+		/**
+		 * Get MenuManager for the specified menubar.
+		 * Returns a cached instance if possible, creates a new one if necessary.
+		 * @param menubar
+		 * @return
+		 */
+		public static MenuManager getInstance(MenuBar menubar) {
+			return managerMap.computeIfAbsent(menubar, m -> new MenuManager(m));
+		}
+
+		private MenuManager(final MenuBar menubar) {
 			this.menubar = menubar;
 		}
 	
 		private void refresh(boolean doSort) {
+			// Stop recording anything for previous entries
+			for (var c : commandsBase)
+				c.setRecentCommandList(null);
+			
 			// Create sorted command entry list
 			List<CommandEntry> commandsTemp = new ArrayList<>();
 			for (Menu menu : menubar.getMenus()) {
@@ -638,10 +753,18 @@ public class CommandFinderTools {
 			if (doSort)
 				commandsTemp.sort(Comparator.comparing(CommandEntry::getText));
 			commandsBase.setAll(commandsTemp);
+
+			// Start recording for new entries
+			for (var c : commandsBase)
+				c.setRecentCommandList(recentCommands);
 		}
 				
 		public ObservableList<CommandEntry> getCommands() {
 			return commandsBase;
+		}
+		
+		public ObservableList<CommandEntry> getRecentCommands() {
+			return recentCommands;
 		}
 		
 		static boolean fireMenuItem(final MenuItem menuItem) {
@@ -680,7 +803,22 @@ public class CommandFinderTools {
 		private StringProperty acceleratorText = new SimpleStringProperty();
 		private StringProperty longText = new SimpleStringProperty();
 		
-		CommandEntry(final MenuItem item, final String menuPath) {
+		private CommandListener listener = new CommandListener();
+		
+		private ObservableList<CommandEntry> recent;
+		
+		private static Map<MenuItem, CommandEntry> map = new WeakHashMap<>();
+		
+		static synchronized CommandEntry getInstance(final MenuItem item, final String menuPath) {
+			var cached = map.getOrDefault(item, null);
+			if (cached == null || !Objects.equals(cached.getMenuPath(), menuPath)) {
+				cached = new CommandEntry(item, menuPath);
+				map.put(item, cached);
+			}
+			return cached;
+		}
+		
+		private CommandEntry(final MenuItem item, final String menuPath) {
 			this.item.set(item);
 			this.menuPath.set(menuPath);
 			this.text.bind(Bindings.createStringBinding(() -> {
@@ -701,6 +839,16 @@ public class CommandFinderTools {
 				var temp = accelerator.get();
 				return temp == null ? null : temp.getDisplayText();
 			}, accelerator));
+		}
+		
+		/**
+		 * Add to head of recent command list *only* if not already there
+		 */
+		private void addToRecent() {
+			if (recent == null)
+				return;
+			if (recent.isEmpty() || recent.get(recent.size()-1).getMenuItem() != this.getMenuItem())
+				recent.add(this);
 		}
 		
 		/**
@@ -783,6 +931,52 @@ public class CommandFinderTools {
 		public ReadOnlyStringProperty menuPathProperty() {
 			return menuPath;
 		}
+		
+		/**
+		 * Set an observable list where we register this command each time it's fired
+		 * @param recent
+		 */
+		private void setRecentCommandList(ObservableList<CommandEntry> recent) {
+			if (Objects.equals(recent, this.recent))
+				return;
+			this.recent = recent;
+			
+			// Add or remove listeners, as needed
+			var item = getMenuItem();
+			if (recent == null) {
+				if (item instanceof CheckMenuItem) {
+					((CheckMenuItem) item).selectedProperty().removeListener(listener);
+				} else if (item instanceof RadioMenuItem) {
+					((RadioMenuItem) item).selectedProperty().removeListener(listener);
+				} else {
+					item.removeEventHandler(ActionEvent.ACTION, listener);
+				}
+			} else {
+				if (item instanceof CheckMenuItem) {
+					((CheckMenuItem) item).selectedProperty().addListener(listener);
+				} else if (item instanceof RadioMenuItem) {
+					((RadioMenuItem) item).selectedProperty().addListener(listener);
+				} else {
+					item.addEventHandler(ActionEvent.ACTION, listener);
+				}
+			}
+		}
+		
+		
+		class CommandListener implements ChangeListener<Boolean>, EventHandler<ActionEvent> {
+
+			@Override
+			public void changed(ObservableValue<? extends Boolean> observable, Boolean oldValue, Boolean newValue) {
+				addToRecent();
+			}
+
+			@Override
+			public void handle(ActionEvent event) {
+				addToRecent();
+			}
+			
+		}
+		
 		
 	}
 	
