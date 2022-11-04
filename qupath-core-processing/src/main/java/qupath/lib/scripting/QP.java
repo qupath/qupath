@@ -91,6 +91,7 @@ import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.ImageServerProvider;
 import qupath.lib.images.servers.ImageServers;
+import qupath.lib.images.servers.LabeledImageServer;
 import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.ServerTools;
 import qupath.lib.images.writers.ImageWriterTools;
@@ -294,6 +295,7 @@ public class QP {
 			OpenCVTools.class,
 			DnnTools.class,
 			TileExporter.class,
+			LabeledImageServer.class,
 			ServerTools.class,
 			PixelClassifierTools.class,
 			
