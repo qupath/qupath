@@ -1827,7 +1827,7 @@ public class QP {
 		hierarchy.addObjects(transformed);
 		
 		// Set selected objects
-		var newPrimary = primary == null ? null : transformed.stream().filter(p -> p.getId().equals(primary.getId())).findFirst().orElse(null);
+		var newPrimary = primary == null ? null : transformed.stream().filter(p -> p.getID().equals(primary.getID())).findFirst().orElse(null);
 		hierarchy.getSelectionModel().setSelectedObjects(transformed, newPrimary);
 	}
 	
@@ -1861,7 +1861,7 @@ public class QP {
 		var primary = hierarchy.getSelectionModel().getSelectedObject();
 		Set<UUID> selectedIDs = hierarchy.getSelectionModel().getSelectedObjects()
 				.stream()
-				.map(p -> p.getId())
+				.map(p -> p.getID())
 				.collect(Collectors.toSet());
 		var transformed = PathObjectTools.transformObjectRecursive(hierarchy.getRootObject(), transform, true, false);
 		
@@ -1899,7 +1899,7 @@ public class QP {
 		// Restore the selection, now with the transformed objects
 		if (!selectedIDs.isEmpty()) {
 			var toSelect = PathObjectTools.findByUUID(selectedIDs, hierarchy.getFlattenedObjectList(null)).values();
-			var newPrimary = primary == null ? null : toSelect.stream().filter(p -> p.getId().equals(primary.getId())).findFirst().orElse(null);
+			var newPrimary = primary == null ? null : toSelect.stream().filter(p -> p.getID().equals(primary.getID())).findFirst().orElse(null);
 			hierarchy.getSelectionModel().setSelectedObjects(toSelect, newPrimary);
 		}
 	}

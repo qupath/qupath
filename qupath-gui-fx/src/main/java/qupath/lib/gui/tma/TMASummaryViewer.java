@@ -424,7 +424,7 @@ public class TMASummaryViewer {
 		ToolBar toolbar = new ToolBar();
 		Label labelMeasurementMethod = new Label("Combination method");
 		labelMeasurementMethod.setLabelFor(comboMeasurementMethod);
-		labelMeasurementMethod.setTooltip(new Tooltip("Method whereby measurements for multiple cores with the same " + TMACoreObject.KEY_UNIQUE_ID + " will be combined"));
+		labelMeasurementMethod.setTooltip(new Tooltip("Method whereby measurements for multiple cores with the same " + TMACoreObject.KEY_CASE_ID + " will be combined"));
 		
 		CheckBox cbHidePane = new CheckBox("Hide pane");
 		cbHidePane.setSelected(hidePaneProperty.get());
@@ -432,7 +432,7 @@ public class TMASummaryViewer {
 		
 		CheckBox cbGroupByID = new CheckBox("Group by ID");
 		entriesBase.addListener((Change<? extends TMAEntry> event) -> {
-			if (!event.getList().stream().anyMatch(e -> e.getMetadataValue(TMACoreObject.KEY_UNIQUE_ID) != null)) {
+			if (!event.getList().stream().anyMatch(e -> e.getMetadataValue(TMACoreObject.KEY_CASE_ID) != null)) {
 				cbGroupByID.setSelected(false);
 				cbGroupByID.setDisable(true);
 			} else {
@@ -724,7 +724,7 @@ public class TMASummaryViewer {
 		String colScore = null;
 		colCensored = null;
 		for (String nameOrig : model.getAllNames()) {
-			if (nameOrig.equals(TMACoreObject.KEY_UNIQUE_ID))
+			if (nameOrig.equals(TMACoreObject.KEY_CASE_ID))
 				colID = nameOrig;
 //			else if (nameOrig.equals(TMACoreObject.KEY_CENSORED))
 //				colCensored = nameOrig;
@@ -798,7 +798,7 @@ public class TMASummaryViewer {
 			else
 				score = (scores[n/2-1] + scores[n/2]) / 2;
 
-			core.putMetadataValue(TMACoreObject.KEY_UNIQUE_ID, entry.getKey());
+			core.putMetadataValue(TMACoreObject.KEY_CASE_ID, entry.getKey());
 //			System.err.println("Putting: " + list.get(0).getMeasurement(colSurvival).doubleValue() + " LIST: " + list.size());
 			ml.put(colSurvival, list.get(0).getMeasurementAsDouble(colSurvival));
 			ml.put(colCensoredRequested, list.get(0).getMeasurementAsDouble(colCensored));
@@ -1346,7 +1346,7 @@ public class TMASummaryViewer {
 		if (namesMeasurements.contains(selectedMainMeasurement))
 			comboMainMeasurement.getSelectionModel().select(selectedMainMeasurement);
 		else {
-			namesMeasurements.remove(TMACoreObject.KEY_UNIQUE_ID);
+			namesMeasurements.remove(TMACoreObject.KEY_CASE_ID);
 			namesMeasurements.remove(TMACoreObject.KEY_OVERALL_SURVIVAL);
 			namesMeasurements.remove(TMACoreObject.KEY_RECURRENCE_FREE_SURVIVAL);
 			namesMeasurements.remove(TMACoreObject.KEY_OS_CENSORED);
@@ -1620,9 +1620,9 @@ public class TMASummaryViewer {
 		Map<String, TMASummaryEntry> summaryEntryMap = new TreeMap<>();
 		int maxSummaryLength = 0;
 		for (TMAEntry entry : entries) {
-			String id = entry.getMetadataValue(TMACoreObject.KEY_UNIQUE_ID);
-			if (id == null && entry.getMeasurement(TMACoreObject.KEY_UNIQUE_ID) != null)
-				id = entry.getMeasurement(TMACoreObject.KEY_UNIQUE_ID).toString();
+			String id = entry.getMetadataValue(TMACoreObject.KEY_CASE_ID);
+			if (id == null && entry.getMeasurement(TMACoreObject.KEY_CASE_ID) != null)
+				id = entry.getMeasurement(TMACoreObject.KEY_CASE_ID).toString();
 			if (id == null || id.trim().length() == 0) {
 				if (!"true".equalsIgnoreCase(entry.getMetadataValue(MISSING_COLUMN)))
 					logger.trace("No ID found for {}", entry);
@@ -1679,9 +1679,9 @@ public class TMASummaryViewer {
 			// Identify metadata and numeric columns
 			Map<String, List<String>> metadataColumns = new LinkedHashMap<>();
 			Map<String, double[]> measurementColumns = new LinkedHashMap<>();
-			List<String> idColumn = csvData.remove(TMACoreObject.KEY_UNIQUE_ID);
+			List<String> idColumn = csvData.remove(TMACoreObject.KEY_CASE_ID);
 			if (idColumn != null) {
-				metadataColumns.put(TMACoreObject.KEY_UNIQUE_ID, idColumn);
+				metadataColumns.put(TMACoreObject.KEY_CASE_ID, idColumn);
 				
 				// Make sure IDs are trimmed
 				if (trimUniqueIDs) {
@@ -2053,9 +2053,9 @@ public class TMASummaryViewer {
 	
 	private int importScores(final String text) {
 		Map<String, List<String>> data = TMAScoreImporter.readCSV(text);
-		List<String> idColumn = data.remove(TMACoreObject.KEY_UNIQUE_ID);
+		List<String> idColumn = data.remove(TMACoreObject.KEY_CASE_ID);
 		if (idColumn == null) {
-			Dialogs.showErrorMessage("Import TMA data", "No '" + TMACoreObject.KEY_UNIQUE_ID + "' column found!");
+			Dialogs.showErrorMessage("Import TMA data", "No '" + TMACoreObject.KEY_CASE_ID + "' column found!");
 			return 0;
 		}
 		// Nothing left to import...
@@ -2082,7 +2082,7 @@ public class TMASummaryViewer {
 				continue;
 			}
 			for (TMAEntry entry : entriesBase) {
-				if (id.equals(entry.getMetadataValue(TMACoreObject.KEY_UNIQUE_ID))) {
+				if (id.equals(entry.getMetadataValue(TMACoreObject.KEY_CASE_ID))) {
 					matched = true;
 					for (Entry<String, double[]> dataEntry : dataNumeric.entrySet()) {
 						entry.putMeasurement(dataEntry.getKey(), dataEntry.getValue()[i]);

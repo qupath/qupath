@@ -143,7 +143,7 @@ class TMASummaryEntry implements TMAEntry {
 		// If we need the ID, try to get everything
 		List<TMAEntry> entriesToCheck = entries;
 		if (entriesToCheck.isEmpty()) {
-			if (TMACoreObject.KEY_UNIQUE_ID.equals(name)) {
+			if (TMACoreObject.KEY_CASE_ID.equals(name)) {
 				entriesToCheck = entriesBase;
 			}
 			if (entriesToCheck.isEmpty())	

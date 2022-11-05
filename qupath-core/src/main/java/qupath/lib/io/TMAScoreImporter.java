@@ -103,11 +103,11 @@ public class TMAScoreImporter {
 		List<String> coreNames = coreKey == null ? null : map.remove(coreKey);
 		
 		// Try to get a unique ID column
-		List<String> coreIDs = map.remove(TMACoreObject.KEY_UNIQUE_ID);
+		List<String> coreIDs = map.remove(TMACoreObject.KEY_CASE_ID);
 		
 		// If we don't have a core column OR a unique ID column, we can't do anything
 		if (coreNames == null && coreIDs == null) {
-			logger.error("No column with header 'core' or '" + TMACoreObject.KEY_UNIQUE_ID + "' found");
+			logger.error("No column with header 'core' or '" + TMACoreObject.KEY_CASE_ID + "' found");
 			return 0;
 		}
 //		int n = coreNames == null ? coreIDs.size() : coreNames.size();
@@ -121,7 +121,7 @@ public class TMAScoreImporter {
 			for (String id : coreIDs) {
 				List<TMACoreObject> coresByID = new ArrayList<>();
 				for (TMACoreObject coreTemp : tmaGrid.getTMACoreList())
-					if (id != null && id.equals(coreTemp.getUniqueID()))
+					if (id != null && id.equals(coreTemp.getCaseID()))
 						coresByID.add(coreTemp);
 				if (!coresByID.isEmpty()) {
 					cores.put(i, coresByID);
@@ -148,10 +148,10 @@ public class TMAScoreImporter {
 					cores.put(i, Collections.singletonList(core));
 					coresFound = true;
 					if (coreIDs != null) {
-						String currentID = core.getUniqueID();
+						String currentID = core.getCaseID();
 						String newID = coreIDs.get(i);
 						if (newID != null && !newID.equals(currentID)) {
-							core.setUniqueID(newID);
+							core.setCaseID(newID);
 							// It shouldn't occur that an existing ID is changed... although it's possible if there are duplicates
 							if (currentID != null)
 								logger.warn("Core unique ID changed from {} to {}", currentID, newID);

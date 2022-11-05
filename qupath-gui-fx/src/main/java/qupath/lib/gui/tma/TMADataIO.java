@@ -130,7 +130,7 @@ public class TMADataIO {
 
 			writer.println("TMA grid width: " + tmaGrid.getGridWidth());
 			writer.println("TMA grid height: " + tmaGrid.getGridHeight());
-			writer.println("Core name" + delimiter + "X" + delimiter + "Y" + delimiter + "Width" + delimiter + "Height" + delimiter + "Present" + delimiter + TMACoreObject.KEY_UNIQUE_ID);
+			writer.println("Core name" + delimiter + "X" + delimiter + "Y" + delimiter + "Width" + delimiter + "Height" + delimiter + "Present" + delimiter + TMACoreObject.KEY_CASE_ID);
 			for (int row = 0; row < tmaGrid.getGridHeight(); row++) {
 				for (int col = 0; col < tmaGrid.getGridWidth(); col++) {
 					TMACoreObject core = tmaGrid.getTMACore(row, col);
@@ -143,7 +143,7 @@ public class TMADataIO {
 					int y = (int)pathROI.getBoundsY();
 					int w = (int)Math.ceil(pathROI.getBoundsWidth());
 					int h = (int)Math.ceil(pathROI.getBoundsHeight());
-					String id = core.getUniqueID() == null ? "" : core.getUniqueID();
+					String id = core.getCaseID() == null ? "" : core.getCaseID();
 					writer.println(core.getName() + delimiter + x + delimiter + y + delimiter + w + delimiter + h + delimiter + !core.isMissing() + delimiter + id);
 				}				
 			}
@@ -249,7 +249,7 @@ public class TMADataIO {
 			List<String> colWidth = csvData.get("Width");
 			List<String> colHeight = csvData.get("Height");
 			List<String> colPresent = csvData.get("Present");
-			List<String> colID = csvData.get(TMACoreObject.KEY_UNIQUE_ID);
+			List<String> colID = csvData.get(TMACoreObject.KEY_CASE_ID);
 			
 			if (colX == null || colY == null || colWidth == null || colHeight == null) {
 				logger.error("No core locations available!");
@@ -270,7 +270,7 @@ public class TMADataIO {
 				if (name != null)
 					core.setName(name);
 				if (id != null && !id.isEmpty())
-					core.setUniqueID(id);
+					core.setCaseID(id);
 				cores.add(core);
 			}
 			return DefaultTMAGrid.create(cores, gridWidth);
