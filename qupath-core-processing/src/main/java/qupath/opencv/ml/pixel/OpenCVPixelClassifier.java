@@ -134,13 +134,13 @@ class OpenCVPixelClassifier implements PixelClassifier, UriResource {
     }
 
 	@Override
-	public Collection<URI> getUris() throws IOException {
-		return op.getUris();
+	public Collection<URI> getURIs() throws IOException {
+		return op.getURIs();
 	}
 
 	@Override
-	public boolean updateUris(Map<URI, URI> replacements) throws IOException {
-		return op.updateUris(replacements);
+	public boolean updateURIs(Map<URI, URI> replacements) throws IOException {
+		return op.updateURIs(replacements);
 	}
     
     

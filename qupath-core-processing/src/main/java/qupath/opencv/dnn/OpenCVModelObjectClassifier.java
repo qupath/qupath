@@ -138,13 +138,13 @@ public class OpenCVModelObjectClassifier extends AbstractObjectClassifier<Buffer
 	}
 
 	@Override
-	public Collection<URI> getUris() throws IOException {
-		return model.getUris();
+	public Collection<URI> getURIs() throws IOException {
+		return model.getURIs();
 	}
 
 	@Override
-	public boolean updateUris(Map<URI, URI> replacements) throws IOException {
-		return model.updateUris(replacements);
+	public boolean updateURIs(Map<URI, URI> replacements) throws IOException {
+		return model.updateURIs(replacements);
 	}
 	
 	

@@ -363,15 +363,15 @@ public class ImageOps {
 		}
 		
 		@Override
-		public Collection<URI> getUris() throws IOException {
-			return op == null ? Collections.emptyList() : op.getUris();
+		public Collection<URI> getURIs() throws IOException {
+			return op == null ? Collections.emptyList() : op.getURIs();
 		}
 
 		@Override
-		public boolean updateUris(Map<URI, URI> replacements) throws IOException {
+		public boolean updateURIs(Map<URI, URI> replacements) throws IOException {
 			if (op == null)
 				return false;
-			return op.updateUris(replacements);
+			return op.updateURIs(replacements);
 		}
 		
 	}
@@ -459,15 +459,15 @@ public class ImageOps {
 		}
 
 		@Override
-		public Collection<URI> getUris() throws IOException {
-			return op == null ? Collections.emptyList() : op.getUris();
+		public Collection<URI> getURIs() throws IOException {
+			return op == null ? Collections.emptyList() : op.getURIs();
 		}
 
 		@Override
-		public boolean updateUris(Map<URI, URI> replacements) throws IOException {
+		public boolean updateURIs(Map<URI, URI> replacements) throws IOException {
 			if (op == null)
 				return false;
-			return op.updateUris(replacements);
+			return op.updateURIs(replacements);
 		}
 		
 	}
@@ -2432,7 +2432,7 @@ public class ImageOps {
 			 * @throws IOException 
 			 */
 			@Override
-			public Collection<URI> getUris() throws IOException {
+			public Collection<URI> getURIs() throws IOException {
 				return getAllUris(ops.toArray(ImageOp[]::new));
 			}
 
@@ -2442,7 +2442,7 @@ public class ImageOps {
 			 * @return
 			 */
 			@Override
-			public boolean updateUris(Map<URI, URI> replacements) throws IOException {
+			public boolean updateURIs(Map<URI, URI> replacements) throws IOException {
 				return updateAllUris(replacements, ops.toArray(ImageOp[]::new));
 			}
 			
@@ -2527,7 +2527,7 @@ public class ImageOps {
 			 * @throws IOException 
 			 */
 			@Override
-			public Collection<URI> getUris() throws IOException {
+			public Collection<URI> getURIs() throws IOException {
 				return getAllUris(ops.toArray(ImageOp[]::new));
 			}
 
@@ -2537,7 +2537,7 @@ public class ImageOps {
 			 * @return
 			 */
 			@Override
-			public boolean updateUris(Map<URI, URI> replacements) throws IOException {
+			public boolean updateURIs(Map<URI, URI> replacements) throws IOException {
 				return updateAllUris(replacements, ops.toArray(ImageOp[]::new));
 			}
 
@@ -2651,7 +2651,7 @@ public class ImageOps {
 			 * @throws IOException 
 			 */
 			@Override
-			public Collection<URI> getUris() throws IOException {
+			public Collection<URI> getURIs() throws IOException {
 				return getAllUris(op1, op2);
 			}
 
@@ -2661,7 +2661,7 @@ public class ImageOps {
 			 * @return
 			 */
 			@Override
-			public boolean updateUris(Map<URI, URI> replacements) throws IOException {
+			public boolean updateURIs(Map<URI, URI> replacements) throws IOException {
 				return updateAllUris(replacements, op1, op2);
 			}
 
@@ -2865,9 +2865,9 @@ public class ImageOps {
 			 * @throws IOException 
 			 */
 			@Override
-			public Collection<URI> getUris() throws IOException {
+			public Collection<URI> getURIs() throws IOException {
 				if (model instanceof UriResource)
-					return ((UriResource)model).getUris();
+					return ((UriResource)model).getURIs();
 				return Collections.emptyList();
 			}
 
@@ -2877,9 +2877,9 @@ public class ImageOps {
 			 * @return
 			 */
 			@Override
-			public boolean updateUris(Map<URI, URI> replacements) throws IOException {
+			public boolean updateURIs(Map<URI, URI> replacements) throws IOException {
 				if (model instanceof UriResource)
-					return ((UriResource)model).updateUris(replacements);
+					return ((UriResource)model).updateURIs(replacements);
 				return false;
 			}
 			
@@ -3110,7 +3110,7 @@ public class ImageOps {
 	static Collection<URI> getAllUris(UriResource...items) throws IOException {
 		var list = new LinkedHashSet<URI>();
 		for (var item : items) {
-			list.addAll(item.getUris());
+			list.addAll(item.getURIs());
 		}
 		return list;
 	}
@@ -3119,7 +3119,7 @@ public class ImageOps {
 	static boolean updateAllUris(Map<URI, URI> replacements, UriResource...items) throws IOException {
 		var changes = false;
 		for (var item : items) {
-			changes = changes | item.updateUris(replacements);
+			changes = changes | item.updateURIs(replacements);
 		}
 		return changes;
 	}

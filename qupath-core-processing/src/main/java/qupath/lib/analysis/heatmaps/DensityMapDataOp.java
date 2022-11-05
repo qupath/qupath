@@ -380,15 +380,15 @@ class DensityMapDataOp implements ImageDataOp {
 	}
 	
 	@Override
-	public Collection<URI> getUris() throws IOException {
-		return op == null ? Collections.emptyList() : op.getUris();
+	public Collection<URI> getURIs() throws IOException {
+		return op == null ? Collections.emptyList() : op.getURIs();
 	}
 
 	@Override
-	public boolean updateUris(Map<URI, URI> replacements) throws IOException {
+	public boolean updateURIs(Map<URI, URI> replacements) throws IOException {
 		if (op == null)
 			return false;
-		return op.updateUris(replacements);
+		return op.updateURIs(replacements);
 	}
 	
 

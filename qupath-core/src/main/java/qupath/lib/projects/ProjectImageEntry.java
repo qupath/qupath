@@ -247,11 +247,11 @@ public interface ProjectImageEntry<T> extends UriResource {
 	 * 
 	 * @return
 	 * @throws IOException
-	 * @deprecated use instead {@link #getUris()}
+	 * @deprecated use instead {@link #getURIs()}
 	 */
 	@Deprecated
 	public default Collection<URI> getServerURIs() throws IOException {
-		return getUris();
+		return getURIs();
 	}
 	
 	/**
@@ -260,11 +260,11 @@ public interface ProjectImageEntry<T> extends UriResource {
 	 * @param replacements a map with current URIs as keys, and desired URIs as values.
 	 * @return true if changes were made
 	 * @throws IOException
-	 * @deprecated use instead {@link #updateUris(Map)}
+	 * @deprecated use instead {@link #updateURIs(Map)}
 	 */
 	@Deprecated
 	public default boolean updateServerURIs(Map<URI, URI> replacements) throws IOException {
-		return updateUris(replacements);
+		return updateURIs(replacements);
 	}
 	
 	/**
