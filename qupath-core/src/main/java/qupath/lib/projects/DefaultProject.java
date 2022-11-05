@@ -542,14 +542,14 @@ class DefaultProject implements Project<BufferedImage> {
 		}
 		
 		@Override
-		public Collection<URI> getUris() throws IOException {
+		public Collection<URI> getURIs() throws IOException {
 			if (serverBuilder == null)
 				return Collections.emptyList();
 			return serverBuilder.getURIs();
 		}
 		
 		@Override
-		public boolean updateUris(Map<URI, URI> replacements) throws IOException {
+		public boolean updateURIs(Map<URI, URI> replacements) throws IOException {
 			var builderBefore = serverBuilder;
 			serverBuilder = serverBuilder.updateURIs(replacements);
 			boolean changes = builderBefore != serverBuilder;

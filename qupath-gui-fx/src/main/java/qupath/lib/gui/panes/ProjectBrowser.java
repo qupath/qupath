@@ -600,7 +600,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		var item = selected.getValue();
 		if (item.getType() == Type.IMAGE) {
 			try {
-				var uris = ProjectTreeRow.getEntry(item).getUris();
+				var uris = ProjectTreeRow.getEntry(item).getURIs();
 				if (!uris.isEmpty())
 					return GeneralTools.toPath(uris.iterator().next());
 			} catch (IOException e) {
@@ -888,7 +888,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 	 */
 	private static <T> String getDefaultValue(ProjectImageEntry<T> entry, String key) throws IOException {
 		if (key.equals(URI)) {
-			var URIs = entry.getUris();
+			var URIs = entry.getURIs();
 			var it = URIs.iterator();
 			
 			if (URIs.size() == 0)

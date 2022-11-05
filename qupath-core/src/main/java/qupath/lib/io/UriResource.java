@@ -27,18 +27,35 @@ import java.net.URI;
 import java.util.Collection;
 import java.util.Map;
 
+import org.slf4j.LoggerFactory;
+
+import qupath.lib.common.LogTools;
+
 /**
  * Interface for objects that depend upon URIs.
  * Examples include images, where the URI refer to the image file or URL, or prediction models.
  */
 public interface UriResource {
 	
+	
+	public default Collection<URI> getUris() throws IOException {
+		LogTools.warnOnce(LoggerFactory.getLogger(getClass()), "getUris() is deprecated in v0.4.0 - use getURIs() instead");
+		return getURIs();
+	}
+	
+	public default boolean updateUris(Map<URI, URI>  replacements) throws IOException {
+		LogTools.warnOnce(LoggerFactory.getLogger(getClass()), "updateUris is deprecated in v0.4.0 - use updateURIs instead");
+		return updateURIs(replacements);
+	}
+
+	
 	/**
 	 * Get all the URIs required for this resource. This is often an empty or singleton list.
 	 * @return the required URIs
 	 * @throws IOException
+	 * @since v0.4.0
 	 */
-	public Collection<URI> getUris() throws IOException;
+	public Collection<URI> getURIs() throws IOException;
 	
 	/**
 	 * Update the specified URIs.
@@ -52,8 +69,9 @@ public interface UriResource {
 	 * @param replacements replacement map, where the key gives the current URI and the value gives its replacement.
 	 * @return true if URIs were changed, false otherwise
 	 * @throws IOException
+	 * @since v0.4.0
 	 */
-	public boolean updateUris(Map<URI, URI>  replacements) throws IOException;
+	public boolean updateURIs(Map<URI, URI>  replacements) throws IOException;
 
 	
 	

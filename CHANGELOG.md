@@ -106,6 +106,7 @@ This is a work-in-progress.
   * `RoiTools.createRandomRectangle()` methods created for scripting
 * Updated method names in `PathObjectHierarchy` for better consistency (https://github.com/qupath/qupath/pull/1109)
 * TMACoreObjects now use 'caseID' rather than 'uniqueID' for clarity (https://github.com/qupath/qupath/issues/1114)
+* Use `URI` in method names consistently, instead of sometimes switching to `Uri` (https://github.com/qupath/qupath/issues/1114)
 * GeoJSON improvements (https://github.com/qupath/qupath/pull/1099)
   * Simplified representation of `PathClass`
     * Store either `name` (single name) or `names` (array) field, and `color` (3-element int array)

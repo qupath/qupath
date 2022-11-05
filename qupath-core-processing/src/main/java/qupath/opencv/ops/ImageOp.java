@@ -107,7 +107,7 @@ public interface ImageOp extends UriResource {
 	 * Default implementation returns an empty list; classes should override this if necessary.
 	 */
 	@Override
-	public default Collection<URI> getUris() throws IOException {
+	public default Collection<URI> getURIs() throws IOException {
 		return Collections.emptyList();
 	}
 	
@@ -115,7 +115,7 @@ public interface ImageOp extends UriResource {
 	 * Default implementation makes no changes; classes should override this if necessary.
 	 */
 	@Override
-	public default boolean updateUris(Map<URI, URI>  replacements) throws IOException {
+	public default boolean updateURIs(Map<URI, URI>  replacements) throws IOException {
 		return false;
 	}
 
