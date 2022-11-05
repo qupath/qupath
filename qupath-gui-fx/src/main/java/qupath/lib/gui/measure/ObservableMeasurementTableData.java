@@ -1168,7 +1168,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 
 		@Override
 		protected String getMeasurementValue(PathObject pathObject) {
-			var id = pathObject.getId(); // Shouldn't be null!
+			var id = pathObject.getID(); // Shouldn't be null!
 			if (id == null) {
 				logger.warn("ID null for {}", pathObject);
 				return null;

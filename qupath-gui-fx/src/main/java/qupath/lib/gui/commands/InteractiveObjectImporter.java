@@ -221,8 +221,8 @@ public final class InteractiveObjectImporter {
 				.collect(Collectors.toSet());
 
 		// Get a set of all the ids
-		var idSet = flatSet.stream().map(p -> p.getId()).collect(Collectors.toCollection(HashSet::new));
-		var existingIds = hierarchy.getFlattenedObjectList(null).stream().map(p -> p.getId()).collect(Collectors.toSet());
+		var idSet = flatSet.stream().map(p -> p.getID()).collect(Collectors.toCollection(HashSet::new));
+		var existingIds = hierarchy.getFlattenedObjectList(null).stream().map(p -> p.getID()).collect(Collectors.toSet());
 		boolean containsDuplicates = false;
 		for (var id : idSet) {
 			if (existingIds.contains(id)) {
@@ -247,7 +247,7 @@ public final class InteractiveObjectImporter {
 
 		if (fixDuplicates) {
 			for (var toAdd : flatSet) {
-				toAdd.updateId();
+				toAdd.refreshID();
 			}
 		} else if (!containsDuplicates) {
 			logger.warn("{} being added - IDs not updated, so there will be duplicates!", objString);

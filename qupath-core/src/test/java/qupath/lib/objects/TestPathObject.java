@@ -25,15 +25,23 @@ package qupath.lib.objects;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.stream.IntStream;
 
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
@@ -204,6 +212,71 @@ public class TestPathObject {
 		assertArrayEquals(listValues, mapValuesByIterator);
 	}
 	
+	
+	@ParameterizedTest
+	@MethodSource("provideObjects")
+	public void testSerialization(PathObject p) {
+		try {
+			var p2 = deserialize(serialize(p));
+			assertEquals(p.getClass(), p2.getClass());
+			assertEquals(p.getPathClass(), p2.getPathClass());
+			assertEquals(p.getName(), p2.getName());
+			assertEquals(p.getDisplayedName(), p2.getDisplayedName());
+			assertEquals(p.getColor(), p2.getColor());
+			assertEquals(p.getMeasurements(), p2.getMeasurements());
+			if (p instanceof TMACoreObject) {
+				((TMACoreObject)p).isMissing();
+				assertTrue(((TMACoreObject)p).isMissing() == ((TMACoreObject)p2).isMissing());				
+			}
+			// ROIs don't implement hashcode and equals - try geometries instead
+			assertEquals(p.getROI().getGeometry(), p2.getROI().getGeometry());
+			
+		} catch (Exception e) {
+			fail(e);
+		}
+	}
+	
+	@Test
+	public void testTMACoreSerialization() {
+		try {
+			var id = "Something";
+			
+			var core = PathObjects.createTMACoreObject(0, 10, 20, 30, false);
+			assertNull(core.getCaseID());
+			core.setCaseID(id);
+			assertEquals(id, core.getCaseID());
+
+			var core2 = (TMACoreObject)deserialize(serialize(core));
+			assertEquals(core.getCaseID(), core2.getCaseID());
+
+			// Set the legacy ID - don't automatically update it
+			var core3 = PathObjects.createTMACoreObject(0, 10, 20, 30, false);
+			((MetadataStore)core).putMetadataValue(TMACoreObject.LEGACY_KEY_UNIQUE_ID, id);
+			assertNull(core3.getCaseID());
+
+			// Update legacy ID during deserialization
+			var core4 = (TMACoreObject)deserialize(serialize(core));
+			assertEquals(id, core4.getCaseID());
+
+		} catch (Exception e) {
+			fail(e);
+		}
+	}
+	
+	
+	private static byte[] serialize(PathObject p) throws IOException {
+		var bos = new ByteArrayOutputStream();
+		try (var stream = new ObjectOutputStream(bos)) {
+			stream.writeObject(p);
+		}
+		return bos.toByteArray();
+	}
+	
+	private static PathObject deserialize(byte[] bytes) throws IOException, ClassNotFoundException {
+		try (var stream = new ObjectInputStream(new ByteArrayInputStream(bytes))) {
+			return (PathObject)stream.readObject();
+		}
+	}
 	
 	
 

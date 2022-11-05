@@ -925,10 +925,10 @@ public abstract class PathObject implements Externalizable {
 	/**
 	 * Get the ID for this object.
 	 * @return
-	 * @see #setId(UUID)
-	 * @see #updateId()
+	 * @see #setID(UUID)
+	 * @see #refreshID()
 	 */
-	public UUID getId() {
+	public UUID getID() {
 		// Make extra sure we always have an ID when requested
 		if (id == null) {
 			synchronized (this) {
@@ -958,7 +958,7 @@ public abstract class PathObject implements Externalizable {
 	 * @param id the ID to use
 	 * @throws IllegalArgumentException if the specified ID is null
 	 */
-	public void setId(UUID id) throws IllegalArgumentException {
+	public void setID(UUID id) throws IllegalArgumentException {
 		if (id == null)
 			throw new IllegalArgumentException("ID of an object cannot be null!");
 		this.id = id;
@@ -966,10 +966,10 @@ public abstract class PathObject implements Externalizable {
 	
 	/**
 	 * Regenerate a new random ID.
-	 * @see #setId(UUID)
+	 * @see #setID(UUID)
 	 */
-	public void updateId() {
-		setId(UUID.randomUUID());
+	public void refreshID() {
+		setID(UUID.randomUUID());
 	}
 	
 	/**

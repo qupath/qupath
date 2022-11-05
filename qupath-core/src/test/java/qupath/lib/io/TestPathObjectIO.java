@@ -117,17 +117,17 @@ public class TestPathObjectIO {
 			assertTrue(po.hasROI());
 			
 			assertNotNull(po.getROI());
-			assertNotNull(po.getId());
+			assertNotNull(po.getID());
 			
 			if (po.isTile()) {
 				assertEquals(po.getPathClass(), PathClass.getInstance("PathClassTest2", ColorTools.GREEN));
-				assertEquals(po.getId(), myPTO.getId());
+				assertEquals(po.getID(), myPTO.getID());
 				assertSameROIs(po.getROI(), roiTile);
 				assertFalse(po.hasMeasurements());
 				countCheck[0]++;
 			} else if (po.isCell()) {
 				assertEquals(po.getPathClass(), PathClass.getInstance("PathClassTest2", ColorTools.GREEN));
-				assertEquals(po.getId(), myPCO.getId());
+				assertEquals(po.getID(), myPCO.getID());
 				assertSameROIs(po.getROI(), roiCell1);
 				assertSameROIs(((PathCellObject)po).getNucleusROI(), roiCell2);
 				if (keepMeasurements) {
@@ -138,7 +138,7 @@ public class TestPathObjectIO {
 				countCheck[1]++;
 			} else if (po.isDetection()) {
 				assertEquals(po.getPathClass(), PathClass.getInstance("PathClassTest1", ColorTools.BLACK));
-				assertEquals(po.getId(), myPDO.getId());
+				assertEquals(po.getID(), myPDO.getID());
 				assertSameROIs(po.getROI(), roiDetection);
 				if (keepMeasurements) {
 					assertTrue(po.hasMeasurements());
@@ -148,12 +148,12 @@ public class TestPathObjectIO {
 				countCheck[2]++;
 			} else if (po.isAnnotation()) {
 				assertEquals(po.getPathClass(), PathClass.getInstance("PathClassTest1", ColorTools.BLACK));
-				assertEquals(po.getId(), myPAO.getId());
+				assertEquals(po.getID(), myPAO.getID());
 				assertSameROIs(po.getROI(), roiAnnotation);
 				assertFalse(po.hasMeasurements());
 				countCheck[3]++;
 			} else if (po.isTMACore()) {
-				assertEquals(po.getId(), myTMA.getId());
+				assertEquals(po.getID(), myTMA.getID());
 				assertFalse(po.hasMeasurements());
 				assertSameROIs(po.getROI(), myTMA.getROI());
 				countCheck[4]++;

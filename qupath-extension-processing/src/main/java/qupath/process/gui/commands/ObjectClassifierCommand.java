@@ -706,7 +706,7 @@ public class ObjectClassifierCommand implements Runnable {
 				if (selectedClasses == null || selectedClasses.contains(pathClass)) {
 					// Use a TreeSet ordered by ID
 					// This is to overcome https://github.com/qupath/qupath/issues/1016
-					var set = map.computeIfAbsent(pathClass, p -> new TreeSet<>(Comparator.comparing(PathObject::getId)));
+					var set = map.computeIfAbsent(pathClass, p -> new TreeSet<>(Comparator.comparing(PathObject::getID)));
 					var roi = annotation.getROI();
 					if (roi.isPoint()) {
 						for (Point2 p : annotation.getROI().getAllPoints()) {

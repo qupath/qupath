@@ -171,7 +171,7 @@ class QuPathTypeAdapters {
 			if (obj.has("tmaGrid")) {
 				TMAGridProxy proxy = gson.fromJson(obj.get("tmaGrid").getAsJsonObject(), TMAGridProxy.class);
 				
-				var allCores = hierarchy.getAllObjects(false).stream().collect(Collectors.toMap(c -> c.getId(), c -> c));
+				var allCores = hierarchy.getAllObjects(false).stream().collect(Collectors.toMap(c -> c.getID(), c -> c));
 				var sortedCores = proxy.cores
 						.stream()
 						.map(i -> (TMACoreObject)allCores.getOrDefault(i, null))
@@ -200,7 +200,7 @@ class QuPathTypeAdapters {
 		
 		TMAGridProxy(TMAGrid grid) {
 			this.width = grid.getGridWidth();
-			cores = grid.getTMACoreList().stream().map(c -> c.getId()).collect(Collectors.toList());
+			cores = grid.getTMACoreList().stream().map(c -> c.getID()).collect(Collectors.toList());
 		}
 		
 	}
@@ -335,7 +335,7 @@ class QuPathTypeAdapters {
 //			out.value(value.getClass().getSimpleName());		
 	
 			// Since v0.4.0
-			var id = value.getId();
+			var id = value.getID();
 			if (id != null) {
 				out.name("id");
 				out.value(id.toString());		
@@ -596,7 +596,7 @@ class QuPathTypeAdapters {
 				pathObject = PathObjects.createAnnotationObject(roi);
 			}
 			if (uuid != null)
-				pathObject.setId(uuid);
+				pathObject.setID(uuid);
 			
 			if (measurementList != null && !measurementList.isEmpty()) {
 				try (var ml = pathObject.getMeasurementList()) {
