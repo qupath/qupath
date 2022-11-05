@@ -4056,6 +4056,60 @@ public class QP {
 	}
 	
 	 
+	 /**
+	  * Remove objects that are entirely outside the current image.
+	  * @return true if objects were removed, false otherwise
+	  * @since v0.4.0
+	  * @see #removeObjectsOutsideImage(ImageData, boolean)
+	  */
+	 public static boolean removeObjectsOutsideImage() {
+		 return removeObjectsOutsideImage(getCurrentImageData());
+	 }
+	 
+	 /**
+	  * Remove objects that are entirely or partially outside the current image.
+	  * @param ignoreIntersecting if true, ignore objects that are intersecting the image bounds; if false, remove these intersecting objects too
+	  * @return true if objects were removed, false otherwise
+	  * @since v0.4.0
+	  * @see #removeObjectsOutsideImage(ImageData, boolean)
+	  */
+	 public static boolean removeObjectsOutsideImage(boolean ignoreIntersecting) {
+		 return removeObjectsOutsideImage(getCurrentImageData(), ignoreIntersecting);
+	 }
+
+	 /**
+	  * Remove objects that are entirely or outside the specified image.
+	  * @param imageData the image data, including a hierarchy and server to use
+	  * @return true if objects were removed, false otherwise
+	  * @since v0.4.0
+	  * @see #removeObjectsOutsideImage(ImageData, boolean)
+	  */
+	 public static boolean removeObjectsOutsideImage(ImageData<?> imageData) {
+		 return removeObjectsOutsideImage(imageData, true);		 
+	 }
+
+	 /**
+	  * Remove objects that are entirely or partially outside the specified image.
+	  * @param imageData the image data, including a hierarchy and server to use
+	  * @param ignoreIntersecting if true, ignore objects that are intersecting the image bounds; if false, remove these intersecting objects too
+	  * @return true if objects were removed, false otherwise
+	  * @since v0.4.0
+	  * @see #removeObjectsOutsideImage(ImageData, boolean)
+	  */
+	 public static boolean removeObjectsOutsideImage(ImageData<?> imageData, boolean ignoreIntersecting) {
+		 Objects.requireNonNull(imageData, "Hierarchy must not be null!");
+		 var hierarchy = imageData.getHierarchy();
+		 var server = imageData.getServer();
+		 var toRemove = PathObjectTools.findObjectsOutsideImage(hierarchy.getAllObjects(false), server, ignoreIntersecting);
+		 if (toRemove.isEmpty())
+			 return false;
+		 hierarchy.removeObjects(toRemove, true);
+		 hierarchy.getSelectionModel().deselectObjects(toRemove);
+		 return true;
+	 }
+	 
+	 
+	 
 	 
 	 /*
 	  * If Groovy finds a getXXX() it's liable to make xXX look like a variable...

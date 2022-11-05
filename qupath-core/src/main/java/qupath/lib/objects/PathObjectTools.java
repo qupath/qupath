@@ -46,13 +46,13 @@ import java.util.stream.Collectors;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.prep.PreparedGeometry;
 import org.locationtech.jts.geom.prep.PreparedGeometryFactory;
-import org.locationtech.jts.geom.util.AffineTransformation;
 import org.locationtech.jts.index.strtree.STRtree;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.geom.Point2;
 import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.ImageServer;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassTools;
@@ -61,7 +61,7 @@ import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.TMAGrid;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.ImageRegion;
-import qupath.lib.roi.EllipseROI;
+import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.LineROI;
 import qupath.lib.roi.PointsROI;
 import qupath.lib.roi.RoiTools;
@@ -310,6 +310,78 @@ public class PathObjectTools {
 		//			return true;
 	}
 
+	/**
+	 * Get all the objects with ROIs that are outside the bounds of an image.
+	 * @param pathObjects the input objects to check
+	 * @param server the image to check
+	 * @param ignoreIntersecting if true, consider objects that overlap the image boundary to be inside (and therefore don't include them in the output); 
+	 *                           if false, consider them to be outside and include them in the output
+	 * @return a filtered list of the input object containing those considered outside the image
+	 * @since v0.4.0
+	 * @see #findObjectsOutsideRegion(Collection, ImageRegion, boolean)
+	 * @see #findObjectsOutsideRegion(Collection, ImageRegion, int, int, int, int, boolean)
+	 */
+	public static List<PathObject> findObjectsOutsideImage(Collection<? extends PathObject> pathObjects, ImageServer<?> server, boolean ignoreIntersecting) {
+		return findObjectsOutsideRegion(pathObjects, 
+				RegionRequest.createInstance(server), 0, server.nZSlices(), 0, server.nTimepoints(), ignoreIntersecting);
+	}
+	
+	/**
+	 * Get all the objects in a collection that are outside a defined region.
+	 * @param pathObjects input objects to check
+	 * @param region 2D region
+	 * @param ignoreIntersecting if true, consider objects that overlap the region boundary to be inside (and therefore don't include them in the output); 
+	 *                           if false, consider them to be outside and include them in the output
+	 * @return a filtered list of the input object containing those considered outside the region
+	 * @since v0.4.0
+	 * @see #findObjectsOutsideRegion(Collection, ImageRegion, int, int, int, int, boolean)
+	 */
+	public static List<PathObject> findObjectsOutsideRegion(Collection<? extends PathObject> pathObjects, ImageRegion region, boolean ignoreIntersecting) {
+		return findObjectsOutsideRegion(pathObjects, region, region.getZ(), region.getZ()+1, region.getT(), region.getT()+1, ignoreIntersecting);
+	}
+	
+	/**
+	 * Get all the objects in a collection that are outside a defined region, expanded for multiple z-slices and timepoints.
+	 * @param pathObjects input objects to check
+	 * @param region 2D region
+	 * @param minZ minimum z for the region (inclusive)
+	 * @param maxZ maximum z for the region (exclusive)
+	 * @param minT minimum t for the region (inclusive)
+	 * @param maxT maximum t for the region (exclusive)
+	 * @param ignoreIntersecting if true, consider objects that overlap the region boundary to be inside (and therefore don't include them in the output); 
+	 *                           if false, consider them to be outside and include them in the output
+	 * @return a filtered list of the input object containing those considered outside the region
+	 * @since v0.4.0
+	 * @see #findObjectsOutsideRegion(Collection, ImageRegion, boolean)
+	 */
+	public static List<PathObject> findObjectsOutsideRegion(Collection<? extends PathObject> pathObjects, ImageRegion region, int minZ, int maxZ, int minT, int maxT, boolean ignoreIntersecting) {
+		return pathObjects
+				.stream()
+				.filter(p -> !checkRegionContainsROI(p.getROI(), region, minZ, maxZ, minT, maxT, ignoreIntersecting))
+				.collect(Collectors.toList());
+	}
+	
+	
+	private static boolean checkRegionContainsROI(ROI roi, ImageRegion region, int minZ, int maxZ, int minT, int maxT, boolean ignoreIntersecting) {
+		if (roi == null)
+			return false;
+		if (roi.getZ() < minZ || roi.getZ() >= maxZ || roi.getT() < minT || roi.getT() >= maxT)
+			return false;
+		boolean regionContainsBounds = region.getX() <= roi.getBoundsX() && 
+				region.getY() <= roi.getBoundsY() &&
+				region.getMaxX() >= roi.getBoundsX() + roi.getBoundsWidth() &&
+				region.getMaxY() >= roi.getBoundsY() + roi.getBoundsHeight();
+		if (regionContainsBounds)
+			return true;
+		else if (ignoreIntersecting)
+			// Ensure planes match (since we've already handled that)
+			return RoiTools.intersectsRegion(roi.updatePlane(region.getImagePlane()), region);
+		else {
+			return false;
+		}
+	}
+	
+	
 	
 	/**
 	 * Get a user-friendly name for a specific type of PathObject, based on its Java class.
