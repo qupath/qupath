@@ -1832,6 +1832,50 @@ public class QP {
 	}
 	
 	/**
+	 * Resize the ROIs of all objects in the current object hierarchy.
+	 * @param scaleFactor scale factor
+	 * @since v0.4.0
+	 * @see #transformAllObjects(AffineTransform)
+	 */
+	public static void scaleAllObjects(double scaleFactor) {
+		scaleAllObjects(getCurrentHierarchy(), scaleFactor);
+	}
+	
+	/**
+	 * Resize the ROIs of all objects in the specified object hierarchy.
+	 * @param hierarchy the object hierarchy
+	 * @param scaleFactor scale factor
+	 * @since v0.4.0
+	 * @see #transformAllObjects(PathObjectHierarchy, AffineTransform)
+	 */
+	public static void scaleAllObjects(PathObjectHierarchy hierarchy, double scaleFactor) {
+		transformAllObjects(hierarchy, AffineTransform.getScaleInstance(scaleFactor, scaleFactor));
+	}
+	
+	/**
+	 * Translate (move) the ROIs of all objects in the current object hierarchy.
+	 * @param dx amount to translate horizontally (in pixels)
+	 * @param dy amount to translate vertically (in pixels)
+	 * @since v0.4.0
+	 * @see #transformAllObjects(AffineTransform)
+	 */
+	public static void translateAllObjects(double dx, double dy) {
+		translateAllObjects(getCurrentHierarchy(), dx, dy);
+	}
+	
+	/**
+	 * Translate (move) the ROIs of all objects in the specified object hierarchy.
+	 * @param hierarchy the object hierarchy
+	 * @param dx amount to translate horizontally (in pixels)
+	 * @param dy amount to translate vertically (in pixels)
+	 * @since v0.4.0
+	 * @see #transformAllObjects(PathObjectHierarchy, AffineTransform)
+	 */
+	public static void translateAllObjects(PathObjectHierarchy hierarchy, double dx, double dy) {
+		transformAllObjects(hierarchy, AffineTransform.getTranslateInstance(dx, dy));
+	}
+	
+	/**
 	 * Apply an affine transform to all selected objects in the current hierarchy.
 	 * The selected objects will be replaced by new ones, but parent-child relationships will be lost;
 	 * if these are needed, consider calling {@link #resolveHierarchy()} afterwards.
@@ -4095,12 +4139,21 @@ public class QP {
 	  * @return true if objects were removed, false otherwise
 	  * @since v0.4.0
 	  * @see #removeObjectsOutsideImage(ImageData, boolean)
+	  * @see #removeOrClipObjectsOutsideImage(ImageData)
+	  * @implNote TMA cores outside the image can't be removed, because doing so would potentially mess up the TMA grid.
 	  */
 	 public static boolean removeObjectsOutsideImage(ImageData<?> imageData, boolean ignoreIntersecting) {
 		 Objects.requireNonNull(imageData, "Hierarchy must not be null!");
 		 var hierarchy = imageData.getHierarchy();
 		 var server = imageData.getServer();
-		 var toRemove = PathObjectTools.findObjectsOutsideImage(hierarchy.getAllObjects(false), server, ignoreIntersecting);
+		 // Remove objects outside the image - unless they are TMA cores, which would mess up the grid
+		 var toRemoveOriginal = PathObjectTools.findObjectsOutsideImage(hierarchy.getAllObjects(false), server, ignoreIntersecting);
+		 var toRemove = toRemoveOriginal
+				 .stream()
+				 .filter(p -> !p.isTMACore())
+				 .collect(Collectors.toList());
+		 if (toRemove.size() < toRemoveOriginal.size())
+			 logger.warn("TMA cores outside the image can't be removed");
 		 if (toRemove.isEmpty())
 			 return false;
 		 hierarchy.removeObjects(toRemove, true);
@@ -4108,8 +4161,68 @@ public class QP {
 		 return true;
 	 }
 	 
+	 /**
+	  * Remove objects occurring outside the current image bounds, clipping annotations where possible to retain 
+	  * the part that is inside the image.
+	  * @return true if changes were made, false otherwise
+	  * @since v0.4.0
+	  * @see #removeOrClipObjectsOutsideImage(ImageData)
+	  * @see #removeObjectsOutsideImage(ImageData, boolean)
+	  */
+	 public static boolean removeOrClipObjectsOutsideImage() {
+		 return removeOrClipObjectsOutsideImage(getCurrentImageData());
+	 }
 	 
-	 
+
+	 /**
+	  * Remove objects occurring outside the specified image bounds, clipping annotations where possible to retain 
+	  * the part that is inside the image.
+	  * @param imageData 
+	  * @return true if changes were made, false otherwise
+	  * @since v0.4.0
+	  * @see #removeObjectsOutsideImage(ImageData, boolean)
+	  */
+	 public static boolean removeOrClipObjectsOutsideImage(ImageData<?> imageData) {
+		 var server = imageData.getServer();
+		 var hierarchy = getCurrentHierarchy();
+		 
+		 // Remove all the objects that are completely outside the image
+		 boolean changes = removeObjectsOutsideImage(imageData, true);
+		 
+		 // Find remaining objects that overlap the bounds
+		 var overlapping = PathObjectTools.findObjectsOutsideImage(hierarchy.getAllObjects(false), server, false)
+				 .stream()
+				 .filter(p -> !p.isTMACore())
+				 .collect(Collectors.toList());
+		 if (overlapping.isEmpty())
+			 return changes;
+		 
+		 // Remove the detections entirely
+		 var overlappingDetections = overlapping.stream().filter(p -> p.isDetection()).collect(Collectors.toList());
+		 if (!overlappingDetections.isEmpty()) {
+			 hierarchy.removeObjects(overlappingDetections, true);
+			 changes = true;
+			 // Check if that's everything
+			 if (overlapping.size() == overlappingDetections.size())
+				 return changes;
+		 }
+		 
+		 // Clip any remaining annotations
+		 var clipBounds = GeometryTools.createRectangle(0, 0, server.getWidth(), server.getHeight());
+		 for (var pathObject : overlapping) {
+			 if (pathObject.isAnnotation()) {
+				 var roi = pathObject.getROI();
+				 var geom = roi.getGeometry();
+				 var geom2 = clipBounds.intersection(geom);
+				 var roi2 = GeometryTools.geometryToROI(geom2, roi.getImagePlane());
+				 ((PathAnnotationObject)pathObject).setROI(roi2);
+				 changes = true;
+			 }
+		 }
+		 hierarchy.fireHierarchyChangedEvent(QP.class);
+		 return changes;
+	 }
+
 	 
 	 /*
 	  * If Groovy finds a getXXX() it's liable to make xXX look like a variable...

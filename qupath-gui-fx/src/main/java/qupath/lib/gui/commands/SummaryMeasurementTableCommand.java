@@ -421,7 +421,7 @@ public class SummaryMeasurementTableCommand {
 				}
 				if (imageData != null)
 					displayedName.set(ServerTools.getDisplayableImageName(imageData.getServer()));
-				if (event.isAddedOrRemovedEvent())
+				if (event.isStructureChangeEvent())
 					model.setImageData(imageData, imageData.getHierarchy().getObjects(null, type));
 				else
 					model.refreshEntries();
