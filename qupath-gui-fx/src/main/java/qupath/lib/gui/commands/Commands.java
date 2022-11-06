@@ -1731,29 +1731,43 @@ public class Commands {
 	}
 	
 	/**
-	 * Attempt to objects to the system clipboard, if available
-	 * @param qupath
+	 * Attempt to copy selected objects to the system clipboard, if available
 	 * @param imageData
 	 */
-	public static void copyObjectsToClipboard(QuPathGUI qupath, ImageData<BufferedImage> imageData) {
+	public static void copySelectedObjectsToClipboard(ImageData<BufferedImage> imageData) {
 		var selected = imageData == null ? null : imageData.getHierarchy().getSelectionModel().getSelectedObjects();
-		if (selected == null || selected.isEmpty())
+		copyObjectsToClipboard(selected);
+	}
+	
+	
+	/**
+	 * Attempt to annotation objects to the system clipboard, if available
+	 * @param imageData
+	 */
+	public static void copyAnnotationsToClipboard(ImageData<BufferedImage> imageData) {
+		var annotations = imageData == null ? null : imageData.getHierarchy().getAnnotationObjects();
+		copyObjectsToClipboard(annotations);		
+	}
+	
+	
+	private static void copyObjectsToClipboard(Collection<? extends PathObject> pathObjects) {
+		if (pathObjects == null || pathObjects.isEmpty())
 			return;
 		
 		int max = PathPrefs.maxObjectsToClipboardProperty().get();
-		if (max >= 0 && max < selected.size()) {
+		if (max >= 0 && max < pathObjects.size()) {
 			Dialogs.showWarningNotification("Copy objects to clipboard",
 					String.format("Number of selected objects (%d) exceeds the maximum that can be copied (%d)!\n"
 							+ "Either export the objects to a GeoJSON file, or increase the maximum number of "
-							+ "clipboard objects in the preferences.", selected.size(), max));
+							+ "clipboard objects in the preferences.", pathObjects.size(), max));
 			return;
 		}
 		
 		String json;
 		try {
-			if (selected.size() == 1) {
+			if (pathObjects.size() == 1) {
 				var gson = GsonTools.getInstance(true);
-				json = gson.toJson(selected.iterator().next());
+				json = gson.toJson(pathObjects.iterator().next());
 			} else {
 				// We could use pretty printing with a minimal indent
 				// This avoids increasing the size enormously, while 
@@ -1763,7 +1777,7 @@ public class Commands {
 				var writer = new StringWriter();
 				var jsonWriter = gson.newJsonWriter(writer);
 				jsonWriter.setIndent(" ");
-				var features = FeatureCollection.wrap(selected);
+				var features = FeatureCollection.wrap(pathObjects);
 				gson.toJson(features, features.getClass(), jsonWriter);
 				json = writer.toString();
 			}
@@ -1779,6 +1793,7 @@ public class Commands {
 			content.put(format, json);
 		clipboard.setContent(content);
 	}
+	
 	
 	/**
 	 * Attempt to paste objects from the system clipboard to the current image, if available; 

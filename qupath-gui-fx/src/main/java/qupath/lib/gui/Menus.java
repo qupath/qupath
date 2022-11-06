@@ -139,8 +139,12 @@ class Menus {
 		@ActionMenu("Copy to clipboard...>Selected objects")
 		@ActionDescription("Copy the selected objects to the system clipboard as GeoJSON.")
 //		@ActionAccelerator("shortcut+c")
-		public final Action COPY_SELECTED_OBJECTS = qupath.createImageDataAction(imageData -> Commands.copyObjectsToClipboard(qupath, imageData));
-//
+		public final Action COPY_SELECTED_OBJECTS = qupath.createImageDataAction(imageData -> Commands.copySelectedObjectsToClipboard(imageData));
+
+		@ActionMenu("Copy to clipboard...>Annotation objects")
+		@ActionDescription("Copy all annotation objects to the system clipboard as GeoJSON.")
+		public final Action COPY_ANNOTATION_OBJECTS = qupath.createImageDataAction(imageData -> Commands.copyAnnotationsToClipboard(imageData));
+
 		@ActionMenu("Copy to clipboard...>")
 		public final Action SEP_00 = ActionTools.createSeparator();
 
