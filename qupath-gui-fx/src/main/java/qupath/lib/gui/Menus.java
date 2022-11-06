@@ -173,7 +173,12 @@ class Menus {
 				"If the clipboard contents are GeoJSON objects, the objects will be pasted to the current image. "
 				+ "Otherwise, any text found will be shown in a the script editor.")
 //		@ActionAccelerator("shortcut+v") // No shortcut because it gets fired too often
-		public final Action PASTE = createAction(() -> Commands.pasteFromClipboard(qupath));
+		public final Action PASTE = createAction(() -> Commands.pasteFromClipboard(qupath, false));
+
+		@ActionMenu("Paste to current plane")
+		@ActionDescription("Paste GeoJSON objects from the system clipboard to the current z-slice and timepoint, if possible.\n" + 
+				"New object IDs will be generated if needed.")
+		public final Action PASTE_TO_PLANE = createAction(() -> Commands.pasteFromClipboard(qupath, true));
 
 		
 		public final Action SEP_1 = ActionTools.createSeparator();

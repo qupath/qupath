@@ -381,6 +381,62 @@ public class PathObjectTools {
 		}
 	}
 	
+	/**
+	 * Update the ROI plane for a single object, and any descendant objects.
+	 * 
+	 * @param pathObject the original object (this will be unchanged)
+	 * @param plane the plane for the new ROIs
+	 * @param copyMeasurements if true, measurements and metadata should be copied; this may not be suitable since 
+	 *                         intensity measurements probably aren't appropriate for the new plane
+	 * @param createNewIDs if true, create new IDs for the object (recommended)
+	 * @return the new object, with ROIs on the requested plane
+	 * @since v0.4.0
+	 * @see #updatePlane(PathObject, ImagePlane, boolean, boolean)
+	 */
+	public static PathObject updatePlaneRecursive(PathObject pathObject, ImagePlane plane, boolean copyMeasurements, boolean createNewIDs) {
+		var newObj = transformObjectImpl(pathObject, r -> r.updatePlane(plane), copyMeasurements, createNewIDs);
+		if (pathObject.hasChildObjects()) {
+			List<PathObject> newChildObjects = pathObject.getChildObjects()
+				.parallelStream()
+				.map(p -> updatePlaneRecursive(p, plane, copyMeasurements, createNewIDs))
+				.collect(Collectors.toList());
+			newObj.addChildObjects(newChildObjects);
+		}
+		return newObj;
+	}
+	
+	/**
+	 * Update the ROI plane for a single object and any descendant objects, creating new object IDs and ignoring 
+	 * any additional measurements.
+	 * 
+	 * @param pathObject the original object (this will be unchanged)
+	 * @param plane the plane for the new ROIs
+	 * @return the new object, with ROIs on the requested plane
+	 * @since v0.4.0
+	 * @see #updatePlaneRecursive(PathObject, ImagePlane, boolean, boolean)
+	 */
+	public static PathObject updatePlaneRecursive(PathObject pathObject, ImagePlane plane) {
+		return updatePlaneRecursive(pathObject, plane, false, true);
+	}
+	
+	/**
+	 * Update the ROI plane for a single object.
+	 * Any child objects are discarded; if these should also be copied (and updated), 
+	 * use {@link #updatePlaneRecursive(PathObject, ImagePlane, boolean, boolean)}.
+	 * 
+	 * @param pathObject the original object (this will be unchanged)
+	 * @param plane the plane for the new ROIs
+	 * @param copyMeasurements if true, measurements and metadata should be copied; this may not be suitable since 
+	 *                         intensity measurements probably aren't appropriate for the new plane
+	 * @param createNewIDs if true, create new IDs for the object (recommended)
+	 * @return the new object, with ROIs on the requested plane
+	 * @since v0.4.0
+	 * @see #updatePlaneRecursive(PathObject, ImagePlane, boolean, boolean)
+	 */
+	public static PathObject updatePlane(PathObject pathObject, ImagePlane plane, boolean copyMeasurements, boolean createNewIDs) {
+		return transformObjectImpl(pathObject, r -> r.updatePlane(plane), copyMeasurements, createNewIDs);
+	}
+	
 	
 	
 	/**
@@ -1182,11 +1238,26 @@ public class PathObjectTools {
 	 * @since v0.4.0
 	 */
 	public static PathObject transformObject(PathObject pathObject, AffineTransform transform, boolean copyMeasurements, boolean createNewIDs) {
-		ROI roi = maybeTransformROI(pathObject.getROI(), transform);
+		return transformObjectImpl(pathObject, r -> maybeTransformROI(r, transform), copyMeasurements, createNewIDs);
+	}
+	
+	
+	
+	/**
+	 * Apply a transform to the ROI of a PathObject, creating a new object of the same type with the new ROI.
+	 * @param pathObject the object to transform; this will be unchanged
+	 * @param roiTransformer the ROI transform to apply
+	 * @param transform optional affine transform; if {@code null}, this effectively acts to duplicate the object
+	 * @param copyMeasurements if true, the measurements and metadata maps of the new object will be populated with those from the pathObject
+	 * @param createNewIDs if true, create new IDs for each copied object; otherwise, retain the same ID.
+	 * @return
+	 */
+	private static PathObject transformObjectImpl(PathObject pathObject, Function<ROI, ROI> roiTransformer, boolean copyMeasurements, boolean createNewIDs) {
+		ROI roi = roiTransformer.apply(pathObject.getROI());
 		PathClass pathClass = pathObject.getPathClass();
 		PathObject newObject;
 		if (pathObject instanceof PathCellObject) {
-			ROI roiNucleus = maybeTransformROI(((PathCellObject)pathObject).getNucleusROI(), transform);
+			ROI roiNucleus = roiTransformer.apply(((PathCellObject)pathObject).getNucleusROI());
 			newObject = PathObjects.createCellObject(roi, roiNucleus, pathClass, null);
 		} else if (pathObject instanceof PathTileObject) {
 			newObject = PathObjects.createTileObject(roi, pathClass, null);

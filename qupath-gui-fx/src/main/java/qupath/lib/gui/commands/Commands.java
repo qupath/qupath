@@ -205,7 +205,7 @@ public class Commands {
 					roi.getBoundsWidth() == r2.getBoundsWidth() && 
 					roi.getBoundsHeight() == r2.getBoundsHeight() &&
 					roi.getImagePlane().equals(r2.getImagePlane())) {
-				logger.info("Full image annotation already exists! {}", pathObject);
+				logger.warn("Full image annotation already exists! {}", pathObject);
 				viewer.setSelectedObject(pathObject);
 				return;
 			}
@@ -217,9 +217,9 @@ public class Commands {
 		
 		// Log in the history
 		if (z == 0 && t == 0)
-			imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep("Create full image annotation", "createSelectAllObject(true);"));
+			imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep("Create full image annotation", "createFullImageAnnotation(true)"));
 		else
-			imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep("Create full image annotation", String.format("createSelectAllObject(true, %d, %d);", z, t)));
+			imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep("Create full image annotation", String.format("createFullImageAnnotation(true, %d, %d)", z, t)));
 	}
 	
 	
@@ -1799,13 +1799,21 @@ public class Commands {
 	 * Attempt to paste objects from the system clipboard to the current image, if available; 
 	 * otherwise, check for text on the clipboard and paste it into a new script editor tab
 	 * @param qupath
+	 * @param addToCurrentPlane if true, add the objects to the plane currently visible in the viewer 
+	 *                          (and don't show any text if objects can't be found)
 	 */
-	public static void pasteFromClipboard(QuPathGUI qupath) {
-		var imageData = qupath.getImageData();
+	public static void pasteFromClipboard(QuPathGUI qupath, boolean addToCurrentPlane) {
+		var viewer = qupath.getViewer();
+		var imageData = viewer == null ? null : viewer.getImageData();
 		// If we have an image and objects on the clipboard, paste them
 		if (imageData != null) {
 			try {
 				var pathObjects = InteractiveObjectImporter.readObjectsFromClipboard(imageData);
+				// Make sure all the objects are on the current plane if needed
+				if (addToCurrentPlane) {
+					var plane = viewer.getImagePlane();
+					pathObjects = pathObjects.stream().map(p -> PathObjectTools.updatePlane(p, plane, false, true)).collect(Collectors.toList());
+				}
 				if (!pathObjects.isEmpty()) {
 					InteractiveObjectImporter.promptToImportObjects(imageData.getHierarchy(), pathObjects);
 					return;
@@ -1816,7 +1824,7 @@ public class Commands {
 		}
 		// No objects - paste text in the script editor instead
 		var text = (String)Clipboard.getSystemClipboard().getContent(DataFormat.PLAIN_TEXT);
-		if (text != null && !text.isEmpty() && qupath.getScriptEditor() != null) {
+		if (!addToCurrentPlane && text != null && !text.isEmpty() && qupath.getScriptEditor() != null) {
 			qupath.getScriptEditor().showScript("Clipboard text", text);
 		}
 	}

@@ -81,6 +81,7 @@ import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.common.LogTools;
 import qupath.lib.common.Timeit;
 import qupath.lib.common.Version;
 import qupath.lib.images.ImageData;
@@ -1708,9 +1709,132 @@ public class QP {
 	 * Create an annotation for the entire width and height of the current image data, on the default plane (z-slice, time point).
 	 * 
 	 * @param setSelected if true, select the object that was created after it is added to the hierarchy
+	 * @deprecated v0.4.0 use {@link #createFullImageAnnotation(boolean)} instead
 	 */
+	@Deprecated
 	public static void createSelectAllObject(final boolean setSelected) {
+		LogTools.warnOnce(logger, "createSelectAllObject(boolean) is deprecated, use createFullImageAnnotation(boolean) instead");
 		createSelectAllObject(setSelected, 0, 0);
+	}
+	
+	/**
+	 * Create an annotation for the entire width and height of the current image data, on the default plane (z-slice, time point).
+	 * 
+	 * @param setSelected if true, select the object that was created after it is added to the hierarchy
+	 * @param z z-slice index for the annotation
+	 * @param t timepoint index for the annotation
+	 * @deprecated v0.4.0 use {@link #createFullImageAnnotation(boolean, int, int)} instead
+	 */
+	@Deprecated
+	public static void createSelectAllObject(final boolean setSelected, int z, int t) {
+		LogTools.warnOnce(logger, "createSelectAllObject(boolean, int, int) is deprecated, use createFullImageAnnotation(boolean, int, int) instead");
+		ImageData<?> imageData = getCurrentImageData();
+		if (imageData == null)
+			return;
+		ImageServer<?> server = imageData.getServer();
+		PathObject pathObject = PathObjects.createAnnotationObject(
+				ROIs.createRectangleROI(0, 0, server.getWidth(), server.getHeight(), ImagePlane.getPlane(z, t))
+				);
+		imageData.getHierarchy().addObject(pathObject);
+		if (setSelected)
+			imageData.getHierarchy().getSelectionModel().setSelectedObject(pathObject);
+	}
+	
+	/**
+	 * Create annotation around the full image for the current image, on all z-slices and timepoints.
+	 * @param setSelected if true, set the annotations to be selected when they are created
+	 * @return the annotations that were created, or an empty list if no image data was available
+	 * @since v0.4.0
+	 * @see #createAllFullImageAnnotations(ImageData, boolean)
+	 */
+	public static List<PathObject> createAllFullImageAnnotations(boolean setSelected) {
+		return createAllFullImageAnnotations(getCurrentImageData(), setSelected);
+	}
+	
+	
+	/**
+	 * Create annotation around the full image for the specified image, on all z-slices and timepoints.
+	 * @param imageData the image data
+	 * @param setSelected if true, set the annotations to be selected when they are created
+	 * @return the annotations that were created, or an empty list if no image data was available
+	 * @since v0.4.0
+	 */
+	public static List<PathObject> createAllFullImageAnnotations(ImageData<?> imageData, boolean setSelected) {
+		if (imageData == null)
+			return Collections.emptyList();
+		ImageServer<?> server = imageData.getServer();
+		List<PathObject> annotations = new ArrayList<>();
+		for (int t = 0; t < server.nTimepoints(); t++) {
+			for (int z = 0; z < server.nZSlices(); z++) {
+				PathObject pathObject = PathObjects.createAnnotationObject(
+						ROIs.createRectangleROI(0, 0, server.getWidth(), server.getHeight(), ImagePlane.getPlane(z, t))
+						);
+				annotations.add(pathObject);
+			}			
+		}
+		imageData.getHierarchy().addObjects(annotations);
+		if (setSelected)
+			imageData.getHierarchy().getSelectionModel().setSelectedObjects(annotations, annotations.get(0));
+		return annotations;
+	}
+	
+	
+	/**
+	 * Create an annotation around the full image for the current image, on the default (first) z-slice and timepoint.
+	 * @param setSelected if true, set the annotation to be selected when it is created
+	 * @return the annotation that was created, or null if no image data was available
+	 * @since v0.4.0
+	 * @see #createFullImageAnnotation(boolean, int, int)
+	 * @see #createFullImageAnnotation(ImageData, boolean)
+	 */
+	public static PathObject createFullImageAnnotation(boolean setSelected) {
+		return createFullImageAnnotation(getCurrentImageData(), setSelected);
+	}
+	
+	/**
+	 * Create an annotation around the full image for the current image, on the specified z-slice and timepoint.
+	 * @param setSelected if true, set the annotation to be selected when it is created
+	 * @param z z-slice (0-based index)
+	 * @param t timepoint (0-based index)
+	 * @return the annotation that was created, or null if no image data was available
+	 * @since v0.4.0
+	 * @see #createFullImageAnnotation(ImageData, boolean, int, int)
+	 */
+	public static PathObject createFullImageAnnotation(boolean setSelected, int z, int t) {
+		return createFullImageAnnotation(getCurrentImageData(), setSelected, z, t);		
+	}
+	
+	/**
+	 * Create an annotation around the full image for the specified image, on the default (first) z-slice and timepoint.
+	 * @param imageData the image data for which the annotation should be added
+	 * @param setSelected if true, set the annotation to be selected when it is created
+	 * @return the annotation that was created, or null if no image data was available
+	 * @since v0.4.0
+	 */
+	public static PathObject createFullImageAnnotation(ImageData<?> imageData, boolean setSelected) {
+		return createFullImageAnnotation(imageData, setSelected, 0, 0);
+	}
+	
+	/**
+	 * Create an annotation around the full image for the specified image, on the specified z-slice and timepoint.
+	 * @param imageData the image data for which the annotation should be added
+	 * @param setSelected if true, set the annotation to be selected when it is created
+	 * @param z z-slice (0-based index)
+	 * @param t timepoint (0-based index)
+	 * @return the annotation that was created, or null if no image data was available
+	 * @since v0.4.0
+	 */
+	public static PathObject createFullImageAnnotation(ImageData<?> imageData, boolean setSelected, int z, int t) {
+		if (imageData == null)
+			return null;
+		ImageServer<?> server = imageData.getServer();
+		PathObject pathObject = PathObjects.createAnnotationObject(
+				ROIs.createRectangleROI(0, 0, server.getWidth(), server.getHeight(), ImagePlane.getPlane(z, t))
+				);
+		imageData.getHierarchy().addObject(pathObject);
+		if (setSelected)
+			imageData.getHierarchy().getSelectionModel().setSelectedObject(pathObject);
+		return pathObject;
 	}
 
 	/**
@@ -1760,27 +1884,7 @@ public class QP {
 	public static ImageServer<BufferedImage> buildServer(URI uri, String... args) throws IOException {
 		return ImageServers.buildServer(uri, args);
 	}
-	
-	
-	/**
-	 * Create an annotation for the entire width and height of the current image data, on the default plane (z-slice, time point).
-	 * 
-	 * @param setSelected if true, select the object that was created after it is added to the hierarchy
-	 * @param z z-slice index for the annotation
-	 * @param t timepoint index for the annotation
-	 */
-	public static void createSelectAllObject(final boolean setSelected, int z, int t) {
-		ImageData<?> imageData = getCurrentImageData();
-		if (imageData == null)
-			return;
-		ImageServer<?> server = imageData.getServer();
-		PathObject pathObject = PathObjects.createAnnotationObject(
-				ROIs.createRectangleROI(0, 0, server.getWidth(), server.getHeight(), ImagePlane.getPlane(z, t))
-				);
-		imageData.getHierarchy().addObject(pathObject);
-		if (setSelected)
-			imageData.getHierarchy().getSelectionModel().setSelectedObject(pathObject);
-	}
+
 	
 //	public static boolean removeObjectsOutsideImage() {
 //		return removeObjectsOutsideImage(getCurrentServer(), getCurrentHierarchy());
