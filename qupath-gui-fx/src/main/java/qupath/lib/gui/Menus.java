@@ -571,8 +571,8 @@ class Menus {
 		public final Action SEP_6 = ActionTools.createSeparator();
 
 		@ActionDescription("Interactively translate and/or rotate the current selected annotation.")
-		@ActionMenu("Annotations...>Transform annotation")
-		@ActionAccelerator("shortcut+shift+alt+r")
+		@ActionMenu("Annotations...>Transform annotations")
+		@ActionAccelerator("shortcut+shift+t")
 		public final Action RIGID_OBJECT_EDITOR = qupath.createImageDataAction(imageData -> Commands.editSelectedAnnotation(qupath));
 		
 		@ActionDescription("Duplicate the selected annotations.")
@@ -698,7 +698,7 @@ class Menus {
 
 		@ActionDescription("Show a list containing recently-used commands.")
 		@ActionMenu("Show recent commands")
-		@ActionAccelerator("shift+shortcut+up")
+		@ActionAccelerator("shortcut+p")
 		public final Action RECENT_COMMAND_LIST = Commands.createSingleStageAction(() -> CommandFinderTools.createRecentCommandsDialog(qupath));
 
 		public final Action SEP_0 = ActionTools.createSeparator();

@@ -65,15 +65,12 @@ import qupath.lib.gui.viewer.overlays.PathOverlay;
 import qupath.lib.gui.viewer.tools.PathTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
-import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
-import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathROIObject;
 import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.roi.GeometryTools;
-import qupath.lib.roi.PolylineROI;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
 import qupath.lib.scripting.QP;
@@ -118,13 +115,6 @@ class RigidObjectEditorCommand implements Runnable, ChangeListener<ImageData<Buf
 	 */
 	PathObject getSelectedObject(final QuPathViewer viewer) {
 		return viewer.getSelectedObject();
-	}
-	
-	
-	private boolean isSuitableAnnotation(PathObject pathObject) {
-		return pathObject  instanceof PathAnnotationObject
-//				&& pathObject.isEditable()
-				&& (pathObject.hasROI() && pathObject.getROI().isArea() || pathObject.getROI() instanceof PolylineROI);
 	}
 	
 
@@ -457,10 +447,10 @@ class RigidObjectEditorCommand implements Runnable, ChangeListener<ImageData<Buf
 						transformer.theta -= thetaIncrement;
 						event.consume();
 					} else 	if (code == KeyCode.UP) {
-						transformer.theta += thetaIncrement/10.0;
+						transformer.theta -= thetaIncrement/10.0;
 						event.consume();
 					} else if (code == KeyCode.DOWN) {
-						transformer.theta -= thetaIncrement/10.0;
+						transformer.theta += thetaIncrement/10.0;
 						event.consume();
 					}
 				} else {

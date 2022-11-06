@@ -81,6 +81,7 @@ import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.control.skin.TableColumnHeader;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
@@ -284,6 +285,10 @@ public class CommandFinderTools {
 
 		FilteredList<CommandEntry> commands = new FilteredList<>(menuManager.getRecentCommands());
 		TableView<CommandEntry> table = createCommandTable(commands);
+		// Don't make recent command sortable
+		for (var col : table.getColumns())
+			col.setSortable(false);
+		
 		TextField textField = createTextField(table, commands, false, stage, null);
 		textField.setPromptText("Search recent commands");
 
@@ -326,7 +331,7 @@ public class CommandFinderTools {
 		});
 
 		table.setOnMouseClicked(e -> {
-			if (e.getClickCount() > 1) {
+			if (e.getClickCount() > 1 && !(e.getTarget() instanceof TableColumnHeader)) {
 				runSelectedCommand(table.getSelectionModel().getSelectedItem());
 			}
 		});
@@ -387,7 +392,7 @@ public class CommandFinderTools {
 		});
 
 		table.setOnMouseClicked(e -> {
-			if (e.getClickCount() > 1) {
+			if (e.getClickCount() > 1 && !(e.getTarget() instanceof TableColumnHeader)) {
 				if (runSelectedCommand(table.getSelectionModel().getSelectedItem())) {
 					if (cbAutoClose.isSelected()) {
 						stage.hide();
