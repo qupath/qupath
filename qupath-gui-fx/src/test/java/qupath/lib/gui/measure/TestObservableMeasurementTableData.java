@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.lib.gui.models;
+package qupath.lib.gui.measure;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -30,7 +30,6 @@ import java.util.Collections;
 
 import org.junit.jupiter.api.Test;
 
-import qupath.lib.gui.measure.ObservableMeasurementTableData;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;

@@ -246,11 +246,12 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		}
 
 		// New v0.4.0: include z and time indices
-		if (containsMultiZ || (imageData != null && imageData.getServer().nZSlices() > 1)) {
+		var imageServer = imageData == null ? null : imageData.getServer();
+		if (containsMultiZ || (imageServer != null && imageServer.nZSlices() > 1)) {
 			builderMap.put("Z index", new ZSliceMeasurementBuilder());
 		}
 
-		if (containsMultiT || (imageData != null && imageData.getServer().nTimepoints() > 1)) {
+		if (containsMultiT || (imageServer != null && imageServer.nTimepoints() > 1)) {
 			builderMap.put("Time index", new TimepointMeasurementBuilder());
 		}
 
