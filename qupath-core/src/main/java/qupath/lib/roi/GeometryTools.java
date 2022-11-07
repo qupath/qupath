@@ -719,8 +719,14 @@ public class GeometryTools {
      * 
      * @see #removeFragments(Geometry, double)
      * @see #removeInteriorRings(Geometry, double)
+	 * @throws IllegalArgumentException if the input geometry isn't polygonal
      */
-    public static Geometry refineAreas(Geometry geometry, double minSizePixels, double minHoleSizePixels) {
+    public static Geometry refineAreas(Geometry geometry, double minSizePixels, double minHoleSizePixels) throws IllegalArgumentException {
+    	
+    	
+    	if (!(geometry instanceof Polygonal)) {
+    		throw new IllegalArgumentException("Can't refine areas for a non-polygonal geometry " + geometry);
+    	}
 		
     	if (minSizePixels <= 0 && minHoleSizePixels <= 0)
 			return geometry;

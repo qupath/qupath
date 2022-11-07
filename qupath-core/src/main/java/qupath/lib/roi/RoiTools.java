@@ -378,10 +378,11 @@ public class RoiTools {
 	 * @param roi the ROI to refine
 	 * @param minAreaPixels the minimum size of a fragment to retain
 	 * @param minHoleAreaPixels the minimum size of a hole to retain, or -1 if all holes should be retained
-	 * @return
+	 * @return an updated ROI - or null if the modifications caused the ROI to disappear
+	 * @throws IllegalArgumentException if the input ROI doesn't define an area
 	 * @see GeometryTools#refineAreas(Geometry, double, double)
 	 */
-	public static ROI removeSmallPieces(ROI roi, double minAreaPixels, double minHoleAreaPixels) {
+	public static ROI removeSmallPieces(ROI roi, double minAreaPixels, double minHoleAreaPixels) throws IllegalArgumentException {
 		if (!roi.isArea())
 			throw new IllegalArgumentException("Only area ROIs supported!");
 		
