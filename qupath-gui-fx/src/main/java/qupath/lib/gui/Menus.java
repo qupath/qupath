@@ -175,10 +175,16 @@ class Menus {
 //		@ActionAccelerator("shortcut+v") // No shortcut because it gets fired too often
 		public final Action PASTE = createAction(() -> Commands.pasteFromClipboard(qupath, false));
 
-		@ActionMenu("Paste to current plane")
+		@ActionMenu("Paste clipboard objects on current plane")
 		@ActionDescription("Paste GeoJSON objects from the system clipboard to the current z-slice and timepoint, if possible.\n" + 
-				"New object IDs will be generated if needed.")
+				"New object IDs will be generated if needed to avoid duplicates.")
 		public final Action PASTE_TO_PLANE = createAction(() -> Commands.pasteFromClipboard(qupath, true));
+
+		@ActionDescription("Copy the selected objects and paste them on the current plane (z-slice and timepoint visible in the viewer).\n"
+				+ "This avoids using the system clipboard. It is intended to help transfer annotations quickly across multidimensional images.")
+		@ActionMenu("Paste selected objects on current plane")
+		@ActionAccelerator("shortcut+shift+v")
+		public final Action ANNOTATION_COPY_TO_PLANE = qupath.createViewerAction(viewer -> Commands.copySelectedAnnotationsToCurrentPlane(viewer));
 
 		
 		public final Action SEP_1 = ActionTools.createSeparator();
@@ -520,10 +526,14 @@ class Menus {
 
 		@ActionMenu("Select...>")
 		public final Action SEP_3 = ActionTools.createSeparator();
-
+		
 		@ActionDescription("Select objects based upon their classification.")
 		@ActionMenu("Select...>Select objects by classification")
 		public final Action SELECT_BY_CLASSIFICATION = qupath.createImageDataAction(imageData -> Commands.promptToSelectObjectsByClassification(qupath, imageData));
+
+		@ActionDescription("Select all objects on the current plane visiible in the viewer.")
+		@ActionMenu("Select...>Select objects on current plane")
+		public final Action SELECT_BY_PLANE = qupath.createViewerAction(viewer -> Commands.selectObjectsOnCurrentPlane(viewer));
 
 		@ActionDescription("Lock all currently selected objects.")
 		@ActionMenu("Lock...>Lock selected objects")
@@ -581,10 +591,10 @@ class Menus {
 		public final Action RIGID_OBJECT_EDITOR = qupath.createImageDataAction(imageData -> Commands.editSelectedAnnotation(qupath));
 		
 		@ActionDescription("Duplicate the selected annotations.")
-		@ActionMenu("Annotations...>Duplicate annotations")
+		@ActionMenu("Annotations...>Duplicate selected annotations")
 		@ActionAccelerator("shift+d")
 		public final Action ANNOTATION_DUPLICATE = qupath.createImageDataAction(imageData -> Commands.duplicateSelectedAnnotations(imageData));
-		
+
 		@ActionDescription("Transfer the last annotation to the current image. "
 				+ "This can be used to bring annotations from one viewer to another, or to recover "
 				+ "an annotation that has just been deleted.")

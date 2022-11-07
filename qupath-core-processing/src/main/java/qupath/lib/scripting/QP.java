@@ -2262,7 +2262,57 @@ public class QP {
 			allObjs = allObjs.stream().filter(e -> !e.isRootObject()).collect(Collectors.toList());
 		if (hierarchy != null)
 			hierarchy.getSelectionModel().setSelectedObjects(allObjs, null);
-	}	
+	}
+
+	/**
+	 * Select all objects in the specified hierarchy, excluding the root object.
+	 * @param hierarchy 
+	 * @since v0.4.0
+	 */
+	public static void selectAllObjects(PathObjectHierarchy hierarchy) {
+		selectAllObjects(hierarchy, false);
+	}
+
+	
+	/**
+	 * Select all objects in the current hierarchy, excluding the root object.
+	 * @since v0.4.0
+	 */
+	public static void selectAllObjects() {
+		selectAllObjects(getCurrentHierarchy());
+	}
+	
+
+	/**
+	 * Selected objects in the current hierarchy occurring on the specified z-slice and timepoint.
+	 * @param z z-slice (0-based index)
+	 * @param t timepoint (0-based index)
+	 * @since v0.4.0
+	 * @see #selectObjectsByPlane(PathObjectHierarchy, ImagePlane)
+	 */
+	public static void selectObjectsByPlane(int z, int t) {
+		selectObjectsByPlane(ImagePlane.getPlane(z, t));
+	}
+
+	/**
+	 * Selected objects in the current hierarchy occurring on the specified plane (z-slice and timepoint).
+	 * @param plane
+	 * @since v0.4.0
+	 * @see #selectObjectsByPlane(PathObjectHierarchy, ImagePlane)
+	 */
+	public static void selectObjectsByPlane(ImagePlane plane) {
+		selectObjectsByPlane(getCurrentHierarchy(), plane);
+	}
+	
+	/**
+	 * Selected objects in the specified hierarchy occurring on the specified plane (z-slice and timepoint).
+	 * @param hierarchy
+	 * @param plane
+	 * @since v0.4.0
+	 */
+	public static void selectObjectsByPlane(PathObjectHierarchy hierarchy, ImagePlane plane) {
+		selectObjects(p -> p.hasROI() && p.getROI().getZ() == plane.getZ() && p.getROI().getT() == plane.getT());
+	}
 
 	/**
 	 * Set selected objects to contain (only) all objects in the current hierarchy according to a specified predicate.
@@ -3517,7 +3567,110 @@ public class QP {
 	 * @return true if changes are made to the hierarchy, false otherwise
 	 */
 	public static boolean duplicateSelectedAnnotations() {
-		return PathObjectTools.duplicateSelectedAnnotations(getCurrentHierarchy());
+		return duplicateSelectedAnnotations(getCurrentHierarchy());
+	}
+	
+	/**
+	 * Duplicate the selected annotations in the specified hierarchy.
+	 * @param hierarchy 
+	 * 
+	 * @return true if changes are made to the hierarchy, false otherwise
+	 * @since v0.4.0
+	 */
+	public static boolean duplicateSelectedAnnotations(PathObjectHierarchy hierarchy) {
+		return PathObjectTools.duplicateSelectedAnnotations(hierarchy);
+	}
+	
+	
+	/**
+	 * Copy the selected objects in the current hierarchy to the specified z-slice and timepoint.
+	 * This copies only the objects themselves, discarding any parent/child relationships.
+	 * @param z z-slice (0-based index)
+	 * @param t timepoint (0-based index)
+	 * @return true if changes are made to the hierarchy, false otherwise
+	 * @since v0.4.0
+	 * @see #copySelectedObjectsToPlane(PathObjectHierarchy, ImagePlane)
+	 */
+	public static boolean copySelectedObjectsToPlane(int z, int t) {
+		return copySelectedObjectsToPlane(getCurrentHierarchy(), ImagePlane.getPlane(z, t));
+	}
+	
+	/**
+	 * Copy the selected objects in the current hierarchy to the specified image plane.
+	 * This copies only the objects themselves, discarding any parent/child relationships.
+	 * @param plane 
+	 * @return true if changes are made to the hierarchy, false otherwise
+	 * @since v0.4.0
+	 * @see #copySelectedObjectsToPlane(PathObjectHierarchy, ImagePlane)
+	 */
+	public static boolean copySelectedObjectsToPlane(ImagePlane plane) {
+		return copySelectedObjectsToPlane(getCurrentHierarchy(), plane);
+	}
+	
+	/**
+	 * Copy the selected objects in the specified hierarchy to the specified image plane.
+	 * This copies only the objects themselves, discarding any parent/child relationships.
+	 * @param hierarchy 
+	 * @param plane 
+	 * 
+	 * @return true if changes are made to the hierarchy, false otherwise
+	 * @since v0.4.0
+	 */
+	public static boolean copySelectedObjectsToPlane(PathObjectHierarchy hierarchy, ImagePlane plane) {
+		return copySelectedObjectsToPlane(hierarchy, plane, p -> p.hasROI());
+	}
+	
+	/**
+	 * Copy the selected annotations in the current hierarchy to the specified z-slice and timepoint.
+	 * This copies only the objects themselves, discarding any parent/child relationships.
+	 * @param z z-slice (0-based index)
+	 * @param t timepoint (0-based index)
+	 * @return true if changes are made to the hierarchy, false otherwise
+	 * @since v0.4.0
+	 * @see #copySelectedObjectsToPlane(PathObjectHierarchy, ImagePlane)
+	 */
+	public static boolean copySelectedAnnotationsToPlane(int z, int t) {
+		return copySelectedAnnotationsToPlane(getCurrentHierarchy(), ImagePlane.getPlane(z, t));
+	}
+	
+	/**
+	 * Copy the selected annotations in the current hierarchy to the specified image plane.
+	 * This copies only the objects themselves, discarding any parent/child relationships.
+	 * @param plane 
+	 * @return true if changes are made to the hierarchy, false otherwise
+	 * @since v0.4.0
+	 * @see #copySelectedObjectsToPlane(PathObjectHierarchy, ImagePlane)
+	 */
+	public static boolean copySelectedAnnotationsToPlane(ImagePlane plane) {
+		return copySelectedAnnotationsToPlane(getCurrentHierarchy(), plane);
+	}
+	
+	/**
+	 * Copy the selected annotations in the specified hierarchy to the specified image plane.
+	 * This copies only the objects themselves, discarding any parent/child relationships.
+	 * @param hierarchy 
+	 * @param plane 
+	 * 
+	 * @return true if changes are made to the hierarchy, false otherwise
+	 * @since v0.4.0
+	 */
+	public static boolean copySelectedAnnotationsToPlane(PathObjectHierarchy hierarchy, ImagePlane plane) {
+		return copySelectedObjectsToPlane(hierarchy, plane, p -> p.hasROI() && p.isAnnotation());
+	}
+
+		
+	private static boolean copySelectedObjectsToPlane(PathObjectHierarchy hierarchy, ImagePlane plane, Predicate<PathObject> filter) {
+		if (hierarchy == null)
+			return false;
+		var selected = hierarchy.getSelectionModel().getSelectedObjects();
+		var transformed = selected.stream()
+				.filter(filter)
+				.map(p -> PathObjectTools.updatePlane(p, plane, false, true))
+				.collect(Collectors.toList());
+		if (transformed.isEmpty())
+			return false;
+		hierarchy.addObjects(transformed);
+		return true;
 	}
 	
 	/**

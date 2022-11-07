@@ -185,11 +185,19 @@ public class Commands {
 	 * @param viewer the viewer containing the image to be processed
 	 */
 	public static void createFullImageAnnotation(QuPathViewer viewer) {
+		// If we are using selection mode, we should select objects rather that create an annotation
+		if (PathPrefs.selectionModeProperty().get()) {
+			logger.debug("Select all objects (create full image annotation with selection mode on)");
+			selectObjectsOnCurrentPlane(viewer);
+			return;
+		}
+
 		if (viewer == null)
 			return;
 		ImageData<?> imageData = viewer.getImageData();
 		if (imageData == null)
 			return;
+				
 		PathObjectHierarchy hierarchy = imageData.getHierarchy();
 		
 		// Check if we already have a comparable annotation
@@ -884,6 +892,27 @@ public class Commands {
 				new DefaultScriptableWorkflowStep("Duplicate selected annotations",
 						"duplicateSelectedAnnotations()"));
 	}
+	
+	/**
+	 * Copy the selected objects and add them to the plane currently active in the viewer.
+	 * @param viewer the viewer that determines the current image and plane
+	 * @implNote this command is scriptable, but will store the plane in the script (since 
+	 *           there is not necessarily a 'current plane' when running a script without a viewer)
+	 */
+	public static void copySelectedAnnotationsToCurrentPlane(QuPathViewer viewer) {
+		var imageData = viewer == null ? null : viewer.getImageData();
+		if (imageData == null) {
+			Dialogs.showNoImageError("Copy selected annotations to plane");
+			return;
+		}
+		var plane = viewer.getImagePlane();
+		int z = plane.getZ();
+		int t = plane.getT();
+		QP.copySelectedAnnotationsToPlane(z, t);
+		imageData.getHistoryWorkflow().addStep(
+				new DefaultScriptableWorkflowStep("Copy selected annotations to plane",
+						String.format("copySelectedAnnotationsToPlane(%d, %d)", z, t)));
+	}
 
 	/**
 	 * Make an inverse annotation for the selected objects, storing the command in the history workflow.
@@ -1531,6 +1560,28 @@ public class Commands {
 		logger.debug("Shapes simplified in " + (endTime - startTime) + " ms");
 		hierarchy.fireObjectsChangedEvent(hierarchy, pathObjects);
 	}
+	
+	/**
+	 * Select all the objects on the current plane of the viewer.
+	 * @param viewer
+	 */
+	public static void selectObjectsOnCurrentPlane(QuPathViewer viewer) {
+		if (viewer == null)
+			return;
+		ImageData<?> imageData = viewer.getImageData();
+		if (imageData == null)
+			return;
+		
+		int z = viewer.getZPosition();
+		int t = viewer.getTPosition();
+		QP.selectObjectsByPlane(z, t);
+		imageData.getHistoryWorkflow().addStep(
+				new DefaultScriptableWorkflowStep("Select objects on plane",
+						String.format("selectObjectsByPlane(%d, %d)", z, t)
+						)
+				);
+	}
+	
 
 	/**
 	 * Select all objects (excluding the root object) in the imageData.
