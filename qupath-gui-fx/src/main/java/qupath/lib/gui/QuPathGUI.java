@@ -704,6 +704,7 @@ public class QuPathGUI {
 		 * Toggle the synchronization of multiple viewers.
 		 */
 		@ActionAccelerator("shortcut+alt+s")
+		@ActionDescription("Synchronize viewers, so that pan, zoom and rotate in one viewer also impacts the other viewers")
 		public final Action TOGGLE_SYNCHRONIZE_VIEWERS = ActionTools.createSelectableAction(viewerManager.synchronizeViewersProperty(), "Synchronize viewers");
 		/**
 		 * Match the resolution of all open viewers.
@@ -4967,10 +4968,21 @@ public class QuPathGUI {
 					if (!Double.isNaN(dr) && dr != 0)
 						v.setRotation(v.getRotation() + dr);
 					
-					// Shift as required
+					// Shift as required - correcting for rotation
 					double downsampleRatio = v.getDownsampleFactor() / downsample;
 					if (!Double.isNaN(dx) && !Double.isNaN(downsampleRatio)) {
-						v.setCenterPixelLocation(v.getCenterPixelX() + dx*downsampleRatio, v.getCenterPixelY() + dy*downsampleRatio);
+						
+						double rot = -v.getRotation();
+						double sin = Math.sin(rot);
+						double cos = Math.cos(rot);
+						
+						double dx2 = dx * downsampleRatio;
+						double dy2 = dy * downsampleRatio;
+
+						double dx3 = cos * dx2 - sin * dy2;
+						double dy3 = sin * dx2 + cos * dy2;
+						
+						v.setCenterPixelLocation(v.getCenterPixelX() + dx3, v.getCenterPixelY() + dy3);
 					}
 				}
 			}

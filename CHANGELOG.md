@@ -127,6 +127,7 @@ This is a work-in-progress.
   * Uses (in order) time index, z-index, string representation, ROI location, UUID
 * Creating a full image annotation with 'selection mode' turned on selects all objects in the current plane
   * New command 'Objects -> Select... -> Select objects on current plane' can achieve the same when not using selection mode
+* Panning with synchronized viewers now corrects for different rotations
 
 
 ### Bugs fixed
