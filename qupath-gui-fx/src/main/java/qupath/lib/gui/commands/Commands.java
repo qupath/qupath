@@ -1772,6 +1772,28 @@ public class Commands {
 		MiniViewers.createDialog(viewer, true).show();
 	}
 	
+	
+	/**
+	 * Refresh object IDs to ensure uniqueness.
+	 * @param imageData
+	 * @param duplicatesOnly only refresh IDs that are duplicates of other IDs
+	 */
+	public static void refreshObjectIDs(ImageData<?> imageData, boolean duplicatesOnly) {
+		 if (imageData == null)
+			 return;
+		 var hierarchy = imageData.getHierarchy();
+		 if (duplicatesOnly) {
+			 QP.refreshDuplicateIDs(hierarchy);
+			 imageData.getHistoryWorkflow().addStep(
+					 new DefaultScriptableWorkflowStep("Refresh duplicate IDs", "refreshDuplicateIDs()"));
+		 } else {
+			 QP.refreshIDs(hierarchy);
+			 imageData.getHistoryWorkflow().addStep(
+					 new DefaultScriptableWorkflowStep("Refresh duplicate IDs", "refreshIDs()"));			 
+		 }
+	}
+	
+	
 	/**
 	 * Show a dialog to import object(s) from a file.
 	 * @param qupath

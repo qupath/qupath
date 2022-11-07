@@ -638,6 +638,15 @@ class Menus {
 				+ "This removes vertices that are considered unnecessary, using a specified amplitude tolerance.")
 		@ActionMenu("Annotations...>Simplify shape")
 		public final Action SIMPLIFY_SHAPE = qupath.createImageDataAction(imageData -> Commands.promptToSimplifySelectedAnnotations(imageData, 1.0));
+		
+		
+		@ActionDescription("Update all object IDs to ensure they are unique.")
+		@ActionMenu("Refresh object IDs")
+		public final Action REFRESH_OBJECT_IDS = qupath.createImageDataAction(imageData -> Commands.refreshObjectIDs(imageData, false));
+
+		@ActionDescription("Update all duplicate object IDs to ensure they are unique.")
+		@ActionMenu("Refresh duplicate object IDs")
+		public final Action REFRESH_DUPLICATE_OBJECT_IDS = qupath.createImageDataAction(imageData -> Commands.refreshObjectIDs(imageData, true));
 
 	}
 	

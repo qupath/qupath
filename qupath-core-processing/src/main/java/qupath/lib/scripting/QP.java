@@ -2161,6 +2161,77 @@ public class QP {
 		PathObjectHierarchy hierarchy = getCurrentHierarchy();
 		resetClassifications(hierarchy, cls);
 	}
+
+	/**
+	 * Refresh all object IDs for the current hierarchy.
+	 * @since v0.4.0
+	 */
+	public static void refreshIDs() {
+		refreshIDs(getCurrentHierarchy(), false);
+	}
+
+	/**
+	 * Refresh all object IDs for the current hierarchy to ensure there are no duplicates,
+	 * retaining the original IDs where possible.
+	 * @return true if object IDs were changed, false otherwise
+	 * @since v0.4.0
+	 */
+	public static boolean refreshDuplicateIDs() {
+		return refreshIDs(getCurrentHierarchy(), true);
+	}
+	
+	/**
+	 * Refresh all object IDs for the current hierarchy.
+	 * @param hierarchy the object hierarchy
+	 * @since v0.4.0
+	 */
+	public static void refreshIDs(PathObjectHierarchy hierarchy) {
+		refreshIDs(hierarchy, false);
+	}
+
+	/**
+	 * Refresh all object IDs for the current hierarchy to ensure there are no duplicates,
+	 * retaining the original IDs where possible.
+	 * @param hierarchy the object hierarchy
+	 * @return true if object IDs were changed, false otherwise
+	 * @since v0.4.0
+	 */
+	public static boolean refreshDuplicateIDs(PathObjectHierarchy hierarchy) {
+		return refreshIDs(hierarchy, true);
+	}
+	
+	/**
+	 * Refresh all object IDs for the specified hierarchy, optionally restricted to duplicates.
+	 * @param hierarchy the object hierarchy
+	 * @param duplicatesOnly if true, only update enough object IDs to avoid duplicates
+	 * @return true if object IDs were changed, false otherwise
+	 * @since v0.4.0
+	 */
+	private static boolean refreshIDs(PathObjectHierarchy hierarchy, boolean duplicatesOnly) {
+		if (hierarchy == null)
+			return false;
+		var pathObjects = hierarchy.getAllObjects(true);
+		if (duplicatesOnly) {
+			var set = new HashSet<UUID>();
+			var changed = new ArrayList<PathObject>();
+			for (var p : pathObjects) {
+				while (!set.add(p.getID())) {
+					p.refreshID();
+					changed.add(p);
+				}
+			}
+			if (changed.isEmpty())
+				return false;
+			assert set.size() == pathObjects.size();
+			hierarchy.fireObjectsChangedEvent(hierarchy, changed);
+			return true;
+		} else {
+			pathObjects.stream().forEach(p -> p.refreshID());
+			hierarchy.fireObjectsChangedEvent(hierarchy, pathObjects);
+			return true;
+		}
+	}
+	
 	
 	/**
 	 * Reset the PathClass for all objects of the specified type in the specified hierarchy.
