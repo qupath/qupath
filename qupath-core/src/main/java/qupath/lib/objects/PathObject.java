@@ -236,18 +236,10 @@ public abstract class PathObject implements Externalizable {
 			return "";
 		int nChildren = nChildObjects();
 		int nDescendants = PathObjectTools.countDescendants(this);
+		String objString = nDescendants == 1 ? " object)" : " objects)";
 		if (nChildren == nDescendants)
-			return " (" + nChildren + " objects)";
-		return " (" + (nChildren) + "/" + nDescendants + " objects)";
-//		if (nDescendants == 1)
-//			return " - 1 descendant";
-//		else
-//			return " - " + nDescendants + " descendant";
-//		
-//		if (childList.size() == 1)
-//			return " - 1 object";
-//		else
-//			return " - " + childList.size() + " objects";
+			return " (" + nChildren + objString;
+		return " (" + (nChildren) + "/" + nDescendants + objString;
 	}
 
 	@Override
@@ -259,14 +251,26 @@ public abstract class PathObject implements Externalizable {
 			sb.append(getName());
 		else
 			sb.append(PathObjectTools.getSuitableName(getClass(), false));
-			
-		// ROI
-		if (!isCell() && hasROI())
-			sb.append(" (").append(getROI().getRoiName()).append(")");
 		
 		// Classification
 		if (getPathClass() != null)
 			sb.append(" (").append(getPathClass().toString()).append(")");
+
+		// ROI
+		if (hasROI()) {
+			var roi = getROI();
+			if (roi.getZ() > 0 || roi.getT() > 0) {
+				if (roi.getZ() > 0) {
+					sb.append(" (z=").append(roi.getZ());
+					if (roi.getT() > 0) {
+						sb.append(", t=").append(roi.getT());
+					}
+					sb.append(")");
+				} else {
+					sb.append("(t=").append(roi.getT()).append(")");
+				}
+			}
+		}
 		
 		// Number of descendants
 		sb.append(objectCountPostfix());
