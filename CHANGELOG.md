@@ -119,6 +119,7 @@ This is a work-in-progress.
   * Copy selected objects or all annotations to the system clipboard, as GeoJSON
   * Paste objects from the clipboard, optionally positioning them on the current viewer plane
   * Paste selected objects to the current viewer plane (to easily duplicate objects across z-slices/timepoints)
+* Include z-index and time-index in measurement tables of z-stacks and time series
 * Creating a full image annotation with 'selection mode' turned on selects all objects in the current plane
   * New command 'Objects -> Select... -> Select objects on current plane' can achieve the same when not using selection mode
 

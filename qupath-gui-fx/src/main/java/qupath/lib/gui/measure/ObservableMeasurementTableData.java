@@ -46,6 +46,7 @@ import javafx.beans.binding.Binding;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.DoubleBinding;
 import javafx.beans.binding.IntegerBinding;
+import javafx.beans.binding.ObjectBinding;
 import javafx.beans.binding.StringBinding;
 import javafx.beans.property.ReadOnlyListWrapper;
 import javafx.beans.value.ObservableDoubleValue;
@@ -180,6 +181,8 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 //		boolean containsParentAnnotations = false;
 		boolean containsTMACores = false;
 		boolean containsRoot = false;
+		boolean containsMultiZ = false;
+		boolean containsMultiT = false;
 		List<PathObject> pathObjectListCopy = new ArrayList<>(list);
 		for (PathObject temp : pathObjectListCopy) {
 			if (temp instanceof PathAnnotationObject) {
@@ -192,6 +195,13 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 				containsDetections = true;
 			} else if (temp.isRootObject())
 				containsRoot = true;
+			var roi = temp.getROI();
+			if (roi != null) {
+				if (roi.getZ() > 0)
+					containsMultiZ = true;
+				if (roi.getT() > 0)
+					containsMultiT = true;
+			}
 		}
 		boolean detectionsAnywhere = imageData == null ? containsDetections : !imageData.getHierarchy().getDetectionObjects().isEmpty();
 
@@ -233,6 +243,15 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 			builderMap.put(builder.getName(), builder);
 			builder = new ROICentroidMeasurementBuilder(imageData, CentroidType.Y);
 			builderMap.put(builder.getName(), builder);
+		}
+
+		// New v0.4.0: include z and time indices
+		if (containsMultiZ || (imageData != null && imageData.getServer().nZSlices() > 1)) {
+			builderMap.put("Z index", new ZSliceMeasurementBuilder());
+		}
+
+		if (containsMultiT || (imageData != null && imageData.getServer().nTimepoints() > 1)) {
+			builderMap.put("Time index", new TimepointMeasurementBuilder());
 		}
 
 		// If we have metadata, store it
@@ -1453,6 +1472,53 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 			if (hasPixelSizeMicrons())
 				return imageData.getServer().getPixelCalibration().getPixelHeightMicrons();
 			return Double.NaN;
+		}
+		
+	}
+	
+	
+	static class ZSliceMeasurementBuilder extends NumericMeasurementBuilder {
+		
+		@Override
+		public String getName() {
+			return "Z-slice";
+		}
+		
+		@Override
+		public Binding<Number> createMeasurement(final PathObject pathObject) {
+			return new ObjectBinding<Number>() {
+				
+				@Override
+				protected Number computeValue() {
+					ROI roi = pathObject.getROI();
+					if (roi == null)
+						return null;
+					return roi.getZ();
+				}
+			};
+		}
+		
+	}
+	
+	static class TimepointMeasurementBuilder extends NumericMeasurementBuilder {
+		
+		@Override
+		public String getName() {
+			return "Timepoint";
+		}
+		
+		@Override
+		public Binding<Number> createMeasurement(final PathObject pathObject) {
+			return new ObjectBinding<Number>() {
+				
+				@Override
+				protected Number computeValue() {
+					ROI roi = pathObject.getROI();
+					if (roi == null)
+						return null;
+					return roi.getT();
+				}
+			};
 		}
 		
 	}

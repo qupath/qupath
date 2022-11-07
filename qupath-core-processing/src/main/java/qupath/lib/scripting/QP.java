@@ -3656,6 +3656,7 @@ public class QP {
 	/**
 	 * Copy the selected objects in the current hierarchy to the specified z-slice and timepoint.
 	 * This copies only the objects themselves, discarding any parent/child relationships.
+	 * The copied objects will become the new selection.
 	 * @param z z-slice (0-based index)
 	 * @param t timepoint (0-based index)
 	 * @return true if changes are made to the hierarchy, false otherwise
@@ -3669,6 +3670,7 @@ public class QP {
 	/**
 	 * Copy the selected objects in the current hierarchy to the specified image plane.
 	 * This copies only the objects themselves, discarding any parent/child relationships.
+	 * The copied objects will become the new selection.
 	 * @param plane 
 	 * @return true if changes are made to the hierarchy, false otherwise
 	 * @since v0.4.0
@@ -3681,6 +3683,7 @@ public class QP {
 	/**
 	 * Copy the selected objects in the specified hierarchy to the specified image plane.
 	 * This copies only the objects themselves, discarding any parent/child relationships.
+	 * The copied objects will become the new selection.
 	 * @param hierarchy 
 	 * @param plane 
 	 * 
@@ -3694,6 +3697,7 @@ public class QP {
 	/**
 	 * Copy the selected annotations in the current hierarchy to the specified z-slice and timepoint.
 	 * This copies only the objects themselves, discarding any parent/child relationships.
+	 * The copied objects will become the new selection.
 	 * @param z z-slice (0-based index)
 	 * @param t timepoint (0-based index)
 	 * @return true if changes are made to the hierarchy, false otherwise
@@ -3707,6 +3711,7 @@ public class QP {
 	/**
 	 * Copy the selected annotations in the current hierarchy to the specified image plane.
 	 * This copies only the objects themselves, discarding any parent/child relationships.
+	 * The copied objects will become the new selection.
 	 * @param plane 
 	 * @return true if changes are made to the hierarchy, false otherwise
 	 * @since v0.4.0
@@ -3719,6 +3724,7 @@ public class QP {
 	/**
 	 * Copy the selected annotations in the specified hierarchy to the specified image plane.
 	 * This copies only the objects themselves, discarding any parent/child relationships.
+	 * The copied objects will become the new selection.
 	 * @param hierarchy 
 	 * @param plane 
 	 * 
@@ -3733,7 +3739,20 @@ public class QP {
 	private static boolean copySelectedObjectsToPlane(PathObjectHierarchy hierarchy, ImagePlane plane, Predicate<PathObject> filter) {
 		if (hierarchy == null)
 			return false;
-		var selected = hierarchy.getSelectionModel().getSelectedObjects();
+		
+		Collection<PathObject> selected = hierarchy.getSelectionModel().getSelectedObjects();
+		if (selected.isEmpty()) {
+			return false;
+		}
+		
+		// Try to retain the primary selection, if known
+		var primary = hierarchy.getSelectionModel().getSelectedObject();
+		if (primary != null) {
+			selected = new ArrayList<>(selected);
+			selected.remove(primary);
+			((List<PathObject>)selected).add(0, primary);
+		}
+		
 		var transformed = selected.stream()
 				.filter(filter)
 				.map(p -> PathObjectTools.updatePlane(p, plane, false, true))
@@ -3741,6 +3760,8 @@ public class QP {
 		if (transformed.isEmpty())
 			return false;
 		hierarchy.addObjects(transformed);
+		// Consider making this optional
+		hierarchy.getSelectionModel().setSelectedObjects(transformed, primary == null ? null : transformed.get(0));
 		return true;
 	}
 	
