@@ -450,7 +450,7 @@ public class PathHierarchyPaintingHelper {
 	
 
 	private static void paintROI(ROI pathROI, Graphics2D g, Color colorStroke, Stroke stroke, Color colorFill, double downsample) {
-		if (pathROI == null)
+		if (pathROI == null || pathROI.isEmpty())
 			return;
 //		pathROI.draw(g, colorStroke, colorFill);
 		

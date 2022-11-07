@@ -119,7 +119,12 @@ This is a work-in-progress.
   * Copy selected objects or all annotations to the system clipboard, as GeoJSON
   * Paste objects from the clipboard, optionally positioning them on the current viewer plane
   * Paste selected objects to the current viewer plane (to easily duplicate objects across z-slices/timepoints)
-* Include z-index and time-index in measurement tables of z-stacks and time series
+* Make z-index and time-index more visible
+  * Show in measurement tables and the annotation list
+* Remove ROI shape from `PathObject.toString()` (and therefore list cells) in favor of showing z/t indexes
+  * Shape is usually evident from ROI icons & can still be seen in measurement tables
+* Make annotation list sorting more predictable
+  * Uses (in order) time index, z-index, string representation, ROI location, UUID
 * Creating a full image annotation with 'selection mode' turned on selects all objects in the current plane
   * New command 'Objects -> Select... -> Select objects on current plane' can achieve the same when not using selection mode
 
@@ -147,6 +152,7 @@ This is a work-in-progress.
 * The colors used in pie chart legends were sometimes incorrect (https://github.com/qupath/qupath/issues/1062)
 * Delaunay connection lines could be broken or slow to display (https://github.com/qupath/qupath/pull/1069)
 * Attempting to add a row or column to a TMA grid with a single core produced weird results
+* The brush/wand tools could sometimes modify annotations selected on a different image plane
 
 ### Changes through Bio-Formats 6.11.0
 * Bio-Formats 6.11.0 brings several important new features to QuPath, including:
