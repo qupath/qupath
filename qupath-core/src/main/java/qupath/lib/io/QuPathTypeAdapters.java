@@ -442,7 +442,7 @@ class QuPathTypeAdapters {
 			}
 			
 			if (doHierarchy && value.hasChildObjects()) {
-				out.name("children");
+				out.name("childObjects");
 				out.beginArray();
 				for (var child : value.getChildObjectsAsArray()) {
 					write(out, child);
@@ -546,8 +546,9 @@ class QuPathTypeAdapters {
 					// Allow 'type' to be used as an alias
 					type = properties.get("type").getAsString();
 				}
-				if (properties.has("children") && properties.get("children").isJsonArray()) {
-					var children = properties.get("children").getAsJsonArray();
+				var childObjectsName = properties.has("childObjects") ? "childObjects" : "children";
+				if (properties.has(childObjectsName) && properties.get(childObjectsName).isJsonArray()) {
+					var children = properties.get(childObjectsName).getAsJsonArray();
 					childObjects = new ArrayList<>();
 					for (var child : children) {
 						var childObject = parseObject(child.getAsJsonObject());
