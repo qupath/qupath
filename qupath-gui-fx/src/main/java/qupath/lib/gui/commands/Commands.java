@@ -185,11 +185,19 @@ public class Commands {
 	 * @param viewer the viewer containing the image to be processed
 	 */
 	public static void createFullImageAnnotation(QuPathViewer viewer) {
+		// If we are using selection mode, we should select objects rather that create an annotation
+		if (PathPrefs.selectionModeProperty().get()) {
+			logger.debug("Select all objects (create full image annotation with selection mode on)");
+			selectObjectsOnCurrentPlane(viewer);
+			return;
+		}
+
 		if (viewer == null)
 			return;
 		ImageData<?> imageData = viewer.getImageData();
 		if (imageData == null)
 			return;
+				
 		PathObjectHierarchy hierarchy = imageData.getHierarchy();
 		
 		// Check if we already have a comparable annotation
@@ -205,7 +213,7 @@ public class Commands {
 					roi.getBoundsWidth() == r2.getBoundsWidth() && 
 					roi.getBoundsHeight() == r2.getBoundsHeight() &&
 					roi.getImagePlane().equals(r2.getImagePlane())) {
-				logger.info("Full image annotation already exists! {}", pathObject);
+				logger.warn("Full image annotation already exists! {}", pathObject);
 				viewer.setSelectedObject(pathObject);
 				return;
 			}
@@ -217,9 +225,9 @@ public class Commands {
 		
 		// Log in the history
 		if (z == 0 && t == 0)
-			imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep("Create full image annotation", "createSelectAllObject(true);"));
+			imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep("Create full image annotation", "createFullImageAnnotation(true)"));
 		else
-			imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep("Create full image annotation", String.format("createSelectAllObject(true, %d, %d);", z, t)));
+			imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep("Create full image annotation", String.format("createFullImageAnnotation(true, %d, %d)", z, t)));
 	}
 	
 	
@@ -884,6 +892,27 @@ public class Commands {
 				new DefaultScriptableWorkflowStep("Duplicate selected annotations",
 						"duplicateSelectedAnnotations()"));
 	}
+	
+	/**
+	 * Copy the selected objects and add them to the plane currently active in the viewer.
+	 * @param viewer the viewer that determines the current image and plane
+	 * @implNote this command is scriptable, but will store the plane in the script (since 
+	 *           there is not necessarily a 'current plane' when running a script without a viewer)
+	 */
+	public static void copySelectedAnnotationsToCurrentPlane(QuPathViewer viewer) {
+		var imageData = viewer == null ? null : viewer.getImageData();
+		if (imageData == null) {
+			Dialogs.showNoImageError("Copy selected annotations to plane");
+			return;
+		}
+		var plane = viewer.getImagePlane();
+		int z = plane.getZ();
+		int t = plane.getT();
+		QP.copySelectedAnnotationsToPlane(z, t);
+		imageData.getHistoryWorkflow().addStep(
+				new DefaultScriptableWorkflowStep("Copy selected annotations to plane",
+						String.format("copySelectedAnnotationsToPlane(%d, %d)", z, t)));
+	}
 
 	/**
 	 * Make an inverse annotation for the selected objects, storing the command in the history workflow.
@@ -1531,6 +1560,28 @@ public class Commands {
 		logger.debug("Shapes simplified in " + (endTime - startTime) + " ms");
 		hierarchy.fireObjectsChangedEvent(hierarchy, pathObjects);
 	}
+	
+	/**
+	 * Select all the objects on the current plane of the viewer.
+	 * @param viewer
+	 */
+	public static void selectObjectsOnCurrentPlane(QuPathViewer viewer) {
+		if (viewer == null)
+			return;
+		ImageData<?> imageData = viewer.getImageData();
+		if (imageData == null)
+			return;
+		
+		int z = viewer.getZPosition();
+		int t = viewer.getTPosition();
+		QP.selectObjectsByPlane(z, t);
+		imageData.getHistoryWorkflow().addStep(
+				new DefaultScriptableWorkflowStep("Select objects on plane",
+						String.format("selectObjectsByPlane(%d, %d)", z, t)
+						)
+				);
+	}
+	
 
 	/**
 	 * Select all objects (excluding the root object) in the imageData.
@@ -1721,6 +1772,28 @@ public class Commands {
 		MiniViewers.createDialog(viewer, true).show();
 	}
 	
+	
+	/**
+	 * Refresh object IDs to ensure uniqueness.
+	 * @param imageData
+	 * @param duplicatesOnly only refresh IDs that are duplicates of other IDs
+	 */
+	public static void refreshObjectIDs(ImageData<?> imageData, boolean duplicatesOnly) {
+		 if (imageData == null)
+			 return;
+		 var hierarchy = imageData.getHierarchy();
+		 if (duplicatesOnly) {
+			 QP.refreshDuplicateIDs(hierarchy);
+			 imageData.getHistoryWorkflow().addStep(
+					 new DefaultScriptableWorkflowStep("Refresh duplicate IDs", "refreshDuplicateIDs()"));
+		 } else {
+			 QP.refreshIDs(hierarchy);
+			 imageData.getHistoryWorkflow().addStep(
+					 new DefaultScriptableWorkflowStep("Refresh duplicate IDs", "refreshIDs()"));			 
+		 }
+	}
+	
+	
 	/**
 	 * Show a dialog to import object(s) from a file.
 	 * @param qupath
@@ -1731,29 +1804,43 @@ public class Commands {
 	}
 	
 	/**
-	 * Attempt to objects to the system clipboard, if available
-	 * @param qupath
+	 * Attempt to copy selected objects to the system clipboard, if available
 	 * @param imageData
 	 */
-	public static void copyObjectsToClipboard(QuPathGUI qupath, ImageData<BufferedImage> imageData) {
+	public static void copySelectedObjectsToClipboard(ImageData<BufferedImage> imageData) {
 		var selected = imageData == null ? null : imageData.getHierarchy().getSelectionModel().getSelectedObjects();
-		if (selected == null || selected.isEmpty())
+		copyObjectsToClipboard(selected);
+	}
+	
+	
+	/**
+	 * Attempt to annotation objects to the system clipboard, if available
+	 * @param imageData
+	 */
+	public static void copyAnnotationsToClipboard(ImageData<BufferedImage> imageData) {
+		var annotations = imageData == null ? null : imageData.getHierarchy().getAnnotationObjects();
+		copyObjectsToClipboard(annotations);		
+	}
+	
+	
+	private static void copyObjectsToClipboard(Collection<? extends PathObject> pathObjects) {
+		if (pathObjects == null || pathObjects.isEmpty())
 			return;
 		
 		int max = PathPrefs.maxObjectsToClipboardProperty().get();
-		if (max >= 0 && max < selected.size()) {
+		if (max >= 0 && max < pathObjects.size()) {
 			Dialogs.showWarningNotification("Copy objects to clipboard",
 					String.format("Number of selected objects (%d) exceeds the maximum that can be copied (%d)!\n"
 							+ "Either export the objects to a GeoJSON file, or increase the maximum number of "
-							+ "clipboard objects in the preferences.", selected.size(), max));
+							+ "clipboard objects in the preferences.", pathObjects.size(), max));
 			return;
 		}
 		
 		String json;
 		try {
-			if (selected.size() == 1) {
+			if (pathObjects.size() == 1) {
 				var gson = GsonTools.getInstance(true);
-				json = gson.toJson(selected.iterator().next());
+				json = gson.toJson(pathObjects.iterator().next());
 			} else {
 				// We could use pretty printing with a minimal indent
 				// This avoids increasing the size enormously, while 
@@ -1763,7 +1850,7 @@ public class Commands {
 				var writer = new StringWriter();
 				var jsonWriter = gson.newJsonWriter(writer);
 				jsonWriter.setIndent(" ");
-				var features = FeatureCollection.wrap(selected);
+				var features = FeatureCollection.wrap(pathObjects);
 				gson.toJson(features, features.getClass(), jsonWriter);
 				json = writer.toString();
 			}
@@ -1780,17 +1867,26 @@ public class Commands {
 		clipboard.setContent(content);
 	}
 	
+	
 	/**
 	 * Attempt to paste objects from the system clipboard to the current image, if available; 
 	 * otherwise, check for text on the clipboard and paste it into a new script editor tab
 	 * @param qupath
+	 * @param addToCurrentPlane if true, add the objects to the plane currently visible in the viewer 
+	 *                          (and don't show any text if objects can't be found)
 	 */
-	public static void pasteFromClipboard(QuPathGUI qupath) {
-		var imageData = qupath.getImageData();
+	public static void pasteFromClipboard(QuPathGUI qupath, boolean addToCurrentPlane) {
+		var viewer = qupath.getViewer();
+		var imageData = viewer == null ? null : viewer.getImageData();
 		// If we have an image and objects on the clipboard, paste them
 		if (imageData != null) {
 			try {
 				var pathObjects = InteractiveObjectImporter.readObjectsFromClipboard(imageData);
+				// Make sure all the objects are on the current plane if needed
+				if (addToCurrentPlane) {
+					var plane = viewer.getImagePlane();
+					pathObjects = pathObjects.stream().map(p -> PathObjectTools.updatePlane(p, plane, false, true)).collect(Collectors.toList());
+				}
 				if (!pathObjects.isEmpty()) {
 					InteractiveObjectImporter.promptToImportObjects(imageData.getHierarchy(), pathObjects);
 					return;
@@ -1801,7 +1897,7 @@ public class Commands {
 		}
 		// No objects - paste text in the script editor instead
 		var text = (String)Clipboard.getSystemClipboard().getContent(DataFormat.PLAIN_TEXT);
-		if (text != null && !text.isEmpty() && qupath.getScriptEditor() != null) {
+		if (!addToCurrentPlane && text != null && !text.isEmpty() && qupath.getScriptEditor() != null) {
 			qupath.getScriptEditor().showScript("Clipboard text", text);
 		}
 	}

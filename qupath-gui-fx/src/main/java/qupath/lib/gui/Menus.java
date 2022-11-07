@@ -139,8 +139,12 @@ class Menus {
 		@ActionMenu("Copy to clipboard...>Selected objects")
 		@ActionDescription("Copy the selected objects to the system clipboard as GeoJSON.")
 //		@ActionAccelerator("shortcut+c")
-		public final Action COPY_SELECTED_OBJECTS = qupath.createImageDataAction(imageData -> Commands.copyObjectsToClipboard(qupath, imageData));
-//
+		public final Action COPY_SELECTED_OBJECTS = qupath.createImageDataAction(imageData -> Commands.copySelectedObjectsToClipboard(imageData));
+
+		@ActionMenu("Copy to clipboard...>Annotation objects")
+		@ActionDescription("Copy all annotation objects to the system clipboard as GeoJSON.")
+		public final Action COPY_ANNOTATION_OBJECTS = qupath.createImageDataAction(imageData -> Commands.copyAnnotationsToClipboard(imageData));
+
 		@ActionMenu("Copy to clipboard...>")
 		public final Action SEP_00 = ActionTools.createSeparator();
 
@@ -169,7 +173,18 @@ class Menus {
 				"If the clipboard contents are GeoJSON objects, the objects will be pasted to the current image. "
 				+ "Otherwise, any text found will be shown in a the script editor.")
 //		@ActionAccelerator("shortcut+v") // No shortcut because it gets fired too often
-		public final Action PASTE = createAction(() -> Commands.pasteFromClipboard(qupath));
+		public final Action PASTE = createAction(() -> Commands.pasteFromClipboard(qupath, false));
+
+		@ActionMenu("Paste clipboard objects on current plane")
+		@ActionDescription("Paste GeoJSON objects from the system clipboard to the current z-slice and timepoint, if possible.\n" + 
+				"New object IDs will be generated if needed to avoid duplicates.")
+		public final Action PASTE_TO_PLANE = createAction(() -> Commands.pasteFromClipboard(qupath, true));
+
+		@ActionDescription("Copy the selected objects and paste them on the current plane (z-slice and timepoint visible in the viewer).\n"
+				+ "This avoids using the system clipboard. It is intended to help transfer annotations quickly across multidimensional images.")
+		@ActionMenu("Paste selected objects on current plane")
+		@ActionAccelerator("shortcut+shift+v")
+		public final Action ANNOTATION_COPY_TO_PLANE = qupath.createViewerAction(viewer -> Commands.copySelectedAnnotationsToCurrentPlane(viewer));
 
 		
 		public final Action SEP_1 = ActionTools.createSeparator();
@@ -511,10 +526,14 @@ class Menus {
 
 		@ActionMenu("Select...>")
 		public final Action SEP_3 = ActionTools.createSeparator();
-
+		
 		@ActionDescription("Select objects based upon their classification.")
 		@ActionMenu("Select...>Select objects by classification")
 		public final Action SELECT_BY_CLASSIFICATION = qupath.createImageDataAction(imageData -> Commands.promptToSelectObjectsByClassification(qupath, imageData));
+
+		@ActionDescription("Select all objects on the current plane visiible in the viewer.")
+		@ActionMenu("Select...>Select objects on current plane")
+		public final Action SELECT_BY_PLANE = qupath.createViewerAction(viewer -> Commands.selectObjectsOnCurrentPlane(viewer));
 
 		@ActionDescription("Lock all currently selected objects.")
 		@ActionMenu("Lock...>Lock selected objects")
@@ -567,15 +586,15 @@ class Menus {
 		public final Action SEP_6 = ActionTools.createSeparator();
 
 		@ActionDescription("Interactively translate and/or rotate the current selected annotation.")
-		@ActionMenu("Annotations...>Transform annotation")
-		@ActionAccelerator("shortcut+shift+alt+r")
+		@ActionMenu("Annotations...>Transform annotations")
+		@ActionAccelerator("shortcut+shift+t")
 		public final Action RIGID_OBJECT_EDITOR = qupath.createImageDataAction(imageData -> Commands.editSelectedAnnotation(qupath));
 		
 		@ActionDescription("Duplicate the selected annotations.")
-		@ActionMenu("Annotations...>Duplicate annotations")
+		@ActionMenu("Annotations...>Duplicate selected annotations")
 		@ActionAccelerator("shift+d")
 		public final Action ANNOTATION_DUPLICATE = qupath.createImageDataAction(imageData -> Commands.duplicateSelectedAnnotations(imageData));
-		
+
 		@ActionDescription("Transfer the last annotation to the current image. "
 				+ "This can be used to bring annotations from one viewer to another, or to recover "
 				+ "an annotation that has just been deleted.")
@@ -619,6 +638,15 @@ class Menus {
 				+ "This removes vertices that are considered unnecessary, using a specified amplitude tolerance.")
 		@ActionMenu("Annotations...>Simplify shape")
 		public final Action SIMPLIFY_SHAPE = qupath.createImageDataAction(imageData -> Commands.promptToSimplifySelectedAnnotations(imageData, 1.0));
+		
+		
+		@ActionDescription("Update all object IDs to ensure they are unique.")
+		@ActionMenu("Refresh object IDs")
+		public final Action REFRESH_OBJECT_IDS = qupath.createImageDataAction(imageData -> Commands.refreshObjectIDs(imageData, false));
+
+		@ActionDescription("Update all duplicate object IDs to ensure they are unique.")
+		@ActionMenu("Refresh duplicate object IDs")
+		public final Action REFRESH_DUPLICATE_OBJECT_IDS = qupath.createImageDataAction(imageData -> Commands.refreshObjectIDs(imageData, true));
 
 	}
 	
@@ -694,7 +722,7 @@ class Menus {
 
 		@ActionDescription("Show a list containing recently-used commands.")
 		@ActionMenu("Show recent commands")
-		@ActionAccelerator("shift+shortcut+up")
+		@ActionAccelerator("shortcut+p")
 		public final Action RECENT_COMMAND_LIST = Commands.createSingleStageAction(() -> CommandFinderTools.createRecentCommandsDialog(qupath));
 
 		public final Action SEP_0 = ActionTools.createSeparator();

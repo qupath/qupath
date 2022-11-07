@@ -249,7 +249,7 @@ public final class InteractiveObjectImporter {
 			for (var toAdd : flatSet) {
 				toAdd.refreshID();
 			}
-		} else if (!containsDuplicates) {
+		} else if (containsDuplicates) {
 			logger.warn("{} being added - IDs not updated, so there will be duplicates!", objString);
 		}
 		

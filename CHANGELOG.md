@@ -115,6 +115,13 @@ This is a work-in-progress.
   * Store measurements directly as a JSON object / map (rather than an array of name/value elements)
   * Optionally support child objects in export
     * Serializing the root object now involves serializing the whole hierarchy
+* Add copy & paste options for objects
+  * Copy selected objects or all annotations to the system clipboard, as GeoJSON
+  * Paste objects from the clipboard, optionally positioning them on the current viewer plane
+  * Paste selected objects to the current viewer plane (to easily duplicate objects across z-slices/timepoints)
+* Creating a full image annotation with 'selection mode' turned on selects all objects in the current plane
+  * New command 'Objects -> Select... -> Select objects on current plane' can achieve the same when not using selection mode
+
 
 ### Bugs fixed
 * Reading from Bio-Formats blocks forever when using multiple series outside a project (https://github.com/qupath/qupath/issues/894)

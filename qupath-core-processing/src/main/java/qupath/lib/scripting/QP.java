@@ -81,6 +81,7 @@ import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.common.LogTools;
 import qupath.lib.common.Timeit;
 import qupath.lib.common.Version;
 import qupath.lib.images.ImageData;
@@ -1708,9 +1709,132 @@ public class QP {
 	 * Create an annotation for the entire width and height of the current image data, on the default plane (z-slice, time point).
 	 * 
 	 * @param setSelected if true, select the object that was created after it is added to the hierarchy
+	 * @deprecated v0.4.0 use {@link #createFullImageAnnotation(boolean)} instead
 	 */
+	@Deprecated
 	public static void createSelectAllObject(final boolean setSelected) {
+		LogTools.warnOnce(logger, "createSelectAllObject(boolean) is deprecated, use createFullImageAnnotation(boolean) instead");
 		createSelectAllObject(setSelected, 0, 0);
+	}
+	
+	/**
+	 * Create an annotation for the entire width and height of the current image data, on the default plane (z-slice, time point).
+	 * 
+	 * @param setSelected if true, select the object that was created after it is added to the hierarchy
+	 * @param z z-slice index for the annotation
+	 * @param t timepoint index for the annotation
+	 * @deprecated v0.4.0 use {@link #createFullImageAnnotation(boolean, int, int)} instead
+	 */
+	@Deprecated
+	public static void createSelectAllObject(final boolean setSelected, int z, int t) {
+		LogTools.warnOnce(logger, "createSelectAllObject(boolean, int, int) is deprecated, use createFullImageAnnotation(boolean, int, int) instead");
+		ImageData<?> imageData = getCurrentImageData();
+		if (imageData == null)
+			return;
+		ImageServer<?> server = imageData.getServer();
+		PathObject pathObject = PathObjects.createAnnotationObject(
+				ROIs.createRectangleROI(0, 0, server.getWidth(), server.getHeight(), ImagePlane.getPlane(z, t))
+				);
+		imageData.getHierarchy().addObject(pathObject);
+		if (setSelected)
+			imageData.getHierarchy().getSelectionModel().setSelectedObject(pathObject);
+	}
+	
+	/**
+	 * Create annotation around the full image for the current image, on all z-slices and timepoints.
+	 * @param setSelected if true, set the annotations to be selected when they are created
+	 * @return the annotations that were created, or an empty list if no image data was available
+	 * @since v0.4.0
+	 * @see #createAllFullImageAnnotations(ImageData, boolean)
+	 */
+	public static List<PathObject> createAllFullImageAnnotations(boolean setSelected) {
+		return createAllFullImageAnnotations(getCurrentImageData(), setSelected);
+	}
+	
+	
+	/**
+	 * Create annotation around the full image for the specified image, on all z-slices and timepoints.
+	 * @param imageData the image data
+	 * @param setSelected if true, set the annotations to be selected when they are created
+	 * @return the annotations that were created, or an empty list if no image data was available
+	 * @since v0.4.0
+	 */
+	public static List<PathObject> createAllFullImageAnnotations(ImageData<?> imageData, boolean setSelected) {
+		if (imageData == null)
+			return Collections.emptyList();
+		ImageServer<?> server = imageData.getServer();
+		List<PathObject> annotations = new ArrayList<>();
+		for (int t = 0; t < server.nTimepoints(); t++) {
+			for (int z = 0; z < server.nZSlices(); z++) {
+				PathObject pathObject = PathObjects.createAnnotationObject(
+						ROIs.createRectangleROI(0, 0, server.getWidth(), server.getHeight(), ImagePlane.getPlane(z, t))
+						);
+				annotations.add(pathObject);
+			}			
+		}
+		imageData.getHierarchy().addObjects(annotations);
+		if (setSelected)
+			imageData.getHierarchy().getSelectionModel().setSelectedObjects(annotations, annotations.get(0));
+		return annotations;
+	}
+	
+	
+	/**
+	 * Create an annotation around the full image for the current image, on the default (first) z-slice and timepoint.
+	 * @param setSelected if true, set the annotation to be selected when it is created
+	 * @return the annotation that was created, or null if no image data was available
+	 * @since v0.4.0
+	 * @see #createFullImageAnnotation(boolean, int, int)
+	 * @see #createFullImageAnnotation(ImageData, boolean)
+	 */
+	public static PathObject createFullImageAnnotation(boolean setSelected) {
+		return createFullImageAnnotation(getCurrentImageData(), setSelected);
+	}
+	
+	/**
+	 * Create an annotation around the full image for the current image, on the specified z-slice and timepoint.
+	 * @param setSelected if true, set the annotation to be selected when it is created
+	 * @param z z-slice (0-based index)
+	 * @param t timepoint (0-based index)
+	 * @return the annotation that was created, or null if no image data was available
+	 * @since v0.4.0
+	 * @see #createFullImageAnnotation(ImageData, boolean, int, int)
+	 */
+	public static PathObject createFullImageAnnotation(boolean setSelected, int z, int t) {
+		return createFullImageAnnotation(getCurrentImageData(), setSelected, z, t);		
+	}
+	
+	/**
+	 * Create an annotation around the full image for the specified image, on the default (first) z-slice and timepoint.
+	 * @param imageData the image data for which the annotation should be added
+	 * @param setSelected if true, set the annotation to be selected when it is created
+	 * @return the annotation that was created, or null if no image data was available
+	 * @since v0.4.0
+	 */
+	public static PathObject createFullImageAnnotation(ImageData<?> imageData, boolean setSelected) {
+		return createFullImageAnnotation(imageData, setSelected, 0, 0);
+	}
+	
+	/**
+	 * Create an annotation around the full image for the specified image, on the specified z-slice and timepoint.
+	 * @param imageData the image data for which the annotation should be added
+	 * @param setSelected if true, set the annotation to be selected when it is created
+	 * @param z z-slice (0-based index)
+	 * @param t timepoint (0-based index)
+	 * @return the annotation that was created, or null if no image data was available
+	 * @since v0.4.0
+	 */
+	public static PathObject createFullImageAnnotation(ImageData<?> imageData, boolean setSelected, int z, int t) {
+		if (imageData == null)
+			return null;
+		ImageServer<?> server = imageData.getServer();
+		PathObject pathObject = PathObjects.createAnnotationObject(
+				ROIs.createRectangleROI(0, 0, server.getWidth(), server.getHeight(), ImagePlane.getPlane(z, t))
+				);
+		imageData.getHierarchy().addObject(pathObject);
+		if (setSelected)
+			imageData.getHierarchy().getSelectionModel().setSelectedObject(pathObject);
+		return pathObject;
 	}
 
 	/**
@@ -1760,27 +1884,7 @@ public class QP {
 	public static ImageServer<BufferedImage> buildServer(URI uri, String... args) throws IOException {
 		return ImageServers.buildServer(uri, args);
 	}
-	
-	
-	/**
-	 * Create an annotation for the entire width and height of the current image data, on the default plane (z-slice, time point).
-	 * 
-	 * @param setSelected if true, select the object that was created after it is added to the hierarchy
-	 * @param z z-slice index for the annotation
-	 * @param t timepoint index for the annotation
-	 */
-	public static void createSelectAllObject(final boolean setSelected, int z, int t) {
-		ImageData<?> imageData = getCurrentImageData();
-		if (imageData == null)
-			return;
-		ImageServer<?> server = imageData.getServer();
-		PathObject pathObject = PathObjects.createAnnotationObject(
-				ROIs.createRectangleROI(0, 0, server.getWidth(), server.getHeight(), ImagePlane.getPlane(z, t))
-				);
-		imageData.getHierarchy().addObject(pathObject);
-		if (setSelected)
-			imageData.getHierarchy().getSelectionModel().setSelectedObject(pathObject);
-	}
+
 	
 //	public static boolean removeObjectsOutsideImage() {
 //		return removeObjectsOutsideImage(getCurrentServer(), getCurrentHierarchy());
@@ -1829,6 +1933,50 @@ public class QP {
 		// Set selected objects
 		var newPrimary = primary == null ? null : transformed.stream().filter(p -> p.getID().equals(primary.getID())).findFirst().orElse(null);
 		hierarchy.getSelectionModel().setSelectedObjects(transformed, newPrimary);
+	}
+	
+	/**
+	 * Resize the ROIs of all objects in the current object hierarchy.
+	 * @param scaleFactor scale factor
+	 * @since v0.4.0
+	 * @see #transformAllObjects(AffineTransform)
+	 */
+	public static void scaleAllObjects(double scaleFactor) {
+		scaleAllObjects(getCurrentHierarchy(), scaleFactor);
+	}
+	
+	/**
+	 * Resize the ROIs of all objects in the specified object hierarchy.
+	 * @param hierarchy the object hierarchy
+	 * @param scaleFactor scale factor
+	 * @since v0.4.0
+	 * @see #transformAllObjects(PathObjectHierarchy, AffineTransform)
+	 */
+	public static void scaleAllObjects(PathObjectHierarchy hierarchy, double scaleFactor) {
+		transformAllObjects(hierarchy, AffineTransform.getScaleInstance(scaleFactor, scaleFactor));
+	}
+	
+	/**
+	 * Translate (move) the ROIs of all objects in the current object hierarchy.
+	 * @param dx amount to translate horizontally (in pixels)
+	 * @param dy amount to translate vertically (in pixels)
+	 * @since v0.4.0
+	 * @see #transformAllObjects(AffineTransform)
+	 */
+	public static void translateAllObjects(double dx, double dy) {
+		translateAllObjects(getCurrentHierarchy(), dx, dy);
+	}
+	
+	/**
+	 * Translate (move) the ROIs of all objects in the specified object hierarchy.
+	 * @param hierarchy the object hierarchy
+	 * @param dx amount to translate horizontally (in pixels)
+	 * @param dy amount to translate vertically (in pixels)
+	 * @since v0.4.0
+	 * @see #transformAllObjects(PathObjectHierarchy, AffineTransform)
+	 */
+	public static void translateAllObjects(PathObjectHierarchy hierarchy, double dx, double dy) {
+		transformAllObjects(hierarchy, AffineTransform.getTranslateInstance(dx, dy));
 	}
 	
 	/**
@@ -2013,6 +2161,77 @@ public class QP {
 		PathObjectHierarchy hierarchy = getCurrentHierarchy();
 		resetClassifications(hierarchy, cls);
 	}
+
+	/**
+	 * Refresh all object IDs for the current hierarchy.
+	 * @since v0.4.0
+	 */
+	public static void refreshIDs() {
+		refreshIDs(getCurrentHierarchy(), false);
+	}
+
+	/**
+	 * Refresh all object IDs for the current hierarchy to ensure there are no duplicates,
+	 * retaining the original IDs where possible.
+	 * @return true if object IDs were changed, false otherwise
+	 * @since v0.4.0
+	 */
+	public static boolean refreshDuplicateIDs() {
+		return refreshIDs(getCurrentHierarchy(), true);
+	}
+	
+	/**
+	 * Refresh all object IDs for the current hierarchy.
+	 * @param hierarchy the object hierarchy
+	 * @since v0.4.0
+	 */
+	public static void refreshIDs(PathObjectHierarchy hierarchy) {
+		refreshIDs(hierarchy, false);
+	}
+
+	/**
+	 * Refresh all object IDs for the current hierarchy to ensure there are no duplicates,
+	 * retaining the original IDs where possible.
+	 * @param hierarchy the object hierarchy
+	 * @return true if object IDs were changed, false otherwise
+	 * @since v0.4.0
+	 */
+	public static boolean refreshDuplicateIDs(PathObjectHierarchy hierarchy) {
+		return refreshIDs(hierarchy, true);
+	}
+	
+	/**
+	 * Refresh all object IDs for the specified hierarchy, optionally restricted to duplicates.
+	 * @param hierarchy the object hierarchy
+	 * @param duplicatesOnly if true, only update enough object IDs to avoid duplicates
+	 * @return true if object IDs were changed, false otherwise
+	 * @since v0.4.0
+	 */
+	private static boolean refreshIDs(PathObjectHierarchy hierarchy, boolean duplicatesOnly) {
+		if (hierarchy == null)
+			return false;
+		var pathObjects = hierarchy.getAllObjects(true);
+		if (duplicatesOnly) {
+			var set = new HashSet<UUID>();
+			var changed = new ArrayList<PathObject>();
+			for (var p : pathObjects) {
+				while (!set.add(p.getID())) {
+					p.refreshID();
+					changed.add(p);
+				}
+			}
+			if (changed.isEmpty())
+				return false;
+			assert set.size() == pathObjects.size();
+			hierarchy.fireObjectsChangedEvent(hierarchy, changed);
+			return true;
+		} else {
+			pathObjects.stream().forEach(p -> p.refreshID());
+			hierarchy.fireObjectsChangedEvent(hierarchy, pathObjects);
+			return true;
+		}
+	}
+	
 	
 	/**
 	 * Reset the PathClass for all objects of the specified type in the specified hierarchy.
@@ -2114,7 +2333,57 @@ public class QP {
 			allObjs = allObjs.stream().filter(e -> !e.isRootObject()).collect(Collectors.toList());
 		if (hierarchy != null)
 			hierarchy.getSelectionModel().setSelectedObjects(allObjs, null);
-	}	
+	}
+
+	/**
+	 * Select all objects in the specified hierarchy, excluding the root object.
+	 * @param hierarchy 
+	 * @since v0.4.0
+	 */
+	public static void selectAllObjects(PathObjectHierarchy hierarchy) {
+		selectAllObjects(hierarchy, false);
+	}
+
+	
+	/**
+	 * Select all objects in the current hierarchy, excluding the root object.
+	 * @since v0.4.0
+	 */
+	public static void selectAllObjects() {
+		selectAllObjects(getCurrentHierarchy());
+	}
+	
+
+	/**
+	 * Selected objects in the current hierarchy occurring on the specified z-slice and timepoint.
+	 * @param z z-slice (0-based index)
+	 * @param t timepoint (0-based index)
+	 * @since v0.4.0
+	 * @see #selectObjectsByPlane(PathObjectHierarchy, ImagePlane)
+	 */
+	public static void selectObjectsByPlane(int z, int t) {
+		selectObjectsByPlane(ImagePlane.getPlane(z, t));
+	}
+
+	/**
+	 * Selected objects in the current hierarchy occurring on the specified plane (z-slice and timepoint).
+	 * @param plane
+	 * @since v0.4.0
+	 * @see #selectObjectsByPlane(PathObjectHierarchy, ImagePlane)
+	 */
+	public static void selectObjectsByPlane(ImagePlane plane) {
+		selectObjectsByPlane(getCurrentHierarchy(), plane);
+	}
+	
+	/**
+	 * Selected objects in the specified hierarchy occurring on the specified plane (z-slice and timepoint).
+	 * @param hierarchy
+	 * @param plane
+	 * @since v0.4.0
+	 */
+	public static void selectObjectsByPlane(PathObjectHierarchy hierarchy, ImagePlane plane) {
+		selectObjects(p -> p.hasROI() && p.getROI().getZ() == plane.getZ() && p.getROI().getT() == plane.getT());
+	}
 
 	/**
 	 * Set selected objects to contain (only) all objects in the current hierarchy according to a specified predicate.
@@ -3369,7 +3638,110 @@ public class QP {
 	 * @return true if changes are made to the hierarchy, false otherwise
 	 */
 	public static boolean duplicateSelectedAnnotations() {
-		return PathObjectTools.duplicateSelectedAnnotations(getCurrentHierarchy());
+		return duplicateSelectedAnnotations(getCurrentHierarchy());
+	}
+	
+	/**
+	 * Duplicate the selected annotations in the specified hierarchy.
+	 * @param hierarchy 
+	 * 
+	 * @return true if changes are made to the hierarchy, false otherwise
+	 * @since v0.4.0
+	 */
+	public static boolean duplicateSelectedAnnotations(PathObjectHierarchy hierarchy) {
+		return PathObjectTools.duplicateSelectedAnnotations(hierarchy);
+	}
+	
+	
+	/**
+	 * Copy the selected objects in the current hierarchy to the specified z-slice and timepoint.
+	 * This copies only the objects themselves, discarding any parent/child relationships.
+	 * @param z z-slice (0-based index)
+	 * @param t timepoint (0-based index)
+	 * @return true if changes are made to the hierarchy, false otherwise
+	 * @since v0.4.0
+	 * @see #copySelectedObjectsToPlane(PathObjectHierarchy, ImagePlane)
+	 */
+	public static boolean copySelectedObjectsToPlane(int z, int t) {
+		return copySelectedObjectsToPlane(getCurrentHierarchy(), ImagePlane.getPlane(z, t));
+	}
+	
+	/**
+	 * Copy the selected objects in the current hierarchy to the specified image plane.
+	 * This copies only the objects themselves, discarding any parent/child relationships.
+	 * @param plane 
+	 * @return true if changes are made to the hierarchy, false otherwise
+	 * @since v0.4.0
+	 * @see #copySelectedObjectsToPlane(PathObjectHierarchy, ImagePlane)
+	 */
+	public static boolean copySelectedObjectsToPlane(ImagePlane plane) {
+		return copySelectedObjectsToPlane(getCurrentHierarchy(), plane);
+	}
+	
+	/**
+	 * Copy the selected objects in the specified hierarchy to the specified image plane.
+	 * This copies only the objects themselves, discarding any parent/child relationships.
+	 * @param hierarchy 
+	 * @param plane 
+	 * 
+	 * @return true if changes are made to the hierarchy, false otherwise
+	 * @since v0.4.0
+	 */
+	public static boolean copySelectedObjectsToPlane(PathObjectHierarchy hierarchy, ImagePlane plane) {
+		return copySelectedObjectsToPlane(hierarchy, plane, p -> p.hasROI());
+	}
+	
+	/**
+	 * Copy the selected annotations in the current hierarchy to the specified z-slice and timepoint.
+	 * This copies only the objects themselves, discarding any parent/child relationships.
+	 * @param z z-slice (0-based index)
+	 * @param t timepoint (0-based index)
+	 * @return true if changes are made to the hierarchy, false otherwise
+	 * @since v0.4.0
+	 * @see #copySelectedObjectsToPlane(PathObjectHierarchy, ImagePlane)
+	 */
+	public static boolean copySelectedAnnotationsToPlane(int z, int t) {
+		return copySelectedAnnotationsToPlane(getCurrentHierarchy(), ImagePlane.getPlane(z, t));
+	}
+	
+	/**
+	 * Copy the selected annotations in the current hierarchy to the specified image plane.
+	 * This copies only the objects themselves, discarding any parent/child relationships.
+	 * @param plane 
+	 * @return true if changes are made to the hierarchy, false otherwise
+	 * @since v0.4.0
+	 * @see #copySelectedObjectsToPlane(PathObjectHierarchy, ImagePlane)
+	 */
+	public static boolean copySelectedAnnotationsToPlane(ImagePlane plane) {
+		return copySelectedAnnotationsToPlane(getCurrentHierarchy(), plane);
+	}
+	
+	/**
+	 * Copy the selected annotations in the specified hierarchy to the specified image plane.
+	 * This copies only the objects themselves, discarding any parent/child relationships.
+	 * @param hierarchy 
+	 * @param plane 
+	 * 
+	 * @return true if changes are made to the hierarchy, false otherwise
+	 * @since v0.4.0
+	 */
+	public static boolean copySelectedAnnotationsToPlane(PathObjectHierarchy hierarchy, ImagePlane plane) {
+		return copySelectedObjectsToPlane(hierarchy, plane, p -> p.hasROI() && p.isAnnotation());
+	}
+
+		
+	private static boolean copySelectedObjectsToPlane(PathObjectHierarchy hierarchy, ImagePlane plane, Predicate<PathObject> filter) {
+		if (hierarchy == null)
+			return false;
+		var selected = hierarchy.getSelectionModel().getSelectedObjects();
+		var transformed = selected.stream()
+				.filter(filter)
+				.map(p -> PathObjectTools.updatePlane(p, plane, false, true))
+				.collect(Collectors.toList());
+		if (transformed.isEmpty())
+			return false;
+		hierarchy.addObjects(transformed);
+		return true;
 	}
 	
 	/**
@@ -4056,6 +4428,129 @@ public class QP {
 	}
 	
 	 
+	 /**
+	  * Remove objects that are entirely outside the current image.
+	  * @return true if objects were removed, false otherwise
+	  * @since v0.4.0
+	  * @see #removeObjectsOutsideImage(ImageData, boolean)
+	  */
+	 public static boolean removeObjectsOutsideImage() {
+		 return removeObjectsOutsideImage(getCurrentImageData());
+	 }
+	 
+	 /**
+	  * Remove objects that are entirely or partially outside the current image.
+	  * @param ignoreIntersecting if true, ignore objects that are intersecting the image bounds; if false, remove these intersecting objects too
+	  * @return true if objects were removed, false otherwise
+	  * @since v0.4.0
+	  * @see #removeObjectsOutsideImage(ImageData, boolean)
+	  */
+	 public static boolean removeObjectsOutsideImage(boolean ignoreIntersecting) {
+		 return removeObjectsOutsideImage(getCurrentImageData(), ignoreIntersecting);
+	 }
+
+	 /**
+	  * Remove objects that are entirely or outside the specified image.
+	  * @param imageData the image data, including a hierarchy and server to use
+	  * @return true if objects were removed, false otherwise
+	  * @since v0.4.0
+	  * @see #removeObjectsOutsideImage(ImageData, boolean)
+	  */
+	 public static boolean removeObjectsOutsideImage(ImageData<?> imageData) {
+		 return removeObjectsOutsideImage(imageData, true);		 
+	 }
+
+	 /**
+	  * Remove objects that are entirely or partially outside the specified image.
+	  * @param imageData the image data, including a hierarchy and server to use
+	  * @param ignoreIntersecting if true, ignore objects that are intersecting the image bounds; if false, remove these intersecting objects too
+	  * @return true if objects were removed, false otherwise
+	  * @since v0.4.0
+	  * @see #removeObjectsOutsideImage(ImageData, boolean)
+	  * @see #removeOrClipObjectsOutsideImage(ImageData)
+	  * @implNote TMA cores outside the image can't be removed, because doing so would potentially mess up the TMA grid.
+	  */
+	 public static boolean removeObjectsOutsideImage(ImageData<?> imageData, boolean ignoreIntersecting) {
+		 Objects.requireNonNull(imageData, "Hierarchy must not be null!");
+		 var hierarchy = imageData.getHierarchy();
+		 var server = imageData.getServer();
+		 // Remove objects outside the image - unless they are TMA cores, which would mess up the grid
+		 var toRemoveOriginal = PathObjectTools.findObjectsOutsideImage(hierarchy.getAllObjects(false), server, ignoreIntersecting);
+		 var toRemove = toRemoveOriginal
+				 .stream()
+				 .filter(p -> !p.isTMACore())
+				 .collect(Collectors.toList());
+		 if (toRemove.size() < toRemoveOriginal.size())
+			 logger.warn("TMA cores outside the image can't be removed");
+		 if (toRemove.isEmpty())
+			 return false;
+		 hierarchy.removeObjects(toRemove, true);
+		 hierarchy.getSelectionModel().deselectObjects(toRemove);
+		 return true;
+	 }
+	 
+	 /**
+	  * Remove objects occurring outside the current image bounds, clipping annotations where possible to retain 
+	  * the part that is inside the image.
+	  * @return true if changes were made, false otherwise
+	  * @since v0.4.0
+	  * @see #removeOrClipObjectsOutsideImage(ImageData)
+	  * @see #removeObjectsOutsideImage(ImageData, boolean)
+	  */
+	 public static boolean removeOrClipObjectsOutsideImage() {
+		 return removeOrClipObjectsOutsideImage(getCurrentImageData());
+	 }
+	 
+
+	 /**
+	  * Remove objects occurring outside the specified image bounds, clipping annotations where possible to retain 
+	  * the part that is inside the image.
+	  * @param imageData 
+	  * @return true if changes were made, false otherwise
+	  * @since v0.4.0
+	  * @see #removeObjectsOutsideImage(ImageData, boolean)
+	  */
+	 public static boolean removeOrClipObjectsOutsideImage(ImageData<?> imageData) {
+		 var server = imageData.getServer();
+		 var hierarchy = getCurrentHierarchy();
+		 
+		 // Remove all the objects that are completely outside the image
+		 boolean changes = removeObjectsOutsideImage(imageData, true);
+		 
+		 // Find remaining objects that overlap the bounds
+		 var overlapping = PathObjectTools.findObjectsOutsideImage(hierarchy.getAllObjects(false), server, false)
+				 .stream()
+				 .filter(p -> !p.isTMACore())
+				 .collect(Collectors.toList());
+		 if (overlapping.isEmpty())
+			 return changes;
+		 
+		 // Remove the detections entirely
+		 var overlappingDetections = overlapping.stream().filter(p -> p.isDetection()).collect(Collectors.toList());
+		 if (!overlappingDetections.isEmpty()) {
+			 hierarchy.removeObjects(overlappingDetections, true);
+			 changes = true;
+			 // Check if that's everything
+			 if (overlapping.size() == overlappingDetections.size())
+				 return changes;
+		 }
+		 
+		 // Clip any remaining annotations
+		 var clipBounds = GeometryTools.createRectangle(0, 0, server.getWidth(), server.getHeight());
+		 for (var pathObject : overlapping) {
+			 if (pathObject.isAnnotation()) {
+				 var roi = pathObject.getROI();
+				 var geom = roi.getGeometry();
+				 var geom2 = clipBounds.intersection(geom);
+				 var roi2 = GeometryTools.geometryToROI(geom2, roi.getImagePlane());
+				 ((PathAnnotationObject)pathObject).setROI(roi2);
+				 changes = true;
+			 }
+		 }
+		 hierarchy.fireHierarchyChangedEvent(QP.class);
+		 return changes;
+	 }
+
 	 
 	 /*
 	  * If Groovy finds a getXXX() it's liable to make xXX look like a variable...

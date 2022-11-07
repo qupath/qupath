@@ -27,13 +27,19 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.Test;
 
+import com.google.common.collect.Streams;
+
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.regions.ImagePlane;
+import qupath.lib.regions.ImageRegion;
 import qupath.lib.roi.ROIs;
+import qupath.lib.roi.interfaces.ROI;
 
 @SuppressWarnings("javadoc")
 public class TestPathObjectTools extends TestPathObjectMethods { 
@@ -114,6 +120,54 @@ public class TestPathObjectTools extends TestPathObjectMethods {
 		} else {
 			assertNotEquals(p1.getID(), p2.getID());			
 		}
+	}
+	
+	
+	@Test
+	public void testFindOutside() {
+		for (int t = 0; t < 2; t++) {
+			for (int z = 0; z < 2; z++) {
+				var region = ImageRegion.createInstance(10, 20, 30, 40, z, t);
+				
+				// Create an ellipse that fills the region - but doens't go beyond it
+				var roiInside = ROIs.createEllipseROI(region.getMinX(), region.getMinY(), region.getWidth(), region.getHeight(), ImagePlane.getPlane(z, t));
+				var roiInside2 = roiInside.updatePlane(ImagePlane.getDefaultPlane());
+
+				var roiOtherZ = roiInside.updatePlane(ImagePlane.getPlane(z+1, t));
+				var roiOtherT = roiInside.updatePlane(ImagePlane.getPlane(z, t+1));
+				
+				var roiOverlap1 = roiInside.translate(5, 0);
+				var roiOverlap2 = roiInside.translate(-5, 0);
+				var roiOverlap3 = roiInside.translate(0, 5);
+				var roiOverlap4 = roiInside.translate(0, -5);
+				
+				var roiOutside1 = roiInside.translate(100, 0);
+				var roiOutside2 = roiInside.translate(-100, 0);
+				var roiOutside3 = roiInside.translate(0, 100);
+				var roiOutside4 = roiInside.translate(0, -100);
+				
+				var pathObjectsInside = createObjects(roiInside, roiInside2);
+				var pathObjectsOverlaps = createObjects(roiOverlap1, roiOverlap2, roiOverlap3, roiOverlap4);
+				var pathObjectsOutside = createObjects(roiOtherZ, roiOtherT, roiOutside1, roiOutside2, roiOutside3, roiOutside4);
+				
+				var allObjects = Streams.concat(pathObjectsInside.stream(), pathObjectsOverlaps.stream(), pathObjectsOutside.stream()).collect(Collectors.toSet());
+				var outsideOrIntersects = Streams.concat(pathObjectsOverlaps.stream(), pathObjectsOutside.stream()).collect(Collectors.toSet());
+				
+				var foundOutside = PathObjectTools.findObjectsOutsideRegion(allObjects, region, 0, region.getZ()+1, 0, region.getT()+1, true);
+//				System.err.println(foundOutside.size() + " / " + pathObjectsOutside.size());
+				assertEquals(pathObjectsOutside, new HashSet<>(foundOutside));
+
+				var foundOutsideStrict = PathObjectTools.findObjectsOutsideRegion(allObjects, region, 0, region.getZ()+1, 0, region.getT()+1, false);
+//				System.err.println(foundOutsideStrict.size() + " / " + outsideOrIntersects.size());
+				assertEquals(outsideOrIntersects, new HashSet<>(foundOutsideStrict));
+
+			}			
+		}
+	}
+	
+	
+	private static Set<PathObject> createObjects(ROI...rois) {
+		return Arrays.asList(rois).stream().map(r -> PathObjects.createDetectionObject(r)).collect(Collectors.toSet());
 	}
 	
 	
