@@ -153,6 +153,7 @@ This is a work-in-progress.
 * Delaunay connection lines could be broken or slow to display (https://github.com/qupath/qupath/pull/1069)
 * Attempting to add a row or column to a TMA grid with a single core produced weird results
 * The brush/wand tools could sometimes modify annotations selected on a different image plane
+* NPE if GeometryTools.refineAreas() is called with a non-area geometry (https://github.com/qupath/qupath/issues/1060)
 
 ### Changes through Bio-Formats 6.11.0
 * Bio-Formats 6.11.0 brings several important new features to QuPath, including:
