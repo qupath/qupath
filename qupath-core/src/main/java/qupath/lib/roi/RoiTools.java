@@ -378,20 +378,17 @@ public class RoiTools {
 	 * @param roi the ROI to refine
 	 * @param minAreaPixels the minimum size of a fragment to retain
 	 * @param minHoleAreaPixels the minimum size of a hole to retain, or -1 if all holes should be retained
-	 * @return an updated ROI - or null if the modifications caused the ROI to disappear
-	 * @throws IllegalArgumentException if the input ROI doesn't define an area
+	 * @return an updated ROI - which may be empty if the modifications caused the ROI to disappear
 	 * @see GeometryTools#refineAreas(Geometry, double, double)
 	 */
-	public static ROI removeSmallPieces(ROI roi, double minAreaPixels, double minHoleAreaPixels) throws IllegalArgumentException {
-		if (!roi.isArea())
-			throw new IllegalArgumentException("Only area ROIs supported!");
+	public static ROI removeSmallPieces(ROI roi, double minAreaPixels, double minHoleAreaPixels) {
 		
 		logger.trace("Removing small pieces from {} (min = {}, max = {})", roi, minAreaPixels, minHoleAreaPixels);
 		
 		// We can't have holes if we don't have an AreaROI
 		if (roi instanceof RectangleROI || roi instanceof EllipseROI || roi instanceof LineROI || roi instanceof PolylineROI) {
 			if (roi.getArea() < minAreaPixels)
-				return null;
+				return ROIs.createEmptyROI(roi.getImagePlane());
 			else
 				return roi;
 		}
@@ -401,7 +398,7 @@ public class RoiTools {
 		if (geometry == geometry2)
 			return roi;
 		if (geometry2 == null)
-			return null;
+			return ROIs.createEmptyROI(roi.getImagePlane());
 		return GeometryTools.geometryToROI(geometry2, roi.getImagePlane());
 	}
 

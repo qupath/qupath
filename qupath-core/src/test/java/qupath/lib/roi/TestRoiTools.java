@@ -22,6 +22,7 @@
 package qupath.lib.roi;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -114,6 +115,27 @@ public class TestRoiTools {
 		
 		
 	}
+	
+	
+	@Test
+	public void testRemoveSmallRegions() {
+		
+		var roi = ROIs.createRectangleROI(0, 0, 20, 20, ImagePlane.getDefaultPlane());
+		
+		assertEquals(roi, RoiTools.removeSmallPieces(roi, 10, 10));
+		assertFalse(RoiTools.removeSmallPieces(roi, 10, 10).isEmpty());
+		assertTrue(RoiTools.removeSmallPieces(roi, 500, 0).isEmpty());
+		
+		var line = ROIs.createLineROI(0, 0, 100, 100, ImagePlane.getDefaultPlane());
+		assertEquals(line, RoiTools.removeSmallPieces(line, 0, 0)); // Unchanged
+		assertTrue(RoiTools.removeSmallPieces(line, 50, 0).isEmpty());
+
+		var points = ROIs.createPointsROI(10, 10, ImagePlane.getDefaultPlane());
+		assertEquals(points, RoiTools.removeSmallPieces(points, 0, 0)); // Unchanged
+		assertTrue(RoiTools.removeSmallPieces(points, 50, 0).isEmpty());
+
+	}
+	
 	
 	
 	/**

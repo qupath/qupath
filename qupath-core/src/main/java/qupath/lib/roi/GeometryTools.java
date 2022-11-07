@@ -639,7 +639,7 @@ public class GeometryTools {
     	@SuppressWarnings("unchecked")
 		var polygons = (List<Polygon>)PolygonExtracter.getPolygons(geometry);
     	if (polygons.isEmpty())
-    		return null;
+    		return geometry.getFactory().createPolygon();
     	var filtered = polygons
     			.stream()
     			.filter(g -> externalRingArea(g) >= minArea)
@@ -710,27 +710,26 @@ public class GeometryTools {
     
     
     /**
-     * Remove small fragments and fill interior rings within a Geometry.
+     * Remove small fragments and fill small interior rings within a Geometry.
+     * <p>
+     * Note that any modifications to the geometry will result in points and lines being stripped away, 
+     * leaving only polygons.
      * 
      * @param geometry input geometry to refine
      * @param minSizePixels minimum area of a fragment to keep (the area of interior rings for polygons will be ignored)
      * @param minHoleSizePixels minimum size of an interior hole to keep
-     * @return the refined geometry (possibly the original unchanged), or null if the changes resulted in the Geometry disappearing
+     * @return the refined geometry (possibly the original unchanged), or empty geometry if the changes resulted in the Geometry disappearing
      * 
      * @see #removeFragments(Geometry, double)
      * @see #removeInteriorRings(Geometry, double)
-	 * @throws IllegalArgumentException if the input geometry isn't polygonal
      */
-    public static Geometry refineAreas(Geometry geometry, double minSizePixels, double minHoleSizePixels) throws IllegalArgumentException {
+    public static Geometry refineAreas(Geometry geometry, double minSizePixels, double minHoleSizePixels) {
     	
-    	
-    	if (!(geometry instanceof Polygonal)) {
-    		throw new IllegalArgumentException("Can't refine areas for a non-polygonal geometry " + geometry);
-    	}
-		
     	if (minSizePixels <= 0 && minHoleSizePixels <= 0)
 			return geometry;
-    	
+
+    	geometry = ensurePolygonal(geometry);
+
     	var geom2 = geometry;
 		
 //    	// Fill interior rings first
