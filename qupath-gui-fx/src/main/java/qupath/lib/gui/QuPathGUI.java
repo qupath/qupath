@@ -4972,7 +4972,7 @@ public class QuPathGUI {
 					double downsampleRatio = v.getDownsampleFactor() / downsample;
 					if (!Double.isNaN(dx) && !Double.isNaN(downsampleRatio)) {
 						
-						double rot = -v.getRotation();
+						double rot = rotation - v.getRotation();
 						double sin = Math.sin(rot);
 						double cos = Math.cos(rot);
 						
