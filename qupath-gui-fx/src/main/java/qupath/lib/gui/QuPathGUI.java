@@ -704,6 +704,7 @@ public class QuPathGUI {
 		 * Toggle the synchronization of multiple viewers.
 		 */
 		@ActionAccelerator("shortcut+alt+s")
+		@ActionDescription("Synchronize viewers, so that pan, zoom and rotate in one viewer also impacts the other viewers")
 		public final Action TOGGLE_SYNCHRONIZE_VIEWERS = ActionTools.createSelectableAction(viewerManager.synchronizeViewersProperty(), "Synchronize viewers");
 		/**
 		 * Match the resolution of all open viewers.
@@ -2609,10 +2610,6 @@ public class QuPathGUI {
 	}
 	
 	
-	
-	
-	
-	
 	private void setViewerPopupMenu(final QuPathViewerPlus viewer) {
 		
 		final ContextMenu popup = new ContextMenu();
@@ -2623,9 +2620,9 @@ public class QuPathGUI {
 		miAddColumn.setOnAction(e -> viewerManager.addColumn(viewer));
 		
 		MenuItem miRemoveRow = new MenuItem("Remove row");
-		miRemoveRow.setOnAction(e -> viewerManager.removeViewerRow(viewer));
+		miRemoveRow.setOnAction(e -> viewerManager.removeRow(viewer));
 		MenuItem miRemoveColumn = new MenuItem("Remove column");
-		miRemoveColumn.setOnAction(e -> viewerManager.removeViewerColumn(viewer));
+		miRemoveColumn.setOnAction(e -> viewerManager.removeColumn(viewer));
 
 		MenuItem miCloseViewer = new MenuItem("Close viewer");
 		miCloseViewer.setOnAction(e -> {
@@ -4767,8 +4764,12 @@ public class QuPathGUI {
 			return (SplitPane)node;
 		}
 		
-		
-		public void removeViewerRow(final QuPathViewerPlus viewer) {
+		/**
+		 * Try to remove the row containing the specified viewer, notifying the user if this isn't possible.
+		 * @param viewer
+		 * @return true if the row was removed, false otherwise
+		 */
+		public boolean removeRow(final QuPathViewer viewer) {
 //			if (viewer.getServer() != null)
 //				System.err.println(viewer.getServer().getShortServerName());
 			// Note: These are the internal row numbers... these don't necessarily match with the displayed row (?)
@@ -4776,18 +4777,24 @@ public class QuPathGUI {
  			if (row < 0) {
 				// Shouldn't occur...
 				Dialogs.showErrorMessage("Multiview error", "Cannot find " + viewer + " in the grid!");
-				return;
+				return false;
 			}
+ 			if (splitPaneGrid.nRows() == 1) {
+				Dialogs.showErrorMessage("Close row error", "The last row can't be removed!");
+				return false;
+ 			}
+ 			
 			int nOpen = splitPaneGrid.countOpenViewersForRow(row);
 			if (nOpen > 0) {
 				Dialogs.showErrorMessage("Close row error", "Please close all open viewers in selected row, then try again");
 //				DisplayHelpers.showErrorMessage("Close row error", "Please close all open viewers in row " + row + ", then try again");
-				return;
+				return false;
 			}
 			splitPaneGrid.removeRow(row);
 			splitPaneGrid.resetGridSize();
 			// Make sure the viewer list is up-to-date
 			refreshViewerList();
+			return true;
 		}
 		
 		
@@ -4838,39 +4845,50 @@ public class QuPathGUI {
 		}
 		
 		
-		
-		public void removeViewerColumn(final QuPathViewerPlus viewer) {
+		/**
+		 * Try to remove the column containing the specified viewer, notifying the user if this isn't possible.
+		 * @param viewer
+		 * @return true if the column was removed, false otherwise
+		 */
+		public boolean removeColumn(final QuPathViewer viewer) {
 			int col = splitPaneGrid.getColumn(viewer.getView());
 			if (col < 0) {
 				// Shouldn't occur...
 				Dialogs.showErrorMessage("Multiview error", "Cannot find " + viewer + " in the grid!");
-				return;
+				return false;
 			}
+			
+ 			if (splitPaneGrid.nCols() == 1) {
+				Dialogs.showErrorMessage("Close row error", "The last row can't be removed!");
+				return false;
+ 			}
+			
 			int nOpen = splitPaneGrid.countOpenViewersForColumn(col);
 			if (nOpen > 0) {
 				Dialogs.showErrorMessage("Close column error", "Please close all open viewers in selected column, then try again");
 //				DisplayHelpers.showErrorMessage("Close column error", "Please close all open viewers in column " + col + ", then try again");
-				return;
+				return false;
 			}
 			splitPaneGrid.removeColumn(col);
 			splitPaneGrid.resetGridSize();
 			// Make sure the viewer list is up-to-date
 			refreshViewerList();
+			return true;
 		}
 		
 		
-		public void addRow(final QuPathViewerPlus viewer) {
+		public void addRow(final QuPathViewer viewer) {
 			splitViewer(viewer, false);
 			splitPaneGrid.resetGridSize();
 		}
 
-		public void addColumn(final QuPathViewerPlus viewer) {
+		public void addColumn(final QuPathViewer viewer) {
 			splitViewer(viewer, true);
 			splitPaneGrid.resetGridSize();
 		}
 
 		
-		public void splitViewer(final QuPathViewerPlus viewer, final boolean splitVertical) {
+		public void splitViewer(final QuPathViewer viewer, final boolean splitVertical) {
 			if (!viewers.contains(viewer))
 				return;
 			
@@ -4880,20 +4898,6 @@ public class QuPathGUI {
 				splitPaneGrid.addRow(splitPaneGrid.getRow(viewer.getView()));
 			}
 		}
-		
-		/**
-		 * Remove viewer from display
-		 * @param viewer
-		 * @return 
-		 */
-		public boolean removeViewer(QuPathViewer viewer) {
-			if (viewers.size() == 1) {
-				logger.error("Cannot remove last viewer!");
-				return false;
-			}
-			return true;
-		}
-		
 		
 		public void resetGridSize() {
 			splitPaneGrid.resetGridSize();
@@ -4967,10 +4971,21 @@ public class QuPathGUI {
 					if (!Double.isNaN(dr) && dr != 0)
 						v.setRotation(v.getRotation() + dr);
 					
-					// Shift as required
+					// Shift as required - correcting for rotation
 					double downsampleRatio = v.getDownsampleFactor() / downsample;
 					if (!Double.isNaN(dx) && !Double.isNaN(downsampleRatio)) {
-						v.setCenterPixelLocation(v.getCenterPixelX() + dx*downsampleRatio, v.getCenterPixelY() + dy*downsampleRatio);
+						
+						double rot = rotation - v.getRotation();
+						double sin = Math.sin(rot);
+						double cos = Math.cos(rot);
+						
+						double dx2 = dx * downsampleRatio;
+						double dy2 = dy * downsampleRatio;
+
+						double dx3 = cos * dx2 - sin * dy2;
+						double dy3 = sin * dx2 + cos * dy2;
+						
+						v.setCenterPixelLocation(v.getCenterPixelX() + dx3, v.getCenterPixelY() + dy3);
 					}
 				}
 			}
@@ -5107,9 +5122,7 @@ public class QuPathGUI {
 		}
 
 		@Override
-		public void viewerClosed(QuPathViewer viewer) {
-			removeViewer(viewer); // May be avoidable...?
-		}
+		public void viewerClosed(QuPathViewer viewer) {}
 
 		public QuPathViewerPlus getViewer() {
 			return getActiveViewer();

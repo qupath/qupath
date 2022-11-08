@@ -732,18 +732,60 @@ class Menus {
 		public final Action BRIGHTNESS_CONTRAST = actionManager.BRIGHTNESS_CONTRAST;
 		public final Action SEP_1 = ActionTools.createSeparator();
 		
+		@ActionMenu("Multi-view...>Synchronize viewers")
 		@ActionDescription("Synchronize panning and zooming when working with images open in multiple viewers.")
-		public final Action TOGGLE_SYNCHRONIZE_VIEWERS = actionManager.TOGGLE_SYNCHRONIZE_VIEWERS;
+		public final Action MULTIVIEW_SYNCHRONIZE_VIEWERS = actionManager.TOGGLE_SYNCHRONIZE_VIEWERS;
 		
+		@ActionMenu("Multi-view...>Match viewer resolutions")
 		@ActionDescription("Adjust zoom factors to match the resolutions of images open in multiple viewers.")
-		public final Action MATCH_VIEWER_RESOLUTIONS = actionManager.MATCH_VIEWER_RESOLUTIONS;
+		public final Action MULTIVIEW_MATCH_RESOLUTIONS = actionManager.MATCH_VIEWER_RESOLUTIONS;
+
+		@ActionMenu("Multi-view...>")
+		public final Action SEP_00 = ActionTools.createSeparator();
+
+		@ActionMenu("Multi-view...>Add row")
+		@ActionDescription("Add a new row of viewers to the multi-view grid. "
+				+ "This makes it possible to view two or more images side-by-side (vertically).")
+		public final Action MULTIVIEW_ADD_ROW = qupath.createViewerAction(viewer -> qupath.viewerManager.addRow(viewer));
+
+		@ActionMenu("Multi-view...>Add column")
+		@ActionDescription("Add a new column of viewers to the multi-view grid. "
+					+ "This makes it possible to view two or more images side-by-side (horizontally).")
+		public final Action MULTIVIEW_ADD_COLUMN = qupath.createViewerAction(viewer -> qupath.viewerManager.addColumn(viewer));
+
+		@ActionMenu("Multi-view...>")
+		public final Action SEP_01 = ActionTools.createSeparator();
 		
-		@ActionDescription("Open a viewer window that shows individual channels of an image size by side.")
-		@ActionMenu("Mini viewers...>Show channel viewer")
+		@ActionMenu("Multi-view...>Remove row")
+		@ActionDescription("Remove the row containing the current viewer from the multi-view grid, if possible. The last row cannot be removed.")
+		public final Action MULTIVIEW_REMOVE_ROW = qupath.createViewerAction(viewer -> qupath.viewerManager.removeRow(viewer));
+
+		@ActionMenu("Multi-view...>Remove column")
+		@ActionDescription("Remove the column containing the current viewer from the multi-view grid, if possible. The last column cannot be removed.")
+		public final Action MULTIVIEW_REMOVE_COLUMN = qupath.createViewerAction(viewer -> qupath.viewerManager.removeColumn(viewer));
+
+		@ActionMenu("Multi-view...>")
+		public final Action SEP_02 = ActionTools.createSeparator();
+
+		@ActionMenu("Multi-view...>Reset grid size")
+		@ActionDescription("Reset the multi-view grid so that all viewers have the same size")
+		public final Action MULTIVIEW_RESET_GRID = qupath.createViewerAction(viewer -> qupath.viewerManager.resetGridSize());		
+		
+		@ActionMenu("Multi-view...>")
+		public final Action SEP_03 = ActionTools.createSeparator();
+		
+		@ActionMenu("Multi-view...>Close viewer")
+		@ActionDescription("Close the image in the current viewer. This is needed before it's possible to remove a viewer from the multi-view grid.")
+		public final Action MULTIVIEW_CLOSE_VIEWER = qupath.createViewerAction(viewer -> qupath.viewerManager.closeViewer(viewer));
+		
+		@ActionDescription("Open a viewer window that shows individual channels of an image size by side. "
+				+ "This is useful when working with multiplexed/multichannel fluorescence images.")
+		@ActionMenu("Show channel viewer")
 		public final Action CHANNEL_VIEWER = qupath.createViewerAction(viewer -> Commands.showChannelViewer(viewer));
 
-		@ActionDescription("Open a viewer window that shows a view of the pixel under the cursor.")
-		@ActionMenu("Mini viewers...>Show mini viewer")
+		@ActionDescription("Open a viewer window that shows a view of the pixel under the cursor. "
+				+ "This is useful for viewing the image booth zoomed in and zoomed out at the same time.")
+		@ActionMenu("Show mini viewer")
 		public final Action MINI_VIEWER = qupath.createViewerAction(viewer -> Commands.showMiniViewer(viewer));
 		
 		public final Action SEP_2 = ActionTools.createSeparator();
