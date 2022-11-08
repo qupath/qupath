@@ -69,6 +69,7 @@ import javafx.stage.StageStyle;
 import javafx.stage.Window;
 import javafx.stage.WindowEvent;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.tools.GuiTools;
 
 /**
  * QuPath command to display key-presses and mouse movement logged when interacting
@@ -187,7 +188,7 @@ public class InputDisplayCommand implements EventHandler<InputEvent> {
 		stage.initStyle(StageStyle.TRANSPARENT);
 		var scene = new Scene(pane, keyPaneWidth + mousePaneWidth + spacing, 160, Color.TRANSPARENT);
 		stage.setScene(scene);
-		new MoveablePaneHandler(stage);
+		GuiTools.makeDraggableStage(stage);
 
 		var tooltipClose = new Tooltip("Display input - double-click to close");
 		Tooltip.install(pane, tooltipClose);
@@ -461,32 +462,6 @@ public class InputDisplayCommand implements EventHandler<InputEvent> {
 				scrollLeft.set(false);
 				scrollRight.set(false);
 			}
-		}
-
-	}
-
-
-	/**
-	 * Enable an undecorated stage to be moved by clicking and dragging within it.
-	 * Requires the scene to be set. Note that this will set mouse event listeners.
-	 */
-	static class MoveablePaneHandler {
-
-		private double xOffset = 0;
-		private double yOffset = 0;
-
-		MoveablePaneHandler(Stage stage) {
-			var scene = stage.getScene();
-			if (scene == null)
-				throw new IllegalArgumentException("Scene must be set on the stage!");
-			scene.setOnMousePressed(e -> {
-				xOffset = stage.getX() - e.getScreenX();
-				yOffset = stage.getY() - e.getScreenY();
-			});
-			scene.setOnMouseDragged(e -> {
-				stage.setX(e.getScreenX() + xOffset);
-				stage.setY(e.getScreenY() + yOffset);
-			});
 		}
 
 	}

@@ -4,6 +4,7 @@ This is a work-in-progress.
 
 ### Enhancements
 
+* More useful & friendly message on startup
 * Object improvements
   * Annotations can now have visible descriptions
     * Visible at the bottom of the 'Annotation' and 'Hierarchy' tabs or in a standalone window

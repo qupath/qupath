@@ -262,14 +262,57 @@ public class PathPrefs {
 	}
 
 	
-	private static BooleanProperty doAutoUpdateCheck = createPersistentPreference("doAutoUpdateCheck", Boolean.TRUE);
+	/**
+	 * Options for automatic updating checking of QuPath and/or extensions.
+	 */
+	public static enum AutoUpdateType {
+		/**
+		 * Check for QuPath updates only
+		 */
+		QUPATH_ONLY,
+		
+		/**
+		 * Check for QuPath and extensions on GitHub
+		 */
+		QUPATH_AND_EXTENSIONS,
+		
+		/**
+		 * Check for extensions on GitHub only (not new QuPath releases)
+		 */
+		EXTENSIONS_ONLY,
+		
+		/**
+		 * Don't check for any updates automatically
+		 */
+		NONE;
+		
+		@Override
+		public String toString() {
+			switch(this) {
+			case EXTENSIONS_ONLY:
+				return "Extensions only";
+			case NONE:
+				return "None";
+			case QUPATH_AND_EXTENSIONS:
+				return "QuPath + extensions";
+			case QUPATH_ONLY:
+				return "QuPath only";
+			default:
+				return super.toString();
+			}
+		}
+		
+	}
+	
+	
+	private static ObjectProperty<AutoUpdateType> autoUpdateCheck = createPersistentPreference("autoUpdateCheck", AutoUpdateType.QUPATH_AND_EXTENSIONS, AutoUpdateType.class);
 	
 	/**
 	 * Check for updates when launching QuPath, if possible.
 	 * @return
 	 */
-	public static BooleanProperty doAutoUpdateCheckProperty() {
-		return doAutoUpdateCheck;
+	public static ObjectProperty<AutoUpdateType> autoUpdateCheckProperty() {
+		return autoUpdateCheck;
 	}
 
 	
@@ -333,6 +376,20 @@ public class PathPrefs {
 			defaultLocaleDisplay.set(Locale.getDefault(Category.DISPLAY));
 		});
 	}
+	
+	
+	
+	private static BooleanProperty showStartupMessage = createPersistentPreference("showStartupMessage", true);
+	
+	
+	/**
+	 * Show a startup message when QuPath is launched.
+	 * @return
+	 */
+	public static BooleanProperty showStartupMessageProperty() {
+		return showStartupMessage;
+	}
+	
 	
 		
 	private static IntegerProperty maxMemoryMB;
@@ -418,7 +475,7 @@ public class PathPrefs {
 					// With jpackage 15+, this should work
 					String memory = "java-options=-Xmx" + n.intValue() + "M";
 					Path config = getConfigPath();
-					if (!Files.exists(config)) {
+					if (config == null || !Files.exists(config)) {
 						logger.error("Cannot find config file!");
 						return;
 					}

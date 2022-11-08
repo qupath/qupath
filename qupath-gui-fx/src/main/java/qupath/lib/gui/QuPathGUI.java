@@ -114,6 +114,7 @@ import javafx.scene.control.ButtonBar.ButtonData;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.CheckMenuItem;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
@@ -154,6 +155,7 @@ import javafx.scene.layout.Border;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.BorderStroke;
 import javafx.scene.layout.BorderStrokeStyle;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
@@ -200,6 +202,7 @@ import qupath.lib.gui.panes.SelectedMeasurementTableView;
 import qupath.lib.gui.panes.ServerSelector;
 import qupath.lib.gui.panes.WorkflowCommandLogView;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.prefs.PathPrefs.AutoUpdateType;
 import qupath.lib.gui.prefs.PathPrefs.ImageTypeSetting;
 import qupath.lib.gui.prefs.QuPathStyleManager;
 import qupath.lib.gui.scripting.ScriptEditor;
@@ -210,6 +213,7 @@ import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.tools.CommandFinderTools;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.MenuTools;
+import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.tools.IconFactory.PathIcons;
 import qupath.lib.gui.viewer.DragDropImportListener;
 import qupath.lib.gui.viewer.OverlayOptions;
@@ -1532,8 +1536,9 @@ public class QuPathGUI {
 	 * Do an update check.
 	 * @param isAutoCheck if true, avoid prompting the user unless an update is available. If false, the update has been explicitly 
 	 *                    requested and so the user should be notified of the outcome, regardless of whether an update is found.
+	 * @param updateCheckType
 	 */
-	private synchronized void doUpdateCheck(boolean isAutoCheck) {
+	private synchronized void doUpdateCheck(AutoUpdateType updateCheckType, boolean isAutoCheck) {
 
 		String title = "Update check";
 
@@ -1544,15 +1549,18 @@ public class QuPathGUI {
 		// Start with the main app
 		var qupathVersion = getVersion();
 		if (qupathVersion != null && qupathVersion != Version.UNKNOWN) {
-			projects.put(GitHubRepo.create("QuPath", "qupath", "qupath"), qupathVersion);
+			if (updateCheckType == AutoUpdateType.QUPATH_ONLY || updateCheckType == AutoUpdateType.QUPATH_AND_EXTENSIONS)
+				projects.put(GitHubRepo.create("QuPath", "qupath", "qupath"), qupathVersion);
 		}
 		
 		// Work through extensions
-		for (var ext : getLoadedExtensions()) {
-			var v = ext.getVersion();
-			if (v != null && v != Version.UNKNOWN && ext instanceof GitHubProject) {
-				var project = (GitHubProject)ext;
-				projects.put(project.getRepository(), v);
+		if (updateCheckType == AutoUpdateType.QUPATH_AND_EXTENSIONS || updateCheckType == AutoUpdateType.EXTENSIONS_ONLY) {
+			for (var ext : getLoadedExtensions()) {
+				var v = ext.getVersion();
+				if (v != null && v != Version.UNKNOWN && ext instanceof GitHubProject) {
+					var project = (GitHubProject)ext;
+					projects.put(project.getRepository(), v);
+				}
 			}
 		}
 		
@@ -1631,13 +1639,21 @@ public class QuPathGUI {
 		table.setPrefHeight(200);
 		table.setPrefWidth(500);
 		
-		var checkbox = new CheckBox("Automatically check for updates on startup");
-		checkbox.setSelected(PathPrefs.doAutoUpdateCheckProperty().get());
-		checkbox.setMaxWidth(Double.MAX_VALUE);
 		
-		var pane = new BorderPane(table);
-		checkbox.setPadding(new Insets(5, 0, 0, 0));
-		pane.setBottom(checkbox);
+		var comboUpdates = new ComboBox<AutoUpdateType>();
+		comboUpdates.getItems().setAll(AutoUpdateType.values());
+		comboUpdates.getSelectionModel().select(PathPrefs.autoUpdateCheckProperty().get());
+		var labelUpdates = new Label("Check for updates:");
+		labelUpdates.setLabelFor(comboUpdates);
+		labelUpdates.setAlignment(Pos.CENTER_RIGHT);
+		
+		var paneUpdates = new GridPane();
+		paneUpdates.add(labelUpdates, 0, 0);
+		paneUpdates.add(comboUpdates, 1, 0);
+		PaneTools.setToExpandGridPaneHeight(comboUpdates);
+		paneUpdates.setPadding(new Insets(5, 0, 0, 0));
+		
+		pane.setBottom(paneUpdates);
 		
 		var result = new Dialogs.Builder()
 				.buttons(ButtonType.OK)
@@ -1649,7 +1665,7 @@ public class QuPathGUI {
 				.orElse(ButtonType.CANCEL) == ButtonType.OK;
 		
 		if (result) {
-			PathPrefs.doAutoUpdateCheckProperty().set(checkbox.isSelected());
+			PathPrefs.autoUpdateCheckProperty().set(comboUpdates.getSelectionModel().getSelectedItem());
 		}
 	}
 	
@@ -1666,10 +1682,11 @@ public class QuPathGUI {
 	 * 					  and the user won't be prompted if no update is available.
 	 */
 	void checkForUpdate(final boolean isAutoCheck) {
-		
+		AutoUpdateType checkType;
 		if (isAutoCheck) {
-			// Don't run auto check if the user doesn't want it
-			boolean doAutoUpdateCheck = PathPrefs.doAutoUpdateCheckProperty().get();
+			// For automated checks, respect the user preferences for QuPath, extensions or neither
+			checkType = PathPrefs.autoUpdateCheckProperty().get();
+			boolean doAutoUpdateCheck = checkType != null && checkType != AutoUpdateType.NONE;
 			if (!doAutoUpdateCheck)
 				return;
 
@@ -1681,9 +1698,13 @@ public class QuPathGUI {
 				logger.trace("Skipping update check (I already checked recently)");
 				return;
 			}
+		} else {
+			// Check everything when explicitly requested
+			checkType = AutoUpdateType.QUPATH_AND_EXTENSIONS;
 		}
+		
 		// Run the check in a background thread
-		createSingleThreadExecutor(this).execute(() -> doUpdateCheck(isAutoCheck));
+		createSingleThreadExecutor(this).execute(() -> doUpdateCheck(checkType, isAutoCheck));
 	}
 	
 		
@@ -2050,102 +2071,6 @@ public class QuPathGUI {
 			logger.error("Error loading classes", e);
 			return Collections.emptyList();
 		}
-	}
-
-	
-	/**
-	 * Show a dialog requesting setup parameters
-	 * 
-	 * @return
-	 */
-	public boolean showSetupDialog() {
-		// Show a setup message
-		Dialog<ButtonType> dialog = new Dialog<>();
-		dialog.setTitle("QuPath setup");
-		dialog.initOwner(getStage());
-
-		// Try to get an image to display
-		Image img = loadIcon(128);
-		BorderPane pane = new BorderPane();
-		if (img != null) {
-			StackPane imagePane = new StackPane(new ImageView(img));
-			imagePane.setPadding(new Insets(10, 10, 10, 10));
-			pane.setLeft(imagePane);
-		}
-
-		
-		long maxMemoryMB = Runtime.getRuntime().maxMemory() / 1024 / 1024;
-		String maxMemoryString = String.format("Current maximum memory is %.2f GB.", maxMemoryMB/1024.0);
-		
-		boolean canSetMemory = PathPrefs.hasJavaPreferences();
-
-		ParameterList paramsSetup = new ParameterList()
-				.addTitleParameter("Memory");
-		
-		double originalMaxMemory = Math.ceil(maxMemoryMB/1024.0);
-		if (canSetMemory) {
-			paramsSetup.addEmptyParameter("Set the maximum memory used by QuPath.");
-//					.addEmptyParameter(maxMemoryString);
-	
-			boolean lowMemory = maxMemoryMB < 1024*6;
-			if (lowMemory) {
-				paramsSetup.addEmptyParameter(
-						"It is suggested to increase the memory limit to approximately\nhalf of the RAM available on your computer."
-						);
-			}
-			
-			paramsSetup.addDoubleParameter("maxMemoryGB", "Maximum memory", originalMaxMemory, "GB",
-					"Set the maximum memory for Java.\n"
-					+ "Note that some commands (e.g. pixel classification) may still use more memory when needed,\n"
-					+ "so this value should generally not exceed half the total memory available on the system.");
-		} else {
-			paramsSetup.addEmptyParameter(maxMemoryString)
-				.addEmptyParameter("Sorry, I can't access the config file needed to change the max memory.\n" +
-							"See the QuPath installation instructions for more details.");
-		}
-		
-		paramsSetup.addTitleParameter("Updates")
-				.addBooleanParameter("checkForUpdates", "Check for updates on startup (recommended)", PathPrefs.doAutoUpdateCheckProperty().get(), "Specify whether to automatically prompt to download the latest QuPath on startup (required internet connection)")	
-				;
-
-		ParameterPanelFX parameterPanel = new ParameterPanelFX(paramsSetup);
-		pane.setCenter(parameterPanel.getPane());
-				
-		Label labelMemory;
-		if (canSetMemory) {
-			labelMemory = new Label("You will need to restart QuPath for memory changes to take effect");
-			labelMemory.setStyle("-fx-font-weight: bold;");
-			labelMemory.setMaxWidth(Double.MAX_VALUE);
-			labelMemory.setAlignment(Pos.CENTER);
-			labelMemory.setFont(Font.font("Arial"));
-			labelMemory.setPadding(new Insets(10, 10, 10, 10));
-			pane.setBottom(labelMemory);
-		}
-		
-//		dialog.initStyle(StageStyle.UNDECORATED);
-		dialog.getDialogPane().setContent(pane);
-		dialog.getDialogPane().getButtonTypes().setAll(ButtonType.APPLY, ButtonType.CANCEL);
-
-		Optional<ButtonType> result = dialog.showAndWait();
-		if (!result.isPresent() || !ButtonType.APPLY.equals(result.get()))
-			return false;
-		
-		PathPrefs.doAutoUpdateCheckProperty().set(paramsSetup.getBooleanParameterValue("checkForUpdates"));
-		
-		if (canSetMemory && paramsSetup.containsKey("maxMemoryGB")) {
-			int maxMemorySpecifiedMB = (int)(Math.round(paramsSetup.getDoubleParameterValue("maxMemoryGB") * 1024));
-			if (maxMemorySpecifiedMB >= 1024) {
-				PathPrefs.maxMemoryMBProperty().set(maxMemorySpecifiedMB);
-			} else {
-				if (maxMemorySpecifiedMB >= 0)
-					Dialogs.showErrorNotification("Max memory setting", "Specified maximum memory setting too low - it must be at least 1 GB");
-				else
-					logger.warn("Requested max memory must be at least 1 GB - specified value {} will be ignored", paramsSetup.getDoubleParameterValue("maxMemoryGB"));
-//				PathPrefs.maxMemoryMBProperty().set(-1);
-			}
-		}
-		
-		return true;
 	}
 	
 	

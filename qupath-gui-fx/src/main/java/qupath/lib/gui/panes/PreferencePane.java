@@ -45,8 +45,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javafx.beans.binding.Bindings;
+import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.Property;
+import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -63,12 +65,14 @@ import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.logging.LogManager;
 import qupath.lib.gui.logging.LogManager.LogLevel;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.prefs.PathPrefs.AutoUpdateType;
 import qupath.lib.gui.prefs.PathPrefs.DetectionTreeDisplayModes;
 import qupath.lib.gui.prefs.PathPrefs.FontSize;
 import qupath.lib.gui.prefs.PathPrefs.ImageTypeSetting;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.tools.CommandFinderTools;
 import qupath.lib.gui.tools.CommandFinderTools.CommandBarDisplay;
+import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.prefs.QuPathStyleManager;
 
@@ -116,10 +120,54 @@ public class PreferencePane {
 		 */
 		String category = "General";
 		
-		addPropertyPreference(PathPrefs.doAutoUpdateCheckProperty(), Boolean.class,
+
+		boolean canSetMemory = PathPrefs.hasJavaPreferences();
+		long maxMemoryMB = Runtime.getRuntime().maxMemory() / 1024 / 1024;
+		if (canSetMemory) {
+			DoubleProperty propMemoryGB = new SimpleDoubleProperty(maxMemoryMB / 1024.0);
+			
+			addPropertyPreference(propMemoryGB, Double.class, 
+					"Set maximum memory for QuPath",
+					category,
+					"Set the maximum memory for Java.\n"
+							+ "Note that some commands (e.g. pixel classification) may still use more memory when needed,\n"
+							+ "so this value should generally not exceed half the total memory available on the system.");
+			
+			propMemoryGB.addListener((v, o, n) -> {
+				int requestedMemoryMB = (int)Math.round(propMemoryGB.get() * 1024.0);
+				if (requestedMemoryMB > 1024) {
+					boolean success = false;
+					try {
+						PathPrefs.maxMemoryMBProperty().set(requestedMemoryMB);		
+						success = requestedMemoryMB == PathPrefs.maxMemoryMBProperty().get();
+					} catch (Exception e) {
+						logger.error(e.getLocalizedMessage(), e);
+					}
+					if (success) {
+						Dialogs.showInfoNotification("Set max memory",
+								"Setting max memory to " + requestedMemoryMB + " MB - you'll need to restart QuPath for this to take effect"
+								);
+					} else {
+						Dialogs.showErrorMessage("Set max memory",
+								"Unable to set max memory - sorry!\n"
+								+ "Check the FAQs on ReadTheDocs for details how to set the "
+								+ "memory limit by editing QuPath's config file."
+								);						
+					}
+				}
+			});	
+		}
+		
+		
+		addPropertyPreference(PathPrefs.autoUpdateCheckProperty(), AutoUpdateType.class,
 				"Check for updates on startup",
 				category,
-				"Automatically check for updated when QuPath is started, and show a message if a new version is available.");
+				"Automatically check for updates when QuPath is started, and show a message if a new version is available.");
+		
+		addPropertyPreference(PathPrefs.autoUpdateCheckProperty(), AutoUpdateType.class,
+				"Check for updates on startup",
+				category,
+				"Automatically check for updates when QuPath is started, and show a message if a new version is available.");
 
 		addPropertyPreference(PathPrefs.runStartupScriptProperty(), Boolean.class,
 				"Run startup script (if available)",
