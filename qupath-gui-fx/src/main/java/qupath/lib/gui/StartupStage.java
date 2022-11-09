@@ -70,7 +70,7 @@ import qupath.lib.gui.tools.PaneTools;
  */
 class StartupStage {
 	
-	private final static Logger logger = LoggerFactory.getLogger(StartupStage.class);
+	private static final Logger logger = LoggerFactory.getLogger(StartupStage.class);
 	
 	
 	static void showStage(QuPathGUI qupath) {
