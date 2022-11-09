@@ -112,7 +112,7 @@ class WelcomeStage {
 				
 		var pane = new BorderPane(paneButtons);
 		
-		var imageView = new ImageView("file:/Users/petebankhead/Desktop/QuPath sunrise color-784.png");
+		var imageView = new ImageView(WelcomeStage.class.getResource("/images/qupath-welcome.png").toExternalForm());
 		imageView.setFitWidth(440.0);
 		imageView.setOpacity(0.9);
 		imageView.setPreserveRatio(true);
