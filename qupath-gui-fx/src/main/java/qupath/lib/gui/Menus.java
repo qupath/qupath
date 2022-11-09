@@ -1034,10 +1034,9 @@ class Menus {
 	@ActionMenu("Help")
 	public class HelpMenuManager {
 
-		@ActionDescription("Show the setup options that appear when QuPath is first started, " +
-				"to set the maximum memory and locale.")
-		@ActionMenu("Show setup options")
-		public final Action QUPATH_SETUP = createAction(() -> qupath.showSetupDialog());
+		@ActionDescription("Show the startup message that appears when QuPath is first launched")
+		@ActionMenu("Show startup message")
+		public final Action QUPATH_STARTUP = createAction(() -> StartupStage.showStage(qupath));
 
 		@ActionMenu("")
 		public final Action SEP_1 = ActionTools.createSeparator();

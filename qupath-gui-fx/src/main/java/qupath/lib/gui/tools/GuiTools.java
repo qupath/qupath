@@ -100,6 +100,7 @@ import javafx.scene.image.Image;
 import javafx.scene.image.WritableImage;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
@@ -1629,6 +1630,52 @@ public class GuiTools {
 
 		// Success!  Probably...
 		return !hierarchy.getSelectionModel().noSelection();
+	}
+	
+	
+	/**
+	 * Make a stage moveable by click and drag on the scene.
+	 * This is useful for undecorated stages.
+	 * @param stage
+	 * @implNote currently this does not handle changes of scene; the scene must be 
+	 *           set before calling this method, and not changed later.
+	 */
+	public static void makeDraggableStage(Stage stage) {
+		new MoveablePaneHandler(stage);
+	}
+	
+	
+	
+	/**
+	 * Enable an undecorated stage to be moved by clicking and dragging within it.
+	 * Requires the scene to be set. Note that this will set mouse event listeners.
+	 */
+	private static class MoveablePaneHandler implements EventHandler<MouseEvent> {
+
+		private Stage stage;
+		
+		private double xOffset = 0;
+		private double yOffset = 0;
+
+		private MoveablePaneHandler(Stage stage) {
+			this.stage = stage;
+			var scene = stage.getScene();
+			if (scene == null)
+				throw new IllegalArgumentException("Scene must be set on the stage!");
+			scene.addEventFilter(MouseEvent.ANY, this);
+		}
+
+		@Override
+		public void handle(MouseEvent event) {
+			if (event.getEventType() == MouseEvent.MOUSE_PRESSED) {
+				xOffset = stage.getX() - event.getScreenX();
+				yOffset = stage.getY() - event.getScreenY();				
+			} else if (event.getEventType() == MouseEvent.MOUSE_DRAGGED) {
+				stage.setX(event.getScreenX() + xOffset);
+				stage.setY(event.getScreenY() + yOffset);
+			}
+		}
+
 	}
 	
 	
