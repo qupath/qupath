@@ -93,7 +93,7 @@ public class QuPathApp extends Application {
 		// Show setup if required
 		if (!quiet && PathPrefs.showStartupMessageProperty().get()) {
 			Platform.runLater(() -> {
-				StartupStage.showStage(qupath);
+				WelcomeStage.getInstance(qupath).show();
 			});
 		}
 		

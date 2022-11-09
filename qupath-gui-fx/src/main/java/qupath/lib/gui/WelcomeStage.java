@@ -49,7 +49,6 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.Text;
 import javafx.scene.text.TextAlignment;
 import javafx.scene.text.TextFlow;
-import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -68,17 +67,27 @@ import qupath.lib.gui.tools.PaneTools;
  * @author Pete Bankhead
  * @since v0.4.0
  */
-class StartupStage {
+class WelcomeStage {
 	
-	private static final Logger logger = LoggerFactory.getLogger(StartupStage.class);
+	private static final Logger logger = LoggerFactory.getLogger(WelcomeStage.class);
+	
+	private static Stage INSTANCE;
+	
+	public static Stage getInstance(QuPathGUI qupath) {
+		if (INSTANCE == null) {
+			INSTANCE = buildStage(qupath);
+		}
+		return INSTANCE;
+	}
 	
 	
-	static void showStage(QuPathGUI qupath) {
+	
+	private static Stage buildStage(QuPathGUI qupath) {
 		
 		var stage = new Stage();
 		if (qupath != null)
 			stage.initOwner(qupath.getStage());
-		stage.initModality(Modality.APPLICATION_MODAL);
+//		stage.initModality(Modality.APPLICATION_MODAL);
 
 		
 		var btnCode = createGlyphButton(
@@ -136,7 +145,9 @@ class StartupStage {
 		pane.setTop(topPane);
 		
 //		var labelExplanation = new Label("Click a button to learn about QuPath - or choose 'Get started!' below");
-		var labelExplanation = new Label(" ");
+		String defaultMessage = "Find out more about QuPath, customize key options,\n"
+				+ "or click 'Get started!' to close this message";
+		var labelExplanation = new Label(defaultMessage);
 		labelExplanation.setAlignment(Pos.CENTER);
 		labelExplanation.textProperty().bind(Bindings.createStringBinding(() -> {
 			if (btnCode.isHover()) {
@@ -149,7 +160,7 @@ class StartupStage {
 				return "Join other QuPath users & search thousands of discussions\n"
 						+ "on the Scientific Community Image Forum";
 			} else
-				return " \n ";
+				return defaultMessage;
 		}, btnCode.hoverProperty(), btnDocs.hoverProperty(), btnForum.hoverProperty()));
 		labelExplanation.setTextAlignment(TextAlignment.CENTER);
 		labelExplanation.setAlignment(Pos.CENTER);
@@ -249,6 +260,8 @@ class StartupStage {
 		
 		stage.show();
 		btnStarted.requestFocus();
+		
+		return stage;
 		
 	}
 	
