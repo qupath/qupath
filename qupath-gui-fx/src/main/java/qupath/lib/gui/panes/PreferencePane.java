@@ -159,10 +159,11 @@ public class PreferencePane {
 		}
 		
 		
-		addPropertyPreference(PathPrefs.autoUpdateCheckProperty(), AutoUpdateType.class,
-				"Check for updates on startup",
+		addPropertyPreference(PathPrefs.showStartupMessageProperty(), Boolean.class,
+				"Show welcome message when QuPath starts",
 				category,
-				"Automatically check for updates when QuPath is started, and show a message if a new version is available.");
+				"Show the welcome message with links to the docs, forum & code every time QuPath is launched.\n"
+				+ "You can access this message at any time through the 'Help' menu.");
 		
 		addPropertyPreference(PathPrefs.autoUpdateCheckProperty(), AutoUpdateType.class,
 				"Check for updates on startup",

@@ -1034,9 +1034,9 @@ class Menus {
 	@ActionMenu("Help")
 	public class HelpMenuManager {
 
-		@ActionDescription("Show the startup message that appears when QuPath is first launched")
-		@ActionMenu("Show startup message")
-		public final Action QUPATH_STARTUP = createAction(() -> StartupStage.showStage(qupath));
+		@ActionDescription("Show the welcome message that appears when QuPath is first launched")
+		@ActionMenu("Show welcome message")
+		public final Action QUPATH_STARTUP = createAction(() -> WelcomeStage.getInstance(qupath).show());
 
 		@ActionMenu("")
 		public final Action SEP_1 = ActionTools.createSeparator();
