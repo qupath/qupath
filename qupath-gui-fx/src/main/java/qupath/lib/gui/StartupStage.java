@@ -22,6 +22,8 @@
 package qupath.lib.gui;
 
 import org.controlsfx.glyphfont.FontAwesome.Glyph;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.controlsfx.glyphfont.GlyphFontRegistry;
 
 import javafx.beans.binding.Bindings;
@@ -38,6 +40,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.Separator;
 import javafx.scene.control.Tooltip;
 import javafx.scene.image.ImageView;
+import javafx.scene.input.KeyCode;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
@@ -58,11 +61,16 @@ import qupath.lib.gui.tools.PaneTools;
 
 /**
  * Welcome page when launching QuPath.
+ * <p>
+ * Currently this is undecorated; it can be closed by pressing 'Get started' 
+ * (either with mouse or spacebar), double-clicking in the dialog, or pressing escape.
  * 
  * @author Pete Bankhead
  * @since v0.4.0
  */
 class StartupStage {
+	
+	private final static Logger logger = LoggerFactory.getLogger(StartupStage.class);
 	
 	
 	static void showStage(QuPathGUI qupath) {
@@ -223,23 +231,22 @@ class StartupStage {
 		pane.setBottom(paneOptions);
 		pane.setPadding(new Insets(10));
 		
-		boolean doTranslucent = false;
-		if (doTranslucent) {
-//			pane.getStyleClass().add("qupath-startup-dialog");
-			pane.setStyle("-fx-background-radius: 10;");
-			stage.setScene(new Scene(pane, Color.TRANSPARENT));
-			stage.initStyle(StageStyle.TRANSPARENT);
-			GuiTools.makeDraggableStage(stage);
-		} else {
-			stage.setScene(new Scene(pane, Color.TRANSPARENT));
-			stage.initStyle(StageStyle.UNDECORATED);
-//			pane.setStyle("-fx-background-radius: 10;");
-			GuiTools.makeDraggableStage(stage);
-			stage.getScene().setOnMouseClicked(e -> {
-				if (e.getClickCount() == 2)
-					stage.close();
-			});
-		}
+		stage.setScene(new Scene(pane, Color.TRANSPARENT));
+		stage.initStyle(StageStyle.UNDECORATED);
+		GuiTools.makeDraggableStage(stage);
+		stage.getScene().setOnMouseClicked(e -> {
+			if (e.getClickCount() == 2) {
+				logger.info("Startup stage closed by double-click");
+				stage.close();
+			}
+		});
+		stage.getScene().setOnKeyPressed(e -> {
+			if (!e.isConsumed() && e.getCode() == KeyCode.ESCAPE) {
+				logger.info("Startup stage closed by pressing escape");
+				stage.close();				
+			}
+		});
+		
 		stage.show();
 		btnStarted.requestFocus();
 		
