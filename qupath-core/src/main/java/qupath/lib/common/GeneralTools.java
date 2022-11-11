@@ -892,8 +892,8 @@ public final class GeneralTools {
 	 * @param extractor function used to convert each element of the collection to a String representation
 	 */
 	public static <T> void smartStringSort(Collection<T> collection, Function<T, String> extractor) {
-		for (var temp : collection)
-			System.err.println(new StringPartsSorter<T>(temp, temp.toString()));
+//		for (var temp : collection)
+//			System.err.println(new StringPartsSorter<T>(temp, temp.toString()));
 		var list = collection.stream().map(c -> new StringPartsSorter<>(c, extractor.apply(c))).sorted().map(s -> s.obj).collect(Collectors.toList());
 		collection.clear();
 		collection.addAll(list);
