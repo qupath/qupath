@@ -183,8 +183,10 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		boolean containsRoot = false;
 		boolean containsMultiZ = false;
 		boolean containsMultiT = false;
+		boolean containsROIs = false;
 		List<PathObject> pathObjectListCopy = new ArrayList<>(list);
 		for (PathObject temp : pathObjectListCopy) {
+			containsROIs = containsROIs || temp.hasROI();
 			if (temp instanceof PathAnnotationObject) {
 //				if (temp.hasChildren())
 //					containsParentAnnotations = true;
@@ -247,11 +249,11 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 
 		// New v0.4.0: include z and time indices
 		var imageServer = imageData == null ? null : imageData.getServer();
-		if (containsMultiZ || (imageServer != null && imageServer.nZSlices() > 1)) {
+		if (containsMultiZ || (containsROIs && imageServer != null && imageServer.nZSlices() > 1)) {
 			builderMap.put("Z index", new ZSliceMeasurementBuilder());
 		}
 
-		if (containsMultiT || (imageServer != null && imageServer.nTimepoints() > 1)) {
+		if (containsMultiT || (containsROIs && imageServer != null && imageServer.nTimepoints() > 1)) {
 			builderMap.put("Time index", new TimepointMeasurementBuilder());
 		}
 

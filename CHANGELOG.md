@@ -16,6 +16,8 @@ This is a work-in-progress.
 * 'Rotate annotation' command renamed to 'Transform annotation'
   * Optionally apply transform to *all* objects, not just the selected annotation
 * Support user styling via CSS (https://github.com/qupath/qupath/pull/1063)
+* Tabs in the 'Annotation pane' can be undocked to become separate windows
+  * Right-click on 'Project', 'Image', 'Annotations' etc. and choose 'Undock tab' 
 * Many script editor improvements, including:
   * Syntax highlighting for Markdown, JSON, YAML and XML documents
   * Added 'Replace/Next' and 'Replace all' features to Find window (https://github.com/qupath/qupath/pull/898)
