@@ -166,9 +166,13 @@ public class Commands {
 		if (hierarchy == null)
 			return;
 		
-		if (!Dialogs.showConfirmDialog("Resolve hierarchy",
-				"Are you sure you want to resolve object relationships?\n" +
-				"For large object hierarchies this can take a long time.")) {
+		int nObjects = hierarchy.getAllObjects(false).size();
+		String message = "Are you sure you want to resolve object relationships?";
+		if (nObjects > 100) {
+			message += "\nFor large object hierarchies this can take a long time.";
+		}
+		
+		if (!Dialogs.showConfirmDialog("Resolve hierarchy", message)) {
 			return;
 		}
 		hierarchy.resolveHierarchy();

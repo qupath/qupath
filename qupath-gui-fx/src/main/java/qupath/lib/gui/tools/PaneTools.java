@@ -62,6 +62,10 @@ public class PaneTools {
 		var tooltip = tooltipText == null ? null : new Tooltip(tooltipText);
 		
 		for (var n : nodes) {
+			if (n == null) {
+				col++;
+				continue;
+			}
 			if (lastNode == n) {
 				Integer span = GridPane.getColumnSpan(n);
 				if (span == null)

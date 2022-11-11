@@ -92,6 +92,8 @@ import javafx.scene.control.Slider;
 import javafx.scene.control.Spinner;
 import javafx.scene.control.SpinnerValueFactory;
 import javafx.scene.control.SpinnerValueFactory.DoubleSpinnerValueFactory;
+import javafx.scene.control.Tab;
+import javafx.scene.control.TabPane;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextFormatter;
@@ -101,6 +103,7 @@ import javafx.scene.image.WritableImage;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
@@ -1676,6 +1679,43 @@ public class GuiTools {
 			}
 		}
 
+	}
+
+
+
+	/**
+	 * Make a tab undockable, via a context menu available on right-click.
+	 * When undocked, the tab will become a floating window.
+	 * If the window is closed, it will be added back to its original tab pane.
+	 * @param tab
+	 * @since v0.4.0
+	 */
+	public static void makeTabUndockable(Tab tab) {
+		var miUndock = new MenuItem("Undock tab");
+		var popup = new ContextMenu(miUndock);
+		tab.setContextMenu(popup);
+		miUndock.setOnAction(e -> {
+			var tabPane = tab.getTabPane();
+			var parent = tabPane.getScene() == null ? null : tabPane.getScene().getWindow();
+			
+			double width = tabPane.getWidth();
+			double height = tabPane.getHeight();
+			tabPane.getTabs().remove(tab);
+			var stage = new Stage();
+			stage.initOwner(parent);
+			stage.setTitle(tab.getText());
+			var content = tab.getContent();
+			tab.setContent(null);
+			var tabContent = new BorderPane(content);
+			stage.setScene(new Scene(tabContent, width, height));
+			stage.show();
+			
+			stage.setOnCloseRequest(e2 -> {
+				tabContent.getChildren().remove(tabContent);
+				tab.setContent(content);
+				tabPane.getTabs().add(tab);
+			});
+		});
 	}
 	
 	

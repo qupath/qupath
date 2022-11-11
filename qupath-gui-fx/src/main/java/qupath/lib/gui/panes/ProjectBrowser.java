@@ -30,6 +30,7 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
@@ -1247,7 +1248,9 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 							children.add(new ProjectTreeRowItem(row));
 						}
 					} else {
-						children.addAll(getAllMetadataValues(metadataKey).stream()
+						var values = new ArrayList<>(getAllMetadataValues(metadataKey));
+						GeneralTools.smartStringSort(values);
+						children.addAll(values.stream()
 								.map(value -> new ProjectTreeRowItem(new MetadataRow(value)))
 								.collect(Collectors.toList()));
 					}

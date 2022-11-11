@@ -63,7 +63,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.ServiceLoader;
 import java.util.Set;
-import java.util.Optional;
 import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -93,6 +92,7 @@ import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableBooleanValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ListChangeListener.Change;
@@ -112,11 +112,9 @@ import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.ButtonBar.ButtonData;
 import javafx.scene.control.ButtonType;
-import javafx.scene.control.CheckBox;
 import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.ContextMenu;
-import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
 import javafx.scene.control.Menu;
@@ -129,6 +127,7 @@ import javafx.scene.control.SplitPane.Divider;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TabPane.TabClosingPolicy;
+import javafx.scene.control.TabPane.TabDragPolicy;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
@@ -142,7 +141,6 @@ import javafx.scene.control.TreeTableView;
 import javafx.scene.control.TreeView;
 import javafx.scene.effect.DropShadow;
 import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
@@ -157,11 +155,9 @@ import javafx.scene.layout.BorderStroke;
 import javafx.scene.layout.BorderStrokeStyle;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Region;
-import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Ellipse;
 import javafx.scene.shape.Rectangle;
-import javafx.scene.text.Font;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
 import javafx.stage.Window;
@@ -182,7 +178,6 @@ import qupath.lib.gui.commands.LogViewerCommand;
 import qupath.lib.gui.commands.ProjectCommands;
 import qupath.lib.gui.commands.TMACommands;
 import qupath.lib.gui.dialogs.Dialogs;
-import qupath.lib.gui.dialogs.ParameterPanelFX;
 import qupath.lib.gui.dialogs.Dialogs.DialogButton;
 import qupath.lib.gui.extensions.GitHubProject;
 import qupath.lib.gui.extensions.GitHubProject.GitHubRepo;
@@ -322,7 +317,7 @@ public class QuPathGUI {
 	private BooleanProperty zoomToFit = new SimpleBooleanProperty(false);
 	
 	private BorderPane pane; // Main component, to hold toolbar & splitpane
-	private TabPane analysisPanel = new TabPane();
+	private TabPane analysisTabPane = new TabPane();
 	private Region mainViewerPane;
 	
 	private ViewerPlusDisplayOptions viewerDisplayOptions = new ViewerPlusDisplayOptions();
@@ -2174,11 +2169,11 @@ public class QuPathGUI {
 
 //		analysisPanel = createAnalysisPanel();
 		initializeAnalysisPanel();
-		analysisPanel.setMinWidth(300);
-		analysisPanel.setPrefWidth(400);
-		splitPane.setMinWidth(analysisPanel.getMinWidth() + 200);
-		splitPane.setPrefWidth(analysisPanel.getPrefWidth() + 200);
-		SplitPane.setResizableWithParent(analysisPanel, Boolean.FALSE);		
+		analysisTabPane.setMinWidth(300);
+		analysisTabPane.setPrefWidth(400);
+		splitPane.setMinWidth(analysisTabPane.getMinWidth() + 200);
+		splitPane.setPrefWidth(analysisTabPane.getPrefWidth() + 200);
+		SplitPane.setResizableWithParent(analysisTabPane, Boolean.FALSE);		
 
 		
 //		paneCommands.setRight(cbPin);
@@ -2186,7 +2181,7 @@ public class QuPathGUI {
 		mainViewerPane = CommandFinderTools.createCommandFinderPane(this, viewerManager.getNode(), CommandFinderTools.commandBarDisplayProperty());
 //		paneViewer.setTop(tfCommands);
 //		paneViewer.setCenter(viewerManager.getNode());
-		splitPane.getItems().addAll(analysisPanel, mainViewerPane);
+		splitPane.getItems().addAll(analysisTabPane, mainViewerPane);
 //		splitPane.getItems().addAll(viewerManager.getComponent());
 		SplitPane.setResizableWithParent(viewerManager.getNode(), Boolean.TRUE);
 		
@@ -2223,7 +2218,18 @@ public class QuPathGUI {
 	}
 	
 	
-	
+	/**
+	 * Access the main tab pane shown in the QuPath window.
+	 * This enables extensions to add or remove tabs - but be cautious!
+	 * <ul>
+	 * <li>Removing tabs can impact other functionality</li>
+	 * <li>If adding a tab, it is usually best to apply {@link GuiTools#makeTabUndockable(Tab)}</li>
+	 * </ul>
+	 * @return
+	 */
+	public TabPane getAnalysisTabPane() {
+		return analysisTabPane;
+	}
 
 	
 	/**
@@ -4096,12 +4102,13 @@ public class QuPathGUI {
 	
 	
 	private void initializeAnalysisPanel() {
-		analysisPanel.setTabClosingPolicy(TabClosingPolicy.UNAVAILABLE);
+		analysisTabPane.setTabClosingPolicy(TabClosingPolicy.UNAVAILABLE);
+		analysisTabPane.setTabDragPolicy(TabDragPolicy.REORDER);
 		projectBrowser = new ProjectBrowser(this);
 
-		analysisPanel.getTabs().add(new Tab("Project", projectBrowser.getPane()));
+		analysisTabPane.getTabs().add(new Tab("Project", projectBrowser.getPane()));
 		ImageDetailsPane pathImageDetailsPanel = new ImageDetailsPane(this);
-		analysisPanel.getTabs().add(new Tab("Image", pathImageDetailsPanel.getPane()));
+		analysisTabPane.getTabs().add(new Tab("Image", pathImageDetailsPanel.getPane()));
 		
 		/*
 		 * Create tabs.
@@ -4112,76 +4119,82 @@ public class QuPathGUI {
 		 * TODO: Handle analysis pane being entirely hidden.
 		 */
 		
-		// Create a tab for annotations and one for the full object hierarchy
+		// Create a tab for annotations
 		var tabAnnotations = new Tab("Annotations");
 		SplitPane splitAnnotations = new SplitPane();
 		splitAnnotations.setOrientation(Orientation.VERTICAL);
 		var annotationPane = new AnnotationPane(this, imageDataProperty());
-		annotationPane.disableUpdatesProperty().bind(tabAnnotations.selectedProperty().not());		
-		splitAnnotations.getItems().add(annotationPane.getPane());
+		// Don't make updates if the tab isn't visible
+		var annotationTabVisible = Bindings.createBooleanBinding(() -> {
+			return tabAnnotations.getTabPane() == null || tabAnnotations.isSelected();
+		}, tabAnnotations.tabPaneProperty(), tabAnnotations.selectedProperty());
+		annotationPane.disableUpdatesProperty().bind(annotationTabVisible.not());
+		var tabAnnotationsMeasurements = createMeasurementsAndDescriptionsPane(annotationTabVisible);
+		splitAnnotations.getItems().addAll(annotationPane.getPane(), tabAnnotationsMeasurements);
 		tabAnnotations.setContent(splitAnnotations);
-		analysisPanel.getTabs().add(tabAnnotations);		
+		analysisTabPane.getTabs().add(tabAnnotations);		
 		
+		// Create a tab for the full hierarchy
 		var tabHierarchy = new Tab("Hierarchy");
 		final PathObjectHierarchyView paneHierarchy = new PathObjectHierarchyView(this, imageDataProperty());
-		paneHierarchy.disableUpdatesProperty().bind(tabHierarchy.selectedProperty().not());
+		var hierarchyTabVisible = Bindings.createBooleanBinding(() -> {
+			return tabHierarchy.getTabPane() == null || tabHierarchy.isSelected();
+		}, tabHierarchy.tabPaneProperty(), tabHierarchy.selectedProperty());
+		paneHierarchy.disableUpdatesProperty().bind(hierarchyTabVisible.not());
+		var tabHierarchyMeasurements = createMeasurementsAndDescriptionsPane(hierarchyTabVisible);
 		SplitPane splitHierarchy = new SplitPane();
 		splitHierarchy.setOrientation(Orientation.VERTICAL);
-		splitHierarchy.getItems().add(paneHierarchy.getPane());
+		splitHierarchy.getItems().addAll(paneHierarchy.getPane(), tabHierarchyMeasurements);
 		tabHierarchy.setContent(splitHierarchy);
-		analysisPanel.getTabs().add(tabHierarchy);
+		analysisTabPane.getTabs().add(tabHierarchy);
 		
-		// We want to show measurements/descriptions using the same component at the bottom, 
-		// switching its location if the tabs change
-		var tabpaneObjectsShared = new TabPane();
-		var objectMeasurementsTable = new SelectedMeasurementTableView(imageDataProperty());
-		tabpaneObjectsShared.setSide(Side.BOTTOM);
-		var tabSharedTable = new Tab("Measurements", objectMeasurementsTable.getTable());
-		tabpaneObjectsShared.getTabs().add(tabSharedTable);
-		var tabSharedDescription = new Tab("Description", ObjectDescriptionPane.createPane(imageDataProperty(), true));
-		tabpaneObjectsShared.getTabs().add(tabSharedDescription);
-		tabpaneObjectsShared.setTabClosingPolicy(TabClosingPolicy.UNAVAILABLE);
-
-		// We could try to avoid updating when not visible
-//		var annotationTabImageData = Bindings.createObjectBinding(() -> {
-//			return tabAnnotations.isSelected() ? imageDataProperty.get() : null;
-//		}, tabAnnotations.selectedProperty(), imageDataProperty());
-		
-		// We need to add somewhere, otherwise the tableview was slow to update
-		splitAnnotations.getItems().add(tabpaneObjectsShared);
-		
-		analysisPanel.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {
-			// Update split locations
-			if (o == tabAnnotations)
-				splitHierarchy.setDividerPosition(0, splitAnnotations.getDividerPositions()[0]);
-			else if (o == tabHierarchy) {
-				splitAnnotations.setDividerPosition(0, splitHierarchy.getDividerPositions()[0]);				
-			}
-			
-			// Update shared pane location
-			if (n == tabHierarchy) {
-				if (splitHierarchy.getItems().size() <= 1)
-					splitHierarchy.getItems().add(tabpaneObjectsShared);
-				else
-					splitHierarchy.getItems().set(1, tabpaneObjectsShared);
-			} else if (n == tabAnnotations) {
-				if (splitAnnotations.getItems().size() <= 1)
-					splitAnnotations.getItems().add(tabpaneObjectsShared);
-				else
-					splitAnnotations.getItems().set(1, tabpaneObjectsShared);
+		analysisTabPane.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {
+			// Update split locations if both tabs are in the tab pane
+			if (tabAnnotations.getTabPane() != null && tabHierarchy.getTabPane() != null) {
+				if (o == tabHierarchy) {
+					splitHierarchy.setDividerPosition(0, splitAnnotations.getDividerPositions()[0]);
+				} else if (o == tabAnnotations) {
+					splitAnnotations.setDividerPosition(0, splitHierarchy.getDividerPositions()[0]);				
+				}
 			}
 		});
-		
-		// Bind visibility to tab selection - this makes it possible to reduce expensive table updates
-		objectMeasurementsTable.getTable().visibleProperty().bind(tabSharedTable.selectedProperty());
-		
 		var commandLogView = new WorkflowCommandLogView(this);
 		TitledPane titledLog = new TitledPane("Command history", commandLogView.getPane());
 		titledLog.setCollapsible(false);
 		titledLog.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
 		var pane = new BorderPane(titledLog);
-		analysisPanel.getTabs().add(new Tab("Workflow", pane));
+		analysisTabPane.getTabs().add(new Tab("Workflow", pane));
+		
+		// Make the tabs undockable
+		for (var tab : analysisTabPane.getTabs()) {
+			GuiTools.makeTabUndockable(tab);
+		}
 	}
+	
+	/**
+	 * Make a tab pane to show either measurements or descriptions for the selected object.
+	 * Optionally provide a bindable value for visibility, since this can reduce expensive updates.
+	 * @param visible
+	 * @return
+	 */
+	private TabPane createMeasurementsAndDescriptionsPane(ObservableBooleanValue visible) {
+		var tabpaneObjectsShared = new TabPane();
+		var objectMeasurementsTable = new SelectedMeasurementTableView(imageDataProperty());
+		tabpaneObjectsShared.setSide(Side.BOTTOM);
+		var tabSharedTable = new Tab("Measurements", objectMeasurementsTable.getTable());
+		tabpaneObjectsShared.getTabs().add(tabSharedTable);
+		var descriptionPane = ObjectDescriptionPane.createPane(imageDataProperty(), true);
+		var tabSharedDescription = new Tab("Description", descriptionPane);
+		tabpaneObjectsShared.getTabs().add(tabSharedDescription);
+		tabpaneObjectsShared.setTabClosingPolicy(TabClosingPolicy.UNAVAILABLE);
+		
+		if (visible != null) {
+			objectMeasurementsTable.getTable().visibleProperty().bind(visible);
+			descriptionPane.visibleProperty().bind(visible);
+		}
+		return tabpaneObjectsShared;
+	}
+	
 	
 	
 	/**
@@ -4437,7 +4450,7 @@ public class QuPathGUI {
 		if (visible) {
 			if (analysisPanelVisible())
 				return;
-			splitPane.getItems().setAll(analysisPanel, mainViewerPane);
+			splitPane.getItems().setAll(analysisTabPane, mainViewerPane);
 			splitPane.setDividerPosition(0, lastDividerLocation);
 			pane.setCenter(splitPane);
 		} else {

@@ -1247,7 +1247,6 @@ public class PathObjectTools {
 	 * Apply a transform to the ROI of a PathObject, creating a new object of the same type with the new ROI.
 	 * @param pathObject the object to transform; this will be unchanged
 	 * @param roiTransformer the ROI transform to apply
-	 * @param transform optional affine transform; if {@code null}, this effectively acts to duplicate the object
 	 * @param copyMeasurements if true, the measurements and metadata maps of the new object will be populated with those from the pathObject
 	 * @param createNewIDs if true, create new IDs for each copied object; otherwise, retain the same ID.
 	 * @return
