@@ -133,6 +133,8 @@ This is a work-in-progress.
 * Panning with synchronized viewers now corrects for different rotations
 * Multi-view commands now available through 'View' menu (and not only right-clicking a viewer)
   * These make it possible to create grid of viewers, to work with multiple images simultaneously
+* Simplify setting new accelerators (key combinations) via scripts
+  * Example: `getQuPath().setAccelerator("File>Open...", "shift+o")`
 
 
 ### Bugs fixed

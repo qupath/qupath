@@ -79,6 +79,9 @@ import org.controlsfx.control.action.ActionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.collect.BiMap;
+import com.google.common.collect.HashBiMap;
+
 import javafx.application.HostServices;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
@@ -351,7 +354,7 @@ public class QuPathGUI {
 	/**
 	 * Keystrokes can be lost on macOS... so ensure these are handled
 	 */
-	private Map<KeyCombination, Action> comboMap = new HashMap<>();
+	private BiMap<KeyCombination, Action> comboMap = HashBiMap.create();
 	
 	private ObjectProperty<QuPathViewer> viewerProperty = new SimpleObjectProperty<>();
 	
@@ -3562,6 +3565,135 @@ public class QuPathGUI {
 		return null;
 	}
 	
+	/**
+	 * Set an accelerator for the specified menu command.
+	 * The command is defined as described in {@link #lookupMenuItem(String)}, 
+	 * and the accelerator is the the format used by {@link KeyCombination#valueOf(String)}.
+	 * An example:
+	 * <pre>
+	 * <code> 
+	 * setAccelerator("File>Open...", "shift+o");
+	 * </code></pre>
+	 * Where possible, the accelerator for an action associated with a menu item will be changed.
+	 * If the combo is null, any existing accelerator will be removed.
+	 * Additionally, if the accelerator is already assigned to another item then it will be 
+	 * removed from that item.
+	 * 
+	 * @param menuCommand
+	 * @param combo
+	 * @return true if a change was made, false otherwise
+	 * @see #lookupMenuItem(String)
+	 * @see #setAccelerator(Action, KeyCombination)
+	 */
+	public boolean setAccelerator(String menuCommand, String combo) {
+		Objects.requireNonNull(menuCommand, "Cannot set accelerator for null menu item");
+		var item = lookupMenuItem(menuCommand);
+		if (item == null) {
+			logger.warn("Could not find command for {}", menuCommand);
+			return false;
+		}
+		setAccelerator(item, combo == null ? null : KeyCombination.valueOf(combo));
+		return true;
+	}
+	
+	/**
+	 * Set the accelerator for the specified menu item.
+	 * Where possible, the accelerator will be set via any action that controls 
+	 * the menu item - so that it is applied consistently for other related buttons 
+	 * or menu items.
+	 * <p>
+     * If the combo is null, any existing accelerator will be removed.
+	 * Additionally, if the accelerator is already assigned to another item then it will be 
+	 * removed from that item.
+	 * 
+	 * @param item
+	 * @param combo
+	 * @return true if changes were made, false otherwise
+	 * @see #setAccelerator(Action, KeyCombination)
+	 */
+	public boolean setAccelerator(MenuItem item, KeyCombination combo) {
+		if (!Platform.isFxApplicationThread()) {
+			return GuiTools.callOnApplicationThread(() -> setAccelerator(item, combo));
+		}
+
+		Objects.requireNonNull(item, "Cannot set accelerator for null menu item");
+		var action = ActionTools.getActionProperty(item);
+		var existingItem = combo == null ? null : lookupAccelerator(combo);
+		if (existingItem != null) {
+			if (existingItem == item || existingItem == action) {
+				logger.info("Accelerator {} already set for {} - no changes needed", combo, item.getText());
+				return false;
+			} else if (existingItem != null) {
+				if (existingItem instanceof MenuItem) {
+					var mi = (MenuItem)existingItem;
+					setAccelerator(mi, null);
+				} else if (existingItem instanceof Action) {
+					var existingAction = (Action)existingItem;
+					setAccelerator(existingAction, null);
+				} else {
+					// Shouldn't happen
+					logger.warn("Can't identify {} to remove accelerator", existingItem);
+				}
+			}
+		}
+		if (action != null) {
+			// Prefer setting the accelerator on the action, rather than the menu item
+			if (!setAccelerator(action, combo))
+				return false;
+		} else {
+			// Set accelerator on the menu item if there is no action
+			item.acceleratorProperty().unbind();
+			if (item.getAccelerator() != null) {
+				if (combo == null)
+					logger.warn("Accelerator {} for {} will be removed", item.getAccelerator(), item.getText());
+				else
+					logger.warn("Accelerator for {} will be changed from {} to {}", item.getText(), item.getAccelerator(), combo);
+			}
+			item.setAccelerator(combo);
+		}
+		 // Seems necessary to re-add the menu item on Windows to get it working
+        var menu = item.getParentMenu();
+        var items = menu.getItems();
+        int ind = items.indexOf(item);
+        items.remove(item);
+        items.add(ind, item);
+        return true;
+	}
+
+	/**
+	 * Set the accelerator for the specified action.
+     * If the combo is null, any existing accelerator will be removed.
+	 * Additionally, if the accelerator is already assigned to another action then it will be 
+	 * removed from that item.
+	 * 
+	 * @param action
+	 * @param combo
+	 * @return true if changes were made, false otherwise
+	 * @see #setAccelerator(String, String)
+	 * @see #setAccelerator(MenuItem, KeyCombination)
+	 */
+	public boolean setAccelerator(Action action, KeyCombination combo) {
+		if (!Platform.isFxApplicationThread()) {
+			return GuiTools.callOnApplicationThread(() -> setAccelerator(action, combo));
+		}
+		Objects.requireNonNull(action, "Cannot set accelerator for null action");
+		if (Objects.equals(action.getAccelerator(), combo)) {
+			logger.info("Accelerator {} already set for {} - no changes needed", combo, action.getText());
+			return false;
+		}
+		action.acceleratorProperty().unbind();
+		if (action.getAccelerator() != null) {
+			if (combo == null)
+				logger.warn("Accelerator {} for {} will be removed", action.getAccelerator(), action.getText());
+			else
+				logger.info("Accelerator for {} will be changed from {} to {}", action.getText(), action.getAccelerator(), combo);
+		}
+		action.setAccelerator(combo);
+		registerAccelerator(action);
+		return true;
+	}
+
+	
 //	public Map<KeyCombination, String> getAccelerators() {
 //		
 //		var map = new HashMap<KeyCombination, String>();
@@ -3826,8 +3958,14 @@ public class QuPathGUI {
 	 */
 	private Action registerAccelerator(Action action) {
 		var accelerator = action.getAccelerator();
-		if (accelerator == null)
+		// Check if nothing needs to be done
+		if (accelerator != null && comboMap.get(accelerator) == action)
 			return action;
+		// Remove the action if we already had it
+		comboMap.inverse().remove(action);
+		if (accelerator == null) {
+			return action;
+		}
 		var previous = comboMap.put(accelerator, action);
 		if (previous != null && previous != action)
 			logger.warn("Multiple actions registered for {}, will keep {} and drop {}", accelerator, action.getText(), previous.getText());
