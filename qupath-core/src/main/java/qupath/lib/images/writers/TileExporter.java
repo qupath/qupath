@@ -474,8 +474,8 @@ public class TileExporter  {
 			requests.addAll(getTiledRegionRequests(downsample));			
 		else {
 			for (var parent : parentObjects) {
-				int w = (int)Math.ceil(tileWidth*downsample);
-				int h = (int)Math.ceil(tileHeight*downsample);
+				int w = (int)Math.round(tileWidth*downsample);
+				int h = (int)Math.round(tileHeight*downsample);
 				if (parent.isRootObject()) {
 					for (int t = 0; t < server.nTimepoints(); t++) {
 						for (int z = 0; z < server.nZSlices(); z++) {
@@ -483,8 +483,8 @@ public class TileExporter  {
 							if (useParentRoiBounds) {
 								newRequest = RegionRequest.createInstance(server.getPath(), downsample, 0, 0, server.getWidth(), server.getHeight(), z, t);
 							} else {
-								int x = (int)Math.floor(server.getWidth()/2.0 - w/2.0);
-								int y = (int)Math.floor(server.getHeight()/2.0 - h/2.0);
+								int x = (int)Math.round(server.getWidth()/2.0 - w/2.0);
+								int y = (int)Math.round(server.getHeight()/2.0 - h/2.0);
 								newRequest = RegionRequest.createInstance(server.getPath(), downsample, x, y, w, h, z, t);
 							}
 							if (includePartialTiles || withinImage(newRequest, server))
@@ -497,8 +497,8 @@ public class TileExporter  {
 					if (useParentRoiBounds) {
 						newRequest = RegionRequest.createInstance(server.getPath(), downsample, roi);
 					} else {
-						int x = (int)Math.floor(roi.getCentroidX() - w/2.0);
-						int y = (int)Math.floor(roi.getCentroidY() - h/2.0);
+						int x = (int)Math.round(roi.getCentroidX() - w/2.0);
+						int y = (int)Math.round(roi.getCentroidY() - h/2.0);
 						newRequest = RegionRequest.createInstance(server.getPath(), downsample, x, y, w, h, roi.getImagePlane());
 					}
 					if (includePartialTiles || withinImage(newRequest, server))
@@ -700,8 +700,9 @@ public class TileExporter  {
 			pool.awaitTermination(24, TimeUnit.HOURS);
 		} catch (InterruptedException e) {
 			pool.shutdownNow();
-			logger.error("Tile export interrupted: {}", e);
+			logger.error("Tile export interrupted: {}", e.getLocalizedMessage());
 			logger.error("", e);
+			throw new IOException(e);
 		}
 	}
 	
@@ -775,8 +776,10 @@ public class TileExporter  {
 		@Override
 		public void run() {
 			try {
-				if (!Thread.currentThread().isInterrupted())
+				if (Thread.currentThread().isInterrupted()) {
 					logger.debug("Interrupted! Will not write image to {}", path);
+					return;
+				}
 				
 				if (ensureSize) {
 					// Updated for v0.3.0 to ensure the image size is correct
@@ -848,7 +851,11 @@ public class TileExporter  {
 		BufferedImage img;
 		double xProp = 0, yProp = 0;
 		if (request.getX() >= 0 && request.getY() >= 0 && request.getMaxX() <= server.getWidth() && request.getMaxY() <= server.getHeight()) {
-			img = server.readBufferedImage(request);			
+			img = server.readRegion(request);		
+			if (img.getWidth() == width && img.getHeight() == height)
+				return img;
+			else
+				logger.warn("Requested {}x{}, got {}x{} for {}", width, height, img.getWidth(), img.getHeight(), request);
 		} else {
 			int x = GeneralTools.clipValue(request.getMinX(), 0, server.getWidth());
 			int x2 = GeneralTools.clipValue(request.getMaxX(), 0, server.getWidth());
@@ -856,9 +863,9 @@ public class TileExporter  {
 			int y2 = GeneralTools.clipValue(request.getMaxY(), 0, server.getHeight());
 			
 			double downsample = request.getDownsample();
-			var request2 = RegionRequest.createInstance(server.getPath(), downsample, x, y, x2-x, y2-y, request.getPlane());
+			var request2 = RegionRequest.createInstance(server.getPath(), downsample, x, y, x2-x, y2-y, request.getImagePlane());
 			
-			img = server.readBufferedImage(request2);
+			img = server.readRegion(request2);
 			
 			// Pad if required
 			if (height > img.getHeight() || width > img.getWidth()) {
@@ -1006,10 +1013,10 @@ public class TileExporter  {
 		double downsample = request.getDownsample();
 		String path = request.getPath();
 
-		int minX = (int)(request.getMinX() / downsample);
-		int minY = (int)(request.getMinY() / downsample);
-		int maxX = (int)(request.getMaxX() / downsample);
-		int maxY = (int)(request.getMaxY() / downsample);
+		int minX = (int)Math.round(request.getMinX() / downsample);
+		int minY = (int)Math.round(request.getMinY() / downsample);
+		int maxX = (int)Math.round(request.getMaxX() / downsample);
+		int maxY = (int)Math.round(request.getMaxY() / downsample);
 
 		int z = request.getZ();
 		int t = request.getT();

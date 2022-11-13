@@ -312,6 +312,14 @@ public interface ROI {
 	 */
 	public boolean contains(double x, double y);
 	
+	/**
+	 * Create a new ROI defining the same region on a different {@link ImagePlane}.
+	 * The original ROI is unchanged.
+	 * @param plane the new plane to use
+	 * @return
+	 */
+	public ROI updatePlane(ImagePlane plane);
+	
 //	public double getMaxDiameter();
 //	
 //	public double getMinDiameter();

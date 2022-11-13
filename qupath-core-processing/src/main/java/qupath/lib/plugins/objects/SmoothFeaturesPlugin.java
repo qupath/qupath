@@ -133,7 +133,7 @@ public class SmoothFeaturesPlugin<T> extends AbstractInteractivePlugin<T> {
 			@Override
 			public void run() {
 				try {
-					if (!parentObject.hasChildren())
+					if (!parentObject.hasChildObjects())
 						return;
 	//				System.out.println("Smoothing with FWHM " +fwhmPixels);
 					// TODO: MAKE A MORE ELEGANT LIST!!!!
@@ -267,7 +267,7 @@ public class SmoothFeaturesPlugin<T> extends AbstractInteractivePlugin<T> {
 			MeasurementList measurementList = pathObject.getMeasurementList();
 			int ind = 0;
 			for (String name : measurements) {
-				float value = (float)measurementList.getMeasurementValue(name);
+				float value = (float)measurementList.get(name);
 				
 				measurementValues[i][ind] = value;   // Used to cache values
 				measurementsWeighted[i][ind] = value; // Based on distances and measurements
@@ -364,7 +364,7 @@ public class SmoothFeaturesPlugin<T> extends AbstractInteractivePlugin<T> {
 					maxDenominator = denominator;
 				
 				String nameToAdd = prefix + name + postfix;
-				measurementList.putMeasurement(nameToAdd, mWeighted[ind] / denominator);
+				measurementList.put(nameToAdd, mWeighted[ind] / denominator);
 				
 //				measurementsAdded.add(nameToAdd);
 //				measurementList.putMeasurement(name + " - weighted sum", mWeighted[ind]); // TODO: Support optionally providing weighted sums
@@ -373,11 +373,11 @@ public class SmoothFeaturesPlugin<T> extends AbstractInteractivePlugin<T> {
 				ind++;
 			}
 			if (pathObject instanceof PathDetectionObject && denomName != null) {
-				measurementList.putMeasurement(denomName, maxDenominator);
+				measurementList.put(denomName, maxDenominator);
 //				measurementsAdded.add(denomName);
 			}
 			if (pathObject instanceof PathDetectionObject && countsName != null) {
-				measurementList.putMeasurement(countsName, nearbyDetectionCounts[i]);
+				measurementList.put(countsName, nearbyDetectionCounts[i]);
 //				measurementsAdded.add(countsName);
 			}
 			measurementList.close();
@@ -404,12 +404,12 @@ public class SmoothFeaturesPlugin<T> extends AbstractInteractivePlugin<T> {
 		if (hierarchy.getTMAGrid() != null) {
 			logger.info("Smoothing using TMA cores");
 			for (TMACoreObject core : hierarchy.getTMAGrid().getTMACoreList()) {
-				if (core.hasChildren())
+				if (core.hasChildObjects())
 					parents.add(core);
 			}
 		} else {
 			for (PathObject pathObject : hierarchy.getSelectionModel().getSelectedObjects()) {
-				if (pathObject.isAnnotation() && pathObject.hasChildren())
+				if (pathObject.isAnnotation() && pathObject.hasChildObjects())
 					parents.add(pathObject);
 			}			
 			if (!parents.isEmpty())

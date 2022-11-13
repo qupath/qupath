@@ -138,7 +138,7 @@ public class ColorModels {
 		private DisplayBand alphaBand;
 		
 		private SingleChannelColorModelBuilder(DisplayBand band, DisplayBand alphaBand) {
-			Objects.nonNull(band);
+			Objects.requireNonNull(band);
 			this.band = band;
 			this.alphaBand = alphaBand;
 		}

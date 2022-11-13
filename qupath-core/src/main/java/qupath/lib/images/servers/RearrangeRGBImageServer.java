@@ -55,8 +55,8 @@ public class RearrangeRGBImageServer extends TransformingImageServer<BufferedIma
 	}
 	
 	@Override
-	public BufferedImage readBufferedImage(RegionRequest request) throws IOException {
-		var img = super.readBufferedImage(request);
+	public BufferedImage readRegion(RegionRequest request) throws IOException {
+		var img = super.readRegion(request);
 		if (img == null)
 			return null;
 		BufferedImageTools.swapRGBOrder(img, order);

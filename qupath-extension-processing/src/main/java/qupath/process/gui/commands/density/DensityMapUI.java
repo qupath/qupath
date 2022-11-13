@@ -92,7 +92,6 @@ import qupath.lib.objects.PathObjectFilter;
 import qupath.lib.objects.PathObjectPredicates;
 import qupath.lib.objects.PathObjectPredicates.PathObjectPredicate;
 import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
 import qupath.lib.projects.Project;
 import qupath.lib.regions.RegionRequest;
@@ -296,7 +295,7 @@ public class DensityMapUI {
 				var region = tile.getRegionRequest();
 				if (server.isEmptyRegion(region))
 					continue;
-				var imgTile = server.readBufferedImage(region);
+				var imgTile = server.readRegion(region);
 				if (imgTile != null)
 					map.put(region, imgTile);
 			}
@@ -309,13 +308,13 @@ public class DensityMapUI {
 	 * Ignore classification (accept all objects).
 	 * Generated with a UUID for uniqueness, and because it should not be serialized.
 	 */
-	public static final PathClass ANY_CLASS = PathClassFactory.getPathClass(UUID.randomUUID().toString());
+	public static final PathClass ANY_CLASS = PathClass.fromString(UUID.randomUUID().toString());
 
 	/**
 	 * Accept any positive classification, including 1+, 2+, 3+.
 	 * Generated with a UUID for uniqueness, and because it should not be serialized.
 	 */
-	public static final PathClass ANY_POSITIVE_CLASS = PathClassFactory.getPathClass(UUID.randomUUID().toString());
+	public static final PathClass ANY_POSITIVE_CLASS = PathClass.fromString(UUID.randomUUID().toString());
 
 	
 	
@@ -604,7 +603,7 @@ public class DensityMapUI {
 			try {
 				bandCounts = densityServer.nChannels() - 1;
 				var channel = densityServer.getChannel(band);
-				aboveThreshold = PathClassFactory.getPathClass(channel.getName(), channel.getColor());
+				aboveThreshold = PathClass.fromString(channel.getName(), channel.getColor());
 				
 				if (!showDialog(densityServer, renderer, getOwner(event)))
 					return;
@@ -797,7 +796,7 @@ public class DensityMapUI {
 				bandCounts = -1;
 						
 				var channel = densityServer.getChannel(bandThreshold);
-				aboveThreshold = PathClassFactory.getPathClass(channel.getName(), channel.getColor());
+				aboveThreshold = PathClass.fromString(channel.getName(), channel.getColor());
 
 				if (!showDialog(densityServer, renderer, getOwner(event)))
 					return;

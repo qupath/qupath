@@ -79,7 +79,7 @@ abstract class AbstractImageIOWriter implements ImageWriter<BufferedImage> {
 
 	@Override
 	public void writeImage(ImageServer<BufferedImage> server, RegionRequest request, String pathOutput) throws IOException {
-		BufferedImage img = server.readBufferedImage(request);
+		BufferedImage img = server.readRegion(request);
 		writeImage(img, pathOutput);
 	}
 
@@ -98,7 +98,7 @@ abstract class AbstractImageIOWriter implements ImageWriter<BufferedImage> {
 	
 	@Override
 	public void writeImage(ImageServer<BufferedImage> server, RegionRequest request, OutputStream stream) throws IOException {
-		BufferedImage img = server.readBufferedImage(request);
+		BufferedImage img = server.readRegion(request);
 		writeImage(img, stream);
 	}
 

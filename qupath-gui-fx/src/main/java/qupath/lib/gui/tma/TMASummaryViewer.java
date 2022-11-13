@@ -133,6 +133,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
 import javafx.scene.text.TextAlignment;
+import javafx.scene.text.TextFlow;
 import javafx.stage.Stage;
 import javafx.util.Callback;
 import qupath.lib.common.GeneralTools;
@@ -157,16 +158,23 @@ import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.hierarchy.DefaultTMAGrid;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.TMAGrid;
+import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
+import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectImageEntry;
 
 
 /**
  * Standalone viewer for looking at TMA summary results.
+ * <p>
+ * <b>Important!</b> This was used a lot when QuPath was released back in 2016,
+ * but has not been properly maintained ever since.
+ * It is now marked as deprecated, and may be removed or replaced in the future.
  * 
  * @author Pete Bankhead
- *
+ * @deprecated since v0.4.0
  */
+@Deprecated
 public class TMASummaryViewer {
 	
 	private static final Logger logger = LoggerFactory.getLogger(TMASummaryViewer.class);
@@ -205,12 +213,13 @@ public class TMASummaryViewer {
 	
 	private Scene scene;
 
+	private ImageData<BufferedImage> imageData;
+	private PathObjectHierarchyListener hierarchyListener = this::handleHierarchyChange;
 	
 	private static enum ImageAvailability {IMAGE_ONLY, OVERLAY_ONLY, BOTH, NONE}
 	private static ObjectProperty<ImageAvailability> imageAvailability = new SimpleObjectProperty<>(ImageAvailability.NONE);
 	
-	
-	
+		
 	/**
 	 * A combo-box representing the main measurement.
 	 * This will be used for any survival curves.
@@ -403,7 +412,7 @@ public class TMASummaryViewer {
 //				promptForComment();
 //		});
 		
-		table.setPlaceholder(new Text("Drag TMA data folder onto window, or choose File -> Open"));
+		table.setPlaceholder(new Label("Drag TMA data folder onto window, or choose File -> Open"));
 		table.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
 		
 		BorderPane pane = new BorderPane();
@@ -415,7 +424,7 @@ public class TMASummaryViewer {
 		ToolBar toolbar = new ToolBar();
 		Label labelMeasurementMethod = new Label("Combination method");
 		labelMeasurementMethod.setLabelFor(comboMeasurementMethod);
-		labelMeasurementMethod.setTooltip(new Tooltip("Method whereby measurements for multiple cores with the same " + TMACoreObject.KEY_UNIQUE_ID + " will be combined"));
+		labelMeasurementMethod.setTooltip(new Tooltip("Method whereby measurements for multiple cores with the same " + TMACoreObject.KEY_CASE_ID + " will be combined"));
 		
 		CheckBox cbHidePane = new CheckBox("Hide pane");
 		cbHidePane.setSelected(hidePaneProperty.get());
@@ -423,7 +432,7 @@ public class TMASummaryViewer {
 		
 		CheckBox cbGroupByID = new CheckBox("Group by ID");
 		entriesBase.addListener((Change<? extends TMAEntry> event) -> {
-			if (!event.getList().stream().anyMatch(e -> e.getMetadataValue(TMACoreObject.KEY_UNIQUE_ID) != null)) {
+			if (!event.getList().stream().anyMatch(e -> e.getMetadataValue(TMACoreObject.KEY_CASE_ID) != null)) {
 				cbGroupByID.setSelected(false);
 				cbGroupByID.setDisable(true);
 			} else {
@@ -518,10 +527,15 @@ public class TMASummaryViewer {
 								TMAEntry entry = row.getItem();
 								if (entry == null || entry instanceof TMASummaryEntry)
 									return "";
-								else if (entry.isMissing())
-									return "-fx-background-color:rgb(225,225,232)";				
-								else
-									return "-fx-background-color:rgb(240,240,245)";	
+								else if (entry.isMissing()) {
+									var style = "-fx-background-color: derive(-fx-control-inner-background, -4%); "
+											+ "-fx-text-fill: ladder(" // text fill not working - need to change elsewhere
+											+ "-fx-control-inner-background, "
+											+ "derive(-fx-text-inner-color,-50%) 49%, "
+											+ "derive(-fx-text-inner-color,50%) 50%);";
+								    return style;
+								} else
+									return "";	
 							},
 							row.itemProperty(),
 							row.selectedProperty())
@@ -596,7 +610,44 @@ public class TMASummaryViewer {
 		});
 //		predicate.set(new TablePredicate("\"Tumor\" > 100"));
 		
-		scene = new Scene(pane);
+		boolean showWarning = true;
+		if (showWarning) {
+			var paneWithWarning = new BorderPane(pane);
+			
+			var warning = new Text("Warning! ");
+			warning.setStyle("-fx-font-weight: bold; -fx-fill: -fx-text-inner-color");
+			var message = new Text("The TMA data viewer is not actively maintained - "
+					+ "please use cautiously and report any bugs with 'Help > Report bug'");
+			message.setStyle("-fx-fill: -fx-text-inner-color");
+			
+			var textflow = new TextFlow(warning, message);
+			textflow.setTextAlignment(TextAlignment.CENTER);
+			textflow.setStyle("-fx-background-color: rgba(150, 0, 0, 0.25);");
+			textflow.setMaxWidth(Double.MAX_VALUE);
+			textflow.setPadding(new Insets(10));
+			Tooltip.install(textflow, new Tooltip("The TMA data viewer isn't often used and isn't actively maintained, "
+					+ "which means there is a higher risk of unreported bugs.\n"
+					+ "You can double-click this warning to make it disappear."));
+			paneWithWarning.setBottom(textflow);
+			textflow.setOnMouseClicked(e -> {
+				if (e.getClickCount() == 2) {
+					logger.warn("Hiding warning, but it remains the case that the TMA viewer isn't maintained - use it cautiously!");
+					textflow.setVisible(false);
+					paneWithWarning.setBottom(null);
+				}
+			});
+			
+//			var labelWarning = new Label("Warning! The TMA viewer is not actively maintained - "
+//					+ "please use cautiously and use 'Help -> Report bug' to report any bugs");
+//			labelWarning.setContentDisplay(ContentDisplay.CENTER);
+//			labelWarning.setAlignment(Pos.CENTER);
+//			labelWarning.setStyle("-fx-background-color: rgba(150, 0, 0, 0.25); -fx-font-weight: bold;");
+//			labelWarning.setMaxWidth(Double.MAX_VALUE);
+//			labelWarning.setPadding(new Insets(10));
+//			paneWithWarning.setBottom(labelWarning);
+			scene = new Scene(paneWithWarning);
+		} else
+			scene = new Scene(pane);
 		
 		scene.addEventHandler(KeyEvent.KEY_PRESSED, e -> {
 			KeyCode code = e.getCode();
@@ -634,6 +685,7 @@ public class TMASummaryViewer {
 		histogramDisplay.refreshHistogram();
 		updateSurvivalCurves();
 		scatterPane.updateChart();
+		table.sort(); // Make sure we're still sorted, if need be
 	}
 	
 	
@@ -672,7 +724,7 @@ public class TMASummaryViewer {
 		String colScore = null;
 		colCensored = null;
 		for (String nameOrig : model.getAllNames()) {
-			if (nameOrig.equals(TMACoreObject.KEY_UNIQUE_ID))
+			if (nameOrig.equals(TMACoreObject.KEY_CASE_ID))
 				colID = nameOrig;
 //			else if (nameOrig.equals(TMACoreObject.KEY_CENSORED))
 //				colCensored = nameOrig;
@@ -746,12 +798,12 @@ public class TMASummaryViewer {
 			else
 				score = (scores[n/2-1] + scores[n/2]) / 2;
 
-			core.putMetadataValue(TMACoreObject.KEY_UNIQUE_ID, entry.getKey());
+			core.putMetadataValue(TMACoreObject.KEY_CASE_ID, entry.getKey());
 //			System.err.println("Putting: " + list.get(0).getMeasurement(colSurvival).doubleValue() + " LIST: " + list.size());
-			ml.putMeasurement(colSurvival, list.get(0).getMeasurementAsDouble(colSurvival));
-			ml.putMeasurement(colCensoredRequested, list.get(0).getMeasurementAsDouble(colCensored));
+			ml.put(colSurvival, list.get(0).getMeasurementAsDouble(colSurvival));
+			ml.put(colCensoredRequested, list.get(0).getMeasurementAsDouble(colCensored));
 			if (colScore != null)
-				ml.putMeasurement(colScore, score);
+				ml.put(colScore, score);
 
 			cores.add(core);
 			
@@ -1164,8 +1216,15 @@ public class TMASummaryViewer {
 	 * @param imageData
 	 */
 	public void setTMAEntriesFromImageData(final ImageData<BufferedImage> imageData) {
-		setTMAEntries(getEntriesForTMAData(imageData));
-		stage.setTitle("TMA Viewer: " + ServerTools.getDisplayableImageName(imageData.getServer()));
+		if (this.imageData != null) {
+			this.imageData.getHierarchy().removeListener(hierarchyListener);
+		}
+		if (imageData != null) {
+			this.imageData = imageData;
+			this.imageData.getHierarchy().addListener(hierarchyListener);
+			setTMAEntries(getEntriesForTMAData(imageData));
+			stage.setTitle("TMA Viewer: " + ServerTools.getDisplayableImageName(imageData.getServer()));
+		}
 	}
 	
 
@@ -1287,7 +1346,7 @@ public class TMASummaryViewer {
 		if (namesMeasurements.contains(selectedMainMeasurement))
 			comboMainMeasurement.getSelectionModel().select(selectedMainMeasurement);
 		else {
-			namesMeasurements.remove(TMACoreObject.KEY_UNIQUE_ID);
+			namesMeasurements.remove(TMACoreObject.KEY_CASE_ID);
 			namesMeasurements.remove(TMACoreObject.KEY_OVERALL_SURVIVAL);
 			namesMeasurements.remove(TMACoreObject.KEY_RECURRENCE_FREE_SURVIVAL);
 			namesMeasurements.remove(TMACoreObject.KEY_OS_CENSORED);
@@ -1308,8 +1367,26 @@ public class TMASummaryViewer {
 	}
 
 	
+	/**
+	 * Refresh the table; this should update values for cells that wrap a mutable object, 
+	 * but not make any other table changes.
+	 * @see #refreshTableData()
+	 */
+	private void refreshTable() {
+		if (table != null)
+			table.refresh();
+	}
 	
+	private void handleHierarchyChange(PathObjectHierarchyEvent event) {
+		if (table != null && !event.isChanging())
+			table.refresh();
+	}
+
 	
+	/**
+	 * Refresh all the data in the table
+	 * @see #refreshTable()
+	 */
 	private void refreshTableData() {
 		
 //		int nn = 0;
@@ -1383,9 +1460,9 @@ public class TMASummaryViewer {
 				columnOverlay.widthProperty().addListener((v, o, n) -> {
 					if (n.doubleValue() == columnOverlay.getPrefWidth())
 						return;
-					columnImage.setPrefWidth(n.doubleValue());
 					if (hasImages)
-						table.refresh();
+						columnImage.setPrefWidth(n.doubleValue());
+					table.refresh();
 				});
 				columns.add(columnOverlay);
 			}
@@ -1543,11 +1620,11 @@ public class TMASummaryViewer {
 		Map<String, TMASummaryEntry> summaryEntryMap = new TreeMap<>();
 		int maxSummaryLength = 0;
 		for (TMAEntry entry : entries) {
-			String id = entry.getMetadataValue(TMACoreObject.KEY_UNIQUE_ID);
-			if (id == null && entry.getMeasurement(TMACoreObject.KEY_UNIQUE_ID) != null)
-				id = entry.getMeasurement(TMACoreObject.KEY_UNIQUE_ID).toString();
+			String id = entry.getMetadataValue(TMACoreObject.KEY_CASE_ID);
+			if (id == null && entry.getMeasurement(TMACoreObject.KEY_CASE_ID) != null)
+				id = entry.getMeasurement(TMACoreObject.KEY_CASE_ID).toString();
 			if (id == null || id.trim().length() == 0) {
-				if (!"True".equals(entry.getMetadataValue(MISSING_COLUMN)))
+				if (!"true".equalsIgnoreCase(entry.getMetadataValue(MISSING_COLUMN)))
 					logger.trace("No ID found for {}", entry);
 				continue;
 			}
@@ -1602,9 +1679,9 @@ public class TMASummaryViewer {
 			// Identify metadata and numeric columns
 			Map<String, List<String>> metadataColumns = new LinkedHashMap<>();
 			Map<String, double[]> measurementColumns = new LinkedHashMap<>();
-			List<String> idColumn = csvData.remove(TMACoreObject.KEY_UNIQUE_ID);
+			List<String> idColumn = csvData.remove(TMACoreObject.KEY_CASE_ID);
 			if (idColumn != null) {
-				metadataColumns.put(TMACoreObject.KEY_UNIQUE_ID, idColumn);
+				metadataColumns.put(TMACoreObject.KEY_CASE_ID, idColumn);
 				
 				// Make sure IDs are trimmed
 				if (trimUniqueIDs) {
@@ -1633,7 +1710,7 @@ public class TMASummaryViewer {
 				if (idColumn != null && "NaN".equals(idColumn.get(i)))
 					continue;
 				String name = nameColumn == null ? idColumn.get(i) : nameColumn.get(i);
-				boolean missing = missingColumn != null && "True".equals(missingColumn.get(i));
+				boolean missing = missingColumn != null && "true".equalsIgnoreCase(missingColumn.get(i));
 				File fileImage = new File(dirData, name + ".jpg");
 				File fileOverlayImage = new File(dirData, name + "-overlay.jpg");
 				if (!fileOverlayImage.exists())
@@ -1976,9 +2053,9 @@ public class TMASummaryViewer {
 	
 	private int importScores(final String text) {
 		Map<String, List<String>> data = TMAScoreImporter.readCSV(text);
-		List<String> idColumn = data.remove(TMACoreObject.KEY_UNIQUE_ID);
+		List<String> idColumn = data.remove(TMACoreObject.KEY_CASE_ID);
 		if (idColumn == null) {
-			Dialogs.showErrorMessage("Import TMA data", "No '" + TMACoreObject.KEY_UNIQUE_ID + "' column found!");
+			Dialogs.showErrorMessage("Import TMA data", "No '" + TMACoreObject.KEY_CASE_ID + "' column found!");
 			return 0;
 		}
 		// Nothing left to import...
@@ -2005,7 +2082,7 @@ public class TMASummaryViewer {
 				continue;
 			}
 			for (TMAEntry entry : entriesBase) {
-				if (id.equals(entry.getMetadataValue(TMACoreObject.KEY_UNIQUE_ID))) {
+				if (id.equals(entry.getMetadataValue(TMACoreObject.KEY_CASE_ID))) {
 					matched = true;
 					for (Entry<String, double[]> dataEntry : dataNumeric.entrySet()) {
 						entry.putMeasurement(dataEntry.getKey(), dataEntry.getValue()[i]);

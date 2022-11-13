@@ -262,7 +262,7 @@ public class SparseImageServer extends AbstractTileableImageServer {
 				
 				BufferedImage imgTemp = null;
 				synchronized (serverTemp) {
-					imgTemp = serverTemp.readBufferedImage(requestTemp);					
+					imgTemp = serverTemp.readRegion(requestTemp);					
 				}
 				
 				if (imgTemp == null)

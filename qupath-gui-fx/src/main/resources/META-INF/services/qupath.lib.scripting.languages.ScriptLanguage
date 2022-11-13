@@ -1,0 +1,7 @@
+qupath.lib.gui.scripting.languages.PlainLanguage
+qupath.lib.gui.scripting.languages.GroovyLanguage
+qupath.lib.gui.scripting.languages.JsonLanguage
+qupath.lib.gui.scripting.languages.MarkdownLanguage
+qupath.lib.gui.scripting.languages.XmlLanguage
+qupath.lib.gui.scripting.languages.YamlLanguage
+qupath.lib.gui.scripting.languages.CssLanguage

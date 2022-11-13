@@ -230,7 +230,7 @@ public class ColorMaps {
 	 * @see #getDefaultColorMap()
 	 */
 	public static void setDefaultColorMap(ColorMap colorMap) {
-		Objects.nonNull(colorMap);
+		Objects.requireNonNull(colorMap);
 		defaultColorMap = colorMap;
 	}
 	

@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -26,6 +26,7 @@ package qupath.lib.awt.common;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.Image;
+import java.awt.Rectangle;
 import java.awt.Shape;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBuffer;
@@ -482,9 +483,27 @@ public final class BufferedImageTools {
 	 * @param counts histogram counts; if null, a new array will be created. Its must be sufficient for the data type, i.e. 256 or 65536.
 	 * 				 No size checking is performed, therefore if non-null it must be sufficiently large for the data type.
 	 * @param rasterMask optional single-channel mask; if not null, corresponding pixels with 0 values in the mask will be skipped
-	 * @return
+	 * @return the updated histogram counts
+	 * @see #computeUnsignedIntHistogram(WritableRaster, long[], WritableRaster, Rectangle)
 	 */
 	public static long[] computeUnsignedIntHistogram(WritableRaster raster, long[] counts, WritableRaster rasterMask) {
+		return computeUnsignedIntHistogram(raster, counts, rasterMask, null);
+	}
+	
+	/**
+	 * Compute the full histogram for a raster containing 8-bit or 16-bit unsigned integer values, optionally restricted to a bounding rectangle.
+	 * 
+	 * @param raster the raster containing the data for the histogram; if not TYPE_BYTE or TYPE_USHORT an {@link IllegalArgumentException} will be thrown
+	 * @param counts histogram counts; if null, a new array will be created. Its must be sufficient for the data type, i.e. 256 or 65536.
+	 * 				 No size checking is performed, therefore if non-null it must be sufficiently large for the data type.
+	 * @param rasterMask optional single-channel mask; if not null, corresponding pixels with 0 values in the mask will be skipped.
+	 * @param bounds optional rectangle defining the bounds of the raster to search.
+	 *               If not null, this is used with the (also optional) mask to restrict the pixels that are used.
+	 *               This can give substantial performance improvements for small masked regions embedded in larger images.
+	 * @return the updated histogram counts
+	 * @see #computeUnsignedIntHistogram(WritableRaster, long[], WritableRaster)
+	 */	
+	public static long[] computeUnsignedIntHistogram(WritableRaster raster, long[] counts, WritableRaster rasterMask, Rectangle bounds) {
 		if (counts == null) {
 			if (raster.getTransferType() == DataBuffer.TYPE_BYTE)
 				counts = new long[256];
@@ -493,15 +512,28 @@ public final class BufferedImageTools {
 			else
 				throw new IllegalArgumentException("TransferType must be DataBuffer.TYPE_BYTE or DataBuffer.TYPE_USHORT!");
 		}
-		int h = raster.getHeight();
-		int w = raster.getWidth();
+		
+		int width = raster.getWidth();
+		int height = raster.getHeight();
+		
+		// Get bounding box to search
+		// (Note that these values are *not* checked for validity)
+		int x = bounds == null ? 0 : bounds.x;
+		int y = bounds == null ? 0 : bounds.y;
+		int w = bounds == null ? width : bounds.width;
+		int h = bounds == null ? height : bounds.height;
+		if (w <= 0 || h <= 0)
+			return counts;
+		
 		int nBands = raster.getNumBands();
+		
+		// Get the mask samples all at once, if needed, since they will be checked for every pixel
+		// This can help when the masked region is small relative to the entire image (e.g. with cells)
+		int[] maskSamples = rasterMask == null ? null : rasterMask.getSamples(x, y, w, h, 0, (int[])null);
 		for (int b = 0; b < nBands; b++) {
-			for (int y = 0; y < h; y++) {
-				for (int x = 0; x < w; x++) {
-					if (rasterMask != null && rasterMask.getSample(x, y, 0) == 0)
-						continue;
-					int ind = raster.getSample(x, y, b);
+			for (int i = 0; i < w*h; i++) {
+				if (maskSamples == null || maskSamples[i] != 0) {
+					int ind = raster.getSample(i % w + x, i / w + y, b);
 					counts[ind]++;
 				}
 			}
@@ -517,22 +549,56 @@ public final class BufferedImageTools {
 	 * 				 match the number of bands in the raster.
 	 * @param rasterMask optional single-channel mask; if not null, corresponding pixels with 0 values in the mask will be skipped
 	 * @return
+	 * @see #computeArgMaxHistogram(WritableRaster, long[], WritableRaster, Rectangle)
 	 */
 	public static long[] computeArgMaxHistogram(WritableRaster raster, long[] counts, WritableRaster rasterMask) {
+		return computeArgMaxHistogram(raster, counts, rasterMask, null);
+	}
+
+	
+
+	/**
+	 * Create a histogram that identifies the channels (bands) of an image with the maximum values according to the argmax criterion, 
+	 * with an optional bounding rectangle.
+	 * 
+	 * @param raster the multi-band raster containing values to check
+	 * @param counts existing histogram if it should be updated, or null if a new histogram should be created. The length should 
+	 * 				 match the number of bands in the raster.
+	 * @param rasterMask optional single-channel mask; if not null, corresponding pixels with 0 values in the mask will be skipped
+	 * @param bounds optional rectangle defining the bounds of the raster to search.
+	 *               If not null, this is used with the (also optional) mask to restrict the pixels that are used.
+	 *               This can give substantial performance improvements for small masked regions embedded in larger images.
+	 * @return
+	 * @see #computeArgMaxHistogram(WritableRaster, long[], WritableRaster)
+	 */
+	public static long[] computeArgMaxHistogram(WritableRaster raster, long[] counts, WritableRaster rasterMask, Rectangle bounds) {
 		if (counts == null) {
 			counts = new long[raster.getNumBands()];
 		}
-		int h = raster.getHeight();
-		int w = raster.getWidth();
+		
+		int width = raster.getWidth();
+		int height = raster.getHeight();
+		
+		// Get bounding box to search
+		// (Note that these values are *not* checked for validity)
+		int xOrigin = bounds == null ? 0 : bounds.x;
+		int yOrigin = bounds == null ? 0 : bounds.y;
+		int w = bounds == null ? width : bounds.width;
+		int h = bounds == null ? height : bounds.height;
+		if (w <= 0 || h <= 0)
+			return counts;
+		
 		int nBands = raster.getNumBands();
+		double[] samples = null;
 		for (int y = 0; y < h; y++) {
 			for (int x = 0; x < w; x++) {
-				if (rasterMask != null && rasterMask.getSample(x, y, 0) == 0)
+				if (rasterMask != null && rasterMask.getSample(xOrigin + x, yOrigin + y, 0) == 0)
 					continue;
-				double maxValue = raster.getSampleDouble(x, y, 0);
+				samples = raster.getPixel(xOrigin + x, yOrigin + y, samples);
 				int ind = 0;
+				double maxValue = samples[0];
 				for (int i = 1; i < nBands; i++) {
-					double val = raster.getSampleDouble(x, y, i);
+					double val = samples[i];
 					if (val > maxValue) {
 						maxValue = val;
 						ind = i;
@@ -541,6 +607,7 @@ public final class BufferedImageTools {
 				counts[ind]++;
 			}
 		}
+		
 		return counts;
 	}
 
@@ -552,8 +619,28 @@ public final class BufferedImageTools {
 	 * @param threshold threshold value; pixels with values &gt; threshold this will be counted
 	 * @param rasterMask optional single-channel mask; if not null, corresponding pixels with 0 values in the mask will be skipped
 	 * @return
+	 * @see #computeAboveThresholdCounts(WritableRaster, int, double, WritableRaster, Rectangle)
 	 */
 	public static long computeAboveThresholdCounts(WritableRaster raster, int band, double threshold, WritableRaster rasterMask) {
+		return computeAboveThresholdCounts(raster, band, threshold, rasterMask, null);
+	}
+	
+	/**
+	 * Count the number of above-threshold pixels in a specified band of a raster, with optional mask and/or bounding rectangle.
+	 * 
+	 * @param raster the multi-band raster containing values to check
+	 * @param band the band (channel) to consider
+	 * @param threshold threshold value; pixels with values &gt; threshold this will be counted
+	 * @param rasterMask optional single-channel mask; if not null, corresponding pixels with 0 values in the mask will be skipped
+	 * @param bounds optional rectangle defining the bounds of the raster to search.
+	 *               If not null, this is used with the (also optional) mask to restrict the pixels that are used.
+	 *               This can give substantial performance improvements for small masked regions embedded in larger images.
+	 * @return
+	 * @see #computeAboveThresholdCounts(WritableRaster, int, double, WritableRaster)
+	 * @implNote use of the bounding rectangle is not yet implemented
+	 */
+	public static long computeAboveThresholdCounts(WritableRaster raster, int band, double threshold, WritableRaster rasterMask, Rectangle bounds) {
+		// TODO: Incorporate the bounding rectangle in the future (if/when the code starts to be more useful)
 		long count = 0L;
 		int h = raster.getHeight();
 		int w = raster.getWidth();

@@ -128,6 +128,18 @@ public class EllipseROI extends AbstractPathBoundedROI implements Serializable {
 		duplicate.t = t;
 		return duplicate;
 	}
+	
+	
+	@Override
+	public ROI updatePlane(ImagePlane plane) {
+		return new EllipseROI(
+				getBoundsX(),
+				getBoundsY(),
+				getBoundsWidth(),
+				getBoundsHeight(),
+				plane);
+	}
+	
 
 	// TODO: Fix the ellipse polygon points to make it less diamond-y
 	/**

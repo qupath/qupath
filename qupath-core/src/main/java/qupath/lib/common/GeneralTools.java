@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -79,24 +79,48 @@ public final class GeneralTools {
 	
 	private static final Logger logger = LoggerFactory.getLogger(GeneralTools.class);
 	
-	
-	private static final String LATEST_VERSION = getCurrentVersion();
+	/**
+	 * The current QuPath version.
+	 * Package-private for testing purposes.
+	 */
+	private static final String CURRENT_VERSION_STRING = findCurrentVersionString();
+
 	
 	/**
-	 * Request the version of QuPath.
-	 * 
-	 * @return
+	 * Get a String representation of QuPath's version, if known.
+	 * @return a String representation of the version, or null if the version is unknown
+	 * @see #getSemanticVersion()
+	 * @implNote this is the version of the core module containing this class.
 	 */
 	public static String getVersion() {
-		return LATEST_VERSION;
+		return CURRENT_VERSION_STRING;
 	}
+
+
+	/**
+	 * Get a representation of QuPath's version, parsed according to the rules of semantic versioning if possible.
+	 * @return the current version, or null if the version is unknown or cannot be parsed from {@link #getVersion}
+	 * @see #getVersion()
+	 * @implNote this is the version of the core module containing this class.
+	 */
+	public static Version getSemanticVersion() {
+		if (CURRENT_VERSION_STRING == null)
+			return null;
+		try {
+			return Version.parse(CURRENT_VERSION_STRING);
+		} catch (Exception e) {
+			logger.warn("Unable to parse version from " + CURRENT_VERSION_STRING, e);
+			return null;
+		}
+	}
+
 	
 	/**
-	 * Get the current QuPath version.
+	 * Find the current QuPath version.
 	 * @return
 	 */
-	private static String getCurrentVersion() {
-		var version = getPackageVersion(GeneralTools.class);
+	private static String findCurrentVersionString() {
+		var version = GeneralTools.getPackageVersion(GeneralTools.class);
 		// v0.2, less reliable way
 		if (version == null) {
 			var path = Paths.get("VERSION");
@@ -116,6 +140,7 @@ public final class GeneralTools {
 		}
 		return version.strip();
 	}
+	
 	
 	/**
 	 * Try to determine the version of a jar containing a specified class.
@@ -170,7 +195,7 @@ public final class GeneralTools {
 	 * see #getNameWithoutExtension(File)
 	 */
 	public static Optional<String> getExtension(File file) {
-		Objects.nonNull(file);
+		Objects.requireNonNull(file);
 		return getExtension(file.getName());
 	}
 	
@@ -190,9 +215,18 @@ public final class GeneralTools {
 	 * @see #getNameWithoutExtension(File)
 	 */
 	public static Optional<String> getExtension(String name) {
-		Objects.nonNull(name);
+		Objects.requireNonNull(name);
 		var lower = name.toLowerCase();
 		String ext = null;
+		// Handle .gz, which is generally appended after another extension
+		if (lower.endsWith(".gz")) {
+			String previousExt = getExtension(lower.substring(0, lower.length()-3)).orElse(null);
+			if (previousExt == null)
+				return Optional.of(".gz");
+			else
+				return Optional.of(previousExt + ".gz");
+		}
+		
 		for (var temp : DEFAULT_EXTENSIONS) {
 			if (lower.endsWith(temp)) {
 				ext = temp;
@@ -592,7 +626,7 @@ public final class GeneralTools {
 	
 	
 	/**
-	 * Read the entire contents of a file into a single String.
+	 * Read the entire contents of a file given by the specified path into a single String.
 	 * <p>
 	 * Note that from QuPath v0.3 this assumes UTF8 encoding. 
 	 * Previously, platform-specific encoding was assumed.
@@ -603,6 +637,20 @@ public final class GeneralTools {
 	 */
 	public static String readFileAsString(final String path) throws IOException {
 		return Files.readString(Paths.get(path), StandardCharsets.UTF_8);
+	}
+	
+	/**
+	 * Read the entire contents of a file into a single String.
+	 * <p>
+	 * Note that from QuPath v0.3 this assumes UTF8 encoding. 
+	 * Previously, platform-specific encoding was assumed.
+	 * 
+	 * @param file
+	 * @return
+	 * @throws IOException
+	 */
+	public static String readFileAsString(final File file) throws IOException {
+		return Files.readString(file.toPath(), StandardCharsets.UTF_8);
 	}
 	
 	
@@ -844,8 +892,8 @@ public final class GeneralTools {
 	 * @param extractor function used to convert each element of the collection to a String representation
 	 */
 	public static <T> void smartStringSort(Collection<T> collection, Function<T, String> extractor) {
-		for (var temp : collection)
-			System.err.println(new StringPartsSorter<T>(temp, temp.toString()));
+//		for (var temp : collection)
+//			System.err.println(new StringPartsSorter<T>(temp, temp.toString()));
 		var list = collection.stream().map(c -> new StringPartsSorter<>(c, extractor.apply(c))).sorted().map(s -> s.obj).collect(Collectors.toList());
 		collection.clear();
 		collection.addAll(list);

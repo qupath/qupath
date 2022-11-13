@@ -32,16 +32,13 @@ import org.controlsfx.control.ListSelectionView;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javafx.application.Platform;
 import javafx.collections.ListChangeListener;
-import javafx.collections.ObservableList;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
-import javafx.scene.control.ListView;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.image.ImageView;
@@ -50,6 +47,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.paint.Color;
 import javafx.scene.text.TextAlignment;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.projects.ProjectImageEntry;
 
@@ -74,7 +72,7 @@ public class ProjectDialogs {
 								List<ProjectImageEntry<BufferedImage>> selectedImages,
 								String openImageWarning) {
 		
-		ListSelectionView<ProjectImageEntry<BufferedImage>> listSelectionView = new ListSelectionView<>();
+		ListSelectionView<ProjectImageEntry<BufferedImage>> listSelectionView = GuiTools.createListSelectionView();
 		listSelectionView.getSourceItems().setAll(availableImages);
 //		if (selectedImages != null && !selectedImages.isEmpty()) {
 //			listSelectionView.getSourceItems().removeAll(selectedImages);
@@ -112,22 +110,22 @@ public class ProjectDialogs {
 		labelSelected.setMaxWidth(Double.MAX_VALUE);
 		GridPane.setHgrow(labelSelected, Priority.ALWAYS);
 		GridPane.setFillWidth(labelSelected, Boolean.TRUE);
-		Platform.runLater(() -> {
-			getTargetItems(listSelectionView).addListener((ListChangeListener.Change<? extends ProjectImageEntry<?>> e) -> {
-				labelSelected.setText(e.getList().size() + " selected");
-				var currentImages = getCurrentImages(qupath);
-				if (labelSameImageWarning != null && currentImages != null) {
-					boolean visible = false;
-					var targets = e.getList();
-					for (var current : currentImages) {
-						if (targets.contains(current)) {
-							visible = true;
-							break;
-						}
+		
+		var targetItems = listSelectionView.getTargetItems();
+		targetItems.addListener((ListChangeListener.Change<? extends ProjectImageEntry<?>> e) -> {
+			labelSelected.setText(e.getList().size() + " selected");
+			var currentImages = getCurrentImages(qupath);
+			if (labelSameImageWarning != null && currentImages != null) {
+				boolean visible = false;
+				var targets = e.getList();
+				for (var current : currentImages) {
+					if (targets.contains(current)) {
+						visible = true;
+						break;
 					}
-					labelSameImageWarning.setVisible(visible);
 				}
-			});
+				labelSameImageWarning.setVisible(visible);
+			}
 		});
 		
 		var paneSelected = new GridPane();
@@ -155,6 +153,30 @@ public class ProjectDialogs {
 		
 		return listSelectionView;
 	}
+	
+	
+//	private static void refreshTargetLabels(ListSelectionView<ProjectImageEntry<BufferedImage>> listSelectionView, Label labelSelected, Label labelSameImageWarning) {
+//		
+//		var targetItems = listSelectionView.getTargetItems();
+//		
+//		targetItems.addListener((ListChangeListener.Change<? extends ProjectImageEntry<?>> e) -> {
+//			labelSelected.setText(e.getList().size() + " selected");
+//			var currentImages = getCurrentImages(qupath);
+//			if (labelSameImageWarning != null && currentImages != null) {
+//				boolean visible = false;
+//				var targets = e.getList();
+//				for (var current : currentImages) {
+//					if (targets.contains(current)) {
+//						visible = true;
+//						break;
+//					}
+//				}
+//				labelSameImageWarning.setVisible(visible);
+//			}
+//		});
+//		
+//	}
+	
 	
 	
 	/**
@@ -218,55 +240,13 @@ public class ProjectDialogs {
 	}
 	
 	
-	/**
-	 * We should just be able to call {@link ListSelectionView#getTargetItems()}, but in ControlsFX 11 there 
-	 * is a bug that prevents this being correctly bound.
-	 * @param <T>
-	 * @param listSelectionView
-	 * @return target items
-	 */
-	public static <T> ObservableList<T> getTargetItems(ListSelectionView<T> listSelectionView) {
-		var skin = listSelectionView.getSkin();
-		try {
-			logger.debug("Attempting to access target list by reflection (required for controls-fx 11.0.0)");
-			var method = skin.getClass().getMethod("getTargetListView");
-			@SuppressWarnings("unchecked")
-			var view = (ListView<T>)method.invoke(skin);
-			return view.getItems();
-		} catch (Exception e) {
-			logger.warn("Unable to access target list by reflection, sorry", e);
-			return listSelectionView.getTargetItems();
-		}
-	}
-	
-	/**
-	 * We should just be able to call {@link ListSelectionView#getSourceItems()}, but in ControlsFX 11 there 
-	 * is a bug that prevents this being correctly bound.
-	 * @param <T>
-	 * @param listSelectionView
-	 * @return source items
-	 */
-	public static <T> ObservableList<T> getSourceItems(ListSelectionView<T> listSelectionView) {
-		var skin = listSelectionView.getSkin();
-		try {
-			logger.debug("Attempting to access target list by reflection (required for controls-fx 11.0.0)");
-			var method = skin.getClass().getMethod("getSourceListView");
-			@SuppressWarnings("unchecked")
-			var view = (ListView<T>)method.invoke(skin);
-			return view.getItems();
-		} catch (Exception e) {
-			logger.warn("Unable to access target list by reflection, sorry", e);
-			return listSelectionView.getSourceItems();
-		}
-	}
-	
 	private static void updateImageList(final ListSelectionView<ProjectImageEntry<BufferedImage>> listSelectionView, 
 			final List<ProjectImageEntry<BufferedImage>> availableImages, final String filterText, final boolean withDataOnly) {
 		String text = filterText.trim().toLowerCase();
 		
 		// Get an update source items list
 		List<ProjectImageEntry<BufferedImage>> sourceItems = new ArrayList<>(availableImages);
-		var targetItems = getTargetItems(listSelectionView);
+		var targetItems = listSelectionView.getTargetItems();
 		sourceItems.removeAll(targetItems);
 		// Remove those without a data file, if necessary
 		if (withDataOnly) {
@@ -282,8 +262,8 @@ public class ProjectDialogs {
 			}
 		}		
 		
-		if (getSourceItems(listSelectionView).equals(sourceItems))
+		if (listSelectionView.getSourceItems().equals(sourceItems))
 			return;
-		getSourceItems(listSelectionView).setAll(sourceItems);
+		listSelectionView.getSourceItems().setAll(sourceItems);
 	}
 }

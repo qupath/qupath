@@ -73,7 +73,7 @@ class CompositeClassifier<T> implements ObjectClassifier<T> {
 		var beforeMap = createMap(pathObjects);
 //		pathObjects.stream().forEach(p -> p.setPathClass(null)); // Reset classifications
 		if (resetExistingClass)
-			pathObjects.stream().forEach(p -> p.setPathClass(null));
+			pathObjects.stream().forEach(p -> p.resetPathClass());
 		for (var c : classifiers) {
 			c.classifyObjects(imageData, pathObjects, false);
 			if (Thread.currentThread().isInterrupted()) {

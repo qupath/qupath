@@ -46,6 +46,7 @@ import javafx.beans.binding.Binding;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.DoubleBinding;
 import javafx.beans.binding.IntegerBinding;
+import javafx.beans.binding.ObjectBinding;
 import javafx.beans.binding.StringBinding;
 import javafx.beans.property.ReadOnlyListWrapper;
 import javafx.beans.value.ObservableDoubleValue;
@@ -67,7 +68,6 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.regions.ImagePlane;
@@ -86,7 +86,12 @@ import qupath.opencv.ml.pixel.PixelClassificationMeasurementManager;
  */
 public class ObservableMeasurementTableData implements PathTableData<PathObject> {
 	
-	static final Logger logger = LoggerFactory.getLogger(ObservableMeasurementTableData.class);
+	private static final Logger logger = LoggerFactory.getLogger(ObservableMeasurementTableData.class);
+	
+	/**
+	 * The name used for the Object ID column
+	 */
+	public static final String NAME_OBJECT_ID = "Object ID";
 	
 	private ImageData<?> imageData;
 	
@@ -176,8 +181,12 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 //		boolean containsParentAnnotations = false;
 		boolean containsTMACores = false;
 		boolean containsRoot = false;
+		boolean containsMultiZ = false;
+		boolean containsMultiT = false;
+		boolean containsROIs = false;
 		List<PathObject> pathObjectListCopy = new ArrayList<>(list);
 		for (PathObject temp : pathObjectListCopy) {
+			containsROIs = containsROIs || temp.hasROI();
 			if (temp instanceof PathAnnotationObject) {
 //				if (temp.hasChildren())
 //					containsParentAnnotations = true;
@@ -188,6 +197,13 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 				containsDetections = true;
 			} else if (temp.isRootObject())
 				containsRoot = true;
+			var roi = temp.getROI();
+			if (roi != null) {
+				if (roi.getZ() > 0)
+					containsMultiZ = true;
+				if (roi.getT() > 0)
+					containsMultiT = true;
+			}
 		}
 		boolean detectionsAnywhere = imageData == null ? containsDetections : !imageData.getHierarchy().getDetectionObjects().isEmpty();
 
@@ -229,6 +245,16 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 			builderMap.put(builder.getName(), builder);
 			builder = new ROICentroidMeasurementBuilder(imageData, CentroidType.Y);
 			builderMap.put(builder.getName(), builder);
+		}
+
+		// New v0.4.0: include z and time indices
+		var imageServer = imageData == null ? null : imageData.getServer();
+		if (containsMultiZ || (containsROIs && imageServer != null && imageServer.nZSlices() > 1)) {
+			builderMap.put("Z index", new ZSliceMeasurementBuilder());
+		}
+
+		if (containsMultiT || (containsROIs && imageServer != null && imageServer.nTimepoints() > 1)) {
+			builderMap.put("Time index", new TimepointMeasurementBuilder());
 		}
 
 		// If we have metadata, store it
@@ -452,7 +478,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		}
 		// Good news! We just need a regular measurement
 		for (int i = 0; i < filterList.size(); i++)
-			values[i] = filterList.get(i).getMeasurementList().getMeasurementValue(column);
+			values[i] = filterList.get(i).getMeasurementList().get(column);
 		return values;
 	}
 	
@@ -469,7 +495,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 			else
 				return Double.NaN;
 		}
-		return pathObject.getMeasurementList().getMeasurementValue(column);
+		return pathObject.getMeasurementList().get(column);
 	}
 	
 	@Override
@@ -507,7 +533,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 
 		@Override
 		protected double computeValue() {
-			return pathObject.getMeasurementList().getMeasurementValue(name);
+			return pathObject.getMeasurementList().get(name);
 		}
 		
 	}
@@ -618,7 +644,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 //			pathClasses.addAll(basePathClasses);
 
 			pathClasses.remove(null);
-			pathClasses.remove(PathClassFactory.getPathClassUnclassified());
+			pathClasses.remove(PathClass.NULL_CLASS);
 
 			Set<PathClass> parentIntensityClasses = new LinkedHashSet<>();
 			Set<PathClass> parentPositiveNegativeClasses = new LinkedHashSet<>();
@@ -635,7 +661,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 			if (!parentPositiveNegativeClasses.isEmpty()) {
 				List<PathClass> pathClassList = new ArrayList<>(parentPositiveNegativeClasses);
 				pathClassList.remove(null);
-				pathClassList.remove(PathClassFactory.getPathClassUnclassified());
+				pathClassList.remove(PathClass.NULL_CLASS);
 				Collections.sort(pathClassList);
 				for (PathClass pathClass : pathClassList) {
 					builders.add(new ClassCountMeasurementBuilder(pathClass, true));
@@ -1159,12 +1185,12 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		
 		@Override
 		public String getName() {
-			return "Object ID";
+			return NAME_OBJECT_ID;
 		}
 
 		@Override
 		protected String getMeasurementValue(PathObject pathObject) {
-			var id = pathObject.getId(); // Shouldn't be null!
+			var id = pathObject.getID(); // Shouldn't be null!
 			if (id == null) {
 				logger.warn("ID null for {}", pathObject);
 				return null;
@@ -1449,6 +1475,53 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 			if (hasPixelSizeMicrons())
 				return imageData.getServer().getPixelCalibration().getPixelHeightMicrons();
 			return Double.NaN;
+		}
+		
+	}
+	
+	
+	static class ZSliceMeasurementBuilder extends NumericMeasurementBuilder {
+		
+		@Override
+		public String getName() {
+			return "Z-slice";
+		}
+		
+		@Override
+		public Binding<Number> createMeasurement(final PathObject pathObject) {
+			return new ObjectBinding<Number>() {
+				
+				@Override
+				protected Number computeValue() {
+					ROI roi = pathObject.getROI();
+					if (roi == null)
+						return null;
+					return roi.getZ();
+				}
+			};
+		}
+		
+	}
+	
+	static class TimepointMeasurementBuilder extends NumericMeasurementBuilder {
+		
+		@Override
+		public String getName() {
+			return "Timepoint";
+		}
+		
+		@Override
+		public Binding<Number> createMeasurement(final PathObject pathObject) {
+			return new ObjectBinding<Number>() {
+				
+				@Override
+				protected Number computeValue() {
+					ROI roi = pathObject.getROI();
+					if (roi == null)
+						return null;
+					return roi.getT();
+				}
+			};
 		}
 		
 	}
@@ -1840,7 +1913,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 			logger.warn("Requested measurement {} for null object! Returned empty String.", column);
 			return "";
 		}
-		double val = pathObject.getMeasurementList().getMeasurementValue(column);
+		double val = pathObject.getMeasurementList().get(column);
 		if (Double.isNaN(val))
 			return "NaN";
 		return GeneralTools.formatNumber(val, 4);

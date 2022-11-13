@@ -23,6 +23,7 @@
 
 package qupath.imagej.detect.cells;
 
+import java.awt.Color;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -37,14 +38,18 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import ij.CompositeImage;
 import ij.IJ;
 import ij.ImagePlus;
+import ij.ImageStack;
 import ij.Prefs;
+import ij.gui.Overlay;
 import ij.gui.PolygonRoi;
 import ij.gui.Roi;
 import ij.gui.Wand;
 import ij.measure.Calibration;
 import ij.measure.Measurements;
+import ij.plugin.ContrastEnhancer;
 import ij.plugin.filter.EDM;
 import ij.plugin.filter.RankFilters;
 import ij.process.Blitter;
@@ -78,7 +83,7 @@ import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
-import qupath.lib.objects.classes.PathClassFactory;
+import qupath.lib.objects.classes.PathClass;
 import qupath.lib.plugins.AbstractTileableDetectionPlugin;
 import qupath.lib.plugins.ObjectDetector;
 import qupath.lib.plugins.parameters.DoubleParameter;
@@ -103,6 +108,28 @@ import qupath.lib.roi.interfaces.ROI;
 public class WatershedCellDetection extends AbstractTileableDetectionPlugin<BufferedImage> {
 	
 	protected boolean parametersInitialized = false;
+	
+	private static boolean debugMode = false;
+	
+	/**
+	 * Set whether to use debug mode. If this is on, images will be shown during processing 
+	 * to visualize how the algorithm is working at each stage.
+	 * @param debug
+	 * @see #getDebugMode()
+	 */
+	public static void setDebugMode(boolean debug) {
+		debugMode = debug;
+	}
+	
+	/**
+	 * Get whether debug mode is on or off.
+	 * @return
+	 * @see #setDebugMode(boolean)
+	 */
+	public static boolean getDebugMode() {
+		return debugMode;
+	}
+	
 
 	private static String[] micronParameters = {
 		"requestedPixelSizeMicrons",
@@ -344,7 +371,9 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 					params.getBooleanParameterValue("includeNuclei"),
 					params.getBooleanParameterValue("makeMeasurements"),
 					pathROI.getZ(),
-					pathROI.getT());// && isBrightfield);
+					pathROI.getT(), 
+					params.getBooleanParameterValue("backgroundByReconstruction")
+					);// && isBrightfield);
 			
 			pathObjects.addAll(detector2.getPathObjects());
 					
@@ -362,8 +391,8 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 				return "1 nucleus detected";
 			String s = String.format("%d nuclei detected", nDetections);
 			if (nucleiClassified) {
-				int nPositive = PathObjectTools.countObjectsWithClass(pathObjects, PathClassFactory.getNegative(null), false);
-				int nNegative = PathObjectTools.countObjectsWithClass(pathObjects, PathClassFactory.getPositive(null), false);
+				int nPositive = PathObjectTools.countObjectsWithClass(pathObjects, PathClass.getNegative(null), false);
+				int nNegative = PathObjectTools.countObjectsWithClass(pathObjects, PathClass.getPositive(null), false);
 				return String.format("%s (%.3f%% positive)", s, ((double)nPositive * 100.0 / (nPositive + nNegative)));			
 			} else
 				return s;
@@ -415,6 +444,16 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 		
 		params.addDoubleParameter("backgroundRadiusMicrons", "Background radius", 8, microns, 
 				"Radius for background estimation, should be > the largest nucleus radius, or <= 0 to turn off background subtraction");
+		
+		// New in v0.4.0
+		params.addBooleanParameter("backgroundByReconstruction", "Use opening by reconstruction", true, 
+				"Use opening-by-reconstruction for background estimation (default is 'Yes').\n"
+				+ "Opening by reconstruction tends to give a 'better' background estimate, because it incorporates more information across "
+				+ "the image tile used for cell detection.\n"
+				+ "*However*, in some cases (e.g. images with prominent folds, background staining, or other artefacts)  "
+				+ "this can cause problems, with the background estimate varying substantially between tiles.\n"
+				+ "Opening by reconstruction was always used in QuPath before v0.4.0, but now it is optional.");
+		
 		params.addDoubleParameter("medianRadiusMicrons", "Median filter radius", 0, microns,
 				"Radius of median filter used to reduce image texture (optional)");
 		params.addDoubleParameter("sigmaMicrons", "Sigma", 1.5, microns,
@@ -540,6 +579,7 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 	
 	static class WatershedCellDetector {
 		
+		private ImagePlus impDebug;
 		
 		private boolean refineBoundary = true; // TODO: Consider making this variable accessible
 		
@@ -565,6 +605,12 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 		private boolean excludeDAB = false;
 		private boolean smoothBoundaries = false;
 
+		/**
+		 * Use opening-by-reconstruction for the background estimate.
+		 * Before v0.4.0 this was always true (and not provided as an option)
+		 */
+		private boolean backgroundByReconstruction = true; 
+		
 //		private boolean limitExpansionByNucleusSize = false;
 
 		private boolean makeMeasurements = true;
@@ -594,9 +640,23 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 		}
 		
 		
-		
-		public static ByteProcessor limitedOpeningByReconstruction(final ImageProcessor ip, final ImageProcessor ipBackground, final double radius, final double maxBackground) {
-			// Apply (initial) morphological opening
+		/**
+		 * Create background estimate, putting the result into ipBackground.
+		 * @param ip
+		 * @param ipBackground
+		 * @param radius
+		 * @param maxBackground maximum background value used to mask out detections that occur on high background regions
+		 * @param openingByReconstruction use opening by reconstruction (the only option before v0.4.0); if false, use a simple opening (min/max filters)
+		 * @return a mask if maxBackground is &gt; 0
+		 */
+		private static ByteProcessor estimateBackground(final ImageProcessor ip, final ImageProcessor ipBackground, final double radius, final double maxBackground, final boolean openingByReconstruction) {
+			
+			if (openingByReconstruction)
+				logger.debug("Estimating background using opening by reconstruction");
+			else
+				logger.debug("Estimating background using simple opening");
+			
+			// Apply (initial) morphological erosion
 			final RankFilters rf = new RankFilters();
 			ipBackground.setRoi(ip.getRoi());
 			rf.rank(ipBackground, radius, RankFilters.MIN);
@@ -625,15 +685,37 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 			}
 			
 			// Apply the morphological reconstruction
-			MorphologicalReconstruction.morphologicalReconstruction(ipBackground, ip);
+			if (openingByReconstruction)
+				MorphologicalReconstruction.morphologicalReconstruction(ipBackground, ip);
+			else {
+				// New in v0.4.0: Optionally just apply (the second stange of) simple opening
+				// Intended to address https://github.com/qupath/qupath/issues/80 
+				// by making all background calculations local
+				rf.rank(ipBackground, radius, RankFilters.MAX);
+			}
+			
+//			var ip2 = ip.duplicate();
+//			ip2.copyBits(ipBackground, 0, 0, Blitter.SUBTRACT);
+//			var imp = new ImagePlus("Subtracted: " + openingByReconstruction, ip2);
+////			var imp = new ImagePlus("Background: " + openingByReconstruction, ipBackground.duplicate());
+//			imp.resetDisplayRange();
+//			imp.show();
 			return bpMask;
 		}
 		
 		
 		
 		private void doDetection(boolean regenerateROIs) {
+			
 			int width = fpDetection.getWidth();
 			int height = fpDetection.getHeight();
+			
+			if (debugMode) {
+				var stack = new ImageStack(width, height);
+				stack.addSlice("Input image", fpDetection.duplicate());
+				impDebug = new ImagePlus("Debug stack", stack);
+			}
+			
 //			Prefs.setThreads(1);
 			lastRunCompleted = false;
 			pathObjects.clear();
@@ -650,8 +732,12 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 
 				// Start off with a median filter to reduce texture, if necessary
 				RankFilters rf = new RankFilters();
-				if (medianRadius > 0)
+				if (medianRadius > 0) {
 					rf.rank(fpLoG, medianRadius, RankFilters.MEDIAN);
+					if (debugMode) {
+						impDebug.getStack().addSlice("Median filtered", fpLoG.duplicate());
+					}
+				}
 
 				//--------NEW--------
 				if (excludeDAB && channels.containsKey("Hematoxylin OD") && channels.containsKey("DAB OD")) {
@@ -663,15 +749,24 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 					rf.rank(bpH, 2.5, RankFilters.MEDIAN);
 					rf.rank(bpH, 2.5, RankFilters.MAX);
 					fpLoG.copyBits(bpH, 0, 0, Blitter.MULTIPLY);
+					
+					if (debugMode) {
+						impDebug.getStack().addSlice("DAB excluded", fpLoG.duplicate());
+					}
 				}
 				//--------END_NEW--------
 				
 				// Subtract background first, if needed
 				if (backgroundRadius > 0) {
 					ImageProcessor ipBackground = fpLoG.duplicate();
-					bpBackgroundMask = limitedOpeningByReconstruction(fpLoG, ipBackground, backgroundRadius, maxBackground);
+					bpBackgroundMask = estimateBackground(fpLoG, ipBackground, backgroundRadius, maxBackground, backgroundByReconstruction);
 					fpLoG.copyBits(ipBackground, 0, 0, Blitter.SUBTRACT);
 					ipToMeasure = fpLoG.duplicate();
+					
+					if (debugMode) {
+						impDebug.getStack().addSlice("Background estimate", ipBackground.duplicate());
+						impDebug.getStack().addSlice("Background subtracted", fpLoG.duplicate());
+					}
 				} else {
 					ipToMeasure = fpDetection;
 				}
@@ -679,6 +774,10 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 				// Apply (approximation of) Laplacian of Gaussian filter
 				fpLoG.blurGaussian(sigma);
 				fpLoG.convolve(new float[]{0, -1, 0, -1, 4, -1, 0, -1, 0}, 3, 3);
+				
+				if (debugMode) {
+					impDebug.getStack().addSlice("Laplacian of Gaussian filtered", fpLoG.duplicate());
+				}
 				
 				// Threshold the main LoG image
 				bpLoG = SimpleThresholding.thresholdAbove(fpLoG, 0f);
@@ -689,6 +788,10 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 				ImageProcessor ipTemp = MorphologicalReconstruction.findRegionalMaxima(fpLoG, 0.001f, false);
 				ImageProcessor ipLabels = RoiLabeling.labelImage(ipTemp, 0, false);
 				Watershed.doWatershed(fpLoG, ipLabels, 0, false);
+				
+				if (debugMode) {
+					impDebug.getStack().addSlice("Watershed labels", ipLabels.duplicate());
+				}
 				
 				ipLabels.setThreshold(0.5, Double.POSITIVE_INFINITY, ImageProcessor.NO_LUT_UPDATE);
 				// TODO: Consider 4/8 connectivity for watershed nucleus ROIs
@@ -752,8 +855,8 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 			bp.setThreshold(127, Double.POSITIVE_INFINITY, ImageProcessor.NO_LUT_UPDATE);
 			
 			
-			if (IJ.debugMode) {
-				IJTools.quickShowImage("Binary", bp.duplicate());
+			if (impDebug != null) {
+				impDebug.getStack().addSlice("Binary", bp.duplicate());
 			}
 
 			//----------------------------
@@ -769,6 +872,10 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 				bp.filter(ByteProcessor.MIN);
 				bp.copyBits(bp2, 0, 0, Blitter.MAX);
 				regenerateROIs = true;
+				
+				if (debugMode) {
+					impDebug.getStack().addSlice("Refined boundaries", bp2.convertToFloatProcessor());
+				}
 			}
 			
 			//----------------------------
@@ -799,6 +906,10 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 			// Label nuclei
 			ShortProcessor ipLabels = new ShortProcessor(width, height);
 			RoiLabeling.labelROIs(ipLabels, roisNuclei);
+			
+			if (debugMode) {
+				impDebug.getStack().addSlice("Labeled ROIs", ipLabels.convertToFloatProcessor());
+			}
 			
 			// Measure nuclei for all required channels
 			Map<String, List<RunningStatistics>> statsMap = new LinkedHashMap<>();
@@ -847,12 +958,12 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 					for (String key : channels.keySet()) {
 						List<RunningStatistics> statsList = statsMap.get(key);
 						RunningStatistics stats = statsList.get(i);
-						measurementList.addMeasurement("Nucleus: " + key + " mean", stats.getMean());
-						measurementList.addMeasurement("Nucleus: " + key + " sum", stats.getSum());
-						measurementList.addMeasurement("Nucleus: " + key + " std dev", stats.getStdDev());
-						measurementList.addMeasurement("Nucleus: " + key + " max", stats.getMax());
-						measurementList.addMeasurement("Nucleus: " + key + " min", stats.getMin());
-						measurementList.addMeasurement("Nucleus: " + key + " range", stats.getRange());
+						measurementList.put("Nucleus: " + key + " mean", stats.getMean());
+						measurementList.put("Nucleus: " + key + " sum", stats.getSum());
+						measurementList.put("Nucleus: " + key + " std dev", stats.getStdDev());
+						measurementList.put("Nucleus: " + key + " max", stats.getMax());
+						measurementList.put("Nucleus: " + key + " min", stats.getMin());
+						measurementList.put("Nucleus: " + key + " range", stats.getRange());
 					}
 				}
 				
@@ -948,10 +1059,10 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 						for (String key : channelsCell.keySet()) {
 							if (statsMapCell.containsKey(key)) {
 								RunningStatistics stats = statsMapCell.get(key).get(i);
-								measurementList.addMeasurement("Cell: " + key + " mean", stats.getMean());
-								measurementList.addMeasurement("Cell: " + key + " std dev", stats.getStdDev());
-								measurementList.addMeasurement("Cell: " + key + " max", stats.getMax());
-								measurementList.addMeasurement("Cell: " + key + " min", stats.getMin());
+								measurementList.put("Cell: " + key + " mean", stats.getMean());
+								measurementList.put("Cell: " + key + " std dev", stats.getStdDev());
+								measurementList.put("Cell: " + key + " max", stats.getMax());
+								measurementList.put("Cell: " + key + " min", stats.getMin());
 		//						pathObject.addMeasurement("Cytoplasm: " + key + " range", stats.getRange());
 							}
 						}
@@ -960,10 +1071,10 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 						for (String key : channelsCell.keySet()) {
 							if (statsMapCytoplasm.containsKey(key)) {
 								RunningStatistics stats = statsMapCytoplasm.get(key).get(i);
-								measurementList.addMeasurement("Cytoplasm: " + key + " mean", stats.getMean());
-								measurementList.addMeasurement("Cytoplasm: " + key + " std dev", stats.getStdDev());
-								measurementList.addMeasurement("Cytoplasm: " + key + " max", stats.getMax());
-								measurementList.addMeasurement("Cytoplasm: " + key + " min", stats.getMin());
+								measurementList.put("Cytoplasm: " + key + " mean", stats.getMean());
+								measurementList.put("Cytoplasm: " + key + " std dev", stats.getStdDev());
+								measurementList.put("Cytoplasm: " + key + " max", stats.getMax());
+								measurementList.put("Cytoplasm: " + key + " min", stats.getMin());
 		//						pathObject.addMeasurement("Cytoplasm: " + key + " range", stats.getRange());
 							}
 						}
@@ -972,7 +1083,7 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 						if (nucleus != null && nucleus.getROI().isArea()) {
 							double nucleusArea = nucleus.getROI().getArea();
 							double cellArea = pathROI.getArea();
-							measurementList.addMeasurement("Nucleus/Cell area ratio", Math.min(nucleusArea / cellArea, 1.0));
+							measurementList.put("Nucleus/Cell area ratio", Math.min(nucleusArea / cellArea, 1.0));
 	//						measurementList.addMeasurement("Nucleus/Cell expansion", cellArea - nucleusArea);
 						}
 					}
@@ -1000,6 +1111,24 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 			int sizeAfter = pathObjects.size();
 			if (sizeBefore != sizeAfter) {
 				logger.debug("Filtered out {} invalid cells (empty ROIs)", sizeBefore - sizeAfter);
+			}
+			
+			if (impDebug != null) {
+				// Convert to channels if possible, since then the display range can be adapted per image
+				impDebug.setDimensions(impDebug.getStackSize(), 1, 1);
+				if (impDebug.getNChannels() <= CompositeImage.MAX_CHANNELS) {
+					impDebug = new CompositeImage(impDebug, CompositeImage.GRAYSCALE);
+					((CompositeImage)impDebug).resetDisplayRanges();
+				}
+				var overlay = new Overlay();
+				for (var r : roisNuclei) {
+					var r2 = (Roi)r.clone();
+					r2.setStrokeColor(Color.RED);
+					overlay.add(r2);
+				}
+				impDebug.setOverlay(overlay);
+				new ContrastEnhancer().stretchHistogram(impDebug, 0.04);
+				impDebug.show();
 			}
 			
 			lastRunCompleted = true;
@@ -1030,7 +1159,11 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 		
 		
 //		public void runDetection(double backgroundRadius, double maxBackground, double medianRadius, double sigma, double threshold, double minArea, double maxArea, boolean mergeAll, boolean watershedPostProcess, boolean excludeDAB, double cellExpansion, boolean limitExpansionByNucleusSize, boolean smoothBoundaries, boolean includeNuclei, boolean makeMeasurements) {
-		public void runDetection(double backgroundRadius, double maxBackground, double medianRadius, double sigma, double threshold, double minArea, double maxArea, boolean mergeAll, boolean watershedPostProcess, boolean excludeDAB, double cellExpansion, boolean smoothBoundaries, boolean includeNuclei, boolean makeMeasurements, int z, int t) {
+		public void runDetection(double backgroundRadius, double maxBackground, double medianRadius, double sigma, 
+				double threshold, double minArea, double maxArea, boolean mergeAll, boolean watershedPostProcess, 
+				boolean excludeDAB, double cellExpansion, boolean smoothBoundaries, boolean includeNuclei, boolean makeMeasurements, 
+				int z, int t,
+				boolean backgroundByReconstruction) {
 			
 			boolean updateNucleusROIs = rois == null || bpLoG == null;
 			updateNucleusROIs = updateNucleusROIs ? updateNucleusROIs : this.medianRadius != medianRadius;
@@ -1080,6 +1213,9 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 			
 			updateAnything = updateAnything ? updateAnything : this.makeMeasurements != makeMeasurements;
 			this.makeMeasurements = makeMeasurements;
+			
+			updateAnything = updateAnything ? updateAnything : this.backgroundByReconstruction != backgroundByReconstruction;
+			this.backgroundByReconstruction = backgroundByReconstruction;
 			
 //			updateAnything = updateAnything ? updateAnything : this.limitExpansionByNucleusSize != limitExpansionByNucleusSize;
 //			this.limitExpansionByNucleusSize = limitExpansionByNucleusSize;

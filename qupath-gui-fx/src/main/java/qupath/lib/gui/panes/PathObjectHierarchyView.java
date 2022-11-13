@@ -106,6 +106,9 @@ public class PathObjectHierarchyView implements ChangeListener<ImageData<Buffere
 		treeView.setCellFactory(t -> PathObjectLabels.createTreeCell());
 		
 		PathPrefs.colorDefaultObjectsProperty().addListener((v, o, n) -> treeView.refresh());
+		PathPrefs.colorTMAProperty().addListener((v, o, n) -> treeView.refresh());
+		PathPrefs.colorTMAMissingProperty().addListener((v, o, n) -> treeView.refresh());
+		PathPrefs.colorTileProperty().addListener((v, o, n) -> treeView.refresh());
 		
 		treeView.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
 		treeView.getSelectionModel().getSelectedItems().addListener(
@@ -411,12 +414,12 @@ public class PathObjectHierarchyView implements ChangeListener<ImageData<Buffere
 	void setImageData(ImageData<BufferedImage> imageData) {
 		if (hierarchy != null) {
 			hierarchy.getSelectionModel().removePathObjectSelectionListener(this);
-			hierarchy.removePathObjectListener(this);
+			hierarchy.removeListener(this);
 		}
 		
 		this.hierarchy = imageData == null ? null : imageData.getHierarchy();
 		if (hierarchy != null) {
-			hierarchy.addPathObjectListener(this);
+			hierarchy.addListener(this);
 			hierarchy.getSelectionModel().addPathObjectSelectionListener(this);
 			treeView.setRoot(createNode(hierarchy.getRootObject()));
 		} else
@@ -475,7 +478,7 @@ public class PathObjectHierarchyView implements ChangeListener<ImageData<Buffere
 						assert child != value;
 						if (child.isTMACore())
 							tmaCores.add(child);
-						else if (child.isAnnotation() || child.hasChildren())
+						else if (child.isAnnotation() || child.hasChildObjects())
 							sortable.add(child);
 						else if (includeDetections)
 							others.add(child);
@@ -502,7 +505,7 @@ public class PathObjectHierarchyView implements ChangeListener<ImageData<Buffere
 		public boolean isLeaf() {
 			if (isLeaf == null) {
 				var pathObject = getValue();
-				if (!pathObject.hasChildren())
+				if (!pathObject.hasChildObjects())
 					isLeaf = true;
 				else if (PathPrefs.detectionTreeDisplayModeProperty().get() != DetectionTreeDisplayModes.NONE) {
 					isLeaf = false;

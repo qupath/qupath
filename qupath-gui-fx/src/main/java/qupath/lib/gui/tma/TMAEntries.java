@@ -405,8 +405,12 @@ class TMAEntries {
 
 		@Override
 		public String getMetadataValue(final String name) {
-			return (String)core.getMetadataValue(name);
-//			return data.getStringValue(core, name);
+			var val = (String)core.getMetadataValue(name);
+			if (val != null)
+				return val;
+			if (data.getMetadataNames().contains(name))
+				return data.getStringValue(core, name);
+			return null;
 		}
 
 		@Override
@@ -429,7 +433,7 @@ class TMAEntries {
 
 		@Override
 		public void putMeasurement(String name, Number number) {
-			core.getMeasurementList().putMeasurement(name, number == null ? Double.NaN : number.doubleValue());
+			core.getMeasurementList().put(name, number == null ? Double.NaN : number.doubleValue());
 			if (imageData != null)
 				imageData.getHierarchy().fireObjectMeasurementsChangedEvent(this, Collections.singletonList(core));
 			data.updateMeasurementList();
@@ -454,7 +458,7 @@ class TMAEntries {
 			}
 			
 			try {
-				BufferedImage img = imageData.getServer().readBufferedImage(
+				BufferedImage img = imageData.getServer().readRegion(
 						RegionRequest.createInstance(imageData.getServerPath(), downsample, roi));
 				return SwingFXUtils.toFXImage(img, null);
 			} catch (IOException e) {

@@ -223,9 +223,17 @@ abstract class AbstractPathROITool extends AbstractPathTool {
 		} else {
 			if (!requestParentClipping(e)) {
 				if (currentROI.isEmpty()) {
+					// We may be removing an object that was already removed from the hierarchy (during editing) 
+					// - if so, we need to notify listeners somehow
+					if (pathObject != null) {
+						if (pathObject.getParent() == null)
+							hierarchy.fireHierarchyChangedEvent(this);
+						else
+							hierarchy.removeObject(pathObject, true);
+					}
 					pathObject = null;
 				} else
-					hierarchy.addPathObject(pathObject); // Ensure object is within the hierarchy
+					hierarchy.addObject(pathObject); // Ensure object is within the hierarchy
 			} else {
 				ROI roiNew = refineROIByParent(pathObject.getROI());
 				if (roiNew.isEmpty()) {
@@ -233,7 +241,7 @@ abstract class AbstractPathROITool extends AbstractPathTool {
 					pathObject = null;
 				} else {
 					((PathAnnotationObject)pathObject).setROI(roiNew);
-					hierarchy.addPathObjectBelowParent(getCurrentParent(), pathObject, true);
+					hierarchy.addObjectBelowParent(getCurrentParent(), pathObject, true);
 				}
 			}
 			if (pathObject != null)

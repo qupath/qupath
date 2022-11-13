@@ -401,7 +401,7 @@ static class ThresholdClassifierBuilder {
 		public BufferedImage applyClassification(ImageData<BufferedImage> imageData, RegionRequest request)
 				throws IOException {
 			
-			var img = imageData.getServer().readBufferedImage(request);
+			var img = imageData.getServer().readRegion(request);
 			var raster = img.getRaster();
 			
 			int w = img.getWidth();

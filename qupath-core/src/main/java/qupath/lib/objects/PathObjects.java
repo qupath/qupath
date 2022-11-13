@@ -84,6 +84,20 @@ public class PathObjects {
 	 * @param yCenter
 	 * @param diameter
 	 * @param isMissing
+	 * @param plane 
+	 * @return
+	 */
+	public static TMACoreObject createTMACoreObject(double xCenter, double yCenter, double diameter, boolean isMissing, ImagePlane plane) {
+		return createTMACoreObject(xCenter-diameter/2, yCenter-diameter/2, diameter, diameter, isMissing, plane);
+	}
+	
+	/**
+	 * Create a TMA core object with an circular ROI.
+	 * 
+	 * @param xCenter
+	 * @param yCenter
+	 * @param diameter
+	 * @param isMissing
 	 * @return
 	 */
 	public static TMACoreObject createTMACoreObject(double xCenter, double yCenter, double diameter, boolean isMissing) {
@@ -100,7 +114,21 @@ public class PathObjects {
 	 * @return
 	 */
 	public static TMACoreObject createTMACoreObject(double x, double y, double width, double height, boolean isMissing) {
-		ROI roi = ROIs.createEllipseROI(x, y, width, height, ImagePlane.getDefaultPlane());
+		return createTMACoreObject(x, y, width, height, isMissing, ImagePlane.getDefaultPlane());
+	}
+	
+	/**
+	 * Create a TMA core object with an ellipse ROI.
+	 * @param x
+	 * @param y
+	 * @param width
+	 * @param height
+	 * @param isMissing
+	 * @param plane 
+	 * @return
+	 */
+	public static TMACoreObject createTMACoreObject(double x, double y, double width, double height, boolean isMissing, ImagePlane plane) {
+		ROI roi = ROIs.createEllipseROI(x, y, width, height, plane);
 		return new TMACoreObject(roi, isMissing);
 	}
 	

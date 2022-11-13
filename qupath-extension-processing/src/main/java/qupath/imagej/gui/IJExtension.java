@@ -38,7 +38,6 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Menu;
 import javafx.scene.control.Separator;
-import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
@@ -52,7 +51,6 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
@@ -624,11 +622,8 @@ public class IJExtension implements QuPathExtension {
 		Menu menuTMA = qupath.getMenu("TMA", true);
 		var actionTMADearray = qupath.createPluginAction("TMA dearrayer", TMADearrayerPluginIJ.class, null);
 		actionTMADearray.setLongText("Identify cores and grid arrangement of a tissue microarray.");
-		menuTMA.getItems().addAll(0,
-				Arrays.asList(
-						ActionTools.createMenuItem(actionTMADearray),
-						new SeparatorMenuItem()
-						)
+		menuTMA.getItems().add(0,
+						ActionTools.createMenuItem(actionTMADearray)
 				);
 		
 		qupath.getDefaultDragDropListener().addFileDropHandler(new ImageJDropHandler(qupath));
@@ -666,7 +661,7 @@ public class IJExtension implements QuPathExtension {
 					.map(r -> IJTools.convertToAnnotation(r, 1.0, null))
 					.collect(Collectors.toList());
 			
-			imageData.getHierarchy().addPathObjects(pathObjects);
+			imageData.getHierarchy().addObjects(pathObjects);
 			imageData.getHierarchy().getSelectionModel().selectObjects(pathObjects);
 			
 			return true;

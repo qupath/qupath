@@ -28,6 +28,7 @@ import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 
 import org.controlsfx.control.action.Action;
 import org.controlsfx.control.action.ActionUtils;
@@ -35,6 +36,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javafx.application.Platform;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.scene.Scene;
 import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.ContextMenu;
@@ -42,7 +45,6 @@ import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.SeparatorMenuItem;
-import javafx.scene.control.TextArea;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
@@ -57,24 +59,33 @@ import qupath.lib.gui.SelectableItem;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.logging.LogManager;
 import qupath.lib.gui.logging.LogManager.LogLevel;
+import qupath.lib.gui.logging.TextAppendable;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.scripting.ScriptEditorControl;
+import qupath.lib.gui.scripting.TextAreaControl;
 
 /**
- * Basic log display functionality.
+ * A viewer for log messages.
  * <p>
- * TODO: Nicer, color-coded implementation - possible using a ListView.
- * Ideally, this would also be filterable.
+ * The default display is very basic, but log methods can be styled by passing an alternative {@link ScriptEditorControl} 
+ * to be used instead.
  * 
  * @author Pete Bankhead
  *
  */
-public class LogViewerCommand implements Runnable {
+public class LogViewerCommand implements Runnable, TextAppendable {
 	
 	private static final Logger logger = LoggerFactory.getLogger(LogViewerCommand.class);
 	
 	private QuPathGUI qupath;
 	private Stage dialog = null;
-	private TextArea textPane = new TextArea();
+	
+	private BorderPane pane;
+	
+	private BooleanProperty lockScroll = new SimpleBooleanProperty(true);
+	private ContextMenu contextMenu;
+	
+	private ScriptEditorControl<?> control;
 	
 	private static List<Action> actionLogLevels = Arrays.asList(
 			createLogLevelAction(LogLevel.ERROR),
@@ -89,8 +100,16 @@ public class LogViewerCommand implements Runnable {
 	 * @param qupath the current QuPath instance
 	 */
 	public LogViewerCommand(final QuPathGUI qupath) {
+		this(qupath, new TextAreaControl(false));
+	}
+	
+	
+	private LogViewerCommand(final QuPathGUI qupath, ScriptEditorControl<?> control) {
+		Objects.requireNonNull(control);
 		this.qupath = qupath;
-		LogManager.addTextAppendableFX(text -> textPane.appendText(text));
+		LogManager.addTextAppendableFX(this);
+		init();
+		setLogControl(control);
 	}
 
 	@Override
@@ -99,8 +118,19 @@ public class LogViewerCommand implements Runnable {
 			Platform.runLater(() -> run());
 			return;
 		}
-		if (dialog == null)
-			createDialog();
+		if (dialog == null) {
+			dialog = new Stage();
+			dialog.setTitle("Log");
+
+			Scene scene = new Scene(pane, 400, 300);
+			dialog.setScene(scene);
+//			dialog.getDialogPane().setContent(pane);
+			dialog.setResizable(true);
+			
+			dialog.initModality(Modality.NONE);
+			dialog.initOwner(qupath.getStage());
+			dialog.setResizable(true);
+		}
 		dialog.show();
 	}
 	
@@ -115,41 +145,32 @@ public class LogViewerCommand implements Runnable {
 	}
 	
 	
-	private void createDialog() {
-		dialog = new Stage();
-		dialog.setTitle("Log");
+	private void init() {
 		
-		BorderPane pane = new BorderPane(textPane);
+		pane = new BorderPane();
 		
 		Action actionCopy = new Action("Copy", e -> {
-			String text = textPane.getSelectedText();
+			String text = control.getSelectedText();
 			if (text == null || text.isEmpty())
-				text = textPane.getText();
+				text = control.getText();
 			ClipboardContent content = new ClipboardContent();
 			content.putString(text);
 			Clipboard.getSystemClipboard().setContent(content);
 		});
 		actionCopy.setAccelerator(new KeyCodeCombination(KeyCode.C, KeyCodeCombination.SHORTCUT_DOWN));
 		
-		Action actionClear = new Action("Clear log", e -> textPane.clear());
+		Action actionClear = new Action("Clear log", e -> control.clear());
 		
 		CheckMenuItem miLockScroll = new CheckMenuItem("Scroll to end");
-		miLockScroll.setSelected(true);
+		miLockScroll.selectedProperty().bindBidirectional(lockScroll);
 		
 		// Add context menu
-		ContextMenu menu = textPane.getContextMenu();
-		if (menu == null) {
-			menu = new ContextMenu();
-			textPane.setContextMenu(menu);
-			menu.getItems().add(ActionUtils.createMenuItem(actionCopy));
-//			menu.getItems().add(new SeparatorMenuItem());
-		} else
-			menu.getItems().add(new SeparatorMenuItem());
-		
-		menu.getItems().add(ActionUtils.createMenuItem(actionClear));
-		menu.getItems().add(miLockScroll);
-		
-		menu.getItems().add(createLogLevelMenu());
+		contextMenu = new ContextMenu();
+		contextMenu.getItems().add(ActionUtils.createMenuItem(actionCopy));
+		contextMenu.getItems().add(new SeparatorMenuItem());
+		contextMenu.getItems().add(ActionUtils.createMenuItem(actionClear));
+		contextMenu.getItems().add(miLockScroll);
+		contextMenu.getItems().add(createLogLevelMenu());
 		
 		
 		// Add actual menubar
@@ -163,7 +184,7 @@ public class LogViewerCommand implements Runnable {
 				return;
 			try {
 				PrintWriter writer = new PrintWriter(fileOutput, StandardCharsets.UTF_8);
-				writer.print(textPane.getText());
+				writer.print(control.getText());
 				writer.close();
 			} catch (Exception ex) {
 				logger.error("Problem writing log", ex);
@@ -186,21 +207,32 @@ public class LogViewerCommand implements Runnable {
 //		menubar.setUseSystemMenuBar(true);
 		menubar.useSystemMenuBarProperty().bindBidirectional(PathPrefs.useSystemMenubarProperty());
 		
-		Scene scene = new Scene(pane, 400, 300);
-		dialog.setScene(scene);
-//		dialog.getDialogPane().setContent(pane);
-		dialog.setResizable(true);
-		textPane.setEditable(false);
+	}
+	
+	/**
+	 * Set a new control to display log information.
+	 * This makes it possible to apply nicer styling.
+	 * @param control
+	 */
+	public void setLogControl(ScriptEditorControl<?> control) {
+		if (this.control == control)
+			return;
+		Objects.requireNonNull(control);
+		// Copy over any existing text
+		if (this.control != null) {
+			control.setText(this.control.getText());
+			this.control.getRegion().setOnContextMenuRequested(null);
+		}
 		
+		this.control = control;
+		control.setContextMenu(contextMenu);
+		pane.setCenter(control.getRegion());
+					
 		// Keep scrolling to the last message
-		textPane.textProperty().addListener((v, o, n) ->  {
-			if (dialog.isShowing() && miLockScroll.isSelected())
-				Platform.runLater(() -> textPane.setScrollTop(Double.MAX_VALUE));
+		control.textProperty().addListener((v, o, n) ->  {
+			if (dialog != null && dialog.isShowing() && lockScroll.get())
+				Platform.runLater(() -> control.requestFollowCaret());
 		});
-
-		dialog.initModality(Modality.NONE);
-		dialog.initOwner(qupath.getStage());
-		dialog.setResizable(true);
 	}
 	
 	
@@ -211,6 +243,12 @@ public class LogViewerCommand implements Runnable {
 			menu.getItems().add(ActionTools.createCheckMenuItem(action, group));
 		}
 		return menu;
+	}
+
+	@Override
+	public void appendText(String text) {
+		if (control != null)
+			control.appendText(text);
 	}
 
 }

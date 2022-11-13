@@ -887,7 +887,7 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 					ImageServer<BufferedImage> server = imageData.getServer();
 					BufferedImage img = null;
 					try {
-						img = server.readBufferedImage(RegionRequest.createInstance(server.getPath(), 1, pathROI));
+						img = server.readRegion(RegionRequest.createInstance(server.getPath(), 1, pathROI));
 					} catch (IOException e) {
 						Dialogs.showErrorMessage("Set stain vector", "Unable to read image region");
 						logger.error("Unable to read region", e);

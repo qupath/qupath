@@ -478,7 +478,7 @@ public class ObjectClassifierCommand implements Runnable {
 				return false;
 			
 			trainingEntries.clear();
-			trainingEntries.addAll(ProjectDialogs.getTargetItems(listView));
+			trainingEntries.addAll(listView.getTargetItems());
 			
 			return true;
 		}
@@ -706,7 +706,7 @@ public class ObjectClassifierCommand implements Runnable {
 				if (selectedClasses == null || selectedClasses.contains(pathClass)) {
 					// Use a TreeSet ordered by ID
 					// This is to overcome https://github.com/qupath/qupath/issues/1016
-					var set = map.computeIfAbsent(pathClass, p -> new TreeSet<>(Comparator.comparing(PathObject::getId)));
+					var set = map.computeIfAbsent(pathClass, p -> new TreeSet<>(Comparator.comparing(PathObject::getID)));
 					var roi = annotation.getROI();
 					if (roi.isPoint()) {
 						for (Point2 p : annotation.getROI().getAllPoints()) {
@@ -1316,6 +1316,7 @@ public class ObjectClassifierCommand implements Runnable {
 			 * Training proportions (pie chart)
 			 */
 			pieChart = new PieChart();
+			pieChart.setAnimated(false);
 
 			pieChart.setLabelsVisible(false);
 			pieChart.setLegendVisible(true);
@@ -1468,9 +1469,9 @@ public class ObjectClassifierCommand implements Runnable {
 		public void changed(ObservableValue<? extends ImageData<BufferedImage>> source, ImageData<BufferedImage> imageDataOld,
 				ImageData<BufferedImage> imageDataNew) {
 			if (imageDataOld != null)
-				imageDataOld.getHierarchy().removePathObjectListener(this);
+				imageDataOld.getHierarchy().removeListener(this);
 			if (imageDataNew != null)
-				imageDataNew.getHierarchy().addPathObjectListener(this);
+				imageDataNew.getHierarchy().addListener(this);
 
 			invalidateClassifier();
 		}

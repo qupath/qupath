@@ -41,6 +41,8 @@ import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import qupath.lib.common.ColorTools;
+import qupath.lib.common.LogTools;
 import qupath.lib.io.PathIO;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.measurements.MeasurementListFactory;
@@ -94,9 +96,7 @@ public abstract class PathObject implements Externalizable {
 	/**
 	 * Default constructor. Used for Externalizable support, not intended to be used by other consumers.
 	 */
-	public PathObject() {
-		id = UUID.randomUUID();
-	}
+	public PathObject() {}
 	
 	/**
 	 * Request the parent object. Each PathObject may have only one parent.
@@ -110,13 +110,15 @@ public abstract class PathObject implements Externalizable {
 	/**
 	 * Set locked status, if possible.
 	 * <p>
-	 * Subclasses should override this method to support locking or unlocking. 
-	 * Default implementation throws an {@link UnsupportedOperationException}.
+	 * Subclasses should override this method to support locking or unlocking.
+	 * Default implementation throws an {@link UnsupportedOperationException} if an 
+	 * attempt is made to unlock the object.
 	 * 
 	 * @param locked
 	 */
 	public void setLocked(boolean locked) {
-		throw new UnsupportedOperationException("Locked status cannot be set!");
+		if (!locked)
+			throw new UnsupportedOperationException("Locked status cannot be unset!");
 	}
 
 	/**
@@ -175,6 +177,38 @@ public abstract class PathObject implements Externalizable {
 		return measurements;
 	}
 	
+	private transient Map<String, Double> measurementsMap;
+	
+	/**
+	 * Get a map-based view on {@link #getMeasurementList()}.
+	 * This is likely to be less efficient (because it does not support primitives), but has several advantages 
+	 * <ul>
+	 * <li>it uses a familiar and standard API</li>
+	 * <li>it is much more amenable for scripting, especially in Groovy</li>
+	 * <li>it is possible to return {@code null} for missing values, rather than only {@code Double.NaN}</li>
+	 * </ul>
+	 * The {@link MeasurementList} is retained for backwards-compatibility, particularly the ability to 
+	 * read older data files.
+	 * Changes made to the map are propagated through to the {@link MeasurementList}, so it should be possible to 
+	 * use them interchangeably - however note that there may be some loss of precision if the backing measurement 
+	 * list uses floats rather than doubles.
+	 * <p>
+	 * It is possible that a map implementation becomes the standard in the future and {@link #getMeasurementList()} 
+	 * <i>may</i> be deprecated; this is an experimental feature introduced in v0.4.0 for testing.
+	 * 
+	 * @return
+	 * @since v0.4.0
+	 */
+	public Map<String, Double> getMeasurements() {
+		if (measurementsMap == null) {
+			synchronized(this) {
+				if (measurementsMap == null)
+					measurementsMap = getMeasurementList().asMap();
+			}
+		}
+		return measurementsMap;
+	}
+	
 	/**
 	 * Create a new MeasurementList of the preferred type for this object.
 	 * <p>
@@ -198,22 +232,14 @@ public abstract class PathObject implements Externalizable {
 			else
 				return String.format(" (%d points)", nPoints);
 		}
-		if (!hasChildren())
+		if (!hasChildObjects())
 			return "";
 		int nChildren = nChildObjects();
 		int nDescendants = PathObjectTools.countDescendants(this);
+		String objString = nDescendants == 1 ? " object)" : " objects)";
 		if (nChildren == nDescendants)
-			return " (" + nChildren + " objects)";
-		return " (" + (nChildren) + "/" + nDescendants + " objects)";
-//		if (nDescendants == 1)
-//			return " - 1 descendant";
-//		else
-//			return " - " + nDescendants + " descendant";
-//		
-//		if (childList.size() == 1)
-//			return " - 1 object";
-//		else
-//			return " - " + childList.size() + " objects";
+			return " (" + nChildren + objString;
+		return " (" + (nChildren) + "/" + nDescendants + objString;
 	}
 
 	@Override
@@ -225,14 +251,26 @@ public abstract class PathObject implements Externalizable {
 			sb.append(getName());
 		else
 			sb.append(PathObjectTools.getSuitableName(getClass(), false));
-			
-		// ROI
-		if (!isCell() && hasROI())
-			sb.append(" (").append(getROI().getRoiName()).append(")");
 		
 		// Classification
 		if (getPathClass() != null)
 			sb.append(" (").append(getPathClass().toString()).append(")");
+
+		// ROI
+		if (hasROI()) {
+			var roi = getROI();
+			if (roi.getZ() > 0 || roi.getT() > 0) {
+				if (roi.getZ() > 0) {
+					sb.append(" (z=").append(roi.getZ());
+					if (roi.getT() > 0) {
+						sb.append(", t=").append(roi.getT());
+					}
+					sb.append(")");
+				} else {
+					sb.append("(t=").append(roi.getT()).append(")");
+				}
+			}
+		}
 		
 		// Number of descendants
 		sb.append(objectCountPostfix());
@@ -255,14 +293,26 @@ public abstract class PathObject implements Externalizable {
 	/**
 	 * Add an object to the child list of this object.
 	 * @param pathObject
+	 * @since v0.4.0
 	 */
-	public synchronized void addPathObject(PathObject pathObject) {
+	public synchronized void addChildObject(PathObject pathObject) {
 		if (pathObject instanceof PathRootObject) //J
 			throw new IllegalArgumentException("PathRootObject cannot be added as child to another PathObject"); //J 
-		addPathObjectImpl(pathObject);
+		addChildObjectImpl(pathObject);
 	}
 	
-	private synchronized void addPathObjectImpl(PathObject pathObject) {
+	/**
+	 * Legacy method to add a single child object.
+	 * @param pathObject
+	 * @deprecated since v0.4.0, replaced by {@link #addChildObject(PathObject)}
+	 */
+	@Deprecated
+	public void addPathObject(PathObject pathObject) {
+		LogTools.warnOnce(logger, "addPathObject(Collection) is deprecated - use addChildObject(Collection) instead");
+		addChildObject(pathObject);
+	}
+	
+	private synchronized void addChildObjectImpl(PathObject pathObject) {
 		ensureChildList(nChildObjects() + 1);
 		// Make sure the object is removed from any other parent
 		if (pathObject.parent != this) {
@@ -277,7 +327,7 @@ public abstract class PathObject implements Externalizable {
 	}
 
 	
-	private synchronized void addPathObjectsImpl(Collection<? extends PathObject> pathObjects) {
+	private synchronized void addChildObjectsImpl(Collection<? extends PathObject> pathObjects) {
 		if (pathObjects == null || pathObjects.isEmpty())
 			return;
 		ensureChildList(nChildObjects() + pathObjects.size());
@@ -352,83 +402,33 @@ public abstract class PathObject implements Externalizable {
 		list.removeAll(toRemove);
 	}
 	
-//	/**
-//	 * Remove all items from a list, but optionally using a (temporary) set 
-//	 * to improve performance.
-//	 * 
-//	 * @param list
-//	 * @param toRemove
-//	 */
-//	private static <T> void removeAllQuickly(List<T> list, Collection<T> toRemove) {
-//		// This is rather implementation-specific, based on how ArrayLists do their object removal.
-//		// In some implementations it might be better to switch the list to a set temporarily?
-//		int size = 10;
-//		if (list.size() > size || toRemove.size() > size) {
-//			var tempSet = new LinkedHashSet<>(list);
-//			tempSet.removeAll(toRemove);
-//			list.clear();
-//			list.addAll(tempSet);
-//		} else {
-//			if (!(toRemove instanceof Set)  && toRemove.size() > size) {
-//				toRemove = new HashSet<>(toRemove);
-//			}
-//			list.removeAll(toRemove);
-//		}
-////		list.removeAll(toRemove);
-//	}
-	
-	
-//	public void addPathObjects(int index, Collection<? extends PathObject> pathObjects) {
-//		if (pathObjects == null || pathObjects.isEmpty())
-//			return;
-//		ensureChildList(pathObjects.size());
-//		// Make sure the object is removed from any other parent
-//		Iterator<? extends PathObject> iter = pathObjects.iterator();
-//		boolean isChildList = false;
-//		PathObject previousParent = null;
-//		while (iter.hasNext()) {
-//			PathObject pathObject = iter.next();
-//			previousParent = pathObject.parent;
-//			if (pathObject.parent != this) {
-//				// Remove objects from previous parent
-//				if (previousParent != null && previousParent.childList != null) {
-//					// Check if we were given the list directly... if so, remove using the iterator
-////					if (pathObjects == previousParent.childList)
-//					isChildList = pathObjects.equals(previousParent.childList);
-//					if (!isChildList) {
-//						// Should be able to remove from previous parent without a concurrent exception
-////						logger.info("Calling remove " + pathObject);
-//						previousParent.childList.remove(pathObject);
-//					}
-//				}
-//				// Set the parent
-//				pathObject.parent = this;
-//			}
-//		}
-////		logger.info("Adding all " + pathObjects.size());
-//		childList.addAll(index, pathObjects);
-//		// If we have all the children of a pathObject, clear that objects children
-//		if (isChildList)
-//			previousParent.childList.clear();
-//		
-////		for (PathObject pathObject : pathObjects)
-////			addPathObject(index++, pathObject);
-//	}
-	
 	/**
 	 * Add a collection of objects to the child list of this object.
 	 * @param pathObjects
+	 * @since v0.4.0
 	 */
-	public synchronized void addPathObjects(Collection<? extends PathObject> pathObjects) {
-		addPathObjectsImpl(pathObjects);
+	public synchronized void addChildObjects(Collection<? extends PathObject> pathObjects) {
+		addChildObjectsImpl(pathObjects);
+	}
+	
+	/**
+	 * Legacy method to add child objects.
+	 * @param pathObjects
+	 * @deprecated since v0.4.0, replaced by {@link #addChildObjects(Collection)}
+	 */
+	@Deprecated
+	public void addPathObjects(Collection<? extends PathObject> pathObjects) {
+		LogTools.warnOnce(logger, "addPathObjects(Collection) is deprecated - use addChildObjects(Collection) instead");
+		addChildObjects(pathObjects);
 	}
 
 	/**
 	 * Remove a single object from the child list of this object.
 	 * @param pathObject
+	 * @since v0.4.0
 	 */
-	public void removePathObject(PathObject pathObject) {
-		if (!hasChildren())
+	public void removeChildObject(PathObject pathObject) {
+		if (!hasChildObjects())
 			return;
 		if (pathObject.parent == this)
 			pathObject.parent = null; //.setParent(null);
@@ -436,11 +436,23 @@ public abstract class PathObject implements Externalizable {
 	}
 	
 	/**
+	 * Legacy method to remove a single child object.
+	 * @param pathObject
+	 * @deprecated since v0.4.0, replaced by {@link #removeChildObject(PathObject)}
+	 */
+	@Deprecated
+	public void removePathObject(PathObject pathObject) {
+		LogTools.warnOnce(logger, "removePathObject(PathObject) is deprecated - use removeChildObject(PathObject) instead");
+		removeChildObject(pathObject);
+	}
+	
+	/**
 	 * Remove multiple objects from the child list of this object.
 	 * @param pathObjects
+	 * @since v0.4.0
 	 */
-	public synchronized void removePathObjects(Collection<PathObject> pathObjects) {
-		if (!hasChildren())
+	public synchronized void removeChildObjects(Collection<PathObject> pathObjects) {
+		if (!hasChildObjects())
 			return;
 		for (PathObject pathObject : pathObjects) {
 			if (pathObject.parent == this)
@@ -452,10 +464,22 @@ public abstract class PathObject implements Externalizable {
 	}
 	
 	/**
-	 * Remove all child objects.
+	 * Legacy method to remove specified child objects.
+	 * @param pathObjects 
+	 * @deprecated since v0.4.0, replaced by {@link #removeChildObjects(Collection)}
 	 */
-	public void clearPathObjects() {
-		if (!hasChildren())
+	@Deprecated
+	public void removePathObjects(Collection<PathObject> pathObjects) {
+		LogTools.warnOnce(logger, "removePathObjects(Collection) is deprecated - use removeChildObjects(Collection) instead");
+		removeChildObjects(pathObjects);
+	}
+	
+	/**
+	 * Remove all child objects.
+	 * @since v0.4.0
+	 */
+	public void clearChildObjects() {
+		if (!hasChildObjects())
 			return;
 		synchronized (childList) {
 			for (PathObject pathObject : childList) {
@@ -464,6 +488,16 @@ public abstract class PathObject implements Externalizable {
 			}
 			childList.clear();
 		}
+	}
+	
+	/**
+	 * Legacy method to remove all child objects.
+	 * @deprecated since v0.4.0, replaced by {@link #clearChildObjects()}
+	 */
+	@Deprecated
+	public void clearPathObjects() {
+		LogTools.warnOnce(logger, "clearPathObjects() is deprecated, use clearChildObjects() instead");
+		clearChildObjects();
 	}
 	
 	/**
@@ -486,7 +520,7 @@ public abstract class PathObject implements Externalizable {
 	 * @see #nChildObjects()
 	 */
 	public int nDescendants() {
-		if (!hasChildren())
+		if (!hasChildObjects())
 			return 0;
 		// This could be used if needed - but with childList being synchronized I think it isn't necessary
 //		var childArray = getChildObjectsAsArray();
@@ -500,9 +534,21 @@ public abstract class PathObject implements Externalizable {
 	/**
 	 * Check if this object has children, or if its child object list is empty.
 	 * @return
+	 * @since v0.4.0, replaces {@link #hasChildren()} for more consistent naming
 	 */
-	public boolean hasChildren() {
+	public boolean hasChildObjects() {
 		return childList != null && !childList.isEmpty();
+	}
+	
+	/**
+	 * Legacy method to check for child objects.
+	 * @return
+	 * @deprecated since v0.4.0, replaced by {@link #hasChildObjects()}
+	 */
+	@Deprecated
+	public boolean hasChildren() {
+		LogTools.warnOnce(logger, "hasChildren() is deprecated - use hasChildObjects() instead");
+		return hasChildObjects();
 	}
 	
 	/**
@@ -602,7 +648,7 @@ public abstract class PathObject implements Externalizable {
 	 * @return
 	 */
 	public Collection<PathObject> getChildObjects() {
-		if (!hasChildren())
+		if (!hasChildObjects())
 			return Collections.emptyList();
 		return cachedUnmodifiableChildren;
 	}
@@ -616,7 +662,7 @@ public abstract class PathObject implements Externalizable {
 	public Collection<PathObject> getChildObjects(Collection<PathObject> children) {
 		if (children == null)
 			return getChildObjects();
-		if (!hasChildren())
+		if (!hasChildObjects())
 			return children;
 		children.addAll(childList);
 		return children;
@@ -629,14 +675,14 @@ public abstract class PathObject implements Externalizable {
 	 * @return collection containing all descendant object (the same as {@code descendants} if provided)
 	 */
 	public Collection<PathObject> getDescendantObjects(Collection<PathObject> descendants) {
-		if (!hasChildren())
+		if (!hasChildObjects())
 			return Collections.emptyList();
 		if (descendants == null)
 			descendants = new ArrayList<>();
 //		descendants.addAll(childList);
 		for (var child : childList) {
 			descendants.add(child);
-			if (child.hasChildren())
+			if (child.hasChildObjects())
 				child.getDescendantObjects(descendants);
 		}
 		return descendants;
@@ -644,6 +690,7 @@ public abstract class PathObject implements Externalizable {
 	
 	/**
 	 * Get a defensive copy of child objects as an array.
+	 * <p>
 	 * Why? Well perhaps you want to iterate through it and {@link #getChildObjects()} may result in synchronization problems if 
 	 * the list is modified by another thread. In such a case a defensive copy may already be required, and it is more efficient to request 
 	 * it here.
@@ -666,6 +713,86 @@ public abstract class PathObject implements Externalizable {
 	public void setPathClass(PathClass pc) {
 		setPathClass(pc, Double.NaN);
 	}
+	
+	/**
+	 * Reset the classification (i.e. set it to null).
+	 * @return true if the classification has changed, false otherwise (i.e. it was already null)
+	 */
+	public boolean resetPathClass() {
+		var previous = getPathClass();
+		if (previous == null)
+			return false;
+		setPathClass((PathClass)null);
+		return true;
+	}
+	
+	
+	/**
+	 * Set the {@link PathClass} from a collection of names according to the rules:
+	 * <ul>
+	 * <li>If the collection is empty, reset the PathClass</li>
+	 * <li>If the collection has one element, set it to be the name of the PathClass</li>
+	 * <li>If the collection has multiple element, create and set a derived PathClass with each 
+	 * <b>unique</b> element the name of a PathClass component</li>
+	 * </ul>
+	 * The uniqueness is equivalent to copying the elements into a set; if a set is provided 
+	 * as input then a defensive copy will be made..
+	 * <p>
+	 * Ultimately, a single {@link PathClass} object is created to encapsulate the classification 
+	 * and the color used for display - but {@link #setClassifications(Collection)} and 
+	 * {@link #getClassifications()} provides a different (complementary) way to think of 
+	 * classifications within QuPath.
+	 * <p>
+	 * <b>Important: </b> This is an experimental feature introduced in QuPath v0.4.0 to 
+	 * provide an alternative way to interact with classifications and to add support for 
+	 * multiple classifications. It is possible that this becomes the 'standard' approach 
+	 * in future versions, with {@link PathClass} being deprecated.
+	 * <p>
+	 * Feedback or discussion on the approach is welcome on the forum at 
+	 * <a href="https://forum.image.sc/tag/qupath">image.sc</a>.
+	 * 
+	 * @param classifications
+	 * @since v0.4.0
+	 * @see #getClassifications()
+	 */
+	public void setClassifications(Collection<String> classifications) {
+		if (classifications.isEmpty())
+			resetPathClass();
+		else if (classifications instanceof Set) {
+			setPathClass(PathClass.fromCollection((Set<String>)classifications));
+		} else {
+			// Use LinkedHashSet to maintain ordering
+			var set = new LinkedHashSet<>(classifications);
+			if (set.size() < classifications.size())
+				logger.warn("Input to setClassifications() contains duplicate elements - {} will be replaced by {}", classifications, set);
+			setPathClass(PathClass.fromCollection(set));
+		}
+	}
+	
+	/**
+	 * Get the components of the {@link PathClass} as an unmodifiable set.
+	 * 
+	 * <b>Important: </b> This is an experimental feature introduced in QuPath v0.4.0 to 
+	 * provide an alternative way to interact with classifications and to add support for 
+	 * multiple classifications. It is possible that this becomes the 'standard' approach 
+	 * in future versions, with {@link PathClass} being deprecated.
+	 * <p>
+	 * Feedback or discussion on the approach is welcome on the forum at 
+	 * <a href="https://forum.image.sc/tag/qupath">image.sc</a>.
+	 * 
+	 * @return an empty collection is the PathClass is null, otherwise a collection of strings 
+	 *         where each string gives the name of one component of the PathClass
+	 * @since v0.4.0
+	 * @see #setClassifications(Collection)
+	 */
+	public Set<String> getClassifications() {
+		var pc = getPathClass();
+		if (pc == null)
+			return Collections.emptySet();
+		else
+			return pc.toSet();
+	}
+	
 
 	/**
 	 * Set the classification of the object, specifying a classification probability.
@@ -738,28 +865,83 @@ public abstract class PathObject implements Externalizable {
 	/**
 	 * Return any stored color as a packed RGB value.
 	 * <p>
+	 * This may be null if no color has been set.
+	 * @return
+	 * @see #setColorRGB(Integer)
+	 * @see ColorTools#red(int)
+	 * @see ColorTools#green(int)
+	 * @see ColorTools#blue(int)
+	 * @since v0.4.0
+	 */
+	public Integer getColor() {
+		return color;
+	}
+	
+	/**
+	 * Return any stored color as a packed RGB value.
+	 * <p>
 	 * This may be null if no color has been set
 	 * @return
+	 * @deprecated since v0.4.0, use {@link #getColor()} instead.
 	 */
+	@Deprecated
 	public Integer getColorRGB() {
-		return color;
+		LogTools.warnOnce(logger, "PathObject.getColorRGB() is deprecated since v0.4.0 - use getColor() instead");
+		return getColor();
 	}
 	
 	/**
 	 * Set the display color.
 	 * @param color
+	 * @deprecated since v0.4.0, use {@link #setColor(Integer)} instead.
 	 */
+	@Deprecated
 	public void setColorRGB(Integer color) {
+		LogTools.warnOnce(logger, "PathObject.setColorRGB(Integer) is deprecated since v0.4.0 - use setColor(Integer) instead");
+		setColor(color);
+	}
+	
+	/**
+	 * Set the display color as a packed (A)RGB integer (alpha may not be used 
+	 * by viewing code).
+	 * @param color packed (A)RGB value, or null if a color should not stored
+	 * @since v0.4.0
+	 * @see #setColor(int, int, int)
+	 * @see ColorTools#packRGB(int, int, int)
+	 * @implNote any alpha value is retained, but may not be used; it is recommended to 
+	 *           use only RGB values with alpha 255.
+	 */
+	public void setColor(Integer color) {
 		this.color = color;
+	}
+	
+	/**
+	 * Set the display color as 8-bit RGB values
+	 * @param red 
+	 * @param green 
+	 * @param blue 
+	 * @since v0.4.0
+	 */
+	public void setColor(int red, int green, int blue) {
+		setColor(ColorTools.packRGB(red, green, blue));
 	}
 	
 	/**
 	 * Get the ID for this object.
 	 * @return
-	 * @see #setId(UUID)
-	 * @see #updateId()
+	 * @see #setID(UUID)
+	 * @see #refreshID()
 	 */
-	public UUID getId() {
+	public UUID getID() {
+		// Make extra sure we always have an ID when requested
+		if (id == null) {
+			synchronized (this) {
+				if (id == null) {
+					logger.debug("Generating a new UUID on request");
+					id = UUID.randomUUID();
+				}
+			}
+		}
 		return id;
 	}
 	
@@ -780,7 +962,7 @@ public abstract class PathObject implements Externalizable {
 	 * @param id the ID to use
 	 * @throws IllegalArgumentException if the specified ID is null
 	 */
-	public void setId(UUID id) throws IllegalArgumentException {
+	public void setID(UUID id) throws IllegalArgumentException {
 		if (id == null)
 			throw new IllegalArgumentException("ID of an object cannot be null!");
 		this.id = id;
@@ -788,10 +970,10 @@ public abstract class PathObject implements Externalizable {
 	
 	/**
 	 * Regenerate a new random ID.
-	 * @see #setId(UUID)
+	 * @see #setID(UUID)
 	 */
-	public void updateId() {
-		setId(UUID.randomUUID());
+	public void refreshID() {
+		setID(UUID.randomUUID());
 	}
 	
 	/**

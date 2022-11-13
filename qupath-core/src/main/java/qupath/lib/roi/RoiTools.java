@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -33,12 +33,15 @@ import java.awt.geom.Path2D;
 import java.awt.geom.PathIterator;
 import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Random;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -46,10 +49,12 @@ import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.prep.PreparedGeometry;
 import org.locationtech.jts.geom.prep.PreparedGeometryFactory;
 import org.locationtech.jts.geom.util.AffineTransformation;
+import org.locationtech.jts.shape.random.RandomPointsBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.awt.common.AwtTools;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.geom.ImmutableDimension;
 import qupath.lib.geom.Point2;
 import qupath.lib.regions.ImagePlane;
@@ -116,12 +121,13 @@ public class RoiTools {
 	}
 	
 	/**
-	 * Create union of multiple ROIs. This assumes that ROIs fall on the same plane, if not an {@link IllegalArgumentException} 
+	 * Create union of multiple ROIs from a collection.
+	 * This assumes that ROIs fall on the same plane, if not an {@link IllegalArgumentException} 
 	 * will be thrown. Similarly, ROIs must be of a similar type (e.g. area, point) or an exception will be thrown by Java Topology Suite.
 	 * @param rois
 	 * @return
 	 */
-	public static ROI union(Collection<ROI> rois) {
+	public static ROI union(Collection<? extends ROI> rois) {
 		logger.trace("Calculating union of {} ROIs", rois.size());
 		if (rois.isEmpty())
 			return ROIs.createEmptyROI();
@@ -139,13 +145,27 @@ public class RoiTools {
 		return GeometryTools.geometryToROI(GeometryTools.union(geometries), plane);
 	}
 	
+	
 	/**
-	 * Create intersection of multiple ROIs. This assumes that ROIs fall on the same plane, if not an {@link IllegalArgumentException} 
-	 * will be thrown. Similarly, ROIs must be of a similar type (e.g. area, point) or an exception will be thrown by Java Topology Suite.
+	 * Create union of multiple ROIs. 
+	 * ROIs must be of a similar type (e.g. area, point) or an exception will be thrown by Java Topology Suite.
 	 * @param rois
 	 * @return
+	 * @throws IllegalArgumentException if the ROIs do not fall in the same plane
 	 */
-	public static ROI intersection(Collection<ROI> rois) {
+	public static ROI union(ROI... rois) {
+		return union(Arrays.asList(rois));
+	}
+	
+	
+	/**
+	 * Create intersection of multiple ROIs from a collection.
+	 * ROIs must be of a similar type (e.g. area, point) or an exception will be thrown by Java Topology Suite.
+	 * @param rois
+	 * @return
+	 * @throws IllegalArgumentException if the ROIs do not fall in the same plane
+	 */
+	public static ROI intersection(Collection<? extends ROI> rois) {
 		if (rois.isEmpty())
 			return ROIs.createEmptyROI();
 		if (rois.size() == 1)
@@ -164,6 +184,102 @@ public class RoiTools {
 			first = first.intersection(geom);
 		return GeometryTools.geometryToROI(first, plane);
 	}
+	
+	
+	/**
+	 * Create intersection of multiple ROIs.
+	 * This assumes that ROIs fall on the same plane, if not an {@link IllegalArgumentException} 
+	 * will be thrown. Similarly, ROIs must be of a similar type (e.g. area, point) or an exception will be thrown by Java Topology Suite.
+	 * @param rois
+	 * @return
+	 */
+	public static ROI intersection(ROI... rois) {
+		return intersection(Arrays.asList(rois));
+	}
+	
+	/**
+	 * Compute the difference between two ROIs.
+	 * This is equivalent to calling {@link RoiTools#subtract(ROI, ROI...)} to subtract roi2 from roi1.
+	 * 
+	 * @param roi1 the main ROI
+	 * @param roi2 the ROI to subtract
+	 * @return
+	 * @throws IllegalArgumentException if the ROIs do not fall in the same plane
+	 */
+	public static ROI difference(ROI roi1, ROI roi2) {
+		var plane = roi1.getImagePlane();
+		if (!roi2.getImagePlane().equals(plane)) {
+			throw new IllegalArgumentException("Cannot compute difference - found plane " 
+					+ roi2.getImagePlane() + " but expected " + plane);
+		}
+		var geom = roi1.getGeometry().difference(roi2.getGeometry());
+		return GeometryTools.geometryToROI(geom, plane);
+	}
+	
+	/**
+	 * Compute the symmetric difference between two ROIs (XOR).
+	 * 
+	 * @param roi1 the first ROI
+	 * @param roi2 the second ROI
+	 * @return
+	 * @throws IllegalArgumentException if the ROIs do not fall in the same plane
+	 */	
+	public static ROI symDifference(ROI roi1, ROI roi2) {
+		var plane = roi1.getImagePlane();
+		if (!roi2.getImagePlane().equals(plane)) {
+			throw new IllegalArgumentException("Cannot compute symmetric difference - found plane " 
+					+ roi2.getImagePlane() + " but expected " + plane);
+		}
+		var geom = roi1.getGeometry().symDifference(roi2.getGeometry());
+		return GeometryTools.geometryToROI(geom, plane);
+	}
+	
+	
+	/**
+	 * Subtract one or more ROIs from another ROI.
+	 * @param roiMain the main ROI, defining the positive area
+	 * @param roisToSubtract the ROIs to remove from roiMain
+	 * @return
+	 * @throws IllegalArgumentException if the ROIs do not fall in the same plane
+	 */
+	public static ROI subtract(ROI roiMain, ROI... roisToSubtract) {
+		return subtract(roiMain, Arrays.asList(roisToSubtract));
+	}
+	
+	
+	/**
+	 * Subtract a collection of ROIs from another ROI.
+	 * @param roiMain the main ROI, defining the positive area
+	 * @param roisToSubtract the ROIs to remove from roiMain
+	 * @return
+	 * @throws IllegalArgumentException if the ROIs do not fall in the same plane
+	 */
+	public static ROI subtract(ROI roiMain, Collection<? extends ROI> roisToSubtract) {
+		if (roisToSubtract.isEmpty())
+			return roiMain;
+		
+		if (roisToSubtract.size() == 1)
+			return difference(roiMain, roisToSubtract.iterator().next());
+		
+//		// Seems slower (at least if there are many small roisToSubtract)
+//		for (var r : roisToSubtract)
+//			roiMain = difference(roiMain, r);
+
+		// Filter out ROIs that don't overlap the bounding box of the main one
+		var region = ImageRegion.createInstance(roiMain);
+		var roisToSubtract2 = roisToSubtract
+				.stream()
+				.filter(r -> region.intersects(r.getBoundsX(), r.getBoundsY(), r.getBoundsWidth(), r.getBoundsHeight()))
+				.collect(Collectors.toList());
+		
+		// Quick method using the union of ROIs to subtract
+		// Could *possibly* be improved by iteratively removing ROIs if they are large
+		roiMain = difference(roiMain, union(roisToSubtract2));
+
+		return roiMain;
+	}
+
+	
 	
 	/**
 	 * Test whether a {@link ROI} and an {@link ImageRegion} intersect.
@@ -219,7 +335,7 @@ public class RoiTools {
 	 * @param rois a collection of ROIs that should be intersected with parent
 	 * @return list of intersected ROIs; this may be shorter than rois if some lie completely outside parent
 	 */
-	public static List<ROI> clipToROI(ROI parent, Collection<ROI> rois) {
+	public static List<ROI> clipToROI(ROI parent, Collection<? extends ROI> rois) {
 		logger.trace("Clipping {} ROIs to {}", rois.size(), parent);
 		var geom = parent.getGeometry();
 		List<ROI> results = new ArrayList<>();
@@ -262,19 +378,17 @@ public class RoiTools {
 	 * @param roi the ROI to refine
 	 * @param minAreaPixels the minimum size of a fragment to retain
 	 * @param minHoleAreaPixels the minimum size of a hole to retain, or -1 if all holes should be retained
-	 * @return
+	 * @return an updated ROI - which may be empty if the modifications caused the ROI to disappear
 	 * @see GeometryTools#refineAreas(Geometry, double, double)
 	 */
 	public static ROI removeSmallPieces(ROI roi, double minAreaPixels, double minHoleAreaPixels) {
-		if (!roi.isArea())
-			throw new IllegalArgumentException("Only area ROIs supported!");
 		
 		logger.trace("Removing small pieces from {} (min = {}, max = {})", roi, minAreaPixels, minHoleAreaPixels);
 		
 		// We can't have holes if we don't have an AreaROI
 		if (roi instanceof RectangleROI || roi instanceof EllipseROI || roi instanceof LineROI || roi instanceof PolylineROI) {
 			if (roi.getArea() < minAreaPixels)
-				return null;
+				return ROIs.createEmptyROI(roi.getImagePlane());
 			else
 				return roi;
 		}
@@ -284,7 +398,7 @@ public class RoiTools {
 		if (geometry == geometry2)
 			return roi;
 		if (geometry2 == null)
-			return null;
+			return ROIs.createEmptyROI(roi.getImagePlane());
 		return GeometryTools.geometryToROI(geometry2, roi.getImagePlane());
 	}
 
@@ -307,6 +421,15 @@ public class RoiTools {
 		else if (area.isSingular() && (area.isPolygonal() || flatness > 0)) {
 			Path2D path = new Path2D.Float(area);
 			List<Point2> points = flatness > 0 ? RoiTools.getLinearPathPoints(path, path.getPathIterator(null, flatness)) : RoiTools.getLinearPathPoints(path, path.getPathIterator(null));
+			if (points.size() > 2) {
+				// Remove end point if it is a duplicate of the start point
+				// since the polygon will be closed anyway
+				// This avoids a point being 'doubled-up' when rotating a rectangle
+				var pStart = points.get(0);
+				var pEnd = points.get(points.size()-1);
+				if (pEnd.equals(pStart))
+					points.remove(points.size()-1);
+			}
 			return ROIs.createPolygonROI(points, plane);
 		}
 		return ROIs.createAreaROI(area, plane);		
@@ -989,6 +1112,151 @@ public class RoiTools {
 
 		return polyOutput;
 	}
+	
+	
+	/**
+	 * Create a randomly-located rectangle ROI with the specified width and height, constrained to fall within the provided mask region.
+	 * @param mask region defining the area in which the rectangle can be located, including the image plane information
+	 * @param width width of the rectangle to create
+	 * @param height height of the rectangle to create
+	 * @return a rectangle with the specified width and height, covered by the mask
+	 * @throws IllegalArgumentException if either the mask width or height is too small for the requested width and height
+	 */
+	public static ROI createRandomRectangle(ImageRegion mask, double width, double height) throws IllegalArgumentException {
+		return createRandomRectangle(mask, width, height, null);
+	}
+
+	/**
+	 * Create a randomly-located rectangle ROI with the specified width and height, constrained to fall within the provided mask region.
+	 * @param mask region defining the area in which the rectangle can be located, including the image plane information
+	 * @param width width of the rectangle to create
+	 * @param height height of the rectangle to create
+	 * @param random random number generator to use (may be null to use a default)
+	 * @return a rectangle with the specified width and height, covered by the mask
+	 * @throws IllegalArgumentException if either the mask width or height is too small for the requested width and height
+	 */
+	public static ROI createRandomRectangle(ImageRegion mask, double width, double height, Random random) throws IllegalArgumentException {
+		Objects.requireNonNull(mask, "Cannot create random rectangle - region mask must not be null");
+		if (mask.getWidth() < width || mask.getHeight() < height)
+			throw new IllegalArgumentException(
+					"Cannot create random rectangle - region mask " + mask + " is too small to create a " + 
+							GeneralTools.formatNumber(width, 2) + " x " + GeneralTools.formatNumber(height, 2) + " region");
+		
+		if (random == null)
+			random = new Random();
+		double x = width == mask.getWidth() ? 0 : mask.getMinX() + random.nextDouble() * mask.getWidth() - width;
+		double y = height == mask.getHeight() ? 0 : mask.getMinY() + random.nextDouble() * mask.getHeight() - height;
+		return ROIs.createRectangleROI(x, y, width, height, mask.getImagePlane());
+	}
+	
+	/**
+	 * Create a randomly-located rectangle ROI with the specified width and height, constrained to fall within the provided mask ROI.
+	 * <p>
+	 * For greater control, see {@link #createRandomRectangle(ROI, double, double, int, boolean, Random)}.
+	 * 
+	 * @param mask region defining the area in which the rectangle can be located, including the image plane information
+	 * @param width width of the rectangle to create
+	 * @param height height of the rectangle to create
+	 * @return a rectangle with the specified width and height and covered by the mask, or null if it was not possible to find a rectangle 
+	 *         that meets this criterion
+	 * @throws IllegalArgumentException if either the mask width or height is too small for the requested width and height
+	 * @see #createRandomRectangle(ROI, double, double, int, boolean, Random)
+	 */
+	public static ROI createRandomRectangle(ROI mask, double width, double height) throws IllegalArgumentException {
+		return createRandomRectangle(mask, width, height, 1000, true, null);
+	}
+	
+	/**
+	 * Create a randomly-located rectangle ROI with the specified width and height, constrained to fall within the provided mask ROI, 
+	 * using a specified maximum number of attempts.
+	 * 
+	 * @param mask region defining the area in which the rectangle can be located, including the image plane information
+	 * @param width width of the rectangle to create
+	 * @param height height of the rectangle to create
+	 * @param maxAttempts the maximum number of attempts to make when attempting to fit the rectangle within the ROI
+	 * @param permitErosion optionally make an additional attempt to locate a rectangle by eroding the mask and using the remaining 
+	 *                      region. For a non-square rectangle, this uses the length of the longest side for erosion - and therefore 
+	 *                      may exclude some possible rectangles from consideration.
+	 * @param random random number generator to use for the initial attempts (may be null to use a default)
+	 * @return a rectangle with the specified width and height and covered by the mask, or null if it was not possible to find a rectangle 
+	 *         that meets this criterion
+	 * @throws IllegalArgumentException if either the mask width or height is too small for the requested width and height
+	 * @see #createRandomRectangle(ROI, double, double)
+	 * @implNote The initial effort generates nAttempts randomly-located rectangles within the ROI bounding box, and checks each to see if it 
+	 *           falls completely within the ROI itself or not. A future implementation might use a smarter method that better handles cases 
+	 *           where most of the bounding box is not part of the ROI.
+	 */
+	public static ROI createRandomRectangle(ROI mask, double width, double height, int maxAttempts, boolean permitErosion, Random random) throws IllegalArgumentException {
+		Objects.requireNonNull(mask, "Cannot create random rectangle - region mask must not be null");
+		if (mask.getBoundsWidth() < width || mask.getBoundsHeight() < height || mask.getArea() < width * height)
+			throw new IllegalArgumentException(
+					"Cannot create random rectangle - region mask " + mask + " is too small to create a " + 
+							GeneralTools.formatNumber(width, 2) + " x " + GeneralTools.formatNumber(height, 2) + " region");
+
+		if (random == null)
+			random = new Random();
+
+		// Get prepared geometry just in case it's a complex region
+		var geometry = mask.getGeometry();
+		var prepared = PreparedGeometryFactory.prepare(geometry);
+		boolean success = false;
+		double x = 0;
+		double y = 0;
+		for (int i = 0; i < maxAttempts; i++) {
+			if (width == mask.getBoundsWidth())
+				x = mask.getBoundsX();
+			else
+				x = mask.getBoundsX() + random.nextDouble() * (mask.getBoundsWidth() - width);
+			if (height == mask.getBoundsHeight())
+				y = mask.getBoundsY();
+			else
+				y = mask.getBoundsY() + random.nextDouble() * (mask.getBoundsHeight() - height);
+			var rect = GeometryTools.createRectangle(x, y, width, height);
+			if (prepared.covers(rect)) {
+				success = true;
+				break;
+			}
+		}
+		
+		if (!success && permitErosion) {
+			// If we are creating a square, we can try eroding the geometry and finding a random point 
+			// within what's left - as a more expensive way of finding a point inside
+			try {
+				// We need to erode by half the length of the square's diagonal
+				double erode = Math.sqrt(2) * Math.max(width/2.0, height/2.0);
+				var geometrySmaller = geometry.buffer(-erode);
+				if (!geometrySmaller.isEmpty()) {
+					var builder = new RandomPointsBuilder(geometrySmaller.getFactory());
+					builder.setExtent(geometrySmaller);
+					builder.setNumPoints(1);
+					var points = builder.getGeometry();
+					var c = points.getCoordinate();
+					x = c.getX() - width/2.0;
+					y = c.getY() - height/2.0;
+					var rect = GeometryTools.createRectangle(x, y, width, height);
+					if (prepared.covers(rect)) {
+						if (GeneralTools.almostTheSame(width, height, 0.001))
+							logger.debug("Creating square region with RandomPointsBuilder");
+						else
+							logger.warn("Creating non-square region with RandomPointsBuilder - this will be constrained to the center of the ROI based on the largest side length (i.e. requested width or height)");
+						success = true;
+					} else {
+						logger.warn("Can't created random region - the one created with RandomPointsBuilder was not covered by the original ROI! This is unexpected...");
+					}
+				}
+			} catch (Exception e) {
+				logger.warn(e.getLocalizedMessage(), e);
+			}
+		}
+		if (!success) {
+			logger.warn("Unable to find a large enough random region within the selected object after {} attempts, sorry", maxAttempts);
+			return null;						
+		}
+		return ROIs.createRectangleROI(x, y, width, height, mask.getImagePlane());
+	}
+	
+	
+	
 
 	static PolygonROI[][] splitAreaToPolygons(final ROI pathROI) {
 		return splitAreaToPolygons(getArea(pathROI), pathROI.getC(), pathROI.getZ(), pathROI.getT());

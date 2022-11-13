@@ -50,7 +50,7 @@ public class ShapeSimplifier {
 	
 	/**
 	 * 
-	 * Create a simplified polygon (fewer coordinates) using method based on Visvalingam’s Algorithm.
+	 * Create a simplified polygon (fewer coordinates) using method based on Visvalingam's Algorithm.
 	 * The input is a list of points (the vertices) belonging to a closed polygon.
 	 * This list is modified in place.
 	 * <p>
@@ -157,7 +157,7 @@ public class ShapeSimplifier {
 	
 	/**
 	 * 
-	 * Create a simplified polygon (fewer coordinates) using method based on Visvalingam’s Algorithm.
+	 * Create a simplified polygon (fewer coordinates) using method based on Visvalingam's Algorithm.
 	 * <p>
 	 * See references:
 	 * https://hydra.hull.ac.uk/resources/hull:8338
@@ -261,7 +261,7 @@ public class ShapeSimplifier {
 
 	/**
 	 * 
-	 * Create a simplified shape (fewer coordinates) using method based on Visvalingam’s Algorithm.
+	 * Create a simplified shape (fewer coordinates) using method based on Visvalingam's Algorithm.
 	 * <p>
 	 * See references:
 	 * https://hydra.hull.ac.uk/resources/hull:8338
@@ -285,7 +285,7 @@ public class ShapeSimplifier {
 	
 	/**
 	 * 
-	 * Create a simplified path (fewer coordinates) using method based on Visvalingam’s Algorithm.
+	 * Create a simplified path (fewer coordinates) using method based on Visvalingam's Algorithm.
 	 * <p>
 	 * See references:
 	 * https://hydra.hull.ac.uk/resources/hull:8338

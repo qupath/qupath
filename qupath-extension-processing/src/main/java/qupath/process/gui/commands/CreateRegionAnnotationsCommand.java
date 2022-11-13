@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -45,10 +45,10 @@ import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.classes.PathClassFactory;
-import qupath.lib.objects.classes.PathClassFactory.StandardPathClasses;
-import qupath.lib.regions.ImagePlane;
+import qupath.lib.regions.ImageRegion;
 import qupath.lib.roi.ROIs;
+import qupath.lib.roi.RoiTools;
+import qupath.lib.roi.interfaces.ROI;
 
 /**
  * Command to help create annotations defining regions that will be further annotated for 
@@ -149,10 +149,10 @@ public class CreateRegionAnnotationsCommand implements Runnable {
 				comboUnits.getSelectionModel().select(RegionUnits.MICRONS);
 			
 			comboClassification.setItems(qupath.getAvailablePathClasses());
-			if (comboClassification.getItems().contains(PathClassFactory.getPathClass(StandardPathClasses.REGION)))
-				comboClassification.getSelectionModel().select(PathClassFactory.getPathClass(StandardPathClasses.REGION));
+			if (comboClassification.getItems().contains(PathClass.StandardPathClasses.REGION))
+				comboClassification.getSelectionModel().select(PathClass.StandardPathClasses.REGION);
 			else
-				comboClassification.getSelectionModel().select(PathClassFactory.getPathClassUnclassified());
+				comboClassification.getSelectionModel().select(PathClass.NULL_CLASS);
 			
 			comboLocation.getItems().setAll(RegionLocation.values());
 			comboLocation.getSelectionModel().select(RegionLocation.VIEW_CENTER);
@@ -198,7 +198,7 @@ public class CreateRegionAnnotationsCommand implements Runnable {
 			double height = tfRegionHeight.getText().isEmpty() ? width : Double.parseDouble(tfRegionHeight.getText());
 			RegionUnits requestedUnits = comboUnits.getSelectionModel().getSelectedItem();
 			PathClass pathClass = comboClassification.getSelectionModel().getSelectedItem();
-			if (pathClass == PathClassFactory.getPathClassUnclassified())
+			if (pathClass == PathClass.NULL_CLASS)
 				pathClass = null;
 			RegionLocation location = comboLocation.getSelectionModel().getSelectedItem();
 			
@@ -222,32 +222,81 @@ public class CreateRegionAnnotationsCommand implements Runnable {
 				return;
 			}
 			
+			// If adding 
+			PathObject parentObject = null;
+			ROI rectangle = null;
+			
 			// Determine starting location
-			double x;
-			double y;
 			switch (location) {
 			case IMAGE_CENTER:
-				x = (imageData.getServer().getWidth() - width) / 2.0;
-				y = (imageData.getServer().getHeight() - height) / 2.0;
+				double x = (imageData.getServer().getWidth() - width) / 2.0;
+				double y = (imageData.getServer().getHeight() - height) / 2.0;
+				rectangle = ROIs.createRectangleROI(x, y, width, height, viewer.getImagePlane());
 				break;
 			case RANDOM:
-				x = Math.random() * viewer.getServerWidth() - width;
-				y = Math.random() * viewer.getServerHeight() - height;
+				parentObject = imageData.getHierarchy().getSelectionModel().getSelectedObject();
+				var roi = parentObject == null ? null : parentObject.getROI();
+				if (roi != null) {
+					if (!(parentObject.isAnnotation() || parentObject.isTMACore())) {
+						logger.warn("Ignoring parent object because it's not an annotation or a TMA core");
+						parentObject = null;
+						roi = null;
+					}
+					if (!roi.isArea() || roi.isEmpty()) {
+						logger.warn("Ignoring parent object because its ROI does not define an area");
+						parentObject = null;
+						roi = null;
+					}
+				}
+				// 	If we have a selected object, add annotations within it
+				try {
+					if (roi != null) {
+						rectangle = RoiTools.createRandomRectangle(roi, width, height);
+					} else {
+						var region = ImageRegion.createInstance(0, 0, viewer.getServerWidth(), viewer.getServerHeight(), viewer.getZPosition(), viewer.getTPosition());
+						rectangle = RoiTools.createRandomRectangle(region, width, height);
+					}
+				} catch (IllegalArgumentException e) {
+					Dialogs.showErrorMessage("Create region", e.getLocalizedMessage());
+					return;
+				}
+				if (rectangle == null) {
+					Dialogs.showErrorMessage("Create region", "Unable to squeeze a rectangle of the specified size into the current ROI, sorry");
+					return;
+				}
 				break;
 			case VIEW_CENTER:
-				x = viewer.getCenterPixelX() - width / 2.0;
-				y = viewer.getCenterPixelY() - height / 2.0;
+				rectangle = ROIs.createRectangleROI(
+						viewer.getCenterPixelX() - width / 2.0,
+						viewer.getCenterPixelY() - height / 2.0,
+						width,
+						height,
+						viewer.getImagePlane());
 				break;
 			default:
-				Dialogs.showErrorMessage("Create region", "Unknowing location " + location);
+				break;
+			}
+			
+			if (rectangle == null) {
+				Dialogs.showErrorMessage("Create region", "Unable to create a rectangle region, sorry");
+				return;
+			}
+			
+			if (rectangle.getBoundsX() < 0 || rectangle.getBoundsY() < 0 || 
+					rectangle.getBoundsX() + rectangle.getBoundsWidth() > imageData.getServer().getWidth() || 
+					rectangle.getBoundsY() + rectangle.getBoundsHeight() > imageData.getServer().getHeight()) {
+				Dialogs.showErrorMessage("Create region", "Cannot create requested region - it would extend beyond the image bounds");
 				return;
 			}
 			
 			// Create an annotation
 			PathObject annotation = PathObjects.createAnnotationObject(
-					ROIs.createRectangleROI(x, y, width, height, ImagePlane.getPlane(viewer.getZPosition(), viewer.getTPosition())),
+					rectangle,
 					pathClass);
-			imageData.getHierarchy().addPathObject(annotation);
+			if (parentObject != null)
+				imageData.getHierarchy().addObjectBelowParent(parentObject, annotation, true);
+			else
+				imageData.getHierarchy().addObject(annotation);
 		}
 		
 		
@@ -270,6 +319,7 @@ public class CreateRegionAnnotationsCommand implements Runnable {
 		
 		
 	}
+	
 	
 
 }

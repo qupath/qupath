@@ -340,12 +340,12 @@ class TMADataImporter {
 			for (int ci = hasHeaders ? 1 : 0; ci < nCols; ci++) {
 				int c = hasHeaders ? ci-1 : ci;
 				if (ci >= cols.length)
-					infoGrid.getTMACore(r, c).setUniqueID(null);
+					infoGrid.getTMACore(r, c).setCaseID(null);
 				else {
 					String id = cols[ci];
 					if (id.trim().length() == 0)
 						id = null;
-					infoGrid.getTMACore(r, c).setUniqueID(id);
+					infoGrid.getTMACore(r, c).setCaseID(id);
 				}
 				// Set header, if required
 				if (hasHeaders) {
@@ -538,9 +538,9 @@ class TMADataImporter {
 		private void synchronizeCoreToFields() {
 			core.setMissing(isMissing());
 			core.setName(getName());
-			core.setUniqueID(getUniqueID());
+			core.setCaseID(getCaseID());
 			for (String name : getMeasurementList().getMeasurementNames()) {
-				core.getMeasurementList().putMeasurement(name, getMeasurementList().getMeasurementValue(name));
+				core.getMeasurementList().put(name, getMeasurementList().get(name));
 			}
 			core.getMeasurementList().close();
 			for (Entry<String, String> entry : getMetadataMap().entrySet()) {
@@ -554,7 +554,7 @@ class TMADataImporter {
 		private void synchronizeFieldsToCore() {
 			setMissing(core.isMissing());
 			setName(core.getName());
-			setUniqueID(core.getUniqueID());
+			setCaseID(core.getCaseID());
 		}
 		
 	}
@@ -566,8 +566,8 @@ class TMADataImporter {
 //		if (isMissing())
 //			sb.append("(missing)");
 //		sb.append("\n");
-		if (core.getUniqueID() != null)
-			sb.append(core.getUniqueID());
+		if (core.getCaseID() != null)
+			sb.append(core.getCaseID());
 		sb.append("\n");
 		sb.append("\n");
 		return sb.toString();
@@ -591,7 +591,7 @@ class TMADataImporter {
 			sb.append(entry.getKey()).append("\t").append(entry.getValue()).append("\n");
 		}
 		for (String name : core.getMeasurementList().getMeasurementNames()) {
-			sb.append(name).append("\t").append(core.getMeasurementList().getMeasurementValue(name)).append("\n");
+			sb.append(name).append("\t").append(core.getMeasurementList().get(name)).append("\n");
 		}
 		return sb.toString();
 	}

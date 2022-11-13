@@ -152,8 +152,8 @@ public class ServerTools {
 	 * @return true if the metadata was updated, false otherwise (i.e. if the name is unchanged)
 	 */
 	public static boolean setImageName(ImageServer<?> server, String name) {
-		Objects.nonNull(server);
-		Objects.nonNull(name);
+		Objects.requireNonNull(server);
+		Objects.requireNonNull(name);
 		if (name.equals(server.getMetadata().getName()))
 			return false;
 		var metadata2 = new ImageServerMetadata.Builder(server.getMetadata())
@@ -221,7 +221,7 @@ public class ServerTools {
 	public static BufferedImage getPaddedRequest(ImageServer<BufferedImage> server, RegionRequest request, Padding padding) throws IOException {
 		// If we don't have any padding, just return directly
 		if (padding.isEmpty())
-			return server.readBufferedImage(request);
+			return server.readRegion(request);
 		// Get the expected bounds
 		double downsample = request.getDownsample();
 		int x = (int)Math.round(request.getX() - padding.getX1() * downsample);
@@ -253,7 +253,7 @@ public class ServerTools {
 		}
 		// If everything is within range, this should be relatively straightforward
 		RegionRequest request2 = RegionRequest.createInstance(request.getPath(), downsample, x, y, x2-x, y2-y, request.getZ(), request.getT());
-		BufferedImage img = server.readBufferedImage(request2);
+		BufferedImage img = server.readRegion(request2);
 		if (outOfRange) {
 			WritableRaster raster = img.getRaster();
 			WritableRaster rasterPadded = raster.createCompatibleWritableRaster(

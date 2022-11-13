@@ -1850,7 +1850,7 @@ public class OpenCVTools {
 		for (int z = zMin; z < zMax; z++) {
 			RegionRequest request2 = RegionRequest.createInstance(server.getPath(), request.getDownsample(),
 					request.getX(), request.getY(), request.getWidth(), request.getHeight(), z, request.getT());
-			BufferedImage img = server.readBufferedImage(request2);
+			BufferedImage img = server.readRegion(request2);
 			list.add(imageToMat(img));
 		}
 		return list;

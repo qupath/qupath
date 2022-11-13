@@ -40,6 +40,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.UnaryOperator;
 import java.util.regex.Matcher;
@@ -49,6 +50,8 @@ import java.util.stream.Collectors;
 import javax.swing.SwingUtilities;
 
 import org.controlsfx.control.CheckComboBox;
+import org.controlsfx.control.ListSelectionView;
+import org.controlsfx.glyphfont.Glyph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -62,7 +65,12 @@ import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableValue;
+import javafx.collections.ObservableList;
+import javafx.css.StyleOrigin;
+import javafx.css.StyleableObjectProperty;
 import javafx.embed.swing.SwingFXUtils;
+import javafx.event.Event;
+import javafx.event.EventHandler;
 import javafx.geometry.Side;
 import javafx.scene.Node;
 import javafx.scene.Scene;
@@ -84,6 +92,8 @@ import javafx.scene.control.Slider;
 import javafx.scene.control.Spinner;
 import javafx.scene.control.SpinnerValueFactory;
 import javafx.scene.control.SpinnerValueFactory.DoubleSpinnerValueFactory;
+import javafx.scene.control.Tab;
+import javafx.scene.control.TabPane;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextFormatter;
@@ -92,6 +102,8 @@ import javafx.scene.image.Image;
 import javafx.scene.image.WritableImage;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
+import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
@@ -233,6 +245,84 @@ public class GuiTools {
 		}
 		return false;
 	}
+	
+	
+	/**
+	 * Create a new {@link ListSelectionView}.
+	 * This should be used instead of simply calling the constructor whenever the {@link ListSelectionView}
+	 * is expected to respond well to styles, since ControlsFX's default will stubbornly use black arrows 
+	 * to move between source and target lists.
+	 * @param <T>
+	 * @return
+	 * @since v0.4.0
+	 * @see #ensureDuplicatableGlyph(Glyph)
+	 */
+	public static <T> ListSelectionView<T> createListSelectionView() {
+		var listSelectionView = new ListSelectionView<T>();
+		
+		for (var action : listSelectionView.getActions()) {
+			var graphic = action.getGraphic();
+			if (graphic instanceof Glyph) {
+				action.graphicProperty().unbind();
+				action.setGraphic(ensureDuplicatableGlyph((Glyph)graphic));
+			}
+		}
+		
+		return listSelectionView;
+	}
+	
+	
+	/**
+	 * Ensure that a {@link Glyph} is 'duplicatable', without losing its key properties.
+	 * This is needed to have glyphs that behave well with css styles. 
+	 * ControlsFX's default implementation tends to lose the fill color otherwise.
+	 * @param glyph
+	 * @return
+	 * @since v0.4.0
+	 */
+	public static Glyph ensureDuplicatableGlyph(Glyph glyph) {
+		if (glyph instanceof DuplicatableGlyph)
+			return glyph;
+		return new DuplicatableGlyph(glyph);
+	}
+	
+	
+	/**
+	 * This exists because Glyph.duplicate() does not bind to fill color changes.
+	 * The duplicate method is called each time a new GUI component is created, because the same node 
+	 * cannot appear more than once in the scene graph.
+	 */
+	private static class DuplicatableGlyph extends Glyph {
+		
+		DuplicatableGlyph(Glyph glyph) {
+			super();
+			setText(glyph.getText());
+			setFontFamily(glyph.getFontFamily());
+	        setIcon(glyph.getIcon());
+	        setFontSize(glyph.getFontSize());
+	        getStyleClass().setAll(glyph.getStyleClass());
+	        
+	        setStyle(glyph.getStyle());
+
+	        // Be careful with setting the text fill, since an apparent ControlsFX bug means this 
+	        // can be locked to become black.
+	        // Here, we check if it's a bound property; if so we use that.
+	        // Otherwise, we only set the value if the StyleOrigin is USER (otherwise we let the default be used)
+	        var textFill = glyph.textFillProperty();
+	        if (textFill.isBound())
+	        	textFillProperty().bind(glyph.textFillProperty());
+	        else if (textFill instanceof StyleableObjectProperty<?> && ((StyleableObjectProperty<?>)textFill).getStyleOrigin() == StyleOrigin.USER)
+	        	setTextFill(textFill.get());
+		}
+		
+		@Override
+		public Glyph duplicate() {
+			return new DuplicatableGlyph(this);
+		}
+		
+	}
+	
+	
 
 	/**
 	 * Try to open a URI in a web browser.
@@ -580,7 +670,7 @@ public class GuiTools {
 		// Deselect first
 		hierarchy.getSelectionModel().deselectObject(pathObjectSelected);
 
-		if (pathObjectSelected.hasChildren()) {
+		if (pathObjectSelected.hasChildObjects()) {
 			int nDescendants = PathObjectTools.countDescendants(pathObjectSelected);
 			String message = nDescendants == 1 ? "Keep descendant object?" : String.format("Keep %d descendant objects?", nDescendants);
 			Dialogs.DialogButton confirm = Dialogs.showYesNoCancelDialog("Delete object", message);
@@ -679,22 +769,37 @@ public class GuiTools {
 	 * @param image
 	 */
 	public static void paintImage(final Canvas canvas, final Image image) {
+		paintImage(canvas, image, -1);
+	}
+	
+	/**
+	 * Paint an image centered within a canvas, scaled by the specified scale factor.
+	 * If the scale factor is &leq; 0, the image will be scaled to be as large as possible 
+	 * while maintaining its aspect ratio.
+	 * 
+	 * Background is transparent.
+	 * 
+	 * @param canvas
+	 * @param image
+	 * @param scale 
+	 */
+	public static void paintImage(final Canvas canvas, final Image image, double scale) {
 		GraphicsContext gc = canvas.getGraphicsContext2D();
 		double w = canvas.getWidth();
 		double h = canvas.getHeight();
 		gc.setFill(Color.TRANSPARENT);
+		gc.clearRect(0, 0, w, h);
 		if (image == null) {
-			gc.clearRect(0, 0, w, h);
 			return;
 		}
-		double scale = Math.min(
+		if (scale <= 0)
+			scale = Math.min(
 				w/image.getWidth(),
 				h/image.getHeight());
 		double sw = image.getWidth()*scale;
 		double sh = image.getHeight()*scale;
 		double sx = (w - sw)/2;
 		double sy = (h - sh)/2;
-		gc.clearRect(0, 0, w, h);
 		gc.drawImage(image, sx, sy, sw, sh);
 	}
 
@@ -925,7 +1030,7 @@ public class GuiTools {
 			else
 				temp.setName(null);
 			if (promptForColor && colorChanged.get())
-				temp.setColorRGB(ColorToolsFX.getARGB(colorPicker.getValue()));
+				temp.setColor(ColorToolsFX.getARGB(colorPicker.getValue()));
 	
 			// Set the description only if we have to
 			String description = textAreaDescription.getText();
@@ -1373,6 +1478,75 @@ public class GuiTools {
 
 	
 	
+	
+	private static String getNameFromURI(URI uri) {
+		if (uri == null)
+			return "No URI";
+			
+		String[] path = uri.getPath().split("/");
+		if (path.length == 0)
+			return "";
+		String name = path[path.length-1];
+		// Strip extension if we have one
+		if (path.length == 1)
+			return name;
+		return path[path.length-2] + "/" + name;
+	}
+	
+	
+	/**
+	 * Create a menu that displays recent items, stored in the form of URIs, using default text to show for the menu item.
+	 * 
+	 * @param menuTitle
+	 * @param recentItems
+	 * @param consumer
+	 * @return
+	 */
+	public static Menu createRecentItemsMenu(String menuTitle, ObservableList<URI> recentItems, Consumer<URI> consumer) {
+		return createRecentItemsMenu(menuTitle, recentItems, consumer, GuiTools::getNameFromURI);
+	}
+	
+	
+	/**
+	 * Create a menu that displays recent items, stored in the form of URIs, customizing the text displayed for the menu items.
+	 * 
+	 * @param menuTitle
+	 * @param recentItems
+	 * @param consumer
+	 * @param menuitemText 
+	 * @return
+	 */
+	public static Menu createRecentItemsMenu(String menuTitle, ObservableList<URI> recentItems, Consumer<URI> consumer, Function<URI, String> menuitemText) {
+		// Create a recent projects list in the File menu
+		Menu menuRecent = MenuTools.createMenu(menuTitle);
+
+		EventHandler<Event> validationHandler = e -> {
+			menuRecent.getItems().clear();
+			for (URI uri : recentItems) {
+				if (uri == null)
+					continue;
+				String name = getNameFromURI(uri);
+				name = ".../" + name;
+				MenuItem item = new MenuItem(name);
+				item.setOnAction(event -> consumer.accept(uri));
+				menuRecent.getItems().add(item);
+			}
+		};
+
+		// Ensure the menu is populated
+		menuRecent.parentMenuProperty().addListener((v, o, n) -> {
+			if (o != null && o.getOnMenuValidation() == validationHandler)
+				o.setOnMenuValidation(null);
+			if (n != null)
+				n.setOnMenuValidation(validationHandler);
+		});
+
+		return menuRecent;
+
+	}
+	
+	
+	
 	private static final String KEY_REGIONS = "processRegions";
 	
 	/**
@@ -1459,6 +1633,89 @@ public class GuiTools {
 
 		// Success!  Probably...
 		return !hierarchy.getSelectionModel().noSelection();
+	}
+	
+	
+	/**
+	 * Make a stage moveable by click and drag on the scene.
+	 * This is useful for undecorated stages.
+	 * @param stage
+	 * @implNote currently this does not handle changes of scene; the scene must be 
+	 *           set before calling this method, and not changed later.
+	 */
+	public static void makeDraggableStage(Stage stage) {
+		new MoveablePaneHandler(stage);
+	}
+	
+	
+	
+	/**
+	 * Enable an undecorated stage to be moved by clicking and dragging within it.
+	 * Requires the scene to be set. Note that this will set mouse event listeners.
+	 */
+	private static class MoveablePaneHandler implements EventHandler<MouseEvent> {
+
+		private Stage stage;
+		
+		private double xOffset = 0;
+		private double yOffset = 0;
+
+		private MoveablePaneHandler(Stage stage) {
+			this.stage = stage;
+			var scene = stage.getScene();
+			if (scene == null)
+				throw new IllegalArgumentException("Scene must be set on the stage!");
+			scene.addEventFilter(MouseEvent.ANY, this);
+		}
+
+		@Override
+		public void handle(MouseEvent event) {
+			if (event.getEventType() == MouseEvent.MOUSE_PRESSED) {
+				xOffset = stage.getX() - event.getScreenX();
+				yOffset = stage.getY() - event.getScreenY();				
+			} else if (event.getEventType() == MouseEvent.MOUSE_DRAGGED) {
+				stage.setX(event.getScreenX() + xOffset);
+				stage.setY(event.getScreenY() + yOffset);
+			}
+		}
+
+	}
+
+
+
+	/**
+	 * Make a tab undockable, via a context menu available on right-click.
+	 * When undocked, the tab will become a floating window.
+	 * If the window is closed, it will be added back to its original tab pane.
+	 * @param tab
+	 * @since v0.4.0
+	 */
+	public static void makeTabUndockable(Tab tab) {
+		var miUndock = new MenuItem("Undock tab");
+		var popup = new ContextMenu(miUndock);
+		tab.setContextMenu(popup);
+		miUndock.setOnAction(e -> {
+			var tabPane = tab.getTabPane();
+			var parent = tabPane.getScene() == null ? null : tabPane.getScene().getWindow();
+			
+			double width = tabPane.getWidth();
+			double height = tabPane.getHeight();
+			tabPane.getTabs().remove(tab);
+			var stage = new Stage();
+			stage.initOwner(parent);
+			stage.setTitle(tab.getText());
+			var content = tab.getContent();
+			tab.setContent(null);
+			var tabContent = new BorderPane(content);
+			stage.setScene(new Scene(tabContent, width, height));
+			stage.show();
+			
+			stage.setOnCloseRequest(e2 -> {
+				tabContent.getChildren().remove(tabContent);
+				tab.setContent(content);
+				tabPane.getTabs().add(tab);
+			});
+		});
 	}
 	
 	

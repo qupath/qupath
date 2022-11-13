@@ -64,7 +64,6 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.GeometryTools;
 import qupath.lib.roi.RoiTools;
@@ -548,7 +547,7 @@ public class DelaunayTools {
 	 * @return a collection of objects that have had their classifications set by this method
 	 */
 	public static Collection<PathObject> classifyObjectsByCluster(Collection<Collection<? extends PathObject>> clusters) {
-		return classifyObjectsByCluster(clusters, c -> PathClassFactory.getPathClass("Cluster " + (c + 1)));
+		return classifyObjectsByCluster(clusters, c -> PathClass.getInstance("Cluster " + (c + 1)));
 	}
 	
 	
@@ -569,7 +568,7 @@ public class DelaunayTools {
 			Integer color = pathClass == null ? null : pathClass.getColor();
 			for (var pathObject : cluster) {
 				pathObject.setName(name);
-				pathObject.setColorRGB(color);
+				pathObject.setColor(color);
 				list.add(pathObject);
 			}
 			c++;
@@ -583,7 +582,7 @@ public class DelaunayTools {
 	 * @return a collection of objects that have had their classifications set by this method
 	 */
 	public static Collection<PathObject> nameObjectsByCluster(Collection<Collection<? extends PathObject>> clusters) {
-		return nameObjectsByCluster(clusters, c -> PathClassFactory.getPathClass("Cluster " + (c + 1)));
+		return nameObjectsByCluster(clusters, c -> PathClass.getInstance("Cluster " + (c + 1)));
 	}
 	
 	

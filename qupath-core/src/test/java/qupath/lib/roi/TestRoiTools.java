@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2021 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2021-2022 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -22,6 +22,10 @@
 package qupath.lib.roi;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.awt.geom.AffineTransform;
 import java.io.IOException;
@@ -42,6 +46,7 @@ import org.slf4j.LoggerFactory;
 import qupath.lib.geom.ImmutableDimension;
 import qupath.lib.io.GsonTools;
 import qupath.lib.regions.ImagePlane;
+import qupath.lib.regions.ImageRegion;
 import qupath.lib.roi.RoiTools.CombineOp;
 import qupath.lib.roi.interfaces.ROI;
 
@@ -110,6 +115,27 @@ public class TestRoiTools {
 		
 		
 	}
+	
+	
+	@Test
+	public void testRemoveSmallRegions() {
+		
+		var roi = ROIs.createRectangleROI(0, 0, 20, 20, ImagePlane.getDefaultPlane());
+		
+		assertEquals(roi, RoiTools.removeSmallPieces(roi, 10, 10));
+		assertFalse(RoiTools.removeSmallPieces(roi, 10, 10).isEmpty());
+		assertTrue(RoiTools.removeSmallPieces(roi, 500, 0).isEmpty());
+		
+		var line = ROIs.createLineROI(0, 0, 100, 100, ImagePlane.getDefaultPlane());
+		assertEquals(line, RoiTools.removeSmallPieces(line, 0, 0)); // Unchanged
+		assertTrue(RoiTools.removeSmallPieces(line, 50, 0).isEmpty());
+
+		var points = ROIs.createPointsROI(10, 10, ImagePlane.getDefaultPlane());
+		assertEquals(points, RoiTools.removeSmallPieces(points, 0, 0)); // Unchanged
+		assertTrue(RoiTools.removeSmallPieces(points, 50, 0).isEmpty());
+
+	}
+	
 	
 	
 	/**
@@ -202,6 +228,35 @@ public class TestRoiTools {
 			return geom.difference(GeometryTools.union(holeTriangles));
 		
 	}
+	
+	
+	@Test
+	void testRandomRectangles() {
+		
+		var region = ImageRegion.createInstance(1000, 2000, 300, 400, 2, 3);
+		
+		var rng = new Random(100);
+		
+		assertNotNull(RoiTools.createRandomRectangle(region, region.getWidth()-1, region.getHeight()-1, rng));
+		assertNotNull(RoiTools.createRandomRectangle(region, region.getWidth(), region.getHeight(), rng));
+		assertEquals(region.getImagePlane(), RoiTools.createRandomRectangle(region, region.getWidth()-1, region.getHeight()-1, rng).getImagePlane());
+		assertThrows(IllegalArgumentException.class, () -> RoiTools.createRandomRectangle(region, region.getWidth()+0.1, region.getHeight(), rng));
+		assertThrows(IllegalArgumentException.class, () -> RoiTools.createRandomRectangle(region, region.getWidth()+0.1, region.getHeight()+1, rng));
+
+		
+		var roi = ROIs.createEllipseROI(1000, 2000, 300, 400, ImagePlane.getPlane(3, 4));
+		
+		assertNotNull(RoiTools.createRandomRectangle(roi, roi.getBoundsWidth()/2, roi.getBoundsHeight()/2, 1000, true, rng));
+		// Are smaller, but ROI won't fit
+		assertNull(RoiTools.createRandomRectangle(roi, roi.getBoundsWidth(), roi.getBoundsHeight()/16, 1000, true, rng));
+		assertEquals(roi.getImagePlane(), RoiTools.createRandomRectangle(roi, roi.getBoundsWidth()/2, roi.getBoundsHeight()/2, 1000, true, rng).getImagePlane());
+		assertThrows(IllegalArgumentException.class, () -> RoiTools.createRandomRectangle(roi, roi.getBoundsWidth(), roi.getBoundsHeight(), 1000, true, rng));
+		assertThrows(IllegalArgumentException.class, () -> RoiTools.createRandomRectangle(roi, roi.getBoundsWidth()+0.1, roi.getBoundsHeight(), 1000, true, rng));
+		assertThrows(IllegalArgumentException.class, () -> RoiTools.createRandomRectangle(roi, roi.getBoundsWidth()+0.1, roi.getBoundsHeight()+1, 1000, true, rng));
+		
+		
+	}
+	
 	
 	
 

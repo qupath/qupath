@@ -99,7 +99,7 @@ class DensityMapDataOp implements ImageDataOp {
 			PathObjectPredicate allObjects,
 			DensityMapType densityType) {
 		
-		Objects.nonNull(densityType);
+		Objects.requireNonNull(densityType);
 		if (radius < 0)
 			throw new IllegalArgumentException("Density map radius must be >= 0!");
 		
@@ -380,15 +380,15 @@ class DensityMapDataOp implements ImageDataOp {
 	}
 	
 	@Override
-	public Collection<URI> getUris() throws IOException {
-		return op == null ? Collections.emptyList() : op.getUris();
+	public Collection<URI> getURIs() throws IOException {
+		return op == null ? Collections.emptyList() : op.getURIs();
 	}
 
 	@Override
-	public boolean updateUris(Map<URI, URI> replacements) throws IOException {
+	public boolean updateURIs(Map<URI, URI> replacements) throws IOException {
 		if (op == null)
 			return false;
-		return op.updateUris(replacements);
+		return op.updateURIs(replacements);
 	}
 	
 

@@ -40,6 +40,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javafx.animation.AnimationTimer;
+import javafx.animation.FadeTransition;
+import javafx.animation.SequentialTransition;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -47,6 +49,7 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.geometry.Orientation;
 import javafx.geometry.Side;
 import javafx.scene.Node;
 import javafx.scene.Scene;
@@ -68,6 +71,7 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
+import javafx.util.Duration;
 import javafx.scene.control.TableRow;
 import javafx.scene.input.Dragboard;
 import javafx.scene.input.TransferMode;
@@ -244,6 +248,7 @@ public class ViewTrackerControlPane implements Runnable {
 		});
 		
 		BooleanProperty playing = playback.playingProperty();
+		iconPlay.setStyle("-fx-text-fill: -fx-text-background-color;");
 		actionPlayback.graphicProperty().bind(Bindings.createObjectBinding(() -> {
 					return playing.get() ? iconPlayStop : iconPlay;
 				},
@@ -293,22 +298,22 @@ public class ViewTrackerControlPane implements Runnable {
 			// Remove all trackers to delete from ListView (even if exception when deleting file)
 			trackersList.removeAll(trackersToDelete);
 		});
-		Button analyzeBtn = new Button("Analyze");
-		analyzeBtn.setOnAction(e -> openViewTrackingAnalysisCommand());
-		analyzeBtn.setTooltip(new Tooltip("Open the recording analysis window for the selected recording"));
+		Button btnMore = new Button("More");
+		btnMore.setOnAction(e -> openViewTrackingAnalysisCommand());
+		btnMore.setTooltip(new Tooltip("Open the recording analysis window for the selected recording"));
 		
 		
 		// Add all buttons to GridPane
 		GridPane btnPane = PaneTools.createColumnGrid(3);
 		exportBtn.setMaxWidth(Double.MAX_VALUE);
 		deleteBtn.setMaxWidth(Double.MAX_VALUE);
-		analyzeBtn.setMaxWidth(Double.MAX_VALUE);
-		btnPane.addRow(0, exportBtn, deleteBtn, analyzeBtn);
+		btnMore.setMaxWidth(Double.MAX_VALUE);
+		btnPane.addRow(0, exportBtn, deleteBtn, btnMore);
 		
 		// Disable all buttons if no recording is selected, disable 'Export' and 'More' if multiple selection
 		exportBtn.disableProperty().bind(Bindings.or(Bindings.equal(Bindings.size(table.getSelectionModel().getSelectedItems()), 1).not(), isAnalysisOpened));
 		deleteBtn.disableProperty().bind(Bindings.or(table.getSelectionModel().selectedItemProperty().isNull(), isAnalysisOpened));
-		analyzeBtn.disableProperty().bind(Bindings.or(Bindings.equal(Bindings.size(table.getSelectionModel().getSelectedItems()), 1).not(), isAnalysisOpened));
+		btnMore.disableProperty().bind(Bindings.or(Bindings.equal(Bindings.size(table.getSelectionModel().getSelectedItems()), 1).not(), isAnalysisOpened));
 		
 		// Disable playback button if no ViewTracker or multiple ViewTrackers are selected
 		actionPlayback.disabledProperty().bind(Bindings.size(table.getSelectionModel().getSelectedItems()).isNotEqualTo(1).or(recordingMode).or(isAnalysisOpened));
@@ -352,7 +357,10 @@ public class ViewTrackerControlPane implements Runnable {
 						if (!GeneralTools.getExtension(file).get().equals(".tsv"))
 							continue;
 						var tracker = ViewTrackerTools.handleImport(file.toPath());
-						trackersList.add(tracker);
+						if (tracker == null) {
+							logger.warn("Unable to read view tracker: {}", file);
+						} else
+							trackersList.add(tracker);
 					}
 				} catch (Exception ex) {
 					Dialogs.showErrorMessage("Drag & Drop", ex);
@@ -412,6 +420,8 @@ public class ViewTrackerControlPane implements Runnable {
 			// Set whatever will be written in each column
 			column.setCellValueFactory(item -> {
 				final ViewTracker currentTracker = item.getValue();
+				if (currentTracker == null)
+					return null;
 				if (columnName.equals("Name")) {
 					File file = currentTracker.getFile();
 					if (file != null)
@@ -452,10 +462,28 @@ public class ViewTrackerControlPane implements Runnable {
 		duration.setVisible(false);
 		duration.setMinWidth(50.0);
 		
-		Separator separator = new Separator();
+		Separator separator = new Separator(Orientation.VERTICAL);
 		duration.visibleProperty().bind(recordingMode);
 		separator.visibleProperty().bind(recordingMode);
 		iconRecording.visibleProperty().bind(recordingMode);
+		Tooltip.install(iconRecording, new Tooltip("Recording"));
+		
+		// Make the recording icon pulse when active
+		var fadeOut = new FadeTransition(Duration.seconds(1.0), iconRecording);
+		fadeOut.setFromValue(1.0);
+		fadeOut.setToValue(0.5);
+		var fadeIn = new FadeTransition(Duration.seconds(1.0), iconRecording);
+		fadeIn.setFromValue(0.5);
+		fadeIn.setToValue(1.0);
+		
+		var pulse = new SequentialTransition(iconRecording, fadeOut, fadeIn);
+		pulse.setCycleCount(FadeTransition.INDEFINITE);
+		recordingMode.addListener((v, o, n) -> {
+			if (n)
+				pulse.playFromStart();
+			else
+				pulse.stop();
+		});
 		
 		optionBtn.disableProperty().bind(Bindings.or(recordingMode, isAnalysisOpened));
 		table.disableProperty().bind(isAnalysisOpened);
@@ -600,9 +628,10 @@ public class ViewTrackerControlPane implements Runnable {
 				trackers.addAll(walk.filter(Files::isRegularFile)
 												.filter(path -> GeneralTools.getExtension(path.toFile()).orElse("").equals(".tsv"))
 												.map(path -> ViewTrackerTools.handleImport(path))
+												.filter(t -> t != null)
 												.collect(Collectors.toList()));
 			} catch (IOException ex) {
-				logger.error("Could not fetch existing recordings: ", ex.getLocalizedMessage());
+				logger.error("Could not fetch existing recordings: " + ex.getLocalizedMessage(), ex);
 			}
 		}
 		return trackers;

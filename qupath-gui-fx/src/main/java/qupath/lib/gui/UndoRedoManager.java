@@ -440,7 +440,7 @@ public class UndoRedoManager implements ChangeListener<QuPathViewerPlus>, QuPath
 		
 		// Stop listening for changes on the old image
 		if (imageDataOld != null) {
-			imageDataOld.getHierarchy().removePathObjectListener(this);
+			imageDataOld.getHierarchy().removeListener(this);
 		}
 		
 		// Start listening for changes on the new image... if we can
@@ -454,7 +454,7 @@ public class UndoRedoManager implements ChangeListener<QuPathViewerPlus>, QuPath
 			else
 				map.put(viewer, new SerializableUndoRedoStack<>(null));
 			// Listen for changes
-			hierarchy.addPathObjectListener(this);
+			hierarchy.addListener(this);
 		}
 		
 		refreshProperties();

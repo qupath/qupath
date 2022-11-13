@@ -21,41 +21,34 @@
 
 package qupath.lib.gui.scripting.languages;
 
-import java.awt.image.BufferedImage;
-import java.util.Collection;
 import java.util.ServiceLoader;
+import java.util.Set;
 
-import javax.script.ScriptContext;
 import javax.script.ScriptException;
 
 import org.commonmark.parser.Parser;
 import org.commonmark.renderer.html.HtmlRenderer;
 
-import javafx.application.Platform;
-import javafx.scene.Scene;
-import javafx.scene.web.WebView;
-import javafx.stage.Stage;
-import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.tools.WebViews;
-import qupath.lib.images.ImageData;
-import qupath.lib.projects.Project;
+import qupath.lib.scripting.ScriptParameters;
+import qupath.lib.scripting.languages.ScriptAutoCompletor;
+import qupath.lib.scripting.languages.ScriptLanguage;
 
 /**
  * Class for the representation of JSON syntax in QuPath.
  * <p>
  * This class stores the QuPath implementation of Markdown syntaxing and a dummy plain auto-completion.
+ * 
  * @author Pete Bankhead (based on Melvin Gelbard's code)
  * @since v0.4.0
  */
-public class MarkdownLanguage extends ScriptLanguage implements RunnableLanguage {
+public class MarkdownLanguage extends ScriptLanguage implements qupath.lib.gui.scripting.languages.HtmlRenderer {
 	
 	/**
 	 * Instance of this language. Can't be final because of {@link ServiceLoader}.
 	 */
 	private static MarkdownLanguage INSTANCE;
 	
-	private ScriptSyntax syntax;
-	private ScriptAutoCompletor completor;
+	private ScriptAutoCompletor completor = null;
 	
 	/**
 	 * Constructor for JSON language. This constructor should never be 
@@ -64,9 +57,7 @@ public class MarkdownLanguage extends ScriptLanguage implements RunnableLanguage
 	 * Note: this has to be public for the {@link ServiceLoader} to work.
 	 */
 	public MarkdownLanguage() {
-		super("Markdown", new String[]{".md", ".markdown"});
-		this.syntax = PlainSyntax.getInstance();
-		this.completor = new PlainAutoCompletor();
+		super("Markdown", Set.of(".md", ".markdown"));
 		
 		if (INSTANCE != null)
 			throw new UnsupportedOperationException("Language classes cannot be instantiated more than once!");
@@ -82,64 +73,21 @@ public class MarkdownLanguage extends ScriptLanguage implements RunnableLanguage
 	public static MarkdownLanguage getInstance() {
 		return INSTANCE;
 	}
-	
-	@Override
-	public ScriptSyntax getSyntax() {
-		return syntax;
-	}
 
 	@Override
 	public ScriptAutoCompletor getAutoCompletor() {
 		return completor;
 	}
 	
-	private static Stage stage;
-	private static WebView webview;
-	
-	private void showHtml(String html) {
-		var qupath = QuPathGUI.getInstance();
-		if (qupath == null || qupath.getStage() == null)
-			return;
-		if (!Platform.isFxApplicationThread()) {
-			Platform.runLater(() -> showHtml(html));
-			return;			
-		}
-		if (webview == null) {
-			webview = WebViews.create(true);
-			stage = new Stage();
-			stage.setScene(new Scene(webview));
-			stage.setTitle("Rendered markdown");
-			stage.initOwner(QuPathGUI.getInstance().getStage());
-		}
-		webview.getEngine().loadContent(html);
-		if (!stage.isShowing())
-			stage.show();
-		else
-			stage.toFront();
-	}
 
 	@Override
-	public Object executeScript(String script, Project<BufferedImage> project, ImageData<BufferedImage> imageData,
-			Collection<Class<?>> defaultImports, Collection<Class<?>> defaultStaticImports, ScriptContext context)
-			throws ScriptException {
-		
+	public Object execute(ScriptParameters params) throws ScriptException {
 		try {
-			var doc = Parser.builder().build().parse(script);
-			var html = HtmlRenderer.builder().build().render(doc);
-			showHtml(html);
-			return html;
+			var doc = Parser.builder().build().parse(params.getScript());
+			return HtmlRenderer.builder().build().render(doc);
 		} catch (Exception e) {
 			throw new ScriptException(e);
 		}
 	}
 
-	@Override
-	public String getImportStatements(Collection<Class<?>> classes) {
-		return null;
-	}
-
-	@Override
-	public String getStaticImportStatments(Collection<Class<?>> classes) {
-		return null;
-	}
 }

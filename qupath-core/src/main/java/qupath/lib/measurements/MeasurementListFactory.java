@@ -52,5 +52,4 @@ public class MeasurementListFactory {
 			return new DefaultMeasurementList(capacity);
 		}
 	}
-
 }

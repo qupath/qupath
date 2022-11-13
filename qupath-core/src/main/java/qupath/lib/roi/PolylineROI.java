@@ -269,6 +269,13 @@ public class PolylineROI extends AbstractPathROI implements Serializable {
 	}
 	
 	@Override
+	public ROI updatePlane(ImagePlane plane) {
+		return new PolylineROI(
+				getAllPoints(),
+				plane);
+	}
+	
+	@Override
 	public boolean contains(double x, double y) {
 		return false;
 	}

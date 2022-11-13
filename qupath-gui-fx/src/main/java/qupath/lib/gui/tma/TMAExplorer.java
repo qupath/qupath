@@ -138,7 +138,7 @@ public class TMAExplorer implements Runnable {
 					if (!fileOutput.exists()) {
 						try {
 							RegionRequest request = RegionRequest.createInstance(server.getPath(), downsample, core.getROI());
-							BufferedImage img = server.readBufferedImage(request);
+							BufferedImage img = server.readRegion(request);
 							ImageIO.write(img, "jpg", fileOutput);
 						} catch (Exception e) {
 							logger.error("Unable to write {}", fileOutput.getAbsolutePath());

@@ -28,6 +28,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import qupath.lib.common.ColorTools;
@@ -44,6 +45,10 @@ public final class PathClassTools {
 		throw new AssertionError();
 	}
 
+	private static Set<String> gradedIntensityClassNames = Set.of(
+			PathClass.NAME_ONE_PLUS, PathClass.NAME_TWO_PLUS, PathClass.NAME_THREE_PLUS);
+
+	
 	/**
 	 * Return true if the PathClass represents a built-in intensity class.
 	 * Here, this means its name is equal to "1+", "2+" or "3+".
@@ -52,7 +57,8 @@ public final class PathClassTools {
 	 * @return
 	 */
 	public static boolean isGradedIntensityClass(final PathClass pathClass) {
-		return pathClass != null && PathClassFactory.intensityClassNames.contains(pathClass.getName());
+		return pathClass != null && pathClass != PathClass.NULL_CLASS
+				&& gradedIntensityClassNames.contains(pathClass.getName());
 	}
 	
 	/**
@@ -80,17 +86,17 @@ public final class PathClassTools {
 	 * @return 
 	 */
 	public static boolean isNullClass(final PathClass pathClass) {
-		return pathClass == null || pathClass == PathClassFactory.getPathClassUnclassified() || pathClass.getName() == null;
+		return pathClass == null || pathClass == PathClass.NULL_CLASS || pathClass.getName() == null;
 	}
 	
 	/**
 	 * Returns true if the PathClass represents a valid (non-null) classification.
 	 * 
 	 * @param pathClass input classification to check
-	 * @return true if the input represents a valid classification, or false if the input is null or is equivalent to {@link PathClassFactory#getPathClassUnclassified()}.
+	 * @return true if the input represents a valid classification, or false if the input is null or is equivalent to {@link PathClass#NULL_CLASS}.
 	 */
 	public static boolean isValidClass(final PathClass pathClass) {
-		return pathClass != null && pathClass != PathClassFactory.getPathClassUnclassified() && pathClass.getName() != null;
+		return pathClass != null && pathClass != PathClass.NULL_CLASS && pathClass.getName() != null;
 	}
 	
 	/**
@@ -99,7 +105,7 @@ public final class PathClassTools {
 	 * @return
 	 */
 	public static boolean isOnePlus(final PathClass pathClass) {
-		return pathClass != null && PathClassFactory.ONE_PLUS.equals(pathClass.getName());
+		return pathClass != null && PathClass.NAME_ONE_PLUS.equals(pathClass.getName());
 	}
 
 	/**
@@ -108,7 +114,7 @@ public final class PathClassTools {
 	 * @return
 	 */
 	public static boolean isTwoPlus(final PathClass pathClass) {
-		return pathClass != null && PathClassFactory.TWO_PLUS.equals(pathClass.getName());
+		return pathClass != null && PathClass.NAME_TWO_PLUS.equals(pathClass.getName());
 	}
 
 	/**
@@ -117,7 +123,7 @@ public final class PathClassTools {
 	 * @return
 	 */
 	public static boolean isThreePlus(final PathClass pathClass) {
-		return pathClass != null && PathClassFactory.THREE_PLUS.equals(pathClass.getName());
+		return pathClass != null && PathClass.NAME_THREE_PLUS.equals(pathClass.getName());
 	}
 
 	/**
@@ -127,7 +133,7 @@ public final class PathClassTools {
 	 * @return
 	 */
 	public static boolean isPositiveClass(final PathClass pathClass) {
-		return pathClass != null && PathClassFactory.POSITIVE.equals(pathClass.getName());
+		return pathClass != null && PathClass.NAME_POSITIVE.equals(pathClass.getName());
 	}
 	
 	/**
@@ -146,7 +152,7 @@ public final class PathClassTools {
 	 * @return
 	 */
 	public static boolean isNegativeClass(final PathClass pathClass) {
-		return pathClass != null && PathClassFactory.NEGATIVE.equals(pathClass.getName());
+		return pathClass != null && PathClass.NAME_NEGATIVE.equals(pathClass.getName());
 	}
 
 	/**
@@ -172,7 +178,7 @@ public final class PathClassTools {
 	 * the result of calling {@code PathClass.getName()} for all derived classes, starting from the root. 
 	 */
 	public static List<String> splitNames(PathClass pathClass) {
-		if (pathClass == null || pathClass == PathClassFactory.getPathClassUnclassified())
+		if (pathClass == null || pathClass == PathClass.NULL_CLASS)
 			return Collections.emptyList();
 		List<String> names = new ArrayList<>();
 		while (pathClass != null) {
@@ -193,7 +199,7 @@ public final class PathClassTools {
 		var namesUnique = names.stream().distinct().collect(Collectors.toList());
 		if (names.equals(namesUnique))
 			return pathClass;
-		return PathClassFactory.getPathClass(namesUnique);
+		return PathClass.fromCollection(namesUnique);
 	}
 	
 	/**
@@ -222,7 +228,7 @@ public final class PathClassTools {
 	public static PathClass sortNames(PathClass pathClass, Comparator<String> comparator) {
 		var names = splitNames(pathClass);
 		names.sort(comparator);
-		return PathClassFactory.getPathClass(names);
+		return PathClass.fromCollection(names);
 	}
 	
 	/**
@@ -236,7 +242,7 @@ public final class PathClassTools {
 	public static PathClass removeNames(PathClass pathClass, Collection<String> namesToRemove) {
 		var names = splitNames(pathClass);
 		if (names.removeAll(namesToRemove))
-			return PathClassFactory.getPathClass(names);
+			return PathClass.fromCollection(names);
 		return pathClass;
 	}
 	
@@ -268,10 +274,10 @@ public final class PathClassTools {
 		if (Objects.equals(baseClass, additionalClass))
 			return baseClass;
 
-		if (baseClass == PathClassFactory.getPathClassUnclassified())
+		if (baseClass == PathClass.NULL_CLASS)
 			baseClass = null;
 		
-		if (additionalClass == PathClassFactory.getPathClassUnclassified())
+		if (additionalClass == PathClass.NULL_CLASS)
 			additionalClass = null;
 
 		if (baseClass == null) {
@@ -286,7 +292,7 @@ public final class PathClassTools {
 		PathClass output = baseClass;
 		for (String name : names) {
 			if (!containsName(baseClass, name))
-				output = PathClassFactory.getDerivedPathClass(output, name, averageColors(baseClass.getColor(), additionalClass.getColor()));
+				output = PathClass.getInstance(output, name, averageColors(baseClass.getColor(), additionalClass.getColor()));
 		}
 		return output;
 	}

@@ -148,7 +148,7 @@ public class RotatedImageServer extends TransformingImageServer<BufferedImage> {
 	}
 
 	@Override
-	public BufferedImage readBufferedImage(RegionRequest request) throws IOException {
+	public BufferedImage readRegion(RegionRequest request) throws IOException {
 		switch (rotation) {
 		case ROTATE_180:
 			return rotate180(request);
@@ -159,7 +159,7 @@ public class RotatedImageServer extends TransformingImageServer<BufferedImage> {
 		case ROTATE_NONE:
 		default:
 			// Don't apply any rotation
-			return getWrappedServer().readBufferedImage(request);
+			return getWrappedServer().readRegion(request);
 		}
 	}
 	
@@ -171,7 +171,7 @@ public class RotatedImageServer extends TransformingImageServer<BufferedImage> {
 		    return null;
 		
 		// It's possible the region is still empty
-		var img = getWrappedServer().readBufferedImage(request2);
+		var img = getWrappedServer().readRegion(request2);
 		if (img == null)
 			return null;
 		
@@ -205,7 +205,7 @@ public class RotatedImageServer extends TransformingImageServer<BufferedImage> {
 		    return null;
 		
 		// It's possible the region is still empty
-		var img = getWrappedServer().readBufferedImage(request2);
+		var img = getWrappedServer().readRegion(request2);
 		if (img == null)
 			return null;
 		
@@ -237,7 +237,7 @@ public class RotatedImageServer extends TransformingImageServer<BufferedImage> {
 		    return null;
 		
 		// It's possible the region is still empty
-		var img = getWrappedServer().readBufferedImage(request2);
+		var img = getWrappedServer().readRegion(request2);
 		if (img == null)
 			return null;
 		

@@ -41,21 +41,27 @@ import org.slf4j.LoggerFactory;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.value.ObservableBooleanValue;
+import javafx.beans.value.ObservableObjectValue;
 import javafx.concurrent.Task;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.ListView;
+import javafx.scene.input.Clipboard;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.layout.Region;
 import javafx.stage.Popup;
 import qupath.lib.common.ThreadTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.scripting.DefaultScriptEditor;
+import qupath.lib.gui.scripting.EditableText;
 import qupath.lib.gui.scripting.ScriptEditorControl;
-import qupath.lib.gui.scripting.highlighters.ScriptHighlighter;
-import qupath.lib.gui.scripting.highlighters.ScriptHighlighterProvider;
-import qupath.lib.gui.scripting.languages.ScriptAutoCompletor;
+import qupath.lib.gui.scripting.richtextfx.stylers.ScriptStyler;
+import qupath.lib.gui.scripting.richtextfx.stylers.ScriptStylerProvider;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.MenuTools;
+import qupath.lib.scripting.languages.AutoCompletions;
+import qupath.lib.scripting.languages.AutoCompletions.Completion;
 
 /*
  * 
@@ -90,10 +96,10 @@ public class RichScriptEditor extends DefaultScriptEditor {
 	
 	private ExecutorService executor = Executors.newSingleThreadExecutor(ThreadTools.createThreadFactory("rich-text-styling", true));
 	
-	private final ObjectProperty<ScriptHighlighter> scriptHighlighter = new SimpleObjectProperty<>();
+	private final ObjectProperty<ScriptStyler> scriptStyler = new SimpleObjectProperty<>();
 
 	// Delay for async formatting, in milliseconds
-	private static int delayMillis = 100;
+	private static int delayMillis = 20;
 
 	private ContextMenu menu;
 	
@@ -123,11 +129,13 @@ public class RichScriptEditor extends DefaultScriptEditor {
 	}
 
 	@Override
-	protected ScriptEditorControl getNewEditor() {
+	protected ScriptEditorControl<? extends Region> getNewEditor() {
 		try {
-			CodeArea codeArea = new CustomCodeArea();
-			CodeAreaControl control = new CodeAreaControl(codeArea);
+			CodeArea codeArea = createCodeArea();
+
 			
+			CodeAreaControl control = new CodeAreaControl(codeArea, true);
+						
 			/*
 			 * Using LineNumberFactory.get(codeArea) gives errors related to the new paragraph folding introduced in RichTextFX 0.10.6.
 			 *  java.lang.IllegalArgumentException: Visible paragraphs' last index is [-1] but visibleParIndex was [0]
@@ -151,38 +159,38 @@ public class RichScriptEditor extends DefaultScriptEditor {
 				if (e.isConsumed())
 					return;
 				
-				var scriptSyntax = getCurrentLanguage().getSyntax();
-				if ("(".equals(e.getCharacter())) {
-					scriptSyntax.handleLeftParenthesis(control, smartEditing.get());
-					e.consume();
-				} else if (")".equals(e.getCharacter())) {
-					scriptSyntax.handleRightParenthesis(control, smartEditing.get());
-					e.consume();
-				} else if ("\"".equals(e.getCharacter())) {
-					scriptSyntax.handleQuotes(control, true, smartEditing.get());
-					e.consume();
-				} else if ("\'".equals(e.getCharacter())) {
-					scriptSyntax.handleQuotes(control, false, smartEditing.get());
-					e.consume();
+				var scriptSyntax = getCurrentSyntax();
+				if (scriptSyntax != null) {
+					if ("(".equals(e.getCharacter())) {
+						scriptSyntax.handleLeftParenthesis(control, smartEditing.get());
+						e.consume();
+					} else if (")".equals(e.getCharacter())) {
+						scriptSyntax.handleRightParenthesis(control, smartEditing.get());
+						e.consume();
+					} else if ("\"".equals(e.getCharacter())) {
+						scriptSyntax.handleQuotes(control, true, smartEditing.get());
+						e.consume();
+					} else if ("\'".equals(e.getCharacter())) {
+						scriptSyntax.handleQuotes(control, false, smartEditing.get());
+						e.consume();
+					}
 				}
 			});
 			
 			// TODO: Check if DefaultScriptEditor does any of these? It should be able to at least do syntaxing/auto-completion
 			var popup = new Popup();
-			var listCompletions = new ListView<ScriptAutoCompletor.Completion>();
+			var listCompletions = new ListView<Completion>();
 			
 			listCompletions.setCellFactory(c -> GuiTools.createCustomListCell(c2 -> c2.getDisplayText()));
 			
 			listCompletions.setPrefSize(350, 400);
 			popup.getContent().add(listCompletions);
 			listCompletions.setStyle("-fx-font-size: smaller; -fx-font-family: Courier;");
-			var completionsMap = new HashSet<ScriptAutoCompletor.Completion>();
+			var completionsMap = new HashSet<Completion>();
 			Runnable completionFun = () -> {
 				var selected = listCompletions.getSelectionModel().getSelectedItem();
 				if (selected != null) {
-					var scriptAutoCompletor = getCurrentLanguage().getAutoCompletor();
-					if (scriptAutoCompletor != null)
-						scriptAutoCompletor.applyCompletion(control, selected);
+					applyCompletion(control, selected);
 				}
 				popup.hide();
 			};
@@ -209,7 +217,7 @@ public class RichScriptEditor extends DefaultScriptEditor {
 				if (e.isConsumed())
 					return;
 				
-				var scriptSyntax = getCurrentLanguage().getSyntax();
+				var scriptSyntax = getCurrentSyntax();
 				if (scriptSyntax != null) {
 					if (e.getCode() == KeyCode.TAB) {
 						scriptSyntax.handleTabPress(control, e.isShiftDown());
@@ -229,14 +237,14 @@ public class RichScriptEditor extends DefaultScriptEditor {
 				var scriptAutoCompletor = getCurrentLanguage().getAutoCompletor();
 				if (scriptAutoCompletor != null) {
 					if (completionCodeCombination.match(e)) {
-						var completions = scriptAutoCompletor.getCompletions(control);
+						var completions = scriptAutoCompletor.getCompletions(control.getText(), control.getCaretPosition());
 						completionsMap.clear();
 						if (!completions.isEmpty()) {
 							completionsMap.addAll(completions);
 							var bounds = codeArea.getCaretBounds().orElse(null);
 							if (bounds != null) {
 								var list = new ArrayList<>(completions);
-								Collections.sort(list);
+								Collections.sort(list, AutoCompletions.getComparator());
 								listCompletions.getItems().setAll(list);
 								popup.show(codeArea, bounds.getMaxX(), bounds.getMaxY());
 								e.consume();
@@ -260,11 +268,12 @@ public class RichScriptEditor extends DefaultScriptEditor {
 			var cleanup = codeArea
 					.multiPlainChanges()
 					.successionEnds(Duration.ofMillis(delayMillis))
+					.retainLatestUntilLater(executor)
 					.supplyTask(() -> {
 						Task<StyleSpans<Collection<String>>> task = new Task<>() {
 							@Override
 							protected StyleSpans<Collection<String>> call() {
-								return scriptHighlighter.get().computeEditorHighlighting(codeArea.getText());
+								return scriptStyler.get().computeEditorStyles(codeArea.getText());
 							}
 						};
 						executor.execute(task);
@@ -274,31 +283,30 @@ public class RichScriptEditor extends DefaultScriptEditor {
 					.filterMap(t -> {
 						if (t.isSuccess())
 							return Optional.of(t.get());
-						
 						var exception = t.getFailure();
 						String message = exception.getLocalizedMessage() == null ? exception.getClass().getSimpleName() : exception.getLocalizedMessage();
 						logger.error("Error applying syntax highlighting: {}", message);
 						logger.debug("{}", t);
 						return Optional.empty();
 					})
-					.subscribe(change -> codeArea.setStyleSpans(0, change));
+					.subscribe(styles -> codeArea.setStyleSpans(0, styles));
 
 			codeArea.getStylesheets().add(getClass().getClassLoader().getResource("scripting_styles.css").toExternalForm());
 			
-			scriptHighlighter.bind(Bindings.createObjectBinding(() -> ScriptHighlighterProvider.getHighlighterFromLanguage(getCurrentLanguage()), currentLanguageProperty()));
+			scriptStyler.bind(Bindings.createObjectBinding(() -> ScriptStylerProvider.getStylerFromLanguage(getCurrentLanguage()), currentLanguageProperty()));
 			
 			// Triggered whenever the script styling changes (e.g. change of language)
-			scriptHighlighter.addListener((v, o, n) -> {
+			scriptStyler.addListener((v, o, n) -> {
 				if (n == null) {
-					codeArea.setStyle(styleBackground);
+					codeArea.setStyle(null);
 					return;
 				}
 				String baseStyle = n.getBaseStyle();
-				if (baseStyle == null || baseStyle.isBlank())
-					codeArea.setStyle(styleBackground);
+				if (baseStyle != null && !baseStyle.isBlank())
+					codeArea.setStyle(baseStyle);
 				else
-					codeArea.setStyle(styleBackground + " " + baseStyle);
-				StyleSpans<Collection<String>> changes = n.computeEditorHighlighting(codeArea.getText());
+					codeArea.setStyle(null);
+				StyleSpans<Collection<String>> changes = n.computeEditorStyles(codeArea.getText());
 				codeArea.setStyleSpans(0, changes);
 				codeArea.requestFocus(); // Seems necessary to trigger the update when switching between scripts
 			});
@@ -311,29 +319,79 @@ public class RichScriptEditor extends DefaultScriptEditor {
 		}
 	}
 	
-	private static String styleBackground = "-fx-background-color: -fx-control-inner-background;";
+	
+	/**
+	 * Insert the text from the completion to the editable text.
+	 * @param control
+	 * @param completion
+	 */
+	protected void applyCompletion(EditableText control, Completion completion) {
+		String text = control.getText();
+		int pos = control.getCaretPosition();
+		
+		var insertion = completion.getInsertion(text, pos, null);
+		// Avoid inserting if caret is already between parentheses
+		if (insertion == null || insertion.isEmpty() || insertion.startsWith("("))
+			return;
+		control.insertText(pos, insertion);
+		// If we have a method that includes arguments, 
+		// then we want to position the caret within the parentheses
+		// (whereas for a method without arguments, we want the caret outside)
+		if (insertion.endsWith("()") && control.getCaretPosition() > 0 && !completion.getDisplayText().endsWith("()"))
+			control.positionCaret(control.getCaretPosition()-1);		
+	}
+	
+	
+	static CodeAreaControl createLogConsole(ObservableObjectValue<ScriptStyler> scriptStyler, ObservableBooleanValue useLogHighlighting) {
+		
+		CodeArea codeArea = createCodeArea();
+		codeArea.plainTextChanges()
+			.subscribe(c -> {
+			// If anything was removed, do full reformatting
+			// Otherwise, format from the position of the edit
+			int start = Integer.MAX_VALUE;
+			if (!c.getRemoved().isEmpty()) {
+				start = 0;
+			} else
+				start = Math.min(start, c.getPosition());
+			if (start < Integer.MAX_VALUE) {
+				String text = codeArea.getText();
+				// Make sure we return to the last newline
+				while (start > 0 && text.charAt(start) != '\n')
+					start--;
+				
+				if (start > 0) {
+					text = text.substring(start);
+				}
+				codeArea.setStyleSpans(start, scriptStyler.get().computeConsoleStyles(text, useLogHighlighting.get()));
+			}
+		});
+		codeArea.setEditable(false);
+		return new CodeAreaControl(codeArea, false);
+		
+	}
+	
+	
+	/**
+	 * Create a code area with some 'standard' customizations (e.g. style sheet).
+	 * @return 
+	 */
+	static CodeArea createCodeArea() {
+		var codeArea = new CustomCodeArea();
+		// Turned off by default in CodeArea... but I think it helps by retaining the most recent style
+		// Particularly noticeable with markdown
+		codeArea.setUseInitialStyleForInsertion(false);
+		// Be sure to add stylesheet
+		codeArea.getStylesheets().add(RichScriptEditor.class.getClassLoader().getResource("scripting_styles.css").toExternalForm());
+		return codeArea;
+	}
+	
 	
 	
 	@Override
-	protected ScriptEditorControl getNewConsole() {
+	protected ScriptEditorControl<? extends Region> getNewConsole() {
 		try {
-			CodeArea codeArea = new CodeArea();
-			codeArea.setStyle(styleBackground);
-			
-			codeArea.richChanges()
-			.successionEnds(Duration.ofMillis(delayMillis))
-			.subscribe(change -> {
-				// If anything was removed, do full reformatting
-				if (change.getRemoved().length() != 0 || change.getPosition() == 0) {
-					if (!change.getRemoved().getText().equals(change.getInserted().getText()))
-						codeArea.setStyleSpans(0, scriptHighlighter.get().computeConsoleHighlighting(codeArea.getText()));
-				} else {
-					// Otherwise format only from changed position onwards
-					codeArea.setStyleSpans(change.getPosition(), scriptHighlighter.get().computeConsoleHighlighting(change.getInserted().getText()));
-				}
-			});
-			codeArea.getStylesheets().add(getClass().getClassLoader().getResource("scripting_styles.css").toExternalForm());
-			return new CodeAreaControl(codeArea);
+			return createLogConsole(scriptStyler, sendLogToConsoleProperty());
 		} catch (Exception e) {
 			// Default to superclass implementation
 			logger.error("Unable to create console area", e);
@@ -349,8 +407,12 @@ public class RichScriptEditor extends DefaultScriptEditor {
 		@Override
 		public void paste() {
 			var text = getClipboardText(false);
-			if (text != null)
-				replaceSelection(text);
+			if (text != null) {
+				if (text.equals(Clipboard.getSystemClipboard().getString()))
+					super.paste();
+				else
+					replaceSelection(text);
+			}
 		}
 	}
 }

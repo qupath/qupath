@@ -238,7 +238,7 @@ public class ContourTracing {
 		}
 		if (img == null) {
 			var server = ImageServers.buildServer(path.toUri());
-			img = server.readBufferedImage(request);
+			img = server.readRegion(request);
 		}
 		return new RequestImage(request, img);
 	}
@@ -635,7 +635,7 @@ public class ContourTracing {
 	 */
 	public static ROI createTracedROI(Raster raster, double minThresholdInclusive, double maxThresholdInclusive, int band, RegionRequest request) {
 		var geom = createTracedGeometry(raster, minThresholdInclusive, maxThresholdInclusive, band, request);
-		return GeometryTools.geometryToROI(geom, request == null ? ImagePlane.getDefaultPlane() : request.getPlane());
+		return GeometryTools.geometryToROI(geom, request == null ? ImagePlane.getDefaultPlane() : request.getImagePlane());
 	}
 	
 	/**
@@ -651,7 +651,7 @@ public class ContourTracing {
 	 */
 	public static ROI createTracedROI(SimpleImage image, double minThresholdInclusive, double maxThresholdInclusive, RegionRequest request) {
 		var geom = createTracedGeometry(image, minThresholdInclusive, maxThresholdInclusive, request);
-		return geom == null ? null : GeometryTools.geometryToROI(geom, request == null ? ImagePlane.getDefaultPlane() : request.getPlane());
+		return geom == null ? null : GeometryTools.geometryToROI(geom, request == null ? ImagePlane.getDefaultPlane() : request.getImagePlane());
 	}
 	
 	
@@ -1154,7 +1154,7 @@ public class ContourTracing {
 		var request = tile.getRegionRequest();
 		var list = new ArrayList<GeometryWrapper>();
 
-		var img = server.readBufferedImage(request);
+		var img = server.readRegion(request);
 		// Get an image to threshold
 		var channelType = server.getMetadata().getChannelType();
 		int h = img.getHeight();

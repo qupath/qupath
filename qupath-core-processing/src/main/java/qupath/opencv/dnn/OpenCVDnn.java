@@ -826,7 +826,7 @@ public class OpenCVDnn implements UriResource, DnnModel<Mat> {
 
 
 	@Override
-	public Collection<URI> getUris() throws IOException {
+	public Collection<URI> getURIs() throws IOException {
 		var list = new ArrayList<URI>();
 		if (pathModel != null)
 			list.add(pathModel);
@@ -836,7 +836,7 @@ public class OpenCVDnn implements UriResource, DnnModel<Mat> {
 	}
 
 	@Override
-	public boolean updateUris(Map<URI, URI> replacements) throws IOException {
+	public boolean updateURIs(Map<URI, URI> replacements) throws IOException {
 		if (constructed)
 			throw new UnsupportedOperationException("URIs cannot be updated after construction!");
 		boolean changes = false;

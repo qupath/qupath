@@ -27,6 +27,8 @@ import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -272,14 +274,14 @@ public class AnnotationPane implements PathObjectSelectionListener, ChangeListen
 
 		// Deal with listeners for the current ImageData
 		if (this.hierarchy != null) {
-			hierarchy.removePathObjectListener(this);
+			hierarchy.removeListener(this);
 			hierarchy.getSelectionModel().removePathObjectSelectionListener(this);
 		}
 		this.imageData = imageData;
 		if (this.imageData != null) {
 			hierarchy = imageData.getHierarchy();
 			hierarchy.getSelectionModel().addPathObjectSelectionListener(this);
-			hierarchy.addPathObjectListener(this);
+			hierarchy.addListener(this);
 			PathObject selected = hierarchy.getSelectionModel().getSelectedObject();
 			listAnnotations.getItems().setAll(hierarchy.getAnnotationObjects());
 			hierarchy.getSelectionModel().setSelectedObject(selected);
@@ -411,18 +413,17 @@ public class AnnotationPane implements PathObjectSelectionListener, ChangeListen
 		if (disableUpdates.get())
 			return;
 
-		Collection<PathObject> newList = hierarchy.getObjects(new HashSet<>(), PathAnnotationObject.class);
+		// Create a sorted list of annotations
+		List<PathObject> newList = new ArrayList<>(hierarchy.getObjects(new HashSet<>(), PathAnnotationObject.class));
+		Collections.sort(newList, annotationListComparator);
+				
 		pathClassPane.getListView().refresh();
 		// If the lists are the same, we just need to refresh the appearance (because e.g. classifications or measurements now differ)
 		// For some reason, 'equals' alone wasn't behaving nicely (perhaps due to ordering?)... so try a more manual test instead
-//		if (newList.equals(listAnnotations.getItems())) {
-		if (newList.size() == listAnnotations.getItems().size() && newList.containsAll(listAnnotations.getItems())) {
+		if (newList.equals(listAnnotations.getItems())) {
 			// Don't refresh unless there is good reason to believe the list should appear different now
 			// This was introduced due to flickering as annotations were dragged
 			// TODO: Reconsider when annotation list is refreshed
-			
-//			listAnnotations.setStyle(".list-cell:empty {-fx-background-color: white;}");
-			
 //			if (event.getEventType() == HierarchyEventType.CHANGE_CLASSIFICATION || event.getEventType() == HierarchyEventType.CHANGE_MEASUREMENTS || (event.getStructureChangeBase() != null && event.getStructureChangeBase().isPoint()) || PathObjectTools.containsPointObject(event.getChangedObjects()))
 			if (!event.isChanging())
 				listAnnotations.refresh();
@@ -435,5 +436,16 @@ public class AnnotationPane implements PathObjectSelectionListener, ChangeListen
 		listAnnotations.getItems().setAll(newList);
 		suppressSelectionChanges = lastChanging;
 	}
+	
+	
+	static Comparator<PathObject> annotationListComparator = Comparator.nullsFirst(Comparator
+				.comparingInt((PathObject p) -> p.hasROI() ? p.getROI().getT() : -1)
+				.thenComparingInt(p -> p.hasROI() ? p.getROI().getZ() : -1)
+				.thenComparing(p -> p.toString())
+				.thenComparingDouble(p -> p.hasROI() ? p.getROI().getBoundsY(): -1)
+				.thenComparingDouble(p -> p.hasROI() ? p.getROI().getBoundsX(): -1)
+				.thenComparing(p -> p.getID().toString())
+				);
+	
 	
 }

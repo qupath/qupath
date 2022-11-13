@@ -453,7 +453,7 @@ public class DnnTools {
 	
 	
 	private static Mat readMat(ImageServer<BufferedImage> server, RegionRequest request) throws IOException {
-		var img = server.readBufferedImage(request);
+		var img = server.readRegion(request);
 		return OpenCVTools.imageToMat(img);
 	}
 	
@@ -621,7 +621,7 @@ public class DnnTools {
 		boolean changed = pathClass != pathObject.getPathClass();
 		pathObject.setPathClass(pathClass);
 		if (predictionMeasurement != null) {
-			pathObject.getMeasurementList().putMeasurement(predictionMeasurement, result.second());
+			pathObject.getMeasurementList().put(predictionMeasurement, result.second());
 			pathObject.getMeasurementList().close();
 		}
 		result.close();
@@ -707,7 +707,7 @@ public class DnnTools {
 			}
 
 			double downsample = request == null ? 1.0 : request.getDownsample();
-			ImagePlane plane = request == null ? ImagePlane.getDefaultPlane() : request.getPlane();
+			ImagePlane plane = request == null ? ImagePlane.getDefaultPlane() : request.getImagePlane();
 			double xOrigin = request == null ? 0 : request.getX();
 			double yOrigin = request == null ? 0 : request.getY();
 
@@ -727,7 +727,7 @@ public class DnnTools {
 				var pathObject = creator.apply(roi);
 				pathObject.setPathClass(pathClass);
 				try (var ml = pathObject.getMeasurementList()) {
-					ml.putMeasurement("Probability", pred);
+					ml.put("Probability", pred);
 				}
 				pathObjects.add(pathObject);
 			}
@@ -784,7 +784,7 @@ public class DnnTools {
 			if (mask == null || mask.contains(x, y))
 				points.add(new Point2(x, y));
 		}
-		return ROIs.createPointsROI(points, request.getPlane());
+		return ROIs.createPointsROI(points, request.getImagePlane());
 	}
 	
 	

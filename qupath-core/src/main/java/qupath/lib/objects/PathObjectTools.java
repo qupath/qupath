@@ -51,15 +51,17 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.geom.Point2;
+import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.ImageServer;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.classes.PathClassTools;
+import qupath.lib.objects.hierarchy.DefaultTMAGrid;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.TMAGrid;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.ImageRegion;
-import qupath.lib.roi.EllipseROI;
+import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.LineROI;
 import qupath.lib.roi.PointsROI;
 import qupath.lib.roi.RoiTools;
@@ -308,6 +310,134 @@ public class PathObjectTools {
 		//			return true;
 	}
 
+	/**
+	 * Get all the objects with ROIs that are outside the bounds of an image.
+	 * @param pathObjects the input objects to check
+	 * @param server the image to check
+	 * @param ignoreIntersecting if true, consider objects that overlap the image boundary to be inside (and therefore don't include them in the output); 
+	 *                           if false, consider them to be outside and include them in the output
+	 * @return a filtered list of the input object containing those considered outside the image
+	 * @since v0.4.0
+	 * @see #findObjectsOutsideRegion(Collection, ImageRegion, boolean)
+	 * @see #findObjectsOutsideRegion(Collection, ImageRegion, int, int, int, int, boolean)
+	 */
+	public static List<PathObject> findObjectsOutsideImage(Collection<? extends PathObject> pathObjects, ImageServer<?> server, boolean ignoreIntersecting) {
+		return findObjectsOutsideRegion(pathObjects, 
+				RegionRequest.createInstance(server), 0, server.nZSlices(), 0, server.nTimepoints(), ignoreIntersecting);
+	}
+	
+	/**
+	 * Get all the objects in a collection that are outside a defined region.
+	 * @param pathObjects input objects to check
+	 * @param region 2D region
+	 * @param ignoreIntersecting if true, consider objects that overlap the region boundary to be inside (and therefore don't include them in the output); 
+	 *                           if false, consider them to be outside and include them in the output
+	 * @return a filtered list of the input object containing those considered outside the region
+	 * @since v0.4.0
+	 * @see #findObjectsOutsideRegion(Collection, ImageRegion, int, int, int, int, boolean)
+	 */
+	public static List<PathObject> findObjectsOutsideRegion(Collection<? extends PathObject> pathObjects, ImageRegion region, boolean ignoreIntersecting) {
+		return findObjectsOutsideRegion(pathObjects, region, region.getZ(), region.getZ()+1, region.getT(), region.getT()+1, ignoreIntersecting);
+	}
+	
+	/**
+	 * Get all the objects in a collection that are outside a defined region, expanded for multiple z-slices and timepoints.
+	 * @param pathObjects input objects to check
+	 * @param region 2D region
+	 * @param minZ minimum z for the region (inclusive)
+	 * @param maxZ maximum z for the region (exclusive)
+	 * @param minT minimum t for the region (inclusive)
+	 * @param maxT maximum t for the region (exclusive)
+	 * @param ignoreIntersecting if true, consider objects that overlap the region boundary to be inside (and therefore don't include them in the output); 
+	 *                           if false, consider them to be outside and include them in the output
+	 * @return a filtered list of the input object containing those considered outside the region
+	 * @since v0.4.0
+	 * @see #findObjectsOutsideRegion(Collection, ImageRegion, boolean)
+	 */
+	public static List<PathObject> findObjectsOutsideRegion(Collection<? extends PathObject> pathObjects, ImageRegion region, int minZ, int maxZ, int minT, int maxT, boolean ignoreIntersecting) {
+		return pathObjects
+				.stream()
+				.filter(p -> !checkRegionContainsROI(p.getROI(), region, minZ, maxZ, minT, maxT, ignoreIntersecting))
+				.collect(Collectors.toList());
+	}
+	
+	
+	private static boolean checkRegionContainsROI(ROI roi, ImageRegion region, int minZ, int maxZ, int minT, int maxT, boolean ignoreIntersecting) {
+		if (roi == null)
+			return false;
+		if (roi.getZ() < minZ || roi.getZ() >= maxZ || roi.getT() < minT || roi.getT() >= maxT)
+			return false;
+		boolean regionContainsBounds = region.getX() <= roi.getBoundsX() && 
+				region.getY() <= roi.getBoundsY() &&
+				region.getMaxX() >= roi.getBoundsX() + roi.getBoundsWidth() &&
+				region.getMaxY() >= roi.getBoundsY() + roi.getBoundsHeight();
+		if (regionContainsBounds)
+			return true;
+		else if (ignoreIntersecting)
+			// Ensure planes match (since we've already handled that)
+			return RoiTools.intersectsRegion(roi.updatePlane(region.getImagePlane()), region);
+		else {
+			return false;
+		}
+	}
+	
+	/**
+	 * Update the ROI plane for a single object, and any descendant objects.
+	 * 
+	 * @param pathObject the original object (this will be unchanged)
+	 * @param plane the plane for the new ROIs
+	 * @param copyMeasurements if true, measurements and metadata should be copied; this may not be suitable since 
+	 *                         intensity measurements probably aren't appropriate for the new plane
+	 * @param createNewIDs if true, create new IDs for the object (recommended)
+	 * @return the new object, with ROIs on the requested plane
+	 * @since v0.4.0
+	 * @see #updatePlane(PathObject, ImagePlane, boolean, boolean)
+	 */
+	public static PathObject updatePlaneRecursive(PathObject pathObject, ImagePlane plane, boolean copyMeasurements, boolean createNewIDs) {
+		var newObj = transformObjectImpl(pathObject, r -> r.updatePlane(plane), copyMeasurements, createNewIDs);
+		if (pathObject.hasChildObjects()) {
+			List<PathObject> newChildObjects = pathObject.getChildObjects()
+				.parallelStream()
+				.map(p -> updatePlaneRecursive(p, plane, copyMeasurements, createNewIDs))
+				.collect(Collectors.toList());
+			newObj.addChildObjects(newChildObjects);
+		}
+		return newObj;
+	}
+	
+	/**
+	 * Update the ROI plane for a single object and any descendant objects, creating new object IDs and ignoring 
+	 * any additional measurements.
+	 * 
+	 * @param pathObject the original object (this will be unchanged)
+	 * @param plane the plane for the new ROIs
+	 * @return the new object, with ROIs on the requested plane
+	 * @since v0.4.0
+	 * @see #updatePlaneRecursive(PathObject, ImagePlane, boolean, boolean)
+	 */
+	public static PathObject updatePlaneRecursive(PathObject pathObject, ImagePlane plane) {
+		return updatePlaneRecursive(pathObject, plane, false, true);
+	}
+	
+	/**
+	 * Update the ROI plane for a single object.
+	 * Any child objects are discarded; if these should also be copied (and updated), 
+	 * use {@link #updatePlaneRecursive(PathObject, ImagePlane, boolean, boolean)}.
+	 * 
+	 * @param pathObject the original object (this will be unchanged)
+	 * @param plane the plane for the new ROIs
+	 * @param copyMeasurements if true, measurements and metadata should be copied; this may not be suitable since 
+	 *                         intensity measurements probably aren't appropriate for the new plane
+	 * @param createNewIDs if true, create new IDs for the object (recommended)
+	 * @return the new object, with ROIs on the requested plane
+	 * @since v0.4.0
+	 * @see #updatePlaneRecursive(PathObject, ImagePlane, boolean, boolean)
+	 */
+	public static PathObject updatePlane(PathObject pathObject, ImagePlane plane, boolean copyMeasurements, boolean createNewIDs) {
+		return transformObjectImpl(pathObject, r -> r.updatePlane(plane), copyMeasurements, createNewIDs);
+	}
+	
+	
 	
 	/**
 	 * Get a user-friendly name for a specific type of PathObject, based on its Java class.
@@ -436,6 +566,116 @@ public class PathObjectTools {
 		return null;
 	}
 	
+	/**
+	 * Create a new regular {@link TMAGrid} and set it as active on the hierarchy for an image.
+	 * <p>
+	 * For the label string format, see see {@link #parseTMALabelString(String)}.
+	 * 
+	 * @param imageData the image to which the TMA grid should be added. This is used to determine 
+	 *                  dimensions and pixel calibration. If there is a ROI selected, it will be used 
+	 *                  to define the bounding box for the grid.
+	 * @param hLabels a String representing horizontal labels
+	 * @param vLabels a String representing vertical labels
+	 * @param rowFirst true if the horizontal label should be added before the vertical label, false otherwise
+	 * @param diameterCalibrated the diameter of each core, in calibrated units
+	 */
+	public static void addTMAGrid(ImageData<?> imageData, String hLabels, String vLabels, boolean rowFirst, double diameterCalibrated) {
+		// Convert diameter to pixels
+		double diameterPixels = diameterCalibrated / imageData.getServer().getPixelCalibration().getAveragedPixelSize().doubleValue();
+		
+		// Get the current ROI
+		var hierarchy = imageData.getHierarchy();
+		var selected = hierarchy.getSelectionModel().getSelectedObject();
+		var roi = selected == null ? null : selected.getROI();
+		var region = roi == null ? 
+				ImageRegion.createInstance(0, 0, imageData.getServer().getWidth(), imageData.getServer().getHeight(), 0, 0) :
+					ImageRegion.createInstance(roi);
+		
+		var tmaGrid = createTMAGrid(hLabels, vLabels, rowFirst, diameterPixels, region);
+		hierarchy.setTMAGrid(tmaGrid);
+	}
+	
+	/**
+	 * Create a new regular {@link TMAGrid}, fit within a specified region.
+	 * <p>
+	 * For the label string format, see see {@link #parseTMALabelString(String)}.
+	 * 
+	 * @param hLabels a String representing horizontal labels
+	 * @param vLabels a String representing vertical labels
+	 * @param rowFirst true if the horizontal label should be added before the vertical label, false otherwise
+	 * @param diameterPixels the diameter of each core, in pixels
+	 * @param region bounding box and spacing for the grid (required)
+	 * @return
+	 */
+	public static TMAGrid createTMAGrid(String hLabels, String vLabels, boolean rowFirst, double diameterPixels, ImageRegion region) {
+		// TODO: Consider method that uses a polygonal ROI to create a warped/rotated grid
+		
+		// Enter the number of horizontal & vertical cores here
+		var hLabelsSplit = PathObjectTools.parseTMALabelString(hLabels);
+		var vLabelsSplit = PathObjectTools.parseTMALabelString(vLabels);
+		int numHorizontal = hLabelsSplit.length;
+		int numVertical = vLabelsSplit.length;
+		
+		// Create the cores
+		var cores = new ArrayList<TMACoreObject>();
+		double xSpacing = (region.getWidth() - diameterPixels) / Math.max(1, numHorizontal - 1);
+		double ySpacing = (region.getHeight() - diameterPixels) / Math.max(1, numVertical - 1);
+		for (int i = 0; i < numVertical; i++) {
+		    for (int j = 0; j < numHorizontal; j++) {
+		        double x = numHorizontal <= 1 ? region.getMinX() + region.getWidth()/2.0 : region.getMinX() + diameterPixels / 2 + xSpacing * j;
+		        double y = numVertical <= 1 ? region.getMinY() + region.getHeight()/2.0 : region.getMinY() + diameterPixels / 2 + ySpacing * i;
+		        cores.add(PathObjects.createTMACoreObject(x, y, diameterPixels, false, region.getImagePlane()));
+		    }
+		}
+		// Create & set the grid
+		var grid = DefaultTMAGrid.create(cores, numHorizontal);
+		
+		relabelTMAGrid(grid, hLabels, vLabels, rowFirst);
+		
+		return grid;
+	}
+	
+	
+	/**
+	 * Relabel a TMA grid.  This will only be effective if enough labels are supplied for the full grid - otherwise no changes will be made.
+	 * <p>
+	 * For a TMA core at column c and row r, the label format will be 'Hc-Vr' or 'Hc-Vr', where H is the horizontal label and V the vertical label, 
+	 * depending upon the status of the 'rowFirst' flag.
+	 * <p>
+	 * An examples of label would be 'A-1', 'A-2', 'B-1', 'B-2' etc.
+	 * 
+	 * @param grid the TMA grid to relabel
+	 * @param labelsHorizontal a String containing labels for each TMA column, separated by spaces, or a numeric or alphabetic range (e.g. 1-10, or A-G)
+	 * @param labelsVertical a String containing labels for each TMA row, separated by spaces, or a numeric or alphabetic range (e.g. 1-10, or A-G)
+	 * @param rowFirst true if the horizontal label should be added before the vertical label, false otherwise
+	 * @return true if there were sufficient horizontal and vertical labels to label the entire grid, false otherwise.
+	 */
+	public static boolean relabelTMAGrid(final TMAGrid grid, final String labelsHorizontal, final String labelsVertical, final boolean rowFirst) {
+		String[] columnLabels = PathObjectTools.parseTMALabelString(labelsHorizontal);
+		String[] rowLabels = PathObjectTools.parseTMALabelString(labelsVertical);
+		if (columnLabels.length < grid.getGridWidth()) {
+			logger.error("Cannot relabel full TMA grid - not enough column labels specified!");
+			return false;			
+		}
+		if (rowLabels.length < grid.getGridHeight()) {
+			logger.error("Cannot relabel full TMA grid - not enough row labels specified!");
+			return false;			
+		}
+		
+		for (int r = 0; r < grid.getGridHeight(); r++) {
+			for (int c = 0; c < grid.getGridWidth(); c++) {
+				String name;
+				if (rowFirst)
+					name = rowLabels[r] + "-" + columnLabels[c];
+				else
+					name = columnLabels[c] + "-" + rowLabels[r];
+				grid.getTMACore(r, c).setName(name);
+			}			
+		}
+		return true;
+	}
+	
+	
 	
 	/**
 	 * Convert a collection of PathObjects to Point annotations, based on ROI centroids, and add the points to the hierarchy.
@@ -452,7 +692,7 @@ public class PathObjectTools {
 		var points = convertToPoints(pathObjects, preferNucleus);
 		if (deleteObjects)
 			hierarchy.removeObjects(pathObjects, true);
-		hierarchy.addPathObjects(points);
+		hierarchy.addObjects(points);
 	}
 	
 	
@@ -617,24 +857,33 @@ public class PathObjectTools {
 	public static void swapNameAndClass(PathObject pathObject, boolean includeColor) {
 		var pathClass = pathObject.getPathClass();
 		var name = pathObject.getName();
-		var color = pathObject.getColorRGB();
+		var color = pathObject.getColor();
 		if (name == null)
-			pathObject.setPathClass(null);
+			pathObject.resetPathClass();
 		else
-			pathObject.setPathClass(PathClassFactory.getPathClass(name, color));
+			pathObject.setPathClass(PathClass.fromString(name, color));
 		if (pathClass == null) {
 			pathObject.setName(null);
 			if (includeColor)
-				pathObject.setColorRGB(null);
+				pathObject.setColor(null);
 		} else {
 			pathObject.setName(pathClass.toString());
 			if (includeColor)
-				pathObject.setColorRGB(pathClass.getColor());				
+				pathObject.setColor(pathClass.getColor());				
 		}
 	}
 	
 	/**
 	 * Parse a string input representing potential TMA core labels.
+	 * This can be a space-separated list, or an ascending or descending numeric or alphabetic range.
+	 * <p>
+	 * Examples:
+	 * <ul>
+	 * <li>{@code "A-H"}<li>
+	 * <li>{@code "1-9"}<li>
+	 * <li>{@code "H-A"}<li>
+	 * <li>{@code "A B D E"}<li>
+	 * </ul>
 	 * 
 	 * @param labelString
 	 * @return
@@ -739,7 +988,7 @@ public class PathObjectTools {
 	 * @return
 	 */
 	public static Collection<PathObject> getDescendantObjects(PathObject pathObject, Collection<PathObject> pathObjects, Class<? extends PathObject> cls) {
-		if (pathObject == null || !pathObject.hasChildren())
+		if (pathObject == null || !pathObject.hasChildObjects())
 			return pathObjects == null ? Collections.emptyList() : pathObjects;
 		
 		if (pathObjects == null)
@@ -761,7 +1010,7 @@ public class PathObjectTools {
 			if (cls == null || cls.isInstance(childObject)) {
 				pathObjects.add(childObject);
 			}
-			if (childObject.hasChildren())
+			if (childObject.hasChildObjects())
 				addPathObjectsRecursively(childObject.getChildObjectsAsArray(), pathObjects, cls);
 		}
 	}
@@ -900,7 +1149,7 @@ public class PathObjectTools {
 		if (toAdd.isEmpty() && toRemove.isEmpty())
 			return false;
 		hierarchy.removeObjects(toRemove, true);
-		hierarchy.addPathObjects(toAdd);
+		hierarchy.addObjects(toAdd);
 		return true;
 	}
 	
@@ -948,6 +1197,8 @@ public class PathObjectTools {
 		return nChanges > 0;		
 	}
 	
+	
+	
 	/**
 	 * Create a transformed version of a {@link PathObject} with a new ID.
 	 * If the transform is null or the identity transform, then a duplicate object is generated instead.
@@ -973,26 +1224,39 @@ public class PathObjectTools {
 	 * Create a transformed version of a {@link PathObject}, optionally with a new ID.
 	 * If the transform is null or the identity transform, then a duplicate object is generated instead.
 	 * <p>
-	 * Note: only detections (including tiles and cells) and annotations are fully supported by this method.
-	 * Root objects are duplicated.
+	 * Note: only detections (including tiles and cells), annotations and root objects are fully supported by this method.
 	 * TMA core objects are transformed only if the resulting transform creates an ellipse ROI, since this is 
 	 * currently the only ROI type supported for a TMA core (this behavior may change).
 	 * Any other object types result in an {@link UnsupportedOperationException} being thrown.
 	 * 
 	 * @param pathObject the object to transform; this will be unchanged
 	 * @param transform optional affine transform; if {@code null}, this effectively acts to duplicate the object
-	 * @param copyMeasurements if true, the measurement list of the new object will be populated with the measurements of pathObject
+	 * @param copyMeasurements if true, the measurements and metadata maps of the new object will be populated with those from the pathObject
 	 * @param createNewIDs if true, create new IDs for each copied object; otherwise, retain the same ID.
 	 * 
 	 * @return a duplicate of pathObject, with affine transform applied to the object's ROI(s) if required
 	 * @since v0.4.0
 	 */
 	public static PathObject transformObject(PathObject pathObject, AffineTransform transform, boolean copyMeasurements, boolean createNewIDs) {
-		ROI roi = maybeTransformROI(pathObject.getROI(), transform);
+		return transformObjectImpl(pathObject, r -> maybeTransformROI(r, transform), copyMeasurements, createNewIDs);
+	}
+	
+	
+	
+	/**
+	 * Apply a transform to the ROI of a PathObject, creating a new object of the same type with the new ROI.
+	 * @param pathObject the object to transform; this will be unchanged
+	 * @param roiTransformer the ROI transform to apply
+	 * @param copyMeasurements if true, the measurements and metadata maps of the new object will be populated with those from the pathObject
+	 * @param createNewIDs if true, create new IDs for each copied object; otherwise, retain the same ID.
+	 * @return
+	 */
+	private static PathObject transformObjectImpl(PathObject pathObject, Function<ROI, ROI> roiTransformer, boolean copyMeasurements, boolean createNewIDs) {
+		ROI roi = roiTransformer.apply(pathObject.getROI());
 		PathClass pathClass = pathObject.getPathClass();
 		PathObject newObject;
 		if (pathObject instanceof PathCellObject) {
-			ROI roiNucleus = maybeTransformROI(((PathCellObject)pathObject).getNucleusROI(), transform);
+			ROI roiNucleus = roiTransformer.apply(((PathCellObject)pathObject).getNucleusROI());
 			newObject = PathObjects.createCellObject(roi, roiNucleus, pathClass, null);
 		} else if (pathObject instanceof PathTileObject) {
 			newObject = PathObjects.createTileObject(roi, pathClass, null);
@@ -1002,23 +1266,27 @@ public class PathObjectTools {
 			newObject = PathObjects.createAnnotationObject(roi, pathClass, null);
 		} else if (pathObject instanceof PathRootObject) {
 			newObject = new PathRootObject();
-		} else if (pathObject instanceof TMACoreObject && roi instanceof EllipseROI) {
+		} else if (pathObject instanceof TMACoreObject) {
 			var core = (TMACoreObject)pathObject;
+			// TODO: Consider supporting non-ellipse ROIs for TMA cores
 			newObject = PathObjects.createTMACoreObject(roi.getBoundsX(), roi.getBoundsY(), roi.getBoundsWidth(), roi.getBoundsHeight(), core.isMissing());
 		} else
 			throw new UnsupportedOperationException("Unable to transform object " + pathObject);
 		if (copyMeasurements && !pathObject.getMeasurementList().isEmpty()) {
 			MeasurementList measurements = pathObject.getMeasurementList();
-			for (int i = 0; i < measurements.size(); i++) {
-				String name = measurements.getMeasurementName(i);
-				double value = measurements.getMeasurementValue(i);
-				newObject.getMeasurementList().addMeasurement(name, value);
-			}
+			newObject.getMeasurementList().putAll(measurements);
 			newObject.getMeasurementList().close();
 		}
+		// Copy name, color & locked properties
+		newObject.setName(pathObject.getName());
+		newObject.setColor(pathObject.getColor());
+		newObject.setLocked(pathObject.isLocked());
+		// Copy over metadata if we have it
+		if (copyMeasurements && newObject instanceof MetadataStore)
+			((MetadataStore)newObject).getMetadataMap().putAll(pathObject.getUnmodifiableMetadataMap());
 		// Retain the ID, if needed
 		if (!createNewIDs)
-			newObject.setId(pathObject.getId());
+			newObject.setID(pathObject.getID());
 		return newObject;
 	}
 	
@@ -1052,9 +1320,19 @@ public class PathObjectTools {
 	 */
 	public static PathObject transformObjectRecursive(PathObject pathObject, AffineTransform transform, boolean copyMeasurements, boolean createNewIDs) {
 		var newObj = transformObject(pathObject, transform, copyMeasurements, createNewIDs);
-		for (var child: pathObject.getChildObjects()) {
-			newObj.addPathObject(transformObjectRecursive(child, transform, copyMeasurements, createNewIDs));
+		// Parallelization can help
+		if (pathObject.hasChildObjects()) {
+			var newChildObjects = pathObject.getChildObjects()
+				.parallelStream()
+				.map(p -> transformObjectRecursive(p, transform, copyMeasurements, createNewIDs))
+				.collect(Collectors.toList());
+			
+			newObj.addChildObjects(newChildObjects);
+//			for (var child: pathObject.getChildObjects()) {
+//				newObj.addPathObject(transformObjectRecursive(child, transform, copyMeasurements, createNewIDs));
+//			}
 		}
+		
 		return newObj;
 	}
 	
@@ -1075,7 +1353,7 @@ public class PathObjectTools {
 	 * @since v0.4.0
 	 */
 	public static Map<String, PathObject> findByStringID(Collection<String> ids, Collection<? extends PathObject> pathObjects) {
-		var map = pathObjects.stream().collect(Collectors.toMap(p -> p.getId().toString(), p -> p));
+		var map = pathObjects.stream().collect(Collectors.toMap(p -> p.getID().toString(), p -> p));
 		var output = new HashMap<String, PathObject>();
 		for (var id : ids) {
 			output.put(id, map.getOrDefault(id, null));
@@ -1094,7 +1372,7 @@ public class PathObjectTools {
 	 * @since v0.4.0
 	 */
 	public static Map<UUID, PathObject> findByUUID(Collection<UUID> ids, Collection<? extends PathObject> pathObjects) {
-		var map = pathObjects.stream().collect(Collectors.toMap(p -> p.getId(), p -> p));
+		var map = pathObjects.stream().collect(Collectors.toMap(p -> p.getID(), p -> p));
 		var output = new HashMap<UUID, PathObject>();
 		for (var id : ids) {
 			output.put(id, map.getOrDefault(id, null));
@@ -1113,10 +1391,10 @@ public class PathObjectTools {
 	 * @since v0.4.0
 	 */
 	public static Map<PathObject, PathObject> matchByID(Collection<? extends PathObject> sourceObjects, Collection<? extends PathObject> targetObjects) {
-		var map = targetObjects.stream().collect(Collectors.toMap(p -> p.getId(), p -> p));
+		var map = targetObjects.stream().collect(Collectors.toMap(p -> p.getID(), p -> p));
 		var output = new HashMap<PathObject, PathObject>();
 		for (var sourceObject : sourceObjects) {
-			output.put(sourceObject, map.getOrDefault(sourceObject.getId(), null));
+			output.put(sourceObject, map.getOrDefault(sourceObject.getID(), null));
 		}
 		return output;
 	}
@@ -1190,7 +1468,7 @@ public class PathObjectTools {
 			return false;
 		}
 		// Add objects using the default add method (not trying to resolve location)
-		hierarchy.addPathObjects(map.values());
+		hierarchy.addObjects(map.values());
 //		// Add objects, inserting with the same parents as the originals
 //		for (var entry : map.entrySet()) {
 //			entry.getKey().getParent().addPathObject(entry.getValue());
@@ -1532,7 +1810,7 @@ public class PathObjectTools {
 		for (var entry : classificationMap.entrySet()) {
 			var pathObject = entry.getKey();
 			var pathClass = entry.getValue();
-			if (pathClass == PathClassFactory.getPathClassUnclassified())
+			if (pathClass == PathClass.NULL_CLASS)
 				pathClass = null;
 			if (!Objects.equals(pathObject.getPathClass(), pathClass)) {
 				pathObject.setPathClass(pathClass);
@@ -1587,23 +1865,23 @@ public class PathObjectTools {
 		if (!PathClassTools.isNullClass(baseClass) && PathClassTools.isIgnoredClass(baseClass))
 			return pathObject.getPathClass();
 		
-		double intensityValue = pathObject.getMeasurementList().getMeasurementValue(measurementName);
+		double intensityValue = pathObject.getMeasurementList().get(measurementName);
 		
 		boolean singleThreshold = thresholds.length == 1;
 	
 		if (Double.isNaN(intensityValue))	// If the measurement is missing, reset to base class
 			pathObject.setPathClass(baseClass);
 		else if (intensityValue < thresholds[0])
-			pathObject.setPathClass(PathClassFactory.getNegative(baseClass));
+			pathObject.setPathClass(PathClass.getNegative(baseClass));
 		else {
 			if (singleThreshold)
-				pathObject.setPathClass(PathClassFactory.getPositive(baseClass));
+				pathObject.setPathClass(PathClass.getPositive(baseClass));
 			else if (thresholds.length >= 3 && intensityValue >= thresholds[2])
-				pathObject.setPathClass(PathClassFactory.getThreePlus(baseClass));				
+				pathObject.setPathClass(PathClass.getThreePlus(baseClass));				
 			else if (thresholds.length >= 2 && intensityValue >= thresholds[1])
-				pathObject.setPathClass(PathClassFactory.getTwoPlus(baseClass));				
+				pathObject.setPathClass(PathClass.getTwoPlus(baseClass));				
 			else if (intensityValue >= thresholds[0])
-				pathObject.setPathClass(PathClassFactory.getOnePlus(baseClass));				
+				pathObject.setPathClass(PathClass.getOnePlus(baseClass));				
 		}
 		return pathObject.getPathClass();
 	}

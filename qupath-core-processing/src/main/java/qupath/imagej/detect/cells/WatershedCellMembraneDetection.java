@@ -76,7 +76,6 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.plugins.AbstractTileableDetectionPlugin;
 import qupath.lib.plugins.ObjectDetector;
 import qupath.lib.plugins.parameters.Parameter;
@@ -338,8 +337,8 @@ public class WatershedCellMembraneDetection extends AbstractTileableDetectionPlu
 				return "1 nucleus detected";
 			String s = String.format("%d nuclei detected", nDetections);
 			if (nucleiClassified) {
-				int nPositive = PathObjectTools.countObjectsWithClass(pathObjects, PathClassFactory.getPositive(null), false);
-				int nNegative = PathObjectTools.countObjectsWithClass(pathObjects, PathClassFactory.getNegative(null), false);
+				int nPositive = PathObjectTools.countObjectsWithClass(pathObjects, PathClass.getPositive(null), false);
+				int nNegative = PathObjectTools.countObjectsWithClass(pathObjects, PathClass.getNegative(null), false);
 				return String.format("%s (%.3f%% positive)", s, ((double)nPositive * 100.0 / (nPositive + nNegative)));			
 			} else
 				return s;
@@ -790,7 +789,7 @@ public class WatershedCellMembraneDetection extends AbstractTileableDetectionPlu
 			// TODO: Set the measurement capacity to improve efficiency
 			List<PathObject> nucleiObjects = new ArrayList<>();
 			Calibration cal = pathImage.getImage().getCalibration();
-			ImagePlane plane = pathImage.getImageRegion().getPlane();
+			ImagePlane plane = pathImage.getImageRegion().getImagePlane();
 			for (int i = 0; i < roisNuclei.size(); i++) {
 				PolygonRoi r = roisNuclei.get(i);
 				
@@ -816,20 +815,20 @@ public class WatershedCellMembraneDetection extends AbstractTileableDetectionPlu
 	//				PathObjectIJ.computeShapeStatistics(pathObject, pathImage, fpH, pathImage.getImage().getCalibration(), "Nucleus: ");
 					
 					RunningStatistics stats = statsHematoxylin.get(i);
-					measurementList.addMeasurement("Nucleus: Hematoxylin OD mean", stats.getMean());
-					measurementList.addMeasurement("Nucleus: Hematoxylin OD sum", stats.getSum());
-					measurementList.addMeasurement("Nucleus: Hematoxylin OD std dev", stats.getStdDev());
-					measurementList.addMeasurement("Nucleus: Hematoxylin OD max", stats.getMax());
-					measurementList.addMeasurement("Nucleus: Hematoxylin OD min", stats.getMin());
-					measurementList.addMeasurement("Nucleus: Hematoxylin OD range", stats.getRange());
+					measurementList.put("Nucleus: Hematoxylin OD mean", stats.getMean());
+					measurementList.put("Nucleus: Hematoxylin OD sum", stats.getSum());
+					measurementList.put("Nucleus: Hematoxylin OD std dev", stats.getStdDev());
+					measurementList.put("Nucleus: Hematoxylin OD max", stats.getMax());
+					measurementList.put("Nucleus: Hematoxylin OD min", stats.getMin());
+					measurementList.put("Nucleus: Hematoxylin OD range", stats.getRange());
 					if (statsDAB != null) {
 						stats = statsDAB.get(i);
-						measurementList.addMeasurement("Nucleus: DAB OD mean", stats.getMean());
-						measurementList.addMeasurement("Nucleus: DAB OD sum", stats.getSum());
-						measurementList.addMeasurement("Nucleus: DAB OD std dev", stats.getStdDev());
-						measurementList.addMeasurement("Nucleus: DAB OD max", stats.getMax());
-						measurementList.addMeasurement("Nucleus: DAB OD min", stats.getMin());
-						measurementList.addMeasurement("Nucleus: DAB OD range", stats.getRange());
+						measurementList.put("Nucleus: DAB OD mean", stats.getMean());
+						measurementList.put("Nucleus: DAB OD sum", stats.getSum());
+						measurementList.put("Nucleus: DAB OD std dev", stats.getStdDev());
+						measurementList.put("Nucleus: DAB OD max", stats.getMax());
+						measurementList.put("Nucleus: DAB OD min", stats.getMin());
+						measurementList.put("Nucleus: DAB OD range", stats.getRange());
 					}
 				}
 				
@@ -981,39 +980,39 @@ public class WatershedCellMembraneDetection extends AbstractTileableDetectionPlu
 						// Add cell measurements
 						if (statsDABCell != null) {
 							RunningStatistics stats = statsDABCell.get(label-1);
-							measurementList.addMeasurement("Cell: DAB OD mean", stats.getMean());
-							measurementList.addMeasurement("Cell: DAB OD std dev", stats.getStdDev());
-							measurementList.addMeasurement("Cell: DAB OD max", stats.getMax());
-							measurementList.addMeasurement("Cell: DAB OD min", stats.getMin());
-	//						pathObject.addMeasurement("Cytoplasm: DAB OD range", stats.getRange());
+							measurementList.put("Cell: DAB OD mean", stats.getMean());
+							measurementList.put("Cell: DAB OD std dev", stats.getStdDev());
+							measurementList.put("Cell: DAB OD max", stats.getMax());
+							measurementList.put("Cell: DAB OD min", stats.getMin());
+	//						pathObject.putMeasurement("Cytoplasm: DAB OD range", stats.getRange());
 						}
 						
 						// Add cytoplasm measurements
 						if (statsDABCytoplasm != null) {
 							RunningStatistics stats = statsDABCytoplasm.get(label-1);
-							measurementList.addMeasurement("Cytoplasm: DAB OD mean", stats.getMean());
-							measurementList.addMeasurement("Cytoplasm: DAB OD std dev", stats.getStdDev());
-							measurementList.addMeasurement("Cytoplasm: DAB OD max", stats.getMax());
-							measurementList.addMeasurement("Cytoplasm: DAB OD min", stats.getMin());
-	//						pathObject.addMeasurement("Cytoplasm: DAB OD range", stats.getRange());
+							measurementList.put("Cytoplasm: DAB OD mean", stats.getMean());
+							measurementList.put("Cytoplasm: DAB OD std dev", stats.getStdDev());
+							measurementList.put("Cytoplasm: DAB OD max", stats.getMax());
+							measurementList.put("Cytoplasm: DAB OD min", stats.getMin());
+	//						pathObject.putMeasurement("Cytoplasm: DAB OD range", stats.getRange());
 						}
 						
 						// Add membrane measurements
 						if (statsDABMembrane != null) {
 							RunningStatistics stats = statsDABMembrane.get(label-1);
-							measurementList.addMeasurement("Membrane: DAB OD mean", stats.getMean());
-							measurementList.addMeasurement("Membrane: DAB OD std dev", stats.getStdDev());
-							measurementList.addMeasurement("Membrane: DAB OD max", stats.getMax());
-							measurementList.addMeasurement("Membrane: DAB OD min", stats.getMin());
-	//						pathObject.addMeasurement("Cytoplasm: DAB OD range", stats.getRange());
+							measurementList.put("Membrane: DAB OD mean", stats.getMean());
+							measurementList.put("Membrane: DAB OD std dev", stats.getStdDev());
+							measurementList.put("Membrane: DAB OD max", stats.getMax());
+							measurementList.put("Membrane: DAB OD min", stats.getMin());
+	//						pathObject.putMeasurement("Cytoplasm: DAB OD range", stats.getRange());
 						}
 						
 						// Add nucleus area ratio, if available
 						if (nucleus != null && nucleus.getROI().isArea()) {
 							double nucleusArea = nucleus.getROI().getArea();
 							double cellArea = pathROI.getArea();
-							measurementList.addMeasurement("Nucleus/Cell area ratio", Math.min(nucleusArea / cellArea, 1.0));
-	//						measurementList.addMeasurement("Nucleus/Cell expansion", cellArea - nucleusArea);
+							measurementList.put("Nucleus/Cell area ratio", Math.min(nucleusArea / cellArea, 1.0));
+	//						measurementList.putMeasurement("Nucleus/Cell expansion", cellArea - nucleusArea);
 						}
 					}
 

@@ -41,7 +41,6 @@ import qupath.lib.images.servers.ServerTools;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.measurements.MeasurementListFactory;
 import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.ROIs;
@@ -81,12 +80,12 @@ public class TestPathObjectTools2 {
 	
 	@BeforeEach
 	public void init() {
-		pathClass1 = PathClassFactory.getPathClass("TestClass1",  Color.RED.getRGB());
-		pathClass2 = PathClassFactory.getPathClass("TestClass2",  Color.GREEN.getRGB());
-		pathClass3 = PathClassFactory.getPathClass("TestClass3",  Color.BLUE.getRGB());
-		pathClass4 = PathClassFactory.getPathClass("test*",  Color.BLUE.getRGB());
-		pathClass5 = PathClassFactory.getPathClass("Ignore*", ColorTools.packRGB(180, 180, 180));
-		pathClassUnclassified = PathClassFactory.getPathClassUnclassified();
+		pathClass1 = PathClass.getInstance("TestClass1",  Color.RED.getRGB());
+		pathClass2 = PathClass.getInstance("TestClass2",  Color.GREEN.getRGB());
+		pathClass3 = PathClass.getInstance("TestClass3",  Color.BLUE.getRGB());
+		pathClass4 = PathClass.getInstance("test*",  Color.BLUE.getRGB());
+		pathClass5 = PathClass.getInstance("Ignore*", ColorTools.packRGB(180, 180, 180));
+		pathClassUnclassified = PathClass.NULL_CLASS;
 		
 		ml1 = MeasurementListFactory.createMeasurementList(16, MeasurementList.MeasurementListType.GENERAL);
 		ml2 = MeasurementListFactory.createMeasurementList(16, MeasurementList.MeasurementListType.GENERAL);
@@ -94,20 +93,20 @@ public class TestPathObjectTools2 {
 		ml4 = MeasurementListFactory.createMeasurementList(16, MeasurementList.MeasurementListType.GENERAL);
 		
 		// Adding measurement to list2 (all measurements)
-		ml2.addMeasurement("intensityMeasurement1", 0.0);
-		ml2.addMeasurement("intensityMeasurement2", 0.2);
-		ml2.addMeasurement("intensityMeasurement3", 0.6);
-		ml2.addMeasurement("intensityMeasurement4", -4.6);
+		ml2.put("intensityMeasurement1", 0.0);
+		ml2.put("intensityMeasurement2", 0.2);
+		ml2.put("intensityMeasurement3", 0.6);
+		ml2.put("intensityMeasurement4", -4.6);
 		
 		// Adding measurement to list3 (missing intensityMeasurement3)
-		ml3.addMeasurement("intensityMeasurement1", -1.0);
-		ml3.addMeasurement("intensityMeasurement2", 0.9999);
-		ml3.addMeasurement("intensityMeasurement4", 0.999);
+		ml3.put("intensityMeasurement1", -1.0);
+		ml3.put("intensityMeasurement2", 0.9999);
+		ml3.put("intensityMeasurement4", 0.999);
 		
 		// Adding measurement to list4 (missing intensityMeasurement4)
-		ml4.addMeasurement("intensityMeasurement1", 0.2);
-		ml4.addMeasurement("intensityMeasurement2", 0.3);
-		ml4.addMeasurement("intensityMeasurement3", 0.5);
+		ml4.put("intensityMeasurement1", 0.2);
+		ml4.put("intensityMeasurement2", 0.3);
+		ml4.put("intensityMeasurement3", 0.5);
 		
 		po1 = PathObjects.createDetectionObject(ROIs.createRectangleROI(0, 0, 10, 10, ImagePlane.getDefaultPlane()), pathClass1, ml1);
 		po2 = PathObjects.createDetectionObject(ROIs.createEllipseROI(0, 0, 10, 10, ImagePlane.getDefaultPlane()), pathClass2, ml2);
@@ -138,15 +137,15 @@ public class TestPathObjectTools2 {
 		manualMap.put(po6, null);
 		manualMap.put(po7, pathClass4);
 		manualMap.put(po8, pathClass5);
-		manualMap.put(po9, PathClassFactory.getPathClassUnclassified());
+		manualMap.put(po9, PathClass.NULL_CLASS);
 		
 		// Check that they are equal
 		assertEquals(manualMap.keySet(), map.keySet());
 		
 		// Set random PathClasses
-		po1.setPathClass(null);
-		po2.setPathClass(null);
-		po3.setPathClass(null);
+		po1.resetPathClass();
+		po2.setPathClass((PathClass)null);
+		po3.resetPathClass();
 		po4.setPathClass(pathClass1);
 		po5.setPathClass(pathClass2);
 		po6.setPathClass(pathClass3);
@@ -167,9 +166,9 @@ public class TestPathObjectTools2 {
 		assertEquals(null, po9.getPathClass());
 		
 		// Set random PathClasses
-		po1.setPathClass(null);
-		po2.setPathClass(null);
-		po3.setPathClass(null);
+		po1.resetPathClass();
+		po2.setPathClass((PathClass)null); // Should also reset
+		po3.resetPathClass();
 		po4.setPathClass(pathClass1);
 		po5.setPathClass(pathClass2);
 		po6.setPathClass(pathClass3);
@@ -209,7 +208,7 @@ public class TestPathObjectTools2 {
 	
 	@Test
 	public void test_getRepresentedPathClasses() {
-		hierarchy.addPathObjects(Arrays.asList(po1, po2, po3, po4, po5, po6));
+		hierarchy.addObjects(Arrays.asList(po1, po2, po3, po4, po5, po6));
 		
 		var classes = PathObjectTools.getRepresentedPathClasses(hierarchy, PathAnnotationObject.class);
 		assertEquals(new HashSet<>(), classes); 
@@ -240,7 +239,7 @@ public class TestPathObjectTools2 {
 		var poIgnore2 = PathObjects.createDetectionObject(ROIs.createEmptyROI(), pathClass5, ml1);
 		assertEquals(pathClass5, PathObjectTools.setIntensityClassification(poIgnore2, "intensityMeasurement1", 0.5));
 
-		var poNull = PathObjects.createDetectionObject(ROIs.createEmptyROI(), PathClassFactory.getPathClassUnclassified(), ml1);
+		var poNull = PathObjects.createDetectionObject(ROIs.createEmptyROI(), PathClass.NULL_CLASS, ml1);
 		assertEquals(null, PathObjectTools.setIntensityClassification(poNull, "intensityMeasurement1", 0.5));
 		
 		// Missing measurements -> unchanged
@@ -250,28 +249,28 @@ public class TestPathObjectTools2 {
 		assertEquals(pathClass1, PathObjectTools.setIntensityClassification(po1, "intensityMeasurement4", 0.5));
 		assertEquals(pathClass1, PathObjectTools.setIntensityClassification(po1, "intensityMeasurement4", 0.5, 1.0, 1.5));
 		
-		assertEquals(PathClassFactory.getNegative(pathClass2), PathObjectTools.setIntensityClassification(po2, "intensityMeasurement1", 0.5));
-		assertEquals(PathClassFactory.getNegative(pathClass2), PathObjectTools.setIntensityClassification(po2, "intensityMeasurement2", 0.5));
-		assertEquals(PathClassFactory.getPositive(pathClass2), PathObjectTools.setIntensityClassification(po2, "intensityMeasurement3", 0.5));
-		assertEquals(PathClassFactory.getNegative(pathClass2), PathObjectTools.setIntensityClassification(po2, "intensityMeasurement4", 0.5));
-		assertEquals(PathClassFactory.getNegative(pathClass2), PathObjectTools.setIntensityClassification(po2, "intensityMeasurement4", 0.5, 1.0, 1.5));
-		assertEquals(PathClassFactory.getOnePlus(pathClass2), PathObjectTools.setIntensityClassification(po2, "intensityMeasurement4", -5.0, 1.0, 1.5));
-		assertEquals(PathClassFactory.getThreePlus(pathClass2), PathObjectTools.setIntensityClassification(po2, "intensityMeasurement4", -5.0, -4.9, -4.8));
-		assertEquals(PathClassFactory.getOnePlus(pathClass2), PathObjectTools.setIntensityClassification(po2, "intensityMeasurement4", -5.0, 1.5));
-		assertEquals(PathClassFactory.getTwoPlus(pathClass2), PathObjectTools.setIntensityClassification(po2, "intensityMeasurement4", -5.0, -4.7));
-		assertEquals(PathClassFactory.getNegative(pathClass2), PathObjectTools.setIntensityClassification(po2, "intensityMeasurement4", 0, 1.5));
+		assertEquals(PathClass.getNegative(pathClass2), PathObjectTools.setIntensityClassification(po2, "intensityMeasurement1", 0.5));
+		assertEquals(PathClass.getNegative(pathClass2), PathObjectTools.setIntensityClassification(po2, "intensityMeasurement2", 0.5));
+		assertEquals(PathClass.getPositive(pathClass2), PathObjectTools.setIntensityClassification(po2, "intensityMeasurement3", 0.5));
+		assertEquals(PathClass.getNegative(pathClass2), PathObjectTools.setIntensityClassification(po2, "intensityMeasurement4", 0.5));
+		assertEquals(PathClass.getNegative(pathClass2), PathObjectTools.setIntensityClassification(po2, "intensityMeasurement4", 0.5, 1.0, 1.5));
+		assertEquals(PathClass.getOnePlus(pathClass2), PathObjectTools.setIntensityClassification(po2, "intensityMeasurement4", -5.0, 1.0, 1.5));
+		assertEquals(PathClass.getThreePlus(pathClass2), PathObjectTools.setIntensityClassification(po2, "intensityMeasurement4", -5.0, -4.9, -4.8));
+		assertEquals(PathClass.getOnePlus(pathClass2), PathObjectTools.setIntensityClassification(po2, "intensityMeasurement4", -5.0, 1.5));
+		assertEquals(PathClass.getTwoPlus(pathClass2), PathObjectTools.setIntensityClassification(po2, "intensityMeasurement4", -5.0, -4.7));
+		assertEquals(PathClass.getNegative(pathClass2), PathObjectTools.setIntensityClassification(po2, "intensityMeasurement4", 0, 1.5));
 		
-		assertEquals(PathClassFactory.getNegative(pathClass3), PathObjectTools.setIntensityClassification(po3, "intensityMeasurement1", 0.5));
-		assertEquals(PathClassFactory.getPositive(pathClass3), PathObjectTools.setIntensityClassification(po3, "intensityMeasurement2", 0.5));
+		assertEquals(PathClass.getNegative(pathClass3), PathObjectTools.setIntensityClassification(po3, "intensityMeasurement1", 0.5));
+		assertEquals(PathClass.getPositive(pathClass3), PathObjectTools.setIntensityClassification(po3, "intensityMeasurement2", 0.5));
 		assertEquals(pathClass3, PathObjectTools.setIntensityClassification(po3, "intensityMeasurement3", 0.5));	// Missing value -> unchanged
-		assertEquals(PathClassFactory.getPositive(pathClass3), PathObjectTools.setIntensityClassification(po3, "intensityMeasurement4", 0.5));
-		assertEquals(PathClassFactory.getOnePlus(pathClass3), PathObjectTools.setIntensityClassification(po3, "intensityMeasurement4", 0.5, 1.0, 1.5));
-		assertEquals(PathClassFactory.getTwoPlus(pathClass3), PathObjectTools.setIntensityClassification(po3, "intensityMeasurement4", -0.5, 0.0, 1.5));
-		assertEquals(PathClassFactory.getThreePlus(pathClass3), PathObjectTools.setIntensityClassification(po3, "intensityMeasurement4", -0.5, 0.0, 0.5));
+		assertEquals(PathClass.getPositive(pathClass3), PathObjectTools.setIntensityClassification(po3, "intensityMeasurement4", 0.5));
+		assertEquals(PathClass.getOnePlus(pathClass3), PathObjectTools.setIntensityClassification(po3, "intensityMeasurement4", 0.5, 1.0, 1.5));
+		assertEquals(PathClass.getTwoPlus(pathClass3), PathObjectTools.setIntensityClassification(po3, "intensityMeasurement4", -0.5, 0.0, 1.5));
+		assertEquals(PathClass.getThreePlus(pathClass3), PathObjectTools.setIntensityClassification(po3, "intensityMeasurement4", -0.5, 0.0, 0.5));
 		
-		assertEquals(PathClassFactory.getNegative(null), PathObjectTools.setIntensityClassification(po4, "intensityMeasurement1", 0.5));
-		assertEquals(PathClassFactory.getNegative(null), PathObjectTools.setIntensityClassification(po4, "intensityMeasurement2", 0.5));
-		assertEquals(PathClassFactory.getPositive(null), PathObjectTools.setIntensityClassification(po4, "intensityMeasurement3", 0.5));
+		assertEquals(PathClass.getNegative(null), PathObjectTools.setIntensityClassification(po4, "intensityMeasurement1", 0.5));
+		assertEquals(PathClass.getNegative(null), PathObjectTools.setIntensityClassification(po4, "intensityMeasurement2", 0.5));
+		assertEquals(PathClass.getPositive(null), PathObjectTools.setIntensityClassification(po4, "intensityMeasurement3", 0.5));
 		assertEquals(null, PathObjectTools.setIntensityClassification(po4, "intensityMeasurement4", 0.5));
 		assertEquals(null, PathObjectTools.setIntensityClassification(po4, "intensityMeasurement4", 0.5, 1.0, 1.5));
 
@@ -309,9 +308,9 @@ public class TestPathObjectTools2 {
 		assertEquals(null, PathObjectTools.setIntensityClassification(po9, "intensityMeasurement4", 0.5, 1.0, 1.5));
 		
 		// 'Unclassified' path class should be classified accordingly (Positive (1+, 2+, 3+)/Negative)
-		assertEquals(PathClassFactory.getNegative(null), PathObjectTools.setIntensityClassification(po10, "intensityMeasurement1", 0.5));
-		assertEquals(PathClassFactory.getNegative(null), PathObjectTools.setIntensityClassification(po10, "intensityMeasurement2", 0.5));
-		assertEquals(PathClassFactory.getPositive(null), PathObjectTools.setIntensityClassification(po10, "intensityMeasurement3", 0.5));
+		assertEquals(PathClass.getNegative(null), PathObjectTools.setIntensityClassification(po10, "intensityMeasurement1", 0.5));
+		assertEquals(PathClass.getNegative(null), PathObjectTools.setIntensityClassification(po10, "intensityMeasurement2", 0.5));
+		assertEquals(PathClass.getPositive(null), PathObjectTools.setIntensityClassification(po10, "intensityMeasurement3", 0.5));
 		assertEquals(null, PathObjectTools.setIntensityClassification(po10, "intensityMeasurement4", 0.5));
 		assertEquals(null, PathObjectTools.setIntensityClassification(po10, "intensityMeasurement4", 0.5, 1.0, 1.5));
 		
@@ -327,47 +326,47 @@ public class TestPathObjectTools2 {
 	public void test_setIntensityClassification2() {
 		PathObjectTools.setIntensityClassifications(Arrays.asList(po1, po2, po3, po4, po5, po6, po7, po8, po9, po10, po11), "intensityMeasurement1", 0.5);
 		assertEquals(pathClass1, po1.getPathClass());
-		assertEquals(PathClassFactory.getNegative(pathClass2), po2.getPathClass());
-		assertEquals(PathClassFactory.getNegative(pathClass3), po3.getPathClass());
-		assertEquals(PathClassFactory.getNegative(null), po4.getPathClass());
+		assertEquals(PathClass.getNegative(pathClass2), po2.getPathClass());
+		assertEquals(PathClass.getNegative(pathClass3), po3.getPathClass());
+		assertEquals(PathClass.getNegative(null), po4.getPathClass());
 		assertEquals(null, PathObjectTools.setIntensityClassification(po5, "intensityMeasurement1", 0.5));
 		assertEquals(null, PathObjectTools.setIntensityClassification(po6, "intensityMeasurement1", 0.5));
 		assertEquals(pathClass4, PathObjectTools.setIntensityClassification(po7, "intensityMeasurement1", 0.5));
 		assertEquals(pathClass5, PathObjectTools.setIntensityClassification(po8, "intensityMeasurement1", 0.5));
 		assertEquals(null, PathObjectTools.setIntensityClassification(po9, "intensityMeasurement1", 0.5));
-		assertEquals(PathClassFactory.getNegative(null), PathObjectTools.setIntensityClassification(po10, "intensityMeasurement1", 0.5));
+		assertEquals(PathClass.getNegative(null), PathObjectTools.setIntensityClassification(po10, "intensityMeasurement1", 0.5));
 		assertEquals(pathClass4, PathObjectTools.setIntensityClassification(po11, "intensityMeasurement1", 0.5));
 		
 		PathObjectTools.setIntensityClassifications(Arrays.asList(po1, po2, po3, po4, po5, po6, po7, po8, po9, po10, po11), "intensityMeasurement2", 0.5);
 		assertEquals(pathClass1, po1.getPathClass());
-		assertEquals(PathClassFactory.getNegative(pathClass2), po2.getPathClass());
-		assertEquals(PathClassFactory.getPositive(pathClass3), po3.getPathClass());
-		assertEquals(PathClassFactory.getNegative(null), PathObjectTools.setIntensityClassification(po4, "intensityMeasurement2", 0.5));
+		assertEquals(PathClass.getNegative(pathClass2), po2.getPathClass());
+		assertEquals(PathClass.getPositive(pathClass3), po3.getPathClass());
+		assertEquals(PathClass.getNegative(null), PathObjectTools.setIntensityClassification(po4, "intensityMeasurement2", 0.5));
 		assertEquals(null, PathObjectTools.setIntensityClassification(po5, "intensityMeasurement2", 0.5));
 		assertEquals(null, PathObjectTools.setIntensityClassification(po6, "intensityMeasurement2", 0.5));
 		assertEquals(pathClass4, PathObjectTools.setIntensityClassification(po7, "intensityMeasurement2", 0.5));
 		assertEquals(pathClass5, PathObjectTools.setIntensityClassification(po8, "intensityMeasurement2", 0.5));
 		assertEquals(null, PathObjectTools.setIntensityClassification(po9, "intensityMeasurement2", 0.5));
-		assertEquals(PathClassFactory.getNegative(null), PathObjectTools.setIntensityClassification(po10, "intensityMeasurement2", 0.5));
+		assertEquals(PathClass.getNegative(null), PathObjectTools.setIntensityClassification(po10, "intensityMeasurement2", 0.5));
 		assertEquals(pathClass4, PathObjectTools.setIntensityClassification(po11, "intensityMeasurement2", 0.5));
 
 		PathObjectTools.setIntensityClassifications(Arrays.asList(po1, po2, po3, po4, po5, po6, po7, po8, po9, po10, po11), "intensityMeasurement3", 0.5);
 		assertEquals(pathClass1, PathObjectTools.setIntensityClassification(po1, "intensityMeasurement3", 0.5));
-		assertEquals(PathClassFactory.getPositive(pathClass2), PathObjectTools.setIntensityClassification(po2, "intensityMeasurement3", 0.5));
+		assertEquals(PathClass.getPositive(pathClass2), PathObjectTools.setIntensityClassification(po2, "intensityMeasurement3", 0.5));
 		assertEquals(pathClass3, PathObjectTools.setIntensityClassification(po3, "intensityMeasurement3", 0.5));	// Missing value -> unchanged
-		assertEquals(PathClassFactory.getPositive(null), PathObjectTools.setIntensityClassification(po4, "intensityMeasurement3", 0.5));
+		assertEquals(PathClass.getPositive(null), PathObjectTools.setIntensityClassification(po4, "intensityMeasurement3", 0.5));
 		assertEquals(null, PathObjectTools.setIntensityClassification(po5, "intensityMeasurement3", 0.5));
 		assertEquals(null, PathObjectTools.setIntensityClassification(po6, "intensityMeasurement3", 0.5));
 		assertEquals(pathClass4, PathObjectTools.setIntensityClassification(po7, "intensityMeasurement3", 0.5));
 		assertEquals(pathClass5, PathObjectTools.setIntensityClassification(po8, "intensityMeasurement3", 0.5));
 		assertEquals(null, PathObjectTools.setIntensityClassification(po9, "intensityMeasurement3", 0.5));
-		assertEquals(PathClassFactory.getPositive(null), PathObjectTools.setIntensityClassification(po10, "intensityMeasurement3", 0.5));
+		assertEquals(PathClass.getPositive(null), PathObjectTools.setIntensityClassification(po10, "intensityMeasurement3", 0.5));
 		assertEquals(pathClass4, PathObjectTools.setIntensityClassification(po11, "intensityMeasurement3", 0.5));
 		
 		PathObjectTools.setIntensityClassifications(Arrays.asList(po1, po2, po3, po4, po5, po6, po7, po8, po9, po10, po11), "intensityMeasurement4", 0.5);
 		assertEquals(pathClass1, PathObjectTools.setIntensityClassification(po1, "intensityMeasurement4", 0.5));
-		assertEquals(PathClassFactory.getNegative(pathClass2), PathObjectTools.setIntensityClassification(po2, "intensityMeasurement4", 0.5));
-		assertEquals(PathClassFactory.getPositive(pathClass3), PathObjectTools.setIntensityClassification(po3, "intensityMeasurement4", 0.5));
+		assertEquals(PathClass.getNegative(pathClass2), PathObjectTools.setIntensityClassification(po2, "intensityMeasurement4", 0.5));
+		assertEquals(PathClass.getPositive(pathClass3), PathObjectTools.setIntensityClassification(po3, "intensityMeasurement4", 0.5));
 		assertEquals(null, PathObjectTools.setIntensityClassification(po4, "intensityMeasurement4", 0.5));
 		assertEquals(null, PathObjectTools.setIntensityClassification(po5, "intensityMeasurement4", 0.5));
 		assertEquals(null, PathObjectTools.setIntensityClassification(po6, "intensityMeasurement4", 0.5));

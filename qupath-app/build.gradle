@@ -172,6 +172,7 @@ extractNatives.mustRunAfter(allprojects.tasks.clean)
 compileJava.dependsOn(extractNatives)
 run.dependsOn(checkLdLibrary)
 startScripts.dependsOn(checkLdLibrary)
+jpackage.dependsOn(extractNatives)
 jpackage.dependsOn(mergedJavadocJar)
 jpackage.dependsOn(checkLdLibrary)
 

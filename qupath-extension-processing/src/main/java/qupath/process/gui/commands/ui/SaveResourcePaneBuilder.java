@@ -74,8 +74,8 @@ public class SaveResourcePaneBuilder<T> {
 	 * @param resource expression containing the results
 	 */
 	public SaveResourcePaneBuilder(Class<T> cls, ObjectExpression<? extends T> resource) {
-		Objects.nonNull(resource);
-		Objects.nonNull(cls);
+		Objects.requireNonNull(resource);
+		Objects.requireNonNull(cls);
 		this.resource = resource;
 		this.cls = cls;
 	}

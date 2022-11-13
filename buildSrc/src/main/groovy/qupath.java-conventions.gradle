@@ -92,6 +92,7 @@ tasks.withType(Javadoc).each { javadocTask ->
     if (!strictJavadoc) {
         javadocTask.options.addStringOption('Xdoclint:none', '-quiet')
     }
+   javadocTask.options.encoding = 'UTF-8'
 
     rootProject.tasks.withType(Javadoc) { rootTask ->
         rootTask.source += javadocTask.source

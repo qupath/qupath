@@ -65,7 +65,7 @@ class DefaultFeatureExtractor<T> implements FeatureExtractor<T> {
 	private void extractFeatures(final PathObject pathObject, FloatBuffer buffer) {
 		var measurementList = pathObject.getMeasurementList();
 		for (var m : measurements) {
-			double value = measurementList.getMeasurementValue(m);
+			double value = measurementList.get(m);
 			buffer.put((float)value);
 		}
 	}
@@ -75,7 +75,7 @@ class DefaultFeatureExtractor<T> implements FeatureExtractor<T> {
 		List<String> missing = null;
 		var ml = pathObject.getMeasurementList();
 		for (var name : measurements) {
-			if (!ml.containsNamedMeasurement(name)) {
+			if (!ml.containsKey(name)) {
 				if (missing == null)
 					missing = new ArrayList<>();
 				missing.add(name);

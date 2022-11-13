@@ -59,7 +59,6 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
@@ -87,7 +86,7 @@ class CountingPane implements PathObjectSelectionListener, PathObjectHierarchyLi
 	
 	private Action btnAdd = new Action("Add", e -> {
 		PathObject pathObjectCounts = PathObjects.createAnnotationObject(ROIs.createPointsROI(ImagePlane.getDefaultPlane()));
-		hierarchy.addPathObject(pathObjectCounts);
+		hierarchy.addObject(pathObjectCounts);
 //		hierarchy.fireChangeEvent(pathObjectCounts.getParent());
 		hierarchy.getSelectionModel().setSelectedObject(pathObjectCounts);
 //		promptToSetProperties();
@@ -107,7 +106,7 @@ class CountingPane implements PathObjectSelectionListener, PathObjectHierarchyLi
 		var hierarchy = viewer.getHierarchy();
 		var availableClasses = qupath.getAvailablePathClasses()
 				.stream()
-				.filter(p -> p != null && p != PathClassFactory.getPathClassUnclassified())
+				.filter(p -> p != null && p != PathClass.NULL_CLASS)
 				.collect(Collectors.toList());
 		if (hierarchy == null || availableClasses.isEmpty())
 			return;
@@ -116,7 +115,7 @@ class CountingPane implements PathObjectSelectionListener, PathObjectHierarchyLi
 		for (PathClass pathClass : availableClasses) {
 			pathObjects.add(PathObjects.createAnnotationObject(ROIs.createPointsROI(plane), pathClass));
 		}
-		hierarchy.addPathObjects(pathObjects);
+		hierarchy.addObjects(pathObjects);
 	});
 	
 	
@@ -204,8 +203,8 @@ class CountingPane implements PathObjectSelectionListener, PathObjectHierarchyLi
 		mi.setGraphic(rect);
 		mi.setOnAction(e -> {
 			var pathObject = listCounts.getSelectionModel().getSelectedItem();
-			if (pathClass == PathClassFactory.getPathClassUnclassified())
-				pathObject.setPathClass(null);
+			if (pathClass == PathClass.NULL_CLASS)
+				pathObject.resetPathClass();
 			else
 				pathObject.setPathClass(pathClass);
 			if (hierarchy != null)
@@ -235,7 +234,7 @@ class CountingPane implements PathObjectSelectionListener, PathObjectHierarchyLi
 			return;
 		if (this.hierarchy != null) {
 			this.hierarchy.getSelectionModel().removePathObjectSelectionListener(this);
-			this.hierarchy.removePathObjectListener(this);
+			this.hierarchy.removeListener(this);
 		}
 		this.hierarchy = hierarchy;
 		PathObject objectSelected = null;
@@ -244,7 +243,7 @@ class CountingPane implements PathObjectSelectionListener, PathObjectHierarchyLi
 			PathObjectSelectionModel model = this.hierarchy.getSelectionModel();
 			model.addPathObjectSelectionListener(this);
 			objectSelected = model.getSelectedObject();
-			this.hierarchy.addPathObjectListener(this);
+			this.hierarchy.addListener(this);
 		}
 		// Update selected object in list, if suitable
 		if (objectSelected != null && PathObjectTools.hasPointROI(objectSelected))

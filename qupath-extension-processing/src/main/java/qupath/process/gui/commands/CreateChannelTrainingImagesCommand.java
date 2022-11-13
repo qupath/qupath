@@ -37,7 +37,7 @@ import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.objects.PathObjects;
-import qupath.lib.objects.classes.PathClassFactory;
+import qupath.lib.objects.classes.PathClass;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.ROIs;
 
@@ -132,13 +132,13 @@ public class CreateChannelTrainingImagesCommand implements Runnable {
 				if (initializePoints) {
 					var imageData2 = entry2.readImageData();
 					imageData2.getHierarchy()
-						.addPathObjects(Arrays.asList(
+						.addObjects(Arrays.asList(
 								PathObjects.createAnnotationObject(
 										ROIs.createPointsROI(ImagePlane.getDefaultPlane()),
-										PathClassFactory.getPathClass(channelName, channel.getColor())),
+										PathClass.getInstance(channelName, channel.getColor())),
 								PathObjects.createAnnotationObject(
 										ROIs.createPointsROI(ImagePlane.getDefaultPlane()),
-										PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.IGNORE))
+										PathClass.StandardPathClasses.IGNORE)
 								));
 					entry2.saveImageData(imageData2);
 				}

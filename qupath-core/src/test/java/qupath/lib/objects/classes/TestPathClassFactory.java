@@ -24,9 +24,16 @@
 package qupath.lib.objects.classes;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -38,26 +45,26 @@ public class TestPathClassFactory {
 	
 	@Test
 	public void test_getPathClass1() {
-		assertEquals("Ignore*", PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.IGNORE).getName());
-		assertEquals("Image", PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.IMAGE_ROOT).getName());
-		assertEquals("Immune cells", PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.IMMUNE_CELLS).getName());
-		assertEquals("Necrosis", PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.NECROSIS).getName());
-		assertEquals("Negative", PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.NEGATIVE).getName());
-		assertEquals("Other", PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.OTHER).getName());
-		assertEquals("Positive", PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.POSITIVE).getName());
-		assertEquals("Region*", PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.REGION).getName());
-		assertEquals("Stroma", PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.STROMA).getName());
+		assertEquals("Ignore*", PathClass.StandardPathClasses.IGNORE.getName());
+		assertEquals("Image", PathClass.StandardPathClasses.IMAGE_ROOT.getName());
+		assertEquals("Immune cells", PathClass.StandardPathClasses.IMMUNE_CELLS.getName());
+		assertEquals("Necrosis", PathClass.StandardPathClasses.NECROSIS.getName());
+		assertEquals("Negative", PathClass.StandardPathClasses.NEGATIVE.getName());
+		assertEquals("Other", PathClass.StandardPathClasses.OTHER.getName());
+		assertEquals("Positive",PathClass.StandardPathClasses.POSITIVE.getName());
+		assertEquals("Region*", PathClass.StandardPathClasses.REGION.getName());
+		assertEquals("Stroma", PathClass.StandardPathClasses.STROMA.getName());
 	}
 	
 	@Test
 	public void test_getPathClass2() {
-		Assertions.assertThrows(IllegalArgumentException.class, () -> PathClassFactory.getPathClass("Class with\nnew line", ColorTools.RED));
+		Assertions.assertThrows(IllegalArgumentException.class, () -> PathClass.fromString("Class with\nnew line", ColorTools.RED));
 		
-		assertEquals("Third", PathClassFactory.getPathClass("First", "Second", "Third").getName());
-		assertEquals("First: Second: Third", PathClassFactory.getPathClass("First", "Second", "Third").toString());
-		assertEquals("Third", PathClassFactory.getPathClass(Arrays.asList("First", "Second", "Third")).getName());
-		assertEquals("First: Second: Third", PathClassFactory.getPathClass(Arrays.asList("First", "Second", "Third")).toString());
-		assertEquals(null, PathClassFactory.getPathClass(Arrays.asList()));
+		assertEquals("Third", PathClass.fromArray("First", "Second", "Third").getName());
+		assertEquals("First: Second: Third", PathClass.fromArray("First", "Second", "Third").toString());
+		assertEquals("Third", PathClass.fromCollection(Arrays.asList("First", "Second", "Third")).getName());
+		assertEquals("First: Second: Third", PathClass.fromCollection(Arrays.asList("First", "Second", "Third")).toString());
+		assertEquals(PathClass.NULL_CLASS, PathClass.fromCollection(Arrays.asList()));
 	}
 	
 	@Test
@@ -67,67 +74,110 @@ public class TestPathClassFactory {
 		var colorTwoPlus = ColorTools.makeScaledRGB(ColorTools.packRGB(225, 150, 50), 1.25);
 		var colorThreePlus = ColorTools.makeScaledRGB(ColorTools.packRGB(200, 50, 50), 1.25);
 		String uniqueName = UUID.randomUUID().toString();
-		checkFields(uniqueName, uniqueName, color1, PathClassFactory.getPathClass(uniqueName, color1));
-		sameClass(PathClassFactory.getPathClassUnclassified(), PathClassFactory.getPathClass(null, color1));
-		sameClass(PathClassFactory.getPathClassUnclassified(), PathClassFactory.getPathClass(PathClassFactory.getPathClassUnclassified().getName(), color1));
-		sameClass(PathClassFactory.getPathClassUnclassified(), PathClassFactory.getPathClass(PathClassFactory.getPathClassUnclassified().getName(), color1));
-		sameClass(PathClassFactory.getPathClassUnclassified(), PathClassFactory.getPathClass(PathClassFactory.getPathClassUnclassified().toString(), color1));
+		checkFields(uniqueName, uniqueName, color1, PathClass.getInstance(uniqueName, color1));
+		sameClass(PathClass.NULL_CLASS, PathClass.getInstance((String)null, color1));
+		sameClass(PathClass.NULL_CLASS, PathClass.getInstance(PathClass.NULL_CLASS.getName(), color1));
+		sameClass(PathClass.NULL_CLASS, PathClass.getInstance(PathClass.NULL_CLASS.getName(), color1));
+		sameClass(PathClass.NULL_CLASS, PathClass.getInstance(PathClass.NULL_CLASS.toString(), color1));
 		
-		checkFields("Child", "Parent: Child", color1, PathClassFactory.getPathClass("Parent:Child", color1));
-		checkFields("Child", "Child", color1, PathClassFactory.getPathClass(":Child", color1));
+		checkFields("Child", "Parent: Child", color1, PathClass.fromString("Parent:Child", color1));
 		
-		checkFields("1+", "1+", colorOnePlus, PathClassFactory.getPathClass(PathClassFactory.ONE_PLUS));
-		checkFields("2+", "2+", colorTwoPlus, PathClassFactory.getPathClass(PathClassFactory.TWO_PLUS));
-		checkFields("3+", "3+", colorThreePlus, PathClassFactory.getPathClass(PathClassFactory.THREE_PLUS));
+		// New in v0.4.0: don't allow creating a PathClass with an empty parent
+		assertThrows(IllegalArgumentException.class, () -> PathClass.getInstance(":Child", color1));
+		assertThrows(IllegalArgumentException.class, () -> PathClass.fromArray("", "Child"));
+		
+		checkFields("1+", "1+", colorOnePlus, PathClass.getInstance(PathClass.NAME_ONE_PLUS));
+		checkFields("2+", "2+", colorTwoPlus, PathClass.getInstance(PathClass.NAME_TWO_PLUS));
+		checkFields("3+", "3+", colorThreePlus, PathClass.getInstance(PathClass.NAME_THREE_PLUS));
 
-		checkFields(PathClassFactory.ONE_PLUS, PathClassFactory.ONE_PLUS, PathClassFactory.getPathClass("", PathClassFactory.ONE_PLUS));
-		checkFields(PathClassFactory.TWO_PLUS, PathClassFactory.TWO_PLUS, PathClassFactory.getPathClass("", PathClassFactory.TWO_PLUS));
-		checkFields(PathClassFactory.THREE_PLUS, PathClassFactory.THREE_PLUS, PathClassFactory.getPathClass("", PathClassFactory.THREE_PLUS));
-		checkFields(PathClassFactory.POSITIVE, PathClassFactory.POSITIVE, PathClassFactory.getPathClass("", PathClassFactory.POSITIVE));
-		checkFields(PathClassFactory.NEGATIVE, PathClassFactory.NEGATIVE, PathClassFactory.getPathClass("", PathClassFactory.NEGATIVE));
+		checkFields(PathClass.NAME_ONE_PLUS, PathClass.NAME_ONE_PLUS, PathClass.getInstance(PathClass.NAME_ONE_PLUS));
+		checkFields(PathClass.NAME_TWO_PLUS, PathClass.NAME_TWO_PLUS, PathClass.getInstance(PathClass.NAME_TWO_PLUS));
+		checkFields(PathClass.NAME_THREE_PLUS, PathClass.NAME_THREE_PLUS, PathClass.getInstance(PathClass.NAME_THREE_PLUS));
+		checkFields(PathClass.NAME_POSITIVE, PathClass.NAME_POSITIVE, PathClass.getInstance(PathClass.NAME_POSITIVE));
+		checkFields(PathClass.NAME_NEGATIVE, PathClass.NAME_NEGATIVE, PathClass.getInstance(PathClass.NAME_NEGATIVE));
 		
 		var sameClasses = Arrays.asList(
 				"My:Class",
 				"My: Class",
 				"My:\tClass",
 				"My:     Class",
-				" My:Class ",
-				"My::Class",
-				"My: :Class",
-				"My::\nClass"
+				" My:Class "
+//				"My::Class", // Following not allowed since v0.4.0
+//				"My: :Class"
+//				"My::\nClass" 
 		);
-		var unclassifiedClasses = Arrays.asList(": :", ":\n:");
-		var invalidClasses = Arrays.asList(":\n", "My::Invalid\nClass");
+		var unclassifiedClasses = Arrays.asList((String)null);
+		var invalidClasses = Arrays.asList(":\n", "My::Invalid\nClass", ": :", ":\n:");
 		
 		for (var clazz: sameClasses) {
-			assertEquals("My", PathClassFactory.getPathClass(clazz, ColorTools.CYAN).getParentClass().getName());
-			assertEquals("Class", PathClassFactory.getPathClass(clazz, ColorTools.CYAN).getName());
-			assertEquals("My: Class", PathClassFactory.getPathClass(clazz, ColorTools.RED).toString());
+			assertEquals("My", PathClass.fromString(clazz, ColorTools.CYAN).getParentClass().getName());
+			assertEquals("Class", PathClass.fromString(clazz, ColorTools.CYAN).getName());
+			assertEquals("My: Class", PathClass.fromString(clazz, ColorTools.RED).toString());
 		}
 		for (var clazz: unclassifiedClasses) {
-			assertEquals(PathClassFactory.getPathClassUnclassified(), PathClassFactory.getPathClass(clazz, ColorTools.CYAN));
+			assertEquals(PathClass.NULL_CLASS, PathClass.fromString(clazz, ColorTools.CYAN));
 		}
 		for (var clazz: invalidClasses) {
-			Assertions.assertThrows(IllegalArgumentException.class, () -> PathClassFactory.getPathClass(clazz, ColorTools.CYAN));
+			Assertions.assertThrows(IllegalArgumentException.class, () -> PathClass.fromString(clazz, ColorTools.CYAN));
 		}
 	}
 	
 	@Test
+	public void test_duplicatePathClass() {
+		// Failed in v0.3.2 and before because second part not stripped
+		var pc1 = PathClass.fromArray("Something", "else ");
+		var pc2 = PathClass.fromArray("Something", "else ");
+		assertEquals(pc1, pc2);
+		assertEquals(pc1.toString(), pc2.toString());
+		assertEquals(pc1.toSet(), pc2.toSet());
+		assertEquals(pc1.toList(), pc2.toList());
+		assertSame(pc1, pc2);
+		assertTrue(pc1 == pc2);
+
+		var pc3 = PathClass.fromArray("Something", "else ", " entirely");
+		var pc4 = PathClass.fromArray(" Something", " else ", "\tentirely");
+		assertEquals(pc3, pc4);
+		assertEquals(pc3.toString(), pc4.toString());
+		assertEquals(pc3.toSet(), pc4.toSet());
+		assertEquals(pc3.toList(), pc4.toList());
+		assertSame(pc3, pc4);
+		assertTrue(pc3 == pc4);
+	}
+	
+	
+	@Test
+	public void test_concurrentCreate() {
+		var list = List.of("Some class", "Another");
+		var allClasses = IntStream.range(0, 1000)
+			.parallel()
+			.mapToObj(i -> PathClass.fromCollection(list))
+			.collect(Collectors.toList());
+		
+		var target = PathClass.fromCollection(list);
+		for (var source : allClasses) {
+			assertSame(target, source);
+		}
+		assertEquals(1, new HashSet<>(allClasses).size());
+	}
+	
+	
+	
+	@Test
 	public void test_getOnePlus() {
-		checkFields("1+", "Test: 1+", PathClassFactory.getOnePlus(PathClassFactory.getPathClass("Test")));
-		checkFields("1+", "Test: 1+: 1+", PathClassFactory.getOnePlus(PathClassFactory.getPathClass("Test: 1+")));
+		checkFields("1+", "Test: 1+", PathClass.getOnePlus(PathClass.getInstance("Test")));
+		checkFields("1+", "Test: 1+: 1+", PathClass.getOnePlus(PathClass.fromString("Test: 1+")));
 	}
 	
 	@Test
 	public void test_getTwoPlus() {
-		checkFields("2+", "Test: 2+", PathClassFactory.getTwoPlus(PathClassFactory.getPathClass("Test")));
-		checkFields("2+", "Test: 2+: 2+", PathClassFactory.getTwoPlus(PathClassFactory.getPathClass("Test: 2+")));
+		checkFields("2+", "Test: 2+", PathClass.getTwoPlus(PathClass.getInstance("Test")));
+		checkFields("2+", "Test: 2+: 2+", PathClass.getTwoPlus(PathClass.fromString("Test: 2+")));
 	}
 
 	@Test
 	public void test_getThreePlus() {
-		checkFields("3+", "Test: 3+", PathClassFactory.getThreePlus(PathClassFactory.getPathClass("Test")));
-		checkFields("3+", "Test: 3+: 3+", PathClassFactory.getThreePlus(PathClassFactory.getPathClass("Test: 3+")));
+		checkFields("3+", "Test: 3+", PathClass.getThreePlus(PathClass.getInstance("Test")));
+		checkFields("3+", "Test: 3+: 3+", PathClass.getThreePlus(PathClass.fromString("Test: 3+")));
 	}
 	
 	@Test
@@ -142,8 +192,8 @@ public class TestPathClassFactory {
 	
 	@Test
 	public void test_getPathClassUnclassified() {
-		sameClass(PathClassFactory.getPathClassUnclassified(), PathClassFactory.getPathClassUnclassified().getBaseClass());
-		sameClass(PathClassFactory.getPathClass((String)null), PathClassFactory.getPathClassUnclassified().getBaseClass());
+		sameClass(PathClass.NULL_CLASS, PathClass.NULL_CLASS.getBaseClass());
+		sameClass(PathClass.getInstance((String)null), PathClass.NULL_CLASS.getBaseClass());
 	}
 	
 	private static void sameClass(PathClass expected, PathClass actual) {

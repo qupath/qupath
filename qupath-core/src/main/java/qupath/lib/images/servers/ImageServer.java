@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -27,16 +27,27 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
+
+import org.slf4j.LoggerFactory;
 
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
+import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
 
 /**
  * 
  * Generic ImageServer, able to return pixels and metadata.
  * <p>
- * The idea behind making this generic is that so that it can be used on various platforms and with different UIs, e.g. Swing, JavaFX.
- * For Swing/AWT, the expected generic parameter is BufferedImage.
+ * The idea behind making this generic was that it could be used on various platforms and with different UIs, e.g. Swing, JavaFX, 
+ * or with different kinds of image reader.
+ * In practice, the generic parameter is almost always {@link java.awt.image.BufferedImage}.
+ * <p>
+ * <b>Important!</b> The {@link #readBufferedImage(RegionRequest)} method was replaced by {@link #readRegion(RegionRequest)} in 
+ * v0.4.0. Implementing classes need only to worry about overriding {@link #readRegion(RegionRequest)} - and legacy implementations 
+ * should be updated to override the new method rather than the old one.
+ * Default implementations of both methods exist to try to ease the transition, but this may change in the future and 
+ * {@link #readBufferedImage(RegionRequest)} is likely to be removed.
  * 
  * @author Pete Bankhead
  *
@@ -140,14 +151,44 @@ public interface ImageServer<T> extends AutoCloseable {
 	 * Get a cached tile, or null if the tile has not been cached.
 	 * <p>
 	 * This is useful whenever it is important to return quickly rather than wait for a tile to be fetched or generated.
+	 * <p>
+	 * <b>Warning!</b> This method should be used very cautiously, as it is permitted to return the tile stored internally 
+	 * in the cache for performance. This <b>must not be modified</b> by any code requesting the tile.
 	 * 
 	 * @param tile
 	 * @return the tile if it has been cached, or null if no cached tile is available for the request.
+	 * @implSpec because this method exists for performance, the tile may be returned directly without defensive copying.
+	 *           If the tile is mutable, consumers must be extremely careful to avoid modifying the tile.
 	 */
 	public T getCachedTile(TileRequest tile);
 	
 	/**
-	 * Read a buffered image for a specified RegionRequest, cropping and downsampling as required.
+	 * Legacy method to request pixels for a {@link RegionRequest}, now replaced by {@link #readRegion(RegionRequest)}.
+	 * This method is deprecated; if the generic parameter {@code <T>} represented 
+	 * anything other than a {@link java.awt.image.BufferedImage} then its name became misleading.
+	 * 
+	 * @param request the region for which pixels are requested
+	 * @return pixels for the region being requested
+	 * @throws IOException 
+	 * @deprecated since v0.4.0. Implementations of {@link ImageServer} should override {@link #readRegion(RegionRequest)} instead.
+	 *             This method will be removed in a future release; it exists now only to maintain compatibility with QuPath 
+	 *             extensions that have not yet been updated to use the newer method.
+	 *             
+	 * @implNote The default implementation simply calls {@link #readRegion(RegionRequest)}
+	 */
+	@Deprecated
+	public default T readBufferedImage(RegionRequest request) throws IOException {
+		// Log if this is the first time
+		ImageServers.logFirstDeprecatedReadCall(getClass());
+		return readRegion(request);		
+	}
+ 
+	/**
+	 * Read a 2D(+C) image region for a specified {@link RegionRequest}.
+	 * Coordinates and bounding box dimensions from the request are in pixel units, 
+	 * at the full image resolution (i.e. when downsample = 1).
+	 * <p>
+	 * All channels are always returned.
 	 * <p>
 	 * No specific checking is guaranteed to ensure that the request is valid, e.g. if it extends beyond the image
 	 * boundary then it is likely (but not certain) that the returned image will be cropped accordingly - 
@@ -161,12 +202,79 @@ public interface ImageServer<T> extends AutoCloseable {
 	 * Note: One should avoid returning null, as this cannot be stored as a value in some map implementations 
 	 * that may be used for caching.
 	 * 
-	 * @param request
-	 * @return
-	 * @throws IOException 
+	 * @param request the region for which pixels are requested
+	 * @return pixels for the region being requested
+	 * @throws IOException
+	 * @see #readRegion(double, int, int, int, int, int, int)
+	 * @see #readRegion(double, int, int, int, int)
+	 * @see #readBufferedImage(RegionRequest)
+	 * @since v0.4.0
+	 * 
+	 * @implNote Implementations of {@link ImageServer} must override this method! The default implementation 
+	 *           exists to search for the (deprecated) {@link #readBufferedImage(RegionRequest)} method, 
+	 *           so as to maintain compatibility with older {@link ImageServer} implementations - and throws 
+	 *           an {@link UnsupportedOperationException} if this is not found.
 	 */
-	public T readBufferedImage(RegionRequest request) throws IOException;
- 
+	public default T readRegion(RegionRequest request) throws IOException {
+		try {
+			// Try to find if this is a legacy subclass that implemented readBufferedImage(RegionRequest) only
+			// If so, call that method and log a warning if it's the first time
+			var m = getClass().getMethod("readBufferedImage", RegionRequest.class);
+			if (m != null && !Objects.equals(ImageServer.class, m.getDeclaringClass())) {
+				ImageServers.logFirstDeprecatedReadCall(getClass());
+				return (T)m.invoke(this, request);
+			}
+		} catch (Exception e) {
+			LoggerFactory.getLogger(getClass()).debug(e.getLocalizedMessage(), e);
+		}
+		throw new UnsupportedOperationException("readRegion is not implemented!");
+	}
+
+	/**
+	 * Read a 2D(+C) image region for a specified z-plane and timepoint.
+	 * Coordinates and bounding box dimensions are in pixel units, at the full image resolution 
+	 * (i.e. when downsample = 1).
+	 * <p>
+	 * All channels are always returned.
+	 * 
+	 * @param downsample downsample factor for the region
+	 * @param x x coordinate of the top left of the region bounding box
+	 * @param y y coordinate of the top left of the region bounding box
+	 * @param width bounding box width
+	 * @param height bounding box height
+	 * @param z index for the z-position
+	 * @param t index for the timepoint
+	 * @return pixels for the region being requested
+	 * @throws IOException
+	 * @see #readRegion(RegionRequest)
+	 * @since v0.4.0
+	 */
+	public default T readRegion(double downsample, int x, int y, int width, int height, int z, int t) throws IOException {
+		return readRegion(RegionRequest.createInstance(getPath(), downsample, x, y, width, height, z, t));
+	}
+
+	/**
+	 * Read a 2D(+C) image region from the default {@link ImagePlane} (i.e. z and t are 0).
+	 * Coordinates and bounding box dimensions are in pixel units, at the full image resolution 
+	 * (i.e. when downsample = 1).
+	 * <p>
+	 * All channels are always returned.
+	 * 
+	 * @param downsample downsample factor for the region
+	 * @param x x coordinate of the top left of the region bounding box
+	 * @param y y coordinate of the top left of the region bounding box
+	 * @param width bounding box width
+	 * @param height bounding box height
+	 * @return pixels for the region being requested
+	 * @throws IOException
+	 * @see #readRegion(RegionRequest)
+	 * @see #readRegion(double, int, int, int, int, int, int)
+	 * @since v0.4.0
+	 */
+	public default T readRegion(double downsample, int x, int y, int width, int height) throws IOException {
+		return readRegion(downsample, x, y, width, height, 0, 0);
+	}
+
 	
 	/**
 	 * A string describing the type of server, for example the name of the library used (Openslide, Bioformats...)
@@ -196,18 +304,11 @@ public interface ImageServer<T> extends AutoCloseable {
 	public T getAssociatedImage(String name);
 	
 	
-//	/**
-//	 * Returns an absolute URI representing the server (image) data, or null if the server does not receive its data from a stored file (e.g. it is computed dynamically).
-//	 * @return
-//	 */
-//	public URI getURI();
-	
-	
 	/**
 	 * Test whether a region is empty, i.e. it contains nothing to be painted (e.g. the server paints objects
 	 * but there are no objects present in the region) and readBufferedImage(RegionRequest region) would return null.
 	 * <p>
-	 * This makes it possible to avoid a (potentially more expensive) request to {@link #readBufferedImage(RegionRequest)},
+	 * This makes it possible to avoid a (potentially more expensive) request to {@link #readRegion(RegionRequest)},
 	 * or to add it to a request queue, if we know there will be nothing to show for it.
 	 * <p>
 	 * Note: if this method returns true, it is safe to assume readBufferedImage would return null.

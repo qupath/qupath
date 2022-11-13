@@ -26,6 +26,7 @@ package qupath.lib.gui.scripting;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.util.Set;
 
 import org.controlsfx.control.action.Action;
 import org.controlsfx.control.action.ActionUtils;
@@ -34,12 +35,12 @@ import org.slf4j.LoggerFactory;
 
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
-import javafx.geometry.Orientation;
 import javafx.scene.control.ContextMenu;
-import javafx.scene.control.SplitPane;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.Region;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.gui.scripting.languages.ScriptLanguage;
+import qupath.lib.gui.scripting.languages.ScriptLanguageProvider;
+import qupath.lib.scripting.languages.ScriptLanguage;
 
 /**
  * Class representing a script tab (e.g. on the right side of the script editor).
@@ -68,15 +69,14 @@ public class ScriptTab {
 	
 	private BooleanProperty isModified = new SimpleBooleanProperty(false);
 	
-	private SplitPane splitEditor;
 	private String name;
 	
-	private ScriptEditorControl console;
-	private ScriptEditorControl editor;
+	private ScriptEditorControl<? extends Region> console;
+	private ScriptEditorControl<? extends Region> editor;
 	
 	private boolean isRunning = false;
 	
-	ScriptTab(final ScriptEditorControl editor, final ScriptEditorControl console, final String script, final ScriptLanguage language) {
+	ScriptTab(final ScriptEditorControl<? extends Region> editor, final ScriptEditorControl<? extends Region> console, final String script, final ScriptLanguage language) {
 		this.editor = editor;
 		this.console = console;
 		initialize();
@@ -87,7 +87,7 @@ public class ScriptTab {
 		name = "Untitled " + untitledCounter;
 	}
 	
-	ScriptTab(final ScriptEditorControl editor, final ScriptEditorControl console, final File file) throws IOException {
+	ScriptTab(final ScriptEditorControl<? extends Region> editor, final ScriptEditorControl<? extends Region> console, final File file) throws IOException {
 		this.editor = editor;
 		this.console = console;
 		initialize();
@@ -102,16 +102,13 @@ public class ScriptTab {
 	 */
 	protected void readFile(final File file) throws IOException {
 		logger.info("Loading file {} to Script Editor", file.getAbsolutePath());
-		String content = GeneralTools.readFileAsString(file.getPath());
-//		Scanner scanner = new Scanner(file);
-//		String content = new String(Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8);
-//		String content = scanner.useDelimiter("\\Z").next();
+		String content = GeneralTools.readFileAsString(file);
 		editor.setText(content);
 		name = file.getName();
 		this.file = file;
 		lastModified = file.lastModified();
 		lastSavedContents = content;
-		this.language = DefaultScriptEditor.getLanguageFromName(name);
+		this.language = ScriptLanguageProvider.getLanguageFromName(name);
 //		scanner.close();
 		updateIsModified();
 	}
@@ -131,29 +128,22 @@ public class ScriptTab {
 	
 	void initialize() {
 		BorderPane panelMainEditor = new BorderPane();
-		panelMainEditor.setCenter(editor.getControl());
+		panelMainEditor.setCenter(editor.getRegion());
 
-		ContextMenu popup = new ContextMenu();
+		var popup = console.getContextMenu();
+		if (popup == null) {
+			popup = new ContextMenu();
+			popup.getItems().add(ActionUtils.createMenuItem(new Action("Copy", e -> console.copy())));
+		}
 		popup.getItems().add(ActionUtils.createMenuItem(new Action("Clear console", e -> console.setText(""))));
-		console.setPopup(popup);
-
-		splitEditor = new SplitPane();
-		splitEditor.setOrientation(Orientation.VERTICAL);
-		splitEditor.getItems().addAll(
-				panelMainEditor,
-				console.getControl());
-		SplitPane.setResizableWithParent(console.getControl(), Boolean.FALSE);
-		splitEditor.setDividerPosition(0, 0.75);
+		popup.getStyleClass().setAll("context-menu");		
+		console.setContextMenu(popup);
+//		console.setPopup(popup);
 		
-		updateIsModified();
+ 		updateIsModified();
 	}
 	
-	SplitPane getSplitEditor() {
-		return splitEditor;
-	}
-	
-	
-	ScriptEditorControl getEditorComponent() {
+	ScriptEditorControl<? extends Region> getEditorControl() {
 		return editor;
 	}
 	
@@ -161,7 +151,7 @@ public class ScriptTab {
 		return editor.getText().length() > 0;
 	}
 
-	ScriptEditorControl getConsoleComponent() {
+	ScriptEditorControl<? extends Region> getConsoleControl() {
 		return console;
 	}
 
@@ -227,7 +217,7 @@ public class ScriptTab {
 		this.language = language;
 	}
 	
-	String[] getRequestedExtensions() {
+	Set<String> getRequestedExtensions() {
 		return language.getExtensions();
 	}
 	

@@ -175,8 +175,8 @@ public class TilerPlugin<T> extends AbstractDetectionPlugin<T> {
 			if (wasCancelled)
 				return;
 			
-			parentObject.clearPathObjects();
-			parentObject.addPathObjects(tiles);
+			parentObject.clearChildObjects();
+			parentObject.addChildObjects(tiles);
 			if (parentObject.isAnnotation())
 				((PathAnnotationObject)parentObject).setLocked(true);
 			imageData.getHierarchy().fireHierarchyChangedEvent(this, parentObject);

@@ -33,11 +33,11 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import qupath.lib.objects.classes.PathClassFactory;
+import qupath.lib.objects.classes.PathClass;
 
 
 @SuppressWarnings("javadoc")
-public class TestPathRootObject extends TestPathObject {
+public class TestPathRootObject extends TestPathObjectMethods {
 	private final ByteArrayOutputStream errContent = new ByteArrayOutputStream();
 	private final Integer nPO = 10;
 	PathRootObject myPO = new PathRootObject();
@@ -115,7 +115,7 @@ public class TestPathRootObject extends TestPathObject {
 	}
 	@Test
 	public void test_SetGetPathClass() {
-		test_getPathClass(myPO, PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.IMAGE_ROOT)); 
+		test_getPathClass(myPO, PathClass.StandardPathClasses.IMAGE_ROOT); 
 		//test_setPathClass(myPO, unclassErrMsg, errContent); // cannot be set
 		test_getClassProbability(myPO, Double.NaN);
 	}

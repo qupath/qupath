@@ -64,7 +64,7 @@ public class TestPathObjectHierarchy {
 	public void test_PathHierarchy() {
 
 		// Created new PH with listeners
-		myPH.addPathObjectListener(myPOHL);
+		myPH.addListener(myPOHL);
 		assertTrue(myPH.isEmpty());
 		
 		// Firing direct event 
@@ -73,14 +73,14 @@ public class TestPathObjectHierarchy {
 		myPOHL.setFiredState(0);
 		
 		// Creating structure of POs
-		myChild1PAO.addPathObject(myChild3PAO);
-		myPRO.addPathObject(myChild1PAO);
+		myChild1PAO.addChildObject(myChild3PAO);
+		myPRO.addChildObject(myChild1PAO);
 		assertEquals(myPRO.nChildObjects(), 1);
 		assertEquals(myChild1PAO.getParent(), myPRO);
 		
 		// Firing indirect events (adding/removing from hierarchy)
 		// Adding one PO with a child (so 2)
-		myPH.addPathObject(myChild1PAO);
+		myPH.addObject(myChild1PAO);
 		Collection<PathObject> POAL1 = new ArrayList<>();
 		POAL1 = myPH.getObjects(POAL1, PathAnnotationObject.class);
 		assertEquals(POAL1.size(), 2); // 1 + child
@@ -175,19 +175,19 @@ public class TestPathObjectHierarchy {
 				ROIs.createRectangleROI(900, 900, 200, 200, ImagePlane.getDefaultPlane())
 				);
 		annotationInCore.setName("Annotation in core");
-		hierarchy.addPathObject(annotationInCore);
+		hierarchy.addObject(annotationInCore);
 
 		var annotationInAnnotation = PathObjects.createAnnotationObject(
 				ROIs.createRectangleROI(950, 950, 100, 100, ImagePlane.getDefaultPlane())
 				);
 		annotationInAnnotation.setName("Annotation in " + annotationInCore.getName());
-		hierarchy.addPathObject(annotationInAnnotation);
+		hierarchy.addObject(annotationInAnnotation);
 
 		var annotationOutsideCore = PathObjects.createAnnotationObject(
 				ROIs.createRectangleROI(2000, 2000, 100, 100, ImagePlane.getDefaultPlane())
 				);
 		annotationOutsideCore.setName("Annotation outside core");
-		hierarchy.addPathObject(annotationOutsideCore);
+		hierarchy.addObject(annotationOutsideCore);
 
 		// An annotation containing the core should *not* become a parent of the core,
 		// since cores must always be directly below the root
@@ -195,7 +195,7 @@ public class TestPathObjectHierarchy {
 				ROIs.createRectangleROI(400, 400-100, 1200, 1200, ImagePlane.getDefaultPlane())
 				);
 		annotationContainingCore.setName("Annotation containing core");
-		hierarchy.addPathObject(annotationContainingCore);
+		hierarchy.addObject(annotationContainingCore);
 		
 		// Sanity check to ensure that our rectangle does indeed contain the core
 		assertTrue(annotationContainingCore.getROI().getGeometry().contains(core.getROI().getGeometry()));
@@ -214,14 +214,14 @@ public class TestPathObjectHierarchy {
 					);
 			detection.setName("Detection in " + annotation.getName());
 			mapDetections.put(detection, annotation);
-			hierarchy.addPathObject(detection);
+			hierarchy.addObject(detection);
 		}
 		// Add another detection outside of everything
 		var detectionOutside = PathObjects.createDetectionObject(
 				ROIs.createRectangleROI(4000, 4000, 5, 5, ImagePlane.getDefaultPlane())
 				);
 		detectionOutside.setName("Detection outside everything");
-		hierarchy.addPathObject(detectionOutside);
+		hierarchy.addObject(detectionOutside);
 		mapDetections.put(detectionOutside, hierarchy.getRootObject());
 
 		// Add another detection inside the core but outside of any annotations
@@ -231,7 +231,7 @@ public class TestPathObjectHierarchy {
 				);
 //		System.err.println("Centroid: " + detectionInCore.getROI().getCentroidX() + ", " + detectionInCore.getROI().getCentroidY());
 		detectionInCore.setName("Detection in core only");
-		hierarchy.addPathObject(detectionInCore);
+		hierarchy.addObject(detectionInCore);
 		mapDetections.put(detectionInCore, core);
 
 
@@ -289,26 +289,26 @@ public class TestPathObjectHierarchy {
 				ROIs.createRectangleROI(900, 900, 200, 200, ImagePlane.getDefaultPlane())
 				);
 		annotationInCore.setName("Annotation in core");
-		hierarchy.addPathObject(annotationInCore);
+		hierarchy.addObject(annotationInCore);
 
 		var annotationInAnnotation = PathObjects.createAnnotationObject(
 				ROIs.createRectangleROI(950, 950, 100, 100, ImagePlane.getDefaultPlane())
 				);
 		annotationInAnnotation.setName("Annotation in " + annotationInCore.getName());
-		hierarchy.addPathObject(annotationInAnnotation);
+		hierarchy.addObject(annotationInAnnotation);
 
 		var annotationOutsideCore = PathObjects.createAnnotationObject(
 				ROIs.createRectangleROI(2000, 2000, 100, 100, ImagePlane.getDefaultPlane())
 				);
 		annotationOutsideCore.setName("Annotation outside core");
-		hierarchy.addPathObject(annotationOutsideCore);
+		hierarchy.addObject(annotationOutsideCore);
 
 		// This was previously containing the entire TMA core - without the core, it acts as a stand-in
 		var annotationContainingCore = PathObjects.createAnnotationObject(
 				ROIs.createRectangleROI(400, 400-100, 1200, 1200, ImagePlane.getDefaultPlane())
 				);
 		annotationContainingCore.setName("Annotation stand-in for core");
-		hierarchy.addPathObject(annotationContainingCore);
+		hierarchy.addObject(annotationContainingCore);
 		
 		// Add a detection at the centroid of each annotation
 		var mapDetections = new LinkedHashMap<PathObject, PathObject>();
@@ -323,14 +323,14 @@ public class TestPathObjectHierarchy {
 					);
 			detection.setName("Detection in " + annotation.getName());
 			mapDetections.put(detection, annotation);
-			hierarchy.addPathObject(detection);
+			hierarchy.addObject(detection);
 		}
 		// Add another detection outside of everything
 		var detectionOutside = PathObjects.createDetectionObject(
 				ROIs.createRectangleROI(4000, 4000, 5, 5, ImagePlane.getDefaultPlane())
 				);
 		detectionOutside.setName("Detection outside everything");
-		hierarchy.addPathObject(detectionOutside);
+		hierarchy.addObject(detectionOutside);
 		mapDetections.put(detectionOutside, hierarchy.getRootObject());
 
 		// Add another detection inside the core but outside of any annotations
@@ -340,7 +340,7 @@ public class TestPathObjectHierarchy {
 				);
 //		System.err.println("Centroid: " + detectionInCore.getROI().getCentroidX() + ", " + detectionInCore.getROI().getCentroidY());
 		detectionInCore.setName("Detection in core only");
-		hierarchy.addPathObject(detectionInCore);
+		hierarchy.addObject(detectionInCore);
 
 
 		// Check hierarchy size

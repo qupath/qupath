@@ -46,7 +46,6 @@ import qupath.lib.objects.PathRootObject;
 import qupath.lib.objects.PathTileObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.plugins.AbstractDetectionPlugin;
@@ -125,7 +124,7 @@ public class TileClassificationsToAnnotationsPlugin<T> extends AbstractDetection
 				}
 				
 			});
-			PathClass allClasses = PathClassFactory.getPathClass("All classes");
+			PathClass allClasses = PathClass.getInstance("All classes");
 			PathClass defaultChoice = allClasses;
 			choices.add(0, allClasses);
 //			PathClass classTumor = PathClassFactory.getDefaultPathClass(PathClasses.TUMOR); // Tumor is the most likely choice, so default to it if available
@@ -214,7 +213,7 @@ public class TileClassificationsToAnnotationsPlugin<T> extends AbstractDetection
 							pathROINew = RoiTools.getShapeROI(new Area(path), ImagePlane.getDefaultPlane());
 						pathSingleAnnotation = PathObjects.createAnnotationObject(pathROINew, pathClass);
 						if (!deleteTiles)
-							pathSingleAnnotation.addPathObjects(tiles);
+							pathSingleAnnotation.addChildObjects(tiles);
 					}
 				}
 				
@@ -254,7 +253,7 @@ public class TileClassificationsToAnnotationsPlugin<T> extends AbstractDetection
 //							PathObjectTools.containsObject(pathSingleAnnotation, childObject)
 							PathObject annotation = PathObjects.createAnnotationObject(shape, pathClass);
 							if (!deleteTiles)
-								annotation.addPathObjects(children);
+								annotation.addChildObjects(children);
 							pathAnnotations.add(annotation);
 						}
 					}
@@ -282,9 +281,9 @@ public class TileClassificationsToAnnotationsPlugin<T> extends AbstractDetection
 		public void taskComplete(boolean wasCancelled) {
 			if (!wasCancelled && !Thread.currentThread().isInterrupted()) {
 				if (params.getBooleanParameterValue("deleteTiles"))
-					parentObject.clearPathObjects();
+					parentObject.clearChildObjects();
 				if (pathAnnotations != null && !pathAnnotations.isEmpty())
-					parentObject.addPathObjects(pathAnnotations);
+					parentObject.addChildObjects(pathAnnotations);
 				imageData.getHierarchy().fireHierarchyChangedEvent(parentObject);
 			}
 			pathAnnotations = null;

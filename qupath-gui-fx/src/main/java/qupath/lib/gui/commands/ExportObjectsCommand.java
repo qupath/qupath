@@ -52,6 +52,10 @@ import qupath.lib.scripting.QP;
 // TODO make default dir the project one when choosing outFile?
 public final class ExportObjectsCommand {
 	
+	private static final String COMPRESS_NONE = "None";
+	private static final String COMPRESS_ZIP = "ZIP";
+	private static final String COMPRESS_GZIP = "gzip";
+	
 	// Suppress default constructor for non-instantiability
 	private ExportObjectsCommand() {
 		throw new AssertionError();
@@ -82,7 +86,7 @@ public final class ExportObjectsCommand {
 				.addBooleanParameter("excludeMeasurements", "Exclude measurements", false, "Exclude object measurements during export - for large numbers of detections this can help reduce the file size")
 				.addBooleanParameter("doPretty", "Pretty JSON", false, "Pretty GeoJSON is more human-readable but results in larger file sizes")
 				.addBooleanParameter("doFeatureCollection", "Export as FeatureCollection", true, "Export as a 'FeatureCollection', which is a standard GeoJSON way to represent multiple objects; if not, a regular JSON object/array will be export")
-				.addBooleanParameter("doZip", "Compress data (zip)", false, "Compressed files take less memory");
+				.addChoiceParameter("compression", "Compression", COMPRESS_NONE, List.of(COMPRESS_NONE, COMPRESS_ZIP, COMPRESS_GZIP));
 		
 		if (!Dialogs.showParameterDialog("Export objects", parameterList))
 			return false;
@@ -101,14 +105,15 @@ public final class ExportObjectsCommand {
 		// Remove PathRootObject
 		toProcess = toProcess.stream().filter(e -> !e.isRootObject()).collect(Collectors.toList());
 
-		// Check if includes ellipse(s), as they will need to be polygonized
-		var nEllipses = toProcess.stream().filter(ann -> isEllipse(ann)).count();
-		if (nEllipses > 0) {
-			String message = nEllipses == 1 ? "1 ellipse will be polygonized, continue?" : String.format("%d ellipses will be polygonized, continue?", nEllipses);
-			var response = Dialogs.showYesNoDialog("Ellipse polygonization", message);
-			if (!response)
-				return false;
-		}
+		// Remove v0.4.0, because an isEllipse flag now means ellipses can be handled within QuPath
+//		// Check if includes ellipse(s), as they will need to be polygonized
+//		var nEllipses = toProcess.stream().filter(ann -> isEllipse(ann)).count();
+//		if (nEllipses > 0) {
+//			String message = nEllipses == 1 ? "1 ellipse will be polygonized, continue?" : String.format("%d ellipses will be polygonized, continue?", nEllipses);
+//			var response = Dialogs.showYesNoDialog("Ellipse polygonization", message);
+//			if (!response)
+//				return false;
+//		}
 
 		File outFile;
 		// Get default name & output directory
@@ -123,10 +128,18 @@ public final class ExportObjectsCommand {
 		File defaultDirectory = project == null || project.getPath() == null ? null : project.getPath().toFile();
 		while (defaultDirectory != null && !defaultDirectory.isDirectory())
 			defaultDirectory = defaultDirectory.getParentFile();
-		if (parameterList.getBooleanParameterValue("doZip"))
-			outFile = Dialogs.promptToSaveFile("Export to file", defaultDirectory, defaultName + ".zip", "ZIP archive", ".zip");
-		else
-			outFile = Dialogs.promptToSaveFile("Export to file", defaultDirectory, defaultName + ".geojson", "GeoJSON", ".geojson");
+		
+		String comp = (String)parameterList.getChoiceParameterValue("compression");
+		switch (comp) {
+		case COMPRESS_ZIP:
+			outFile = Dialogs.promptToSaveFile("Export to file", defaultDirectory, defaultName, "ZIP archive", ".zip");
+			break;
+		case COMPRESS_GZIP:
+			outFile = Dialogs.promptToSaveFile("Export to file", defaultDirectory, defaultName, "gzip archive", ".geojson.gz");
+			break;
+		default:
+			outFile = Dialogs.promptToSaveFile("Export to file", defaultDirectory, defaultName, "GeoJSON", ".geojson");
+		}
 			
 		// If user cancels
 		if (outFile == null)
@@ -173,16 +186,6 @@ public final class ExportObjectsCommand {
 
 		historyWorkflow.addStep(new DefaultScriptableWorkflowStep(methodTitle, map, methodString));		
 		return true;
-	}
-	
-	/**
-	 * Return whether the {@code PathObject} is an ellipse.
-	 * 
-	 * @param ann
-	 * @return isEllipse
-	 */
-	private static boolean isEllipse(PathObject ann) {
-		return ann.getROI() != null && ann.getROI().getRoiName().equals("Ellipse");
 	}
 	
 }

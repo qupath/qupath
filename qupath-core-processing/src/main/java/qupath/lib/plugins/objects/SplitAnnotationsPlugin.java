@@ -131,11 +131,11 @@ public class SplitAnnotationsPlugin<T> extends AbstractInteractivePlugin<T> {
 					annotation.setLocked(pathObject.isLocked());
 					localSplit.add(annotation);
 				}
-				if (pathObject.hasChildren()) {
+				if (pathObject.hasChildObjects()) {
 					for (var temp : localSplit)
-						hierarchy.addPathObjectBelowParent(pathObject, temp, false);
+						hierarchy.addObjectBelowParent(pathObject, temp, false);
 				} else 
-					pathObject.addPathObjects(localSplit);
+					pathObject.addChildObjects(localSplit);
 				toAdd.addAll(localSplit);
 			}
 			if (toAdd.isEmpty() && toRemove.isEmpty())

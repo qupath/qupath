@@ -23,7 +23,6 @@ package qupath.process.gui.commands.ml;
 
 import qupath.lib.common.ColorTools;
 import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.classes.PathClassTools;
 
 /**
@@ -74,7 +73,7 @@ public class BoundaryStrategy {
 		case CLASSIFY:
 			return fixedClass;
 		case DERIVE:
-			return PathClassFactory.getDerivedPathClass(pathClass, "Boundary*", ColorTools.makeScaledRGB(pathClass.getColor(), 0.5));
+			return PathClass.getInstance(pathClass, "Boundary*", ColorTools.makeScaledRGB(pathClass.getColor(), 0.5));
 		case SAME:
 			return pathClass;
 		case SKIP:

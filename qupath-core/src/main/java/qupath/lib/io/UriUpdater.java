@@ -150,7 +150,7 @@ public class UriUpdater<T extends UriResource> {
 			if (nMissing == 0)
 				break;
 		}
-		return resource.getUris().iterator().next();
+		return resource.getURIs().iterator().next();
 	}
 	
 	/**
@@ -184,7 +184,7 @@ public class UriUpdater<T extends UriResource> {
 	public static int fixUris(UriResource resource, Project<?> project) {
 		int n = 0;
 		try {
-			var uris = resource.getUris();
+			var uris = resource.getURIs();
 			if (uris.isEmpty())
 				return n;
 			
@@ -432,7 +432,7 @@ public class UriUpdater<T extends UriResource> {
 	private static int replace(Collection<? extends UriResource> uriResources, Map<URI, URI> replacements) throws IOException {
 		int count = 0;
 		for (var entry : uriResources) {
-			if (entry.updateUris(replacements))
+			if (entry.updateURIs(replacements))
 				count++;
 		}
 		return count;
@@ -443,7 +443,7 @@ public class UriUpdater<T extends UriResource> {
 		// Get all the URIs
 		Set<URI> imageUris = new LinkedHashSet<>();
 		for (var item : uriResources) {
-			imageUris.addAll(item.getUris());
+			imageUris.addAll(item.getURIs());
 		}
 		return imageUris.stream().map(u -> new SingleUriItem(u)).collect(Collectors.toList());
 	}
@@ -606,12 +606,12 @@ public class UriUpdater<T extends UriResource> {
 		}
 
 		@Override
-		public Collection<URI> getUris() throws IOException {
+		public Collection<URI> getURIs() throws IOException {
 			return Collections.unmodifiableList(uris);
 		}
 
 		@Override
-		public boolean updateUris(Map<URI, URI> replacements) throws IOException {
+		public boolean updateURIs(Map<URI, URI> replacements) throws IOException {
 			boolean changes = false;
 			for (int i = 0; i < uris.size(); i++) {
 				var uri = uris.get(i);

@@ -83,7 +83,7 @@ import qupath.lib.images.servers.ServerTools;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
-import qupath.lib.objects.classes.PathClassFactory;
+import qupath.lib.objects.classes.PathClass;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
@@ -575,10 +575,10 @@ public class IJTools {
 			pathObject.setName(name);
 		} else if (roi.getGroup() > 0) {
 			// If the group is set, use it as a classification
-			pathObject.setPathClass(PathClassFactory.getPathClass("Group " + roi.getGroup(), colorRGB));
+			pathObject.setPathClass(PathClass.getInstance("Group " + roi.getGroup(), colorRGB));
 		}
 		if (colorRGB != null && pathObject.getPathClass() == null) {
-			pathObject.setColorRGB(colorRGB);
+			pathObject.setColor(colorRGB);
 		}
 	}
 	
@@ -860,7 +860,7 @@ public class IJTools {
 	 */
 	public static PathImage<ImagePlus> convertToImagePlus(String title, ImageServer<BufferedImage> server, BufferedImage img, RegionRequest request) throws IOException {
 		if (img == null)
-			img = server.readBufferedImage(request);
+			img = server.readRegion(request);
 		ImagePlus imp = convertToUncalibratedImagePlus(title, img);
 		// Set dimensions - because RegionRequest is only 2D, every 'slice' is a channel
 		imp.setDimensions(imp.getNSlices(), 1, 1);
@@ -1013,7 +1013,7 @@ public class IJTools {
 			cal = pathImage.getImage().getCalibration();
 			downsampleFactor = pathImage.getDownsampleFactor();
 		}
-		return convertToROI(roi, cal, downsampleFactor, region.getPlane());	
+		return convertToROI(roi, cal, downsampleFactor, region.getImagePlane());	
 	}
 
 	/**

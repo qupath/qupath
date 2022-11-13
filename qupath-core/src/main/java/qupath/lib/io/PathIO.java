@@ -60,6 +60,8 @@ import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.zip.GZIPInputStream;
+import java.util.zip.GZIPOutputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -69,6 +71,8 @@ import org.slf4j.LoggerFactory;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonParseException;
+import com.google.gson.JsonSyntaxException;
 import com.google.gson.reflect.TypeToken;
 import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.common.GeneralTools;
@@ -77,7 +81,6 @@ import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerBuilder.DefaultImageServerBuilder;
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.images.servers.ImageServerProvider;
-import qupath.lib.io.PathObjectTypeAdapters.FeatureCollection;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
@@ -774,17 +777,25 @@ public class PathIO {
 				return allObjects;
 			}
 		}
-		if (name.endsWith(EXT_JSON) || name.endsWith(EXT_GEOJSON)) {
-			// Prepare template
-			try (var stream = Files.newInputStream(path)) {
-				return readObjectsFromGeoJSON(stream);
+		
+		
+		try (var stream = new BufferedInputStream(Files.newInputStream(path))) {
+			InputStream stream2;
+			// Handle gzip compression
+			if (name.endsWith(EXT_GZIP)) {
+				stream2 = new GZIPInputStream(stream);
+				name = name.substring(0, name.length()-EXT_GZIP.length());
+			} else {
+				stream2 = stream;
+			}
+			if (name.endsWith(EXT_JSON) || name.endsWith(EXT_GEOJSON)) {
+				return readObjectsFromGeoJSON(stream2);
+			}
+			if (name.endsWith(EXT_DATA)) {
+				return new ArrayList<>(readHierarchy(stream2).getRootObject().getChildObjects());	
 			}
 		}
-		if (name.endsWith(EXT_DATA)) {
-			try (var stream = new BufferedInputStream(Files.newInputStream(path))) {
-				return new ArrayList<>(readHierarchy(stream).getRootObject().getChildObjects());	
-			}
-		}
+			
 		logger.debug("Unable to read objects from {}", path.toString());
 		return Collections.emptyList();
 	}
@@ -806,8 +817,10 @@ public class PathIO {
 	 * @param stream the input stream containing JSON data to read
 	 * @return a list containing any PathObjects that could be parsed from the stream
 	 * @throws IOException
+	 * @throws JsonSyntaxException 
+	 * @throws JsonParseException 
 	 */
-	public static List<PathObject> readObjectsFromGeoJSON(InputStream stream) throws IOException {
+	public static List<PathObject> readObjectsFromGeoJSON(InputStream stream) throws IOException, JsonSyntaxException, JsonParseException {
 		// Prepare template
 		var gson = GsonTools.getInstance();
 		try (var reader = new InputStreamReader(new BufferedInputStream(stream))) {
@@ -870,6 +883,8 @@ public class PathIO {
 	}
 	
 	
+	private static String EXT_ZIP = ".zip";
+	private static String EXT_GZIP = ".gz";
 	private static String EXT_JSON = ".json";
 	private static String EXT_GEOJSON = ".geojson";
 	private static String EXT_DATA = ".qpdata";
@@ -883,7 +898,7 @@ public class PathIO {
 	 */
 	public static List<String> getObjectFileExtensions(boolean includeCompressed) {
 		if (includeCompressed)
-			return Arrays.asList(EXT_JSON, EXT_GEOJSON, EXT_DATA, ".zip");
+			return Arrays.asList(EXT_JSON, EXT_GEOJSON, EXT_DATA, EXT_ZIP, EXT_GZIP);
 		else
 			return Arrays.asList(EXT_JSON, EXT_GEOJSON, EXT_DATA);
 	}
@@ -946,6 +961,10 @@ public class PathIO {
 				exportObjectsAsGeoJSON(zos, pathObjects, options);
 				zos.closeEntry();
 			}
+		} else if (name.toLowerCase().endsWith(".gz")) {
+			try (var gzos = new GZIPOutputStream(new BufferedOutputStream(Files.newOutputStream(path)))) {
+				exportObjectsAsGeoJSON(gzos, pathObjects, options);
+			}
 		} else {
 			try (var stream = Files.newOutputStream(path)) {
 				exportObjectsAsGeoJSON(stream, pathObjects, options);
@@ -962,13 +981,16 @@ public class PathIO {
 	 */
 	public static void exportObjectsAsGeoJSON(OutputStream stream, Collection<? extends PathObject> pathObjects, GeoJsonExportOptions... options) throws IOException {
 		Collection<GeoJsonExportOptions> optionList = Arrays.asList(options);
+		
 		// If exclude measurements, 'transform' each PathObject to get rid of measurements
 		if (optionList.contains(GeoJsonExportOptions.EXCLUDE_MEASUREMENTS))
 			pathObjects = pathObjects.stream().map(e -> PathObjectTools.transformObject(e, null, false)).collect(Collectors.toList());
+		
 		var writer = new OutputStreamWriter(new BufferedOutputStream(stream), StandardCharsets.UTF_8);
 		var gson = GsonTools.getInstance(optionList.contains(GeoJsonExportOptions.PRETTY_JSON));
+		
 		if (optionList.contains(GeoJsonExportOptions.FEATURE_COLLECTION))
-			gson.toJson(GsonTools.wrapFeatureCollection(pathObjects), writer);
+			gson.toJson(FeatureCollection.wrap(pathObjects), writer);
 		else if (pathObjects.size() == 1) {
 			gson.toJson(pathObjects.iterator().next(), writer);
 		} else {
@@ -1000,7 +1022,7 @@ public class PathIO {
 		var ext = GeneralTools.getExtension(path.getFileName().toString()).orElse(null);
 		if (ext == null)
 			return Collections.emptySet();
-		var zipExts = zipExtensions.length == 0 ? Collections.singleton(".zip") : Arrays.stream(zipExtensions).map(z -> z.toLowerCase()).collect(Collectors.toSet());
+		var zipExts = zipExtensions.length == 0 ? Collections.singleton(EXT_ZIP) : Arrays.stream(zipExtensions).map(z -> z.toLowerCase()).collect(Collectors.toSet());
 		ext = ext.toLowerCase();
 		if (zipExts.contains(ext)) {
 			// In case we have more than one compressed file, iterate through each entry
@@ -1017,13 +1039,19 @@ public class PathIO {
 				}
 			}
 			return extensions;
+		} else if (ext.endsWith(".gz")) {
+			return Collections.singleton(ext.substring(0, ext.length()-3));
 		} else {
 			return Collections.singleton(ext);
 		}
 	}
 	
 	private static final boolean serializableObject(Object obj) {
-		return obj == null ? true : checkQuPathSerializableClass(obj.getClass());
+		if (obj == null)
+			return true;
+		if (obj instanceof Serializable)
+			return checkQuPathSerializableClass(obj.getClass());
+		return false;
 	}
 	
 	/**
@@ -1035,7 +1063,7 @@ public class PathIO {
 		if (serialClass == null)
 			return true;
 		
-		if (!(serialClass instanceof Serializable))
+		if (!(Serializable.class.isAssignableFrom(serialClass)))
 			return false;
 		
 		// Require 
@@ -1052,7 +1080,7 @@ public class PathIO {
 			if (packageName != null && packageName.startsWith("qupath.lib"))
 				return true;
 		}
-		System.err.println(serialClass);
+		logger.debug("Serialization not permitted for {}", serialClass);
 		return false;
 	}
 	

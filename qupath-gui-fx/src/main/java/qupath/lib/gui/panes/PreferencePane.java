@@ -40,14 +40,15 @@ import org.controlsfx.control.PropertySheet.Mode;
 import org.controlsfx.control.SearchableComboBox;
 import org.controlsfx.property.editor.AbstractPropertyEditor;
 import org.controlsfx.property.editor.DefaultPropertyEditorFactory;
-import org.controlsfx.property.editor.Editors;
 import org.controlsfx.property.editor.PropertyEditor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javafx.beans.binding.Bindings;
+import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.Property;
+import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -58,17 +59,20 @@ import javafx.scene.control.Tooltip;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.paint.Color;
 import javafx.scene.text.FontWeight;
+import javafx.util.Duration;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.logging.LogManager;
 import qupath.lib.gui.logging.LogManager.LogLevel;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.prefs.PathPrefs.AutoUpdateType;
 import qupath.lib.gui.prefs.PathPrefs.DetectionTreeDisplayModes;
 import qupath.lib.gui.prefs.PathPrefs.FontSize;
 import qupath.lib.gui.prefs.PathPrefs.ImageTypeSetting;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.tools.CommandFinderTools;
 import qupath.lib.gui.tools.CommandFinderTools.CommandBarDisplay;
+import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.prefs.QuPathStyleManager;
 
@@ -89,19 +93,12 @@ public class PreferencePane {
 		setupPanel();
 	}
 
-
-	private void setupPanel() {
-		//		propSheet.setMode(Mode.CATEGORY);
-		propSheet.setMode(Mode.CATEGORY);
-		propSheet.setPropertyEditorFactory(new PropertyEditorFactory());
-
-		String category;
-
-		
+	
+	private void addCategoryAppearance() {
 		/*
 		 * Appearance
 		 */
-		category = "Appearance";
+		String category = "Appearance";
 		addChoicePropertyPreference(QuPathStyleManager.selectedStyleProperty(),
 				QuPathStyleManager.availableStylesProperty(),
 				QuPathStyleManager.StyleOption.class,
@@ -115,16 +112,63 @@ public class PreferencePane {
 				"Font",
 				category,
 				"Main font for the QuPath user interface");
-		
+	}
+	
+	private void addCategoryGeneral() {
 		/*
 		 * General
 		 */
-		category = "General";
+		String category = "General";
 		
-		addPropertyPreference(PathPrefs.doAutoUpdateCheckProperty(), Boolean.class,
+
+		boolean canSetMemory = PathPrefs.hasJavaPreferences();
+		long maxMemoryMB = Runtime.getRuntime().maxMemory() / 1024 / 1024;
+		if (canSetMemory) {
+			DoubleProperty propMemoryGB = new SimpleDoubleProperty(maxMemoryMB / 1024.0);
+			
+			addPropertyPreference(propMemoryGB, Double.class, 
+					"Set maximum memory for QuPath",
+					category,
+					"Set the maximum memory for Java.\n"
+							+ "Note that some commands (e.g. pixel classification) may still use more memory when needed,\n"
+							+ "so this value should generally not exceed half the total memory available on the system.");
+			
+			propMemoryGB.addListener((v, o, n) -> {
+				int requestedMemoryMB = (int)Math.round(propMemoryGB.get() * 1024.0);
+				if (requestedMemoryMB > 1024) {
+					boolean success = false;
+					try {
+						PathPrefs.maxMemoryMBProperty().set(requestedMemoryMB);		
+						success = requestedMemoryMB == PathPrefs.maxMemoryMBProperty().get();
+					} catch (Exception e) {
+						logger.error(e.getLocalizedMessage(), e);
+					}
+					if (success) {
+						Dialogs.showInfoNotification("Set max memory",
+								"Setting max memory to " + requestedMemoryMB + " MB - you'll need to restart QuPath for this to take effect"
+								);
+					} else {
+						Dialogs.showErrorMessage("Set max memory",
+								"Unable to set max memory - sorry!\n"
+								+ "Check the FAQs on ReadTheDocs for details how to set the "
+								+ "memory limit by editing QuPath's config file."
+								);						
+					}
+				}
+			});	
+		}
+		
+		
+		addPropertyPreference(PathPrefs.showStartupMessageProperty(), Boolean.class,
+				"Show welcome message when QuPath starts",
+				category,
+				"Show the welcome message with links to the docs, forum & code every time QuPath is launched.\n"
+				+ "You can access this message at any time through the 'Help' menu.");
+		
+		addPropertyPreference(PathPrefs.autoUpdateCheckProperty(), AutoUpdateType.class,
 				"Check for updates on startup",
 				category,
-				"Automatically check for updated when QuPath is started, and show a message if a new version is available.");
+				"Automatically check for updates when QuPath is started, and show a message if a new version is available.");
 
 		addPropertyPreference(PathPrefs.runStartupScriptProperty(), Boolean.class,
 				"Run startup script (if available)",
@@ -203,11 +247,14 @@ public class PreferencePane {
 				"Hierarchy detection display",
 				"General",
 				"Choose how to display detections in the hierarchy tree view - choose 'None' for the best performance");
-		
+	}
+	
+	
+	private void addCategoryLocale() {
 		/*
 		 * Locale
 		 */
-		category = "Locale";
+		String category = "Locale";
 		var localeList = FXCollections.observableArrayList(
 				Arrays.stream(Locale.getAvailableLocales())
 				.filter(l -> !l.getLanguage().isBlank())
@@ -244,12 +291,13 @@ public class PreferencePane {
 						+ "decimal numbers (using . as the decimal separator).\n\n"
 						+ "You can reset the locale by double-clicking on the dropdown menu.",
 				localeSearchable);
-
-
+	}
+	
+	private void addCategoryInputOutput() {
 		/*
-		 * Export
+		 * Input/output
 		 */
-		category = "Input/Output";
+		String category = "Input/Output";
 		
 		addPropertyPreference(PathPrefs.minPyramidDimensionProperty(), Integer.class,
 				"Minimize image dimension for pyramidalizing",
@@ -261,12 +309,13 @@ public class PreferencePane {
 			"TMA export downsample factor",
 			category,
 			"Amount to downsample TMA core images when exporting; higher downsample values give smaller image, choosing 1 exports cores at full-resolution (which may be slow)");
+	}
 
-
+	private void addCategoryViewer() {
 		/*
 		 * Viewer
 		 */
-		category = "Viewer";
+		String category = "Viewer";
 		
 		addColorPropertyPreference(PathPrefs.viewerBackgroundColorProperty(),
 				"Viewer background color",
@@ -388,43 +437,54 @@ public class PreferencePane {
 				"Grid spacing in " + GeneralTools.micrometerSymbol(),
 				category,
 				"Use " + GeneralTools.micrometerSymbol() + " units where possible when defining grid spacing");
+	}
 
-		
-
+	private void addCategoryExtensions() {
 		/*
 		 * Extensions
 		 */
-		category = "Extensions";
+		String category = "Extensions";
 		addDirectoryPropertyPreference(PathPrefs.userPathProperty(),
 				"QuPath user directory",
 				category,
 				"Set the QuPath user directory - after setting you should restart QuPath");
 
-
-
+	}
+	
+	private void addCategoryMeasurements() {
 		/*
 		 * Drawing tools
 		 */
-		category = "Measurements";
+		String category = "Measurements";
 		addPropertyPreference(PathPrefs.showMeasurementTableThumbnailsProperty(), Boolean.class,
-				"Include image column in measurement tables",
+				"Include thumbnail column in measurement tables",
 				category,
 				"Show thumbnail images by default for each object in a measurements table");
 		
-		
+		addPropertyPreference(PathPrefs.showMeasurementTableObjectIDsProperty(), Boolean.class,
+				"Include object ID column in measurement tables",
+				category,
+				"Show object ID column by default in a measurements table");
+
+	}
+	
+	private void addCategoryAutomation() {
 		/*
 		 * Automation
 		 */
-		category = "Automation";
+		String category = "Automation";
 		addDirectoryPropertyPreference(PathPrefs.scriptsPathProperty(),
 				"Script directory",
 				category,
 				"Set the script directory");
 
+	}
+
+	private void addCategoryDrawingTools() {
 		/*
 		 * Drawing tools
 		 */
-		category = "Drawing tools";
+		String category = "Drawing tools";
 		addPropertyPreference(PathPrefs.returnToMoveModeProperty(), Boolean.class,
 				"Return to Move Tool automatically",
 				category,
@@ -465,12 +525,20 @@ public class PreferencePane {
 				"Point radius",
 				category,
 				"Set the default point radius");
-
-
+	}
+	
+	private void addCategoryObjects() {
 		/*
 		 * Object colors
 		 */
-		category = "Objects";
+		String category = "Objects";
+		
+		addPropertyPreference(PathPrefs.maxObjectsToClipboardProperty(), Integer.class,
+				"Maximum number of clipboard objects",
+				category,
+				"The maximum number of objects that can be copied to the system clipboard.\n"
+				+ "Attempting to copy too many may fail, or cause QuPath to hang.\n"
+				+ "If you need more objects, it is better to export as GeoJSON and then import later.");
 
 		addPropertyPreference(PathPrefs.annotationStrokeThicknessProperty(), Float.class,
 				"Annotation line thickness",
@@ -506,7 +574,23 @@ public class PreferencePane {
 				"TMA missing core color",
 				category,
 				"Set the default color for missing TMA core objects");
+	}
 
+	private void setupPanel() {
+		//		propSheet.setMode(Mode.CATEGORY);
+		propSheet.setMode(Mode.CATEGORY);
+		propSheet.setPropertyEditorFactory(new PropertyEditorFactory());
+
+		addCategoryAppearance();
+		addCategoryGeneral();
+		addCategoryLocale();
+		addCategoryInputOutput();
+		addCategoryViewer();
+		addCategoryExtensions();
+		addCategoryMeasurements();
+		addCategoryAutomation();
+		addCategoryDrawingTools();
+		addCategoryObjects();
 	}
 
 	/**
@@ -835,8 +919,12 @@ public class PreferencePane {
 						setValue(dirNew);
 				}
 			});
-			if (property.getDescription() != null)
-				control.setTooltip(new Tooltip(property.getDescription()));
+			if (property.getDescription() != null) {
+				var description = property.getDescription();
+				var tooltip = new Tooltip(description);
+				tooltip.setShowDuration(Duration.millis(10_000));
+				control.setTooltip(tooltip);
+			}
 			
 			// Bind to the text property
 			if (property instanceof DirectoryPropertyItem) {
@@ -865,17 +953,18 @@ public class PreferencePane {
 	
 	
 	/**
-	 * Editor for selecting directory paths.
-	 * 
-	 * Appears as a text field that can be double-clicked to launch a directory chooser.
-	 * Note: This may fire too many events, see https://github.com/controlsfx/controlsfx/issues/1413
+	 * Editor for choosing from a longer list of items, aided by a searchable combo box.
 	 * @param <T> 
 	 */
 	static class SearchableChoiceEditor<T> extends AbstractPropertyEditor<T, SearchableComboBox<T>> {
 
 		public SearchableChoiceEditor(Item property, Collection<? extends T> choices) {
+			this(property, FXCollections.observableArrayList(choices));
+		}
+
+		public SearchableChoiceEditor(Item property, ObservableList<T> choices) {
 			super(property, new SearchableComboBox<T>());
-			getEditor().getItems().setAll(choices);
+			getEditor().setItems(choices);
 		}
 
 		@Override
@@ -890,9 +979,39 @@ public class PreferencePane {
 			return getEditor().getSelectionModel().selectedItemProperty();
 		}
 		
-		
+	}
+	
+	/**
+	 * Editor for choosing from a combo box, which will use an observable list directly if it can 
+	 * (which differs from ControlsFX's default behavior).
+	 *
+	 * @param <T>
+	 */
+	static class ChoiceEditor<T> extends AbstractPropertyEditor<T, ComboBox<T>> {
+
+		public ChoiceEditor(Item property, Collection<? extends T> choices) {
+			this(property, FXCollections.observableArrayList(choices));
+		}
+
+		public ChoiceEditor(Item property, ObservableList<T> choices) {
+			super(property, new ComboBox<T>());
+			getEditor().setItems(choices);
+		}
+
+		@Override
+		public void setValue(T value) {
+			// Only set the value if it's available as a choice
+			if (getEditor().getItems().contains(value))
+				getEditor().getSelectionModel().select(value);
+		}
+
+		@Override
+		protected ObservableValue<T> getObservableValue() {
+			return getEditor().getSelectionModel().selectedItemProperty();
+		}
 		
 	}
+	
 	
 	// We want to reformat the display of these to avoid using all uppercase
 	private static Map<Class<?>, Function<?, String>> reformatTypes = Map.of(
@@ -930,7 +1049,9 @@ public class PreferencePane {
 				if (choiceItem.makeSearchable()) {
 					editor = new SearchableChoiceEditor<>(choiceItem, choiceItem.getChoices());
 				} else
-					editor = Editors.createChoiceEditor(item, choiceItem.getChoices());
+					// Use this rather than Editors because it wraps an existing ObservableList where available
+					editor = new ChoiceEditor<>(choiceItem, choiceItem.getChoices());
+//					editor = Editors.createChoiceEditor(item, choiceItem.getChoices());
 			} else
 				editor = super.call(item);
 			

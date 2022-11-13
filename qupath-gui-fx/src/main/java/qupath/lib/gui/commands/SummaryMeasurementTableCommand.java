@@ -36,8 +36,6 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.ForkJoinPool;
-import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -52,17 +50,14 @@ import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.collections.ListChangeListener;
 import javafx.collections.transformation.SortedList;
-import javafx.embed.swing.SwingFXUtils;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.geometry.Side;
 import javafx.scene.Scene;
-import javafx.scene.canvas.Canvas;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonBase;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.CheckMenuItem;
-import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
@@ -77,7 +72,6 @@ import javafx.scene.control.TableView;
 import javafx.scene.control.TableView.TableViewSelectionModel;
 import javafx.scene.control.TextField;
 import javafx.scene.control.ToggleButton;
-import javafx.scene.image.Image;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.KeyCode;
@@ -96,11 +90,9 @@ import qupath.lib.gui.measure.PathTableData;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PaneTools;
-import qupath.lib.gui.viewer.PathHierarchyPaintingHelper;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.QuPathViewerListener;
 import qupath.lib.images.ImageData;
-import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ServerTools;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathDetectionObject;
@@ -114,7 +106,6 @@ import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
 import qupath.lib.objects.hierarchy.events.PathObjectSelectionModel;
 import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
 import qupath.lib.plugins.workflow.WorkflowStep;
-import qupath.lib.regions.RegionRequest;
 
 
 /**
@@ -128,8 +119,10 @@ public class SummaryMeasurementTableCommand {
 
 	private QuPathGUI qupath;
 	
-	private BooleanProperty showThumbnailsProperty;
-	
+	private BooleanProperty showThumbnailsProperty ;
+
+	private BooleanProperty showObjectIdsProperty;
+
 	/**
 	 * Command to show a summary measurement table, for PathObjects of a specified type (e.g. annotation, detection).
 	 * @param qupath
@@ -152,6 +145,9 @@ public class SummaryMeasurementTableCommand {
 		
 		if (showThumbnailsProperty == null)
 			showThumbnailsProperty = new SimpleBooleanProperty(PathPrefs.showMeasurementTableThumbnailsProperty().get());
+
+		if (showObjectIdsProperty == null)
+			showObjectIdsProperty = new SimpleBooleanProperty(PathPrefs.showMeasurementTableObjectIDsProperty().get());
 
 		final PathObjectHierarchy hierarchy = imageData.getHierarchy();
 
@@ -199,15 +195,25 @@ public class SummaryMeasurementTableCommand {
 		});
 				
 		// Add a column to display images thumbnails
-		TableColumn<PathObject, PathObject> colThumbnails = new TableColumn<>("Image");
+		TableColumn<PathObject, PathObject> colThumbnails = new TableColumn<>("Thumbnail");
 		colThumbnails.setCellValueFactory(val -> new SimpleObjectProperty<>(val.getValue()));
 		colThumbnails.visibleProperty().bind(showThumbnailsProperty);
 		double padding = 10;
 		var viewer = qupath.getViewers().stream().filter(v -> v.getImageData() == imageData).findFirst().orElse(null);
-		colThumbnails.setCellFactory(column -> new TMACoreTableCell(imageData.getServer(), padding, viewer, true));
+		colThumbnails.setCellFactory(column -> PathObjectImageManagers.createTableCell(
+				viewer, imageData.getServer(), true, padding,
+				qupath.createSingleThreadExecutor(this)));
 //			col.widthProperty().addListener((v, o, n) -> table.refresh());
 //		colThumbnails.setMaxWidth(maxWidth + padding*2);
 		table.getColumns().add(colThumbnails);
+		
+		// Set fixed cell size - this can avoid large numbers of non-visible cells being computed
+		table.fixedCellSizeProperty().bind(Bindings.createDoubleBinding(() -> {
+			if (colThumbnails.isVisible())
+				return Math.max(24, colThumbnails.getWidth() + padding);
+			else
+				return -1.0;
+		}, colThumbnails.widthProperty(), colThumbnails.visibleProperty()));
 		
 		// Have fewer histogram bins if we have TMA cores (since there aren't usually very many)
 		boolean tmaCoreList = TMACoreObject.class.isAssignableFrom(type);
@@ -215,19 +221,29 @@ public class SummaryMeasurementTableCommand {
 			histogramDisplay.setNumBins(10);			
 			
 		// Create numeric columns
+		TableColumn<PathObject, String> colObjectIDs = null;
 		for (String columnName : model.getAllNames()) {
 			// Add column
 			if (model.isStringMeasurement(columnName)) {
 				TableColumn<PathObject, String> col = new TableColumn<>(columnName);
 				col.setCellValueFactory(column -> model.createStringMeasurement(column.getValue(), column.getTableColumn().getText()));
 				col.setCellFactory(column -> new BasicTableCell<>());
-				table.getColumns().add(col);			
+				if (ObservableMeasurementTableData.NAME_OBJECT_ID.equals(columnName)) {
+					colObjectIDs = col;
+				} else {
+					table.getColumns().add(col);			
+				}
 			} else {
 				TableColumn<PathObject, Number> col = new TableColumn<>(columnName);
 				col.setCellValueFactory(column -> model.createNumericMeasurement(column.getValue(), column.getTableColumn().getText()));
 				col.setCellFactory(column -> new NumericTableCell<PathObject>(histogramDisplay));
 				table.getColumns().add(col);			
 			}
+		}
+		// Add object ID column at the end, since it takes quite a lot of space
+		if (colObjectIDs != null) {
+			colObjectIDs.visibleProperty().bind(showObjectIdsProperty);
+			table.getColumns().add(colObjectIDs);		
 		}
 
 
@@ -366,11 +382,19 @@ public class SummaryMeasurementTableCommand {
 		
 		// Add some extra options
 		var popup = new ContextMenu();
-		var miShowImages = new CheckMenuItem("Show images");
+		var miShowImages = new CheckMenuItem("Show thumbnails");
 		miShowImages.selectedProperty().bindBidirectional(showThumbnailsProperty);
 		popup.getItems().setAll(
 				miShowImages
 				);
+
+		var miShowObjectIss = new CheckMenuItem("Show Object IDs");
+		miShowObjectIss.selectedProperty().bindBidirectional(showObjectIdsProperty);
+		popup.getItems().setAll(
+				miShowImages,
+				miShowObjectIss
+				);
+		
 		var btnExtra = GuiTools.createMoreButton(popup, Side.RIGHT);
 
 
@@ -397,7 +421,7 @@ public class SummaryMeasurementTableCommand {
 				}
 				if (imageData != null)
 					displayedName.set(ServerTools.getDisplayableImageName(imageData.getServer()));
-				if (event.isAddedOrRemovedEvent())
+				if (event.isStructureChangeEvent())
 					model.setImageData(imageData, imageData.getHierarchy().getObjects(null, type));
 				else
 					model.refreshEntries();
@@ -412,11 +436,11 @@ public class SummaryMeasurementTableCommand {
 		TableViewerListener tableViewerListener = new TableViewerListener(viewer, table);
 
 		frame.setOnShowing(e -> {
-			hierarchy.addPathObjectListener(listener);
+			hierarchy.addListener(listener);
 			viewer.addViewerListener(tableViewerListener);
 		});
 		frame.setOnHiding(e -> {
-			hierarchy.removePathObjectListener(listener);
+			hierarchy.removeListener(listener);
 			viewer.removeViewerListener(tableViewerListener);
 		});
 
@@ -472,165 +496,6 @@ public class SummaryMeasurementTableCommand {
 		if (roi != null && viewer != null && viewer.getHierarchy() != null)
 			viewer.centerROI(roi);
 	}
-
-
-
-	class TMACoreTableCell extends TableCell<PathObject, PathObject> {
-		
-		private QuPathViewer viewer;
-		private boolean paintObject;
-		
-		private Image image;
-		
-		private ImageServer<BufferedImage> server;
-		private Canvas canvas = new Canvas();
-		private double preferredSize = 100;
-		
-		private Future<?> task;
-
-		TMACoreTableCell(ImageServer<BufferedImage> server, double padding, QuPathViewer viewer, boolean paintObject) {
-			logger.trace("Creating new cell ({})", +System.identityHashCode(this));
-			this.server = server;
-			this.viewer = viewer;
-			this.paintObject = paintObject;
-			this.setContentDisplay(ContentDisplay.CENTER);
-			this.setAlignment(Pos.CENTER);
-			canvas.setWidth(preferredSize);
-			canvas.setHeight(preferredSize);
-			canvas.setStyle("-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.5), 4, 0, 1, 1);");
-			canvas.heightProperty().bind(canvas.widthProperty());
-			
-			tableColumnProperty().addListener((v, o, n) -> {
-				canvas.widthProperty().unbind();
-				if (n != null)
-					canvas.widthProperty().bind(n.widthProperty().subtract(padding*2));
-			});
-			
-			if (paintObject && viewer != null) {
-				var options = viewer.getOverlayOptions();
-				options.lastChangeTimestamp().addListener((v, o, n) -> updateImage(getItem(), false));
-				viewer.getImageDisplay().changeTimestampProperty().addListener((v, o, n) -> updateImage(getItem(), false));
-			}
-			// Update image on width changes
-			// Required to handle the fact that object ROIs may need to be repainted
-			// with updated stroke widths
-			canvas.widthProperty().addListener((v, o, n) -> updateImage(getItem(), false));
-		}
-
-
-		@Override
-		protected void updateItem(PathObject pathObject, boolean empty) {
-			super.updateItem(pathObject, empty);
-			setText(null);
-			if (empty || pathObject == null || pathObject.getROI() == null) {
-				setGraphic(null);
-				return;
-			}
-			setGraphic(canvas);
-			updateImage(pathObject, false);
-		}
-		
-		private void updateImage(PathObject pathObject, boolean useCache) {
-			var roi = pathObject == null ? null : pathObject.getROI();
-			if (roi == null) {
-				return;
-			}
-			try {
-				if (useCache && image != null && image.getWidth() == canvas.getWidth() && image.getHeight() == canvas.getHeight()) {
-					GuiTools.paintImage(canvas, image);
-					return;
-				}
-				// Don't draw on a tiny canvas
-				if (canvas.getWidth() <= 2 || canvas.getHeight() <= 2) {
-					clearCanvas();
-					return;
-				}
-				if (task != null)
-					task.cancel(true);
-				
-//				new Thread(new PathObjectThumbnailTask(pathObject)).run();
-				task = ForkJoinPool.commonPool().submit(new PathObjectThumbnailTask(pathObject));
-			} catch (Exception e) {
-				logger.error("Problem reading thumbnail for {}: {}", pathObject, e);
-			}
-		}
-		
-		
-		private void clearCanvas() {
-			canvas.getGraphicsContext2D().clearRect(0, 0, canvas.getWidth(), canvas.getHeight());
-		}
-		
-		
-		
-		class PathObjectThumbnailTask implements Runnable {
-			
-			private PathObject pathObject;
-			
-			PathObjectThumbnailTask(PathObject pathObject) {
-				super();
-				this.pathObject = pathObject;
-			}
-
-			@Override
-			public void run() {
-				
-				if (Thread.interrupted() || pathObject == null || !pathObject.hasROI())
-					return;
-				
-				var roi = pathObject.getROI();
-				double scaleFactor = 1.2; // Used to give a bit more context around the ROI
-				double downsample = Math.max(roi.getBoundsWidth() * scaleFactor / canvas.getWidth(), roi.getBoundsHeight() * scaleFactor / canvas.getHeight());
-				if (downsample < 1)
-					downsample = 1;
-				
-//				double downsample = Math.max(roi.getBoundsWidth(), roi.getBoundsHeight()) / maxDim;
-				Image imageNew = null;
-				try {
-					BufferedImage img;
-					if (viewer != null) {
-						img = new BufferedImage((int)canvas.getWidth(), (int)canvas.getHeight(), BufferedImage.TYPE_INT_RGB);
-						var g2d = img.createGraphics();
-						g2d.setClip(0, 0, img.getWidth(), img.getHeight());
-						g2d.scale(1.0/downsample, 1.0/downsample);
-						
-						double x = roi.getCentroidX() - img.getWidth() / 2.0 * downsample;
-						double y = roi.getCentroidY() - img.getHeight() / 2.0 * downsample;
-						g2d.translate(-x, -y);
-						
-						var renderer = viewer.getServer() == server ? viewer.getImageDisplay() : null;
-						viewer.getImageRegionStore().paintRegionCompletely(server, g2d, g2d.getClipBounds(), roi.getZ(), roi.getT(), downsample, null, renderer, 500L);
-						if (paintObject) {
-							var options = viewer.getOverlayOptions();
-							PathHierarchyPaintingHelper.paintObject(pathObject, false, g2d, null, options, null, downsample);
-						}
-						g2d.dispose();
-					} else {
-						RegionRequest request = RegionRequest.createInstance(server.getPath(), downsample, roi);
-						img = server.readBufferedImage(request);
-					}
-
-					imageNew = SwingFXUtils.toFXImage(img, null);
-				} catch (Exception e) {
-					logger.error("Unable to draw image for " + pathObject, e);
-				}
-
-				if (imageNew != null) {
-					var imageTemp = imageNew;
-					Platform.runLater(() -> {
-						image = imageTemp;
-						GuiTools.paintImage(canvas, imageTemp);
-					});
-				} else {
-					clearCanvas();
-				}
-			}
-
-			
-			
-		}
-
-	}
-	
 
 
 
@@ -958,10 +823,11 @@ public class SummaryMeasurementTableCommand {
 			if (model.singleSelection() || tableModel.getSelectionMode() == SelectionMode.SINGLE) {
 				int ind = table.getItems().indexOf(model.getSelectedObject());
 				if (ind >= 0) {
-					tableModel.clearAndSelect(ind);
-					table.scrollTo(ind);
-				}
-				else
+					if (tableModel.getSelectedItem() != model.getSelectedObject()) {
+						tableModel.clearAndSelect(ind);
+						table.scrollTo(ind);
+					}
+				} else
 					tableModel.clearSelection();
 				return;
 			}

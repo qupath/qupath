@@ -29,6 +29,10 @@ import java.io.ObjectOutput;
 import java.util.Map;
 import java.util.Set;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import qupath.lib.common.LogTools;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
@@ -41,12 +45,22 @@ import qupath.lib.roi.interfaces.ROI;
  */
 public class TMACoreObject extends PathROIObject implements MetadataStore {
 	
-	private static final long serialVersionUID = 1L;
+	private static final Logger logger = LoggerFactory.getLogger(TMACoreObject.class);
 	
+	private static final long serialVersionUID = 1L;
+
 	/**
-	 * Metadata key for the TMA core unique patient ID;
+	 * The key used before v0.4.0 to represent a unique (usually patient) ID.
+	 * This was replaced by #KEY_CASE_ID.
 	 */
-	public static final String KEY_UNIQUE_ID = "Unique ID";
+	@Deprecated
+	public static final String LEGACY_KEY_UNIQUE_ID = "Unique ID";
+
+	/**
+	 * Metadata key to store a case identify for the TMA core.
+	 * This can be used to group cores that belong to the same case.
+	 */
+	public static final String KEY_CASE_ID = "Case ID";
 	
 	/**
 	 * Metadata key for an overall survival (temporal) value.
@@ -100,23 +114,23 @@ public class TMACoreObject extends PathROIObject implements MetadataStore {
 	}
 	
 	/**
-	 * Get the uniqueID metadata value.
+	 * Get the case ID metadata value.
 	 * @return
 	 * 
-	 * @see #setUniqueID(String)
+	 * @see #setCaseID(String)
 	 */
-	public String getUniqueID() {
-		return getMetadataString(KEY_UNIQUE_ID);
+	public String getCaseID() {
+		return getMetadataString(KEY_CASE_ID);
 	}
 
 	/**
-	 * Set the uniqueID metadata value. This is typically used to store a patient identifier, 
+	 * Set the case ID metadata value. This is typically used to store a patient identifier, 
 	 * and must be unique for the patient (but multiple cores may have the same ID if they correspond 
 	 * to the same patient).
-	 * @param uniqueID
+	 * @param caseID
 	 */
-	public void setUniqueID(final String uniqueID) {
-		putMetadataValue(KEY_UNIQUE_ID, uniqueID);
+	public void setCaseID(final String caseID) {
+		putMetadataValue(KEY_CASE_ID, caseID);
 	}
 
 	@Override
@@ -158,29 +172,28 @@ public class TMACoreObject extends PathROIObject implements MetadataStore {
 	@Override
 	public String toString() {
 		return getDisplayedName() + objectCountPostfix();
-//		if (getROI() != null)
-//			return getROI().getName() + objectCountPostfix();
-//		return "Unnamed TMA core"; // Entire image
 	}
 	
 	
-	/**
-	 * TMA core cannot be edited if it contains any detections.
-	 */
-	@Override
-	public boolean isEditable() {
-		return super.isEditable() && !containsChildOfClass(this, PathDetectionObject.class, true);
-	}
-	
-	private static boolean containsChildOfClass(final PathObject pathObject, final Class<? extends PathObject> cls, final boolean allDescendants) {
-		for (PathObject childObject : pathObject.getChildObjectsAsArray()) {
-			if (cls.isAssignableFrom(childObject.getClass()))
-				return true;
-			if (childObject.hasChildren() && allDescendants && containsChildOfClass(childObject, cls, allDescendants))
-				return true;
-		}
-		return false;
-	}
+//	/**
+//	 * TMA core cannot be edited if it contains any detections.
+//	 * (Removed for v0.4.0 to rely on locking like other objects instead - 
+//	 * see https://github.com/qupath/qupath/issues/1021
+//	 */
+//	@Override
+//	public boolean isEditable() {
+//		return super.isEditable() && !containsChildOfClass(this, PathDetectionObject.class, true);
+//	}
+//	
+//	private static boolean containsChildOfClass(final PathObject pathObject, final Class<? extends PathObject> cls, final boolean allDescendants) {
+//		for (PathObject childObject : pathObject.getChildObjectsAsArray()) {
+//			if (cls.isAssignableFrom(childObject.getClass()))
+//				return true;
+//			if (childObject.hasChildren() && allDescendants && containsChildOfClass(childObject, cls, allDescendants))
+//				return true;
+//		}
+//		return false;
+//	}
 	
 	@Override
 	public void writeExternal(ObjectOutput out) throws IOException {
@@ -193,5 +206,10 @@ public class TMACoreObject extends PathROIObject implements MetadataStore {
 	public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {		
 		super.readExternal(in);
 		isMissing = in.readBoolean();
+		var legacyCaseID = getMetadataString(LEGACY_KEY_UNIQUE_ID);
+		if (getCaseID() == null && legacyCaseID != null) {
+			LogTools.warnOnce(logger, "Updating legacy 'Unique ID' to 'Case ID' (introduced in v0.4.0)");
+			setCaseID(legacyCaseID);
+		}
 	}
 }

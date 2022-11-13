@@ -2,9 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
- * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2022 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -24,9 +22,13 @@
 package qupath.lib.gui.scripting.languages;
 
 import java.util.ServiceLoader;
+import java.util.Set;
+
+import qupath.lib.scripting.languages.ScriptAutoCompletor;
+import qupath.lib.scripting.languages.ScriptLanguage;
 
 /**
- * Class for the representation of Plain text in QuPath.
+ * Class for the representation of plain text in QuPath.
  * <p>
  * This class stores the QuPath implementation of Plain syntaxing and plain auto-completion (both do nothing, as it's plain text).
  * @author Melvin Gelbard
@@ -38,9 +40,6 @@ public class PlainLanguage extends ScriptLanguage {
 	 * Instance of this language. Can't be final because of {@link ServiceLoader}.
 	 */
 	private static PlainLanguage INSTANCE;
-	
-	private ScriptSyntax syntax;
-	private ScriptAutoCompletor completor;
 
 	/**
 	 * Constructor for a simple Plain Language. This constructor should never be 
@@ -49,9 +48,7 @@ public class PlainLanguage extends ScriptLanguage {
 	 * Note: this has to be public for the {@link ServiceLoader} to work.
 	 */
 	public PlainLanguage() {
-		super("None", new String[]{".txt"});
-		this.syntax = PlainSyntax.getInstance();
-		this.completor = new PlainAutoCompletor();
+		super("None", Set.of(".txt", ".tsv", ".csv"));
 		
 		if (INSTANCE != null)
 			throw new UnsupportedOperationException("Language classes cannot be instantiated more than once!");
@@ -69,12 +66,7 @@ public class PlainLanguage extends ScriptLanguage {
 	}
 	
 	@Override
-	public ScriptSyntax getSyntax() {
-		return syntax;
-	}
-
-	@Override
 	public ScriptAutoCompletor getAutoCompletor() {
-		return completor;
+		return null;
 	}
 }

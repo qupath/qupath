@@ -249,7 +249,7 @@ public class PointsTool extends AbstractPathTool {
 			points = ROIs.createPointsROI(xx, yy, viewerPlane);
 			
 			currentObject = (PathROIObject)PathObjects.createAnnotationObject(points,  PathPrefs.autoSetAnnotationClassProperty().get());
-			viewer.getHierarchy().addPathObject(currentObject);
+			viewer.getHierarchy().addObject(currentObject);
 			viewer.setSelectedObject(currentObject);
 			
 //			viewer.createAnnotationObject(points);

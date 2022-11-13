@@ -37,13 +37,19 @@ To **build QuPath from source** see [here](https://qupath.readthedocs.io/en/late
 QuPath is being actively developed at the University of Edinburgh by:
 
 * Pete Bankhead (creator)
+* Fiona Inglis
+
+Past QuPath dev team members:
+
 * Melvin Gelbard
+* Mahdi Lamb
 
 For all contributors, see [here](https://github.com/qupath/qupath/graphs/contributors).
 
 This work is made possible in part thanks to funding from:
 
-* CZI Essential Open Source Software for Science, Cycle 1 (2020-2021)
+* [CZI Essential Open Source Software for Science, Cycle 4](https://chanzuckerberg.com/eoss/proposals/qupath-boosting-bioimage-analysis-for-users-developers/) (2022-Present)
+* [CZI Essential Open Source Software for Science, Cycle 1](https://chanzuckerberg.com/eoss/proposals/qupath-open-source-bioimage-analysis-and-quantitative-pathology/) (2020-2022)
 * Wellcome Trust / University of Edinburgh Institutional Strategic Support Fund (ISSF3) (2019-2020)
 
 

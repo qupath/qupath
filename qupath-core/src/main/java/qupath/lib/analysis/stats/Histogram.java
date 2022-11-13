@@ -438,7 +438,7 @@ public class Histogram { // implements Serializable {
 		double[] values = new double[pathObjects.size()];
 		int ind = 0;
 		for (PathObject pathObject : pathObjects) {
-			values[ind] = pathObject.getMeasurementList().getMeasurementValue(measurementName);
+			values[ind] = pathObject.getMeasurementList().get(measurementName);
 			ind++;
 		}
 		return values;

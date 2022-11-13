@@ -24,7 +24,7 @@
 package qupath.lib.gui.scripting;
 
 import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.ReadOnlyBooleanProperty;
+import javafx.beans.property.ReadOnlyIntegerProperty;
 import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.scene.control.ContextMenu;
@@ -33,64 +33,51 @@ import javafx.scene.layout.Region;
 import qupath.lib.gui.logging.TextAppendable;
 
 /**
- * Basic script editor control.
+ * Basic script editor control using JavaFX.
  * The reason for its existence is to enable custom script editors to be implemented that provide additional functionality 
  * (e.g. syntax highlighting), but do not rely upon subclassing any specific JavaFX control.
  * <p>
  * Note: This is rather cumbersome, and may be removed in the future if the script editor design is revised.
  * 
  * @author Pete Bankhead
+ * @param <T> the tile of component used for display
  */
-public interface ScriptEditorControl extends TextAppendable {
+public interface ScriptEditorControl<T extends Region>  extends TextAppendable, EditableText {
 	
 	/**
 	 * Text currently in the editor control.
 	 * @return
 	 */
 	public StringProperty textProperty();
-	
-	/**
-	 * Set all the text in the editor.
-	 * @param text
-	 */
-	public void setText(final String text);
-
-	/**
-	 * Get all the text in the editor;
-	 * @return
-	 */
-	public String getText();
-	
-	/**
-	 * Deselect any currently-selected text.
-	 */
-	public void deselect();
-	
+		
 	/**
 	 * Get the range of the currently-selected text.
 	 * @return
 	 */
 	public IndexRange getSelection();
+	
+	@Override
+	public default int getSelectionStart() {
+		return getSelection().getStart();
+	}
 
+	@Override
+	public default int getSelectionEnd() {
+		return getSelection().getEnd();
+	}
+	
 	/**
-	 * Set the range of the selected text.
-	 * @param startIdx
-	 * @param endIdx
+	 * Request paste from the system clipboard.
 	 */
-	public void selectRange(int startIdx, int endIdx);
+	public void paste();
+
 
 	/**
 	 * Text currently selected in the editor control.
 	 * @return
 	 */
 	public ObservableValue<String> selectedTextProperty();
-	
-	/**
-	 * Get the value of {@link #selectedTextProperty()}.
-	 * @return
-	 */
-	public String getSelectedText();
-	
+		
 	/**
 	 * Returns true if 'undo' can be applied to the control.
 	 * @return
@@ -107,13 +94,7 @@ public interface ScriptEditorControl extends TextAppendable {
 	 * Get the region representing this control, so it may be added to a scene.
 	 * @return
 	 */
-	public Region getControl();
-	
-	/**
-	 * Set the popup menu for this control.
-	 * @param menu
-	 */
-	public void setPopup(ContextMenu menu);
+	public T getRegion();
 	
 	/**
 	 * Request undo.
@@ -136,52 +117,6 @@ public interface ScriptEditorControl extends TextAppendable {
 	public void cut();
 	
 	/**
-	 * Request paste the specified text.
-	 * @param text 
-	 */
-	public void paste(String text);
-	
-	@Override
-	public void appendText(final String text);
-	
-	/**
-	 * Request clear the contents of the control.
-	 */
-	public void clear();
-	
-	/**
-	 * Get the current caret position.
-	 * @return
-	 */
-	public int getCaretPosition();
-	
-	/**
-	 * Request inserting the specified text.
-	 * @param pos position to insert the text
-	 * @param text the text to insert
-	 */
-	public void insertText(int pos, String text);
-
-	/**
-	 * Request deleting the text within the specified range.
-	 * @param startIdx
-	 * @param endIdx
-	 */
-	public void deleteText(int startIdx, int endIdx);
-
-	/**
-	 * Focused property of the control.
-	 * @return
-	 */
-	public ReadOnlyBooleanProperty focusedProperty();
-	
-	/**
-	 * Set the caret position to the specified index
-	 * @param index
-	 */
-	public void positionCaret(int index);
-	
-	/**
 	 * Request wordwrap.
 	 * @return
 	 */
@@ -196,4 +131,25 @@ public interface ScriptEditorControl extends TextAppendable {
 	public default void requestFollowCaret() {
 		return;
 	}
+	
+	/**
+	 * Property for the current caret position.
+	 * @return
+	 * @see #getCaretPosition()
+	 * @see #positionCaret(int)
+	 */
+	public ReadOnlyIntegerProperty caretPositionProperty();
+	
+	/**
+	 * Set the context menu for the control.
+	 * @param menu
+	 */
+	public void setContextMenu(ContextMenu menu);
+	
+	/**
+	 * Get the context menu for the control.
+	 * @return
+	 */
+	public ContextMenu getContextMenu();
+	
 }

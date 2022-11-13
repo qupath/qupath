@@ -50,8 +50,8 @@ public class DefaultPathObjectComparator implements Comparator<PathObject> {
 	@Override
 	public int compare(PathObject o1, PathObject o2) {
 		
-		Objects.nonNull(o1);
-		Objects.nonNull(o2);
+		Objects.requireNonNull(o1);
+		Objects.requireNonNull(o2);
 		
 		// Quick check...
 		if (o1 == o2)
@@ -103,7 +103,7 @@ public class DefaultPathObjectComparator implements Comparator<PathObject> {
 			return 1;
 		
 		// Shouldn't end up here much...
-		return o1.getId().compareTo(o2.getId());
+		return o1.getID().compareTo(o2.getID());
 	}
 	
 	/**

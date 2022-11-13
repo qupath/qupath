@@ -54,7 +54,7 @@ import qupath.lib.geom.Point2;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
-import qupath.lib.objects.classes.PathClassFactory;
+import qupath.lib.objects.classes.PathClass;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.PointsROI;
 import qupath.lib.roi.ROIs;
@@ -118,8 +118,8 @@ public class PointIO {
 			if (name != null && name.length() > 0 && !"null".equals(name))
 				pathObject.setName(name);
 			if (pathClass != null && pathClass.length() > 0 && !"null".equals(pathClass))
-				pathObject.setPathClass(PathClassFactory.getPathClass(pathClass, color));
-			pathObject.setColorRGB(color);
+				pathObject.setPathClass(PathClass.fromString(pathClass, color));
+			pathObject.setColor(color);
 			
 			if (pathObject != null)
 				pathObjects.add(pathObject);
@@ -171,7 +171,7 @@ public class PointIO {
 			ImagePlane defaultPlane = ImagePlane.getDefaultPlane();
 			boolean hasClass = pathObjects.stream().anyMatch(p -> p.getPathClass() != null);
 			boolean hasName = pathObjects.stream().anyMatch(p -> p.getName() != null);
-			boolean hasColor = pathObjects.stream().anyMatch(p -> p.getColorRGB() != null);
+			boolean hasColor = pathObjects.stream().anyMatch(p -> p.getColor() != null);
 			boolean hasC = pathObjects.stream().anyMatch(p -> p.getROI().getC() > defaultPlane.getC());
 			boolean hasZ = pathObjects.stream().anyMatch(p -> p.getROI().getZ() > defaultPlane.getZ());
 			boolean hasT = pathObjects.stream().anyMatch(p -> p.getROI().getT() > defaultPlane.getT());
@@ -216,7 +216,7 @@ public class PointIO {
 					if (hasName)
 						row[cols.indexOf("name")] = pathObject.getName() != null ? sep + pathObject.getName() : sep;
 					if (hasColor)
-						row[cols.indexOf("color")] = pathObject.getColorRGB() != null ? sep + pathObject.getColorRGB() : sep;
+						row[cols.indexOf("color")] = pathObject.getColor() != null ? sep + pathObject.getColor() : sep;
 					
 					for (String val: row)
 						writer.write(val);
@@ -340,7 +340,7 @@ public class PointIO {
 		PathObject pathObject = PathObjects.createAnnotationObject(points);
 		if (name != null && name.length() > 0 && !"null".equals(name))
 			pathObject.setName(name);
-		pathObject.setColorRGB(color);
+		pathObject.setColor(color);
 		return pathObject;
 	}	
 }

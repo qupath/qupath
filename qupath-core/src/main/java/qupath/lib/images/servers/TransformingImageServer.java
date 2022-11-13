@@ -32,7 +32,7 @@ import qupath.lib.regions.RegionRequest;
  * This might be a spatial or pixel intensity transformation, for example.
  * <p>
  * Subclasses may only implement the methods necessary to apply the required transform, 
- * such as {@link #readBufferedImage(RegionRequest)} since much of the remaining functionality 
+ * such as {@link #readRegion(RegionRequest)} since much of the remaining functionality 
  * is left up to the {@link AbstractImageServer} implementation.
  * 
  * @author Pete Bankhead
@@ -63,8 +63,8 @@ public abstract class TransformingImageServer<T> extends AbstractImageServer<T> 
 	}
 
 	@Override
-	public T readBufferedImage(RegionRequest request) throws IOException {
-		return server.readBufferedImage(request);
+	public T readRegion(RegionRequest request) throws IOException {
+		return server.readRegion(request);
 	}
 
 	@Override

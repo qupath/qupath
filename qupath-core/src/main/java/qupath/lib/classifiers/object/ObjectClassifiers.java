@@ -42,7 +42,6 @@ import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectFilter;
 import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.classes.PathClassFactory;
 
 /**
  * Helper class for creating {@linkplain ObjectClassifier ObjectClassifiers}.
@@ -145,7 +144,7 @@ public class ObjectClassifiers {
 	 * @see PathObjectFilter
 	 */
 	public static <T> ObjectClassifier<T> createChannelClassifier(PathObjectFilter filter, ImageChannel channel, String measurement, double threshold) {
-		var pathClass = PathClassFactory.getPathClass(channel.getName(), channel.getColor());
+		var pathClass = PathClass.fromString(channel.getName(), channel.getColor());
 		return new ClassifyByMeasurementBuilder<T>(measurement)
 			.threshold(threshold)
 			.filter(filter)
@@ -253,7 +252,7 @@ public class ObjectClassifiers {
 		 * @see #threshold(double)
 		 */
 		public ClassifyByMeasurementBuilder<T> above(String pathClassName) {
-			var pathClass = PathClassFactory.getPathClass(pathClassName);
+			var pathClass = PathClass.fromString(pathClassName);
 			this.pathClassAbove = pathClass;
 			return this;
 		}
@@ -265,7 +264,7 @@ public class ObjectClassifiers {
 		 * @see #threshold(double)
 		 */
 		public ClassifyByMeasurementBuilder<T> aboveEquals(String pathClassName) {
-			var pathClass = PathClassFactory.getPathClass(pathClassName);
+			var pathClass = PathClass.fromString(pathClassName);
 			this.pathClassAbove = pathClass;
 			this.pathClassEquals = pathClass;
 			return this;
@@ -278,7 +277,7 @@ public class ObjectClassifiers {
 		 * @see #threshold(double)
 		 */
 		public ClassifyByMeasurementBuilder<T> belowEquals(String pathClassName) {
-			var pathClass = PathClassFactory.getPathClass(pathClassName);
+			var pathClass = PathClass.fromString(pathClassName);
 			this.pathClassBelow = pathClass;
 			this.pathClassEquals = pathClass;
 			return this;
@@ -291,7 +290,7 @@ public class ObjectClassifiers {
 		 * @see #threshold(double)
 		 */
 		public ClassifyByMeasurementBuilder<T> below(String pathClassName) {
-			var pathClass = PathClassFactory.getPathClass(pathClassName);
+			var pathClass = PathClass.fromString(pathClassName);
 			this.pathClassBelow = pathClass;
 			return this;
 		}
@@ -303,7 +302,7 @@ public class ObjectClassifiers {
 		 * @see #threshold(double)
 		 */
 		public ClassifyByMeasurementBuilder<T> equalTo(String pathClassName) {
-			var pathClass = PathClassFactory.getPathClass(pathClassName);
+			var pathClass = PathClass.fromString(pathClassName);
 			this.pathClassEquals = pathClass;
 			return this;
 		}
@@ -400,9 +399,9 @@ public class ObjectClassifiers {
 		ClassifyByMeasurementFunction(String measurement, double threshold, PathClass pathClassBelow, PathClass pathClassEquals, PathClass pathClassAbove) {
 			this.measurement = measurement;
 			this.threshold = threshold;
-			this.pathClassBelow = pathClassBelow == PathClassFactory.getPathClassUnclassified() ? null : pathClassBelow;
-			this.pathClassEquals = pathClassEquals == PathClassFactory.getPathClassUnclassified() ? null : pathClassEquals;
-			this.pathClassAbove = pathClassAbove == PathClassFactory.getPathClassUnclassified() ? null : pathClassAbove;
+			this.pathClassBelow = pathClassBelow == PathClass.NULL_CLASS ? null : pathClassBelow;
+			this.pathClassEquals = pathClassEquals == PathClass.NULL_CLASS ? null : pathClassEquals;
+			this.pathClassAbove = pathClassAbove == PathClass.NULL_CLASS ? null : pathClassAbove;
 		}
 		
 		/**
@@ -415,7 +414,7 @@ public class ObjectClassifiers {
 
 		@Override
 		public PathClass apply(PathObject pathObject) {
-			double val = pathObject.getMeasurementList().getMeasurementValue(measurement);
+			double val = pathObject.getMeasurementList().get(measurement);
 			if (Double.isNaN(val))
 				return null;
 			if (val > threshold)

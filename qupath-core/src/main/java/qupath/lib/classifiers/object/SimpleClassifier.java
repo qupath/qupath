@@ -56,7 +56,7 @@ class SimpleClassifier<T> extends AbstractObjectClassifier<T> {
 		for (var pathObject : pathObjects) {
 			var previousClass = pathObject.getPathClass();
 			if (resetExistingClass)
-				pathObject.setPathClass(null);
+				pathObject.resetPathClass();
 			
 			var pathClass = function.apply(pathObject);
 			if (pathClass != null) {
@@ -81,7 +81,7 @@ class SimpleClassifier<T> extends AbstractObjectClassifier<T> {
 			var name = ((ClassifyByMeasurementFunction)function).getMeasurement();
 			if (name != null) {
 				for (var pathObject : pathObjects) {
-					if (!pathObject.getMeasurementList().containsNamedMeasurement(name))
+					if (!pathObject.getMeasurementList().containsKey(name))
 						nMissing++;
 				}
 			}

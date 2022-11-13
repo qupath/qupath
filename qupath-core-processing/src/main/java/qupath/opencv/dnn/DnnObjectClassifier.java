@@ -222,16 +222,16 @@ public class DnnObjectClassifier<T> extends AbstractObjectClassifier<BufferedIma
 	}
 
 	@Override
-	public Collection<URI> getUris() throws IOException {
+	public Collection<URI> getURIs() throws IOException {
 		if (model instanceof UriResource)
-			return ((UriResource)model).getUris();
+			return ((UriResource)model).getURIs();
 		return Collections.emptyList();
 	}
 
 	@Override
-	public boolean updateUris(Map<URI, URI> replacements) throws IOException {
+	public boolean updateURIs(Map<URI, URI> replacements) throws IOException {
 		if (model instanceof UriResource)
-			return ((UriResource)model).updateUris(replacements);
+			return ((UriResource)model).updateURIs(replacements);
 		return false;
 	}
 

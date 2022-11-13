@@ -23,31 +23,43 @@
 
 package qupath.lib.gui.scripting.richtextfx;
 
+import java.util.Objects;
+
 import org.fxmisc.flowless.VirtualizedScrollPane;
 import org.fxmisc.richtext.CodeArea;
 
 import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.ReadOnlyBooleanProperty;
+import javafx.beans.property.IntegerProperty;
+import javafx.beans.property.ReadOnlyIntegerProperty;
+import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.IndexRange;
-import javafx.scene.layout.Region;
 import qupath.lib.gui.scripting.ScriptEditorControl;
 
 /**
- * Code area (e.g. RichTextFX) for writing code.
+ * Code area control using RichTextFX.
+ * 
  * @author Pete Bankhead
  */
-public class CodeAreaControl implements ScriptEditorControl {
+public class CodeAreaControl implements ScriptEditorControl<VirtualizedScrollPane<CodeArea>> {
 	
 	private VirtualizedScrollPane<CodeArea> scrollpane;
 	private CodeArea textArea;
 	private StringProperty textProperty = new SimpleStringProperty();
 	
-	CodeAreaControl(final CodeArea codeArea) {
+	private ContextMenu contextMenu;
+	
+	CodeAreaControl(boolean isEditable) {
+		this(new CodeArea(), isEditable);
+	}
+	
+	CodeAreaControl(final CodeArea codeArea, boolean isEditable) {
+		Objects.requireNonNull(codeArea);
 		this.textArea = codeArea;
+		this.textArea.setEditable(isEditable);
 		textArea.textProperty().addListener((o, v, n) -> textProperty.set(n));
 		textProperty.addListener((o, v, n) -> {
 			if (n.equals(textArea.getText()))
@@ -65,8 +77,8 @@ public class CodeAreaControl implements ScriptEditorControl {
 
 	@Override
 	public void setText(String text) {
-		textArea.clear();
-		textArea.insertText(0, text);
+		textArea.replaceText(text);
+		requestFollowCaret();
 	}
 
 	@Override
@@ -85,7 +97,7 @@ public class CodeAreaControl implements ScriptEditorControl {
 	}
 
 	@Override
-	public Region getControl() {
+	public VirtualizedScrollPane<CodeArea> getRegion() {
 		return scrollpane;
 	}
 
@@ -120,14 +132,14 @@ public class CodeAreaControl implements ScriptEditorControl {
 	}
 
 	@Override
-	public void paste(String text) {
-		if (text != null)
-			textArea.replaceSelection(text);
+	public void paste() {
+		textArea.paste();
 	}
 	
 	@Override
 	public void appendText(final String text) {
 		textArea.appendText(text);
+		requestFollowCaret();
 	}
 
 	@Override
@@ -143,16 +155,13 @@ public class CodeAreaControl implements ScriptEditorControl {
 	@Override
 	public void insertText(int pos, String text) {
 		textArea.insertText(pos, text);
+		requestFollowCaret();
 	}
 	
 	@Override
 	public void deleteText(int startIdx, int endIdx) {
 		textArea.deleteText(startIdx, endIdx);
-	}
-	
-	@Override
-	public ReadOnlyBooleanProperty focusedProperty() {
-		return textArea.focusedProperty();
+		requestFollowCaret();
 	}
 
 	@Override
@@ -169,11 +178,6 @@ public class CodeAreaControl implements ScriptEditorControl {
 	public void selectRange(int startIdx, int endIdx) {
 		textArea.selectRange(startIdx, endIdx);
 	}
-
-	@Override
-	public void setPopup(ContextMenu menu) {
-		textArea.setContextMenu(menu);
-	}
 	
 	@Override
 	public BooleanProperty wrapTextProperty() {
@@ -189,4 +193,44 @@ public class CodeAreaControl implements ScriptEditorControl {
 	public void requestFollowCaret() {
 		textArea.requestFollowCaret();
 	}
+	
+	@Override
+	public void replaceSelection(String text) {
+		textArea.replaceSelection(text);
+		requestFollowCaret();
+	}
+	
+	@Override
+	public void setContextMenu(ContextMenu menu) {
+		// Try this approach, because otherwise some styling feeds through to the context menu 
+		// & can look weird (e.g. making it use a monospaced font)
+		this.contextMenu = menu;
+		textArea.setContextMenu(null);
+		textArea.setOnContextMenuRequested(e -> {
+			var popup = textArea.getContextMenu() == null ? contextMenu : textArea.getContextMenu();
+			if (popup != null)
+				popup.show(textArea.getScene().getWindow(), e.getScreenX(), e.getScreenY());
+		});
+	}
+
+	@Override
+	public ContextMenu getContextMenu() {
+		var popup = textArea.getContextMenu();
+		if (popup != null)
+			return popup;
+		return contextMenu;
+	}
+
+	private ReadOnlyIntegerProperty caretReadOnly;
+	
+	@Override
+	public ReadOnlyIntegerProperty caretPositionProperty() {
+		if (caretReadOnly == null) {
+			var caret = new SimpleIntegerProperty();
+			caret.bind(textArea.caretPositionProperty());
+			caretReadOnly = IntegerProperty.readOnlyIntegerProperty(caret);
+		}
+		return caretReadOnly;
+	}
+
 }

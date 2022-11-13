@@ -26,6 +26,7 @@ package qupath.lib.measurements;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 /**
  * A MeasurementList implementation that simply stores a list of Measurement objects.
@@ -44,17 +45,14 @@ class DefaultMeasurementList implements MeasurementList {
 	
 	private ArrayList<Measurement> list;
 	
+	private transient Map<String, Double> mapView;
+	
 	DefaultMeasurementList() {
 		list = new ArrayList<>();
 	}
 	
 	DefaultMeasurementList(int capacity) {
 		list = new ArrayList<>(capacity);
-	}
-	
-	@Override
-	public synchronized boolean addMeasurement(String name, double value) {
-		return add(MeasurementFactory.createMeasurement(name, value));
 	}
 	
 	@Override
@@ -78,7 +76,7 @@ class DefaultMeasurementList implements MeasurementList {
 	}
 
 	@Override
-	public synchronized double getMeasurementValue(String name) {
+	public synchronized double get(String name) {
 		for (Measurement m : list) {
 			if (m.getName().equals(name))
 				return m.getValue();
@@ -87,7 +85,7 @@ class DefaultMeasurementList implements MeasurementList {
 	}
 		
 	@Override
-	public synchronized boolean containsNamedMeasurement(String measurement) {
+	public synchronized boolean containsKey(String measurement) {
 		for (Measurement m : list)
 			if (m.getName().equals(measurement))
 				return true;
@@ -145,10 +143,6 @@ class DefaultMeasurementList implements MeasurementList {
 		list.add(measurement);
 		return null;
 	}
-	
-	private synchronized boolean add(Measurement measurement) {
-		return list.add(measurement);
-	}
 
 //	@Override
 //	public boolean remove(Object o) {
@@ -161,7 +155,7 @@ class DefaultMeasurementList implements MeasurementList {
 	}
 
 	@Override
-	public synchronized void putMeasurement(String name, double value) {
+	public synchronized void put(String name, double value) {
 		putMeasurement(MeasurementFactory.createMeasurement(name, value));
 	}
 
@@ -180,6 +174,16 @@ class DefaultMeasurementList implements MeasurementList {
 		}
 	}
 
+	@Override
+	public Map<String, Double> asMap() {
+		if (mapView == null) {
+			synchronized(this) {
+				if (mapView == null)
+					mapView = new MeasurementsMap(this);
+			}
+		}
+		return mapView;
+	}
 	
 	@Override
 	public synchronized String toString() {

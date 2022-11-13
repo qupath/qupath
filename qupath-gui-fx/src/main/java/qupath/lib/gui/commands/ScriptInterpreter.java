@@ -79,6 +79,7 @@ import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.Priority;
+import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.Text;
 import javafx.scene.web.WebView;
@@ -89,6 +90,7 @@ import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.panes.ObjectTreeBrowser;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.scripting.QPEx;
+import qupath.lib.gui.tools.WebViews;
 import qupath.lib.images.ImageData;
 
 
@@ -256,7 +258,8 @@ class ScriptInterpreter {
 		//			});
 
 		// Command log with some color coding
-		WebView textArea = new WebView();
+		WebView textArea = WebViews.create(true);
+
 		historyText.addListener((v, o, n) -> {
 			String styleAll = "* {\n  " + 
 					"font-family: \"Courier New\", Courier, monospace;\n" + 
@@ -268,9 +271,9 @@ class ScriptInterpreter {
 			String styleWarning = ".warning {\n  " + 
 					"color: orange;\n" + 
 					"}";
-			String styleCommand = ".command {\n  " + 
-					"color: black;\n" + 
-					"}";
+//			String styleCommand = ".command {\n  " + 
+//					"color: black;\n" + 
+//					"}";
 			String styleOther = ".other {\n  " + 
 					"color: gray;\n" + 
 					"}";
@@ -290,7 +293,7 @@ class ScriptInterpreter {
 			sb.append(styleAll).append("\n");
 			sb.append(styleError).append("\n");
 			sb.append(styleWarning).append("\n");
-			sb.append(styleCommand).append("\n");
+//			sb.append(styleCommand).append("\n");
 			sb.append(styleOther).append("\n");
 			sb.append(styleVariable).append("\n");
 			sb.append("</style>").append("\n");
@@ -302,6 +305,10 @@ class ScriptInterpreter {
 			//				String content = String.format("<html><head><style>%s</style></head><body>%s</body></html>", style, n.replace("\n", "<br/>"));
 
 			textArea.getEngine().loadContent(sb.toString());
+			
+			textArea.pageFillProperty().unbind();
+			textArea.setPageFill(Color.TRANSPARENT);
+
 		});
 
 		//			TextArea textArea = new TextArea();

@@ -34,7 +34,6 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.classes.PathClassTools;
 
 @SuppressWarnings("javadoc")
@@ -62,49 +61,49 @@ public class TestPathClassTools {
 	@BeforeAll
 	public static void init() {
 		// Ignored/non-ignored classes and subclasses
-		pc1 = PathClassFactory.getPathClass("test", Color.BLUE.getRGB());
-		pc2 = PathClassFactory.getPathClass("test", "subclass");
-		pc3 = PathClassFactory.getPathClass("test*", Color.BLACK.getRGB());
-		pc4 = PathClassFactory.getPathClass("test*", "subclass");
-		pc5 = PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.IGNORE);
+		pc1 = PathClass.getInstance("test", Color.BLUE.getRGB());
+		pc2 = PathClass.fromArray("test", "subclass");
+		pc3 = PathClass.getInstance("test*", Color.BLACK.getRGB());
+		pc4 = PathClass.fromArray("test*", "subclass");
+		pc5 = PathClass.StandardPathClasses.IGNORE;
 		pc5.setColor(Color.BLACK.getRGB());
-		pc6 = PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.IGNORE);
-		pc6 = PathClassFactory.getDerivedPathClass(pc6, "subclass", Color.BLACK.getRGB());
-		pc7 = PathClassFactory.getNegative(PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.IGNORE));
+		pc6 = PathClass.StandardPathClasses.IGNORE;
+		pc6 = PathClass.getInstance(pc6, "subclass", Color.BLACK.getRGB());
+		pc7 = PathClass.getNegative(PathClass.StandardPathClasses.IGNORE);
 		
 		// Pos/neg & intensity classes
-		pc8 = PathClassFactory.getNegative(PathClassFactory.getPathClass("negativeClass", Color.RED.getRGB()));
-		pc9 = PathClassFactory.getPositive(PathClassFactory.getPathClass("positiveClass", Color.RED.getRGB()));
-		pc10 = PathClassFactory.getOnePlus(PathClassFactory.getPathClass("intensityClass", Color.RED.getRGB()));
-		pc11 = PathClassFactory.getTwoPlus(PathClassFactory.getPathClass("intensityClass", Color.RED.getRGB()));
-		pc12 = PathClassFactory.getThreePlus(PathClassFactory.getPathClass("intensityClass", Color.RED.getRGB()));
+		pc8 = PathClass.getNegative(PathClass.getInstance("negativeClass", Color.RED.getRGB()));
+		pc9 = PathClass.getPositive(PathClass.getInstance("positiveClass", Color.RED.getRGB()));
+		pc10 = PathClass.getOnePlus(PathClass.getInstance("intensityClass", Color.RED.getRGB()));
+		pc11 = PathClass.getTwoPlus(PathClass.getInstance("intensityClass", Color.RED.getRGB()));
+		pc12 = PathClass.getThreePlus(PathClass.getInstance("intensityClass", Color.RED.getRGB()));
 		
 		// Both pos/neg/intensity and subclass classes
-		pc13 = PathClassFactory.getPositive(PathClassFactory.getPathClass("positiveClass", "subclass"));
-		pc14 = PathClassFactory.getOnePlus(PathClassFactory.getPathClass("intensityClass", "subclass"));
+		pc13 = PathClass.getPositive(PathClass.fromArray("positiveClass", "subclass"));
+		pc14 = PathClass.getOnePlus(PathClass.fromArray("intensityClass", "subclass"));
 		
 		// 'Null' classes
-		pc15 = PathClassFactory.getPathClass(null, Color.BLUE.getRGB());
-		pc16 = PathClassFactory.getPathClassUnclassified();
+		pc15 = PathClass.fromString(null, Color.BLUE.getRGB());
+		pc16 = PathClass.NULL_CLASS;
 		
 		// Derived class
-		derivedClass1 = PathClassFactory.getPathClass("First");
-		derivedClass1 = PathClassFactory.getDerivedPathClass(derivedClass1, "Second", Color.RED.getRGB());
-		derivedClass1 = PathClassFactory.getDerivedPathClass(derivedClass1, "Third", Color.RED.getRGB());
-		derivedClass1 = PathClassFactory.getDerivedPathClass(derivedClass1, "Fourth", Color.RED.getRGB());
-		derivedClass1 = PathClassFactory.getDerivedPathClass(derivedClass1, "Fifth", Color.RED.getRGB());
-		derivedClass1 = PathClassFactory.getDerivedPathClass(derivedClass1, "Sixth", Color.RED.getRGB());
-		derivedClass1 = PathClassFactory.getDerivedPathClass(derivedClass1, "Seventh", Color.RED.getRGB());
-		derivedClass1 = PathClassFactory.getDerivedPathClass(derivedClass1, "Eighth", Color.RED.getRGB());
-		derivedClass1 = PathClassFactory.getDerivedPathClass(derivedClass1, "Ninth", Color.RED.getRGB());
-		derivedClass1 = PathClassFactory.getDerivedPathClass(derivedClass1, "Tenth", Color.RED.getRGB());
-		derivedClass1 = PathClassFactory.getDerivedPathClass(derivedClass1, "Eleventh", Color.RED.getRGB());
+		derivedClass1 = PathClass.getInstance("First");
+		derivedClass1 = PathClass.getInstance(derivedClass1, "Second", Color.RED.getRGB());
+		derivedClass1 = PathClass.getInstance(derivedClass1, "Third", Color.RED.getRGB());
+		derivedClass1 = PathClass.getInstance(derivedClass1, "Fourth", Color.RED.getRGB());
+		derivedClass1 = PathClass.getInstance(derivedClass1, "Fifth", Color.RED.getRGB());
+		derivedClass1 = PathClass.getInstance(derivedClass1, "Sixth", Color.RED.getRGB());
+		derivedClass1 = PathClass.getInstance(derivedClass1, "Seventh", Color.RED.getRGB());
+		derivedClass1 = PathClass.getInstance(derivedClass1, "Eighth", Color.RED.getRGB());
+		derivedClass1 = PathClass.getInstance(derivedClass1, "Ninth", Color.RED.getRGB());
+		derivedClass1 = PathClass.getInstance(derivedClass1, "Tenth", Color.RED.getRGB());
+		derivedClass1 = PathClass.getInstance(derivedClass1, "Eleventh", Color.RED.getRGB());
 		
-		derivedClass2 = PathClassFactory.getPathClass("First");
-		derivedClass2 = PathClassFactory.getDerivedPathClass(derivedClass2, "Second", Color.RED.getRGB());
-		derivedClass2 = PathClassFactory.getDerivedPathClass(derivedClass2, "Third", Color.RED.getRGB());
-		derivedClass2 = PathClassFactory.getDerivedPathClass(derivedClass2, "Fourth", Color.RED.getRGB());
-		derivedClass2 = PathClassFactory.getDerivedPathClass(derivedClass2, "Fifth", Color.RED.getRGB());
+		derivedClass2 = PathClass.getInstance("First");
+		derivedClass2 = PathClass.getInstance(derivedClass2, "Second", Color.RED.getRGB());
+		derivedClass2 = PathClass.getInstance(derivedClass2, "Third", Color.RED.getRGB());
+		derivedClass2 = PathClass.getInstance(derivedClass2, "Fourth", Color.RED.getRGB());
+		derivedClass2 = PathClass.getInstance(derivedClass2, "Fifth", Color.RED.getRGB());
 	}
 
 	@Test
@@ -340,33 +339,33 @@ public class TestPathClassTools {
 		assertEquals(pc4, PathClassTools.getNonIntensityAncestorClass(pc4));
 		assertEquals(pc5, PathClassTools.getNonIntensityAncestorClass(pc5));
 		assertEquals(pc6, PathClassTools.getNonIntensityAncestorClass(pc6));
-		assertEquals(PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.IGNORE), PathClassTools.getNonIntensityAncestorClass(pc7));
+		assertEquals(PathClass.StandardPathClasses.IGNORE, PathClassTools.getNonIntensityAncestorClass(pc7));
 		
-		assertEquals(PathClassFactory.getPathClass("negativeClass", Color.RED.getRGB()), PathClassTools.getNonIntensityAncestorClass(pc8));
-		assertEquals(PathClassFactory.getPathClass("positiveClass", Color.RED.getRGB()), PathClassTools.getNonIntensityAncestorClass(pc9));
-		assertEquals(PathClassFactory.getPathClass("intensityClass", Color.RED.getRGB()), PathClassTools.getNonIntensityAncestorClass(pc10));
-		assertEquals(PathClassFactory.getPathClass("intensityClass", Color.RED.getRGB()), PathClassTools.getNonIntensityAncestorClass(pc11));
-		assertEquals(PathClassFactory.getPathClass("intensityClass", Color.RED.getRGB()), PathClassTools.getNonIntensityAncestorClass(pc12));
+		assertEquals(PathClass.getInstance("negativeClass", Color.RED.getRGB()), PathClassTools.getNonIntensityAncestorClass(pc8));
+		assertEquals(PathClass.getInstance("positiveClass", Color.RED.getRGB()), PathClassTools.getNonIntensityAncestorClass(pc9));
+		assertEquals(PathClass.getInstance("intensityClass", Color.RED.getRGB()), PathClassTools.getNonIntensityAncestorClass(pc10));
+		assertEquals(PathClass.getInstance("intensityClass", Color.RED.getRGB()), PathClassTools.getNonIntensityAncestorClass(pc11));
+		assertEquals(PathClass.getInstance("intensityClass", Color.RED.getRGB()), PathClassTools.getNonIntensityAncestorClass(pc12));
 		
-		assertEquals(PathClassFactory.getPathClass("positiveClass: subclass", Color.RED.getRGB()), PathClassTools.getNonIntensityAncestorClass(pc13));
-		assertEquals(PathClassFactory.getPathClass("intensityClass: subclass", Color.RED.getRGB()), PathClassTools.getNonIntensityAncestorClass(pc14));
+		assertEquals(PathClass.fromString("positiveClass: subclass", Color.RED.getRGB()), PathClassTools.getNonIntensityAncestorClass(pc13));
+		assertEquals(PathClass.fromString("intensityClass: subclass", Color.RED.getRGB()), PathClassTools.getNonIntensityAncestorClass(pc14));
 
-		assertEquals(PathClassFactory.getPathClass(null, Color.BLUE.getRGB()), PathClassTools.getNonIntensityAncestorClass(pc15));
-		assertEquals(PathClassFactory.getPathClassUnclassified(), PathClassTools.getNonIntensityAncestorClass(pc16));
+		assertEquals(PathClass.fromString(null, Color.BLUE.getRGB()), PathClassTools.getNonIntensityAncestorClass(pc15));
+		assertEquals(PathClass.NULL_CLASS, PathClassTools.getNonIntensityAncestorClass(pc16));
 
 		assertEquals(null, PathClassTools.getNonIntensityAncestorClass(null));
 	}
 	
 	@Test
 	public void test_splitNames() {
-		var test = PathClassFactory.getPathClass("test");
-		var test2 = PathClassFactory.getPathClass("test*");
-		var subclass = PathClassFactory.getPathClass("subclass");
-		var intensityClass = PathClassFactory.getPathClass("intensityClass");
-		var negativeClass = PathClassFactory.getPathClass("negativeClass", Color.RED.getRGB());
-		var positiveClass = PathClassFactory.getPathClass("positiveClass", Color.RED.getRGB());
-		var negativeClass2= PathClassFactory.getNegative(null);
-		var positiveClass2 = PathClassFactory.getPositive(null);
+		var test = PathClass.getInstance("test");
+		var test2 = PathClass.getInstance("test*");
+		var subclass = PathClass.getInstance("subclass");
+		var intensityClass = PathClass.getInstance("intensityClass");
+		var negativeClass = PathClass.getInstance("negativeClass", Color.RED.getRGB());
+		var positiveClass = PathClass.getInstance("positiveClass", Color.RED.getRGB());
+		var negativeClass2= PathClass.getNegative(null);
+		var positiveClass2 = PathClass.getPositive(null);
 		
 		assertEquals(getClassNames(pc1), PathClassTools.splitNames(pc1));
 		assertEquals(getClassNames(test, subclass), PathClassTools.splitNames(pc2));
@@ -374,16 +373,16 @@ public class TestPathClassTools {
 		assertEquals(getClassNames(test2, subclass), PathClassTools.splitNames(pc4));
 		assertEquals(getClassNames(pc5), PathClassTools.splitNames(pc5));
 		assertEquals(getClassNames(pc5, subclass), PathClassTools.splitNames(pc6));
-		assertEquals(getClassNames(pc5, PathClassFactory.getNegative(null)), PathClassTools.splitNames(pc7));
+		assertEquals(getClassNames(pc5, PathClass.getNegative(null)), PathClassTools.splitNames(pc7));
 		
 		assertEquals(getClassNames(negativeClass, negativeClass2), PathClassTools.splitNames(pc8));
 		assertEquals(getClassNames(positiveClass, positiveClass2), PathClassTools.splitNames(pc9));
-		assertEquals(getClassNames(intensityClass, PathClassFactory.getOnePlus(null)), PathClassTools.splitNames(pc10));
-		assertEquals(getClassNames(intensityClass, PathClassFactory.getTwoPlus(null)), PathClassTools.splitNames(pc11));
-		assertEquals(getClassNames(intensityClass, PathClassFactory.getThreePlus(null)), PathClassTools.splitNames(pc12));
+		assertEquals(getClassNames(intensityClass, PathClass.getOnePlus(null)), PathClassTools.splitNames(pc10));
+		assertEquals(getClassNames(intensityClass, PathClass.getTwoPlus(null)), PathClassTools.splitNames(pc11));
+		assertEquals(getClassNames(intensityClass, PathClass.getThreePlus(null)), PathClassTools.splitNames(pc12));
 		
 		assertEquals(getClassNames(positiveClass, subclass, positiveClass2), PathClassTools.splitNames(pc13));
-		assertEquals(getClassNames(intensityClass, subclass, PathClassFactory.getOnePlus(null)), PathClassTools.splitNames(pc14));
+		assertEquals(getClassNames(intensityClass, subclass, PathClass.getOnePlus(null)), PathClassTools.splitNames(pc14));
 
 		assertEquals(Arrays.asList(), PathClassTools.splitNames(pc15));
 		assertEquals(Arrays.asList(), PathClassTools.splitNames(pc16));
@@ -415,20 +414,20 @@ public class TestPathClassTools {
 
 		assertEquals(null, PathClassTools.uniqueNames(null));
 
-		var duplicateClasses = PathClassFactory.getNegative(null);
-		duplicateClasses = PathClassFactory.getDerivedPathClass(duplicateClasses, "Negative", Color.CYAN.getRGB());
-		duplicateClasses = PathClassFactory.getDerivedPathClass(duplicateClasses, "Negative", Color.CYAN.getRGB());
-		assertEquals(PathClassFactory.getPathClass("Negative"), PathClassTools.uniqueNames(duplicateClasses));
+		var duplicateClasses = PathClass.getNegative(null);
+		duplicateClasses = PathClass.getInstance(duplicateClasses, "Negative", Color.CYAN.getRGB());
+		duplicateClasses = PathClass.getInstance(duplicateClasses, "Negative", Color.CYAN.getRGB());
+		assertEquals(PathClass.getInstance("Negative"), PathClassTools.uniqueNames(duplicateClasses));
 
-		var duplicateClasses2 = PathClassFactory.getNegative(null);
-		duplicateClasses2 = PathClassFactory.getDerivedPathClass(duplicateClasses2, "negative", Color.CYAN.getRGB());
-		duplicateClasses2 = PathClassFactory.getDerivedPathClass(duplicateClasses2, "Negative", Color.CYAN.getRGB());
-		assertEquals(PathClassFactory.getPathClass("Negative: negative"), PathClassTools.uniqueNames(duplicateClasses2));
+		var duplicateClasses2 = PathClass.getNegative(null);
+		duplicateClasses2 = PathClass.getInstance(duplicateClasses2, "negative", Color.CYAN.getRGB());
+		duplicateClasses2 = PathClass.getInstance(duplicateClasses2, "Negative", Color.CYAN.getRGB());
+		assertEquals(PathClass.fromString("Negative: negative"), PathClassTools.uniqueNames(duplicateClasses2));
 	}
 	
 	@Test
 	public void test_sortNames() {
-		assertEquals(PathClassFactory.getPathClass("Eighth", 
+		assertEquals(PathClass.fromArray("Eighth", 
 				"Eleventh", 
 				"Fifth", 
 				"First", 
@@ -443,18 +442,18 @@ public class TestPathClassTools {
 	
 	@Test
 	public void test_removeNames() {
-		var derivedClassAfter = PathClassFactory.getPathClass("First");
-		derivedClassAfter = PathClassFactory.getDerivedPathClass(derivedClassAfter, "Third", Color.RED.getRGB());
-		derivedClassAfter = PathClassFactory.getDerivedPathClass(derivedClassAfter, "Fifth", Color.RED.getRGB());
-		derivedClassAfter = PathClassFactory.getDerivedPathClass(derivedClassAfter, "Sixth", Color.RED.getRGB());
-		derivedClassAfter = PathClassFactory.getDerivedPathClass(derivedClassAfter, "Eighth", Color.RED.getRGB());
-		derivedClassAfter = PathClassFactory.getDerivedPathClass(derivedClassAfter, "Ninth", Color.RED.getRGB());
-		derivedClassAfter = PathClassFactory.getDerivedPathClass(derivedClassAfter, "Tenth", Color.RED.getRGB());
-		derivedClassAfter = PathClassFactory.getDerivedPathClass(derivedClassAfter, "Eleventh", Color.RED.getRGB());
+		var derivedClassAfter = PathClass.getInstance("First");
+		derivedClassAfter = PathClass.getInstance(derivedClassAfter, "Third", Color.RED.getRGB());
+		derivedClassAfter = PathClass.getInstance(derivedClassAfter, "Fifth", Color.RED.getRGB());
+		derivedClassAfter = PathClass.getInstance(derivedClassAfter, "Sixth", Color.RED.getRGB());
+		derivedClassAfter = PathClass.getInstance(derivedClassAfter, "Eighth", Color.RED.getRGB());
+		derivedClassAfter = PathClass.getInstance(derivedClassAfter, "Ninth", Color.RED.getRGB());
+		derivedClassAfter = PathClass.getInstance(derivedClassAfter, "Tenth", Color.RED.getRGB());
+		derivedClassAfter = PathClass.getInstance(derivedClassAfter, "Eleventh", Color.RED.getRGB());
 
-		var derivedClassAfter2 = PathClassFactory.getPathClass("Second");
-		derivedClassAfter2 = PathClassFactory.getDerivedPathClass(derivedClassAfter2, "Third", Color.RED.getRGB());
-		derivedClassAfter2 = PathClassFactory.getDerivedPathClass(derivedClassAfter2, "Fifth", Color.RED.getRGB());
+		var derivedClassAfter2 = PathClass.getInstance("Second");
+		derivedClassAfter2 = PathClass.getInstance(derivedClassAfter2, "Third", Color.RED.getRGB());
+		derivedClassAfter2 = PathClass.getInstance(derivedClassAfter2, "Fifth", Color.RED.getRGB());
 
 		assertEquals(derivedClassAfter, PathClassTools.removeNames(derivedClass1, "Second", "Fourth", "Seventh"));
 		assertEquals(derivedClassAfter2, PathClassTools.removeNames(derivedClass2, "First", "Fourth"));
@@ -463,30 +462,30 @@ public class TestPathClassTools {
 	
 	@Test
 	public void test_mergeClasses() {
-		assertEquals(PathClassFactory.getPathClass("test: subclass"), PathClassTools.mergeClasses(pc1, pc2));
-		assertEquals(PathClassFactory.getPathClass("test: subclass: test*"), PathClassTools.mergeClasses(pc2, pc3));
-		assertEquals(PathClassFactory.getPathClass("test*: subclass"), PathClassTools.mergeClasses(pc3, pc4));
-		assertEquals(PathClassFactory.getPathClass("test*: subclass: Ignore*"), PathClassTools.mergeClasses(pc4, pc5));
-		assertEquals(PathClassFactory.getPathClass("Ignore*: subclass"), PathClassTools.mergeClasses(pc5, pc6));
-		assertEquals(PathClassFactory.getPathClass("Ignore*: subclass: Negative"), PathClassTools.mergeClasses(pc6, pc7));
-		assertEquals(PathClassFactory.getPathClass("Ignore*: Negative: negativeClass"), PathClassTools.mergeClasses(pc7, pc8));
-		assertEquals(PathClassFactory.getPathClass("negativeClass: Negative: positiveClass: Positive"), PathClassTools.mergeClasses(pc8, pc9));
-		assertEquals(PathClassFactory.getPathClass("positiveClass: Positive: intensityClass: 1+"), PathClassTools.mergeClasses(pc9, pc10));
-		assertEquals(PathClassFactory.getPathClass("intensityClass: 1+: 2+"), PathClassTools.mergeClasses(pc10, pc11));
-		assertEquals(PathClassFactory.getPathClass("intensityClass: 2+: 3+"), PathClassTools.mergeClasses(pc11, pc12));
-		assertEquals(PathClassFactory.getPathClass("intensityClass: 3+: positiveClass: subclass: Positive"), PathClassTools.mergeClasses(pc12, pc13));
-		assertEquals(PathClassFactory.getPathClass("positiveClass: subclass: Positive: intensityClass: 1+"), PathClassTools.mergeClasses(pc13, pc14));
-		assertEquals(PathClassFactory.getPathClass("intensityClass: subclass: 1+"), PathClassTools.mergeClasses(pc14, pc15));
-		assertEquals(PathClassFactory.getPathClassUnclassified(), PathClassTools.mergeClasses(pc15, pc16));
+		assertEquals(PathClass.fromString("test: subclass"), PathClassTools.mergeClasses(pc1, pc2));
+		assertEquals(PathClass.fromString("test: subclass: test*"), PathClassTools.mergeClasses(pc2, pc3));
+		assertEquals(PathClass.fromString("test*: subclass"), PathClassTools.mergeClasses(pc3, pc4));
+		assertEquals(PathClass.fromString("test*: subclass: Ignore*"), PathClassTools.mergeClasses(pc4, pc5));
+		assertEquals(PathClass.fromString("Ignore*: subclass"), PathClassTools.mergeClasses(pc5, pc6));
+		assertEquals(PathClass.fromString("Ignore*: subclass: Negative"), PathClassTools.mergeClasses(pc6, pc7));
+		assertEquals(PathClass.fromString("Ignore*: Negative: negativeClass"), PathClassTools.mergeClasses(pc7, pc8));
+		assertEquals(PathClass.fromString("negativeClass: Negative: positiveClass: Positive"), PathClassTools.mergeClasses(pc8, pc9));
+		assertEquals(PathClass.fromString("positiveClass: Positive: intensityClass: 1+"), PathClassTools.mergeClasses(pc9, pc10));
+		assertEquals(PathClass.fromString("intensityClass: 1+: 2+"), PathClassTools.mergeClasses(pc10, pc11));
+		assertEquals(PathClass.fromString("intensityClass: 2+: 3+"), PathClassTools.mergeClasses(pc11, pc12));
+		assertEquals(PathClass.fromString("intensityClass: 3+: positiveClass: subclass: Positive"), PathClassTools.mergeClasses(pc12, pc13));
+		assertEquals(PathClass.fromString("positiveClass: subclass: Positive: intensityClass: 1+"), PathClassTools.mergeClasses(pc13, pc14));
+		assertEquals(PathClass.fromString("intensityClass: subclass: 1+"), PathClassTools.mergeClasses(pc14, pc15));
+		assertEquals(PathClass.NULL_CLASS, PathClassTools.mergeClasses(pc15, pc16));
 		assertEquals(null, PathClassTools.mergeClasses(null, pc16));
 		assertEquals(pc1, PathClassTools.mergeClasses(pc16, pc1));
 	}
 	
 	@Test
 	public void test_containsName() {
-		assertTrue(PathClassTools.containsName(PathClassFactory.getPathClass("test: subclass"), "subclass"));
-		assertFalse(PathClassTools.containsName(PathClassFactory.getPathClass("test: subclass"), ""));
-		assertFalse(PathClassTools.containsName(PathClassFactory.getPathClass("test: subclass"), "test*"));
+		assertTrue(PathClassTools.containsName(PathClass.fromString("test: subclass"), "subclass"));
+		assertFalse(PathClassTools.containsName(PathClass.fromString("test: subclass"), ""));
+		assertFalse(PathClassTools.containsName(PathClass.fromString("test: subclass"), "test*"));
 		assertFalse(PathClassTools.containsName(null, "test*"));
 		assertFalse(PathClassTools.containsName(pc15, "test*"));
 		assertFalse(PathClassTools.containsName(pc16, "test*"));

@@ -46,8 +46,6 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.PathTileObject;
 import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.classes.PathClassFactory;
-import qupath.lib.objects.classes.PathClassFactory.StandardPathClasses;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.RoiTools;
@@ -70,7 +68,7 @@ public class BrushTool extends AbstractPathROITool {
 	 * A collection of classes that should be ignored when
 	 */
 	static Set<PathClass> reservedPathClasses = Collections.singleton(
-			PathClassFactory.getPathClass(StandardPathClasses.REGION)
+			PathClass.StandardPathClasses.REGION
 			);
 	
 	double lastRequestedCursorDiameter = Double.NaN;
@@ -173,21 +171,36 @@ public class BrushTool extends AbstractPathROITool {
 		
 		PathObject currentObject = viewer.getSelectedObject();
 		
+		// Ignore the current object if it belongs to a different image plane
+		if (currentObject == null ||
+				PathPrefs.selectionModeProperty().get() || 
+				!(currentObject instanceof PathAnnotationObject) || 
+				(!currentObject.isEditable()) || 
+				currentObject.getROI().getZ() != viewer.getZPosition() || 
+				currentObject.getROI().getT() != viewer.getTPosition()) {
+			currentObject = null;
+		}
+		
 		// Determine if we are creating a new object
 //		boolean createNew = currentObject == null || e.getClickCount() > 1;// || (!currentObject.getROI().contains(p.getX(), p.getY()) && !e.isAltDown());
 		Point2D p = mouseLocationToImage(e, false, requestPixelSnapping());
 		double xx = p.getX();
 		double yy = p.getY();
-		if (xx < 0 || yy < 0 || xx >= viewer.getServerWidth() || yy >= viewer.getServerHeight())
+		if (xx < 0 || yy < 0 || xx >= viewer.getServerWidth() || yy >= viewer.getServerHeight()) {
+			// Even if clicking outside the image, we want the brush to function when dragged inside the image
+			if (currentObject != null) {
+				this.currentObject = currentObject;
+				lastPoint = p;
+				// Ensure handles go away if we have an object
+				viewer.getROIEditor().setROI(null);
+			} else {
+				this.currentObject = null;
+			}
 			return;
+		}
 		
 //		boolean createNew = currentObject == null || !(currentObject instanceof PathAnnotationObject) || (currentObject.hasChildren()) || (PathPrefs.getBrushCreateNewObjects() && !ROIHelpers.areaContains(currentObject.getROI(), p.getX(), p.getY()) && !isSubtractMode(e));
 		boolean createNew = currentObject == null || 
-				PathPrefs.selectionModeProperty().get() || 
-				!(currentObject instanceof PathAnnotationObject) || 
-				(!currentObject.isEditable()) || 
-				currentObject.getROI().getZ() != viewer.getZPosition() || 
-				currentObject.getROI().getT() != viewer.getTPosition() ||
 				(!e.isShiftDown() && PathPrefs.brushCreateNewObjectsProperty().get() && !RoiTools.areaContains(currentObject.getROI(), p.getX(), p.getY()) && !isSubtractMode(e));
 		if (isSubtractMode(e))
 			createNew = false;
@@ -285,7 +298,7 @@ public class BrushTool extends AbstractPathROITool {
 		if (pathObject == null || !pathObject.isAnnotation() || !pathObject.isEditable())
 			return;
 		if (pathObject != currentObject) {
-			logger.warn("Selected object has changed from {} to {}", currentObject, pathObject);
+			logger.debug("Selected object has changed from {} to {}", currentObject, pathObject);
 			return;
 		}
 
@@ -314,7 +327,11 @@ public class BrushTool extends AbstractPathROITool {
 	
 	
 	private PathObject getUpdatedObject(MouseEvent e, ROI shapeROI, PathObject currentObject, double flatness) {
-		Point2D p = mouseLocationToImage(e, true, requestPixelSnapping());
+		Point2D p = mouseLocationToImage(e, false, requestPixelSnapping());
+		
+		// Don't do anything if outside the image bounds
+		if (p.getX() < 0 || p.getY() < 0 || p.getX() >= getViewer().getServerWidth() || p.getY() >= getViewer().getServerHeight())
+			return currentObject;
 		
 		var viewer = getViewer();
 		ImagePlane plane = shapeROI == null ? ImagePlane.getPlane(viewer.getZPosition(), viewer.getTPosition()) : shapeROI.getImagePlane();
@@ -391,7 +408,7 @@ public class BrushTool extends AbstractPathROITool {
 			PathObject pathObjectNew = PathObjects.createAnnotationObject(roiNew, PathPrefs.autoSetAnnotationClassProperty().get());
 			if (currentObject != null) {
 				pathObjectNew.setName(currentObject.getName());
-				pathObjectNew.setColorRGB(currentObject.getColorRGB());
+				pathObjectNew.setColor(currentObject.getColor());
 				pathObjectNew.setPathClass(currentObject.getPathClass());
 			}
 			return pathObjectNew;
@@ -412,8 +429,9 @@ public class BrushTool extends AbstractPathROITool {
 		if (e.isConsumed())
 			return;
 
-		if (currentObject != null)
+		if (currentObject != null) {
 			commitObjectToHierarchy(e, currentObject);
+		}
 		
 		lastPoint = null;
 		this.currentObject = null;

@@ -111,7 +111,7 @@ class ScriptFindCommand implements Runnable {
 			stage = null;
 		});
 		
-		var control = scriptEditor.getCurrentTextComponent();
+		var control = scriptEditor.getCurrentEditorControl();
 		
 		Button btPrevious = new Button("Previous");
 		Button btClose = new Button("Close");
@@ -162,19 +162,19 @@ class ScriptFindCommand implements Runnable {
 		});
 		
 		btNext.setOnAction(e -> findNextAction(true));
-		btPrevious.setOnAction(e -> findPrevious(scriptEditor.getCurrentTextComponent(), tfFind.getText(), cbIgnoreCase.isSelected()));
+		btPrevious.setOnAction(e -> findPrevious(scriptEditor.getCurrentEditorControl(), tfFind.getText(), cbIgnoreCase.isSelected()));
 		btNext.disableProperty().bind(tfFind.textProperty().isEmpty());
 		btPrevious.disableProperty().bind(tfFind.textProperty().isEmpty());
 		btReplaceNext.disableProperty().bind(tfFind.textProperty().isEmpty()
 				.or(Bindings.createBooleanBinding(() -> {
 					if (cbIgnoreCase.isSelected())
-						return !tfFind.getText().toLowerCase().equals(scriptEditor.getCurrentTextComponent().selectedTextProperty().getValue().toLowerCase());
-					return !tfFind.getText().equals(scriptEditor.getCurrentTextComponent().selectedTextProperty().getValue());
+						return !tfFind.getText().toLowerCase().equals(scriptEditor.getCurrentEditorControl().selectedTextProperty().getValue().toLowerCase());
+					return !tfFind.getText().equals(scriptEditor.getCurrentEditorControl().selectedTextProperty().getValue());
 				}, control.selectedTextProperty(), cbIgnoreCase.selectedProperty(), tfFind.textProperty())));
 		btReplaceAll.disableProperty().bind(tfFind.textProperty().isEmpty());
 		
 		btReplaceNext.setOnAction(e -> {
-			var controlTemp = scriptEditor.getCurrentTextComponent();
+			var controlTemp = scriptEditor.getCurrentEditorControl();
 			replaceFind(controlTemp, tfFind.getText(), cbIgnoreCase.isSelected());
 			if (!controlTemp.getText().contains(tfFind.getText())) {
 				// Remove focus-looking effect on 'Next' button
@@ -182,7 +182,7 @@ class ScriptFindCommand implements Runnable {
 				btNext.pseudoClassStateChanged(PseudoClassState.getPseudoClass("focused"), true);
 			}
 		});
-		btReplaceAll.setOnAction(e -> replaceAll(scriptEditor.getCurrentTextComponent(), tfFind.getText(), cbIgnoreCase.isSelected()));
+		btReplaceAll.setOnAction(e -> replaceAll(scriptEditor.getCurrentEditorControl(), tfFind.getText(), cbIgnoreCase.isSelected()));
 		btClose.setOnAction(e -> stage.hide());
 		
 		pane.setPadding(new Insets(10.0, 10.0, 10.0, 10.0));
@@ -196,7 +196,7 @@ class ScriptFindCommand implements Runnable {
 	}
 	
 	private void findNextAction(boolean btNextFocus) {
-		int found = findNext(scriptEditor.getCurrentTextComponent(), tfFind.getText(), cbIgnoreCase.isSelected());
+		int found = findNext(scriptEditor.getCurrentEditorControl(), tfFind.getText(), cbIgnoreCase.isSelected());
 		lbFoundOccurrences.setText(found == -1 ? "String not found" : "");
 		lbReplacedOccurrences.setText("");
 		btNext.pseudoClassStateChanged(PseudoClassState.getPseudoClass("focused"), btNextFocus);

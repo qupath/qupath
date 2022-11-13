@@ -47,8 +47,6 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.PixelType;
 import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.classes.PathClassFactory;
-import qupath.lib.objects.classes.PathClassFactory.StandardPathClasses;
 import qupath.lib.objects.classes.PathClassTools;
 
 /**
@@ -87,12 +85,12 @@ public final class ColorModelFactory {
         
         for (var entry: channels.entrySet()) {
     		var pathClass = entry.getValue();
-    		if (pathClass == null || pathClass == PathClassFactory.getPathClassUnclassified()) {
+    		if (pathClass == null || pathClass == PathClass.NULL_CLASS) {
     			cmap[entry.getKey()] = ColorTools.packARGB(0, 255, 255, 255);
     		} else if (PathClassTools.isIgnoredClass(entry.getValue())) {
         		var color = pathClass == null ? 0 : pathClass.getColor();
         		int alpha = 192;
-        		if (pathClass == PathClassFactory.getPathClass(StandardPathClasses.IGNORE))
+        		if (pathClass == PathClass.StandardPathClasses.IGNORE)
         			alpha = 32;
             	cmap[entry.getKey()] = ColorTools.packARGB(alpha, ColorTools.red(color), ColorTools.green(color), ColorTools.blue(color));
         	} else
@@ -152,7 +150,7 @@ public final class ColorModelFactory {
      * @return
      */
     public static IndexColorModel createIndexedColorModel8bit(ColorMap map, int transparentPixel) {
-    	Objects.nonNull(map);
+    	Objects.requireNonNull(map);
     	return new IndexColorModel(8, 256, ColorMaps.getColors(map, 256, false), 0, false, transparentPixel, DataBuffer.TYPE_BYTE);
     }
     
@@ -181,7 +179,7 @@ public final class ColorModelFactory {
      * @return
      */
     public static ColorModel createColorModel(PixelType pixelType, ColorMap map, int band, double min, double max, int alphaChannel, DoubleToIntFunction alphaFun) {
-    	Objects.nonNull(map);
+    	Objects.requireNonNull(map);
     	if (alphaFun == null && alphaChannel >= 0)
     		alphaFun = createLinearFunction(pixelType);
     	return new ColorMapModel(pixelType, map, band, min, max, alphaChannel, alphaFun);

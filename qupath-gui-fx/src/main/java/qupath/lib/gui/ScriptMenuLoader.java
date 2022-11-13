@@ -29,6 +29,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
+import javax.script.ScriptException;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,12 +40,8 @@ import javafx.beans.value.ObservableStringValue;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.SeparatorMenuItem;
-import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.scripting.DefaultScriptEditor;
-import qupath.lib.gui.scripting.languages.RunnableLanguage;
-import qupath.lib.gui.scripting.languages.ScriptLanguage;
-import qupath.lib.gui.scripting.languages.ScriptLanguageProvider;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.MenuTools;
 
@@ -203,19 +201,14 @@ class ScriptMenuLoader {
 					if (scriptEditor != null)
 						scriptEditor.showScript(scriptFile);
 					else {
-						ScriptLanguage language = ScriptLanguageProvider.fromString(scriptFile.getName());
-						if (!(language instanceof RunnableLanguage))
-							return;
+						var qupath = QuPathGUI.getInstance();
 						try {
-							String script = GeneralTools.readFileAsString(scriptFile.getAbsolutePath());
-							var qupath = QuPathGUI.getInstance();
-							DefaultScriptEditor.executeScript((RunnableLanguage)language, script, qupath.getProject(), qupath.getImageData(), true, null);
-						} catch (Exception e2) {
-							Dialogs.showErrorMessage("Script error", e2);
+							qupath.runScript(scriptFile, null);
+						} catch (IllegalArgumentException | ScriptException e1) {
+							Dialogs.showErrorNotification("Run script", e1.getLocalizedMessage());
+							logger.error(e1.getLocalizedMessage(), e);
 						}
 					}
-					
-//					scriptEditor.showScript(path.toFile());
 				});
 				menu.getItems().add(item);
 			}

@@ -2,9 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
- * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2022 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -24,6 +22,10 @@
 package qupath.lib.gui.scripting.languages;
 
 import java.util.ServiceLoader;
+import java.util.Set;
+
+import qupath.lib.scripting.languages.ScriptAutoCompletor;
+import qupath.lib.scripting.languages.ScriptLanguage;
 
 /**
  * Class for the representation of JSON syntax in QuPath.
@@ -39,8 +41,7 @@ public class JsonLanguage extends ScriptLanguage {
 	 */
 	private static JsonLanguage INSTANCE;
 	
-	private ScriptSyntax syntax;
-	private ScriptAutoCompletor completor;
+	private ScriptAutoCompletor completor = null;
 	
 	/**
 	 * Constructor for JSON language. This constructor should never be 
@@ -49,9 +50,7 @@ public class JsonLanguage extends ScriptLanguage {
 	 * Note: this has to be public for the {@link ServiceLoader} to work.
 	 */
 	public JsonLanguage() {
-		super("JSON", new String[]{".json", ".geojson"});
-		this.syntax = JsonSyntax.getInstance();
-		this.completor = new PlainAutoCompletor();
+		super("JSON", Set.of(".json", ".geojson"));
 		
 		if (INSTANCE != null)
 			throw new UnsupportedOperationException("Language classes cannot be instantiated more than once!");
@@ -66,11 +65,6 @@ public class JsonLanguage extends ScriptLanguage {
 	 */
 	public static JsonLanguage getInstance() {
 		return INSTANCE;
-	}
-	
-	@Override
-	public ScriptSyntax getSyntax() {
-		return syntax;
 	}
 
 	@Override

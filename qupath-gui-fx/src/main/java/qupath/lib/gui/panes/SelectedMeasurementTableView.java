@@ -246,13 +246,13 @@ public class SelectedMeasurementTableView implements PathObjectSelectionListener
 			ImageData<BufferedImage> imageDataNew) {
 		if (this.imageData != null) {
 			this.imageData.removePropertyChangeListener(this);
-			this.imageData.getHierarchy().removePathObjectListener(this);
+			this.imageData.getHierarchy().removeListener(this);
 			this.imageData.getHierarchy().getSelectionModel().removePathObjectSelectionListener(this);
 		}
 		this.imageData = imageDataNew;
 		if (this.imageData != null) {
 			this.imageData.addPropertyChangeListener(this);
-			this.imageData.getHierarchy().addPathObjectListener(this);
+			this.imageData.getHierarchy().addListener(this);
 			this.imageData.getHierarchy().getSelectionModel().addPathObjectSelectionListener(this);
 		}
 		logger.trace("Image data set to {}", imageData);

@@ -167,7 +167,7 @@ public class UpdateChecker {
 			etag = headers.firstValue("ETag").orElse(null);
 			lastModified = headers.firstValue("Last-Modified").orElse(null);
 //				String limitRemaining = headers.firstValue("X-RateLimit-Remaining").orElse(null);
-			latestVersion = ReleaseVersion.create(name, release.getVersion(), release.getUri());
+			latestVersion = ReleaseVersion.create(name, release.getVersion(), release.getURI());
 			etagMap.put(uri, etag);
 			lastModifiedMap.put(uri, lastModified);
 			latestVersionMap.put(uri, latestVersion);
@@ -280,7 +280,7 @@ public class UpdateChecker {
 			return version;
 		}
 		
-		public synchronized URI getUri() {
+		public synchronized URI getURI() {
 			try {
 				return html_url == null ? null : html_url.toURI();
 			} catch (URISyntaxException e) {

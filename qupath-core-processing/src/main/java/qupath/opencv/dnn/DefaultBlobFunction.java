@@ -103,17 +103,17 @@ class DefaultBlobFunction implements BlobFunction<Mat>, UriResource {
 	}
 
 	@Override
-	public Collection<URI> getUris() throws IOException {
+	public Collection<URI> getURIs() throws IOException {
 		if (preprocessing == null)
 			return Collections.emptyList();
-		return preprocessing.getUris();
+		return preprocessing.getURIs();
 	}
 
 	@Override
-	public boolean updateUris(Map<URI, URI> replacements) throws IOException {
+	public boolean updateURIs(Map<URI, URI> replacements) throws IOException {
 		if (preprocessing == null)
 			return false;
-		return preprocessing.updateUris(replacements);
+		return preprocessing.updateURIs(replacements);
 	}
 	
 }

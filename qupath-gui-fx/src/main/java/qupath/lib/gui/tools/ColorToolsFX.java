@@ -226,7 +226,7 @@ public class ColorToolsFX {
 	 */
 	public static Integer getDisplayedColorARGB(final PathObject pathObject) {
 		// Check if any color has been set - if so, return it
-		Integer color = pathObject.getColorRGB();
+		Integer color = pathObject.getColor();
 		if (color != null)
 			return color;
 		// Check if any class has been set, if so then use its color

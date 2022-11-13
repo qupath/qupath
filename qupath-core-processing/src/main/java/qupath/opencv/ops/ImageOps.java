@@ -165,8 +165,8 @@ public class ImageOps {
 	 * @param label an identifying label; that this must be unique. If it does not start with "op." a warning will be logged.
 	 */
 	public static void registerOp(Class<? extends ImageOp> cls, String label) {
-		Objects.nonNull(cls);
-		Objects.nonNull(label);
+		Objects.requireNonNull(cls);
+		Objects.requireNonNull(label);
 		logger.debug("Registering ImageOp {} with label {}", cls, label);
 		if (!label.startsWith("op."))
 			logger.warn("ImageOp label '{}' does not begin with 'op.'", label);
@@ -182,8 +182,8 @@ public class ImageOps {
 	 * @param label an identifying label; that this must be unique. If it does not start with "data.op." a warning will be logged.
 	 */
 	public static void registerDataOp(Class<? extends ImageDataOp> cls, String label) {
-		Objects.nonNull(cls);
-		Objects.nonNull(label);
+		Objects.requireNonNull(cls);
+		Objects.requireNonNull(label);
 		logger.debug("Registering ImageOp {} with label {}", cls, label);
 		if (!label.startsWith("data.op."))
 			logger.warn("ImageDataOp label '{}' does not begin with 'data.op.'", label);
@@ -313,7 +313,7 @@ public class ImageOps {
 		public Mat apply(ImageData<BufferedImage> imageData, RegionRequest request) throws IOException {
 			BufferedImage img;
 			if (op == null) {
-				img = imageData.getServer().readBufferedImage(request);
+				img = imageData.getServer().readRegion(request);
 				return OpenCVTools.imageToMat(img);
 			} else {
 				var padding = op.getPadding();
@@ -363,15 +363,15 @@ public class ImageOps {
 		}
 		
 		@Override
-		public Collection<URI> getUris() throws IOException {
-			return op == null ? Collections.emptyList() : op.getUris();
+		public Collection<URI> getURIs() throws IOException {
+			return op == null ? Collections.emptyList() : op.getURIs();
 		}
 
 		@Override
-		public boolean updateUris(Map<URI, URI> replacements) throws IOException {
+		public boolean updateURIs(Map<URI, URI> replacements) throws IOException {
 			if (op == null)
 				return false;
-			return op.updateUris(replacements);
+			return op.updateURIs(replacements);
 		}
 		
 	}
@@ -401,7 +401,7 @@ public class ImageOps {
 		public Mat apply(ImageData<BufferedImage> imageData, RegionRequest request) throws IOException {
 			BufferedImage img;
 			if (op == null)
-				img = imageData.getServer().readBufferedImage(request);
+				img = imageData.getServer().readRegion(request);
 			else
 				img = ServerTools.getPaddedRequest(imageData.getServer(), request, op.getPadding());
 			
@@ -459,15 +459,15 @@ public class ImageOps {
 		}
 
 		@Override
-		public Collection<URI> getUris() throws IOException {
-			return op == null ? Collections.emptyList() : op.getUris();
+		public Collection<URI> getURIs() throws IOException {
+			return op == null ? Collections.emptyList() : op.getURIs();
 		}
 
 		@Override
-		public boolean updateUris(Map<URI, URI> replacements) throws IOException {
+		public boolean updateURIs(Map<URI, URI> replacements) throws IOException {
 			if (op == null)
 				return false;
-			return op.updateUris(replacements);
+			return op.updateURIs(replacements);
 		}
 		
 	}
@@ -2432,7 +2432,7 @@ public class ImageOps {
 			 * @throws IOException 
 			 */
 			@Override
-			public Collection<URI> getUris() throws IOException {
+			public Collection<URI> getURIs() throws IOException {
 				return getAllUris(ops.toArray(ImageOp[]::new));
 			}
 
@@ -2442,7 +2442,7 @@ public class ImageOps {
 			 * @return
 			 */
 			@Override
-			public boolean updateUris(Map<URI, URI> replacements) throws IOException {
+			public boolean updateURIs(Map<URI, URI> replacements) throws IOException {
 				return updateAllUris(replacements, ops.toArray(ImageOp[]::new));
 			}
 			
@@ -2527,7 +2527,7 @@ public class ImageOps {
 			 * @throws IOException 
 			 */
 			@Override
-			public Collection<URI> getUris() throws IOException {
+			public Collection<URI> getURIs() throws IOException {
 				return getAllUris(ops.toArray(ImageOp[]::new));
 			}
 
@@ -2537,7 +2537,7 @@ public class ImageOps {
 			 * @return
 			 */
 			@Override
-			public boolean updateUris(Map<URI, URI> replacements) throws IOException {
+			public boolean updateURIs(Map<URI, URI> replacements) throws IOException {
 				return updateAllUris(replacements, ops.toArray(ImageOp[]::new));
 			}
 
@@ -2553,7 +2553,7 @@ public class ImageOps {
 			private ImageOp op2;
 			
 			SplitCombineOp(ImageOp op1, ImageOp op2, SplitCombineType combine) {
-				Objects.nonNull(combine);
+				Objects.requireNonNull(combine);
 				if (op1 == null)
 					this.op1 = new IdentityOp();
 				else
@@ -2651,7 +2651,7 @@ public class ImageOps {
 			 * @throws IOException 
 			 */
 			@Override
-			public Collection<URI> getUris() throws IOException {
+			public Collection<URI> getURIs() throws IOException {
 				return getAllUris(op1, op2);
 			}
 
@@ -2661,7 +2661,7 @@ public class ImageOps {
 			 * @return
 			 */
 			@Override
-			public boolean updateUris(Map<URI, URI> replacements) throws IOException {
+			public boolean updateURIs(Map<URI, URI> replacements) throws IOException {
 				return updateAllUris(replacements, op1, op2);
 			}
 
@@ -2865,9 +2865,9 @@ public class ImageOps {
 			 * @throws IOException 
 			 */
 			@Override
-			public Collection<URI> getUris() throws IOException {
+			public Collection<URI> getURIs() throws IOException {
 				if (model instanceof UriResource)
-					return ((UriResource)model).getUris();
+					return ((UriResource)model).getURIs();
 				return Collections.emptyList();
 			}
 
@@ -2877,9 +2877,9 @@ public class ImageOps {
 			 * @return
 			 */
 			@Override
-			public boolean updateUris(Map<URI, URI> replacements) throws IOException {
+			public boolean updateURIs(Map<URI, URI> replacements) throws IOException {
 				if (model instanceof UriResource)
-					return ((UriResource)model).updateUris(replacements);
+					return ((UriResource)model).updateURIs(replacements);
 				return false;
 			}
 			
@@ -3110,7 +3110,7 @@ public class ImageOps {
 	static Collection<URI> getAllUris(UriResource...items) throws IOException {
 		var list = new LinkedHashSet<URI>();
 		for (var item : items) {
-			list.addAll(item.getUris());
+			list.addAll(item.getURIs());
 		}
 		return list;
 	}
@@ -3119,7 +3119,7 @@ public class ImageOps {
 	static boolean updateAllUris(Map<URI, URI> replacements, UriResource...items) throws IOException {
 		var changes = false;
 		for (var item : items) {
-			changes = changes | item.updateUris(replacements);
+			changes = changes | item.updateURIs(replacements);
 		}
 		return changes;
 	}

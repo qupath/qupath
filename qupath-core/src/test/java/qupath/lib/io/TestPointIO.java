@@ -40,7 +40,7 @@ import org.junit.jupiter.api.TestMethodOrder;
 import qupath.lib.geom.Point2;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
-import qupath.lib.objects.classes.PathClassFactory;
+import qupath.lib.objects.classes.PathClass;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
@@ -139,15 +139,15 @@ public class TestPointIO {
 			PathObject pathObject = PathObjects.createAnnotationObject(points);
 
 			if (entry.getKey() == 3)
-				pathObject.setPathClass(PathClassFactory.getPathClass("Other"));
+				pathObject.setPathClass(PathClass.getInstance("Other"));
 			if (entry.getKey() == 4)
 				pathObject.setName("foo");
 			else if (entry.getKey() == 5) {
-				pathObject.setPathClass(PathClassFactory.getPathClass("Tumor"));
+				pathObject.setPathClass(PathClass.getInstance("Tumor"));
 				pathObject.setName("bar");
 			}
 			
-			pathObject.setColorRGB(colors[entry.getKey()-1]);
+			pathObject.setColor(colors[entry.getKey()-1]);
 			pathObjects.add(pathObject);
 		}
 

@@ -58,7 +58,7 @@ public class QuPathApp extends Application {
 		
 		// Create main GUI
 		boolean quiet = Boolean.valueOf(namedParams.getOrDefault("quiet", null));
-		QuPathGUI gui = new QuPathGUI(getHostServices(), stage, null, true, quiet);
+		QuPathGUI qupath = new QuPathGUI(getHostServices(), stage, null, true, quiet);
 		logger.info("Starting QuPath with parameters: " + params.getRaw());
 		
 		// Try to open a project and/or image, if possible
@@ -71,36 +71,29 @@ public class QuPathApp extends Application {
 			try {
 				var uri = GeneralTools.toURI(projectPath);
 				var project = ProjectIO.loadProject(uri, BufferedImage.class);
-				gui.setProject(project);
+				qupath.setProject(project);
 				// If the project is specified, try to open the named image within the project
 				if (imagePath != null) {
 					var entry = project.getImageList().stream().filter(p -> imagePath.equals(p.getImageName())).findFirst().orElse(null);
 					if (entry == null) {
 						logger.warn("No image found in project with name {}", imagePath);
 					} else
-						gui.openImageEntry(entry);
+						qupath.openImageEntry(entry);
 				}
 			} catch (IOException e2) {
 				logger.error("Unable to open project " + projectPath, e2);
 			}
 		} else if (imagePath != null) {
-			gui.openImage(imagePath, false, false);
+			qupath.openImage(imagePath, false, false);
 		}
 		
-		registerFileHandler(gui);
-		gui.updateCursor();
+		registerFileHandler(qupath);
+		qupath.updateCursor();
 		
-		// Show setup if required, and if we haven't an argument specifying to skip
-		// Store a value indicating the setup version... this means we can enforce running 
-		// setup at a later date with a later version if new and necessary options are added
-		int currentSetup = 1;
-		int lastSetup = PathPrefs.getUserPreferences().getInt("qupathSetupValue", -1);
-		if (!quiet && lastSetup != currentSetup) {
+		// Show setup if required
+		if (!quiet && PathPrefs.showStartupMessageProperty().get()) {
 			Platform.runLater(() -> {
-				if (gui.showSetupDialog()) {
-					PathPrefs.getUserPreferences().putInt("qupathSetupValue", currentSetup);
-					PathPrefs.savePreferences();
-				}
+				WelcomeStage.getInstance(qupath).show();
 			});
 		}
 		

@@ -23,8 +23,11 @@ package qupath.lib.awt.common;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+
 import java.awt.Color;
 import java.awt.Image;
+import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBuffer;
 import java.awt.image.DataBufferByte;
@@ -171,7 +174,7 @@ public class TestBufferedImageTools {
 	
 	
 	private static BufferedImage createEllipseImage(int width, int height, int type, Color bg, Color fg) {
-		var img = new BufferedImage(250, 250, BufferedImage.TYPE_BYTE_GRAY);
+		var img = new BufferedImage(width, height, BufferedImage.TYPE_BYTE_GRAY);
 		var g2d = img.createGraphics();
 		if (bg != null) {
 			g2d.setColor(bg);
@@ -471,8 +474,9 @@ public class TestBufferedImageTools {
 	public void test_unsignedIntHistogram() {
 		Random random = new Random(0);
 		long[] manualCount = new long[Short.MAX_VALUE*2 + 2];
+		long[] manualCountNoMask = new long[Short.MAX_VALUE*2 + 2];
 		long[] counts = new long[Short.MAX_VALUE*2 + 2];
-		var img = new BufferedImage(250, 250, BufferedImage.TYPE_USHORT_GRAY);
+		var img = new BufferedImage(300, 250, BufferedImage.TYPE_USHORT_GRAY);
 		var imgMask = createEllipseMask(img.getWidth(), img.getHeight());
 		
 		var raster = img.getRaster();
@@ -482,22 +486,37 @@ public class TestBufferedImageTools {
 			raster.getDataBuffer().setElem(i, value);
 			if (imgMask.getRaster().getSample(i % w, i / w, 0) != 0)
 				manualCount[value] += 1;
+			manualCountNoMask[value] += 1;
 		}
 
 		BufferedImageTools.computeUnsignedIntHistogram(img.getRaster(), counts, imgMask.getRaster());
 		var hist1 = BufferedImageTools.computeUnsignedIntHistogram(img.getRaster(), null, imgMask.getRaster());
+		var hist2 = BufferedImageTools.computeUnsignedIntHistogram(img.getRaster(), null, imgMask.getRaster(), new Rectangle(imgMask.getWidth(), imgMask.getHeight()));
 		assertArrayEquals(counts, hist1);
-		assertArrayEquals(manualCount, hist1);
+		assertArrayEquals(counts, hist2);
+		assertArrayEquals(manualCount, counts);
+		
+		// Different histograms using rectangles
+		var histDifferent1 = BufferedImageTools.computeUnsignedIntHistogram(img.getRaster(), null, imgMask.getRaster(), new Rectangle(1, 1, imgMask.getWidth()-1, imgMask.getHeight()-1));
+		var histDifferent2 = BufferedImageTools.computeUnsignedIntHistogram(img.getRaster(), null, null, new Rectangle(0, 0, imgMask.getWidth()-2, imgMask.getHeight()-2));
+		assertFalse(Arrays.equals(counts, histDifferent1));
+		assertFalse(Arrays.equals(counts, histDifferent2));
+		assertFalse(Arrays.equals(histDifferent1, histDifferent2));
+		
+		// Compare without mask
+		assertFalse(Arrays.equals(counts, manualCountNoMask));
+		var histNoMask = BufferedImageTools.computeUnsignedIntHistogram(img.getRaster(), null, null);
+		assertArrayEquals(manualCountNoMask, histNoMask);
 	}
 	
 	@Test
 	public void test_computeArgMaxHistogram() {
-		var img = new BufferedImage(250, 250, BufferedImage.TYPE_INT_RGB);
+		var img = new BufferedImage(250, 280, BufferedImage.TYPE_INT_RGB);
 		var imgMask = createEllipseMask(img.getWidth(), img.getHeight());
 		
-		int[] data = new SplittableRandom(0).ints(3*250*250, 0, 256).toArray();
+		int[] data = new SplittableRandom(0).ints(3*img.getWidth()*img.getHeight(), 0, 256).toArray();
 		var raster = img.getRaster();
-	    raster.setPixels(0, 0, 250, 250, data);
+	    raster.setPixels(0, 0, img.getWidth(), img.getHeight(), data);
 		int nBands = raster.getNumBands();
 		
 		long[] manualCount = new long[nBands];
@@ -544,10 +563,10 @@ public class TestBufferedImageTools {
 	
 	@Test
 	public void test_computeAboveThresholdCounts() {
-		var img = new BufferedImage(250, 250, BufferedImage.TYPE_INT_RGB);
-		int[] data = new SplittableRandom(0).ints(3*250*250, 0, 256).toArray();
+		var img = new BufferedImage(220, 150, BufferedImage.TYPE_INT_RGB);
+		int[] data = new SplittableRandom(0).ints(3*img.getWidth()*img.getHeight(), 0, 256).toArray();
 		var raster = img.getRaster();
-		raster.setPixels(0, 0, 250, 250, data);
+		raster.setPixels(0, 0, img.getWidth(), img.getHeight(), data);
 		
 		var imgMask = createEllipseMask(img.getWidth(), img.getHeight());
 		

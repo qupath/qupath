@@ -67,8 +67,8 @@ class SimpleWrappedImageServer<T> implements ImageServer<T>, PathObjectReader {
 	}
 
 	@Override
-	public T readBufferedImage(RegionRequest request) throws IOException {
-		return server.readBufferedImage(request);
+	public T readRegion(RegionRequest request) throws IOException {
+		return server.readRegion(request);
 	}
 
 	@Override

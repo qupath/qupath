@@ -135,7 +135,7 @@ public class QuPath_Send_Overlay_to_QuPath implements PlugIn {
 		List<PathObject> pathObjects = createObjectsFromROIs(imp, rois, downsample, asDetection, includeMeasurements, plane);
 		if (!pathObjects.isEmpty()) {
 			Platform.runLater(() -> {
-				hierarchy.addPathObjects(pathObjects);
+				hierarchy.addObjects(pathObjects);
 				// Select the objects, e.g. so they can be classified or otherwise updated easily
 				if (selectObjects)
 					hierarchy.getSelectionModel().selectObjects(pathObjects);
@@ -205,7 +205,7 @@ public class QuPath_Send_Overlay_to_QuPath implements PlugIn {
 					for (String h : headings) {
 						if ("Label".equals(h))
 							continue;
-						ml.putMeasurement(h, rt.getValue(h, row));
+						ml.put(h, rt.getValue(h, row));
 					}
 					ml.close();
 				}

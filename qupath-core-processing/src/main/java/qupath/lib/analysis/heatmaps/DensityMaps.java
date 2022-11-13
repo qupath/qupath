@@ -62,8 +62,6 @@ import qupath.lib.objects.PathObjectPredicates.PathObjectPredicate;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.classes.PathClassFactory;
-import qupath.lib.objects.classes.PathClassFactory.StandardPathClasses;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.projects.Project;
 import qupath.lib.regions.ImagePlane;
@@ -268,12 +266,12 @@ public class DensityMaps {
 		private ColorModelBuilder colorModelBuilder = null;
 		
 		private DensityMapBuilder(DensityMapParameters params) {
-			Objects.nonNull(params);
+			Objects.requireNonNull(params);
 			this.params = new DensityMapParameters(params);
 		}
 		
 		private DensityMapBuilder(PathObjectPredicate allObjects) {
-			Objects.nonNull(allObjects);
+			Objects.requireNonNull(allObjects);
 			params = new DensityMapParameters();
 			params.mainObjectFilter = allObjects;
 		}
@@ -497,8 +495,8 @@ public class DensityMaps {
 		logger.debug("Thresholding {} with thresholds {}, options", densityServer, thresholds, Arrays.asList(options));
 
 		// Apply threshold to densities
-		PathClass lessThan = PathClassFactory.getPathClass(StandardPathClasses.IGNORE);
-		PathClass greaterThan = PathClassFactory.getPathClass(pathClassName);
+		PathClass lessThan = PathClass.StandardPathClasses.IGNORE;
+		PathClass greaterThan = PathClass.fromString(pathClassName);
 		
 		// If we request to delete existing objects, apply this only to annotations with the target class
 		var optionsList = Arrays.asList(options);
@@ -601,7 +599,7 @@ public class DensityMaps {
 				// Read the image
 				var plane = roi.getImagePlane();
 				RegionRequest request = RegionRequest.createInstance(densityServer.getPath(), downsample, 0, 0, densityServer.getWidth(), densityServer.getHeight(), plane.getZ(), plane.getT());
-				var img = densityServer.readBufferedImage(request);
+				var img = densityServer.readRegion(request);
 								
 				// Create a mask
 				var imgMask = BufferedImageTools.createROIMask(img.getWidth(), img.getHeight(), roiEroded, request);
@@ -669,7 +667,7 @@ public class DensityMaps {
 				else if (hotspots.size() < nHotspots) {
 					logger.warn("Only {}/{} hotspots could be found in {}", hotspots.size(), nHotspots, parent);
 				}
-				parent.addPathObjects(hotspots);
+				parent.addChildObjects(hotspots);
 			}
 			
 			hierarchy.fireHierarchyChangedEvent(DensityMaps.class);

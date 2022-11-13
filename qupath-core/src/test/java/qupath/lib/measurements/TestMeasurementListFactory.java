@@ -61,7 +61,7 @@ public class TestMeasurementListFactory {
 			map.put(name, val);
 			names.add(name);
 			// We can use addMeasurement because it's empty
-			list.addMeasurement(name, val);
+			list.put(name, val);
 		}
 		
 		// Change same names
@@ -93,7 +93,7 @@ public class TestMeasurementListFactory {
 			if (!names.contains(name))
 				names.add(name);
 			// We need to use putMeasurement because it's probably not empty
-			list.putMeasurement(name, val);
+			list.put(name, val);
 		}
 		
 		Collections.shuffle(names, rand);
@@ -113,7 +113,7 @@ public class TestMeasurementListFactory {
 	static boolean checkAgreement(MeasurementList list, Map<String, Double> map, Collection<String> namesToCheck) {
 		double eps = 1e-4;
 		for (String name : namesToCheck) {
-			assertEquals(map.get(name), list.getMeasurementValue(name), eps);
+			assertEquals(map.get(name), list.get(name), eps);
 		}
 		return true;
 	}

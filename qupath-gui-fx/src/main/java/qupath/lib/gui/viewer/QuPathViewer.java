@@ -1528,7 +1528,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		// Remove listeners for previous hierarchy
 		ImageData<BufferedImage> imageDataOld = this.imageDataProperty.get();
 		if (imageDataOld != null) {
-			imageDataOld.getHierarchy().removePathObjectListener(this);
+			imageDataOld.getHierarchy().removeListener(this);
 			imageDataOld.getHierarchy().getSelectionModel().removePathObjectSelectionListener(this);
 		}
 		
@@ -1616,7 +1616,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 		if (imageDataNew != null) {
 			//			hierarchyPainter = new PathHierarchyPainter(hierarchy);
-			hierarchy.addPathObjectListener(this);
+			hierarchy.addListener(this);
 			hierarchy.getSelectionModel().addPathObjectSelectionListener(this);
 		}
 
@@ -3184,8 +3184,11 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 		@Override
 		public void handle(KeyEvent event) {
+			if (event.isConsumed())
+				return;
+
 			KeyCode code = event.getCode();
-			
+						
 			// Handle backspace/delete to remove selected object
 			if (event.getEventType() == KeyEvent.KEY_RELEASED && (code == KeyCode.BACK_SPACE || code == KeyCode.DELETE)) {
 				if (getROIEditor().hasActiveHandle() || getROIEditor().isTranslating()) {
@@ -3309,11 +3312,15 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 				if (event.isShiftDown()) {
 					switch (code) {
 					case UP:
-						zoomIn(10);
+						// I'm afraid this is a hack to avoid 
+						// zooming in on the shortcut to show recent commands
+						if (!event.isShortcutDown())
+							zoomIn(10);
 						event.consume();
 						return;
 					case DOWN:
-						zoomOut(10);
+						if (!event.isShortcutDown())
+							zoomOut(10);
 						event.consume();
 						return;
 					default:

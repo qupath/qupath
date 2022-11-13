@@ -47,7 +47,6 @@ import qupath.lib.objects.PathROIObject;
 import qupath.lib.objects.PathTileObject;
 import qupath.lib.objects.TemporaryObject;
 import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.plugins.AbstractTileableDetectionPlugin.ParallelDetectionTileManager;
 import qupath.lib.regions.ImageRegion;
@@ -84,13 +83,13 @@ public class ParallelTileObject extends PathTileObject implements TemporaryObjec
 		 */
 		DONE }
 	
-	private static PathClass pathClassPending = PathClassFactory.getPathClass(
+	private static PathClass pathClassPending = PathClass.getInstance(
 			"Tile-Pending", ColorTools.packRGB(50, 50, 200));
 
-	private static PathClass pathClassProcessing = PathClassFactory.getPathClass(
+	private static PathClass pathClassProcessing = PathClass.getInstance(
 			"Tile-Processing", ColorTools.packRGB(50, 200, 50));
 
-	private static PathClass pathClassDone = PathClassFactory.getPathClass(
+	private static PathClass pathClassDone = PathClass.getInstance(
 			"Tile-Done", ColorTools.packRGB(100, 20, 20));
 
 	private ParallelDetectionTileManager manager;
@@ -109,7 +108,7 @@ public class ParallelTileObject extends PathTileObject implements TemporaryObjec
 		this.bounds = getBounds2D(pathROI);
 		this.hierarchy = hierarchy;
 		this.countdown = countdown;
-		setColorRGB(ColorTools.packRGB(128, 128, 128));
+		setColor(ColorTools.packRGB(128, 128, 128));
 	}
 
 
@@ -136,7 +135,7 @@ public class ParallelTileObject extends PathTileObject implements TemporaryObjec
 	 * @param status
 	 */
 	public synchronized void updateStatus(Status status) {
-		Objects.nonNull(status);
+		Objects.requireNonNull(status);
 		this.status = status;
 		switch(status) {
 		case DONE:
@@ -294,12 +293,12 @@ public class ParallelTileObject extends PathTileObject implements TemporaryObjec
 					double threshold = 0.1;
 					if (firstArea >= secondArea) {
 						if (intersectionArea / secondArea > threshold) {
-							second.removePathObject(secondObject);
+							second.removeChildObject(secondObject);
 							nRemoved++;
 						}
 					} else {
 						if (intersectionArea / firstArea > threshold) {
-							first.removePathObject(firstObject);
+							first.removeChildObject(firstObject);
 							nRemoved++;
 							break;
 						}
@@ -356,11 +355,11 @@ public class ParallelTileObject extends PathTileObject implements TemporaryObjec
 						parallelObjects.add(temp);
 					}
 				}
-				parent.removePathObjects(parallelObjects);
+				parent.removeChildObjects(parallelObjects);
 				for (PathObject temp : parallelObjects)
-					parent.addPathObjects(temp.getChildObjects());
+					parent.addChildObjects(temp.getChildObjects());
 
-				if (parent.hasChildren() && parent instanceof PathROIObject)
+				if (parent.hasChildObjects() && parent instanceof PathROIObject)
 					((PathROIObject)parent).setLocked(true);
 
 				hierarchy.fireHierarchyChangedEvent(parent);

@@ -25,6 +25,10 @@ package qupath.lib.regions;
 
 import java.util.Collection;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import qupath.lib.common.LogTools;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
@@ -36,6 +40,8 @@ import qupath.lib.roi.interfaces.ROI;
  *
  */
 public class ImageRegion {
+	
+	private static final Logger logger = LoggerFactory.getLogger(ImageRegion.class);
 	
 	private final int x;
 	private final int y;
@@ -255,9 +261,21 @@ public class ImageRegion {
 	/**
 	 * Get the z-slice and time point for this region as an {@link ImagePlane}.
 	 * @return
+	 * @since v0.4.0 (replaces {@link #getPlane()} for better consistency with other classes)
 	 */
-	public ImagePlane getPlane() {
+	public ImagePlane getImagePlane() {
 		return ImagePlane.getPlane(getZ(), getT());
+	}
+	
+	/**
+	 * Get the z-slice and time point for this region as an {@link ImagePlane}.
+	 * @return
+	 * @deprecated v0.4.0 use {@link #getImagePlane()} instead (changed for better consistency with other classes)
+	 */
+	@Deprecated
+	public ImagePlane getPlane() {
+		LogTools.warnOnce(logger, getClass().getSimpleName() + ".getPlane() is deprecated in v0.4.0 - use getImagePlane() instead");
+		return getImagePlane();
 	}
 	
 	/* (non-Javadoc)

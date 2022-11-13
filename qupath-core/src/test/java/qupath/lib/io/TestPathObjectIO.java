@@ -46,7 +46,7 @@ import qupath.lib.measurements.MeasurementListFactory;
 import qupath.lib.objects.PathCellObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
-import qupath.lib.objects.classes.PathClassFactory;
+import qupath.lib.objects.classes.PathClass;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
@@ -83,10 +83,10 @@ public class TestPathObjectIO {
 		MeasurementList mlDetection = MeasurementListFactory.createMeasurementList(16, MeasurementList.MeasurementListType.GENERAL);
 		MeasurementList mlCell = MeasurementListFactory.createMeasurementList(16, MeasurementList.MeasurementListType.GENERAL);
 		
-		PathObject myPDO = PathObjects.createDetectionObject(roiDetection, PathClassFactory.getPathClass("PathClassTest1", ColorTools.BLACK), mlDetection);
-		PathObject myPAO = PathObjects.createAnnotationObject(roiAnnotation, PathClassFactory.getPathClass("PathClassTest1", ColorTools.BLACK));
-		PathObject myPCO = PathObjects.createCellObject(roiCell1, roiCell2,	PathClassFactory.getPathClass("PathClassTest2", ColorTools.GREEN), mlCell);
-		PathObject myPTO = PathObjects.createTileObject(roiTile, PathClassFactory.getPathClass("PathClassTest2", ColorTools.GREEN), null);
+		PathObject myPDO = PathObjects.createDetectionObject(roiDetection, PathClass.getInstance("PathClassTest1", ColorTools.BLACK), mlDetection);
+		PathObject myPAO = PathObjects.createAnnotationObject(roiAnnotation, PathClass.getInstance("PathClassTest1", ColorTools.BLACK));
+		PathObject myPCO = PathObjects.createCellObject(roiCell1, roiCell2,	PathClass.getInstance("PathClassTest2", ColorTools.GREEN), mlCell);
+		PathObject myPTO = PathObjects.createTileObject(roiTile, PathClass.getInstance("PathClassTest2", ColorTools.GREEN), null);
 		PathObject myTMA = PathObjects.createTMACoreObject(25, 25, 25, false);
 		
 		Collection<PathObject> objs = Arrays.asList(myPDO, myPCO, myPAO, myPTO, myTMA);
@@ -95,10 +95,10 @@ public class TestPathObjectIO {
 		ByteArrayOutputStream bos = new ByteArrayOutputStream();
 		
 		// Add measurements
-		mlDetection.addMeasurement("TestMeasurement1", 5.0);
-		mlDetection.addMeasurement("TestMeasurement2", 10.0);
-		mlCell.addMeasurement("TestMeasurement3", 15.0);
-		mlCell.addMeasurement("TestMeasurement4", 20.0);
+		mlDetection.put("TestMeasurement1", 5.0);
+		mlDetection.put("TestMeasurement2", 10.0);
+		mlCell.put("TestMeasurement3", 15.0);
+		mlCell.put("TestMeasurement4", 20.0);
 		
 		// Export to GeoJSON
 		PathIO.exportObjectsAsGeoJSON(bos, objs, options);
@@ -117,17 +117,17 @@ public class TestPathObjectIO {
 			assertTrue(po.hasROI());
 			
 			assertNotNull(po.getROI());
-			assertNotNull(po.getId());
+			assertNotNull(po.getID());
 			
 			if (po.isTile()) {
-				assertEquals(po.getPathClass(), PathClassFactory.getPathClass("PathClassTest2", ColorTools.GREEN));
-				assertEquals(po.getId(), myPTO.getId());
+				assertEquals(po.getPathClass(), PathClass.getInstance("PathClassTest2", ColorTools.GREEN));
+				assertEquals(po.getID(), myPTO.getID());
 				assertSameROIs(po.getROI(), roiTile);
 				assertFalse(po.hasMeasurements());
 				countCheck[0]++;
 			} else if (po.isCell()) {
-				assertEquals(po.getPathClass(), PathClassFactory.getPathClass("PathClassTest2", ColorTools.GREEN));
-				assertEquals(po.getId(), myPCO.getId());
+				assertEquals(po.getPathClass(), PathClass.getInstance("PathClassTest2", ColorTools.GREEN));
+				assertEquals(po.getID(), myPCO.getID());
 				assertSameROIs(po.getROI(), roiCell1);
 				assertSameROIs(((PathCellObject)po).getNucleusROI(), roiCell2);
 				if (keepMeasurements) {
@@ -137,8 +137,8 @@ public class TestPathObjectIO {
 					assertFalse(po.hasMeasurements());
 				countCheck[1]++;
 			} else if (po.isDetection()) {
-				assertEquals(po.getPathClass(), PathClassFactory.getPathClass("PathClassTest1", ColorTools.BLACK));
-				assertEquals(po.getId(), myPDO.getId());
+				assertEquals(po.getPathClass(), PathClass.getInstance("PathClassTest1", ColorTools.BLACK));
+				assertEquals(po.getID(), myPDO.getID());
 				assertSameROIs(po.getROI(), roiDetection);
 				if (keepMeasurements) {
 					assertTrue(po.hasMeasurements());
@@ -147,13 +147,13 @@ public class TestPathObjectIO {
 					assertFalse(po.hasMeasurements());
 				countCheck[2]++;
 			} else if (po.isAnnotation()) {
-				assertEquals(po.getPathClass(), PathClassFactory.getPathClass("PathClassTest1", ColorTools.BLACK));
-				assertEquals(po.getId(), myPAO.getId());
+				assertEquals(po.getPathClass(), PathClass.getInstance("PathClassTest1", ColorTools.BLACK));
+				assertEquals(po.getID(), myPAO.getID());
 				assertSameROIs(po.getROI(), roiAnnotation);
 				assertFalse(po.hasMeasurements());
 				countCheck[3]++;
 			} else if (po.isTMACore()) {
-				assertEquals(po.getId(), myTMA.getId());
+				assertEquals(po.getID(), myTMA.getID());
 				assertFalse(po.hasMeasurements());
 				assertSameROIs(po.getROI(), myTMA.getROI());
 				countCheck[4]++;

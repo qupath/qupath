@@ -76,8 +76,8 @@ class RasterOpImageServer extends TransformingImageServer<BufferedImage> {
 	}
 	
 	@Override
-	public BufferedImage readBufferedImage(final RegionRequest request) throws IOException {
-		BufferedImage img = getWrappedServer().readBufferedImage(request);
+	public BufferedImage readRegion(final RegionRequest request) throws IOException {
+		BufferedImage img = getWrappedServer().readRegion(request);
 		if (tryInPlace) {
 			try {
 				op.filter(img.getRaster(), img.getRaster());

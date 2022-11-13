@@ -30,6 +30,7 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
@@ -506,6 +507,16 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 			ProjectImageEntry<BufferedImage> selectedEntry = selected == null ? null : ProjectTreeRow.getEntry(selected.getValue());
 			var entries = getSelectedImageRowsRecursive();
 			boolean isImageEntry = selectedEntry != null;
+			
+			int nSelectedEntries = ProjectTreeRow.getEntries(entries).size();
+			if (nSelectedEntries == 1) {
+				actionDuplicateImages.setText("Duplicate image");
+				actionRemoveImage.setText("Remove image");
+			} else {
+				actionDuplicateImages.setText("Duplicate " + nSelectedEntries + " images");
+				actionRemoveImage.setText("Remove " + nSelectedEntries + " images");				
+			}
+			
 //			miOpenProjectDirectory.setVisible(project != null && project.getBaseDirectory().exists());
 			miOpenImage.setVisible(isImageEntry);
 			miDuplicateImage.setVisible(isImageEntry);
@@ -590,7 +601,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		var item = selected.getValue();
 		if (item.getType() == Type.IMAGE) {
 			try {
-				var uris = ProjectTreeRow.getEntry(item).getUris();
+				var uris = ProjectTreeRow.getEntry(item).getURIs();
 				if (!uris.isEmpty())
 					return GeneralTools.toPath(uris.iterator().next());
 			} catch (IOException e) {
@@ -878,7 +889,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 	 */
 	private static <T> String getDefaultValue(ProjectImageEntry<T> entry, String key) throws IOException {
 		if (key.equals(URI)) {
-			var URIs = entry.getUris();
+			var URIs = entry.getURIs();
 			var it = URIs.iterator();
 			
 			if (URIs.size() == 0)
@@ -1237,7 +1248,9 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 							children.add(new ProjectTreeRowItem(row));
 						}
 					} else {
-						children.addAll(getAllMetadataValues(metadataKey).stream()
+						var values = new ArrayList<>(getAllMetadataValues(metadataKey));
+						GeneralTools.smartStringSort(values);
+						children.addAll(values.stream()
 								.map(value -> new ProjectTreeRowItem(new MetadataRow(value)))
 								.collect(Collectors.toList()));
 					}

@@ -30,7 +30,7 @@ import org.junit.jupiter.api.Test;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.io.GsonTools;
-import qupath.lib.objects.classes.PathClassFactory;
+import qupath.lib.objects.classes.PathClass;
 import qupath.lib.scripting.QP;
 
 @SuppressWarnings("javadoc")
@@ -44,7 +44,7 @@ public class TestPixelClassifiers {
 		
 		// Make sure we can JSON serialize and deserialize a threshold classifier
 		var classifier = PixelClassifiers.createThresholdClassifier(PixelCalibration.getDefaultInstance().createScaledInstance(2, 2),
-				0, 1, PathClassFactory.getPathClass("Ignore*"), PathClassFactory.getPathClass("Tumor"));
+				0, 1, PathClass.getInstance("Ignore*"), PathClass.getInstance("Tumor"));
 		
 		var gson = GsonTools.getInstance(true);
 		var json = gson.toJson(classifier, PixelClassifier.class);

@@ -304,7 +304,7 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> implements 
 	}
 	
 	@Override
-	public BufferedImage readBufferedImage(RegionRequest request) {
+	public BufferedImage readRegion(RegionRequest request) {
 		
 //		long startTime = System.nanoTime();
 		

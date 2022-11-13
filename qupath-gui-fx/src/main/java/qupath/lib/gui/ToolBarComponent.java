@@ -124,6 +124,7 @@ class ToolBarComponent {
 			
 			OverlayOptions overlayOptions = qupath.getOverlayOptions();
 			nodes.add(ActionTools.createToggleButton(actionManager.SHOW_ANNOTATIONS, true, overlayOptions.getShowAnnotations()));
+			nodes.add(ActionTools.createToggleButton(actionManager.SHOW_NAMES, true, overlayOptions.getShowNames()));
 			nodes.add(ActionTools.createToggleButton(actionManager.SHOW_TMA_GRID, true, overlayOptions.getShowTMAGrid()));
 			nodes.add(ActionTools.createToggleButton(actionManager.SHOW_DETECTIONS, true, overlayOptions.getShowDetections()));
 			nodes.add(ActionTools.createToggleButton(actionManager.FILL_DETECTIONS, true, overlayOptions.getFillDetections()));

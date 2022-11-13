@@ -206,6 +206,20 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 	}	
 	
 	
+	/**
+	 * Get a cached tile, or null if the tile has not been cached.
+	 * <p>
+	 * This is useful whenever it is important to return quickly rather than wait for a tile to be fetched or generated.
+	 * <p>
+	 * <b>Warning!</b> The cached tile is returned directly (with no defensive copying) for performance.
+	 * This means that it <b>must not be modified</b> by the code that requests it.
+	 * If there is any chance the tile may be modified (or passed to untrusted code), then make sure to 
+	 * make a defensive copy, e.g. using {@link qupath.lib.awt.common.BufferedImageTools#duplicate(java.awt.image.BufferedImage)} 
+	 * if using a buffered image.
+	 * 
+	 * @param tile
+	 * @return the tile if it has been cached, or null if no cached tile is available for the request.
+	 */
 	@Override
 	public T getCachedTile(TileRequest tile) {
 		var cache = getCache();
@@ -314,7 +328,7 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 			ind--;
 		double downsample = downsamples[ind];
 		RegionRequest request = RegionRequest.createInstance(getPath(), downsample, 0, 0, getWidth(), getHeight(), z, t);
-		return readBufferedImage(request);
+		return readRegion(request);
 	}
 		
 	

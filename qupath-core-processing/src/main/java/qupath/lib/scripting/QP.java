@@ -23,6 +23,7 @@
 
 package qupath.lib.scripting;
 
+import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -47,8 +48,10 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.Scanner;
 import java.util.Set;
+import java.util.UUID;
 import java.util.WeakHashMap;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
@@ -70,6 +73,7 @@ import qupath.lib.analysis.heatmaps.ColorModels;
 import qupath.lib.analysis.heatmaps.DensityMaps;
 import qupath.lib.analysis.heatmaps.DensityMaps.DensityMapBuilder;
 import qupath.lib.analysis.images.ContourTracing;
+import qupath.lib.awt.common.AffineTransforms;
 import qupath.lib.awt.common.BufferedImageTools;
 import qupath.lib.classifiers.object.ObjectClassifier;
 import qupath.lib.classifiers.object.ObjectClassifiers;
@@ -77,6 +81,9 @@ import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.common.LogTools;
+import qupath.lib.common.Timeit;
+import qupath.lib.common.Version;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.ImageData.ImageType;
 import qupath.lib.images.servers.ColorTransforms;
@@ -85,6 +92,7 @@ import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.ImageServerProvider;
 import qupath.lib.images.servers.ImageServers;
+import qupath.lib.images.servers.LabeledImageServer;
 import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.ServerTools;
 import qupath.lib.images.writers.ImageWriterTools;
@@ -109,6 +117,7 @@ import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.classes.PathClassTools;
+import qupath.lib.objects.hierarchy.DefaultTMAGrid;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.TMAGrid;
 import qupath.lib.plugins.CommandLinePluginRunner;
@@ -152,6 +161,7 @@ import qupath.opencv.tools.OpenCVTools;
  * @author Pete Bankhead
  *
  */
+@SuppressWarnings("deprecation")
 public class QP {
 	
 	private static final Logger logger = LoggerFactory.getLogger(QP.class);
@@ -202,6 +212,13 @@ public class QP {
 	
 	
 	/**
+	 * The current QuPath version, parsed according to semantic versioning.
+	 * May be null if the version is not known.
+	 */
+	public static final Version VERSION = GeneralTools.getSemanticVersion();
+	
+	
+	/**
 	 * TODO: Figure out where this should go...
 	 * Its purpose is to prompt essential type adapters to be registered so that they function 
 	 * within scripts. See https://github.com/qupath/qupath/issues/514
@@ -233,6 +250,9 @@ public class QP {
 
 	
 	private static final Set<Class<?>> CORE_CLASSES = Collections.unmodifiableSet(new HashSet<>(Arrays.asList(
+			
+			QP.class,
+			
 			// Core datastructures
 			ImageData.class,
 			ImageServer.class,
@@ -254,12 +274,19 @@ public class QP {
 			Projects.class,
 			
 			// Tools and static classes
+			AffineTransforms.class,
 			PathObjectTools.class,
 			RoiTools.class,
 			GsonTools.class,
 			BufferedImageTools.class,
 			ColorTools.class,
 			GeneralTools.class,
+			
+			Timeit.class,
+			ScriptAttributes.class,
+			
+			Version.class,
+			
 			DistanceTools.class,
 //			ImageWriter.class,
 			ImageWriterTools.class,
@@ -269,6 +296,7 @@ public class QP {
 			OpenCVTools.class,
 			DnnTools.class,
 			TileExporter.class,
+			LabeledImageServer.class,
 			ServerTools.class,
 			PixelClassifierTools.class,
 			
@@ -395,6 +423,38 @@ public class QP {
 	 */
 	public static Collection<Class<?>> getCoreClasses() {
 		return CORE_CLASSES;
+	}
+	
+	
+	private static Project<BufferedImage> defaultProject;
+
+	private static ImageData<BufferedImage> defaultImageData;
+
+	/**
+	 * Set the default project, which will be returned by {@link #getProject()} if it would otherwise return null 
+	 * (i.e. there has been no project set for the calling thread via {@link #setBatchProjectAndImage(Project, ImageData)}).
+	 * <p>
+	 * The intended use is for QuPath to set this to be the current project in the user interface, when running interactively.
+	 * 
+	 * @param project
+	 */
+	public static void setDefaultProject(final Project<BufferedImage> project) {
+		defaultProject = project;
+		logger.debug("Default project set to {}", project);
+	}
+	
+	/**
+	 * Set the default image data, which will be returned by {@link #getCurrentImageData()} if it would otherwise return null 
+	 * (i.e. there has been no project set for the calling thread via {@link #setBatchProjectAndImage(Project, ImageData)}).
+	 * <p>
+	 * The intended use is for QuPath to set this to be the current image data in the user interface, when running interactively.
+	 * This is not necessarily always the image that is 'current' when running scripts, e.g. when batch processing.
+	 * 
+	 * @param imageData
+	 */
+	public static void setDefaultImageData(final ImageData<BufferedImage> imageData) {
+		defaultImageData = imageData;
+		logger.debug("Default image data set to {}", defaultImageData);
 	}
 	
 	
@@ -587,41 +647,67 @@ public class QP {
 	/**
 	 * Get the path to the current {@code ImageData}.
 	 * <p>
-	 * In this implementation, it is the same as calling {@link #getBatchImageData()}.
-	 * 
+	 * This returns {@link #getBatchImageData()} if it is not null; otherwise, it returns 
+	 * the default image data last set through {@link #setDefaultImageData(ImageData)}.
 	 * @return
 	 * 
 	 * @see #getBatchImageData()
 	 */
 	public static ImageData<BufferedImage> getCurrentImageData() {
-		return getBatchImageData();
+		var defaultTemp = defaultImageData;
+		var imageData = getBatchImageData();
+		if (imageData != null || defaultTemp == null)
+			return imageData;
+		// If we don't have any other possible image data, return with debug logging
+		var batchImages = batchImageData.values();
+		if (batchImages.isEmpty() || (batchImages.size() == 1 && batchImages.contains(defaultTemp))) {
+			logger.debug("Returning the default ImageData: {}", defaultTemp);
+			return defaultTemp;
+		}
+		// If we have other options, return with a warning
+		logger.warn("No batch image data for the current thread, returning the default image data instead: {}", defaultTemp);
+		return defaultTemp;
 	}
 	
 	
 	/**
 	 * Get the current project.
 	 * <p>
-	 * In this implementation, it is the same as calling {@link #getBatchProject()}.
-	 * 
+	 * This returns {@link #getBatchProject()} if it is not null; otherwise, it returns 
+	 * the default project last set through {@link #setDefaultProject(Project)}.
 	 * @return
 	 * 
 	 * @see #getBatchProject()
 	 */
 	public static Project<BufferedImage> getProject() {
-		return getBatchProject();
+		var defaultTemp = defaultProject;
+		// Return batch project or null if that's all we can do
+		var project = getBatchProject();
+		if (project != null || defaultTemp == null)
+			return project;
+		// If we don't have any other possible project, return with debug logging
+		var batchProjects = batchProject.values();
+		if (batchProjects.isEmpty() || (batchProjects.size() == 1 && batchProjects.contains(defaultTemp))) {
+			logger.debug("Returning the default project: {}", defaultTemp);
+			return defaultTemp;
+		}
+		// If we have other options, return with a warning
+		logger.warn("No batch project for the current thread, returning the default project instead {}", defaultTemp);
+		return defaultTemp;
 	}
 	
 	/**
 	 * Resolve a path, replacing any placeholders. Currently, this means only {@link #PROJECT_BASE_DIR}.
 	 * @param path
 	 * @return
+	 * @throws IllegalArgumentException if {@link #PROJECT_BASE_DIR} is used but no project is available
 	 */
-	public static String resolvePath(final String path) {
+	public static String resolvePath(final String path) throws IllegalArgumentException {
 		String base = getProjectBaseDirectory();
 		if (base != null)
 			return path.replace(PROJECT_BASE_DIR, base);
 		else if (path.contains(PROJECT_BASE_DIR))
-			throw new IllegalArgumentException("Cannot resolve path '" + path + "' - no project base directory available");
+			throw new IllegalArgumentException("No project base directory available - '" + path + "' cannot be resolved");
 		return
 			path;
 	}
@@ -629,17 +715,110 @@ public class QP {
 	/**
 	 * Build a file path from multiple components.
 	 * A common use of this is
-	 * <pre>
-	 *   String path = buildFilePath(PROJECT_BASE_DIR, "export")
-	 * </pre>
-	 * @param path
+	 * <pre>{@code
+	 *   String path = buildFilePath(PROJECT_BASE_DIR, "export");
+	 * }</pre>
+	 * although that can now be replaced by {@link #buildPathInProject(String...)}
+	 * @param first the first component of the file path
+	 * @param more additional path components to append
 	 * @return
+	 * @see #buildPathInProject(String...)
+	 * @see #makePathInProject(String...)
+	 * @see #makeFileInProject(String...)
+	 * @throws IllegalArgumentException if {@link #PROJECT_BASE_DIR} is used but no project is available
 	 */
-	public static String buildFilePath(String...path) {
-		File file = new File(resolvePath(path[0]));
-		for (int i = 1; i < path.length; i++)
-			file = new File(file, path[i]);
-		return file.getAbsolutePath();
+	public static String buildFilePath(String first, String... more) throws IllegalArgumentException {
+		File file = new File(resolvePath(first));
+		for (int i = 0; i < more.length; i++) {
+			var part = more[i];
+			if (part == null)
+				throw new IllegalArgumentException("Part of the file path given to buildFilePath() is null!");
+			else if (PROJECT_BASE_DIR.equals(part))
+				throw new IllegalArgumentException("PROJECT_BASE_DIR must be the first element given to buildFilePath()");
+			file = new File(file, part);
+		}
+		var path = file.getAbsolutePath();
+		// TODO: Consider checking for questionable characters
+		return path;
+	}
+	
+	/**
+	 * Build a file or directory path relative to the current project, but do not make 
+	 * any changes on the file system.
+	 * This is equivalent to calling
+	 * <pre>{@code
+	 *   String path = buildFilePath(PROJECT_BASE_DIR, more);
+	 * }</pre>
+	 * <p>
+	 * If you want to additionally create the directory, see {@link #makePathInProject(String...)}
+	 * 
+	 * @param more additional path components to append
+	 * @return
+	 * @throws IllegalArgumentException if no project path is available
+	 * @since v0.4.0
+	 * @see #makePathInProject(String...)
+	 * @see #makeFileInProject(String...)
+	 */
+	public static String buildPathInProject(String... more) throws IllegalArgumentException {
+		return buildFilePath(PROJECT_BASE_DIR, more);
+	}
+	
+	/**
+	 * Build a file or directory path relative to the current project, and ensure that it exists.
+	 * If it does not, an attempt will be made to create a directory with the specified name, 
+	 * and all necessary parent directories.
+	 * <p>
+	 * This is equivalent to calling
+	 * <pre>{@code
+	 *   String path = buildPathInProject(PROJECT_BASE_DIR, more);
+	 *   mkdirs(path);
+	 * }</pre>
+	 * <p>
+	 * Note that if you need a file and not a directory, see {@link #makeFileInProject(String...)}.
+	 *  
+	 * @param more additional path components to append
+	 * @return
+	 * @throws IllegalArgumentException if no project path is available
+	 * @since v0.4.0
+	 * @see #buildPathInProject(String...)
+	 * @see #makeFileInProject(String...)
+	 */
+	public static String makePathInProject(String... more) throws IllegalArgumentException {
+		String path = buildPathInProject(more);
+		mkdirs(path);
+		return path;
+	}
+	
+	/**
+	 * Build a file path relative to the current project, and create a {@link File} object.
+	 * An attempt will be made to create any required directories needed to create the file. 
+	 * <p>
+	 * The purpose is to reduce the lines of code needed to build a usable file in a QuPath 
+	 * script. 
+	 * A Groovy script showing this method in action:
+	 * <pre>
+	 *   File file = makeFileInProject("export", "file.txt")
+	 *   file.text = "Some text here"
+	 * </pre>
+	 * <p>
+	 * Note that, if the file does not already exist, it will not be created by this method - 
+	 * only the directories leading to it.
+	 * Additionally, if the file refers to an existing directory then the directory will be 
+	 * returned - and will not be writable as a file.
+	 *  
+	 * @param more additional path components to append
+	 * @return the file object, which may or may not refer to a file or directory that exists
+	 * @throws IllegalArgumentException if no project path is available
+	 * @since v0.4.0
+	 * @see #makePathInProject(String...)
+	 * @see #buildPathInProject(String...)
+	 */
+	public static File makeFileInProject(String... more) throws IllegalArgumentException {
+		if (more.length == 0)
+			return new File(makePathInProject());
+		String basePath = makePathInProject(Arrays.copyOfRange(more, 0, more.length-1));
+		Path path = Paths.get(basePath, more[more.length-1]);
+		return path.toFile();
 	}
 	
 	/**
@@ -745,11 +924,14 @@ public class QP {
 	
 	/**
 	 * Get the name of the current image.
+	 * <p>
 	 * This first checks the name associated with {@link #getProjectEntry()}, if available.
 	 * If no name is found (e.g. because no project is in use, then the name is extracted 
 	 * from the metadata of {@link #getCurrentServer()}.
 	 * If this is also missing, then {@code null} is returned.
 	 * @return
+	 * @since v0.4.0
+	 * @see #getCurrentImageNameWithoutExtension()
 	 */
 	public static String getCurrentImageName() {
 		var entry = getProjectEntry();
@@ -759,6 +941,21 @@ public class QP {
 		if (server != null)
 			return server.getMetadata().getName();
 		return null;
+	}
+	
+	/**
+	 * Get the name of the current image, removing any file extension.
+	 * Equivalent to
+	 * <pre>{@code 
+	 * var name = GeneralTools.getNameWithoutExtension(getCurrentName());
+	 * }</pre>
+	 * @return
+	 * @since v0.4.0
+	 * @see #getCurrentImageName()
+	 */
+	public static String getCurrentImageNameWithoutExtension() {
+		var name = getCurrentImageName();
+		return name == null ? null : GeneralTools.getNameWithoutExtension(name);
 	}
 	
 	/**
@@ -851,7 +1048,7 @@ public class QP {
 		PathObjectHierarchy hierarchy = getCurrentHierarchy();
 		if (hierarchy == null)
 			return;
-		hierarchy.addPathObject(pathObject);
+		hierarchy.addObject(pathObject);
 	}
 	
 	/**
@@ -877,7 +1074,7 @@ public class QP {
 		PathObjectHierarchy hierarchy = getCurrentHierarchy();
 		if (hierarchy == null)
 			return;
-		hierarchy.addPathObjects(pathObjects);
+		hierarchy.addObjects(pathObjects);
 	}
 	
 	/**
@@ -926,7 +1123,7 @@ public class QP {
 	 * @param pathObjects
 	 * @param keepChildren
 	 */
-	public static void removeObjects(Collection<PathObject> pathObjects, boolean keepChildren) {
+	public static void removeObjects(Collection<? extends PathObject> pathObjects, boolean keepChildren) {
 		PathObjectHierarchy hierarchy = getCurrentHierarchy();
 		if (hierarchy == null)
 			return;
@@ -1358,19 +1555,6 @@ public class QP {
 	}
 
 	/**
-	 * Get a array of the current annotation objects.
-	 * <p>
-	 * This has been deprecated, because Groovy gives ways to quickly switch between arrays and lists 
-	 * using {@code as}, so in most scripts it should not really be needed as a separate method.
-	 * 
-	 * @return
-	 */
-	@Deprecated
-	public static PathObject[] getAnnotationObjectsAsArray() {
-		return getAnnotationObjects().toArray(new PathObject[0]);
-	}
-	
-	/**
 	 * Get a list of the current annotation objects.
 	 * 
 	 * @return
@@ -1381,22 +1565,9 @@ public class QP {
 		PathObjectHierarchy hierarchy = getCurrentHierarchy();
 		if (hierarchy == null)
 			return Collections.emptyList();
-		return hierarchy.getObjects(null, PathAnnotationObject.class);
+		return hierarchy.getAnnotationObjects();
 	}
 
-	/**
-	 * Get a array of the current detection objects.
-	 * <p>
-	 * This has been deprecated, because Groovy gives ways to quickly switch between arrays and lists 
-	 * using {@code as}, so in most scripts it should not really be needed as a separate method.
-	 * 
-	 * @return
-	 */
-	@Deprecated
-	public static PathObject[] getDetectionObjectsAsArray() {
-		return getDetectionObjects().toArray(new PathObject[0]);
-	}
-	
 	/**
 	 * Get a list of the current detection objects.
 	 * 
@@ -1408,7 +1579,22 @@ public class QP {
 		PathObjectHierarchy hierarchy = getCurrentHierarchy();
 		if (hierarchy == null)
 			return Collections.emptyList();
-		return hierarchy.getObjects(null, PathDetectionObject.class);
+		return hierarchy.getDetectionObjects();
+	}
+	
+	/**
+	 * Get a list of the current tile objects.
+	 * 
+	 * @return
+	 * 
+	 * @see #getCurrentHierarchy
+	 * @since v0.4.0
+	 */
+	public static Collection<PathObject> getTileObjects() {
+		PathObjectHierarchy hierarchy = getCurrentHierarchy();
+		if (hierarchy == null)
+			return Collections.emptyList();
+		return hierarchy.getTileObjects();
 	}
 	
 	/**
@@ -1422,35 +1608,35 @@ public class QP {
 		PathObjectHierarchy hierarchy = getCurrentHierarchy();
 		if (hierarchy == null)
 			return Collections.emptyList();
-		return hierarchy.getObjects(null, PathCellObject.class);
+		return hierarchy.getCellObjects();
 	}
 
 	/**
-	 * Get an array of all objects in the current hierarchy.
+	 * Get all objects in the current hierarchy.
 	 * 
 	 * @param includeRootObject
 	 * @return
 	 * @see #getCurrentHierarchy
 	 */
-	public static PathObject[] getAllObjects(boolean includeRootObject) {
+	public static Collection<PathObject> getAllObjects(boolean includeRootObject) {
 		PathObjectHierarchy hierarchy = getCurrentHierarchy();
 		if (hierarchy == null)
-			return new PathObject[0];
+			return Collections.emptyList();
 		var objList = hierarchy.getFlattenedObjectList(null);
 		if (includeRootObject)
-			return objList.toArray(new PathObject[0]);
-		return objList.parallelStream().filter(e -> !e.isRootObject()).toArray(PathObject[]::new);
+			return objList;
+		return objList.stream().filter(e -> !e.isRootObject()).collect(Collectors.toList());
 	}
 
 	/**
-	 * Get an array of all objects in the current hierarchy. 
-	 * Note that this includes the root object.
+	 * Get all objects in the current hierarchy, including the root object.
 	 * 
 	 * @return
 	 * 
 	 * @see #getCurrentHierarchy
+	 * @see #getAllObjects(boolean)
 	 */
-	public static PathObject[] getAllObjects() {
+	public static Collection<PathObject> getAllObjects() {
 		return getAllObjects(true);
 	}
 	
@@ -1523,9 +1709,132 @@ public class QP {
 	 * Create an annotation for the entire width and height of the current image data, on the default plane (z-slice, time point).
 	 * 
 	 * @param setSelected if true, select the object that was created after it is added to the hierarchy
+	 * @deprecated v0.4.0 use {@link #createFullImageAnnotation(boolean)} instead
 	 */
+	@Deprecated
 	public static void createSelectAllObject(final boolean setSelected) {
+		LogTools.warnOnce(logger, "createSelectAllObject(boolean) is deprecated, use createFullImageAnnotation(boolean) instead");
 		createSelectAllObject(setSelected, 0, 0);
+	}
+	
+	/**
+	 * Create an annotation for the entire width and height of the current image data, on the default plane (z-slice, time point).
+	 * 
+	 * @param setSelected if true, select the object that was created after it is added to the hierarchy
+	 * @param z z-slice index for the annotation
+	 * @param t timepoint index for the annotation
+	 * @deprecated v0.4.0 use {@link #createFullImageAnnotation(boolean, int, int)} instead
+	 */
+	@Deprecated
+	public static void createSelectAllObject(final boolean setSelected, int z, int t) {
+		LogTools.warnOnce(logger, "createSelectAllObject(boolean, int, int) is deprecated, use createFullImageAnnotation(boolean, int, int) instead");
+		ImageData<?> imageData = getCurrentImageData();
+		if (imageData == null)
+			return;
+		ImageServer<?> server = imageData.getServer();
+		PathObject pathObject = PathObjects.createAnnotationObject(
+				ROIs.createRectangleROI(0, 0, server.getWidth(), server.getHeight(), ImagePlane.getPlane(z, t))
+				);
+		imageData.getHierarchy().addObject(pathObject);
+		if (setSelected)
+			imageData.getHierarchy().getSelectionModel().setSelectedObject(pathObject);
+	}
+	
+	/**
+	 * Create annotation around the full image for the current image, on all z-slices and timepoints.
+	 * @param setSelected if true, set the annotations to be selected when they are created
+	 * @return the annotations that were created, or an empty list if no image data was available
+	 * @since v0.4.0
+	 * @see #createAllFullImageAnnotations(ImageData, boolean)
+	 */
+	public static List<PathObject> createAllFullImageAnnotations(boolean setSelected) {
+		return createAllFullImageAnnotations(getCurrentImageData(), setSelected);
+	}
+	
+	
+	/**
+	 * Create annotation around the full image for the specified image, on all z-slices and timepoints.
+	 * @param imageData the image data
+	 * @param setSelected if true, set the annotations to be selected when they are created
+	 * @return the annotations that were created, or an empty list if no image data was available
+	 * @since v0.4.0
+	 */
+	public static List<PathObject> createAllFullImageAnnotations(ImageData<?> imageData, boolean setSelected) {
+		if (imageData == null)
+			return Collections.emptyList();
+		ImageServer<?> server = imageData.getServer();
+		List<PathObject> annotations = new ArrayList<>();
+		for (int t = 0; t < server.nTimepoints(); t++) {
+			for (int z = 0; z < server.nZSlices(); z++) {
+				PathObject pathObject = PathObjects.createAnnotationObject(
+						ROIs.createRectangleROI(0, 0, server.getWidth(), server.getHeight(), ImagePlane.getPlane(z, t))
+						);
+				annotations.add(pathObject);
+			}			
+		}
+		imageData.getHierarchy().addObjects(annotations);
+		if (setSelected)
+			imageData.getHierarchy().getSelectionModel().setSelectedObjects(annotations, annotations.get(0));
+		return annotations;
+	}
+	
+	
+	/**
+	 * Create an annotation around the full image for the current image, on the default (first) z-slice and timepoint.
+	 * @param setSelected if true, set the annotation to be selected when it is created
+	 * @return the annotation that was created, or null if no image data was available
+	 * @since v0.4.0
+	 * @see #createFullImageAnnotation(boolean, int, int)
+	 * @see #createFullImageAnnotation(ImageData, boolean)
+	 */
+	public static PathObject createFullImageAnnotation(boolean setSelected) {
+		return createFullImageAnnotation(getCurrentImageData(), setSelected);
+	}
+	
+	/**
+	 * Create an annotation around the full image for the current image, on the specified z-slice and timepoint.
+	 * @param setSelected if true, set the annotation to be selected when it is created
+	 * @param z z-slice (0-based index)
+	 * @param t timepoint (0-based index)
+	 * @return the annotation that was created, or null if no image data was available
+	 * @since v0.4.0
+	 * @see #createFullImageAnnotation(ImageData, boolean, int, int)
+	 */
+	public static PathObject createFullImageAnnotation(boolean setSelected, int z, int t) {
+		return createFullImageAnnotation(getCurrentImageData(), setSelected, z, t);		
+	}
+	
+	/**
+	 * Create an annotation around the full image for the specified image, on the default (first) z-slice and timepoint.
+	 * @param imageData the image data for which the annotation should be added
+	 * @param setSelected if true, set the annotation to be selected when it is created
+	 * @return the annotation that was created, or null if no image data was available
+	 * @since v0.4.0
+	 */
+	public static PathObject createFullImageAnnotation(ImageData<?> imageData, boolean setSelected) {
+		return createFullImageAnnotation(imageData, setSelected, 0, 0);
+	}
+	
+	/**
+	 * Create an annotation around the full image for the specified image, on the specified z-slice and timepoint.
+	 * @param imageData the image data for which the annotation should be added
+	 * @param setSelected if true, set the annotation to be selected when it is created
+	 * @param z z-slice (0-based index)
+	 * @param t timepoint (0-based index)
+	 * @return the annotation that was created, or null if no image data was available
+	 * @since v0.4.0
+	 */
+	public static PathObject createFullImageAnnotation(ImageData<?> imageData, boolean setSelected, int z, int t) {
+		if (imageData == null)
+			return null;
+		ImageServer<?> server = imageData.getServer();
+		PathObject pathObject = PathObjects.createAnnotationObject(
+				ROIs.createRectangleROI(0, 0, server.getWidth(), server.getHeight(), ImagePlane.getPlane(z, t))
+				);
+		imageData.getHierarchy().addObject(pathObject);
+		if (setSelected)
+			imageData.getHierarchy().getSelectionModel().setSelectedObject(pathObject);
+		return pathObject;
 	}
 
 	/**
@@ -1575,27 +1884,178 @@ public class QP {
 	public static ImageServer<BufferedImage> buildServer(URI uri, String... args) throws IOException {
 		return ImageServers.buildServer(uri, args);
 	}
+
 	
+//	public static boolean removeObjectsOutsideImage() {
+//		return removeObjectsOutsideImage(getCurrentServer(), getCurrentHierarchy());
+//	}
+//
+//	public static boolean removeObjectsOutsideImage(ImageServer<?> server, PathObjectHierarchy hierarchy) {
+//		hierarchy.getAllObjects()
+//	}
+
+	/**
+	 * Apply an affine transform to all objects in the current hierarchy, retaining parent-child relationships between objects.
+	 * @param transform
+	 * @implNote Currently, existing objects will be removed, and replaced with new ones that have had their ROIs transformed 
+	 *           and the same IDs retained. However it is best not to rely upon this behavior; it is possible that in the future 
+	 *           the ROIs will be updated in-place to improve efficiency.
+	 * @since v0.4.0
+	 */
+	public static void transformSelectedObjects(AffineTransform transform) {
+		transformSelectedObjects(getCurrentHierarchy(), transform);
+	}
+
+	/**
+	 * Apply an affine transform to all objects in the specified hierarchy, retaining parent-child relationships between objects.
+	 * @param hierarchy
+	 * @param transform
+	 * @implNote Currently, existing objects will be removed, and replaced with new ones that have had their ROIs transformed 
+	 *           and the same IDs retained. However it is best not to rely upon this behavior; it is possible that in the future 
+	 *           the ROIs will be updated in-place to improve efficiency.
+	 * @since v0.4.0
+	 */
+	public static void transformSelectedObjects(PathObjectHierarchy hierarchy, AffineTransform transform) {
+		Objects.requireNonNull(hierarchy, "Can't transform selected objects - hierarchy is null!");
+		var selected = hierarchy.getSelectionModel().getSelectedObjects();
+		if (selected.isEmpty()) {
+			logger.warn("Cannot transform selected objects - no objects are selected");
+			return;
+		}
+		var primary = hierarchy.getSelectionModel().getSelectedObject();
+		List<PathObject> transformed = new ArrayList<>();
+		for (var pathObject : selected.toArray(PathObject[]::new))
+			transformed.add(PathObjectTools.transformObject(pathObject, transform, true, false));
+		
+		hierarchy.removeObjects(selected, true);
+		hierarchy.addObjects(transformed);
+		
+		// Set selected objects
+		var newPrimary = primary == null ? null : transformed.stream().filter(p -> p.getID().equals(primary.getID())).findFirst().orElse(null);
+		hierarchy.getSelectionModel().setSelectedObjects(transformed, newPrimary);
+	}
 	
 	/**
-	 * Create an annotation for the entire width and height of the current image data, on the default plane (z-slice, time point).
-	 * 
-	 * @param setSelected if true, select the object that was created after it is added to the hierarchy
-	 * @param z z-slice index for the annotation
-	 * @param t timepoint index for the annotation
+	 * Resize the ROIs of all objects in the current object hierarchy.
+	 * @param scaleFactor scale factor
+	 * @since v0.4.0
+	 * @see #transformAllObjects(AffineTransform)
 	 */
-	public static void createSelectAllObject(final boolean setSelected, int z, int t) {
-		ImageData<?> imageData = getCurrentImageData();
-		if (imageData == null)
-			return;
-		ImageServer<?> server = imageData.getServer();
-		PathObject pathObject = PathObjects.createAnnotationObject(
-				ROIs.createRectangleROI(0, 0, server.getWidth(), server.getHeight(), ImagePlane.getPlane(z, t))
-				);
-		imageData.getHierarchy().addPathObject(pathObject);
-		if (setSelected)
-			imageData.getHierarchy().getSelectionModel().setSelectedObject(pathObject);
+	public static void scaleAllObjects(double scaleFactor) {
+		scaleAllObjects(getCurrentHierarchy(), scaleFactor);
 	}
+	
+	/**
+	 * Resize the ROIs of all objects in the specified object hierarchy.
+	 * @param hierarchy the object hierarchy
+	 * @param scaleFactor scale factor
+	 * @since v0.4.0
+	 * @see #transformAllObjects(PathObjectHierarchy, AffineTransform)
+	 */
+	public static void scaleAllObjects(PathObjectHierarchy hierarchy, double scaleFactor) {
+		transformAllObjects(hierarchy, AffineTransform.getScaleInstance(scaleFactor, scaleFactor));
+	}
+	
+	/**
+	 * Translate (move) the ROIs of all objects in the current object hierarchy.
+	 * @param dx amount to translate horizontally (in pixels)
+	 * @param dy amount to translate vertically (in pixels)
+	 * @since v0.4.0
+	 * @see #transformAllObjects(AffineTransform)
+	 */
+	public static void translateAllObjects(double dx, double dy) {
+		translateAllObjects(getCurrentHierarchy(), dx, dy);
+	}
+	
+	/**
+	 * Translate (move) the ROIs of all objects in the specified object hierarchy.
+	 * @param hierarchy the object hierarchy
+	 * @param dx amount to translate horizontally (in pixels)
+	 * @param dy amount to translate vertically (in pixels)
+	 * @since v0.4.0
+	 * @see #transformAllObjects(PathObjectHierarchy, AffineTransform)
+	 */
+	public static void translateAllObjects(PathObjectHierarchy hierarchy, double dx, double dy) {
+		transformAllObjects(hierarchy, AffineTransform.getTranslateInstance(dx, dy));
+	}
+	
+	/**
+	 * Apply an affine transform to all selected objects in the current hierarchy.
+	 * The selected objects will be replaced by new ones, but parent-child relationships will be lost;
+	 * if these are needed, consider calling {@link #resolveHierarchy()} afterwards.
+	 * @param transform
+	 * @implNote Currently, existing objects will be removed, and replaced with new ones that have had their ROIs transformed 
+	 *           and the same IDs retained. However it is best not to rely upon this behavior; it is possible that in the future 
+	 *           the ROIs will be updated in-place to improve efficiency.
+	 * @since v0.4.0
+	 */
+	public static void transformAllObjects(AffineTransform transform) {
+		transformAllObjects(getCurrentHierarchy(), transform);
+	}
+	
+	/**
+	 * Apply an affine transform to all selected objects in the specified hierarchy.
+	 * The selected objects will be replaced by new ones, but parent-child relationships will be lost;
+	 * if these are needed, consider calling {@link #resolveHierarchy(PathObjectHierarchy)} afterwards.
+	 * @param hierarchy 
+	 * @param transform
+	 * @implNote Currently, existing objects will be removed, and replaced with new ones that have had their ROIs transformed 
+	 *           and the same IDs retained. However it is best not to rely upon this behavior; it is possible that in the future 
+	 *           the ROIs will be updated in-place to improve efficiency.
+	 * @since v0.4.0
+	 */
+	public static void transformAllObjects(PathObjectHierarchy hierarchy, AffineTransform transform) {
+		Objects.requireNonNull(hierarchy, "Can't transform all objects - hierarchy is null!");
+		var primary = hierarchy.getSelectionModel().getSelectedObject();
+		Set<UUID> selectedIDs = hierarchy.getSelectionModel().getSelectedObjects()
+				.stream()
+				.map(p -> p.getID())
+				.collect(Collectors.toSet());
+		var transformed = PathObjectTools.transformObjectRecursive(hierarchy.getRootObject(), transform, true, false);
+		
+		var newObjects = new ArrayList<>(transformed.getChildObjects());
+		
+		// Handle TMA grid... which is rather more awkward
+		var tmaGrid = hierarchy.getTMAGrid();
+		TMAGrid newTmaGrid = null;
+		if (tmaGrid != null && !tmaGrid.getTMACoreList().isEmpty()) {
+			var originalCores = tmaGrid.getTMACoreList();
+			var newCores = PathObjectTools.getFlattenedObjectList(transformed, null, true)
+					.stream()
+					.filter(p -> p.isTMACore())
+					.collect(Collectors.toList());
+			
+			var matches = PathObjectTools.matchByID(originalCores, newCores);
+			var newCoresOrdered = new ArrayList<TMACoreObject>();
+			for (var oldCore : originalCores) {
+				var newCore = matches.getOrDefault(oldCore, null);
+				if (newCore != null)
+					newCoresOrdered.add((TMACoreObject)newCore);
+			}
+			if (newCoresOrdered.size() == originalCores.size()) {
+				newTmaGrid = DefaultTMAGrid.create(newCoresOrdered, tmaGrid.getGridWidth());
+				newObjects.removeAll(newCoresOrdered);
+			} else
+				logger.warn("Unable to match old and new TMA cores!");
+		}
+		
+		hierarchy.clearAll();
+		if (newTmaGrid != null)
+			hierarchy.setTMAGrid(newTmaGrid);
+		hierarchy.addObjects(newObjects);
+		
+		// Restore the selection, now with the transformed objects
+		if (!selectedIDs.isEmpty()) {
+			var toSelect = PathObjectTools.findByUUID(selectedIDs, hierarchy.getFlattenedObjectList(null)).values();
+			var newPrimary = primary == null ? null : toSelect.stream().filter(p -> p.getID().equals(primary.getID())).findFirst().orElse(null);
+			hierarchy.getSelectionModel().setSelectedObjects(toSelect, newPrimary);
+		}
+	}
+
+	
+	
+	
+	
 
 	/**
 	 * Remove all TMA metadata from the current TMA grid.
@@ -1635,39 +2095,16 @@ public class QP {
 	 * @param hierarchy The hierarchy containing the TMA grid to be relabelled.
 	 * @param labelsHorizontal A String containing labels for each TMA column, separated by spaces, or a numeric or alphabetic range (e.g. 1-10, or A-G)
 	 * @param labelsVertical A String containing labels for each TMA row, separated by spaces, or a numeric or alphabetic range (e.g. 1-10, or A-G)
-	 * @param rowFirst TRUE if the horizontal label should be added before the vertical label, FALSE otherwise
-	 * @return TRUE if there were sufficient horizontal and vertical labels to label the entire grid, FALSE otherwise.
+	 * @param rowFirst true if the horizontal label should be added before the vertical label, false otherwise
+	 * @return true if there were sufficient horizontal and vertical labels to label the entire grid, false otherwise.
 	 */
 	public static boolean relabelTMAGrid(final PathObjectHierarchy hierarchy, final String labelsHorizontal, final String labelsVertical, final boolean rowFirst) {
 		if (hierarchy == null || hierarchy.getTMAGrid() == null) {
 			logger.error("Cannot relabel TMA grid - no grid found!");
 			return false;
 		}
-		
 		TMAGrid grid = hierarchy.getTMAGrid();
-		String[] columnLabels = PathObjectTools.parseTMALabelString(labelsHorizontal);
-		String[] rowLabels = PathObjectTools.parseTMALabelString(labelsVertical);
-		if (columnLabels.length < grid.getGridWidth()) {
-			logger.error("Cannot relabel full TMA grid - not enough column labels specified!");
-			return false;			
-		}
-		if (rowLabels.length < grid.getGridHeight()) {
-			logger.error("Cannot relabel full TMA grid - not enough row labels specified!");
-			return false;			
-		}
-		
-		for (int r = 0; r < grid.getGridHeight(); r++) {
-			for (int c = 0; c < grid.getGridWidth(); c++) {
-				String name;
-				if (rowFirst)
-					name = rowLabels[r] + "-" + columnLabels[c];
-				else
-					name = columnLabels[c] + "-" + rowLabels[r];
-				grid.getTMACore(r, c).setName(name);
-			}			
-		}
-		hierarchy.fireObjectsChangedEvent(null, new ArrayList<>(grid.getTMACoreList()));
-		return true;
+		return PathObjectTools.relabelTMAGrid(grid, labelsHorizontal, labelsVertical, rowFirst);
 	}
 	
 	/**
@@ -1681,6 +2118,39 @@ public class QP {
 		return relabelTMAGrid(getCurrentHierarchy(), labelsHorizontal, labelsVertical, rowFirst);
 	}
 	
+	/**
+	 * Create a new regular {@link TMAGrid} and set it as active on the hierarchy for an image.
+	 * <p>
+	 * For the label string format, see see {@link PathObjectTools#parseTMALabelString(String)}.
+	 * 
+	 * @param imageData the image to which the TMA grid should be added. This is used to determine 
+	 *                  dimensions and pixel calibration. If there is a ROI selected, it will be used 
+	 *                  to define the bounding box for the grid.
+	 * @param hLabels a String representing horizontal labels
+	 * @param vLabels a String representing vertical labels
+	 * @param rowFirst true if the horizontal label should be added before the vertical label, false otherwise
+	 * @param diameterCalibrated the diameter of each core, in calibrated units
+	 * @see PathObjectTools#addTMAGrid(ImageData, String, String, boolean, double)
+	 */
+	public static void createTMAGrid(ImageData<?> imageData, String hLabels, String vLabels, boolean rowFirst, double diameterCalibrated) {
+		PathObjectTools.addTMAGrid(imageData, hLabels, vLabels, rowFirst, diameterCalibrated);
+	}
+	
+	/**
+	 * Create a new regular {@link TMAGrid} and set it as active on the hierarchy for the current image.
+	 * <p>
+	 * For the label string format, see see {@link PathObjectTools#parseTMALabelString(String)}.
+	 * 
+	 * @param hLabels a String representing horizontal labels
+	 * @param vLabels a String representing vertical labels
+	 * @param rowFirst true if the horizontal label should be added before the vertical label, false otherwise
+	 * @param diameterCalibrated the diameter of each core, in calibrated units
+	 * @see PathObjectTools#addTMAGrid(ImageData, String, String, boolean, double)
+	 */
+	public static void createTMAGrid(String hLabels, String vLabels, boolean rowFirst, double diameterCalibrated) {
+		createTMAGrid(getCurrentImageData(), hLabels, vLabels, rowFirst, diameterCalibrated);
+	}
+	
 	
 	/**
 	 * Reset the PathClass for all objects of the specified type in the current hierarchy.
@@ -1691,6 +2161,77 @@ public class QP {
 		PathObjectHierarchy hierarchy = getCurrentHierarchy();
 		resetClassifications(hierarchy, cls);
 	}
+
+	/**
+	 * Refresh all object IDs for the current hierarchy.
+	 * @since v0.4.0
+	 */
+	public static void refreshIDs() {
+		refreshIDs(getCurrentHierarchy(), false);
+	}
+
+	/**
+	 * Refresh all object IDs for the current hierarchy to ensure there are no duplicates,
+	 * retaining the original IDs where possible.
+	 * @return true if object IDs were changed, false otherwise
+	 * @since v0.4.0
+	 */
+	public static boolean refreshDuplicateIDs() {
+		return refreshIDs(getCurrentHierarchy(), true);
+	}
+	
+	/**
+	 * Refresh all object IDs for the current hierarchy.
+	 * @param hierarchy the object hierarchy
+	 * @since v0.4.0
+	 */
+	public static void refreshIDs(PathObjectHierarchy hierarchy) {
+		refreshIDs(hierarchy, false);
+	}
+
+	/**
+	 * Refresh all object IDs for the current hierarchy to ensure there are no duplicates,
+	 * retaining the original IDs where possible.
+	 * @param hierarchy the object hierarchy
+	 * @return true if object IDs were changed, false otherwise
+	 * @since v0.4.0
+	 */
+	public static boolean refreshDuplicateIDs(PathObjectHierarchy hierarchy) {
+		return refreshIDs(hierarchy, true);
+	}
+	
+	/**
+	 * Refresh all object IDs for the specified hierarchy, optionally restricted to duplicates.
+	 * @param hierarchy the object hierarchy
+	 * @param duplicatesOnly if true, only update enough object IDs to avoid duplicates
+	 * @return true if object IDs were changed, false otherwise
+	 * @since v0.4.0
+	 */
+	private static boolean refreshIDs(PathObjectHierarchy hierarchy, boolean duplicatesOnly) {
+		if (hierarchy == null)
+			return false;
+		var pathObjects = hierarchy.getAllObjects(true);
+		if (duplicatesOnly) {
+			var set = new HashSet<UUID>();
+			var changed = new ArrayList<PathObject>();
+			for (var p : pathObjects) {
+				while (!set.add(p.getID())) {
+					p.refreshID();
+					changed.add(p);
+				}
+			}
+			if (changed.isEmpty())
+				return false;
+			assert set.size() == pathObjects.size();
+			hierarchy.fireObjectsChangedEvent(hierarchy, changed);
+			return true;
+		} else {
+			pathObjects.stream().forEach(p -> p.refreshID());
+			hierarchy.fireObjectsChangedEvent(hierarchy, pathObjects);
+			return true;
+		}
+	}
+	
 	
 	/**
 	 * Reset the PathClass for all objects of the specified type in the specified hierarchy.
@@ -1708,7 +2249,7 @@ public class QP {
 		}
 		for (PathObject pathObject : objects) {
 			if (pathObject.getPathClass() != null)
-				pathObject.setPathClass(null);
+				pathObject.resetPathClass();
 		}
 		hierarchy.fireObjectClassificationsChangedEvent(QP.class, objects);
 	}
@@ -1729,7 +2270,7 @@ public class QP {
 	 * @return
 	 */
 	public static boolean hasMeasurement(final PathObject pathObject, final String measurementName) {
-		return pathObject != null && pathObject.getMeasurementList().containsNamedMeasurement(measurementName);
+		return pathObject != null && pathObject.getMeasurementList().containsKey(measurementName);
 	}
 
 	/**
@@ -1740,7 +2281,7 @@ public class QP {
 	 * @return
 	 */
 	public static double measurement(final PathObject pathObject, final String measurementName) {
-		return pathObject == null ? Double.NaN : pathObject.getMeasurementList().getMeasurementValue(measurementName);
+		return pathObject == null ? Double.NaN : pathObject.getMeasurementList().get(measurementName);
 	}
 
 	
@@ -1792,7 +2333,57 @@ public class QP {
 			allObjs = allObjs.stream().filter(e -> !e.isRootObject()).collect(Collectors.toList());
 		if (hierarchy != null)
 			hierarchy.getSelectionModel().setSelectedObjects(allObjs, null);
-	}	
+	}
+
+	/**
+	 * Select all objects in the specified hierarchy, excluding the root object.
+	 * @param hierarchy 
+	 * @since v0.4.0
+	 */
+	public static void selectAllObjects(PathObjectHierarchy hierarchy) {
+		selectAllObjects(hierarchy, false);
+	}
+
+	
+	/**
+	 * Select all objects in the current hierarchy, excluding the root object.
+	 * @since v0.4.0
+	 */
+	public static void selectAllObjects() {
+		selectAllObjects(getCurrentHierarchy());
+	}
+	
+
+	/**
+	 * Selected objects in the current hierarchy occurring on the specified z-slice and timepoint.
+	 * @param z z-slice (0-based index)
+	 * @param t timepoint (0-based index)
+	 * @since v0.4.0
+	 * @see #selectObjectsByPlane(PathObjectHierarchy, ImagePlane)
+	 */
+	public static void selectObjectsByPlane(int z, int t) {
+		selectObjectsByPlane(ImagePlane.getPlane(z, t));
+	}
+
+	/**
+	 * Selected objects in the current hierarchy occurring on the specified plane (z-slice and timepoint).
+	 * @param plane
+	 * @since v0.4.0
+	 * @see #selectObjectsByPlane(PathObjectHierarchy, ImagePlane)
+	 */
+	public static void selectObjectsByPlane(ImagePlane plane) {
+		selectObjectsByPlane(getCurrentHierarchy(), plane);
+	}
+	
+	/**
+	 * Selected objects in the specified hierarchy occurring on the specified plane (z-slice and timepoint).
+	 * @param hierarchy
+	 * @param plane
+	 * @since v0.4.0
+	 */
+	public static void selectObjectsByPlane(PathObjectHierarchy hierarchy, ImagePlane plane) {
+		selectObjects(p -> p.hasROI() && p.getROI().getZ() == plane.getZ() && p.getROI().getT() == plane.getT());
+	}
 
 	/**
 	 * Set selected objects to contain (only) all objects in the current hierarchy according to a specified predicate.
@@ -1809,7 +2400,7 @@ public class QP {
 	 * Set all objects in a collection to be selected, without any being chosen as the main object.
 	 * @param pathObjects
 	 */
-	public static void selectObjects(final Collection<PathObject> pathObjects) {
+	public static void selectObjects(final Collection<? extends PathObject> pathObjects) {
 		selectObjects(pathObjects, null);
 	}
 	
@@ -1818,7 +2409,7 @@ public class QP {
 	 * @param pathObjects
 	 * @param mainSelection
 	 */
-	public static void selectObjects(final Collection<PathObject> pathObjects, PathObject mainSelection) {
+	public static void selectObjects(final Collection<? extends PathObject> pathObjects, PathObject mainSelection) {
 		PathObjectHierarchy hierarchy = getCurrentHierarchy();
 		if (hierarchy != null)
 			hierarchy.getSelectionModel().setSelectedObjects(pathObjects, mainSelection);
@@ -2038,7 +2629,7 @@ public class QP {
 		if (pathClasses == null)
 			pathClassSet = Set.of((PathClass)null);
 		else
-			pathClassSet = Arrays.stream(pathClasses).map(p -> p == PathClassFactory.getPathClassUnclassified() ? null : p).collect(Collectors.toCollection(HashSet::new));
+			pathClassSet = Arrays.stream(pathClasses).map(p -> p == PathClass.NULL_CLASS ? null : p).collect(Collectors.toCollection(HashSet::new));
 		selectObjects(hierarchy, p -> pathClassSet.contains(p.getPathClass()));
 	}
 
@@ -2094,8 +2685,8 @@ public class QP {
 				double value = scanner.nextDouble();
 
 				Predicate<PathObject> predicateNew = p -> {
-					double v = p.getMeasurementList().getMeasurementValue(measurement);
-					return !Double.isNaN(v) && mapComparison.get(comparison).test(Double.compare(p.getMeasurementList().getMeasurementValue(measurement), value));
+					double v = p.getMeasurementList().get(measurement);
+					return !Double.isNaN(v) && mapComparison.get(comparison).test(Double.compare(p.getMeasurementList().get(measurement), value));
 				};
 				if (negate)
 					predicateNew = predicateNew.negate();
@@ -2154,7 +2745,7 @@ public class QP {
 	 * @param pathClassName
 	 */
 	public static void classifySelected(final PathObjectHierarchy hierarchy, final String pathClassName) {
-		PathClass pathClass = PathClassFactory.getPathClass(pathClassName);
+		PathClass pathClass = PathClass.fromString(pathClassName);
 		Collection<PathObject> selected = hierarchy.getSelectionModel().getSelectedObjects();
 		if (selected.isEmpty()) {
 			logger.info("No objects selected");
@@ -2190,7 +2781,7 @@ public class QP {
 	 * @throws IOException
 	 */
 	public static void exportAllObjectsToGeoJson(String path, GeoJsonExportOptions... options) throws IOException {
-		exportObjectsToGeoJson(Arrays.asList(getAllObjects(false)), path, options);
+		exportObjectsToGeoJson(getAllObjects(false), path, options);
 	}
 	
 	/**
@@ -2258,7 +2849,7 @@ public class QP {
 	 */
 	public static boolean importObjectsFromFile(String path) throws FileNotFoundException, IllegalArgumentException, IOException, ClassNotFoundException {
 		var objs = PathIO.readObjects(new File(path));
-		return getCurrentHierarchy().addPathObjects(objs);
+		return getCurrentHierarchy().addObjects(objs);
 	}
 	
 	/**
@@ -2288,7 +2879,7 @@ public class QP {
 	 * @return
 	 */
 	public static PathClass getPathClass(final String name) {
-		return PathClassFactory.getPathClass(name);
+		return PathClass.fromString(name);
 	}
 
 	/**
@@ -2306,7 +2897,7 @@ public class QP {
 	 * @see ColorTools#makeRGB
 	 */
 	public static PathClass getPathClass(final String name, final Integer rgb) {
-		return PathClassFactory.getPathClass(name, rgb);
+		return PathClass.fromString(name, rgb);
 	}
 
 	/**
@@ -2340,7 +2931,7 @@ public class QP {
 	 * @return
 	 */
 	public static PathClass getDerivedPathClass(final PathClass baseClass, final String name, final Integer rgb) {
-		return PathClassFactory.getDerivedPathClass(baseClass, name, rgb);
+		return PathClass.getInstance(baseClass, name, rgb);
 	}
 
 	/**
@@ -2966,9 +3557,9 @@ public class QP {
 	 * @param newClass
 	 */
 	public static void replaceClassification(Collection<PathObject> pathObjects, PathClass originalClass, PathClass newClass) {
-		if (PathClassFactory.getPathClassUnclassified() == originalClass)
+		if (PathClass.NULL_CLASS == originalClass)
 			originalClass = null;
-		if (PathClassFactory.getPathClassUnclassified() == newClass)
+		if (PathClass.NULL_CLASS == newClass)
 			newClass = null;
 		for (var pathObject : pathObjects) {
 			if (pathObject.getPathClass() == originalClass)
@@ -3047,7 +3638,131 @@ public class QP {
 	 * @return true if changes are made to the hierarchy, false otherwise
 	 */
 	public static boolean duplicateSelectedAnnotations() {
-		return PathObjectTools.duplicateSelectedAnnotations(getCurrentHierarchy());
+		return duplicateSelectedAnnotations(getCurrentHierarchy());
+	}
+	
+	/**
+	 * Duplicate the selected annotations in the specified hierarchy.
+	 * @param hierarchy 
+	 * 
+	 * @return true if changes are made to the hierarchy, false otherwise
+	 * @since v0.4.0
+	 */
+	public static boolean duplicateSelectedAnnotations(PathObjectHierarchy hierarchy) {
+		return PathObjectTools.duplicateSelectedAnnotations(hierarchy);
+	}
+	
+	
+	/**
+	 * Copy the selected objects in the current hierarchy to the specified z-slice and timepoint.
+	 * This copies only the objects themselves, discarding any parent/child relationships.
+	 * The copied objects will become the new selection.
+	 * @param z z-slice (0-based index)
+	 * @param t timepoint (0-based index)
+	 * @return true if changes are made to the hierarchy, false otherwise
+	 * @since v0.4.0
+	 * @see #copySelectedObjectsToPlane(PathObjectHierarchy, ImagePlane)
+	 */
+	public static boolean copySelectedObjectsToPlane(int z, int t) {
+		return copySelectedObjectsToPlane(getCurrentHierarchy(), ImagePlane.getPlane(z, t));
+	}
+	
+	/**
+	 * Copy the selected objects in the current hierarchy to the specified image plane.
+	 * This copies only the objects themselves, discarding any parent/child relationships.
+	 * The copied objects will become the new selection.
+	 * @param plane 
+	 * @return true if changes are made to the hierarchy, false otherwise
+	 * @since v0.4.0
+	 * @see #copySelectedObjectsToPlane(PathObjectHierarchy, ImagePlane)
+	 */
+	public static boolean copySelectedObjectsToPlane(ImagePlane plane) {
+		return copySelectedObjectsToPlane(getCurrentHierarchy(), plane);
+	}
+	
+	/**
+	 * Copy the selected objects in the specified hierarchy to the specified image plane.
+	 * This copies only the objects themselves, discarding any parent/child relationships.
+	 * The copied objects will become the new selection.
+	 * @param hierarchy 
+	 * @param plane 
+	 * 
+	 * @return true if changes are made to the hierarchy, false otherwise
+	 * @since v0.4.0
+	 */
+	public static boolean copySelectedObjectsToPlane(PathObjectHierarchy hierarchy, ImagePlane plane) {
+		return copySelectedObjectsToPlane(hierarchy, plane, p -> p.hasROI());
+	}
+	
+	/**
+	 * Copy the selected annotations in the current hierarchy to the specified z-slice and timepoint.
+	 * This copies only the objects themselves, discarding any parent/child relationships.
+	 * The copied objects will become the new selection.
+	 * @param z z-slice (0-based index)
+	 * @param t timepoint (0-based index)
+	 * @return true if changes are made to the hierarchy, false otherwise
+	 * @since v0.4.0
+	 * @see #copySelectedObjectsToPlane(PathObjectHierarchy, ImagePlane)
+	 */
+	public static boolean copySelectedAnnotationsToPlane(int z, int t) {
+		return copySelectedAnnotationsToPlane(getCurrentHierarchy(), ImagePlane.getPlane(z, t));
+	}
+	
+	/**
+	 * Copy the selected annotations in the current hierarchy to the specified image plane.
+	 * This copies only the objects themselves, discarding any parent/child relationships.
+	 * The copied objects will become the new selection.
+	 * @param plane 
+	 * @return true if changes are made to the hierarchy, false otherwise
+	 * @since v0.4.0
+	 * @see #copySelectedObjectsToPlane(PathObjectHierarchy, ImagePlane)
+	 */
+	public static boolean copySelectedAnnotationsToPlane(ImagePlane plane) {
+		return copySelectedAnnotationsToPlane(getCurrentHierarchy(), plane);
+	}
+	
+	/**
+	 * Copy the selected annotations in the specified hierarchy to the specified image plane.
+	 * This copies only the objects themselves, discarding any parent/child relationships.
+	 * The copied objects will become the new selection.
+	 * @param hierarchy 
+	 * @param plane 
+	 * 
+	 * @return true if changes are made to the hierarchy, false otherwise
+	 * @since v0.4.0
+	 */
+	public static boolean copySelectedAnnotationsToPlane(PathObjectHierarchy hierarchy, ImagePlane plane) {
+		return copySelectedObjectsToPlane(hierarchy, plane, p -> p.hasROI() && p.isAnnotation());
+	}
+
+		
+	private static boolean copySelectedObjectsToPlane(PathObjectHierarchy hierarchy, ImagePlane plane, Predicate<PathObject> filter) {
+		if (hierarchy == null)
+			return false;
+		
+		Collection<PathObject> selected = hierarchy.getSelectionModel().getSelectedObjects();
+		if (selected.isEmpty()) {
+			return false;
+		}
+		
+		// Try to retain the primary selection, if known
+		var primary = hierarchy.getSelectionModel().getSelectedObject();
+		if (primary != null) {
+			selected = new ArrayList<>(selected);
+			selected.remove(primary);
+			((List<PathObject>)selected).add(0, primary);
+		}
+		
+		var transformed = selected.stream()
+				.filter(filter)
+				.map(p -> PathObjectTools.updatePlane(p, plane, false, true))
+				.collect(Collectors.toList());
+		if (transformed.isEmpty())
+			return false;
+		hierarchy.addObjects(transformed);
+		// Consider making this optional
+		hierarchy.getSelectionModel().setSelectedObjects(transformed, primary == null ? null : transformed.get(0));
+		return true;
 	}
 	
 	/**
@@ -3123,7 +3838,7 @@ public class QP {
 		else
 			logger.warn("Cannot assign class unambiguously - " + pathClasses.size() + " classes represented in selection");
 		hierarchy.removeObjects(merged, true);
-		hierarchy.addPathObject(pathObjectNew);
+		hierarchy.addObject(pathObjectNew);
 		hierarchy.getSelectionModel().setSelectedObject(pathObjectNew);
 		//				pathObject.removePathObjects(children);
 		//				pathObject.addPathObject(pathObjectNew);
@@ -3254,7 +3969,7 @@ public class QP {
 		// Create the new ROI
 		ROI shapeNew = GeometryTools.geometryToROI(geometry, plane);
 		PathObject pathObjectNew = PathObjects.createAnnotationObject(shapeNew);
-		parent.addPathObject(pathObjectNew);
+		parent.addChildObject(pathObjectNew);
 		hierarchy.fireHierarchyChangedEvent(parent);	
 		hierarchy.getSelectionModel().setSelectedObject(pathObjectNew);
 		return true;
@@ -3464,7 +4179,7 @@ public class QP {
 	public static void findDensityMapHotspots(ImageData<BufferedImage> imageData, DensityMapBuilder densityMap, int channel, int numHotspots, double minCounts, boolean deleteExisting, boolean peaksOnly) throws IOException {
 		var densityServer = densityMap.buildServer(imageData);
 		double radius = densityMap.buildParameters().getRadius();
-		var pathClass = PathClassFactory.getPathClass(densityServer.getChannel(channel).getName());
+		var pathClass = PathClass.fromString(densityServer.getChannel(channel).getName());
 		DensityMaps.findHotspots(imageData.getHierarchy(), densityServer, channel, numHotspots, radius, minCounts, pathClass, deleteExisting, peaksOnly);
 	}
 
@@ -3519,6 +4234,14 @@ public class QP {
 		DensityMaps.threshold(imageData.getHierarchy(), densityServer, thresholds, pathClassName, options);
 	}
 	
+	
+	/**
+	 * Get the logger associated with this class.
+	 * @return
+	 */
+	public static Logger getLogger() {
+		return logger;
+	}
 	
 	
 	/**
@@ -3669,5 +4392,263 @@ public class QP {
 	public static void classifyDetectionsByCentroid(String classifierName) {
 		classifyDetectionsByCentroid(loadPixelClassifier(classifierName));
 	}
+	
+	/**
+	 * Check whether the current QuPath version is &geq; the specified version.
+	 * This can be added at the beginning of a script to prevent the script running if it is known to be incompatible.
+	 * <p>
+	 * It throws an exception if the test is failed so that it can be added in a single line, with the script stopping 
+	 * if the criterion is not met.
+	 * <p>
+	 * Using this successfully depends upon {@link #VERSION} being available.
+	 * To avoid an exception if it is not, use
+	 * <code>
+	 * <pre>{@code 
+	 * if (VERSION != null)
+	 *   checkMinVersion("0.4.0");
+	 * }
+	 * </pre>
+	 * @param version last known compatible version (inclusive)
+	 * @throws UnsupportedOperationException if the version test is not passed, of version information is unavailable
+	 * @see #checkVersionRange(String, String)
+	 * @since v0.4.0
+	 */
+	public static void checkMinVersion(String version) throws UnsupportedOperationException {
+		if (VERSION == null)
+			throw new UnsupportedOperationException("Can't check version - QuPath version is unknown!");
+		var versionToCompare = Version.parse(version);
+		if (versionToCompare.compareTo(VERSION) > 0)
+			throw new UnsupportedOperationException("Mininum version " + versionToCompare + " exceeds current QuPath version " + VERSION);
+	}
+	
+	/**
+	 * Check whether the current QuPath version is &geq; the specified minimum version, and &lt; the specified maximum.
+	 * This can be added at the beginning of a script to prevent the script running if it is known to be incompatible.
+	 * <p>
+	 * The minimum is inclusive and maximum is exclusive so that the maximum can be given as the first version known to 
+	 * introduce a breaking change.
+	 * <p>
+	 * Using this successfully depends upon {@link #VERSION} being available.
+	 * To avoid an exception if it is not, use
+	 * <code>
+	 * <pre>{@code 
+	 * if (VERSION != null)
+	 *   checkVersionRange("0.4.0", "0.5.0");
+	 * }
+	 * </pre>
+	 * @param minVersion last known compatible version (inclusive)
+	 * @param maxVersion next known incompatible version
+	 * @throws UnsupportedOperationException if the version test is not passed, of version information is unavailable
+	 * @see #checkMinVersion(String)
+	 * @since v0.4.0
+	 */	public static void checkVersionRange(String minVersion, String maxVersion) throws UnsupportedOperationException {
+		checkMinVersion(minVersion);
+		var versionMax = Version.parse(maxVersion);
+		if (versionMax.compareTo(VERSION) <= 0)
+			throw new UnsupportedOperationException("Current QuPath version " + VERSION + " is >= the specified (non-inclusive) maximum " + versionMax);			
+	}
+	
+	 
+	 /**
+	  * Remove objects that are entirely outside the current image.
+	  * @return true if objects were removed, false otherwise
+	  * @since v0.4.0
+	  * @see #removeObjectsOutsideImage(ImageData, boolean)
+	  */
+	 public static boolean removeObjectsOutsideImage() {
+		 return removeObjectsOutsideImage(getCurrentImageData());
+	 }
+	 
+	 /**
+	  * Remove objects that are entirely or partially outside the current image.
+	  * @param ignoreIntersecting if true, ignore objects that are intersecting the image bounds; if false, remove these intersecting objects too
+	  * @return true if objects were removed, false otherwise
+	  * @since v0.4.0
+	  * @see #removeObjectsOutsideImage(ImageData, boolean)
+	  */
+	 public static boolean removeObjectsOutsideImage(boolean ignoreIntersecting) {
+		 return removeObjectsOutsideImage(getCurrentImageData(), ignoreIntersecting);
+	 }
+
+	 /**
+	  * Remove objects that are entirely or outside the specified image.
+	  * @param imageData the image data, including a hierarchy and server to use
+	  * @return true if objects were removed, false otherwise
+	  * @since v0.4.0
+	  * @see #removeObjectsOutsideImage(ImageData, boolean)
+	  */
+	 public static boolean removeObjectsOutsideImage(ImageData<?> imageData) {
+		 return removeObjectsOutsideImage(imageData, true);		 
+	 }
+
+	 /**
+	  * Remove objects that are entirely or partially outside the specified image.
+	  * @param imageData the image data, including a hierarchy and server to use
+	  * @param ignoreIntersecting if true, ignore objects that are intersecting the image bounds; if false, remove these intersecting objects too
+	  * @return true if objects were removed, false otherwise
+	  * @since v0.4.0
+	  * @see #removeObjectsOutsideImage(ImageData, boolean)
+	  * @see #removeOrClipObjectsOutsideImage(ImageData)
+	  * @implNote TMA cores outside the image can't be removed, because doing so would potentially mess up the TMA grid.
+	  */
+	 public static boolean removeObjectsOutsideImage(ImageData<?> imageData, boolean ignoreIntersecting) {
+		 Objects.requireNonNull(imageData, "Hierarchy must not be null!");
+		 var hierarchy = imageData.getHierarchy();
+		 var server = imageData.getServer();
+		 // Remove objects outside the image - unless they are TMA cores, which would mess up the grid
+		 var toRemoveOriginal = PathObjectTools.findObjectsOutsideImage(hierarchy.getAllObjects(false), server, ignoreIntersecting);
+		 var toRemove = toRemoveOriginal
+				 .stream()
+				 .filter(p -> !p.isTMACore())
+				 .collect(Collectors.toList());
+		 if (toRemove.size() < toRemoveOriginal.size())
+			 logger.warn("TMA cores outside the image can't be removed");
+		 if (toRemove.isEmpty())
+			 return false;
+		 hierarchy.removeObjects(toRemove, true);
+		 hierarchy.getSelectionModel().deselectObjects(toRemove);
+		 return true;
+	 }
+	 
+	 /**
+	  * Remove objects occurring outside the current image bounds, clipping annotations where possible to retain 
+	  * the part that is inside the image.
+	  * @return true if changes were made, false otherwise
+	  * @since v0.4.0
+	  * @see #removeOrClipObjectsOutsideImage(ImageData)
+	  * @see #removeObjectsOutsideImage(ImageData, boolean)
+	  */
+	 public static boolean removeOrClipObjectsOutsideImage() {
+		 return removeOrClipObjectsOutsideImage(getCurrentImageData());
+	 }
+	 
+
+	 /**
+	  * Remove objects occurring outside the specified image bounds, clipping annotations where possible to retain 
+	  * the part that is inside the image.
+	  * @param imageData 
+	  * @return true if changes were made, false otherwise
+	  * @since v0.4.0
+	  * @see #removeObjectsOutsideImage(ImageData, boolean)
+	  */
+	 public static boolean removeOrClipObjectsOutsideImage(ImageData<?> imageData) {
+		 var server = imageData.getServer();
+		 var hierarchy = getCurrentHierarchy();
+		 
+		 // Remove all the objects that are completely outside the image
+		 boolean changes = removeObjectsOutsideImage(imageData, true);
+		 
+		 // Find remaining objects that overlap the bounds
+		 var overlapping = PathObjectTools.findObjectsOutsideImage(hierarchy.getAllObjects(false), server, false)
+				 .stream()
+				 .filter(p -> !p.isTMACore())
+				 .collect(Collectors.toList());
+		 if (overlapping.isEmpty())
+			 return changes;
+		 
+		 // Remove the detections entirely
+		 var overlappingDetections = overlapping.stream().filter(p -> p.isDetection()).collect(Collectors.toList());
+		 if (!overlappingDetections.isEmpty()) {
+			 hierarchy.removeObjects(overlappingDetections, true);
+			 changes = true;
+			 // Check if that's everything
+			 if (overlapping.size() == overlappingDetections.size())
+				 return changes;
+		 }
+		 
+		 // Clip any remaining annotations
+		 var clipBounds = GeometryTools.createRectangle(0, 0, server.getWidth(), server.getHeight());
+		 for (var pathObject : overlapping) {
+			 if (pathObject.isAnnotation()) {
+				 var roi = pathObject.getROI();
+				 var geom = roi.getGeometry();
+				 var geom2 = clipBounds.intersection(geom);
+				 var roi2 = GeometryTools.geometryToROI(geom2, roi.getImagePlane());
+				 ((PathAnnotationObject)pathObject).setROI(roi2);
+				 changes = true;
+			 }
+		 }
+		 hierarchy.fireHierarchyChangedEvent(QP.class);
+		 return changes;
+	 }
+
+	 
+	 /*
+	  * If Groovy finds a getXXX() it's liable to make xXX look like a variable...
+	  * then if the user tries to *create* (or set) a variable with that name, 
+	  * it will attempt to call setXXX(something).
+	  * That could then fail quietly and be confusing.
+	  * So these methods exist to make it fail noisily, and with a proposed solution.
+	  */
+	 
+	 
+	 private static void setTMACoreList(Object o) throws UnsupportedOperationException {
+		 warnAboutSetter("tMACoreList");
+	 }
+
+	 private static void setCellObjects(Object o) throws UnsupportedOperationException {
+		 warnAboutSetter("cellObjects");
+	 }
+
+	 private static void setTileObjects(Object o) throws UnsupportedOperationException {
+		 warnAboutSetter("tileObjects");
+	 }
+
+	 private static void setDetectionObjects(Object o) throws UnsupportedOperationException {
+		 warnAboutSetter("detectionObjects");
+	 }
+
+	 private static void setAnnotationObjects(Object o) throws UnsupportedOperationException {
+		 warnAboutSetter("annotationObjects");
+	 }
+
+	 private static void setAllObjects(Object o) throws UnsupportedOperationException {
+		 warnAboutSetter("allObjects");
+	 }
+
+	 private static void setCurrentHierarchy(Object o) throws UnsupportedOperationException {
+		 warnAboutSetter("currentHierarchy");
+	 }
+
+	 private static void setCurrentImageData(Object o) throws UnsupportedOperationException {
+		 warnAboutSetter("currentImageData");
+	 }
+
+	 private static void setCurrentServer(Object o) throws UnsupportedOperationException {
+		 warnAboutSetter("currentServer");
+	 }
+
+	 private static void setCurrentServerPath(Object o) throws UnsupportedOperationException {
+		 warnAboutSetter("currentServerPath");
+	 }
+
+	 private static void setProject(Object o) throws UnsupportedOperationException {
+		 warnAboutSetter("project");
+	 }
+
+	 private static void setProjectEntry(Object o) throws UnsupportedOperationException {
+		 warnAboutSetter("projectEntry");
+	 }
+
+	 private static void setCoreClasses(Object o) throws UnsupportedOperationException {
+		 warnAboutSetter("coreClasses");
+	 }
+
+	 private static void setCurrentImageName(Object o) throws UnsupportedOperationException {
+		 warnAboutSetter("currentImageName");
+	 }
+
+
+	 /**
+	  * Warn about attempt to set a property in Groovy, which really there is just a getter that isn't meant to be set.
+	  * @param name
+	  * @throws UnsupportedOperationException
+	  */
+	 private static void warnAboutSetter(String name) throws UnsupportedOperationException {
+		 logger.warn("Unsupported attempt to set {}. This can happen in a Groovy script if you use "
+				 + "'{}' as a global variable name - please use a different name instead, "
+				 + "or default a local variable with 'def {}'", name, name, name);
+		 throw new UnsupportedOperationException(name + " cannot be set!");
+	 }
 	
 }

@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -23,13 +23,13 @@
 
 package qupath.lib.objects.classes;
 
-import java.util.Arrays;
-import java.util.HashMap;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.Random;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import qupath.lib.common.ColorTools;
+import qupath.lib.common.LogTools;
 
 /**
  * Factory for creating PathClasses.
@@ -38,15 +38,18 @@ import qupath.lib.common.ColorTools;
  * only one PathClass with a specified name (and, optionally, ancestry) can exist at any time.
  * 
  * @author Pete Bankhead
- *
+ * @deprecated since v0.4.0 in favor of methods added to {@link PathClass} directly.
  */
+@Deprecated
 public final class PathClassFactory {
+	
+	private static final Logger logger = LoggerFactory.getLogger(PathClassFactory.class);
 	
 	// Suppressed default constructor for non-instantiability
 	private PathClassFactory() {
 		throw new AssertionError();
 	}
-	
+		
 	/**
 	 * Enum representing standard classifications. Exists mostly to ensure consisting naming (including capitalization).
 	 */
@@ -98,25 +101,25 @@ public final class PathClassFactory {
 		PathClass getPathClass() {
 			switch (this) {
 			case IGNORE:
-				return PathClassFactory.getPathClass("Ignore*", ColorTools.packRGB(180, 180, 180));
+				return PathClass.getInstance("Ignore*", ColorTools.packRGB(180, 180, 180));
 			case IMAGE_ROOT:
-				return PathClassFactory.getPathClass("Image", ColorTools.packRGB(128, 128, 128));
+				return PathClass.getInstance("Image", ColorTools.packRGB(128, 128, 128));
 			case IMMUNE_CELLS:
-				return PathClassFactory.getPathClass("Immune cells", ColorTools.packRGB(160, 90, 160));
+				return PathClass.getInstance("Immune cells", ColorTools.packRGB(160, 90, 160));
 			case NECROSIS:
-				return PathClassFactory.getPathClass("Necrosis", ColorTools.packRGB(50, 50, 50));
+				return PathClass.getInstance("Necrosis", ColorTools.packRGB(50, 50, 50));
 			case OTHER:
-				return PathClassFactory.getPathClass("Other", ColorTools.packRGB(255, 200, 0));
+				return PathClass.getInstance("Other", ColorTools.packRGB(255, 200, 0));
 			case REGION:
-				return PathClassFactory.getPathClass("Region*", ColorTools.packRGB(0, 0, 180));
+				return PathClass.getInstance("Region*", ColorTools.packRGB(0, 0, 180));
 			case STROMA:
-				return PathClassFactory.getPathClass("Stroma", ColorTools.packRGB(150, 200, 150));
+				return PathClass.getInstance("Stroma", ColorTools.packRGB(150, 200, 150));
 			case TUMOR:
-				return PathClassFactory.getPathClass("Tumor", ColorTools.packRGB(200, 0, 0));
+				return PathClass.getInstance("Tumor", ColorTools.packRGB(200, 0, 0));
 			case POSITIVE:
-				return PathClassFactory.getPositive(null);
+				return PathClass.getPositive(null);
 			case NEGATIVE:
-				return PathClassFactory.getNegative(null);
+				return PathClass.getNegative(null);
 			default:
 				throw new IllegalArgumentException("Unknown value!");
 			}
@@ -124,28 +127,6 @@ public final class PathClassFactory {
 		
 	}
 
-	private static Map<String, PathClass> mapPathClasses = new HashMap<>();
-
-	private static final PathClass NULL_CLASS = PathClass.getNullClass();
-	
-	static final String POSITIVE = "Positive";
-	static final String NEGATIVE = "Negative";
-	static final String ONE_PLUS = "1+";
-	static final String TWO_PLUS = "2+";
-	static final String THREE_PLUS = "3+";
-	static List<String> intensityClassNames = Arrays.asList(ONE_PLUS, TWO_PLUS, THREE_PLUS);
-	
-	private static final Integer COLOR_POSITIVE = ColorTools.packRGB(200, 50, 50);
-	private static final Integer COLOR_NEGATIVE = ColorTools.packRGB(90, 90, 180);
-	private static final Integer COLOR_ONE_PLUS = ColorTools.packRGB(255, 215, 0);
-	private static final Integer COLOR_TWO_PLUS = ColorTools.packRGB(225, 150, 50);
-	private static final Integer COLOR_THREE_PLUS = ColorTools.packRGB(200, 50, 50);
-	
-	
-	
-	static boolean classExists(String classString) {
-		return mapPathClasses.containsKey(classString);
-	}
 	
 	/**
 	 * Get a {@link PathClass}, without specifying any color.
@@ -153,7 +134,8 @@ public final class PathClassFactory {
 	 * @return
 	 */
 	public static PathClass getPathClass(String name) {
-		return getPathClass(name, (Integer)null);
+		LogTools.warnOnce(logger, "PathClassFactory is deprecated since v0.4.0 - use PathClass.fromString(String) instead");
+		return PathClass.fromString(name, (Integer)null);
 	}
 		
 	/**
@@ -164,60 +146,18 @@ public final class PathClassFactory {
 	 * @param name
 	 * @param rgb
 	 * @return
+	 * @deprecated since v0.4.0 in favor of {@link PathClass#getInstance(String, Integer)} or 
+	 *             {@link PathClass#fromString(String, Integer)}
 	 */
+	@Deprecated
 	public static PathClass getPathClass(String name, Integer rgb) {
+		LogTools.warnOnce(logger, "PathClassFactory is deprecated since v0.4.0 - use PathClass.fromString(String, Integer) instead");
 		if (name == null)
-			return NULL_CLASS;
-		
-		
-		name = name.strip();
-		if (name.isEmpty() || name.equals(NULL_CLASS.toString()) || name.equals(NULL_CLASS.getName()))
-			return NULL_CLASS;
-		
-		// Handle requests for derived classes
-		var split = name.split(":");
-		if (split.length > 1) {
-			var pathClass = getPathClass(split[0], rgb);
-			for (int i = 1; i < split.length; i++) {
-				var temp = split[i].strip();
-				if (!temp.isBlank())
-					pathClass = getDerivedPathClass(pathClass, temp, rgb);
-			}
-			return pathClass;
-		}
-		
-		synchronized (mapPathClasses) {
-			PathClass pathClass = mapPathClasses.get(name);
-			if (pathClass == null) {
-				if (rgb == null) {
-					// Use default colors for intensity classes
-					if (name.equals(ONE_PLUS)) {
-						rgb = ColorTools.makeScaledRGB(COLOR_ONE_PLUS, 1.25);
-					} else if (name.equals(TWO_PLUS)) {
-						rgb = ColorTools.makeScaledRGB(COLOR_TWO_PLUS, 1.25);
-					} else if (name.equals(THREE_PLUS))
-						rgb = ColorTools.makeScaledRGB(COLOR_THREE_PLUS, 1.25);
-					else if (name.equals(POSITIVE)) {
-						rgb = ColorTools.makeScaledRGB(COLOR_POSITIVE, 1.25);
-					} else if (name.equals(NEGATIVE)) {
-						rgb = ColorTools.makeScaledRGB(COLOR_NEGATIVE, 1.25);
-					} else {
-						// Create a random color
-						// Use the hashcode of the String as a seed - so that the same 
-						// color is generated reproducibly for the same name.
-						Random random = new Random(name.hashCode());
-						rgb = ColorTools.packRGB(
-								random.nextInt(256),
-								random.nextInt(256),
-								random.nextInt(256));
-					}
-				}
-				pathClass = PathClass.getInstance(null, name, rgb);
-				mapPathClasses.put(pathClass.toString(), pathClass);
-			}
-			return pathClass;
-		}
+			return PathClass.NULL_CLASS;
+		return PathClass.fromString(name, rgb);
 	}
+		
+		
 	/**
 	 * Get a derived {@link PathClass} object representing all the provided names, 
 	 * using default colors.
@@ -229,14 +169,23 @@ public final class PathClassFactory {
 	 * @param names array of names for each constituent part of the classification.
 	 * 				For each name, a new class will be derived, starting from the base.
 	 * @return a {@link PathClass}, as defined above
-	 * 
-	 * @see #getPathClass(String, Integer)
+	 * @deprecated since v0.4.0 in favor of {@link PathClass#fromArray(String...)}
 	 */
+	@Deprecated
 	public static PathClass getPathClass(String baseName, String... names) {
-		var pathClass = getPathClass(baseName, (Integer)null);
-		for (String n : names)
-			pathClass = getDerivedPathClass(pathClass, n, null);
-		return pathClass;
+		LogTools.warnOnce(logger, "PathClassFactory is deprecated since v0.4.0 - use PathClass.fromArray(String...) instead");
+		if (names.length == 0)
+			return PathClass.getInstance(baseName);
+		List<String> list;
+		if (names.length == 1)
+			list = List.of(baseName, names[0]);
+		else {
+			list = new ArrayList<String>();
+			list.add(baseName);
+			for (var n : names)
+				list.add(n);
+		}
+		return PathClass.fromCollection(list);
 	}
 	
 	/**
@@ -245,13 +194,12 @@ public final class PathClassFactory {
 	 * 
 	 * @param names list of names for each constituent part of the classification.
 	 * @return a {@link PathClass} containing all names
-	 * 
-	 * @see #getPathClass(String, String...)
+	 * @deprecated since v0.4.0 in favor of {@link PathClass#fromCollection(java.util.Collection)}
 	 */
+	@Deprecated
 	public static PathClass getPathClass(List<String> names) {
-		if (names.isEmpty())
-			return null;//getPathClassUnclassified();
-		return getPathClass(names.get(0), names.subList(1, names.size()).toArray(String[]::new));
+		LogTools.warnOnce(logger, "PathClassFactory is deprecated since v0.4.0 - use PathClass.fromCollection(Collection<String>) instead");
+		return PathClass.fromCollection(names);
 	}
 	
 	
@@ -261,11 +209,12 @@ public final class PathClassFactory {
 	 * 
 	 * @param pathClass
 	 * @return
+	 * @deprecated since v0.4.0 in favor of {@link PathClass#getSingleton(PathClass)}
 	 */
+	@Deprecated
 	public static PathClass getSingletonPathClass(PathClass pathClass) {
-		if (pathClass.getParentClass() == null)
-			return getPathClass(pathClass.getName(), pathClass.getColor());
-		return getDerivedPathClass(getSingletonPathClass(pathClass.getParentClass()), pathClass.getName(), pathClass.getColor());
+		LogTools.warnOnce(logger, "PathClassFactory is deprecated since v0.4.0 - use PathClass.getSingleton(PathClass) instead");
+		return PathClass.getSingleton(pathClass);
 	}
 	
 	/**
@@ -275,92 +224,83 @@ public final class PathClassFactory {
 	 * @param name
 	 * @param rgb
 	 * @return
+	 * @deprecated since v0.4.0, use {@link PathClass#getInstance(PathClass, String, Integer)}
 	 */
+	@Deprecated
 	public static PathClass getDerivedPathClass(PathClass parentClass, String name, Integer rgb) {
-		if (parentClass == null || !parentClass.isValid())
-			return getPathClass(name, rgb);
-		String nameNew = PathClass.derivedClassToString(parentClass, name);
-//		mapPathDerivedClasses.clear();
-		synchronized (mapPathClasses) {
-			PathClass pathClass = mapPathClasses.get(nameNew);
-			if (pathClass == null) {
-				if (rgb == null) {
-					boolean isTumor = getPathClass(StandardPathClasses.TUMOR) == parentClass;
-					int parentRGB = parentClass.getColor();
-					if (name.equals(ONE_PLUS)) {
-						rgb = isTumor ? COLOR_ONE_PLUS : ColorTools.makeScaledRGB(parentRGB, 0.9);
-					} else if (name.equals(TWO_PLUS)) {
-						rgb = isTumor ? COLOR_TWO_PLUS : ColorTools.makeScaledRGB(parentRGB, 0.6);
-					} else if (name.equals(THREE_PLUS))
-						rgb = isTumor ? COLOR_THREE_PLUS : ColorTools.makeScaledRGB(parentRGB, 0.4);
-					else if (name.equals(POSITIVE)) {
-						rgb = isTumor ? COLOR_POSITIVE : ColorTools.makeScaledRGB(parentRGB, 0.75);
-					} else if (name.equals(NEGATIVE)) {
-						rgb = isTumor ? COLOR_NEGATIVE : ColorTools.makeScaledRGB(parentRGB, 1.25);
-					} else {
-						double scale = 1.5;
-						rgb = ColorTools.makeScaledRGB(parentRGB, scale);
-					}
-				}
-	//				rgb = new Color(parentClass.getColor()).brighter().getRGB();
-				pathClass = PathClass.getInstance(parentClass, name, rgb);
-				mapPathClasses.put(pathClass.toString(), pathClass);
-			}
-			return pathClass;
-		}
+		LogTools.warnOnce(logger, "PathClassFactory is deprecated since v0.4.0 - use PathClass.getInstance(PathClass, String Integer) instead");
+		return PathClass.getInstance(parentClass, name, rgb);
 	}
 	
 	/**
 	 * Get a standalone or derived 1+ classification, indicating weak positivity
 	 * @param parentClass parent classification (may be null)
 	 * @return
+	 * @deprecated since v0.4.0, use {@link PathClass#getOnePlus(PathClass)}
 	 */
+	@Deprecated
 	public static PathClass getOnePlus(PathClass parentClass) {
-		return getDerivedPathClass(parentClass, ONE_PLUS, null);
+		LogTools.warnOnce(logger, "PathClassFactory is deprecated since v0.4.0 - use PathClass.getOnePlus(PathClass) instead");
+		return PathClass.getInstance(parentClass, PathClass.NAME_ONE_PLUS, null);
 	}
 
 	/**
 	 * Get a standalone or derived 2+ classification, indicating moderate positivity
 	 * @param parentClass parent classification (may be null)
 	 * @return
+	 * @deprecated since v0.4.0, use {@link PathClass#getTwoPlus(PathClass)}
 	 */
+	@Deprecated
 	public static PathClass getTwoPlus(PathClass parentClass) {
-		return getDerivedPathClass(parentClass, TWO_PLUS, null);
+		LogTools.warnOnce(logger, "PathClassFactory is deprecated since v0.4.0 - use PathClass.getTwoPlus(PathClass) instead");
+		return PathClass.getInstance(parentClass, PathClass.NAME_TWO_PLUS, null);
 	}
 
 	/**
 	 * Get a standalone or derived 3+ classification, indicating strong positivity
 	 * @param parentClass parent classification (may be null)
 	 * @return
+	 * @deprecated since v0.4.0, use {@link PathClass#getThreePlus(PathClass)}
 	 */
+	@Deprecated
 	public static PathClass getThreePlus(PathClass parentClass) {
-		return getDerivedPathClass(parentClass, THREE_PLUS, null);
+		LogTools.warnOnce(logger, "PathClassFactory is deprecated since v0.4.0 - use PathClass.getThreePlus(PathClass) instead");
+		return PathClass.getInstance(parentClass, PathClass.NAME_THREE_PLUS, null);
 	}
 	
 	/**
 	 * Get a standalone or derived Negative classification
 	 * @param parentClass parent classification (may be null)
 	 * @return
+	 * @deprecated since v0.4.0, use {@link PathClass#getNegative(PathClass)}
 	 */
+	@Deprecated
 	public static PathClass getNegative(PathClass parentClass) {
-		return getDerivedPathClass(parentClass, NEGATIVE, null);
+		LogTools.warnOnce(logger, "PathClassFactory is deprecated since v0.4.0 - use PathClass.getNegative(PathClass) instead");
+		return PathClass.getInstance(parentClass, PathClass.NAME_NEGATIVE, null);
 	}
 	
 	/**
 	 * Get a standalone or derived Positive classification
 	 * @param parentClass parent classification (may be null)
 	 * @return
+	 * @deprecated since v0.4.0, use {@link PathClass#getPositive(PathClass)}
 	 */
+	@Deprecated
 	public static PathClass getPositive(PathClass parentClass) {
-		return getDerivedPathClass(parentClass, POSITIVE, null);
+		LogTools.warnOnce(logger, "PathClassFactory is deprecated since v0.4.0 - use PathClass.getPositive(PathClass) instead");
+		return PathClass.getInstance(parentClass, PathClass.NAME_POSITIVE, null);
 	}
 	
 	/**
 	 * Get a standard PathClass.
 	 * @param pathClass
 	 * @return
+	 * @deprecated since v0.4.0, use {@link qupath.lib.objects.classes.PathClass.StandardPathClasses}
 	 */
+	@Deprecated
 	public static PathClass getPathClass(StandardPathClasses pathClass) {
+		LogTools.warnOnce(logger, "PathClassFactory is deprecated since v0.4.0 - use PathClass.StandardPathClasses instead");
 		return pathClass.getPathClass();
 	}
 
@@ -369,11 +309,14 @@ public final class PathClassFactory {
 	 * <p>
 	 * This is useful for displaying available classes; <i>it should not be set as the class for any object</i>, 
 	 * rather an object that is unclassified should have a classification of null.
-	 * 
 	 * @return
+	 * @deprecated since v0.4.0, use instead {@link PathClass#NULL_CLASS}
 	 */
+	@Deprecated
 	public static PathClass getPathClassUnclassified() {
-		return NULL_CLASS;
+		LogTools.warnOnce(logger, "PathClassFactory is deprecated since v0.4.0 - use PathClass.NULL_CLASS instead");
+		return PathClass.NULL_CLASS;
 	}
+		
 
 }

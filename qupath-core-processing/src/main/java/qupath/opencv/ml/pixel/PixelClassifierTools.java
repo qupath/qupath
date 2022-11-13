@@ -38,7 +38,6 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.classes.Reclassifier;
 import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
@@ -245,9 +244,9 @@ public class PixelClassifierTools {
 		for (var entry : map.entrySet()) {
 			var parent = entry.getKey();
 			var children = entry.getValue();
-			if (clearExisting && parent.hasChildren())
-				parent.clearPathObjects();
-			parent.addPathObjects(children);
+			if (clearExisting && parent.hasChildObjects())
+				parent.clearChildObjects();
+			parent.addChildObjects(children);
 			if (!parent.isRootObject())
 				parent.setLocked(true);
 		}
@@ -331,7 +330,7 @@ public class PixelClassifierTools {
 		var labels = new LinkedHashMap<Integer, PathClass>();
 		for (var entry : labelsOrig.entrySet()) {
 			var pathClass = entry.getValue();
-			if (pathClass == null || pathClass == PathClassFactory.getPathClassUnclassified() || (!includeIgnored && PathClassTools.isIgnoredClass(pathClass)))				
+			if (pathClass == null || pathClass == PathClass.NULL_CLASS || (!includeIgnored && PathClassTools.isIgnoredClass(pathClass)))				
 				continue;
 			labels.put(entry.getKey(), pathClass);
 		}
@@ -403,7 +402,7 @@ public class PixelClassifierTools {
 			var labelMap = labels;
 			pathObjects.addAll(
 					geometryMap.entrySet().parallelStream()
-						.flatMap(e -> geometryToObjects(e.getValue(), creator, labelMap.get(e.getKey()), minAreaPixels, minHoleAreaPixels, doSplit, regionRequest.getPlane()).stream())
+						.flatMap(e -> geometryToObjects(e.getValue(), creator, labelMap.get(e.getKey()), minAreaPixels, minHoleAreaPixels, doSplit, regionRequest.getImagePlane()).stream())
 						.collect(Collectors.toList())
 						);
 			
@@ -590,7 +589,7 @@ public class PixelClassifierTools {
 				for (String name : manager.getMeasurementNames()) {
 					Number value = manager.getMeasurementValue(pathObject, name, false);
 					double val = value == null ? Double.NaN : value.doubleValue();
-					ml.putMeasurement(measurementID + name, val);
+					ml.put(measurementID + name, val);
 				}
 			}
 			// We really want to lock objects so we don't end up with wrong measurements
@@ -653,7 +652,7 @@ public class PixelClassifierTools {
 		
 		int xx = (int)Math.floor(x / tile.getDownsample() - tile.getTileX());
 		int yy = (int)Math.floor(y / tile.getDownsample() - tile.getTileY());
-		var img = server.readBufferedImage(tile.getRegionRequest());
+		var img = server.readRegion(tile.getRegionRequest());
 		
 		if (xx >= img.getWidth())
 			xx = img.getWidth() - 1;

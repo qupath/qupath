@@ -21,7 +21,11 @@
 
 package qupath.lib.gui.scripting.languages;
 
+import java.util.Collections;
 import java.util.ServiceLoader;
+
+import qupath.lib.scripting.languages.ScriptAutoCompletor;
+import qupath.lib.scripting.languages.ScriptLanguage;
 
 /**
  * Class for representing XML in QuPath.
@@ -43,7 +47,7 @@ public class XmlLanguage extends ScriptLanguage {
 	 * Note: this has to be public for the {@link ServiceLoader} to work.
 	 */
 	public XmlLanguage() {
-		super("XML", new String[] {".xml"});
+		super("XML", Collections.singleton(".xml"));
 		
 		if (INSTANCE != null)
 			throw new UnsupportedOperationException("Language classes cannot be instantiated more than once!");
@@ -58,11 +62,6 @@ public class XmlLanguage extends ScriptLanguage {
 	 */
 	public static XmlLanguage getInstance() {
 		return INSTANCE;
-	}
-
-	@Override
-	public ScriptSyntax getSyntax() {
-		return XmlSyntax.getInstance();
 	}
 
 	@Override

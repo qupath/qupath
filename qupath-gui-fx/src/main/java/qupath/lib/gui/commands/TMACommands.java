@@ -26,11 +26,10 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
-import java.util.WeakHashMap;
 import java.util.stream.Collectors;
 
 import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.StringProperty;
 import qupath.lib.analysis.stats.RunningStatistics;
 import qupath.lib.common.GeneralTools;
@@ -75,22 +74,6 @@ public class TMACommands {
 	};
 	
 	private static final String NOTE_NAME = "Note";
-	
-	
-	
-	private static Map<QuPathGUI, TMAGridView> gridViewMap = new WeakHashMap<>();
-	
-	/**
-	 * Show a TMA core grid view.
-	 * <p>
-	 * Note that this method may change in future versions to be tied to a specified image data, 
-	 * rather than a specific QuPath instance.
-	 * @param qupath the QuPath instance for which the grid should be shown
-	 */
-	public static void showTMAGridView(QuPathGUI qupath) {
-		var gridView = gridViewMap.computeIfAbsent(qupath, q -> new TMAGridView(q));
-		gridView.run();
-	}
 	
 	
 	/**
@@ -155,7 +138,9 @@ public class TMACommands {
 			return;
 		}
 		
-		var overlayOptions = qupath.getViewers().stream().filter(v -> v.getImageData() == imageData).map(v -> v.getOverlayOptions()).findFirst().orElse(qupath.getOverlayOptions());
+		var overlayOptions = qupath.getViewers().stream()
+				.filter(v -> v.getImageData() == imageData)
+				.map(v -> v.getOverlayOptions()).findFirst().orElse(qupath.getOverlayOptions());
 
 		String defaultName = ServerTools.getDisplayableImageName(imageData.getServer());
 		File file = Dialogs.promptToSaveFile(null, null, defaultName, "TMA data", ".qptma");
@@ -192,6 +177,7 @@ public class TMACommands {
 	private static StringProperty rowLabelsProperty = PathPrefs.createPersistentPreference("tmaRowLabels", "A-J");
 	private static StringProperty columnLabelsProperty = PathPrefs.createPersistentPreference("tmaColumnLabels", "1-16");
 	private static BooleanProperty rowFirstProperty = PathPrefs.createPersistentPreference("tmaLabelRowFirst", true);
+	private static DoubleProperty coreDiameterProperty = PathPrefs.createPersistentPreference("tmaCoreDiameter", 1000.0);
 
 	
 	/**
@@ -328,8 +314,11 @@ public class TMACommands {
 		
 		// Check we have enough rows/columns - if not, this is just a clear operation
 		if ((removeRow && grid.getGridHeight() <= 1) || (!removeRow && grid.getGridWidth() <= 1)) {
-			if (Dialogs.showConfirmDialog(title, "Are you sure you want to delete the entire TMA grid?"))
+			if (Dialogs.showConfirmDialog(title, "Are you sure you want to delete the entire TMA grid?")) {
 				hierarchy.setTMAGrid(null);
+				if (selected instanceof TMACoreObject || hierarchy.getSelectionModel().getSelectedObjects().stream().anyMatch(p -> p.isTMACore()))
+					hierarchy.getSelectionModel().clearSelection();
+			}
 			return false;
 		}
 		
@@ -362,7 +351,7 @@ public class TMACommands {
 	
 	
 	
-private static enum TMAAddType {ROW_AFTER, ROW_BEFORE, COLUMN_AFTER, COLUMN_BEFORE;
+	private static enum TMAAddType {ROW_AFTER, ROW_BEFORE, COLUMN_AFTER, COLUMN_BEFORE;
 		
 		private String commandName() {
 			switch(this) {
@@ -380,6 +369,68 @@ private static enum TMAAddType {ROW_AFTER, ROW_BEFORE, COLUMN_AFTER, COLUMN_BEFO
 		}
 	
 	};
+	
+	
+	/**
+	 * Prompt the user to manually create a new TMA grid.
+	 * 
+	 * @param imageData
+	 * @return
+	 * @see PathObjectTools#createTMAGrid(String, String, boolean, double, qupath.lib.regions.ImageRegion)
+	 */
+	public static boolean promptToCreateTMAGrid(final ImageData<?> imageData) {
+		String title = "Create TMA grid";
+		if (imageData == null) {
+			Dialogs.showNoImageError(title);
+			return false;
+		}
+		if (imageData.getHierarchy().getTMAGrid() != null) {
+			if (!Dialogs.showConfirmDialog(title, "Existing TMA grid will be removed - are you sure?"))
+				return false;
+		}
+		
+		var units = imageData.getServer().getPixelCalibration().getPixelWidthUnit();
+		
+		ParameterList params = new ParameterList();
+		params.addStringParameter("labelsHorizontal", "Column labels", columnLabelsProperty.get(), "Enter column labels.\nThis can be a continuous range of letters or numbers (e.g. 1-10 or A-J),\nor a discontinuous list separated by spaces (e.g. A B C E F G).");
+		params.addStringParameter("labelsVertical", "Row labels", rowLabelsProperty.get(), "Enter row labels.\nThis can be a continuous range of letters or numbers (e.g. 1-10 or A-J),\nor a discontinuous list separated by spaces (e.g. A B C E F G).");
+		params.addChoiceParameter("labelOrder", "Label order", rowFirstProperty.get() ? "Row first" : "Column first", Arrays.asList("Column first", "Row first"), "Create TMA labels either in the form Row-Column or Column-Row");
+		params.addDoubleParameter("coreDiameter", "Core diameter", coreDiameterProperty.get(), units, "Diameter of each individual TMA core");
+		params.addEmptyParameter("Tip: You can control the size of the grid by drawing a rectangle annotation");
+		
+		if (!Dialogs.showParameterDialog(title, params))
+			return false;
+		
+		// Parse the arguments
+		String labelsHorizontal = params.getStringParameterValue("labelsHorizontal");
+		String labelsVertical = params.getStringParameterValue("labelsVertical");
+		boolean rowFirst = "Row first".equals(params.getChoiceParameterValue("labelOrder"));
+		double diameter = params.getDoubleParameterValue("coreDiameter");
+		
+		if (diameter <= 0) {
+			Dialogs.showErrorMessage(title, "Core diameter must be > 0!");
+			return false;
+		}
+		
+		PathObjectTools.addTMAGrid(imageData, labelsHorizontal, labelsVertical, rowFirst, diameter);
+		
+		// Add to workflow history
+		imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep("Relabel TMA grid",
+				String.format("createTMAGrid(\"%s\", \"%s\", %s, %s)",
+						GeneralTools.escapeFilePath(labelsHorizontal),
+						GeneralTools.escapeFilePath(labelsVertical),
+						Boolean.toString(rowFirst),
+						diameter)));
+		
+		
+		// Store values
+		rowLabelsProperty.set(labelsVertical);
+		columnLabelsProperty.set(labelsHorizontal);
+		rowFirstProperty.set(rowFirst);
+		coreDiameterProperty.set(diameter);
+		
+		return false;
+	}
 	
 	
 	/**
@@ -584,6 +635,12 @@ private static enum TMAAddType {ROW_AFTER, ROW_BEFORE, COLUMN_AFTER, COLUMN_BEFO
 		double meanDx = statsDx.getMean();
 		double meanDy = statsDy.getMean();
 		double diameter = (meanWidth + meanHeight) / 2;
+		
+		// If we don't have finite displacements (i.e. likely just got a single core), then use half width or height
+		if (!Double.isFinite(meanDx))
+			meanDx = meanWidth * 1.25;
+		if (!Double.isFinite(meanDy))
+			meanDy = meanHeight * 1.25;
 		
 		// Create a new list of cores, adding where necessary
 		List<TMACoreObject> coresNew = new ArrayList<>();

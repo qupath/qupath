@@ -23,26 +23,42 @@
 
 package qupath.lib.gui.scripting;
 
+import java.util.Objects;
+
 import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.ReadOnlyBooleanProperty;
+import javafx.beans.property.ReadOnlyIntegerProperty;
 import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.scene.control.ContextMenu;
-import javafx.scene.control.Control;
 import javafx.scene.control.IndexRange;
 import javafx.scene.control.TextArea;
 
 /**
- * SImple text area control (JavafX) with basic operations.
+ * Simple text area control (JavaFX) with basic operations and no styling support.
+ * 
  * @author Pete Bankhead
- *
  */
-class TextAreaControl implements ScriptEditorControl {
+public class TextAreaControl implements ScriptEditorControl<TextArea> {
 	
 	private TextArea textArea;
 	
-	TextAreaControl(final TextArea textArea) {
+	/**
+	 * Constructor to create a new text area and wrap it in a {@link TextAreaControl}.
+	 * @param isEditable whether the text area should be editable or not
+	 */
+	public TextAreaControl(boolean isEditable) {
+		this(new TextArea(), isEditable);
+	}
+	
+	/**
+	 * Constructor to wrap an existing text area and wrap it in a {@link TextAreaControl}.
+	 * @param textArea the text area to wrap
+	 * @param isEditable whether the text area should be editable or not
+	 */
+	public TextAreaControl(final TextArea textArea, boolean isEditable) {
+		Objects.requireNonNull(textArea);
 		this.textArea = textArea;
+		this.textArea.setEditable(isEditable);
 	}
 
 	@Override
@@ -71,7 +87,7 @@ class TextAreaControl implements ScriptEditorControl {
 	}
 
 	@Override
-	public Control getControl() {
+	public TextArea getRegion() {
 		return textArea;
 	}
 
@@ -106,10 +122,8 @@ class TextAreaControl implements ScriptEditorControl {
 	}
 
 	@Override
-	public void paste(String text) {
-		if (text != null)
-			textArea.replaceSelection(text);
-//		textArea.paste();
+	public void paste() {
+		textArea.paste();
 	}
 
 	@Override
@@ -120,11 +134,6 @@ class TextAreaControl implements ScriptEditorControl {
 	@Override
 	public void appendText(final String text) {
 		textArea.appendText(text);
-	}
-
-	@Override
-	public ReadOnlyBooleanProperty focusedProperty() {
-		return textArea.focusedProperty();
 	}
 	
 	@Override
@@ -163,12 +172,28 @@ class TextAreaControl implements ScriptEditorControl {
 	}
 
 	@Override
-	public void setPopup(ContextMenu menu) {
+	public void positionCaret(int index) {
+		textArea.positionCaret(index);
+	}
+
+	@Override
+	public void replaceSelection(String text) {
+		textArea.replaceSelection(text);
+	}
+	
+	@Override
+	public void setContextMenu(ContextMenu menu) {
 		textArea.setContextMenu(menu);
 	}
 
 	@Override
-	public void positionCaret(int index) {
-		textArea.positionCaret(index);
+	public ContextMenu getContextMenu() {
+		return textArea.getContextMenu();
 	}
+	
+	@Override
+	public ReadOnlyIntegerProperty caretPositionProperty() {
+		return textArea.caretPositionProperty();
+	}
+	
 }
