@@ -67,9 +67,10 @@ public class YamlStyler implements ScriptStyler {
 		var visitor = new StyleSpanVisitor(text);
 		
 		try {
+			int incValue = 0;
 			for (var event : yaml.parse(new StringReader(text))) {
-				int startInd = event.getStartMark().getIndex();
-				int endInd = event.getEndMark().getIndex();
+				int startInd = incValue + event.getStartMark().getIndex();
+				int endInd = incValue + event.getEndMark().getIndex();
 				
 				visitor.appendStyle(startInd);
 				
@@ -95,6 +96,15 @@ public class YamlStyler implements ScriptStyler {
 					if (event instanceof ScalarEvent) {
 						var scalar = (ScalarEvent)event;
 						var value = scalar.getValue();
+						
+						// Unsure about this!
+						// It seems to address problems with emoji, which are used in bioimage.io (for example)
+						int inc = value.length() - Character.codePointCount(value, 0, value.length());
+						if (inc > 0) {
+							endInd += inc;
+							incValue += inc;
+						}
+						
 						if (isNumeric(value))
 							style = "number";
 					}

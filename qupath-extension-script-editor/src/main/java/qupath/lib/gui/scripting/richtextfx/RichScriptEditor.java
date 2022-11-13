@@ -304,6 +304,8 @@ public class RichScriptEditor extends DefaultScriptEditor {
 				String baseStyle = n.getBaseStyle();
 				if (baseStyle != null && !baseStyle.isBlank())
 					codeArea.setStyle(baseStyle);
+				else
+					codeArea.setStyle(null);
 				StyleSpans<Collection<String>> changes = n.computeEditorStyles(codeArea.getText());
 				codeArea.setStyleSpans(0, changes);
 				codeArea.requestFocus(); // Seems necessary to trigger the update when switching between scripts
