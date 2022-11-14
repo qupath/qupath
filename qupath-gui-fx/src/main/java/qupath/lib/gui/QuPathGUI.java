@@ -1076,9 +1076,7 @@ public class QuPathGUI {
 		logger.debug("Time to display: {} ms", (System.currentTimeMillis() - startTime));
 		stage.show();
 		logger.trace("Time to finish display: {} ms", (System.currentTimeMillis() - startTime));
-		// As part of MouseEvent.ANY, both MOUSE_RELEASED and MOUSE_PRESSED can be generated (and detected) separately, so maybe worth adding MOUSE_RELEASED to ignoreTypes?
-		//var ignoreTypes = new HashSet<>(Arrays.asList(MouseEvent.MOUSE_MOVED, MouseEvent.MOUSE_ENTERED, MouseEvent.MOUSE_ENTERED_TARGET, MouseEvent.MOUSE_EXITED, MouseEvent.MOUSE_ENTERED_TARGET));
-		var ignoreTypes = new HashSet<>(Arrays.asList(MouseEvent.MOUSE_RELEASED, MouseEvent.MOUSE_MOVED, MouseEvent.MOUSE_ENTERED, MouseEvent.MOUSE_ENTERED_TARGET, MouseEvent.MOUSE_EXITED, MouseEvent.MOUSE_ENTERED_TARGET));
+		var ignoreTypes = new HashSet<>(Arrays.asList(MouseEvent.MOUSE_MOVED, MouseEvent.MOUSE_ENTERED, MouseEvent.MOUSE_ENTERED_TARGET, MouseEvent.MOUSE_EXITED, MouseEvent.MOUSE_ENTERED_TARGET));
 		stage.getScene().addEventFilter(MouseEvent.ANY, e -> {
 			if (ignoreTypes.contains(e.getEventType()))
 				return;
