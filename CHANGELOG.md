@@ -1,37 +1,122 @@
 ## Version 0.4.0-SNAPSHOT
 
-This is a work-in-progress.
+This remains a work in progress.
 
-### Enhancements
+The following is a long-yet-non-exhaustive list of changes & improvements.
 
-* More useful & friendly message on startup
-* Object improvements
-  * Annotations can now have visible descriptions
-    * Visible at the bottom of the 'Annotation' and 'Hierarchy' tabs or in a standalone window
-    * Support plain text, markdown and html
-  * All objects can now have IDs
-    * This aims to make it much easier to match up objects whenever some further analysis is done elsewhere (e.g. classification or clustering in Python or R)
-    * See https://github.com/qupath/qupath/pull/959
-  * Much improved scripting support for classifications and measurements (https://github.com/qupath/qupath/pull/1094)
-* 'Rotate annotation' command renamed to 'Transform annotation'
-  * Optionally apply transform to *all* objects, not just the selected annotation
-* Support user styling via CSS (https://github.com/qupath/qupath/pull/1063)
-* Tabs in the 'Annotation pane' can be undocked to become separate windows
+### User interface improvements
+* New startup message with links to useful info
+  * Optionally double-click anywhere in the window to make it disappear
+* Tabs in the 'Analysis pane' can be undocked to become separate windows
   * Right-click on 'Project', 'Image', 'Annotations' etc. and choose 'Undock tab' 
-* Many script editor improvements, including:
-  * Syntax highlighting for Markdown, JSON, YAML and XML documents
-  * Added 'Replace/Next' and 'Replace all' features to Find window (https://github.com/qupath/qupath/pull/898)
-  * New lines now trigger caret following (https://github.com/qupath/qupath/pull/900)
-  * Proper tab handling (https://github.com/qupath/qupath/pull/902)
-  * Introduction of 'Smart Editing' (enabled through the corresponding preference under 'Edit'), which supports the following features:
-    * Brace block handling (https://github.com/qupath/qupath/pull/901)
-    * Smart parentheses and (double/single) quotes (https://github.com/qupath/qupath/pull/907)
-    * Comment block handling (https://github.com/qupath/qupath/pull/908)
-  * New 'Edit -> Wrap lines', 'Edit -> Replace curly quotes' and 'Edit -> Zap gremlins' options
-  * Prompt the user to reload data if 'Run for project' may have made changes for any images that are currently open
-  * New 'Recent scripts...' menu item to reopen scripts more easily
+* Updated prompt to set the image type
+  * Auto-estimates by default - press 'space' to accept the suggestion
+* Better support for opening/importing from files containing multiple images
+  * New 'Show image selector' option when adding images to a project
+  * Image selector dialog has a filter to find images more easily
+  * Image selector dialog shows all image dimension and pyramid level information
+* Improved Brightness/Contrast options, including
+  * Switch between dark and light backgrounds (still experimental)
+  * More consistent behavior with 'Show grayscale' option
+  * Show RGB histograms
+* Improved gamma support
+  * Adjust gamma with a slider in Brightness/Contrast window (no longer in preferences)
+  * Apply gamma to mini/channel viewers
+* Improved measurement tables
+  * Include thumbnail images for each object (can be turned off with 'Include image column in measurement tables' preference)
+  * Center viewer on an object by selecting it & pressing the 'spacebar'
+* Add copy & paste options for objects
+  * Copy selected objects or all annotations to the system clipboard, as GeoJSON
+  * Paste objects from the clipboard, optionally positioning them on the current viewer plane
+  * Paste selected objects to the current viewer plane (to easily duplicate objects across z-slices/timepoints)
+* Make z-index and time-index more visible
+  * Show in measurement tables and the annotation list
+* Make annotation list sorting more predictable
+  * Uses (in order) time index, z-index, string representation, ROI location, UUID
+* Creating a full image annotation with 'selection mode' turned on selects all objects in the current plane
+  * New command 'Objects -> Select... -> Select objects on current plane' can achieve the same when not using selection mode
+* Panning with synchronized viewers now corrects for different rotations
+* Multi-view commands now available through 'View' menu (and not only right-clicking a viewer)
+  * These make it possible to create grid of viewers, to work with multiple images simultaneously
+* Annotations can now have visible descriptions
+  * Visible at the bottom of the 'Annotation' and 'Hierarchy' tabs or in a standalone window
+  * Support plain text, markdown and html
+* Improved scalebar preferences
+  * New preferences to control font size/weight & line width (bottom left)
+  * Independently adjust font size for location text (bottom right)
+* Missing thumbnails are automatically regenerated when a project is opened
+* Completely rewritten 'View -> Show view tracker' command
+* Improved channel viewer
+  * Show only the visible/most relevant channels by default, based on image type
+  * Right-click to optionally show all available channels
+
+
+### Styling improvements
+* Many fixes for the 'Dark modena' theme
+* Support custom user styling via CSS (https://github.com/qupath/qupath/pull/1063)
+
+
+### ImageJ improvements
+* Improved support for switching between QuPath objects and ImageJ ROIs
+  * New 'Extensions -> ImageJ -> Import ImageJ ROIs' command
+  * Import `.roi` and `RoiSet.zip` files by drag & drop
+  * Built-in ImageJ plugin to send RoiManager ROIs to QuPath (not only overlays)
+  * Retain ROI position information when sending ROIs from ImageJ (hyper)stacks
+* Avoid converting the pixel type to 32-bit unnecessarily when sending image regions to ImageJ
+
+
+### Script editor improvements
+* Syntax highlighting for Markdown, JSON, YAML and XML documents
+* Added 'Replace/Next' and 'Replace all' features to *Find* window (https://github.com/qupath/qupath/pull/898)
+* New lines now trigger caret following (https://github.com/qupath/qupath/pull/900)
+* Proper tab handling (https://github.com/qupath/qupath/pull/902)
+* Introduction of 'Smart Editing' (enabled through the corresponding preference under 'Edit'), which supports the following features:
+  * Brace block handling (https://github.com/qupath/qupath/pull/901)
+  * Smart parentheses and (double/single) quotes (https://github.com/qupath/qupath/pull/907)
+  * Comment block handling (https://github.com/qupath/qupath/pull/908)
+* New 'Edit -> Wrap lines', 'Edit -> Replace curly quotes' and 'Edit -> Zap gremlins' options
+* Prompt the user to reload data if 'Run for project' may have made changes for any images that are currently open
+* New 'Recent scripts...' menu item to reopen scripts more easily
+* Log messages are now color-coded, making errors and warnings easier to spot (https://github.com/qupath/qupath/pull/1079)
+
+
+### New & improved commands
+* Pixel classifier improvements
+  * Making measurements is *much* faster in some circumstances (https://github.com/qupath/qupath/pull/1076)
+  * It's possible to restrict live prediction more closely to annotated regions ((https://github.com/qupath/qupath/pull/1076))
+  * Warn if trying to train a pixel classifier with too many features (https://github.com/qupath/qupath/issues/947)
+* New 'Analyze -> Spatial analysis -> Signed distance to annotations 2D' command (https://github.com/qupath/qupath/issues/1032)
+* New 'Objects -> Lock... ->' commands
+  * Enables annotations & TMA cores to be locked so they cannot accidentally be moved or edited (deletion is still possible)
+  * Toggle the 'locked' status of any selected object with `Ctrl/Cmd + K`
+  * View locked status for annotations under the 'Annotation' tab
+* New 'TMA -> Specify TMA grid' command to manually specify a TMA grid (rather than relying on the dearrayer)
+* 'Rotate annotation' command renamed to 'Transform annotation', and now supports applying the transform to *all* objects (not just one selected annotation)
 * New 'Measure -> Grid views' commands
   * Based on the old 'TMA -> TMA grid summary view'... but no longer restricted only to TMAs
+* 'Classify -> Training images -> Create region annotations' supports adding regions within a selected annotation
+  * `RoiTools.createRandomRectangle()` methods created for scripting
+
+### Core improvements
+* Reduced use of Java serialization
+  * Serialization filters now used to better control deserialized classes
+* All objects can now have IDs
+  * This aims to make it much easier to match up objects whenever some further analysis is done elsewhere (e.g. classification or clustering in Python or R)
+  * See https://github.com/qupath/qupath/pull/959
+* Much improved scripting support for classifications and measurements (https://github.com/qupath/qupath/pull/1094)
+* Updated method names in `PathObjectHierarchy` for better consistency (https://github.com/qupath/qupath/pull/1109)
+* TMACoreObjects now use 'caseID' rather than 'uniqueID' for clarity (https://github.com/qupath/qupath/issues/1114)
+* Use `URI` in method names consistently, instead of sometimes switching to `Uri` (https://github.com/qupath/qupath/issues/1114)
+* Remove ROI shape from `PathObject.toString()` (and therefore list cells) in favor of showing z/t indexes
+  * Shape is usually evident from ROI icons & can still be seen in measurement tables
+* OpenCV is no longer a dependency of qupath-core (https://github.com/qupath/qupath/issues/961)
+  * Moved `OpenCVTypeAdapters` to qupath-core-processing
+  * Switched `BufferedImageTools.resize` to use ImageJ internally
+* Use `-Djts.overlay=ng` system property by default with Java Topology Suite
+  * This should resolve many occurrences of the dreaded `TopologyException` when manipulating ROIs & geometries
+
+
+### Code & scripting improvements
 * Other scripting improvements
   * *See https://github.com/qupath/qupath/pull/1078 for more detail*
   * Added `getTileObjects()` scripting method (https://github.com/qupath/qupath/issues/1065)
@@ -44,72 +129,6 @@ This is a work-in-progress.
     * Retrieve pixels with `server.readRegion(downsample, x, y, width, height, z, t)` (https://github.com/qupath/qupath/pull/1072)
   * Replaced `PathObject.get/setColorRGB(Integer)` with `PathObject.get/setColor(Integer)` and `PathObject.setColor(int, int, int)` (https://github.com/qupath/qupath/issues/1086)
     * Improved consistency with `PathClass`, optionally provide unpacked r, g and b values
-* Log messages are now color-coded, making errors and warnings easier to spot (https://github.com/qupath/qupath/pull/1079)
-* Pixel classifier improvements
-  * Making measurements is *much* faster in some circumstances (https://github.com/qupath/qupath/pull/1076)
-  * It's possible to restrict live prediction more closely to annotated regions ((https://github.com/qupath/qupath/pull/1076))
-* New 'Analyze -> Spatial analysis -> Signed distance to annotations 2D' command (https://github.com/qupath/qupath/issues/1032)
-* Better support for opening/importing from files containing multiple images
-  * New 'Show image selector' option when adding images to a project
-  * Image selector dialog has a filter to find images more easily
-  * Image selector dialog shows all image dimension and pyramid level information
-* Improved Brightness/Contrast options, including
-  * Switch between dark and light backgrounds (still experimental)
-  * More consistent behavior with 'Show grayscale' option
-  * Show RGB histograms
-* Improved gamma support
-  * Adjust gamma with a slider in Brightness/Contrast window (no longer in preferences)
-  * Apply gamma to mini/channel viewers
-* Improved OME-TIFF export
-  * Better performance when writing large & multi-channel images
-  * Optionally cast to a different pixel type, via `OMEPyramidWriter.Builder.pixelType(type)`
-* Completely rewritten 'View -> Show view tracker' command
-* Improved channel viewer
-  * Show only the visible/most relevant channels by default, based on image type
-  * Right-click to optionally show all available channels
-* Improved scalebar preferences
-  * New preferences to control font size/weight & line width (bottom left)
-  * Independently adjust font size for location text (bottom right)
-* Improved measurement tables
-  * Include thumbnail images for each object (can be turned off with 'Include image column in measurement tables' preference)
-  * Center viewer on an object by selecting it & pressing the 'spacebar'
-* Improved support for switching between QuPath objects and ImageJ ROIs
-  * New 'Extensions -> ImageJ -> Import ImageJ ROIs' command
-  * Import .roi and RoiSet.zip files by drag & drop
-  * Built-in ImageJ plugin to send RoiManager ROIs to QuPath (not only overlays)
-  * Retain ROI position information when sending ROIs from ImageJ (hyper)stacks
-* Reduced use of Java serialization
-  * Serialization filters now used to better control deserialized classes
-* OpenCV is no longer a dependency of qupath-core (https://github.com/qupath/qupath/issues/961)
-  * Moved `OpenCVTypeAdapters` to qupath-core-processing
-  * Switched `BufferedImageTools.resize` to use ImageJ internally
-* Use `-Djts.overlay=ng` system property by default with Java Topology Suite
-  * This should resolve many occurrences of the dreaded `TopologyException` when manipulating ROIs & geometries
-* Improved `LabeledImageServer.Builder` options
-  * Use `grayscale()` to export images without an extra lookup table (easier to import in some other software; see https://github.com/qupath/qupath/issues/993)
-  * Use `.shuffleInstanceLabels(false)` to avoid shuffling objects with `useInstanceLabels()`
-* New 'Objects -> Lock... ->' commands
-  * Enables annotations & TMA cores to be locked so they cannot accidentally be moved or edited (deletion is still possible)
-  * Toggle the 'locked' status of any selected object with `Ctrl/Cmd + K`
-  * View locked status for annotations under the 'Annotation' tab
-* New 'TMA -> Specify TMA grid' command to manually specify a TMA grid (rather than relying on the dearrayer)
-* Updated prompt to set the image type
-* Added `QuPathGUI.lookupAccelerator(combo)` methods to check if a key combinations are already registered
-* Missing thumbnails are automatically regenerated when a project is opened
-* Avoid converting the pixel type to 32-bit unnecessarily when sending image regions to ImageJ
-* Warn if trying to train a pixel classifier with too many features (https://github.com/qupath/qupath/issues/947)
-* Directory choosers can now have titles (https://github.com/qupath/qupath/issues/940)
-* Added `getCurrentImageName()` method to `QP` for scripting (https://github.com/qupath/qupath/issues/1009)
-* Code cleaned up and simplified, with older (previously deprecated) detection classifiers removed
-  * `PathClassifierTools` methods have been moved to `PathObjectTools` and `ServerTools`
-* Support passing arguments via a map to `runPlugin`, rather than only a JSON-encoded String
-* Add `difference`, `symDifference` and `subtract` methods to `RoiTools` (https://github.com/qupath/qupath/issues/995)
-* Add `ROI.updatePlane(plane)` method to move a ROI to a different z-slice or timepoint (https://github.com/qupath/qupath/issues/1052)
-* 'Classify -> Training images -> Create region annotations' supports adding regions within a selected annotation
-  * `RoiTools.createRandomRectangle()` methods created for scripting
-* Updated method names in `PathObjectHierarchy` for better consistency (https://github.com/qupath/qupath/pull/1109)
-* TMACoreObjects now use 'caseID' rather than 'uniqueID' for clarity (https://github.com/qupath/qupath/issues/1114)
-* Use `URI` in method names consistently, instead of sometimes switching to `Uri` (https://github.com/qupath/qupath/issues/1114)
 * GeoJSON improvements (https://github.com/qupath/qupath/pull/1099)
   * Simplified representation of `PathClass`
     * Store either `name` (single name) or `names` (array) field, and `color` (3-element int array)
@@ -118,23 +137,32 @@ This is a work-in-progress.
   * Store measurements directly as a JSON object / map (rather than an array of name/value elements)
   * Optionally support child objects in export
     * Serializing the root object now involves serializing the whole hierarchy
-* Add copy & paste options for objects
-  * Copy selected objects or all annotations to the system clipboard, as GeoJSON
-  * Paste objects from the clipboard, optionally positioning them on the current viewer plane
-  * Paste selected objects to the current viewer plane (to easily duplicate objects across z-slices/timepoints)
-* Make z-index and time-index more visible
-  * Show in measurement tables and the annotation list
-* Remove ROI shape from `PathObject.toString()` (and therefore list cells) in favor of showing z/t indexes
-  * Shape is usually evident from ROI icons & can still be seen in measurement tables
-* Make annotation list sorting more predictable
-  * Uses (in order) time index, z-index, string representation, ROI location, UUID
-* Creating a full image annotation with 'selection mode' turned on selects all objects in the current plane
-  * New command 'Objects -> Select... -> Select objects on current plane' can achieve the same when not using selection mode
-* Panning with synchronized viewers now corrects for different rotations
-* Multi-view commands now available through 'View' menu (and not only right-clicking a viewer)
-  * These make it possible to create grid of viewers, to work with multiple images simultaneously
 * Simplify setting new accelerators (key combinations) via scripts
   * Example: `getQuPath().setAccelerator("File>Open...", "shift+o")`
+  * Added `QuPathGUI.lookupAccelerator(combo)` methods to check if a key combinations are already registered
+* Directory choosers can now have titles (https://github.com/qupath/qupath/issues/940)
+* Added `getCurrentImageName()` method to `QP` for scripting (https://github.com/qupath/qupath/issues/1009)
+* Code cleaned up and simplified, with older (previously deprecated) detection classifiers removed
+  * `PathClassifierTools` methods have been moved to `PathObjectTools` and `ServerTools`
+* Support passing arguments via a map to `runPlugin`, rather than only a JSON-encoded String
+* Add `difference`, `symDifference` and `subtract` methods to `RoiTools` (https://github.com/qupath/qupath/issues/995)
+* Add `ROI.updatePlane(plane)` method to move a ROI to a different z-slice or timepoint (https://github.com/qupath/qupath/issues/1052)
+* Improved OME-TIFF export
+  * Better performance when writing large & multi-channel images
+  * Optionally cast to a different pixel type, via `OMEPyramidWriter.Builder.pixelType(type)`
+* Improved `LabeledImageServer.Builder` options
+  * Use `grayscale()` to export images without an extra lookup table (easier to import in some other software; see https://github.com/qupath/qupath/issues/993)
+  * Use `.shuffleInstanceLabels(false)` to avoid shuffling objects with `useInstanceLabels()`
+
+### Improvements thanks to Bio-Formats 6.11.0
+  * Bio-Formats 6.11.0 brings several important new features to QuPath, including:
+    * Support for reading DICOM whole slide images
+    * Improved handling of brightfield CZI images (i.e. filling unscanned regions in white, not black)
+    * Substantial performance improvements for reading/writing some formats (including OME-TIFF)
+  * Bio-Formats in combination with Java 17 also has some known issues
+    * Unable to properly read a subset of svs files (https://github.com/ome/bioformats/issues/3757)
+    * Memoization is not possible with Java 17, and turned off in QuPath by default (https://github.com/qupath/qupath/issues/957)
+  * For details, see https://docs.openmicroscopy.org/bio-formats/6.10.0/about/whats-new.html
 
 
 ### Bugs fixed
@@ -163,32 +191,26 @@ This is a work-in-progress.
 * The brush/wand tools could sometimes modify annotations selected on a different image plane
 * NPE if GeometryTools.refineAreas() is called with a non-area geometry (https://github.com/qupath/qupath/issues/1060)
 
-### Changes through Bio-Formats 6.11.0
-* Bio-Formats 6.11.0 brings several important new features to QuPath, including:
-  * Support for reading DICOM whole slide images
-  * Improved handling of brightfield CZI images (i.e. filling unscanned regions in white, not black)
-  * Substantial performance improvements for reading/writing some formats (including OME-TIFF)
-* Bio-Formats in combination with Java 17 also has some known issues
-  * Unable to properly read a subset of svs files (https://github.com/ome/bioformats/issues/3757)
-  * Memoization is not possible with Java 17, and turned off in QuPath by default (https://github.com/qupath/qupath/issues/957)
-* For details, see https://docs.openmicroscopy.org/bio-formats/6.10.0/about/whats-new.html
 
 ### Dependency updates
 * Adoptium OpenJDK 17
 * Bio-Formats 6.11.0
+* Commonmark 0.2.0
 * ControlsFX 11.1.2
 * JavaFX 19.0.0
 * Java Topology Suite 1.19.0
-* Groovy 4.0.5
+* Groovy 4.0.6
 * Gson 2.10
 * Guava 31.1
 * ikonli 12.3.1
 * JavaCPP 1.5.8
 * JFreeSVG 5.0.3
-* Logback 1.3.1
+* Logback 1.3.4
 * OpenCV 4.6.0
-* Picocli 4.6.3
-* SLF4J 2.0.0
+* Picocli 4.7.0
+* RichTextFX 0.11.0
+* Snakeyaml 1.33
+* SLF4J 2.0.3
 
 
 ## Version 0.3.2
