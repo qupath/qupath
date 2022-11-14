@@ -826,7 +826,6 @@ public class QuPathGUI {
 	
 	
 	private long lastMousePressedWarning = 0L;
-	private long lastMousePressedDebounce = 0L;
 	private MouseButton previousButtonPressed = MouseButton.NONE;
 	
 	
@@ -1100,18 +1099,8 @@ public class QuPathGUI {
 					}
 				}
 			} else if (e.getButton() == MouseButton.MIDDLE) {
-				// The maximum time interval within which clicks are considered to be switch bounces
-				long debounceMax = 50;
-				long time = System.currentTimeMillis();
-				if (time - lastMousePressedDebounce < debounceMax ) {
-					logger.debug("Bounce event detected after {}ms", time-lastMousePressedDebounce);
-					e.consume();
-					return;
-				}
-
 				if (previousButtonPressed == MouseButton.NONE && e.isMiddleButtonDown()) {
 					logger.debug("Middle button pressed {}x {}", e.getClickCount(), System.currentTimeMillis());
-					lastMousePressedDebounce = System.currentTimeMillis();
 					// Here we toggle between the MOVE tool and any previously selected tool
 					if (getSelectedTool() == PathTools.MOVE)
 						setSelectedTool(previousTool);
@@ -2413,26 +2402,6 @@ public class QuPathGUI {
 		// Listen to the scroll wheel
 		viewer.getView().setOnScroll(e -> {
 			if (viewer == viewerManager.getActiveViewer() || !viewerManager.getSynchronizeViewers()) {
-				// Handle side-to-side clicks (or SHIFT+MouseWheel as substitute when not available)
-				// While testing, wrote the logic this way so it can be commented out if needed
-				if (e.getDeltaX() != 0) {
-					// When using scroll touch gestures, disable the tool switching behaviour
-					if (PathPrefs.useScrollGesturesProperty().get())
-						return;
-		  			logger.debug("Side-to-side wheel logic. DeltaX={}",e.getDeltaX());
-					int direction = (e.getDeltaX() > 0)? 1 : -1;
-
-					int nTools = tools.size();
-					int toolIndex = tools.indexOf(getSelectedTool());
-					int newIndex = toolIndex - direction;
-
-					// When reaching limits, stay there ("move tool" to the left and the tool before "points tool" to the right)
-					if (newIndex < 0 || newIndex >= nTools-1)
-						return;
-					setSelectedTool(tools.get(newIndex));
-					return;
-				}
-
 				double scrollUnits = e.getDeltaY() * PathPrefs.getScaledScrollSpeed();
 				
 				// Use shift down to adjust opacity
@@ -4135,7 +4104,6 @@ public class QuPathGUI {
 	public void setSelectedTool(PathTool tool) {
 		// Record which tools was currently selected
 		previousTool = getSelectedTool();
-		logger.debug("Setting previousTool to: {} {}", previousTool, System.currentTimeMillis());
 
 		if (!Platform.isFxApplicationThread()) {
 			Platform.runLater(() -> setSelectedTool(tool));
