@@ -502,17 +502,39 @@ public class ImageOps {
 		}
 		
 		/**
-		 * Normalize the image similar to {@link #minMax()}, but using low and high percentiles rather than minimum and 
-		 * maximum respectively. {@code 100-percentileMin-percentileMax %} of the values then fall in the range 0-1.
+		 * Normalize the image, per channel, using low and high percentiles.
 		 * <p>
-		 * This method is applied per-channel.
+		 * This is similar to {@link #minMax()}, but using low and high percentiles rather than minimum and 
+		 * maximum respectively. Approximately {@code 100-percentileMin-percentileMax %} of the values then fall in the range 0-1.
+		 * <p>
+		 * This method is applied per-channel, with no eps added to the denominator if min and max are the same.
+		 * See {@link #percentile(double, double, boolean, double)} for more control.
+		 * 
 		 * @param percentileMin
 		 * @param percentileMax
 		 * @return
+		 * @see #percentile(double, double, boolean, double)
 		 */
 		public static ImageOp percentile(double percentileMin, double percentileMax) {
-			return new NormalizePercentileOp(percentileMin, percentileMax);
+			return percentile(percentileMin, percentileMax, true, 0.0);
 		}
+		
+		/**
+		 * Normalize the image using low and high percentiles.
+		 * <p>
+		 * This is similar to {@link #minMax()}, but using low and high percentiles rather than minimum and 
+		 * maximum respectively. Approximately {@code 100-percentileMin-percentileMax %} of the values then fall in the range 0-1.
+		 * 
+		 * @param percentileMin lower percentile
+		 * @param percentileMax upper percentile
+		 * @param perChannel if true, each channel is normalized separately; if false, channels are normalized jointly
+		 * @param eps used to calculate the denominator (percentileMax - percentileMin + eps)
+		 * @return
+		 */
+		public static ImageOp percentile(double percentileMin, double percentileMax, boolean perChannel, double eps) {
+			return new NormalizePercentileOp(percentileMin, percentileMax, perChannel, eps);
+		}
+		
 		
 		/**
 		 * Normalize channels so that they sum to the specified value.
@@ -552,11 +574,26 @@ public class ImageOps {
 		 * @param perChannel if true, normalize each channel separately; if false, use the global mean and standard deviation
 		 * @return
 		 * @since v0.3.1
+		 * @see #zeroMeanUnitVariance(boolean, double)
 		 * @implNote if the standard deviation is 0, the output is also 0. If the standard deviation is not finite, the output is NaN.
 		 *           This implementation may change if it proves problematic in the future.
 		 */
 		public static ImageOp zeroMeanUnitVariance(boolean perChannel) {
-			return new ZeroMeanUnitVarianceOp(perChannel);
+			return zeroMeanUnitVariance(perChannel, 0.0);
+		}
+		
+		/**
+		 * Normalize a Mat by subtracting the mean value and dividing by the standard deviation + eps.
+		 * 
+		 * @param perChannel if true, normalize each channel separately; if false, use the global mean and standard deviation
+		 * @param eps added to the standard deviation before division, for numerical stability.
+		 * @return
+		 * @since v0.4.0
+		 * @implNote if the standard deviation and eps are both 0, the output is also 0. If the standard deviation is not finite, the output is NaN.
+		 *           This implementation may change if it proves problematic in the future.
+		 */
+		public static ImageOp zeroMeanUnitVariance(boolean perChannel, double eps) {
+			return new ZeroMeanUnitVarianceOp(perChannel, eps);
 		}
 		
 		
@@ -598,9 +635,11 @@ public class ImageOps {
 		static class ZeroMeanUnitVarianceOp implements ImageOp {
 			
 			private boolean perChannel;
+			private double eps = 0.0;
 			
-			ZeroMeanUnitVarianceOp(boolean perChannel) {
+			ZeroMeanUnitVarianceOp(boolean perChannel, double eps) {
 				this.perChannel = perChannel;
+				this.eps = eps;
 			}
 			
 			@Override
@@ -611,10 +650,10 @@ public class ImageOps {
 				}
 				double mean = OpenCVTools.mean(input);
 				double stdDev = OpenCVTools.stdDev(input);
-				if (stdDev == 0)
+				if (stdDev == 0 && eps == 0)
 					OpenCVTools.apply(input, d -> 0.0);
 				else
-					OpenCVTools.apply(input, d -> (d - mean)/stdDev);
+					OpenCVTools.apply(input, d -> (d - mean)/(stdDev + eps));
 				return input;
 			}
 			
@@ -724,34 +763,46 @@ public class ImageOps {
 		static class NormalizePercentileOp implements ImageOp {
 			
 			private double[] percentiles;
+			private boolean perChannel = true;
+			private double eps = 0.0;
 			
-			NormalizePercentileOp(double percentileMin, double percentileMax) {
+			NormalizePercentileOp(double percentileMin, double percentileMax, boolean perChannel, double eps) {
 				this.percentiles = new double[] {percentileMin, percentileMax};
+				this.perChannel = perChannel;
+				this.eps = eps;
 				if (percentileMin == percentileMax)
 					throw new IllegalArgumentException("Percentile min and max values cannot be identical!");
 			}
 
 			@Override
 			public Mat apply(Mat input) {
-				var matvec = new MatVector();
-				opencv_core.split(input, matvec);
-				for (int i = 0; i < matvec.size(); i++) {
-					var mat = matvec.get(i);
-					var range = OpenCVTools.percentiles(mat, percentiles);
-					double scale;
-					if (range[1] == range[0]) {
-						logger.warn("Normalization percentiles give the same value ({}), scale will be Infinity", range[0]);
-						scale = Double.POSITIVE_INFINITY;
-					} else
-						scale = 1.0/(range[1] - range[0]);
-					double offset = -range[0];
-					mat.convertTo(mat, mat.type(), scale, offset*scale);
-				}
-				opencv_core.merge(matvec, input);
+				if (perChannel) {
+					var matvec = new MatVector();
+					opencv_core.split(input, matvec);
+					for (int i = 0; i < matvec.size(); i++) {
+						var mat = matvec.get(i);
+						applyJoint(mat);
+					}
+					opencv_core.merge(matvec, input);
+				} else
+					applyJoint(input);
 				return input;
 			}
 			
-		}
+	        private Mat applyJoint(Mat mat) {
+	            var range = OpenCVTools.percentiles(mat, percentiles);
+	            double scale;
+	            if (range[1] == range[0] && eps == 0.0) {
+	                logger.warn("Normalization percentiles give the same value ({}), scale will be Infinity", range[0]);
+	                scale = Double.POSITIVE_INFINITY;
+	            } else
+	                scale = 1.0/(range[1] - range[0] + eps);
+	            double offset = -range[0];
+	            mat.convertTo(mat, mat.type(), scale, offset*scale);
+	            return mat;
+	        }
+			
+	    }
 		
 	}
 	
