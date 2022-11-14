@@ -1,6 +1,11 @@
+## We're hiring!
+
+**There are currently _four_ open positions to join the QuPath team - find out more in [our forum announcement](https://forum.image.sc/t/four-positions-in-the-qupath-team-research-software-engineer-postdoc/73705).**
+
+
 ## Version 0.4.0-SNAPSHOT
 
-This remains a work in progress.
+This remains a work in progress (but getting close!).
 
 The following is a long-yet-non-exhaustive list of changes & improvements.
 
