@@ -26,6 +26,7 @@ package qupath.lib.images.servers.openslide;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.net.URI;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
 import org.openslide.OpenSlide;
@@ -125,7 +126,7 @@ public class OpenslideServerBuilder implements ImageServerBuilder<BufferedImage>
 			return 0;
 		
 		try {
-			File file = new File(uri);
+			File file = Paths.get(uri).toFile();
 			String vendor = OpenSlide.detectVendor(file);
 			if (vendor == null)
 				return 0;

@@ -30,6 +30,7 @@ import java.awt.image.DataBufferInt;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -111,7 +112,7 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 		// Ensure the garbage collector has run - otherwise any previous attempts to load the required native library
 		// from different classloader are likely to cause an error (although upon first further investigation it seems this doesn't really solve the problem...)
 		System.gc();
-		File file = new File(uri);
+		File file = Paths.get(uri).toFile();
 		osr = new OpenSlide(file);
 
 		// Parse the parameters

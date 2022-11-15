@@ -46,6 +46,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -547,7 +548,7 @@ public class PathIO {
 		
 		// Backup any existing file... just in case of disaster
 		if (file.exists()) {
-			File fileCopy = new File(file.toURI());
+			File fileCopy = Paths.get(file.toURI()).toFile();
 			backup = new File(fileCopy.getAbsolutePath() + ".backup");
 			fileCopy.renameTo(backup);
 		}
