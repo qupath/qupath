@@ -195,6 +195,7 @@ The following is a long-yet-non-exhaustive list of changes & improvements.
 * Attempting to add a row or column to a TMA grid with a single core produced weird results
 * The brush/wand tools could sometimes modify annotations selected on a different image plane
 * NPE if GeometryTools.refineAreas() is called with a non-area geometry (https://github.com/qupath/qupath/issues/1060)
+* Help text would sometimes not display with command list / command bar (https://github.com/qupath/qupath/issues/1132)
 
 
 ### Dependency updates

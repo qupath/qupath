@@ -37,7 +37,6 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 
 import org.controlsfx.control.HiddenSidesPane;
-import org.controlsfx.control.PopOver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -68,7 +67,6 @@ import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.CheckMenuItem;
-import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
@@ -85,12 +83,12 @@ import javafx.scene.control.skin.TableColumnHeader;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
-import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.text.TextAlignment;
 import javafx.stage.Popup;
 import javafx.stage.Stage;
 import javafx.stage.Window;
+import javafx.util.Duration;
 import qupath.lib.gui.ActionTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -517,20 +515,23 @@ public class CommandFinderTools {
 	}
 	
 	
-	static class HelpCellFactory<S> extends TableCell<S, String> implements EventHandler<MouseEvent> {
+	static class HelpCellFactory<S> extends TableCell<S, String> {
 		
-		private Label label = new Label();
-		private PopOver popover = new PopOver(label);
+		/*
+		 * Tooltip to show help message.
+		 * Popover was used prior to v0.4.0 - but the behavior was a bit unreliable.
+		 * See https://github.com/qupath/qupath/issues/1132
+		 */
+		private Tooltip tooltip = new Tooltip();
 		
 		public HelpCellFactory() {
 			super();
-			addEventHandler(MouseEvent.MOUSE_ENTERED, this);
-			addEventHandler(MouseEvent.MOUSE_EXITED, this);
 			setAlignment(Pos.CENTER);
-			label.setWrapText(true);
-			label.setMaxWidth(240);
-			label.setPadding(new Insets(10.0));
-			label.setTextAlignment(TextAlignment.CENTER);
+			tooltip.setWrapText(true);
+			tooltip.setMaxWidth(240);
+			tooltip.setTextAlignment(TextAlignment.CENTER);
+			tooltip.setShowDelay(Duration.millis(200));
+			tooltip.setShowDuration(Duration.INDEFINITE);
 		}
 		
 		@Override
@@ -539,44 +540,17 @@ public class CommandFinderTools {
 			setGraphic(null);
 			if (!empty && item != null && !item.isEmpty()) {
 				setText("?");
-				label.setText(item);
+				tooltip.setText(item);
+				setTooltip(tooltip);
 			} else {
 				setText("");
-				label.setText(item);
-			}
-		}
-		
-		/**
-		 * This popover throws an exception if it animates while a window is closing.
-		 */
-		void updateAnimated() {
-			var window = GuiTools.getWindow(this);
-			popover.setAnimated(window != null && window.isShowing());
-		}
-		
-		void maybeShowPopover() {
-			var text = label.getText();
-			if (text != null && !text.isBlank()) {
-				updateAnimated();
-				popover.show(this);
-			}
-		}
-
-		@Override
-		public void handle(MouseEvent event) {
-			if (event.getEventType() == MouseEvent.MOUSE_EXITED) {
-				if (popover.isShowing()) {
-					updateAnimated();
-					popover.hide();
-				}
-				event.consume();
-			} else if (event.getEventType() == MouseEvent.MOUSE_ENTERED) {
-				maybeShowPopover();
-				event.consume();				
+				tooltip.setText(item);
+				setTooltip(null);
 			}
 		}
 	
 	}
+
 	
 	
 	
