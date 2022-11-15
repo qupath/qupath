@@ -1511,7 +1511,7 @@ public class QuPathGUI {
 					code = hostServices.getDocumentBase();
 				if (code != null && code.isBlank()) {
 					uri = GeneralTools.toURI(code);
-					return new File(uri);
+					return Paths.get(uri).toFile();
 				}
 			}
 		} catch (URISyntaxException e) {

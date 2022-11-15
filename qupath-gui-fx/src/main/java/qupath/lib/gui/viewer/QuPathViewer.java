@@ -46,6 +46,7 @@ import java.awt.image.ByteLookupTable;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Method;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -2227,7 +2228,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		var uris = server == null ? null : server.getURIs();
 		if (uris == null || uris.isEmpty())
 			return null;
-		ICC_Profile iccSource = readICC(new File(uris.iterator().next()));
+		ICC_Profile iccSource = readICC(Paths.get(uris.iterator().next()).toFile());
 		if (iccSource == null)
 			return null;
 		return new ColorConvertOp(new ICC_Profile[]{
