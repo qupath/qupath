@@ -23,6 +23,7 @@ package qupath.process.gui.commands;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -237,7 +238,7 @@ public class SplitProjectTrainingCommand implements Runnable {
 				String ext = ProjectIO.getProjectExtension(true);
 				File fileOrig;
 				if ("file".equals(project.getURI().getScheme()))
-					fileOrig = new File(project.getURI());
+					fileOrig = Paths.get(project.getURI()).toFile();
 				else {
 					fileOrig = Dialogs.promptToSaveFile("Project file", null, null, "QuPath project", ext);
 					if (fileOrig == null) {

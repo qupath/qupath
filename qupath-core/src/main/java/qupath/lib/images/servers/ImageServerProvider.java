@@ -27,6 +27,8 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -158,9 +160,6 @@ public class ImageServerProvider {
 					uriTemp = new URI(uriTemp.getScheme(), uriTemp.getAuthority(), uriTemp.getPath(), "name="+seriesName, null);
 				}
 			}
-//			if ("file".equals(uriTemp.getScheme()) && !new File(uriTemp).exists()) {
-//				throw new IOException(uriTemp.toString() + " does not exist!");
-//			}
 		} catch (URISyntaxException e) {
 			throw new IOException(e.getLocalizedMessage());
 		}
@@ -170,7 +169,7 @@ public class ImageServerProvider {
 
 	private static <T> List<UriImageSupport<T>> getServerBuilders(final Class<T> cls, final String path, String...args) throws IOException {
 		URI uri = legacyPathToURI(path);
-		if ("file".equals(uri.getScheme()) && !new File(uri).exists()) {
+		if ("file".equals(uri.getScheme()) && !Files.exists(Paths.get(uri))) {
 			throw new IOException(uri.toString() + " does not exist!");
 		}
 

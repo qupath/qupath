@@ -30,6 +30,8 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.Reader;
 import java.net.URI;
+import java.nio.file.Paths;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -63,7 +65,7 @@ public class ProjectIO {
 	 * @throws IOException 
 	 */
 	public static <T> Project<T> loadProject(final URI uri, final Class<T> cls) throws IOException {
-		return loadProject(new File(uri), cls);
+		return loadProject(Paths.get(uri).toFile(), cls);
 	}
 	
 	/**

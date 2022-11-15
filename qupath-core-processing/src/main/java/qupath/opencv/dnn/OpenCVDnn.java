@@ -24,6 +24,7 @@ package qupath.opencv.dnn;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -149,8 +150,8 @@ public class OpenCVDnn implements UriResource, DnnModel<Mat> {
 	 * @return
 	 */
 	public Net buildNet() {
-		var fileModel = pathModel == null ? null : new File(pathModel).getAbsolutePath();
-		var fileConfig = pathConfig == null ? null : new File(pathConfig).getAbsolutePath();
+		var fileModel = pathModel == null ? null : Paths.get(pathModel).toFile().getAbsolutePath();
+		var fileConfig = pathConfig == null ? null : Paths.get(pathConfig).toFile().getAbsolutePath();
 		var net = opencv_dnn.readNet(fileModel, fileConfig, framework);
 		initializeNet(net);
 		constructed = true;
@@ -389,7 +390,7 @@ public class OpenCVDnn implements UriResource, DnnModel<Mat> {
 		private Builder(URI pathModel) {
 			this.pathModel = pathModel;
 			try {
-				this.name = new File(pathModel).getName();
+				this.name = Paths.get(pathModel).getFileName().toString();
 			} catch (Exception e) {
 				logger.debug("Unable to set default Net name from {} ({})", pathModel, e.getLocalizedMessage());
 			}
