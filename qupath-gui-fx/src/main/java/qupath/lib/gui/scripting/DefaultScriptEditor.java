@@ -86,6 +86,7 @@ import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
+import javafx.scene.control.MenuItem;
 import javafx.scene.control.RadioMenuItem;
 import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.SplitPane;
@@ -1201,12 +1202,31 @@ public class DefaultScriptEditor implements ScriptEditor {
 	
 	
 	static class ScriptObjectListCell extends ListCell<ScriptTab> {
+		
+		private Tooltip tooltip = new Tooltip();
+		private ContextMenu popup = new ContextMenu();
+		
+		ScriptObjectListCell() {
+			super();
+			var miOpenDirectory = new MenuItem("Open directory...");
+			miOpenDirectory.disableProperty().bind(itemProperty().isNull());
+			miOpenDirectory.setOnAction(e -> {
+				var item = getItem();
+				var file = item == null ? null : item.getFile();
+				if (file == null)
+					return;
+				GuiTools.browseDirectory(file);
+			});
+			popup.getItems().add(miOpenDirectory);
+		}
+		
         @Override
         public void updateItem(ScriptTab item, boolean empty) {
             super.updateItem(item, empty);
             if (item == null || empty) {
             	setText(null);
             	setTooltip(null);
+            	setContextMenu(null);
              	return;
             }
             var text = item.toString();
@@ -1216,8 +1236,9 @@ public class DefaultScriptEditor implements ScriptEditor {
             } else
             	setStyle(null);
             setText(text);
-            setTooltip(new Tooltip(text));
-//            this.setOpacity(0);
+            tooltip.setText(text);
+            setTooltip(tooltip);
+            setContextMenu(popup);
         }
     }
 	
