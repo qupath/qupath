@@ -199,6 +199,7 @@ The following is a long-yet-non-exhaustive list of changes & improvements.
 * NPE if GeometryTools.refineAreas() is called with a non-area geometry (https://github.com/qupath/qupath/issues/1060)
 * Help text would sometimes not display with command list / command bar (https://github.com/qupath/qupath/issues/1132)
 * Automate menu can freeze if checking for scripts takes too long (https://github.com/qupath/qupath/issues/1135)
+* Rotated ImageJ images could sometimes behave unexpectedly (https://github.com/qupath/qupath/issues/1138)
 
 
 ### Dependency updates

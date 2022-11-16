@@ -448,7 +448,7 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> implements 
 				byte[][] bytes = new byte[nChannels][w*h];
 				for (int i = 0; i < nChannels; i++) {
 					int sliceInd = imp2.getStackIndex(i+1, z, t);
-					bytes[i] = (byte[])imp2.getStack().getPixels(sliceInd);
+					bytes[i] = ((byte[])imp2.getStack().getPixels(sliceInd)).clone();
 				}
 				DataBufferByte buffer = new DataBufferByte(bytes, w*h);
 				return new BufferedImage(colorModel, Raster.createWritableRaster(model, buffer, null), false, null);
@@ -457,7 +457,7 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> implements 
 				short[][] bytes = new short[nChannels][w*h];
 				for (int i = 0; i < nChannels; i++) {
 					int sliceInd = imp2.getStackIndex(i+1, z, t);
-					bytes[i] = (short[])imp2.getStack().getPixels(sliceInd);
+					bytes[i] = ((short[])imp2.getStack().getPixels(sliceInd)).clone();
 				}
 				DataBufferUShort buffer = new DataBufferUShort(bytes, w*h);
 				return new BufferedImage(colorModel, Raster.createWritableRaster(model, buffer, null), false, null);
@@ -466,7 +466,7 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> implements 
 				float[][] bytes = new float[nChannels][w*h];
 				for (int i = 0; i < nChannels; i++) {
 					int sliceInd = imp2.getStackIndex(i+1, z, t);
-					bytes[i] = (float[])imp2.getStack().getPixels(sliceInd);
+					bytes[i] = ((float[])imp2.getStack().getPixels(sliceInd)).clone();
 				}
 				DataBufferFloat buffer = new DataBufferFloat(bytes, w*h);
 				return new BufferedImage(colorModel, Raster.createWritableRaster(model, buffer, null), false, null);
