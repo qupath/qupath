@@ -96,6 +96,7 @@ import javafx.scene.control.Toggle;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.Clipboard;
+import javafx.scene.input.ContextMenuEvent;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
@@ -1218,6 +1219,10 @@ public class DefaultScriptEditor implements ScriptEditor {
 				GuiTools.browseDirectory(file);
 			});
 			popup.getItems().add(miOpenDirectory);
+			addEventFilter(ContextMenuEvent.CONTEXT_MENU_REQUESTED, e -> {
+				if (getItem() == null || getItem().getFile() == null)
+					e.consume();
+			});
 		}
 		
         @Override
