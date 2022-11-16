@@ -356,7 +356,9 @@ public class BrightnessContrastCommand implements Runnable, ChangeListener<Image
 		
 		// Create color/channel display table
 		table = new TableView<>(imageDisplay == null ? FXCollections.observableArrayList() : imageDisplay.availableChannels());
-		table.setPlaceholder(new Text("No channels available"));
+		var textPlaceholder = new Text("No channels available");
+		textPlaceholder.setStyle("-fx-fill: -fx-text-base-color;");
+		table.setPlaceholder(textPlaceholder);
 		table.addEventHandler(KeyEvent.KEY_PRESSED, new CopyTableListener());
 		
 		table.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
