@@ -1186,11 +1186,11 @@ public class QuPathGUI {
 		}, PathPrefs.userPathProperty());
 		ScriptMenuLoader userScriptMenuLoader = new ScriptMenuLoader("User scripts...", userScriptsPath, (DefaultScriptEditor)editor);
 
-		menuAutomate.setOnMenuValidation(e -> {
-			sharedScriptMenuLoader.updateMenu();
-			projectScriptMenuLoader.updateMenu();
-			userScriptMenuLoader.updateMenu();
-		});
+//		menuAutomate.setOnMenuValidation(e -> {
+//			sharedScriptMenuLoader.updateMenu();
+//			projectScriptMenuLoader.updateMenu();
+//			userScriptMenuLoader.updateMenu();
+//		});
 
 		if (editor instanceof DefaultScriptEditor) {
 			MenuTools.addMenuItems(
