@@ -44,7 +44,7 @@ import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.SeparatorMenuItem;
 import qupath.lib.gui.dialogs.Dialogs;
-import qupath.lib.gui.scripting.DefaultScriptEditor;
+import qupath.lib.gui.scripting.ScriptEditor;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.MenuTools;
 
@@ -67,9 +67,9 @@ class ScriptMenuLoader {
 	private static final String NO_SCRIPTS_NAME = "No scripts found";
 	private MenuItem miPlaceholder = new MenuItem(NO_SCRIPTS_NAME);
 
-	private DefaultScriptEditor scriptEditor;
+	private ScriptEditor scriptEditor;
 	
-	ScriptMenuLoader(final String name, final ObservableStringValue scriptDirectory, final DefaultScriptEditor editor) {
+	ScriptMenuLoader(final String name, final ObservableStringValue scriptDirectory, final ScriptEditor editor) {
 		this.menu = new Menu(name);
 		this.scriptDirectory = scriptDirectory;
 		this.scriptEditor = editor;

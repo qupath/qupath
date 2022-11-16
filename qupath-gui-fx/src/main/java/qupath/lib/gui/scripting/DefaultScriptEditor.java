@@ -476,6 +476,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	 * @param file the file to test
 	 * @return true if the file is likely to contain a supported script, false otherwise
 	 */
+	@Override
 	public boolean supportsFile(final File file) {
 		if (file == null || !file.isFile())
 			return false;
