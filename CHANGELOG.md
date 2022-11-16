@@ -102,6 +102,7 @@ The following is a long-yet-non-exhaustive list of changes & improvements.
 * 'Classify -> Training images -> Create region annotations' supports adding regions within a selected annotation
   * `RoiTools.createRandomRectangle()` methods created for scripting
 
+
 ### Core improvements
 * Reduced use of Java serialization
   * Serialization filters now used to better control deserialized classes
@@ -159,6 +160,7 @@ The following is a long-yet-non-exhaustive list of changes & improvements.
   * Use `grayscale()` to export images without an extra lookup table (easier to import in some other software; see https://github.com/qupath/qupath/issues/993)
   * Use `.shuffleInstanceLabels(false)` to avoid shuffling objects with `useInstanceLabels()`
 
+
 ### Improvements thanks to Bio-Formats 6.11.0
   * Bio-Formats 6.11.0 brings several important new features to QuPath, including:
     * Support for reading DICOM whole slide images
@@ -196,6 +198,7 @@ The following is a long-yet-non-exhaustive list of changes & improvements.
 * The brush/wand tools could sometimes modify annotations selected on a different image plane
 * NPE if GeometryTools.refineAreas() is called with a non-area geometry (https://github.com/qupath/qupath/issues/1060)
 * Help text would sometimes not display with command list / command bar (https://github.com/qupath/qupath/issues/1132)
+* Automate menu can freeze if checking for scripts takes too long (https://github.com/qupath/qupath/issues/1135)
 
 
 ### Dependency updates

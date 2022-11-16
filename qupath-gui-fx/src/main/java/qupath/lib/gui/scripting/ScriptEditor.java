@@ -50,4 +50,11 @@ public interface ScriptEditor {
 	 */
 	public void showScript(File file);
 	
+	/**
+	 * Check if the script editor supports a particular file.
+	 * @param file
+	 * @return
+	 */
+	public boolean supportsFile(File file);
+	
 }

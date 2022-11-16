@@ -28,6 +28,9 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
 
 import javax.script.ScriptException;
 
@@ -41,7 +44,7 @@ import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.SeparatorMenuItem;
 import qupath.lib.gui.dialogs.Dialogs;
-import qupath.lib.gui.scripting.DefaultScriptEditor;
+import qupath.lib.gui.scripting.ScriptEditor;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.MenuTools;
 
@@ -60,14 +63,16 @@ class ScriptMenuLoader {
 	private MenuItem miSetPath;
 	private MenuItem miCreateScript;
 	private MenuItem miOpenDirectory;
+		
+	private static final String NO_SCRIPTS_NAME = "No scripts found";
+	private MenuItem miPlaceholder = new MenuItem(NO_SCRIPTS_NAME);
+
+	private ScriptEditor scriptEditor;
 	
-	private DefaultScriptEditor scriptEditor;
-	
-	ScriptMenuLoader(final String name, final ObservableStringValue scriptDirectory, final DefaultScriptEditor editor) {
+	ScriptMenuLoader(final String name, final ObservableStringValue scriptDirectory, final ScriptEditor editor) {
 		this.menu = new Menu(name);
 		this.scriptDirectory = scriptDirectory;
 		this.scriptEditor = editor;
-		scriptDirectory.addListener((v) -> updateMenu()); // Rebuild the script menu next time
 		
 		var actionCreateScript = ActionTools.actionBuilder("New script...", e -> {
 			String dir = scriptDirectory.get();
@@ -131,90 +136,100 @@ class ScriptMenuLoader {
 		}
 		miCreateScript = ActionTools.createMenuItem(actionCreateScript);
 		miOpenDirectory = ActionTools.createMenuItem(actionOpenDirectory);
+		
+		menu.getItems().setAll(miPlaceholder);
+		menu.setOnMenuValidation(e -> updateMenu());
 	}
 	
 	/**
 	 * Request that the contents of the menu be updated.
 	 */
-	public void updateMenu() {
+	private void updateMenu() {
 		String scriptDir = scriptDirectory.get();
 		try {
 			if (scriptDir != null) {
-				Path path = Paths.get(scriptDir);
 				// Can only set script directory if we have a property, not just any observable string
 				if (miSetPath != null)
 					menu.getItems().setAll(miSetPath, miOpenDirectory, miCreateScript, new SeparatorMenuItem());
 				else
 					menu.getItems().setAll(miOpenDirectory, miCreateScript, new SeparatorMenuItem());
+				Path path = Paths.get(scriptDir);
 				if (path != null && path.getFileName() != null) {
-					addMenuItemsForPath(menu, path, true);
+					addMenuItemsForPath(menu, path);
 				}
 			} else if (miSetPath != null)
 				menu.getItems().setAll(miSetPath);
 			else
-				menu.getItems().clear();
+				menu.getItems().setAll(miPlaceholder);
 		} catch (Exception e) {
 			logger.warn("Unable to update scripts for path {} ({})", scriptDir, e.getLocalizedMessage());
 			logger.debug("", e);
-			menu.getItems().clear();
+			menu.getItems().setAll(miPlaceholder);
 		}
 	}
 	
 	
-	/**
-	 * Add menu items for each script.
-	 * 
-	 * @param menu
-	 * @param path
-	 * @param addDirectly
-	 */
-	private void addMenuItemsForPath(final Menu menu, final Path path, final boolean addDirectly) {
+	private void addMenuItemsForPath(final Menu menu, final Path dir) {
 		
-		if (Files.isDirectory(path)) {
-			Menu subMenu = MenuTools.createMenu(path.getFileName().toString());
-			
-			try (var stream = Files.list(path)) {
-				stream.forEach(p -> addMenuItemsForPath(addDirectly ? menu : subMenu, p, false));
-			} catch (IOException e) {
-				logger.debug("Error adding menu item for {}", path);
-			}
-			// Don't add anything if the submenu is empty
-			if (subMenu.getItems().isEmpty())
-				return;
-			// Add submenu itself, or its items directly
-			if (!addDirectly) {
-				menu.getItems().add(subMenu);
-			}
-		} else {
-			if (scriptEditor == null || scriptEditor.supportsFile(path.toFile())) {
-				String name = path.getFileName().toString();
-				boolean cleanName = true;
-				if (cleanName) {
-					name = name.replace("_", " ");
-					int dotInd = name.lastIndexOf(".");
-					if (dotInd > 0)
-						name = name.substring(0, dotInd);
+		if (!Files.isDirectory(dir))
+			return;
+		
+		try (var stream = Files.list(dir)) {
+			List<MenuItem> items = new ArrayList<>();
+			for (var path : stream.sorted().collect(Collectors.toList())) {
+				
+				if (Files.isHidden(path))
+					continue;
+				
+				if (Files.isDirectory(path)) {
+					Menu subMenu = MenuTools.createMenu(path.getFileName().toString());
+					subMenu.getItems().add(new MenuItem(NO_SCRIPTS_NAME));
+					subMenu.setOnMenuValidation(e -> {
+						addMenuItemsForPath(subMenu, path);
+					});
+					items.add(subMenu);
+					continue;
 				}
-				MenuItem item = new MenuItem(name);
-				item.setOnAction(e -> {
-					File scriptFile = path.toFile();
-					if (scriptEditor != null)
-						scriptEditor.showScript(scriptFile);
-					else {
-						var qupath = QuPathGUI.getInstance();
-						try {
-							qupath.runScript(scriptFile, null);
-						} catch (IllegalArgumentException | ScriptException e1) {
-							Dialogs.showErrorNotification("Run script", e1.getLocalizedMessage());
-							logger.error(e1.getLocalizedMessage(), e);
-						}
+				
+				if (scriptEditor == null || scriptEditor.supportsFile(path.toFile())) {
+					String name = path.getFileName().toString();
+					boolean cleanName = true;
+					if (cleanName) {
+						name = name.replace("_", " ");
+						int dotInd = name.lastIndexOf(".");
+						if (dotInd > 0)
+							name = name.substring(0, dotInd);
 					}
-				});
-				menu.getItems().add(item);
+					MenuItem item = new MenuItem(name);
+					item.setOnAction(e -> {
+						File scriptFile = path.toFile();
+						if (scriptEditor != null)
+							scriptEditor.showScript(scriptFile);
+						else {
+							var qupath = QuPathGUI.getInstance();
+							try {
+								qupath.runScript(scriptFile, null);
+							} catch (IllegalArgumentException | ScriptException e1) {
+								Dialogs.showErrorNotification("Run script", e1.getLocalizedMessage());
+								logger.error(e1.getLocalizedMessage(), e);
+							}
+						}
+					});
+					items.add(item);
+				}
 			}
+			if (!items.isEmpty()) {
+				// Remove placeholder if available
+				if (menu.getItems().size() == 1 && NO_SCRIPTS_NAME.equals(menu.getItems().get(0).getText()))
+					menu.getItems().setAll(items);				
+				else
+					menu.getItems().addAll(items);				
+			}
+		} catch (IOException e) {
+			logger.debug("Error adding menu item for {}", dir);
 		}
+		
 	}
-	
 	
 	
 	public Menu getMenu() {
