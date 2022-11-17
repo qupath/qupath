@@ -1535,7 +1535,6 @@ public class GuiTools {
 					continue;
 				String name = getNameFromURI(uri);
 				name = "..." + File.separator + name;
-				//MenuItem item = new MenuItem(name);
 				CustomMenuItem item = new CustomMenuItem(new Label(name));
 				Tooltip tooltip = new Tooltip(Paths.get(uri).normalize().toString());
 				Tooltip.install(item.getContent(), tooltip);
