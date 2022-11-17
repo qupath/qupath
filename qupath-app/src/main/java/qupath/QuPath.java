@@ -140,16 +140,10 @@ public class QuPath {
 		
 		// Catch -h/--help and -V/--version
 		if (cmd.isUsageHelpRequested()) {
-			   cmd.usage(System.out);
-			   return;
-			} else if (cmd.isVersionHelpRequested()) {
-			   cmd.printVersionHelp(System.out);
-			   return;
-			}
-		
-		// Catch -t/--tma
-		if (qupath.tma) {
-			QuPathTMAViewer.launch(QuPathTMAViewer.class);
+			cmd.usage(System.out);
+			return;
+		} else if (cmd.isVersionHelpRequested()) {
+			cmd.printVersionHelp(System.out);
 			return;
 		}
 		
@@ -157,11 +151,18 @@ public class QuPath {
 		if (qupath.reset) {
 			PathPrefs.resetPreferences();
 		}
-		
+
 		// Set log level
-		if (qupath.logLevel != null)
+		if (qupath.logLevel != null) {
 			LogManager.setRootLogLevel(qupath.logLevel);
-				
+		}
+
+		// Catch -t/--tma
+		if (qupath.tma) {
+			QuPathTMAViewer.launch(QuPathTMAViewer.class);
+			return;
+		}
+						
 		// Catch all possible Options, then launch QuPath
 		if (!pr.hasSubcommand()) {
 

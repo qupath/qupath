@@ -26,10 +26,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import java.awt.Color;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -415,4 +419,24 @@ public class TestPathObjectTools2 {
 		manualList.add(ImageChannel.getInstance("Ignore*", pathClass5.getColor()));
 		assertEquals(manualList, list2);
 	}
+	
+	
+	@Test
+	public void test_comparator() {
+		
+		var comparator = DefaultPathObjectComparator.getInstance();
+		var rng = new Random(100L);
+		
+		List<PathObject> pathObjects = IntStream.range(0, 100)
+				.mapToObj(i -> PathObjects.createDetectionObject(
+							ROIs.createRectangleROI(0, 0, 10, 10, ImagePlane.getDefaultPlane()),
+							PathClass.getInstance("Classification " + rng.nextInt(10))
+						)).collect(Collectors.toCollection(() -> new ArrayList<>()));
+						
+		Collections.sort(pathObjects, comparator);
+		
+		
+	}
+	
+	
 }

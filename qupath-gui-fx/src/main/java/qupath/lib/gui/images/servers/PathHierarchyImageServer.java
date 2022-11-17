@@ -30,6 +30,7 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -215,9 +216,15 @@ public class PathHierarchyImageServer extends AbstractTileableImageServer implem
 		// Because levels *can* change, we need to extract them first to avoid breaking the contract for comparable 
 		// in a multithreaded environment
 		var levels = pathObjects.stream().collect(Collectors.toMap(p -> p, p -> p.getLevel()));
-		var comparator = DefaultPathObjectComparator.getInstance().thenComparingInt(p -> levels.get(p));
+		// This had (rare) problems of breaking the contract for comparators
+//		var comparator = DefaultPathObjectComparator.getInstance().thenComparingInt(p -> levels.get(p));
+		
+		Comparator<PathObject> comparator = Comparator.comparingInt((PathObject p) -> levels.get(p))
+				.thenComparing(p -> p.getID());
+		
 		Collections.sort(pathObjects, comparator);
 //		Collections.sort(pathObjects, new HierarchyOverlay.DetectionComparator());
+		
 		
 		double downsampleFactor = request.getDownsample();
 		int width = tileRequest.getTileWidth();
