@@ -23,9 +23,12 @@ package qupath.lib.gui.dialogs;
 
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.controlsfx.control.ListSelectionView;
@@ -242,7 +245,14 @@ public class ProjectDialogs {
 	
 	private static void updateImageList(final ListSelectionView<ProjectImageEntry<BufferedImage>> listSelectionView, 
 			final List<ProjectImageEntry<BufferedImage>> availableImages, final String filterText, final boolean withDataOnly) {
-		String text = filterText.trim().toLowerCase();
+		
+		// This may become optional in the future
+		boolean ignoreCase = true;
+		
+		// Get the filter text
+		String text = filterText.trim();
+		if (ignoreCase)
+			text = text.toLowerCase();
 		
 		// Get an update source items list
 		List<ProjectImageEntry<BufferedImage>> sourceItems = new ArrayList<>(availableImages);
@@ -253,12 +263,57 @@ public class ProjectDialogs {
 			sourceItems.removeIf(p -> !p.hasImageData());
 			targetItems.removeIf(p -> !p.hasImageData());
 		}
+		
 		// Apply filter text
-		if (text.length() > 0 && !sourceItems.isEmpty()) {
+		if (text.length() > 0 && text.replaceAll("|", "").length() > 0 && !sourceItems.isEmpty()) {
+			
+			// Get filter tokens
+			Collection<String> filterTokens;
+			int indSplit = filterText.indexOf("|");
+			if (indSplit >= 0) {
+				filterTokens = Arrays.stream(filterText.split("\\|"))
+						.filter(t -> !t.isBlank())
+						.collect(Collectors.toList());
+			} else {
+				filterTokens = Collections.emptyList();
+			}
+			
+			
 			Iterator<ProjectImageEntry<BufferedImage>> iter = sourceItems.iterator();
 			while (iter.hasNext()) {
-				if (!iter.next().getImageName().toLowerCase().contains(text))
+				var entry = iter.next();
+				var imageName = entry.getImageName();
+				if (ignoreCase)
+					imageName = imageName.toLowerCase();
+				// If the entire text is contained in the image name, we keep the entry
+				if (imageName.contains(text))
+					continue;
+				// If we don't have filter tokens, remove the entry
+				if (filterTokens.isEmpty()) {
 					iter.remove();
+					continue;
+				}
+				// Check the individual filter tokens if we have to
+				var metadataStrings = entry.getMetadataMap().entrySet()
+					.stream()
+					.map(e -> e.getKey() + "=" + e.getValue())
+					.map(t -> ignoreCase ? t.toLowerCase() : t)
+					.collect(Collectors.toList());
+				for (var token : filterTokens) {
+					boolean foundMatch = imageName.contains(token);
+					if (!foundMatch) {
+						for (var m : metadataStrings) {
+							if (m.contains(token)) {
+								foundMatch = true;
+								break;
+							}
+						}
+					}
+					if (!foundMatch) {
+						iter.remove();
+						break;
+					}
+				}
 			}
 		}		
 		

@@ -83,6 +83,10 @@ The following is a long-yet-non-exhaustive list of changes & improvements.
 * Prompt the user to reload data if 'Run for project' may have made changes for any images that are currently open
 * New 'Recent scripts...' menu item to reopen scripts more easily
 * Log messages are now color-coded, making errors and warnings easier to spot (https://github.com/qupath/qupath/pull/1079)
+* 'Run for project' can use metadata when selecting images
+  * If the filter text doesn't contain `|`, just filter by image name (the previous behavior)
+  * If the filter text contains `|`, additionally split on `|` and check that all tokens are either contained in the image name, or in a metadata text in the format `key=value`
+  * For example, a search `.tif|source=imagej` would look for images that contain both `.tif` and `source=imagej` either in their name or metadata
 
 
 ### New & improved commands
