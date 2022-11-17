@@ -29,6 +29,7 @@ import java.awt.Transparency;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Paths;
 import java.net.URI;
 import java.text.NumberFormat;
 import java.text.ParsePosition;
@@ -88,6 +89,7 @@ import javafx.scene.control.ListView;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.SeparatorMenuItem;
+import javafx.scene.control.CustomMenuItem;
 import javafx.scene.control.Slider;
 import javafx.scene.control.Spinner;
 import javafx.scene.control.SpinnerValueFactory;
@@ -1496,7 +1498,7 @@ public class GuiTools {
 		// Strip extension if we have one
 		if (path.length == 1)
 			return name;
-		return path[path.length-2] + "/" + name;
+		return path[path.length-2] + File.separator + name;
 	}
 	
 	
@@ -1532,8 +1534,11 @@ public class GuiTools {
 				if (uri == null)
 					continue;
 				String name = getNameFromURI(uri);
-				name = ".../" + name;
-				MenuItem item = new MenuItem(name);
+				name = "..." + File.separator + name;
+				//MenuItem item = new MenuItem(name);
+				CustomMenuItem item = new CustomMenuItem(new Label(name));
+				Tooltip tooltip = new Tooltip(Paths.get(uri).normalize().toString());
+				Tooltip.install(item.getContent(), tooltip);
 				item.setOnAction(event -> consumer.accept(uri));
 				menuRecent.getItems().add(item);
 			}
