@@ -4097,8 +4097,9 @@ public class QuPathGUI {
 			logger.warn("Mode switching currently disabled - cannot change to {}", tool);
 			return;
 		}
-		// Record the current tool before switching to newly selected
-		previousTool = getSelectedTool();
+		// If the current tool is not move, record before switching to newly selected
+		if (getSelectedTool() != PathTools.MOVE)
+			previousTool = getSelectedTool();
 		this.selectedToolProperty.set(tool);
 	}
 	
