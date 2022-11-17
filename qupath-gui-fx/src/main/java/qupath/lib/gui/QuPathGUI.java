@@ -3559,7 +3559,7 @@ public class QuPathGUI {
 	 * An example:
 	 * <pre>
 	 * <code> 
-	 * setAccelerator("File>Open...", "shift+o");
+	 * setAccelerator("File&gt;Open...", "shift+o");
 	 * </code></pre>
 	 * Where possible, the accelerator for an action associated with a menu item will be changed.
 	 * If the combo is null, any existing accelerator will be removed.
