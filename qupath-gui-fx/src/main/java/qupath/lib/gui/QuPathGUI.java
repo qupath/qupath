@@ -1096,13 +1096,13 @@ public class QuPathGUI {
 					}
 				}
 			} else if (e.getButton() == MouseButton.MIDDLE && e.getEventType() == MouseEvent.MOUSE_CLICKED) {
-					logger.info("Middle button pressed {}x {}", e.getClickCount(), System.currentTimeMillis());
+				logger.debug("Middle button pressed {}x {}", e.getClickCount(), System.currentTimeMillis());
 
-					// Here we toggle between the MOVE tool and any previously selected tool
-					if (getSelectedTool() == PathTools.MOVE)
-						setSelectedTool(previousTool);
-					else
-						setSelectedTool(PathTools.MOVE);
+				// Here we toggle between the MOVE tool and any previously selected tool
+				if (getSelectedTool() == PathTools.MOVE)
+					setSelectedTool(previousTool);
+				else
+					setSelectedTool(PathTools.MOVE);
 			}
 		});
 		
