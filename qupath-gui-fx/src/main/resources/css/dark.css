@@ -41,3 +41,7 @@
 .dialog-pane > .button-bar > .container > * > .image-view {
     -fx-blend-mode: soft-light;
 }
+
+.slider {
+	-fx-control-inner-background: derive(-fx-base, 25%);
+}

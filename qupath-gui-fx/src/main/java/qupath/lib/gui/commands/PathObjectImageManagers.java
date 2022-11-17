@@ -34,6 +34,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javafx.beans.property.DoubleProperty;
+import javafx.beans.value.WeakChangeListener;
 import javafx.concurrent.Task;
 import javafx.concurrent.WorkerStateEvent;
 import javafx.embed.swing.SwingFXUtils;
@@ -157,6 +158,9 @@ class PathObjectImageManagers {
 		
 		private ExecutorService pool;
 		
+		private WeakChangeListener<Number> numberListenerFalse = new WeakChangeListener<>((v, o, n) -> updateImage(false));
+		private WeakChangeListener<Number> numberListenerTrue = new WeakChangeListener<>((v, o, n) -> updateImage(true));
+		
 		private Map<PathObject, Image> cache = Collections.synchronizedMap(new LinkedHashMap<>() {
 			
 			private static final long serialVersionUID = 1L;
@@ -177,15 +181,15 @@ class PathObjectImageManagers {
 			this.pool = pool == null ? ForkJoinPool.commonPool() : pool;
 			if (paintObject && viewer != null) {
 				var options = viewer.getOverlayOptions();
-				options.lastChangeTimestamp().addListener((v, o, n) -> updateImage(false));
-				viewer.getImageDisplay().changeTimestampProperty().addListener((v, o, n) -> updateImage(false));
+				options.lastChangeTimestamp().addListener(numberListenerFalse);
+				viewer.getImageDisplay().changeTimestampProperty().addListener(numberListenerFalse);
 			}
 			this.node = node;
 			this.widthProperty = widthProperty;
 			this.heightProperty = heightProperty;
-			widthProperty.addListener((v, o, n) -> updateImage(true));
-			heightProperty.addListener((v, o, n) -> updateImage(true));
-			node.visibleProperty().addListener((v, o, n) -> updateImage(true));
+			widthProperty.addListener(numberListenerTrue);
+			heightProperty.addListener(numberListenerTrue);
+			node.visibleProperty().addListener(new WeakChangeListener<>((v, o, n) -> updateImage(true)));
 		}
 		
 		public void setPathObject(PathObject pathObject) {

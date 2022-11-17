@@ -781,21 +781,24 @@ public final class PathClass implements Comparable<PathClass>, Serializable {
 				return isTumor ? COLOR_POSITIVE : ColorTools.makeScaledRGB(parentRGB, 0.75);
 			} else if (name.equals(NAME_NEGATIVE)) {
 				return isTumor ? COLOR_NEGATIVE : ColorTools.makeScaledRGB(parentRGB, 1.25);
-			} else {
-				double scale = 1.5;
-				return ColorTools.makeScaledRGB(parentRGB, scale);
+//			} else {
+//				double scale = 1.5;
+//				return ColorTools.makeScaledRGB(parentRGB, scale);
 			}
 			
 			
 		}
 		
 		// Create a random color, using the cache code of the cacheName for reproducibility
+		// Reject very dark colors
 		var random = new Random(cacheName.hashCode());
-		return ColorTools.packRGB(
-				random.nextInt(256),
-				random.nextInt(256),
-				random.nextInt(256)
-				);
+		int r = 0, g = 0, b = 0;
+		while (r < 40 && g < 40 && b < 40) {
+			r = random.nextInt(256);
+			g = random.nextInt(256);
+			b = random.nextInt(256);
+		}
+		return ColorTools.packRGB(r, g, b);
 	}
 	
 	/**
