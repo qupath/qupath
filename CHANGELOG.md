@@ -204,8 +204,9 @@ The following is a long-yet-non-exhaustive list of changes & improvements.
 
 ### Dependency updates
 * Adoptium OpenJDK 17
+* Apache Commons Text 1.10.0
 * Bio-Formats 6.11.0
-* Commonmark 0.2.0
+* Commonmark 0.21.0
 * ControlsFX 11.1.2
 * JavaFX 19.0.0
 * Java Topology Suite 1.19.0
