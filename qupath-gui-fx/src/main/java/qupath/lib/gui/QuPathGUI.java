@@ -826,7 +826,6 @@ public class QuPathGUI {
 	
 	
 	private long lastMousePressedWarning = 0L;
-	private MouseButton previousButtonPressed = MouseButton.NONE;
 	
 	
 	/**
@@ -1096,24 +1095,14 @@ public class QuPathGUI {
 						}
 					}
 				}
-			} else if (e.getButton() == MouseButton.MIDDLE) {
-				if (previousButtonPressed == MouseButton.NONE && e.isMiddleButtonDown()) {
-					logger.debug("Middle button pressed {}x {}", e.getClickCount(), System.currentTimeMillis());
+			} else if (e.getButton() == MouseButton.MIDDLE && e.getEventType() == MouseEvent.MOUSE_CLICKED) {
+					logger.info("Middle button pressed {}x {}", e.getClickCount(), System.currentTimeMillis());
+
 					// Here we toggle between the MOVE tool and any previously selected tool
 					if (getSelectedTool() == PathTools.MOVE)
 						setSelectedTool(previousTool);
 					else
 						setSelectedTool(PathTools.MOVE);
-					previousButtonPressed = e.getButton();
-					// When JavaFX detects multiple clicks on the same spot, CLICK_COUNT is increased but all part of same event.
-					// This behaviour is not helpful here, so we consume the event to generate a MOUSE_RELEASE for each further click.
-					// Behaviour without this logic: On fast clicks, no toggle away from the "Move" tool.
-					if (e.getClickCount() > 1)
-						e.consume();
-				} else if (!e.isMiddleButtonDown()) {
-					logger.debug("Middle button released {}x {}", e.getClickCount(), System.currentTimeMillis());
-					previousButtonPressed = MouseButton.NONE;
-				}
 			}
 		});
 		
@@ -4100,9 +4089,6 @@ public class QuPathGUI {
 	 * @param tool
 	 */
 	public void setSelectedTool(PathTool tool) {
-		// Record which tools was currently selected
-		previousTool = getSelectedTool();
-
 		if (!Platform.isFxApplicationThread()) {
 			Platform.runLater(() -> setSelectedTool(tool));
 			return;
@@ -4111,6 +4097,8 @@ public class QuPathGUI {
 			logger.warn("Mode switching currently disabled - cannot change to {}", tool);
 			return;
 		}
+		// Record the current tool before switching to newly selected
+		previousTool = getSelectedTool();
 		this.selectedToolProperty.set(tool);
 	}
 	
