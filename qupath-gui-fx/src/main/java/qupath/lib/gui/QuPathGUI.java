@@ -825,8 +825,6 @@ public class QuPathGUI {
 	
 	
 	private long lastMousePressedWarning = 0L;
-	private long lastMousePressedDebounce = 0L;
-	private MouseButton previousButtonPressed = MouseButton.NONE;
 	
 	
 	/**
@@ -1076,9 +1074,7 @@ public class QuPathGUI {
 		logger.debug("Time to display: {} ms", (System.currentTimeMillis() - startTime));
 		stage.show();
 		logger.trace("Time to finish display: {} ms", (System.currentTimeMillis() - startTime));
-		// As part of MouseEvent.ANY, both MOUSE_RELEASED and MOUSE_PRESSED can be generated (and detected) separately, so maybe worth adding MOUSE_RELEASED to ignoreTypes?
-		//var ignoreTypes = new HashSet<>(Arrays.asList(MouseEvent.MOUSE_MOVED, MouseEvent.MOUSE_ENTERED, MouseEvent.MOUSE_ENTERED_TARGET, MouseEvent.MOUSE_EXITED, MouseEvent.MOUSE_ENTERED_TARGET));
-		var ignoreTypes = new HashSet<>(Arrays.asList(MouseEvent.MOUSE_RELEASED, MouseEvent.MOUSE_MOVED, MouseEvent.MOUSE_ENTERED, MouseEvent.MOUSE_ENTERED_TARGET, MouseEvent.MOUSE_EXITED, MouseEvent.MOUSE_ENTERED_TARGET));
+		var ignoreTypes = new HashSet<>(Arrays.asList(MouseEvent.MOUSE_MOVED, MouseEvent.MOUSE_ENTERED, MouseEvent.MOUSE_ENTERED_TARGET, MouseEvent.MOUSE_EXITED, MouseEvent.MOUSE_ENTERED_TARGET));
 		stage.getScene().addEventFilter(MouseEvent.ANY, e -> {
 			if (ignoreTypes.contains(e.getEventType()))
 				return;
@@ -1098,34 +1094,14 @@ public class QuPathGUI {
 						}
 					}
 				}
-			} else if (e.getButton() == MouseButton.MIDDLE) {
-				// The maximum time interval within which clicks are considered to be switch bounces
-				long debounceMax = 50;
-				long time = System.currentTimeMillis();
-				if (time - lastMousePressedDebounce < debounceMax ) {
-					logger.debug("Bounce event detected after {}ms", time-lastMousePressedDebounce);
-					e.consume();
-					return;
-				}
+			} else if (e.getButton() == MouseButton.MIDDLE && e.getEventType() == MouseEvent.MOUSE_CLICKED) {
+				logger.debug("Middle button pressed {}x {}", e.getClickCount(), System.currentTimeMillis());
 
-				if (previousButtonPressed == MouseButton.NONE && e.isMiddleButtonDown()) {
-					logger.debug("Middle button pressed {}x {}", e.getClickCount(), System.currentTimeMillis());
-					lastMousePressedDebounce = System.currentTimeMillis();
-					// Here we toggle between the MOVE tool and any previously selected tool
-					if (getSelectedTool() == PathTools.MOVE)
-						setSelectedTool(previousTool);
-					else
-						setSelectedTool(PathTools.MOVE);
-					previousButtonPressed = e.getButton();
-					// When JavaFX detects multiple clicks on the same spot, CLICK_COUNT is increased but all part of same event.
-					// This behaviour is not helpful here, so we consume the event to generate a MOUSE_RELEASE for each further click.
-					// Behaviour without this logic: On fast clicks, no toggle away from the "Move" tool.
-					if (e.getClickCount() > 1)
-						e.consume();
-				} else if (!e.isMiddleButtonDown()) {
-					logger.debug("Middle button released {}x {}", e.getClickCount(), System.currentTimeMillis());
-					previousButtonPressed = MouseButton.NONE;
-				}
+				// Here we toggle between the MOVE tool and any previously selected tool
+				if (getSelectedTool() == PathTools.MOVE)
+					setSelectedTool(previousTool);
+				else
+					setSelectedTool(PathTools.MOVE);
 			}
 		});
 		
@@ -2400,26 +2376,6 @@ public class QuPathGUI {
 		// Listen to the scroll wheel
 		viewer.getView().setOnScroll(e -> {
 			if (viewer == viewerManager.getActiveViewer() || !viewerManager.getSynchronizeViewers()) {
-				// Handle side-to-side clicks (or SHIFT+MouseWheel as substitute when not available)
-				// While testing, wrote the logic this way so it can be commented out if needed
-				if (e.getDeltaX() != 0) {
-					// When using scroll touch gestures, disable the tool switching behaviour
-					if (PathPrefs.useScrollGesturesProperty().get())
-						return;
-		  			logger.debug("Side-to-side wheel logic. DeltaX={}",e.getDeltaX());
-					int direction = (e.getDeltaX() > 0)? 1 : -1;
-
-					int nTools = tools.size();
-					int toolIndex = tools.indexOf(getSelectedTool());
-					int newIndex = toolIndex - direction;
-
-					// When reaching limits, stay there ("move tool" to the left and the tool before "points tool" to the right)
-					if (newIndex < 0 || newIndex >= nTools-1)
-						return;
-					setSelectedTool(tools.get(newIndex));
-					return;
-				}
-
 				double scrollUnits = e.getDeltaY() * PathPrefs.getScaledScrollSpeed();
 				
 				// Use shift down to adjust opacity
@@ -4120,10 +4076,6 @@ public class QuPathGUI {
 	 * @param tool
 	 */
 	public void setSelectedTool(PathTool tool) {
-		// Record which tools was currently selected
-		previousTool = getSelectedTool();
-		logger.debug("Setting previousTool to: {} {}", previousTool, System.currentTimeMillis());
-
 		if (!Platform.isFxApplicationThread()) {
 			Platform.runLater(() -> setSelectedTool(tool));
 			return;
@@ -4132,6 +4084,9 @@ public class QuPathGUI {
 			logger.warn("Mode switching currently disabled - cannot change to {}", tool);
 			return;
 		}
+		// If the current tool is not move, record before switching to newly selected
+		if (getSelectedTool() != PathTools.MOVE)
+			previousTool = getSelectedTool();
 		this.selectedToolProperty.set(tool);
 	}
 	

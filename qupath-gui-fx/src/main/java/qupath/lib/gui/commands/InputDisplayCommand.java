@@ -109,6 +109,7 @@ public class InputDisplayCommand implements EventHandler<InputEvent> {
 	// Buttons
 	private BooleanProperty primaryDown = new SimpleBooleanProperty(false);
 	private BooleanProperty secondaryDown = new SimpleBooleanProperty(false);
+	private BooleanProperty middleDown = new SimpleBooleanProperty(false);
 
 	// Scroll/wheel
 	private BooleanProperty scrollLeft = new SimpleBooleanProperty(false);
@@ -142,7 +143,7 @@ public class InputDisplayCommand implements EventHandler<InputEvent> {
 		logger.trace("Creating stage for input display");
 
 		double keyPaneWidth = 225.0;
-		double mousePaneWidth = 100;
+		double mousePaneWidth = 120;
 		double spacing = 5;
 
 		var pane = new AnchorPane();
@@ -274,6 +275,7 @@ public class InputDisplayCommand implements EventHandler<InputEvent> {
 			} else {
 				primaryDown.set(false);
 				secondaryDown.set(false);
+				middleDown.set(false);
 				scrollLeft.set(false);
 				scrollRight.set(false);
 				scrollUp.set(false);
@@ -324,6 +326,7 @@ public class InputDisplayCommand implements EventHandler<InputEvent> {
 
 		var rectPrimary = createButtonRectangle(primaryDown);
 		var rectSecondary = createButtonRectangle(secondaryDown);
+		var rectMiddle= createButtonRectangle(middleDown);
 
 		double arrowBase = 32;
 		double arrowHeight = arrowBase / 2.0;
@@ -336,11 +339,14 @@ public class InputDisplayCommand implements EventHandler<InputEvent> {
 		pane.getChildren().addAll(
 				rectPrimary,
 				rectSecondary,
+				rectMiddle,
 				arrowUp, arrowDown, arrowLeft, arrowRight
 				);
 		AnchorPane.setTopAnchor(rectPrimary, 20.);
 		AnchorPane.setTopAnchor(rectSecondary, 20.);
+		AnchorPane.setTopAnchor(rectMiddle, 20.);
 		AnchorPane.setLeftAnchor(rectPrimary, 20.);
+		AnchorPane.setLeftAnchor(rectMiddle, width-2*rectSecondary.getWidth()-30);
 		AnchorPane.setLeftAnchor(rectSecondary, width-rectSecondary.getWidth()-20);
 
 		double y = rectPrimary.getHeight() + 30;
@@ -358,7 +364,7 @@ public class InputDisplayCommand implements EventHandler<InputEvent> {
 	}
 
 	Rectangle createButtonRectangle(BooleanProperty isPressed) {
-		var rect = new Rectangle(25, 40);
+		var rect = new Rectangle(20, 40);
 		rect.setArcHeight(8);
 		rect.setArcWidth(8);
 		rect.setStrokeWidth(2);
@@ -427,11 +433,15 @@ public class InputDisplayCommand implements EventHandler<InputEvent> {
 					primaryDown.set(true);
 				else if (event.getButton() == MouseButton.SECONDARY)
 					secondaryDown.set(true);
+				else if (event.getButton() == MouseButton.MIDDLE)
+					middleDown.set(true);
 			} else if (type == MouseEvent.MOUSE_RELEASED) {
 				if (event.getButton() == MouseButton.PRIMARY)
 					primaryDown.set(false);
 				else if (event.getButton() == MouseButton.SECONDARY)
 					secondaryDown.set(false);
+				else if (event.getButton() == MouseButton.MIDDLE)
+					middleDown.set(false);
 			}
 		}
 
