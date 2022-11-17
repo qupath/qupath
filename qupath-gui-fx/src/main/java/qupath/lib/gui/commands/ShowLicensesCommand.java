@@ -26,6 +26,7 @@ package qupath.lib.gui.commands;
 import java.io.File;
 import java.io.IOException;
 import java.net.URISyntaxException;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.stream.Collectors;
@@ -83,7 +84,7 @@ class ShowLicensesCommand {
 		// We assume it's in a license directory, located one level up from the current Jar
 		File currentFile = null;
 		try {
-			currentFile = new File(ShowLicensesCommand.class.getProtectionDomain().getCodeSource().getLocation().toURI());
+			currentFile = Paths.get(ShowLicensesCommand.class.getProtectionDomain().getCodeSource().getLocation().toURI()).toFile();
 			logger.info("Running file: {}", currentFile);
 		} catch (URISyntaxException e) {
 			logger.error("Error identifying running file", e);

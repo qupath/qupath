@@ -477,7 +477,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		// Open the project directory using Explorer/Finder etc.
 		Action actionOpenProjectDirectory = createBrowsePathAction("Project...", () -> getProjectPath());
 		Action actionOpenProjectEntryDirectory = createBrowsePathAction("Project entry...", () -> getProjectEntryPath());
-		Action actionOpenImageServerDirectory = createBrowsePathAction("Image server...", () -> getImageServerPath());
+		Action actionOpenImageServerDirectory = createBrowsePathAction("Image...", () -> getImageServerPath());
 		
 
 		Menu menuSort = new Menu("Sort by...");

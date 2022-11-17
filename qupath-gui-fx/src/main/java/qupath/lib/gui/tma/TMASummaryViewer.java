@@ -614,11 +614,9 @@ public class TMASummaryViewer {
 		if (showWarning) {
 			var paneWithWarning = new BorderPane(pane);
 			
-			var warning = new Text("Warning! ");
-			warning.setStyle("-fx-font-weight: bold; -fx-fill: -fx-text-inner-color");
-			var message = new Text("The TMA data viewer is not actively maintained - "
-					+ "please use cautiously and report any bugs with 'Help > Report bug'");
-			message.setStyle("-fx-fill: -fx-text-inner-color");
+			var warning = createText("Warning! ", true);
+			var message = createText("The TMA data viewer is not actively maintained - "
+					+ "please use cautiously and report any bugs with 'Help > Report bug'", false);
 			
 			var textflow = new TextFlow(warning, message);
 			textflow.setTextAlignment(TextAlignment.CENTER);
@@ -949,7 +947,7 @@ public class TMASummaryViewer {
 
 	private Pane getCustomizeTablePane() {
 		TableView<TreeTableColumn<TMAEntry, ?>> tableColumns = new TableView<>();
-		tableColumns.setPlaceholder(new Text("No columns available"));
+		tableColumns.setPlaceholder(createText("No columns available", false));
 		tableColumns.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
 		tableColumns.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
 		
@@ -1363,9 +1361,19 @@ public class TMASummaryViewer {
 		
 		// The next time the table is empty, show a different placeholder 
 		// from the original (which is for loading/import)
-		table.setPlaceholder(new Text("No data"));
+		table.setPlaceholder(createText("No data", false));
 	}
 
+	
+	private static Text createText(String contents, boolean makeBold) {
+		var text = new Text(contents);
+		if (makeBold)
+			text.setStyle("-fx-fill: -fx-text-base-color;");
+		else
+			text.setStyle("-fx-fill: -fx-text-base-color;");
+		return text;
+	}
+	
 	
 	/**
 	 * Refresh the table; this should update values for cells that wrap a mutable object, 

@@ -214,7 +214,13 @@ public class GuiTools {
 		if (Desktop.isDesktopSupported()) {
 			var desktop = Desktop.getDesktop();
 			try {
-				// Can open directory on Windows & Mac
+				// Try to browse the file directory, if we can
+				if (file.isFile() && desktop.isSupported(Desktop.Action.BROWSE_FILE_DIR)) {
+					SwingUtilities.invokeLater(() -> desktop.browseFileDirectory(file));
+					return true;
+				}
+				
+				// Try to open the directory, or containing directory
 				if (desktop.isSupported(Action.OPEN)) {
 					var directoryToOpen = file.isDirectory() ? file : file.getParentFile();
 					SwingUtilities.invokeLater(() -> {
@@ -227,7 +233,7 @@ public class GuiTools {
 					});
 					return true;
 				}
-				// Trouble on Linux - just copy
+				// If we didn't manage to open the directory, offer to copy the path at least
 				if (Dialogs.showConfirmDialog("Browse directory",
 						"Directory browsing not supported on this platform!\nCopy directory path to clipboard instead?")) {
 					var content = new ClipboardContent();

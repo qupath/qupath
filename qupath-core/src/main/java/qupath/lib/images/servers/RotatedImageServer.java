@@ -159,7 +159,7 @@ public class RotatedImageServer extends TransformingImageServer<BufferedImage> {
 		case ROTATE_NONE:
 		default:
 			// Don't apply any rotation
-			return getWrappedServer().readRegion(request);
+			return getWrappedServer().readRegion(request.updatePath(getWrappedServer().getPath()));
 		}
 	}
 	

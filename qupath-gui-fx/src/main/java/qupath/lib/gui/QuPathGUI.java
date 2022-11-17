@@ -344,7 +344,6 @@ public class QuPathGUI {
 	private Stage stage;
 	
 	private boolean isStandalone = false;
-	private ScriptMenuLoader sharedScriptMenuLoader;
 	
 	private DragDropImportListener dragAndDrop = new DragDropImportListener(this);
 	
@@ -1190,24 +1189,19 @@ public class QuPathGUI {
 		// Set the icons
 		stage.getIcons().addAll(loadIconList());
 		
+		// TODO: Make the script menus also available within the script editor itself
 		
 		// Add scripts menu (delayed to here, since it takes a bit longer)
 		Menu menuAutomate = getMenu("Automate", false);
 		ScriptEditor editor = getScriptEditor();
-		sharedScriptMenuLoader = new ScriptMenuLoader("Shared scripts...", PathPrefs.scriptsPathProperty(), (DefaultScriptEditor)editor);
+		var sharedScriptMenuLoader = new ScriptMenuLoader("Shared scripts...", PathPrefs.scriptsPathProperty(), editor);
 		
-		// TODO: Reintroduce project scripts
 		StringBinding projectScriptsPath = Bindings.createStringBinding(() -> {
 			var project = getProject();
-			if (project == null)
-				return null;
-			File dir = Projects.getBaseDirectory(project);
-			if (dir == null)
-				return null;
-			return new File(dir, "scripts").getAbsolutePath();
-//			return getProjectScriptsDirectory(false).getAbsolutePath();
+			File dir = project == null ? null : Projects.getBaseDirectory(project);
+			return dir == null ? null : new File(dir, "scripts").getAbsolutePath();
 		}, projectProperty);
-		var projectScriptMenuLoader = new ScriptMenuLoader("Project scripts...", projectScriptsPath, (DefaultScriptEditor)editor);
+		var projectScriptMenuLoader = new ScriptMenuLoader("Project scripts...", projectScriptsPath, editor);
 		projectScriptMenuLoader.getMenu().visibleProperty().bind(
 				projectProperty.isNotNull().and(initializingMenus.not())
 				);
@@ -1219,23 +1213,16 @@ public class QuPathGUI {
 				return null;
 			return dirScripts.getAbsolutePath();
 		}, PathPrefs.userPathProperty());
-		ScriptMenuLoader userScriptMenuLoader = new ScriptMenuLoader("User scripts...", userScriptsPath, (DefaultScriptEditor)editor);
+		ScriptMenuLoader userScriptMenuLoader = new ScriptMenuLoader("User scripts...", userScriptsPath, editor);
 
-		menuAutomate.setOnMenuValidation(e -> {
-			sharedScriptMenuLoader.updateMenu();
-			projectScriptMenuLoader.updateMenu();
-			userScriptMenuLoader.updateMenu();
-		});
 
-		if (editor instanceof DefaultScriptEditor) {
-			MenuTools.addMenuItems(
-					menuAutomate,
-					null,
-					sharedScriptMenuLoader.getMenu(),
-					userScriptMenuLoader.getMenu(),
-					projectScriptMenuLoader.getMenu()
-					);
-		}
+		MenuTools.addMenuItems(
+				menuAutomate,
+				null,
+				sharedScriptMenuLoader.getMenu(),
+				userScriptMenuLoader.getMenu(),
+				projectScriptMenuLoader.getMenu()
+				);
 		
 		// Menus should now be complete - try binding visibility
 		initializingMenus.set(false);
@@ -1546,7 +1533,7 @@ public class QuPathGUI {
 					code = hostServices.getDocumentBase();
 				if (code != null && code.isBlank()) {
 					uri = GeneralTools.toURI(code);
-					return new File(uri);
+					return Paths.get(uri).toFile();
 				}
 			}
 		} catch (URISyntaxException e) {
@@ -3627,7 +3614,7 @@ public class QuPathGUI {
 	 * An example:
 	 * <pre>
 	 * <code> 
-	 * setAccelerator("File>Open...", "shift+o");
+	 * setAccelerator("File&gt;Open...", "shift+o");
 	 * </code></pre>
 	 * Where possible, the accelerator for an action associated with a menu item will be changed.
 	 * If the combo is null, any existing accelerator will be removed.
