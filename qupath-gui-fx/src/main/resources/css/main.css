@@ -46,9 +46,15 @@
 }
 
 
+/* Set icon colors */
+.qupath-icon,
+.glyph-font {
+  -fx-text-fill: -fx-text-base-color;
+}
+
+
 /* Soften the main toolbar icons */
 .tool-bar .qupath-icon * {
-  -fx-text-fill: -fx-text-background-color;
   -fx-opacity: 0.8;
 }
 
