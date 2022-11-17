@@ -149,6 +149,7 @@ import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.input.MouseButton;
 import javafx.scene.input.RotateEvent;
 import javafx.scene.input.ScrollEvent;
 import javafx.scene.input.ZoomEvent;
@@ -366,6 +367,8 @@ public class QuPathGUI {
 	private BooleanBinding uiBlocked = pluginRunning.or(scriptRunning);
 	
 	private SimpleBooleanProperty showInputDisplayProperty = new SimpleBooleanProperty(false);
+
+	private PathTool previousTool = PathTools.MOVE;
 	
 	private LogViewerCommand logViewerCommand = new LogViewerCommand(QuPathGUI.this);
 	
@@ -1091,6 +1094,14 @@ public class QuPathGUI {
 						}
 					}
 				}
+			} else if (e.getButton() == MouseButton.MIDDLE && e.getEventType() == MouseEvent.MOUSE_CLICKED) {
+				logger.debug("Middle button pressed {}x {}", e.getClickCount(), System.currentTimeMillis());
+
+				// Here we toggle between the MOVE tool and any previously selected tool
+				if (getSelectedTool() == PathTools.MOVE)
+					setSelectedTool(previousTool);
+				else
+					setSelectedTool(PathTools.MOVE);
 			}
 		});
 		
@@ -4073,6 +4084,9 @@ public class QuPathGUI {
 			logger.warn("Mode switching currently disabled - cannot change to {}", tool);
 			return;
 		}
+		// If the current tool is not move, record before switching to newly selected
+		if (getSelectedTool() != PathTools.MOVE)
+			previousTool = getSelectedTool();
 		this.selectedToolProperty.set(tool);
 	}
 	
