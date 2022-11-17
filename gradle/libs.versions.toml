@@ -23,7 +23,7 @@ logback       = { module = "ch.qos.logback:logback-classic",   version = "1.3.4"
 slf4j         = { module = "org.slf4j:slf4j-api",              version = "2.0.3" }
 
 commons-math  = { module = "org.apache.commons:commons-math3", version = "3.6.1" }
-commons-text  = { module = "org.apache.commons:commons-text",  version = "1.9" }
+commons-text  = { module = "org.apache.commons:commons-text",  version = "1.10.0" }
 controlsfx    = { module = "org.controlsfx:controlsfx",        version = "11.1.2" }
 jfxtras       = { module = "org.jfxtras:jfxtras-menu",         version = "11-r2" }
 guava         = { module = "com.google.guava:guava",           version = "31.1-jre" }
@@ -46,7 +46,7 @@ junit         = { module = "org.junit.jupiter:junit-jupiter",        version.ref
 junit-api     = { module = "org.junit.jupiter:junit-jupiter-api",    version.ref = "junit" }
 junit-engine  = { module = "org.junit.jupiter:junit-jupiter-engine", version.ref = "junit" }
 
-commonmark    = { module = "org.commonmark:commonmark", version = "0.20.0" }
+commonmark    = { module = "org.commonmark:commonmark", version = "0.21.0" }
 
 snakeyaml     = { module = "org.yaml:snakeyaml", version = "1.33" }
 
