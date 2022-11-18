@@ -46,6 +46,7 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableMap;
 import javafx.event.EventHandler;
 import javafx.geometry.Pos;
+import javafx.scene.Group;
 import javafx.scene.Scene;
 import javafx.scene.control.Label;
 import javafx.scene.control.Tooltip;
@@ -62,6 +63,7 @@ import javafx.scene.paint.Color;
 import javafx.scene.paint.Paint;
 import javafx.scene.shape.Polygon;
 import javafx.scene.shape.Rectangle;
+import javafx.scene.shape.Shape;
 import javafx.scene.text.TextAlignment;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
@@ -324,9 +326,28 @@ public class InputDisplayCommand implements EventHandler<InputEvent> {
 	Pane createMousePane(double width) {
 		var pane = new AnchorPane();
 
-		var rectPrimary = createButtonRectangle(primaryDown);
-		var rectSecondary = createButtonRectangle(secondaryDown);
-		var rectMiddle= createButtonRectangle(middleDown);
+		var rectPrimary = createButtonRectangle(primaryDown, 25, 40);
+		var rectSecondary = createButtonRectangle(secondaryDown, 25, 40);
+		var rectMiddle = createButtonRectangle(middleDown, 8, 18);
+		
+		double gap = 5;
+		rectMiddle.setTranslateX(rectPrimary.getWidth() + gap/2.0 - rectMiddle.getWidth()/2.0);
+		
+		rectSecondary.setTranslateX(rectPrimary.getWidth()+gap);
+		
+		rectMiddle.setStrokeWidth(8);
+		rectMiddle.setStroke(Color.WHITE);
+		rectMiddle.setTranslateY((rectPrimary.getHeight()-rectMiddle.getHeight())/2.0);
+		var shapePrimary = Shape.subtract(rectPrimary, rectMiddle);
+		shapePrimary.fillProperty().bind(rectPrimary.fillProperty());
+		var shapeSecondary = Shape.subtract(rectSecondary, rectMiddle);
+		shapeSecondary.fillProperty().bind(rectSecondary.fillProperty());
+		rectMiddle.setStroke(null);
+		rectMiddle.setStrokeWidth(2);
+		
+		var group = new Group();
+		group.getChildren().addAll(shapePrimary, shapeSecondary, rectMiddle);
+		
 
 		double arrowBase = 32;
 		double arrowHeight = arrowBase / 2.0;
@@ -337,18 +358,13 @@ public class InputDisplayCommand implements EventHandler<InputEvent> {
 		var arrowRight = createArrow(scrollRight, arrowBase, arrowHeight, 90);
 
 		pane.getChildren().addAll(
-				rectPrimary,
-				rectSecondary,
-				rectMiddle,
+				group,
 				arrowUp, arrowDown, arrowLeft, arrowRight
 				);
-		AnchorPane.setTopAnchor(rectPrimary, 20.);
-		AnchorPane.setTopAnchor(rectSecondary, 20.);
-		AnchorPane.setTopAnchor(rectMiddle, 20.);
-		AnchorPane.setLeftAnchor(rectPrimary, 20.);
-		AnchorPane.setLeftAnchor(rectMiddle, width-2*rectSecondary.getWidth()-30);
-		AnchorPane.setLeftAnchor(rectSecondary, width-rectSecondary.getWidth()-20);
-
+		
+		AnchorPane.setTopAnchor(group, 20.0);
+		AnchorPane.setLeftAnchor(group, width/2.0-group.getBoundsInLocal().getWidth()/2.0);
+		
 		double y = rectPrimary.getHeight() + 30;
 		AnchorPane.setTopAnchor(arrowUp, y);
 		AnchorPane.setTopAnchor(arrowDown, y + 60);
@@ -363,8 +379,8 @@ public class InputDisplayCommand implements EventHandler<InputEvent> {
 		return pane;
 	}
 
-	Rectangle createButtonRectangle(BooleanProperty isPressed) {
-		var rect = new Rectangle(20, 40);
+	Rectangle createButtonRectangle(BooleanProperty isPressed, double width, double height) {
+		var rect = new Rectangle(width, height);
 		rect.setArcHeight(8);
 		rect.setArcWidth(8);
 		rect.setStrokeWidth(2);
