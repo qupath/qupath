@@ -36,6 +36,7 @@ import java.util.stream.IntStream;
 
 import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 import org.apache.commons.math3.stat.descriptive.rank.Percentile;
+import org.apache.commons.math3.stat.descriptive.rank.Percentile.EstimationType;
 import org.bytedeco.javacpp.PointerScope;
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.opencv_core.Mat;
@@ -322,34 +323,86 @@ public class TestImageOps {
 	@Test
 	public void testPercentiles() {
 		try (var scope = new PointerScope()) {
+			
+			// Create between 0 and 199 (inclusive)
 			var values = IntStream.range(0, 200).mapToDouble(i -> (double)i).toArray();
 			var shuffledValues = Arrays.stream(values).mapToObj(d -> Double.valueOf(d)).collect(Collectors.toList());
 			Collections.shuffle(shuffledValues);
 			
 			var mat = new Mat(shuffledValues.stream().mapToDouble(d -> d.doubleValue()).toArray());
 			
-			double[] requested = new double[] {1, 25, 50, 100};
+			double[] requested = new double[] {0, 1, 25, 26.5, 50, 75, 80, 99, 100};
 			double[] results = OpenCVTools.percentiles(mat, requested);
+			double[] expectedResults = new double[] {0.0, 1.99, 49.75, 52.735, 99.5, 149.25, 159.2, 197.01, 199.0}; // From NumPy
 			
-			var percentile = new Percentile();
+			// See OpenCVToosl#createPercentile() - aiming to replicate NumPy's default method
+			var percentile = new Percentile()
+					.withEstimationType(EstimationType.R_7);
 			percentile.setData(values);
 			
 			for (int i = 0; i < requested.length; i++) {
-				assertEquals(results[i], percentile.evaluate(requested[i]));
+				assertEquals(expectedResults[i], results[i], 1e-6);
+				// Commons Math does not permit 0
+				if (requested[i] > 0)
+					assertEquals(percentile.evaluate(requested[i]), results[i], 1e-6);
 			}
 			
+			// Try with single-channel
+			results = OpenCVTools.percentiles(mat, requested);
+			for (int i = 0; i < requested.length; i++) {
+				assertEquals(expectedResults[i], results[i], 1e-6);
+				if (requested[i] > 0)
+					assertEquals(percentile.evaluate(requested[i]), results[i], 1e-6);
+			}
 			
 			// Try after reshaping (to check channels are handled)
 			var mat2 = mat.reshape(4, 5);
 			results = OpenCVTools.percentiles(mat2, requested);
 			for (int i = 0; i < requested.length; i++) {
-				assertEquals(results[i], percentile.evaluate(requested[i]));
+				assertEquals(expectedResults[i], results[i], 1e-6);
+				if (requested[i] > 0)
+					assertEquals(percentile.evaluate(requested[i]), results[i], 1e-6);
 			}
 			
+			// Normalize across all channels
+			var matNormJoint = ImageOps.Normalize.percentile(0.0, 100.0, false, 0.0).apply(mat2.clone());
+			assertEquals(0, OpenCVTools.minimum(matNormJoint), 1e-6);
+			assertEquals(1, OpenCVTools.maximum(matNormJoint), 1e-6);
+			
+			// Normalize across each channel separately
+			var matNormSeparate = ImageOps.Normalize.percentile(0.0, 100.0, true, 0.0).apply(mat2.clone());
+			assertEquals(0, OpenCVTools.minimum(matNormSeparate), 1e-6);
+			assertEquals(1, OpenCVTools.maximum(matNormSeparate), 1e-6);
+			for (var matChannel : OpenCVTools.splitChannels(matNormSeparate)) {
+				assertEquals(0, OpenCVTools.minimum(matChannel), 1e-6);
+				assertEquals(1, OpenCVTools.maximum(matChannel), 1e-6);				
+			}
+
+			// Normalize across channels at 0 and 50
+			matNormJoint = ImageOps.Normalize.percentile(0, 50.0, false, 0.0).apply(mat2.clone());
+			assertEquals(0, OpenCVTools.minimum(matNormJoint), 1e-6);
+			assertEquals(2, OpenCVTools.maximum(matNormJoint), 1e-6);
+
+			matNormSeparate = ImageOps.Normalize.percentile(0, 50.0, true, 0.0).apply(mat2.clone());
+			for (var matChannel : OpenCVTools.splitChannels(matNormSeparate)) {
+				assertEquals(0, OpenCVTools.minimum(matChannel), 1e-6);
+			}
+
+			// Normalize across channels at 50 and 100
+			matNormJoint = ImageOps.Normalize.percentile(50, 100.0, false, 0.0).apply(mat2.clone());
+			assertEquals(-1, OpenCVTools.minimum(matNormJoint), 1e-6);
+			assertEquals(1, OpenCVTools.maximum(matNormJoint), 1e-6);
+			
+			matNormSeparate = ImageOps.Normalize.percentile(50, 100.0, true, 0.0).apply(mat2.clone());
+			for (var matChannel : OpenCVTools.splitChannels(matNormSeparate)) {
+				assertEquals(1, OpenCVTools.maximum(matChannel), 1e-6);				
+			}
+
 			mat.close();
 			mat2.close();
 		}
 	}
+		
 	
 	
 	@Test

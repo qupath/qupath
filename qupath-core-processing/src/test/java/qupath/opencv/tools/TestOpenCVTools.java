@@ -51,6 +51,7 @@ import org.slf4j.LoggerFactory;
 import qupath.imagej.tools.IJTools;
 import qupath.lib.color.ColorModelFactory;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.common.Timeit;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.PixelType;
 
@@ -482,6 +483,51 @@ public class TestOpenCVTools {
 		assertArrayEquals(new double[mat.channels()], OpenCVTools.channelStdDev(mat), eps);
 	}
 	
+	@Test
+	public void testPercentilePerformance() {
+		
+		// Compare performance using a few different percentile approaches
+		try (var scope = new PointerScope()) {
+			
+			int nIterations = 2;
+			
+			for (int i = 0; i < nIterations; i++) {
+				
+				// Check percentiles with NaN
+				var mat = new Mat(2000, 2000, opencv_core.CV_32FC(4));
+				opencv_core.setRNGSeed(123);
+				OpenCVTools.addNoise(mat, 5.0, 10.0);
+				OpenCVTools.apply(mat, d -> d > 5 ? Double.NaN : d);
+
+//				double[] percentiles = IntStream.range(0, 100).mapToDouble(k -> k).toArray();
+				double[] percentiles = new double[] {0, 1.0, 50, 99.8};
+				
+				var timeit = new Timeit().start("Percentiles");
+				double[] results = OpenCVTools.percentiles(mat, percentiles);
+				timeit.checkpoint("Percentiles legacy");
+				double[] resultsLegacy = OpenCVTools.percentilesSorted(mat, percentiles);
+				timeit.checkpoint("Percentiles stream");
+				double[] resultsStream = OpenCVTools.percentilesStream(mat, false, false, percentiles);
+				timeit.checkpoint("Percentiles stream sorted");
+				double[] resultsStreamSorted = OpenCVTools.percentilesStream(mat, false, true, percentiles);
+				timeit.checkpoint("Percentiles parallel stream");
+				double[] resultsParallelStream = OpenCVTools.percentilesStream(mat, true, false, percentiles);
+				timeit.checkpoint("Percentiles parallel stream sorted");
+				double[] resultsParallelStreamSorted = OpenCVTools.percentilesStream(mat, true, true, percentiles);				
+				logger.info("{}", timeit.stop());
+				// Should all give the same results
+				assertArrayEquals(results, resultsLegacy);
+				assertArrayEquals(results, resultsStream);
+				assertArrayEquals(results, resultsStreamSorted);
+				assertArrayEquals(results, resultsParallelStream);
+				assertArrayEquals(results, resultsParallelStreamSorted);
+				assertFalse(Arrays.stream(results).anyMatch(d -> Double.isNaN(d)));
+			}
+		}
+		
+	}
+	
+	
 	
 	@Test
 	public void testPercentiles() {
@@ -492,6 +538,7 @@ public class TestOpenCVTools {
 			for (int max : maxValues) {
 				var values = IntStream.range(min, max+1).asDoubleStream().toArray();
 				var stats = new DescriptiveStatistics(values);
+				stats.setPercentileImpl(OpenCVTools.createPercentile());
 				var mat = new Mat(values);
 				opencv_core.randShuffle(mat);
 				
@@ -501,7 +548,7 @@ public class TestOpenCVTools {
 				assertEquals(min, OpenCVTools.minimum(mat));
 				assertArrayEquals(
 						new double[]{min, stats.getPercentile(50), max},
-						OpenCVTools.percentiles(mat, 1e-9, 50, 100));
+						OpenCVTools.percentiles(mat, 0, 50, 100));
 				
 				double[] newValues = new double[values.length + 30];
 				Arrays.fill(newValues, Double.NaN);
@@ -516,7 +563,7 @@ public class TestOpenCVTools {
 				assertEquals(min, OpenCVTools.minimum(mat));
 				assertArrayEquals(
 						new double[]{min, stats.getPercentile(50), max},
-						OpenCVTools.percentiles(mat, 1e-9, 50, 100));
+						OpenCVTools.percentiles(mat, 0, 50, 100));
 
 				mat.close();
 			}

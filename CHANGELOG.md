@@ -108,8 +108,6 @@ The following is a long-yet-non-exhaustive list of changes & improvements.
 
 
 ### Core improvements
-* Reduced use of Java serialization
-  * Serialization filters now used to better control deserialized classes
 * All objects can now have IDs
   * This aims to make it much easier to match up objects whenever some further analysis is done elsewhere (e.g. classification or clustering in Python or R)
   * See https://github.com/qupath/qupath/pull/959
@@ -124,6 +122,12 @@ The following is a long-yet-non-exhaustive list of changes & improvements.
   * Switched `BufferedImageTools.resize` to use ImageJ internally
 * Use `-Djts.overlay=ng` system property by default with Java Topology Suite
   * This should resolve many occurrences of the dreaded `TopologyException` when manipulating ROIs & geometries
+* Reduced use of Java serialization
+  * Serialization filters now used to better control deserialized classes
+* Improved percentile calculations in `OpenCVTools`
+  * Output changed to match with NumPy, R and other software
+  * Performance should be much improved when calculating percentiles from large arrays
+* `ImageOps` now supports both per-channel and joint percentile normalization
 
 
 ### Code & scripting improvements
