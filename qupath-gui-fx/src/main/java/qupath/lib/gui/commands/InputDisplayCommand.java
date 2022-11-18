@@ -135,8 +135,8 @@ public class InputDisplayCommand implements EventHandler<InputEvent> {
 	 * @return
 	 */
 	public static InputDisplayCommand getInstance(Window window, BooleanProperty showProperty) {
-//		if (map.containsKey(window))
-//			return map.get(window);
+		if (map.containsKey(window))
+			return map.get(window);
 		return new InputDisplayCommand(window, showProperty);
 	}
 
@@ -365,13 +365,6 @@ public class InputDisplayCommand implements EventHandler<InputEvent> {
 		AnchorPane.setTopAnchor(group, 20.0);
 		AnchorPane.setLeftAnchor(group, width/2.0-group.getBoundsInLocal().getWidth()/2.0);
 		
-//		AnchorPane.setTopAnchor(rectPrimary, 20.);
-//		AnchorPane.setTopAnchor(rectSecondary, 20.);
-//		AnchorPane.setTopAnchor(rectMiddle, 20.);
-//		AnchorPane.setLeftAnchor(rectPrimary, 20.);
-//		AnchorPane.setLeftAnchor(rectMiddle, width-2*rectSecondary.getWidth()-30);
-//		AnchorPane.setLeftAnchor(rectSecondary, width-rectSecondary.getWidth()-20);
-
 		double y = rectPrimary.getHeight() + 30;
 		AnchorPane.setTopAnchor(arrowUp, y);
 		AnchorPane.setTopAnchor(arrowDown, y + 60);
