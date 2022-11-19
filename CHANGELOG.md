@@ -87,6 +87,9 @@ The following is a long-yet-non-exhaustive list of changes & improvements.
   * If the filter text doesn't contain `|`, just filter by image name (the previous behavior)
   * If the filter text contains `|`, additionally split on `|` and check that all tokens are either contained in the image name, or in a metadata text in the format `key=value`
   * For example, a search `.tif|source=imagej` would look for images that contain both `.tif` and `source=imagej` either in their name or metadata
+* New 'Run -> Use compiled scripts' option to reuse compiled versions of a script where possible
+  * This can improve performance (slightly...) when re-running scripts many times
+  * This is an experimental feature, currently turned off by default - please be on the lookout for any unexpected behavior
 
 
 ### New & improved commands

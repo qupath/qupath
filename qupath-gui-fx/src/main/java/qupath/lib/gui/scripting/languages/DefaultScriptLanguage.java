@@ -30,11 +30,15 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.ConcurrentModificationException;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import javax.script.Compilable;
+import javax.script.CompiledScript;
 import javax.script.ScriptContext;
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineFactory;
@@ -43,6 +47,9 @@ import javax.script.SimpleScriptContext;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 
 import qupath.imagej.tools.IJTools;
 import qupath.lib.gui.dialogs.Dialogs;
@@ -65,6 +72,7 @@ import qupath.lib.scripting.languages.ScriptLanguage;
 /**
  * Default implementation for a {@link ScriptLanguage}, based on a {@link ScriptEngine}.
  * @author Melvin Gelbard
+ * @author Pete Bankhead
  * @since v0.4.0
  */
 public class DefaultScriptLanguage extends ScriptLanguage implements ExecutableLanguage {
@@ -72,6 +80,10 @@ public class DefaultScriptLanguage extends ScriptLanguage implements ExecutableL
 	private static final Logger logger = LoggerFactory.getLogger(DefaultScriptLanguage.class);
 	
 	private ScriptAutoCompletor completor;
+	
+	private Cache<String, CompiledScript> compiledMap = CacheBuilder.newBuilder()
+			.maximumSize(100) // Maximum number of compiled scripts to retain
+			.build();
 	
 	/**
 	 * Create a map of classes that have changed, and therefore old scripts may use out-of-date import statements.
@@ -178,15 +190,49 @@ public class DefaultScriptLanguage extends ScriptLanguage implements ExecutableL
 			filename = getDefaultScriptName();
 		
 		try {
-			var engine =  ScriptLanguageProvider.getEngineByName(getName());
-			if (engine == null)
-				throw new ScriptException("Unable to find ScriptEngine for " + getName());
+			ScriptEngine engine = null;
+			
+			// Get a compiled version of the script if we can, and want to
+			boolean useCompiled = params.useCompiled();
+			CompiledScript compiled = useCompiled ? compiledMap.getIfPresent(script2) : null;
+			
+			// Try to compile the script if required
+			if (useCompiled && compiled == null) {
+				engine = ScriptLanguageProvider.getEngineByName(getName());
+				if (engine == null)
+					throw new ScriptException("Unable to find ScriptEngine for " + getName());
+				if (engine instanceof Compilable) {
+					var compilable = (Compilable)engine;
+					synchronized (compiledMap) {
+						compiled = compiledMap.getIfPresent(script2);
+						// Compile if we don't have the script, or it is somehow associated with a different engine
+						if (compiled == null || !Objects.equals(compiled.getEngine().getClass(), engine.getClass())) {
+							compiled = compiledMap.getIfPresent(script2);						
+							logger.debug("Compiling script");
+							compiled = compilable.compile(script2);
+							compiledMap.put(script2, compiled);
+						}	
+					}
+				} else
+					logger.debug("Script engine does not support compilation: {}", engine);
+			}
 			
 			// Ensure we have set the attributes
 			context.setAttribute(ScriptEngine.ARGV, params.getArgs(), ScriptContext.ENGINE_SCOPE);
 			context.setAttribute(ScriptEngine.FILENAME, filename, ScriptContext.ENGINE_SCOPE);
 			
-			result = engine.eval(script2, context);
+			if (compiled != null) {
+				logger.debug("Evaluating compiled script: {}", compiled);
+				result = compiled.eval(context);
+			} else {
+				if (engine == null) {
+					engine = ScriptLanguageProvider.getEngineByName(getName());
+					if (engine == null)
+						throw new ScriptException("Unable to find ScriptEngine for " + getName());
+				}
+				logger.debug("Evaluating script engine: {}", engine);
+				result = engine.eval(script2, context);
+			}
 			
 			if (params.doUpdateHierarchy() && params.getImageData() != null)
 				params.getImageData().getHierarchy().fireHierarchyChangedEvent(params);

@@ -58,6 +58,8 @@ public class ScriptParameters {
 	
 	private boolean requestHierarchyUpdate = true;
 	
+	private boolean useCompiled = false;
+	
 	private Writer writer;
 	private Writer errorWriter;
 	
@@ -195,6 +197,20 @@ public class ScriptParameters {
 	}
 	
 	/**
+	 * Request that any script should be compiled before being evaluated, 
+	 * and previously compiled versions reused when possible.
+	 * <p>
+	 * This is not always supported, but where it is it may improve performance
+	 * if the same script is evaluated many times.
+	 * It may also mean that any errors are caught earlier.
+	 * <p>
+	 * @return
+	 */
+	public boolean useCompiled() {
+		return useCompiled;
+	}
+	
+	/**
 	 * Request whether to fire an update event for the object hierarchy, if an image data 
 	 * object is available.
 	 * <p>
@@ -242,6 +258,8 @@ public class ScriptParameters {
 		
 		private Project<?> project;
 		private ImageData<?> imageData;
+		
+		private boolean useCompiled = false;
 		
 		private Writer writer;
 		private Writer errorWriter;
@@ -397,6 +415,17 @@ public class ScriptParameters {
 		}
 		
 		/**
+		 * Request that the script is compiled before being evaluated, 
+		 * or a previously compiled version is used where available.
+		 * @param useCompiled
+		 * @return
+		 */
+		public Builder useCompiled(boolean useCompiled) {
+			this.useCompiled = useCompiled;
+			return this;
+		}
+		
+		/**
 		 * Build the {@link ScriptParameters} with the current options.
 		 * @return
 		 * @throws IllegalArgumentException if neither file nor script are set
@@ -419,6 +448,8 @@ public class ScriptParameters {
 			params.errorWriter = this.errorWriter == null ? new PrintWriter(System.err) : this.errorWriter;
 			
 			params.requestHierarchyUpdate = this.requestHierarchyUpdate;
+			
+			params.useCompiled = useCompiled;
 			
 			params.args = this.args;
 			params.batchSize = this.batchSize;
