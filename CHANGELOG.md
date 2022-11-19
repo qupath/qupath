@@ -54,6 +54,7 @@ The following is a long-yet-non-exhaustive list of changes & improvements.
 * Improved channel viewer
   * Show only the visible/most relevant channels by default, based on image type
   * Right-click to optionally show all available channels
+* Middle mouse button switches between 'Move' and last drawing tool (thanks to @zindy - https://github.com/qupath/qupath/pull/1037)
 
 
 ### Styling improvements

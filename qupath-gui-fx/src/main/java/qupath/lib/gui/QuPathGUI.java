@@ -53,7 +53,6 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -170,6 +169,7 @@ import javafx.util.Duration;
 import jfxtras.scene.menu.CirclePopupMenu;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.ThreadTools;
+import qupath.lib.common.Timeit;
 import qupath.lib.common.Version;
 import qupath.lib.gui.ActionTools.ActionAccelerator;
 import qupath.lib.gui.ActionTools.ActionDescription;
@@ -845,6 +845,8 @@ public class QuPathGUI {
 	QuPathGUI(final HostServices services, final Stage stage, final String path, final boolean isStandalone, final boolean startupQuietly) {
 		super();
 		
+		var timeit = new Timeit().start("Starting");
+		
 		this.hostServices = services;
 		
 		if (PathPrefs.doCreateLogFilesProperty().get()) {
@@ -868,6 +870,7 @@ public class QuPathGUI {
 		long startTime = System.currentTimeMillis();
 		
 		// Set up cache
+		timeit.checkpoint("Creating tile cache");
 		imageRegionStore = ImageRegionStoreFactory.createImageRegionStore(QuPathGUI.getTileCacheSizeBytes());
 		
 		PathPrefs.tileCachePercentageProperty().addListener((v, o, n) -> {
@@ -879,6 +882,8 @@ public class QuPathGUI {
 		this.stage = stage;
 		this.isStandalone = isStandalone;
 		
+		timeit.checkpoint("Creating menus");
+
 		menuBar = new MenuBar(
 				Arrays.asList("File", "Edit", "Tools", "View", "Objects", "TMA", "Measure", "Automate", "Analyze", "Classify", "Extensions", "Help")
 				.stream().map(Menu::new).toArray(Menu[]::new)
@@ -911,6 +916,7 @@ public class QuPathGUI {
 		}));
 		
 		// Create preferences panel
+		timeit.checkpoint("Creating preferences");
 		prefsPane = new PreferencePane();
 		
 		// Activate the log at an early stage
@@ -941,6 +947,7 @@ public class QuPathGUI {
 		
 		logger.trace("Time to main component: {} ms", (System.currentTimeMillis() - startTime));
 
+		timeit.checkpoint("Creating main component");
 		BorderPane pane = new BorderPane();
 		pane.setCenter(initializeMainComponent());
 		
@@ -979,195 +986,40 @@ public class QuPathGUI {
 				dialogInstance.requestClose();
 		});
 		
-		stage.setOnCloseRequest(e -> {
-			
-			// Added to try to resolve macOS issue in which pressing Cmd+Q multiple times 
-			// resulted in multiple save prompts appearing - https://github.com/qupath/qupath/issues/941
-			// Must be checked on other platforms
-			if (Platform.isNestedLoopRunning()) {
-				logger.debug("Close request from nested loop - will be discarded");
-				e.consume();
-				return;
-			}
-			
-			Set<QuPathViewer> unsavedViewers = new LinkedHashSet<>();
-			for (QuPathViewer viewer : viewerManager.getViewers()) {
-				if (viewer.getImageData() != null && viewer.getImageData().isChanged())
-					unsavedViewers.add(viewer);
-			}
-			if (!unsavedViewers.isEmpty()) {
-				if (unsavedViewers.size() == 1) {
-					if (!viewerManager.closeViewer("Quit QuPath", unsavedViewers.iterator().next())) {
-						logger.trace("Pressed no to close viewer!");
-						e.consume();
-						return;
-					}
-				} else if (!Dialogs.showYesNoDialog("Quit QuPath", "Are you sure you want to quit?\n\nUnsaved changes in " + unsavedViewers.size() + " viewers will be lost.")) {
-					logger.trace("Pressed no to quit window!");
-					e.consume();
-					return;
-				}
-			}
-			// Could uncomment this to sync the project - but we should be careful to avoid excessive synchronization
-			// (and it may already be synchronied when saving the image data)
-			var project = getProject();
-			if (project != null) {
-				try {
-					project.syncChanges();
-				} catch (IOException ex) {
-					logger.error("Error syncing project: " + ex.getLocalizedMessage(), e);
-				}
-			}
-			
-			// Check if there is a script running
-			if (scriptRunning.get()) {
-				if (!Dialogs.showYesNoDialog("Quit QuPath", "A script is currently running! Quit anyway?")) {
-					logger.trace("Pressed no to quit window with script running!");
-					e.consume();
-					return;
-				}
-			}
-			
-			// Stop any painter requests
-			if (imageRegionStore != null)
-				imageRegionStore.close();
-			
-			// Save the PathClasses
-			savePathClasses();
-			
-			// Flush the preferences
-			if (!PathPrefs.savePreferences())
-				logger.error("Error saving preferences");
-			
-			// Shut down any pools we know about
-			poolMultipleThreads.shutdownNow();
-			for (ExecutorService pool : mapSingleThreadPools.values())
-				pool.shutdownNow();
-
-			// Shut down all our image servers
-			for (QuPathViewer v : getViewers()) {
-				try {
-					if (v.getImageData() != null)
-						v.getImageData().getServer().close();
-				} catch (Exception e2) {
-					logger.warn("Problem closing server", e2);
-				}
-			}
-
-			// Reset the instance
-			instance = null;
-			
-			// Exit if running as a standalone application
-			if (isStandalone()) {
-				logger.info("Calling Platform.exit();");
-				Platform.exit();
-				// Something of an extreme option... :/
-				// Shouldn't be needed if we shut down everything properly, but here as a backup just in case... 
-				// (e.g. if ImageJ is running)
-//				logger.info("Calling System.exit(0);");
-				System.exit(0);
-			}
-			
-		});
+		stage.setOnCloseRequest(this::handleCloseRequest);
 		
-		
+		timeit.checkpoint("Showing");
 		logger.debug("Time to display: {} ms", (System.currentTimeMillis() - startTime));
 		stage.show();
 		logger.trace("Time to finish display: {} ms", (System.currentTimeMillis() - startTime));
-		var ignoreTypes = new HashSet<>(Arrays.asList(MouseEvent.MOUSE_MOVED, MouseEvent.MOUSE_ENTERED, MouseEvent.MOUSE_ENTERED_TARGET, MouseEvent.MOUSE_EXITED, MouseEvent.MOUSE_ENTERED_TARGET));
-		stage.getScene().addEventFilter(MouseEvent.ANY, e -> {
-			if (ignoreTypes.contains(e.getEventType()))
-				return;
-			if (uiBlocked.get()) {
-				e.consume();
-				// Show a warning if clicking (but not *too* often)
-				if (e.getEventType() == MouseEvent.MOUSE_PRESSED) {
-					long time = System.currentTimeMillis();
-					if (time - lastMousePressedWarning > 5000L) {
-						if (scriptRunning.get()) {
-							Dialogs.showWarningNotification("Script running", "Please wait until the current script has finished!");
-							lastMousePressedWarning = time;
-						} else if (pluginRunning.get()) {
-							logger.warn("Please wait until the current command is finished!");
-//							Dialogs.showWarningNotification("Command running", "Please wait until the current command has finished!");
-							lastMousePressedWarning = time;
-						}
-					}
-				}
-			} else if (e.getButton() == MouseButton.MIDDLE && e.getEventType() == MouseEvent.MOUSE_CLICKED) {
-				logger.debug("Middle button pressed {}x {}", e.getClickCount(), System.currentTimeMillis());
 
-				// Here we toggle between the MOVE tool and any previously selected tool
-				if (getSelectedTool() == PathTools.MOVE)
-					setSelectedTool(previousTool);
-				else
-					setSelectedTool(PathTools.MOVE);
-			}
-		});
+		timeit.checkpoint("Adding event filters");
+
+		stage.getScene().addEventFilter(MouseEvent.ANY, this::sceneMouseEventFilter);
 		
 		// Ensure spacebar presses are noted, irrespective of which component has the focus
-		stage.getScene().addEventFilter(KeyEvent.ANY, e -> {
-			if (e.getCode() == KeyCode.SPACE) {
-				Boolean pressed = null;
-				if (e.getEventType() == KeyEvent.KEY_PRESSED)
-					pressed = Boolean.TRUE;
-				else if (e.getEventType() == KeyEvent.KEY_RELEASED)
-					pressed = Boolean.FALSE;
-				if (pressed != null) {
-					// Set spacebar for only the active viewer (since it results in registering 
-					// tools, and we don't want tools to be registered to inactive viewers...)
-					var active = viewerManager.getActiveViewer();
-					if (active != null)
-						active.setSpaceDown(pressed.booleanValue());
-//					for (QuPathViewer viewer : viewerManager.getOpenViewers()) {
-//						viewer.setSpaceDown(pressed.booleanValue());
-//					}
-				}
-			}
-		});
+		stage.getScene().addEventFilter(KeyEvent.ANY, this::sceneKeyEventFilter);
 		
-		stage.getScene().setOnKeyReleased(e -> {
-			// It seems if using the system menubar on Mac, we can sometimes need to mop up missed keypresses
-			if (e.isConsumed() || e.isShortcutDown() || !(GeneralTools.isMac() && getMenuBar().isUseSystemMenuBar()) || e.getTarget() instanceof TextInputControl) {
-				return;
-			}
-			
-			for (var entry : comboMap.entrySet()) {
-				if (entry.getKey().match(e)) {
-					var action = entry.getValue();
-					if (ActionTools.isSelectable(action))
-						action.setSelected(!action.isSelected());
-					else
-						action.handle(new ActionEvent(e.getSource(), e.getTarget()));
-					e.consume();
-					return;
-				}
-			}
-			
-			// Generic 'hiding'
-			if (new KeyCodeCombination(KeyCode.H).match(e)) {
-				var action = defaultActions.SHOW_DETECTIONS;
-				action.setSelected(!action.isSelected());
-				action = defaultActions.SHOW_PIXEL_CLASSIFICATION;
-				action.setSelected(!action.isSelected());
-				e.consume();
-			}
-			
-		});
+		stage.getScene().setOnKeyReleased(this::sceneKeyReleasedHandler);
 		
 		// Install extensions
+		timeit.checkpoint("Refreshing extensions");
 		refreshExtensions(false);
 		
 		// Open an image, if required
-		if (path != null)
+		if (path != null) {
+			timeit.checkpoint("Opening image");
 			openImage(path, false, false);
+		}
 		
 		// Set the icons
+		timeit.checkpoint("Setting icons");
 		stage.getIcons().addAll(loadIconList());
 		
 		// TODO: Make the script menus also available within the script editor itself
 		
 		// Add scripts menu (delayed to here, since it takes a bit longer)
+		timeit.checkpoint("Adding script menus");
 		Menu menuAutomate = getMenu("Automate", false);
 		ScriptEditor editor = getScriptEditor();
 		var sharedScriptMenuLoader = new ScriptMenuLoader("Shared scripts...", PathPrefs.scriptsPathProperty(), editor);
@@ -1201,6 +1053,7 @@ public class QuPathGUI {
 				);
 		
 		// Menus should now be complete - try binding visibility
+		timeit.checkpoint("Updating menu item visibility");
 		initializingMenus.set(false);
 		try {
 			for (var item : MenuTools.getFlattenedMenuItems(menuBar.getMenus(), false)) {
@@ -1238,6 +1091,7 @@ public class QuPathGUI {
 		
 		// Run startup script, if we can
 		try {
+			timeit.checkpoint("Running startup script");
 			runStartupScript();			
 		} catch (Exception e) {
 			logger.error("Error running startup script", e);
@@ -1246,9 +1100,6 @@ public class QuPathGUI {
 		
 		if (Desktop.isDesktopSupported()) {
 			var desktop = Desktop.getDesktop();
-//			if (desktop.isSupported(java.awt.Desktop.Action.APP_QUIT_STRATEGY)) {
-//				desktop.setQuitStrategy(QuitStrategy.;
-//			}
 			if (desktop.isSupported(java.awt.Desktop.Action.APP_QUIT_HANDLER)) {
 				desktop.setQuitHandler((e, r) -> {
 					Platform.runLater(() -> {
@@ -1267,8 +1118,208 @@ public class QuPathGUI {
 		PathPrefs.defaultLocaleDisplayProperty().addListener(localeListener);
 		PathPrefs.defaultLocaleFormatProperty().addListener(localeListener);
 		
+		timeit.checkpoint("Refreshing style");
 		QuPathStyleManager.refresh();
+		
+		logger.debug("{}", timeit.stop());
 	}
+	
+	/**
+	 * Filter key events on the scene
+	 * @param e
+	 */
+	private void sceneKeyEventFilter(KeyEvent e) {
+		if (e.getCode() == KeyCode.SPACE) {
+			Boolean pressed = null;
+			if (e.getEventType() == KeyEvent.KEY_PRESSED)
+				pressed = Boolean.TRUE;
+			else if (e.getEventType() == KeyEvent.KEY_RELEASED)
+				pressed = Boolean.FALSE;
+			if (pressed != null) {
+				// Set spacebar for only the active viewer (since it results in registering 
+				// tools, and we don't want tools to be registered to inactive viewers...)
+				var active = viewerManager.getActiveViewer();
+				if (active != null)
+					active.setSpaceDown(pressed.booleanValue());
+//				for (QuPathViewer viewer : viewerManager.getOpenViewers()) {
+//					viewer.setSpaceDown(pressed.booleanValue());
+//				}
+			}
+		}
+	}
+	
+	/**
+	 * Handle key released events on the scene
+	 * @param e
+	 */
+	private void sceneKeyReleasedHandler(KeyEvent e) {
+		if (e.getEventType() != KeyEvent.KEY_RELEASED)
+			return;
+		
+		// It seems if using the system menubar on Mac, we can sometimes need to mop up missed keypresses
+		if (e.isConsumed() || e.isShortcutDown() || !(GeneralTools.isMac() && getMenuBar().isUseSystemMenuBar()) || e.getTarget() instanceof TextInputControl) {
+			return;
+		}
+
+		for (var entry : comboMap.entrySet()) {
+			if (entry.getKey().match(e)) {
+				var action = entry.getValue();
+				if (ActionTools.isSelectable(action))
+					action.setSelected(!action.isSelected());
+				else
+					action.handle(new ActionEvent(e.getSource(), e.getTarget()));
+				e.consume();
+				return;
+			}
+		}
+
+		// Generic 'hiding'
+		if (new KeyCodeCombination(KeyCode.H).match(e)) {
+			var action = defaultActions.SHOW_DETECTIONS;
+			action.setSelected(!action.isSelected());
+			action = defaultActions.SHOW_PIXEL_CLASSIFICATION;
+			action.setSelected(!action.isSelected());
+			e.consume();
+		}
+	}
+	
+	/**
+	 * Filter mouse events on the scene
+	 * @param e
+	 */
+	private void sceneMouseEventFilter(MouseEvent e) {
+		
+		// Don't bother with move/enter/exit events
+		if (e.getEventType() == MouseEvent.MOUSE_MOVED ||
+				e.getEventType() == MouseEvent.MOUSE_ENTERED ||
+				e.getEventType() == MouseEvent.MOUSE_EXITED ||
+				e.getEventType() == MouseEvent.MOUSE_ENTERED_TARGET ||
+				e.getEventType() == MouseEvent.MOUSE_EXITED_TARGET
+				)
+			return;
+			
+		
+		if (uiBlocked.get()) {
+			e.consume();
+			// Show a warning if clicking (but not *too* often)
+			if (e.getEventType() == MouseEvent.MOUSE_PRESSED) {
+				long time = System.currentTimeMillis();
+				if (time - lastMousePressedWarning > 5000L) {
+					if (scriptRunning.get()) {
+						Dialogs.showWarningNotification("Script running", "Please wait until the current script has finished!");
+						lastMousePressedWarning = time;
+					} else if (pluginRunning.get()) {
+						logger.warn("Please wait until the current command is finished!");
+//							Dialogs.showWarningNotification("Command running", "Please wait until the current command has finished!");
+						lastMousePressedWarning = time;
+					}
+				}
+			}
+		} else if (e.getButton() == MouseButton.MIDDLE && e.getEventType() == MouseEvent.MOUSE_CLICKED) {
+			logger.debug("Middle button pressed {}x {}", e.getClickCount(), System.currentTimeMillis());
+
+			// Here we toggle between the MOVE tool and any previously selected tool
+			if (getSelectedTool() == PathTools.MOVE)
+				setSelectedTool(previousTool);
+			else
+				setSelectedTool(PathTools.MOVE);
+		}
+	}
+	
+	
+	/**
+	 * Called when there is a close request for the entire QuPath stage
+	 * @param e
+	 */
+	private void handleCloseRequest(WindowEvent e) {
+		// Added to try to resolve macOS issue in which pressing Cmd+Q multiple times 
+		// resulted in multiple save prompts appearing - https://github.com/qupath/qupath/issues/941
+		// Must be checked on other platforms
+		if (Platform.isNestedLoopRunning()) {
+			logger.debug("Close request from nested loop - will be discarded");
+			e.consume();
+			return;
+		}
+
+		Set<QuPathViewer> unsavedViewers = new LinkedHashSet<>();
+		for (QuPathViewer viewer : viewerManager.getViewers()) {
+			if (viewer.getImageData() != null && viewer.getImageData().isChanged())
+				unsavedViewers.add(viewer);
+		}
+		if (!unsavedViewers.isEmpty()) {
+			if (unsavedViewers.size() == 1) {
+				if (!viewerManager.closeViewer("Quit QuPath", unsavedViewers.iterator().next())) {
+					logger.trace("Pressed no to close viewer!");
+					e.consume();
+					return;
+				}
+			} else if (!Dialogs.showYesNoDialog("Quit QuPath", "Are you sure you want to quit?\n\nUnsaved changes in " + unsavedViewers.size() + " viewers will be lost.")) {
+				logger.trace("Pressed no to quit window!");
+				e.consume();
+				return;
+			}
+		}
+		// Could uncomment this to sync the project - but we should be careful to avoid excessive synchronization
+		// (and it may already be synchronied when saving the image data)
+		var project = getProject();
+		if (project != null) {
+			try {
+				project.syncChanges();
+			} catch (IOException ex) {
+				logger.error("Error syncing project: " + ex.getLocalizedMessage(), e);
+			}
+		}
+
+		// Check if there is a script running
+		if (scriptRunning.get()) {
+			if (!Dialogs.showYesNoDialog("Quit QuPath", "A script is currently running! Quit anyway?")) {
+				logger.trace("Pressed no to quit window with script running!");
+				e.consume();
+				return;
+			}
+		}
+
+		// Stop any painter requests
+		if (imageRegionStore != null)
+			imageRegionStore.close();
+
+		// Save the PathClasses
+		savePathClasses();
+
+		// Flush the preferences
+		if (!PathPrefs.savePreferences())
+			logger.error("Error saving preferences");
+
+		// Shut down any pools we know about
+		poolMultipleThreads.shutdownNow();
+		for (ExecutorService pool : mapSingleThreadPools.values())
+			pool.shutdownNow();
+
+		// Shut down all our image servers
+		for (QuPathViewer v : getViewers()) {
+			try {
+				if (v.getImageData() != null)
+					v.getImageData().getServer().close();
+			} catch (Exception e2) {
+				logger.warn("Problem closing server", e2);
+			}
+		}
+
+		// Reset the instance
+		instance = null;
+
+		// Exit if running as a standalone application
+		if (isStandalone()) {
+			logger.info("Calling Platform.exit();");
+			Platform.exit();
+			// Something of an extreme option... :/
+			// Shouldn't be needed if we shut down everything properly, but here as a backup just in case... 
+			// (e.g. if ImageJ is running)
+			//						logger.info("Calling System.exit(0);");
+			System.exit(0);
+		}
+	}
+	
 	
 	
 	/**
