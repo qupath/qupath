@@ -343,9 +343,8 @@ class ScriptCommand implements Runnable {
 					
 				int batchSize = imageList.size();
 				
-				for (int batchIndex = 0; batchSize < batchSize; batchIndex++) {
+				for (int batchIndex = 0; batchIndex < batchSize; batchIndex++) {
 					var entry = imageList.get(batchIndex);
-					logger.info("Running script for {} ({}/{})", entry.getImageName(), batchIndex, batchSize);
 					logger.info("Running script for {} ({}/{})", entry.getImageName(), batchIndex, batchSize);
 					imageData = entry.readImageData();
 					try {
