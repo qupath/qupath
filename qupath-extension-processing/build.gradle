@@ -1,5 +1,6 @@
 plugins {
   id 'qupath.extension-conventions'
+  id 'qupath.publishing-conventions'
   id 'java-library'
 }
 

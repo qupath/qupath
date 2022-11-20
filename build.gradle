@@ -1,5 +1,6 @@
 plugins {
     id 'qupath.java-conventions'
+    id 'version-catalog'
 }
 
 // We don't want to generate javadocs for the root project
@@ -30,5 +31,43 @@ task mergedJavadocs(type: Javadoc,
 	options.links 'https://javadoc.scijava.org/Bio-Formats/'
 	
 	failOnError = false
+
+}
+
+/*
+ * Get version cataglog
+ */
+catalog {
+    versionCatalog {
+        from(files("./gradle/libs.versions.toml"))
+    }
+}
+
+/*
+ * Publish catalog to help with dependency management across extensions
+ */
+publishing {
+    repositories {
+        maven {
+            name = "SciJava"
+            def releasesRepoUrl = uri("https://maven.scijava.org/content/repositories/releases")
+            def snapshotsRepoUrl = uri("https://maven.scijava.org/content/repositories/snapshots")
+            // Use gradle -Prelease publish
+            url = project.hasProperty('release') ? releasesRepoUrl : snapshotsRepoUrl
+            credentials {
+                username = System.getenv("MAVEN_USER")
+                password = System.getenv("MAVEN_PASS")
+            }
+        }
+    }
+
+    publications {
+        maven(MavenPublication) {
+            groupId = 'io.github.qupath'
+            artifactId = 'qupath-catalog'
+            version = gradle.ext.qupathVersion
+            from components.versionCatalog
+        }
+    }
 
 }
