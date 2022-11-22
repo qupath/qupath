@@ -43,7 +43,6 @@ import javafx.scene.control.Label;
 import javafx.scene.control.Slider;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
-import javafx.scene.paint.Color;
 import qupath.lib.analysis.stats.Histogram;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.ThreadTools;
@@ -142,13 +141,12 @@ public class CellIntensityClassificationCommand implements Runnable {
 		
 		singleThreshold.addListener((v, o, n) -> {
 			chartWrapper.clearThresholds();
-			Color color = Color.rgb(0, 0, 0, 0.2);
 			if (!n) {
 				for (int i = 0; i < sliders.size(); i++) {
-					chartWrapper.addThreshold(sliders.get(i).valueProperty(), color);
+					chartWrapper.addThreshold(sliders.get(i).valueProperty());
 				}
 			} else
-				chartWrapper.addThreshold(sliders.get(0).valueProperty(), color);
+				chartWrapper.addThreshold(sliders.get(0).valueProperty());
 		});
 
 		selectedMeasurement.addListener((v, o, n) -> {
@@ -171,8 +169,7 @@ public class CellIntensityClassificationCommand implements Runnable {
 				
 				// Add first threshold to histogram
 				if (i == 0) {
-					Color color = Color.rgb(0, 0, 0, 0.2);
-					chartWrapper.addThreshold(sliders.get(i).valueProperty(), color);
+					chartWrapper.addThreshold(sliders.get(i).valueProperty());
 				}
 			}
 		});

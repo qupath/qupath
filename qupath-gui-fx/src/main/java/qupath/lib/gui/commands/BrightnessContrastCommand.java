@@ -348,6 +348,7 @@ public class BrightnessContrastCommand implements Runnable, ChangeListener<Image
 				}
 				sliderMin.setValue(sliderMin.getMin());
 				sliderMax.setValue(sliderMax.getMax());
+				sliderGamma.setValue(1.0);
 		});
 		
 		Stage dialog = new Stage();
@@ -899,9 +900,8 @@ public class BrightnessContrastCommand implements Runnable, ChangeListener<Image
 		sliderMax.setDisable(false);
 		
 		chartWrapper.getThresholds().clear();
-		Color color = Color.rgb(0, 0, 0, 0.2);
-		chartWrapper.addThreshold(sliderMin.valueProperty(), color);
-		chartWrapper.addThreshold(sliderMax.valueProperty(), color);
+		chartWrapper.addThreshold(sliderMin.valueProperty());
+		chartWrapper.addThreshold(sliderMax.valueProperty());
 		chartWrapper.setIsInteractive(true);
 //		chartWrapper.getThresholds().setAll(sliderMin.valueProperty(), sliderMax.valueProperty());
 		

@@ -399,7 +399,7 @@ public class HistogramPanelFX {
 		private NumberAxis xAxis, yAxis;
 		private Pane pane = new Pane();
 		
-		private DoubleProperty lineWidth = new SimpleDoubleProperty(3);
+		private DoubleProperty lineWidth = new SimpleDoubleProperty(2);
 		
 		private BooleanProperty isInteractive = new SimpleBooleanProperty(false);
 		
@@ -510,6 +510,14 @@ public class HistogramPanelFX {
 			return addThreshold(new SimpleDoubleProperty(x), color);
 		}
 		
+		/**
+		 * Add a threshold value.
+		 * @param d
+		 * @return
+		 */
+		public ObservableNumberValue addThreshold(final ObservableNumberValue d) {
+			return addThreshold(d, null);
+		}
 		
 		/**
 		 * Add a threshold value with its display color.
@@ -517,10 +525,15 @@ public class HistogramPanelFX {
 		 * @param color
 		 * @return
 		 */
-		public ObservableNumberValue addThreshold(final ObservableNumberValue d, final Color color) {
+		private ObservableNumberValue addThreshold(final ObservableNumberValue d, final Color color) {
 			Line line = new Line();
+			line.getStyleClass().add("qupath-histogram-line");
 			if (color != null)
 				line.setStroke(color);
+			else
+				line.setStyle("-fx-stroke: ladder(-fx-background, "
+						+ "derive(-fx-background, 30%) 49%, "
+						+ "derive(-fx-background, -30%) 50%);");
 			line.strokeWidthProperty().bind(lineWidth);
 
 			// Bind the requested x position of the line to the 'actual' coordinate within the parent
