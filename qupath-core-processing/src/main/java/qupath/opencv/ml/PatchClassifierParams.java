@@ -56,6 +56,7 @@ import qupath.opencv.ops.ImageOps;
  * (rather that features extracted from object ROIs or measurement lists).
  * 
  * @author Pete Bankhead
+ * @since v0.4.0
  */
 public class PatchClassifierParams {
 	
