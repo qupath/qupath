@@ -77,7 +77,7 @@ import qupath.opencv.tools.OpenCVTools;
  * Tools for working with OpenCV's DNN module.
  * 
  * @author Pete Bankhead
- * @version 0.3.0
+ * @since 0.3.0
  */
 public class DnnTools {
 	
@@ -480,10 +480,10 @@ public class DnnTools {
 		} else {
 			double scaledWidth = width * downsample;
 			double scaledHeight = height * downsample;
-			int xi = (int)Math.floor(roi.getCentroidX() - scaledWidth/2.0);
-			int yi = (int)Math.floor(roi.getCentroidY() - scaledHeight/2.0);
-			int xi2 = (int)Math.ceil(roi.getCentroidX() + scaledWidth/2.0);
-			int yi2 = (int)Math.ceil(roi.getCentroidY() + scaledHeight/2.0);
+			int xi = (int)Math.round(roi.getCentroidX() - scaledWidth/2.0);
+			int yi = (int)Math.round(roi.getCentroidY() - scaledHeight/2.0);
+			int xi2 = (int)Math.round(xi + scaledWidth);
+			int yi2 = (int)Math.round(yi + scaledHeight);
 			
 			int x = GeneralTools.clipValue(xi, 0, server.getWidth());
 			int x2 = GeneralTools.clipValue(xi2, 0, server.getWidth());
