@@ -21,6 +21,30 @@
     
     -qp-script-error-color: rgb(255, 60, 60);
     -qp-script-string-color: rgb(255, 240, 60);
+    
+     -fx-box-border: ladder(
+        -fx-color,
+        black 20%,
+        derive(-fx-color,15%) 30%
+    );
+    
+    -fx-mark-color: ladder(
+        -fx-color,
+        rgb(200, 200, 200) 30%,
+        derive(-fx-color,-63%) 31%
+    );
+    
+    -fx-mark-highlight-color: ladder(
+        -fx-color,
+        derive(-fx-color,80%) 60%,
+        rgb(200, 200, 200) 70%
+    );
+    
+/*     -fx-text-box-border: ladder(
+        -fx-background,
+        black 10%,
+        derive(-fx-background, 15%) 30%
+    ); */
 }
 
 .code-area * {
@@ -42,6 +66,32 @@
     -fx-blend-mode: soft-light;
 }
 
+/* .slider {
+	-fx-control-inner-background: derive(-fx-base, 25%);
+} */
+
+.check-box > .box,
+.radio-button > .radio {
+	-fx-outer-border: derive(-fx-color,40%);
+}
+
 .slider {
 	-fx-control-inner-background: derive(-fx-base, 25%);
+}
+
+.slider .thumb {
+    -fx-background-color:
+        linear-gradient(to bottom, derive(-fx-text-box-border, 60%), derive(-fx-text-box-border, 30%)),
+        -fx-inner-border,
+        -fx-body-color;
+}
+
+.table-view,
+.tree-table-view {
+    -fx-table-header-border-color: -fx-box-border;
+    -fx-table-cell-border-color: derive(-fx-color,20%);
+}
+
+.axis {
+    AXIS_COLOR: derive(-fx-background,40%);
 }

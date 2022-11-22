@@ -84,7 +84,6 @@ import qupath.lib.gui.charts.ChartTools;
 import qupath.lib.gui.charts.HistogramPanelFX;
 import qupath.lib.gui.charts.HistogramPanelFX.ThresholdedChartWrapper;
 import qupath.lib.gui.dialogs.ParameterPanelFX;
-import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.TMACoreObject;
@@ -566,7 +565,7 @@ class KaplanMeierDisplay implements ParameterChangeListener, PathObjectHierarchy
 			histogramPanel.getChart().setAnimated(false);
 			histogramWrapper = new ThresholdedChartWrapper(histogramPanel.getChart());
 			for (ObservableNumberValue val : threshProperties)
-				histogramWrapper.addThreshold(val, ColorToolsFX.getCachedColor(240, 0, 0, 128));
+				histogramWrapper.addThreshold(val);
 			histogramWrapper.getPane().setPrefHeight(150);
 			paneHistogram.add(histogramWrapper.getPane(), 0, 0);
 			Tooltip.install(histogramPanel.getChart(), new Tooltip("Distribution of scores"));
@@ -592,7 +591,7 @@ class KaplanMeierDisplay implements ParameterChangeListener, PathObjectHierarchy
 			//				chartPValues.getYAxis().setAutoRanging(false);
 			pValuesWrapper = new ThresholdedChartWrapper(chartPValues);
 			for (ObservableNumberValue val : threshProperties)
-				pValuesWrapper.addThreshold(val, ColorToolsFX.getCachedColor(240, 0, 0, 128));
+				pValuesWrapper.addThreshold(val);
 
 			pValuesWrapper.getPane().setPrefHeight(150);
 			paneHistogram.add(pValuesWrapper.getPane(), 0, 1);

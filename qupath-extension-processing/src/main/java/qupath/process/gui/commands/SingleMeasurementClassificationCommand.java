@@ -233,7 +233,7 @@ public class SingleMeasurementClassificationCommand implements Runnable {
 			
 			var chartWrapper = new ThresholdedChartWrapper(histogramPane.getChart());
 			chartWrapper.setIsInteractive(true);
-			chartWrapper.addThreshold(sliderThreshold.valueProperty(), Color.rgb(0, 0, 0, 0.2));
+			chartWrapper.addThreshold(sliderThreshold.valueProperty());
 			
 			histogramPane.getChart().getYAxis().setTickLabelsVisible(false);
 			histogramPane.getChart().setAnimated(false);
