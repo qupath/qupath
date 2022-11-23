@@ -2739,8 +2739,8 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 				if (imgThumbnail != null) {
 					img = imgThumbnail;
 					double downsample = (double)server.getWidth() / imgThumbnail.getWidth();
-					xi = (int)(xx / downsample + .5);
-					yi = (int)(yy / downsample + .5);
+					xi = (int)(xx / downsample);
+					yi = (int)(yy / downsample);
 				}
 			} else {
 				xi = (int)((xx - request.getX())/request.getDownsample());

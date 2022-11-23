@@ -143,6 +143,7 @@ import qupath.opencv.ml.pixel.PixelClassifierTools.CreateObjectOptions;
 import qupath.opencv.ml.pixel.PixelClassifiers;
 import qupath.opencv.ops.ImageOps;
 import qupath.opencv.tools.GroovyCV;
+import qupath.opencv.tools.NumpyTools;
 import qupath.opencv.tools.OpenCVTools;
 
 /**
@@ -294,6 +295,7 @@ public class QP {
 			GeometryTools.class,
 			IJTools.class,
 			OpenCVTools.class,
+			NumpyTools.class,
 			DnnTools.class,
 			TileExporter.class,
 			LabeledImageServer.class,
