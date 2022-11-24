@@ -226,14 +226,15 @@ The following is a long-yet-non-exhaustive list of changes & improvements.
 * Gson 2.10
 * Guava 31.1
 * ikonli 12.3.1
+* ImageJ 1.53v
 * JavaCPP 1.5.8
 * JFreeSVG 5.0.3
-* Logback 1.3.4
+* Logback 1.3.5
 * OpenCV 4.6.0
 * Picocli 4.7.0
 * RichTextFX 0.11.0
 * Snakeyaml 1.33
-* SLF4J 2.0.3
+* SLF4J 2.0.4
 
 
 ## Version 0.3.2
