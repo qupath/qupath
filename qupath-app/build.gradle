@@ -25,6 +25,7 @@ buildscript {
 
 plugins {
     id 'qupath.common-conventions'
+    id 'qupath.djl-conventions'
     id 'application'
 //    id 'org.beryx.jlink' version '2.24.0'  // Can use this when QuPath is modular...
     alias(libs.plugins.license.report)
