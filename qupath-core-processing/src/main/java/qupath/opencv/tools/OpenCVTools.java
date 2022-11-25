@@ -89,6 +89,7 @@ import qupath.lib.common.ThreadTools;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.PixelType;
 import qupath.lib.objects.PathObject;
+import qupath.lib.regions.Padding;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.interfaces.ROI;
 
@@ -1967,6 +1968,17 @@ public class OpenCVTools {
 	    	return temp.clone();
 		}
 	}
+	
+	/**
+	 * Crop a region from a Mat by stripping off padding, returning a new image (not a subregion).
+	 * @param mat
+	 * @param padding 
+	 * @return
+	 * @since v0.4.0
+	 */
+	public static Mat crop(Mat mat, Padding padding) {
+		return crop(mat, padding.getX1(), padding.getY1(), mat.cols() - padding.getXSum(), mat.rows() - padding.getYSum());
+	}
 
 
 	/**
@@ -1987,29 +1999,69 @@ public class OpenCVTools {
 	 * @param mat the input Mat
 	 * @param tileWidth the strict tile width required by the input
 	 * @param tileHeight the strict tile height required by the input
+	 * @param padding padding to apply for <i>internal</i> tiling. Note that if the entire image needs to be padded, this should 
+	 *                be done before input.
 	 * @param borderType an OpenCV border type, in case padding is needed
 	 * @return the result of applying fun to mat, having applied any necessary tiling along the way
 	 */
-	@SuppressWarnings("unchecked")
-	public static Mat applyTiled(Function<Mat, Mat> fun, Mat mat, int tileWidth, int tileHeight, int borderType) {
+	public static Mat applyTiled(Function<Mat, Mat> fun, Mat mat, int tileWidth, int tileHeight, Padding padding, int borderType) {
 		
 		int top = 0, bottom = 0, left = 0, right = 0;
 	    boolean doPad = false;
 		Mat matResult = new Mat();
 		
+		int width = mat.cols();
+		int height = mat.rows();
+		
 		try (var scope = new PointerScope()) {
 			if (mat.cols() > tileWidth) {
+				// Handle a row
+				var paddingY = Padding.getPadding(0, 0, padding.getY1(), padding.getY2());
 				List<Mat> horizontal = new ArrayList<>();
-				for (int x = 0; x < mat.cols(); x += tileWidth) {
-		    		Mat matTemp = applyTiled(fun, mat.colRange(x, Math.min(x+tileWidth, mat.cols())).clone(), tileWidth, tileHeight, borderType);
+				int xStart = 0;
+				boolean lastTile = false;
+				while (!lastTile) {
+					int xEnd = Math.min(xStart+tileWidth, width);
+		    		Mat matTemp = applyTiled(fun, mat.colRange(xStart, xEnd).clone(), tileWidth, tileHeight, 
+		    				paddingY,
+		    				borderType);
+		    		// Crop internal padding from x
+		    		int pad1 = xStart == 0 ? 0 : padding.getX1();
+		    		int pad2 = 0;
+		    		if (xEnd >= width) {
+		    			lastTile = true;
+		    			pad2 = xEnd - width;
+		    		} else
+		    			pad2 = padding.getX2();
+		    		cropX(matTemp, pad1, pad2);
+		    		if (matTemp.cols() == 0)
+		    			break;
+		    		xStart += xEnd - padding.getX1() - pad2;
 		    		horizontal.add(matTemp);
 				}
-				opencv_core.hconcat(new MatVector(horizontal.toArray(new Mat[0])), matResult);
+				opencv_core.hconcat(new MatVector(horizontal.toArray(Mat[]::new)), matResult);
 				return matResult;
 			} else if (mat.rows() > tileHeight) {
+				// Handle a column
+				var paddingX = Padding.getPadding(padding.getX1(), padding.getX2(), 0, 0);
 				List<Mat> vertical = new ArrayList<>();
-				for (int y = 0; y < mat.rows(); y += tileHeight) {
-		    		Mat matTemp = applyTiled(fun, mat.rowRange(y, Math.min(y+tileHeight, mat.rows())).clone(), tileWidth, tileHeight, borderType);
+				int yStart = 0;
+				boolean lastTile = false;
+				while (!lastTile) {
+					int yEnd = Math.min(yStart+tileHeight, height);
+		    		Mat matTemp = applyTiled(fun, mat.rowRange(yStart, yEnd).clone(), tileWidth, tileHeight, 
+		    				paddingX,
+		    				borderType);
+		    		// Crop internal padding from y
+		    		int pad1 = yStart == 0 ? 0 : padding.getY1();
+		    		int pad2 = 0;
+		    		if (yEnd >= height) {
+		    			lastTile = true;
+		    			pad2 = yEnd - height;
+		    		} else
+		    			pad2 = padding.getY2();
+		    		cropY(matTemp, pad1, pad2);
+		    		yStart += yEnd - padding.getY1() - pad2;
 		    		vertical.add(matTemp);
 				}
 				opencv_core.vconcat(new MatVector(vertical.toArray(Mat[]::new)), matResult);
@@ -2028,23 +2080,58 @@ public class OpenCVTools {
 			
 			// Do the actual requested function
 			matResult.put(fun.apply(mat));
-			
+						
 			// Automatic resizing isn't ideal, but otherwise the padding calculations can't be used
 			// (resizing is also handy to support an early StarDist implementation)
-			if (matResult.rows() != mat.rows() || matResult.cols() != mat.cols()) {
-				logger.warn("Resizing tiled image from {}x{} to {}x{}", matResult.cols(), matResult.rows(), mat.cols(), mat.rows());
+			int nRows = mat.rows();
+			int nCols = mat.cols();
+			if (matResult.rows() != nRows || matResult.cols() != nCols) {
+				logger.warn("Resizing tiled image from {}x{} to {}x{}", matResult.cols(), matResult.rows(), nRows, nCols);
 				opencv_imgproc.resize(matResult, matResult, mat.size());
 			}
 			
 			// Handle padding
-		    if (doPad) {
-		    	matResult.put(crop(matResult, left, top, tileWidth-right-left, tileHeight-top-bottom));
+			if (doPad) {
+	    		matResult.put(crop(matResult,
+	    				left,
+	    				top,
+	    				matResult.cols() - right - left,
+	    				matResult.rows( ) - top - bottom));
 		    }
-		    
-//		    scope.deallocate();
+			
 		}
 	    
 	    return matResult;
+	}
+	
+	/**
+	 * Crop columns, in-place.
+	 * @param mat
+	 * @param x1 pixels to remove from the left
+	 * @param x2 pixels to remove from the right
+	 */
+	private static void cropX(Mat mat, int x1, int x2) {
+		if (x1 == 0 && x2 == 0)
+			return;
+		if (x1 < 0 || x2 < 0)
+			throw new IllegalArgumentException("Cannot crop x by a negative amount (" + x1 + ", " + x2 + ")");
+		int width = mat.cols();
+		mat.put(mat.colRange(x1, width-x2));
+	}
+	
+	/**
+	 * Crop rows, in-place.
+	 * @param mat
+	 * @param y1 pixels to remove from the top
+	 * @param y2 pixels to remove from the bottom
+	 */
+	private static void cropY(Mat mat, int y1, int y2) {
+		if (y1 == 0 && y2 == 0)
+			return;
+		if (y1 < 0 || y2 < 0)
+			throw new IllegalArgumentException("Cannot crop y by a negative amount (" + y1 + ", " + y2 + ")");
+		int height = mat.rows();
+		mat.put(mat.rowRange(y1, height-y2));
 	}
 	
 	

@@ -272,8 +272,7 @@ public class NumpyTools {
 		else
 			dict = new String(headerBytes, StandardCharsets.ISO_8859_1).strip();
 		
-		logger.info("Version: {}.{}", majorVersion, minorVersion);
-		logger.info("Dict: {}", dict);
+		logger.debug("Version: {}.{}, Dict: {}", majorVersion, minorVersion, dict);
 		
 		var dtypeString = getMatch(PATTERN_DTYPE, dict);
 		if (dtypeString == null)

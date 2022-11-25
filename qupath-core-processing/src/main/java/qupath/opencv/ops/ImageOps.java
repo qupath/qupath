@@ -2861,8 +2861,8 @@ public class ImageOps {
 				var inputName = getInputName();
 				if ((inputWidth <= 0 && inputHeight <= 0) || (input.cols() == inputWidth && input.rows() == inputHeight))
 					return doPrediction(model, input, inputName, outputNames);
-				else
-					return OpenCVTools.applyTiled(m -> doPrediction(model, m, inputName, outputNames), input, inputWidth, inputHeight, opencv_core.BORDER_REFLECT);
+				var padding = getPadding();
+				return OpenCVTools.applyTiled(m -> doPrediction(model, m, inputName, outputNames), input, inputWidth, inputHeight, padding, opencv_core.BORDER_REFLECT);
 			}
 			
 			@Override
