@@ -16,9 +16,11 @@ def djlZoos = djlZoosProp.toLowerCase().strip() == "all" ? djlEngines :
 	djlZoosProp.split(",").collect(e -> e.toLowerCase().strip()).findAll(e -> !e.isBlank())
 
 def djlVersion = libs.versions.deepJavaLibrary.get()
+/*
 println "DJL version: $djlVersion"
 println "Engines: $djlEngines"
 println "API: $djlApi"
+*/
 
 
 dependencies {
