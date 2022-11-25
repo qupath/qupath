@@ -2036,7 +2036,7 @@ public class OpenCVTools {
 		    		cropX(matTemp, pad1, pad2);
 		    		if (matTemp.cols() == 0)
 		    			break;
-		    		xStart += xEnd - padding.getX1() - pad2;
+		    		xStart = xEnd - padding.getX1() - pad2;
 		    		horizontal.add(matTemp);
 				}
 				opencv_core.hconcat(new MatVector(horizontal.toArray(Mat[]::new)), matResult);
@@ -2061,7 +2061,7 @@ public class OpenCVTools {
 		    		} else
 		    			pad2 = padding.getY2();
 		    		cropY(matTemp, pad1, pad2);
-		    		yStart += yEnd - padding.getY1() - pad2;
+		    		yStart = yEnd - padding.getY1() - pad2;
 		    		vertical.add(matTemp);
 				}
 				opencv_core.vconcat(new MatVector(vertical.toArray(Mat[]::new)), matResult);

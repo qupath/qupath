@@ -790,7 +790,17 @@ public class ImageOps {
 			}
 			
 	        private Mat applyJoint(Mat mat) {
-	            var range = OpenCVTools.percentiles(mat, percentiles);
+	        	Mat matTemp = mat;
+	        	// TODO: This isn't called - but need to consider impact of padding 
+	        	// at other ops when applied sequentially.
+	        	// This would ideally be removed, but we don't have a way to find out 
+	        	// what the padding is.
+	        	var padding = getPadding();
+	        	if (!padding.isEmpty()) {
+	        		matTemp = OpenCVTools.crop(mat, padding);
+//		            OpenCVTools.matToImagePlus("Cropped", matTemp).show();
+	        	}
+	            var range = OpenCVTools.percentiles(matTemp, percentiles);
 	            double scale;
 	            if (range[1] == range[0] && eps == 0.0) {
 	                logger.warn("Normalization percentiles give the same value ({}), scale will be Infinity", range[0]);
@@ -799,6 +809,7 @@ public class ImageOps {
 	                scale = 1.0/(range[1] - range[0] + eps);
 	            double offset = -range[0];
 	            mat.convertTo(mat, mat.type(), scale, offset*scale);
+//	            OpenCVTools.matToImagePlus("Normalized", mat).show();
 	            return mat;
 	        }
 			
