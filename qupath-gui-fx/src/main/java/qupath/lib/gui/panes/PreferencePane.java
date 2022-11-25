@@ -72,7 +72,6 @@ import qupath.lib.gui.prefs.PathPrefs.ImageTypeSetting;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.tools.CommandFinderTools;
 import qupath.lib.gui.tools.CommandFinderTools.CommandBarDisplay;
-import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.prefs.QuPathStyleManager;
 

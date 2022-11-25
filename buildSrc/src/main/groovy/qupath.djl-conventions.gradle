@@ -1,0 +1,57 @@
+/**
+ * Conventions for using Deep Java Library with QuPath.
+ */
+
+plugins {
+    id 'qupath.djl-conventions'
+}
+
+def djlEnginesProp = project.findProperty('djl.engines') ?: ""
+def djlEngines = djlEnginesProp.split(",").collect(e -> e.toLowerCase().strip()).findAll(e -> !e.isBlank())
+
+def djlApi = !djlEngines.isEmpty() || project.findProperty('djl.api')
+
+def djlZoosProp = project.findProperty('djl.zoos') ?: ""
+def djlZoos = djlZoosProp.toLowerCase().strip() == "all" ? djlEngines : 
+	djlZoosProp.split(",").collect(e -> e.toLowerCase().strip()).findAll(e -> !e.isBlank())
+
+def djlVersion = libs.versions.deepJavaLibrary.get()
+/*
+println "DJL version: $djlVersion"
+println "Engines: $djlEngines"
+println "API: $djlApi"
+*/
+
+
+dependencies {
+	if (djlApi)
+		implementation "ai.djl:api:$djlVersion"
+		
+    if ('pytorch' in djlEngines) {
+	    implementation "ai.djl.pytorch:pytorch-engine:$djlVersion"
+	    if ('pytorch' in djlZoos)
+		    implementation "ai.djl.pytorch:pytorch-model-zoo:$djlVersion"
+	}
+	
+	if ('mxnet' in djlEngines) {
+	    implementation "ai.djl.mxnet:mxnet-engine:$djlVersion"
+	    if ('mxnet' in djlZoos)
+		    implementation "ai.djl.mxnet:mxnet-model-zoo:$djlVersion"
+	}
+
+	if ('tensorflow' in djlEngines) {
+	    implementation "ai.djl.tensorflow:tensorflow-engine:$djlVersion"
+	    if ('tensorflow' in djlZoos)
+		    implementation "ai.djl.tensorflow:tensorflow-model-zoo:$djlVersion"
+	}
+    
+    if ('tflite' in djlEngines) {
+	    implementation "ai.djl.tflite:tflite-engine:$djlVersion"
+	    // No model zoo available
+	}
+	
+	if ('onnx' in djlEngines || 'onnxruntime' in djlEngines) {
+	    implementation "ai.djl.onnxruntime:onnxruntime-engine:$djlVersion"
+	    // No model zoo available
+	}
+}

@@ -717,6 +717,8 @@ public class Dialogs {
 		private boolean resizable = false;
 		private double width = -1;
 		private double height = -1;
+		private double prefWidth = -1;
+		private double prefHeight = -1;
 		private List<ButtonType> buttons = null;
 		private Modality modality = Modality.APPLICATION_MODAL;
 		
@@ -915,6 +917,28 @@ public class Dialogs {
 		}
 		
 		/**
+		 * Specify the preferred width of the dialog pane.
+		 * @param prefWidth preferred width
+		 * @return this builder
+		 * @since v0.4.0
+		 */
+		public Builder prefWidth(double prefWidth) {
+			this.prefWidth = prefWidth;
+			return this;
+		}
+		
+		/**
+		 * Specify the preferred height of the dialog pane.
+		 * @param prefHeight preferred height
+		 * @return this builder
+		 * @since v0.4.0
+		 */
+		public Builder prefHeight(double prefHeight) {
+			this.prefHeight = prefHeight;
+			return this;
+		}
+		
+		/**
 		 * Specify the dialog height.
 		 * @param width requested width
 		 * @param height requested height
@@ -958,6 +982,10 @@ public class Dialogs {
 				dialog.setWidth(width);
 			if (height > 0)
 				dialog.setHeight(height);
+			if (prefWidth > 0)
+				dialog.getDialogPane().setPrefWidth(prefWidth);
+			if (prefHeight > 0)
+				dialog.getDialogPane().setPrefHeight(prefHeight);
 			if (buttons != null)
 				dialog.getDialogPane().getButtonTypes().setAll(buttons);
 			

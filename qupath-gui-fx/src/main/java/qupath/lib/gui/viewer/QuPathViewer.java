@@ -43,7 +43,6 @@ import java.awt.image.BufferedImage;
 import java.awt.image.ColorConvertOp;
 import java.awt.image.LookupOp;
 import java.awt.image.ByteLookupTable;
-import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.nio.file.Paths;
