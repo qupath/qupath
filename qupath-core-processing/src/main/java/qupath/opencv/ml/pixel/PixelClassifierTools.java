@@ -367,7 +367,33 @@ public class PixelClassifierTools {
 		if (labels == null || labels.isEmpty())
 			throw new IllegalArgumentException("Cannot create objects for server - no classification labels are available!");
 		
-		ChannelThreshold[] thresholds = labels.entrySet().stream().map(e -> ChannelThreshold.create(e.getKey())).toArray(ChannelThreshold[]::new);
+		ChannelThreshold[] thresholds;
+		int nChannels = server.nChannels();
+		var channelType = server.getMetadata().getChannelType();
+		if (channelType == ChannelType.MULTICLASS_PROBABILITY || (channelType == ChannelType.PROBABILITY && nChannels == 1)) {
+			// Determine a probability threshold
+			// This is likely to be 0.5 or 127.5 depending upon whether we have a float or uint8 image
+			// If we have another int image, take half the upper bound and show a warning
+			double probabilityThreshold;
+			switch (server.getPixelType()) {
+			case INT16:
+			case INT32:
+			case INT8:
+			case UINT16:
+			case UINT32:
+				logger.warn("Probability threshold for int image will be set to half the maximum value for the pixel type");
+			case UINT8:
+				probabilityThreshold = server.getPixelType().getUpperBound().doubleValue() / 2.0;
+				break;
+			case FLOAT32:
+			case FLOAT64:
+			default:
+				probabilityThreshold = 0.5;
+			}
+			thresholds = labels.entrySet().stream().map(e -> ChannelThreshold.createAbove(e.getKey(), probabilityThreshold)).toArray(ChannelThreshold[]::new);
+		} else
+			thresholds = labels.entrySet().stream().map(e -> ChannelThreshold.create(e.getKey())).toArray(ChannelThreshold[]::new);
+			
 
 		if (roi != null && !roi.isArea()) {
 			logger.warn("Cannot create objects for non-area ROIs");

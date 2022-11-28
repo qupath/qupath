@@ -96,9 +96,10 @@ import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableBooleanValue;
 import javafx.collections.FXCollections;
-import javafx.collections.ListChangeListener;
 import javafx.collections.ListChangeListener.Change;
 import javafx.collections.ObservableList;
+import javafx.collections.ObservableSet;
+import javafx.collections.SetChangeListener;
 import javafx.embed.swing.JFXPanel;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.event.ActionEvent;
@@ -461,11 +462,10 @@ public class QuPathGUI {
 	 * @param actions
 	 */
 	public void installActions(Collection<? extends Action> actions) {
-		installActions(getMenuBar().getMenus(), actions);
-		actions.stream().forEach(a -> registerAccelerator(a));
+		this.actions.addAll(actions);
 	}
 	
-	private static void installActions(List<Menu> menus, Collection<? extends Action> actions) {
+	private void installActions(List<Menu> menus, Collection<? extends Action> actions) {
 		
 		var menuMap = new HashMap<String, Menu>();
 		
@@ -488,6 +488,7 @@ public class QuPathGUI {
 					continue;
 				}
 				items.add(newItem);
+				registerAccelerator(action);
 			} else {
 				logger.debug("Found command without associated menu: {}", action);
 			}
@@ -794,7 +795,7 @@ public class QuPathGUI {
 	/**
 	 * A list of all actions currently registered for this GUI.
 	 */
-	private ObservableList<Action> actions = FXCollections.observableArrayList();
+	private ObservableSet<Action> actions = FXCollections.observableSet(new LinkedHashSet<>());
 	
 	/**
 	 * Search for an action based upon its text (name) property.
@@ -803,8 +804,9 @@ public class QuPathGUI {
 	 */
 	public Action lookupActionByText(String text) {
 		var found = actions.stream().filter(p -> text.equals(p.getText())).findFirst().orElse(null);
-		if (found == null)
+		if (found == null) {
 			logger.warn("No action called '{}' could be found!", text);
+		}
 		return found;
 	}
 	
@@ -889,16 +891,13 @@ public class QuPathGUI {
 				.stream().map(Menu::new).toArray(Menu[]::new)
 				);
 		
-		actions.addListener((ListChangeListener.Change<? extends Action> c) -> {
-			while (c.next()) {
-				if (c.wasPermutated()) {
-					logger.warn("Menu permutations not supported!");
-				} else if (c.wasRemoved() ) {
-					logger.warn("Menu item removal not supported!");					
-				} else if (c.wasAdded() ) {
-					installActions(c.getAddedSubList());					
-				}
+		actions.addListener((SetChangeListener.Change<? extends Action> c) -> {
+			var added = c.getElementAdded();
+			if (added != null) {
+				installActions(getMenuBar().getMenus(), Collections.singleton(added));
 			}
+			else if (c.getElementRemoved() != null)
+				logger.warn("Menu item removal not supported!");					
 		});
 		setupToolsMenu(getMenu("Tools", true));
 		

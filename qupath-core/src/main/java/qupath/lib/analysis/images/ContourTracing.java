@@ -1159,16 +1159,17 @@ public class ContourTracing {
 		var channelType = server.getMetadata().getChannelType();
 		int h = img.getHeight();
 		int w = img.getWidth();
+		var nChannels = server.nChannels();
 		
 		// If we have probabilities, then the 'true' classification is the one with the highest values.
 		// If we have classifications, then the 'true' classification is the value of the pixel (which is expected to have a single band).
-		boolean doClassification = channelType == ImageServerMetadata.ChannelType.PROBABILITY || channelType == ImageServerMetadata.ChannelType.CLASSIFICATION;
+		boolean doClassification = (channelType == ImageServerMetadata.ChannelType.PROBABILITY && nChannels > 1) || channelType == ImageServerMetadata.ChannelType.CLASSIFICATION;
 		if (doClassification) {
 			SimpleImage image;
+			// If we have probability & more than one channel, we take the channel with the highest probability (i.e. softmax)
 			if (channelType == ImageServerMetadata.ChannelType.PROBABILITY) {
 				// Convert probabilities to classifications
 				var raster = img.getRaster();
-				var nChannels = server.nChannels();
 				float[] output = new float[w * h];
 				for (int y = 0; y < h; y++) {
 					for (int x = 0; x < w; x++) {

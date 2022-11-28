@@ -39,6 +39,7 @@ import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
 import qupath.lib.images.servers.ColorTransforms;
 import qupath.lib.images.servers.PixelCalibration;
+import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.ColorTransforms.ColorTransform;
 import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
 import qupath.lib.objects.classes.PathClass;
@@ -200,15 +201,6 @@ public class PatchClassifierParams {
 			}
 		}
 		
-		var metadata = new PixelClassifierMetadata.Builder()
-				.inputShape(params.getPatchWidth(), params.getPatchHeight())
-				.classificationLabels(params.getOutputClasses())
-				.setChannelType(params.getOutputChannelType())
-				.inputResolution(params.getInputResolution())
-				.inputPadding(pad)
-				//				.set(params.getOutputPixelType()) // TODO: Add this if required
-				.build();
-
 		var dataOp = ImageOps.buildImageDataOp(params.getInputChannels());
 		var ops = new ArrayList<ImageOp>();
 		if (params.getPreprocessing() != null)
@@ -219,8 +211,18 @@ public class PatchClassifierParams {
 
 		if (params.getPostprocessing() != null)
 			ops.addAll(params.getPostprocessing());
-
+		
 		dataOp = dataOp.appendOps(ops.toArray(ImageOp[]::new));
+		
+		var metadata = new PixelClassifierMetadata.Builder()
+				.inputShape(params.getPatchWidth(), params.getPatchHeight())
+				.classificationLabels(params.getOutputClasses())
+				.setChannelType(params.getOutputChannelType())
+				.inputResolution(params.getInputResolution())
+				.inputPadding(pad)
+				.outputPixelType(dataOp.getOutputType(PixelType.FLOAT32))
+				.build();
+
 
 		return PixelClassifiers.createClassifier(dataOp, metadata);
 

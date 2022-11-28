@@ -261,6 +261,12 @@ public class PixelClassifierUI {
 		Objects.requireNonNull(imageData);
 		Objects.requireNonNull(classifier);
 		
+		var detections = imageData.getHierarchy().getDetectionObjects();
+		if (detections.isEmpty()) {
+			Dialogs.showErrorMessage("Classify detections", "This command only support classifying detections, sorry");
+			return false;
+		}
+		
 		PixelClassifierTools.classifyDetectionsByCentroid(imageData, classifier);
 		if (classifierName != null) {
 			imageData.getHistoryWorkflow().addStep(

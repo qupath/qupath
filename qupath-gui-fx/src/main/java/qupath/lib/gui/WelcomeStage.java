@@ -45,12 +45,10 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
-import javafx.scene.paint.Color;
 import javafx.scene.text.Text;
 import javafx.scene.text.TextAlignment;
 import javafx.scene.text.TextFlow;
 import javafx.stage.Stage;
-import javafx.stage.StageStyle;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.prefs.PathPrefs.AutoUpdateType;
 import qupath.lib.gui.prefs.QuPathStyleManager;
@@ -242,8 +240,12 @@ class WelcomeStage {
 		pane.setBottom(paneOptions);
 		pane.setPadding(new Insets(10));
 		
-		stage.setScene(new Scene(pane, Color.TRANSPARENT));
-		stage.initStyle(StageStyle.UNDECORATED);
+		// Transparent undecorated stage looked pretty good on recent macOS,
+		// but not on Windows 10 (because there was no drop shadow)
+//		stage.setScene(new Scene(pane, Color.TRANSPARENT));
+//		stage.initStyle(StageStyle.UNDECORATED);
+		stage.setScene(new Scene(pane));
+		stage.setTitle("Welcome");
 		GuiTools.makeDraggableStage(stage);
 		stage.getScene().setOnMouseClicked(e -> {
 			if (e.getClickCount() == 2) {
