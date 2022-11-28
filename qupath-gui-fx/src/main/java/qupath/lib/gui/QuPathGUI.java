@@ -463,9 +463,12 @@ public class QuPathGUI {
 	 */
 	public void installActions(Collection<? extends Action> actions) {
 		this.actions.addAll(actions);
+		installActionsImpl(actions);
 	}
 	
-	private void installActions(List<Menu> menus, Collection<? extends Action> actions) {
+	private void installActionsImpl(Collection<? extends Action> actions) {
+		
+		var menus = getMenuBar().getMenus();
 		
 		var menuMap = new HashMap<String, Menu>();
 		
@@ -490,7 +493,7 @@ public class QuPathGUI {
 				items.add(newItem);
 				registerAccelerator(action);
 			} else {
-				logger.debug("Found command without associated menu: {}", action);
+				logger.debug("Found command without associated menu: {}", action.getText());
 			}
 		}
 	}
@@ -795,7 +798,7 @@ public class QuPathGUI {
 	/**
 	 * A list of all actions currently registered for this GUI.
 	 */
-	private ObservableSet<Action> actions = FXCollections.observableSet(new LinkedHashSet<>());
+	private Set<Action> actions = new LinkedHashSet<>();
 	
 	/**
 	 * Search for an action based upon its text (name) property.
@@ -891,14 +894,6 @@ public class QuPathGUI {
 				.stream().map(Menu::new).toArray(Menu[]::new)
 				);
 		
-		actions.addListener((SetChangeListener.Change<? extends Action> c) -> {
-			var added = c.getElementAdded();
-			if (added != null) {
-				installActions(getMenuBar().getMenus(), Collections.singleton(added));
-			}
-			else if (c.getElementRemoved() != null)
-				logger.warn("Menu item removal not supported!");					
-		});
 		setupToolsMenu(getMenu("Tools", true));
 		
 		// Prepare for image name masking
@@ -2213,7 +2208,7 @@ public class QuPathGUI {
 
 		
 		// TODO: MOVE INITIALIZING MANAGERS ELSEWHERE
-		actions.addAll(new Menus(this).getActions());
+		installActions(new Menus(this).getActions());
 		
 		// Add a recent projects menu
 		getMenu("File", true).getItems().add(1, createRecentProjectsMenu());
