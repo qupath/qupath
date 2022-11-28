@@ -84,7 +84,7 @@ public interface PredictionFunction<T> {
 	 * <p>
 	 * Often, this is a singleton map with key {@link #DEFAULT_INPUT_NAME} for functions that take a single input.
 	 * <p>
-	 * If the shape is know, the axis order is typically NCHW.
+	 * If the shape is known, the axis order is typically NCHW.
 	 * NCHW is used by OpenCV https://docs.opencv.org/4.5.2/d6/d0f/group__dnn.html#ga29f34df9376379a603acd8df581ac8d7
 	 * and also by PyTorch; for TensorFlow some rearrangement may be needed.
 	 * 

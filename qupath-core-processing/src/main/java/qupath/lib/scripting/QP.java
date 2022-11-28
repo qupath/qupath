@@ -134,6 +134,8 @@ import qupath.lib.roi.GeometryTools;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
+import qupath.opencv.dnn.DnnModelParams;
+import qupath.opencv.dnn.DnnModels;
 import qupath.opencv.dnn.DnnTools;
 import qupath.opencv.io.OpenCVTypeAdapters;
 import qupath.opencv.ml.objects.OpenCVMLClassifier;
@@ -297,6 +299,8 @@ public class QP {
 			OpenCVTools.class,
 			NumpyTools.class,
 			DnnTools.class,
+			DnnModels.class,
+			DnnModelParams.class,
 			TileExporter.class,
 			LabeledImageServer.class,
 			ServerTools.class,
