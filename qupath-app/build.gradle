@@ -183,7 +183,7 @@ jpackage.dependsOn(checkLdLibrary)
 import com.github.jk1.license.render.*
 
 licenseReport {
-    File fileUnknown = rootProject.file('license-unknown.txt')
+    File fileUnknown = rootProject.file('unknown-license-details.txt')
     renderers = [new TextReportRenderer('THIRD-PARTY.txt'),
 //               new CsvReportRenderer(),
                  new InventoryHtmlReportRenderer('index.html', 'Third party licenses', fileUnknown)]
@@ -202,7 +202,7 @@ distributions {
                 from project.rootDir
                 include 'CHANGELOG.md'
                 include 'STARTUP.md'
-                include 'LICENSE.txt'
+                include 'LICENSE'
             }
             // Get the core licenses associated with the app
             into('lib') {
@@ -306,7 +306,7 @@ jpackage {
     doLast {
         def isLinux = project.properties['platform.name'] == 'linux'
         for (dir in outputs?.getFiles()?.files) {
-            def extensions = ['.app', '.dmg', '.pkg', '.exe', '.msi']
+            def extensions = ['.app', '.dmg', '.pkg', '.exe', '.msi', '.deb', '.rpm']
             def packageFiles = dir.listFiles()
             for (f in packageFiles) {
                 for (ext in extensions) {
