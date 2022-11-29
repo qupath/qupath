@@ -17,7 +17,8 @@ dependencies {
   api project(':qupath-core')
   
   api libs.imagej
-  implementation libs.commons.math
+  api libs.bioimageio.spec
   
+  implementation libs.commons.math
   testImplementation project(':qupath-core').sourceSets.test.output
 }
