@@ -175,17 +175,10 @@ class Menus {
 //		@ActionAccelerator("shortcut+v") // No shortcut because it gets fired too often
 		public final Action PASTE = createAction(() -> Commands.pasteFromClipboard(qupath, false));
 
-		@ActionMenu("Paste clipboard objects on current plane")
+		@ActionMenu("Paste objects to current plane")
 		@ActionDescription("Paste GeoJSON objects from the system clipboard to the current z-slice and timepoint, if possible.\n" + 
 				"New object IDs will be generated if needed to avoid duplicates.")
 		public final Action PASTE_TO_PLANE = createAction(() -> Commands.pasteFromClipboard(qupath, true));
-
-		@ActionDescription("Copy the selected objects and paste them on the current plane (z-slice and timepoint visible in the viewer).\n"
-				+ "This avoids using the system clipboard. It is intended to help transfer annotations quickly across multidimensional images.")
-		@ActionMenu("Paste selected objects on current plane")
-		@ActionAccelerator("shortcut+shift+v")
-		public final Action ANNOTATION_COPY_TO_PLANE = qupath.createViewerAction(viewer -> Commands.copySelectedAnnotationsToCurrentPlane(viewer));
-
 		
 		public final Action SEP_1 = ActionTools.createSeparator();
 		
@@ -594,6 +587,12 @@ class Menus {
 		@ActionMenu("Annotations...>Duplicate selected annotations")
 		@ActionAccelerator("shift+d")
 		public final Action ANNOTATION_DUPLICATE = qupath.createImageDataAction(imageData -> Commands.duplicateSelectedAnnotations(imageData));
+
+		@ActionDescription("Duplicate the selected objects and paste them on the current plane (z-slice and timepoint visible in the viewer).\n"
+				+ "This avoids using the system clipboard. It is intended to help transfer annotations quickly across multidimensional images.")
+		@ActionMenu("Annotations...>Copy annotations to current plane")
+		@ActionAccelerator("shortcut+shift+v")
+		public final Action ANNOTATION_COPY_TO_PLANE = qupath.createViewerAction(viewer -> Commands.copySelectedAnnotationsToCurrentPlane(viewer));
 
 		@ActionDescription("Transfer the last annotation to the current image. "
 				+ "This can be used to bring annotations from one viewer to another, or to recover "
