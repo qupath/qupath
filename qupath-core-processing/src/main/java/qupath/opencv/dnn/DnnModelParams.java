@@ -148,6 +148,11 @@ public class DnnModelParams {
 		return Collections.unmodifiableMap(outputs);
 	}
 
+	/**
+	 * Get a string representing the axes layout that the model expects as input.
+	 * This should follow the Bioimage Model Zoo spec, and include only the characters "bixyczt".
+	 * @return
+	 */
 	public String getLayout() {
 		return layout;
 	}
@@ -262,6 +267,13 @@ public class DnnModelParams {
 			return this;
 		}
 		
+		/**
+		 * Specify a string representing the axes layout that the model expects as input.
+		 * This should follow the Bioimage Model Zoo spec, and include only the characters "bixyczt".
+		 * @param layout
+		 * @return
+		 * @implNote the layout string is not currently checked for validity, but this may change in the future.
+		 */
 		public Builder layout(String layout) {
 			params.layout = layout;
 			return this;
