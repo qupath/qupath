@@ -42,6 +42,7 @@ import qupath.bioimageio.spec.BioimageIoSpec.Processing.Clip;
 import qupath.bioimageio.spec.BioimageIoSpec.InputTensor;
 import qupath.bioimageio.spec.BioimageIoSpec.OutputTensor;
 import qupath.bioimageio.spec.BioimageIoSpec.Processing;
+import qupath.bioimageio.spec.BioimageIoSpec.WeightsEntry;
 import qupath.bioimageio.spec.BioimageIoSpec.Processing.ScaleLinear;
 import qupath.bioimageio.spec.BioimageIoSpec.Processing.ScaleMeanVariance;
 import qupath.bioimageio.spec.BioimageIoSpec.Processing.ScaleRange;
@@ -91,14 +92,29 @@ public class BioimageIoTools {
 		// Try to find compatible weights
 		DnnModel<?> dnn = null;
 		
-		var weightsMap = spec.getWeights();
-
-		for (var entry: weightsMap.entrySet()) {
+		// Check for weights in the order that we're likely to support them
+		// This is based upon the fact that we will most likely be relying upon 
+		// Deep Java Library, although *conceivably* we could have some extension 
+		// that supports weights beyond what DJL currently handles
+		for (var key : Arrays.asList(
+				WeightsEntry.TORCHSCRIPT, // Should work on all platforms
+				WeightsEntry.TENSORFLOW_SAVED_MODEL_BUNDLE, // Should work on most platforms (not Apple Silicon)
+				WeightsEntry.ONNX, // Should work... if installed (usually isn't)
+				WeightsEntry.TENSORFLOW_JS, // Probably won't work
+				WeightsEntry.PYTORCH_STATE_DICT,
+				WeightsEntry.KERAS_HDF5)) {
 			try {
-				var weights = entry.getValue();
+				var weights = spec.getWeights(key);
+				if (weights == null)
+					continue;
 				var baseUri = spec.getBaseURI();
 				var basePath = GeneralTools.toPath(baseUri);
 				var relativeSource = weights.getSource();
+				// For now, don't handle URLs
+				if (relativeSource.toLowerCase().startsWith("http:") || relativeSource.toLowerCase().startsWith("https:")) {
+					logger.debug("Don't support source {}", relativeSource);
+					continue;
+				}
 				// Try to get the weights for the source
 				URI source = null;
 				if (basePath == null) {
@@ -121,46 +137,45 @@ public class BioimageIoTools {
 					}
 					source = pathWeights.toUri();
 				}
-				boolean supportedWeights = true;
 				String frameworkName = null;
-				switch (entry.getKey()) {
-				case "tensorflow_saved_model_bundle":
-					frameworkName = DnnModelParams.FRAMEWORK_TENSORFLOW;
-					break;
-				case "torchscript":
-				case "pytorch_script":
-					frameworkName = DnnModelParams.FRAMEWORK_PYTORCH;
-					break;
-				case "onnx":
+				switch (key) {
+				case ONNX:
 					frameworkName = DnnModelParams.FRAMEWORK_ONNX_RUNTIME;
 					break;
-				// We never support those that rely heavily on Python
-				case "pytorch_state_dict":
-				case "keras_hdf5":
+				case TENSORFLOW_SAVED_MODEL_BUNDLE:
+					frameworkName = DnnModelParams.FRAMEWORK_TENSORFLOW;
+					break;
+				case TORCHSCRIPT:
+					frameworkName = DnnModelParams.FRAMEWORK_PYTORCH;
+					break;
+				case PYTORCH_STATE_DICT:
+				case TENSORFLOW_JS:
+				case KERAS_HDF5:
 				default:
-					continue;
+					// *Conceivably* we could support these via some as-yet-unwritten extension... but we probably don't
+					break;
 				}
-				if (supportedWeights) {
-					String axes = spec.getInputs().get(0).getAxes();
-					var inputShapeMap = spec.getInputs().stream().collect(Collectors.toMap(i -> i.getName(), i -> getShape(i)));
-					var inputShape = inputShapeMap.size() == 1 ? inputShapeMap.values().iterator().next() : null; // Need a single input, otherwise can't be used for output
-					var outputShapeMap = spec.getOutputs().stream().collect(Collectors.toMap(o -> o.getName(), o -> getShape(o, inputShape)));
-					
-					var params = DnnModelParams.builder()
-							.framework(frameworkName)
-							.URIs(source)
-							.layout(axes)
-							.inputs(inputShapeMap)
-							.outputs(outputShapeMap)
-							.build();
-					
-					dnn = DnnModels.buildModel(params);
-					logger.debug("Loaded model {} with Deep Java Library", source);
+				String axes = spec.getInputs().get(0).getAxes();
+				var inputShapeMap = spec.getInputs().stream().collect(Collectors.toMap(i -> i.getName(), i -> getShape(i)));
+				var inputShape = inputShapeMap.size() == 1 ? inputShapeMap.values().iterator().next() : null; // Need a single input, otherwise can't be used for output
+				var outputShapeMap = spec.getOutputs().stream().collect(Collectors.toMap(o -> o.getName(), o -> getShape(o, inputShape)));
+				
+				var params = DnnModelParams.builder()
+						.framework(frameworkName)
+						.URIs(source)
+						.layout(axes)
+						.inputs(inputShapeMap)
+						.outputs(outputShapeMap)
+						.build();
+				
+				dnn = DnnModels.buildModel(params);
+				if (dnn != null) {
+					logger.info("Loaded model {}", dnn);
 				} else {
-					logger.warn("No compatible engine for weights format: {}", entry.getKey());
+					logger.warn("Unable to build model for weights {} (source={}, framework={})", key, source, frameworkName);
 				}
 			} catch (Exception e) {
-				logger.warn("Unsupported weights: {}", entry.getKey());
+				logger.warn("Unsupported weights: {}", key);
 				logger.error(e.getLocalizedMessage(), e);
 			}
 			if (dnn != null)
@@ -288,7 +303,8 @@ public class BioimageIoTools {
 		DnnModel<?> dnn = buildDnnModel(modelSpec);
 		
 		if (dnn == null)
-			throw new UnsupportedOperationException("Unable to create a DnnModel for " + modelSpec.getBaseURI());
+			throw new UnsupportedOperationException("Unable to create a DnnModel for " + modelSpec.getName() + 
+					".\nCheck 'View > Show log' for more details.");
 		
 		List<ImageOp> postprocessing = new ArrayList<>();
 		if (output.getPostprocessing() != null) {

@@ -6,14 +6,27 @@ plugins {
     id 'qupath.djl-conventions'
 }
 
-def djlEnginesProp = project.findProperty('djl.engines') ?: ""
-def djlEngines = djlEnginesProp.split(",").collect(e -> e.toLowerCase().strip()).findAll(e -> !e.isBlank())
+def djlEnginesProp = project.findProperty('djl.engines') ?: "default"
+djlEnginesProp = djlEnginesProp.strip().toLowerCase()
+def djlEngines = []
+if (djlEnginesProp == "default")
+	djlEngines = ['pytorch', 'tensorflow']
+else if (djlEnginesProp == "none")
+	djlEngines = []
+else
+	djlEngines = djlEnginesProp.split(",").collect(e -> e.toLowerCase().strip()).findAll(e -> !e.isBlank())
 
 def djlApi = !djlEngines.isEmpty() || project.findProperty('djl.api')
 
-def djlZoosProp = project.findProperty('djl.zoos') ?: ""
-def djlZoos = djlZoosProp.toLowerCase().strip() == "all" ? djlEngines : 
-	djlZoosProp.split(",").collect(e -> e.toLowerCase().strip()).findAll(e -> !e.isBlank())
+def djlZoosProp = project.findProperty('djl.zoos') ?: "all"
+djlZoosProp = djlZoosProp.strip().toLowerCase()
+def djlZoos = []
+if (djlZoosProp == "all")
+	djlZoos = djlEngines
+else if (djlZoosProp == "none")
+	djlZoos = []
+else
+	djlZoos = djlZoosProp.split(",").collect(e -> e.toLowerCase().strip()).findAll(e -> !e.isBlank())
 
 
 def djlVersion = libs.versions.deepJavaLibrary.get()

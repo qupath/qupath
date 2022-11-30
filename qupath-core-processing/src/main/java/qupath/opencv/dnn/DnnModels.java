@@ -90,10 +90,6 @@ public class DnnModels {
 	}
 	
 	
-	@SuppressWarnings("rawtypes")
-	private static ServiceLoader<DnnModelBuilder> serviceLoader = ServiceLoader.load(DnnModelBuilder.class);
-	
-	
 	/**
 	 * Build a {@link DnnModel} from the given parameters.
 	 * This queries all available {@linkplain DnnModelBuilder DnnModelBuilders} through a service loader.
@@ -102,15 +98,16 @@ public class DnnModels {
 	 * @return a new DnnModel, or null if no model could be built
 	 */
 	public static <T> DnnModel<T> buildModel(DnnModelParams params) {
-		synchronized (serviceLoader) {
-			for (DnnModelBuilder<?> builder : serviceLoader) {
-				try {
-					var model = builder.buildModel(params);
-					if (model != null)
-						return (DnnModel<T>)model;
-				} catch (Exception e) {
-					logger.error(e.getLocalizedMessage(), e);
+		for (DnnModelBuilder<?> builder : ServiceLoader.load(DnnModelBuilder.class)) {
+			try {
+				var model = builder.buildModel(params);
+				if (model != null)
+					return (DnnModel<T>)model;
+				else {
+					logger.info("Cannot build model with {}", builder);
 				}
+			} catch (Exception e) {
+				logger.error(e.getLocalizedMessage(), e);
 			}
 		}
 		return null;
