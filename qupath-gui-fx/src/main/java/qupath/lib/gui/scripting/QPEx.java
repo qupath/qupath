@@ -36,7 +36,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import org.slf4j.Logger;
@@ -96,7 +95,7 @@ public class QPEx extends QP {
 	private static final Logger logger = LoggerFactory.getLogger(QPEx.class);
 	
 	
-	private static final Collection<Class<?>> CORE_CLASSES = Collections.unmodifiableSet(new HashSet<>(Arrays.asList(
+	private static final Collection<Class<?>> CORE_CLASSES = Collections.unmodifiableSet(new LinkedHashSet<>(Arrays.asList(
 			// QuPath classes
 			QuPathGUI.class,
 			Dialogs.class,
@@ -106,6 +105,8 @@ public class QPEx extends QP {
 			PaneTools.class,
 			
 			LabeledImageServer.class,
+			
+			PathPrefs.class,
 			
 			LogManager.class,
 			
