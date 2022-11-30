@@ -62,22 +62,22 @@ afterEvaluate {
 
     jar {
         // Important to set version so this can be queried within QuPath
-        if (hasProperty('moduleName')) {
-            inputs.property("moduleName", moduleName)
-            manifest {
-                def manifestAttributes = [
-                        "Implementation-Vendor" : "QuPath developers",
-                        "Implementation-Version": project.version,
-                        'Automatic-Module-Name' : "io.github." + moduleName,
-                        "QuPath-build-time"     : new Date().format("yyyy-MM-dd, HH:mm")
-                ]
+		manifest {
+			def manifestAttributes = [
+					"Implementation-Vendor" : "QuPath developers",
+					"Implementation-Version": project.version,
+					"QuPath-build-time"     : new Date().format("yyyy-MM-dd, HH:mm")
+			]
+			// Set the module name where we can
+			if (project.hasProperty('moduleName')) {
+				manifestAttributes['Automatic-Module-Name'] = "io.github." + project['moduleName']
+			}
+			
+			if (latestGitCommit != null)
+				manifestAttributes["QuPath-latest-commit"] = latestGitCommit
 
-                if (latestGitCommit != null)
-                    manifestAttributes["QuPath-latest-commit"] = latestGitCommit
-
-                attributes(manifestAttributes)
-            }
-        }
+			attributes(manifestAttributes)
+		}
     }
 }
 

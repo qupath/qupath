@@ -27,6 +27,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.util.Objects;
 import java.util.jar.Attributes;
 import java.util.jar.JarInputStream;
 import java.util.jar.Manifest;
@@ -51,6 +52,7 @@ import javafx.scene.layout.VBox;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.common.Version;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.extensions.QuPathExtension;
 import qupath.lib.gui.tools.GuiTools;
@@ -256,7 +258,7 @@ class ShowInstalledExtensionsCommand {
 		public String getVersion() {
 			if (extension instanceof QuPathExtension) {
 				var v = ((QuPathExtension)extension).getVersion();
-				if (v != null)
+				if (v != null && !Objects.equals(v, Version.UNKNOWN))
 					return v.toString();
 			}
 			URL url =  getURL();

@@ -98,8 +98,6 @@ import javafx.beans.value.ObservableBooleanValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener.Change;
 import javafx.collections.ObservableList;
-import javafx.collections.ObservableSet;
-import javafx.collections.SetChangeListener;
 import javafx.embed.swing.JFXPanel;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.event.ActionEvent;
@@ -493,7 +491,9 @@ public class QuPathGUI {
 				items.add(newItem);
 				registerAccelerator(action);
 			} else {
-				logger.debug("Found command without associated menu: {}", action.getText());
+				// Not really a problem, but ideally we'd rearrange things so it doesn't happen
+				// (Currently it does a lot when adding actions to the toolbar)
+				logger.trace("Found command without associated menu: {}", action.getText());
 			}
 		}
 	}
@@ -1070,11 +1070,7 @@ public class QuPathGUI {
 				
 		long endTime = System.currentTimeMillis();
 		logger.debug("Startup time: {} ms", (endTime - startTime));
-		
-		// Do auto-update check
-		if (!disableAutoUpdateCheck && !startupQuietly)
-			checkForUpdate(true);
-		
+				
 		// Show a startup message, if we have one
 		if (!startupQuietly)
 			showStartupMessage();
@@ -1116,6 +1112,29 @@ public class QuPathGUI {
 		QuPathStyleManager.refresh();
 		
 		logger.debug("{}", timeit.stop());
+		
+		
+		// Show setup if required
+		if (startupQuietly)
+			return;
+		
+		// If showing the welcome stage, don't check for updates until it is closed 
+		// since the user may change the preference at this point
+		if (PathPrefs.showStartupMessageProperty().get()) {
+			Platform.runLater(() -> {
+				var welcomeStage = WelcomeStage.getInstance(this);
+				if (!disableAutoUpdateCheck)
+					welcomeStage.setOnHidden(e -> {
+						checkForUpdate(true);
+						welcomeStage.setOnHidden(null);
+					});
+				welcomeStage.show();
+			});
+		} else {
+			// Do auto-update check
+			if (!disableAutoUpdateCheck)
+				checkForUpdate(true);
+		}
 	}
 	
 	/**
@@ -1598,13 +1617,18 @@ public class QuPathGUI {
 		if (updateCheckType == AutoUpdateType.QUPATH_AND_EXTENSIONS || updateCheckType == AutoUpdateType.EXTENSIONS_ONLY) {
 			for (var ext : getLoadedExtensions()) {
 				var v = ext.getVersion();
-				if (v != null && v != Version.UNKNOWN && ext instanceof GitHubProject) {
+				if (!(ext instanceof GitHubProject)) {
+					// This also applies to built-in QuPath extensions
+					logger.debug("Can't check for updates for {} (not a project with its own GitHub repo)", ext.getName());
+				} else if (v != null && v != Version.UNKNOWN) {
 					var project = (GitHubProject)ext;
 					projects.put(project.getRepository(), v);
+				} else {
+					logger.warn("Can't check for updates for {} - unknown version", ext.getName());
 				}
 			}
 		}
-		
+
 		// Report if there is nothing to update
 		if (projects.isEmpty()) {
 			if (isAutoCheck) {
@@ -1621,8 +1645,12 @@ public class QuPathGUI {
 				var project = entry.getKey();
 				logger.info("Update check for {}", project.getUrlString());
 				var release = UpdateChecker.checkForUpdate(entry.getKey());
-				if (release != null && release.getVersion() != Version.UNKNOWN && entry.getValue().compareTo(release.getVersion()) < 0)
+				if (release != null && release.getVersion() != Version.UNKNOWN && entry.getValue().compareTo(release.getVersion()) < 0) {
+					logger.info("Found newer release for {} ({} -> {})", project.getName(), entry.getValue(), release.getVersion());
 					projectUpdates.put(project, release);
+				} else if (release != null) {
+					logger.info("No newer release for {} ({} is newer than {})", project.getName(), entry.getValue(), release.getVersion());
+				}
 			} catch (Exception e) {
 				logger.error("Update check failed for {}", entry.getKey());
 				logger.debug(e.getLocalizedMessage(), e);
@@ -1728,19 +1756,22 @@ public class QuPathGUI {
 			// For automated checks, respect the user preferences for QuPath, extensions or neither
 			checkType = PathPrefs.autoUpdateCheckProperty().get();
 			boolean doAutoUpdateCheck = checkType != null && checkType != AutoUpdateType.NONE;
-			if (!doAutoUpdateCheck)
+			if (!doAutoUpdateCheck) {
+				logger.debug("No update check because of user preference ({})", checkType);
 				return;
+			}
 
 			// Don't run auto-update check again if we already checked within the last hour
 			long currentTime = System.currentTimeMillis();
 			long lastUpdateCheck = PathPrefs.getUserPreferences().getLong("lastUpdateCheck", 0);
 			double diffHours = (double)(currentTime - lastUpdateCheck) / (60L * 60L * 1000L);
 			if (diffHours < 1) {
-				logger.trace("Skipping update check (I already checked recently)");
+				logger.debug("Skipping update check (I already checked recently)");
 				return;
 			}
 		} else {
 			// Check everything when explicitly requested
+			logger.debug("Manually requested update check - will search for QuPath and extensions");
 			checkType = AutoUpdateType.QUPATH_AND_EXTENSIONS;
 		}
 		

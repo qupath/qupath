@@ -36,7 +36,6 @@ import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.stage.Stage;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.projects.ProjectIO;
 
 /**
@@ -89,14 +88,6 @@ public class QuPathApp extends Application {
 		
 		registerFileHandler(qupath);
 		qupath.updateCursor();
-		
-		// Show setup if required
-		if (!quiet && PathPrefs.showStartupMessageProperty().get()) {
-			Platform.runLater(() -> {
-				WelcomeStage.getInstance(qupath).show();
-			});
-		}
-		
 	}
 	
 	/**
