@@ -411,7 +411,15 @@ public class PathPrefs {
 	}
 	
 	
-	static Path getConfigPath() throws IOException, URISyntaxException {
+	/**
+	 * Try to get the path to the config file.
+	 * Editing this is sometimes needed for preferences that need to be fixed during starting, 
+	 * such as the java.library.path or max memory settings.
+	 * @return
+	 * @throws IOException
+	 * @throws URISyntaxException
+	 */
+	public static Path getConfigPath() throws IOException, URISyntaxException {
 		Path path = Paths.get(
 				PathPrefs.class
 				.getProtectionDomain()
