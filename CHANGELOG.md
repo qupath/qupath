@@ -5,13 +5,48 @@
 
 ## Version 0.4.0-SNAPSHOT
 
-This remains a work in progress (but getting close!).
+Updating changelog, getting ever closer...
 
-The following is a long-yet-non-exhaustive list of changes & improvements.
+### Release highlights
 
-### User interface improvements
+* *Many* user interface improvements, including
+  * New welcome message with useful links
+  * Thumbnail images in measurement tables
+  * View rich annotation descriptions (including formatted text/images via Markdown)
+  * Right-click tabs on the left pane to 'undock' them
+  * New styling options - with support to add custom styles to change QuPath's appearance
+* A much improved script editor, including
+  * Auto-complete suggestions for common things
+  * *Show Javadocs* included to get help on *all* QuPath's methods
+  * Syntax highlighting for Groovy, Markdown, JSON, YAML and XML
+* Core improvements to QuPath's objects
+  * Object IDs to help identify objects across software
+  * New ways to access measurements & handle multiple classifications through scripting
+* New & improved commands
+  * Calculate signed distances between objects
+  * *Transform annotations* command to rotate and/or translate some or all objects in an image
+  * Ability to copy objects across images, or across z-slices/timepoints within an image
+  * Specify a TMA grid (for when detection alone doesn't work)
+* Support for DICOM whole slide images (thanks to Bio-Formats 6.11.0)
+
+> #### Important!
+> 
+> With so many changes, it's possible that some new bugs have snuck in.
+> It's **strongly recommmended** to try v0.4.0 cautiously & backup any important data or QuPath projects first.
+>
+> Please report any bugs or ask questions at [**Scientific Community Image Forum**](https://forum.image.sc/tag/qupath).
+> 
+> Also, QuPath v0.4.0 is mostly compatible with v0.3.x, but makes some changes to data files that v0.3.x doesn't support (e.g. adding object IDs). 
+> Therefore it's **strongly recommmended** not to switch between versions for analyzing data.
+
+### More detailed change list
+
+The [commit history](https://github.com/qupath/qupath/commits/v0.4.0) is a record of absolutely everything that has changed.
+Here's an abridged version of the main changes, grouped by category.
+
+#### User interface improvements
 * New startup message with links to useful info
-  * Optionally double-click anywhere in the window to make it disappear
+  * Note that you can double-click anywhere in the window to make it disappear
 * Tabs in the 'Analysis pane' can be undocked to become separate windows
   * Right-click on 'Project', 'Image', 'Annotations' etc. and choose 'Undock tab' 
 * Updated prompt to set the image type
@@ -39,7 +74,7 @@ The following is a long-yet-non-exhaustive list of changes & improvements.
 * Make annotation list sorting more predictable
   * Uses (in order) time index, z-index, string representation, ROI location, UUID
 * Creating a full image annotation with 'selection mode' turned on selects all objects in the current plane
-  * New command 'Objects -> Select... -> Select objects on current plane' can achieve the same when not using selection mode
+  * New command 'Objects > Select... > Select objects on current plane' can achieve the same when not using selection mode
 * Panning with synchronized viewers now corrects for different rotations
 * Multi-view commands now available through 'View' menu (and not only right-clicking a viewer)
   * These make it possible to create grid of viewers, to work with multiple images simultaneously
@@ -50,28 +85,28 @@ The following is a long-yet-non-exhaustive list of changes & improvements.
   * New preferences to control font size/weight & line width (bottom left)
   * Independently adjust font size for location text (bottom right)
 * Missing thumbnails are automatically regenerated when a project is opened
-* Completely rewritten 'View -> Show view tracker' command
+* Completely rewritten 'View > Show view tracker' command
 * Improved channel viewer
   * Show only the visible/most relevant channels by default, based on image type
   * Right-click to optionally show all available channels
 * Middle mouse button switches between 'Move' and last drawing tool (thanks to @zindy - https://github.com/qupath/qupath/pull/1037)
 
 
-### Styling improvements
-* Many fixes for the 'Dark modena' theme
+#### Styling improvements
 * Support custom user styling via CSS (https://github.com/qupath/qupath/pull/1063)
+* Many fixes for the 'Dark modena' theme
 
 
-### ImageJ improvements
+#### ImageJ improvements
 * Improved support for switching between QuPath objects and ImageJ ROIs
-  * New 'Extensions -> ImageJ -> Import ImageJ ROIs' command
+  * New 'Extensions > ImageJ > Import ImageJ ROIs' command
   * Import `.roi` and `RoiSet.zip` files by drag & drop
   * Built-in ImageJ plugin to send RoiManager ROIs to QuPath (not only overlays)
   * Retain ROI position information when sending ROIs from ImageJ (hyper)stacks
 * Avoid converting the pixel type to 32-bit unnecessarily when sending image regions to ImageJ
 
 
-### Script editor improvements
+#### Script editor improvements
 * Syntax highlighting for Markdown, JSON, YAML and XML documents
 * Added 'Replace/Next' and 'Replace all' features to *Find* window (https://github.com/qupath/qupath/pull/898)
 * New lines now trigger caret following (https://github.com/qupath/qupath/pull/900)
@@ -80,7 +115,7 @@ The following is a long-yet-non-exhaustive list of changes & improvements.
   * Brace block handling (https://github.com/qupath/qupath/pull/901)
   * Smart parentheses and (double/single) quotes (https://github.com/qupath/qupath/pull/907)
   * Comment block handling (https://github.com/qupath/qupath/pull/908)
-* New 'Edit -> Wrap lines', 'Edit -> Replace curly quotes' and 'Edit -> Zap gremlins' options
+* New 'Edit > Wrap lines', 'Edit > Replace curly quotes' and 'Edit > Zap gremlins' options
 * Prompt the user to reload data if 'Run for project' may have made changes for any images that are currently open
 * New 'Recent scripts...' menu item to reopen scripts more easily
 * Log messages are now color-coded, making errors and warnings easier to spot (https://github.com/qupath/qupath/pull/1079)
@@ -88,30 +123,30 @@ The following is a long-yet-non-exhaustive list of changes & improvements.
   * If the filter text doesn't contain `|`, just filter by image name (the previous behavior)
   * If the filter text contains `|`, additionally split on `|` and check that all tokens are either contained in the image name, or in a metadata text in the format `key=value`
   * For example, a search `.tif|source=imagej` would look for images that contain both `.tif` and `source=imagej` either in their name or metadata
-* New 'Run -> Use compiled scripts' option to reuse compiled versions of a script where possible
+* New 'Run > Use compiled scripts' option to reuse compiled versions of a script where possible
   * This can improve performance (slightly...) when re-running scripts many times
   * This is an experimental feature, currently turned off by default - please be on the lookout for any unexpected behavior
 
 
-### New & improved commands
+#### New & improved commands
 * Pixel classifier improvements
   * Making measurements is *much* faster in some circumstances (https://github.com/qupath/qupath/pull/1076)
   * It's possible to restrict live prediction more closely to annotated regions ((https://github.com/qupath/qupath/pull/1076))
   * Warn if trying to train a pixel classifier with too many features (https://github.com/qupath/qupath/issues/947)
-* New 'Analyze -> Spatial analysis -> Signed distance to annotations 2D' command (https://github.com/qupath/qupath/issues/1032)
-* New 'Objects -> Lock... ->' commands
+* New 'Analyze > Spatial analysis > Signed distance to annotations 2D' command (https://github.com/qupath/qupath/issues/1032)
+* New 'Objects > Lock... >' commands
   * Enables annotations & TMA cores to be locked so they cannot accidentally be moved or edited (deletion is still possible)
   * Toggle the 'locked' status of any selected object with `Ctrl/Cmd + K`
   * View locked status for annotations under the 'Annotation' tab
-* New 'TMA -> Specify TMA grid' command to manually specify a TMA grid (rather than relying on the dearrayer)
+* New 'TMA > Specify TMA grid' command to manually specify a TMA grid (rather than relying on the dearrayer)
 * 'Rotate annotation' command renamed to 'Transform annotation', and now supports applying the transform to *all* objects (not just one selected annotation)
-* New 'Measure -> Grid views' commands
-  * Based on the old 'TMA -> TMA grid summary view'... but no longer restricted only to TMAs
-* 'Classify -> Training images -> Create region annotations' supports adding regions within a selected annotation
+* New 'Measure > Grid views' commands
+  * Based on the old 'TMA > TMA grid summary view'... but no longer restricted only to TMAs
+* 'Classify > Training images > Create region annotations' supports adding regions within a selected annotation
   * `RoiTools.createRandomRectangle()` methods created for scripting
 
 
-### Core improvements
+#### Core improvements
 * All objects can now have IDs
   * This aims to make it much easier to match up objects whenever some further analysis is done elsewhere (e.g. classification or clustering in Python or R)
   * See https://github.com/qupath/qupath/pull/959
@@ -132,11 +167,14 @@ The following is a long-yet-non-exhaustive list of changes & improvements.
   * Output changed to match with NumPy, R and other software
   * Performance should be much improved when calculating percentiles from large arrays
 * `ImageOps` now supports both per-channel and joint percentile normalization
+* [Deep Java Library](https://djl.ai) dependencies added - activated via the [QuPath Deep Java Library extension](https://github.com/qupath/qupath-extension-djl)
+  * TensorFlow and PyTorch engines included by default for convenience
+  * Create a custom QuPath build with different engines & model zoos, e.g. using `./gradlew jpackage -Pdjl.engines=mxnet,onnxruntime,pytorch -Pdjl.zoos=all`
 
 
-### Code & scripting improvements
-* Other scripting improvements
-  * *See https://github.com/qupath/qupath/pull/1078 for more detail*
+#### Code & scripting improvements
+* *See https://github.com/qupath/qupath/pull/1078 for more detail*
+* New classes & methods
   * Added `getTileObjects()` scripting method (https://github.com/qupath/qupath/issues/1065)
   * Added `checkMinVersion(version)` and `checkVersionRange(min, max)` methods to block scripts running with the wrong QuPath version
   * Added `Timeit` class to checkpoint & report running times
@@ -173,7 +211,7 @@ The following is a long-yet-non-exhaustive list of changes & improvements.
   * Use `.shuffleInstanceLabels(false)` to avoid shuffling objects with `useInstanceLabels()`
 
 
-### Improvements thanks to Bio-Formats 6.11.0
+#### Improvements thanks to Bio-Formats 6.11.0
   * Bio-Formats 6.11.0 brings several important new features to QuPath, including:
     * Support for reading DICOM whole slide images
     * Improved handling of brightfield CZI images (i.e. filling unscanned regions in white, not black)
@@ -184,7 +222,7 @@ The following is a long-yet-non-exhaustive list of changes & improvements.
   * For details, see https://docs.openmicroscopy.org/bio-formats/6.10.0/about/whats-new.html
 
 
-### Bugs fixed
+#### Bugs fixed
 * Reading from Bio-Formats blocks forever when using multiple series outside a project (https://github.com/qupath/qupath/issues/894)
 * Can't swap dimensions for Bio-Formats using optional args (https://github.com/qupath/qupath/issues/1036)
   * Fix broken support for optional args, e.g. `--dims XYTCZ` when adding images to a project
@@ -220,6 +258,7 @@ The following is a long-yet-non-exhaustive list of changes & improvements.
 * Bio-Formats 6.11.0
 * Commonmark 0.21.0
 * ControlsFX 11.1.2
+* DeepJavaLibrary 0.19.0
 * JavaFX 19.0.0
 * Java Topology Suite 1.19.0
 * Groovy 4.0.6
@@ -236,6 +275,7 @@ The following is a long-yet-non-exhaustive list of changes & improvements.
 * Snakeyaml 1.33
 * SLF4J 2.0.4
 
+-----
 
 ## Version 0.3.2
 
@@ -260,6 +300,7 @@ This is a *minor release* that aims to be fully compatible with v0.3.0 and v0.3.
   * Downgrade to fix svs issues, see https://github.com/ome/bioformats/issues/3757 for details
   * Build from source with -Pbioformats-version=6.8.0 option if required
 
+-----
 
 ## Version 0.3.1
 
@@ -302,6 +343,8 @@ This is a *minor release* that aims to be fully compatible with v0.3.0 while fix
 * Logback 1.2.9
 * Picocli 4.6.2
 * RichTextFX 0.10.7
+
+-----
 
 ## Version 0.3.0
 
@@ -455,6 +498,7 @@ For full details, see the [Commit log](https://github.com/qupath/qupath/commits/
 * picocli 4.6.1
 * RichTextFX 0.10.6
 
+-----
 
 ## Version 0.2.3
 
@@ -471,6 +515,7 @@ List of bugs fixed:
 * Brightness/Contrast 'Keep settings' ignored when using multiple viewers (https://github.com/qupath/qupath/issues/601)
 * Improve QuPathGUI.launchQuPath() method (https://github.com/qupath/qupath/issues/603)
 
+-----
 
 ## Version 0.2.2
 
@@ -498,6 +543,7 @@ List of bugs fixed:
 * JavaFX 14.0.2.1
 * Bio-Formats 6.5.1; see https://docs.openmicroscopy.org/bio-formats/6.5.1/about/whats-new.html
 
+-----
 
 ## Version 0.2.1
 
@@ -533,6 +579,7 @@ Full list of bugs fixed:
 * Unable to stop tile/OME-TIFF export after it has begun
 * Minor TensorFlow extension-related updates (requires building from source)
 
+-----
 
 ## Version 0.2.0
 
@@ -616,6 +663,7 @@ This is the *release candidate* for v0.2.0 (i.e. the proposed stable version).
   * Projects are automatically saved after changing the image name (https://github.com/qupath/qupath/issues/465)
 * Bump dependencies ImageJ, Bio-Formats, JUnit, picocli
 
+-----
 
 ## Version 0.2.0-m11
 
@@ -635,6 +683,7 @@ This is a *milestone* (i.e. still in development) version made available to try 
   * Fixed specifying z-slices/timepoints with OME-TIFF export (https://github.com/qupath/qupath/issues/453)
   * Improved user notification when loading a broken extension (https://github.com/qupath/qupath/issues/454)
 
+-----
 
 ## Version 0.2.0-m10
 
@@ -674,6 +723,7 @@ This is a *milestone* (i.e. still in development) version made available to try 
   * Log meaningful warning if pixel classifier uses duplicated channel names
 * Update dependencies: JavaFX, OpenCV, Bio-Formats, JFreeSVG, ImageJ, Guava, RichTextFX
 
+-----
 
 ## Version 0.2.0-m9
 This is a *milestone* (i.e. still in development) version made available to try out new features early. Changes include:
@@ -723,6 +773,7 @@ This is a *milestone* (i.e. still in development) version made available to try 
 * Fixed bug in Jar classpath that prevented QuPath running from a command line
 * Update dependencies (Bio-Formats, ControlsFX, ImageJ, Guava, Groovy, RichTextFX)
 
+-----
 
 ## Version 0.2.0-m8
 This is a *milestone* (i.e. still in development) version made available to try out new features early.
@@ -734,6 +785,7 @@ This is a *milestone* (i.e. still in development) version made available to try 
   * More options for 'Interactive image alignment', including support to specify affine transform manually
   * Log affine transform when applying 'Rotate annotation'
 
+-----
 
 ## Version 0.2.0-m7
 This is a *milestone* (i.e. still in development) version made available to try out new features early.
@@ -744,6 +796,7 @@ This is a *milestone* (i.e. still in development) version made available to try 
 * Prompt to save each image when closing a project with multiple viewers active
 * Updated 'Rotate annotation' command to use JTS
 
+-----
 
 ## Version 0.2.0-m6
 This is a *milestone* (i.e. still in development) version made available to try out new features early.
@@ -767,6 +820,7 @@ For an explanation of the reasons behind this change & what it means, see the bl
 * Updated build script to Gradle 6.0
 * Use bioformats_package.jar rather than separate dependences (easier to upgrade/downgrade if needed)
 
+-----
 
 ## Version 0.2.0-m5
 This is a *milestone* (i.e. still in development) version made available to try out new features early.
@@ -826,6 +880,7 @@ Changes include:
   * Calculating intensity features for RGB fluorescence (https://github.com/qupath/qupath/issues/365)
   * Setting stroke thickness, thanks to @jballanc (https://github.com/qupath/qupath/pull/362)
 
+-----
 
 ## Version 0.2.0-m4
 This is a *milestone* (i.e. still in development) version made available to try out new features early.
@@ -857,6 +912,7 @@ Changes include:
   * Resolving relative URIs on Mac/Linux - https://github.com/qupath/qupath/issues/346
   * SLIC bug - https://github.com/qupath/qupath/issues/344
 
+-----
 
 ## Version 0.2.0-m3
 This is a *milestone* (i.e. still in development) version made available to try out new features early.
@@ -898,7 +954,7 @@ Changes include:
   * Added many javadocs for core modules
   * Lots of bugs fixed!
 
-
+-----
 
 ## Version 0.2.0-m2
 This is a *milestone* (i.e. still in development) version made available to try out new features early
@@ -912,6 +968,7 @@ This is a *milestone* (i.e. still in development) version made available to try 
   * ROI.getShape() corrected for rectangles and ellipses
   * Avoid 'Estimate stain vectors' errors with extreme parameter values
 
+-----
 
 ## Version 0.2.0-m1
 This is a *milestone* (i.e. still in development) version made available to try out new features early
@@ -949,6 +1006,7 @@ This is a *milestone* (i.e. still in development) version made available to try 
 * ImageJ macro runner supports parallel processing (experimental)
 * ImageJ macro runner now prompts to select all TMA cores if none are selected
 
+-----
 
 ## Version 0.1.1
 
@@ -959,6 +1017,7 @@ This is a *milestone* (i.e. still in development) version made available to try 
 * Added getMenuItem(String) method to main QuPathGUI class
 * Improved menu organization, removing several incomplete commands ('Cluster objects (experimental)' & 'OpenCV superpixel test')
 
+-----
 
 ## Version 0.1.0
 
@@ -987,6 +1046,7 @@ This is a *milestone* (i.e. still in development) version made available to try 
 * Fixed bug where cell detections were added to the wrong slice of a z-stack or time series.
 * Fixed bug that prevent Haralick textures being calculated for red, green or blue channels of an RGB image.
 
+-----
 
 ## Version 0.0.6
 
@@ -999,6 +1059,7 @@ This is a *milestone* (i.e. still in development) version made available to try 
 * Default for new installations is to invert scrolling for Windows and Linux.
 * Fixed 'Add intensity features' bug, where the median was calculated whether it was wanted or not.
 
+-----
 
 ## Version 0.0.5
 
@@ -1017,6 +1078,7 @@ This is a *milestone* (i.e. still in development) version made available to try 
 * Locale information now stored in .qpdata files.  This (hopefully) fixed a critical bug affecting computers where the locale used commas to separate decimal values (i.e. #,### rather than #.###), which previously prevented QuPath from reopening saved data files.
 * Installer now requests a Desktop shortcut to be created by default.
 
+-----
 
 ## Version 0.0.4
 
@@ -1041,6 +1103,7 @@ This is a *milestone* (i.e. still in development) version made available to try 
 * Fixed bug in drawing ROIs as icons (e.g. in the annotation or hierarchy views)
 * When manually setting the name of an annotation, any previous name is now shown (rather than a blank field)
 
+-----
 
 ## Version 0.0.3
 
@@ -1063,6 +1126,7 @@ This is a *milestone* (i.e. still in development) version made available to try 
 * Updated location of user preferences
 * Added menu entry to reset preferences
 
+-----
 
 ## Version 0.0.2
 
@@ -1073,6 +1137,7 @@ This is a *milestone* (i.e. still in development) version made available to try 
 * Extension ClassLoader changes to help add dependencies (without copying or symbolic linking)
 * Fixed some weird behavior when multiple images are contained in the same file
 
+-----
 
 ## Version 0.0.1-beta
 

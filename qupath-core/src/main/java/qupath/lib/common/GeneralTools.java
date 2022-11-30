@@ -120,7 +120,7 @@ public final class GeneralTools {
 	 * @return
 	 */
 	private static String findCurrentVersionString() {
-		var version = GeneralTools.getPackageVersion(GeneralTools.class);
+		var version = GeneralTools.getPackageVersion(GeneralTools.class, true);
 		// v0.2, less reliable way
 		if (version == null) {
 			var path = Paths.get("VERSION");
@@ -152,9 +152,14 @@ public final class GeneralTools {
 	 * @return the version, if available, or null if no version is known.
 	 */
 	public static String getPackageVersion(Class<?> cls) {
+		return getPackageVersion(cls, false);
+	}
+	
+	
+	private static String getPackageVersion(Class<?> cls, boolean isCoreClass) {
 		// Version should be preserved in the manifest
 		String version = cls.getPackage().getImplementationVersion();
-		if (version == null) {
+		if (version == null && isCoreClass) {
 			// From v0.3 onwards, the version should also be stored as a resource
 			try {
 				var stream = cls.getResourceAsStream("/VERSION");

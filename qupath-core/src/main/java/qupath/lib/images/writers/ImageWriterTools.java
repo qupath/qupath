@@ -50,9 +50,6 @@ public class ImageWriterTools {
 	
 	private static final Logger logger = LoggerFactory.getLogger(ImageWriterTools.class);
 	
-	@SuppressWarnings("rawtypes")
-	private static ServiceLoader<ImageWriter> serviceLoader = ServiceLoader.load(ImageWriter.class);
-	
 	/**
 	 * Get a list of compatible ImageWriters compatible with a specific server.
 	 * 
@@ -90,12 +87,10 @@ public class ImageWriterTools {
 			ext2 = ext2.startsWith(".") ? ext2.substring(1) : ext2;
 		}
 		List<ImageWriter<T>> writers = new ArrayList<>();
-		synchronized(serviceLoader) {
-			for (ImageWriter<T> writer : serviceLoader) {
-				if (imageClass == null || imageClass.equals(writer.getImageClass())) {
-					if (ext2 == null || writer.getExtensions().contains(ext2))
-						writers.add(writer);				
-				}
+		for (ImageWriter<T> writer : ServiceLoader.load(ImageWriter.class)) {
+			if (imageClass == null || imageClass.equals(writer.getImageClass())) {
+				if (ext2 == null || writer.getExtensions().contains(ext2))
+					writers.add(writer);				
 			}
 		}
 		Collections.sort(writers, COMPARATOR);
