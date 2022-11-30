@@ -22,7 +22,9 @@
 
 package qupath.opencv.dnn;
 
+import java.util.LinkedHashSet;
 import java.util.ServiceLoader;
+import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,6 +54,8 @@ public class DnnModels {
 	
 	@SuppressWarnings("rawtypes")
 	private static final SubTypeAdapterFactory<PredictionFunction> predictionAdapter;
+	
+	private static Set<DnnModelBuilder<?>> builders;
 	
 	static {
 		
@@ -91,6 +95,36 @@ public class DnnModels {
 	
 	
 	/**
+	 * Register a new {@link DnnModelBuilder}.
+	 * @param builder
+	 * @return
+	 * @implNote This may be removed in the future. It exists currently to deal with 
+	 *           the fact that the {@link ServiceLoader} used to identify builders 
+	 *           may not see those that are added via extensions.
+	 */
+	public static boolean registerBuilder(DnnModelBuilder<?> builder) {
+		if (builder != null)
+			return getBuilders().add(builder);
+		return false;
+	}
+	
+	
+	private static Set<DnnModelBuilder<?>> getBuilders() {
+		if (builders == null) {
+			synchronized (DnnModels.class) {
+				if (builders == null) {
+					builders = new LinkedHashSet<>();
+					for (DnnModelBuilder<?> builder : ServiceLoader.load(DnnModelBuilder.class)) {
+						builders.add(builder);
+					}
+				}
+			}
+		}
+		return builders;
+	}
+	
+	
+	/**
 	 * Build a {@link DnnModel} from the given parameters.
 	 * This queries all available {@linkplain DnnModelBuilder DnnModelBuilders} through a service loader.
 	 * @param <T>
@@ -98,7 +132,7 @@ public class DnnModels {
 	 * @return a new DnnModel, or null if no model could be built
 	 */
 	public static <T> DnnModel<T> buildModel(DnnModelParams params) {
-		for (DnnModelBuilder<?> builder : ServiceLoader.load(DnnModelBuilder.class)) {
+		for (DnnModelBuilder<?> builder : getBuilders()) {
 			try {
 				var model = builder.buildModel(params);
 				if (model != null)
