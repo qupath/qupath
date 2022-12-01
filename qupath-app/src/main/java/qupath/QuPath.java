@@ -118,7 +118,14 @@ public class QuPath {
 	 */
 	public static void main(String[] args) {
 		
+		// Set offline mode - used to prevent DJL downloading anything 
+		// except when explicitly requested
+		if (System.getProperty("offline", null) == null)
+			System.setProperty("offline", "true");
+
+		
 		QuPath qupath = new QuPath();
+				
 		CommandLine cmd = new CommandLine(qupath);
 		cmd.setCaseInsensitiveEnumValuesAllowed(true);
 //		cmd.setUnmatchedArgumentsAllowed(false);
