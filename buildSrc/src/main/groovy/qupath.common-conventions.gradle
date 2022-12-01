@@ -60,20 +60,6 @@ if ("32".equals(System.getProperty("sun.arch.data.model"))) {
     logger.warn("You may at least need to replace the OpenSlide dlls with 32-bit versions from https://openslide.org/download/")
 }
 
-// Check if we are running using Apple Silicon
-//String osName = System.properties['os.name']?.toLowerCase()
-String osArch = System.properties['os.arch']
-def isAppleSilicon = platform == 'mac' && osArch == 'aarch64'
-if (isAppleSilicon) {
-    project.logger.warn("""
-Apple Silicon support is experimental and incomplete!
-I will try to build anyway, but note that:
-- I may need to use a SNAPSHOT version of OpenCV (subject to change on each build)
-- Parts of the software relying on native libraries are unlikely to work (including OpenSlide)
-If you want to avoid these messages, please use a JDK for x86_64.
-	""".trim())
-}
-
 
 /*
  * Preserve the version number

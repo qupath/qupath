@@ -16,6 +16,12 @@ else if (djlEnginesProp == "none")
 else
 	djlEngines = djlEnginesProp.split(",").collect(e -> e.toLowerCase().strip()).findAll(e -> !e.isBlank())
 
+// Check for Apple Silicon - TensorFlow currently doesn't work there
+if ('tensorflow' in djlEngines && properties['platform.shortName'] == 'mac' && System.properties['os.arch'] == 'aarch64') {
+	println 'TensorFlow is not supported on Apple Silicon - engine will not be added'
+	djlEngines.remove('tensorflow')
+}
+	
 def djlApi = !djlEngines.isEmpty() || project.findProperty('djl.api')
 
 def djlZoosProp = project.findProperty('djl.zoos') ?: "all"

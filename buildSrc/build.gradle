@@ -9,7 +9,7 @@
  * <p>
  *     gradlew.bat clean jpackage
  * <p>
- * NOTE: This build requires OpenJDK 16 (since it contains jpackage).
+ * NOTE: This build requires OpenJDK 17+ (since it contains jpackage).
  * Gradle's toolchain options are used to overcome this: if you run gradlew with a different JDK,
  * gradle will use a different JDK for building QuPath itself (downloading it if necessary).
  */
@@ -34,5 +34,5 @@ gradlePlugin {
 
 dependencies {
     // Make Gradle plugin available to limit platform jars
-    implementation 'org.bytedeco:gradle-javacpp:1.5.7'
+    implementation 'org.bytedeco:gradle-javacpp:1.5.8'
 }

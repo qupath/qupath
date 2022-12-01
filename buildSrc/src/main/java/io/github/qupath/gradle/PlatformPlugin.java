@@ -30,6 +30,7 @@ public class PlatformPlugin implements Plugin<Project> {
     public enum Platform {
         WINDOWS("windows", "win", "natives-windows", "ico", "msi"),
         MAC("macosx", "mac", "natives-osx", "icns", "pkg"),
+        MAC_AARCH64("macosx", "mac", "natives-mac-aarch64", "icns", "pkg"),
         LINUX("linux", "linux", "natives-linux", "png", "deb"),
         UNKNOWN(null, null, null, null, null);
         
@@ -106,9 +107,11 @@ public class PlatformPlugin implements Plugin<Project> {
             return Platform.WINDOWS;
         else if (os.indexOf("nix") >= 0 || os.indexOf("nux") >= 0)
             return Platform.LINUX;
-        else if (os.indexOf("mac") >= 0)
+        else if (os.indexOf("mac") >= 0) {
+        	if ("aarch64".equalsIgnoreCase(System.getProperty("os.arch")))
+        		return Platform.MAC_AARCH64;
             return Platform.MAC;
-        else
+        } else
             return Platform.UNKNOWN;
     }
     

@@ -9,12 +9,23 @@ archivesBaseName = 'qupath-extension-openslide'
 description = "QuPath extension to support image reading using OpenSlide."
 
 String nativesClassifier = properties['platform.classifier']
+def openslidePath = project.findProperty("openslide")
 
 dependencies {
   implementation project(':qupath-core')
 
-  implementation "org.openslide:openslide:3.4.1_2"
-  if (nativesClassifier != null)
-    implementation "org.openslide:openslide:3.4.1_2:${nativesClassifier}"
+  if (openslidePath) {
+	  implementation files(openslidePath)
+  } else {
+	  if (nativesClassifier == 'natives-mac-aarch64') {
+		  println "QuPath + OpenSlide isn't supported on Apple Silicon - please build with -Popenslide=/path/to/openslide.jar"
+		  implementation "org.openslide:openslide:3.4.1_2"
+	  } else {
+		  // 'Normal' approach to using OpenSlide
+		  implementation "org.openslide:openslide:3.4.1_2"
+		  if (nativesClassifier != null)
+		    implementation "org.openslide:openslide:3.4.1_2:${nativesClassifier}"
+	  }
+  }
 
 }
