@@ -258,7 +258,7 @@ Here's an abridged version of the main changes, grouped by category.
 * Bio-Formats 6.11.0
 * Commonmark 0.21.0
 * ControlsFX 11.1.2
-* DeepJavaLibrary 0.19.0
+* DeepJavaLibrary 0.20.0
 * JavaFX 19.0.0
 * Java Topology Suite 1.19.0
 * Groovy 4.0.6
