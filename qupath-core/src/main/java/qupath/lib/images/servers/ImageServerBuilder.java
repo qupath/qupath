@@ -25,6 +25,8 @@ package qupath.lib.images.servers;
 
 import java.io.IOException;
 import java.net.URI;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -355,7 +357,9 @@ public interface ImageServerBuilder<T> {
 			} else {
 				return (ImageServer<T>)ImageServers.buildServer(uri, args);
 			}
-			String msg = "Unable to build ImageServer for " + uri + " (args=" + Arrays.asList(args) + ")";
+			String msg = "Unable to build ImageServer for " + URLDecoder.decode(uri.toString(), StandardCharsets.UTF_8);
+			if (args != null && args.length > 0)
+				msg += " (args=" + Arrays.asList(args) + ")";
 			if (providerClassName != null) {
 				if (!failedWithRequestedProvider)
 					msg += " - I couldn't find " + providerClassName;
