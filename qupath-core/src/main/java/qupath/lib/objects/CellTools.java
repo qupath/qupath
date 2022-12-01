@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -92,9 +93,12 @@ public class CellTools {
 	 * Results are returned as a new list of cells.
 	 * @param cells input cells
 	 * @return a new list of cells, potentially containing some of the original cells and other adjusted cells
+	 * 
+	 * @implNote It is <b>not</b> guaranteed that the cells that are output will be in the same order as the 
+	 *           input collection. This behavior may change in the future.
 	 */
 	public static List<PathObject> constrainCellOverlaps(Collection<? extends PathObject> cells) {
-		var map = new HashMap<PathObject, Geometry>();
+		var map = new LinkedHashMap<PathObject, Geometry>();
 		for (var cell : cells) {
 			if (!cell.isCell()) {
 				logger.warn("{} is not a cell - will be skipped!", cell);
@@ -112,12 +116,15 @@ public class CellTools {
 	 * @param distance the maximum distance (in pixels) to expand each nucleus
 	 * @param nucleusScale the maximum size of the cell relative to the nucleus (ignored if &le; 1).
 	 * @return cell objects derived from the supplied detections. This may have fewer entries if not all detections could be used successfully.
+	 * 
+	 * @implNote It is <b>not</b> guaranteed that the cells that are output will be in the same order as the 
+	 *           input collection. This behavior may change in the future.
 	 */
 	public static List<PathObject> detectionsToCells(Collection<? extends PathObject> detections, double distance, double nucleusScale) {
 		
 		var transform = new AffineTransformation();
 		
-		var map = new HashMap<PathObject, Geometry>();
+		var map = new LinkedHashMap<PathObject, Geometry>();
 		for (var detection : detections) {
 			var roiNucleus = PathObjectTools.getROI(detection, true);
 			var geomNucleus = roiNucleus.getGeometry();
