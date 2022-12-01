@@ -56,7 +56,9 @@ import org.slf4j.LoggerFactory;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.DoubleBinding;
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.beans.value.ChangeListener;
@@ -144,6 +146,9 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 
 	private static ObjectProperty<ProjectThumbnailSize> thumbnailSize = PathPrefs.createPersistentPreference("projectThumbnailSize",
 			ProjectThumbnailSize.SMALL, ProjectThumbnailSize.class);
+	
+	// Record if the context menu is showing; this is to block a tooltip obscuring it
+	private BooleanProperty contextMenuShowing = new SimpleBooleanProperty();
 	
 	/**
 	 * Metadata keys that will always be present
@@ -577,6 +582,9 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 					separator,
 					menuOpenDirectories);
 		}
+		
+		contextMenuShowing.bind(menu.showingProperty());
+		
 		return menu;
 	}
 	
@@ -1077,11 +1085,13 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 	}
 
 	private class ProjectTreeRowCell extends TreeCell<ProjectTreeRow> {
+		
 		private Tooltip tooltip = new Tooltip();
 		private StackPane label = new StackPane();
 		private ImageView viewTooltip = new ImageView();
 		private Canvas viewCanvas = new Canvas();
 		private ProjectTreeRow objectCell = null;
+		private BooleanProperty showTooltip = new SimpleBooleanProperty();
 		
 		private DoubleBinding viewWidth = Bindings.createDoubleBinding(
 				() -> thumbnailSize.get().getWidth(),
@@ -1101,15 +1111,19 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 			label.getChildren().add(viewCanvas);
 			label.prefWidthProperty().bind(viewCanvas.widthProperty());
 			label.prefHeightProperty().bind(viewCanvas.heightProperty());
+			// Avoid having the tooltip obscure any popup menu
+			tooltipProperty().bind(Bindings.createObjectBinding(() -> {
+				return showTooltip.get() && !contextMenuShowing.get() ? tooltip : null;
+			}, contextMenuShowing, showTooltip));
 		}
-
+		
 		@Override
 		public void updateItem(ProjectTreeRow item, boolean empty) {
 			super.updateItem(item, empty);
 			if (empty || item == null) {
                 setText(null);
                 setGraphic(null);
-                setTooltip(null);
+                showTooltip.set(false);
                 return;
             }
 
@@ -1139,13 +1153,13 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 			if (entry == null) {
 				setText(item.toString() + " (" + getTreeItem().getChildren().size() + ")");
 				tooltip.setText(item.toString());
-				setTooltip(tooltip);
+                showTooltip.set(true);
 				setGraphic(null);
 			} else {
 				setGraphic(null);
 				// Set whatever tooltip we have
 				tooltip.setGraphic(null);
-				setTooltip(tooltip);
+                showTooltip.set(true);
 
 				setText(entry.getImageName());
 				tooltip.setText(entry.getSummary());

@@ -350,6 +350,9 @@ public class BrushTool extends AbstractPathROITool {
 		if (requestPixelSnapping())
 			shapeDrawn = GeometryTools.roundCoordinates(shapeDrawn);
 		
+		// Make sure we don't have any linestrings/points
+		shapeDrawn = GeometryTools.ensurePolygonal(shapeDrawn);
+		
 		lastPoint = p;
 		try {
 			if (shapeROI != null) {
