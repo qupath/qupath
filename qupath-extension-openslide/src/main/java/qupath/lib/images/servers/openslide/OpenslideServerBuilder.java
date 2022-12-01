@@ -29,10 +29,11 @@ import java.net.URI;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
-import org.openslide.OpenSlide;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import qupath.lib.common.GeneralTools;
+import qupath.lib.common.LogTools;
 import qupath.lib.images.servers.FileFormatInfo;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerBuilder;
@@ -86,12 +87,22 @@ public class OpenslideServerBuilder implements ImageServerBuilder<BufferedImage>
 		}
 		try {
 			// Finally try to get the library version
-			logger.info("OpenSlide version {}", OpenSlide.getLibraryVersion());
-		}
-		catch (UnsatisfiedLinkError e) {
-			logger.error("Could not load OpenSlide native libraries", e);
-			logger.info("If you want to use OpenSlide, you'll need to get the native libraries (either building from source or with a packager manager)\n" +
-			"and add them to your system PATH, including openslide-jni.");
+			logger.info("OpenSlide version {}", org.openslide.OpenSlide.getLibraryVersion());
+		} catch (NoClassDefFoundError e) {
+			logger.warn("openslide.jar not found!");
+			openslideUnavailable = true;
+		} catch (UnsatisfiedLinkError e) {
+			if (GeneralTools.isMac() && "aarch64".equals(System.getProperty("os.arch"))) {
+				logger.warn("QuPath does not include OpenSlide for Apple silicon, sorry. \n"
+						+ "You may be able to solve this by installing openslide-java using homebrew, and then either\n"
+						+ "  1. copy the 'libopenslide-jni.jnilib' file to the QuPath app directory, or\n"
+						+ "  2. build QuPath from source using ./gradlew jpackage -Popenslide=/path/to/homebrew/installed/openslide.jar\n"
+						+ "Please see https://qupath.readthedocs.io for more information.");
+			} else {
+				logger.error("Could not load OpenSlide native libraries", e);
+				logger.info("If you want to use OpenSlide, you'll need to get the native libraries (either building from source or with a packager manager)\n" +
+				"and add them to your system PATH, including openslide-jni.");
+			}
 			openslideUnavailable = true;
 		}
 	}
@@ -106,6 +117,8 @@ public class OpenslideServerBuilder implements ImageServerBuilder<BufferedImage>
 			return new OpenslideImageServer(uri, args);
 		} catch (Exception e) {
 			logger.warn("Unable to open {} with OpenSlide: {}", uri, e.getLocalizedMessage());
+		} catch (NoClassDefFoundError e) {
+			logger.warn("openslide.jar not found!");
 		}
 		return null;
 	}
@@ -127,11 +140,13 @@ public class OpenslideServerBuilder implements ImageServerBuilder<BufferedImage>
 		
 		try {
 			File file = Paths.get(uri).toFile();
-			String vendor = OpenSlide.detectVendor(file);
+			String vendor = org.openslide.OpenSlide.detectVendor(file);
 			if (vendor == null)
 				return 0;
 		} catch (Exception e) {
 			logger.debug("Unable to read with OpenSlide: {}", e.getLocalizedMessage());
+		} catch (UnsatisfiedLinkError e) {
+			LogTools.warnOnce(logger, "OpenSlide is not available (" + e.getLocalizedMessage() + ")");
 		}
 		
 		// We can only handle RGB images with OpenSlide... so if we don't think it's RGB, use only as a last resort

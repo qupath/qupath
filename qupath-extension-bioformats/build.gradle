@@ -15,6 +15,11 @@ if (versionOverride) {
 	bioformatsVersion = versionOverride
 }
 
+String nativesClassifier = properties['platform.classifier']
+if (nativesClassifier == 'natives-mac-aarch64') {
+	println "WARNING! Bio-Formats does not fully support Apple Silicon (some .ndpi images are known to fail)"
+}
+
 
 dependencies {
 	// This can be used to include bioformats_package.jar - however it causes warnings with SLF4J

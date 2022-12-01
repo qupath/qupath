@@ -1000,7 +1000,7 @@ public class Dialogs {
 			// There's sometimes annoying visual bug in dark mode that results in a white/light 
 			// thin line at the bottom of the dialog - padding seems to fix it
 			if (Insets.EMPTY.equals(dialog.getDialogPane().getPadding()))
-				dialog.getDialogPane().setStyle("-fx-padding: 1px;");
+				dialog.getDialogPane().setStyle("-fx-background-insets: -1; -fx-padding: 1px;");
 			
 			return dialog;
 		}
