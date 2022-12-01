@@ -6,7 +6,7 @@ junit           = "5.9.1"
 javacpp         = "1.5.8"
 opencv          = "4.6.0-1.5.8"
 cuda            = "11.8-8.6-1.5.8"
-bioformats      = "6.11.0"
+bioformats      = "6.11.1"
 deepJavaLibrary = "0.20.0"
 
 [libraries]

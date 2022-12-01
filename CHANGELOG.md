@@ -1,8 +1,3 @@
-## We're hiring!
-
-**There are currently _four_ open positions to join the QuPath team - find out more in [our forum announcement](https://forum.image.sc/t/four-positions-in-the-qupath-team-research-software-engineer-postdoc/73705).**
-
-
 ## Version 0.4.0-SNAPSHOT
 
 Updating changelog, getting ever closer...
@@ -27,7 +22,8 @@ Updating changelog, getting ever closer...
   * *Transform annotations* command to rotate and/or translate some or all objects in an image
   * Ability to copy objects across images, or across z-slices/timepoints within an image
   * Specify a TMA grid (for when detection alone doesn't work)
-* Support for DICOM whole slide images (thanks to Bio-Formats 6.11.0)
+* Support for DICOM whole slide images (thanks to Bio-Formats 6.11.1)
+* Support (mostly) for building on recent M1/M2 Macs
 
 > #### Important!
 > 
@@ -255,7 +251,7 @@ Here's an abridged version of the main changes, grouped by category.
 ### Dependency updates
 * Adoptium OpenJDK 17
 * Apache Commons Text 1.10.0
-* Bio-Formats 6.11.0
+* Bio-Formats 6.11.1
 * Commonmark 0.21.0
 * ControlsFX 11.1.2
 * DeepJavaLibrary 0.20.0
