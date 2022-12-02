@@ -72,7 +72,7 @@ class Menus {
 	
 	private static final String URL_DOCS       = "https://qupath.readthedocs.io";
 	private static final String URL_VIDEOS     = "https://www.youtube.com/c/QuPath";
-	private static final String URL_CITATION   = "https://qupath.readthedocs.io/en/latest/docs/intro/citing.html";
+	private static final String URL_CITATION   = "https://qupath.readthedocs.io/en/0.4/docs/intro/citing.html";
 	private static final String URL_BUGS       = "https://github.com/qupath/qupath/issues";
 	private static final String URL_FORUM      = "https://forum.image.sc/tags/qupath";
 	private static final String URL_SOURCE     = "https://github.com/qupath/qupath";

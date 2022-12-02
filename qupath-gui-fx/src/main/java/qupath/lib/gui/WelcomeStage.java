@@ -49,6 +49,7 @@ import javafx.scene.text.Text;
 import javafx.scene.text.TextAlignment;
 import javafx.scene.text.TextFlow;
 import javafx.stage.Stage;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.prefs.PathPrefs.AutoUpdateType;
 import qupath.lib.gui.prefs.QuPathStyleManager;
@@ -97,7 +98,7 @@ class WelcomeStage {
 		var btnDocs = createGlyphButton(
 				"Docs",
 				Glyph.FILE_TEXT_ALT,
-				"https://qupath.readthedocs.io/"
+				"https://qupath.readthedocs.io/en/0.4"
 				);
 		
 		var btnForum = createGlyphButton(
@@ -209,7 +210,7 @@ class WelcomeStage {
 		paneOptions.add(separator2, 0, row++, GridPane.REMAINING, 1);
 
 		var linkCiting = new Hyperlink("Click here for details");
-		linkCiting.setOnAction(e -> QuPathGUI.launchBrowserWindow("https://qupath.readthedocs.io/en/latest/docs/intro/citing.html"));
+		linkCiting.setOnAction(e -> QuPathGUI.launchBrowserWindow("https://qupath.readthedocs.io/en/0.4/docs/intro/citing.html"));
 		var textCiting = new TextFlow(
 				new Text("Don't forget to cite the latest QuPath paper when you use the software!\n"),
 				linkCiting
@@ -236,6 +237,26 @@ class WelcomeStage {
 		row++;
 
 		PaneTools.setToExpandGridPaneWidth(comboThemes, comboUpdates, cbShowStartup, btnStarted, labelExplanation);
+		
+		if (GeneralTools.isMac() && "aarch64".equals(System.getProperty("os.arch"))) {
+			var textSiliconExperimental = new Text("QuPath for Apple silicon is experimental!\n");
+			textSiliconExperimental.setStyle("-fx-font-weight: bold; -fx-fill: -qp-script-error-color;");
+			var linkSilicon = new Hyperlink("Click here");
+			var textSiliconExperimental2 = new Text("for info about installing OpenSlide, or try the Intel build instead");
+			textSiliconExperimental2.setStyle("-fx-fill: -fx-text-base-color;");
+			linkSilicon.setOnAction(e -> QuPathGUI.launchBrowserWindow("https://qupath.readthedocs.io/en/0.4/docs/intro/installation.html"));
+			var textSilicon = new TextFlow(
+					textSiliconExperimental, linkSilicon, textSiliconExperimental2
+					);
+			textSilicon.setTextAlignment(TextAlignment.CENTER);
+			textSilicon.setOpacity(0.9);
+			var sepSilicon = new Separator(Orientation.HORIZONTAL);
+			sepSilicon.setPadding(new Insets(5, 5, 0, 5));
+			PaneTools.setToExpandGridPaneWidth(sepSilicon, textSilicon);
+			paneOptions.add(sepSilicon, 0, row++, GridPane.REMAINING, 1);
+			paneOptions.add(textSilicon, 0, row++, GridPane.REMAINING, 1);
+			row++;
+		}
 		
 		pane.setBottom(paneOptions);
 		pane.setPadding(new Insets(10));
