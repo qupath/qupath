@@ -1,6 +1,4 @@
-## Version 0.4.0-SNAPSHOT
-
-Updating changelog, getting ever closer...
+## Version 0.4.0
 
 ### Release highlights
 
