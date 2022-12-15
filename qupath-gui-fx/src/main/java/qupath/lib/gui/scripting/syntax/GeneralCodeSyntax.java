@@ -117,8 +117,14 @@ abstract class GeneralCodeSyntax implements ScriptSyntax {
 			if (text.length() >= caretPos + 1 && text.charAt(caretPos) == quotes.charAt(0))
 				control.deleteText(caretPos, caretPos + 1);
 			else {
-				control.insertText(control.getCaretPosition(), quotes);
-				control.positionCaret(control.getCaretPosition()-1);
+				// Insert close quote if the caret is both preceded and followed 
+				// by the start/end of the text, or by whitespace
+				boolean checkStart = caretPos <= 1 || Character.isWhitespace(text.charAt(caretPos-2));
+				boolean checkEnd = caretPos >= text.length() || Character.isWhitespace(text.charAt(caretPos));
+				if (checkStart && checkEnd) {
+					control.insertText(control.getCaretPosition(), quotes);
+					control.positionCaret(control.getCaretPosition()-1);
+				}
 			}
 		}
 	}
