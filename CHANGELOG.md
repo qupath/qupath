@@ -7,7 +7,7 @@ This is a *minor release* that aims to be fully compatible with v0.4.0 while fix
 * Extremely obscure issue with project list not updating when the toolbar has extra buttons (https://github.com/qupath/qupath/issues/1184)
 * Script editor commands 'Insert > Imports' do not work (https://github.com/qupath/qupath/issues/1183)
 * Smart quotes can be overly enthusiastic (https://github.com/qupath/qupath/issues/1188)
-
+* When starting to draw with the polygon tool, the first two points aren't connected (https://github.com/qupath/qupath/issues/1181)
 
 
 ## Version 0.4.0

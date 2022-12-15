@@ -450,7 +450,11 @@ public class PathHierarchyPaintingHelper {
 	
 
 	private static void paintROI(ROI pathROI, Graphics2D g, Color colorStroke, Stroke stroke, Color colorFill, double downsample) {
-		if (pathROI == null || pathROI.isEmpty())
+//		if (pathROI == null || (pathROI.isEmpty() && !(pathROI instanceof PolygonROI)))
+		// Reinstate drawing empty ROIs (removed in v0.4.0)
+		// Need to paint empty polygons, since otherwise they don't appear when starting to draw
+		// Potentially, all empty ROIs should be drawn
+		if (pathROI == null)
 			return;
 //		pathROI.draw(g, colorStroke, colorFill);
 		

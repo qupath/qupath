@@ -28,7 +28,6 @@ import java.awt.Color;
 import java.awt.Composite;
 import java.awt.Font;
 import java.awt.Graphics2D;
-import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.Shape;
 import java.awt.geom.Rectangle2D;
@@ -157,7 +156,7 @@ public class HierarchyOverlay extends AbstractOverlay {
 		int t = imageRegion.getT();
 		int z = imageRegion.getZ();
 		
-		Rectangle serverBounds = AwtTools.getBounds(imageRegion);
+//		Rectangle serverBounds = AwtTools.getBounds(imageRegion);
 		
 		// Ensure antialias is on...?
 		g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, defaultAntiAlias);
