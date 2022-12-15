@@ -5,6 +5,7 @@ This is a *minor release* that aims to be fully compatible with v0.4.0 while fix
 ### Bugs fixed
 * Script menus grow indefinitely with duplicates when switching from one to another (https://github.com/qupath/qupath/issues/1175)
 * Extremely obscure issue with project list not updating when the toolbar has extra buttons (https://github.com/qupath/qupath/issues/1184)
+* Script editor commands 'Insert > Imports' do not work (https://github.com/qupath/qupath/issues/1183)
 
 
 
