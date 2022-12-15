@@ -692,6 +692,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		model = new ProjectImageTreeModel(project);
 		tree.setRoot(model.getRoot());
 		tree.getRoot().setExpanded(true);
+		Platform.runLater(() -> tree.getParent().layout());
 		return true;
 	}
 	
