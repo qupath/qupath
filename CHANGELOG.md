@@ -1,3 +1,12 @@
+## Version 0.4.1
+
+This is a *minor release* that aims to be fully compatible with v0.4.0 while fixing bugs.
+
+### Bugs fixed
+* Extremely obscure issue with project list not updating when the toolbar has extra buttons (https://github.com/qupath/qupath/issues/1184)
+
+
+
 ## Version 0.4.0
 
 ### Release highlights
