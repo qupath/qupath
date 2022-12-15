@@ -121,6 +121,7 @@ import qupath.lib.gui.dialogs.Dialogs.DialogButton;
 import qupath.lib.gui.dialogs.ProjectDialogs;
 import qupath.lib.gui.logging.LogManager;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.scripting.languages.DefaultScriptLanguage;
 import qupath.lib.gui.scripting.languages.GroovyLanguage;
 import qupath.lib.gui.scripting.languages.HtmlRenderer;
 import qupath.lib.gui.scripting.languages.PlainLanguage;
@@ -135,6 +136,7 @@ import qupath.lib.images.ImageData;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectImageEntry;
 import qupath.lib.projects.Projects;
+import qupath.lib.scripting.QP;
 import qupath.lib.scripting.ScriptParameters;
 import qupath.lib.scripting.languages.ExecutableLanguage;
 import qupath.lib.scripting.languages.ScriptLanguage;
@@ -1968,14 +1970,40 @@ public class DefaultScriptEditor implements ScriptEditor {
 				control.replaceSelection(GeneralTools.SYMBOL_MU + "");
 			else {	
 				// TODO: fix
-//				// Imports (end with a new line)
-//				if (name.toLowerCase().equals("qpex"))
-//					control.insertText(0, "import static qupath.lib.gui.scripting.QPEx.*");
-//				else if (name.toLowerCase().equals("qp"))
-//					control.insertText(0, "import static qupath.lib.gui.scripting.QP.*");
-//				else if (name.toLowerCase().equals("all default"))
-//					control.insertText(0, QPEx.getDefaultImports(false)); 
-//				currentLanguage.get().getSyntax().handleNewLine(control, smartEditing.get());
+				// Imports (end with a new line)
+				Collection<Class<?>> classes = Collections.emptyList();
+				Collection<Class<?>> staticClasses = Collections.emptyList();
+				if (name.toLowerCase().equals("qpex"))
+					staticClasses = Collections.singletonList(QPEx.class);
+				else if (name.toLowerCase().equals("qp"))
+					staticClasses = Collections.singletonList(QP.class);
+				else if (name.toLowerCase().equals("all default")) {
+					classes = QPEx.getCoreClasses();
+				}				
+				// Use the current language if we can, or Groovy if not
+				var language = currentLanguage.get();
+				DefaultScriptLanguage defaultLanguage;
+				if (language instanceof DefaultScriptLanguage)
+					defaultLanguage = (DefaultScriptLanguage)language;
+				else
+					defaultLanguage = GroovyLanguage.getInstance();
+				
+				String lines = "";
+				if (!staticClasses.isEmpty()) {
+					lines = staticClasses.stream().map(c -> 
+						defaultLanguage.getStaticImportStatements(Collections.singletonList(c)))
+							.collect(Collectors.joining("\n"));					
+					if (lines.length() > 0)
+						lines += "\n";
+				}
+				if (!classes.isEmpty()) {
+					lines += classes.stream().map(c -> 
+						defaultLanguage.getImportStatements(Collections.singletonList(c)))
+							.collect(Collectors.joining("\n"));
+					if (lines.length() > 0)
+						lines += "\n";
+				}
+				control.replaceSelection(lines);
 			}
 			e.consume();
 		});

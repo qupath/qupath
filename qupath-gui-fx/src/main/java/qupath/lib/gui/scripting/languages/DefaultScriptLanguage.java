@@ -168,7 +168,7 @@ public class DefaultScriptLanguage extends ScriptLanguage implements ExecutableL
 		// Record if any extra lines are added to the script, to help match line numbers of any exceptions
 			
 		// Prepend default bindings if we need them
-		String importsString = getImportStatements(params.getDefaultImports()) + getStaticImportStatments(params.getDefaultStaticImports());
+		String importsString = getImportStatements(params.getDefaultImports()) + getStaticImportStatements(params.getDefaultStaticImports());
 		int extraLines = 0;
 		boolean defaultImportsAvailable = false;
 		if (importsString.isBlank())
@@ -465,7 +465,7 @@ public class DefaultScriptLanguage extends ScriptLanguage implements ExecutableL
 	 * @param classes	a collection of classes to import as static classes
 	 * @return import string
 	 */
-	public String getStaticImportStatments(Collection<Class<?>> classes) {
+	public String getStaticImportStatements(Collection<Class<?>> classes) {
 		if (classes != null && !classes.isEmpty()) {
 			var generator = getImportStatementGenerator();
 			if (generator != null)
