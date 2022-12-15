@@ -185,6 +185,7 @@ class ScriptMenuLoader {
 					Menu subMenu = MenuTools.createMenu(path.getFileName().toString());
 					subMenu.getItems().add(new MenuItem(NO_SCRIPTS_NAME));
 					subMenu.setOnMenuValidation(e -> {
+						subMenu.getItems().clear();
 						addMenuItemsForPath(subMenu, path);
 					});
 					items.add(subMenu);
