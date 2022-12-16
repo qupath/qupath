@@ -279,5 +279,44 @@ public class TestPathObject {
 	}
 	
 	
+	/**
+	 * For v0.4.0 (and likely before) this would throw a concurrent modification exception
+	 */
+	@Test
+	public void checkPathObjectSynchronization() {
+		var pathObject = PathObjects.createAnnotationObject(ROIs.createEmptyROI());
+		
+		int n = 1000;
+		int delay = 2;
+		var tAdd = new Thread(() -> addChildrenDelayed(pathObject, n, delay));
+		tAdd.setDaemon(true);
+		tAdd.start();
+		while (tAdd.isAlive()) {
+			pathObject.nDescendants();
+			pathObject.nChildObjects();
+			pathObject.getDescendantObjects(null);
+			try {
+				Thread.sleep(1);
+			} catch (InterruptedException e) {
+				fail();
+			}
+		}
+		assertEquals(pathObject.nDescendants(), n);
+	}
+	
+	
+	private static void addChildrenDelayed(PathObject pathObject, int n, int delayMillis) {
+		if (n == 0)
+			return;
+		for (int i = 0; i < n; i++) {
+			var child = PathObjects.createDetectionObject(ROIs.createEmptyROI());
+			pathObject.addChildObject(child);
+		}
+	}
+	
+	
+	
+	
+	
 
 }

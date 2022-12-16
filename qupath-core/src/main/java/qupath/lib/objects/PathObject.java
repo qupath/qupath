@@ -522,11 +522,11 @@ public abstract class PathObject implements Externalizable {
 	public int nDescendants() {
 		if (!hasChildObjects())
 			return 0;
-		// This could be used if needed - but with childList being synchronized I think it isn't necessary
-//		var childArray = getChildObjectsAsArray();
 		int total = 0;
-		for (var child : childList) {
-			total += 1 + child.nDescendants();
+		synchronized (childList) {
+			for (var child : childList) {
+				total += 1 + child.nDescendants();
+			}
 		}
 		return total;
 	}
@@ -680,10 +680,12 @@ public abstract class PathObject implements Externalizable {
 		if (descendants == null)
 			descendants = new ArrayList<>();
 //		descendants.addAll(childList);
-		for (var child : childList) {
-			descendants.add(child);
-			if (child.hasChildObjects())
-				child.getDescendantObjects(descendants);
+		synchronized (childList) {
+			for (var child : childList) {
+				descendants.add(child);
+				if (child.hasChildObjects())
+					child.getDescendantObjects(descendants);
+			}
 		}
 		return descendants;
 	}
