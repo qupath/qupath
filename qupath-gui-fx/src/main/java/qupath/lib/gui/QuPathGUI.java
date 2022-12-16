@@ -1712,16 +1712,18 @@ public class QuPathGUI {
 		var comboUpdates = new ComboBox<AutoUpdateType>();
 		comboUpdates.getItems().setAll(AutoUpdateType.values());
 		comboUpdates.getSelectionModel().select(PathPrefs.autoUpdateCheckProperty().get());
-		var labelUpdates = new Label("Check for updates:");
+		var labelUpdates = new Label("Check for updates on startup:");
 		labelUpdates.setLabelFor(comboUpdates);
 		labelUpdates.setAlignment(Pos.CENTER_RIGHT);
 		
 		var paneUpdates = new GridPane();
 		paneUpdates.add(labelUpdates, 0, 0);
 		paneUpdates.add(comboUpdates, 1, 0);
-		PaneTools.setToExpandGridPaneHeight(comboUpdates);
+		paneUpdates.setHgap(5);
+		PaneTools.setToExpandGridPaneWidth(comboUpdates);
 		paneUpdates.setPadding(new Insets(5, 0, 0, 0));
 		
+		var pane = new BorderPane(table);
 		pane.setBottom(paneUpdates);
 		
 		var result = new Dialogs.Builder()
@@ -1765,7 +1767,7 @@ public class QuPathGUI {
 			long currentTime = System.currentTimeMillis();
 			long lastUpdateCheck = PathPrefs.getUserPreferences().getLong("lastUpdateCheck", 0);
 			double diffHours = (double)(currentTime - lastUpdateCheck) / (60L * 60L * 1000L);
-			if (diffHours < 1) {
+			if (diffHours < 12) {
 				logger.debug("Skipping update check (I already checked recently)");
 				return;
 			}
