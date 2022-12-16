@@ -824,7 +824,7 @@ public class PathIO {
 	public static List<PathObject> readObjectsFromGeoJSON(InputStream stream) throws IOException, JsonSyntaxException, JsonParseException {
 		// Prepare template
 		var gson = GsonTools.getInstance();
-		try (var reader = new InputStreamReader(new BufferedInputStream(stream))) {
+		try (var reader = new InputStreamReader(new BufferedInputStream(stream), StandardCharsets.UTF_8)) {
 			var element = gson.fromJson(reader, JsonElement.class);
 			var pathObjects = new ArrayList<PathObject>();
 			addPathObjects(element, pathObjects, gson);
