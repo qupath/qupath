@@ -8,6 +8,7 @@ This is a *minor release* that aims to be fully compatible with v0.4.0 while fix
 * Script editor commands 'Insert > Imports' do not work (https://github.com/qupath/qupath/issues/1183)
 * Smart quotes can be overly enthusiastic (https://github.com/qupath/qupath/issues/1188)
 * When starting to draw with the polygon tool, the first two points aren't connected (https://github.com/qupath/qupath/issues/1181)
+* GeoJSON import with special characters can fail because of charset (https://github.com/qupath/qupath/issues/1174)
 
 
 ## Version 0.4.0

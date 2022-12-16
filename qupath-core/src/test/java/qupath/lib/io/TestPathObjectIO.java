@@ -89,6 +89,10 @@ public class TestPathObjectIO {
 		PathObject myPTO = PathObjects.createTileObject(roiTile, PathClass.getInstance("PathClassTest2", ColorTools.GREEN), null);
 		PathObject myTMA = PathObjects.createTMACoreObject(25, 25, 25, false);
 		
+		// Make things harder with non-ascii
+		// See https://github.com/qupath/qupath/issues/1174
+		myPAO.setName("my_nämé");
+		
 		Collection<PathObject> objs = Arrays.asList(myPDO, myPCO, myPAO, myPTO, myTMA);
 
 		
@@ -149,6 +153,7 @@ public class TestPathObjectIO {
 			} else if (po.isAnnotation()) {
 				assertEquals(po.getPathClass(), PathClass.getInstance("PathClassTest1", ColorTools.BLACK));
 				assertEquals(po.getID(), myPAO.getID());
+				assertEquals(po.getName(), myPAO.getName());
 				assertSameROIs(po.getROI(), roiAnnotation);
 				assertFalse(po.hasMeasurements());
 				countCheck[3]++;

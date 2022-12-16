@@ -30,6 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.awt.geom.AffineTransform;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Random;
@@ -145,7 +146,7 @@ public class TestRoiTools {
 	public void testTilingPerformance() {
 		
 		ROI roiMain = null;
-		try (var reader = new InputStreamReader(this.getClass().getResourceAsStream("/data/polygon.geojson"))) {
+		try (var reader = new InputStreamReader(this.getClass().getResourceAsStream("/data/polygon.geojson"), StandardCharsets.UTF_8)) {
 			roiMain = GsonTools.getInstance().fromJson(reader, ROI.class);
 		} catch (IOException e1) {
 			logger.warn("Unable to read polygon! Will try to generate one instead.");

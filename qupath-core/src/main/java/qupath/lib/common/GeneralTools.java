@@ -760,7 +760,7 @@ public final class GeneralTools {
 		connection.setConnectTimeout(timeoutMillis);
 		String contentType = connection.getContentType();
 		if (contentType.startsWith("text/plain")) {
-			try (BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()))) {
+			try (BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream(), StandardCharsets.UTF_8))) {
 				while ((line = in.readLine()) != null) 
 					response.append(line + "\n");
 			}

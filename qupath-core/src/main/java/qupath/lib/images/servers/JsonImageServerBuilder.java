@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 
@@ -78,7 +79,7 @@ public class JsonImageServerBuilder implements ImageServerBuilder<BufferedImage>
 
 	@Override
 	public ImageServer<BufferedImage> buildServer(URI uri, String...args) throws Exception {
-		try (Reader reader = new BufferedReader(new InputStreamReader(uri.toURL().openStream()))) {
+		try (Reader reader = new BufferedReader(new InputStreamReader(uri.toURL().openStream(), StandardCharsets.UTF_8))) {
 			ServerBuilder<BufferedImage> builder = GsonTools.getInstance().fromJson(reader, ServerBuilder.class);
 			return builder.build();
 //			return GsonTools.getGsonDefault().fromJson(reader, new TypeToken<ImageServer<BufferedImage>>() {}.getType());
