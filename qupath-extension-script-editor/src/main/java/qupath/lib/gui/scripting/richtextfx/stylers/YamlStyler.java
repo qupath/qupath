@@ -22,16 +22,11 @@
 package qupath.lib.gui.scripting.richtextfx.stylers;
 
 import java.io.StringReader;
-import java.util.ArrayDeque;
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
-import java.util.Deque;
 import java.util.Set;
 
 import org.fxmisc.richtext.CodeArea;
 import org.fxmisc.richtext.model.StyleSpans;
-import org.fxmisc.richtext.model.StyleSpansBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.yaml.snakeyaml.Yaml;
@@ -124,9 +119,9 @@ public class YamlStyler implements ScriptStyler {
 				}
 				
 				if (style != null) {
-					visitor.currentStyle.push(style);
+					visitor.push(style);
 					visitor.appendStyle(endInd);	
-					visitor.currentStyle.pop();
+					visitor.pop();
 				}
 			}
 		} catch (Exception e) {
@@ -151,54 +146,6 @@ public class YamlStyler implements ScriptStyler {
 		} catch (NumberFormatException e) {
 			return false;
 		}
-	}
-	
-
-	static class StyleSpanVisitor {
-
-		private String text;
-		
-		private StyleSpansBuilder<Collection<String>> spansBuilder = new StyleSpansBuilder<>();
-		private int[] lineSums;
-		private int lastInd;
-		
-		private Deque<String> currentStyle = new ArrayDeque<>();
-
-		StyleSpanVisitor(String text) {
-			this.text = text;
-//			this.currentStyle.add("code");
-			var lengths = text.lines().mapToInt(l -> l.length()+1).toArray();
-			lineSums = new int[lengths.length+1];
-			for (int i = 0; i < lengths.length; i++) {
-				lineSums[i+1] = lineSums[i] + lengths[i];
-			}
-//			currentStyle.add("yaml");
-		}
-		
-		public StyleSpans<Collection<String>> buildStyles() {
-			appendStyle(text.length(), true);
-			return spansBuilder.create();
-		}
-		
-		private void appendStyle(int untilInd) {
-			appendStyle(untilInd, false);
-		}
-		
-		private void appendStyle(int untilInd, boolean lastStyle) {
-			if (untilInd > lastInd || lastStyle) {
-				if (currentStyle.isEmpty())
-					spansBuilder.add(Collections.emptyList(), untilInd - lastInd);
-				else if (currentStyle.size() == 1)
-					spansBuilder.add(Collections.singletonList(currentStyle.peek()), untilInd - lastInd);
-				else
-					spansBuilder.add(new ArrayList<>(currentStyle), untilInd - lastInd);					
-				lastInd = untilInd;
-			} else if (untilInd == lastInd)
-				return;
-			else
-				throw new IllegalArgumentException("Cannot append empty style from " + lastInd + "-" + untilInd + " (must be ascending)");
-		}
-
 	}
 	
 }
