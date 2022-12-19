@@ -4,7 +4,10 @@ This is a *minor release* that aims to be fully compatible with v0.4.0 while fix
 
 ### Enhancements
 * Updated Groovy syntax highlighting
-  * Better supports Groovy syntax (more string types, highlights numbers)
+  * Better support Groovy syntax, including
+    * [Triple single-quoted strings](https://groovy-lang.org/syntax.html#_triple_single_quoted_string)
+    * [Dollar slashy strings](https://groovy-lang.org/syntax.html#_dollar_slashy_string)
+    * [String interpolation with `"${something}"` syntax](https://groovy-lang.org/syntax.html#_string_interpolation)
   * Avoids previous StackOverflowError (https://github.com/qupath/qupath/issues/1176)
 * Script editor fixes
   * Fix caret position when adding block comments

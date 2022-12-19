@@ -25,6 +25,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 import org.fxmisc.richtext.CodeArea;
 import org.fxmisc.richtext.model.StyleSpans;
@@ -229,6 +230,15 @@ public class GroovyStyler implements ScriptStyler {
 		return styles;
     }
 	
+	/**
+	 * Pattern for Groovy string interpolation using "${something here}" or "$something.else"
+	 * Note that this is basic & doesn't handle nested brackets.
+	 * (Requires negative lookbehind to handle escaped dollars, but does't check for number of 
+	 * escape characters)
+	 */
+	private static Pattern patternStringInterpolation = Pattern.compile("((?<!\\\\)\\$\\{[^}]*\\})|"
+			+ "((?<!\\\\)\\$[\\w\\.]+)");
+	
 	
 	/**
 	 * Handle a string block (Groovy supports different kinds - see https://groovy-lang.org/syntax.html#_string_summary_table )
@@ -240,7 +250,7 @@ public class GroovyStyler implements ScriptStyler {
 	 * @param buffer
 	 * @return
 	 */
-	private static int handleString(StyleSpanVisitor visitor, String text, int startInd, String startSequence, String endSequence, StringBuffer buffer) {
+	private int handleString(StyleSpanVisitor visitor, String text, int startInd, String startSequence, String endSequence, StringBuffer buffer) {
 		resetToken(buffer);
 		
 		boolean isMultiline = startSequence.length() > 1 || (startSequence.equals("'") || startSequence.equals("\""));
@@ -256,9 +266,29 @@ public class GroovyStyler implements ScriptStyler {
 		
 		if (endInd < 0)
 			endInd = text.length();
-		
+
+		// Start string styling
 		visitor.appendStyle(startInd);
 		visitor.push("string");
+
+		// Check for string interpolation
+		boolean canInterpolate = isGroovy && 
+				!startSequence.equals("'") && 
+				!startSequence.equals("'''") && 
+				!startSequence.equals("/$");
+		if (canInterpolate) {
+			String substring = text.substring(startInd, endInd);
+			if (substring.indexOf("$") >= 0) {
+				var matcher = patternStringInterpolation.matcher(substring);
+				while (matcher.find()) {
+					visitor.appendStyle(startInd + matcher.start());
+					visitor.pop();					
+					visitor.appendStyle(startInd + matcher.end());
+					visitor.push("string");					
+				}
+			}
+		}
+		
 		visitor.appendStyle(endInd);
 		visitor.pop();
 		return endInd - 1; // endInd really points to the next character - subtract one so we can then increment
