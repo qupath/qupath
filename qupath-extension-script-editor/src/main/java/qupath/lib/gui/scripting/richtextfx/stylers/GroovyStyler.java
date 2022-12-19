@@ -26,11 +26,12 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 
-import org.apache.commons.lang3.math.NumberUtils;
 import org.fxmisc.richtext.CodeArea;
 import org.fxmisc.richtext.model.StyleSpans;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.primitives.Doubles;
 
 /**
  * Styling to apply to a {@link CodeArea}, based on Groovy syntax.
@@ -136,17 +137,26 @@ public class GroovyStyler implements ScriptStyler {
 				}
 				break;
 			case '\'':
-				// Handle single quotes
+				// Handle single or triple single quotes
+				resetToken(buffer);
 				visitor.appendStyle(ind);
 				visitor.push("string");
-				ind++;
-				while (ind < n && chars[ind] != '\'' && chars[ind] != '\n')
+				if (ind < n - 2 && chars[ind+1] == '\'' && chars[ind+2] == '\'') {
+					// Handle triple single quotes
+					ind += 5;
+					while (ind < n && !(chars[ind] == '\'' && chars[ind-1] == '\'' && chars[ind-2] == '\''))
+						ind++;
+				} else {
+					// Handle single quotes
 					ind++;
+					while (ind < n && chars[ind] != '\'' && chars[ind] != '\n')
+						ind++;
+				}
 				visitor.appendStyle(ind+1);
-				visitor.pop();				
+				visitor.pop();	
 				break;
 			case '"':
-				// Handle double or triple quotes
+				// Handle double or triple double quotes
 				resetToken(buffer);
 				visitor.appendStyle(ind);
 				visitor.push("string");
@@ -213,7 +223,8 @@ public class GroovyStyler implements ScriptStyler {
 			if (s.length() == 1) {
 				isNumeric = Character.isDigit(s.charAt(0));
 			} else {
-				isNumeric = NumberUtils.isCreatable(s);
+				isNumeric = Doubles.tryParse(s) != null;
+//				isNumeric = NumberUtils.isCreatable(s); // Requires Apache commons-lang3
 			}
 			if (isNumeric) {
 				if (startInd > 0)
