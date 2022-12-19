@@ -286,7 +286,7 @@ public class RichScriptEditor extends DefaultScriptEditor {
 						var exception = t.getFailure();
 						String message = exception.getLocalizedMessage() == null ? exception.getClass().getSimpleName() : exception.getLocalizedMessage();
 						logger.error("Error applying syntax highlighting: {}", message);
-						logger.debug("{}", t);
+						logger.debug("", exception);
 						return Optional.empty();
 					})
 					.subscribe(styles -> codeArea.setStyleSpans(0, styles));

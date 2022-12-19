@@ -12,4 +12,5 @@ dependencies {
   implementation libs.bundles.markdown
   implementation libs.richtextfx
   implementation libs.snakeyaml
+  implementation libs.guava
 }

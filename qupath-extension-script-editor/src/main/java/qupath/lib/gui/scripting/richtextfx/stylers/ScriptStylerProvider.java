@@ -62,7 +62,12 @@ public class ScriptStylerProvider {
 	/**
 	 * Styler for Groovy
 	 */
-	public static final ScriptStyler GROOVY = new GroovyStyler();
+	public static final ScriptStyler GROOVY = GroovyStyler.createGroovyStyler();
+
+	/**
+	 * Styler for Java
+	 */
+	public static final ScriptStyler JAVA = GroovyStyler.createJavaStyler();
 
 	/**
 	 * Styler for JSON
@@ -100,6 +105,7 @@ public class ScriptStylerProvider {
 		}
 		stylers.add(PLAIN);
 		stylers.add(GROOVY);
+		stylers.add(JAVA);
 		stylers.add(MARKDOWN);
 		stylers.add(JSON);
 		stylers.add(PYTHON);

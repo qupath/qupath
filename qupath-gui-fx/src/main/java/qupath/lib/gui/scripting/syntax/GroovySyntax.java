@@ -102,6 +102,7 @@ class GroovySyntax extends GeneralCodeSyntax {
 			insertText = ind == 0 ? "\n" + subString.substring(0, indentation) + " * \n */" : "\n" + subString.substring(0, indentation) + " * \n" + subString.substring(0, indentation) + " */ ";
 			control.insertText(caretPos, insertText);
 			finalPos += insertText.length() - (indentation == 0 ? -1 : indentation) - 5;
+			control.positionCaret(finalPos);
 			return;
 		} else if (trimmedSubString.startsWith("*") && !trimmedSubString.contains("*/")) {	// Inside a comment block
 			insertText = ind == 0 ? "\n* " : "\n" + subString.substring(0, ind) + "* ";
