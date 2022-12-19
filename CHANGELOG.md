@@ -2,16 +2,22 @@
 
 This is a *minor release* that aims to be fully compatible with v0.4.0 while fixing bugs.
 
+### Enhancements
+* Updated Groovy syntax highlighting
+  * Better supports Groovy syntax (more string types, highlights numbers)
+  * Avoids previous StackOverflowError (https://github.com/qupath/qupath/issues/1176)
+* Script editor fixes
+  * Fix caret position when adding block comments
+  * Improve logic for automatically add closing quotes (https://github.com/qupath/qupath/issues/1188)
+
 ### Bugs fixed
 * Exception when checking for updates (https://github.com/qupath/qupath/issues/1191)
 * Script menus grow indefinitely with duplicates when switching from one to another (https://github.com/qupath/qupath/issues/1175)
 * Extremely obscure issue with project list not updating when the toolbar has extra buttons (https://github.com/qupath/qupath/issues/1184)
 * Script editor commands 'Insert > Imports' do not work (https://github.com/qupath/qupath/issues/1183)
-* Smart quotes can be overly enthusiastic (https://github.com/qupath/qupath/issues/1188)
 * When starting to draw with the polygon tool, the first two points aren't connected (https://github.com/qupath/qupath/issues/1181)
 * GeoJSON import with special characters can fail because of charset (https://github.com/qupath/qupath/issues/1174)
 * Counting object descendants sometimes causes a ConcurrentModificationException (https://github.com/qupath/qupath/issues/1182)
-* Groovy syntax highlighting can fail with StackOverflowError (https://github.com/qupath/qupath/issues/1176)
 
 
 

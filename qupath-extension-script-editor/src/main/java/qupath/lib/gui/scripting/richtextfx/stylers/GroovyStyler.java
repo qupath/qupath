@@ -34,7 +34,7 @@ import org.slf4j.LoggerFactory;
 import com.google.common.primitives.Doubles;
 
 /**
- * Styling to apply to a {@link CodeArea}, based on Groovy syntax.
+ * Styling to apply to a {@link CodeArea}, based on Groovy or Java syntax.
  * @author Pete Bankhead
  * @since v0.4.1
  * 
@@ -45,7 +45,10 @@ public class GroovyStyler implements ScriptStyler {
 	
 	private static final Logger logger = LoggerFactory.getLogger(GroovyStyler.class);
 	
-	private static final Set<String> KEYWORDS = new HashSet<>(Arrays.asList(
+	/**
+	 * Main keywords in Java
+	 */
+	private static final Set<String> JAVA_KEYWORDS = new HashSet<>(Arrays.asList(
             "abstract", "assert", "boolean", "break", "byte",
             "case", "catch", "char", "class", "const",
             "continue", "default", "do", "double", "else",
@@ -56,17 +59,47 @@ public class GroovyStyler implements ScriptStyler {
             "return", "short", "static", "strictfp", "super",
             "switch", "synchronized", "this", "throw", "throws",
             "transient", "try", "void", "volatile", "while",
-            "def", "in", "with", "trait", "true", "false", "var"
+            "true", "false", "var"
     ));
 	
 	/**
-	 * Constructor.
+	 * Additional keywords in Groovy
 	 */
-	GroovyStyler() {}
+	private static final Set<String> GROOVY_KEYWORDS = Set.of(
+			"def", "in", "with", "trait"
+			);
+	
+	
+	private boolean isGroovy;
+	
+	private GroovyStyler(boolean isGroovy) {
+		this.isGroovy = isGroovy;
+	}
+	
+	/**
+	 * Create a Groovy styler
+	 * @return
+	 */
+	static ScriptStyler createGroovyStyler() {
+		return new GroovyStyler(true);
+	}
+
+	/**
+	 * Create a Java styler; this is like a Groovy styler, but with some of Groovy's 
+	 * extra parts removed
+	 * @return
+	 */
+	static ScriptStyler createJavaStyler() {
+		return new GroovyStyler(false);
+	}
+
 	
 	@Override
 	public Set<String> getLanguageNames() {
-		return Set.of("groovy", "java");
+		if (isGroovy)
+			return Set.of("groovy");
+		else
+			return Set.of("java");
 	}
 	
 	
@@ -106,16 +139,6 @@ public class GroovyStyler implements ScriptStyler {
 				handleToken(visitor, ind, buffer);
 				handleSingleCharacterStyle(visitor, ind, "semicolon");
 				break;
-			case '\\':
-				if (lastChar == '\\') {
-					// Handle line comment
-					handleToken(visitor, ind-1, buffer);
-					visitor.appendStyle(ind-1);
-					visitor.push("comment");
-					while (ind < n && chars[ind] != '\n')
-						ind++;
-				}
-				break;
 			case ',':
 				handleToken(visitor, ind, buffer);
 				break;
@@ -138,41 +161,45 @@ public class GroovyStyler implements ScriptStyler {
 				break;
 			case '\'':
 				// Handle single or triple single quotes
-				resetToken(buffer);
-				visitor.appendStyle(ind);
-				visitor.push("string");
-				if (ind < n - 2 && chars[ind+1] == '\'' && chars[ind+2] == '\'') {
+				if (isGroovy && ind < n - 2 && chars[ind+1] == '\'' && chars[ind+2] == '\'') {
 					// Handle triple single quotes
-					ind += 5;
-					while (ind < n && !(chars[ind] == '\'' && chars[ind-1] == '\'' && chars[ind-2] == '\''))
-						ind++;
+					ind = handleString(visitor, text, ind, "'''", "'''", buffer);
 				} else {
 					// Handle single quotes
-					ind++;
-					while (ind < n && chars[ind] != '\'' && chars[ind] != '\n')
-						ind++;
+					ind = handleString(visitor, text, ind, "'", "'", buffer);
 				}
-				visitor.appendStyle(ind+1);
-				visitor.pop();	
 				break;
 			case '"':
-				// Handle double or triple double quotes
-				resetToken(buffer);
-				visitor.appendStyle(ind);
-				visitor.push("string");
-				if (ind < n - 2 && chars[ind+1] == '"' && chars[ind+2] == '"') {
-					// Handle triple quotes
-					ind += 5;
-					while (ind < n && !(chars[ind] == '"' && chars[ind-1] == '"' && chars[ind-2] == '"'))
-						ind++;
+				// Handle single or triple double quotes
+				if (isGroovy && ind < n - 2 && chars[ind+1] == '"' && chars[ind+2] == '"') {
+					// Handle triple double quotes
+					ind = handleString(visitor, text, ind, "\"\"\"", "\"\"\"", buffer);
 				} else {
 					// Handle double quotes
-					ind++;
-					while (ind < n && chars[ind] != '"' && chars[ind] != '\n')
-						ind++;
+					ind = handleString(visitor, text, ind, "\"", "\"", buffer);
 				}
-				visitor.appendStyle(ind+1);
-				visitor.pop();					
+				break;
+			case '/':
+				if (lastChar == '/') {
+					// Handle line comment
+					handleToken(visitor, ind-1, buffer);
+					visitor.appendStyle(ind-1);
+					visitor.push("comment");
+					while (ind < n && chars[ind] != '\n')
+						ind++;
+					visitor.appendStyle(ind);
+					visitor.pop();
+				} else if (isGroovy) {
+					// Possibly handle slashy string
+					if (ind > 0 && chars[ind-1] == '$') {
+						// Handle dollar slashy string
+						ind = handleString(visitor, text, ind-1, "/$", "/$", buffer);
+					} else if (ind < n-1 && chars[ind+1] != '*') {
+						// Don't try to handle a regular slashy string, since it causes trouble with the division operator 
+						// (and we don't have proper parsing to handle that)
+//						ind = handleString(visitor, text, ind, "/", "/", buffer);
+					}
+				}
 				break;
 			default:
 				// Check for token
@@ -180,7 +207,8 @@ public class GroovyStyler implements ScriptStyler {
 //				boolean isWhitespace = Character.isWhitespace(c);
 				boolean isBreakingCharacter = !Character.isLetterOrDigit(c) && 
 						c != '.' &&
-						c != '_';
+						c != '_' &&
+						c != '-'; // For negative numbers
 				if (!isBreakingCharacter) {
 					buffer.append(c);
 				}
@@ -196,10 +224,63 @@ public class GroovyStyler implements ScriptStyler {
 		
 		var styles = visitor.buildStyles();
 		long endTime = System.currentTimeMillis();
-		logger.info("Style time: {} (length={})", endTime - startTime, n);
+		logger.debug("Style time: {} (length={})", endTime - startTime, n);
 		
 		return styles;
     }
+	
+	
+	/**
+	 * Handle a string block (Groovy supports different kinds - see https://groovy-lang.org/syntax.html#_string_summary_table )
+	 * @param visitor
+	 * @param text
+	 * @param startInd
+	 * @param startSequence
+	 * @param endSequence
+	 * @param buffer
+	 * @return
+	 */
+	private static int handleString(StyleSpanVisitor visitor, String text, int startInd, String startSequence, String endSequence, StringBuffer buffer) {
+		resetToken(buffer);
+		
+		boolean isMultiline = startSequence.length() > 1 || (startSequence.equals("'") || startSequence.equals("\""));
+		char escapeChar = startSequence.equals("$/") ? '$' : '\\';
+		
+		int endInd = findNextEnd(text, startInd + startSequence.length(), endSequence, escapeChar);
+		
+		if (!isMultiline) {
+			int newlineInd = findNextEnd(text, startInd + startSequence.length(), "\n", escapeChar);
+			if (endInd < 0 || newlineInd < endInd)
+				endInd = newlineInd;
+		}
+		
+		if (endInd < 0)
+			endInd = text.length();
+		
+		visitor.appendStyle(startInd);
+		visitor.push("string");
+		visitor.appendStyle(endInd);
+		visitor.pop();
+		return endInd - 1; // endInd really points to the next character - subtract one so we can then increment
+	}
+	
+	
+	private static int findNextEnd(String text, int startInd, String endSequence, char escapeChar) {
+		int ind = text.indexOf(endSequence, startInd);
+		if (ind < 0)
+			return ind;
+		// Check if we end with an odd number of escape characters - if so, skip the sequence
+		int nEscapes = 0;
+		int indEscape = ind-1;
+		while (indEscape >= startInd && text.charAt(indEscape) == escapeChar) {
+			nEscapes++;
+			indEscape--;
+		}
+		if (nEscapes % 2 != 0)
+			return findNextEnd(text, ind+1, endSequence, escapeChar);
+		return ind + endSequence.length();
+	}
+	
 	
 	
 	private static void resetToken(StringBuffer buffer) {
@@ -207,11 +288,11 @@ public class GroovyStyler implements ScriptStyler {
 	}
 	
 	
-	private static void handleToken(StyleSpanVisitor visitor, int ind, StringBuffer buffer) {
-		if (!buffer.isEmpty()) {
+	private void handleToken(StyleSpanVisitor visitor, int ind, StringBuffer buffer) {
+		if (buffer.length() > 1) {
 			var s = buffer.toString();
 			int startInd = ind - s.length();
-			if (KEYWORDS.contains(s)) {
+			if (JAVA_KEYWORDS.contains(s) || (isGroovy && GROOVY_KEYWORDS.contains(s))) {
 				if (startInd > 0)
 					visitor.appendStyle(startInd);
 				visitor.push("keyword");
