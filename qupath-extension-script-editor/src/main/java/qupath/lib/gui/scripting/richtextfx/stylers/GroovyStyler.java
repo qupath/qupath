@@ -23,8 +23,11 @@ package qupath.lib.gui.scripting.richtextfx.stylers;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 
 import org.fxmisc.richtext.CodeArea;
@@ -158,7 +161,8 @@ public class GroovyStyler implements ScriptStyler {
 					}
 					visitor.appendStyle(ind);
 					visitor.pop();
-				}
+				} else
+					handleToken(visitor, ind, buffer);
 				break;
 			case '\'':
 				// Handle single or triple single quotes
@@ -199,8 +203,10 @@ public class GroovyStyler implements ScriptStyler {
 						// Don't try to handle a regular slashy string, since it causes trouble with the division operator 
 						// (and we don't have proper parsing to handle that)
 //						ind = handleString(visitor, text, ind, "/", "/", buffer);
+						handleToken(visitor, ind, buffer);
 					}
-				}
+				} else 
+					handleToken(visitor, ind, buffer);
 				break;
 			default:
 				// Check for token
@@ -238,6 +244,7 @@ public class GroovyStyler implements ScriptStyler {
 	 */
 	private static Pattern patternStringInterpolation = Pattern.compile("((?<!\\\\)\\$\\{[^}]*\\})|"
 			+ "((?<!\\\\)\\$[\\w\\.]+)");
+	
 	
 	
 	/**
@@ -319,7 +326,7 @@ public class GroovyStyler implements ScriptStyler {
 	
 	
 	private void handleToken(StyleSpanVisitor visitor, int ind, StringBuffer buffer) {
-		if (buffer.length() > 1) {
+		if (buffer.length() > 0) {
 			var s = buffer.toString();
 			int startInd = ind - s.length();
 			if (JAVA_KEYWORDS.contains(s) || (isGroovy && GROOVY_KEYWORDS.contains(s))) {
@@ -330,14 +337,7 @@ public class GroovyStyler implements ScriptStyler {
 				visitor.pop();
 			}
 			// Check for number
-			boolean isNumeric;
-			if (s.length() == 1) {
-				isNumeric = Character.isDigit(s.charAt(0));
-			} else {
-				isNumeric = Doubles.tryParse(s) != null;
-//				isNumeric = NumberUtils.isCreatable(s); // Requires Apache commons-lang3
-			}
-			if (isNumeric) {
+			if (isNumeric(s)) {
 				if (startInd > 0)
 					visitor.appendStyle(startInd);
 				visitor.push("number");
@@ -347,6 +347,39 @@ public class GroovyStyler implements ScriptStyler {
 		}
 		buffer.setLength(0);
 	}
+	
+	
+	/**
+	 * Pattern to match underscore, used to string underscores when checking if a number is valid
+	 */
+	private static Pattern patternUnderscore = Pattern.compile("_");
+	
+	private static Map<String, Boolean> numberTokenCache = new ConcurrentHashMap<>();
+	
+	/**
+	 * Check if a string represents a valid number
+	 * @param s
+	 * @return
+	 */
+	private static boolean isNumeric(String s) {
+		if (s.length() == 1)
+			return Character.isDigit(s.charAt(0));
+		// Strip underscores before checking a number can be parsed
+		// (Underscores allowed since Java 7)
+		// Since this could be expensive, cache results
+		var isNumeric = numberTokenCache.getOrDefault(s, null);
+		if (isNumeric == null) {
+			if (s.indexOf('_') > 0) {
+				var s2 = patternUnderscore.matcher(s).replaceAll("");
+				isNumeric = s2.length() > 0 && Doubles.tryParse(s2) != null;
+				numberTokenCache.put(s, isNumeric);
+				return isNumeric;
+			} else
+				return Doubles.tryParse(s) != null;
+		}
+		return isNumeric;
+	}
+	
 	
 	
 	private static void handleSingleCharacterStyle(StyleSpanVisitor visitor, int ind, String style) {
