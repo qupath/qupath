@@ -21,7 +21,7 @@ This is a *minor release* that aims to be fully compatible with v0.4.0 while fix
 * When starting to draw with the polygon tool, the first two points aren't connected (https://github.com/qupath/qupath/issues/1181)
 * GeoJSON import with special characters can fail because of charset (https://github.com/qupath/qupath/issues/1174)
 * Counting object descendants sometimes causes a ConcurrentModificationException (https://github.com/qupath/qupath/issues/1182)
-
+* Toolbar icons could sometimes turn black in dark mode (e.g. on hover)
 
 
 ## Version 0.4.0
