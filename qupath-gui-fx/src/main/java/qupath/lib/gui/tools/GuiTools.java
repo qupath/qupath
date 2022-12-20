@@ -286,9 +286,29 @@ public class GuiTools {
 	 * @since v0.4.0
 	 */
 	public static Glyph ensureDuplicatableGlyph(Glyph glyph) {
-		if (glyph instanceof DuplicatableGlyph)
+		return ensureDuplicatableGlyph(glyph, true);
+	}
+	
+	/**
+	 * Ensure that a {@link Glyph} is 'duplicatable', optionally retaining any fill.
+	 * This is needed to have glyphs that behave well with css styles. 
+	 * ControlsFX's default implementation tends to lose the fill color otherwise.
+	 * @param glyph the original glyph
+	 * @param useFill if true, use any text fill value for the glyph
+	 * @return
+	 * @since v0.4.1
+	 * @implNote This was introduced in v0.4.1 to try to work around a problem whereby 
+	 *           the glyph color could sometimes 'reset' to black (e.g. on hover).
+	 *           This was intermittent and confusing, but seemed somehow related to 
+	 *           requesting the {@code textFillProperty()}.
+	 *           Setting useFill to false means that this property is no longer 
+	 *           requested, which prevents its lazy initialization - and hopefully 
+	 *           reduces problems.
+	 */
+	public static Glyph ensureDuplicatableGlyph(Glyph glyph, boolean useFill) {
+		if (glyph instanceof DuplicatableGlyph && ((DuplicatableGlyph)glyph).useFill == useFill)
 			return glyph;
-		return new DuplicatableGlyph(glyph);
+		return new DuplicatableGlyph(glyph, useFill);
 	}
 	
 	
@@ -299,8 +319,11 @@ public class GuiTools {
 	 */
 	private static class DuplicatableGlyph extends Glyph {
 		
-		DuplicatableGlyph(Glyph glyph) {
+		private boolean useFill;
+		
+		DuplicatableGlyph(Glyph glyph, boolean useFill) {
 			super();
+			this.useFill = useFill;
 			setText(glyph.getText());
 			setFontFamily(glyph.getFontFamily());
 	        setIcon(glyph.getIcon());
@@ -313,16 +336,20 @@ public class GuiTools {
 	        // can be locked to become black.
 	        // Here, we check if it's a bound property; if so we use that.
 	        // Otherwise, we only set the value if the StyleOrigin is USER (otherwise we let the default be used)
-	        var textFill = glyph.textFillProperty();
-	        if (textFill.isBound())
-	        	textFillProperty().bind(glyph.textFillProperty());
-	        else if (textFill instanceof StyleableObjectProperty<?> && ((StyleableObjectProperty<?>)textFill).getStyleOrigin() == StyleOrigin.USER)
-	        	setTextFill(textFill.get());
+	        // Important! Even requesting the textFillProperty can be problematic, since it is lazily initialized!
+	        if (useFill) {
+		        var textFill = glyph.textFillProperty();
+		        if (textFill.isBound())
+		        	textFillProperty().bindBidirectional(glyph.textFillProperty());
+		        else if (textFill instanceof StyleableObjectProperty<?> && ((StyleableObjectProperty<?>)textFill).getStyleOrigin() == StyleOrigin.USER) {
+		        	setTextFill(textFill.get());
+		        }
+	        }
 		}
 		
 		@Override
 		public Glyph duplicate() {
-			return new DuplicatableGlyph(this);
+			return new DuplicatableGlyph(this, useFill);
 		}
 		
 	}

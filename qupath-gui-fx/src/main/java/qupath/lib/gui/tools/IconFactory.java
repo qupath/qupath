@@ -175,17 +175,23 @@ public class IconFactory {
 			Glyph g = font.create(code).size(size);
 			g.setIcon(code);
 			g.getStyleClass().add("qupath-icon");
+			boolean useFill = false;
 			if (observableColor == null || observableColor.getValue() == null) {
-				if (color != null)
+				if (color != null) {
 					g.color(color);
+					useFill = true;
+				}
 			} else {
 				// Respond to color changes
-				g = GuiTools.ensureDuplicatableGlyph(g);
+				g = GuiTools.ensureDuplicatableGlyph(g, false);
 				g.textFillProperty().bind(Bindings.createObjectBinding(() -> {
 					return ColorToolsFX.getCachedColor(observableColor.get());
 				}, observableColor));
+				useFill = true;
 			}
-			return GuiTools.ensureDuplicatableGlyph(g);
+			if (!useFill)
+				g.getStyleClass().add("use-text-fill");
+			return GuiTools.ensureDuplicatableGlyph(g, useFill);
 		}
 		
 	};
