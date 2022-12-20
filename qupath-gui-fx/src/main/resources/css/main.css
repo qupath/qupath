@@ -47,9 +47,21 @@
 
 
 /* Set icon colors */
-.qupath-icon,
+.toggle-button > .glyph-font,
+.toggle-button:selected > .glyph-font,
+.toggle-button:selected:hover > .glyph-font,
+.toggle-button:focused > .glyph-font,
+.toggle-button:focused:hover > .glyph-font,
+.toggle-button:hover > .glyph-font,
+.button:selected > .glyph-font,
+.button:selected:hover > .glyph-font,
+.button:focused > .glyph-font,
+.button:focused:hover > .glyph-font,
+.button:hover > .glyph-font,
+.glyph-icon,
 .glyph-font {
-  -fx-text-fill: -fx-text-background-color;
+    -fx-hover-base: -fx-text-base-color;
+    -fx-text-fill: -fx-text-base-color;
 }
 
 
