@@ -49,7 +49,7 @@
 /* Set icon colors */
 .qupath-icon,
 .glyph-font {
-  -fx-text-fill: -fx-text-base-color;
+  -fx-text-fill: -fx-text-background-color;
 }
 
 
