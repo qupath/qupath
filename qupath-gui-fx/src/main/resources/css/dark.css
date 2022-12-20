@@ -47,6 +47,11 @@
     ); */
 }
 
+.toggle-button:hover {
+	-fx-light-text-color: rgb(200, 200, 200);
+	-fx-text-fill: rgb(200, 200, 200);
+}
+
 .code-area * {
   -fx-highlight-fill: derive(-fx-base, 40%);
 }
