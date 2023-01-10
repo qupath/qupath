@@ -340,7 +340,7 @@ public class GuiTools {
 	        if (useFill) {
 		        var textFill = glyph.textFillProperty();
 		        if (textFill.isBound())
-		        	textFillProperty().bindBidirectional(glyph.textFillProperty());
+		        	textFillProperty().bind(glyph.textFillProperty());
 		        else if (textFill instanceof StyleableObjectProperty<?> && ((StyleableObjectProperty<?>)textFill).getStyleOrigin() == StyleOrigin.USER) {
 		        	setTextFill(textFill.get());
 		        }

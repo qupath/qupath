@@ -263,7 +263,7 @@ public class PixelClassifierUI {
 		
 		var detections = imageData.getHierarchy().getDetectionObjects();
 		if (detections.isEmpty()) {
-			Dialogs.showErrorMessage("Classify detections", "This command only support classifying detections, sorry");
+			Dialogs.showErrorMessage("Classify detections", "This command only supports classifying detections, sorry");
 			return false;
 		}
 		
