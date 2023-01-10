@@ -9,11 +9,11 @@ plugins {
 repositories {
     mavenCentral()
 
-    // May be required for snapshot ImageJ2 jars
+    // Required for scijava (including some QuPath jars)
     maven {
-        name 'ImageJ'
-        url 'https://maven.imagej.net/content/groups/public'
-    }
+    	name "SciJava"
+	    url "https://maven.scijava.org/content/repositories/releases"
+	}
 
     // Required for Bio-Formats
     maven {
