@@ -542,10 +542,6 @@ public class DefaultScriptEditor implements ScriptEditor {
 			tab.updateIsModified();
 		});
 		editor.selectedTextProperty().addListener((v, o, n) -> updateCutCopyActionState());
-		editor.getRegion().focusedProperty().addListener((v, o, n) -> {
-			if (n)
-				maybeRefreshTab(tab, false);
-		});
 		tab.isModifiedProperty().addListener((v, o, n) ->{
 			if (listScripts != null)
 				listScripts.refresh();
@@ -581,10 +577,6 @@ public class DefaultScriptEditor implements ScriptEditor {
 			tab.updateIsModified();
 		});
 		editor.selectedTextProperty().addListener((v, o, n) -> updateCutCopyActionState());
-		editor.getRegion().focusedProperty().addListener((v, o, n) -> {
-			if (n)
-				maybeRefreshTab(tab, false);
-		});
 		tab.isModifiedProperty().addListener((v, o, n) -> {
 			// Update the display of the list
 			if (listScripts != null)
@@ -664,6 +656,12 @@ public class DefaultScriptEditor implements ScriptEditor {
 //			return;
 
 		dialog = new Stage();
+		
+		dialog.focusedProperty().addListener((v, o, n) -> {
+			if (n)
+				maybeRefreshTab(getCurrentScriptTab(), false);
+		});
+
 //		dialog.setOnCloseRequest(e -> attemptToQuitScriptEditor());
 		if (qupath != null)
 			dialog.initOwner(qupath.getStage());
