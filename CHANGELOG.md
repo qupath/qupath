@@ -6,6 +6,8 @@ This is a *minor release* that aims to be fully compatible with v0.4.0 and v0.4.
 * Exception when setting point colors/classifications in v0.4.1 (https://github.com/qupath/qupath/issues/1202)
 * Setting the default object color in the preferences doesn't update the toolbar icons (https://github.com/qupath/qupath/issues/1203)
 * Setting a note for a TMA core doesn't initialize to use the existing value (https://github.com/qupath/qupath/issues/1206)
+* Script editor doesn't refresh when in focus (https://github.com/qupath/qupath/issues/1208)
+* 'A bound value cannot be set' exception when filtering measurement tables (https://github.com/qupath/qupath/issues/1209)
 
 
 ## Version 0.4.1

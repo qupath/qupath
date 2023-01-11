@@ -373,7 +373,7 @@ public class SummaryMeasurementTableCommand {
 				return;
 			}
 			for (TableColumn<?, ?> col : table.getColumns()) {
-				if (col == colThumbnails) // Retain thumbnails
+				if (col == colThumbnails || col.visibleProperty().isBound()) // Retain thumbnails
 					continue;
 				var name = col.getText().toLowerCase();
 				col.setVisible(name.contains(val));
