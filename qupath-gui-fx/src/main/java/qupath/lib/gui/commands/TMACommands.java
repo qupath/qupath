@@ -108,7 +108,7 @@ public class TMACommands {
 		}
 		
 		
-		String inputText = Dialogs.showInputDialog(title, prompt, currentText == null ? "" : null);
+		String inputText = Dialogs.showInputDialog(title, prompt, currentText == null ? "" : currentText);
 		if (inputText != null) {
 			for (var core : selectedCores)
 				core.putMetadataValue(NOTE_NAME, inputText);
