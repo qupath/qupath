@@ -52,6 +52,7 @@ import qupath.lib.common.Version;
 import qupath.lib.gui.BuildInfo;
 import qupath.lib.gui.ExtensionClassLoader;
 import qupath.lib.gui.QuPathApp;
+import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.extensions.Subcommand;
 import qupath.lib.gui.images.stores.ImageRegionStoreFactory;
 import qupath.lib.gui.logging.LogManager;
@@ -329,7 +330,7 @@ class ScriptCommand implements Runnable {
 			createTileCache();
 			
 			// Set classloader to include any available extensions
-			var extensionClassLoader = new ExtensionClassLoader();
+			var extensionClassLoader = (ExtensionClassLoader)QuPathGUI.getExtensionClassLoader();
 			extensionClassLoader.refresh();
 			ImageServerProvider.setServiceLoader(ServiceLoader.load(ImageServerBuilder.class, extensionClassLoader));
 			Thread.currentThread().setContextClassLoader(extensionClassLoader);
