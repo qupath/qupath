@@ -337,7 +337,7 @@ public class DefaultScriptLanguage extends ScriptLanguage implements ExecutableL
 					+ "It might indicate a QuPath bug (or just something wrong in the script).\n");
 		}
 		
-		var matcher = Pattern.compile("unable to resolve class ([A-Za-z_.-]+)").matcher(message);
+		var matcher = Pattern.compile("unable to resolve class ([A-Za-z0-9_.-]+)").matcher(message);
 		
 		if (matcher.find()) {
 			String missingClass = matcher.group(1).strip();

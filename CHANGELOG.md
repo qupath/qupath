@@ -8,6 +8,7 @@ This is a *minor release* that aims to be fully compatible with v0.4.0 and v0.4.
 * Setting a note for a TMA core doesn't initialize to use the existing value (https://github.com/qupath/qupath/issues/1206)
 * Script editor doesn't refresh when in focus (https://github.com/qupath/qupath/issues/1208)
 * 'A bound value cannot be set' exception when filtering measurement tables (https://github.com/qupath/qupath/issues/1209)
+* Extensions jars aren't loaded for batch scripts from the command line (https://github.com/qupath/qupath/issues/1211)
 
 
 ## Version 0.4.1
