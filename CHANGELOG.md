@@ -9,6 +9,7 @@ This is a *minor release* that aims to be fully compatible with v0.4.0 and v0.4.
 * Script editor doesn't refresh when in focus (https://github.com/qupath/qupath/issues/1208)
 * 'A bound value cannot be set' exception when filtering measurement tables (https://github.com/qupath/qupath/issues/1209)
 * Extensions jars aren't loaded for batch scripts from the command line (https://github.com/qupath/qupath/issues/1211)
+* Cancelling 'Search' when fixing URIs results in an exception (https://github.com/qupath/qupath/issues/1213)
 
 
 ## Version 0.4.1
