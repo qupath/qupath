@@ -214,6 +214,10 @@ public class UpdateUrisCommand<T extends UriResource> {
 		btnSearch.setTooltip(new Tooltip("Choose a directory & search recursively for images inside"));
 		btnSearch.setOnAction(e -> {
 			var dir = Dialogs.getChooser(GuiTools.getWindow(btnSearch)).promptForDirectory("Search directory", null);
+			if (dir == null) {
+				logger.debug("Search for URIs cancelled!");
+				return;
+			}
 			updater.searchPath(dir.toPath());
 //			UriUpdater.searchDirectoriesRecursive(dir, allItems, maxRecursiveSearchDepth, replacements);
 		});
