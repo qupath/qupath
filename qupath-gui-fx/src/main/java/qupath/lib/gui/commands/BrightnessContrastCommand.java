@@ -652,7 +652,7 @@ public class BrightnessContrastCommand implements Runnable, ChangeListener<Image
 		dialog.setMinWidth(300);
 		dialog.setMinHeight(400);
 		dialog.setMaxWidth(600);
-		dialog.setMaxHeight(800);
+//		dialog.setMaxHeight(800);
 		
 		updateTable();
 		
