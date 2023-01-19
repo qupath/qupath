@@ -1,4 +1,4 @@
-## Version 0.4.2-SNAPSHOT
+## Version 0.4.2
 
 This is a *minor release* that aims to be fully compatible with v0.4.0 and v0.4.1 while fixing bugs.
 
