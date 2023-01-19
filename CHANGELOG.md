@@ -2,6 +2,9 @@
 
 This is a *minor release* that aims to be fully compatible with v0.4.0 and v0.4.1 while fixing bugs.
 
+### Enhancements
+* Height of Brightness/Contrast pane is no longer limited to 800 pixels (https://github.com/qupath/qupath/issues/1201)
+
 ### Bugs fixed
 * Exception when setting point colors/classifications in v0.4.1 (https://github.com/qupath/qupath/issues/1202)
 * Setting the default object color in the preferences doesn't update the toolbar icons (https://github.com/qupath/qupath/issues/1203)
