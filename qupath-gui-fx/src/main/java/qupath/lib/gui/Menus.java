@@ -373,19 +373,18 @@ class Menus {
 
 		public final Action SEP_3 = ActionTools.createSeparator();
 
-		// TODO: ADD RECENT PROJECTS
 		@ActionDescription("Open an image in the current viewer, using a file chooser. " +
 				"You can also just drag the file on top of the viewer.")
 		@ActionMenu("Open...")
 		@ActionAccelerator("shortcut+o")
-		public final Action OPEN_IMAGE = createAction(() -> qupath.openImage(null, true, false));
+		public final Action OPEN_IMAGE = createAction(() -> qupath.promptToOpenImageFile());
 		
 		@ActionDescription("Open an image in the current viewer, by entering the path to the image. " +
 				"This can be used to add images that are not represented by local files (e.g. hosted by OMERO), " + 
 				"but beware that a compatible image reader needs to be available to interpret them.")
 		@ActionMenu("Open URI...")
 		@ActionAccelerator("shortcut+shift+o")
-		public final Action OPEN_IMAGE_OR_URL = createAction(() -> qupath.openImage(null, true, true));
+		public final Action OPEN_IMAGE_OR_URL = createAction(() -> qupath.promptToOpenImageFileOrUri());
 		
 		@ActionDescription("Reload any previously-saved data for the current image. " +
 				"This provides a more dramatic form of 'undo' (albeit without any 'redo' option).")
@@ -1050,7 +1049,7 @@ class Menus {
 
 		@ActionDescription("Check online for an updated QuPath release.")
 		@ActionMenu("Check for updates (web)")
-		public final Action UPDATE = createAction(() -> qupath.checkForUpdate(false));
+		public final Action UPDATE = createAction(() -> qupath.runManualUpdateCheck());
 
 		public final Action SEP_2 = ActionTools.createSeparator();
 		

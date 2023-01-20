@@ -132,7 +132,6 @@ import javafx.scene.control.TabPane.TabDragPolicy;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
-import javafx.scene.control.TextArea;
 import javafx.scene.control.TextInputControl;
 import javafx.scene.control.TitledPane;
 import javafx.scene.control.ToggleGroup;
@@ -271,9 +270,6 @@ public class QuPathGUI {
 	private static QuPathGUI instance;
 	
 	private ScriptEditor scriptEditor = null;
-	
-	// For development... don't run update check if running from a directory (rather than a Jar)
-	private boolean disableAutoUpdateCheck = new File(qupath.lib.gui.QuPathGUI.class.getProtectionDomain().getCodeSource().getLocation().getFile()).isDirectory();
 	
 	private static ExtensionClassLoader extensionClassLoader = new ExtensionClassLoader();
 	private ServiceLoader<QuPathExtension> extensionLoader = ServiceLoader.load(QuPathExtension.class, extensionClassLoader);
@@ -842,12 +838,10 @@ public class QuPathGUI {
 	 * If QuPath is launched, for example, from a running Fiji instance then isStandalone should be false.
 	 * 
 	 * @param services host services available during startup; may be null, but required for some functionality (e.g. opening a webpage in the host browser)
-	 * @param stage a stage to use for the main QuPath window (may be null)
-	 * @param path path of an image, project or data file to open (may be null)
+	 * @param stage a stage to use for the main QuPath window
 	 * @param isStandalone true if QuPath should be run as a standalone application
-	 * @param startupQuietly true if QuPath should start up without showing any messages or dialogs
 	 */
-	QuPathGUI(final HostServices services, final Stage stage, final String path, final boolean isStandalone, final boolean startupQuietly) {
+	private QuPathGUI(final HostServices services, final Stage stage, final boolean isStandalone) {
 		super();
 		
 		var timeit = new Timeit().start("Starting");
@@ -1000,12 +994,6 @@ public class QuPathGUI {
 		timeit.checkpoint("Refreshing extensions");
 		refreshExtensions(false);
 		
-		// Open an image, if required
-		if (path != null) {
-			timeit.checkpoint("Opening image");
-			openImage(path, false, false);
-		}
-		
 		// Set the icons
 		timeit.checkpoint("Setting icons");
 		stage.getIcons().addAll(loadIconList());
@@ -1071,10 +1059,6 @@ public class QuPathGUI {
 		long endTime = System.currentTimeMillis();
 		logger.debug("Startup time: {} ms", (endTime - startTime));
 				
-		// Show a startup message, if we have one
-		if (!startupQuietly)
-			showStartupMessage();
-		
 		// Add listeners to set default project and image data
 		imageDataProperty.addListener((v, o, n) -> QP.setDefaultImageData(n));
 		projectProperty.addListener((v, o, n) -> QP.setDefaultProject(n));
@@ -1086,7 +1070,6 @@ public class QuPathGUI {
 		} catch (Exception e) {
 			logger.error("Error running startup script", e);
 		}
-		
 		
 		if (Desktop.isDesktopSupported()) {
 			var desktop = Desktop.getDesktop();
@@ -1104,7 +1087,6 @@ public class QuPathGUI {
 		
 		// Refresh what we can if the locale changes
 		ChangeListener<Locale> localeListener = (v, o, n) -> updateListsAndTables();
-//		PathPrefs.defaultLocaleProperty() // Handled by update to other two
 		PathPrefs.defaultLocaleDisplayProperty().addListener(localeListener);
 		PathPrefs.defaultLocaleFormatProperty().addListener(localeListener);
 		
@@ -1112,29 +1094,6 @@ public class QuPathGUI {
 		QuPathStyleManager.refresh();
 		
 		logger.debug("{}", timeit.stop());
-		
-		
-		// Show setup if required
-		if (startupQuietly)
-			return;
-		
-		// If showing the welcome stage, don't check for updates until it is closed 
-		// since the user may change the preference at this point
-		if (PathPrefs.showStartupMessageProperty().get()) {
-			Platform.runLater(() -> {
-				var welcomeStage = WelcomeStage.getInstance(this);
-				if (!disableAutoUpdateCheck)
-					welcomeStage.setOnHidden(e -> {
-						checkForUpdate(true);
-						welcomeStage.setOnHidden(null);
-					});
-				welcomeStage.show();
-			});
-		} else {
-			// Do auto-update check
-			if (!disableAutoUpdateCheck)
-				checkForUpdate(true);
-		}
 	}
 	
 	/**
@@ -1154,9 +1113,6 @@ public class QuPathGUI {
 				var active = viewerManager.getActiveViewer();
 				if (active != null)
 					active.setSpaceDown(pressed.booleanValue());
-//				for (QuPathViewer viewer : viewerManager.getOpenViewers()) {
-//					viewer.setSpaceDown(pressed.booleanValue());
-//				}
 			}
 		}
 	}
@@ -1326,9 +1282,8 @@ public class QuPathGUI {
 			logger.info("Calling Platform.exit();");
 			Platform.exit();
 			// Something of an extreme option... :/
-			// Shouldn't be needed if we shut down everything properly, but here as a backup just in case... 
-			// (e.g. if ImageJ is running)
-			//						logger.info("Calling System.exit(0);");
+			// Shouldn't be needed if we shut down everything properly, but here as a backup just in case 
+			// (e.g. if ImageJ is running and this blocks exit)
 			System.exit(0);
 		}
 	}
@@ -1368,42 +1323,6 @@ public class QuPathGUI {
 	}
 	
 	
-	private void showStartupMessage() {
-		File fileStartup = new File("STARTUP.md");
-		if (!fileStartup.exists()) {
-			fileStartup = new File("app", fileStartup.getName());
-			if (!fileStartup.exists()) {
-				logger.trace("No startup file found in {}", fileStartup.getAbsolutePath());
-				return;
-			}
-		}
-		try {
-			TextArea textArea = new TextArea();
-			String text = GeneralTools.readFileAsString(fileStartup.getAbsolutePath());
-			textArea.setText(text);
-			textArea.setWrapText(true);
-			textArea.setEditable(false);
-			Platform.runLater(() -> {
-				Stage stage = new Stage();
-				stage.setTitle("QuPath");
-				stage.initOwner(getStage());
-				Scene scene = new Scene(textArea);
-				textArea.setPrefHeight(500);
-				stage.setScene(scene);
-				textArea.addEventHandler(MouseEvent.MOUSE_CLICKED, e -> {
-					if (e.getClickCount() == 2)
-						stage.hide();
-				});
-				stage.showAndWait();
-//				DisplayHelpers.showMessageDialog(
-//						"QuPath",
-//						textArea);
-			});
-		} catch (Exception e) {
-			logger.error("Error reading " + fileStartup.getAbsolutePath(), e);
-		}
-	}
-	
 	/**
 	 * Static method to launch QuPath on the JavaFX Application thread.
 	 * <p>
@@ -1430,6 +1349,11 @@ public class QuPathGUI {
 	@Deprecated
 	public static void launchQuPath(HostServices hostServices) {
 		launchQuPath(hostServices, true);
+	}
+	
+	
+	public static QuPathGUI launchQuPathStandalone(HostServices hostServices, Stage stage) {
+		return new QuPathGUI(hostServices, stage, true);
 	}
 	
 	/**
@@ -1464,7 +1388,7 @@ public class QuPathGUI {
 			System.out.println("Launching new QuPath instance...");
 			logger.info("Launching new QuPath instance...");
 			Stage stage = new Stage();
-			QuPathGUI qupath = new QuPathGUI(hostServices, stage, (String)null, false, false);
+			QuPathGUI qupath = new QuPathGUI(hostServices, stage, false);
 			qupath.getStage().show();
 			System.out.println("Done!");
 			return;
@@ -1748,35 +1672,36 @@ public class QuPathGUI {
 	
 	/**
 	 * Check for any updates.
-	 * 
-	 * @param isAutoCheck if true, the check will only be performed if the auto-update preferences allow it, 
-	 * 					  and the user won't be prompted if no update is available.
 	 */
-	void checkForUpdate(final boolean isAutoCheck) {
-		AutoUpdateType checkType;
-		if (isAutoCheck) {
-			// For automated checks, respect the user preferences for QuPath, extensions or neither
-			checkType = PathPrefs.autoUpdateCheckProperty().get();
-			boolean doAutoUpdateCheck = checkType != null && checkType != AutoUpdateType.NONE;
-			if (!doAutoUpdateCheck) {
-				logger.debug("No update check because of user preference ({})", checkType);
-				return;
-			}
-
-			// Don't run auto-update check again if we already checked within the last hour
-			long currentTime = System.currentTimeMillis();
-			long lastUpdateCheck = PathPrefs.getUserPreferences().getLong("lastUpdateCheck", 0);
-			double diffHours = (double)(currentTime - lastUpdateCheck) / (60L * 60L * 1000L);
-			if (diffHours < 12) {
-				logger.debug("Skipping update check (I already checked recently)");
-				return;
-			}
-		} else {
-			// Check everything when explicitly requested
-			logger.debug("Manually requested update check - will search for QuPath and extensions");
-			checkType = AutoUpdateType.QUPATH_AND_EXTENSIONS;
+	void runAutomaticUpdateCheck() {
+		// For automated checks, respect the user preferences for QuPath, extensions or neither
+		AutoUpdateType checkType = PathPrefs.autoUpdateCheckProperty().get();
+		boolean doAutoUpdateCheck = checkType != null && checkType != AutoUpdateType.NONE;
+		if (!doAutoUpdateCheck) {
+			logger.debug("No update check because of user preference ({})", checkType);
+			return;
 		}
+
+		// Don't run auto-update check again if we already checked within the last hour
+		long currentTime = System.currentTimeMillis();
+		long lastUpdateCheck = PathPrefs.getUserPreferences().getLong("lastUpdateCheck", 0);
+		double diffHours = (double)(currentTime - lastUpdateCheck) / (60L * 60L * 1000L);
+		if (diffHours < 12) {
+			logger.debug("Skipping update check (I already checked recently)");
+			return;
+		}
+		runUpdateCheckInBackground(checkType, true);
+	}
+	
+	
+	void runManualUpdateCheck() {
+		logger.debug("Manually requested update check - will search for QuPath and extensions");
+		AutoUpdateType checkType = AutoUpdateType.QUPATH_AND_EXTENSIONS;
+		runUpdateCheckInBackground(checkType, false);
+	}
+	
 		
+	private void runUpdateCheckInBackground(AutoUpdateType checkType, boolean isAutoCheck) {
 		// Run the check in a background thread
 		createSingleThreadExecutor(this).execute(() -> doUpdateCheck(checkType, isAutoCheck));
 	}
@@ -3066,23 +2991,43 @@ public class QuPathGUI {
 	
 	
 	/**
-	 * Open a new whole slide image server or ImageData.
-	 * If the path is the same as a currently-open server, do nothing.
+	 * Show a file chooser to open a new image in the current viewer.
 	 * <p>
 	 * If this encounters an exception, an error message will be shown.
-	 * @param pathNew 
-	 * @param prompt if true, give the user the opportunity to cancel opening if a whole slide server is already set
-	 * @param includeURLs 
-	 * @return true if the server was set for this GUI, false otherwise
+	 * 
+	 * @return true if the image was opened, false otherwise
 	 */
-	public boolean openImage(String pathNew, boolean prompt, boolean includeURLs) {
+	public boolean promptToOpenImageFile() {
 		try {
-			return openImage(getViewer(), pathNew, prompt, includeURLs);
+			return openImage(getViewer(), null, true, false);
 		} catch (IOException e) {
 			Dialogs.showErrorMessage("Open image", e);
 			return false;
 		}
 	}
+	
+	/**
+	 * Show a dialog to open a new image in the current viewer, with support 
+	 * for entering a URL (rather than requiring a local file only).
+	 * <p>
+	 * If this encounters an exception, an error message will be shown.
+	 * 
+	 * @return true if the image was opened, false otherwise
+	 */
+	public boolean promptToOpenImageFileOrUri() {
+		try {
+			return openImage(getViewer(), null, true, true);
+		} catch (IOException e) {
+			Dialogs.showErrorMessage("Open image", e);
+			return false;
+		}
+	}
+	
+	
+	public boolean openImage(QuPathViewer viewer, String pathNew) throws IOException {
+		return openImage(viewer, pathNew, false, false);
+	}
+	
 
 	/**
 	 * Open a new whole slide image server, or ImageData.

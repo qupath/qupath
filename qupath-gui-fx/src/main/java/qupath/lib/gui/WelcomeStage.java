@@ -281,7 +281,6 @@ class WelcomeStage {
 			}
 		});
 		
-		stage.show();
 		btnStarted.requestFocus();
 		
 		return stage;
