@@ -1,8 +1,8 @@
 [versions]
-groovy          = "4.0.6"
-javafx          = "19"
+groovy          = "4.0.7"
+javafx          = "19.0.2"
 ikonli          = "12.3.1"
-junit           = "5.9.1"
+junit           = "5.9.2"
 javacpp         = "1.5.8"
 opencv          = "4.6.0-1.5.8"
 cuda            = "11.8-8.6-1.5.8"
@@ -17,12 +17,12 @@ commons-math  = { module = "org.apache.commons:commons-math3",  version = "3.6.1
 commons-text  = { module = "org.apache.commons:commons-text",   version = "1.10.0" }
 controlsfx    = { module = "org.controlsfx:controlsfx",         version = "11.1.2" }
 
-gson          = { module = "com.google.code.gson:gson",         version = "2.10" }
+gson          = { module = "com.google.code.gson:gson",         version = "2.10.1" }
 guava         = { module = "com.google.guava:guava",            version = "31.1-jre" }
 
-imagej        = { module = "net.imagej:ij",                     version = "1.53v" }
+imagej        = { module = "net.imagej:ij",                     version = "1.54b" }
 
-jfreesvg      = { module = "org.jfree:org.jfree.svg",           version = "5.0.3" }
+jfreesvg      = { module = "org.jfree:org.jfree.svg",           version = "5.0.4" }
 jfxtras       = { module = "org.jfxtras:jfxtras-menu",          version = "11-r2" }
 jts           = { module = "org.locationtech.jts:jts-core",     version = "1.19.0" }
 
@@ -32,7 +32,7 @@ picocli       = { module = "info.picocli:picocli",              version = "4.7.0
 
 richtextfx    = { module = "org.fxmisc.richtext:richtextfx",    version = "0.11.0" }
 
-slf4j         = { module = "org.slf4j:slf4j-api",               version = "2.0.4" }
+slf4j         = { module = "org.slf4j:slf4j-api",               version = "2.0.6" }
 snakeyaml     = { module = "org.yaml:snakeyaml",                version = "1.33" }
 
 groovy-core   = { module = "org.apache.groovy:groovy",          version.ref = "groovy" }
@@ -67,5 +67,6 @@ yaml          = ["snakeyaml"]
 # Use the javafx plugin to add modules
 javacpp        = { id = "org.bytedeco.gradle-javacpp-platform",     version.ref = "javacpp" }
 javafx         = { id = "org.openjfx.javafxplugin",                 version = "0.0.13" }
-jpackage       = { id = "org.beryx.runtime",                        version = "1.12.7" }
+jpackage       = { id = "org.beryx.runtime",                        version = "1.13.0" } # Non-modular
+# jpackage       = { id = "org.beryx.jlink",                          version = "2.26.0" } # Modular
 license-report = { id = "com.github.jk1.dependency-license-report", version = "2.0" }

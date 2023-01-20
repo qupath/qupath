@@ -1,3 +1,15 @@
+## Version 0.5.0-SNAPSHOT
+
+This is a work-in-progress for the next QuPath release.
+
+### Dependency updates
+* Groovy 4.0.7
+* ImageJ 1.54b
+* JavaFX 19.0.2
+* JFreeSVG 5.0.4
+* SLF4J 2.0.6
+
+
 ## Version 0.4.2
 
 This is a *minor release* that aims to be fully compatible with v0.4.0 and v0.4.1 while fixing bugs.
