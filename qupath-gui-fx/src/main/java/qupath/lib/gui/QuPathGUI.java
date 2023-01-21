@@ -3764,13 +3764,6 @@ public class QuPathGUI {
 		return stage;
 	}
 	
-	public void updateMagnificationString() {
-		if (toolbar == null)
-			return;
-		toolbar.updateMagnificationDisplay(getViewer());
-	}
-	
-	
 	private String getDisplayedImageName(ImageData<BufferedImage> imageData) {
 		if (imageData == null)
 			return null;

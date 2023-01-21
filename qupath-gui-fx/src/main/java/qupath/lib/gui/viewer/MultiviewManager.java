@@ -216,7 +216,6 @@ public class MultiviewManager implements QuPathViewerListener {
 				lastDownsample = viewer.getDownsampleFactor();
 				lastRotation = viewer.getRotation();
 			}
-			qupath.updateMagnificationString();
 		}
 		logger.debug("Active viewer set to {}", viewer);
 		imageDataProperty.set(imageDataNew);
@@ -411,9 +410,6 @@ public class MultiviewManager implements QuPathViewerListener {
 			return;
 		if (viewer != getActiveViewer() || viewer.isImageDataChanging() || zoomToFit.get()) {
 			return;
-		} else {
-			// Update magnification info
-			qupath.updateMagnificationString();
 		}
 
 		QuPathViewerPlus activeViewer = getActiveViewer();
@@ -616,15 +612,6 @@ public class MultiviewManager implements QuPathViewerListener {
 		// Create popup menu
 		setViewerPopupMenu(viewer);
 		
-		
-		viewer.getView().widthProperty().addListener((e, f, g) -> {
-			if (viewer.getZoomToFit())
-				qupath.updateMagnificationString();
-		});
-		viewer.getView().heightProperty().addListener((e, f, g) -> {
-			if (viewer.getZoomToFit())
-				qupath.updateMagnificationString();
-		});
 		
 		// Enable drag and drop
 		qupath.getDefaultDragDropListener().setupTarget(viewer.getView());

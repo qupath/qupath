@@ -21,6 +21,8 @@
 
 package qupath.lib.gui;
 
+import java.awt.Shape;
+import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -49,130 +51,214 @@ import qupath.lib.gui.tools.IconFactory;
 import qupath.lib.gui.tools.IconFactory.PathIcons;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.QuPathViewer;
+import qupath.lib.gui.viewer.QuPathViewerListener;
 import qupath.lib.gui.viewer.QuPathViewerPlus;
 import qupath.lib.gui.viewer.tools.PathTool;
+import qupath.lib.images.ImageData;
+import qupath.lib.objects.PathObject;
 
 class ToolBarComponent {
-	
+
 	private static final Logger logger = LoggerFactory.getLogger(ToolBarComponent.class);
+
+	private QuPathGUI qupath;
+
+	/**
+	 * The toolbar consists of distinct sections
+	 */
+	private ObservableList<PathTool> availableTools;
+	private Map<PathTool, Node> toolMap = new WeakHashMap<>();
+
+	private int toolIdx;
+
+
+	private ToolBar toolbar = new ToolBar();
+
+	ToolBarComponent(final QuPathGUI qupath) {
+		this.qupath = qupath;
+
+		logger.trace("Initializing toolbar");
 		
-		private QuPathGUI qupath;
+		var magLabel = new ViewerMagnificationLabel();
+		qupath.viewerProperty().addListener((v, o, n) -> magLabel.setViewer(n));
+		magLabel.setViewer(qupath.getViewer());
+
+		availableTools = qupath.getAvailableTools();
+		availableTools.addListener((Change<? extends PathTool> v) -> updateToolbar());
+
+		var actionManager = qupath.getDefaultActions();		
+
+		// Show analysis panel
+		List<Node> nodes = new ArrayList<>();
+		nodes.add(ActionTools.createToggleButton(actionManager.SHOW_ANALYSIS_PANE, true, null, true));
+		nodes.add(new Separator(Orientation.VERTICAL));
+
+		// Record index where tools start
+		toolIdx = nodes.size();
+
+		addToolButtons(nodes, availableTools);
+
+		nodes.add(new Separator(Orientation.VERTICAL));
+
+		nodes.add(ActionTools.createToggleButton(actionManager.SELECTION_MODE, true, null, PathPrefs.selectionModeProperty().get()));			
+
+		nodes.add(new Separator(Orientation.VERTICAL));
+
+		nodes.add(ActionTools.createButton(actionManager.BRIGHTNESS_CONTRAST, true));
+
+		nodes.add(new Separator(Orientation.VERTICAL));
+
+		nodes.add(magLabel);
+		nodes.add(ActionTools.createToggleButton(actionManager.ZOOM_TO_FIT, true, false));
+
+		nodes.add(new Separator(Orientation.VERTICAL));
+
+		OverlayOptions overlayOptions = qupath.getOverlayOptions();
+		nodes.add(ActionTools.createToggleButton(actionManager.SHOW_ANNOTATIONS, true, overlayOptions.getShowAnnotations()));
+		nodes.add(ActionTools.createToggleButton(actionManager.SHOW_NAMES, true, overlayOptions.getShowNames()));
+		nodes.add(ActionTools.createToggleButton(actionManager.SHOW_TMA_GRID, true, overlayOptions.getShowTMAGrid()));
+		nodes.add(ActionTools.createToggleButton(actionManager.SHOW_DETECTIONS, true, overlayOptions.getShowDetections()));
+		nodes.add(ActionTools.createToggleButton(actionManager.FILL_DETECTIONS, true, overlayOptions.getFillDetections()));
+		nodes.add(ActionTools.createToggleButton(actionManager.SHOW_PIXEL_CLASSIFICATION, true, overlayOptions.getShowPixelClassification()));
+
+		final Slider sliderOpacity = new Slider(0, 1, 1);
+		sliderOpacity.valueProperty().bindBidirectional(overlayOptions.opacityProperty());
+		sliderOpacity.setTooltip(new Tooltip("Overlay opacity"));
+		nodes.add(sliderOpacity);
+
+		nodes.add(new Separator(Orientation.VERTICAL));
+
+
+		Button btnMeasure = new Button();
+		btnMeasure.setGraphic(IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, PathIcons.TABLE));
+		btnMeasure.setTooltip(new Tooltip("Show measurements table"));
+		ContextMenu popupMeasurements = new ContextMenu();
+
+		popupMeasurements.getItems().addAll(
+				ActionTools.createMenuItem(qupath.getDefaultActions().MEASURE_TMA),
+				ActionTools.createMenuItem(qupath.getDefaultActions().MEASURE_ANNOTATIONS),
+				ActionTools.createMenuItem(qupath.getDefaultActions().MEASURE_DETECTIONS)
+				);
+		btnMeasure.setOnMouseClicked(e -> {
+			popupMeasurements.show(btnMeasure, e.getScreenX(), e.getScreenY());
+		});
+
+		nodes.add(btnMeasure);
+
+		nodes.add(new Separator(Orientation.VERTICAL));
+
+		// TODO: Check if viewer really needed...
+		QuPathViewerPlus viewer = qupath.getViewer();
+		nodes.add(ActionTools.createToggleButton(actionManager.SHOW_OVERVIEW, true, viewer.isOverviewVisible()));
+		nodes.add(ActionTools.createToggleButton(actionManager.SHOW_LOCATION, true, viewer.isLocationVisible()));
+		nodes.add(ActionTools.createToggleButton(actionManager.SHOW_SCALEBAR, true, viewer.isScalebarVisible()));
+		nodes.add(ActionTools.createToggleButton(actionManager.SHOW_GRID, true, overlayOptions.getShowGrid()));
+
+		// Add preferences button
+		nodes.add(new Separator(Orientation.VERTICAL));
+		nodes.add(ActionTools.createButton(qupath.lookupActionByText("Preferences..."), true));
+
+		toolbar.getItems().setAll(nodes);
+	}
+
+
+	void updateToolbar() {
+		// Snapshot all existing nodes
+		var nodes = new ArrayList<>(toolbar.getItems());
+		// Remove all the tools
+		nodes.removeAll(toolMap.values());
+		// Add all the tools as they currently are
+		addToolButtons(nodes, availableTools);
+		// Update the items
+		toolbar.getItems().setAll(nodes);
+	}
+
+
+	private void addToolButtons(List<Node> nodes, List<PathTool> tools) {
+
+		int ind = toolIdx;
+
+		for (var tool : tools) {
+			var action = qupath.getToolAction(tool);
+			var btnTool = toolMap.get(tool);
+			if (btnTool == null) {
+				btnTool = ActionTools.createToggleButton(action, action.getGraphic() != null);
+				toolMap.put(tool, btnTool);
+			}
+			nodes.add(ind++, btnTool);
+		}
+
+	}
+
+	
+	ToolBar getToolBar() {
+		return toolbar;
+	}
+
+	
+	private static class ViewerMagnificationLabel extends Label implements QuPathViewerListener {
 		
-		private double lastMagnification = Double.NaN;
+		private QuPathViewer viewer;
 		
-		private Label labelMag = new Label("1x");
+		private static String defaultText = "1x";
+		
 		private Tooltip tooltipMag = new Tooltip("Current magnification - double-click to set");
 		
-		/**
-		 * The toolbar consists of distinct sections
-		 */
-		private ObservableList<PathTool> availableTools;
-		private Map<PathTool, Node> toolMap = new WeakHashMap<>();
-		
-		private int toolIdx;
-		
-		
-		private ToolBar toolbar = new ToolBar();
-		
-		ToolBarComponent(final QuPathGUI qupath) {
-			this.qupath = qupath;
-			
-			logger.trace("Initializing toolbar");
-			
-			availableTools = qupath.getAvailableTools();
-			availableTools.addListener((Change<? extends PathTool> v) -> updateToolbar());
-			
-			var actionManager = qupath.getDefaultActions();
-			
-			labelMag.setTooltip(tooltipMag);
-			labelMag.setPrefWidth(60);
-			labelMag.setMinWidth(60);
-			labelMag.setMaxWidth(60);
-			labelMag.setTextAlignment(TextAlignment.CENTER);
-			
-			labelMag.setOnMouseEntered(e -> refreshMagnificationTooltip());
-			
-			labelMag.setOnMouseClicked(e -> {
+		private ViewerMagnificationLabel() {
+			setTooltip(tooltipMag);
+			setPrefWidth(60);
+			setMinWidth(60);
+			setMaxWidth(60);
+			setTextAlignment(TextAlignment.CENTER);
+			setOnMouseEntered(e -> refreshMagnificationTooltip());
+			setOnMouseClicked(e -> {
 				if (e.getClickCount() == 2)
 					promptToUpdateMagnification();
 			});
-			
-			// Show analysis panel
-			List<Node> nodes = new ArrayList<>();
-			nodes.add(ActionTools.createToggleButton(actionManager.SHOW_ANALYSIS_PANE, true, null, true));
-			nodes.add(new Separator(Orientation.VERTICAL));
-			
-			// Record index where tools start
-			toolIdx = nodes.size();
-			
-			addToolButtons(nodes, availableTools);
-						
-			nodes.add(new Separator(Orientation.VERTICAL));
-			
-			nodes.add(ActionTools.createToggleButton(actionManager.SELECTION_MODE, true, null, PathPrefs.selectionModeProperty().get()));			
-			
-			nodes.add(new Separator(Orientation.VERTICAL));
-
-			nodes.add(ActionTools.createButton(actionManager.BRIGHTNESS_CONTRAST, true));
-			
-			nodes.add(new Separator(Orientation.VERTICAL));
-			
-			nodes.add(labelMag);
-			nodes.add(ActionTools.createToggleButton(actionManager.ZOOM_TO_FIT, true, false));
-
-			nodes.add(new Separator(Orientation.VERTICAL));
-			
-			OverlayOptions overlayOptions = qupath.getOverlayOptions();
-			nodes.add(ActionTools.createToggleButton(actionManager.SHOW_ANNOTATIONS, true, overlayOptions.getShowAnnotations()));
-			nodes.add(ActionTools.createToggleButton(actionManager.SHOW_NAMES, true, overlayOptions.getShowNames()));
-			nodes.add(ActionTools.createToggleButton(actionManager.SHOW_TMA_GRID, true, overlayOptions.getShowTMAGrid()));
-			nodes.add(ActionTools.createToggleButton(actionManager.SHOW_DETECTIONS, true, overlayOptions.getShowDetections()));
-			nodes.add(ActionTools.createToggleButton(actionManager.FILL_DETECTIONS, true, overlayOptions.getFillDetections()));
-			nodes.add(ActionTools.createToggleButton(actionManager.SHOW_PIXEL_CLASSIFICATION, true, overlayOptions.getShowPixelClassification()));
-
-			final Slider sliderOpacity = new Slider(0, 1, 1);
-			sliderOpacity.valueProperty().bindBidirectional(overlayOptions.opacityProperty());
-			sliderOpacity.setTooltip(new Tooltip("Overlay opacity"));
-			nodes.add(sliderOpacity);
-			
-			nodes.add(new Separator(Orientation.VERTICAL));
-			
-			
-			Button btnMeasure = new Button();
-			btnMeasure.setGraphic(IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, PathIcons.TABLE));
-			btnMeasure.setTooltip(new Tooltip("Show measurements table"));
-			ContextMenu popupMeasurements = new ContextMenu();
-			
-			popupMeasurements.getItems().addAll(
-					ActionTools.createMenuItem(qupath.getDefaultActions().MEASURE_TMA),
-					ActionTools.createMenuItem(qupath.getDefaultActions().MEASURE_ANNOTATIONS),
-					ActionTools.createMenuItem(qupath.getDefaultActions().MEASURE_DETECTIONS)
-					);
-			btnMeasure.setOnMouseClicked(e -> {
-				popupMeasurements.show(btnMeasure, e.getScreenX(), e.getScreenY());
-			});
-			
-			nodes.add(btnMeasure);
-			
-			nodes.add(new Separator(Orientation.VERTICAL));
-			
-			// TODO: Check if viewer really needed...
-			QuPathViewerPlus viewer = qupath.getViewer();
-			nodes.add(ActionTools.createToggleButton(actionManager.SHOW_OVERVIEW, true, viewer.isOverviewVisible()));
-			nodes.add(ActionTools.createToggleButton(actionManager.SHOW_LOCATION, true, viewer.isLocationVisible()));
-			nodes.add(ActionTools.createToggleButton(actionManager.SHOW_SCALEBAR, true, viewer.isScalebarVisible()));
-			nodes.add(ActionTools.createToggleButton(actionManager.SHOW_GRID, true, overlayOptions.getShowGrid()));
-			
-			// Add preferences button
-			nodes.add(new Separator(Orientation.VERTICAL));
-			nodes.add(ActionTools.createButton(qupath.lookupActionByText("Preferences..."), true));
-			
-			toolbar.getItems().setAll(nodes);
+		}
+		
+		private void setViewer(QuPathViewer viewer) {
+			if (this.viewer == viewer)
+				return;
+			if (this.viewer != null)
+				this.viewer.removeViewerListener(this);
+			this.viewer = viewer;
+			if (this.viewer != null)
+				this.viewer.addViewerListener(this);
+			updateMagnificationString();
+		}
+		
+		private void updateMagnificationString() {
+			if (!Platform.isFxApplicationThread()) {
+				Platform.runLater(() -> updateMagnificationString());
+				return;
+			}
+			if (viewer == null || viewer.getImageData() == null) {
+				setText(defaultText);
+				return;
+			}
+			// Update magnification info
+			double mag = viewer.getMagnification();
+			setText(GuiTools.getMagnificationString(viewer));
 		}
 		
 		
-		void promptToUpdateMagnification() {
-			QuPathViewer viewer = qupath.getViewer();
+		private void refreshMagnificationTooltip() {
+			// Ensure we have the right tooltip for magnification
+			if (tooltipMag == null || viewer == null)
+				return;
+			var imageData = viewer.getImageData();
+			var mag = imageData == null ? null : imageData.getServer().getMetadata().getMagnification();
+			if (imageData == null)
+				tooltipMag.setText("Magnification");
+			else if (mag != null && !Double.isNaN(mag))
+				tooltipMag.setText("Display magnification - double-click to edit");
+			else
+				tooltipMag.setText("Display scale value - double-click to edit");
+		}
+
+		
+		private void promptToUpdateMagnification() {
 			if (viewer == null || !viewer.hasServer())
 				return;
 			double fullMagnification = viewer.getServer().getMetadata().getMagnification();
@@ -198,65 +284,28 @@ class ToolBarComponent {
 			}
 		}
 		
-		void updateToolbar() {
-			// Snapshot all existing nodes
-			var nodes = new ArrayList<>(toolbar.getItems());
-			// Remove all the tools
-			nodes.removeAll(toolMap.values());
-			// Add all the tools as they currently are
-			addToolButtons(nodes, availableTools);
-			// Update the items
-			toolbar.getItems().setAll(nodes);
+
+		@Override
+		public void imageDataChanged(QuPathViewer viewer, ImageData<BufferedImage> imageDataOld,
+				ImageData<BufferedImage> imageDataNew) {
+			updateMagnificationString();
 		}
-		
-		
-		private void addToolButtons(List<Node> nodes, List<PathTool> tools) {
-			
-			int ind = toolIdx;
-			
-			for (var tool : tools) {
-				var action = qupath.getToolAction(tool);
-				var btnTool = toolMap.get(tool);
-				if (btnTool == null) {
-					btnTool = ActionTools.createToggleButton(action, action.getGraphic() != null);
-					toolMap.put(tool, btnTool);
-				}
-				nodes.add(ind++, btnTool);
-			}
-			
+
+		@Override
+		public void visibleRegionChanged(QuPathViewer viewer, Shape shape) {
+			updateMagnificationString();
 		}
-		
-		
-		void refreshMagnificationTooltip() {
-			// Ensure we have the right tooltip for magnification
-			if (tooltipMag == null)
-				return;
-			var imageData = qupath.getImageData();
-			var mag = imageData == null ? null : imageData.getServer().getMetadata().getMagnification();
-			if (imageData == null)
-				tooltipMag.setText("Magnification");
-			else if (mag != null && !Double.isNaN(mag))
-				tooltipMag.setText("Display magnification - double-click to edit");
-			else
-				tooltipMag.setText("Display scale value - double-click to edit");
+
+		@Override
+		public void selectedObjectChanged(QuPathViewer viewer, PathObject pathObjectSelected) {}
+
+		@Override
+		public void viewerClosed(QuPathViewer viewer) {
+			updateMagnificationString();
 		}
-		
-		void updateMagnificationDisplay(final QuPathViewer viewer) {
-			if (viewer == null || labelMag == null)
-				return;
-			// Update magnification info
-			double mag = viewer.getMagnification();
-			if (Math.abs(mag - lastMagnification) / mag < 0.0001)
-				return;
-			lastMagnification = mag;
-			Platform.runLater(() -> {
-				labelMag.setText(GuiTools.getMagnificationString(viewer));
-			});
-		}
-		
-		ToolBar getToolBar() {
-			return toolbar;
-		}
-		
 		
 	}
+
+
+
+}
