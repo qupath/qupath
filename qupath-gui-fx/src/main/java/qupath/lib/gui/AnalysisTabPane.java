@@ -150,7 +150,7 @@ class AnalysisTabPane {
 	}
 	
 	private ImageDetailsPane createImageDetailsPane() {
-		return new ImageDetailsPane(qupath);
+		return new ImageDetailsPane(qupath.imageDataProperty());
 	}
 	
 	private ProjectBrowser createProjectBrowser() {

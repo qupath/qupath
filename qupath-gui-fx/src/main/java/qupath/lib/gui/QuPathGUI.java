@@ -2051,7 +2051,6 @@ public class QuPathGUI {
 		// Now that we have a viewer, we can create an undo/redo manager
 		undoRedoManager = new UndoRedoManager(this);
 
-		
 		// TODO: MOVE INITIALIZING MANAGERS ELSEWHERE
 		installActions(new Menus(this).getActions());
 		
@@ -2067,13 +2066,8 @@ public class QuPathGUI {
 		SplitPane.setResizableWithParent(tabPane, Boolean.FALSE);		
 
 		
-//		paneCommands.setRight(cbPin);
-		
 		mainViewerPane = CommandFinderTools.createCommandFinderPane(this, viewerManager.getRegion(), CommandFinderTools.commandBarDisplayProperty());
-//		paneViewer.setTop(tfCommands);
-//		paneViewer.setCenter(viewerManager.getNode());
 		splitPane.getItems().addAll(tabPane, mainViewerPane);
-//		splitPane.getItems().addAll(viewerManager.getComponent());
 		SplitPane.setResizableWithParent(viewerManager.getRegion(), Boolean.TRUE);
 		
 		pane.setCenter(splitPane);
