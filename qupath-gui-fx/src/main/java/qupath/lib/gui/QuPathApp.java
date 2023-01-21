@@ -60,7 +60,8 @@ public class QuPathApp extends Application {
 	@Override
 	public void start(Stage stage) throws Exception {
 
-		QuPathGUI qupath = QuPathGUI.launchQuPathStandalone(getHostServices(), stage);
+		QuPathGUI qupath = QuPathGUI.createInstance(stage);
+		qupath.setHostServices(getHostServices());
 		
 		// Delay logging until here, so that the UI has initialized and can display the message
 		QuPathLaunchParameters params = QuPathLaunchParameters.parse(getParameters());

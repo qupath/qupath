@@ -598,7 +598,7 @@ class Menus {
 				+ "an annotation that has just been deleted.")
 		@ActionMenu("Annotations...>Transfer last annotation")
 		@ActionAccelerator("shift+e")
-		public final Action TRANSFER_ANNOTATION = qupath.createImageDataAction(imageData -> qupath.viewerManager.applyLastAnnotationToActiveViewer());
+		public final Action TRANSFER_ANNOTATION = qupath.createImageDataAction(imageData -> qupath.getViewerManager().applyLastAnnotationToActiveViewer());
 
 		@ActionMenu("Annotations...>")
 		public final Action SEP_7 = ActionTools.createSeparator();
@@ -744,37 +744,37 @@ class Menus {
 		@ActionMenu("Multi-view...>Add row")
 		@ActionDescription("Add a new row of viewers to the multi-view grid. "
 				+ "This makes it possible to view two or more images side-by-side (vertically).")
-		public final Action MULTIVIEW_ADD_ROW = qupath.createViewerAction(viewer -> qupath.viewerManager.addRow(viewer));
+		public final Action MULTIVIEW_ADD_ROW = qupath.createViewerAction(viewer -> qupath.getViewerManager().addRow(viewer));
 
 		@ActionMenu("Multi-view...>Add column")
 		@ActionDescription("Add a new column of viewers to the multi-view grid. "
 					+ "This makes it possible to view two or more images side-by-side (horizontally).")
-		public final Action MULTIVIEW_ADD_COLUMN = qupath.createViewerAction(viewer -> qupath.viewerManager.addColumn(viewer));
+		public final Action MULTIVIEW_ADD_COLUMN = qupath.createViewerAction(viewer -> qupath.getViewerManager().addColumn(viewer));
 
 		@ActionMenu("Multi-view...>")
 		public final Action SEP_01 = ActionTools.createSeparator();
 		
 		@ActionMenu("Multi-view...>Remove row")
 		@ActionDescription("Remove the row containing the current viewer from the multi-view grid, if possible. The last row cannot be removed.")
-		public final Action MULTIVIEW_REMOVE_ROW = qupath.createViewerAction(viewer -> qupath.viewerManager.removeRow(viewer));
+		public final Action MULTIVIEW_REMOVE_ROW = qupath.createViewerAction(viewer -> qupath.getViewerManager().removeRow(viewer));
 
 		@ActionMenu("Multi-view...>Remove column")
 		@ActionDescription("Remove the column containing the current viewer from the multi-view grid, if possible. The last column cannot be removed.")
-		public final Action MULTIVIEW_REMOVE_COLUMN = qupath.createViewerAction(viewer -> qupath.viewerManager.removeColumn(viewer));
+		public final Action MULTIVIEW_REMOVE_COLUMN = qupath.createViewerAction(viewer -> qupath.getViewerManager().removeColumn(viewer));
 
 		@ActionMenu("Multi-view...>")
 		public final Action SEP_02 = ActionTools.createSeparator();
 
 		@ActionMenu("Multi-view...>Reset grid size")
 		@ActionDescription("Reset the multi-view grid so that all viewers have the same size")
-		public final Action MULTIVIEW_RESET_GRID = qupath.createViewerAction(viewer -> qupath.viewerManager.resetGridSize());		
+		public final Action MULTIVIEW_RESET_GRID = qupath.createViewerAction(viewer -> qupath.getViewerManager().resetGridSize());		
 		
 		@ActionMenu("Multi-view...>")
 		public final Action SEP_03 = ActionTools.createSeparator();
 		
 		@ActionMenu("Multi-view...>Close viewer")
 		@ActionDescription("Close the image in the current viewer. This is needed before it's possible to remove a viewer from the multi-view grid.")
-		public final Action MULTIVIEW_CLOSE_VIEWER = qupath.createViewerAction(viewer -> qupath.viewerManager.closeViewer(viewer));
+		public final Action MULTIVIEW_CLOSE_VIEWER = qupath.createViewerAction(viewer -> qupath.getViewerManager().closeViewer(viewer));
 		
 		@ActionDescription("Open a viewer window that shows individual channels of an image size by side. "
 				+ "This is useful when working with multiplexed/multichannel fluorescence images.")

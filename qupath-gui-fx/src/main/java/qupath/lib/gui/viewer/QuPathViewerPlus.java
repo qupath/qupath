@@ -323,6 +323,9 @@ public class QuPathViewerPlus extends QuPathViewer {
 		
 		super.paintCanvas();
 		
+		if (scalebar == null)
+			return;
+		
 		// Ensure the scalebar color is set, if required
 		Bounds boundsFX = scalebar.getNode().getBoundsInParent();
 		Rectangle2D bounds = new Rectangle2D.Double(boundsFX.getMinX(), boundsFX.getMinY(), boundsFX.getMaxX(), boundsFX.getMaxY());
