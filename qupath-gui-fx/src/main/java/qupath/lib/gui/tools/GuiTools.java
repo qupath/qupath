@@ -73,6 +73,7 @@ import javafx.event.Event;
 import javafx.event.EventHandler;
 import javafx.geometry.Side;
 import javafx.scene.Node;
+import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
@@ -93,10 +94,13 @@ import javafx.scene.control.Spinner;
 import javafx.scene.control.SpinnerValueFactory;
 import javafx.scene.control.SpinnerValueFactory.DoubleSpinnerValueFactory;
 import javafx.scene.control.Tab;
+import javafx.scene.control.TableView;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextFormatter;
 import javafx.scene.control.Tooltip;
+import javafx.scene.control.TreeTableView;
+import javafx.scene.control.TreeView;
 import javafx.scene.image.Image;
 import javafx.scene.image.WritableImage;
 import javafx.scene.input.Clipboard;
@@ -1577,6 +1581,44 @@ public class GuiTools {
 
 	}
 	
+	
+	/**
+	 * Call .refresh() on all the ListView, TreeView, TableView and TreeTableViews
+	 * found throughout the application.
+	 * This is particularly useful after a locale change.
+	 */
+	public static void refreshAllListsAndTables() {
+		for (var window : Window.getWindows()) {
+			if (!window.isShowing())
+				continue;
+			var scene = window.getScene();
+			if (scene != null)
+				refreshAllListsAndTables(scene.getRoot());
+		}
+	}
+	
+	/**
+	 * Call .refresh() on all the ListView, TreeView, TableView and TreeTableViews
+	 * found under a parent component, searching recursively.
+	 * This is particularly useful after a locale change.
+	 * @param parent 
+	 */
+	public static void refreshAllListsAndTables(final Parent parent) {
+		if (parent == null)
+			return;
+		for (Node child : parent.getChildrenUnmodifiable()) {
+			if (child instanceof TreeView<?>)
+				((TreeView<?>)child).refresh();
+			else if (child instanceof ListView<?>)
+				((ListView<?>)child).refresh();
+			else if (child instanceof TableView<?>)
+				((TableView<?>)child).refresh();
+			else if (child instanceof TreeTableView<?>)
+				((TreeTableView<?>)child).refresh();
+			else if (child instanceof Parent)
+				refreshAllListsAndTables((Parent)child);
+		}
+	}
 	
 	
 	private static final String KEY_REGIONS = "processRegions";

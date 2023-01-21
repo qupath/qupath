@@ -90,27 +90,23 @@ import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.value.ChangeListener;
-import javafx.beans.value.ObservableBooleanValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener.Change;
 import javafx.collections.ObservableList;
 import javafx.embed.swing.JFXPanel;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.event.ActionEvent;
+import javafx.event.EventHandler;
 import javafx.geometry.Insets;
-import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
 import javafx.geometry.Rectangle2D;
-import javafx.geometry.Side;
 import javafx.scene.Cursor;
 import javafx.scene.Node;
-import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.ButtonBar.ButtonData;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
-import javafx.scene.control.ListView;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
@@ -118,17 +114,12 @@ import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.SplitPane;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
-import javafx.scene.control.TabPane.TabClosingPolicy;
-import javafx.scene.control.TabPane.TabDragPolicy;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextInputControl;
-import javafx.scene.control.TitledPane;
 import javafx.scene.control.ToolBar;
 import javafx.scene.control.Tooltip;
-import javafx.scene.control.TreeTableView;
-import javafx.scene.control.TreeView;
 import javafx.scene.image.Image;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
@@ -141,7 +132,6 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Region;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
-import javafx.stage.Window;
 import javafx.stage.WindowEvent;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.ThreadTools;
@@ -167,15 +157,9 @@ import qupath.lib.gui.extensions.UpdateChecker.ReleaseVersion;
 import qupath.lib.gui.images.stores.DefaultImageRegionStore;
 import qupath.lib.gui.images.stores.ImageRegionStoreFactory;
 import qupath.lib.gui.logging.LogManager;
-import qupath.lib.gui.panes.ObjectDescriptionPane;
-import qupath.lib.gui.panes.AnnotationPane;
 import qupath.lib.gui.panes.ImageDetailsPane;
-import qupath.lib.gui.panes.PathObjectHierarchyView;
 import qupath.lib.gui.panes.PreferencePane;
-import qupath.lib.gui.panes.ProjectBrowser;
-import qupath.lib.gui.panes.SelectedMeasurementTableView;
 import qupath.lib.gui.panes.ServerSelector;
-import qupath.lib.gui.panes.WorkflowCommandLogView;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.prefs.PathPrefs.AutoUpdateType;
 import qupath.lib.gui.prefs.PathPrefs.ImageTypeSetting;
@@ -263,7 +247,7 @@ public class QuPathGUI {
 
 	private ObjectProperty<Project<BufferedImage>> projectProperty = new SimpleObjectProperty<>();
 	
-	private ProjectBrowser projectBrowser;
+	private AnalysisTabPane analysisTabPane;
 	
 	/**
 	 * Preference panel, which may be used by extensions to add in their on preferences if needed
@@ -274,7 +258,6 @@ public class QuPathGUI {
 	private MenuBar menuBar;
 	
 	private BorderPane pane; // Main component, to hold toolbar & splitpane
-	private TabPane analysisTabPane = new TabPane();
 	private Region mainViewerPane;
 	
 	/**
@@ -792,10 +775,7 @@ public class QuPathGUI {
 			return menu;
 		return menu.getItems().stream().filter(m -> name.equals(m.getText())).findFirst().orElse(null);
 	}
-	
-	
-	private long lastMousePressedWarning = 0L;
-	
+		
 	
 	/**
 	 * Create a new QuPath instance.
@@ -920,21 +900,15 @@ public class QuPathGUI {
 				dialogInstance.requestClose();
 		});
 		
-		stage.setOnCloseRequest(this::handleCloseRequest);
+		stage.setOnCloseRequest(this::handleCloseMainStageRequest);
 		
 		timeit.checkpoint("Showing");
 		logger.debug("Time to display: {} ms", (System.currentTimeMillis() - startTime));
 		stage.show();
 		logger.trace("Time to finish display: {} ms", (System.currentTimeMillis() - startTime));
 
-		timeit.checkpoint("Adding event filters");
-
-		stage.getScene().addEventFilter(MouseEvent.ANY, this::sceneMouseEventFilter);
-		
-		// Ensure spacebar presses are noted, irrespective of which component has the focus
-		stage.getScene().addEventFilter(KeyEvent.ANY, this::sceneKeyEventFilter);
-		
-		stage.getScene().setOnKeyReleased(this::sceneKeyReleasedHandler);
+		timeit.checkpoint("Adding event filters and handlers");
+		addSceneEventFiltersAndHandlers(stage.getScene());
 		
 		// Install extensions
 		timeit.checkpoint("Refreshing extensions");
@@ -994,8 +968,6 @@ public class QuPathGUI {
 		// Update the title
 		stage.titleProperty().bind(titleBinding);
 		
-		// Register all the accelerators
-		
 		// Update display
 		// Requesting the style should be enough to make sure it is called...
 		logger.debug("Selected style: {}", QuPathStyleManager.selectedStyleProperty().get());
@@ -1030,7 +1002,7 @@ public class QuPathGUI {
 		}
 		
 		// Refresh what we can if the locale changes
-		ChangeListener<Locale> localeListener = (v, o, n) -> updateListsAndTables();
+		ChangeListener<Locale> localeListener = (v, o, n) -> GuiTools.refreshAllListsAndTables();
 		PathPrefs.defaultLocaleDisplayProperty().addListener(localeListener);
 		PathPrefs.defaultLocaleFormatProperty().addListener(localeListener);
 		
@@ -1040,103 +1012,115 @@ public class QuPathGUI {
 		logger.debug("{}", timeit.stop());
 	}
 	
-	/**
-	 * Filter key events on the scene
-	 * @param e
-	 */
-	private void sceneKeyEventFilter(KeyEvent e) {
-		if (e.getCode() == KeyCode.SPACE) {
-			Boolean pressed = null;
-			if (e.getEventType() == KeyEvent.KEY_PRESSED)
-				pressed = Boolean.TRUE;
-			else if (e.getEventType() == KeyEvent.KEY_RELEASED)
-				pressed = Boolean.FALSE;
-			if (pressed != null) {
-				// Set spacebar for only the active viewer (since it results in registering 
-				// tools, and we don't want tools to be registered to inactive viewers...)
-				var active = viewerManager.getActiveViewer();
-				if (active != null)
-					active.setSpaceDown(pressed.booleanValue());
-			}
-		}
-	}
 	
-	/**
-	 * Handle key released events on the scene
-	 * @param e
-	 */
-	private void sceneKeyReleasedHandler(KeyEvent e) {
-		if (e.getEventType() != KeyEvent.KEY_RELEASED)
-			return;
-		
-		// It seems if using the system menubar on Mac, we can sometimes need to mop up missed keypresses
-		if (e.isConsumed() || e.isShortcutDown() || !(GeneralTools.isMac() && getMenuBar().isUseSystemMenuBar()) || e.getTarget() instanceof TextInputControl) {
-			return;
-		}
-
-		for (var entry : comboMap.entrySet()) {
-			if (entry.getKey().match(e)) {
-				var action = entry.getValue();
-				if (ActionTools.isSelectable(action))
-					action.setSelected(!action.isSelected());
-				else
-					action.handle(new ActionEvent(e.getSource(), e.getTarget()));
-				e.consume();
-				return;
-			}
-		}
-
-		// Generic 'hiding'
-		if (new KeyCodeCombination(KeyCode.H).match(e)) {
-			var action = defaultActions.SHOW_DETECTIONS;
-			action.setSelected(!action.isSelected());
-			action = defaultActions.SHOW_PIXEL_CLASSIFICATION;
-			action.setSelected(!action.isSelected());
-			e.consume();
-		}
-	}
 	
-	/**
-	 * Filter mouse events on the scene
-	 * @param e
-	 */
-	private void sceneMouseEventFilter(MouseEvent e) {
-		
-		// Don't bother with move/enter/exit events
-		if (e.getEventType() == MouseEvent.MOUSE_MOVED ||
-				e.getEventType() == MouseEvent.MOUSE_ENTERED ||
-				e.getEventType() == MouseEvent.MOUSE_EXITED ||
-				e.getEventType() == MouseEvent.MOUSE_ENTERED_TARGET ||
-				e.getEventType() == MouseEvent.MOUSE_EXITED_TARGET
-				)
-			return;
-			
-		
-		if (uiBlocked.get()) {
-			e.consume();
-			// Show a warning if clicking (but not *too* often)
-			if (e.getEventType() == MouseEvent.MOUSE_PRESSED) {
-				long time = System.currentTimeMillis();
-				if (time - lastMousePressedWarning > 5000L) {
-					if (scriptRunning.get()) {
-						Dialogs.showWarningNotification("Script running", "Please wait until the current script has finished!");
-						lastMousePressedWarning = time;
-					} else if (pluginRunning.get()) {
-						logger.warn("Please wait until the current command is finished!");
-//							Dialogs.showWarningNotification("Command running", "Please wait until the current command has finished!");
-						lastMousePressedWarning = time;
-					}
+	private void addSceneEventFiltersAndHandlers(Scene scene) {
+		scene.addEventFilter(MouseEvent.ANY, new MainSceneMouseEventFilter());
+		scene.addEventFilter(KeyEvent.ANY, new MainSceneKeyEventFilter());
+		scene.setOnKeyReleased(new MainSceneKeyEventHandler());
+	}
+
+	
+	class MainSceneKeyEventFilter implements EventHandler<KeyEvent> {
+
+		@Override
+		public void handle(KeyEvent e) {
+			if (e.getCode() == KeyCode.SPACE) {
+				Boolean pressed = null;
+				if (e.getEventType() == KeyEvent.KEY_PRESSED)
+					pressed = Boolean.TRUE;
+				else if (e.getEventType() == KeyEvent.KEY_RELEASED)
+					pressed = Boolean.FALSE;
+				if (pressed != null) {
+					// Set spacebar for only the active viewer (since it results in registering 
+					// tools, and we don't want tools to be registered to inactive viewers...)
+					var active = viewerManager.getActiveViewer();
+					if (active != null)
+						active.setSpaceDown(pressed.booleanValue());
 				}
 			}
-		} else if (e.getButton() == MouseButton.MIDDLE && e.getEventType() == MouseEvent.MOUSE_CLICKED) {
-			logger.debug("Middle button pressed {}x {}", e.getClickCount(), System.currentTimeMillis());
-
-			// Here we toggle between the MOVE tool and any previously selected tool
-			if (getSelectedTool() == PathTools.MOVE)
-				setSelectedTool(previousTool);
-			else
-				setSelectedTool(PathTools.MOVE);
 		}
+		
+	}
+	
+	
+	class MainSceneKeyEventHandler implements EventHandler<KeyEvent> {
+
+		@Override
+		public void handle(KeyEvent e) {
+			if (e.getEventType() != KeyEvent.KEY_RELEASED)
+				return;
+			
+			// It seems if using the system menubar on Mac, we can sometimes need to mop up missed keypresses
+			if (e.isConsumed() || e.isShortcutDown() || !(GeneralTools.isMac() && getMenuBar().isUseSystemMenuBar()) || e.getTarget() instanceof TextInputControl) {
+				return;
+			}
+
+			for (var entry : comboMap.entrySet()) {
+				if (entry.getKey().match(e)) {
+					var action = entry.getValue();
+					if (ActionTools.isSelectable(action))
+						action.setSelected(!action.isSelected());
+					else
+						action.handle(new ActionEvent(e.getSource(), e.getTarget()));
+					e.consume();
+					return;
+				}
+			}
+
+			// Generic 'hiding'
+			if (new KeyCodeCombination(KeyCode.H).match(e)) {
+				var action = defaultActions.SHOW_DETECTIONS;
+				action.setSelected(!action.isSelected());
+				action = defaultActions.SHOW_PIXEL_CLASSIFICATION;
+				action.setSelected(!action.isSelected());
+				e.consume();
+			}
+		}
+		
+	}	
+	
+	class MainSceneMouseEventFilter implements EventHandler<MouseEvent> {
+		
+		private long lastMousePressedWarning = 0L;
+		
+		@Override
+		public void handle(MouseEvent e) {
+			// Don't bother with move/enter/exit events
+			if (e.getEventType() == MouseEvent.MOUSE_MOVED ||
+					e.getEventType() == MouseEvent.MOUSE_ENTERED ||
+					e.getEventType() == MouseEvent.MOUSE_EXITED ||
+					e.getEventType() == MouseEvent.MOUSE_ENTERED_TARGET ||
+					e.getEventType() == MouseEvent.MOUSE_EXITED_TARGET
+					)
+				return;
+				
+			
+			if (uiBlocked.get()) {
+				e.consume();
+				// Show a warning if clicking (but not *too* often)
+				if (e.getEventType() == MouseEvent.MOUSE_PRESSED) {
+					long time = System.currentTimeMillis();
+					if (time - lastMousePressedWarning > 5000L) {
+						if (scriptRunning.get()) {
+							Dialogs.showWarningNotification("Script running", "Please wait until the current script has finished!");
+							lastMousePressedWarning = time;
+						} else if (pluginRunning.get()) {
+							logger.warn("Please wait until the current command is finished!");
+							lastMousePressedWarning = time;
+						}
+					}
+				}
+			} else if (e.getButton() == MouseButton.MIDDLE && e.getEventType() == MouseEvent.MOUSE_CLICKED) {
+				logger.debug("Middle button pressed {}x {}", e.getClickCount(), System.currentTimeMillis());
+				// Here we toggle between the MOVE tool and any previously selected tool
+				if (getSelectedTool() == PathTools.MOVE)
+					setSelectedTool(previousTool);
+				else
+					setSelectedTool(PathTools.MOVE);
+			}
+		}
+		
 	}
 	
 	
@@ -1144,7 +1128,7 @@ public class QuPathGUI {
 	 * Called when there is a close request for the entire QuPath stage
 	 * @param e
 	 */
-	private void handleCloseRequest(WindowEvent e) {
+	private void handleCloseMainStageRequest(WindowEvent e) {
 		// Added to try to resolve macOS issue in which pressing Cmd+Q multiple times 
 		// resulted in multiple save prompts appearing - https://github.com/qupath/qupath/issues/941
 		// Must be checked on other platforms
@@ -1350,8 +1334,6 @@ public class QuPathGUI {
 		}
 		
 	}
-	
-	
 	
 	
 	/**
@@ -1616,10 +1598,6 @@ public class QuPathGUI {
 	
 	
 	
-	
-	
-	
-	
 	/**
 	 * Check for any updates.
 	 */
@@ -1660,7 +1638,7 @@ public class QuPathGUI {
 	/**
 	 * Keep a record of loaded extensions, both for display and to avoid loading them twice.
 	 */
-	private static Map<Class<? extends QuPathExtension>, QuPathExtension> loadedExtensions = new HashMap<>();
+	private Map<Class<? extends QuPathExtension>, QuPathExtension> loadedExtensions = new HashMap<>();
 	
 	/**
 	 * @return a collection of extensions that are currently loaded
@@ -1871,7 +1849,7 @@ public class QuPathGUI {
 	 * @param promptIfMissing 
 	 * @return
 	 */
-	public File requestUserDirectory(boolean promptIfMissing) {
+	public static File requestUserDirectory(boolean promptIfMissing) {
 		
 		var pathUser = PathPrefs.getUserPath();
 		var dir = pathUser == null ? null : new File(pathUser);
@@ -1960,8 +1938,6 @@ public class QuPathGUI {
 			if (project != null) {
 				// Write the project, if necessary
 				project.setPathClasses(set);
-//				if (project.setPathClasses(c.getList())
-//					ProjectBrowser.syncProject(project);
 			}
 		});
 	}
@@ -2019,38 +1995,6 @@ public class QuPathGUI {
 		} catch (Exception e) {
 			logger.error("Error loading classes", e);
 			return Collections.emptyList();
-		}
-	}
-	
-	
-	/**
-	 * Make an effort at updating all the trees, tables or lists that we can find.
-	 * This is useful after a locale change.
-	 */
-	private static void updateListsAndTables() {
-		for (var window : Window.getWindows()) {
-			if (!window.isShowing())
-				continue;
-			var scene = window.getScene();
-			if (scene != null)
-				updateListsAndTables(scene.getRoot());
-		}
-	}
-	
-	private static void updateListsAndTables(final Parent parent) {
-		if (parent == null)
-			return;
-		for (Node child : parent.getChildrenUnmodifiable()) {
-			if (child instanceof TreeView<?>)
-				((TreeView<?>)child).refresh();
-			else if (child instanceof ListView<?>)
-				((ListView<?>)child).refresh();
-			else if (child instanceof TableView<?>)
-				((TableView<?>)child).refresh();
-			else if (child instanceof TreeTableView<?>)
-				((TreeTableView<?>)child).refresh();
-			else if (child instanceof Parent)
-				updateListsAndTables((Parent)child);
 		}
 	}
 	
@@ -2114,13 +2058,13 @@ public class QuPathGUI {
 		// Add a recent projects menu
 		getMenu("File", true).getItems().add(1, createRecentProjectsMenu());
 
-//		analysisPanel = createAnalysisPanel();
-		initializeAnalysisPanel();
-		analysisTabPane.setMinWidth(300);
-		analysisTabPane.setPrefWidth(400);
-		splitPane.setMinWidth(analysisTabPane.getMinWidth() + 200);
-		splitPane.setPrefWidth(analysisTabPane.getPrefWidth() + 200);
-		SplitPane.setResizableWithParent(analysisTabPane, Boolean.FALSE);		
+		analysisTabPane = new AnalysisTabPane(this);
+		var tabPane = analysisTabPane.getTabPane();
+		tabPane.setMinWidth(300);
+		tabPane.setPrefWidth(400);
+		splitPane.setMinWidth(tabPane.getMinWidth() + 200);
+		splitPane.setPrefWidth(tabPane.getPrefWidth() + 200);
+		SplitPane.setResizableWithParent(tabPane, Boolean.FALSE);		
 
 		
 //		paneCommands.setRight(cbPin);
@@ -2128,7 +2072,7 @@ public class QuPathGUI {
 		mainViewerPane = CommandFinderTools.createCommandFinderPane(this, viewerManager.getRegion(), CommandFinderTools.commandBarDisplayProperty());
 //		paneViewer.setTop(tfCommands);
 //		paneViewer.setCenter(viewerManager.getNode());
-		splitPane.getItems().addAll(analysisTabPane, mainViewerPane);
+		splitPane.getItems().addAll(tabPane, mainViewerPane);
 //		splitPane.getItems().addAll(viewerManager.getComponent());
 		SplitPane.setResizableWithParent(viewerManager.getRegion(), Boolean.TRUE);
 		
@@ -2168,7 +2112,7 @@ public class QuPathGUI {
 	 * @return
 	 */
 	public TabPane getAnalysisTabPane() {
-		return analysisTabPane;
+		return analysisTabPane.getTabPane();
 	}
 
 	
@@ -3627,103 +3571,6 @@ public class QuPathGUI {
 	
 	
 	
-	
-	private void initializeAnalysisPanel() {
-		analysisTabPane.setTabClosingPolicy(TabClosingPolicy.UNAVAILABLE);
-		analysisTabPane.setTabDragPolicy(TabDragPolicy.REORDER);
-		projectBrowser = new ProjectBrowser(this);
-
-		analysisTabPane.getTabs().add(new Tab("Project", projectBrowser.getPane()));
-		ImageDetailsPane pathImageDetailsPanel = new ImageDetailsPane(this);
-		analysisTabPane.getTabs().add(new Tab("Image", pathImageDetailsPanel.getPane()));
-		
-		/*
-		 * Create tabs.
-		 * Note that we don't want ImageData/hierarchy events to be triggered for tabs that aren't visible,
-		 * since these can be quite expensive.
-		 * For that reason, we create new bindings.
-		 * 
-		 * TODO: Handle analysis pane being entirely hidden.
-		 */
-		
-		// Create a tab for annotations
-		var tabAnnotations = new Tab("Annotations");
-		SplitPane splitAnnotations = new SplitPane();
-		splitAnnotations.setOrientation(Orientation.VERTICAL);
-		var annotationPane = new AnnotationPane(this, imageDataProperty());
-		// Don't make updates if the tab isn't visible
-		var annotationTabVisible = Bindings.createBooleanBinding(() -> {
-			return tabAnnotations.getTabPane() == null || tabAnnotations.isSelected();
-		}, tabAnnotations.tabPaneProperty(), tabAnnotations.selectedProperty());
-		annotationPane.disableUpdatesProperty().bind(annotationTabVisible.not());
-		var tabAnnotationsMeasurements = createMeasurementsAndDescriptionsPane(annotationTabVisible);
-		splitAnnotations.getItems().addAll(annotationPane.getPane(), tabAnnotationsMeasurements);
-		tabAnnotations.setContent(splitAnnotations);
-		analysisTabPane.getTabs().add(tabAnnotations);		
-		
-		// Create a tab for the full hierarchy
-		var tabHierarchy = new Tab("Hierarchy");
-		final PathObjectHierarchyView paneHierarchy = new PathObjectHierarchyView(this, imageDataProperty());
-		var hierarchyTabVisible = Bindings.createBooleanBinding(() -> {
-			return tabHierarchy.getTabPane() == null || tabHierarchy.isSelected();
-		}, tabHierarchy.tabPaneProperty(), tabHierarchy.selectedProperty());
-		paneHierarchy.disableUpdatesProperty().bind(hierarchyTabVisible.not());
-		var tabHierarchyMeasurements = createMeasurementsAndDescriptionsPane(hierarchyTabVisible);
-		SplitPane splitHierarchy = new SplitPane();
-		splitHierarchy.setOrientation(Orientation.VERTICAL);
-		splitHierarchy.getItems().addAll(paneHierarchy.getPane(), tabHierarchyMeasurements);
-		tabHierarchy.setContent(splitHierarchy);
-		analysisTabPane.getTabs().add(tabHierarchy);
-		
-		analysisTabPane.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {
-			// Update split locations if both tabs are in the tab pane
-			if (tabAnnotations.getTabPane() != null && tabHierarchy.getTabPane() != null) {
-				if (o == tabHierarchy) {
-					splitHierarchy.setDividerPosition(0, splitAnnotations.getDividerPositions()[0]);
-				} else if (o == tabAnnotations) {
-					splitAnnotations.setDividerPosition(0, splitHierarchy.getDividerPositions()[0]);				
-				}
-			}
-		});
-		var commandLogView = new WorkflowCommandLogView(this);
-		TitledPane titledLog = new TitledPane("Command history", commandLogView.getPane());
-		titledLog.setCollapsible(false);
-		titledLog.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
-		var pane = new BorderPane(titledLog);
-		analysisTabPane.getTabs().add(new Tab("Workflow", pane));
-		
-		// Make the tabs undockable
-		for (var tab : analysisTabPane.getTabs()) {
-			GuiTools.makeTabUndockable(tab);
-		}
-	}
-	
-	/**
-	 * Make a tab pane to show either measurements or descriptions for the selected object.
-	 * Optionally provide a bindable value for visibility, since this can reduce expensive updates.
-	 * @param visible
-	 * @return
-	 */
-	private TabPane createMeasurementsAndDescriptionsPane(ObservableBooleanValue visible) {
-		var tabpaneObjectsShared = new TabPane();
-		var objectMeasurementsTable = new SelectedMeasurementTableView(imageDataProperty());
-		tabpaneObjectsShared.setSide(Side.BOTTOM);
-		var tabSharedTable = new Tab("Measurements", objectMeasurementsTable.getTable());
-		tabpaneObjectsShared.getTabs().add(tabSharedTable);
-		var descriptionPane = ObjectDescriptionPane.createPane(imageDataProperty(), true);
-		var tabSharedDescription = new Tab("Description", descriptionPane);
-		tabpaneObjectsShared.getTabs().add(tabSharedDescription);
-		tabpaneObjectsShared.setTabClosingPolicy(TabClosingPolicy.UNAVAILABLE);
-		
-		if (visible != null) {
-			objectMeasurementsTable.getTable().visibleProperty().bind(visible);
-			descriptionPane.visibleProperty().bind(visible);
-		}
-		return tabpaneObjectsShared;
-	}
-	
-	
-	
 	/**
 	 * Create a default list model for storing available PathClasses.
 	 * 
@@ -3895,9 +3742,10 @@ public class QuPathGUI {
 		}
 		
 		this.projectProperty.set(project);
-		if (!this.projectBrowser.setProject(project)) {
+		var projectBrowser = analysisTabPane.getProjectBrowser();
+		if (projectBrowser != null && !projectBrowser.setProject(project)) {
 			this.projectProperty.set(null);
-			this.projectBrowser.setProject(null);
+			projectBrowser.setProject(null);
 		}
 		
 		// Update the PathClass list, if necessary
@@ -3924,7 +3772,8 @@ public class QuPathGUI {
 	 * This can be called whenever the project has changed (e.g. by adding or removing items).
 	 */
 	public void refreshProject() {
-		projectBrowser.refreshProject();
+		if (analysisTabPane != null)
+			analysisTabPane.getProjectBrowser().refreshProject();
 	}
 	
 	/**
@@ -3943,7 +3792,6 @@ public class QuPathGUI {
 		return projectProperty.get();
 	}
 	
-	
 	private BooleanProperty showAnalysisPane = new SimpleBooleanProperty(true);
 	protected double lastDividerLocation;
 	
@@ -3951,7 +3799,7 @@ public class QuPathGUI {
 		if (visible) {
 			if (analysisPanelVisible())
 				return;
-			splitPane.getItems().setAll(analysisTabPane, mainViewerPane);
+			splitPane.getItems().setAll(analysisTabPane.getTabPane(), mainViewerPane);
 			splitPane.setDividerPosition(0, lastDividerLocation);
 			pane.setCenter(splitPane);
 		} else {
