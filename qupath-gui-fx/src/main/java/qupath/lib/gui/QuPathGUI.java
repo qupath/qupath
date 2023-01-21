@@ -190,6 +190,7 @@ import qupath.lib.gui.tools.MenuTools;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.tools.IconFactory.PathIcons;
 import qupath.lib.gui.viewer.DragDropImportListener;
+import qupath.lib.gui.viewer.MultiviewManager;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.QuPathViewerPlus;
@@ -385,8 +386,15 @@ public class QuPathGUI {
 		return action;
 	}
 	
-	// TODO: Remove this command whenever annotations can be applied more easily
-	Action createImageDataAction(Consumer<ImageData<BufferedImage>> command, String name) {
+	/**
+	 * Create an {@link Action} that depends upon an {@link ImageData}.
+	 * When the action is invoked, it will be passed the current {@link QuPathViewer} as a parameter.
+	 * The action will also be disabled if no viewer is present.
+	 * @param command the command to run
+	 * @param name text of the action
+	 * @return an {@link Action} with appropriate properties set
+	 */
+	public Action createImageDataAction(Consumer<ImageData<BufferedImage>> command, String name) {
 		var action = createImageDataAction(command);
 		action.setText(name);
 		return action;
@@ -1153,7 +1161,7 @@ public class QuPathGUI {
 		}
 		if (!unsavedViewers.isEmpty()) {
 			if (unsavedViewers.size() == 1) {
-				if (!viewerManager.closeViewer("Quit QuPath", unsavedViewers.iterator().next())) {
+				if (!requestToCloseViewer(unsavedViewers.iterator().next(), "Quit QuPath")) {
 					logger.trace("Pressed no to close viewer!");
 					e.consume();
 					return;
@@ -2094,6 +2102,7 @@ public class QuPathGUI {
 		pane = new BorderPane();
 		
 		viewerProperty.bind(viewerManager.activeViewerProperty());
+		viewerProperty.addListener((v, o, n) -> activateToolsForViewer(n));
 		
 		// Now that we have a viewer, we can create an undo/redo manager
 		undoRedoManager = new UndoRedoManager(this);
@@ -2116,12 +2125,12 @@ public class QuPathGUI {
 		
 //		paneCommands.setRight(cbPin);
 		
-		mainViewerPane = CommandFinderTools.createCommandFinderPane(this, viewerManager.getNode(), CommandFinderTools.commandBarDisplayProperty());
+		mainViewerPane = CommandFinderTools.createCommandFinderPane(this, viewerManager.getRegion(), CommandFinderTools.commandBarDisplayProperty());
 //		paneViewer.setTop(tfCommands);
 //		paneViewer.setCenter(viewerManager.getNode());
 		splitPane.getItems().addAll(analysisTabPane, mainViewerPane);
 //		splitPane.getItems().addAll(viewerManager.getComponent());
-		SplitPane.setResizableWithParent(viewerManager.getNode(), Boolean.TRUE);
+		SplitPane.setResizableWithParent(viewerManager.getRegion(), Boolean.TRUE);
 		
 		pane.setCenter(splitPane);
 		toolbar = new ToolBarComponent(this);
@@ -2136,7 +2145,7 @@ public class QuPathGUI {
 			if (action != null)
 				action.setSelected(true);
 			
-			activateTools(getViewer());
+			activateToolsForViewer(getViewer());
 			
 			if (n == PathTools.POINTS)
 				defaultActions.COUNTING_PANEL.handle(null);
@@ -2237,10 +2246,9 @@ public class QuPathGUI {
 	}
 	
 	
-	void activateTools(final QuPathViewerPlus viewer) {
+	private void activateToolsForViewer(final QuPathViewer viewer) {
 		if (viewer != null)
 			viewer.setActiveTool(getSelectedTool());		
-//		logger.debug("Tools activated for {}", viewer);
 	}
 	
 	/**
@@ -3551,11 +3559,12 @@ public class QuPathGUI {
 	
 	
 	/**
-	 * Repaint the viewer.  In the future, if multiple viewers are registered with the GUI 
-	 * (not yet possible) then this may result in all being repainted.
+	 * Request that all viewers are repainted as soon as possible.
 	 */
-	public void repaintViewers() {
-		viewerManager.repaintViewers();
+	public void repaintAllViewers() {
+		for (QuPathViewer v : getViewers()) {
+			v.repaint();
+		}
 	}
 	
 	/**
@@ -3755,7 +3764,7 @@ public class QuPathGUI {
 		return stage;
 	}
 	
-	void updateMagnificationString() {
+	public void updateMagnificationString() {
 		if (toolbar == null)
 			return;
 		toolbar.updateMagnificationDisplay(getViewer());
@@ -3987,6 +3996,38 @@ public class QuPathGUI {
 	
 	
 	/**
+	 * Close the image within a viewer, prompting to save changes if necessary.
+	 * 
+	 * @param viewer
+	 * @return True if the viewer no longer contains an open image (either because it never did contain one, or 
+	 * the image was successfully closed), false otherwise (e.g. if the user thwarted the close request)
+	 */
+	public boolean closeViewer(final QuPathViewer viewer) {
+		return requestToCloseViewer(viewer, "Save changes");
+	}
+
+	/**
+	 * Close the image within a viewer, prompting to save changes if necessary.
+	 * 
+	 * @param dialogTitle Name to use within any displayed dialog box.
+	 * @param viewer
+	 * @return True if the viewer no longer contains an open image (either because it never did contain one, or 
+	 * the image was successfully closed), false otherwise (e.g. if the user thwarted the close request)
+	 */
+	private boolean requestToCloseViewer(final QuPathViewer viewer, final String dialogTitle) {
+		ImageData<BufferedImage> imageData = viewer.getImageData();
+		if (imageData == null)
+			return true;
+		if (imageData.isChanged()) {
+			if (!isReadOnly() && !promptToSaveChangesOrCancel(dialogTitle, imageData))
+				return false;
+		}
+		viewer.setImageData(null);
+		return true;
+	}
+	
+		
+	/**
 	 * Show a prompt to save changes for an ImageData. 
 	 * <p>
 	 * Note the return value indicates whether the user cancelled or not, rather than whether the data 
@@ -3996,7 +4037,7 @@ public class QuPathGUI {
 	 * @param imageData
 	 * @return true if the prompt 'succeeded' (i.e. user chose 'Yes' or 'No'), false if it was cancelled.
 	 */
-	boolean promptToSaveChangesOrCancel(String dialogTitle, ImageData<BufferedImage> imageData) {
+	private boolean promptToSaveChangesOrCancel(String dialogTitle, ImageData<BufferedImage> imageData) {
 		var project = getProject();
 		var entry = project == null ? null : project.getEntry(imageData);
 		File filePrevious = null;

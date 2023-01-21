@@ -337,7 +337,7 @@ public final class LoadResourceCommand<S> implements Runnable {
 				}
 			}
 		}
-		qupath.repaintViewers();
+		qupath.repaintAllViewers();
 	}
 	
 	

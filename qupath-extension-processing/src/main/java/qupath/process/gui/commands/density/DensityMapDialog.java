@@ -835,10 +835,10 @@ public class DensityMapDialog {
 			overlay = PixelClassificationOverlay.create(options, classifierServerMap, renderer.getValue());
 			updateViewers();
 			overlay.interpolationProperty().bind(interpolation);
-			overlay.interpolationProperty().addListener((v, o, n) -> qupath.repaintViewers());
+			overlay.interpolationProperty().addListener((v, o, n) -> qupath.repaintAllViewers());
 
 			overlay.rendererProperty().bind(renderer);
-			renderer.addListener((v, o, n) -> qupath.repaintViewers());
+			renderer.addListener((v, o, n) -> qupath.repaintAllViewers());
 
 			overlay.setLivePrediction(true);
 			builder.addListener((v, o, n) -> updateDensityServers());

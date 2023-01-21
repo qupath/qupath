@@ -774,7 +774,7 @@ class Menus {
 		
 		@ActionMenu("Multi-view...>Close viewer")
 		@ActionDescription("Close the image in the current viewer. This is needed before it's possible to remove a viewer from the multi-view grid.")
-		public final Action MULTIVIEW_CLOSE_VIEWER = qupath.createViewerAction(viewer -> qupath.getViewerManager().closeViewer(viewer));
+		public final Action MULTIVIEW_CLOSE_VIEWER = qupath.createViewerAction(viewer -> qupath.closeViewer(viewer));
 		
 		@ActionDescription("Open a viewer window that shows individual channels of an image size by side. "
 				+ "This is useful when working with multiplexed/multichannel fluorescence images.")

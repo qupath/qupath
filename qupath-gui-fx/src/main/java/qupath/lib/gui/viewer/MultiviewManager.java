@@ -22,7 +22,7 @@
  */
 
 
-package qupath.lib.gui;
+package qupath.lib.gui.viewer;
 
 import java.awt.Shape;
 import java.awt.geom.AffineTransform;
@@ -66,11 +66,14 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.input.RotateEvent;
 import javafx.scene.input.ScrollEvent;
 import javafx.scene.input.ZoomEvent;
+import javafx.scene.layout.Region;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Ellipse;
 import javafx.scene.shape.Rectangle;
 import javafx.util.Duration;
 import jfxtras.scene.menu.CirclePopupMenu;
+import qupath.lib.gui.ActionTools;
+import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.commands.TMACommands;
 import qupath.lib.gui.dialogs.Dialogs;
@@ -78,11 +81,6 @@ import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.MenuTools;
-import qupath.lib.gui.viewer.OverlayOptions;
-import qupath.lib.gui.viewer.QuPathViewer;
-import qupath.lib.gui.viewer.QuPathViewerListener;
-import qupath.lib.gui.viewer.QuPathViewerPlus;
-import qupath.lib.gui.viewer.ViewerPlusDisplayOptions;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
@@ -95,7 +93,7 @@ import qupath.lib.objects.hierarchy.TMAGrid;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
 
-class MultiviewManager implements QuPathViewerListener {
+public class MultiviewManager implements QuPathViewerListener {
 
 	private static final Logger logger = LoggerFactory.getLogger(MultiviewManager.class);
 
@@ -165,7 +163,7 @@ class MultiviewManager implements QuPathViewerListener {
 	 * This uses calibrated pixel size information if available.
 	 */
 	public void matchResolutions() {
-		var viewer = getViewer();
+		var viewer = getActiveViewer();
 		var activeViewers = getViewers().stream().filter(v -> v.hasServer()).collect(Collectors.toList());
 		if (activeViewers.size() <= 1 || !viewer.hasServer())
 			return;
@@ -187,7 +185,7 @@ class MultiviewManager implements QuPathViewerListener {
 		}
 	}
 
-	void setActiveViewer(final QuPathViewerPlus viewer) {
+	public void setActiveViewer(final QuPathViewerPlus viewer) {
 		QuPathViewerPlus previousActiveViewer = getActiveViewer();
 		if (previousActiveViewer == viewer)
 			return;
@@ -211,23 +209,14 @@ class MultiviewManager implements QuPathViewerListener {
 		lastDownsample = Double.NaN;
 		lastRotation = Double.NaN;
 		if (viewer != null) {
-			//				activeViewer.getView().setBorder(null);
 			viewer.setBorderColor(colorBorder);
-			//				activeViewer.setBorder(BorderFactory.createLineBorder(colorBorder, borderWidth));
-			qupath.activateTools(viewer);
-			//				QuPathGUI qupath = QuPathGUI.this; // New to me... http://stackoverflow.com/questions/1816458/getting-hold-of-the-outer-class-object-from-the-inner-class-object
-			//				if (qupath != null)
-			//					qupath.imageDataChanged(null, imageDataOld, imageDataNew);
-
 			if (viewer.getServer() != null) {
 				lastX = viewer.getCenterPixelX();
 				lastY = viewer.getCenterPixelY();
 				lastDownsample = viewer.getDownsampleFactor();
 				lastRotation = viewer.getRotation();
 			}
-
 			qupath.updateMagnificationString();
-
 		}
 		logger.debug("Active viewer set to {}", viewer);
 		imageDataProperty.set(imageDataNew);
@@ -261,7 +250,7 @@ class MultiviewManager implements QuPathViewerListener {
 		return activeViewerProperty;
 	}
 
-	public Node getNode() {
+	public Region getRegion() {
 		if (splitPaneGrid == null) {
 			// Create a reasonably-sized viewer
 			QuPathViewerPlus defaultViewer = createViewer();
@@ -317,8 +306,7 @@ class MultiviewManager implements QuPathViewerListener {
 
 		int nOpen = splitPaneGrid.countOpenViewersForRow(row);
 		if (nOpen > 0) {
-			Dialogs.showErrorMessage("Close row error", "Please close all open viewers in selected row, then try again");
-			//				DisplayHelpers.showErrorMessage("Close row error", "Please close all open viewers in row " + row + ", then try again");
+			Dialogs.showErrorMessage("Close row error", "Please close all open viewers in the selected row, then try again");
 			return false;
 		}
 		splitPaneGrid.removeRow(row);
@@ -340,39 +328,6 @@ class MultiviewManager implements QuPathViewerListener {
 			if (iter.next().getView().getScene() == null)
 				iter.remove();
 		}
-	}
-
-
-	/**
-	 * Close the image within a viewer, prompting to save changes if necessary.
-	 * 
-	 * @param viewer
-	 * @return True if the viewer no longer contains an open image (either because it never did contain one, or 
-	 * the image was successfully closed), false otherwise (e.g. if the user thwarted the close request)
-	 */
-	public boolean closeViewer(final QuPathViewer viewer) {
-		return closeViewer("Save changes", viewer);
-	}
-
-	/**
-	 * Close the image within a viewer, prompting to save changes if necessary.
-	 * 
-	 * @param dialogTitle Name to use within any displayed dialog box.
-	 * @param viewer
-	 * @return True if the viewer no longer contains an open image (either because it never did contain one, or 
-	 * the image was successfully closed), false otherwise (e.g. if the user thwarted the close request)
-	 */
-	public boolean closeViewer(final String dialogTitle, final QuPathViewer viewer) {
-		ImageData<BufferedImage> imageData = viewer.getImageData();
-		if (imageData == null)
-			return true;
-		// Deal with saving, if necessary
-		if (imageData.isChanged()) {
-			if (!qupath.isReadOnly() && !qupath.promptToSaveChangesOrCancel(dialogTitle, imageData))
-				return false;
-		}
-		viewer.setImageData(null);
-		return true;
 	}
 
 
@@ -435,11 +390,6 @@ class MultiviewManager implements QuPathViewerListener {
 	}
 
 
-	public void repaintViewers() {
-		for (QuPathViewer v : viewers)
-			v.repaint();
-	}
-
 	@Override
 	public void imageDataChanged(QuPathViewer viewer, ImageData<BufferedImage> imageDataOld, ImageData<BufferedImage> imageDataNew) {
 		if (viewer != null && viewer == getActiveViewer()) {
@@ -460,16 +410,6 @@ class MultiviewManager implements QuPathViewerListener {
 		if (viewer == null)
 			return;
 		if (viewer != getActiveViewer() || viewer.isImageDataChanging() || zoomToFit.get()) {
-			//				// Only change downsamples for non-active viewer
-			//				double downsample = viewer.getDownsampleFactor();
-			//				if (synchronizeViewers) {
-			//					for (QuPathViewer v : viewers) {
-			//						double oldDownsample = v.getDownsampleFactor();
-			//						if (!GeneralTools.almostTheSame(downsample, oldDownsample, 0.0001)) {
-			//							v.setDownsampleFactor(downsample);
-			//						}
-			//					}
-			//				}
 			return;
 		} else {
 			// Update magnification info
@@ -656,11 +596,6 @@ class MultiviewManager implements QuPathViewerListener {
 	@Override
 	public void viewerClosed(QuPathViewer viewer) {}
 
-	public QuPathViewerPlus getViewer() {
-		return getActiveViewer();
-	}
-
-	
 	
 	
 	private void setupViewer(final QuPathViewerPlus viewer) {
@@ -803,7 +738,6 @@ class MultiviewManager implements QuPathViewerListener {
 			splitRow.getItems().add(createViewer().getView());
 			for (int i = 0; i < firstRow.getDividers().size(); i++) {
 				splitRow.getItems().add(createViewer().getView());
-				//					splitRow.getDividers().get(i).positionProperty().bindBidirectional(firstRow.getDividers().get(i).positionProperty());
 			}
 
 			// Ensure the new divider takes up half the space
@@ -824,9 +758,6 @@ class MultiviewManager implements QuPathViewerListener {
 				return false;
 			}
 			SplitPane splitPane = splitPaneRows.remove(row);
-			//				// WeakHashMap should take care of this... but check anyway
-			//				for (Node node : splitPane.getItems())
-			//					viewerMap.remove(node);
 			splitPaneMain.getItems().remove(splitPane);
 			refreshDividerBindings();
 			return true;
@@ -971,7 +902,7 @@ class MultiviewManager implements QuPathViewerListener {
 
 		MenuItem miCloseViewer = new MenuItem("Close viewer");
 		miCloseViewer.setOnAction(e -> {
-			closeViewer(viewer);
+			qupath.closeViewer(viewer);
 		});
 		MenuItem miResizeGrid = new MenuItem("Reset grid size");
 		miResizeGrid.setOnAction(e -> {
@@ -987,8 +918,6 @@ class MultiviewManager implements QuPathViewerListener {
 				null,
 				miResizeGrid,
 				null,
-//				miSplitQuadrants,
-//				null,
 				miAddRow,
 				miAddColumn,
 				null,
@@ -1056,13 +985,6 @@ class MultiviewManager implements QuPathViewerListener {
 		
 		// Create an empty placeholder menu
 		Menu menuSetClass = MenuTools.createMenu("Set class");
-		
-		
-//		CheckMenuItem miTMAValid = new CheckMenuItem("Set core valid");
-//		miTMAValid.setOnAction(e -> setTMACoreMissing(viewer.getHierarchy(), false));
-//		CheckMenuItem miTMAMissing = new CheckMenuItem("Set core missing");
-//		miTMAMissing.setOnAction(e -> setTMACoreMissing(viewer.getHierarchy(), true));
-		
 		
 		Menu menuCells = MenuTools.createMenu(
 				"Cells",
@@ -1132,8 +1054,6 @@ class MultiviewManager implements QuPathViewerListener {
 			popup.setWidth(popup.getPrefWidth());
 		});
 		
-		
-//		popup.add(menuClassify);
 		popup.getItems().addAll(
 				miClearSelectedObjects,
 				menuTMA,
@@ -1165,13 +1085,6 @@ class MultiviewManager implements QuPathViewerListener {
 				e.consume();
 			}
 		});
-		
-//		// It's necessary to make the Window the owner, since otherwise the context menu does not disappear when clicking elsewhere on the viewer
-//		viewer.getView().setOnContextMenuRequested(e -> {
-//			popup.show(viewer.getView().getScene().getWindow(), e.getScreenX(), e.getScreenY());
-////			popup.show(viewer.getView(), e.getScreenX(), e.getScreenY());
-//		});
-			
 	}
 	
 	

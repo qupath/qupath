@@ -546,7 +546,7 @@ public class PixelClassificationOverlay extends AbstractImageOverlay  {
                 try {
                 	classifierServer.readRegion(tile.getRegionRequest());
 //                    viewer.repaint();
-                	QuPathGUI.getInstance().repaintViewers();
+                	QuPathGUI.getInstance().repaintAllViewers();
                     var channelType = classifierServer.getMetadata().getChannelType();
                     if (channelType == ChannelType.CLASSIFICATION || channelType == ChannelType.PROBABILITY || channelType == ChannelType.MULTICLASS_PROBABILITY) {
 		                if (hierarchy != null) {

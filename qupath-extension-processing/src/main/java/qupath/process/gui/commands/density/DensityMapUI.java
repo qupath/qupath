@@ -398,7 +398,7 @@ public class DensityMapUI {
 			var renderer = getRenderer();
 			if (renderer != null) {
 				renderer.setColorModel(previousColorModel);
-				qupath.repaintViewers();
+				qupath.repaintAllViewers();
 			}
 		}
 		
@@ -431,7 +431,7 @@ public class DensityMapUI {
 			var colorModel = new ThresholdColorModels.ThresholdColorModel(threshold, transparent, transparent, above);
 			
 			renderer.setColorModel(colorModel);
-			qupath.repaintViewers();
+			qupath.repaintAllViewers();
 		}
 		
 		

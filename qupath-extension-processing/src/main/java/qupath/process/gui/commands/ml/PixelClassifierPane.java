@@ -473,7 +473,7 @@ public class PixelClassifierPane {
 			}
 			if (overlay != null)
 				overlay.setOpacity(n.doubleValue());
-			qupath.repaintViewers();
+			qupath.repaintAllViewers();
 		});
 
 		var btnFeatureAuto = new Button("Auto");
@@ -819,7 +819,7 @@ public class PixelClassifierPane {
 		if (featureRenderer == null || spinFeatureMin.getValue() == null || spinFeatureMax.getValue() == null)
 			return;
 		featureRenderer.setRange(spinFeatureMin.getValue(), spinFeatureMax.getValue());
-		qupath.repaintViewers();
+		qupath.repaintAllViewers();
 	}
 	
 	private void updateClassifier() {

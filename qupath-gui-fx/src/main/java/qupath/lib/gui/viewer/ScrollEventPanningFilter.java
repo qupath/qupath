@@ -22,12 +22,11 @@
  */
 
 
-package qupath.lib.gui;
+package qupath.lib.gui.viewer;
 
 import javafx.event.EventHandler;
 import javafx.scene.input.ScrollEvent;
 import qupath.lib.gui.prefs.PathPrefs;
-import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.tools.PathTools;
 
 class ScrollEventPanningFilter implements EventHandler<ScrollEvent> {
@@ -44,6 +43,7 @@ class ScrollEventPanningFilter implements EventHandler<ScrollEvent> {
 
 		@Override
 		public void handle(ScrollEvent e) {
+			
 			// Check if we'd rather be using scroll to do something else (e.g. zoom, adjust opacity)
 			boolean wouldRatherDoSomethingElse = e.getTouchCount() == 0 && (!PathPrefs.useScrollGesturesProperty().get() || e.isShiftDown() || e.isShortcutDown());
 			if (wouldRatherDoSomethingElse) {
@@ -71,7 +71,7 @@ class ScrollEventPanningFilter implements EventHandler<ScrollEvent> {
 				return;
 			}
 			
-//			// If this is a SCROLL_FINISHED event, continue moving with the last starting velocity - but ignore inertia
+			// If this is a SCROLL_FINISHED event, continue moving with the last starting velocity - but ignore inertia
 			if (!lastTouchEvent && e.getEventType() == ScrollEvent.SCROLL_FINISHED) {
 				if (System.currentTimeMillis() - lastTimestamp < 100L) {
 					viewer.requestStartMoving(deltaX, deltaY);
@@ -82,14 +82,10 @@ class ScrollEventPanningFilter implements EventHandler<ScrollEvent> {
 				e.consume();
 				return;
 			}
-//			viewer.requestStopMoving();
 			
 			// Use downsample since shift will be defined in full-resolution pixel coordinates
 			double dx = e.getDeltaX() * viewer.getDownsampleFactor();
 			double dy = e.getDeltaY() * viewer.getDownsampleFactor();
-			
-			// When e.isInertia() == TRUE on OSX, the results are quite annoyingly 'choppy' - x,y values are often passed separately
-//			System.err.println(String.format("dx=%.1f, dy=%.1f %s", e.getDeltaX(), e.getDeltaY(), (e.isInertia() ? "-Inertia" : "")));
 			
 			// Flip scrolling direction if necessary
 			if (PathPrefs.invertScrollingProperty().get()) {
