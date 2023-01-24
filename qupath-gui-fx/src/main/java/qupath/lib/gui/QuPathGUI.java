@@ -24,11 +24,13 @@
 package qupath.lib.gui;
 
 import java.awt.Desktop;
+import java.awt.desktop.QuitEvent;
+import java.awt.desktop.QuitHandler;
+import java.awt.desktop.QuitResponse;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInputStream;
@@ -56,6 +58,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.concurrent.ExecutorCompletionService;
@@ -94,7 +97,6 @@ import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener.Change;
 import javafx.collections.ObservableList;
 import javafx.embed.swing.JFXPanel;
-import javafx.embed.swing.SwingFXUtils;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
@@ -102,6 +104,7 @@ import javafx.geometry.Pos;
 import javafx.geometry.Rectangle2D;
 import javafx.scene.Cursor;
 import javafx.scene.Node;
+import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.ButtonBar.ButtonData;
 import javafx.scene.control.ButtonType;
@@ -222,6 +225,7 @@ public class QuPathGUI {
 	
 	private ScriptEditor scriptEditor = null;
 	
+	private Map<Class<? extends QuPathExtension>, QuPathExtension> loadedExtensions = new HashMap<>();
 	private static ExtensionClassLoader extensionClassLoader = new ExtensionClassLoader();
 	private ServiceLoader<QuPathExtension> extensionLoader = ServiceLoader.load(QuPathExtension.class, extensionClassLoader);
 	
@@ -272,10 +276,6 @@ public class QuPathGUI {
 	
 	private MultiviewManager viewerManager = new MultiviewManager(this);
 	
-	MultiviewManager getViewerManager() {
-		return viewerManager;
-	}
-
 	private ToolBarComponent toolbar; // Top component
 	private SplitPane splitPane = new SplitPane(); // Main component
 
@@ -312,470 +312,15 @@ public class QuPathGUI {
 	
 	private LogViewerCommand logViewerCommand = new LogViewerCommand(QuPathGUI.this);
 	
-	/**
-	 * Create an {@link Action} that depends upon an {@link ImageData}.
-	 * When the action is invoked, it will be passed the current {@link ImageData} as a parameter.
-	 * The action will also be disabled if no image data is present.
-	 * @param command the command to run
-	 * @return an {@link Action} with appropriate properties set
-	 */
-	public Action createImageDataAction(Consumer<ImageData<BufferedImage>> command) {
-		var action = new Action(e -> {
-			var imageData = getImageData();
-			if (imageData == null)
-				Dialogs.showNoImageError("No image");
-			else
-				command.accept(imageData);
-		});
-		action.disabledProperty().bind(noImageData);
-		return action;
-	}
-	
-	
-	/**
-	 * Property to indicate whether a plugin is running or not.
-	 * This is used to plugin the UI if needed.
-	 * @return
-	 */
-	BooleanProperty pluginRunningProperty() {
-		return pluginRunning;
-	}
-	
-	/**
-	 * Property to indicate whether the input display is currently showing
-	 * @return input display property
-	 */
-	public BooleanProperty showInputDisplayProperty() {
-		return showInputDisplayProperty;
-	}
-	
-	
-	/**
-	 * Create an {@link Action} that depends upon an {@link QuPathViewer}.
-	 * When the action is invoked, it will be passed the current {@link QuPathViewer} as a parameter.
-	 * The action will also be disabled if no viewer is present.
-	 * @param command the command to run
-	 * @return an {@link Action} with appropriate properties set
-	 */
-	Action createViewerAction(Consumer<QuPathViewer> command) {
-		var action = new Action(e -> {
-			var viewer = getViewer();
-			if (viewer == null)
-				Dialogs.showErrorMessage("No viewer", "This command required an active viewer!");
-			else
-				command.accept(viewer);
-		});
-		action.disabledProperty().bind(noViewer);
-		return action;
-	}
-	
-	/**
-	 * Create an {@link Action} that depends upon an {@link ImageData}.
-	 * When the action is invoked, it will be passed the current {@link QuPathViewer} as a parameter.
-	 * The action will also be disabled if no viewer is present.
-	 * @param command the command to run
-	 * @param name text of the action
-	 * @return an {@link Action} with appropriate properties set
-	 */
-	public Action createImageDataAction(Consumer<ImageData<BufferedImage>> command, String name) {
-		var action = createImageDataAction(command);
-		action.setText(name);
-		return action;
-	}
-	
-	/**
-	 * Create an {@link Action} that depends upon a {@link Project}.
-	 * When the action is invoked, it will be passed the current {@link Project} as a parameter.
-	 * The action will also be disabled if no image data is present.
-	 * @param command the command to run
-	 * @return an {@link Action} with appropriate properties set
-	 */
-	public Action createProjectAction(Consumer<Project<BufferedImage>> command) {
-		var action = new Action(e -> {
-			var project = getProject();
-			if (project == null)
-				Dialogs.showNoProjectError("No project");
-			else
-				command.accept(project);
-		});
-		action.disabledProperty().bind(noProject);
-		return action;
-	}
-	
-	/**
-	 * Install the specified actions. It is assumed that these have been configured via {@link ActionTools}, 
-	 * and therefore have sufficient information associated with them (including a menu path).
-	 * @param actions
-	 */
-	public void installActions(Collection<? extends Action> actions) {
-		this.actions.addAll(actions);
-		installActionsImpl(actions);
-	}
-	
-	private void installActionsImpl(Collection<? extends Action> actions) {
-		
-		var menus = getMenuBar().getMenus();
-		
-		var menuMap = new HashMap<String, Menu>();
-		
-		for (var action : actions) {
-			var menuString = action.getProperties().get("MENU");
-			if (menuString instanceof String) {
-				var menu = menuMap.computeIfAbsent((String)menuString, s -> MenuTools.getMenu(menus, s, true));
-				var items = menu.getItems();
-				var name = action.getText();
-				var newItem = ActionTools.createMenuItem(action);
-				if (!(newItem instanceof SeparatorMenuItem)) {
-					var existing = items.stream().filter(m -> m.getText() != null && m.getText().equals(name)).findFirst().orElse(null);
-					if (existing != null) {
-						logger.warn("Existing menu item found with name '{}' - this will be replaced", name);
-						items.set(items.indexOf(existing), newItem);
-						continue;
-					}
-				} else if (items.isEmpty()) {
-					// Don't add a separator if there is nothing to separate
-					continue;
-				}
-				items.add(newItem);
-				registerAccelerator(action);
-			} else {
-				// Not really a problem, but ideally we'd rearrange things so it doesn't happen
-				// (Currently it does a lot when adding actions to the toolbar)
-				logger.trace("Found command without associated menu: {}", action.getText());
-			}
-		}
-	}
-	
-	
-	/**
-	 * Default actions associated with a specific QuPath instance.
-	 * These are useful for generating toolbars and context menus, ensuring that the same actions are used consistently.
-	 */
-	public class DefaultActions {
-		
-		// Zoom actions
-		/**
-		 * Apply 'zoom-to-fit' setting to all viewers
-		 */
-		@ActionIcon(PathIcons.ZOOM_TO_FIT)
-		public final Action ZOOM_TO_FIT = ActionTools.createSelectableAction(viewerManager.zoomToFitProperty(), "Zoom to fit");
-		
-		// Tool actions
-		/**
-		 * Move tool action
-		 */
-		@ActionAccelerator("m")
-		@ActionDescription("Move tool, both for moving around the viewer (panning) and moving objects (translation).")
-		public final Action MOVE_TOOL = getToolAction(PathTools.MOVE);
-		/**
-		 * Rectangle tool action
-		 */
-		@ActionAccelerator("r")
-		@ActionDescription("Click and drag to draw a rectangle annotation. Hold down 'Shift' to constrain shape to be a square.")
-		public final Action RECTANGLE_TOOL = getToolAction(PathTools.RECTANGLE);
-		/**
-		 * Ellipse tool action
-		 */
-		@ActionAccelerator("o")
-		@ActionDescription("Click and drag to draw an ellipse annotation. Hold down 'Shift' to constrain shape to be a circle.")
-		public final Action ELLIPSE_TOOL = getToolAction(PathTools.ELLIPSE);
-		/**
-		 * Polygon tool action
-		 */
-		@ActionAccelerator("p")
-		@ActionDescription("Create a closed polygon annotation, either by clicking individual points (with double-click to end) or clicking and dragging.")
-		public final Action POLYGON_TOOL = getToolAction(PathTools.POLYGON);
-		/**
-		 * Polyline tool action
-		 */
-		@ActionAccelerator("v")
-		@ActionDescription("Create a polyline annotation, either by clicking individual points (with double-click to end) or clicking and dragging.")
-		public final Action POLYLINE_TOOL = getToolAction(PathTools.POLYLINE);
-		/**
-		 * Brush tool action
-		 */
-		@ActionAccelerator("b")
-		@ActionDescription("Click and drag to paint with a brush. "
-				+ "By default, the size of the region being drawn depends upon the zoom level in the viewer.")
-		public final Action BRUSH_TOOL = getToolAction(PathTools.BRUSH);
-		/**
-		 * Line tool action
-		 */
-		@ActionAccelerator("l")
-		@ActionDescription("Click and drag to draw a line annotation.")
-		public final Action LINE_TOOL = getToolAction(PathTools.LINE);
-		/**
-		 * Points/counting tool action
-		 */
-		@ActionAccelerator(".")
-		@ActionDescription("Click to add points to an annotation.")
-		public final Action POINTS_TOOL = getToolAction(PathTools.POINTS);
-		
-		/**
-		 * Toggle 'selection mode' on/off for all drawing tools.
-		 */
-		@ActionAccelerator("shift+s")
-		@ActionIcon(PathIcons.SELECTION_MODE)
-		@ActionDescription("Turn on/off selection mode - this converts drawing tools into selection tools")
-		public final Action SELECTION_MODE = ActionTools.createSelectableAction(PathPrefs.selectionModeProperty(), "Selection mode");
-		
-		// Toolbar actions
-		/**
-		 * Show the brightness/contrast dialog.
-		 */
-		@ActionIcon(PathIcons.CONTRAST)
-		@ActionAccelerator("shift+c")
-		@ActionDescription("Open brightness & contrast dialog - also used to adjust channels and colors")
-		public final Action BRIGHTNESS_CONTRAST = ActionTools.createAction(new BrightnessContrastCommand(QuPathGUI.this), "Brightness/Contrast");
-		
-		/**
-		 * Toggle the image overview display on the viewers.
-		 */
-		@ActionIcon(PathIcons.OVERVIEW)
-		@ActionDescription("Show/hide overview image (top right)")
-		public final Action SHOW_OVERVIEW = ActionTools.createSelectableAction(viewerManager.showOverviewProperty(), "Show slide overview");
-		/**
-		 * Toggle the cursor location display on the viewers.
-		 */
-		@ActionIcon(PathIcons.LOCATION)
-		@ActionDescription("Show/hide location text (bottom right)")
-		public final Action SHOW_LOCATION = ActionTools.createSelectableAction(viewerManager.showLocationProperty(), "Show cursor location");
-		/**
-		 * Toggle the scalebar display on the viewers.
-		 */
-		@ActionIcon(PathIcons.SHOW_SCALEBAR)
-		@ActionDescription("Show/hide scalebar (bottom left)")
-		public final Action SHOW_SCALEBAR = ActionTools.createSelectableAction(viewerManager.showScalebarProperty(), "Show scalebar");
-		/**
-		 * Toggle the counting grid display on the viewers.
-		 */
-		@ActionIcon(PathIcons.GRID)
-		@ActionAccelerator("shift+g")
-		@ActionDescription("Show/hide counting grid overlay")
-		public final Action SHOW_GRID = ActionTools.createSelectableAction(overlayOptions.showGridProperty(), "Show grid");
-		/**
-		 * Prompt to set the spacing for the counting grid.
-		 */
-		public final Action GRID_SPACING = ActionTools.createAction(() -> Commands.promptToSetGridLineSpacing(overlayOptions), "Set grid spacing");
-		
-		/**
-		 * Show the counting tool dialog. By default, this is connected to setting the points tool to active.
-		 */
-		public final Action COUNTING_PANEL = ActionTools.createAction(new CountingPanelCommand(QuPathGUI.this), "Counting tool", PathTools.POINTS.getIcon(), null);
-
-		/**
-		 * Toggle the pixel classification overlay visibility on the viewers.
-		 */
-		@ActionIcon(PathIcons.PIXEL_CLASSIFICATION)
-		@ActionAccelerator("c")
-		@ActionDescription("Show/hide pixel classification overlay (when available)")
-		public final Action SHOW_PIXEL_CLASSIFICATION = ActionTools.createSelectableAction(overlayOptions.showPixelClassificationProperty(), "Show pixel classification");
-			
-		// TMA actions
-		/**
-		 * Add a note to any selected TMA core.
-		 */
-		public final Action TMA_ADD_NOTE = createImageDataAction(imageData -> TMACommands.promptToAddNoteToSelectedCores(imageData), "Add TMA note");
-		
-		// Overlay options actions
-		/**
-		 * Request that cells are displayed using their boundary ROI only.
-		 */
-		@ActionIcon(PathIcons.CELL_ONLY)
-		public final Action SHOW_CELL_BOUNDARIES = createSelectableCommandAction(new SelectableItem<>(overlayOptions.detectionDisplayModeProperty(), DetectionDisplayMode.BOUNDARIES_ONLY), "Cell boundaries only");
-		/**
-		 * Request that cells are displayed using their boundary ROI only.
-		 */
-		@ActionIcon(PathIcons.NUCLEI_ONLY)
-		public final Action SHOW_CELL_NUCLEI = createSelectableCommandAction(new SelectableItem<>(overlayOptions.detectionDisplayModeProperty(), DetectionDisplayMode.NUCLEI_ONLY), "Nuclei only");
-		/**
-		 * Request that cells are displayed using both cell and nucleus ROIs.
-		 */
-		@ActionIcon(PathIcons.CELL_NUCLEI_BOTH)
-		public final Action SHOW_CELL_BOUNDARIES_AND_NUCLEI = createSelectableCommandAction(new SelectableItem<>(overlayOptions.detectionDisplayModeProperty(), DetectionDisplayMode.NUCLEI_AND_BOUNDARIES), "Nuclei & cell boundaries");
-		/**
-		 * Request that cells are displayed using their centroids only.
-		 */
-		@ActionIcon(PathIcons.CENTROIDS_ONLY)
-		public final Action SHOW_CELL_CENTROIDS = createSelectableCommandAction(new SelectableItem<>(overlayOptions.detectionDisplayModeProperty(), DetectionDisplayMode.CENTROIDS), "Centroids only");
-
-		/**
-		 * Toggle the display of annotations.
-		 */
-		@ActionIcon(PathIcons.ANNOTATIONS)
-		@ActionAccelerator("a")
-		@ActionDescription("Show/hide annotation objects")
-		public final Action SHOW_ANNOTATIONS = ActionTools.createSelectableAction(overlayOptions.showAnnotationsProperty(), "Show annotations");
-		
-		/**
-		 * Toggle the display of annotation names.
-		 */
-		@ActionIcon(PathIcons.SHOW_NAMES)
-		@ActionAccelerator("n")
-		@ActionDescription("Show/hide annotation names (where available)")
-		public final Action SHOW_NAMES = ActionTools.createSelectableAction(overlayOptions.showNamesProperty(), "Show names");
-		
-		/**
-		 * Display annotations filled in.
-		 */
-		@ActionIcon(PathIcons.ANNOTATIONS_FILL)
-		@ActionAccelerator("shift+f")
-		@ActionDescription("Full/unfill annotation objects")
-		public final Action FILL_ANNOTATIONS = ActionTools.createSelectableAction(overlayOptions.fillAnnotationsProperty(), "Fill annotations");	
-		
-		/**
-		 * Toggle the display of TMA cores.
-		 */
-		@ActionIcon(PathIcons.TMA_GRID)
-		@ActionAccelerator("g")
-		@ActionDescription("Show/hide TMA grid")
-		public final Action SHOW_TMA_GRID = ActionTools.createSelectableAction(overlayOptions.showTMAGridProperty(), "Show TMA grid");
-		/**
-		 * Toggle the display of TMA grid labels.
-		 */
-		public final Action SHOW_TMA_GRID_LABELS = ActionTools.createSelectableAction(overlayOptions.showTMACoreLabelsProperty(), "Show TMA grid labels");
-		
-		/**
-		 * Toggle the display of detections.
-		 */
-		@ActionIcon(PathIcons.DETECTIONS)
-		@ActionAccelerator("d")
-		@ActionDescription("Show/hide detection objects")
-		public final Action SHOW_DETECTIONS = ActionTools.createSelectableAction(overlayOptions.showDetectionsProperty(), "Show detections");
-		
-		/**
-		 * Display detections filled in.
-		 */
-		@ActionIcon(PathIcons.DETECTIONS_FILL)
-		@ActionAccelerator("f")
-		@ActionDescription("Fill/unfill detection objects")
-		public final Action FILL_DETECTIONS = ActionTools.createSelectableAction(overlayOptions.fillDetectionsProperty(), "Fill detections");	
-		/**
-		 * Display the convex hull of point ROIs.
-		 */
-		public final Action CONVEX_POINTS = ActionTools.createSelectableAction(PathPrefs.showPointHullsProperty(), "Show point convex hull");
-		
-		// Viewer actions
-		/**
-		 * Toggle the synchronization of multiple viewers.
-		 */
-		@ActionAccelerator("shortcut+alt+s")
-		@ActionDescription("Synchronize viewers, so that pan, zoom and rotate in one viewer also impacts the other viewers")
-		public final Action TOGGLE_SYNCHRONIZE_VIEWERS = ActionTools.createSelectableAction(viewerManager.synchronizeViewersProperty(), "Synchronize viewers");
-		/**
-		 * Match the resolution of all open viewers.
-		 */
-		public final Action MATCH_VIEWER_RESOLUTIONS = new Action("Match viewer resolutions", e -> viewerManager.matchResolutions());
-		
-		/**
-		 * Show the main log window.
-		 */
-		@ActionAccelerator("shortcut+shift+l")
-		public final Action SHOW_LOG = ActionTools.createAction(logViewerCommand, "Show log");
-
-		/**
-		 * Toggle the visibility of the 'Analysis pane' in the main viewer.
-		 */
-		@ActionIcon(PathIcons.MEASURE)
-		@ActionAccelerator("shift+a")
-		public final Action SHOW_ANALYSIS_PANE = createShowAnalysisPaneAction();
-		
-		/**
-		 * Show descriptions for the selected object
-		 */
-		public final Action SHOW_OBJECT_DESCRIPTIONS = Commands.createSingleStageAction(() -> Commands.createObjectDescriptionsDialog(QuPathGUI.this));
-
-		
-		/**
-		 * Show summary measurement table for TMA cores.
-		 */
-		@ActionDescription("Show summary measurements for tissue microarray (TMA) cores")
-		public final Action MEASURE_TMA = createImageDataAction(imageData -> Commands.showTMAMeasurementTable(QuPathGUI.this, imageData), "Show TMA measurements");
-		
-		/**
-		 * Show summary measurement table for annotations.
-		 */
-		@ActionDescription("Show summary measurements for annotation objects")
-		public final Action MEASURE_ANNOTATIONS = createImageDataAction(imageData -> Commands.showAnnotationMeasurementTable(QuPathGUI.this, imageData), "Show annotation measurements");
-		
-		/**
-		 * Show summary measurement table for detections.
-		 */
-		@ActionDescription("Show summary measurements for detection objects")
-		public final Action MEASURE_DETECTIONS = createImageDataAction(imageData -> Commands.showDetectionMeasurementTable(QuPathGUI.this, imageData), "Show detection measurements");
-		
-		/**
-		 * Show grid view for annotation measurements.
-		 */
-		@ActionDescription("Show grid view annotation objects")
-		public final Action MEASURE_GRID_ANNOTATIONS = createImageDataAction(imageData -> Commands.showAnnotationGridView(QuPathGUI.this), "Show annotation grid view");
-
-		/**
-		 * Show grid view for TMA core measurements.
-		 */
-		@ActionDescription("Show grid view TMA cores")
-		public final Action MEASURE_GRID_TMA_CORES = createImageDataAction(imageData -> Commands.showAnnotationGridView(QuPathGUI.this), "Show TMA core grid view");
-
-		private DefaultActions() {
-			// This has the effect of applying the annotations
-			ActionTools.getAnnotatedActions(this);
-		}
-		
-	}
 	
 	private DefaultActions defaultActions;
-	
-	
-	/**
-	 * Get the default actions associated with this QuPath instance.
-	 * @return
-	 */
-	public synchronized DefaultActions getDefaultActions() {
-		if (defaultActions == null) {
-			defaultActions = new DefaultActions();
-			installActions(ActionTools.getAnnotatedActions(defaultActions));
-		}
-		return defaultActions;
-	}
-	
-	
-	private Action createShowAnalysisPaneAction() {
-		return ActionTools.createSelectableAction(showAnalysisPane, "Show analysis panel");
-	}
+
 	
 	/**
 	 * A list of all actions currently registered for this GUI.
 	 */
 	private Set<Action> actions = new LinkedHashSet<>();
-	
-	/**
-	 * Search for an action based upon its text (name) property.
-	 * @param text the text to search for
-	 * @return the action, if found, or null otherwise
-	 */
-	public Action lookupActionByText(String text) {
-		var found = actions.stream().filter(p -> text.equals(p.getText())).findFirst().orElse(null);
-		if (found == null) {
-			logger.warn("No action called '{}' could be found!", text);
-		}
-		return found;
-	}
-	
-	/**
-	 * Search for a menu item based upon its path.
-	 * @param menuPath path to the menu item, in the form {@code "Main menu>Submenu>Name}
-	 * @return the menu item corresponding to this path, or null if no menu item is found
-	 */
-	public MenuItem lookupMenuItem(String menuPath) {
-		var menu = parseMenu(menuPath, "", false);
-		if (menu == null)
-			return null;
-		var name = parseName(menuPath);
-		if (name.isEmpty())
-			return menu;
-		return menu.getItems().stream().filter(m -> name.equals(m.getText())).findFirst().orElse(null);
-	}
-		
+
 	
 	/**
 	 * Create a new QuPath instance.
@@ -785,48 +330,101 @@ public class QuPathGUI {
 	private QuPathGUI(final Stage stage) {
 		super();
 		
-		var timeit = new Timeit().start("Starting");
-		
-		if (PathPrefs.doCreateLogFilesProperty().get()) {
-			File fileLogging = tryToStartLogFile();
-			if (fileLogging != null) {
-				logger.info("Logging to file {}", fileLogging);
-			} else {
-				logger.warn("No directory set for log files! None will be written.");
-			}
-		}
-		
-		var buildString = BuildInfo.getInstance().getBuildString();
-		var version = BuildInfo.getInstance().getVersion();
-		if (buildString != null)
-			logger.info("QuPath build: {}", buildString);
-		else if (version != null) {
-			logger.info("QuPath version: {}", version);			
-		} else
-			logger.warn("QuPath version unknown!");						
-		
-		long startTime = System.currentTimeMillis();
-		
-		// Set up cache
-		timeit.checkpoint("Creating tile cache");
-		PathPrefs.tileCachePercentageProperty().addListener((v, o, n) -> {
-			imageRegionStore.getCache().clear();
-		});
-		
-		ImageServerProvider.setCache(imageRegionStore.getCache(), BufferedImage.class);
-		
 		this.stage = stage;
 		
-		timeit.checkpoint("Creating menus");
+		var timeit = new Timeit().start("Starting");
+		initializeLoggingToFile();
+		logBuildVersion();				
 		
-		menuBar = new MenuBar(
-				Arrays.asList("File", "Edit", "Tools", "View", "Objects", "TMA", "Measure", "Automate", "Analyze", "Classify", "Extensions", "Help")
-				.stream().map(Menu::new).toArray(Menu[]::new)
-				);
+		// Set up image cache
+		timeit.checkpoint("Creating tile cache");
+		initializeImageTileCache();
+				
+		timeit.checkpoint("Creating menus");
+		menuBar = createMenubar();
 		
 		setupToolsMenu(getMenu("Tools", true));
 		
 		// Prepare for image name masking
+		setupProjectNameMasking();
+		
+		// Create preferences panel
+		timeit.checkpoint("Creating preferences");
+		prefsPane = new PreferencePane();
+		
+		// Initialize available classes
+		initializePathClasses();
+		
+		// Set this as the current instance
+		ensureQuPathInstanceSet();
+		
+		// Ensure the user is notified of any errors from now on
+		setDefaultUncaughtExceptionHandler();
+		
+		timeit.checkpoint("Creating main component");
+		BorderPane pane = new BorderPane();
+		pane.setCenter(initializeMainComponent());
+		
+		initializingMenus.set(true);
+		menuBar.useSystemMenuBarProperty().bindBidirectional(PathPrefs.useSystemMenubarProperty());
+		pane.setTop(menuBar);
+		
+		Scene scene = createAndInitializeMainScene(pane);
+		splitPane.setDividerPosition(0, 400/scene.getWidth());
+		
+		initializeStage(scene);
+
+		// Remove this to only accept drag-and-drop into a viewer
+		TMACommands.installDragAndDropHandler(this);
+		
+		// Add listener to the inputDisplayDialogProperty to show/hide dialog
+		showInputDisplayProperty.addListener((v, o, n) -> {
+			var dialogInstance = InputDisplayCommand.getInstance(getStage(), showInputDisplayProperty);
+			if (n)
+				dialogInstance.show();
+			else
+				dialogInstance.requestClose();
+		});
+		
+		timeit.checkpoint("Showing");
+		stage.show();
+
+		// Install extensions
+		timeit.checkpoint("Refreshing extensions");
+		refreshExtensions(false);
+		
+		// Add scripts menu (delayed to here, since it takes a bit longer)
+		timeit.checkpoint("Adding script menus");
+		populateScriptingMenu(getMenu("Automate", false));
+		
+		// Menus should now be complete - try binding visibility
+		timeit.checkpoint("Updating menu item visibility");
+		initializingMenus.set(false);
+		bindMenuItemVisibilityToPreferences(menuBar);
+		
+		// Add listeners to set default project and image data
+		syncDefaultImageDataAndProjectForScripting();
+		
+		// Run startup script, if we can
+		var startupScript = searchForStartupScript();
+		if (startupScript.isPresent()) {
+			timeit.checkpoint("Running startup script");
+			tryToRunStartupScript(startupScript.get());			
+		}
+		
+		tryToInstallAppQuitHandler();
+		
+		initializeLocaleChangeListeners();
+		
+		timeit.checkpoint("Refreshing style");
+		initializeStyle();
+		
+		logger.debug("{}", timeit.stop());
+	}
+	
+	
+	
+	private void setupProjectNameMasking() {
 		projectProperty.addListener((v, o, n) -> {
 			if (n != null)
 				n.setMaskImageNames(PathPrefs.maskImageNamesProperty().get());
@@ -838,89 +436,11 @@ public class QuPathGUI {
 				currentProject.setMaskImageNames(n);
 			}
 		}));
-		
-		// Create preferences panel
-		timeit.checkpoint("Creating preferences");
-		prefsPane = new PreferencePane();
-		
-		// Turn off the use of ImageIODiskCache (it causes some trouble)
-		ImageIO.setUseCache(false);
-		
-		// Initialize available classes
-		initializePathClasses();
-		
-		logger.trace("Time to tools: {} ms", (System.currentTimeMillis() - startTime));
-				
-		// Set this as the current instance
-		if (instance == null || instance.getStage() == null || !instance.getStage().isShowing())
-			instance = this;
-		
-		// Ensure the user is notified of any errors from now on
-		Thread.setDefaultUncaughtExceptionHandler(new QuPathUncaughtExceptionHandler(this));
-		
-		
-		logger.trace("Time to main component: {} ms", (System.currentTimeMillis() - startTime));
+	}
 
-		timeit.checkpoint("Creating main component");
-		BorderPane pane = new BorderPane();
-		pane.setCenter(initializeMainComponent());
-		
-		logger.trace("Time to menu: {} ms", (System.currentTimeMillis() - startTime));
-		
-		initializingMenus.set(true);
-		menuBar.useSystemMenuBarProperty().bindBidirectional(PathPrefs.useSystemMenubarProperty());
-		pane.setTop(menuBar);
-		
-		Scene scene;
-		try {
-			Rectangle2D bounds = Screen.getPrimary().getVisualBounds();
-			scene = new Scene(pane, bounds.getWidth()*0.8, bounds.getHeight()*0.8);
-		} catch (Exception e) {
-			logger.debug("Unable to set stage size using primary screen {}", Screen.getPrimary());
-			scene = new Scene(pane, 1000, 600);
-		}
-		
-		splitPane.setDividerPosition(0, 400/scene.getWidth());
-		
-		logger.trace("Time to scene: {} ms", (System.currentTimeMillis() - startTime));
-		
-		stage.setScene(scene);
 
-		// Remove this to only accept drag-and-drop into a viewer
-		dragAndDrop.setupTarget(scene);
-		TMACommands.installDragAndDropHandler(this);
-		
-		
-		// Add listener to the inputDisplayDialogProperty to show/hide dialog
-		showInputDisplayProperty.addListener((v, o, n) -> {
-			var dialogInstance = InputDisplayCommand.getInstance(getStage(), showInputDisplayProperty);
-			if (n)
-				dialogInstance.show();
-			else
-				dialogInstance.requestClose();
-		});
-		
-		stage.setOnCloseRequest(this::handleCloseMainStageRequest);
-		
-		timeit.checkpoint("Showing");
-		logger.debug("Time to display: {} ms", (System.currentTimeMillis() - startTime));
-		stage.show();
-		logger.trace("Time to finish display: {} ms", (System.currentTimeMillis() - startTime));
 
-		timeit.checkpoint("Adding event filters and handlers");
-		addSceneEventFiltersAndHandlers(stage.getScene());
-		
-		// Install extensions
-		timeit.checkpoint("Refreshing extensions");
-		refreshExtensions(false);
-		
-		// Set the icons
-		timeit.checkpoint("Setting icons");
-		stage.getIcons().addAll(loadIconList());
-		
-		// Add scripts menu (delayed to here, since it takes a bit longer)
-		timeit.checkpoint("Adding script menus");
-		Menu menuAutomate = getMenu("Automate", false);
+	private void populateScriptingMenu(Menu menuScripting) {
 		ScriptEditor editor = getScriptEditor();
 		var sharedScriptMenuLoader = new ScriptMenuLoader("Shared scripts...", PathPrefs.scriptsPathProperty(), editor);
 		
@@ -943,75 +463,142 @@ public class QuPathGUI {
 		}, PathPrefs.userPathProperty());
 		ScriptMenuLoader userScriptMenuLoader = new ScriptMenuLoader("User scripts...", userScriptsPath, editor);
 
-
 		MenuTools.addMenuItems(
-				menuAutomate,
+				menuScripting,
 				null,
 				sharedScriptMenuLoader.getMenu(),
 				userScriptMenuLoader.getMenu(),
 				projectScriptMenuLoader.getMenu()
 				);
-		
-		// Menus should now be complete - try binding visibility
-		timeit.checkpoint("Updating menu item visibility");
-		initializingMenus.set(false);
+	}
+	
+	
+	private Scene createAndInitializeMainScene(Parent content) {
+		Scene scene;
 		try {
-			for (var item : MenuTools.getFlattenedMenuItems(menuBar.getMenus(), false)) {
-				if (!item.visibleProperty().isBound())
-					bindVisibilityForExperimental(item);
-			}
+			Rectangle2D bounds = Screen.getPrimary().getVisualBounds();
+			scene = new Scene(content, bounds.getWidth()*0.8, bounds.getHeight()*0.8);
 		} catch (Exception e) {
-			logger.warn("Error binding menu visibility: {}", e.getLocalizedMessage());
-			logger.warn("", e);
+			logger.debug("Unable to set stage size using primary screen {}", Screen.getPrimary());
+			scene = new Scene(content, 1000, 600);
 		}
-		
-		// Update the title
+		addSceneEventFiltersAndHandlers(scene);
+		dragAndDrop.setupTarget(scene);
+		return scene;
+	}
+	
+	
+	private void initializeStage(Scene scene) {
+		stage.setScene(scene);
+		stage.setOnCloseRequest(this::handleCloseMainStageRequest);
+		stage.getIcons().addAll(loadIconList());
 		stage.titleProperty().bind(titleBinding);
-		
+	}
+	
+	
+	private void initializeStyle() {
 		// Update display
 		// Requesting the style should be enough to make sure it is called...
-		logger.debug("Selected style: {}", QuPathStyleManager.selectedStyleProperty().get());
-				
-		long endTime = System.currentTimeMillis();
-		logger.debug("Startup time: {} ms", (endTime - startTime));
-				
-		// Add listeners to set default project and image data
-		imageDataProperty().addListener((v, o, n) -> QP.setDefaultImageData(n));
-		projectProperty.addListener((v, o, n) -> QP.setDefaultProject(n));
-		
-		// Run startup script, if we can
-		try {
-			timeit.checkpoint("Running startup script");
-			runStartupScript();			
-		} catch (Exception e) {
-			logger.error("Error running startup script", e);
-		}
-		
-		if (Desktop.isDesktopSupported()) {
-			var desktop = Desktop.getDesktop();
-			if (desktop.isSupported(java.awt.Desktop.Action.APP_QUIT_HANDLER)) {
-				desktop.setQuitHandler((e, r) -> {
-					Platform.runLater(() -> {
-						tryToQuit();
-						// Report that we have cancelled - we'll quit anyway if the user confirms it,
-						// but we need to handle this on the Application thread
-						r.cancelQuit();
-					});
-				});
+		logger.debug("Setting style to {}", QuPathStyleManager.selectedStyleProperty().get());
+		QuPathStyleManager.refresh();
+	}
+	
+	
+	private MenuBar createMenubar() {
+		return new MenuBar(
+				Arrays.asList("File", "Edit", "Tools", "View", "Objects", "TMA", "Measure", "Automate", "Analyze", "Classify", "Extensions", "Help")
+				.stream().map(Menu::new).toArray(Menu[]::new)
+				);
+	}
+	
+	
+	private void initializeLoggingToFile() {
+		if (PathPrefs.doCreateLogFilesProperty().get()) {
+			File fileLogging = tryToStartLogFile();
+			if (fileLogging != null) {
+				logger.info("Logging to file {}", fileLogging);
+			} else {
+				logger.warn("No directory set for log files! None will be written.");
 			}
 		}
-		
-		// Refresh what we can if the locale changes
+	}
+	
+	
+	private void setDefaultUncaughtExceptionHandler() {
+		Thread.setDefaultUncaughtExceptionHandler(new QuPathUncaughtExceptionHandler(this));
+	}
+	
+	
+	private void logBuildVersion() {
+		var buildString = BuildInfo.getInstance().getBuildString();
+		var version = BuildInfo.getInstance().getVersion();
+		if (buildString != null)
+			logger.info("QuPath build: {}", buildString);
+		else if (version != null) {
+			logger.info("QuPath version: {}", version);			
+		} else
+			logger.warn("QuPath version unknown!");				
+	}
+	
+	
+	private void syncDefaultImageDataAndProjectForScripting() {
+		imageDataProperty().addListener((v, o, n) -> QP.setDefaultImageData(n));
+		projectProperty().addListener((v, o, n) -> QP.setDefaultProject(n));
+	}
+	
+	
+	private void initializeImageTileCache() {
+		PathPrefs.tileCachePercentageProperty().addListener((v, o, n) -> {
+			imageRegionStore.getCache().clear();
+		});
+		ImageServerProvider.setCache(imageRegionStore.getCache(), BufferedImage.class);
+		// Turn off the use of ImageIODiskCache (it causes some trouble)
+		ImageIO.setUseCache(false);
+	}
+	
+	
+	private void initializeLocaleChangeListeners() {
+		// If the Locale changes, we want to try to refresh all list & tables to update number formatting
 		ChangeListener<Locale> localeListener = (v, o, n) -> GuiTools.refreshAllListsAndTables();
 		PathPrefs.defaultLocaleDisplayProperty().addListener(localeListener);
 		PathPrefs.defaultLocaleFormatProperty().addListener(localeListener);
-		
-		timeit.checkpoint("Refreshing style");
-		QuPathStyleManager.refresh();
-		
-		logger.debug("{}", timeit.stop());
 	}
 	
+	
+	private void tryToInstallAppQuitHandler() {
+		if (Desktop.isDesktopSupported()) {
+			var desktop = Desktop.getDesktop();
+			if (desktop.isSupported(java.awt.Desktop.Action.APP_QUIT_HANDLER)) {
+				desktop.setQuitHandler(new QuPathQuitHandler());
+			}
+		}
+	}
+		
+	
+	/**
+	 * Class to handle 'abnormal' requests to quit (e.g. from taskbar or logout)
+	 */
+	class QuPathQuitHandler implements QuitHandler {
+		
+		@Override
+		public void handleQuitRequestWith(QuitEvent e, QuitResponse response) {
+			// Report that we have cancelled - we'll quit anyway if the user confirms it,
+			// but we need to handle this on the Application thread
+			Platform.runLater(() -> {
+				setQuitRequest();
+				response.cancelQuit();
+			});
+		}
+		
+	}
+	
+	
+	private void ensureQuPathInstanceSet() {
+		synchronized (QuPathGUI.class) { 
+			if (instance == null || instance.getStage() == null || !instance.getStage().isShowing())
+				instance = this;
+		}
+	}
 	
 	
 	private void addSceneEventFiltersAndHandlers(Scene scene) {
@@ -1633,13 +1220,7 @@ public class QuPathGUI {
 		// Run the check in a background thread
 		createSingleThreadExecutor(this).execute(() -> doUpdateCheck(checkType, isAutoCheck));
 	}
-	
 		
-	/**
-	 * Keep a record of loaded extensions, both for display and to avoid loading them twice.
-	 */
-	private Map<Class<? extends QuPathExtension>, QuPathExtension> loadedExtensions = new HashMap<>();
-	
 	/**
 	 * @return a collection of extensions that are currently loaded
 	 */
@@ -2111,38 +1692,33 @@ public class QuPathGUI {
 
 	
 	/**
-	 * Try to load icons, i.e. images of various sizes that could be sensible icons... here sacrificing elegance in an effort to make it work
-	 * 
+	 * Load QuPath icons, and various resolutions.
 	 * @return
 	 */
 	private List<Image> loadIconList() {
 		try {
 			List<Image> icons = new ArrayList<>();
 			for (int i : new int[]{16, 32, 48, 64, 128, 256, 512}) {
-				Image icon = loadIcon(i);
-				if (icon != null)
+				try {
+					Image icon = loadIcon(i);
 					icons.add(icon);
+				} catch (IOException e) {
+					logger.warn("Unable to load icon for size " + i + ": " + e.getLocalizedMessage(), e);
+				}
 			}
 			if (!icons.isEmpty())
 				return icons;
 		} catch (Exception e) {
-			logger.warn("Unable to load icons");
+			logger.error("Exception loading icons: " + e.getLocalizedMessage(), e);
 		}
-		return null;
+		return Collections.emptyList();
 	}
 	
-	private Image loadIcon(int size) {
+	private Image loadIcon(int size) throws IOException {
 		String path = "icons/QuPath_" + size + ".png";
-		try (InputStream stream = getExtensionClassLoader().getResourceAsStream(path)) {
-			if (stream != null) {
-				BufferedImage img = ImageIO.read(stream);
-				if (img != null)
-					return SwingFXUtils.toFXImage(img, null);
-			}
-		} catch (IOException e) {
-			logger.error("Unable to read icon from " + path);
+		try (InputStream stream = QuPathGUI.class.getClassLoader().getResourceAsStream(path)) {
+			return new Image(stream);
 		}
-		return null;
 	}
 	
 	
@@ -2551,30 +2127,39 @@ public class QuPathGUI {
 	}
 	
 	
-	
-	/**
-	 * Check the user directory, and run a Groovy script called "startup.groovy" - if it exists.
-	 * @throws ScriptException 
-	 * @throws FileNotFoundException 
-	 */
-	private void runStartupScript() throws FileNotFoundException, ScriptException {
+	private Optional<File> searchForStartupScript() {
 		String pathUsers = PathPrefs.getUserPath();
 		File fileScript = pathUsers == null ? null : new File(pathUsers, "startup.groovy");
 		if (fileScript != null && fileScript.exists()) {
 			logger.info("Startup script found at {}", fileScript.getAbsolutePath());
-			if (PathPrefs.runStartupScriptProperty().get()) {
-				logger.info("Running startup script (you can turn this setting off in the preferences panel)");
-				try {
-					runScript(fileScript, null);
-				} catch (Exception e) {
-					logger.error("Error running startup.groovy: " + e.getLocalizedMessage(), e);
-				}
-			} else {
-				logger.warn("You need to enable the startup script in the Preferences if you want to run it");
-			}
+			return Optional.of(fileScript);
 		} else {
 			logger.debug("No startup script found");
+			return Optional.empty();
 		}
+	}
+	
+	
+	/**
+	 * Check the user directory, and run a Groovy script called "startup.groovy" - if it exists.
+	 */
+	private void tryToRunStartupScript(File fileScript) {
+		if (PathPrefs.runStartupScriptProperty().get()) {
+			logger.info("Running startup script (you can turn this setting off in the preferences panel)");
+			try {
+				runScript(fileScript, null);
+			} catch (Exception e) {
+				logger.error("Error running startup.groovy: " + e.getLocalizedMessage(), e);
+			}
+		} else {
+			logger.warn("You need to enable the startup script in the Preferences if you want to run it");
+		}
+	}
+	
+	
+	
+	MultiviewManager getViewerManager() {
+		return viewerManager;
 	}
 	
 	
@@ -3153,7 +2738,7 @@ public class QuPathGUI {
 	/**
 	 * Request to quit QuPath.
 	 */
-	void tryToQuit() {
+	void setQuitRequest() {
 		var stage = getStage();
 		if (stage == null || !stage.isShowing())
 			return;
@@ -3210,37 +2795,31 @@ public class QuPathGUI {
 	 * @throws Exception
 	 */
 	public boolean runPlugin(final PathPlugin<BufferedImage> plugin, final String arg, final boolean doInteractive) throws Exception {
-//		try {
-			// TODO: Check safety...
-			if (doInteractive && plugin instanceof PathInteractivePlugin) {
-				PathInteractivePlugin<BufferedImage> pluginInteractive = (PathInteractivePlugin<BufferedImage>)plugin;
-				ParameterList params = pluginInteractive.getDefaultParameterList(getImageData());
-				// Update parameter list, if necessary
-				if (arg != null) {
-					Map<String, String> map = GeneralTools.parseArgStringValues(arg);
-					// We use the US locale because we need to ensure decimal points (not commas)
-					ParameterList.updateParameterList(params, map, Locale.US);
-				}
+		if (doInteractive && plugin instanceof PathInteractivePlugin) {
+			PathInteractivePlugin<BufferedImage> pluginInteractive = (PathInteractivePlugin<BufferedImage>)plugin;
+			ParameterList params = pluginInteractive.getDefaultParameterList(getImageData());
+			// Update parameter list, if necessary
+			if (arg != null) {
+				Map<String, String> map = GeneralTools.parseArgStringValues(arg);
+				// We use the US locale because we need to ensure decimal points (not commas)
+				ParameterList.updateParameterList(params, map, Locale.US);
+			}
+			var runner = new PluginRunnerFX(this);
+			ParameterDialogWrapper<BufferedImage> dialog = new ParameterDialogWrapper<>(pluginInteractive, params, runner);
+			dialog.showDialog();
+			return !runner.isCancelled();
+		}
+		else {
+			try {
+				pluginRunning.set(true);
 				var runner = new PluginRunnerFX(this);
-				ParameterDialogWrapper<BufferedImage> dialog = new ParameterDialogWrapper<>(pluginInteractive, params, runner);
-				dialog.showDialog();
+				@SuppressWarnings("unused")
+				var completed = plugin.runPlugin(runner, arg);
 				return !runner.isCancelled();
+			} finally {
+				pluginRunning.set(false);
 			}
-			else {
-				try {
-					pluginRunning.set(true);
-					var runner = new PluginRunnerFX(this);
-					@SuppressWarnings("unused")
-					var completed = plugin.runPlugin(runner, arg);
-					return !runner.isCancelled();
-				} finally {
-					pluginRunning.set(false);
-				}
-			}
-//		} catch (Exception e) {
-//			logger.error("Unable to run plugin " + plugin, e);
-//			return false;
-//		}
+		}
 	}
 	
 	/**
@@ -3527,13 +3106,26 @@ public class QuPathGUI {
 	 * This is an attempt to workaround a Java issue (at least on OS X) where IndexOutOfBoundsExceptions occur 
 	 * when messing around with the system menubar with visible/invisible items.
 	 */
-	private static BooleanProperty initializingMenus = new SimpleBooleanProperty(false);
+	private BooleanProperty initializingMenus = new SimpleBooleanProperty(false);
 	
-	private static BooleanBinding showExperimentalOptions = PathPrefs.showExperimentalOptionsProperty().or(initializingMenus);
-	private static BooleanBinding showTMAOptions = PathPrefs.showTMAOptionsProperty().or(initializingMenus);
-	private static BooleanBinding showLegacyOptions = PathPrefs.showLegacyOptionsProperty().or(initializingMenus);
+	private BooleanBinding showExperimentalOptions = PathPrefs.showExperimentalOptionsProperty().or(initializingMenus);
+	private BooleanBinding showTMAOptions = PathPrefs.showTMAOptionsProperty().or(initializingMenus);
+	private BooleanBinding showLegacyOptions = PathPrefs.showLegacyOptionsProperty().or(initializingMenus);
 	
-	private static <T extends MenuItem> T bindVisibilityForExperimental(final T menuItem) {
+	
+	private void bindMenuItemVisibilityToPreferences(MenuBar menubar) {
+		try {
+			for (var item : MenuTools.getFlattenedMenuItems(menuBar.getMenus(), false)) {
+				if (!item.visibleProperty().isBound())
+					bindMenuItemVisibilityToPreferences(item);
+			}
+		} catch (Exception e) {
+			logger.warn("Error binding menu visibility: {}", e.getLocalizedMessage());
+			logger.warn("", e);
+		}
+	}
+	
+	private <T extends MenuItem> T bindMenuItemVisibilityToPreferences(final T menuItem) {
 		String text = menuItem.getText();
 		if (text == null)
 			return menuItem;
@@ -3908,6 +3500,142 @@ public class QuPathGUI {
 	
 	
 	/**
+	 * Create an {@link Action} that depends upon an {@link ImageData}.
+	 * When the action is invoked, it will be passed the current {@link ImageData} as a parameter.
+	 * The action will also be disabled if no image data is present.
+	 * @param command the command to run
+	 * @return an {@link Action} with appropriate properties set
+	 */
+	public Action createImageDataAction(Consumer<ImageData<BufferedImage>> command) {
+		var action = new Action(e -> {
+			var imageData = getImageData();
+			if (imageData == null)
+				Dialogs.showNoImageError("No image");
+			else
+				command.accept(imageData);
+		});
+		action.disabledProperty().bind(noImageData);
+		return action;
+	}
+	
+	
+	/**
+	 * Property to indicate whether a plugin is running or not.
+	 * This is used to plugin the UI if needed.
+	 * @return
+	 */
+	BooleanProperty pluginRunningProperty() {
+		return pluginRunning;
+	}
+	
+	/**
+	 * Property to indicate whether the input display is currently showing
+	 * @return input display property
+	 */
+	public BooleanProperty showInputDisplayProperty() {
+		return showInputDisplayProperty;
+	}
+	
+	
+	/**
+	 * Create an {@link Action} that depends upon an {@link QuPathViewer}.
+	 * When the action is invoked, it will be passed the current {@link QuPathViewer} as a parameter.
+	 * The action will also be disabled if no viewer is present.
+	 * @param command the command to run
+	 * @return an {@link Action} with appropriate properties set
+	 */
+	Action createViewerAction(Consumer<QuPathViewer> command) {
+		var action = new Action(e -> {
+			var viewer = getViewer();
+			if (viewer == null)
+				Dialogs.showErrorMessage("No viewer", "This command required an active viewer!");
+			else
+				command.accept(viewer);
+		});
+		action.disabledProperty().bind(noViewer);
+		return action;
+	}
+	
+	/**
+	 * Create an {@link Action} that depends upon an {@link ImageData}.
+	 * When the action is invoked, it will be passed the current {@link QuPathViewer} as a parameter.
+	 * The action will also be disabled if no viewer is present.
+	 * @param command the command to run
+	 * @param name text of the action
+	 * @return an {@link Action} with appropriate properties set
+	 */
+	public Action createImageDataAction(Consumer<ImageData<BufferedImage>> command, String name) {
+		var action = createImageDataAction(command);
+		action.setText(name);
+		return action;
+	}
+	
+	/**
+	 * Create an {@link Action} that depends upon a {@link Project}.
+	 * When the action is invoked, it will be passed the current {@link Project} as a parameter.
+	 * The action will also be disabled if no image data is present.
+	 * @param command the command to run
+	 * @return an {@link Action} with appropriate properties set
+	 */
+	public Action createProjectAction(Consumer<Project<BufferedImage>> command) {
+		var action = new Action(e -> {
+			var project = getProject();
+			if (project == null)
+				Dialogs.showNoProjectError("No project");
+			else
+				command.accept(project);
+		});
+		action.disabledProperty().bind(noProject);
+		return action;
+	}
+	
+	/**
+	 * Install the specified actions. It is assumed that these have been configured via {@link ActionTools}, 
+	 * and therefore have sufficient information associated with them (including a menu path).
+	 * @param actions
+	 */
+	public void installActions(Collection<? extends Action> actions) {
+		this.actions.addAll(actions);
+		installActionsImpl(actions);
+	}
+	
+	private void installActionsImpl(Collection<? extends Action> actions) {
+		
+		var menus = getMenuBar().getMenus();
+		
+		var menuMap = new HashMap<String, Menu>();
+		
+		for (var action : actions) {
+			var menuString = action.getProperties().get("MENU");
+			if (menuString instanceof String) {
+				var menu = menuMap.computeIfAbsent((String)menuString, s -> MenuTools.getMenu(menus, s, true));
+				var items = menu.getItems();
+				var name = action.getText();
+				var newItem = ActionTools.createMenuItem(action);
+				if (!(newItem instanceof SeparatorMenuItem)) {
+					var existing = items.stream().filter(m -> m.getText() != null && m.getText().equals(name)).findFirst().orElse(null);
+					if (existing != null) {
+						logger.warn("Existing menu item found with name '{}' - this will be replaced", name);
+						items.set(items.indexOf(existing), newItem);
+						continue;
+					}
+				} else if (items.isEmpty()) {
+					// Don't add a separator if there is nothing to separate
+					continue;
+				}
+				items.add(newItem);
+				registerAccelerator(action);
+			} else {
+				// Not really a problem, but ideally we'd rearrange things so it doesn't happen
+				// (Currently it does a lot when adding actions to the toolbar)
+				logger.trace("Found command without associated menu: {}", action.getText());
+			}
+		}
+	}
+	
+	
+	
+	/**
 	 * Calculate the appropriate tile cache size based upon the user preferences.
 	 * @return tile cache size in bytes
 	 */
@@ -3932,5 +3660,328 @@ public class QuPathGUI {
 		return tileCacheSize;
 	}
 
+	
+	
+	/**
+	 * Get the default actions associated with this QuPath instance.
+	 * @return
+	 */
+	public synchronized DefaultActions getDefaultActions() {
+		if (defaultActions == null) {
+			defaultActions = new DefaultActions();
+			installActions(ActionTools.getAnnotatedActions(defaultActions));
+		}
+		return defaultActions;
+	}
+	
+	
+	private Action createShowAnalysisPaneAction() {
+		return ActionTools.createSelectableAction(showAnalysisPane, "Show analysis panel");
+	}
+	
+	/**
+	 * Search for an action based upon its text (name) property.
+	 * @param text the text to search for
+	 * @return the action, if found, or null otherwise
+	 */
+	public Action lookupActionByText(String text) {
+		var found = actions.stream().filter(p -> text.equals(p.getText())).findFirst().orElse(null);
+		if (found == null) {
+			logger.warn("No action called '{}' could be found!", text);
+		}
+		return found;
+	}
+	
+	/**
+	 * Search for a menu item based upon its path.
+	 * @param menuPath path to the menu item, in the form {@code "Main menu>Submenu>Name}
+	 * @return the menu item corresponding to this path, or null if no menu item is found
+	 */
+	public MenuItem lookupMenuItem(String menuPath) {
+		var menu = parseMenu(menuPath, "", false);
+		if (menu == null)
+			return null;
+		var name = parseName(menuPath);
+		if (name.isEmpty())
+			return menu;
+		return menu.getItems().stream().filter(m -> name.equals(m.getText())).findFirst().orElse(null);
+	}
+	
+	
+	/**
+	 * Default actions associated with a specific QuPath instance.
+	 * These are useful for generating toolbars and context menus, ensuring that the same actions are used consistently.
+	 */
+	public class DefaultActions {
+		
+		// Zoom actions
+		/**
+		 * Apply 'zoom-to-fit' setting to all viewers
+		 */
+		@ActionIcon(PathIcons.ZOOM_TO_FIT)
+		public final Action ZOOM_TO_FIT = ActionTools.createSelectableAction(viewerManager.zoomToFitProperty(), "Zoom to fit");
+		
+		// Tool actions
+		/**
+		 * Move tool action
+		 */
+		@ActionAccelerator("m")
+		@ActionDescription("Move tool, both for moving around the viewer (panning) and moving objects (translation).")
+		public final Action MOVE_TOOL = getToolAction(PathTools.MOVE);
+		/**
+		 * Rectangle tool action
+		 */
+		@ActionAccelerator("r")
+		@ActionDescription("Click and drag to draw a rectangle annotation. Hold down 'Shift' to constrain shape to be a square.")
+		public final Action RECTANGLE_TOOL = getToolAction(PathTools.RECTANGLE);
+		/**
+		 * Ellipse tool action
+		 */
+		@ActionAccelerator("o")
+		@ActionDescription("Click and drag to draw an ellipse annotation. Hold down 'Shift' to constrain shape to be a circle.")
+		public final Action ELLIPSE_TOOL = getToolAction(PathTools.ELLIPSE);
+		/**
+		 * Polygon tool action
+		 */
+		@ActionAccelerator("p")
+		@ActionDescription("Create a closed polygon annotation, either by clicking individual points (with double-click to end) or clicking and dragging.")
+		public final Action POLYGON_TOOL = getToolAction(PathTools.POLYGON);
+		/**
+		 * Polyline tool action
+		 */
+		@ActionAccelerator("v")
+		@ActionDescription("Create a polyline annotation, either by clicking individual points (with double-click to end) or clicking and dragging.")
+		public final Action POLYLINE_TOOL = getToolAction(PathTools.POLYLINE);
+		/**
+		 * Brush tool action
+		 */
+		@ActionAccelerator("b")
+		@ActionDescription("Click and drag to paint with a brush. "
+				+ "By default, the size of the region being drawn depends upon the zoom level in the viewer.")
+		public final Action BRUSH_TOOL = getToolAction(PathTools.BRUSH);
+		/**
+		 * Line tool action
+		 */
+		@ActionAccelerator("l")
+		@ActionDescription("Click and drag to draw a line annotation.")
+		public final Action LINE_TOOL = getToolAction(PathTools.LINE);
+		/**
+		 * Points/counting tool action
+		 */
+		@ActionAccelerator(".")
+		@ActionDescription("Click to add points to an annotation.")
+		public final Action POINTS_TOOL = getToolAction(PathTools.POINTS);
+		
+		/**
+		 * Toggle 'selection mode' on/off for all drawing tools.
+		 */
+		@ActionAccelerator("shift+s")
+		@ActionIcon(PathIcons.SELECTION_MODE)
+		@ActionDescription("Turn on/off selection mode - this converts drawing tools into selection tools")
+		public final Action SELECTION_MODE = ActionTools.createSelectableAction(PathPrefs.selectionModeProperty(), "Selection mode");
+		
+		// Toolbar actions
+		/**
+		 * Show the brightness/contrast dialog.
+		 */
+		@ActionIcon(PathIcons.CONTRAST)
+		@ActionAccelerator("shift+c")
+		@ActionDescription("Open brightness & contrast dialog - also used to adjust channels and colors")
+		public final Action BRIGHTNESS_CONTRAST = ActionTools.createAction(new BrightnessContrastCommand(QuPathGUI.this), "Brightness/Contrast");
+		
+		/**
+		 * Toggle the image overview display on the viewers.
+		 */
+		@ActionIcon(PathIcons.OVERVIEW)
+		@ActionDescription("Show/hide overview image (top right)")
+		public final Action SHOW_OVERVIEW = ActionTools.createSelectableAction(viewerManager.showOverviewProperty(), "Show slide overview");
+		/**
+		 * Toggle the cursor location display on the viewers.
+		 */
+		@ActionIcon(PathIcons.LOCATION)
+		@ActionDescription("Show/hide location text (bottom right)")
+		public final Action SHOW_LOCATION = ActionTools.createSelectableAction(viewerManager.showLocationProperty(), "Show cursor location");
+		/**
+		 * Toggle the scalebar display on the viewers.
+		 */
+		@ActionIcon(PathIcons.SHOW_SCALEBAR)
+		@ActionDescription("Show/hide scalebar (bottom left)")
+		public final Action SHOW_SCALEBAR = ActionTools.createSelectableAction(viewerManager.showScalebarProperty(), "Show scalebar");
+		/**
+		 * Toggle the counting grid display on the viewers.
+		 */
+		@ActionIcon(PathIcons.GRID)
+		@ActionAccelerator("shift+g")
+		@ActionDescription("Show/hide counting grid overlay")
+		public final Action SHOW_GRID = ActionTools.createSelectableAction(overlayOptions.showGridProperty(), "Show grid");
+		/**
+		 * Prompt to set the spacing for the counting grid.
+		 */
+		public final Action GRID_SPACING = ActionTools.createAction(() -> Commands.promptToSetGridLineSpacing(overlayOptions), "Set grid spacing");
+		
+		/**
+		 * Show the counting tool dialog. By default, this is connected to setting the points tool to active.
+		 */
+		public final Action COUNTING_PANEL = ActionTools.createAction(new CountingPanelCommand(QuPathGUI.this), "Counting tool", PathTools.POINTS.getIcon(), null);
+
+		/**
+		 * Toggle the pixel classification overlay visibility on the viewers.
+		 */
+		@ActionIcon(PathIcons.PIXEL_CLASSIFICATION)
+		@ActionAccelerator("c")
+		@ActionDescription("Show/hide pixel classification overlay (when available)")
+		public final Action SHOW_PIXEL_CLASSIFICATION = ActionTools.createSelectableAction(overlayOptions.showPixelClassificationProperty(), "Show pixel classification");
+			
+		// TMA actions
+		/**
+		 * Add a note to any selected TMA core.
+		 */
+		public final Action TMA_ADD_NOTE = createImageDataAction(imageData -> TMACommands.promptToAddNoteToSelectedCores(imageData), "Add TMA note");
+		
+		// Overlay options actions
+		/**
+		 * Request that cells are displayed using their boundary ROI only.
+		 */
+		@ActionIcon(PathIcons.CELL_ONLY)
+		public final Action SHOW_CELL_BOUNDARIES = createSelectableCommandAction(new SelectableItem<>(overlayOptions.detectionDisplayModeProperty(), DetectionDisplayMode.BOUNDARIES_ONLY), "Cell boundaries only");
+		/**
+		 * Request that cells are displayed using their boundary ROI only.
+		 */
+		@ActionIcon(PathIcons.NUCLEI_ONLY)
+		public final Action SHOW_CELL_NUCLEI = createSelectableCommandAction(new SelectableItem<>(overlayOptions.detectionDisplayModeProperty(), DetectionDisplayMode.NUCLEI_ONLY), "Nuclei only");
+		/**
+		 * Request that cells are displayed using both cell and nucleus ROIs.
+		 */
+		@ActionIcon(PathIcons.CELL_NUCLEI_BOTH)
+		public final Action SHOW_CELL_BOUNDARIES_AND_NUCLEI = createSelectableCommandAction(new SelectableItem<>(overlayOptions.detectionDisplayModeProperty(), DetectionDisplayMode.NUCLEI_AND_BOUNDARIES), "Nuclei & cell boundaries");
+		/**
+		 * Request that cells are displayed using their centroids only.
+		 */
+		@ActionIcon(PathIcons.CENTROIDS_ONLY)
+		public final Action SHOW_CELL_CENTROIDS = createSelectableCommandAction(new SelectableItem<>(overlayOptions.detectionDisplayModeProperty(), DetectionDisplayMode.CENTROIDS), "Centroids only");
+
+		/**
+		 * Toggle the display of annotations.
+		 */
+		@ActionIcon(PathIcons.ANNOTATIONS)
+		@ActionAccelerator("a")
+		@ActionDescription("Show/hide annotation objects")
+		public final Action SHOW_ANNOTATIONS = ActionTools.createSelectableAction(overlayOptions.showAnnotationsProperty(), "Show annotations");
+		
+		/**
+		 * Toggle the display of annotation names.
+		 */
+		@ActionIcon(PathIcons.SHOW_NAMES)
+		@ActionAccelerator("n")
+		@ActionDescription("Show/hide annotation names (where available)")
+		public final Action SHOW_NAMES = ActionTools.createSelectableAction(overlayOptions.showNamesProperty(), "Show names");
+		
+		/**
+		 * Display annotations filled in.
+		 */
+		@ActionIcon(PathIcons.ANNOTATIONS_FILL)
+		@ActionAccelerator("shift+f")
+		@ActionDescription("Full/unfill annotation objects")
+		public final Action FILL_ANNOTATIONS = ActionTools.createSelectableAction(overlayOptions.fillAnnotationsProperty(), "Fill annotations");	
+		
+		/**
+		 * Toggle the display of TMA cores.
+		 */
+		@ActionIcon(PathIcons.TMA_GRID)
+		@ActionAccelerator("g")
+		@ActionDescription("Show/hide TMA grid")
+		public final Action SHOW_TMA_GRID = ActionTools.createSelectableAction(overlayOptions.showTMAGridProperty(), "Show TMA grid");
+		/**
+		 * Toggle the display of TMA grid labels.
+		 */
+		public final Action SHOW_TMA_GRID_LABELS = ActionTools.createSelectableAction(overlayOptions.showTMACoreLabelsProperty(), "Show TMA grid labels");
+		
+		/**
+		 * Toggle the display of detections.
+		 */
+		@ActionIcon(PathIcons.DETECTIONS)
+		@ActionAccelerator("d")
+		@ActionDescription("Show/hide detection objects")
+		public final Action SHOW_DETECTIONS = ActionTools.createSelectableAction(overlayOptions.showDetectionsProperty(), "Show detections");
+		
+		/**
+		 * Display detections filled in.
+		 */
+		@ActionIcon(PathIcons.DETECTIONS_FILL)
+		@ActionAccelerator("f")
+		@ActionDescription("Fill/unfill detection objects")
+		public final Action FILL_DETECTIONS = ActionTools.createSelectableAction(overlayOptions.fillDetectionsProperty(), "Fill detections");	
+		/**
+		 * Display the convex hull of point ROIs.
+		 */
+		public final Action CONVEX_POINTS = ActionTools.createSelectableAction(PathPrefs.showPointHullsProperty(), "Show point convex hull");
+		
+		// Viewer actions
+		/**
+		 * Toggle the synchronization of multiple viewers.
+		 */
+		@ActionAccelerator("shortcut+alt+s")
+		@ActionDescription("Synchronize viewers, so that pan, zoom and rotate in one viewer also impacts the other viewers")
+		public final Action TOGGLE_SYNCHRONIZE_VIEWERS = ActionTools.createSelectableAction(viewerManager.synchronizeViewersProperty(), "Synchronize viewers");
+		/**
+		 * Match the resolution of all open viewers.
+		 */
+		public final Action MATCH_VIEWER_RESOLUTIONS = new Action("Match viewer resolutions", e -> viewerManager.matchResolutions());
+		
+		/**
+		 * Show the main log window.
+		 */
+		@ActionAccelerator("shortcut+shift+l")
+		public final Action SHOW_LOG = ActionTools.createAction(logViewerCommand, "Show log");
+
+		/**
+		 * Toggle the visibility of the 'Analysis pane' in the main viewer.
+		 */
+		@ActionIcon(PathIcons.MEASURE)
+		@ActionAccelerator("shift+a")
+		public final Action SHOW_ANALYSIS_PANE = createShowAnalysisPaneAction();
+		
+		/**
+		 * Show descriptions for the selected object
+		 */
+		public final Action SHOW_OBJECT_DESCRIPTIONS = Commands.createSingleStageAction(() -> Commands.createObjectDescriptionsDialog(QuPathGUI.this));
+
+		
+		/**
+		 * Show summary measurement table for TMA cores.
+		 */
+		@ActionDescription("Show summary measurements for tissue microarray (TMA) cores")
+		public final Action MEASURE_TMA = createImageDataAction(imageData -> Commands.showTMAMeasurementTable(QuPathGUI.this, imageData), "Show TMA measurements");
+		
+		/**
+		 * Show summary measurement table for annotations.
+		 */
+		@ActionDescription("Show summary measurements for annotation objects")
+		public final Action MEASURE_ANNOTATIONS = createImageDataAction(imageData -> Commands.showAnnotationMeasurementTable(QuPathGUI.this, imageData), "Show annotation measurements");
+		
+		/**
+		 * Show summary measurement table for detections.
+		 */
+		@ActionDescription("Show summary measurements for detection objects")
+		public final Action MEASURE_DETECTIONS = createImageDataAction(imageData -> Commands.showDetectionMeasurementTable(QuPathGUI.this, imageData), "Show detection measurements");
+		
+		/**
+		 * Show grid view for annotation measurements.
+		 */
+		@ActionDescription("Show grid view annotation objects")
+		public final Action MEASURE_GRID_ANNOTATIONS = createImageDataAction(imageData -> Commands.showAnnotationGridView(QuPathGUI.this), "Show annotation grid view");
+
+		/**
+		 * Show grid view for TMA core measurements.
+		 */
+		@ActionDescription("Show grid view TMA cores")
+		public final Action MEASURE_GRID_TMA_CORES = createImageDataAction(imageData -> Commands.showAnnotationGridView(QuPathGUI.this), "Show TMA core grid view");
+
+		private DefaultActions() {
+			// This has the effect of applying the annotations
+			ActionTools.getAnnotatedActions(this);
+		}
+		
+	}
 	
 }

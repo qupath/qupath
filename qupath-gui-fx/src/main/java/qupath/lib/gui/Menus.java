@@ -457,7 +457,7 @@ class Menus {
 
 		@ActionDescription("Quit QuPath.")
 		@ActionMenu("Quit")
-		public final Action QUIT = new Action("Quit", e -> qupath.tryToQuit());
+		public final Action QUIT = new Action("Quit", e -> qupath.setQuitRequest());
 
 	}
 	
