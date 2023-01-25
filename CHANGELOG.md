@@ -2,6 +2,10 @@
 
 This is a work-in-progress for the next QuPath release.
 
+### Bugs fixed
+* Opening the same image in multiple viewers results in detections being wrongly shown in both (https://github.com/qupath/qupath/issues/1217)
+
+
 ### Dependency updates
 * Groovy 4.0.7
 * ImageJ 1.54b
