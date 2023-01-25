@@ -1,3 +1,13 @@
+## Version 0.4.3-SNAPSHOT
+
+This is a work-in-progress containing minor changes from v0.4.2.
+
+v0.4.3 will be released if there are enough bugs to fix... otherwise the changes will be incorporated into v0.5.0.
+
+### Bugs fixed
+* Opening the same image in multiple viewers results in detections being wrongly shown in both (https://github.com/qupath/qupath/issues/1217)
+
+
 ## Version 0.4.2
 
 This is a *minor release* that aims to be fully compatible with v0.4.0 and v0.4.1 while fixing bugs.
