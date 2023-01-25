@@ -110,6 +110,7 @@ public class MultiviewManager implements QuPathViewerListener {
 	private SplitPaneGrid splitPaneGrid;
 
 	private ViewerPlusDisplayOptions viewerDisplayOptions = new ViewerPlusDisplayOptions();
+	private OverlayOptions overlayOptions = new OverlayOptions();
 	
 	private BooleanProperty zoomToFit = new SimpleBooleanProperty(false);
 
@@ -132,6 +133,10 @@ public class MultiviewManager implements QuPathViewerListener {
 		return Collections.unmodifiableList(viewers);
 	}
 
+	public OverlayOptions getOverlayOptions() {
+		return overlayOptions;
+	}
+	
 
 	/**
 	 * Show the overview image.
@@ -269,7 +274,7 @@ public class MultiviewManager implements QuPathViewerListener {
 	 * @return
 	 */
 	protected QuPathViewerPlus createViewer() {
-		QuPathViewerPlus viewerNew = new QuPathViewerPlus(null, qupath.getImageRegionStore(), qupath.getOverlayOptions(), viewerDisplayOptions);
+		QuPathViewerPlus viewerNew = new QuPathViewerPlus(null, qupath.getImageRegionStore(), overlayOptions, viewerDisplayOptions);
 		setupViewer(viewerNew);
 		viewerNew.addViewerListener(this);
 		viewers.add(viewerNew);

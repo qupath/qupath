@@ -132,6 +132,7 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.input.MouseButton;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.Pane;
 import javafx.scene.layout.Region;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
@@ -162,6 +163,7 @@ import qupath.lib.gui.images.stores.ImageRegionStoreFactory;
 import qupath.lib.gui.logging.LogManager;
 import qupath.lib.gui.panes.ImageDetailsPane;
 import qupath.lib.gui.panes.PreferencePane;
+import qupath.lib.gui.panes.ProjectBrowser;
 import qupath.lib.gui.panes.ServerSelector;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.prefs.PathPrefs.AutoUpdateType;
@@ -250,24 +252,17 @@ public class QuPathGUI {
 	public static final int TOOLBAR_ICON_SIZE = 16;
 
 	private ObjectProperty<Project<BufferedImage>> projectProperty = new SimpleObjectProperty<>();
-	
-	private AnalysisTabPane analysisTabPane;
+	private ObjectProperty<QuPathViewer> viewerProperty = new SimpleObjectProperty<>();
 	
 	/**
 	 * Preference panel, which may be used by extensions to add in their on preferences if needed
 	 */
-	private PreferencePane prefsPane;
+	private PreferencePane prefsPane = new PreferencePane();
 	
-	// Initializing the MenuBar here caused some major trouble (including segfaults) in OSX...
+	// Can't initialize menubar yet - trying that caused some major trouble (including segfaults) on macOS
 	private MenuBar menuBar;
 	
-	private BorderPane pane; // Main component, to hold toolbar & splitpane
-	private Region mainViewerPane;
-	
-	/**
-	 * Default options used for viewers
-	 */
-	private OverlayOptions overlayOptions = new OverlayOptions();
+	private MainPaneManager mainPaneManager;
 	
 	/**
 	 * Default region store used by viewers for tile caching and repainting
@@ -276,10 +271,23 @@ public class QuPathGUI {
 	
 	private MultiviewManager viewerManager = new MultiviewManager(this);
 	
-	private ToolBarComponent toolbar; // Top component
-	private SplitPane splitPane = new SplitPane(); // Main component
-
-	private ObservableList<PathClass> availablePathClasses = null;
+	/**
+	 * Default list of PathClasses to show in the UI
+	 */
+	private static final List<PathClass> DEFAULT_PATH_CLASSES = Collections.unmodifiableList(Arrays.asList(
+			PathClass.NULL_CLASS,
+			PathClass.StandardPathClasses.TUMOR,
+			PathClass.StandardPathClasses.STROMA,
+			PathClass.StandardPathClasses.IMMUNE_CELLS,
+			PathClass.StandardPathClasses.NECROSIS,
+			PathClass.StandardPathClasses.OTHER,
+			PathClass.StandardPathClasses.REGION,
+			PathClass.StandardPathClasses.IGNORE,
+			PathClass.StandardPathClasses.POSITIVE,
+			PathClass.StandardPathClasses.NEGATIVE
+			));
+	
+	private ObservableList<PathClass> availablePathClasses = FXCollections.observableArrayList();;
 	
 	private Stage stage;
 	
@@ -295,9 +303,7 @@ public class QuPathGUI {
 	 * Keystrokes can be lost on macOS... so ensure these are handled
 	 */
 	private BiMap<KeyCombination, Action> comboMap = HashBiMap.create();
-	
-	private ObjectProperty<QuPathViewer> viewerProperty = new SimpleObjectProperty<>();
-	
+		
 	private BooleanBinding noProject = projectProperty.isNull();
 	private BooleanBinding noViewer = viewerProperty.isNull();
 	private BooleanBinding noImageData = imageDataProperty().isNull();
@@ -310,8 +316,7 @@ public class QuPathGUI {
 
 	private PathTool previousTool = PathTools.MOVE;
 	
-	private LogViewerCommand logViewerCommand = new LogViewerCommand(QuPathGUI.this);
-	
+	private LogViewerCommand logViewerCommand;
 	
 	private DefaultActions defaultActions;
 
@@ -333,6 +338,7 @@ public class QuPathGUI {
 		this.stage = stage;
 		
 		var timeit = new Timeit().start("Starting");
+		logViewerCommand = new LogViewerCommand(stage);
 		initializeLoggingToFile();
 		logBuildVersion();				
 		
@@ -348,10 +354,6 @@ public class QuPathGUI {
 		// Prepare for image name masking
 		setupProjectNameMasking();
 		
-		// Create preferences panel
-		timeit.checkpoint("Creating preferences");
-		prefsPane = new PreferencePane();
-		
 		// Initialize available classes
 		initializePathClasses();
 		
@@ -360,6 +362,21 @@ public class QuPathGUI {
 		
 		// Ensure the user is notified of any errors from now on
 		setDefaultUncaughtExceptionHandler();
+		
+		viewerProperty.bind(viewerManager.activeViewerProperty());
+		viewerProperty.addListener((v, o, n) -> activateToolsForViewer(n));
+		
+		// Now that we have a viewer, we can create an undo/redo manager
+		undoRedoManager = UndoRedoManager.createForQuPathInstance(this);
+
+		// TODO: MOVE INITIALIZING MANAGERS ELSEWHERE
+		installActions(new Menus(this).getActions());
+		
+		// Add a recent projects menu
+		getMenu("File", true).getItems().add(1, createRecentProjectsMenu());
+
+		
+		
 		
 		timeit.checkpoint("Creating main component");
 		BorderPane pane = new BorderPane();
@@ -370,7 +387,7 @@ public class QuPathGUI {
 		pane.setTop(menuBar);
 		
 		Scene scene = createAndInitializeMainScene(pane);
-		splitPane.setDividerPosition(0, 400/scene.getWidth());
+		mainPaneManager.setDividerPosition(Math.min(0.5, 400/scene.getWidth()));
 		
 		initializeStage(scene);
 
@@ -1491,36 +1508,34 @@ public class QuPathGUI {
 	 * Initialize available PathClasses, either from saved list or defaults
 	 */
 	private void initializePathClasses() {
-		availablePathClasses = FXCollections.observableArrayList();
 		Set<PathClass> pathClasses = new LinkedHashSet<>();		
-		try {
-			pathClasses.addAll(loadPathClassesFromPrefs());			
-		} catch (Exception e) {
-			logger.error("Unable to load PathClasses", e);
-		}
+		pathClasses.addAll(loadPathClassesFromPrefs());			
 		if (pathClasses.isEmpty())
 			resetAvailablePathClasses();
 		else
 			availablePathClasses.setAll(pathClasses);
-		availablePathClasses.addListener((Change<? extends PathClass> c) -> {
-			// We need a list for UI components (e.g. ListViews), but we want it to behave like a set
-			// Therefore if we find some non-unique nor null elements, correct the list as soon as possible
-			var list = c.getList();
-			var set = new LinkedHashSet<PathClass>();
-			set.add(PathClass.NULL_CLASS);
-			set.addAll(list);
-			set.remove(null);
-			if (!(set.size() == list.size() && set.containsAll(list))) {
-				logger.info("Invalid PathClass list modification: {} will be corrected to {}", list, set);
-				Platform.runLater(() -> availablePathClasses.setAll(set));
-				return;
-			}
-			Project<?> project = getProject();
-			if (project != null) {
-				// Write the project, if necessary
-				project.setPathClasses(set);
-			}
-		});
+		availablePathClasses.addListener(this::handlePathClassesChangeEvent);
+	}
+	
+	
+	private void handlePathClassesChangeEvent(Change<? extends PathClass> c) {
+		// We need a list for UI components (e.g. ListViews), but we want it to behave like a set
+		// Therefore if we find some non-unique nor null elements, correct the list as soon as possible
+		var list = c.getList();
+		var set = new LinkedHashSet<PathClass>();
+		set.add(PathClass.NULL_CLASS);
+		set.addAll(list);
+		set.remove(null);
+		if (!(set.size() == list.size() && set.containsAll(list))) {
+			logger.info("Invalid PathClass list modification: {} will be corrected to {}", list, set);
+			Platform.runLater(() -> availablePathClasses.setAll(set));
+			return;
+		}
+		Project<?> project = getProject();
+		if (project != null) {
+			// Write the project, if necessary
+			project.setPathClasses(set);
+		}
 	}
 	
 	
@@ -1530,24 +1545,7 @@ public class QuPathGUI {
 	 * @return true if changes were mad to the available classes, false otherwise
 	 */
 	public boolean resetAvailablePathClasses() {
-		List<PathClass> pathClasses = Arrays.asList(
-				PathClass.NULL_CLASS,
-				PathClass.StandardPathClasses.TUMOR,
-				PathClass.StandardPathClasses.STROMA,
-				PathClass.StandardPathClasses.IMMUNE_CELLS,
-				PathClass.StandardPathClasses.NECROSIS,
-				PathClass.StandardPathClasses.OTHER,
-				PathClass.StandardPathClasses.REGION,
-				PathClass.StandardPathClasses.IGNORE,
-				PathClass.StandardPathClasses.POSITIVE,
-				PathClass.StandardPathClasses.NEGATIVE
-				);
-		
-		if (availablePathClasses == null) {
-			availablePathClasses = FXCollections.observableArrayList(pathClasses);
-			return true;
-		} else
-			return availablePathClasses.setAll(pathClasses);
+		return availablePathClasses.setAll(DEFAULT_PATH_CLASSES);
 	}
 	
 	/**
@@ -1622,41 +1620,12 @@ public class QuPathGUI {
 	
 	
 	
-	private BorderPane initializeMainComponent() {
+	private Pane initializeMainComponent() {
 		
-		pane = new BorderPane();
+		mainPaneManager = new MainPaneManager(this);
 		
-		viewerProperty.bind(viewerManager.activeViewerProperty());
-		viewerProperty.addListener((v, o, n) -> activateToolsForViewer(n));
-		
-		// Now that we have a viewer, we can create an undo/redo manager
-		undoRedoManager = new UndoRedoManager(this);
-
-		// TODO: MOVE INITIALIZING MANAGERS ELSEWHERE
-		installActions(new Menus(this).getActions());
-		
-		// Add a recent projects menu
-		getMenu("File", true).getItems().add(1, createRecentProjectsMenu());
-
-		analysisTabPane = new AnalysisTabPane(this);
-		var tabPane = analysisTabPane.getTabPane();
-		tabPane.setMinWidth(300);
-		tabPane.setPrefWidth(400);
-		splitPane.setMinWidth(tabPane.getMinWidth() + 200);
-		splitPane.setPrefWidth(tabPane.getPrefWidth() + 200);
-		SplitPane.setResizableWithParent(tabPane, Boolean.FALSE);		
-
-		
-		mainViewerPane = CommandFinderTools.createCommandFinderPane(this, viewerManager.getRegion(), CommandFinderTools.commandBarDisplayProperty());
-		splitPane.getItems().addAll(tabPane, mainViewerPane);
-		SplitPane.setResizableWithParent(viewerManager.getRegion(), Boolean.TRUE);
-		
-		pane.setCenter(splitPane);
-		toolbar = new ToolBarComponent(this);
-		pane.setTop(toolbar.getToolBar());
-		
-		setAnalysisPaneVisible(showAnalysisPane.get());
-		showAnalysisPane.addListener((v, o, n) -> setAnalysisPaneVisible(n));
+		mainPaneManager.setAnalysisPaneVisible(showAnalysisPane.get());
+		showAnalysisPane.addListener((v, o, n) -> mainPaneManager.setAnalysisPaneVisible(n));
 		
 		// Ensure actions are set appropriately
 		selectedToolProperty.addListener((v, o, n) -> {
@@ -1673,7 +1642,7 @@ public class QuPathGUI {
 		});
 		setSelectedTool(getSelectedTool());
 		
-		return pane;
+		return mainPaneManager.getMainPane();
 	}
 	
 	
@@ -1687,7 +1656,7 @@ public class QuPathGUI {
 	 * @return
 	 */
 	public TabPane getAnalysisTabPane() {
-		return analysisTabPane.getTabPane();
+		return mainPaneManager == null ? null : mainPaneManager.getAnalysisTabPane().getTabPane();
 	}
 
 	
@@ -1806,15 +1775,11 @@ public class QuPathGUI {
 		if (imageData != null && project.getEntry(imageData) == entry) {
 			return false;
 		}
-//		if (imageData != null && imageData.getServerPath().equals(entry.getServerPath()))
-//			return false;
 		
 		// Check to see if the ImageData is already open in another viewer - if so, just activate it
-//		String path = entry.getServerPath();
 		for (QuPathViewerPlus v : viewerManager.getViewers()) {
 			ImageData<BufferedImage> data = v.getImageData();
 			if (data != null && project.getEntry(data) == entry) {
-//			if (data != null && data.getServer().getPath().equals(path)) {
 				viewerManager.setActiveViewer(v);
 				return true;
 			}
@@ -1830,7 +1795,6 @@ public class QuPathGUI {
 		try {
 			imageData = entry.readImageData();
 			viewer.setImageData(imageData);
-//			setInitialLocationAndMagnification(viewer);
 			if (imageData != null && (imageData.getImageType() == null || imageData.getImageType() == ImageType.UNSET)) {
 				var setType = PathPrefs.imageTypeSettingProperty().get();
 				if (setType == ImageTypeSetting.AUTO_ESTIMATE || setType == ImageTypeSetting.PROMPT) {
@@ -2905,7 +2869,7 @@ public class QuPathGUI {
 	 * @return
 	 */
 	public ToolBar getToolBar() {
-		return toolbar.getToolBar();
+		return mainPaneManager == null ? null : mainPaneManager.getToolBar();
 	}
 	
 	
@@ -3144,7 +3108,7 @@ public class QuPathGUI {
 	 * @return
 	 */
 	public OverlayOptions getOverlayOptions() {
-		return overlayOptions;
+		return viewerManager == null ? null : viewerManager.getOverlayOptions();
 	}
 
 	/**
@@ -3328,7 +3292,7 @@ public class QuPathGUI {
 		}
 		
 		this.projectProperty.set(project);
-		var projectBrowser = analysisTabPane.getProjectBrowser();
+		var projectBrowser = mainPaneManager.getAnalysisTabPane().getProjectBrowser();
 		if (projectBrowser != null && !projectBrowser.setProject(project)) {
 			this.projectProperty.set(null);
 			projectBrowser.setProject(null);
@@ -3358,8 +3322,8 @@ public class QuPathGUI {
 	 * This can be called whenever the project has changed (e.g. by adding or removing items).
 	 */
 	public void refreshProject() {
-		if (analysisTabPane != null)
-			analysisTabPane.getProjectBrowser().refreshProject();
+		if (mainPaneManager != null)
+			mainPaneManager.getProjectBrowser().refreshProject();
 	}
 	
 	/**
@@ -3379,25 +3343,88 @@ public class QuPathGUI {
 	}
 	
 	private BooleanProperty showAnalysisPane = new SimpleBooleanProperty(true);
-	protected double lastDividerLocation;
+
 	
-	private void setAnalysisPaneVisible(boolean visible) {
-		if (visible) {
-			if (analysisPanelVisible())
-				return;
-			splitPane.getItems().setAll(analysisTabPane.getTabPane(), mainViewerPane);
-			splitPane.setDividerPosition(0, lastDividerLocation);
+	
+	static class MainPaneManager {
+		
+		private BorderPane pane;
+		
+		private SplitPane splitPane;
+		private Region mainViewerPane;
+		
+		private ToolBarComponent toolbar;
+		private AnalysisTabPane analysisTabPane;
+		
+		private double lastDividerLocation;
+		
+		
+		private MainPaneManager(QuPathGUI qupath) {
+			pane = new BorderPane();
+			splitPane = new SplitPane();
+			this.analysisTabPane = new AnalysisTabPane(qupath);
+			
+			var tabPane = analysisTabPane.getTabPane();
+			tabPane.setMinWidth(300);
+			tabPane.setPrefWidth(400);
+			splitPane.setMinWidth(tabPane.getMinWidth() + 200);
+			splitPane.setPrefWidth(tabPane.getPrefWidth() + 200);
+			SplitPane.setResizableWithParent(tabPane, Boolean.FALSE);		
+			
+			var viewerRegion = qupath.getViewerManager().getRegion();
+			mainViewerPane = CommandFinderTools.createCommandFinderPane(qupath, viewerRegion, CommandFinderTools.commandBarDisplayProperty());
+			splitPane.getItems().addAll(tabPane, mainViewerPane);
+			SplitPane.setResizableWithParent(viewerRegion, Boolean.TRUE);
+			
 			pane.setCenter(splitPane);
-		} else {
-			if (!analysisPanelVisible())
-				return;
-			lastDividerLocation = splitPane.getDividers().get(0).getPosition();
-			pane.setCenter(mainViewerPane);				
+			
+			toolbar = new ToolBarComponent(qupath);
+			pane.setTop(toolbar.getToolBar());
+			
+			setAnalysisPaneVisible(true);
+
 		}
-	}
-	
-	private boolean analysisPanelVisible() {
-		return pane.getCenter() == splitPane;
+
+		AnalysisTabPane getAnalysisTabPane() {
+			return analysisTabPane;
+		}
+		
+		ProjectBrowser getProjectBrowser() {
+			return analysisTabPane == null ? null : analysisTabPane.getProjectBrowser();
+		}
+		
+		ToolBar getToolBar() {
+			return toolbar.getToolBar();
+		}
+
+		
+		Pane getMainPane() {
+			return pane;
+		}
+		
+		void setDividerPosition(double pos) {
+			splitPane.setDividerPosition(0, pos);
+		}
+		
+		private void setAnalysisPaneVisible(boolean visible) {
+			if (visible) {
+				if (analysisPanelVisible())
+					return;
+				splitPane.getItems().setAll(analysisTabPane.getTabPane(), mainViewerPane);
+				splitPane.setDividerPosition(0, lastDividerLocation);
+				pane.setCenter(splitPane);
+			} else {
+				if (!analysisPanelVisible())
+					return;
+				lastDividerLocation = splitPane.getDividers().get(0).getPosition();
+				pane.setCenter(mainViewerPane);				
+			}
+		}
+		
+		private boolean analysisPanelVisible() {
+			return pane.getCenter() == splitPane;
+		}
+		
 	}
 	
 	
@@ -3813,11 +3840,11 @@ public class QuPathGUI {
 		@ActionIcon(PathIcons.GRID)
 		@ActionAccelerator("shift+g")
 		@ActionDescription("Show/hide counting grid overlay")
-		public final Action SHOW_GRID = ActionTools.createSelectableAction(overlayOptions.showGridProperty(), "Show grid");
+		public final Action SHOW_GRID = ActionTools.createSelectableAction(getOverlayOptions().showGridProperty(), "Show grid");
 		/**
 		 * Prompt to set the spacing for the counting grid.
 		 */
-		public final Action GRID_SPACING = ActionTools.createAction(() -> Commands.promptToSetGridLineSpacing(overlayOptions), "Set grid spacing");
+		public final Action GRID_SPACING = ActionTools.createAction(() -> Commands.promptToSetGridLineSpacing(getOverlayOptions()), "Set grid spacing");
 		
 		/**
 		 * Show the counting tool dialog. By default, this is connected to setting the points tool to active.
@@ -3830,7 +3857,7 @@ public class QuPathGUI {
 		@ActionIcon(PathIcons.PIXEL_CLASSIFICATION)
 		@ActionAccelerator("c")
 		@ActionDescription("Show/hide pixel classification overlay (when available)")
-		public final Action SHOW_PIXEL_CLASSIFICATION = ActionTools.createSelectableAction(overlayOptions.showPixelClassificationProperty(), "Show pixel classification");
+		public final Action SHOW_PIXEL_CLASSIFICATION = ActionTools.createSelectableAction(getOverlayOptions().showPixelClassificationProperty(), "Show pixel classification");
 			
 		// TMA actions
 		/**
@@ -3843,22 +3870,22 @@ public class QuPathGUI {
 		 * Request that cells are displayed using their boundary ROI only.
 		 */
 		@ActionIcon(PathIcons.CELL_ONLY)
-		public final Action SHOW_CELL_BOUNDARIES = createSelectableCommandAction(new SelectableItem<>(overlayOptions.detectionDisplayModeProperty(), DetectionDisplayMode.BOUNDARIES_ONLY), "Cell boundaries only");
+		public final Action SHOW_CELL_BOUNDARIES = createSelectableCommandAction(new SelectableItem<>(getOverlayOptions().detectionDisplayModeProperty(), DetectionDisplayMode.BOUNDARIES_ONLY), "Cell boundaries only");
 		/**
 		 * Request that cells are displayed using their boundary ROI only.
 		 */
 		@ActionIcon(PathIcons.NUCLEI_ONLY)
-		public final Action SHOW_CELL_NUCLEI = createSelectableCommandAction(new SelectableItem<>(overlayOptions.detectionDisplayModeProperty(), DetectionDisplayMode.NUCLEI_ONLY), "Nuclei only");
+		public final Action SHOW_CELL_NUCLEI = createSelectableCommandAction(new SelectableItem<>(getOverlayOptions().detectionDisplayModeProperty(), DetectionDisplayMode.NUCLEI_ONLY), "Nuclei only");
 		/**
 		 * Request that cells are displayed using both cell and nucleus ROIs.
 		 */
 		@ActionIcon(PathIcons.CELL_NUCLEI_BOTH)
-		public final Action SHOW_CELL_BOUNDARIES_AND_NUCLEI = createSelectableCommandAction(new SelectableItem<>(overlayOptions.detectionDisplayModeProperty(), DetectionDisplayMode.NUCLEI_AND_BOUNDARIES), "Nuclei & cell boundaries");
+		public final Action SHOW_CELL_BOUNDARIES_AND_NUCLEI = createSelectableCommandAction(new SelectableItem<>(getOverlayOptions().detectionDisplayModeProperty(), DetectionDisplayMode.NUCLEI_AND_BOUNDARIES), "Nuclei & cell boundaries");
 		/**
 		 * Request that cells are displayed using their centroids only.
 		 */
 		@ActionIcon(PathIcons.CENTROIDS_ONLY)
-		public final Action SHOW_CELL_CENTROIDS = createSelectableCommandAction(new SelectableItem<>(overlayOptions.detectionDisplayModeProperty(), DetectionDisplayMode.CENTROIDS), "Centroids only");
+		public final Action SHOW_CELL_CENTROIDS = createSelectableCommandAction(new SelectableItem<>(getOverlayOptions().detectionDisplayModeProperty(), DetectionDisplayMode.CENTROIDS), "Centroids only");
 
 		/**
 		 * Toggle the display of annotations.
@@ -3866,7 +3893,7 @@ public class QuPathGUI {
 		@ActionIcon(PathIcons.ANNOTATIONS)
 		@ActionAccelerator("a")
 		@ActionDescription("Show/hide annotation objects")
-		public final Action SHOW_ANNOTATIONS = ActionTools.createSelectableAction(overlayOptions.showAnnotationsProperty(), "Show annotations");
+		public final Action SHOW_ANNOTATIONS = ActionTools.createSelectableAction(getOverlayOptions().showAnnotationsProperty(), "Show annotations");
 		
 		/**
 		 * Toggle the display of annotation names.
@@ -3874,7 +3901,7 @@ public class QuPathGUI {
 		@ActionIcon(PathIcons.SHOW_NAMES)
 		@ActionAccelerator("n")
 		@ActionDescription("Show/hide annotation names (where available)")
-		public final Action SHOW_NAMES = ActionTools.createSelectableAction(overlayOptions.showNamesProperty(), "Show names");
+		public final Action SHOW_NAMES = ActionTools.createSelectableAction(getOverlayOptions().showNamesProperty(), "Show names");
 		
 		/**
 		 * Display annotations filled in.
@@ -3882,7 +3909,7 @@ public class QuPathGUI {
 		@ActionIcon(PathIcons.ANNOTATIONS_FILL)
 		@ActionAccelerator("shift+f")
 		@ActionDescription("Full/unfill annotation objects")
-		public final Action FILL_ANNOTATIONS = ActionTools.createSelectableAction(overlayOptions.fillAnnotationsProperty(), "Fill annotations");	
+		public final Action FILL_ANNOTATIONS = ActionTools.createSelectableAction(getOverlayOptions().fillAnnotationsProperty(), "Fill annotations");	
 		
 		/**
 		 * Toggle the display of TMA cores.
@@ -3890,11 +3917,11 @@ public class QuPathGUI {
 		@ActionIcon(PathIcons.TMA_GRID)
 		@ActionAccelerator("g")
 		@ActionDescription("Show/hide TMA grid")
-		public final Action SHOW_TMA_GRID = ActionTools.createSelectableAction(overlayOptions.showTMAGridProperty(), "Show TMA grid");
+		public final Action SHOW_TMA_GRID = ActionTools.createSelectableAction(getOverlayOptions().showTMAGridProperty(), "Show TMA grid");
 		/**
 		 * Toggle the display of TMA grid labels.
 		 */
-		public final Action SHOW_TMA_GRID_LABELS = ActionTools.createSelectableAction(overlayOptions.showTMACoreLabelsProperty(), "Show TMA grid labels");
+		public final Action SHOW_TMA_GRID_LABELS = ActionTools.createSelectableAction(getOverlayOptions().showTMACoreLabelsProperty(), "Show TMA grid labels");
 		
 		/**
 		 * Toggle the display of detections.
@@ -3902,7 +3929,7 @@ public class QuPathGUI {
 		@ActionIcon(PathIcons.DETECTIONS)
 		@ActionAccelerator("d")
 		@ActionDescription("Show/hide detection objects")
-		public final Action SHOW_DETECTIONS = ActionTools.createSelectableAction(overlayOptions.showDetectionsProperty(), "Show detections");
+		public final Action SHOW_DETECTIONS = ActionTools.createSelectableAction(getOverlayOptions().showDetectionsProperty(), "Show detections");
 		
 		/**
 		 * Display detections filled in.
@@ -3910,7 +3937,7 @@ public class QuPathGUI {
 		@ActionIcon(PathIcons.DETECTIONS_FILL)
 		@ActionAccelerator("f")
 		@ActionDescription("Fill/unfill detection objects")
-		public final Action FILL_DETECTIONS = ActionTools.createSelectableAction(overlayOptions.fillDetectionsProperty(), "Fill detections");	
+		public final Action FILL_DETECTIONS = ActionTools.createSelectableAction(getOverlayOptions().fillDetectionsProperty(), "Fill detections");	
 		/**
 		 * Display the convex hull of point ROIs.
 		 */
