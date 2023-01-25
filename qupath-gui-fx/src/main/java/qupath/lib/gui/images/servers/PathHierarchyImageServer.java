@@ -147,11 +147,6 @@ public class PathHierarchyImageServer extends AbstractTileableImageServer implem
 	protected String createID() {
 		return UUID.randomUUID().toString();
 	}
-	
-	@Override
-	public String getPath() {
-		return prefix + server.getPath();
-	}
 
 	private Collection<PathObject> getObjectsToPaint(RegionRequest request) {
 //		Rectangle region = request.getBounds();
