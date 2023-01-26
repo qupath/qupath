@@ -28,13 +28,9 @@ import java.awt.desktop.QuitEvent;
 import java.awt.desktop.QuitHandler;
 import java.awt.desktop.QuitResponse;
 import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
@@ -59,7 +55,6 @@ import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Consumer;
-import java.util.prefs.Preferences;
 import java.util.stream.Collectors;
 
 import javax.imageio.ImageIO;
@@ -259,23 +254,7 @@ public class QuPathGUI {
 	
 	private MultiviewManager viewerManager = new MultiviewManager(this);
 	
-	/**
-	 * Default list of PathClasses to show in the UI
-	 */
-	private static final List<PathClass> DEFAULT_PATH_CLASSES = Collections.unmodifiableList(Arrays.asList(
-			PathClass.NULL_CLASS,
-			PathClass.StandardPathClasses.TUMOR,
-			PathClass.StandardPathClasses.STROMA,
-			PathClass.StandardPathClasses.IMMUNE_CELLS,
-			PathClass.StandardPathClasses.NECROSIS,
-			PathClass.StandardPathClasses.OTHER,
-			PathClass.StandardPathClasses.REGION,
-			PathClass.StandardPathClasses.IGNORE,
-			PathClass.StandardPathClasses.POSITIVE,
-			PathClass.StandardPathClasses.NEGATIVE
-			));
-	
-	private ObservableList<PathClass> availablePathClasses = FXCollections.observableArrayList();;
+	private PathClassManager pathClassManager = new PathClassManager();
 	
 	private Stage stage;
 	
@@ -342,11 +321,8 @@ public class QuPathGUI {
 		
 		setupToolsMenu(getMenu("Tools", true));
 		
-		// Prepare for image name masking
-		setupProjectNameMasking();
-		
-		// Initialize available classes
-		initializePathClasses();
+		// Handle changes to the current projects, or properties that affect the current project
+		initializeProjectBehavior();
 		
 		// Set this as the current instance
 		ensureQuPathInstanceSet();
@@ -366,8 +342,6 @@ public class QuPathGUI {
 		// Add a recent projects menu
 		getMenu("File", true).getItems().add(1, createRecentProjectsMenu());
 
-		
-		
 		
 		timeit.checkpoint("Creating main component");
 		BorderPane pane = new BorderPane();
@@ -430,6 +404,18 @@ public class QuPathGUI {
 		logger.debug("{}", timeit.stop());
 	}
 	
+	
+	private void initializeProjectBehavior() {
+		setupProjectNameMasking();
+		pathClassManager.getAvailablePathClasses().addListener((Change<? extends PathClass> c) -> syncProjectPathClassesToAvailable());
+	}
+	
+	private void syncProjectPathClassesToAvailable() {
+		var project = getProject();
+		if (project != null) {
+			project.setPathClasses(getAvailablePathClasses());
+		}
+	}
 	
 	
 	private void setupProjectNameMasking() {
@@ -776,7 +762,7 @@ public class QuPathGUI {
 			imageRegionStore.close();
 
 		// Save the PathClasses
-		savePathClasses();
+		pathClassManager.savePathClassesToPreferences();
 
 		// Flush the preferences
 		if (!PathPrefs.savePreferences())
@@ -1368,41 +1354,14 @@ public class QuPathGUI {
 	}
 	
 	
-	
 	/**
-	 * Initialize available PathClasses, either from saved list or defaults
+	 * Get an observable list of available PathClasses.
+	 * @return
 	 */
-	private void initializePathClasses() {
-		Set<PathClass> pathClasses = new LinkedHashSet<>();		
-		pathClasses.addAll(loadPathClassesFromPrefs());			
-		if (pathClasses.isEmpty())
-			resetAvailablePathClasses();
-		else
-			availablePathClasses.setAll(pathClasses);
-		availablePathClasses.addListener(this::handlePathClassesChangeEvent);
+	public ObservableList<PathClass> getAvailablePathClasses() {
+		return pathClassManager.getAvailablePathClasses();
 	}
-	
-	
-	private void handlePathClassesChangeEvent(Change<? extends PathClass> c) {
-		// We need a list for UI components (e.g. ListViews), but we want it to behave like a set
-		// Therefore if we find some non-unique nor null elements, correct the list as soon as possible
-		var list = c.getList();
-		var set = new LinkedHashSet<PathClass>();
-		set.add(PathClass.NULL_CLASS);
-		set.addAll(list);
-		set.remove(null);
-		if (!(set.size() == list.size() && set.containsAll(list))) {
-			logger.info("Invalid PathClass list modification: {} will be corrected to {}", list, set);
-			Platform.runLater(() -> availablePathClasses.setAll(set));
-			return;
-		}
-		Project<?> project = getProject();
-		if (project != null) {
-			// Write the project, if necessary
-			project.setPathClasses(set);
-		}
-	}
-	
+
 	
 	/**
 	 * Populate the availablePathClasses with a default list.
@@ -1410,59 +1369,8 @@ public class QuPathGUI {
 	 * @return true if changes were mad to the available classes, false otherwise
 	 */
 	public boolean resetAvailablePathClasses() {
-		return availablePathClasses.setAll(DEFAULT_PATH_CLASSES);
+		return pathClassManager.resetAvailablePathClasses();
 	}
-	
-	/**
-	 * Load PathClasses from preferences.
-	 * Note that this also sets the color of any PathClass that is loads,
-	 * and is really only intended for use when initializing.
-	 * 
-	 * @return
-	 */
-	private static List<PathClass> loadPathClassesFromPrefs() {
-		byte[] bytes = PathPrefs.getUserPreferences().getByteArray("defaultPathClasses", null);
-		if (bytes == null || bytes.length == 0)
-			return Collections.emptyList();
-		ByteArrayInputStream stream = new ByteArrayInputStream(bytes);
-		try (ObjectInputStream in = PathIO.createObjectInputStream(stream)) {
-			List<PathClass> pathClassesOriginal = (List<PathClass>)in.readObject();
-			List<PathClass> pathClasses = new ArrayList<>();
-			for (PathClass pathClass : pathClassesOriginal) {
-				PathClass singleton = PathClass.getSingleton(pathClass);
-				// Ensure the color is set
-				if (singleton != null && pathClass.getColor() != null)
-					singleton.setColor(pathClass.getColor());
-				pathClasses.add(singleton);
-			}
-			return pathClasses;
-		} catch (Exception e) {
-			logger.error("Error loading classes", e);
-			return Collections.emptyList();
-		}
-	}
-	
-	
-	/**
-	 * Save available PathClasses to preferences.
-	 */
-	private void savePathClasses() {
-		ByteArrayOutputStream stream = new ByteArrayOutputStream();
-		try (ObjectOutputStream out = new ObjectOutputStream(stream)) {
-			List<PathClass> pathClasses = new ArrayList<>(availablePathClasses);
-			out.writeObject(pathClasses);
-			out.flush();
-		} catch (IOException e) {
-			logger.error("Error saving classes", e);
-		}
-		byte[] bytes = stream.toByteArray();
-		if (bytes.length < 0.75*Preferences.MAX_VALUE_LENGTH)
-			PathPrefs.getUserPreferences().putByteArray("defaultPathClasses", bytes);
-		else
-			logger.error("Classification list too long ({} bytes) - cannot save it to the preferences.", bytes.length);
-	}
-	
-	
 	
 	
 	private Menu createRecentProjectsMenu() {
@@ -2949,17 +2857,6 @@ public class QuPathGUI {
 	 */
 	public DefaultImageRegionStore getImageRegionStore() {
 		return imageRegionStore;
-	}
-	
-	
-	
-	/**
-	 * Create a default list model for storing available PathClasses.
-	 * 
-	 * @return
-	 */
-	public ObservableList<PathClass> getAvailablePathClasses() {
-		return availablePathClasses;
 	}
 	
 	
