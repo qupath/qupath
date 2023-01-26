@@ -183,10 +183,7 @@ class Menus {
 		public final Action SEP_1 = ActionTools.createSeparator();
 		
 		@ActionMenu("Preferences...")
-		@ActionIcon(PathIcons.COG)
-		@ActionAccelerator("shortcut+,")
-		@ActionDescription("Set preferences to customize QuPath's appearance and behavior.")
-		public final Action PREFERENCES = Commands.createSingleStageAction(() -> Commands.createPreferencesDialog(qupath));
+		public final Action PREFERENCES = qupath.getDefaultActions().PREFERENCES;
 		
 		@ActionMenu("Reset preferences")
 		@ActionDescription("Reset preferences to their default values - this can be useful if you are experiencing any newly-developed persistent problems with QuPath.")

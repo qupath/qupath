@@ -179,7 +179,7 @@ class RigidObjectEditorCommand implements Runnable, ChangeListener<ImageData<Buf
 		
 		
 		viewer.setActiveTool(PathTools.MOVE);
-		qupath.setToolSwitchingEnabled(false);
+		qupath.getToolManager().setToolSwitchingEnabled(false);
 		viewer.addViewerListener(this);
 		// Intercept events
 		viewer.getView().addEventFilter(MouseEvent.ANY, mouseListener);
@@ -236,9 +236,10 @@ class RigidObjectEditorCommand implements Runnable, ChangeListener<ImageData<Buf
 		}
 
 		// Update the mode if the viewer is still active
-		qupath.setToolSwitchingEnabled(true);
+		var toolManager = qupath.getToolManager();
+		toolManager.setToolSwitchingEnabled(true);
 		if (viewer == qupath.getViewer())
-			viewer.setActiveTool(qupath.getSelectedTool());
+			viewer.setActiveTool(toolManager.getSelectedTool());
 		
 		viewer.getView().removeEventFilter(MouseEvent.ANY, mouseListener);
 		viewer.getView().removeEventFilter(KeyEvent.KEY_PRESSED, keyListener);
@@ -485,7 +486,6 @@ class RigidObjectEditorCommand implements Runnable, ChangeListener<ImageData<Buf
 	
 	static class RoiAffineTransformer {
 		
-//		private PathArea roi;
 		// Starting anchors
 		private ROI roiBounds;
 		private double anchorX;
@@ -504,7 +504,6 @@ class RigidObjectEditorCommand implements Runnable, ChangeListener<ImageData<Buf
 		RoiAffineTransformer(final ImageRegion bounds, final ROI roi) {
 			if (bounds != null)
 				roiBounds = ROIs.createRectangleROI(bounds.getX(), bounds.getY(), bounds.getWidth(), bounds.getHeight(), ImagePlane.getPlane(bounds));
-//			this.roi = roi;
 			this.shapeOrig = roi.getGeometry();
 			this.boundsOrig = shapeOrig.getEnvelope();
 			this.transform = new AffineTransformation();
@@ -533,28 +532,10 @@ class RigidObjectEditorCommand implements Runnable, ChangeListener<ImageData<Buf
 			if (clipToBounds && roiBounds != null)
 				geom = geom.intersection(roiBounds.getGeometry());
 			return GeometryTools.geometryToROI(geom, roi.getImagePlane());
-			
-			
-//			ROI transformedROI = getUnclippedTransformedROI(roi);
-//			if (roiBounds == null) // Should this work for points? || !(transformedROI instanceof PathShape))
-//				return transformedROI;
-//			return RoiTools.combineROIs(transformedROI, roiBounds, CombineOp.INTERSECT);
 		}
 		
 		public ROI getUnclippedTransformedROI(final ROI roi) {
 			Geometry shape = roi.getGeometry();
-			
-//			double flatness = 0.5;
-//			// Try to return an ellipse, if appropriate
-//			if (shape instanceof Ellipse2D) {
-//				Rectangle2D bounds = shape.getBounds2D();
-//				if (theta == 0 || GeneralTools.almostTheSame(bounds.getWidth(), bounds.getHeight(), 0.01)) {
-//					return ROIs.createEllipseROI(bounds.getX()+dx, bounds.getY()+dy, bounds.getWidth(), bounds.getHeight(), ImagePlane.getPlaneWithChannel(roi));
-//				}
-////				// Don't flatten an ellipse
-////				flatness = 0.5;
-//			}
-			
 			updateTransform();
 			shape = transform.transform(shape);
 			return GeometryTools.geometryToROI(shape, roi.getImagePlane());
@@ -577,18 +558,6 @@ class RigidObjectEditorCommand implements Runnable, ChangeListener<ImageData<Buf
 			return boundsTransformed;
 		}
 		
-//		public void rotate(final double theta) {
-//			transform.rotate(theta, anchorX, anchorY);
-//			resetCachedShapes();
-//		}
-		
-//		public void setRotation(final double theta) {
-//			transform.setToTranslation(
-//					anchorX - boundsOrig.getCenterX(),
-//					anchorY - boundsOrig.getCenterY());
-//			transform.rotate(theta, anchorX, anchorY);
-//			resetCachedShapes();
-//		}
 		
 		/**
 		 * Set the rotation by using the angle between x,y and the current anchor
@@ -613,14 +582,10 @@ class RigidObjectEditorCommand implements Runnable, ChangeListener<ImageData<Buf
 		void updateTransform() {
 			transform.setToRotation(theta, anchorX, anchorY);
 			transform.translate(dx, dy);
-			
-//			transform.setToTranslation(dx, dy);
-//			transform.rotate(theta, anchorX+dx, anchorY+dy);
 		}
 		
 		
 		double getDisplacement(final double downsampleFactor) {
-//			double displacement = 10 * Math.max(downsampleFactor, 200);
 			return downsampleFactor * 10;
 		}
 		
@@ -636,7 +601,6 @@ class RigidObjectEditorCommand implements Runnable, ChangeListener<ImageData<Buf
 		}
 		
 		Shape getRotationHandle(final double downsampleFactor) {
-//			double radius = 10 * Math.min(downsampleFactor, 50);
 			double radius = 5 * downsampleFactor;
 			double displacement = getDisplacement(downsampleFactor);
 			var env = boundsOrig.getEnvelopeInternal();
@@ -649,15 +613,6 @@ class RigidObjectEditorCommand implements Runnable, ChangeListener<ImageData<Buf
 					radius*2,
 					radius*2
 					);
-			
-//			transform.transform(src, dest)
-//			Ellipse2D ellipse = new Ellipse2D.Double(
-//					(env.getMinX() + env.getMaxX()) / 2.0-radius,
-//					env.getMinY()-displacement-radius*2,
-//					radius*2,
-//					radius*2);
-//			
-//			return transform.createTransformedShape(ellipse);
 		}
 		
 		

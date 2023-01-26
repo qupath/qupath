@@ -303,8 +303,8 @@ public class ProcessingExtension implements QuPathExtension {
 					IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, PathIcons.WAND_TOOL));
 			logger.debug("Installing wand tool");
 			Platform.runLater(() -> {
-				qupath.installTool(wandTool, new KeyCodeCombination(KeyCode.W));
-				qupath.getToolAction(wandTool).setLongText(
+				qupath.getToolManager().installTool(wandTool, new KeyCodeCombination(KeyCode.W));
+				qupath.getToolManager().getToolAction(wandTool).setLongText(
 						"Click and drag to draw with a wand tool. "
 						+ "Adjust brightness/contrast or wand preferences to customize the sensitivity and behavior."
 						);

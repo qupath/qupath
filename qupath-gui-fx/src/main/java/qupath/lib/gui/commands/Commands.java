@@ -54,6 +54,7 @@ import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.ColorPicker;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Label;
@@ -68,6 +69,7 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
+import javafx.scene.paint.Color;
 import javafx.scene.text.TextAlignment;
 import javafx.stage.Modality;
 import javafx.stage.Screen;
@@ -83,10 +85,10 @@ import qupath.lib.gui.dialogs.Dialogs.DialogButton;
 import qupath.lib.gui.images.servers.RenderedImageServer;
 import qupath.lib.gui.panes.MeasurementMapPane;
 import qupath.lib.gui.panes.ObjectDescriptionPane;
-import qupath.lib.gui.panes.PathClassPane;
 import qupath.lib.gui.panes.WorkflowCommandLogView;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tma.TMASummaryViewer;
+import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.viewer.GridLines;
@@ -110,6 +112,7 @@ import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.PathTileObject;
 import qupath.lib.objects.TMACoreObject;
+import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
@@ -1057,9 +1060,87 @@ public class Commands {
 		var pathClass = Dialogs.showChoiceDialog("Select objects", "", qupath.getAvailablePathClasses(), null);
 		if (pathClass == null)
 			return;
-		PathClassPane.selectObjectsByClassification(imageData, pathClass);
+		selectObjectsByClassification(imageData, pathClass);
+	}
+	
+	
+	/**
+	 * Prompt to edit the name/color of a class.
+	 * @param pathClass
+	 * @return
+	 */
+	public static boolean promptToEditClass(final PathClass pathClass) {
+		if (pathClass == null || pathClass == PathClass.NULL_CLASS)
+			return false;
+
+		boolean defaultColor = pathClass == null;
+
+		BorderPane panel = new BorderPane();
+
+		BorderPane panelName = new BorderPane();
+		String name;
+		Color color;
+
+		if (defaultColor) {
+			name = "Default object color";
+			color = ColorToolsFX.getCachedColor(PathPrefs.colorDefaultObjectsProperty().get());
+			Label label = new Label(name);
+			label.setPadding(new Insets(5, 0, 10, 0));
+			panelName.setCenter(label);
+		} else {
+			name = pathClass.toString();
+			if (name == null)
+				name = "";
+			color = ColorToolsFX.getPathClassColor(pathClass);		
+			Label label = new Label(name);
+			label.setPadding(new Insets(5, 0, 10, 0));
+			panelName.setCenter(label);
+		}
+
+		panel.setTop(panelName);
+		ColorPicker panelColor = new ColorPicker(color);
+
+		panel.setCenter(panelColor);
+
+		if (!Dialogs.showConfirmDialog("Edit class", panel))
+			return false;
+
+		Color newColor = panelColor.getValue();
+
+		Integer colorValue = newColor.isOpaque() ? ColorToolsFX.getRGB(newColor) : ColorToolsFX.getARGB(newColor);
+		if (defaultColor) {
+			if (newColor.isOpaque())
+				PathPrefs.colorDefaultObjectsProperty().set(colorValue);
+			else
+				PathPrefs.colorDefaultObjectsProperty().set(colorValue);
+		}
+		else {
+			pathClass.setColor(colorValue);
+		}
+		return true;
 	}
 
+	
+	/**
+	 * Select objects by classification, logging the step (if performed) in the history workflow.
+	 * @param imageData the {@link ImageData} containing objects to be selected
+	 * @param pathClasses classifications that will result in an object being selected
+	 * @return true if a selection command was run, false otherwise (e.g. if no pathClasses were specified)
+	 */
+	public static boolean selectObjectsByClassification(ImageData<?> imageData, PathClass... pathClasses) {
+		var hierarchy = imageData.getHierarchy();
+		if (pathClasses.length == 0) {
+			logger.warn("Cannot select objects by classification - no classifications selected!");
+			return false;
+		}
+		QP.selectObjectsByPathClass(hierarchy, pathClasses);
+		var s = Arrays.stream(pathClasses)
+				.map(p -> p == null || p == PathClass.NULL_CLASS ? "null" : "\"" + p.toString() + "\"").collect(Collectors.joining(", "));
+		imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep("Select objects by classification",
+				"selectObjectsByClassification(" + s + ");"));
+		return true;
+	}
+	
 	
 	/**
 	 * Prompt to delete objects of a specified type, or all objects.

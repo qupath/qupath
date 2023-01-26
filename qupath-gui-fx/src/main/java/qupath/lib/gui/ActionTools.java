@@ -748,4 +748,20 @@ public class ActionTools {
 		return createAction(command, null, (Node)null, null);
 	}
 
+	
+	public static <T> Action createSelectableCommandAction(final SelectableItem<T> command, final String name, final Node icon, final KeyCombination accelerator) {
+		var action = ActionTools.actionBuilder(e -> command.setSelected(true))
+				.text(name)
+				.accelerator(accelerator)
+				.selectable(true)
+				.selected(command.selectedProperty())
+				.graphic(icon)
+				.build();
+		return action;
+	}
+	
+	public static <T> Action createSelectableCommandAction(final SelectableItem<T> command, final String name) {
+		return createSelectableCommandAction(command, name, null, null);
+	}
+	
 }

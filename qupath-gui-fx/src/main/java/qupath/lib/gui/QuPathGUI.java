@@ -55,8 +55,6 @@ import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Consumer;
-import java.util.stream.Collectors;
-
 import javax.imageio.ImageIO;
 import javax.script.ScriptException;
 import javax.swing.SwingUtilities;
@@ -82,7 +80,6 @@ import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.value.ChangeListener;
-import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener.Change;
 import javafx.collections.ObservableList;
 import javafx.embed.swing.JFXPanel;
@@ -92,7 +89,6 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.geometry.Rectangle2D;
 import javafx.scene.Cursor;
-import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.ButtonBar.ButtonData;
@@ -214,20 +210,13 @@ public class QuPathGUI {
 	
 	private ScriptEditor scriptEditor = null;
 		
-	private ObjectProperty<PathTool> selectedToolProperty = new SimpleObjectProperty<>(PathTools.MOVE);
-	private ObservableList<PathTool> tools = FXCollections.observableArrayList(
-			PathTools.MOVE, PathTools.RECTANGLE, PathTools.ELLIPSE, PathTools.LINE, PathTools.POLYGON, PathTools.POLYLINE, PathTools.BRUSH, PathTools.POINTS
-			);
-	
-	private BooleanProperty selectedToolLocked = new SimpleBooleanProperty(false);
+	private ToolManager toolManager = new ToolManager();
 
 	private BooleanProperty readOnly = new SimpleBooleanProperty(false);
 	
 	// ExecutorServices for single & multiple threads
 	private Map<Object, ExecutorService> mapSingleThreadPools = new HashMap<>();
 	private ExecutorService poolMultipleThreads = Executors.newFixedThreadPool(Math.max(2, Runtime.getRuntime().availableProcessors()), ThreadTools.createThreadFactory("qupath-shared-", false));	
-	
-	private Map<PathTool, Action> toolActions = new HashMap<>();
 	
 	/**
 	 * Preferred size for toolbar icons.
@@ -281,14 +270,11 @@ public class QuPathGUI {
 	
 	private SimpleBooleanProperty showInputDisplayProperty = new SimpleBooleanProperty(false);
 
-	private PathTool previousTool = PathTools.MOVE;
-	
 	private LogViewerCommand logViewerCommand;
 	
 	private DefaultActions defaultActions;
 	
 	private ExtensionManager extensionManager = new ExtensionManager(this);
-;
 
 	
 	/**
@@ -401,6 +387,9 @@ public class QuPathGUI {
 		timeit.checkpoint("Refreshing style");
 		initializeStyle();
 		
+		toolManager.getTools().addListener((Change<? extends PathTool> c) -> registerAcceleratorsForAllTools());
+		registerAcceleratorsForAllTools();
+
 		logger.debug("{}", timeit.stop());
 	}
 	
@@ -695,10 +684,10 @@ public class QuPathGUI {
 			} else if (e.getButton() == MouseButton.MIDDLE && e.getEventType() == MouseEvent.MOUSE_CLICKED) {
 				logger.debug("Middle button pressed {}x {}", e.getClickCount(), System.currentTimeMillis());
 				// Here we toggle between the MOVE tool and any previously selected tool
-				if (getSelectedTool() == PathTools.MOVE)
-					setSelectedTool(previousTool);
+				if (toolManager.getSelectedTool() == PathTools.MOVE)
+					toolManager.setSelectedTool(toolManager.getPreviousSelectedTool());
 				else
-					setSelectedTool(PathTools.MOVE);
+					toolManager.setSelectedTool(PathTools.MOVE);
 			}
 		}
 		
@@ -823,12 +812,35 @@ public class QuPathGUI {
 	 * @param menu
 	 */
 	private void setupToolsMenu(Menu menu) {
-		tools.addListener((Change<? extends PathTool> c) -> refreshToolsMenu(tools, menu));
+		toolManager.getTools().addListener((Change<? extends PathTool> c) -> refreshToolsMenu(c.getList(), menu));
 	}
 	
-	private void refreshToolsMenu(List<PathTool> tools, Menu menu) {
-		menu.getItems().setAll(tools.stream().map(t -> ActionTools.createCheckMenuItem(getToolAction(t))).collect(Collectors.toList()));
+	private void refreshToolsMenu(List<? extends PathTool> tools, Menu menu) {
+		List<MenuItem> items = new ArrayList<>();
+		for (var t : tools) {
+			var action = toolManager.getToolAction(t);
+			var mi = ActionTools.createCheckMenuItem(action);
+			items.add(mi);
+		}
+		menu.getItems().setAll(items);
 		MenuTools.addMenuItems(menu, null, ActionTools.createCheckMenuItem(defaultActions.SELECTION_MODE));
+	}
+	
+	
+	private void registerAcceleratorsForAllTools() {
+		for (var t : toolManager.getTools()) {
+			var action = toolManager.getToolAction(t);
+			registerAccelerator(action);
+		}
+	}
+		
+	
+	/**
+	 * Get the ToolManager that handles available and selected tools.
+	 * @return
+	 */
+	public ToolManager getToolManager() {
+		return toolManager;
 	}
 	
 	
@@ -1401,8 +1413,8 @@ public class QuPathGUI {
 		showAnalysisPane.addListener((v, o, n) -> mainPaneManager.setAnalysisPaneVisible(n));
 		
 		// Ensure actions are set appropriately
-		selectedToolProperty.addListener((v, o, n) -> {
-			Action action = toolActions.get(n);
+		toolManager.selectedToolProperty().addListener((v, o, n) -> {
+			Action action = toolManager.getToolAction(n);
 			if (action != null)
 				action.setSelected(true);
 			
@@ -1413,7 +1425,6 @@ public class QuPathGUI {
 			
 			updateCursorForSelectedTool();			
 		});
-		setSelectedTool(getSelectedTool());
 		
 		return mainPaneManager.getMainPane();
 	}
@@ -1504,7 +1515,7 @@ public class QuPathGUI {
 	
 	private void activateToolsForViewer(final QuPathViewer viewer) {
 		if (viewer != null)
-			viewer.setActiveTool(getSelectedTool());		
+			viewer.setActiveTool(toolManager.getSelectedTool());		
 	}
 	
 	
@@ -2541,45 +2552,6 @@ public class QuPathGUI {
 		}
 		return plugin;
 	}
-	
-
-	/**
-	 * Get the action that corresponds to a specific {@link PathTool}, creating a new action if one does not already exist.
-	 * @param tool
-	 * @return
-	 */
-	public Action getToolAction(PathTool tool) {
-		var action = toolActions.get(tool);
-		if (action == null) {
-			action = createToolAction(tool);
-			toolActions.put(tool, action);
-		}
-		// Make sure the accelerator is registered
-		registerAccelerator(action);
-		return action;
-	}
-	
-	private Action createToolAction(final PathTool tool) {
-		  var action = createSelectableCommandAction(new SelectableItem<>(selectedToolProperty, tool), tool.getName(), tool.getIcon(), null);
-		  action.disabledProperty().bind(Bindings.createBooleanBinding(() -> !tools.contains(tool) || selectedToolLocked.get(), selectedToolLocked, tools));
-		  registerAccelerator(action);
-		  return action;
-	}
-
-	private static <T> Action createSelectableCommandAction(final SelectableItem<T> command, final String name, final Node icon, final KeyCombination accelerator) {
-		var action = ActionTools.actionBuilder(e -> command.setSelected(true))
-				.text(name)
-				.accelerator(accelerator)
-				.selectable(true)
-				.selected(command.selectedProperty())
-				.graphic(icon)
-				.build();
-		return action;
-	}
-	
-	private static <T> Action createSelectableCommandAction(final SelectableItem<T> command, final String name) {
-		return createSelectableCommandAction(command, name, null, null);
-	}
 
 	/**
 	 * Register the accelerator so we can still trigger the event if it is not otherwise called (e.g. if it doesn't require a 
@@ -2621,23 +2593,6 @@ public class QuPathGUI {
 	}
 	
 	/**
-	 * Toggle whether the user is permitted to switch to a new active {@link PathTool}.
-	 * This can be used to lock a tool temporarily.
-	 * @param enabled
-	 */
-	public void setToolSwitchingEnabled(final boolean enabled) {
-		selectedToolLocked.set(!enabled);
-	}
-	
-	/**
-	 * Returns true if the user is able to activate another {@link PathTool}, false otherwise.
-	 * @return
-	 */
-	public boolean isToolSwitchingEnabled() {
-		return !selectedToolLocked.get();
-	}
-	
-	/**
 	 * Query whether QuPath is in 'read-only' mode. This suppresses dialogs that ask about saving changes.
 	 * @return
 	 * @apiNote Read only mode is an experimental feature; its behavior is subject to change in future versions.
@@ -2668,66 +2623,11 @@ public class QuPathGUI {
 		this.readOnly.set(readOnly);
 	}
 	
-	/**
-	 * Get a list of the current available tools.
-	 * Tools may be removed from this list, but {@link #installTool(PathTool, KeyCodeCombination)} is the preferred way 
-	 * to add a new tool, to ensure that any accelerator is properly managed.
-	 * @return
-	 */
-	public ObservableList<PathTool> getAvailableTools() {
-		return tools;
-	}
-	
-	/**
-	 * Install a new tool for interacting with viewers.
-	 * @param tool the tool to add
-	 * @param accelerator an optional accelerator (may be null)
-	 * @return true if the tool was added, false otherwise (e.g. if the tool had already been added)
-	 */
-	public boolean installTool(PathTool tool, KeyCodeCombination accelerator) {
-		if (tool == null || tools.contains(tool))
-			return false;
-		// Keep the points tool last
-		if (accelerator != null) {
-			var action = getToolAction(tool);
-			if (accelerator != null) {
-				action.setAccelerator(accelerator);
-				registerAccelerator(action);
-			}
-		}
-		int ind = tools.indexOf(PathTools.POINTS);
-		if (ind < 0)
-			tools.add(tool);
-		else
-			tools.add(ind, tool);
-		return true;
-	}
-	
-	/**
-	 * Programmatically select the active {@link PathTool}.
-	 * This may fail if {@link #isToolSwitchingEnabled()} returns false.
-	 * @param tool
-	 */
-	public void setSelectedTool(PathTool tool) {
-		if (!Platform.isFxApplicationThread()) {
-			Platform.runLater(() -> setSelectedTool(tool));
-			return;
-		}
-		if (!isToolSwitchingEnabled()) {
-			logger.warn("Mode switching currently disabled - cannot change to {}", tool);
-			return;
-		}
-		// If the current tool is not move, record before switching to newly selected
-		if (getSelectedTool() != PathTools.MOVE)
-			previousTool = getSelectedTool();
-		this.selectedToolProperty.set(tool);
-	}
-
-	
+		
 	private void updateCursorForSelectedTool() {
 		if (stage == null || stage.getScene() == null)
 			return;
-		var mode = getSelectedTool();
+		var mode = toolManager.getSelectedTool();
 		if (mode == PathTools.MOVE)
 			setCursorForAllViewers(Cursor.HAND);
 		else
@@ -2785,22 +2685,6 @@ public class QuPathGUI {
 		for (QuPathViewer v : getViewers()) {
 			v.repaint();
 		}
-	}
-	
-	/**
-	 * Get the value of {@link #selectedToolProperty()}.
-	 * @return
-	 */
-	public PathTool getSelectedTool() {
-		return selectedToolProperty().get();
-	}
-	
-	/**
-	 * Property containing the currently-selected {@link PathTool}.
-	 * @return
-	 */
-	public ObjectProperty<PathTool> selectedToolProperty() {
-		return selectedToolProperty;
 	}
 	
 	/**
@@ -3107,7 +2991,7 @@ public class QuPathGUI {
 			
 			pane.setCenter(splitPane);
 			
-			toolbar = new ToolBarComponent(qupath);
+			toolbar = new ToolBarComponent(qupath.toolManager, qupath.viewerManager, qupath.getDefaultActions());
 			pane.setTop(toolbar.getToolBar());
 			
 			setAnalysisPaneVisible(true);
@@ -3483,50 +3367,50 @@ public class QuPathGUI {
 		 */
 		@ActionAccelerator("m")
 		@ActionDescription("Move tool, both for moving around the viewer (panning) and moving objects (translation).")
-		public final Action MOVE_TOOL = getToolAction(PathTools.MOVE);
+		public final Action MOVE_TOOL = toolManager.getToolAction(PathTools.MOVE);
 		/**
 		 * Rectangle tool action
 		 */
 		@ActionAccelerator("r")
 		@ActionDescription("Click and drag to draw a rectangle annotation. Hold down 'Shift' to constrain shape to be a square.")
-		public final Action RECTANGLE_TOOL = getToolAction(PathTools.RECTANGLE);
+		public final Action RECTANGLE_TOOL = toolManager.getToolAction(PathTools.RECTANGLE);
 		/**
 		 * Ellipse tool action
 		 */
 		@ActionAccelerator("o")
 		@ActionDescription("Click and drag to draw an ellipse annotation. Hold down 'Shift' to constrain shape to be a circle.")
-		public final Action ELLIPSE_TOOL = getToolAction(PathTools.ELLIPSE);
+		public final Action ELLIPSE_TOOL = toolManager.getToolAction(PathTools.ELLIPSE);
 		/**
 		 * Polygon tool action
 		 */
 		@ActionAccelerator("p")
 		@ActionDescription("Create a closed polygon annotation, either by clicking individual points (with double-click to end) or clicking and dragging.")
-		public final Action POLYGON_TOOL = getToolAction(PathTools.POLYGON);
+		public final Action POLYGON_TOOL = toolManager.getToolAction(PathTools.POLYGON);
 		/**
 		 * Polyline tool action
 		 */
 		@ActionAccelerator("v")
 		@ActionDescription("Create a polyline annotation, either by clicking individual points (with double-click to end) or clicking and dragging.")
-		public final Action POLYLINE_TOOL = getToolAction(PathTools.POLYLINE);
+		public final Action POLYLINE_TOOL = toolManager.getToolAction(PathTools.POLYLINE);
 		/**
 		 * Brush tool action
 		 */
 		@ActionAccelerator("b")
 		@ActionDescription("Click and drag to paint with a brush. "
 				+ "By default, the size of the region being drawn depends upon the zoom level in the viewer.")
-		public final Action BRUSH_TOOL = getToolAction(PathTools.BRUSH);
+		public final Action BRUSH_TOOL = toolManager.getToolAction(PathTools.BRUSH);
 		/**
 		 * Line tool action
 		 */
 		@ActionAccelerator("l")
 		@ActionDescription("Click and drag to draw a line annotation.")
-		public final Action LINE_TOOL = getToolAction(PathTools.LINE);
+		public final Action LINE_TOOL = toolManager.getToolAction(PathTools.LINE);
 		/**
 		 * Points/counting tool action
 		 */
 		@ActionAccelerator(".")
 		@ActionDescription("Click to add points to an annotation.")
-		public final Action POINTS_TOOL = getToolAction(PathTools.POINTS);
+		public final Action POINTS_TOOL = toolManager.getToolAction(PathTools.POINTS);
 		
 		/**
 		 * Toggle 'selection mode' on/off for all drawing tools.
@@ -3599,22 +3483,22 @@ public class QuPathGUI {
 		 * Request that cells are displayed using their boundary ROI only.
 		 */
 		@ActionIcon(PathIcons.CELL_ONLY)
-		public final Action SHOW_CELL_BOUNDARIES = createSelectableCommandAction(new SelectableItem<>(getOverlayOptions().detectionDisplayModeProperty(), DetectionDisplayMode.BOUNDARIES_ONLY), "Cell boundaries only");
+		public final Action SHOW_CELL_BOUNDARIES = ActionTools.createSelectableCommandAction(new SelectableItem<>(getOverlayOptions().detectionDisplayModeProperty(), DetectionDisplayMode.BOUNDARIES_ONLY), "Cell boundaries only");
 		/**
 		 * Request that cells are displayed using their boundary ROI only.
 		 */
 		@ActionIcon(PathIcons.NUCLEI_ONLY)
-		public final Action SHOW_CELL_NUCLEI = createSelectableCommandAction(new SelectableItem<>(getOverlayOptions().detectionDisplayModeProperty(), DetectionDisplayMode.NUCLEI_ONLY), "Nuclei only");
+		public final Action SHOW_CELL_NUCLEI = ActionTools.createSelectableCommandAction(new SelectableItem<>(getOverlayOptions().detectionDisplayModeProperty(), DetectionDisplayMode.NUCLEI_ONLY), "Nuclei only");
 		/**
 		 * Request that cells are displayed using both cell and nucleus ROIs.
 		 */
 		@ActionIcon(PathIcons.CELL_NUCLEI_BOTH)
-		public final Action SHOW_CELL_BOUNDARIES_AND_NUCLEI = createSelectableCommandAction(new SelectableItem<>(getOverlayOptions().detectionDisplayModeProperty(), DetectionDisplayMode.NUCLEI_AND_BOUNDARIES), "Nuclei & cell boundaries");
+		public final Action SHOW_CELL_BOUNDARIES_AND_NUCLEI = ActionTools.createSelectableCommandAction(new SelectableItem<>(getOverlayOptions().detectionDisplayModeProperty(), DetectionDisplayMode.NUCLEI_AND_BOUNDARIES), "Nuclei & cell boundaries");
 		/**
 		 * Request that cells are displayed using their centroids only.
 		 */
 		@ActionIcon(PathIcons.CENTROIDS_ONLY)
-		public final Action SHOW_CELL_CENTROIDS = createSelectableCommandAction(new SelectableItem<>(getOverlayOptions().detectionDisplayModeProperty(), DetectionDisplayMode.CENTROIDS), "Centroids only");
+		public final Action SHOW_CELL_CENTROIDS = ActionTools.createSelectableCommandAction(new SelectableItem<>(getOverlayOptions().detectionDisplayModeProperty(), DetectionDisplayMode.CENTROIDS), "Centroids only");
 
 		/**
 		 * Toggle the display of annotations.
@@ -3696,6 +3580,11 @@ public class QuPathGUI {
 		@ActionIcon(PathIcons.MEASURE)
 		@ActionAccelerator("shift+a")
 		public final Action SHOW_ANALYSIS_PANE = createShowAnalysisPaneAction();
+		
+		@ActionIcon(PathIcons.COG)
+		@ActionAccelerator("shortcut+,")
+		@ActionDescription("Set preferences to customize QuPath's appearance and behavior.")
+		public final Action PREFERENCES = Commands.createSingleStageAction(() -> Commands.createPreferencesDialog(QuPathGUI.this));
 		
 		/**
 		 * Show descriptions for the selected object

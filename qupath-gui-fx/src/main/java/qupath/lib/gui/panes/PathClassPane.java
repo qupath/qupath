@@ -24,7 +24,6 @@ package qupath.lib.gui.panes;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -44,12 +43,9 @@ import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.collections.ObservableList;
-import javafx.geometry.Insets;
 import javafx.geometry.Side;
 import javafx.scene.control.Button;
-import javafx.scene.control.ColorPicker;
 import javafx.scene.control.ContextMenu;
-import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.control.Menu;
@@ -68,9 +64,9 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
-import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.Dialogs.DialogButton;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -80,22 +76,19 @@ import qupath.lib.gui.tools.MenuTools;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.QuPathViewer;
-import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
-import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectIO;
-import qupath.lib.scripting.QP;
 
 /**
  * Component used to display and edit available {@linkplain PathClass PathClasses}.
  * 
  * @author Pete Bankhead
  */
-public class PathClassPane {
+class PathClassPane {
 	
 	private static final Logger logger = LoggerFactory.getLogger(PathClassPane.class);
 	
@@ -124,7 +117,7 @@ public class PathClassPane {
 	}
 
 	
-	Predicate<PathClass> createPredicate(String text) {
+	private Predicate<PathClass> createPredicate(String text) {
 		if (text == null || text.isBlank())
 			return p -> true;
 		String text2 = text.toLowerCase();
@@ -313,24 +306,13 @@ public class PathClassPane {
 			var imageData = qupath.getImageData();
 			if (imageData == null)
 				return;
-			selectObjectsByClassification(imageData, getSelectedPathClasses().toArray(PathClass[]::new));
+			Commands.selectObjectsByClassification(imageData, getSelectedPathClasses().toArray(PathClass[]::new));
 		});		
 
 		MenuItem miSetHidden = new MenuItem("Hide classes in viewer");
 		miSetHidden.setOnAction(e -> setSelectedClassesVisibility(false));
 		MenuItem miSetVisible = new MenuItem("Show classes in viewer");
 		miSetVisible.setOnAction(e -> setSelectedClassesVisibility(true));
-		
-//		MenuItem miToggleClassVisible = new MenuItem("Toggle display class");
-//		miToggleClassVisible.setOnAction(e -> {
-//			OverlayOptions overlayOptions = qupath.getViewer().getOverlayOptions();
-//			for (var pathClass : getSelectedPathClasses()) {
-//				if (pathClass == null || pathClass == PathClass.NULL_CLASS)
-//					continue;
-//				overlayOptions.setPathClassHidden(pathClass, !overlayOptions.isPathClassHidden(pathClass));
-//			}
-//			listClasses.refresh();
-//		});
 		
 		menu.setOnShowing(e -> {
 			var hierarchy = getHierarchy();
@@ -340,11 +322,8 @@ public class PathClassPane {
 			miPopulateFromChannels.setDisable(qupath.getImageData() == null);
 			var selected = getSelectedPathClasses();
 			boolean hasClasses = !selected.isEmpty();
-//			boolean hasClasses = selected.size() > 1 || 
-//					(selected.size() == 1 && selected.get(0) != null && selected.get(0) != PathClass.NULL_CLASS);
 			miSetVisible.setDisable(!hasClasses);
 			miSetHidden.setDisable(!hasClasses);
-//			miRemoveClass.setDisable(!hasClasses);
 		});
 		
 		MenuItem miImportFromProject = ActionUtils.createMenuItem(actionImportClasses);
@@ -371,27 +350,6 @@ public class PathClassPane {
 	}
 	
 	
-	/**
-	 * Select objects by classification, logging the step (if performed) in the history workflow.
-	 * @param imageData the {@link ImageData} containing objects to be selected
-	 * @param pathClasses classifications that will result in an object being selected
-	 * @return true if a selection command was run, false otherwise (e.g. if no pathClasses were specified)
-	 */
-	public static boolean selectObjectsByClassification(ImageData<?> imageData, PathClass... pathClasses) {
-		var hierarchy = imageData.getHierarchy();
-		if (pathClasses.length == 0) {
-			logger.warn("Cannot select objects by classification - no classifications selected!");
-			return false;
-		}
-		QP.selectObjectsByPathClass(hierarchy, pathClasses);
-		var s = Arrays.stream(pathClasses)
-				.map(p -> p == null || p == PathClass.NULL_CLASS ? "null" : "\"" + p.toString() + "\"").collect(Collectors.joining(", "));
-		imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep("Select objects by classification",
-				"selectObjectsByClassification(" + s + ");"));
-		return true;
-	}
-	
-	
 	
 	/**
 	 * Update pane to reflect the current status.
@@ -405,7 +363,7 @@ public class PathClassPane {
 	}
 	
 	
-	void toggleSelectedClassesVisibility() {
+	private void toggleSelectedClassesVisibility() {
 		OverlayOptions overlayOptions = qupath.getViewer().getOverlayOptions();
 		for (var pathClass : getSelectedPathClasses()) {
 			overlayOptions.setPathClassHidden(pathClass, !overlayOptions.isPathClassHidden(pathClass));
@@ -414,7 +372,7 @@ public class PathClassPane {
 	}
 	
 	
-	void setSelectedClassesVisibility(boolean visible) {
+	private void setSelectedClassesVisibility(boolean visible) {
 		OverlayOptions overlayOptions = qupath.getViewer().getOverlayOptions();
 		for (var pathClass : getSelectedPathClasses()) {
 //			if (pathClass == null || pathClass == PathClass.NULL_CLASS)
@@ -424,7 +382,7 @@ public class PathClassPane {
 		listClasses.refresh();
 	}
 	
-	void updateAutoSetPathClassProperty() {
+	private void updateAutoSetPathClassProperty() {
 		PathClass pathClass = null;
 		if (doAutoSetPathClass.get()) {
 			pathClass = getSelectedPathClass();
@@ -444,7 +402,7 @@ public class PathClassPane {
 	 * Prompt to populate available class list from the channels of the current {@link ImageServer}.
 	 * @return true if the class list was changed, false otherwise.
 	 */
-	boolean promptToPopulateFromChannels() {
+	private boolean promptToPopulateFromChannels() {
 		var imageData = qupath.getImageData();
 		if (imageData == null)
 			return false;
@@ -481,28 +439,13 @@ public class PathClassPane {
 			return false;
 	}
 	
-	/**
-	 * Prompt to remove all available classifications ('null' remains)
-	 * @return true if the class list was changed, false otherwise.
-	 */
-	boolean promptToClearClasses() {
-		var available = qupath.getAvailablePathClasses();
-		if (available.isEmpty() || (available.size() == 1 && available.get(0) == PathClass.NULL_CLASS))
-			return false;
-		if (Dialogs.showConfirmDialog("Remove classifications", "Remove all available classes?")) {
-			available.setAll(PathClass.NULL_CLASS);
-			return true;
-		} else
-			return false;
-	}
-	
 	
 	/**
 	 * Prompt to populate available class list from the current image.
 	 * @param baseClassesOnly 
 	 * @return true if the class list was changed, false otherwise.
 	 */
-	boolean promptToPopulateFromImage(boolean baseClassesOnly) {
+	private boolean promptToPopulateFromImage(boolean baseClassesOnly) {
 		var hierarchy = getHierarchy();
 		if (hierarchy == null)
 			return false;
@@ -581,7 +524,7 @@ public class PathClassPane {
 	 * Prompt to reset classifications to the default list.
 	 * @return true if the class list was changed, false otherwise
 	 */
-	boolean promptToResetClasses() {
+	private boolean promptToResetClasses() {
 		if (Dialogs.showConfirmDialog("Reset classes", "Reset all available classes?")) {
 			return qupath.resetAvailablePathClasses();
 		}
@@ -593,7 +536,7 @@ public class PathClassPane {
 	 * Prompt to add a new classification.
 	 * @return true if a new classification was added, false otherwise
 	 */
-	boolean promptToAddClass() {
+	private boolean promptToAddClass() {
 		String input = Dialogs.showInputDialog("Add class", "Class name", "");
 		if (input == null || input.trim().isEmpty())
 			return false;
@@ -615,9 +558,9 @@ public class PathClassPane {
 	 * Prompt to edit the selected classification.
 	 * @return true if changes were made, false otherwise
 	 */
-	boolean promptToEditSelectedClass() {
+	private boolean promptToEditSelectedClass() {
 		PathClass pathClassSelected = getSelectedPathClass();
-		if (promptToEditClass(pathClassSelected)) {
+		if (Commands.promptToEditClass(pathClassSelected)) {
 			//					listModelPathClasses.fireListDataChangedEvent();
 			GuiTools.refreshList(listClasses);
 			var project = qupath.getProject();
@@ -653,82 +596,11 @@ public class PathClassPane {
 	}
 	
 	/**
-	 * Prompt to edit the name/color of a class.
-	 * @param pathClass
-	 * @return
-	 */
-	public static boolean promptToEditClass(final PathClass pathClass) {
-		if (pathClass == null || pathClass == PathClass.NULL_CLASS)
-			return false;
-
-		boolean defaultColor = pathClass == null;
-
-		BorderPane panel = new BorderPane();
-
-		BorderPane panelName = new BorderPane();
-		String name;
-		Color color;
-
-		if (defaultColor) {
-			name = "Default object color";
-			color = ColorToolsFX.getCachedColor(PathPrefs.colorDefaultObjectsProperty().get());
-			//			textField.setEditable(false);
-			//			textField.setEnabled(false);
-			Label label = new Label(name);
-			label.setPadding(new Insets(5, 0, 10, 0));
-			panelName.setCenter(label);
-		} else {
-			name = pathClass.toString();
-			if (name == null)
-				name = "";
-			color = ColorToolsFX.getPathClassColor(pathClass);		
-			Label label = new Label(name);
-			label.setPadding(new Insets(5, 0, 10, 0));
-			panelName.setCenter(label);
-			//				textField.setText(name);
-			//				panelName.setLeft(new Label("Class name"));
-			//				panelName.setCenter(textField);
-		}
-
-		panel.setTop(panelName);
-		ColorPicker panelColor = new ColorPicker(color);
-
-		panel.setCenter(panelColor);
-
-		if (!Dialogs.showConfirmDialog("Edit class", panel))
-			return false;
-
-		//			String newName = textField.getText().trim();
-		Color newColor = panelColor.getValue();
-		//			if ((name.length() == 0 || name.equals(newName)) && newColor.equals(color))
-		//				return false;
-
-		Integer colorValue = newColor.isOpaque() ? ColorToolsFX.getRGB(newColor) : ColorToolsFX.getARGB(newColor);
-		if (defaultColor) {
-			if (newColor.isOpaque())
-				PathPrefs.colorDefaultObjectsProperty().set(colorValue);
-			else
-				PathPrefs.colorDefaultObjectsProperty().set(colorValue);
-		}
-		else {
-			//				if (!name.equals(pathClass.getName()) && PathClassFactory.pathClassExists(newName)) {
-			//					logger.warn("Modified name already exists - cannot rename");
-			//					return false;
-			//				}
-			//				pathClass.setName(newName);
-			pathClass.setColor(colorValue);
-		}
-		return true;
-	}
-
-
-
-	/**
 	 * Prompt to remove the currently selected class, if there is one.
 	 * 
 	 * @return true if changes were made to the class list, false otherwise
 	 */
-	boolean promptToRemoveSelectedClasses() {
+	private boolean promptToRemoveSelectedClasses() {
 		List<PathClass> pathClasses = getSelectedPathClasses()
 				.stream()
 				.filter(p -> p != null && p != PathClass.NULL_CLASS)
@@ -750,7 +622,7 @@ public class PathClassPane {
 	 * Get the currently-selected PathClass.
 	 * @return
 	 */
-	PathClass getSelectedPathClass() {
+	private PathClass getSelectedPathClass() {
 		return listClasses.getSelectionModel().getSelectedItem();
 	}
 	
@@ -758,7 +630,7 @@ public class PathClassPane {
 	 * Get the currently-selected PathClasses.
 	 * @return
 	 */
-	List<PathClass> getSelectedPathClasses() {
+	private List<PathClass> getSelectedPathClasses() {
 		return listClasses.getSelectionModel().getSelectedItems()
 				.stream()
 				.map(p -> p.getName() == null ? null : p)
@@ -772,7 +644,7 @@ public class PathClassPane {
 	 * @param pathClass
 	 * @return
 	 */
-	static List<PathObject> getAnnotationsForClass(PathObjectHierarchy hierarchy, PathClass pathClass) {
+	private static List<PathObject> getAnnotationsForClass(PathObjectHierarchy hierarchy, PathClass pathClass) {
 		if (hierarchy == null)
 			return Collections.emptyList();
 		List<PathObject> annotations = new ArrayList<>();
@@ -788,7 +660,7 @@ public class PathClassPane {
 	 * A {@link ListCell} for displaying {@linkplain PathClass PathClasses}, including annotation counts 
 	 * for the classes if available.
 	 */
-	static class PathClassListCell extends ListCell<PathClass> {
+	private static class PathClassListCell extends ListCell<PathClass> {
 		
 		private QuPathGUI qupath;
 		
