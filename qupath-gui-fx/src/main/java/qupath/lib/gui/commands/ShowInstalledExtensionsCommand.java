@@ -85,7 +85,7 @@ class ShowInstalledExtensionsCommand {
 		
 		int row = 0;
 		int inc = 1;
-		for (QuPathExtension extension : qupath.getLoadedExtensions()) {
+		for (QuPathExtension extension : qupath.getExtensionManager().getLoadedExtensions()) {
 			addEntry(paneExtensions, new QuPathExtensionEntry(extension), row);
 			row += inc;
 		}

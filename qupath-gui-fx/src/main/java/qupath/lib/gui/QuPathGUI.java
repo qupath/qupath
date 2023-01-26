@@ -37,10 +37,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.net.URLDecoder;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.text.SimpleDateFormat;
@@ -48,10 +45,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -59,7 +54,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
@@ -155,7 +149,6 @@ import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.Dialogs.DialogButton;
 import qupath.lib.gui.extensions.GitHubProject;
 import qupath.lib.gui.extensions.GitHubProject.GitHubRepo;
-import qupath.lib.gui.extensions.QuPathExtension;
 import qupath.lib.gui.extensions.UpdateChecker;
 import qupath.lib.gui.extensions.UpdateChecker.ReleaseVersion;
 import qupath.lib.gui.images.stores.DefaultImageRegionStore;
@@ -189,7 +182,6 @@ import qupath.lib.gui.viewer.tools.PathTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.ImageData.ImageType;
 import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.servers.ImageServerBuilder;
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.images.servers.ImageServerBuilder.UriImageSupport;
 import qupath.lib.images.servers.ImageServerProvider;
@@ -226,9 +218,7 @@ public class QuPathGUI {
 	private static QuPathGUI instance;
 	
 	private ScriptEditor scriptEditor = null;
-	
-	private Map<Class<? extends QuPathExtension>, QuPathExtension> loadedExtensions = new HashMap<>();
-	
+		
 	private ObjectProperty<PathTool> selectedToolProperty = new SimpleObjectProperty<>(PathTools.MOVE);
 	private ObservableList<PathTool> tools = FXCollections.observableArrayList(
 			PathTools.MOVE, PathTools.RECTANGLE, PathTools.ELLIPSE, PathTools.LINE, PathTools.POLYGON, PathTools.POLYLINE, PathTools.BRUSH, PathTools.POINTS
@@ -317,6 +307,9 @@ public class QuPathGUI {
 	private LogViewerCommand logViewerCommand;
 	
 	private DefaultActions defaultActions;
+	
+	private ExtensionManager extensionManager = new ExtensionManager(this);
+;
 
 	
 	/**
@@ -406,7 +399,7 @@ public class QuPathGUI {
 
 		// Install extensions
 		timeit.checkpoint("Refreshing extensions");
-		refreshExtensions(false);
+		extensionManager.refreshExtensions(false);
 		
 		// Add scripts menu (delayed to here, since it takes a bit longer)
 		timeit.checkpoint("Adding script menus");
@@ -466,7 +459,7 @@ public class QuPathGUI {
 		}, projectProperty);
 		var projectScriptMenuLoader = new ScriptMenuLoader("Project scripts...", projectScriptsPath, editor);
 		projectScriptMenuLoader.getMenu().visibleProperty().bind(
-				projectProperty.isNotNull().and(initializingMenus.not())
+				projectProperty.isNotNull().and(menusAreUpdating.not())
 				);
 		
 		StringBinding userScriptsPath = Bindings.createStringBinding(() -> {
@@ -1052,6 +1045,14 @@ public class QuPathGUI {
 		}
 	}
 	
+	
+	
+	public ExtensionManager getExtensionManager() {
+		return extensionManager;
+	}
+	
+	
+	
 	/**
 	 * Do an update check.
 	 * @param isAutoCheck if true, avoid prompting the user unless an update is available. If false, the update has been explicitly 
@@ -1075,7 +1076,7 @@ public class QuPathGUI {
 		
 		// Work through extensions
 		if (updateCheckType == AutoUpdateType.QUPATH_AND_EXTENSIONS || updateCheckType == AutoUpdateType.EXTENSIONS_ONLY) {
-			for (var ext : getLoadedExtensions()) {
+			for (var ext : extensionManager.getLoadedExtensions()) {
 				var v = ext.getVersion();
 				if (!(ext instanceof GitHubProject)) {
 					// This also applies to built-in QuPath extensions
@@ -1237,148 +1238,9 @@ public class QuPathGUI {
 		// Run the check in a background thread
 		createSingleThreadExecutor(this).execute(() -> doUpdateCheck(checkType, isAutoCheck));
 	}
+	
 		
 	/**
-	 * @return a collection of extensions that are currently loaded
-	 */
-	public Collection<QuPathExtension> getLoadedExtensions() {
-		return loadedExtensions.values();
-	}
-	
-	/**
-	 * Check the extensions directory, loading any new extensions found there.
-	 * @param showNotification if true, display a notification if a new extension has been loaded
-	 */
-	public void refreshExtensions(final boolean showNotification) {
-		
-		boolean initializing = initializingMenus.get();
-		initializingMenus.set(true);
-		
-		// Refresh the extensions
-		var extensionClassLoader = ExtensionClassLoader.getInstance();
-		extensionClassLoader.refresh();
-		
-		var extensionLoader = ServiceLoader.load(QuPathExtension.class, extensionClassLoader);
-
-		// Sort the extensions by name, to ensure predictable loading order
-		// (also, menus are in a better order if ImageJ extension installed before OpenCV extension)
-		List<QuPathExtension> extensions = new ArrayList<>();
-		Iterator<QuPathExtension> iterator = extensionLoader.iterator();
-		while (iterator.hasNext()) {
-			try {
-				extensions.add(iterator.next());
-			} catch (Throwable e) {
-				if (getStage() != null && getStage().isShowing()) {
-					Dialogs.showErrorMessage("Extension error", "Error loading extension - check 'View -> Show log' for details.");
-				}
-				logger.error(e.getLocalizedMessage(), e);
-			}
-		}
-		Collections.sort(extensions, Comparator.comparing(QuPathExtension::getName));
-		Version qupathVersion = getVersion();
-		for (QuPathExtension extension : extensions) {
-			if (!loadedExtensions.containsKey(extension.getClass())) {
-				Version version = extension.getVersion();
-				try {
-					long startTime = System.currentTimeMillis();
-					extension.installExtension(this);
-					long endTime = System.currentTimeMillis();
-					logger.info("Loaded extension {} ({} ms)", extension.getName(), endTime - startTime);
-					if (version != null)
-						logger.debug("{} was written for QuPath {}", extension.getName(), version);
-					else
-						logger.debug("{} does not report a compatible QuPath version", extension.getName());						
-					loadedExtensions.put(extension.getClass(), extension);
-					if (showNotification)
-						Dialogs.showInfoNotification("Extension loaded",  extension.getName());
-				} catch (Exception | LinkageError e) {
-					String message = "Unable to load " + extension.getName();
-					if (showNotification)
-						Dialogs.showErrorNotification("Extension error", message);
-					logger.error("Error loading extension " + extension + ": " + e.getLocalizedMessage(), e);
-					if (!Objects.equals(qupathVersion, version)) {
-						if (version == null)
-							logger.warn("QuPath version for which the '{}' was written is unknown!", extension.getName());
-						else if (version.equals(qupathVersion))
-							logger.warn("'{}' reports that it is compatible with the current QuPath version {}", extension.getName(), qupathVersion);
-						else
-							logger.warn("'{}' was written for QuPath {} but current version is {}", extension.getName(), version, qupathVersion);
-					}
-					try {
-						logger.error("It is recommended that you delete {} and restart QuPath",
-								URLDecoder.decode(
-										extension.getClass().getProtectionDomain().getCodeSource().getLocation().toExternalForm(),
-										StandardCharsets.UTF_8));
-					} catch (Exception e2) {
-						logger.debug("Error finding code source " + e2.getLocalizedMessage(), e2);
-					}
-					defaultActions.SHOW_LOG.handle(null);
-				}
-			}
-		}
-		// Set the ImageServer to also look on the same search path
-		List<ImageServerBuilder<?>> serverBuildersBefore = ImageServerProvider.getInstalledImageServerBuilders();
-		ImageServerProvider.setServiceLoader(ServiceLoader.load(ImageServerBuilder.class, extensionClassLoader));
-		if (showNotification) {
-			// A bit convoluted... but try to show new servers that have been loaded by comparing with the past
-			List<String> serverBuilders = serverBuildersBefore.stream().map(s -> s.getName()).collect(Collectors.toList());
-			List<String> serverBuildersUpdated = ImageServerProvider.getInstalledImageServerBuilders().stream().map(s -> s.getName()).collect(Collectors.toList());
-			serverBuildersUpdated.removeAll(serverBuilders);
-			for (String builderName : serverBuildersUpdated) {
-				Dialogs.showInfoNotification("Image server loaded",  builderName);
-			}
-		}
-		initializingMenus.set(initializing);
-	}
-	
-	
-	/**
-	 * Install extensions while QuPath is running.
-	 * 
-	 * @param files A collection of jar files for installation.
-	 */
-	public void installExtensions(final Collection<File> files) {
-		if (files.isEmpty()) {
-			logger.debug("No extensions to install!");
-			return;
-		}
-
-		File dir = getExtensionDirectory();
-		if (dir == null || !dir.isDirectory()) {
-			logger.info("No extension directory found!");
-			var dirUser = requestUserDirectory(true);
-			if (dirUser == null)
-				return;
-			dir = getExtensionDirectory();
-		}
-		// Create directory if we need it
-		if (!dir.exists())
-			dir.mkdir();
-		
-		// Copy all files into extensions directory
-		Path dest = dir.toPath();
-		for (File file : files) {
-			Path source = file.toPath();
-			Path destination = dest.resolve(source.getFileName());
-			if (destination.toFile().exists()) {
-				// It would be better to check how many files will be overwritten in one go,
-				// but this should be a pretty rare occurrence
-				if (!Dialogs.showConfirmDialog("Install extension", "Overwrite " + destination.toFile().getName() + "?\n\nYou will have to restart QuPath to see the updates."))
-					return;
-			}
-			try {
-				Files.copy(source, destination, StandardCopyOption.REPLACE_EXISTING);
-			} catch (IOException e) {
-				Dialogs.showErrorMessage("Extension error", file + "\ncould not be copied, sorry");
-				logger.error("Could not copy file {}", file, e);
-				return;
-			}
-		}
-		refreshExtensions(true);
-	}
-	
-	
-    /**
      * Handle installing CSS files (which can be used to style QuPath).
      * @param list list of css files
      * @return
@@ -2081,7 +1943,7 @@ public class QuPathGUI {
 	 * @param estimateImageType
 	 * @return
 	 */
-	public ImageData<BufferedImage> createNewImageData(final ImageServer<BufferedImage> server, final boolean estimateImageType) {
+	private ImageData<BufferedImage> createNewImageData(final ImageServer<BufferedImage> server, final boolean estimateImageType) {
 		return new ImageData<BufferedImage>(server, estimateImageType ? GuiTools.estimateImageType(server, imageRegionStore.getThumbnail(server, 0, 0, true)) : ImageData.ImageType.UNSET);
 	}
 	
@@ -2585,32 +2447,6 @@ public class QuPathGUI {
 		registerAccelerator(action);
 		return true;
 	}
-
-	
-//	public Map<KeyCombination, String> getAccelerators() {
-//		
-//		var map = new HashMap<KeyCombination, String>();
-//		var menuItems = MenuTools.getFlattenedMenuItems(menuBar.getMenus(), true);
-//		for (var mi : menuItems) {
-//			var accelerator = mi.getAccelerator();
-//			if (accelerator != null)
-//				map.put(accelerator, mi.getText());
-//		}
-//		
-//		for (var action : actions) {
-//			var accelerator = action.getAccelerator();
-//			if (accelerator != null) {
-//				var text = action.getText();
-//				var existingText = map.put(accelerator, text);
-//				if (existingText != null && !Objects.equals(text, existingText) && 
-//						!existingText.contains(text)) {
-//					map.put(accelerator, text + ", " + existingText);
-//				}
-//			}
-//		}
-//		
-//		return map;
-//	}
 	
 	
 	/**
@@ -3066,10 +2902,11 @@ public class QuPathGUI {
 	 * when messing around with the system menubar with visible/invisible items.
 	 */
 	private BooleanProperty initializingMenus = new SimpleBooleanProperty(false);
+	private BooleanBinding menusAreUpdating = initializingMenus.or(extensionManager.refreshingExtensions());
 	
-	private BooleanBinding showExperimentalOptions = PathPrefs.showExperimentalOptionsProperty().or(initializingMenus);
-	private BooleanBinding showTMAOptions = PathPrefs.showTMAOptionsProperty().or(initializingMenus);
-	private BooleanBinding showLegacyOptions = PathPrefs.showLegacyOptionsProperty().or(initializingMenus);
+	private BooleanBinding showExperimentalOptions = PathPrefs.showExperimentalOptionsProperty().or(menusAreUpdating);
+	private BooleanBinding showTMAOptions = PathPrefs.showTMAOptionsProperty().or(menusAreUpdating);
+	private BooleanBinding showLegacyOptions = PathPrefs.showLegacyOptionsProperty().or(menusAreUpdating);
 	
 	
 	private void bindMenuItemVisibilityToPreferences(MenuBar menubar) {
