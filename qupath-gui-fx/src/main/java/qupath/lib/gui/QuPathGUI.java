@@ -228,8 +228,6 @@ public class QuPathGUI {
 	private ScriptEditor scriptEditor = null;
 	
 	private Map<Class<? extends QuPathExtension>, QuPathExtension> loadedExtensions = new HashMap<>();
-	private static ExtensionClassLoader extensionClassLoader = new ExtensionClassLoader();
-	private ServiceLoader<QuPathExtension> extensionLoader = ServiceLoader.load(QuPathExtension.class, extensionClassLoader);
 	
 	private ObjectProperty<PathTool> selectedToolProperty = new SimpleObjectProperty<>(PathTools.MOVE);
 	private ObservableList<PathTool> tools = FXCollections.observableArrayList(
@@ -945,8 +943,10 @@ public class QuPathGUI {
 	 * 
 	 * @param url the URL to open in the browser
 	 * @return true if this was (as far as we know...) successful, and false otherwise
+	 * 
+	 * @since v0.5.0 (renamed from {@code launchInBrowserWindow(String}}
 	 */
-	public static boolean launchBrowserWindow(final String url) {
+	public static boolean openInBrowser(final String url) {
 		var instance = getInstance();
 		if (instance != null && instance.hostServices != null) {
 			logger.debug("Showing URL with host services: {}", url);
@@ -1154,7 +1154,7 @@ public class QuPathGUI {
 						row.setTooltip(new Tooltip(uri.toString()));
 						row.setOnMouseClicked(e -> {
 							if (e.getClickCount() > 1) {
-								launchBrowserWindow(uri.toString());
+								openInBrowser(uri.toString());
 							}
 						});
 					}
@@ -1255,8 +1255,11 @@ public class QuPathGUI {
 		initializingMenus.set(true);
 		
 		// Refresh the extensions
+		var extensionClassLoader = ExtensionClassLoader.getInstance();
 		extensionClassLoader.refresh();
-		extensionLoader.reload();
+		
+		var extensionLoader = ServiceLoader.load(QuPathExtension.class, extensionClassLoader);
+
 		// Sort the extensions by name, to ensure predictable loading order
 		// (also, menus are in a better order if ImageJ extension installed before OpenCV extension)
 		List<QuPathExtension> extensions = new ArrayList<>();
@@ -1732,14 +1735,6 @@ public class QuPathGUI {
 	private void activateToolsForViewer(final QuPathViewer viewer) {
 		if (viewer != null)
 			viewer.setActiveTool(getSelectedTool());		
-	}
-	
-	/**
-	 * Get the {@link ClassLoader} used to load extensions.
-	 * @return
-	 */
-	public static ClassLoader getExtensionClassLoader() {
-		return extensionClassLoader;
 	}
 	
 	

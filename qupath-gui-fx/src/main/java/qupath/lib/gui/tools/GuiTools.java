@@ -367,7 +367,7 @@ public class GuiTools {
 	 * @return True if the request succeeded, false otherwise.
 	 */
 	public static boolean browseURI(final URI uri) {
-		return QuPathGUI.launchBrowserWindow(uri.toString());
+		return QuPathGUI.openInBrowser(uri.toString());
 	}
 
 	/**

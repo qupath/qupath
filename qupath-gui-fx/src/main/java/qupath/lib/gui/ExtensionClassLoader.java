@@ -28,6 +28,8 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Objects;
+import java.util.function.Supplier;
 import java.util.jar.JarFile;
 
 import org.slf4j.Logger;
@@ -41,14 +43,37 @@ import org.slf4j.LoggerFactory;
 public class ExtensionClassLoader extends URLClassLoader {
 	
 	private static final Logger logger = LoggerFactory.getLogger(ExtensionClassLoader.class);
+	
+	private static ExtensionClassLoader INSTANCE = null;
+	
+	private Supplier<File> extensionsDirectorySupplier;
 
-	/**
-	 * Constructor.
-	 */
-	public ExtensionClassLoader() {
+	private ExtensionClassLoader(Supplier<File> extensionsDirectorySupplier) {
 		super(new URL[0], QuPathGUI.class.getClassLoader());
+		Objects.requireNonNull(extensionsDirectorySupplier, "A function is needed to determine the extensions directory!");
+		this.extensionsDirectorySupplier = extensionsDirectorySupplier;
 	}
 
+	/**
+	 * Get a singleton instance of the {@link ExtensionClassLoader}.
+	 * @return
+	 * @since v0.5.0
+	 * 
+	 * @implNote This was introduced in v0.5.0 to hide the constructor and avoid needing to request 
+	 * the classloader via QuPathGUI. <i>However</i> the behavior may change in the future, so as to 
+	 * avoid relying upon a single static instance.
+	 */
+	public static ExtensionClassLoader getInstance() {
+		if (INSTANCE == null) {
+			synchronized (ExtensionClassLoader.class) {
+				if (INSTANCE == null)
+					INSTANCE = new ExtensionClassLoader(() -> QuPathGUI.getExtensionDirectory());
+			}
+		}
+		return INSTANCE;
+	}
+		
+	
 	/**
 	 * Request that a specified JAR file be added to the classpath.
 	 * 
@@ -71,7 +96,7 @@ public class ExtensionClassLoader extends URLClassLoader {
 	 * Ensure all Jars in the extensions directory (and one subdirectory down) are available
 	 */
 	public void refresh() {
-		File dirExtensions = QuPathGUI.getExtensionDirectory();
+		File dirExtensions = extensionsDirectorySupplier.get();
 		if (dirExtensions == null) {
 			logger.debug("Extensions directory is null - no extensions will be loaded");
 			return;

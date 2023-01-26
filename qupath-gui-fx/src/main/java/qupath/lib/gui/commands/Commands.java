@@ -76,6 +76,7 @@ import qupath.lib.analysis.DistanceTools;
 import qupath.lib.analysis.features.ObjectMeasurements.ShapeFeatures;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.ActionTools;
+import qupath.lib.gui.ExtensionClassLoader;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.Dialogs.DialogButton;
@@ -589,7 +590,7 @@ public class Commands {
 	 * @param qupath the QuPath instance
 	 */
 	public static void showScriptInterpreter(QuPathGUI qupath) {
-		var scriptInterpreter = new ScriptInterpreter(qupath, QuPathGUI.getExtensionClassLoader());
+		var scriptInterpreter = new ScriptInterpreter(qupath, ExtensionClassLoader.getInstance());
 		scriptInterpreter.getStage().initOwner(qupath.getStage());
 		scriptInterpreter.getStage().show();
 	}

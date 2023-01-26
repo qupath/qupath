@@ -330,7 +330,7 @@ class ScriptCommand implements Runnable {
 			createTileCache();
 			
 			// Set classloader to include any available extensions
-			var extensionClassLoader = (ExtensionClassLoader)QuPathGUI.getExtensionClassLoader();
+			var extensionClassLoader = ExtensionClassLoader.getInstance();
 			extensionClassLoader.refresh();
 			ImageServerProvider.setServiceLoader(ServiceLoader.load(ImageServerBuilder.class, extensionClassLoader));
 			Thread.currentThread().setContextClassLoader(extensionClassLoader);

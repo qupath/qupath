@@ -210,7 +210,7 @@ class WelcomeStage {
 		paneOptions.add(separator2, 0, row++, GridPane.REMAINING, 1);
 
 		var linkCiting = new Hyperlink("Click here for details");
-		linkCiting.setOnAction(e -> QuPathGUI.launchBrowserWindow("https://qupath.readthedocs.io/en/0.4/docs/intro/citing.html"));
+		linkCiting.setOnAction(e -> QuPathGUI.openInBrowser("https://qupath.readthedocs.io/en/0.4/docs/intro/citing.html"));
 		var textCiting = new TextFlow(
 				new Text("Don't forget to cite the latest QuPath paper when you use the software!\n"),
 				linkCiting
@@ -244,7 +244,7 @@ class WelcomeStage {
 			var linkSilicon = new Hyperlink("Click here");
 			var textSiliconExperimental2 = new Text("for info about installing OpenSlide, or try the Intel build instead");
 			textSiliconExperimental2.setStyle("-fx-fill: -fx-text-base-color;");
-			linkSilicon.setOnAction(e -> QuPathGUI.launchBrowserWindow("https://qupath.readthedocs.io/en/0.4/docs/intro/installation.html"));
+			linkSilicon.setOnAction(e -> QuPathGUI.openInBrowser("https://qupath.readthedocs.io/en/0.4/docs/intro/installation.html"));
 			var textSilicon = new TextFlow(
 					textSiliconExperimental, linkSilicon, textSiliconExperimental2
 					);
@@ -303,7 +303,7 @@ class WelcomeStage {
 		
 		if (url != null) {
 			button.setOnAction(e -> {
-				QuPathGUI.launchBrowserWindow(url);
+				QuPathGUI.openInBrowser(url);
 			});
 			button.setTooltip(new Tooltip(url));
 		}

@@ -1041,11 +1041,11 @@ class Menus {
 
 		@ActionDescription("Open the main QuPath documentation website.")
 		@ActionMenu("Documentation (web)")
-		public final Action DOCS = createAction(() -> QuPathGUI.launchBrowserWindow(URL_DOCS));
+		public final Action DOCS = createAction(() -> QuPathGUI.openInBrowser(URL_DOCS));
 		
 		@ActionDescription("Open the QuPath demo videos and tutorials.")
 		@ActionMenu("YouTube channel (web)")
-		public final Action DEMOS = createAction(() -> QuPathGUI.launchBrowserWindow(URL_VIDEOS));
+		public final Action DEMOS = createAction(() -> QuPathGUI.openInBrowser(URL_VIDEOS));
 
 		@ActionDescription("Check online for an updated QuPath release.")
 		@ActionMenu("Check for updates (web)")
@@ -1056,19 +1056,19 @@ class Menus {
 		@ActionDescription("Please cite the QuPath publication if you use the software! " +
 				"\nThis command opens a web page to show how.")
 		@ActionMenu("Cite QuPath (web)")
-		public final Action CITE = createAction(() -> QuPathGUI.launchBrowserWindow(URL_CITATION));
+		public final Action CITE = createAction(() -> QuPathGUI.openInBrowser(URL_CITATION));
 		
 		@ActionDescription("Report a bug. Please follow the template and do not use this for general questions!")
 		@ActionMenu("Report bug (web)")
-		public final Action BUGS = createAction(() -> QuPathGUI.launchBrowserWindow(URL_BUGS));
+		public final Action BUGS = createAction(() -> QuPathGUI.openInBrowser(URL_BUGS));
 		
 		@ActionDescription("Visit the user forum. This is the place to ask questions (and give answers).")
 		@ActionMenu("View user forum (web)")
-		public final Action FORUM = createAction(() -> QuPathGUI.launchBrowserWindow(URL_FORUM));
+		public final Action FORUM = createAction(() -> QuPathGUI.openInBrowser(URL_FORUM));
 		
 		@ActionDescription("View the QuPath source code online.")
 		@ActionMenu("View source code (web)")
-		public final Action SOURCE = createAction(() -> QuPathGUI.launchBrowserWindow(URL_SOURCE));
+		public final Action SOURCE = createAction(() -> QuPathGUI.openInBrowser(URL_SOURCE));
 
 		public final Action SEP_3 = ActionTools.createSeparator();
 
