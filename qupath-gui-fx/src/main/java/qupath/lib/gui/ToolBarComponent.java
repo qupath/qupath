@@ -152,11 +152,14 @@ class ToolBarComponent {
 		nodes.add(new Separator(Orientation.VERTICAL));
 
 		// TODO: Check if viewer really needed...
-		QuPathViewerPlus viewer = viewerManager.getActiveViewer();
-		nodes.add(ActionTools.createToggleButton(defaultActions.SHOW_OVERVIEW, true, viewer.isOverviewVisible()));
-		nodes.add(ActionTools.createToggleButton(defaultActions.SHOW_LOCATION, true, viewer.isLocationVisible()));
-		nodes.add(ActionTools.createToggleButton(defaultActions.SHOW_SCALEBAR, true, viewer.isScalebarVisible()));
-		nodes.add(ActionTools.createToggleButton(defaultActions.SHOW_GRID, true, overlayOptions.getShowGrid()));
+		QuPathViewer viewer = viewerManager.getActiveViewer();
+		if (viewer instanceof QuPathViewerPlus) {
+			QuPathViewerPlus viewerPlus = (QuPathViewerPlus)viewer;
+			nodes.add(ActionTools.createToggleButton(defaultActions.SHOW_OVERVIEW, true, viewerPlus.isOverviewVisible()));
+			nodes.add(ActionTools.createToggleButton(defaultActions.SHOW_LOCATION, true, viewerPlus.isLocationVisible()));
+			nodes.add(ActionTools.createToggleButton(defaultActions.SHOW_SCALEBAR, true, viewerPlus.isScalebarVisible()));
+			nodes.add(ActionTools.createToggleButton(defaultActions.SHOW_GRID, true, overlayOptions.getShowGrid()));
+		}
 
 		// Add preferences button
 		nodes.add(new Separator(Orientation.VERTICAL));

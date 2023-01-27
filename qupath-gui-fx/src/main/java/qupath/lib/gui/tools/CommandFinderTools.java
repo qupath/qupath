@@ -92,6 +92,7 @@ import javafx.util.Duration;
 import qupath.lib.gui.ActionTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.viewer.QuPathViewerPlus;
 
 
 /**
@@ -243,7 +244,9 @@ public class CommandFinderTools {
 		commandBarDisplay.addListener((v, o, n) -> {
 			var viewers = qupath.getViewers();
 			for (var viewer: viewers) {
-				viewer.setSlidersPosition(!n.equals(CommandBarDisplay.NEVER));
+				if (viewer instanceof QuPathViewerPlus) {
+					((QuPathViewerPlus)viewer).setSlidersPosition(!n.equals(CommandBarDisplay.NEVER));
+				}
 			}
 		});
 		

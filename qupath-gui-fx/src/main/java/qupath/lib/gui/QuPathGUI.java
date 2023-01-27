@@ -55,6 +55,7 @@ import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Consumer;
+
 import javax.imageio.ImageIO;
 import javax.script.ScriptException;
 import javax.swing.SwingUtilities;
@@ -99,7 +100,6 @@ import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.SeparatorMenuItem;
-import javafx.scene.control.SplitPane;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TableColumn;
@@ -118,7 +118,6 @@ import javafx.scene.input.MouseButton;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
-import javafx.scene.layout.Region;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
@@ -147,7 +146,6 @@ import qupath.lib.gui.images.stores.ImageRegionStoreFactory;
 import qupath.lib.gui.logging.LogManager;
 import qupath.lib.gui.panes.ImageDetailsPane;
 import qupath.lib.gui.panes.PreferencePane;
-import qupath.lib.gui.panes.ProjectBrowser;
 import qupath.lib.gui.panes.ServerSelector;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.prefs.PathPrefs.AutoUpdateType;
@@ -157,7 +155,6 @@ import qupath.lib.gui.scripting.ScriptEditor;
 import qupath.lib.gui.scripting.ScriptEditorControl;
 import qupath.lib.gui.scripting.languages.GroovyLanguage;
 import qupath.lib.gui.scripting.languages.ScriptLanguageProvider;
-import qupath.lib.gui.tools.CommandFinderTools;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.MenuTools;
 import qupath.lib.gui.tools.PaneTools;
@@ -166,7 +163,6 @@ import qupath.lib.gui.viewer.DragDropImportListener;
 import qupath.lib.gui.viewer.MultiviewManager;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.QuPathViewer;
-import qupath.lib.gui.viewer.QuPathViewerPlus;
 import qupath.lib.gui.viewer.OverlayOptions.DetectionDisplayMode;
 import qupath.lib.gui.viewer.tools.PathTool;
 import qupath.lib.gui.viewer.tools.PathTools;
@@ -234,7 +230,7 @@ public class QuPathGUI {
 	// Can't initialize menubar yet - trying that caused some major trouble (including segfaults) on macOS
 	private MenuBar menuBar;
 	
-	private MainPaneManager mainPaneManager;
+	private QuPathMainPaneManager mainPaneManager;
 	
 	/**
 	 * Default region store used by viewers for tile caching and repainting
@@ -254,6 +250,8 @@ public class QuPathGUI {
 	private UndoRedoManager undoRedoManager;
 	
 	private HostServices hostServices;
+	
+	private MenuItemVisibilityManager menuVisibilityManager;
 	
 	/**
 	 * Keystrokes can be lost on macOS... so ensure these are handled
@@ -276,6 +274,12 @@ public class QuPathGUI {
 	
 	private ExtensionManager extensionManager = new ExtensionManager(this);
 
+	/**
+	 * Flag to record when menus are being modified.
+	 * This is used to override menu item visibility settings, since failing to do this 
+	 * can result in exceptions (or even segfaults...).
+	 */
+	private BooleanProperty menusInitializing = new SimpleBooleanProperty(false);
 	
 	/**
 	 * A list of all actions currently registered for this GUI.
@@ -333,8 +337,6 @@ public class QuPathGUI {
 		BorderPane pane = new BorderPane();
 		pane.setCenter(initializeMainComponent());
 		
-		initializingMenus.set(true);
-		menuBar.useSystemMenuBarProperty().bindBidirectional(PathPrefs.useSystemMenubarProperty());
 		pane.setTop(menuBar);
 		
 		Scene scene = createAndInitializeMainScene(pane);
@@ -363,12 +365,14 @@ public class QuPathGUI {
 		
 		// Add scripts menu (delayed to here, since it takes a bit longer)
 		timeit.checkpoint("Adding script menus");
-		populateScriptingMenu(getMenu("Automate", false));
 		
 		// Menus should now be complete - try binding visibility
 		timeit.checkpoint("Updating menu item visibility");
-		initializingMenus.set(false);
-		bindMenuItemVisibilityToPreferences(menuBar);
+		menuVisibilityManager = MenuItemVisibilityManager.createMenubarVisibilityManager(menuBar);
+		menuVisibilityManager.ignorePredicateProperty().bind(menusInitializing.or(extensionManager.refreshingExtensions()));
+		
+		populateScriptingMenu(getMenu("Automate", false));
+		menuBar.useSystemMenuBarProperty().bindBidirectional(PathPrefs.useSystemMenubarProperty());
 		
 		// Add listeners to set default project and image data
 		syncDefaultImageDataAndProjectForScripting();
@@ -434,7 +438,7 @@ public class QuPathGUI {
 		}, projectProperty);
 		var projectScriptMenuLoader = new ScriptMenuLoader("Project scripts...", projectScriptsPath, editor);
 		projectScriptMenuLoader.getMenu().visibleProperty().bind(
-				projectProperty.isNotNull().and(menusAreUpdating.not())
+				projectProperty.isNotNull().and(menuVisibilityManager.ignorePredicateProperty().not())
 				);
 		
 		StringBinding userScriptsPath = Bindings.createStringBinding(() -> {
@@ -1407,7 +1411,7 @@ public class QuPathGUI {
 	
 	private Pane initializeMainComponent() {
 		
-		mainPaneManager = new MainPaneManager(this);
+		mainPaneManager = new QuPathMainPaneManager(this);
 		
 		mainPaneManager.setAnalysisPaneVisible(showAnalysisPane.get());
 		showAnalysisPane.addListener((v, o, n) -> mainPaneManager.setAnalysisPaneVisible(n));
@@ -1490,7 +1494,7 @@ public class QuPathGUI {
 	 * Get an unmodifiable list of all viewers.
 	 * @return
 	 */
-	public List<QuPathViewerPlus> getViewers() {
+	public List<QuPathViewer> getViewers() {
 		if (viewerManager == null)
 			return Collections.emptyList();
 		return viewerManager.getViewers();
@@ -1500,7 +1504,7 @@ public class QuPathGUI {
 	 * Get the currently active viewer.
 	 * @return
 	 */
-	public QuPathViewerPlus getViewer() {
+	public QuPathViewer getViewer() {
 		return viewerManager == null ? null : viewerManager.getActiveViewer();
 	}
 	
@@ -1553,7 +1557,7 @@ public class QuPathGUI {
 		}
 		
 		// Check to see if the ImageData is already open in another viewer - if so, just activate it
-		for (QuPathViewerPlus v : viewerManager.getViewers()) {
+		for (QuPathViewer v : viewerManager.getViewers()) {
 			ImageData<BufferedImage> data = v.getImageData();
 			if (data != null && project.getEntry(data) == entry) {
 				viewerManager.setActiveViewer(v);
@@ -2081,7 +2085,7 @@ public class QuPathGUI {
 		}
 		
 		// First check to see if the ImageData is already open - if so, just activate the viewer
-		for (QuPathViewerPlus v : viewerManager.getViewers()) {
+		for (QuPathViewer v : viewerManager.getViewers()) {
 			ImageData<?> data = v.getImageData();
 			if (data != null && data.getLastSavedPath() != null && new File(data.getLastSavedPath()).equals(file)) {
 				viewerManager.setActiveViewer(v);
@@ -2687,45 +2691,6 @@ public class QuPathGUI {
 		}
 	}
 	
-	/**
-	 * Flag to indicate that menus are being initialized.
-	 * All menu items should be 'visible' during this time, and the system menubar shouldn't be used.
-	 * This is an attempt to workaround a Java issue (at least on OS X) where IndexOutOfBoundsExceptions occur 
-	 * when messing around with the system menubar with visible/invisible items.
-	 */
-	private BooleanProperty initializingMenus = new SimpleBooleanProperty(false);
-	private BooleanBinding menusAreUpdating = initializingMenus.or(extensionManager.refreshingExtensions());
-	
-	private BooleanBinding showExperimentalOptions = PathPrefs.showExperimentalOptionsProperty().or(menusAreUpdating);
-	private BooleanBinding showTMAOptions = PathPrefs.showTMAOptionsProperty().or(menusAreUpdating);
-	private BooleanBinding showLegacyOptions = PathPrefs.showLegacyOptionsProperty().or(menusAreUpdating);
-	
-	
-	private void bindMenuItemVisibilityToPreferences(MenuBar menubar) {
-		try {
-			for (var item : MenuTools.getFlattenedMenuItems(menuBar.getMenus(), false)) {
-				if (!item.visibleProperty().isBound())
-					bindMenuItemVisibilityToPreferences(item);
-			}
-		} catch (Exception e) {
-			logger.warn("Error binding menu visibility: {}", e.getLocalizedMessage());
-			logger.warn("", e);
-		}
-	}
-	
-	private <T extends MenuItem> T bindMenuItemVisibilityToPreferences(final T menuItem) {
-		String text = menuItem.getText();
-		if (text == null)
-			return menuItem;
-		text = text.toLowerCase().trim();
-		if (text.equals("experimental") || text.endsWith("experimental)"))
-			menuItem.visibleProperty().bind(showExperimentalOptions);
-		else if (text.equals("tma") || text.endsWith("tma)"))
-			menuItem.visibleProperty().bind(showTMAOptions);
-		else if (text.equals("legacy") || text.endsWith("legacy)"))
-			menuItem.visibleProperty().bind(showLegacyOptions);
-		return menuItem;
-	}
 	
 	/**
 	 * Return the global {@link OverlayOptions} instance, used to control display within viewers by default.
@@ -2959,89 +2924,6 @@ public class QuPathGUI {
 
 	
 	
-	static class MainPaneManager {
-		
-		private BorderPane pane;
-		
-		private SplitPane splitPane;
-		private Region mainViewerPane;
-		
-		private ToolBarComponent toolbar;
-		private AnalysisTabPane analysisTabPane;
-		
-		private double lastDividerLocation;
-		
-		
-		private MainPaneManager(QuPathGUI qupath) {
-			pane = new BorderPane();
-			splitPane = new SplitPane();
-			this.analysisTabPane = new AnalysisTabPane(qupath);
-			
-			var tabPane = analysisTabPane.getTabPane();
-			tabPane.setMinWidth(300);
-			tabPane.setPrefWidth(400);
-			splitPane.setMinWidth(tabPane.getMinWidth() + 200);
-			splitPane.setPrefWidth(tabPane.getPrefWidth() + 200);
-			SplitPane.setResizableWithParent(tabPane, Boolean.FALSE);		
-			
-			var viewerRegion = qupath.getViewerManager().getRegion();
-			mainViewerPane = CommandFinderTools.createCommandFinderPane(qupath, viewerRegion, CommandFinderTools.commandBarDisplayProperty());
-			splitPane.getItems().addAll(tabPane, mainViewerPane);
-			SplitPane.setResizableWithParent(viewerRegion, Boolean.TRUE);
-			
-			pane.setCenter(splitPane);
-			
-			toolbar = new ToolBarComponent(qupath.toolManager, qupath.viewerManager, qupath.getDefaultActions());
-			pane.setTop(toolbar.getToolBar());
-			
-			setAnalysisPaneVisible(true);
-
-		}
-
-		AnalysisTabPane getAnalysisTabPane() {
-			return analysisTabPane;
-		}
-		
-		ProjectBrowser getProjectBrowser() {
-			return analysisTabPane == null ? null : analysisTabPane.getProjectBrowser();
-		}
-		
-		ToolBar getToolBar() {
-			return toolbar.getToolBar();
-		}
-
-		
-		Pane getMainPane() {
-			return pane;
-		}
-		
-		void setDividerPosition(double pos) {
-			splitPane.setDividerPosition(0, pos);
-		}
-		
-		private void setAnalysisPaneVisible(boolean visible) {
-			if (visible) {
-				if (analysisPanelVisible())
-					return;
-				splitPane.getItems().setAll(analysisTabPane.getTabPane(), mainViewerPane);
-				splitPane.setDividerPosition(0, lastDividerLocation);
-				pane.setCenter(splitPane);
-			} else {
-				if (!analysisPanelVisible())
-					return;
-				lastDividerLocation = splitPane.getDividers().get(0).getPosition();
-				pane.setCenter(mainViewerPane);				
-			}
-		}
-		
-		private boolean analysisPanelVisible() {
-			return pane.getCenter() == splitPane;
-		}
-		
-	}
-	
-	
-
 	/**
 	 * Get the value of {@link #imageDataProperty()}.
 	 * @return
@@ -3056,7 +2938,7 @@ public class QuPathGUI {
 	 * 
 	 * @return
 	 */
-	public ReadOnlyObjectProperty<QuPathViewerPlus> viewerProperty() {
+	public ReadOnlyObjectProperty<QuPathViewer> viewerProperty() {
 		return viewerManager.activeViewerProperty();
 	}
 	

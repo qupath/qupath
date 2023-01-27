@@ -105,7 +105,7 @@ public class MultiviewManager implements QuPathViewerListener {
 	private ObjectProperty<ImageData<BufferedImage>> imageDataProperty = new SimpleObjectProperty<>();
 	
 	private List<QuPathViewerPlus> viewers = new ArrayList<>();
-	private SimpleObjectProperty<QuPathViewerPlus> activeViewerProperty = new SimpleObjectProperty<>();
+	private SimpleObjectProperty<QuPathViewer> activeViewerProperty = new SimpleObjectProperty<>();
 
 	private SplitPaneGrid splitPaneGrid;
 
@@ -129,7 +129,7 @@ public class MultiviewManager implements QuPathViewerListener {
 	}
 	
 	
-	public List<QuPathViewerPlus> getViewers() {
+	public List<QuPathViewer> getViewers() {
 		return Collections.unmodifiableList(viewers);
 	}
 
@@ -190,8 +190,8 @@ public class MultiviewManager implements QuPathViewerListener {
 		}
 	}
 
-	public void setActiveViewer(final QuPathViewerPlus viewer) {
-		QuPathViewerPlus previousActiveViewer = getActiveViewer();
+	public void setActiveViewer(final QuPathViewer viewer) {
+		QuPathViewer previousActiveViewer = getActiveViewer();
 		if (previousActiveViewer == viewer)
 			return;
 
@@ -237,12 +237,12 @@ public class MultiviewManager implements QuPathViewerListener {
 	}
 	
 	
-	private void deactivateTools(final QuPathViewerPlus viewer) {
+	private void deactivateTools(final QuPathViewer viewer) {
 		viewer.setActiveTool(null);
 	}
 	
 
-	public QuPathViewerPlus getActiveViewer() {
+	public QuPathViewer getActiveViewer() {
 		return activeViewerProperty.get();
 	}
 	
@@ -250,7 +250,7 @@ public class MultiviewManager implements QuPathViewerListener {
 		return zoomToFit;
 	}
 
-	public ReadOnlyObjectProperty<QuPathViewerPlus> activeViewerProperty() {
+	public ReadOnlyObjectProperty<QuPathViewer> activeViewerProperty() {
 		return activeViewerProperty;
 	}
 
@@ -417,7 +417,7 @@ public class MultiviewManager implements QuPathViewerListener {
 			return;
 		}
 
-		QuPathViewerPlus activeViewer = getActiveViewer();
+		QuPathViewer activeViewer = getActiveViewer();
 		double x = activeViewer.getCenterPixelX();
 		double y = activeViewer.getCenterPixelY();
 		double rotation = activeViewer.getRotation();
@@ -534,7 +534,7 @@ public class MultiviewManager implements QuPathViewerListener {
 			return false;
 		}
 
-		QuPathViewerPlus activeViewer = getActiveViewer();
+		QuPathViewer activeViewer = getActiveViewer();
 		if (activeViewer == null || activeViewer.getHierarchy() == null) {
 			logger.info("No active viewer available");
 			return false;
