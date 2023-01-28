@@ -50,6 +50,7 @@ import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import qupath.lib.common.Version;
+import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.extensions.QuPathExtension;
 import qupath.lib.images.servers.ImageServerBuilder;
@@ -96,7 +97,7 @@ public class ExtensionManager {
 		refreshingExtensions.set(true);
 		
 		// Refresh the extensions
-		var extensionClassLoader = ExtensionClassLoader.getInstance();
+		var extensionClassLoader = getExtensionClassLoader();
 		extensionClassLoader.refresh();
 		
 		var extensionLoader = ServiceLoader.load(QuPathExtension.class, extensionClassLoader);
@@ -173,6 +174,12 @@ public class ExtensionManager {
 	}
 	
 	
+	private ExtensionClassLoader getExtensionClassLoader() {
+		return ExtensionClassLoader.getInstance();
+	}
+	
+	
+	
 	/**
 	 * Install extensions while QuPath is running.
 	 * 
@@ -184,23 +191,31 @@ public class ExtensionManager {
 			return;
 		}
 
-		File dir = QuPathGUI.getExtensionDirectory();
-		if (dir == null || !dir.isDirectory()) {
+		var extensionClassLoader = getExtensionClassLoader();
+		var dir = extensionClassLoader.getExtensionDirectory();
+		
+		if (dir == null || !Files.isDirectory(dir)) {
 			logger.info("No extension directory found!");
-			var dirUser = QuPathGUI.requestUserDirectory(true);
+			var dirUser = Commands.requestUserDirectory(true);
 			if (dirUser == null)
 				return;
-			dir = QuPathGUI.getExtensionDirectory();
+			dir = extensionClassLoader.getExtensionDirectory();
 		}
 		// Create directory if we need it
-		if (!dir.exists())
-			dir.mkdir();
+		if (!Files.exists(dir)) {
+			logger.info("Creating extensions directory: {}", dir);
+			try {
+				Files.createDirectories(dir);
+			} catch (IOException e) {
+				Dialogs.showErrorMessage("Install extensions", "Error trying to install extensions: " + e.getLocalizedMessage());
+				logger.error(e.getLocalizedMessage(), e);
+			}
+		}
 		
 		// Copy all files into extensions directory
-		Path dest = dir.toPath();
 		for (File file : files) {
 			Path source = file.toPath();
-			Path destination = dest.resolve(source.getFileName());
+			Path destination = dir.resolve(source.getFileName());
 			if (destination.toFile().exists()) {
 				// It would be better to check how many files will be overwritten in one go,
 				// but this should be a pretty rare occurrence

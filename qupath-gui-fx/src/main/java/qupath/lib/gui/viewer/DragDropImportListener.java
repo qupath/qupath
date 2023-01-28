@@ -52,6 +52,7 @@ import qupath.lib.gui.commands.InteractiveObjectImporter;
 import qupath.lib.gui.commands.ProjectCommands;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.prefs.QuPathStyleManager;
 import qupath.lib.gui.scripting.ScriptEditor;
 import qupath.lib.gui.tma.TMADataIO;
 import qupath.lib.images.ImageData;
@@ -287,7 +288,7 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 		}
 		// Handle installing CSS files (styles)
 		if (nCss == list.size()) {
-			qupath.installStyles(list);
+			QuPathStyleManager.installStyles(list);
 			return;
 		}
 		

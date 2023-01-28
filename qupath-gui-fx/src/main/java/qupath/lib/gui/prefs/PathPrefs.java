@@ -72,6 +72,8 @@ import javafx.scene.text.FontWeight;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.ThreadTools;
+import qupath.lib.common.Version;
+import qupath.lib.gui.QuPathGUI;
 import qupath.lib.io.GsonTools;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.projects.ProjectIO;
@@ -2030,6 +2032,21 @@ public class PathPrefs {
 	 */
 	public static BooleanProperty usePixelSnappingProperty() {
 		return usePixelSnapping;
+	}
+
+	/**
+	 * Get the default location for extensions.
+	 * 
+	 * This is platform and user-specific.  It isn't necessarily used (and doesn't necessarily exist).
+	 * 
+	 * @return
+	 */
+	public static Path getDefaultQuPathUserDirectory() {
+		Version version = QuPathGUI.getVersion();
+		if (version != null)
+			return Paths.get(System.getProperty("user.home"), "QuPath", String.format("v%d.%d", version.getMajor(), version.getMinor()));
+		else
+			return Paths.get(System.getProperty("user.home"), "QuPath");
 	}
 
 }

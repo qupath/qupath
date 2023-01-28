@@ -61,6 +61,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
+import javafx.scene.control.ButtonBar.ButtonData;
 import javafx.scene.control.cell.CheckBoxListCell;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
@@ -1422,6 +1423,67 @@ public class Commands {
 		options.gridLinesProperty().set(gridLines);
 	}
 	
+	
+	
+	/**
+	 * Request the current user directory, optionally prompting the user to request a director if none is available.
+	 * @param promptIfMissing 
+	 * @return
+	 */
+	public static File requestUserDirectory(boolean promptIfMissing) {
+		
+		var pathUser = PathPrefs.getUserPath();
+		var dir = pathUser == null ? null : new File(pathUser);
+		if (dir != null && dir.isDirectory())
+			return dir;
+		
+		if (!promptIfMissing)
+			return null;
+		
+		// Prompt to create an extensions directory
+		File dirDefault = PathPrefs.getDefaultQuPathUserDirectory().toFile();
+		String msg;
+		if (dirDefault.exists()) {
+			msg = dirDefault.getAbsolutePath() + " already exists.\n" +
+					"Do you want to use this default, or specify another directory?";
+		} else {
+			msg = String.format("Do you want to create a new user directory at\n %s?",
+					dirDefault.getAbsolutePath());
+		}
+		
+		ButtonType btUseDefault = new ButtonType("Use default", ButtonData.YES);
+		ButtonType btChooseDirectory = new ButtonType("Choose directory", ButtonData.NO);
+		ButtonType btCancel = new ButtonType("Cancel", ButtonData.CANCEL_CLOSE);
+		
+		var result = Dialogs.builder()
+			.title("Choose user directory")
+			.headerText("No user directory set")
+			.contentText(msg)
+			.buttons(btUseDefault, btChooseDirectory, btCancel)
+			.showAndWait()
+			.orElse(btCancel);
+			
+		if (result == btCancel) {
+			logger.info("Dialog cancelled - no user directory set");
+			return null;
+		}
+		if (result == btUseDefault) {
+			if (!dirDefault.exists() && !dirDefault.mkdirs()) {
+				Dialogs.showErrorMessage("Extension error", "Unable to create directory at \n" + dirDefault.getAbsolutePath());
+				return null;
+			}
+			dir = dirDefault;
+		} else {
+			File dirUser = Dialogs.promptForDirectory("Set user directory", dirDefault);
+			if (dirUser == null) {
+				logger.info("No QuPath user directory set!");
+				return null;
+			}
+			dir = dirUser;
+		}
+		PathPrefs.userPathProperty().set(dir.getAbsolutePath());
+		return dir;
+	}
 	
 	/**
 	 * Reload the specified image data from a previously saved version,if available.
