@@ -1046,7 +1046,7 @@ class Menus {
 
 		@ActionDescription("Check online for an updated QuPath release.")
 		@ActionMenu("Check for updates (web)")
-		public final Action UPDATE = createAction(() -> qupath.runManualUpdateCheck());
+		public final Action UPDATE = createAction(() -> qupath.requestFullUpdateCheck());
 
 		public final Action SEP_2 = ActionTools.createSeparator();
 		

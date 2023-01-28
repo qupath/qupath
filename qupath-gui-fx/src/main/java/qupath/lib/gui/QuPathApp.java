@@ -90,7 +90,7 @@ public class QuPathApp extends Application {
 			// This behavior might change in the future, since it might still be meaningful 
 			// to check for extension updates.
 			if (!isCodeRunningFromDirectory()) {
-				qupath.runAutomaticUpdateCheck();
+				qupath.requestAutomaticUpdateCheck();
 			}
 			
 		}
