@@ -47,6 +47,15 @@ public class SharedThreadPoolManager implements AutoCloseable {
 	private Map<Object, ExecutorService> mapSingleThreadPools = new HashMap<>();
 	private ExecutorService poolMultipleThreads = Executors.newFixedThreadPool(Math.max(2, Runtime.getRuntime().availableProcessors()), ThreadTools.createThreadFactory("qupath-shared-", false));	
 
+	private SharedThreadPoolManager() {}
+	
+	/**
+	 * Create a new instance
+	 * @return
+	 */
+	public static SharedThreadPoolManager create() {
+		return new SharedThreadPoolManager();
+	}
 	
 	/**
 	 * Get a reusable executor using a single thread, creating a new executor if needed.

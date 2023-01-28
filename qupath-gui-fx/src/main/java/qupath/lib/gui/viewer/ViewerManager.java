@@ -94,6 +94,12 @@ import qupath.lib.objects.hierarchy.TMAGrid;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
 
+/**
+ * Class to manage multiple {@link QuPathViewer} instances in a UI region.
+ * 
+ * @author Pete Bankhead
+ * @since v0.5.0
+ */
 public class ViewerManager implements QuPathViewerListener {
 
 	private static final Logger logger = LoggerFactory.getLogger(ViewerManager.class);
@@ -127,9 +133,19 @@ public class ViewerManager implements QuPathViewerListener {
 	private double lastDownsample = Double.NaN;
 	private double lastRotation = Double.NaN;
 
-	public ViewerManager(final QuPathGUI qupath) {
+	private ViewerManager(final QuPathGUI qupath) {
 		this.qupath = qupath;
 	}
+	
+	/**
+	 * Create a new instance
+	 * @param qupath
+	 * @return
+	 */
+	public static ViewerManager create(final QuPathGUI qupath) {
+		return new ViewerManager(qupath);
+	}
+	
 	
 	/**
 	 * Get an observable list of viewers.

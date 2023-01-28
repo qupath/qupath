@@ -187,21 +187,21 @@ public class QuPathGUI {
 
 	private Stage stage;
 	private HostServices hostServices;
-	private MenuBar menuBar; // Don't initialize menubar too soon (can cause segfaults on macOS)
+	private MenuBar menuBar;
 
 	private DefaultImageRegionStore imageRegionStore = ImageRegionStoreFactory.createImageRegionStore();
 
-	private ToolManager toolManager = new ToolManager();
-	private SharedThreadPoolManager threadPoolManager = new SharedThreadPoolManager();
+	private ToolManager toolManager = ToolManager.create();
+	private SharedThreadPoolManager threadPoolManager = SharedThreadPoolManager.create();
 		
 	private PreferencePane prefsPane = new PreferencePane();
 	private LogViewerCommand logViewerCommand;
 	private ScriptEditor scriptEditor;
 		
-	private ViewerManager viewerManager = new ViewerManager(this);
-	private PathClassManager pathClassManager = new PathClassManager();
+	private ViewerManager viewerManager = ViewerManager.create(this);
+	private PathClassManager pathClassManager = PathClassManager.create();
 	private UpdateManager updateManager = UpdateManager.create(this);
-	private ExtensionManager extensionManager = new ExtensionManager(this);
+	private ExtensionManager extensionManager = ExtensionManager.create(this);
 
 	private QuPathMainPaneManager mainPaneManager;
 	private UndoRedoManager undoRedoManager;
@@ -213,6 +213,7 @@ public class QuPathGUI {
 	
 	private ObjectProperty<Project<BufferedImage>> projectProperty = new SimpleObjectProperty<>();
 	private ObjectProperty<QuPathViewer> viewerProperty = new SimpleObjectProperty<>();
+	private StringBinding titleBinding = createTitleBinding();
 	
 	private BooleanProperty readOnlyProperty = new SimpleBooleanProperty(false);
 	private BooleanProperty showAnalysisPane = new SimpleBooleanProperty(true);
@@ -246,7 +247,6 @@ public class QuPathGUI {
 	 */
 	private BooleanProperty menusInitializing = new SimpleBooleanProperty(false);
 	
-
 	
 	/**
 	 * Create a new QuPath instance.
@@ -264,47 +264,48 @@ public class QuPathGUI {
 		initializeLoggingToFile();
 		logBuildVersion();				
 		
-		// Set up image cache
-		timeit.checkpoint("Creating tile cache");
-		initializeImageTileCache();
-				
-		timeit.checkpoint("Creating menus");
-		menuBar = createMenubar();
-		
-		setupToolsMenu(getMenu("Tools", true));
-		
-		// Handle changes to the current projects, or properties that affect the current project
-		initializeProjectBehavior();
-		
 		// Set this as the current instance
 		ensureQuPathInstanceSet();
 		
 		// Ensure the user is notified of any errors from now on
 		setDefaultUncaughtExceptionHandler();
 		
+		// Set up image cache
+		timeit.checkpoint("Creating tile cache");
+		initializeImageTileCache();
+		
+		// Handle changes to the current projects, or properties that affect the current project
+		initializeProjectBehavior();
+				
+		// We can create an undo/redo manager as long as we have a viewer
+		undoRedoManager = UndoRedoManager.createForObservableViewer(viewerProperty, prefsPane);
 		viewerProperty.bind(viewerManager.activeViewerProperty());
 		viewerProperty.addListener((v, o, n) -> activateToolsForViewer(n));
-		
-		// Now that we have a viewer, we can create an undo/redo manager
-		undoRedoManager = UndoRedoManager.createForQuPathInstance(this);
 
-		// TODO: MOVE INITIALIZING MANAGERS ELSEWHERE
-		installActions(new Menus(this).getActions());
+		timeit.checkpoint("Creating menubar");
+		createMenubar();
 		
-		// Add a recent projects menu
-		getMenu("File", true).getItems().add(1, createRecentProjectsMenu());
+		toolManager.getTools().addListener((Change<? extends PathTool> c) -> registerAcceleratorsForAllTools());
+		registerAcceleratorsForAllTools();
 
-		
 		timeit.checkpoint("Creating main component");
 		BorderPane pane = new BorderPane();
 		pane.setCenter(initializeMainComponent());
-		
 		pane.setTop(menuBar);
 		
 		Scene scene = createAndInitializeMainScene(pane);
 		mainPaneManager.setDividerPosition(Math.min(0.5, 400/scene.getWidth()));
 		
 		initializeStage(scene);
+		
+		// Add listeners to set default project and image data
+		syncDefaultImageDataAndProjectForScripting();
+		tryToInstallAppQuitHandler();
+		initializeLocaleChangeListeners();
+		
+		// Refresh style - needs to be applied after showing the stage
+		timeit.checkpoint("Refreshing style");
+		initializeStyle();
 
 		// Remove this to only accept drag-and-drop into a viewer
 		TMACommands.installDragAndDropHandler(this);
@@ -322,7 +323,7 @@ public class QuPathGUI {
 		stage.show();
 
 		// Install extensions
-		timeit.checkpoint("Refreshing extensions");
+		timeit.checkpoint("Adding extensions");
 		extensionManager.refreshExtensions(false);
 		
 		// Add scripts menu (delayed to here, since it takes a bit longer)
@@ -333,25 +334,128 @@ public class QuPathGUI {
 		menuVisibilityManager = MenuItemVisibilityManager.createMenubarVisibilityManager(menuBar);
 		menuVisibilityManager.ignorePredicateProperty().bind(menusInitializing.or(extensionManager.refreshingExtensions()));
 		
+		// Populating the scripting menu is slower, so delay it until now
 		populateScriptingMenu(getMenu("Automate", false));
 		menuBar.useSystemMenuBarProperty().bindBidirectional(PathPrefs.useSystemMenubarProperty());
 		
-		// Add listeners to set default project and image data
-		syncDefaultImageDataAndProjectForScripting();
-		
-		tryToInstallAppQuitHandler();
-		
-		initializeLocaleChangeListeners();
-		
-		timeit.checkpoint("Refreshing style");
-		initializeStyle();
-		
-		toolManager.getTools().addListener((Change<? extends PathTool> c) -> registerAcceleratorsForAllTools());
-		registerAcceleratorsForAllTools();
-
 		logger.debug("{}", timeit.stop());
 	}
 	
+		
+	
+	/**
+	 * Static method to launch QuPath on the JavaFX Application thread.
+	 * <p>
+	 * This may be be called in an {@link Application#start(Stage)} method.
+	 * If so, then it is preferable to use {@link #createInstance(Stage, HostServices)} to provide 
+	 * host services, which can be used for some tasks (e.g. opening a browser window, or 
+	 * determining the code location for the application).
+	 * However this method can be used if QuPath is being launched some other way.
+	 * <p>
+	 * Afterwards, calls to {@link #getInstance()} will return the QuPath instance.
+	 * 
+	 * @param stage the stage to use for the QuPath UI
+	 * @return
+	 * @throws IllegalStateException if an instance of QuPath is already running (i.e. {@link #getInstance()} is not null)
+	 * @see #createInstance(Stage, HostServices)
+	 * @see #launchInstanceFromSwing()
+	 */
+	public static QuPathGUI createInstance(Stage stage) throws IllegalStateException {
+		return createInstance(stage, null);
+	}
+
+
+
+	/**
+	 * Static method to launch QuPath from a JavaFX application.
+	 * <p>
+	 * This is typically expected to be called in an {@link Application#start(Stage)} method, 
+	 * although could potentially be called later from another JavaFX application.
+	 * <p>
+	 * Afterwards, calls to {@link #getInstance()} will return the QuPath instance.
+	 * 
+	 * @param stage the stage to use for the QuPath UI (usually from {@link Application#start(Stage)})
+	 * @param hostServices host services from the JavaFX {@link Application}, if available
+	 * @return
+	 * @throws IllegalStateException if an instance of QuPath is already running (i.e. {@link #getInstance()} is not null)
+	 * @see #createInstance(Stage)
+	 * @see #launchInstanceFromSwing()
+	 */
+	public static QuPathGUI createInstance(Stage stage, HostServices hostServices) throws IllegalStateException {
+		QuPathGUI instance = getInstance();
+		if (instance != null) {
+			throw new IllegalStateException("QuPathGUI already exists, cannot create a new instance!");
+		}
+		if (stage == null)
+			stage = new Stage();
+		return new QuPathGUI(stage, hostServices);
+	}
+
+
+
+	/**
+	 * Static method to launch QuPath from within a Swing/AWT application.
+	 * <p>
+	 * This aims to handle several things:
+	 * <ul>
+	 *   <li>initializing JavaFX in the appropriate thread</li>
+	 *   <li>flagging that shutting down QuPath should not terminate the JVM</li>
+	 *   <li>showing the QuPath UI window</li>
+	 * </ul>
+	 * <p>
+	 * This can potentially be used from other environments (e.g. MATLAB, Fiji, Python).
+	 * Afterwards, calls to {@link #getInstance()} will return the QuPath instance as soon as it is available.
+	 * However, note that depending upon the thread from which this method is called, the QuPath instance may <i>not</i> 
+	 * be available until some time after the method returns.
+	 * <p>
+	 * If there is already an instance of QuPath running, this requests that it is made visible - but otherwise does nothing.
+	 */
+	public static void launchInstanceFromSwing() {
+		
+		// If we are starting from a Swing application, try to ensure we are on the correct thread
+		// (This can be particularly important on macOS)
+		if (Platform.isFxApplicationThread() || SwingUtilities.isEventDispatchThread()) {
+			launchNonStandaloneInstance();
+		} else {
+			System.out.println("QuPath launch requested in " + Thread.currentThread());
+			SwingUtilities.invokeLater(() -> launchNonStandaloneInstance());
+			// Required to be able to restart QuPath... or probably any JavaFX application
+			Platform.setImplicitExit(false);
+		}		
+		
+	}
+
+
+
+	private static void launchNonStandaloneInstance() {
+		
+		if (Platform.isFxApplicationThread()) {
+			System.out.println("Launching new QuPath instance...");
+			logger.info("Launching new QuPath instance...");
+			QuPathGUI qupath = createInstance(new Stage());
+			qupath.isStandalone = false;
+			qupath.getStage().show();
+			System.out.println("Done!");			
+		} else if (SwingUtilities.isEventDispatchThread()) {
+			System.out.println("Initializing with JFXPanel...");
+			new JFXPanel(); // To initialize
+			Platform.runLater(() -> launchNonStandaloneInstance());
+		} else {
+			try {
+				// This will fail if already started... but unfortunately there is no method to query if this is the case
+				System.out.println("Calling Platform.startup()...");
+				Platform.startup(() -> launchNonStandaloneInstance());
+			} catch (IllegalStateException e) {
+				System.err.println("If JavaFX is initialized, be sure to call launchQuPath() on the Application thread!");
+				System.out.println("Calling Platform.runLater()...");
+				Platform.runLater(() -> launchNonStandaloneInstance());
+			}
+		}
+		
+	}
+
+
+
 	/**
 	 * Request an automated update check in a background thread.
 	 * This will use the user preferences to determine whether or how to check for updates 
@@ -372,6 +476,52 @@ public class QuPathGUI {
 	}
 
 	
+	private void initializeLoggingToFile() {
+		if (PathPrefs.doCreateLogFilesProperty().get()) {
+			File fileLogging = tryToStartLogFile();
+			if (fileLogging != null) {
+				logger.info("Logging to file {}", fileLogging);
+			} else {
+				logger.warn("No directory set for log files! None will be written.");
+			}
+		}
+	}
+
+
+
+	/**
+	 * Try to start logging to a file.
+	 * This will only work if <code>PathPrefs.getLoggingPath() != null</code>.
+	 * 
+	 * @return the file that will (attempt to be) used for logging, or <code>null</code> if no file is to be used.
+	 */
+	private File tryToStartLogFile() {
+		String pathLogging = PathPrefs.getLoggingPath();
+		if (pathLogging != null) {
+			SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss");
+			String name = "qupath-" + dateFormat.format(new Date()) + ".log";
+			File fileLog = new File(pathLogging, name);
+			LogManager.logToFile(fileLog);
+			return fileLog;
+		}
+		return null;
+	}
+
+
+
+	private void logBuildVersion() {
+		var buildString = BuildInfo.getInstance().getBuildString();
+		var version = BuildInfo.getInstance().getVersion();
+		if (buildString != null)
+			logger.info("QuPath build: {}", buildString);
+		else if (version != null) {
+			logger.info("QuPath version: {}", version);			
+		} else
+			logger.warn("QuPath version unknown!");				
+	}
+
+
+
 	private void initializeProjectBehavior() {
 		setupProjectNameMasking();
 		pathClassManager.getAvailablePathClasses().addListener((Change<? extends PathClass> c) -> syncProjectPathClassesToAvailable());
@@ -401,39 +551,6 @@ public class QuPathGUI {
 
 
 
-	private void populateScriptingMenu(Menu menuScripting) {
-		ScriptEditor editor = getScriptEditor();
-		var sharedScriptMenuLoader = new ScriptMenuLoader("Shared scripts...", PathPrefs.scriptsPathProperty(), editor);
-		
-		StringBinding projectScriptsPath = Bindings.createStringBinding(() -> {
-			var project = getProject();
-			File dir = project == null ? null : Projects.getBaseDirectory(project);
-			return dir == null ? null : new File(dir, "scripts").getAbsolutePath();
-		}, projectProperty);
-		var projectScriptMenuLoader = new ScriptMenuLoader("Project scripts...", projectScriptsPath, editor);
-		projectScriptMenuLoader.getMenu().visibleProperty().bind(
-				projectProperty.isNotNull().and(menuVisibilityManager.ignorePredicateProperty().not())
-				);
-		
-		StringBinding userScriptsPath = Bindings.createStringBinding(() -> {
-			String userPath = PathPrefs.getUserPath();
-			File dirScripts = userPath == null ? null : new File(userPath, "scripts");
-			if (dirScripts == null || !dirScripts.isDirectory())
-				return null;
-			return dirScripts.getAbsolutePath();
-		}, PathPrefs.userPathProperty());
-		ScriptMenuLoader userScriptMenuLoader = new ScriptMenuLoader("User scripts...", userScriptsPath, editor);
-
-		MenuTools.addMenuItems(
-				menuScripting,
-				null,
-				sharedScriptMenuLoader.getMenu(),
-				userScriptMenuLoader.getMenu(),
-				projectScriptMenuLoader.getMenu()
-				);
-	}
-	
-	
 	private Scene createAndInitializeMainScene(Parent content) {
 		Scene scene;
 		try {
@@ -465,43 +582,124 @@ public class QuPathGUI {
 	}
 	
 	
-	private MenuBar createMenubar() {
+	private void createMenubar() {
+		this.menuBar = createEmptyMenubarMenus();
+		populateMenubar();
+	}
+	
+	private MenuBar createEmptyMenubarMenus() {
 		return new MenuBar(
 				Arrays.asList("File", "Edit", "Tools", "View", "Objects", "TMA", "Measure", "Automate", "Analyze", "Classify", "Extensions", "Help")
 				.stream().map(Menu::new).toArray(Menu[]::new)
 				);
 	}
 	
+	private void populateMenubar() {
+		installActions(new Menus(this).getActions());
+		setupToolsMenu(getMenu("Tools", true));
+		// Insert a recent projects menu
+		getMenu("File", true).getItems().add(1, createRecentProjectsMenu());
+	}
+
 	
-	private void initializeLoggingToFile() {
-		if (PathPrefs.doCreateLogFilesProperty().get()) {
-			File fileLogging = tryToStartLogFile();
-			if (fileLogging != null) {
-				logger.info("Logging to file {}", fileLogging);
-			} else {
-				logger.warn("No directory set for log files! None will be written.");
-			}
+	
+	private void populateScriptingMenu(Menu menuScripting) {
+		ScriptEditor editor = getScriptEditor();
+		var sharedScriptMenuLoader = new ScriptMenuLoader("Shared scripts...", PathPrefs.scriptsPathProperty(), editor);
+		
+		StringBinding projectScriptsPath = Bindings.createStringBinding(() -> {
+			var project = getProject();
+			File dir = project == null ? null : Projects.getBaseDirectory(project);
+			return dir == null ? null : new File(dir, "scripts").getAbsolutePath();
+		}, projectProperty);
+		var projectScriptMenuLoader = new ScriptMenuLoader("Project scripts...", projectScriptsPath, editor);
+		projectScriptMenuLoader.getMenu().visibleProperty().bind(
+				projectProperty.isNotNull().and(menuVisibilityManager.ignorePredicateProperty().not())
+				);
+		
+		StringBinding userScriptsPath = Bindings.createStringBinding(() -> {
+			String userPath = PathPrefs.getUserPath();
+			File dirScripts = userPath == null ? null : new File(userPath, "scripts");
+			if (dirScripts == null || !dirScripts.isDirectory())
+				return null;
+			return dirScripts.getAbsolutePath();
+		}, PathPrefs.userPathProperty());
+		ScriptMenuLoader userScriptMenuLoader = new ScriptMenuLoader("User scripts...", userScriptsPath, editor);
+	
+		MenuTools.addMenuItems(
+				menuScripting,
+				null,
+				sharedScriptMenuLoader.getMenu(),
+				userScriptMenuLoader.getMenu(),
+				projectScriptMenuLoader.getMenu()
+				);
+	}
+
+
+
+	/**
+	 * Set up the tools menu to listen to the available tools.
+	 * @param menu
+	 */
+	private void setupToolsMenu(Menu menu) {
+		toolManager.getTools().addListener((Change<? extends PathTool> c) -> refreshToolsMenu(c.getList(), menu));
+	}
+
+
+
+	private void refreshToolsMenu(List<? extends PathTool> tools, Menu menu) {
+		List<MenuItem> items = new ArrayList<>();
+		for (var t : tools) {
+			var action = toolManager.getToolAction(t);
+			var mi = ActionTools.createCheckMenuItem(action);
+			items.add(mi);
+		}
+		menu.getItems().setAll(items);
+		MenuTools.addMenuItems(menu, null, ActionTools.createCheckMenuItem(defaultActions.SELECTION_MODE));
+	}
+
+
+
+	private void registerAcceleratorsForAllTools() {
+		for (var t : toolManager.getTools()) {
+			var action = toolManager.getToolAction(t);
+			registerAccelerator(action);
 		}
 	}
-	
-	
+
+
+
 	private void setDefaultUncaughtExceptionHandler() {
 		Thread.setDefaultUncaughtExceptionHandler(new QuPathUncaughtExceptionHandler(this));
 	}
 	
 	
-	private void logBuildVersion() {
-		var buildString = BuildInfo.getInstance().getBuildString();
-		var version = BuildInfo.getInstance().getVersion();
-		if (buildString != null)
-			logger.info("QuPath build: {}", buildString);
-		else if (version != null) {
-			logger.info("QuPath version: {}", version);			
-		} else
-			logger.warn("QuPath version unknown!");				
+	private Pane initializeMainComponent() {
+		
+		mainPaneManager = new QuPathMainPaneManager(this);
+		
+		mainPaneManager.setAnalysisPaneVisible(showAnalysisPane.get());
+		showAnalysisPane.addListener((v, o, n) -> mainPaneManager.setAnalysisPaneVisible(n));
+		
+		// Ensure actions are set appropriately
+		toolManager.selectedToolProperty().addListener((v, o, n) -> {
+			Action action = toolManager.getToolAction(n);
+			if (action != null)
+				action.setSelected(true);
+			
+			activateToolsForViewer(getViewer());
+			
+			if (n == PathTools.POINTS)
+				defaultActions.COUNTING_PANEL.handle(null);
+			
+			updateCursorForSelectedTool();			
+		});
+		
+		return mainPaneManager.getMainPane();
 	}
-	
-	
+
+
+
 	private void syncDefaultImageDataAndProjectForScripting() {
 		imageDataProperty().addListener((v, o, n) -> QP.setDefaultImageData(n));
 		projectProperty().addListener((v, o, n) -> QP.setDefaultProject(n));
@@ -686,11 +884,7 @@ public class QuPathGUI {
 			return;
 		}
 
-		Set<QuPathViewer> unsavedViewers = new LinkedHashSet<>();
-		for (QuPathViewer viewer : viewerManager.getAllViewers()) {
-			if (viewer.getImageData() != null && viewer.getImageData().isChanged())
-				unsavedViewers.add(viewer);
-		}
+		Collection<? extends QuPathViewer> unsavedViewers = getViewersWithUnsavedChanges();
 		if (!unsavedViewers.isEmpty()) {
 			if (unsavedViewers.size() == 1) {
 				if (!requestToCloseViewer(unsavedViewers.iterator().next(), "Quit QuPath")) {
@@ -704,8 +898,17 @@ public class QuPathGUI {
 				return;
 			}
 		}
-		// Could uncomment this to sync the project - but we should be careful to avoid excessive synchronization
-		// (and it may already be synchronied when saving the image data)
+		
+		// Warn if there is a script running
+		if (scriptRunning.get()) {
+			if (!Dialogs.showYesNoDialog("Quit QuPath", "A script is currently running! Quit anyway?")) {
+				logger.trace("Pressed no to quit window with script running!");
+				e.consume();
+				return;
+			}
+		}
+		
+		// Sync changes in the project
 		var project = getProject();
 		if (project != null) {
 			try {
@@ -715,16 +918,7 @@ public class QuPathGUI {
 			}
 		}
 
-		// Check if there is a script running
-		if (scriptRunning.get()) {
-			if (!Dialogs.showYesNoDialog("Quit QuPath", "A script is currently running! Quit anyway?")) {
-				logger.trace("Pressed no to quit window with script running!");
-				e.consume();
-				return;
-			}
-		}
-
-		// Stop any painter requests
+		// Close the region store to stop any painting requests
 		if (imageRegionStore != null)
 			imageRegionStore.close();
 
@@ -739,14 +933,7 @@ public class QuPathGUI {
 		threadPoolManager.close();
 
 		// Shut down all our image servers
-		for (QuPathViewer v : getAllViewers()) {
-			try {
-				if (v.getImageData() != null)
-					v.getImageData().getServer().close();
-			} catch (Exception e2) {
-				logger.warn("Problem closing server", e2);
-			}
-		}
+		closeAllOpenImagesWithoutPrompts();
 
 		// Reset the instance
 		instance = null;
@@ -763,169 +950,26 @@ public class QuPathGUI {
 	}
 	
 	
-	
-	/**
-	 * Try to start logging to a file.
-	 * This will only work if <code>PathPrefs.getLoggingPath() != null</code>.
-	 * 
-	 * @return the file that will (attempt to be) used for logging, or <code>null</code> if no file is to be used.
-	 */
-	private static File tryToStartLogFile() {
-		String pathLogging = PathPrefs.getLoggingPath();
-		if (pathLogging != null) {
-			SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss");
-			String name = "qupath-" + dateFormat.format(new Date()) + ".log";
-			File fileLog = new File(pathLogging, name);
-			LogManager.logToFile(fileLog);
-			return fileLog;
+	private Collection<? extends QuPathViewer> getViewersWithUnsavedChanges() {
+		Set<QuPathViewer> unsavedViewers = new LinkedHashSet<>();
+		for (QuPathViewer viewer : viewerManager.getAllViewers()) {
+			if (viewer.getImageData() != null && viewer.getImageData().isChanged())
+				unsavedViewers.add(viewer);
 		}
-		return null;
+		return unsavedViewers;
 	}
 	
-	
-	/**
-	 * Set up the tools menu to listen to the available tools.
-	 * @param menu
-	 */
-	private void setupToolsMenu(Menu menu) {
-		toolManager.getTools().addListener((Change<? extends PathTool> c) -> refreshToolsMenu(c.getList(), menu));
-	}
-	
-	private void refreshToolsMenu(List<? extends PathTool> tools, Menu menu) {
-		List<MenuItem> items = new ArrayList<>();
-		for (var t : tools) {
-			var action = toolManager.getToolAction(t);
-			var mi = ActionTools.createCheckMenuItem(action);
-			items.add(mi);
-		}
-		menu.getItems().setAll(items);
-		MenuTools.addMenuItems(menu, null, ActionTools.createCheckMenuItem(defaultActions.SELECTION_MODE));
-	}
-	
-	
-	private void registerAcceleratorsForAllTools() {
-		for (var t : toolManager.getTools()) {
-			var action = toolManager.getToolAction(t);
-			registerAccelerator(action);
-		}
-	}
-		
-	
-	/**
-	 * Get the ToolManager that handles available and selected tools.
-	 * @return
-	 */
-	public ToolManager getToolManager() {
-		return toolManager;
-	}
-	
-	
-	/**
-	 * Static method to launch QuPath on the JavaFX Application thread.
-	 * <p>
-	 * This may be be called in an {@link Application#start(Stage)} method.
-	 * If so, then it is preferable to use {@link #createInstance(Stage, HostServices)} to provide 
-	 * host services, which can be used for some tasks (e.g. opening a browser window, or 
-	 * determining the code location for the application).
-	 * However this method can be used if QuPath is being launched some other way.
-	 * <p>
-	 * Afterwards, calls to {@link #getInstance()} will return the QuPath instance.
-	 * 
-	 * @param stage the stage to use for the QuPath UI
-	 * @return
-	 * @throws IllegalStateException if an instance of QuPath is already running (i.e. {@link #getInstance()} is not null)
-	 * @see #createInstance(Stage, HostServices)
-	 * @see #launchInstanceFromSwing()
-	 */
-	public static QuPathGUI createInstance(Stage stage) throws IllegalStateException {
-		return createInstance(stage, null);
-	}
-	
-	
-	/**
-	 * Static method to launch QuPath from a JavaFX application.
-	 * <p>
-	 * This is typically expected to be called in an {@link Application#start(Stage)} method, 
-	 * although could potentially be called later from another JavaFX application.
-	 * <p>
-	 * Afterwards, calls to {@link #getInstance()} will return the QuPath instance.
-	 * 
-	 * @param stage the stage to use for the QuPath UI (usually from {@link Application#start(Stage)})
-	 * @param hostServices host services from the JavaFX {@link Application}, if available
-	 * @return
-	 * @throws IllegalStateException if an instance of QuPath is already running (i.e. {@link #getInstance()} is not null)
-	 * @see #createInstance(Stage)
-	 * @see #launchInstanceFromSwing()
-	 */
-	public static QuPathGUI createInstance(Stage stage, HostServices hostServices) throws IllegalStateException {
-		QuPathGUI instance = getInstance();
-		if (instance != null) {
-			throw new IllegalStateException("QuPathGUI already exists, cannot create a new instance!");
-		}
-		if (stage == null)
-			stage = new Stage();
-		return new QuPathGUI(stage, hostServices);
-	}
-	
-	
-	/**
-	 * Static method to launch QuPath from within a Swing/AWT application.
-	 * <p>
-	 * This aims to handle several things:
-	 * <ul>
-	 *   <li>initializing JavaFX in the appropriate thread</li>
-	 *   <li>flagging that shutting down QuPath should not terminate the JVM</li>
-	 *   <li>showing the QuPath UI window</li>
-	 * </ul>
-	 * <p>
-	 * This can potentially be used from other environments (e.g. MATLAB, Fiji, Python).
-	 * Afterwards, calls to {@link #getInstance()} will return the QuPath instance as soon as it is available.
-	 * However, note that depending upon the thread from which this method is called, the QuPath instance may <i>not</i> 
-	 * be available until some time after the method returns.
-	 * <p>
-	 * If there is already an instance of QuPath running, this requests that it is made visible - but otherwise does nothing.
-	 */
-	public static void launchInstanceFromSwing() {
-		
-		// If we are starting from a Swing application, try to ensure we are on the correct thread
-		// (This can be particularly important on macOS)
-		if (Platform.isFxApplicationThread() || SwingUtilities.isEventDispatchThread()) {
-			launchNonStandaloneInstance();
-		} else {
-			System.out.println("QuPath launch requested in " + Thread.currentThread());
-			SwingUtilities.invokeLater(() -> launchNonStandaloneInstance());
-			// Required to be able to restart QuPath... or probably any JavaFX application
-			Platform.setImplicitExit(false);
-		}		
-		
-	}
-		
-	private static void launchNonStandaloneInstance() {
-		
-		if (Platform.isFxApplicationThread()) {
-			System.out.println("Launching new QuPath instance...");
-			logger.info("Launching new QuPath instance...");
-			QuPathGUI qupath = createInstance(new Stage());
-			qupath.isStandalone = false;
-			qupath.getStage().show();
-			System.out.println("Done!");			
-		} else if (SwingUtilities.isEventDispatchThread()) {
-			System.out.println("Initializing with JFXPanel...");
-			new JFXPanel(); // To initialize
-			Platform.runLater(() -> launchNonStandaloneInstance());
-		} else {
+	private void closeAllOpenImagesWithoutPrompts() {
+		for (QuPathViewer v : getAllViewers()) {
 			try {
-				// This will fail if already started... but unfortunately there is no method to query if this is the case
-				System.out.println("Calling Platform.startup()...");
-				Platform.startup(() -> launchNonStandaloneInstance());
-			} catch (IllegalStateException e) {
-				System.err.println("If JavaFX is initialized, be sure to call launchQuPath() on the Application thread!");
-				System.out.println("Calling Platform.runLater()...");
-				Platform.runLater(() -> launchNonStandaloneInstance());
+				if (v.getImageData() != null)
+					v.getImageData().getServer().close();
+			} catch (Exception e2) {
+				logger.warn("Problem closing server", e2);
 			}
 		}
-		
 	}
+	
 	
 	
 	/**
@@ -992,6 +1036,16 @@ public class QuPathGUI {
 	
 	
 	/**
+	 * Get the ToolManager that handles available and selected tools.
+	 * @return
+	 */
+	public ToolManager getToolManager() {
+		return toolManager;
+	}
+
+
+
+	/**
 	 * Get a {@link SharedThreadPoolManager} to help with submitting tasks in other threads.
 	 * A benefit of using this is that all the thread pools created will be shutdown when 
 	 * QuPath is exited.
@@ -1012,6 +1066,16 @@ public class QuPathGUI {
 	
 	
 	/**
+	 * Get the viewer manager, which gives access to all the viewers available within this QuPath instance.
+	 * @return
+	 */
+	public ViewerManager getViewerManager() {
+		return viewerManager;
+	}
+
+
+
+	/**
 	 * Get an observable list of available PathClasses.
 	 * @return
 	 */
@@ -1020,6 +1084,17 @@ public class QuPathGUI {
 	}
 
 	
+	/**
+	 * Get a reference to the default drag &amp; drop listener, so this may be added to additional windows if needed.
+	 * 
+	 * @return
+	 */
+	public DragDropImportListener getDefaultDragDropListener() {
+		return dragAndDrop;
+	}
+
+
+
 	/**
 	 * Populate the availablePathClasses with a default list.
 	 * 
@@ -1048,31 +1123,6 @@ public class QuPathGUI {
 		return menuRecent;
 	}
 	
-	
-	
-	private Pane initializeMainComponent() {
-		
-		mainPaneManager = new QuPathMainPaneManager(this);
-		
-		mainPaneManager.setAnalysisPaneVisible(showAnalysisPane.get());
-		showAnalysisPane.addListener((v, o, n) -> mainPaneManager.setAnalysisPaneVisible(n));
-		
-		// Ensure actions are set appropriately
-		toolManager.selectedToolProperty().addListener((v, o, n) -> {
-			Action action = toolManager.getToolAction(n);
-			if (action != null)
-				action.setSelected(true);
-			
-			activateToolsForViewer(getViewer());
-			
-			if (n == PathTools.POINTS)
-				defaultActions.COUNTING_PANEL.handle(null);
-			
-			updateCursorForSelectedTool();			
-		});
-		
-		return mainPaneManager.getMainPane();
-	}
 	
 	
 	/**
@@ -1164,18 +1214,122 @@ public class QuPathGUI {
 	
 	
 	/**
-	 * Get a reference to the default drag &amp; drop listener, so this may be added to additional windows if needed.
-	 * 
-	 * @return
-	 */
-	public DragDropImportListener getDefaultDragDropListener() {
-		return dragAndDrop;
-	}
-	
-	
-	
-	
-	
+		 * Open a saved data file within a particular viewer, optionally keeping the same ImageServer as is currently open.
+		 * The purpose of this is to make it possible for a project (for example) to open the correct server prior to
+		 * opening the data file, enabling it to make use of relative path names and not have to rely on the absolute path
+		 * encoded within the ImageData.
+		 * 
+		 * @param viewer
+		 * @param file
+		 * @param keepExistingServer if true and the viewer already has an ImageServer, then any ImageServer path recorded within the data file will be ignored
+		 * @param promptToSaveChanges if true, the user will be prompted to ask whether to save changes or not
+		 * @return
+		 * @throws IOException 
+		 */
+		public boolean openSavedData(QuPathViewer viewer, final File file, final boolean keepExistingServer, boolean promptToSaveChanges) throws IOException {
+			
+			if (viewer == null) {
+				if (getAllViewers().size() == 1)
+					viewer = getViewer();
+				else {
+					Dialogs.showErrorMessage("Open saved data", "Please specify the viewer where the data should be opened!");
+					return false;
+				}
+			}
+			
+			// First check to see if the ImageData is already open - if so, just activate the viewer
+			for (QuPathViewer v : viewerManager.getAllViewers()) {
+				ImageData<?> data = v.getImageData();
+				if (data != null && data.getLastSavedPath() != null && new File(data.getLastSavedPath()).equals(file)) {
+					viewerManager.setActiveViewer(v);
+					return true;
+				}
+			}
+			
+			ServerBuilder<BufferedImage> serverBuilder = null;
+			ImageData<BufferedImage> imageData = viewer.getImageData();
+			
+			// If we are loading data related to the same image server, load into that - otherwise open a new image if we can find it
+			try {
+				serverBuilder = PathIO.extractServerBuilder(file.toPath());
+			} catch (Exception e) {
+				logger.warn("Unable to read server path from file: {}", e.getLocalizedMessage());
+			}
+			var existingBuilder = imageData == null || imageData.getServer() == null ? null : imageData.getServer().getBuilder();
+			boolean sameServer = Objects.equals(existingBuilder, serverBuilder);			
+			
+			
+			// If we don't have the same server, try to check the path is valid.
+			// If it isn't, then prompt to enter a new path.
+			// Currently, URLs are always assumed to be valid, but files may have moved.
+			// TODO: Make it possible to recover data if a stored URL ceases to be valid.
+			ImageServer<BufferedImage> server = null;
+			if (sameServer || (imageData != null && keepExistingServer))
+				server = imageData.getServer();
+			else {
+				try {
+					server = serverBuilder.build();
+				} catch (Exception e) {
+					logger.error("Unable to build server " + serverBuilder, e);
+				}
+				// TODO: Ideally we would use an interface like ProjectCheckUris instead
+				if (server == null && serverBuilder != null) {
+					var uris = serverBuilder.getURIs();
+					var urisUpdated = new HashMap<URI, URI>();
+					for (var uri : uris) {
+						var pathUri = GeneralTools.toPath(uri);
+						if (pathUri != null && Files.exists(pathUri)) {
+							urisUpdated.put(uri, uri);
+							continue;
+						}
+						String currentPath = pathUri == null ? uri.toString() : pathUri.toString();
+						var newPath = Dialogs.promptForFilePathOrURL("Set path to missing image", currentPath, file.getParentFile(), null);
+						if (newPath == null)
+							return false;
+						try {
+							urisUpdated.put(uri, GeneralTools.toURI(newPath));
+						} catch (URISyntaxException e) {
+							throw new IOException(e);
+						}
+					}
+					serverBuilder = serverBuilder.updateURIs(urisUpdated);
+					try {
+						server = serverBuilder.build();
+					} catch (Exception e) {
+						logger.error("Unable to build server " + serverBuilder, e);
+					}
+				}
+				if (server == null)
+					return false;
+	//			
+				// Small optimization... put in a thumbnail request early in a background thread.
+				// This way that it will be fetched while the image data is being read -
+				// generally leading to improved performance in the viewer's setImageData method
+				// (specifically the updating of the ImageDisplay, which needs a thumbnail)
+				final ImageServer<BufferedImage> serverTemp = server;
+				threadPoolManager.submitShortTask(() -> imageRegionStore.getThumbnail(serverTemp, 0, 0, true));
+			}
+			
+			
+			if (promptToSaveChanges && imageData != null && imageData.isChanged()) {
+				if (!isReadOnly() && !promptToSaveChangesOrCancel("Save changes", imageData))
+					return false;
+			}
+			
+			try {
+				ImageData<BufferedImage> imageData2 = PathIO.readImageData(file, imageData, server, BufferedImage.class);
+				if (imageData2 != imageData) {
+					viewer.setImageData(imageData2);
+				}
+			} catch (IOException e) {
+				Dialogs.showErrorMessage("Read image data", e);
+			}
+			
+			return true;
+		}
+
+
+
 	/**
 	 * Open the image represented by the specified ProjectImageEntry.
 	 * <p>
@@ -1512,15 +1666,6 @@ public class QuPathGUI {
 	
 	
 	/**
-	 * Get the viewer manager, which gives access to all the viewers availble within this QuPath instance.
-	 * @return
-	 */
-	public ViewerManager getViewerManager() {
-		return viewerManager;
-	}
-	
-	
-	/**
 	 * Install a Groovy script as a new command in QuPath.
 	 * @param menuPath menu where the command should be installed; see {@link #lookupMenuItem(String)} for the specification.
 	 *                 If only a name is provided, the command will be added to the "Extensions" menu.
@@ -1671,122 +1816,6 @@ public class QuPathGUI {
 		return ((ExecutableLanguage)language).execute(params);
 	}
 	
-	
-	
-	/**
-	 * Open a saved data file within a particular viewer, optionally keeping the same ImageServer as is currently open.
-	 * The purpose of this is to make it possible for a project (for example) to open the correct server prior to
-	 * opening the data file, enabling it to make use of relative path names and not have to rely on the absolute path
-	 * encoded within the ImageData.
-	 * 
-	 * @param viewer
-	 * @param file
-	 * @param keepExistingServer if true and the viewer already has an ImageServer, then any ImageServer path recorded within the data file will be ignored
-	 * @param promptToSaveChanges if true, the user will be prompted to ask whether to save changes or not
-	 * @return
-	 * @throws IOException 
-	 */
-	public boolean openSavedData(QuPathViewer viewer, final File file, final boolean keepExistingServer, boolean promptToSaveChanges) throws IOException {
-		
-		if (viewer == null) {
-			if (getAllViewers().size() == 1)
-				viewer = getViewer();
-			else {
-				Dialogs.showErrorMessage("Open saved data", "Please specify the viewer where the data should be opened!");
-				return false;
-			}
-		}
-		
-		// First check to see if the ImageData is already open - if so, just activate the viewer
-		for (QuPathViewer v : viewerManager.getAllViewers()) {
-			ImageData<?> data = v.getImageData();
-			if (data != null && data.getLastSavedPath() != null && new File(data.getLastSavedPath()).equals(file)) {
-				viewerManager.setActiveViewer(v);
-				return true;
-			}
-		}
-		
-		ServerBuilder<BufferedImage> serverBuilder = null;
-		ImageData<BufferedImage> imageData = viewer.getImageData();
-		
-		// If we are loading data related to the same image server, load into that - otherwise open a new image if we can find it
-		try {
-			serverBuilder = PathIO.extractServerBuilder(file.toPath());
-		} catch (Exception e) {
-			logger.warn("Unable to read server path from file: {}", e.getLocalizedMessage());
-		}
-		var existingBuilder = imageData == null || imageData.getServer() == null ? null : imageData.getServer().getBuilder();
-		boolean sameServer = Objects.equals(existingBuilder, serverBuilder);			
-		
-		
-		// If we don't have the same server, try to check the path is valid.
-		// If it isn't, then prompt to enter a new path.
-		// Currently, URLs are always assumed to be valid, but files may have moved.
-		// TODO: Make it possible to recover data if a stored URL ceases to be valid.
-		ImageServer<BufferedImage> server = null;
-		if (sameServer || (imageData != null && keepExistingServer))
-			server = imageData.getServer();
-		else {
-			try {
-				server = serverBuilder.build();
-			} catch (Exception e) {
-				logger.error("Unable to build server " + serverBuilder, e);
-			}
-			// TODO: Ideally we would use an interface like ProjectCheckUris instead
-			if (server == null && serverBuilder != null) {
-				var uris = serverBuilder.getURIs();
-				var urisUpdated = new HashMap<URI, URI>();
-				for (var uri : uris) {
-					var pathUri = GeneralTools.toPath(uri);
-					if (pathUri != null && Files.exists(pathUri)) {
-						urisUpdated.put(uri, uri);
-						continue;
-					}
-					String currentPath = pathUri == null ? uri.toString() : pathUri.toString();
-					var newPath = Dialogs.promptForFilePathOrURL("Set path to missing image", currentPath, file.getParentFile(), null);
-					if (newPath == null)
-						return false;
-					try {
-						urisUpdated.put(uri, GeneralTools.toURI(newPath));
-					} catch (URISyntaxException e) {
-						throw new IOException(e);
-					}
-				}
-				serverBuilder = serverBuilder.updateURIs(urisUpdated);
-				try {
-					server = serverBuilder.build();
-				} catch (Exception e) {
-					logger.error("Unable to build server " + serverBuilder, e);
-				}
-			}
-			if (server == null)
-				return false;
-//			
-			// Small optimization... put in a thumbnail request early in a background thread.
-			// This way that it will be fetched while the image data is being read -
-			// generally leading to improved performance in the viewer's setImageData method
-			// (specifically the updating of the ImageDisplay, which needs a thumbnail)
-			final ImageServer<BufferedImage> serverTemp = server;
-			threadPoolManager.submitShortTask(() -> imageRegionStore.getThumbnail(serverTemp, 0, 0, true));
-		}
-		
-		
-		if (promptToSaveChanges && imageData != null && imageData.isChanged()) {
-			if (!isReadOnly() && !promptToSaveChangesOrCancel("Save changes", imageData))
-				return false;
-		}
-		
-		try {
-			ImageData<BufferedImage> imageData2 = PathIO.readImageData(file, imageData, server, BufferedImage.class);
-			if (imageData2 != imageData) {
-				viewer.setImageData(imageData2);
-			}
-		} catch (IOException e) {
-			Dialogs.showErrorMessage("Read image data", e);
-		}
-		
-		return true;
-	}
 	
 	
 	/**
@@ -2277,6 +2306,32 @@ public class QuPathGUI {
 	public Stage getStage() {
 		return stage;
 	}
+		
+	/**
+	 * Refresh the title bar in the main QuPath window.
+	 */
+	public void refreshTitle() {
+		if (Platform.isFxApplicationThread())
+			titleBinding.invalidate();
+		else
+			Platform.runLater(() -> refreshTitle());
+	}	
+		
+	private StringBinding createTitleBinding() {
+		return Bindings.createStringBinding(() -> createTitleFromCurrentImage(),
+				projectProperty(), imageDataProperty(), PathPrefs.showImageNameInTitleProperty(), PathPrefs.maskImageNamesProperty());
+	}
+	
+	private String createTitleFromCurrentImage() {
+		String name = "QuPath";
+		var versionString = getVersionString();
+		if (versionString != null)
+			name = name + " (" + versionString + ")";
+		var imageData = imageDataProperty().get();
+		if (imageData == null || !PathPrefs.showImageNameInTitleProperty().get())
+			return name;
+		return name + " - " + getDisplayedImageName(imageData);
+	}
 	
 	private String getDisplayedImageName(ImageData<BufferedImage> imageData) {
 		if (imageData == null)
@@ -2293,31 +2348,8 @@ public class QuPathGUI {
 			return entry.getImageName();
 		}
 	}
-	
-	/**
-	 * Refresh the title bar in the main QuPath window.
-	 */
-	public void refreshTitle() {
-		if (Platform.isFxApplicationThread())
-			titleBinding.invalidate();
-		else
-			Platform.runLater(() -> refreshTitle());
-	}
-	
-	
-	private StringBinding titleBinding = Bindings.createStringBinding(
-				() -> {
-					String name = "QuPath";
-					var versionString = getVersionString();
-					if (versionString != null)
-						name = name + " (" + versionString + ")";
-					var imageData = imageDataProperty().get();
-					if (imageData == null || !PathPrefs.showImageNameInTitleProperty().get())
-						return name;
-					return name + " - " + getDisplayedImageName(imageData);
-				},
-				projectProperty, imageDataProperty(), PathPrefs.showImageNameInTitleProperty(), PathPrefs.maskImageNamesProperty());
-	
+
+
 	
 	/**
 	 * Get a String representing the QuPath version &amp; build time.
@@ -2477,7 +2509,6 @@ public class QuPathGUI {
 	public ReadOnlyObjectProperty<QuPathViewer> viewerProperty() {
 		return viewerManager.activeViewerProperty();
 	}
-	
 	
 	
 	/**
@@ -2654,13 +2685,12 @@ public class QuPathGUI {
 	 */
 	public void installActions(Collection<? extends Action> actions) {
 		this.actions.addAll(actions);
-		installActionsImpl(actions);
+		installActionsToMenubar(actions);
 	}
 	
-	private void installActionsImpl(Collection<? extends Action> actions) {
+	private void installActionsToMenubar(Collection<? extends Action> actions) {
 		
 		var menus = getMenuBar().getMenus();
-		
 		var menuMap = new HashMap<String, Menu>();
 		
 		for (var action : actions) {

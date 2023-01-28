@@ -73,8 +73,12 @@ public class ExtensionManager {
 
 	private BooleanProperty refreshingExtensions = new SimpleBooleanProperty(false);
 	
-	ExtensionManager(QuPathGUI qupath) {
+	private ExtensionManager(QuPathGUI qupath) {
 		this.qupath = qupath;
+	}
+	
+	static ExtensionManager create(QuPathGUI qupath) {
+		return new ExtensionManager(qupath);
 	}
 	
 	/**

@@ -78,8 +78,12 @@ class PathClassManager {
 	
 	private ObservableList<PathClass> availablePathClasses = FXCollections.observableArrayList();;
 
-	PathClassManager() {
+	private PathClassManager() {
 		this.initializePathClasses();
+	}
+	
+	static PathClassManager create() {
+		return new PathClassManager();
 	}
 	
 	/**

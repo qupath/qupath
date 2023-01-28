@@ -65,6 +65,17 @@ public class ToolManager {
 	
 	private ObjectProperty<PathTool> previousSelectedToolProperty = new SimpleObjectProperty<>(PathTools.MOVE);
 
+	private ToolManager() {}
+	
+	/**
+	 * Create a new instance
+	 * @return
+	 */
+	public static ToolManager create() {
+		return new ToolManager();
+	}
+	
+	
 	/**
 	 * Get a read-only list of all available tools.
 	 * If you wish to add a new one, use {@link #installTool(PathTool, KeyCodeCombination)}.
