@@ -180,59 +180,42 @@ public class QuPathGUI {
 	
 	private static QuPathGUI instance;
 	
-	private ScriptEditor scriptEditor = null;
-		
-	private ToolManager toolManager = new ToolManager();
-
-	private BooleanProperty readOnlyProperty = new SimpleBooleanProperty(false);
-	
-	private SharedThreadPoolManager threadPoolManager = new SharedThreadPoolManager();
-	
 	/**
-	 * Preferred size for toolbar icons.
+	 * Icon size to use in the main QuPath toolbar
 	 */
 	public static final int TOOLBAR_ICON_SIZE = 16;
 
-	private ObjectProperty<Project<BufferedImage>> projectProperty = new SimpleObjectProperty<>();
-	private ObjectProperty<QuPathViewer> viewerProperty = new SimpleObjectProperty<>();
-	
-	/**
-	 * Preference panel, which may be used by extensions to add in their on preferences if needed
-	 */
-	private PreferencePane prefsPane = new PreferencePane();
-	
-	// Can't initialize menubar yet - trying that caused some major trouble (including segfaults) on macOS
-	private MenuBar menuBar;
-	
-	private QuPathMainPaneManager mainPaneManager;
-	
-	private UpdateManager updateManager = UpdateManager.create(this);
-	
-	/**
-	 * Default region store used by viewers for tile caching and repainting
-	 */
-	private DefaultImageRegionStore imageRegionStore = ImageRegionStoreFactory.createImageRegionStore();
-	
-	private ViewerManager viewerManager = new ViewerManager(this);
-	
-	private PathClassManager pathClassManager = new PathClassManager();
-	
 	private Stage stage;
-	
+	private HostServices hostServices;
+	private MenuBar menuBar; // Don't initialize menubar too soon (can cause segfaults on macOS)
+
+	private DefaultImageRegionStore imageRegionStore = ImageRegionStoreFactory.createImageRegionStore();
+
+	private ToolManager toolManager = new ToolManager();
+	private SharedThreadPoolManager threadPoolManager = new SharedThreadPoolManager();
+		
+	private PreferencePane prefsPane = new PreferencePane();
+	private LogViewerCommand logViewerCommand;
+	private ScriptEditor scriptEditor;
+		
+	private ViewerManager viewerManager = new ViewerManager(this);
+	private PathClassManager pathClassManager = new PathClassManager();
+	private UpdateManager updateManager = UpdateManager.create(this);
+	private ExtensionManager extensionManager = new ExtensionManager(this);
+
+	private QuPathMainPaneManager mainPaneManager;
+	private UndoRedoManager undoRedoManager;
+	private MenuItemVisibilityManager menuVisibilityManager;
+
 	private boolean isStandalone = true;
 	
 	private DragDropImportListener dragAndDrop = new DragDropImportListener(this);
 	
-	private UndoRedoManager undoRedoManager;
+	private ObjectProperty<Project<BufferedImage>> projectProperty = new SimpleObjectProperty<>();
+	private ObjectProperty<QuPathViewer> viewerProperty = new SimpleObjectProperty<>();
 	
-	private HostServices hostServices;
-	
-	private MenuItemVisibilityManager menuVisibilityManager;
-	
-	/**
-	 * Keystrokes can be lost on macOS... so ensure these are handled
-	 */
-	private BiMap<KeyCombination, Action> comboMap = HashBiMap.create();
+	private BooleanProperty readOnlyProperty = new SimpleBooleanProperty(false);
+	private BooleanProperty showAnalysisPane = new SimpleBooleanProperty(true);
 		
 	private BooleanBinding noProject = projectProperty.isNull();
 	private BooleanBinding noViewer = viewerProperty.isNull();
@@ -243,13 +226,19 @@ public class QuPathGUI {
 	private BooleanBinding uiBlocked = pluginRunning.or(scriptRunning);
 	
 	private SimpleBooleanProperty showInputDisplayProperty = new SimpleBooleanProperty(false);
+	
+	/**
+	 * Keystrokes can be lost on macOS... so ensure these are handled
+	 */
+	private BiMap<KeyCombination, Action> comboMap = HashBiMap.create();
 
-	private LogViewerCommand logViewerCommand;
-	
+	/**
+	 * A list of all actions currently registered for this GUI.
+	 */
+	private Set<Action> actions = new LinkedHashSet<>();
+
 	private DefaultActions defaultActions;
-	
-	private ExtensionManager extensionManager = new ExtensionManager(this);
-	
+		
 	/**
 	 * Flag to record when menus are being modified.
 	 * This is used to override menu item visibility settings, since failing to do this 
@@ -257,10 +246,6 @@ public class QuPathGUI {
 	 */
 	private BooleanProperty menusInitializing = new SimpleBooleanProperty(false);
 	
-	/**
-	 * A list of all actions currently registered for this GUI.
-	 */
-	private Set<Action> actions = new LinkedHashSet<>();
 
 	
 	/**
@@ -1814,20 +1799,7 @@ public class QuPathGUI {
 	public PreferencePane getPreferencePane() {
 		return prefsPane;
 	}
-	
-	
-	/**
-	 * Add menus to a MenuBar.
-	 * 
-	 * @param menuBar
-	 * @param menus
-	 * @return
-	 */
-	static MenuBar addToMenuBar(final MenuBar menuBar, final Menu... menus) {
-		menuBar.getMenus().addAll(menus);
-		return menuBar;
-	}
-	
+
 	/**
 	 * Get the action or menu item associated with an accelerator.
 	 * This is particularly useful to check whether a key combination is in use before using it 
@@ -2486,9 +2458,6 @@ public class QuPathGUI {
 	public Project<BufferedImage> getProject() {
 		return projectProperty.get();
 	}
-	
-	private BooleanProperty showAnalysisPane = new SimpleBooleanProperty(true);
-
 	
 	
 	/**

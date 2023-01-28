@@ -123,7 +123,6 @@ public class LogViewerCommand implements Runnable, TextAppendable {
 
 			Scene scene = new Scene(pane, 400, 300);
 			dialog.setScene(scene);
-//			dialog.getDialogPane().setContent(pane);
 			dialog.setResizable(true);
 			
 			dialog.initModality(Modality.NONE);
