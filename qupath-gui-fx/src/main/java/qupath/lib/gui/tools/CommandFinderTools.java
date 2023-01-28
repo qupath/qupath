@@ -242,7 +242,7 @@ public class CommandFinderTools {
 		paneViewer.setContent(node);
 		
 		commandBarDisplay.addListener((v, o, n) -> {
-			var viewers = qupath.getViewers();
+			var viewers = qupath.getAllViewers();
 			for (var viewer: viewers) {
 				if (viewer instanceof QuPathViewerPlus) {
 					((QuPathViewerPlus)viewer).setSlidersPosition(!n.equals(CommandBarDisplay.NEVER));

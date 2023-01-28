@@ -50,7 +50,7 @@ import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.IconFactory;
 import qupath.lib.gui.tools.IconFactory.PathIcons;
-import qupath.lib.gui.viewer.MultiviewManager;
+import qupath.lib.gui.viewer.ViewerManager;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.QuPathViewerListener;
@@ -70,7 +70,7 @@ class ToolBarComponent {
 	private Map<PathTool, Node> toolMap = new WeakHashMap<>();
 
 	private ToolManager toolManager;
-	private MultiviewManager viewerManager;
+	private ViewerManager viewerManager;
 	private DefaultActions defaultActions;
 	
 	private int toolIdx;
@@ -78,7 +78,7 @@ class ToolBarComponent {
 
 	private ToolBar toolbar = new ToolBar();
 
-	ToolBarComponent(ToolManager toolManager, MultiviewManager viewerManager, DefaultActions defaultActions) {
+	ToolBarComponent(ToolManager toolManager, ViewerManager viewerManager, DefaultActions defaultActions) {
 		this.toolManager = toolManager;
 		this.viewerManager = viewerManager;
 		this.defaultActions = defaultActions;

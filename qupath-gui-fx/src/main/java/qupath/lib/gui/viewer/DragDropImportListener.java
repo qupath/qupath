@@ -149,7 +149,7 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
         
         // Look for the viewer that we dragged on to - may be null, if drag was on
         QuPathViewer viewer = null;
-        for (QuPathViewer viewer2 : qupath.getViewers()) {
+        for (QuPathViewer viewer2 : qupath.getAllViewers()) {
         	if (viewer2.getView() == source) {
         		viewer = viewer2;
         		break;
@@ -168,7 +168,7 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
         }
         
         // If only one viewer is available, there is no ambiguity... use it
-        if (viewer == null && qupath.getViewers().size() == 1)
+        if (viewer == null && qupath.getAllViewers().size() == 1)
         	viewer = qupath.getViewer();
         
         var files = dragboard.hasFiles() ? new ArrayList<>(dragboard.getFiles()) : null;

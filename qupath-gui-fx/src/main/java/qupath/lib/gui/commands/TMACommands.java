@@ -138,7 +138,7 @@ public class TMACommands {
 			return;
 		}
 		
-		var overlayOptions = qupath.getViewers().stream()
+		var overlayOptions = qupath.getAllViewers().stream()
 				.filter(v -> v.getImageData() == imageData)
 				.map(v -> v.getOverlayOptions()).findFirst().orElse(qupath.getOverlayOptions());
 

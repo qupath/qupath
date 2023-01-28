@@ -473,7 +473,7 @@ public class SimpleThresholdCommand implements Runnable {
 	private void ensureOverlays() {
 		var overlay = selectedOverlay.get();
 		// Try (admittedly unsuccessfully) to reduce flicker
-		for (var viewer : qupath.getViewers()) {
+		for (var viewer : qupath.getAllViewers()) {
 			var imageData = viewer.getImageData();
 			if (imageData == null) {
 				resetOverlay(viewer, map.get(viewer));

@@ -1552,7 +1552,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 					imageDisplay.setImageData(imageDataNew, keepDisplay);
 					displaySet = true;
 				} else {
-					for (var viewer : QuPathGUI.getInstance().getViewers()) {
+					for (var viewer : QuPathGUI.getInstance().getAllViewers()) {
 						if (this == viewer || viewer.getImageData() == null)
 							continue;
 						var tempServer = viewer.getServer();

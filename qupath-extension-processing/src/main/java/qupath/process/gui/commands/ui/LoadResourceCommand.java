@@ -135,7 +135,7 @@ public final class LoadResourceCommand<S> implements Runnable {
 		var cachedServers = new WeakHashMap<ImageData<BufferedImage>, ImageServer<BufferedImage>>();
 		var overlay = PixelClassificationOverlay.create(qupath.getOverlayOptions(), cachedServers, new ColorModelRenderer(null));
 		overlay.setMaxThreads(nThreads);
-		for (var viewer : qupath.getViewers())
+		for (var viewer : qupath.getAllViewers())
 			viewer.setCustomPixelLayerOverlay(overlay);
 		
 		var comboClassifiers = new ComboBox<String>();
@@ -305,7 +305,7 @@ public final class LoadResourceCommand<S> implements Runnable {
 			if (overlay != null)
 				overlay.stop();
 			logger.debug("Resetting overlay");
-			for (var viewer : qupath.getViewers()) {
+			for (var viewer : qupath.getAllViewers()) {
 				if (viewer.getCustomPixelLayerOverlay() == overlay)
 					viewer.resetCustomPixelLayerOverlay();
 			}
@@ -313,7 +313,7 @@ public final class LoadResourceCommand<S> implements Runnable {
 		
 		stage.focusedProperty().addListener((v, o, n) -> {
 			if (n && overlay != null) {
-				for (var viewer : qupath.getViewers())
+				for (var viewer : qupath.getAllViewers())
 					viewer.setCustomPixelLayerOverlay(overlay);
 			}
 			// Make sure we have all the servers we need - but don't reset existing ones
@@ -327,7 +327,7 @@ public final class LoadResourceCommand<S> implements Runnable {
 	
 	
 	private void updateServers(S resource, Map<ImageData<BufferedImage>, ImageServer<BufferedImage>> cachedServers) {
-		for (var viewer : qupath.getViewers()) {
+		for (var viewer : qupath.getAllViewers()) {
 			var imageData = viewer.getImageData();
 			if (imageData != null) {
 				var server = cachedServers.get(imageData);
@@ -337,7 +337,7 @@ public final class LoadResourceCommand<S> implements Runnable {
 				}
 			}
 		}
-		qupath.repaintAllViewers();
+		qupath.getViewerManager().repaintAllViewers();
 	}
 	
 	

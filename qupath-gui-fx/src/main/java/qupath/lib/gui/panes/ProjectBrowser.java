@@ -261,7 +261,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 				return;
 			
 			// Don't allow us to remove any entries that are currently open (in any viewer)
-			for (var viewer : qupath.getViewers()) {
+			for (var viewer : qupath.getAllViewers()) {
 				var imageData = viewer.getImageData();
 				var entry = imageData == null ? null : getProject().getEntry(imageData);
 				if (entry != null && entries.contains(entry)) {
@@ -997,7 +997,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		// Try to set the name
 		boolean changed = setProjectEntryImageName(entry, name);
 		if (changed) {
-			for (var viewer : qupath.getViewers()) {
+			for (var viewer : qupath.getAllViewers()) {
 				var imageData = viewer.getImageData();
 				if (imageData == null)
 					continue;

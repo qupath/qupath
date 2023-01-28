@@ -1587,7 +1587,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		
 		if (doSave) {
 			Boolean reload = null;
-			for (var viewer: qupath.getViewers()) {
+			for (var viewer: qupath.getAllViewers()) {
 				var imageData = viewer.getImageData();
 				var entry = imageData == null ? null : project.getEntry(imageData);
 				if (entry != null && imagesToProcess.contains(entry)) {

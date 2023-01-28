@@ -1497,7 +1497,7 @@ public class Commands {
 		}
 		// TODO: Support loading from a project as well
 		
-		var viewer = qupath.getViewers().stream().filter(v -> v.getImageData() == imageData).findFirst().orElse(null);
+		var viewer = qupath.getAllViewers().stream().filter(v -> v.getImageData() == imageData).findFirst().orElse(null);
 		if (viewer == null) {
 			Dialogs.showErrorMessage("Reload data", "Specified image data not found open in any viewer!");
 			return;

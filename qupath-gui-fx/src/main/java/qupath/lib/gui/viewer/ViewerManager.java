@@ -46,6 +46,7 @@ import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.geometry.Orientation;
@@ -93,9 +94,9 @@ import qupath.lib.objects.hierarchy.TMAGrid;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
 
-public class MultiviewManager implements QuPathViewerListener {
+public class ViewerManager implements QuPathViewerListener {
 
-	private static final Logger logger = LoggerFactory.getLogger(MultiviewManager.class);
+	private static final Logger logger = LoggerFactory.getLogger(ViewerManager.class);
 
 	private QuPathGUI qupath;
 
@@ -104,7 +105,9 @@ public class MultiviewManager implements QuPathViewerListener {
 	 */
 	private ObjectProperty<ImageData<BufferedImage>> imageDataProperty = new SimpleObjectProperty<>();
 	
-	private List<QuPathViewerPlus> viewers = new ArrayList<>();
+	private ObservableList<QuPathViewer> viewers = FXCollections.observableArrayList();
+	private ObservableList<QuPathViewer> viewersUnmodifiable = FXCollections.unmodifiableObservableList(viewers);
+	
 	private SimpleObjectProperty<QuPathViewer> activeViewerProperty = new SimpleObjectProperty<>();
 
 	private SplitPaneGrid splitPaneGrid;
@@ -124,15 +127,24 @@ public class MultiviewManager implements QuPathViewerListener {
 	private double lastDownsample = Double.NaN;
 	private double lastRotation = Double.NaN;
 
-	public MultiviewManager(final QuPathGUI qupath) {
+	public ViewerManager(final QuPathGUI qupath) {
 		this.qupath = qupath;
 	}
 	
-	
-	public List<QuPathViewer> getViewers() {
-		return Collections.unmodifiableList(viewers);
+	/**
+	 * Get an observable list of viewers.
+	 * Note that the list is unmodifiable; viewers should be added or removed through other 
+	 * methods in thie class.
+	 * @return
+	 */
+	public ObservableList<QuPathViewer> getAllViewers() {
+		return viewersUnmodifiable;
 	}
 
+	/**
+	 * Get the overlay options shared by all viewers created by this manager.
+	 * @return
+	 */
 	public OverlayOptions getOverlayOptions() {
 		return overlayOptions;
 	}
@@ -169,7 +181,7 @@ public class MultiviewManager implements QuPathViewerListener {
 	 */
 	public void matchResolutions() {
 		var viewer = getActiveViewer();
-		var activeViewers = getViewers().stream().filter(v -> v.hasServer()).collect(Collectors.toList());
+		var activeViewers = getAllViewers().stream().filter(v -> v.hasServer()).collect(Collectors.toList());
 		if (activeViewers.size() <= 1 || !viewer.hasServer())
 			return;
 		var cal = viewer.getServer().getPixelCalibration();
@@ -241,7 +253,10 @@ public class MultiviewManager implements QuPathViewerListener {
 		viewer.setActiveTool(null);
 	}
 	
-
+	/**
+	 * Get the value of {@link #activeViewerProperty()}.
+	 * @return
+	 */
 	public QuPathViewer getActiveViewer() {
 		return activeViewerProperty.get();
 	}
@@ -250,10 +265,20 @@ public class MultiviewManager implements QuPathViewerListener {
 		return zoomToFit;
 	}
 
+	/**
+	 * Get a read-only property representing the currently active viewer.
+	 * Only one viewer can be active, and this should not be null (i.e. the list of {@link #getAllViewers()} 
+	 * should never be empty).
+	 * @return
+	 */
 	public ReadOnlyObjectProperty<QuPathViewer> activeViewerProperty() {
 		return activeViewerProperty;
 	}
 
+	/**
+	 * Get the region node that can be added to a scene graph to display the viewers.
+	 * @return
+	 */
 	public Region getRegion() {
 		if (splitPaneGrid == null) {
 			// Create a reasonably-sized viewer
@@ -267,6 +292,15 @@ public class MultiviewManager implements QuPathViewerListener {
 		return splitPaneGrid.getMainSplitPane();
 	}
 	
+	
+	/**
+	 * Request that all viewers are repainted as soon as possible.
+	 */
+	public void repaintAllViewers() {
+		for (QuPathViewer v : getAllViewers()) {
+			v.repaint();
+		}
+	}
 	
 
 	/**
@@ -795,7 +829,7 @@ public class MultiviewManager implements QuPathViewerListener {
 
 		int countOpenViewersForRow(final int row) {
 			int count = 0;
-			for (QuPathViewer viewer : getViewers()) {
+			for (QuPathViewer viewer : getAllViewers()) {
 				if (row == getRow(viewer.getView()) && viewer.hasServer())
 					count++;
 			}
@@ -805,7 +839,7 @@ public class MultiviewManager implements QuPathViewerListener {
 
 		int countOpenViewersForColumn(final int col) {
 			int count = 0;
-			for (QuPathViewer viewer : getViewers()) {
+			for (QuPathViewer viewer : getAllViewers()) {
 				if (col == getColumn(viewer.getView()) && viewer.hasServer())
 					count++;
 			}

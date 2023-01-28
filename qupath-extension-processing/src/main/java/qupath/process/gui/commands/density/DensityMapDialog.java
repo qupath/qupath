@@ -835,22 +835,28 @@ public class DensityMapDialog {
 			overlay = PixelClassificationOverlay.create(options, classifierServerMap, renderer.getValue());
 			updateViewers();
 			overlay.interpolationProperty().bind(interpolation);
-			overlay.interpolationProperty().addListener((v, o, n) -> qupath.repaintAllViewers());
+			overlay.interpolationProperty().addListener((v, o, n) -> repaintAllViewers());
 
 			overlay.rendererProperty().bind(renderer);
-			renderer.addListener((v, o, n) -> qupath.repaintAllViewers());
+			renderer.addListener((v, o, n) -> repaintAllViewers());
 
 			overlay.setLivePrediction(true);
 			builder.addListener((v, o, n) -> updateDensityServers());
 			updateDensityServers();
 		}
+		
+		
+		private void repaintAllViewers() {
+			qupath.getViewerManager().repaintAllViewers();
+		}
+		
 
 		/**
 		 * Ensure the overlay is present on all viewers
 		 */
 		void updateViewers() {
 			logger.trace("Updating density server for all viewers");
-			for (var viewer : qupath.getViewers()) {
+			for (var viewer : qupath.getAllViewers()) {
 				viewer.setCustomPixelLayerOverlay(overlay);
 				if (!currentViewers.contains(viewer)) {
 					viewer.addViewerListener(this);
@@ -868,7 +874,7 @@ public class DensityMapDialog {
 		public void hierarchyChanged(PathObjectHierarchyEvent event) {
 			if (event.isChanging())
 				return;
-			qupath.getViewers().stream().filter(v -> v.getHierarchy() == event.getHierarchy()).forEach(v -> updateDensityServer(v));
+			qupath.getAllViewers().stream().filter(v -> v.getHierarchy() == event.getHierarchy()).forEach(v -> updateDensityServer(v));
 		}
 
 		@Override
@@ -887,7 +893,7 @@ public class DensityMapDialog {
 
 		private void updateDensityServers() {
 			classifierServerMap.clear(); // TODO: Check if this causes any flickering
-			for (var viewer : qupath.getViewers()) {
+			for (var viewer : qupath.getAllViewers()) {
 				updateDensityServer(viewer);
 			}
 		}
@@ -951,7 +957,7 @@ public class DensityMapDialog {
 		public void shutdown() {
 			tasks.values().stream().forEach(t -> t.cancel(true));
 			pool.shutdown();
-			for (var viewer : qupath.getViewers()) {
+			for (var viewer : qupath.getAllViewers()) {
 				imageDataChanged(viewer, viewer.getImageData(), null);
 				viewer.removeViewerListener(this);
 				if (viewer.getCustomPixelLayerOverlay() == overlay)

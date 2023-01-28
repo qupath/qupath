@@ -158,7 +158,7 @@ import qupath.lib.gui.tools.MenuTools;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.tools.IconFactory.PathIcons;
 import qupath.lib.gui.viewer.DragDropImportListener;
-import qupath.lib.gui.viewer.MultiviewManager;
+import qupath.lib.gui.viewer.ViewerManager;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.OverlayOptions.DetectionDisplayMode;
@@ -235,7 +235,7 @@ public class QuPathGUI {
 	 */
 	private DefaultImageRegionStore imageRegionStore = ImageRegionStoreFactory.createImageRegionStore();
 	
-	private MultiviewManager viewerManager = new MultiviewManager(this);
+	private ViewerManager viewerManager = new ViewerManager(this);
 	
 	private PathClassManager pathClassManager = new PathClassManager();
 	
@@ -563,7 +563,7 @@ public class QuPathGUI {
 			// Report that we have cancelled - we'll quit anyway if the user confirms it,
 			// but we need to handle this on the Application thread
 			Platform.runLater(() -> {
-				setQuitRequest();
+				sendQuitRequest();
 				response.cancelQuit();
 			});
 		}
@@ -704,7 +704,7 @@ public class QuPathGUI {
 		}
 
 		Set<QuPathViewer> unsavedViewers = new LinkedHashSet<>();
-		for (QuPathViewer viewer : viewerManager.getViewers()) {
+		for (QuPathViewer viewer : viewerManager.getAllViewers()) {
 			if (viewer.getImageData() != null && viewer.getImageData().isChanged())
 				unsavedViewers.add(viewer);
 		}
@@ -758,7 +758,7 @@ public class QuPathGUI {
 			pool.shutdownNow();
 
 		// Shut down all our image servers
-		for (QuPathViewer v : getViewers()) {
+		for (QuPathViewer v : getAllViewers()) {
 			try {
 				if (v.getImageData() != null)
 					v.getImageData().getServer().close();
@@ -1323,13 +1323,12 @@ public class QuPathGUI {
 	}
 	
 	/**
-	 * Get an unmodifiable list of all viewers.
+	 * Get an unmodifiable observable list of all viewers.
 	 * @return
+	 * @see ViewerManager#getAllViewers()
 	 */
-	public List<QuPathViewer> getViewers() {
-		if (viewerManager == null)
-			return Collections.emptyList();
-		return viewerManager.getViewers();
+	public ObservableList<QuPathViewer> getAllViewers() {
+		return viewerManager.getAllViewers();
 	}
 	
 	/**
@@ -1389,7 +1388,7 @@ public class QuPathGUI {
 		}
 		
 		// Check to see if the ImageData is already open in another viewer - if so, just activate it
-		for (QuPathViewer v : viewerManager.getViewers()) {
+		for (QuPathViewer v : viewerManager.getAllViewers()) {
 			ImageData<BufferedImage> data = v.getImageData();
 			if (data != null && project.getEntry(data) == entry) {
 				viewerManager.setActiveViewer(v);
@@ -1534,7 +1533,7 @@ public class QuPathGUI {
 	public boolean openImage(QuPathViewer viewer, String pathNew, boolean prompt, boolean includeURLs) throws IOException {
 		
 		if (viewer == null) {
-			if (getViewers().size() == 1)
+			if (getAllViewers().size() == 1)
 				viewer = getViewer();
 			else {
 				Dialogs.showErrorMessage("Open image", "Please specify the viewer where the image should be opened!");
@@ -1703,8 +1702,11 @@ public class QuPathGUI {
 	}
 	
 	
-	
-	MultiviewManager getViewerManager() {
+	/**
+	 * Get the viewer manager, which gives access to all the viewers availble within this QuPath instance.
+	 * @return
+	 */
+	public ViewerManager getViewerManager() {
 		return viewerManager;
 	}
 	
@@ -1878,7 +1880,7 @@ public class QuPathGUI {
 	public boolean openSavedData(QuPathViewer viewer, final File file, final boolean keepExistingServer, boolean promptToSaveChanges) throws IOException {
 		
 		if (viewer == null) {
-			if (getViewers().size() == 1)
+			if (getAllViewers().size() == 1)
 				viewer = getViewer();
 			else {
 				Dialogs.showErrorMessage("Open saved data", "Please specify the viewer where the data should be opened!");
@@ -1887,7 +1889,7 @@ public class QuPathGUI {
 		}
 		
 		// First check to see if the ImageData is already open - if so, just activate the viewer
-		for (QuPathViewer v : viewerManager.getViewers()) {
+		for (QuPathViewer v : viewerManager.getAllViewers()) {
 			ImageData<?> data = v.getImageData();
 			if (data != null && data.getLastSavedPath() != null && new File(data.getLastSavedPath()).equals(file)) {
 				viewerManager.setActiveViewer(v);
@@ -2258,7 +2260,7 @@ public class QuPathGUI {
 	/**
 	 * Request to quit QuPath.
 	 */
-	void setQuitRequest() {
+	void sendQuitRequest() {
 		var stage = getStage();
 		if (stage == null || !stage.isShowing())
 			return;
@@ -2441,7 +2443,7 @@ public class QuPathGUI {
 	}
 	
 	private void setCursorForAllViewers(final Cursor cursor) {
-		for (QuPathViewer viewer : getViewers())
+		for (QuPathViewer viewer : getAllViewers())
 			viewer.getView().setCursor(cursor);
 	}
 
@@ -2481,16 +2483,6 @@ public class QuPathGUI {
 	 */
 	public void setLogControl(final ScriptEditorControl<?> control) {
 		logViewerCommand.setLogControl(control);
-	}
-	
-	
-	/**
-	 * Request that all viewers are repainted as soon as possible.
-	 */
-	public void repaintAllViewers() {
-		for (QuPathViewer v : getViewers()) {
-			v.repaint();
-		}
 	}
 	
 	
@@ -2635,7 +2627,7 @@ public class QuPathGUI {
 		}
 		
 		// Check if we want to save the current image; we could still veto the project change at this point
-		for (var viewer : getViewers()) {
+		for (var viewer : getAllViewers()) {
 			if (viewer == null || !viewer.hasServer())
 				continue;
 			var imageData = viewer.getImageData();

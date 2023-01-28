@@ -241,7 +241,7 @@ public class RenderedImageServer extends AbstractTileableImageServer implements 
 				QuPathViewer viewer = null;
 				QuPathGUI qupath = QuPathGUI.getInstance();
 				if (qupath != null) {
-					viewer = qupath.getViewers().stream().filter(v -> v.getImageData() == imageData).findFirst().orElse(null);					
+					viewer = qupath.getAllViewers().stream().filter(v -> v.getImageData() == imageData).findFirst().orElse(null);					
 				}
 				DefaultImageRegionStore store = null;
 				ImageRenderer renderer = null;

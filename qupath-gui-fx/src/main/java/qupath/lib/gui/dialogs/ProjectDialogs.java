@@ -187,7 +187,7 @@ public class ProjectDialogs {
 	 * @return a collection of currently-open project entries
 	 */
 	public static Collection<ProjectImageEntry<BufferedImage>> getCurrentImages(QuPathGUI qupath) {
-		return qupath.getViewers().stream()
+		return qupath.getAllViewers().stream()
 		.map(v -> {
 			var imageData = v.getImageData();
 			return imageData == null ? null : qupath.getProject().getEntry(imageData);

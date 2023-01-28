@@ -568,7 +568,7 @@ class PathClassPane {
 			if (project != null) {
 				project.setPathClasses(listClasses.getItems());
 			}
-			qupath.repaintAllViewers();
+			qupath.getViewerManager().repaintAllViewers();
 			// TODO: Considering the only thing that can change is the color, firing an event should be unnecessary?
 			// In any case, it doesn't make sense to do the current image only... should do all or none
 			var hierarchy = getHierarchy();

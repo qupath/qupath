@@ -421,7 +421,7 @@ public class ObjectClassifierCommand implements Runnable {
 
 			// Read annotations from all compatible images (which here means same channel names)
 			List<ImageData<BufferedImage>> list = new ArrayList<>();
-			for (var viewer : qupath.getViewers()) {
+			for (var viewer : qupath.getAllViewers()) {
 				var tempData = viewer.getImageData();
 				if (tempData != null)
 					list.add(tempData);
@@ -563,7 +563,7 @@ public class ObjectClassifierCommand implements Runnable {
 				}
 
 				if (doClassification) {
-					for (var viewer : qupath.getViewers()) {
+					for (var viewer : qupath.getAllViewers()) {
 						var imageData = viewer.getImageData();
 						if (imageData != null) {
 							var pathObjects = classifier.getCompatibleObjects(imageData);
@@ -1099,7 +1099,7 @@ public class ObjectClassifierCommand implements Runnable {
 					Dialogs.showInfoNotification("Object classifiers", "Saved classifier as \"" + classifierName + "\"");
 					// We want to now apply classifier to all images & log to workflow
 					// (might be redundant, but we do want to make sure that we are logging the classifier we applied)
-					for (var viewer : qupath.getViewers()) {
+					for (var viewer : qupath.getAllViewers()) {
 						var imageData = viewer.getImageData();
 						if (imageData != null) {
 							classifier.classifyObjects(imageData, true);
@@ -1426,7 +1426,7 @@ public class ObjectClassifierCommand implements Runnable {
 
 		void updateLocationText(MouseEvent e) {
 			String text = "";
-			for (var viewer : qupath.getViewers()) {
+			for (var viewer : qupath.getAllViewers()) {
 				var hierarchy = viewer.getHierarchy();
 				if (hierarchy == null)
 					continue;
