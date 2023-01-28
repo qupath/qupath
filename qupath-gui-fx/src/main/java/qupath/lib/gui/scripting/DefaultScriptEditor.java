@@ -1470,7 +1470,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 					runningTask.setValue(null);
 				}
 			} else {
-				runningTask.setValue(qupath.createSingleThreadExecutor(this).submit(new Runnable() {
+				runningTask.setValue(qupath.getThreadPoolManager().getSingleThreadExecutor(this).submit(new Runnable() {
 					@Override
 					public void run() {
 						try {
@@ -1582,7 +1582,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		}
 		
 		// Create & run task
-		runningTask.set(qupath.createSingleThreadExecutor(this).submit(worker));
+		runningTask.set(qupath.getThreadPoolManager().getSingleThreadExecutor(this).submit(worker));
 		progress.showAndWait();
 		
 		if (doSave) {

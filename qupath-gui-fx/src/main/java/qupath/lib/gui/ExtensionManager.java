@@ -84,6 +84,10 @@ public class ExtensionManager {
 		return loadedExtensions.values();
 	}
 	
+	/**
+	 * Property indicating whether extensions are in the process of being refreshed.
+	 * @return
+	 */
 	public ReadOnlyBooleanProperty refreshingExtensions() {
 		return BooleanProperty.readOnlyBooleanProperty(refreshingExtensions);
 	}
@@ -181,11 +185,12 @@ public class ExtensionManager {
 	
 	
 	/**
-	 * Install extensions while QuPath is running.
+	 * Copy a collection of files to QuPath's extensions directory, notifying the user about
+	 * what is done and prompting to create a user directory if needed.
 	 * 
-	 * @param files A collection of jar files for installation.
+	 * @param files a collection of jar files for installation
 	 */
-	public void installExtensions(final Collection<File> files) {
+	public void promptToCopyFilesToExtensionsDirectory(final Collection<File> files) {
 		if (files.isEmpty()) {
 			logger.debug("No extensions to install!");
 			return;

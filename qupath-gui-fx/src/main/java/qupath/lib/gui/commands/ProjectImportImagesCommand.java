@@ -489,7 +489,7 @@ class ProjectImportImagesCommand {
 		};
 		ProgressDialog progress = new ProgressDialog(worker);
 		progress.setTitle("Project import");
-		qupath.submitShortTask(worker);
+		qupath.getThreadPoolManager().submitShortTask(worker);
 		progress.showAndWait();
 		try {
 			project.syncChanges();

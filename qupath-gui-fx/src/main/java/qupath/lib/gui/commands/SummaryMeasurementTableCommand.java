@@ -202,7 +202,7 @@ public class SummaryMeasurementTableCommand {
 		var viewer = qupath.getAllViewers().stream().filter(v -> v.getImageData() == imageData).findFirst().orElse(null);
 		colThumbnails.setCellFactory(column -> PathObjectImageManagers.createTableCell(
 				viewer, imageData.getServer(), true, padding,
-				qupath.createSingleThreadExecutor(this)));
+				qupath.getThreadPoolManager().getSingleThreadExecutor(this)));
 //			col.widthProperty().addListener((v, o, n) -> table.refresh());
 //		colThumbnails.setMaxWidth(maxWidth + padding*2);
 		table.getColumns().add(colThumbnails);

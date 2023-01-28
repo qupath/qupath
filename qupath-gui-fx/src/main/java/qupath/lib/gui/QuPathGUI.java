@@ -50,9 +50,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.ExecutorCompletionService;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 
 import javax.imageio.ImageIO;
@@ -120,7 +117,6 @@ import javafx.stage.Screen;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.common.ThreadTools;
 import qupath.lib.common.Timeit;
 import qupath.lib.common.Version;
 import qupath.lib.gui.ActionTools.ActionAccelerator;
@@ -206,11 +202,9 @@ public class QuPathGUI {
 		
 	private ToolManager toolManager = new ToolManager();
 
-	private BooleanProperty readOnly = new SimpleBooleanProperty(false);
+	private BooleanProperty readOnlyProperty = new SimpleBooleanProperty(false);
 	
-	// ExecutorServices for single & multiple threads
-	private Map<Object, ExecutorService> mapSingleThreadPools = new HashMap<>();
-	private ExecutorService poolMultipleThreads = Executors.newFixedThreadPool(Math.max(2, Runtime.getRuntime().availableProcessors()), ThreadTools.createThreadFactory("qupath-shared-", false));	
+	private SharedThreadPoolManager threadPoolManager = new SharedThreadPoolManager();
 	
 	/**
 	 * Preferred size for toolbar icons.
@@ -290,10 +284,11 @@ public class QuPathGUI {
 	 * 
 	 * @param stage a stage to use for the main QuPath window
 	 */
-	private QuPathGUI(final Stage stage) {
+	private QuPathGUI(final Stage stage, final HostServices hostServices) {
 		super();
 		
 		this.stage = stage;
+		this.hostServices = hostServices;
 		
 		var timeit = new Timeit().start("Starting");
 		logViewerCommand = new LogViewerCommand(stage);
@@ -752,10 +747,8 @@ public class QuPathGUI {
 		if (!PathPrefs.savePreferences())
 			logger.error("Error saving preferences");
 
-		// Shut down any pools we know about
-		poolMultipleThreads.shutdownNow();
-		for (ExecutorService pool : mapSingleThreadPools.values())
-			pool.shutdownNow();
+		// Shut down any thread pools we know about
+		threadPoolManager.close();
 
 		// Shut down all our image servers
 		for (QuPathViewer v : getAllViewers()) {
@@ -842,27 +835,50 @@ public class QuPathGUI {
 	/**
 	 * Static method to launch QuPath on the JavaFX Application thread.
 	 * <p>
+	 * This may be be called in an {@link Application#start(Stage)} method.
+	 * If so, then it is preferable to use {@link #createInstance(Stage, HostServices)} to provide 
+	 * host services, which can be used for some tasks (e.g. opening a browser window, or 
+	 * determining the code location for the application).
+	 * However this method can be used if QuPath is being launched some other way.
+	 * <p>
+	 * Afterwards, calls to {@link #getInstance()} will return the QuPath instance.
+	 * 
+	 * @param stage the stage to use for the QuPath UI
+	 * @return
+	 * @throws IllegalStateException if an instance of QuPath is already running (i.e. {@link #getInstance()} is not null)
+	 * @see #createInstance(Stage, HostServices)
+	 * @see #launchInstanceFromSwing()
+	 */
+	public static QuPathGUI createInstance(Stage stage) throws IllegalStateException {
+		return createInstance(stage, null);
+	}
+	
+	
+	/**
+	 * Static method to launch QuPath from a JavaFX application.
+	 * <p>
 	 * This is typically expected to be called in an {@link Application#start(Stage)} method, 
 	 * although could potentially be called later from another JavaFX application.
 	 * <p>
 	 * Afterwards, calls to {@link #getInstance()} will return the QuPath instance.
-	 * <p>
-	 * If there is already an instance of QuPath running, this ensures that it is visible - but otherwise does nothing.
 	 * 
 	 * @param stage the stage to use for the QuPath UI (usually from {@link Application#start(Stage)})
+	 * @param hostServices host services from the JavaFX {@link Application}, if available
 	 * @return
 	 * @throws IllegalStateException if an instance of QuPath is already running (i.e. {@link #getInstance()} is not null)
+	 * @see #createInstance(Stage)
 	 * @see #launchInstanceFromSwing()
 	 */
-	public static QuPathGUI createInstance(Stage stage) throws IllegalStateException {
+	public static QuPathGUI createInstance(Stage stage, HostServices hostServices) throws IllegalStateException {
 		QuPathGUI instance = getInstance();
 		if (instance != null) {
 			throw new IllegalStateException("QuPathGUI already exists, cannot create a new instance!");
 		}
 		if (stage == null)
 			stage = new Stage();
-		return new QuPathGUI(stage);
+		return new QuPathGUI(stage, hostServices);
 	}
+	
 	
 	/**
 	 * Static method to launch QuPath from within a Swing/AWT application.
@@ -953,27 +969,6 @@ public class QuPathGUI {
 		}
 	}
 	
-	/**
-	 * Set the {@link HostServices} for this instance of QuPath.
-	 * These can be provided from a standalone JavaFX {@link Application}.
-	 * Making them available means they can be used e.g. to launch a browser window.
-	 * 
-	 * @param services
-	 * @see #getHostServices()
-	 */
-	void setHostServices(HostServices services) {
-		this.hostServices = services;
-	}
-	
-	/**
-	 * Get the {@link HostServices}, or null if none have been set.
-	 * @return
-	 * @see #setHostServices(HostServices)
-	 */
-	HostServices getHostServices() {
-		return this.hostServices;
-	}
-	
 	
 	/**
 	 * Get the directory containing the QuPath code
@@ -1007,7 +1002,22 @@ public class QuPathGUI {
 		}
 	}
 	
-		
+	
+	/**
+	 * Get a {@link SharedThreadPoolManager} to help with submitting tasks in other threads.
+	 * A benefit of using this is that all the thread pools created will be shutdown when 
+	 * QuPath is exited.
+	 * @return
+	 */
+	public SharedThreadPoolManager getThreadPoolManager() {
+		return threadPoolManager;
+	}
+	
+	
+	/**
+	 * Get an {@link ExtensionManager} to facilitating working with extensions.
+	 * @return
+	 */
 	public ExtensionManager getExtensionManager() {
 		return extensionManager;
 	}
@@ -1197,7 +1207,7 @@ public class QuPathGUI {
 		
 	private void runUpdateCheckInBackground(AutoUpdateType checkType, boolean isAutoCheck) {
 		// Run the check in a background thread
-		createSingleThreadExecutor(this).execute(() -> doUpdateCheck(checkType, isAutoCheck));
+		threadPoolManager.submitShortTask(() -> doUpdateCheck(checkType, isAutoCheck));
 	}
 	
 		
@@ -1958,9 +1968,7 @@ public class QuPathGUI {
 			// generally leading to improved performance in the viewer's setImageData method
 			// (specifically the updating of the ImageDisplay, which needs a thumbnail)
 			final ImageServer<BufferedImage> serverTemp = server;
-			poolMultipleThreads.submit(() -> {
-					imageRegionStore.getThumbnail(serverTemp, 0, 0, true);
-			});
+			threadPoolManager.submitShortTask(() -> imageRegionStore.getThumbnail(serverTemp, 0, 0, true));
 		}
 		
 		
@@ -2173,56 +2181,7 @@ public class QuPathGUI {
 		action.setAccelerator(combo);
 		registerAccelerator(action);
 		return true;
-	}
-	
-	
-	/**
-	 * Create an executor using a single thread.
-	 * <p>
-	 * Optionally specify an owner, in which case the same Executor will be returned for the owner 
-	 * for so long as the Executor has not been shut down; if it has been shut down, a new Executor will be returned.
-	 * <p>
-	 * Specifying an owner is a good idea if there is a chance that any submitted tasks could block,
-	 * since the same Executor will be returned for all requests that give a null owner.
-	 * <p>
-	 * The advantage of using this over creating an ExecutorService some other way is that
-	 * shutdown will be called on any pools created this way whenever QuPath is quit.
-	 * 
-	 * @param owner
-	 * @return 
-	 * 
-	 */
-	public ExecutorService createSingleThreadExecutor(final Object owner) {
-		ExecutorService pool = mapSingleThreadPools.get(owner);
-		if (pool == null || pool.isShutdown()) {
-			pool = Executors.newSingleThreadExecutor(ThreadTools.createThreadFactory(owner.getClass().getSimpleName().toLowerCase() + "-", false));
-			mapSingleThreadPools.put(owner, pool);
-		}
-		return pool;
-	}
-	
-	/**
-	 * Create a completion service that uses a shared threadpool for the application.
-	 * @param <V> 
-	 * 
-	 * @param cls
-	 * @return 
-	 */
-	public <V> ExecutorCompletionService<V> createSharedPoolCompletionService(Class<V> cls) {
-		return new ExecutorCompletionService<V>(poolMultipleThreads);
-	}
-	
-	/**
-	 * Submit a short task to a shared thread pool
-	 * 
-	 * @param runnable
-	 */
-	public void submitShortTask(final Runnable runnable) {
-		poolMultipleThreads.submit(runnable);
-	}
-	
-	
-	
+	}	
 	
 	/**
 	 * Create an action for a plugin to be run through this QuPath instance.
@@ -2407,7 +2366,7 @@ public class QuPathGUI {
 	 * @see #setReadOnly(boolean)
 	 */
 	public boolean isReadOnly() {
-		return readOnly.get();
+		return readOnlyProperty.get();
 	}
 	
 	/**
@@ -2418,7 +2377,7 @@ public class QuPathGUI {
 	 * @see #setReadOnly(boolean)
 	 */
 	public ReadOnlyBooleanProperty readOnlyProperty() {
-		return readOnly;
+		return readOnlyProperty;
 	}
 	
 	/**
@@ -2428,7 +2387,7 @@ public class QuPathGUI {
 	 * @see #isReadOnly()
 	 */
 	public void setReadOnly(boolean readOnly) {
-		this.readOnly.set(readOnly);
+		this.readOnlyProperty.set(readOnly);
 	}
 	
 		

@@ -283,7 +283,7 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 				nCss++;
 		}
 		if (nJars == list.size()) {
-			qupath.getExtensionManager().installExtensions(list);
+			qupath.getExtensionManager().promptToCopyFilesToExtensionsDirectory(list);
 			return;
 		}
 		// Handle installing CSS files (styles)

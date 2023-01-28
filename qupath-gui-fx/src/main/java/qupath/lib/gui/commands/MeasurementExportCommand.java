@@ -348,7 +348,7 @@ public class MeasurementExportCommand implements Runnable {
 		});
 		
 		// Create & run task
-		runningTask.set(qupath.createSingleThreadExecutor(this).submit(worker));
+		runningTask.set(qupath.getThreadPoolManager().getSingleThreadExecutor(this).submit(worker));
 		progress.show();
 	}
 	
