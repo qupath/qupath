@@ -49,7 +49,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
@@ -376,13 +375,6 @@ public class QuPathGUI {
 		
 		// Add listeners to set default project and image data
 		syncDefaultImageDataAndProjectForScripting();
-		
-		// Run startup script, if we can
-		var startupScript = searchForStartupScript();
-		if (startupScript.isPresent()) {
-			timeit.checkpoint("Running startup script");
-			tryToRunStartupScript(startupScript.get());			
-		}
 		
 		tryToInstallAppQuitHandler();
 		
@@ -1868,36 +1860,6 @@ public class QuPathGUI {
 	 */
 	private ImageData<BufferedImage> createNewImageData(final ImageServer<BufferedImage> server, final boolean estimateImageType) {
 		return new ImageData<BufferedImage>(server, estimateImageType ? GuiTools.estimateImageType(server, imageRegionStore.getThumbnail(server, 0, 0, true)) : ImageData.ImageType.UNSET);
-	}
-	
-	
-	private Optional<File> searchForStartupScript() {
-		String pathUsers = PathPrefs.getUserPath();
-		File fileScript = pathUsers == null ? null : new File(pathUsers, "startup.groovy");
-		if (fileScript != null && fileScript.exists()) {
-			logger.info("Startup script found at {}", fileScript.getAbsolutePath());
-			return Optional.of(fileScript);
-		} else {
-			logger.debug("No startup script found");
-			return Optional.empty();
-		}
-	}
-	
-	
-	/**
-	 * Check the user directory, and run a Groovy script called "startup.groovy" - if it exists.
-	 */
-	private void tryToRunStartupScript(File fileScript) {
-		if (PathPrefs.runStartupScriptProperty().get()) {
-			logger.info("Running startup script (you can turn this setting off in the preferences panel)");
-			try {
-				runScript(fileScript, null);
-			} catch (Exception e) {
-				logger.error("Error running startup.groovy: " + e.getLocalizedMessage(), e);
-			}
-		} else {
-			logger.warn("You need to enable the startup script in the Preferences if you want to run it");
-		}
 	}
 	
 	

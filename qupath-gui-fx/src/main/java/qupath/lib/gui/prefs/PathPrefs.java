@@ -846,22 +846,6 @@ public class PathPrefs {
 	}
 	
 	
-	private static BooleanProperty runStartupScript = createPersistentPreference("runStartupScript", false);
-	
-	/**
-	 * Specify whether a startup script should be run when launching QuPath, if available.
-	 * <p>
-	 * This is a script called "startup.groovy", located in the user directory. It can be used as a simple way to 
-	 * perform customizations (e.g. install commands or tools).
-	 * The default value for this property is 'false', to ensure the user must specifically request that the script is executed.
-	 * @return
-	 * @see PathPrefs#userPathProperty()
-	 */
-	public static BooleanProperty runStartupScriptProperty() {
-		return runStartupScript;
-	}
-	
-	
 	private static int nRecentProjects = 5;
 	private static ObservableList<URI> recentProjects = FXCollections.observableArrayList();
 	

@@ -169,11 +169,6 @@ public class PreferencePane {
 				category,
 				"Automatically check for updates when QuPath is started, and show a message if a new version is available.");
 
-		addPropertyPreference(PathPrefs.runStartupScriptProperty(), Boolean.class,
-				"Run startup script (if available)",
-				category,
-				"If a script is added to the user directory called 'startup.groovy', try to execute this script whenever QuPath is launched.");
-
 		addPropertyPreference(PathPrefs.useSystemMenubarProperty(), Boolean.class,
 				"Use system menubar",
 				category,
