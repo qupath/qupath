@@ -233,8 +233,10 @@ public class PathHierarchyImageServer extends AbstractTileableImageServer implem
 		g2d.scale(scale, scale);
 		g2d.translate(-request.getX(), -request.getY());
 		// Note we don't want to pass a selection model, as selections shouldn't be included
-		if (pathObjects != null && !pathObjects.isEmpty())
-			PathHierarchyPaintingHelper.paintSpecifiedObjects(g2d, AwtTools.getBounds(request), pathObjects, options, null, downsampleFactor);
+		if (pathObjects != null && !pathObjects.isEmpty()) {
+			g2d.setClip(AwtTools.getBounds(request));
+			PathHierarchyPaintingHelper.paintSpecifiedObjects(g2d, pathObjects, options, null, downsampleFactor);
+		}
 		
 		// See if we have any connections to draw
 		if (connections != null) {

@@ -137,14 +137,6 @@ public class HierarchyOverlay extends AbstractOverlay {
 		var defaultAntiAlias = RenderingHints.VALUE_ANTIALIAS_ON;
 		var defaultStroke = RenderingHints.VALUE_STROKE_PURE;
 		
-		// Doesn't seem to help...?
-//		boolean fastRendering = true;
-//		if (fastRendering) {
-//			defaultAntiAlias = RenderingHints.VALUE_ANTIALIAS_OFF;
-//			defaultStroke = RenderingHints.VALUE_STROKE_DEFAULT;			
-//		}
-
-
 		OverlayOptions overlayOptions = getOverlayOptions();
 		long timestamp = overlayOptions.lastChangeTimestamp().get();
 		int pointRadius = PathPrefs.pointRadiusProperty().get();
@@ -156,15 +148,15 @@ public class HierarchyOverlay extends AbstractOverlay {
 		int t = imageRegion.getT();
 		int z = imageRegion.getZ();
 		
-//		Rectangle serverBounds = AwtTools.getBounds(imageRegion);
-		
 		// Ensure antialias is on...?
 		g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, defaultAntiAlias);
 		
 		// Get the displayed clip bounds for fast checking if ROIs need to be drawn
 		Shape shapeRegion = g2d.getClip();
-		if (shapeRegion == null)
+		if (shapeRegion == null) {
 			shapeRegion = AwtTools.getBounds(imageRegion);
+			g2d.setClip(shapeRegion);
+		}
 		var boundsDisplayed = shapeRegion.getBounds();
 		
 		// Note: the following was commented out for v0.4.0, because objects becoming invisible 
@@ -199,7 +191,7 @@ public class HierarchyOverlay extends AbstractOverlay {
 					pathObjects = hierarchy.getObjectsForRegion(PathDetectionObject.class, region, null);
 				}
 				g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
-				PathHierarchyPaintingHelper.paintSpecifiedObjects(g2d, boundsDisplayed, pathObjects, overlayOptions, hierarchy.getSelectionModel(), downsampleFactor);
+				PathHierarchyPaintingHelper.paintSpecifiedObjects(g2d, pathObjects, overlayOptions, hierarchy.getSelectionModel(), downsampleFactor);
 				
 				if (overlayOptions.getShowConnections()) {
 					Object connections = imageData.getProperty(DefaultPathObjectConnectionGroup.KEY_OBJECT_CONNECTIONS);
@@ -247,7 +239,7 @@ public class HierarchyOverlay extends AbstractOverlay {
 		List<PathObject> pathObjectList = new ArrayList<>(annotations);
 		Collections.sort(pathObjectList, Comparator.comparingInt(PathObject::getLevel).reversed()
 				.thenComparing(Comparator.comparingDouble((PathObject p) -> -p.getROI().getArea())));
-		PathHierarchyPaintingHelper.paintSpecifiedObjects(g2d, boundsDisplayed, pathObjectList, overlayOptions, null, downsampleFactor);	
+		PathHierarchyPaintingHelper.paintSpecifiedObjects(g2d, pathObjectList, overlayOptions, null, downsampleFactor);	
 		
 		// Ensure that selected objects are painted last, to make sure they aren't obscured
 		if (!selectedObjects.isEmpty()) {
@@ -255,10 +247,10 @@ public class HierarchyOverlay extends AbstractOverlay {
 			float opacity = overlayOptions.getOpacity();
 			if (opacity < 1) {
 				g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER));
-				PathHierarchyPaintingHelper.paintSpecifiedObjects(g2d, boundsDisplayed, selectedObjects, overlayOptions, hierarchy.getSelectionModel(), downsampleFactor);
+				PathHierarchyPaintingHelper.paintSpecifiedObjects(g2d, selectedObjects, overlayOptions, hierarchy.getSelectionModel(), downsampleFactor);
 				g2d.setComposite(previousComposite);
 			} else {
-				PathHierarchyPaintingHelper.paintSpecifiedObjects(g2d, boundsDisplayed, selectedObjects, overlayOptions, hierarchy.getSelectionModel(), downsampleFactor);				
+				PathHierarchyPaintingHelper.paintSpecifiedObjects(g2d, selectedObjects, overlayOptions, hierarchy.getSelectionModel(), downsampleFactor);				
 			}
 		}
 		

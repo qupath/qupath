@@ -332,7 +332,7 @@ class RigidObjectEditorCommand implements Runnable, ChangeListener<ImageData<Buf
 			
 			// Ensure objects are all painted
 			for (PathObject pathObject : originalObjectROIs.keySet()) {
-				PathHierarchyPaintingHelper.paintObject(pathObject, false, g2d, null, getOverlayOptions(), viewer.getHierarchy().getSelectionModel(), downsampleFactor);
+				PathHierarchyPaintingHelper.paintObject(pathObject, g2d, getOverlayOptions(), viewer.getHierarchy().getSelectionModel(), downsampleFactor);
 			}
 			
 //			// Replicate painting of the object so it doesn't disappear immediately when unselected

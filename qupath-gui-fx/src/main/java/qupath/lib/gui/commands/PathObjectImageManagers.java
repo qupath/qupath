@@ -418,7 +418,7 @@ class PathObjectImageManagers {
 
 					store.paintRegionCompletely(server, g2d, g2d.getClipBounds(), roi.getZ(), roi.getT(), downsample, null, renderer, 500L);
 					if (paintObject && options != null) {
-						PathHierarchyPaintingHelper.paintObject(pathObject, false, g2d, null, options, null, downsample);
+						PathHierarchyPaintingHelper.paintObject(pathObject, g2d, options, null, downsample);
 					}
 					g2d.dispose();
 				} else {

@@ -490,8 +490,9 @@ public class SvgTools {
 			}
 
 			// Paint the objects
+			g2d.setClip(boundsDisplayed);
 			PathHierarchyPaintingHelper.paintSpecifiedObjects(
-					g2d, boundsDisplayed, pathObjects, options, selectionModel, downsample);
+					g2d, pathObjects, options, selectionModel, downsample);
 			
 			return g2d;
 		}

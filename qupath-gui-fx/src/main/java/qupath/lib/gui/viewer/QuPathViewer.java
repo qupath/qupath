@@ -1949,13 +1949,8 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 				logger.trace("Painting overlay: {}", overlay);
 				if (overlay instanceof AbstractOverlay)
 					((AbstractOverlay)overlay).setPreferredOverlayColor(color);
-//				overlay.paintOverlay(g2d, regionBounds, downsample, null, paintCompletely);
 				overlay.paintOverlay(g2d, getServerBounds(), downsample, imageData, paintCompletely);
 			}
-//			if (hierarchyOverlay != null) {
-//				hierarchyOverlay.setPreferredOverlayColor(color);
-//				hierarchyOverlay.paintOverlay(g2d, getServerBounds(), downsampleFactor, null, paintCompletely);
-//			}
 		}
 		
 		// Paint the selected object
@@ -1974,9 +1969,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 						g2d.setComposite(previousComposite);
 					g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 				}
-				
-				Rectangle boundsDisplayed = shapeRegion.getBounds();
-				
+								
 				ROI pathROI = selectedObject.getROI();
 //				if ((PathPrefs.getPaintSelectedBounds() || (selectedObject.isDetection() && !PathPrefs.getUseSelectedColor())) && !(pathROI instanceof RectangleROI)) {
 				if (pathROI != null && (paintSelectedBounds || (!useSelectedColor)) && !(pathROI instanceof RectangleROI) && !pathROI.isEmpty()) {
@@ -2006,8 +1999,10 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 				// Avoid double-painting of annotations (which looks odd if they are filled in)
 				// However do always paint detections, since they are otherwise painted (unselected) 
 				// in a cached way
-				if ((selectedObject.isDetection() && PathPrefs.useSelectedColorProperty().get()) || !PathObjectTools.hierarchyContainsObject(hierarchy, selectedObject))
-					PathHierarchyPaintingHelper.paintObject(selectedObject, false, g2d, boundsDisplayed, overlayOptions, getHierarchy().getSelectionModel(), downsample);
+				if ((selectedObject.isDetection() && PathPrefs.useSelectedColorProperty().get()) || !PathObjectTools.hierarchyContainsObject(hierarchy, selectedObject)) {
+					g2d.setClip(shapeRegion);
+					PathHierarchyPaintingHelper.paintObject(selectedObject, g2d, overlayOptions, getHierarchy().getSelectionModel(), downsample);
+				}
 				// Paint ROI handles, if required
 				if (selectedObject == mainSelectedObject && roiEditor.hasROI()) {
 					Stroke strokeThick = PathHierarchyPaintingHelper.getCachedStroke(PathPrefs.annotationStrokeThicknessProperty().get() * downsample);
