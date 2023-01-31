@@ -91,7 +91,6 @@ public class AnnotationPane implements PathObjectSelectionListener, ChangeListen
 	// Need to preserve this to guard against garbage collection
 	@SuppressWarnings("unused")
 	private ObservableValue<ImageData<BufferedImage>> imageDataProperty;
-	// Simply taken from imageDataProperty
 	private ImageData<BufferedImage> imageData;
 	
 	private BooleanProperty disableUpdates = new SimpleBooleanProperty(false);
@@ -145,7 +144,6 @@ public class AnnotationPane implements PathObjectSelectionListener, ChangeListen
 		
 		Pane paneAnnotations = createAnnotationsPane();
 		
-//		GridPane paneColumns = PaneTools.createColumnGrid(panelObjects, panelClasses);
 		SplitPane paneColumns = new SplitPane(
 				paneAnnotations,
 				pathClassPane.getPane()

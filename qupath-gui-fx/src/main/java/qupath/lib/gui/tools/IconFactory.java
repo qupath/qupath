@@ -83,6 +83,10 @@ public class IconFactory {
 									ANNOTATIONS(icoMoon, '\ue901', PathPrefs.colorDefaultObjectsProperty()),
 									ANNOTATIONS_FILL(icoMoon, '\ue900', PathPrefs.colorDefaultObjectsProperty()),
 									
+									ARROW_START_TOOL(fontAwesome, FontAwesome.Glyph.ARROW_LEFT.getChar(), PathPrefs.colorDefaultObjectsProperty()),
+									ARROW_END_TOOL(fontAwesome, FontAwesome.Glyph.ARROW_RIGHT.getChar(), PathPrefs.colorDefaultObjectsProperty()),
+									ARROW_DOUBLE_TOOL(icoMoon, FontAwesome.Glyph.ARROWS.getChar(), PathPrefs.colorDefaultObjectsProperty()),
+
 									BRUSH_TOOL(icoMoon, '\ue902', PathPrefs.colorDefaultObjectsProperty()),
 									
 									CELL_NUCLEI_BOTH(icoMoon, '\ue903'),
@@ -228,7 +232,7 @@ public class IconFactory {
 		return createROIIcon(roi, width, height, color);
 	}
 	
-	private static Map<ROI, Path> pathCache = new WeakHashMap<>();
+	private static Map<ROI, Path> pathCache = new WeakHashMap<>();	
 	
 	/**
 	 * Create an icon depicting a ROI.
@@ -239,7 +243,7 @@ public class IconFactory {
 	 * @return a node that may be used as an icon resembling the shape of the ROI
 	 */
 	public static Node createROIIcon(ROI roi, int width, int height, Color color) {
-				
+		
 		double scale = Math.min(width/roi.getBoundsWidth(), height/roi.getBoundsHeight());
 		if (roi instanceof RectangleROI) {
 			Rectangle rect = new Rectangle(0, 0, roi.getBoundsWidth()*scale, roi.getBoundsHeight()*scale);
@@ -349,14 +353,7 @@ public class IconFactory {
 	 */
 	public static Node createNode(int width, int height, PathIcons type) {
 		try {
-			Glyph g = type.createGlyph(Math.min(width, height));
-//			g.useGradientEffect();
-//			g.useHoverEffect();
-//			g.setOpacity(0.5);
-//			g.setStyle("-fx-text-fill: ladder(-fx-background-color, white 49%, black 50%);");
-//			g.setStyle("-fx-background-color:red;");
-			return g;
-//			return icoMoon.create(type.getCode()).size(width+2).color(javafx.scene.paint.Color.GRAY);
+			return type.createGlyph(Math.min(width, height));
 		}
 		catch (Exception e) {
 			logger.error("Unable to load icon {}", type, e);

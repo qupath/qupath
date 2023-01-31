@@ -21,18 +21,36 @@
 
 package qupath.lib.gui.viewer.tools;
 
+import java.util.Arrays;
+import java.util.List;
+import java.util.function.Supplier;
+
+import org.controlsfx.tools.Duplicatable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javafx.beans.binding.Bindings;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
 import javafx.event.Event;
 import javafx.event.EventHandler;
 import javafx.event.EventType;
 import javafx.scene.Node;
+import javafx.scene.control.Label;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.shape.ClosePath;
+import javafx.scene.shape.LineTo;
+import javafx.scene.shape.MoveTo;
+import javafx.scene.shape.Path;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.tools.IconFactory;
 import qupath.lib.gui.tools.IconFactory.PathIcons;
 import qupath.lib.gui.viewer.QuPathViewer;
+import qupath.lib.gui.viewer.tools.handlers.PathToolEventHandlers;
 
 /**
  * Default {@link PathTool} implementations.
@@ -44,35 +62,86 @@ public class PathTools {
 	/**
 	 * Move tool
 	 */
-	public static final PathTool MOVE      = createTool(new MoveTool(), "Move", createIcon(PathIcons.MOVE_TOOL));
+	public static final PathTool MOVE = createTool(
+			PathToolEventHandlers.createMoveEventHandler(),
+			"Move", createIcon(PathIcons.MOVE_TOOL));
 	/**
 	 * Rectangle drawing tool
 	 */
-	public static final PathTool RECTANGLE = createTool(new RectangleTool(), "Rectangle", createIcon(PathIcons.RECTANGLE_TOOL));
+	public static final PathTool RECTANGLE = createTool(
+			PathToolEventHandlers.createRectangleEventHandler(),
+			"Rectangle", createIcon(PathIcons.RECTANGLE_TOOL));
 	/**
 	 * Ellipse drawing tool
 	 */
-	public static final PathTool ELLIPSE   = createTool(new EllipseTool(), "Ellipse", createIcon(PathIcons.ELLIPSE_TOOL));
+	public static final PathTool ELLIPSE = createTool(
+			PathToolEventHandlers.createEllipseEventHandler(),
+			"Ellipse", createIcon(PathIcons.ELLIPSE_TOOL));
 	/**
 	 * Line drawing tool
 	 */
-	public static final PathTool LINE      = createTool(new LineTool(), "Line", createIcon(PathIcons.LINE_TOOL));
+	public static final PathTool LINE = createTool(
+			PathToolEventHandlers.createLineEventHandler(),
+			"Line", createLineIcon());
+//			"Line", createIcon(PathIcons.LINE_TOOL));
+
+	/**
+	 * Arrow drawing tool, with arrowhead at the start
+	 */
+	public static final PathTool ARROW_START = createTool(
+			PathToolEventHandlers.createArrowStartEventHandler(),
+			"Arrow (start)", createLineOrArrowIcon("<"));
+
+	/**
+	 * Arrow drawing tool, with arrowhead at the end
+	 */
+	public static final PathTool ARROW_END = createTool(
+			PathToolEventHandlers.createArrowEndEventHandler(),
+			"Arrow (end)", createLineOrArrowIcon(">"));
+
+	/**
+	 * Arrow drawing tool, with arrowhead at both ends
+	 */
+	public static final PathTool ARROW_DOUBLE = createTool(
+			PathToolEventHandlers.createDoubleArrowEventHandler(),
+			"Arrow (double)", createLineOrArrowIcon("<>"));
+	
+	/**
+	 * Extended {@link PathTool} that can switch between drawing lines or arrows.
+	 */
+	public static final PathTool LINE_OR_ARROW = createExtendedTool(
+			LINE, ARROW_START, ARROW_END, ARROW_DOUBLE
+			);
+	
 	/**
 	 * Polygon drawing tool (closed)
 	 */
-	public static final PathTool POLYGON   = createTool(new PolygonTool(), "Polygon", createIcon(PathIcons.POLYGON_TOOL));
+	public static final PathTool POLYGON = createTool(
+			PathToolEventHandlers.createPolygonEventHandler(),
+			"Polygon", createIcon(PathIcons.POLYGON_TOOL));
 	/**
 	 * Polyline drawing tool (open)
 	 */
-	public static final PathTool POLYLINE  = createTool(new PolylineTool(), "Polyline", createIcon(PathIcons.POLYLINE_TOOL));
+	public static final PathTool POLYLINE = createTool(
+			PathToolEventHandlers.createPolylineEventHandler(),
+			"Polyline", createIcon(PathIcons.POLYLINE_TOOL));
 	/**
 	 * Brush drawing tool
 	 */
-	public static final PathTool BRUSH     = createTool(new BrushTool(), "Brush", createIcon(PathIcons.BRUSH_TOOL));
+	public static final PathTool BRUSH = createTool(
+			PathToolEventHandlers.createBrushEventHandler(),
+			"Brush", createIcon(PathIcons.BRUSH_TOOL));
 	/**
 	 * Points annotation and counting tool
 	 */
-	public static final PathTool POINTS    = createTool(new PointsTool(), "Points", createIcon(PathIcons.POINTS_TOOL));
+	public static final PathTool POINTS = createTool(
+			PathToolEventHandlers.createPointsEventHandler(),
+			"Points", createIcon(PathIcons.POINTS_TOOL));
+	
+	
+	private static List<PathTool> ALL_TOOLS = Arrays.asList(
+			MOVE, RECTANGLE, ELLIPSE, LINE, POLYGON, POLYLINE, BRUSH, POINTS
+			);
 	
 	private static Node createIcon(PathIcons icon) {
 		return IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, icon);
@@ -89,6 +158,84 @@ public class PathTools {
 	public static PathTool createTool(EventHandler<MouseEvent> handler, String name, Node icon) {
 		return createTool(MouseEvent.ANY, handler, name, icon);
 	}
+	
+	
+	public static PathTool createExtendedTool(PathTool... tools) {
+		if (tools.length == 0)
+			throw new IllegalArgumentException("An extended tool should have at least 1 available mode!");
+		return new ExtendedPathTool(
+				Arrays.asList(tools)
+				);
+	}
+	
+	private static Node createLineIcon() {
+		return createLineOrArrowIcon("");
+	}
+
+	private static Node createLineOrArrowIcon(String cap) {
+		return createLineOrArrowIcon(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, cap);
+	}
+	
+	private static Node createLineOrArrowIcon(int width, int height, String cap) {
+		return new DuplicatableNode(() -> drawLineOrArrowIcon(width, height, cap));
+	}
+	
+	private static Node drawLineOrArrowIcon(int width, int height, String cap) {
+		
+		double pad = 2;
+		
+		Path path = new Path();
+		path.getElements().setAll(
+				new MoveTo(pad, height-pad),
+				new LineTo(width-pad, pad)
+				);
+
+		var color = PathPrefs.colorDefaultObjectsProperty();
+		path.strokeProperty().bind(Bindings.createObjectBinding(() -> {
+			return ColorToolsFX.getCachedColor(color.get());
+		}, color));
+		path.setStrokeWidth(1.0);
+		path.fillProperty().bind(path.strokeProperty());
+		
+		double length = Math.min(width, height)/3.0;
+		if (cap.contains(">")) {
+			path.getElements().addAll(
+					new MoveTo(width-pad, pad),
+					new LineTo(width-pad-length, pad),
+					new LineTo(width-pad, pad+length),
+					new ClosePath()
+					);
+		}
+		if (cap.contains("<")) {
+			path.getElements().addAll(
+					new MoveTo(pad, height-pad),
+					new LineTo(pad, height-pad-length),
+					new LineTo(pad+length, height-pad),
+					new ClosePath()
+					);
+		}
+
+
+		return path;
+	}
+	
+	private static class DuplicatableNode extends Label implements Duplicatable<Node> {
+		
+		private Supplier<Node> supplier;
+		
+		DuplicatableNode(Supplier<Node> supplier) {
+			this.supplier = supplier;
+			setGraphic(supplier.get());
+		}
+		
+		@Override
+		public Node duplicate() {
+			return supplier.get();
+		}
+		
+	}
+
+	
 	
 	/**
 	 * Create a tool from the specified event handler.
@@ -108,14 +255,10 @@ public class PathTools {
 	 * @return pathTool
 	 */
 	public static PathTool getTool(String pathToolString) {
-		if (MOVE.getName().toLowerCase().equals(pathToolString)) return MOVE;
-		if (RECTANGLE.getName().toLowerCase().equals(pathToolString)) return RECTANGLE;
-		if (ELLIPSE.getName().toLowerCase().equals(pathToolString)) return ELLIPSE;
-		if (LINE.getName().toLowerCase().equals(pathToolString)) return LINE;
-		if (POLYGON.getName().toLowerCase().equals(pathToolString)) return POLYGON;
-		if (POLYLINE.getName().toLowerCase().equals(pathToolString)) return POLYLINE;
-		if (BRUSH.getName().toLowerCase().equals(pathToolString)) return BRUSH;
-		if (POINTS.getName().toLowerCase().equals(pathToolString)) return POINTS;
+		for (var t : ALL_TOOLS) {
+			if (t.getName().toLowerCase().equals(pathToolString))
+				return t;
+		}
 		return null;
 	}
 	
@@ -125,14 +268,14 @@ public class PathTools {
 		private static final Logger logger = LoggerFactory.getLogger(DefaultPathTool.class);
 		
 		private QuPathViewer viewer;
-		private String name;
-		private Node icon;
+		private StringProperty name;
+		private ObjectProperty<Node> icon;
 		private EventType<T> type;
 		private EventHandler<T> handler;
 		
 		DefaultPathTool(EventType<T> type, EventHandler<T> handler, String name, Node icon) {
-			this.name = name;
-			this.icon = icon;
+			this.name = new SimpleStringProperty(name);
+			this.icon = new SimpleObjectProperty<>(icon);
 			this.type = type;
 			this.handler = handler;
 		}
@@ -163,12 +306,12 @@ public class PathTools {
 		}
 
 		@Override
-		public String getName() {
+		public StringProperty nameProperty() {
 			return name;
 		}
 
 		@Override
-		public Node getIcon() {
+		public ObjectProperty<Node> iconProperty() {
 			return icon;
 		}
 		

@@ -21,24 +21,46 @@
  * #L%
  */
 
-package qupath.lib.gui.viewer.tools;
+package qupath.lib.gui.viewer.tools.handlers;
 
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
 import javafx.scene.input.MouseEvent;
+import qupath.lib.objects.PathObject;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
- * PathTool for drawing ellipses.
+ * PathTool for drawing lines.
  * 
  * @author Pete Bankhead
  *
  */
-public class EllipseTool extends AbstractPathDraggingROITool {
-
+class LineToolEventHandler extends AbstractPathDraggingROIToolEventHandler {
+	
+	private StringProperty arrowhead = new SimpleStringProperty();
+		
+	/**
+	 * Returns false (no pixel snapping for the line tool).
+	 */
+	@Override
+	protected boolean requestPixelSnapping() {
+		return false;
+	}
+	
 	@Override
 	protected ROI createNewROI(MouseEvent e, double x, double y, ImagePlane plane) {
-		return ROIs.createEllipseROI(x, y, 0, 0, plane);
+		return ROIs.createLineROI(x, y, x, y, plane);
 	}
-
+	
+	@Override
+	protected PathObject createNewAnnotation(MouseEvent e, double x, double y) {
+		var annotation = super.createNewAnnotation(e, x, y);
+		var arrow = arrowhead.get();
+		if (arrow != null)
+			annotation.getMetadata().put("arrowhead", arrow);
+		return annotation;
+	}
+	
 }

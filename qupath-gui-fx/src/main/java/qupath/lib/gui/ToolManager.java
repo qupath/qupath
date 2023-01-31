@@ -56,7 +56,8 @@ public class ToolManager {
 	private ObjectProperty<PathTool> selectedToolProperty = new SimpleObjectProperty<>(PathTools.MOVE);
 	
 	private ObservableList<PathTool> tools = FXCollections.observableArrayList(
-			PathTools.MOVE, PathTools.RECTANGLE, PathTools.ELLIPSE, PathTools.LINE, PathTools.POLYGON, PathTools.POLYLINE, PathTools.BRUSH, PathTools.POINTS
+			PathTools.MOVE, PathTools.RECTANGLE, PathTools.ELLIPSE, PathTools.LINE_OR_ARROW,
+			PathTools.POLYGON, PathTools.POLYLINE, PathTools.BRUSH, PathTools.POINTS
 			);
 	
 	private BooleanProperty lockSelectedToolProperty = new SimpleBooleanProperty(false);
@@ -205,7 +206,7 @@ public class ToolManager {
 	}
 	
 	private Action createToolAction(final PathTool tool) {
-		  var action = ActionTools.createSelectableCommandAction(new SelectableItem<>(selectedToolProperty, tool), tool.getName(), tool.getIcon(), null);
+		  var action = ActionTools.createSelectableCommandAction(new SelectableItem<>(selectedToolProperty, tool), tool.nameProperty(), tool.iconProperty(), null);
 		  action.disabledProperty().bind(Bindings.createBooleanBinding(() -> !tools.contains(tool) || lockSelectedToolProperty.get(), lockSelectedToolProperty, tools));
 		  return action;
 	}

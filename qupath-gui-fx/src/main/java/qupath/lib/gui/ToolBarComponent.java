@@ -39,8 +39,12 @@ import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
+import javafx.scene.control.RadioMenuItem;
 import javafx.scene.control.Separator;
 import javafx.scene.control.Slider;
+import javafx.scene.control.Toggle;
+import javafx.scene.control.ToggleButton;
+import javafx.scene.control.ToggleGroup;
 import javafx.scene.control.ToolBar;
 import javafx.scene.control.Tooltip;
 import javafx.scene.text.TextAlignment;
@@ -55,6 +59,7 @@ import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.QuPathViewerListener;
 import qupath.lib.gui.viewer.QuPathViewerPlus;
+import qupath.lib.gui.viewer.tools.ExtendedPathTool;
 import qupath.lib.gui.viewer.tools.PathTool;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
@@ -182,19 +187,42 @@ class ToolBarComponent {
 
 
 	private void addToolButtons(List<Node> nodes, List<PathTool> tools) {
-
 		int ind = toolIdx;
-
 		for (var tool : tools) {
 			var action = toolManager.getToolAction(tool);
 			var btnTool = toolMap.get(tool);
 			if (btnTool == null) {
 				btnTool = ActionTools.createToggleButton(action, action.getGraphic() != null);
+				if (tool instanceof ExtendedPathTool) {
+					var popup = createContextMenu((ExtendedPathTool)tool, (ToggleButton)btnTool);
+					var node = btnTool;
+					btnTool.setOnContextMenuRequested(e -> {
+						popup.show(node, e.getScreenX(), e.getScreenY());
+					});
+				}
 				toolMap.put(tool, btnTool);
 			}
 			nodes.add(ind++, btnTool);
 		}
-
+	}
+	
+	private ContextMenu createContextMenu(ExtendedPathTool tool, Toggle toolToggle) {
+		var menu = new ContextMenu();
+		var toggle = new ToggleGroup();
+		for (var subtool : tool.getAvailableTools()) {
+			var mi = new RadioMenuItem();
+			mi.textProperty().bind(subtool.nameProperty());
+			mi.graphicProperty().bind(subtool.iconProperty());
+			mi.setToggleGroup(toggle);
+			menu.getItems().add(mi);
+			mi.selectedProperty().addListener((v, o, n) -> {
+				if (n) {
+					tool.selectedTool().set(subtool);
+					toolToggle.setSelected(true);
+				}
+			});
+		}
+		return menu;
 	}
 
 	

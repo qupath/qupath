@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.lib.gui.viewer.tools;
+package qupath.lib.gui.viewer.tools.handlers;
 
 import javafx.scene.input.MouseEvent;
 import qupath.lib.regions.ImagePlane;
@@ -34,11 +34,19 @@ import qupath.lib.roi.interfaces.ROI;
  * @author Pete Bankhead
  *
  */
-public class PolygonTool extends AbstractPolyROITool {
+class PolylineToolEventHandler extends AbstractPolyROIToolEventHandler {
+
+	/**
+	 * Returns false (no pixel snapping for the line tool).
+	 */
+	@Override
+	protected boolean requestPixelSnapping() {
+		return false;
+	}
 	
 	@Override
 	protected ROI createNewROI(MouseEvent e, double x, double y, ImagePlane plane) {
-		return ROIs.createPolygonROI(x, y, plane);
+		return ROIs.createPolylineROI(x, y, plane);
 	}
 	
 }

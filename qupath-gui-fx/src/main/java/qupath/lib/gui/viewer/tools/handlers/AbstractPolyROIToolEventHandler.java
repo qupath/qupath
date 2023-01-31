@@ -19,7 +19,7 @@
  * #L%
  */
 
-package qupath.lib.gui.viewer.tools;
+package qupath.lib.gui.viewer.tools.handlers;
 
 import java.awt.geom.Point2D;
 import java.util.Collections;
@@ -37,9 +37,9 @@ import qupath.lib.roi.PolylineROI;
 import qupath.lib.roi.RoiEditor;
 import qupath.lib.roi.interfaces.ROI;
 
-abstract class AbstractPolyROITool extends AbstractPathROITool {
+abstract class AbstractPolyROIToolEventHandler extends AbstractPathROIToolEventHandler {
 	
-	private static final Logger logger = LoggerFactory.getLogger(AbstractPolyROITool.class);
+	private static final Logger logger = LoggerFactory.getLogger(AbstractPolyROIToolEventHandler.class);
 
 	boolean isFreehandPolyROI = false;
 
@@ -91,7 +91,6 @@ abstract class AbstractPolyROITool extends AbstractPathROITool {
 					((PathROIObject)currentObject).setROI(roiUpdated);
 				}
 				commitObjectToHierarchy(e, currentObject);
-//				completePolygon(e);
 			}
 		}
 	}

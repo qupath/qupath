@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.lib.gui.viewer.tools;
+package qupath.lib.gui.viewer.tools.handlers;
 
 import javafx.scene.input.MouseEvent;
 import qupath.lib.regions.ImagePlane;
@@ -34,7 +34,7 @@ import qupath.lib.roi.interfaces.ROI;
  * @author Pete Bankhead
  *
  */
-public class RectangleTool extends AbstractPathDraggingROITool {
+class RectangleToolEventHandler extends AbstractPathDraggingROIToolEventHandler {
 
 	@Override
 	protected ROI createNewROI(MouseEvent e, double x, double y, ImagePlane plane) {

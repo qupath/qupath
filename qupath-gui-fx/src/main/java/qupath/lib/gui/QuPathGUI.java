@@ -287,6 +287,7 @@ public class QuPathGUI {
 		
 		toolManager.getTools().addListener((Change<? extends PathTool> c) -> registerAcceleratorsForAllTools());
 		registerAcceleratorsForAllTools();
+		setupToolsMenu(getMenu("Tools", true));
 
 		timeit.checkpoint("Creating main component");
 		BorderPane pane = new BorderPane();
@@ -596,7 +597,6 @@ public class QuPathGUI {
 	
 	private void populateMenubar() {
 		installActions(new Menus(this).getActions());
-		setupToolsMenu(getMenu("Tools", true));
 		// Insert a recent projects menu
 		getMenu("File", true).getItems().add(1, createRecentProjectsMenu());
 	}
@@ -642,6 +642,7 @@ public class QuPathGUI {
 	 * @param menu
 	 */
 	private void setupToolsMenu(Menu menu) {
+		refreshToolsMenu(toolManager.getTools(), menu);
 		toolManager.getTools().addListener((Change<? extends PathTool> c) -> refreshToolsMenu(c.getList(), menu));
 	}
 
@@ -2824,7 +2825,7 @@ public class QuPathGUI {
 		 */
 		@ActionAccelerator("l")
 		@ActionDescription("Click and drag to draw a line annotation.")
-		public final Action LINE_TOOL = toolManager.getToolAction(PathTools.LINE);
+		public final Action LINE_TOOL = toolManager.getToolAction(PathTools.LINE_OR_ARROW);
 		/**
 		 * Points/counting tool action
 		 */
@@ -2882,7 +2883,7 @@ public class QuPathGUI {
 		/**
 		 * Show the counting tool dialog. By default, this is connected to setting the points tool to active.
 		 */
-		public final Action COUNTING_PANEL = ActionTools.createAction(new CountingPanelCommand(QuPathGUI.this), "Counting tool", PathTools.POINTS.getIcon(), null);
+		public final Action COUNTING_PANEL = ActionTools.createAction(new CountingPanelCommand(QuPathGUI.this), "Counting tool", PathTools.POINTS.iconProperty().get(), null);
 
 		/**
 		 * Toggle the pixel classification overlay visibility on the viewers.

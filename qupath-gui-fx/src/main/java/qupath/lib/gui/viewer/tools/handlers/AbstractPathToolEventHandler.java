@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.lib.gui.viewer.tools;
+package qupath.lib.gui.viewer.tools.handlers;
 
 import java.awt.geom.Point2D;
 import java.util.ArrayList;
@@ -59,12 +59,10 @@ import qupath.lib.roi.interfaces.ROI;
  * @author Pete Bankhead
  *
  */
-abstract class AbstractPathTool implements EventHandler<MouseEvent> {
+abstract class AbstractPathToolEventHandler implements EventHandler<MouseEvent> {
 	
-	private static final Logger logger = LoggerFactory.getLogger(AbstractPathTool.class);
+	private static final Logger logger = LoggerFactory.getLogger(AbstractPathToolEventHandler.class);
 
-//	private QuPathViewer viewer;
-	
 	/**
 	 * Parent object that may be used to constrain ROIs, if required.
 	 */
@@ -104,7 +102,6 @@ abstract class AbstractPathTool implements EventHandler<MouseEvent> {
 	
 	protected QuPathViewer getViewer() {
 		return QuPathGUI.getInstance().getViewer();
-//		return viewer;
 	}
 	
 	protected Point2D mouseLocationToImage(MouseEvent e, boolean constrainToBounds, boolean snapToPixel) {
@@ -209,9 +206,6 @@ abstract class AbstractPathTool implements EventHandler<MouseEvent> {
 				.findFirst()
 				.orElseGet(() -> null);
 				
-//		if (constrainedAreaParent == null)
-//			return;
-		
 		// Check the parent is a valid potential parent
 		if (constrainedParentObject == null || !(constrainedParentObject.hasROI() && constrainedParentObject.getROI().isArea())) {
 			constrainedParentObject = hierarchy.getRootObject();
@@ -289,15 +283,6 @@ abstract class AbstractPathTool implements EventHandler<MouseEvent> {
 	synchronized Geometry getConstrainedAreaBounds() {
 		return constrainedParentGeometry;
 	}
-	
-//	/**
-//	 * When drawing a constrained ROI, get a Geometry defining the inner area that should be 'subtracted'.
-//	 * @return
-//	 */
-//	synchronized Geometry getConstrainedAreaToSubtract() {
-//		return constrainedAreaToRemove;
-//	}
-	
 	
 	
 	/**

@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.lib.gui.viewer.tools;
+package qupath.lib.gui.viewer.tools.handlers;
 
 import java.awt.geom.Point2D;
 import java.util.ArrayList;
@@ -51,7 +51,7 @@ import qupath.lib.roi.interfaces.ROI;
  * @author Pete Bankhead
  *
  */
-public class PointsTool extends AbstractPathTool {
+class PointsToolEventHandler extends AbstractPathToolEventHandler {
 
 	private PointsROI getCurrentPoints() {
 		var viewer = getViewer();

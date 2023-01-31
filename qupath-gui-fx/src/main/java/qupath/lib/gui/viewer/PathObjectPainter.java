@@ -694,10 +694,6 @@ public class PathObjectPainter {
 		private Map<ROI, Shape> getMap(final ROI shape, final double downsample) {
 			// If we don't have many vertices, just return the main map - no need to simplify
 			int nVertices = shape.getNumPoints();
-			//			if (shape instanceof PolygonROI)
-			//				nVertices = ((PolygonROI)shape).nVertices();
-			//			else if (shape instanceof AreaROI)
-			//				nVertices = ((AreaROI)shape).nVertices();
 			if (nVertices < MIN_SIMPLIFY_VERTICES || !shape.isArea())
 				return map;
 
@@ -800,7 +796,6 @@ public class PathObjectPainter {
 				colorHull = ColorToolsAwt.getColorWithOpacity(colorHull, 0.1);
 				if (colorHull != null)
 					paintShape(RoiTools.getShape(convexHull), g2d, null, null, colorHull);
-				//					getConvexHull().draw(g, null, colorHull);
 			}
 		}
 
@@ -838,7 +833,6 @@ public class PathObjectPainter {
 			composite = AlphaComposite.getInstance(rule, alpha);
 			g = (Graphics2D)g2d.create();
 			g.setComposite(composite);
-			//			ellipse = new Ellipse2D.Double();
 		} else
 			ellipse = new Ellipse2D.Double();
 
@@ -932,7 +926,6 @@ public class PathObjectPainter {
 	 */
 	public static void paintHandles(final List<Point2> handles, final Graphics2D g2d, final double minHandleSize, final double maxHandleSize, final Color colorStroke, final Color colorFill) {		
 		RectangularShape handleShape = new Rectangle2D.Double();
-		//			handleShape = new Ellipse2D.Double();
 
 		int n = handles.size();
 		if (minHandleSize == maxHandleSize) {
@@ -993,10 +986,7 @@ public class PathObjectPainter {
 
 		g2d = (Graphics2D)g2d.create();
 
-		//		Shape clipShape = g2d.getClip();
 		g2d.setStroke(getCachedStroke(thickness));
-		//			g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, alpha * .5f));
-		//		g2d.setColor(ColorToolsAwt.getColorWithOpacity(getPreferredOverlayColor(), 1));
 
 		g2d.setColor(ColorToolsAwt.getColorWithOpacity(color.getRGB(), alpha));
 

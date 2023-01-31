@@ -122,9 +122,9 @@ import qupath.lib.gui.viewer.overlays.HierarchyOverlay;
 import qupath.lib.gui.viewer.overlays.PathOverlay;
 import qupath.lib.gui.viewer.overlays.PixelClassificationOverlay;
 import qupath.lib.gui.viewer.overlays.TMAGridOverlay;
-import qupath.lib.gui.viewer.tools.MoveTool;
 import qupath.lib.gui.viewer.tools.PathTool;
 import qupath.lib.gui.viewer.tools.PathTools;
+import qupath.lib.gui.viewer.tools.handlers.MoveToolEventHandler;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
@@ -3443,7 +3443,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	}
 	
 	
-	private MoveTool.ViewerMover mover = new MoveTool.ViewerMover(this);
+	private MoveToolEventHandler.ViewerMover mover = new MoveToolEventHandler.ViewerMover(this);
 	
 	
 	/**

@@ -38,6 +38,7 @@ import org.slf4j.LoggerFactory;
 
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
+import javafx.beans.binding.BooleanBinding;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleStringProperty;
@@ -59,6 +60,7 @@ import javafx.scene.input.Clipboard;
 import javafx.scene.input.DataFormat;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
+import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
@@ -92,18 +94,16 @@ class PathClassPane {
 	
 	private static final Logger logger = LoggerFactory.getLogger(PathClassPane.class);
 	
+	private static final KeyCombination copyCombo = new KeyCodeCombination(KeyCode.C, KeyCodeCombination.SHORTCUT_DOWN);
+	private static final KeyCombination pasteCombo = new KeyCodeCombination(KeyCode.V, KeyCodeCombination.SHORTCUT_DOWN);
+	
 	private QuPathGUI qupath;
 	
-	private Pane pane;
+	private ObservableList<PathClass> availablePathClasses;
 	
-	/**
-	 * List displaying available PathClasses
-	 */
+	private Pane pane;
 	private ListView<PathClass> listClasses;
 	
-	/**
-	 * Filter visible classes
-	 */
 	private StringProperty filterText = new SimpleStringProperty("");
 	
 	/**
@@ -113,14 +113,15 @@ class PathClassPane {
 	
 	PathClassPane(QuPathGUI qupath) {
 		this.qupath = qupath;
+		this.availablePathClasses = qupath.getAvailablePathClasses();
 		pane = createClassPane();
 	}
 
 	
-	private Predicate<PathClass> createPredicate(String text) {
-		if (text == null || text.isBlank())
+	private Predicate<PathClass> createPathClassListFilter(String filterText) {
+		if (filterText == null || filterText.isBlank())
 			return p -> true;
-		String text2 = text.toLowerCase();
+		String text2 = filterText.toLowerCase();
 		return (PathClass p) -> {
 			return p == null || p == PathClass.NULL_CLASS ||
 					p.toString().toLowerCase().contains(text2);
@@ -130,7 +131,7 @@ class PathClassPane {
 	private Pane createClassPane() {
 		listClasses = new ListView<>();
 		
-		var filteredList = qupath.getAvailablePathClasses().filtered(createPredicate(null));
+		var filteredList = availablePathClasses.filtered(createPathClassListFilter(null));
 		listClasses.setItems(filteredList);
 		listClasses.setTooltip(new Tooltip("Annotation classes available (right-click to add or remove)"));
 		
@@ -142,54 +143,9 @@ class PathClassPane {
 		listClasses.setPrefSize(100, 200);
 		
 		listClasses.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
-		
-		var copyCombo = new KeyCodeCombination(KeyCode.C, KeyCodeCombination.SHORTCUT_DOWN);
-		var pasteCombo = new KeyCodeCombination(KeyCode.V, KeyCodeCombination.SHORTCUT_DOWN);
-		
+				
 		// Intercept space presses because we handle them elsewhere
-		listClasses.addEventFilter(KeyEvent.KEY_PRESSED, e -> {
-			if (e.getCode() == KeyCode.SPACE || e.getCode() == KeyCode.T) {
-				toggleSelectedClassesVisibility();
-				e.consume();
-				return;
-			} else if (e.getCode() == KeyCode.S) {
-				setSelectedClassesVisibility(true);
-				e.consume();
-				return;
-			} else if (e.getCode() == KeyCode.H) {
-				setSelectedClassesVisibility(false);
-				e.consume();
-				return;
-			}
-		});
-		
-		listClasses.addEventFilter(KeyEvent.KEY_PRESSED, e -> {
-			if (e.isConsumed())
-				return;
-			if (e.getCode() == KeyCode.BACK_SPACE) {
-				promptToRemoveSelectedClasses();
-				e.consume();
-				return;
-			} else if (e.getCode() == KeyCode.ENTER) {
-				promptToEditSelectedClass();
-				e.consume();
-				return;
-			} else if (copyCombo.match(e)) {
-				// Copy the list if needed
-				String s = listClasses.getSelectionModel().getSelectedItems()
-						.stream().map(p -> p.toString()).collect(Collectors.joining(System.lineSeparator()));
-				if (!s.isBlank()) {
-					Clipboard.getSystemClipboard().setContent(
-							Map.of(DataFormat.PLAIN_TEXT, s));
-				}
-				e.consume();
-				return;
-			} else if (pasteCombo.match(e)) {
-				logger.debug("Paste not implemented for classification list!");
-				e.consume();
-				return;
-			}
-		});
+		listClasses.addEventFilter(KeyEvent.KEY_PRESSED, this::filterKeyPresses);
 		listClasses.setOnMouseClicked(e -> {
 			if (!e.isPopupTrigger() && e.getClickCount() == 2)
 				promptToEditSelectedClass();
@@ -202,28 +158,7 @@ class PathClassPane {
 		BorderPane paneClasses = new BorderPane();
 		paneClasses.setCenter(listClasses);
 
-		Action setSelectedObjectClassAction = new Action("Set class", e -> {
-			var hierarchy = getHierarchy();
-			if (hierarchy == null)
-				return;
-			PathClass pathClass = getSelectedPathClass();
-			if (pathClass == PathClass.NULL_CLASS)
-				pathClass = null;
-			var pathObjects = new ArrayList<>(hierarchy.getSelectionModel().getSelectedObjects());
-			List<PathObject> changed = new ArrayList<>();
-			for (PathObject pathObject : pathObjects) {
-				if (pathObject.isTMACore())
-					continue;
-				if (pathObject.getPathClass() == pathClass)
-					continue;				
-				pathObject.setPathClass(pathClass);
-				changed.add(pathObject);
-			}
-			if (!changed.isEmpty()) {
-				hierarchy.fireObjectClassificationsChangedEvent(this, changed);
-				GuiTools.refreshList(listClasses);
-			}
-		});
+		Action setSelectedObjectClassAction = new Action("Set class", e -> promptToSetClass());
 		setSelectedObjectClassAction.setLongText("Set the class of the currently-selected annotation(s)");
 
 		Action autoClassifyAnnotationsAction = new Action("Auto set");
@@ -248,7 +183,7 @@ class PathClassPane {
 		tfFilter.setTooltip(new Tooltip("Type to filter classifications in list"));
 		tfFilter.setPromptText("Filter classifications in list");
 		filterText.bind(tfFilter.textProperty());
-		filterText.addListener((v, o, n) -> filteredList.setPredicate(createPredicate(n)));
+		filterText.addListener((v, o, n) -> filteredList.setPredicate(createPathClassListFilter(n)));
 		var paneBottom = PaneTools.createRowGrid(tfFilter, paneClassButtons);
 		
 		PaneTools.setMaxWidth(Double.MAX_VALUE,
@@ -258,29 +193,111 @@ class PathClassPane {
 		return paneClasses;
 	}
 	
-	ContextMenu createClassesMenu() {
-		ContextMenu menu = new ContextMenu();
-		
-		Action actionAddClass = new Action("Add class", e -> promptToAddClass());
-		Action actionRemoveClass = new Action("Remove class", e -> promptToRemoveSelectedClasses());
-		Action actionResetClasses = new Action("Reset to default classes", e -> promptToResetClasses());
-		Action actionImportClasses = new Action("Import classes from project", e -> promptToImportClasses());
+	
+	private void promptToSetClass() {
+		var hierarchy = getHierarchy();
+		if (hierarchy == null)
+			return;
+		PathClass pathClass = getSelectedPathClass();
+		if (pathClass == PathClass.NULL_CLASS)
+			pathClass = null;
+		var pathObjects = new ArrayList<>(hierarchy.getSelectionModel().getSelectedObjects());
+		List<PathObject> changed = new ArrayList<>();
+		for (PathObject pathObject : pathObjects) {
+			if (pathObject.isTMACore())
+				continue;
+			if (pathObject.getPathClass() == pathClass)
+				continue;				
+			pathObject.setPathClass(pathClass);
+			changed.add(pathObject);
+		}
+		if (!changed.isEmpty()) {
+			hierarchy.fireObjectClassificationsChangedEvent(this, changed);
+			GuiTools.refreshList(listClasses);
+		}
+	}
+	
+	
+	private void filterKeyPresses(KeyEvent e) {
+		if (e.isConsumed())
+			return;
+		if (e.getCode() == KeyCode.SPACE || e.getCode() == KeyCode.T) {
+			toggleSelectedClassesVisibility();
+			e.consume();
+			return;
+		} else if (e.getCode() == KeyCode.S) {
+			setSelectedClassesVisibility(true);
+			e.consume();
+			return;
+		} else if (e.getCode() == KeyCode.H) {
+			setSelectedClassesVisibility(false);
+			e.consume();
+			return;
+		} else if (e.getCode() == KeyCode.BACK_SPACE) {
+			promptToRemoveSelectedClasses();
+			e.consume();
+			return;
+		} else if (e.getCode() == KeyCode.ENTER) {
+			promptToEditSelectedClass();
+			e.consume();
+			return;
+		} else if (copyCombo.match(e)) {
+			// Copy the list if needed
+			String s = listClasses.getSelectionModel().getSelectedItems()
+					.stream().map(p -> p.toString()).collect(Collectors.joining(System.lineSeparator()));
+			if (!s.isBlank()) {
+				Clipboard.getSystemClipboard().setContent(
+						Map.of(DataFormat.PLAIN_TEXT, s));
+			}
+			e.consume();
+			return;
+		} else if (pasteCombo.match(e)) {
+			logger.debug("Paste not implemented for classification list!");
+			e.consume();
+			return;
+		}
+	}
+	
+	
+	private Action createAddClassAction() {
+		return new Action("Add class", e -> promptToAddClass());
+	}
 
-		actionRemoveClass.disabledProperty().bind(Bindings.createBooleanBinding(() -> {
+	private Action createRemoveSelectedClassesAction() {
+		return new Action("Remove class", e -> promptToRemoveSelectedClasses());
+	}
+	
+	private Action createResetToDefaultClassesAction() {
+		return new Action("Reset to default classes", e -> promptToResetClasses());
+	}
+	
+	private Action createImportClassesFromProjectAction() {
+		return new Action("Import classes from project", e -> promptToImportClasses());
+	}
+	
+	private BooleanBinding createRemoveClassDisabledBinding() {
+		return Bindings.createBooleanBinding(() -> {
 			PathClass item = listClasses.getSelectionModel().getSelectedItem();
 			return item == null || PathClass.NULL_CLASS == item;
 		},
 		listClasses.getSelectionModel().selectedItemProperty()
-		));
+		);
+	}
+
+	
+	private ContextMenu createClassesMenu() {
+		ContextMenu menu = new ContextMenu();
+		
+		Action actionAddClass = createAddClassAction();
+		Action actionRemoveClass = createRemoveSelectedClassesAction();
+		Action actionResetClasses = createResetToDefaultClassesAction();
+		Action actionImportClasses = createImportClassesFromProjectAction();
+
+		actionRemoveClass.disabledProperty().bind(createRemoveClassDisabledBinding());
 		
 		MenuItem miRemoveClass = ActionUtils.createMenuItem(actionRemoveClass);
 		MenuItem miAddClass = ActionUtils.createMenuItem(actionAddClass);
 		MenuItem miResetAllClasses = ActionUtils.createMenuItem(actionResetClasses);
-//		MenuItem miPopulateFromImage = ActionUtils.createMenuItem(actionPopulateFromImage);
-//		MenuItem miPopulateFromImageBase = ActionUtils.createMenuItem(actionPopulateFromImageBase);
-		
-//		MenuItem miClearAllClasses = new MenuItem("Clear all classes");
-//		miClearAllClasses.setOnAction(e -> promptToClearClasses());
 
 		MenuItem miPopulateFromImage = new MenuItem("All classes (including sub-classes)");
 		miPopulateFromImage.setOnAction(e -> promptToPopulateFromImage(false));
@@ -341,9 +358,7 @@ class PathClassPane {
 				MenuTools.createMenu("Show/Hide...", 
 						miSetVisible,
 						miSetHidden
-//						miToggleClassVisible
 						),
-//				new SeparatorMenuItem(),
 				miSelectObjects);
 		
 		return menu;
@@ -362,9 +377,12 @@ class PathClassPane {
 		listClasses.refresh();
 	}
 	
+	private OverlayOptions getOverlayOptions() {
+		return qupath.getViewer().getOverlayOptions();
+	}
 	
 	private void toggleSelectedClassesVisibility() {
-		OverlayOptions overlayOptions = qupath.getViewer().getOverlayOptions();
+		OverlayOptions overlayOptions = getOverlayOptions();
 		for (var pathClass : getSelectedPathClasses()) {
 			overlayOptions.setPathClassHidden(pathClass, !overlayOptions.isPathClassHidden(pathClass));
 		}
@@ -375,8 +393,6 @@ class PathClassPane {
 	private void setSelectedClassesVisibility(boolean visible) {
 		OverlayOptions overlayOptions = qupath.getViewer().getOverlayOptions();
 		for (var pathClass : getSelectedPathClasses()) {
-//			if (pathClass == null || pathClass == PathClass.NULL_CLASS)
-//				continue;
 			overlayOptions.setPathClassHidden(pathClass, !visible);
 		}
 		listClasses.refresh();
@@ -417,7 +433,7 @@ class PathClassPane {
 			return false;
 		}
 		
-		List<PathClass> currentClasses = new ArrayList<>(qupath.getAvailablePathClasses());
+		List<PathClass> currentClasses = new ArrayList<>(availablePathClasses);
 		currentClasses.remove(null);
 		if (currentClasses.equals(newClasses)) {
 			Dialogs.showInfoNotification("Set available classes", "Class lists are the same - no changes to make!");
@@ -427,14 +443,14 @@ class PathClassPane {
 		newClasses.add(PathClass.StandardPathClasses.IGNORE);
 		
 		var btn = DialogButton.YES;
-		if (qupath.getAvailablePathClasses().size() > 1)
+		if (availablePathClasses.size() > 1)
 			btn = Dialogs.showYesNoCancelDialog("Set available classes", "Keep existing available classes?");
 		if (btn == DialogButton.YES) {
-			newClasses.removeAll(qupath.getAvailablePathClasses());
-			return qupath.getAvailablePathClasses().addAll(newClasses);
+			newClasses.removeAll(availablePathClasses);
+			return availablePathClasses.addAll(newClasses);
 		} else if (btn == DialogButton.NO) {
 			newClasses.add(0, PathClass.NULL_CLASS);
-			return qupath.getAvailablePathClasses().setAll(newClasses);
+			return availablePathClasses.setAll(newClasses);
 		} else
 			return false;
 	}
@@ -467,7 +483,7 @@ class PathClassPane {
 		
 		newClasses.add(PathClass.StandardPathClasses.IGNORE);
 		
-		List<PathClass> currentClasses = new ArrayList<>(qupath.getAvailablePathClasses());
+		List<PathClass> currentClasses = new ArrayList<>(availablePathClasses);
 		currentClasses.remove(null);
 		if (currentClasses.equals(newClasses)) {
 			Dialogs.showInfoNotification("Set available classes", "Class lists are the same - no changes to make!");
@@ -475,14 +491,14 @@ class PathClassPane {
 		}
 		
 		var btn = DialogButton.YES;
-		if (qupath.getAvailablePathClasses().size() > 1)
+		if (availablePathClasses.size() > 1)
 			btn = Dialogs.showYesNoCancelDialog("Set available classes", "Keep existing available classes?");
 		if (btn == DialogButton.YES) {
-			newClasses.removeAll(qupath.getAvailablePathClasses());
-			return qupath.getAvailablePathClasses().addAll(newClasses);
+			newClasses.removeAll(availablePathClasses);
+			return availablePathClasses.addAll(newClasses);
 		} else if (btn == DialogButton.NO) {
 			newClasses.add(0, PathClass.NULL_CLASS);
-			return qupath.getAvailablePathClasses().setAll(newClasses);
+			return availablePathClasses.setAll(newClasses);
 		} else
 			return false;
 	}
@@ -506,12 +522,11 @@ class PathClassPane {
 				Dialogs.showErrorMessage("Import PathClasses", "No classes found in " + file.getName());
 				return false;
 			}
-			ObservableList<PathClass> availableClasses = qupath.getAvailablePathClasses();
-			if (pathClasses.size() == availableClasses.size() && availableClasses.containsAll(pathClasses)) {
+			if (pathClasses.size() == availablePathClasses.size() && availablePathClasses.containsAll(pathClasses)) {
 				Dialogs.showInfoNotification("Import PathClasses", file.getName() + " contains same classifications - no changes to make");
 				return false;
 			}
-			availableClasses.setAll(pathClasses);
+			availablePathClasses.setAll(pathClasses);
 			return true;
 		} catch (Exception ex) {
 			Dialogs.showErrorMessage("Error reading project", ex);
@@ -541,15 +556,14 @@ class PathClassPane {
 		if (input == null || input.trim().isEmpty())
 			return false;
 		PathClass pathClass = PathClass.fromString(input);
-		var list = qupath.getAvailablePathClasses();
-		if (list.contains(pathClass)) {
+		if (availablePathClasses.contains(pathClass)) {
 			Dialogs.showErrorMessage("Add class", "Class '" + input + "' already exists!");
 			return false;
 		} else if (input.toLowerCase().equals("null")) {
 			Dialogs.showErrorMessage("Add class", "Cannot add a 'null' class, try another name!");
 			return false;
 		}
-		list.add(pathClass);
+		availablePathClasses.add(pathClass);
 		listClasses.getSelectionModel().clearAndSelect(listClasses.getItems().size()-1);
 		return true;
 	}
@@ -613,7 +627,7 @@ class PathClassPane {
 		else
 			message = "Remove " + pathClasses.size() + " classes from list?";
 		if (Dialogs.showConfirmDialog("Remove classes", message))
-			return qupath.getAvailablePathClasses().removeAll(pathClasses);
+			return availablePathClasses.removeAll(pathClasses);
 		return false;
 	}
 	
@@ -684,9 +698,6 @@ class PathClassPane {
 				int n = 0; 
 				if (hierarchy != null) {
 					try {
-						// Try to count objects for class
-						// May be possibility of concurrent modification exception?
-						//						n = nLabelledObjectsForClass(hierarchy, value);
 						n = getAnnotationsForClass(hierarchy, value).size();
 					} catch (Exception e) {
 						logger.debug("Exception while counting objects for class", e);
