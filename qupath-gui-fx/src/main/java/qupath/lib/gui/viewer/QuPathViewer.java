@@ -1991,7 +1991,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 //							Math.round(boundsShape.getHeight()/downsampleFactor)*downsampleFactor+2*downsampleFactor);
 					
 //					boundsShape.setFrame(boundsShape.getX()-downsampleFactor, boundsShape.getY()-downsampleFactor, boundsShape.getWidth()+2*downsampleFactor, boundsShape.getHeight()+2*downsampleFactor);
-					PathHierarchyPaintingHelper.paintShape(boundsShape, g2d, getSuggestedOverlayColor(), PathHierarchyPaintingHelper.getCachedStroke(Math.max(downsample, 1)*2), null);
+					PathObjectPainter.paintShape(boundsShape, g2d, getSuggestedOverlayColor(), PathObjectPainter.getCachedStroke(Math.max(downsample, 1)*2), null);
 //					boundsShape.setFrame(boundsShape.getX()+downsampleFactor, boundsShape.getY()-downsampleFactor, boundsShape.getWidth(), boundsShape.getHeight());
 //					PathHierarchyPaintingHelper.paintShape(boundsShape, g2d, new Color(1f, 1f, 1f, 0.75f), PathHierarchyPaintingHelper.getCachedStroke(Math.max(downsampleFactor, 1)*2), null, downsampleFactor);
 				}
@@ -2001,11 +2001,11 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 				// in a cached way
 				if ((selectedObject.isDetection() && PathPrefs.useSelectedColorProperty().get()) || !PathObjectTools.hierarchyContainsObject(hierarchy, selectedObject)) {
 					g2d.setClip(shapeRegion);
-					PathHierarchyPaintingHelper.paintObject(selectedObject, g2d, overlayOptions, getHierarchy().getSelectionModel(), downsample);
+					PathObjectPainter.paintObject(selectedObject, g2d, overlayOptions, getHierarchy().getSelectionModel(), downsample);
 				}
 				// Paint ROI handles, if required
 				if (selectedObject == mainSelectedObject && roiEditor.hasROI()) {
-					Stroke strokeThick = PathHierarchyPaintingHelper.getCachedStroke(PathPrefs.annotationStrokeThicknessProperty().get() * downsample);
+					Stroke strokeThick = PathObjectPainter.getCachedStroke(PathPrefs.annotationStrokeThicknessProperty().get() * downsample);
 					Color color = useSelectedColor ? ColorToolsAwt.getCachedColor(PathPrefs.colorSelectedObjectProperty().get()) : null;
 					if (color == null)
 						color = ColorToolsAwt.getCachedColor(ColorToolsFX.getDisplayedColorARGB(selectedObject));
@@ -2013,7 +2013,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 					// Draw ROI handles using adaptive size
 					double maxHandleSize = getMaxROIHandleSize();
 					double minHandleSize = downsample;
-					PathHierarchyPaintingHelper.paintHandles(roiEditor, g2d, minHandleSize, maxHandleSize, color, ColorToolsAwt.getTranslucentColor(color));
+					PathObjectPainter.paintHandles(roiEditor, g2d, minHandleSize, maxHandleSize, color, ColorToolsAwt.getTranslucentColor(color));
 				}
 			}
 		}

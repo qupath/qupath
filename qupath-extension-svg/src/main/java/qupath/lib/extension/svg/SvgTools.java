@@ -48,7 +48,7 @@ import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.images.stores.DefaultImageRegionStore;
 import qupath.lib.gui.images.stores.ImageRegionStoreFactory;
 import qupath.lib.gui.viewer.OverlayOptions;
-import qupath.lib.gui.viewer.PathHierarchyPaintingHelper;
+import qupath.lib.gui.viewer.PathObjectPainter;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
@@ -491,7 +491,7 @@ public class SvgTools {
 
 			// Paint the objects
 			g2d.setClip(boundsDisplayed);
-			PathHierarchyPaintingHelper.paintSpecifiedObjects(
+			PathObjectPainter.paintSpecifiedObjects(
 					g2d, pathObjects, options, selectionModel, downsample);
 			
 			return g2d;

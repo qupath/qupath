@@ -23,6 +23,8 @@
 
 package qupath.lib.objects;
 
+import java.util.Map;
+
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.measurements.MeasurementList.MeasurementListType;
 import qupath.lib.measurements.MeasurementListFactory;
@@ -90,5 +92,16 @@ public class PathDetectionObject extends PathROIObject {
 	protected MeasurementList createEmptyMeasurementList() {
 		return MeasurementListFactory.createMeasurementList(0, MeasurementListType.FLOAT);
 	}
+	
+	/**
+	 * Get a map of metadata values.
+	 * Note that, for detection objects, this map is unmodifiable to avoid excessive memory use.
+	 * @since v0.5.0
+	 */
+	@Override
+	public Map<String, String> getMetadata() {
+		return getUnmodifiableMetadataMap();
+	}
+
 	
 }

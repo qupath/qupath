@@ -57,7 +57,7 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.OverlayOptions;
-import qupath.lib.gui.viewer.PathHierarchyPaintingHelper;
+import qupath.lib.gui.viewer.PathObjectPainter;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.QuPathViewerListener;
 import qupath.lib.gui.viewer.overlays.AbstractOverlay;
@@ -315,24 +315,24 @@ class RigidObjectEditorCommand implements Runnable, ChangeListener<ImageData<Buf
 			if (transformer == null)
 				return;
 			
-			Stroke stroke = PathHierarchyPaintingHelper.getCachedStroke(PathPrefs.annotationStrokeThicknessProperty().get() * downsampleFactor);
+			Stroke stroke = PathObjectPainter.getCachedStroke(PathPrefs.annotationStrokeThicknessProperty().get() * downsampleFactor);
 			
 			// Paint bounding box to show rotation
 			Color color = ColorToolsAwt.getCachedColor(0, 0, 0, 96);
-			PathHierarchyPaintingHelper.paintShape(GeometryTools.geometryToShape(transformer.getTransformedBounds()), g2d, color, stroke, null);
+			PathObjectPainter.paintShape(GeometryTools.geometryToShape(transformer.getTransformedBounds()), g2d, color, stroke, null);
 			
 			// Paint line to rotation handle
 			Line2D line = transformer.getRotationHandleLine(downsampleFactor);
-			PathHierarchyPaintingHelper.paintShape(line, g2d, color, stroke, null);
+			PathObjectPainter.paintShape(line, g2d, color, stroke, null);
 			
 			// Paint rotation handle
 			Shape ellipse = transformer.getRotationHandle(downsampleFactor);
 			Color color2 = ColorToolsAwt.getCachedColor(255, 255, 255, 96);
-			PathHierarchyPaintingHelper.paintShape(ellipse, g2d, color, stroke, color2);
+			PathObjectPainter.paintShape(ellipse, g2d, color, stroke, color2);
 			
 			// Ensure objects are all painted
 			for (PathObject pathObject : originalObjectROIs.keySet()) {
-				PathHierarchyPaintingHelper.paintObject(pathObject, g2d, getOverlayOptions(), viewer.getHierarchy().getSelectionModel(), downsampleFactor);
+				PathObjectPainter.paintObject(pathObject, g2d, getOverlayOptions(), viewer.getHierarchy().getSelectionModel(), downsampleFactor);
 			}
 			
 //			// Replicate painting of the object so it doesn't disappear immediately when unselected

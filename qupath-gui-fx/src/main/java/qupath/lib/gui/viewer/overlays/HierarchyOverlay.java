@@ -50,7 +50,7 @@ import qupath.lib.gui.images.servers.PathHierarchyImageServer;
 import qupath.lib.gui.images.stores.DefaultImageRegionStore;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.OverlayOptions;
-import qupath.lib.gui.viewer.PathHierarchyPaintingHelper;
+import qupath.lib.gui.viewer.PathObjectPainter;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.DefaultPathObjectComparator;
 import qupath.lib.objects.DefaultPathObjectConnectionGroup;
@@ -191,12 +191,12 @@ public class HierarchyOverlay extends AbstractOverlay {
 					pathObjects = hierarchy.getObjectsForRegion(PathDetectionObject.class, region, null);
 				}
 				g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
-				PathHierarchyPaintingHelper.paintSpecifiedObjects(g2d, pathObjects, overlayOptions, hierarchy.getSelectionModel(), downsampleFactor);
+				PathObjectPainter.paintSpecifiedObjects(g2d, pathObjects, overlayOptions, hierarchy.getSelectionModel(), downsampleFactor);
 				
 				if (overlayOptions.getShowConnections()) {
 					Object connections = imageData.getProperty(DefaultPathObjectConnectionGroup.KEY_OBJECT_CONNECTIONS);
 					if (connections instanceof PathObjectConnections)
-							PathHierarchyPaintingHelper.paintConnections((PathObjectConnections)connections,
+							PathObjectPainter.paintConnections((PathObjectConnections)connections,
 									hierarchy,
 									g2d,
 									imageData.isFluorescence() ? ColorToolsAwt.TRANSLUCENT_WHITE : ColorToolsAwt.TRANSLUCENT_BLACK,
@@ -239,7 +239,7 @@ public class HierarchyOverlay extends AbstractOverlay {
 		List<PathObject> pathObjectList = new ArrayList<>(annotations);
 		Collections.sort(pathObjectList, Comparator.comparingInt(PathObject::getLevel).reversed()
 				.thenComparing(Comparator.comparingDouble((PathObject p) -> -p.getROI().getArea())));
-		PathHierarchyPaintingHelper.paintSpecifiedObjects(g2d, pathObjectList, overlayOptions, null, downsampleFactor);	
+		PathObjectPainter.paintSpecifiedObjects(g2d, pathObjectList, overlayOptions, null, downsampleFactor);	
 		
 		// Ensure that selected objects are painted last, to make sure they aren't obscured
 		if (!selectedObjects.isEmpty()) {
@@ -247,10 +247,10 @@ public class HierarchyOverlay extends AbstractOverlay {
 			float opacity = overlayOptions.getOpacity();
 			if (opacity < 1) {
 				g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER));
-				PathHierarchyPaintingHelper.paintSpecifiedObjects(g2d, selectedObjects, overlayOptions, hierarchy.getSelectionModel(), downsampleFactor);
+				PathObjectPainter.paintSpecifiedObjects(g2d, selectedObjects, overlayOptions, hierarchy.getSelectionModel(), downsampleFactor);
 				g2d.setComposite(previousComposite);
 			} else {
-				PathHierarchyPaintingHelper.paintSpecifiedObjects(g2d, selectedObjects, overlayOptions, hierarchy.getSelectionModel(), downsampleFactor);				
+				PathObjectPainter.paintSpecifiedObjects(g2d, selectedObjects, overlayOptions, hierarchy.getSelectionModel(), downsampleFactor);				
 			}
 		}
 		
