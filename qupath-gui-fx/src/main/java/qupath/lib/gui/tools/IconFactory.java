@@ -28,18 +28,26 @@ import java.awt.geom.Path2D;
 import java.awt.geom.PathIterator;
 import java.util.Map;
 import java.util.WeakHashMap;
+import java.util.function.IntFunction;
+import java.util.function.Supplier;
 
 import org.controlsfx.glyphfont.FontAwesome;
 import org.controlsfx.glyphfont.Glyph;
 import org.controlsfx.glyphfont.GlyphFont;
 import org.controlsfx.glyphfont.GlyphFontRegistry;
+import org.controlsfx.tools.Duplicatable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javafx.beans.binding.Bindings;
+import javafx.beans.property.ObjectProperty;
 import javafx.beans.value.ObservableIntegerValue;
+import javafx.scene.Group;
 import javafx.scene.Node;
+import javafx.scene.control.Label;
 import javafx.scene.paint.Color;
+import javafx.scene.paint.Paint;
+import javafx.scene.shape.Circle;
 import javafx.scene.shape.ClosePath;
 import javafx.scene.shape.Ellipse;
 import javafx.scene.shape.Line;
@@ -47,6 +55,9 @@ import javafx.scene.shape.LineTo;
 import javafx.scene.shape.MoveTo;
 import javafx.scene.shape.Path;
 import javafx.scene.shape.Rectangle;
+import javafx.scene.shape.Shape;
+import javafx.scene.text.Text;
+import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
@@ -57,7 +68,6 @@ import qupath.lib.roi.RectangleROI;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
- * 
  * Factory class for creating icons.
  * 
  * @author Pete Bankhead
@@ -65,141 +75,445 @@ import qupath.lib.roi.interfaces.ROI;
  */
 public class IconFactory {
 	
-	static {
-        // Register a custom default font
-        GlyphFontRegistry.register("icomoon", IconFactory.class.getClassLoader().getResourceAsStream("fonts/icomoon.ttf") , 12);
-    }
-
-	private static GlyphFont icoMoon = GlyphFontRegistry.font("icomoon");
-	private static GlyphFont fontAwesome = GlyphFontRegistry.font("FontAwesome");
-	
 	private static final Logger logger = LoggerFactory.getLogger(IconFactory.class);
+	
+	
+	static class IconSuppliers {
+
+		static {
+	        // Register a custom default font
+	        GlyphFontRegistry.register("icomoon", IconFactory.class.getClassLoader().getResourceAsStream("fonts/icomoon.ttf") , 12);
+	    }
+
+		private static GlyphFont icoMoon = GlyphFontRegistry.font("icomoon");
+		private static GlyphFont fontAwesome = GlyphFontRegistry.font("FontAwesome");
+
+		static class FontIconSupplier implements IntFunction<Node> {
+			
+			private GlyphFont font;
+			
+			private char code;
+			private javafx.scene.paint.Color color;// = javafx.scene.paint.Color.GRAY;
+			private ObservableIntegerValue observableColor;
+			
+			FontIconSupplier(GlyphFont font, char code) {
+				this.font = font;
+				this.code = code;
+			};
+			
+			FontIconSupplier(GlyphFont font, char code, javafx.scene.paint.Color color) {
+				this.font = font;
+				this.code = code;
+				this.color = color;
+			};
+	
+			FontIconSupplier(GlyphFont font, char code, ObservableIntegerValue observableColor) {
+				this.font = font;
+				this.code = code;
+				this.observableColor = observableColor;
+			};
+	
+			private char getCode() {
+				return code;
+			}
+			
+			@Override
+			public Node apply(int size) {
+				var code = getCode();
+				Glyph g = font.create(code).size(size);
+				g.setIcon(code);
+				g.getStyleClass().add("qupath-icon");
+				boolean useFill = false;
+				if (observableColor == null || observableColor.getValue() == null) {
+					if (color != null) {
+						g.color(color);
+						useFill = true;
+					}
+				} else {
+					// Respond to color changes
+					g = GuiTools.ensureDuplicatableGlyph(g, false);
+					g.textFillProperty().bind(Bindings.createObjectBinding(() -> {
+						return ColorToolsFX.getCachedColor(observableColor.get());
+					}, observableColor));
+					useFill = true;
+				}
+				if (!useFill)
+					g.getStyleClass().add("use-text-fill");
+				return GuiTools.ensureDuplicatableGlyph(g, useFill);
+			}
+			
+		}
+		
+		
+		static IntFunction<Node> fontAwesome(FontAwesome.Glyph glyph, ObservableIntegerValue color) {
+			return new FontIconSupplier(fontAwesome, glyph.getChar(), color);
+		}
+
+		static IntFunction<Node> fontAwesome(FontAwesome.Glyph glyph, Color color) {
+			return new FontIconSupplier(fontAwesome, glyph.getChar(), color);
+		}
+		
+		static IntFunction<Node> fontAwesome(FontAwesome.Glyph glyph) {
+			return new FontIconSupplier(fontAwesome, glyph.getChar());
+		}
+		
+		static IntFunction<Node> icoMoon(char c) {
+			return new FontIconSupplier(icoMoon, c);
+		}
+		
+		static IntFunction<Node> icoMoon(char c, ObservableIntegerValue color) {
+			return new FontIconSupplier(icoMoon, c, color);
+		}
+
+		static IntFunction<Node> icoMoon(char c, Color color) {
+			return new FontIconSupplier(icoMoon, c, color);
+		}
+		
+		static IntFunction<Node> lineToolIcon() {
+			return i -> createLineOrArrowIcon(i, "");
+		}
+		
+		static IntFunction<Node> arrowToolIcon(String cap) {
+			return i -> createLineOrArrowIcon(i, cap);
+		}
+		
+		static IntFunction<Node> rectangleToolIcon() {
+			return i -> new DuplicatableNode(() -> drawRectangleIcon(i));
+		}
+
+		static IntFunction<Node> ellipseToolIcon() {
+			return i -> new DuplicatableNode(() -> drawEllipseIcon(i));
+		}
+
+		static IntFunction<Node> polygonToolIcon() {
+			return i -> new DuplicatableNode(() -> drawPolygonIcon(i));
+		}
+
+		static IntFunction<Node> polylineToolIcon() {
+			return i -> new DuplicatableNode(() -> drawPolylineIcon(i));
+		}
+		
+		static IntFunction<Node> pointsToolIcon() {
+			return i -> new DuplicatableNode(() -> drawPointsIcon(i));
+		}
+
+		static IntFunction<Node> brushToolIcon() {
+			return i -> new DuplicatableNode(() -> drawBrushIcon(i));
+		}
+
+		static IntFunction<Node> selectionModeIcon() {
+			return i -> new DuplicatableNode(() -> drawSelectionModeIcon(i));
+		}
+
+		static IntFunction<Node> pixelClassifierOverlayIcon() {
+			return i -> new DuplicatableNode(() -> drawPixelClassificationIcon(i));
+		}
+
+		static IntFunction<Node> showNamesIcon() {
+			return i -> new DuplicatableNode(() -> drawShowNamesIcon(i));
+		}
+
+	}
+	
 	
 	/**
 	 * Default icons for QuPath commands.
 	 */
 	@SuppressWarnings("javadoc")
-	public static enum PathIcons {	ACTIVE_SERVER(icoMoon, '\ue915', ColorToolsFX.getCachedColor(0, 200, 0)),
-									ANNOTATIONS(icoMoon, '\ue901', PathPrefs.colorDefaultObjectsProperty()),
-									ANNOTATIONS_FILL(icoMoon, '\ue900', PathPrefs.colorDefaultObjectsProperty()),
+	public static enum PathIcons {	ACTIVE_SERVER(IconSuppliers.icoMoon('\ue915', ColorToolsFX.getCachedColor(0, 200, 0))),
+									ANNOTATIONS(IconSuppliers.icoMoon('\ue901', PathPrefs.colorDefaultObjectsProperty())),
+									ANNOTATIONS_FILL(IconSuppliers.icoMoon('\ue900', PathPrefs.colorDefaultObjectsProperty())),
 									
-									ARROW_START_TOOL(fontAwesome, FontAwesome.Glyph.ARROW_LEFT.getChar(), PathPrefs.colorDefaultObjectsProperty()),
-									ARROW_END_TOOL(fontAwesome, FontAwesome.Glyph.ARROW_RIGHT.getChar(), PathPrefs.colorDefaultObjectsProperty()),
-									ARROW_DOUBLE_TOOL(icoMoon, FontAwesome.Glyph.ARROWS.getChar(), PathPrefs.colorDefaultObjectsProperty()),
+									ARROW_START_TOOL(IconSuppliers.arrowToolIcon("<")),
+									ARROW_END_TOOL(IconSuppliers.arrowToolIcon(">")),
+									ARROW_DOUBLE_TOOL(IconSuppliers.arrowToolIcon("<>")),
 
-									BRUSH_TOOL(icoMoon, '\ue902', PathPrefs.colorDefaultObjectsProperty()),
+									BRUSH_TOOL(IconSuppliers.brushToolIcon()),
 									
-									CELL_NUCLEI_BOTH(icoMoon, '\ue903'),
-									CELL_ONLY(icoMoon, '\ue904'),
-									CENTROIDS_ONLY(icoMoon, '\ue913'),
+									CELL_NUCLEI_BOTH(IconSuppliers.icoMoon('\ue903')),
+									CELL_ONLY(IconSuppliers.icoMoon('\ue904')),
+									CENTROIDS_ONLY(IconSuppliers.icoMoon('\ue913')),
 									
-									COG(icoMoon, '\ue905'),
-									CONTRAST(icoMoon, '\ue906'),
+									COG(IconSuppliers.icoMoon('\ue905')),
+									CONTRAST(IconSuppliers.icoMoon('\ue906')),
 									
-									DETECTIONS(icoMoon, '\ue908', javafx.scene.paint.Color.rgb(20, 180, 120, 0.9)),
-									DETECTIONS_FILL(icoMoon, '\ue907', javafx.scene.paint.Color.rgb(20, 180, 120, 0.9)),
+									DETECTIONS(IconSuppliers.icoMoon('\ue908', javafx.scene.paint.Color.rgb(20, 180, 120, 0.9))),
+									DETECTIONS_FILL(IconSuppliers.icoMoon('\ue907', javafx.scene.paint.Color.rgb(20, 180, 120, 0.9))),
 
-									ELLIPSE_TOOL(icoMoon, '\ue909', PathPrefs.colorDefaultObjectsProperty()),
-									EXTRACT_REGION(icoMoon, '\ue90a'),
+									ELLIPSE_TOOL(IconSuppliers.ellipseToolIcon()),
+									EXTRACT_REGION(IconSuppliers.icoMoon('\ue90a')),
 
-									SELECTION_MODE(icoMoon, 'S'),
+									SELECTION_MODE(IconSuppliers.selectionModeIcon()),
 									
-									GRID(icoMoon, '\ue90b'),
+									GRID(IconSuppliers.icoMoon('\ue90b')),
 									
-									INACTIVE_SERVER(icoMoon, '\ue915', ColorToolsFX.getCachedColor(200, 0, 0)),
+									INACTIVE_SERVER(IconSuppliers.icoMoon('\ue915', ColorToolsFX.getCachedColor(200, 0, 0))),
 									
-									LINE_TOOL(icoMoon, '\ue90c', PathPrefs.colorDefaultObjectsProperty()),
-									LOCATION(icoMoon, '\ue90d'),
+									LINE_TOOL(IconSuppliers.lineToolIcon()),
+									LOCATION(IconSuppliers.icoMoon('\ue90d')),
 									
-									MEASURE(icoMoon, '\ue90e'),
-									MOVE_TOOL(icoMoon, '\ue90f'),
+									MEASURE(IconSuppliers.icoMoon('\ue90e')),
+									MOVE_TOOL(IconSuppliers.icoMoon('\ue90f')),
 									
-									NUCLEI_ONLY(icoMoon, '\ue910'),
+									NUCLEI_ONLY(IconSuppliers.icoMoon('\ue910')),
 									
-									OVERVIEW(icoMoon, '\ue911'),
+									OVERVIEW(IconSuppliers.icoMoon('\ue911')),
 									
-									PIXEL_CLASSIFICATION(icoMoon, 'C'),
+									PIXEL_CLASSIFICATION(IconSuppliers.pixelClassifierOverlayIcon()),
 									
-									PLAYBACK_PLAY(icoMoon, '\ue912'),
-									POINTS_TOOL(icoMoon, '\ue913', PathPrefs.colorDefaultObjectsProperty()),
-									POLYGON_TOOL(icoMoon, '\ue914', PathPrefs.colorDefaultObjectsProperty()),
+									PLAYBACK_PLAY(IconSuppliers.icoMoon('\ue912')),
+									POINTS_TOOL(IconSuppliers.pointsToolIcon()),
+									POLYGON_TOOL(IconSuppliers.polygonToolIcon()),
 									
-									POLYLINE_TOOL(icoMoon, 'V', PathPrefs.colorDefaultObjectsProperty()),
+									POLYLINE_TOOL(IconSuppliers.polylineToolIcon()),
 									
 									
-									RECTANGLE_TOOL(icoMoon, '\ue916', PathPrefs.colorDefaultObjectsProperty()),
+									RECTANGLE_TOOL(IconSuppliers.rectangleToolIcon()),
 									
-									SHOW_NAMES(icoMoon, 'N', PathPrefs.colorDefaultObjectsProperty()),
-									SHOW_SCALEBAR(icoMoon, '\ue917'),
-									SCREENSHOT(icoMoon, '\ue918'),
+									SHOW_NAMES(IconSuppliers.showNamesIcon()),
+									SHOW_SCALEBAR(IconSuppliers.icoMoon('\ue917')),
+									SCREENSHOT(IconSuppliers.icoMoon('\ue918')),
 									
-									TRACKING_REWIND(fontAwesome, FontAwesome.Glyph.BACKWARD.getChar()),
-									TRACKING_RECORD(icoMoon, '\ue915', ColorToolsFX.getCachedColor(200, 0, 0)),
-									TRACKING_STOP(icoMoon, '\ue919'),
+									TRACKING_REWIND(IconSuppliers.fontAwesome(FontAwesome.Glyph.BACKWARD)),
+									TRACKING_RECORD(IconSuppliers.icoMoon('\ue915', ColorToolsFX.getCachedColor(200, 0, 0))),
+									TRACKING_STOP(IconSuppliers.icoMoon('\ue919')),
 
-									TABLE(icoMoon, '\ue91a'),
-									TMA_GRID(icoMoon, '\ue91b', PathPrefs.colorTMAProperty()),
+									TABLE(IconSuppliers.icoMoon('\ue91a')),
+									TMA_GRID(IconSuppliers.icoMoon('\ue91b', PathPrefs.colorTMAProperty())),
 
-									WAND_TOOL(icoMoon, '\ue91c', PathPrefs.colorDefaultObjectsProperty()),
+									WAND_TOOL(IconSuppliers.icoMoon('\ue91c', PathPrefs.colorDefaultObjectsProperty())),
 									
-									ZOOM_IN(icoMoon, '\ue91d'),
-									ZOOM_OUT(icoMoon, '\ue91e'),
-									ZOOM_TO_FIT(icoMoon, '\ue91f')
+									ZOOM_IN(IconSuppliers.icoMoon('\ue91d')),
+									ZOOM_OUT(IconSuppliers.icoMoon('\ue91e')),
+									ZOOM_TO_FIT(IconSuppliers.icoMoon('\ue91f'))
 									;
 		
-		private GlyphFont font;
-		
-		private char code;
-		private javafx.scene.paint.Color color;// = javafx.scene.paint.Color.GRAY;
-		private ObservableIntegerValue observableColor;
-		
-		PathIcons(GlyphFont font, char code) {
-			this.font = font;
-			this.code = code;
-		};
-		
-		PathIcons(GlyphFont font, char code, javafx.scene.paint.Color color) {
-			this.font = font;
-			this.code = code;
-			this.color = color;
+		private IntFunction<Node> fun;
+									
+		PathIcons(IntFunction<Node> fun) {
+			this.fun = fun;
 		};
 
-		PathIcons(GlyphFont font, char code, ObservableIntegerValue observableColor) {
-			this.font = font;
-			this.code = code;
-			this.observableColor = observableColor;
-		};
-
-		private char getCode() {
-			return code;
-		}
-		
-		private Glyph createGlyph(int size) {
-			var code = getCode();
-			Glyph g = font.create(code).size(size);
-			g.setIcon(code);
-			g.getStyleClass().add("qupath-icon");
-			boolean useFill = false;
-			if (observableColor == null || observableColor.getValue() == null) {
-				if (color != null) {
-					g.color(color);
-					useFill = true;
-				}
-			} else {
-				// Respond to color changes
-				g = GuiTools.ensureDuplicatableGlyph(g, false);
-				g.textFillProperty().bind(Bindings.createObjectBinding(() -> {
-					return ColorToolsFX.getCachedColor(observableColor.get());
-				}, observableColor));
-				useFill = true;
-			}
-			if (!useFill)
-				g.getStyleClass().add("use-text-fill");
-			return GuiTools.ensureDuplicatableGlyph(g, useFill);
+		private Node createGlyph(int size) {
+			return fun.apply(size);
 		}
 		
 	};
 	
+	
+	
+	private static Node createLineIcon() {
+		return createLineOrArrowIcon(QuPathGUI.TOOLBAR_ICON_SIZE, "");
+	}
+
+	private static Node createLineOrArrowIcon(String cap) {
+		return createLineOrArrowIcon(QuPathGUI.TOOLBAR_ICON_SIZE, cap);
+	}
+	
+	private static Node createLineOrArrowIcon(int size, String cap) {
+		return new DuplicatableNode(() -> drawLineOrArrowIcon(size, size, cap));
+	}
+	
+	private static Node drawLineOrArrowIcon(int width, int height, String cap) {
+		
+		double pad = 2;
+		
+		Path path = new Path();
+		path.getElements().setAll(
+				new MoveTo(pad, height-pad),
+				new LineTo(width-pad, pad)
+				);
+		
+		bindShapeColorToObjectColor(path);
+		path.fillProperty().bind(path.strokeProperty());
+		
+		double length = Math.min(width, height)/3.0;
+		if (cap.contains(">")) {
+			path.getElements().addAll(
+					new MoveTo(width-pad, pad),
+					new LineTo(width-pad-length, pad),
+					new LineTo(width-pad, pad+length),
+					new ClosePath()
+					);
+		}
+		if (cap.contains("<")) {
+			path.getElements().addAll(
+					new MoveTo(pad, height-pad),
+					new LineTo(pad, height-pad-length),
+					new LineTo(pad+length, height-pad),
+					new ClosePath()
+					);
+		}
+		return path;
+	}
+	
+	private static Node drawRectangleIcon(int size) {
+		double padX = 2;
+		double padY = size/5;
+		var shape = new Rectangle(padX, padY, size-padX*2.0, size-padY*2.0);
+		shape.setStrokeWidth(1.0);
+		bindShapeColorToObjectColor(shape);
+		shape.setFill(Color.TRANSPARENT);
+		return shape;
+	}
+
+	
+	private static Node drawPointsIcon(int sizeOrig) {
+		
+		double pad = 1.0;
+		double size = sizeOrig - pad*2;
+		double radius = size/5.0;
+		
+		var c1 = new Circle(size/2.0, radius, radius, Color.TRANSPARENT);
+		bindShapeColorToObjectColor(c1);
+		
+		var c2 = new Circle(radius, size-radius, radius, Color.TRANSPARENT);
+		bindShapeColorToObjectColor(c2);
+		
+		var c3 = new Circle(size-radius, size-radius, radius, Color.TRANSPARENT);
+		bindShapeColorToObjectColor(c3);
+		
+		var group = new Group(c1, c2, c3);
+		group.setTranslateX(pad);
+		group.setTranslateY(pad);
+		return group;
+	}
+	
+	
+	private static Node drawPolygonIcon(int size) {
+		double padX = 2;
+		double padY = 3;
+		
+		Path path = new Path();
+		path.getElements().setAll(
+				new MoveTo(size-padX, padY),
+				new LineTo(size/3.0, padY),
+				new LineTo(padX, size/2.0),
+				new LineTo(padX, size-padY),
+				new LineTo(size-padX, size-padY),
+				new LineTo(size/2.0+padX, size/2.0),
+				new ClosePath()
+				);
+		
+		bindShapeColorToObjectColor(path);
+
+		return path;
+	}
+	
+	private static Node drawBrushIcon(int size) {
+		double padY = 0;
+		
+		double radiusBase = (size-padY*2)/3.2;
+		double radiusBottom = radiusBase * 1.1;
+		double radiusTop = radiusBase * 0.9;
+		
+		var ellipseBottom = new Ellipse(
+				size/2.0,
+				size-radiusBottom-padY,
+				radiusBottom*0.8,
+				radiusBottom);
+		
+		var ellipseTop = new Ellipse(
+				size/2.0,
+				radiusTop+padY,
+				radiusTop*0.8,
+				radiusTop);
+		
+		ellipseBottom.setFill(Color.RED);
+		ellipseTop.setFill(Color.RED);
+		ellipseBottom.setStroke(Color.RED);
+		ellipseTop.setStroke(Color.RED);
+		
+		var shape = Shape.union(ellipseBottom, ellipseTop);
+		shape.setFill(Color.TRANSPARENT);
+		shape.setRotate(35.0);
+		bindShapeColorToObjectColor(shape);
+
+		return shape;
+	}
+	
+	private static Node drawPolylineIcon(int size) {
+		double padX = 2;
+		double padY = 2;
+		
+		Path path = new Path();
+		path.getElements().setAll(
+				new MoveTo(size-padX, size/3.0),
+				new LineTo(size/3.0, padY),
+				new LineTo(padX, size-padY),
+				new LineTo(size-padX, size-padY)
+				);
+		
+		bindShapeColorToObjectColor(path);
+
+		return path;
+	}
+	
+	private static Node drawEllipseIcon(int size) {
+		double padX = 2;
+		double padY = size/6;
+		var shape = new Ellipse(
+				size/2.0,
+				size/2.0,
+				size/2.0-padX,
+				size/2.0-padY);
+		shape.setStrokeWidth(1.0);
+		bindShapeColorToObjectColor(shape);
+		shape.setFill(Color.TRANSPARENT);
+		return shape;
+	}
+	
+	private static Node drawShowNamesIcon(int size) {
+		var text = new Text("N");
+		bindColorPropertyToRGB(text.fillProperty(), PathPrefs.colorDefaultObjectsProperty());
+		return text;
+	}
+
+	private static Node drawPixelClassificationIcon(int size) {
+		var label = new Label("C");
+		return label;
+	}
+
+	
+	private static Node drawSelectionModeIcon(int size) {
+		var text = new Text("S");
+		// Because the default selection color yellow, it's not very prominent
+//		bindColorPropertyToRGB(text.fillProperty(), PathPrefs.colorSelectedObjectProperty());
+		bindColorPropertyToRGB(text.fillProperty(), PathPrefs.colorDefaultObjectsProperty());
+		return text;
+	}
+	
+	private static void bindShapeColorToObjectColor(Shape shape) {
+		bindShapeColor(shape, PathPrefs.colorDefaultObjectsProperty());
+	}
+	
+	
+	private static void bindShapeColor(Shape shape, ObservableIntegerValue color) {
+		bindColorPropertyToRGB(shape.strokeProperty(), color);
+	}
+	
+	private static void bindColorPropertyToRGB(ObjectProperty<Paint> colorProperty, ObservableIntegerValue color) {
+		colorProperty.bind(Bindings.createObjectBinding(() -> {
+			return ColorToolsFX.getCachedColor(color.get());
+		}, color));
+	}
+	
+	
+	private static class DuplicatableNode extends Label implements Duplicatable<Node> {
+		
+		private Supplier<Node> supplier;
+		
+		DuplicatableNode(Supplier<Node> supplier) {
+			this.supplier = supplier;
+			setGraphic(supplier.get());
+		}
+		
+		@Override
+		public Node duplicate() {
+			return supplier.get();
+		}
+		
+	}
 	
 	
 	/**

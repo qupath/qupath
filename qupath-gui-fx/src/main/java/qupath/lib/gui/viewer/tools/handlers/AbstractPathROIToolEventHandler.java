@@ -69,7 +69,7 @@ abstract class AbstractPathROIToolEventHandler extends AbstractPathToolEventHand
 	protected abstract ROI createNewROI(MouseEvent e, double x, double y, ImagePlane plane);
 	
 	/**
-	 * Create a new annotation & set it in the current viewer.
+	 * Create a new annotation and set it in the current viewer.
 	 * @param e 
 	 * @param x
 	 * @param y

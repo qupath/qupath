@@ -23,13 +23,9 @@ package qupath.lib.gui.viewer.tools;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.function.Supplier;
-
-import org.controlsfx.tools.Duplicatable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javafx.beans.binding.Bindings;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
@@ -38,15 +34,8 @@ import javafx.event.Event;
 import javafx.event.EventHandler;
 import javafx.event.EventType;
 import javafx.scene.Node;
-import javafx.scene.control.Label;
 import javafx.scene.input.MouseEvent;
-import javafx.scene.shape.ClosePath;
-import javafx.scene.shape.LineTo;
-import javafx.scene.shape.MoveTo;
-import javafx.scene.shape.Path;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.prefs.PathPrefs;
-import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.tools.IconFactory;
 import qupath.lib.gui.tools.IconFactory.PathIcons;
 import qupath.lib.gui.viewer.QuPathViewer;
@@ -82,29 +71,28 @@ public class PathTools {
 	 */
 	public static final PathTool LINE = createTool(
 			PathToolEventHandlers.createLineEventHandler(),
-			"Line", createLineIcon());
-//			"Line", createIcon(PathIcons.LINE_TOOL));
+			"Line", createIcon(PathIcons.LINE_TOOL));
 
 	/**
 	 * Arrow drawing tool, with arrowhead at the start
 	 */
 	public static final PathTool ARROW_START = createTool(
 			PathToolEventHandlers.createArrowStartEventHandler(),
-			"Arrow (start)", createLineOrArrowIcon("<"));
+			"Arrow (start)", createIcon(PathIcons.ARROW_START_TOOL));
 
 	/**
 	 * Arrow drawing tool, with arrowhead at the end
 	 */
 	public static final PathTool ARROW_END = createTool(
 			PathToolEventHandlers.createArrowEndEventHandler(),
-			"Arrow (end)", createLineOrArrowIcon(">"));
+			"Arrow (end)", createIcon(PathIcons.ARROW_END_TOOL));
 
 	/**
 	 * Arrow drawing tool, with arrowhead at both ends
 	 */
 	public static final PathTool ARROW_DOUBLE = createTool(
 			PathToolEventHandlers.createDoubleArrowEventHandler(),
-			"Arrow (double)", createLineOrArrowIcon("<>"));
+			"Arrow (double)", createIcon(PathIcons.ARROW_DOUBLE_TOOL));
 	
 	/**
 	 * Extended {@link PathTool} that can switch between drawing lines or arrows.
@@ -167,75 +155,6 @@ public class PathTools {
 				Arrays.asList(tools)
 				);
 	}
-	
-	private static Node createLineIcon() {
-		return createLineOrArrowIcon("");
-	}
-
-	private static Node createLineOrArrowIcon(String cap) {
-		return createLineOrArrowIcon(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, cap);
-	}
-	
-	private static Node createLineOrArrowIcon(int width, int height, String cap) {
-		return new DuplicatableNode(() -> drawLineOrArrowIcon(width, height, cap));
-	}
-	
-	private static Node drawLineOrArrowIcon(int width, int height, String cap) {
-		
-		double pad = 2;
-		
-		Path path = new Path();
-		path.getElements().setAll(
-				new MoveTo(pad, height-pad),
-				new LineTo(width-pad, pad)
-				);
-
-		var color = PathPrefs.colorDefaultObjectsProperty();
-		path.strokeProperty().bind(Bindings.createObjectBinding(() -> {
-			return ColorToolsFX.getCachedColor(color.get());
-		}, color));
-		path.setStrokeWidth(1.0);
-		path.fillProperty().bind(path.strokeProperty());
-		
-		double length = Math.min(width, height)/3.0;
-		if (cap.contains(">")) {
-			path.getElements().addAll(
-					new MoveTo(width-pad, pad),
-					new LineTo(width-pad-length, pad),
-					new LineTo(width-pad, pad+length),
-					new ClosePath()
-					);
-		}
-		if (cap.contains("<")) {
-			path.getElements().addAll(
-					new MoveTo(pad, height-pad),
-					new LineTo(pad, height-pad-length),
-					new LineTo(pad+length, height-pad),
-					new ClosePath()
-					);
-		}
-
-
-		return path;
-	}
-	
-	private static class DuplicatableNode extends Label implements Duplicatable<Node> {
-		
-		private Supplier<Node> supplier;
-		
-		DuplicatableNode(Supplier<Node> supplier) {
-			this.supplier = supplier;
-			setGraphic(supplier.get());
-		}
-		
-		@Override
-		public Node duplicate() {
-			return supplier.get();
-		}
-		
-	}
-
-	
 	
 	/**
 	 * Create a tool from the specified event handler.
