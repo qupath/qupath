@@ -54,10 +54,10 @@ import javafx.scene.shape.Line;
 import javafx.scene.shape.LineTo;
 import javafx.scene.shape.MoveTo;
 import javafx.scene.shape.Path;
+import javafx.scene.shape.QuadCurveTo;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.shape.Shape;
 import javafx.scene.text.Text;
-import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
@@ -300,16 +300,6 @@ public class IconFactory {
 		
 	};
 	
-	
-	
-	private static Node createLineIcon() {
-		return createLineOrArrowIcon(QuPathGUI.TOOLBAR_ICON_SIZE, "");
-	}
-
-	private static Node createLineOrArrowIcon(String cap) {
-		return createLineOrArrowIcon(QuPathGUI.TOOLBAR_ICON_SIZE, cap);
-	}
-	
 	private static Node createLineOrArrowIcon(int size, String cap) {
 		return new DuplicatableNode(() -> drawLineOrArrowIcon(size, size, cap));
 	}
@@ -374,8 +364,6 @@ public class IconFactory {
 		bindShapeColorToObjectColor(c3);
 		
 		var group = new Group(c1, c2, c3);
-		group.setTranslateX(pad);
-		group.setTranslateY(pad);
 		return group;
 	}
 	
@@ -395,41 +383,27 @@ public class IconFactory {
 				new ClosePath()
 				);
 		
+		addNodesToPath(path, Math.max(3.0, size/10.0));
 		bindShapeColorToObjectColor(path);
 
-		return path;
+		return addNodesToPath(path, Math.max(2.0, size/10.0));
+//		return path;
 	}
 	
 	private static Node drawBrushIcon(int size) {
-		double padY = 0;
-		
-		double radiusBase = (size-padY*2)/3.2;
-		double radiusBottom = radiusBase * 1.1;
-		double radiusTop = radiusBase * 0.9;
-		
-		var ellipseBottom = new Ellipse(
-				size/2.0,
-				size-radiusBottom-padY,
-				radiusBottom*0.8,
-				radiusBottom);
-		
-		var ellipseTop = new Ellipse(
-				size/2.0,
-				radiusTop+padY,
-				radiusTop*0.8,
-				radiusTop);
-		
-		ellipseBottom.setFill(Color.RED);
-		ellipseTop.setFill(Color.RED);
-		ellipseBottom.setStroke(Color.RED);
-		ellipseTop.setStroke(Color.RED);
-		
-		var shape = Shape.union(ellipseBottom, ellipseTop);
-		shape.setFill(Color.TRANSPARENT);
-		shape.setRotate(35.0);
-		bindShapeColorToObjectColor(shape);
+		var path = new Path();
+		path.getElements().setAll(
+				new MoveTo(size/2.0, 0),
+				new QuadCurveTo(size/8.0, 0, size/3, size/2.0),
+				new QuadCurveTo(0, size, size/2.0, size),
 
-		return shape;
+				new QuadCurveTo(size, size, size*2/3.0, size/2.0),
+				new QuadCurveTo(size-size/8.0, 0, size/2.0, 0),
+				new ClosePath()
+				);
+		path.setRotate(30.0);
+		bindShapeColorToObjectColor(path);		
+		return path;
 	}
 	
 	private static Node drawPolylineIcon(int size) {
@@ -445,9 +419,37 @@ public class IconFactory {
 				);
 		
 		bindShapeColorToObjectColor(path);
-
-		return path;
+		
+		return 	addNodesToPath(path, Math.max(2.0, size/10.0));
+//		return path;
 	}
+	
+	
+	private static Group addNodesToPath(Path path, double nodeSize) {
+		var group = new Group(path);
+		for (var pe : path.getElements()) {
+			double x, y;
+			if (pe instanceof MoveTo) {
+				x = ((MoveTo)pe).getX();
+				y = ((MoveTo)pe).getY();
+			} else if (pe instanceof LineTo) {
+				x = ((LineTo)pe).getX();
+				y = ((LineTo)pe).getY();
+			} else
+				continue;
+			var rect = new Rectangle(
+					x-nodeSize/2.0,
+					y-nodeSize/2.0,
+					nodeSize,
+					nodeSize
+					);
+			rect.fillProperty().bind(path.strokeProperty());;
+			rect.setStrokeWidth(0);
+			group.getChildren().add(rect);
+		}
+		return group;
+	}
+	
 	
 	private static Node drawEllipseIcon(int size) {
 		double padX = 2;
