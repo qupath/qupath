@@ -28,6 +28,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
 
+import org.controlsfx.control.decoration.Decorator;
+import org.controlsfx.control.decoration.GraphicDecoration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,6 +37,7 @@ import javafx.application.Platform;
 import javafx.collections.ListChangeListener.Change;
 import javafx.collections.ObservableList;
 import javafx.geometry.Orientation;
+import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.ContextMenu;
@@ -47,6 +50,10 @@ import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.control.ToolBar;
 import javafx.scene.control.Tooltip;
+import javafx.scene.shape.ClosePath;
+import javafx.scene.shape.LineTo;
+import javafx.scene.shape.MoveTo;
+import javafx.scene.shape.Path;
 import javafx.scene.text.TextAlignment;
 import qupath.lib.gui.QuPathGUI.DefaultActions;
 import qupath.lib.gui.dialogs.Dialogs;
@@ -199,12 +206,50 @@ class ToolBarComponent {
 					btnTool.setOnContextMenuRequested(e -> {
 						popup.show(node, e.getScreenX(), e.getScreenY());
 					});
+					addContextMenuDecoration((ToggleButton)btnTool, popup);
 				}
 				toolMap.put(tool, btnTool);
 			}
 			nodes.add(ind++, btnTool);
 		}
 	}
+	
+	
+	private static void addContextMenuDecoration(ToggleButton btn, ContextMenu popup) {
+		// It's horribly complicated to get the decoration to remain properly, 
+		// since it appears to need a scene - and can disappear then the graphic changes
+		var triangle = new Path();
+		double width = 6;
+		triangle.getElements().setAll(
+				new MoveTo(0, 0),
+				new LineTo(width, 0),
+				new LineTo(width/2.0, Math.sqrt(width*width/2.0)),
+				new ClosePath()
+				);
+		triangle.setTranslateX(-width);
+		triangle.setTranslateY(-width);
+		triangle.setRotate(-90);
+		triangle.fillProperty().bind(btn.textFillProperty());
+		triangle.setStroke(null);
+		triangle.setOpacity(0.5);
+		var decoration = new GraphicDecoration(triangle, Pos.BOTTOM_RIGHT);
+		btn.sceneProperty().addListener((v, o, n) -> {
+			if (n != null)
+				Decorator.addDecoration(btn, decoration);
+			else
+				Decorator.removeDecoration(btn, decoration);
+		});
+		btn.graphicProperty().addListener((v, o, n) -> {
+			Decorator.removeAllDecorations(btn);
+			Platform.runLater(() -> 
+				Decorator.addDecoration(btn, decoration)
+				);
+		});
+		triangle.setOnMouseClicked(e -> {
+			popup.show(btn, e.getScreenX(), e.getScreenY());
+		});
+	}
+	
 	
 	private ContextMenu createContextMenu(ExtendedPathTool tool, Toggle toolToggle) {
 		var menu = new ContextMenu();
