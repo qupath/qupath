@@ -2704,7 +2704,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		if (server == null)
 			return "";
 		String units;
-		if (xx < 0 || yy < 0 || xx > server.getWidth()-1 || yy > server.getHeight()-1)
+		if (xx < 0 || yy < 0 || xx > server.getWidth() || yy > server.getHeight())
 			return "";
 
 		double xDisplay = xx;
