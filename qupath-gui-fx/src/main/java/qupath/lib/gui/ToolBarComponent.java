@@ -192,21 +192,35 @@ class ToolBarComponent {
 		toolbar.getItems().setAll(nodes);
 	}
 
+	private ToggleGroup toolGroup;
+	
+	private ToggleGroup getToolToggleGroup() {
+		if (toolGroup == null) {
+			toolGroup = new ToggleGroup();
+			toolGroup.selectedToggleProperty().addListener((v, o, n) -> {
+				if (n == null)
+					o.setSelected(true);
+			});
+		}
+		return toolGroup;
+	}
 
 	private void addToolButtons(List<Node> nodes, List<PathTool> tools) {
 		int ind = toolIdx;
+		var group = getToolToggleGroup();
 		for (var tool : tools) {
 			var action = toolManager.getToolAction(tool);
 			var btnTool = toolMap.get(tool);
 			if (btnTool == null) {
 				btnTool = ActionTools.createToggleButton(action, action.getGraphic() != null);
+				var toggleButton = (ToggleButton)btnTool;
+				toggleButton.setToggleGroup(group);
 				if (tool instanceof ExtendedPathTool) {
-					var popup = createContextMenu((ExtendedPathTool)tool, (ToggleButton)btnTool);
-					var node = btnTool;
+					var popup = createContextMenu((ExtendedPathTool)tool, toggleButton);
 					btnTool.setOnContextMenuRequested(e -> {
-						popup.show(node, e.getScreenX(), e.getScreenY());
+						popup.show(toggleButton, e.getScreenX(), e.getScreenY());
 					});
-					addContextMenuDecoration((ToggleButton)btnTool, popup);
+					addContextMenuDecoration(toggleButton, popup);
 				}
 				toolMap.put(tool, btnTool);
 			}
@@ -234,16 +248,17 @@ class ToolBarComponent {
 		triangle.setOpacity(0.5);
 		var decoration = new GraphicDecoration(triangle, Pos.BOTTOM_RIGHT);
 		btn.sceneProperty().addListener((v, o, n) -> {
-			if (n != null)
-				Decorator.addDecoration(btn, decoration);
-			else
-				Decorator.removeDecoration(btn, decoration);
+			Platform.runLater(() -> {
+				if (n != null)
+					Decorator.addDecoration(btn, decoration);
+				else
+					Decorator.removeDecoration(btn, decoration);
+			});
 		});
+		Platform.runLater(() -> Decorator.addDecoration(btn, decoration));
 		btn.graphicProperty().addListener((v, o, n) -> {
 			Decorator.removeAllDecorations(btn);
-			Platform.runLater(() -> 
-				Decorator.addDecoration(btn, decoration)
-				);
+			Platform.runLater(() -> Decorator.addDecoration(btn, decoration));
 		});
 		triangle.setOnMouseClicked(e -> {
 			popup.show(btn, e.getScreenX(), e.getScreenY());
