@@ -325,6 +325,7 @@ public class QuPathGUI {
 
 		// Install extensions
 		timeit.checkpoint("Adding extensions");
+		new QP(); // Ensure initialized
 		extensionManager.refreshExtensions(false);
 		
 		// Add scripts menu (delayed to here, since it takes a bit longer)

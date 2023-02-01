@@ -102,6 +102,11 @@ public class ExtensionManager {
 	 */
 	public synchronized void refreshExtensions(final boolean showNotification) {
 		
+		if ("true".equalsIgnoreCase(System.getProperty("noextensions"))) {
+			logger.info("Extensions will be skipped - 'noextensions' system property is set");
+			return;
+		}
+		
 		refreshingExtensions.set(true);
 		
 		// Refresh the extensions
