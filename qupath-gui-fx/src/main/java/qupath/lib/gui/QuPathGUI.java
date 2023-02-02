@@ -113,6 +113,7 @@ import qupath.lib.gui.ActionTools.ActionIcon;
 import qupath.lib.gui.commands.BrightnessContrastCommand;
 import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.commands.CountingPanelCommand;
+import qupath.lib.gui.commands.HelpViewer;
 import qupath.lib.gui.commands.InputDisplayCommand;
 import qupath.lib.gui.commands.LogViewerCommand;
 import qupath.lib.gui.commands.ProjectCommands;
@@ -3044,6 +3045,13 @@ public class QuPathGUI {
 		@ActionDescription("Show grid view TMA cores")
 		public final Action MEASURE_GRID_TMA_CORES = createImageDataAction(imageData -> Commands.showAnnotationGridView(QuPathGUI.this), "Show TMA core grid view");
 
+		/**
+		 * Show help viewer
+		 */
+		@ActionIcon(PathIcons.HELP)
+		@ActionDescription("Show context-dependent help info based on the cursor location and QuPath's current state")
+		public final Action HELP_VIEWER = Commands.createSingleStageAction(() -> HelpViewer.getInstance(QuPathGUI.this).getStage());
+		
 		private DefaultActions() {
 			// This has the effect of applying the annotations
 			ActionTools.getAnnotatedActions(this);

@@ -1016,6 +1016,9 @@ class Menus {
 		@ActionMenu("Show welcome message")
 		public final Action QUPATH_STARTUP = createAction(() -> WelcomeStage.getInstance(qupath).show());
 
+		@ActionMenu("Show context help viewer")
+		public final Action HELP_VIEWER = qupath.getDefaultActions().HELP_VIEWER;
+
 		@ActionMenu("")
 		public final Action SEP_1 = ActionTools.createSeparator();
 

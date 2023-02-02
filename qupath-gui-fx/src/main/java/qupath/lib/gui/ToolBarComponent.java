@@ -176,6 +176,7 @@ class ToolBarComponent {
 		// Add preferences button
 		nodes.add(new Separator(Orientation.VERTICAL));
 		nodes.add(ActionTools.createButton(defaultActions.PREFERENCES, true));
+		nodes.add(ActionTools.createButton(defaultActions.HELP_VIEWER, true));
 
 		toolbar.getItems().setAll(nodes);
 	}

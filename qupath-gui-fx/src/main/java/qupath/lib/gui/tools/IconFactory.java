@@ -246,7 +246,10 @@ public class IconFactory {
 									SELECTION_MODE(IconSuppliers.selectionModeIcon()),
 									
 									GRID(IconSuppliers.icoMoon('\ue90b')),
-									
+
+									HELP(IconSuppliers.fontAwesome(FontAwesome.Glyph.QUESTION_CIRCLE)),
+
+									INFO(IconSuppliers.fontAwesome(FontAwesome.Glyph.INFO)),
 									INACTIVE_SERVER(IconSuppliers.icoMoon('\ue915', ColorToolsFX.getCachedColor(200, 0, 0))),
 									
 									LINE_TOOL(IconSuppliers.lineToolIcon()),
@@ -282,6 +285,7 @@ public class IconFactory {
 									TMA_GRID(IconSuppliers.icoMoon('\ue91b', PathPrefs.colorTMAProperty())),
 
 									WAND_TOOL(IconSuppliers.icoMoon('\ue91c', PathPrefs.colorDefaultObjectsProperty())),
+									WARNING(IconSuppliers.fontAwesome(FontAwesome.Glyph.WARNING)),
 									
 									ZOOM_IN(IconSuppliers.icoMoon('\ue91d')),
 									ZOOM_OUT(IconSuppliers.icoMoon('\ue91e')),
