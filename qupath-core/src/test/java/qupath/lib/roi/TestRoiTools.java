@@ -34,8 +34,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Random;
-import java.util.stream.Collectors;
-
 import org.junit.jupiter.api.Test;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
@@ -105,9 +103,9 @@ public class TestRoiTools {
 				assertTrue(tiles.stream().allMatch(r -> r.getImagePlane().equals(plane)));
 				
 				// Get normalized geometries
-				var tilesGeometry = tiles.stream().map(r -> r.getGeometry()).collect(Collectors.toList());
+				var tilesGeometry = tiles.stream().map(r -> r.getGeometry()).toList();
 				tilesGeometry.stream().forEach(g -> g.normalize());
-				var tilesLegacyGeometry = tiles.stream().map(r -> r.getGeometry()).collect(Collectors.toList());
+				var tilesLegacyGeometry = tiles.stream().map(r -> r.getGeometry()).toList();
 				tilesLegacyGeometry.stream().forEach(g -> g.normalize());
 				assertEquals(tilesGeometry, tilesLegacyGeometry);
 				
@@ -182,9 +180,9 @@ public class TestRoiTools {
 			assertTrue(tiles.stream().allMatch(r -> r.getImagePlane().equals(ImagePlane.getDefaultPlane())));
 			
 			// Get normalized geometries
-			var tilesGeometry = tiles.stream().map(r -> r.getGeometry()).collect(Collectors.toList());
+			var tilesGeometry = tiles.stream().map(r -> r.getGeometry()).toList();
 			tilesGeometry.stream().forEach(g -> g.normalize());
-			var tilesLegacyGeometry = tiles.stream().map(r -> r.getGeometry()).collect(Collectors.toList());
+			var tilesLegacyGeometry = tiles.stream().map(r -> r.getGeometry()).toList();
 			tilesLegacyGeometry.stream().forEach(g -> g.normalize());
 			assertEquals(tilesGeometry, tilesLegacyGeometry);
 			

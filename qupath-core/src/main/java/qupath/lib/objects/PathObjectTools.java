@@ -399,7 +399,7 @@ public class PathObjectTools {
 			List<PathObject> newChildObjects = pathObject.getChildObjects()
 				.parallelStream()
 				.map(p -> updatePlaneRecursive(p, plane, copyMeasurements, createNewIDs))
-				.collect(Collectors.toList());
+				.toList();
 			newObj.addChildObjects(newChildObjects);
 		}
 		return newObj;
@@ -958,7 +958,7 @@ public class PathObjectTools {
 		List<PathObject> objects = availableObjects
 			.stream()
 			.filter(p -> supportedClasses.stream().anyMatch(s -> s.isInstance(p)))
-			.collect(Collectors.toList());
+			.toList();
 		
 		return objects;
 	}
@@ -1056,7 +1056,7 @@ public class PathObjectTools {
 //	 * @return pathObjects if changes are made to the hierarchy, false otherwise
 //	 */
 //	public static boolean splitPoints(PathObjectHierarchy hierarchy, Collection<PathObject> pathObjects) {
-//		var points = pathObjects.stream().filter(p -> p.isAnnotation() && p.getROI().isPoint() && p.getROI().getNumPoints() > 1).collect(Collectors.toList());
+//		var points = pathObjects.stream().filter(p -> p.isAnnotation() && p.getROI().isPoint() && p.getROI().getNumPoints() > 1).toList();
 //		if (points.isEmpty()) {
 //			logger.debug("No (multi)point ROIs available to split!");			
 //			return false;
@@ -1325,7 +1325,7 @@ public class PathObjectTools {
 			var newChildObjects = pathObject.getChildObjects()
 				.parallelStream()
 				.map(p -> transformObjectRecursive(p, transform, copyMeasurements, createNewIDs))
-				.collect(Collectors.toList());
+				.toList();
 			
 			newObj.addChildObjects(newChildObjects);
 //			for (var child: pathObject.getChildObjects()) {
@@ -1433,7 +1433,7 @@ public class PathObjectTools {
 		var list = hierarchy.getSelectionModel().getSelectedObjects()
 				.stream()
 				.filter(predicate)
-				.collect(Collectors.toList());
+				.toList();
 		return duplicateObjects(hierarchy, list);
 	}
 	
@@ -1620,11 +1620,11 @@ public class PathObjectTools {
 		var first = pathObjects.iterator().next();
 		if (pathObjects.size() == 1)
 			return first;
-		var rois = pathObjects.stream().map(p -> p.getROI()).filter(r -> r != null && !r.isEmpty()).collect(Collectors.toList());
+		var rois = pathObjects.stream().map(p -> p.getROI()).filter(r -> r != null && !r.isEmpty()).toList();
 		var roi = RoiTools.union(rois);
 		PathObject result;
 		if (pathObjects.stream().allMatch(p -> p.isCell())) {
-			var nucleusRois = pathObjects.stream().map(p -> ((PathCellObject)p).getNucleusROI()).filter(r -> r != null && !r.isEmpty()).collect(Collectors.toList());
+			var nucleusRois = pathObjects.stream().map(p -> ((PathCellObject)p).getNucleusROI()).filter(r -> r != null && !r.isEmpty()).toList();
 			var nucleusROI = RoiTools.union(nucleusRois);			
 			result = PathObjects.createCellObject(roi, nucleusROI, first.getPathClass(), null);
 		} else if (pathObjects.stream().allMatch(p -> p.isAnnotation())) {

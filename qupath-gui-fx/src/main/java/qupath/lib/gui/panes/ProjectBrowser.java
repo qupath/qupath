@@ -373,7 +373,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 						.flatMap(Collection::stream)
 						.distinct()
 						.sorted()
-						.collect(Collectors.toList());
+						.toList();
 				TextFields.bindAutoCompletion(tfMetadataKey, suggestions);
 				
 				TextField tfMetadataValue = new TextField();
@@ -1050,13 +1050,13 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 	
 	private List<ImageRow> getAllImageRows() {
 		if (!PathPrefs.maskImageNamesProperty().get())
-			return project.getImageList().stream().map(entry -> new ImageRow(entry)).collect(Collectors.toList());
+			return project.getImageList().stream().map(entry -> new ImageRow(entry)).toList();
 		
 		// If 'mask names' is ticked, shuffle the image list for less biased analyses
 		var imageList = project.getImageList();
-		var indices = IntStream.range(0, imageList.size()).boxed().collect(Collectors.toList());
+		var indices = IntStream.range(0, imageList.size()).boxed().toList();
 		Collections.shuffle(indices);
-		return indices.stream().map(index -> new ImageRow(imageList.get(index))).collect(Collectors.toList());
+		return indices.stream().map(index -> new ImageRow(imageList.get(index))).toList();
 	}
 
 	private class ProjectImageTreeModel {
@@ -1267,7 +1267,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 						GeneralTools.smartStringSort(values);
 						children.addAll(values.stream()
 								.map(value -> new ProjectTreeRowItem(new MetadataRow(value)))
-								.collect(Collectors.toList()));
+								.toList());
 					}
 					break;
 				case METADATA:

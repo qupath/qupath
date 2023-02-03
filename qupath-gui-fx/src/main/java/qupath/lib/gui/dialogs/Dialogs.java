@@ -31,8 +31,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.WeakHashMap;
-import java.util.stream.Collectors;
-
 import org.controlsfx.control.Notifications;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -658,7 +656,7 @@ public class Dialogs {
 				.filter(w -> w.isShowing() && w instanceof Stage)
 				.map(w -> (Stage)w)
 				.filter(s -> s.getModality() != Modality.NONE)
-				.collect(Collectors.toList());
+				.toList();
 		if (modalStages.isEmpty()) {
 			var qupath = QuPathGUI.getInstance();
 			if (qupath != null)
@@ -667,7 +665,7 @@ public class Dialogs {
 		}
 		var focussedStages = modalStages.stream()
 				.filter(s -> s.isFocused())
-				.collect(Collectors.toList());
+				.toList();
 		if (focussedStages.size() == 1)
 			return focussedStages.get(0);
 		return null;

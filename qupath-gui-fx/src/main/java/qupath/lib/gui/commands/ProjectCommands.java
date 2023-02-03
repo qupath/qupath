@@ -173,7 +173,7 @@ public class ProjectCommands {
 			for (ProjectImageEntry<?> entry : project.getImageList()) {
 				try {
 					Collection<URI> uris = entry.getURIs();
-					String path = String.join(" ", uris.stream().map(u -> u.toString()).collect(Collectors.toList()));
+					String path = String.join(" ", uris.stream().map(u -> u.toString()).toList());
 	//				String path = entry.getServerPath();
 					writer.print(entry.getImageName());
 					writer.print(delim);				

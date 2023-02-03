@@ -26,8 +26,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
-
 import org.controlsfx.control.action.Action;
 
 import javafx.beans.value.ObservableValue;
@@ -104,7 +102,7 @@ class Menus {
 					new HelpMenuManager()
 					);
 		}
-		return managers.stream().flatMap(m -> ActionTools.getAnnotatedActions(m).stream()).collect(Collectors.toList());
+		return managers.stream().flatMap(m -> ActionTools.getAnnotatedActions(m).stream()).toList();
 	}
 	
 	static Action createAction(Runnable runnable) {

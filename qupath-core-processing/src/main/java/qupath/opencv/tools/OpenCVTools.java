@@ -2610,7 +2610,7 @@ public class OpenCVTools {
 		if (mask == null)
 			return points;
 		try (var idx = mask.createIndexer()) {
-			return points.stream().filter(p -> idx.getDouble(p.inds) != 0).collect(Collectors.toList());
+			return points.stream().filter(p -> idx.getDouble(p.inds) != 0).toList();
 		}
 		
 	}
@@ -2791,7 +2791,7 @@ public class OpenCVTools {
 		// Group by label
 		var groups = pixels.stream().collect(Collectors.groupingBy(p -> p.value));
 		
-		return groups.values().stream().map(l-> closestToCentroid(l)).collect(Collectors.toList());
+		return groups.values().stream().map(l-> closestToCentroid(l)).toList();
 	}
 	
 	/**

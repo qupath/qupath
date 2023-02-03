@@ -32,8 +32,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
-import java.util.stream.Collectors;
-
 import org.controlsfx.control.PropertySheet;
 import org.controlsfx.control.PropertySheet.Item;
 import org.controlsfx.control.PropertySheet.Mode;
@@ -253,7 +251,7 @@ public class PreferencePane {
 				Arrays.stream(Locale.getAvailableLocales())
 				.filter(l -> !l.getLanguage().isBlank())
 				.sorted(Comparator.comparing(l -> l.getDisplayName(Locale.US)))
-				.collect(Collectors.toList())
+				.toList()
 				);
 		
 		// Would like to use a searchable combo box,

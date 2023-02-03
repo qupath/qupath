@@ -60,6 +60,8 @@ public class ToolManager {
 			PathTools.POLYGON, PathTools.POLYLINE, PathTools.BRUSH, PathTools.POINTS
 			);
 	
+	private ObservableList<PathTool> unmodifiableTools = FXCollections.unmodifiableObservableList(tools);
+	
 	private BooleanProperty lockSelectedToolProperty = new SimpleBooleanProperty(false);
 
 	private Map<PathTool, Action> toolActions = new HashMap<>();
@@ -83,7 +85,7 @@ public class ToolManager {
 	 * @return
 	 */
 	public ObservableList<PathTool> getTools() {
-		return FXCollections.unmodifiableObservableList(tools);
+		return unmodifiableTools;
 	}
 	
 	/**

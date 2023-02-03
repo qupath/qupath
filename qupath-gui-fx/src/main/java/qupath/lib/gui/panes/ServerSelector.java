@@ -132,7 +132,7 @@ public class ServerSelector {
 				logger.warn("Unable to build {}", b);
 				return null;
 			}
-		}).filter(s -> s != null).collect(Collectors.toList());
+		}).filter(s -> s != null).toList();
 		return new ServerSelector(list, true);
 	}
 	

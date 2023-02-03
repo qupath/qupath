@@ -38,8 +38,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -420,7 +418,7 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 				
 				pathObjects = superpixelROIs.stream()
 						.map(r -> PathObjects.createTileObject(r))
-						.collect(Collectors.toList());
+						.toList();
 			} catch (Exception e) {
 				logger.error("Error created tiled ROIs", e);
 				pathObjects = Collections.emptyList();

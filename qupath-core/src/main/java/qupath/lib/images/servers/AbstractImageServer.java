@@ -31,8 +31,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.stream.Collectors;
-
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.index.SpatialIndex;
 import org.locationtech.jts.index.quadtree.Quadtree;
@@ -420,7 +418,7 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 
 		@Override
 		public Collection<TileRequest> getTileRequestsForLevel(int level) {
-			return getAllTileRequests().stream().filter(t -> t.getLevel() == level).collect(Collectors.toList());
+			return getAllTileRequests().stream().filter(t -> t.getLevel() == level).toList();
 		}
 		
 	}

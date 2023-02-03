@@ -259,7 +259,7 @@ class DefaultProject implements Project<BufferedImage> {
 		try (var stream = Files.list(path)) {
 			return stream.filter(p -> Files.isRegularFile(p) && p.toString().endsWith(ext))
 					.map(p -> nameWithoutExtension(p, ext))
-					.collect(Collectors.toList());
+					.toList();
 		}
 	}
 	

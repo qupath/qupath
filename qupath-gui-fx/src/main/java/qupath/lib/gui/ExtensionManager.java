@@ -41,8 +41,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.ServiceLoader;
-import java.util.stream.Collectors;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -176,8 +174,8 @@ public class ExtensionManager {
 		ImageServerProvider.setServiceLoader(ServiceLoader.load(ImageServerBuilder.class, extensionClassLoader));
 		if (showNotification) {
 			// A bit convoluted... but try to show new servers that have been loaded by comparing with the past
-			List<String> serverBuilders = serverBuildersBefore.stream().map(s -> s.getName()).collect(Collectors.toList());
-			List<String> serverBuildersUpdated = ImageServerProvider.getInstalledImageServerBuilders().stream().map(s -> s.getName()).collect(Collectors.toList());
+			List<String> serverBuilders = serverBuildersBefore.stream().map(s -> s.getName()).toList();
+			List<String> serverBuildersUpdated = ImageServerProvider.getInstalledImageServerBuilders().stream().map(s -> s.getName()).toList();
 			serverBuildersUpdated.removeAll(serverBuilders);
 			for (String builderName : serverBuildersUpdated) {
 				Dialogs.showInfoNotification("Image server loaded",  builderName);

@@ -524,7 +524,7 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 				iterator.remove();
 		}
 //		String serverPath = server.getPath();
-//		List<RegionRequest> keys = map.keySet().stream().filter(k -> k.getPath().equals(serverPath)).collect(Collectors.toList());
+//		List<RegionRequest> keys = map.keySet().stream().filter(k -> k.getPath().equals(serverPath)).toList();
 //		for (var key : keys)
 //			map.remove(key);
 	}
@@ -535,7 +535,7 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 			if (request.overlapsRequest(iterator.next().getKey()))
 				iterator.remove();
 		}
-//		List<RegionRequest> keys = map.keySet().stream().filter(k -> request.overlapsRequest(k)).collect(Collectors.toList());
+//		List<RegionRequest> keys = map.keySet().stream().filter(k -> request.overlapsRequest(k)).toList();
 //		for (var key : keys)
 //			map.remove(key);
 	}

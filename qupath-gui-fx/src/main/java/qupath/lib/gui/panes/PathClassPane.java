@@ -618,7 +618,7 @@ class PathClassPane {
 		List<PathClass> pathClasses = getSelectedPathClasses()
 				.stream()
 				.filter(p -> p != null && p != PathClass.NULL_CLASS)
-				.collect(Collectors.toList());
+				.toList();
 		if (pathClasses.isEmpty())
 			return false;
 		String message;
@@ -648,7 +648,7 @@ class PathClassPane {
 		return listClasses.getSelectionModel().getSelectedItems()
 				.stream()
 				.map(p -> p.getName() == null ? null : p)
-				.collect(Collectors.toList());
+				.toList();
 	}
 	
 	

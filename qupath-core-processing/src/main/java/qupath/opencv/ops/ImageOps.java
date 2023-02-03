@@ -431,7 +431,7 @@ public class ImageOps {
 
 		@Override
 		public List<ImageChannel> getChannels(ImageData<BufferedImage> imageData) {
-			var channels = Arrays.stream(colorTransforms).map(c -> ImageChannel.getInstance(c.getName(), null)).collect(Collectors.toList());
+			var channels = Arrays.stream(colorTransforms).map(c -> ImageChannel.getInstance(c.getName(), null)).toList();
 			if (op == null)
 				return channels;
 			else
@@ -1657,7 +1657,7 @@ public class ImageOps {
 
 			@Override
 			public List<ImageChannel> getChannels(List<ImageChannel> channels) {
-				List<String> allNames = channels.stream().map(c -> c.getName()).collect(Collectors.toList());
+				List<String> allNames = channels.stream().map(c -> c.getName()).toList();
 				String name = reduceName() + " [" + String.join(", ", allNames) + "]";
 				return ImageChannel.getChannelList(name);
 			}
@@ -2536,7 +2536,7 @@ public class ImageOps {
 			public List<ImageChannel> getChannels(List<ImageChannel> channels) {
 				return ops.stream()
 						.flatMap(t -> t.getChannels(channels).stream())
-						.collect(Collectors.toList());
+						.toList();
 			}
 
 			@Override
@@ -2798,7 +2798,7 @@ public class ImageOps {
 				// TODO: Preserve channel names if now applying PCA
 				return IntStream.range(0, preprocessor.getOutputLength())
 						.mapToObj(i -> ImageChannel.getInstance("Feature " + i, ColorTools.WHITE))
-						.collect(Collectors.toList());
+						.toList();
 			}
 			
 			@Override

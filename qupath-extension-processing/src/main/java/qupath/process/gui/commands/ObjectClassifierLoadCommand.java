@@ -191,7 +191,7 @@ public final class ObjectClassifierLoadCommand implements Runnable {
 					var files = dragboard.getFiles()
 							.stream()
 							.filter(f -> f.isFile() && !f.isHidden())
-							.collect(Collectors.toList());
+							.toList();
 					
 					addClassifierFiles(files);
 				} catch (Exception ex) {

@@ -30,8 +30,6 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
-
 import qupath.lib.geom.Point2;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.interfaces.ROI;
@@ -283,7 +281,7 @@ public class PointsROI extends AbstractPathROI implements Serializable {
 	@Override
 	public ROI scale(double scaleX, double scaleY, double originX, double originY) {
 		return new PointsROI(
-				getAllPoints().stream().map(p -> RoiTools.scalePoint(p, scaleX, scaleY, originX, originY)).collect(Collectors.toList()),
+				getAllPoints().stream().map(p -> RoiTools.scalePoint(p, scaleX, scaleY, originX, originY)).toList(),
 				getImagePlane());
 	}
 	
@@ -460,7 +458,7 @@ public class PointsROI extends AbstractPathROI implements Serializable {
 	@Override
 	public ROI translate(double dx, double dy) {
 		return new PointsROI(
-				points.stream().map(p -> new Point2(p.getX()+dx, p.getY()+dy)).collect(Collectors.toList()),
+				points.stream().map(p -> new Point2(p.getX()+dx, p.getY()+dy)).toList(),
 				getImagePlane());
 	}
 	

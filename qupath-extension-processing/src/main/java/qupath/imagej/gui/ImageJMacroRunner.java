@@ -46,8 +46,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
-import java.util.stream.Collectors;
-
 import javax.swing.SwingUtilities;
 
 import org.slf4j.Logger;
@@ -440,7 +438,7 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 		// Try to get currently-selected objects
 		PathObjectHierarchy hierarchy = getHierarchy(runner);
 		List<PathObject> pathObjects = hierarchy.getSelectionModel().getSelectedObjects().stream()
-				.filter(p -> p.isAnnotation() || p.isTMACore()).collect(Collectors.toList());
+				.filter(p -> p.isAnnotation() || p.isTMACore()).toList();
 		if (pathObjects.isEmpty()) {
 			if (GuiTools.promptForParentObjects(this.getName(), runner.getImageData(), false, getSupportedParentObjectClasses()))
 				pathObjects = new ArrayList<>(hierarchy.getSelectionModel().getSelectedObjects());

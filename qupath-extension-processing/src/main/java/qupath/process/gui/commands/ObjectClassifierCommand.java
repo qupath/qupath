@@ -404,7 +404,7 @@ public class ObjectClassifierCommand implements Runnable {
 			return annotations
 					.stream()
 					.filter(trainingFilter)
-					.collect(Collectors.toList());
+					.toList();
 		}
 
 		/**
@@ -639,7 +639,7 @@ public class ObjectClassifierCommand implements Runnable {
 					.getFlattenedObjectList(null)
 					.stream()
 					.filter(filter)
-					.collect(Collectors.toList());
+					.toList();
 			return PathObjectTools.getAvailableFeatures(detections);
 		}
 		
@@ -1514,7 +1514,7 @@ public class ObjectClassifierCommand implements Runnable {
 
 		SelectionPane(Collection<T> items, boolean includeFilter) {
 			list = FXCollections.observableArrayList(
-					items.stream().map(i -> getSelectableItem(i)).collect(Collectors.toList())
+					items.stream().map(i -> getSelectableItem(i)).toList()
 					).filtered(p -> true);
 			tableFeatures = new TableView<>(list);
 			pane = makePane(includeFilter);

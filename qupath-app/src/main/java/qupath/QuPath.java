@@ -33,8 +33,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.ServiceLoader;
-import java.util.stream.Collectors;
-
 import javax.script.ScriptException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -347,7 +345,7 @@ class ScriptCommand implements Runnable {
 				var imageList = project.getImageList();
 				// Filter out the images we need (usually all of them)
 				if (imagePath != null && !imagePath.equals("")) {
-					imageList = imageList.stream().filter(e -> imagePath.equals(e.getImageName())).collect(Collectors.toList());
+					imageList = imageList.stream().filter(e -> imagePath.equals(e.getImageName())).toList();
 				}
 					
 				int batchSize = imageList.size();

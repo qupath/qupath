@@ -30,8 +30,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
-
 import org.bytedeco.javacpp.FloatPointer;
 import org.bytedeco.javacpp.indexer.FloatIndexer;
 import org.bytedeco.javacpp.indexer.IntIndexer;
@@ -795,7 +793,7 @@ public class MultiscaleFeatures {
 						
 			// We need to ensure images are floating point (prefer 32-bit unless all are already 64-bit)
 			int depth = mats.stream().allMatch(m -> m.depth() == opencv_core.CV_64F) ? opencv_core.CV_64F : opencv_core.CV_32F;
-			mats = mats.stream().map(m -> ensureDepth(m, depth)).collect(Collectors.toList());
+			mats = mats.stream().map(m -> ensureDepth(m, depth)).toList();
 			
 			double sigmaX = this.sigmaX;
 			double sigmaY = this.sigmaY;
@@ -1622,7 +1620,7 @@ public class MultiscaleFeatures {
 	}
 	
 	static List<Mat> toColumns(List<Mat> mats) {
-		return mats.stream().map(m ->toColumns(m)).collect(Collectors.toList());
+		return mats.stream().map(m ->toColumns(m)).toList();
 	}
 	
 	static Mat sortedIndsByAbsoluteValue(List<Mat> mats) {
@@ -1702,7 +1700,7 @@ public class MultiscaleFeatures {
 //		return output.stream().map(l -> {
 //			var mat = OpenCVTools.vConcat(l, null);
 //			return mat.reshape(nChannels, nRowsOrig);
-//		}).collect(Collectors.toList());
+//		}).toList();
 //	}
 	
 }

@@ -270,7 +270,7 @@ public class RoiTools {
 		var roisToSubtract2 = roisToSubtract
 				.stream()
 				.filter(r -> region.intersects(r.getBoundsX(), r.getBoundsY(), r.getBoundsWidth(), r.getBoundsHeight()))
-				.collect(Collectors.toList());
+				.toList();
 		
 		// Quick method using the union of ROIs to subtract
 		// Could *possibly* be improved by iteratively removing ROIs if they are large
@@ -928,7 +928,7 @@ public class RoiTools {
 				.map(entry -> intersect(entry.getKey(), entry.getValue()))
 				.filter(g -> g != null)
 				.map(g -> GeometryTools.geometryToROI(g, plane))
-				.collect(Collectors.toList());
+				.toList();
 		
 		// If there was an exception, the tile will be null
 		if (tileROIs.size() < tileGeometries.size()) {
@@ -939,7 +939,7 @@ public class RoiTools {
 		// Remove any empty/non-area tiles
 		return tileROIs.stream()
 				.filter(t -> !t.isEmpty() && t.isArea())
-				.collect(Collectors.toList());
+				.toList();
 	}
 	
 	

@@ -254,7 +254,7 @@ public class DensityMapUI {
 			// Sometimes we use the
 			boolean countsFromSameBand = countBand < 0;
 			int nBands = server.nChannels();
-			List<MinMax> results = IntStream.range(0, nBands).mapToObj(i -> new MinMax()).collect(Collectors.toList());
+			List<MinMax> results = IntStream.range(0, nBands).mapToObj(i -> new MinMax()).toList();
 			float[] pixels = null;
 			float[] countPixels = null;
 			for (var img : tiles.values()) {

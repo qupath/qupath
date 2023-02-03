@@ -30,7 +30,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.controlsfx.control.action.Action;
@@ -220,7 +219,7 @@ public class ViewTrackerControlPane implements Runnable {
 				// Set non-clashing name to recording
 				var newName = GeneralTools.generateDistinctName("Recording", trackersList.stream()
 						.map(t -> t.getName())
-						.collect(Collectors.toList()));
+						.toList());
 				tracker.setName(newName);
 				
 				// Start recording and timer
@@ -345,7 +344,7 @@ public class ViewTrackerControlPane implements Runnable {
 					List<File> files = dragboard.getFiles()
 							.stream()
 							.filter(f -> f.isFile() && !f.isHidden())
-							.collect(Collectors.toList());
+							.toList();
 					files.removeIf(t -> {
 						for (var element: table.getItems()) {
 							if (element.getFile().getAbsolutePath().equals(t.getAbsolutePath()))
@@ -378,7 +377,7 @@ public class ViewTrackerControlPane implements Runnable {
 		    menu.getItems().addAll(renameItem, openDirectoryItem);
 		    renameItem.setOnAction(ev -> {
 		    	var newName = Dialogs.showInputDialog("Rename", "New name", recordingRow.getItem().getFile() == null ? "" : recordingRow.getItem().getFile().getName());
-		    	newName = GeneralTools.generateDistinctName(newName, trackersList.stream().map(tracker -> tracker.getName()).collect(Collectors.toList()));
+		    	newName = GeneralTools.generateDistinctName(newName, trackersList.stream().map(tracker -> tracker.getName()).toList());
 		    	if (newName == null || newName.isEmpty() || newName.equals(recordingRow.getItem().getFile().getName()))
 		    		return;
 		    	recordingRow.getItem().setName(newName);
@@ -540,7 +539,7 @@ public class ViewTrackerControlPane implements Runnable {
 				}
 				
 				// If some recordings are not saved
-				List<ViewTracker> unsaved = trackersList.stream().filter(tracker -> tracker.getFile() == null).collect(Collectors.toList());
+				List<ViewTracker> unsaved = trackersList.stream().filter(tracker -> tracker.getFile() == null).toList();
 				if (!unsaved.isEmpty()) {
 					var response = Dialogs.showYesNoDialog("Save recordings", "You will lose your unsaved recordings." + System.lineSeparator() + "Continue?");
 					if (!response) {
@@ -629,7 +628,7 @@ public class ViewTrackerControlPane implements Runnable {
 												.filter(path -> GeneralTools.getExtension(path.toFile()).orElse("").equals(".tsv"))
 												.map(path -> ViewTrackerTools.handleImport(path))
 												.filter(t -> t != null)
-												.collect(Collectors.toList()));
+												.toList());
 			} catch (IOException ex) {
 				logger.error("Could not fetch existing recordings: " + ex.getLocalizedMessage(), ex);
 			}

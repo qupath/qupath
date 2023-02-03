@@ -28,7 +28,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
-import java.util.stream.Collectors;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
@@ -125,7 +124,7 @@ class ProjectMetadataEditorCommand {
 		table.addEventHandler(KeyEvent.KEY_RELEASED, e -> {
 			if (e.getCode() == KeyCode.BACK_SPACE || e.getCode() == KeyCode.DELETE) {
 				var positions = table.getSelectionModel().getSelectedCells().stream().filter(
-						p -> !IMAGE_NAME.equals(p.getTableColumn().getText())).collect(Collectors.toList());
+						p -> !IMAGE_NAME.equals(p.getTableColumn().getText())).toList();
 				if (positions.isEmpty())
 					return;
 				if (positions.size() == 1) {

@@ -360,7 +360,7 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 			// Identify all files in the directory, and also all potential project files
 			File[] filesInDirectory = file.listFiles(f -> !f.isHidden());
 			List<File> projectFiles = Arrays.stream(filesInDirectory).filter(f -> f.isFile() && 
-					f.getAbsolutePath().toLowerCase().endsWith(ProjectIO.getProjectExtension())).collect(Collectors.toList());
+					f.getAbsolutePath().toLowerCase().endsWith(ProjectIO.getProjectExtension())).toList();
 			if (projectFiles.size() == 1) {
 				file = projectFiles.get(0);
 				fileName = file.getName().toLowerCase();

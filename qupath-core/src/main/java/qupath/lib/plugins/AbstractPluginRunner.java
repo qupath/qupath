@@ -32,8 +32,6 @@ import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.stream.Collectors;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -107,7 +105,7 @@ public abstract class AbstractPluginRunner<T> implements PluginRunner<T> {
 		awaitCompletion();
 		
 		// Post-process any PathTasks
-		postProcess(tasks.stream().filter(t -> t instanceof PathTask).map(t -> (PathTask)t).collect(Collectors.toList()));
+		postProcess(tasks.stream().filter(t -> t instanceof PathTask).map(t -> (PathTask)t).toList());
 		
 		getImageData().getHierarchy().fireHierarchyChangedEvent(this);
 	}

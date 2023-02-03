@@ -33,8 +33,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
-import java.util.stream.Collectors;
-
 import org.controlsfx.control.RangeSlider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -435,7 +433,7 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 			//------------------ DOWNSAMPLE RANGESLIDER ------------------//
 			List<Double> allFramesDownsamples = tracker.getAllFrames().stream()
 					.map(e -> e.getDownsampleFactor())
-					.collect(Collectors.toList());
+					.toList();
 			
 			var minDownsample = allFramesDownsamples.stream().min(Comparator.naturalOrder()).get();
 			var maxDownsample = allFramesDownsamples.stream().max(Comparator.naturalOrder()).get();

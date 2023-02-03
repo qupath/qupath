@@ -33,8 +33,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
-import java.util.stream.Collectors;
-
 import org.controlsfx.control.action.Action;
 import org.controlsfx.control.action.ActionUtils;
 import org.slf4j.Logger;
@@ -197,7 +195,7 @@ public class ViewerManager implements QuPathViewerListener {
 	 */
 	public void matchResolutions() {
 		var viewer = getActiveViewer();
-		var activeViewers = getAllViewers().stream().filter(v -> v.hasServer()).collect(Collectors.toList());
+		var activeViewers = getAllViewers().stream().filter(v -> v.hasServer()).toList();
 		if (activeViewers.size() <= 1 || !viewer.hasServer())
 			return;
 		var cal = viewer.getServer().getPixelCalibration();

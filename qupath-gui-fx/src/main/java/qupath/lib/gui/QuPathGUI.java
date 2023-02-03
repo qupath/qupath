@@ -1932,11 +1932,9 @@ public class QuPathGUI {
 				logger.info("Accelerator {} already set for {} - no changes needed", combo, item.getText());
 				return false;
 			} else if (existingItem != null) {
-				if (existingItem instanceof MenuItem) {
-					var mi = (MenuItem)existingItem;
-					setAccelerator(mi, null);
-				} else if (existingItem instanceof Action) {
-					var existingAction = (Action)existingItem;
+				if (existingItem instanceof MenuItem existingMenuItem) {
+					setAccelerator(existingMenuItem, null);
+				} else if (existingItem instanceof Action existingAction) {
 					setAccelerator(existingAction, null);
 				} else {
 					// Shouldn't happen
@@ -2094,8 +2092,7 @@ public class QuPathGUI {
 	 * @throws Exception
 	 */
 	public boolean runPlugin(final PathPlugin<BufferedImage> plugin, final String arg, final boolean doInteractive) throws Exception {
-		if (doInteractive && plugin instanceof PathInteractivePlugin) {
-			PathInteractivePlugin<BufferedImage> pluginInteractive = (PathInteractivePlugin<BufferedImage>)plugin;
+		if (doInteractive && plugin instanceof PathInteractivePlugin pluginInteractive) {
 			ParameterList params = pluginInteractive.getDefaultParameterList(getImageData());
 			// Update parameter list, if necessary
 			if (arg != null) {
@@ -2247,8 +2244,8 @@ public class QuPathGUI {
 		this.scriptEditor = scriptEditor;
 		// Try to bind to whether a script is running or not
 		scriptRunning.unbind();
-		if (scriptEditor instanceof DefaultScriptEditor)
-			scriptRunning.bind(((DefaultScriptEditor)scriptEditor).scriptRunning());
+		if (scriptEditor instanceof DefaultScriptEditor defaultScriptEditor)
+			scriptRunning.bind(defaultScriptEditor.scriptRunning());
 		else
 			scriptRunning.set(false);
 	}

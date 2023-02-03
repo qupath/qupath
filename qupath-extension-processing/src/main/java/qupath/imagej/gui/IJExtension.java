@@ -56,8 +56,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.function.Predicate;
-import java.util.stream.Collectors;
-
 import javax.swing.SwingUtilities;
 
 import org.controlsfx.control.action.Action;
@@ -653,13 +651,13 @@ public class IJExtension implements QuPathExtension {
 			if (imageData == null)
 				return false;
 			
-			var roiFiles = files.stream().filter(f -> IJTools.containsImageJRois(f)).collect(Collectors.toList());
+			var roiFiles = files.stream().filter(f -> IJTools.containsImageJRois(f)).toList();
 			if (roiFiles.isEmpty())
 				return false;
 			
 			var pathObjects = files.stream().flatMap(f -> IJTools.readImageJRois(f).stream())
 					.map(r -> IJTools.convertToAnnotation(r, 1.0, null))
-					.collect(Collectors.toList());
+					.toList();
 			
 			imageData.getHierarchy().addObjects(pathObjects);
 			imageData.getHierarchy().getSelectionModel().selectObjects(pathObjects);

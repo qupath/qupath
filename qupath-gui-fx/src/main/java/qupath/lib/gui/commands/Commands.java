@@ -1671,7 +1671,7 @@ public class Commands {
 		PathObjectHierarchy hierarchy = imageData.getHierarchy();
 		List<PathObject> pathObjects = hierarchy.getSelectionModel().getSelectedObjects().stream()
 				.filter(p -> p.isAnnotation() && p.hasROI() && p.isEditable() && !p.getROI().isPoint())
-				.collect(Collectors.toList());
+				.toList();
 		if (pathObjects.isEmpty()) {
 			Dialogs.showErrorMessage("Simplify annotations", "No unlocked shape annotations selected!");
 			return;
@@ -2033,7 +2033,7 @@ public class Commands {
 				// Make sure all the objects are on the current plane if needed
 				if (addToCurrentPlane) {
 					var plane = viewer.getImagePlane();
-					pathObjects = pathObjects.stream().map(p -> PathObjectTools.updatePlane(p, plane, false, true)).collect(Collectors.toList());
+					pathObjects = pathObjects.stream().map(p -> PathObjectTools.updatePlane(p, plane, false, true)).toList();
 				}
 				if (!pathObjects.isEmpty()) {
 					InteractiveObjectImporter.promptToImportObjects(imageData.getHierarchy(), pathObjects);

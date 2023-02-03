@@ -29,8 +29,6 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.stream.Collectors;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -163,7 +161,7 @@ public class OMEPyramidWriterCommand implements Runnable {
 		
 		// Set compression - with a sanity check for validity, defaulting to another comparable method if necessary
 		CompressionType compression = getDefaultPyramidCompression();
-		List<String> compatibleCompression = Arrays.stream(CompressionType.values()).filter(c -> c.supportsImage(server)).map(c -> c.toFriendlyString()).collect(Collectors.toList());
+		List<String> compatibleCompression = Arrays.stream(CompressionType.values()).filter(c -> c.supportsImage(server)).map(c -> c.toFriendlyString()).toList();
 		if (!compatibleCompression.contains(compression.toFriendlyString()))
 			compression = CompressionType.DEFAULT;
 		

@@ -176,7 +176,7 @@ class QuPathTypeAdapters {
 						.stream()
 						.map(i -> (TMACoreObject)allCores.getOrDefault(i, null))
 						.filter(c -> c != null)
-						.collect(Collectors.toList());
+						.toList();
 				
 				if (sortedCores.size() == proxy.cores.size()) {
 					var tmaGrid = DefaultTMAGrid.create(sortedCores, proxy.width);
@@ -200,7 +200,7 @@ class QuPathTypeAdapters {
 		
 		TMAGridProxy(TMAGrid grid) {
 			this.width = grid.getGridWidth();
-			cores = grid.getTMACoreList().stream().map(c -> c.getID()).collect(Collectors.toList());
+			cores = grid.getTMACoreList().stream().map(c -> c.getID()).toList();
 		}
 		
 	}

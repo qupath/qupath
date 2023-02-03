@@ -29,8 +29,6 @@ import java.net.URISyntaxException;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Comparator;
-import java.util.stream.Collectors;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -237,7 +235,7 @@ class ShowLicensesCommand {
 							.filter(f -> !f.isHidden())
 							.sorted(comparator)
 							.map(f -> new LicenseFileTreeItem(f))
-							.collect(Collectors.toList()));
+							.toList());
 			}
 			return super.getChildren();
 		}

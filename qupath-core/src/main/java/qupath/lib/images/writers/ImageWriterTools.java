@@ -30,8 +30,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.ServiceLoader;
 import java.util.UUID;
-import java.util.stream.Collectors;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -63,7 +61,7 @@ public class ImageWriterTools {
 		if (server == null)
 			return getCompatibleWriters((Class<T>)null, ext);
 		var writers = getCompatibleWriters(server.getImageClass(), ext);
-		return writers.stream().filter(w -> w.supportsImageType(server)).collect(Collectors.toList());
+		return writers.stream().filter(w -> w.supportsImageType(server)).toList();
 	}
 	
 	/**

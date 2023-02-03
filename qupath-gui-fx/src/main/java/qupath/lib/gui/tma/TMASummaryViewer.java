@@ -1054,7 +1054,7 @@ public class TMASummaryViewer {
 			if (ind < 0)
 				return Collections.emptyList();
 			String part = tfCommand.getText().substring(ind+1);
-			return measurementNames.stream().filter(n -> n.startsWith(part)).map(n -> "\"" + n + "\" ").collect(Collectors.toList());
+			return measurementNames.stream().filter(n -> n.startsWith(part)).map(n -> "\"" + n + "\" ").toList();
 		});
 
 		String instructions = "Enter a predicate to filter entries.\n" + 
@@ -1769,13 +1769,13 @@ public class TMASummaryViewer {
 			if (table.getRoot() == null)
 				list.clear();
 			else if (useSelectedProperty.get()) {
-				List<TMAEntry> selectedList = table.getSelectionModel().getSelectedItems().stream().map(i -> i.getValue()).collect(Collectors.toList());
+				List<TMAEntry> selectedList = table.getSelectionModel().getSelectedItems().stream().map(i -> i.getValue()).toList();
 				// If we have *any* summary entries, then make sure we have *all* summary entries
 				if (selectedList.stream().anyMatch(e -> e instanceof TMASummaryEntry))
-					selectedList = selectedList.stream().filter(e -> e instanceof TMASummaryEntry).collect(Collectors.toList());
+					selectedList = selectedList.stream().filter(e -> e instanceof TMASummaryEntry).toList();
 				list.setAll(selectedList);
 			} else
-				list.setAll(table.getRoot().getChildren().stream().map(i -> i.getValue()).collect(Collectors.toList()));
+				list.setAll(table.getRoot().getChildren().stream().map(i -> i.getValue()).toList());
 		}
 		
 		

@@ -165,8 +165,7 @@ class ToolBarComponent {
 
 		// TODO: Check if viewer really needed...
 		QuPathViewer viewer = viewerManager.getActiveViewer();
-		if (viewer instanceof QuPathViewerPlus) {
-			QuPathViewerPlus viewerPlus = (QuPathViewerPlus)viewer;
+		if (viewer instanceof QuPathViewerPlus viewerPlus) {
 			nodes.add(ActionTools.createToggleButton(defaultActions.SHOW_OVERVIEW, true, viewerPlus.isOverviewVisible()));
 			nodes.add(ActionTools.createToggleButton(defaultActions.SHOW_LOCATION, true, viewerPlus.isLocationVisible()));
 			nodes.add(ActionTools.createToggleButton(defaultActions.SHOW_SCALEBAR, true, viewerPlus.isScalebarVisible()));
@@ -216,8 +215,8 @@ class ToolBarComponent {
 				btnTool = ActionTools.createToggleButton(action, action.getGraphic() != null);
 				var toggleButton = (ToggleButton)btnTool;
 				toggleButton.setToggleGroup(group);
-				if (tool instanceof ExtendedPathTool) {
-					var popup = createContextMenu((ExtendedPathTool)tool, toggleButton);
+				if (tool instanceof ExtendedPathTool extendedTool) {
+					var popup = createContextMenu(extendedTool, toggleButton);
 					btnTool.setOnContextMenuRequested(e -> {
 						popup.show(toggleButton, e.getScreenX(), e.getScreenY());
 					});

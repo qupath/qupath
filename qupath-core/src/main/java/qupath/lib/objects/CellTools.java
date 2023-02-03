@@ -28,8 +28,6 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
-
 import org.locationtech.jts.algorithm.Centroid;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
@@ -234,7 +232,7 @@ public class CellTools {
 				return list.parallelStream()
 						.map(sublist -> detectionsToCellsSubtree(tree, (List)sublist, cellBoundaryMap, envelopes))
 						.flatMap(Collection::stream)
-						.collect(Collectors.toList());
+						.toList();
 			} else {
 				var cells = new ArrayList<PathObject>();
 				for (var sublist : list)

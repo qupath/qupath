@@ -26,8 +26,6 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Collectors;
-
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.StringProperty;
@@ -90,7 +88,7 @@ public class TMACommands {
 		var selectedCores = imageData.getHierarchy().getSelectionModel().getSelectedObjects().stream()
 				.filter(p -> p.isTMACore())
 				.map(c -> (TMACoreObject)c)
-				.collect(Collectors.toList());
+				.toList();
 		if (selectedCores.isEmpty()) {
 			Dialogs.showErrorMessage(title, "No TMA cores are selected!  No note will be added.");
 			return;
