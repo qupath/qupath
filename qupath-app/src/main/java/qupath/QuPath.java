@@ -123,9 +123,10 @@ public class QuPath {
 		if (System.getProperty("offline", null) == null)
 			System.setProperty("offline", "true");
 
-		
+		initializeProperties();
+
 		QuPath qupath = new QuPath();
-				
+						
 		CommandLine cmd = new CommandLine(qupath);
 		cmd.setCaseInsensitiveEnumValuesAllowed(true);
 //		cmd.setUnmatchedArgumentsAllowed(false);
@@ -203,7 +204,7 @@ public class QuPath {
 	}
 	
 	
-	static void initializeProperties() {
+	private static void initializeProperties() {
 		initializeJTS();
 	}
 	
@@ -213,7 +214,7 @@ public class QuPath {
 	 * This can greatly reduce TopologyExceptions.
 	 * Use -Djts.overlay=old to turn off this behavior.
 	 */
-	static void initializeJTS() {
+	private static void initializeJTS() {
 		var prop = System.getProperty("jts.overlay");
 		if (prop == null) {
 			logger.debug("Setting -Djts.overlay=ng");
