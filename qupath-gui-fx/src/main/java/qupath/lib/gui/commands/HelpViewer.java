@@ -42,7 +42,6 @@ import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.Scene;
-import javafx.scene.control.ButtonType;
 import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Control;
 import javafx.scene.control.Label;
@@ -50,12 +49,12 @@ import javafx.scene.control.ScrollPane;
 import javafx.scene.control.SplitPane;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.MouseEvent;
-import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.TextAlignment;
 import javafx.stage.Stage;
 import javafx.stage.Window;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.QuPathResources;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.IconFactory;
 import qupath.lib.gui.tools.IconFactory.PathIcons;
@@ -70,7 +69,7 @@ public class HelpViewer {
 
 	private static Map<QuPathGUI, HelpViewer> INSTANCES = new ConcurrentHashMap<>();
 
-	private String title = "Context help";
+	private String title = QuPathResources.getString("ContextHelp.title");
 	private QuPathGUI qupath;
 	
 	private int iconSize = 16;
@@ -79,7 +78,7 @@ public class HelpViewer {
 	private ObservableList<Window> windows;
 	private EventHandler<MouseEvent> handler = this::handleMouseMove;
 
-	private String defaultText = "Move the cursor over something to view any available help text";
+	private String defaultText = QuPathResources.getString("ContextHelp.defaultHelpText");
 	private StringProperty helpText = new SimpleStringProperty(defaultText);
 
 	private Label label;
@@ -93,7 +92,6 @@ public class HelpViewer {
 		this.qupath = qupath;
 		
 		initializeWindowListeners();
-		
 		
 		label = createHelpTextLabel();
 		
@@ -284,52 +282,53 @@ public class HelpViewer {
 
 	static class HelpListEntry {
 		
+		private int iconSize = 16;
+		
 		private HelpType type;
 		private StringProperty textProperty;
 		private SimpleObjectProperty<Node> graphicProperty;
 		
 		private BooleanProperty visibleProperty = new SimpleBooleanProperty(false);
 		
-		private HelpListEntry(HelpType type, String text, Node graphic) {
+		private HelpListEntry(HelpType type, String key, Node graphic) {
 			this.type = type;
-			this.textProperty = new SimpleStringProperty(text);
+			this.textProperty = new SimpleStringProperty(QuPathResources.getString(key));
+			if (graphic == null)
+				graphic = createGraphicFromType(type);
 			this.graphicProperty = new SimpleObjectProperty<>(graphic);
 		}
 		
-		private ObjectProperty<Node> graphicProperty() {
+		public ObjectProperty<Node> graphicProperty() {
 			return graphicProperty;
 		}
-		
+
+		public StringProperty textProperty() {
+			return textProperty;
+		}
+
 		private BooleanProperty visibleProperty() {
 			return visibleProperty;
 		}
 		
-		static HelpListEntry createWarning(String text, Node graphic) {
-			return new HelpListEntry(HelpType.WARNING, text, graphic);
+		static HelpListEntry createWarning(String key, Node graphic) {
+			return new HelpListEntry(HelpType.WARNING, key, graphic);
 		}
 
-		static HelpListEntry createWarning(String text) {
-			return createWarning(text, null);
+		static HelpListEntry createWarning(String key) {
+			return createWarning(key, null);
 		}
 		
-		static HelpListEntry createInfo(String text, Node graphic) {
-			return new HelpListEntry(HelpType.INFO, text, graphic);
+		static HelpListEntry createInfo(String key, Node graphic) {
+			return new HelpListEntry(HelpType.INFO, key, graphic);
 		}
 
-		static HelpListEntry createInfo(String text) {
-			return createInfo(text, null);
+		static HelpListEntry createInfo(String key) {
+			return createInfo(key, null);
 		}
-
 		
-	}
-	
-	
-	Label createHelpLabel(HelpListEntry entry) {
-		var label = new Label();
-		label.textProperty().bind(entry.textProperty);
-		Node typeGraphic = entry.graphicProperty.get();
-		if (typeGraphic == null) {
-			switch (entry.type) {
+		private Node createGraphicFromType(HelpType type) {
+			Node typeGraphic = null;
+			switch (type) {
 			case INFO:
 				typeGraphic = createIcon(PathIcons.INFO);
 				typeGraphic.setStyle("-fx-text-fill: cornflowerblue;");
@@ -345,8 +344,20 @@ public class HelpViewer {
 			default:
 				break;
 			}
+			return typeGraphic;
 		}
-		label.setGraphic(typeGraphic);
+		
+		Node createIcon(PathIcons icon) {
+			return IconFactory.createNode(iconSize, iconSize, icon);
+		}
+		
+	}
+	
+	
+	Label createHelpLabel(HelpListEntry entry) {
+		var label = new Label();
+		label.textProperty().bind(entry.textProperty());
+		label.graphicProperty().bind(entry.graphicProperty());
 		label.setPadding(new Insets(5.0, 10.0, 5.0, 10.0));
 		label.setWrapText(true);
 		entry.visibleProperty().addListener((v, o, n) -> {
@@ -363,7 +374,7 @@ public class HelpViewer {
 	
 	private  HelpListEntry createSelectionModelEntry() {
 		var entry = HelpListEntry.createWarning(
-				"Selection mode is active - this will switch drawing tools to become selection tools instead",
+				"ContextHelp.warning.selectionMode",
 				createIcon(PathIcons.SELECTION_MODE));
 		entry.visibleProperty().bind(
 				PathPrefs.selectionModeProperty());
@@ -373,7 +384,7 @@ public class HelpViewer {
 	
 	private  HelpListEntry createAnnotationsHiddenEntry() {
 		var entry = HelpListEntry.createWarning(
-				"Annotations are hidden",
+				"ContextHelp.warning.annotationsHidden",
 				createIcon(PathIcons.ANNOTATIONS));
 		entry.visibleProperty().bind(
 				qupath.getOverlayOptions().showAnnotationsProperty().not());
@@ -382,9 +393,8 @@ public class HelpViewer {
 	
 	private  HelpListEntry createTMAGridHiddenEntry() {
 		var entry = HelpListEntry.createWarning(
-				"Detections are hidden",
+				"ContextHelp.warning.tmaCoresHidden",
 				createIcon(PathIcons.TMA_GRID));
-		ButtonType.CANCEL
 		entry.visibleProperty().bind(
 				qupath.getOverlayOptions().showTMAGridProperty().not());
 		return entry;
@@ -392,7 +402,7 @@ public class HelpViewer {
 	
 	private  HelpListEntry createDetectionsHiddenEntry() {
 		var entry = HelpListEntry.createWarning(
-				"Detections are hidden",
+				"ContextHelp.warning.detectionsHidden",
 				createIcon(PathIcons.DETECTIONS));
 		entry.visibleProperty().bind(
 				qupath.getOverlayOptions().showDetectionsProperty().not());
@@ -401,7 +411,7 @@ public class HelpViewer {
 	
 	private  HelpListEntry createPixelClassificationOverlayHiddenEntry() {
 		var entry = HelpListEntry.createWarning(
-				"Pixel classification overlay is hidden",
+				"ContextHelp.warning.pixelOverlayHidden",
 				createIcon(PathIcons.PIXEL_CLASSIFICATION));
 		entry.visibleProperty().bind(
 				qupath.getOverlayOptions().showPixelClassificationProperty().not());
@@ -410,7 +420,7 @@ public class HelpViewer {
 	
 	private  HelpListEntry createOpacityZeroEntry() {
 		var entry = HelpListEntry.createWarning(
-				"Opacity slider is zero (unselected objects won't be visible)");
+				"ContextHelp.warning.opacityZero");
 		entry.visibleProperty().bind(
 				qupath.getOverlayOptions().opacityProperty().lessThanOrEqualTo(0.0));
 		return entry;
@@ -418,7 +428,7 @@ public class HelpViewer {
 	
 	private  HelpListEntry createNoImageEntry() {
 		var entry = HelpListEntry.createWarning(
-				"No image is open in the current viewer");
+				"ContextHelp.warning.noImage");
 		entry.visibleProperty().bind(
 				qupath.imageDataProperty().isNull());
 		return entry;
@@ -426,16 +436,15 @@ public class HelpViewer {
 	
 	private  HelpListEntry createNoProjectEntry() {
 		var entry = HelpListEntry.createWarning(
-				"No project is open");
+				"ContextHelp.warning.noProject");
 		entry.visibleProperty().bind(
 				qupath.projectProperty().isNull());
 		return entry;
 	}
 	
-	
 	Node createIcon(PathIcons icon) {
 		return IconFactory.createNode(iconSize, iconSize, icon);
 	}
-	
+
 
 }
