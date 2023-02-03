@@ -57,7 +57,6 @@ import javafx.scene.shape.Path;
 import javafx.scene.text.TextAlignment;
 import qupath.lib.gui.QuPathGUI.DefaultActions;
 import qupath.lib.gui.dialogs.Dialogs;
-import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.IconFactory;
 import qupath.lib.gui.tools.IconFactory.PathIcons;
@@ -84,6 +83,8 @@ class ToolBarComponent {
 	private ToolManager toolManager;
 	private ViewerManager viewerManager;
 	private DefaultActions defaultActions;
+	
+	
 	
 	private int toolIdx;
 
@@ -116,7 +117,7 @@ class ToolBarComponent {
 
 		nodes.add(new Separator(Orientation.VERTICAL));
 
-		nodes.add(ActionTools.createToggleButton(defaultActions.SELECTION_MODE, true, null, PathPrefs.selectionModeProperty().get()));			
+		nodes.add(ActionTools.createToggleButton(toolManager.getSelectionModeAction(), true));			
 
 		nodes.add(new Separator(Orientation.VERTICAL));
 

@@ -36,6 +36,7 @@ import javafx.event.EventType;
 import javafx.scene.Node;
 import javafx.scene.input.MouseEvent;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.QuPathResources;
 import qupath.lib.gui.tools.IconFactory;
 import qupath.lib.gui.tools.IconFactory.PathIcons;
 import qupath.lib.gui.viewer.QuPathViewer;
@@ -53,46 +54,53 @@ public class PathTools {
 	 */
 	public static final PathTool MOVE = createTool(
 			PathToolEventHandlers.createMoveEventHandler(),
-			"Move", createIcon(PathIcons.MOVE_TOOL));
+			QuPathResources.getString("Tools.name.move"),
+			createIcon(PathIcons.MOVE_TOOL));
 	/**
 	 * Rectangle drawing tool
 	 */
 	public static final PathTool RECTANGLE = createTool(
 			PathToolEventHandlers.createRectangleEventHandler(),
-			"Rectangle", createIcon(PathIcons.RECTANGLE_TOOL));
+			QuPathResources.getString("Tools.name.rectangle"),
+			createIcon(PathIcons.RECTANGLE_TOOL));
 	/**
 	 * Ellipse drawing tool
 	 */
 	public static final PathTool ELLIPSE = createTool(
 			PathToolEventHandlers.createEllipseEventHandler(),
-			"Ellipse", createIcon(PathIcons.ELLIPSE_TOOL));
+			QuPathResources.getString("Tools.name.ellipse"),
+			createIcon(PathIcons.ELLIPSE_TOOL));
 	/**
 	 * Line drawing tool
 	 */
 	public static final PathTool LINE = createTool(
 			PathToolEventHandlers.createLineEventHandler(),
-			"Line", createIcon(PathIcons.LINE_TOOL));
+			QuPathResources.getString("Tools.name.line"),
+			createIcon(PathIcons.LINE_TOOL));
 
 	/**
 	 * Arrow drawing tool, with arrowhead at the start
 	 */
 	public static final PathTool ARROW_START = createTool(
 			PathToolEventHandlers.createArrowStartEventHandler(),
-			"Arrow (start)", createIcon(PathIcons.ARROW_START_TOOL));
+			QuPathResources.getString("Tools.name.arrowStart"),
+			createIcon(PathIcons.ARROW_START_TOOL));
 
 	/**
 	 * Arrow drawing tool, with arrowhead at the end
 	 */
 	public static final PathTool ARROW_END = createTool(
 			PathToolEventHandlers.createArrowEndEventHandler(),
-			"Arrow (end)", createIcon(PathIcons.ARROW_END_TOOL));
+			QuPathResources.getString("Tools.name.arrowEnd"),
+			createIcon(PathIcons.ARROW_END_TOOL));
 
 	/**
 	 * Arrow drawing tool, with arrowhead at both ends
 	 */
 	public static final PathTool ARROW_DOUBLE = createTool(
 			PathToolEventHandlers.createDoubleArrowEventHandler(),
-			"Arrow (double)", createIcon(PathIcons.ARROW_DOUBLE_TOOL));
+			QuPathResources.getString("Tools.name.arrowDouble"),
+			createIcon(PathIcons.ARROW_DOUBLE_TOOL));
 	
 	/**
 	 * Extended {@link PathTool} that can switch between drawing lines or arrows.
@@ -106,25 +114,29 @@ public class PathTools {
 	 */
 	public static final PathTool POLYGON = createTool(
 			PathToolEventHandlers.createPolygonEventHandler(),
-			"Polygon", createIcon(PathIcons.POLYGON_TOOL));
+			QuPathResources.getString("Tools.name.polygon"),
+			createIcon(PathIcons.POLYGON_TOOL));
 	/**
 	 * Polyline drawing tool (open)
 	 */
 	public static final PathTool POLYLINE = createTool(
 			PathToolEventHandlers.createPolylineEventHandler(),
-			"Polyline", createIcon(PathIcons.POLYLINE_TOOL));
+			QuPathResources.getString("Tools.name.polyline"),
+			createIcon(PathIcons.POLYLINE_TOOL));
 	/**
 	 * Brush drawing tool
 	 */
 	public static final PathTool BRUSH = createTool(
 			PathToolEventHandlers.createBrushEventHandler(),
-			"Brush", createIcon(PathIcons.BRUSH_TOOL));
+			QuPathResources.getString("Tools.name.brush"),
+			createIcon(PathIcons.BRUSH_TOOL));
 	/**
 	 * Points annotation and counting tool
 	 */
 	public static final PathTool POINTS = createTool(
 			PathToolEventHandlers.createPointsEventHandler(),
-			"Points", createIcon(PathIcons.POINTS_TOOL));
+			QuPathResources.getString("Tools.name.points"),
+			createIcon(PathIcons.POINTS_TOOL));
 	
 	
 	private static List<PathTool> ALL_TOOLS = Arrays.asList(
@@ -134,7 +146,7 @@ public class PathTools {
 	private static Node createIcon(PathIcons icon) {
 		return IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, icon);
 	}
-	
+		
 	/**
 	 * Create a tool from the specified {@link MouseEvent} handler.
 	 * When the tool is registered, the handler will be called for any mouse event.

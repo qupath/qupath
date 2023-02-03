@@ -29,6 +29,7 @@ import java.lang.annotation.Target;
 import java.lang.reflect.AnnotatedElement;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -318,6 +319,9 @@ public class ActionTools {
 	 * Description of an action.
 	 * This can be used for help text, and is currently passed to the action as {@link Action#longTextProperty()}.
 	 * In QuPath it is shown through the "Command list" table.
+	 * <p>
+	 * If the description is prefixed by {@code Key:} then it is requested from {@link QuPathResources},
+	 * otherwise the text is used directly.
 	 */
 	@Documented
 	@Retention(RetentionPolicy.RUNTIME)
@@ -359,10 +363,9 @@ public class ActionTools {
 		// If the class is annotated with a menu, use that as a base; all other menus will be nested within this
 		var menuAnnotation = cls.getAnnotation(ActionMenu.class);
 		String baseMenu = menuAnnotation == null ? "" : menuAnnotation.value();
-		
 		// Get accessible fields corresponding to actions
 		for (var f : cls.getDeclaredFields()) {
-			if (!f.canAccess(obj))
+			if (Modifier.isStatic(f.getModifiers()) || !f.canAccess(obj))
 				continue;
 			try {
 				var value = f.get(obj);
@@ -465,6 +468,8 @@ public class ActionTools {
 		if (annotation == null)
 			return;
 		var description = annotation.value();
+		if (description.startsWith("KEY:"))
+			description = QuPathResources.getString(description.substring(4));
 		action.setLongText(description);
 	}
 	

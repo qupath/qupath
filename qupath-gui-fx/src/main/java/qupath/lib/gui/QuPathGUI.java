@@ -113,7 +113,7 @@ import qupath.lib.gui.ActionTools.ActionIcon;
 import qupath.lib.gui.commands.BrightnessContrastCommand;
 import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.commands.CountingPanelCommand;
-import qupath.lib.gui.commands.HelpViewer;
+import qupath.lib.gui.commands.ContextHelpViewer;
 import qupath.lib.gui.commands.InputDisplayCommand;
 import qupath.lib.gui.commands.LogViewerCommand;
 import qupath.lib.gui.commands.ProjectCommands;
@@ -658,7 +658,7 @@ public class QuPathGUI {
 			items.add(mi);
 		}
 		menu.getItems().setAll(items);
-		MenuTools.addMenuItems(menu, null, ActionTools.createCheckMenuItem(defaultActions.SELECTION_MODE));
+		MenuTools.addMenuItems(menu, null, ActionTools.createCheckMenuItem(toolManager.getSelectionModeAction()));
 	}
 
 
@@ -2781,65 +2781,6 @@ public class QuPathGUI {
 		@ActionIcon(PathIcons.ZOOM_TO_FIT)
 		public final Action ZOOM_TO_FIT = ActionTools.createSelectableAction(viewerManager.zoomToFitProperty(), "Zoom to fit");
 		
-		// Tool actions
-		/**
-		 * Move tool action
-		 */
-		@ActionAccelerator("m")
-		@ActionDescription("Move tool, both for moving around the viewer (panning) and moving objects (translation).")
-		public final Action MOVE_TOOL = toolManager.getToolAction(PathTools.MOVE);
-		/**
-		 * Rectangle tool action
-		 */
-		@ActionAccelerator("r")
-		@ActionDescription("Click and drag to draw a rectangle annotation. Hold down 'Shift' to constrain shape to be a square.")
-		public final Action RECTANGLE_TOOL = toolManager.getToolAction(PathTools.RECTANGLE);
-		/**
-		 * Ellipse tool action
-		 */
-		@ActionAccelerator("o")
-		@ActionDescription("Click and drag to draw an ellipse annotation. Hold down 'Shift' to constrain shape to be a circle.")
-		public final Action ELLIPSE_TOOL = toolManager.getToolAction(PathTools.ELLIPSE);
-		/**
-		 * Polygon tool action
-		 */
-		@ActionAccelerator("p")
-		@ActionDescription("Create a closed polygon annotation, either by clicking individual points (with double-click to end) or clicking and dragging.")
-		public final Action POLYGON_TOOL = toolManager.getToolAction(PathTools.POLYGON);
-		/**
-		 * Polyline tool action
-		 */
-		@ActionAccelerator("v")
-		@ActionDescription("Create a polyline annotation, either by clicking individual points (with double-click to end) or clicking and dragging.")
-		public final Action POLYLINE_TOOL = toolManager.getToolAction(PathTools.POLYLINE);
-		/**
-		 * Brush tool action
-		 */
-		@ActionAccelerator("b")
-		@ActionDescription("Click and drag to paint with a brush. "
-				+ "By default, the size of the region being drawn depends upon the zoom level in the viewer.")
-		public final Action BRUSH_TOOL = toolManager.getToolAction(PathTools.BRUSH);
-		/**
-		 * Line tool action
-		 */
-		@ActionAccelerator("l")
-		@ActionDescription("Click and drag to draw a line annotation.")
-		public final Action LINE_TOOL = toolManager.getToolAction(PathTools.LINE_OR_ARROW);
-		/**
-		 * Points/counting tool action
-		 */
-		@ActionAccelerator(".")
-		@ActionDescription("Click to add points to an annotation.")
-		public final Action POINTS_TOOL = toolManager.getToolAction(PathTools.POINTS);
-		
-		/**
-		 * Toggle 'selection mode' on/off for all drawing tools.
-		 */
-		@ActionAccelerator("shift+s")
-		@ActionIcon(PathIcons.SELECTION_MODE)
-		@ActionDescription("Turn on/off selection mode - this converts drawing tools into selection tools")
-		public final Action SELECTION_MODE = ActionTools.createSelectableAction(PathPrefs.selectionModeProperty(), "Selection mode");
-		
 		// Toolbar actions
 		/**
 		 * Show the brightness/contrast dialog.
@@ -3047,7 +2988,7 @@ public class QuPathGUI {
 		 */
 		@ActionIcon(PathIcons.HELP)
 		@ActionDescription("Show context-dependent help info based on the cursor location and QuPath's current state")
-		public final Action HELP_VIEWER = Commands.createSingleStageAction(() -> HelpViewer.getInstance(QuPathGUI.this).getStage());
+		public final Action HELP_VIEWER = Commands.createSingleStageAction(() -> ContextHelpViewer.getInstance(QuPathGUI.this).getStage());
 		
 		private DefaultActions() {
 			// This has the effect of applying the annotations

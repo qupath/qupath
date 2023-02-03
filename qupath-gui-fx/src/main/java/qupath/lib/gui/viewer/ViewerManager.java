@@ -73,6 +73,7 @@ import javafx.util.Duration;
 import jfxtras.scene.menu.CirclePopupMenu;
 import qupath.lib.gui.ActionTools;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.ToolManager;
 import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.commands.TMACommands;
 import qupath.lib.gui.dialogs.Dialogs;
@@ -941,13 +942,10 @@ public class ViewerManager implements QuPathViewerListener {
 		miRemoveColumn.setOnAction(e -> removeColumn(viewer));
 
 		MenuItem miCloseViewer = new MenuItem("Close viewer");
-		miCloseViewer.setOnAction(e -> {
-			qupath.closeViewer(viewer);
-		});
+		miCloseViewer.setOnAction(e -> qupath.closeViewer(viewer));
 		MenuItem miResizeGrid = new MenuItem("Reset grid size");
-		miResizeGrid.setOnAction(e -> {
-				resetGridSize();
-		});
+		miResizeGrid.setOnAction(e -> resetGridSize());
+		
 		MenuItem miToggleSync = ActionTools.createCheckMenuItem(defaultActions.TOGGLE_SYNCHRONIZE_VIEWERS, null);
 		MenuItem miMatchResolutions = ActionTools.createMenuItem(defaultActions.MATCH_VIEWER_RESOLUTIONS);
 		Menu menuMultiview = MenuTools.createMenu(
@@ -977,21 +975,9 @@ public class ViewerManager implements QuPathViewerListener {
 				ActionTools.createAction(() -> Commands.setViewerDownsample(viewer, 100), "1%")
 				);
 		
-		ToggleGroup groupTools = new ToggleGroup();
-		Menu menuTools = MenuTools.createMenu(
-				"Set tool",
-				ActionTools.createCheckMenuItem(defaultActions.MOVE_TOOL, groupTools),
-				ActionTools.createCheckMenuItem(defaultActions.RECTANGLE_TOOL, groupTools),
-				ActionTools.createCheckMenuItem(defaultActions.ELLIPSE_TOOL, groupTools),
-				ActionTools.createCheckMenuItem(defaultActions.LINE_TOOL, groupTools),
-				ActionTools.createCheckMenuItem(defaultActions.POLYGON_TOOL, groupTools),
-				ActionTools.createCheckMenuItem(defaultActions.POLYLINE_TOOL, groupTools),
-				ActionTools.createCheckMenuItem(defaultActions.BRUSH_TOOL, groupTools),
-				ActionTools.createCheckMenuItem(defaultActions.POINTS_TOOL, groupTools),
-				null,
-				ActionTools.createCheckMenuItem(defaultActions.SELECTION_MODE)
-//				ActionTools.getActionCheckBoxMenuItem(actionManager.WAND_TOOL, groupTools)
-				);
+		// Hack to update the tools when we show this for the first time
+		// This should catch tools added via extensions (even if it doesn't respond to tool list being changed later)
+		Menu menuTools = MenuTools.createMenu("Set tool");
 
 		
 		// Handle awkward 'TMA core missing' option
@@ -1085,6 +1071,10 @@ public class ViewerManager implements QuPathViewerListener {
 				}
 			}
 			
+			if (menuTools.getItems().isEmpty()) {
+				menuTools.getItems().addAll(createToolMenu(qupath.getToolManager()));
+			}
+			
 			boolean hasAnnotations = pathObject instanceof PathAnnotationObject || (!selectedObjects.isEmpty() && selectedObjects.stream().allMatch(p -> p.isAnnotation()));
 			
 			updateSetAnnotationPathClassMenu(menuSetClass, viewer);
@@ -1126,6 +1116,23 @@ public class ViewerManager implements QuPathViewerListener {
 			}
 		});
 	}
+	
+	
+	
+	static List<MenuItem> createToolMenu(ToolManager toolManager) {
+//		ToggleGroup groupTools = new ToggleGroup();
+		List<MenuItem> items = new ArrayList<>();
+		for (var tool : toolManager.getTools()) {
+			var action = toolManager.getToolAction(tool);
+			var mi = ActionTools.createCheckMenuItem(action);
+			items.add(mi);
+		}
+		if (!items.isEmpty())
+			items.add(new SeparatorMenuItem());
+		items.add(ActionTools.createCheckMenuItem(toolManager.getSelectionModeAction()));
+		return items;
+	}
+	
 	
 	
 	

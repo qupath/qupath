@@ -65,9 +65,9 @@ import qupath.lib.gui.tools.PaneTools;
  * 
  * @author Pete Bankhead
  */
-public class HelpViewer {
+public class ContextHelpViewer {
 
-	private static Map<QuPathGUI, HelpViewer> INSTANCES = new ConcurrentHashMap<>();
+	private static Map<QuPathGUI, ContextHelpViewer> INSTANCES = new ConcurrentHashMap<>();
 
 	private String title = QuPathResources.getString("ContextHelp.title");
 	private QuPathGUI qupath;
@@ -88,7 +88,7 @@ public class HelpViewer {
 	
 	private ObservableList<HelpListEntry> allHelpEntries = FXCollections.observableArrayList();
 
-	private HelpViewer(QuPathGUI qupath) {
+	private ContextHelpViewer(QuPathGUI qupath) {
 		this.qupath = qupath;
 		
 		initializeWindowListeners();
@@ -122,7 +122,7 @@ public class HelpViewer {
 		stage.setResizable(true);
 		stage.setTitle(title);
 		stage.setWidth(300);
-		stage.setHeight(200);
+		stage.setHeight(400);
 		stage.setScene(scene);		
 		return stage;
 	}
@@ -180,13 +180,13 @@ public class HelpViewer {
 	}
 
 	/**
-	 * Get the single {@link HelpViewer} instance associated with a specific 
+	 * Get the single {@link ContextHelpViewer} instance associated with a specific 
 	 * QuPath instance.
 	 * @param qupath
 	 * @return
 	 */
-	public static HelpViewer getInstance(QuPathGUI qupath) {
-		return INSTANCES.computeIfAbsent(qupath, HelpViewer::new);
+	public static ContextHelpViewer getInstance(QuPathGUI qupath) {
+		return INSTANCES.computeIfAbsent(qupath, ContextHelpViewer::new);
 	}
 
 	/**

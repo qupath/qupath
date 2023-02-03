@@ -59,8 +59,16 @@ public interface PathTool {
 		return nameProperty().get();
 	}
 	
+	/**
+	 * Property giving the name of the tool
+	 * @return
+	 */
 	public ReadOnlyStringProperty nameProperty();
 	
+	/**
+	 * Property giving the icon that should be used for the tool
+	 * @return
+	 */
 	public ReadOnlyObjectProperty<Node> iconProperty();
 
 	
