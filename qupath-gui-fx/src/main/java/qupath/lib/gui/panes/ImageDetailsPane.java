@@ -926,6 +926,7 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 			String tooltipText = text;
 			if (item instanceof double[]) {
 				text = GeneralTools.arrayToString(Locale.getDefault(Category.FORMAT), (double[])item, 2);
+				tooltipText = "Double-click to set background values for color deconvolution (either type values or use a small rectangle ROI in the image)";
 			} else if (item instanceof StainVector) {
 				StainVector stain = (StainVector)item;
 				Integer color = stain.getColor();

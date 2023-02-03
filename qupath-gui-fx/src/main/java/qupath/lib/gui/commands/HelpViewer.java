@@ -28,7 +28,9 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.collections.FXCollections;
@@ -40,6 +42,7 @@ import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.Scene;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Control;
 import javafx.scene.control.Label;
@@ -59,7 +62,7 @@ import qupath.lib.gui.tools.IconFactory.PathIcons;
 import qupath.lib.gui.tools.PaneTools;
 
 /**
- * Help viewer for context-dependent help.
+ * Help window providing context-dependent help.
  * 
  * @author Pete Bankhead
  */
@@ -76,7 +79,7 @@ public class HelpViewer {
 	private ObservableList<Window> windows;
 	private EventHandler<MouseEvent> handler = this::handleMouseMove;
 
-	private String defaultText = "Mouse mouse to view help text";
+	private String defaultText = "Move the cursor over something to view any available help text";
 	private StringProperty helpText = new SimpleStringProperty(defaultText);
 
 	private Label label;
@@ -88,40 +91,44 @@ public class HelpViewer {
 
 	private HelpViewer(QuPathGUI qupath) {
 		this.qupath = qupath;
-		windows = Window.getWindows().filtered(this::filterWindows);
-		for (var w : windows) {
-			addMouseListener(w);		
-		}
-		windows.addListener(this::handleWindowChange);
-		stage = new Stage();
-
-		stage.initOwner(qupath.getStage());
-
-		stage.setTitle(title);
-		var pane = new BorderPane();
+		
+		initializeWindowListeners();
+		
+		
 		label = createHelpTextLabel();
-
-		PaneTools.setToExpandGridPaneWidth(label);
-		PaneTools.setToExpandGridPaneHeight(label);
-		label.setPrefHeight(100.0);
 		
 		vbox = new VBox();
 		var scrollPane = new ScrollPane(vbox);
 		scrollPane.setFitToWidth(true);
 		
 		var splitPane = new SplitPane(label, scrollPane);
+		SplitPane.setResizableWithParent(label, Boolean.FALSE);
 		splitPane.setOrientation(Orientation.VERTICAL);
-		pane = new BorderPane(splitPane);
 		
 		createHelpLabels();
 
+		stage = createStage(new Scene(splitPane));
+	}
+	
+	private void initializeWindowListeners() {
+		windows = Window.getWindows().filtered(this::filterWindows);
+		for (var w : windows) {
+			addMouseListener(w);		
+		}
+		windows.addListener(this::handleWindowChange);
+	}
+	
+	private Stage createStage(Scene scene) {
+		var stage = new Stage();
+		stage.initOwner(qupath.getStage());
 		stage.setResizable(true);
-		var scene = new Scene(pane);
+		stage.setTitle(title);
 		stage.setWidth(300);
 		stage.setHeight(200);
-
-		stage.setScene(scene);
+		stage.setScene(scene);		
+		return stage;
 	}
+	
 	
 	private void createHelpLabels() {
 		for (var entry : createHelpEntries()) {
@@ -135,6 +142,8 @@ public class HelpViewer {
 				createSelectionModelEntry(),
 				createAnnotationsHiddenEntry(),
 				createDetectionsHiddenEntry(),
+				createPixelClassificationOverlayHiddenEntry(),
+				createTMAGridHiddenEntry(),
 				createNoImageEntry(),
 				createNoProjectEntry(),
 				createOpacityZeroEntry()
@@ -149,7 +158,12 @@ public class HelpViewer {
 		label.setTextAlignment(TextAlignment.CENTER);
 		label.setWrapText(true);
 		label.textProperty().bindBidirectional(helpText);
-		label.setPadding(new Insets(5.0));
+		label.setPadding(new Insets(10.0));
+		
+		PaneTools.setToExpandGridPaneWidth(label);
+		PaneTools.setToExpandGridPaneHeight(label);
+		label.setPrefHeight(100.0);
+
 		return label;
 	}
 		
@@ -271,15 +285,19 @@ public class HelpViewer {
 	static class HelpListEntry {
 		
 		private HelpType type;
-		private String text;
-		private Node graphic;
+		private StringProperty textProperty;
+		private SimpleObjectProperty<Node> graphicProperty;
 		
 		private BooleanProperty visibleProperty = new SimpleBooleanProperty(false);
 		
 		private HelpListEntry(HelpType type, String text, Node graphic) {
 			this.type = type;
-			this.text = text;
-			this.graphic = graphic;
+			this.textProperty = new SimpleStringProperty(text);
+			this.graphicProperty = new SimpleObjectProperty<>(graphic);
+		}
+		
+		private ObjectProperty<Node> graphicProperty() {
+			return graphicProperty;
 		}
 		
 		private BooleanProperty visibleProperty() {
@@ -308,8 +326,8 @@ public class HelpViewer {
 	
 	Label createHelpLabel(HelpListEntry entry) {
 		var label = new Label();
-		label.setText(entry.text);
-		Node typeGraphic = entry.graphic;
+		label.textProperty().bind(entry.textProperty);
+		Node typeGraphic = entry.graphicProperty.get();
 		if (typeGraphic == null) {
 			switch (entry.type) {
 			case INFO:
@@ -329,7 +347,7 @@ public class HelpViewer {
 			}
 		}
 		label.setGraphic(typeGraphic);
-		label.setPadding(new Insets(5.0));
+		label.setPadding(new Insets(5.0, 10.0, 5.0, 10.0));
 		label.setWrapText(true);
 		entry.visibleProperty().addListener((v, o, n) -> {
 			if (n)
@@ -362,12 +380,31 @@ public class HelpViewer {
 		return entry;
 	}
 	
+	private  HelpListEntry createTMAGridHiddenEntry() {
+		var entry = HelpListEntry.createWarning(
+				"Detections are hidden",
+				createIcon(PathIcons.TMA_GRID));
+		ButtonType.CANCEL
+		entry.visibleProperty().bind(
+				qupath.getOverlayOptions().showTMAGridProperty().not());
+		return entry;
+	}
+	
 	private  HelpListEntry createDetectionsHiddenEntry() {
 		var entry = HelpListEntry.createWarning(
 				"Detections are hidden",
 				createIcon(PathIcons.DETECTIONS));
 		entry.visibleProperty().bind(
 				qupath.getOverlayOptions().showDetectionsProperty().not());
+		return entry;
+	}
+	
+	private  HelpListEntry createPixelClassificationOverlayHiddenEntry() {
+		var entry = HelpListEntry.createWarning(
+				"Pixel classification overlay is hidden",
+				createIcon(PathIcons.PIXEL_CLASSIFICATION));
+		entry.visibleProperty().bind(
+				qupath.getOverlayOptions().showPixelClassificationProperty().not());
 		return entry;
 	}
 	

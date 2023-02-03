@@ -32,6 +32,7 @@ import javafx.scene.control.SplitPane;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TitledPane;
+import javafx.scene.control.Tooltip;
 import javafx.scene.control.TabPane.TabClosingPolicy;
 import javafx.scene.control.TabPane.TabDragPolicy;
 import javafx.scene.layout.BorderPane;
@@ -146,6 +147,11 @@ class AnalysisTabPane {
 		// Make the tabs undockable
 		for (var tab : tabPane.getTabs()) {
 			GuiTools.makeTabUndockable(tab);
+			tab.setTooltip(
+					new Tooltip("Switch to " + tab.getText() + " pane.\n"
+							+ "You can also right-click a tab to undock it into its own window.\n"
+							+ "Then close the window to make it a tab again.")
+					);
 		}
 	}
 	

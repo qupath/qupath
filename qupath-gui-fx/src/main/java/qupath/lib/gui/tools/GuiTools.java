@@ -1768,29 +1768,32 @@ public class GuiTools {
 		var miUndock = new MenuItem("Undock tab");
 		var popup = new ContextMenu(miUndock);
 		tab.setContextMenu(popup);
-		miUndock.setOnAction(e -> {
-			var tabPane = tab.getTabPane();
-			var parent = tabPane.getScene() == null ? null : tabPane.getScene().getWindow();
-			
-			double width = tabPane.getWidth();
-			double height = tabPane.getHeight();
-			tabPane.getTabs().remove(tab);
-			var stage = new Stage();
-			stage.initOwner(parent);
-			stage.setTitle(tab.getText());
-			var content = tab.getContent();
-			tab.setContent(null);
-			var tabContent = new BorderPane(content);
-			stage.setScene(new Scene(tabContent, width, height));
-			stage.show();
-			
-			stage.setOnCloseRequest(e2 -> {
-				tabContent.getChildren().remove(tabContent);
-				tab.setContent(content);
-				tabPane.getTabs().add(tab);
-			});
+		miUndock.setOnAction(e -> handleUndock(tab));
+	}
+	
+	private static void handleUndock(Tab tab) {
+		var tabPane = tab.getTabPane();
+		var parent = tabPane.getScene() == null ? null : tabPane.getScene().getWindow();
+		
+		double width = tabPane.getWidth();
+		double height = tabPane.getHeight();
+		tabPane.getTabs().remove(tab);
+		var stage = new Stage();
+		stage.initOwner(parent);
+		stage.setTitle(tab.getText());
+		var content = tab.getContent();
+		tab.setContent(null);
+		var tabContent = new BorderPane(content);
+		stage.setScene(new Scene(tabContent, width, height));
+		stage.show();
+		
+		stage.setOnCloseRequest(e2 -> {
+			tabContent.getChildren().remove(tabContent);
+			tab.setContent(content);
+			tabPane.getTabs().add(tab);
 		});
 	}
+	
 	
 	
 }
