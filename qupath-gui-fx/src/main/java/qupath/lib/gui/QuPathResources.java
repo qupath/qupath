@@ -32,7 +32,7 @@ import java.util.ResourceBundle;
  */
 public class QuPathResources {
 	
-	private static final String STRINGS_NAME = "localization/qupath-strings";
+	private static final String STRINGS_NAME = "qupath/lib/gui/localization/qupath-strings";
 	
 	
 	public static String getString(String key) {
