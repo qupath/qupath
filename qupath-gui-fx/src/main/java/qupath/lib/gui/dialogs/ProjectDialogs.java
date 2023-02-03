@@ -76,10 +76,6 @@ public class ProjectDialogs {
 		
 		ListSelectionView<ProjectImageEntry<BufferedImage>> listSelectionView = GuiTools.createListSelectionView();
 		listSelectionView.getSourceItems().setAll(availableImages);
-//		if (selectedImages != null && !selectedImages.isEmpty()) {
-//			listSelectionView.getSourceItems().removeAll(selectedImages);
-//			listSelectionView.getTargetItems().addAll(selectedImages);
-//		}
 		listSelectionView.setCellFactory(c -> new ProjectEntryListCell());
 		
 		// Add a filter text field
@@ -155,29 +151,6 @@ public class ProjectDialogs {
 		
 		return listSelectionView;
 	}
-	
-	
-//	private static void refreshTargetLabels(ListSelectionView<ProjectImageEntry<BufferedImage>> listSelectionView, Label labelSelected, Label labelSameImageWarning) {
-//		
-//		var targetItems = listSelectionView.getTargetItems();
-//		
-//		targetItems.addListener((ListChangeListener.Change<? extends ProjectImageEntry<?>> e) -> {
-//			labelSelected.setText(e.getList().size() + " selected");
-//			var currentImages = getCurrentImages(qupath);
-//			if (labelSameImageWarning != null && currentImages != null) {
-//				boolean visible = false;
-//				var targets = e.getList();
-//				for (var current : currentImages) {
-//					if (targets.contains(current)) {
-//						visible = true;
-//						break;
-//					}
-//				}
-//				labelSameImageWarning.setVisible(visible);
-//			}
-//		});
-//		
-//	}
 	
 	
 	

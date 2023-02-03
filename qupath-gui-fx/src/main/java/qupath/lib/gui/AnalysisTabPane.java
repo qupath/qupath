@@ -49,6 +49,17 @@ class AnalysisTabPane {
 	
 	private QuPathGUI qupath;
 	
+	private static String titleProject = QuPathResources.getString("AnalysisPane.projectTab");
+	private static String titleImage = QuPathResources.getString("AnalysisPane.imageTab");
+	private static String titleAnnotations = QuPathResources.getString("AnalysisPane.annotationsTab");
+	private static String titleHierarchy = QuPathResources.getString("AnalysisPane.hierarchyTab");
+	private static String titleWorkflow = QuPathResources.getString("AnalysisPane.workflowTab");
+	private static String titleHistory = QuPathResources.getString("AnalysisPane.historyTab");
+	private static String titleMeasurements = QuPathResources.getString("AnalysisPane.measurementsTab");
+	private static String titleDescription = QuPathResources.getString("AnalysisPane.descriptionTab");
+
+	private static String textTabTooltip = QuPathResources.getString("AnalysisPane.switchText");
+
 	private ProjectBrowser projectBrowser;
 	private ImageDetailsPane imageDetailsPane;
 	private AnnotationPane annotationPane;
@@ -84,8 +95,8 @@ class AnalysisTabPane {
 	private void addTabsForPanes() {
 				
 
-		tabPane.getTabs().add(new Tab("Project", projectBrowser.getPane()));
-		tabPane.getTabs().add(new Tab("Image", imageDetailsPane.getPane()));
+		tabPane.getTabs().add(new Tab(titleProject, projectBrowser.getPane()));
+		tabPane.getTabs().add(new Tab(titleImage, imageDetailsPane.getPane()));
 		
 		/*
 		 * Create tabs.
@@ -97,7 +108,7 @@ class AnalysisTabPane {
 		 */
 		
 		// Create a tab for annotations
-		var tabAnnotations = new Tab("Annotations");
+		var tabAnnotations = new Tab(titleAnnotations);
 		SplitPane splitAnnotations = new SplitPane();
 		splitAnnotations.setOrientation(Orientation.VERTICAL);
 		
@@ -112,7 +123,7 @@ class AnalysisTabPane {
 		tabPane.getTabs().add(tabAnnotations);		
 		
 		// Create a tab for the full hierarchy
-		var tabHierarchy = new Tab("Hierarchy");
+		var tabHierarchy = new Tab(titleHierarchy);
 		var hierarchyTabVisible = Bindings.createBooleanBinding(() -> {
 			return tabHierarchy.getTabPane() == null || tabHierarchy.isSelected();
 		}, tabHierarchy.tabPaneProperty(), tabHierarchy.selectedProperty());
@@ -136,22 +147,18 @@ class AnalysisTabPane {
 		});
 		
 		
-		TitledPane titledLog = new TitledPane("Command history", workflowLogView.getPane());
+		TitledPane titledLog = new TitledPane(titleHistory, workflowLogView.getPane());
 		titledLog.setCollapsible(false);
 		titledLog.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
 		var pane = new BorderPane(titledLog);
-		tabPane.getTabs().add(new Tab("Workflow", pane));
+		tabPane.getTabs().add(new Tab(titleWorkflow, pane));
 	}
 	
 	private void makeTabsUndockable() {
 		// Make the tabs undockable
 		for (var tab : tabPane.getTabs()) {
 			GuiTools.makeTabUndockable(tab);
-			tab.setTooltip(
-					new Tooltip("Switch to " + tab.getText() + " pane.\n"
-							+ "You can also right-click a tab to undock it into its own window.\n"
-							+ "Then close the window to make it a tab again.")
-					);
+			tab.setTooltip(new Tooltip(String.format(textTabTooltip, tab.getText())));
 		}
 	}
 	
@@ -196,10 +203,10 @@ class AnalysisTabPane {
 		var tabpaneObjectsShared = new TabPane();
 		var objectMeasurementsTable = new SelectedMeasurementTableView(qupath.imageDataProperty());
 		tabpaneObjectsShared.setSide(Side.BOTTOM);
-		var tabSharedTable = new Tab("Measurements", objectMeasurementsTable.getTable());
+		var tabSharedTable = new Tab(titleMeasurements, objectMeasurementsTable.getTable());
 		tabpaneObjectsShared.getTabs().add(tabSharedTable);
 		var descriptionPane = ObjectDescriptionPane.createPane(qupath.imageDataProperty(), true);
-		var tabSharedDescription = new Tab("Description", descriptionPane);
+		var tabSharedDescription = new Tab(titleDescription, descriptionPane);
 		tabpaneObjectsShared.getTabs().add(tabSharedDescription);
 		tabpaneObjectsShared.setTabClosingPolicy(TabClosingPolicy.UNAVAILABLE);
 		

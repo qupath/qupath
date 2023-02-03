@@ -21,8 +21,6 @@
 
 package qupath.lib.gui;
 
-import java.util.regex.Pattern;
-
 import org.controlsfx.glyphfont.FontAwesome.Glyph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

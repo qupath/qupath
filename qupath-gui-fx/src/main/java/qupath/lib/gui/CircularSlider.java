@@ -99,7 +99,9 @@ public class CircularSlider extends Control {
                 if (e.isShiftDown())
                 	rotation = Double.valueOf(MIN_DISPLAYED_VALUE);
                 else
-                	rotation = Dialogs.showInputDialog("Set rotation", "Rotation (degrees)", getValue());
+                	rotation = Dialogs.showInputDialog(
+                			QuPathResources.getString("CircularSlider.inputTitle"),
+                			QuPathResources.getString("CircularSlider.inputPrompt"), getValue());
                 if (rotation != null && Double.isFinite(rotation))
                     setValue(rotation);
             }
