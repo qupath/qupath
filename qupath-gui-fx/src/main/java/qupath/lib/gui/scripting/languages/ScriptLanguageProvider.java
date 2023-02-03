@@ -36,7 +36,7 @@ import javax.script.ScriptEngineManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.ExtensionClassLoader;
 import qupath.lib.scripting.languages.ScriptLanguage;
 
 /**
@@ -72,7 +72,7 @@ public class ScriptLanguageProvider {
 		}
 		
 		// Load all ScriptEngines on the build path that don't have a built-in ScriptLanguage QuPath implementation
-		ScriptEngineManager manager = new ScriptEngineManager(QuPathGUI.getExtensionClassLoader());
+		ScriptEngineManager manager = new ScriptEngineManager(getExtensionClassLoader());
 		for (ScriptEngineFactory factory : manager.getEngineFactories()) {
 			boolean builtIn = false;
 				synchronized (serviceLoader) {
@@ -94,6 +94,11 @@ public class ScriptLanguageProvider {
 		}
 		
 		return languages;
+	}
+	
+	
+	private static ExtensionClassLoader getExtensionClassLoader() {
+		return ExtensionClassLoader.getInstance();
 	}
 	
 	
@@ -153,8 +158,8 @@ public class ScriptLanguageProvider {
 	}
 	
 	private static ScriptEngineManager createManager() {
-		Thread.currentThread().setContextClassLoader(QuPathGUI.getExtensionClassLoader());
-		ScriptEngineManager manager = new ScriptEngineManager(QuPathGUI.getExtensionClassLoader());
+		Thread.currentThread().setContextClassLoader(getExtensionClassLoader());
+		ScriptEngineManager manager = new ScriptEngineManager(getExtensionClassLoader());
 		for (ScriptEngineFactory factory : manager.getEngineFactories()) {
 			boolean builtIn = false;
 			synchronized (serviceLoader) {

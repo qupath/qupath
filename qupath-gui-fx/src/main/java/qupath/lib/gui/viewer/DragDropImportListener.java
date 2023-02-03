@@ -52,6 +52,7 @@ import qupath.lib.gui.commands.InteractiveObjectImporter;
 import qupath.lib.gui.commands.ProjectCommands;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.prefs.QuPathStyleManager;
 import qupath.lib.gui.scripting.ScriptEditor;
 import qupath.lib.gui.tma.TMADataIO;
 import qupath.lib.images.ImageData;
@@ -148,7 +149,7 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
         
         // Look for the viewer that we dragged on to - may be null, if drag was on
         QuPathViewer viewer = null;
-        for (QuPathViewer viewer2 : qupath.getViewers()) {
+        for (QuPathViewer viewer2 : qupath.getAllViewers()) {
         	if (viewer2.getView() == source) {
         		viewer = viewer2;
         		break;
@@ -167,7 +168,7 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
         }
         
         // If only one viewer is available, there is no ambiguity... use it
-        if (viewer == null && qupath.getViewers().size() == 1)
+        if (viewer == null && qupath.getAllViewers().size() == 1)
         	viewer = qupath.getViewer();
         
         var files = dragboard.hasFiles() ? new ArrayList<>(dragboard.getFiles()) : null;
@@ -282,12 +283,12 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 				nCss++;
 		}
 		if (nJars == list.size()) {
-			qupath.installExtensions(list);
+			qupath.getExtensionManager().promptToCopyFilesToExtensionsDirectory(list);
 			return;
 		}
 		// Handle installing CSS files (styles)
 		if (nCss == list.size()) {
-			qupath.installStyles(list);
+			QuPathStyleManager.installStyles(list);
 			return;
 		}
 		

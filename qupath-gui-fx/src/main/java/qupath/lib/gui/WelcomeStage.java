@@ -72,6 +72,8 @@ class WelcomeStage {
 	
 	private static Stage INSTANCE;
 	
+	private static final String TITLE = QuPathResources.getString("Welcome.title");
+	
 	public static Stage getInstance(QuPathGUI qupath) {
 		if (INSTANCE == null) {
 			INSTANCE = buildStage(qupath);
@@ -86,38 +88,35 @@ class WelcomeStage {
 		var stage = new Stage();
 		if (qupath != null)
 			stage.initOwner(qupath.getStage());
-//		stage.initModality(Modality.APPLICATION_MODAL);
-
 		
 		var btnCode = createGlyphButton(
-				"Develop",
+				QuPathResources.getString("Welcome.develop"), 
 				Glyph.CODE,
-				"https://github.com/qupath/qupath"
+				"https://github.com/qupath/qupath" 
 				);
 		
 		var btnDocs = createGlyphButton(
-				"Docs",
+				QuPathResources.getString("Welcome.docs"), 
 				Glyph.FILE_TEXT_ALT,
-				"https://qupath.readthedocs.io/en/0.4"
+				"https://qupath.readthedocs.io/en/0.4" 
 				);
 		
 		var btnForum = createGlyphButton(
-				"Discuss",
+				QuPathResources.getString("Welcome.discuss"), 
 				Glyph.COMMENTS_ALT,
-				"https://forum.image.sc/tag/qupath"
+				"https://forum.image.sc/tag/qupath" 
 				);
 		var paneButtons = PaneTools.createColumnGrid(btnDocs, btnForum, btnCode);
-//		paneButtons.setHgap(10);
 				
 		var pane = new BorderPane(paneButtons);
 		
-		var imageView = new ImageView(WelcomeStage.class.getResource("/images/qupath-welcome.png").toExternalForm());
+		var imageView = new ImageView(WelcomeStage.class.getResource("/images/qupath-welcome.png").toExternalForm()); 
 		imageView.setFitWidth(440.0);
 		imageView.setOpacity(0.9);
 		imageView.setPreserveRatio(true);
 		
-		var textTitle = new Text("Welcome to QuPath!");
-		textTitle.setStyle("-fx-font-weight: bold; -fx-font-size: 150%; -fx-fill: -fx-text-base-color;");
+		var textTitle = new Text(QuPathResources.getString("Welcome.welcomeMessage")); 
+		textTitle.setStyle("-fx-font-weight: bold; -fx-font-size: 150%; -fx-fill: -fx-text-base-color;"); 
 
 		var topPane = new VBox();
 		topPane.setAlignment(Pos.CENTER);
@@ -125,10 +124,10 @@ class WelcomeStage {
 		var version = QuPathGUI.getVersion();
 		if (version != null) {
 			String versionString = version.toString();
-			if (!versionString.startsWith("v"))
-				versionString = "v" + versionString;
+			if (!versionString.startsWith("v")) 
+				versionString = "v" + versionString; 
 			var textVersion = new Text(versionString);
-			textVersion.setStyle("-fx-fill: -fx-text-base-color; -fx-opacity: 0.6;");
+			textVersion.setStyle("-fx-fill: -fx-text-base-color; -fx-opacity: 0.6;"); 
 			var spacer = new Pane();
 			spacer.setPrefHeight(2);
 			topPane.getChildren().add(spacer);
@@ -136,28 +135,20 @@ class WelcomeStage {
 		}
 		
 		topPane.getChildren().add(imageView);
-//		topPane.setTop(textTitle);
-//		BorderPane.setAlignment(textTitle, Pos.CENTER);
-//		BorderPane.setAlignment(imageView, Pos.CENTER);
 		BorderPane.setAlignment(topPane, Pos.CENTER);
 		
 		pane.setTop(topPane);
 		
-//		var labelExplanation = new Label("Click a button to learn about QuPath - or choose 'Get started!' below");
-		String defaultMessage = "Find out more about QuPath, customize key options,\n"
-				+ "or click 'Get started!' to close this message";
+		String defaultMessage = QuPathResources.getString("Welcome.defaultMessage"); 
 		var labelExplanation = new Label(defaultMessage);
 		labelExplanation.setAlignment(Pos.CENTER);
 		labelExplanation.textProperty().bind(Bindings.createStringBinding(() -> {
 			if (btnCode.isHover()) {
-				return "Check out QuPath's source code on GitHub -\n"
-						+ "or see what's new in the ChangeLog";
+				return QuPathResources.getString("Welcome.developMessage");
 			} else if (btnDocs.isHover()) {
-				return "Find QuPath step-by-step guides, video tutorials\n"
-						+ "& more on ReadTheDocs";
+				return QuPathResources.getString("Welcome.docsMessage");
 			} else if (btnForum.isHover()) {
-				return "Join other QuPath users & search thousands of discussions\n"
-						+ "on the Scientific Community Image Forum";
+				return QuPathResources.getString("Welcome.discussMessage");
 			} else
 				return defaultMessage;
 		}, btnCode.hoverProperty(), btnDocs.hoverProperty(), btnForum.hoverProperty()));
@@ -170,7 +161,7 @@ class WelcomeStage {
 		var comboThemes = new ComboBox<>(QuPathStyleManager.availableStylesProperty());
 		comboThemes.getSelectionModel().select(QuPathStyleManager.selectedStyleProperty().get());
 		comboThemes.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> QuPathStyleManager.selectedStyleProperty().set(n));
-		var labelThemes = new Label("Choose theme:");
+		var labelThemes = new Label(QuPathResources.getString("Welcome.chooseTheme") + ":");
 		labelThemes.setLabelFor(comboThemes);
 		labelThemes.setAlignment(Pos.CENTER_RIGHT);
 		
@@ -178,11 +169,11 @@ class WelcomeStage {
 		comboUpdates.getItems().setAll(AutoUpdateType.values());
 		comboUpdates.getSelectionModel().select(PathPrefs.autoUpdateCheckProperty().get());
 		comboUpdates.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> PathPrefs.autoUpdateCheckProperty().set(n));
-		var labelUpdates = new Label("Check for updates:");
+		var labelUpdates = new Label(QuPathResources.getString("Welcome.checkUpdates") + ":");
 		labelUpdates.setLabelFor(comboUpdates);
 		labelUpdates.setAlignment(Pos.CENTER_RIGHT);
 
-		var cbShowStartup = new CheckBox("Show this on startup");
+		var cbShowStartup = new CheckBox(QuPathResources.getString("Welcome.showOnStartup"));
 		cbShowStartup.selectedProperty().bindBidirectional(PathPrefs.showStartupMessageProperty());
 		cbShowStartup.setAlignment(Pos.CENTER_RIGHT);
 		
@@ -209,24 +200,24 @@ class WelcomeStage {
 		separator2.setPadding(new Insets(5));
 		paneOptions.add(separator2, 0, row++, GridPane.REMAINING, 1);
 
-		var linkCiting = new Hyperlink("Click here for details");
-		linkCiting.setOnAction(e -> QuPathGUI.launchBrowserWindow("https://qupath.readthedocs.io/en/0.4/docs/intro/citing.html"));
+		var linkCiting = new Hyperlink(QuPathResources.getString("Welcome.clickForDetails"));
+		linkCiting.setOnAction(e -> QuPathGUI.openInBrowser("https://qupath.readthedocs.io/en/0.4/docs/intro/citing.html")); 
 		var textCiting = new TextFlow(
-				new Text("Don't forget to cite the latest QuPath paper when you use the software!\n"),
+				new Text(QuPathResources.getString("Welcome.cite") + System.lineSeparator()),
 				linkCiting
 				);
 		textCiting.setTextAlignment(TextAlignment.CENTER);
 		for (var n : textCiting.getChildren()) {
-			n.setStyle("-fx-fill: -fx-text-base-color;");
+			n.setStyle("-fx-fill: -fx-text-base-color;"); 
 		}
 		
 		paneOptions.add(textCiting, 0, row, GridPane.REMAINING, 1);
 		row++;
 
 		
-		var btnStarted = new Button("Get started!");
+		var btnStarted = new Button(QuPathResources.getString("Welcome.getStarted"));
 //		btnStarted.setPrefHeight(40);
-		btnStarted.setStyle("-fx-font-weight: bold; -fx-font-size: 110%;");
+		btnStarted.setStyle("-fx-font-weight: bold; -fx-font-size: 110%;"); 
 		btnStarted.setPadding(new Insets(10));
 		btnStarted.setOnAction(e -> stage.close());
 		
@@ -238,16 +229,8 @@ class WelcomeStage {
 
 		PaneTools.setToExpandGridPaneWidth(comboThemes, comboUpdates, cbShowStartup, btnStarted, labelExplanation);
 		
-		if (GeneralTools.isMac() && "aarch64".equals(System.getProperty("os.arch"))) {
-			var textSiliconExperimental = new Text("QuPath for Apple silicon is experimental!\n");
-			textSiliconExperimental.setStyle("-fx-font-weight: bold; -fx-fill: -qp-script-error-color;");
-			var linkSilicon = new Hyperlink("Click here");
-			var textSiliconExperimental2 = new Text("for info about installing OpenSlide, or try the Intel build instead");
-			textSiliconExperimental2.setStyle("-fx-fill: -fx-text-base-color;");
-			linkSilicon.setOnAction(e -> QuPathGUI.launchBrowserWindow("https://qupath.readthedocs.io/en/0.4/docs/intro/installation.html"));
-			var textSilicon = new TextFlow(
-					textSiliconExperimental, linkSilicon, textSiliconExperimental2
-					);
+		if (GeneralTools.isMac() && "aarch64".equals(System.getProperty("os.arch"))) {  //$NON-NLS-2$
+			var textSilicon = makeMacAarch64Message();
 			textSilicon.setTextAlignment(TextAlignment.CENTER);
 			textSilicon.setOpacity(0.9);
 			var sepSilicon = new Separator(Orientation.HORIZONTAL);
@@ -266,27 +249,47 @@ class WelcomeStage {
 //		stage.setScene(new Scene(pane, Color.TRANSPARENT));
 //		stage.initStyle(StageStyle.UNDECORATED);
 		stage.setScene(new Scene(pane));
-		stage.setTitle("Welcome");
+		stage.setTitle(TITLE);
 		GuiTools.makeDraggableStage(stage);
 		stage.getScene().setOnMouseClicked(e -> {
 			if (e.getClickCount() == 2) {
-				logger.info("Startup stage closed by double-click");
+				logger.info("Startup stage closed by double-click"); 
 				stage.close();
 			}
 		});
 		stage.getScene().setOnKeyPressed(e -> {
 			if (!e.isConsumed() && e.getCode() == KeyCode.ESCAPE) {
-				logger.info("Startup stage closed by pressing escape");
+				logger.info("Startup stage closed by pressing escape"); 
 				stage.close();				
 			}
 		});
 		
-		stage.show();
 		btnStarted.requestFocus();
 		
 		return stage;
-		
 	}
+	
+	
+	private static TextFlow makeMacAarch64Message() {
+		String text = QuPathResources.getString("Welcome.macOsAarch64");
+		
+		int ind1 = text.indexOf("{{");
+		int ind2 = text.lastIndexOf("}}");
+		String startText = text.substring(0, ind1);
+		String linkText = text.substring(ind1+2, ind2);
+		String endText = text.substring(ind2+2);
+		
+		var textSiliconExperimental = new Text(startText); 
+		textSiliconExperimental.setStyle("-fx-font-weight: bold; -fx-fill: -qp-script-error-color;"); 
+		var linkSilicon = new Hyperlink(linkText); 
+		var textSiliconExperimental2 = new Text(endText); 
+		textSiliconExperimental2.setStyle("-fx-fill: -fx-text-base-color;"); 
+		linkSilicon.setOnAction(e -> QuPathGUI.openInBrowser("https://qupath.readthedocs.io/en/0.4/docs/intro/installation.html")); 
+		return new TextFlow(
+				textSiliconExperimental, linkSilicon, textSiliconExperimental2
+				);
+	}
+	
 	
 	
 	
@@ -304,12 +307,12 @@ class WelcomeStage {
 		
 		if (url != null) {
 			button.setOnAction(e -> {
-				QuPathGUI.launchBrowserWindow(url);
+				QuPathGUI.openInBrowser(url);
 			});
 			button.setTooltip(new Tooltip(url));
 		}
 		
-		var fontAwesome = GlyphFontRegistry.font("FontAwesome");
+		var fontAwesome = GlyphFontRegistry.font("FontAwesome"); 
 		var icon = fontAwesome.create(glyph);
 		icon.size((int)(button.getPrefWidth() * 0.5));
 		button.setGraphic(icon);

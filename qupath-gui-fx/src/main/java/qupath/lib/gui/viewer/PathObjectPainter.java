@@ -40,6 +40,7 @@ import java.awt.geom.Path2D;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.awt.geom.RectangularShape;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -65,7 +66,6 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectConnectionGroup;
 import qupath.lib.objects.PathObjectConnections;
 import qupath.lib.objects.PathObjectTools;
-import qupath.lib.objects.PathTileObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassTools;
@@ -91,40 +91,44 @@ import qupath.lib.roi.interfaces.ROI;
  * @author Pete Bankhead
  *
  */
-public class PathHierarchyPaintingHelper {
-	
-	private static final Logger logger = LoggerFactory.getLogger(PathHierarchyPaintingHelper.class);
+public class PathObjectPainter {
+
+	private static final Logger logger = LoggerFactory.getLogger(PathObjectPainter.class);
 
 	private static ShapeProvider shapeProvider = new ShapeProvider();
-	
+
+	private static Map<Object, Double> doubleCache = new HashMap<>();
+
 	private static Map<Number, Stroke> strokeMap = new HashMap<>();
 	private static Map<Number, Stroke> dashedStrokeMap = new HashMap<>();
-	
-	private PathHierarchyPaintingHelper() {}
-	
+
+	private static ThreadLocal<Path2D> localPath2D = ThreadLocal.withInitial(Path2D.Double::new);
+	private static ThreadLocal<Rectangle2D> localRect2D = ThreadLocal.withInitial(Rectangle2D.Double::new);
+	private static ThreadLocal<Ellipse2D> localEllipse2D = ThreadLocal.withInitial(Ellipse2D.Double::new);
+
+	private PathObjectPainter() {}
+
 	/**
 	 * Paint the specified objects.
 	 * 
 	 * @param g2d the graphics object on which the objects should be painted
-	 * @param boundsDisplayed the displayable bounds, which can be used to filter out objects beyond the visible region
 	 * @param pathObjects the objects to paint
 	 * @param overlayOptions the overlay options defining how objects should be painted
 	 * @param selectionModel the selection model used to determine the selection status of each object
 	 * @param downsample the downsample factor; this should already be applied to the graphics object, but is needed to determine some line thicknesses
 	 */
-	public static void paintSpecifiedObjects(Graphics2D g2d, Rectangle boundsDisplayed, Collection<? extends PathObject> pathObjects, OverlayOptions overlayOptions, PathObjectSelectionModel selectionModel, double downsample) {
-		//		System.out.println("MY CLIP: " + g2d.getClipBounds());
+	public static void paintSpecifiedObjects(Graphics2D g2d, Collection<? extends PathObject> pathObjects, OverlayOptions overlayOptions, PathObjectSelectionModel selectionModel, double downsample) {
 		// Paint objects, if required
 		if (pathObjects == null)
 			return;
 		for (PathObject object : pathObjects) {
 			if (Thread.currentThread().isInterrupted())
 				return;
-			paintObject(object, false, g2d, boundsDisplayed, overlayOptions, selectionModel, downsample);
+			paintObject(object, g2d, overlayOptions, selectionModel, downsample);
 		}
 	}
-	
-	
+
+
 	/**
 	 * Paint the specified tissue microarray grid.
 	 * 
@@ -137,7 +141,6 @@ public class PathHierarchyPaintingHelper {
 	public static void paintTMAGrid(Graphics2D g2d, TMAGrid tmaGrid, OverlayOptions overlayOptions, PathObjectSelectionModel selectionModel, double downsample) {
 		if (tmaGrid == null)
 			return;
-		Rectangle boundsDisplayed = g2d.getClipBounds();
 		// Paint the TMA grid, if required
 		if (!overlayOptions.getShowTMAGrid())
 			return;
@@ -159,14 +162,14 @@ public class PathHierarchyPaintingHelper {
 					Rectangle2D boundsNext = AwtTools.getBounds2D(tmaGrid.getTMACore(gy+1, gx).getROI());
 					g2d.drawLine((int)bounds.getCenterX(), (int)bounds.getMaxY(), (int)boundsNext.getCenterX(), (int)boundsNext.getMinY());
 				}
-				PathHierarchyPaintingHelper.paintObject(core, false, g2d, boundsDisplayed, overlayOptions, selectionModel, downsample);
+				PathObjectPainter.paintObject(core, g2d, overlayOptions, selectionModel, downsample);
 			}
 		}
-		
-		
+
+
 		// Draw labels, if required
 		if (overlayOptions.getShowTMACoreLabels()) {
-			
+
 			// Check if most of them fit - don't draw them if not
 			int fitCount = 0;
 			int totalCount = 0;
@@ -181,7 +184,7 @@ public class PathHierarchyPaintingHelper {
 			}
 			if (fitCount == 0 || fitCount / (double)totalCount < 0.8)
 				return;
-			
+
 			AffineTransform transform = g2d.getTransform();
 			g2d.setTransform(new AffineTransform());
 			Point2D pSource = new Point2D.Double();
@@ -190,300 +193,437 @@ public class PathHierarchyPaintingHelper {
 			for (TMACoreObject core : tmaGrid.getTMACoreList()) {
 				if (core.getName() == null)
 					continue;
-				
+
 				// Don't draw if it would be too large
 				int width = fm.stringWidth(core.getName());
-				
+
 				double x = core.getROI().getBoundsX() + core.getROI().getBoundsWidth()/2;
 				double y = core.getROI().getBoundsY() + core.getROI().getBoundsHeight()/2;
 				pSource.setLocation(x, y);
 				transform.transform(pSource, pDest);
-	//			g2d.setColor(ColorToolsAwt.TRANSLUCENT_BLACK);
+				//			g2d.setColor(ColorToolsAwt.TRANSLUCENT_BLACK);
 				float xf = (float)(pDest.getX() - width/2.0);
 				float yf = (float)(pDest.getY() + fm.getDescent());
-				
+
 				Color colorPainted = ColorToolsAwt.getCachedColor(ColorToolsFX.getDisplayedColorARGB(core));
 				double mean = (colorPainted.getRed() + colorPainted.getGreen() + colorPainted.getBlue()) / (255.0 * 3.0);
 				if (mean > 0.5)
 					g2d.setColor(ColorToolsAwt.TRANSLUCENT_BLACK);
 				else
 					g2d.setColor(Color.WHITE);
-				
+
 				g2d.drawString(core.getName(), xf, yf);
 			}
 		}
-		
+
 	}
-	
-	private static ThreadLocal<Path2D> localPath2D = ThreadLocal.withInitial(Path2D.Double::new);
-	private static ThreadLocal<Rectangle2D> localRect2D = ThreadLocal.withInitial(Rectangle2D.Double::new);
-	private static ThreadLocal<Ellipse2D> localEllipse2D = ThreadLocal.withInitial(Ellipse2D.Double::new);
-	
+
+
 	/**
-	 * Paint an object (or, more precisely, its ROI), optionally along with the ROIs of any child objects.
+	 * Paint an object (or, more precisely, its ROI).
 	 * 
 	 * This is subject to the OverlayOptions, and therefore may not actually end up painting anything
 	 * (if the settings are such that objects of the class provided are not to be displayed)
 	 * 
 	 * @param pathObject
-	 * @param paintChildren
 	 * @param g
-	 * @param boundsDisplayed
 	 * @param overlayOptions
 	 * @param selectionModel
 	 * @param downsample
 	 * @return true if anything was painted, false otherwise
 	 */
-	public static boolean paintObject(PathObject pathObject, boolean paintChildren, Graphics2D g, Rectangle boundsDisplayed, OverlayOptions overlayOptions, PathObjectSelectionModel selectionModel, double downsample) {
+	public static boolean paintObject(PathObject pathObject, Graphics2D g, OverlayOptions overlayOptions, PathObjectSelectionModel selectionModel, double downsample) {
 		if (pathObject == null)
 			return false;
-				
-//		g.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION, RenderingHints.VALUE_ALPHA_INTERPOLATION_SPEED);
-//		g.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION, RenderingHints.VALUE_ALPHA_INTERPOLATION_QUALITY);
-		
-		// Always paint the selected object
-		// Note: this makes the assumption that child ROIs are completely contained within their parents;
-		//			this probably should be the case, but isn't guaranteed
-		boolean isSelected = (selectionModel != null && selectionModel.isSelected(pathObject)) && (PathPrefs.useSelectedColorProperty().get() || !PathObjectTools.hasPointROI(pathObject));
-		boolean isDetectedObject = pathObject.isDetection() || (pathObject.isTile() && pathObject.hasMeasurements());
-		
-		// Check if the PathClass isn't being shown
-		PathClass pathClass = pathObject.getPathClass();
-		if (!isSelected && overlayOptions != null && overlayOptions.isPathClassHidden(pathClass))
+
+		ROI roi = pathObject.getROI();
+		if (roi == null)
 			return false;
-		
-		boolean painted = false;
-		
-		// See if we need to check the children
-		ROI pathROI = pathObject.getROI();
-		if (pathROI != null) {
-			double roiBoundsX = pathROI.getBoundsX();
-			double roiBoundsY = pathROI.getBoundsY();
-			double roiBoundsWidth = pathROI.getBoundsWidth();
-			double roiBoundsHeight = pathROI.getBoundsHeight();
-			if (PathObjectTools.hasPointROI(pathObject) || boundsDisplayed == null || 
-					pathROI instanceof LineROI || 
-					boundsDisplayed.intersects(roiBoundsX, roiBoundsY, Math.max(roiBoundsWidth, 1), Math.max(roiBoundsHeight, 1))) {
-			
-				// Paint the ROI, if necessary
-				if (isSelected || (overlayOptions.getShowDetections() && isDetectedObject) || (overlayOptions.getShowAnnotations() && pathObject.isAnnotation()) || (overlayOptions.getShowTMAGrid() && pathObject.isTMACore())) {
-		
-					boolean doFill = overlayOptions.getFillDetections() || pathObject instanceof ParallelTileObject;
-					boolean doOutline = true;
-					
-					Color color = null;
-					boolean useMapper = false;
-					double fillOpacity = .75;
-					if (isSelected && PathPrefs.useSelectedColorProperty().get() && PathPrefs.colorSelectedObjectProperty().getValue() != null)
-						color = ColorToolsAwt.getCachedColor(PathPrefs.colorSelectedObjectProperty().get());
-					else {
-						MeasurementMapper mapper = overlayOptions.getMeasurementMapper();
-						useMapper = mapper != null && mapper.isValid() && pathObject.isDetection();
-						if (useMapper) {
-							if (pathObject.hasMeasurements()) {
-								Integer rgb = mapper.getColorForObject(pathObject);
-								// If the mapper returns null, the object shouldn't be painted
-								if (rgb == null)
-									return false;
-								color = ColorToolsAwt.getCachedColor(rgb);//, mapper.getColorMapper().hasAlpha());
-							}
-							else
-								color = null;
-	//						System.out.println(color + " - " + pathObject.getMeasurementList().getMeasurementValue(mapper.));
-							fillOpacity = 1.0;
-							// Outlines are not so helpful with the measurement mapper
-							if (doFill)
-								doOutline = doOutline && !pathObject.isTile();
-						}
-						else {
-							Integer rgb = ColorToolsFX.getDisplayedColorARGB(pathObject);
-							color = ColorToolsAwt.getCachedColor(rgb);
-						}
-//							color = PathObjectHelpers.getDisplayedColor(pathObject);
-					}
-					
-					
-					// Check if we have only one or two pixels to draw - if so, we can be done quickly
-					if (isDetectedObject && downsample > 4 && roiBoundsWidth / downsample < 3 && roiBoundsHeight / downsample < 3) {
-						int x = (int)roiBoundsX;
-						int y = (int)roiBoundsY;
-						int w = (int)(roiBoundsWidth + .9); // Prefer rounding up, lest we lose a lot of regions unnecessarily
-						int h = (int)(roiBoundsHeight + .9);
-						if (w > 0 && h > 0) {
-							g.setColor(color);
-//							g.setColor(DisplayHelpers.getMoreTranslucentColor(color));
-//							g.setStroke(getCachedStroke(overlayOptions.strokeThinThicknessProperty().get()));
-							g.fillRect(x, y, w, h);
-						}
-						painted = true;
-					} else {
-						Stroke stroke = null;
-						// Decide whether to fill or not
-						Color colorFill = doFill && (isDetectedObject || PathObjectTools.hasPointROI(pathObject)) ? color : null;
-						if (colorFill != null && fillOpacity != 1) {
-							if (pathObject instanceof ParallelTileObject)
-								colorFill = ColorToolsAwt.getMoreTranslucentColor(colorFill);
-							else if (pathObject instanceof PathCellObject && overlayOptions.getShowCellBoundaries() && overlayOptions.getShowCellNuclei()) {
-//								if (isSelected)
-//									colorFill = ColorToolsAwt.getTranslucentColor(colorFill);
-//								else
-									colorFill = ColorToolsAwt.getMoreTranslucentColor(colorFill);
-							} else if (pathObject.getParent() instanceof PathDetectionObject) {
-								colorFill = ColorToolsAwt.getTranslucentColor(colorFill);
-							} else if (pathObject instanceof PathTileObject && pathClass == null && color !=null && color.getRGB() == PathPrefs.colorTileProperty().get()) {
-								// Don't fill in empty, unclassified tiles
-								colorFill = null; //DisplayHelpers.getMoreTranslucentColor(colorFill);
-							}
-						}
-//						Color colorStroke = doOutline ? (colorFill == null ? color : (downsample > overlayOptions.strokeThinThicknessProperty().get() ? null : DisplayHelpers.darkenColor(color))) : null;
-						Color colorStroke = doOutline ? (colorFill == null ? color : ColorToolsAwt.darkenColor(color)) : null;
-						
-						// For thick lines, antialiasing is very noticeable... less so for thin lines (of which there may be a huge number)
-						if (isDetectedObject) {
-							// Detections inside detections get half the line width
-							if (pathObject.getParent() instanceof PathDetectionObject)
-								stroke = getCachedStroke(PathPrefs.detectionStrokeThicknessProperty().get() / 2.0);
-							else
-								stroke = getCachedStroke(PathPrefs.detectionStrokeThicknessProperty().get());
-						}
-						else {
-							double thicknessScale = downsample * (isSelected && !PathPrefs.useSelectedColorProperty().get() ? 1.6 : 1);
-							float thickness = (float)(PathPrefs.annotationStrokeThicknessProperty().get() * thicknessScale);
-							if (isSelected && pathObject.getParent() == null && PathPrefs.selectionModeProperty().get()) {
-								stroke = getCachedStrokeDashed(thickness);
-							} else {
-								stroke = getCachedStroke(thickness);
-							}
-						}
-						
-						g.setStroke(stroke);
-						boolean paintSymbols = overlayOptions.getDetectionDisplayMode() == DetectionDisplayMode.CENTROIDS && 
-								pathObject.isDetection() && !pathObject.isTile();
-						if (paintSymbols) {
-							pathROI = PathObjectTools.getROI(pathObject, true);
-							double x = pathROI.getCentroidX();
-							double y = pathROI.getCentroidY();
-							double radius = PathPrefs.detectionStrokeThicknessProperty().get() * 2.0;
-							if (pathObject.getParent() instanceof PathDetectionObject)
-								radius /= 2.0;
-							Shape shape;
-							int nSubclasses = 0;
-							if (pathClass != null) {
-								nSubclasses = PathClassTools.splitNames(pathClass).size();
-							}
-							switch (nSubclasses) {
-							case 0:
-								var ellipse = localEllipse2D.get();
-								ellipse.setFrame(x-radius, y-radius, radius*2, radius*2);								
-								shape = ellipse;
-								break;
-							case 1:
-								var rect = localRect2D.get();
-								rect.setFrame(x-radius, y-radius, radius*2, radius*2);								
-								shape = rect;
-								break;
-							case 2:
-								var triangle = localPath2D.get();
-								double sqrt3 = Math.sqrt(3.0);
-								triangle.reset();
-								triangle.moveTo(x, y-radius*2.0/sqrt3);
-								triangle.lineTo(x-radius, y+radius/sqrt3);
-								triangle.lineTo(x+radius, y+radius/sqrt3);
-								triangle.closePath();
-								shape = triangle;
-								break;
-							case 3:
-								var plus = localPath2D.get();
-								plus.reset();
-								plus.moveTo(x, y-radius);
-								plus.lineTo(x, y+radius);
-								plus.moveTo(x-radius, y);
-								plus.lineTo(x+radius, y);
-								shape = plus;								
-								break;
-							default:
-								var cross = localPath2D.get();
-								cross.reset();
-								radius /= Math.sqrt(2);
-								cross.moveTo(x-radius, y-radius);
-								cross.lineTo(x+radius, y+radius);
-								cross.moveTo(x+radius, y-radius);
-								cross.lineTo(x-radius, y+radius);
-								shape = cross;
-								break;
-							}
-							paintShape(shape, g, colorStroke, stroke, colorFill);
-						} else if (pathObject instanceof PathCellObject) {
-							PathCellObject cell = (PathCellObject)pathObject;
-							if (overlayOptions.getShowCellBoundaries())
-								paintROI(pathROI, g, colorStroke, stroke, colorFill, downsample);
-							if (overlayOptions.getShowCellNuclei())
-								paintROI(cell.getNucleusROI(), g, colorStroke, stroke, colorFill, downsample);
-							painted = true;
-						} else {
-							if ((overlayOptions.getFillAnnotations() &&
-									pathObject.isAnnotation() && 
-									pathObject.getPathClass() != PathClass.StandardPathClasses.REGION &&
-									(pathObject.getPathClass() != null || !pathObject.hasChildObjects()))
-									|| (pathObject.isTMACore() && overlayOptions.getShowTMACoreLabels()))
-								paintROI(pathROI, g, colorStroke, stroke, ColorToolsAwt.getMoreTranslucentColor(colorStroke), downsample);
-							else
-								paintROI(pathROI, g, colorStroke, stroke, colorFill, downsample);
-							painted = true;
-						}
-					}
-				}
+
+		if (!roiIntersectsClipBounds(g, roi))
+			return false;
+
+		// Always paint the selected object (if it's within the field of view)
+		boolean isSelected = (selectionModel != null && selectionModel.isSelected(pathObject));
+
+		// Always paint selected objects, otherwise check if the object should be hidden
+		if (!isSelected) {
+			if (overlayOptions.isPathClassHidden(pathObject.getPathClass()) || isHiddenObjectType(pathObject, overlayOptions))
+				return false;
+		}
+
+		Color color = getBaseObjectColor(pathObject, overlayOptions, isSelected);
+
+		// Check if we have only one or two pixels to draw - if so, just fill a rectangle quickly
+		if (pathObject.isDetection() && isRoiTinyAfterDownsampling(roi, downsample)) {
+			fillRoiBounds(g, roi, color);
+			return true;
+		}
+
+		// Determine stroke/fill colors
+		Color colorFill = updateFillColorFromBase(pathObject, color, overlayOptions);
+		Color colorStroke = updateStrokeColorFromBase(pathObject, color, overlayOptions);
+		if (colorFill != null && colorFill.equals(colorStroke))
+			colorStroke = ColorToolsAwt.darkenColor(color);
+		Stroke stroke = colorStroke == null ? null : calculateStroke(pathObject, downsample, isSelected);
+
+		if (colorFill != null && pathObject.hasChildObjects())
+			colorFill = ColorToolsAwt.getColorWithOpacity(colorFill, 0.1);
+
+		g.setStroke(stroke);
+		boolean paintSymbols = shouldPaintRoiAsSymbol(pathObject, overlayOptions);
+		if (paintSymbols) {
+			Shape shape = getCentroidSymbol(pathObject);
+			paintShape(shape, g, colorStroke, stroke, colorFill);
+		} else if (pathObject.isCell()) {
+			PathCellObject cell = (PathCellObject)pathObject;
+			if (overlayOptions.getShowCellBoundaries())
+				paintROI(roi, g, colorStroke, stroke, colorFill, downsample);
+			if (overlayOptions.getShowCellNuclei()) {
+				var nucleus = cell.getNucleusROI();
+				if (nucleus != null)
+					paintROI(cell.getNucleusROI(), g, colorStroke, stroke, colorFill, downsample);
+			}
+		} else {
+			paintROI(roi, g, colorStroke, stroke, colorFill, downsample);
+			String arrowhead = getArrowheadStringOrNull(pathObject, roi);
+			if (arrowhead != null) {
+				paintArrowheads(g, roi, arrowhead, colorStroke, null, downsample);
 			}
 		}
-		// Paint the children, if necessary
-		if (paintChildren) {
-			for (PathObject childObject : pathObject.getChildObjectsAsArray()) {
-				// Only call the painting method if required
-				ROI childROI = childObject.getROI();
-				if ((childROI != null && boundsDisplayed.intersects(childROI.getBoundsX(), childROI.getBoundsY(), childROI.getBoundsWidth(), childROI.getBoundsHeight())) || childObject.hasChildObjects())
-					painted = paintObject(childObject, paintChildren, g, boundsDisplayed, overlayOptions, selectionModel, downsample) | painted;
-			}
-		}
-		return painted;
+		return true;
 	}
 	
 	
+	private static String getArrowheadStringOrNull(PathObject pathObject, ROI roi) {
+		// We currently only support annotations with straight line ROIs
+		if (pathObject.isAnnotation() && roi.isLine() && roi instanceof LineROI)
+			return pathObject.getMetadata().getOrDefault("arrowhead", null);
+		else
+			return null;
+	}
+	
+	private static void paintArrowheads(Graphics2D g, ROI roi, String arrow, Color colorStroke, Stroke stroke, double downsample) {
+		var points = roi.getAllPoints();
+		var pointsToDraw = new ArrayList<Point2>();
+		var angles = new ArrayList<Double>();
+		if (arrow.contains("<")) {
+			pointsToDraw.add(points.get(0));
+			if (points.size() > 1)
+				angles.add(Math.atan2(
+						points.get(0).getY() - points.get(1).getY(),
+						points.get(0).getX() - points.get(1).getX()) + Math.PI/2.0);
+			else
+				angles.add(0.0);
+		}
+		if (arrow.contains(">")) {
+			pointsToDraw.add(points.get(points.size()-1));
+			if (points.size() > 1)
+				angles.add(Math.atan2(
+						points.get(1).getY() - points.get(0).getY(),
+						points.get(1).getX() - points.get(0).getX()) + Math.PI/2.0);
+			else
+				angles.add(0.0);
+		}
+		for (int i = 0; i < pointsToDraw.size(); i++) {
+			var p = pointsToDraw.get(i);
+			double angle = angles.get(i);
+			double width = (float)(PathPrefs.annotationStrokeThicknessProperty().get() * downsample * 6);
+			double length = Math.min(width, roi.getLength()/3.0);
+			double x = p.getX();
+			double y = p.getY();
+			var triangle = localPath2D.get();
+			triangle.reset();
+			triangle.moveTo(x, y);
+			triangle.lineTo(x-width/2.0, y+length);
+			triangle.lineTo(x+width/2.0, y+length);
+			triangle.closePath();
+			triangle.transform(AffineTransform.getRotateInstance(angle, p.getX(), p.getY()));
+			paintShape(triangle, g, colorStroke, stroke, colorStroke);
+		}
+	}
+	
 
-	private static void paintROI(ROI pathROI, Graphics2D g, Color colorStroke, Stroke stroke, Color colorFill, double downsample) {
-//		if (pathROI == null || (pathROI.isEmpty() && !(pathROI instanceof PolygonROI)))
-		// Reinstate drawing empty ROIs (removed in v0.4.0)
-		// Need to paint empty polygons, since otherwise they don't appear when starting to draw
-		// Potentially, all empty ROIs should be drawn
-		if (pathROI == null)
-			return;
-//		pathROI.draw(g, colorStroke, colorFill);
-		
+
+	private static Color getBaseObjectColor(PathObject pathObject, OverlayOptions overlayOptions, boolean isSelected) {
+		Color color = null;
+		if (isSelected)
+			color = getSelectedObjectColorOrNull();
+		if (color != null)
+			return color;
+
+		MeasurementMapper mapper = pathObject.isDetection() ? getValidMeasurementMapperOrNull(overlayOptions) : null;
+		if (mapper != null)
+			return getColorFromMeasurementMapperOrNull(pathObject, mapper);
+		Integer rgb = ColorToolsFX.getDisplayedColorARGB(pathObject);
+		return ColorToolsAwt.getCachedColor(rgb);
+	}
+
+
+	private static Stroke calculateStroke(PathObject pathObject, double downsample, boolean isSelected) {
+		if (pathObject.isDetection()) {
+			// Detections inside detections get half the line width
+			if (pathObject.getParent() instanceof PathDetectionObject)
+				return getCachedStroke(PathPrefs.detectionStrokeThicknessProperty().get() / 2.0);
+			else
+				return getCachedStroke(PathPrefs.detectionStrokeThicknessProperty().get());
+		} else {
+			double thicknessScale = downsample * (isSelected && !PathPrefs.useSelectedColorProperty().get() ? 1.6 : 1);
+			float thickness = (float)(PathPrefs.annotationStrokeThicknessProperty().get() * thicknessScale);
+			if (isSelected && pathObject.getParent() == null && PathPrefs.selectionModeProperty().get()) {
+				return getCachedStrokeDashed(thickness);
+			} else {
+				return getCachedStroke(thickness);
+			}
+		}
+	}
+
+
+	private static Color updateStrokeColorFromBase(PathObject pathObject, Color colorBase, OverlayOptions overlayOptions) {
+		if (pathObject.isTile() && getValidMeasurementMapperOrNull(overlayOptions) != null)
+			return null;
+		return colorBase;
+	}
+
+
+	private static Double tryToGetDouble(Object obj) {
+		if (obj == null)
+			return null;
+		if (doubleCache.containsKey(obj))
+			return doubleCache.getOrDefault(obj, null);
+		return doubleCache.computeIfAbsent(obj, PathObjectPainter::tryToParseDouble);
+	}
+
+	private static Double tryToParseDouble(Object obj) {
+		try {
+			if (obj instanceof String) {
+				return Double.parseDouble((String)obj);
+			} else if (obj instanceof Number) {
+				return ((Number)obj).doubleValue();
+			}
+		} catch (Exception e) {
+			logger.warn("Unable to parse double from " + obj);
+		}		
+		return null;
+	}
+	
+	
+	private static Double getFillOpacityFromMetadataOrNull(PathObject pathObject) {
+		return tryToGetDouble(pathObject.getMetadata().getOrDefault("fillOpacity", null));
+	}
+	
+
+	private static Color updateFillColorFromBase(PathObject pathObject, Color colorBase, OverlayOptions overlayOptions) {
+		if (pathObject instanceof ParallelTileObject)
+			return ColorToolsAwt.getMoreTranslucentColor(colorBase);
+
+		var fillOpacity = getFillOpacityFromMetadataOrNull(pathObject);
+		if (fillOpacity != null)
+			return ColorToolsAwt.getColorWithOpacity(colorBase, fillOpacity);
+
+		// Don't fill region class
+		if (pathObject.getPathClass() == PathClass.StandardPathClasses.REGION)
+			return null;
+
+		if (pathObject.isDetection()) {
+			if (!overlayOptions.getFillDetections())
+				return null;
+			if (pathObject.isCell() && overlayOptions.getShowCellBoundaries() && overlayOptions.getShowCellNuclei()) {
+				return ColorToolsAwt.getMoreTranslucentColor(colorBase);
+			} else if (pathObject.getParent() instanceof PathDetectionObject) {
+				return ColorToolsAwt.getTranslucentColor(colorBase);
+			} else if (pathObject.isTile())
+				return ColorToolsAwt.getMoreTranslucentColor(colorBase);
+			else
+				return colorBase;			
+		}
+
+		if (pathObject.isTMACore()) {
+			return null;
+		}
+
+		if (pathObject.isAnnotation()) {
+			if (pathObject.getROI().isPoint() && overlayOptions.getFillDetections())
+				return colorBase;
+			if (overlayOptions.getFillAnnotations())
+				return ColorToolsAwt.getMoreTranslucentColor(colorBase);
+			else
+				return null;
+		}
+
+		return null;
+	}
+
+
+	private static MeasurementMapper getValidMeasurementMapperOrNull(OverlayOptions overlayOptions) {
+		var mapper = overlayOptions.getMeasurementMapper();
+		if (mapper == null || !mapper.isValid())
+			return null;
+		return mapper;
+	}
+
+
+	private static Color getColorFromMeasurementMapperOrNull(PathObject pathObject, MeasurementMapper mapper) {
+		if (!pathObject.hasMeasurements())
+			return null;
+		Integer rgb = mapper.getColorForObject(pathObject);
+		// If the mapper returns null, the object shouldn't be painted
+		if (rgb == null)
+			return null;
+		return ColorToolsAwt.getCachedColor(rgb);
+	}
+
+	private static Color getSelectedObjectColorOrNull() {
+		if (PathPrefs.useSelectedColorProperty().get()) {
+			Integer rgb = PathPrefs.colorSelectedObjectProperty().getValue();
+			if (rgb != null)
+				return ColorToolsAwt.getCachedColor(rgb);
+		}
+		return null;
+	}
+
+	private static boolean isHiddenObjectType(PathObject pathObject, OverlayOptions overlayOptions) {
+		if (pathObject.isAnnotation())
+			return !overlayOptions.getShowAnnotations();
+		if (pathObject.isDetection())
+			return !overlayOptions.getShowDetections();
+		if (pathObject.isTMACore())
+			return !overlayOptions.getShowTMAGrid();
+		return false;
+	}
+
+
+	private static void fillRoiBounds(Graphics2D g2d, ROI roi, Color color) {
+		int x = (int)roi.getBoundsX();
+		int y = (int)roi.getBoundsY();
+		int w = (int)Math.ceil(roi.getBoundsWidth()); // Prefer rounding up, lest we lose a lot of regions unnecessarily
+		int h = (int)Math.ceil(roi.getBoundsHeight());
+		if (w > 0 && h > 0) {
+			g2d.setColor(color);
+			g2d.fillRect(x, y, w, h);
+		}
+	}
+
+
+	private static boolean isRoiTinyAfterDownsampling(ROI roi, double downsample) {
+		return downsample > 4 && roi.getBoundsWidth() / downsample < 3 && roi.getBoundsHeight() / downsample < 3;
+	}
+
+
+	private static boolean roiIntersectsClipBounds(Graphics2D g2d, ROI roi) {
+		var bounds = g2d.getClipBounds();
+		if (bounds == null)
+			return true;
+		return bounds.intersects(
+				roi.getBoundsX(),
+				roi.getBoundsY(),
+				Math.max(1, roi.getBoundsWidth()),
+				Math.max(1, roi.getBoundsHeight()));
+	}
+
+
+	private static int getNumSubclasses(PathClass pathClass) {
+		if (pathClass == null)
+			return 0;
+		if (!pathClass.isDerivedClass())
+			return 1;
+		else
+			return PathClassTools.splitNames(pathClass).size();
+	}
+
+
+	private static Shape getCentroidSymbol(PathObject pathObject) {
+		ROI roi = PathObjectTools.getROI(pathObject, true);
+		double radius = PathPrefs.detectionStrokeThicknessProperty().get() * 2.0;
+		PathObject parent = pathObject.getParent();
+		while (parent != null && parent.isDetection()) {
+			radius /= 2.0;
+			if (radius < 1) {
+				radius = 1;
+				break;
+			}
+			parent = parent.getParent();
+		}
+		int nSubclasses = getNumSubclasses(pathObject.getPathClass());
+		return getCentroidSymbol(roi, nSubclasses, radius);
+	}
+
+
+	private static Shape getCentroidSymbol(ROI roi, int nSubclasses, double radius) {
+		double x = roi.getCentroidX();
+		double y = roi.getCentroidY();
+
+		switch (nSubclasses) {
+		case 0:
+			var ellipse = localEllipse2D.get();
+			ellipse.setFrame(x-radius, y-radius, radius*2, radius*2);								
+			return ellipse;
+		case 1:
+			var rect = localRect2D.get();
+			rect.setFrame(x-radius, y-radius, radius*2, radius*2);								
+			return rect;
+		case 2:
+			var triangle = localPath2D.get();
+			double sqrt3 = Math.sqrt(3.0);
+			triangle.reset();
+			triangle.moveTo(x, y-radius*2.0/sqrt3);
+			triangle.lineTo(x-radius, y+radius/sqrt3);
+			triangle.lineTo(x+radius, y+radius/sqrt3);
+			triangle.closePath();
+			return triangle;
+		case 3:
+			var plus = localPath2D.get();
+			plus.reset();
+			plus.moveTo(x, y-radius);
+			plus.lineTo(x, y+radius);
+			plus.moveTo(x-radius, y);
+			plus.lineTo(x+radius, y);
+			return plus;								
+		default:
+			var cross = localPath2D.get();
+			cross.reset();
+			radius /= Math.sqrt(2);
+			cross.moveTo(x-radius, y-radius);
+			cross.lineTo(x+radius, y+radius);
+			cross.moveTo(x+radius, y-radius);
+			cross.lineTo(x-radius, y+radius);
+			return cross;
+		}
+	}
+
+
+	private static boolean shouldPaintRoiAsSymbol(PathObject pathObject, OverlayOptions overlayOptions) {
+		return overlayOptions.getDetectionDisplayMode() == DetectionDisplayMode.CENTROIDS && 
+				pathObject.isDetection() && !pathObject.isTile();
+	}
+
+
+
+	private static void paintROI(ROI roi, Graphics2D g, Color colorStroke, Stroke stroke, Color colorFill, double downsample) {
 		if (colorStroke == null && colorFill == null)
 			return;
-		
+
 		Graphics2D g2d = (Graphics2D)g.create();
-		if (RoiTools.isShapeROI(pathROI)) {
-//			Shape shape = pathROI.getShape();
-			Shape shape = shapeProvider.getShape(pathROI, downsample);
-//			Shape shape = PathROIToolsAwt.getShape(pathROI);
+		if (RoiTools.isShapeROI(roi)) {
+			Shape shape = shapeProvider.getShape(roi, downsample);
 			// Only pass the colorFill if we have an area (i.e. not a line/polyline)
-			if (pathROI.isArea())
+			if (roi.isArea())
 				paintShape(shape, g, colorStroke, stroke, colorFill);
-			else if (pathROI.isLine())
+			else if (roi.isLine())
 				paintShape(shape, g, colorStroke, stroke, null);
-		} else if (pathROI.isPoint()) {
-			paintPoints(pathROI, g2d, PathPrefs.pointRadiusProperty().get(), colorStroke, stroke, colorFill, downsample);
+		} else if (roi.isPoint()) {
+			paintPoints(roi, g2d, PathPrefs.pointRadiusProperty().get(), colorStroke, stroke, colorFill, downsample);
 		}
 		g2d.dispose();
 	}
-	
+
 
 	abstract static class ShapePool<T extends Shape> {
-		
+
 		private Map<Thread, T> map = new WeakHashMap<>();
-		
+
 		protected abstract T createShape();
-		
+
 		public T getShape() {
 			Thread thread = Thread.currentThread();
 			T shape = map.get(thread);
@@ -493,36 +633,36 @@ public class PathHierarchyPaintingHelper {
 			}
 			return shape;
 		}
-		
+
 	}
-	
+
 	static class RectanglePool extends ShapePool<Rectangle2D> {
 
 		@Override
 		protected Rectangle2D createShape() {
 			return new Rectangle2D.Double();
 		}
-		
+
 	}
-	
+
 	static class EllipsePool extends ShapePool<Ellipse2D> {
 
 		@Override
 		protected Ellipse2D createShape() {
 			return new Ellipse2D.Double();
 		}
-		
+
 	}
-	
+
 	static class LinePool extends ShapePool<Line2D> {
 
 		@Override
 		protected Line2D createShape() {
 			return new Line2D.Double();
 		}
-		
+
 	}
-	
+
 	/**
 	 * 
 	 * Convert PathShapes into Java AWT Shapes, reusing existing objects where possible in a thread-safe way.
@@ -536,31 +676,27 @@ public class PathHierarchyPaintingHelper {
 	 *
 	 */
 	static class ShapeProvider {
-		
+
 		static final int MIN_SIMPLIFY_VERTICES = 250;
-		
+
 		private RectanglePool rectanglePool = new RectanglePool();
 		private EllipsePool ellipsePool = new EllipsePool();
 		private LinePool linePool = new LinePool();
-		
+
 		// TODO: Consider if it makes sense to map to PathHierarchyImageServer preferred downsamples
 		// (Only if shape simplification is often used for detection objects)
 		private Map<ROI, Shape> map50 = Collections.synchronizedMap(new WeakHashMap<>());
 		private Map<ROI, Shape> map20 = Collections.synchronizedMap(new WeakHashMap<>());
 		private Map<ROI, Shape> map10 = Collections.synchronizedMap(new WeakHashMap<>());
 		private Map<ROI, Shape> map = Collections.synchronizedMap(new WeakHashMap<>());
-		
-		
+
+
 		private Map<ROI, Shape> getMap(final ROI shape, final double downsample) {
 			// If we don't have many vertices, just return the main map - no need to simplify
 			int nVertices = shape.getNumPoints();
-//			if (shape instanceof PolygonROI)
-//				nVertices = ((PolygonROI)shape).nVertices();
-//			else if (shape instanceof AreaROI)
-//				nVertices = ((AreaROI)shape).nVertices();
 			if (nVertices < MIN_SIMPLIFY_VERTICES || !shape.isArea())
 				return map;
-			
+
 			if (downsample > 50)
 				return map50;
 			if (downsample > 20)
@@ -569,7 +705,7 @@ public class PathHierarchyPaintingHelper {
 				return map10;
 			return map;
 		}
-		
+
 		private static Shape simplifyByDownsample(final Shape shape, final double downsample) {
 			try {
 				if (downsample > 50)
@@ -584,8 +720,8 @@ public class PathHierarchyPaintingHelper {
 			}
 			return shape;
 		}
-		
-		
+
+
 		public Shape getShape(final ROI roi, final double downsample) {
 			if (roi instanceof RectangleROI) {
 				Rectangle2D rectangle = rectanglePool.getShape();
@@ -605,30 +741,30 @@ public class PathHierarchyPaintingHelper {
 				line.setLine(l.getX1(), l.getY1(), l.getX2(), l.getY2());
 				return line;
 			}
-			
+
 			Map<ROI, Shape> map = getMap(roi, downsample);
-//			map.clear();
+			//			map.clear();
 			Shape shape = map.get(roi);
 			if (shape == null) {
 				shape = RoiTools.getShape(roi);
 				// Downsample if we have to
 				if (map != this.map) {
 					// JTS methods are much slower
-//					var simplifier = new DouglasPeuckerSimplifier(roi.getGeometry());
-//					var simplifier = new VWSimplifier(roi.getGeometry());
-//					simplifier.setDistanceTolerance(downsample);
-//					simplifier.setEnsureValid(false);
-//					shape = GeometryTools.geometryToShape(simplifier.getResultGeometry());
+					//					var simplifier = new DouglasPeuckerSimplifier(roi.getGeometry());
+					//					var simplifier = new VWSimplifier(roi.getGeometry());
+					//					simplifier.setDistanceTolerance(downsample);
+					//					simplifier.setEnsureValid(false);
+					//					shape = GeometryTools.geometryToShape(simplifier.getResultGeometry());
 					shape = simplifyByDownsample(shape, downsample);
 				}
 				map.put(roi, shape);
 			}
-//			map.clear();
+			//			map.clear();
 			return shape;
 		}
-		
+
 	}
-	
+
 	/**
 	 * Paint the specified shape with specified stroke and fill colors.
 	 * @param shape shape to paint
@@ -649,8 +785,8 @@ public class PathHierarchyPaintingHelper {
 			g2d.draw(shape);
 		}
 	}
-	
-	
+
+
 	private static void paintPoints(ROI pathPoints, Graphics2D g2d, double radius, Color colorStroke, Stroke stroke, Color colorFill, double downsample) {
 		PointsROI pathPointsROI = pathPoints instanceof PointsROI ? (PointsROI)pathPoints : null;
 		if (pathPointsROI != null && PathPrefs.showPointHullsProperty().get()) {
@@ -660,17 +796,16 @@ public class PathHierarchyPaintingHelper {
 				colorHull = ColorToolsAwt.getColorWithOpacity(colorHull, 0.1);
 				if (colorHull != null)
 					paintShape(RoiTools.getShape(convexHull), g2d, null, null, colorHull);
-//					getConvexHull().draw(g, null, colorHull);
 			}
 		}
-		
+
 		RectangularShape ellipse;
-		
-//		double radius = pathPointsROI == null ? PointsROI.defaultPointRadiusProperty().get() : pathPointsROI.getPointRadius();
+
+		//		double radius = pathPointsROI == null ? PointsROI.defaultPointRadiusProperty().get() : pathPointsROI.getPointRadius();
 		// Ensure that points are drawn with at least a radius of one, after any transforms have been applied
 		double scale = Math.max(1, downsample);
 		radius = (Math.max(1 / scale, radius));
-		
+
 		// Get clip bounds
 		Rectangle2D bounds = g2d.getClipBounds();
 		if (bounds != null) {
@@ -698,10 +833,9 @@ public class PathHierarchyPaintingHelper {
 			composite = AlphaComposite.getInstance(rule, alpha);
 			g = (Graphics2D)g2d.create();
 			g.setComposite(composite);
-//			ellipse = new Ellipse2D.Double();
 		} else
 			ellipse = new Ellipse2D.Double();
-		
+
 		g.setStroke(stroke);
 		for (Point2 p : pathPoints.getAllPoints()) {
 			if (bounds != null && !bounds.contains(p.getX(), p.getY()))
@@ -719,8 +853,8 @@ public class PathHierarchyPaintingHelper {
 		if (g != g2d)
 			g.dispose();
 	}
-	
-	
+
+
 	static Stroke getCachedStrokeDashed(final Number thickness) {
 		Stroke stroke = dashedStrokeMap.get(thickness);
 		if (stroke == null) {
@@ -731,7 +865,7 @@ public class PathHierarchyPaintingHelper {
 		}
 		return stroke;
 	}
-	
+
 	static Stroke getCachedStroke(final Number thickness) {
 		Stroke stroke = strokeMap.get(thickness);
 		if (stroke == null) {
@@ -740,11 +874,11 @@ public class PathHierarchyPaintingHelper {
 		}
 		return stroke;
 	}
-	
+
 	private static Stroke getCachedStroke(final int thickness) {
 		return getCachedStroke(Integer.valueOf(thickness));
 	}
-	
+
 	/**
 	 * Get a {@link BasicStroke} with the specified thickness.
 	 * @param thickness
@@ -755,8 +889,8 @@ public class PathHierarchyPaintingHelper {
 			return getCachedStroke((int)thickness);
 		return getCachedStroke(Float.valueOf((float)thickness));
 	}
-	
-	
+
+
 	/**
 	 * Paint the handles onto a Graphics object, if we have a suitable (non-point) ROI.
 	 * <p>
@@ -776,14 +910,6 @@ public class PathHierarchyPaintingHelper {
 			paintHandles(roiEditor.getHandles(), g2d, minHandleSize, maxHandleSize, colorStroke, colorFill);
 	}
 
-		/**
-		 * Paint the handles onto a Graphics object.
-		 * 
-		 * @param g2d
-		 * @param handleSize The width &amp; height of the shape used to draw the handles
-		 * @param colorStroke
-		 * @param colorFill
-		 */
 	/**
 	 * Paint the handles onto a Graphics object, if we have a suitable (non-point) ROI.
 	 * <p>
@@ -799,9 +925,8 @@ public class PathHierarchyPaintingHelper {
 	 * @param colorFill
 	 */
 	public static void paintHandles(final List<Point2> handles, final Graphics2D g2d, final double minHandleSize, final double maxHandleSize, final Color colorStroke, final Color colorFill) {		
-			RectangularShape handleShape = new Rectangle2D.Double();
-//			handleShape = new Ellipse2D.Double();
-		
+		RectangularShape handleShape = new Rectangle2D.Double();
+
 		int n = handles.size();
 		if (minHandleSize == maxHandleSize) {
 			for (Point2 p : handles) {
@@ -824,7 +949,7 @@ public class PathHierarchyPaintingHelper {
 				var after = handles.get((i + 1) % n);
 				double distance = Math.sqrt(Math.min(current.distanceSq(before), current.distanceSq(after))) * 0.5;
 				double size = Math.max(minHandleSize, Math.min(distance, maxHandleSize));
-				
+
 				var p = current;
 				handleShape.setFrame(p.getX()-size/2, p.getY()-size/2, size, size);
 				if (colorFill != null) {
@@ -839,89 +964,86 @@ public class PathHierarchyPaintingHelper {
 		}
 	}
 
-		/**
-		 * Paint connections between objects (e.g. from Delaunay triangulation).
-		 * 
-		 * @param connections
-		 * @param hierarchy
-		 * @param g2d
-		 * @param color
-		 * @param downsampleFactor
-		 * @param plane
-		 */
-		public static void paintConnections(final PathObjectConnections connections, final PathObjectHierarchy hierarchy, Graphics2D g2d, final Color color, final double downsampleFactor, final ImagePlane plane) {
-			if (hierarchy == null || connections == null || connections.isEmpty())
-				return;
+	/**
+	 * Paint connections between objects (e.g. from Delaunay triangulation).
+	 * 
+	 * @param connections
+	 * @param hierarchy
+	 * @param g2d
+	 * @param color
+	 * @param downsampleFactor
+	 * @param plane
+	 */
+	public static void paintConnections(final PathObjectConnections connections, final PathObjectHierarchy hierarchy, Graphics2D g2d, final Color color, final double downsampleFactor, final ImagePlane plane) {
+		if (hierarchy == null || connections == null || connections.isEmpty())
+			return;
 
-			float alpha = (float)(1f - downsampleFactor / 5);
-			alpha = Math.min(alpha, 0.4f);
-			float thickness = PathPrefs.detectionStrokeThicknessProperty().get();
-			if (alpha < .1f || thickness / downsampleFactor <= 0.25)
-				return;
+		float alpha = (float)(1f - downsampleFactor / 5);
+		alpha = Math.min(alpha, 0.4f);
+		float thickness = PathPrefs.detectionStrokeThicknessProperty().get();
+		if (alpha < .1f || thickness / downsampleFactor <= 0.25)
+			return;
 
-			g2d = (Graphics2D)g2d.create();
+		g2d = (Graphics2D)g2d.create();
 
-			//		Shape clipShape = g2d.getClip();
-			g2d.setStroke(getCachedStroke(thickness));
-//			g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, alpha * .5f));
-			//		g2d.setColor(ColorToolsAwt.getColorWithOpacity(getPreferredOverlayColor(), 1));
+		g2d.setStroke(getCachedStroke(thickness));
 
-			g2d.setColor(ColorToolsAwt.getColorWithOpacity(color.getRGB(), alpha));
-			
-			// We only need to draw connections that intersect with the bounds
-			Rectangle bounds = g2d.getClipBounds();
+		g2d.setColor(ColorToolsAwt.getColorWithOpacity(color.getRGB(), alpha));
 
-			g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
-			g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_SPEED);
-			
-			
-			// We need all the detections since *potentially* both ends might be outside the visible bounds, 
-			// but their connecting line intersects the bounds.
-			// However, this can be a *major* performance issue (until a spatial cache is used), so instead we expand the bounds 
-			// and hope that's enough to get all the objects we need.
-			ImageRegion imageRegion = AwtTools.getImageRegion(bounds, plane.getZ(), plane.getT());
-			
-			// Keep reference to visited objects, to avoid painting the same line twice
-			// (which happened in v0.3.2 and earlier)
-			Set<PathObject> vistedObjects = new HashSet<>();
+		// We only need to draw connections that intersect with the bounds
+		Rectangle bounds = g2d.getClipBounds();
 
-			// Reuse the line and record counts
-			Line2D line = new Line2D.Double();
-			int nDrawn = 0;
-			int nSkipped = 0;
+		g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
+		g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_SPEED);
 
-			long startTime = System.currentTimeMillis();
-			for (PathObjectConnectionGroup dt : connections.getConnectionGroups()) {
-				vistedObjects.clear();
-				for (var pathObject : dt.getPathObjectsForRegion(imageRegion)) {
-					
-					vistedObjects.add(pathObject);
-					ROI roi = PathObjectTools.getROI(pathObject, true);
-					double x1 = roi.getCentroidX();
-					double y1 = roi.getCentroidY();
-					for (PathObject siblingObject : dt.getConnectedObjects(pathObject)) {
-						if (vistedObjects.contains(siblingObject))
-							continue;
-						ROI roi2 = PathObjectTools.getROI(siblingObject, true);
-						double x2 = roi2.getCentroidX();
-						double y2 = roi2.getCentroidY();
-						if (bounds.intersectsLine(x1, y1, x2, y2)) {
-							line.setLine(x1, y1, x2, y2);
-							g2d.draw(line);
-							// Doesn't seem to be more efficient
-							// g2d.drawLine((int)x1, (int)y1, (int)x2, (int)y2);
-							nDrawn++;
-						} else {
-							nSkipped++;
-						}
+
+		// We need all the detections since *potentially* both ends might be outside the visible bounds, 
+		// but their connecting line intersects the bounds.
+		// However, this can be a *major* performance issue (until a spatial cache is used), so instead we expand the bounds 
+		// and hope that's enough to get all the objects we need.
+		ImageRegion imageRegion = AwtTools.getImageRegion(bounds, plane.getZ(), plane.getT());
+
+		// Keep reference to visited objects, to avoid painting the same line twice
+		// (which happened in v0.3.2 and earlier)
+		Set<PathObject> vistedObjects = new HashSet<>();
+
+		// Reuse the line and record counts
+		Line2D line = new Line2D.Double();
+		int nDrawn = 0;
+		int nSkipped = 0;
+
+		long startTime = System.currentTimeMillis();
+		for (PathObjectConnectionGroup dt : connections.getConnectionGroups()) {
+			vistedObjects.clear();
+			for (var pathObject : dt.getPathObjectsForRegion(imageRegion)) {
+
+				vistedObjects.add(pathObject);
+				ROI roi = PathObjectTools.getROI(pathObject, true);
+				double x1 = roi.getCentroidX();
+				double y1 = roi.getCentroidY();
+				for (PathObject siblingObject : dt.getConnectedObjects(pathObject)) {
+					if (vistedObjects.contains(siblingObject))
+						continue;
+					ROI roi2 = PathObjectTools.getROI(siblingObject, true);
+					double x2 = roi2.getCentroidX();
+					double y2 = roi2.getCentroidY();
+					if (bounds.intersectsLine(x1, y1, x2, y2)) {
+						line.setLine(x1, y1, x2, y2);
+						g2d.draw(line);
+						// Doesn't seem to be more efficient
+						// g2d.drawLine((int)x1, (int)y1, (int)x2, (int)y2);
+						nDrawn++;
+					} else {
+						nSkipped++;
 					}
-
 				}
-			}
-			long endTime = System.currentTimeMillis();
-			logger.trace("Drawn {} connections in {} ms ({} skipped)", nDrawn, endTime - startTime, nSkipped);
-			g2d.dispose();
-		}
 
-	
+			}
+		}
+		long endTime = System.currentTimeMillis();
+		logger.trace("Drawn {} connections in {} ms ({} skipped)", nDrawn, endTime - startTime, nSkipped);
+		g2d.dispose();
+	}
+
+
 }

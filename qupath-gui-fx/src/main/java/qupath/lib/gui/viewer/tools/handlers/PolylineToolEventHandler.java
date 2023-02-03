@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.lib.gui.viewer.tools;
+package qupath.lib.gui.viewer.tools.handlers;
 
 import javafx.scene.input.MouseEvent;
 import qupath.lib.regions.ImagePlane;
@@ -29,16 +29,24 @@ import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
- * PathTool for drawing rectangles.
+ * PathTool for drawing polygons.
  * 
  * @author Pete Bankhead
  *
  */
-public class RectangleTool extends AbstractPathDraggingROITool {
+class PolylineToolEventHandler extends AbstractPolyROIToolEventHandler {
 
+	/**
+	 * Returns false (no pixel snapping for the line tool).
+	 */
+	@Override
+	protected boolean requestPixelSnapping() {
+		return false;
+	}
+	
 	@Override
 	protected ROI createNewROI(MouseEvent e, double x, double y, ImagePlane plane) {
-		return ROIs.createRectangleROI(x, y, 0, 0, plane);
+		return ROIs.createPolylineROI(x, y, plane);
 	}
-
+	
 }

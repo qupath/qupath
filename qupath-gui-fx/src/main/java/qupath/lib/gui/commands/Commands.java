@@ -54,12 +54,14 @@ import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.ColorPicker;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
+import javafx.scene.control.ButtonBar.ButtonData;
 import javafx.scene.control.cell.CheckBoxListCell;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
@@ -68,6 +70,7 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
+import javafx.scene.paint.Color;
 import javafx.scene.text.TextAlignment;
 import javafx.stage.Modality;
 import javafx.stage.Screen;
@@ -76,16 +79,17 @@ import qupath.lib.analysis.DistanceTools;
 import qupath.lib.analysis.features.ObjectMeasurements.ShapeFeatures;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.ActionTools;
+import qupath.lib.gui.ExtensionClassLoader;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.Dialogs.DialogButton;
 import qupath.lib.gui.images.servers.RenderedImageServer;
 import qupath.lib.gui.panes.MeasurementMapPane;
 import qupath.lib.gui.panes.ObjectDescriptionPane;
-import qupath.lib.gui.panes.PathClassPane;
 import qupath.lib.gui.panes.WorkflowCommandLogView;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tma.TMASummaryViewer;
+import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.viewer.GridLines;
@@ -109,6 +113,7 @@ import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.PathTileObject;
 import qupath.lib.objects.TMACoreObject;
+import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
@@ -589,7 +594,7 @@ public class Commands {
 	 * @param qupath the QuPath instance
 	 */
 	public static void showScriptInterpreter(QuPathGUI qupath) {
-		var scriptInterpreter = new ScriptInterpreter(qupath, QuPathGUI.getExtensionClassLoader());
+		var scriptInterpreter = new ScriptInterpreter(qupath, ExtensionClassLoader.getInstance());
 		scriptInterpreter.getStage().initOwner(qupath.getStage());
 		scriptInterpreter.getStage().show();
 	}
@@ -1056,9 +1061,87 @@ public class Commands {
 		var pathClass = Dialogs.showChoiceDialog("Select objects", "", qupath.getAvailablePathClasses(), null);
 		if (pathClass == null)
 			return;
-		PathClassPane.selectObjectsByClassification(imageData, pathClass);
+		selectObjectsByClassification(imageData, pathClass);
+	}
+	
+	
+	/**
+	 * Prompt to edit the name/color of a class.
+	 * @param pathClass
+	 * @return
+	 */
+	public static boolean promptToEditClass(final PathClass pathClass) {
+		if (pathClass == null || pathClass == PathClass.NULL_CLASS)
+			return false;
+
+		boolean defaultColor = pathClass == null;
+
+		BorderPane panel = new BorderPane();
+
+		BorderPane panelName = new BorderPane();
+		String name;
+		Color color;
+
+		if (defaultColor) {
+			name = "Default object color";
+			color = ColorToolsFX.getCachedColor(PathPrefs.colorDefaultObjectsProperty().get());
+			Label label = new Label(name);
+			label.setPadding(new Insets(5, 0, 10, 0));
+			panelName.setCenter(label);
+		} else {
+			name = pathClass.toString();
+			if (name == null)
+				name = "";
+			color = ColorToolsFX.getPathClassColor(pathClass);		
+			Label label = new Label(name);
+			label.setPadding(new Insets(5, 0, 10, 0));
+			panelName.setCenter(label);
+		}
+
+		panel.setTop(panelName);
+		ColorPicker panelColor = new ColorPicker(color);
+
+		panel.setCenter(panelColor);
+
+		if (!Dialogs.showConfirmDialog("Edit class", panel))
+			return false;
+
+		Color newColor = panelColor.getValue();
+
+		Integer colorValue = newColor.isOpaque() ? ColorToolsFX.getRGB(newColor) : ColorToolsFX.getARGB(newColor);
+		if (defaultColor) {
+			if (newColor.isOpaque())
+				PathPrefs.colorDefaultObjectsProperty().set(colorValue);
+			else
+				PathPrefs.colorDefaultObjectsProperty().set(colorValue);
+		}
+		else {
+			pathClass.setColor(colorValue);
+		}
+		return true;
 	}
 
+	
+	/**
+	 * Select objects by classification, logging the step (if performed) in the history workflow.
+	 * @param imageData the {@link ImageData} containing objects to be selected
+	 * @param pathClasses classifications that will result in an object being selected
+	 * @return true if a selection command was run, false otherwise (e.g. if no pathClasses were specified)
+	 */
+	public static boolean selectObjectsByClassification(ImageData<?> imageData, PathClass... pathClasses) {
+		var hierarchy = imageData.getHierarchy();
+		if (pathClasses.length == 0) {
+			logger.warn("Cannot select objects by classification - no classifications selected!");
+			return false;
+		}
+		QP.selectObjectsByPathClass(hierarchy, pathClasses);
+		var s = Arrays.stream(pathClasses)
+				.map(p -> p == null || p == PathClass.NULL_CLASS ? "null" : "\"" + p.toString() + "\"").collect(Collectors.joining(", "));
+		imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep("Select objects by classification",
+				"selectObjectsByClassification(" + s + ");"));
+		return true;
+	}
+	
 	
 	/**
 	 * Prompt to delete objects of a specified type, or all objects.
@@ -1341,6 +1424,67 @@ public class Commands {
 	}
 	
 	
+	
+	/**
+	 * Request the current user directory, optionally prompting the user to request a director if none is available.
+	 * @param promptIfMissing 
+	 * @return
+	 */
+	public static File requestUserDirectory(boolean promptIfMissing) {
+		
+		var pathUser = PathPrefs.getUserPath();
+		var dir = pathUser == null ? null : new File(pathUser);
+		if (dir != null && dir.isDirectory())
+			return dir;
+		
+		if (!promptIfMissing)
+			return null;
+		
+		// Prompt to create an extensions directory
+		File dirDefault = PathPrefs.getDefaultQuPathUserDirectory().toFile();
+		String msg;
+		if (dirDefault.exists()) {
+			msg = dirDefault.getAbsolutePath() + " already exists.\n" +
+					"Do you want to use this default, or specify another directory?";
+		} else {
+			msg = String.format("Do you want to create a new user directory at\n %s?",
+					dirDefault.getAbsolutePath());
+		}
+		
+		ButtonType btUseDefault = new ButtonType("Use default", ButtonData.YES);
+		ButtonType btChooseDirectory = new ButtonType("Choose directory", ButtonData.NO);
+		ButtonType btCancel = new ButtonType("Cancel", ButtonData.CANCEL_CLOSE);
+		
+		var result = Dialogs.builder()
+			.title("Choose user directory")
+			.headerText("No user directory set")
+			.contentText(msg)
+			.buttons(btUseDefault, btChooseDirectory, btCancel)
+			.showAndWait()
+			.orElse(btCancel);
+			
+		if (result == btCancel) {
+			logger.info("Dialog cancelled - no user directory set");
+			return null;
+		}
+		if (result == btUseDefault) {
+			if (!dirDefault.exists() && !dirDefault.mkdirs()) {
+				Dialogs.showErrorMessage("Extension error", "Unable to create directory at \n" + dirDefault.getAbsolutePath());
+				return null;
+			}
+			dir = dirDefault;
+		} else {
+			File dirUser = Dialogs.promptForDirectory("Set user directory", dirDefault);
+			if (dirUser == null) {
+				logger.info("No QuPath user directory set!");
+				return null;
+			}
+			dir = dirUser;
+		}
+		PathPrefs.userPathProperty().set(dir.getAbsolutePath());
+		return dir;
+	}
+	
 	/**
 	 * Reload the specified image data from a previously saved version,if available.
 	 * @param qupath
@@ -1353,7 +1497,7 @@ public class Commands {
 		}
 		// TODO: Support loading from a project as well
 		
-		var viewer = qupath.getViewers().stream().filter(v -> v.getImageData() == imageData).findFirst().orElse(null);
+		var viewer = qupath.getAllViewers().stream().filter(v -> v.getImageData() == imageData).findFirst().orElse(null);
 		if (viewer == null) {
 			Dialogs.showErrorMessage("Reload data", "Specified image data not found open in any viewer!");
 			return;

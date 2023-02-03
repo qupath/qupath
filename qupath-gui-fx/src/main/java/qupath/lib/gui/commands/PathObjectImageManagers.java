@@ -51,7 +51,7 @@ import qupath.lib.gui.images.stores.DefaultImageRegionStore;
 import qupath.lib.gui.images.stores.ImageRenderer;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.viewer.OverlayOptions;
-import qupath.lib.gui.viewer.PathHierarchyPaintingHelper;
+import qupath.lib.gui.viewer.PathObjectPainter;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.objects.PathObject;
@@ -418,7 +418,7 @@ class PathObjectImageManagers {
 
 					store.paintRegionCompletely(server, g2d, g2d.getClipBounds(), roi.getZ(), roi.getT(), downsample, null, renderer, 500L);
 					if (paintObject && options != null) {
-						PathHierarchyPaintingHelper.paintObject(pathObject, false, g2d, null, options, null, downsample);
+						PathObjectPainter.paintObject(pathObject, g2d, options, null, downsample);
 					}
 					g2d.dispose();
 				} else {

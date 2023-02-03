@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.lib.gui.viewer.tools;
+package qupath.lib.gui.viewer.tools.handlers;
 
 import java.awt.geom.Point2D;
 import java.util.Collections;
@@ -34,13 +34,13 @@ import qupath.lib.roi.RoiEditor;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
- * Abstract {@link PathTool} for drawing ROIs that require clicking and dragging to create 
+ * Event handler for drawing ROIs that require clicking and dragging to create 
  * two end points (either for a bounding box or end points of a line).
  * 
  * @author Pete Bankhead
  *
  */
-abstract class AbstractPathDraggingROITool extends AbstractPathROITool {
+abstract class AbstractPathDraggingROIToolEventHandler extends AbstractPathROIToolEventHandler {
 
 	@Override
 	public void mouseDragged(MouseEvent e) {
@@ -64,8 +64,6 @@ abstract class AbstractPathDraggingROITool extends AbstractPathROITool {
 			}
 			
 			viewer.getHierarchy().fireObjectsChangedEvent(this, Collections.singleton(pathObject), true);
-//			editor.setActiveHandlePosition(x, y, minDisplacement, shiftDown)
-//			currentROI.updateAdjustment(p.getX(), p.getY(), e.isShiftDown());
 			viewer.repaint();
 		}
 	}

@@ -180,7 +180,7 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 						for (PathObject parent : parents)
 							addRunnableTasks(qupath.getViewer().getImageData(), parent, tasks);
 						
-						qupath.submitShortTask(() -> runner.runTasks(tasks, true));
+						qupath.getThreadPoolManager().submitShortTask(() -> runner.runTasks(tasks, true));
 //						runner.runTasks(tasks);
 						
 //						Runnable r = new Runnable() {

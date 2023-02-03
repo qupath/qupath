@@ -103,8 +103,8 @@ public class CountingPanelCommand implements Runnable, ChangeListener<ImageData<
 		var actionManager = qupath.getDefaultActions();
 		ToolBar toolbar = new ToolBar();
 		toolbar.getItems().addAll(
-				ActionTools.createToggleButton(qupath.getToolAction(PathTools.MOVE), true),
-				ActionTools.createToggleButton(qupath.getToolAction(PathTools.POINTS), true),
+				ActionTools.createToggleButton(qupath.getToolManager().getToolAction(PathTools.MOVE), true),
+				ActionTools.createToggleButton(qupath.getToolManager().getToolAction(PathTools.POINTS), true),
 				new Separator(Orientation.VERTICAL),
 				ActionTools.createToggleButton(actionManager.SHOW_ANNOTATIONS, true),
 				ActionTools.createToggleButton(actionManager.FILL_DETECTIONS, true),
@@ -259,9 +259,10 @@ public class CountingPanelCommand implements Runnable, ChangeListener<ImageData<
 			return;
 		}
 		
+		var toolManager = qupath.getToolManager();
 		if (dialog != null) {
-			if (qupath.getSelectedTool() != PathTools.POINTS)
-				qupath.setSelectedTool(PathTools.POINTS);
+			if (toolManager.getSelectedTool() != PathTools.POINTS)
+				toolManager.setSelectedTool(PathTools.POINTS);
 			attemptToSelectPoints();
 			if (!dialog.isShowing())
 				dialog.show();
@@ -272,7 +273,6 @@ public class CountingPanelCommand implements Runnable, ChangeListener<ImageData<
 		dialog.setTitle("Counting");
 		
 		countingPanel = new CountingPane(qupath, hierarchy);
-//		countingPanel.setSize(countingPanel.getPreferredSize());
 		BorderPane pane = new BorderPane();
 		
 		ToolBar toolbar = makeToolbarButtons();
@@ -284,19 +284,13 @@ public class CountingPanelCommand implements Runnable, ChangeListener<ImageData<
 		if (panelButtons != null)
 			pane.setBottom(panelButtons);
 		
-//		dialog.getDialogPane().setContent(pane);
 		pane.setPadding(new Insets(10, 10, 10, 10));
 		Scene scene = new Scene(pane, 300, 450);
 		dialog.setScene(scene);
-		dialog.setOnCloseRequest(e -> qupath.setSelectedTool(PathTools.MOVE));
+		dialog.setOnCloseRequest(e -> toolManager.setSelectedTool(PathTools.MOVE));
 		
-//		dialog.getDialogPane().setMinSize(220, 350);
-//		dialog.getDialogPane().setPrefSize(300, 450);
-//		dialog.getDialogPane().setMaxSize(400, 800);
-		
-//		dialog.setAlwaysOnTop(true);
-		if (qupath.getSelectedTool() != PathTools.POINTS)
-			qupath.setSelectedTool(PathTools.POINTS);
+		if (toolManager.getSelectedTool() != PathTools.POINTS)
+			toolManager.setSelectedTool(PathTools.POINTS);
 		attemptToSelectPoints();
 		
 		dialog.initModality(Modality.NONE);

@@ -183,10 +183,7 @@ class Menus {
 		public final Action SEP_1 = ActionTools.createSeparator();
 		
 		@ActionMenu("Preferences...")
-		@ActionIcon(PathIcons.COG)
-		@ActionAccelerator("shortcut+,")
-		@ActionDescription("Set preferences to customize QuPath's appearance and behavior.")
-		public final Action PREFERENCES = Commands.createSingleStageAction(() -> Commands.createPreferencesDialog(qupath));
+		public final Action PREFERENCES = qupath.getDefaultActions().PREFERENCES;
 		
 		@ActionMenu("Reset preferences")
 		@ActionDescription("Reset preferences to their default values - this can be useful if you are experiencing any newly-developed persistent problems with QuPath.")
@@ -373,19 +370,18 @@ class Menus {
 
 		public final Action SEP_3 = ActionTools.createSeparator();
 
-		// TODO: ADD RECENT PROJECTS
 		@ActionDescription("Open an image in the current viewer, using a file chooser. " +
 				"You can also just drag the file on top of the viewer.")
 		@ActionMenu("Open...")
 		@ActionAccelerator("shortcut+o")
-		public final Action OPEN_IMAGE = createAction(() -> qupath.openImage(null, true, false));
+		public final Action OPEN_IMAGE = createAction(() -> qupath.promptToOpenImageFile());
 		
 		@ActionDescription("Open an image in the current viewer, by entering the path to the image. " +
 				"This can be used to add images that are not represented by local files (e.g. hosted by OMERO), " + 
 				"but beware that a compatible image reader needs to be available to interpret them.")
 		@ActionMenu("Open URI...")
 		@ActionAccelerator("shortcut+shift+o")
-		public final Action OPEN_IMAGE_OR_URL = createAction(() -> qupath.openImage(null, true, true));
+		public final Action OPEN_IMAGE_OR_URL = createAction(() -> qupath.promptToOpenImageFileOrUri());
 		
 		@ActionDescription("Reload any previously-saved data for the current image. " +
 				"This provides a more dramatic form of 'undo' (albeit without any 'redo' option).")
@@ -458,7 +454,7 @@ class Menus {
 
 		@ActionDescription("Quit QuPath.")
 		@ActionMenu("Quit")
-		public final Action QUIT = new Action("Quit", e -> qupath.tryToQuit());
+		public final Action QUIT = new Action("Quit", e -> qupath.sendQuitRequest());
 
 	}
 	
@@ -599,7 +595,7 @@ class Menus {
 				+ "an annotation that has just been deleted.")
 		@ActionMenu("Annotations...>Transfer last annotation")
 		@ActionAccelerator("shift+e")
-		public final Action TRANSFER_ANNOTATION = qupath.createImageDataAction(imageData -> qupath.viewerManager.applyLastAnnotationToActiveViewer());
+		public final Action TRANSFER_ANNOTATION = qupath.createImageDataAction(imageData -> qupath.getViewerManager().applyLastAnnotationToActiveViewer());
 
 		@ActionMenu("Annotations...>")
 		public final Action SEP_7 = ActionTools.createSeparator();
@@ -745,37 +741,37 @@ class Menus {
 		@ActionMenu("Multi-view...>Add row")
 		@ActionDescription("Add a new row of viewers to the multi-view grid. "
 				+ "This makes it possible to view two or more images side-by-side (vertically).")
-		public final Action MULTIVIEW_ADD_ROW = qupath.createViewerAction(viewer -> qupath.viewerManager.addRow(viewer));
+		public final Action MULTIVIEW_ADD_ROW = qupath.createViewerAction(viewer -> qupath.getViewerManager().addRow(viewer));
 
 		@ActionMenu("Multi-view...>Add column")
 		@ActionDescription("Add a new column of viewers to the multi-view grid. "
 					+ "This makes it possible to view two or more images side-by-side (horizontally).")
-		public final Action MULTIVIEW_ADD_COLUMN = qupath.createViewerAction(viewer -> qupath.viewerManager.addColumn(viewer));
+		public final Action MULTIVIEW_ADD_COLUMN = qupath.createViewerAction(viewer -> qupath.getViewerManager().addColumn(viewer));
 
 		@ActionMenu("Multi-view...>")
 		public final Action SEP_01 = ActionTools.createSeparator();
 		
 		@ActionMenu("Multi-view...>Remove row")
 		@ActionDescription("Remove the row containing the current viewer from the multi-view grid, if possible. The last row cannot be removed.")
-		public final Action MULTIVIEW_REMOVE_ROW = qupath.createViewerAction(viewer -> qupath.viewerManager.removeRow(viewer));
+		public final Action MULTIVIEW_REMOVE_ROW = qupath.createViewerAction(viewer -> qupath.getViewerManager().removeRow(viewer));
 
 		@ActionMenu("Multi-view...>Remove column")
 		@ActionDescription("Remove the column containing the current viewer from the multi-view grid, if possible. The last column cannot be removed.")
-		public final Action MULTIVIEW_REMOVE_COLUMN = qupath.createViewerAction(viewer -> qupath.viewerManager.removeColumn(viewer));
+		public final Action MULTIVIEW_REMOVE_COLUMN = qupath.createViewerAction(viewer -> qupath.getViewerManager().removeColumn(viewer));
 
 		@ActionMenu("Multi-view...>")
 		public final Action SEP_02 = ActionTools.createSeparator();
 
 		@ActionMenu("Multi-view...>Reset grid size")
 		@ActionDescription("Reset the multi-view grid so that all viewers have the same size")
-		public final Action MULTIVIEW_RESET_GRID = qupath.createViewerAction(viewer -> qupath.viewerManager.resetGridSize());		
+		public final Action MULTIVIEW_RESET_GRID = qupath.createViewerAction(viewer -> qupath.getViewerManager().resetGridSize());		
 		
 		@ActionMenu("Multi-view...>")
 		public final Action SEP_03 = ActionTools.createSeparator();
 		
 		@ActionMenu("Multi-view...>Close viewer")
 		@ActionDescription("Close the image in the current viewer. This is needed before it's possible to remove a viewer from the multi-view grid.")
-		public final Action MULTIVIEW_CLOSE_VIEWER = qupath.createViewerAction(viewer -> qupath.viewerManager.closeViewer(viewer));
+		public final Action MULTIVIEW_CLOSE_VIEWER = qupath.createViewerAction(viewer -> qupath.closeViewer(viewer));
 		
 		@ActionDescription("Open a viewer window that shows individual channels of an image size by side. "
 				+ "This is useful when working with multiplexed/multichannel fluorescence images.")
@@ -1007,25 +1003,8 @@ class Menus {
 		@ActionMenu("Installed extensions")
 		public final Action EXTENSIONS = createAction(() -> Commands.showInstalledExtensions(qupath));
 
-//		@ActionDescription("View a list of installed QuPath extensions.")
-//		@ActionMenu("Open extensions directory")
-//		public final Action OPEN_EXTENSIONS_DIR;
-		
 		@ActionMenu("")
 		public final Action SEP_1 = ActionTools.createSeparator();
-		
-//		private ExtensionsMenuManager() {
-//			OPEN_EXTENSIONS_DIR = createAction(() -> {
-//				var dir = QuPathGUI.getExtensionDirectory();
-//				if (dir != null) {
-//					GuiTools.browseDirectory(dir);
-//				} else {
-//					Dialogs.showErrorMessage("Extensions directory", "No extensions directory has been set!\n"
-//							+ "Install an extension by dragging it onto QuPath first.");
-//				}
-//			});
-////			OPEN_EXTENSIONS_DIR.disabledProperty().bind(PathPrefs.userPathProperty().isNull());
-//		}
 
 	}
 	
@@ -1037,39 +1016,42 @@ class Menus {
 		@ActionMenu("Show welcome message")
 		public final Action QUPATH_STARTUP = createAction(() -> WelcomeStage.getInstance(qupath).show());
 
+		@ActionMenu("Show context help viewer")
+		public final Action HELP_VIEWER = qupath.getDefaultActions().HELP_VIEWER;
+
 		@ActionMenu("")
 		public final Action SEP_1 = ActionTools.createSeparator();
 
 		@ActionDescription("Open the main QuPath documentation website.")
 		@ActionMenu("Documentation (web)")
-		public final Action DOCS = createAction(() -> QuPathGUI.launchBrowserWindow(URL_DOCS));
+		public final Action DOCS = createAction(() -> QuPathGUI.openInBrowser(URL_DOCS));
 		
 		@ActionDescription("Open the QuPath demo videos and tutorials.")
 		@ActionMenu("YouTube channel (web)")
-		public final Action DEMOS = createAction(() -> QuPathGUI.launchBrowserWindow(URL_VIDEOS));
+		public final Action DEMOS = createAction(() -> QuPathGUI.openInBrowser(URL_VIDEOS));
 
 		@ActionDescription("Check online for an updated QuPath release.")
 		@ActionMenu("Check for updates (web)")
-		public final Action UPDATE = createAction(() -> qupath.checkForUpdate(false));
+		public final Action UPDATE = createAction(() -> qupath.requestFullUpdateCheck());
 
 		public final Action SEP_2 = ActionTools.createSeparator();
 		
 		@ActionDescription("Please cite the QuPath publication if you use the software! " +
 				"\nThis command opens a web page to show how.")
 		@ActionMenu("Cite QuPath (web)")
-		public final Action CITE = createAction(() -> QuPathGUI.launchBrowserWindow(URL_CITATION));
+		public final Action CITE = createAction(() -> QuPathGUI.openInBrowser(URL_CITATION));
 		
 		@ActionDescription("Report a bug. Please follow the template and do not use this for general questions!")
 		@ActionMenu("Report bug (web)")
-		public final Action BUGS = createAction(() -> QuPathGUI.launchBrowserWindow(URL_BUGS));
+		public final Action BUGS = createAction(() -> QuPathGUI.openInBrowser(URL_BUGS));
 		
 		@ActionDescription("Visit the user forum. This is the place to ask questions (and give answers).")
 		@ActionMenu("View user forum (web)")
-		public final Action FORUM = createAction(() -> QuPathGUI.launchBrowserWindow(URL_FORUM));
+		public final Action FORUM = createAction(() -> QuPathGUI.openInBrowser(URL_FORUM));
 		
 		@ActionDescription("View the QuPath source code online.")
 		@ActionMenu("View source code (web)")
-		public final Action SOURCE = createAction(() -> QuPathGUI.launchBrowserWindow(URL_SOURCE));
+		public final Action SOURCE = createAction(() -> QuPathGUI.openInBrowser(URL_SOURCE));
 
 		public final Action SEP_3 = ActionTools.createSeparator();
 

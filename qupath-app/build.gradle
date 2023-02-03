@@ -16,18 +16,12 @@ buildscript {
             url 'https://plugins.gradle.org/m2/'
         }
     }
-
-    dependencies {
-//    classpath "org.beryx:badass-runtime-plugin:1.12.7"
-//    classpath 'com.github.jk1:dependency-license-report:2.0'
-    }
 }
 
 plugins {
     id 'qupath.common-conventions'
     id 'qupath.djl-conventions'
     id 'application'
-//    id 'org.beryx.jlink' version '2.24.0'  // Can use this when QuPath is modular...
     alias(libs.plugins.license.report)
     alias(libs.plugins.jpackage)
 }

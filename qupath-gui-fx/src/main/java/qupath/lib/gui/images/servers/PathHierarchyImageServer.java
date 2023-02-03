@@ -38,7 +38,7 @@ import java.util.stream.Collectors;
 import qupath.lib.awt.common.AwtTools;
 import qupath.lib.color.ColorToolsAwt;
 import qupath.lib.gui.viewer.OverlayOptions;
-import qupath.lib.gui.viewer.PathHierarchyPaintingHelper;
+import qupath.lib.gui.viewer.PathObjectPainter;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.AbstractTileableImageServer;
 import qupath.lib.images.servers.GeneratingImageServer;
@@ -233,12 +233,14 @@ public class PathHierarchyImageServer extends AbstractTileableImageServer implem
 		g2d.scale(scale, scale);
 		g2d.translate(-request.getX(), -request.getY());
 		// Note we don't want to pass a selection model, as selections shouldn't be included
-		if (pathObjects != null && !pathObjects.isEmpty())
-			PathHierarchyPaintingHelper.paintSpecifiedObjects(g2d, AwtTools.getBounds(request), pathObjects, options, null, downsampleFactor);
+		if (pathObjects != null && !pathObjects.isEmpty()) {
+			g2d.setClip(AwtTools.getBounds(request));
+			PathObjectPainter.paintSpecifiedObjects(g2d, pathObjects, options, null, downsampleFactor);
+		}
 		
 		// See if we have any connections to draw
 		if (connections != null) {
-			PathHierarchyPaintingHelper.paintConnections(
+			PathObjectPainter.paintConnections(
 					connections,
 					hierarchy,
 					g2d,

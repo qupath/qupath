@@ -1,11 +1,17 @@
-## Version 0.4.3-SNAPSHOT
+## Version 0.5.0-SNAPSHOT
 
-This is a work-in-progress containing minor changes from v0.4.2.
-
-v0.4.3 will be released if there are enough bugs to fix... otherwise the changes will be incorporated into v0.5.0.
+This is a work-in-progress for the next QuPath release.
 
 ### Bugs fixed
 * Opening the same image in multiple viewers results in detections being wrongly shown in both (https://github.com/qupath/qupath/issues/1217)
+
+
+### Dependency updates
+* Groovy 4.0.7
+* ImageJ 1.54b
+* JavaFX 19.0.2
+* JFreeSVG 5.0.4
+* SLF4J 2.0.6
 
 
 ## Version 0.4.2

@@ -1066,6 +1066,18 @@ public abstract class PathObject implements Externalizable {
 			metadata.clear();
 	}
 	
+	/**
+	 * Get a key/value pair map for object metadata.
+	 * @return
+	 * @since v0.5.0
+	 * @implNote This is an experimental API change that may be further modified before v0.5.0 is available.
+	 */
+	public Map<String, String> getMetadata() {
+		if (metadata == null)
+			metadata = new MetadataMap();
+		return metadata;
+	}
+	
 	
 	@Override
 	public void writeExternal(ObjectOutput out) throws IOException {

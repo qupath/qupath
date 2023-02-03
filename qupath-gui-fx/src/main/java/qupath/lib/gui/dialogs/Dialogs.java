@@ -54,6 +54,7 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.Window;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.QuPathResources;
 import qupath.lib.gui.prefs.QuPathStyleManager;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.plugins.parameters.ParameterList;
@@ -452,7 +453,7 @@ public class Dialogs {
 	 * @param title
 	 */
 	public static void showNoImageError(String title) {
-		showErrorMessage(title, "No image is available!");
+		showErrorMessage(title, QuPathResources.getString("Dialogs.noImage"));
 	}
 	
 	/**
@@ -461,7 +462,7 @@ public class Dialogs {
 	 * @param title
 	 */
 	public static void showNoProjectError(String title) {
-		showErrorMessage(title, "No project is available!");
+		showErrorMessage(title, QuPathResources.getString("Dialogs.noProject"));
 	}
 	
 	

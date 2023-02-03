@@ -2,9 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
- * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2023 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -21,24 +19,24 @@
  * #L%
  */
 
-package qupath.lib.gui.viewer.tools;
 
-import javafx.scene.input.MouseEvent;
-import qupath.lib.regions.ImagePlane;
-import qupath.lib.roi.ROIs;
-import qupath.lib.roi.interfaces.ROI;
+package qupath.lib.gui;
+
+import java.util.ResourceBundle;
 
 /**
- * PathTool for drawing ellipses.
+ * Load strings from the default resource bundle.
  * 
  * @author Pete Bankhead
- *
+ * @since v0.5.0
  */
-public class EllipseTool extends AbstractPathDraggingROITool {
-
-	@Override
-	protected ROI createNewROI(MouseEvent e, double x, double y, ImagePlane plane) {
-		return ROIs.createEllipseROI(x, y, 0, 0, plane);
+public class QuPathResources {
+	
+	private static final String STRINGS_NAME = "qupath/lib/gui/localization/qupath-strings";
+	
+	
+	public static String getString(String key) {
+		return ResourceBundle.getBundle(STRINGS_NAME).getString(key);
 	}
 
 }

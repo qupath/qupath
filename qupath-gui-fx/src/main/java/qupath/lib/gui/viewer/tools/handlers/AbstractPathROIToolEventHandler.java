@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.lib.gui.viewer.tools;
+package qupath.lib.gui.viewer.tools.handlers;
 
 import java.awt.geom.Point2D;
 import java.util.Collections;
@@ -34,6 +34,7 @@ import javafx.scene.Cursor;
 import javafx.scene.input.MouseEvent;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.viewer.tools.PathTools;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
@@ -52,9 +53,9 @@ import qupath.lib.roi.interfaces.ROI;
  * @author Pete Bankhead
  *
  */
-abstract class AbstractPathROITool extends AbstractPathTool {
+abstract class AbstractPathROIToolEventHandler extends AbstractPathToolEventHandler {
 	
-	private static final Logger logger = LoggerFactory.getLogger(AbstractPathROITool.class);
+	private static final Logger logger = LoggerFactory.getLogger(AbstractPathROIToolEventHandler.class);
 
 	/**
 	 * Create a new ROI with the given starting coordinates.
@@ -68,13 +69,13 @@ abstract class AbstractPathROITool extends AbstractPathTool {
 	protected abstract ROI createNewROI(MouseEvent e, double x, double y, ImagePlane plane);
 	
 	/**
-	 * Create a new annotation & set it in the current viewer.
+	 * Create a new annotation and set it in the current viewer.
 	 * @param e 
 	 * @param x
 	 * @param y
 	 * @return
 	 */
-	PathObject createNewAnnotation(MouseEvent e, double x, double y) {
+	protected PathObject createNewAnnotation(MouseEvent e, double x, double y) {
 		
 		var viewer = getViewer();
 		var currentObject = viewer.getSelectedObject();
@@ -257,7 +258,7 @@ abstract class AbstractPathROITool extends AbstractPathTool {
 		if (preferReturnToMove()) {
 			var qupath = QuPathGUI.getInstance();
 			if (qupath != null)
-				qupath.setSelectedTool(PathTools.MOVE);
+				qupath.getToolManager().setSelectedTool(PathTools.MOVE);
 		}
 	}
 

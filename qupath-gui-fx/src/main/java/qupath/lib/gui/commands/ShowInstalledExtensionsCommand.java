@@ -53,6 +53,7 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.Version;
+import qupath.lib.gui.ExtensionClassLoader;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.extensions.QuPathExtension;
 import qupath.lib.gui.tools.GuiTools;
@@ -85,7 +86,7 @@ class ShowInstalledExtensionsCommand {
 		
 		int row = 0;
 		int inc = 1;
-		for (QuPathExtension extension : qupath.getLoadedExtensions()) {
+		for (QuPathExtension extension : qupath.getExtensionManager().getLoadedExtensions()) {
 			addEntry(paneExtensions, new QuPathExtensionEntry(extension), row);
 			row += inc;
 		}
@@ -110,10 +111,10 @@ class ShowInstalledExtensionsCommand {
 				titledServers
 		);
 		
-		var dir = QuPathGUI.getExtensionDirectory();
+		var dir = ExtensionClassLoader.getInstance().getExtensionDirectory();
 		if (dir != null) {
 			var btnOpen = new Button("Open extensions directory");
-			btnOpen.setOnAction(e -> GuiTools.browseDirectory(dir));
+			btnOpen.setOnAction(e -> GuiTools.browseDirectory(dir.toFile()));
 			btnOpen.setMaxWidth(Double.MAX_VALUE);
 			vbox.getChildren().add(btnOpen);
 //		} else {

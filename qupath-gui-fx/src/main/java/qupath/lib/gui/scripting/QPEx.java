@@ -361,7 +361,7 @@ public class QPEx extends QP {
 	 */
 	public static void setChannelDisplayRange(ImageData<BufferedImage> imageData, int channel, double minDisplay, double maxDisplay) {
 		// Try to get an existing display if the image is currently open
-		var viewer = getQuPath().getViewers().stream()
+		var viewer = getQuPath().getAllViewers().stream()
 				.filter(v -> v.getImageData() == imageData)
 				.findFirst()
 				.orElse(null);
@@ -397,7 +397,7 @@ public class QPEx extends QP {
 	 */
 	public static void setChannelDisplayRange(ImageData<BufferedImage> imageData, String channelName, double minDisplay, double maxDisplay) {
 		// Try to get an existing display if the image is currently open
-		var viewer = getQuPath().getViewers().stream()
+		var viewer = getQuPath().getAllViewers().stream()
 				.filter(v -> v.getImageData() == imageData)
 				.findFirst()
 				.orElse(null);

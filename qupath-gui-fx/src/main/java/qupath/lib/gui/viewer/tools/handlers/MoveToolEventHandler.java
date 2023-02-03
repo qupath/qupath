@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.lib.gui.viewer.tools;
+package qupath.lib.gui.viewer.tools.handlers;
 
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
@@ -57,9 +57,9 @@ import qupath.lib.roi.interfaces.ROI;
  * @author Pete Bankhead
  *
  */
-public class MoveTool extends AbstractPathTool {
+public class MoveToolEventHandler extends AbstractPathToolEventHandler {
 	
-	private static final Logger logger = LoggerFactory.getLogger(MoveTool.class);
+	private static final Logger logger = LoggerFactory.getLogger(MoveToolEventHandler.class);
 
 	private static boolean requestDynamicDragging = true;
 	

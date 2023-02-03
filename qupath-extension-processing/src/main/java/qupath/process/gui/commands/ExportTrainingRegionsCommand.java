@@ -175,7 +175,7 @@ public class ExportTrainingRegionsCommand implements Runnable {
 			pane.setVgap(5);
 			pane.setHgap(5);
 			
-			executorService = qupath.createSingleThreadExecutor(this);
+			executorService = qupath.getThreadPoolManager().getSingleThreadExecutor(this);
 			
 			// Export resolution (microns per pixel)
 			TextField tfResolution = new TextField("1");

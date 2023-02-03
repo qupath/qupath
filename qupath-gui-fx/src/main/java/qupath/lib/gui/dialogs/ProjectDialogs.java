@@ -76,10 +76,6 @@ public class ProjectDialogs {
 		
 		ListSelectionView<ProjectImageEntry<BufferedImage>> listSelectionView = GuiTools.createListSelectionView();
 		listSelectionView.getSourceItems().setAll(availableImages);
-//		if (selectedImages != null && !selectedImages.isEmpty()) {
-//			listSelectionView.getSourceItems().removeAll(selectedImages);
-//			listSelectionView.getTargetItems().addAll(selectedImages);
-//		}
 		listSelectionView.setCellFactory(c -> new ProjectEntryListCell());
 		
 		// Add a filter text field
@@ -157,29 +153,6 @@ public class ProjectDialogs {
 	}
 	
 	
-//	private static void refreshTargetLabels(ListSelectionView<ProjectImageEntry<BufferedImage>> listSelectionView, Label labelSelected, Label labelSameImageWarning) {
-//		
-//		var targetItems = listSelectionView.getTargetItems();
-//		
-//		targetItems.addListener((ListChangeListener.Change<? extends ProjectImageEntry<?>> e) -> {
-//			labelSelected.setText(e.getList().size() + " selected");
-//			var currentImages = getCurrentImages(qupath);
-//			if (labelSameImageWarning != null && currentImages != null) {
-//				boolean visible = false;
-//				var targets = e.getList();
-//				for (var current : currentImages) {
-//					if (targets.contains(current)) {
-//						visible = true;
-//						break;
-//					}
-//				}
-//				labelSameImageWarning.setVisible(visible);
-//			}
-//		});
-//		
-//	}
-	
-	
 	
 	/**
 	 * Get the {@link ProjectImageEntry} for each of the current images open in QuPath, if available.
@@ -187,7 +160,7 @@ public class ProjectDialogs {
 	 * @return a collection of currently-open project entries
 	 */
 	public static Collection<ProjectImageEntry<BufferedImage>> getCurrentImages(QuPathGUI qupath) {
-		return qupath.getViewers().stream()
+		return qupath.getAllViewers().stream()
 		.map(v -> {
 			var imageData = v.getImageData();
 			return imageData == null ? null : qupath.getProject().getEntry(imageData);

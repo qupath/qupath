@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.lib.gui.viewer.tools;
+package qupath.lib.gui.viewer.tools.handlers;
 
 import java.awt.geom.Point2D;
 import java.util.Collections;
@@ -40,6 +40,7 @@ import org.slf4j.LoggerFactory;
 import javafx.scene.Cursor;
 import javafx.scene.input.MouseEvent;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.viewer.tools.QuPathPenManager;
 import qupath.lib.gui.viewer.tools.QuPathPenManager.PenInputManager;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
@@ -60,9 +61,9 @@ import qupath.lib.roi.interfaces.ROI;
  * @author Pete Bankhead
  *
  */
-public class BrushTool extends AbstractPathROITool {
+public class BrushToolEventHandler extends AbstractPathROIToolEventHandler {
 	
-	private static Logger logger = LoggerFactory.getLogger(BrushTool.class);
+	private static Logger logger = LoggerFactory.getLogger(BrushToolEventHandler.class);
 	
 	/**
 	 * A collection of classes that should be ignored when
@@ -154,10 +155,6 @@ public class BrushTool extends AbstractPathROITool {
 	
 	@Override
 	public void mousePressed(MouseEvent e) {
-//		if (e.getClickCount() > 1)
-//			super.mousePressed(e);
-		
-//		super.mousePressed(e);
 		if (!e.isPrimaryButtonDown() || e.isConsumed()) {
             return;
         }

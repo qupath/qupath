@@ -64,8 +64,8 @@ import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.overlays.HierarchyOverlay;
 import qupath.lib.gui.viewer.overlays.PathOverlay;
-import qupath.lib.gui.viewer.tools.BrushTool;
 import qupath.lib.gui.viewer.tools.QuPathPenManager;
+import qupath.lib.gui.viewer.tools.handlers.BrushToolEventHandler;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.roi.GeometryTools;
 
@@ -76,9 +76,9 @@ import qupath.lib.roi.GeometryTools;
  * @author Pete Bankhead
  *
  */
-public class WandToolCV extends BrushTool {
+public class WandToolEventHandler extends BrushToolEventHandler {
 	
-	private static final Logger logger = LoggerFactory.getLogger(WandToolCV.class);
+	private static final Logger logger = LoggerFactory.getLogger(WandToolEventHandler.class);
 	
 	/**
 	 * Enum reflecting different color images that may be used by the Wand tool.
@@ -103,24 +103,19 @@ public class WandToolCV extends BrushTool {
 	private BufferedImage imgBGR = new BufferedImage(w, w, BufferedImage.TYPE_3BYTE_BGR);
 	private BufferedImage imgGray = new BufferedImage(w, w, BufferedImage.TYPE_BYTE_GRAY);
 	
-//	private BufferedImage imgSelected = new BufferedImage(w+2, w+2, BufferedImage.TYPE_BYTE_GRAY);
 	private Mat mat = null; //new Mat(w, w, CV_8U);
 	private Mat matMask = new Mat(w+2, w+2, CV_8UC1);
-//	private Mat matSelected = new Mat(w+2, w+2, CV_8UC1);
 	
 	private Mat matFloat = new Mat(w, w, CV_32FC3);
 	
 	private Scalar threshold = Scalar.all(1.0);
 	private Point seed = new Point(w/2, w/2);
-//	private Size morphSize = new Size(5, 5);
 	private Mat strel = null;
 	private Mat contourHierarchy = null;
 	
 	private Mat mean = new Mat();
 	private Mat stddev = new Mat();
 
-//	private BasicStroke stroke = null;
-	
 	private Rectangle2D bounds = new Rectangle2D.Double();
 	
 	private Size blurSize = new Size(31, 31);
@@ -235,14 +230,14 @@ public class WandToolCV extends BrushTool {
 	 * Constructor.
 	 * @param qupath
 	 */
-	public WandToolCV(QuPathGUI qupath) {
-		addProperties(qupath);
+	public WandToolEventHandler(QuPathGUI qupath) {
+		installPreferences(qupath);
 	}
 	
 	
-	void addProperties(QuPathGUI qupath) {
+	static void installPreferences(QuPathGUI qupath) {
 		if (!Platform.isFxApplicationThread()) {
-			Platform.runLater(() -> addProperties(qupath));
+			Platform.runLater(() -> installPreferences(qupath));
 			return;
 		}
 		// Add preference to adjust Wand tool behavior
@@ -302,7 +297,6 @@ public class WandToolCV extends BrushTool {
 		g2d.scale(1.0/downsample, 1.0/downsample);
 		g2d.translate(-xStart, -yStart);
 		regionStore.paintRegion(viewer.getServer(), g2d, bounds, viewer.getZPosition(), viewer.getTPosition(), downsample, null, null, viewer.getImageDisplay());
-//		regionStore.paintRegionCompletely(viewer.getServer(), g2d, bounds, viewer.getZPosition(), viewer.getTPosition(), viewer.getDownsampleFactor(), null, viewer.getImageDisplay(), 250);
 		// Optionally include the overlay information when using the wand
 		float opacity = viewer.getOverlayOptions().getOpacity();
 		if (opacity > 0 && getWandUseOverlays()) {
@@ -323,19 +317,11 @@ public class WandToolCV extends BrushTool {
 		}
 		if (mat == null || mat.isNull() || mat.empty())
 			mat = new Mat(w, w, CV_8UC(nChannels));
-//		if (matMask == null)
-//			matMask = new Mat(w+2, w+2, CV_8U);
-//		if (matSelected == null)
-//			matSelected = new Mat(w+2, w+2, CV_8U);
 				
 		// Put pixels into an OpenCV image
 		byte[] buffer = ((DataBufferByte)imgTemp.getRaster().getDataBuffer()).getData();
 	    ByteBuffer matBuffer = mat.createBuffer();
 	    matBuffer.put(buffer);
-//		mat.put(0, 0, buffer);
-		
-//		opencv_imgproc.cvtColor(mat, mat, opencv_imgproc.COLOR_BGR2Lab);
-//		blurSigma = 4;
 	    
 	    boolean doSimpleSelection = e.isShortcutDown() && !e.isShiftDown();
 	    
@@ -394,13 +380,6 @@ public class WandToolCV extends BrushTool {
 				matThreshold.convertTo(matThreshold, opencv_core.CV_8U, 255.0/max, 0);
 				threshold.put(mean * getWandSensitivity());
 				
-	////			OpenCVTools.matToImagePlus(matThreshold, "Before").show();
-	//			// Apply local Otsu threshold
-	//			opencv_imgproc.threshold(matThreshold, matThreshold,
-	//					0,
-	//					255, opencv_imgproc.THRESH_BINARY + opencv_imgproc.THRESH_OTSU);
-	//			threshold.put(Scalar.ZERO);
-	
 				nChannels = 1;
 			} else {
 				// Base threshold on local standard deviation
@@ -436,7 +415,6 @@ public class WandToolCV extends BrushTool {
 		
 		
 		opencv_imgproc.findContours(matMask, contours, contourHierarchy, opencv_imgproc.RETR_EXTERNAL, opencv_imgproc.CHAIN_APPROX_SIMPLE);
-//		logger.trace("Contours: " + contours.size());
 
 		List<Coordinate> coords = new ArrayList<>();
 		List<Geometry> geometries = new ArrayList<>();
@@ -507,10 +485,6 @@ public class WandToolCV extends BrushTool {
 			return w / 8;
 		else
 			return w * getViewer().getDownsampleFactor() / 8;
-//		if (viewer == null)
-//			return PathPrefs.getBrushDiameter();
-//		else
-//			return PathPrefs.getBrushDiameter() * getViewer().getDownsampleFactor();
 	}
 
 }

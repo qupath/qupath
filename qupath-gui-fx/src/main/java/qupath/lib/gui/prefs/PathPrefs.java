@@ -72,6 +72,8 @@ import javafx.scene.text.FontWeight;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.ThreadTools;
+import qupath.lib.common.Version;
+import qupath.lib.gui.QuPathGUI;
 import qupath.lib.io.GsonTools;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.projects.ProjectIO;
@@ -843,22 +845,6 @@ public class PathPrefs {
 		if (userPath == null)
 			return null;
 		return new File(userPath, "logs").getAbsolutePath();
-	}
-	
-	
-	private static BooleanProperty runStartupScript = createPersistentPreference("runStartupScript", false);
-	
-	/**
-	 * Specify whether a startup script should be run when launching QuPath, if available.
-	 * <p>
-	 * This is a script called "startup.groovy", located in the user directory. It can be used as a simple way to 
-	 * perform customizations (e.g. install commands or tools).
-	 * The default value for this property is 'false', to ensure the user must specifically request that the script is executed.
-	 * @return
-	 * @see PathPrefs#userPathProperty()
-	 */
-	public static BooleanProperty runStartupScriptProperty() {
-		return runStartupScript;
 	}
 	
 	
@@ -2046,6 +2032,21 @@ public class PathPrefs {
 	 */
 	public static BooleanProperty usePixelSnappingProperty() {
 		return usePixelSnapping;
+	}
+
+	/**
+	 * Get the default location for extensions.
+	 * 
+	 * This is platform and user-specific.  It isn't necessarily used (and doesn't necessarily exist).
+	 * 
+	 * @return
+	 */
+	public static Path getDefaultQuPathUserDirectory() {
+		Version version = QuPathGUI.getVersion();
+		if (version != null)
+			return Paths.get(System.getProperty("user.home"), "QuPath", String.format("v%d.%d", version.getMajor(), version.getMinor()));
+		else
+			return Paths.get(System.getProperty("user.home"), "QuPath");
 	}
 
 }

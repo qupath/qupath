@@ -42,6 +42,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javafx.beans.property.Property;
+import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.event.ActionEvent;
 import javafx.scene.Node;
@@ -746,6 +748,32 @@ public class ActionTools {
 	 */
 	public static Action createAction(final Runnable command) {
 		return createAction(command, null, (Node)null, null);
+	}
+
+	public static <T> Action createSelectableCommandAction(final SelectableItem<T> command, final String name, final Node icon, final KeyCombination accelerator) {
+		return createSelectableCommandAction(command,
+				new SimpleStringProperty(name),
+				new SimpleObjectProperty<>(icon),
+				accelerator);
+	}
+	
+	public static <T> Action createSelectableCommandAction(final SelectableItem<T> command, final ObservableValue<String> name, final ObservableValue<Node> icon, final KeyCombination accelerator) {
+		var action = ActionTools.actionBuilder(e -> command.setSelected(true))
+				.text(name)
+				.accelerator(accelerator)
+				.selectable(true)
+				.selected(command.selectedProperty())
+				.graphic(icon)
+				.build();
+		return action;
+	}
+	
+	public static <T> Action createSelectableCommandAction(final SelectableItem<T> command, final ObservableValue<String> name) {
+		return createSelectableCommandAction(command, name, null, null);
+	}
+
+	public static <T> Action createSelectableCommandAction(final SelectableItem<T> command, String name) {
+		return createSelectableCommandAction(command, name, null, null);
 	}
 
 }

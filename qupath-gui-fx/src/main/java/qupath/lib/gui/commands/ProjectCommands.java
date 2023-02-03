@@ -257,7 +257,7 @@ public class ProjectCommands {
 		else
 			dialog.setContentText("Importing " + nImages + " images...");
 
-		qupath.submitShortTask(task);
+		qupath.getThreadPoolManager().submitShortTask(task);
 		dialog.showAndWait();
 		Integer nCompleted = task.getValue();
 		if (nCompleted == null)

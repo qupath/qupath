@@ -436,7 +436,7 @@ public class MeasurementMapPane {
 	
 	private void updateDisplay() {
 		updateMapperBrightnessContrast();
-		for (var viewer : qupath.getViewers())
+		for (var viewer : qupath.getAllViewers())
 			viewer.forceOverlayUpdate();
 //		viewer.repaint();
 	}

@@ -234,7 +234,6 @@ public class MenuTools {
 	public static List<MenuItem> getFlattenedMenuItems(boolean excludeMenusAndSeparators, MenuItem... items) {
 		List<MenuItem> result = new ArrayList<>();
 		for (var temp : items) {
-			
 			addMenuItemsRecursive(temp, result, excludeMenusAndSeparators);
 		}
 		return result;

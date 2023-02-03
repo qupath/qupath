@@ -52,7 +52,6 @@ import qupath.lib.common.Version;
 import qupath.lib.gui.BuildInfo;
 import qupath.lib.gui.ExtensionClassLoader;
 import qupath.lib.gui.QuPathApp;
-import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.extensions.Subcommand;
 import qupath.lib.gui.images.stores.ImageRegionStoreFactory;
 import qupath.lib.gui.logging.LogManager;
@@ -124,9 +123,10 @@ public class QuPath {
 		if (System.getProperty("offline", null) == null)
 			System.setProperty("offline", "true");
 
-		
+		initializeProperties();
+
 		QuPath qupath = new QuPath();
-				
+						
 		CommandLine cmd = new CommandLine(qupath);
 		cmd.setCaseInsensitiveEnumValuesAllowed(true);
 //		cmd.setUnmatchedArgumentsAllowed(false);
@@ -204,7 +204,7 @@ public class QuPath {
 	}
 	
 	
-	static void initializeProperties() {
+	private static void initializeProperties() {
 		initializeJTS();
 	}
 	
@@ -214,7 +214,7 @@ public class QuPath {
 	 * This can greatly reduce TopologyExceptions.
 	 * Use -Djts.overlay=old to turn off this behavior.
 	 */
-	static void initializeJTS() {
+	private static void initializeJTS() {
 		var prop = System.getProperty("jts.overlay");
 		if (prop == null) {
 			logger.debug("Setting -Djts.overlay=ng");
@@ -330,7 +330,7 @@ class ScriptCommand implements Runnable {
 			createTileCache();
 			
 			// Set classloader to include any available extensions
-			var extensionClassLoader = (ExtensionClassLoader)QuPathGUI.getExtensionClassLoader();
+			var extensionClassLoader = ExtensionClassLoader.getInstance();
 			extensionClassLoader.refresh();
 			ImageServerProvider.setServiceLoader(ServiceLoader.load(ImageServerBuilder.class, extensionClassLoader));
 			Thread.currentThread().setContextClassLoader(extensionClassLoader);
