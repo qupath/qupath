@@ -458,6 +458,8 @@ public class ActionTools {
 			return;
 		}
 		var name = menuString.substring(ind+1);
+		if (name.startsWith("KEY:"))
+			name = QuPathResources.getString(name.substring(4));
 		var menu = menuString.substring(0, ind);
 		if (!name.isEmpty())
 			action.setText(name);
@@ -759,7 +761,7 @@ public class ActionTools {
 		return createSelectableAction(property, name, (Node)null, null);
 	}
 
-	static Action createAction(final Runnable command, final String name, final Node icon, final KeyCombination accelerator) {
+	private static Action createAction(final Runnable command, final String name, final Node icon, final KeyCombination accelerator) {
 		var action = actionBuilder(name, e -> command.run())
 				.accelerator(accelerator)
 				.graphic(icon)

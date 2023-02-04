@@ -533,6 +533,19 @@ public class Commands {
 		return new Action(e -> command.show());
 	}
 	
+	/**
+	 * Create a named command that generates a persistent single dialog on demand.
+	 * A reference to the dialog can be retained, so that if the command is called again 
+	 * either the original dialog is shown and/or brought to the front.
+	 * @param supplier supplier function to generate the dialog on demand
+	 * @param name 
+	 * @return the action
+	 */
+	public static Action createSingleStageAction(Supplier<Stage> supplier, String name) {
+		var command = new SingleStageCommand(supplier);
+		return new Action(name, e -> command.show());
+	}
+	
 	static class SingleStageCommand {
 		
 		private Stage stage;

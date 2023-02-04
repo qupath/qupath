@@ -42,7 +42,7 @@ import qupath.lib.gui.ActionTools.ActionAccelerator;
 import qupath.lib.gui.ActionTools.ActionDescription;
 import qupath.lib.gui.ActionTools.ActionIcon;
 import qupath.lib.gui.ActionTools.ActionMenu;
-import qupath.lib.gui.QuPathGUI.DefaultActions;
+import qupath.lib.gui.actions.DefaultActions;
 import qupath.lib.gui.actions.OverlayActions;
 import qupath.lib.gui.actions.ViewerActions;
 import qupath.lib.gui.commands.Commands;
@@ -178,8 +178,7 @@ class Menus {
 		
 		public final Action SEP_1 = ActionTools.createSeparator();
 		
-		@ActionMenu("Preferences...")
-		public final Action PREFERENCES = qupath.getDefaultActions().PREFERENCES;
+		public final Action PREFERENCES = defaultActions.PREFERENCES;
 		
 		@ActionMenu("Reset preferences")
 		@ActionDescription("Reset preferences to their default values - this can be useful if you are experiencing any newly-developed persistent problems with QuPath.")
@@ -535,10 +534,7 @@ class Menus {
 		@ActionAccelerator("shortcut+k")
 		public final Action TOGGLE_SELECTED_OBJECTS_LOCKED = qupath.createImageDataAction(imageData -> PathObjectTools.toggleSelectedObjectsLocked(imageData.getHierarchy()));
 
-		@ActionDescription("Show descriptions for the currently-selected object, where available. "
-				+ "Descriptions can be any plain text, markdown or html added as the 'description' property to an object (currently, only annotations are supported).")
-		@ActionMenu("Show object descriptions")
-		public final Action SHOW_OBJECT_DESCRIPTIONS = qupath.getDefaultActions().SHOW_OBJECT_DESCRIPTIONS;
+		public final Action SHOW_OBJECT_DESCRIPTIONS = defaultActions.SHOW_OBJECT_DESCRIPTIONS;
 		
 		public final Action SEP_4 = ActionTools.createSeparator();
 		
@@ -701,9 +697,6 @@ class Menus {
 	@ActionMenu("View")
 	public class ViewMenuManager {
 		
-		@ActionDescription("Show/hide the analysis pane (the one on the left).")
-		@ActionMenu("Show analysis pane")
-		@ActionAccelerator("shift+a")
 		public final Action SHOW_ANALYSIS_PANEL = defaultActions.SHOW_ANALYSIS_PANE;
 		
 		@ActionDescription("Show the command list (much easier than navigating menus...).")
@@ -718,8 +711,6 @@ class Menus {
 
 		public final Action SEP_0 = ActionTools.createSeparator();
 		
-		@ActionDescription("Show the brightness/contrast dialog. "
-				+ "This enables changing how the image is displayed, but not the image data itself.")
 		public final Action BRIGHTNESS_CONTRAST = defaultActions.BRIGHTNESS_CONTRAST;
 		public final Action SEP_1 = ActionTools.createSeparator();
 		
@@ -866,9 +857,6 @@ class Menus {
 		@ActionMenu("Show memory monitor")
 		public final Action MEMORY_MONITORY = Commands.createSingleStageAction(() -> Commands.createMemoryMonitorDialog(qupath));
 		
-		@ActionDescription("Show the log. This is very helpful for identifying and debugging errors. "
-				+ "\n\nIf you wish to report a problem using QuPath, please check the log for relevant information to provide.")
-		@ActionMenu("Show log")
 		public final Action SHOW_LOG = defaultActions.SHOW_LOG;
 		
 		
@@ -941,16 +929,12 @@ class Menus {
 		@ActionMenu("")
 		public final Action SEP_1 = ActionTools.createSeparator();
 		
-		@ActionDescription("Show a measurement table for tissue microarray cores.")
-		public final Action TMA = qupath.getDefaultActions().MEASURE_TMA;
+		public final Action TMA = defaultActions.MEASURE_TMA;
 		
-		@ActionDescription("Show a measurement table for annotation objects.")
-		public final Action ANNOTATIONS = qupath.getDefaultActions().MEASURE_ANNOTATIONS;
+		public final Action ANNOTATIONS = defaultActions.MEASURE_ANNOTATIONS;
 		
-		@ActionDescription("Show a measurement table for detection objects.")
-		public final Action DETECTIONS = qupath.getDefaultActions().MEASURE_DETECTIONS;
+		public final Action DETECTIONS = defaultActions.MEASURE_DETECTIONS;
 		
-
 		@ActionDescription("Show all the annotations in the current image in a grid view, which can be ranked by measurements.")
 		@ActionMenu("Grid views>Annotation grid summary view")
 		public final Action GRID_ANNOTATIONS = qupath.createImageDataAction(imageData -> Commands.showAnnotationGridView(qupath));
@@ -994,8 +978,7 @@ class Menus {
 		@ActionMenu("Show welcome message")
 		public final Action QUPATH_STARTUP = createAction(() -> WelcomeStage.getInstance(qupath).show());
 
-		@ActionMenu("Show context help viewer")
-		public final Action HELP_VIEWER = qupath.getDefaultActions().HELP_VIEWER;
+		public final Action HELP_VIEWER = defaultActions.HELP_VIEWER;
 
 		@ActionMenu("")
 		public final Action SEP_1 = ActionTools.createSeparator();

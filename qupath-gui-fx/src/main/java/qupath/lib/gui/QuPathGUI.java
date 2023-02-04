@@ -107,15 +107,9 @@ import javafx.stage.WindowEvent;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.Timeit;
 import qupath.lib.common.Version;
-import qupath.lib.gui.ActionTools.ActionAccelerator;
-import qupath.lib.gui.ActionTools.ActionDescription;
-import qupath.lib.gui.ActionTools.ActionIcon;
+import qupath.lib.gui.actions.DefaultActions;
 import qupath.lib.gui.actions.OverlayActions;
 import qupath.lib.gui.actions.ViewerActions;
-import qupath.lib.gui.commands.BrightnessContrastCommand;
-import qupath.lib.gui.commands.Commands;
-import qupath.lib.gui.commands.CountingPanelCommand;
-import qupath.lib.gui.commands.ContextHelpViewer;
 import qupath.lib.gui.commands.InputDisplayCommand;
 import qupath.lib.gui.commands.LogViewerCommand;
 import qupath.lib.gui.commands.ProjectCommands;
@@ -137,7 +131,6 @@ import qupath.lib.gui.scripting.languages.GroovyLanguage;
 import qupath.lib.gui.scripting.languages.ScriptLanguageProvider;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.MenuTools;
-import qupath.lib.gui.tools.IconFactory.PathIcons;
 import qupath.lib.gui.viewer.DragDropImportListener;
 import qupath.lib.gui.viewer.ViewerManager;
 import qupath.lib.gui.viewer.OverlayOptions;
@@ -675,6 +668,11 @@ public class QuPathGUI {
 
 	private void setDefaultUncaughtExceptionHandler() {
 		Thread.setDefaultUncaughtExceptionHandler(new QuPathUncaughtExceptionHandler(this));
+	}
+	
+	
+	public BooleanProperty showAnalysisPaneProperty() {
+		return showAnalysisPane;
 	}
 	
 	
@@ -2589,6 +2587,14 @@ public class QuPathGUI {
 	}
 	
 	
+	/**
+	 * Show the log window associated with this QuPath instance.
+	 * @since v0.5.0
+	 */
+	public void showLogWindow() {
+		logViewerCommand.run();
+	}
+	
 	
 	/**
 	 * Create an {@link Action} that depends upon an {@link ImageData}.
@@ -2730,16 +2736,12 @@ public class QuPathGUI {
 	 */
 	public synchronized DefaultActions getDefaultActions() {
 		if (defaultActions == null) {
-			defaultActions = new DefaultActions();
+			defaultActions = new DefaultActions(this);
 			installActions(ActionTools.getAnnotatedActions(defaultActions));
 		}
 		return defaultActions;
 	}
 	
-	
-	private Action createShowAnalysisPaneAction() {
-		return ActionTools.createSelectableAction(showAnalysisPane, "Show analysis panel");
-	}
 	
 	/**
 	 * Search for an action based upon its text (name) property.
@@ -2784,108 +2786,6 @@ public class QuPathGUI {
 		if (viewerActions == null)
 			viewerActions = new ViewerActions(getViewerManager());
 		return viewerActions;
-	}
-	
-	
-	/**
-	 * Default actions associated with a specific QuPath instance.
-	 * These are useful for generating toolbars and context menus, ensuring that the same actions are used consistently.
-	 */
-	public class DefaultActions {
-		
-		
-		// Toolbar actions
-		/**
-		 * Show the brightness/contrast dialog.
-		 */
-		@ActionIcon(PathIcons.CONTRAST)
-		@ActionAccelerator("shift+c")
-		@ActionDescription("Open brightness & contrast dialog - also used to adjust channels and colors")
-		public final Action BRIGHTNESS_CONTRAST = ActionTools.createAction(new BrightnessContrastCommand(QuPathGUI.this), "Brightness/Contrast");
-		
-		
-		/**
-		 * Show the counting tool dialog. By default, this is connected to setting the points tool to active.
-		 */
-		public final Action COUNTING_PANEL = ActionTools.createAction(new CountingPanelCommand(QuPathGUI.this), "Counting tool", PathTools.POINTS.iconProperty().get(), null);
-
-		/**
-		 * Add a note to any selected TMA core.
-		 */
-		public final Action TMA_ADD_NOTE = createImageDataAction(imageData -> TMACommands.promptToAddNoteToSelectedCores(imageData), "Add TMA note");
-		
-
-		/**
-		 * Display the convex hull of point ROIs.
-		 */
-		public final Action CONVEX_POINTS = ActionTools.createSelectableAction(PathPrefs.showPointHullsProperty(), "Show point convex hull");
-		
-		
-		/**
-		 * Show the main log window.
-		 */
-		@ActionAccelerator("shortcut+shift+l")
-		public final Action SHOW_LOG = ActionTools.createAction(logViewerCommand, "Show log");
-
-		/**
-		 * Toggle the visibility of the 'Analysis pane' in the main viewer.
-		 */
-		@ActionIcon(PathIcons.MEASURE)
-		@ActionAccelerator("shift+a")
-		public final Action SHOW_ANALYSIS_PANE = createShowAnalysisPaneAction();
-		
-		@ActionIcon(PathIcons.COG)
-		@ActionAccelerator("shortcut+,")
-		@ActionDescription("Set preferences to customize QuPath's appearance and behavior.")
-		public final Action PREFERENCES = Commands.createSingleStageAction(() -> Commands.createPreferencesDialog(QuPathGUI.this));
-		
-		/**
-		 * Show descriptions for the selected object
-		 */
-		public final Action SHOW_OBJECT_DESCRIPTIONS = Commands.createSingleStageAction(() -> Commands.createObjectDescriptionsDialog(QuPathGUI.this));
-		
-		/**
-		 * Show summary measurement table for TMA cores.
-		 */
-		@ActionDescription("Show summary measurements for tissue microarray (TMA) cores")
-		public final Action MEASURE_TMA = createImageDataAction(imageData -> Commands.showTMAMeasurementTable(QuPathGUI.this, imageData), "Show TMA measurements");
-		
-		/**
-		 * Show summary measurement table for annotations.
-		 */
-		@ActionDescription("Show summary measurements for annotation objects")
-		public final Action MEASURE_ANNOTATIONS = createImageDataAction(imageData -> Commands.showAnnotationMeasurementTable(QuPathGUI.this, imageData), "Show annotation measurements");
-		
-		/**
-		 * Show summary measurement table for detections.
-		 */
-		@ActionDescription("Show summary measurements for detection objects")
-		public final Action MEASURE_DETECTIONS = createImageDataAction(imageData -> Commands.showDetectionMeasurementTable(QuPathGUI.this, imageData), "Show detection measurements");
-		
-		/**
-		 * Show grid view for annotation measurements.
-		 */
-		@ActionDescription("Show grid view annotation objects")
-		public final Action MEASURE_GRID_ANNOTATIONS = createImageDataAction(imageData -> Commands.showAnnotationGridView(QuPathGUI.this), "Show annotation grid view");
-
-		/**
-		 * Show grid view for TMA core measurements.
-		 */
-		@ActionDescription("Show grid view TMA cores")
-		public final Action MEASURE_GRID_TMA_CORES = createImageDataAction(imageData -> Commands.showAnnotationGridView(QuPathGUI.this), "Show TMA core grid view");
-
-		/**
-		 * Show help viewer
-		 */
-		@ActionIcon(PathIcons.HELP)
-		@ActionDescription("KEY:ContextHelp.description")
-		public final Action HELP_VIEWER = Commands.createSingleStageAction(() -> ContextHelpViewer.getInstance(QuPathGUI.this).getStage());
-		
-		private DefaultActions() {
-			// This has the effect of applying the annotations
-			ActionTools.getAnnotatedActions(this);
-		}
-		
 	}
 	
 }
