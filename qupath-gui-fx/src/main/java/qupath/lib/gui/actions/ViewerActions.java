@@ -25,6 +25,7 @@ package qupath.lib.gui.actions;
 import org.controlsfx.control.action.Action;
 
 import qupath.lib.gui.ActionTools;
+import qupath.lib.gui.QuPathResources;
 import qupath.lib.gui.ActionTools.ActionAccelerator;
 import qupath.lib.gui.ActionTools.ActionDescription;
 import qupath.lib.gui.ActionTools.ActionIcon;
@@ -68,18 +69,22 @@ public class ViewerActions {
 	public ViewerActions(ViewerManager viewerManager) {
 		this.viewerManager = viewerManager;
 		
-		ZOOM_TO_FIT = ActionTools.createSelectableAction(viewerManager.zoomToFitProperty(), "Zoom to fit");
-		SHOW_OVERVIEW = ActionTools.createSelectableAction(viewerManager.showOverviewProperty(), "Show slide overview");
-		SHOW_LOCATION = ActionTools.createSelectableAction(viewerManager.showLocationProperty(), "Show cursor location");
-		SHOW_SCALEBAR = ActionTools.createSelectableAction(viewerManager.showScalebarProperty(), "Show scalebar");
-		TOGGLE_SYNCHRONIZE_VIEWERS = ActionTools.createSelectableAction(viewerManager.synchronizeViewersProperty(), "Synchronize viewers");
-		MATCH_VIEWER_RESOLUTIONS = new Action("Match viewer resolutions", e -> viewerManager.matchResolutions());
+		SHOW_OVERVIEW = ActionTools.createSelectableAction(viewerManager.showOverviewProperty(), getName("overview"));
+		SHOW_LOCATION = ActionTools.createSelectableAction(viewerManager.showLocationProperty(), getName("location"));
+		SHOW_SCALEBAR = ActionTools.createSelectableAction(viewerManager.showScalebarProperty(), getName("scalebar"));
+		TOGGLE_SYNCHRONIZE_VIEWERS = ActionTools.createSelectableAction(viewerManager.synchronizeViewersProperty(), getName("synchronize"));
+		MATCH_VIEWER_RESOLUTIONS = new Action(getName("matchResolutions"), e -> viewerManager.matchResolutions());
+		ZOOM_TO_FIT = ActionTools.createSelectableAction(viewerManager.zoomToFitProperty(), getName("zoomToFit"));
 		
 		ActionTools.getAnnotatedActions(this);
 	}
 	
 	public ViewerManager getViewerManager() {
 		return viewerManager;
+	}
+	
+	private static String getName(String key) {
+		return QuPathResources.getString("ViewerActions.name." + key);
 	}
 	
 }

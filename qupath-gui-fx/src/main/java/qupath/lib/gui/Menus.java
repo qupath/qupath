@@ -72,7 +72,7 @@ class Menus {
 	
 	private QuPathGUI qupath;
 	private DefaultActions defaultActions;
-	private ViewerActions viewerManagerActions;
+	private ViewerActions viewerActions;
 	private OverlayActions overlayActions;
 	
 	private List<?> managers;
@@ -85,7 +85,7 @@ class Menus {
 		if (managers == null) {
 			this.defaultActions = qupath.getDefaultActions();
 			this.overlayActions = qupath.getOverlayActions();
-			this.viewerManagerActions = qupath.getViewerActions();
+			this.viewerActions = qupath.getViewerActions();
 			managers = Arrays.asList(
 					new FileMenuManager(),
 					new EditMenuManager(),
@@ -724,10 +724,10 @@ class Menus {
 		public final Action SEP_1 = ActionTools.createSeparator();
 		
 		@ActionMenu("Multi-view...>Synchronize viewers")
-		public final Action MULTIVIEW_SYNCHRONIZE_VIEWERS = viewerManagerActions.TOGGLE_SYNCHRONIZE_VIEWERS;
+		public final Action MULTIVIEW_SYNCHRONIZE_VIEWERS = viewerActions.TOGGLE_SYNCHRONIZE_VIEWERS;
 		
 		@ActionMenu("Multi-view...>Match viewer resolutions")
-		public final Action MULTIVIEW_MATCH_RESOLUTIONS = viewerManagerActions.MATCH_VIEWER_RESOLUTIONS;
+		public final Action MULTIVIEW_MATCH_RESOLUTIONS = viewerActions.MATCH_VIEWER_RESOLUTIONS;
 
 		@ActionMenu("Multi-view...>")
 		public final Action SEP_00 = ActionTools.createSeparator();
@@ -805,7 +805,7 @@ class Menus {
 		public final Action ZOOM_OUT = Commands.createZoomCommand(qupath, -10);
 		
 		@ActionMenu("Zoom...>Zoom to fit")
-		public final Action ZOOM_TO_FIT = viewerManagerActions.ZOOM_TO_FIT;
+		public final Action ZOOM_TO_FIT = viewerActions.ZOOM_TO_FIT;
 				
 		@ActionDescription("Rotate the image visually (this is only for display - the coordinate system remains unchanged).")
 		@ActionMenu("Rotate image")
@@ -839,9 +839,9 @@ class Menus {
 		
 		public final Action SEP_5 = ActionTools.createSeparator();
 		
-		public final Action SHOW_OVERVIEW = viewerManagerActions.SHOW_OVERVIEW;
-		public final Action SHOW_LOCATION = viewerManagerActions.SHOW_LOCATION;
-		public final Action SHOW_SCALEBAR = viewerManagerActions.SHOW_SCALEBAR;
+		public final Action SHOW_OVERVIEW = viewerActions.SHOW_OVERVIEW;
+		public final Action SHOW_LOCATION = viewerActions.SHOW_LOCATION;
+		public final Action SHOW_SCALEBAR = viewerActions.SHOW_SCALEBAR;
 		public final Action SHOW_GRID = overlayActions.SHOW_GRID;
 		public final Action GRID_SPACING = overlayActions.GRID_SPACING;
 		
