@@ -34,14 +34,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javafx.application.Platform;
+import javafx.beans.value.ObservableValue;
 import javafx.collections.ListChangeListener.Change;
 import javafx.collections.ObservableList;
 import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
-import javafx.scene.control.Button;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
+import javafx.scene.control.MenuButton;
 import javafx.scene.control.RadioMenuItem;
 import javafx.scene.control.Separator;
 import javafx.scene.control.Slider;
@@ -57,15 +58,13 @@ import javafx.scene.shape.Path;
 import javafx.scene.text.TextAlignment;
 import qupath.lib.gui.QuPathGUI.DefaultActions;
 import qupath.lib.gui.actions.OverlayActions;
+import qupath.lib.gui.actions.ViewerActions;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.IconFactory;
 import qupath.lib.gui.tools.IconFactory.PathIcons;
-import qupath.lib.gui.viewer.ViewerManager;
-import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.QuPathViewerListener;
-import qupath.lib.gui.viewer.QuPathViewerPlus;
 import qupath.lib.gui.viewer.tools.ExtendedPathTool;
 import qupath.lib.gui.viewer.tools.PathTool;
 import qupath.lib.images.ImageData;
@@ -82,31 +81,30 @@ class ToolBarComponent {
 	private Map<PathTool, Node> toolMap = new WeakHashMap<>();
 
 	private ToolManager toolManager;
-	private ViewerManager viewerManager;
-	private DefaultActions defaultActions;
 	
 	private int toolIdx;
-
+	
+	@SuppressWarnings("unused")
+	private ObservableValue<? extends QuPathViewer> viewerProperty; // Keep to prevent garbage collection
 
 	private ToolBar toolbar = new ToolBar();
 
-	ToolBarComponent(ToolManager toolManager, ViewerManager viewerManager, DefaultActions defaultActions, OverlayActions overlayActions) {
+	ToolBarComponent(ToolManager toolManager, ViewerActions viewerManagerActions, DefaultActions defaultActions, OverlayActions overlayActions) {
 		this.toolManager = toolManager;
-		this.viewerManager = viewerManager;
-		this.defaultActions = defaultActions;
+		this.viewerProperty = viewerManagerActions.getViewerManager().activeViewerProperty();
 
 		logger.trace("Initializing toolbar");
 		
 		var magLabel = new ViewerMagnificationLabel();
-		viewerManager.activeViewerProperty().addListener((v, o, n) -> magLabel.setViewer(n));
-		magLabel.setViewer(viewerManager.getActiveViewer());
+		viewerProperty.addListener((v, o, n) -> magLabel.setViewer(n));
+		magLabel.setViewer(viewerProperty.getValue());
 
 		availableTools = toolManager.getTools();
 		availableTools.addListener((Change<? extends PathTool> v) -> updateToolbar());
 
 		// Show analysis panel
 		List<Node> nodes = new ArrayList<>();
-		nodes.add(ActionTools.createToggleButton(defaultActions.SHOW_ANALYSIS_PANE, true, null, true));
+		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(defaultActions.SHOW_ANALYSIS_PANE));
 		nodes.add(new Separator(Orientation.VERTICAL));
 
 		// Record index where tools start
@@ -116,70 +114,58 @@ class ToolBarComponent {
 
 		nodes.add(new Separator(Orientation.VERTICAL));
 
-		nodes.add(ActionTools.createToggleButton(toolManager.getSelectionModeAction(), true));			
+		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(toolManager.getSelectionModeAction()));			
 
 		nodes.add(new Separator(Orientation.VERTICAL));
 
-		nodes.add(ActionTools.createButton(defaultActions.BRIGHTNESS_CONTRAST, true));
+		nodes.add(ActionTools.createButtonWithGraphicOnly(defaultActions.BRIGHTNESS_CONTRAST));
 
 		nodes.add(new Separator(Orientation.VERTICAL));
 
 		nodes.add(magLabel);
-		nodes.add(ActionTools.createToggleButton(defaultActions.ZOOM_TO_FIT, true, false));
+		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(viewerManagerActions.ZOOM_TO_FIT));
 
 		nodes.add(new Separator(Orientation.VERTICAL));
 
-		OverlayOptions overlayOptions = viewerManager.getOverlayOptions();
-		nodes.add(ActionTools.createToggleButton(overlayActions.SHOW_ANNOTATIONS, true, overlayOptions.getShowAnnotations()));
-		nodes.add(ActionTools.createToggleButton(overlayActions.SHOW_NAMES, true, overlayOptions.getShowNames()));
-		nodes.add(ActionTools.createToggleButton(overlayActions.SHOW_TMA_GRID, true, overlayOptions.getShowTMAGrid()));
-		nodes.add(ActionTools.createToggleButton(overlayActions.SHOW_DETECTIONS, true, overlayOptions.getShowDetections()));
-		nodes.add(ActionTools.createToggleButton(overlayActions.FILL_DETECTIONS, true, overlayOptions.getFillDetections()));
-		nodes.add(ActionTools.createToggleButton(overlayActions.SHOW_PIXEL_CLASSIFICATION, true, overlayOptions.getShowPixelClassification()));
+		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(overlayActions.SHOW_ANNOTATIONS));
+		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(overlayActions.SHOW_NAMES));
+		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(overlayActions.SHOW_TMA_GRID));
+		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(overlayActions.SHOW_DETECTIONS));
+		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(overlayActions.FILL_DETECTIONS));
+		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(overlayActions.SHOW_PIXEL_CLASSIFICATION));
 
 		final Slider sliderOpacity = new Slider(0, 1, 1);
+		var overlayOptions = overlayActions.getOverlayOptions();
 		sliderOpacity.valueProperty().bindBidirectional(overlayOptions.opacityProperty());
 		sliderOpacity.setTooltip(new Tooltip(getDescription("overlayOpacity")));
 		nodes.add(sliderOpacity);
 
 		nodes.add(new Separator(Orientation.VERTICAL));
 
-
-		Button btnMeasure = new Button();
+		var btnMeasure = new MenuButton();
 		btnMeasure.setGraphic(IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, PathIcons.TABLE));
 		btnMeasure.setTooltip(new Tooltip(getDescription("showMeasurementsTable")));
-		ContextMenu popupMeasurements = new ContextMenu();
-
-		popupMeasurements.getItems().addAll(
+		btnMeasure.getItems().addAll(
 				ActionTools.createMenuItem(defaultActions.MEASURE_TMA),
 				ActionTools.createMenuItem(defaultActions.MEASURE_ANNOTATIONS),
 				ActionTools.createMenuItem(defaultActions.MEASURE_DETECTIONS)
 				);
-		btnMeasure.setOnMouseClicked(e -> {
-			popupMeasurements.show(btnMeasure, e.getScreenX(), e.getScreenY());
-		});
-
 		nodes.add(btnMeasure);
 
 		nodes.add(new Separator(Orientation.VERTICAL));
 
-		// TODO: Check if viewer really needed...
-		QuPathViewer viewer = viewerManager.getActiveViewer();
-		if (viewer instanceof QuPathViewerPlus viewerPlus) {
-			nodes.add(ActionTools.createToggleButton(defaultActions.SHOW_OVERVIEW, true, viewerPlus.isOverviewVisible()));
-			nodes.add(ActionTools.createToggleButton(defaultActions.SHOW_LOCATION, true, viewerPlus.isLocationVisible()));
-			nodes.add(ActionTools.createToggleButton(defaultActions.SHOW_SCALEBAR, true, viewerPlus.isScalebarVisible()));
-			nodes.add(ActionTools.createToggleButton(overlayActions.SHOW_GRID, true, overlayOptions.getShowGrid()));
-		}
+		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(viewerManagerActions.SHOW_OVERVIEW));
+		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(viewerManagerActions.SHOW_LOCATION));
+		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(viewerManagerActions.SHOW_SCALEBAR));
+		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(overlayActions.SHOW_GRID));
 
-		// Add preferences button
 		nodes.add(new Separator(Orientation.VERTICAL));
-		nodes.add(ActionTools.createButton(defaultActions.PREFERENCES, true));
-		nodes.add(ActionTools.createButton(defaultActions.HELP_VIEWER, true));
+		nodes.add(ActionTools.createButtonWithGraphicOnly(defaultActions.PREFERENCES));
+		nodes.add(ActionTools.createButtonWithGraphicOnly(defaultActions.HELP_VIEWER));
 
 		toolbar.getItems().setAll(nodes);
 	}
-
+	
 	
 	private static String getDescription(String key) {
 		return QuPathResources.getString("Toolbar.description." + key);
@@ -224,7 +210,10 @@ class ToolBarComponent {
 			var action = toolManager.getToolAction(tool);
 			var btnTool = toolMap.get(tool);
 			if (btnTool == null) {
-				btnTool = ActionTools.createToggleButton(action, action.getGraphic() != null);
+				if (action.getGraphic() == null)
+					btnTool = ActionTools.createToggleButton(action);
+				else
+					btnTool = ActionTools.createToggleButtonWithGraphicOnly(action);
 				var toggleButton = (ToggleButton)btnTool;
 				toggleButton.setToggleGroup(group);
 				if (tool instanceof ExtendedPathTool extendedTool) {

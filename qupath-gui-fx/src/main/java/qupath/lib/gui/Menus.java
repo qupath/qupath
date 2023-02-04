@@ -44,6 +44,7 @@ import qupath.lib.gui.ActionTools.ActionIcon;
 import qupath.lib.gui.ActionTools.ActionMenu;
 import qupath.lib.gui.QuPathGUI.DefaultActions;
 import qupath.lib.gui.actions.OverlayActions;
+import qupath.lib.gui.actions.ViewerActions;
 import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.commands.MeasurementExportCommand;
 import qupath.lib.gui.commands.ProjectCommands;
@@ -71,6 +72,7 @@ class Menus {
 	
 	private QuPathGUI qupath;
 	private DefaultActions defaultActions;
+	private ViewerActions viewerManagerActions;
 	private OverlayActions overlayActions;
 	
 	private List<?> managers;
@@ -83,6 +85,7 @@ class Menus {
 		if (managers == null) {
 			this.defaultActions = qupath.getDefaultActions();
 			this.overlayActions = qupath.getOverlayActions();
+			this.viewerManagerActions = qupath.getViewerActions();
 			managers = Arrays.asList(
 					new FileMenuManager(),
 					new EditMenuManager(),
@@ -721,12 +724,10 @@ class Menus {
 		public final Action SEP_1 = ActionTools.createSeparator();
 		
 		@ActionMenu("Multi-view...>Synchronize viewers")
-		@ActionDescription("Synchronize panning and zooming when working with images open in multiple viewers.")
-		public final Action MULTIVIEW_SYNCHRONIZE_VIEWERS = defaultActions.TOGGLE_SYNCHRONIZE_VIEWERS;
+		public final Action MULTIVIEW_SYNCHRONIZE_VIEWERS = viewerManagerActions.TOGGLE_SYNCHRONIZE_VIEWERS;
 		
 		@ActionMenu("Multi-view...>Match viewer resolutions")
-		@ActionDescription("Adjust zoom factors to match the resolutions of images open in multiple viewers.")
-		public final Action MULTIVIEW_MATCH_RESOLUTIONS = defaultActions.MATCH_VIEWER_RESOLUTIONS;
+		public final Action MULTIVIEW_MATCH_RESOLUTIONS = viewerManagerActions.MATCH_VIEWER_RESOLUTIONS;
 
 		@ActionMenu("Multi-view...>")
 		public final Action SEP_00 = ActionTools.createSeparator();
@@ -803,9 +804,8 @@ class Menus {
 		@ActionAccelerator("-")
 		public final Action ZOOM_OUT = Commands.createZoomCommand(qupath, -10);
 		
-		@ActionDescription("Adjust zoom for all images to fit the entire image in the viewer.")
 		@ActionMenu("Zoom...>Zoom to fit")
-		public final Action ZOOM_TO_FIT = defaultActions.ZOOM_TO_FIT;
+		public final Action ZOOM_TO_FIT = viewerManagerActions.ZOOM_TO_FIT;
 				
 		@ActionDescription("Rotate the image visually (this is only for display - the coordinate system remains unchanged).")
 		@ActionMenu("Rotate image")
@@ -839,15 +839,10 @@ class Menus {
 		
 		public final Action SEP_5 = ActionTools.createSeparator();
 		
-		@ActionDescription("Toggle showing the image overview in the viewer. This is a clickable thumbnail used for navigation.")
-		public final Action SHOW_OVERVIEW = defaultActions.SHOW_OVERVIEW;
-		@ActionDescription("Toggle showing the cursor location in the viewer.")
-		public final Action SHOW_LOCATION = defaultActions.SHOW_LOCATION;
-		@ActionDescription("Toggle showing the scalebar in the viewer.")
-		public final Action SHOW_SCALEBAR = defaultActions.SHOW_SCALEBAR;
-		@ActionDescription("Toggle showing the counting grid in the viewer.")
+		public final Action SHOW_OVERVIEW = viewerManagerActions.SHOW_OVERVIEW;
+		public final Action SHOW_LOCATION = viewerManagerActions.SHOW_LOCATION;
+		public final Action SHOW_SCALEBAR = viewerManagerActions.SHOW_SCALEBAR;
 		public final Action SHOW_GRID = overlayActions.SHOW_GRID;
-		@ActionDescription("Adjust the counting grid spacing for the viewers.")
 		public final Action GRID_SPACING = overlayActions.GRID_SPACING;
 		
 		public final Action SEP_6 = ActionTools.createSeparator();

@@ -108,8 +108,10 @@ public class OverlayActions {
 	@ActionDescription("KEY:OverlayActions.description.fillDetections")
 	public final Action FILL_DETECTIONS;
 	
+	private OverlayOptions overlayOptions;
 	
 	public OverlayActions(OverlayOptions overlayOptions) {
+		this.overlayOptions = overlayOptions;
 		
 		SHOW_GRID = ActionTools.createSelectableAction(overlayOptions.showGridProperty(), getName("showCountingGrid"));
 		GRID_SPACING = ActionTools.createAction(() -> Commands.promptToSetGridLineSpacing(overlayOptions), getName("setCountingGridSpacing"));
@@ -133,6 +135,15 @@ public class OverlayActions {
 		
 		ActionTools.getAnnotatedActions(this);
 	}
+	
+	/**
+	 * Get the overlay options controlled by these actions.
+	 * @return
+	 */
+	public OverlayOptions getOverlayOptions() {
+		return overlayOptions;
+	}
+	
 	
 	private static String getName(String key) {
 		return QuPathResources.getString("OverlayActions.name." + key);

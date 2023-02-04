@@ -914,7 +914,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	private Pane createRunPane() {
 		var paneRun = new GridPane();
 		
-		var btnRun = ActionTools.createButton(runScriptAction, false);
+		var btnRun = ActionTools.createButton(runScriptAction);
 		btnRun.setPadding(new Insets(0, 20, 0, 20));
 		
 		var popup = new ContextMenu(

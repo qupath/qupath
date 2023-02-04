@@ -930,6 +930,7 @@ public class ViewerManager implements QuPathViewerListener {
 		final ContextMenu popup = new ContextMenu();
 		
 		var defaultActions = qupath.getDefaultActions();
+		var viewerManagerActions = qupath.getViewerActions();
 		
 		MenuItem miAddRow = new MenuItem("Add row");
 		miAddRow.setOnAction(e -> addRow(viewer));
@@ -946,8 +947,8 @@ public class ViewerManager implements QuPathViewerListener {
 		MenuItem miResizeGrid = new MenuItem("Reset grid size");
 		miResizeGrid.setOnAction(e -> resetGridSize());
 		
-		MenuItem miToggleSync = ActionTools.createCheckMenuItem(defaultActions.TOGGLE_SYNCHRONIZE_VIEWERS, null);
-		MenuItem miMatchResolutions = ActionTools.createMenuItem(defaultActions.MATCH_VIEWER_RESOLUTIONS);
+		MenuItem miToggleSync = ActionTools.createCheckMenuItem(viewerManagerActions.TOGGLE_SYNCHRONIZE_VIEWERS, null);
+		MenuItem miMatchResolutions = ActionTools.createMenuItem(viewerManagerActions.MATCH_VIEWER_RESOLUTIONS);
 		Menu menuMultiview = MenuTools.createMenu(
 				"Multi-view",
 				miToggleSync,

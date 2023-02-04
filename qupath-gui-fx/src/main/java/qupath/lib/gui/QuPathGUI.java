@@ -111,6 +111,7 @@ import qupath.lib.gui.ActionTools.ActionAccelerator;
 import qupath.lib.gui.ActionTools.ActionDescription;
 import qupath.lib.gui.ActionTools.ActionIcon;
 import qupath.lib.gui.actions.OverlayActions;
+import qupath.lib.gui.actions.ViewerActions;
 import qupath.lib.gui.commands.BrightnessContrastCommand;
 import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.commands.CountingPanelCommand;
@@ -2777,6 +2778,14 @@ public class QuPathGUI {
 		return overlayActions;
 	}
 	
+	private ViewerActions viewerActions;
+	
+	public ViewerActions getViewerActions() {
+		if (viewerActions == null)
+			viewerActions = new ViewerActions(getViewerManager());
+		return viewerActions;
+	}
+	
 	
 	/**
 	 * Default actions associated with a specific QuPath instance.
@@ -2784,12 +2793,6 @@ public class QuPathGUI {
 	 */
 	public class DefaultActions {
 		
-		// Zoom actions
-		/**
-		 * Apply 'zoom-to-fit' setting to all viewers
-		 */
-		@ActionIcon(PathIcons.ZOOM_TO_FIT)
-		public final Action ZOOM_TO_FIT = ActionTools.createSelectableAction(viewerManager.zoomToFitProperty(), "Zoom to fit");
 		
 		// Toolbar actions
 		/**
@@ -2799,25 +2802,6 @@ public class QuPathGUI {
 		@ActionAccelerator("shift+c")
 		@ActionDescription("Open brightness & contrast dialog - also used to adjust channels and colors")
 		public final Action BRIGHTNESS_CONTRAST = ActionTools.createAction(new BrightnessContrastCommand(QuPathGUI.this), "Brightness/Contrast");
-		
-		/**
-		 * Toggle the image overview display on the viewers.
-		 */
-		@ActionIcon(PathIcons.OVERVIEW)
-		@ActionDescription("Show/hide overview image (top right)")
-		public final Action SHOW_OVERVIEW = ActionTools.createSelectableAction(viewerManager.showOverviewProperty(), "Show slide overview");
-		/**
-		 * Toggle the cursor location display on the viewers.
-		 */
-		@ActionIcon(PathIcons.LOCATION)
-		@ActionDescription("Show/hide location text (bottom right)")
-		public final Action SHOW_LOCATION = ActionTools.createSelectableAction(viewerManager.showLocationProperty(), "Show cursor location");
-		/**
-		 * Toggle the scalebar display on the viewers.
-		 */
-		@ActionIcon(PathIcons.SHOW_SCALEBAR)
-		@ActionDescription("Show/hide scalebar (bottom left)")
-		public final Action SHOW_SCALEBAR = ActionTools.createSelectableAction(viewerManager.showScalebarProperty(), "Show scalebar");
 		
 		
 		/**
@@ -2836,17 +2820,6 @@ public class QuPathGUI {
 		 */
 		public final Action CONVEX_POINTS = ActionTools.createSelectableAction(PathPrefs.showPointHullsProperty(), "Show point convex hull");
 		
-		// Viewer actions
-		/**
-		 * Toggle the synchronization of multiple viewers.
-		 */
-		@ActionAccelerator("shortcut+alt+s")
-		@ActionDescription("Synchronize viewers, so that pan, zoom and rotate in one viewer also impacts the other viewers")
-		public final Action TOGGLE_SYNCHRONIZE_VIEWERS = ActionTools.createSelectableAction(viewerManager.synchronizeViewersProperty(), "Synchronize viewers");
-		/**
-		 * Match the resolution of all open viewers.
-		 */
-		public final Action MATCH_VIEWER_RESOLUTIONS = new Action("Match viewer resolutions", e -> viewerManager.matchResolutions());
 		
 		/**
 		 * Show the main log window.
@@ -2870,7 +2843,6 @@ public class QuPathGUI {
 		 * Show descriptions for the selected object
 		 */
 		public final Action SHOW_OBJECT_DESCRIPTIONS = Commands.createSingleStageAction(() -> Commands.createObjectDescriptionsDialog(QuPathGUI.this));
-
 		
 		/**
 		 * Show summary measurement table for TMA cores.
@@ -2906,7 +2878,7 @@ public class QuPathGUI {
 		 * Show help viewer
 		 */
 		@ActionIcon(PathIcons.HELP)
-		@ActionDescription("Show context-dependent help info based on the cursor location and QuPath's current state")
+		@ActionDescription("KEY:ContextHelp.description")
 		public final Action HELP_VIEWER = Commands.createSingleStageAction(() -> ContextHelpViewer.getInstance(QuPathGUI.this).getStage());
 		
 		private DefaultActions() {

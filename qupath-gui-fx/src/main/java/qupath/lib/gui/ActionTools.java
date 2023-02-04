@@ -674,17 +674,28 @@ public class ActionTools {
 	 * @param hideActionText if true, the text of the action will be suppressed (and only the graphic used)
 	 * @return a new {@link ToggleButton} configured according to the action.
 	 */
-	public static ToggleButton createToggleButton(Action action, boolean hideActionText) {
+	private static ToggleButton createToggleButton(Action action, boolean hideActionText) {
 		return getActionToggleButton(action, hideActionText, null);
 	}
 	
-	static ToggleButton createToggleButton(Action action, boolean hideActionText, ToggleGroup group, boolean isSelected) {
-		ToggleButton button = getActionToggleButton(action, hideActionText, group);
-		return button;
+	/**
+	 * Create a toggle button from an action, showing only the graphic and not any text.
+	 * This stores a reference to the action as a property of the toggle button.
+	 * @param action
+	 * @return
+	 */
+	public static ToggleButton createToggleButtonWithGraphicOnly(Action action) {
+		return createToggleButton(action, true);
 	}
-
-	static ToggleButton createToggleButton(Action action, boolean hideActionText, boolean isSelected) {
-		return createToggleButton(action, hideActionText, null, isSelected);
+	
+	/**
+	 * Create a toggle button from an action, showing both the text and graphic if available.
+	 * This stores a reference to the action as a property of the toggle button.
+	 * @param action
+	 * @return
+	 */
+	public static ToggleButton createToggleButton(Action action) {
+		return createToggleButton(action, false);
 	}
 	
 	/**
@@ -694,9 +705,29 @@ public class ActionTools {
 	 * @param hideActionText if true, the text of the action will be suppressed (and only the graphic used)
 	 * @return a new {@link Button} configured according to the action.
 	 */
-	public static Button createButton(Action action, boolean hideActionText) {
+	private static Button createButton(Action action, boolean hideActionText) {
 		Button button = ActionUtils.createButton(action, hideActionText ? ActionTextBehavior.HIDE : ActionTextBehavior.SHOW);
 		return includeAction(button, action);
+	}
+	
+	/**
+	 * Create a button from an action, showing both the text and graphic if available.
+	 * This stores a reference to the action as a property of the button.
+	 * @param action the action from which to construct the button
+	 * @return a new {@link Button} configured according to the action.
+	 */
+	public static Button createButton(Action action) {
+		return createButton(action, false);
+	}
+	
+	/**
+	 * Create a button from an action, showing only the graphic and not any text.
+	 * This stores a reference to the action as a property of the button.
+	 * @param action the action from which to construct the button
+	 * @return a new {@link Button} configured according to the action.
+	 */
+	public static Button createButtonWithGraphicOnly(Action action) {
+		return createButton(action, true);
 	}
 
 	/**
@@ -762,7 +793,7 @@ public class ActionTools {
 				accelerator);
 	}
 	
-	public static <T> Action createSelectableCommandAction(final SelectableItem<T> command, final ObservableValue<String> name, final ObservableValue<Node> icon, final KeyCombination accelerator) {
+	static <T> Action createSelectableCommandAction(final SelectableItem<T> command, final ObservableValue<String> name, final ObservableValue<Node> icon, final KeyCombination accelerator) {
 		var action = ActionTools.actionBuilder(e -> command.setSelected(true))
 				.text(name)
 				.accelerator(accelerator)
@@ -773,10 +804,17 @@ public class ActionTools {
 		return action;
 	}
 	
-	public static <T> Action createSelectableCommandAction(final SelectableItem<T> command, final ObservableValue<String> name) {
+	static <T> Action createSelectableCommandAction(final SelectableItem<T> command, final ObservableValue<String> name) {
 		return createSelectableCommandAction(command, name, null, null);
 	}
 
+	/**
+	 * Create an action from a selectable icon.
+	 * @param <T>
+	 * @param command item to which the action's selected property should be bound
+	 * @param name text to include in the action
+	 * @return
+	 */
 	public static <T> Action createSelectableCommandAction(final SelectableItem<T> command, String name) {
 		return createSelectableCommandAction(command, name, null, null);
 	}

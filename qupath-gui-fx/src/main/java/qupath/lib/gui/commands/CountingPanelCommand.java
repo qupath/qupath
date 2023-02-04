@@ -100,16 +100,15 @@ public class CountingPanelCommand implements Runnable, ChangeListener<ImageData<
 		if (qupath == null)
 			return null;
 		
-		var actionManager = qupath.getDefaultActions();
 		var overlayActions = qupath.getOverlayActions();
 		ToolBar toolbar = new ToolBar();
 		toolbar.getItems().addAll(
-				ActionTools.createToggleButton(qupath.getToolManager().getToolAction(PathTools.MOVE), true),
-				ActionTools.createToggleButton(qupath.getToolManager().getToolAction(PathTools.POINTS), true),
+				ActionTools.createToggleButtonWithGraphicOnly(qupath.getToolManager().getToolAction(PathTools.MOVE)),
+				ActionTools.createToggleButtonWithGraphicOnly(qupath.getToolManager().getToolAction(PathTools.POINTS)),
 				new Separator(Orientation.VERTICAL),
-				ActionTools.createToggleButton(overlayActions.SHOW_ANNOTATIONS, true),
-				ActionTools.createToggleButton(overlayActions.FILL_DETECTIONS, true),
-				ActionTools.createToggleButton(overlayActions.SHOW_GRID, true));
+				ActionTools.createToggleButtonWithGraphicOnly(overlayActions.SHOW_ANNOTATIONS),
+				ActionTools.createToggleButtonWithGraphicOnly(overlayActions.FILL_DETECTIONS),
+				ActionTools.createToggleButtonWithGraphicOnly(overlayActions.SHOW_GRID));
 		return toolbar;
 	}
 	
@@ -217,7 +216,7 @@ public class CountingPanelCommand implements Runnable, ChangeListener<ImageData<
 		var actionDetectionsToPoints = qupath.createImageDataAction(imageData -> Commands.convertDetectionsToPoints(imageData, true));
 		actionDetectionsToPoints.setText("Convert detections to points");
 		
-		var btnConvert = ActionTools.createButton(actionDetectionsToPoints, false);
+		var btnConvert = ActionTools.createButton(actionDetectionsToPoints);
 		var convertPane = new Pane(btnConvert);
 		btnConvert.prefWidthProperty().bind(convertPane.widthProperty());
 		
