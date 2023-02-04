@@ -11,6 +11,9 @@ log/
 *.iml
 out/
 
+# VSCode
+.vscode
+
 # Gradle
 # Use local properties (e.g. to set a specific JDK)
 gradle.properties

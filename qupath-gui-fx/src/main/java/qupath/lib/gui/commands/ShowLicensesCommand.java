@@ -48,6 +48,7 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.Urls;
 import qupath.lib.gui.tools.GuiTools;
 
 /**
@@ -74,7 +75,7 @@ class ShowLicensesCommand {
 			sbQuPath.append(licenseText);
 		} catch (Exception e) {
 			sbQuPath.append("Error reading license information!\n\n");
-			sbQuPath.append("For the most up-to-date QuPath license information, see http://github.com/qupath/");
+			sbQuPath.append("For the most up-to-date QuPath license information, see " + Urls.getGitHubRepoUrl());
 			logger.error("Cannot read license information", e);
 		}
 

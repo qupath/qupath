@@ -92,19 +92,19 @@ class WelcomeStage {
 		var btnCode = createGlyphButton(
 				QuPathResources.getString("Welcome.develop"), 
 				Glyph.CODE,
-				"https://github.com/qupath/qupath" 
+				Urls.getGitHubRepoUrl()
 				);
 		
 		var btnDocs = createGlyphButton(
 				QuPathResources.getString("Welcome.docs"), 
 				Glyph.FILE_TEXT_ALT,
-				"https://qupath.readthedocs.io/en/0.4" 
+				Urls.getVersionedDocsUrl() 
 				);
 		
 		var btnForum = createGlyphButton(
 				QuPathResources.getString("Welcome.discuss"), 
 				Glyph.COMMENTS_ALT,
-				"https://forum.image.sc/tag/qupath" 
+				Urls.getUserForumUrl()
 				);
 		var paneButtons = PaneTools.createColumnGrid(btnDocs, btnForum, btnCode);
 				
@@ -201,7 +201,7 @@ class WelcomeStage {
 		paneOptions.add(separator2, 0, row++, GridPane.REMAINING, 1);
 
 		var linkCiting = new Hyperlink(QuPathResources.getString("Welcome.clickForDetails"));
-		linkCiting.setOnAction(e -> QuPathGUI.openInBrowser("https://qupath.readthedocs.io/en/0.4/docs/intro/citing.html")); 
+		linkCiting.setOnAction(e -> QuPathGUI.openInBrowser(Urls.getCitationUrl())); 
 		var textCiting = new TextFlow(
 				new Text(QuPathResources.getString("Welcome.cite") + System.lineSeparator()),
 				linkCiting
@@ -284,7 +284,7 @@ class WelcomeStage {
 		var linkSilicon = new Hyperlink(linkText); 
 		var textSiliconExperimental2 = new Text(endText); 
 		textSiliconExperimental2.setStyle("-fx-fill: -fx-text-base-color;"); 
-		linkSilicon.setOnAction(e -> QuPathGUI.openInBrowser("https://qupath.readthedocs.io/en/0.4/docs/intro/installation.html")); 
+		linkSilicon.setOnAction(e -> QuPathGUI.openInBrowser(Urls.getInstallationUrl())); 
 		return new TextFlow(
 				textSiliconExperimental, linkSilicon, textSiliconExperimental2
 				);

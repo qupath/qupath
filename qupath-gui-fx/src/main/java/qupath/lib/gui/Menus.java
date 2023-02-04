@@ -68,16 +68,8 @@ import qupath.lib.plugins.objects.SplitAnnotationsPlugin;
 
 class Menus {
 	
-	private static final String URL_DOCS       = "https://qupath.readthedocs.io";
-	private static final String URL_VIDEOS     = "https://www.youtube.com/c/QuPath";
-	private static final String URL_CITATION   = "https://qupath.readthedocs.io/en/0.4/docs/intro/citing.html";
-	private static final String URL_BUGS       = "https://github.com/qupath/qupath/issues";
-	private static final String URL_FORUM      = "https://forum.image.sc/tags/qupath";
-	private static final String URL_SOURCE     = "https://github.com/qupath/qupath";
-
-	
 	private QuPathGUI qupath;
-	private DefaultActions actionManager;
+	private DefaultActions defaultActions;
 	
 	private List<?> managers;
 	
@@ -87,7 +79,7 @@ class Menus {
 	
 	public synchronized Collection<Action> getActions() {
 		if (managers == null) {
-			this.actionManager = qupath.getDefaultActions();
+			this.defaultActions = qupath.getDefaultActions();
 			managers = Arrays.asList(
 					new FileMenuManager(),
 					new EditMenuManager(),
@@ -706,7 +698,7 @@ class Menus {
 		@ActionDescription("Show/hide the analysis pane (the one on the left).")
 		@ActionMenu("Show analysis pane")
 		@ActionAccelerator("shift+a")
-		public final Action SHOW_ANALYSIS_PANEL = actionManager.SHOW_ANALYSIS_PANE;
+		public final Action SHOW_ANALYSIS_PANEL = defaultActions.SHOW_ANALYSIS_PANE;
 		
 		@ActionDescription("Show the command list (much easier than navigating menus...).")
 		@ActionMenu("Show command list")
@@ -722,16 +714,16 @@ class Menus {
 		
 		@ActionDescription("Show the brightness/contrast dialog. "
 				+ "This enables changing how the image is displayed, but not the image data itself.")
-		public final Action BRIGHTNESS_CONTRAST = actionManager.BRIGHTNESS_CONTRAST;
+		public final Action BRIGHTNESS_CONTRAST = defaultActions.BRIGHTNESS_CONTRAST;
 		public final Action SEP_1 = ActionTools.createSeparator();
 		
 		@ActionMenu("Multi-view...>Synchronize viewers")
 		@ActionDescription("Synchronize panning and zooming when working with images open in multiple viewers.")
-		public final Action MULTIVIEW_SYNCHRONIZE_VIEWERS = actionManager.TOGGLE_SYNCHRONIZE_VIEWERS;
+		public final Action MULTIVIEW_SYNCHRONIZE_VIEWERS = defaultActions.TOGGLE_SYNCHRONIZE_VIEWERS;
 		
 		@ActionMenu("Multi-view...>Match viewer resolutions")
 		@ActionDescription("Adjust zoom factors to match the resolutions of images open in multiple viewers.")
-		public final Action MULTIVIEW_MATCH_RESOLUTIONS = actionManager.MATCH_VIEWER_RESOLUTIONS;
+		public final Action MULTIVIEW_MATCH_RESOLUTIONS = defaultActions.MATCH_VIEWER_RESOLUTIONS;
 
 		@ActionMenu("Multi-view...>")
 		public final Action SEP_00 = ActionTools.createSeparator();
@@ -810,7 +802,7 @@ class Menus {
 		
 		@ActionDescription("Adjust zoom for all images to fit the entire image in the viewer.")
 		@ActionMenu("Zoom...>Zoom to fit")
-		public final Action ZOOM_TO_FIT = actionManager.ZOOM_TO_FIT;
+		public final Action ZOOM_TO_FIT = defaultActions.ZOOM_TO_FIT;
 				
 		@ActionDescription("Rotate the image visually (this is only for display - the coordinate system remains unchanged).")
 		@ActionMenu("Rotate image")
@@ -820,28 +812,28 @@ class Menus {
 		
 		@ActionMenu("Cell display>")
 		@ActionDescription("Show cells by drawing the outer boundary ROI only.")
-		public final Action SHOW_CELL_BOUNDARIES = actionManager.SHOW_CELL_BOUNDARIES;
+		public final Action SHOW_CELL_BOUNDARIES = defaultActions.SHOW_CELL_BOUNDARIES;
 		@ActionDescription("Show cells by drawing the nucleus ROI only (if available).")
-		public final Action SHOW_CELL_NUCLEI = actionManager.SHOW_CELL_NUCLEI;
+		public final Action SHOW_CELL_NUCLEI = defaultActions.SHOW_CELL_NUCLEI;
 		@ActionDescription("Show cells by drawing both the outer boundary and nucleus ROIs (if available).")
-		public final Action SHOW_CELL_BOUNDARIES_AND_NUCLEI = actionManager.SHOW_CELL_BOUNDARIES_AND_NUCLEI;
+		public final Action SHOW_CELL_BOUNDARIES_AND_NUCLEI = defaultActions.SHOW_CELL_BOUNDARIES_AND_NUCLEI;
 		@ActionDescription("Show cells by drawing the centroids only.")
-		public final Action SHOW_CELL_CENTROIDS = actionManager.SHOW_CELL_CENTROIDS;
+		public final Action SHOW_CELL_CENTROIDS = defaultActions.SHOW_CELL_CENTROIDS;
 		
 		@ActionDescription("Toggle showing all annotations in the viewer.")
-		public final Action SHOW_ANNOTATIONS = actionManager.SHOW_ANNOTATIONS;
+		public final Action SHOW_ANNOTATIONS = defaultActions.SHOW_ANNOTATIONS;
 		@ActionDescription("Toggle showing annotation ROIs as filled shapes in the viewer.")
-		public final Action FILL_ANNOTATIONS = actionManager.FILL_ANNOTATIONS;
+		public final Action FILL_ANNOTATIONS = defaultActions.FILL_ANNOTATIONS;
 		@ActionDescription("Toggle showing all annotation names in the viewer.")
-		public final Action SHOW_NAMES = actionManager.SHOW_NAMES;
+		public final Action SHOW_NAMES = defaultActions.SHOW_NAMES;
 		@ActionDescription("Toggle showing any TMA grid in the viewer.")
-		public final Action SHOW_TMA_GRID = actionManager.SHOW_TMA_GRID;
+		public final Action SHOW_TMA_GRID = defaultActions.SHOW_TMA_GRID;
 		@ActionDescription("Toggle showing any TMA core labels in the viewer.")
-		public final Action SHOW_TMA_GRID_LABELS = actionManager.SHOW_TMA_GRID_LABELS;
+		public final Action SHOW_TMA_GRID_LABELS = defaultActions.SHOW_TMA_GRID_LABELS;
 		@ActionDescription("Toggle showing all detections in the viewer.")
-		public final Action SHOW_DETECTIONS = actionManager.SHOW_DETECTIONS;
+		public final Action SHOW_DETECTIONS = defaultActions.SHOW_DETECTIONS;
 		@ActionDescription("Toggle showing detection ROIs as filled shapes in the viewer.")
-		public final Action FILL_DETECTIONS = actionManager.FILL_DETECTIONS;
+		public final Action FILL_DETECTIONS = defaultActions.FILL_DETECTIONS;
 
 		@ActionMenu("Show object connections")
 		@ActionDescription("Show connections between objects, if available. "
@@ -850,20 +842,20 @@ class Menus {
 
 		@ActionDescription("Toggle pixel classification overlays in the viewer. "
 				+ "This only has an effect if there is actually a pixel classification available.")
-		public final Action SHOW_PIXEL_CLASSIFICATION = actionManager.SHOW_PIXEL_CLASSIFICATION;
+		public final Action SHOW_PIXEL_CLASSIFICATION = defaultActions.SHOW_PIXEL_CLASSIFICATION;
 		
 		public final Action SEP_5 = ActionTools.createSeparator();
 		
 		@ActionDescription("Toggle showing the image overview in the viewer. This is a clickable thumbnail used for navigation.")
-		public final Action SHOW_OVERVIEW = actionManager.SHOW_OVERVIEW;
+		public final Action SHOW_OVERVIEW = defaultActions.SHOW_OVERVIEW;
 		@ActionDescription("Toggle showing the cursor location in the viewer.")
-		public final Action SHOW_LOCATION = actionManager.SHOW_LOCATION;
+		public final Action SHOW_LOCATION = defaultActions.SHOW_LOCATION;
 		@ActionDescription("Toggle showing the scalebar in the viewer.")
-		public final Action SHOW_SCALEBAR = actionManager.SHOW_SCALEBAR;
+		public final Action SHOW_SCALEBAR = defaultActions.SHOW_SCALEBAR;
 		@ActionDescription("Toggle showing the counting grid in the viewer.")
-		public final Action SHOW_GRID = actionManager.SHOW_GRID;
+		public final Action SHOW_GRID = defaultActions.SHOW_GRID;
 		@ActionDescription("Adjust the counting grid spacing for the viewers.")
-		public final Action GRID_SPACING = actionManager.GRID_SPACING;
+		public final Action GRID_SPACING = defaultActions.GRID_SPACING;
 		
 		public final Action SEP_6 = ActionTools.createSeparator();
 		
@@ -889,7 +881,7 @@ class Menus {
 		@ActionDescription("Show the log. This is very helpful for identifying and debugging errors. "
 				+ "\n\nIf you wish to report a problem using QuPath, please check the log for relevant information to provide.")
 		@ActionMenu("Show log")
-		public final Action SHOW_LOG = actionManager.SHOW_LOG;
+		public final Action SHOW_LOG = defaultActions.SHOW_LOG;
 		
 		
 		public final Action SEP_8 = ActionTools.createSeparator();
@@ -1022,11 +1014,11 @@ class Menus {
 
 		@ActionDescription("Open the main QuPath documentation website.")
 		@ActionMenu("Documentation (web)")
-		public final Action DOCS = createAction(() -> QuPathGUI.openInBrowser(URL_DOCS));
+		public final Action DOCS = createAction(() -> QuPathGUI.openInBrowser(Urls.getVersionedDocsUrl()));
 		
 		@ActionDescription("Open the QuPath demo videos and tutorials.")
 		@ActionMenu("YouTube channel (web)")
-		public final Action DEMOS = createAction(() -> QuPathGUI.openInBrowser(URL_VIDEOS));
+		public final Action DEMOS = createAction(() -> QuPathGUI.openInBrowser(Urls.getYouTubeUrl()));
 
 		@ActionDescription("Check online for an updated QuPath release.")
 		@ActionMenu("Check for updates (web)")
@@ -1037,19 +1029,19 @@ class Menus {
 		@ActionDescription("Please cite the QuPath publication if you use the software! " +
 				"\nThis command opens a web page to show how.")
 		@ActionMenu("Cite QuPath (web)")
-		public final Action CITE = createAction(() -> QuPathGUI.openInBrowser(URL_CITATION));
+		public final Action CITE = createAction(() -> QuPathGUI.openInBrowser(Urls.getCitationUrl()));
 		
 		@ActionDescription("Report a bug. Please follow the template and do not use this for general questions!")
 		@ActionMenu("Report bug (web)")
-		public final Action BUGS = createAction(() -> QuPathGUI.openInBrowser(URL_BUGS));
+		public final Action BUGS = createAction(() -> QuPathGUI.openInBrowser(Urls.getGitHubIssuesUrl()));
 		
 		@ActionDescription("Visit the user forum. This is the place to ask questions (and give answers).")
 		@ActionMenu("View user forum (web)")
-		public final Action FORUM = createAction(() -> QuPathGUI.openInBrowser(URL_FORUM));
+		public final Action FORUM = createAction(() -> QuPathGUI.openInBrowser(Urls.getUserForumUrl()));
 		
 		@ActionDescription("View the QuPath source code online.")
 		@ActionMenu("View source code (web)")
-		public final Action SOURCE = createAction(() -> QuPathGUI.openInBrowser(URL_SOURCE));
+		public final Action SOURCE = createAction(() -> QuPathGUI.openInBrowser(Urls.getGitHubRepoUrl()));
 
 		public final Action SEP_3 = ActionTools.createSeparator();
 

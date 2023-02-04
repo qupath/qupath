@@ -34,7 +34,15 @@ public class QuPathResources {
 	
 	private static final String STRINGS_NAME = "qupath/lib/gui/localization/qupath-strings";
 	
-	
+	/**
+	 * Get a string from the main {@link ResourceBundle} used for the QuPath user interface.
+	 * <p>
+	 * This helps separate user interface strings from the main Java code, so they can be 
+	 * maintained more easily - and potentially could be translated into different languages 
+	 * if required.
+	 * @param key
+	 * @return
+	 */
 	public static String getString(String key) {
 		return ResourceBundle.getBundle(STRINGS_NAME).getString(key);
 	}
