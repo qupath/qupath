@@ -1012,12 +1012,13 @@ public class ViewerManager implements QuPathViewerListener {
 		// Create an empty placeholder menu
 		Menu menuSetClass = MenuTools.createMenu("Set class");
 		
+		var overlayActions = qupath.getOverlayActions();
 		Menu menuCells = MenuTools.createMenu(
 				"Cells",
-				ActionTools.createCheckMenuItem(defaultActions.SHOW_CELL_BOUNDARIES_AND_NUCLEI, null),
-				ActionTools.createCheckMenuItem(defaultActions.SHOW_CELL_NUCLEI, null),
-				ActionTools.createCheckMenuItem(defaultActions.SHOW_CELL_BOUNDARIES, null),
-				ActionTools.createCheckMenuItem(defaultActions.SHOW_CELL_CENTROIDS, null)
+				ActionTools.createCheckMenuItem(overlayActions.SHOW_CELL_BOUNDARIES_AND_NUCLEI),
+				ActionTools.createCheckMenuItem(overlayActions.SHOW_CELL_NUCLEI),
+				ActionTools.createCheckMenuItem(overlayActions.SHOW_CELL_BOUNDARIES),
+				ActionTools.createCheckMenuItem(overlayActions.SHOW_CELL_CENTROIDS)
 				);
 
 		

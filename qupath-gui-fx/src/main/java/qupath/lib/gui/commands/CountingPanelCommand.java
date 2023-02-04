@@ -101,14 +101,15 @@ public class CountingPanelCommand implements Runnable, ChangeListener<ImageData<
 			return null;
 		
 		var actionManager = qupath.getDefaultActions();
+		var overlayActions = qupath.getOverlayActions();
 		ToolBar toolbar = new ToolBar();
 		toolbar.getItems().addAll(
 				ActionTools.createToggleButton(qupath.getToolManager().getToolAction(PathTools.MOVE), true),
 				ActionTools.createToggleButton(qupath.getToolManager().getToolAction(PathTools.POINTS), true),
 				new Separator(Orientation.VERTICAL),
-				ActionTools.createToggleButton(actionManager.SHOW_ANNOTATIONS, true),
-				ActionTools.createToggleButton(actionManager.FILL_DETECTIONS, true),
-				ActionTools.createToggleButton(actionManager.SHOW_GRID, true));
+				ActionTools.createToggleButton(overlayActions.SHOW_ANNOTATIONS, true),
+				ActionTools.createToggleButton(overlayActions.FILL_DETECTIONS, true),
+				ActionTools.createToggleButton(overlayActions.SHOW_GRID, true));
 		return toolbar;
 	}
 	

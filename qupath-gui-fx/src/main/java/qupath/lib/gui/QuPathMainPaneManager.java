@@ -75,7 +75,7 @@ class QuPathMainPaneManager {
 		
 		pane.setCenter(splitPane);
 		
-		toolbar = new ToolBarComponent(qupath.getToolManager(), qupath.getViewerManager(), qupath.getDefaultActions());
+		toolbar = new ToolBarComponent(qupath.getToolManager(), qupath.getViewerManager(), qupath.getDefaultActions(), qupath.getOverlayActions());
 		pane.setTop(toolbar.getToolBar());
 		
 		setAnalysisPaneVisible(true);

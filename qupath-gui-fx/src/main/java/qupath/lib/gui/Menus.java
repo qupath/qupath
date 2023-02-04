@@ -43,6 +43,7 @@ import qupath.lib.gui.ActionTools.ActionDescription;
 import qupath.lib.gui.ActionTools.ActionIcon;
 import qupath.lib.gui.ActionTools.ActionMenu;
 import qupath.lib.gui.QuPathGUI.DefaultActions;
+import qupath.lib.gui.actions.OverlayActions;
 import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.commands.MeasurementExportCommand;
 import qupath.lib.gui.commands.ProjectCommands;
@@ -70,6 +71,7 @@ class Menus {
 	
 	private QuPathGUI qupath;
 	private DefaultActions defaultActions;
+	private OverlayActions overlayActions;
 	
 	private List<?> managers;
 	
@@ -80,6 +82,7 @@ class Menus {
 	public synchronized Collection<Action> getActions() {
 		if (managers == null) {
 			this.defaultActions = qupath.getDefaultActions();
+			this.overlayActions = qupath.getOverlayActions();
 			managers = Arrays.asList(
 					new FileMenuManager(),
 					new EditMenuManager(),
@@ -811,38 +814,28 @@ class Menus {
 		public final Action SEP_4 = ActionTools.createSeparator();
 		
 		@ActionMenu("Cell display>")
-		@ActionDescription("Show cells by drawing the outer boundary ROI only.")
-		public final Action SHOW_CELL_BOUNDARIES = defaultActions.SHOW_CELL_BOUNDARIES;
-		@ActionDescription("Show cells by drawing the nucleus ROI only (if available).")
-		public final Action SHOW_CELL_NUCLEI = defaultActions.SHOW_CELL_NUCLEI;
-		@ActionDescription("Show cells by drawing both the outer boundary and nucleus ROIs (if available).")
-		public final Action SHOW_CELL_BOUNDARIES_AND_NUCLEI = defaultActions.SHOW_CELL_BOUNDARIES_AND_NUCLEI;
-		@ActionDescription("Show cells by drawing the centroids only.")
-		public final Action SHOW_CELL_CENTROIDS = defaultActions.SHOW_CELL_CENTROIDS;
+		public final Action SHOW_CELL_BOUNDARIES = overlayActions.SHOW_CELL_BOUNDARIES;
+		@ActionMenu("Cell display>")
+		public final Action SHOW_CELL_NUCLEI = overlayActions.SHOW_CELL_NUCLEI;
+		@ActionMenu("Cell display>")
+		public final Action SHOW_CELL_BOUNDARIES_AND_NUCLEI = overlayActions.SHOW_CELL_BOUNDARIES_AND_NUCLEI;
+		@ActionMenu("Cell display>")
+		public final Action SHOW_CELL_CENTROIDS = overlayActions.SHOW_CELL_CENTROIDS;
 		
-		@ActionDescription("Toggle showing all annotations in the viewer.")
-		public final Action SHOW_ANNOTATIONS = defaultActions.SHOW_ANNOTATIONS;
-		@ActionDescription("Toggle showing annotation ROIs as filled shapes in the viewer.")
-		public final Action FILL_ANNOTATIONS = defaultActions.FILL_ANNOTATIONS;
-		@ActionDescription("Toggle showing all annotation names in the viewer.")
-		public final Action SHOW_NAMES = defaultActions.SHOW_NAMES;
-		@ActionDescription("Toggle showing any TMA grid in the viewer.")
-		public final Action SHOW_TMA_GRID = defaultActions.SHOW_TMA_GRID;
-		@ActionDescription("Toggle showing any TMA core labels in the viewer.")
-		public final Action SHOW_TMA_GRID_LABELS = defaultActions.SHOW_TMA_GRID_LABELS;
-		@ActionDescription("Toggle showing all detections in the viewer.")
-		public final Action SHOW_DETECTIONS = defaultActions.SHOW_DETECTIONS;
-		@ActionDescription("Toggle showing detection ROIs as filled shapes in the viewer.")
-		public final Action FILL_DETECTIONS = defaultActions.FILL_DETECTIONS;
+		public final Action SHOW_ANNOTATIONS = overlayActions.SHOW_ANNOTATIONS;
+		public final Action FILL_ANNOTATIONS = overlayActions.FILL_ANNOTATIONS;
+		public final Action SHOW_NAMES = overlayActions.SHOW_NAMES;
+		public final Action SHOW_TMA_GRID = overlayActions.SHOW_TMA_GRID;
+		public final Action SHOW_TMA_GRID_LABELS = overlayActions.SHOW_TMA_GRID_LABELS;
+		public final Action SHOW_DETECTIONS = overlayActions.SHOW_DETECTIONS;
+		public final Action FILL_DETECTIONS = overlayActions.FILL_DETECTIONS;
 
 		@ActionMenu("Show object connections")
 		@ActionDescription("Show connections between objects, if available. "
 				+ "This can be used alongside some spatial commands, such as to display a Delaunay triangulation as an overlay.")
 		public final Action SHOW_CONNECTIONS = createSelectableCommandAction(qupath.getOverlayOptions().showConnectionsProperty());
 
-		@ActionDescription("Toggle pixel classification overlays in the viewer. "
-				+ "This only has an effect if there is actually a pixel classification available.")
-		public final Action SHOW_PIXEL_CLASSIFICATION = defaultActions.SHOW_PIXEL_CLASSIFICATION;
+		public final Action SHOW_PIXEL_CLASSIFICATION = overlayActions.SHOW_PIXEL_CLASSIFICATION;
 		
 		public final Action SEP_5 = ActionTools.createSeparator();
 		
@@ -853,9 +846,9 @@ class Menus {
 		@ActionDescription("Toggle showing the scalebar in the viewer.")
 		public final Action SHOW_SCALEBAR = defaultActions.SHOW_SCALEBAR;
 		@ActionDescription("Toggle showing the counting grid in the viewer.")
-		public final Action SHOW_GRID = defaultActions.SHOW_GRID;
+		public final Action SHOW_GRID = overlayActions.SHOW_GRID;
 		@ActionDescription("Adjust the counting grid spacing for the viewers.")
-		public final Action GRID_SPACING = defaultActions.GRID_SPACING;
+		public final Action GRID_SPACING = overlayActions.GRID_SPACING;
 		
 		public final Action SEP_6 = ActionTools.createSeparator();
 		

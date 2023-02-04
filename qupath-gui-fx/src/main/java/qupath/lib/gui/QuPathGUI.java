@@ -110,6 +110,7 @@ import qupath.lib.common.Version;
 import qupath.lib.gui.ActionTools.ActionAccelerator;
 import qupath.lib.gui.ActionTools.ActionDescription;
 import qupath.lib.gui.ActionTools.ActionIcon;
+import qupath.lib.gui.actions.OverlayActions;
 import qupath.lib.gui.commands.BrightnessContrastCommand;
 import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.commands.CountingPanelCommand;
@@ -140,7 +141,6 @@ import qupath.lib.gui.viewer.DragDropImportListener;
 import qupath.lib.gui.viewer.ViewerManager;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.QuPathViewer;
-import qupath.lib.gui.viewer.OverlayOptions.DetectionDisplayMode;
 import qupath.lib.gui.viewer.tools.PathTool;
 import qupath.lib.gui.viewer.tools.PathTools;
 import qupath.lib.images.ImageData;
@@ -819,9 +819,10 @@ public class QuPathGUI {
 
 			// Generic 'hiding'
 			if (new KeyCodeCombination(KeyCode.H).match(e)) {
-				var action = defaultActions.SHOW_DETECTIONS;
+				var overlayActions = getOverlayActions();
+				var action = overlayActions.SHOW_DETECTIONS;
 				action.setSelected(!action.isSelected());
-				action = defaultActions.SHOW_PIXEL_CLASSIFICATION;
+				action = overlayActions.SHOW_PIXEL_CLASSIFICATION;
 				action.setSelected(!action.isSelected());
 				e.consume();
 			}
@@ -2768,6 +2769,15 @@ public class QuPathGUI {
 	}
 	
 	
+	private OverlayActions overlayActions;
+	
+	public OverlayActions getOverlayActions() {
+		if (overlayActions == null)
+			overlayActions = new OverlayActions(getOverlayOptions());
+		return overlayActions;
+	}
+	
+	
 	/**
 	 * Default actions associated with a specific QuPath instance.
 	 * These are useful for generating toolbars and context menus, ensuring that the same actions are used consistently.
@@ -2808,17 +2818,7 @@ public class QuPathGUI {
 		@ActionIcon(PathIcons.SHOW_SCALEBAR)
 		@ActionDescription("Show/hide scalebar (bottom left)")
 		public final Action SHOW_SCALEBAR = ActionTools.createSelectableAction(viewerManager.showScalebarProperty(), "Show scalebar");
-		/**
-		 * Toggle the counting grid display on the viewers.
-		 */
-		@ActionIcon(PathIcons.GRID)
-		@ActionAccelerator("shift+g")
-		@ActionDescription("Show/hide counting grid overlay")
-		public final Action SHOW_GRID = ActionTools.createSelectableAction(getOverlayOptions().showGridProperty(), "Show grid");
-		/**
-		 * Prompt to set the spacing for the counting grid.
-		 */
-		public final Action GRID_SPACING = ActionTools.createAction(() -> Commands.promptToSetGridLineSpacing(getOverlayOptions()), "Set grid spacing");
+		
 		
 		/**
 		 * Show the counting tool dialog. By default, this is connected to setting the points tool to active.
@@ -2826,92 +2826,11 @@ public class QuPathGUI {
 		public final Action COUNTING_PANEL = ActionTools.createAction(new CountingPanelCommand(QuPathGUI.this), "Counting tool", PathTools.POINTS.iconProperty().get(), null);
 
 		/**
-		 * Toggle the pixel classification overlay visibility on the viewers.
-		 */
-		@ActionIcon(PathIcons.PIXEL_CLASSIFICATION)
-		@ActionAccelerator("c")
-		@ActionDescription("Show/hide pixel classification overlay (when available)")
-		public final Action SHOW_PIXEL_CLASSIFICATION = ActionTools.createSelectableAction(getOverlayOptions().showPixelClassificationProperty(), "Show pixel classification");
-			
-		// TMA actions
-		/**
 		 * Add a note to any selected TMA core.
 		 */
 		public final Action TMA_ADD_NOTE = createImageDataAction(imageData -> TMACommands.promptToAddNoteToSelectedCores(imageData), "Add TMA note");
 		
-		// Overlay options actions
-		/**
-		 * Request that cells are displayed using their boundary ROI only.
-		 */
-		@ActionIcon(PathIcons.CELL_ONLY)
-		public final Action SHOW_CELL_BOUNDARIES = ActionTools.createSelectableCommandAction(new SelectableItem<>(getOverlayOptions().detectionDisplayModeProperty(), DetectionDisplayMode.BOUNDARIES_ONLY), "Cell boundaries only");
-		/**
-		 * Request that cells are displayed using their boundary ROI only.
-		 */
-		@ActionIcon(PathIcons.NUCLEI_ONLY)
-		public final Action SHOW_CELL_NUCLEI = ActionTools.createSelectableCommandAction(new SelectableItem<>(getOverlayOptions().detectionDisplayModeProperty(), DetectionDisplayMode.NUCLEI_ONLY), "Nuclei only");
-		/**
-		 * Request that cells are displayed using both cell and nucleus ROIs.
-		 */
-		@ActionIcon(PathIcons.CELL_NUCLEI_BOTH)
-		public final Action SHOW_CELL_BOUNDARIES_AND_NUCLEI = ActionTools.createSelectableCommandAction(new SelectableItem<>(getOverlayOptions().detectionDisplayModeProperty(), DetectionDisplayMode.NUCLEI_AND_BOUNDARIES), "Nuclei & cell boundaries");
-		/**
-		 * Request that cells are displayed using their centroids only.
-		 */
-		@ActionIcon(PathIcons.CENTROIDS_ONLY)
-		public final Action SHOW_CELL_CENTROIDS = ActionTools.createSelectableCommandAction(new SelectableItem<>(getOverlayOptions().detectionDisplayModeProperty(), DetectionDisplayMode.CENTROIDS), "Centroids only");
 
-		/**
-		 * Toggle the display of annotations.
-		 */
-		@ActionIcon(PathIcons.ANNOTATIONS)
-		@ActionAccelerator("a")
-		@ActionDescription("Show/hide annotation objects")
-		public final Action SHOW_ANNOTATIONS = ActionTools.createSelectableAction(getOverlayOptions().showAnnotationsProperty(), "Show annotations");
-		
-		/**
-		 * Toggle the display of annotation names.
-		 */
-		@ActionIcon(PathIcons.SHOW_NAMES)
-		@ActionAccelerator("n")
-		@ActionDescription("Show/hide annotation names (where available)")
-		public final Action SHOW_NAMES = ActionTools.createSelectableAction(getOverlayOptions().showNamesProperty(), "Show names");
-		
-		/**
-		 * Display annotations filled in.
-		 */
-		@ActionIcon(PathIcons.ANNOTATIONS_FILL)
-		@ActionAccelerator("shift+f")
-		@ActionDescription("Full/unfill annotation objects")
-		public final Action FILL_ANNOTATIONS = ActionTools.createSelectableAction(getOverlayOptions().fillAnnotationsProperty(), "Fill annotations");	
-		
-		/**
-		 * Toggle the display of TMA cores.
-		 */
-		@ActionIcon(PathIcons.TMA_GRID)
-		@ActionAccelerator("g")
-		@ActionDescription("Show/hide TMA grid")
-		public final Action SHOW_TMA_GRID = ActionTools.createSelectableAction(getOverlayOptions().showTMAGridProperty(), "Show TMA grid");
-		/**
-		 * Toggle the display of TMA grid labels.
-		 */
-		public final Action SHOW_TMA_GRID_LABELS = ActionTools.createSelectableAction(getOverlayOptions().showTMACoreLabelsProperty(), "Show TMA grid labels");
-		
-		/**
-		 * Toggle the display of detections.
-		 */
-		@ActionIcon(PathIcons.DETECTIONS)
-		@ActionAccelerator("d")
-		@ActionDescription("Show/hide detection objects")
-		public final Action SHOW_DETECTIONS = ActionTools.createSelectableAction(getOverlayOptions().showDetectionsProperty(), "Show detections");
-		
-		/**
-		 * Display detections filled in.
-		 */
-		@ActionIcon(PathIcons.DETECTIONS_FILL)
-		@ActionAccelerator("f")
-		@ActionDescription("Fill/unfill detection objects")
-		public final Action FILL_DETECTIONS = ActionTools.createSelectableAction(getOverlayOptions().fillDetectionsProperty(), "Fill detections");	
 		/**
 		 * Display the convex hull of point ROIs.
 		 */

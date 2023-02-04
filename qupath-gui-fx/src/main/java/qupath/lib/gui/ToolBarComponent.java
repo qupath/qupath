@@ -56,6 +56,7 @@ import javafx.scene.shape.MoveTo;
 import javafx.scene.shape.Path;
 import javafx.scene.text.TextAlignment;
 import qupath.lib.gui.QuPathGUI.DefaultActions;
+import qupath.lib.gui.actions.OverlayActions;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.IconFactory;
@@ -84,14 +85,12 @@ class ToolBarComponent {
 	private ViewerManager viewerManager;
 	private DefaultActions defaultActions;
 	
-	
-	
 	private int toolIdx;
 
 
 	private ToolBar toolbar = new ToolBar();
 
-	ToolBarComponent(ToolManager toolManager, ViewerManager viewerManager, DefaultActions defaultActions) {
+	ToolBarComponent(ToolManager toolManager, ViewerManager viewerManager, DefaultActions defaultActions, OverlayActions overlayActions) {
 		this.toolManager = toolManager;
 		this.viewerManager = viewerManager;
 		this.defaultActions = defaultActions;
@@ -131,16 +130,16 @@ class ToolBarComponent {
 		nodes.add(new Separator(Orientation.VERTICAL));
 
 		OverlayOptions overlayOptions = viewerManager.getOverlayOptions();
-		nodes.add(ActionTools.createToggleButton(defaultActions.SHOW_ANNOTATIONS, true, overlayOptions.getShowAnnotations()));
-		nodes.add(ActionTools.createToggleButton(defaultActions.SHOW_NAMES, true, overlayOptions.getShowNames()));
-		nodes.add(ActionTools.createToggleButton(defaultActions.SHOW_TMA_GRID, true, overlayOptions.getShowTMAGrid()));
-		nodes.add(ActionTools.createToggleButton(defaultActions.SHOW_DETECTIONS, true, overlayOptions.getShowDetections()));
-		nodes.add(ActionTools.createToggleButton(defaultActions.FILL_DETECTIONS, true, overlayOptions.getFillDetections()));
-		nodes.add(ActionTools.createToggleButton(defaultActions.SHOW_PIXEL_CLASSIFICATION, true, overlayOptions.getShowPixelClassification()));
+		nodes.add(ActionTools.createToggleButton(overlayActions.SHOW_ANNOTATIONS, true, overlayOptions.getShowAnnotations()));
+		nodes.add(ActionTools.createToggleButton(overlayActions.SHOW_NAMES, true, overlayOptions.getShowNames()));
+		nodes.add(ActionTools.createToggleButton(overlayActions.SHOW_TMA_GRID, true, overlayOptions.getShowTMAGrid()));
+		nodes.add(ActionTools.createToggleButton(overlayActions.SHOW_DETECTIONS, true, overlayOptions.getShowDetections()));
+		nodes.add(ActionTools.createToggleButton(overlayActions.FILL_DETECTIONS, true, overlayOptions.getFillDetections()));
+		nodes.add(ActionTools.createToggleButton(overlayActions.SHOW_PIXEL_CLASSIFICATION, true, overlayOptions.getShowPixelClassification()));
 
 		final Slider sliderOpacity = new Slider(0, 1, 1);
 		sliderOpacity.valueProperty().bindBidirectional(overlayOptions.opacityProperty());
-		sliderOpacity.setTooltip(new Tooltip("Overlay opacity"));
+		sliderOpacity.setTooltip(new Tooltip(getDescription("overlayOpacity")));
 		nodes.add(sliderOpacity);
 
 		nodes.add(new Separator(Orientation.VERTICAL));
@@ -148,7 +147,7 @@ class ToolBarComponent {
 
 		Button btnMeasure = new Button();
 		btnMeasure.setGraphic(IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, PathIcons.TABLE));
-		btnMeasure.setTooltip(new Tooltip("Show measurements table"));
+		btnMeasure.setTooltip(new Tooltip(getDescription("showMeasurementsTable")));
 		ContextMenu popupMeasurements = new ContextMenu();
 
 		popupMeasurements.getItems().addAll(
@@ -170,7 +169,7 @@ class ToolBarComponent {
 			nodes.add(ActionTools.createToggleButton(defaultActions.SHOW_OVERVIEW, true, viewerPlus.isOverviewVisible()));
 			nodes.add(ActionTools.createToggleButton(defaultActions.SHOW_LOCATION, true, viewerPlus.isLocationVisible()));
 			nodes.add(ActionTools.createToggleButton(defaultActions.SHOW_SCALEBAR, true, viewerPlus.isScalebarVisible()));
-			nodes.add(ActionTools.createToggleButton(defaultActions.SHOW_GRID, true, overlayOptions.getShowGrid()));
+			nodes.add(ActionTools.createToggleButton(overlayActions.SHOW_GRID, true, overlayOptions.getShowGrid()));
 		}
 
 		// Add preferences button
@@ -181,7 +180,19 @@ class ToolBarComponent {
 		toolbar.getItems().setAll(nodes);
 	}
 
-
+	
+	private static String getDescription(String key) {
+		return QuPathResources.getString("Toolbar.description." + key);
+	}
+	
+	private static String getName(String key) {
+		return QuPathResources.getString("Toolbar.name." + key);
+	}
+	
+	private static String getMessage(String key) {
+		return QuPathResources.getString("Toolbar.message." + key);
+	}
+	
 	void updateToolbar() {
 		// Snapshot all existing nodes
 		var nodes = new ArrayList<>(toolbar.getItems());
@@ -298,7 +309,7 @@ class ToolBarComponent {
 		
 		private static String defaultText = "1x";
 		
-		private Tooltip tooltipMag = new Tooltip("Current magnification - double-click to set");
+		private Tooltip tooltipMag = new Tooltip(getDescription("magnification"));
 		
 		private ViewerMagnificationLabel() {
 			setTooltip(tooltipMag);
@@ -345,11 +356,11 @@ class ToolBarComponent {
 			var imageData = viewer.getImageData();
 			var mag = imageData == null ? null : imageData.getServer().getMetadata().getMagnification();
 			if (imageData == null)
-				tooltipMag.setText("Magnification");
+				tooltipMag.setText(getName("magnification"));
 			else if (mag != null && !Double.isNaN(mag))
-				tooltipMag.setText("Display magnification - double-click to edit");
+				tooltipMag.setText(getDescription("magnification"));
 			else
-				tooltipMag.setText("Display scale value - double-click to edit");
+				tooltipMag.setText(getDescription("magnificationScale"));
 		}
 
 		
@@ -360,22 +371,22 @@ class ToolBarComponent {
 			boolean hasMagnification = !Double.isNaN(fullMagnification);
 			if (hasMagnification) {
 				double defaultValue = Math.rint(viewer.getMagnification() * 1000) / 1000;
-				Double value = Dialogs.showInputDialog("Set magnification", "Enter magnification", defaultValue);
+				Double value = Dialogs.showInputDialog(getName("setMagnification"), getMessage("promptMagnification"), defaultValue);
 				if (value == null)
 					return;
 				if (Double.isFinite(value) && value > 0)
 					viewer.setMagnification(value.doubleValue());
 				else
-					Dialogs.showErrorMessage("Set downsample factor", "Invalid magnification " + value + ". \nPlease use a value greater than 0.");
+					Dialogs.showErrorMessage(getName("setMagnification"), String.format(getMessage("invalidMagnification"), value));
 			} else {
 				double defaultValue = Math.rint(viewer.getDownsampleFactor() * 1000) / 1000;
-				Double value = Dialogs.showInputDialog("Set downsample factor", "Enter downsample factor", defaultValue);
+				Double value = Dialogs.showInputDialog(getName("setDownsample"), getMessage("promptDownsample"), defaultValue);
 				if (value == null)
 					return;
 				if (Double.isFinite(value) && value > 0)
 					viewer.setDownsampleFactor(value.doubleValue());
 				else
-					Dialogs.showErrorMessage("Set downsample factor", "Invalid downsample " + value + ". \nPlease use a value greater than 0.");
+					Dialogs.showErrorMessage(getName("setDownsample"), String.format(getMessage("invalidDownsample"), value));
 			}
 		}
 		
