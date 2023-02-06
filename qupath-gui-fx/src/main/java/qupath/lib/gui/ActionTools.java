@@ -348,6 +348,15 @@ public class ActionTools {
 		IconFactory.PathIcons value();
 	}
 	
+	
+	private static String getStringOrReadResource(String text) {
+		if (text.startsWith("KEY:"))
+			return QuPathResources.getString(text.substring(4));
+		else
+			return text;
+	}
+	
+	
 	/**
 	 * Actions can be parsed from the accessible (usually public) fields of any object, as well as methods annotated with {@link ActionMethod}.
 	 * Any annotations associated with the actions will be parsed.
@@ -362,7 +371,7 @@ public class ActionTools {
 		
 		// If the class is annotated with a menu, use that as a base; all other menus will be nested within this
 		var menuAnnotation = cls.getAnnotation(ActionMenu.class);
-		String baseMenu = menuAnnotation == null ? "" : menuAnnotation.value();
+		String baseMenu = menuAnnotation == null ? "" : getStringOrReadResource(menuAnnotation.value());
 		// Get accessible fields corresponding to actions
 		for (var f : cls.getDeclaredFields()) {
 			if (Modifier.isStatic(f.getModifiers()) || !f.canAccess(obj))
@@ -457,9 +466,7 @@ public class ActionTools {
 			logger.warn("Invalid menu string {}, will skip {}", menuString, action);
 			return;
 		}
-		var name = menuString.substring(ind+1);
-		if (name.startsWith("KEY:"))
-			name = QuPathResources.getString(name.substring(4));
+		var name = getStringOrReadResource(menuString.substring(ind+1));
 		var menu = menuString.substring(0, ind);
 		if (!name.isEmpty())
 			action.setText(name);
@@ -469,9 +476,7 @@ public class ActionTools {
 	private static void parseDescription(Action action, ActionDescription annotation) {
 		if (annotation == null)
 			return;
-		var description = annotation.value();
-		if (description.startsWith("KEY:"))
-			description = QuPathResources.getString(description.substring(4));
+		var description = getStringOrReadResource(annotation.value());
 		action.setLongText(description);
 	}
 	

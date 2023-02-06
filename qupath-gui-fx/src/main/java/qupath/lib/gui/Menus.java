@@ -28,7 +28,7 @@ import java.util.Collections;
 import java.util.List;
 import org.controlsfx.control.action.Action;
 
-import javafx.beans.value.ObservableValue;
+import javafx.beans.value.ObservableBooleanValue;
 import javafx.scene.image.Image;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.DataFormat;
@@ -103,17 +103,21 @@ class Menus {
 		return managers.stream().flatMap(m -> ActionTools.getAnnotatedActions(m).stream()).toList();
 	}
 	
+	static Action createAction(Runnable runnable, String name) {
+		return new Action(name, e -> runnable.run());
+	}
+	
 	static Action createAction(Runnable runnable) {
 		return new Action(e -> runnable.run());
 	}
 	
-	Action createSelectableCommandAction(final ObservableValue<Boolean> observable) {
-		return ActionTools.createSelectableAction(observable, null);
+	static Action createSelectableCommandAction(ObservableBooleanValue value) {
+		return ActionTools.createSelectableAction(value, null);
 	}
+
 	
 	
-	
-	@ActionMenu("Edit")
+	@ActionMenu("KEY:Menu.Edit.name")
 	public class EditMenuManager {
 		
 		@ActionMenu("Undo")
@@ -185,61 +189,57 @@ class Menus {
 		public final Action RESET_PREFERENCES = createAction(() -> Commands.promptToResetPreferences());
 
 		
-		public EditMenuManager() {
+		private EditMenuManager() {
 			var undoRedo = qupath.getUndoRedoManager();
 			UNDO = createUndoAction(undoRedo);
 			REDO = createRedoAction(undoRedo);
 		}
 		
-		private Action createUndoAction(UndoRedoManager undoRedoManager) {
+		private static Action createUndoAction(UndoRedoManager undoRedoManager) {
 			Action actionUndo = new Action("Undo", e -> undoRedoManager.undoOnce());
 			actionUndo.disabledProperty().bind(undoRedoManager.canUndo().not());
 			return actionUndo;
 		}
 		
-		private Action createRedoAction(UndoRedoManager undoRedoManager) {
+		private static Action createRedoAction(UndoRedoManager undoRedoManager) {
 			Action actionRedo = new Action("Redo", e -> undoRedoManager.redoOnce());
 			actionRedo.disabledProperty().bind(undoRedoManager.canRedo().not());
 			return actionRedo;
 		}
 		
-		private void copyViewToClipboard(final QuPathGUI qupath, final GuiTools.SnapshotType type) {
+		private static void copyViewToClipboard(final QuPathGUI qupath, final GuiTools.SnapshotType type) {
 			Image img = GuiTools.makeSnapshotFX(qupath, qupath.getViewer(), type);
 			Clipboard.getSystemClipboard().setContent(Collections.singletonMap(DataFormat.IMAGE, img));
 		}
 	}
 	
 
-	@ActionMenu("Automate")
+	@ActionMenu("KEY:Menu.Automate.name")
 	public class AutomateMenuManager {
 		
-		@ActionDescription("Open the script editor.")
-		@ActionMenu("Show script editor")
+		@ActionDescription("KEY:Menu.Automate.name.scriptEditor")
+		@ActionMenu("KEY:Menu.Automate.description.scriptEditor")
 		@ActionAccelerator("shortcut+[")
 		public final Action SCRIPT_EDITOR = createAction(() -> Commands.showScriptEditor(qupath));
 
-		@ActionDescription("Open a script interpreter. " +
-				"This makes it possible to run scripts interactively, line by line. " +
-				"However, in general the Script Editor is more useful.")
-		@ActionMenu("Script interpreter")
+		@ActionDescription("KEY:Menu.Automate.description.scriptInterpreter")
+		@ActionMenu("KEY:Menu.Automate.name.scriptInterpreter")
 		public final Action SCRIPT_INTERPRETER = createAction(() -> Commands.showScriptInterpreter(qupath));
 		
 		public final Action SEP_0 = ActionTools.createSeparator();
 		
-		@ActionDescription("Show a history of the commands applied to the current image. " +
-				"Note that this is not fully exhaustive, because not all commands can be recorded. " +
-				"However, the command history is useful to help automatically generate batch-processing scripts.")
-		@ActionMenu("Show workflow command history")
 		@ActionAccelerator("shortcut+shift+w")
+		@ActionDescription("KEY:Menu.Automate.description.commandWorkflow")
+		@ActionMenu("KEY:Menu.Automate.name.commandWorkflow")
 		public final Action HISTORY_SHOW = Commands.createSingleStageAction(() -> Commands.createWorkflowDisplayDialog(qupath));
 
-		@ActionDescription("Create a script based upon the actions recorded in the command history.")
-		@ActionMenu("Create command history script")
+		@ActionDescription("KEY:Menu.Automate.description.commandScript")
+		@ActionMenu("KEY:Menu.Automate.name.commandScript")
 		public final Action HISTORY_SCRIPT = qupath.createImageDataAction(imageData -> Commands.showWorkflowScript(qupath, imageData));
 
 	}
 	
-	@ActionMenu("Analyze")
+	@ActionMenu("KEY:Menu.Analyze.name")
 	public class AnalyzeMenuManager {
 		
 		@ActionDescription("Estimate stain vectors for color deconvolution in brightfield images. " + 
@@ -286,7 +286,7 @@ class Menus {
 
 	}
 	
-	@ActionMenu("Classify")
+	@ActionMenu("KEY:Menu.Classify.name")
 	public class ClassifyMenuManager {
 				
 		@ActionMenu("Object classification>")
@@ -304,7 +304,7 @@ class Menus {
 
 	}
 	
-	@ActionMenu("File")
+	@ActionMenu("KEY:Menu.File.name")
 	public class FileMenuManager {
 		
 		@ActionDescription("Create a new project. " + 
@@ -454,7 +454,7 @@ class Menus {
 	}
 	
 	
-	@ActionMenu("Objects")
+	@ActionMenu("KEY:Menu.Objects.name")
 	public class ObjectsMenuManager {
 		
 		@ActionDescription("Delete the currently selected objects.")
@@ -638,7 +638,7 @@ class Menus {
 	}
 	
 	
-	@ActionMenu("TMA")
+	@ActionMenu("KEY:Menu.TMA.name")
 	public class TMAMenuManager {
 		
 		@ActionDescription("Create a manual TMA grid, by defining labels and the core diameter. "
@@ -694,7 +694,7 @@ class Menus {
 
 	}
 	
-	@ActionMenu("View")
+	@ActionMenu("KEY:Menu.View.name")
 	public class ViewMenuManager {
 		
 		public final Action SHOW_ANALYSIS_PANEL = defaultActions.SHOW_ANALYSIS_PANE;
@@ -821,10 +821,7 @@ class Menus {
 		public final Action SHOW_DETECTIONS = overlayActions.SHOW_DETECTIONS;
 		public final Action FILL_DETECTIONS = overlayActions.FILL_DETECTIONS;
 
-		@ActionMenu("Show object connections")
-		@ActionDescription("Show connections between objects, if available. "
-				+ "This can be used alongside some spatial commands, such as to display a Delaunay triangulation as an overlay.")
-		public final Action SHOW_CONNECTIONS = createSelectableCommandAction(qupath.getOverlayOptions().showConnectionsProperty());
+		public final Action SHOW_CONNECTIONS = overlayActions.SHOW_CONNECTIONS;
 
 		public final Action SHOW_PIXEL_CLASSIFICATION = overlayActions.SHOW_PIXEL_CLASSIFICATION;
 		
@@ -914,41 +911,32 @@ class Menus {
 	}
 	
 	
-	@ActionMenu("Measure")
+	@ActionMenu("KEY:Menu.Measure.name")
 	public class MeasureMenuManager {
 		
-		@ActionMenu("Show measurement maps")
 		@ActionAccelerator("shortcut+shift+m")
-		@ActionDescription("View detection measurements in context using interactive, color-coded maps.")
+		@ActionMenu("KEY:Menu.Measure.name.maps")
+		@ActionDescription("KEY:Menu.Measure.description.maps")
 		public final Action MAPS = Commands.createSingleStageAction(() -> Commands.createMeasurementMapDialog(qupath));
 		
-		@ActionMenu("Show measurement manager")
-		@ActionDescription("View and optionally delete detection measurements.")
+		@ActionMenu("KEY:Menu.Measure.name.manager")
+		@ActionDescription("KEY:Menu.Measure.description.manager")
 		public final Action MANAGER = qupath.createImageDataAction(imageData -> Commands.showDetectionMeasurementManager(qupath, imageData));
 		
 		@ActionMenu("")
 		public final Action SEP_1 = ActionTools.createSeparator();
 		
 		public final Action TMA = defaultActions.MEASURE_TMA;
-		
 		public final Action ANNOTATIONS = defaultActions.MEASURE_ANNOTATIONS;
-		
 		public final Action DETECTIONS = defaultActions.MEASURE_DETECTIONS;
 		
-		@ActionDescription("Show all the annotations in the current image in a grid view, which can be ranked by measurements.")
-		@ActionMenu("Grid views>Annotation grid summary view")
-		public final Action GRID_ANNOTATIONS = qupath.createImageDataAction(imageData -> Commands.showAnnotationGridView(qupath));
+		public final Action GRID_ANNOTATIONS = defaultActions.MEASURE_GRID_ANNOTATIONS;
+		public final Action GRID_TMA = defaultActions.MEASURE_GRID_TMA_CORES;
 
-		
-		@ActionDescription("Show all the TMA cores in the current image in a grid view, which can be ranked by measurements.")
-		@ActionMenu("Grid views>TMA grid summary view")
-		public final Action GRID_TMA = qupath.createImageDataAction(imageData -> Commands.showTMACoreGridView(qupath));
-
-		
 		public final Action SEP_2 = ActionTools.createSeparator();
 
-		@ActionMenu("Export measurements")		
-		@ActionDescription("Export summary measurements for multiple images within a project.")
+		@ActionMenu("KEY:Menu.Measure.name.export")		
+		@ActionDescription("KEY:Menu.Measure.description.export")
 		public final Action EXPORT;
 		
 		private MeasureMenuManager() {
@@ -958,11 +946,11 @@ class Menus {
 		
 	}
 	
-	@ActionMenu("Extensions")
+	@ActionMenu("KEY:Menu.Extensions.name")
 	public class ExtensionsMenuManager {
 		
-		@ActionDescription("View a list of installed QuPath extensions.")
-		@ActionMenu("Installed extensions")
+		@ActionDescription("KEY:Menu.Extensions.description.installed")
+		@ActionMenu("KEY:Menu.Extensions.name.installed")
 		public final Action EXTENSIONS = createAction(() -> Commands.showInstalledExtensions(qupath));
 
 		@ActionMenu("")
@@ -971,59 +959,57 @@ class Menus {
 	}
 	
 	
-	@ActionMenu("Help")
+	@ActionMenu("KEY:Menu.Help.name")
 	public class HelpMenuManager {
 
-		@ActionDescription("Show the welcome message that appears when QuPath is first launched")
-		@ActionMenu("Show welcome message")
+		@ActionDescription("KEY:Menu.Help.description.welcome")
+		@ActionMenu("KEY:Menu.Help.name.welcome")
 		public final Action QUPATH_STARTUP = createAction(() -> WelcomeStage.getInstance(qupath).show());
 
 		public final Action HELP_VIEWER = defaultActions.HELP_VIEWER;
 
-		@ActionMenu("")
 		public final Action SEP_1 = ActionTools.createSeparator();
 
-		@ActionDescription("Open the main QuPath documentation website.")
-		@ActionMenu("Documentation (web)")
+		@ActionDescription("KEY:Menu.Help.description.docs")
+		@ActionMenu("KEY:Menu.Help.name.docs")
 		public final Action DOCS = createAction(() -> QuPathGUI.openInBrowser(Urls.getVersionedDocsUrl()));
 		
-		@ActionDescription("Open the QuPath demo videos and tutorials.")
-		@ActionMenu("YouTube channel (web)")
+		@ActionDescription("KEY:Menu.Help.description.video")
+		@ActionMenu("KEY:Menu.Help.name.video")
 		public final Action DEMOS = createAction(() -> QuPathGUI.openInBrowser(Urls.getYouTubeUrl()));
 
-		@ActionDescription("Check online for an updated QuPath release.")
-		@ActionMenu("Check for updates (web)")
+		@ActionDescription("KEY:Menu.Help.description.updates")
+		@ActionMenu("KEY:Menu.Help.name.updates")
 		public final Action UPDATE = createAction(() -> qupath.requestFullUpdateCheck());
 
 		public final Action SEP_2 = ActionTools.createSeparator();
 		
-		@ActionDescription("Please cite the QuPath publication if you use the software! " +
-				"\nThis command opens a web page to show how.")
-		@ActionMenu("Cite QuPath (web)")
+		@ActionDescription("KEY:Menu.Help.description.cite")
+		@ActionMenu("KEY:Menu.Help.name.cite")
 		public final Action CITE = createAction(() -> QuPathGUI.openInBrowser(Urls.getCitationUrl()));
 		
-		@ActionDescription("Report a bug. Please follow the template and do not use this for general questions!")
-		@ActionMenu("Report bug (web)")
+		@ActionDescription("KEY:Menu.Help.description.issues")
+		@ActionMenu("KEY:Menu.Help.name.issues")
 		public final Action BUGS = createAction(() -> QuPathGUI.openInBrowser(Urls.getGitHubIssuesUrl()));
 		
-		@ActionDescription("Visit the user forum. This is the place to ask questions (and give answers).")
-		@ActionMenu("View user forum (web)")
+		@ActionDescription("KEY:Menu.Help.description.forum")
+		@ActionMenu("KEY:Menu.Help.name.forum")
 		public final Action FORUM = createAction(() -> QuPathGUI.openInBrowser(Urls.getUserForumUrl()));
 		
-		@ActionDescription("View the QuPath source code online.")
-		@ActionMenu("View source code (web)")
+		@ActionDescription("KEY:Menu.Help.description.source")
+		@ActionMenu("KEY:Menu.Help.name.source")
 		public final Action SOURCE = createAction(() -> QuPathGUI.openInBrowser(Urls.getGitHubRepoUrl()));
 
 		public final Action SEP_3 = ActionTools.createSeparator();
 
-		@ActionDescription("View license information for QuPath and its third-party dependencies.")
-		@ActionMenu("License")
+		@ActionDescription("KEY:Menu.Help.description.license")
+		@ActionMenu("KEY:Menu.Help.name.license")
 		public final Action LICENSE = Commands.createSingleStageAction(() -> Commands.createLicensesWindow(qupath));
 		
-		@ActionDescription("View system information.")
-		@ActionMenu("System info")
+		@ActionDescription("KEY:Menu.Help.description.systemInfo")
+		@ActionMenu("KEY:Menu.Help.name.systemInfo")
 		public final Action INFO = Commands.createSingleStageAction(() -> Commands.createShowSystemInfoDialog(qupath));
-				
+						
 	}
 
 }

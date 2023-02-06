@@ -30,6 +30,7 @@ import qupath.lib.gui.SelectableItem;
 import qupath.lib.gui.ActionTools.ActionAccelerator;
 import qupath.lib.gui.ActionTools.ActionDescription;
 import qupath.lib.gui.ActionTools.ActionIcon;
+import qupath.lib.gui.ActionTools.ActionMenu;
 import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.tools.IconFactory.PathIcons;
 import qupath.lib.gui.viewer.OverlayOptions;
@@ -108,6 +109,9 @@ public class OverlayActions {
 	@ActionDescription("KEY:OverlayActions.description.fillDetections")
 	public final Action FILL_DETECTIONS;
 	
+	@ActionDescription("KEY:OverlayActions.description.showConnections")
+	public final Action SHOW_CONNECTIONS;
+	
 	private OverlayOptions overlayOptions;
 	
 	public OverlayActions(OverlayOptions overlayOptions) {
@@ -132,6 +136,8 @@ public class OverlayActions {
 		SHOW_CELL_NUCLEI = ActionTools.createSelectableCommandAction(new SelectableItem<>(overlayOptions.detectionDisplayModeProperty(), DetectionDisplayMode.NUCLEI_ONLY), getName("showCellNuclei"));
 		SHOW_CELL_BOUNDARIES_AND_NUCLEI = ActionTools.createSelectableCommandAction(new SelectableItem<>(overlayOptions.detectionDisplayModeProperty(), DetectionDisplayMode.NUCLEI_AND_BOUNDARIES), getName("showCellBoth"));
 		SHOW_CELL_CENTROIDS = ActionTools.createSelectableCommandAction(new SelectableItem<>(overlayOptions.detectionDisplayModeProperty(), DetectionDisplayMode.CENTROIDS), getName("showCellCentroids"));
+		
+		SHOW_CONNECTIONS = ActionTools.createSelectableAction(overlayOptions.showConnectionsProperty(), getName("showConnections"));
 		
 		ActionTools.getAnnotatedActions(this);
 	}
