@@ -120,72 +120,60 @@ class Menus {
 	@ActionMenu("KEY:Menu.Edit.name")
 	public class EditMenuManager {
 		
-		@ActionMenu("Undo")
 		@ActionAccelerator("shortcut+z")
-		@ActionDescription("Undo the last action for the current viewer. " +
-				"Note QuPath's undo is limited, and turns itself off (for performance reasons) when many objects are present. " +
-				"The limit can be adjusted in the preferences.")
 		public final Action UNDO;
 		
-		@ActionMenu("Redo")
 		@ActionAccelerator("shortcut+shift+z")
-		@ActionDescription("Redo the last action for the current viewer.")
+		@ActionMenu("KEY:Menu.Edit.name.redo")
+		@ActionDescription("KEY:Menu.Edit.description.redo")
 		public final Action REDO;
 		
 		public final Action SEP_0 = ActionTools.createSeparator();
 
-		// Copy actions
-
-		@ActionMenu("Copy to clipboard...>Selected objects")
-		@ActionDescription("Copy the selected objects to the system clipboard as GeoJSON.")
+		@ActionMenu("KEY:Menu.Edit.Copy.name.selectedObjects")
+		@ActionDescription("KEY:Menu.Edit.Copy.description.selectedObjects")
 //		@ActionAccelerator("shortcut+c")
 		public final Action COPY_SELECTED_OBJECTS = qupath.createImageDataAction(imageData -> Commands.copySelectedObjectsToClipboard(imageData));
 
-		@ActionMenu("Copy to clipboard...>Annotation objects")
-		@ActionDescription("Copy all annotation objects to the system clipboard as GeoJSON.")
+		@ActionMenu("KEY:Menu.Edit.Copy.name.annotationObjects")
+		@ActionDescription("KEY:Menu.Edit.Copy.description.annotationObjects")
 		public final Action COPY_ANNOTATION_OBJECTS = qupath.createImageDataAction(imageData -> Commands.copyAnnotationsToClipboard(imageData));
 
-		@ActionMenu("Copy to clipboard...>")
+		@ActionMenu("KEY:Menu.Edit.Copy.name")
 		public final Action SEP_00 = ActionTools.createSeparator();
 
-		@ActionMenu("Copy to clipboard...>Current viewer")
-		@ActionDescription("Copy the contents of the current viewer to the clipboard. " + 
-				"Note that this creates an RGB image, which does not necessarily contain the original pixel values.")
+		@ActionMenu("KEY:Menu.Edit.Copy.name.currentViewer")
+		@ActionDescription("KEY:Menu.Edit.Copy.description.currentViewer")
 		public final Action COPY_VIEW = createAction(() -> copyViewToClipboard(qupath, GuiTools.SnapshotType.VIEWER));
 		
-		@ActionDescription("Copy the contents of the main QuPath window to the clipboard. " + 
-				"This ignores any additional overlapping windows and dialog boxes.")
-		@ActionMenu("Copy to clipboard...>Main window content")
+		@ActionMenu("KEY:Menu.Edit.Copy.name.mainWindowContent")
+		@ActionDescription("KEY:Menu.Edit.Copy.description.mainWindowContent")
 		public final Action COPY_WINDOW = createAction(() -> copyViewToClipboard(qupath, GuiTools.SnapshotType.MAIN_SCENE));
 		
-		@ActionDescription("Copy the area of the screen corresponding to the main QuPath window to the clipboard. " + 
-				"This includes any additional overlapping windows and dialog boxes.")
-		@ActionMenu("Copy to clipboard...>Main window screenshot")
+		@ActionMenu("KEY:Menu.Edit.Copy.name.mainWindowScreenshot")
+		@ActionDescription("KEY:Menu.Edit.Copy.description.mainWindowScreenshot")
 		public final Action COPY_WINDOW_SCREENSHOT = createAction(() -> copyViewToClipboard(qupath, GuiTools.SnapshotType.MAIN_WINDOW_SCREENSHOT));			
 		
-		@ActionDescription("Make a screenshot and copy it to the clipboard.")
-		@ActionMenu("Copy to clipboard...>Full screenshot")
+		@ActionMenu("KEY:Menu.Edit.Copy.name.fullScreenshot")
+		@ActionDescription("KEY:Menu.Edit.Copy.description.fullScreenshot")
 		public final Action COPY_FULL_SCREENSHOT = createAction(() -> copyViewToClipboard(qupath, GuiTools.SnapshotType.FULL_SCREENSHOT));
 
 		
-		@ActionMenu("Paste")
-		@ActionDescription("Paste the contents of the system clipboard, if possible.\n" + 
-				"If the clipboard contents are GeoJSON objects, the objects will be pasted to the current image. "
-				+ "Otherwise, any text found will be shown in a the script editor.")
+		@ActionMenu("KEY:Menu.Edit.name.paste")
+		@ActionDescription("KEY:Menu.Edit.description.paste")
 //		@ActionAccelerator("shortcut+v") // No shortcut because it gets fired too often
 		public final Action PASTE = createAction(() -> Commands.pasteFromClipboard(qupath, false));
 
-		@ActionMenu("Paste objects to current plane")
-		@ActionDescription("Paste GeoJSON objects from the system clipboard to the current z-slice and timepoint, if possible.\n" + 
-				"New object IDs will be generated if needed to avoid duplicates.")
+		@ActionMenu("KEY:Menu.Edit.name.pasteToCurrentPlane")
+		@ActionDescription("KEY:Menu.Edit.description.pasteToCurrentPlane")
 		public final Action PASTE_TO_PLANE = createAction(() -> Commands.pasteFromClipboard(qupath, true));
 		
 		public final Action SEP_1 = ActionTools.createSeparator();
 		
 		public final Action PREFERENCES = defaultActions.PREFERENCES;
 		
-		@ActionMenu("Reset preferences")
-		@ActionDescription("Reset preferences to their default values - this can be useful if you are experiencing any newly-developed persistent problems with QuPath.")
+		@ActionMenu("KEY:Menu.Edit.name.resetPreferences")
+		@ActionDescription("KEY:Menu.Edit.description.resetPreferences")
 		public final Action RESET_PREFERENCES = createAction(() -> Commands.promptToResetPreferences());
 
 		
@@ -266,9 +254,6 @@ class Menus {
 		@ActionMenu("Calculate features>Add shape features")
 		public final Action SHAPE_FEATURES = qupath.createImageDataAction(imageData -> Commands.promptToAddShapeFeatures(qupath));
 
-//		@Deprecated
-//		public final Action SHAPE_FEATURES = qupath.createPluginAction("Add shape features", ShapeFeaturesPlugin.class, null);
-
 		@ActionDescription("Calculate distances between detection centroids and the closest annotation for each classification, using zero if the centroid is inside the annotation. " +
 				"For example, this may be used to identify the distance of every cell from 'bigger' region that has been annotated (e.g. an area of tumor, a blood vessel).")
 		@ActionMenu("Spatial analysis>Distance to annotations 2D")
@@ -309,31 +294,31 @@ class Menus {
 		
 		@ActionDescription("Create a new project. " + 
 				"Usually it's easier just to drag an empty folder onto QuPath to create a project, rather than navigate these menus.")
-		@ActionMenu("Project...>Create project")
+		@ActionMenu("KEY:Menu.File.Project.name.createProject")
 		public final Action PROJECT_NEW = createAction(() -> Commands.promptToCreateProject(qupath));
 		
 		@ActionDescription("Open an existing project. " +
 				"Usually it's easier just to drag a project folder onto QuPath to open it, rather than bother with this command.")
-		@ActionMenu("Project...>Open project")
+		@ActionMenu("KEY:Menu.File.Project.name.openProject")
 		public final Action PROJECT_OPEN = createAction(() -> Commands.promptToOpenProject(qupath));
 		
 		@ActionDescription("Close the current project, including any images that are open.")
-		@ActionMenu("Project...>Close project")
+		@ActionMenu("KEY:Menu.File.Project.name.closeProject")
 		public final Action PROJECT_CLOSE = qupath.createProjectAction(project -> Commands.closeProject(qupath));
 		
-		@ActionMenu("Project...>")
+		@ActionMenu("KEY:Menu.File.Project.name")
 		public final Action SEP_1 = ActionTools.createSeparator();
 
 		@ActionDescription("Add images to the current project. " +
 				"You can also add images by dragging files onto the main QuPath window.")
-		@ActionMenu("Project...>Add images")
+		@ActionMenu("KEY:Menu.File.Project.name.addImages")
 		public final Action IMPORT_IMAGES = qupath.createProjectAction(project -> ProjectCommands.promptToImportImages(qupath));
 
 		@ActionDescription("Export a list of the image paths for images in the current project.")
 		@ActionMenu("Project...>Export image list")
 		public final Action EXPORT_IMAGE_LIST = qupath.createProjectAction(project -> ProjectCommands.promptToExportImageList(project));	
 		
-		@ActionMenu("Project...>")
+		@ActionMenu("KEY:Menu.File.Project.name")
 		public final Action SEP_2 = ActionTools.createSeparator();
 
 		@ActionDescription("Edit the metadata for the current project. " + 

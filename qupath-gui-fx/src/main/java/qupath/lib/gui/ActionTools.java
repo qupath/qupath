@@ -458,7 +458,7 @@ public class ActionTools {
 	private static void parseMenu(Action action, ActionMenu annotation, String baseMenu) {
 		String menuString = baseMenu == null || baseMenu.isBlank() ? "" : baseMenu + ">";
 		if (annotation != null)
-			menuString += annotation.value();
+			menuString += getStringOrReadResource(annotation.value());
 		if (menuString.isEmpty())
 			return;
 		var ind = menuString.lastIndexOf(">");
