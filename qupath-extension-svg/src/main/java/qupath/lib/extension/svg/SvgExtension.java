@@ -23,8 +23,8 @@ package qupath.lib.extension.svg;
 
 import qupath.lib.common.Version;
 import qupath.lib.extension.svg.SvgExportCommand.SvgExportType;
-import qupath.lib.gui.ActionTools;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.actions.ActionTools;
 import qupath.lib.gui.extensions.QuPathExtension;
 import qupath.lib.gui.tools.MenuTools;
 

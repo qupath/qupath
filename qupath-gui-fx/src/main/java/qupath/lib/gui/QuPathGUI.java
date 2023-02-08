@@ -107,9 +107,11 @@ import javafx.stage.WindowEvent;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.Timeit;
 import qupath.lib.common.Version;
+import qupath.lib.gui.actions.ActionTools;
 import qupath.lib.gui.actions.DefaultActions;
 import qupath.lib.gui.actions.OverlayActions;
 import qupath.lib.gui.actions.ViewerActions;
+import qupath.lib.gui.actions.menus.Menus;
 import qupath.lib.gui.commands.InputDisplayCommand;
 import qupath.lib.gui.commands.LogViewerCommand;
 import qupath.lib.gui.commands.ProjectCommands;
@@ -2035,7 +2037,7 @@ public class QuPathGUI {
 	/**
 	 * Request to quit QuPath.
 	 */
-	void sendQuitRequest() {
+	public void sendQuitRequest() {
 		var stage = getStage();
 		if (stage == null || !stage.isShowing())
 			return;
@@ -2641,7 +2643,7 @@ public class QuPathGUI {
 	 * @param command the command to run
 	 * @return an {@link Action} with appropriate properties set
 	 */
-	Action createViewerAction(Consumer<QuPathViewer> command) {
+	public Action createViewerAction(Consumer<QuPathViewer> command) {
 		var action = new Action(e -> {
 			var viewer = getViewer();
 			if (viewer == null)

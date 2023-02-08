@@ -89,8 +89,8 @@ import javafx.stage.Popup;
 import javafx.stage.Stage;
 import javafx.stage.Window;
 import javafx.util.Duration;
-import qupath.lib.gui.ActionTools;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.actions.ActionTools;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.QuPathViewerPlus;
 

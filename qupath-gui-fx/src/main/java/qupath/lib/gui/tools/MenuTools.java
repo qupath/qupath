@@ -32,7 +32,7 @@ import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.SeparatorMenuItem;
-import qupath.lib.gui.ActionTools;
+import qupath.lib.gui.actions.ActionTools;
 
 /**
  * Static methods to help with creating and populating JavaFX menus.

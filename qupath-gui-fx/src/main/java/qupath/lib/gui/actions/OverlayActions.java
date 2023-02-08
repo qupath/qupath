@@ -24,13 +24,11 @@ package qupath.lib.gui.actions;
 
 import org.controlsfx.control.action.Action;
 
-import qupath.lib.gui.ActionTools;
 import qupath.lib.gui.QuPathResources;
 import qupath.lib.gui.SelectableItem;
-import qupath.lib.gui.ActionTools.ActionAccelerator;
-import qupath.lib.gui.ActionTools.ActionDescription;
-import qupath.lib.gui.ActionTools.ActionIcon;
-import qupath.lib.gui.ActionTools.ActionMenu;
+import qupath.lib.gui.actions.ActionTools.ActionAccelerator;
+import qupath.lib.gui.actions.ActionTools.ActionDescription;
+import qupath.lib.gui.actions.ActionTools.ActionIcon;
 import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.tools.IconFactory.PathIcons;
 import qupath.lib.gui.viewer.OverlayOptions;
