@@ -32,8 +32,6 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -208,7 +206,7 @@ public class DnnModelParams {
 		 * @return
 		 */
 		public Builder files(File... files) {
-			return URIs(Arrays.stream(files).map(f -> f.toPath().toUri()).collect(Collectors.toList()));
+			return URIs(Arrays.stream(files).map(f -> f.toPath().toUri()).toList());
 		}
 		
 		/**
@@ -217,7 +215,7 @@ public class DnnModelParams {
 		 * @return
 		 */
 		public Builder paths(Path... paths) {
-			return URIs(Arrays.stream(paths).map(p -> p.toUri()).collect(Collectors.toList()));
+			return URIs(Arrays.stream(paths).map(p -> p.toUri()).toList());
 		}
 		
 		/**

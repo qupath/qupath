@@ -24,8 +24,6 @@ package qupath.lib.gui.tools;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.stream.Collectors;
-
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.control.Control;
@@ -371,7 +369,7 @@ public class PaneTools {
 		return getContents(parent, new ArrayList<>(), doRecursive).stream()
 				.filter(p -> cls.isInstance(p))
 				.map(p -> cls.cast(p))
-				.collect(Collectors.toList());
+				.toList();
 	}
 	
 	

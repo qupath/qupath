@@ -615,7 +615,7 @@ public final class GeneralTools {
 	}
 	
 	/**
-	 * Small Green mu (useful for micrometers)
+	 * Small Greek mu (useful for micrometers)
 	 */
 	public static final char SYMBOL_MU = '\u00B5';
 
@@ -899,7 +899,7 @@ public final class GeneralTools {
 	public static <T> void smartStringSort(Collection<T> collection, Function<T, String> extractor) {
 //		for (var temp : collection)
 //			System.err.println(new StringPartsSorter<T>(temp, temp.toString()));
-		var list = collection.stream().map(c -> new StringPartsSorter<>(c, extractor.apply(c))).sorted().map(s -> s.obj).collect(Collectors.toList());
+		var list = collection.stream().map(c -> new StringPartsSorter<>(c, extractor.apply(c))).sorted().map(s -> s.obj).toList();
 		collection.clear();
 		collection.addAll(list);
 	}

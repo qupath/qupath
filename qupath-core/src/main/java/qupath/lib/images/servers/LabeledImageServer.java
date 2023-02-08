@@ -187,7 +187,7 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 			var channels = ServerTools.classificationLabelsToChannels(classificationLabels, false);
 			// It's a bit sad... but if we want grayscale output, we need to set the channels here
 			if (params.grayscaleLut)
-				channels = channels.stream().map(c -> ImageChannel.getInstance(c.getName(), ColorTools.WHITE)).collect(Collectors.toList());
+				channels = channels.stream().map(c -> ImageChannel.getInstance(c.getName(), ColorTools.WHITE)).toList();
 			metadataBuilder = metadataBuilder
 					.channelType(ChannelType.MULTICLASS_PROBABILITY)
 					.channels(channels)
@@ -836,7 +836,7 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 		return hierarchy.getObjectsForRegion(null, region, null).stream()
 				.filter(params.objectFilter)
 				.filter(p -> params.createInstanceLabels || params.labels.containsKey(p.getPathClass()) || params.boundaryLabels.containsKey(p.getPathClass()))
-				.collect(Collectors.toList());
+				.toList();
 	}
 	
 	@Override
@@ -875,7 +875,7 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 		var pathObjects = hierarchy.getObjectsForRegion(null, tileRequest.getRegionRequest(), null)
 				.stream()
 				.filter(params.objectFilter)
-				.collect(Collectors.toList());
+				.toList();
 		BufferedImage img;
 		if (multichannelOutput) {
 			img = createMultichannelTile(tileRequest, pathObjects);
@@ -1034,7 +1034,7 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 					toDraw = pathObjects
 									.stream()
 									.filter(p -> getPathClass(p) == pathClass)
-									.collect(Collectors.toList());
+									.toList();
 				
 				for (var pathObject : toDraw) {
 					var roi = params.roiFunction.apply(pathObject);

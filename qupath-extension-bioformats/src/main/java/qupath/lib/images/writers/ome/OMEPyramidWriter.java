@@ -808,7 +808,7 @@ public class OMEPyramidWriter {
 											}
 										}
 									}
-								}).collect(Collectors.toList());
+								}).toList();
 								
 								if (parallelThreads > 1) {
 									var pool = Executors.newWorkStealingPool(parallelThreads);

@@ -275,7 +275,7 @@ public class PatchClassifierParams {
 			return inputChannels(Arrays
 						.stream(channels)
 						.map(c -> ColorTransforms.createChannelExtractor(c))
-						.collect(Collectors.toList()));
+						.toList());
 		}
 		
 		/**
@@ -288,7 +288,7 @@ public class PatchClassifierParams {
 			return inputChannels(Arrays
 						.stream(channels)
 						.mapToObj(c -> ColorTransforms.createChannelExtractor(c))
-						.collect(Collectors.toList()));
+						.toList());
 		}
 		
 		/**

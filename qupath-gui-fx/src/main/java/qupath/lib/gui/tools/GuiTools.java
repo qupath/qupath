@@ -45,8 +45,6 @@ import java.util.function.Function;
 import java.util.function.UnaryOperator;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
-
 import javax.swing.SwingUtilities;
 
 import org.controlsfx.control.CheckComboBox;
@@ -645,7 +643,7 @@ public class GuiTools {
 		// Get all non-TMA core objects
 		PathObjectHierarchy hierarchy = imageData.getHierarchy();
 		Collection<PathObject> selectedRaw = hierarchy.getSelectionModel().getSelectedObjects();
-		List<PathObject> selected = selectedRaw.stream().filter(p -> !(p instanceof TMACoreObject)).collect(Collectors.toList());
+		List<PathObject> selected = selectedRaw.stream().filter(p -> !(p instanceof TMACoreObject)).toList();
 	
 		if (selected.isEmpty()) {
 			if (selectedRaw.size() > selected.size())
@@ -955,7 +953,7 @@ public class GuiTools {
 		Collection<PathAnnotationObject> otherAnnotations = hierarchy.getSelectionModel().getSelectedObjects().stream()
 				.filter(p -> p.isAnnotation() && p != currentObject)
 				.map(p -> (PathAnnotationObject)p)
-				.collect(Collectors.toList());
+				.toList();
 		
 		if (promptToSetAnnotationProperties((PathAnnotationObject)currentObject, otherAnnotations)) {
 			hierarchy.fireObjectsChangedEvent(null, Collections.singleton(currentObject));
@@ -1216,7 +1214,7 @@ public class GuiTools {
 				.getSelectedObjects()
 				.stream()
 				.filter(p -> p.isAnnotation())
-				.collect(Collectors.toList());
+				.toList();
 		if (setToLocked)
 			PathObjectTools.lockObjects(imageData.getHierarchy(), selectedAnnotations);
 		else

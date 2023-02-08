@@ -254,7 +254,7 @@ public class DensityMapUI {
 			// Sometimes we use the
 			boolean countsFromSameBand = countBand < 0;
 			int nBands = server.nChannels();
-			List<MinMax> results = IntStream.range(0, nBands).mapToObj(i -> new MinMax()).collect(Collectors.toList());
+			List<MinMax> results = IntStream.range(0, nBands).mapToObj(i -> new MinMax()).toList();
 			float[] pixels = null;
 			float[] countPixels = null;
 			for (var img : tiles.values()) {
@@ -986,16 +986,16 @@ public class DensityMapUI {
 		
 		var actionHotspots = createDensityMapAction("Find hotspots", imageData, builder, densityMapName, disableButtons, new HotspotFinder(qupath, overlay),
 				"Find the hotspots in the density map with highest values");
-		var btnHotspots = ActionTools.createButton(actionHotspots, false);
+		var btnHotspots = ActionTools.createButton(actionHotspots);
 
 		// TODO: Don't provide QuPath in this way...
 		var actionThreshold = createDensityMapAction("Threshold", imageData, builder, densityMapName, disableButtons, new ContourTracer(qupath, overlay),
 				"Threshold to identify high-density regions");
-		var btnThreshold = ActionTools.createButton(actionThreshold, false);
+		var btnThreshold = ActionTools.createButton(actionThreshold);
 
 		var actionExport = createDensityMapAction("Export map", imageData, builder, densityMapName, disableButtons, new DensityMapExporter(qupath, overlay),
 				"Export the density map as an image");
-		var btnExport = ActionTools.createButton(actionExport, false);
+		var btnExport = ActionTools.createButton(actionExport);
 
 		var buttonPane = PaneTools.createColumnGrid(btnHotspots, btnThreshold, btnExport);
 //		buttonPane.setHgap(hGap);

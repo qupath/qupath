@@ -40,6 +40,11 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.scene.input.KeyCodeCombination;
+import qupath.lib.gui.ActionTools.ActionAccelerator;
+import qupath.lib.gui.ActionTools.ActionDescription;
+import qupath.lib.gui.ActionTools.ActionIcon;
+import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.tools.IconFactory.PathIcons;
 import qupath.lib.gui.viewer.tools.PathTool;
 import qupath.lib.gui.viewer.tools.PathTools;
 
@@ -60,13 +65,56 @@ public class ToolManager {
 			PathTools.POLYGON, PathTools.POLYLINE, PathTools.BRUSH, PathTools.POINTS
 			);
 	
+	private ObservableList<PathTool> unmodifiableTools = FXCollections.unmodifiableObservableList(tools);
+	
 	private BooleanProperty lockSelectedToolProperty = new SimpleBooleanProperty(false);
 
 	private Map<PathTool, Action> toolActions = new HashMap<>();
 	
 	private ObjectProperty<PathTool> previousSelectedToolProperty = new SimpleObjectProperty<>(PathTools.MOVE);
 
-	private ToolManager() {}
+	@ActionAccelerator("m")
+	@ActionDescription("KEY:Tools.description.move")
+	public final Action MOVE_TOOL = getToolAction(PathTools.MOVE);
+	
+	@ActionAccelerator("r")
+	@ActionDescription("KEY:Tools.description.rectangle")
+	public final Action RECTANGLE_TOOL = getToolAction(PathTools.RECTANGLE);
+	
+	@ActionAccelerator("o")
+	@ActionDescription("KEY:Tools.description.ellipse")
+	public final Action ELLIPSE_TOOL = getToolAction(PathTools.ELLIPSE);
+	
+	@ActionAccelerator("p")
+	@ActionDescription("KEY:Tools.description.polygon")
+	public final Action POLYGON_TOOL = getToolAction(PathTools.POLYGON);
+	
+	@ActionAccelerator("v")
+	@ActionDescription("KEY:Tools.description.polyline")
+	public final Action POLYLINE_TOOL = getToolAction(PathTools.POLYLINE);
+	
+	@ActionAccelerator("b")
+	@ActionDescription("KEY:Tools.description.brush")
+	public final Action BRUSH_TOOL = getToolAction(PathTools.BRUSH);
+	
+	@ActionAccelerator("l")
+	@ActionDescription("KEY:Tools.description.line")
+	public final Action LINE_TOOL = getToolAction(PathTools.LINE_OR_ARROW);
+	
+	@ActionAccelerator(".")
+	@ActionDescription("KEY:Tools.description.points")
+	public final Action POINTS_TOOL = getToolAction(PathTools.POINTS);
+	
+	@ActionAccelerator("shift+s")
+	@ActionIcon(PathIcons.SELECTION_MODE)
+	@ActionDescription("KEY:Tools.description.selectionMode")
+	public final Action SELECTION_MODE = ActionTools.createSelectableAction(PathPrefs.selectionModeProperty(), "Selection mode");
+	
+	
+	private ToolManager() {
+		// This applies descriptions and shortcuts
+		ActionTools.getAnnotatedActions(this);
+	}
 	
 	/**
 	 * Create a new instance
@@ -83,7 +131,7 @@ public class ToolManager {
 	 * @return
 	 */
 	public ObservableList<PathTool> getTools() {
-		return FXCollections.unmodifiableObservableList(tools);
+		return unmodifiableTools;
 	}
 	
 	/**
@@ -204,6 +252,18 @@ public class ToolManager {
 		}
 		return action;
 	}
+	
+	
+	/**
+	 * Return the action associated with 'selection mode'.
+	 * This can be used to create UI components that toggle selection mode on and off.
+	 * @return
+	 * @see PathPrefs#selectionModeProperty()
+	 */
+	public Action getSelectionModeAction() {
+		return SELECTION_MODE;
+	}
+	
 	
 	private Action createToolAction(final PathTool tool) {
 		  var action = ActionTools.createSelectableCommandAction(new SelectableItem<>(selectedToolProperty, tool), tool.nameProperty(), tool.iconProperty(), null);

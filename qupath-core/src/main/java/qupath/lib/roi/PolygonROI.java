@@ -29,8 +29,6 @@ import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
 import java.util.List;
-import java.util.stream.Collectors;
-
 import org.locationtech.jts.geom.Geometry;
 
 import qupath.lib.common.GeneralTools;
@@ -204,7 +202,7 @@ public class PolygonROI extends AbstractPathROI implements Serializable {
 	@Override
 	public ROI scale(double scaleX, double scaleY, double originX, double originY) {
 		return new PolygonROI(
-				getAllPoints().stream().map(p -> RoiTools.scalePoint(p, scaleX, scaleY, originX, originY)).collect(Collectors.toList()),
+				getAllPoints().stream().map(p -> RoiTools.scalePoint(p, scaleX, scaleY, originX, originY)).toList(),
 				getImagePlane());
 	}
 	

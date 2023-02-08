@@ -139,14 +139,14 @@ public class DefaultAutoCompletor implements ScriptAutoCompletor {
 					.stream()
 					.filter(e -> e.isCompatible(text, pos, tokenMap.getOrDefault(e, null)))
 //					.sorted()
-					.collect(Collectors.toList());
+					.toList();
 		else
 			// Use only partial completions (methods, classes) if no dot
 			completions = allCompletions
 			.stream()
 			.filter(s -> s.isCompatible(text, pos, tokenMap.getOrDefault(s, null)) && (!s.getCompletionText().contains(".") || s.getCompletionText().lastIndexOf(".") == s.getCompletionText().length()-1))
 //			.sorted()
-			.collect(Collectors.toList());
+			.toList();
 		
 		// Add a new class if needed
 		// (Note this doesn't entirely work... since it doesn't handle the full class name later)

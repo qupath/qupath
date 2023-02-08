@@ -245,7 +245,7 @@ public class ProjectDialogs {
 			if (indSplit >= 0) {
 				filterTokens = Arrays.stream(filterText.split("\\|"))
 						.filter(t -> !t.isBlank())
-						.collect(Collectors.toList());
+						.toList();
 			} else {
 				filterTokens = Collections.emptyList();
 			}
@@ -270,7 +270,7 @@ public class ProjectDialogs {
 					.stream()
 					.map(e -> e.getKey() + "=" + e.getValue())
 					.map(t -> ignoreCase ? t.toLowerCase() : t)
-					.collect(Collectors.toList());
+					.toList();
 				for (var token : filterTokens) {
 					boolean foundMatch = imageName.contains(token);
 					if (!foundMatch) {

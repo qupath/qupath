@@ -34,8 +34,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Predicate;
-import java.util.stream.Collectors;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -1132,7 +1130,7 @@ public class BrightnessContrastCommand implements Runnable, ChangeListener<Image
 		 * @param event
 		 */
 		void doCopy(KeyEvent event) {
-			var names = table.getSelectionModel().getSelectedItems().stream().map(c -> c.getName()).collect(Collectors.toList());
+			var names = table.getSelectionModel().getSelectedItems().stream().map(c -> c.getName()).toList();
 			var clipboard = Clipboard.getSystemClipboard();
 			var content = new ClipboardContent();
 			content.putString(String.join(System.lineSeparator(), names));
@@ -1156,7 +1154,7 @@ public class BrightnessContrastCommand implements Runnable, ChangeListener<Image
 			if (server.isRGB()) {
 				logger.warn("Cannot set channel names for RGB images");
 			}
-			var names = string.lines().collect(Collectors.toList());
+			var names = string.lines().toList();
 			if (selected.size() != names.size()) {
 				Dialogs.showErrorNotification("Paste channel names", "The number of lines on the clipboard doesn't match the number of channel names to replace!");
 				return;
@@ -1180,7 +1178,7 @@ public class BrightnessContrastCommand implements Runnable, ChangeListener<Image
 				changes.add(oldChannel.getName() + " -> " + newChannel.getName());
 				channels.set(c, newChannel);
 			}
-			List<String> allNewNames = channels.stream().map(c -> c.getName()).collect(Collectors.toList());
+			List<String> allNewNames = channels.stream().map(c -> c.getName()).toList();
 			Set<String> allNewNamesSet = new LinkedHashSet<>(allNewNames);
 			if (allNewNames.size() != allNewNamesSet.size()) {
 				Dialogs.showErrorMessage("Channel", "Cannot paste channels - names would not be unique \n(check log for details)");

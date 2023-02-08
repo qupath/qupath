@@ -30,8 +30,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
-
 import org.controlsfx.control.action.Action;
 import org.controlsfx.control.action.ActionUtils;
 
@@ -107,7 +105,7 @@ class CountingPane implements PathObjectSelectionListener, PathObjectHierarchyLi
 		var availableClasses = qupath.getAvailablePathClasses()
 				.stream()
 				.filter(p -> p != null && p != PathClass.NULL_CLASS)
-				.collect(Collectors.toList());
+				.toList();
 		if (hierarchy == null || availableClasses.isEmpty())
 			return;
 		var plane = viewer.getImagePlane();
@@ -169,7 +167,7 @@ class CountingPane implements PathObjectSelectionListener, PathObjectHierarchyLi
 			menuSetClass.getItems().setAll(
 					qupath.getAvailablePathClasses().stream()
 					.map(p -> createPathClassMenuItem(p))
-					.collect(Collectors.toList()));
+					.toList());
 		});
 		MenuItem miCopy = new MenuItem("Copy to clipboard");
 		miCopy.setOnAction(e -> {

@@ -36,8 +36,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
-import java.util.stream.Collectors;
-
 import org.bytedeco.opencv.opencv_core.Point2f;
 import org.bytedeco.opencv.opencv_core.Rect;
 import org.bytedeco.opencv.opencv_imgproc.Subdiv2D;
@@ -107,7 +105,7 @@ public class DelaunayTriangulation implements PathObjectConnectionGroup {
 		DelaunayNode node = nodeMap.get(pathObject);
 		if (node == null)
 			return Collections.emptyList();
-		return node.getNodeList().stream().map(n -> n.getPathObject()).collect(Collectors.toList());
+		return node.getNodeList().stream().map(n -> n.getPathObject()).toList();
 	}
 	
 	

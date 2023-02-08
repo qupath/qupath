@@ -550,7 +550,7 @@ public final class PathClass implements Comparable<PathClass>, Serializable {
 	public static PathClass fromString(String string, Integer color) {
 		if (string == null)
 			return NULL_CLASS;
-		var names = Arrays.stream(string.split(DELIMITER)).map(s -> s.strip()).collect(Collectors.toList());
+		var names = Arrays.stream(string.split(DELIMITER)).map(s -> s.strip()).toList();
 		return fromCollection(names, color);
 	}
 

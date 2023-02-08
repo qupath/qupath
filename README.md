@@ -28,7 +28,7 @@ To **build QuPath from source** see [here](https://qupath.readthedocs.io/en/late
 **If you find QuPath useful in work that you publish, please [_cite the publication_](https://qupath.readthedocs.io/en/latest/docs/intro/citing.html)!**
 
 *QuPath is an academic project intended for research use only.*
-*The software has been made freely available under the terms of the [GPLv3](https://github.com/qupath/qupath/blob/master/LICENSE.md) in the hope it is useful for this purpose, and to make analysis methods open and transparent.*
+*The software has been made freely available under the terms of the [GPLv3](https://github.com/qupath/qupath/blob/main/LICENSE) in the hope it is useful for this purpose, and to make analysis methods open and transparent.*
 
 
 ## Development & support

@@ -242,7 +242,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 			if (pos < text.length())
 				text = text.substring(0, pos);
 			text = text + " ";
-			var lines = text.lines().collect(Collectors.toList());
+			var lines = text.lines().toList();
 			lineNumber = lines.size();
 			col = lines.get(lines.size()-1).length();
 			if (col == 0)
@@ -914,7 +914,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	private Pane createRunPane() {
 		var paneRun = new GridPane();
 		
-		var btnRun = ActionTools.createButton(runScriptAction, false);
+		var btnRun = ActionTools.createButton(runScriptAction);
 		btnRun.setPadding(new Insets(0, 20, 0, 20));
 		
 		var popup = new ContextMenu(

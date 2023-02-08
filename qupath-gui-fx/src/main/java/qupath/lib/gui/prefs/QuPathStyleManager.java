@@ -42,8 +42,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ThreadFactory;
-import java.util.stream.Collectors;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -697,7 +695,7 @@ public class QuPathStyleManager {
 						.filter(p -> Files.isRegularFile(p) && p.getFileName().toString().toLowerCase().endsWith(".css"))
 						.map(path -> new CustomStylesheet(path))
 						.sorted(Comparator.comparing(StyleOption::getName))
-						.collect(Collectors.toList());
+						.toList();
 					GuiTools.runOnApplicationThread(() -> styles.setAll(newStyles));
 					return;
 				}

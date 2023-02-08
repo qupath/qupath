@@ -30,8 +30,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
-
 import qupath.lib.color.ColorModelFactory;
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.images.servers.ImageServers.ConcatChannelsImageServerBuilder;
@@ -75,7 +73,7 @@ class ConcatChannelsImageServer extends TransformingImageServer<BufferedImage> {
 			channels.addAll(s.getMetadata().getChannels());
 		
 		originalMetadata = new ImageServerMetadata.Builder(server.getMetadata())
-//				.path("Merged channels ["+String.join(", ", allServers.stream().map(s -> s.getPath()).collect(Collectors.toList())) + "]")
+//				.path("Merged channels ["+String.join(", ", allServers.stream().map(s -> s.getPath()).toList()) + "]")
 				.rgb(server.getMetadata().isRGB() && allServers.size() == 1)
 				.channels(channels)
 				.build();
@@ -166,7 +164,7 @@ class ConcatChannelsImageServer extends TransformingImageServer<BufferedImage> {
 		return new ConcatChannelsImageServerBuilder(
 				getMetadata(),
 				getWrappedServer().getBuilder(),
-				allServers.stream().map(s -> s.getBuilder()).collect(Collectors.toList())
+				allServers.stream().map(s -> s.getBuilder()).toList()
 				);
 	}
 	

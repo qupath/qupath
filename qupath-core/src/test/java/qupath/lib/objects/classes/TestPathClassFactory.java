@@ -32,7 +32,6 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import org.junit.jupiter.api.Assertions;
@@ -151,7 +150,7 @@ public class TestPathClassFactory {
 		var allClasses = IntStream.range(0, 1000)
 			.parallel()
 			.mapToObj(i -> PathClass.fromCollection(list))
-			.collect(Collectors.toList());
+			.toList();
 		
 		var target = PathClass.fromCollection(list);
 		for (var source : allClasses) {

@@ -36,8 +36,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.stream.Collectors;
-
 import org.controlsfx.control.action.Action;
 import org.controlsfx.control.action.ActionUtils;
 import org.slf4j.Logger;
@@ -229,12 +227,12 @@ public class MiniViewers {
 				return display.availableChannels()
 						.stream()
 						.filter(MiniViewers::isColorDeconvolutionChannel)
-						.collect(Collectors.toList());
+						.toList();
 			} else {
 				return display.availableChannels()
 						.stream()
 						.filter(MiniViewers::isRGBChannel)
-						.collect(Collectors.toList());
+						.toList();
 			}			
 		} else {
 			// We want the selected channels, but retaining the original order
@@ -242,7 +240,7 @@ public class MiniViewers {
 			return display.availableChannels()
 					.stream()
 					.filter(c -> selected.contains(c))
-					.collect(Collectors.toList());
+					.toList();
 		}
 	}
 	

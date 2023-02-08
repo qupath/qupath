@@ -661,7 +661,7 @@ public class Charts {
 			return series(name,
 					collection.stream()
 					.map(p -> new XYChart.Data<>(xFun.apply(p), yFun.apply(p), p))
-					.collect(Collectors.toList()));
+					.toList());
 		}
 
 		/**

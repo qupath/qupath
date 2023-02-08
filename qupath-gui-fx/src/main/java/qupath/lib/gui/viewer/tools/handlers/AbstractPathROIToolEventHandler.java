@@ -25,8 +25,6 @@ package qupath.lib.gui.viewer.tools.handlers;
 
 import java.awt.geom.Point2D;
 import java.util.Collections;
-import java.util.stream.Collectors;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -205,7 +203,7 @@ abstract class AbstractPathROIToolEventHandler extends AbstractPathToolEventHand
 						.map(p -> new Reclassifier(p, pathClass, retainIntensityClass))
 						.filter(r -> r.apply())
 						.map(r -> r.getPathObject())
-						.collect(Collectors.toList());
+						.toList();
 				if (!reclassified.isEmpty()) {
 					hierarchy.fireObjectClassificationsChangedEvent(this, reclassified);
 				}

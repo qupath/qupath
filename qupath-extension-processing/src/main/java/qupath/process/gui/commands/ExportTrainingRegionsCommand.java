@@ -39,7 +39,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import javax.imageio.ImageIO;
@@ -410,7 +409,7 @@ public class ExportTrainingRegionsCommand implements Runnable {
 			boolean useMPP = useMicronsPerPixel.get();
 			
 			// Find all project entries with associated data files
-			List<ProjectImageEntry<BufferedImage>> entries = project.getImageList().stream().filter(entry -> entry.hasImageData()).collect(Collectors.toList());
+			List<ProjectImageEntry<BufferedImage>> entries = project.getImageList().stream().filter(entry -> entry.hasImageData()).toList();
 			
 			// Write JSON file with key
 			Gson gson = new GsonBuilder().setPrettyPrinting().create();
@@ -521,8 +520,8 @@ public class ExportTrainingRegionsCommand implements Runnable {
 			
 			// Split by region & non-region classified annotations
 			PathClass regionClass = PathClass.StandardPathClasses.REGION;
-			List<PathObject> regionAnnotations = hierarchy.getAnnotationObjects().stream().filter(p -> p.getPathClass() == regionClass).collect(Collectors.toList());
-			List<PathObject> otherAnnotations = hierarchy.getAnnotationObjects().stream().filter(p -> p.getPathClass() != regionClass && p.getROI().isArea()).collect(Collectors.toList());
+			List<PathObject> regionAnnotations = hierarchy.getAnnotationObjects().stream().filter(p -> p.getPathClass() == regionClass).toList();
+			List<PathObject> otherAnnotations = hierarchy.getAnnotationObjects().stream().filter(p -> p.getPathClass() != regionClass && p.getROI().isArea()).toList();
 
 			// Sort by area - we want to annotate largest regions first
 			otherAnnotations.sort((a, b) -> -Double.compare(a.getROI().getArea(), b.getROI().getArea()));

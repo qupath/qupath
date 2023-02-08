@@ -107,13 +107,9 @@ import javafx.stage.WindowEvent;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.Timeit;
 import qupath.lib.common.Version;
-import qupath.lib.gui.ActionTools.ActionAccelerator;
-import qupath.lib.gui.ActionTools.ActionDescription;
-import qupath.lib.gui.ActionTools.ActionIcon;
-import qupath.lib.gui.commands.BrightnessContrastCommand;
-import qupath.lib.gui.commands.Commands;
-import qupath.lib.gui.commands.CountingPanelCommand;
-import qupath.lib.gui.commands.HelpViewer;
+import qupath.lib.gui.actions.DefaultActions;
+import qupath.lib.gui.actions.OverlayActions;
+import qupath.lib.gui.actions.ViewerActions;
 import qupath.lib.gui.commands.InputDisplayCommand;
 import qupath.lib.gui.commands.LogViewerCommand;
 import qupath.lib.gui.commands.ProjectCommands;
@@ -135,12 +131,10 @@ import qupath.lib.gui.scripting.languages.GroovyLanguage;
 import qupath.lib.gui.scripting.languages.ScriptLanguageProvider;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.MenuTools;
-import qupath.lib.gui.tools.IconFactory.PathIcons;
 import qupath.lib.gui.viewer.DragDropImportListener;
 import qupath.lib.gui.viewer.ViewerManager;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.QuPathViewer;
-import qupath.lib.gui.viewer.OverlayOptions.DetectionDisplayMode;
 import qupath.lib.gui.viewer.tools.PathTool;
 import qupath.lib.gui.viewer.tools.PathTools;
 import qupath.lib.images.ImageData;
@@ -658,7 +652,7 @@ public class QuPathGUI {
 			items.add(mi);
 		}
 		menu.getItems().setAll(items);
-		MenuTools.addMenuItems(menu, null, ActionTools.createCheckMenuItem(defaultActions.SELECTION_MODE));
+		MenuTools.addMenuItems(menu, null, ActionTools.createCheckMenuItem(toolManager.getSelectionModeAction()));
 	}
 
 
@@ -674,6 +668,11 @@ public class QuPathGUI {
 
 	private void setDefaultUncaughtExceptionHandler() {
 		Thread.setDefaultUncaughtExceptionHandler(new QuPathUncaughtExceptionHandler(this));
+	}
+	
+	
+	public BooleanProperty showAnalysisPaneProperty() {
+		return showAnalysisPane;
 	}
 	
 	
@@ -819,9 +818,10 @@ public class QuPathGUI {
 
 			// Generic 'hiding'
 			if (new KeyCodeCombination(KeyCode.H).match(e)) {
-				var action = defaultActions.SHOW_DETECTIONS;
+				var overlayActions = getOverlayActions();
+				var action = overlayActions.SHOW_DETECTIONS;
 				action.setSelected(!action.isSelected());
-				action = defaultActions.SHOW_PIXEL_CLASSIFICATION;
+				action = overlayActions.SHOW_PIXEL_CLASSIFICATION;
 				action.setSelected(!action.isSelected());
 				e.consume();
 			}
@@ -1932,11 +1932,9 @@ public class QuPathGUI {
 				logger.info("Accelerator {} already set for {} - no changes needed", combo, item.getText());
 				return false;
 			} else if (existingItem != null) {
-				if (existingItem instanceof MenuItem) {
-					var mi = (MenuItem)existingItem;
-					setAccelerator(mi, null);
-				} else if (existingItem instanceof Action) {
-					var existingAction = (Action)existingItem;
+				if (existingItem instanceof MenuItem existingMenuItem) {
+					setAccelerator(existingMenuItem, null);
+				} else if (existingItem instanceof Action existingAction) {
 					setAccelerator(existingAction, null);
 				} else {
 					// Shouldn't happen
@@ -2094,8 +2092,7 @@ public class QuPathGUI {
 	 * @throws Exception
 	 */
 	public boolean runPlugin(final PathPlugin<BufferedImage> plugin, final String arg, final boolean doInteractive) throws Exception {
-		if (doInteractive && plugin instanceof PathInteractivePlugin) {
-			PathInteractivePlugin<BufferedImage> pluginInteractive = (PathInteractivePlugin<BufferedImage>)plugin;
+		if (doInteractive && plugin instanceof PathInteractivePlugin pluginInteractive) {
 			ParameterList params = pluginInteractive.getDefaultParameterList(getImageData());
 			// Update parameter list, if necessary
 			if (arg != null) {
@@ -2247,8 +2244,8 @@ public class QuPathGUI {
 		this.scriptEditor = scriptEditor;
 		// Try to bind to whether a script is running or not
 		scriptRunning.unbind();
-		if (scriptEditor instanceof DefaultScriptEditor)
-			scriptRunning.bind(((DefaultScriptEditor)scriptEditor).scriptRunning());
+		if (scriptEditor instanceof DefaultScriptEditor defaultScriptEditor)
+			scriptRunning.bind(defaultScriptEditor.scriptRunning());
 		else
 			scriptRunning.set(false);
 	}
@@ -2590,6 +2587,14 @@ public class QuPathGUI {
 	}
 	
 	
+	/**
+	 * Show the log window associated with this QuPath instance.
+	 * @since v0.5.0
+	 */
+	public void showLogWindow() {
+		logViewerCommand.run();
+	}
+	
 	
 	/**
 	 * Create an {@link Action} that depends upon an {@link ImageData}.
@@ -2731,16 +2736,12 @@ public class QuPathGUI {
 	 */
 	public synchronized DefaultActions getDefaultActions() {
 		if (defaultActions == null) {
-			defaultActions = new DefaultActions();
+			defaultActions = new DefaultActions(this);
 			installActions(ActionTools.getAnnotatedActions(defaultActions));
 		}
 		return defaultActions;
 	}
 	
-	
-	private Action createShowAnalysisPaneAction() {
-		return ActionTools.createSelectableAction(showAnalysisPane, "Show analysis panel");
-	}
 	
 	/**
 	 * Search for an action based upon its text (name) property.
@@ -2771,292 +2772,20 @@ public class QuPathGUI {
 	}
 	
 	
-	/**
-	 * Default actions associated with a specific QuPath instance.
-	 * These are useful for generating toolbars and context menus, ensuring that the same actions are used consistently.
-	 */
-	public class DefaultActions {
-		
-		// Zoom actions
-		/**
-		 * Apply 'zoom-to-fit' setting to all viewers
-		 */
-		@ActionIcon(PathIcons.ZOOM_TO_FIT)
-		public final Action ZOOM_TO_FIT = ActionTools.createSelectableAction(viewerManager.zoomToFitProperty(), "Zoom to fit");
-		
-		// Tool actions
-		/**
-		 * Move tool action
-		 */
-		@ActionAccelerator("m")
-		@ActionDescription("Move tool, both for moving around the viewer (panning) and moving objects (translation).")
-		public final Action MOVE_TOOL = toolManager.getToolAction(PathTools.MOVE);
-		/**
-		 * Rectangle tool action
-		 */
-		@ActionAccelerator("r")
-		@ActionDescription("Click and drag to draw a rectangle annotation. Hold down 'Shift' to constrain shape to be a square.")
-		public final Action RECTANGLE_TOOL = toolManager.getToolAction(PathTools.RECTANGLE);
-		/**
-		 * Ellipse tool action
-		 */
-		@ActionAccelerator("o")
-		@ActionDescription("Click and drag to draw an ellipse annotation. Hold down 'Shift' to constrain shape to be a circle.")
-		public final Action ELLIPSE_TOOL = toolManager.getToolAction(PathTools.ELLIPSE);
-		/**
-		 * Polygon tool action
-		 */
-		@ActionAccelerator("p")
-		@ActionDescription("Create a closed polygon annotation, either by clicking individual points (with double-click to end) or clicking and dragging.")
-		public final Action POLYGON_TOOL = toolManager.getToolAction(PathTools.POLYGON);
-		/**
-		 * Polyline tool action
-		 */
-		@ActionAccelerator("v")
-		@ActionDescription("Create a polyline annotation, either by clicking individual points (with double-click to end) or clicking and dragging.")
-		public final Action POLYLINE_TOOL = toolManager.getToolAction(PathTools.POLYLINE);
-		/**
-		 * Brush tool action
-		 */
-		@ActionAccelerator("b")
-		@ActionDescription("Click and drag to paint with a brush. "
-				+ "By default, the size of the region being drawn depends upon the zoom level in the viewer.")
-		public final Action BRUSH_TOOL = toolManager.getToolAction(PathTools.BRUSH);
-		/**
-		 * Line tool action
-		 */
-		@ActionAccelerator("l")
-		@ActionDescription("Click and drag to draw a line annotation.")
-		public final Action LINE_TOOL = toolManager.getToolAction(PathTools.LINE_OR_ARROW);
-		/**
-		 * Points/counting tool action
-		 */
-		@ActionAccelerator(".")
-		@ActionDescription("Click to add points to an annotation.")
-		public final Action POINTS_TOOL = toolManager.getToolAction(PathTools.POINTS);
-		
-		/**
-		 * Toggle 'selection mode' on/off for all drawing tools.
-		 */
-		@ActionAccelerator("shift+s")
-		@ActionIcon(PathIcons.SELECTION_MODE)
-		@ActionDescription("Turn on/off selection mode - this converts drawing tools into selection tools")
-		public final Action SELECTION_MODE = ActionTools.createSelectableAction(PathPrefs.selectionModeProperty(), "Selection mode");
-		
-		// Toolbar actions
-		/**
-		 * Show the brightness/contrast dialog.
-		 */
-		@ActionIcon(PathIcons.CONTRAST)
-		@ActionAccelerator("shift+c")
-		@ActionDescription("Open brightness & contrast dialog - also used to adjust channels and colors")
-		public final Action BRIGHTNESS_CONTRAST = ActionTools.createAction(new BrightnessContrastCommand(QuPathGUI.this), "Brightness/Contrast");
-		
-		/**
-		 * Toggle the image overview display on the viewers.
-		 */
-		@ActionIcon(PathIcons.OVERVIEW)
-		@ActionDescription("Show/hide overview image (top right)")
-		public final Action SHOW_OVERVIEW = ActionTools.createSelectableAction(viewerManager.showOverviewProperty(), "Show slide overview");
-		/**
-		 * Toggle the cursor location display on the viewers.
-		 */
-		@ActionIcon(PathIcons.LOCATION)
-		@ActionDescription("Show/hide location text (bottom right)")
-		public final Action SHOW_LOCATION = ActionTools.createSelectableAction(viewerManager.showLocationProperty(), "Show cursor location");
-		/**
-		 * Toggle the scalebar display on the viewers.
-		 */
-		@ActionIcon(PathIcons.SHOW_SCALEBAR)
-		@ActionDescription("Show/hide scalebar (bottom left)")
-		public final Action SHOW_SCALEBAR = ActionTools.createSelectableAction(viewerManager.showScalebarProperty(), "Show scalebar");
-		/**
-		 * Toggle the counting grid display on the viewers.
-		 */
-		@ActionIcon(PathIcons.GRID)
-		@ActionAccelerator("shift+g")
-		@ActionDescription("Show/hide counting grid overlay")
-		public final Action SHOW_GRID = ActionTools.createSelectableAction(getOverlayOptions().showGridProperty(), "Show grid");
-		/**
-		 * Prompt to set the spacing for the counting grid.
-		 */
-		public final Action GRID_SPACING = ActionTools.createAction(() -> Commands.promptToSetGridLineSpacing(getOverlayOptions()), "Set grid spacing");
-		
-		/**
-		 * Show the counting tool dialog. By default, this is connected to setting the points tool to active.
-		 */
-		public final Action COUNTING_PANEL = ActionTools.createAction(new CountingPanelCommand(QuPathGUI.this), "Counting tool", PathTools.POINTS.iconProperty().get(), null);
-
-		/**
-		 * Toggle the pixel classification overlay visibility on the viewers.
-		 */
-		@ActionIcon(PathIcons.PIXEL_CLASSIFICATION)
-		@ActionAccelerator("c")
-		@ActionDescription("Show/hide pixel classification overlay (when available)")
-		public final Action SHOW_PIXEL_CLASSIFICATION = ActionTools.createSelectableAction(getOverlayOptions().showPixelClassificationProperty(), "Show pixel classification");
-			
-		// TMA actions
-		/**
-		 * Add a note to any selected TMA core.
-		 */
-		public final Action TMA_ADD_NOTE = createImageDataAction(imageData -> TMACommands.promptToAddNoteToSelectedCores(imageData), "Add TMA note");
-		
-		// Overlay options actions
-		/**
-		 * Request that cells are displayed using their boundary ROI only.
-		 */
-		@ActionIcon(PathIcons.CELL_ONLY)
-		public final Action SHOW_CELL_BOUNDARIES = ActionTools.createSelectableCommandAction(new SelectableItem<>(getOverlayOptions().detectionDisplayModeProperty(), DetectionDisplayMode.BOUNDARIES_ONLY), "Cell boundaries only");
-		/**
-		 * Request that cells are displayed using their boundary ROI only.
-		 */
-		@ActionIcon(PathIcons.NUCLEI_ONLY)
-		public final Action SHOW_CELL_NUCLEI = ActionTools.createSelectableCommandAction(new SelectableItem<>(getOverlayOptions().detectionDisplayModeProperty(), DetectionDisplayMode.NUCLEI_ONLY), "Nuclei only");
-		/**
-		 * Request that cells are displayed using both cell and nucleus ROIs.
-		 */
-		@ActionIcon(PathIcons.CELL_NUCLEI_BOTH)
-		public final Action SHOW_CELL_BOUNDARIES_AND_NUCLEI = ActionTools.createSelectableCommandAction(new SelectableItem<>(getOverlayOptions().detectionDisplayModeProperty(), DetectionDisplayMode.NUCLEI_AND_BOUNDARIES), "Nuclei & cell boundaries");
-		/**
-		 * Request that cells are displayed using their centroids only.
-		 */
-		@ActionIcon(PathIcons.CENTROIDS_ONLY)
-		public final Action SHOW_CELL_CENTROIDS = ActionTools.createSelectableCommandAction(new SelectableItem<>(getOverlayOptions().detectionDisplayModeProperty(), DetectionDisplayMode.CENTROIDS), "Centroids only");
-
-		/**
-		 * Toggle the display of annotations.
-		 */
-		@ActionIcon(PathIcons.ANNOTATIONS)
-		@ActionAccelerator("a")
-		@ActionDescription("Show/hide annotation objects")
-		public final Action SHOW_ANNOTATIONS = ActionTools.createSelectableAction(getOverlayOptions().showAnnotationsProperty(), "Show annotations");
-		
-		/**
-		 * Toggle the display of annotation names.
-		 */
-		@ActionIcon(PathIcons.SHOW_NAMES)
-		@ActionAccelerator("n")
-		@ActionDescription("Show/hide annotation names (where available)")
-		public final Action SHOW_NAMES = ActionTools.createSelectableAction(getOverlayOptions().showNamesProperty(), "Show names");
-		
-		/**
-		 * Display annotations filled in.
-		 */
-		@ActionIcon(PathIcons.ANNOTATIONS_FILL)
-		@ActionAccelerator("shift+f")
-		@ActionDescription("Full/unfill annotation objects")
-		public final Action FILL_ANNOTATIONS = ActionTools.createSelectableAction(getOverlayOptions().fillAnnotationsProperty(), "Fill annotations");	
-		
-		/**
-		 * Toggle the display of TMA cores.
-		 */
-		@ActionIcon(PathIcons.TMA_GRID)
-		@ActionAccelerator("g")
-		@ActionDescription("Show/hide TMA grid")
-		public final Action SHOW_TMA_GRID = ActionTools.createSelectableAction(getOverlayOptions().showTMAGridProperty(), "Show TMA grid");
-		/**
-		 * Toggle the display of TMA grid labels.
-		 */
-		public final Action SHOW_TMA_GRID_LABELS = ActionTools.createSelectableAction(getOverlayOptions().showTMACoreLabelsProperty(), "Show TMA grid labels");
-		
-		/**
-		 * Toggle the display of detections.
-		 */
-		@ActionIcon(PathIcons.DETECTIONS)
-		@ActionAccelerator("d")
-		@ActionDescription("Show/hide detection objects")
-		public final Action SHOW_DETECTIONS = ActionTools.createSelectableAction(getOverlayOptions().showDetectionsProperty(), "Show detections");
-		
-		/**
-		 * Display detections filled in.
-		 */
-		@ActionIcon(PathIcons.DETECTIONS_FILL)
-		@ActionAccelerator("f")
-		@ActionDescription("Fill/unfill detection objects")
-		public final Action FILL_DETECTIONS = ActionTools.createSelectableAction(getOverlayOptions().fillDetectionsProperty(), "Fill detections");	
-		/**
-		 * Display the convex hull of point ROIs.
-		 */
-		public final Action CONVEX_POINTS = ActionTools.createSelectableAction(PathPrefs.showPointHullsProperty(), "Show point convex hull");
-		
-		// Viewer actions
-		/**
-		 * Toggle the synchronization of multiple viewers.
-		 */
-		@ActionAccelerator("shortcut+alt+s")
-		@ActionDescription("Synchronize viewers, so that pan, zoom and rotate in one viewer also impacts the other viewers")
-		public final Action TOGGLE_SYNCHRONIZE_VIEWERS = ActionTools.createSelectableAction(viewerManager.synchronizeViewersProperty(), "Synchronize viewers");
-		/**
-		 * Match the resolution of all open viewers.
-		 */
-		public final Action MATCH_VIEWER_RESOLUTIONS = new Action("Match viewer resolutions", e -> viewerManager.matchResolutions());
-		
-		/**
-		 * Show the main log window.
-		 */
-		@ActionAccelerator("shortcut+shift+l")
-		public final Action SHOW_LOG = ActionTools.createAction(logViewerCommand, "Show log");
-
-		/**
-		 * Toggle the visibility of the 'Analysis pane' in the main viewer.
-		 */
-		@ActionIcon(PathIcons.MEASURE)
-		@ActionAccelerator("shift+a")
-		public final Action SHOW_ANALYSIS_PANE = createShowAnalysisPaneAction();
-		
-		@ActionIcon(PathIcons.COG)
-		@ActionAccelerator("shortcut+,")
-		@ActionDescription("Set preferences to customize QuPath's appearance and behavior.")
-		public final Action PREFERENCES = Commands.createSingleStageAction(() -> Commands.createPreferencesDialog(QuPathGUI.this));
-		
-		/**
-		 * Show descriptions for the selected object
-		 */
-		public final Action SHOW_OBJECT_DESCRIPTIONS = Commands.createSingleStageAction(() -> Commands.createObjectDescriptionsDialog(QuPathGUI.this));
-
-		
-		/**
-		 * Show summary measurement table for TMA cores.
-		 */
-		@ActionDescription("Show summary measurements for tissue microarray (TMA) cores")
-		public final Action MEASURE_TMA = createImageDataAction(imageData -> Commands.showTMAMeasurementTable(QuPathGUI.this, imageData), "Show TMA measurements");
-		
-		/**
-		 * Show summary measurement table for annotations.
-		 */
-		@ActionDescription("Show summary measurements for annotation objects")
-		public final Action MEASURE_ANNOTATIONS = createImageDataAction(imageData -> Commands.showAnnotationMeasurementTable(QuPathGUI.this, imageData), "Show annotation measurements");
-		
-		/**
-		 * Show summary measurement table for detections.
-		 */
-		@ActionDescription("Show summary measurements for detection objects")
-		public final Action MEASURE_DETECTIONS = createImageDataAction(imageData -> Commands.showDetectionMeasurementTable(QuPathGUI.this, imageData), "Show detection measurements");
-		
-		/**
-		 * Show grid view for annotation measurements.
-		 */
-		@ActionDescription("Show grid view annotation objects")
-		public final Action MEASURE_GRID_ANNOTATIONS = createImageDataAction(imageData -> Commands.showAnnotationGridView(QuPathGUI.this), "Show annotation grid view");
-
-		/**
-		 * Show grid view for TMA core measurements.
-		 */
-		@ActionDescription("Show grid view TMA cores")
-		public final Action MEASURE_GRID_TMA_CORES = createImageDataAction(imageData -> Commands.showAnnotationGridView(QuPathGUI.this), "Show TMA core grid view");
-
-		/**
-		 * Show help viewer
-		 */
-		@ActionIcon(PathIcons.HELP)
-		@ActionDescription("Show context-dependent help info based on the cursor location and QuPath's current state")
-		public final Action HELP_VIEWER = Commands.createSingleStageAction(() -> HelpViewer.getInstance(QuPathGUI.this).getStage());
-		
-		private DefaultActions() {
-			// This has the effect of applying the annotations
-			ActionTools.getAnnotatedActions(this);
-		}
-		
+	private OverlayActions overlayActions;
+	
+	public OverlayActions getOverlayActions() {
+		if (overlayActions == null)
+			overlayActions = new OverlayActions(getOverlayOptions());
+		return overlayActions;
+	}
+	
+	private ViewerActions viewerActions;
+	
+	public ViewerActions getViewerActions() {
+		if (viewerActions == null)
+			viewerActions = new ViewerActions(getViewerManager());
+		return viewerActions;
 	}
 	
 }

@@ -25,7 +25,6 @@ package qupath.imagej.gui;
 
 import ij.gui.Roi;
 import java.util.List;
-import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -80,7 +79,7 @@ class ImportRoisCommand implements Runnable {
 		List<Roi> rois = files.stream()
 				.filter(f -> IJTools.containsImageJRois(f))
 				.flatMap(f -> IJTools.readImageJRois(f).stream())
-				.collect(Collectors.toList());
+				.toList();
 		
 		if (rois.isEmpty()) {
 			Dialogs.showInfoNotification(getName(), "No ROIs found in selected files");
@@ -91,7 +90,7 @@ class ImportRoisCommand implements Runnable {
 		double downsample = 1.0;
 		double xOrigin = 0.0;
 		double yOrigin = 0.0;
-		var pathObjects = rois.stream().map(r -> IJTools.convertToAnnotation(r, xOrigin, yOrigin, downsample, null)).collect(Collectors.toList());
+		var pathObjects = rois.stream().map(r -> IJTools.convertToAnnotation(r, xOrigin, yOrigin, downsample, null)).toList();
 
 		var hierarchy = imageData.getHierarchy();
 		hierarchy.addObjects(pathObjects);

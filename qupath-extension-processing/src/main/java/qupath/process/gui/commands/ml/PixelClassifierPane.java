@@ -34,7 +34,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.WeakHashMap;
-import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import org.bytedeco.javacpp.indexer.FloatIndexer;
@@ -1043,7 +1042,7 @@ public class PixelClassifierPane {
 			 if (trees.hasFeatureImportance() && imageData != null)
 				 logVariableImportance(trees,
 						 helper.getFeatureOp().getChannels(imageData).stream()
-						 .map(c -> c.getName()).collect(Collectors.toList()));
+						 .map(c -> c.getName()).toList());
 		 }
 		 
 		 trainData.close();

@@ -103,7 +103,7 @@ public final class ExportObjectsCommand {
 			toProcess = hierarchy.getObjects(null, null);
 		
 		// Remove PathRootObject
-		toProcess = toProcess.stream().filter(e -> !e.isRootObject()).collect(Collectors.toList());
+		toProcess = toProcess.stream().filter(e -> !e.isRootObject()).toList();
 
 		// Remove v0.4.0, because an isEllipse flag now means ellipses can be handled within QuPath
 //		// Check if includes ellipse(s), as they will need to be polygonized

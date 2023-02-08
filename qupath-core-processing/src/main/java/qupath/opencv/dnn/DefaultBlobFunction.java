@@ -28,7 +28,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import org.bytedeco.opencv.global.opencv_imgproc;
@@ -99,7 +98,7 @@ class DefaultBlobFunction implements BlobFunction<Mat>, UriResource {
 		int nRows = blob.rows();
 		if (nRows == 1)
 			return Collections.singletonList(blob);
-		return IntStream.range(0, nRows).mapToObj(r -> blob.row(r)).collect(Collectors.toList());
+		return IntStream.range(0, nRows).mapToObj(r -> blob.row(r)).toList();
 	}
 
 	@Override

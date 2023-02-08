@@ -29,8 +29,6 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
-
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
@@ -83,7 +81,7 @@ public class SplitAnnotationsPlugin<T> extends AbstractInteractivePlugin<T> {
 
 	@Override
 	protected Collection<? extends PathObject> getParentObjects(PluginRunner<T> runner) {
-		return getHierarchy(runner).getSelectionModel().getSelectedObjects().stream().filter(p -> p.isAnnotation()).collect(Collectors.toList());
+		return getHierarchy(runner).getSelectionModel().getSelectedObjects().stream().filter(p -> p.isAnnotation()).toList();
 	}
 
 	@Override

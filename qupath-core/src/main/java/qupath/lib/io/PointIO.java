@@ -42,7 +42,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
-import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipException;
 import java.util.zip.ZipFile;
@@ -155,7 +154,7 @@ public class PointIO {
 		int unfilteredSize = pathObjects.size();
 		pathObjects = pathObjects.stream()
 								.filter(p -> p.getROI() instanceof PointsROI)
-								.collect(Collectors.toList());
+								.toList();
 		int filteredSize = pathObjects.size();
 		if (unfilteredSize != filteredSize)
 			logger.warn(unfilteredSize-filteredSize + " of the " + filteredSize 

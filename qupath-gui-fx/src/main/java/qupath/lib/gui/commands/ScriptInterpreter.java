@@ -32,8 +32,6 @@ import java.lang.reflect.Parameter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
-
 import javax.script.Bindings;
 import javax.script.ScriptContext;
 import javax.script.ScriptEngine;
@@ -635,7 +633,7 @@ class ScriptInterpreter {
 
 	private void updateVariableTable() {
 		Bindings bindings = engine.getBindings(ScriptContext.ENGINE_SCOPE);
-		List<String> variableNames = bindings.keySet().stream().filter(v -> !v.equals("__builtins__")).collect(Collectors.toList());
+		List<String> variableNames = bindings.keySet().stream().filter(v -> !v.equals("__builtins__")).toList();
 
 		// Globals
 		try {

@@ -494,7 +494,7 @@ class TMADataImporter {
 //		private List<CoreInfoRow> rows = new ArrayList<>();
 //				
 //		CoreInfoGrid(final TMAGrid grid) {
-//			super(grid.getTMACoreList().stream().map(c -> new CoreInfo(c)).collect(Collectors.toList()), grid.getGridWidth());
+//			super(grid.getTMACoreList().stream().map(c -> new CoreInfo(c)).toList(), grid.getGridWidth());
 //			for (int y = 0; y < getGridHeight(); y++) {
 //				CoreInfoRow row = new CoreInfoRow(getGridWidth());
 //				for (int x = 0; x < getGridWidth(); x++)

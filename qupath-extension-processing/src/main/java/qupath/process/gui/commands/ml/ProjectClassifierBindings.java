@@ -24,8 +24,6 @@ package qupath.process.gui.commands.ml;
 import java.awt.image.BufferedImage;
 import java.util.Collection;
 import java.util.TreeSet;
-import java.util.stream.Collectors;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -69,7 +67,7 @@ public class ProjectClassifierBindings {
 		try {
 			var currentNames = project.getPixelClassifiers().getNames();
 			names.clear();
-			names.addAll(currentNames.stream().map(n -> n.toLowerCase()).collect(Collectors.toList()));
+			names.addAll(currentNames.stream().map(n -> n.toLowerCase()).toList());
 		} catch (Exception e) {
 			logger.debug("Error updating pixel classifier names: {}", e.getLocalizedMessage());
 			names.clear();
@@ -119,7 +117,7 @@ public class ProjectClassifierBindings {
 		try {
 			var currentNames = project.getObjectClassifiers().getNames();
 			names.clear();
-			names.addAll(currentNames.stream().map(n -> n.toLowerCase()).collect(Collectors.toList()));
+			names.addAll(currentNames.stream().map(n -> n.toLowerCase()).toList());
 		} catch (Exception e) {
 			logger.debug("Error updating object classifier names: {}", e.getLocalizedMessage());
 			names.clear();

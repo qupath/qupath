@@ -32,8 +32,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
-import java.util.stream.Collectors;
-
 import org.locationtech.jts.geom.prep.PreparedGeometryFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -450,7 +448,7 @@ public class SimpleTissueDetection2 extends AbstractDetectionPlugin<BufferedImag
 		if (hierarchy.getTMAGrid() == null)
 			return Collections.singleton(hierarchy.getRootObject());
 		
-		return hierarchy.getSelectionModel().getSelectedObjects().stream().filter(p -> p.isTMACore()).collect(Collectors.toList());
+		return hierarchy.getSelectionModel().getSelectedObjects().stream().filter(p -> p.isTMACore()).toList();
 //		PathObjectHierarchy hierarchy = runner.getImageData().getHierarchy();
 //		PathObject pathObjectSelected = runner.getSelectedObject();
 //		if (pathObjectSelected instanceof PathAnnotationObject || pathObjectSelected instanceof TMACoreObject)

@@ -34,7 +34,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import org.slf4j.Logger;
@@ -1016,7 +1015,7 @@ public class ImageDisplay extends AbstractImageRenderer {
 					logger.error(e.getLocalizedMessage(), e);
 					return null;
 				}
-			}).filter(img -> img != null).collect(Collectors.toList());
+			}).filter(img -> img != null).toList();
 		}
 		
 		String getKey(final ChannelDisplayInfo channel) {

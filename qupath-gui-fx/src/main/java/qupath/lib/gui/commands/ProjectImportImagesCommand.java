@@ -254,7 +254,7 @@ class ProjectImportImagesCommand {
 							.stream()
 							.filter(f -> f.isFile() && !f.isHidden())
 							.map(f -> f.getAbsolutePath())
-							.collect(Collectors.toList());
+							.toList();
 					paths.removeAll(listView.getItems());
 					if (!paths.isEmpty())
 						listView.getItems().addAll(paths);
@@ -463,7 +463,7 @@ class ProjectImportImagesCommand {
 						message += "\nThe image type might not be supported by '" + requestedBuilder.getName() + "'";
 					Dialogs.showErrorMessage("Import images", message);
 					
-					var toRemove = failures.stream().filter(p -> project.getImageList().contains(p)).collect(Collectors.toList());
+					var toRemove = failures.stream().filter(p -> project.getImageList().contains(p)).toList();
 					project.removeAllImages(toRemove, true);
 				}
 				

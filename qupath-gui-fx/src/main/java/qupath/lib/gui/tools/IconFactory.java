@@ -270,7 +270,6 @@ public class IconFactory {
 									
 									POLYLINE_TOOL(IconSuppliers.polylineToolIcon()),
 									
-									
 									RECTANGLE_TOOL(IconSuppliers.rectangleToolIcon()),
 									
 									SHOW_NAMES(IconSuppliers.showNamesIcon()),

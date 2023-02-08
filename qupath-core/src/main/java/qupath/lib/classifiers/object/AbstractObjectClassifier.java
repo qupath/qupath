@@ -22,8 +22,6 @@
 package qupath.lib.classifiers.object;
 
 import java.util.Collection;
-import java.util.stream.Collectors;
-
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectFilter;
@@ -60,7 +58,7 @@ public abstract class AbstractObjectClassifier<T> implements ObjectClassifier<T>
 	public Collection<PathObject> getCompatibleObjects(ImageData<T> imageData) {
 		var pathObjects = imageData.getHierarchy().getFlattenedObjectList(null);
 		if (filter != null)
-			pathObjects = pathObjects.stream().filter(filter).collect(Collectors.toList());
+			pathObjects = pathObjects.stream().filter(filter).toList();
 		return pathObjects;
 	}
 

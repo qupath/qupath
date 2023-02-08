@@ -34,14 +34,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javafx.application.Platform;
+import javafx.beans.value.ObservableValue;
 import javafx.collections.ListChangeListener.Change;
 import javafx.collections.ObservableList;
 import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
-import javafx.scene.control.Button;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
+import javafx.scene.control.MenuButton;
 import javafx.scene.control.RadioMenuItem;
 import javafx.scene.control.Separator;
 import javafx.scene.control.Slider;
@@ -55,17 +56,15 @@ import javafx.scene.shape.LineTo;
 import javafx.scene.shape.MoveTo;
 import javafx.scene.shape.Path;
 import javafx.scene.text.TextAlignment;
-import qupath.lib.gui.QuPathGUI.DefaultActions;
+import qupath.lib.gui.actions.DefaultActions;
+import qupath.lib.gui.actions.OverlayActions;
+import qupath.lib.gui.actions.ViewerActions;
 import qupath.lib.gui.dialogs.Dialogs;
-import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.IconFactory;
 import qupath.lib.gui.tools.IconFactory.PathIcons;
-import qupath.lib.gui.viewer.ViewerManager;
-import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.QuPathViewerListener;
-import qupath.lib.gui.viewer.QuPathViewerPlus;
 import qupath.lib.gui.viewer.tools.ExtendedPathTool;
 import qupath.lib.gui.viewer.tools.PathTool;
 import qupath.lib.images.ImageData;
@@ -82,31 +81,30 @@ class ToolBarComponent {
 	private Map<PathTool, Node> toolMap = new WeakHashMap<>();
 
 	private ToolManager toolManager;
-	private ViewerManager viewerManager;
-	private DefaultActions defaultActions;
 	
 	private int toolIdx;
-
+	
+	@SuppressWarnings("unused")
+	private ObservableValue<? extends QuPathViewer> viewerProperty; // Keep to prevent garbage collection
 
 	private ToolBar toolbar = new ToolBar();
 
-	ToolBarComponent(ToolManager toolManager, ViewerManager viewerManager, DefaultActions defaultActions) {
+	ToolBarComponent(ToolManager toolManager, ViewerActions viewerManagerActions, DefaultActions defaultActions, OverlayActions overlayActions) {
 		this.toolManager = toolManager;
-		this.viewerManager = viewerManager;
-		this.defaultActions = defaultActions;
+		this.viewerProperty = viewerManagerActions.getViewerManager().activeViewerProperty();
 
 		logger.trace("Initializing toolbar");
 		
 		var magLabel = new ViewerMagnificationLabel();
-		viewerManager.activeViewerProperty().addListener((v, o, n) -> magLabel.setViewer(n));
-		magLabel.setViewer(viewerManager.getActiveViewer());
+		viewerProperty.addListener((v, o, n) -> magLabel.setViewer(n));
+		magLabel.setViewer(viewerProperty.getValue());
 
 		availableTools = toolManager.getTools();
 		availableTools.addListener((Change<? extends PathTool> v) -> updateToolbar());
 
 		// Show analysis panel
 		List<Node> nodes = new ArrayList<>();
-		nodes.add(ActionTools.createToggleButton(defaultActions.SHOW_ANALYSIS_PANE, true, null, true));
+		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(defaultActions.SHOW_ANALYSIS_PANE));
 		nodes.add(new Separator(Orientation.VERTICAL));
 
 		// Record index where tools start
@@ -116,72 +114,71 @@ class ToolBarComponent {
 
 		nodes.add(new Separator(Orientation.VERTICAL));
 
-		nodes.add(ActionTools.createToggleButton(defaultActions.SELECTION_MODE, true, null, PathPrefs.selectionModeProperty().get()));			
+		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(toolManager.getSelectionModeAction()));			
 
 		nodes.add(new Separator(Orientation.VERTICAL));
 
-		nodes.add(ActionTools.createButton(defaultActions.BRIGHTNESS_CONTRAST, true));
+		nodes.add(ActionTools.createButtonWithGraphicOnly(defaultActions.BRIGHTNESS_CONTRAST));
 
 		nodes.add(new Separator(Orientation.VERTICAL));
 
 		nodes.add(magLabel);
-		nodes.add(ActionTools.createToggleButton(defaultActions.ZOOM_TO_FIT, true, false));
+		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(viewerManagerActions.ZOOM_TO_FIT));
 
 		nodes.add(new Separator(Orientation.VERTICAL));
 
-		OverlayOptions overlayOptions = viewerManager.getOverlayOptions();
-		nodes.add(ActionTools.createToggleButton(defaultActions.SHOW_ANNOTATIONS, true, overlayOptions.getShowAnnotations()));
-		nodes.add(ActionTools.createToggleButton(defaultActions.SHOW_NAMES, true, overlayOptions.getShowNames()));
-		nodes.add(ActionTools.createToggleButton(defaultActions.SHOW_TMA_GRID, true, overlayOptions.getShowTMAGrid()));
-		nodes.add(ActionTools.createToggleButton(defaultActions.SHOW_DETECTIONS, true, overlayOptions.getShowDetections()));
-		nodes.add(ActionTools.createToggleButton(defaultActions.FILL_DETECTIONS, true, overlayOptions.getFillDetections()));
-		nodes.add(ActionTools.createToggleButton(defaultActions.SHOW_PIXEL_CLASSIFICATION, true, overlayOptions.getShowPixelClassification()));
+		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(overlayActions.SHOW_ANNOTATIONS));
+		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(overlayActions.SHOW_NAMES));
+		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(overlayActions.SHOW_TMA_GRID));
+		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(overlayActions.SHOW_DETECTIONS));
+		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(overlayActions.FILL_DETECTIONS));
+		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(overlayActions.SHOW_PIXEL_CLASSIFICATION));
 
 		final Slider sliderOpacity = new Slider(0, 1, 1);
+		var overlayOptions = overlayActions.getOverlayOptions();
 		sliderOpacity.valueProperty().bindBidirectional(overlayOptions.opacityProperty());
-		sliderOpacity.setTooltip(new Tooltip("Overlay opacity"));
+		sliderOpacity.setTooltip(new Tooltip(getDescription("overlayOpacity")));
 		nodes.add(sliderOpacity);
 
 		nodes.add(new Separator(Orientation.VERTICAL));
 
-
-		Button btnMeasure = new Button();
+		var btnMeasure = new MenuButton();
 		btnMeasure.setGraphic(IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, PathIcons.TABLE));
-		btnMeasure.setTooltip(new Tooltip("Show measurements table"));
-		ContextMenu popupMeasurements = new ContextMenu();
-
-		popupMeasurements.getItems().addAll(
+		btnMeasure.setTooltip(new Tooltip(getDescription("showMeasurementsTable")));
+		btnMeasure.getItems().addAll(
 				ActionTools.createMenuItem(defaultActions.MEASURE_TMA),
 				ActionTools.createMenuItem(defaultActions.MEASURE_ANNOTATIONS),
 				ActionTools.createMenuItem(defaultActions.MEASURE_DETECTIONS)
 				);
-		btnMeasure.setOnMouseClicked(e -> {
-			popupMeasurements.show(btnMeasure, e.getScreenX(), e.getScreenY());
-		});
-
 		nodes.add(btnMeasure);
 
 		nodes.add(new Separator(Orientation.VERTICAL));
 
-		// TODO: Check if viewer really needed...
-		QuPathViewer viewer = viewerManager.getActiveViewer();
-		if (viewer instanceof QuPathViewerPlus) {
-			QuPathViewerPlus viewerPlus = (QuPathViewerPlus)viewer;
-			nodes.add(ActionTools.createToggleButton(defaultActions.SHOW_OVERVIEW, true, viewerPlus.isOverviewVisible()));
-			nodes.add(ActionTools.createToggleButton(defaultActions.SHOW_LOCATION, true, viewerPlus.isLocationVisible()));
-			nodes.add(ActionTools.createToggleButton(defaultActions.SHOW_SCALEBAR, true, viewerPlus.isScalebarVisible()));
-			nodes.add(ActionTools.createToggleButton(defaultActions.SHOW_GRID, true, overlayOptions.getShowGrid()));
-		}
+		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(viewerManagerActions.SHOW_OVERVIEW));
+		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(viewerManagerActions.SHOW_LOCATION));
+		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(viewerManagerActions.SHOW_SCALEBAR));
+		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(overlayActions.SHOW_GRID));
 
-		// Add preferences button
 		nodes.add(new Separator(Orientation.VERTICAL));
-		nodes.add(ActionTools.createButton(defaultActions.PREFERENCES, true));
-		nodes.add(ActionTools.createButton(defaultActions.HELP_VIEWER, true));
+		nodes.add(ActionTools.createButtonWithGraphicOnly(defaultActions.PREFERENCES));
+		nodes.add(ActionTools.createButtonWithGraphicOnly(defaultActions.HELP_VIEWER));
 
 		toolbar.getItems().setAll(nodes);
 	}
-
-
+	
+	
+	private static String getDescription(String key) {
+		return QuPathResources.getString("Toolbar.description." + key);
+	}
+	
+	private static String getName(String key) {
+		return QuPathResources.getString("Toolbar.name." + key);
+	}
+	
+	private static String getMessage(String key) {
+		return QuPathResources.getString("Toolbar.message." + key);
+	}
+	
 	void updateToolbar() {
 		// Snapshot all existing nodes
 		var nodes = new ArrayList<>(toolbar.getItems());
@@ -213,11 +210,14 @@ class ToolBarComponent {
 			var action = toolManager.getToolAction(tool);
 			var btnTool = toolMap.get(tool);
 			if (btnTool == null) {
-				btnTool = ActionTools.createToggleButton(action, action.getGraphic() != null);
+				if (action.getGraphic() == null)
+					btnTool = ActionTools.createToggleButton(action);
+				else
+					btnTool = ActionTools.createToggleButtonWithGraphicOnly(action);
 				var toggleButton = (ToggleButton)btnTool;
 				toggleButton.setToggleGroup(group);
-				if (tool instanceof ExtendedPathTool) {
-					var popup = createContextMenu((ExtendedPathTool)tool, toggleButton);
+				if (tool instanceof ExtendedPathTool extendedTool) {
+					var popup = createContextMenu(extendedTool, toggleButton);
 					btnTool.setOnContextMenuRequested(e -> {
 						popup.show(toggleButton, e.getScreenX(), e.getScreenY());
 					});
@@ -298,7 +298,7 @@ class ToolBarComponent {
 		
 		private static String defaultText = "1x";
 		
-		private Tooltip tooltipMag = new Tooltip("Current magnification - double-click to set");
+		private Tooltip tooltipMag = new Tooltip(getDescription("magnification"));
 		
 		private ViewerMagnificationLabel() {
 			setTooltip(tooltipMag);
@@ -345,11 +345,11 @@ class ToolBarComponent {
 			var imageData = viewer.getImageData();
 			var mag = imageData == null ? null : imageData.getServer().getMetadata().getMagnification();
 			if (imageData == null)
-				tooltipMag.setText("Magnification");
+				tooltipMag.setText(getName("magnification"));
 			else if (mag != null && !Double.isNaN(mag))
-				tooltipMag.setText("Display magnification - double-click to edit");
+				tooltipMag.setText(getDescription("magnification"));
 			else
-				tooltipMag.setText("Display scale value - double-click to edit");
+				tooltipMag.setText(getDescription("magnificationScale"));
 		}
 
 		
@@ -360,22 +360,22 @@ class ToolBarComponent {
 			boolean hasMagnification = !Double.isNaN(fullMagnification);
 			if (hasMagnification) {
 				double defaultValue = Math.rint(viewer.getMagnification() * 1000) / 1000;
-				Double value = Dialogs.showInputDialog("Set magnification", "Enter magnification", defaultValue);
+				Double value = Dialogs.showInputDialog(getName("setMagnification"), getMessage("promptMagnification"), defaultValue);
 				if (value == null)
 					return;
 				if (Double.isFinite(value) && value > 0)
 					viewer.setMagnification(value.doubleValue());
 				else
-					Dialogs.showErrorMessage("Set downsample factor", "Invalid magnification " + value + ". \nPlease use a value greater than 0.");
+					Dialogs.showErrorMessage(getName("setMagnification"), String.format(getMessage("invalidMagnification"), value));
 			} else {
 				double defaultValue = Math.rint(viewer.getDownsampleFactor() * 1000) / 1000;
-				Double value = Dialogs.showInputDialog("Set downsample factor", "Enter downsample factor", defaultValue);
+				Double value = Dialogs.showInputDialog(getName("setDownsample"), getMessage("promptDownsample"), defaultValue);
 				if (value == null)
 					return;
 				if (Double.isFinite(value) && value > 0)
 					viewer.setDownsampleFactor(value.doubleValue());
 				else
-					Dialogs.showErrorMessage("Set downsample factor", "Invalid downsample " + value + ". \nPlease use a value greater than 0.");
+					Dialogs.showErrorMessage(getName("setDownsample"), String.format(getMessage("invalidDownsample"), value));
 			}
 		}
 		

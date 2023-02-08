@@ -28,6 +28,7 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
@@ -326,7 +327,7 @@ public class TestImageOps {
 			
 			// Create between 0 and 199 (inclusive)
 			var values = IntStream.range(0, 200).mapToDouble(i -> (double)i).toArray();
-			var shuffledValues = Arrays.stream(values).mapToObj(d -> Double.valueOf(d)).collect(Collectors.toList());
+			var shuffledValues = Arrays.stream(values).mapToObj(d -> Double.valueOf(d)).collect(Collectors.toCollection(ArrayList::new));;
 			Collections.shuffle(shuffledValues);
 			
 			var mat = new Mat(shuffledValues.stream().mapToDouble(d -> d.doubleValue()).toArray());

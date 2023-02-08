@@ -772,7 +772,7 @@ public class PathIO {
 							}
 						}
 						return new ArrayList<PathObject>().stream();
-					}).collect(Collectors.toList());
+					}).toList();
 					allObjects.addAll(tempObjects);
 				}
 				return allObjects;
@@ -985,7 +985,7 @@ public class PathIO {
 		
 		// If exclude measurements, 'transform' each PathObject to get rid of measurements
 		if (optionList.contains(GeoJsonExportOptions.EXCLUDE_MEASUREMENTS))
-			pathObjects = pathObjects.stream().map(e -> PathObjectTools.transformObject(e, null, false)).collect(Collectors.toList());
+			pathObjects = pathObjects.stream().map(e -> PathObjectTools.transformObject(e, null, false)).toList();
 		
 		var writer = new OutputStreamWriter(new BufferedOutputStream(stream), StandardCharsets.UTF_8);
 		var gson = GsonTools.getInstance(optionList.contains(GeoJsonExportOptions.PRETTY_JSON));

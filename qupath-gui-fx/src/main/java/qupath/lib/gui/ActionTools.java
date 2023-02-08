@@ -29,6 +29,7 @@ import java.lang.annotation.Target;
 import java.lang.reflect.AnnotatedElement;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -318,6 +319,9 @@ public class ActionTools {
 	 * Description of an action.
 	 * This can be used for help text, and is currently passed to the action as {@link Action#longTextProperty()}.
 	 * In QuPath it is shown through the "Command list" table.
+	 * <p>
+	 * If the description is prefixed by {@code Key:} then it is requested from {@link QuPathResources},
+	 * otherwise the text is used directly.
 	 */
 	@Documented
 	@Retention(RetentionPolicy.RUNTIME)
@@ -344,6 +348,15 @@ public class ActionTools {
 		IconFactory.PathIcons value();
 	}
 	
+	
+	private static String getStringOrReadResource(String text) {
+		if (text.startsWith("KEY:"))
+			return QuPathResources.getString(text.substring(4));
+		else
+			return text;
+	}
+	
+	
 	/**
 	 * Actions can be parsed from the accessible (usually public) fields of any object, as well as methods annotated with {@link ActionMethod}.
 	 * Any annotations associated with the actions will be parsed.
@@ -358,11 +371,10 @@ public class ActionTools {
 		
 		// If the class is annotated with a menu, use that as a base; all other menus will be nested within this
 		var menuAnnotation = cls.getAnnotation(ActionMenu.class);
-		String baseMenu = menuAnnotation == null ? "" : menuAnnotation.value();
-		
+		String baseMenu = menuAnnotation == null ? "" : getStringOrReadResource(menuAnnotation.value());
 		// Get accessible fields corresponding to actions
 		for (var f : cls.getDeclaredFields()) {
-			if (!f.canAccess(obj))
+			if (Modifier.isStatic(f.getModifiers()) || !f.canAccess(obj))
 				continue;
 			try {
 				var value = f.get(obj);
@@ -446,7 +458,7 @@ public class ActionTools {
 	private static void parseMenu(Action action, ActionMenu annotation, String baseMenu) {
 		String menuString = baseMenu == null || baseMenu.isBlank() ? "" : baseMenu + ">";
 		if (annotation != null)
-			menuString += annotation.value();
+			menuString += getStringOrReadResource(annotation.value());
 		if (menuString.isEmpty())
 			return;
 		var ind = menuString.lastIndexOf(">");
@@ -454,7 +466,7 @@ public class ActionTools {
 			logger.warn("Invalid menu string {}, will skip {}", menuString, action);
 			return;
 		}
-		var name = menuString.substring(ind+1);
+		var name = getStringOrReadResource(menuString.substring(ind+1));
 		var menu = menuString.substring(0, ind);
 		if (!name.isEmpty())
 			action.setText(name);
@@ -464,7 +476,7 @@ public class ActionTools {
 	private static void parseDescription(Action action, ActionDescription annotation) {
 		if (annotation == null)
 			return;
-		var description = annotation.value();
+		var description = getStringOrReadResource(annotation.value());
 		action.setLongText(description);
 	}
 	
@@ -669,17 +681,28 @@ public class ActionTools {
 	 * @param hideActionText if true, the text of the action will be suppressed (and only the graphic used)
 	 * @return a new {@link ToggleButton} configured according to the action.
 	 */
-	public static ToggleButton createToggleButton(Action action, boolean hideActionText) {
+	private static ToggleButton createToggleButton(Action action, boolean hideActionText) {
 		return getActionToggleButton(action, hideActionText, null);
 	}
 	
-	static ToggleButton createToggleButton(Action action, boolean hideActionText, ToggleGroup group, boolean isSelected) {
-		ToggleButton button = getActionToggleButton(action, hideActionText, group);
-		return button;
+	/**
+	 * Create a toggle button from an action, showing only the graphic and not any text.
+	 * This stores a reference to the action as a property of the toggle button.
+	 * @param action
+	 * @return
+	 */
+	public static ToggleButton createToggleButtonWithGraphicOnly(Action action) {
+		return createToggleButton(action, true);
 	}
-
-	static ToggleButton createToggleButton(Action action, boolean hideActionText, boolean isSelected) {
-		return createToggleButton(action, hideActionText, null, isSelected);
+	
+	/**
+	 * Create a toggle button from an action, showing both the text and graphic if available.
+	 * This stores a reference to the action as a property of the toggle button.
+	 * @param action
+	 * @return
+	 */
+	public static ToggleButton createToggleButton(Action action) {
+		return createToggleButton(action, false);
 	}
 	
 	/**
@@ -689,9 +712,29 @@ public class ActionTools {
 	 * @param hideActionText if true, the text of the action will be suppressed (and only the graphic used)
 	 * @return a new {@link Button} configured according to the action.
 	 */
-	public static Button createButton(Action action, boolean hideActionText) {
+	private static Button createButton(Action action, boolean hideActionText) {
 		Button button = ActionUtils.createButton(action, hideActionText ? ActionTextBehavior.HIDE : ActionTextBehavior.SHOW);
 		return includeAction(button, action);
+	}
+	
+	/**
+	 * Create a button from an action, showing both the text and graphic if available.
+	 * This stores a reference to the action as a property of the button.
+	 * @param action the action from which to construct the button
+	 * @return a new {@link Button} configured according to the action.
+	 */
+	public static Button createButton(Action action) {
+		return createButton(action, false);
+	}
+	
+	/**
+	 * Create a button from an action, showing only the graphic and not any text.
+	 * This stores a reference to the action as a property of the button.
+	 * @param action the action from which to construct the button
+	 * @return a new {@link Button} configured according to the action.
+	 */
+	public static Button createButtonWithGraphicOnly(Action action) {
+		return createButton(action, true);
 	}
 
 	/**
@@ -723,7 +766,7 @@ public class ActionTools {
 		return createSelectableAction(property, name, (Node)null, null);
 	}
 
-	static Action createAction(final Runnable command, final String name, final Node icon, final KeyCombination accelerator) {
+	private static Action createAction(final Runnable command, final String name, final Node icon, final KeyCombination accelerator) {
 		var action = actionBuilder(name, e -> command.run())
 				.accelerator(accelerator)
 				.graphic(icon)
@@ -757,7 +800,7 @@ public class ActionTools {
 				accelerator);
 	}
 	
-	public static <T> Action createSelectableCommandAction(final SelectableItem<T> command, final ObservableValue<String> name, final ObservableValue<Node> icon, final KeyCombination accelerator) {
+	static <T> Action createSelectableCommandAction(final SelectableItem<T> command, final ObservableValue<String> name, final ObservableValue<Node> icon, final KeyCombination accelerator) {
 		var action = ActionTools.actionBuilder(e -> command.setSelected(true))
 				.text(name)
 				.accelerator(accelerator)
@@ -768,10 +811,17 @@ public class ActionTools {
 		return action;
 	}
 	
-	public static <T> Action createSelectableCommandAction(final SelectableItem<T> command, final ObservableValue<String> name) {
+	static <T> Action createSelectableCommandAction(final SelectableItem<T> command, final ObservableValue<String> name) {
 		return createSelectableCommandAction(command, name, null, null);
 	}
 
+	/**
+	 * Create an action from a selectable icon.
+	 * @param <T>
+	 * @param command item to which the action's selected property should be bound
+	 * @param name text to include in the action
+	 * @return
+	 */
 	public static <T> Action createSelectableCommandAction(final SelectableItem<T> command, String name) {
 		return createSelectableCommandAction(command, name, null, null);
 	}

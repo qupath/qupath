@@ -41,7 +41,6 @@ import java.util.Locale;
 import java.util.Locale.Category;
 import java.util.Map;
 import java.util.Objects;
-import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import javax.imageio.ImageIO;
@@ -522,13 +521,13 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 			var c = new ColumnConstraints();
 			c.setPercentWidth(100.0/nHorizontal);
 			return c;
-		}).collect(Collectors.toList()));
+		}).toList());
 
 		grid.getRowConstraints().setAll(IntStream.range(0, nVertical).mapToObj(i -> {
 			var c = new RowConstraints();
 			c.setPercentHeight(100.0/nVertical);
 			return c;
-		}).collect(Collectors.toList()));
+		}).toList());
 
 		grid.setVgap(5);
 		//		grid.setHgap(5);
@@ -826,7 +825,7 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 				return "Not available";
 			if (uris.size() == 1)
 				return decodeURI(uris.iterator().next());
-			return "[" + String.join(", ", uris.stream().map(ImageDetailsPane::decodeURI).collect(Collectors.toList())) + "]";
+			return "[" + String.join(", ", uris.stream().map(ImageDetailsPane::decodeURI).toList()) + "]";
 		case IMAGE_TYPE:
 			return imageData.getImageType();
 		case METADATA_CHANGED:

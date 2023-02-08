@@ -40,8 +40,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.StringTokenizer;
 import java.util.function.Function;
-import java.util.stream.Collectors;
-
 import org.locationtech.jts.algorithm.locate.SimplePointInAreaLocator;
 import org.locationtech.jts.awt.GeometryCollectionShape;
 import org.locationtech.jts.awt.PointTransformation;
@@ -545,7 +543,7 @@ public class GeometryTools {
 //    			return removeInteriorRings((Polygon)g, minRingArea);
 //    		else
 //    			return g;
-//    	}).collect(Collectors.toList());
+//    	}).toList();
     	
     	
     	// TODO: Find out how to avoid the Union operation (which can be very slow)
@@ -609,7 +607,7 @@ public class GeometryTools {
     			return removeAllInteriorRings((Polygon)g);
     		else
     			return g;
-    	}).collect(Collectors.toList());
+    	}).toList();
     	if (list.equals(filtered))
     		return geometry;
     	
@@ -643,7 +641,7 @@ public class GeometryTools {
     	var filtered = polygons
     			.stream()
     			.filter(g -> externalRingArea(g) >= minArea)
-    			.collect(Collectors.toList());
+    			.toList();
     	if (filtered.isEmpty())
     		return geometry.getFactory().createPolygon();
     	return geometry.getFactory().buildGeometry(filtered);
@@ -1121,8 +1119,8 @@ public class GeometryTools {
 				// To do that, we iterate through the holes and try to match these with the containing polygon, updating it accordingly.
 				// By doing this in order we should find the 'correct' containing polygon.
 				var ascendingArea = Comparator.comparingDouble((GeometryWithArea g) -> g.area);
-				var outerWithArea = outer.stream().map(g -> new GeometryWithArea(g)).sorted(ascendingArea).collect(Collectors.toList());
-				var holesWithArea = holes.stream().map(g -> new GeometryWithArea(g)).sorted(ascendingArea).collect(Collectors.toList());
+				var outerWithArea = outer.stream().map(g -> new GeometryWithArea(g)).sorted(ascendingArea).toList();
+				var holesWithArea = holes.stream().map(g -> new GeometryWithArea(g)).sorted(ascendingArea).toList();
 				
 				// For each hole, find the smallest polygon that contains it
 				Map<Geometry, List<Geometry>> matches = new HashMap<>();
@@ -1244,7 +1242,7 @@ public class GeometryTools {
 	    		return ROIs.createPointsROI(coord.x, coord.y, plane);
 	    	} else if (geometry instanceof MultiPoint) {
 	    		Coordinate[] coords = geometry.getCoordinates();
-	    		List<Point2> points = Arrays.stream(coords).map(c -> new Point2(c.x, c.y)).collect(Collectors.toList());
+	    		List<Point2> points = Arrays.stream(coords).map(c -> new Point2(c.x, c.y)).toList();
 	    		return ROIs.createPointsROI(points, plane);
 	    	}
 	    	// For anything complicated, return a Geometry ROI

@@ -26,11 +26,9 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
-
 import org.controlsfx.control.action.Action;
 
-import javafx.beans.value.ObservableValue;
+import javafx.beans.value.ObservableBooleanValue;
 import javafx.scene.image.Image;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.DataFormat;
@@ -44,7 +42,9 @@ import qupath.lib.gui.ActionTools.ActionAccelerator;
 import qupath.lib.gui.ActionTools.ActionDescription;
 import qupath.lib.gui.ActionTools.ActionIcon;
 import qupath.lib.gui.ActionTools.ActionMenu;
-import qupath.lib.gui.QuPathGUI.DefaultActions;
+import qupath.lib.gui.actions.DefaultActions;
+import qupath.lib.gui.actions.OverlayActions;
+import qupath.lib.gui.actions.ViewerActions;
 import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.commands.MeasurementExportCommand;
 import qupath.lib.gui.commands.ProjectCommands;
@@ -70,16 +70,10 @@ import qupath.lib.plugins.objects.SplitAnnotationsPlugin;
 
 class Menus {
 	
-	private static final String URL_DOCS       = "https://qupath.readthedocs.io";
-	private static final String URL_VIDEOS     = "https://www.youtube.com/c/QuPath";
-	private static final String URL_CITATION   = "https://qupath.readthedocs.io/en/0.4/docs/intro/citing.html";
-	private static final String URL_BUGS       = "https://github.com/qupath/qupath/issues";
-	private static final String URL_FORUM      = "https://forum.image.sc/tags/qupath";
-	private static final String URL_SOURCE     = "https://github.com/qupath/qupath";
-
-	
 	private QuPathGUI qupath;
-	private DefaultActions actionManager;
+	private DefaultActions defaultActions;
+	private ViewerActions viewerActions;
+	private OverlayActions overlayActions;
 	
 	private List<?> managers;
 	
@@ -89,7 +83,9 @@ class Menus {
 	
 	public synchronized Collection<Action> getActions() {
 		if (managers == null) {
-			this.actionManager = qupath.getDefaultActions();
+			this.defaultActions = qupath.getDefaultActions();
+			this.overlayActions = qupath.getOverlayActions();
+			this.viewerActions = qupath.getViewerActions();
 			managers = Arrays.asList(
 					new FileMenuManager(),
 					new EditMenuManager(),
@@ -104,147 +100,134 @@ class Menus {
 					new HelpMenuManager()
 					);
 		}
-		return managers.stream().flatMap(m -> ActionTools.getAnnotatedActions(m).stream()).collect(Collectors.toList());
+		return managers.stream().flatMap(m -> ActionTools.getAnnotatedActions(m).stream()).toList();
+	}
+	
+	static Action createAction(Runnable runnable, String name) {
+		return new Action(name, e -> runnable.run());
 	}
 	
 	static Action createAction(Runnable runnable) {
 		return new Action(e -> runnable.run());
 	}
 	
-	Action createSelectableCommandAction(final ObservableValue<Boolean> observable) {
-		return ActionTools.createSelectableAction(observable, null);
+	static Action createSelectableCommandAction(ObservableBooleanValue value) {
+		return ActionTools.createSelectableAction(value, null);
 	}
+
 	
 	
-	
-	@ActionMenu("Edit")
+	@ActionMenu("KEY:Menu.Edit.name")
 	public class EditMenuManager {
 		
-		@ActionMenu("Undo")
 		@ActionAccelerator("shortcut+z")
-		@ActionDescription("Undo the last action for the current viewer. " +
-				"Note QuPath's undo is limited, and turns itself off (for performance reasons) when many objects are present. " +
-				"The limit can be adjusted in the preferences.")
 		public final Action UNDO;
 		
-		@ActionMenu("Redo")
 		@ActionAccelerator("shortcut+shift+z")
-		@ActionDescription("Redo the last action for the current viewer.")
+		@ActionMenu("KEY:Menu.Edit.name.redo")
+		@ActionDescription("KEY:Menu.Edit.description.redo")
 		public final Action REDO;
 		
 		public final Action SEP_0 = ActionTools.createSeparator();
 
-		// Copy actions
-
-		@ActionMenu("Copy to clipboard...>Selected objects")
-		@ActionDescription("Copy the selected objects to the system clipboard as GeoJSON.")
+		@ActionMenu("KEY:Menu.Edit.Copy.name.selectedObjects")
+		@ActionDescription("KEY:Menu.Edit.Copy.description.selectedObjects")
 //		@ActionAccelerator("shortcut+c")
 		public final Action COPY_SELECTED_OBJECTS = qupath.createImageDataAction(imageData -> Commands.copySelectedObjectsToClipboard(imageData));
 
-		@ActionMenu("Copy to clipboard...>Annotation objects")
-		@ActionDescription("Copy all annotation objects to the system clipboard as GeoJSON.")
+		@ActionMenu("KEY:Menu.Edit.Copy.name.annotationObjects")
+		@ActionDescription("KEY:Menu.Edit.Copy.description.annotationObjects")
 		public final Action COPY_ANNOTATION_OBJECTS = qupath.createImageDataAction(imageData -> Commands.copyAnnotationsToClipboard(imageData));
 
-		@ActionMenu("Copy to clipboard...>")
+		@ActionMenu("KEY:Menu.Edit.Copy.name")
 		public final Action SEP_00 = ActionTools.createSeparator();
 
-		@ActionMenu("Copy to clipboard...>Current viewer")
-		@ActionDescription("Copy the contents of the current viewer to the clipboard. " + 
-				"Note that this creates an RGB image, which does not necessarily contain the original pixel values.")
+		@ActionMenu("KEY:Menu.Edit.Copy.name.currentViewer")
+		@ActionDescription("KEY:Menu.Edit.Copy.description.currentViewer")
 		public final Action COPY_VIEW = createAction(() -> copyViewToClipboard(qupath, GuiTools.SnapshotType.VIEWER));
 		
-		@ActionDescription("Copy the contents of the main QuPath window to the clipboard. " + 
-				"This ignores any additional overlapping windows and dialog boxes.")
-		@ActionMenu("Copy to clipboard...>Main window content")
+		@ActionMenu("KEY:Menu.Edit.Copy.name.mainWindowContent")
+		@ActionDescription("KEY:Menu.Edit.Copy.description.mainWindowContent")
 		public final Action COPY_WINDOW = createAction(() -> copyViewToClipboard(qupath, GuiTools.SnapshotType.MAIN_SCENE));
 		
-		@ActionDescription("Copy the area of the screen corresponding to the main QuPath window to the clipboard. " + 
-				"This includes any additional overlapping windows and dialog boxes.")
-		@ActionMenu("Copy to clipboard...>Main window screenshot")
+		@ActionMenu("KEY:Menu.Edit.Copy.name.mainWindowScreenshot")
+		@ActionDescription("KEY:Menu.Edit.Copy.description.mainWindowScreenshot")
 		public final Action COPY_WINDOW_SCREENSHOT = createAction(() -> copyViewToClipboard(qupath, GuiTools.SnapshotType.MAIN_WINDOW_SCREENSHOT));			
 		
-		@ActionDescription("Make a screenshot and copy it to the clipboard.")
-		@ActionMenu("Copy to clipboard...>Full screenshot")
+		@ActionMenu("KEY:Menu.Edit.Copy.name.fullScreenshot")
+		@ActionDescription("KEY:Menu.Edit.Copy.description.fullScreenshot")
 		public final Action COPY_FULL_SCREENSHOT = createAction(() -> copyViewToClipboard(qupath, GuiTools.SnapshotType.FULL_SCREENSHOT));
 
 		
-		@ActionMenu("Paste")
-		@ActionDescription("Paste the contents of the system clipboard, if possible.\n" + 
-				"If the clipboard contents are GeoJSON objects, the objects will be pasted to the current image. "
-				+ "Otherwise, any text found will be shown in a the script editor.")
+		@ActionMenu("KEY:Menu.Edit.name.paste")
+		@ActionDescription("KEY:Menu.Edit.description.paste")
 //		@ActionAccelerator("shortcut+v") // No shortcut because it gets fired too often
 		public final Action PASTE = createAction(() -> Commands.pasteFromClipboard(qupath, false));
 
-		@ActionMenu("Paste objects to current plane")
-		@ActionDescription("Paste GeoJSON objects from the system clipboard to the current z-slice and timepoint, if possible.\n" + 
-				"New object IDs will be generated if needed to avoid duplicates.")
+		@ActionMenu("KEY:Menu.Edit.name.pasteToCurrentPlane")
+		@ActionDescription("KEY:Menu.Edit.description.pasteToCurrentPlane")
 		public final Action PASTE_TO_PLANE = createAction(() -> Commands.pasteFromClipboard(qupath, true));
 		
 		public final Action SEP_1 = ActionTools.createSeparator();
 		
-		@ActionMenu("Preferences...")
-		public final Action PREFERENCES = qupath.getDefaultActions().PREFERENCES;
+		public final Action PREFERENCES = defaultActions.PREFERENCES;
 		
-		@ActionMenu("Reset preferences")
-		@ActionDescription("Reset preferences to their default values - this can be useful if you are experiencing any newly-developed persistent problems with QuPath.")
+		@ActionMenu("KEY:Menu.Edit.name.resetPreferences")
+		@ActionDescription("KEY:Menu.Edit.description.resetPreferences")
 		public final Action RESET_PREFERENCES = createAction(() -> Commands.promptToResetPreferences());
 
 		
-		public EditMenuManager() {
+		private EditMenuManager() {
 			var undoRedo = qupath.getUndoRedoManager();
 			UNDO = createUndoAction(undoRedo);
 			REDO = createRedoAction(undoRedo);
 		}
 		
-		private Action createUndoAction(UndoRedoManager undoRedoManager) {
+		private static Action createUndoAction(UndoRedoManager undoRedoManager) {
 			Action actionUndo = new Action("Undo", e -> undoRedoManager.undoOnce());
 			actionUndo.disabledProperty().bind(undoRedoManager.canUndo().not());
 			return actionUndo;
 		}
 		
-		private Action createRedoAction(UndoRedoManager undoRedoManager) {
+		private static Action createRedoAction(UndoRedoManager undoRedoManager) {
 			Action actionRedo = new Action("Redo", e -> undoRedoManager.redoOnce());
 			actionRedo.disabledProperty().bind(undoRedoManager.canRedo().not());
 			return actionRedo;
 		}
 		
-		private void copyViewToClipboard(final QuPathGUI qupath, final GuiTools.SnapshotType type) {
+		private static void copyViewToClipboard(final QuPathGUI qupath, final GuiTools.SnapshotType type) {
 			Image img = GuiTools.makeSnapshotFX(qupath, qupath.getViewer(), type);
 			Clipboard.getSystemClipboard().setContent(Collections.singletonMap(DataFormat.IMAGE, img));
 		}
 	}
 	
 
-	@ActionMenu("Automate")
+	@ActionMenu("KEY:Menu.Automate.name")
 	public class AutomateMenuManager {
 		
-		@ActionDescription("Open the script editor.")
-		@ActionMenu("Show script editor")
+		@ActionDescription("KEY:Menu.Automate.name.scriptEditor")
+		@ActionMenu("KEY:Menu.Automate.description.scriptEditor")
 		@ActionAccelerator("shortcut+[")
 		public final Action SCRIPT_EDITOR = createAction(() -> Commands.showScriptEditor(qupath));
 
-		@ActionDescription("Open a script interpreter. " +
-				"This makes it possible to run scripts interactively, line by line. " +
-				"However, in general the Script Editor is more useful.")
-		@ActionMenu("Script interpreter")
+		@ActionDescription("KEY:Menu.Automate.description.scriptInterpreter")
+		@ActionMenu("KEY:Menu.Automate.name.scriptInterpreter")
 		public final Action SCRIPT_INTERPRETER = createAction(() -> Commands.showScriptInterpreter(qupath));
 		
 		public final Action SEP_0 = ActionTools.createSeparator();
 		
-		@ActionDescription("Show a history of the commands applied to the current image. " +
-				"Note that this is not fully exhaustive, because not all commands can be recorded. " +
-				"However, the command history is useful to help automatically generate batch-processing scripts.")
-		@ActionMenu("Show workflow command history")
 		@ActionAccelerator("shortcut+shift+w")
+		@ActionDescription("KEY:Menu.Automate.description.commandWorkflow")
+		@ActionMenu("KEY:Menu.Automate.name.commandWorkflow")
 		public final Action HISTORY_SHOW = Commands.createSingleStageAction(() -> Commands.createWorkflowDisplayDialog(qupath));
 
-		@ActionDescription("Create a script based upon the actions recorded in the command history.")
-		@ActionMenu("Create command history script")
+		@ActionDescription("KEY:Menu.Automate.description.commandScript")
+		@ActionMenu("KEY:Menu.Automate.name.commandScript")
 		public final Action HISTORY_SCRIPT = qupath.createImageDataAction(imageData -> Commands.showWorkflowScript(qupath, imageData));
 
 	}
 	
-	@ActionMenu("Analyze")
+	@ActionMenu("KEY:Menu.Analyze.name")
 	public class AnalyzeMenuManager {
 		
 		@ActionDescription("Estimate stain vectors for color deconvolution in brightfield images. " + 
@@ -271,9 +254,6 @@ class Menus {
 		@ActionMenu("Calculate features>Add shape features")
 		public final Action SHAPE_FEATURES = qupath.createImageDataAction(imageData -> Commands.promptToAddShapeFeatures(qupath));
 
-//		@Deprecated
-//		public final Action SHAPE_FEATURES = qupath.createPluginAction("Add shape features", ShapeFeaturesPlugin.class, null);
-
 		@ActionDescription("Calculate distances between detection centroids and the closest annotation for each classification, using zero if the centroid is inside the annotation. " +
 				"For example, this may be used to identify the distance of every cell from 'bigger' region that has been annotated (e.g. an area of tumor, a blood vessel).")
 		@ActionMenu("Spatial analysis>Distance to annotations 2D")
@@ -291,7 +271,7 @@ class Menus {
 
 	}
 	
-	@ActionMenu("Classify")
+	@ActionMenu("KEY:Menu.Classify.name")
 	public class ClassifyMenuManager {
 				
 		@ActionMenu("Object classification>")
@@ -309,36 +289,36 @@ class Menus {
 
 	}
 	
-	@ActionMenu("File")
+	@ActionMenu("KEY:Menu.File.name")
 	public class FileMenuManager {
 		
 		@ActionDescription("Create a new project. " + 
 				"Usually it's easier just to drag an empty folder onto QuPath to create a project, rather than navigate these menus.")
-		@ActionMenu("Project...>Create project")
+		@ActionMenu("KEY:Menu.File.Project.name.createProject")
 		public final Action PROJECT_NEW = createAction(() -> Commands.promptToCreateProject(qupath));
 		
 		@ActionDescription("Open an existing project. " +
 				"Usually it's easier just to drag a project folder onto QuPath to open it, rather than bother with this command.")
-		@ActionMenu("Project...>Open project")
+		@ActionMenu("KEY:Menu.File.Project.name.openProject")
 		public final Action PROJECT_OPEN = createAction(() -> Commands.promptToOpenProject(qupath));
 		
 		@ActionDescription("Close the current project, including any images that are open.")
-		@ActionMenu("Project...>Close project")
+		@ActionMenu("KEY:Menu.File.Project.name.closeProject")
 		public final Action PROJECT_CLOSE = qupath.createProjectAction(project -> Commands.closeProject(qupath));
 		
-		@ActionMenu("Project...>")
+		@ActionMenu("KEY:Menu.File.Project.name")
 		public final Action SEP_1 = ActionTools.createSeparator();
 
 		@ActionDescription("Add images to the current project. " +
 				"You can also add images by dragging files onto the main QuPath window.")
-		@ActionMenu("Project...>Add images")
+		@ActionMenu("KEY:Menu.File.Project.name.addImages")
 		public final Action IMPORT_IMAGES = qupath.createProjectAction(project -> ProjectCommands.promptToImportImages(qupath));
 
 		@ActionDescription("Export a list of the image paths for images in the current project.")
 		@ActionMenu("Project...>Export image list")
 		public final Action EXPORT_IMAGE_LIST = qupath.createProjectAction(project -> ProjectCommands.promptToExportImageList(project));	
 		
-		@ActionMenu("Project...>")
+		@ActionMenu("KEY:Menu.File.Project.name")
 		public final Action SEP_2 = ActionTools.createSeparator();
 
 		@ActionDescription("Edit the metadata for the current project. " + 
@@ -459,7 +439,7 @@ class Menus {
 	}
 	
 	
-	@ActionMenu("Objects")
+	@ActionMenu("KEY:Menu.Objects.name")
 	public class ObjectsMenuManager {
 		
 		@ActionDescription("Delete the currently selected objects.")
@@ -539,10 +519,7 @@ class Menus {
 		@ActionAccelerator("shortcut+k")
 		public final Action TOGGLE_SELECTED_OBJECTS_LOCKED = qupath.createImageDataAction(imageData -> PathObjectTools.toggleSelectedObjectsLocked(imageData.getHierarchy()));
 
-		@ActionDescription("Show descriptions for the currently-selected object, where available. "
-				+ "Descriptions can be any plain text, markdown or html added as the 'description' property to an object (currently, only annotations are supported).")
-		@ActionMenu("Show object descriptions")
-		public final Action SHOW_OBJECT_DESCRIPTIONS = qupath.getDefaultActions().SHOW_OBJECT_DESCRIPTIONS;
+		public final Action SHOW_OBJECT_DESCRIPTIONS = defaultActions.SHOW_OBJECT_DESCRIPTIONS;
 		
 		public final Action SEP_4 = ActionTools.createSeparator();
 		
@@ -646,7 +623,7 @@ class Menus {
 	}
 	
 	
-	@ActionMenu("TMA")
+	@ActionMenu("KEY:Menu.TMA.name")
 	public class TMAMenuManager {
 		
 		@ActionDescription("Create a manual TMA grid, by defining labels and the core diameter. "
@@ -702,13 +679,10 @@ class Menus {
 
 	}
 	
-	@ActionMenu("View")
+	@ActionMenu("KEY:Menu.View.name")
 	public class ViewMenuManager {
 		
-		@ActionDescription("Show/hide the analysis pane (the one on the left).")
-		@ActionMenu("Show analysis pane")
-		@ActionAccelerator("shift+a")
-		public final Action SHOW_ANALYSIS_PANEL = actionManager.SHOW_ANALYSIS_PANE;
+		public final Action SHOW_ANALYSIS_PANEL = defaultActions.SHOW_ANALYSIS_PANE;
 		
 		@ActionDescription("Show the command list (much easier than navigating menus...).")
 		@ActionMenu("Show command list")
@@ -722,18 +696,14 @@ class Menus {
 
 		public final Action SEP_0 = ActionTools.createSeparator();
 		
-		@ActionDescription("Show the brightness/contrast dialog. "
-				+ "This enables changing how the image is displayed, but not the image data itself.")
-		public final Action BRIGHTNESS_CONTRAST = actionManager.BRIGHTNESS_CONTRAST;
+		public final Action BRIGHTNESS_CONTRAST = defaultActions.BRIGHTNESS_CONTRAST;
 		public final Action SEP_1 = ActionTools.createSeparator();
 		
 		@ActionMenu("Multi-view...>Synchronize viewers")
-		@ActionDescription("Synchronize panning and zooming when working with images open in multiple viewers.")
-		public final Action MULTIVIEW_SYNCHRONIZE_VIEWERS = actionManager.TOGGLE_SYNCHRONIZE_VIEWERS;
+		public final Action MULTIVIEW_SYNCHRONIZE_VIEWERS = viewerActions.TOGGLE_SYNCHRONIZE_VIEWERS;
 		
 		@ActionMenu("Multi-view...>Match viewer resolutions")
-		@ActionDescription("Adjust zoom factors to match the resolutions of images open in multiple viewers.")
-		public final Action MULTIVIEW_MATCH_RESOLUTIONS = actionManager.MATCH_VIEWER_RESOLUTIONS;
+		public final Action MULTIVIEW_MATCH_RESOLUTIONS = viewerActions.MATCH_VIEWER_RESOLUTIONS;
 
 		@ActionMenu("Multi-view...>")
 		public final Action SEP_00 = ActionTools.createSeparator();
@@ -810,9 +780,8 @@ class Menus {
 		@ActionAccelerator("-")
 		public final Action ZOOM_OUT = Commands.createZoomCommand(qupath, -10);
 		
-		@ActionDescription("Adjust zoom for all images to fit the entire image in the viewer.")
 		@ActionMenu("Zoom...>Zoom to fit")
-		public final Action ZOOM_TO_FIT = actionManager.ZOOM_TO_FIT;
+		public final Action ZOOM_TO_FIT = viewerActions.ZOOM_TO_FIT;
 				
 		@ActionDescription("Rotate the image visually (this is only for display - the coordinate system remains unchanged).")
 		@ActionMenu("Rotate image")
@@ -821,51 +790,33 @@ class Menus {
 		public final Action SEP_4 = ActionTools.createSeparator();
 		
 		@ActionMenu("Cell display>")
-		@ActionDescription("Show cells by drawing the outer boundary ROI only.")
-		public final Action SHOW_CELL_BOUNDARIES = actionManager.SHOW_CELL_BOUNDARIES;
-		@ActionDescription("Show cells by drawing the nucleus ROI only (if available).")
-		public final Action SHOW_CELL_NUCLEI = actionManager.SHOW_CELL_NUCLEI;
-		@ActionDescription("Show cells by drawing both the outer boundary and nucleus ROIs (if available).")
-		public final Action SHOW_CELL_BOUNDARIES_AND_NUCLEI = actionManager.SHOW_CELL_BOUNDARIES_AND_NUCLEI;
-		@ActionDescription("Show cells by drawing the centroids only.")
-		public final Action SHOW_CELL_CENTROIDS = actionManager.SHOW_CELL_CENTROIDS;
+		public final Action SHOW_CELL_BOUNDARIES = overlayActions.SHOW_CELL_BOUNDARIES;
+		@ActionMenu("Cell display>")
+		public final Action SHOW_CELL_NUCLEI = overlayActions.SHOW_CELL_NUCLEI;
+		@ActionMenu("Cell display>")
+		public final Action SHOW_CELL_BOUNDARIES_AND_NUCLEI = overlayActions.SHOW_CELL_BOUNDARIES_AND_NUCLEI;
+		@ActionMenu("Cell display>")
+		public final Action SHOW_CELL_CENTROIDS = overlayActions.SHOW_CELL_CENTROIDS;
 		
-		@ActionDescription("Toggle showing all annotations in the viewer.")
-		public final Action SHOW_ANNOTATIONS = actionManager.SHOW_ANNOTATIONS;
-		@ActionDescription("Toggle showing annotation ROIs as filled shapes in the viewer.")
-		public final Action FILL_ANNOTATIONS = actionManager.FILL_ANNOTATIONS;
-		@ActionDescription("Toggle showing all annotation names in the viewer.")
-		public final Action SHOW_NAMES = actionManager.SHOW_NAMES;
-		@ActionDescription("Toggle showing any TMA grid in the viewer.")
-		public final Action SHOW_TMA_GRID = actionManager.SHOW_TMA_GRID;
-		@ActionDescription("Toggle showing any TMA core labels in the viewer.")
-		public final Action SHOW_TMA_GRID_LABELS = actionManager.SHOW_TMA_GRID_LABELS;
-		@ActionDescription("Toggle showing all detections in the viewer.")
-		public final Action SHOW_DETECTIONS = actionManager.SHOW_DETECTIONS;
-		@ActionDescription("Toggle showing detection ROIs as filled shapes in the viewer.")
-		public final Action FILL_DETECTIONS = actionManager.FILL_DETECTIONS;
+		public final Action SHOW_ANNOTATIONS = overlayActions.SHOW_ANNOTATIONS;
+		public final Action FILL_ANNOTATIONS = overlayActions.FILL_ANNOTATIONS;
+		public final Action SHOW_NAMES = overlayActions.SHOW_NAMES;
+		public final Action SHOW_TMA_GRID = overlayActions.SHOW_TMA_GRID;
+		public final Action SHOW_TMA_GRID_LABELS = overlayActions.SHOW_TMA_GRID_LABELS;
+		public final Action SHOW_DETECTIONS = overlayActions.SHOW_DETECTIONS;
+		public final Action FILL_DETECTIONS = overlayActions.FILL_DETECTIONS;
 
-		@ActionMenu("Show object connections")
-		@ActionDescription("Show connections between objects, if available. "
-				+ "This can be used alongside some spatial commands, such as to display a Delaunay triangulation as an overlay.")
-		public final Action SHOW_CONNECTIONS = createSelectableCommandAction(qupath.getOverlayOptions().showConnectionsProperty());
+		public final Action SHOW_CONNECTIONS = overlayActions.SHOW_CONNECTIONS;
 
-		@ActionDescription("Toggle pixel classification overlays in the viewer. "
-				+ "This only has an effect if there is actually a pixel classification available.")
-		public final Action SHOW_PIXEL_CLASSIFICATION = actionManager.SHOW_PIXEL_CLASSIFICATION;
+		public final Action SHOW_PIXEL_CLASSIFICATION = overlayActions.SHOW_PIXEL_CLASSIFICATION;
 		
 		public final Action SEP_5 = ActionTools.createSeparator();
 		
-		@ActionDescription("Toggle showing the image overview in the viewer. This is a clickable thumbnail used for navigation.")
-		public final Action SHOW_OVERVIEW = actionManager.SHOW_OVERVIEW;
-		@ActionDescription("Toggle showing the cursor location in the viewer.")
-		public final Action SHOW_LOCATION = actionManager.SHOW_LOCATION;
-		@ActionDescription("Toggle showing the scalebar in the viewer.")
-		public final Action SHOW_SCALEBAR = actionManager.SHOW_SCALEBAR;
-		@ActionDescription("Toggle showing the counting grid in the viewer.")
-		public final Action SHOW_GRID = actionManager.SHOW_GRID;
-		@ActionDescription("Adjust the counting grid spacing for the viewers.")
-		public final Action GRID_SPACING = actionManager.GRID_SPACING;
+		public final Action SHOW_OVERVIEW = viewerActions.SHOW_OVERVIEW;
+		public final Action SHOW_LOCATION = viewerActions.SHOW_LOCATION;
+		public final Action SHOW_SCALEBAR = viewerActions.SHOW_SCALEBAR;
+		public final Action SHOW_GRID = overlayActions.SHOW_GRID;
+		public final Action GRID_SPACING = overlayActions.GRID_SPACING;
 		
 		public final Action SEP_6 = ActionTools.createSeparator();
 		
@@ -888,10 +839,7 @@ class Menus {
 		@ActionMenu("Show memory monitor")
 		public final Action MEMORY_MONITORY = Commands.createSingleStageAction(() -> Commands.createMemoryMonitorDialog(qupath));
 		
-		@ActionDescription("Show the log. This is very helpful for identifying and debugging errors. "
-				+ "\n\nIf you wish to report a problem using QuPath, please check the log for relevant information to provide.")
-		@ActionMenu("Show log")
-		public final Action SHOW_LOG = actionManager.SHOW_LOG;
+		public final Action SHOW_LOG = defaultActions.SHOW_LOG;
 		
 		
 		public final Action SEP_8 = ActionTools.createSeparator();
@@ -948,45 +896,32 @@ class Menus {
 	}
 	
 	
-	@ActionMenu("Measure")
+	@ActionMenu("KEY:Menu.Measure.name")
 	public class MeasureMenuManager {
 		
-		@ActionMenu("Show measurement maps")
 		@ActionAccelerator("shortcut+shift+m")
-		@ActionDescription("View detection measurements in context using interactive, color-coded maps.")
+		@ActionMenu("KEY:Menu.Measure.name.maps")
+		@ActionDescription("KEY:Menu.Measure.description.maps")
 		public final Action MAPS = Commands.createSingleStageAction(() -> Commands.createMeasurementMapDialog(qupath));
 		
-		@ActionMenu("Show measurement manager")
-		@ActionDescription("View and optionally delete detection measurements.")
+		@ActionMenu("KEY:Menu.Measure.name.manager")
+		@ActionDescription("KEY:Menu.Measure.description.manager")
 		public final Action MANAGER = qupath.createImageDataAction(imageData -> Commands.showDetectionMeasurementManager(qupath, imageData));
 		
 		@ActionMenu("")
 		public final Action SEP_1 = ActionTools.createSeparator();
 		
-		@ActionDescription("Show a measurement table for tissue microarray cores.")
-		public final Action TMA = qupath.getDefaultActions().MEASURE_TMA;
+		public final Action TMA = defaultActions.MEASURE_TMA;
+		public final Action ANNOTATIONS = defaultActions.MEASURE_ANNOTATIONS;
+		public final Action DETECTIONS = defaultActions.MEASURE_DETECTIONS;
 		
-		@ActionDescription("Show a measurement table for annotation objects.")
-		public final Action ANNOTATIONS = qupath.getDefaultActions().MEASURE_ANNOTATIONS;
-		
-		@ActionDescription("Show a measurement table for detection objects.")
-		public final Action DETECTIONS = qupath.getDefaultActions().MEASURE_DETECTIONS;
-		
+		public final Action GRID_ANNOTATIONS = defaultActions.MEASURE_GRID_ANNOTATIONS;
+		public final Action GRID_TMA = defaultActions.MEASURE_GRID_TMA_CORES;
 
-		@ActionDescription("Show all the annotations in the current image in a grid view, which can be ranked by measurements.")
-		@ActionMenu("Grid views>Annotation grid summary view")
-		public final Action GRID_ANNOTATIONS = qupath.createImageDataAction(imageData -> Commands.showAnnotationGridView(qupath));
-
-		
-		@ActionDescription("Show all the TMA cores in the current image in a grid view, which can be ranked by measurements.")
-		@ActionMenu("Grid views>TMA grid summary view")
-		public final Action GRID_TMA = qupath.createImageDataAction(imageData -> Commands.showTMACoreGridView(qupath));
-
-		
 		public final Action SEP_2 = ActionTools.createSeparator();
 
-		@ActionMenu("Export measurements")		
-		@ActionDescription("Export summary measurements for multiple images within a project.")
+		@ActionMenu("KEY:Menu.Measure.name.export")		
+		@ActionDescription("KEY:Menu.Measure.description.export")
 		public final Action EXPORT;
 		
 		private MeasureMenuManager() {
@@ -996,11 +931,11 @@ class Menus {
 		
 	}
 	
-	@ActionMenu("Extensions")
+	@ActionMenu("KEY:Menu.Extensions.name")
 	public class ExtensionsMenuManager {
 		
-		@ActionDescription("View a list of installed QuPath extensions.")
-		@ActionMenu("Installed extensions")
+		@ActionDescription("KEY:Menu.Extensions.description.installed")
+		@ActionMenu("KEY:Menu.Extensions.name.installed")
 		public final Action EXTENSIONS = createAction(() -> Commands.showInstalledExtensions(qupath));
 
 		@ActionMenu("")
@@ -1009,60 +944,57 @@ class Menus {
 	}
 	
 	
-	@ActionMenu("Help")
+	@ActionMenu("KEY:Menu.Help.name")
 	public class HelpMenuManager {
 
-		@ActionDescription("Show the welcome message that appears when QuPath is first launched")
-		@ActionMenu("Show welcome message")
+		@ActionDescription("KEY:Menu.Help.description.welcome")
+		@ActionMenu("KEY:Menu.Help.name.welcome")
 		public final Action QUPATH_STARTUP = createAction(() -> WelcomeStage.getInstance(qupath).show());
 
-		@ActionMenu("Show context help viewer")
-		public final Action HELP_VIEWER = qupath.getDefaultActions().HELP_VIEWER;
+		public final Action HELP_VIEWER = defaultActions.HELP_VIEWER;
 
-		@ActionMenu("")
 		public final Action SEP_1 = ActionTools.createSeparator();
 
-		@ActionDescription("Open the main QuPath documentation website.")
-		@ActionMenu("Documentation (web)")
-		public final Action DOCS = createAction(() -> QuPathGUI.openInBrowser(URL_DOCS));
+		@ActionDescription("KEY:Menu.Help.description.docs")
+		@ActionMenu("KEY:Menu.Help.name.docs")
+		public final Action DOCS = createAction(() -> QuPathGUI.openInBrowser(Urls.getVersionedDocsUrl()));
 		
-		@ActionDescription("Open the QuPath demo videos and tutorials.")
-		@ActionMenu("YouTube channel (web)")
-		public final Action DEMOS = createAction(() -> QuPathGUI.openInBrowser(URL_VIDEOS));
+		@ActionDescription("KEY:Menu.Help.description.video")
+		@ActionMenu("KEY:Menu.Help.name.video")
+		public final Action DEMOS = createAction(() -> QuPathGUI.openInBrowser(Urls.getYouTubeUrl()));
 
-		@ActionDescription("Check online for an updated QuPath release.")
-		@ActionMenu("Check for updates (web)")
+		@ActionDescription("KEY:Menu.Help.description.updates")
+		@ActionMenu("KEY:Menu.Help.name.updates")
 		public final Action UPDATE = createAction(() -> qupath.requestFullUpdateCheck());
 
 		public final Action SEP_2 = ActionTools.createSeparator();
 		
-		@ActionDescription("Please cite the QuPath publication if you use the software! " +
-				"\nThis command opens a web page to show how.")
-		@ActionMenu("Cite QuPath (web)")
-		public final Action CITE = createAction(() -> QuPathGUI.openInBrowser(URL_CITATION));
+		@ActionDescription("KEY:Menu.Help.description.cite")
+		@ActionMenu("KEY:Menu.Help.name.cite")
+		public final Action CITE = createAction(() -> QuPathGUI.openInBrowser(Urls.getCitationUrl()));
 		
-		@ActionDescription("Report a bug. Please follow the template and do not use this for general questions!")
-		@ActionMenu("Report bug (web)")
-		public final Action BUGS = createAction(() -> QuPathGUI.openInBrowser(URL_BUGS));
+		@ActionDescription("KEY:Menu.Help.description.issues")
+		@ActionMenu("KEY:Menu.Help.name.issues")
+		public final Action BUGS = createAction(() -> QuPathGUI.openInBrowser(Urls.getGitHubIssuesUrl()));
 		
-		@ActionDescription("Visit the user forum. This is the place to ask questions (and give answers).")
-		@ActionMenu("View user forum (web)")
-		public final Action FORUM = createAction(() -> QuPathGUI.openInBrowser(URL_FORUM));
+		@ActionDescription("KEY:Menu.Help.description.forum")
+		@ActionMenu("KEY:Menu.Help.name.forum")
+		public final Action FORUM = createAction(() -> QuPathGUI.openInBrowser(Urls.getUserForumUrl()));
 		
-		@ActionDescription("View the QuPath source code online.")
-		@ActionMenu("View source code (web)")
-		public final Action SOURCE = createAction(() -> QuPathGUI.openInBrowser(URL_SOURCE));
+		@ActionDescription("KEY:Menu.Help.description.source")
+		@ActionMenu("KEY:Menu.Help.name.source")
+		public final Action SOURCE = createAction(() -> QuPathGUI.openInBrowser(Urls.getGitHubRepoUrl()));
 
 		public final Action SEP_3 = ActionTools.createSeparator();
 
-		@ActionDescription("View license information for QuPath and its third-party dependencies.")
-		@ActionMenu("License")
+		@ActionDescription("KEY:Menu.Help.description.license")
+		@ActionMenu("KEY:Menu.Help.name.license")
 		public final Action LICENSE = Commands.createSingleStageAction(() -> Commands.createLicensesWindow(qupath));
 		
-		@ActionDescription("View system information.")
-		@ActionMenu("System info")
+		@ActionDescription("KEY:Menu.Help.description.systemInfo")
+		@ActionMenu("KEY:Menu.Help.name.systemInfo")
 		public final Action INFO = Commands.createSingleStageAction(() -> Commands.createShowSystemInfoDialog(qupath));
-				
+						
 	}
 
 }

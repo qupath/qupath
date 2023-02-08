@@ -34,7 +34,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.zip.ZipFile;
 
@@ -434,7 +433,7 @@ public class JavadocViewer {
 				return Collections.emptyList();
 			
 			if (Files.isDirectory(path)) {
-				return getJavadocUris(path, searchDepth).sorted().collect(Collectors.toList());
+				return getJavadocUris(path, searchDepth).sorted().toList();
 			} else {
 				var docUri = getDocUri(path);
 				return docUri == null ? Collections.emptyList() : Collections.singletonList(docUri);

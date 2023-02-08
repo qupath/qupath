@@ -48,8 +48,6 @@ import java.util.function.Function;
 import java.util.prefs.BackingStoreException;
 import java.util.prefs.InvalidPreferencesFormatException;
 import java.util.prefs.Preferences;
-import java.util.stream.Collectors;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -444,7 +442,7 @@ public class PathPrefs {
 						return name.endsWith(".cfg") && !name.endsWith("(console).cfg");
 					})
 					.sorted(Comparator.comparingInt(p -> p.getFileName().toString().length()))
-					.collect(Collectors.toList());
+					.toList();
 			if (paths.isEmpty())
 				return null;
 			// Return the shortest valid path found

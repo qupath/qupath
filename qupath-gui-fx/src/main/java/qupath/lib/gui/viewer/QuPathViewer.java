@@ -1578,7 +1578,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 				var colors = imageDisplay.availableChannels().stream()
 						.filter(c -> c instanceof DirectServerChannelInfo)
 						.map(c -> c.getColor())
-						.collect(Collectors.toList());
+						.toList();
 				if (server.nChannels() == colors.size())
 					updateServerChannels(server, colors);
 			}
@@ -1643,7 +1643,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		var channels = server.getMetadata().getChannels();
 		if (channels.size() != colors.size())
 			throw new IllegalArgumentException(String.format("Number of channels (%d) does not match the number of colors (%d)!", channels.size(), colors.size()));
-		var serverChannelColors = channels.stream().map(c -> c.getColor()).collect(Collectors.toList());
+		var serverChannelColors = channels.stream().map(c -> c.getColor()).toList();
 		if (colors.equals(serverChannelColors))
 			return false;
 		channels = new ArrayList<>(channels);
@@ -1682,8 +1682,8 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		if (currentServer == null || tempServer == null)
 			return false;
 		if (tempServer.nChannels() == currentServer.nChannels() && tempServer.getPixelType() == currentServer.getPixelType()) {
-			var tempNames = tempServer.getMetadata().getChannels().stream().map(c -> c.getName()).collect(Collectors.toList());
-			var currentNames = currentServer.getMetadata().getChannels().stream().map(c -> c.getName()).collect(Collectors.toList());
+			var tempNames = tempServer.getMetadata().getChannels().stream().map(c -> c.getName()).toList();
+			var currentNames = currentServer.getMetadata().getChannels().stream().map(c -> c.getName()).toList();
 			return tempNames.equals(currentNames);
 		}
 		return false;

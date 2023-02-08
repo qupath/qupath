@@ -39,8 +39,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
-
 import javax.swing.SwingUtilities;
 
 import org.slf4j.Logger;
@@ -278,7 +276,7 @@ class ExtractRegionCommand implements Runnable {
 					var availableSingleChannels = tempChannels.stream()
 							.filter(c -> c instanceof SingleChannelDisplayInfo)
 							.map(c -> (SingleChannelDisplayInfo)c)
-							.collect(Collectors.toList());
+							.toList();
 					
 					CompositeImage impComp = (CompositeImage)imp;
 					// If we're displaying with an inverted background, we need to set this property for the composite mode

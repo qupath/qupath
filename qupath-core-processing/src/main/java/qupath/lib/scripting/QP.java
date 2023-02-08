@@ -376,7 +376,7 @@ public class QP {
 					return !Object.class.equals(m.getDeclaringClass()) && isPublic(m) && m.getAnnotation(Deprecated.class) == null;
 					})
 				.sorted((m1, m2) -> m1.getName().compareTo(m2.getName()))
-				.collect(Collectors.toList());
+				.toList();
 	}
 	
 	private static List<Field> getPublicFields(Object o) {
@@ -386,7 +386,7 @@ public class QP {
 					return !Object.class.equals(f.getDeclaringClass()) && isPublic(f) && f.getAnnotation(Deprecated.class) == null;
 					})
 				.sorted((m1, m2) -> m1.getName().compareTo(m2.getName()))
-				.collect(Collectors.toList());
+				.toList();
 	}
 	
 	private static boolean isPublic(Member m) {
@@ -1636,7 +1636,7 @@ public class QP {
 		var objList = hierarchy.getFlattenedObjectList(null);
 		if (includeRootObject)
 			return objList;
-		return objList.stream().filter(e -> !e.isRootObject()).collect(Collectors.toList());
+		return objList.stream().filter(e -> !e.isRootObject()).toList();
 	}
 
 	/**
@@ -2034,7 +2034,7 @@ public class QP {
 			var newCores = PathObjectTools.getFlattenedObjectList(transformed, null, true)
 					.stream()
 					.filter(p -> p.isTMACore())
-					.collect(Collectors.toList());
+					.toList();
 			
 			var matches = PathObjectTools.matchByID(originalCores, newCores);
 			var newCoresOrdered = new ArrayList<TMACoreObject>();
@@ -2314,7 +2314,7 @@ public class QP {
 		if (hierarchy == null)
 			return;
 		Collection<PathObject> selectedRaw = hierarchy.getSelectionModel().getSelectedObjects();
-		List<PathObject> selected = selectedRaw.stream().filter(p -> !(p instanceof TMACoreObject)).collect(Collectors.toList());
+		List<PathObject> selected = selectedRaw.stream().filter(p -> !(p instanceof TMACoreObject)).toList();
 		hierarchy.removeObjects(selected, keepChildren);
 		hierarchy.getSelectionModel().clearSelection();
 	}
@@ -2328,7 +2328,7 @@ public class QP {
 	public static List<PathObject> getObjects(final Predicate<PathObject> predicate) {
 		PathObjectHierarchy hierarchy = getCurrentHierarchy();
 		if (hierarchy != null)
-			return hierarchy.getFlattenedObjectList(null).stream().filter(predicate).collect(Collectors.toList());
+			return hierarchy.getFlattenedObjectList(null).stream().filter(predicate).toList();
 		return Collections.emptyList();
 	}
 	
@@ -2341,7 +2341,7 @@ public class QP {
 	public static void selectAllObjects(PathObjectHierarchy hierarchy, boolean includeRootObject) {
 		var allObjs = hierarchy.getFlattenedObjectList(null);
 		if (!includeRootObject)
-			allObjs = allObjs.stream().filter(e -> !e.isRootObject()).collect(Collectors.toList());
+			allObjs = allObjs.stream().filter(e -> !e.isRootObject()).toList();
 		if (hierarchy != null)
 			hierarchy.getSelectionModel().setSelectedObjects(allObjs, null);
 	}
@@ -2457,7 +2457,7 @@ public class QP {
 	 * @return
 	 */
 	public static List<PathObject> getObjects(final PathObjectHierarchy hierarchy, final Predicate<PathObject> predicate) {
-		return hierarchy.getFlattenedObjectList(null).stream().filter(predicate).collect(Collectors.toList());
+		return hierarchy.getFlattenedObjectList(null).stream().filter(predicate).toList();
 	}
 
 	/**
@@ -3183,7 +3183,7 @@ public class QP {
 	public static void setIntensityClassificationsForSelected(final PathObjectHierarchy hierarchy, final String measurementName, final double... thresholds) {
 		// Get all selected detections
 		List<PathObject> pathObjects = hierarchy.getSelectionModel().getSelectedObjects()
-				.stream().filter(p -> p.isDetection()).collect(Collectors.toList());
+				.stream().filter(p -> p.isDetection()).toList();
 		setIntensityClassifications(pathObjects, measurementName, thresholds);
 		hierarchy.fireObjectClassificationsChangedEvent(QP.class, pathObjects);
 	}
@@ -3767,7 +3767,7 @@ public class QP {
 		var transformed = selected.stream()
 				.filter(filter)
 				.map(p -> PathObjectTools.updatePlane(p, plane, false, true))
-				.collect(Collectors.toList());
+				.toList();
 		if (transformed.isEmpty())
 			return false;
 		hierarchy.addObjects(transformed);
@@ -3974,7 +3974,7 @@ public class QP {
 			geometryParent = parent.getROI().getGeometry();
 
 		// Get the parent area to use
-		var union = GeometryTools.union(pathObjectList.stream().map(p -> p.getROI().getGeometry()).collect(Collectors.toList()));
+		var union = GeometryTools.union(pathObjectList.stream().map(p -> p.getROI().getGeometry()).toList());
 		var geometry = geometryParent.difference(union);
 
 		// Create the new ROI
@@ -4511,7 +4511,7 @@ public class QP {
 		 var toRemove = toRemoveOriginal
 				 .stream()
 				 .filter(p -> !p.isTMACore())
-				 .collect(Collectors.toList());
+				 .toList();
 		 if (toRemove.size() < toRemoveOriginal.size())
 			 logger.warn("TMA cores outside the image can't be removed");
 		 if (toRemove.isEmpty())
@@ -4553,12 +4553,12 @@ public class QP {
 		 var overlapping = PathObjectTools.findObjectsOutsideImage(hierarchy.getAllObjects(false), server, false)
 				 .stream()
 				 .filter(p -> !p.isTMACore())
-				 .collect(Collectors.toList());
+				 .toList();
 		 if (overlapping.isEmpty())
 			 return changes;
 		 
 		 // Remove the detections entirely
-		 var overlappingDetections = overlapping.stream().filter(p -> p.isDetection()).collect(Collectors.toList());
+		 var overlappingDetections = overlapping.stream().filter(p -> p.isDetection()).toList();
 		 if (!overlappingDetections.isEmpty()) {
 			 hierarchy.removeObjects(overlappingDetections, true);
 			 changes = true;

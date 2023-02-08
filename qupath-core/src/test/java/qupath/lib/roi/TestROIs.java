@@ -32,8 +32,6 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.nio.file.Files;
 import java.util.List;
-import java.util.stream.Collectors;
-
 import org.junit.jupiter.api.Test;
 import org.locationtech.jts.geom.Geometry;
 
@@ -96,7 +94,7 @@ public class TestROIs {
 		File fileHierarchy = new File("src/test/resources/data/test-objects.hierarchy");
 		try (InputStream stream = Files.newInputStream(fileHierarchy.toPath())) {
 			PathObjectHierarchy hierarchy = (PathObjectHierarchy)new ObjectInputStream(stream).readObject();
-			List<ROI> rois = hierarchy.getFlattenedObjectList(null).stream().filter(p -> p.hasROI()).map(p -> p.getROI()).collect(Collectors.toList());
+			List<ROI> rois = hierarchy.getFlattenedObjectList(null).stream().filter(p -> p.hasROI()).map(p -> p.getROI()).toList();
 			assertNotEquals(0L, rois.size());
 			for (ROI roi : rois) {
 				Geometry geom = roi.getGeometry();

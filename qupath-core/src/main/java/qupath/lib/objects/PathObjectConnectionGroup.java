@@ -25,8 +25,6 @@ package qupath.lib.objects;
 
 import java.util.Collection;
 import java.util.List;
-import java.util.stream.Collectors;
-
 import qupath.lib.regions.ImageRegion;
 
 /**
@@ -79,7 +77,7 @@ public interface PathObjectConnectionGroup {
 		return getPathObjects()
 				.stream()
 				.filter(p -> p.getROI().getZ() == region.getZ() && p.getROI().getT() == region.getT())
-				.collect(Collectors.toList());
+				.toList();
 	}
 
 }

@@ -36,7 +36,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
-import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -309,7 +308,7 @@ public final class PathObjectHierarchy implements Serializable {
 			// Need to remove annotations first (they will be re-inserted later) so we can resolve detections if needed
 			if (!annotations.isEmpty())
 				removeObjects(annotations, true);
-			var remainingDetections = detections.stream().filter(p -> p.getParent() == rootObject).collect(Collectors.toList());
+			var remainingDetections = detections.stream().filter(p -> p.getParent() == rootObject).toList();
 			if (!remainingDetections.isEmpty())
 				insertPathObjects(remainingDetections);
 		}
@@ -777,7 +776,7 @@ public final class PathObjectHierarchy implements Serializable {
 	 * Get a flattened list containing all PathObjects in the hierarchy (including from the root object).
 	 * <p>
 	 * To get a flattened list containing all {@code PathObject}s <b>without</b> the root object, one can run the following:<br>
-	 * {@code getFlattenedObjectList(null).stream().filter(p -> !p.isRootObject()).collect(Collectors.toList())}
+	 * {@code getFlattenedObjectList(null).stream().filter(p -> !p.isRootObject()).toList()}
 	 * <p>
 	 * Or, since v0.4.0, just use {@link #getAllObjects(boolean)} instead.
 	 * @param list
@@ -877,7 +876,7 @@ public final class PathObjectHierarchy implements Serializable {
 			else {
 				return tileCache.covers(preparedGeometry, tileCache.getGeometry(child));
 			}
-		}).collect(Collectors.toList());
+		}).toList();
 	}
 	
 	
