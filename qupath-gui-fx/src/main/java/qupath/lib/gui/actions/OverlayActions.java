@@ -24,10 +24,9 @@ package qupath.lib.gui.actions;
 
 import org.controlsfx.control.action.Action;
 
-import qupath.lib.gui.QuPathResources;
 import qupath.lib.gui.SelectableItem;
 import qupath.lib.gui.actions.ActionTools.ActionAccelerator;
-import qupath.lib.gui.actions.ActionTools.ActionDescription;
+import qupath.lib.gui.actions.ActionTools.ActionConfig;
 import qupath.lib.gui.actions.ActionTools.ActionIcon;
 import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.tools.IconFactory.PathIcons;
@@ -46,68 +45,67 @@ public class OverlayActions {
 	
 	@ActionIcon(PathIcons.GRID)
 	@ActionAccelerator("shift+g")
-	@ActionDescription("KEY:OverlayActions.description.showCountingGrid")
+	@ActionConfig("OverlayActions.showCountingGrid")
 	public final Action SHOW_GRID;
 
-	@ActionDescription("Set the spacing for the counting grid)")
+	@ActionConfig("OverlayActions.setCountingGridSpacing")
 	public final Action GRID_SPACING;
-	
 	
 	@ActionIcon(PathIcons.PIXEL_CLASSIFICATION)
 	@ActionAccelerator("c")
-	@ActionDescription("KEY:OverlayActions.description.setCountingGridSpacing")
+	@ActionConfig("OverlayActions.showPixelOverlay")
 	public final Action SHOW_PIXEL_CLASSIFICATION;
 
 	@ActionIcon(PathIcons.CELL_ONLY)
-	@ActionDescription("KEY:OverlayActions.description.showCellBoundaries")
+	@ActionConfig("OverlayActions.showCellBoundaries")
 	public final Action SHOW_CELL_BOUNDARIES;
 
 	@ActionIcon(PathIcons.NUCLEI_ONLY)
-	@ActionDescription("KEY:OverlayActions.description.showCellNuclei")
+	@ActionConfig("OverlayActions.showCellNuclei")
 	public final Action SHOW_CELL_NUCLEI;
 
 	@ActionIcon(PathIcons.CELL_NUCLEI_BOTH)
-	@ActionDescription("KEY:OverlayActions.description.showCellBoth")
+	@ActionConfig("OverlayActions.showCellBoth")
 	public final Action SHOW_CELL_BOUNDARIES_AND_NUCLEI;
 
 	@ActionIcon(PathIcons.CENTROIDS_ONLY)
-	@ActionDescription("KEY:OverlayActions.description.showCellCentroids")
+	@ActionConfig("OverlayActions.showCellCentroids")
 	public final Action SHOW_CELL_CENTROIDS;
 
 	@ActionIcon(PathIcons.ANNOTATIONS)
 	@ActionAccelerator("a")
-	@ActionDescription("KEY:OverlayActions.description.showAnnotations")
+	@ActionConfig("OverlayActions.showAnnotations")
 	public final Action SHOW_ANNOTATIONS;
 	
 	@ActionIcon(PathIcons.SHOW_NAMES)
 	@ActionAccelerator("n")
-	@ActionDescription("KEY:OverlayActions.description.showAnnotationNames")
+	@ActionConfig("OverlayActions.showAnnotationNames")
 	public final Action SHOW_NAMES;
 	
 	@ActionIcon(PathIcons.ANNOTATIONS_FILL)
 	@ActionAccelerator("shift+f")
-	@ActionDescription("KEY:OverlayActions.description.fillAnnotations")
+	@ActionConfig("OverlayActions.fillAnnotations")
 	public final Action FILL_ANNOTATIONS;
 	
 	@ActionIcon(PathIcons.TMA_GRID)
 	@ActionAccelerator("g")
-	@ActionDescription("KEY:OverlayActions.description.showTMAGrid")
+	@ActionConfig("OverlayActions.showTMAGrid")
 	public final Action SHOW_TMA_GRID;
 
-	@ActionDescription("KEY:OverlayActions.description.showTMALabels")
+	@ActionConfig("OverlayActions.showTMALabels")
 	public final Action SHOW_TMA_GRID_LABELS;
 	
 	@ActionIcon(PathIcons.DETECTIONS)
 	@ActionAccelerator("d")
-	@ActionDescription("KEY:OverlayActions.description.showDetections")
+	@ActionConfig("OverlayActions.showDetections")
 	public final Action SHOW_DETECTIONS;
 	
 	@ActionIcon(PathIcons.DETECTIONS_FILL)
 	@ActionAccelerator("f")
-	@ActionDescription("KEY:OverlayActions.description.fillDetections")
+	@ActionConfig("OverlayActions.fillDetections")
 	public final Action FILL_DETECTIONS;
 	
-	@ActionDescription("KEY:OverlayActions.description.showConnections")
+	@ActionConfig("OverlayActions.showConnections")
 	public final Action SHOW_CONNECTIONS;
 	
 	private OverlayOptions overlayOptions;
@@ -115,27 +113,27 @@ public class OverlayActions {
 	public OverlayActions(OverlayOptions overlayOptions) {
 		this.overlayOptions = overlayOptions;
 		
-		SHOW_GRID = ActionTools.createSelectableAction(overlayOptions.showGridProperty(), getName("showCountingGrid"));
-		GRID_SPACING = ActionTools.createAction(() -> Commands.promptToSetGridLineSpacing(overlayOptions), getName("setCountingGridSpacing"));
+		SHOW_GRID = ActionTools.createSelectableAction(overlayOptions.showGridProperty());
+		GRID_SPACING = ActionTools.createAction(() -> Commands.promptToSetGridLineSpacing(overlayOptions));
 		
-		SHOW_PIXEL_CLASSIFICATION = ActionTools.createSelectableAction(overlayOptions.showPixelClassificationProperty(), getName("showPixelOverlay"));
+		SHOW_PIXEL_CLASSIFICATION = ActionTools.createSelectableAction(overlayOptions.showPixelClassificationProperty());
 		
-		SHOW_ANNOTATIONS = ActionTools.createSelectableAction(overlayOptions.showAnnotationsProperty(), getName("showAnnotations"));
-		SHOW_NAMES = ActionTools.createSelectableAction(overlayOptions.showNamesProperty(), getName("showAnnotationNames"));
-		FILL_ANNOTATIONS = ActionTools.createSelectableAction(overlayOptions.fillAnnotationsProperty(), getName("fillAnnotations"));
+		SHOW_ANNOTATIONS = ActionTools.createSelectableAction(overlayOptions.showAnnotationsProperty());
+		SHOW_NAMES = ActionTools.createSelectableAction(overlayOptions.showNamesProperty());
+		FILL_ANNOTATIONS = ActionTools.createSelectableAction(overlayOptions.fillAnnotationsProperty());
 		
-		SHOW_DETECTIONS = ActionTools.createSelectableAction(overlayOptions.showDetectionsProperty(), getName("showDetections"));
-		FILL_DETECTIONS = ActionTools.createSelectableAction(overlayOptions.fillDetectionsProperty(), getName("fillDetections"));
+		SHOW_DETECTIONS = ActionTools.createSelectableAction(overlayOptions.showDetectionsProperty());
+		FILL_DETECTIONS = ActionTools.createSelectableAction(overlayOptions.fillDetectionsProperty());
 
-		SHOW_TMA_GRID = ActionTools.createSelectableAction(overlayOptions.showTMAGridProperty(), getName("showTMAGrid"));
-		SHOW_TMA_GRID_LABELS = ActionTools.createSelectableAction(overlayOptions.showTMACoreLabelsProperty(), getName("showTMALabels"));
+		SHOW_TMA_GRID = ActionTools.createSelectableAction(overlayOptions.showTMAGridProperty());
+		SHOW_TMA_GRID_LABELS = ActionTools.createSelectableAction(overlayOptions.showTMACoreLabelsProperty());
 
-		SHOW_CELL_BOUNDARIES = ActionTools.createSelectableCommandAction(new SelectableItem<>(overlayOptions.detectionDisplayModeProperty(), DetectionDisplayMode.BOUNDARIES_ONLY), getName("showCellBoundaries"));
-		SHOW_CELL_NUCLEI = ActionTools.createSelectableCommandAction(new SelectableItem<>(overlayOptions.detectionDisplayModeProperty(), DetectionDisplayMode.NUCLEI_ONLY), getName("showCellNuclei"));
-		SHOW_CELL_BOUNDARIES_AND_NUCLEI = ActionTools.createSelectableCommandAction(new SelectableItem<>(overlayOptions.detectionDisplayModeProperty(), DetectionDisplayMode.NUCLEI_AND_BOUNDARIES), getName("showCellBoth"));
-		SHOW_CELL_CENTROIDS = ActionTools.createSelectableCommandAction(new SelectableItem<>(overlayOptions.detectionDisplayModeProperty(), DetectionDisplayMode.CENTROIDS), getName("showCellCentroids"));
+		SHOW_CELL_BOUNDARIES = ActionTools.createSelectableCommandAction(new SelectableItem<>(overlayOptions.detectionDisplayModeProperty(), DetectionDisplayMode.BOUNDARIES_ONLY));
+		SHOW_CELL_NUCLEI = ActionTools.createSelectableCommandAction(new SelectableItem<>(overlayOptions.detectionDisplayModeProperty(), DetectionDisplayMode.NUCLEI_ONLY));
+		SHOW_CELL_BOUNDARIES_AND_NUCLEI = ActionTools.createSelectableCommandAction(new SelectableItem<>(overlayOptions.detectionDisplayModeProperty(), DetectionDisplayMode.NUCLEI_AND_BOUNDARIES));
+		SHOW_CELL_CENTROIDS = ActionTools.createSelectableCommandAction(new SelectableItem<>(overlayOptions.detectionDisplayModeProperty(), DetectionDisplayMode.CENTROIDS));
 		
-		SHOW_CONNECTIONS = ActionTools.createSelectableAction(overlayOptions.showConnectionsProperty(), getName("showConnections"));
+		SHOW_CONNECTIONS = ActionTools.createSelectableAction(overlayOptions.showConnectionsProperty());
 		
 		ActionTools.getAnnotatedActions(this);
 	}
@@ -146,11 +144,6 @@ public class OverlayActions {
 	 */
 	public OverlayOptions getOverlayOptions() {
 		return overlayOptions;
-	}
-	
-	
-	private static String getName(String key) {
-		return QuPathResources.getString("OverlayActions.name." + key);
 	}
 	
 }

@@ -7,7 +7,7 @@ import org.controlsfx.control.action.Action;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.QuPathResources;
 import qupath.lib.gui.actions.ActionTools;
-import qupath.lib.gui.actions.ActionTools.ActionDescription;
+import qupath.lib.gui.actions.ActionTools.ActionConfig;
 import qupath.lib.gui.actions.ActionTools.ActionMenu;
 import qupath.lib.gui.commands.Commands;
 import qupath.lib.objects.PathDetectionObject;
@@ -32,20 +32,20 @@ public class ClassifyMenuActions implements MenuActions {
 
 	@Override
 	public String getName() {
-		return QuPathResources.getString("KEY:Menu.Classify.name");
+		return QuPathResources.getString("Menu.Classify");
 	}
 	
-	@ActionMenu("KEY:Menu.Classify.name")
+	@ActionMenu("Menu.Classify")
 	public class Actions {
 				
-		@ActionMenu("KEY:Menu.Classify.Objects.name")
+		@ActionMenu("Menu.Classify.ObjectClassification")
 		public final Action SEP_1 = ActionTools.createSeparator();
 
-		@ActionDescription("KEY:Menu.Classify.Objects.name.resetDetectionClassifications")
-		@ActionMenu("KEY:Menu.Classify.Objects.description.resetDetectionClassifications")
+		@ActionMenu("Menu.Classify.ObjectClassification")
+		@ActionConfig("Action.Classify.Objects.resetDetectionClassifications")
 		public final Action RESET_DETECTION_CLASSIFICATIONS = qupath.createImageDataAction(imageData -> Commands.resetClassifications(imageData, PathDetectionObject.class));
 
-		@ActionMenu("KEY:Menu.Classify.Pixels.name")
+		@ActionMenu("Menu.Classify.PixelClassification")
 		public final Action SEP_3 = ActionTools.createSeparator();
 
 		public final Action SEP_4 = ActionTools.createSeparator();

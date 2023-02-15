@@ -24,9 +24,8 @@ package qupath.lib.gui.actions;
 
 import org.controlsfx.control.action.Action;
 
-import qupath.lib.gui.QuPathResources;
 import qupath.lib.gui.actions.ActionTools.ActionAccelerator;
-import qupath.lib.gui.actions.ActionTools.ActionDescription;
+import qupath.lib.gui.actions.ActionTools.ActionConfig;
 import qupath.lib.gui.actions.ActionTools.ActionIcon;
 import qupath.lib.gui.tools.IconFactory.PathIcons;
 import qupath.lib.gui.viewer.ViewerManager;
@@ -41,26 +40,26 @@ import qupath.lib.gui.viewer.ViewerManager;
 public class ViewerActions {
 	
 	@ActionIcon(PathIcons.ZOOM_TO_FIT)
-	@ActionDescription("KEY:ViewerActions.description.zoomToFit")
+	@ActionConfig("ViewerActions.zoomToFit")
 	public final Action ZOOM_TO_FIT;
 
 	@ActionIcon(PathIcons.OVERVIEW)
-	@ActionDescription("KEY:ViewerActions.description.overview")
+	@ActionConfig("ViewerActions.overview")
 	public final Action SHOW_OVERVIEW;
 
 	@ActionIcon(PathIcons.LOCATION)
-	@ActionDescription("KEY:ViewerActions.description.location")
+	@ActionConfig("ViewerActions.location")
 	public final Action SHOW_LOCATION;
 
 	@ActionIcon(PathIcons.SHOW_SCALEBAR)
-	@ActionDescription("KEY:ViewerActions.description.scalebar")
+	@ActionConfig("ViewerActions.scalebar")
 	public final Action SHOW_SCALEBAR;
 	
 	@ActionAccelerator("shortcut+alt+s")
-	@ActionDescription("KEY:ViewerActions.description.synchronize")
+	@ActionConfig("ViewerActions.synchronize")
 	public final Action TOGGLE_SYNCHRONIZE_VIEWERS;
 	
-	@ActionDescription("KEY:ViewerActions.description.matchResolutions")
+	@ActionConfig("ViewerActions.matchResolutions")
 	public final Action MATCH_VIEWER_RESOLUTIONS;
 	
 	private ViewerManager viewerManager;
@@ -68,22 +67,18 @@ public class ViewerActions {
 	public ViewerActions(ViewerManager viewerManager) {
 		this.viewerManager = viewerManager;
 		
-		SHOW_OVERVIEW = ActionTools.createSelectableAction(viewerManager.showOverviewProperty(), getName("overview"));
-		SHOW_LOCATION = ActionTools.createSelectableAction(viewerManager.showLocationProperty(), getName("location"));
-		SHOW_SCALEBAR = ActionTools.createSelectableAction(viewerManager.showScalebarProperty(), getName("scalebar"));
-		TOGGLE_SYNCHRONIZE_VIEWERS = ActionTools.createSelectableAction(viewerManager.synchronizeViewersProperty(), getName("synchronize"));
-		MATCH_VIEWER_RESOLUTIONS = new Action(getName("matchResolutions"), e -> viewerManager.matchResolutions());
-		ZOOM_TO_FIT = ActionTools.createSelectableAction(viewerManager.zoomToFitProperty(), getName("zoomToFit"));
+		SHOW_OVERVIEW = ActionTools.createSelectableAction(viewerManager.showOverviewProperty());
+		SHOW_LOCATION = ActionTools.createSelectableAction(viewerManager.showLocationProperty());
+		SHOW_SCALEBAR = ActionTools.createSelectableAction(viewerManager.showScalebarProperty());
+		TOGGLE_SYNCHRONIZE_VIEWERS = ActionTools.createSelectableAction(viewerManager.synchronizeViewersProperty());
+		MATCH_VIEWER_RESOLUTIONS = new Action(e -> viewerManager.matchResolutions());
+		ZOOM_TO_FIT = ActionTools.createSelectableAction(viewerManager.zoomToFitProperty());
 		
 		ActionTools.getAnnotatedActions(this);
 	}
 	
 	public ViewerManager getViewerManager() {
 		return viewerManager;
-	}
-	
-	private static String getName(String key) {
-		return QuPathResources.getString("ViewerActions.name." + key);
 	}
 	
 }

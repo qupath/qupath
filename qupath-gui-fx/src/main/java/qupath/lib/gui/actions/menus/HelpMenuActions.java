@@ -10,7 +10,7 @@ import qupath.lib.gui.Urls;
 import qupath.lib.gui.WelcomeStage;
 import qupath.lib.gui.actions.ActionTools;
 import qupath.lib.gui.actions.DefaultActions;
-import qupath.lib.gui.actions.ActionTools.ActionDescription;
+import qupath.lib.gui.actions.ActionTools.ActionConfig;
 import qupath.lib.gui.actions.ActionTools.ActionMenu;
 import qupath.lib.gui.commands.Commands;
 
@@ -36,59 +36,49 @@ public class HelpMenuActions implements MenuActions {
 	
 	@Override
 	public String getName() {
-		return QuPathResources.getString("KEY:Menu.Help.name");
+		return QuPathResources.getString("Menu.Help");
 	}
 
 	
-	@ActionMenu("KEY:Menu.Help.name")
+	@ActionMenu("Menu.Help")
 	public class Actions {
 
-		@ActionDescription("KEY:Menu.Help.description.welcome")
-		@ActionMenu("KEY:Menu.Help.name.welcome")
+		@ActionConfig("Action.Help.welcome")
 		public final Action QUPATH_STARTUP = ActionTools.createAction(() -> WelcomeStage.getInstance(qupath).show());
 
 		public final Action HELP_VIEWER = defaultActions.HELP_VIEWER;
 
 		public final Action SEP_1 = ActionTools.createSeparator();
 
-		@ActionDescription("KEY:Menu.Help.description.docs")
-		@ActionMenu("KEY:Menu.Help.name.docs")
+		@ActionConfig("Action.Help.docs")
 		public final Action DOCS = ActionTools.createAction(() -> QuPathGUI.openInBrowser(Urls.getVersionedDocsUrl()));
 		
-		@ActionDescription("KEY:Menu.Help.description.video")
-		@ActionMenu("KEY:Menu.Help.name.video")
+		@ActionConfig("Action.Help.video")
 		public final Action DEMOS = ActionTools.createAction(() -> QuPathGUI.openInBrowser(Urls.getYouTubeUrl()));
 
-		@ActionDescription("KEY:Menu.Help.description.updates")
-		@ActionMenu("KEY:Menu.Help.name.updates")
+		@ActionConfig("Action.Help.updates")
 		public final Action UPDATE = ActionTools.createAction(() -> qupath.requestFullUpdateCheck());
 
 		public final Action SEP_2 = ActionTools.createSeparator();
 		
-		@ActionDescription("KEY:Menu.Help.description.cite")
-		@ActionMenu("KEY:Menu.Help.name.cite")
+		@ActionConfig("Action.Help.cite")
 		public final Action CITE = ActionTools.createAction(() -> QuPathGUI.openInBrowser(Urls.getCitationUrl()));
 		
-		@ActionDescription("KEY:Menu.Help.description.issues")
-		@ActionMenu("KEY:Menu.Help.name.issues")
+		@ActionConfig("Action.Help.issues")
 		public final Action BUGS = ActionTools.createAction(() -> QuPathGUI.openInBrowser(Urls.getGitHubIssuesUrl()));
 		
-		@ActionDescription("KEY:Menu.Help.description.forum")
-		@ActionMenu("KEY:Menu.Help.name.forum")
+		@ActionConfig("Action.Help.forum")
 		public final Action FORUM = ActionTools.createAction(() -> QuPathGUI.openInBrowser(Urls.getUserForumUrl()));
 		
-		@ActionDescription("KEY:Menu.Help.description.source")
-		@ActionMenu("KEY:Menu.Help.name.source")
+		@ActionConfig("Action.Help.source")
 		public final Action SOURCE = ActionTools.createAction(() -> QuPathGUI.openInBrowser(Urls.getGitHubRepoUrl()));
 
 		public final Action SEP_3 = ActionTools.createSeparator();
 
-		@ActionDescription("KEY:Menu.Help.description.license")
-		@ActionMenu("KEY:Menu.Help.name.license")
+		@ActionConfig("Action.Help.license")
 		public final Action LICENSE = Commands.createSingleStageAction(() -> Commands.createLicensesWindow(qupath));
 		
-		@ActionDescription("KEY:Menu.Help.description.systemInfo")
-		@ActionMenu("KEY:Menu.Help.name.systemInfo")
+		@ActionConfig("Action.Help.systemInfo")
 		public final Action INFO = Commands.createSingleStageAction(() -> Commands.createShowSystemInfoDialog(qupath));
 						
 	}

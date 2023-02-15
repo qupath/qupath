@@ -169,11 +169,11 @@ class ToolBarComponent {
 	
 	
 	private static String getDescription(String key) {
-		return QuPathResources.getString("Toolbar.description." + key);
+		return QuPathResources.getString("Toolbar." + key + ".description");
 	}
 	
 	private static String getName(String key) {
-		return QuPathResources.getString("Toolbar.name." + key);
+		return QuPathResources.getString("Toolbar." + key);
 	}
 	
 	private static String getMessage(String key) {

@@ -72,6 +72,7 @@ import javafx.scene.shape.Rectangle;
 import javafx.util.Duration;
 import jfxtras.scene.menu.CirclePopupMenu;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.QuPathResources;
 import qupath.lib.gui.ToolManager;
 import qupath.lib.gui.actions.ActionTools;
 import qupath.lib.gui.commands.Commands;
@@ -932,25 +933,25 @@ public class ViewerManager implements QuPathViewerListener {
 		var defaultActions = qupath.getDefaultActions();
 		var viewerManagerActions = qupath.getViewerActions();
 		
-		MenuItem miAddRow = new MenuItem("Add row");
+		MenuItem miAddRow = new MenuItem(QuPathResources.getString("Action.View.Multiview.addRow"));
 		miAddRow.setOnAction(e -> addRow(viewer));
-		MenuItem miAddColumn = new MenuItem("Add column");
+		MenuItem miAddColumn = new MenuItem(QuPathResources.getString("Action.View.Multiview.addColumn"));
 		miAddColumn.setOnAction(e -> addColumn(viewer));
 		
-		MenuItem miRemoveRow = new MenuItem("Remove row");
+		MenuItem miRemoveRow = new MenuItem(QuPathResources.getString("Action.View.Multiview.removeRow"));
 		miRemoveRow.setOnAction(e -> removeRow(viewer));
-		MenuItem miRemoveColumn = new MenuItem("Remove column");
+		MenuItem miRemoveColumn = new MenuItem(QuPathResources.getString("Action.View.Multiview.removeColumn"));
 		miRemoveColumn.setOnAction(e -> removeColumn(viewer));
 
-		MenuItem miCloseViewer = new MenuItem("Close viewer");
+		MenuItem miCloseViewer = new MenuItem(QuPathResources.getString("Action.View.Multiview.closeViewer"));
 		miCloseViewer.setOnAction(e -> qupath.closeViewer(viewer));
-		MenuItem miResizeGrid = new MenuItem("Reset grid size");
+		MenuItem miResizeGrid = new MenuItem(QuPathResources.getString("Action.View.Multiview.resetGridSize"));
 		miResizeGrid.setOnAction(e -> resetGridSize());
 		
 		MenuItem miToggleSync = ActionTools.createCheckMenuItem(viewerManagerActions.TOGGLE_SYNCHRONIZE_VIEWERS, null);
 		MenuItem miMatchResolutions = ActionTools.createMenuItem(viewerManagerActions.MATCH_VIEWER_RESOLUTIONS);
 		Menu menuMultiview = MenuTools.createMenu(
-				"Multi-view",
+				"Menu.View.Multiview",
 				miToggleSync,
 				miMatchResolutions,
 				miCloseViewer,
@@ -987,23 +988,22 @@ public class ViewerManager implements QuPathViewerListener {
 		CheckMenuItem miTMAMissing = new CheckMenuItem("Set core missing");
 		miTMAMissing.setOnAction(e -> setTMACoreMissing(viewer.getHierarchy(), true));
 		
-		Menu menuTMA = new Menu("TMA");
-		MenuTools.addMenuItems(
-				menuTMA,
+		Menu menuTMA = MenuTools.createMenu(
+				"Menu.TMA",
 				miTMAValid,
 				miTMAMissing,
 				null,
 				defaultActions.TMA_ADD_NOTE,
 				null,
 				MenuTools.createMenu(
-						"Add",
+						"General.add",
 					qupath.createImageDataAction(imageData -> TMACommands.promptToAddRowBeforeSelected(imageData), "Add TMA row before"),
 					qupath.createImageDataAction(imageData -> TMACommands.promptToAddRowAfterSelected(imageData), "Add TMA row after"),
 					qupath.createImageDataAction(imageData -> TMACommands.promptToAddColumnBeforeSelected(imageData), "Add TMA column before"),
 					qupath.createImageDataAction(imageData -> TMACommands.promptToAddColumnAfterSelected(imageData), "Add TMA column after")
 					),
 				MenuTools.createMenu(
-						"Remove",
+						"General.remove",
 						qupath.createImageDataAction(imageData -> TMACommands.promptToDeleteTMAGridRow(imageData), "Remove TMA row"),
 						qupath.createImageDataAction(imageData -> TMACommands.promptToDeleteTMAGridColumn(imageData), "column")
 					)
@@ -1015,7 +1015,7 @@ public class ViewerManager implements QuPathViewerListener {
 		
 		var overlayActions = qupath.getOverlayActions();
 		Menu menuCells = MenuTools.createMenu(
-				"Cells",
+				"General.objects.cells",
 				ActionTools.createCheckMenuItem(overlayActions.SHOW_CELL_BOUNDARIES_AND_NUCLEI),
 				ActionTools.createCheckMenuItem(overlayActions.SHOW_CELL_NUCLEI),
 				ActionTools.createCheckMenuItem(overlayActions.SHOW_CELL_BOUNDARIES),
@@ -1024,7 +1024,7 @@ public class ViewerManager implements QuPathViewerListener {
 
 		
 		
-		MenuItem miClearSelectedObjects = new MenuItem("Delete object");
+		MenuItem miClearSelectedObjects = new MenuItem(QuPathResources.getString("General.deleteObjects"));
 		miClearSelectedObjects.setOnAction(e -> {
 			PathObjectHierarchy hierarchy = viewer.getHierarchy();
 			if (hierarchy == null)
@@ -1037,7 +1037,7 @@ public class ViewerManager implements QuPathViewerListener {
 		});
 		
 		// Create a standard annotations menu
-		Menu menuAnnotations = GuiTools.populateAnnotationsMenu(qupath, new Menu("Annotations"));
+		Menu menuAnnotations = GuiTools.populateAnnotationsMenu(qupath, MenuTools.createMenu("General.objects.annotations"));
 		
 		SeparatorMenuItem topSeparator = new SeparatorMenuItem();
 		popup.setOnShowing(e -> {
@@ -1065,10 +1065,10 @@ public class ViewerManager implements QuPathViewerListener {
 				miClearSelectedObjects.setVisible(false);
 			else {
 				if (imageData.getHierarchy().getSelectionModel().singleSelection()) {
-					miClearSelectedObjects.setText("Delete object");
+					miClearSelectedObjects.setText(QuPathResources.getString("General.deleteObject"));
 					miClearSelectedObjects.setVisible(true);
 				} else {
-					miClearSelectedObjects.setText("Delete objects");
+					miClearSelectedObjects.setText(QuPathResources.getString("General.deleteObjects"));
 					miClearSelectedObjects.setVisible(true);					
 				}
 			}

@@ -54,28 +54,28 @@ public class PathTools {
 	 */
 	public static final PathTool MOVE = createTool(
 			PathToolEventHandlers.createMoveEventHandler(),
-			QuPathResources.getString("Tools.name.move"),
+			QuPathResources.getString("Tools.move"),
 			createIcon(PathIcons.MOVE_TOOL));
 	/**
 	 * Rectangle drawing tool
 	 */
 	public static final PathTool RECTANGLE = createTool(
 			PathToolEventHandlers.createRectangleEventHandler(),
-			QuPathResources.getString("Tools.name.rectangle"),
+			QuPathResources.getString("Tools.rectangle"),
 			createIcon(PathIcons.RECTANGLE_TOOL));
 	/**
 	 * Ellipse drawing tool
 	 */
 	public static final PathTool ELLIPSE = createTool(
 			PathToolEventHandlers.createEllipseEventHandler(),
-			QuPathResources.getString("Tools.name.ellipse"),
+			QuPathResources.getString("Tools.ellipse"),
 			createIcon(PathIcons.ELLIPSE_TOOL));
 	/**
 	 * Line drawing tool
 	 */
 	public static final PathTool LINE = createTool(
 			PathToolEventHandlers.createLineEventHandler(),
-			QuPathResources.getString("Tools.name.line"),
+			QuPathResources.getString("Tools.line"),
 			createIcon(PathIcons.LINE_TOOL));
 
 	/**
@@ -83,7 +83,7 @@ public class PathTools {
 	 */
 	public static final PathTool ARROW_START = createTool(
 			PathToolEventHandlers.createArrowStartEventHandler(),
-			QuPathResources.getString("Tools.name.arrowStart"),
+			QuPathResources.getString("Tools.arrowStart"),
 			createIcon(PathIcons.ARROW_START_TOOL));
 
 	/**
@@ -91,7 +91,7 @@ public class PathTools {
 	 */
 	public static final PathTool ARROW_END = createTool(
 			PathToolEventHandlers.createArrowEndEventHandler(),
-			QuPathResources.getString("Tools.name.arrowEnd"),
+			QuPathResources.getString("Tools.arrowEnd"),
 			createIcon(PathIcons.ARROW_END_TOOL));
 
 	/**
@@ -99,7 +99,7 @@ public class PathTools {
 	 */
 	public static final PathTool ARROW_DOUBLE = createTool(
 			PathToolEventHandlers.createDoubleArrowEventHandler(),
-			QuPathResources.getString("Tools.name.arrowDouble"),
+			QuPathResources.getString("Tools.arrowDouble"),
 			createIcon(PathIcons.ARROW_DOUBLE_TOOL));
 	
 	/**
@@ -114,28 +114,28 @@ public class PathTools {
 	 */
 	public static final PathTool POLYGON = createTool(
 			PathToolEventHandlers.createPolygonEventHandler(),
-			QuPathResources.getString("Tools.name.polygon"),
+			QuPathResources.getString("Tools.polygon"),
 			createIcon(PathIcons.POLYGON_TOOL));
 	/**
 	 * Polyline drawing tool (open)
 	 */
 	public static final PathTool POLYLINE = createTool(
 			PathToolEventHandlers.createPolylineEventHandler(),
-			QuPathResources.getString("Tools.name.polyline"),
+			QuPathResources.getString("Tools.polyline"),
 			createIcon(PathIcons.POLYLINE_TOOL));
 	/**
 	 * Brush drawing tool
 	 */
 	public static final PathTool BRUSH = createTool(
 			PathToolEventHandlers.createBrushEventHandler(),
-			QuPathResources.getString("Tools.name.brush"),
+			QuPathResources.getString("Tools.brush"),
 			createIcon(PathIcons.BRUSH_TOOL));
 	/**
 	 * Points annotation and counting tool
 	 */
 	public static final PathTool POINTS = createTool(
 			PathToolEventHandlers.createPointsEventHandler(),
-			QuPathResources.getString("Tools.name.points"),
+			QuPathResources.getString("Tools.points"),
 			createIcon(PathIcons.POINTS_TOOL));
 	
 	

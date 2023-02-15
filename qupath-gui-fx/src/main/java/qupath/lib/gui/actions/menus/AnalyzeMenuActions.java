@@ -9,7 +9,7 @@ import qupath.lib.algorithms.TilerPlugin;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.QuPathResources;
 import qupath.lib.gui.actions.ActionTools;
-import qupath.lib.gui.actions.ActionTools.ActionDescription;
+import qupath.lib.gui.actions.ActionTools.ActionConfig;
 import qupath.lib.gui.actions.ActionTools.ActionMenu;
 import qupath.lib.gui.commands.Commands;
 import qupath.lib.plugins.objects.SmoothFeaturesPlugin;
@@ -34,46 +34,45 @@ public class AnalyzeMenuActions implements MenuActions {
 	
 	@Override
 	public String getName() {
-		return QuPathResources.getString("KEY:Menu.Analyze.name");
+		return QuPathResources.getString("Menu.Analyze");
 	}
 	
 
-	@ActionMenu("KEY:Menu.Analyze.name")
+	@ActionMenu("Menu.Analyze")
 	public class Actions {
 		
-		@ActionDescription("KEY:Menu.Analyze.Preprocessing.description.estimateStainVectors")
-		@ActionMenu("KEY:Menu.Analyze.Preprocessing.name.estimateStainVectors")
+		@ActionConfig("Action.Analyze.Preprocessing.estimateStainVectors")
 		public final Action COLOR_DECONVOLUTION_REFINE = qupath.createImageDataAction(imageData -> Commands.promptToEstimateStainVectors(imageData));
 		
-		@ActionDescription("KEY:Menu.Analyze.Tiles.description.createTiles")
-		@ActionMenu("KEY:Menu.Analyze.Tiles.name.createTiles")
+		@ActionMenu("Menu.Analyze.Tiles")
+		@ActionConfig("Action.Analyze.Tiles.createTiles")
 		public final Action CREATE_TILES = qupath.createPluginAction("Create tiles", TilerPlugin.class, null);
 
-		@ActionMenu("KEY:Menu.Analyze.CellDetection.name")
+		@ActionMenu("Menu.Analyze.CellDetection")
 		public final Action SEP_0 = ActionTools.createSeparator();
 
-		@ActionMenu("KEY:Menu.Analyze.Features.name.smoothedFeatures")
-		@ActionDescription("KEY:Menu.Analyze.Features.description.smoothedFeatures")
+		@ActionMenu("Menu.Analyze.Features")
+		@ActionConfig("Action.Analyze.Features.smoothedFeatures")
 		public final Action SMOOTHED_FEATURES = qupath.createPluginAction("Add Smoothed features", SmoothFeaturesPlugin.class, null);
 		
-		@ActionMenu("KEY:Menu.Analyze.Features.name.intensityFeatures")
-		@ActionDescription("KEY:Menu.Analyze.Features.description.intensityFeatures")
+		@ActionMenu("Menu.Analyze.Features")
+		@ActionConfig("Action.Analyze.Features.intensityFeatures")
 		public final Action INTENSITY_FEATURES = qupath.createPluginAction("Add intensity features", IntensityFeaturesPlugin.class, null);
 		
-		@ActionMenu("KEY:Menu.Analyze.Features.name.shapeFeatures")
-		@ActionDescription("KEY:Menu.Analyze.Features.description.shapeFeatures")
+		@ActionMenu("Menu.Analyze.Features")
+		@ActionConfig("Action.Analyze.Features.shapeFeatures")
 		public final Action SHAPE_FEATURES = qupath.createImageDataAction(imageData -> Commands.promptToAddShapeFeatures(qupath));
 
-		@ActionMenu("KEY:Menu.Analyze.Spatial.name.distanceToAnnotations2D")
-		@ActionDescription("KEY:Menu.Analyze.Spatial.description.distanceToAnnotations2D")
+		@ActionMenu("Menu.Analyze.Spatial")
+		@ActionConfig("Action.Analyze.Spatial.distanceToAnnotations2D")
 		public final Action DISTANCE_TO_ANNOTATIONS = qupath.createImageDataAction(imageData -> Commands.distanceToAnnotations2D(imageData, false));
 		
-		@ActionMenu("KEY:Menu.Analyze.Spatial.name.signedDistanceToAnnotations2D")
-		@ActionDescription("KEY:Menu.Analyze.Spatial.description.signedDistanceToAnnotations2D")
+		@ActionMenu("Menu.Analyze.Spatial")
+		@ActionConfig("Action.Analyze.Spatial.signedDistanceToAnnotations2D")
 		public final Action SIGNED_DISTANCE_TO_ANNOTATIONS = qupath.createImageDataAction(imageData -> Commands.distanceToAnnotations2D(imageData, true));
 		
-		@ActionMenu("KEY:Menu.Analyze.Spatial.name.detectionCentroidDistances2D")
-		@ActionDescription("KEY:Menu.Analyze.Spatial.description.detectionCentroidDistances2D")
+		@ActionMenu("Menu.Analyze.Spatial")
+		@ActionConfig("Action.Analyze.Spatial.detectionCentroidDistances2D")
 		public final Action DISTANCE_CENTROIDS = qupath.createImageDataAction(imageData -> Commands.detectionCentroidDistances2D(imageData));
 
 	}

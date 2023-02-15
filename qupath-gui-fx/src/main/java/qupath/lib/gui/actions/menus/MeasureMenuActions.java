@@ -9,7 +9,7 @@ import qupath.lib.gui.QuPathResources;
 import qupath.lib.gui.actions.ActionTools;
 import qupath.lib.gui.actions.DefaultActions;
 import qupath.lib.gui.actions.ActionTools.ActionAccelerator;
-import qupath.lib.gui.actions.ActionTools.ActionDescription;
+import qupath.lib.gui.actions.ActionTools.ActionConfig;
 import qupath.lib.gui.actions.ActionTools.ActionMenu;
 import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.commands.MeasurementExportCommand;
@@ -27,7 +27,7 @@ public class MeasureMenuActions implements MenuActions {
 	
 	@Override
 	public String getName() {
-		return QuPathResources.getString("KEY:Menu.Measure.name");
+		return QuPathResources.getString("Menu.Measure");
 	}
 	
 	@Override
@@ -39,32 +39,31 @@ public class MeasureMenuActions implements MenuActions {
 		return ActionTools.getAnnotatedActions(actions);
 	}
 
-	@ActionMenu("KEY:Menu.Measure.name")
+	@ActionMenu("Menu.Measure")
 	public class Actions {
 		
 		@ActionAccelerator("shortcut+shift+m")
-		@ActionMenu("KEY:Menu.Measure.name.maps")
-		@ActionDescription("KEY:Menu.Measure.description.maps")
+		@ActionConfig("Action.Measure.maps")
 		public final Action MAPS = Commands.createSingleStageAction(() -> Commands.createMeasurementMapDialog(qupath));
 		
-		@ActionMenu("KEY:Menu.Measure.name.manager")
-		@ActionDescription("KEY:Menu.Measure.description.manager")
+		@ActionConfig("Action.Measure.manager")
 		public final Action MANAGER = qupath.createImageDataAction(imageData -> Commands.showDetectionMeasurementManager(qupath, imageData));
 		
-		@ActionMenu("")
 		public final Action SEP_1 = ActionTools.createSeparator();
 		
 		public final Action TMA = defaultActions.MEASURE_TMA;
 		public final Action ANNOTATIONS = defaultActions.MEASURE_ANNOTATIONS;
 		public final Action DETECTIONS = defaultActions.MEASURE_DETECTIONS;
 		
+		@ActionMenu("Menu.Measure.GridViews")
 		public final Action GRID_ANNOTATIONS = defaultActions.MEASURE_GRID_ANNOTATIONS;
+		
+		@ActionMenu("Menu.Measure.GridViews")
 		public final Action GRID_TMA = defaultActions.MEASURE_GRID_TMA_CORES;
 
 		public final Action SEP_2 = ActionTools.createSeparator();
 
-		@ActionMenu("KEY:Menu.Measure.name.export")		
-		@ActionDescription("KEY:Menu.Measure.description.export")
+		@ActionConfig("Action.Measure.export")
 		public final Action EXPORT;
 		
 		private Actions() {

@@ -32,6 +32,7 @@ import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.SeparatorMenuItem;
+import qupath.lib.gui.QuPathResources;
 import qupath.lib.gui.actions.ActionTools;
 
 /**
@@ -52,7 +53,12 @@ public class MenuTools {
 	 * @return the newly-created and populated menu
 	 */
 	public static Menu createMenu(final String name, final Object... items) {
-		Menu menu = new Menu(name);
+		String title;
+		if (QuPathResources.hasString(name))
+			title = QuPathResources.getString(name);
+		else
+			title = name;
+		Menu menu = new Menu(title);
 		if (items.length > 0)
 			addMenuItems(menu, items);
 		return menu;

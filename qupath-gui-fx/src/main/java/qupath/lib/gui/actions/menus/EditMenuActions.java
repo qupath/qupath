@@ -16,7 +16,7 @@ import qupath.lib.gui.UndoRedoManager;
 import qupath.lib.gui.actions.ActionTools;
 import qupath.lib.gui.actions.DefaultActions;
 import qupath.lib.gui.actions.ActionTools.ActionAccelerator;
-import qupath.lib.gui.actions.ActionTools.ActionDescription;
+import qupath.lib.gui.actions.ActionTools.ActionConfig;
 import qupath.lib.gui.actions.ActionTools.ActionMenu;
 import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.tools.GuiTools;
@@ -43,67 +43,38 @@ public class EditMenuActions implements MenuActions {
 
 	@Override
 	public String getName() {
-		return QuPathResources.getString("KEY:Menu.Edit.name");
+		return QuPathResources.getString("Menu.Edit");
 	}
 	
 	
-	@ActionMenu("KEY:Menu.Edit.name")
+	@ActionMenu("Menu.Edit")
 	public class Actions {
 		
 		@ActionAccelerator("shortcut+z")
+		@ActionConfig("Action.Edit.undo")
 		public final Action UNDO;
 		
 		@ActionAccelerator("shortcut+shift+z")
-		@ActionMenu("KEY:Menu.Edit.name.redo")
-		@ActionDescription("KEY:Menu.Edit.description.redo")
+		@ActionConfig("Action.Edit.redo")
 		public final Action REDO;
 		
 		public final Action SEP_0 = ActionTools.createSeparator();
 
-		@ActionMenu("KEY:Menu.Edit.Copy.name.selectedObjects")
-		@ActionDescription("KEY:Menu.Edit.Copy.description.selectedObjects")
-//		@ActionAccelerator("shortcut+c")
-		public final Action COPY_SELECTED_OBJECTS = qupath.createImageDataAction(imageData -> Commands.copySelectedObjectsToClipboard(imageData));
-
-		@ActionMenu("KEY:Menu.Edit.Copy.name.annotationObjects")
-		@ActionDescription("KEY:Menu.Edit.Copy.description.annotationObjects")
-		public final Action COPY_ANNOTATION_OBJECTS = qupath.createImageDataAction(imageData -> Commands.copyAnnotationsToClipboard(imageData));
-
-		@ActionMenu("KEY:Menu.Edit.Copy.name")
-		public final Action SEP_00 = ActionTools.createSeparator();
-
-		@ActionMenu("KEY:Menu.Edit.Copy.name.currentViewer")
-		@ActionDescription("KEY:Menu.Edit.Copy.description.currentViewer")
-		public final Action COPY_VIEW = createAction(() -> copyViewToClipboard(qupath, GuiTools.SnapshotType.VIEWER));
+		@ActionMenu("Menu.Edit.Copy")
+		public final CopyActions copyActions = new CopyActions();
 		
-		@ActionMenu("KEY:Menu.Edit.Copy.name.mainWindowContent")
-		@ActionDescription("KEY:Menu.Edit.Copy.description.mainWindowContent")
-		public final Action COPY_WINDOW = createAction(() -> copyViewToClipboard(qupath, GuiTools.SnapshotType.MAIN_SCENE));
-		
-		@ActionMenu("KEY:Menu.Edit.Copy.name.mainWindowScreenshot")
-		@ActionDescription("KEY:Menu.Edit.Copy.description.mainWindowScreenshot")
-		public final Action COPY_WINDOW_SCREENSHOT = createAction(() -> copyViewToClipboard(qupath, GuiTools.SnapshotType.MAIN_WINDOW_SCREENSHOT));			
-		
-		@ActionMenu("KEY:Menu.Edit.Copy.name.fullScreenshot")
-		@ActionDescription("KEY:Menu.Edit.Copy.description.fullScreenshot")
-		public final Action COPY_FULL_SCREENSHOT = createAction(() -> copyViewToClipboard(qupath, GuiTools.SnapshotType.FULL_SCREENSHOT));
-
-		
-		@ActionMenu("KEY:Menu.Edit.name.paste")
-		@ActionDescription("KEY:Menu.Edit.description.paste")
+		@ActionConfig("Action.Edit.paste")
 //		@ActionAccelerator("shortcut+v") // No shortcut because it gets fired too often
 		public final Action PASTE = createAction(() -> Commands.pasteFromClipboard(qupath, false));
 
-		@ActionMenu("KEY:Menu.Edit.name.pasteToCurrentPlane")
-		@ActionDescription("KEY:Menu.Edit.description.pasteToCurrentPlane")
+		@ActionConfig("Action.Edit.pasteToCurrentPlane")
 		public final Action PASTE_TO_PLANE = createAction(() -> Commands.pasteFromClipboard(qupath, true));
 		
 		public final Action SEP_1 = ActionTools.createSeparator();
 		
 		public final Action PREFERENCES = defaultActions.PREFERENCES;
 		
-		@ActionMenu("KEY:Menu.Edit.name.resetPreferences")
-		@ActionDescription("KEY:Menu.Edit.description.resetPreferences")
+		@ActionConfig("Action.Edit.resetPreferences")
 		public final Action RESET_PREFERENCES = createAction(() -> Commands.promptToResetPreferences());
 
 		
@@ -125,10 +96,38 @@ public class EditMenuActions implements MenuActions {
 			return actionRedo;
 		}
 		
+	}
+	
+	public class CopyActions {
+		
+		@ActionConfig("Action.Edit.Copy.selectedObjects")
+//		@ActionAccelerator("shortcut+c")
+		public final Action COPY_SELECTED_OBJECTS = qupath.createImageDataAction(imageData -> Commands.copySelectedObjectsToClipboard(imageData));
+
+		@ActionConfig("Action.Edit.Copy.annotationObjects")
+		public final Action COPY_ANNOTATION_OBJECTS = qupath.createImageDataAction(imageData -> Commands.copyAnnotationsToClipboard(imageData));
+
+		public final Action SEP_00 = ActionTools.createSeparator();
+
+		@ActionConfig("Action.Edit.Copy.currentViewer")
+		public final Action COPY_VIEW = createAction(() -> copyViewToClipboard(qupath, GuiTools.SnapshotType.VIEWER));
+		
+		@ActionConfig("Action.Edit.Copy.mainWindowContent")
+		public final Action COPY_WINDOW = createAction(() -> copyViewToClipboard(qupath, GuiTools.SnapshotType.MAIN_SCENE));
+		
+		@ActionConfig("Action.Edit.Copy.mainWindowScreenshot")
+		public final Action COPY_WINDOW_SCREENSHOT = createAction(() -> copyViewToClipboard(qupath, GuiTools.SnapshotType.MAIN_WINDOW_SCREENSHOT));			
+		
+		@ActionConfig("Action.Edit.Copy.fullScreenshot")
+		public final Action COPY_FULL_SCREENSHOT = createAction(() -> copyViewToClipboard(qupath, GuiTools.SnapshotType.FULL_SCREENSHOT));
+		
+		
 		private static void copyViewToClipboard(final QuPathGUI qupath, final GuiTools.SnapshotType type) {
 			Image img = GuiTools.makeSnapshotFX(qupath, qupath.getViewer(), type);
 			Clipboard.getSystemClipboard().setContent(Collections.singletonMap(DataFormat.IMAGE, img));
 		}
+
+		
 	}
 
 
