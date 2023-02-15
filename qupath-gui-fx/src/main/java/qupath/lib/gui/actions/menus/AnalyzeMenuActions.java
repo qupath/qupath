@@ -9,7 +9,6 @@ import qupath.lib.algorithms.TilerPlugin;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.QuPathResources;
 import qupath.lib.gui.actions.ActionTools;
-import qupath.lib.gui.actions.DefaultActions;
 import qupath.lib.gui.actions.ActionTools.ActionDescription;
 import qupath.lib.gui.actions.ActionTools.ActionMenu;
 import qupath.lib.gui.commands.Commands;
@@ -18,13 +17,11 @@ import qupath.lib.plugins.objects.SmoothFeaturesPlugin;
 public class AnalyzeMenuActions implements MenuActions {
 	
 	private QuPathGUI qupath;
-	private DefaultActions defaultActions;
 	
 	private Actions actions;
 	
 	AnalyzeMenuActions(QuPathGUI qupath) {
 		this.qupath = qupath;
-		this.defaultActions = qupath.getDefaultActions();
 	}
 	
 	@Override
@@ -44,43 +41,39 @@ public class AnalyzeMenuActions implements MenuActions {
 	@ActionMenu("KEY:Menu.Analyze.name")
 	public class Actions {
 		
-		@ActionDescription("Estimate stain vectors for color deconvolution in brightfield images. " + 
-				"This can be used when there are precisely 2 stains (e.g. hematoxylin and eosin, hematoxylin and DAB) " +
-				"to improve stain separation.")
-		@ActionMenu("Preprocessing>Estimate stain vectors")
+		@ActionDescription("KEY:Menu.Analyze.Preprocessing.description.estimateStainVectors")
+		@ActionMenu("KEY:Menu.Analyze.Preprocessing.name.estimateStainVectors")
 		public final Action COLOR_DECONVOLUTION_REFINE = qupath.createImageDataAction(imageData -> Commands.promptToEstimateStainVectors(imageData));
 		
-		@ActionDescription("Create tiles. These can be useful as part of a larger workflow, for example " + 
-				"by adding intensity measurements to the tiles, training a classifier and then merging classified tiles to identify larger regions.")
-		@ActionMenu("Tiles & superpixels>Create tiles")
+		@ActionDescription("KEY:Menu.Analyze.Tiles.description.createTiles")
+		@ActionMenu("KEY:Menu.Analyze.Tiles.name.createTiles")
 		public final Action CREATE_TILES = qupath.createPluginAction("Create tiles", TilerPlugin.class, null);
 
-		@ActionMenu("Cell detection>")
+		@ActionMenu("KEY:Menu.Analyze.CellDetection.name")
 		public final Action SEP_0 = ActionTools.createSeparator();
 
-		@ActionDescription("Supplement the measurements for detection objects by calculating a weighted sum of the corresponding measurements from neighboring objects.")
-		@ActionMenu("Calculate features>Add smoothed features")
+		@ActionMenu("KEY:Menu.Analyze.Features.name.smoothedFeatures")
+		@ActionDescription("KEY:Menu.Analyze.Features.description.smoothedFeatures")
 		public final Action SMOOTHED_FEATURES = qupath.createPluginAction("Add Smoothed features", SmoothFeaturesPlugin.class, null);
-		@ActionDescription("Add new intensity-based features to objects.")
-		@ActionMenu("Calculate features>Add intensity features")
+		
+		@ActionMenu("KEY:Menu.Analyze.Features.name.intensityFeatures")
+		@ActionDescription("KEY:Menu.Analyze.Features.description.intensityFeatures")
 		public final Action INTENSITY_FEATURES = qupath.createPluginAction("Add intensity features", IntensityFeaturesPlugin.class, null);
-		@ActionDescription("Add new shape-based features to objects.")
-		@ActionMenu("Calculate features>Add shape features")
+		
+		@ActionMenu("KEY:Menu.Analyze.Features.name.shapeFeatures")
+		@ActionDescription("KEY:Menu.Analyze.Features.description.shapeFeatures")
 		public final Action SHAPE_FEATURES = qupath.createImageDataAction(imageData -> Commands.promptToAddShapeFeatures(qupath));
 
-		@ActionDescription("Calculate distances between detection centroids and the closest annotation for each classification, using zero if the centroid is inside the annotation. " +
-				"For example, this may be used to identify the distance of every cell from 'bigger' region that has been annotated (e.g. an area of tumor, a blood vessel).")
-		@ActionMenu("Spatial analysis>Distance to annotations 2D")
+		@ActionMenu("KEY:Menu.Analyze.Spatial.name.distanceToAnnotations2D")
+		@ActionDescription("KEY:Menu.Analyze.Spatial.description.distanceToAnnotations2D")
 		public final Action DISTANCE_TO_ANNOTATIONS = qupath.createImageDataAction(imageData -> Commands.distanceToAnnotations2D(imageData, false));
 		
-		@ActionDescription("Calculate distances between detection centroids and the closest annotation for each classification, using the negative distance to the boundary if the centroid is inside the annotation. " +
-				"For example, this may be used to identify the distance of every cell from 'bigger' region that has been annotated (e.g. an area of tumor, a blood vessel).")
-		@ActionMenu("Spatial analysis>Signed distance to annotations 2D")
+		@ActionMenu("KEY:Menu.Analyze.Spatial.name.signedDistanceToAnnotations2D")
+		@ActionDescription("KEY:Menu.Analyze.Spatial.description.signedDistanceToAnnotations2D")
 		public final Action SIGNED_DISTANCE_TO_ANNOTATIONS = qupath.createImageDataAction(imageData -> Commands.distanceToAnnotations2D(imageData, true));
 		
-		@ActionDescription("Calculate distances between detection centroids for each classification. " +
-				"For example, this may be used to identify the closest cell of a specified type.")
-		@ActionMenu("Spatial analysis>Detect centroid distances 2D")
+		@ActionMenu("KEY:Menu.Analyze.Spatial.name.detectionCentroidDistances2D")
+		@ActionDescription("KEY:Menu.Analyze.Spatial.description.detectionCentroidDistances2D")
 		public final Action DISTANCE_CENTROIDS = qupath.createImageDataAction(imageData -> Commands.detectionCentroidDistances2D(imageData));
 
 	}

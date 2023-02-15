@@ -27,7 +27,6 @@ import java.util.Collection;
 import java.util.List;
 import org.controlsfx.control.action.Action;
 
-import javafx.scene.control.Menu;
 import qupath.lib.gui.QuPathGUI;
 
 
@@ -39,8 +38,7 @@ public class Menus {
 	
 	public Menus(QuPathGUI qupath) {
 		this.qupath = qupath;
-	}
-	
+	}	
 	
 	
 	public synchronized Collection<Action> getActions() {

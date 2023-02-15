@@ -38,14 +38,14 @@ public class ClassifyMenuActions implements MenuActions {
 	@ActionMenu("KEY:Menu.Classify.name")
 	public class Actions {
 				
-		@ActionMenu("Object classification>")
+		@ActionMenu("KEY:Menu.Classify.Objects.name")
 		public final Action SEP_1 = ActionTools.createSeparator();
 
-		@ActionDescription("Reset the classifications of all detections.")
-		@ActionMenu("Object classification>Reset detection classifications")
+		@ActionDescription("KEY:Menu.Classify.Objects.name.resetDetectionClassifications")
+		@ActionMenu("KEY:Menu.Classify.Objects.description.resetDetectionClassifications")
 		public final Action RESET_DETECTION_CLASSIFICATIONS = qupath.createImageDataAction(imageData -> Commands.resetClassifications(imageData, PathDetectionObject.class));
 
-		@ActionMenu("Pixel classification>")
+		@ActionMenu("KEY:Menu.Classify.Pixels.name")
 		public final Action SEP_3 = ActionTools.createSeparator();
 
 		public final Action SEP_4 = ActionTools.createSeparator();

@@ -9,7 +9,6 @@ import org.controlsfx.control.action.Action;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.QuPathResources;
 import qupath.lib.gui.actions.ActionTools;
-import qupath.lib.gui.actions.DefaultActions;
 import qupath.lib.gui.actions.ActionTools.ActionAccelerator;
 import qupath.lib.gui.actions.ActionTools.ActionDescription;
 import qupath.lib.gui.actions.ActionTools.ActionMenu;
@@ -18,7 +17,6 @@ import qupath.lib.gui.commands.Commands;
 public class AutomateMenuActions implements MenuActions {
 	
 	private QuPathGUI qupath;
-	private DefaultActions defaultActions;
 	
 	private Actions actions;
 	
@@ -29,7 +27,6 @@ public class AutomateMenuActions implements MenuActions {
 	@Override
 	public List<Action> getActions() {
 		if (actions == null) {
-			this.defaultActions = qupath.getDefaultActions();
 			actions = new Actions();
 		}
 		return ActionTools.getAnnotatedActions(actions);
