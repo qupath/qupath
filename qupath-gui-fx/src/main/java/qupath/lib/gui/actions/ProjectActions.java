@@ -37,7 +37,7 @@ import qupath.lib.gui.viewer.ViewerManager;
  * @author Pete Bankhead
  * @since v0.5.0
  */
-public class ViewerActions {
+public class ProjectActions {
 	
 	@ActionIcon(PathIcons.ZOOM_TO_FIT)
 	@ActionConfig("ViewerActions.zoomToFit")
@@ -64,7 +64,7 @@ public class ViewerActions {
 	
 	private ViewerManager viewerManager;
 	
-	public ViewerActions(ViewerManager viewerManager) {
+	public ProjectActions(ViewerManager viewerManager) {
 		this.viewerManager = viewerManager;
 		
 		SHOW_OVERVIEW = ActionTools.createSelectableAction(viewerManager.showOverviewProperty());

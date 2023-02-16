@@ -19,7 +19,7 @@
  * #L%
  */
 
-package qupath.lib.gui;
+package qupath.lib.gui.actions;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
@@ -31,10 +31,12 @@ import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 import org.controlsfx.control.action.Action;
 import org.controlsfx.control.action.ActionUtils;
@@ -45,6 +47,7 @@ import org.slf4j.LoggerFactory;
 import javafx.beans.property.Property;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.value.ObservableBooleanValue;
 import javafx.beans.value.ObservableValue;
 import javafx.event.ActionEvent;
 import javafx.scene.Node;
@@ -56,6 +59,9 @@ import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.KeyCombination;
+import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.QuPathResources;
+import qupath.lib.gui.SelectableItem;
 import qupath.lib.gui.tools.IconFactory;
 
 /**
@@ -275,6 +281,28 @@ public class ActionTools {
 		
 	}
 	
+	
+	/**
+	 * Annotation indicating the a key in the external resources file containing 
+	 * the menu, text and (optional) description.
+	 */
+	@Documented
+	@Retention(RetentionPolicy.RUNTIME)
+	@Target({ElementType.TYPE, ElementType.METHOD, ElementType.FIELD})
+	public @interface ActionConfig {
+		
+		String bundle() default "";
+
+		String[] menu() default "";
+
+		/**
+		 * Key to external properties file.
+		 * @return
+		 */
+		String value();
+	}
+	
+	
 	/**
 	 * Annotation indicating the menu path where an action should be installed.
 	 * This may be used by QuPath to be able to assign the action automatically to the correct place, 
@@ -288,7 +316,7 @@ public class ActionTools {
 		 * Menu path, in the form {@code "Menu>Submenu>Command name"}.
 		 * @return
 		 */
-		String value();
+		String[] value();
 	}
 	
 	/**
@@ -349,9 +377,18 @@ public class ActionTools {
 	}
 	
 	
+	private static String getMenuString(String[] text) {
+		return Arrays.stream(text)
+			.map(ActionTools::getStringOrReadResource)
+			.collect(Collectors.joining(">"));
+	}
+	
+	
 	private static String getStringOrReadResource(String text) {
 		if (text.startsWith("KEY:"))
 			return QuPathResources.getString(text.substring(4));
+		else if (QuPathResources.hasString(text))
+			return QuPathResources.getString(text);
 		else
 			return text;
 	}
@@ -365,17 +402,29 @@ public class ActionTools {
 	 * @return a list of parsed and configured actions
 	 */
 	public static List<Action> getAnnotatedActions(Object obj) {
+		return getAnnotatedActions(obj, "");
+	}
+	
+	private static List<Action> getAnnotatedActions(Object obj, String baseMenu) {
 		List<Action> actions = new ArrayList<>();
 		
 		Class<?> cls = obj instanceof Class<?> ? (Class<?>)obj : obj.getClass();
 		
 		// If the class is annotated with a menu, use that as a base; all other menus will be nested within this
 		var menuAnnotation = cls.getAnnotation(ActionMenu.class);
-		String baseMenu = menuAnnotation == null ? "" : getStringOrReadResource(menuAnnotation.value());
+		if (menuAnnotation != null) {
+			if (baseMenu == null || baseMenu.isEmpty()) {
+				baseMenu = getMenuString(menuAnnotation.value());			
+			} else {
+				baseMenu = joinMenuPaths(baseMenu, getMenuString(menuAnnotation.value()));
+			}
+		}
+		
 		// Get accessible fields corresponding to actions
 		for (var f : cls.getDeclaredFields()) {
-			if (Modifier.isStatic(f.getModifiers()) || !f.canAccess(obj))
+			if (Modifier.isStatic(f.getModifiers()) || !f.canAccess(obj)) {
 				continue;
+			}
 			try {
 				var value = f.get(obj);
 				if (value instanceof Action) {
@@ -387,6 +436,10 @@ public class ActionTools {
 						parseAnnotations(temp, f, baseMenu);
 						actions.add(temp);		
 					}
+				} else if (f.isAnnotationPresent(ActionMenu.class)) {
+					String baseSubMenu = joinMenuPaths(baseMenu, getMenuString(f.getAnnotation(ActionMenu.class).value()));
+					var subActions = getAnnotatedActions(value, baseSubMenu);
+					actions.addAll(subActions);
 				}
 			} catch (Exception e) {
 				logger.error("Error setting up action: {}", e.getLocalizedMessage(), e);
@@ -421,6 +474,17 @@ public class ActionTools {
 		
 		return actions;
 	}
+	
+	
+	private static String joinMenuPaths(String baseMenu, String submenu) {
+		if (baseMenu.isEmpty())
+			return submenu;
+		else if (baseMenu.endsWith(">"))
+			return baseMenu + submenu;
+		else
+			return baseMenu + ">" + submenu;
+	}
+	
 
 	/**
 	 * Parse annotations relating to an action, updating the properties of the action.
@@ -444,6 +508,7 @@ public class ActionTools {
 		parseAccelerator(action, element.getAnnotation(ActionAccelerator.class));
 		parseIcon(action, element.getAnnotation(ActionIcon.class));
 		parseDeprecated(action, element.getAnnotation(Deprecated.class));
+		parseConfig(action, element.getAnnotation(ActionConfig.class));
 	}
 	
 	private static void parseDeprecated(Action action, Deprecated annotation) {
@@ -455,10 +520,26 @@ public class ActionTools {
  		}
 	}
 	
+	
+	private static void parseConfig(Action action, ActionConfig annotation) {
+		if (annotation != null) {
+			String key = annotation.value();
+			String text = QuPathResources.getString(key);
+			action.setText(text);
+			String descriptionKey = key + ".description";
+			if (QuPathResources.hasString(descriptionKey))
+				action.setLongText(QuPathResources.getString(descriptionKey));
+ 		}
+	}
+	
+	
+	
 	private static void parseMenu(Action action, ActionMenu annotation, String baseMenu) {
-		String menuString = baseMenu == null || baseMenu.isBlank() ? "" : baseMenu + ">";
+		String menuString = baseMenu == null || baseMenu.isBlank() ? "" : baseMenu;
+		if (!menuString.isEmpty() && !menuString.endsWith(">"))
+			menuString += ">";
 		if (annotation != null)
-			menuString += getStringOrReadResource(annotation.value());
+			menuString += getMenuString(annotation.value());
 		if (menuString.isEmpty())
 			return;
 		var ind = menuString.lastIndexOf(">");
@@ -554,7 +635,7 @@ public class ActionTools {
 	 * @return true if the action has been flagged as selectable, false otherwise.
 	 */
 	public static boolean isSelectable(Action action) {
-		return Boolean.TRUE.equals(action.getProperties().get(qupath.lib.gui.ActionTools.ActionBuilder.Keys.SELECTABLE));
+		return Boolean.TRUE.equals(action.getProperties().get(qupath.lib.gui.actions.ActionTools.ActionBuilder.Keys.SELECTABLE));
 	}
 	
 	/**
@@ -564,7 +645,7 @@ public class ActionTools {
 	 * @see #isSelectable(Action)
 	 */
 	public static void setSelectable(Action action, boolean selectable) {
-		action.getProperties().put(qupath.lib.gui.ActionTools.ActionBuilder.Keys.SELECTABLE, selectable);
+		action.getProperties().put(qupath.lib.gui.actions.ActionTools.ActionBuilder.Keys.SELECTABLE, selectable);
 	}
 	
 	/**
@@ -755,6 +836,15 @@ public class ActionTools {
 			.build();
 		return action;
 	}
+	
+	/**
+	 * Create an unnamed action with its {@link Action#selectedProperty()} bound to a specified property.
+	 * @param property the property to which the selected property of the action should be bound. The binding will be bidirectional if possible.
+	 * @return a new {@link Action} initialized according to the provided parameters
+	 */
+	public static Action createSelectableAction(final ObservableValue<Boolean> property) {
+		return createSelectableAction(property, null);
+	}
 
 	/**
 	 * Create an action with its {@link Action#selectedProperty()} bound to a specified property.
@@ -800,7 +890,7 @@ public class ActionTools {
 				accelerator);
 	}
 	
-	static <T> Action createSelectableCommandAction(final SelectableItem<T> command, final ObservableValue<String> name, final ObservableValue<Node> icon, final KeyCombination accelerator) {
+	public static <T> Action createSelectableCommandAction(final SelectableItem<T> command, final ObservableValue<String> name, final ObservableValue<Node> icon, final KeyCombination accelerator) {
 		var action = ActionTools.actionBuilder(e -> command.setSelected(true))
 				.text(name)
 				.accelerator(accelerator)
@@ -824,6 +914,14 @@ public class ActionTools {
 	 */
 	public static <T> Action createSelectableCommandAction(final SelectableItem<T> command, String name) {
 		return createSelectableCommandAction(command, name, null, null);
+	}
+	
+	public static <T> Action createSelectableCommandAction(final SelectableItem<T> command) {
+		return createSelectableCommandAction(command, (String)null, null, null);
+	}
+
+	public static Action createSelectableCommandAction(ObservableBooleanValue value) {
+		return createSelectableAction(value, null);
 	}
 
 }

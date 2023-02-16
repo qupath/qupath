@@ -41,6 +41,7 @@ import javafx.beans.value.ObservableStringValue;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.SeparatorMenuItem;
+import qupath.lib.gui.actions.ActionTools;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.scripting.ScriptEditor;
 import qupath.lib.gui.tools.GuiTools;

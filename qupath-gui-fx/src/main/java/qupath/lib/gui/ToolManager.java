@@ -40,9 +40,10 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.scene.input.KeyCodeCombination;
-import qupath.lib.gui.ActionTools.ActionAccelerator;
-import qupath.lib.gui.ActionTools.ActionDescription;
-import qupath.lib.gui.ActionTools.ActionIcon;
+import qupath.lib.gui.actions.ActionTools;
+import qupath.lib.gui.actions.ActionTools.ActionAccelerator;
+import qupath.lib.gui.actions.ActionTools.ActionConfig;
+import qupath.lib.gui.actions.ActionTools.ActionIcon;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.IconFactory.PathIcons;
 import qupath.lib.gui.viewer.tools.PathTool;
@@ -74,41 +75,41 @@ public class ToolManager {
 	private ObjectProperty<PathTool> previousSelectedToolProperty = new SimpleObjectProperty<>(PathTools.MOVE);
 
 	@ActionAccelerator("m")
-	@ActionDescription("KEY:Tools.description.move")
+	@ActionConfig("Tools.move")
 	public final Action MOVE_TOOL = getToolAction(PathTools.MOVE);
 	
 	@ActionAccelerator("r")
-	@ActionDescription("KEY:Tools.description.rectangle")
+	@ActionConfig("Tools.rectangle")
 	public final Action RECTANGLE_TOOL = getToolAction(PathTools.RECTANGLE);
 	
 	@ActionAccelerator("o")
-	@ActionDescription("KEY:Tools.description.ellipse")
+	@ActionConfig("Tools.ellipse")
 	public final Action ELLIPSE_TOOL = getToolAction(PathTools.ELLIPSE);
 	
 	@ActionAccelerator("p")
-	@ActionDescription("KEY:Tools.description.polygon")
+	@ActionConfig("Tools.polygon")
 	public final Action POLYGON_TOOL = getToolAction(PathTools.POLYGON);
 	
 	@ActionAccelerator("v")
-	@ActionDescription("KEY:Tools.description.polyline")
+	@ActionConfig("Tools.polyline")
 	public final Action POLYLINE_TOOL = getToolAction(PathTools.POLYLINE);
 	
 	@ActionAccelerator("b")
-	@ActionDescription("KEY:Tools.description.brush")
+	@ActionConfig("Tools.brush")
 	public final Action BRUSH_TOOL = getToolAction(PathTools.BRUSH);
 	
 	@ActionAccelerator("l")
-	@ActionDescription("KEY:Tools.description.line")
+	@ActionConfig("Tools.line")
 	public final Action LINE_TOOL = getToolAction(PathTools.LINE_OR_ARROW);
 	
 	@ActionAccelerator(".")
-	@ActionDescription("KEY:Tools.description.points")
+	@ActionConfig("Tools.points")
 	public final Action POINTS_TOOL = getToolAction(PathTools.POINTS);
 	
 	@ActionAccelerator("shift+s")
 	@ActionIcon(PathIcons.SELECTION_MODE)
-	@ActionDescription("KEY:Tools.description.selectionMode")
-	public final Action SELECTION_MODE = ActionTools.createSelectableAction(PathPrefs.selectionModeProperty(), "Selection mode");
+	@ActionConfig("Tools.selectionMode")
+	public final Action SELECTION_MODE = ActionTools.createSelectableAction(PathPrefs.selectionModeProperty());
 	
 	
 	private ToolManager() {

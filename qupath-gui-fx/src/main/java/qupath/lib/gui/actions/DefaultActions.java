@@ -21,18 +21,19 @@
 
 package qupath.lib.gui.actions;
 
+import static qupath.lib.gui.actions.ActionTools.createAction;
+
 import org.controlsfx.control.action.Action;
 
-import qupath.lib.gui.ActionTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.QuPathResources;
-import qupath.lib.gui.ActionTools.ActionAccelerator;
-import qupath.lib.gui.ActionTools.ActionDescription;
-import qupath.lib.gui.ActionTools.ActionIcon;
+import qupath.lib.gui.actions.ActionTools.ActionAccelerator;
+import qupath.lib.gui.actions.ActionTools.ActionConfig;
+import qupath.lib.gui.actions.ActionTools.ActionIcon;
 import qupath.lib.gui.commands.BrightnessContrastCommand;
 import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.commands.ContextHelpViewer;
 import qupath.lib.gui.commands.CountingPanelCommand;
+import qupath.lib.gui.commands.ProjectCommands;
 import qupath.lib.gui.commands.TMACommands;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.IconFactory.PathIcons;
@@ -46,75 +47,90 @@ import qupath.lib.gui.tools.IconFactory.PathIcons;
  */
 public class DefaultActions {
 	
+	@ActionConfig("Action.File.Project.createProject")
+	public final Action PROJECT_NEW;
+	
+	@ActionConfig("Action.File.Project.openProject")
+	public final Action PROJECT_OPEN;
+	
+	@ActionConfig("Action.File.Project.openProject")
+	public final Action PROJECT_ADD_IMAGES;
+	
+	
 	@ActionIcon(PathIcons.CONTRAST)
 	@ActionAccelerator("shift+c")
-	@ActionDescription("KEY:DefaultActions.description.showBrightnessContrast")
+	@ActionConfig("CommonActions.showBrightnessContrast")
 	public final Action BRIGHTNESS_CONTRAST;
 	
 	@ActionIcon(PathIcons.POINTS_TOOL)
-	@ActionDescription("KEY:DefaultActions.description.showCountingTool")
+	@ActionConfig("CommonActions.showCountingTool")
 	public final Action COUNTING_PANEL;
 
-	@ActionDescription("KEY:DefaultActions.description.addTMANote")
+	@ActionConfig("CommonActions.addTMANote")
 	public final Action TMA_ADD_NOTE;
 	
-	@ActionDescription("KEY:DefaultActions.description.showPointConvexHull")
+	@ActionConfig("CommonActions.showPointConvexHull")
 	public final Action CONVEX_POINTS;
 	
 	@ActionAccelerator("shortcut+shift+l")
-	@ActionDescription("KEY:DefaultActions.description.showLog")
+	@ActionConfig("CommonActions.showLog")
 	public final Action SHOW_LOG;
 
 	@ActionIcon(PathIcons.MEASURE)
 	@ActionAccelerator("shift+a")
-	@ActionDescription("KEY:DefaultActions.description.showAnalysisPane")
+	@ActionConfig("CommonActions.showAnalysisPane")
 	public final Action SHOW_ANALYSIS_PANE;
 	
 	@ActionIcon(PathIcons.COG)
 	@ActionAccelerator("shortcut+,")
-	@ActionDescription("KEY:DefaultActions.description.showPrefPane")
+	@ActionConfig("CommonActions.showPrefPane")
 	public final Action PREFERENCES;
 	
-	@ActionDescription("KEY:DefaultActions.description.objectDescriptions")
+	@ActionConfig("CommonActions.objectDescriptions")
 	public final Action SHOW_OBJECT_DESCRIPTIONS;
 	
-	@ActionDescription("KEY:DefaultActions.description.measureTMA")
+	@ActionConfig("CommonActions.measureTMA")
 	public final Action MEASURE_TMA;
 	
-	@ActionDescription("KEY:DefaultActions.description.measureAnnotations")
+	@ActionConfig("CommonActions.measureAnnotations")
 	public final Action MEASURE_ANNOTATIONS;
 	
-	@ActionDescription("KEY:DefaultActions.description.measureDetections")
+	@ActionConfig("CommonActions.measureDetections")
 	public final Action MEASURE_DETECTIONS;
 	
-	@ActionDescription("KEY:DefaultActions.description.gridViewAnnotations")
+	@ActionConfig("CommonActions.gridViewAnnotations")
 	public final Action MEASURE_GRID_ANNOTATIONS;
 
-	@ActionDescription("KEY:DefaultActions.description.gridViewTMA")
+	@ActionConfig("CommonActions.gridViewTMA")
 	public final Action MEASURE_GRID_TMA_CORES;
 
 	@ActionIcon(PathIcons.HELP)
-	@ActionDescription("KEY:DefaultActions.description.showHelp")
+	@ActionConfig("CommonActions.showHelp")
 	public final Action HELP_VIEWER;
 	
 	private QuPathGUI qupath;
 	
 	public DefaultActions(QuPathGUI qupath) {
 		this.qupath = qupath;
-		BRIGHTNESS_CONTRAST = ActionTools.createAction(new BrightnessContrastCommand(qupath), getName("showBrightnessContrast"));
-		COUNTING_PANEL = ActionTools.createAction(new CountingPanelCommand(qupath), getName("showCountingTool"));
-		TMA_ADD_NOTE = qupath.createImageDataAction(imageData -> TMACommands.promptToAddNoteToSelectedCores(imageData), getName("addTMANote"));
-		CONVEX_POINTS = ActionTools.createSelectableAction(PathPrefs.showPointHullsProperty(), getName("showPointConvexHull"));
-		SHOW_LOG = ActionTools.createAction(() -> qupath.showLogWindow(), getName("showLog"));
-		SHOW_ANALYSIS_PANE = ActionTools.createSelectableAction(qupath.showAnalysisPaneProperty(), getName("showAnalysisPane"));
-		PREFERENCES = Commands.createSingleStageAction(() -> Commands.createPreferencesDialog(qupath), getName("showPrefPane"));
-		SHOW_OBJECT_DESCRIPTIONS = Commands.createSingleStageAction(() -> Commands.createObjectDescriptionsDialog(qupath), getName("objectDescriptions"));
-		MEASURE_TMA = qupath.createImageDataAction(imageData -> Commands.showTMAMeasurementTable(qupath, imageData), getName("measureTMA"));
-		MEASURE_ANNOTATIONS = qupath.createImageDataAction(imageData -> Commands.showAnnotationMeasurementTable(qupath, imageData),getName("measureAnnotations"));
-		MEASURE_DETECTIONS = qupath.createImageDataAction(imageData -> Commands.showDetectionMeasurementTable(qupath, imageData),getName("measureDetections"));
-		MEASURE_GRID_ANNOTATIONS = qupath.createImageDataAction(imageData -> Commands.showAnnotationGridView(qupath), getName("gridViewAnnotations"));
-		MEASURE_GRID_TMA_CORES = qupath.createImageDataAction(imageData -> Commands.showTMACoreGridView(qupath), getName("gridViewTMA"));
-		HELP_VIEWER = Commands.createSingleStageAction(() -> ContextHelpViewer.getInstance(qupath).getStage(), getName("showHelp"));
+		
+		PROJECT_NEW = createAction(() -> Commands.promptToCreateProject(qupath));
+		PROJECT_OPEN = createAction(() -> Commands.promptToOpenProject(qupath));
+		PROJECT_ADD_IMAGES = createAction(() -> ProjectCommands.promptToImportImages(qupath));
+		
+		BRIGHTNESS_CONTRAST = ActionTools.createAction(new BrightnessContrastCommand(qupath));
+		COUNTING_PANEL = ActionTools.createAction(new CountingPanelCommand(qupath));
+		TMA_ADD_NOTE = qupath.createImageDataAction(imageData -> TMACommands.promptToAddNoteToSelectedCores(imageData));
+		CONVEX_POINTS = ActionTools.createSelectableAction(PathPrefs.showPointHullsProperty());
+		SHOW_LOG = ActionTools.createAction(() -> qupath.showLogWindow());
+		SHOW_ANALYSIS_PANE = ActionTools.createSelectableAction(qupath.showAnalysisPaneProperty());
+		PREFERENCES = Commands.createSingleStageAction(() -> Commands.createPreferencesDialog(qupath));
+		SHOW_OBJECT_DESCRIPTIONS = Commands.createSingleStageAction(() -> Commands.createObjectDescriptionsDialog(qupath));
+		MEASURE_TMA = qupath.createImageDataAction(imageData -> Commands.showTMAMeasurementTable(qupath, imageData));
+		MEASURE_ANNOTATIONS = qupath.createImageDataAction(imageData -> Commands.showAnnotationMeasurementTable(qupath, imageData));
+		MEASURE_DETECTIONS = qupath.createImageDataAction(imageData -> Commands.showDetectionMeasurementTable(qupath, imageData));
+		MEASURE_GRID_ANNOTATIONS = qupath.createImageDataAction(imageData -> Commands.showAnnotationGridView(qupath));
+		MEASURE_GRID_TMA_CORES = qupath.createImageDataAction(imageData -> Commands.showTMACoreGridView(qupath));
+		HELP_VIEWER = Commands.createSingleStageAction(() -> ContextHelpViewer.getInstance(qupath).getStage());
 		
 		// This has the effect of applying the annotations
 		ActionTools.getAnnotatedActions(this);
@@ -126,10 +142,6 @@ public class DefaultActions {
 	 */
 	public QuPathGUI getQuPath() {
 		return qupath;
-	}
-	
-	private static String getName(String key) {
-		return QuPathResources.getString("DefaultActions.name." + key);
 	}
 	
 }

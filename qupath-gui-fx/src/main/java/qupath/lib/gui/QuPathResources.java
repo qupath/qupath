@@ -22,7 +22,11 @@
 
 package qupath.lib.gui;
 
+import java.util.MissingResourceException;
 import java.util.ResourceBundle;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Load strings from the default resource bundle.
@@ -32,7 +36,9 @@ import java.util.ResourceBundle;
  */
 public class QuPathResources {
 	
-	private static final String STRINGS_NAME = "qupath/lib/gui/localization/qupath-strings";
+	private static final Logger logger = LoggerFactory.getLogger(QuPathResources.class);
+	
+	private static final String DEFAULT_BUNDLE = "qupath/lib/gui/localization/qupath-strings";
 	
 	/**
 	 * Get a string from the main {@link ResourceBundle} used for the QuPath user interface.
@@ -44,7 +50,37 @@ public class QuPathResources {
 	 * @return
 	 */
 	public static String getString(String key) {
-		return ResourceBundle.getBundle(STRINGS_NAME).getString(key);
+		return getString(DEFAULT_BUNDLE, key);
 	}
+	
+	public static String getString(String bundle, String key) {
+		return getBundleOrNull(bundle).getString(key);
+	}
+	
+	
+	
+	public static boolean hasString(String key) {
+		return hasString(DEFAULT_BUNDLE, key);
+	}
+	
+	public static boolean hasString(String bundleName, String key) {
+		var bundle = getBundleOrNull(bundleName);
+		if (bundle != null)
+			return bundle.containsKey(key);
+		return false;
+	}
+	
+	
+	private static ResourceBundle getBundleOrNull(String bundleName) {
+		if (bundleName == null || bundleName.isEmpty())
+			bundleName = DEFAULT_BUNDLE;
+		try {
+			return ResourceBundle.getBundle(bundleName);
+		} catch (MissingResourceException e) {
+			logger.error("Missing resource bundle {}", bundleName);
+			return null;
+		}
+	}
+	
 
 }

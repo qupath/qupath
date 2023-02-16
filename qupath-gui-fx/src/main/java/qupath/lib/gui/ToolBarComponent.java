@@ -56,6 +56,7 @@ import javafx.scene.shape.LineTo;
 import javafx.scene.shape.MoveTo;
 import javafx.scene.shape.Path;
 import javafx.scene.text.TextAlignment;
+import qupath.lib.gui.actions.ActionTools;
 import qupath.lib.gui.actions.DefaultActions;
 import qupath.lib.gui.actions.OverlayActions;
 import qupath.lib.gui.actions.ViewerActions;
@@ -168,11 +169,11 @@ class ToolBarComponent {
 	
 	
 	private static String getDescription(String key) {
-		return QuPathResources.getString("Toolbar.description." + key);
+		return QuPathResources.getString("Toolbar." + key + ".description");
 	}
 	
 	private static String getName(String key) {
-		return QuPathResources.getString("Toolbar.name." + key);
+		return QuPathResources.getString("Toolbar." + key);
 	}
 	
 	private static String getMessage(String key) {

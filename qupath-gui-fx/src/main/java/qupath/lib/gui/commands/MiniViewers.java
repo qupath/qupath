@@ -88,7 +88,7 @@ import qupath.lib.common.ColorTools;
 import qupath.lib.common.ThreadTools;
 import qupath.lib.display.ChannelDisplayInfo;
 import qupath.lib.display.ImageDisplay;
-import qupath.lib.gui.ActionTools;
+import qupath.lib.gui.actions.ActionTools;
 import qupath.lib.gui.images.stores.AbstractImageRenderer;
 import qupath.lib.gui.images.stores.ImageRenderer;
 import qupath.lib.gui.prefs.PathPrefs;

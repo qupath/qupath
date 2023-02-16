@@ -66,7 +66,7 @@ import qupath.lib.gui.tools.PaneTools;
  * @author Pete Bankhead
  * @since v0.4.0
  */
-class WelcomeStage {
+public class WelcomeStage {
 	
 	private static final Logger logger = LoggerFactory.getLogger(WelcomeStage.class);
 	
