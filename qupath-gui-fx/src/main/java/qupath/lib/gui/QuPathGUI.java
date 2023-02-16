@@ -284,7 +284,7 @@ public class QuPathGUI {
 		
 		toolManager.getTools().addListener((Change<? extends PathTool> c) -> registerAcceleratorsForAllTools());
 		registerAcceleratorsForAllTools();
-		setupToolsMenu(getMenu("Tools", true));
+		setupToolsMenu(getMenu(QuPathResources.getString("Menu.Tools"), true));
 
 		timeit.checkpoint("Creating main component");
 		BorderPane pane = new BorderPane();
@@ -334,7 +334,7 @@ public class QuPathGUI {
 		menuVisibilityManager.ignorePredicateProperty().bind(menusInitializing.or(extensionManager.refreshingExtensions()));
 		
 		// Populating the scripting menu is slower, so delay it until now
-		populateScriptingMenu(getMenu("Automate", false));
+		populateScriptingMenu(getMenu(QuPathResources.getString("Menu.Automate"), false));
 		menuBar.useSystemMenuBarProperty().bindBidirectional(PathPrefs.useSystemMenubarProperty());
 		
 		logger.debug("{}", timeit.stop());
@@ -588,20 +588,35 @@ public class QuPathGUI {
 	
 	private MenuBar createEmptyMenubarMenus() {
 		return new MenuBar(
-				Arrays.asList("File", "Edit", "Tools", "View", "Objects", "TMA", "Measure", "Automate", "Analyze", "Classify", "Extensions", "Help")
-				.stream().map(Menu::new).toArray(Menu[]::new)
+				Arrays.asList(
+						"Menu.File",
+						"Menu.Edit",
+						"Menu.Tools",
+						"Menu.View",
+						"Menu.Objects",
+						"Menu.TMA",
+						"Menu.Measure",
+						"Menu.Automate",
+						"Menu.Analyze",
+						"Menu.Classify",
+						"Menu.Extensions",
+						"Menu.Help")
+				.stream()
+				.map(k -> QuPathResources.getString(k))
+				.map(Menu::new).toArray(Menu[]::new)
 				);
 	}
 	
 	private void populateMenubar() {
 		installActions(new Menus(this).getActions());
 		// Insert a recent projects menu
-		getMenu("File", true).getItems().add(1, createRecentProjectsMenu());
+		getMenu(QuPathResources.getString("Menu.File"), true).getItems().add(1, createRecentProjectsMenu());
 	}
 
 	
 	
 	private void populateScriptingMenu(Menu menuScripting) {
+		Objects.requireNonNull(menuScripting);
 		ScriptEditor editor = getScriptEditor();
 		var sharedScriptMenuLoader = new ScriptMenuLoader("Shared scripts...", PathPrefs.scriptsPathProperty(), editor);
 		

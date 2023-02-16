@@ -28,6 +28,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.StringTokenizer;
 
+import org.controlsfx.control.action.Action;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,12 +37,14 @@ import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.StringProperty;
 import qupath.lib.common.Version;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.QuPathResources;
 import qupath.lib.gui.actions.ActionTools;
+import qupath.lib.gui.actions.ActionTools.ActionConfig;
+import qupath.lib.gui.actions.ActionTools.ActionMenu;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.extensions.QuPathExtension;
 import qupath.lib.gui.panes.PreferencePane;
 import qupath.lib.gui.prefs.PathPrefs;
-import qupath.lib.gui.tools.MenuTools;
 import qupath.lib.images.writers.ome.OMEPyramidWriterCommand;
 
 /**
@@ -61,7 +64,7 @@ public class BioFormatsOptionsExtension implements QuPathExtension {
 		// Request Bio-Formats version - if null, Bio-Formats is missing & we can't install the extension
 		bfVersion = BioFormatsServerBuilder.getBioFormatsVersion();
 		if (bfVersion == null) {
-			Dialogs.showErrorMessage("Bio-Formats extension",
+			Dialogs.showErrorMessage(getName(),
 						"The Bio-Formats extension is installed, but 'bioformats_package.jar' is missing!\n\n" + 
 						"Please make sure both .jar files are copied to the QuPath extensions folder.");
 			return;
@@ -69,13 +72,8 @@ public class BioFormatsOptionsExtension implements QuPathExtension {
 			logger.info("Bio-Formats version {}", bfVersion);
 		}
 		
-		var actionWriter = ActionTools.createAction(new OMEPyramidWriterCommand(qupath), "OME TIFF");
-		actionWriter.setLongText("Write regions as OME-TIFF images. This supports writing image pyramids.");
-		actionWriter.disabledProperty().bind(qupath.imageDataProperty().isNull());
-		MenuTools.addMenuItems(
-				qupath.getMenu("File>Export images...", true),
-				actionWriter);
-		
+		var actions = new OmeTiffWriterAction(qupath);
+		qupath.installActions(ActionTools.getAnnotatedActions(actions));
 		
 		
 		BioFormatsServerOptions options = BioFormatsServerOptions.getInstance();
@@ -156,18 +154,17 @@ public class BioFormatsOptionsExtension implements QuPathExtension {
 	@Override
 	public String getName() {
 		if (bfVersion == null)
-			return "Bio-Formats options (Bio-Formats library is missing!)";
+			return QuPathResources.getString("Extension.BioFormats") + " (Bio-Formats library is missing!)";
 		else
-			return "Bio-Formats options (Bio-Formats " + bfVersion + ")";
+			return QuPathResources.getString("Extension.BioFormats") + " (Bio-Formats " + bfVersion + ")";
 	}
 
 	@Override
 	public String getDescription() {
-		if (bfVersion == null) {
-			return "Cannot find the Bio-Formats library required by this extension!'";
-		} else {
-			return "Installs options for the Bio-Formats image server in the QuPath preference pane";			
-		}
+		String text = QuPathResources.getString("Extension.BioFormats.description");
+		if (bfVersion == null)
+			text = text + "\n" + QuPathResources.getString("Extension.BioFormats.missing.description");
+		return text;
 	}
 	
 	/**
@@ -176,6 +173,19 @@ public class BioFormatsOptionsExtension implements QuPathExtension {
 	@Override
 	public Version getQuPathVersion() {
 		return getVersion();
+	}
+	
+	
+	public static class OmeTiffWriterAction {
+		
+		@ActionMenu(value = {"Menu.File", "Menu.File.ExportImage"})
+		@ActionConfig("Action.BioFormats.exportOmeTif")
+		public final Action actionWriter;
+		
+		OmeTiffWriterAction(QuPathGUI qupath) {
+			actionWriter = ActionTools.createAction(new OMEPyramidWriterCommand(qupath), "OME TIFF");
+		}
+		
 	}
 	
 }

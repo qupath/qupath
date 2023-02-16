@@ -21,6 +21,8 @@
 
 package qupath.lib.gui.actions;
 
+import static qupath.lib.gui.actions.ActionTools.createAction;
+
 import org.controlsfx.control.action.Action;
 
 import qupath.lib.gui.QuPathGUI;
@@ -31,6 +33,7 @@ import qupath.lib.gui.commands.BrightnessContrastCommand;
 import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.commands.ContextHelpViewer;
 import qupath.lib.gui.commands.CountingPanelCommand;
+import qupath.lib.gui.commands.ProjectCommands;
 import qupath.lib.gui.commands.TMACommands;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.IconFactory.PathIcons;
@@ -43,6 +46,16 @@ import qupath.lib.gui.tools.IconFactory.PathIcons;
  * @since v0.5.0
  */
 public class DefaultActions {
+	
+	@ActionConfig("Action.File.Project.createProject")
+	public final Action PROJECT_NEW;
+	
+	@ActionConfig("Action.File.Project.openProject")
+	public final Action PROJECT_OPEN;
+	
+	@ActionConfig("Action.File.Project.openProject")
+	public final Action PROJECT_ADD_IMAGES;
+	
 	
 	@ActionIcon(PathIcons.CONTRAST)
 	@ActionAccelerator("shift+c")
@@ -99,6 +112,11 @@ public class DefaultActions {
 	
 	public DefaultActions(QuPathGUI qupath) {
 		this.qupath = qupath;
+		
+		PROJECT_NEW = createAction(() -> Commands.promptToCreateProject(qupath));
+		PROJECT_OPEN = createAction(() -> Commands.promptToOpenProject(qupath));
+		PROJECT_ADD_IMAGES = createAction(() -> ProjectCommands.promptToImportImages(qupath));
+		
 		BRIGHTNESS_CONTRAST = ActionTools.createAction(new BrightnessContrastCommand(qupath));
 		COUNTING_PANEL = ActionTools.createAction(new CountingPanelCommand(qupath));
 		TMA_ADD_NOTE = qupath.createImageDataAction(imageData -> TMACommands.promptToAddNoteToSelectedCores(imageData));

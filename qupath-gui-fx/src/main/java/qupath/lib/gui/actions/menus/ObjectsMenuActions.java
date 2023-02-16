@@ -156,7 +156,7 @@ public class ObjectsMenuActions implements MenuActions {
 	
 	public class AnnotationActions {
 		
-		@ActionConfig("Action.Objects.Annotation.simplify")
+		@ActionConfig("Action.Objects.Annotation.specify")
 		public final Action SPECIFY_ANNOTATION = Commands.createSingleStageAction(() -> Commands.createSpecifyAnnotationDialog(qupath));
 		
 		@ActionConfig("Action.Objects.Annotation.fullImage")

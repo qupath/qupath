@@ -1882,7 +1882,7 @@ public class PathPrefs {
 				l -> l.getDisplayName(Locale.US),
 				n -> Arrays.stream(Locale.getAvailableLocales()).filter(l -> Objects.equals(l.getDisplayName(Locale.US), n)).findFirst().orElse(defaultValue)
 		);
-		updateLocale(category, defaultValue);
+		updateLocale(category, property.get());
 		property.addListener((v, o, n) -> {
 			updateLocale(category, n);
 		});

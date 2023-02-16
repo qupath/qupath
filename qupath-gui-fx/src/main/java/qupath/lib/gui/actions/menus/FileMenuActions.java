@@ -106,10 +106,10 @@ public class FileMenuActions implements MenuActions {
 	public class ProjectActions {
 		
 		@ActionConfig("Action.File.Project.createProject")
-		public final Action PROJECT_NEW = createAction(() -> Commands.promptToCreateProject(qupath));
+		public final Action PROJECT_NEW = qupath.getDefaultActions().PROJECT_NEW;
 		
 		@ActionConfig("Action.File.Project.openProject")
-		public final Action PROJECT_OPEN = createAction(() -> Commands.promptToOpenProject(qupath));
+		public final Action PROJECT_OPEN = qupath.getDefaultActions().PROJECT_OPEN;
 		
 		@ActionConfig("Action.File.Project.closeProject")
 		public final Action PROJECT_CLOSE = qupath.createProjectAction(project -> Commands.closeProject(qupath));
@@ -117,7 +117,7 @@ public class FileMenuActions implements MenuActions {
 		public final Action SEP_1 = ActionTools.createSeparator();
 
 		@ActionConfig("Action.File.Project.addImages")
-		public final Action IMPORT_IMAGES = qupath.createProjectAction(project -> ProjectCommands.promptToImportImages(qupath));
+		public final Action IMPORT_IMAGES = qupath.getDefaultActions().PROJECT_ADD_IMAGES;
 
 		@ActionConfig("Action.File.Project.exportImageList")
 		public final Action EXPORT_IMAGE_LIST = qupath.createProjectAction(project -> ProjectCommands.promptToExportImageList(project));	

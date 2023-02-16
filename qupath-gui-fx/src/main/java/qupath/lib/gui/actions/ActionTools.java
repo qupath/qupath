@@ -31,10 +31,12 @@ import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 import org.controlsfx.control.action.Action;
 import org.controlsfx.control.action.ActionUtils;
@@ -314,7 +316,7 @@ public class ActionTools {
 		 * Menu path, in the form {@code "Menu>Submenu>Command name"}.
 		 * @return
 		 */
-		String value();
+		String[] value();
 	}
 	
 	/**
@@ -375,6 +377,13 @@ public class ActionTools {
 	}
 	
 	
+	private static String getMenuString(String[] text) {
+		return Arrays.stream(text)
+			.map(ActionTools::getStringOrReadResource)
+			.collect(Collectors.joining(">"));
+	}
+	
+	
 	private static String getStringOrReadResource(String text) {
 		if (text.startsWith("KEY:"))
 			return QuPathResources.getString(text.substring(4));
@@ -405,9 +414,9 @@ public class ActionTools {
 		var menuAnnotation = cls.getAnnotation(ActionMenu.class);
 		if (menuAnnotation != null) {
 			if (baseMenu == null || baseMenu.isEmpty()) {
-				baseMenu = getStringOrReadResource(menuAnnotation.value());			
+				baseMenu = getMenuString(menuAnnotation.value());			
 			} else {
-				baseMenu = joinMenuPaths(baseMenu, getStringOrReadResource(menuAnnotation.value()));
+				baseMenu = joinMenuPaths(baseMenu, getMenuString(menuAnnotation.value()));
 			}
 		}
 		
@@ -428,7 +437,7 @@ public class ActionTools {
 						actions.add(temp);		
 					}
 				} else if (f.isAnnotationPresent(ActionMenu.class)) {
-					String baseSubMenu = joinMenuPaths(baseMenu, getStringOrReadResource(f.getAnnotation(ActionMenu.class).value()));
+					String baseSubMenu = joinMenuPaths(baseMenu, getMenuString(f.getAnnotation(ActionMenu.class).value()));
 					var subActions = getAnnotatedActions(value, baseSubMenu);
 					actions.addAll(subActions);
 				}
@@ -530,7 +539,7 @@ public class ActionTools {
 		if (!menuString.isEmpty() && !menuString.endsWith(">"))
 			menuString += ">";
 		if (annotation != null)
-			menuString += getStringOrReadResource(annotation.value());
+			menuString += getMenuString(annotation.value());
 		if (menuString.isEmpty())
 			return;
 		var ind = menuString.lastIndexOf(">");
