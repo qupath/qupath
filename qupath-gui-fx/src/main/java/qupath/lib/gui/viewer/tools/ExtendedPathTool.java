@@ -19,7 +19,6 @@ import qupath.lib.gui.viewer.QuPathViewer;
 public class ExtendedPathTool implements PathTool {
 	
 	private ObservableList<PathTool> tools;
-	private PathTool defaultSelectedTool;
 	private ObjectProperty<PathTool> selectedTool;
 	
 	private StringProperty nameProperty = new SimpleStringProperty();

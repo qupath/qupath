@@ -250,6 +250,7 @@ public class PreferencePane {
 		var localeList = FXCollections.observableArrayList(
 				Arrays.stream(Locale.getAvailableLocales())
 				.filter(l -> !l.getLanguage().isBlank())
+				.filter(l -> l.getCountry().isEmpty())
 				.sorted(Comparator.comparing(l -> l.getDisplayName(Locale.US)))
 				.toList()
 				);

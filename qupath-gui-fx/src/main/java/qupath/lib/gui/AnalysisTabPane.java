@@ -25,9 +25,11 @@
 package qupath.lib.gui;
 
 import javafx.beans.binding.Bindings;
+import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableBooleanValue;
 import javafx.geometry.Orientation;
 import javafx.geometry.Side;
+import javafx.scene.Node;
 import javafx.scene.control.SplitPane;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
@@ -44,21 +46,22 @@ import qupath.lib.gui.panes.ProjectBrowser;
 import qupath.lib.gui.panes.SelectedMeasurementTableView;
 import qupath.lib.gui.panes.WorkflowCommandLogView;
 import qupath.lib.gui.tools.GuiTools;
+import qupath.lib.gui.tools.LocaleListener;
 
 class AnalysisTabPane {
 	
 	private QuPathGUI qupath;
 	
-	private static String titleProject = QuPathResources.getString("AnalysisPane.projectTab");
-	private static String titleImage = QuPathResources.getString("AnalysisPane.imageTab");
-	private static String titleAnnotations = QuPathResources.getString("AnalysisPane.annotationsTab");
-	private static String titleHierarchy = QuPathResources.getString("AnalysisPane.hierarchyTab");
-	private static String titleWorkflow = QuPathResources.getString("AnalysisPane.workflowTab");
-	private static String titleHistory = QuPathResources.getString("AnalysisPane.historyTab");
-	private static String titleMeasurements = QuPathResources.getString("AnalysisPane.measurementsTab");
-	private static String titleDescription = QuPathResources.getString("AnalysisPane.descriptionTab");
+	private static StringProperty titleProject = LocaleListener.createProperty("AnalysisPane.projectTab");
+	private static StringProperty titleImage = LocaleListener.createProperty("AnalysisPane.imageTab");
+	private static StringProperty titleAnnotations = LocaleListener.createProperty("AnalysisPane.annotationsTab");
+	private static StringProperty titleHierarchy = LocaleListener.createProperty("AnalysisPane.hierarchyTab");
+	private static StringProperty titleWorkflow = LocaleListener.createProperty("AnalysisPane.workflowTab");
+	private static StringProperty titleHistory = LocaleListener.createProperty("AnalysisPane.historyTab");
+	private static StringProperty titleMeasurements = LocaleListener.createProperty("AnalysisPane.measurementsTab");
+	private static StringProperty titleDescription = LocaleListener.createProperty("AnalysisPane.descriptionTab");
 
-	private static String textTabTooltip = QuPathResources.getString("AnalysisPane.switchText");
+	private static StringProperty textTabTooltip = LocaleListener.createProperty("AnalysisPane.switchText");
 
 	private ProjectBrowser projectBrowser;
 	private ImageDetailsPane imageDetailsPane;
@@ -95,8 +98,8 @@ class AnalysisTabPane {
 	private void addTabsForPanes() {
 				
 
-		tabPane.getTabs().add(new Tab(titleProject, projectBrowser.getPane()));
-		tabPane.getTabs().add(new Tab(titleImage, imageDetailsPane.getPane()));
+		tabPane.getTabs().add(createTab(titleProject, projectBrowser.getPane()));
+		tabPane.getTabs().add(createTab(titleImage, imageDetailsPane.getPane()));
 		
 		/*
 		 * Create tabs.
@@ -108,7 +111,7 @@ class AnalysisTabPane {
 		 */
 		
 		// Create a tab for annotations
-		var tabAnnotations = new Tab(titleAnnotations);
+		var tabAnnotations = createTab(titleAnnotations);
 		SplitPane splitAnnotations = new SplitPane();
 		splitAnnotations.setOrientation(Orientation.VERTICAL);
 		
@@ -123,7 +126,7 @@ class AnalysisTabPane {
 		tabPane.getTabs().add(tabAnnotations);		
 		
 		// Create a tab for the full hierarchy
-		var tabHierarchy = new Tab(titleHierarchy);
+		var tabHierarchy = createTab(titleHierarchy);
 		var hierarchyTabVisible = Bindings.createBooleanBinding(() -> {
 			return tabHierarchy.getTabPane() == null || tabHierarchy.isSelected();
 		}, tabHierarchy.tabPaneProperty(), tabHierarchy.selectedProperty());
@@ -147,18 +150,23 @@ class AnalysisTabPane {
 		});
 		
 		
-		TitledPane titledLog = new TitledPane(titleHistory, workflowLogView.getPane());
+		TitledPane titledLog = new TitledPane(titleHistory.get(), workflowLogView.getPane());
+		titledLog.textProperty().bind(titleHistory);
 		titledLog.setCollapsible(false);
 		titledLog.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
 		var pane = new BorderPane(titledLog);
-		tabPane.getTabs().add(new Tab(titleWorkflow, pane));
+		tabPane.getTabs().add(createTab(titleWorkflow, pane));
 	}
 	
 	private void makeTabsUndockable() {
 		// Make the tabs undockable
 		for (var tab : tabPane.getTabs()) {
 			GuiTools.makeTabUndockable(tab);
-			tab.setTooltip(new Tooltip(String.format(textTabTooltip, tab.getText())));
+			var tooltip = new Tooltip();
+			tooltip.textProperty().bind(Bindings.createStringBinding(() -> {
+				return String.format(textTabTooltip.get(), tab.getText());
+			}, tab.textProperty(), textTabTooltip));
+			tab.setTooltip(tooltip);
 		}
 	}
 	
@@ -192,6 +200,17 @@ class AnalysisTabPane {
 		return projectBrowser;
 	}
 	
+	private static Tab createTab(StringProperty title) {
+		return createTab(title, null);
+	}
+	
+	private static Tab createTab(StringProperty title, Node content) {
+		var tab = new Tab();
+		tab.textProperty().bind(title);
+		if (content != null)
+			tab.setContent(content);
+		return tab;
+	}
 	
 	/**
 	 * Make a tab pane to show either measurements or descriptions for the selected object.
@@ -203,10 +222,10 @@ class AnalysisTabPane {
 		var tabpaneObjectsShared = new TabPane();
 		var objectMeasurementsTable = new SelectedMeasurementTableView(qupath.imageDataProperty());
 		tabpaneObjectsShared.setSide(Side.BOTTOM);
-		var tabSharedTable = new Tab(titleMeasurements, objectMeasurementsTable.getTable());
+		var tabSharedTable = createTab(titleMeasurements, objectMeasurementsTable.getTable());
 		tabpaneObjectsShared.getTabs().add(tabSharedTable);
 		var descriptionPane = ObjectDescriptionPane.createPane(qupath.imageDataProperty(), true);
-		var tabSharedDescription = new Tab(titleDescription, descriptionPane);
+		var tabSharedDescription = createTab(titleDescription, descriptionPane);
 		tabpaneObjectsShared.getTabs().add(tabSharedDescription);
 		tabpaneObjectsShared.setTabClosingPolicy(TabClosingPolicy.UNAVAILABLE);
 		

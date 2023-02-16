@@ -63,6 +63,7 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.QuPathResources;
 import qupath.lib.gui.SelectableItem;
 import qupath.lib.gui.tools.IconFactory;
+import qupath.lib.gui.tools.LocaleListener;
 
 /**
  * Helper methods for generating and configuring {@linkplain Action Actions} and UI elements.
@@ -294,6 +295,8 @@ public class ActionTools {
 		String bundle() default "";
 
 		String[] menu() default "";
+		
+		boolean bindLocale() default true;
 
 		/**
 		 * Key to external properties file.
@@ -524,11 +527,17 @@ public class ActionTools {
 	private static void parseConfig(Action action, ActionConfig annotation) {
 		if (annotation != null) {
 			String key = annotation.value();
-			String text = QuPathResources.getString(key);
-			action.setText(text);
+			if (annotation.bindLocale())
+				LocaleListener.registerProperty(action.textProperty(), key);
+			else
+				action.setText(QuPathResources.getString(key));
 			String descriptionKey = key + ".description";
-			if (QuPathResources.hasString(descriptionKey))
-				action.setLongText(QuPathResources.getString(descriptionKey));
+			if (QuPathResources.hasString(descriptionKey)) {
+				if (annotation.bindLocale())
+					LocaleListener.registerProperty(action.longTextProperty(), descriptionKey);
+				else
+					action.setLongText(QuPathResources.getString(descriptionKey));
+			}
  		}
 	}
 	

@@ -54,9 +54,9 @@ import javafx.scene.text.TextAlignment;
 import javafx.stage.Stage;
 import javafx.stage.Window;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.QuPathResources;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.IconFactory;
+import qupath.lib.gui.tools.LocaleListener;
 import qupath.lib.gui.tools.IconFactory.PathIcons;
 import qupath.lib.gui.tools.PaneTools;
 
@@ -69,7 +69,7 @@ public class ContextHelpViewer {
 
 	private static Map<QuPathGUI, ContextHelpViewer> INSTANCES = new ConcurrentHashMap<>();
 
-	private String title = QuPathResources.getString("ContextHelp.title");
+	private StringProperty title = LocaleListener.createProperty("ContextHelp.title");
 	private QuPathGUI qupath;
 	
 	private int iconSize = 16;
@@ -78,8 +78,8 @@ public class ContextHelpViewer {
 	private ObservableList<Window> windows;
 	private EventHandler<MouseEvent> handler = this::handleMouseMove;
 
-	private String defaultText = QuPathResources.getString("ContextHelp.defaultHelpText");
-	private StringProperty helpText = new SimpleStringProperty(defaultText);
+	private StringProperty defaultText = LocaleListener.createProperty("ContextHelp.defaultHelpText");
+	private StringProperty helpText = new SimpleStringProperty(defaultText.get());
 
 	private Label label;
 
@@ -120,7 +120,7 @@ public class ContextHelpViewer {
 		var stage = new Stage();
 		stage.initOwner(qupath.getStage());
 		stage.setResizable(true);
-		stage.setTitle(title);
+		stage.titleProperty().bind(title);
 		stage.setWidth(300);
 		stage.setHeight(400);
 		stage.setScene(scene);		
@@ -229,9 +229,10 @@ public class ContextHelpViewer {
 		lastNode = node;
 		String help = findHelpText(event, node);
 		if (help == null || help.isEmpty()) {
-			helpText.set(defaultText);
+			helpText.bind(defaultText);
 			label.setOpacity(0.5);
 		} else { 
+			helpText.unbind();
 			helpText.set(help);
 			label.setOpacity(1.0);
 		}
@@ -292,7 +293,8 @@ public class ContextHelpViewer {
 		
 		private HelpListEntry(HelpType type, String key, Node graphic) {
 			this.type = type;
-			this.textProperty = new SimpleStringProperty(QuPathResources.getString(key));
+			this.textProperty = new SimpleStringProperty();
+			LocaleListener.registerProperty(textProperty, key);
 			if (graphic == null)
 				graphic = createGraphicFromType(type);
 			this.graphicProperty = new SimpleObjectProperty<>(graphic);

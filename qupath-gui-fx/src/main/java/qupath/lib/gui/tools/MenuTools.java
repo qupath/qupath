@@ -53,12 +53,11 @@ public class MenuTools {
 	 * @return the newly-created and populated menu
 	 */
 	public static Menu createMenu(final String name, final Object... items) {
-		String title;
+		Menu menu = new Menu();
 		if (QuPathResources.hasString(name))
-			title = QuPathResources.getString(name);
+			LocaleListener.registerProperty(menu.textProperty(), name);
 		else
-			title = name;
-		Menu menu = new Menu(title);
+			menu.setText(name);
 		if (items.length > 0)
 			addMenuItems(menu, items);
 		return menu;
@@ -162,9 +161,14 @@ public class MenuTools {
 				}
 				if (menuCurrent == null) {
 					if (createMenu) {
-						menuCurrent = new Menu(n.trim());
+						String text = n.trim();
+						menuCurrent = new Menu();
+						if (QuPathResources.hasString(text))
+							LocaleListener.registerProperty(menuCurrent.textProperty(), text);
+						else
+							menuCurrent.setText(text);
 						// Make sure we don't replace the 'Help' menu at the end
-						if (!menus.isEmpty() && "Help".equals(menus.get(menus.size()-1).getText()))
+						if (!menus.isEmpty() && QuPathResources.getString("Menu.Help").equals(menus.get(menus.size()-1).getText()))
 							menus.add(menus.size()-1, menuCurrent);
 						else
 							menus.add(menuCurrent);
@@ -192,32 +196,6 @@ public class MenuTools {
 		return menuCurrent;
 	}
 	
-	
-	
-	
-//	public static MenuItem getMenuItem(List<Menu> menus, String itemName) {
-//		Collection<MenuItem> menuItems;
-//		int ind = itemName.lastIndexOf(">");
-//		if (ind >= 0) {
-//			Menu menu = getMenu(menus, itemName.substring(0, ind), false);
-//			if (menu == null) {
-//				logger.warn("No menu found for {}", itemName);
-//				return null;
-//			}
-//			menuItems = menu.getItems();
-//			itemName = itemName.substring(ind+1);
-//		} else {
-//			menuItems = new HashSet<>();
-//			for (Menu menu : menus)
-//				menuItems.addAll(menu.getItems());
-//		}
-//		for (MenuItem menuItem : menuItems) {
-//			if (itemName.equals(menuItem.getText()))
-//				return menuItem;
-//		}
-//		logger.warn("No menu item found for {}", itemName);
-//		return null;
-//	}
 	
 	/**
 	 * Get a flattened list of all menu items recursively.

@@ -22,6 +22,8 @@
 
 package qupath.lib.gui;
 
+import java.util.Locale;
+import java.util.Locale.Category;
 import java.util.MissingResourceException;
 import java.util.ResourceBundle;
 
@@ -75,7 +77,7 @@ public class QuPathResources {
 		if (bundleName == null || bundleName.isEmpty())
 			bundleName = DEFAULT_BUNDLE;
 		try {
-			return ResourceBundle.getBundle(bundleName);
+			return ResourceBundle.getBundle(bundleName, Locale.getDefault(Category.DISPLAY));
 		} catch (MissingResourceException e) {
 			logger.error("Missing resource bundle {}", bundleName);
 			return null;

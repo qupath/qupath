@@ -99,7 +99,7 @@ public class ToolManager {
 	public final Action BRUSH_TOOL = getToolAction(PathTools.BRUSH);
 	
 	@ActionAccelerator("l")
-	@ActionConfig("Tools.line")
+	@ActionConfig(value = "Tools.line", bindLocale = false)
 	public final Action LINE_TOOL = getToolAction(PathTools.LINE_OR_ARROW);
 	
 	@ActionAccelerator(".")

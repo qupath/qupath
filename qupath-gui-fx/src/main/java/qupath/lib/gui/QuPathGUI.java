@@ -132,6 +132,7 @@ import qupath.lib.gui.scripting.ScriptEditorControl;
 import qupath.lib.gui.scripting.languages.GroovyLanguage;
 import qupath.lib.gui.scripting.languages.ScriptLanguageProvider;
 import qupath.lib.gui.tools.GuiTools;
+import qupath.lib.gui.tools.LocaleListener;
 import qupath.lib.gui.tools.MenuTools;
 import qupath.lib.gui.viewer.DragDropImportListener;
 import qupath.lib.gui.viewer.ViewerManager;
@@ -602,9 +603,15 @@ public class QuPathGUI {
 						"Menu.Extensions",
 						"Menu.Help")
 				.stream()
-				.map(k -> QuPathResources.getString(k))
-				.map(Menu::new).toArray(Menu[]::new)
+				.map(QuPathGUI::createMenuFromKey)
+				.toArray(Menu[]::new)
 				);
+	}
+	
+	private static Menu createMenuFromKey(String key) {
+		Menu menu = new Menu();
+		LocaleListener.registerProperty(menu.textProperty(), key);
+		return menu;
 	}
 	
 	private void populateMenubar() {

@@ -27,6 +27,7 @@ import org.slf4j.LoggerFactory;
 import org.controlsfx.glyphfont.GlyphFontRegistry;
 
 import javafx.beans.binding.Bindings;
+import javafx.beans.property.StringProperty;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
@@ -54,6 +55,7 @@ import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.prefs.PathPrefs.AutoUpdateType;
 import qupath.lib.gui.prefs.QuPathStyleManager;
 import qupath.lib.gui.tools.GuiTools;
+import qupath.lib.gui.tools.LocaleListener;
 import qupath.lib.gui.tools.PaneTools;
 
 
@@ -72,7 +74,7 @@ public class WelcomeStage {
 	
 	private static Stage INSTANCE;
 	
-	private static final String TITLE = QuPathResources.getString("Welcome.title");
+	private static final StringProperty TITLE = LocaleListener.createProperty("Welcome.title");
 	
 	public static Stage getInstance(QuPathGUI qupath) {
 		if (INSTANCE == null) {
@@ -90,19 +92,19 @@ public class WelcomeStage {
 			stage.initOwner(qupath.getStage());
 		
 		var btnCode = createGlyphButton(
-				QuPathResources.getString("Welcome.develop"), 
+				"Welcome.develop", 
 				Glyph.CODE,
 				Urls.getGitHubRepoUrl()
 				);
 		
 		var btnDocs = createGlyphButton(
-				QuPathResources.getString("Welcome.docs"), 
+				"Welcome.docs", 
 				Glyph.FILE_TEXT_ALT,
 				Urls.getVersionedDocsUrl() 
 				);
 		
 		var btnForum = createGlyphButton(
-				QuPathResources.getString("Welcome.discuss"), 
+				"Welcome.discuss", 
 				Glyph.COMMENTS_ALT,
 				Urls.getUserForumUrl()
 				);
@@ -115,7 +117,8 @@ public class WelcomeStage {
 		imageView.setOpacity(0.9);
 		imageView.setPreserveRatio(true);
 		
-		var textTitle = new Text(QuPathResources.getString("Welcome.welcomeMessage")); 
+		var textTitle = new Text();
+		LocaleListener.registerProperty(textTitle.textProperty(), "Welcome.welcomeMessage");
 		textTitle.setStyle("-fx-font-weight: bold; -fx-font-size: 150%; -fx-fill: -fx-text-base-color;"); 
 
 		var topPane = new VBox();
@@ -139,8 +142,7 @@ public class WelcomeStage {
 		
 		pane.setTop(topPane);
 		
-		String defaultMessage = QuPathResources.getString("Welcome.defaultMessage"); 
-		var labelExplanation = new Label(defaultMessage);
+		var labelExplanation = new Label(QuPathResources.getString("Welcome.defaultMessage"));
 		labelExplanation.setAlignment(Pos.CENTER);
 		labelExplanation.textProperty().bind(Bindings.createStringBinding(() -> {
 			if (btnCode.isHover()) {
@@ -150,8 +152,8 @@ public class WelcomeStage {
 			} else if (btnForum.isHover()) {
 				return QuPathResources.getString("Welcome.discussMessage");
 			} else
-				return defaultMessage;
-		}, btnCode.hoverProperty(), btnDocs.hoverProperty(), btnForum.hoverProperty()));
+				return QuPathResources.getString("Welcome.defaultMessage");
+		}, btnCode.hoverProperty(), btnDocs.hoverProperty(), btnForum.hoverProperty(), PathPrefs.defaultLocaleDisplayProperty()));
 		labelExplanation.setTextAlignment(TextAlignment.CENTER);
 		labelExplanation.setAlignment(Pos.CENTER);
 		labelExplanation.setMinHeight(40);
@@ -161,7 +163,8 @@ public class WelcomeStage {
 		var comboThemes = new ComboBox<>(QuPathStyleManager.availableStylesProperty());
 		comboThemes.getSelectionModel().select(QuPathStyleManager.selectedStyleProperty().get());
 		comboThemes.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> QuPathStyleManager.selectedStyleProperty().set(n));
-		var labelThemes = new Label(QuPathResources.getString("Welcome.chooseTheme") + ":");
+		var labelThemes = new Label();
+		LocaleListener.registerProperty(labelThemes.textProperty(), "Welcome.chooseTheme");
 		labelThemes.setLabelFor(comboThemes);
 		labelThemes.setAlignment(Pos.CENTER_RIGHT);
 		
@@ -169,11 +172,13 @@ public class WelcomeStage {
 		comboUpdates.getItems().setAll(AutoUpdateType.values());
 		comboUpdates.getSelectionModel().select(PathPrefs.autoUpdateCheckProperty().get());
 		comboUpdates.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> PathPrefs.autoUpdateCheckProperty().set(n));
-		var labelUpdates = new Label(QuPathResources.getString("Welcome.checkUpdates") + ":");
+		var labelUpdates = new Label();
+		LocaleListener.registerProperty(labelUpdates.textProperty(), "Welcome.checkUpdates");
 		labelUpdates.setLabelFor(comboUpdates);
 		labelUpdates.setAlignment(Pos.CENTER_RIGHT);
 
-		var cbShowStartup = new CheckBox(QuPathResources.getString("Welcome.showOnStartup"));
+		var cbShowStartup = new CheckBox();
+		LocaleListener.registerProperty(cbShowStartup.textProperty(), "Welcome.showOnStartup");
 		cbShowStartup.selectedProperty().bindBidirectional(PathPrefs.showStartupMessageProperty());
 		cbShowStartup.setAlignment(Pos.CENTER_RIGHT);
 		
@@ -200,10 +205,14 @@ public class WelcomeStage {
 		separator2.setPadding(new Insets(5));
 		paneOptions.add(separator2, 0, row++, GridPane.REMAINING, 1);
 
-		var linkCiting = new Hyperlink(QuPathResources.getString("Welcome.clickForDetails"));
+		var linkCiting = new Hyperlink();
+		LocaleListener.registerProperty(linkCiting.textProperty(), "Welcome.clickForDetails");
 		linkCiting.setOnAction(e -> QuPathGUI.openInBrowser(Urls.getCitationUrl())); 
+		var textCitingStart = new Text();
+		LocaleListener.registerProperty(textCitingStart.textProperty(), "Welcome.cite");
 		var textCiting = new TextFlow(
-				new Text(QuPathResources.getString("Welcome.cite") + System.lineSeparator()),
+				textCitingStart,
+				new Text(System.lineSeparator()),
 				linkCiting
 				);
 		textCiting.setTextAlignment(TextAlignment.CENTER);
@@ -215,7 +224,8 @@ public class WelcomeStage {
 		row++;
 
 		
-		var btnStarted = new Button(QuPathResources.getString("Welcome.getStarted"));
+		var btnStarted = new Button();
+		LocaleListener.registerProperty(btnStarted.textProperty(), "Welcome.getStarted");
 //		btnStarted.setPrefHeight(40);
 		btnStarted.setStyle("-fx-font-weight: bold; -fx-font-size: 110%;"); 
 		btnStarted.setPadding(new Insets(10));
@@ -249,7 +259,7 @@ public class WelcomeStage {
 //		stage.setScene(new Scene(pane, Color.TRANSPARENT));
 //		stage.initStyle(StageStyle.UNDECORATED);
 		stage.setScene(new Scene(pane));
-		stage.setTitle(TITLE);
+		stage.titleProperty().bind(TITLE);
 		GuiTools.makeDraggableStage(stage);
 		stage.getScene().setOnMouseClicked(e -> {
 			if (e.getClickCount() == 2) {
@@ -271,37 +281,47 @@ public class WelcomeStage {
 	
 	
 	private static TextFlow makeMacAarch64Message() {
-		String text = QuPathResources.getString("Welcome.macOsAarch64");
-		
-		int ind1 = text.indexOf("{{");
-		int ind2 = text.lastIndexOf("}}");
-		String startText = text.substring(0, ind1);
-		String linkText = text.substring(ind1+2, ind2);
-		String endText = text.substring(ind2+2);
-		
-		var textSiliconExperimental = new Text(startText); 
+		var textProperty = LocaleListener.createProperty("Welcome.macOsAarch64");
+
+		var textSiliconExperimental = new Text(); 
 		textSiliconExperimental.setStyle("-fx-font-weight: bold; -fx-fill: -qp-script-error-color;"); 
-		var linkSilicon = new Hyperlink(linkText); 
-		var textSiliconExperimental2 = new Text(endText); 
+		var linkSilicon = new Hyperlink(); 
+		var textSiliconExperimental2 = new Text(); 
 		textSiliconExperimental2.setStyle("-fx-fill: -fx-text-base-color;"); 
 		linkSilicon.setOnAction(e -> QuPathGUI.openInBrowser(Urls.getInstallationUrl())); 
+
+		updateMessageTextFlow(textProperty.get(), textSiliconExperimental, linkSilicon, textSiliconExperimental2);
+		textProperty.addListener((v, o, n) -> updateMessageTextFlow(n, textSiliconExperimental, linkSilicon, textSiliconExperimental2));
+		
 		return new TextFlow(
 				textSiliconExperimental, linkSilicon, textSiliconExperimental2
 				);
 	}
 	
 	
+	private static void updateMessageTextFlow(String text, Text textSiliconExperimental, Hyperlink linkSilicon, Text textSiliconExperimental2) {
+		int ind1 = text.indexOf("{{");
+		int ind2 = text.lastIndexOf("}}");
+		String startText = text.substring(0, ind1);
+		String linkText = text.substring(ind1+2, ind2);
+		String endText = text.substring(ind2+2);
+		textSiliconExperimental.setText(startText);
+		linkSilicon.setText(linkText);
+		textSiliconExperimental2.setText(endText);
+	}
 	
 	
-	private static Button createGlyphButton(String text, Glyph glyph, String url) {
+	
+	
+	private static Button createGlyphButton(String key, Glyph glyph, String url) {
 		
 		var button = new Button();
 		button.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
 		button.setPrefSize(100, 100);
-		if (text == null)
+		if (key == null)
 			button.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
 		else {
-			button.setText(text);
+			LocaleListener.registerProperty(button.textProperty(), key);
 			button.setContentDisplay(ContentDisplay.TOP);
 		}
 		
