@@ -54,19 +54,26 @@ import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.Property;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
 import javafx.scene.text.FontWeight;
+import javafx.scene.text.TextAlignment;
 import javafx.util.Duration;
 import javafx.util.StringConverter;
 import qupath.lib.gui.QuPathResources;
@@ -87,7 +94,7 @@ import qupath.lib.gui.prefs.QuPathStyleManager;
 import qupath.lib.gui.prefs.QuPathStyleManager.StyleOption;
 
 /**
- * Basic preference panel, giving a means to modify some of the properties within PathPrefs.
+ * QuPath's preference pane, giving a means to modify many of the properties within PathPrefs.
  * 
  * @author Pete Bankhead
  *
@@ -96,25 +103,131 @@ public class PreferencePane {
 
 	private static final Logger logger = LoggerFactory.getLogger(PreferencePane.class);
 
-	private PropertySheet propSheet = new PropertySheet();
+	private PropertySheet propSheet;
 	
 	private static LocaleManager localeManager = new LocaleManager();
 	
+	private BorderPane pane;
+	
+	private StringProperty localeChangedText = LocaleListener.createProperty("Prefs.localeChanged");
+	private BooleanProperty localeChanged = new SimpleBooleanProperty(false);
+	
 	@SuppressWarnings("javadoc")
 	public PreferencePane() {
-		setupPanel();
+		initializePane();
 	}
+	
+	private void initializePane() {
+		pane = new BorderPane();
+		propSheet = createPropertySheet();
+		populatePropertySheet();
+		
+		var label = createLocaleChangedLabel();
+		listenForLocaleChanges();
+		
+		pane.setCenter(propSheet);
+		pane.setBottom(label);
+	}
+	
+	private PropertySheet createPropertySheet() {
+		var propSheet = new PropertySheet();
+		propSheet.setMode(Mode.CATEGORY);
+		propSheet.setPropertyEditorFactory(new PropertyEditorFactory());
+		return propSheet;
+	}
+	
+	private void populatePropertySheet() {
+		addAnnotatedProperties(new AppearancePreferences());
+		addAnnotatedProperties(new GeneralPreferences());
+		addAnnotatedProperties(new LocalePreferences());
+		addAnnotatedProperties(new InputOutputPreferences());
+
+		addAnnotatedProperties(new ViewerPreferences());
+		addAnnotatedProperties(new ExtensionPreferences());
+		addAnnotatedProperties(new MeasurementPreferences());
+		addAnnotatedProperties(new ScriptingPreferences());
+		
+		addAnnotatedProperties(new DrawingPreferences());
+		addAnnotatedProperties(new ObjectPreferences());
+	}
+
+	/**
+	 * Get the property sheet for this {@link PreferencePane}.
+	 * This is a {@link Node} that may be added to a scene for display.
+	 * @return
+	 */
+	public PropertySheet getPropertySheet() {
+		return propSheet;
+	}
+	
+	/**
+	 * Get a pane to display. This includes the property sheet, and  
+	 * additional information that should be displayed to the user.
+	 * @return
+	 * @since v0.5.0
+	 */
+	public Pane getPane() {
+		return pane;
+	}
+	
+	
+	private Label createLocaleChangedLabel() {
+		var label = new Label();
+		label.textProperty().bind(localeChangedText);
+		label.visibleProperty().bind(localeChanged);
+		label.setStyle("-fx-text-fill: -qp-script-error-color;");
+		label.setPadding(new Insets(5.0));
+		label.setMaxHeight(Double.MAX_VALUE);
+		label.setWrapText(true);
+		label.setMaxWidth(Double.MAX_VALUE);
+		label.setAlignment(Pos.CENTER);
+		label.setTextAlignment(TextAlignment.CENTER);
+		return label;
+	}
+	
+	private void listenForLocaleChanges() {
+		PathPrefs.defaultLocaleProperty().addListener((v, o, n) -> setLocaleChanged());
+		PathPrefs.defaultLocaleDisplayProperty().addListener((v, o, n) -> setLocaleChanged());
+		PathPrefs.defaultLocaleFormatProperty().addListener((v, o, n) -> setLocaleChanged());		
+	}
+	
+	private void setLocaleChanged() {
+		localeChanged.set(true);
+	}
+	
+	
+	
+	/**
+	 * Install properties that are the public fields of an object, configured using annotations.
+	 * The properties themselves are accessed using reflection.
+	 * <p>
+	 * If the provided object has a {@link PrefCategory} annotation, this defines the category 
+	 * for all the identified properties.
+	 * Each property should then have a {@link Pref} annotation, or an alternative 
+	 * such as {@link DoublePref}, {@link ColorPref}, {@link DirectoryPref}, {@link IntegerPref}.
+	 * @param object
+	 * @since v0.5.0
+	 */
+	public void addAnnotatedProperties(Object object) {
+		var items = parseItems(object);
+		propSheet.getItems().addAll(items);		
+	}
+
+	
 		
 	@PrefCategory("Prefs.Appearance")
 	static class AppearancePreferences {
 		
-		// TODO: Figure out how to pass available options
-		@Pref(value = "Prefs.Appearance.theme", type = StyleOption.class)
+		@Pref(value = "Prefs.Appearance.theme", type = StyleOption.class, choiceMethod = "getStyles")
 		public final ObjectProperty<StyleOption> theme = QuPathStyleManager.selectedStyleProperty();
 		
 		@Pref(value = "Prefs.Appearance.font", type = QuPathStyleManager.Fonts.class)
 		public final ObjectProperty<QuPathStyleManager.Fonts> autoUpdate = QuPathStyleManager.fontProperty();
 		
+		public final ObservableList<StyleOption> getStyles() {
+			return QuPathStyleManager.availableStylesProperty();
+		}
+
 	}
 	
 
@@ -185,28 +298,18 @@ public class PreferencePane {
 					}
 					if (success) {
 						Dialogs.showInfoNotification(QuPathResources.getString("Prefs.General.maxMemory"),
-								"Setting max memory to " + requestedMemoryMB + " MB - you'll need to restart QuPath for this to take effect"
+								QuPathResources.getString("Prefs.maxMemoryChanged")
 								);
 					} else {
-						Dialogs.showErrorMessage("Set max memory",
-								"Unable to set max memory - sorry!\n"
-								+ "Check the FAQs on ReadTheDocs for details how to set the "
-								+ "memory limit by editing QuPath's config file."
-								);						
+						Dialogs.showErrorMessage(QuPathResources.getString("Prefs.General.maxMemory"),
+								QuPathResources.getString("Prefs.maxMemoryFailed"));						
 					}
 				}
 			});	
 			return propMemoryGB;
 		}
 				
-	}
-	
-	
-	private void parseAndAddItems(Object object) {
-		var items = parseItems(object);
-		propSheet.getItems().addAll(items);		
-	}
-	
+	}	
 	
 	@PrefCategory("Prefs.Locale")
 	static class LocalePreferences {
@@ -405,36 +508,6 @@ public class PreferencePane {
 	}
 	
 
-	private void setupPanel() {
-		//		propSheet.setMode(Mode.CATEGORY);
-		propSheet.setMode(Mode.CATEGORY);
-		propSheet.setPropertyEditorFactory(new PropertyEditorFactory());
-
-		parseAndAddItems(new AppearancePreferences());
-		parseAndAddItems(new GeneralPreferences());
-		parseAndAddItems(new LocalePreferences());
-		parseAndAddItems(new InputOutputPreferences());
-
-		parseAndAddItems(new ViewerPreferences());
-		parseAndAddItems(new ExtensionPreferences());
-		parseAndAddItems(new MeasurementPreferences());
-		parseAndAddItems(new ScriptingPreferences());
-		
-		parseAndAddItems(new DrawingPreferences());
-		parseAndAddItems(new ObjectPreferences());
-	}
-
-	/**
-	 * Get the property sheet for this {@link PreferencePane}.
-	 * This is a {@link Node} that may be added to a scene for display.
-	 * @return
-	 */
-	public PropertySheet getPropertySheet() {
-		return propSheet;
-	}
-
-
-	
 	/**
 	 * Add a new preference based on a specified Property.
 	 * 
@@ -526,20 +599,6 @@ public class PreferencePane {
 	}
 	
 	
-//	public <T> void addChoicePropertyPreference(final Property<T> prop, final ObservableList<T> choices, final Class<? extends T> cls, 
-//			final String key) {
-//		PropertySheet.Item item = new ChoicePropertyItem<>(prop, choices, cls, false)
-//				.resource(key);
-//		propSheet.getItems().add(item);
-//	}
-//	
-//	public <T> void addSearchableChoicePropertyPreference(final Property<T> prop, final ObservableList<T> choices, final Class<? extends T> cls, final String key) {
-//		PropertySheet.Item item = new ChoicePropertyItem<>(prop, choices, cls, true)
-//				.resource(key);
-//		propSheet.getItems().add(item);
-//	}
-	
-	
 	/**
 	 * Request that all the property editors are regenerated.
 	 * This is useful if the Locale has changed, and so the text may need to be updated.
@@ -599,12 +658,14 @@ public class PreferencePane {
 		 * @param name
 		 * @return
 		 */
-		public PropertyItem name(final String name) {
+		public PropertyItem name(String name) {
 			this.name.set(name);
 			return this;
 		}
 		
-		public PropertyItem key(final String bundle, final String key) {
+		public PropertyItem key(String bundle, String key) {
+			if (bundle.isBlank())
+				bundle = null;
 			LocaleListener.registerProperty(name, bundle, key);
 			if (QuPathResources.hasString(bundle, key + ".description"))
 				LocaleListener.registerProperty(description, bundle, key + ".description");			
@@ -985,9 +1046,8 @@ public class PreferencePane {
 				if (choiceItem.makeSearchable()) {
 					editor = new SearchableChoiceEditor<>(choiceItem, choiceItem.getChoices());
 				} else
-					// Use this rather than Editors because it wraps an existing ObservableList where available
+					// Use this rather than Editors.createChoiceEditor() because it wraps an existing ObservableList where available
 					editor = new ChoiceEditor<>(choiceItem, choiceItem.getChoices());
-//					editor = Editors.createChoiceEditor(item, choiceItem.getChoices());
 			} else
 				editor = super.call(item);
 			if (reformatTypes.containsKey(item.getType()) && editor.getEditor() instanceof ComboBox) {
@@ -1002,7 +1062,9 @@ public class PreferencePane {
 			if (Locale.class.equals(item.getType())) {
 				editor.getEditor().addEventHandler(MouseEvent.MOUSE_CLICKED, e -> {
 					if (e.getClickCount() == 2) {
-						if (Dialogs.showConfirmDialog("Reset locale", "Reset locale to 'English (United States)'?")) {
+						if (Dialogs.showConfirmDialog(
+								QuPathResources.getString("Prefs.localeReset"),
+								QuPathResources.getString("Prefs.localeResetMessage"))) {
 							item.setValue(Locale.US);
 						}
 					}
@@ -1019,10 +1081,10 @@ public class PreferencePane {
 	}
 
 	
-	static enum PropertyType { GENERAL, DIRECTORY, COLOR, CHOICE, SEARCHABLE_CHOICE }
+	private static enum PropertyType { GENERAL, DIRECTORY, COLOR, CHOICE, SEARCHABLE_CHOICE }
 	
 	
-	static class PropertyItemBuilder<T> {
+	private static class PropertyItemBuilder<T> {
 		
 		private Property<T> property;
 		private Class<? extends T> cls;
@@ -1042,19 +1104,6 @@ public class PreferencePane {
 		public PropertyItemBuilder<T> key(String key) {
 			this.key = key;
 			return this;
-		}
-
-		public PropertyItemBuilder<T> category(String key) {
-			this.categoryKey = key;
-			return this;
-		}
-		
-		public PropertyItemBuilder<T> color() {
-			return propertyType(PropertyType.COLOR);
-		}
-
-		public PropertyItemBuilder<T> directory() {
-			return propertyType(PropertyType.DIRECTORY);
 		}
 
 		public PropertyItemBuilder<T> propertyType(PropertyType type) {
@@ -1108,62 +1157,178 @@ public class PreferencePane {
 	}
 	
 	
-	
+	/**
+	 * Annotation for a general preference.
+	 * @since v0.5.0
+	 */
 	@Documented
 	@Retention(RetentionPolicy.RUNTIME)
 	@Target({ElementType.TYPE, ElementType.FIELD})
 	public @interface Pref {
+		/**
+		 * Optional bundle for externalized string
+		 * @return
+		 */
+		String bundle() default "";
+		/**
+		 * Type for the property
+		 * @return
+		 */
 		Class<?> type();
+		/**
+		 * Key for externalized string that gives the text of the preference
+		 * @return
+		 */
 		String value();
+		/**
+		 * Name of a method that can be invoked to get a list of available choices.
+		 * This is not needed for Enum types, where the choices are already known.
+		 * <p>
+		 * The method is expected to be defined in the parent object containing the 
+		 * annotated property field. It should take no parameters.
+		 * @return
+		 */
+		String choiceMethod() default "";
+		
 	}
 
+	/**
+	 * Annotation for an integer preference.
+	 * @since v0.5.0
+	 */
 	@Documented
 	@Retention(RetentionPolicy.RUNTIME)
 	@Target({ElementType.TYPE, ElementType.FIELD})
 	public @interface IntegerPref {
+		/**
+		 * Optional bundle for externalized string
+		 * @return
+		 */
+		String bundle() default "";
+		/**
+		 * Key for externalized string that gives the text of the preference
+		 * @return
+		 */
 		String value();
 	}
 	
+	/**
+	 * Annotation for a double preference.
+	 * @since v0.5.0
+	 */
 	@Documented
 	@Retention(RetentionPolicy.RUNTIME)
 	@Target({ElementType.TYPE, ElementType.FIELD})
 	public @interface DoublePref {
+		/**
+		 * Optional bundle for externalized string
+		 * @return
+		 */
+		String bundle() default "";
+		/**
+		 * Key for externalized string that gives the text of the preference
+		 * @return
+		 */
 		String value();
 	}
 	
+	/**
+	 * Annotation for an boolean preference.
+	 * @since v0.5.0
+	 */
 	@Documented
 	@Retention(RetentionPolicy.RUNTIME)
 	@Target({ElementType.TYPE, ElementType.FIELD})
 	public @interface BooleanPref {
+		/**
+		 * Optional bundle for externalized string
+		 * @return
+		 */
+		String bundle() default "";
+		/**
+		 * Key for externalized string that gives the text of the preference
+		 * @return
+		 */
 		String value();
 	}
 	
+	/**
+	 * Annotation for a directory preference.
+	 * @since v0.5.0
+	 */
 	@Documented
 	@Retention(RetentionPolicy.RUNTIME)
 	@Target({ElementType.TYPE, ElementType.FIELD})
 	public @interface DirectoryPref {
+		/**
+		 * Optional bundle for externalized string
+		 * @return
+		 */
+		String bundle() default "";
+		/**
+		 * Key for externalized string that gives the text of the preference
+		 * @return
+		 */
 		String value();
 	}
 	
+	/**
+	 * Annotation for an locale preference.
+	 * @since v0.5.0
+	 */
 	@Documented
 	@Retention(RetentionPolicy.RUNTIME)
 	@Target({ElementType.TYPE, ElementType.FIELD})
 	public @interface LocalePref {
+		/**
+		 * Optional bundle for externalized string
+		 * @return
+		 */
+		String bundle() default "";
+		/**
+		 * Key for externalized string that gives the text of the preference
+		 * @return
+		 */
 		String value();
 	}
 	
+	/**
+	 * Annotation for an color preference, represented as a packed integer.
+	 * @since v0.5.0
+	 */
 	@Documented
 	@Retention(RetentionPolicy.RUNTIME)
 	@Target({ElementType.TYPE, ElementType.FIELD})
 	public @interface ColorPref {
+		/**
+		 * Optional bundle for externalized string
+		 * @return
+		 */
+		String bundle() default "";
+		/**
+		 * Key for externalized string that gives the text of the preference
+		 * @return
+		 */
 		String value();
 	}
 	
+	/**
+	 * Annotation for a preference category.
+	 * @since v0.5.0
+	 */
 	@Documented
 	@Retention(RetentionPolicy.RUNTIME)
 	@Target({ElementType.TYPE, ElementType.FIELD})
 	public @interface PrefCategory {
+		/**
+		 * Optional bundle for externalized string
+		 * @return
+		 */
 		String bundle() default "";
+		/**
+		 * Key for externalized string that gives the name of the category
+		 * @return
+		 */
 		String value();
 	}
 
@@ -1191,7 +1356,7 @@ public class PreferencePane {
 					continue;
 				
 				if (field.isAnnotationPresent(Pref.class)) {
-					item = parseItem((Property)field.get(obj), field.getAnnotation(Pref.class));
+					item = parseItem((Property)field.get(obj), field.getAnnotation(Pref.class), obj);
 				} else if (field.isAnnotationPresent(BooleanPref.class)) {
 					item = parseItem((BooleanProperty)field.get(obj), field.getAnnotation(BooleanPref.class));
 				} else if (field.isAnnotationPresent(IntegerPref.class)) {
@@ -1218,33 +1383,56 @@ public class PreferencePane {
 		
 	}
 	
-	private static PropertyItem parseItem(Property property, Pref annotation) {
-		return buildItem(property, annotation.type())
+	private static PropertyItem parseItem(Property property, Pref annotation, Object parent) {
+
+		var builder = buildItem(property, annotation.type())
 				.key(annotation.value())
-				.build();
+				.bundle(annotation.bundle());
+
+		var choiceMethod = annotation.choiceMethod();
+		if (!choiceMethod.isBlank() && parent != null) {
+			var cls = parent.getClass();
+			try {
+				var method = cls.getDeclaredMethod(choiceMethod);
+				var result = method.invoke(parent);
+				if (result instanceof ObservableList) {
+					builder.choices((ObservableList)result);
+				} else if (result instanceof Collection) {
+					builder.choices((Collection)result);
+				}
+			} catch (Exception e) {
+				logger.error("Unable to parse choices from " + annotation + ": " + e.getLocalizedMessage(), e);
+			}
+		}
+		
+		return builder.build();
 	}
 	
 	private static PropertyItem parseItem(BooleanProperty property, BooleanPref annotation) {
 		return buildItem(property, Boolean.class)
 				.key(annotation.value())
+				.bundle(annotation.bundle())
 				.build();
 	}
 	
 	private static PropertyItem parseItem(IntegerProperty property, IntegerPref annotation) {
 		return buildItem(property, Integer.class)
 				.key(annotation.value())
+				.bundle(annotation.bundle())
 				.build();
 	}
 	
 	private static PropertyItem parseItem(DoubleProperty property, DoublePref annotation) {
 		return buildItem(property, Double.class)
 				.key(annotation.value())
+				.bundle(annotation.bundle())
 				.build();
 	}
 	
 	private static PropertyItem parseItem(Property<Locale> property, LocalePref annotation) {
 		return buildItem(property, Locale.class)
 				.key(annotation.value())
+				.bundle(annotation.bundle())
 				.choices(localeManager.createLocaleList())
 				.propertyType(PropertyType.SEARCHABLE_CHOICE)
 				.build();
@@ -1253,6 +1441,7 @@ public class PreferencePane {
 	private static PropertyItem parseItem(Property<Integer> property, ColorPref annotation) {
 		return buildItem(property, Integer.class)
 				.key(annotation.value())
+				.bundle(annotation.bundle())
 				.propertyType(PropertyType.COLOR)
 				.build();
 	}
@@ -1260,9 +1449,10 @@ public class PreferencePane {
 	private static PropertyItem parseItem(Property<String> property, DirectoryPref annotation) {
 		return buildItem(property, String.class)
 				.key(annotation.value())
+				.bundle(annotation.bundle())
 				.propertyType(PropertyType.DIRECTORY)
 				.build();
 	}
-	
+		
 	
 }
