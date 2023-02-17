@@ -980,7 +980,7 @@ public class PathObjectPainter {
 
 		float alpha = (float)(1f - downsampleFactor / 5);
 		alpha = Math.min(alpha, 0.4f);
-		float thickness = PathPrefs.detectionStrokeThicknessProperty().get();
+		double thickness = PathPrefs.detectionStrokeThicknessProperty().get();
 		if (alpha < .1f || thickness / downsampleFactor <= 0.25)
 			return;
 

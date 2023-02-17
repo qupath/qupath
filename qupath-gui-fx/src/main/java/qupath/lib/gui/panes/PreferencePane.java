@@ -24,13 +24,19 @@
 package qupath.lib.gui.panes;
 
 import java.io.File;
-import java.util.Arrays;
+import java.lang.annotation.Documented;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Comparator;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.TreeMap;
 import java.util.function.Function;
 import org.controlsfx.control.PropertySheet;
 import org.controlsfx.control.PropertySheet.Item;
@@ -43,10 +49,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javafx.beans.binding.Bindings;
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.IntegerProperty;
+import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.Property;
 import javafx.beans.property.SimpleDoubleProperty;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -58,7 +68,8 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.paint.Color;
 import javafx.scene.text.FontWeight;
 import javafx.util.Duration;
-import qupath.lib.common.GeneralTools;
+import javafx.util.StringConverter;
+import qupath.lib.gui.QuPathResources;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.logging.LogManager;
 import qupath.lib.gui.logging.LogManager.LogLevel;
@@ -71,7 +82,9 @@ import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.tools.CommandFinderTools;
 import qupath.lib.gui.tools.CommandFinderTools.CommandBarDisplay;
 import qupath.lib.gui.tools.GuiTools;
+import qupath.lib.gui.tools.LocaleListener;
 import qupath.lib.gui.prefs.QuPathStyleManager;
+import qupath.lib.gui.prefs.QuPathStyleManager.StyleOption;
 
 /**
  * Basic preference panel, giving a means to modify some of the properties within PathPrefs.
@@ -84,52 +97,82 @@ public class PreferencePane {
 	private static final Logger logger = LoggerFactory.getLogger(PreferencePane.class);
 
 	private PropertySheet propSheet = new PropertySheet();
-
+	
+	private static LocaleManager localeManager = new LocaleManager();
+	
 	@SuppressWarnings("javadoc")
 	public PreferencePane() {
 		setupPanel();
 	}
-
-	
-	private void addCategoryAppearance() {
-		/*
-		 * Appearance
-		 */
-		String category = "Appearance";
-		addChoicePropertyPreference(QuPathStyleManager.selectedStyleProperty(),
-				QuPathStyleManager.availableStylesProperty(),
-				QuPathStyleManager.StyleOption.class,
-				"Theme",
-				category,
-				"Theme for the QuPath user interface");
 		
-		addChoicePropertyPreference(QuPathStyleManager.fontProperty(),
-				QuPathStyleManager.availableFontsProperty(),
-				QuPathStyleManager.Fonts.class,
-				"Font",
-				category,
-				"Main font for the QuPath user interface");
+	@PrefCategory("Prefs.Appearance")
+	static class AppearancePreferences {
+		
+		// TODO: Figure out how to pass available options
+		@Pref(value = "Prefs.Appearance.theme", type = StyleOption.class)
+		public final ObjectProperty<StyleOption> theme = QuPathStyleManager.selectedStyleProperty();
+		
+		@Pref(value = "Prefs.Appearance.font", type = QuPathStyleManager.Fonts.class)
+		public final ObjectProperty<QuPathStyleManager.Fonts> autoUpdate = QuPathStyleManager.fontProperty();
+		
 	}
 	
-	private void addCategoryGeneral() {
-		/*
-		 * General
-		 */
-		String category = "General";
-		
 
-		boolean canSetMemory = PathPrefs.hasJavaPreferences();
-		long maxMemoryMB = Runtime.getRuntime().maxMemory() / 1024 / 1024;
-		if (canSetMemory) {
+	@PrefCategory("Prefs.General")
+	static class GeneralPreferences {
+				
+		@BooleanPref("Prefs.General.showStartupMessage")
+		public final BooleanProperty startupMessage = PathPrefs.showStartupMessageProperty();
+
+		@Pref(value = "Prefs.General.checkForUpdates", type = AutoUpdateType.class)
+		public final ObjectProperty<AutoUpdateType> autoUpdate = PathPrefs.autoUpdateCheckProperty();
+
+		@BooleanPref("Prefs.General.systemMenubar")
+		public final BooleanProperty systemMenubar = PathPrefs.useSystemMenubarProperty();
+		
+		@DoublePref("Prefs.General.tileCache")
+		public final DoubleProperty maxMemoryGB = PathPrefs.hasJavaPreferences() ? createMaxMemoryProperty() : null;
+
+		@DoublePref("Prefs.General.tileCache")
+		public final DoubleProperty tileCache = PathPrefs.tileCachePercentageProperty();
+
+		@BooleanPref("Prefs.General.showImageNameInTitle")
+		public final BooleanProperty showImageNameInTitle = PathPrefs.showImageNameInTitleProperty();
+
+		@BooleanPref("Prefs.General.maskImageNames")
+		public final BooleanProperty maskImageNames = PathPrefs.maskImageNamesProperty();
+		
+		@BooleanPref("Prefs.General.logFiles")
+		public final BooleanProperty createLogFiles = PathPrefs.doCreateLogFilesProperty();
+
+		@Pref(value = "Prefs.General.logLevel", type = LogLevel.class)
+		public final ObjectProperty<LogLevel> logLevel = LogManager.rootLogLevelProperty();
+
+		@IntegerPref("Prefs.General.logLevel")
+		public final IntegerProperty numThreads = PathPrefs.numCommandThreadsProperty();
+
+		@Pref(value = "Prefs.General.imageType", type = ImageTypeSetting.class)
+		public final ObjectProperty<ImageTypeSetting> setImageType = PathPrefs.imageTypeSettingProperty();
+
+		@Pref(value = "Prefs.General.commandBar", type = CommandBarDisplay.class)
+		public final ObjectProperty<CommandBarDisplay> commandBarDisplay = CommandFinderTools.commandBarDisplayProperty();
+		
+		@BooleanPref("Prefs.General.showExperimental")
+		public final BooleanProperty showExperimentalCommands = PathPrefs.showExperimentalOptionsProperty();
+
+		@BooleanPref("Prefs.General.showTMA")
+		public final BooleanProperty showTMACommands = PathPrefs.showTMAOptionsProperty();
+
+		@BooleanPref("Prefs.General.showExperimental")
+		public final BooleanProperty showDeprecatedCommands = PathPrefs.showLegacyOptionsProperty();
+		
+		@Pref(value = "Prefs.General.showDeprecated", type = DetectionTreeDisplayModes.class)
+		public final ObjectProperty<DetectionTreeDisplayModes> hierarchyDisplayMode = PathPrefs.detectionTreeDisplayModeProperty();
+		
+		
+		private DoubleProperty createMaxMemoryProperty() {
+			long maxMemoryMB = Runtime.getRuntime().maxMemory() / 1024 / 1024;
 			DoubleProperty propMemoryGB = new SimpleDoubleProperty(maxMemoryMB / 1024.0);
-			
-			addPropertyPreference(propMemoryGB, Double.class, 
-					"Set maximum memory for QuPath",
-					category,
-					"Set the maximum memory for Java.\n"
-							+ "Note that some commands (e.g. pixel classification) may still use more memory when needed,\n"
-							+ "so this value should generally not exceed half the total memory available on the system.");
-			
 			propMemoryGB.addListener((v, o, n) -> {
 				int requestedMemoryMB = (int)Math.round(propMemoryGB.get() * 1024.0);
 				if (requestedMemoryMB > 1024) {
@@ -141,7 +184,7 @@ public class PreferencePane {
 						logger.error(e.getLocalizedMessage(), e);
 					}
 					if (success) {
-						Dialogs.showInfoNotification("Set max memory",
+						Dialogs.showInfoNotification(QuPathResources.getString("Prefs.General.maxMemory"),
 								"Setting max memory to " + requestedMemoryMB + " MB - you'll need to restart QuPath for this to take effect"
 								);
 					} else {
@@ -153,437 +196,232 @@ public class PreferencePane {
 					}
 				}
 			});	
+			return propMemoryGB;
 		}
-		
-		
-		addPropertyPreference(PathPrefs.showStartupMessageProperty(), Boolean.class,
-				"Show welcome message when QuPath starts",
-				category,
-				"Show the welcome message with links to the docs, forum & code every time QuPath is launched.\n"
-				+ "You can access this message at any time through the 'Help' menu.");
-		
-		addPropertyPreference(PathPrefs.autoUpdateCheckProperty(), AutoUpdateType.class,
-				"Check for updates on startup",
-				category,
-				"Automatically check for updates when QuPath is started, and show a message if a new version is available.");
-
-		addPropertyPreference(PathPrefs.useSystemMenubarProperty(), Boolean.class,
-				"Use system menubar",
-				category,
-				"Use the system menubar, rather than custom application menubars (default is true).");
 				
-		addPropertyPreference(PathPrefs.tileCachePercentageProperty(),
-				Double.class,
-				"Percentage memory for tile caching",
-				category,
-				"Percentage of maximum memory to use for caching image tiles (must be >10% and <90%; suggested value is 25%)." +
-				"\nA high value can improve performance (especially for multichannel images), but increases risk of out-of-memory errors." +
-				"\nChanges take effect when QuPath is restarted.");
-		
-		addPropertyPreference(PathPrefs.showImageNameInTitleProperty(), Boolean.class,
-				"Show image name in window title",
-				category,
-				"Show the name of the current image in the main QuPath title bar (turn this off if the name shouldn't be seen).");
-		
-		addPropertyPreference(PathPrefs.maskImageNamesProperty(), Boolean.class,
-				"Mask image names in projects",
-				category,
-				"Mask the image names when using projects, to help reduce the potential for user bias during analysis.");
-		
-		
-		addPropertyPreference(PathPrefs.doCreateLogFilesProperty(), Boolean.class,
-				"Create log files",
-				category,
-				"Create log files when using QuPath inside the QuPath user directory (useful for debugging & reporting errors)");
-		
-		addPropertyPreference(LogManager.rootLogLevelProperty(), LogManager.LogLevel.class, "Log level", category,
-				"Logging level, which determines the number of logging messages.\n"
-				+ "It is recommended to use only INFO or DEBUG; more frequent logging (e.g. TRACE, ALL) will likely cause performance issues.");
-
-		addPropertyPreference(PathPrefs.numCommandThreadsProperty(), Integer.class,
-				"Number of parallel threads",
-				category,
-				"Set limit on number of processors to use for parallelization."
-						+ "\nThis should be > 0 and <= the available processors on the computer."
-						+ "\nIf outside this range, it will default to the available processors (here, " + Runtime.getRuntime().availableProcessors() + ")"
-						+ "\nIt's usually fine to use the default, but it may help to decrease it if you encounter out-of-memory errors.");
-
-		addPropertyPreference(PathPrefs.imageTypeSettingProperty(), ImageTypeSetting.class,
-				"Set image type",
-				category,
-				"Automatically estimate & set the image type on first opening (e.g. H&E, H-DAB, fluorescence), prompt or leave unset." +
-						"\nEstimating can be handy, but be aware it might not always be correct - and you should always check!" + 
-						"\nThe image type influences some available commands, e.g. how stains are separated for display or cell detections.");
-
-		addPropertyPreference(CommandFinderTools.commandBarDisplayProperty(), CommandBarDisplay.class,
-				"Command bar display mode",
-				category,
-				"Mode used to display command finder text field on top of the viewer");
-		
-		addPropertyPreference(PathPrefs.showExperimentalOptionsProperty(), Boolean.class,
-				"Show experimental menu items",
-				category,
-				"Include experimental commands within the menus - these are likely to be especially buggy and incomplete, but may occasionally be useful");
-
-		addPropertyPreference(PathPrefs.showTMAOptionsProperty(), Boolean.class,
-				"Show TMA menu",
-				category,
-				"Include menu items related to Tissue Microarrays");
-		
-		addPropertyPreference(PathPrefs.showLegacyOptionsProperty(), Boolean.class,
-				"Show legacy menu items",
-				category,
-				"Include menu items related to legacy commands (no longer intended for use)");
-
-		addPropertyPreference(PathPrefs.detectionTreeDisplayModeProperty(), DetectionTreeDisplayModes.class,
-				"Hierarchy detection display",
-				"General",
-				"Choose how to display detections in the hierarchy tree view - choose 'None' for the best performance");
 	}
 	
 	
-	private void addCategoryLocale() {
-		/*
-		 * Locale
-		 */
-		String category = "Locale";
-		var localeList = FXCollections.observableArrayList(
-				Arrays.stream(Locale.getAvailableLocales())
-				.filter(l -> !l.getLanguage().isBlank())
-				.filter(l -> l.getCountry().isEmpty())
-				.sorted(Comparator.comparing(l -> l.getDisplayName(Locale.US)))
-				.toList()
-				);
-		
-		// Would like to use a searchable combo box,
-		// but https://github.com/controlsfx/controlsfx/issues/1413 is problematic
-		var localeSearchable = false;
-		addChoicePropertyPreference(PathPrefs.defaultLocaleProperty(), localeList, Locale.class,
-				"Main default locale",
-				category,
-				"Global default locale setting; changing this can update both display and format locales.\n"
-						+ "It is *strongly* recommended to use English (United States) for consistent formatting, especially of \n"
-						+ "decimal numbers (using . as the decimal separator).\n\n"
-						+ "You can reset the locale by double-clicking on the dropdown menu.",
-				localeSearchable);
-
-		addChoicePropertyPreference(PathPrefs.defaultLocaleDisplayProperty(), localeList, Locale.class,
-				"Display locale",
-				category,
-				"Locale used for display messages\n"
-						+ "It is *strongly* recommended to use English (United States) for consistent formatting, especially of \n"
-						+ "decimal numbers (using . as the decimal separator).\n\n"
-						+ "You can reset the locale by double-clicking on the dropdown menu.",
-				localeSearchable);
-		
-		addChoicePropertyPreference(PathPrefs.defaultLocaleFormatProperty(), localeList, Locale.class,
-				"Format locale",
-				category,
-				"Locale used for formatting dates, numbers etc.\n"
-						+ "It is *strongly* recommended to use English (United States) for consistent formatting, especially of \n"
-						+ "decimal numbers (using . as the decimal separator).\n\n"
-						+ "You can reset the locale by double-clicking on the dropdown menu.",
-				localeSearchable);
+	private void parseAndAddItems(Object object) {
+		var items = parseItems(object);
+		propSheet.getItems().addAll(items);		
 	}
 	
-	private void addCategoryInputOutput() {
-		/*
-		 * Input/output
-		 */
-		String category = "Input/Output";
+	
+	@PrefCategory("Prefs.Locale")
+	static class LocalePreferences {
 		
-		addPropertyPreference(PathPrefs.minPyramidDimensionProperty(), Integer.class,
-				"Minimize image dimension for pyramidalizing",
-				category,
-				"Allow an image pyramid to be calculated for a single-resolution image if either the width or height is greater than this size");
+		@LocalePref("Prefs.Locale.default")
+		public final ObjectProperty<Locale> localeDefault = PathPrefs.defaultLocaleProperty();
 
-		
-		addPropertyPreference(PathPrefs.tmaExportDownsampleProperty(), Double.class,
-			"TMA export downsample factor",
-			category,
-			"Amount to downsample TMA core images when exporting; higher downsample values give smaller image, choosing 1 exports cores at full-resolution (which may be slow)");
-	}
+		@LocalePref("Prefs.Locale.display")
+		public final ObjectProperty<Locale> localeDisplay = PathPrefs.defaultLocaleDisplayProperty();
 
-	private void addCategoryViewer() {
-		/*
-		 * Viewer
-		 */
-		String category = "Viewer";
-		
-		addColorPropertyPreference(PathPrefs.viewerBackgroundColorProperty(),
-				"Viewer background color",
-				category,
-				"Set the color to show behind any image in the viewer (i.e. beyond the image bounds)");
-		
-		addPropertyPreference(PathPrefs.alwaysPaintSelectedObjectsProperty(), Boolean.class,
-				"Always paint selected objects", category, 
-				"Always paint selected objects, even if the overlay opacity is set to 0");
-		
-		addPropertyPreference(PathPrefs.keepDisplaySettingsProperty(), Boolean.class,
-				"Keep display settings where possible", category, 
-				"Keep display settings (channel colors, brightness/contrast) when opening similar images");
-		
-		addPropertyPreference(PathPrefs.viewerInterpolateBilinearProperty(), Boolean.class,
-				"Use bilinear interpolation", category, 
-				"Use bilinear interpolation for displaying image in the viewer (default is nearest-neighbor)");
-		
-		addPropertyPreference(PathPrefs.autoBrightnessContrastSaturationPercentProperty(), Double.class,
-				"Auto Brightness/Contrast saturation %", category, 
-				"Set % bright and % dark pixels that should be saturated when applying 'Auto' brightness/contrast settings");
-		
-//		addPropertyPreference(PathPrefs.viewerGammaProperty(), Double.class,
-//				"Gamma value (display only)", category, 
-//				"Set the gamma value applied to the image in the viewer for display - recommended to leave at default value of 1");
-		
-		addPropertyPreference(PathPrefs.invertZSliderProperty(), Boolean.class,
-				"Invert z-position slider",
-				category,
-				"Invert the vertical slider used to scroll between z-slices (useful for anyone for whom the default orientation seems counterintuitive)");
-		
-		addPropertyPreference(PathPrefs.scrollSpeedProperty(), Integer.class,
-				"Scroll speed %", category, 
-				"Adjust the scrolling speed - 100% is 'normal', while lower values lead to slower scrolling");
-		
-		addPropertyPreference(PathPrefs.navigationSpeedProperty(), Integer.class,
-				"Navigation speed %", category, 
-				"Adjust the navigation speed - 100% is 'normal', while lower values lead to slower navigation");
-		
-		addPropertyPreference(PathPrefs.navigationAccelerationProperty(), Boolean.class,
-				"Navigation acceleration effects", category, 
-				"Apply acceleration/deceleration effects when holding and releasing a navigation key");
-		
-		addPropertyPreference(PathPrefs.skipMissingCoresProperty(), Boolean.class,
-				"Skip missing TMA cores", category, 
-				"Jumps over missing TMA cores when navigating TMA grids using the arrow keys.");
-		
-		addPropertyPreference(PathPrefs.useScrollGesturesProperty(), Boolean.class,
-				"Use scroll touch gestures",
-				category,
-				"Use scroll gestures with touchscreens or touchpads to navigate the slide");
-
-		addPropertyPreference(PathPrefs.invertScrollingProperty(), Boolean.class,
-				"Invert scrolling",
-				category,
-				"Invert the effect of scrolling - may counteract system settings that don't play nicely with QuPath");
-
-		addPropertyPreference(PathPrefs.useZoomGesturesProperty(), Boolean.class,
-				"Use zoom touch gestures",
-				category,
-				"Use 'pinch-to-zoom' gestures with touchscreens or touchpads");
-
-		addPropertyPreference(PathPrefs.useRotateGesturesProperty(), Boolean.class,
-				"Use rotate touch gestures",
-				category,
-				"Use rotation gestures with touchscreens or touchpads to navigate the slide");
-		
-		addPropertyPreference(PathPrefs.enableFreehandToolsProperty(), Boolean.class,
-				"Enable freehand mode for polygon & polyline tools",
-				category,
-				"When starting to draw a polygon/polyline by clicking & dragging, optionally end ROI by releasing mouse button (rather than double-clicking)");
-		
-		addPropertyPreference(PathPrefs.doubleClickToZoomProperty(), Boolean.class,
-				"Use double-click to zoom",
-				category,
-				"Zoom in when double-clicking on image (if not inside an object) with move tool; zoom out if Alt or Ctrl/Cmd is held down");
-
-		addPropertyPreference(PathPrefs.scalebarFontSizeProperty(),
-				FontSize.class,
-				"Scalebar font size",
-				category,
-				"Adjust font size for scalebar");
-		
-		addPropertyPreference(PathPrefs.scalebarFontWeightProperty(),
-				FontWeight.class,
-				"Scalebar font weight",
-				category,
-				"Adjust font weight for the scalebar");
-
-		addPropertyPreference(PathPrefs.scalebarLineWidthProperty(),
-				Double.class,
-				"Scalebar thickness",
-				category,
-				"Adjust line thickness for the scalebar");
-
-		addPropertyPreference(PathPrefs.locationFontSizeProperty(),
-				FontSize.class,
-				"Location text font size",
-				category,
-				"Adjust font size for location text");
-		
-		addPropertyPreference(PathPrefs.useCalibratedLocationStringProperty(), Boolean.class,
-				"Use calibrated location text",
-				category,
-				"Show pixel locations on the viewer in " + GeneralTools.micrometerSymbol() + " where possible");
-		
-		
-		addPropertyPreference(PathPrefs.gridSpacingXProperty(), Double.class,
-				"Grid spacing X",
-				category,
-				"Horizontal grid spacing when displaying a grid on the viewer");
-
-		addPropertyPreference(PathPrefs.gridSpacingYProperty(), Double.class,
-				"Grid spacing Y",
-				category,
-				"Vertical grid spacing when displaying a grid on the viewer");
-
-		addPropertyPreference(PathPrefs.gridScaleMicronsProperty(), Boolean.class,
-				"Grid spacing in " + GeneralTools.micrometerSymbol(),
-				category,
-				"Use " + GeneralTools.micrometerSymbol() + " units where possible when defining grid spacing");
-	}
-
-	private void addCategoryExtensions() {
-		/*
-		 * Extensions
-		 */
-		String category = "Extensions";
-		addDirectoryPropertyPreference(PathPrefs.userPathProperty(),
-				"QuPath user directory",
-				category,
-				"Set the QuPath user directory - after setting you should restart QuPath");
+		@LocalePref("Prefs.Locale.format")
+		public final ObjectProperty<Locale> localeFormat = PathPrefs.defaultLocaleFormatProperty();
 
 	}
 	
-	private void addCategoryMeasurements() {
-		/*
-		 * Drawing tools
-		 */
-		String category = "Measurements";
-		addPropertyPreference(PathPrefs.showMeasurementTableThumbnailsProperty(), Boolean.class,
-				"Include thumbnail column in measurement tables",
-				category,
-				"Show thumbnail images by default for each object in a measurements table");
+	
+	@PrefCategory("Prefs.General")
+	static class InputOutputPreferences {
 		
-		addPropertyPreference(PathPrefs.showMeasurementTableObjectIDsProperty(), Boolean.class,
-				"Include object ID column in measurement tables",
-				category,
-				"Show object ID column by default in a measurements table");
+		@IntegerPref("Prefs.InputOutput.minPyramidDimension")
+		public final IntegerProperty minimumPyramidDimension = PathPrefs.minPyramidDimensionProperty();
+		
+		@DoublePref("Prefs.InputOutput.tmaExportDownsample")
+		public final DoubleProperty tmaExportDownsample = PathPrefs.tmaExportDownsampleProperty();
+		
+	}
+	
+	
+	@PrefCategory("Prefs.Viewer")
+	static class ViewerPreferences {
+		
+		@ColorPref("Prefs.Viewer.backgroundColor")
+		public final IntegerProperty backgroundColor = PathPrefs.viewerBackgroundColorProperty();
+
+		@BooleanPref("Prefs.Viewer.alwaysPaintSelected")
+		public final BooleanProperty alwaysPaintSelected = PathPrefs.alwaysPaintSelectedObjectsProperty();
+
+		@BooleanPref("Prefs.Viewer.keepDisplaySettings")
+		public final BooleanProperty keepDisplaySettings = PathPrefs.keepDisplaySettingsProperty();
+
+		@BooleanPref("Prefs.Viewer.interpolateBilinear")
+		public final BooleanProperty interpolateBilinear = PathPrefs.viewerInterpolateBilinearProperty();
+
+		@DoublePref("Prefs.Viewer.autoSaturationPercent")
+		public final DoubleProperty autoSaturationPercent = PathPrefs.autoBrightnessContrastSaturationPercentProperty();
+
+		@BooleanPref("Prefs.Viewer.invertZSlider")
+		public final BooleanProperty invertZSlider = PathPrefs.invertZSliderProperty();
+
+		@IntegerPref("Prefs.Viewer.scrollSpeed")
+		public final IntegerProperty scrollSpeed = PathPrefs.scrollSpeedProperty();
+
+		@IntegerPref("Prefs.Viewer.navigationSpeed")
+		public final IntegerProperty navigationSpeed = PathPrefs.navigationSpeedProperty();
+		
+
+		@BooleanPref("Prefs.Viewer.navigationAcceleration")
+		public final BooleanProperty navigationAcceleration = PathPrefs.navigationAccelerationProperty();
+
+		@BooleanPref("Prefs.Viewer.skipMissingCores")
+		public final BooleanProperty skipMissingCores = PathPrefs.skipMissingCoresProperty();
+
+		@BooleanPref("Prefs.Viewer.iseScrollGestures")
+		public final BooleanProperty iseScrollGestures = PathPrefs.useScrollGesturesProperty();
+
+		@BooleanPref("Prefs.Viewer.invertScrolling")
+		public final BooleanProperty invertScrolling = PathPrefs.invertScrollingProperty();
+
+		@BooleanPref("Prefs.Viewer.useZoomGestures")
+		public final BooleanProperty useZoomGestures = PathPrefs.useZoomGesturesProperty();
+
+		@BooleanPref("Prefs.Viewer.useRotateGestures")
+		public final BooleanProperty useRotateGestures = PathPrefs.useRotateGesturesProperty();
+
+		@BooleanPref("Prefs.Viewer.enableFreehand")
+		public final BooleanProperty enableFreehand = PathPrefs.enableFreehandToolsProperty();
+
+		@BooleanPref("Prefs.Viewer.doubleClickToZoom")
+		public final BooleanProperty doubleClickToZoom = PathPrefs.doubleClickToZoomProperty();
+		
+		
+		@Pref(value = "Prefs.Viewer.scalebarFontSize", type = FontSize.class)		
+		public final ObjectProperty<FontSize> scalebarFontSize = PathPrefs.scalebarFontSizeProperty();
+
+		@Pref(value = "Prefs.Viewer.scalebarFontWeight", type = FontWeight.class)		
+		public final ObjectProperty<FontWeight> scalebarFontWeight = PathPrefs.scalebarFontWeightProperty();
+
+		@DoublePref("Prefs.Viewer.scalebarLineWidth")
+		public final DoubleProperty scalebarLineWidth = PathPrefs.scalebarLineWidthProperty();
+
+		@Pref(value = "Prefs.Viewer.locationFontSize", type = FontSize.class)		
+		public final ObjectProperty<FontSize> locationFontSize = PathPrefs.locationFontSizeProperty();
+
+		@BooleanPref("Prefs.Viewer.calibratedLocationString")
+		public final BooleanProperty calibratedLocationString = PathPrefs.useCalibratedLocationStringProperty();
+
+		@DoublePref("Prefs.Viewer.gridSpacingX")
+		public final DoubleProperty gridSpacingX = PathPrefs.gridSpacingXProperty();
+
+		@DoublePref("Prefs.Viewer.gridSpacingY")
+		public final DoubleProperty gridSpacingY = PathPrefs.gridSpacingYProperty();
+
+		@BooleanPref("Prefs.Viewer.gridScaleMicrons")
+		public final BooleanProperty gridScaleMicrons = PathPrefs.gridScaleMicronsProperty();
 
 	}
 	
-	private void addCategoryAutomation() {
-		/*
-		 * Automation
-		 */
-		String category = "Automation";
-		addDirectoryPropertyPreference(PathPrefs.scriptsPathProperty(),
-				"Script directory",
-				category,
-				"Set the script directory");
-
-	}
-
-	private void addCategoryDrawingTools() {
-		/*
-		 * Drawing tools
-		 */
-		String category = "Drawing tools";
-		addPropertyPreference(PathPrefs.returnToMoveModeProperty(), Boolean.class,
-				"Return to Move Tool automatically",
-				category,
-				"Return selected tool to 'Move' automatically after drawing a ROI (applies to all drawing tools except brush & wand)");
+	
+	@PrefCategory("Prefs.Extensions")
+	static class ExtensionPreferences {
 		
-		addPropertyPreference(PathPrefs.usePixelSnappingProperty(), Boolean.class,
-				"Use pixel snapping",
-				category,
-				"Automatically snap pixels to integer coordinates when using drawing tools (some tools, e.g. line, points may override this)");
-		
-		addPropertyPreference(PathPrefs.clipROIsForHierarchyProperty(), Boolean.class,
-				"Clip ROIs to hierarchy",
-				category,
-				"Automatically clip ROIs so that they don't extend beyond a parent annotation, or encroach on a child annotation - this helps keep the hierarchy easier to interpret, without overlaps. " + 
-				"The setting can be overridden by pressing the 'shift' key");
+		@DirectoryPref("Prefs.Extensions.userPath")
+		public final Property<String> scriptsPath = PathPrefs.userPathProperty();
 
-		addPropertyPreference(PathPrefs.brushDiameterProperty(), Integer.class,
-				"Brush diameter",
-				category,
-				"Set the default brush diameter");
-		
-		addPropertyPreference(PathPrefs.useTileBrushProperty(), Boolean.class,
-				"Use tile brush",
-				category,
-				"Adapt brush tool to select tiles, where available");
-
-		addPropertyPreference(PathPrefs.brushScaleByMagProperty(), Boolean.class,
-				"Scale brush by magnification",
-				category,
-				"Adapt brush size by magnification, so higher magnification gives a finer brush");
-		
-		addPropertyPreference(PathPrefs.multipointToolProperty(), Boolean.class,
-				"Use multipoint tool",
-				category,
-				"With the Counting tool, add points to an existing object if possible");
-
-		addPropertyPreference(PathPrefs.pointRadiusProperty(), Integer.class,
-				"Point radius",
-				category,
-				"Set the default point radius");
 	}
 	
-	private void addCategoryObjects() {
-		/*
-		 * Object colors
-		 */
-		String category = "Objects";
+	
+	@PrefCategory("Prefs.Measurements")
+	static class MeasurementPreferences {
 		
-		addPropertyPreference(PathPrefs.maxObjectsToClipboardProperty(), Integer.class,
-				"Maximum number of clipboard objects",
-				category,
-				"The maximum number of objects that can be copied to the system clipboard.\n"
-				+ "Attempting to copy too many may fail, or cause QuPath to hang.\n"
-				+ "If you need more objects, it is better to export as GeoJSON and then import later.");
+		@BooleanPref("Prefs.Measurements.thumbnails")
+		public final BooleanProperty showMeasurementTableThumbnails = PathPrefs.showMeasurementTableThumbnailsProperty();
 
-		addPropertyPreference(PathPrefs.annotationStrokeThicknessProperty(), Float.class,
-				"Annotation line thickness",
-				category,
-				"Thickness (in display pixels) for annotation/TMA core object outlines (default = 2)");
+		@BooleanPref("Prefs.Measurements.ids")
+		public final BooleanProperty showMeasurementTableObjectIDs = PathPrefs.showMeasurementTableObjectIDsProperty();
 
-		addPropertyPreference(PathPrefs.detectionStrokeThicknessProperty(), Float.class,
-				"Detection line thickness",
-				category,
-				"Thickness (in image pixels) for detection object outlines (default = 2)");
-
-		addPropertyPreference(PathPrefs.useSelectedColorProperty(), Boolean.class,
-				"Use selected color",
-				category,
-				"Highlight selected objects by recoloring them; otherwise, a slightly thicker line thickness will be used");
-
-		addColorPropertyPreference(PathPrefs.colorSelectedObjectProperty(),
-				"Selected object color",
-				category,
-				"Set the color used to highly the selected object");
-
-		addColorPropertyPreference(PathPrefs.colorDefaultObjectsProperty(),
-				"Default object color",
-				category,
-				"Set the default color for objects");
-
-		addColorPropertyPreference(PathPrefs.colorTMAProperty(),
-				"TMA core color",
-				category,
-				"Set the default color for TMA core objects");
-
-		addColorPropertyPreference(PathPrefs.colorTMAMissingProperty(),
-				"TMA missing core color",
-				category,
-				"Set the default color for missing TMA core objects");
 	}
+	
+	
+	@PrefCategory("Prefs.Scripting")
+	static class ScriptingPreferences {
+		
+		@DirectoryPref("Prefs.Scripting.scriptsPath")
+		public final StringProperty scriptsPath = PathPrefs.scriptsPathProperty();
+
+	}
+
+	
+	@PrefCategory("Prefs.Drawing")
+	static class DrawingPreferences {
+		
+		@BooleanPref("Prefs.Drawing.returnToMove")
+		public final BooleanProperty returnToMove = PathPrefs.returnToMoveModeProperty();
+
+		@BooleanPref("Prefs.Drawing.pixelSnapping")
+		public final BooleanProperty pixelSnapping = PathPrefs.usePixelSnappingProperty();
+
+		@BooleanPref("Prefs.Drawing.clipROIsForHierarchy")
+		public final BooleanProperty clipROIsForHierarchy = PathPrefs.clipROIsForHierarchyProperty();
+
+		@IntegerPref("Prefs.Drawing.brushDiameter")
+		public final IntegerProperty brushDiameter = PathPrefs.brushDiameterProperty();		
+		
+		@BooleanPref("Prefs.Drawing.tileBrush")
+		public final BooleanProperty tileBrush = PathPrefs.useTileBrushProperty();
+
+		@BooleanPref("Prefs.Drawing.brushScaleByMag")
+		public final BooleanProperty brushScaleByMag = PathPrefs.brushScaleByMagProperty();
+
+		@BooleanPref("Prefs.Drawing.useMultipoint")
+		public final BooleanProperty useMultipoint = PathPrefs.multipointToolProperty();
+		
+		@IntegerPref("Prefs.Drawing.pointRadius")
+		public final IntegerProperty pointRadius = PathPrefs.pointRadiusProperty();
+		
+	}
+	
+	
+	@PrefCategory("Prefs.Objects")
+	static class ObjectPreferences {
+		
+		@IntegerPref("Prefs.Objects.clipboard")
+		public final IntegerProperty maxClipboardObjects = PathPrefs.maxObjectsToClipboardProperty();
+
+		@DoublePref("Prefs.Objects.annotationLineThickness")
+		public final DoubleProperty annotationStrokeThickness = PathPrefs.annotationStrokeThicknessProperty();
+
+		@DoublePref("Prefs.Objects.detectionLineThickness")
+		public final DoubleProperty detectonStrokeThickness = PathPrefs.detectionStrokeThicknessProperty();
+
+		@BooleanPref("Prefs.Objects.useSelectedColor")
+		public final BooleanProperty useSelectedColor = PathPrefs.useSelectedColorProperty();
+
+		@ColorPref("Prefs.Objects.selectedColor")
+		public final IntegerProperty selectedColor = PathPrefs.colorSelectedObjectProperty();
+
+		@ColorPref("Prefs.Objects.defaultColor")
+		public final IntegerProperty defaultColor = PathPrefs.colorDefaultObjectsProperty();
+
+		@ColorPref("Prefs.Objects.tmaCoreColor")
+		public final IntegerProperty tmaColor = PathPrefs.colorTMAProperty();
+
+		@ColorPref("Prefs.Objects.tmaCoreMissingColor")
+		public final IntegerProperty tmaMissingColor = PathPrefs.colorTMAMissingProperty();
+
+	}
+	
 
 	private void setupPanel() {
 		//		propSheet.setMode(Mode.CATEGORY);
 		propSheet.setMode(Mode.CATEGORY);
 		propSheet.setPropertyEditorFactory(new PropertyEditorFactory());
 
-		addCategoryAppearance();
-		addCategoryGeneral();
-		addCategoryLocale();
-		addCategoryInputOutput();
-		addCategoryViewer();
-		addCategoryExtensions();
-		addCategoryMeasurements();
-		addCategoryAutomation();
-		addCategoryDrawingTools();
-		addCategoryObjects();
+		parseAndAddItems(new AppearancePreferences());
+		parseAndAddItems(new GeneralPreferences());
+		parseAndAddItems(new LocalePreferences());
+		parseAndAddItems(new InputOutputPreferences());
+
+		parseAndAddItems(new ViewerPreferences());
+		parseAndAddItems(new ExtensionPreferences());
+		parseAndAddItems(new MeasurementPreferences());
+		parseAndAddItems(new ScriptingPreferences());
+		
+		parseAndAddItems(new DrawingPreferences());
+		parseAndAddItems(new ObjectPreferences());
 	}
 
 	/**
@@ -640,6 +478,7 @@ public class PreferencePane {
 	 * @param category
 	 * @param description
 	 */
+	@Deprecated
 	public void addDirectoryPropertyPreference(final Property<String> prop, final String name, final String category, final String description) {
 		PropertySheet.Item item = new DirectoryPropertyItem(prop)
 				.name(name)
@@ -659,6 +498,7 @@ public class PreferencePane {
 	 * @param category
 	 * @param description
 	 */
+	@Deprecated
 	public <T> void addChoicePropertyPreference(final Property<T> prop, final ObservableList<T> choices, final Class<? extends T> cls, final String name, final String category, final String description) {
 		addChoicePropertyPreference(prop, choices, cls, name, category, description, false);
 	}
@@ -675,6 +515,7 @@ public class PreferencePane {
 	 * @param description
 	 * @param makeSearchable make the choice item's editor searchable (useful for long lists)
 	 */
+	@Deprecated
 	public <T> void addChoicePropertyPreference(final Property<T> prop, final ObservableList<T> choices, final Class<? extends T> cls, 
 			final String name, final String category, final String description, boolean makeSearchable) {
 		PropertySheet.Item item = new ChoicePropertyItem<>(prop, choices, cls, makeSearchable)
@@ -683,6 +524,34 @@ public class PreferencePane {
 				.description(description);
 		propSheet.getItems().add(item);
 	}
+	
+	
+//	public <T> void addChoicePropertyPreference(final Property<T> prop, final ObservableList<T> choices, final Class<? extends T> cls, 
+//			final String key) {
+//		PropertySheet.Item item = new ChoicePropertyItem<>(prop, choices, cls, false)
+//				.resource(key);
+//		propSheet.getItems().add(item);
+//	}
+//	
+//	public <T> void addSearchableChoicePropertyPreference(final Property<T> prop, final ObservableList<T> choices, final Class<? extends T> cls, final String key) {
+//		PropertySheet.Item item = new ChoicePropertyItem<>(prop, choices, cls, true)
+//				.resource(key);
+//		propSheet.getItems().add(item);
+//	}
+	
+	
+	/**
+	 * Request that all the property editors are regenerated.
+	 * This is useful if the Locale has changed, and so the text may need to be updated.
+	 */
+	public void refreshAllEditors() {
+		// Force all editors to be recreated
+		// This is useful when the locale has been changed
+		var items = new ArrayList<>(propSheet.getItems());
+		propSheet.getItems().clear();
+		propSheet.getItems().addAll(items);
+	}
+
 	
 	/**
 	 * Create a default {@link Item} for a generic property.
@@ -701,9 +570,9 @@ public class PreferencePane {
 	 */
 	public abstract static class PropertyItem implements PropertySheet.Item {
 
-		private String name;
-		private String category;
-		private String description;
+		private StringProperty name = new SimpleStringProperty();
+		private StringProperty category = new SimpleStringProperty();
+		private StringProperty description = new SimpleStringProperty();
 
 		/**
 		 * Support fluent interface to define a category.
@@ -711,7 +580,7 @@ public class PreferencePane {
 		 * @return
 		 */
 		public PropertyItem category(final String category) {
-			this.category = category;
+			this.category.set(category);
 			return this;
 		}
 
@@ -721,7 +590,7 @@ public class PreferencePane {
 		 * @return
 		 */
 		public PropertyItem description(final String description) {
-			this.description = description;
+			this.description.set(description);
 			return this;
 		}
 
@@ -731,29 +600,42 @@ public class PreferencePane {
 		 * @return
 		 */
 		public PropertyItem name(final String name) {
-			this.name = name;
+			this.name.set(name);
+			return this;
+		}
+		
+		public PropertyItem key(final String bundle, final String key) {
+			LocaleListener.registerProperty(name, bundle, key);
+			if (QuPathResources.hasString(bundle, key + ".description"))
+				LocaleListener.registerProperty(description, bundle, key + ".description");			
 			return this;
 		}
 
+		public PropertyItem categoryKey(final String bundle, final String key) {
+			LocaleListener.registerProperty(category, bundle, key);			
+			return this;
+		}
+
+
 		@Override
 		public String getCategory() {
-			return category;
+			return category.get();
 		}
 
 		@Override
 		public String getName() {
-			return name;
+			return name.get();
 		}
 
 		@Override
 		public String getDescription() {
-			return description;
+			return description.get();
 		}
 
 	}
 
 
-	static class DefaultPropertyItem<T> extends PropertyItem {
+	private static class DefaultPropertyItem<T> extends PropertyItem {
 
 		private Property<T> prop;
 		private Class<? extends T> cls;
@@ -790,7 +672,7 @@ public class PreferencePane {
 	/**
 	 * Create a property item that handles directories based on String paths.
 	 */
-	static class DirectoryPropertyItem extends PropertyItem {
+	private static class DirectoryPropertyItem extends PropertyItem {
 
 		private Property<String> prop;
 		private ObservableValue<File> fileValue;
@@ -830,7 +712,7 @@ public class PreferencePane {
 	}
 
 
-	static class ColorPropertyItem extends PropertyItem {
+	private static class ColorPropertyItem extends PropertyItem {
 
 		private IntegerProperty prop;
 		private ObservableValue<Color> value;
@@ -866,16 +748,16 @@ public class PreferencePane {
 	}
 	
 	
-	static class ChoicePropertyItem<T> extends DefaultPropertyItem<T> {
+	private static class ChoicePropertyItem<T> extends DefaultPropertyItem<T> {
 
 		private final ObservableList<T> choices;
 		private final boolean makeSearchable;
 		
-		ChoicePropertyItem(final Property<T> prop, final ObservableList<T> choices, final Class<? extends T> cls) {
+		private ChoicePropertyItem(final Property<T> prop, final ObservableList<T> choices, final Class<? extends T> cls) {
 			this(prop, choices, cls, false);
 		}
 
-		ChoicePropertyItem(final Property<T> prop, final ObservableList<T> choices, final Class<? extends T> cls, boolean makeSearchable) {
+		private ChoicePropertyItem(final Property<T> prop, final ObservableList<T> choices, final Class<? extends T> cls, boolean makeSearchable) {
 			super(prop, cls);
 			this.choices = choices;
 			this.makeSearchable = makeSearchable;
@@ -898,11 +780,11 @@ public class PreferencePane {
 	 * 
 	 * Appears as a text field that can be double-clicked to launch a directory chooser.
 	 */
-	static class DirectoryEditor extends AbstractPropertyEditor<File, TextField> {
+	private static class DirectoryEditor extends AbstractPropertyEditor<File, TextField> {
 
 		private ObservableValue<File> value;
 
-		public DirectoryEditor(Item property, TextField control) {
+		private DirectoryEditor(Item property, TextField control) {
 			super(property, control, true);
 			control.setOnMouseClicked(e -> {
 				if (e.getClickCount() > 1) {
@@ -944,6 +826,70 @@ public class PreferencePane {
 
 	}
 	
+	/**
+	 * Manage available locales, with consistent display and string conversion.
+	 * This is needed to support presenting locales in a searchable combo box.
+	 * <p>
+	 * The price of this is that the language/locale names are always shown in English.
+	 */
+	private static class LocaleManager {
+		
+		private Map<String, Locale> localeMap = new TreeMap<>();
+		private StringConverter<Locale> converter;
+		
+		private LocaleManager() {
+			initializeLocaleMap();
+			converter = new LocaleConverter();
+		}
+		
+		private void initializeLocaleMap() {
+			for (var locale : Locale.getAvailableLocales()) {
+				if (!localeFilter(locale))
+					continue;
+				var name = locale.getDisplayName(Locale.US);
+				localeMap.putIfAbsent(name, locale);
+			}
+		}
+		
+		private static boolean localeFilter(Locale locale) {
+			if (locale == Locale.US)
+				return true;
+			return !locale.getLanguage().isBlank() && locale.getCountry().isEmpty() && locale != Locale.ENGLISH;
+		}
+		
+		private static String getDisplayName(Locale locale) {
+			// We use the English US display name, because we're guaranteed that Java supports it 
+			// - and also it avoids needing to worry about non-unique names being generated 
+			// in different locales, which could mess up the searchable combo box & string converter
+			return locale.getDisplayName(Locale.US);
+		}
+		
+		public ObservableList<Locale> createLocaleList() {
+			return FXCollections.observableArrayList(localeMap.values());
+		}
+		
+		public StringConverter<Locale> getStringConverter() {
+			return converter;
+		}
+		
+		class LocaleConverter extends StringConverter<Locale> {
+
+			@Override
+			public String toString(Locale locale) {
+				if (locale == null)
+					return "";
+				return getDisplayName(locale);
+			}
+
+			@Override
+			public Locale fromString(String string) {
+				return localeMap.getOrDefault(string, null);
+			}
+			
+		}
+		
+		
+	}
 	
 	/**
 	 * Editor for choosing from a longer list of items, aided by a searchable combo box.
@@ -957,6 +903,8 @@ public class PreferencePane {
 
 		public SearchableChoiceEditor(Item property, ObservableList<T> choices) {
 			super(property, new SearchableComboBox<T>());
+			if (property.getType().equals(Locale.class))
+				getEditor().setConverter((StringConverter<T>)localeManager.getStringConverter());
 			getEditor().setItems(choices);
 		}
 
@@ -1009,8 +957,7 @@ public class PreferencePane {
 	// We want to reformat the display of these to avoid using all uppercase
 	private static Map<Class<?>, Function<?, String>> reformatTypes = Map.of(
 			FontWeight.class, PreferencePane::simpleFormatter,
-			LogLevel.class, PreferencePane::simpleFormatter,
-			Locale.class, PreferencePane::localeFormatter
+			LogLevel.class, PreferencePane::simpleFormatter
 			);
 	
 	private static String simpleFormatter(Object obj) {
@@ -1021,10 +968,6 @@ public class PreferencePane {
 		return s;
 	}
 	
-	private static String localeFormatter(Object locale) {
-		return locale == null ? null : ((Locale)locale).getDisplayName(Locale.US);
-	}
-
 	/**
 	 * Extends {@link DefaultPropertyEditorFactory} to handle setting directories and creating choice editors.
 	 */
@@ -1047,7 +990,6 @@ public class PreferencePane {
 //					editor = Editors.createChoiceEditor(item, choiceItem.getChoices());
 			} else
 				editor = super.call(item);
-			
 			if (reformatTypes.containsKey(item.getType()) && editor.getEditor() instanceof ComboBox) {
 				@SuppressWarnings("rawtypes")
 				var combo = (ComboBox)editor.getEditor();
@@ -1060,8 +1002,9 @@ public class PreferencePane {
 			if (Locale.class.equals(item.getType())) {
 				editor.getEditor().addEventHandler(MouseEvent.MOUSE_CLICKED, e -> {
 					if (e.getClickCount() == 2) {
-						if (Dialogs.showConfirmDialog("Reset locale", "Reset locale to 'English (United States)'?"))
+						if (Dialogs.showConfirmDialog("Reset locale", "Reset locale to 'English (United States)'?")) {
 							item.setValue(Locale.US);
+						}
 					}
 				});
 			}
@@ -1069,5 +1012,257 @@ public class PreferencePane {
 			return editor;
 		}
 	}
+	
+	
+	private static <T> PropertyItemBuilder<T> buildItem(Property<T> prop, final Class<? extends T> cls) {
+		return new PropertyItemBuilder(prop, cls);
+	}
+
+	
+	static enum PropertyType { GENERAL, DIRECTORY, COLOR, CHOICE, SEARCHABLE_CHOICE }
+	
+	
+	static class PropertyItemBuilder<T> {
+		
+		private Property<T> property;
+		private Class<? extends T> cls;
+		
+		private PropertyType propertyType = PropertyType.GENERAL;
+		private ObservableList<T> choices;
+		
+		private String bundle;
+		private String key;
+		private String categoryKey;
+		
+		private PropertyItemBuilder(Property<T> prop, final Class<? extends T> cls) {
+			this.property = prop;
+			this.cls = cls;
+		}
+		
+		public PropertyItemBuilder<T> key(String key) {
+			this.key = key;
+			return this;
+		}
+
+		public PropertyItemBuilder<T> category(String key) {
+			this.categoryKey = key;
+			return this;
+		}
+		
+		public PropertyItemBuilder<T> color() {
+			return propertyType(PropertyType.COLOR);
+		}
+
+		public PropertyItemBuilder<T> directory() {
+			return propertyType(PropertyType.DIRECTORY);
+		}
+
+		public PropertyItemBuilder<T> propertyType(PropertyType type) {
+			this.propertyType = type;
+			return this;
+		}
+		
+		public PropertyItemBuilder<T> choices(Collection<T> choices) {
+			return choices(FXCollections.observableArrayList(choices));
+		}
+		
+		public PropertyItemBuilder<T> choices(ObservableList<T> choices) {
+			this.choices = choices;
+			this.propertyType = PropertyType.CHOICE;
+			return this;
+		}
+		
+		public PropertyItemBuilder<T> bundle(String name) {
+			this.bundle = name;
+			return this;
+		}
+
+		public PropertyItem build() {
+			PropertyItem item;
+			switch (propertyType) {
+			case DIRECTORY:
+				item = new DirectoryPropertyItem((Property<String>)property);
+				break;
+			case COLOR:
+				item = new ColorPropertyItem((IntegerProperty)property);
+				break;
+			case CHOICE:
+				item = new ChoicePropertyItem<>(property, choices, cls, false);
+				break;
+			case SEARCHABLE_CHOICE:
+				item = new ChoicePropertyItem<>(property, choices, cls, true);
+				break;
+			case GENERAL:
+			default:
+				item = new DefaultPropertyItem<>(property, cls);
+				break;
+			}
+			if (key != null)
+				item.key(bundle, key);
+			if (categoryKey != null) {
+				item.categoryKey(bundle, categoryKey);
+			}
+			return item;
+		}
+		
+	}
+	
+	
+	
+	@Documented
+	@Retention(RetentionPolicy.RUNTIME)
+	@Target({ElementType.TYPE, ElementType.FIELD})
+	public @interface Pref {
+		Class<?> type();
+		String value();
+	}
+
+	@Documented
+	@Retention(RetentionPolicy.RUNTIME)
+	@Target({ElementType.TYPE, ElementType.FIELD})
+	public @interface IntegerPref {
+		String value();
+	}
+	
+	@Documented
+	@Retention(RetentionPolicy.RUNTIME)
+	@Target({ElementType.TYPE, ElementType.FIELD})
+	public @interface DoublePref {
+		String value();
+	}
+	
+	@Documented
+	@Retention(RetentionPolicy.RUNTIME)
+	@Target({ElementType.TYPE, ElementType.FIELD})
+	public @interface BooleanPref {
+		String value();
+	}
+	
+	@Documented
+	@Retention(RetentionPolicy.RUNTIME)
+	@Target({ElementType.TYPE, ElementType.FIELD})
+	public @interface DirectoryPref {
+		String value();
+	}
+	
+	@Documented
+	@Retention(RetentionPolicy.RUNTIME)
+	@Target({ElementType.TYPE, ElementType.FIELD})
+	public @interface LocalePref {
+		String value();
+	}
+	
+	@Documented
+	@Retention(RetentionPolicy.RUNTIME)
+	@Target({ElementType.TYPE, ElementType.FIELD})
+	public @interface ColorPref {
+		String value();
+	}
+	
+	@Documented
+	@Retention(RetentionPolicy.RUNTIME)
+	@Target({ElementType.TYPE, ElementType.FIELD})
+	public @interface PrefCategory {
+		String bundle() default "";
+		String value();
+	}
+
+	
+	public static List<PropertyItem> parseItems(Object obj) {
+		
+		var cls = obj instanceof Class<?> ? (Class<?>)obj : obj.getClass();
+		List<PropertyItem> items = new ArrayList<>();
+		
+		String categoryBundle = null;
+		String categoryKey = "Prefs.General";
+		if (cls.isAnnotationPresent(PrefCategory.class)) {
+			var annotation = cls.getAnnotation(PrefCategory.class);
+			categoryBundle = annotation.bundle().isBlank() ? null : annotation.bundle();
+			categoryKey = annotation.value();
+		}
+		
+		for (var field : cls.getDeclaredFields()) {
+			if (!field.canAccess(obj) || !Property.class.isAssignableFrom(field.getType()))
+				continue;
+			PropertyItem item = null;
+			try {
+				// Skip null fields
+				if (field.get(obj) == null)
+					continue;
+				
+				if (field.isAnnotationPresent(Pref.class)) {
+					item = parseItem((Property)field.get(obj), field.getAnnotation(Pref.class));
+				} else if (field.isAnnotationPresent(BooleanPref.class)) {
+					item = parseItem((BooleanProperty)field.get(obj), field.getAnnotation(BooleanPref.class));
+				} else if (field.isAnnotationPresent(IntegerPref.class)) {
+					item = parseItem((IntegerProperty)field.get(obj), field.getAnnotation(IntegerPref.class));
+				} else if (field.isAnnotationPresent(DoublePref.class)) {
+					item = parseItem((DoubleProperty)field.get(obj), field.getAnnotation(DoublePref.class));
+				} else if (field.isAnnotationPresent(LocalePref.class)) {
+					item = parseItem((Property<Locale>)field.get(obj), field.getAnnotation(LocalePref.class));
+				} else if (field.isAnnotationPresent(ColorPref.class)) {
+					item = parseItem((Property<Integer>)field.get(obj), field.getAnnotation(ColorPref.class));
+				}else if (field.isAnnotationPresent(DirectoryPref.class)) {
+					item = parseItem((Property<String>)field.get(obj), field.getAnnotation(DirectoryPref.class));
+				}
+			} catch (Exception e) {
+				logger.error(e.getLocalizedMessage(), e);
+			}
+			if (item != null) {
+				item.categoryKey(categoryBundle, categoryKey);
+				items.add(item);
+			}
+		}
+		
+		return items;
+		
+	}
+	
+	private static PropertyItem parseItem(Property property, Pref annotation) {
+		return buildItem(property, annotation.type())
+				.key(annotation.value())
+				.build();
+	}
+	
+	private static PropertyItem parseItem(BooleanProperty property, BooleanPref annotation) {
+		return buildItem(property, Boolean.class)
+				.key(annotation.value())
+				.build();
+	}
+	
+	private static PropertyItem parseItem(IntegerProperty property, IntegerPref annotation) {
+		return buildItem(property, Integer.class)
+				.key(annotation.value())
+				.build();
+	}
+	
+	private static PropertyItem parseItem(DoubleProperty property, DoublePref annotation) {
+		return buildItem(property, Double.class)
+				.key(annotation.value())
+				.build();
+	}
+	
+	private static PropertyItem parseItem(Property<Locale> property, LocalePref annotation) {
+		return buildItem(property, Locale.class)
+				.key(annotation.value())
+				.choices(localeManager.createLocaleList())
+				.propertyType(PropertyType.SEARCHABLE_CHOICE)
+				.build();
+	}
+	
+	private static PropertyItem parseItem(Property<Integer> property, ColorPref annotation) {
+		return buildItem(property, Integer.class)
+				.key(annotation.value())
+				.propertyType(PropertyType.COLOR)
+				.build();
+	}
+	
+	private static PropertyItem parseItem(Property<String> property, DirectoryPref annotation) {
+		return buildItem(property, String.class)
+				.key(annotation.value())
+				.propertyType(PropertyType.DIRECTORY)
+				.build();
+	}
+	
 	
 }

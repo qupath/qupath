@@ -663,11 +663,6 @@ public class Commands {
 		PaneTools.setHGrowPriority(Priority.ALWAYS, btnImport, btnExport, btnReset);
 		paneImportExport.setMaxWidth(Double.MAX_VALUE);
 
-//			Button btnClose = new Button("Close");
-//			btnClose.setOnAction(e -> {
-//				dialog.hide();
-//			});
-		
 		BorderPane pane = new BorderPane();
 		pane.setCenter(panel.getPropertySheet());
 		pane.setBottom(paneImportExport);
@@ -679,6 +674,10 @@ public class Commands {
 		dialog.setScene(new Scene(pane));
 		dialog.setMinWidth(300);
 		dialog.setMinHeight(300);
+		
+		// Refresh the editors in case the locale has changed
+		// (we could/should check if this is required...)
+		dialog.setOnShowing(e -> panel.refreshAllEditors());
 		
 		return dialog;
 	}

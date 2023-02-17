@@ -53,12 +53,10 @@ import org.slf4j.LoggerFactory;
 
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
-import javafx.beans.property.FloatProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
-import javafx.beans.property.SimpleFloatProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
@@ -1932,7 +1930,7 @@ public class PathPrefs {
 	
 	private static void updateLocale(Category category, Locale locale) {
 		if (locale == null) {
-			logger.warn("Invalid null locale request (Category={}) - I will ignore it", category);
+			logger.debug("Invalid null locale request (Category={}) - I will ignore it", category);
 			return;
 		}
 		if (category == null) {
@@ -1973,13 +1971,13 @@ public class PathPrefs {
 	/**
 	 * Simple class to represent a positive float property
 	 */
-	static class PositiveFloatThicknessProperty extends SimpleFloatProperty  {
-		PositiveFloatThicknessProperty(final String name, final float val) {
+	static class PositiveFloatThicknessProperty extends SimpleDoubleProperty  {
+		PositiveFloatThicknessProperty(final String name, final double val) {
 			super(null, name, val);
 		}
 		
 		@Override
-		public void set(float thickness) {
+		public void set(double thickness) {
 			if (thickness > 0f)
 	    		super.set(thickness);
 	       	else
@@ -1988,27 +1986,27 @@ public class PathPrefs {
 	};
 	
 	
-	private static FloatProperty createPersistentThicknessPreference(final String name, final float defaultValue) {
-		FloatProperty property = new PositiveFloatThicknessProperty(name, defaultValue);
-		property.set(getUserPreferences().getFloat(name, defaultValue));
+	private static DoubleProperty createPersistentThicknessPreference(final String name, final double defaultValue) {
+		DoubleProperty property = new PositiveFloatThicknessProperty(name, defaultValue);
+		property.set(getUserPreferences().getDouble(name, defaultValue));
 		property.addListener((v, o, n) -> getUserPreferences().putFloat(name, n.floatValue()));
 		// Triggered when reset is called
 		resetProperty.addListener((c, o, v) -> property.setValue(defaultValue));
 		// Triggered when reload is called
-		reloadProperty.addListener((c, o, v) -> property.set(getUserPreferences().getFloat(name, property.get())));
+		reloadProperty.addListener((c, o, v) -> property.set(getUserPreferences().getDouble(name, property.get())));
 		return property;
 	}
 	
-	private static FloatProperty strokeThinThickness = createPersistentThicknessPreference("thinLineThickness", 2f);
+	private static DoubleProperty strokeThinThickness = createPersistentThicknessPreference("thinLineThickness", 2.0);
 	
-	private static FloatProperty strokeThickThickness = createPersistentThicknessPreference("thickLineThickness", 2f);
+	private static DoubleProperty strokeThickThickness = createPersistentThicknessPreference("thickLineThickness", 2.0);
 	
 	/**
 	 * Preferred stroke thickness to use when drawing detections ROIs.
 	 * This is defined in pixels at the full image resolution, and does not adapt to viewer magnification.
 	 * @return
 	 */
-	public static FloatProperty detectionStrokeThicknessProperty() {
+	public static DoubleProperty detectionStrokeThicknessProperty() {
     	return strokeThinThickness;
     }
     
@@ -2017,7 +2015,7 @@ public class PathPrefs {
 	 * This is defined in pixels, scaled according to the current viewer magnification.
 	 * @return
 	 */
-    public static FloatProperty annotationStrokeThicknessProperty() {
+    public static DoubleProperty annotationStrokeThicknessProperty() {
     	return strokeThickThickness;
     }
     
