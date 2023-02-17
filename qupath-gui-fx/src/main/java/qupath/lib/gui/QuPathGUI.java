@@ -276,7 +276,7 @@ public class QuPathGUI {
 		initializeProjectBehavior();
 				
 		// We can create an undo/redo manager as long as we have a viewer
-		undoRedoManager = UndoRedoManager.createForObservableViewer(viewerProperty, prefsPane);
+		undoRedoManager = UndoRedoManager.createForObservableViewer(viewerProperty);
 		viewerProperty.bind(viewerManager.activeViewerProperty());
 		viewerProperty.addListener((v, o, n) -> activateToolsForViewer(n));
 

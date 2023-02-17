@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -139,6 +139,7 @@ public class PreferencePane {
 	private void populatePropertySheet() {
 		addAnnotatedProperties(new AppearancePreferences());
 		addAnnotatedProperties(new GeneralPreferences());
+		addAnnotatedProperties(new UndoRedoPreferences());
 		addAnnotatedProperties(new LocalePreferences());
 		addAnnotatedProperties(new InputOutputPreferences());
 
@@ -326,7 +327,20 @@ public class PreferencePane {
 	}
 	
 	
-	@PrefCategory("Prefs.General")
+		
+	@PrefCategory("Prefs.Undo")
+	static class UndoRedoPreferences {
+		
+		@IntegerPref("Prefs.Undo.maxUndoLevels")
+		public final IntegerProperty maxUndoLevels = PathPrefs.maxUndoLevelsProperty();
+		
+		@IntegerPref("Prefs.Undo.maxUndoHierarchySize")
+		public final IntegerProperty maxUndoHierarchySize = PathPrefs.maxUndoHierarchySizeProperty();
+		
+	}
+	
+	
+	@PrefCategory("Prefs.InputOutput")
 	static class InputOutputPreferences {
 		
 		@IntegerPref("Prefs.InputOutput.minPyramidDimension")
@@ -1213,6 +1227,26 @@ public class PreferencePane {
 	}
 	
 	/**
+	 * Annotation for an String preference.
+	 * @since v0.5.0
+	 */
+	@Documented
+	@Retention(RetentionPolicy.RUNTIME)
+	@Target({ElementType.TYPE, ElementType.FIELD})
+	public @interface StringPref {
+		/**
+		 * Optional bundle for externalized string
+		 * @return
+		 */
+		String bundle() default "";
+		/**
+		 * Key for externalized string that gives the text of the preference
+		 * @return
+		 */
+		String value();
+	}
+	
+	/**
 	 * Annotation for a double preference.
 	 * @since v0.5.0
 	 */
@@ -1363,11 +1397,13 @@ public class PreferencePane {
 					item = parseItem((IntegerProperty)field.get(obj), field.getAnnotation(IntegerPref.class));
 				} else if (field.isAnnotationPresent(DoublePref.class)) {
 					item = parseItem((DoubleProperty)field.get(obj), field.getAnnotation(DoublePref.class));
+				} else if (field.isAnnotationPresent(StringPref.class)) {
+					item = parseItem((Property<String>)field.get(obj), field.getAnnotation(StringPref.class));
 				} else if (field.isAnnotationPresent(LocalePref.class)) {
 					item = parseItem((Property<Locale>)field.get(obj), field.getAnnotation(LocalePref.class));
 				} else if (field.isAnnotationPresent(ColorPref.class)) {
 					item = parseItem((Property<Integer>)field.get(obj), field.getAnnotation(ColorPref.class));
-				}else if (field.isAnnotationPresent(DirectoryPref.class)) {
+				} else if (field.isAnnotationPresent(DirectoryPref.class)) {
 					item = parseItem((Property<String>)field.get(obj), field.getAnnotation(DirectoryPref.class));
 				}
 			} catch (Exception e) {
@@ -1424,6 +1460,13 @@ public class PreferencePane {
 	
 	private static PropertyItem parseItem(DoubleProperty property, DoublePref annotation) {
 		return buildItem(property, Double.class)
+				.key(annotation.value())
+				.bundle(annotation.bundle())
+				.build();
+	}
+	
+	private static PropertyItem parseItem(Property<String> property, StringPref annotation) {
+		return buildItem(property, String.class)
 				.key(annotation.value())
 				.bundle(annotation.bundle())
 				.build();

@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -886,6 +886,28 @@ public class PathPrefs {
 	}
 	
 	
+	
+	private static IntegerProperty maxUndoLevels = PathPrefs.createPersistentPreference("undoMaxLevels", 10);
+	private static IntegerProperty maxUndoHierarchySize = PathPrefs.createPersistentPreference("undoMaxHierarchySize", 10000);
+
+	/**
+	 * The requested maximum number of undo levels that QuPath should support.
+	 * @return
+	 */
+	public static IntegerProperty maxUndoLevelsProperty() {
+		return maxUndoLevels;
+	}
+
+	/**
+	 * The requested maximum number of objects in a hierarchy for which QuPath should support undo/redo.
+	 * This is to workaround an inconvenient implementation issue, whereby trying to support undo with huge datasets could 
+	 * be a significant performance issue.
+	 * @return
+	 */
+	public static IntegerProperty maxUndoHierarchySizeProperty() {
+		return maxUndoHierarchySize;
+	}
+
 	
 	private static int nRecentScripts = 8;
 	private static ObservableList<URI> recentScripts = FXCollections.observableArrayList();
