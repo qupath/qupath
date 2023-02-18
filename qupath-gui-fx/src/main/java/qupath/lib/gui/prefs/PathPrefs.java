@@ -99,7 +99,7 @@ public class PathPrefs {
 	/**
 	 * Default name for preference node in this QuPath version
 	 */
-	private static final String DEFAULT_NODE_NAME = "io.github.qupath/0.4";
+	private static final String DEFAULT_NODE_NAME = "io.github.qupath/0.5";
 	
 	/**
 	 * Name for preference node
