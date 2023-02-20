@@ -23,6 +23,7 @@ package qupath.lib.gui.tools;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 import org.controlsfx.control.action.Action;
 import org.slf4j.Logger;
@@ -151,24 +152,21 @@ public class MenuTools {
 	 */
 	public static Menu getMenu(final List<Menu> menus, final String name, final boolean createMenu) {
 		Menu menuCurrent = null;
-		for (String n : name.split(">")) {
+		for (String namePart : name.split(">")) {
+			namePart = namePart.trim();
+			boolean isResourceString = QuPathResources.hasString(namePart);
+			String text = isResourceString ? QuPathResources.getString(namePart) : namePart;
+			if (text.contains("Object classification")) {
+				System.err.println(name);
+				System.err.println(menus.stream().map(m -> m.getText()).toList());
+			}
 			if (menuCurrent == null) {
-				for (Menu menu : menus) {
-					if (n.equals(menu.getText())) {
-						menuCurrent = menu;
-						break;
-					}
-				}
+				menuCurrent = findMenuByNameNonRecursive(menus, text);
 				if (menuCurrent == null) {
 					if (createMenu) {
-						String text = n.trim();
-						menuCurrent = new Menu();
-						if (QuPathResources.hasString(text))
-							LocaleListener.registerProperty(menuCurrent.textProperty(), text);
-						else
-							menuCurrent.setText(text);
-						// Make sure we don't replace the 'Help' menu at the end
-						if (!menus.isEmpty() && QuPathResources.getString("Menu.Help").equals(menus.get(menus.size()-1).getText()))
+						menuCurrent = createMenu(namePart);
+						// Make sure we keep the 'Help' menu at the end
+						if (lastMenuIsHelp(menus))
 							menus.add(menus.size()-1, menuCurrent);
 						else
 							menus.add(menuCurrent);
@@ -176,18 +174,12 @@ public class MenuTools {
 						return null;
 				}
 			} else {
-				List<MenuItem> searchItems = menuCurrent.getItems();
-				menuCurrent = null;
-				for (MenuItem menuItem : searchItems) {
-					if (menuItem instanceof Menu && (menuItem.getText().equals(n) || menuItem.getText().equals(n.trim()))) {
-						menuCurrent = (Menu)menuItem;
-						break;
-					}
-				}
+				List<MenuItem> menuItems = menuCurrent.getItems();
+				menuCurrent = findMenuByNameNonRecursive(menuItems, text);
 				if (menuCurrent == null) {
 					if (createMenu) {
-						menuCurrent = new Menu(n.trim());
-						searchItems.add(menuCurrent);
+						menuCurrent = createMenu(namePart);
+						menuItems.add(menuCurrent);
 					} else
 						return null;
 				}				
@@ -195,6 +187,34 @@ public class MenuTools {
 		}
 		return menuCurrent;
 	}
+	
+	
+	private static Menu findMenuByNameNonRecursive(List<? extends MenuItem> menuItems, String name) {
+		for (var item : menuItems) {
+			if (item instanceof Menu) {
+				if (Objects.equals(name, item.getText()))
+					return (Menu)item;
+			}
+		}
+		return null;
+	}
+	
+	
+	
+	private static boolean lastMenuIsHelp(List<Menu> menus) {
+		return !menus.isEmpty() && QuPathResources.getString("Menu.Help").equals(menus.get(menus.size()-1).getText());
+	}
+	
+	
+	private static Menu createMenu(String keyOrName) {
+		var menu = new Menu();
+		if (QuPathResources.hasString(keyOrName))
+			LocaleListener.registerProperty(menu.textProperty(), keyOrName);
+		else
+			menu.setText(keyOrName);
+		return menu;
+	}
+	
 	
 	
 	/**

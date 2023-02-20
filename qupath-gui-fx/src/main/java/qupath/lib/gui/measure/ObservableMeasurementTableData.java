@@ -566,10 +566,11 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		@Override
 		protected int computeValue() {
 			Collection<PathObject> pathObjects;
-			if (pathObject.isRootObject())
+			if (pathObject.isRootObject()) {
 				pathObjects = imageData.getHierarchy().getObjects(null, cls);
-			else
+			} else {
 				pathObjects = imageData.getHierarchy().getObjectsForROI(cls, pathObject.getROI());
+			}
 			pathObjects.remove(pathObject);
 			return pathObjects.size();
 //			return PathObjectTools.countChildren(pathObject, cls, true);

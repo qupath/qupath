@@ -45,7 +45,7 @@ import qupath.lib.gui.tools.IconFactory.PathIcons;
  * @author Pete Bankhead
  * @since v0.5.0
  */
-public class DefaultActions {
+public class CommonActions {
 	
 	@ActionConfig("Action.File.Project.createProject")
 	public final Action PROJECT_NEW;
@@ -110,7 +110,7 @@ public class DefaultActions {
 	
 	private QuPathGUI qupath;
 	
-	public DefaultActions(QuPathGUI qupath) {
+	public CommonActions(QuPathGUI qupath) {
 		this.qupath = qupath;
 		
 		PROJECT_NEW = createAction(() -> Commands.promptToCreateProject(qupath));

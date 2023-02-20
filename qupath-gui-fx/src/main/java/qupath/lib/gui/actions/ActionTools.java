@@ -382,8 +382,7 @@ public class ActionTools {
 	
 	private static String getMenuString(String[] text) {
 		return Arrays.stream(text)
-			.map(ActionTools::getStringOrReadResource)
-			.collect(Collectors.joining(">"));
+			.collect(Collectors.joining(">")) + ">";
 	}
 	
 	

@@ -14,7 +14,7 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.QuPathResources;
 import qupath.lib.gui.UndoRedoManager;
 import qupath.lib.gui.actions.ActionTools;
-import qupath.lib.gui.actions.DefaultActions;
+import qupath.lib.gui.actions.CommonActions;
 import qupath.lib.gui.actions.ActionTools.ActionAccelerator;
 import qupath.lib.gui.actions.ActionTools.ActionConfig;
 import qupath.lib.gui.actions.ActionTools.ActionMenu;
@@ -24,7 +24,7 @@ import qupath.lib.gui.tools.GuiTools;
 public class EditMenuActions implements MenuActions {
 	
 	private QuPathGUI qupath;
-	private DefaultActions defaultActions;
+	private CommonActions commonActions;
 	
 	private Actions actions;
 	
@@ -35,7 +35,7 @@ public class EditMenuActions implements MenuActions {
 	@Override
 	public List<Action> getActions() {
 		if (actions == null) {
-			this.defaultActions = qupath.getDefaultActions();
+			this.commonActions = qupath.getCommonActions();
 			actions = new Actions();
 		}
 		return ActionTools.getAnnotatedActions(actions);
@@ -72,7 +72,7 @@ public class EditMenuActions implements MenuActions {
 		
 		public final Action SEP_1 = ActionTools.createSeparator();
 		
-		public final Action PREFERENCES = defaultActions.PREFERENCES;
+		public final Action PREFERENCES = commonActions.PREFERENCES;
 		
 		@ActionConfig("Action.Edit.resetPreferences")
 		public final Action RESET_PREFERENCES = createAction(() -> Commands.promptToResetPreferences());

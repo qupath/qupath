@@ -36,6 +36,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.stream.Collectors;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -876,7 +878,7 @@ public final class PathObjectHierarchy implements Serializable {
 			else {
 				return tileCache.covers(preparedGeometry, tileCache.getGeometry(child));
 			}
-		}).toList();
+		}).collect(Collectors.toCollection(ArrayList::new));
 	}
 	
 	

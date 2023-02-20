@@ -108,7 +108,7 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.common.Timeit;
 import qupath.lib.common.Version;
 import qupath.lib.gui.actions.ActionTools;
-import qupath.lib.gui.actions.DefaultActions;
+import qupath.lib.gui.actions.CommonActions;
 import qupath.lib.gui.actions.OverlayActions;
 import qupath.lib.gui.actions.ViewerActions;
 import qupath.lib.gui.actions.menus.Menus;
@@ -236,7 +236,7 @@ public class QuPathGUI {
 	 */
 	private Set<Action> actions = new LinkedHashSet<>();
 
-	private DefaultActions defaultActions;
+	private CommonActions commonActions;
 		
 	/**
 	 * Flag to record when menus are being modified.
@@ -716,7 +716,7 @@ public class QuPathGUI {
 			activateToolsForViewer(getViewer());
 			
 			if (n == PathTools.POINTS)
-				defaultActions.COUNTING_PANEL.handle(null);
+				commonActions.COUNTING_PANEL.handle(null);
 			
 			updateCursorForSelectedTool();			
 		});
@@ -2758,12 +2758,12 @@ public class QuPathGUI {
 	 * Get the default actions associated with this QuPath instance.
 	 * @return
 	 */
-	public synchronized DefaultActions getDefaultActions() {
-		if (defaultActions == null) {
-			defaultActions = new DefaultActions(this);
-			installActions(ActionTools.getAnnotatedActions(defaultActions));
+	public synchronized CommonActions getCommonActions() {
+		if (commonActions == null) {
+			commonActions = new CommonActions(this);
+			installActions(ActionTools.getAnnotatedActions(commonActions));
 		}
-		return defaultActions;
+		return commonActions;
 	}
 	
 	

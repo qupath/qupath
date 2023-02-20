@@ -726,7 +726,7 @@ public class ViewerManager implements QuPathViewerListener {
 				if (pathObject.isTMACore()) {
 					TMACoreObject core = (TMACoreObject)pathObject;
 					if (e.getCode() == KeyCode.ENTER) {
-						qupath.getDefaultActions().TMA_ADD_NOTE.handle(new ActionEvent(e.getSource(), e.getTarget()));
+						qupath.getCommonActions().TMA_ADD_NOTE.handle(new ActionEvent(e.getSource(), e.getTarget()));
 						e.consume();
 					} else if (e.getCode() == KeyCode.BACK_SPACE) {
 						core.setMissing(!core.isMissing());
@@ -930,7 +930,7 @@ public class ViewerManager implements QuPathViewerListener {
 		
 		final ContextMenu popup = new ContextMenu();
 		
-		var defaultActions = qupath.getDefaultActions();
+		var commonActions = qupath.getCommonActions();
 		var viewerManagerActions = qupath.getViewerActions();
 		
 		MenuItem miAddRow = new MenuItem(QuPathResources.getString("Action.View.Multiview.addRow"));
@@ -967,8 +967,8 @@ public class ViewerManager implements QuPathViewerListener {
 		
 		Menu menuView = MenuTools.createMenu(
 				"Display",
-				ActionTools.createCheckMenuItem(defaultActions.SHOW_ANALYSIS_PANE, null),
-				defaultActions.BRIGHTNESS_CONTRAST,
+				ActionTools.createCheckMenuItem(commonActions.SHOW_ANALYSIS_PANE, null),
+				commonActions.BRIGHTNESS_CONTRAST,
 				null,
 				ActionTools.createAction(() -> Commands.setViewerDownsample(viewer, 0.25), "400%"),
 				ActionTools.createAction(() -> Commands.setViewerDownsample(viewer, 1), "100%"),
@@ -993,7 +993,7 @@ public class ViewerManager implements QuPathViewerListener {
 				miTMAValid,
 				miTMAMissing,
 				null,
-				defaultActions.TMA_ADD_NOTE,
+				commonActions.TMA_ADD_NOTE,
 				null,
 				MenuTools.createMenu(
 						"General.add",

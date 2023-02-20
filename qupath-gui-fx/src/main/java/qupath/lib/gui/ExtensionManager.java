@@ -165,7 +165,7 @@ public class ExtensionManager {
 					} catch (Exception e2) {
 						logger.debug("Error finding code source " + e2.getLocalizedMessage(), e2);
 					}
-					qupath.getDefaultActions().SHOW_LOG.handle(null);
+					qupath.getCommonActions().SHOW_LOG.handle(null);
 				}
 			}
 		}
