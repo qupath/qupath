@@ -8,6 +8,7 @@ v0.4.3 will be released if there are enough bugs to fix... otherwise the changes
 * Opening the same image in multiple viewers results in detections being wrongly shown in both (https://github.com/qupath/qupath/issues/1217)
 * 'Transform annotations' can't be applied to selected objects when double-clicking to end the transform (https://github.com/qupath/qupath/issues/1231)
 * Wrong script generated for 'Add intensity features' with some tile shapes (https://github.com/qupath/qupath/issues/1227)
+* 'Tile classifications to annotations' broken in v0.4.2 (https://github.com/qupath/qupath/issues/1226)
 
 
 ## Version 0.4.2
