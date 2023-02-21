@@ -1744,7 +1744,7 @@ public class QuPathGUI {
 		if (!Platform.isFxApplicationThread()) {
 			return GuiTools.callOnApplicationThread(() -> installImageDataCommand(menuPath, command));
 		}
-		Menu menu = parseMenu(menuPath, "Extensions", true);
+		Menu menu = parseMenu(menuPath, "Menu.Extensions", true);
 		String name = parseName(menuPath);
 		var action = createImageDataAction(command, name);
 		var item = ActionTools.createMenuItem(action);
@@ -1764,7 +1764,7 @@ public class QuPathGUI {
 		if (!Platform.isFxApplicationThread()) {
 			return GuiTools.callOnApplicationThread(() -> installCommand(menuPath, runnable));
 		}
-		Menu menu = parseMenu(menuPath, "Extensions", true);
+		Menu menu = parseMenu(menuPath, "Menu.Extensions", true);
 		String name = parseName(menuPath);
 		var action = ActionTools.createAction(runnable, name);
 		var item = ActionTools.createMenuItem(action);

@@ -26,9 +26,9 @@ import static qupath.lib.gui.actions.ActionTools.createAction;
 import org.controlsfx.control.action.Action;
 
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.actions.ActionTools.ActionAccelerator;
-import qupath.lib.gui.actions.ActionTools.ActionConfig;
-import qupath.lib.gui.actions.ActionTools.ActionIcon;
+import qupath.lib.gui.actions.annotations.ActionAccelerator;
+import qupath.lib.gui.actions.annotations.ActionConfig;
+import qupath.lib.gui.actions.annotations.ActionIcon;
 import qupath.lib.gui.commands.BrightnessContrastCommand;
 import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.commands.ContextHelpViewer;

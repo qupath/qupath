@@ -39,16 +39,16 @@ import qupath.lib.common.Version;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.QuPathResources;
 import qupath.lib.gui.actions.ActionTools;
-import qupath.lib.gui.actions.ActionTools.ActionConfig;
-import qupath.lib.gui.actions.ActionTools.ActionMenu;
+import qupath.lib.gui.actions.annotations.ActionConfig;
+import qupath.lib.gui.actions.annotations.ActionMenu;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.extensions.QuPathExtension;
-import qupath.lib.gui.panes.PreferencePane.BooleanPref;
-import qupath.lib.gui.panes.PreferencePane.DirectoryPref;
-import qupath.lib.gui.panes.PreferencePane.IntegerPref;
-import qupath.lib.gui.panes.PreferencePane.PrefCategory;
-import qupath.lib.gui.panes.PreferencePane.StringPref;
+import qupath.lib.gui.panes.StringPref;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.prefs.annotations.BooleanPref;
+import qupath.lib.gui.prefs.annotations.DirectoryPref;
+import qupath.lib.gui.prefs.annotations.IntegerPref;
+import qupath.lib.gui.prefs.annotations.PrefCategory;
 import qupath.lib.images.writers.ome.OMEPyramidWriterCommand;
 
 /**

@@ -156,10 +156,6 @@ public class MenuTools {
 			namePart = namePart.trim();
 			boolean isResourceString = QuPathResources.hasString(namePart);
 			String text = isResourceString ? QuPathResources.getString(namePart) : namePart;
-			if (text.contains("Object classification")) {
-				System.err.println(name);
-				System.err.println(menus.stream().map(m -> m.getText()).toList());
-			}
 			if (menuCurrent == null) {
 				menuCurrent = findMenuByNameNonRecursive(menus, text);
 				if (menuCurrent == null) {

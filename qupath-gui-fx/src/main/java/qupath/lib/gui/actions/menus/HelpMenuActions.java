@@ -10,8 +10,8 @@ import qupath.lib.gui.Urls;
 import qupath.lib.gui.WelcomeStage;
 import qupath.lib.gui.actions.ActionTools;
 import qupath.lib.gui.actions.CommonActions;
-import qupath.lib.gui.actions.ActionTools.ActionConfig;
-import qupath.lib.gui.actions.ActionTools.ActionMenu;
+import qupath.lib.gui.actions.annotations.ActionConfig;
+import qupath.lib.gui.actions.annotations.ActionMenu;
 import qupath.lib.gui.commands.Commands;
 
 public class HelpMenuActions implements MenuActions {

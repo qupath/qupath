@@ -24,11 +24,6 @@
 package qupath.lib.gui.panes;
 
 import java.io.File;
-import java.lang.annotation.Documented;
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -92,6 +87,14 @@ import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.LocaleListener;
 import qupath.lib.gui.prefs.QuPathStyleManager;
 import qupath.lib.gui.prefs.QuPathStyleManager.StyleOption;
+import qupath.lib.gui.prefs.annotations.BooleanPref;
+import qupath.lib.gui.prefs.annotations.ColorPref;
+import qupath.lib.gui.prefs.annotations.DirectoryPref;
+import qupath.lib.gui.prefs.annotations.DoublePref;
+import qupath.lib.gui.prefs.annotations.IntegerPref;
+import qupath.lib.gui.prefs.annotations.LocalePref;
+import qupath.lib.gui.prefs.annotations.Pref;
+import qupath.lib.gui.prefs.annotations.PrefCategory;
 
 /**
  * QuPath's preference pane, giving a means to modify many of the properties within PathPrefs.
@@ -1171,201 +1174,6 @@ public class PreferencePane {
 	}
 	
 	
-	/**
-	 * Annotation for a general preference.
-	 * @since v0.5.0
-	 */
-	@Documented
-	@Retention(RetentionPolicy.RUNTIME)
-	@Target({ElementType.TYPE, ElementType.FIELD})
-	public @interface Pref {
-		/**
-		 * Optional bundle for externalized string
-		 * @return
-		 */
-		String bundle() default "";
-		/**
-		 * Type for the property
-		 * @return
-		 */
-		Class<?> type();
-		/**
-		 * Key for externalized string that gives the text of the preference
-		 * @return
-		 */
-		String value();
-		/**
-		 * Name of a method that can be invoked to get a list of available choices.
-		 * This is not needed for Enum types, where the choices are already known.
-		 * <p>
-		 * The method is expected to be defined in the parent object containing the 
-		 * annotated property field. It should take no parameters.
-		 * @return
-		 */
-		String choiceMethod() default "";
-		
-	}
-
-	/**
-	 * Annotation for an integer preference.
-	 * @since v0.5.0
-	 */
-	@Documented
-	@Retention(RetentionPolicy.RUNTIME)
-	@Target({ElementType.TYPE, ElementType.FIELD})
-	public @interface IntegerPref {
-		/**
-		 * Optional bundle for externalized string
-		 * @return
-		 */
-		String bundle() default "";
-		/**
-		 * Key for externalized string that gives the text of the preference
-		 * @return
-		 */
-		String value();
-	}
-	
-	/**
-	 * Annotation for an String preference.
-	 * @since v0.5.0
-	 */
-	@Documented
-	@Retention(RetentionPolicy.RUNTIME)
-	@Target({ElementType.TYPE, ElementType.FIELD})
-	public @interface StringPref {
-		/**
-		 * Optional bundle for externalized string
-		 * @return
-		 */
-		String bundle() default "";
-		/**
-		 * Key for externalized string that gives the text of the preference
-		 * @return
-		 */
-		String value();
-	}
-	
-	/**
-	 * Annotation for a double preference.
-	 * @since v0.5.0
-	 */
-	@Documented
-	@Retention(RetentionPolicy.RUNTIME)
-	@Target({ElementType.TYPE, ElementType.FIELD})
-	public @interface DoublePref {
-		/**
-		 * Optional bundle for externalized string
-		 * @return
-		 */
-		String bundle() default "";
-		/**
-		 * Key for externalized string that gives the text of the preference
-		 * @return
-		 */
-		String value();
-	}
-	
-	/**
-	 * Annotation for an boolean preference.
-	 * @since v0.5.0
-	 */
-	@Documented
-	@Retention(RetentionPolicy.RUNTIME)
-	@Target({ElementType.TYPE, ElementType.FIELD})
-	public @interface BooleanPref {
-		/**
-		 * Optional bundle for externalized string
-		 * @return
-		 */
-		String bundle() default "";
-		/**
-		 * Key for externalized string that gives the text of the preference
-		 * @return
-		 */
-		String value();
-	}
-	
-	/**
-	 * Annotation for a directory preference.
-	 * @since v0.5.0
-	 */
-	@Documented
-	@Retention(RetentionPolicy.RUNTIME)
-	@Target({ElementType.TYPE, ElementType.FIELD})
-	public @interface DirectoryPref {
-		/**
-		 * Optional bundle for externalized string
-		 * @return
-		 */
-		String bundle() default "";
-		/**
-		 * Key for externalized string that gives the text of the preference
-		 * @return
-		 */
-		String value();
-	}
-	
-	/**
-	 * Annotation for an locale preference.
-	 * @since v0.5.0
-	 */
-	@Documented
-	@Retention(RetentionPolicy.RUNTIME)
-	@Target({ElementType.TYPE, ElementType.FIELD})
-	public @interface LocalePref {
-		/**
-		 * Optional bundle for externalized string
-		 * @return
-		 */
-		String bundle() default "";
-		/**
-		 * Key for externalized string that gives the text of the preference
-		 * @return
-		 */
-		String value();
-	}
-	
-	/**
-	 * Annotation for an color preference, represented as a packed integer.
-	 * @since v0.5.0
-	 */
-	@Documented
-	@Retention(RetentionPolicy.RUNTIME)
-	@Target({ElementType.TYPE, ElementType.FIELD})
-	public @interface ColorPref {
-		/**
-		 * Optional bundle for externalized string
-		 * @return
-		 */
-		String bundle() default "";
-		/**
-		 * Key for externalized string that gives the text of the preference
-		 * @return
-		 */
-		String value();
-	}
-	
-	/**
-	 * Annotation for a preference category.
-	 * @since v0.5.0
-	 */
-	@Documented
-	@Retention(RetentionPolicy.RUNTIME)
-	@Target({ElementType.TYPE, ElementType.FIELD})
-	public @interface PrefCategory {
-		/**
-		 * Optional bundle for externalized string
-		 * @return
-		 */
-		String bundle() default "";
-		/**
-		 * Key for externalized string that gives the name of the category
-		 * @return
-		 */
-		String value();
-	}
-
 	
 	public static List<PropertyItem> parseItems(Object obj) {
 		
