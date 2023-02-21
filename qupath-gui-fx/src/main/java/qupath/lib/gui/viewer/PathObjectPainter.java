@@ -270,7 +270,8 @@ public class PathObjectPainter {
 		if (colorFill != null && pathObject.hasChildObjects())
 			colorFill = ColorToolsAwt.getColorWithOpacity(colorFill, 0.1);
 
-		g.setStroke(stroke);
+		if (stroke != null)
+			g.setStroke(stroke);
 		boolean paintSymbols = shouldPaintRoiAsSymbol(pathObject, overlayOptions);
 		if (paintSymbols) {
 			Shape shape = getCentroidSymbol(pathObject);
@@ -380,7 +381,8 @@ public class PathObjectPainter {
 
 
 	private static Color updateStrokeColorFromBase(PathObject pathObject, Color colorBase, OverlayOptions overlayOptions) {
-		if (pathObject.isTile() && getValidMeasurementMapperOrNull(overlayOptions) != null)
+		// Don't show tile boundaries when filling detections with an overlay color
+		if (pathObject.isTile() && getValidMeasurementMapperOrNull(overlayOptions) != null && overlayOptions != null && overlayOptions.getFillDetections())
 			return null;
 		return colorBase;
 	}
@@ -432,7 +434,8 @@ public class PathObjectPainter {
 				return ColorToolsAwt.getMoreTranslucentColor(colorBase);
 			} else if (pathObject.getParent() instanceof PathDetectionObject) {
 				return ColorToolsAwt.getTranslucentColor(colorBase);
-			} else if (pathObject.isTile())
+			} else if (pathObject.isTile() && pathObject.getPathClass() == null && overlayOptions.getMeasurementMapper() == null)
+				// Show unclassified tiles with a very translucent fill
 				return ColorToolsAwt.getMoreTranslucentColor(colorBase);
 			else
 				return colorBase;			
@@ -980,7 +983,7 @@ public class PathObjectPainter {
 
 		float alpha = (float)(1f - downsampleFactor / 5);
 		alpha = Math.min(alpha, 0.4f);
-		float thickness = PathPrefs.detectionStrokeThicknessProperty().get();
+		double thickness = PathPrefs.detectionStrokeThicknessProperty().get();
 		if (alpha < .1f || thickness / downsampleFactor <= 0.25)
 			return;
 

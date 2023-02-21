@@ -61,6 +61,10 @@ import javafx.beans.property.ObjectProperty;
 import javafx.scene.input.MouseEvent;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.prefs.annotations.BooleanPref;
+import qupath.lib.gui.prefs.annotations.DoublePref;
+import qupath.lib.gui.prefs.annotations.Pref;
+import qupath.lib.gui.prefs.annotations.PrefCategory;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.overlays.HierarchyOverlay;
 import qupath.lib.gui.viewer.overlays.PathOverlay;
@@ -241,25 +245,25 @@ public class WandToolEventHandler extends BrushToolEventHandler {
 			return;
 		}
 		// Add preference to adjust Wand tool behavior
-		qupath.getPreferencePane().addPropertyPreference(wandTypeProperty(), WandType.class,
-				"Wand color type",
-				"Drawing tools",
-				"Specify colorspace when using the wand; if 'gray' then the wand uses 'darkness' without reference to the specific color");
+		qupath.getPreferencePane().addAnnotatedProperties(new WandPreferences());
+	}
+	
+	
+	@PrefCategory("Prefs.Drawing")
+	public static class WandPreferences {
 		
-		qupath.getPreferencePane().addPropertyPreference(wandSigmaPixelsProperty(), Double.class,
-				"Wand smoothing",
-				"Drawing tools",
-				"Set the smoothing used by the wand tool - higher values lead to larger, smoother regions (default = 4.0)");
-		
-		qupath.getPreferencePane().addPropertyPreference(wandSensitivityProperty(), Double.class,
-				"Wand sensitivity",
-				"Drawing tools",
-				"Set the sensitivity of the wand tool - lower values make it pay less attention to local intensities, and act more like the brush tool (default = 2.0)");
+		@Pref(value = "Prefs.Drawing.wandType", type = WandType.class)
+		public final ObjectProperty<WandType> wandType = wandTypeProperty();
 
-		qupath.getPreferencePane().addPropertyPreference(wandUseOverlaysProperty(), Boolean.class,
-				"Wand use overlays",
-				"Drawing tools",
-				"Use image overlay information to influence the regions created with the wand tool");
+		@DoublePref("Prefs.Drawing.wandSigma")
+		public final DoubleProperty wandSigma = wandSigmaPixelsProperty();
+		
+		@DoublePref("Prefs.Drawing.wandSensivity")
+		public final DoubleProperty wandSensitivity = wandSensitivityProperty();
+
+		@BooleanPref("Prefs.Drawing.wandUseOverlays")
+		public final BooleanProperty useOverlays = wandUseOverlaysProperty();
+
 	}
 	
 	

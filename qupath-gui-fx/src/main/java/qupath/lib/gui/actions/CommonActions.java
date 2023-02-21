@@ -26,9 +26,9 @@ import static qupath.lib.gui.actions.ActionTools.createAction;
 import org.controlsfx.control.action.Action;
 
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.actions.ActionTools.ActionAccelerator;
-import qupath.lib.gui.actions.ActionTools.ActionConfig;
-import qupath.lib.gui.actions.ActionTools.ActionIcon;
+import qupath.lib.gui.actions.annotations.ActionAccelerator;
+import qupath.lib.gui.actions.annotations.ActionConfig;
+import qupath.lib.gui.actions.annotations.ActionIcon;
 import qupath.lib.gui.commands.BrightnessContrastCommand;
 import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.commands.ContextHelpViewer;
@@ -45,7 +45,7 @@ import qupath.lib.gui.tools.IconFactory.PathIcons;
  * @author Pete Bankhead
  * @since v0.5.0
  */
-public class DefaultActions {
+public class CommonActions {
 	
 	@ActionConfig("Action.File.Project.createProject")
 	public final Action PROJECT_NEW;
@@ -110,7 +110,7 @@ public class DefaultActions {
 	
 	private QuPathGUI qupath;
 	
-	public DefaultActions(QuPathGUI qupath) {
+	public CommonActions(QuPathGUI qupath) {
 		this.qupath = qupath;
 		
 		PROJECT_NEW = createAction(() -> Commands.promptToCreateProject(qupath));

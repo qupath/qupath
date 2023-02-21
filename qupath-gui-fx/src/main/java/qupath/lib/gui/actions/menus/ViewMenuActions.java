@@ -13,13 +13,13 @@ import javafx.scene.input.KeyEvent;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.QuPathResources;
 import qupath.lib.gui.actions.ActionTools;
-import qupath.lib.gui.actions.DefaultActions;
+import qupath.lib.gui.actions.CommonActions;
 import qupath.lib.gui.actions.OverlayActions;
 import qupath.lib.gui.actions.ViewerActions;
-import qupath.lib.gui.actions.ActionTools.ActionAccelerator;
-import qupath.lib.gui.actions.ActionTools.ActionConfig;
-import qupath.lib.gui.actions.ActionTools.ActionIcon;
-import qupath.lib.gui.actions.ActionTools.ActionMenu;
+import qupath.lib.gui.actions.annotations.ActionAccelerator;
+import qupath.lib.gui.actions.annotations.ActionConfig;
+import qupath.lib.gui.actions.annotations.ActionIcon;
+import qupath.lib.gui.actions.annotations.ActionMenu;
 import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.panes.SlideLabelView;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -29,7 +29,7 @@ import qupath.lib.gui.tools.IconFactory.PathIcons;
 public class ViewMenuActions implements MenuActions {
 	
 	private QuPathGUI qupath;
-	private DefaultActions defaultActions;
+	private CommonActions commonActions;
 	private ViewerActions viewerActions;
 	private OverlayActions overlayActions;
 	
@@ -42,7 +42,7 @@ public class ViewMenuActions implements MenuActions {
 	@Override
 	public List<Action> getActions() {
 		if (actions == null) {
-			this.defaultActions = qupath.getDefaultActions();
+			this.commonActions = qupath.getCommonActions();
 			this.viewerActions = qupath.getViewerActions();
 			this.overlayActions = qupath.getOverlayActions();
 			this.actions = new Actions();
@@ -59,7 +59,7 @@ public class ViewMenuActions implements MenuActions {
 	@ActionMenu("Menu.View")
 	public class Actions {
 		
-		public final Action SHOW_ANALYSIS_PANEL = defaultActions.SHOW_ANALYSIS_PANE;
+		public final Action SHOW_ANALYSIS_PANEL = commonActions.SHOW_ANALYSIS_PANE;
 		
 		@ActionConfig("Action.View.commandList")
 		@ActionAccelerator("shortcut+l")
@@ -71,7 +71,7 @@ public class ViewMenuActions implements MenuActions {
 
 		public final Action SEP_0 = ActionTools.createSeparator();
 		
-		public final Action BRIGHTNESS_CONTRAST = defaultActions.BRIGHTNESS_CONTRAST;
+		public final Action BRIGHTNESS_CONTRAST = commonActions.BRIGHTNESS_CONTRAST;
 		public final Action SEP_1 = ActionTools.createSeparator();
 		
 		@ActionMenu("Menu.View.Multiview")		
@@ -132,7 +132,7 @@ public class ViewMenuActions implements MenuActions {
 		@ActionConfig("Action.View.memoryMonitor")
 		public final Action MEMORY_MONITORY = Commands.createSingleStageAction(() -> Commands.createMemoryMonitorDialog(qupath));
 		
-		public final Action SHOW_LOG = defaultActions.SHOW_LOG;
+		public final Action SHOW_LOG = commonActions.SHOW_LOG;
 		
 		
 		public final Action SEP_8 = ActionTools.createSeparator();

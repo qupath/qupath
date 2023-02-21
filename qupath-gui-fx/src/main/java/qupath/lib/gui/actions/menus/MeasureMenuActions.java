@@ -7,17 +7,17 @@ import org.controlsfx.control.action.Action;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.QuPathResources;
 import qupath.lib.gui.actions.ActionTools;
-import qupath.lib.gui.actions.DefaultActions;
-import qupath.lib.gui.actions.ActionTools.ActionAccelerator;
-import qupath.lib.gui.actions.ActionTools.ActionConfig;
-import qupath.lib.gui.actions.ActionTools.ActionMenu;
+import qupath.lib.gui.actions.CommonActions;
+import qupath.lib.gui.actions.annotations.ActionAccelerator;
+import qupath.lib.gui.actions.annotations.ActionConfig;
+import qupath.lib.gui.actions.annotations.ActionMenu;
 import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.commands.MeasurementExportCommand;
 
 public class MeasureMenuActions implements MenuActions {
 	
 	private QuPathGUI qupath;
-	private DefaultActions defaultActions;
+	private CommonActions commonActions;
 	
 	private Actions actions;
 	
@@ -33,7 +33,7 @@ public class MeasureMenuActions implements MenuActions {
 	@Override
 	public List<Action> getActions() {
 		if (actions == null) {
-			this.defaultActions = qupath.getDefaultActions();
+			this.commonActions = qupath.getCommonActions();
 			this.actions = new Actions();
 		}
 		return ActionTools.getAnnotatedActions(actions);
@@ -51,15 +51,15 @@ public class MeasureMenuActions implements MenuActions {
 		
 		public final Action SEP_1 = ActionTools.createSeparator();
 		
-		public final Action TMA = defaultActions.MEASURE_TMA;
-		public final Action ANNOTATIONS = defaultActions.MEASURE_ANNOTATIONS;
-		public final Action DETECTIONS = defaultActions.MEASURE_DETECTIONS;
+		public final Action TMA = commonActions.MEASURE_TMA;
+		public final Action ANNOTATIONS = commonActions.MEASURE_ANNOTATIONS;
+		public final Action DETECTIONS = commonActions.MEASURE_DETECTIONS;
 		
 		@ActionMenu("Menu.Measure.GridViews")
-		public final Action GRID_ANNOTATIONS = defaultActions.MEASURE_GRID_ANNOTATIONS;
+		public final Action GRID_ANNOTATIONS = commonActions.MEASURE_GRID_ANNOTATIONS;
 		
 		@ActionMenu("Menu.Measure.GridViews")
-		public final Action GRID_TMA = defaultActions.MEASURE_GRID_TMA_CORES;
+		public final Action GRID_TMA = commonActions.MEASURE_GRID_TMA_CORES;
 
 		public final Action SEP_2 = ActionTools.createSeparator();
 

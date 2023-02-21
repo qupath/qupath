@@ -7,10 +7,10 @@ import org.controlsfx.control.action.Action;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.QuPathResources;
 import qupath.lib.gui.actions.ActionTools;
-import qupath.lib.gui.actions.DefaultActions;
-import qupath.lib.gui.actions.ActionTools.ActionAccelerator;
-import qupath.lib.gui.actions.ActionTools.ActionConfig;
-import qupath.lib.gui.actions.ActionTools.ActionMenu;
+import qupath.lib.gui.actions.CommonActions;
+import qupath.lib.gui.actions.annotations.ActionAccelerator;
+import qupath.lib.gui.actions.annotations.ActionConfig;
+import qupath.lib.gui.actions.annotations.ActionMenu;
 import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.objects.PathAnnotationObject;
@@ -27,13 +27,13 @@ import qupath.lib.plugins.objects.SplitAnnotationsPlugin;
 public class ObjectsMenuActions implements MenuActions {
 	
 	private QuPathGUI qupath;
-	private DefaultActions defaultActions;
+	private CommonActions commonActions;
 	
 	private Actions actions;
 	
 	ObjectsMenuActions(QuPathGUI qupath) {
 		this.qupath = qupath;
-		this.defaultActions = qupath.getDefaultActions();
+		this.commonActions = qupath.getCommonActions();
 	}
 	
 	@Override
@@ -62,7 +62,7 @@ public class ObjectsMenuActions implements MenuActions {
 		@ActionMenu("Menu.Objects.Lock")
 		public final LockActions lockActions = new LockActions();		
 
-		public final Action SHOW_OBJECT_DESCRIPTIONS = defaultActions.SHOW_OBJECT_DESCRIPTIONS;
+		public final Action SHOW_OBJECT_DESCRIPTIONS = commonActions.SHOW_OBJECT_DESCRIPTIONS;
 		
 		public final Action SEP_4 = ActionTools.createSeparator();
 		

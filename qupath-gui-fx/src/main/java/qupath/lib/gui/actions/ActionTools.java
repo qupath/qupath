@@ -21,11 +21,6 @@
 
 package qupath.lib.gui.actions;
 
-import java.lang.annotation.Documented;
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
 import java.lang.reflect.AnnotatedElement;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
@@ -62,7 +57,13 @@ import javafx.scene.input.KeyCombination;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.QuPathResources;
 import qupath.lib.gui.SelectableItem;
+import qupath.lib.gui.actions.annotations.ActionAccelerator;
+import qupath.lib.gui.actions.annotations.ActionConfig;
+import qupath.lib.gui.actions.annotations.ActionIcon;
+import qupath.lib.gui.actions.annotations.ActionMenu;
+import qupath.lib.gui.actions.annotations.ActionMethod;
 import qupath.lib.gui.tools.IconFactory;
+import qupath.lib.gui.tools.LocaleListener;
 
 /**
  * Helper methods for generating and configuring {@linkplain Action Actions} and UI elements.
@@ -282,105 +283,9 @@ public class ActionTools {
 	}
 	
 	
-	/**
-	 * Annotation indicating the a key in the external resources file containing 
-	 * the menu, text and (optional) description.
-	 */
-	@Documented
-	@Retention(RetentionPolicy.RUNTIME)
-	@Target({ElementType.TYPE, ElementType.METHOD, ElementType.FIELD})
-	public @interface ActionConfig {
-		
-		String bundle() default "";
-
-		String[] menu() default "";
-
-		/**
-		 * Key to external properties file.
-		 * @return
-		 */
-		String value();
-	}
-	
-	
-	/**
-	 * Annotation indicating the menu path where an action should be installed.
-	 * This may be used by QuPath to be able to assign the action automatically to the correct place, 
-	 * in the absence of further information.
-	 */
-	@Documented
-	@Retention(RetentionPolicy.RUNTIME)
-	@Target({ElementType.TYPE, ElementType.METHOD, ElementType.FIELD})
-	public @interface ActionMenu {
-		/**
-		 * Menu path, in the form {@code "Menu>Submenu>Command name"}.
-		 * @return
-		 */
-		String[] value();
-	}
-	
-	/**
-	 * Annotation indicating that a method should be converted to an {@link Action} if possible.
-	 * Currently, only methods taking zero parameters may be converted automatically.
-	 */
-	@Documented
-	@Retention(RetentionPolicy.RUNTIME)
-	@Target({ElementType.METHOD})
-	public @interface ActionMethod {}
-	
-	/**
-	 * Annotation used to specify a preferred accelerator for an an action.
-	 * Examples include {@code "m"} (Move tool) or {@code "shortcut+c"} (Copy).
-	 */
-	@Documented
-	@Retention(RetentionPolicy.RUNTIME)
-	@Target({ElementType.METHOD, ElementType.FIELD, ElementType.TYPE})
-	public @interface ActionAccelerator {
-		/**
-		 * String form of an accelerator, compatible with {@link KeyCombination#valueOf(String)}.
-		 * @return
-		 */
-		String value();
-	}
-	
-	/**
-	 * Description of an action.
-	 * This can be used for help text, and is currently passed to the action as {@link Action#longTextProperty()}.
-	 * In QuPath it is shown through the "Command list" table.
-	 * <p>
-	 * If the description is prefixed by {@code Key:} then it is requested from {@link QuPathResources},
-	 * otherwise the text is used directly.
-	 */
-	@Documented
-	@Retention(RetentionPolicy.RUNTIME)
-	@Target({ElementType.METHOD, ElementType.FIELD, ElementType.TYPE})
-	public @interface ActionDescription {
-		/**
-		 * Text description of the action.
-		 * @return
-		 */
-		String value();
-	}
-	
-	/**
-	 * Default icon for an action.
-	 */
-	@Documented
-	@Retention(RetentionPolicy.RUNTIME)
-	@Target({ElementType.METHOD, ElementType.FIELD})
-	public @interface ActionIcon {
-		/**
-		 * Icon to associate with the action's graphic property.
-		 * @return
-		 */
-		IconFactory.PathIcons value();
-	}
-	
-	
 	private static String getMenuString(String[] text) {
 		return Arrays.stream(text)
-			.map(ActionTools::getStringOrReadResource)
-			.collect(Collectors.joining(">"));
+			.collect(Collectors.joining(">")) + ">";
 	}
 	
 	
@@ -504,7 +409,6 @@ public class ActionTools {
 	 */
 	public static void parseAnnotations(Action action, AnnotatedElement element, String baseMenu) {
 		parseMenu(action, element.getAnnotation(ActionMenu.class), baseMenu);
-		parseDescription(action, element.getAnnotation(ActionDescription.class));
 		parseAccelerator(action, element.getAnnotation(ActionAccelerator.class));
 		parseIcon(action, element.getAnnotation(ActionIcon.class));
 		parseDeprecated(action, element.getAnnotation(Deprecated.class));
@@ -524,11 +428,17 @@ public class ActionTools {
 	private static void parseConfig(Action action, ActionConfig annotation) {
 		if (annotation != null) {
 			String key = annotation.value();
-			String text = QuPathResources.getString(key);
-			action.setText(text);
+			if (annotation.bindLocale())
+				LocaleListener.registerProperty(action.textProperty(), key);
+			else
+				action.setText(QuPathResources.getString(key));
 			String descriptionKey = key + ".description";
-			if (QuPathResources.hasString(descriptionKey))
-				action.setLongText(QuPathResources.getString(descriptionKey));
+			if (QuPathResources.hasString(descriptionKey)) {
+				if (annotation.bindLocale())
+					LocaleListener.registerProperty(action.longTextProperty(), descriptionKey);
+				else
+					action.setLongText(QuPathResources.getString(descriptionKey));
+			}
  		}
 	}
 	
@@ -552,13 +462,6 @@ public class ActionTools {
 		if (!name.isEmpty())
 			action.setText(name);
 		action.getProperties().put("MENU", menu);
-	}
-	
-	private static void parseDescription(Action action, ActionDescription annotation) {
-		if (annotation == null)
-			return;
-		var description = getStringOrReadResource(annotation.value());
-		action.setLongText(description);
 	}
 	
 	private static void parseIcon(Action action, ActionIcon annotation) {

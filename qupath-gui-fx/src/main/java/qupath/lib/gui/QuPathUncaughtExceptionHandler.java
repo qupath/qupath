@@ -74,10 +74,10 @@ class QuPathUncaughtExceptionHandler implements UncaughtExceptionHandler {
 						+ "then restart QuPath.");
 				logger.error(e.getLocalizedMessage(), e);
 			} else {
-				var defaultActions = qupath.getDefaultActions();
+				var commonActions = qupath.getCommonActions();
 				Dialogs.showErrorNotification("QuPath exception", e);
-				if (defaultActions.SHOW_LOG != null)
-					defaultActions.SHOW_LOG.handle(null);
+				if (commonActions.SHOW_LOG != null)
+					commonActions.SHOW_LOG.handle(null);
 			}
 		} finally {
 			lastExceptionMessage = msg;

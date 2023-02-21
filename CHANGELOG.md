@@ -7,10 +7,13 @@ This is a work-in-progress for the next QuPath release.
 
 
 ### Dependency updates
-* Groovy 4.0.7
+* Bio-Formats 6.12.0
+* Groovy 4.0.9
 * ImageJ 1.54b
 * JavaFX 19.0.2
 * JFreeSVG 5.0.4
+* JFXtras 17-r1
+* Picocli 4.7.1
 * SLF4J 2.0.6
 
 

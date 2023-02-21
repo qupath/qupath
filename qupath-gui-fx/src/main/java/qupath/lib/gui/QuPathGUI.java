@@ -108,7 +108,7 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.common.Timeit;
 import qupath.lib.common.Version;
 import qupath.lib.gui.actions.ActionTools;
-import qupath.lib.gui.actions.DefaultActions;
+import qupath.lib.gui.actions.CommonActions;
 import qupath.lib.gui.actions.OverlayActions;
 import qupath.lib.gui.actions.ViewerActions;
 import qupath.lib.gui.actions.menus.Menus;
@@ -132,6 +132,7 @@ import qupath.lib.gui.scripting.ScriptEditorControl;
 import qupath.lib.gui.scripting.languages.GroovyLanguage;
 import qupath.lib.gui.scripting.languages.ScriptLanguageProvider;
 import qupath.lib.gui.tools.GuiTools;
+import qupath.lib.gui.tools.LocaleListener;
 import qupath.lib.gui.tools.MenuTools;
 import qupath.lib.gui.viewer.DragDropImportListener;
 import qupath.lib.gui.viewer.ViewerManager;
@@ -235,7 +236,7 @@ public class QuPathGUI {
 	 */
 	private Set<Action> actions = new LinkedHashSet<>();
 
-	private DefaultActions defaultActions;
+	private CommonActions commonActions;
 		
 	/**
 	 * Flag to record when menus are being modified.
@@ -275,7 +276,7 @@ public class QuPathGUI {
 		initializeProjectBehavior();
 				
 		// We can create an undo/redo manager as long as we have a viewer
-		undoRedoManager = UndoRedoManager.createForObservableViewer(viewerProperty, prefsPane);
+		undoRedoManager = UndoRedoManager.createForObservableViewer(viewerProperty);
 		viewerProperty.bind(viewerManager.activeViewerProperty());
 		viewerProperty.addListener((v, o, n) -> activateToolsForViewer(n));
 
@@ -602,9 +603,15 @@ public class QuPathGUI {
 						"Menu.Extensions",
 						"Menu.Help")
 				.stream()
-				.map(k -> QuPathResources.getString(k))
-				.map(Menu::new).toArray(Menu[]::new)
+				.map(QuPathGUI::createMenuFromKey)
+				.toArray(Menu[]::new)
 				);
+	}
+	
+	private static Menu createMenuFromKey(String key) {
+		Menu menu = new Menu();
+		LocaleListener.registerProperty(menu.textProperty(), key);
+		return menu;
 	}
 	
 	private void populateMenubar() {
@@ -709,7 +716,7 @@ public class QuPathGUI {
 			activateToolsForViewer(getViewer());
 			
 			if (n == PathTools.POINTS)
-				defaultActions.COUNTING_PANEL.handle(null);
+				commonActions.COUNTING_PANEL.handle(null);
 			
 			updateCursorForSelectedTool();			
 		});
@@ -1737,7 +1744,7 @@ public class QuPathGUI {
 		if (!Platform.isFxApplicationThread()) {
 			return GuiTools.callOnApplicationThread(() -> installImageDataCommand(menuPath, command));
 		}
-		Menu menu = parseMenu(menuPath, "Extensions", true);
+		Menu menu = parseMenu(menuPath, "Menu.Extensions", true);
 		String name = parseName(menuPath);
 		var action = createImageDataAction(command, name);
 		var item = ActionTools.createMenuItem(action);
@@ -1757,7 +1764,7 @@ public class QuPathGUI {
 		if (!Platform.isFxApplicationThread()) {
 			return GuiTools.callOnApplicationThread(() -> installCommand(menuPath, runnable));
 		}
-		Menu menu = parseMenu(menuPath, "Extensions", true);
+		Menu menu = parseMenu(menuPath, "Menu.Extensions", true);
 		String name = parseName(menuPath);
 		var action = ActionTools.createAction(runnable, name);
 		var item = ActionTools.createMenuItem(action);
@@ -2751,12 +2758,12 @@ public class QuPathGUI {
 	 * Get the default actions associated with this QuPath instance.
 	 * @return
 	 */
-	public synchronized DefaultActions getDefaultActions() {
-		if (defaultActions == null) {
-			defaultActions = new DefaultActions(this);
-			installActions(ActionTools.getAnnotatedActions(defaultActions));
+	public synchronized CommonActions getCommonActions() {
+		if (commonActions == null) {
+			commonActions = new CommonActions(this);
+			installActions(ActionTools.getAnnotatedActions(commonActions));
 		}
-		return defaultActions;
+		return commonActions;
 	}
 	
 	

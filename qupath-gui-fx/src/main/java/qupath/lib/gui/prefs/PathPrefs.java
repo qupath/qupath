@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -53,12 +53,10 @@ import org.slf4j.LoggerFactory;
 
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
-import javafx.beans.property.FloatProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
-import javafx.beans.property.SimpleFloatProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
@@ -101,7 +99,7 @@ public class PathPrefs {
 	/**
 	 * Default name for preference node in this QuPath version
 	 */
-	private static final String DEFAULT_NODE_NAME = "io.github.qupath/0.4";
+	private static final String DEFAULT_NODE_NAME = "io.github.qupath/0.5";
 	
 	/**
 	 * Name for preference node
@@ -888,6 +886,28 @@ public class PathPrefs {
 	}
 	
 	
+	
+	private static IntegerProperty maxUndoLevels = PathPrefs.createPersistentPreference("undoMaxLevels", 10);
+	private static IntegerProperty maxUndoHierarchySize = PathPrefs.createPersistentPreference("undoMaxHierarchySize", 10000);
+
+	/**
+	 * The requested maximum number of undo levels that QuPath should support.
+	 * @return
+	 */
+	public static IntegerProperty maxUndoLevelsProperty() {
+		return maxUndoLevels;
+	}
+
+	/**
+	 * The requested maximum number of objects in a hierarchy for which QuPath should support undo/redo.
+	 * This is to workaround an inconvenient implementation issue, whereby trying to support undo with huge datasets could 
+	 * be a significant performance issue.
+	 * @return
+	 */
+	public static IntegerProperty maxUndoHierarchySizeProperty() {
+		return maxUndoHierarchySize;
+	}
+
 	
 	private static int nRecentScripts = 8;
 	private static ObservableList<URI> recentScripts = FXCollections.observableArrayList();
@@ -1932,7 +1952,7 @@ public class PathPrefs {
 	
 	private static void updateLocale(Category category, Locale locale) {
 		if (locale == null) {
-			logger.warn("Invalid null locale request (Category={}) - I will ignore it", category);
+			logger.debug("Invalid null locale request (Category={}) - I will ignore it", category);
 			return;
 		}
 		if (category == null) {
@@ -1973,13 +1993,13 @@ public class PathPrefs {
 	/**
 	 * Simple class to represent a positive float property
 	 */
-	static class PositiveFloatThicknessProperty extends SimpleFloatProperty  {
-		PositiveFloatThicknessProperty(final String name, final float val) {
+	static class PositiveFloatThicknessProperty extends SimpleDoubleProperty  {
+		PositiveFloatThicknessProperty(final String name, final double val) {
 			super(null, name, val);
 		}
 		
 		@Override
-		public void set(float thickness) {
+		public void set(double thickness) {
 			if (thickness > 0f)
 	    		super.set(thickness);
 	       	else
@@ -1988,27 +2008,27 @@ public class PathPrefs {
 	};
 	
 	
-	private static FloatProperty createPersistentThicknessPreference(final String name, final float defaultValue) {
-		FloatProperty property = new PositiveFloatThicknessProperty(name, defaultValue);
-		property.set(getUserPreferences().getFloat(name, defaultValue));
+	private static DoubleProperty createPersistentThicknessPreference(final String name, final double defaultValue) {
+		DoubleProperty property = new PositiveFloatThicknessProperty(name, defaultValue);
+		property.set(getUserPreferences().getDouble(name, defaultValue));
 		property.addListener((v, o, n) -> getUserPreferences().putFloat(name, n.floatValue()));
 		// Triggered when reset is called
 		resetProperty.addListener((c, o, v) -> property.setValue(defaultValue));
 		// Triggered when reload is called
-		reloadProperty.addListener((c, o, v) -> property.set(getUserPreferences().getFloat(name, property.get())));
+		reloadProperty.addListener((c, o, v) -> property.set(getUserPreferences().getDouble(name, property.get())));
 		return property;
 	}
 	
-	private static FloatProperty strokeThinThickness = createPersistentThicknessPreference("thinLineThickness", 2f);
+	private static DoubleProperty strokeThinThickness = createPersistentThicknessPreference("thinLineThickness", 2.0);
 	
-	private static FloatProperty strokeThickThickness = createPersistentThicknessPreference("thickLineThickness", 2f);
+	private static DoubleProperty strokeThickThickness = createPersistentThicknessPreference("thickLineThickness", 2.0);
 	
 	/**
 	 * Preferred stroke thickness to use when drawing detections ROIs.
 	 * This is defined in pixels at the full image resolution, and does not adapt to viewer magnification.
 	 * @return
 	 */
-	public static FloatProperty detectionStrokeThicknessProperty() {
+	public static DoubleProperty detectionStrokeThicknessProperty() {
     	return strokeThinThickness;
     }
     
@@ -2017,7 +2037,7 @@ public class PathPrefs {
 	 * This is defined in pixels, scaled according to the current viewer magnification.
 	 * @return
 	 */
-    public static FloatProperty annotationStrokeThicknessProperty() {
+    public static DoubleProperty annotationStrokeThicknessProperty() {
     	return strokeThickThickness;
     }
     

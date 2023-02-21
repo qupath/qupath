@@ -57,7 +57,7 @@ import javafx.scene.shape.MoveTo;
 import javafx.scene.shape.Path;
 import javafx.scene.text.TextAlignment;
 import qupath.lib.gui.actions.ActionTools;
-import qupath.lib.gui.actions.DefaultActions;
+import qupath.lib.gui.actions.CommonActions;
 import qupath.lib.gui.actions.OverlayActions;
 import qupath.lib.gui.actions.ViewerActions;
 import qupath.lib.gui.dialogs.Dialogs;
@@ -90,7 +90,7 @@ class ToolBarComponent {
 
 	private ToolBar toolbar = new ToolBar();
 
-	ToolBarComponent(ToolManager toolManager, ViewerActions viewerManagerActions, DefaultActions defaultActions, OverlayActions overlayActions) {
+	ToolBarComponent(ToolManager toolManager, ViewerActions viewerManagerActions, CommonActions commonActions, OverlayActions overlayActions) {
 		this.toolManager = toolManager;
 		this.viewerProperty = viewerManagerActions.getViewerManager().activeViewerProperty();
 
@@ -105,7 +105,7 @@ class ToolBarComponent {
 
 		// Show analysis panel
 		List<Node> nodes = new ArrayList<>();
-		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(defaultActions.SHOW_ANALYSIS_PANE));
+		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(commonActions.SHOW_ANALYSIS_PANE));
 		nodes.add(new Separator(Orientation.VERTICAL));
 
 		// Record index where tools start
@@ -119,7 +119,7 @@ class ToolBarComponent {
 
 		nodes.add(new Separator(Orientation.VERTICAL));
 
-		nodes.add(ActionTools.createButtonWithGraphicOnly(defaultActions.BRIGHTNESS_CONTRAST));
+		nodes.add(ActionTools.createButtonWithGraphicOnly(commonActions.BRIGHTNESS_CONTRAST));
 
 		nodes.add(new Separator(Orientation.VERTICAL));
 
@@ -147,9 +147,9 @@ class ToolBarComponent {
 		btnMeasure.setGraphic(IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, PathIcons.TABLE));
 		btnMeasure.setTooltip(new Tooltip(getDescription("showMeasurementsTable")));
 		btnMeasure.getItems().addAll(
-				ActionTools.createMenuItem(defaultActions.MEASURE_TMA),
-				ActionTools.createMenuItem(defaultActions.MEASURE_ANNOTATIONS),
-				ActionTools.createMenuItem(defaultActions.MEASURE_DETECTIONS)
+				ActionTools.createMenuItem(commonActions.MEASURE_TMA),
+				ActionTools.createMenuItem(commonActions.MEASURE_ANNOTATIONS),
+				ActionTools.createMenuItem(commonActions.MEASURE_DETECTIONS)
 				);
 		nodes.add(btnMeasure);
 
@@ -161,8 +161,8 @@ class ToolBarComponent {
 		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(overlayActions.SHOW_GRID));
 
 		nodes.add(new Separator(Orientation.VERTICAL));
-		nodes.add(ActionTools.createButtonWithGraphicOnly(defaultActions.PREFERENCES));
-		nodes.add(ActionTools.createButtonWithGraphicOnly(defaultActions.HELP_VIEWER));
+		nodes.add(ActionTools.createButtonWithGraphicOnly(commonActions.PREFERENCES));
+		nodes.add(ActionTools.createButtonWithGraphicOnly(commonActions.HELP_VIEWER));
 
 		toolbar.getItems().setAll(nodes);
 	}

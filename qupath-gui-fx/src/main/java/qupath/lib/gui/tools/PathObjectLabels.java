@@ -210,7 +210,7 @@ public class PathObjectLabels {
 			descriptionIcon.setIconCodeLiterals("ion4-md-list");
 			descriptionIcon.setStyle(iconStyle);
 			var qupath = QuPathGUI.getInstance();
-			var actions = qupath == null ? null : qupath.getDefaultActions();
+			var actions = qupath == null ? null : qupath.getCommonActions();
 			if (actions != null) {
 				descriptionIcon.setOnMouseClicked(e -> {
 					if (e.getClickCount() == 2) {

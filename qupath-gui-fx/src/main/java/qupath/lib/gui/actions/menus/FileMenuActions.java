@@ -10,9 +10,9 @@ import org.controlsfx.control.action.Action;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.QuPathResources;
 import qupath.lib.gui.actions.ActionTools;
-import qupath.lib.gui.actions.ActionTools.ActionAccelerator;
-import qupath.lib.gui.actions.ActionTools.ActionConfig;
-import qupath.lib.gui.actions.ActionTools.ActionMenu;
+import qupath.lib.gui.actions.annotations.ActionAccelerator;
+import qupath.lib.gui.actions.annotations.ActionConfig;
+import qupath.lib.gui.actions.annotations.ActionMenu;
 import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.commands.ProjectCommands;
 import qupath.lib.gui.commands.TMACommands;
@@ -106,10 +106,10 @@ public class FileMenuActions implements MenuActions {
 	public class ProjectActions {
 		
 		@ActionConfig("Action.File.Project.createProject")
-		public final Action PROJECT_NEW = qupath.getDefaultActions().PROJECT_NEW;
+		public final Action PROJECT_NEW = qupath.getCommonActions().PROJECT_NEW;
 		
 		@ActionConfig("Action.File.Project.openProject")
-		public final Action PROJECT_OPEN = qupath.getDefaultActions().PROJECT_OPEN;
+		public final Action PROJECT_OPEN = qupath.getCommonActions().PROJECT_OPEN;
 		
 		@ActionConfig("Action.File.Project.closeProject")
 		public final Action PROJECT_CLOSE = qupath.createProjectAction(project -> Commands.closeProject(qupath));
@@ -117,7 +117,7 @@ public class FileMenuActions implements MenuActions {
 		public final Action SEP_1 = ActionTools.createSeparator();
 
 		@ActionConfig("Action.File.Project.addImages")
-		public final Action IMPORT_IMAGES = qupath.getDefaultActions().PROJECT_ADD_IMAGES;
+		public final Action IMPORT_IMAGES = qupath.getCommonActions().PROJECT_ADD_IMAGES;
 
 		@ActionConfig("Action.File.Project.exportImageList")
 		public final Action EXPORT_IMAGE_LIST = qupath.createProjectAction(project -> ProjectCommands.promptToExportImageList(project));	

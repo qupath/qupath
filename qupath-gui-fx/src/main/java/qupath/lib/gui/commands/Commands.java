@@ -639,8 +639,6 @@ public class Commands {
 	 */
 	public static Stage createPreferencesDialog(QuPathGUI qupath) {
 		
-		var panel = qupath.getPreferencePane();
-		
 		var dialog = new Stage();
 		dialog.initOwner(qupath.getStage());
 //			dialog.initModality(Modality.APPLICATION_MODAL);
@@ -663,13 +661,9 @@ public class Commands {
 		PaneTools.setHGrowPriority(Priority.ALWAYS, btnImport, btnExport, btnReset);
 		paneImportExport.setMaxWidth(Double.MAX_VALUE);
 
-//			Button btnClose = new Button("Close");
-//			btnClose.setOnAction(e -> {
-//				dialog.hide();
-//			});
-		
 		BorderPane pane = new BorderPane();
-		pane.setCenter(panel.getPropertySheet());
+		var prefPane = qupath.getPreferencePane();
+		pane.setCenter(prefPane.getPane());
 		pane.setBottom(paneImportExport);
 		if (qupath != null && qupath.getStage() != null) {
 			pane.setPrefHeight(Math.round(Math.max(300, qupath.getStage().getHeight()*0.75)));
@@ -679,6 +673,10 @@ public class Commands {
 		dialog.setScene(new Scene(pane));
 		dialog.setMinWidth(300);
 		dialog.setMinHeight(300);
+		
+		// Refresh the editors in case the locale has changed
+		// (we could/should check if this is required...)
+		dialog.setOnShowing(e -> prefPane.refreshAllEditors());
 		
 		return dialog;
 	}

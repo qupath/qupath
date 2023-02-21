@@ -41,9 +41,9 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.scene.input.KeyCodeCombination;
 import qupath.lib.gui.actions.ActionTools;
-import qupath.lib.gui.actions.ActionTools.ActionAccelerator;
-import qupath.lib.gui.actions.ActionTools.ActionConfig;
-import qupath.lib.gui.actions.ActionTools.ActionIcon;
+import qupath.lib.gui.actions.annotations.ActionAccelerator;
+import qupath.lib.gui.actions.annotations.ActionConfig;
+import qupath.lib.gui.actions.annotations.ActionIcon;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.IconFactory.PathIcons;
 import qupath.lib.gui.viewer.tools.PathTool;
@@ -99,7 +99,7 @@ public class ToolManager {
 	public final Action BRUSH_TOOL = getToolAction(PathTools.BRUSH);
 	
 	@ActionAccelerator("l")
-	@ActionConfig("Tools.line")
+	@ActionConfig(value = "Tools.line", bindLocale = false)
 	public final Action LINE_TOOL = getToolAction(PathTools.LINE_OR_ARROW);
 	
 	@ActionAccelerator(".")

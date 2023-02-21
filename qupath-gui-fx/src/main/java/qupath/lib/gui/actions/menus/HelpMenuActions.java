@@ -9,21 +9,21 @@ import qupath.lib.gui.QuPathResources;
 import qupath.lib.gui.Urls;
 import qupath.lib.gui.WelcomeStage;
 import qupath.lib.gui.actions.ActionTools;
-import qupath.lib.gui.actions.DefaultActions;
-import qupath.lib.gui.actions.ActionTools.ActionConfig;
-import qupath.lib.gui.actions.ActionTools.ActionMenu;
+import qupath.lib.gui.actions.CommonActions;
+import qupath.lib.gui.actions.annotations.ActionConfig;
+import qupath.lib.gui.actions.annotations.ActionMenu;
 import qupath.lib.gui.commands.Commands;
 
 public class HelpMenuActions implements MenuActions {
 	
 	private QuPathGUI qupath;
-	private DefaultActions defaultActions;
+	private CommonActions commonActions;
 	
 	private Actions actions;
 	
 	HelpMenuActions(QuPathGUI qupath) {
 		this.qupath = qupath;
-		this.defaultActions = qupath.getDefaultActions();
+		this.commonActions = qupath.getCommonActions();
 	}
 	
 	@Override
@@ -46,7 +46,7 @@ public class HelpMenuActions implements MenuActions {
 		@ActionConfig("Action.Help.welcome")
 		public final Action QUPATH_STARTUP = ActionTools.createAction(() -> WelcomeStage.getInstance(qupath).show());
 
-		public final Action HELP_VIEWER = defaultActions.HELP_VIEWER;
+		public final Action HELP_VIEWER = commonActions.HELP_VIEWER;
 
 		public final Action SEP_1 = ActionTools.createSeparator();
 
