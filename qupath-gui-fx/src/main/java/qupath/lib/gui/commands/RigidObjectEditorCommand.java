@@ -349,18 +349,19 @@ class RigidObjectEditorCommand implements Runnable, ChangeListener<ImageData<Buf
 		private boolean isRotating = false;
 		private boolean isTranslating = false;
 
-		public void mouseClicked(MouseEvent e) {
-			if (e.getClickCount() <= 1)
-				return;
-			
-			Point2D p = viewer.componentPointToImagePoint(e.getX(), e.getY(), new Point2D.Double(), false);
-			if (!contains(transformer.getTransformedBounds(), p.getX(), p.getY()))
-				commitChanges(false);
-		}
-
 		public void mousePressed(MouseEvent e) {
 			if (transformer == null)
 				return;
+			
+			if (e.getClickCount() > 1) {
+				Point2D p = viewer.componentPointToImagePoint(e.getX(), e.getY(), new Point2D.Double(), false);
+				if (!contains(transformer.getTransformedBounds(), p.getX(), p.getY())) {
+					commitChanges(false);
+					e.consume();
+					return;
+				}
+			}
+			
 			Point2D p = viewer.componentPointToImagePoint(e.getX(), e.getY(), new Point2D.Double(), false);
 			if (transformer.getRotationHandle(viewer.getDownsampleFactor()).contains(p)) {
 				isRotating = true;
@@ -416,8 +417,6 @@ class RigidObjectEditorCommand implements Runnable, ChangeListener<ImageData<Buf
 		public void handle(MouseEvent e) {
 			if (e.getEventType() == MouseEvent.MOUSE_DRAGGED)
 				mouseDragged(e);
-			else if (e.getEventType() == MouseEvent.MOUSE_CLICKED)
-				mouseClicked(e);
 			else if (e.getEventType() == MouseEvent.MOUSE_PRESSED)
 				mousePressed(e);
 			else if (e.getEventType() == MouseEvent.MOUSE_RELEASED)
