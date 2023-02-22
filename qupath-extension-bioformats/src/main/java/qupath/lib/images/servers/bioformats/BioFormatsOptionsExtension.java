@@ -84,7 +84,7 @@ public class BioFormatsOptionsExtension implements QuPathExtension {
 		BooleanProperty enableBioformats = PathPrefs.createPersistentPreference("bfEnableBioformats", options.bioformatsEnabled());
 		BooleanProperty filesOnly = PathPrefs.createPersistentPreference("bfFilesOnly", options.getFilesOnly());
 		BooleanProperty useParallelization = PathPrefs.createPersistentPreference("bfUseParallelization", options.requestParallelization());
-		IntegerProperty memoizationTimeMillis = PathPrefs.createPersistentPreference("bfMemoizationTimeMS", options.getMemoizationTimeMillis());
+		IntegerProperty memoizationTimeMillis = PathPrefs.createPersistentPreference("bfMemoizationTimeMillis", options.getMemoizationTimeMillis());
 //		BooleanProperty parallelizeMultichannel = PathPrefs.createPersistentPreference("bfParallelizeMultichannel", options.requestParallelizeMultichannel());
 
 //		BooleanProperty requestChannelZCorrectionVSI = PathPrefs.createPersistentPreference("bfChannelZCorrectionVSI", options.requestChannelZCorrectionVSI());
@@ -131,6 +131,8 @@ public class BioFormatsOptionsExtension implements QuPathExtension {
 			
 			prefs.addDirectoryPropertyPreference(pathMemoization, "Bio-Formats memoization directory", "Bio-Formats",
 					"Choose directory where Bio-Formats should write cache files for memoization; by default the directory where the image is stored will be used");
+			
+			logMemoizationStatus(options);
 		}
 		
 		prefs.addPropertyPreference(useExtensions, String.class, "Always use Bio-Formats for specified image extensions", "Bio-Formats", 
@@ -140,6 +142,19 @@ public class BioFormatsOptionsExtension implements QuPathExtension {
 
 //		prefs.addPropertyPreference(requestChannelZCorrectionVSI, Boolean.class, "Correct VSI channel/z-stack confusion", "Bio-Formats", "Attempt to fix a bug that means some VSI files have different channels wrongly displayed as different z-slices");
 	}
+	
+	
+	private void logMemoizationStatus(BioFormatsServerOptions options) {
+		if (BioFormatsServerOptions.allowMemoization()) {
+			int millis = options.getMemoizationTimeMillis();
+			if (millis < 0) {
+				logger.info("If Bio-Formats is slow to load images, setting the Bio-Formats memoization time in QuPath's preferences may help (this will create temp files)");
+			} else {
+				logger.info("Bio-Formats memoization time limit: {} ms (temp files may be created to speed up image loading)", millis);
+			}
+		}
+	}
+	
 
 	private static void fillCollectionWithTokens(String text, Collection<String> collection) {
 		fillCollectionWithTokens(new StringTokenizer(text), collection);

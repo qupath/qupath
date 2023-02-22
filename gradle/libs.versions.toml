@@ -1,12 +1,12 @@
 [versions]
-groovy          = "4.0.6"
+groovy          = "4.0.9"
 javafx          = "19"
 ikonli          = "12.3.1"
 junit           = "5.9.1"
 javacpp         = "1.5.8"
 opencv          = "4.6.0-1.5.8"
 cuda            = "11.8-8.6-1.5.8"
-bioformats      = "6.11.1"
+bioformats      = "6.12.0"
 deepJavaLibrary = "0.20.0"
 
 [libraries]
@@ -22,7 +22,7 @@ guava         = { module = "com.google.guava:guava",            version = "31.1-
 
 imagej        = { module = "net.imagej:ij",                     version = "1.53v" }
 
-jfreesvg      = { module = "org.jfree:org.jfree.svg",           version = "5.0.3" }
+jfreesvg      = { module = "org.jfree:org.jfree.svg",           version = "5.0.5" }
 jfxtras       = { module = "org.jfxtras:jfxtras-menu",          version = "11-r2" }
 jts           = { module = "org.locationtech.jts:jts-core",     version = "1.19.0" }
 
