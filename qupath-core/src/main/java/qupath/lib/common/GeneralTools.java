@@ -615,7 +615,7 @@ public final class GeneralTools {
 	}
 	
 	/**
-	 * Small Green mu (useful for micrometers)
+	 * Small Greek mu (useful for micrometers)
 	 */
 	public static final char SYMBOL_MU = '\u00B5';
 
