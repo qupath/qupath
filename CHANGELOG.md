@@ -3,8 +3,10 @@
 This is a *minor release* that aims to be fully compatible with previous v0.4.x releases, while fixing bugs.
 
 ### Enhancements
-* Support Bio-Formats memoization (again) (https://github.com/qupath/qupath/issues/1236)
-  * To use this, set the 'Bio-Formats memoization time' in QuPath's preferences
+* Update to Bio-Formats 6.12.0
+  * See https://bio-formats.readthedocs.io/en/v6.12.0/about/whats-new.html
+* Add support for Bio-Formats memoization (again) (https://github.com/qupath/qupath/issues/1236)
+  * To use memoization, set the 'Bio-Formats memoization time' in QuPath's preferences
 
 ### Bugs fixed
 * Opening the same image in multiple viewers results in detections being wrongly shown in both (https://github.com/qupath/qupath/issues/1217)
@@ -14,7 +16,6 @@ This is a *minor release* that aims to be fully compatible with previous v0.4.x 
 
 ### Dependency updates
 * Bio-Formats 6.12.0
-  * See https://bio-formats.readthedocs.io/en/v6.12.0/about/whats-new.html
 * Groovy 4.0.9
 * JFreeSVG 5.0.5
 

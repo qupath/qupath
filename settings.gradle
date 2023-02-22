@@ -1,4 +1,4 @@
-gradle.ext.qupathVersion = "0.4.3-SNAPSHOT"
+gradle.ext.qupathVersion = "0.4.3"
 
 rootProject.name = 'qupath'
 
