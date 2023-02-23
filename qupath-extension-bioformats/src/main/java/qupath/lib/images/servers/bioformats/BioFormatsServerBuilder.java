@@ -105,6 +105,7 @@ public class BioFormatsServerBuilder implements ImageServerBuilder<BufferedImage
 		BioFormatsServerOptions options = BioFormatsServerOptions.getInstance();
 		
 		if (type.isURL() && options.getFilesOnly()) {
+			logger.debug("Cannot open URL with Bio-Formats - 'Bio-Formats files only' preference is turned on");
 			return 0;
 		}
 		

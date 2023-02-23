@@ -78,10 +78,27 @@ public class BioFormatsOptionsExtension implements QuPathExtension {
 		
 		var actions = new OmeTiffWriterAction(qupath);
 		qupath.installActions(ActionTools.getAnnotatedActions(actions));
-		
+
 		var prefs = new BioFormatsPreferences();
 		qupath.getPreferencePane().addAnnotatedProperties(prefs);
+
+		if (BioFormatsServerOptions.allowMemoization()) {
+			logMemoizationStatus(prefs.options);
+		}
 	}
+	
+	
+	private void logMemoizationStatus(BioFormatsServerOptions options) {
+		if (BioFormatsServerOptions.allowMemoization()) {
+			int millis = options.getMemoizationTimeMillis();
+			if (millis < 0) {
+				logger.info("If Bio-Formats is slow to load images, setting the Bio-Formats memoization time in QuPath's preferences may help (this will create temp files)");
+			} else {
+				logger.info("Bio-Formats memoization time limit: {} ms (temp files may be created to speed up image loading)", millis);
+			}
+		}
+	}
+	
 
 	private static void fillCollectionWithTokens(String text, Collection<String> collection) {
 		fillCollectionWithTokens(new StringTokenizer(text), collection);
@@ -131,7 +148,7 @@ public class BioFormatsOptionsExtension implements QuPathExtension {
 		@BooleanPref("Prefs.BioFormats.useParallelization")
 		public final BooleanProperty useParallelization = PathPrefs.createPersistentPreference("bfUseParallelization", options.requestParallelization());
 		@IntegerPref("Prefs.BioFormats.memoizationTimeMillis")
-		public final IntegerProperty memoizationTimeMillis = PathPrefs.createPersistentPreference("bfMemoizationTimeMS", options.getMemoizationTimeMillis());
+		public final IntegerProperty memoizationTimeMillis = PathPrefs.createPersistentPreference("bfMemoizationTimeMillis", options.getMemoizationTimeMillis());
 
 		@DirectoryPref("Prefs.BioFormats.pathMemoization")
 		public final StringProperty pathMemoization = PathPrefs.createPersistentPreference("bfPathMemoization", options.getPathMemoization());
