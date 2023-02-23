@@ -78,10 +78,20 @@ public class ChoiceParameter<S> extends AbstractParameter<S> {
 	 */
 	@Override
 	public boolean setStringLastValue(Locale locale, String value) {
+		// Use toString() method first - this may change to the name() method for enums
 		for (S choice : choices) {
 			String choiceValue = choice.toString();
 			if (choiceValue.equals(value)) {
 				return setValue(choice);
+			}
+		}
+		// Workaround for https://github.com/qupath/qupath/issues/1227
+		// Pre-v0.4 JSON serialization used Enum.toString() rather than Enum.name()
+		for (S choice : choices) {
+			if (choice instanceof Enum<?>) {
+				String name = ((Enum)choice).name();
+				if (name.equals(value))
+					return setValue(choice);
 			}
 		}
 		return false;

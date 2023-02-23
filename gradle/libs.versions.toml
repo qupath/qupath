@@ -22,7 +22,7 @@ guava         = { module = "com.google.guava:guava",            version = "31.1-
 
 imagej        = { module = "net.imagej:ij",                     version = "1.54b" }
 
-jfreesvg      = { module = "org.jfree:org.jfree.svg",           version = "5.0.4" }
+jfreesvg      = { module = "org.jfree:org.jfree.svg",           version = "5.0.5" }
 jfxtras       = { module = "org.jfxtras:jfxtras-menu",          version = "17-r1" }
 jts           = { module = "org.locationtech.jts:jts-core",     version = "1.19.0" }
 
