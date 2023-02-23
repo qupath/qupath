@@ -22,13 +22,19 @@
 
 package qupath.lib.gui;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.Locale;
 import java.util.Locale.Category;
 import java.util.MissingResourceException;
+import java.util.PropertyResourceBundle;
 import java.util.ResourceBundle;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import qupath.lib.gui.prefs.PathPrefs;
 
 /**
  * Load strings from the default resource bundle.
@@ -39,6 +45,8 @@ import org.slf4j.LoggerFactory;
 public class QuPathResources {
 	
 	private static final Logger logger = LoggerFactory.getLogger(QuPathResources.class);
+	
+	private static final QuPathResourceControl CONTROL = new QuPathResourceControl();
 	
 	private static final String DEFAULT_BUNDLE = "qupath/lib/gui/localization/qupath-strings";
 	
@@ -77,12 +85,49 @@ public class QuPathResources {
 		if (bundleName == null || bundleName.isEmpty())
 			bundleName = DEFAULT_BUNDLE;
 		try {
-			return ResourceBundle.getBundle(bundleName, Locale.getDefault(Category.DISPLAY));
+			return ResourceBundle.getBundle(bundleName, Locale.getDefault(Category.DISPLAY), ExtensionClassLoader.getInstance(), CONTROL);
 		} catch (MissingResourceException e) {
 			logger.error("Missing resource bundle {}", bundleName);
 			return null;
 		}
 	}
 	
+	
+	
+	private static class QuPathResourceControl extends ResourceBundle.Control {
+		
+		private final static Logger logger = LoggerFactory.getLogger(QuPathResourceControl.class);
+		
+		@Override
+		public ResourceBundle newBundle(String baseName, Locale locale, String format, ClassLoader loader, boolean reload) 
+				throws IllegalAccessException, InstantiationException, IOException {
+			
+			ResourceBundle bundle = super.newBundle(baseName, locale, format, loader, reload);
+			if (bundle != null)
+				return bundle;
+			
+			String bundleName = toBundleName(baseName, locale);
+			logger.debug("Searching for {}", bundleName);
+			var userPath = PathPrefs.getUserPath();
+			if (userPath != null) {
+				try {
+					int ind = bundleName.replace('.', '/').lastIndexOf("/");
+					String name = ind < 0 ? bundleName : bundleName.substring(ind+1);
+					var path = Paths.get(userPath, "localization", name + ".properties");
+					if (Files.isRegularFile(path)) {
+						try (var reader = Files.newBufferedReader(path)) {
+							logger.debug("Reading bundle from {}", path);
+							return new PropertyResourceBundle(reader);
+						}
+					}
+				} catch (Exception e) {
+					logger.debug(e.getLocalizedMessage(), e);
+				}
+			}
+			
+			return null;
+		}
+		
+	}
 
 }
