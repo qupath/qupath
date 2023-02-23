@@ -1,4 +1,4 @@
-## Version 0.4.3-SNAPSHOT
+## Version 0.4.3
 
 This is a *minor release* that aims to be fully compatible with previous v0.4.x releases, while fixing bugs.
 
@@ -11,8 +11,10 @@ This is a *minor release* that aims to be fully compatible with previous v0.4.x 
 ### Bugs fixed
 * Opening the same image in multiple viewers results in detections being wrongly shown in both (https://github.com/qupath/qupath/issues/1217)
 * 'Transform annotations' can't be applied to selected objects when double-clicking to end the transform (https://github.com/qupath/qupath/issues/1231)
-* Wrong script generated for 'Add intensity features' with some tile shapes (https://github.com/qupath/qupath/issues/1227)
+* Unusable script generated for 'Add intensity features' with some tile shapes (https://github.com/qupath/qupath/issues/1227)
+* Unusable generated for 'Expand annotations' with some line caps (https://github.com/qupath/qupath/issues/1227)
 * 'Tile classifications to annotations' is broken (https://github.com/qupath/qupath/issues/1226)
+* Directory preferences cannot be reset (https://github.com/qupath/qupath/issues/1240)
 
 ### Dependency updates
 * Bio-Formats 6.12.0

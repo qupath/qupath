@@ -120,7 +120,7 @@ public class BioFormatsOptionsExtension implements QuPathExtension {
 		// Add preferences to QuPath GUI
 		PreferencePane prefs = QuPathGUI.getInstance().getPreferencePane();
 		prefs.addPropertyPreference(enableBioformats, Boolean.class, "Enable Bio-Formats", "Bio-Formats", "Allow QuPath to use Bio-Formats for image reading");
-		prefs.addPropertyPreference(filesOnly, Boolean.class, "Local files only", "Bio-Formats", "Limit Bio-Formats to only opening local files, not other URLs.\n"
+		prefs.addPropertyPreference(filesOnly, Boolean.class, "Bio-Formats files only", "Bio-Formats", "Limit Bio-Formats to only opening files, not other URLs.\n"
 				+ "Allowing Bio-Formats to open URLs can cause performance issues if this results in attempting to open URLs intended to be read using other image servers.");
 		prefs.addPropertyPreference(useParallelization, Boolean.class, "Enable Bio-Formats tile parallelization", "Bio-Formats", "Enable reading image tiles in parallel when using Bio-Formats");
 //		prefs.addPropertyPreference(parallelizeMultichannel, Boolean.class, "Enable Bio-Formats channel parallelization (experimental)", "Bio-Formats", "Request multiple image channels in parallel, even if parallelization of tiles is turned off - "
