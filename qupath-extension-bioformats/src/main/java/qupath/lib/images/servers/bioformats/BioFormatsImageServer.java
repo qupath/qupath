@@ -167,10 +167,10 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 	private String[] args;
 	
 	/**
-	 * Path to the base image file - will be the same as path, unless the path encodes the name of a specific series, in which case this refers to the file without the series included
+	 * File path if possible, or a URI otherwise.
 	 */
-	private String filePath;
-		
+	private String filePathOrUrl;
+	
 	/**
 	 * Fix issue related to VSI images having (wrong) z-slices
 	 */
@@ -314,20 +314,20 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		// Try to get a local file path, but accept something else (since Bio-Formats handles other URIs)
 		try {
 			var path = GeneralTools.toPath(uri);
-			if (path != null)
-				filePath = path.toString();
-//			filePath = Paths.get(uri).toString();
+			if (path != null) {
+				filePathOrUrl = path.toString();
+			}
 		} catch (Exception e) {
 			logger.error(e.getLocalizedMessage(), e);
 		} finally {
-			if (filePath == null) {
+			if (filePathOrUrl == null) {
 				logger.debug("Using URI as file path: {}", uri);
-				filePath = uri.toString();
+				filePathOrUrl = uri.toString();
 			}
 		}
 
 		// Create a reader & extract the metadata
-		readerPool = new ReaderPool(options, filePath, bfArgs);
+		readerPool = new ReaderPool(options, filePathOrUrl, bfArgs);
 		IFormatReader reader = readerPool.getMainReader();
 		var meta = (OMEPyramidStore)reader.getMetadataStore();
 
@@ -986,7 +986,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 	 * @return
 	 */
 	public File getFile() {
-		return filePath == null ? null : new File(filePath);
+		return filePathOrUrl == null ? null : new File(filePathOrUrl);
 	}
 
 
@@ -1160,8 +1160,10 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			Memoizer memoizer = null;
 			int memoizationTimeMillis = options.getMemoizationTimeMillis();
 			File dir = null;
-			// We can only use memoization if we don't have an illegal character
-			if (BioFormatsServerOptions.allowMemoization() && memoizationTimeMillis >= 0 && !id.contains(":")) {
+			File fileMemo = null;
+			boolean useTempMemoDirectory = false;
+			// Check if we want to (and can) use memoization
+			if (BioFormatsServerOptions.allowMemoization() && memoizationTimeMillis >= 0) {
 				// Try to use a specified directory
 				String pathMemoization = options.getPathMemoization();
 				if (pathMemoization != null && !pathMemoization.trim().isEmpty()) {
@@ -1173,10 +1175,22 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 				}
 				if (dir == null) {
 					dir = getTempMemoDir(true);
+					useTempMemoDirectory = dir != null;
 				}
 				if (dir != null) {
-					memoizer = new Memoizer(imageReader, memoizationTimeMillis, dir);
-					imageReader = memoizer;
+					try {
+						memoizer = new Memoizer(imageReader, memoizationTimeMillis, dir);
+						fileMemo = memoizer.getMemoFile(id);
+						// The call to .toPath() should throw an InvalidPathException if there are illegal characters
+						// If so, we want to know that now before committing to the memoizer
+						if (fileMemo != null && fileMemo.toPath() != null)
+							imageReader = memoizer;
+					} catch (Exception e) {
+						logger.warn("Unable to use memoization: {}", e.getLocalizedMessage());
+						logger.debug(e.getLocalizedMessage(), e);
+						fileMemo = null;
+						memoizer = null;
+					}
 				}
 			}
 			
@@ -1194,10 +1208,9 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			
 			
 			if (id != null) {
-				if (memoizer != null) {
-					File fileMemo = ((Memoizer)imageReader).getMemoFile(id);
-					// If we're using a temporary directory, delete the memo file
-					if (dir == getTempMemoDir(false))
+				if (fileMemo != null) {
+					// If we're using a temporary directory, delete the memo file when app closes
+					if (useTempMemoDirectory)
 						tempMemoFiles.add(fileMemo);
 					
 					long memoizationFileSize = fileMemo == null ? 0L : fileMemo.length();
@@ -1248,6 +1261,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			
 			return imageReader;
 		}
+		
 				
 		
 		private IFormatReader nextQueuedReader() throws InterruptedException {

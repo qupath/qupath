@@ -803,7 +803,7 @@ public class PreferencePane {
 
 		DirectoryPropertyItem(final Property<String> prop) {
 			this.prop = prop;
-			fileValue = Bindings.createObjectBinding(() -> prop.getValue() == null ? null : new File(prop.getValue()), prop);
+			fileValue = Bindings.createObjectBinding(() -> prop.getValue() == null || prop.getValue().isEmpty() ? null : new File(prop.getValue()), prop);
 		}
 
 		@Override
@@ -818,9 +818,9 @@ public class PreferencePane {
 
 		@Override
 		public void setValue(Object value) {
-			if (value instanceof String)
+			if (value instanceof String) {
 				prop.setValue((String)value);
-			else if (value instanceof File)
+			} else if (value instanceof File)
 				prop.setValue(((File)value).getAbsolutePath());
 			else if (value == null)
 				prop.setValue(null);
