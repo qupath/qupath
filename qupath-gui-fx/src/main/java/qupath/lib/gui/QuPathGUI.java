@@ -120,6 +120,7 @@ import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.Dialogs.DialogButton;
 import qupath.lib.gui.images.stores.DefaultImageRegionStore;
 import qupath.lib.gui.images.stores.ImageRegionStoreFactory;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.logging.LogManager;
 import qupath.lib.gui.panes.ImageDetailsPane;
 import qupath.lib.gui.panes.PreferencePane;

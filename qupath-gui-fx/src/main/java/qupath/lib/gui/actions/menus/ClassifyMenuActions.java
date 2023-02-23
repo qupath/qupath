@@ -5,11 +5,11 @@ import java.util.List;
 import org.controlsfx.control.action.Action;
 
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.QuPathResources;
 import qupath.lib.gui.actions.ActionTools;
 import qupath.lib.gui.actions.annotations.ActionConfig;
 import qupath.lib.gui.actions.annotations.ActionMenu;
 import qupath.lib.gui.commands.Commands;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.objects.PathDetectionObject;
 
 public class ClassifyMenuActions implements MenuActions {

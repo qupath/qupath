@@ -11,7 +11,6 @@ import javafx.scene.image.Image;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.DataFormat;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.QuPathResources;
 import qupath.lib.gui.UndoRedoManager;
 import qupath.lib.gui.actions.ActionTools;
 import qupath.lib.gui.actions.CommonActions;
@@ -19,6 +18,7 @@ import qupath.lib.gui.actions.annotations.ActionAccelerator;
 import qupath.lib.gui.actions.annotations.ActionConfig;
 import qupath.lib.gui.actions.annotations.ActionMenu;
 import qupath.lib.gui.commands.Commands;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.tools.GuiTools;
 
 public class EditMenuActions implements MenuActions {

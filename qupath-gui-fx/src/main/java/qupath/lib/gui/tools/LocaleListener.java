@@ -8,7 +8,7 @@ import org.slf4j.LoggerFactory;
 
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
-import qupath.lib.gui.QuPathResources;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.prefs.PathPrefs;
 
 /**

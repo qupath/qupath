@@ -39,6 +39,7 @@ import javafx.scene.shape.Path;
 import javafx.scene.text.Font;
 import javafx.scene.text.Text;
 import qupath.lib.gui.dialogs.Dialogs;
+import qupath.lib.gui.localization.QuPathResources;
 
 /**
  * A custom JavaFX circular-slider control.

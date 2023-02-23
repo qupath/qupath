@@ -33,6 +33,8 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.TreeMap;
 import java.util.function.Function;
+import java.util.function.Predicate;
+
 import org.controlsfx.control.PropertySheet;
 import org.controlsfx.control.PropertySheet.Item;
 import org.controlsfx.control.PropertySheet.Mode;
@@ -51,11 +53,13 @@ import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.Property;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.collections.transformation.FilteredList;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -71,8 +75,8 @@ import javafx.scene.text.FontWeight;
 import javafx.scene.text.TextAlignment;
 import javafx.util.Duration;
 import javafx.util.StringConverter;
-import qupath.lib.gui.QuPathResources;
 import qupath.lib.gui.dialogs.Dialogs;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.logging.LogManager;
 import qupath.lib.gui.logging.LogManager.LogLevel;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -109,6 +113,8 @@ public class PreferencePane {
 	private PropertySheet propSheet;
 	
 	private static LocaleManager localeManager = new LocaleManager();
+	
+	private boolean localeChangedSinceRefresh = false;
 	
 	private BorderPane pane;
 	
@@ -197,6 +203,7 @@ public class PreferencePane {
 	
 	private void setLocaleChanged() {
 		localeChanged.set(true);
+		localeChangedSinceRefresh = true;
 	}
 	
 	
@@ -318,10 +325,10 @@ public class PreferencePane {
 	@PrefCategory("Prefs.Locale")
 	static class LocalePreferences {
 		
-		@LocalePref("Prefs.Locale.default")
+		@LocalePref(value = "Prefs.Locale.default", availableLanguagesOnly = true)
 		public final ObjectProperty<Locale> localeDefault = PathPrefs.defaultLocaleProperty();
 
-		@LocalePref("Prefs.Locale.display")
+		@LocalePref(value = "Prefs.Locale.display", availableLanguagesOnly = true)
 		public final ObjectProperty<Locale> localeDisplay = PathPrefs.defaultLocaleDisplayProperty();
 
 		@LocalePref("Prefs.Locale.format")
@@ -622,10 +629,17 @@ public class PreferencePane {
 	 */
 	public void refreshAllEditors() {
 		// Force all editors to be recreated
-		// This is useful when the locale has been changed
-		var items = new ArrayList<>(propSheet.getItems());
-		propSheet.getItems().clear();
-		propSheet.getItems().addAll(items);
+		// This is useful when the locale has been changed - 
+		// but we don't want to do it too often, because old 
+		// property editors hang on too long
+		if (localeChangedSinceRefresh) {
+			logger.info("Refreshing preferences because of locale change");
+			var items = new ArrayList<>(propSheet.getItems());
+			propSheet.getItems().clear();
+			propSheet.getItems().addAll(items);
+			localeChangedSinceRefresh = false;
+		}
+//		localeManager.refreshAvailableLanguages();
 	}
 
 	
@@ -915,6 +929,9 @@ public class PreferencePane {
 		private Map<String, Locale> localeMap = new TreeMap<>();
 		private StringConverter<Locale> converter;
 		
+		private Predicate<Locale> availableLanguagePredicate = QuPathResources::hasDefaultBundleForLocale;
+		private ObjectProperty<Predicate<Locale>> availableLanguagePredicateProperty = new SimpleObjectProperty<>(availableLanguagePredicate);
+		
 		private LocaleManager() {
 			initializeLocaleMap();
 			converter = new LocaleConverter();
@@ -945,6 +962,18 @@ public class PreferencePane {
 		public ObservableList<Locale> createLocaleList() {
 			return FXCollections.observableArrayList(localeMap.values());
 		}
+		
+		public FilteredList<Locale> createAvailableLanguagesList() {
+			var filtered = createLocaleList().filtered(availableLanguagePredicate);
+			filtered.predicateProperty().bind(availableLanguagePredicateProperty);
+			return filtered;
+		}
+		
+//		public void refreshAvailableLanguages() {
+//			// Awkward... but refresh list
+//			availableLanguagePredicateProperty.set(null);
+//			availableLanguagePredicateProperty.set(availableLanguagePredicate);
+//		}
 		
 		public StringConverter<Locale> getStringConverter() {
 			return converter;
@@ -981,8 +1010,9 @@ public class PreferencePane {
 
 		public SearchableChoiceEditor(Item property, ObservableList<T> choices) {
 			super(property, new SearchableComboBox<T>());
-			if (property.getType().equals(Locale.class))
+			if (property.getType().equals(Locale.class)) {
 				getEditor().setConverter((StringConverter<T>)localeManager.getStringConverter());
+			}
 			getEditor().setItems(choices);
 		}
 
@@ -1057,6 +1087,7 @@ public class PreferencePane {
 			if (item.getType() == File.class) {
 				return new DirectoryEditor(item, new TextField());
 			}
+			
 			PropertyEditor<?> editor;
 			if (item instanceof ChoicePropertyItem) {
 				var choiceItem = ((ChoicePropertyItem<?>)item);
@@ -1087,7 +1118,6 @@ public class PreferencePane {
 					}
 				});
 			}
-			
 			return editor;
 		}
 	}
@@ -1284,7 +1314,7 @@ public class PreferencePane {
 		return buildItem(property, Locale.class)
 				.key(annotation.value())
 				.bundle(annotation.bundle())
-				.choices(localeManager.createLocaleList())
+				.choices(annotation.availableLanguagesOnly() ? localeManager.createAvailableLanguagesList() : localeManager.createLocaleList())
 				.propertyType(PropertyType.SEARCHABLE_CHOICE)
 				.build();
 	}
