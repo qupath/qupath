@@ -1013,7 +1013,7 @@ public class PreferencePane {
 	}
 	
 	
-	private static abstract class AbstractChoiceEditor<T, S extends ComboBox<T>> extends AbstractPropertyEditor<T, S> implements ListChangeListener<T> {
+	private abstract static class AbstractChoiceEditor<T, S extends ComboBox<T>> extends AbstractPropertyEditor<T, S> implements ListChangeListener<T> {
 		
 		private ObservableList<T> choices;
 		
