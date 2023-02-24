@@ -73,6 +73,12 @@ public class ScriptStylerProvider {
 	 * Styler for JSON
 	 */
 	public static final ScriptStyler JSON = new JsonStyler();
+	
+	/**
+	 * Styler for Java properties files
+	 */
+	public static final ScriptStyler PROPERTIES = new PropertiesStyler();
+
 
 	/**
 	 * Styler for Python
@@ -109,6 +115,7 @@ public class ScriptStylerProvider {
 		stylers.add(MARKDOWN);
 		stylers.add(JSON);
 		stylers.add(PYTHON);
+		stylers.add(PROPERTIES);
 		stylers.add(XML);
 		stylers.add(YAML);
 		return stylers;
