@@ -32,6 +32,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.TreeMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
@@ -56,13 +57,16 @@ import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
+import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
+import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
+import javafx.scene.Parent;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
@@ -204,6 +208,13 @@ public class PreferencePane {
 	private void setLocaleChanged() {
 		localeChanged.set(true);
 		localeChangedSinceRefresh = true;
+//		for (var title : propSheet.lookupAll(".titled-pane")) {
+//			if (title instanceof TitledPane titledPane) {
+//				if (!titledPane.textProperty().isBound()) {
+//					System.err.println(title);
+//				}
+//			}
+//		}
 	}
 	
 	
@@ -628,18 +639,21 @@ public class PreferencePane {
 	 * This is useful if the Locale has changed, and so the text may need to be updated.
 	 */
 	public void refreshAllEditors() {
-		// Force all editors to be recreated
-		// This is useful when the locale has been changed - 
-		// but we don't want to do it too often, because old 
-		// property editors hang on too long
+		// Attempt to force a property sheet refresh if the locale may have changed
 		if (localeChangedSinceRefresh) {
+//			var comp = propSheet.getCategoryComparator();
+//			propSheet.setCategoryComparator(String::compareTo);
+//			propSheet.setCategoryComparator(comp);
+//			propSheet.setModeSwitcherVisible(localeChangedSinceRefresh);
+			
+			// Alternative code to rebuild the editors
 			logger.info("Refreshing preferences because of locale change");
 			var items = new ArrayList<>(propSheet.getItems());
 			propSheet.getItems().clear();
 			propSheet.getItems().addAll(items);
 			localeChangedSinceRefresh = false;
 		}
-//		localeManager.refreshAvailableLanguages();
+		localeManager.refreshAvailableLanguages();
 	}
 
 	
@@ -964,16 +978,17 @@ public class PreferencePane {
 		}
 		
 		public FilteredList<Locale> createAvailableLanguagesList() {
+			
 			var filtered = createLocaleList().filtered(availableLanguagePredicate);
 			filtered.predicateProperty().bind(availableLanguagePredicateProperty);
 			return filtered;
 		}
 		
-//		public void refreshAvailableLanguages() {
-//			// Awkward... but refresh list
-//			availableLanguagePredicateProperty.set(null);
-//			availableLanguagePredicateProperty.set(availableLanguagePredicate);
-//		}
+		public void refreshAvailableLanguages() {
+			// Awkward... but refresh list
+			availableLanguagePredicateProperty.set(null);
+			availableLanguagePredicateProperty.set(availableLanguagePredicate);
+		}
 		
 		public StringConverter<Locale> getStringConverter() {
 			return converter;
@@ -995,6 +1010,52 @@ public class PreferencePane {
 			
 		}
 		
+	}
+	
+	
+	private static abstract class AbstractChoiceEditor<T, S extends ComboBox<T>> extends AbstractPropertyEditor<T, S> implements ListChangeListener<T> {
+		
+		private ObservableList<T> choices;
+		
+		public AbstractChoiceEditor(S combo, Item property, ObservableList<T> choices) {
+			super(property, combo);
+			if (property.getType().equals(Locale.class)) {
+				combo.setConverter((StringConverter<T>)localeManager.getStringConverter());
+			}
+			this.choices = choices;
+			combo.getItems().setAll(choices);
+			this.choices.addListener(this);
+		}
+
+		@Override
+		public void setValue(T value) {
+//			System.err.println("SETTING: " + hashCode() + " - " + getProperty().getName());
+			// Only set the value if it's available as a choice
+			var combo = getEditor();
+			if (combo.getItems().contains(value))
+				combo.getSelectionModel().select(value);
+			else
+				combo.getSelectionModel().clearSelection();
+		}
+
+		@Override
+		protected ObservableValue<T> getObservableValue() {
+			return getEditor().getSelectionModel().selectedItemProperty();
+		}
+
+		@Override
+		public void onChanged(Change<? extends T> c) {
+			syncComboItemsToChoices();
+		}
+		
+		private void syncComboItemsToChoices() {
+			// We need to clear the existing selection
+			var selected = getProperty().getValue();
+			var comboItems = getEditor().getItems();
+			getEditor().getSelectionModel().clearSelection();
+			comboItems.setAll(choices);
+			setValue((T)selected);
+		}
 		
 	}
 	
@@ -1002,33 +1063,18 @@ public class PreferencePane {
 	 * Editor for choosing from a longer list of items, aided by a searchable combo box.
 	 * @param <T> 
 	 */
-	static class SearchableChoiceEditor<T> extends AbstractPropertyEditor<T, SearchableComboBox<T>> {
+	static class SearchableChoiceEditor<T> extends AbstractChoiceEditor<T, SearchableComboBox<T>> {
 
 		public SearchableChoiceEditor(Item property, Collection<? extends T> choices) {
 			this(property, FXCollections.observableArrayList(choices));
 		}
 
 		public SearchableChoiceEditor(Item property, ObservableList<T> choices) {
-			super(property, new SearchableComboBox<T>());
-			if (property.getType().equals(Locale.class)) {
-				getEditor().setConverter((StringConverter<T>)localeManager.getStringConverter());
-			}
-			getEditor().setItems(choices);
-		}
-
-		@Override
-		public void setValue(T value) {
-			// Only set the value if it's available as a choice
-			if (getEditor().getItems().contains(value))
-				getEditor().getSelectionModel().select(value);
-		}
-
-		@Override
-		protected ObservableValue<T> getObservableValue() {
-			return getEditor().getSelectionModel().selectedItemProperty();
+			super(new SearchableComboBox<T>(), property, choices);
 		}
 		
 	}
+	
 	
 	/**
 	 * Editor for choosing from a combo box, which will use an observable list directly if it can 
@@ -1036,27 +1082,14 @@ public class PreferencePane {
 	 *
 	 * @param <T>
 	 */
-	static class ChoiceEditor<T> extends AbstractPropertyEditor<T, ComboBox<T>> {
+	static class ChoiceEditor<T> extends AbstractChoiceEditor<T, ComboBox<T>> {
 
 		public ChoiceEditor(Item property, Collection<? extends T> choices) {
 			this(property, FXCollections.observableArrayList(choices));
 		}
 
 		public ChoiceEditor(Item property, ObservableList<T> choices) {
-			super(property, new ComboBox<T>());
-			getEditor().setItems(choices);
-		}
-
-		@Override
-		public void setValue(T value) {
-			// Only set the value if it's available as a choice
-			if (getEditor().getItems().contains(value))
-				getEditor().getSelectionModel().select(value);
-		}
-
-		@Override
-		protected ObservableValue<T> getObservableValue() {
-			return getEditor().getSelectionModel().selectedItemProperty();
+			super(new ComboBox<T>(), property, choices);
 		}
 		
 	}
@@ -1080,16 +1113,26 @@ public class PreferencePane {
 	 * Extends {@link DefaultPropertyEditorFactory} to handle setting directories and creating choice editors.
 	 */
 	public static class PropertyEditorFactory extends DefaultPropertyEditorFactory {
-
+		
+		// Set this to true to automatically update labels & tooltips
+		// (but not categories, unfortunately, so it can look odd)
+		private boolean bindLabelText = false;
+		
+		// Need to cache editors, since the property sheet is rebuilt often 
+		// (but isn't smart enough to detach the editor listeners, so old ones hang around 
+		// and respond to 'setValue()' calls)
+		private Map<Item, PropertyEditor<?>> cache = new ConcurrentHashMap<>();
+		
 		@SuppressWarnings("unchecked")
 		@Override
 		public PropertyEditor<?> call(Item item) {
-			if (item.getType() == File.class) {
-				return new DirectoryEditor(item, new TextField());
-			}
+			PropertyEditor<?> editor = cache.getOrDefault(item, null);
+			if (editor != null)
+				return editor;
 			
-			PropertyEditor<?> editor;
-			if (item instanceof ChoicePropertyItem) {
+			if (item.getType() == File.class) {
+				editor = new DirectoryEditor(item, new TextField());
+			} else if (item instanceof ChoicePropertyItem) {
 				var choiceItem = ((ChoicePropertyItem<?>)item);
 				if (choiceItem.makeSearchable()) {
 					editor = new SearchableChoiceEditor<>(choiceItem, choiceItem.getChoices());
@@ -1098,6 +1141,7 @@ public class PreferencePane {
 					editor = new ChoiceEditor<>(choiceItem, choiceItem.getChoices());
 			} else
 				editor = super.call(item);
+			
 			if (reformatTypes.containsKey(item.getType()) && editor.getEditor() instanceof ComboBox) {
 				@SuppressWarnings("rawtypes")
 				var combo = (ComboBox)editor.getEditor();
@@ -1118,8 +1162,52 @@ public class PreferencePane {
 					}
 				});
 			}
+			
+			if (bindLabelText && item instanceof PropertyItem) {
+				var listener = new ParentChangeListener((PropertyItem)item, editor.getEditor());
+				editor.getEditor().parentProperty().addListener(listener);
+			}
+			
+			cache.put(item, editor);
+			
 			return editor;
 		}
+		
+		/**
+		 * Listener to bind the label & tooltip text (since these aren't accessible via the PropertySheet)
+		 */
+		private static class ParentChangeListener implements ChangeListener<Parent> {
+
+			private PropertyItem item;
+			private Node node;
+			
+			private ParentChangeListener(PropertyItem item, Node node) {
+				this.item = item;
+				this.node = node;
+			}
+			
+			@Override
+			public void changed(ObservableValue<? extends Parent> observable, Parent oldValue, Parent newValue) {
+				if (newValue == null)
+					return;
+				
+				for (var labelLookup : newValue.lookupAll(".label")) {
+					if (labelLookup instanceof Label label) {
+						if (label.getLabelFor() == node) {
+							if (!label.textProperty().isBound())
+								label.textProperty().bind(item.name);
+							var tooltip = label.getTooltip();
+							if (tooltip != null && !tooltip.textProperty().isBound())
+								tooltip.textProperty().bind(item.description);
+							break;
+						}
+					}
+				}
+			}
+			
+		}
+		
+		
 	}
 	
 	
