@@ -29,7 +29,6 @@ import java.lang.reflect.Method;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardWatchEventKinds;
 import java.nio.file.WatchEvent;
@@ -53,6 +52,7 @@ import javafx.collections.ListChangeListener.Change;
 import javafx.collections.ObservableList;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.ThreadTools;
+import qupath.lib.gui.UserDirectoryManager;
 import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.Dialogs.DialogButton;
@@ -203,6 +203,12 @@ public class QuPathStyleManager {
 		}
 	}
 	
+	
+	private static Path getCssDirectory() {
+		return UserDirectoryManager.getInstance().getCssStylesPath();
+	}
+	
+	
 	/**
 	 * Request that the list of available styles is updated.
 	 * It makes sense to call this when a new user directory has been set, so that a check for CSS files 
@@ -211,10 +217,9 @@ public class QuPathStyleManager {
 	public static void updateAvailableStyles() {
 		
 		// Make sure we're still watching the correct directory for custom styles
-		var cssPathString = PathPrefs.getCssStylesPath();
-		if (cssPathString != null) {
+		var cssPath = getCssDirectory();
+		if (cssPath != null) {
 			// Create a new watcher if needed, or else check the CSS path is still correct
-			var cssPath = Paths.get(cssPathString);
 			if (watcher == null) {
 				try {
 					watcher = new CssStylesWatcher(cssPath);
@@ -265,13 +270,12 @@ public class QuPathStyleManager {
 		if (dir == null)
 			return false;
 		
-		var pathCssString = PathPrefs.getCssStylesPath();
+		var pathCss = getCssDirectory();
 		
 		int nInstalled = 0;
 		try {
 			// If we have a user directory, add a CSS subdirectory if needed
-			var pathCss = Paths.get(pathCssString);
-			if (!Files.exists(pathCss)) {
+			if (pathCss != null && !Files.exists(pathCss)) {
 				if (Files.isDirectory(pathCss.getParent()))
 					Files.createDirectory(pathCss);
 			}
@@ -342,7 +346,7 @@ public class QuPathStyleManager {
 	
 	/**
 	 * Get the current available styles as an observable list.
-	 * The list is unmodifiable, since any changes should be made via {@link PathPrefs#getCssStylesPath()}.
+	 * The list is unmodifiable, since any changes should be made via adding/removing files in {@link UserDirectoryManager#getCssStylesPath()}.
 	 * @return
 	 */
 	public static ObservableList<StyleOption> availableStylesProperty() {

@@ -25,7 +25,6 @@ package qupath.lib.gui.localization;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -41,7 +40,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.gui.ExtensionClassLoader;
-import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.UserDirectoryManager;
 
 /**
  * Load strings from the default resource bundle.
@@ -110,9 +109,7 @@ public class QuPathResources {
 	
 	private static class QuPathResourceControl extends ResourceBundle.Control {
 		
-		private final static Logger logger = LoggerFactory.getLogger(QuPathResourceControl.class);
-		
-		private final static String DIR_NAME = "localization";
+		private static final Logger logger = LoggerFactory.getLogger(QuPathResourceControl.class);
 		
 		// Directory containing the code
 		private Path codePath;
@@ -208,10 +205,10 @@ public class QuPathResources {
 		
 		private List<Path> getLocalizationDirectoryPaths() {
 			List<Path> paths = new ArrayList<>();
-			var userSearchPath = getUserLocalizationDirectoryOrNull(DIR_NAME);
+			var userSearchPath = getUserLocalizationDirectoryOrNull();
 			if (userSearchPath != null)
 				paths.add(userSearchPath);
-			var codeSearchPath = getCodeLocalizationDirectoryOrNull(DIR_NAME);
+			var codeSearchPath = getCodeLocalizationDirectoryOrNull();
 			if (codeSearchPath != null)
 				paths.add(codeSearchPath);			
 			return paths;
@@ -223,22 +220,17 @@ public class QuPathResources {
 			return null;
 		}
 		
-		private Path getUserLocalizationDirectoryOrNull(String subdirName) {
-			var userPath = PathPrefs.getUserPath();
-			if (userPath != null) {
-				try {
-					return getDirectoryOrNull(Paths.get(userPath, subdirName));
-				} catch (InvalidPathException e) {
-					logger.debug(e.getLocalizedMessage(), e);
-				}
-			}
+		private Path getUserLocalizationDirectoryOrNull() {
+			var userPath = UserDirectoryManager.getInstance().getLocalizationDirectoryPath();
+			if (userPath != null)
+				return getDirectoryOrNull(userPath);
 			return null;
 		}
 		
-		private Path getCodeLocalizationDirectoryOrNull(String subdirName) {
+		private Path getCodeLocalizationDirectoryOrNull() {
 			if (codePath == null)
 				return null;
-			return getDirectoryOrNull(codePath.resolve(subdirName));
+			return getDirectoryOrNull(codePath.resolve(UserDirectoryManager.DIR_LOCALIZATION));
 		}
 		
 		

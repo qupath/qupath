@@ -28,14 +28,11 @@ import java.net.URLClassLoader;
 import java.nio.file.FileVisitOption;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Objects;
 import java.util.function.Supplier;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import qupath.lib.gui.prefs.PathPrefs;
 
 /**
  * {@link ClassLoader} for loading QuPath extensions and other jars from the user directory.
@@ -69,18 +66,15 @@ public class ExtensionClassLoader extends URLClassLoader {
 		if (INSTANCE == null) {
 			synchronized (ExtensionClassLoader.class) {
 				if (INSTANCE == null)
-					INSTANCE = new ExtensionClassLoader(() -> getExtensionsDirectoryFromPrefs());
+					INSTANCE = new ExtensionClassLoader(() -> getExtensionsDirectory());
 			}
 		}
 		return INSTANCE;
 	}
 
 
-	private static Path getExtensionsDirectoryFromPrefs() {
-		String path = PathPrefs.getExtensionsPath();
-		if (path == null || path.trim().length() == 0)
-			return null;
-		return Paths.get(path);
+	private static Path getExtensionsDirectory() {
+		return UserDirectoryManager.getInstance().getUserPath();
 	}
 
 

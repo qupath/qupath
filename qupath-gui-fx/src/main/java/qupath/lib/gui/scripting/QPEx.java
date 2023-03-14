@@ -31,7 +31,6 @@ import java.lang.reflect.Constructor;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -54,6 +53,7 @@ import qupath.lib.display.ChannelDisplayInfo;
 import qupath.lib.display.DirectServerChannelInfo;
 import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.UserDirectoryManager;
 import qupath.lib.gui.charts.Charts;
 import qupath.lib.gui.commands.SummaryMeasurementTableCommand;
 import qupath.lib.gui.dialogs.Dialogs;
@@ -200,9 +200,9 @@ public class QPEx extends QP {
 		var path = project == null ? null : project.getPath();
 		if (path != null)
 			paths.add(path);
-		var userPath = PathPrefs.getUserPath();
+		var userPath = UserDirectoryManager.getInstance().getUserPath();
 		if (userPath != null)
-			paths.add(Paths.get(userPath));
+			paths.add(userPath);
 		
 		if (!paths.isEmpty()) {
 			return UriUpdater.locateFile(nameOrPath, searchDepth, paths.toArray(Path[]::new));
