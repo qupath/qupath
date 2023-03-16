@@ -387,7 +387,7 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 					try {
 						tf.setTextFormatter(new TextFormatter<>(new DateTimeStringConverter(format), format.parse("00:00:00")));
 					} catch (ParseException ex) {
-						logger.error("Error parsing the input time: ", ex.getLocalizedMessage());
+						logger.error("Error parsing the input time", ex);
 					}
 					gp.addRow(0, new Label("Enter time"), tf);
 					var response = Dialogs.showConfirmDialog("Set min time", gp);
@@ -410,7 +410,7 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 					try {
 						tf.setTextFormatter(new TextFormatter<>(new DateTimeStringConverter(format), format.parse(ViewTrackerTools.getPrettyTimestamp((long) timeDisplayedSlider.getHighValue()))));
 					} catch (ParseException ex) {
-						logger.error("Error parsing the input time: ", ex.getLocalizedMessage());
+						logger.error("Error parsing the input time", ex);
 					}
 					gp.addRow(0, new Label("Enter time"), tf);
 					var response = Dialogs.showConfirmDialog("Set max time", gp);

@@ -55,13 +55,13 @@ import javafx.scene.control.ToggleGroup;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.KeyCombination;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.QuPathResources;
 import qupath.lib.gui.SelectableItem;
 import qupath.lib.gui.actions.annotations.ActionAccelerator;
 import qupath.lib.gui.actions.annotations.ActionConfig;
 import qupath.lib.gui.actions.annotations.ActionIcon;
 import qupath.lib.gui.actions.annotations.ActionMenu;
 import qupath.lib.gui.actions.annotations.ActionMethod;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.tools.IconFactory;
 import qupath.lib.gui.tools.LocaleListener;
 

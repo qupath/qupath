@@ -360,8 +360,7 @@ class ProjectImportImagesCommand {
 							if (support != null)
 								return support.getBuilders();
 						} catch (Exception e) {
-							logger.error("Unable to add {}");
-							logger.error(e.getLocalizedMessage(), e);
+							logger.error("Unable to add " + item, e);
 						}
 						return new ArrayList<ServerBuilder<BufferedImage>>();
 					}));

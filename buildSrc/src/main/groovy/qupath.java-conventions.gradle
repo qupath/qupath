@@ -10,9 +10,9 @@ plugins {
 
 java {
     def version = project.findProperty('toolchain')
-    if (!version)
-        version = 17
-    else if (version.strip() == 'skip')
+    if (!version) {
+        version = libs.versions.jdk.get()
+    } else if (version.strip() == 'skip')
         version = null
     if (version != null) {
         logger.info("Setting toolchain to {}", version)

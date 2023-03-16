@@ -1,4 +1,5 @@
 qupath.lib.gui.scripting.languages.PlainLanguage
+qupath.lib.gui.scripting.languages.PropertiesLanguage
 qupath.lib.gui.scripting.languages.GroovyLanguage
 qupath.lib.gui.scripting.languages.JsonLanguage
 qupath.lib.gui.scripting.languages.MarkdownLanguage

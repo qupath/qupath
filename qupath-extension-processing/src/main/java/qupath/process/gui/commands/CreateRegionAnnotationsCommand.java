@@ -184,7 +184,7 @@ public class CreateRegionAnnotationsCommand implements Runnable {
 		private void createAndAddRegion() {
 			QuPathViewer viewer = viewerDefault == null ? qupath.getViewer() : viewerDefault;
 			if (viewer == null) {
-				logger.error("Create region", "Cannot create region - no viewer specified!");
+				Dialogs.showErrorMessage("Create region", "Cannot create region - no viewer specified!");
 				return;
 			}
 			ImageData<?> imageData = viewer.getImageData();

@@ -26,11 +26,11 @@ import org.controlsfx.control.action.Action;
 import qupath.lib.common.Version;
 import qupath.lib.extension.svg.SvgExportCommand.SvgExportType;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.QuPathResources;
 import qupath.lib.gui.actions.ActionTools;
 import qupath.lib.gui.actions.annotations.ActionConfig;
 import qupath.lib.gui.actions.annotations.ActionMenu;
 import qupath.lib.gui.extensions.QuPathExtension;
+import qupath.lib.gui.localization.QuPathResources;
 
 /**
  * Extension for SVG image export.

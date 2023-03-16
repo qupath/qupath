@@ -80,6 +80,7 @@ import qupath.lib.analysis.features.ObjectMeasurements.ShapeFeatures;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.ExtensionClassLoader;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.UserDirectoryManager;
 import qupath.lib.gui.actions.ActionTools;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.Dialogs.DialogButton;
@@ -1437,16 +1438,16 @@ public class Commands {
 	
 	
 	/**
-	 * Request the current user directory, optionally prompting the user to request a director if none is available.
+	 * Request the current user directory, optionally prompting the user to request a directory if none is available.
 	 * @param promptIfMissing 
-	 * @return
+	 * @return the user directory, or null if none exists and the user did not create one
 	 */
 	public static File requestUserDirectory(boolean promptIfMissing) {
 		
-		var pathUser = PathPrefs.getUserPath();
-		var dir = pathUser == null ? null : new File(pathUser);
-		if (dir != null && dir.isDirectory())
-			return dir;
+		var manager = UserDirectoryManager.getInstance();
+		var pathUser = manager.getUserPath();
+		if (pathUser != null && Files.isDirectory(pathUser))
+			return pathUser.toFile();
 		
 		if (!promptIfMissing)
 			return null;
@@ -1483,17 +1484,17 @@ public class Commands {
 				Dialogs.showErrorMessage("Extension error", "Unable to create directory at \n" + dirDefault.getAbsolutePath());
 				return null;
 			}
-			dir = dirDefault;
+			pathUser = dirDefault.toPath();
 		} else {
 			File dirUser = Dialogs.promptForDirectory("Set user directory", dirDefault);
 			if (dirUser == null) {
 				logger.info("No QuPath user directory set!");
 				return null;
 			}
-			dir = dirUser;
+			pathUser = dirUser.toPath();
 		}
-		PathPrefs.userPathProperty().set(dir.getAbsolutePath());
-		return dir;
+		manager.setUserPath(pathUser);
+		return pathUser.toFile();
 	}
 	
 	/**

@@ -120,6 +120,7 @@ import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.Dialogs.DialogButton;
 import qupath.lib.gui.images.stores.DefaultImageRegionStore;
 import qupath.lib.gui.images.stores.ImageRegionStoreFactory;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.logging.LogManager;
 import qupath.lib.gui.panes.ImageDetailsPane;
 import qupath.lib.gui.panes.PreferencePane;
@@ -496,11 +497,11 @@ public class QuPathGUI {
 	 * @return the file that will (attempt to be) used for logging, or <code>null</code> if no file is to be used.
 	 */
 	private File tryToStartLogFile() {
-		String pathLogging = PathPrefs.getLoggingPath();
+		var pathLogging = UserDirectoryManager.getInstance().getLogDirectoryPath();
 		if (pathLogging != null) {
 			SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss");
 			String name = "qupath-" + dateFormat.format(new Date()) + ".log";
-			File fileLog = new File(pathLogging, name);
+			File fileLog = new File(pathLogging.toFile(), name);
 			LogManager.logToFile(fileLog);
 			return fileLog;
 		}
@@ -637,13 +638,11 @@ public class QuPathGUI {
 				projectProperty.isNotNull().and(menuVisibilityManager.ignorePredicateProperty().not())
 				);
 		
+		var scriptDirectoryProperty = UserDirectoryManager.getInstance().scriptsDirectoryProperty();
 		StringBinding userScriptsPath = Bindings.createStringBinding(() -> {
-			String userPath = PathPrefs.getUserPath();
-			File dirScripts = userPath == null ? null : new File(userPath, "scripts");
-			if (dirScripts == null || !dirScripts.isDirectory())
-				return null;
-			return dirScripts.getAbsolutePath();
-		}, PathPrefs.userPathProperty());
+			Path path = scriptDirectoryProperty.get();
+			return path == null ? null : path.toString();
+		}, scriptDirectoryProperty);
 		ScriptMenuLoader userScriptMenuLoader = new ScriptMenuLoader("User scripts...", userScriptsPath, editor);
 	
 		MenuTools.addMenuItems(

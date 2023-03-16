@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2022 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2023 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -28,40 +28,39 @@ import qupath.lib.scripting.languages.ScriptAutoCompletor;
 import qupath.lib.scripting.languages.ScriptLanguage;
 
 /**
- * Class for the representation of plain text in QuPath.
+ * Class for the representation of properties and config files in QuPath.
  * <p>
- * This class stores the QuPath implementation of Plain syntaxing and plain auto-completion (both do nothing, as it's plain text).
- * @author Melvin Gelbard
- * @since v0.4.0
+ * @author Pete Bankhead
+ * @since v0.5.0
  */
-public class PlainLanguage extends ScriptLanguage {
+public class PropertiesLanguage extends ScriptLanguage {
 	
 	/**
 	 * Instance of this language. Can't be final because of {@link ServiceLoader}.
 	 */
-	private static PlainLanguage INSTANCE;
+	private static PropertiesLanguage INSTANCE;
 
 	/**
-	 * Constructor for a simple Plain Language. This constructor should never be 
+	 * Constructor for a Java properties as a script editor language. This constructor should never be 
 	 * called. Instead, use the static {@link #getInstance()} method.
 	 * <p>
 	 * Note: this has to be public for the {@link ServiceLoader} to work.
 	 */
-	public PlainLanguage() {
-		super("None", Set.of(".txt", ".tsv", ".csv"));
+	public PropertiesLanguage() {
+		super("Properties", Set.of(".properties", ".cfg"));
 		
 		if (INSTANCE != null)
 			throw new UnsupportedOperationException("Language classes cannot be instantiated more than once!");
 		
 		// Because of ServiceLoader, have to assign INSTANCE here.
-		PlainLanguage.INSTANCE = this;
+		PropertiesLanguage.INSTANCE = this;
 	}
 	
 	/**
 	 * Get the static instance of this class.
 	 * @return instance
 	 */
-	public static PlainLanguage getInstance() {
+	public static PropertiesLanguage getInstance() {
 		return INSTANCE;
 	}
 	

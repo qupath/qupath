@@ -36,7 +36,7 @@ import javafx.event.EventType;
 import javafx.scene.Node;
 import javafx.scene.input.MouseEvent;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.QuPathResources;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.tools.IconFactory;
 import qupath.lib.gui.tools.IconFactory.PathIcons;
 import qupath.lib.gui.viewer.QuPathViewer;

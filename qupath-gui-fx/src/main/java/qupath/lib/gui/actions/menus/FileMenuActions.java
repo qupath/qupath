@@ -8,7 +8,6 @@ import java.util.List;
 import org.controlsfx.control.action.Action;
 
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.QuPathResources;
 import qupath.lib.gui.actions.ActionTools;
 import qupath.lib.gui.actions.annotations.ActionAccelerator;
 import qupath.lib.gui.actions.annotations.ActionConfig;
@@ -17,6 +16,7 @@ import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.commands.ProjectCommands;
 import qupath.lib.gui.commands.TMACommands;
 import qupath.lib.gui.dialogs.Dialogs;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.tools.GuiTools;
 
 public class FileMenuActions implements MenuActions {

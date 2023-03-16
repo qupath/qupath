@@ -134,7 +134,7 @@ class XmlSyntax extends GeneralCodeSyntax {
 			var transformer = createTransformer(true);
 			return applyTransform(transformer, text);
 		} catch (Exception ex) {
-			logger.warn("Could not beautify this XML", ex.getLocalizedMessage());
+			logger.warn("Could not beautify this XML", ex);
 			return text;
 		}
 	}
@@ -155,7 +155,7 @@ class XmlSyntax extends GeneralCodeSyntax {
 			var transformer = createTransformer(false);
 			return applyTransform(transformer, text);
 		} catch (Exception ex) {
-			logger.warn("Could not compress this XML", ex.getLocalizedMessage());
+			logger.warn("Could not compress this XML", ex);
 			return text;
 		}
 	}

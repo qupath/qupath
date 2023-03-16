@@ -28,6 +28,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.Timer;
@@ -47,7 +48,9 @@ import javafx.scene.input.DragEvent;
 import javafx.scene.input.Dragboard;
 import javafx.scene.input.TransferMode;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.gui.FileCopier;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.UserDirectoryManager;
 import qupath.lib.gui.commands.InteractiveObjectImporter;
 import qupath.lib.gui.commands.ProjectCommands;
 import qupath.lib.gui.dialogs.Dialogs;
@@ -264,7 +267,7 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
     	}
     }
     
-    private void handleFileDropImpl(final QuPathViewer viewer, final List<File> list) throws IOException {
+    private void handleFileDropImpl(QuPathViewer viewer, List<File> list) throws IOException {
 		
 		// Shouldn't occur... but keeps FindBugs happy to check
 		if (list == null) {
@@ -286,6 +289,12 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 			qupath.getExtensionManager().promptToCopyFilesToExtensionsDirectory(list);
 			return;
 		}
+		
+		// Handle properties files
+		list = handlePropertiesFiles(list);
+		if (list.isEmpty())
+			return;
+		
 		// Handle installing CSS files (styles)
 		if (nCss == list.size()) {
 			QuPathStyleManager.installStyles(list);
@@ -395,7 +404,7 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 				qupath.setProject(project);
 			} catch (Exception e) {
 //				Dialogs.showErrorMessage("Project error", e);
-				logger.error("Could not open as project file: {}, opening in the Script Editor instead", e);
+				logger.error("Could not open as project file - opening in the Script Editor instead", e);
 				qupath.getScriptEditor().showScript(file);
 			}
 			return;
@@ -473,7 +482,25 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 			Dialogs.showErrorMessage("Drag & drop", "Sorry, I couldn't figure out what to do with " + list.get(0).getName());
 	}
     
-        
+     
+    private List<File> handlePropertiesFiles(List<File> files) {
+    	var propertyFiles = files.stream().filter(f -> f.getName().toLowerCase().endsWith(".properties")).toList();
+    	if (propertyFiles.isEmpty())
+    		return files;
+    	
+    	new FileCopier()
+    			.title("Install localization properties")
+    			.relativeToUserDirectory()
+    			.outputPath(UserDirectoryManager.DIR_LOCALIZATION)
+    			.inputFiles(propertyFiles)
+    			.doCopy();
+    	
+    	if (propertyFiles.size() == files.size())
+    		return Collections.emptyList();
+    	var remainingFiles = new ArrayList<>(files);
+    	remainingFiles.removeAll(propertyFiles);
+    	return remainingFiles;
+    }
     
     
     /**

@@ -141,7 +141,7 @@ class MemoryMonitorDialog {
 				qupath.getViewer().getImageRegionStore().clearCache();
 				System.gc();
 			} catch (Exception e2) {
-				logger.error("Error clearing cache", e);
+				logger.error("Error clearing cache", e2);
 			}
 		});
 		btnClearCache.setMaxWidth(Double.MAX_VALUE);
@@ -159,7 +159,7 @@ class MemoryMonitorDialog {
 				qupath.getUndoRedoManager().clear();
 				System.gc();
 			} catch (Exception e2) {
-				logger.error("Error undo/redo", e);
+				logger.error("Error undo/redo", e2);
 			}
 		});
 		btnClearUndoRedo.setMaxWidth(Double.MAX_VALUE);

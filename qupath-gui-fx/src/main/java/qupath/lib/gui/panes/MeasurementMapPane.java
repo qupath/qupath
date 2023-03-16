@@ -26,7 +26,6 @@ package qupath.lib.gui.panes;
 import java.awt.image.BufferedImage;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -63,6 +62,7 @@ import javafx.scene.text.TextAlignment;
 import qupath.lib.color.ColorMaps;
 import qupath.lib.color.ColorMaps.ColorMap;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.UserDirectoryManager;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.MeasurementMapper;
@@ -290,12 +290,9 @@ public class MeasurementMapPane {
 	
 	
 	private static Collection<Path> getUserColormapPaths() {
-		String userPath = PathPrefs.getUserPath();
-        if (userPath != null) {
-        	Path dirUser = Paths.get(userPath, "colormaps");
-	        if (Files.isDirectory(dirUser)) {
-	        	return Collections.singletonList(dirUser);
-	        }
+		Path dirUser = UserDirectoryManager.getInstance().getColormapsDirectoryPath();
+        if (dirUser != null && Files.isDirectory(dirUser)) {
+        	return Collections.singletonList(dirUser);
         }
         return Collections.emptyList();
 	}

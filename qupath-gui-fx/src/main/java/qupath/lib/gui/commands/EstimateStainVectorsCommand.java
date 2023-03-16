@@ -159,7 +159,7 @@ class EstimateStainVectorsCommand {
 		
 		
 		ColorDeconvolutionStains stainsUpdated = null;
-		logger.info("Requesting region for stain vector editing: ", request);
+		logger.info("Requesting region for stain vector editing: {}", request);
 		try {
 			stainsUpdated = showStainEditor(img, stains);
 		} catch (Exception e) {

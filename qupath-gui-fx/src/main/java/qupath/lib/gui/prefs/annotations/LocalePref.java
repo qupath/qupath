@@ -45,4 +45,10 @@ public @interface LocalePref {
 	 * @return
 	 */
 	String value();
+	/**
+	 * Request that the locales are restricted to only those recognized as available 
+	 * (e.g. there is a corresponding ResourceBundle).
+	 * @return
+	 */
+	boolean availableLanguagesOnly() default false;
 }

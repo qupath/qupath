@@ -52,7 +52,7 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.Window;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.QuPathResources;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.prefs.QuPathStyleManager;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.plugins.parameters.ParameterList;

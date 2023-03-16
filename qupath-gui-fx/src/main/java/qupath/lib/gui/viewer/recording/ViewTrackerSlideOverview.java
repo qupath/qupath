@@ -140,7 +140,7 @@ final class ViewTrackerSlideOverview {
 		    		var imgToExport = overlay.getRegionMap().get(ImageRegion.createInstance(0, 0, viewer.getServerWidth(), viewer.getServerHeight(), viewer.getZPosition(), viewer.getTPosition()));
 					ImageWriterTools.writeImage(imgToExport, path.toString());
 				} catch (IOException ex) {
-					logger.error("Could not export data", ex.getLocalizedMessage());
+					logger.error("Could not export data", ex);
 				}
 		    });
 		    
