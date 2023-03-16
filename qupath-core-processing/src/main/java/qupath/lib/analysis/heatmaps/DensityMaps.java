@@ -490,7 +490,7 @@ public class DensityMaps {
 	 */
 	public static boolean threshold(PathObjectHierarchy hierarchy, ImageServer<BufferedImage> densityServer, Map<Integer, ? extends Number> thresholds, String pathClassName, CreateObjectOptions... options) throws IOException {
 
-		logger.debug("Thresholding {} with thresholds {}, options", densityServer, thresholds, Arrays.asList(options));
+		logger.debug("Thresholding {} with thresholds {}, options {}", densityServer, thresholds, Arrays.asList(options));
 
 		// Apply threshold to densities
 		PathClass lessThan = PathClass.StandardPathClasses.IGNORE;

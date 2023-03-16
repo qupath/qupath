@@ -623,7 +623,7 @@ public class PixelClassifierPane {
 			for (var entry : trainingEntries) {
 				try {
 					if (currentEntries.contains(entry)) {
-						logger.debug("Will not load data for {} - will use the training annotations from the open viewer");
+						logger.debug("Will not load data for {} - will use the training annotations from the open viewer", entry);
 						var tempData = trainingMap.remove(entry);
 						if (tempData != null)
 							tempData.getServer().close();

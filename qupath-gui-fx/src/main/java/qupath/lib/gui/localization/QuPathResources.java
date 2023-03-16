@@ -149,8 +149,7 @@ public class QuPathResources {
 		 * if possible. Note that in some instances loading may still be necessary.
 		 * @param baseName
 		 * @param locale
-		 * @param loader 
-		 * @param format
+		 * @param loader
 		 * @return
 		 */
 		private boolean hasBundle(String baseName, Locale locale, ClassLoader loader) {

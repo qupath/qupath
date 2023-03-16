@@ -249,7 +249,7 @@ public class ViewTracker implements QuPathViewerListener {
 			fw.write(ViewTrackerTools.getSummaryHeadings(LOG_DELIMITER, doCursorTracking.get(), doActiveToolTracking.get(), doEyeTracking.get(), hasZAndT()));
 			fw.write(System.lineSeparator());
 		} catch (IOException e) {
-			logger.error("Could not create back-up file. Recording will not be saved.", e.getLocalizedMessage());
+			logger.error("Could not create back-up file - recording will not be saved", e);
 		}
 		
 		initialized = true;

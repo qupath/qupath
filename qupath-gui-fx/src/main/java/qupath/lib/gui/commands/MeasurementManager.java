@@ -258,7 +258,7 @@ class MeasurementManager {
 		if (!Dialogs.showConfirmDialog("Remove measurements", "Are you sure you want to permanently remove " + number + "?"))
 			return false;
 		
-		logger.info("Removing all measurements for ", PathObjectTools.getSuitableName(selectedClass, true));
+		logger.info("Removing all measurements for {}", PathObjectTools.getSuitableName(selectedClass, true));
 		Class<? extends PathObject> cls = comboBox.getSelectionModel().getSelectedItem();
 		String script;
 		var hierarchy = imageData.getHierarchy();

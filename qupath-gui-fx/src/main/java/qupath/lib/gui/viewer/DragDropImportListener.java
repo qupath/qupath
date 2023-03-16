@@ -404,7 +404,7 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 				qupath.setProject(project);
 			} catch (Exception e) {
 //				Dialogs.showErrorMessage("Project error", e);
-				logger.error("Could not open as project file: {}, opening in the Script Editor instead", e);
+				logger.error("Could not open as project file - opening in the Script Editor instead", e);
 				qupath.getScriptEditor().showScript(file);
 			}
 			return;

@@ -350,7 +350,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 			if (imageRows.size() == 1)
 				logger.debug("Duplicated 1 image entry");
 			else
-				logger.debug("Duplicated {} image entries");
+				logger.debug("Duplicated {} image entries", imageRows.size());
 		});
 		
 		Action actionSetImageName = new Action("Rename image", e -> {
@@ -952,7 +952,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 					}
 				}
 			} catch (Exception ex) {
-				logger.error("Error getting children objects in the ProjectBrowser", ex.getLocalizedMessage());
+				logger.error("Error getting children objects in the ProjectBrowser", ex);
 			}
 		});
 	}

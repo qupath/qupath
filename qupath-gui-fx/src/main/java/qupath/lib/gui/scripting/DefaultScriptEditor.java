@@ -1683,7 +1683,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 						}
 					}
 				} catch (Exception e) {
-					logger.error("Error running batch script: {}", e);
+					logger.error("Error running batch script", e);
 				}
 				batchIndex++;
 			}
@@ -1850,7 +1850,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 				addScript(file, true);
 				PathPrefs.scriptsPathProperty().set(file.getParent());
 			} catch (Exception ex) {
-				logger.error("Unable to open script file: {}", ex);
+				logger.error("Unable to open script file", ex);
 				ex.printStackTrace();
 			}
 		});
@@ -1937,7 +1937,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 					String s = classifiers.isEmpty() ? "[]" : String.format(listFormat, classifiers);
 					control.replaceSelection(s);
 				} catch (IOException ex) {
-					logger.error("Could not fetch classifiers", ex.getLocalizedMessage());
+					logger.error("Could not fetch classifiers", ex);
 				}
 			} else if (name.toLowerCase().equals("object classifiers")) {
 				try {
@@ -1947,7 +1947,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 					String s = classifiers.isEmpty() ? "[]" : String.format(listFormat, classifiers);
 					control.replaceSelection(s);
 				} catch (IOException ex) {
-					logger.error("Could not fetch classifiers", ex.getLocalizedMessage());
+					logger.error("Could not fetch classifiers", ex);
 				}
 			} else if (name.toLowerCase().equals("detection")) {
 				var imageData = qupath.getImageData();

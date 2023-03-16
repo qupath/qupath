@@ -54,7 +54,7 @@ class YamlSyntax extends GeneralCodeSyntax {
 			var obj = yaml.load(text);
 			return yaml.dump(obj);
 		} catch (Exception ex) {
-			logger.warn("Could not beautify this YAML text", ex.getLocalizedMessage());
+			logger.warn("Could not beautify this YAML text", ex);
 			return text;
 		}
 	}
@@ -76,7 +76,7 @@ class YamlSyntax extends GeneralCodeSyntax {
 			var obj = yaml.load(text);
 			return yaml.dump(obj);
 		} catch (Exception ex) {
-			logger.warn("Could not compress this YAML text", ex.getLocalizedMessage());
+			logger.warn("Could not compress this YAML text", ex);
 			return text;
 		}
 	}

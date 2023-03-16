@@ -199,7 +199,7 @@ public class ImageServerProvider {
 					if (support != null && support.getSupportLevel() > 0f)
 						supports.add(support);
 				} catch (Exception e) {
-					logger.error("Error testing provider " + provider, e.getLocalizedMessage());
+					logger.error("Error testing provider " + provider, e);
 				}
 			}
 		}
