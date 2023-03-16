@@ -142,7 +142,7 @@ public class UpdateUrisCommand<T extends UriResource> {
 		dialog.getDialogPane().setContent(manager.getPane());
 		dialog.setTitle("Update URIs");
 		dialog.setResizable(true);
-		var btn = dialog.showAndWait().orElseGet(() -> ButtonType.CANCEL);
+		var btn = dialog.showAndWait().orElse(ButtonType.CANCEL);
 		if (btn.equals(ButtonType.CANCEL))
 			return -1;
 		

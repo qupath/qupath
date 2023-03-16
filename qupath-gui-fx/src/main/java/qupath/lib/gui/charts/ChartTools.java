@@ -127,15 +127,15 @@ public class ChartTools {
 	 * @param yAxis
 	 */
 	public static void makeChartInteractive(final Chart chart, final NumberAxis xAxis, final NumberAxis yAxis) {
-		Function<MouseEvent, Point2D> convertChartPoint = new Function<MouseEvent, Point2D>() {
-			@Override
-			public Point2D apply(MouseEvent event) {
-				Point2D mouseScenePoint = new Point2D(event.getSceneX(), event.getSceneY());
-				double x = xAxis.getValueForDisplay(xAxis.sceneToLocal(mouseScenePoint).getX()).doubleValue();
-				double y = yAxis.getValueForDisplay(yAxis.sceneToLocal(mouseScenePoint).getY()).doubleValue();
-				return new Point2D(x, y);
-			}
-		};
+		Function<MouseEvent, Point2D> convertChartPoint = new Function<>() {
+            @Override
+            public Point2D apply(MouseEvent event) {
+                Point2D mouseScenePoint = new Point2D(event.getSceneX(), event.getSceneY());
+                double x = xAxis.getValueForDisplay(xAxis.sceneToLocal(mouseScenePoint).getX()).doubleValue();
+                double y = yAxis.getValueForDisplay(yAxis.sceneToLocal(mouseScenePoint).getY()).doubleValue();
+                return new Point2D(x, y);
+            }
+        };
 
 		Rectangle rect = new Rectangle();
 		chart.setOnMouseClicked(e -> {

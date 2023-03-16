@@ -173,7 +173,7 @@ public class QuPath {
 		if (!pr.hasSubcommand()) {
 
 			// If no subcommand, parse the arguments and launch QuPathApp.
-			List<String> CLIArgs = new ArrayList<String>();
+			List<String> CLIArgs = new ArrayList<>();
 			
 			if (qupath.path != null && !qupath.path.isBlank()) {
 				CLIArgs.add(getEncodedPath(qupath.path));

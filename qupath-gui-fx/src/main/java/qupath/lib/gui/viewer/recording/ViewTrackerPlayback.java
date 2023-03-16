@@ -76,12 +76,12 @@ class ViewTrackerPlayback {
 		timeline = new Timeline(
 				new KeyFrame(
 						Duration.ZERO,
-						new EventHandler<ActionEvent>() {
-							@Override
-							public void handle(ActionEvent actionEvent) {
-								handleUpdate();
-							}
-						}
+                        new EventHandler<>() {
+                            @Override
+                            public void handle(ActionEvent actionEvent) {
+                                handleUpdate();
+                            }
+                        }
 						),
 				new KeyFrame(
 						Duration.millis(50)

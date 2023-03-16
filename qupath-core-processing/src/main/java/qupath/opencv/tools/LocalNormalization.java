@@ -240,7 +240,7 @@ public class LocalNormalization {
 
 		@Override
 		public String toString() {
-			String sigmaString = String.format("\u03C3: %s", GeneralTools.formatNumber(sigma, 2));
+			String sigmaString = String.format("σ: %s", GeneralTools.formatNumber(sigma, 2));
 			switch (scaleType) {
 			case SCALE_3D:
 				return sigmaString + " (3D)";

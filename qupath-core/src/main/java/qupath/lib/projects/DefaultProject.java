@@ -1170,7 +1170,7 @@ class DefaultProject implements Project<BufferedImage> {
 			return new ResourceManager.JsonFileResourceManager(path, cls);
 		}
 		if (String.class.equals(cls))
-			return (Manager<R>)new ResourceManager.StringFileResourceManager(path, ext); 
+			return (Manager)new ResourceManager.StringFileResourceManager(path, ext);
 		return null;
 	}
 

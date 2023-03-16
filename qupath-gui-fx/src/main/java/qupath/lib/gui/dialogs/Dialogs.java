@@ -316,9 +316,7 @@ public class Dialogs {
 			if (message != null)
 				dialog.getDialogPane().setContentText(message);
 			Optional<T> result = dialog.showAndWait();
-			if (result.isPresent())
-				return result.get();
-			return null;
+			return result.orElse(null);
 		} else
 			return GuiTools.callOnApplicationThread(() -> showChoiceDialog(title, message, choices, defaultChoice));
 	}

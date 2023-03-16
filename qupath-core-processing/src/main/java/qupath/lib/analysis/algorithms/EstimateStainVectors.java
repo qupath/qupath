@@ -253,12 +253,12 @@ public class EstimateStainVectors {
 			indexes[i] = Integer.valueOf(i);
 			data[i] = Double.valueOf(values[i]);
 		}
-		Arrays.sort(indexes, new Comparator<Integer>() {
-			@Override
-			public int compare(final Integer o1, final Integer o2) {
-				return data[o1].compareTo(data[o2]);
-			}
-		});
+		Arrays.sort(indexes, new Comparator<>() {
+            @Override
+            public int compare(final Integer o1, final Integer o2) {
+                return data[o1].compareTo(data[o2]);
+            }
+        });
 		int[] indexes2 = new int[n];
 		for (int i=0; i<n; i++)
 			indexes2[i] = indexes[i].intValue();

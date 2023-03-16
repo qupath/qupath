@@ -101,19 +101,19 @@ public class SelectedMeasurementTableView implements PathObjectSelectionListener
 		tableMeasurements.getItems().setAll(tableModel.getAllNames());
 		
 		TableColumn<String, String> col1 = new TableColumn<>("Key");
-		col1.setCellValueFactory(new Callback<CellDataFeatures<String, String>, ObservableValue<String>>() {
-			@Override
-			public ObservableValue<String> call(CellDataFeatures<String, String> p) {
-				return new SimpleStringProperty(p.getValue());
-			}
-		});
+		col1.setCellValueFactory(new Callback<>() {
+            @Override
+            public ObservableValue<String> call(CellDataFeatures<String, String> p) {
+                return new SimpleStringProperty(p.getValue());
+            }
+        });
 		TableColumn<String, String> col2 = new TableColumn<>("Value");
-		col2.setCellValueFactory(new Callback<CellDataFeatures<String, String>, ObservableValue<String>>() {
-			@Override
-			public ObservableValue<String> call(CellDataFeatures<String, String> p) {
-				return new SimpleStringProperty(getSelectedObjectMeasurementValue(p.getValue()));
-			}
-		});
+		col2.setCellValueFactory(new Callback<>() {
+            @Override
+            public ObservableValue<String> call(CellDataFeatures<String, String> p) {
+                return new SimpleStringProperty(getSelectedObjectMeasurementValue(p.getValue()));
+            }
+        });
 		tableMeasurements.getColumns().addAll(col1, col2);
 		tableMeasurements.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
 		tableMeasurements.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);

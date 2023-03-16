@@ -219,7 +219,7 @@ public class JavadocViewer {
 		
 		toolbar.getChildren().addAll(btnBack, btnForward);
 		
-		var comboUris = new ComboBox<URI>(uris);
+		var comboUris = new ComboBox<>(uris);
 		comboUris.setTooltip(new Tooltip("Javadoc source"));
 		comboUris.setMaxWidth(Double.MAX_VALUE);
 		comboUris.setCellFactory(v -> GuiTools.createCustomListCell(JavadocViewer::getName));

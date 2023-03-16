@@ -157,7 +157,7 @@ public class GuiTools {
 	/**
 	 * Vertical ellipsis, which can be used to indicate a 'more' button.
 	 */
-	private static String MORE_ELLIPSIS = "\u22EE";
+	private static String MORE_ELLIPSIS = "⋮";
 	
 	/**
 	 * Create a {@link Button} with a standardized icon and tooltip text to indicate 'More', 
@@ -489,9 +489,9 @@ public class GuiTools {
 
 		// Compare optical density vector angles with the defaults for hematoxylin, eosin & DAB
 		ColorDeconvolutionStains stainsH_E = ColorDeconvolutionStains.makeDefaultColorDeconvolutionStains(DefaultColorDeconvolutionStains.H_E);
-		double rOD = ColorDeconvolutionHelper.makeOD(rSum/n, stainsH_E.getMaxRed());
-		double gOD = ColorDeconvolutionHelper.makeOD(gSum/n, stainsH_E.getMaxGreen());
-		double bOD = ColorDeconvolutionHelper.makeOD(bSum/n, stainsH_E.getMaxBlue());
+		double rOD = ColorDeconvolutionHelper.makeOD((double)rSum/n, stainsH_E.getMaxRed());
+		double gOD = ColorDeconvolutionHelper.makeOD((double)gSum/n, stainsH_E.getMaxGreen());
+		double bOD = ColorDeconvolutionHelper.makeOD((double)bSum/n, stainsH_E.getMaxBlue());
 		StainVector stainMean = StainVector.createStainVector("Mean Stain", rOD, gOD, bOD);
 		double angleH = StainVector.computeAngle(stainMean, stainsH_E.getStain(1));
 		double angleE = StainVector.computeAngle(stainMean, stainsH_E.getStain(2));
@@ -912,7 +912,7 @@ public class GuiTools {
 		    }
 		    return c;
 		};
-		TextFormatter<Integer> normalizeFormatter = new TextFormatter<Integer>(filter);
+		TextFormatter<Integer> normalizeFormatter = new TextFormatter<>(filter);
 		textField.setTextFormatter(normalizeFormatter);
 	}
 	
@@ -1030,7 +1030,7 @@ public class GuiTools {
 		
 		panel.getColumnConstraints().setAll(
 				new ColumnConstraints(Region.USE_COMPUTED_SIZE),
-				new ColumnConstraints(00, 400, Double.MAX_VALUE)
+				new ColumnConstraints(0, 400, Double.MAX_VALUE)
 				);
 				
 		var dialog = Dialogs.builder()

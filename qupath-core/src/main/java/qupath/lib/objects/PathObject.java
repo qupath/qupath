@@ -994,7 +994,7 @@ public abstract class PathObject implements Externalizable {
 				float loadFactor = 0.75f;
 				if (capacity > 0)
 					n = (int)Math.max(n, Math.ceil(capacity / loadFactor));
-				childList = Collections.synchronizedSet(new LinkedHashSet<PathObject>(n, loadFactor));
+				childList = Collections.synchronizedSet(new LinkedHashSet<>(n, loadFactor));
 				cachedUnmodifiableChildren = Collections.unmodifiableCollection(childList);
 			}
 		}

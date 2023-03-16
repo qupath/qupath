@@ -160,12 +160,12 @@ public class SummaryMeasurementTableCommand {
 		//		table.setTableMenuButtonVisible(true);
 		TableView<PathObject> table = new TableView<>();
 		table.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
-		table.getSelectionModel().getSelectedItems().addListener(new ListChangeListener<PathObject>() {
-			@Override
-			public void onChanged(ListChangeListener.Change<? extends PathObject> c) {
-				synchronizeSelectionModelToTable(hierarchy, c, table);
-			}
-		});
+		table.getSelectionModel().getSelectedItems().addListener(new ListChangeListener<>() {
+            @Override
+            public void onChanged(ListChangeListener.Change<? extends PathObject> c) {
+                synchronizeSelectionModelToTable(hierarchy, c, table);
+            }
+        });
 		StringProperty displayedName = new SimpleStringProperty(ServerTools.getDisplayableImageName(imageData.getServer()));
 		var title = Bindings.createStringBinding(() -> {
 			if (type == null)
@@ -236,7 +236,7 @@ public class SummaryMeasurementTableCommand {
 			} else {
 				TableColumn<PathObject, Number> col = new TableColumn<>(columnName);
 				col.setCellValueFactory(column -> model.createNumericMeasurement(column.getValue(), column.getTableColumn().getText()));
-				col.setCellFactory(column -> new NumericTableCell<PathObject>(histogramDisplay));
+				col.setCellFactory(column -> new NumericTableCell<>(histogramDisplay));
 				table.getColumns().add(col);			
 			}
 		}

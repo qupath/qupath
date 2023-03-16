@@ -284,7 +284,7 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 
 //		double downsampleFactor = getPreferredDownsamplesArray()[downsampleInd];
 		BufferedImage img = new BufferedImage(tileWidth, tileHeight, BufferedImage.TYPE_INT_ARGB_PRE);
-        int data[] = ((DataBufferInt)img.getRaster().getDataBuffer()).getData();
+        int[] data = ((DataBufferInt)img.getRaster().getDataBuffer()).getData();
         
 		// Create a thumbnail for the region
 //        	osr.paintRegionOfLevel(g, dx, dy, sx, sy, w, h, level);

@@ -151,34 +151,34 @@ class KaplanMeierChartWrapper {
 		xAxis.setLabel(survivalKey);
 		//			yAxis.setPadding(new Insets(5, 5, 5, 5));
 		
-		xAxis.setTickLabelFormatter(new StringConverter<Number>() {
+		xAxis.setTickLabelFormatter(new StringConverter<>() {
 
-			@Override
-			public String toString(Number object) {
-				double d = object.doubleValue();
-				String s = GeneralTools.formatNumber(d, 2);
-				if (showAtRisk.get()) {
+            @Override
+            public String toString(Number object) {
+                double d = object.doubleValue();
+                String s = GeneralTools.formatNumber(d, 2);
+                if (showAtRisk.get()) {
 //					s += "\n---";
-					s += d == 0 ? "\n-At risk-" : "\n---";
-					for (KaplanMeierData kmData : kmList) {
-						if (d == 0) {
-							s += "\n" + kmData.getName() + ": " + kmData.getAtRisk(d);
-						} else {
-							s += "\n" + kmData.getAtRisk(d-0.0001);
-						}
-					}
-				}
-				return s;
-			}
+                    s += d == 0 ? "\n-At risk-" : "\n---";
+                    for (KaplanMeierData kmData : kmList) {
+                        if (d == 0) {
+                            s += "\n" + kmData.getName() + ": " + kmData.getAtRisk(d);
+                        } else {
+                            s += "\n" + kmData.getAtRisk(d - 0.0001);
+                        }
+                    }
+                }
+                return s;
+            }
 
-			@Override
-			public Number fromString(String s) {
-				if (s == null)
-					return null;
-				return Double.parseDouble(s.split("\n")[0]);
-			}
-			
-		});
+            @Override
+            public Number fromString(String s) {
+                if (s == null)
+                    return null;
+                return Double.parseDouble(s.split("\n")[0]);
+            }
+
+        });
 		
 		xAxis.getTickMarks().addListener((Change<? extends TickMark<Number>> v) -> {
 			// Center all the text children

@@ -88,8 +88,7 @@ class ConfusionMatrix<T> {
 		String fString = "%1$" + nChars + "s";
 
 		StringBuilder sb = new StringBuilder();
-		for (int i = 0; i < nChars; i++)
-			sb.append(" ");
+		sb.append(" ".repeat(nChars));
 		for (T pc : classes) {
 			sb.append("\t").append(String.format(fString, stringFun.apply(pc)));
 		}

@@ -360,13 +360,14 @@ public class QuPathChooserFX implements QuPathChooser {
         tf.setPrefWidth(400);
         
         Button button = new Button("Choose file");
-        button.setOnAction(new EventHandler<ActionEvent>() {
-            @Override public void handle(ActionEvent e) {
-            	// Prefer to use this window as the parent
-    			var owner = GuiTools.getWindow(button);
-    			File file = promptForFile(owner, null, dirBase, filterDescription, exts);
-            	if (file != null)
-            		tf.setText(file.getAbsolutePath());
+        button.setOnAction(new EventHandler<>() {
+            @Override
+            public void handle(ActionEvent e) {
+                // Prefer to use this window as the parent
+                var owner = GuiTools.getWindow(button);
+                File file = promptForFile(owner, null, dirBase, filterDescription, exts);
+                if (file != null)
+                    tf.setText(file.getAbsolutePath());
             }
         });
         

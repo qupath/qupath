@@ -105,8 +105,8 @@ public class InputDisplayCommand implements EventHandler<InputEvent> {
 	private Set<KeyCode> MODIFIER_KEYS = new HashSet<>(
 			Arrays.asList(KeyCode.SHIFT, KeyCode.SHORTCUT, KeyCode.COMMAND, KeyCode.CONTROL, KeyCode.ALT, KeyCode.ALT_GRAPH)
 			);
-	private ObservableMap<String, String> modifiers = FXCollections.observableMap(new TreeMap<String, String>());
-	private ObservableMap<String, String> keys = FXCollections.observableMap(new TreeMap<String, String>());
+	private ObservableMap<String, String> modifiers = FXCollections.observableMap(new TreeMap<>());
+	private ObservableMap<String, String> keys = FXCollections.observableMap(new TreeMap<>());
 
 	// Buttons
 	private BooleanProperty primaryDown = new SimpleBooleanProperty(false);

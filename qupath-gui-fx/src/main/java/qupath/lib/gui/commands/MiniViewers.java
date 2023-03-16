@@ -140,12 +140,12 @@ public class MiniViewers {
 			// Listen for changes to all channels or selected channels
 			ObservableList<ChannelDisplayInfo> allChannels = viewer.getImageDisplay().availableChannels();
 			ObservableList<ChannelDisplayInfo> selectedChannels = viewer.getImageDisplay().selectedChannels();
-			ListChangeListener<ChannelDisplayInfo> listChangeListener = new ListChangeListener<ChannelDisplayInfo>() {
-				@Override
-				public void onChanged(Change<? extends ChannelDisplayInfo> c) {
-					updateChannels(viewer, manager, scene);
-				}
-			};
+			ListChangeListener<ChannelDisplayInfo> listChangeListener = new ListChangeListener<>() {
+                @Override
+                public void onChanged(Change<? extends ChannelDisplayInfo> c) {
+                    updateChannels(viewer, manager, scene);
+                }
+            };
 			allChannels.addListener(listChangeListener);
 			selectedChannels.addListener(listChangeListener);
 			
@@ -368,23 +368,23 @@ public class MiniViewers {
 		
 		private ExecutorService pool = Executors.newSingleThreadExecutor(ThreadTools.createThreadFactory("mini-viewer", true));
 		
-		private ChangeListener<Number> changeListener = new ChangeListener<Number>() {
+		private ChangeListener<Number> changeListener = new ChangeListener<>() {
 
-			@Override
-			public void changed(ObservableValue<? extends Number> observable, Number oldValue, Number newValue) {
-				pool.submit(() -> requestFullUpdate());
-			}
-			
-		};
+            @Override
+            public void changed(ObservableValue<? extends Number> observable, Number oldValue, Number newValue) {
+                pool.submit(() -> requestFullUpdate());
+            }
+
+        };
 		
-		private ChangeListener<Number> fastChangeListener = new ChangeListener<Number>() {
+		private ChangeListener<Number> fastChangeListener = new ChangeListener<>() {
 
-			@Override
-			public void changed(ObservableValue<? extends Number> observable, Number oldValue, Number newValue) {
-				pool.submit(() -> requestUpdate());
-			}
-			
-		};
+            @Override
+            public void changed(ObservableValue<? extends Number> observable, Number oldValue, Number newValue) {
+                pool.submit(() -> requestUpdate());
+            }
+
+        };
 		
 		private InvalidationListener invalidationListener = new InvalidationListener() {
 

@@ -138,9 +138,9 @@ class SpecifyAnnotationCommand {
 		}, cbMicrons.selectedProperty());
 
 
-		var comboType = new ComboBox<ROI_TYPE>(
-				FXCollections.observableArrayList(ROI_TYPE.values())
-				);
+		var comboType = new ComboBox<>(
+                FXCollections.observableArrayList(ROI_TYPE.values())
+        );
 		comboType.setMaxWidth(Double.MAX_VALUE);
 		comboType.getSelectionModel().select(ROI_TYPE.RECTANGLE);
 

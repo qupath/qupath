@@ -166,7 +166,7 @@ public class ROIs {
 	 * @param plane
 	 * @return
 	 */
-	public static ROI createPointsROI(double[] x, double y[], ImagePlane plane) {
+	public static ROI createPointsROI(double[] x, double[] y, ImagePlane plane) {
 		if (x.length != y.length)
 			throw new IllegalArgumentException("Point arrays have different lengths!");
 		var points = new ArrayList<Point2>();
@@ -192,7 +192,7 @@ public class ROIs {
 	 * @param plane
 	 * @return
 	 */
-	public static ROI createPolygonROI(double[] x, double y[], ImagePlane plane) {
+	public static ROI createPolygonROI(double[] x, double[] y, ImagePlane plane) {
 		if (x.length != y.length)
 			throw new IllegalArgumentException("Arrays have different lengths!");
 		var points = new ArrayList<Point2>();
@@ -242,7 +242,7 @@ public class ROIs {
 	 * @param plane
 	 * @return
 	 */
-	public static ROI createPolylineROI(double[] x, double y[], ImagePlane plane) {
+	public static ROI createPolylineROI(double[] x, double[] y, ImagePlane plane) {
 		if (x.length != y.length)
 			throw new IllegalArgumentException("Arrays have different lengths!");
 		var points = new ArrayList<Point2>();

@@ -90,7 +90,7 @@ public class SharedThreadPoolManager implements AutoCloseable {
 	 * @return 
 	 */
 	public <V> ExecutorCompletionService<V> createSharedPoolCompletionService(Class<V> cls) {
-		return new ExecutorCompletionService<V>(poolMultipleThreads);
+		return new ExecutorCompletionService<>(poolMultipleThreads);
 	}
 	
 	/**

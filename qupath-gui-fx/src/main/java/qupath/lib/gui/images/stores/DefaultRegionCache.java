@@ -55,25 +55,25 @@ class DefaultRegionCache<T> implements Map<RegionRequest, T> {
 		this.maxMemoryBytes = maxSizeBytes;
 		this.sizeEstimator = sizeEstimator;
 		this.maxCapacity = maxCapacity;
-		map = new LinkedHashMap<RegionRequest, T>(maxCapacity+1, 2f, true) {
+		map = new LinkedHashMap<>(maxCapacity + 1, 2f, true) {
 
-			private static final long serialVersionUID = 1L;
+            private static final long serialVersionUID = 1L;
 
-			@Override
-			protected synchronized boolean removeEldestEntry(Map.Entry<RegionRequest, T> eldest) {
-				// Remove if the map is full (in terms of numbers), or occupying too much memory
-				boolean doRemove = nonNullSize >= maxCapacity || memoryBytes > maxMemoryBytes;
-				if (doRemove) {
-					memoryBytes = memoryBytes - sizeEstimator.getApproxImageSize(eldest.getValue());
-					if (eldest.getValue() != null)
-						nonNullSize--;
+            @Override
+            protected synchronized boolean removeEldestEntry(Map.Entry<RegionRequest, T> eldest) {
+                // Remove if the map is full (in terms of numbers), or occupying too much memory
+                boolean doRemove = nonNullSize >= maxCapacity || memoryBytes > maxMemoryBytes;
+                if (doRemove) {
+                    memoryBytes = memoryBytes - sizeEstimator.getApproxImageSize(eldest.getValue());
+                    if (eldest.getValue() != null)
+                        nonNullSize--;
 //					if (getApproxImageSize(eldest.getValue()) > 10784000)
 //											logger.info(String.format("REMOVED! %.2f MB remaining, %d images", memoryBytes/(1024. * 1024.), size()));
-				}
-				return doRemove;
-			}
+                }
+                return doRemove;
+            }
 
-		}; // Should never have to resize the cache, so loadfactor is > 1
+        }; // Should never have to resize the cache, so loadfactor is > 1
 		//			logger.info("Max capacity: " + maxCapacity);
 		//			logger.info("Max size: " + maxSizeBytes);
 		map = Collections.synchronizedMap(map);

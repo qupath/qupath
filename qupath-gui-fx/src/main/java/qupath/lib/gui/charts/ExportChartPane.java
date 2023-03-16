@@ -559,7 +559,7 @@ class ExportChartPane {
 			Series<Number, Number> series2 = new Series<>();
 			series2.setName(series.getName());
 			for (Data<Number, Number> data : series.getData()) {
-				series2.getData().add(new Data<Number, Number>(data.getXValue(), data.getYValue(), data.getExtraValue()));
+				series2.getData().add(new Data<>(data.getXValue(), data.getYValue(), data.getExtraValue()));
 			}
 			chart2.getData().add(series2);
 

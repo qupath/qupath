@@ -768,7 +768,7 @@ public class PreferencePane {
 		}
 
 		@Override
-		public Optional<ObservableValue<? extends Object>> getObservableValue() {
+		public Optional<ObservableValue<?>> getObservableValue() {
 			return Optional.of(prop);
 		}
 
@@ -811,7 +811,7 @@ public class PreferencePane {
 		}
 
 		@Override
-		public Optional<ObservableValue<? extends Object>> getObservableValue() {
+		public Optional<ObservableValue<?>> getObservableValue() {
 			return Optional.of(fileValue);
 		}
 
@@ -847,7 +847,7 @@ public class PreferencePane {
 		}
 
 		@Override
-		public Optional<ObservableValue<? extends Object>> getObservableValue() {
+		public Optional<ObservableValue<?>> getObservableValue() {
 			return Optional.of(value);
 		}
 
@@ -1070,7 +1070,7 @@ public class PreferencePane {
 		}
 
 		public SearchableChoiceEditor(Item property, ObservableList<T> choices) {
-			super(new SearchableComboBox<T>(), property, choices);
+			super(new SearchableComboBox<>(), property, choices);
 		}
 		
 	}
@@ -1089,7 +1089,7 @@ public class PreferencePane {
 		}
 
 		public ChoiceEditor(Item property, ObservableList<T> choices) {
-			super(new ComboBox<T>(), property, choices);
+			super(new ComboBox<>(), property, choices);
 		}
 		
 	}

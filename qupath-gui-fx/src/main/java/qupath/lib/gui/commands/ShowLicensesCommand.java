@@ -254,8 +254,7 @@ class ShowLicensesCommand {
 							LicenseFileTreeItem item = (LicenseFileTreeItem)child;
 							sb.append(item.getName());
 							sb.append("\n");
-							for (int i = 0; i < item.getName().length(); i++)
-								sb.append("=");
+							sb.append("=".repeat(item.getName().length()));
 							sb.append("\n\n");
 							sb.append(item.getContents());
 							// Don't add another END after a directory - will already be one after any previous files

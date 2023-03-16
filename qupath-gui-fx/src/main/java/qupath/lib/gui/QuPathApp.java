@@ -67,14 +67,10 @@ public class QuPathApp extends Application {
 		logger.info("Starting QuPath with parameters: " + params.getRawParameters());
 
 		Optional<String> projectPath = params.getProjectParameter();
-		if (projectPath.isPresent()) {
-			openProjectOrLogException(qupath, projectPath.get());
-		}
+		projectPath.ifPresent(s -> openProjectOrLogException(qupath, s));
 		
 		Optional<String> imagePath = params.getImageParameter();
-		if (imagePath.isPresent()) {
-			openImageOrLogException(qupath, imagePath.get());
-		}
+		imagePath.ifPresent(s -> openImageOrLogException(qupath, s));
 		
 		tryToRegisterOpenFilesHandler(qupath);
 		

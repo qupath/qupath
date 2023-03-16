@@ -131,7 +131,7 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> implements 
 		
 		// Log a warning if the image is very large
 		double sizeBytes = imp.getSizeInBytes();
-		if (!imp.getStack().isVirtual() && sizeBytes > maxMemory / 16) {
+		if (!imp.getStack().isVirtual() && sizeBytes > maxMemory / 16.0) {
 			logger.warn("The image is very large relative to the available memory ({} MB / {} MB, {} %)",
 					GeneralTools.formatNumber(sizeBytes / (1024.0 * 1024.0), 1),
 					GeneralTools.formatNumber(maxMemory / (1024.0 * 1024.0), 1),

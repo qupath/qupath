@@ -362,7 +362,7 @@ class ProjectImportImagesCommand {
 						} catch (Exception e) {
 							logger.error("Unable to add " + item, e);
 						}
-						return new ArrayList<ServerBuilder<BufferedImage>>();
+						return new ArrayList<>();
 					}));
 				}
 				

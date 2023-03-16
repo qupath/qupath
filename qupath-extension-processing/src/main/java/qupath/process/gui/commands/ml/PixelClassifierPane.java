@@ -191,20 +191,20 @@ public class PixelClassifierPane {
 	private PixelClassificationOverlay featureOverlay;
 	private FeatureRenderer featureRenderer;
 
-	private ChangeListener<ImageData<BufferedImage>> imageDataListener = new ChangeListener<ImageData<BufferedImage>>() {
+	private ChangeListener<ImageData<BufferedImage>> imageDataListener = new ChangeListener<>() {
 
-		@Override
-		public void changed(ObservableValue<? extends ImageData<BufferedImage>> observable,
-				ImageData<BufferedImage> oldValue, ImageData<BufferedImage> newValue) {
-			if (oldValue != null)
-				oldValue.getHierarchy().removeListener(hierarchyListener);
-			if (newValue != null)
-				newValue.getHierarchy().addListener(hierarchyListener);
-			updateTitle();
-			updateAvailableResolutions(newValue);
-		}
-		
-	};
+        @Override
+        public void changed(ObservableValue<? extends ImageData<BufferedImage>> observable,
+                            ImageData<BufferedImage> oldValue, ImageData<BufferedImage> newValue) {
+            if (oldValue != null)
+                oldValue.getHierarchy().removeListener(hierarchyListener);
+            if (newValue != null)
+                newValue.getHierarchy().addListener(hierarchyListener);
+            updateTitle();
+            updateAvailableResolutions(newValue);
+        }
+
+    };
 	
 	private Stage stage;
 	
@@ -1284,8 +1284,8 @@ public class PixelClassifierPane {
 			double downsample = featureServer.getDownsampleForResolution(0);
 			int tw = (int)(featureServer.getMetadata().getPreferredTileWidth() * downsample);
 			int th = (int)(featureServer.getMetadata().getPreferredTileHeight() * downsample);
-			int x = (int)GeneralTools.clipValue(cx - tw/2, 0, featureServer.getWidth() - tw);
-			int y = (int)GeneralTools.clipValue(cy - th/2, 0, featureServer.getHeight() - th);
+			int x = (int)GeneralTools.clipValue(cx - tw/2.0, 0, featureServer.getWidth() - tw);
+			int y = (int)GeneralTools.clipValue(cy - th/2.0, 0, featureServer.getHeight() - th);
 			var request = RegionRequest.createInstance(
 					featureServer.getPath(),
 					downsample,

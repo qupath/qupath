@@ -98,10 +98,10 @@ public class PointIO {
 		ImagePlane defaultPlane = ImagePlane.getDefaultPlane();
 		for (var entry: pointsMap.entrySet()) {
 			var temp = Arrays.asList(cols);
-			String pathClass = temp.indexOf("class") > -1 ? entry.getKey()[temp.indexOf("class")-2] : "";
-			String name = temp.indexOf("name") > -1 ? entry.getKey()[temp.indexOf("name")-2] : "";
+			String pathClass = temp.contains("class") ? entry.getKey()[temp.indexOf("class")-2] : "";
+			String name = temp.contains("name") ? entry.getKey()[temp.indexOf("name")-2] : "";
 			Integer color = null;
-			if (temp.indexOf("color") > -1) {
+			if (temp.contains("color")) {
 				var colorTemp = entry.getKey()[temp.indexOf("color")-2];
 				if (colorTemp != null && !colorTemp.isEmpty())
 					color = Integer.parseInt(colorTemp);

@@ -602,7 +602,7 @@ public final class PathClass implements Comparable<PathClass>, Serializable {
 		int n = list.size();
 		for (int i = 0; i < n; i++) {
 			// Use the color only for the last name
-			pathClass = getInstance(pathClass, list.get(i), i == n-1 ? color : color);
+			pathClass = getInstance(pathClass, list.get(i), i == n-1 ? color : null);
 		}
 		return pathClass;
 	}

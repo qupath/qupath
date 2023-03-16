@@ -55,10 +55,10 @@ class DragDropTMADataImportListener implements EventHandler<DragEvent> {
 	}
 	
 	void setupTarget(final Scene target) {
-		target.setOnDragOver(new EventHandler<DragEvent>() {
+		target.setOnDragOver(new EventHandler<>() {
             @Override
             public void handle(DragEvent event) {
-            	event.acceptTransferModes(TransferMode.COPY);
+                event.acceptTransferModes(TransferMode.COPY);
                 event.consume();
             }
         });

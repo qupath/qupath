@@ -116,14 +116,14 @@ public class TileClassificationsToAnnotationsPlugin<T> extends AbstractDetection
 		if (!parametersInitialized) {
 			Set<PathClass> pathClasses = PathObjectTools.getRepresentedPathClasses(imageData.getHierarchy(), PathTileObject.class);
 			List<PathClass> choices = new ArrayList<>(pathClasses);
-			Collections.sort(choices, new Comparator<PathClass>() {
-	
-				@Override
-				public int compare(PathClass pc1, PathClass pc2) {
-					return pc1.getName().compareTo(pc2.getName());
-				}
-				
-			});
+			Collections.sort(choices, new Comparator<>() {
+
+                @Override
+                public int compare(PathClass pc1, PathClass pc2) {
+                    return pc1.getName().compareTo(pc2.getName());
+                }
+
+            });
 			PathClass allClasses = PathClass.getInstance("All classes");
 			PathClass defaultChoice = allClasses;
 			choices.add(0, allClasses);

@@ -367,23 +367,23 @@ public class BrightnessContrastCommand implements Runnable, ChangeListener<Image
 		});
 
 		TableColumn<ChannelDisplayInfo, ChannelDisplayInfo> col1 = new TableColumn<>("Color");
-		col1.setCellValueFactory(new Callback<CellDataFeatures<ChannelDisplayInfo, ChannelDisplayInfo>, ObservableValue<ChannelDisplayInfo>>() {
-		     @Override
+		col1.setCellValueFactory(new Callback<>() {
+			@Override
 			public ObservableValue<ChannelDisplayInfo> call(CellDataFeatures<ChannelDisplayInfo, ChannelDisplayInfo> p) {
-		         return new SimpleObjectProperty<ChannelDisplayInfo>(p.getValue());
-		     }
-		  });
+				return new SimpleObjectProperty<>(p.getValue());
+			}
+		});
 		col1.setCellFactory(column -> {
-		    return new TableCell<ChannelDisplayInfo, ChannelDisplayInfo>() {
-		    	@Override
-		        protected void updateItem(ChannelDisplayInfo item, boolean empty) {
-		    		super.updateItem(item, empty);
-		            if (item == null || empty) {
-		                setText(null);
-		                setGraphic(null);
-		                return;
-		            }
-		            setText(item.getName());
+		    return new TableCell<>() {
+				@Override
+				protected void updateItem(ChannelDisplayInfo item, boolean empty) {
+					super.updateItem(item, empty);
+					if (item == null || empty) {
+						setText(null);
+						setGraphic(null);
+						return;
+					}
+					setText(item.getName());
 					Rectangle square = new Rectangle(0, 0, 10, 10);
 					Integer rgb = item.getColor();
 					if (rgb == null)
@@ -391,25 +391,25 @@ public class BrightnessContrastCommand implements Runnable, ChangeListener<Image
 					else
 						square.setFill(ColorToolsFX.getCachedColor(rgb));
 					setGraphic(square);
-		    	}
-		    };
+				}
+			};
 		   });
 		
 		col1.setSortable(false);
 		TableColumn<ChannelDisplayInfo, Boolean> col2 = new TableColumn<>("Selected");
-		col2.setCellValueFactory(new Callback<CellDataFeatures<ChannelDisplayInfo, Boolean>, ObservableValue<Boolean>>() {
-		     @Override
+		col2.setCellValueFactory(new Callback<>() {
+			@Override
 			public ObservableValue<Boolean> call(CellDataFeatures<ChannelDisplayInfo, Boolean> item) {
-		    	 SimpleBooleanProperty property = new SimpleBooleanProperty(imageDisplay.selectedChannels().contains(item.getValue()));
-		    	 // Remove repaint code here - now handled by table selection changes
-		    	 property.addListener((v, o, n) -> {
-	    			 imageDisplay.setChannelSelected(item.getValue(), n);
-	    			 table.refresh();
-		    		 Platform.runLater(() -> viewer.repaintEntireImage());
-		    	 });
-		    	 return property;
-		     }
-		  });
+				SimpleBooleanProperty property = new SimpleBooleanProperty(imageDisplay.selectedChannels().contains(item.getValue()));
+				// Remove repaint code here - now handled by table selection changes
+				property.addListener((v, o, n) -> {
+					imageDisplay.setChannelSelected(item.getValue(), n);
+					table.refresh();
+					Platform.runLater(() -> viewer.repaintEntireImage());
+				});
+				return property;
+			}
+		});
 		col2.setCellFactory(column -> {
 			CheckBoxTableCell<ChannelDisplayInfo, Boolean> cell = new CheckBoxTableCell<>();
 			// Select cells when clicked - means a click anywhere within the row forces selection.
@@ -1196,7 +1196,7 @@ public class BrightnessContrastCommand implements Runnable, ChangeListener<Image
 				dialog.setTitle("Channels");
 				dialog.setHeaderText("Confirm new channel names?");
 				dialog.getDialogPane().setContent(new TextArea(String.join("\n", changes)));
-				if (dialog.showAndWait().orElseGet(() -> ButtonType.CANCEL) == ButtonType.APPLY) {
+				if (dialog.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.APPLY) {
 					var newMetadata = new ImageServerMetadata.Builder(metadata)
 							.channels(channels).build();
 					imageData.updateServerMetadata(newMetadata);
