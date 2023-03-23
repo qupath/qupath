@@ -24,9 +24,11 @@ java {
     withJavadocJar()
 }
 
-// Include parameter names, so they are available in the script editor via reflection
 compileJava {
+    // Include parameter names, so they are available in the script editor via reflection
     options.compilerArgs << '-parameters'
+    // Specify source should be UTF8
+    options.encoding = 'UTF-8'
 }
 
 // Avoid 'Entry .gitkeep is a duplicate but no duplicate handling strategy has been set.'
