@@ -617,17 +617,17 @@ public final class GeneralTools {
 	/**
 	 * Small Greek mu (useful for micrometers)
 	 */
-	public static final char SYMBOL_MU = '\u00B5';
+	public static final char SYMBOL_MU = 'µ';
 
 	/**
 	 * Small Greek sigma (useful for Gaussian filter sizes, standard deviations)
 	 */
-	public static final char SYMBOL_SIGMA = '\u03C3';
+	public static final char SYMBOL_SIGMA = 'σ';
 
 	/**
 	 * String to represent um (but with the proper 'mu' symbol)
 	 */
-	public static final String SYMBOL_MICROMETER = '\u00B5' + "m";
+	public static final String SYMBOL_MICROMETER = "µm";
 	
 	
 	/**

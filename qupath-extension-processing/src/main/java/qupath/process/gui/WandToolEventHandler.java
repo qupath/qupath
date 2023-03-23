@@ -400,7 +400,7 @@ public class WandToolEventHandler extends BrushToolEventHandler {
 			}
 		
 			// Limit maximum radius by pen
-			int radius = (int)Math.round(w / 2 * QuPathPenManager.getPenManager().getPressure());
+			int radius = (int)Math.round(w / 2.0 * QuPathPenManager.getPenManager().getPressure());
 			if (radius == 0)
 				return null;
 			matMask.put(Scalar.ZERO);
@@ -433,8 +433,8 @@ public class WandToolEventHandler extends BrushToolEventHandler {
 				for (long r = 0; r < idxrContours.size(0); r++) {
 					int px = idxrContours.get(r, 0L, 0L);
 					int py = idxrContours.get(r, 0L, 1L);
-					double xx = (px - w/2-1);// * downsample + x;
-					double yy = (py - w/2-1);// * downsample + y;
+					double xx = (px - w/2.0-1);// * downsample + x;
+					double yy = (py - w/2.0-1);// * downsample + y;
 					coords.add(new Coordinate(xx, yy));
 				}
 			}
@@ -486,9 +486,9 @@ public class WandToolEventHandler extends BrushToolEventHandler {
 	protected double getBrushDiameter() {
 		QuPathViewer viewer = getViewer();
 		if (viewer == null)
-			return w / 8;
+			return w / 8.0;
 		else
-			return w * getViewer().getDownsampleFactor() / 8;
+			return w * getViewer().getDownsampleFactor() / 8.0;
 	}
 
 }

@@ -387,8 +387,13 @@ public class PathIO {
 					// Try to recover from EOFExceptions - we may already have enough info
 					logger.error("Reached end of file...");
 					if (hierarchy == null)
-						logger.error(e.getLocalizedMessage(), e);
+						throw e;
 					break;
+				} catch (Exception e) {
+					if (e instanceof IOException ioe)
+						throw ioe;
+					else
+						throw new IOException(e);
 				}
 			}
 

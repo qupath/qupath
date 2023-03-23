@@ -784,7 +784,7 @@ public class Charts {
 		
 		@Override
 		protected ScatterChart<Number, Number> createNewChart(Axis<Number> xAxis, Axis<Number> yAxis) {
-			return new ScatterChart<Number, Number>(xAxis, yAxis);
+			return new ScatterChart<>(xAxis, yAxis);
 		}
 
 		/**

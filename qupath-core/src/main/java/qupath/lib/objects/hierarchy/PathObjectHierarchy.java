@@ -344,7 +344,7 @@ public final class PathObjectHierarchy implements Serializable {
 			tempSet.removeIf(p -> p != pathObjectParent && !PathObjectTools.isAncestor(p, pathObjectParent));
 		}
 
-		var possibleParentObjects = new ArrayList<PathObject>(tempSet);
+		var possibleParentObjects = new ArrayList<>(tempSet);
 		Collections.sort(possibleParentObjects, HIERARCHY_COMPARATOR);
 
 		for (PathObject possibleParent : possibleParentObjects) {

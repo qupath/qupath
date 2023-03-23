@@ -1192,13 +1192,13 @@ public class OpenCVTools {
 		// If using StatUtils, average and sum have different behavior with NaNs
 		switch (reduction) {
 		case opencv_core.REDUCE_AVG:
-			return Arrays.stream(values).filter(d -> !Double.isNaN(d)).average().orElseGet(() -> Double.NaN);
+			return Arrays.stream(values).filter(d -> !Double.isNaN(d)).average().orElse(Double.NaN);
 //			return StatUtils.mean(values);
 		case opencv_core.REDUCE_MAX:
-			return Arrays.stream(values).filter(d -> !Double.isNaN(d)).max().orElseGet(() -> Double.NaN);
+			return Arrays.stream(values).filter(d -> !Double.isNaN(d)).max().orElse(Double.NaN);
 //			return StatUtils.max(values);
 		case opencv_core.REDUCE_MIN:
-			return Arrays.stream(values).filter(d -> !Double.isNaN(d)).min().orElseGet(() -> Double.NaN);
+			return Arrays.stream(values).filter(d -> !Double.isNaN(d)).min().orElse(Double.NaN);
 //			return StatUtils.min(values);
 		case opencv_core.REDUCE_SUM:
 			return Arrays.stream(values).filter(d -> !Double.isNaN(d)).sum();

@@ -274,40 +274,40 @@ public class WorkflowCommandLogView implements ChangeListener<ImageData<Buffered
 					);
 		}
 		
-		list.setCellFactory(new Callback<ListView<WorkflowStep>, ListCell<WorkflowStep>>(){
+		list.setCellFactory(new Callback<>() {
 
-			@Override
-			public ListCell<WorkflowStep> call(ListView<WorkflowStep> p) {
-				ListCell<WorkflowStep> cell = new ListCell<>(){
-					@Override
-					protected void updateItem(WorkflowStep value, boolean bln) {
-						super.updateItem(value, bln);
-						if (value instanceof WorkflowStep)
-							setText(value.getName());
-						else if (value == null)
-							setText(null);
-						else
-							setText(value.toString());
-						
-						setContextMenu(contextMenu);
+            @Override
+            public ListCell<WorkflowStep> call(ListView<WorkflowStep> p) {
+                ListCell<WorkflowStep> cell = new ListCell<>() {
+                    @Override
+                    protected void updateItem(WorkflowStep value, boolean bln) {
+                        super.updateItem(value, bln);
+                        if (value instanceof WorkflowStep)
+                            setText(value.getName());
+                        else if (value == null)
+                            setText(null);
+                        else
+                            setText(value.toString());
 
-						setOnMouseClicked(e -> {
-							// Only handle double clicks
-							if (!e.isPopupTrigger() && e.getClickCount() == 2)
-								runWorkflowStepInteractively(qupath, value);
-						});
-						
-						setOnKeyPressed(e -> {
-							if (copyCombination.match(e)) {
-								copyScriptToClipboard(getSelectedIndices());
-								e.consume();
-							}
-						});
-					}
-				};
-				return cell;
-			}
-		});
+                        setContextMenu(contextMenu);
+
+                        setOnMouseClicked(e -> {
+                            // Only handle double clicks
+                            if (!e.isPopupTrigger() && e.getClickCount() == 2)
+                                runWorkflowStepInteractively(qupath, value);
+                        });
+
+                        setOnKeyPressed(e -> {
+                            if (copyCombination.match(e)) {
+                                copyScriptToClipboard(getSelectedIndices());
+                                e.consume();
+                            }
+                        });
+                    }
+                };
+                return cell;
+            }
+        });
 		
 		
 		pane.setCenter(splitPane);

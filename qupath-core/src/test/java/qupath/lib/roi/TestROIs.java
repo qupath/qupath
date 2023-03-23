@@ -67,7 +67,7 @@ public class TestROIs {
 		checkROIMeasurements(rectangle, pixelWidth, pixelHeight, delta);
 		assertTrue(rectangle.getGeometry().isValid());
 		
-		ROI ellipse = ROIs.createEllipseROI(50, 00, 500, 300, ImagePlane.getDefaultPlane());
+		ROI ellipse = ROIs.createEllipseROI(50, 0, 500, 300, ImagePlane.getDefaultPlane());
 		double targetAreaEllipse = Math.PI * 250 * 150;
 		assertEquals(targetAreaEllipse, ellipse.getArea(), delta);
 		// Flattening the path results in a more substantial area difference

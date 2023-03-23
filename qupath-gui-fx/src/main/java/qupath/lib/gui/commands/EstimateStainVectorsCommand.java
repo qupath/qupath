@@ -108,7 +108,7 @@ class EstimateStainVectorsCommand {
 			Dialogs.showNoImageError(TITLE);
 			return;
 		}
-		if (imageData == null || !imageData.isBrightfield() || imageData.getServer() == null || !imageData.getServer().isRGB()) {
+		if (!imageData.isBrightfield() || imageData.getServer() == null || !imageData.getServer().isRGB()) {
 			Dialogs.showErrorMessage(TITLE, "No brightfield, RGB image selected!");
 			return;
 		}

@@ -64,7 +64,7 @@ public class CircularSlider extends Control {
     private final Circle innerCircle = new Circle(5);
     private final Circle textCircle = new Circle();
     private final Path tickMarks = new Path();
-    private final Text angle = new Text("0.0\u00B0");
+    private final Text angle = new Text("0.0°");
 
     /**
      * Create a circular slider
@@ -268,7 +268,7 @@ public class CircularSlider extends Control {
     }
 
     private void updateTextAndInnerCircle() {
-        angle.setText(String.format("%.1f\u00B0", getValue()));
+        angle.setText(String.format("%.1f°", getValue()));
         final double radians = rotationProperty.get();
         double vecX = Math.sin(radians),
                 vecY = -Math.cos(radians);

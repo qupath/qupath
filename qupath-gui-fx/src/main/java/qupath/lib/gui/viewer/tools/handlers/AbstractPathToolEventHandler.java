@@ -204,7 +204,7 @@ abstract class AbstractPathToolEventHandler implements EventHandler<MouseEvent> 
 				.filter(p -> !p.isDetection() && p.hasROI() && p.getROI().isArea() && !exclusions.contains(p))
 				.sorted(Comparator.comparing(p -> p.getROI().getArea()))
 				.findFirst()
-				.orElseGet(() -> null);
+				.orElse(null);
 				
 		// Check the parent is a valid potential parent
 		if (constrainedParentObject == null || !(constrainedParentObject.hasROI() && constrainedParentObject.getROI().isArea())) {

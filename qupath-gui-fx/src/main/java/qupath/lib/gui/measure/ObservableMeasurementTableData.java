@@ -1490,16 +1490,16 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		
 		@Override
 		public Binding<Number> createMeasurement(final PathObject pathObject) {
-			return new ObjectBinding<Number>() {
-				
-				@Override
-				protected Number computeValue() {
-					ROI roi = pathObject.getROI();
-					if (roi == null)
-						return null;
-					return roi.getZ();
-				}
-			};
+			return new ObjectBinding<>() {
+
+                @Override
+                protected Number computeValue() {
+                    ROI roi = pathObject.getROI();
+                    if (roi == null)
+                        return null;
+                    return roi.getZ();
+                }
+            };
 		}
 		
 	}
@@ -1513,16 +1513,16 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		
 		@Override
 		public Binding<Number> createMeasurement(final PathObject pathObject) {
-			return new ObjectBinding<Number>() {
-				
-				@Override
-				protected Number computeValue() {
-					ROI roi = pathObject.getROI();
-					if (roi == null)
-						return null;
-					return roi.getT();
-				}
-			};
+			return new ObjectBinding<>() {
+
+                @Override
+                protected Number computeValue() {
+                    ROI roi = pathObject.getROI();
+                    if (roi == null)
+                        return null;
+                    return roi.getT();
+                }
+            };
 		}
 		
 	}

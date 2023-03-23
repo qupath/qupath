@@ -148,7 +148,7 @@ public class MeasurementExportCommand implements Runnable {
 		project = qupath.getProject();
 		pathObjectCombo = new ComboBox<>();
 		separatorCombo = new ComboBox<>();
-		includeCombo = new CheckComboBox<String>();
+		includeCombo = new CheckComboBox<>();
 		String sameImageWarning = "A selected image is open in the viewer!\nData should be saved before exporting.";
 		var listSelectionView = ProjectDialogs.createImageChoicePane(qupath, project.getImageList(), previousImages, sameImageWarning);
 		
@@ -411,9 +411,9 @@ public class MeasurementExportCommand implements Runnable {
 		protected Void call() {
 			long startTime = System.currentTimeMillis();
 	
-			Map<ProjectImageEntry<?>, String[]> imageCols = new HashMap<ProjectImageEntry<?>, String[]>();
-			Map<ProjectImageEntry<?>, Integer> nImageEntries = new HashMap<ProjectImageEntry<?>, Integer>();
-			List<String> allColumns = new ArrayList<String>();
+			Map<ProjectImageEntry<?>, String[]> imageCols = new HashMap<>();
+			Map<ProjectImageEntry<?>, Integer> nImageEntries = new HashMap<>();
+			List<String> allColumns = new ArrayList<>();
 			Multimap<String, String> valueMap = LinkedListMultimap.create();
 			File file = new File(pathOut);
 			String pattern = "(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)";

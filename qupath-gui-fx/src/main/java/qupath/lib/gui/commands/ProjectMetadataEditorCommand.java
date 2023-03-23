@@ -101,7 +101,7 @@ class ProjectMetadataEditorCommand {
 		
 		for (String metadataName : metadataNameSet) {
 			TableColumn<ImageEntryWrapper, String> col = new TableColumn<>(metadataName);
-			col.setCellFactory(TextFieldTableCell.<ImageEntryWrapper>forTableColumn());
+			col.setCellFactory(TextFieldTableCell.forTableColumn());
 			col.setOnEditCommit(e -> {
 				ImageEntryWrapper entry = e.getRowValue();
 				String n = e.getNewValue();

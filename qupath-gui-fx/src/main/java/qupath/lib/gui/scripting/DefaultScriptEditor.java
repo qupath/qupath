@@ -844,13 +844,12 @@ public class DefaultScriptEditor implements ScriptEditor {
 		titledScripts.setCollapsible(false);
 		panelList.setCenter(titledScripts);
 		listScripts.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> updateSelectedScript(true));
-		listScripts.setCellFactory(new Callback<ListView<ScriptTab>, 
-	            ListCell<ScriptTab>>() {
-	                @Override 
-	                public ListCell<ScriptTab> call(ListView<ScriptTab> list) {
-	                    return new ScriptObjectListCell();
-	                }
-	            }
+		listScripts.setCellFactory(new Callback<>() {
+									   @Override
+									   public ListCell<ScriptTab> call(ListView<ScriptTab> list) {
+										   return new ScriptObjectListCell();
+									   }
+								   }
 	        );
 		listScripts.setMinWidth(150);
 		runningTask.addListener((v, o, n) -> {
@@ -1546,7 +1545,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		dialog.getDialogPane().setPrefWidth(600);
 		dialog.initModality(Modality.APPLICATION_MODAL);
 		Optional<ButtonType> result = dialog.showAndWait();
-		if (!result.isPresent() || result.get() != ButtonType.OK)
+		if (result.isEmpty() || result.get() != ButtonType.OK)
 			return;
 		
 		previousImages.clear();

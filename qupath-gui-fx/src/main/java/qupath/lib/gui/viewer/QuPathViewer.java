@@ -2386,7 +2386,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		int nImages = server.nTimepoints() * server.nZSlices();
 		if (nImages == 1)
 			return Collections.singletonList(regionStore.getThumbnail(server, 0, 0, true));
-		List<BufferedImage> thumbnails = new ArrayList<BufferedImage>(nImages);
+		List<BufferedImage> thumbnails = new ArrayList<>(nImages);
 		for (int t = 0; t < server.nTimepoints(); t++) {
 			for (int z = 0; z < server.nZSlices(); z++) {
 				thumbnails.add(regionStore.getThumbnail(server, getZPosition(), getTPosition(), true));
@@ -3074,7 +3074,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 //			}
 //		}
 		updateRoiEditor();
-		for (QuPathViewerListener listener : new ArrayList<QuPathViewerListener>(listeners)) {
+		for (QuPathViewerListener listener : new ArrayList<>(listeners)) {
 			listener.selectedObjectChanged(this, pathObjectSelected);
 		}
 

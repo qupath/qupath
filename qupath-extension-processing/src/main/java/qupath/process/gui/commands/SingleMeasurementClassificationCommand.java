@@ -322,7 +322,7 @@ public class SingleMeasurementClassificationCommand implements Runnable {
 			
 			pool = Executors.newSingleThreadExecutor(ThreadTools.createThreadFactory("single-measurement-classifier", true));
 			
-			dialog = new Dialog<ButtonType>();
+			dialog = new Dialog<>();
 			dialog.initOwner(qupath.getStage());
 			dialog.titleProperty().bind(titleProperty);
 			dialog.getDialogPane().setContent(pane);

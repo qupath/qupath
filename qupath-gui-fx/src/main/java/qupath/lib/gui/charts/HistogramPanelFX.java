@@ -91,7 +91,7 @@ public class HistogramPanelFX {
 		chart.setCreateSymbols(false);
 		chart.setVisible(!chart.getData().isEmpty());
 		
-		histogramData.addListener(new ListChangeListener<HistogramData>() {
+		histogramData.addListener(new ListChangeListener<>() {
 			@Override
 			public void onChanged(Change<? extends HistogramData> c) {
 				while (c.next()) {
@@ -114,7 +114,7 @@ public class HistogramPanelFX {
 					}
 				}
 			}
-		     });
+		});
 	}
 	
 	/**
@@ -420,25 +420,25 @@ public class HistogramPanelFX {
 	        chart.prefWidthProperty().bind(pane.widthProperty());
 	        chart.prefHeightProperty().bind(pane.heightProperty());
 
-	        thresholds.addListener(new ListChangeListener<ObservableNumberValue>() {
+	        thresholds.addListener(new ListChangeListener<>() {
 
-	        	@Override
-	        	public void onChanged(ListChangeListener.Change<? extends ObservableNumberValue> c) {
-	        		while (c.next()) {
-	        			if (c.wasPermutated()) {
-	        				continue;
-	        			} else {
-	        				for (ObservableNumberValue removedItem : c.getRemoved()) {
-	        					pane.getChildren().remove(vLines.remove(removedItem));
-	        				}
+				@Override
+				public void onChanged(ListChangeListener.Change<? extends ObservableNumberValue> c) {
+					while (c.next()) {
+						if (c.wasPermutated()) {
+							continue;
+						} else {
+							for (ObservableNumberValue removedItem : c.getRemoved()) {
+								pane.getChildren().remove(vLines.remove(removedItem));
+							}
 //	        				pane.getChildren().removeAll(c.getRemoved());
 //	        				for (ObservableNumberValue addedItem : c.getAddedSubList()) {
 //	        					addThreshold(addedItem.getValue().doubleValue());
 //	        				}
-	        			}
-	        		}
-	        	}
-	        });
+						}
+					}
+				}
+			});
 	        
 		}
 		

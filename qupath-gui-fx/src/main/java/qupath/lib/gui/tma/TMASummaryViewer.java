@@ -569,16 +569,16 @@ public class TMASummaryViewer {
 		
 		
 		
-		model.getItems().addListener(new ListChangeListener<TMAEntry>() {
-			@Override
-			public void onChanged(ListChangeListener.Change<? extends TMAEntry> c) {
-				if (histogramDisplay != null)
-					histogramDisplay.refreshHistogram();
-				updateSurvivalCurves();
-				if (scatterPane != null)
-					scatterPane.updateChart();
-			}
-		});
+		model.getItems().addListener(new ListChangeListener<>() {
+            @Override
+            public void onChanged(ListChangeListener.Change<? extends TMAEntry> c) {
+                if (histogramDisplay != null)
+                    histogramDisplay.refreshHistogram();
+                updateSurvivalCurves();
+                if (scatterPane != null)
+                    scatterPane.updateChart();
+            }
+        });
 		
 		
 		Label labelPredicate = new Label();
@@ -1418,12 +1418,12 @@ public class TMASummaryViewer {
 		// Note: there's nothing to prevent the user reordering it along with other columns... 
 		// but hopefully it looks 'right' enough where it is that few would try to do that
 		TreeTableColumn<TMAEntry, String> columnEmpty = new TreeTableColumn<>("  ");
-		columnEmpty.setCellValueFactory(new Callback<CellDataFeatures<TMAEntry, String>, ObservableValue<String>>() {
-			@Override
-			public ObservableValue<String> call(CellDataFeatures<TMAEntry, String> p) {
-				return Bindings.createStringBinding(() -> "");
-			}
-		});
+		columnEmpty.setCellValueFactory(new Callback<>() {
+            @Override
+            public ObservableValue<String> call(CellDataFeatures<TMAEntry, String> p) {
+                return Bindings.createStringBinding(() -> "");
+            }
+        });
 		columnEmpty.setSortable(false);
 		columnEmpty.setResizable(false);
 		columns.add(columnEmpty);
@@ -1438,12 +1438,12 @@ public class TMASummaryViewer {
 			TreeTableColumn<TMAEntry, TMAEntry> columnOverlay = hasOverlay ? new TreeTableColumn<>("Overlay") : null;
 
 			if (hasImages) {
-				columnImage.setCellValueFactory(new Callback<CellDataFeatures<TMAEntry, TMAEntry>, ObservableValue<TMAEntry>>() {
-					@Override
-					public ObservableValue<TMAEntry> call(CellDataFeatures<TMAEntry, TMAEntry> p) {
-						return p.getValue().valueProperty();
-					}
-				});
+				columnImage.setCellValueFactory(new Callback<>() {
+                    @Override
+                    public ObservableValue<TMAEntry> call(CellDataFeatures<TMAEntry, TMAEntry> p) {
+                        return p.getValue().valueProperty();
+                    }
+                });
 				columnImage.setCellFactory(c -> new ImageTableCell(imageCache, false));
 				columnImage.maxWidthProperty().bind(maxSmallWidth);
 				columnImage.widthProperty().addListener((v, o, n) -> {
@@ -1457,12 +1457,12 @@ public class TMASummaryViewer {
 			}
 
 			if (hasOverlay) {
-				columnOverlay.setCellValueFactory(new Callback<CellDataFeatures<TMAEntry, TMAEntry>, ObservableValue<TMAEntry>>() {
-					@Override
-					public ObservableValue<TMAEntry> call(CellDataFeatures<TMAEntry, TMAEntry> p) {
-						return p.getValue().valueProperty();
-					}
-				});
+				columnOverlay.setCellValueFactory(new Callback<>() {
+                    @Override
+                    public ObservableValue<TMAEntry> call(CellDataFeatures<TMAEntry, TMAEntry> p) {
+                        return p.getValue().valueProperty();
+                    }
+                });
 				columnOverlay.setCellFactory(c -> new ImageTableCell(imageCache, true));
 				columnOverlay.maxWidthProperty().bind(maxSmallWidth);
 				columnOverlay.widthProperty().addListener((v, o, n) -> {
@@ -1493,23 +1493,23 @@ public class TMASummaryViewer {
 		for (String name : model.getAllNames()) {
 			if (model.getMeasurementNames().contains(name)) {
 				TreeTableColumn<TMAEntry, Number> column = new TreeTableColumn<>(name);
-				column.setCellValueFactory(new Callback<CellDataFeatures<TMAEntry, Number>, ObservableValue<Number>>() {
-					@Override
-					public ObservableValue<Number> call(CellDataFeatures<TMAEntry, Number> p) {
-						double value = p.getValue() == null ? Double.NaN : model.getNumericValue(p.getValue().getValue(), name);
-						return new SimpleDoubleProperty(value);
-					}
-				});
+				column.setCellValueFactory(new Callback<>() {
+                    @Override
+                    public ObservableValue<Number> call(CellDataFeatures<TMAEntry, Number> p) {
+                        double value = p.getValue() == null ? Double.NaN : model.getNumericValue(p.getValue().getValue(), name);
+                        return new SimpleDoubleProperty(value);
+                    }
+                });
 				column.setCellFactory(c -> new NumericTreeTableCell<>());
 				columns.add(column);
 			} else {
 				TreeTableColumn<TMAEntry, Object> column = new TreeTableColumn<>(name);
-				column.setCellValueFactory(new Callback<CellDataFeatures<TMAEntry, Object>, ObservableValue<Object>>() {
-					@Override
-					public ObservableValue<Object> call(CellDataFeatures<TMAEntry, Object> p) {
-						return new SimpleObjectProperty<>(p.getValue() == null ? null : model.getStringValue(p.getValue().getValue(), name));
-					}
-				});
+				column.setCellValueFactory(new Callback<>() {
+                    @Override
+                    public ObservableValue<Object> call(CellDataFeatures<TMAEntry, Object> p) {
+                        return new SimpleObjectProperty<>(p.getValue() == null ? null : model.getStringValue(p.getValue().getValue(), name));
+                    }
+                });
 				column.setCellFactory(c -> new CenteredTreeTableCell<>());
 				columns.add(column);
 			}
@@ -1755,13 +1755,13 @@ public class TMASummaryViewer {
 		
 		TMATableModel() {
 			useSelectedProperty.addListener((v, o, n) -> refreshList());
-			table.getSelectionModel().getSelectedItems().addListener(new ListChangeListener<TreeItem<TMAEntry>>() {
-				@Override
-				public void onChanged(ListChangeListener.Change<? extends TreeItem<TMAEntry>> c) {
-					if (useSelectedProperty.get())
-						refreshList();
-				}
-			});
+			table.getSelectionModel().getSelectedItems().addListener(new ListChangeListener<>() {
+                @Override
+                public void onChanged(ListChangeListener.Change<? extends TreeItem<TMAEntry>> c) {
+                    if (useSelectedProperty.get())
+                        refreshList();
+                }
+            });
 			refreshList();
 		}
 		

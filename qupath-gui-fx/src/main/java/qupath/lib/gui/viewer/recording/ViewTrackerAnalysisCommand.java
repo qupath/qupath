@@ -173,12 +173,12 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 				final int col = i;
 				final String columnName = getColumnName(tracker, col);
 				TableColumn<ViewRecordingFrame, Object> column = new TableColumn<>(columnName);
-				column.setCellValueFactory(new Callback<CellDataFeatures<ViewRecordingFrame, Object>, ObservableValue<Object>>() {
-				     @Override
-					public ObservableValue<Object> call(CellDataFeatures<ViewRecordingFrame, Object> frame) {
-				         return new SimpleObjectProperty<>(getColumnValue(frame.getValue(), columnName));
-				     }
-				  });
+				column.setCellValueFactory(new Callback<>() {
+                    @Override
+                    public ObservableValue<Object> call(CellDataFeatures<ViewRecordingFrame, Object> frame) {
+                        return new SimpleObjectProperty<>(getColumnValue(frame.getValue(), columnName));
+                    }
+                });
 				table.getColumns().add(column);
 			}
 			

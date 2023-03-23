@@ -302,7 +302,7 @@ public class TMAScoreImporter {
 
 		// Create a map with column headings, then lists of entries
 		String[] columns = line.split(delimiter);
-		map = new LinkedHashMap<String, List<String>>();
+		map = new LinkedHashMap<>();
 		for (String col : columns)
 			map.put(col, new ArrayList<>());
 

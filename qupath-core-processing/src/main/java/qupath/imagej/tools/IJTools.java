@@ -169,7 +169,7 @@ public class IJTools {
 			throw 
 				new Exception("There is not enough free memory to open this region in ImageJ\n"+
 						   "Image memory requirement: "+ df.format(approxMemory/(1024*1024))+"MB\n"+
-						   "Available Memory: "+df.format(presumableFreeMemory/(1024*1024) * MEMORY_THRESHOLD)+"MB\n\n"+
+						   "Available Memory: "+df.format((double)presumableFreeMemory/(1024*1024) * MEMORY_THRESHOLD)+"MB\n\n"+
 						   "Try again with a smaller region, or a higher downsample factor,"+
 						   "or modify the memory threshold using IJTools.setMemoryThreshold(double threshold)");
 		

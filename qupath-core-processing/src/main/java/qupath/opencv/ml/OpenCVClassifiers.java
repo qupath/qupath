@@ -1391,7 +1391,7 @@ public class OpenCVClassifiers {
 				IntBuffer buffer = OpenCVTools.ensureContinuous(targets, false).createBuffer();
 				int[] vals = new int[targets.rows()];
 				buffer.get(vals);
-				int max = Arrays.stream(vals).max().orElseGet(() -> 0) + 1;
+				int max = Arrays.stream(vals).max().orElse(0) + 1;
 				var targets2 = new Mat(targets.rows(), max, opencv_core.CV_32FC1, Scalar.all(-1.0));
 				FloatIndexer idxTargets = targets2.createIndexer();
 				int row = 0;

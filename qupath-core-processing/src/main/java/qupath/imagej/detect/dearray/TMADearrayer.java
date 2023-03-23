@@ -357,12 +357,12 @@ public class TMADearrayer {
 			}
 		}
 		// Sort the points by x coordinate
-		Collections.sort(pointRow, new Comparator<Point>() {
-			@Override
-			public int compare(Point p1, Point p2) {
-				return Integer.valueOf(p1.x).compareTo(p2.x);
-			}
-		});
+		Collections.sort(pointRow, new Comparator<>() {
+            @Override
+            public int compare(Point p1, Point p2) {
+                return Integer.valueOf(p1.x).compareTo(p2.x);
+            }
+        });
 			
 		return pointRow;
 	}
@@ -392,12 +392,12 @@ public class TMADearrayer {
 		ArrayList<Point> points = new ArrayList<>();
 		for (int i = 0; i < poly.npoints; i++)
 			points.add(new Point(poly.xpoints[i], poly.ypoints[i]));
-		Collections.sort(points, new Comparator<Point>() {
-			@Override
-			public int compare(Point p1, Point p2) {
-				return Integer.valueOf(p1.y).compareTo(p2.y);
-			}
-		});
+		Collections.sort(points, new Comparator<>() {
+            @Override
+            public int compare(Point p1, Point p2) {
+                return Integer.valueOf(p1.y).compareTo(p2.y);
+            }
+        });
 		
 		// Loop through the rows, constructing a polygon with the coords in order
 		Polygon poly2 = new Polygon();
@@ -442,7 +442,7 @@ public class TMADearrayer {
 	
 	
 	
-	private static boolean checkNewIndSeparated(int inds[], int newInd, int nInds, int minSeparation) {
+	private static boolean checkNewIndSeparated(int[] inds, int newInd, int nInds, int minSeparation) {
 		for (int i = 0; i < nInds; i++) {
 			if (Math.abs(newInd - inds[i]) < minSeparation)
 				return false;

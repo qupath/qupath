@@ -180,7 +180,7 @@ public final class PathClassFactory {
 		if (names.length == 1)
 			list = List.of(baseName, names[0]);
 		else {
-			list = new ArrayList<String>();
+			list = new ArrayList<>();
 			list.add(baseName);
 			for (var n : names)
 				list.add(n);

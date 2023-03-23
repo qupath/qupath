@@ -341,8 +341,8 @@ public class IconFactory {
 	}
 	
 	private static Node drawRectangleIcon(int size) {
-		double padX = 2;
-		double padY = size/5;
+		double padX = 2.0;
+		double padY = size/5.0;
 		var shape = new Rectangle(padX, padY, size-padX*2.0, size-padY*2.0);
 		shape.setStrokeWidth(1.0);
 		bindShapeColorToObjectColor(shape);
@@ -397,7 +397,7 @@ public class IconFactory {
 		var path = new Path();
 		path.getElements().setAll(
 				new MoveTo(size/2.0, 0),
-				new QuadCurveTo(size/8.0, 0, size/3, size/2.0),
+				new QuadCurveTo(size/8.0, 0, size/3.0, size/2.0),
 				new QuadCurveTo(0, size, size/2.0, size),
 
 				new QuadCurveTo(size, size, size*2/3.0, size/2.0),
@@ -455,8 +455,8 @@ public class IconFactory {
 	
 	
 	private static Node drawEllipseIcon(int size) {
-		double padX = 2;
-		double padY = size/6;
+		double padX = 2.0;
+		double padY = size/6.0;
 		var shape = new Ellipse(
 				size/2.0,
 				size/2.0,
@@ -572,7 +572,7 @@ public class IconFactory {
 		} else if (roi instanceof EllipseROI) {
 			double w = roi.getBoundsWidth()*scale;
 			double h = roi.getBoundsHeight()*scale;
-			Ellipse ellipse = new Ellipse(w/2, height/2, w/2, h/2);
+			Ellipse ellipse = new Ellipse(w/2, h/2, w/2, h/2);
 			ellipse.setStroke(color);
 			ellipse.setFill(null);
 			return ellipse;

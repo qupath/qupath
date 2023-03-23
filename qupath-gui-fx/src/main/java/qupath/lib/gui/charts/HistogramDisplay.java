@@ -113,35 +113,35 @@ public class HistogramDisplay implements ParameterChangeListener {
 
 		
 		TableColumn<Property<Number>, String> colName = new TableColumn<>("Measurement");
-		colName.setCellValueFactory(new Callback<CellDataFeatures<Property<Number>, String>, ObservableValue<String>>() {
-			@Override
-			public ObservableValue<String> call(CellDataFeatures<Property<Number>, String> p) {
-				return new SimpleStringProperty(p.getValue().getName());
-			}
-		});
+		colName.setCellValueFactory(new Callback<>() {
+            @Override
+            public ObservableValue<String> call(CellDataFeatures<Property<Number>, String> p) {
+                return new SimpleStringProperty(p.getValue().getName());
+            }
+        });
 		TableColumn<Property<Number>, Number> colValue = new TableColumn<>("Value");
-		colValue.setCellValueFactory(new Callback<CellDataFeatures<Property<Number>, Number>, ObservableValue<Number>>() {
-			@Override
-			public ObservableValue<Number> call(CellDataFeatures<Property<Number>, Number> p) {
-				return p.getValue();
-			}
-		});
+		colValue.setCellValueFactory(new Callback<>() {
+            @Override
+            public ObservableValue<Number> call(CellDataFeatures<Property<Number>, Number> p) {
+                return p.getValue();
+            }
+        });
 		colValue.setCellFactory(column -> {
-			return new TableCell<Property<Number>, Number>() {
-				@Override
-				protected void updateItem(Number item, boolean empty) {
-					super.updateItem(item, empty);
-					if (item == null || empty) {
-						setText(null);
-						setStyle("");
-					} else {
-						if (Double.isNaN(item.doubleValue()))
-							setText("-");
-						else
-							setText(GeneralTools.createFormatter(3).format(item));
-					}
-				}
-			};
+			return new TableCell<>() {
+                @Override
+                protected void updateItem(Number item, boolean empty) {
+                    super.updateItem(item, empty);
+                    if (item == null || empty) {
+                        setText(null);
+                        setStyle("");
+                    } else {
+                        if (Double.isNaN(item.doubleValue()))
+                            setText("-");
+                        else
+                            setText(GeneralTools.createFormatter(3).format(item));
+                    }
+                }
+            };
 		});
 		table.getColumns().add(colName);
 		table.getColumns().add(colValue);

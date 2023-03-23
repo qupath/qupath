@@ -269,7 +269,7 @@ abstract class ImageDataTransformerBuilder {
 			// Selected channels
 
 			var labelChannels = new Label("Channels");
-			comboChannels = new CheckComboBox<ColorTransform>();
+			comboChannels = new CheckComboBox<>();
 			GuiTools.installSelectAllOrNoneMenu(comboChannels);
 			//			var btnChannels = new Button("Select");
 			//			btnChannels.setOnAction(e -> selectChannels());
