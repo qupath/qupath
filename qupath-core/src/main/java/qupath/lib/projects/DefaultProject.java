@@ -695,7 +695,7 @@ class DefaultProject implements Project<BufferedImage> {
 				try (var stream = Files.newInputStream(path)) {
 					imageData = PathIO.readImageData(stream, null, server, BufferedImage.class);
 					imageData.setLastSavedPath(path.toString(), true);
-				} catch (IOException e) {
+				} catch (Exception e) {
 					logger.error("Error reading image data from " + path, e);
 				}
 			}
