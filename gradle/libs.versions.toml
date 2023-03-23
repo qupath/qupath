@@ -23,7 +23,7 @@ javacpp         = "1.5.8"
   opencv        = "4.6.0-1.5.8"
   cuda          = "11.8-8.6-1.5.8"
   
-javafx          = "19.0.2.1"
+javafx          = "20"
 javafxJavadoc   = "19"
 jfreeSvg        = "5.0.5"
 jfxtras         = "17-r1"
