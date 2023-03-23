@@ -283,7 +283,7 @@ public class PreferencePane {
 		@Pref(value = "Prefs.General.logLevel", type = LogLevel.class)
 		public final ObjectProperty<LogLevel> logLevel = LogManager.rootLogLevelProperty();
 
-		@IntegerPref("Prefs.General.logLevel")
+		@IntegerPref("Prefs.General.numThreads")
 		public final IntegerProperty numThreads = PathPrefs.numCommandThreadsProperty();
 
 		@Pref(value = "Prefs.General.imageType", type = ImageTypeSetting.class)
@@ -298,10 +298,10 @@ public class PreferencePane {
 		@BooleanPref("Prefs.General.showTMA")
 		public final BooleanProperty showTMACommands = PathPrefs.showTMAOptionsProperty();
 
-		@BooleanPref("Prefs.General.showExperimental")
+		@BooleanPref("Prefs.General.showDeprecated")
 		public final BooleanProperty showDeprecatedCommands = PathPrefs.showLegacyOptionsProperty();
 		
-		@Pref(value = "Prefs.General.showDeprecated", type = DetectionTreeDisplayModes.class)
+		@Pref(value = "Prefs.General.hierarchyDisplay", type = DetectionTreeDisplayModes.class)
 		public final ObjectProperty<DetectionTreeDisplayModes> hierarchyDisplayMode = PathPrefs.detectionTreeDisplayModeProperty();
 		
 		

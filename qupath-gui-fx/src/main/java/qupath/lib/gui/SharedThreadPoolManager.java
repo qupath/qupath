@@ -36,7 +36,7 @@ import qupath.lib.common.ThreadTools;
 /**
  * Manager to simplify submitting short tasks in background threads using a shared {@link ExecutorService}.
  * <p>
- * This also creating a reusable single-thread {@link ExecutorService} using an object as a key.
+ * This can also create a reusable single-thread {@link ExecutorService} using an object as a key.
  * 
  * @author Pete Bankhead
  * @since v0.5.0 (replacing functionality previously in {@link QuPathGUI}

@@ -36,7 +36,7 @@ public class LogManager {
 	/**
 	 * Available log levels.
 	 */
-	public static enum LogLevel {
+	public enum LogLevel {
 		/**
 		 * Trace logging (an awful lot of messages)
 		 */

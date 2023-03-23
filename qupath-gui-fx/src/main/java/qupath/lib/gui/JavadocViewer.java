@@ -37,6 +37,7 @@ import java.util.Set;
 import java.util.stream.Stream;
 import java.util.zip.ZipFile;
 
+import com.google.gson.GsonBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -66,7 +67,6 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.WebViews;
-import qupath.lib.io.GsonTools;
 
 /**
  * Command to show javadocs in a {@link WebView}.
@@ -205,12 +205,12 @@ public class JavadocViewer {
 		toolbar.setSpacing(spacing);
 		toolbar.setPadding(new Insets(spacing));
 		
-		var btnBack = new Button("<"); // \u2190
+		var btnBack = new Button("<"); // ←
 		btnBack.setTooltip(new Tooltip("Back"));
 		btnBack.disableProperty().bind(history.currentIndexProperty().isEqualTo(0));
 		btnBack.setOnAction(e -> backOne());
 		
-		var btnForward = new Button(">"); // \u2192
+		var btnForward = new Button(">"); // →
 		btnForward.setTooltip(new Tooltip("Forward"));
 		btnForward.disableProperty().bind(Bindings.createBooleanBinding(() -> {
 			return history.getCurrentIndex() >= history.getEntries().size() - 1;
@@ -309,10 +309,8 @@ public class JavadocViewer {
 		var uri = webview.getEngine().getLocation();
 		if (uri == null || uri.isBlank())
 			return;
-		
-		var baseUri = uris.stream().filter(u -> uri.startsWith(u.toString())).findFirst().orElse(null);
-		if (baseUri != null)
-			selectedUri.set(baseUri);
+
+		uris.stream().filter(u -> uri.startsWith(u.toString())).findFirst().ifPresent(baseUri -> selectedUri.set(baseUri));
 	}
 	
 	
@@ -556,7 +554,7 @@ public class JavadocViewer {
 			if (startInd >= 0 && endInd >= 0 && endInd < json.length())
 				json = json.substring(startInd, endInd);
 				
-			return (List<T>)GsonTools.getInstance().fromJson(json, TypeToken.getParameterized(List.class, cls).getType());
+			return (List<T>)new GsonBuilder().create().fromJson(json, TypeToken.getParameterized(List.class, cls).getType());
 		}
 		
 		/**
