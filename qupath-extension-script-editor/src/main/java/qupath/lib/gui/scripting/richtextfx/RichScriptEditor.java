@@ -51,7 +51,7 @@ import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.Region;
 import javafx.stage.Popup;
-import qupath.controls.FXUtils;
+import qupath.controls.utils.FXUtils;
 import qupath.lib.common.ThreadTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.scripting.DefaultScriptEditor;

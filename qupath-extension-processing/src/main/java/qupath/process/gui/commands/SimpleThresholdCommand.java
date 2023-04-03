@@ -46,7 +46,7 @@ import javafx.scene.control.SpinnerValueFactory;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.stage.Stage;
-import qupath.controls.FXUtils;
+import qupath.controls.utils.FXUtils;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;

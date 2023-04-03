@@ -63,7 +63,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.web.WebView;
 import javafx.stage.Stage;
 import javafx.stage.Window;
-import qupath.controls.FXUtils;
+import qupath.controls.utils.FXUtils;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.WebViews;

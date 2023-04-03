@@ -101,7 +101,7 @@ import javafx.scene.shape.Rectangle;
 import javafx.scene.text.TextAlignment;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
-import qupath.controls.FXUtils;
+import qupath.controls.utils.FXUtils;
 import qupath.controls.dialogs.FileChoosers;
 import qupath.lib.awt.common.BufferedImageTools;
 import qupath.lib.color.ColorDeconvolutionHelper;

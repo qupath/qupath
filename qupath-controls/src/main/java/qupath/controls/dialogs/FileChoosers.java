@@ -39,7 +39,7 @@ import javafx.stage.Stage;
 import javafx.stage.Window;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qupath.controls.FXUtils;
+import qupath.controls.utils.FXUtils;
 import qupath.controls.localization.LocalizedResourceManager;
 
 import java.io.File;

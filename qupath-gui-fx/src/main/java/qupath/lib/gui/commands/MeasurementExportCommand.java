@@ -67,7 +67,7 @@ import javafx.scene.control.TextField;
 import javafx.scene.control.ButtonBar.ButtonData;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
-import qupath.controls.FXUtils;
+import qupath.controls.utils.FXUtils;
 import qupath.controls.dialogs.FileChoosers;
 import qupath.lib.common.ThreadTools;
 import qupath.lib.gui.QuPathGUI;

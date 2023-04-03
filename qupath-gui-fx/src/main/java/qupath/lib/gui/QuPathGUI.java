@@ -97,7 +97,7 @@ import javafx.scene.layout.Pane;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
-import qupath.controls.FXUtils;
+import qupath.controls.utils.FXUtils;
 import qupath.controls.dialogs.FileChoosers;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.Timeit;
@@ -107,7 +107,7 @@ import qupath.lib.gui.actions.CommonActions;
 import qupath.lib.gui.actions.OverlayActions;
 import qupath.lib.gui.actions.ViewerActions;
 import qupath.lib.gui.actions.menus.Menus;
-import qupath.lib.gui.commands.InputDisplayCommand;
+import qupath.controls.InputDisplay;
 import qupath.lib.gui.commands.LogViewerCommand;
 import qupath.lib.gui.commands.ProjectCommands;
 import qupath.lib.gui.commands.TMACommands;
@@ -218,7 +218,7 @@ public class QuPathGUI {
 	private BooleanProperty scriptRunning = new SimpleBooleanProperty(false);
 	private BooleanBinding uiBlocked = pluginRunning.or(scriptRunning);
 	
-	private SimpleBooleanProperty showInputDisplayProperty = new SimpleBooleanProperty(false);
+	private InputDisplay inputDisplay;
 	
 	/**
 	 * Keystrokes can be lost on macOS... so ensure these are handled
@@ -302,16 +302,7 @@ public class QuPathGUI {
 
 		// Remove this to only accept drag-and-drop into a viewer
 		TMACommands.installDragAndDropHandler(this);
-		
-		// Add listener to the inputDisplayDialogProperty to show/hide dialog
-		showInputDisplayProperty.addListener((v, o, n) -> {
-			var dialogInstance = InputDisplayCommand.getInstance(getStage(), showInputDisplayProperty);
-			if (n)
-				dialogInstance.show();
-			else
-				dialogInstance.requestClose();
-		});
-		
+
 		timeit.checkpoint("Showing");
 		stage.show();
 
@@ -2650,7 +2641,10 @@ public class QuPathGUI {
 	 * @return input display property
 	 */
 	public BooleanProperty showInputDisplayProperty() {
-		return showInputDisplayProperty;
+		// Add listener to the inputDisplayDialogProperty to show/hide dialog
+		if (inputDisplay == null)
+			inputDisplay = new InputDisplay(getStage());
+		return inputDisplay.showProperty();
 	}
 	
 	

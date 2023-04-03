@@ -1,4 +1,4 @@
-package qupath.controls;
+package qupath.controls.utils;
 
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
@@ -106,6 +106,17 @@ public class FXUtils {
      */
     public static void makeDraggableStage(Stage stage) {
         new MoveablePaneHandler(stage);
+    }
+
+    /**
+     * Request that a window retains its position and size even when hidden.
+     * @param window
+     */
+    public static void retainWindowPosition(Window window) {
+        window.setX(window.getX());
+        window.setY(window.getY());
+        window.setWidth(window.getWidth());
+        window.setHeight(window.getHeight());
     }
 
     /**

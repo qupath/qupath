@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -19,20 +19,8 @@
  * #L%
  */
 
-package qupath.lib.gui.commands;
+package qupath.controls;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.TreeMap;
-import java.util.WeakHashMap;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import javafx.application.Platform;
 import javafx.beans.InvalidationListener;
 import javafx.beans.Observable;
 import javafx.beans.binding.Bindings;
@@ -43,19 +31,16 @@ import javafx.beans.property.StringProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.collections.ObservableMap;
 import javafx.event.EventHandler;
 import javafx.geometry.Pos;
+import javafx.scene.Cursor;
 import javafx.scene.Group;
 import javafx.scene.Scene;
 import javafx.scene.control.Label;
 import javafx.scene.control.Tooltip;
-import javafx.scene.input.InputEvent;
-import javafx.scene.input.KeyCode;
-import javafx.scene.input.KeyEvent;
-import javafx.scene.input.MouseButton;
-import javafx.scene.input.MouseEvent;
-import javafx.scene.input.ScrollEvent;
+import javafx.scene.input.*;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
@@ -63,35 +48,38 @@ import javafx.scene.paint.Color;
 import javafx.scene.paint.Paint;
 import javafx.scene.shape.Polygon;
 import javafx.scene.shape.Rectangle;
+import javafx.scene.shape.SVGPath;
 import javafx.scene.shape.Shape;
 import javafx.scene.text.TextAlignment;
-import javafx.stage.Screen;
-import javafx.stage.Stage;
-import javafx.stage.StageStyle;
-import javafx.stage.Window;
-import javafx.stage.WindowEvent;
-import qupath.controls.FXUtils;
-import qupath.lib.gui.prefs.PathPrefs;
+import javafx.stage.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.controls.utils.FXUtils;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+import java.util.TreeMap;
 
 /**
- * QuPath command to display key-presses and mouse movement logged when interacting
- * with the main Window.
+ * Control to display mouse and keyboard input when interacting with a window.
  * <p>
  * This is useful for demos and tutorials where shortcut keys are used.
  *
  * @author Pete Bankhead
  */
-public class InputDisplayCommand implements EventHandler<InputEvent> {
+public class InputDisplay implements EventHandler<InputEvent> {
 
-	private static final Logger logger = LoggerFactory.getLogger(InputDisplayCommand.class);
-	
+	private static final Logger logger = LoggerFactory.getLogger(InputDisplay.class);
+
 	// To ensure single input command per window
-	private static WeakHashMap<Window, InputDisplayCommand> map = new WeakHashMap<>();
-
 	private Window window;
-	private BooleanProperty showProperty;
 
-	private static Stage stage = new Stage();
+	private BooleanProperty showProperty = new SimpleBooleanProperty(false);
+
+	private BooleanProperty showCloseButton = new SimpleBooleanProperty(true);
+
+	private Stage stage;
 
 	private FocusListener focusListener = new FocusListener();
 	private KeyFilter keyFilter = new KeyFilter();
@@ -102,9 +90,10 @@ public class InputDisplayCommand implements EventHandler<InputEvent> {
 	private Color colorInactive = new Color(1, 1, 1, 0.1);
 
 	// Keys
-	private Set<KeyCode> MODIFIER_KEYS = new HashSet<>(
-			Arrays.asList(KeyCode.SHIFT, KeyCode.SHORTCUT, KeyCode.COMMAND, KeyCode.CONTROL, KeyCode.ALT, KeyCode.ALT_GRAPH)
-			);
+	private Set<KeyCode> MODIFIER_KEYS = Set.of(
+			KeyCode.SHIFT, KeyCode.SHORTCUT, KeyCode.COMMAND, KeyCode.CONTROL, KeyCode.ALT, KeyCode.ALT_GRAPH
+	);
+
 	private ObservableMap<String, String> modifiers = FXCollections.observableMap(new TreeMap<>());
 	private ObservableMap<String, String> keys = FXCollections.observableMap(new TreeMap<>());
 
@@ -118,30 +107,41 @@ public class InputDisplayCommand implements EventHandler<InputEvent> {
 	private BooleanProperty scrollRight = new SimpleBooleanProperty(false);
 	private BooleanProperty scrollUp = new SimpleBooleanProperty(false);
 	private BooleanProperty scrollDown = new SimpleBooleanProperty(false);
-	
-	private InputDisplayCommand(Window window, BooleanProperty showProperty) {
-		if (window == null || showProperty == null)
-			throw new IllegalArgumentException();
-		this.window = window;
-		this.showProperty = showProperty;
-		map.put(window, this);
+
+	public InputDisplay(Window window) {
+		this(FXCollections.observableArrayList(window));
 	}
-	
-	/**
-	 * Return an instance of {@code InputDisplayCommand} associated with the specified {@code window} (or a 
-	 * new instance if it was not previously created).
-	 * @param window
-	 * @param showProperty
-	 * @return
-	 */
-	public static InputDisplayCommand getInstance(Window window, BooleanProperty showProperty) {
-		if (map.containsKey(window))
-			return map.get(window);
-		return new InputDisplayCommand(window, showProperty);
+
+	private InputDisplay(ObservableList<? extends Window> windows) {
+		if (windows.isEmpty() || windows.get(0) == null)
+			throw new IllegalArgumentException("A window must be specified!");
+		this.window = windows.get(0);
+		showProperty.addListener((v, o, n) -> updateShowStatus(n));
+	}
+
+	private void updateShowStatus(boolean doShow) {
+		if (doShow) {
+			window.addEventFilter(InputEvent.ANY, this);
+			window.focusedProperty().addListener(focusListener);
+			if (stage == null) {
+				stage = createStage();
+			}
+			stage.setAlwaysOnTop(true);
+			stage.show();
+			stage.setOnCloseRequest(e -> {
+				showProperty.set(false);
+			});
+		} else if (stage != null) {
+			if (stage.isShowing())
+				stage.hide();
+			window.focusedProperty().removeListener(focusListener);
+			window.removeEventFilter(InputEvent.ANY, this);
+			stage.hide();
+		}
 	}
 
 	private Stage createStage() {
-		
+
 		logger.trace("Creating stage for input display");
 
 		double keyPaneWidth = 225.0;
@@ -149,14 +149,15 @@ public class InputDisplayCommand implements EventHandler<InputEvent> {
 		double spacing = 5;
 
 		var pane = new AnchorPane();
-		pane.setStyle("-fx-background-color: rgba(0, 0, 0, 0.75); -fx-background-radius: 10;");
+		var stylesheetUrl = InputDisplay.class.getResource("/css/input-display.css").toExternalForm();
+		pane.getStylesheets().add(stylesheetUrl);
+		pane.getStyleClass().add("input-display-pane");
 
 		// Add to main pane
 		var paneKeys = createKeyPane(keyPaneWidth);
 		pane.getChildren().add(paneKeys);
 		AnchorPane.setTopAnchor(paneKeys, 0.0);
 		AnchorPane.setLeftAnchor(paneKeys, 0.0);
-
 
 		// Create the mouse pane
 		var paneMouse = createMousePane(mousePaneWidth);
@@ -166,19 +167,20 @@ public class InputDisplayCommand implements EventHandler<InputEvent> {
 		AnchorPane.setLeftAnchor(paneMouse, keyPaneWidth + 5);
 
 
-		//	        // Add small node to close
-		//	        var closeCircle = new Circle(4)
-		////	        var closeCircle = new Text("x")
-		//	        closeCircle.setStrokeWidth(1.5)
-		//	        closeCircle.setStroke(new Color(1, 1, 1, 0.4))
-		//	        closeCircle.setFill(null)
-		////	        closeCircle.setOnMouseEntered { e -> closeCircle.setStroke(colorActive) }
-		////	        closeCircle.setOnMouseExited() { e -> closeCircle.setStroke(new Color(1, 1, 1, 0.4)) }
-		////	        var tooltipClose = new Tooltip("Close")
-		////	        Tooltip.install(closeCircle, tooltipClose)
-		//	        pane.getChildren().add(closeCircle)
-		//	        AnchorPane.setTopAnchor(closeCircle, 5)
-		//	        AnchorPane.setLeftAnchor(closeCircle, 5)
+		// Add small node to close
+		var closeButton = new SVGPath();
+		closeButton.setContent("M 0 0 L 8 8 M 8 0 L 0 8");
+		closeButton.setStrokeWidth(1.5);
+		closeButton.setStroke(new Color(1, 1, 1, 0.4));
+		closeButton.setFill(null);
+		closeButton.setOnMouseEntered( e -> closeButton.setStroke(colorActive) );
+		closeButton.setOnMouseExited( e -> closeButton.setStroke(new Color(1, 1, 1, 0.4)) );
+		closeButton.setOnMouseClicked(e -> showProperty.set(false));
+		closeButton.setCursor(Cursor.DEFAULT);
+		pane.getChildren().add(closeButton);
+		AnchorPane.setTopAnchor(closeButton, 7.0);
+		AnchorPane.setLeftAnchor(closeButton, 7.0);
+		closeButton.visibleProperty().bind(showCloseButton);
 
 
 		// Set default location as the bottom left corner of the primary screen
@@ -193,6 +195,7 @@ public class InputDisplayCommand implements EventHandler<InputEvent> {
 		stage.setScene(scene);
 		FXUtils.makeDraggableStage(stage);
 
+
 		var tooltipClose = new Tooltip("Display input - double-click to close");
 		Tooltip.install(pane, tooltipClose);
 
@@ -201,48 +204,27 @@ public class InputDisplayCommand implements EventHandler<InputEvent> {
 		stage.setY(screenBounds.getMaxY() - scene.getHeight() - yPad);
 
 		stage.getScene().setOnMouseClicked(e -> {
-			if (e.getClickCount() == 2) {
-				stage.fireEvent(
-						new WindowEvent(
-								stage,
-								WindowEvent.WINDOW_CLOSE_REQUEST
-								)
-						);
+			if (!showCloseButton.get() && e.getClickCount() == 2) {
+				hide();
 			}
 		});
+
 		return stage;
 	}
 
-	/**
-	 * Request that the input display stage is made visible
-	 */
-	public void show() {
-		if (!Platform.isFxApplicationThread()) {
-			Platform.runLater(() -> show());
-			return;
-		}
 
-		window.addEventFilter(InputEvent.ANY, this);
-		window.focusedProperty().addListener(focusListener);
-		stage = createStage();
-		stage.setAlwaysOnTop(true);
-		stage.show();
-		stage.setOnCloseRequest(e -> {
-			requestClose();
-			showProperty.set(false);
-		});
+	public BooleanProperty showProperty() {
+		return showProperty;
 	}
-	
-	/**
-	 * Request that the input display window be closed.
-	 */
-	public void requestClose() {
-		if (stage.isShowing())
-			stage.close();
-		
-		window.focusedProperty().removeListener(focusListener);
-		window.removeEventFilter(InputEvent.ANY, this);
+
+	public void show() {
+		showProperty.set(true);
 	}
+
+	public void hide() {
+		showProperty.set(false);
+	}
+
 
 	@Override
 	public void handle(InputEvent event) {
@@ -329,12 +311,12 @@ public class InputDisplayCommand implements EventHandler<InputEvent> {
 		var rectPrimary = createButtonRectangle(primaryDown, 25, 40);
 		var rectSecondary = createButtonRectangle(secondaryDown, 25, 40);
 		var rectMiddle = createButtonRectangle(middleDown, 8, 18);
-		
+
 		double gap = 5;
 		rectMiddle.setTranslateX(rectPrimary.getWidth() + gap/2.0 - rectMiddle.getWidth()/2.0);
-		
+
 		rectSecondary.setTranslateX(rectPrimary.getWidth()+gap);
-		
+
 		rectMiddle.setStrokeWidth(8);
 		rectMiddle.setStroke(Color.WHITE);
 		rectMiddle.setTranslateY((rectPrimary.getHeight()-rectMiddle.getHeight())/2.0);
@@ -344,10 +326,9 @@ public class InputDisplayCommand implements EventHandler<InputEvent> {
 		shapeSecondary.fillProperty().bind(rectSecondary.fillProperty());
 		rectMiddle.setStroke(null);
 		rectMiddle.setStrokeWidth(2);
-		
+
 		var group = new Group();
 		group.getChildren().addAll(shapePrimary, shapeSecondary, rectMiddle);
-		
 
 		double arrowBase = 32;
 		double arrowHeight = arrowBase / 2.0;
@@ -360,11 +341,11 @@ public class InputDisplayCommand implements EventHandler<InputEvent> {
 		pane.getChildren().addAll(
 				group,
 				arrowUp, arrowDown, arrowLeft, arrowRight
-				);
-		
+		);
+
 		AnchorPane.setTopAnchor(group, 20.0);
 		AnchorPane.setLeftAnchor(group, width/2.0-group.getBoundsInLocal().getWidth()/2.0);
-		
+
 		double y = rectPrimary.getHeight() + 30;
 		AnchorPane.setTopAnchor(arrowUp, y);
 		AnchorPane.setTopAnchor(arrowDown, y + 60);
@@ -387,20 +368,18 @@ public class InputDisplayCommand implements EventHandler<InputEvent> {
 		var selected = colorActive;
 		var deselected = colorInactive;
 		rect.fillProperty().bind(createColorBinding(isPressed, selected, deselected));
-		//	        rect.strokeProperty().bind(createColorBinding(isPressed, Color.WHITE, translucent))
 		return rect;
 	}
 
 	Polygon createArrow(BooleanProperty isPressed, double arrowBase, double arrowHeight, double rotate) {
 		var arrow = new Polygon(
 				-arrowBase/2.0, arrowHeight/2.0, 0, -arrowHeight/2.0, arrowBase/2.0, arrowHeight/2.0
-				);
+		);
 		arrow.setStrokeWidth(2);
 		arrow.setRotate(rotate);
 		var selected = colorActive;
 		var deselected = colorInactive;
 		arrow.fillProperty().bind(createColorBinding(isPressed, selected, deselected));
-		//	        rect.strokeProperty().bind(createColorBinding(isPressed, Color.WHITE, translucent))
 		return arrow;
 	}
 
@@ -477,7 +456,10 @@ public class InputDisplayCommand implements EventHandler<InputEvent> {
 					scrollRight.set(false);
 					return;
 				}
-				double direction = PathPrefs.invertScrollingProperty().get() ? -1 : 1;
+				// Previously, there was support for 'invert scrolling' to do with different
+				// macOS behavior. This isn't used anymore, but the code is left in case it's needed again.
+				boolean invertScrolling = false;
+				double direction = invertScrolling ? -1 : 1;
 				scrollUp.set((event.getDeltaY() * direction) < -0.001);
 				scrollDown.set((event.getDeltaY() * direction) > 0.001);
 				scrollLeft.set((event.getDeltaX() * direction) < -0.001);

@@ -23,8 +23,6 @@ package qupath.controls.dialogs;
 
 import java.util.*;
 
-import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import org.controlsfx.control.Notifications;
@@ -47,7 +45,7 @@ import javafx.scene.control.TextInputDialog;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.Window;
-import qupath.controls.FXUtils;
+import qupath.controls.utils.FXUtils;
 
 /**
  * Collection of static methods to help with showing information to a user, 

@@ -54,7 +54,7 @@ import javafx.scene.control.Slider;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
 import javafx.stage.Modality;
-import qupath.controls.FXUtils;
+import qupath.controls.utils.FXUtils;
 import qupath.lib.analysis.stats.Histogram;
 import qupath.lib.classifiers.object.ObjectClassifier;
 import qupath.lib.classifiers.object.ObjectClassifiers.ClassifyByMeasurementBuilder;

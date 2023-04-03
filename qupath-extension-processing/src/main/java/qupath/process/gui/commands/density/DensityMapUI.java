@@ -73,7 +73,7 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.stage.Modality;
 import javafx.stage.Window;
-import qupath.controls.FXUtils;
+import qupath.controls.utils.FXUtils;
 import qupath.controls.dialogs.FileChoosers;
 import qupath.imagej.gui.IJExtension;
 import qupath.imagej.tools.IJTools;

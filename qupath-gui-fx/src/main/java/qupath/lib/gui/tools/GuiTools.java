@@ -71,7 +71,7 @@ import javafx.scene.robot.Robot;
 import javafx.stage.Modality;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
-import qupath.controls.FXUtils;
+import qupath.controls.utils.FXUtils;
 import qupath.controls.PaneTools;
 import qupath.lib.color.ColorDeconvolutionHelper;
 import qupath.lib.color.ColorDeconvolutionStains;

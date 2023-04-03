@@ -52,7 +52,7 @@ import javafx.beans.property.ObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener.Change;
 import javafx.collections.ObservableList;
-import qupath.controls.FXUtils;
+import qupath.controls.utils.FXUtils;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.ThreadTools;
 import qupath.lib.gui.UserDirectoryManager;

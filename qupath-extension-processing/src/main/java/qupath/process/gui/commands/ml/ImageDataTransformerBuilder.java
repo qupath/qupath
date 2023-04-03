@@ -41,7 +41,7 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.Spinner;
 import javafx.scene.layout.GridPane;
-import qupath.controls.FXUtils;
+import qupath.controls.utils.FXUtils;
 import qupath.controls.dialogs.Dialogs;
 import qupath.controls.PaneTools;
 import qupath.lib.images.ImageData;

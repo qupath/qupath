@@ -88,7 +88,7 @@ import javafx.scene.layout.Region;
 import javafx.scene.text.TextAlignment;
 import javafx.stage.Stage;
 import javafx.util.Callback;
-import qupath.controls.FXUtils;
+import qupath.controls.utils.FXUtils;
 import qupath.imagej.gui.IJExtension;
 import qupath.imagej.tools.IJTools;
 import qupath.lib.classifiers.Normalization;

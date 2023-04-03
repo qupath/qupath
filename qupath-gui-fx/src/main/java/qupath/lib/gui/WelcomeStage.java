@@ -50,7 +50,7 @@ import javafx.scene.text.Text;
 import javafx.scene.text.TextAlignment;
 import javafx.scene.text.TextFlow;
 import javafx.stage.Stage;
-import qupath.controls.FXUtils;
+import qupath.controls.utils.FXUtils;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.prefs.PathPrefs;

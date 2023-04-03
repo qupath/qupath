@@ -57,7 +57,7 @@ import javafx.scene.control.Tooltip;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Pane;
-import qupath.controls.FXUtils;
+import qupath.controls.utils.FXUtils;
 import qupath.lib.gui.QuPathGUI;
 import qupath.controls.dialogs.Dialogs;
 import qupath.controls.PaneTools;

@@ -43,7 +43,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.Slider;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
-import qupath.controls.FXUtils;
+import qupath.controls.utils.FXUtils;
 import qupath.lib.analysis.stats.Histogram;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.ThreadTools;

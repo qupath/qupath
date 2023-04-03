@@ -79,7 +79,7 @@ import javafx.scene.text.FontWeight;
 import javafx.scene.text.TextAlignment;
 import javafx.util.Duration;
 import javafx.util.StringConverter;
-import qupath.controls.FXUtils;
+import qupath.controls.utils.FXUtils;
 import qupath.controls.dialogs.Dialogs;
 import qupath.controls.dialogs.FileChoosers;
 import qupath.lib.gui.localization.QuPathResources;

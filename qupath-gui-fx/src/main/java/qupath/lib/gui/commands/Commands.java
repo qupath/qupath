@@ -75,7 +75,7 @@ import javafx.scene.text.TextAlignment;
 import javafx.stage.Modality;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
-import qupath.controls.FXUtils;
+import qupath.controls.utils.FXUtils;
 import qupath.controls.dialogs.FileChoosers;
 import qupath.lib.analysis.DistanceTools;
 import qupath.lib.analysis.features.ObjectMeasurements.ShapeFeatures;

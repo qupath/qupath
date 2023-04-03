@@ -68,7 +68,7 @@ import javafx.scene.control.ToggleButton;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.stage.Stage;
-import qupath.controls.FXUtils;
+import qupath.controls.utils.FXUtils;
 import qupath.lib.analysis.heatmaps.ColorModels;
 import qupath.lib.analysis.heatmaps.DensityMaps;
 import qupath.lib.analysis.heatmaps.ColorModels.ColorModelBuilder;
