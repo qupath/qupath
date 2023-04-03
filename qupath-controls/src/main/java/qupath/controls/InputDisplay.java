@@ -23,8 +23,6 @@ package qupath.controls;
 
 import javafx.beans.InvalidationListener;
 import javafx.beans.Observable;
-import javafx.beans.binding.Bindings;
-import javafx.beans.binding.ObjectBinding;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.StringProperty;
@@ -33,6 +31,7 @@ import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.ObservableMap;
+import javafx.css.PseudoClass;
 import javafx.event.EventHandler;
 import javafx.geometry.Pos;
 import javafx.scene.Cursor;
@@ -42,10 +41,10 @@ import javafx.scene.control.Label;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.*;
 import javafx.scene.layout.AnchorPane;
+import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
-import javafx.scene.paint.Paint;
 import javafx.scene.shape.Polygon;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.shape.SVGPath;
@@ -86,8 +85,10 @@ public class InputDisplay implements EventHandler<InputEvent> {
 	private MouseFilter mouseFilter = new MouseFilter();
 	private ScrollFilter scrollFilter = new ScrollFilter();
 
-	private Color colorActive = new Color(1, 1, 1, 0.6);
-	private Color colorInactive = new Color(1, 1, 1, 0.1);
+	private static final String inputDisplayClass = "input-display-pane";
+	private static final String closeItemClass = "close-item";
+	private static final String mouseItemClass = "mouse-item";
+	private static final PseudoClass pseudoClassActive = PseudoClass.getPseudoClass("active");
 
 	// Keys
 	private Set<KeyCode> MODIFIER_KEYS = Set.of(
@@ -151,7 +152,7 @@ public class InputDisplay implements EventHandler<InputEvent> {
 		var pane = new AnchorPane();
 		var stylesheetUrl = InputDisplay.class.getResource("/css/input-display.css").toExternalForm();
 		pane.getStylesheets().add(stylesheetUrl);
-		pane.getStyleClass().add("input-display-pane");
+		pane.getStyleClass().add(inputDisplayClass);
 
 		// Add to main pane
 		var paneKeys = createKeyPane(keyPaneWidth);
@@ -168,13 +169,12 @@ public class InputDisplay implements EventHandler<InputEvent> {
 
 
 		// Add small node to close
-		var closeButton = new SVGPath();
-		closeButton.setContent("M 0 0 L 8 8 M 8 0 L 0 8");
-		closeButton.setStrokeWidth(1.5);
-		closeButton.setStroke(new Color(1, 1, 1, 0.4));
-		closeButton.setFill(null);
-		closeButton.setOnMouseEntered( e -> closeButton.setStroke(colorActive) );
-		closeButton.setOnMouseExited( e -> closeButton.setStroke(new Color(1, 1, 1, 0.4)) );
+		var closeImage = new SVGPath();
+		closeImage.setContent("M 0 0 L 8 8 M 8 0 L 0 8");
+		closeImage.getStyleClass().add(closeItemClass);
+		var closeButton = new BorderPane(closeImage);
+		closeButton.setOnMouseEntered( e -> closeImage.pseudoClassStateChanged(pseudoClassActive, true));
+		closeButton.setOnMouseExited( e -> closeImage.pseudoClassStateChanged(pseudoClassActive, false));
 		closeButton.setOnMouseClicked(e -> showProperty.set(false));
 		closeButton.setCursor(Cursor.DEFAULT);
 		pane.getChildren().add(closeButton);
@@ -282,9 +282,9 @@ public class InputDisplay implements EventHandler<InputEvent> {
 		labKeys.setAlignment(Pos.CENTER);
 		labHistory.setAlignment(Pos.CENTER);
 		labHistory.setTextAlignment(TextAlignment.CENTER);
-		labModifiers.setStyle("-fx-text-fill: white; -fx-font-size: 24");
-		labKeys.setStyle("-fx-text-fill: white; -fx-font-size: 32");
-		labHistory.setStyle("-fx-text-fill: rgba(255, 255, 255, 0.7); -fx-font-size: 14");
+		labModifiers.getStyleClass().add("modifiers");
+		labKeys.getStyleClass().add("keys");
+		labHistory.getStyleClass().add("history");
 
 		// Listen for key changes
 		var keyUpdater = new InvalidationListener() {
@@ -308,9 +308,9 @@ public class InputDisplay implements EventHandler<InputEvent> {
 	Pane createMousePane(double width) {
 		var pane = new AnchorPane();
 
-		var rectPrimary = createButtonRectangle(primaryDown, 25, 40);
-		var rectSecondary = createButtonRectangle(secondaryDown, 25, 40);
-		var rectMiddle = createButtonRectangle(middleDown, 8, 18);
+		var rectPrimary = createButtonRectangle(25, 40);
+		var rectSecondary = createButtonRectangle(25, 40);
+		var rectMiddle = createButtonRectangle(8, 18);
 
 		double gap = 5;
 		rectMiddle.setTranslateX(rectPrimary.getWidth() + gap/2.0 - rectMiddle.getWidth()/2.0);
@@ -321,11 +321,15 @@ public class InputDisplay implements EventHandler<InputEvent> {
 		rectMiddle.setStroke(Color.WHITE);
 		rectMiddle.setTranslateY((rectPrimary.getHeight()-rectMiddle.getHeight())/2.0);
 		var shapePrimary = Shape.subtract(rectPrimary, rectMiddle);
-		shapePrimary.fillProperty().bind(rectPrimary.fillProperty());
+		shapePrimary.getStyleClass().setAll(rectPrimary.getStyleClass());
 		var shapeSecondary = Shape.subtract(rectSecondary, rectMiddle);
-		shapeSecondary.fillProperty().bind(rectSecondary.fillProperty());
+		shapeSecondary.getStyleClass().setAll(rectSecondary.getStyleClass());
 		rectMiddle.setStroke(null);
 		rectMiddle.setStrokeWidth(2);
+
+		primaryDown.addListener((v, o, n) -> shapePrimary.pseudoClassStateChanged(pseudoClassActive, n));
+		secondaryDown.addListener((v, o, n) -> shapeSecondary.pseudoClassStateChanged(pseudoClassActive, n));
+		middleDown.addListener((v, o, n) -> rectMiddle.pseudoClassStateChanged(pseudoClassActive, n));
 
 		var group = new Group();
 		group.getChildren().addAll(shapePrimary, shapeSecondary, rectMiddle);
@@ -333,10 +337,15 @@ public class InputDisplay implements EventHandler<InputEvent> {
 		double arrowBase = 32;
 		double arrowHeight = arrowBase / 2.0;
 
-		var arrowUp = createArrow(scrollUp, arrowBase, arrowHeight, 0);
-		var arrowDown = createArrow(scrollDown, arrowBase, arrowHeight, 180);
-		var arrowLeft = createArrow(scrollLeft, arrowBase, arrowHeight, -90);
-		var arrowRight = createArrow(scrollRight, arrowBase, arrowHeight, 90);
+		var arrowUp = createArrow(arrowBase, arrowHeight, 0);
+		var arrowDown = createArrow(arrowBase, arrowHeight, 180);
+		var arrowLeft = createArrow(arrowBase, arrowHeight, -90);
+		var arrowRight = createArrow(arrowBase, arrowHeight, 90);
+
+		scrollUp.addListener((v, o, n) -> arrowUp.pseudoClassStateChanged(pseudoClassActive, n));
+		scrollDown.addListener((v, o, n) -> arrowDown.pseudoClassStateChanged(pseudoClassActive, n));
+		scrollLeft.addListener((v, o, n) -> arrowLeft.pseudoClassStateChanged(pseudoClassActive, n));
+		scrollRight.addListener((v, o, n) -> arrowRight.pseudoClassStateChanged(pseudoClassActive, n));
 
 		pane.getChildren().addAll(
 				group,
@@ -360,32 +369,28 @@ public class InputDisplay implements EventHandler<InputEvent> {
 		return pane;
 	}
 
-	Rectangle createButtonRectangle(BooleanProperty isPressed, double width, double height) {
+	Rectangle createButtonRectangle(double width, double height) {
 		var rect = new Rectangle(width, height);
 		rect.setArcHeight(8);
 		rect.setArcWidth(8);
 		rect.setStrokeWidth(2);
-		var selected = colorActive;
-		var deselected = colorInactive;
-		rect.fillProperty().bind(createColorBinding(isPressed, selected, deselected));
+		rect.getStyleClass().add(mouseItemClass);
 		return rect;
 	}
 
-	Polygon createArrow(BooleanProperty isPressed, double arrowBase, double arrowHeight, double rotate) {
+
+
+
+	Polygon createArrow(double arrowBase, double arrowHeight, double rotate) {
 		var arrow = new Polygon(
 				-arrowBase/2.0, arrowHeight/2.0, 0, -arrowHeight/2.0, arrowBase/2.0, arrowHeight/2.0
 		);
 		arrow.setStrokeWidth(2);
 		arrow.setRotate(rotate);
-		var selected = colorActive;
-		var deselected = colorInactive;
-		arrow.fillProperty().bind(createColorBinding(isPressed, selected, deselected));
+		arrow.getStyleClass().add(mouseItemClass);
 		return arrow;
 	}
 
-	ObjectBinding<Paint> createColorBinding(BooleanProperty prop, Color selected, Color colorDeselected) {
-		return Bindings.createObjectBinding(() -> prop.get() ? selected : colorDeselected, prop);
-	}
 
 
 	static String getTextForEvent(KeyEvent event) {
