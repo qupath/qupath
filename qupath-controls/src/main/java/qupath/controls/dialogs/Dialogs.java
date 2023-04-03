@@ -65,8 +65,6 @@ public class Dialogs {
 
 	private static Window primaryWindow;
 
-	private static BooleanProperty useDarkStyle = new SimpleBooleanProperty();
-
 	private static ObservableList<String> knownExtensions = FXCollections.observableArrayList();
 	
 	/**
@@ -419,9 +417,16 @@ public class Dialogs {
 		if (stage == null)
 			return notifications;
 
-		// TODO: Need to find a way to determine when dark style should be used!
-		if (useDarkStyle.get() || true)
-			notifications = notifications.darkStyle();
+		// 'Notifications' has a fixed color based on light/dark mode
+		// Here, we instead use the default color for text based on the current css for the scene
+		var scene = stage.getScene();
+		if (scene != null) {
+			var url = Dialogs.class.getClassLoader().getResource("qupath/controls/dialogs/notificationscustom.css");
+			String stylesheetUrl = url.toExternalForm();
+			if (!scene.getStylesheets().contains(stylesheetUrl))
+				scene.getStylesheets().add(stylesheetUrl);
+			notifications.styleClass("custom");
+		}
 
 		return notifications.owner(stage);
 	}
