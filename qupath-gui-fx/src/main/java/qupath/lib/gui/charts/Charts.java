@@ -49,11 +49,11 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import javafx.stage.Window;
+import qupath.controls.FXUtils;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.tools.ColorToolsFX;
-import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.PixelCalibration;
@@ -285,7 +285,7 @@ public class Charts {
 		 */
 		public Stage toStage() {
 			if (!Platform.isFxApplicationThread()) {
-				return GuiTools.callOnApplicationThread(() -> toStage());
+				return FXUtils.callOnApplicationThread(() -> toStage());
 			}
 			var stage = new Stage();
 			
@@ -325,7 +325,7 @@ public class Charts {
 		 */
 		public Stage show() {
 			if (!Platform.isFxApplicationThread())
-				return GuiTools.callOnApplicationThread(() -> show());
+				return FXUtils.callOnApplicationThread(() -> show());
 			var stage = toStage();
 			stage.show();
 			return stage;

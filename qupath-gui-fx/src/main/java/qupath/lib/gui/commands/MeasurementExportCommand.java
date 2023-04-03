@@ -67,15 +67,17 @@ import javafx.scene.control.TextField;
 import javafx.scene.control.ButtonBar.ButtonData;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
+import qupath.controls.FXUtils;
+import qupath.controls.dialogs.FileChoosers;
 import qupath.lib.common.ThreadTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.controls.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.ProjectDialogs;
 import qupath.lib.gui.measure.ObservableMeasurementTableData;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.MeasurementExporter;
-import qupath.lib.gui.tools.PaneTools;
+import qupath.controls.PaneTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathCellObject;
@@ -132,7 +134,7 @@ public class MeasurementExportCommand implements Runnable {
 	private void createAndShowDialog() {
 		project = qupath.getProject();
 		if (project == null) {
-			Dialogs.showNoProjectError("Export measurements");
+			GuiTools.showNoProjectError("Export measurements");
 			return;
 		}
 		
@@ -161,7 +163,9 @@ public class MeasurementExportCommand implements Runnable {
 			String extSelected = separatorCombo.getSelectionModel().getSelectedItem();
 			String ext = extSelected.equals("Tab (.tsv)") ? ".tsv" : ".csv";
 			String extDesc = ext.equals(".tsv") ? "TSV (Tab delimited)" : "CSV (Comma delimited)";
-			File pathOut = Dialogs.promptToSaveFile("Output file", Projects.getBaseDirectory(project), "measurements" + ext, extDesc, ext);
+			File pathOut = FileChoosers.promptToSaveFile("Output file",
+					new File(Projects.getBaseDirectory(project), "measurements" + ext),
+					FileChoosers.createExtensionFilter(extDesc, ext));
 			if (pathOut != null) {
 				if (pathOut.isDirectory())
 					pathOut = new File(pathOut.getAbsolutePath() + File.separator + "measurements" + ext);
@@ -195,7 +199,7 @@ public class MeasurementExportCommand implements Runnable {
 		
 		Label includeLabel = new Label("Columns to include (Optional)");
 		includeLabel.setLabelFor(includeCombo);
-		GuiTools.installSelectAllOrNoneMenu(includeCombo);
+		FXUtils.installSelectAllOrNoneMenu(includeCombo);
 		
 		Button btnPopulateColumns = new Button("Populate\t");
 		ProgressIndicator progressIndicator = new ProgressIndicator();
@@ -296,7 +300,9 @@ public class MeasurementExportCommand implements Runnable {
 		if (new File(outputText.getText()).getParent() == null) {
 			String ext = Files.getFileExtension(outputText.getText()).equals("tsv") ? ".tsv": ".csv";
 			String extDesc = ext.equals(".tsv") ? "TSV (Tab delimited)" : "CSV (Comma delimited)";
-			File pathOut = Dialogs.promptToSaveFile("Output file", Projects.getBaseDirectory(project), outputText.getText(), extDesc, ext);
+			File pathOut = FileChoosers.promptToSaveFile("Output file",
+					new File(Projects.getBaseDirectory(project), outputText.getText()),
+					FileChoosers.createExtensionFilter(extDesc, ext));
 			if (pathOut == null)
 				return;
 			else

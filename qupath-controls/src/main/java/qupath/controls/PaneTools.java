@@ -19,7 +19,7 @@
  * #L%
  */
 
-package qupath.lib.gui.tools;
+package qupath.controls;
 
 import java.util.ArrayList;
 import java.util.Arrays;

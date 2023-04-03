@@ -57,7 +57,7 @@ import qupath.lib.gui.ExtensionClassLoader;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.extensions.QuPathExtension;
 import qupath.lib.gui.tools.GuiTools;
-import qupath.lib.gui.tools.PaneTools;
+import qupath.controls.PaneTools;
 import qupath.lib.images.servers.ImageServerBuilder;
 import qupath.lib.images.servers.ImageServerProvider;
 

@@ -40,7 +40,7 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.actions.ActionTools;
 import qupath.lib.gui.actions.annotations.ActionConfig;
 import qupath.lib.gui.actions.annotations.ActionMenu;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.controls.dialogs.Dialogs;
 import qupath.lib.gui.extensions.QuPathExtension;
 import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.panes.StringPref;

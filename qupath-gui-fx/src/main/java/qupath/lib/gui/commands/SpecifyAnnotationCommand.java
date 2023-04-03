@@ -43,9 +43,10 @@ import javafx.scene.layout.Priority;
 import javafx.scene.shape.Rectangle;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.controls.dialogs.Dialogs;
 import qupath.lib.gui.tools.ColorToolsFX;
-import qupath.lib.gui.tools.PaneTools;
+import qupath.controls.PaneTools;
+import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObjects;
@@ -233,7 +234,7 @@ class SpecifyAnnotationCommand {
 			var viewer = qupath.getViewer();
 			var imageData = viewer == null ? null : viewer.getImageData();
 			if (imageData == null) {
-				Dialogs.showNoImageError("Create annotation");
+				GuiTools.showNoImageError("Create annotation");
 				return;
 			}
 			var server = imageData.getServer();

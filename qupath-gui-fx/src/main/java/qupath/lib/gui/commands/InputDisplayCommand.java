@@ -70,8 +70,8 @@ import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import javafx.stage.Window;
 import javafx.stage.WindowEvent;
+import qupath.controls.FXUtils;
 import qupath.lib.gui.prefs.PathPrefs;
-import qupath.lib.gui.tools.GuiTools;
 
 /**
  * QuPath command to display key-presses and mouse movement logged when interacting
@@ -191,7 +191,7 @@ public class InputDisplayCommand implements EventHandler<InputEvent> {
 		stage.initStyle(StageStyle.TRANSPARENT);
 		var scene = new Scene(pane, keyPaneWidth + mousePaneWidth + spacing, 160, Color.TRANSPARENT);
 		stage.setScene(scene);
-		GuiTools.makeDraggableStage(stage);
+		FXUtils.makeDraggableStage(stage);
 
 		var tooltipClose = new Tooltip("Display input - double-click to close");
 		Tooltip.install(pane, tooltipClose);

@@ -59,7 +59,7 @@ import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.gui.tools.PaneTools;
+import qupath.controls.PaneTools;
 import qupath.lib.plugins.parameters.BooleanParameter;
 import qupath.lib.plugins.parameters.ChoiceParameter;
 import qupath.lib.plugins.parameters.DoubleParameter;

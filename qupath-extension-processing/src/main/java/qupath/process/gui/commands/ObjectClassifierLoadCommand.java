@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import javafx.scene.control.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,26 +42,20 @@ import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
-import javafx.scene.control.Button;
-import javafx.scene.control.ContextMenu;
-import javafx.scene.control.Label;
-import javafx.scene.control.ListView;
-import javafx.scene.control.MenuItem;
-import javafx.scene.control.SelectionMode;
 import javafx.scene.input.Dragboard;
 import javafx.scene.input.TransferMode;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.text.TextAlignment;
 import javafx.stage.Stage;
+import qupath.controls.dialogs.FileChoosers;
 import qupath.lib.classifiers.object.ObjectClassifier;
 import qupath.lib.classifiers.object.ObjectClassifiers;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.UpdateUrisCommand;
-import qupath.lib.gui.dialogs.Dialogs;
-import qupath.lib.gui.dialogs.Dialogs.DialogButton;
-import qupath.lib.gui.tools.PaneTools;
+import qupath.controls.dialogs.Dialogs;
+import qupath.controls.PaneTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.io.GsonTools;
 import qupath.lib.io.UriResource;
@@ -121,7 +116,8 @@ public final class ObjectClassifierLoadCommand implements Runnable {
 		
 		var miAdd = new MenuItem("Add classifier");
 		miAdd.setOnAction(e -> {
-			List<File> files = Dialogs.promptForMultipleFiles(title, null, "QuPath classifier file", "json");
+			List<File> files = FileChoosers.promptForMultipleFiles(title,
+					FileChoosers.createExtensionFilter("QuPath classifier file", "*.json"));
 			if (files == null || files.isEmpty())
 				return;
 
@@ -266,8 +262,8 @@ public final class ObjectClassifierLoadCommand implements Runnable {
 	
 	private void addClassifierFiles(List<File> files) throws IOException {
 		String plural = files.size() > 1 ? "s" : "";
-		var response = Dialogs.showYesNoCancelDialog("Copy classifier file" + plural, "Copy classifier" + plural + " to the current project?");
-		if (response == DialogButton.CANCEL)
+		ButtonType response = Dialogs.showYesNoCancelDialog("Copy classifier file" + plural, "Copy classifier" + plural + " to the current project?");
+		if (response == ButtonType.CANCEL)
 			return;
 		
 		List<File> fails = new ArrayList<>();
@@ -287,7 +283,7 @@ public final class ObjectClassifierLoadCommand implements Runnable {
 					while (project.getObjectClassifiers().contains(name) || externalObjectClassifiers.containsKey(name))
 						name = GeneralTools.getNameWithoutExtension(file) + " (" + index++ + ")";
 					
-					if (response == DialogButton.YES)
+					if (response == ButtonType.YES)
 						project.getObjectClassifiers().put(name, classifier);
 					else
 						externalObjectClassifiers.put(name, classifier);

@@ -41,9 +41,9 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.Spinner;
 import javafx.scene.layout.GridPane;
-import qupath.lib.gui.dialogs.Dialogs;
-import qupath.lib.gui.tools.GuiTools;
-import qupath.lib.gui.tools.PaneTools;
+import qupath.controls.FXUtils;
+import qupath.controls.dialogs.Dialogs;
+import qupath.controls.PaneTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ColorTransforms;
 import qupath.lib.images.servers.ColorTransforms.ColorTransform;
@@ -270,7 +270,7 @@ abstract class ImageDataTransformerBuilder {
 
 			var labelChannels = new Label("Channels");
 			comboChannels = new CheckComboBox<>();
-			GuiTools.installSelectAllOrNoneMenu(comboChannels);
+			FXUtils.installSelectAllOrNoneMenu(comboChannels);
 			//			var btnChannels = new Button("Select");
 			//			btnChannels.setOnAction(e -> selectChannels());
 			@SuppressWarnings("resource")
@@ -291,7 +291,7 @@ abstract class ImageDataTransformerBuilder {
 
 
 			var comboScales = new CheckComboBox<Double>();
-			GuiTools.installSelectAllOrNoneMenu(comboScales);
+			FXUtils.installSelectAllOrNoneMenu(comboScales);
 			var labelScales = new Label("Scales");
 			comboScales.getItems().addAll(0.5, 1.0, 2.0, 4.0, 8.0);
 			comboScales.getCheckModel().check(1);
@@ -302,7 +302,7 @@ abstract class ImageDataTransformerBuilder {
 
 
 			var comboFeatures = new CheckComboBox<MultiscaleFeature>();
-			GuiTools.installSelectAllOrNoneMenu(comboFeatures);
+			FXUtils.installSelectAllOrNoneMenu(comboFeatures);
 			var labelFeatures = new Label("Features");
 			comboFeatures.getItems().addAll(MultiscaleFeature.values());
 			comboFeatures.getCheckModel().check(MultiscaleFeature.GAUSSIAN);
@@ -328,8 +328,8 @@ abstract class ImageDataTransformerBuilder {
 			var spinnerNormalize = new Spinner<Double>(0.0, 32.0, 8.0, 1.0);
 			normalizationSigma = spinnerNormalize.valueProperty();
 			spinnerNormalize.setEditable(true);
-			GuiTools.restrictTextFieldInputToNumber(spinnerNormalize.getEditor(), true);
-			GuiTools.resetSpinnerNullToPrevious(spinnerNormalize);
+			FXUtils.restrictTextFieldInputToNumber(spinnerNormalize.getEditor(), true);
+			FXUtils.resetSpinnerNullToPrevious(spinnerNormalize);
 			spinnerNormalize.focusedProperty().addListener((v, o, n) -> {
 				if (spinnerNormalize.getEditor().getText().equals(""))
 					spinnerNormalize.getValueFactory().valueProperty().set(0.0);

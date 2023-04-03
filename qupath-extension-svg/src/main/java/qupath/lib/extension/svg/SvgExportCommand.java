@@ -21,12 +21,15 @@
 
 package qupath.lib.extension.svg;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
 
+import qupath.controls.dialogs.FileChoosers;
 import qupath.lib.extension.svg.SvgTools.SvgBuilder.ImageIncludeType;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.controls.dialogs.Dialogs;
+import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.regions.RegionRequest;
 
@@ -78,7 +81,7 @@ class SvgExportCommand implements Runnable {
 		var viewer = qupath.getViewer();
 		var imageData = viewer.getImageData();
 		if (imageData == null) {
-			Dialogs.showNoImageError(title);
+			GuiTools.showNoImageError(title);
 			return;
 		}
 				
@@ -99,7 +102,7 @@ class SvgExportCommand implements Runnable {
 					.addBooleanParameter("compress", "Compress SVGZ", compress, "Write compressed SVGZ file, rather than standard SVG (default: no compression, for improved compatibility with other software)")
 					;
 			
-			if (!Dialogs.showParameterDialog(title, params))
+			if (!GuiTools.showParameterDialog(title, params))
 				return;
 			
 			downsample = params.getDoubleParameterValue("downsample");
@@ -140,7 +143,8 @@ class SvgExportCommand implements Runnable {
 			}
 		}
 		
-		var file = Dialogs.promptToSaveFile(title, null, name, description, ext);
+		var file = FileChoosers.promptToSaveFile(title, new File(name),
+				FileChoosers.createExtensionFilter(description, ext));
 		if (file == null)
 			return;
 		

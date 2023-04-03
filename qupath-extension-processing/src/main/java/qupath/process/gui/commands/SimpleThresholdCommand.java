@@ -46,12 +46,12 @@ import javafx.scene.control.SpinnerValueFactory;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.stage.Stage;
+import qupath.controls.FXUtils;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.controls.PaneTools;
 import qupath.lib.gui.tools.GuiTools;
-import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.overlays.PathOverlay;
 import qupath.lib.gui.viewer.overlays.PixelClassificationOverlay;
@@ -91,7 +91,7 @@ public class SimpleThresholdCommand implements Runnable {
 	@Override
 	public void run() {
 		if (qupath.getImageData() == null) {
-			Dialogs.showNoImageError("Create thresholder");
+			GuiTools.showNoImageError("Create thresholder");
 			return;
 		}
 		if (stage == null)
@@ -191,7 +191,7 @@ public class SimpleThresholdCommand implements Runnable {
 	private Spinner<Double> sigmaSpinner = new Spinner<>(new SpinnerValueFactory.DoubleSpinnerValueFactory(0, 16.0, 0.0, 0.5));
 	private ReadOnlyObjectProperty<Double> sigma = sigmaSpinner.valueProperty();
 
-	private Spinner<Double> spinner = GuiTools.createDynamicStepSpinner(-Double.MAX_VALUE, Double.MAX_VALUE, 0, 0.01, 2);
+	private Spinner<Double> spinner = FXUtils.createDynamicStepSpinner(-Double.MAX_VALUE, Double.MAX_VALUE, 0, 0.01, 2);
 	private ReadOnlyObjectProperty<Double> threshold = spinner.valueProperty();
 	
 	private ObjectProperty<PixelClassificationOverlay> selectedOverlay = new SimpleObjectProperty<>();
@@ -233,8 +233,8 @@ public class SimpleThresholdCommand implements Runnable {
 				Bindings.createStringBinding(() -> sigma.get() == null ? "" : GeneralTools.formatNumber(sigma.get(), 2), sigma)
 				);
 		labelSigma.setMinWidth(25); // Thanks to Melvin, to stop it jumping around
-		GuiTools.restrictTextFieldInputToNumber(sigmaSpinner.getEditor(), true);
-		GuiTools.resetSpinnerNullToPrevious(sigmaSpinner);
+		FXUtils.restrictTextFieldInputToNumber(sigmaSpinner.getEditor(), true);
+		FXUtils.resetSpinnerNullToPrevious(sigmaSpinner);
 		PaneTools.addGridRow(pane, row++, 0, "Select smoothing sigma value (higher values give a smoother result)", label, sigmaSpinner, labelSigma);
 
 		label = new Label("Threshold");
@@ -243,8 +243,8 @@ public class SimpleThresholdCommand implements Runnable {
 		labelThreshold.textProperty().bind(
 				Bindings.createStringBinding(() -> threshold.get() == null ? "" : GeneralTools.formatNumber(threshold.get(), 2), threshold)
 				);
-		GuiTools.restrictTextFieldInputToNumber(spinner.getEditor(), true);
-		GuiTools.resetSpinnerNullToPrevious(spinner);
+		FXUtils.restrictTextFieldInputToNumber(spinner.getEditor(), true);
+		FXUtils.resetSpinnerNullToPrevious(spinner);
 		PaneTools.addGridRow(pane, row++, 0, "Select threshold value", label, spinner, labelThreshold);
 
 		Label labelAbove = new Label("Above threshold");

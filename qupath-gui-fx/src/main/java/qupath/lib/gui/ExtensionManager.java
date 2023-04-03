@@ -49,7 +49,7 @@ import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import qupath.lib.common.Version;
 import qupath.lib.gui.commands.Commands;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.controls.dialogs.Dialogs;
 import qupath.lib.gui.extensions.QuPathExtension;
 import qupath.lib.images.servers.ImageServerBuilder;
 import qupath.lib.images.servers.ImageServerProvider;

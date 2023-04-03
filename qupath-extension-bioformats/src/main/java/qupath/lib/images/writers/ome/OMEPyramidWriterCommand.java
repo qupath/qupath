@@ -35,11 +35,13 @@ import org.slf4j.LoggerFactory;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ObjectProperty;
+import qupath.controls.dialogs.FileChoosers;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.ThreadTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.controls.dialogs.Dialogs;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
@@ -141,7 +143,7 @@ public class OMEPyramidWriterCommand implements Runnable {
 		
 		ImageData<BufferedImage> imageData = viewer.getImageData();
 		if (imageData == null) {
-			Dialogs.showNoImageError("OME Pyramid writer");
+			GuiTools.showNoImageError("OME Pyramid writer");
 			return;
 		}
 		ImageServer<BufferedImage> server = imageData.getServer();
@@ -183,7 +185,7 @@ public class OMEPyramidWriterCommand implements Runnable {
 		params.setHiddenParameters(server.nTimepoints() == 1, "allT");
 		params.setHiddenParameters(singleTile, "tileSize", "parallelize");
 		
-		if (!Dialogs.showParameterDialog("Export OME-TIFF", params))
+		if (!GuiTools.showParameterDialog("Export OME-TIFF", params))
 			return;
 		
 		compression = CompressionType.fromFriendlyString((String)params.getChoiceParameterValue("compression"));
@@ -243,7 +245,8 @@ public class OMEPyramidWriterCommand implements Runnable {
 		
 		
 		// Prompt for file
-		File fileOutput = Dialogs.promptToSaveFile("Write pyramid", null, null, "OME TIFF pyramid", ".ome.tif");
+		File fileOutput = FileChoosers.promptToSaveFile("Write pyramid", null,
+				FileChoosers.createExtensionFilter("OME TIFF pyramid", ".ome.tif"));
 		if (fileOutput == null)
 			return;
 		String name = fileOutput.getName();

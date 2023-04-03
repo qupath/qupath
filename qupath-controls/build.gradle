@@ -1,0 +1,30 @@
+plugins {
+    id 'qupath.common-conventions'
+    id 'qupath.publishing-conventions'
+    id 'java-library'
+
+    alias(libs.plugins.javafx)
+}
+
+ext.moduleName = 'qupath.controls'
+archivesBaseName = 'qupath-controls'
+description = "JavaFX controls used to help create the QuPath user interface. These don't have other QuPath-related " +
+        "dependencies, so could be reused elsewhere."
+
+configurations {}
+
+dependencies {
+    api libs.controlsfx
+}
+
+javafx {
+    version = libs.versions.javafx.get()
+    modules = ["javafx.base",
+               "javafx.controls",
+               "javafx.graphics",
+               "javafx.media",
+               "javafx.fxml",
+               "javafx.web",
+               "javafx.swing"]
+    configuration = 'api'
+}

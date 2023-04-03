@@ -86,7 +86,7 @@ import javafx.scene.web.WebView;
 import javafx.stage.Stage;
 import jfxtras.scene.layout.GridPane;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.controls.dialogs.Dialogs;
 import qupath.lib.gui.panes.ObjectTreeBrowser;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.scripting.QPEx;

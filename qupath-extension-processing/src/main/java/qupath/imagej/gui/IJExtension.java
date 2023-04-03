@@ -62,6 +62,7 @@ import org.controlsfx.control.action.Action;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import qupath.controls.dialogs.FileChoosers;
 import qupath.imagej.detect.cells.PositiveCellDetection;
 import qupath.imagej.detect.cells.SubcellularDetection;
 import qupath.imagej.detect.cells.WatershedCellDetection;
@@ -81,7 +82,7 @@ import qupath.lib.gui.actions.ActionTools;
 import qupath.lib.gui.actions.annotations.ActionConfig;
 import qupath.lib.gui.actions.annotations.ActionIcon;
 import qupath.lib.gui.actions.annotations.ActionMenu;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.controls.dialogs.Dialogs;
 import qupath.lib.gui.extensions.QuPathExtension;
 import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -572,7 +573,7 @@ public class IJExtension implements QuPathExtension {
 		
 	static void promptToSetPluginsDirectory() {
 		String path = getImageJPath();
-		File dir = Dialogs.promptForDirectory("Set ImageJ plugins directory", path == null ? null : new File(path));
+		File dir = FileChoosers.promptForDirectory("Set ImageJ plugins directory", path == null ? null : new File(path));
 		if (dir != null && dir.isDirectory())
 			setImageJPath(dir.getAbsolutePath());
 	}

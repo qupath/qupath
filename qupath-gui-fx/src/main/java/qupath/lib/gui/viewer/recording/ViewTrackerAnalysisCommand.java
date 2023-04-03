@@ -81,10 +81,10 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.common.ThreadTools;
 import qupath.lib.gui.ColorMapCanvas;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.controls.dialogs.Dialogs;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.IconFactory;
-import qupath.lib.gui.tools.PaneTools;
+import qupath.controls.PaneTools;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.overlays.AbstractOverlay.LocationStringFunction;
 import qupath.lib.gui.viewer.recording.ViewTrackerDataMaps.Feature;
@@ -448,7 +448,7 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 					ParameterList params = new ParameterList();
 					params.addDoubleParameter("downsampleFilterLow", "Enter downsample", downsampleSlider.getLowValue());
 					
-					if (!Dialogs.showParameterDialog("Set min downsample", params))
+					if (!GuiTools.showParameterDialog("Set min downsample", params))
 						return;
 					
 					double downFactor = params.getDoubleParameterValue("downsampleFilterLow");
@@ -462,7 +462,7 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 					ParameterList params = new ParameterList();
 					params.addDoubleParameter("downsampleFilterHigh", "Enter downsample", downsampleSlider.getHighValue());
 					
-					if (!Dialogs.showParameterDialog("Set max downsample", params))
+					if (!GuiTools.showParameterDialog("Set max downsample", params))
 						return;
 					
 					double downFactor = params.getDoubleParameterValue("downsampleFilterHigh");

@@ -69,6 +69,7 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.common.ThreadTools;
 import qupath.lib.common.Version;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.io.GsonTools;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.projects.ProjectIO;
@@ -324,7 +325,6 @@ public class PathPrefs {
 	}
 	
 	private static ObjectProperty<Locale> defaultLocale = createPersistentPreference("locale", null, Locale.US);
-
 	private static ObjectProperty<Locale> defaultLocaleFormat = createPersistentPreference("localeFormat", Category.FORMAT, Locale.getDefault(Category.FORMAT));
 	private static ObjectProperty<Locale> defaultLocaleDisplay = createPersistentPreference("localeDisplay", Category.DISPLAY, Locale.getDefault(Category.DISPLAY));
 
@@ -372,6 +372,8 @@ public class PathPrefs {
 			defaultLocaleFormat.set(Locale.getDefault(Category.FORMAT));
 			defaultLocaleDisplay.set(Locale.getDefault(Category.DISPLAY));
 		});
+		defaultLocaleFormat.addListener((v, o, n) -> QuPathResources.getLocalizeResourceManager().refresh());
+		defaultLocaleDisplay.addListener((v, o, n) -> QuPathResources.getLocalizeResourceManager().refresh());
 	}
 	
 	

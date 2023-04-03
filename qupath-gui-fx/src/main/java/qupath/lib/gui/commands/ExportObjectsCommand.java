@@ -33,9 +33,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import qupath.controls.dialogs.FileChoosers;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.controls.dialogs.Dialogs;
+import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.io.PathIO.GeoJsonExportOptions;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
@@ -88,7 +90,7 @@ public final class ExportObjectsCommand {
 				.addBooleanParameter("doFeatureCollection", "Export as FeatureCollection", true, "Export as a 'FeatureCollection', which is a standard GeoJSON way to represent multiple objects; if not, a regular JSON object/array will be export")
 				.addChoiceParameter("compression", "Compression", COMPRESS_NONE, List.of(COMPRESS_NONE, COMPRESS_ZIP, COMPRESS_GZIP));
 		
-		if (!Dialogs.showParameterDialog("Export objects", parameterList))
+		if (!GuiTools.showParameterDialog("Export objects", parameterList))
 			return false;
 		
 		Collection<PathObject> toProcess;
@@ -128,17 +130,21 @@ public final class ExportObjectsCommand {
 		File defaultDirectory = project == null || project.getPath() == null ? null : project.getPath().toFile();
 		while (defaultDirectory != null && !defaultDirectory.isDirectory())
 			defaultDirectory = defaultDirectory.getParentFile();
+		File defaultFile = new File(defaultDirectory, defaultName);
 		
 		String comp = (String)parameterList.getChoiceParameterValue("compression");
 		switch (comp) {
 		case COMPRESS_ZIP:
-			outFile = Dialogs.promptToSaveFile("Export to file", defaultDirectory, defaultName, "ZIP archive", ".zip");
+			outFile = FileChoosers.promptToSaveFile("Export to file", defaultFile,
+					FileChoosers.createExtensionFilter("ZIP archive", ".zip"));
 			break;
 		case COMPRESS_GZIP:
-			outFile = Dialogs.promptToSaveFile("Export to file", defaultDirectory, defaultName, "gzip archive", ".geojson.gz");
+			outFile = FileChoosers.promptToSaveFile("Export to file", defaultFile,
+					FileChoosers.createExtensionFilter("gzip archive", ".geojson.gz"));
 			break;
 		default:
-			outFile = Dialogs.promptToSaveFile("Export to file", defaultDirectory, defaultName, "GeoJSON", ".geojson");
+			outFile = FileChoosers.promptToSaveFile("Export to file", defaultFile,
+					FileChoosers.createExtensionFilter("GeoJSON", ".geojson"));
 		}
 			
 		// If user cancels

@@ -55,6 +55,7 @@ import javax.imageio.ImageIO;
 import javax.script.ScriptException;
 import javax.swing.SwingUtilities;
 
+import javafx.scene.control.*;
 import org.controlsfx.control.action.Action;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -84,14 +85,6 @@ import javafx.geometry.Rectangle2D;
 import javafx.scene.Cursor;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
-import javafx.scene.control.Menu;
-import javafx.scene.control.MenuBar;
-import javafx.scene.control.MenuItem;
-import javafx.scene.control.SeparatorMenuItem;
-import javafx.scene.control.Tab;
-import javafx.scene.control.TabPane;
-import javafx.scene.control.TextInputControl;
-import javafx.scene.control.ToolBar;
 import javafx.scene.image.Image;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
@@ -104,6 +97,8 @@ import javafx.scene.layout.Pane;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
+import qupath.controls.FXUtils;
+import qupath.controls.dialogs.FileChoosers;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.Timeit;
 import qupath.lib.common.Version;
@@ -116,8 +111,7 @@ import qupath.lib.gui.commands.InputDisplayCommand;
 import qupath.lib.gui.commands.LogViewerCommand;
 import qupath.lib.gui.commands.ProjectCommands;
 import qupath.lib.gui.commands.TMACommands;
-import qupath.lib.gui.dialogs.Dialogs;
-import qupath.lib.gui.dialogs.Dialogs.DialogButton;
+import qupath.controls.dialogs.Dialogs;
 import qupath.lib.gui.images.stores.DefaultImageRegionStore;
 import qupath.lib.gui.images.stores.ImageRegionStoreFactory;
 import qupath.lib.gui.localization.QuPathResources;
@@ -133,7 +127,6 @@ import qupath.lib.gui.scripting.ScriptEditorControl;
 import qupath.lib.gui.scripting.languages.GroovyLanguage;
 import qupath.lib.gui.scripting.languages.ScriptLanguageProvider;
 import qupath.lib.gui.tools.GuiTools;
-import qupath.lib.gui.tools.LocaleListener;
 import qupath.lib.gui.tools.MenuTools;
 import qupath.lib.gui.viewer.DragDropImportListener;
 import qupath.lib.gui.viewer.ViewerManager;
@@ -611,7 +604,7 @@ public class QuPathGUI {
 	
 	private static Menu createMenuFromKey(String key) {
 		Menu menu = new Menu();
-		LocaleListener.registerProperty(menu.textProperty(), key);
+		QuPathResources.getLocalizeResourceManager().registerProperty(menu.textProperty(), key);
 		return menu;
 	}
 	
@@ -743,7 +736,7 @@ public class QuPathGUI {
 	
 	private void initializeLocaleChangeListeners() {
 		// If the Locale changes, we want to try to refresh all list & tables to update number formatting
-		ChangeListener<Locale> localeListener = (v, o, n) -> GuiTools.refreshAllListsAndTables();
+		ChangeListener<Locale> localeListener = (v, o, n) -> FXUtils.refreshAllListsAndTables();
 		PathPrefs.defaultLocaleDisplayProperty().addListener(localeListener);
 		PathPrefs.defaultLocaleFormatProperty().addListener(localeListener);
 	}
@@ -1156,7 +1149,7 @@ public class QuPathGUI {
 	 * This enables extensions to add or remove tabs - but be cautious!
 	 * <ul>
 	 * <li>Removing tabs can impact other functionality</li>
-	 * <li>If adding a tab, it is usually best to apply {@link GuiTools#makeTabUndockable(Tab)}</li>
+	 * <li>If adding a tab, it is usually best to apply {@link FXUtils#makeTabUndockable(Tab)}</li>
 	 * </ul>
 	 * @return
 	 */
@@ -1309,7 +1302,7 @@ public class QuPathGUI {
 							continue;
 						}
 						String currentPath = pathUri == null ? uri.toString() : pathUri.toString();
-						var newPath = Dialogs.promptForFilePathOrURL("Set path to missing image", currentPath, file.getParentFile(), null);
+						var newPath = FileChoosers.promptForFilePathOrURI("Set path to missing image", currentPath);
 						if (newPath == null)
 							return false;
 						try {
@@ -1438,18 +1431,17 @@ public class QuPathGUI {
 		ProjectImageEntry<BufferedImage> entry = getProjectImageEntry(imageData);
 		String name = entry == null ? ServerTools.getDisplayableImageName(imageData.getServer()) : entry.getImageName();
 		var response = Dialogs.showYesNoCancelDialog("Save changes", "Save changes to " + name + "?");
-		if (response == DialogButton.CANCEL)
+		if (response == ButtonType.CANCEL)
 			return false;
-		if (response == DialogButton.NO)
+		if (response == ButtonType.NO)
 			return true;
 		
 		try {
 			if (entry == null) {
 				String lastPath = imageData.getLastSavedPath();
 				File lastFile = lastPath == null ? null : new File(lastPath);
-				File dirBase = lastFile == null ? null : lastFile.getParentFile();
-				String defaultName = lastFile == null ? null : lastFile.getName();
-				File file = Dialogs.promptToSaveFile("Save data", dirBase, defaultName, "QuPath data files", PathPrefs.getSerializationExtension());
+				File file = FileChoosers.promptToSaveFile("Save data", lastFile,
+						FileChoosers.createExtensionFilter("QuPath data files", PathPrefs.getSerializationExtension()));
 				if (file == null)
 					return false;
 				PathIO.writeImageData(file, imageData);
@@ -1549,12 +1541,15 @@ public class QuPathGUI {
 		File fileNew = null;
 		if (pathNew == null) {
 			if (includeURLs) {
-				pathNew = Dialogs.promptForFilePathOrURL("Choose path", pathOld, fileBase, null);
+				pathNew = FileChoosers.promptForFilePathOrURI("Choose path", pathOld);
 				if (pathNew == null)
 					return false;
 				fileNew = new File(pathNew);
 			} else {
-				fileNew = Dialogs.promptForFile(null, fileBase, null);
+				fileNew = FileChoosers.buildFileChooser()
+						.initialDirectory(fileBase)
+						.build()
+						.showOpenDialog(Dialogs.getPrimaryWindow());
 				if (fileNew == null)
 					return false;
 				pathNew = fileNew.getAbsolutePath();
@@ -1642,9 +1637,9 @@ public class QuPathGUI {
 										"QuPath works best with large images saved in a pyramidal format.\n\n" +
 										"Do you want to generate a pyramid dynamically from " + ServerTools.getDisplayableImageName(serverNew) + "?" +
 										"\n(This requires more memory, but is usually worth it)");
-								if (response == DialogButton.CANCEL)
+								if (response == ButtonType.CANCEL)
 									return false;
-								if (response == DialogButton.YES)
+								if (response == ButtonType.YES)
 									serverNew = serverWrapped;
 							}
 						}
@@ -1741,7 +1736,7 @@ public class QuPathGUI {
 	 */
 	public MenuItem installImageDataCommand(String menuPath, final Consumer<ImageData<BufferedImage>> command) {
 		if (!Platform.isFxApplicationThread()) {
-			return GuiTools.callOnApplicationThread(() -> installImageDataCommand(menuPath, command));
+			return FXUtils.callOnApplicationThread(() -> installImageDataCommand(menuPath, command));
 		}
 		Menu menu = parseMenu(menuPath, "Menu.Extensions", true);
 		String name = parseName(menuPath);
@@ -1761,7 +1756,7 @@ public class QuPathGUI {
 	 */
 	public MenuItem installCommand(String menuPath, Runnable runnable) {
 		if (!Platform.isFxApplicationThread()) {
-			return GuiTools.callOnApplicationThread(() -> installCommand(menuPath, runnable));
+			return FXUtils.callOnApplicationThread(() -> installCommand(menuPath, runnable));
 		}
 		Menu menu = parseMenu(menuPath, "Menu.Extensions", true);
 		String name = parseName(menuPath);
@@ -1944,7 +1939,7 @@ public class QuPathGUI {
 	 */
 	public boolean setAccelerator(MenuItem item, KeyCombination combo) {
 		if (!Platform.isFxApplicationThread()) {
-			return GuiTools.callOnApplicationThread(() -> setAccelerator(item, combo));
+			return FXUtils.callOnApplicationThread(() -> setAccelerator(item, combo));
 		}
 
 		Objects.requireNonNull(item, "Cannot set accelerator for null menu item");
@@ -2003,7 +1998,7 @@ public class QuPathGUI {
 	 */
 	public boolean setAccelerator(Action action, KeyCombination combo) {
 		if (!Platform.isFxApplicationThread()) {
-			return GuiTools.callOnApplicationThread(() -> setAccelerator(action, combo));
+			return FXUtils.callOnApplicationThread(() -> setAccelerator(action, combo));
 		}
 		Objects.requireNonNull(action, "Cannot set accelerator for null action");
 		if (Objects.equals(action.getAccelerator(), combo)) {
@@ -2584,15 +2579,17 @@ public class QuPathGUI {
 			String lastPath = imageData.getLastSavedPath();
 			filePrevious = lastPath == null ? null : new File(lastPath);
 		}
-		DialogButton response = DialogButton.YES;
+		ButtonType response = ButtonType.YES;
 		if (imageData.isChanged()) {
 			response = Dialogs.showYesNoCancelDialog(dialogTitle, "Save changes to " + ServerTools.getDisplayableImageName(imageData.getServer()) + "?");
 		}
-		if (response == DialogButton.CANCEL)
+		if (response == ButtonType.CANCEL)
 			return false;
-		if (response == DialogButton.YES) {
+		if (response == ButtonType.YES) {
 			if (filePrevious == null && entry == null) {
-				filePrevious = Dialogs.promptToSaveFile("Save image data", filePrevious, ServerTools.getDisplayableImageName(imageData.getServer()), "QuPath Serialized Data", PathPrefs.getSerializationExtension());
+				filePrevious = FileChoosers.promptToSaveFile("Save image data",
+						new File(ServerTools.getDisplayableImageName(imageData.getServer())),
+						FileChoosers.createExtensionFilter("QuPath Serialized Data", PathPrefs.getSerializationExtension()));
 				if (filePrevious == null)
 					return false;
 			}
@@ -2630,7 +2627,7 @@ public class QuPathGUI {
 		var action = new Action(e -> {
 			var imageData = getImageData();
 			if (imageData == null)
-				Dialogs.showNoImageError("No image");
+				GuiTools.showNoImageError("No image");
 			else
 				command.accept(imageData);
 		});
@@ -2701,7 +2698,7 @@ public class QuPathGUI {
 		var action = new Action(e -> {
 			var project = getProject();
 			if (project == null)
-				Dialogs.showNoProjectError("No project");
+				GuiTools.showNoProjectError("No project");
 			else
 				command.accept(project);
 		});

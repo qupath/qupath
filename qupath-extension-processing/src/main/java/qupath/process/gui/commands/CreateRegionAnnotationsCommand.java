@@ -38,7 +38,8 @@ import javafx.scene.layout.Pane;
 import javafx.stage.Stage;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.controls.dialogs.Dialogs;
+import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.PixelCalibration;
@@ -189,7 +190,7 @@ public class CreateRegionAnnotationsCommand implements Runnable {
 			}
 			ImageData<?> imageData = viewer.getImageData();
 			if (imageData == null) {
-				Dialogs.showNoImageError("Create region");
+				GuiTools.showNoImageError("Create region");
 				return;
 			}
 			

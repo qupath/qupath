@@ -17,6 +17,7 @@ configurations {
 dependencies {
   api project(':qupath-core')
   api project(':qupath-core-processing')
+  api project(':qupath-controls')
 
   api libs.controlsfx
   

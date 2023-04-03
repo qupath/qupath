@@ -2,9 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
- * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -21,16 +19,14 @@
  * #L%
  */
 
-package qupath.lib.gui.dialogs;
+package qupath.controls.dialogs;
 
-import java.io.File;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.WeakHashMap;
+import java.util.*;
+
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import org.controlsfx.control.Notifications;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,11 +47,7 @@ import javafx.scene.control.TextInputDialog;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.Window;
-import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.localization.QuPathResources;
-import qupath.lib.gui.prefs.QuPathStyleManager;
-import qupath.lib.gui.tools.GuiTools;
-import qupath.lib.plugins.parameters.ParameterList;
+import qupath.controls.FXUtils;
 
 /**
  * Collection of static methods to help with showing information to a user, 
@@ -70,25 +62,43 @@ import qupath.lib.plugins.parameters.ParameterList;
 public class Dialogs {
 	
 	private static final Logger logger = LoggerFactory.getLogger(Dialogs.class);
+
+	private static Window primaryWindow;
+
+	private static BooleanProperty useDarkStyle = new SimpleBooleanProperty();
+
+	private static ObservableList<String> knownExtensions = FXCollections.observableArrayList();
 	
 	/**
-	 * Possible buttons pressed in a yes/no/cancel dialog.
+	 * Set the primary window, which will be used as the owner of dialogs
+	 * if no other window takes precedence (e.g. because it is modal or in focus).
+	 * @param window
+	 * @see #getPrimaryWindow()
 	 */
-	public static enum DialogButton {
-		/**
-		 * "Yes" option
-		 */
-		YES,
-		/**
-		 * "No" option
-		 */
-		NO,
-		/**
-		 * "Cancel" option
-		 */
-		CANCEL
-		}
-	
+	public static void setPrimaryWindow(Window window) {
+		primaryWindow = window;
+	}
+
+	/**
+	 * Get the primary window.
+	 * @return
+	 * @see #setPrimaryWindow(Window)
+	 */
+	public static Window getPrimaryWindow() {
+		return primaryWindow;
+	}
+
+	/**
+	 * Get a modifiable list of known file extensions.
+	 * This exists to make it possible to override the logic of 'everything after the
+	 * last dot is the file extension', and support multi-part extensions such as
+	 * {@code .tar.gz} or {@code .ome.tif}.
+	 * @return
+	 */
+	public static ObservableList<String> getKnownFileExtensions() {
+		return knownExtensions;
+	}
+
 	/**
 	 * Show a confirm dialog (OK/Cancel).
 	 * @param title
@@ -107,7 +117,6 @@ public class Dialogs {
 	 */
 	public static boolean showMessageDialog(final String title, final Node node) {
 		return new Builder()
-//				.alertType(AlertType.NONE)
 				.buttons(ButtonType.OK)
 				.title(title)
 				.content(node)
@@ -180,10 +189,10 @@ public class Dialogs {
 	 * Show a Yes/No/Cancel dialog.
 	 * @param title dialog box title
 	 * @param text prompt message
-	 * @return a {@link DialogButton} indicating the response (YES, NO, CANCEL)
+	 * @return a {@link ButtonType} of YES, NO or CANCEL
 	 */
-	public static DialogButton showYesNoCancelDialog(String title, String text) {
-		var result = new Builder()
+	public static ButtonType showYesNoCancelDialog(String title, String text) {
+		return new Builder()
 				.alertType(AlertType.NONE)
 				.buttons(ButtonType.YES, ButtonType.NO, ButtonType.CANCEL)
 				.title(title)
@@ -191,53 +200,28 @@ public class Dialogs {
 				.resizable()
 				.showAndWait()
 				.orElse(ButtonType.CANCEL);
-		return getJavaFXPaneYesNoCancel(result);
 	}
-	
-	
-	private static DialogButton getJavaFXPaneYesNoCancel(final ButtonType buttonType) {
-		if (buttonType == ButtonType.YES)
-			return DialogButton.YES;
-		if (buttonType == ButtonType.NO)
-			return DialogButton.NO;
-		if (buttonType == ButtonType.CANCEL)
-			return DialogButton.CANCEL;
-		return null;
-	}
-		
 
-	/**
-	 * Show a (modal) dialog for a specified ParameterList.
-	 * 
-	 * @param title
-	 * @param params
-	 * @return False if the user pressed 'cancel', true otherwise
-	 */
-	public static boolean showParameterDialog(String title, ParameterList params) {
-		return showConfirmDialog(title, new ParameterPanelFX(params).getPane());
-	}
-	
-	
+
 	/**
 	 * Show an input dialog requesting a numeric value. Only scientific notation and digits 
 	 * with/without a decimal separator (e.g. ".") are permitted.
 	 * <p>
 	 * The returned value might still not be in a valid state, as 
-	 * limited by {@link GuiTools#restrictTextFieldInputToNumber(javafx.scene.control.TextField, boolean)}.
+	 * limited by {@link FXUtils#restrictTextFieldInputToNumber(javafx.scene.control.TextField, boolean)}.
 	 * 
 	 * @param title
 	 * @param message
 	 * @param initialInput
 	 * @return Number input by the user, or NaN if no valid number was entered, or null if cancel was pressed.
-	 * @see GuiTools#restrictTextFieldInputToNumber(javafx.scene.control.TextField, boolean)
+	 * @see FXUtils#restrictTextFieldInputToNumber(javafx.scene.control.TextField, boolean)
 	 */
 	public static Double showInputDialog(final String title, final String message, final Double initialInput) {
 		if (Platform.isFxApplicationThread()) {
 			TextInputDialog dialog = new TextInputDialog(initialInput.toString());
-			GuiTools.restrictTextFieldInputToNumber(dialog.getEditor(), true);
+			FXUtils.restrictTextFieldInputToNumber(dialog.getEditor(), true);
 			dialog.setTitle(title);
-			if (QuPathGUI.getInstance() != null)
-				dialog.initOwner(getDefaultOwner());
+			dialog.initOwner(getDefaultOwner());
 			dialog.setHeaderText(null);
 			dialog.setContentText(message);
 			dialog.setResizable(true);
@@ -253,7 +237,7 @@ public class Dialogs {
 				}
 			}
 		} else
-			return GuiTools.callOnApplicationThread(() -> showInputDialog(title, message, initialInput));
+			return FXUtils.callOnApplicationThread(() -> showInputDialog(title, message, initialInput));
 		return null;
 	}
 	
@@ -269,8 +253,7 @@ public class Dialogs {
 		if (Platform.isFxApplicationThread()) {
 			TextInputDialog dialog = new TextInputDialog(initialInput);
 			dialog.setTitle(title);
-			if (QuPathGUI.getInstance() != null)
-				dialog.initOwner(getDefaultOwner());
+			dialog.initOwner(getDefaultOwner());
 			dialog.setHeaderText(null);
 			dialog.setContentText(message);
 			dialog.setResizable(true);
@@ -279,7 +262,7 @@ public class Dialogs {
 			if (result.isPresent())
 			    return result.get();
 		} else {
-			return GuiTools.callOnApplicationThread(() -> showInputDialog(title, message, initialInput));
+			return FXUtils.callOnApplicationThread(() -> showInputDialog(title, message, initialInput));
 		}
 		return null;
 	}
@@ -310,15 +293,14 @@ public class Dialogs {
 		if (Platform.isFxApplicationThread()) {
 			ChoiceDialog<T> dialog = new ChoiceDialog<>(defaultChoice, choices);
 			dialog.setTitle(title);
-			if (QuPathGUI.getInstance() != null)
-				dialog.initOwner(getDefaultOwner());
+			dialog.initOwner(getDefaultOwner());
 			dialog.getDialogPane().setHeaderText(null);
 			if (message != null)
 				dialog.getDialogPane().setContentText(message);
 			Optional<T> result = dialog.showAndWait();
 			return result.orElse(null);
 		} else
-			return GuiTools.callOnApplicationThread(() -> showChoiceDialog(title, message, choices, defaultChoice));
+			return FXUtils.callOnApplicationThread(() -> showChoiceDialog(title, message, choices, defaultChoice));
 	}
 	
 	/**
@@ -432,36 +414,19 @@ public class Dialogs {
 	 * Necessary to have owner when calling notifications (bug in controlsfx?).
 	 */
 	private static Notifications createNotifications() {
-		var stage = QuPathGUI.getInstance() == null ? null : QuPathGUI.getInstance().getStage();
+		var stage = getDefaultOwner();
 		var notifications = Notifications.create();
 		if (stage == null)
 			return notifications;
-		
-		if (!QuPathStyleManager.isDefaultStyle())
+
+		// TODO: Need to find a way to determine when dark style should be used!
+		if (useDarkStyle.get() || true)
 			notifications = notifications.darkStyle();
-		
+
 		return notifications.owner(stage);
 	}
-	
-	/**
-	 * Show an error message that no image is available. This is included to help 
-	 * standardize the message throughout the software.
-	 * @param title
-	 */
-	public static void showNoImageError(String title) {
-		showErrorMessage(title, QuPathResources.getString("Dialogs.noImage"));
-	}
-	
-	/**
-	 * Show an error message that no project is available. This is included to help 
-	 * standardize the message throughout the software.
-	 * @param title
-	 */
-	public static void showNoProjectError(String title) {
-		showErrorMessage(title, QuPathResources.getString("Dialogs.noProject"));
-	}
-	
-	
+
+
 	/**
 	 * Show an error message.
 	 * @param title
@@ -537,111 +502,8 @@ public class Dialogs {
 		dialog.setScene(new Scene(textArea));
 		dialog.show();
 	}
-	
-	/**
-	 * Prompt to open a list of files.
-	 * 
-	 * @param title
-	 * @param dirBase
-	 * @param filterDescription
-	 * @param exts
-	 * @return
-	 */
-	public static List<File> promptForMultipleFiles(String title, File dirBase, String filterDescription, String... exts) {
-		return getSharedChooser().promptForMultipleFiles(title, dirBase, filterDescription, exts);
-	}
 
-	/**
-	 * Prompt user to select a directory.
-	 * 
-	 * @param dirBase base directory to display; if null or not an existing directory, the value under getLastDirectory() should be used
-	 * @return selected directory, or null if no directory was selected
-	 */
-	public static File promptForDirectory(File dirBase) {
-		return getSharedChooser().promptForDirectory(dirBase);
-	}
-	
-	/**
-	 * Prompt user to select a directory.
-	 * 
-	 * @param title the title to display for the dialog (may be null to use default)
-	 * @param dirBase base directory to display; if null or not an existing directory, the value under getLastDirectory() should be used
-	 * @return selected directory, or null if no directory was selected
-	 */
-	public static File promptForDirectory(String title, File dirBase) {
-		return getSharedChooser().promptForDirectory(title, dirBase);
-	}
 
-	/**
-	 * Prompt the user for a file with some kind of file dialog.
-	 * @param title the title to display for the dialog (may be null to use default)
-	 * @param dirBase base directory to display; if null or not an existing directory, the value under getLastDirectory() should be used
-	 * @param filterDescription description to (possibly) show for the file name filter (may be null if no filter should be used)
-	 * @param exts optional array of file extensions if filterDescription is not null
-	 * 
-	 * @return the File selected by the user, or null if the dialog was cancelled
-	 */
-	public static File promptForFile(String title, File dirBase, String filterDescription, String... exts) {
-		return getSharedChooser().promptForFile(title, dirBase, filterDescription, exts);
-	}
-
-	/**
-	 * Prompt user to select a file.
-	 * 
-	 * @param dirBase base directory to display; if null or not an existing directory, the value under getLastDirectory() should be used
-	 * @return the File selected by the user, or null if the dialog was cancelled
-	 */
-	public static File promptForFile(File dirBase) {
-		return getSharedChooser().promptForFile(dirBase);
-	}
-
-	/**
-	 * Prompt user to select a file path to save.
-	 * 
-	 * @param title the title to display for the dialog (may be null)
-	 * @param dirBase the base directory to display; if null or not an existing directory, the value under getLastDirectory() should be used
-	 * @param defaultName default file name
-	 * @param filterName description to show for the file name filter (may be null if no filter should be used)
-	 * @param ext extension that should be used for the saved file (may be empty or null if not specified)
-	 * @return the File selected by the user, or null if the dialog was cancelled
-	 */
-	public static File promptToSaveFile(String title, File dirBase, String defaultName, String filterName, String ext) {
-		return getSharedChooser().promptToSaveFile(title, dirBase, defaultName, filterName, ext);
-	}
-	
-	/**
-	 * Prompt user to select a file path to save, providing zero or more file extensions as an option.
-	 * 
-	 * @param title the title to display for the dialog (may be null)
-	 * @param dirBase the base directory to display; if null or not an existing directory, the value under getLastDirectory() should be used
-	 * @param defaultName default file name
-	 * @param filters map of file type descriptions (keys) and file extensions (values); may be empty if an 'all files' filter should be used
-	 * @return the File selected by the user, or null if the dialog was cancelled
-	 * @since v0.4.0
-	 */
-	public static File promptToSaveFile(String title, File dirBase, String defaultName, Map<String, String> filters) {
-		return getSharedChooser().promptToSaveFile(title, dirBase, defaultName, filters);
-	}
-
-	/**
-	 * Prompt user to select a file or input a URL.
-	 * 
-	 * @param title dialog title
-	 * @param defaultPath default path to display - may be null
-	 * @param dirBase base directory to display; if null or not an existing directory, the value under getLastDirectory() should be used
-	 * @param filterDescription description to (possibly) show for the file name filter (may be null if no filter should be used)
-	 * @param exts optional array of file extensions if filterDescription is not null
-	 * @return the path to the file or URL, or null if no path was provided.
-	 */
-	public static String promptForFilePathOrURL(String title, String defaultPath, File dirBase, String filterDescription,
-			String... exts) {
-		return getSharedChooser().promptForFilePathOrURL(title, defaultPath, dirBase, filterDescription, exts);
-	}
-	
-	private static QuPathChooser defaultFileChooser = new QuPathChooserFX(null);
-	private static Map<Window, QuPathChooser> fileChooserMap = new WeakHashMap<>();
-
-	
 	/**
 	 * Get a default owner window.
 	 * This is the main QuPath window, if available, unless we have any modal stages.
@@ -649,43 +511,32 @@ public class Dialogs {
 	 * Otherwise, return null and let JavaFX figure out the owner.
 	 * @return
 	 */
-	private static Window getDefaultOwner() {
-		List<Stage> modalStages = Window.getWindows().stream()
-				.filter(w -> w.isShowing() && w instanceof Stage)
-				.map(w -> (Stage)w)
-				.filter(s -> s.getModality() != Modality.NONE)
-				.toList();
-		if (modalStages.isEmpty()) {
-			var qupath = QuPathGUI.getInstance();
-			if (qupath != null)
-				return qupath.getStage();
-			return null;
-		}
-		var focussedStages = modalStages.stream()
-				.filter(s -> s.isFocused())
-				.toList();
-		if (focussedStages.size() == 1)
-			return focussedStages.get(0);
-		return null;
-	}
-	
-	/**
-	 * Get a {@link QuPathChooser} instance linked to a specific window.
-	 * This may both influence the display of the chooser (by setting the parent window) and the starting directory 
-	 * (by remembering the last known directory for the chooser).
-	 * @param window
-	 * @return a {@link QuPathChooser} associated with the specified window.
-	 */
-	public static QuPathChooser getChooser(Window window) {
-		if (window == null)
-			return defaultFileChooser;
-		return fileChooserMap.computeIfAbsent(window, w -> new QuPathChooserFX(w));
+	static Window getDefaultOwner() {
+		// Check modality, then focus, then title
+		Comparator<Window> comparator = Comparator.comparing(Dialogs::isModal)
+				.thenComparing(Window::isFocused)
+				.thenComparing(w -> w == primaryWindow)
+				.thenComparing(Dialogs::getTitle);
+		return Window.getWindows().stream()
+				.sorted(comparator)
+				.findFirst()
+				.orElse(primaryWindow);
 	}
 
-	private static QuPathChooser getSharedChooser() {
-		return getChooser(getDefaultOwner());
+	private static String getTitle(Window window) {
+		String title = null;
+		if (window instanceof Stage stage)
+			title = stage.getTitle();
+		return title == null ? "" : title;
 	}
-	
+
+	private static boolean isModal(Window window) {
+		if (window instanceof Stage stage)
+			return stage.getModality() != Modality.NONE;
+		return false;
+	}
+
+
 	/**
 	 * Create a new builder to generate a custom dialog.
 	 * @return
@@ -696,7 +547,7 @@ public class Dialogs {
 	
 	
 	private static boolean isHeadless() {
-		return QuPathGUI.getInstance() == null;
+		return Window.getWindows().isEmpty();
 	}
 
 	/**
@@ -1013,7 +864,7 @@ public class Dialogs {
 				logger.warn("Cannot show dialog in headless mode!");
 				return;
 			}
-			GuiTools.runOnApplicationThread(() -> build().show());
+			FXUtils.runOnApplicationThread(() -> build().show());
 		}
 		
 		/**
@@ -1025,7 +876,7 @@ public class Dialogs {
 		 * @return 
 		 */
 		public Optional<ButtonType> showAndWait() {
-			return GuiTools.callOnApplicationThread(() -> build().showAndWait());
+			return FXUtils.callOnApplicationThread(() -> build().showAndWait());
 		}
 		
 	}

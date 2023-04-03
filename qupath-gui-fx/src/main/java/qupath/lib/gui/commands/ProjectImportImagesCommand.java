@@ -69,17 +69,19 @@ import javafx.scene.input.TransferMode;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
+import qupath.controls.FXUtils;
+import qupath.controls.dialogs.FileChoosers;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.ThreadTools;
 import qupath.lib.display.ChannelDisplayInfo;
 import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.controls.dialogs.Dialogs;
 import qupath.lib.gui.panes.ProjectBrowser;
 import qupath.lib.gui.panes.ServerSelector;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.controls.PaneTools;
 import qupath.lib.gui.tools.GuiTools;
-import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.ImageData.ImageType;
 import qupath.lib.images.servers.WrappedBufferedImageServer;
@@ -114,8 +116,7 @@ class ProjectImportImagesCommand {
 	
 	/**
 	 * Prompt to import images to the current project.
-	 * 
-	 * 
+	 *
 	 * @param qupath QuPath instance, used to access the current project and stage
 	 * @param builder if not null, this will be used to create the servers. If null, a combobox will be shown to choose an installed builder.
 	 * @param defaultPaths URIs to use to prepopulate the list
@@ -124,7 +125,7 @@ class ProjectImportImagesCommand {
 	static List<ProjectImageEntry<BufferedImage>> promptToImportImages(QuPathGUI qupath, ImageServerBuilder<BufferedImage> builder, String... defaultPaths) {
 		var project = qupath.getProject();
 		if (project == null) {
-			Dialogs.showNoProjectError(commandName);
+			GuiTools.showNoProjectError(commandName);
 			return Collections.emptyList();
 		}
 		
@@ -254,7 +255,7 @@ class ProjectImportImagesCommand {
 							.stream()
 							.filter(f -> f.isFile() && !f.isHidden())
 							.map(f -> f.getAbsolutePath())
-							.toList();
+							.collect(Collectors.toCollection(ArrayList::new));
 					paths.removeAll(listView.getItems());
 					if (!paths.isEmpty())
 						listView.getItems().addAll(paths);
@@ -403,7 +404,7 @@ class ProjectImportImagesCommand {
 					
 					if (showSelector && max > 1) {
 						var selector = ServerSelector.createFromBuilders(builders);
-						var selected = GuiTools.callOnApplicationThread(() -> {
+						var selected = FXUtils.callOnApplicationThread(() -> {
 							return selector.promptToSelectImages("Import");
 						});
 						builders.clear();
@@ -539,7 +540,7 @@ class ProjectImportImagesCommand {
 	
 	
 	static boolean loadFromFileChooser(final List<String> list) {
-		List<File> files = Dialogs.promptForMultipleFiles(commandName, null, null);
+		List<File> files = FileChoosers.promptForMultipleFiles(commandName);
 		if (files == null)
 			return false;
 		boolean changes = false;
@@ -556,7 +557,7 @@ class ProjectImportImagesCommand {
 	
 	
 	static boolean loadFromSingleURL(final List<String> list) {
-		String path = Dialogs.promptForFilePathOrURL("Choose image path", null, null, null);
+		String path = FileChoosers.promptForFilePathOrURI("Choose image path", "");
 		if (path == null)
 			return false;
 		if (list.contains(path)) {
@@ -569,7 +570,8 @@ class ProjectImportImagesCommand {
 	
 
 	static int loadFromTextFile(final List<String> list) {
-		File file = Dialogs.promptForFile(commandName, null, "Text file", new String[]{"txt", "csv"});
+		File file = FileChoosers.promptForFile(commandName,
+				FileChoosers.createExtensionFilter("Text file", "*.txt", "*.csv"));
 		if (file == null)
 			return 0;
 		if (file.length() / 1024 / 1024 > 5) {

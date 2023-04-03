@@ -79,7 +79,9 @@ import javafx.scene.text.FontWeight;
 import javafx.scene.text.TextAlignment;
 import javafx.util.Duration;
 import javafx.util.StringConverter;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.controls.FXUtils;
+import qupath.controls.dialogs.Dialogs;
+import qupath.controls.dialogs.FileChoosers;
 import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.logging.LogManager;
 import qupath.lib.gui.logging.LogManager.LogLevel;
@@ -91,8 +93,6 @@ import qupath.lib.gui.prefs.PathPrefs.ImageTypeSetting;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.tools.CommandFinderTools;
 import qupath.lib.gui.tools.CommandFinderTools.CommandBarDisplay;
-import qupath.lib.gui.tools.GuiTools;
-import qupath.lib.gui.tools.LocaleListener;
 import qupath.lib.gui.prefs.QuPathStyleManager;
 import qupath.lib.gui.prefs.QuPathStyleManager.StyleOption;
 import qupath.lib.gui.prefs.annotations.BooleanPref;
@@ -122,7 +122,7 @@ public class PreferencePane {
 	
 	private BorderPane pane;
 	
-	private StringProperty localeChangedText = LocaleListener.createProperty("Prefs.localeChanged");
+	private StringProperty localeChangedText = QuPathResources.getLocalizeResourceManager().createProperty("Prefs.localeChanged");
 	private BooleanProperty localeChanged = new SimpleBooleanProperty(false);
 	
 	@SuppressWarnings("javadoc")
@@ -711,14 +711,14 @@ public class PreferencePane {
 		public PropertyItem key(String bundle, String key) {
 			if (bundle.isBlank())
 				bundle = null;
-			LocaleListener.registerProperty(name, bundle, key);
+			QuPathResources.getLocalizeResourceManager().registerProperty(name, bundle, key);
 			if (QuPathResources.hasString(bundle, key + ".description"))
-				LocaleListener.registerProperty(description, bundle, key + ".description");			
+				QuPathResources.getLocalizeResourceManager().registerProperty(description, bundle, key + ".description");
 			return this;
 		}
 
 		public PropertyItem categoryKey(final String bundle, final String key) {
-			LocaleListener.registerProperty(category, bundle, key);			
+			QuPathResources.getLocalizeResourceManager().registerProperty(category, bundle, key);
 			return this;
 		}
 
@@ -895,7 +895,7 @@ public class PreferencePane {
 			control.setOnMouseClicked(e -> {
 				if (e.getClickCount() > 1) {
 					e.consume();
-					File dirNew = Dialogs.getChooser(control.getScene().getWindow()).promptForDirectory(getValue());
+					File dirNew = FileChoosers.promptForDirectory(control.getScene().getWindow(), null, getValue());
 					if (dirNew != null)
 						setValue(dirNew);
 				}
@@ -1146,8 +1146,8 @@ public class PreferencePane {
 				@SuppressWarnings("rawtypes")
 				var combo = (ComboBox)editor.getEditor();
 				var formatter = reformatTypes.get(item.getType());
-				combo.setCellFactory(obj -> GuiTools.createCustomListCell(formatter));
-				combo.setButtonCell(GuiTools.createCustomListCell(formatter));
+				combo.setCellFactory(obj -> FXUtils.createCustomListCell(formatter));
+				combo.setButtonCell(FXUtils.createCustomListCell(formatter));
 			}
 			
 			// Make it easier to reset default locale

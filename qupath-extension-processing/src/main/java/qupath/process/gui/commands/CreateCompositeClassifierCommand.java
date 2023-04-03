@@ -22,6 +22,7 @@
 package qupath.process.gui.commands;
 
 import java.awt.image.BufferedImage;
+import java.io.File;
 import java.io.IOException;
 import java.util.AbstractMap;
 import java.util.Collection;
@@ -45,13 +46,14 @@ import javafx.scene.control.Tooltip;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
+import qupath.controls.dialogs.FileChoosers;
 import qupath.lib.classifiers.object.ObjectClassifier;
 import qupath.lib.classifiers.object.ObjectClassifiers;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.controls.dialogs.Dialogs;
 import qupath.lib.gui.tools.GuiTools;
-import qupath.lib.gui.tools.PaneTools;
+import qupath.controls.PaneTools;
 import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
 import qupath.lib.plugins.workflow.WorkflowStep;
 import qupath.lib.projects.Project;
@@ -206,7 +208,8 @@ public class CreateCompositeClassifierCommand implements Runnable {
 				project.getObjectClassifiers().put(name, composite);
 				Dialogs.showInfoNotification(title, "Classifier written to project as " + name);
 			} else {
-				var file = Dialogs.promptToSaveFile(title, null, name, "JSON", ".json");
+				var file = FileChoosers.promptToSaveFile(title, name == null ? null : new File(name),
+						FileChoosers.createExtensionFilter("JSON", ".json"));
 				if (file != null) {
 					logger.info("Writing classifier to {}", file.getAbsolutePath());
 					name = file.getAbsolutePath().replaceAll("\\\\", "/");

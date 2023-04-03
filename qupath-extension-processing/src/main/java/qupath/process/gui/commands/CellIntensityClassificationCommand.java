@@ -43,15 +43,16 @@ import javafx.scene.control.Label;
 import javafx.scene.control.Slider;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
+import qupath.controls.FXUtils;
 import qupath.lib.analysis.stats.Histogram;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.ThreadTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.charts.HistogramPanelFX;
 import qupath.lib.gui.charts.HistogramPanelFX.ThresholdedChartWrapper;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.controls.dialogs.Dialogs;
+import qupath.controls.PaneTools;
 import qupath.lib.gui.tools.GuiTools;
-import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
@@ -85,7 +86,7 @@ public class CellIntensityClassificationCommand implements Runnable {
 		
 		var imageData = qupath.getImageData();
 		if (imageData == null) {
-			Dialogs.showNoImageError(title);
+			GuiTools.showNoImageError(title);
 			return;
 		}
 		var hierarchy = imageData.getHierarchy();
@@ -124,7 +125,7 @@ public class CellIntensityClassificationCommand implements Runnable {
 			var tf = new TextField();
 			tf.setPrefColumnCount(6);
 			textFields.add(tf);
-			GuiTools.bindSliderAndTextField(slider, tf, true);
+			FXUtils.bindSliderAndTextField(slider, tf, true);
 			GuiTools.installRangePrompt(slider);
 			slider.valueProperty().addListener((v, o, n) -> {
 				updateClassifications(hierarchy, allDetections, selectedMeasurement.get(), parseValues(sliders, singleThreshold.get()));

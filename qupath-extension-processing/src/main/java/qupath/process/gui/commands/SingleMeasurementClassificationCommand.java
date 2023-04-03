@@ -54,6 +54,7 @@ import javafx.scene.control.Slider;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
 import javafx.stage.Modality;
+import qupath.controls.FXUtils;
 import qupath.lib.analysis.stats.Histogram;
 import qupath.lib.classifiers.object.ObjectClassifier;
 import qupath.lib.classifiers.object.ObjectClassifiers.ClassifyByMeasurementBuilder;
@@ -63,9 +64,9 @@ import qupath.lib.common.ThreadTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.charts.HistogramPanelFX;
 import qupath.lib.gui.charts.HistogramPanelFX.ThresholdedChartWrapper;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.controls.dialogs.Dialogs;
+import qupath.controls.PaneTools;
 import qupath.lib.gui.tools.GuiTools;
-import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
@@ -172,7 +173,7 @@ public class SingleMeasurementClassificationCommand implements Runnable {
 			// Set up text fields
 			var tf = new TextField();
 			tf.setPrefColumnCount(6);
-			GuiTools.bindSliderAndTextField(sliderThreshold, tf, true);
+			FXUtils.bindSliderAndTextField(sliderThreshold, tf, true);
 			GuiTools.installRangePrompt(sliderThreshold);
 			
 			// Initialize pane
@@ -311,7 +312,7 @@ public class SingleMeasurementClassificationCommand implements Runnable {
 		public void show() {
 			var imageData = viewer.getImageData();
 			if (imageData == null) {
-				Dialogs.showNoImageError(title);
+				GuiTools.showNoImageError(title);
 				return;
 			}
 			

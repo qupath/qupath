@@ -39,6 +39,7 @@ import java.util.ResourceBundle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import qupath.controls.localization.LocalizedResourceManager;
 import qupath.lib.gui.ExtensionClassLoader;
 import qupath.lib.gui.UserDirectoryManager;
 
@@ -55,7 +56,18 @@ public class QuPathResources {
 	private static final QuPathResourceControl CONTROL = new QuPathResourceControl();
 	
 	private static final String DEFAULT_BUNDLE = "qupath/lib/gui/localization/qupath-gui-strings";
-	
+
+	private static final LocalizedResourceManager LOCALIZED_RESOURCE_MANAGER = LocalizedResourceManager.createInstance(DEFAULT_BUNDLE, new QuPathResources.QuPathResourceControl());
+
+	/**
+	 * Get a localized resource manager, which can be used to manage localized strings,
+	 * and update these whenever the locale preferences are updated.
+	 * @return
+	 */
+	public static LocalizedResourceManager getLocalizeResourceManager() {
+		return LOCALIZED_RESOURCE_MANAGER;
+	}
+
 	/**
 	 * Get a string from the main {@link ResourceBundle} used for the QuPath user interface.
 	 * <p>
@@ -107,14 +119,14 @@ public class QuPathResources {
 	
 	
 	
-	private static class QuPathResourceControl extends ResourceBundle.Control {
+	static class QuPathResourceControl extends ResourceBundle.Control {
 		
 		private static final Logger logger = LoggerFactory.getLogger(QuPathResourceControl.class);
 		
 		// Directory containing the code
 		private Path codePath;
 		
-		private QuPathResourceControl() {
+		QuPathResourceControl() {
 			try {
 				codePath = Paths.get(
 						QuPathResources.class

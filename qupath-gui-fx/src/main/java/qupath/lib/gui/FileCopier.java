@@ -32,12 +32,13 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+import javafx.scene.control.ButtonType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import qupath.controls.dialogs.FileChoosers;
 import qupath.lib.gui.commands.Commands;
-import qupath.lib.gui.dialogs.Dialogs;
-import qupath.lib.gui.dialogs.Dialogs.DialogButton;
+import qupath.controls.dialogs.Dialogs;
 
 /**
  * Copy files to an output directory, prompting the user if necessary.
@@ -157,7 +158,7 @@ public class FileCopier {
 			}
 			return outputPath;
 		} else {
-			var dir = Dialogs.promptForDirectory(title, null);
+			var dir = FileChoosers.promptForDirectory(title, null);
 			if (dir == null)
 				return null;
 			else
@@ -212,9 +213,9 @@ public class FileCopier {
 				break;
 			} else {
 				var response = Dialogs.showYesNoCancelDialog(title, "Overwrite existing files?");
-				if (response == DialogButton.YES)
+				if (response == ButtonType.YES)
 					overwriteExisting = true;
-				else if (response == DialogButton.NO)
+				else if (response == ButtonType.NO)
 					overwriteExisting = false;
 				else {
 					logger.warn("Files will not be copied (user cancelled at overwrite prompt)");

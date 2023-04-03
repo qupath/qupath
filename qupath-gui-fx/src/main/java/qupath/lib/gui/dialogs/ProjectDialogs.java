@@ -50,7 +50,7 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.TextAlignment;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.tools.GuiTools;
-import qupath.lib.gui.tools.PaneTools;
+import qupath.controls.PaneTools;
 import qupath.lib.projects.ProjectImageEntry;
 
 /**

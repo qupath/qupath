@@ -61,7 +61,7 @@ import javafx.scene.layout.Priority;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.GuiTools;
-import qupath.lib.gui.tools.PaneTools;
+import qupath.controls.PaneTools;
 import qupath.lib.gui.tools.PathObjectLabels;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;

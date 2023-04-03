@@ -61,10 +61,11 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
+import qupath.controls.FXUtils;
+import qupath.controls.dialogs.FileChoosers;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.gui.dialogs.Dialogs;
-import qupath.lib.gui.tools.GuiTools;
-import qupath.lib.gui.tools.PaneTools;
+import qupath.controls.dialogs.Dialogs;
+import qupath.controls.PaneTools;
 import qupath.lib.io.UriResource;
 import qupath.lib.io.UriUpdater;
 import qupath.lib.io.UriUpdater.SingleUriItem;
@@ -213,7 +214,7 @@ public class UpdateUrisCommand<T extends UriResource> {
 		Button btnSearch = new Button("Search...");
 		btnSearch.setTooltip(new Tooltip("Choose a directory & search recursively for images inside"));
 		btnSearch.setOnAction(e -> {
-			var dir = Dialogs.getChooser(GuiTools.getWindow(btnSearch)).promptForDirectory("Search directory", null);
+			var dir = FileChoosers.promptForDirectory(FXUtils.getWindow(btnSearch), "Search directory", null);
 			if (dir == null) {
 				logger.debug("Search for URIs cancelled!");
 				return;
@@ -388,7 +389,7 @@ public class UpdateUrisCommand<T extends UriResource> {
 				return;
 			var uriReplacement = replacements.get(uriOriginal);
 			var defaultPath = uriReplacement == null ? uriOriginal.getURI().toString() : uriReplacement.getURI().toString();
-			String path = Dialogs.getChooser(GuiTools.getWindow(this)).promptForFilePathOrURL("Change URI", defaultPath, null, null);
+			String path = FileChoosers.promptForFilePathOrURI(FXUtils.getWindow(this), "Change URI", defaultPath, null, null);
 			if (path != null && !path.isBlank()) {
 				URI uri = null;
 				try {

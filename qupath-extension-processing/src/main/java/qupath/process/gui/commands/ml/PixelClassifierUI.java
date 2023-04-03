@@ -22,6 +22,7 @@
 package qupath.process.gui.commands.ml;
 
 import java.awt.image.BufferedImage;
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -51,11 +52,12 @@ import javafx.scene.control.MenuItem;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Pane;
+import qupath.controls.dialogs.FileChoosers;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.gui.commands.Commands;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.controls.dialogs.Dialogs;
 import qupath.lib.gui.tools.GuiTools;
-import qupath.lib.gui.tools.PaneTools;
+import qupath.controls.PaneTools;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.RegionFilter;
 import qupath.lib.gui.viewer.RegionFilter.StandardRegionFilters;
@@ -235,7 +237,8 @@ public class PixelClassifierUI {
 		} else
 			writer = allWriters.iterator().next();
 
-		var file = Dialogs.promptToSaveFile("Save prediction", null, classifierName, writer.getName(), writer.getDefaultExtension());
+		var file = FileChoosers.promptToSaveFile("Save prediction", new File(classifierName),
+				FileChoosers.createExtensionFilter(writer.getName(), writer.getDefaultExtension()));
 		if (file == null)
 			return false;
 		try {
@@ -345,7 +348,7 @@ public class PixelClassifierUI {
 							"Set the newly-created objects to be selected");
 		}
 		
-		if (!Dialogs.showParameterDialog("Create objects", params))
+		if (!GuiTools.showParameterDialog("Create objects", params))
 			return false;
 
 		boolean createDetections = params.getChoiceParameterValue("objectType").equals("Detection");
@@ -501,7 +504,7 @@ public class PixelClassifierUI {
 	private static boolean promptToAddMeasurements(ImageData<BufferedImage> imageData, PixelClassifier classifier, String classifierName) {
 		
 		if (imageData == null) {
-			Dialogs.showNoImageError("Pixel classifier");
+			GuiTools.showNoImageError("Pixel classifier");
 			return false;
 		}
 		
@@ -520,7 +523,7 @@ public class PixelClassifierUI {
 				.addStringParameter("id", "Measurement name", classifierName == null ? "Classifier" : classifierName, "Choose a base name for measurements - this helps distinguish between measurements from different classifiers")
 				.addChoiceParameter("choice", "Select objects", defaultChoice, choices, "Select the objects");
 		
-		if (!Dialogs.showParameterDialog("Pixel classifier", params))
+		if (!GuiTools.showParameterDialog("Pixel classifier", params))
 			return false;
 		
 		var measurementID = params.getStringParameterValue("id");

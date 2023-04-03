@@ -15,7 +15,7 @@ import qupath.lib.gui.actions.annotations.ActionMenu;
 import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.commands.ProjectCommands;
 import qupath.lib.gui.commands.TMACommands;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.controls.dialogs.Dialogs;
 import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.tools.GuiTools;
 

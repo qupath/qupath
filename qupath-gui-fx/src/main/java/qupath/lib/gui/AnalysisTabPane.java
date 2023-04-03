@@ -38,6 +38,8 @@ import javafx.scene.control.Tooltip;
 import javafx.scene.control.TabPane.TabClosingPolicy;
 import javafx.scene.control.TabPane.TabDragPolicy;
 import javafx.scene.layout.BorderPane;
+import qupath.controls.FXUtils;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.panes.AnnotationPane;
 import qupath.lib.gui.panes.ImageDetailsPane;
 import qupath.lib.gui.panes.ObjectDescriptionPane;
@@ -45,23 +47,21 @@ import qupath.lib.gui.panes.PathObjectHierarchyView;
 import qupath.lib.gui.panes.ProjectBrowser;
 import qupath.lib.gui.panes.SelectedMeasurementTableView;
 import qupath.lib.gui.panes.WorkflowCommandLogView;
-import qupath.lib.gui.tools.GuiTools;
-import qupath.lib.gui.tools.LocaleListener;
 
 class AnalysisTabPane {
 	
 	private QuPathGUI qupath;
 	
-	private static StringProperty titleProject = LocaleListener.createProperty("AnalysisPane.projectTab");
-	private static StringProperty titleImage = LocaleListener.createProperty("AnalysisPane.imageTab");
-	private static StringProperty titleAnnotations = LocaleListener.createProperty("AnalysisPane.annotationsTab");
-	private static StringProperty titleHierarchy = LocaleListener.createProperty("AnalysisPane.hierarchyTab");
-	private static StringProperty titleWorkflow = LocaleListener.createProperty("AnalysisPane.workflowTab");
-	private static StringProperty titleHistory = LocaleListener.createProperty("AnalysisPane.historyTab");
-	private static StringProperty titleMeasurements = LocaleListener.createProperty("AnalysisPane.measurementsTab");
-	private static StringProperty titleDescription = LocaleListener.createProperty("AnalysisPane.descriptionTab");
+	private static StringProperty titleProject = QuPathResources.getLocalizeResourceManager().createProperty("AnalysisPane.projectTab");
+	private static StringProperty titleImage = QuPathResources.getLocalizeResourceManager().createProperty("AnalysisPane.imageTab");
+	private static StringProperty titleAnnotations = QuPathResources.getLocalizeResourceManager().createProperty("AnalysisPane.annotationsTab");
+	private static StringProperty titleHierarchy = QuPathResources.getLocalizeResourceManager().createProperty("AnalysisPane.hierarchyTab");
+	private static StringProperty titleWorkflow = QuPathResources.getLocalizeResourceManager().createProperty("AnalysisPane.workflowTab");
+	private static StringProperty titleHistory = QuPathResources.getLocalizeResourceManager().createProperty("AnalysisPane.historyTab");
+	private static StringProperty titleMeasurements = QuPathResources.getLocalizeResourceManager().createProperty("AnalysisPane.measurementsTab");
+	private static StringProperty titleDescription = QuPathResources.getLocalizeResourceManager().createProperty("AnalysisPane.descriptionTab");
 
-	private static StringProperty textTabTooltip = LocaleListener.createProperty("AnalysisPane.switchText");
+	private static StringProperty textTabTooltip = QuPathResources.getLocalizeResourceManager().createProperty("AnalysisPane.switchText");
 
 	private ProjectBrowser projectBrowser;
 	private ImageDetailsPane imageDetailsPane;
@@ -161,7 +161,7 @@ class AnalysisTabPane {
 	private void makeTabsUndockable() {
 		// Make the tabs undockable
 		for (var tab : tabPane.getTabs()) {
-			GuiTools.makeTabUndockable(tab);
+			FXUtils.makeTabUndockable(tab);
 			var tooltip = new Tooltip();
 			tooltip.textProperty().bind(Bindings.createStringBinding(() -> {
 				return String.format(textTabTooltip.get(), tab.getText());

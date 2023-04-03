@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.Map;
 import javax.imageio.ImageIO;
 
+import javafx.stage.Window;
 import org.controlsfx.control.PropertySheet;
 import org.controlsfx.control.PropertySheet.Item;
 import org.controlsfx.control.PropertySheet.Mode;
@@ -75,11 +76,12 @@ import javafx.scene.layout.Pane;
 import javafx.scene.transform.Transform;
 import javafx.stage.Stage;
 import javafx.util.Callback;
+import qupath.controls.dialogs.FileChoosers;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.controls.dialogs.Dialogs;
 import qupath.lib.gui.panes.PreferencePane;
 import qupath.lib.gui.prefs.PathPrefs;
-import qupath.lib.gui.tools.PaneTools;
+import qupath.controls.PaneTools;
 import qupath.lib.io.GsonTools;
 
 /**
@@ -269,7 +271,9 @@ class ExportChartPane {
 		btnSave.setOnAction(e -> {
 			Image img = getChartImage();
 			String title = chart.getTitle() == null || chart.getTitle().isEmpty() ? null : chart.getTitle();
-			File fileOutput = Dialogs.getChooser(chart.getScene() == null ? null : chart.getScene().getWindow()).promptToSaveFile("Save chart", null, title, "PNG", ".png");
+			Window owner = chart.getScene() == null ? null : chart.getScene().getWindow();
+			File fileOutput = FileChoosers.promptToSaveFile(owner, "Save chart", title == null ? null : new File(title),
+					FileChoosers.createExtensionFilter("PNG", ".png"));
 			if (fileOutput != null) {
 				try {
 					ImageIO.write(SwingFXUtils.fromFXImage(img, null), "png", fileOutput);

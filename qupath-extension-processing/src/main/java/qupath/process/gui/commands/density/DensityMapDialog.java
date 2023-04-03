@@ -68,6 +68,7 @@ import javafx.scene.control.ToggleButton;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.stage.Stage;
+import qupath.controls.FXUtils;
 import qupath.lib.analysis.heatmaps.ColorModels;
 import qupath.lib.analysis.heatmaps.DensityMaps;
 import qupath.lib.analysis.heatmaps.ColorModels.ColorModelBuilder;
@@ -80,8 +81,8 @@ import qupath.lib.common.ThreadTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.images.stores.ColorModelRenderer;
 import qupath.lib.gui.images.stores.ImageRenderer;
+import qupath.controls.PaneTools;
 import qupath.lib.gui.tools.GuiTools;
-import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.viewer.ImageInterpolation;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.QuPathViewerListener;
@@ -234,14 +235,14 @@ public class DensityMapDialog {
 		params.allObjectTypes.bind(comboObjectType.getSelectionModel().selectedItemProperty());
 
 		ComboBox<PathClass> comboAllObjects = new ComboBox<>(createObservablePathClassList(DensityMapUI.ANY_CLASS));
-		comboAllObjects.setButtonCell(GuiTools.createCustomListCell(p -> classificationText(p)));
-		comboAllObjects.setCellFactory(c -> GuiTools.createCustomListCell(p -> classificationText(p)));
+		comboAllObjects.setButtonCell(FXUtils.createCustomListCell(p -> classificationText(p)));
+		comboAllObjects.setCellFactory(c -> FXUtils.createCustomListCell(p -> classificationText(p)));
 		params.allObjectClass.bind(comboAllObjects.getSelectionModel().selectedItemProperty());
 		comboAllObjects.getSelectionModel().selectFirst();
 		
 		ComboBox<PathClass> comboPrimary = new ComboBox<>(createObservablePathClassList(DensityMapUI.ANY_CLASS, DensityMapUI.ANY_POSITIVE_CLASS));
-		comboPrimary.setButtonCell(GuiTools.createCustomListCell(p -> classificationText(p)));
-		comboPrimary.setCellFactory(c -> GuiTools.createCustomListCell(p -> classificationText(p)));
+		comboPrimary.setButtonCell(FXUtils.createCustomListCell(p -> classificationText(p)));
+		comboPrimary.setCellFactory(c -> FXUtils.createCustomListCell(p -> classificationText(p)));
 		params.densityObjectClass.bind(comboPrimary.getSelectionModel().selectedItemProperty());
 		comboPrimary.getSelectionModel().selectFirst();
 		
@@ -291,7 +292,7 @@ public class DensityMapDialog {
 		
 		boolean expandSliderLimits = true;
 		
-		GuiTools.bindSliderAndTextField(sliderRadius, tfRadius, expandSliderLimits, 2);
+		FXUtils.bindSliderAndTextField(sliderRadius, tfRadius, expandSliderLimits, 2);
 		GuiTools.installRangePrompt(sliderRadius);
 		PaneTools.addGridRow(pane, row++, 0, "Select smoothing radius used to calculate densities.\n"
 				+ "This is defined in calibrated pixel units (e.g. " + GeneralTools.micrometerSymbol() + " if available).", new Label("Density radius"), sliderRadius, tfRadius);
@@ -373,7 +374,7 @@ public class DensityMapDialog {
 		sliderGamma.valueProperty().bindBidirectional(displayParams.gamma);
 		initializeSliderSnapping(sliderGamma, 0.1, 1, 0.1);
 		var tfGamma = createTextField();
-		GuiTools.bindSliderAndTextField(sliderGamma, tfGamma, false, 1);
+		FXUtils.bindSliderAndTextField(sliderGamma, tfGamma, false, 1);
 		PaneTools.addGridRow(paneDisplay, rowDisplay++, 0,
 				"Control how the opacity of the density map changes between min & max values.\n"
 				+ "Choose zero for an opaque map.", new Label("Gamma"), sliderGamma, tfGamma);
@@ -395,12 +396,12 @@ public class DensityMapDialog {
 	}
 	
 	Spinner<Double> createSpinner(ObjectProperty<Double> property, double step) {
-		var spinner = GuiTools.createDynamicStepSpinner(0, Double.MAX_VALUE, 1, 0.1, 1);
+		var spinner = FXUtils.createDynamicStepSpinner(0, Double.MAX_VALUE, 1, 0.1, 1);
 		property.bindBidirectional(spinner.getValueFactory().valueProperty());
 		spinner.setEditable(true);
 		spinner.getEditor().setPrefColumnCount(6);
-		GuiTools.restrictTextFieldInputToNumber(spinner.getEditor(), true);
-		GuiTools.resetSpinnerNullToPrevious(spinner);
+		FXUtils.restrictTextFieldInputToNumber(spinner.getEditor(), true);
+		FXUtils.resetSpinnerNullToPrevious(spinner);
 		return spinner;
 	}
 	

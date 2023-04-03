@@ -51,7 +51,7 @@ import javafx.event.EventHandler;
 import javafx.scene.input.MouseEvent;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.controls.dialogs.Dialogs;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.QuPathViewerListener;
 import qupath.lib.gui.viewer.tools.PathTool;

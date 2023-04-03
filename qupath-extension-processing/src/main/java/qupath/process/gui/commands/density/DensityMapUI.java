@@ -73,6 +73,8 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.stage.Modality;
 import javafx.stage.Window;
+import qupath.controls.FXUtils;
+import qupath.controls.dialogs.FileChoosers;
 import qupath.imagej.gui.IJExtension;
 import qupath.imagej.tools.IJTools;
 import qupath.lib.analysis.heatmaps.DensityMaps;
@@ -80,11 +82,11 @@ import qupath.lib.analysis.heatmaps.DensityMaps.DensityMapBuilder;
 import qupath.lib.color.ColorToolsAwt;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.actions.ActionTools;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.controls.dialogs.Dialogs;
 import qupath.lib.gui.images.servers.RenderedImageServer;
 import qupath.lib.gui.images.stores.ColorModelRenderer;
 import qupath.lib.gui.tools.GuiTools;
-import qupath.lib.gui.tools.PaneTools;
+import qupath.controls.PaneTools;
 import qupath.lib.gui.viewer.overlays.PixelClassificationOverlay;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
@@ -509,7 +511,7 @@ public class DensityMapUI {
 			sliderNum.valueProperty().bindBidirectional(nHotspots);
 			var tfNum = new TextField();
 			tfNum.setPrefColumnCount(tfWidth);
-			GuiTools.bindSliderAndTextField(sliderNum, tfNum, false, 0);
+			FXUtils.bindSliderAndTextField(sliderNum, tfNum, false, 0);
 			labelNum.setLabelFor(sliderNum);
 			
 			// Slider for the minimum counts
@@ -523,7 +525,7 @@ public class DensityMapUI {
 			sliderCounts.valueProperty().bindBidirectional(thresholdCounts);
 			var tfCounts = new TextField();
 			tfCounts.setPrefColumnCount(tfWidth);
-			GuiTools.bindSliderAndTextField(sliderCounts, tfCounts, false, 0);
+			FXUtils.bindSliderAndTextField(sliderCounts, tfCounts, false, 0);
 			labelCounts.setLabelFor(sliderCounts);
 			
 			// Other options
@@ -681,7 +683,7 @@ public class DensityMapUI {
 			slider.setMinorTickCount((int)(slider.getMax() + 1));
 			var tfThreshold = new TextField();
 			tfThreshold.setPrefColumnCount(6);
-			GuiTools.bindSliderAndTextField(slider, tfThreshold, false, 2);
+			FXUtils.bindSliderAndTextField(slider, tfThreshold, false, 2);
 			double t = threshold.get();
 			if (!Double.isFinite(t) || t > slider.getMax() || t < slider.getMin())
 				threshold.set(slider.getValue());
@@ -705,7 +707,7 @@ public class DensityMapUI {
 				
 				var tfThresholdCounts = new TextField();
 				tfThresholdCounts.setPrefColumnCount(6);
-				GuiTools.bindSliderAndTextField(sliderCounts, tfThresholdCounts, false, 0);
+				FXUtils.bindSliderAndTextField(sliderCounts, tfThresholdCounts, false, 0);
 				double tc = thresholdCounts.get();
 				if (tc > sliderCounts.getMax())
 					thresholdCounts.set(1);
@@ -909,7 +911,8 @@ public class DensityMapUI {
 		}
 
 		private void promptToSaveRawImage(ImageData<BufferedImage> imageData, ImageServer<BufferedImage> densityMap, String densityMapName) throws IOException {
-			var file = Dialogs.promptToSaveFile(title, null, densityMapName, "ImageJ tif", ".tif");
+			var file = FileChoosers.promptToSaveFile(title, densityMapName == null ? null : new File(densityMapName),
+					FileChoosers.createExtensionFilter("ImageJ tif", ".tif"));
 			if (file != null) {
 				try {
 					QP.writeImage(densityMap, file.getAbsolutePath());
@@ -939,7 +942,7 @@ public class DensityMapUI {
 				fmt = "ImageJ tif";
 				ext = ".tif";
 			}
-			file = Dialogs.promptToSaveFile(title, null, null, fmt, ext);
+			file = FileChoosers.promptToSaveFile(title, null, FileChoosers.createExtensionFilter(fmt, ext));
 			if (file != null) {
 				QP.writeImage(server, file.getAbsolutePath());
 			}

@@ -67,9 +67,10 @@ import javafx.scene.layout.Pane;
 import javafx.stage.Stage;
 import javafx.util.Callback;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.controls.dialogs.Dialogs;
 import qupath.lib.gui.scripting.ScriptEditor;
-import qupath.lib.gui.tools.PaneTools;
+import qupath.controls.PaneTools;
+import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.plugins.PathPlugin;
 import qupath.lib.plugins.parameters.ParameterList;
@@ -413,7 +414,7 @@ public class WorkflowCommandLogView implements ChangeListener<ImageData<Buffered
 	private static void runWorkflowStepInteractively(final QuPathGUI qupath, final WorkflowStep step) {
 		ImageData<BufferedImage> imageData = qupath.getImageData();
 		if (imageData == null) {
-			Dialogs.showNoImageError("Run workflow step");
+			GuiTools.showNoImageError("Run workflow step");
 			return;
 		}
 		if (step instanceof SimplePluginWorkflowStep) {

@@ -31,6 +31,7 @@ import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+import javafx.scene.control.*;
 import org.controlsfx.control.action.Action;
 import org.controlsfx.control.action.ActionUtils;
 import org.slf4j.Logger;
@@ -45,17 +46,6 @@ import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.collections.ObservableList;
 import javafx.geometry.Side;
-import javafx.scene.control.Button;
-import javafx.scene.control.ContextMenu;
-import javafx.scene.control.ListCell;
-import javafx.scene.control.ListView;
-import javafx.scene.control.Menu;
-import javafx.scene.control.MenuItem;
-import javafx.scene.control.SelectionMode;
-import javafx.scene.control.SeparatorMenuItem;
-import javafx.scene.control.TextField;
-import javafx.scene.control.ToggleButton;
-import javafx.scene.control.Tooltip;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.DataFormat;
 import javafx.scene.input.KeyCode;
@@ -67,15 +57,15 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import javafx.scene.shape.Rectangle;
+import qupath.controls.dialogs.FileChoosers;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.Commands;
-import qupath.lib.gui.dialogs.Dialogs;
-import qupath.lib.gui.dialogs.Dialogs.DialogButton;
+import qupath.controls.dialogs.Dialogs;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.MenuTools;
-import qupath.lib.gui.tools.PaneTools;
+import qupath.controls.PaneTools;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.servers.ImageServer;
@@ -442,13 +432,13 @@ class PathClassPane {
 		// Always need to be able to ignore...
 		newClasses.add(PathClass.StandardPathClasses.IGNORE);
 		
-		var btn = DialogButton.YES;
+		var btn = ButtonType.YES;
 		if (availablePathClasses.size() > 1)
 			btn = Dialogs.showYesNoCancelDialog("Set available classes", "Keep existing available classes?");
-		if (btn == DialogButton.YES) {
+		if (btn == ButtonType.YES) {
 			newClasses.removeAll(availablePathClasses);
 			return availablePathClasses.addAll(newClasses);
-		} else if (btn == DialogButton.NO) {
+		} else if (btn == ButtonType.NO) {
 			newClasses.add(0, PathClass.NULL_CLASS);
 			return availablePathClasses.setAll(newClasses);
 		} else
@@ -490,13 +480,13 @@ class PathClassPane {
 			return false;
 		}
 		
-		var btn = DialogButton.YES;
+		var btn = ButtonType.YES;
 		if (availablePathClasses.size() > 1)
 			btn = Dialogs.showYesNoCancelDialog("Set available classes", "Keep existing available classes?");
-		if (btn == DialogButton.YES) {
+		if (btn == ButtonType.YES) {
 			newClasses.removeAll(availablePathClasses);
 			return availablePathClasses.addAll(newClasses);
-		} else if (btn == DialogButton.NO) {
+		} else if (btn == ButtonType.NO) {
 			newClasses.add(0, PathClass.NULL_CLASS);
 			return availablePathClasses.setAll(newClasses);
 		} else
@@ -508,7 +498,8 @@ class PathClassPane {
 	 * @return true if the class list was changed, false otherwise.
 	 */
 	boolean promptToImportClasses() {
-		File file = Dialogs.promptForFile("Import classifications", null, "QuPath project", ProjectIO.getProjectExtension());
+		File file = FileChoosers.promptForFile("Import classifications",
+				FileChoosers.createExtensionFilter("QuPath project", ProjectIO.getProjectExtension()));
 		if (file == null)
 			return false;
 		if (!file.getAbsolutePath().toLowerCase().endsWith(ProjectIO.getProjectExtension())) {

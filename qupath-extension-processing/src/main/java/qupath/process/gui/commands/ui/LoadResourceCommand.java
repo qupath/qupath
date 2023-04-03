@@ -35,6 +35,7 @@ import java.util.TreeMap;
 import java.util.WeakHashMap;
 import java.util.stream.Collectors;
 
+import javafx.scene.control.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,27 +46,22 @@ import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.geometry.Side;
 import javafx.scene.Scene;
-import javafx.scene.control.ComboBox;
-import javafx.scene.control.ContextMenu;
-import javafx.scene.control.Label;
-import javafx.scene.control.MenuItem;
-import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.input.Dragboard;
 import javafx.scene.input.TransferMode;
 import javafx.scene.layout.GridPane;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import qupath.controls.dialogs.FileChoosers;
 import qupath.lib.analysis.heatmaps.DensityMaps;
 import qupath.lib.analysis.heatmaps.DensityMaps.DensityMapBuilder;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.dialogs.Dialogs;
-import qupath.lib.gui.dialogs.Dialogs.DialogButton;
+import qupath.controls.dialogs.Dialogs;
 import qupath.lib.gui.images.stores.ColorModelRenderer;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.GuiTools;
-import qupath.lib.gui.tools.PaneTools;
+import qupath.controls.PaneTools;
 import qupath.lib.gui.viewer.overlays.PixelClassificationOverlay;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
@@ -180,7 +176,8 @@ public final class LoadResourceCommand<S> implements Runnable {
 		var menu = new ContextMenu();
 		var miLoadClassifier = new MenuItem("Import from files");
 		miLoadClassifier.setOnAction(e -> {
-			List<File> files = Dialogs.promptForMultipleFiles(title, null, resourceType.filePrompt(), "json");
+			List<File> files = FileChoosers.promptForMultipleFiles(title,
+					FileChoosers.createExtensionFilter(resourceType.filePrompt(), ".*json"));
 			if (files == null || files.isEmpty())
 				return;
 			try {
@@ -223,7 +220,7 @@ public final class LoadResourceCommand<S> implements Runnable {
 							nThreads,
 							null,
 							"Number of threads to use for live prediction");
-			if (!Dialogs.showParameterDialog("Set parallel threads", params))
+			if (!GuiTools.showParameterDialog("Set parallel threads", params))
 				return;
 //			var result = Dialogs.showInputDialog("Set parallel threads", "Number of threads to use for live prediction", (double)nThreads);
 			var val = params.getIntParameterValue("nThreads");
@@ -367,9 +364,9 @@ public final class LoadResourceCommand<S> implements Runnable {
 				logger.error(e.getLocalizedMessage(), e);
 			}
 			var response = Dialogs.showYesNoCancelDialog("Copy classifier file" + plural, "Copy classifier" + plural + " to the current project?");
-			if (response == DialogButton.CANCEL)
+			if (response == ButtonType.CANCEL)
 				return;
-			addToManager = response == DialogButton.YES;
+			addToManager = response == ButtonType.YES;
 		}
 		
 		List<File> fails = new ArrayList<>();

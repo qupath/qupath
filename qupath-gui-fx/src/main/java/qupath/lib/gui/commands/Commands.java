@@ -75,6 +75,8 @@ import javafx.scene.text.TextAlignment;
 import javafx.stage.Modality;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
+import qupath.controls.FXUtils;
+import qupath.controls.dialogs.FileChoosers;
 import qupath.lib.analysis.DistanceTools;
 import qupath.lib.analysis.features.ObjectMeasurements.ShapeFeatures;
 import qupath.lib.common.GeneralTools;
@@ -82,8 +84,7 @@ import qupath.lib.gui.ExtensionClassLoader;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.UserDirectoryManager;
 import qupath.lib.gui.actions.ActionTools;
-import qupath.lib.gui.dialogs.Dialogs;
-import qupath.lib.gui.dialogs.Dialogs.DialogButton;
+import qupath.controls.dialogs.Dialogs;
 import qupath.lib.gui.images.servers.RenderedImageServer;
 import qupath.lib.gui.panes.MeasurementMapPane;
 import qupath.lib.gui.panes.ObjectDescriptionPane;
@@ -92,7 +93,7 @@ import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tma.TMASummaryViewer;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.tools.GuiTools;
-import qupath.lib.gui.tools.PaneTools;
+import qupath.controls.PaneTools;
 import qupath.lib.gui.viewer.GridLines;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.QuPathViewer;
@@ -165,7 +166,7 @@ public class Commands {
 	 */
 	public static void promptToResolveHierarchy(ImageData<?> imageData) {
 		if (imageData == null) {
-			Dialogs.showNoImageError("Resolve hierarchy");
+			GuiTools.showNoImageError("Resolve hierarchy");
 			return;
 		}
 		var hierarchy = imageData == null ? null : imageData.getHierarchy();
@@ -349,8 +350,8 @@ public class Commands {
 		ComboBox<ImageWriter<BufferedImage>> comboImageType = new ComboBox<>();
 		
 		Function<ImageWriter<BufferedImage>, String> fun = (ImageWriter<BufferedImage> writer) -> writer.getName();
-		comboImageType.setCellFactory(p -> GuiTools.createCustomListCell(fun));
-		comboImageType.setButtonCell(GuiTools.createCustomListCell(fun));
+		comboImageType.setCellFactory(p -> FXUtils.createCustomListCell(fun));
+		comboImageType.setButtonCell(FXUtils.createCustomListCell(fun));
 		
 		var writers = ImageWriterTools.getCompatibleWriters(server, null);
 		comboImageType.getItems().setAll(writers);
@@ -469,7 +470,9 @@ public class Commands {
 					GeneralTools.formatNumber(request.getDownsample(), 2),
 					request.getX(), request.getY(), request.getWidth(), request.getHeight());
 		}
-		File fileOutput = Dialogs.promptToSaveFile("Export image region", null, defaultName, writerName, ext);
+		File fileOutput = FileChoosers.promptToSaveFile("Export image region",
+				new File(defaultName),
+				FileChoosers.createExtensionFilter(writerName, ext));
 		if (fileOutput == null)
 			return;
 		
@@ -683,8 +686,9 @@ public class Commands {
 	}
 
 	private static boolean exportPreferences(Stage parent) {
-		var file = Dialogs.getChooser(parent).promptToSaveFile(
-				"Export preferences", null, null, "Preferences file", "xml");
+		var file = FileChoosers.promptToSaveFile(parent,
+				"Export preferences", null,
+				FileChoosers.createExtensionFilter("Preferences file", "xml"));
 		if (file != null) {
 			try (var stream = Files.newOutputStream(file.toPath())) {
 				logger.info("Exporting preferences to {}", file.getAbsolutePath());
@@ -698,8 +702,9 @@ public class Commands {
 	}
 	
 	private static boolean importPreferences(Stage parent) {
-		var file = Dialogs.getChooser(parent).promptForFile(
-				"Import preferences", null, "Preferences file", "xml");
+		var file = FileChoosers.promptForFile(parent,
+				"Import preferences",
+				FileChoosers.createExtensionFilter("Preferences file", "xml"));
 		if (file != null) {
 			try (var stream = Files.newInputStream(file.toPath())) {
 				logger.info("Importing preferences from {}", file.getAbsolutePath());
@@ -775,7 +780,7 @@ public class Commands {
 	 */
 	public static boolean promptToSaveImageData(QuPathGUI qupath, ImageData<BufferedImage> imageData, boolean overwriteExisting) {
 		if (imageData == null) {
-			Dialogs.showNoImageError("Serialization error");
+			GuiTools.showNoImageError("Serialization error");
 			return false;
 		}
 		try {
@@ -796,7 +801,10 @@ public class Commands {
 						file = new File(lastSavedPath);
 					if (file == null || !file.isFile()) {
 						File fileDefault = new File(lastSavedPath);
-						file = Dialogs.promptToSaveFile(null, fileDefault.getParentFile(), fileDefault.getName(), "QuPath Serialized Data", PathPrefs.getSerializationExtension());
+						file = FileChoosers.promptToSaveFile(
+								null,
+								fileDefault,
+						FileChoosers.createExtensionFilter("QuPath Serialized Data", PathPrefs.getSerializationExtension()));
 					}
 				}
 				else {
@@ -807,7 +815,8 @@ public class Commands {
 							name = GeneralTools.getNameWithoutExtension(new File(name));
 						} catch (Exception e) {}
 					}
-					file = Dialogs.promptToSaveFile(null, null, name, "QuPath Serialized Data", PathPrefs.getSerializationExtension());
+					file = FileChoosers.promptToSaveFile(null, new File(name),
+							FileChoosers.createExtensionFilter("QuPath Serialized Data", PathPrefs.getSerializationExtension()));
 				}
 				if (file == null)
 					return false;
@@ -841,7 +850,10 @@ public class Commands {
 			return false;
 		}
 		
-		File fileOutput = Dialogs.promptToSaveFile(null, null, null, ext, ext);
+		File fileOutput = FileChoosers.buildFileChooser()
+				.extensionFilter("Screenshot", ext)
+				.build()
+				.showOpenDialog(qupath.getStage());
 		if (fileOutput == null)
 			return false;
 		
@@ -904,7 +916,7 @@ public class Commands {
 	 */
 	public static void duplicateSelectedAnnotations(ImageData<?> imageData) {
 		if (imageData == null) {
-			Dialogs.showNoImageError("Duplicate annotations");
+			GuiTools.showNoImageError("Duplicate annotations");
 			return;
 		}
 		PathObjectHierarchy hierarchy = imageData.getHierarchy();
@@ -923,7 +935,7 @@ public class Commands {
 	public static void copySelectedAnnotationsToCurrentPlane(QuPathViewer viewer) {
 		var imageData = viewer == null ? null : viewer.getImageData();
 		if (imageData == null) {
-			Dialogs.showNoImageError("Copy selected annotations to plane");
+			GuiTools.showNoImageError("Copy selected annotations to plane");
 			return;
 		}
 		var plane = viewer.getImagePlane();
@@ -980,7 +992,7 @@ public class Commands {
 	public static boolean combineSelectedAnnotations(ImageData<?> imageData, RoiTools.CombineOp op) {
 		// TODO: CONSIDER MAKING THIS SCRIPTABLE!
 		if (imageData == null) {
-			Dialogs.showNoImageError("Combine annotations");
+			GuiTools.showNoImageError("Combine annotations");
 			return false;
 		}
 		var hierarchy = imageData.getHierarchy();
@@ -1271,7 +1283,7 @@ public class Commands {
 	 * @return true if a project was created, false otherwise (e.g. the user cancelled).
 	 */
 	public static boolean promptToCreateProject(QuPathGUI qupath) {
-		File dir = Dialogs.promptForDirectory("Select empty directory for project", null);
+		File dir = FileChoosers.promptForDirectory("Select empty directory for project", null);
 		if (dir == null)
 			return false;
 		if (!dir.isDirectory()) {
@@ -1296,7 +1308,8 @@ public class Commands {
 	 */
 
 	public static boolean promptToOpenProject(QuPathGUI qupath) {
-		File fileProject = Dialogs.promptForFile("Choose project file", null, "QuPath projects", new String[]{ProjectIO.getProjectExtension()});
+		File fileProject = FileChoosers.promptForFile("Choose project file",
+				FileChoosers.createExtensionFilter("QuPath projects", ProjectIO.getProjectExtension()));
 		if (fileProject != null) {
 			try {
 				Project<BufferedImage> project = ProjectIO.loadProject(fileProject, BufferedImage.class);
@@ -1345,7 +1358,7 @@ public class Commands {
 	public static void distanceToAnnotations2D(ImageData<?> imageData, boolean signedDistances) {
 		String title = signedDistances ? "Signed distance to annotations 2D" : "Distance to annotations 2D";
 		if (imageData == null) {
-			Dialogs.showNoImageError(title);
+			GuiTools.showNoImageError(title);
 			return;
 		}
 		
@@ -1360,9 +1373,9 @@ public class Commands {
 		
 		var result = Dialogs.showYesNoCancelDialog(title, "Split multi-part classifications?\nIf yes, each component of classifications such as \"Class1: Class2\" will be treated separately.");
 		boolean doSplit = false;
-		if (result == DialogButton.YES)
+		if (result == ButtonType.YES)
 			doSplit = true;
-		else if (result != DialogButton.NO)
+		else if (result != ButtonType.NO)
 			return;
 
 		if (signedDistances) {
@@ -1385,7 +1398,7 @@ public class Commands {
 	public static void detectionCentroidDistances2D(ImageData<?> imageData) {
 		String title = "Detection centroid distances 2D";
 		if (imageData == null) {
-			Dialogs.showNoImageError(title);
+			GuiTools.showNoImageError(title);
 			return;
 		}
 		
@@ -1400,9 +1413,9 @@ public class Commands {
 		
 		var result = Dialogs.showYesNoCancelDialog(title, "Split multi-part classifications?\nIf yes, each component of classifications such as \"Class1: Class2\" will be treated separately.");
 		boolean doSplit = false;
-		if (result == DialogButton.YES)
+		if (result == ButtonType.YES)
 			doSplit = true;
-		else if (result != DialogButton.NO)
+		else if (result != ButtonType.NO)
 			return;
 		
 		DistanceTools.detectionCentroidDistances(imageData, doSplit);
@@ -1424,7 +1437,7 @@ public class Commands {
 				.addDoubleParameter("vSpacing", "Vertical spacing", gridLines.getSpaceY())
 				.addBooleanParameter("useMicrons", "Use microns", gridLines.useMicrons());
 		
-		if (!Dialogs.showParameterDialog("Set grid spacing", params))
+		if (!GuiTools.showParameterDialog("Set grid spacing", params))
 			return;
 		
 		gridLines = new GridLines();
@@ -1486,7 +1499,7 @@ public class Commands {
 			}
 			pathUser = dirDefault.toPath();
 		} else {
-			File dirUser = Dialogs.promptForDirectory("Set user directory", dirDefault);
+			File dirUser = FileChoosers.promptForDirectory("Set user directory", dirDefault);
 			if (dirUser == null) {
 				logger.info("No QuPath user directory set!");
 				return null;
@@ -1504,7 +1517,7 @@ public class Commands {
 	 */
 	public static void reloadImageData(QuPathGUI qupath, ImageData<BufferedImage> imageData) {
 		if (imageData == null) {
-			Dialogs.showNoImageError("Reload data");
+			GuiTools.showNoImageError("Reload data");
 			return;
 		}
 		// TODO: Support loading from a project as well
@@ -1640,7 +1653,7 @@ public class Commands {
 	 */
 	public static void convertDetectionsToPoints(ImageData<?> imageData, boolean preferNucleus) {
 		if (imageData == null) {
-			Dialogs.showNoImageError("Convert detections to points");
+			GuiTools.showNoImageError("Convert detections to points");
 			return;
 		}
 		PathObjectHierarchy hierarchy = imageData.getHierarchy();
@@ -1666,10 +1679,10 @@ public class Commands {
 		String message = pathObjects.size() == 1 ? "Delete detection after converting to a point?" :
 			String.format("Delete %d detections after converting to points?", pathObjects.size());
 		var button = Dialogs.showYesNoCancelDialog("Detections to points", message);
-		if (button == Dialogs.DialogButton.CANCEL)
+		if (button == ButtonType.CANCEL)
 			return;
 		
-		boolean	deleteDetections = button == Dialogs.DialogButton.YES;		
+		boolean	deleteDetections = button == ButtonType.YES;
 		PathObjectTools.convertToPoints(hierarchy, pathObjects, preferNucleus, deleteDetections);
 	}
 
@@ -1878,7 +1891,7 @@ public class Commands {
 	 */
 	public static void showWorkflowScript(QuPathGUI qupath, ImageData<?> imageData) {
 		if (imageData == null) {
-			Dialogs.showNoImageError("Show workflow script");
+			GuiTools.showNoImageError("Show workflow script");
 			return;
 		}
 		WorkflowCommandLogView.showScript(qupath.getScriptEditor(), imageData.getHistoryWorkflow());

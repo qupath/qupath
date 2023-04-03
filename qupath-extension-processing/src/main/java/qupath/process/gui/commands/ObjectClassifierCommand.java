@@ -24,6 +24,7 @@
 package qupath.process.gui.commands;
 
 import java.awt.image.BufferedImage;
+import java.io.File;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 import java.util.ArrayList;
@@ -100,6 +101,7 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import javafx.stage.Stage;
+import qupath.controls.dialogs.FileChoosers;
 import qupath.lib.classifiers.Normalization;
 import qupath.lib.classifiers.object.ObjectClassifier;
 import qupath.lib.classifiers.object.ObjectClassifiers;
@@ -108,10 +110,11 @@ import qupath.lib.common.ThreadTools;
 import qupath.lib.geom.Point2;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.charts.ChartTools;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.controls.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.ProjectDialogs;
 import qupath.lib.gui.tools.ColorToolsFX;
-import qupath.lib.gui.tools.PaneTools;
+import qupath.controls.PaneTools;
+import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
@@ -459,7 +462,7 @@ public class ObjectClassifierCommand implements Runnable {
 		private boolean promptToLoadTrainingImages() {
 			var project = qupath.getProject();
 			if (project == null) {
-				Dialogs.showNoProjectError("Object classifier");
+				GuiTools.showNoProjectError("Object classifier");
 				return false;
 			}
 			
@@ -1090,7 +1093,9 @@ public class ObjectClassifierCommand implements Runnable {
 						project.getObjectClassifiers().put(classifierName, classifier);
 						logger.info("Classifier saved to project as {}", classifierName);
 					} else {
-						var file = Dialogs.promptToSaveFile("Save object classifier", null, classifierName, "Object classifier", ".obj.json");
+						var file = FileChoosers.promptToSaveFile(
+								"Save object classifier", new File(classifierName),
+								FileChoosers.createExtensionFilter("Object classifier", ".obj.json"));
 						if (file == null)
 							return false;
 						classifierName = file.getAbsolutePath();
@@ -1122,7 +1127,7 @@ public class ObjectClassifierCommand implements Runnable {
 				Dialogs.showErrorMessage("Edit parameters", "No classifier selected!");
 				return false;
 			}
-			Dialogs.showParameterDialog("Edit parameters", model.getParameterList());
+			GuiTools.showParameterDialog("Edit parameters", model.getParameterList());
 			invalidateClassifier();
 			return true;
 		}

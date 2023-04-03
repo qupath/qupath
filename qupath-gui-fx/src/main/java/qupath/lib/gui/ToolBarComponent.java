@@ -60,7 +60,7 @@ import qupath.lib.gui.actions.ActionTools;
 import qupath.lib.gui.actions.CommonActions;
 import qupath.lib.gui.actions.OverlayActions;
 import qupath.lib.gui.actions.ViewerActions;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.controls.dialogs.Dialogs;
 import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.IconFactory;

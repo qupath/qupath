@@ -63,9 +63,9 @@ import javafx.scene.layout.Priority;
 import javafx.scene.web.WebView;
 import javafx.stage.Stage;
 import javafx.stage.Window;
+import qupath.controls.FXUtils;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.prefs.PathPrefs;
-import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.WebViews;
 
 /**
@@ -222,8 +222,8 @@ public class JavadocViewer {
 		var comboUris = new ComboBox<>(uris);
 		comboUris.setTooltip(new Tooltip("Javadoc source"));
 		comboUris.setMaxWidth(Double.MAX_VALUE);
-		comboUris.setCellFactory(v -> GuiTools.createCustomListCell(JavadocViewer::getName));
-		comboUris.setButtonCell(GuiTools.createCustomListCell((JavadocViewer::getName)));
+		comboUris.setCellFactory(v -> FXUtils.createCustomListCell(JavadocViewer::getName));
+		comboUris.setButtonCell(FXUtils.createCustomListCell((JavadocViewer::getName)));
 //			selectedUri.bind(comboUris.getSelectionModel().selectedItemProperty());
 		comboUris.setOnAction(e -> {
 			selectedUri.set(comboUris.getValue());
