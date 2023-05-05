@@ -201,13 +201,6 @@ public class PreferencePane {
 	private void setLocaleChanged() {
 		localeChanged.set(true);
 		localeChangedSinceRefresh = true;
-//		for (var title : propSheet.lookupAll(".titled-pane")) {
-//			if (title instanceof TitledPane titledPane) {
-//				if (!titledPane.textProperty().isBound()) {
-//					System.err.println(title);
-//				}
-//			}
-//		}
 	}
 	
 	
@@ -1209,7 +1202,7 @@ public class PreferencePane {
 	}
 
 	
-	private static enum PropertyType { GENERAL, DIRECTORY, COLOR, CHOICE, SEARCHABLE_CHOICE }
+	private enum PropertyType { GENERAL, DIRECTORY, COLOR, CHOICE, SEARCHABLE_CHOICE }
 	
 	
 	private static class PropertyItemBuilder<T> {
