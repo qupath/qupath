@@ -67,7 +67,7 @@ public class FileChoosers {
 
     private static final Logger logger = LoggerFactory.getLogger(FileChoosers.class);
 
-    private static final LocalizedResourceManager resources = LocalizedResourceManager.createInstance("qupath.controls.localization.strings");
+    private static final LocalizedResourceManager resources = LocalizedResourceManager.createInstance("qupath.fx.localization.strings");
 
     private static final Map<Window, String> lastPathOrUriMap = new WeakHashMap<>();
 

@@ -28,7 +28,7 @@ import qupath.fx.localization.LocalizedResourceManager;
  */
 public class CircularSlider extends Control {
 
-    private static final LocalizedResourceManager resources = LocalizedResourceManager.createInstance("qupath.controls.localization.strings");
+    private static final LocalizedResourceManager resources = LocalizedResourceManager.createInstance("qupath.fx.localization.strings");
 
     private static final class CircularSliderSkin extends SkinBase<CircularSlider> {
         protected CircularSliderSkin(CircularSlider control) {
