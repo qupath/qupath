@@ -56,7 +56,7 @@ import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.BorderPane;
 import qupath.lib.gui.QuPathGUI;
-import qupath.controls.dialogs.Dialogs;
+import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.panes.ProjectBrowser;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.projects.Project;

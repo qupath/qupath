@@ -49,7 +49,7 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import javafx.stage.Window;
-import qupath.controls.utils.FXUtils;
+import qupath.fx.utils.FXUtils;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;

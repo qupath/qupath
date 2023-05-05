@@ -25,10 +25,10 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
 
-import qupath.controls.dialogs.FileChoosers;
+import qupath.fx.dialogs.FileChoosers;
 import qupath.lib.extension.svg.SvgTools.SvgBuilder.ImageIncludeType;
 import qupath.lib.gui.QuPathGUI;
-import qupath.controls.dialogs.Dialogs;
+import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.regions.RegionRequest;

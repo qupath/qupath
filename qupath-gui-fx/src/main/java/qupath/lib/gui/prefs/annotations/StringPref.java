@@ -1,4 +1,4 @@
-package qupath.lib.gui.panes;
+package qupath.lib.gui.prefs.annotations;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;

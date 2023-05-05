@@ -43,8 +43,8 @@ import com.google.gson.JsonSyntaxException;
 
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.DataFormat;
-import qupath.controls.dialogs.Dialogs;
-import qupath.controls.dialogs.FileChoosers;
+import qupath.fx.dialogs.Dialogs;
+import qupath.fx.dialogs.FileChoosers;
 import qupath.lib.images.ImageData;
 import qupath.lib.io.PathIO;
 import qupath.lib.objects.PathObject;

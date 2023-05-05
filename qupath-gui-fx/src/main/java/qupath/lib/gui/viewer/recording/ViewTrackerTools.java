@@ -33,9 +33,9 @@ import java.nio.file.Path;
 import java.util.Scanner;
 import java.util.concurrent.TimeUnit;
 
-import qupath.controls.dialogs.FileChoosers;
+import qupath.fx.dialogs.FileChoosers;
 import qupath.lib.common.GeneralTools;
-import qupath.controls.dialogs.Dialogs;
+import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.tools.PathTool;
 import qupath.lib.gui.viewer.tools.PathTools;

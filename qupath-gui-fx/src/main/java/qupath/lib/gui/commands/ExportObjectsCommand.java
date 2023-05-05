@@ -33,10 +33,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import qupath.controls.dialogs.FileChoosers;
+import qupath.fx.dialogs.FileChoosers;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.controls.dialogs.Dialogs;
+import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.io.PathIO.GeoJsonExportOptions;
 import qupath.lib.objects.PathObject;

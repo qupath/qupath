@@ -30,7 +30,7 @@ import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.controls.dialogs.Dialogs;
+import qupath.fx.dialogs.Dialogs;
 
 class QuPathUncaughtExceptionHandler implements UncaughtExceptionHandler {
 	

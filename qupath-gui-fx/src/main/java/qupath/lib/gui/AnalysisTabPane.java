@@ -38,7 +38,7 @@ import javafx.scene.control.Tooltip;
 import javafx.scene.control.TabPane.TabClosingPolicy;
 import javafx.scene.control.TabPane.TabDragPolicy;
 import javafx.scene.layout.BorderPane;
-import qupath.controls.utils.FXUtils;
+import qupath.fx.utils.FXUtils;
 import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.panes.AnnotationPane;
 import qupath.lib.gui.panes.ImageDetailsPane;

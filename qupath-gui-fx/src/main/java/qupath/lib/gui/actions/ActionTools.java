@@ -63,7 +63,7 @@ import qupath.lib.gui.actions.annotations.ActionMenu;
 import qupath.lib.gui.actions.annotations.ActionMethod;
 import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.tools.IconFactory;
-import qupath.controls.localization.LocalizedResourceManager;
+import qupath.fx.localization.LocalizedResourceManager;
 
 /**
  * Helper methods for generating and configuring {@linkplain Action Actions} and UI elements.

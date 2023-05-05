@@ -46,7 +46,7 @@ import javafx.scene.text.TextAlignment;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.util.Duration;
-import qupath.controls.PaneTools;
+import qupath.fx.PaneTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.plugins.CommandLinePluginRunner;
 import qupath.lib.plugins.PathTask;

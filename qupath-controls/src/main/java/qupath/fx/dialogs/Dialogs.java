@@ -19,7 +19,7 @@
  * #L%
  */
 
-package qupath.controls.dialogs;
+package qupath.fx.dialogs;
 
 import java.util.*;
 
@@ -45,7 +45,7 @@ import javafx.scene.control.TextInputDialog;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.Window;
-import qupath.controls.utils.FXUtils;
+import qupath.fx.utils.FXUtils;
 
 /**
  * Collection of static methods to help with showing information to a user, 
@@ -419,7 +419,7 @@ public class Dialogs {
 		// Here, we instead use the default color for text based on the current css for the scene
 		var scene = stage.getScene();
 		if (scene != null) {
-			var url = Dialogs.class.getClassLoader().getResource("qupath/controls/dialogs/notificationscustom.css");
+			var url = Dialogs.class.getClassLoader().getResource("qupath/fx/dialogs/notificationscustom.css");
 			String stylesheetUrl = url.toExternalForm();
 			if (!scene.getStylesheets().contains(stylesheetUrl))
 				scene.getStylesheets().add(stylesheetUrl);

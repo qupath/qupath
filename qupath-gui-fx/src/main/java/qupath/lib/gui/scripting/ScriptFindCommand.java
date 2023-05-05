@@ -42,7 +42,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
-import qupath.controls.PaneTools;
+import qupath.fx.PaneTools;
 
 /**
  * Create a Find/Replace command window for a {@link ScriptEditorControl}.

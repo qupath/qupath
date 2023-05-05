@@ -50,7 +50,7 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.display.ChannelDisplayInfo;
 import qupath.lib.display.SingleChannelDisplayInfo;
 import qupath.lib.gui.QuPathGUI;
-import qupath.controls.dialogs.Dialogs;
+import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.images.servers.ChannelDisplayTransformServer;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.viewer.OverlayOptions;

@@ -76,7 +76,7 @@ import qupath.lib.gui.ToolManager;
 import qupath.lib.gui.actions.ActionTools;
 import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.commands.TMACommands;
-import qupath.controls.dialogs.Dialogs;
+import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.ColorToolsFX;

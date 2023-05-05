@@ -31,7 +31,6 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 
-import javafx.stage.FileChooser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,7 +48,7 @@ import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.Clipboard;
 import javafx.scene.paint.Color;
 import javafx.util.Duration;
-import qupath.controls.dialogs.FileChoosers;
+import qupath.fx.dialogs.FileChoosers;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.overlays.BufferedImageOverlay;

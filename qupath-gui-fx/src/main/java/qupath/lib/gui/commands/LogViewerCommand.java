@@ -54,7 +54,7 @@ import javafx.scene.layout.BorderPane;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.Window;
-import qupath.controls.dialogs.FileChoosers;
+import qupath.fx.dialogs.FileChoosers;
 import qupath.lib.gui.SelectableItem;
 import qupath.lib.gui.actions.ActionTools;
 import qupath.lib.gui.logging.LogManager;

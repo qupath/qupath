@@ -19,7 +19,7 @@
  * #L%
  */
 
-package qupath.controls;
+package qupath.fx;
 
 import java.util.ArrayList;
 import java.util.Arrays;

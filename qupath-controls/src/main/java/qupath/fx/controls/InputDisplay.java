@@ -19,7 +19,7 @@
  * #L%
  */
 
-package qupath.controls;
+package qupath.fx.controls;
 
 import javafx.beans.InvalidationListener;
 import javafx.beans.Observable;
@@ -54,7 +54,7 @@ import javafx.scene.text.TextAlignment;
 import javafx.stage.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qupath.controls.utils.FXUtils;
+import qupath.fx.utils.FXUtils;
 
 import java.util.*;
 

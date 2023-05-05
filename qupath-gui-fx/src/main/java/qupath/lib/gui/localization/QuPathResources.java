@@ -39,7 +39,7 @@ import java.util.ResourceBundle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.controls.localization.LocalizedResourceManager;
+import qupath.fx.localization.LocalizedResourceManager;
 import qupath.lib.gui.ExtensionClassLoader;
 import qupath.lib.gui.UserDirectoryManager;
 

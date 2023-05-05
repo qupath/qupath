@@ -58,7 +58,7 @@ import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.IconFactory;
 import qupath.lib.gui.tools.IconFactory.PathIcons;
-import qupath.controls.PaneTools;
+import qupath.fx.PaneTools;
 
 /**
  * Help window providing context-dependent help.

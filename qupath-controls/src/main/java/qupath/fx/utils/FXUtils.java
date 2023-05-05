@@ -1,4 +1,4 @@
-package qupath.controls.utils;
+package qupath.fx.utils;
 
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;

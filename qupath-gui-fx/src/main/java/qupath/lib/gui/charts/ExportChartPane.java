@@ -76,12 +76,12 @@ import javafx.scene.layout.Pane;
 import javafx.scene.transform.Transform;
 import javafx.stage.Stage;
 import javafx.util.Callback;
-import qupath.controls.dialogs.FileChoosers;
+import qupath.fx.dialogs.FileChoosers;
 import qupath.lib.common.GeneralTools;
-import qupath.controls.dialogs.Dialogs;
+import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.panes.PreferencePane;
 import qupath.lib.gui.prefs.PathPrefs;
-import qupath.controls.PaneTools;
+import qupath.fx.PaneTools;
 import qupath.lib.io.GsonTools;
 
 /**

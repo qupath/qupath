@@ -20,7 +20,7 @@
  */
 
 
-package qupath.controls.dialogs;
+package qupath.fx.dialogs;
 
 import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
@@ -39,8 +39,8 @@ import javafx.stage.Stage;
 import javafx.stage.Window;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qupath.controls.utils.FXUtils;
-import qupath.controls.localization.LocalizedResourceManager;
+import qupath.fx.utils.FXUtils;
+import qupath.fx.localization.LocalizedResourceManager;
 
 import java.io.File;
 import java.util.*;

@@ -1,4 +1,4 @@
-package qupath.controls.localization;
+package qupath.fx.localization;
 
 import java.util.ArrayList;
 import java.util.List;

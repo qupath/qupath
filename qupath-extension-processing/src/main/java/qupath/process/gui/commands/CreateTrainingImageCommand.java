@@ -36,7 +36,7 @@ import org.slf4j.LoggerFactory;
 
 import javafx.concurrent.Task;
 import qupath.lib.gui.commands.ProjectCommands;
-import qupath.controls.dialogs.Dialogs;
+import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.images.servers.CroppedImageServer;
 import qupath.lib.images.servers.ImageServer;

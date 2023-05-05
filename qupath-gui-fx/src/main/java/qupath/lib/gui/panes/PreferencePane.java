@@ -79,9 +79,9 @@ import javafx.scene.text.FontWeight;
 import javafx.scene.text.TextAlignment;
 import javafx.util.Duration;
 import javafx.util.StringConverter;
-import qupath.controls.utils.FXUtils;
-import qupath.controls.dialogs.Dialogs;
-import qupath.controls.dialogs.FileChoosers;
+import qupath.fx.utils.FXUtils;
+import qupath.fx.dialogs.Dialogs;
+import qupath.fx.dialogs.FileChoosers;
 import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.logging.LogManager;
 import qupath.lib.gui.logging.LogManager.LogLevel;
@@ -90,19 +90,12 @@ import qupath.lib.gui.prefs.PathPrefs.AutoUpdateType;
 import qupath.lib.gui.prefs.PathPrefs.DetectionTreeDisplayModes;
 import qupath.lib.gui.prefs.PathPrefs.FontSize;
 import qupath.lib.gui.prefs.PathPrefs.ImageTypeSetting;
+import qupath.lib.gui.prefs.annotations.*;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.tools.CommandFinderTools;
 import qupath.lib.gui.tools.CommandFinderTools.CommandBarDisplay;
 import qupath.lib.gui.prefs.QuPathStyleManager;
 import qupath.lib.gui.prefs.QuPathStyleManager.StyleOption;
-import qupath.lib.gui.prefs.annotations.BooleanPref;
-import qupath.lib.gui.prefs.annotations.ColorPref;
-import qupath.lib.gui.prefs.annotations.DirectoryPref;
-import qupath.lib.gui.prefs.annotations.DoublePref;
-import qupath.lib.gui.prefs.annotations.IntegerPref;
-import qupath.lib.gui.prefs.annotations.LocalePref;
-import qupath.lib.gui.prefs.annotations.Pref;
-import qupath.lib.gui.prefs.annotations.PrefCategory;
 
 /**
  * QuPath's preference pane, giving a means to modify many of the properties within PathPrefs.
