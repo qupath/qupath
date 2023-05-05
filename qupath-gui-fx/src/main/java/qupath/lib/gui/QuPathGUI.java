@@ -56,6 +56,7 @@ import javax.script.ScriptException;
 import javax.swing.SwingUtilities;
 
 import javafx.scene.control.*;
+import javafx.stage.Window;
 import org.controlsfx.control.action.Action;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -2643,7 +2644,7 @@ public class QuPathGUI {
 	public BooleanProperty showInputDisplayProperty() {
 		// Add listener to the inputDisplayDialogProperty to show/hide dialog
 		if (inputDisplay == null)
-			inputDisplay = new InputDisplay(getStage());
+			inputDisplay = new InputDisplay(getStage(), Window.getWindows());
 		return inputDisplay.showProperty();
 	}
 	

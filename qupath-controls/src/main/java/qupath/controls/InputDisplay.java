@@ -29,6 +29,7 @@ import javafx.beans.property.StringProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
+import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.collections.ObservableMap;
 import javafx.css.PseudoClass;
@@ -55,10 +56,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.controls.utils.FXUtils;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
-import java.util.TreeMap;
+import java.util.*;
 
 /**
  * Control to display mouse and keyboard input when interacting with a window.
@@ -71,8 +69,11 @@ public class InputDisplay implements EventHandler<InputEvent> {
 
 	private static final Logger logger = LoggerFactory.getLogger(InputDisplay.class);
 
-	// To ensure single input command per window
-	private Window window;
+	// Owner window (for stage positioning)
+	private Window owner;
+
+	// All windows to listen to
+	private ObservableList<? extends Window> allWindows;
 
 	private BooleanProperty showProperty = new SimpleBooleanProperty(false);
 
@@ -109,23 +110,57 @@ public class InputDisplay implements EventHandler<InputEvent> {
 	private BooleanProperty scrollUp = new SimpleBooleanProperty(false);
 	private BooleanProperty scrollDown = new SimpleBooleanProperty(false);
 
-	public InputDisplay(Window window) {
-		this(FXCollections.observableArrayList(window));
+	/**
+	 * Create an input display with the specified owner window.
+	 * @param owner the owner used to position the input display, and when listening to input events.
+	 *              If null, an input display is created to listen to all windows but without any owner.
+	 */
+	public InputDisplay(Window owner) {
+		this(owner, owner == null ? Window.getWindows() : FXCollections.observableArrayList(owner));
 	}
 
-	private InputDisplay(ObservableList<? extends Window> windows) {
-		if (windows.isEmpty() || windows.get(0) == null)
-			throw new IllegalArgumentException("A window must be specified!");
-		this.window = windows.get(0);
+	/**
+	 * Create an input display with the specified owner window and list of windows to listen to.
+	 * To listen to input across all windows, use {@link Window#getWindows()}.
+	 * @param owner the owner used to position the input display.
+	 * @param windows the windows to listen to.
+	 */
+	public InputDisplay(Window owner, ObservableList<? extends Window> windows) {
+		Objects.requireNonNull(windows, "An observable list of windows must be specified!");
+		this.owner = owner;
+		this.allWindows = windows;
 		showProperty.addListener((v, o, n) -> updateShowStatus(n));
+		for (var window : allWindows)
+			addListenersToWindow(window);
+		allWindows.addListener(this::handleWindowListChange);
+	}
+
+	private void handleWindowListChange(ListChangeListener.Change<? extends Window> change) {
+		while (change.next()) {
+			for (var window : change.getRemoved()) {
+				removeListenersFromWindow(window);
+			}
+			for (var window : change.getAddedSubList()) {
+				addListenersToWindow(window);
+			}
+		}
+	}
+
+	private void addListenersToWindow(Window window) {
+		window.addEventFilter(InputEvent.ANY, this);
+		window.focusedProperty().addListener(focusListener);
+	}
+
+	private void removeListenersFromWindow(Window window) {
+		window.focusedProperty().removeListener(focusListener);
+		window.removeEventFilter(InputEvent.ANY, this);
 	}
 
 	private void updateShowStatus(boolean doShow) {
 		if (doShow) {
-			window.addEventFilter(InputEvent.ANY, this);
-			window.focusedProperty().addListener(focusListener);
 			if (stage == null) {
 				stage = createStage();
+				stage.initOwner(owner);
 			}
 			stage.setAlwaysOnTop(true);
 			stage.show();
@@ -135,8 +170,6 @@ public class InputDisplay implements EventHandler<InputEvent> {
 		} else if (stage != null) {
 			if (stage.isShowing())
 				stage.hide();
-			window.focusedProperty().removeListener(focusListener);
-			window.removeEventFilter(InputEvent.ANY, this);
 			stage.hide();
 		}
 	}
@@ -228,6 +261,10 @@ public class InputDisplay implements EventHandler<InputEvent> {
 
 	@Override
 	public void handle(InputEvent event) {
+		// Return quickly if not showing
+		if (!showProperty.get())
+			return;
+		// Handle according to event type
 		if (event instanceof KeyEvent)
 			keyFilter.handle((KeyEvent) event);
 		else if (event instanceof MouseEvent)
@@ -253,6 +290,8 @@ public class InputDisplay implements EventHandler<InputEvent> {
 
 		@Override
 		public void changed(ObservableValue<? extends Boolean> observable, Boolean oldValue, Boolean newValue) {
+			if (!showProperty.get())
+				return;
 			if (newValue) {
 				modifiers.clear();
 				keys.clear();
@@ -413,6 +452,10 @@ public class InputDisplay implements EventHandler<InputEvent> {
 
 		@Override
 		public void handle(KeyEvent event) {
+			// We might consider ignoring input events on TextInputControls
+			// since their effects are already visible
+//			if (event.getTarget() instanceof TextInputControl)
+//				return;
 			var set = MODIFIER_KEYS.contains(event.getCode()) ? modifiers : keys;
 			if (event.getEventType() == KeyEvent.KEY_PRESSED) {
 				if (event.getCode() != null)
