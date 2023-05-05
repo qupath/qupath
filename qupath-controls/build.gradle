@@ -6,10 +6,10 @@ plugins {
     alias(libs.plugins.javafx)
 }
 
-ext.moduleName = 'qupath.controls'
-archivesBaseName = 'qupath-controls'
-description = "JavaFX controls used to help create the QuPath user interface. These don't have other QuPath-related " +
-        "dependencies, so could be reused elsewhere."
+ext.moduleName = 'qupath.fx'
+archivesBaseName = 'qupath-fx'
+description = "Extra classes built on JavaFX that are used to help create the QuPath user interface. " +
+        "These don't have other QuPath-related dependencies, so could be reused elsewhere."
 
 configurations {}
 
