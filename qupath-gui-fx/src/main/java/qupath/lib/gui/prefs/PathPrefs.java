@@ -23,14 +23,11 @@
 
 package qupath.lib.gui.prefs;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.AccessDeniedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -123,88 +120,13 @@ public class PathPrefs {
 	public static BooleanProperty useSystemMenubarProperty() {
 		return useSystemMenubar;
 	}
-	
-	/**
-	 * Export preferences to a stream.  Note that this will only export preferences that have been set explicitly; 
-	 * some preferences may be 'missing' because their defaults were never changed.  This behavior may change in the future.
-	 * 
-	 * @param stream
-	 * @throws IOException
-	 * @throws BackingStoreException
-	 * 
-	 * @see #dumpPreferences()
-	 */
-	public static void exportPreferences(OutputStream stream) throws IOException, BackingStoreException {
-		getUserPreferences().exportSubtree(stream);
-	}
-	
-	/**
-	 * Dump the current preferences to an XML string.
-	 * @return
-	 * @throws IOException
-	 * @throws BackingStoreException
-	 * 
-	 * @see #exportPreferences(OutputStream)
-	 */
-	public static String dumpPreferences() throws IOException, BackingStoreException {
-		try (var stream = new ByteArrayOutputStream()) {
-			exportPreferences(stream);
-			return stream.toString(StandardCharsets.UTF_8);
-		}
-	}
-	
-	/**
-	 * Import preferences from an XML String.
-	 * 
-	 * @param xml String representation of a preferences XML document
-	 * @throws IOException
-	 * @throws InvalidPreferencesFormatException
-	 * 
-	 * @see #importPreferences(InputStream)
-	 * @see #reloadPreferences()
-	 * @see #exportPreferences(OutputStream)
-	 * @see #dumpPreferences()
-	 */
-	public static void importPreferences(String xml) throws IOException, InvalidPreferencesFormatException  {
-		try (var stream = new ByteArrayInputStream(xml.getBytes(StandardCharsets.UTF_8))) {
-			Preferences.importPreferences(stream);
-		}
-	}
-	
-	
-	/**
-	 * Import preferences from a stream.
-	 * <p>
-	 * Note that if the plan is to re-import preferences previously exported by {@link #exportPreferences(OutputStream)} 
-	 * then it may be worthwhile to {@link #resetPreferences()} first to handle the fact that preferences may not have been 
-	 * saved because their default values were unchanged.
-	 * 
-	 * @param stream
-	 * @throws IOException
-	 * @throws InvalidPreferencesFormatException
-	 * 
-	 * @see #importPreferences(String)
-	 * @see #reloadPreferences()
-	 */
-	public static void importPreferences(InputStream stream) throws IOException, InvalidPreferencesFormatException  {
-		Preferences.importPreferences(stream);
-	}
-	
-	
-	/**
-	 * Reload property values from the saved preferences.
-	 * This is useful after {@link #importPreferences(String)}.
-	 */
-	public static void reloadPreferences() {
-		MANAGER.reload();
-	}
-	
 
 	private static StringProperty scriptsPath = createPersistentPreference("scriptsPath", (String)null); // Base directory containing scripts
 	
 	private static IntegerProperty numCommandThreads = createPersistentPreference("Requested number of threads", ForkJoinPool.getCommonPoolParallelism());
 	
-	static {
+
+	private static void addNumThreadsListener() {
 		numCommandThreads.addListener((v, o, n) -> {
 			int threads = n.intValue();
 			if (threads > 0)
@@ -215,8 +137,42 @@ public class PathPrefs {
 		// Make sure initialized
 		int threads = numCommandThreads.get();
 		if (threads > 0)
-			ThreadTools.setParallelism(numCommandThreads.get());	}
-	
+			ThreadTools.setParallelism(numCommandThreads.get());
+	}
+
+
+	/**
+	 * Export preferences to a stream.  Note that this will only export preferences that have been set explicitly; 
+	 * some preferences may be 'missing' because their defaults were never changed.  This behavior may change in the future.
+	 *
+	 * @param stream
+	 * @throws IOException
+	 * @throws BackingStoreException
+	 *
+	 * @see #importPreferences(InputStream)
+	 */
+	public static void exportPreferences(OutputStream stream) throws IOException, BackingStoreException {
+		getUserPreferences().exportSubtree(stream);
+	}
+
+
+	/**
+	 * Import preferences from a stream.
+	 * <p>
+	 * Note that if the plan is to re-import preferences previously exported by {@link #exportPreferences(OutputStream)}
+	 * then it may be worthwhile to {@link #resetPreferences()} first to handle the fact that preferences may not have been
+	 * saved because their default values were unchanged.
+	 *
+	 * @param stream
+	 * @throws IOException
+	 * @throws InvalidPreferencesFormatException
+	 *
+	 * @see #exportPreferences(OutputStream)
+	 */
+	public static void importPreferences(InputStream stream) throws IOException, InvalidPreferencesFormatException  {
+		Preferences.importPreferences(stream);
+	}
+
 	/**
 	 * Property specifying the preferred number of threads QuPath should use for multithreaded commands.
 	 * @return
@@ -241,7 +197,7 @@ public class PathPrefs {
 	/**
 	 * Options for automatic updating checking of QuPath and/or extensions.
 	 */
-	public static enum AutoUpdateType {
+	public enum AutoUpdateType {
 		/**
 		 * Check for QuPath updates only
 		 */
@@ -341,9 +297,8 @@ public class PathPrefs {
 	public static ObjectProperty<Locale> defaultLocaleDisplayProperty() {
 		return defaultLocaleDisplay;
 	}
-	
-	
-	static {
+
+	private static void addLocaleListeners() {
 		defaultLocale.addListener((v, o, n) -> {
 			if (n == null)
 				return;
@@ -353,7 +308,7 @@ public class PathPrefs {
 		defaultLocaleFormat.addListener((v, o, n) -> QuPathResources.getLocalizeResourceManager().refresh());
 		defaultLocaleDisplay.addListener((v, o, n) -> QuPathResources.getLocalizeResourceManager().refresh());
 	}
-	
+
 	
 	
 	private static BooleanProperty showStartupMessage = createPersistentPreference("showStartupMessage", true);
@@ -757,12 +712,12 @@ public class PathPrefs {
 	}
 	
 	
-	private static int nRecentProjects = 5;
-	private static ObservableList<URI> recentProjects = FXCollections.observableArrayList();
+	private static ObservableList<URI> recentProjects = createRecentProjectsList(5);
 	
-	static {
+	private static ObservableList<URI> createRecentProjectsList(int maxRecentProjects) {
 		// Try to load the recent projects
-		for (int i = 0; i < nRecentProjects; i++) {
+		ObservableList<URI> recentProjects = FXCollections.observableArrayList();
+		for (int i = 0; i < maxRecentProjects; i++) {
 			String project = getUserPreferences().get("recentProject" + i, null);
 			if (project == null || project.length() == 0)
 				break;
@@ -783,11 +738,12 @@ public class PathPrefs {
 				getUserPreferences().put("recentProject" + i, project.toString());
 				i++;
 			}
-			while (i < nRecentProjects) {
+			while (i < maxRecentProjects) {
 				getUserPreferences().put("recentProject" + i, "");
 				i++;
 			}
 		});
+		return recentProjects;
 	}
 	
 	/**
@@ -822,11 +778,11 @@ public class PathPrefs {
 	}
 
 	
-	private static int nRecentScripts = 8;
-	private static ObservableList<URI> recentScripts = FXCollections.observableArrayList();
+	private static ObservableList<URI> recentScripts = createRecentScriptsList(8);
 	
-	static {
+	private static ObservableList<URI> createRecentScriptsList(int nRecentScripts) {
 		// Try to load the recent scripts
+		ObservableList<URI> recentScripts = FXCollections.observableArrayList();
 		for (int i = 0; i < nRecentScripts; i++) {
 			String project = getUserPreferences().get("recentScript" + i, null);
 			if (project == null || project.length() == 0)
@@ -849,6 +805,7 @@ public class PathPrefs {
 				i++;
 			}
 		});
+		return recentScripts;
 	}
 	
 	/**
@@ -978,7 +935,7 @@ public class PathPrefs {
 	/**
 	 * Enum defining how setting the image type should be handled for new images.
 	 */
-	public static enum ImageTypeSetting {
+	public enum ImageTypeSetting {
 		/**
 		 * Automatically estimate the image type
 		 */
@@ -1404,7 +1361,7 @@ public class PathPrefs {
 	 * Enum to control font size.
 	 */
 	@SuppressWarnings("javadoc")
-	public static enum FontSize {
+	public enum FontSize {
 		TINY, SMALL, MEDIUM, LARGE, HUGE;
 		
 		/**
@@ -1733,5 +1690,13 @@ public class PathPrefs {
 		else
 			return Paths.get(System.getProperty("user.home"), "QuPath");
 	}
+
+
+
+	static {
+		addLocaleListeners();
+		addNumThreadsListener();
+	}
+
 
 }

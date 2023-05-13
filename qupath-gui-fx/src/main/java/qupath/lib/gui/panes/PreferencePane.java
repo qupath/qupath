@@ -1283,7 +1283,8 @@ public class PreferencePane {
 		
 		var cls = obj instanceof Class<?> ? (Class<?>)obj : obj.getClass();
 		List<PropertyItem> items = new ArrayList<>();
-		
+
+		// Look for category annotation from the parent class
 		String categoryBundle = null;
 		String categoryKey = "Prefs.General";
 		if (cls.isAnnotationPresent(PrefCategory.class)) {
@@ -1318,11 +1319,20 @@ public class PreferencePane {
 				} else if (field.isAnnotationPresent(DirectoryPref.class)) {
 					item = parseItem((Property<String>)field.get(obj), field.getAnnotation(DirectoryPref.class));
 				}
+
+				// Handle direct category annotation
+				if (field.isAnnotationPresent(PrefCategory.class)) {
+					var annotation = cls.getAnnotation(PrefCategory.class);
+					String localeCategoryBundle = annotation.bundle().isBlank() ? null : annotation.bundle();
+					String localeCategoryKey = annotation.value();
+					item.categoryKey(localeCategoryBundle, localeCategoryKey);
+				} else {
+					item.categoryKey(categoryBundle, categoryKey);
+				}
 			} catch (Exception e) {
 				logger.error(e.getLocalizedMessage(), e);
 			}
 			if (item != null) {
-				item.categoryKey(categoryBundle, categoryKey);
 				items.add(item);
 			}
 		}

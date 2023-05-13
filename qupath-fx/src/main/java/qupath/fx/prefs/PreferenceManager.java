@@ -5,6 +5,8 @@ import javafx.util.StringConverter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 import java.util.prefs.BackingStoreException;
 import java.util.prefs.Preferences;
@@ -40,6 +42,20 @@ public class PreferenceManager {
     public Preferences getPreferences() {
         return preferences;
     }
+
+    /**
+     * Dump the current preferences to an XML string.
+     * @return
+     * @throws IOException
+     * @throws BackingStoreException
+     */
+    public String toXml() throws IOException, BackingStoreException {
+        try (var stream = new ByteArrayOutputStream()) {
+            preferences.exportSubtree(stream);
+            return stream.toString(StandardCharsets.UTF_8);
+        }
+    }
+
 
     public static PreferenceManager create(Preferences preferences) {
         return new PreferenceManager(preferences);
