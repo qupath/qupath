@@ -185,31 +185,4 @@ class PrefUtils {
     }
 
 
-
-    private static class EnumConverter<T extends Enum> extends StringConverter<T> {
-
-        private Class<? extends T> enumType;
-
-        private EnumConverter(Class<? extends T> enumType) {
-            this.enumType = enumType;
-        }
-
-        @Override
-        public String toString(T object) {
-            return object == null ? null : object.name();
-        }
-
-        @Override
-        public T fromString(String string) {
-            if (string == null)
-                return null;
-            try {
-                return (T)Enum.valueOf(enumType, string);
-            } catch (Exception e) {
-                logger.error("Could not parse enum value: " + string, e);
-                return null;
-            }
-        }
-    }
-
 }

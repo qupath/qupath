@@ -1562,35 +1562,7 @@ public class PathPrefs {
 	 * @since v0.4.0
 	 */
 	public static <T> ObjectProperty<T> createPersistentPreference(final String name, final T defaultValue, final Function<T, String> serializer, final Function<String, T> deserializer) {
-		var converter = new StringConverter<T>() {
-
-			@Override
-			public String toString(T object) {
-				return serializer.apply(object);
-			}
-
-			@Override
-			public T fromString(String string) {
-				return deserializer.apply(string);
-			}
-		};
-		return MANAGER.createPersistentObjectProperty(name, defaultValue, converter);
-	}
-	
-	
-	private static <T> void tryToLoadStringPreference(ObjectProperty<T> property, String name, Function<String, T> deserializer) {
-		try {
-			var currentString = property.get();
-			var storedString = getUserPreferences().get(name, null);
-			if (storedString == null)
-				return;
- 			if (!Objects.equals(currentString, storedString)) {
- 				var obj = deserializer.apply(storedString);
-				property.set(obj);
- 			}
-		} catch (Throwable e) {
-			logger.warn("Exception setting preference value for " + name, e);
-		}
+		return MANAGER.createPersistentObjectProperty(name, defaultValue, serializer, deserializer);
 	}
 	
 	
@@ -1605,11 +1577,7 @@ public class PathPrefs {
 	 * @return
 	 */
 	private static ObjectProperty<Locale> createPersistentPreference(final String name, final Category category, final Locale defaultValue) {
-		var property = createPersistentPreference(name,
-				defaultValue,
-				l -> l.getDisplayName(Locale.US),
-				n -> Arrays.stream(Locale.getAvailableLocales()).filter(l -> Objects.equals(l.getDisplayName(Locale.US), n)).findFirst().orElse(defaultValue)
-		);
+		var property = MANAGER.createPersistentLocaleProperty(name, defaultValue);
 		updateLocale(category, property.get());
 		property.addListener((v, o, n) -> {
 			updateLocale(category, n);
