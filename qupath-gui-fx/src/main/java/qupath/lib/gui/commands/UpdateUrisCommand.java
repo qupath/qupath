@@ -65,7 +65,7 @@ import qupath.fx.utils.FXUtils;
 import qupath.fx.dialogs.FileChoosers;
 import qupath.lib.common.GeneralTools;
 import qupath.fx.dialogs.Dialogs;
-import qupath.fx.PaneTools;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.io.UriResource;
 import qupath.lib.io.UriUpdater;
 import qupath.lib.io.UriUpdater.SingleUriItem;
@@ -224,15 +224,15 @@ public class UpdateUrisCommand<T extends UriResource> {
 		});
 
 		int row = 0;
-		PaneTools.addGridRow(pane, row++, 0, null, table, table, table);
-		PaneTools.addGridRow(pane, row++, 0, null, labelReplacements, labelReplacements, btnSearch);
-		PaneTools.addGridRow(pane, row, 0, null, cbValid);
-		PaneTools.addGridRow(pane, row, 1, null, cbMissing);
-		PaneTools.addGridRow(pane, row++, 2, null, cbUnknown);
+		GridPaneUtils.addGridRow(pane, row++, 0, null, table, table, table);
+		GridPaneUtils.addGridRow(pane, row++, 0, null, labelReplacements, labelReplacements, btnSearch);
+		GridPaneUtils.addGridRow(pane, row, 0, null, cbValid);
+		GridPaneUtils.addGridRow(pane, row, 1, null, cbMissing);
+		GridPaneUtils.addGridRow(pane, row++, 2, null, cbUnknown);
 
-		PaneTools.setFillWidth(Boolean.TRUE, cbValid, cbMissing, cbUnknown, labelReplacements, table);
-		PaneTools.setHGrowPriority(Priority.ALWAYS, cbValid, cbMissing, cbUnknown, labelReplacements, table);
-		PaneTools.setMaxWidth(Double.MAX_VALUE, cbValid, cbMissing, cbUnknown, labelReplacements, table);
+		GridPaneUtils.setFillWidth(Boolean.TRUE, cbValid, cbMissing, cbUnknown, labelReplacements, table);
+		GridPaneUtils.setHGrowPriority(Priority.ALWAYS, cbValid, cbMissing, cbUnknown, labelReplacements, table);
+		GridPaneUtils.setMaxWidth(Double.MAX_VALUE, cbValid, cbMissing, cbUnknown, labelReplacements, table);
 		GridPane.setHalignment(btnSearch, HPos.RIGHT);
 
 		pane.setHgap(5);

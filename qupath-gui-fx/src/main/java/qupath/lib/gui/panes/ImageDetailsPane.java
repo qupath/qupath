@@ -116,7 +116,7 @@ import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.ParameterPanelFX;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.prefs.PathPrefs.ImageTypeSetting;
-import qupath.fx.PaneTools;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.ImageData.ImageType;
@@ -514,8 +514,8 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 				o.setSelected(true);
 		});
 
-		PaneTools.setMaxWidth(Double.MAX_VALUE, buttons);
-		PaneTools.setMaxHeight(Double.MAX_VALUE, buttons);
+		GridPaneUtils.setMaxWidth(Double.MAX_VALUE, buttons);
+		GridPaneUtils.setMaxHeight(Double.MAX_VALUE, buttons);
 		var selectedButton = buttonMap.get(defaultType);
 		group.selectToggle(selectedButton);
 

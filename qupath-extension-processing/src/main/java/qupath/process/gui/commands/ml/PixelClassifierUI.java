@@ -57,7 +57,7 @@ import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.gui.commands.Commands;
 import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.tools.GuiTools;
-import qupath.fx.PaneTools;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.RegionFilter;
 import qupath.lib.gui.viewer.RegionFilter.StandardRegionFilters;
@@ -155,9 +155,9 @@ public class PixelClassifierUI {
 			promptToClassifyDetectionsByCentroid(imageData.get(), classifier.get(), classifierName.get());
 		});
 		
-		PaneTools.setMaxWidth(Double.MAX_VALUE, btnAddMeasurements, btnCreateObjects, btnClassifyObjects);
+		GridPaneUtils.setMaxWidth(Double.MAX_VALUE, btnAddMeasurements, btnCreateObjects, btnClassifyObjects);
 		
-		var paneMain = PaneTools.createColumnGrid(btnAddMeasurements, btnCreateObjects, btnClassifyObjects);
+		var paneMain = GridPaneUtils.createColumnGrid(btnAddMeasurements, btnCreateObjects, btnClassifyObjects);
 		
 		// Add some more options
 		var menu = new ContextMenu();

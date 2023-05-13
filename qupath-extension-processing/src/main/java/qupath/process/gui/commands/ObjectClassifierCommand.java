@@ -113,7 +113,7 @@ import qupath.lib.gui.charts.ChartTools;
 import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.ProjectDialogs;
 import qupath.lib.gui.tools.ColorToolsFX;
-import qupath.fx.PaneTools;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathDetectionObject;
@@ -1153,7 +1153,7 @@ public class ObjectClassifierCommand implements Runnable {
 			comboObjects.getSelectionModel().select(PathObjectFilter.DETECTIONS_ALL);
 			objectFilter.addListener((v, o, n) -> invalidateClassifier());
 
-			PaneTools.addGridRow(pane, row++, 0, 
+			GridPaneUtils.addGridRow(pane, row++, 0,
 					"Choose object type to classify (default is all detections)",
 					labelObjects, comboObjects, comboObjects);
 
@@ -1177,7 +1177,7 @@ public class ObjectClassifierCommand implements Runnable {
 			btnEditClassifier.setOnAction(e -> editClassifierParameters());
 			btnEditClassifier.disableProperty().bind(selectedModel.isNull());
 
-			PaneTools.addGridRow(pane, row++, 0, 
+			GridPaneUtils.addGridRow(pane, row++, 0,
 					"Choose classifier type (RTrees or ANN_MLP are generally good choices)",
 					labelClassifier, comboClassifier, btnEditClassifier);
 
@@ -1201,7 +1201,7 @@ public class ObjectClassifierCommand implements Runnable {
 				if (promptToSelectFeatures())
 					invalidateClassifier();
 			});
-			PaneTools.addGridRow(pane, row++, 0, 
+			GridPaneUtils.addGridRow(pane, row++, 0,
 					null,
 					labelFeatures, comboFeatures, btnSelectFeatures);
 
@@ -1259,7 +1259,7 @@ public class ObjectClassifierCommand implements Runnable {
 			btnSelectClasses.setTooltip(tooltipClasses);
 			comboClasses.setTooltip(tooltipClasses);
 
-			PaneTools.addGridRow(pane, row++, 0, 
+			GridPaneUtils.addGridRow(pane, row++, 0,
 					null,
 					labelClasses, comboClasses, btnSelectClasses);
 
@@ -1273,7 +1273,7 @@ public class ObjectClassifierCommand implements Runnable {
 			trainingAnnotations = comboTraining.getSelectionModel().selectedItemProperty();
 			trainingAnnotations.addListener(v -> invalidateClassifier());
 
-			PaneTools.addGridRow(pane, row++, 0, 
+			GridPaneUtils.addGridRow(pane, row++, 0,
 					"Choose what kind of annotations to use for training",
 					labelTraining, comboTraining, comboTraining);
 
@@ -1312,7 +1312,7 @@ public class ObjectClassifierCommand implements Runnable {
 				}
 			});
 
-			var panePredict = PaneTools.createColumnGridControls(btnLoadTraining, btnAdvancedOptions);
+			var panePredict = GridPaneUtils.createColumnGridControls(btnLoadTraining, btnAdvancedOptions);
 			pane.add(panePredict, 0, row++, pane.getColumnCount(), 1);
 			
 			pane.add(btnLive, 0, row++, pane.getColumnCount(), 1);
@@ -1359,7 +1359,7 @@ public class ObjectClassifierCommand implements Runnable {
 				tfSaveName.requestFocus();
 				btnSave.requestFocus();
 			});
-			PaneTools.addGridRow(pane, row++, 0, "Specify name of the classifier - this will be used to save to "
+			GridPaneUtils.addGridRow(pane, row++, 0, "Specify name of the classifier - this will be used to save to "
 					+ "save the classifier in the current project, so it may be used for scripting later", labelSave, tfSaveName, btnSave);
 									
 //			var btnSave = new Button("Save & Apply");
@@ -1369,9 +1369,9 @@ public class ObjectClassifierCommand implements Runnable {
 //			pane.add(btnSave, 0, row++, pane.getColumnCount(), 1);
 
 
-			PaneTools.setMaxWidth(Double.MAX_VALUE, comboTraining, comboObjects, comboClassifier, comboFeatures, comboClasses, panePredict);
-			PaneTools.setHGrowPriority(Priority.ALWAYS, comboTraining, comboObjects, comboClassifier, comboFeatures, comboClasses, panePredict);
-			PaneTools.setFillWidth(Boolean.TRUE, comboTraining, comboObjects, comboClassifier, comboClasses, panePredict);
+			GridPaneUtils.setMaxWidth(Double.MAX_VALUE, comboTraining, comboObjects, comboClassifier, comboFeatures, comboClasses, panePredict);
+			GridPaneUtils.setHGrowPriority(Priority.ALWAYS, comboTraining, comboObjects, comboClassifier, comboFeatures, comboClasses, panePredict);
+			GridPaneUtils.setFillWidth(Boolean.TRUE, comboTraining, comboObjects, comboClassifier, comboClasses, panePredict);
 
 			pane.setHgap(5);
 			pane.setVgap(6);
@@ -1592,7 +1592,7 @@ public class ObjectClassifierCommand implements Runnable {
 				for (SelectableItem<T> feature : tableFeatures.getItems())
 					feature.setSelected(false);
 			});
-			var panelSelectButtons = PaneTools.createColumnGridControls(btnSelectAll, btnSelectNone);
+			var panelSelectButtons = GridPaneUtils.createColumnGridControls(btnSelectAll, btnSelectNone);
 
 			Pane panelButtons;
 
@@ -1613,7 +1613,7 @@ public class ObjectClassifierCommand implements Runnable {
 				paneFilter.setHgap(5);
 				paneFilter.setPadding(new Insets(5, 0, 5, 0));
 
-				panelButtons = PaneTools.createRowGrid(
+				panelButtons = GridPaneUtils.createRowGrid(
 						panelSelectButtons,
 						paneFilter
 						);

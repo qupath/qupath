@@ -3,7 +3,7 @@ plugins {
   id 'qupath.publishing-conventions'
   id 'java-library'
 
-  id "io.freefair.lombok" version "8.0.1"
+//  id "io.freefair.lombok" version "8.0.1"
 
   alias(libs.plugins.javafx)
 }

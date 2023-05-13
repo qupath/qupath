@@ -72,7 +72,7 @@ import javafx.stage.Modality;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
 import qupath.fx.utils.FXUtils;
-import qupath.fx.PaneTools;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.color.ColorDeconvolutionHelper;
 import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.color.ColorDeconvolutionStains.DefaultColorDeconvolutionStains;
@@ -860,11 +860,11 @@ public class GuiTools {
 			panel.add(cbAll, 1, 4);
 		}
 		
-		PaneTools.setToExpandGridPaneWidth(textField, colorPicker, textAreaDescription, cbLocked, cbAll);
+		GridPaneUtils.setToExpandGridPaneWidth(textField, colorPicker, textAreaDescription, cbLocked, cbAll);
 //		PaneTools.setHGrowPriority(Priority.NEVER, labDescription);
-		PaneTools.setHGrowPriority(Priority.ALWAYS, colorPicker, textAreaDescription, cbLocked, cbAll);
-		PaneTools.setVGrowPriority(Priority.NEVER, colorPicker);
-		PaneTools.setToExpandGridPaneHeight(textAreaDescription);
+		GridPaneUtils.setHGrowPriority(Priority.ALWAYS, colorPicker, textAreaDescription, cbLocked, cbAll);
+		GridPaneUtils.setVGrowPriority(Priority.NEVER, colorPicker);
+		GridPaneUtils.setToExpandGridPaneHeight(textAreaDescription);
 		
 		panel.getColumnConstraints().setAll(
 				new ColumnConstraints(Region.USE_COMPUTED_SIZE),

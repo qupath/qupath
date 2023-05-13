@@ -50,7 +50,7 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.TextAlignment;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.tools.GuiTools;
-import qupath.fx.PaneTools;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.projects.ProjectImageEntry;
 
 /**
@@ -93,8 +93,8 @@ public class ProjectDialogs {
 		paneFooter.add(tfFilter, 0, 0);
 		paneFooter.add(cbWithData, 0, 1);
 
-		PaneTools.setHGrowPriority(Priority.ALWAYS, tfFilter, cbWithData);
-		PaneTools.setFillWidth(Boolean.TRUE, tfFilter, cbWithData);
+		GridPaneUtils.setHGrowPriority(Priority.ALWAYS, tfFilter, cbWithData);
+		GridPaneUtils.setFillWidth(Boolean.TRUE, tfFilter, cbWithData);
 		cbWithData.setMinWidth(CheckBox.USE_PREF_SIZE);
 		paneFooter.setVgap(5);
 		listSelectionView.setSourceFooter(paneFooter);
@@ -127,7 +127,7 @@ public class ProjectDialogs {
 		});
 		
 		var paneSelected = new GridPane();
-		PaneTools.addGridRow(paneSelected, 0, 0, "Selected images", labelSelected);
+		GridPaneUtils.addGridRow(paneSelected, 0, 0, "Selected images", labelSelected);
 
 		// Create a warning label to display if we need to
 		if (openImageWarning != null) {
@@ -137,9 +137,9 @@ public class ProjectDialogs {
 			labelSameImageWarning.setTextAlignment(TextAlignment.CENTER);
 			labelSameImageWarning.setAlignment(Pos.CENTER);
 			labelSameImageWarning.setVisible(false);
-			PaneTools.setHGrowPriority(Priority.ALWAYS, labelSameImageWarning);
-			PaneTools.setFillWidth(Boolean.TRUE, labelSameImageWarning);
-			PaneTools.addGridRow(paneSelected, 1, 0, openImageWarning, labelSameImageWarning);
+			GridPaneUtils.setHGrowPriority(Priority.ALWAYS, labelSameImageWarning);
+			GridPaneUtils.setFillWidth(Boolean.TRUE, labelSameImageWarning);
+			GridPaneUtils.addGridRow(paneSelected, 1, 0, openImageWarning, labelSameImageWarning);
 		}
 		listSelectionView.setTargetFooter(paneSelected);
 		

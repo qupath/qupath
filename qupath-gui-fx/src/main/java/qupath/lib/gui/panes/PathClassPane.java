@@ -65,7 +65,7 @@ import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.MenuTools;
-import qupath.fx.PaneTools;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.servers.ImageServer;
@@ -174,9 +174,9 @@ class PathClassPane {
 		tfFilter.setPromptText("Filter classifications in list");
 		filterText.bind(tfFilter.textProperty());
 		filterText.addListener((v, o, n) -> filteredList.setPredicate(createPathClassListFilter(n)));
-		var paneBottom = PaneTools.createRowGrid(tfFilter, paneClassButtons);
+		var paneBottom = GridPaneUtils.createRowGrid(tfFilter, paneClassButtons);
 		
-		PaneTools.setMaxWidth(Double.MAX_VALUE,
+		GridPaneUtils.setMaxWidth(Double.MAX_VALUE,
 				btnSetClass, btnAutoClass, tfFilter);
 		
 		paneClasses.setBottom(paneBottom);

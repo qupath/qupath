@@ -130,7 +130,7 @@ import qupath.lib.gui.scripting.syntax.ScriptSyntax;
 import qupath.lib.gui.scripting.syntax.ScriptSyntaxProvider;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.MenuTools;
-import qupath.fx.PaneTools;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.gui.tools.WebViews;
 import qupath.lib.images.ImageData;
 import qupath.lib.projects.Project;
@@ -976,11 +976,11 @@ public class DefaultScriptEditor implements ScriptEditor {
 		paneRun.setPadding(new Insets(5));
 //		paneRun.setHgap(5.0);
 
-		PaneTools.setHGrowPriority(Priority.ALWAYS, paneSpace);
-		PaneTools.setFillWidth(Boolean.TRUE, paneSpace);
-		PaneTools.setMaxHeight(Double.MAX_VALUE, labelRunning, paneSpace, btnRun, btnMore);
-		PaneTools.setMaxWidth(Double.MAX_VALUE, labelRunning, paneSpace, btnRun, btnMore);
-		PaneTools.setFillHeight(Boolean.TRUE, labelRunning, paneSpace, btnRun, btnMore);
+		GridPaneUtils.setHGrowPriority(Priority.ALWAYS, paneSpace);
+		GridPaneUtils.setFillWidth(Boolean.TRUE, paneSpace);
+		GridPaneUtils.setMaxHeight(Double.MAX_VALUE, labelRunning, paneSpace, btnRun, btnMore);
+		GridPaneUtils.setMaxWidth(Double.MAX_VALUE, labelRunning, paneSpace, btnRun, btnMore);
+		GridPaneUtils.setFillHeight(Boolean.TRUE, labelRunning, paneSpace, btnRun, btnMore);
 		
 		return paneRun;
 	}

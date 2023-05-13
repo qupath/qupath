@@ -61,7 +61,7 @@ import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.images.stores.ColorModelRenderer;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.GuiTools;
-import qupath.fx.PaneTools;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.gui.viewer.overlays.PixelClassificationOverlay;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
@@ -247,8 +247,8 @@ public final class LoadResourceCommand<S> implements Runnable {
 		pane.setVgap(10);
 		pane.setPrefWidth(350.0);
 		int row = 0;
-		PaneTools.addGridRow(pane, row++, 0, "Choose model to apply to the current image", label, comboClassifiers, btnLoadExistingClassifier);
-		PaneTools.setToExpandGridPaneWidth(comboClassifiers);
+		GridPaneUtils.addGridRow(pane, row++, 0, "Choose model to apply to the current image", label, comboClassifiers, btnLoadExistingClassifier);
+		GridPaneUtils.setToExpandGridPaneWidth(comboClassifiers);
 
 		
 		if (resourceType.getResourceClass().equals(PixelClassifier.class)) {
@@ -258,16 +258,16 @@ public final class LoadResourceCommand<S> implements Runnable {
 			@SuppressWarnings("unchecked")
 			var tilePane = PixelClassifierUI.createPixelClassifierButtons(qupath.imageDataProperty(), (ObjectExpression<PixelClassifier>)selectedResource, classifierName);
 			
-			PaneTools.addGridRow(pane, row++, 0, "Control where the pixel classification is applied during preview",
+			GridPaneUtils.addGridRow(pane, row++, 0, "Control where the pixel classification is applied during preview",
 					labelRegion, comboRegionFilter, comboRegionFilter);
-			PaneTools.addGridRow(pane, row++, 0, "Apply pixel classification", tilePane, tilePane, tilePane);
+			GridPaneUtils.addGridRow(pane, row++, 0, "Apply pixel classification", tilePane, tilePane, tilePane);
 
-			PaneTools.setToExpandGridPaneWidth(tilePane);
+			GridPaneUtils.setToExpandGridPaneWidth(tilePane);
 		} else if (resourceType.getResourceClass().equals(DensityMapBuilder.class)) {
 			@SuppressWarnings("unchecked")
 			var buttonPane = DensityMapUI.createButtonPane(qupath, qupath.imageDataProperty(), (ObjectExpression<DensityMapBuilder>)selectedResource, classifierName, Bindings.createObjectBinding(() -> overlay), false);
-			PaneTools.addGridRow(pane, row++, 0, null, buttonPane, buttonPane, buttonPane);
-			PaneTools.setToExpandGridPaneWidth(buttonPane);
+			GridPaneUtils.addGridRow(pane, row++, 0, null, buttonPane, buttonPane, buttonPane);
+			GridPaneUtils.setToExpandGridPaneWidth(buttonPane);
 		}
 						
 

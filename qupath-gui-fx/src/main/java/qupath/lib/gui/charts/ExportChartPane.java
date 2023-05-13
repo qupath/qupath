@@ -81,7 +81,7 @@ import qupath.lib.common.GeneralTools;
 import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.panes.PreferencePane;
 import qupath.lib.gui.prefs.PathPrefs;
-import qupath.fx.PaneTools;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.io.GsonTools;
 
 /**
@@ -283,7 +283,7 @@ class ExportChartPane {
 			}
 		});
 
-		Pane paneButtons = PaneTools.createColumnGridControls(btnCopy, btnSave);
+		Pane paneButtons = GridPaneUtils.createColumnGridControls(btnCopy, btnSave);
 		paneButtons.setPadding(new Insets(5, 5, 5, 5));
 
 		// Listen for changes to stroke setting
@@ -752,7 +752,7 @@ class ExportChartPane {
 		BorderPane pane = new BorderPane();
 		combo.setMaxWidth(Double.MAX_VALUE);
 		pane.setCenter(combo);
-		pane.setBottom(PaneTools.createColumnGridControls(btnAdd, btnRemove));
+		pane.setBottom(GridPaneUtils.createColumnGridControls(btnAdd, btnRemove));
 		
 		TitledPane titledPane = new TitledPane("Presets", pane);
 		titledPane.setCollapsible(false);

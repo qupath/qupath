@@ -7,6 +7,7 @@ plugins {
 }
 
 ext.moduleName = 'qupath.fx'
+
 archivesBaseName = 'qupath-fx'
 description = "Extra classes built on JavaFX that are used to help create the QuPath user interface. " +
         "These don't have other QuPath-related dependencies, so could be reused elsewhere."
@@ -17,14 +18,17 @@ dependencies {
     api libs.controlsfx
 }
 
+version = '0.1.0-SNAPSHOT'
+
+tasks.named('compileJava') {
+    // use the project's version or define one directly
+    options.javaModuleVersion = provider { version }
+}
+
 javafx {
     version = libs.versions.javafx.get()
     modules = ["javafx.base",
                "javafx.controls",
-               "javafx.graphics",
-               "javafx.media",
-               "javafx.fxml",
-               "javafx.web",
-               "javafx.swing"]
+               "javafx.graphics"]
     configuration = 'api'
 }

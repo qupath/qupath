@@ -80,7 +80,7 @@ import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.panes.ProjectBrowser;
 import qupath.lib.gui.panes.ServerSelector;
 import qupath.lib.gui.prefs.PathPrefs;
-import qupath.fx.PaneTools;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.ImageData.ImageType;
@@ -209,9 +209,9 @@ class ProjectImportImagesCommand {
 		CheckBox cbImageSelector = new CheckBox("Show image selector");
 		cbImageSelector.setSelected(showImageSelectorProperty.get());
 
-		PaneTools.setMaxWidth(Double.MAX_VALUE, comboBuilder, comboType, comboRotate, cbPyramidalize, cbImportObjects, tfArgs, cbImageSelector);
-		PaneTools.setFillWidth(Boolean.TRUE, comboBuilder, comboType, comboRotate, cbPyramidalize, cbImportObjects, tfArgs, cbImageSelector);
-		PaneTools.setHGrowPriority(Priority.ALWAYS, comboBuilder, comboType, comboRotate, cbPyramidalize, cbImportObjects, tfArgs, cbImageSelector);
+		GridPaneUtils.setMaxWidth(Double.MAX_VALUE, comboBuilder, comboType, comboRotate, cbPyramidalize, cbImportObjects, tfArgs, cbImageSelector);
+		GridPaneUtils.setFillWidth(Boolean.TRUE, comboBuilder, comboType, comboRotate, cbPyramidalize, cbImportObjects, tfArgs, cbImageSelector);
+		GridPaneUtils.setHGrowPriority(Priority.ALWAYS, comboBuilder, comboType, comboRotate, cbPyramidalize, cbImportObjects, tfArgs, cbImageSelector);
 		
 		GridPane paneType = new GridPane();
 		paneType.setPadding(new Insets(5));
@@ -219,13 +219,13 @@ class ProjectImportImagesCommand {
 		paneType.setVgap(5);
 		int row = 0;
 		if (requestBuilder)
-			PaneTools.addGridRow(paneType, row++, 0, "Specify the library used to open images", labelBuilder, comboBuilder);
-		PaneTools.addGridRow(paneType, row++, 0, "Specify the default image type for all images being imported (required for analysis, can be changed later under the 'Image' tab)", labelType, comboType);
-		PaneTools.addGridRow(paneType, row++, 0, "Optionally rotate images on import", labelRotate, comboRotate);
-		PaneTools.addGridRow(paneType, row++, 0, "Optionally pass reader-specific arguments to the image provider.\nUsually this should just be left empty.", labelArgs, tfArgs);
-		PaneTools.addGridRow(paneType, row++, 0, "Dynamically create image pyramids for large, single-resolution images", cbPyramidalize, cbPyramidalize);
-		PaneTools.addGridRow(paneType, row++, 0, "Read and import objects (e.g. annotations) from the image file, if possible", cbImportObjects, cbImportObjects);
-		PaneTools.addGridRow(paneType, row++, 0, "Show the 'Image selector' window whenever the same URI contains multiple images.\n"
+			GridPaneUtils.addGridRow(paneType, row++, 0, "Specify the library used to open images", labelBuilder, comboBuilder);
+		GridPaneUtils.addGridRow(paneType, row++, 0, "Specify the default image type for all images being imported (required for analysis, can be changed later under the 'Image' tab)", labelType, comboType);
+		GridPaneUtils.addGridRow(paneType, row++, 0, "Optionally rotate images on import", labelRotate, comboRotate);
+		GridPaneUtils.addGridRow(paneType, row++, 0, "Optionally pass reader-specific arguments to the image provider.\nUsually this should just be left empty.", labelArgs, tfArgs);
+		GridPaneUtils.addGridRow(paneType, row++, 0, "Dynamically create image pyramids for large, single-resolution images", cbPyramidalize, cbPyramidalize);
+		GridPaneUtils.addGridRow(paneType, row++, 0, "Read and import objects (e.g. annotations) from the image file, if possible", cbImportObjects, cbImportObjects);
+		GridPaneUtils.addGridRow(paneType, row++, 0, "Show the 'Image selector' window whenever the same URI contains multiple images.\n"
 				+ "If this is turned off, then all images will be import.", cbImageSelector, cbImageSelector);
 		
 		paneImages.setCenter(paneList);
@@ -233,7 +233,7 @@ class ProjectImportImagesCommand {
 		
 //		TilePane paneButtons = new TilePane();
 //		paneButtons.getChildren().addAll(btnFile, btnURL, btnClipboard, btnFileList);
-		GridPane paneButtons = PaneTools.createColumnGridControls(btnFile, btnURL, btnClipboard, btnFileList);
+		GridPane paneButtons = GridPaneUtils.createColumnGridControls(btnFile, btnURL, btnClipboard, btnFileList);
 		paneButtons.setHgap(5);
 		paneButtons.setPadding(new Insets(5));
 		

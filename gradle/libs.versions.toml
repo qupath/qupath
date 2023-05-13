@@ -1,6 +1,6 @@
 [versions]
 
-bioformats      = "6.12.0"
+bioformats      = "6.13.0"
 bioimageIoSpec  = "0.1.0"
 
 commonmark      = "0.21.0"
@@ -8,7 +8,7 @@ commonsMath3    = "3.6.1"
 commonsText     = "1.10.0"
 controlsFX      = "11.1.2"
 
-deepJavaLibrary = "0.21.0"
+deepJavaLibrary = "0.22.1"
 
 groovy          = "4.0.10"
 gson            = "2.10.1"
@@ -23,7 +23,7 @@ javacpp         = "1.5.8"
   opencv        = "4.6.0-1.5.8"
   cuda          = "11.8-8.6-1.5.8"
   
-javafx          = "20"
+javafx          = "20.0.1"
 javafxJavadoc   = "19"
 jfreeSvg        = "5.0.5"
 jfxtras         = "17-r1"

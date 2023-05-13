@@ -55,7 +55,7 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.UpdateUrisCommand;
 import qupath.fx.dialogs.Dialogs;
-import qupath.fx.PaneTools;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.images.ImageData;
 import qupath.lib.io.GsonTools;
 import qupath.lib.io.UriResource;
@@ -231,15 +231,15 @@ public final class ObjectClassifierLoadCommand implements Runnable {
 		pane.setHgap(5);
 		pane.setVgap(10);
 		int row = 0;
-		PaneTools.setFillWidth(Boolean.TRUE, label, listClassifiers, btnApplyClassifier);
-		PaneTools.setVGrowPriority(Priority.ALWAYS, listClassifiers);
-		PaneTools.setHGrowPriority(Priority.ALWAYS, label, listClassifiers, btnApplyClassifier);
-		PaneTools.setMaxWidth(Double.MAX_VALUE, label, listClassifiers, btnApplyClassifier);
-		PaneTools.addGridRow(pane, row++, 0, "Choose object classification model to apply to the current image", label);
-		PaneTools.addGridRow(pane, row++, 0, "Drag and drop a file here to add a new classifier", listClassifiers);
-		PaneTools.addGridRow(pane, row++, 0, "Apply object classification to all open images", btnApplyClassifier);
+		GridPaneUtils.setFillWidth(Boolean.TRUE, label, listClassifiers, btnApplyClassifier);
+		GridPaneUtils.setVGrowPriority(Priority.ALWAYS, listClassifiers);
+		GridPaneUtils.setHGrowPriority(Priority.ALWAYS, label, listClassifiers, btnApplyClassifier);
+		GridPaneUtils.setMaxWidth(Double.MAX_VALUE, label, listClassifiers, btnApplyClassifier);
+		GridPaneUtils.addGridRow(pane, row++, 0, "Choose object classification model to apply to the current image", label);
+		GridPaneUtils.addGridRow(pane, row++, 0, "Drag and drop a file here to add a new classifier", listClassifiers);
+		GridPaneUtils.addGridRow(pane, row++, 0, "Apply object classification to all open images", btnApplyClassifier);
 		
-		PaneTools.setMaxWidth(Double.MAX_VALUE, listClassifiers, btnApplyClassifier);
+		GridPaneUtils.setMaxWidth(Double.MAX_VALUE, listClassifiers, btnApplyClassifier);
 				
 		var stage = new Stage();
 		stage.setTitle(title);

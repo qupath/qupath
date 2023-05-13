@@ -84,7 +84,7 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.IconFactory;
-import qupath.fx.PaneTools;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.overlays.AbstractOverlay.LocationStringFunction;
 import qupath.lib.gui.viewer.recording.ViewTrackerDataMaps.Feature;
@@ -554,17 +554,17 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 			btnRewind.setTooltip(new Tooltip("Rewind the recording"));
 
 			int row = 0;
-			PaneTools.addGridRow(slideOverviewPane, row++, 0, null, new HBox(), canvasPane);
-			PaneTools.addGridRow(slideOverviewPane, row++, 0, null, timeLabelLeft, timeSlider, timeLabelRight);
-			PaneTools.addGridRow(slideOverviewPane, row++, 0, "Playback options", new HBox(), playbackPane);
-			PaneTools.addGridRow(slideOverviewPane, row++, 0, null, sep, sep, sep, sep);
+			GridPaneUtils.addGridRow(slideOverviewPane, row++, 0, null, new HBox(), canvasPane);
+			GridPaneUtils.addGridRow(slideOverviewPane, row++, 0, null, timeLabelLeft, timeSlider, timeLabelRight);
+			GridPaneUtils.addGridRow(slideOverviewPane, row++, 0, "Playback options", new HBox(), playbackPane);
+			GridPaneUtils.addGridRow(slideOverviewPane, row++, 0, null, sep, sep, sep, sep);
 			
 			row = 0;
-			PaneTools.addGridRow(dataVisualizationPane, row++, 0, "Show the amount of time spent in each region of the image", visualizationCheckBox, progressIndicator);
-			PaneTools.addGridRow(dataVisualizationPane, row++, 0, "The data will only take into account the values recorded in-between this range", new Label("Time range"), timeDisplayedLeftLabel, timeDisplayedSlider, timeDisplayedRightLabel);
-			PaneTools.addGridRow(dataVisualizationPane, row++, 0, "The data will only take into account the values recorded in-between this range", new Label("Downsample range"), downsampleLeftLabel, downsampleSlider, downsampleRightLabel);
-			PaneTools.addGridRow(dataVisualizationPane, row++, 0, "Color map", new Label("Color map"), colorMapCombo, colorMapCombo, colorMapCombo);
-			PaneTools.addGridRow(dataVisualizationPane, row++, 0, null, colorMapCanvas, colorMapCanvas, colorMapCanvas, colorMapCanvas);
+			GridPaneUtils.addGridRow(dataVisualizationPane, row++, 0, "Show the amount of time spent in each region of the image", visualizationCheckBox, progressIndicator);
+			GridPaneUtils.addGridRow(dataVisualizationPane, row++, 0, "The data will only take into account the values recorded in-between this range", new Label("Time range"), timeDisplayedLeftLabel, timeDisplayedSlider, timeDisplayedRightLabel);
+			GridPaneUtils.addGridRow(dataVisualizationPane, row++, 0, "The data will only take into account the values recorded in-between this range", new Label("Downsample range"), downsampleLeftLabel, downsampleSlider, downsampleRightLabel);
+			GridPaneUtils.addGridRow(dataVisualizationPane, row++, 0, "Color map", new Label("Color map"), colorMapCombo, colorMapCombo, colorMapCombo);
+			GridPaneUtils.addGridRow(dataVisualizationPane, row++, 0, null, colorMapCanvas, colorMapCanvas, colorMapCanvas, colorMapCanvas);
 			
 			for (Node child: dataVisualizationPane.getChildren()) {
 				if (child == visualizationCheckBox)
@@ -615,8 +615,8 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 			buttons.add(btnOpen);
 			buttons.add(btnExpand);
 			
-			GridPane panelButtons = PaneTools.createColumnGridControls(buttons.toArray(new ButtonBase[0]));
-			PaneTools.addGridRow(mainLeftPane, row++, 0, null, panelButtons, panelButtons, panelButtons);
+			GridPane panelButtons = GridPaneUtils.createColumnGridControls(buttons.toArray(new ButtonBase[0]));
+			GridPaneUtils.addGridRow(mainLeftPane, row++, 0, null, panelButtons, panelButtons, panelButtons);
 
 			mainPane.getItems().add(mainLeftPane);
 			dialog.setScene(new Scene(mainPane));

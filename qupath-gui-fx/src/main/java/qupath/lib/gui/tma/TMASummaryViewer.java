@@ -150,7 +150,7 @@ import qupath.lib.gui.tma.TMAEntries.TMAEntry;
 import qupath.lib.gui.tma.TMAEntries.TMAObjectEntry;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.MenuTools;
-import qupath.fx.PaneTools;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ServerTools;
 import qupath.lib.io.PathIO;
@@ -1006,7 +1006,7 @@ public class TMASummaryViewer {
 		
 		BorderPane paneColumns = new BorderPane(tableColumns);
 		paneColumns.setBottom(
-				PaneTools.createColumnGridControls(
+				GridPaneUtils.createColumnGridControls(
 						ActionUtils.createButton(actionShowSelected),
 						ActionUtils.createButton(actionHideSelected)
 						)

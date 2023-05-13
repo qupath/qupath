@@ -43,7 +43,7 @@ import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.fx.dialogs.Dialogs;
-import qupath.fx.PaneTools;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ResourceManager.Manager;
 import qupath.process.gui.commands.ml.ProjectClassifierBindings;
@@ -184,8 +184,8 @@ public class SaveResourcePaneBuilder<T> {
 			Tooltip.install(pane, tooltip);
 		}
 		
-		PaneTools.addGridRow(pane, 0, 0, null, label, tfClassifierName, btnSave);
-		PaneTools.setToExpandGridPaneWidth(tfClassifierName);
+		GridPaneUtils.addGridRow(pane, 0, 0, null, label, tfClassifierName, btnSave);
+		GridPaneUtils.setToExpandGridPaneWidth(tfClassifierName);
 		pane.setHgap(5);
 		
 		ProjectClassifierBindings.bindPixelClassifierNameInput(tfClassifierName, project);

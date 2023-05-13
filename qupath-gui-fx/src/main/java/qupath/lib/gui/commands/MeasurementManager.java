@@ -60,7 +60,7 @@ import javafx.scene.layout.Pane;
 import qupath.fx.utils.FXUtils;
 import qupath.lib.gui.QuPathGUI;
 import qupath.fx.dialogs.Dialogs;
-import qupath.fx.PaneTools;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathAnnotationObject;
@@ -206,8 +206,8 @@ class MeasurementManager {
 		btnRemoveAll.setOnAction(e -> promptToRemoveAllMeasurements());
 		btnRemoveAll.disableProperty().bind(Bindings.isEmpty(listView.getItems()));
 
-		var paneButton = PaneTools.createRowGrid(tfFilter,
-				PaneTools.createColumnGrid(btnRemoveAll, btnRemove));
+		var paneButton = GridPaneUtils.createRowGrid(tfFilter,
+				GridPaneUtils.createColumnGrid(btnRemoveAll, btnRemove));
 		paneMeasurements.setBottom(paneButton);
 
 		// Operate on backspace too

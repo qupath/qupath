@@ -103,7 +103,7 @@ import qupath.lib.gui.charts.HistogramPanelFX.ThresholdedChartWrapper;
 import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.ColorToolsFX;
-import qupath.fx.PaneTools;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageChannel;
@@ -465,10 +465,10 @@ public class BrightnessContrastCommand implements Runnable, ChangeListener<Image
 						var labelName = new Label("Channel name");
 						var tfName = new TextField(channel.getName());
 						labelName.setLabelFor(tfName);
-						PaneTools.addGridRow(paneColor, r++, 0, "Enter a name for the current channel", labelName, tfName);
+						GridPaneUtils.addGridRow(paneColor, r++, 0, "Enter a name for the current channel", labelName, tfName);
 						var labelColor = new Label("Channel color");
 						labelColor.setLabelFor(picker);
-						PaneTools.addGridRow(paneColor, r++, 0, "Choose the color for the current channel", labelColor, picker);
+						GridPaneUtils.addGridRow(paneColor, r++, 0, "Choose the color for the current channel", labelColor, picker);
 						paneColor.setVgap(5.0);
 						paneColor.setHgap(5.0);
 						
@@ -589,7 +589,7 @@ public class BrightnessContrastCommand implements Runnable, ChangeListener<Image
 		// Create brightness/contrast panel
 		BorderPane panelSliders = new BorderPane();
 		panelSliders.setTop(box);
-		GridPane panelButtons = PaneTools.createColumnGridControls(
+		GridPane panelButtons = GridPaneUtils.createColumnGridControls(
 				btnAuto,
 				btnReset
 				);

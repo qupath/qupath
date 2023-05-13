@@ -50,7 +50,7 @@ import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.tools.GuiTools;
-import qupath.fx.PaneTools;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.gui.tools.PathObjectLabels;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
@@ -129,7 +129,7 @@ class CountingPane implements PathObjectSelectionListener, PathObjectHierarchyLi
 		});
 		
 		// Make buttons
-		GridPane paneMainButtons = PaneTools.createColumnGridControls(
+		GridPane paneMainButtons = GridPaneUtils.createColumnGridControls(
 				ActionUtils.createButton(btnAdd),
 				ActionUtils.createButton(btnEdit),
 				ActionUtils.createButton(btnDelete)

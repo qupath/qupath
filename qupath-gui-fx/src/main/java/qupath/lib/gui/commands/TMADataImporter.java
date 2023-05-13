@@ -61,7 +61,7 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.ColorToolsFX;
-import qupath.fx.PaneTools;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.io.TMAScoreImporter;
@@ -187,7 +187,7 @@ class TMADataImporter {
 				table.refresh();
 		});
 		
-		GridPane buttonPane = PaneTools.createColumnGridControls(
+		GridPane buttonPane = GridPaneUtils.createColumnGridControls(
 				btnImportData,
 				btnPasteData,
 				btnLoadGrid,

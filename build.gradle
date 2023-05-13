@@ -18,7 +18,7 @@ task mergedJavadocs(type: Javadoc,
 	// See https://docs.gradle.org/current/javadoc/org/gradle/external/javadoc/StandardJavadocDocletOptions.html
 	options.author(true)
 	options.addStringOption('Xdoclint:none', '-quiet')
-	
+
 	options.encoding = 'UTF-8'
 
 	options.links "https://docs.oracle.com/en/java/javase/${libs.versions.jdk.get()}/docs/api/"
@@ -30,10 +30,9 @@ task mergedJavadocs(type: Javadoc,
 	options.links "https://javadoc.io/doc/net.imagej/ij/${libs.versions.imagej.get()}/"
 	options.links "https://javadoc.scijava.org/Bio-Formats/"
 	options.links "https://javadoc.io/doc/ai.djl/api/${libs.versions.deepJavaLibrary.get()}/"
-	
+
 	// Don't fail on error, because this happened too often due to a javadoc link being temporarily down
 	failOnError = false
-
 }
 
 /*

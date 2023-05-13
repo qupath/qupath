@@ -93,7 +93,7 @@ import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tma.TMASummaryViewer;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.tools.GuiTools;
-import qupath.fx.PaneTools;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.gui.viewer.GridLines;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.QuPathViewer;
@@ -425,8 +425,8 @@ public class Commands {
 		
 		tfDownsample.setText(Double.toString(exportDownsample.get()));
 		
-		PaneTools.setMaxWidth(Double.MAX_VALUE, labelSize, textArea, tfDownsample, comboImageType);
-		PaneTools.setHGrowPriority(Priority.ALWAYS, labelSize, textArea, tfDownsample, comboImageType);
+		GridPaneUtils.setMaxWidth(Double.MAX_VALUE, labelSize, textArea, tfDownsample, comboImageType);
+		GridPaneUtils.setHGrowPriority(Priority.ALWAYS, labelSize, textArea, tfDownsample, comboImageType);
 		
 		pane.setVgap(5);
 		pane.setHgap(5);
@@ -662,7 +662,7 @@ public class Commands {
 		
 		GridPane paneImportExport = new GridPane();
 		paneImportExport.addRow(0, btnImport, btnExport, btnReset);
-		PaneTools.setHGrowPriority(Priority.ALWAYS, btnImport, btnExport, btnReset);
+		GridPaneUtils.setHGrowPriority(Priority.ALWAYS, btnImport, btnExport, btnReset);
 		paneImportExport.setMaxWidth(Double.MAX_VALUE);
 
 		BorderPane pane = new BorderPane();
@@ -1598,7 +1598,7 @@ public class Commands {
 		btnSelectAll.setMaxWidth(Double.MAX_VALUE);
 		btnSelectNone.setMaxWidth(Double.MAX_VALUE);
 		
-		pane.setBottom(PaneTools.createColumnGrid(btnSelectAll, btnSelectNone));
+		pane.setBottom(GridPaneUtils.createColumnGrid(btnSelectAll, btnSelectNone));
 		
 		var dialog = Dialogs.builder()
 				.title("Shape features")

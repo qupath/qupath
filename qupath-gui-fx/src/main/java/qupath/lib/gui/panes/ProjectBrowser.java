@@ -106,7 +106,7 @@ import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.IconFactory;
 import qupath.lib.gui.tools.IconFactory.PathIcons;
 import qupath.lib.gui.tools.MenuTools;
-import qupath.fx.PaneTools;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
@@ -227,7 +227,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		tfFilter.setTooltip(new Tooltip("Type some text to filter the project entries by name or type."));
 		tfFilter.textProperty().addListener((m, o, n) -> refreshTree(null));
 		
-		var paneUserFilter = PaneTools.createRowGrid(tfFilter);
+		var paneUserFilter = GridPaneUtils.createRowGrid(tfFilter);
 		
 		BorderPane panelTree = new BorderPane();
 		panelTree.setCenter(titledTree);
@@ -238,7 +238,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		Button btnOpen = ActionTools.createButton(qupath.getCommonActions().PROJECT_OPEN);
 		Button btnCreate = ActionTools.createButton(qupath.getCommonActions().PROJECT_NEW);
 		Button btnAdd = ActionTools.createButton(qupath.getCommonActions().PROJECT_ADD_IMAGES);
-		GridPane paneButtons = PaneTools.createColumnGridControls(btnCreate, btnOpen, btnAdd);
+		GridPane paneButtons = GridPaneUtils.createColumnGridControls(btnCreate, btnOpen, btnAdd);
 		paneButtons.prefWidthProperty().bind(panel.widthProperty());
 		paneButtons.setPadding(new Insets(5, 5, 5, 5));
 		panel.setTop(paneButtons);

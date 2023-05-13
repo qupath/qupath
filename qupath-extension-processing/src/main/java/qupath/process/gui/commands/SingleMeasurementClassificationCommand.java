@@ -65,7 +65,7 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.charts.HistogramPanelFX;
 import qupath.lib.gui.charts.HistogramPanelFX.ThresholdedChartWrapper;
 import qupath.fx.dialogs.Dialogs;
-import qupath.fx.PaneTools;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
@@ -197,24 +197,24 @@ public class SingleMeasurementClassificationCommand implements Runnable {
 			int row = 0;
 			
 			var labelFilter = new Label("Object filter");
-			PaneTools.addGridRow(pane, row++, 0, "Select objects to classify", labelFilter, comboFilter, comboFilter);
+			GridPaneUtils.addGridRow(pane, row++, 0, "Select objects to classify", labelFilter, comboFilter, comboFilter);
 
 			var labelChannels = new Label("Channel filter");
-			PaneTools.addGridRow(pane, row++, 0, "Optionally filter measurement lists & classifications by channel name", labelChannels, comboChannels, comboChannels);
+			GridPaneUtils.addGridRow(pane, row++, 0, "Optionally filter measurement lists & classifications by channel name", labelChannels, comboChannels, comboChannels);
 
 			var labelMeasurements = new Label("Measurement");
-			PaneTools.addGridRow(pane, row++, 0, "Select measurement to threshold", labelMeasurements, comboMeasurements, comboMeasurements);
+			GridPaneUtils.addGridRow(pane, row++, 0, "Select measurement to threshold", labelMeasurements, comboMeasurements, comboMeasurements);
 			
 			var labelThreshold = new Label("Threshold");
-			PaneTools.addGridRow(pane, row++, 0, "Select threshold value", labelThreshold, sliderThreshold, tf);
+			GridPaneUtils.addGridRow(pane, row++, 0, "Select threshold value", labelThreshold, sliderThreshold, tf);
 
 			var labelAbove = new Label("Above threshold");
-			PaneTools.addGridRow(pane, row++, 0, "Specify the classification for objects above (or equal to) the threshold", labelAbove, comboAbove, comboAbove);
+			GridPaneUtils.addGridRow(pane, row++, 0, "Specify the classification for objects above (or equal to) the threshold", labelAbove, comboAbove, comboAbove);
 
 			var labelBelow = new Label("Below threshold");
-			PaneTools.addGridRow(pane, row++, 0, "Specify the classification for objects below the threshold", labelBelow, comboBelow, comboBelow);
+			GridPaneUtils.addGridRow(pane, row++, 0, "Specify the classification for objects below the threshold", labelBelow, comboBelow, comboBelow);
 
-			PaneTools.addGridRow(pane, row++, 0, "Turn on/off live preview while changing settings", cbLivePreview, cbLivePreview, cbLivePreview);
+			GridPaneUtils.addGridRow(pane, row++, 0, "Turn on/off live preview while changing settings", cbLivePreview, cbLivePreview, cbLivePreview);
 
 			var btnSave = new Button("Save");
 			btnSave.setOnAction(e -> {
@@ -228,7 +228,7 @@ public class SingleMeasurementClassificationCommand implements Runnable {
 			ProjectClassifierBindings.bindObjectClassifierNameInput(tfSaveName, qupath.projectProperty());
 			btnSave.setMaxWidth(Double.MAX_VALUE);
 			btnSave.disableProperty().bind(comboMeasurements.valueProperty().isNull().or(tfSaveName.textProperty().isEmpty()));
-			PaneTools.addGridRow(pane, row++, 0, "Specify name of the classifier - this will be used to save to "
+			GridPaneUtils.addGridRow(pane, row++, 0, "Specify name of the classifier - this will be used to save to "
 					+ "save the classifier in the current project, so it may be used for scripting later", labelSave, tfSaveName, btnSave);
 			
 			var chartWrapper = new ThresholdedChartWrapper(histogramPane.getChart());
@@ -238,9 +238,9 @@ public class SingleMeasurementClassificationCommand implements Runnable {
 			histogramPane.getChart().getYAxis().setTickLabelsVisible(false);
 			histogramPane.getChart().setAnimated(false);
 			
-			PaneTools.setToExpandGridPaneHeight(chartWrapper.getPane());
-			PaneTools.setToExpandGridPaneWidth(chartWrapper.getPane());
-			PaneTools.setToExpandGridPaneWidth(comboFilter, comboChannels, comboMeasurements, sliderThreshold, 
+			GridPaneUtils.setToExpandGridPaneHeight(chartWrapper.getPane());
+			GridPaneUtils.setToExpandGridPaneWidth(chartWrapper.getPane());
+			GridPaneUtils.setToExpandGridPaneWidth(comboFilter, comboChannels, comboMeasurements, sliderThreshold,
 					comboAbove, comboBelow, tfSaveName, cbLivePreview);
 			
 			histogramPane.getChart().getYAxis().setTickLabelsVisible(false);

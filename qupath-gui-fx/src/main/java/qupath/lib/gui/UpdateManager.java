@@ -52,7 +52,7 @@ import qupath.lib.gui.extensions.UpdateChecker.ReleaseVersion;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.prefs.PathPrefs.AutoUpdateType;
 import qupath.lib.gui.tools.GuiTools;
-import qupath.fx.PaneTools;
+import qupath.fx.utils.GridPaneUtils;
 
 
 /**
@@ -205,7 +205,7 @@ class UpdateManager {
 		paneUpdates.add(labelUpdates, 0, 0);
 		paneUpdates.add(comboUpdates, 1, 0);
 		paneUpdates.setHgap(5);
-		PaneTools.setToExpandGridPaneWidth(comboUpdates);
+		GridPaneUtils.setToExpandGridPaneWidth(comboUpdates);
 		paneUpdates.setPadding(new Insets(5, 0, 0, 0));
 		
 		var pane = new BorderPane(table);

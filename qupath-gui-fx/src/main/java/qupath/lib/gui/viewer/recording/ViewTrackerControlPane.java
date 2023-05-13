@@ -81,7 +81,7 @@ import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.IconFactory;
-import qupath.fx.PaneTools;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
 
@@ -303,7 +303,7 @@ public class ViewTrackerControlPane implements Runnable {
 		
 		
 		// Add all buttons to GridPane
-		GridPane btnPane = PaneTools.createColumnGrid(3);
+		GridPane btnPane = GridPaneUtils.createColumnGrid(3);
 		exportBtn.setMaxWidth(Double.MAX_VALUE);
 		deleteBtn.setMaxWidth(Double.MAX_VALUE);
 		btnMore.setMaxWidth(Double.MAX_VALUE);
@@ -322,8 +322,8 @@ public class ViewTrackerControlPane implements Runnable {
 		
 		
 		int row = 0;
-		PaneTools.addGridRow(contentPane,  row++,  0, null, table);
-		PaneTools.addGridRow(contentPane,  row++,  0, null, btnPane);
+		GridPaneUtils.addGridRow(contentPane,  row++,  0, null, table);
+		GridPaneUtils.addGridRow(contentPane,  row++,  0, null, btnPane);
 		
 		
 		table.getSelectionModel().selectedItemProperty().addListener((v, o, tracker) -> {

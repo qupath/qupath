@@ -56,7 +56,7 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.actions.ActionTools;
 import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.prefs.PathPrefs;
-import qupath.fx.PaneTools;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.gui.viewer.tools.PathTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ServerTools;
@@ -209,7 +209,7 @@ public class CountingPanelCommand implements Runnable, ChangeListener<ImageData<
 			}
 		);
 		
-		GridPane panelLoadSave = PaneTools.createColumnGridControls(
+		GridPane panelLoadSave = GridPaneUtils.createColumnGridControls(
 				btnLoad,
 				btnSave
 				);

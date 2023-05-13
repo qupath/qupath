@@ -59,7 +59,7 @@ import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
 import qupath.lib.common.GeneralTools;
-import qupath.fx.PaneTools;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.plugins.parameters.BooleanParameter;
 import qupath.lib.plugins.parameters.ChoiceParameter;
 import qupath.lib.plugins.parameters.DoubleParameter;
@@ -347,17 +347,17 @@ public class ParameterPanelFX {
 		map.put(parameter, component);
 		String help = parameter.getHelpText();
 
-		PaneTools.setFillWidth(Boolean.TRUE, component);
-		PaneTools.setHGrowPriority(Priority.ALWAYS, component);
+		GridPaneUtils.setFillWidth(Boolean.TRUE, component);
+		GridPaneUtils.setHGrowPriority(Priority.ALWAYS, component);
 
 		if (text == null) {
-			PaneTools.addGridRow(pane, currentRow++, 0, help, component, component);
+			GridPaneUtils.addGridRow(pane, currentRow++, 0, help, component, component);
 		} else {
 			Label label = new Label(text);
 			label.setMaxWidth(Double.MAX_VALUE);
 			label.setMinWidth(Label.USE_PREF_SIZE);
 			label.setLabelFor(component);
-			PaneTools.addGridRow(pane, currentRow++, 0, help, label, component);
+			GridPaneUtils.addGridRow(pane, currentRow++, 0, help, label, component);
 		}
 	}
 	

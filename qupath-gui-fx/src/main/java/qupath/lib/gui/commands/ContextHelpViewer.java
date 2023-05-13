@@ -58,7 +58,7 @@ import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.IconFactory;
 import qupath.lib.gui.tools.IconFactory.PathIcons;
-import qupath.fx.PaneTools;
+import qupath.fx.utils.GridPaneUtils;
 
 /**
  * Help window providing context-dependent help.
@@ -158,8 +158,8 @@ public class ContextHelpViewer {
 		label.textProperty().bindBidirectional(helpText);
 		label.setPadding(new Insets(10.0));
 		
-		PaneTools.setToExpandGridPaneWidth(label);
-		PaneTools.setToExpandGridPaneHeight(label);
+		GridPaneUtils.setToExpandGridPaneWidth(label);
+		GridPaneUtils.setToExpandGridPaneHeight(label);
 		label.setPrefHeight(100.0);
 
 		return label;

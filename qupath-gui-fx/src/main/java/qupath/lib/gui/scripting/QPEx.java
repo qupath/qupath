@@ -65,7 +65,7 @@ import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tma.TMADataIO;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.MenuTools;
-import qupath.fx.PaneTools;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.LabeledImageServer;
@@ -105,7 +105,7 @@ public class QPEx extends QP {
 			GuiTools.class,
 			Charts.class,
 			MenuTools.class,
-			PaneTools.class,
+			GridPaneUtils.class,
 			
 			LabeledImageServer.class,
 			

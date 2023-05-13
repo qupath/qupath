@@ -50,7 +50,7 @@ import qupath.fx.utils.FXUtils;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.fx.PaneTools;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.overlays.PathOverlay;
@@ -213,18 +213,18 @@ public class SimpleThresholdCommand implements Runnable {
 		
 		Label labelResolution = new Label("Resolution");
 		labelResolution.setLabelFor(comboResolutions);
-		PaneTools.addGridRow(pane, row++, 0, "Select image resolution to threshold (higher values mean lower resolution, and faster thresholding)",
+		GridPaneUtils.addGridRow(pane, row++, 0, "Select image resolution to threshold (higher values mean lower resolution, and faster thresholding)",
 				labelResolution, comboResolutions, comboResolutions);
 
 		Label label = new Label("Channel");
 		label.setLabelFor(transforms);
-		PaneTools.addGridRow(pane, row++, 0, "Select channel to threshold", label, transforms, transforms);
+		GridPaneUtils.addGridRow(pane, row++, 0, "Select channel to threshold", label, transforms, transforms);
 		
 		Label labelPrefilter = new Label("Prefilter");
 		labelPrefilter.setLabelFor(comboPrefilter);
 		comboPrefilter.getItems().setAll(Prefilter.values());
 		comboPrefilter.getSelectionModel().select(Prefilter.GAUSSIAN);
-		PaneTools.addGridRow(pane, row++, 0, "Select image smoothing filter (Gaussian is usually best)", labelPrefilter, comboPrefilter, comboPrefilter);
+		GridPaneUtils.addGridRow(pane, row++, 0, "Select image smoothing filter (Gaussian is usually best)", labelPrefilter, comboPrefilter, comboPrefilter);
 
 		label = new Label("Smoothing sigma");
 		label.setLabelFor(sigmaSpinner);
@@ -235,7 +235,7 @@ public class SimpleThresholdCommand implements Runnable {
 		labelSigma.setMinWidth(25); // Thanks to Melvin, to stop it jumping around
 		FXUtils.restrictTextFieldInputToNumber(sigmaSpinner.getEditor(), true);
 		FXUtils.resetSpinnerNullToPrevious(sigmaSpinner);
-		PaneTools.addGridRow(pane, row++, 0, "Select smoothing sigma value (higher values give a smoother result)", label, sigmaSpinner, labelSigma);
+		GridPaneUtils.addGridRow(pane, row++, 0, "Select smoothing sigma value (higher values give a smoother result)", label, sigmaSpinner, labelSigma);
 
 		label = new Label("Threshold");
 		label.setLabelFor(spinner);
@@ -245,16 +245,16 @@ public class SimpleThresholdCommand implements Runnable {
 				);
 		FXUtils.restrictTextFieldInputToNumber(spinner.getEditor(), true);
 		FXUtils.resetSpinnerNullToPrevious(spinner);
-		PaneTools.addGridRow(pane, row++, 0, "Select threshold value", label, spinner, labelThreshold);
+		GridPaneUtils.addGridRow(pane, row++, 0, "Select threshold value", label, spinner, labelThreshold);
 
 		Label labelAbove = new Label("Above threshold");
 		labelAbove.setLabelFor(classificationsAbove);
 
 		Label labelBelow = new Label("Below threshold");
 		labelBelow.setLabelFor(classificationsBelow);
-		PaneTools.addGridRow(pane, row++, 0, "Select classification for pixels above the threshold."
+		GridPaneUtils.addGridRow(pane, row++, 0, "Select classification for pixels above the threshold."
 				+ "\nDouble-click on labels to switch above & below.", labelAbove, classificationsAbove, classificationsAbove);
-		PaneTools.addGridRow(pane, row++, 0, "Select classification for pixels less than or equal to the threshold."
+		GridPaneUtils.addGridRow(pane, row++, 0, "Select classification for pixels less than or equal to the threshold."
 				+ "\nDouble-click on labels to switch above & below.", labelBelow, classificationsBelow, classificationsBelow);
 		
 		labelAbove.setOnMouseClicked(e -> {
@@ -265,7 +265,7 @@ public class SimpleThresholdCommand implements Runnable {
 
 		var labelRegion = new Label("Region");
 		var comboRegionFilter = PixelClassifierUI.createRegionFilterCombo(qupath.getOverlayOptions());
-		PaneTools.addGridRow(pane,  row++, 0, "Control where the pixel classification is applied during preview",
+		GridPaneUtils.addGridRow(pane,  row++, 0, "Control where the pixel classification is applied during preview",
 				labelRegion, comboRegionFilter, comboRegionFilter);
 		
 //		var nodeLimit = PixelClassifierTools.createLimitToAnnotationsControl(qupath.getOverlayOptions());
@@ -285,12 +285,12 @@ public class SimpleThresholdCommand implements Runnable {
 
 		
 		var classifierName = new SimpleStringProperty(null);
-		var tilePane = PaneTools.createRowGrid(
+		var tilePane = GridPaneUtils.createRowGrid(
 				PixelClassifierUI.createSavePixelClassifierPane(qupath.projectProperty(), currentClassifier, classifierName),
 				PixelClassifierUI.createPixelClassifierButtons(qupath.imageDataProperty(), currentClassifier, classifierName)
 				);
 		tilePane.setVgap(5);
-		PaneTools.addGridRow(pane, row++, 0, null, tilePane, tilePane, tilePane);
+		GridPaneUtils.addGridRow(pane, row++, 0, null, tilePane, tilePane, tilePane);
 		
 //		var tilePane = PixelClassifierUI.createPixelClassifierButtons(qupath.imageDataProperty(), currentClassifier);
 //		PaneTools.addGridRow(pane, row++, 0, null, tilePane, tilePane, tilePane);
@@ -311,13 +311,13 @@ public class SimpleThresholdCommand implements Runnable {
 		pane.setHgap(6.0);
 		pane.setPadding(new Insets(10.0));
 		
-		PaneTools.setMaxWidth(Double.MAX_VALUE, comboResolutions, comboPrefilter,
+		GridPaneUtils.setMaxWidth(Double.MAX_VALUE, comboResolutions, comboPrefilter,
 				transforms, spinner, sigmaSpinner, classificationsAbove, classificationsBelow,
 				btnSave, tilePane);
-		PaneTools.setFillWidth(Boolean.TRUE, comboResolutions, comboPrefilter,
+		GridPaneUtils.setFillWidth(Boolean.TRUE, comboResolutions, comboPrefilter,
 				transforms, spinner, sigmaSpinner, classificationsAbove, classificationsBelow,
 				btnSave, tilePane);
-		PaneTools.setHGrowPriority(Priority.ALWAYS, comboResolutions, comboPrefilter,
+		GridPaneUtils.setHGrowPriority(Priority.ALWAYS, comboResolutions, comboPrefilter,
 				transforms, spinner, sigmaSpinner, classificationsAbove, classificationsBelow,
 				btnSave, tilePane);
 		

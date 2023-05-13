@@ -56,7 +56,7 @@ import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.prefs.PathPrefs.AutoUpdateType;
 import qupath.lib.gui.prefs.QuPathStyleManager;
-import qupath.fx.PaneTools;
+import qupath.fx.utils.GridPaneUtils;
 
 
 /**
@@ -110,7 +110,7 @@ public class WelcomeStage {
 				Glyph.COMMENTS_ALT,
 				Urls.getUserForumUrl()
 				);
-		var paneButtons = PaneTools.createColumnGrid(btnDocs, btnForum, btnCode);
+		var paneButtons = GridPaneUtils.createColumnGrid(btnDocs, btnForum, btnCode);
 				
 		var pane = new BorderPane(paneButtons);
 		
@@ -239,7 +239,7 @@ public class WelcomeStage {
 		paneOptions.add(cbShowStartup, 0, row, GridPane.REMAINING, 1);
 		row++;
 
-		PaneTools.setToExpandGridPaneWidth(comboThemes, comboUpdates, cbShowStartup, btnStarted, labelExplanation);
+		GridPaneUtils.setToExpandGridPaneWidth(comboThemes, comboUpdates, cbShowStartup, btnStarted, labelExplanation);
 		
 		if (GeneralTools.isMac() && "aarch64".equals(System.getProperty("os.arch"))) {  //$NON-NLS-2$
 			var textSilicon = makeMacAarch64Message();
@@ -247,7 +247,7 @@ public class WelcomeStage {
 			textSilicon.setOpacity(0.9);
 			var sepSilicon = new Separator(Orientation.HORIZONTAL);
 			sepSilicon.setPadding(new Insets(5, 5, 0, 5));
-			PaneTools.setToExpandGridPaneWidth(sepSilicon, textSilicon);
+			GridPaneUtils.setToExpandGridPaneWidth(sepSilicon, textSilicon);
 			paneOptions.add(sepSilicon, 0, row++, GridPane.REMAINING, 1);
 			paneOptions.add(textSilicon, 0, row++, GridPane.REMAINING, 1);
 			row++;

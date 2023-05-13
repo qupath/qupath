@@ -77,7 +77,7 @@ import qupath.lib.gui.measure.ObservableMeasurementTableData;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.MeasurementExporter;
-import qupath.fx.PaneTools;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathCellObject;
@@ -174,7 +174,7 @@ public class MeasurementExportCommand implements Runnable {
 		});
 		
 		pathOutputLabel.setLabelFor(outputText);
-		PaneTools.addGridRow(optionPane, row++, 0, "Choose output file", pathOutputLabel, outputText, outputText, btnChooseFile, btnChooseFile);
+		GridPaneUtils.addGridRow(optionPane, row++, 0, "Choose output file", pathOutputLabel, outputText, outputText, btnChooseFile, btnChooseFile);
 		outputText.setMaxWidth(Double.MAX_VALUE);
 		btnChooseFile.setMaxWidth(Double.MAX_VALUE);
 		
@@ -188,13 +188,13 @@ public class MeasurementExportCommand implements Runnable {
 				setType(n);
 		});
 	
-		PaneTools.addGridRow(optionPane, row++, 0, "Choose the export type", pathObjectLabel, pathObjectCombo, pathObjectCombo, pathObjectCombo, pathObjectCombo);
+		GridPaneUtils.addGridRow(optionPane, row++, 0, "Choose the export type", pathObjectLabel, pathObjectCombo, pathObjectCombo, pathObjectCombo, pathObjectCombo);
 
 		Label separatorLabel = new Label("Separator");
 		separatorLabel.setLabelFor(separatorCombo);
 		separatorCombo.getItems().setAll("Tab (.tsv)", "Comma (.csv)", "Semicolon (.csv)");
 		separatorCombo.getSelectionModel().selectFirst();
-		PaneTools.addGridRow(optionPane, row++, 0, "Choose a value separator", separatorLabel, separatorCombo, separatorCombo, separatorCombo, separatorCombo);
+		GridPaneUtils.addGridRow(optionPane, row++, 0, "Choose a value separator", separatorLabel, separatorCombo, separatorCombo, separatorCombo, separatorCombo);
 		
 		
 		Label includeLabel = new Label("Columns to include (Optional)");
@@ -207,7 +207,7 @@ public class MeasurementExportCommand implements Runnable {
 		progressIndicator.setMinSize(20, 20);
 		progressIndicator.setOpacity(0);
 		Button btnResetColumns = new Button("Reset");
-		PaneTools.addGridRow(optionPane, row++, 0, "Choose the specific column(s) to include (default: all)", includeLabel, includeCombo, btnPopulateColumns, progressIndicator, btnResetColumns);
+		GridPaneUtils.addGridRow(optionPane, row++, 0, "Choose the specific column(s) to include (default: all)", includeLabel, includeCombo, btnPopulateColumns, progressIndicator, btnResetColumns);
 		btnPopulateColumns.setOnAction(e -> {
 			includeCombo.setDisable(true);
 			Set<String> allColumnsForCombo = Collections.synchronizedSet(new LinkedHashSet<>());
@@ -263,8 +263,8 @@ public class MeasurementExportCommand implements Runnable {
 				outputText.setText(currentOut.replace(".tsv", ".csv"));
 		});
 
-		PaneTools.getContentsOfType(optionPane, Label.class, false).forEach(e -> e.setMinWidth(160));
-		PaneTools.setToExpandGridPaneWidth(outputText, pathObjectCombo, separatorCombo, includeCombo);
+		FXUtils.getContentsOfType(optionPane, Label.class, false).forEach(e -> e.setMinWidth(160));
+		GridPaneUtils.setToExpandGridPaneWidth(outputText, pathObjectCombo, separatorCombo, includeCombo);
 		btnPopulateColumns.setMinWidth(100);
 		btnResetColumns.setMinWidth(75);
 		

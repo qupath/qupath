@@ -20,6 +20,8 @@ import org.slf4j.LoggerFactory;
 
 import java.text.NumberFormat;
 import java.text.ParsePosition;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Callable;
@@ -402,6 +404,67 @@ public class FXUtils {
                 ((TreeTableView<?>)child).refresh();
             else if (child instanceof Parent)
                 refreshAllListsAndTables((Parent)child);
+        }
+    }
+
+    /**
+     * Get the nodes that are included within a {@link Parent}, optionally adding other nodes recursively.
+     * Without the recursive search, this is similar to {@link Parent#getChildrenUnmodifiable()} in most cases,
+     * except that a separate collection is used. However in some cases {@code getItems()} must be used instead.
+     * Currently this applies only to {@link SplitPane} but this may be used elsewhere if appropriate.
+     * @param parent
+     * @param collection
+     * @param doRecursive
+     * @return
+     */
+    public static Collection<Node> getContents(Parent parent, Collection<Node> collection, boolean doRecursive) {
+        if (collection == null) {
+            collection = new ArrayList<>();
+        }
+        var children = parent.getChildrenUnmodifiable();
+        if (children.isEmpty() && parent instanceof SplitPane) {
+            children = ((SplitPane)parent).getItems();
+        }
+        for (var child : children) {
+            collection.add(child);
+            if (doRecursive && child instanceof Parent)
+                getContents((Parent)child, collection, doRecursive);
+        }
+        return collection;
+    }
+
+    /**
+     * Get the nodes of type T that are contained within a {@link Parent}, optionally adding other nodes
+     * recursively. This can be helpful, for example, to extract all the Buttons or Regions within a pane
+     * in order to set some property of all of them.
+     * @param <T>
+     * @param parent
+     * @param cls
+     * @param doRecursive
+     * @return
+     *
+     * @see #getContents(Parent, Collection, boolean)
+     */
+    public static <T extends Node> Collection<T> getContentsOfType(Parent parent, Class<T> cls, boolean doRecursive) {
+        return getContents(parent, new ArrayList<>(), doRecursive).stream()
+                .filter(p -> cls.isInstance(p))
+                .map(p -> cls.cast(p))
+                .toList();
+    }
+
+    /**
+     * Simplify the appearance of a {@link TitledPane} using CSS.
+     * This is useful if using a {@link TitledPane} to define expanded options, which should be displayed unobtrusively.
+     *
+     * @param pane the pane to simplify
+     * @param boldTitle if true, the title should be displayed in bold
+     */
+    public static void simplifyTitledPane(TitledPane pane, boolean boldTitle) {
+        var css = GridPaneUtils.class.getClassLoader().getResource("css/titled_plain.css").toExternalForm();
+        pane.getStylesheets().add(css);
+        if (boldTitle) {
+            var css2 = GridPaneUtils.class.getClassLoader().getResource("css/titled_bold.css").toExternalForm();
+            pane.getStylesheets().add(css2);
         }
     }
 

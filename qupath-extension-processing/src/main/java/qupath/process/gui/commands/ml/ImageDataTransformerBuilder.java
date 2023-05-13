@@ -43,7 +43,7 @@ import javafx.scene.control.Spinner;
 import javafx.scene.layout.GridPane;
 import qupath.fx.utils.FXUtils;
 import qupath.fx.dialogs.Dialogs;
-import qupath.fx.PaneTools;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ColorTransforms;
 import qupath.lib.images.servers.ColorTransforms.ColorTransform;
@@ -339,18 +339,18 @@ abstract class ImageDataTransformerBuilder {
 //			do3D = cb3D.selectedProperty();
 
 
-			PaneTools.setMaxWidth(Double.MAX_VALUE, comboChannels, comboFeatures, comboScales,
+			GridPaneUtils.setMaxWidth(Double.MAX_VALUE, comboChannels, comboFeatures, comboScales,
 					comboNormalize, spinnerNormalize);
 
-			PaneTools.addGridRow(pane, row++, 0,
+			GridPaneUtils.addGridRow(pane, row++, 0,
 					"Choose the image channels used to calculate features",
 					labelChannels, comboChannels);		
 
-			PaneTools.addGridRow(pane, row++, 0,
+			GridPaneUtils.addGridRow(pane, row++, 0,
 					"Choose the feature scales",
 					labelScales, comboScales);		
 
-			PaneTools.addGridRow(pane, row++, 0,
+			GridPaneUtils.addGridRow(pane, row++, 0,
 					"Choose the features",
 					labelFeatures, comboFeatures);		
 
@@ -358,11 +358,11 @@ abstract class ImageDataTransformerBuilder {
 //					"Use 3D filters (rather than 2D)",
 //					cb3D, cb3D);	
 
-			PaneTools.addGridRow(pane, row++, 0,
+			GridPaneUtils.addGridRow(pane, row++, 0,
 					"Apply local intensity (Gaussian-weighted) normalization before calculating features",
 					labelNormalize, comboNormalize);
 			
-			PaneTools.addGridRow(pane, row++, 0,
+			GridPaneUtils.addGridRow(pane, row++, 0,
 					"Amount of smoothing to apply for local normalization",
 					labelNormalizeScale, spinnerNormalize);
 

@@ -51,7 +51,7 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.charts.HistogramPanelFX;
 import qupath.lib.gui.charts.HistogramPanelFX.ThresholdedChartWrapper;
 import qupath.fx.dialogs.Dialogs;
-import qupath.fx.PaneTools;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
@@ -111,7 +111,7 @@ public class CellIntensityClassificationCommand implements Runnable {
 		
 		var comboMeasurements = new ComboBox<String>();
 		comboMeasurements.getItems().setAll(measurements);
-		PaneTools.setToExpandGridPaneWidth(comboMeasurements);
+		GridPaneUtils.setToExpandGridPaneWidth(comboMeasurements);
 		var selectedMeasurement = comboMeasurements.getSelectionModel().selectedItemProperty();
 		
 		var cbSingleThreshold = new CheckBox("Single threshold");
@@ -130,7 +130,7 @@ public class CellIntensityClassificationCommand implements Runnable {
 			slider.valueProperty().addListener((v, o, n) -> {
 				updateClassifications(hierarchy, allDetections, selectedMeasurement.get(), parseValues(sliders, singleThreshold.get()));
 			});
-			PaneTools.setToExpandGridPaneWidth(slider);
+			GridPaneUtils.setToExpandGridPaneWidth(slider);
 			sliders.add(slider);
 		}
 		
@@ -181,7 +181,7 @@ public class CellIntensityClassificationCommand implements Runnable {
 		var pane = new GridPane();
 		int row = 0;
 		var labelMeasurements = new Label("Measurement");
-		PaneTools.addGridRow(pane, row++, 0, "Select measurement to threshold", labelMeasurements, comboMeasurements, comboMeasurements);
+		GridPaneUtils.addGridRow(pane, row++, 0, "Select measurement to threshold", labelMeasurements, comboMeasurements, comboMeasurements);
 		
 		for (int i = 0; i < sliders.size(); i++) {
 			var labelThreshold = new Label("Threshold " + (i+1) + "+");
@@ -191,14 +191,14 @@ public class CellIntensityClassificationCommand implements Runnable {
 				slider.disableProperty().bind(singleThreshold);
 				tf.disableProperty().bind(singleThreshold);
 			}
-			PaneTools.addGridRow(pane, row++, 0, "Select threshold value", labelThreshold, slider, tf);
+			GridPaneUtils.addGridRow(pane, row++, 0, "Select threshold value", labelThreshold, slider, tf);
 		}
-		PaneTools.addGridRow(pane, row++, 0, "Toggle between using a single threshold (Negative/Positive) or three threshold Negative/1+/2+/3+)", cbSingleThreshold, cbSingleThreshold, cbSingleThreshold);
+		GridPaneUtils.addGridRow(pane, row++, 0, "Toggle between using a single threshold (Negative/Positive) or three threshold Negative/1+/2+/3+)", cbSingleThreshold, cbSingleThreshold, cbSingleThreshold);
 		pane.setHgap(5.0);
 		pane.setVgap(5.0);
 				
-		PaneTools.setToExpandGridPaneHeight(chartWrapper.getPane());
-		PaneTools.setToExpandGridPaneWidth(chartWrapper.getPane());
+		GridPaneUtils.setToExpandGridPaneHeight(chartWrapper.getPane());
+		GridPaneUtils.setToExpandGridPaneWidth(chartWrapper.getPane());
 		histogramPanel.getChart().getYAxis().setTickLabelsVisible(false);
 		histogramPanel.getChart().setAnimated(false);
 		chartWrapper.getPane().setPrefSize(200, 80);

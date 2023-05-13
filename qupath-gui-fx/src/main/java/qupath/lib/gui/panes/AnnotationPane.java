@@ -61,7 +61,7 @@ import javafx.scene.layout.Priority;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.GuiTools;
-import qupath.fx.PaneTools;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.gui.tools.PathObjectLabels;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
@@ -218,7 +218,7 @@ public class AnnotationPane implements PathObjectSelectionListener, ChangeListen
 		GridPane.setHgrow(btnSelectAll, Priority.ALWAYS);
 		GridPane.setHgrow(btnDelete, Priority.ALWAYS);
 
-		PaneTools.setMaxWidth(Double.MAX_VALUE,
+		GridPaneUtils.setMaxWidth(Double.MAX_VALUE,
 				btnSelectAll, btnDelete);
 		
 		BooleanBinding disableButtons = hasImageData.not();

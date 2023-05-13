@@ -69,7 +69,7 @@ import javafx.util.Callback;
 import qupath.lib.gui.QuPathGUI;
 import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.scripting.ScriptEditor;
-import qupath.fx.PaneTools;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.plugins.PathPlugin;
@@ -335,7 +335,7 @@ public class WorkflowCommandLogView implements ChangeListener<ImageData<Buffered
 				stage.show();
 			});
 			btnCreateWorkflow.disableProperty().bind(workflowProperty.isNull());
-			pane.setBottom(PaneTools.createColumnGridControls(btnCreateWorkflow, btnCreateScript));
+			pane.setBottom(GridPaneUtils.createColumnGridControls(btnCreateWorkflow, btnCreateScript));
 		} else
 			pane.setBottom(btnCreateScript);
 		

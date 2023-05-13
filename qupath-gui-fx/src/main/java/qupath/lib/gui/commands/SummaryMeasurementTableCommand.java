@@ -89,7 +89,7 @@ import qupath.lib.gui.measure.ObservableMeasurementTableData;
 import qupath.lib.gui.measure.PathTableData;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.GuiTools;
-import qupath.fx.PaneTools;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.QuPathViewerListener;
 import qupath.lib.images.ImageData;
@@ -402,7 +402,7 @@ public class SummaryMeasurementTableCommand {
 		//		pane.setCenter(table);
 		splitPane.getItems().add(paneTable);
 		pane.setCenter(splitPane);
-		var paneButtons = PaneTools.createColumnGridControls(buttons.toArray(new ButtonBase[0]));
+		var paneButtons = GridPaneUtils.createColumnGridControls(buttons.toArray(new ButtonBase[0]));
 		var paneButtons2 = new BorderPane(paneButtons);
 		paneButtons2.setRight(btnExtra);
 		pane.setBottom(paneButtons2);
