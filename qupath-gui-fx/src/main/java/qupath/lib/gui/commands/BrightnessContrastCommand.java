@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -34,6 +34,11 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Predicate;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
+
+import javafx.scene.Node;
+import javafx.scene.control.ToggleButton;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -132,20 +137,12 @@ public class BrightnessContrastCommand implements Runnable, ChangeListener<Image
 	private Stage dialog;
 	
 	private boolean slidersUpdating = false;
-//	// The current slider min & max, in floating point precision
-//	// Sliders themselves use integers - so there is likely to be a need to convert in many cases
-//	private float minCurrent = 0;
-//	private float maxCurrent = 0;
-	
+
 	private TableView<ChannelDisplayInfo> table = new TableView<>();
 	private StringProperty filterText = new SimpleStringProperty("");
-	private ObjectBinding<Predicate<ChannelDisplayInfo>> predicate = Bindings.createObjectBinding(() -> {
-		String text = filterText.get().toLowerCase().strip();
-		if (text.isBlank())
-			return info -> true;
-		return info -> info.getName().toLowerCase().contains(text);
-	}, filterText);
-	
+	private BooleanProperty useRegex = new SimpleBooleanProperty(false);
+	private ObjectBinding<Predicate<ChannelDisplayInfo>> predicate = createChannelDisplayPredicateBinding(filterText);
+
 	private ColorPicker picker = new ColorPicker();
 	
 	private HistogramPanelFX histogramPanel = new HistogramPanelFX();
@@ -205,15 +202,12 @@ public class BrightnessContrastCommand implements Runnable, ChangeListener<Image
 		String blank = "      ";
 		Label labelMin = new Label("Min display");
 		Tooltip tooltipMin = new Tooltip("Set minimum lookup table value - double-click the value to edit manually");
-//		labelMin.setTooltip(new Tooltip("Set minimum lookup table value - double-click to edit manually"));
 		Label labelMinValue = new Label(blank);
 		labelMinValue.setTooltip(tooltipMin);
 		labelMin.setTooltip(tooltipMin);
 		sliderMin.setTooltip(tooltipMin);
 		labelMin.setLabelFor(sliderMin);
 		labelMinValue.textProperty().bind(Bindings.createStringBinding(() -> {
-//			if (table.getSelectionModel().getSelectedItem() == null)
-//				return blank;
 			// If value < 10, return 2 dp, otherwise 1 dp. Should be more useful for 16-/32-bit images.
 			return sliderMin.getValue() < 10 ? String.format("%.2f", sliderMin.getValue()) : String.format("%.1f", sliderMin.getValue());
 		}, table.getSelectionModel().selectedItemProperty(), sliderMin.valueProperty()));
@@ -229,8 +223,6 @@ public class BrightnessContrastCommand implements Runnable, ChangeListener<Image
 		sliderMax.setTooltip(tooltipMax);
 		labelMax.setLabelFor(sliderMax);
 		labelMaxValue.textProperty().bind(Bindings.createStringBinding(() -> {
-//				if (table.getSelectionModel().getSelectedItem() == null)
-//					return blank;
 			// If value < 10, return 2 dp, otherwise 1 dp. Should be more useful for 16-/32-bit images.
 			return sliderMax.getValue() < 10 ? String.format("%.2f", sliderMax.getValue()) : String.format("%.1f", sliderMax.getValue());
 			}, table.getSelectionModel().selectedItemProperty(), sliderMax.valueProperty()));
@@ -291,9 +283,7 @@ public class BrightnessContrastCommand implements Runnable, ChangeListener<Image
 					sliderMin.setValue(value);
 					// Update display directly if out of slider range
 					if (value < sliderMin.getMin() || value > sliderMin.getMax()) {
-						imageDisplay.setMinMaxDisplay(infoVisible, (float)value.floatValue(), (float)infoVisible.getMaxDisplay());
-//						infoVisible.setMinDisplay(value.floatValue());
-//						viewer.updateThumbnail();
+						imageDisplay.setMinMaxDisplay(infoVisible, value.floatValue(), infoVisible.getMaxDisplay());
 						updateSliders();
 						viewer.repaintEntireImage();
 					}
@@ -312,8 +302,6 @@ public class BrightnessContrastCommand implements Runnable, ChangeListener<Image
 					// Update display directly if out of slider range
 					if (value < sliderMax.getMin() || value > sliderMax.getMax()) {
 						imageDisplay.setMinMaxDisplay(infoVisible, (float)infoVisible.getMinDisplay(), (float)value.floatValue());
-//						infoVisible.setMaxDisplay(value.floatValue());
-//						viewer.updateThumbnail();
 						updateSliders();
 						viewer.repaintEntireImage();
 					}
@@ -326,9 +314,6 @@ public class BrightnessContrastCommand implements Runnable, ChangeListener<Image
 		btnAuto.setOnAction(e -> {
 			if (imageDisplay == null)
 				return;
-//				if (histogram == null)
-//					return;
-////				setSliders((float)histogram.getEdgeMin(), (float)histogram.getEdgeMax());
 				ChannelDisplayInfo info = getCurrentInfo();
 				double saturation = PathPrefs.autoBrightnessContrastSaturationPercentProperty().get()/100.0;
 				imageDisplay.autoSetDisplayRange(info, saturation);
@@ -366,7 +351,7 @@ public class BrightnessContrastCommand implements Runnable, ChangeListener<Image
 			updateSliders();
 		});
 
-		TableColumn<ChannelDisplayInfo, ChannelDisplayInfo> col1 = new TableColumn<>("Color");
+		TableColumn<ChannelDisplayInfo, ChannelDisplayInfo> col1 = new TableColumn<>("Channel");
 		col1.setCellValueFactory(new Callback<>() {
 			@Override
 			public ObservableValue<ChannelDisplayInfo> call(CellDataFeatures<ChannelDisplayInfo, ChannelDisplayInfo> p) {
@@ -396,7 +381,7 @@ public class BrightnessContrastCommand implements Runnable, ChangeListener<Image
 		   });
 		
 		col1.setSortable(false);
-		TableColumn<ChannelDisplayInfo, Boolean> col2 = new TableColumn<>("Selected");
+		TableColumn<ChannelDisplayInfo, Boolean> col2 = new TableColumn<>("Show");
 		col2.setCellValueFactory(new Callback<>() {
 			@Override
 			public ObservableValue<Boolean> call(CellDataFeatures<ChannelDisplayInfo, Boolean> item) {
@@ -524,25 +509,10 @@ public class BrightnessContrastCommand implements Runnable, ChangeListener<Image
 		table.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
 		col1.prefWidthProperty().bind(table.widthProperty().subtract(col2.widthProperty()).subtract(25)); // Hack... space for a scrollbar
 		
-//		col2.setResizable(false);
-//		col2.setMaxWidth(100);
-//		col2.setPrefWidth(50);
-//		col2.setResizable(false);
-
-//		col1.prefWidthProperty().bind(table.widthProperty().multiply(0.7));
-//		col2.prefWidthProperty().bind(table.widthProperty().multiply(0.2));
-		
-//		table.getColumnModel().getColumn(0).setCellRenderer(new ChannelCellRenderer());
-//		table.getColumnModel().getColumn(1).setMaxWidth(table.getColumnModel().getColumn(1).getPreferredWidth());
-		
 		BorderPane paneColor = new BorderPane();
-//		panelColor.setBorder(BorderFactory.createTitledBorder("Color display"));
 		BorderPane paneTableAndFilter = new BorderPane(table);
-		TextField tfFilter = new TextField("");
-		tfFilter.textProperty().bindBidirectional(filterText);
-		tfFilter.setTooltip(new Tooltip("Enter text to find specific channels by name"));
-		tfFilter.setPromptText("Filter channels by name");
-		paneTableAndFilter.setBottom(tfFilter);
+		Node textFilterNode = createTextFilter();
+		paneTableAndFilter.setBottom(textFilterNode);
 		predicate.addListener((v, o, n) -> updatePredicate());
 		
 		paneColor.setCenter(paneTableAndFilter);
@@ -668,7 +638,22 @@ public class BrightnessContrastCommand implements Runnable, ChangeListener<Image
 
 		return dialog;
 	}
-	
+
+
+	private Node createTextFilter() {
+		TextField tfFilter = new TextField("");
+		tfFilter.textProperty().bindBidirectional(filterText);
+		tfFilter.setTooltip(new Tooltip("Enter text to find specific channels by name"));
+		tfFilter.setPromptText("Filter channels by name");
+		predicate.addListener((v, o, n) -> updatePredicate());
+		BorderPane pane = new BorderPane(tfFilter);
+		ToggleButton btnRegex = new ToggleButton(".*");
+		btnRegex.setTooltip(new Tooltip("Use regular expressions for channel filter"));
+		btnRegex.selectedProperty().bindBidirectional(useRegex);
+		pane.setRight(btnRegex);
+		return pane;
+	}
+
 	
 	private void updateHistogram() {
 		if (table == null || !isInitialized())
@@ -1206,6 +1191,42 @@ public class BrightnessContrastCommand implements Runnable, ChangeListener<Image
 		}
 		
 	}
-	
+
+
+	private ObjectBinding<Predicate<ChannelDisplayInfo>> createChannelDisplayPredicateBinding(StringProperty filterText) {
+		return Bindings.createObjectBinding(() -> {
+					if (useRegex.get())
+						return createChannelDisplayPredicateFromRegex(filterText.get());
+					else
+						return createChannelDisplayPredicateFromText(filterText.get());
+		}, filterText, useRegex);
+	}
+
+	private static Predicate<ChannelDisplayInfo> createChannelDisplayPredicateFromRegex(String regex) {
+		if (regex == null || regex.isBlank())
+			return info -> true;
+		try {
+			Pattern pattern = Pattern.compile(regex);
+			return info -> channelDisplayFromRegex(info, pattern);
+		} catch (PatternSyntaxException e) {
+			logger.warn("Invalid channel display: {} ({})", regex, e.getMessage());
+			return info -> false;
+		}
+	}
+
+	private static boolean channelDisplayFromRegex(ChannelDisplayInfo info, Pattern pattern) {
+		return pattern.matcher(info.getName()).find();
+	}
+
+	private static Predicate<ChannelDisplayInfo> createChannelDisplayPredicateFromText(String filterText) {
+		if (filterText == null || filterText.isBlank())
+			return info -> true;
+		String text = filterText.toLowerCase();
+		return info -> channelDisplayContainsText(info, text);
+	}
+
+	private static boolean channelDisplayContainsText(ChannelDisplayInfo info, String text) {
+		return info.getName().toLowerCase().contains(text);
+	}
 
 }
