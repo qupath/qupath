@@ -41,8 +41,8 @@ import java.util.regex.PatternSyntaxException;
 
 import javafx.beans.Observable;
 import javafx.event.ActionEvent;
-import javafx.scene.Node;
 import javafx.scene.control.ToggleButton;
+import javafx.scene.layout.Pane;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -170,14 +170,6 @@ public class BrightnessContrastCommand implements Runnable {
 	public BrightnessContrastCommand(final QuPathGUI qupath) {
 		this.qupath = qupath;
 		this.qupath.imageDataProperty().addListener(this::handleImageDataChange);
-		// Add 'pure' red, green & blue to the available color picker colors
-		picker.getCustomColors().addAll(
-				ColorToolsFX.getCachedColor(255, 0, 0),
-				ColorToolsFX.getCachedColor(0, 255, 0),
-				ColorToolsFX.getCachedColor(0, 0, 255),
-				ColorToolsFX.getCachedColor(255, 255, 0),
-				ColorToolsFX.getCachedColor(0, 255, 255),
-				ColorToolsFX.getCachedColor(255, 0, 255));
 	}
 
 	@Override
@@ -187,17 +179,96 @@ public class BrightnessContrastCommand implements Runnable {
 		dialog.show();
 	}
 
+	private void initializeColorPicker() {
+		// Add 'pure' red, green & blue to the available color picker colors
+		picker.getCustomColors().setAll(
+				ColorToolsFX.getCachedColor(255, 0, 0),
+				ColorToolsFX.getCachedColor(0, 255, 0),
+				ColorToolsFX.getCachedColor(0, 0, 255),
+				ColorToolsFX.getCachedColor(255, 255, 0),
+				ColorToolsFX.getCachedColor(0, 255, 255),
+				ColorToolsFX.getCachedColor(255, 0, 255));
+	}
+
 
 	private Stage createDialog() {
-		if (!isInitialized())
-			initializeSliders();
+		if (isInitialized())
+			throw new RuntimeException("createDialog() called after initialization!");
 
+		initializeSliders();
+		initializeColorPicker();
 		initializePopup();
 
 		handleImageDataChange(null, null, qupath.getImageData());
 
-		BorderPane pane = new BorderPane();
+		Stage dialog = new Stage();
+		dialog.initOwner(qupath.getStage());
+		dialog.setTitle("Brightness & contrast");
 
+		GridPane pane = new GridPane();
+		int row = 0;
+
+		// Create color/channel display table
+		table = createChannelDisplayTable();
+		pane.add(table, 0, row++);
+		GridPane.setFillHeight(table, Boolean.TRUE);
+		GridPane.setVgrow(table, Priority.ALWAYS);
+
+		Pane paneTextFilter = createTextFilterPane();
+		pane.add(paneTextFilter, 0, row++);
+
+		Pane paneCheck = createCheckboxPane();
+		pane.add(paneCheck, 0, row++);
+
+		histogramPanel.setShowTickLabels(false);
+		histogramPanel.getChart().setAnimated(false);
+		var chartPane = chartWrapper.getPane();
+		chartPane.setPrefWidth(200);
+//		chartPane.setPrefHeight(100);
+//		pane.add(chartPane, 0, row++);
+//		GridPane.setVgrow(chartPane, Priority.ALWAYS);
+		pane.add(histogramPanel.getChart(), 0, row++);
+
+		Pane paneSliders = createSliderPane();
+		paneSliders.prefWidthProperty().bind(pane.widthProperty());
+		pane.add(paneSliders, 0, row++);
+
+		Pane paneButtons = createAutoResetButtonPane();
+		pane.add(paneButtons, 0, row++);
+
+		Pane paneWarnings = createWarningPane();
+		pane.add(paneWarnings, 0, row++);
+
+		Pane paneKeepSettings = createKeepSettingsPane();
+		pane.add(paneKeepSettings, 0, row++);
+
+		pane.setPadding(new Insets(10, 10, 10, 10));
+		pane.setVgap(5);
+
+		Scene scene = new Scene(pane, 350, 580);
+		scene.addEventHandler(KeyEvent.KEY_TYPED, keyListener);
+		dialog.setScene(scene);
+		dialog.setMinWidth(300);
+		dialog.setMinHeight(400);
+		dialog.setMaxWidth(600);
+
+		updateTable();
+
+		if (!table.getItems().isEmpty())
+			table.getSelectionModel().select(0);
+
+		setShowChannel(getCurrentInfo());
+		updateHistogram();
+		updateSliders();
+
+		// Update sliders when receiving focus - in case the display has been updated elsewhere
+		dialog.focusedProperty().addListener(this::handleDialogFocusChanged);
+
+		return dialog;
+	}
+
+
+	private Pane createSliderPane() {
 		GridPane box = new GridPane();
 		String blank = "      ";
 		Label labelMin = new Label("Min display");
@@ -244,8 +315,7 @@ public class BrightnessContrastCommand implements Runnable {
 
 		GridPane.setFillWidth(sliderMin, Boolean.TRUE);
 		GridPane.setFillWidth(sliderMax, Boolean.TRUE);
-		box.prefWidthProperty().bind(pane.widthProperty());
-		box.setPadding(new Insets(5, 0, 5, 0));
+//		box.setPadding(new Insets(5, 0, 5, 0));
 		GridPane.setHgrow(sliderMin, Priority.ALWAYS);
 		GridPane.setHgrow(sliderMax, Priority.ALWAYS);
 
@@ -253,19 +323,62 @@ public class BrightnessContrastCommand implements Runnable {
 		// manually by double-clicking on the corresponding label
 		labelMinValue.setOnMouseClicked(this::handleMinLabelClick);
 		labelMaxValue.setOnMouseClicked(this::handleMaxLabelClick);
+		return box;
+	}
 
+
+	private Pane createKeepSettingsPane() {
+		CheckBox cbKeepDisplaySettings = new CheckBox("Keep settings");
+		cbKeepDisplaySettings.selectedProperty().bindBidirectional(PathPrefs.keepDisplaySettingsProperty());
+		cbKeepDisplaySettings.setTooltip(new Tooltip("Retain same display settings where possible when opening similar images"));
+		return new BorderPane(cbKeepDisplaySettings);
+	}
+
+
+	private Pane createAutoResetButtonPane() {
 		Button btnAuto = new Button("Auto");
 		btnAuto.setOnAction(this::handleAutoButtonClicked);
 
 		Button btnReset = new Button("Reset");
 		btnReset.setOnAction(this::handleResetButtonClicked);
 
-		Stage dialog = new Stage();
-		dialog.initOwner(qupath.getStage());
-		dialog.setTitle("Brightness & contrast");
+		return GridPaneUtils.createColumnGridControls(
+				btnAuto,
+				btnReset
+		);
+	}
 
-		// Create color/channel display table
-		table = new TableView<>(imageDisplay == null ? FXCollections.observableArrayList() : imageDisplay.availableChannels());
+
+	private Pane createWarningPane() {
+		var labelWarning = new Label("Inverted background - interpret colors cautiously!");
+		labelWarning.setTooltip(new Tooltip("Inverting the background uses processing trickery that reduces the visual information in the image.\n"
+				+ "Be careful about interpreting colors, especially for images with multiple channels"));
+		labelWarning.setStyle(WARNING_STYLE);
+		labelWarning.setAlignment(Pos.CENTER);
+		labelWarning.setTextAlignment(TextAlignment.CENTER);
+		labelWarning.visibleProperty().bind(invertBackground.and(showGrayscale.not()));
+		labelWarning.setMaxWidth(Double.MAX_VALUE);
+		labelWarning.managedProperty().bind(labelWarning.visibleProperty()); // Remove if not visible
+
+		var labelWarningGamma = new Label("Gamma is not equal to 1.0 - shift+click to reset");
+		labelWarningGamma.setOnMouseClicked(this::handleGammaWarningClicked);
+		labelWarningGamma.setTooltip(new Tooltip("Adjusting the gamma results in a nonlinear contrast adjustment -\n"
+				+ "in science, such changes should usually be disclosed in any figure legends"));
+		labelWarningGamma.setStyle(WARNING_STYLE);
+		labelWarningGamma.setAlignment(Pos.CENTER);
+		labelWarningGamma.setTextAlignment(TextAlignment.CENTER);
+		labelWarningGamma.visibleProperty().bind(sliderGamma.valueProperty().isNotEqualTo(1.0, 0.0));
+		labelWarningGamma.setMaxWidth(Double.MAX_VALUE);
+		labelWarningGamma.managedProperty().bind(labelWarningGamma.visibleProperty()); // Remove if not visible
+
+		var vboxWarnings = new VBox();
+		vboxWarnings.getChildren().setAll(labelWarning, labelWarningGamma);
+		return vboxWarnings;
+	}
+
+
+	private TableView<ChannelDisplayInfo> createChannelDisplayTable() {
+		TableView<ChannelDisplayInfo> table = new TableView<>(imageDisplay == null ? FXCollections.observableArrayList() : imageDisplay.availableChannels());
 		var textPlaceholder = new Text("No channels available");
 		textPlaceholder.setStyle("-fx-fill: -fx-text-base-color;");
 		table.setPlaceholder(textPlaceholder);
@@ -296,13 +409,11 @@ public class BrightnessContrastCommand implements Runnable {
 		table.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
 		col1.prefWidthProperty().bind(table.widthProperty().subtract(col2.widthProperty()).subtract(25)); // Hack... space for a scrollbar
 
-		BorderPane paneColor = new BorderPane();
-		BorderPane paneTableAndFilter = new BorderPane(table);
-		Node textFilterNode = createTextFilter();
-		paneTableAndFilter.setBottom(textFilterNode);
+		return table;
+	}
 
-		paneColor.setCenter(paneTableAndFilter);
 
+	private Pane createCheckboxPane() {
 		CheckBox cbShowGrayscale = new CheckBox("Show grayscale");
 		cbShowGrayscale.selectedProperty().bindBidirectional(showGrayscale);
 		cbShowGrayscale.setTooltip(new Tooltip("Show single channel with grayscale lookup table"));
@@ -318,89 +429,16 @@ public class BrightnessContrastCommand implements Runnable {
 			cbInvertBackground.setSelected(imageDisplay.useInvertedBackground());
 		invertBackground.addListener(this::handleDisplaySettingInvalidated);
 
-		CheckBox cbKeepDisplaySettings = new CheckBox("Keep settings");
-		cbKeepDisplaySettings.selectedProperty().bindBidirectional(PathPrefs.keepDisplaySettingsProperty());
-		cbKeepDisplaySettings.setTooltip(new Tooltip("Retain same display settings where possible when opening similar images"));
-
 		FlowPane paneCheck = new FlowPane();
 		paneCheck.setVgap(5);
 		paneCheck.getChildren().add(cbShowGrayscale);
 		paneCheck.getChildren().add(cbInvertBackground);
-		paneCheck.getChildren().add(cbKeepDisplaySettings);
 		paneCheck.setHgap(10);
+		paneCheck.setMaxHeight(Double.MAX_VALUE);
 		paneCheck.setPadding(new Insets(5, 0, 0, 0));
-		paneColor.setBottom(paneCheck);
-		pane.setCenter(paneColor);
-
-		// Create brightness/contrast panel
-		BorderPane panelSliders = new BorderPane();
-		panelSliders.setTop(box);
-		GridPane panelButtons = GridPaneUtils.createColumnGridControls(
-				btnAuto,
-				btnReset
-		);
-		panelSliders.setBottom(panelButtons);
-		panelSliders.setPadding(new Insets(5, 0, 5, 0));
-
-		BorderPane paneMinMax = new BorderPane();
-		paneMinMax.setPrefHeight(280);
-		paneMinMax.setTop(panelSliders);
-
-		histogramPanel.setShowTickLabels(false);
-		histogramPanel.getChart().setAnimated(false);
-		var chartPane = chartWrapper.getPane();
-		paneMinMax.setCenter(chartPane);
-		chartPane.setPrefWidth(200);
-
-		var labelWarning = new Label("Inverted background - interpret colors cautiously!");
-		labelWarning.setTooltip(new Tooltip("Inverting the background uses processing trickery that reduces the visual information in the image.\n"
-				+ "Be careful about interpreting colors, especially for images with multiple channels"));
-		labelWarning.setStyle(WARNING_STYLE);
-		labelWarning.setAlignment(Pos.CENTER);
-		labelWarning.setTextAlignment(TextAlignment.CENTER);
-		labelWarning.visibleProperty().bind(cbInvertBackground.selectedProperty().and(cbShowGrayscale.selectedProperty().not()));
-		labelWarning.setMaxWidth(Double.MAX_VALUE);
-		labelWarning.managedProperty().bind(labelWarning.visibleProperty()); // Remove if not visible
-
-		var labelWarningGamma = new Label("Gamma is not equal to 1.0 - shift+click to reset");
-		labelWarningGamma.setOnMouseClicked(this::handleGammaWarningClicked);
-		labelWarningGamma.setTooltip(new Tooltip("Adjusting the gamma results in a nonlinear contrast adjustment -\n"
-				+ "in science, such changes should usually be disclosed in any figure legends"));
-		labelWarningGamma.setStyle(WARNING_STYLE);
-		labelWarningGamma.setAlignment(Pos.CENTER);
-		labelWarningGamma.setTextAlignment(TextAlignment.CENTER);
-		labelWarningGamma.visibleProperty().bind(sliderGamma.valueProperty().isNotEqualTo(1.0, 0.0));
-		labelWarningGamma.setMaxWidth(Double.MAX_VALUE);
-		labelWarningGamma.managedProperty().bind(labelWarningGamma.visibleProperty()); // Remove if not visible
-
-		var vboxWarnings = new VBox();
-		vboxWarnings.getChildren().setAll(labelWarning, labelWarningGamma);
-
-		paneMinMax.setBottom(vboxWarnings);
-
-		pane.setBottom(paneMinMax);
-		pane.setPadding(new Insets(10, 10, 10, 10));
-
-		Scene scene = new Scene(pane, 350, 580);
-		scene.addEventHandler(KeyEvent.KEY_TYPED, keyListener);
-		dialog.setScene(scene);
-		dialog.setMinWidth(300);
-		dialog.setMinHeight(400);
-		dialog.setMaxWidth(600);
-
-		updateTable();
-
-		if (!table.getItems().isEmpty())
-			table.getSelectionModel().select(0);
-		setShowChannel(getCurrentInfo());
-		updateHistogram();
-		updateSliders();
-
-		// Update sliders when receiving focus - in case the display has been updated elsewhere
-		dialog.focusedProperty().addListener(this::handleDialogFocusChanged);
-
-		return dialog;
+		return paneCheck;
 	}
+
 
 
 	private ObservableValue<ChannelDisplayInfo> channelCellValueFactory(
@@ -553,7 +591,7 @@ public class BrightnessContrastCommand implements Runnable {
 		sliderGamma.valueProperty().bindBidirectional(PathPrefs.viewerGammaProperty());
 	}
 	
-	private Node createTextFilter() {
+	private Pane createTextFilterPane() {
 		TextField tfFilter = new TextField("");
 		tfFilter.textProperty().bindBidirectional(filterText);
 		tfFilter.setTooltip(new Tooltip("Enter text to find specific channels by name"));
