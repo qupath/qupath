@@ -1,0 +1,36 @@
+.input-display-pane {
+    -fx-background-color: rgba(0, 0, 0, 0.75);
+    -fx-background-radius: 10;
+}
+
+.input-display-pane .mouse-item {
+    -fx-fill: rgba(255, 255, 255, 0.1);
+}
+
+.input-display-pane .mouse-item:active {
+    -fx-fill: rgba(255, 255, 255, 0.6);
+}
+
+.input-display-pane .close-item {
+    -fx-stroke-width: 1.5;
+    -fx-stroke: rgba(255, 255, 255, 0.2);
+}
+
+.input-display-pane .close-item:active {
+    -fx-stroke: rgba(255, 255, 255, 0.6);
+}
+
+.input-display-pane .history {
+    -fx-text-fill: rgba(255, 255, 255, 0.7);
+    -fx-font-size: 14;
+}
+
+.input-display-pane .keys {
+    -fx-text-fill: white;
+    -fx-font-size: 32;
+}
+
+.input-display-pane .modifiers {
+    -fx-text-fill: white;
+    -fx-font-size: 24;
+}

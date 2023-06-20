@@ -88,6 +88,7 @@ import javafx.scene.layout.Region;
 import javafx.scene.text.TextAlignment;
 import javafx.stage.Stage;
 import javafx.util.Callback;
+import qupath.fx.utils.FXUtils;
 import qupath.imagej.gui.IJExtension;
 import qupath.imagej.tools.IJTools;
 import qupath.lib.classifiers.Normalization;
@@ -97,12 +98,12 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.charts.ChartTools;
 import qupath.lib.gui.commands.MiniViewers;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.ProjectDialogs;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.ColorToolsFX;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.gui.tools.GuiTools;
-import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.overlays.PixelClassificationOverlay;
 import qupath.lib.images.ImageData;
@@ -152,8 +153,8 @@ public class PixelClassifierPane {
 	// To display features as overlays across the image
 	private ComboBox<String> comboDisplayFeatures = new ComboBox<>();
 	private Slider sliderFeatureOpacity = new Slider(0.0, 1.0, 1.0);
-	private Spinner<Double> spinFeatureMin = GuiTools.createDynamicStepSpinner(-Double.MAX_VALUE, Double.MAX_VALUE, 0, 0.1, 1);
-	private Spinner<Double> spinFeatureMax = GuiTools.createDynamicStepSpinner(-Double.MAX_VALUE, Double.MAX_VALUE, 1, 0.1, 1);
+	private Spinner<Double> spinFeatureMin = FXUtils.createDynamicStepSpinner(-Double.MAX_VALUE, Double.MAX_VALUE, 0, 0.1, 1);
+	private Spinner<Double> spinFeatureMax = FXUtils.createDynamicStepSpinner(-Double.MAX_VALUE, Double.MAX_VALUE, 1, 0.1, 1);
 //	private Spinner<Double> spinFeatureMin = new Spinner<>(-Double.MAX_VALUE, Double.MAX_VALUE, 0);
 //	private Spinner<Double> spinFeatureMax = new Spinner<>(-Double.MAX_VALUE, Double.MAX_VALUE, 1.0);
 	private String DEFAULT_CLASSIFICATION_OVERLAY = "Show classification";
@@ -240,7 +241,7 @@ public class PixelClassifierPane {
 		btnEditClassifier.setOnAction(e -> editClassifierParameters());
 		btnEditClassifier.disableProperty().bind(selectedClassifier.isNull());
 		
-		PaneTools.addGridRow(pane, row++, 0, 
+		GridPaneUtils.addGridRow(pane, row++, 0,
 				"Choose classifier type (RTrees or ANN_MLP are generally good choices)",
 				labelClassifier, comboClassifier, comboClassifier, btnEditClassifier);
 		
@@ -251,7 +252,7 @@ public class PixelClassifierPane {
 		btnResolution.setOnAction(e -> addResolution());
 		selectedResolution = comboResolutions.getSelectionModel().selectedItemProperty();
 		
-		PaneTools.addGridRow(pane, row++, 0, 
+		GridPaneUtils.addGridRow(pane, row++, 0,
 				"Choose the base image resolution based upon required detail in the classification (see preview on the right)",
 				labelResolution, comboResolutions, comboResolutions, btnResolution);
 		
@@ -285,7 +286,7 @@ public class PixelClassifierPane {
 		comboFeatures.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> updateFeatureCalculator());
 //		btnCustomizeFeatures.setOnAction(e -> showFeatures());
 		
-		PaneTools.addGridRow(pane, row++, 0, 
+		GridPaneUtils.addGridRow(pane, row++, 0,
 				"Select features for the classifier",
 				labelFeatures, comboFeatures, btnCustomizeFeatures, btnShowFeatures);
 
@@ -302,7 +303,7 @@ public class PixelClassifierPane {
 		var btnShowOutput = new Button("Show");
 		btnShowOutput.setOnAction(e -> showOutput());
 		
-		PaneTools.addGridRow(pane, row++, 0, 
+		GridPaneUtils.addGridRow(pane, row++, 0,
 				"Choose whether to output classifications only, or estimated probabilities per class (not all classifiers support probabilities, which also require more memory)",
 				labelOutput, comboOutput, comboOutput, btnShowOutput);
 		
@@ -311,7 +312,7 @@ public class PixelClassifierPane {
 		var labelRegion = new Label("Region");
 		var comboRegionFilter = PixelClassifierUI.createRegionFilterCombo(qupath.getOverlayOptions());
 //		var nodeLimit = PixelClassifierTools.createLimitToAnnotationsControl(qupath.getOverlayOptions());
-		PaneTools.addGridRow(pane,  row++, 0, "Control where the pixel classification is applied during preview",
+		GridPaneUtils.addGridRow(pane,  row++, 0, "Control where the pixel classification is applied during preview",
 				labelRegion, comboRegionFilter, comboRegionFilter, comboRegionFilter);
 
 		
@@ -354,7 +355,7 @@ public class PixelClassifierPane {
 				featureOverlay.setLivePrediction(n);
 		});
 				
-		var panePredict = PaneTools.createColumnGridControls(btnProject, btnAdvancedOptions);
+		var panePredict = GridPaneUtils.createColumnGridControls(btnProject, btnAdvancedOptions);
 		pane.add(panePredict, 0, row++, pane.getColumnCount(), 1);
 		
 //		addGridRow(pane, row++, 0, btnPredict, btnPredict, btnPredict);
@@ -387,10 +388,10 @@ public class PixelClassifierPane {
 //				"View information about the current classifier training",
 //				paneChart, paneChart, paneChart);
 		
-		PaneTools.setFillWidth(Boolean.TRUE, paneChart);
-		PaneTools.setFillHeight(Boolean.TRUE, paneChart);
-		PaneTools.setVGrowPriority(Priority.ALWAYS, paneChart);
-		PaneTools.setHGrowPriority(Priority.ALWAYS, paneChart);
+		GridPaneUtils.setFillWidth(Boolean.TRUE, paneChart);
+		GridPaneUtils.setFillHeight(Boolean.TRUE, paneChart);
+		GridPaneUtils.setVGrowPriority(Priority.ALWAYS, paneChart);
+		GridPaneUtils.setHGrowPriority(Priority.ALWAYS, paneChart);
 
 		pane.add(paneChart, 0, row++, pane.getColumnCount(), 1);
 		
@@ -426,8 +427,8 @@ public class PixelClassifierPane {
 		
 		comboClassifier.getSelectionModel().clearAndSelect(1);
 		
-		PaneTools.setHGrowPriority(Priority.ALWAYS, comboResolutions, comboClassifier, comboFeatures);
-		PaneTools.setFillWidth(Boolean.TRUE, comboResolutions, comboClassifier, comboFeatures);
+		GridPaneUtils.setHGrowPriority(Priority.ALWAYS, comboResolutions, comboClassifier, comboFeatures);
+		GridPaneUtils.setFillWidth(Boolean.TRUE, comboResolutions, comboClassifier, comboFeatures);
 		
 		miniViewer = MiniViewers.createManager(qupath.getViewer());
 		var viewerPane = miniViewer.getPane();
@@ -446,7 +447,7 @@ public class PixelClassifierPane {
 		pane.setVgap(6);
 		
 		var classifierName = new SimpleStringProperty(null);
-		var panePostProcess = PaneTools.createRowGrid(
+		var panePostProcess = GridPaneUtils.createRowGrid(
 				PixelClassifierUI.createSavePixelClassifierPane(qupath.projectProperty(), currentClassifier, classifierName),
 				PixelClassifierUI.createPixelClassifierButtons(qupath.imageDataProperty(), currentClassifier, classifierName)
 				);
@@ -456,7 +457,7 @@ public class PixelClassifierPane {
 				
 		pane.add(panePostProcess, 0, row++, pane.getColumnCount(), 1);
 
-		PaneTools.setMaxWidth(Double.MAX_VALUE, pane.getChildren().stream().filter(p -> p instanceof Region).toArray(Region[]::new));
+		GridPaneUtils.setMaxWidth(Double.MAX_VALUE, pane.getChildren().stream().filter(p -> p instanceof Region).toArray(Region[]::new));
 		
 		var viewerBorderPane = new BorderPane(viewerPane);
 		
@@ -484,22 +485,22 @@ public class PixelClassifierPane {
 		btnFeatureAuto.setMaxHeight(Double.MAX_VALUE);
 		spinFeatureMin.disableProperty().bind(featureDisableBinding);
 		spinFeatureMin.setEditable(true);
-		GuiTools.restrictTextFieldInputToNumber(spinFeatureMin.getEditor(), true);
-		GuiTools.resetSpinnerNullToPrevious(spinFeatureMin);
+		FXUtils.restrictTextFieldInputToNumber(spinFeatureMin.getEditor(), true);
+		FXUtils.resetSpinnerNullToPrevious(spinFeatureMin);
 		
 		spinFeatureMax.disableProperty().bind(featureDisableBinding);
 		spinFeatureMax.setEditable(true);
-		GuiTools.restrictTextFieldInputToNumber(spinFeatureMax.getEditor(), true);
-		GuiTools.resetSpinnerNullToPrevious(spinFeatureMax);
+		FXUtils.restrictTextFieldInputToNumber(spinFeatureMax.getEditor(), true);
+		FXUtils.resetSpinnerNullToPrevious(spinFeatureMax);
 		
 		var paneFeatures = new GridPane();spinFeatureMax.setTooltip(new Tooltip("Choose classification result or feature overlay to display (Warning: This requires a lot of memory & computation!)"));
 		spinFeatureMin.setTooltip(new Tooltip("Min display value for feature overlay"));
 		spinFeatureMax.setTooltip(new Tooltip("Max display value for feature overlay"));
 		sliderFeatureOpacity.setTooltip(new Tooltip("Adjust classification/feature overlay opacity"));
 		
-		PaneTools.addGridRow(paneFeatures, 0, 0, null,
+		GridPaneUtils.addGridRow(paneFeatures, 0, 0, null,
 				comboDisplayFeatures, comboDisplayFeatures, comboDisplayFeatures, comboDisplayFeatures);
-		PaneTools.addGridRow(paneFeatures, 1, 0, null,
+		GridPaneUtils.addGridRow(paneFeatures, 1, 0, null,
 				sliderFeatureOpacity, spinFeatureMin, spinFeatureMax, btnFeatureAuto);
 
 		
@@ -524,9 +525,9 @@ public class PixelClassifierPane {
 		comboDisplayFeatures.setCellFactory(factory);
 		comboDisplayFeatures.setButtonCell(factory.call(null));
 		
-		PaneTools.setMaxWidth(Double.MAX_VALUE, comboDisplayFeatures, sliderFeatureOpacity);
-		PaneTools.setFillWidth(Boolean.TRUE, comboDisplayFeatures, sliderFeatureOpacity);
-		PaneTools.setHGrowPriority(Priority.ALWAYS, comboDisplayFeatures, sliderFeatureOpacity);
+		GridPaneUtils.setMaxWidth(Double.MAX_VALUE, comboDisplayFeatures, sliderFeatureOpacity);
+		GridPaneUtils.setFillWidth(Boolean.TRUE, comboDisplayFeatures, sliderFeatureOpacity);
+		GridPaneUtils.setHGrowPriority(Priority.ALWAYS, comboDisplayFeatures, sliderFeatureOpacity);
 		paneFeatures.setHgap(5);
 		paneFeatures.setVgap(5);
 		paneFeatures.setPadding(new Insets(5));
@@ -560,9 +561,9 @@ public class PixelClassifierPane {
 		
 		updateFeatureCalculator();
 		
-		PaneTools.setMinWidth(
+		GridPaneUtils.setMinWidth(
 				Region.USE_PREF_SIZE,
-				PaneTools.getContentsOfType(stage.getScene().getRoot(), Region.class, true).toArray(Region[]::new));
+				FXUtils.getContentsOfType(stage.getScene().getRoot(), Region.class, true).toArray(Region[]::new));
 		
 		stage.show();
 		stage.setOnCloseRequest(e -> destroy());
@@ -885,7 +886,7 @@ public class PixelClassifierPane {
 						"Set the boundary thickness whenever annotation boundaries are trained separately")
 				;
 		
-		if (!Dialogs.showParameterDialog("Advanced options", params))
+		if (!GuiTools.showParameterDialog("Advanced options", params))
 			return false;
 		
 		reweightSamples = params.getBooleanParameterValue("reweightSamples");
@@ -1198,7 +1199,7 @@ public class PixelClassifierPane {
 			Dialogs.showErrorMessage("Edit parameters", "No classifier selected!");
 			return false;
 		}
-		Dialogs.showParameterDialog("Edit parameters", model.getParameterList());
+		GuiTools.showParameterDialog("Edit parameters", model.getParameterList());
 		updateClassifier();
 		return true;
 	}
@@ -1326,7 +1327,7 @@ public class PixelClassifierPane {
 		var imageData = qupath.getImageData();
 		ImageServer<BufferedImage> server = imageData == null ? null : imageData.getServer();
 		if (server == null) {
-			Dialogs.showNoImageError("Add resolution");
+			GuiTools.showNoImageError("Add resolution");
 			return false;
 		}
 		String units = null;
@@ -1378,7 +1379,7 @@ public class PixelClassifierPane {
 	private boolean promptToLoadTrainingImages() {
 		var project = qupath.getProject();
 		if (project == null) {
-			Dialogs.showNoProjectError("Pixel classifier");
+			GuiTools.showNoProjectError("Pixel classifier");
 			return false;
 		}
 		

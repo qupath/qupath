@@ -41,6 +41,8 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ThreadFactory;
+
+import javafx.scene.control.ButtonType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,13 +52,12 @@ import javafx.beans.property.ObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener.Change;
 import javafx.collections.ObservableList;
+import qupath.fx.utils.FXUtils;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.ThreadTools;
 import qupath.lib.gui.UserDirectoryManager;
 import qupath.lib.gui.commands.Commands;
-import qupath.lib.gui.dialogs.Dialogs;
-import qupath.lib.gui.dialogs.Dialogs.DialogButton;
-import qupath.lib.gui.tools.GuiTools;
+import qupath.fx.dialogs.Dialogs;
 
 
 /**
@@ -301,9 +302,9 @@ public class QuPathStyleManager {
 					// have to prompt multiple times if there are multiple files
 					if (overwriteExisting == null) {
 						var response = Dialogs.showYesNoCancelDialog("Install CSS", "Do you want to overwrite existing CSS files?");
-						if (response == DialogButton.YES)
+						if (response == ButtonType.YES)
 							overwriteExisting = Boolean.TRUE;
-						else if (response == DialogButton.NO)
+						else if (response == ButtonType.NO)
 							overwriteExisting = Boolean.FALSE;
 						else // cancelled
 							return false;
@@ -700,13 +701,13 @@ public class QuPathStyleManager {
 						.map(path -> new CustomStylesheet(path))
 						.sorted(Comparator.comparing(StyleOption::getName))
 						.toList();
-					GuiTools.runOnApplicationThread(() -> styles.setAll(newStyles));
+					FXUtils.runOnApplicationThread(() -> styles.setAll(newStyles));
 					return;
 				}
 			} catch (IOException e) {
 				logger.warn(e.getLocalizedMessage(), e);
 			}
-			GuiTools.runOnApplicationThread(() -> styles.clear());
+			FXUtils.runOnApplicationThread(() -> styles.clear());
 		}
 				
 		

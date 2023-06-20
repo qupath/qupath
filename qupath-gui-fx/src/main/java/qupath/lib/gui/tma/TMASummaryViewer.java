@@ -136,19 +136,21 @@ import javafx.scene.text.TextAlignment;
 import javafx.scene.text.TextFlow;
 import javafx.stage.Stage;
 import javafx.util.Callback;
+import qupath.fx.dialogs.FileChoosers;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.charts.ChartTools;
 import qupath.lib.gui.charts.HistogramDisplay;
 import qupath.lib.gui.commands.SummaryMeasurementTableCommand;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.measure.ObservableMeasurementTableData;
 import qupath.lib.gui.measure.PathTableData;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tma.TMAEntries.TMAEntry;
 import qupath.lib.gui.tma.TMAEntries.TMAObjectEntry;
+import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.MenuTools;
-import qupath.lib.gui.tools.PaneTools;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ServerTools;
 import qupath.lib.io.PathIO;
@@ -303,7 +305,8 @@ public class TMASummaryViewer {
 		MenuItem miOpen = new MenuItem("Open...");
 		miOpen.setAccelerator(new KeyCodeCombination(KeyCode.O, KeyCombination.SHORTCUT_DOWN));
 		miOpen.setOnAction(e -> {
-			File file = Dialogs.getChooser(stage).promptForFile(null, null, "TMA data files", new String[]{"qptma"});
+			File file = FileChoosers.promptForFile(stage, null, null,
+					FileChoosers.createExtensionFilter("TMA data files", "*.qptma"));
 			if (file == null)
 				return;
 			setInputFile(file);
@@ -1003,7 +1006,7 @@ public class TMASummaryViewer {
 		
 		BorderPane paneColumns = new BorderPane(tableColumns);
 		paneColumns.setBottom(
-				PaneTools.createColumnGridControls(
+				GridPaneUtils.createColumnGridControls(
 						ActionUtils.createButton(actionShowSelected),
 						ActionUtils.createButton(actionHideSelected)
 						)
@@ -1173,7 +1176,7 @@ public class TMASummaryViewer {
 	private void setTMAEntriesFromOpenProject() {
 		QuPathGUI qupath = QuPathGUI.getInstance();
 		if (qupath == null || qupath.getProject() == null || qupath.getProject().getImageList().isEmpty()) {
-			Dialogs.showNoProjectError("Show TMA summary");
+			GuiTools.showNoProjectError("Show TMA summary");
 			return;
 		}
 		Project<BufferedImage> project = qupath.getProject();

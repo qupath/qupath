@@ -33,8 +33,9 @@ import java.nio.file.Path;
 import java.util.Scanner;
 import java.util.concurrent.TimeUnit;
 
+import qupath.fx.dialogs.FileChoosers;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.tools.PathTool;
 import qupath.lib.gui.viewer.tools.PathTools;
@@ -232,7 +233,7 @@ final class ViewTrackerTools {
 			Dialogs.showErrorMessage("Tracking export", "Tracker is empty - nothing to export!");
 			return;
 		}
-		File fileExport = Dialogs.promptToSaveFile(null, null, null, "QuPath tracking data (tsv)", "tsv");
+		File fileExport = FileChoosers.promptToSaveFile(FileChoosers.createExtensionFilter("QuPath tracking data (tsv)", "tsv"));
 		if (fileExport == null)
 			return;
 		

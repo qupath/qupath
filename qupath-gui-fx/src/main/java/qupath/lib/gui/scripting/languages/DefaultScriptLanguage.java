@@ -51,7 +51,7 @@ import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 
 import qupath.imagej.tools.IJTools;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.scripting.QPEx;
 import qupath.lib.gui.scripting.completors.DefaultAutoCompletor;
 import qupath.lib.gui.scripting.completors.GroovyAutoCompletor;

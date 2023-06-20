@@ -33,8 +33,8 @@ import javafx.scene.control.cell.CheckBoxListCell;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.dialogs.Dialogs;
-import qupath.lib.gui.tools.PaneTools;
+import qupath.fx.dialogs.Dialogs;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
@@ -106,15 +106,15 @@ public class CreateChannelTrainingImagesCommand implements Runnable {
 		
 		var pane = new GridPane();
 		int row = 0;
-		PaneTools.addGridRow(pane, row++, 0, null, label, label);
-		PaneTools.addGridRow(pane, row++, 0, namePrompt, labelName, tfName);
-		PaneTools.addGridRow(pane, row++, 0, "Channels to duplicate", list, list);
-		PaneTools.addGridRow(pane, row++, 0, "Create Points annotations for the corresponding channel", cbInitializePoints, cbInitializePoints);
+		GridPaneUtils.addGridRow(pane, row++, 0, null, label, label);
+		GridPaneUtils.addGridRow(pane, row++, 0, namePrompt, labelName, tfName);
+		GridPaneUtils.addGridRow(pane, row++, 0, "Channels to duplicate", list, list);
+		GridPaneUtils.addGridRow(pane, row++, 0, "Create Points annotations for the corresponding channel", cbInitializePoints, cbInitializePoints);
 		
-		PaneTools.setFillWidth(Boolean.TRUE, label, tfName, list, cbInitializePoints);
-		PaneTools.setHGrowPriority(Priority.ALWAYS, label, tfName, list, cbInitializePoints);
-		PaneTools.setVGrowPriority(Priority.ALWAYS, list);
-		PaneTools.setMaxWidth(Double.MAX_VALUE, label, tfName, list, cbInitializePoints);
+		GridPaneUtils.setFillWidth(Boolean.TRUE, label, tfName, list, cbInitializePoints);
+		GridPaneUtils.setHGrowPriority(Priority.ALWAYS, label, tfName, list, cbInitializePoints);
+		GridPaneUtils.setVGrowPriority(Priority.ALWAYS, list);
+		GridPaneUtils.setMaxWidth(Double.MAX_VALUE, label, tfName, list, cbInitializePoints);
 		list.setPrefHeight(240);
 		pane.setHgap(5.0);
 		pane.setVgap(5.0);

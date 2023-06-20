@@ -63,7 +63,7 @@ import qupath.lib.gui.actions.annotations.ActionMenu;
 import qupath.lib.gui.actions.annotations.ActionMethod;
 import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.tools.IconFactory;
-import qupath.lib.gui.tools.LocaleListener;
+import qupath.fx.localization.LocalizedResourceManager;
 
 /**
  * Helper methods for generating and configuring {@linkplain Action Actions} and UI elements.
@@ -412,7 +412,7 @@ public class ActionTools {
 		parseAccelerator(action, element.getAnnotation(ActionAccelerator.class));
 		parseIcon(action, element.getAnnotation(ActionIcon.class));
 		parseDeprecated(action, element.getAnnotation(Deprecated.class));
-		parseConfig(action, element.getAnnotation(ActionConfig.class));
+		parseConfig(action, element.getAnnotation(ActionConfig.class), QuPathResources.getLocalizeResourceManager());
 	}
 	
 	private static void parseDeprecated(Action action, Deprecated annotation) {
@@ -425,17 +425,17 @@ public class ActionTools {
 	}
 	
 	
-	private static void parseConfig(Action action, ActionConfig annotation) {
+	private static void parseConfig(Action action, ActionConfig annotation, LocalizedResourceManager localizedResourceManager) {
 		if (annotation != null) {
 			String key = annotation.value();
 			if (annotation.bindLocale())
-				LocaleListener.registerProperty(action.textProperty(), key);
+				localizedResourceManager.registerProperty(action.textProperty(), key);
 			else
 				action.setText(QuPathResources.getString(key));
 			String descriptionKey = key + ".description";
 			if (QuPathResources.hasString(descriptionKey)) {
 				if (annotation.bindLocale())
-					LocaleListener.registerProperty(action.longTextProperty(), descriptionKey);
+					localizedResourceManager.registerProperty(action.longTextProperty(), descriptionKey);
 				else
 					action.setLongText(QuPathResources.getString(descriptionKey));
 			}

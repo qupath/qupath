@@ -101,6 +101,8 @@ import javafx.scene.shape.Rectangle;
 import javafx.scene.text.TextAlignment;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import qupath.fx.utils.FXUtils;
+import qupath.fx.dialogs.FileChoosers;
 import qupath.lib.awt.common.BufferedImageTools;
 import qupath.lib.color.ColorDeconvolutionHelper;
 import qupath.lib.color.ColorDeconvolutionStains;
@@ -110,12 +112,12 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.display.ChannelDisplayInfo;
 import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.ParameterPanelFX;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.prefs.PathPrefs.ImageTypeSetting;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.gui.tools.GuiTools;
-import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.ImageData.ImageType;
 import qupath.lib.images.servers.ImageServer;
@@ -232,7 +234,10 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 		miSave.setAccelerator(new KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_DOWN));
 		miSave.setOnAction(e -> {
 			BufferedImage img = imageData.getServer().getAssociatedImage(name);
-			File fileOutput = Dialogs.getChooser(dialog).promptToSaveFile("Save image", null, name, "PNG", ".png");
+			File fileOutput = FileChoosers.
+					promptToSaveFile(dialog, "Save image",
+							name == null ? null : new File(name),
+							FileChoosers.createExtensionFilter("PNG", ".png"));
 			if (fileOutput != null) {
 				try {
 					ImageIO.write(img, "PNG", fileOutput);
@@ -369,7 +374,7 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 					.addDoubleParameter("inputValue", message, defaultValue, units, "Enter calibrated value in " + units + " for the selected ROI to calculate the pixel size")
 					.addBooleanParameter("squarePixels", "Assume square pixels", true, "Set the pixel width to match the pixel height");
 			params.setHiddenParameters(setPixelHeight && setPixelWidth, "squarePixels");
-			if (!Dialogs.showParameterDialog("Set pixel size", params))
+			if (!GuiTools.showParameterDialog("Set pixel size", params))
 				return false;
 			Double result = params.getDoubleParameterValue("inputValue");
 			setPixelHeight = setPixelHeight || params.getBooleanParameterValue("squarePixels");
@@ -392,7 +397,7 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 					.addDoubleParameter("pixelHeight", "Pixel height", pixelHeightMicrons, GeneralTools.micrometerSymbol(), "Entry the pixel height")
 					.addDoubleParameter("zSpacing", "Z-spacing", zSpacingMicrons, GeneralTools.micrometerSymbol(), "Enter the spacing between slices of a z-stack");
 			params.setHiddenParameters(server.nZSlices() == 1, "zSpacing");
-			if (!Dialogs.showParameterDialog("Set pixel size", params))
+			if (!GuiTools.showParameterDialog("Set pixel size", params))
 				return false;
 			if (server.nZSlices() != 1) {
 				zSpacingMicrons = params.getDoubleParameterValue("zSpacing");
@@ -509,8 +514,8 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 				o.setSelected(true);
 		});
 
-		PaneTools.setMaxWidth(Double.MAX_VALUE, buttons);
-		PaneTools.setMaxHeight(Double.MAX_VALUE, buttons);
+		GridPaneUtils.setMaxWidth(Double.MAX_VALUE, buttons);
+		GridPaneUtils.setMaxHeight(Double.MAX_VALUE, buttons);
 		var selectedButton = buttonMap.get(defaultType);
 		group.selectToggle(selectedButton);
 
@@ -546,8 +551,8 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 				ImageTypeSetting.PROMPT, "Always prompt me to set type",
 				ImageTypeSetting.NONE, "Don't set the image type"
 				);
-		comboOptions.setButtonCell(GuiTools.createCustomListCell(p -> prompts.get(p)));
-		comboOptions.setCellFactory(c -> GuiTools.createCustomListCell(p -> prompts.get(p)));
+		comboOptions.setButtonCell(FXUtils.createCustomListCell(p -> prompts.get(p)));
+		comboOptions.setCellFactory(c -> FXUtils.createCustomListCell(p -> prompts.get(p)));
 		comboOptions.setTooltip(
 				new Tooltip("Choose whether you want to see these prompts " +
 						"when opening an image for the first time"));

@@ -77,11 +77,12 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import javafx.stage.Stage;
+import qupath.fx.dialogs.FileChoosers;
 import qupath.imagej.tools.IJTools;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.fx.dialogs.Dialogs;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ServerTools;
@@ -625,7 +626,13 @@ public class ExportTrainingRegionsCommand implements Runnable {
 			if (dirExport == null && project != null) {
 				dirExport = Projects.getBaseDirectory(project);
 			}
-			File dirSelected = Dialogs.getChooser(pane.getScene().getWindow()).promptForDirectory("Export training regions", dirExport);
+			var window = pane.getScene().getWindow();
+			File dirSelected = FileChoosers
+					.buildDirectoryChooser()
+					.title("Export training regions")
+					.initialDirectory(dirExport)
+					.build()
+					.showDialog(window);
 			if (dirSelected == null)
 				return null;
 			dirExport = dirSelected;

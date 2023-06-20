@@ -41,8 +41,9 @@ import javafx.beans.value.ObservableStringValue;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.SeparatorMenuItem;
+import qupath.fx.dialogs.FileChoosers;
 import qupath.lib.gui.actions.ActionTools;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.scripting.ScriptEditor;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.MenuTools;
@@ -124,7 +125,7 @@ class ScriptMenuLoader {
 		if (scriptDirectory instanceof StringProperty scriptDirectoryProperty) {
 			var actionSetPath = ActionTools.actionBuilder("Set script directory...", e -> {
 				File dirBase = scriptDirectoryProperty.get() == null ? null : new File(scriptDirectoryProperty.get());
-				File dir = Dialogs.promptForDirectory("Set script directory", dirBase);
+				File dir = FileChoosers.promptForDirectory("Set script directory", dirBase);
 				if (dir != null)
 					scriptDirectoryProperty.set(dir.getAbsolutePath());
 			})

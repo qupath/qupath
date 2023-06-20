@@ -51,6 +51,7 @@ import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.Region;
 import javafx.stage.Popup;
+import qupath.fx.utils.FXUtils;
 import qupath.lib.common.ThreadTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.scripting.DefaultScriptEditor;
@@ -58,7 +59,6 @@ import qupath.lib.gui.scripting.EditableText;
 import qupath.lib.gui.scripting.ScriptEditorControl;
 import qupath.lib.gui.scripting.richtextfx.stylers.ScriptStyler;
 import qupath.lib.gui.scripting.richtextfx.stylers.ScriptStylerProvider;
-import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.MenuTools;
 import qupath.lib.scripting.languages.AutoCompletions;
 import qupath.lib.scripting.languages.AutoCompletions.Completion;
@@ -181,7 +181,7 @@ public class RichScriptEditor extends DefaultScriptEditor {
 			var popup = new Popup();
 			var listCompletions = new ListView<Completion>();
 			
-			listCompletions.setCellFactory(c -> GuiTools.createCustomListCell(c2 -> c2.getDisplayText()));
+			listCompletions.setCellFactory(c -> FXUtils.createCustomListCell(c2 -> c2.getDisplayText()));
 			
 			listCompletions.setPrefSize(350, 400);
 			popup.getContent().add(listCompletions);

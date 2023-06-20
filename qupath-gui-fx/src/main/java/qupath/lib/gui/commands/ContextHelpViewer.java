@@ -54,11 +54,11 @@ import javafx.scene.text.TextAlignment;
 import javafx.stage.Stage;
 import javafx.stage.Window;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.IconFactory;
-import qupath.lib.gui.tools.LocaleListener;
 import qupath.lib.gui.tools.IconFactory.PathIcons;
-import qupath.lib.gui.tools.PaneTools;
+import qupath.fx.utils.GridPaneUtils;
 
 /**
  * Help window providing context-dependent help.
@@ -69,7 +69,7 @@ public class ContextHelpViewer {
 
 	private static Map<QuPathGUI, ContextHelpViewer> INSTANCES = new ConcurrentHashMap<>();
 
-	private StringProperty title = LocaleListener.createProperty("ContextHelp.title");
+	private StringProperty title = QuPathResources.getLocalizeResourceManager().createProperty("ContextHelp.title");
 	private QuPathGUI qupath;
 	
 	private int iconSize = 16;
@@ -78,7 +78,7 @@ public class ContextHelpViewer {
 	private ObservableList<Window> windows;
 	private EventHandler<MouseEvent> handler = this::handleMouseMove;
 
-	private StringProperty defaultText = LocaleListener.createProperty("ContextHelp.defaultHelpText");
+	private StringProperty defaultText = QuPathResources.getLocalizeResourceManager().createProperty("ContextHelp.defaultHelpText");
 	private StringProperty helpText = new SimpleStringProperty(defaultText.get());
 
 	private Label label;
@@ -158,8 +158,8 @@ public class ContextHelpViewer {
 		label.textProperty().bindBidirectional(helpText);
 		label.setPadding(new Insets(10.0));
 		
-		PaneTools.setToExpandGridPaneWidth(label);
-		PaneTools.setToExpandGridPaneHeight(label);
+		GridPaneUtils.setToExpandGridPaneWidth(label);
+		GridPaneUtils.setToExpandGridPaneHeight(label);
 		label.setPrefHeight(100.0);
 
 		return label;
@@ -294,7 +294,7 @@ public class ContextHelpViewer {
 		private HelpListEntry(HelpType type, String key, Node graphic) {
 			this.type = type;
 			this.textProperty = new SimpleStringProperty();
-			LocaleListener.registerProperty(textProperty, key);
+			QuPathResources.getLocalizeResourceManager().registerProperty(textProperty, key);
 			if (graphic == null)
 				graphic = createGraphicFromType(type);
 			this.graphicProperty = new SimpleObjectProperty<>(graphic);

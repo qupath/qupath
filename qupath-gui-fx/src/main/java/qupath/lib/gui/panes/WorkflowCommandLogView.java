@@ -67,9 +67,10 @@ import javafx.scene.layout.Pane;
 import javafx.stage.Stage;
 import javafx.util.Callback;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.scripting.ScriptEditor;
-import qupath.lib.gui.tools.PaneTools;
+import qupath.fx.utils.GridPaneUtils;
+import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.plugins.PathPlugin;
 import qupath.lib.plugins.parameters.ParameterList;
@@ -334,7 +335,7 @@ public class WorkflowCommandLogView implements ChangeListener<ImageData<Buffered
 				stage.show();
 			});
 			btnCreateWorkflow.disableProperty().bind(workflowProperty.isNull());
-			pane.setBottom(PaneTools.createColumnGridControls(btnCreateWorkflow, btnCreateScript));
+			pane.setBottom(GridPaneUtils.createColumnGridControls(btnCreateWorkflow, btnCreateScript));
 		} else
 			pane.setBottom(btnCreateScript);
 		
@@ -413,7 +414,7 @@ public class WorkflowCommandLogView implements ChangeListener<ImageData<Buffered
 	private static void runWorkflowStepInteractively(final QuPathGUI qupath, final WorkflowStep step) {
 		ImageData<BufferedImage> imageData = qupath.getImageData();
 		if (imageData == null) {
-			Dialogs.showNoImageError("Run workflow step");
+			GuiTools.showNoImageError("Run workflow step");
 			return;
 		}
 		if (step instanceof SimplePluginWorkflowStep) {

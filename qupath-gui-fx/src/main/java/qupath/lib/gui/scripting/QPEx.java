@@ -49,6 +49,7 @@ import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.stage.Stage;
 import javafx.stage.Window;
+import qupath.fx.dialogs.FileChoosers;
 import qupath.lib.display.ChannelDisplayInfo;
 import qupath.lib.display.DirectServerChannelInfo;
 import qupath.lib.display.ImageDisplay;
@@ -56,7 +57,7 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.UserDirectoryManager;
 import qupath.lib.gui.charts.Charts;
 import qupath.lib.gui.commands.SummaryMeasurementTableCommand;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.images.servers.RenderedImageServer;
 import qupath.lib.gui.logging.LogManager;
 import qupath.lib.gui.measure.ObservableMeasurementTableData;
@@ -64,7 +65,7 @@ import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tma.TMADataIO;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.MenuTools;
-import qupath.lib.gui.tools.PaneTools;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.LabeledImageServer;
@@ -99,10 +100,12 @@ public class QPEx extends QP {
 			// QuPath classes
 			QuPathGUI.class,
 			Dialogs.class,
+			FileChoosers.class,
+
 			GuiTools.class,
 			Charts.class,
 			MenuTools.class,
-			PaneTools.class,
+			GridPaneUtils.class,
 			
 			LabeledImageServer.class,
 			
@@ -273,7 +276,7 @@ public class QPEx extends QP {
 		String filterDescription = extensions == null || extensions.length == 0 ? null : "Valid files";
 		if (extensions != null && extensions.length == 0)
 			extensions = null;
-		return Dialogs.promptForFile(null, null, filterDescription, extensions);
+		return FileChoosers.promptForFile(FileChoosers.createExtensionFilter(filterDescription, extensions));
 	}
 	
 	/**

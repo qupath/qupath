@@ -23,14 +23,11 @@
 
 package qupath.lib.gui.prefs;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.AccessDeniedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -47,29 +44,23 @@ import java.util.function.Function;
 import java.util.prefs.BackingStoreException;
 import java.util.prefs.InvalidPreferencesFormatException;
 import java.util.prefs.Preferences;
+
+import javafx.beans.property.*;
+import javafx.util.StringConverter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.DoubleProperty;
-import javafx.beans.property.IntegerProperty;
-import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleBooleanProperty;
-import javafx.beans.property.SimpleDoubleProperty;
-import javafx.beans.property.SimpleIntegerProperty;
-import javafx.beans.property.SimpleObjectProperty;
-import javafx.beans.property.SimpleStringProperty;
-import javafx.beans.property.StringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener.Change;
 import javafx.collections.ObservableList;
 import javafx.scene.text.FontWeight;
+import qupath.fx.prefs.PreferenceManager;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.ThreadTools;
 import qupath.lib.common.Version;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.io.GsonTools;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.projects.ProjectIO;
 
@@ -84,7 +75,7 @@ import qupath.lib.projects.ProjectIO;
  */
 public class PathPrefs {
 	
-	private static Logger logger = LoggerFactory.getLogger(PathPrefs.class);
+	private static final Logger logger = LoggerFactory.getLogger(PathPrefs.class);
 	
 	/**
 	 * Allow preference node name to be specified in system property.
@@ -92,46 +83,32 @@ public class PathPrefs {
 	 */
 	private static final String PROP_PREFS = "qupath.prefs.name";
 	
-//	private static final String PROP_USER_PATH = "qupath.path.user";
-	
-	
 	/**
 	 * Default name for preference node in this QuPath version
 	 */
 	private static final String DEFAULT_NODE_NAME = "io.github.qupath/0.5";
-	
-	/**
-	 * Name for preference node
-	 */
-	private static final String NODE_NAME;
-	
-	static {
-		var name = System.getProperty(PROP_PREFS);
-		if (name != null && !name.isBlank()) {
-			logger.info("Setting preference node to {}", name);
-			NODE_NAME = name;
-		} else
-			NODE_NAME = DEFAULT_NODE_NAME;
-		
-		logger.debug("Common ForkJoinPool parallelism: {}", ThreadTools.getParallelism());
-	}
 
 	/**
 	 * Previous preference node, in case these need to be restored.
 	 * For now, this isn't supported.
 	 */
 	@SuppressWarnings("unused")
-	private static final String PREVIOUS_NODE_NAME = "io.github.qupath/0.3";
-	
-	/**
-	 * Flag used to trigger when properties should be reset to their default values.
-	 */
-	private static BooleanProperty resetProperty = new SimpleBooleanProperty(Boolean.FALSE);
+	private static final String PREVIOUS_NODE_NAME = "io.github.qupath/0.4";
 
 	/**
-	 * Flag used to trigger when properties should be reloaded from the user preferences.
+	 * The preference manager used to store preferences.
 	 */
-	private static BooleanProperty reloadProperty = new SimpleBooleanProperty(Boolean.FALSE);
+	private static final PreferenceManager MANAGER = createPreferenceManager();
+	
+	private static PreferenceManager createPreferenceManager() {
+		var name = System.getProperty(PROP_PREFS);
+		String nodeName = DEFAULT_NODE_NAME;
+		if (name != null && !name.isBlank()) {
+			logger.info("Setting preference node to {}", name);
+			nodeName = name;
+		}
+		return PreferenceManager.createForUserPreferences(nodeName);
+	}
 
 	private static BooleanProperty useSystemMenubar = createPersistentPreference("useSystemMenubar", true);
 	
@@ -143,89 +120,13 @@ public class PathPrefs {
 	public static BooleanProperty useSystemMenubarProperty() {
 		return useSystemMenubar;
 	}
-	
-	/**
-	 * Export preferences to a stream.  Note that this will only export preferences that have been set explicitly; 
-	 * some preferences may be 'missing' because their defaults were never changed.  This behavior may change in the future.
-	 * 
-	 * @param stream
-	 * @throws IOException
-	 * @throws BackingStoreException
-	 * 
-	 * @see #dumpPreferences()
-	 */
-	public static void exportPreferences(OutputStream stream) throws IOException, BackingStoreException {
-//		getUserPreferences().exportNode(stream);
-		getUserPreferences().exportSubtree(stream);
-	}
-	
-	/**
-	 * Dump the current preferences to an XML string.
-	 * @return
-	 * @throws IOException
-	 * @throws BackingStoreException
-	 * 
-	 * @see #exportPreferences(OutputStream)
-	 */
-	public static String dumpPreferences() throws IOException, BackingStoreException {
-		try (var stream = new ByteArrayOutputStream()) {
-			exportPreferences(stream);
-			return stream.toString(StandardCharsets.UTF_8);
-		}
-	}
-	
-	/**
-	 * Import preferences from an XML String.
-	 * 
-	 * @param xml String representation of a preferences XML document
-	 * @throws IOException
-	 * @throws InvalidPreferencesFormatException
-	 * 
-	 * @see #importPreferences(InputStream)
-	 * @see #reloadPreferences()
-	 * @see #exportPreferences(OutputStream)
-	 * @see #dumpPreferences()
-	 */
-	public static void importPreferences(String xml) throws IOException, InvalidPreferencesFormatException  {
-		try (var stream = new ByteArrayInputStream(xml.getBytes(StandardCharsets.UTF_8))) {
-			Preferences.importPreferences(stream);
-		}
-	}
-	
-	
-	/**
-	 * Import preferences from a stream.
-	 * <p>
-	 * Note that if the plan is to re-import preferences previously exported by {@link #exportPreferences(OutputStream)} 
-	 * then it may be worthwhile to {@link #resetPreferences()} first to handle the fact that preferences may not have been 
-	 * saved because their default values were unchanged.
-	 * 
-	 * @param stream
-	 * @throws IOException
-	 * @throws InvalidPreferencesFormatException
-	 * 
-	 * @see #importPreferences(String)
-	 * @see #reloadPreferences()
-	 */
-	public static void importPreferences(InputStream stream) throws IOException, InvalidPreferencesFormatException  {
-		Preferences.importPreferences(stream);
-	}
-	
-	
-	/**
-	 * Reload property values from the saved preferences.
-	 * This is useful after {@link #importPreferences(String)}.
-	 */
-	public static void reloadPreferences() {
-		reloadProperty.set(!reloadProperty.get());		
-	}
-	
 
 	private static StringProperty scriptsPath = createPersistentPreference("scriptsPath", (String)null); // Base directory containing scripts
 	
 	private static IntegerProperty numCommandThreads = createPersistentPreference("Requested number of threads", ForkJoinPool.getCommonPoolParallelism());
 	
-	static {
+
+	private static void addNumThreadsListener() {
 		numCommandThreads.addListener((v, o, n) -> {
 			int threads = n.intValue();
 			if (threads > 0)
@@ -236,8 +137,42 @@ public class PathPrefs {
 		// Make sure initialized
 		int threads = numCommandThreads.get();
 		if (threads > 0)
-			ThreadTools.setParallelism(numCommandThreads.get());	}
-	
+			ThreadTools.setParallelism(numCommandThreads.get());
+	}
+
+
+	/**
+	 * Export preferences to a stream.  Note that this will only export preferences that have been set explicitly; 
+	 * some preferences may be 'missing' because their defaults were never changed.  This behavior may change in the future.
+	 *
+	 * @param stream
+	 * @throws IOException
+	 * @throws BackingStoreException
+	 *
+	 * @see #importPreferences(InputStream)
+	 */
+	public static void exportPreferences(OutputStream stream) throws IOException, BackingStoreException {
+		getUserPreferences().exportSubtree(stream);
+	}
+
+
+	/**
+	 * Import preferences from a stream.
+	 * <p>
+	 * Note that if the plan is to re-import preferences previously exported by {@link #exportPreferences(OutputStream)}
+	 * then it may be worthwhile to {@link #resetPreferences()} first to handle the fact that preferences may not have been
+	 * saved because their default values were unchanged.
+	 *
+	 * @param stream
+	 * @throws IOException
+	 * @throws InvalidPreferencesFormatException
+	 *
+	 * @see #exportPreferences(OutputStream)
+	 */
+	public static void importPreferences(InputStream stream) throws IOException, InvalidPreferencesFormatException  {
+		Preferences.importPreferences(stream);
+	}
+
 	/**
 	 * Property specifying the preferred number of threads QuPath should use for multithreaded commands.
 	 * @return
@@ -262,7 +197,7 @@ public class PathPrefs {
 	/**
 	 * Options for automatic updating checking of QuPath and/or extensions.
 	 */
-	public static enum AutoUpdateType {
+	public enum AutoUpdateType {
 		/**
 		 * Check for QuPath updates only
 		 */
@@ -324,7 +259,6 @@ public class PathPrefs {
 	}
 	
 	private static ObjectProperty<Locale> defaultLocale = createPersistentPreference("locale", null, Locale.US);
-
 	private static ObjectProperty<Locale> defaultLocaleFormat = createPersistentPreference("localeFormat", Category.FORMAT, Locale.getDefault(Category.FORMAT));
 	private static ObjectProperty<Locale> defaultLocaleDisplay = createPersistentPreference("localeDisplay", Category.DISPLAY, Locale.getDefault(Category.DISPLAY));
 
@@ -363,17 +297,18 @@ public class PathPrefs {
 	public static ObjectProperty<Locale> defaultLocaleDisplayProperty() {
 		return defaultLocaleDisplay;
 	}
-	
-	
-	static {
+
+	private static void addLocaleListeners() {
 		defaultLocale.addListener((v, o, n) -> {
 			if (n == null)
 				return;
 			defaultLocaleFormat.set(Locale.getDefault(Category.FORMAT));
 			defaultLocaleDisplay.set(Locale.getDefault(Category.DISPLAY));
 		});
+		defaultLocaleFormat.addListener((v, o, n) -> QuPathResources.getLocalizeResourceManager().refresh());
+		defaultLocaleDisplay.addListener((v, o, n) -> QuPathResources.getLocalizeResourceManager().refresh());
 	}
-	
+
 	
 	
 	private static BooleanProperty showStartupMessage = createPersistentPreference("showStartupMessage", true);
@@ -531,22 +466,7 @@ public class PathPrefs {
 	 * @return
 	 */
 	public static Preferences getUserPreferences() {
-		return getUserPreferences(NODE_NAME, true);
-	}
-	
-	private static Preferences getUserPreferences(String nodeName, boolean createIfNotExists) {
-		Preferences prefs = Preferences.userRoot();
-		try {
-			for (var name : nodeName.split("/")) {
-				if (!createIfNotExists && !prefs.nodeExists(name))
-					return null;
-				prefs = prefs.node(name);
-			}
-			return prefs;
-		} catch (BackingStoreException e) {
-			logger.debug("Exception loading " + nodeName + " (" + e.getLocalizedMessage() + ")", e);
-			return null;
-		}
+		return MANAGER.getPreferences();
 	}
 	
 	
@@ -556,8 +476,7 @@ public class PathPrefs {
 	 */
 	public static synchronized boolean savePreferences() {
 		try {
-			Preferences prefs = getUserPreferences();
-			prefs.flush();
+			MANAGER.save();
 			logger.debug("Preferences have been saved");
 			return true;
 		} catch (BackingStoreException e) {
@@ -571,10 +490,7 @@ public class PathPrefs {
 	 */
 	public static synchronized void resetPreferences() {
 		try {
-			Preferences prefs = getUserPreferences();
-			prefs.removeNode();
-			prefs.flush();
-			resetProperty.set(!resetProperty.get());
+			MANAGER.reset();
 			logger.info("Preferences have been reset");
 		} catch (BackingStoreException e) {
 			logger.error("Failed to reset preferences", e);
@@ -676,8 +592,6 @@ public class PathPrefs {
 		return skipMissingCoresProperty.get();
 	}
 	
-	
-	
 	private static boolean showAllRGBTransforms = true;
 	
 	/**
@@ -707,7 +621,7 @@ public class PathPrefs {
 		return useTileBrush;
 	}
 
-	private static BooleanProperty selectionMode = createTransientPreference("selectionMode", false);
+	private static BooleanProperty selectionMode = MANAGER.createTransientBooleanProperty("selectionMode", false);
 
 	/**
 	 * Convert drawing tools to select objects, rather than creating new objects.
@@ -798,12 +712,12 @@ public class PathPrefs {
 	}
 	
 	
-	private static int nRecentProjects = 5;
-	private static ObservableList<URI> recentProjects = FXCollections.observableArrayList();
+	private static ObservableList<URI> recentProjects = createRecentProjectsList(5);
 	
-	static {
+	private static ObservableList<URI> createRecentProjectsList(int maxRecentProjects) {
 		// Try to load the recent projects
-		for (int i = 0; i < nRecentProjects; i++) {
+		ObservableList<URI> recentProjects = FXCollections.observableArrayList();
+		for (int i = 0; i < maxRecentProjects; i++) {
 			String project = getUserPreferences().get("recentProject" + i, null);
 			if (project == null || project.length() == 0)
 				break;
@@ -824,11 +738,12 @@ public class PathPrefs {
 				getUserPreferences().put("recentProject" + i, project.toString());
 				i++;
 			}
-			while (i < nRecentProjects) {
+			while (i < maxRecentProjects) {
 				getUserPreferences().put("recentProject" + i, "");
 				i++;
 			}
 		});
+		return recentProjects;
 	}
 	
 	/**
@@ -863,11 +778,11 @@ public class PathPrefs {
 	}
 
 	
-	private static int nRecentScripts = 8;
-	private static ObservableList<URI> recentScripts = FXCollections.observableArrayList();
+	private static ObservableList<URI> recentScripts = createRecentScriptsList(8);
 	
-	static {
+	private static ObservableList<URI> createRecentScriptsList(int nRecentScripts) {
 		// Try to load the recent scripts
+		ObservableList<URI> recentScripts = FXCollections.observableArrayList();
 		for (int i = 0; i < nRecentScripts; i++) {
 			String project = getUserPreferences().get("recentScript" + i, null);
 			if (project == null || project.length() == 0)
@@ -890,6 +805,7 @@ public class PathPrefs {
 				i++;
 			}
 		});
+		return recentScripts;
 	}
 	
 	/**
@@ -1019,7 +935,7 @@ public class PathPrefs {
 	/**
 	 * Enum defining how setting the image type should be handled for new images.
 	 */
-	public static enum ImageTypeSetting {
+	public enum ImageTypeSetting {
 		/**
 		 * Automatically estimate the image type
 		 */
@@ -1061,7 +977,7 @@ public class PathPrefs {
 	}
 	
 	
-	private static BooleanProperty paintSelectedBounds = createTransientPreference("paintSelectedBounds", false);
+	private static BooleanProperty paintSelectedBounds = MANAGER.createTransientBooleanProperty("paintSelectedBounds", false);
 
 	/**
 	 * Specify whether the bounding box of selected objects should be painted.
@@ -1225,8 +1141,8 @@ public class PathPrefs {
 	}
 	
 	
-	private static BooleanProperty showPointHulls = createTransientPreference("showPointHulls", false);
-	private static BooleanProperty useSelectedColor = createTransientPreference("useSelectedColor", true);
+	private static BooleanProperty showPointHulls = MANAGER.createTransientBooleanProperty("showPointHulls", false);
+	private static BooleanProperty useSelectedColor = MANAGER.createTransientBooleanProperty("useSelectedColor", true);
 	
 	/**
 	 * Use a specified color for highlighting selected objects in the viewer.
@@ -1246,7 +1162,7 @@ public class PathPrefs {
 	}
 		
 	
-	private static BooleanProperty multipointTool = createTransientPreference("multipointTool", true);
+	private static BooleanProperty multipointTool = MANAGER.createTransientBooleanProperty("multipointTool", true);
 	
 	/**
 	 * Create multiple points within the same annotation when using the counting tool.
@@ -1341,7 +1257,7 @@ public class PathPrefs {
 	}
 	
 	
-	private static ObjectProperty<PathClass> autoSetAnnotationClass = createTransientPreference("autoSetAnnotationClass", (PathClass)null);
+	private static ObjectProperty<PathClass> autoSetAnnotationClass = MANAGER.createTransientObjectProperty("autoSetAnnotationClass", (PathClass) null);
 	
 	/**
 	 * Classification that should automatically be applied to all new annotations. May be null.
@@ -1445,7 +1361,7 @@ public class PathPrefs {
 	 * Enum to control font size.
 	 */
 	@SuppressWarnings("javadoc")
-	public static enum FontSize {
+	public enum FontSize {
 		TINY, SMALL, MEDIUM, LARGE, HUGE;
 		
 		/**
@@ -1580,27 +1496,9 @@ public class PathPrefs {
 	 * @return
 	 */
 	public static BooleanProperty createPersistentPreference(final String name, final boolean defaultValue) {
-		BooleanProperty property = createTransientPreference(name, defaultValue);
-		property.set(getUserPreferences().getBoolean(name, defaultValue));
-		property.addListener((v, o, n) -> getUserPreferences().putBoolean(name, n));
-		// Triggered when reset is called
-		resetProperty.addListener((c, o, v) -> property.setValue(defaultValue));
-		// Triggered when reload is called
-		reloadProperty.addListener((c, o, v) -> property.set(getUserPreferences().getBoolean(name, property.get())));
-		return property;
+		return MANAGER.createPersistentBooleanProperty(name, defaultValue);
 	}
-	
-	/**
-	 * Create a transient property, which is one that won't be saved in the user preferences later.
-	 * 
-	 * @param name
-	 * @param defaultValue
-	 * @return
-	 */
-	static BooleanProperty createTransientPreference(final String name, final boolean defaultValue) {
-		return new SimpleBooleanProperty(null, name, defaultValue);
-	}
-	
+
 	
 	
 	/**
@@ -1611,27 +1509,8 @@ public class PathPrefs {
 	 * @return
 	 */
 	public static IntegerProperty createPersistentPreference(final String name, final int defaultValue) {
-		IntegerProperty property = createTransientPreference(name, defaultValue);
-		property.set(getUserPreferences().getInt(name, defaultValue));
-		property.addListener((v, o, n) -> getUserPreferences().putInt(name, n.intValue()));
-		// Triggered when reset is called
-		resetProperty.addListener((c, o, v) -> property.setValue(defaultValue));
-		// Triggered when reload is called
-		reloadProperty.addListener((c, o, v) -> property.set(getUserPreferences().getInt(name, property.get())));
-		return property;
+		return MANAGER.createPersistentIntegerProperty(name, defaultValue);
 	}
-	
-	/**
-	 * Create a transient property, which is one that won't be saved in the user preferences later.
-	 * 
-	 * @param name
-	 * @param defaultValue
-	 * @return
-	 */
-	static IntegerProperty createTransientPreference(final String name, final int defaultValue) {
-		return new SimpleIntegerProperty(null, name, defaultValue);
-	}
-	
 	
 	
 	/**
@@ -1642,27 +1521,9 @@ public class PathPrefs {
 	 * @return
 	 */
 	public static DoubleProperty createPersistentPreference(final String name, final double defaultValue) {
-		DoubleProperty property = createTransientPreference(name, defaultValue);
-		property.set(getUserPreferences().getDouble(name, defaultValue));
-		property.addListener((v, o, n) -> getUserPreferences().putDouble(name, n.doubleValue()));
-		// Triggered when reset is called
-		resetProperty.addListener((c, o, v) -> property.setValue(defaultValue));
-		// Triggered when reload is called
-		reloadProperty.addListener((c, o, v) -> property.set(getUserPreferences().getDouble(name, property.get())));
-		return property;
+		return MANAGER.createPersistentDoubleProperty(name, defaultValue);
 	}
-	
-	/**
-	 * Create a transient property, which is one that won't be saved in the user preferences later.
-	 * 
-	 * @param name
-	 * @param defaultValue
-	 * @return
-	 */
-	static DoubleProperty createTransientPreference(final String name, final double defaultValue) {
-		return new SimpleDoubleProperty(null, name, defaultValue);
-	}
-	
+
 	
 	
 	/**
@@ -1673,19 +1534,7 @@ public class PathPrefs {
 	 * @return
 	 */
 	public static StringProperty createPersistentPreference(final String name, final String defaultValue) {
-		StringProperty property = createTransientPreference(name, defaultValue);
-		property.set(getUserPreferences().get(name, defaultValue));
-		property.addListener((v, o, n) -> {
-			if (n == null)
-				getUserPreferences().remove(name);
-			else
-				getUserPreferences().put(name, n);
-		});
-		// Triggered when reset is called
-		resetProperty.addListener((c, o, v) -> property.setValue(defaultValue));
-		// Triggered when reload is called
-		reloadProperty.addListener((c, o, v) -> property.set(getUserPreferences().get(name, property.get())));
-		return property;
+		return MANAGER.createPersistentStringProperty(name, defaultValue);
 	}
 	
 	/**
@@ -1697,40 +1546,8 @@ public class PathPrefs {
 	 * @return
 	 */
 	public static <T extends Enum<T>> ObjectProperty<T> createPersistentPreference(final String name, final T defaultValue, final Class<T> enumType) {
-		return createPersistentJsonPreference(name, defaultValue, enumType);
+		return MANAGER.createPersistentEnumProperty(name, defaultValue, enumType);
 	}
-	
-//	/**
-//	 * Create a persistent property, which is one that will be saved to/reloaded from the user preferences.
-//	 * 
-//	 * @param name
-//	 * @param defaultValue
-//	 * @param enumType 
-//	 * @return
-//	 */
-//	public static <T extends Enum<T>> ObjectProperty<T> createPersistentPreference(final String name, final T defaultValue, final Class<T> enumType) {
-//		ObjectProperty<T> property = createTransientPreference(name, defaultValue);
-//		try {
-//			property.set(
-//					Enum.valueOf(enumType, getUserPreferences().get(name, defaultValue.name()))
-//					);
-//		} catch (Throwable e) {
-//			logger.warn("Exception setting preference value for " + name, e);
-//			property.set(defaultValue);
-//		}
-//		property.addListener((v, o, n) -> {
-//			if (n == null)
-//				getUserPreferences().remove(name);
-//			else
-//				getUserPreferences().put(name, n.name());
-//		});
-//		// Triggered when reset is called
-//		resetProperty.addListener((c, o, v) -> property.setValue(defaultValue));
-//		// Triggered when reload is called
-//		// TODO: HANDLE RELOAD
-////		reloadProperty.addListener((c, o, v) -> property.set(getUserPreferences().getInt(name, property.get())));
-//		return property;
-//	}
 	
 	/**
 	 * Create a persistent property representing any object serializable as a String, which will be saved to/reloaded from the user preferences.
@@ -1745,99 +1562,8 @@ public class PathPrefs {
 	 * @since v0.4.0
 	 */
 	public static <T> ObjectProperty<T> createPersistentPreference(final String name, final T defaultValue, final Function<T, String> serializer, final Function<String, T> deserializer) {
-		ObjectProperty<T> property = createTransientPreference(name, defaultValue);
-		tryToLoadStringPreference(property, name, deserializer);
-		property.addListener((v, o, n) -> {
-			if (n == null)
-				getUserPreferences().remove(name);
-			else {
-				var string = serializer.apply(n);
-				if (string == null) {
-					getUserPreferences().remove(name);
-				} else if (string.length() > Preferences.MAX_VALUE_LENGTH)
-					logger.warn("Unable to set preference {} to {} - String representation exceeds maximum length ({})", name, n, Preferences.MAX_VALUE_LENGTH);
-				else
-					getUserPreferences().put(name, string);
-			}
-		});
-		// Triggered when reset is called
-		resetProperty.addListener((c, o, v) -> property.setValue(defaultValue));
-		// Triggered when reload is called
-		reloadProperty.addListener((c, o, v) -> tryToLoadStringPreference(property, name, deserializer));
-		return property;
+		return MANAGER.createPersistentObjectProperty(name, defaultValue, serializer, deserializer);
 	}
-	
-	
-	private static <T> void tryToLoadStringPreference(ObjectProperty<T> property, String name, Function<String, T> deserializer) {
-		try {
-			var currentString = property.get();
-			var storedString = getUserPreferences().get(name, null);
-			if (storedString == null)
-				return;
- 			if (!Objects.equals(currentString, storedString)) {
- 				var obj = deserializer.apply(storedString);
-				property.set(obj);
- 			}
-		} catch (Throwable e) {
-			logger.warn("Exception setting preference value for " + name, e);
-		}
-	}
-	
-	
-	/**
-	 * Create a persistent property representing any JSON-serializable object, which will be saved to/reloaded from the user preferences.
-	 * Note that it is important that the JSON serialization is short, i.e. fewer than {@link Preferences#MAX_VALUE_LENGTH} characters.
-	 * 
-	 * @param name
-	 * @param defaultValue
-	 * @param type 
-	 * @return
-	 * 
-	 * @since v0.4.0
-	 */
-	public static <T> ObjectProperty<T> createPersistentJsonPreference(final String name, final T defaultValue, final Class<T> type) {
-		ObjectProperty<T> property = createTransientPreference(name, defaultValue);
-		tryToLoadJsonPreference(property, name, type);
-		property.addListener((v, o, n) -> {
-			if (n == null)
-				getUserPreferences().remove(name);
-			else {
-				var json = GsonTools.getInstance(false).toJson(n, type);
-				if (json.length() > Preferences.MAX_VALUE_LENGTH)
-					logger.warn("Unable to set preference {} to {} - JSON exceeds maximum length ({})", name, n, Preferences.MAX_VALUE_LENGTH);
-				else
-					getUserPreferences().put(name, json);
-			}
-		});
-		// Triggered when reset is called
-		resetProperty.addListener((c, o, v) -> property.setValue(defaultValue));
-		// Triggered when reload is called
-		reloadProperty.addListener((c, o, v) -> tryToLoadJsonPreference(property, name, type));
-		return property;
-	}
-	
-	/**
-	 * Try to load a Json-serialized preference, only updating the property if a preference is found and it has a 
-	 * different Json representation from the current value.
-	 * @param <T>
-	 * @param property
-	 * @param name
-	 * @param type
-	 */
-	private static <T> void tryToLoadJsonPreference(ObjectProperty<T> property, String name, Class<T> type) {
-		try {
-			var jsonStored = getUserPreferences().get(name, null);
-			if (jsonStored == null)
-				return;
-			var gson = GsonTools.getInstance(false);
-			var jsonDefault = gson.toJson(property.get(), type);
- 			if (!Objects.equals(jsonDefault, jsonStored))
-				property.set(gson.fromJson(jsonStored, type));
-		} catch (Throwable e) {
-			logger.warn("Exception setting preference value for " + name, e);
-		}
-	}
-	
 	
 	
 	/**
@@ -1851,57 +1577,12 @@ public class PathPrefs {
 	 * @return
 	 */
 	private static ObjectProperty<Locale> createPersistentPreference(final String name, final Category category, final Locale defaultValue) {
-		var property = createPersistentPreference(name,
-				defaultValue,
-				l -> l.getDisplayName(Locale.US),
-				n -> Arrays.stream(Locale.getAvailableLocales()).filter(l -> Objects.equals(l.getDisplayName(Locale.US), n)).findFirst().orElse(defaultValue)
-		);
+		var property = MANAGER.createPersistentLocaleProperty(name, defaultValue);
 		updateLocale(category, property.get());
 		property.addListener((v, o, n) -> {
 			updateLocale(category, n);
 		});
 		return property;
-		
-//		ObjectProperty<Locale> property = new SimpleObjectProperty<>(defaultValue);
-//		logger.debug("Default Locale {} set to: {}", category, defaultValue);
-//		// Try to read a set value for the preference
-//		// Locale.US is (I think) the only one we're guaranteed to have - so use it to get the displayed name
-//		String currentValue = getUserPreferences().get(name, defaultValue.getDisplayName(Locale.US));
-//		if (currentValue != null) {
-//			boolean localeFound = false;
-//			for (Locale locale : Locale.getAvailableLocales()) {
-//				if (currentValue.equals(locale.getDisplayName(Locale.US))) {
-////					System.err.println("Default for " + category + " is set to: " + currentValue);
-//					Locale.setDefault(category, locale);
-//					property.set(locale);
-//					logger.debug("Locale {} set to {}", category, locale);
-//					localeFound = true;
-//					break;
-//				}
-//			}
-//			if (!localeFound)
-//				logger.info("Could not find Locale {} for {} - value remains ", currentValue, category, Locale.getDefault(category));
-//		}
-//		property.addListener((v, o, n) -> {
-//			try {
-//				logger.debug("Setting Locale {} to: {}", category, n);
-//				if (n == null) {
-//					getUserPreferences().remove(name);
-//					Locale.setDefault(category, defaultValue);
-//				} else {
-//					getUserPreferences().put(name, n.getDisplayName(Locale.US));
-//					Locale.setDefault(category, n);
-//				}
-//			} catch (Exception e) {
-//				logger.error("Unable to set Locale for {} to {}", category, n);
-//			}
-//		});
-//		// Triggered when reset is called
-//		resetProperty.addListener((c, o, v) -> property.setValue(defaultValue));
-//		// Triggered when reload is called
-//		// TODO: HANDLE RELOAD
-////		reloadProperty.addListener((c, o, v) -> property.set(getUserPreferences().getInt(name, property.get())));
-//		return property;
 	}
 	
 	private static void updateLocale(Category category, Locale locale) {
@@ -1919,63 +1600,20 @@ public class PathPrefs {
 	}
 	
 	
-	/**
-	 * Create a transient property, which is one that won't be saved in the user preferences later.
-	 * 
-	 * @param name
-	 * @param defaultValue
-	 * @return
-	 */
-	static StringProperty createTransientPreference(final String name, final String defaultValue) {
-		return new SimpleStringProperty(null, name, defaultValue);
-	}
-	
-	
-	/**
-	 * Create a transient property, which is one that won't be saved in the user preferences later.
-	 * 
-	 * @param name
-	 * @param defaultValue
-	 * @return
-	 */
-	static <T> ObjectProperty<T> createTransientPreference(final String name, final T defaultValue) {
-		return new SimpleObjectProperty<>(null, name, defaultValue);
-	}
-
-
-
-	/**
-	 * Simple class to represent a positive float property
-	 */
-	static class PositiveFloatThicknessProperty extends SimpleDoubleProperty  {
-		PositiveFloatThicknessProperty(final String name, final double val) {
-			super(null, name, val);
-		}
-		
-		@Override
-		public void set(double thickness) {
-			if (thickness > 0f)
-	    		super.set(thickness);
-	       	else
-	       		logger.warn("Attempted to set stroke thickness to invalid value ({}) - will be ignored", thickness);
-		}
-	};
-	
-	
-	private static DoubleProperty createPersistentThicknessPreference(final String name, final double defaultValue) {
-		DoubleProperty property = new PositiveFloatThicknessProperty(name, defaultValue);
-		property.set(getUserPreferences().getDouble(name, defaultValue));
-		property.addListener((v, o, n) -> getUserPreferences().putFloat(name, n.floatValue()));
-		// Triggered when reset is called
-		resetProperty.addListener((c, o, v) -> property.setValue(defaultValue));
-		// Triggered when reload is called
-		reloadProperty.addListener((c, o, v) -> property.set(getUserPreferences().getDouble(name, property.get())));
+	private static DoubleProperty ensurePositiveStrokeThickness(DoubleProperty property) {
+		property.addListener((v, o, n) -> {
+			if (n == null || n.doubleValue() <= 0.0) {
+				double resetValue = o == null || o.doubleValue() <= 0.0 ? 1.0 : o.doubleValue();
+				logger.warn("Attempted to set stroke thickness to invalid value ({}) - will be reset to {}", n, resetValue);
+				property.set(o.doubleValue());
+			}
+		});
 		return property;
 	}
 	
-	private static DoubleProperty strokeThinThickness = createPersistentThicknessPreference("thinLineThickness", 2.0);
+	private static DoubleProperty strokeThinThickness = ensurePositiveStrokeThickness(createPersistentPreference("thinLineThickness", 2.0));
 	
-	private static DoubleProperty strokeThickThickness = createPersistentThicknessPreference("thickLineThickness", 2.0);
+	private static DoubleProperty strokeThickThickness = ensurePositiveStrokeThickness(createPersistentPreference("thickLineThickness", 2.0));
 	
 	/**
 	 * Preferred stroke thickness to use when drawing detections ROIs.
@@ -2020,5 +1658,13 @@ public class PathPrefs {
 		else
 			return Paths.get(System.getProperty("user.home"), "QuPath");
 	}
+
+
+
+	static {
+		addLocaleListeners();
+		addNumThreadsListener();
+	}
+
 
 }

@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
+import javafx.scene.control.ButtonType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,8 +43,8 @@ import com.google.gson.JsonSyntaxException;
 
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.DataFormat;
-import qupath.lib.gui.dialogs.Dialogs;
-import qupath.lib.gui.dialogs.Dialogs.DialogButton;
+import qupath.fx.dialogs.Dialogs;
+import qupath.fx.dialogs.FileChoosers;
 import qupath.lib.images.ImageData;
 import qupath.lib.io.PathIO;
 import qupath.lib.objects.PathObject;
@@ -170,7 +171,8 @@ public final class InteractiveObjectImporter {
 		Objects.requireNonNull(imageData, "Can't import objects - file is null");
 
 		if (file == null)
-			file = Dialogs.promptForFile("Choose file to import", null, "QuPath objects", PathIO.getObjectFileExtensions(true).toArray(String[]::new));
+			file = FileChoosers.promptForFile("Choose file to import",
+					FileChoosers.createExtensionFilter("QuPath objects", PathIO.getObjectFileExtensions(true).toArray(String[]::new)));
 		
 		// User cancel
 		if (file == null)
@@ -238,9 +240,9 @@ public final class InteractiveObjectImporter {
 					+ "This is strongly recommended to avoid multiple objects having the same ID.\n\n"
 					+ "Only skip this step if you plan to handle duplicate IDs later.";
 			var result = Dialogs.showYesNoCancelDialog("Import " + objString, message);
-			if (result == DialogButton.CANCEL)
+			if (result == ButtonType.CANCEL)
 				return false;
-			fixDuplicates = result == DialogButton.YES;
+			fixDuplicates = result == ButtonType.YES;
 		} else {
 			logger.info("Pasting {} - IDs unchanged (no duplicates)", objString);
 		}

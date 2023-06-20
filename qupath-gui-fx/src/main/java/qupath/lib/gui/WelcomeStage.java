@@ -50,14 +50,13 @@ import javafx.scene.text.Text;
 import javafx.scene.text.TextAlignment;
 import javafx.scene.text.TextFlow;
 import javafx.stage.Stage;
+import qupath.fx.utils.FXUtils;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.prefs.PathPrefs.AutoUpdateType;
 import qupath.lib.gui.prefs.QuPathStyleManager;
-import qupath.lib.gui.tools.GuiTools;
-import qupath.lib.gui.tools.LocaleListener;
-import qupath.lib.gui.tools.PaneTools;
+import qupath.fx.utils.GridPaneUtils;
 
 
 /**
@@ -75,8 +74,8 @@ public class WelcomeStage {
 	
 	private static Stage INSTANCE;
 	
-	private static final StringProperty TITLE = LocaleListener.createProperty("Welcome.title");
-	
+	private static final StringProperty TITLE = QuPathResources.getLocalizeResourceManager().createProperty("Welcome.title");
+
 	public static Stage getInstance(QuPathGUI qupath) {
 		if (INSTANCE == null) {
 			INSTANCE = buildStage(qupath);
@@ -87,7 +86,9 @@ public class WelcomeStage {
 	
 	
 	private static Stage buildStage(QuPathGUI qupath) {
-		
+
+		var localeListener = QuPathResources.getLocalizeResourceManager();
+
 		var stage = new Stage();
 		if (qupath != null)
 			stage.initOwner(qupath.getStage());
@@ -109,7 +110,7 @@ public class WelcomeStage {
 				Glyph.COMMENTS_ALT,
 				Urls.getUserForumUrl()
 				);
-		var paneButtons = PaneTools.createColumnGrid(btnDocs, btnForum, btnCode);
+		var paneButtons = GridPaneUtils.createColumnGrid(btnDocs, btnForum, btnCode);
 				
 		var pane = new BorderPane(paneButtons);
 		
@@ -119,7 +120,7 @@ public class WelcomeStage {
 		imageView.setPreserveRatio(true);
 		
 		var textTitle = new Text();
-		LocaleListener.registerProperty(textTitle.textProperty(), "Welcome.welcomeMessage");
+		QuPathResources.getLocalizeResourceManager().registerProperty(textTitle.textProperty(), "Welcome.welcomeMessage");
 		textTitle.setStyle("-fx-font-weight: bold; -fx-font-size: 150%; -fx-fill: -fx-text-base-color;"); 
 
 		var topPane = new VBox();
@@ -165,7 +166,7 @@ public class WelcomeStage {
 		comboThemes.getSelectionModel().select(QuPathStyleManager.selectedStyleProperty().get());
 		comboThemes.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> QuPathStyleManager.selectedStyleProperty().set(n));
 		var labelThemes = new Label();
-		LocaleListener.registerProperty(labelThemes.textProperty(), "Welcome.chooseTheme");
+		localeListener.registerProperty(labelThemes.textProperty(), "Welcome.chooseTheme");
 		labelThemes.setLabelFor(comboThemes);
 		labelThemes.setAlignment(Pos.CENTER_RIGHT);
 		
@@ -174,12 +175,12 @@ public class WelcomeStage {
 		comboUpdates.getSelectionModel().select(PathPrefs.autoUpdateCheckProperty().get());
 		comboUpdates.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> PathPrefs.autoUpdateCheckProperty().set(n));
 		var labelUpdates = new Label();
-		LocaleListener.registerProperty(labelUpdates.textProperty(), "Welcome.checkUpdates");
+		localeListener.registerProperty(labelUpdates.textProperty(), "Welcome.checkUpdates");
 		labelUpdates.setLabelFor(comboUpdates);
 		labelUpdates.setAlignment(Pos.CENTER_RIGHT);
 
 		var cbShowStartup = new CheckBox();
-		LocaleListener.registerProperty(cbShowStartup.textProperty(), "Welcome.showOnStartup");
+		localeListener.registerProperty(cbShowStartup.textProperty(), "Welcome.showOnStartup");
 		cbShowStartup.selectedProperty().bindBidirectional(PathPrefs.showStartupMessageProperty());
 		cbShowStartup.setAlignment(Pos.CENTER_RIGHT);
 		
@@ -207,10 +208,10 @@ public class WelcomeStage {
 		paneOptions.add(separator2, 0, row++, GridPane.REMAINING, 1);
 
 		var linkCiting = new Hyperlink();
-		LocaleListener.registerProperty(linkCiting.textProperty(), "Welcome.clickForDetails");
+		localeListener.registerProperty(linkCiting.textProperty(), "Welcome.clickForDetails");
 		linkCiting.setOnAction(e -> QuPathGUI.openInBrowser(Urls.getCitationUrl())); 
 		var textCitingStart = new Text();
-		LocaleListener.registerProperty(textCitingStart.textProperty(), "Welcome.cite");
+		localeListener.registerProperty(textCitingStart.textProperty(), "Welcome.cite");
 		var textCiting = new TextFlow(
 				textCitingStart,
 				new Text(System.lineSeparator()),
@@ -226,7 +227,7 @@ public class WelcomeStage {
 
 		
 		var btnStarted = new Button();
-		LocaleListener.registerProperty(btnStarted.textProperty(), "Welcome.getStarted");
+		localeListener.registerProperty(btnStarted.textProperty(), "Welcome.getStarted");
 //		btnStarted.setPrefHeight(40);
 		btnStarted.setStyle("-fx-font-weight: bold; -fx-font-size: 110%;"); 
 		btnStarted.setPadding(new Insets(10));
@@ -238,7 +239,7 @@ public class WelcomeStage {
 		paneOptions.add(cbShowStartup, 0, row, GridPane.REMAINING, 1);
 		row++;
 
-		PaneTools.setToExpandGridPaneWidth(comboThemes, comboUpdates, cbShowStartup, btnStarted, labelExplanation);
+		GridPaneUtils.setToExpandGridPaneWidth(comboThemes, comboUpdates, cbShowStartup, btnStarted, labelExplanation);
 		
 		if (GeneralTools.isMac() && "aarch64".equals(System.getProperty("os.arch"))) {  //$NON-NLS-2$
 			var textSilicon = makeMacAarch64Message();
@@ -246,7 +247,7 @@ public class WelcomeStage {
 			textSilicon.setOpacity(0.9);
 			var sepSilicon = new Separator(Orientation.HORIZONTAL);
 			sepSilicon.setPadding(new Insets(5, 5, 0, 5));
-			PaneTools.setToExpandGridPaneWidth(sepSilicon, textSilicon);
+			GridPaneUtils.setToExpandGridPaneWidth(sepSilicon, textSilicon);
 			paneOptions.add(sepSilicon, 0, row++, GridPane.REMAINING, 1);
 			paneOptions.add(textSilicon, 0, row++, GridPane.REMAINING, 1);
 			row++;
@@ -261,7 +262,7 @@ public class WelcomeStage {
 //		stage.initStyle(StageStyle.UNDECORATED);
 		stage.setScene(new Scene(pane));
 		stage.titleProperty().bind(TITLE);
-		GuiTools.makeDraggableStage(stage);
+		FXUtils.makeDraggableStage(stage);
 		stage.getScene().setOnMouseClicked(e -> {
 			if (e.getClickCount() == 2) {
 				logger.info("Startup stage closed by double-click"); 
@@ -282,7 +283,7 @@ public class WelcomeStage {
 	
 	
 	private static TextFlow makeMacAarch64Message() {
-		var textProperty = LocaleListener.createProperty("Welcome.macOsAarch64");
+		var textProperty = QuPathResources.getLocalizeResourceManager().createProperty("Welcome.macOsAarch64");
 
 		var textSiliconExperimental = new Text(); 
 		textSiliconExperimental.setStyle("-fx-font-weight: bold; -fx-fill: -qp-script-error-color;"); 
@@ -322,7 +323,7 @@ public class WelcomeStage {
 		if (key == null)
 			button.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
 		else {
-			LocaleListener.registerProperty(button.textProperty(), key);
+			QuPathResources.getLocalizeResourceManager().registerProperty(button.textProperty(), key);
 			button.setContentDisplay(ContentDisplay.TOP);
 		}
 		

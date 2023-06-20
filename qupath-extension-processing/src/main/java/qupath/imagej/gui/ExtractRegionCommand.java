@@ -50,8 +50,9 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.display.ChannelDisplayInfo;
 import qupath.lib.display.SingleChannelDisplayInfo;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.images.servers.ChannelDisplayTransformServer;
+import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.servers.ImageServer;
@@ -139,7 +140,7 @@ class ExtractRegionCommand implements Runnable {
 		params.setHiddenParameters(server.nZSlices() == 1, "doZ");
 		params.setHiddenParameters(server.nTimepoints() == 1, "doT");
 		
-		if (!Dialogs.showParameterDialog("Send region to ImageJ", params))
+		if (!GuiTools.showParameterDialog("Send region to ImageJ", params))
 			return;
 		
 		// Parse values

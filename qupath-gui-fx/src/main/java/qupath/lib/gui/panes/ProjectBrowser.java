@@ -97,8 +97,7 @@ import qupath.lib.common.ThreadTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.actions.ActionTools;
 import qupath.lib.gui.commands.ProjectCommands;
-import qupath.lib.gui.dialogs.Dialogs;
-import qupath.lib.gui.dialogs.Dialogs.DialogButton;
+import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.panes.ProjectTreeRow.ImageRow;
 import qupath.lib.gui.panes.ProjectTreeRow.MetadataRow;
 import qupath.lib.gui.panes.ProjectTreeRow.Type;
@@ -107,7 +106,7 @@ import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.IconFactory;
 import qupath.lib.gui.tools.IconFactory.PathIcons;
 import qupath.lib.gui.tools.MenuTools;
-import qupath.lib.gui.tools.PaneTools;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
@@ -228,7 +227,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		tfFilter.setTooltip(new Tooltip("Type some text to filter the project entries by name or type."));
 		tfFilter.textProperty().addListener((m, o, n) -> refreshTree(null));
 		
-		var paneUserFilter = PaneTools.createRowGrid(tfFilter);
+		var paneUserFilter = GridPaneUtils.createRowGrid(tfFilter);
 		
 		BorderPane panelTree = new BorderPane();
 		panelTree.setCenter(titledTree);
@@ -239,7 +238,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		Button btnOpen = ActionTools.createButton(qupath.getCommonActions().PROJECT_OPEN);
 		Button btnCreate = ActionTools.createButton(qupath.getCommonActions().PROJECT_NEW);
 		Button btnAdd = ActionTools.createButton(qupath.getCommonActions().PROJECT_ADD_IMAGES);
-		GridPane paneButtons = PaneTools.createColumnGridControls(btnCreate, btnOpen, btnAdd);
+		GridPane paneButtons = GridPaneUtils.createColumnGridControls(btnCreate, btnOpen, btnAdd);
 		paneButtons.prefWidthProperty().bind(panel.widthProperty());
 		paneButtons.setPadding(new Insets(5, 5, 5, 5));
 		panel.setTop(paneButtons);
@@ -278,10 +277,10 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 			
 			var result = Dialogs.showYesNoCancelDialog("Remove project entries",
 					"Delete all associated data?");
-			if (result == DialogButton.CANCEL)
+			if (result == ButtonType.CANCEL)
 				return;
 			
-			project.removeAllImages(entries, result == DialogButton.YES);
+			project.removeAllImages(entries, result == ButtonType.YES);
 			refreshTree(null);
 			syncProject(project);
 			if (tree != null) {
@@ -317,7 +316,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 					.addStringParameter("name", namePrompt, name, nameHelp)
 					.addBooleanParameter("copyData", "Also duplicate data files", true, "Duplicate any associated data files along with the image");
 			
-			if (!Dialogs.showParameterDialog(title, params))
+			if (!GuiTools.showParameterDialog(title, params))
 				return;
 
 			boolean copyData = params.getBooleanParameterValue("copyData");

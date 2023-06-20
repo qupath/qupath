@@ -29,12 +29,14 @@ import java.util.List;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.StringProperty;
+import qupath.fx.dialogs.FileChoosers;
 import qupath.lib.analysis.stats.RunningStatistics;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tma.TMADataIO;
+import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ServerTools;
 import qupath.lib.objects.PathObject;
@@ -81,7 +83,7 @@ public class TMACommands {
 	public static void promptToAddNoteToSelectedCores(ImageData<?> imageData) {
 		String title = "Add TMA note";
 		if (imageData == null) {
-			Dialogs.showNoImageError(title);
+			GuiTools.showNoImageError(title);
 			return;
 		}
 		
@@ -127,7 +129,7 @@ public class TMACommands {
 	public static void promptToExportTMAData(QuPathGUI qupath, ImageData<BufferedImage> imageData) {
 		String title = "Export TMA data";
 		if (imageData == null) {
-			Dialogs.showNoImageError(title);
+			GuiTools.showNoImageError(title);
 			return;
 		}
 		PathObjectHierarchy hierarchy = imageData == null ? null : imageData.getHierarchy();
@@ -141,7 +143,8 @@ public class TMACommands {
 				.map(v -> v.getOverlayOptions()).findFirst().orElse(qupath.getOverlayOptions());
 
 		String defaultName = ServerTools.getDisplayableImageName(imageData.getServer());
-		File file = Dialogs.promptToSaveFile(null, null, defaultName, "TMA data", ".qptma");
+		File file = FileChoosers.promptToSaveFile(null, new File(defaultName),
+				FileChoosers.createExtensionFilter("TMA data", ".qptma"));
 		if (file != null) {
 			if (!file.getName().endsWith(".qptma"))
 				file = new File(file.getParentFile(), file.getName() + ".qptma");
@@ -185,7 +188,7 @@ public class TMACommands {
 	public static void promptToRelabelTMAGrid(ImageData<?> imageData) {
 		String title = "Relabel TMA grid";
 		if (imageData == null) {
-			Dialogs.showNoImageError(title);
+			GuiTools.showNoImageError(title);
 			return;
 		}
 		if (imageData.getHierarchy().getTMAGrid() == null) {
@@ -198,7 +201,7 @@ public class TMACommands {
 		params.addStringParameter("labelsVertical", "Row labels", rowLabelsProperty.get(), "Enter row labels.\nThis can be a continuous range of letters or numbers (e.g. 1-10 or A-J),\nor a discontinuous list separated by spaces (e.g. A B C E F G).");
 		params.addChoiceParameter("labelOrder", "Label order", rowFirstProperty.get() ? "Row first" : "Column first", Arrays.asList("Column first", "Row first"), "Create TMA labels either in the form Row-Column or Column-Row");
 		
-		if (!Dialogs.showParameterDialog(title, params))
+		if (!GuiTools.showParameterDialog(title, params))
 			return;
 		
 		// Parse the arguments
@@ -273,7 +276,7 @@ public class TMACommands {
 		String title = "Delete TMA " + typeString;
 		boolean removeRow = type == TMARemoveType.ROW;
 		if (imageData == null) {
-			Dialogs.showNoImageError(title);
+			GuiTools.showNoImageError(title);
 			return false;
 		}
 		if (imageData.getHierarchy().getTMAGrid() == null) {
@@ -379,7 +382,7 @@ public class TMACommands {
 	public static boolean promptToCreateTMAGrid(final ImageData<?> imageData) {
 		String title = "Create TMA grid";
 		if (imageData == null) {
-			Dialogs.showNoImageError(title);
+			GuiTools.showNoImageError(title);
 			return false;
 		}
 		if (imageData.getHierarchy().getTMAGrid() != null) {
@@ -396,7 +399,7 @@ public class TMACommands {
 		params.addDoubleParameter("coreDiameter", "Core diameter", coreDiameterProperty.get(), units, "Diameter of each individual TMA core");
 		params.addEmptyParameter("Tip: You can control the size of the grid by drawing a rectangle annotation");
 		
-		if (!Dialogs.showParameterDialog(title, params))
+		if (!GuiTools.showParameterDialog(title, params))
 			return false;
 		
 		// Parse the arguments
@@ -491,7 +494,7 @@ public class TMACommands {
 		String NAME = type.commandName();
 		
 		if (imageData == null) {
-			Dialogs.showNoImageError(NAME);
+			GuiTools.showNoImageError(NAME);
 			return false;
 		}
 		if (imageData.getHierarchy().getTMAGrid() == null) {

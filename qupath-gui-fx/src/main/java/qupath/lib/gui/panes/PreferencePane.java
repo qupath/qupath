@@ -79,7 +79,9 @@ import javafx.scene.text.FontWeight;
 import javafx.scene.text.TextAlignment;
 import javafx.util.Duration;
 import javafx.util.StringConverter;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.fx.utils.FXUtils;
+import qupath.fx.dialogs.Dialogs;
+import qupath.fx.dialogs.FileChoosers;
 import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.logging.LogManager;
 import qupath.lib.gui.logging.LogManager.LogLevel;
@@ -88,21 +90,12 @@ import qupath.lib.gui.prefs.PathPrefs.AutoUpdateType;
 import qupath.lib.gui.prefs.PathPrefs.DetectionTreeDisplayModes;
 import qupath.lib.gui.prefs.PathPrefs.FontSize;
 import qupath.lib.gui.prefs.PathPrefs.ImageTypeSetting;
+import qupath.lib.gui.prefs.annotations.*;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.tools.CommandFinderTools;
 import qupath.lib.gui.tools.CommandFinderTools.CommandBarDisplay;
-import qupath.lib.gui.tools.GuiTools;
-import qupath.lib.gui.tools.LocaleListener;
 import qupath.lib.gui.prefs.QuPathStyleManager;
 import qupath.lib.gui.prefs.QuPathStyleManager.StyleOption;
-import qupath.lib.gui.prefs.annotations.BooleanPref;
-import qupath.lib.gui.prefs.annotations.ColorPref;
-import qupath.lib.gui.prefs.annotations.DirectoryPref;
-import qupath.lib.gui.prefs.annotations.DoublePref;
-import qupath.lib.gui.prefs.annotations.IntegerPref;
-import qupath.lib.gui.prefs.annotations.LocalePref;
-import qupath.lib.gui.prefs.annotations.Pref;
-import qupath.lib.gui.prefs.annotations.PrefCategory;
 
 /**
  * QuPath's preference pane, giving a means to modify many of the properties within PathPrefs.
@@ -122,7 +115,7 @@ public class PreferencePane {
 	
 	private BorderPane pane;
 	
-	private StringProperty localeChangedText = LocaleListener.createProperty("Prefs.localeChanged");
+	private StringProperty localeChangedText = QuPathResources.getLocalizeResourceManager().createProperty("Prefs.localeChanged");
 	private BooleanProperty localeChanged = new SimpleBooleanProperty(false);
 	
 	@SuppressWarnings("javadoc")
@@ -208,13 +201,6 @@ public class PreferencePane {
 	private void setLocaleChanged() {
 		localeChanged.set(true);
 		localeChangedSinceRefresh = true;
-//		for (var title : propSheet.lookupAll(".titled-pane")) {
-//			if (title instanceof TitledPane titledPane) {
-//				if (!titledPane.textProperty().isBound()) {
-//					System.err.println(title);
-//				}
-//			}
-//		}
 	}
 	
 	
@@ -711,14 +697,14 @@ public class PreferencePane {
 		public PropertyItem key(String bundle, String key) {
 			if (bundle.isBlank())
 				bundle = null;
-			LocaleListener.registerProperty(name, bundle, key);
+			QuPathResources.getLocalizeResourceManager().registerProperty(name, bundle, key);
 			if (QuPathResources.hasString(bundle, key + ".description"))
-				LocaleListener.registerProperty(description, bundle, key + ".description");			
+				QuPathResources.getLocalizeResourceManager().registerProperty(description, bundle, key + ".description");
 			return this;
 		}
 
 		public PropertyItem categoryKey(final String bundle, final String key) {
-			LocaleListener.registerProperty(category, bundle, key);			
+			QuPathResources.getLocalizeResourceManager().registerProperty(category, bundle, key);
 			return this;
 		}
 
@@ -895,7 +881,7 @@ public class PreferencePane {
 			control.setOnMouseClicked(e -> {
 				if (e.getClickCount() > 1) {
 					e.consume();
-					File dirNew = Dialogs.getChooser(control.getScene().getWindow()).promptForDirectory(getValue());
+					File dirNew = FileChoosers.promptForDirectory(control.getScene().getWindow(), null, getValue());
 					if (dirNew != null)
 						setValue(dirNew);
 				}
@@ -1146,8 +1132,8 @@ public class PreferencePane {
 				@SuppressWarnings("rawtypes")
 				var combo = (ComboBox)editor.getEditor();
 				var formatter = reformatTypes.get(item.getType());
-				combo.setCellFactory(obj -> GuiTools.createCustomListCell(formatter));
-				combo.setButtonCell(GuiTools.createCustomListCell(formatter));
+				combo.setCellFactory(obj -> FXUtils.createCustomListCell(formatter));
+				combo.setButtonCell(FXUtils.createCustomListCell(formatter));
 			}
 			
 			// Make it easier to reset default locale
@@ -1216,7 +1202,7 @@ public class PreferencePane {
 	}
 
 	
-	private static enum PropertyType { GENERAL, DIRECTORY, COLOR, CHOICE, SEARCHABLE_CHOICE }
+	private enum PropertyType { GENERAL, DIRECTORY, COLOR, CHOICE, SEARCHABLE_CHOICE }
 	
 	
 	private static class PropertyItemBuilder<T> {
@@ -1297,7 +1283,8 @@ public class PreferencePane {
 		
 		var cls = obj instanceof Class<?> ? (Class<?>)obj : obj.getClass();
 		List<PropertyItem> items = new ArrayList<>();
-		
+
+		// Look for category annotation from the parent class
 		String categoryBundle = null;
 		String categoryKey = "Prefs.General";
 		if (cls.isAnnotationPresent(PrefCategory.class)) {
@@ -1332,11 +1319,20 @@ public class PreferencePane {
 				} else if (field.isAnnotationPresent(DirectoryPref.class)) {
 					item = parseItem((Property<String>)field.get(obj), field.getAnnotation(DirectoryPref.class));
 				}
+
+				// Handle direct category annotation
+				if (field.isAnnotationPresent(PrefCategory.class)) {
+					var annotation = cls.getAnnotation(PrefCategory.class);
+					String localeCategoryBundle = annotation.bundle().isBlank() ? null : annotation.bundle();
+					String localeCategoryKey = annotation.value();
+					item.categoryKey(localeCategoryBundle, localeCategoryKey);
+				} else {
+					item.categoryKey(categoryBundle, categoryKey);
+				}
 			} catch (Exception e) {
 				logger.error(e.getLocalizedMessage(), e);
 			}
 			if (item != null) {
-				item.categoryKey(categoryBundle, categoryKey);
 				items.add(item);
 			}
 		}

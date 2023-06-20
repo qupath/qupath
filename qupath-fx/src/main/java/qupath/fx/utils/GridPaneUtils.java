@@ -1,34 +1,9 @@
-/*-
- * #%L
- * This file is part of QuPath.
- * %%
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
- * %%
- * QuPath is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as
- * published by the Free Software Foundation, either version 3 of the
- * License, or (at your option) any later version.
- * 
- * QuPath is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- * 
- * You should have received a copy of the GNU General Public License 
- * along with QuPath.  If not, see <https://www.gnu.org/licenses/>.
- * #L%
- */
+package qupath.fx.utils;
 
-package qupath.lib.gui.tools;
-
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
+
 import javafx.scene.Node;
-import javafx.scene.Parent;
 import javafx.scene.control.Control;
-import javafx.scene.control.SplitPane;
-import javafx.scene.control.TitledPane;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
@@ -42,7 +17,7 @@ import javafx.scene.layout.RowConstraints;
  * @author Pete Bankhead
  *
  */
-public class PaneTools {
+public class GridPaneUtils {
 
 	/**
 	 * Add a row of nodes.  The rowspan is always 1.  The colspan is 1 by default, 
@@ -326,68 +301,6 @@ public class PaneTools {
 		pane.getRowConstraints().add(row);
 		return pane;
 	}
-	
-	/**
-	 * Get the nodes that are included within a {@link Parent}, optionally adding other nodes recursively.
-	 * Without the recursive search, this is similar to {@link Parent#getChildrenUnmodifiable()} in most cases, 
-	 * except that a separate collection is used. However in some cases {@code getItems()} must be used instead. 
-	 * Currently this applies only to {@link SplitPane} but this may be used elsewhere if appropriate.
-	 * @param parent
-	 * @param collection
-	 * @param doRecursive
-	 * @return
-	 */
-	public static Collection<Node> getContents(Parent parent, Collection<Node> collection, boolean doRecursive) {
-		if (collection == null) {
-			collection = new ArrayList<>();
-		}
-		var children = parent.getChildrenUnmodifiable();
-		if (children.isEmpty() && parent instanceof SplitPane) {
-			children = ((SplitPane)parent).getItems();
-		}
-		for (var child : children) {
-			collection.add(child);
-			if (doRecursive && child instanceof Parent)
-				getContents((Parent)child, collection, doRecursive);
-		}
-		return collection;
-	}
-	
-	/**
-	 * Get the nodes of type T that are contained within a {@link Parent}, optionally adding other nodes 
-	 * recursively. This can be helpful, for example, to extract all the Buttons or Regions within a pane 
-	 * in order to set some property of all of them.
-	 * @param <T>
-	 * @param parent
-	 * @param cls
-	 * @param doRecursive
-	 * @return
-	 * 
-	 * @see #getContents(Parent, Collection, boolean)
-	 */
-	public static <T extends Node> Collection<T> getContentsOfType(Parent parent, Class<T> cls, boolean doRecursive) {
-		return getContents(parent, new ArrayList<>(), doRecursive).stream()
-				.filter(p -> cls.isInstance(p))
-				.map(p -> cls.cast(p))
-				.toList();
-	}
-	
-	
-	/**
-	 * Simplify the appearance of a {@link TitledPane} using CSS.
-	 * This is useful if using a {@link TitledPane} to define expanded options, which should be displayed unobtrusively.
-	 * 
-	 * @param pane the pane to simplify
-	 * @param boldTitle if true, the title should be displayed in bold
-	 */
-	public static void simplifyTitledPane(TitledPane pane, boolean boldTitle) {
-		var css = PaneTools.class.getClassLoader().getResource("css/titled_plain.css").toExternalForm();
-		pane.getStylesheets().add(css);
-		if (boldTitle) {
-			var css2 = PaneTools.class.getClassLoader().getResource("css/titled_bold.css").toExternalForm();
-			pane.getStylesheets().add(css2);
-		}
-	}
-	
+
 
 }

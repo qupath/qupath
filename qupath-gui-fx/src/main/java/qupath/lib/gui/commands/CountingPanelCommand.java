@@ -51,11 +51,12 @@ import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import qupath.fx.dialogs.FileChoosers;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.actions.ActionTools;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.prefs.PathPrefs;
-import qupath.lib.gui.tools.PaneTools;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.gui.viewer.tools.PathTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ServerTools;
@@ -144,7 +145,7 @@ public class CountingPanelCommand implements Runnable, ChangeListener<ImageData<
 		btnLoad.setOnAction(event -> {
 				if (hierarchy == null)
 					return;
-				File file = Dialogs.promptForFile(null, null, "TSV (Tab delimited)", new String[]{"tsv"});
+				File file = FileChoosers.promptForFile(FileChoosers.createExtensionFilter("TSV (Tab delimited)", "*.tsv"));
 				if (file == null)
 					return;
 				try {
@@ -189,13 +190,15 @@ public class CountingPanelCommand implements Runnable, ChangeListener<ImageData<
 					Dialogs.showErrorMessage("Save points", "No points available!");
 					return;
 				}
-				String defaultName = null;
+				File defaultName = null;
 				try {
-					defaultName = ServerTools.getDisplayableImageName(qupath.getViewer().getServer()) + "-points.tsv"; // Sorry, this is lazy...
+					String name = ServerTools.getDisplayableImageName(qupath.getViewer().getServer()) + "-points.tsv"; // Sorry, this is lazy...
+					defaultName = new File(name);
 				} catch (Exception e) {
 					// Ignore...
 				};
-				File file = Dialogs.promptToSaveFile(null, null, defaultName, "TSV (Tab delimited)", "tsv");
+				File file = FileChoosers.promptToSaveFile(null, defaultName,
+						FileChoosers.createExtensionFilter("TSV (Tab delimited)", "tsv"));
 				if (file == null)
 					return;
 				try {
@@ -206,7 +209,7 @@ public class CountingPanelCommand implements Runnable, ChangeListener<ImageData<
 			}
 		);
 		
-		GridPane panelLoadSave = PaneTools.createColumnGridControls(
+		GridPane panelLoadSave = GridPaneUtils.createColumnGridControls(
 				btnLoad,
 				btnSave
 				);

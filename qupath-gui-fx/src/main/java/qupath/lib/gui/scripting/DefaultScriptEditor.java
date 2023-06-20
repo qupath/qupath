@@ -112,12 +112,12 @@ import javafx.scene.web.WebView;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.util.Callback;
+import qupath.fx.dialogs.FileChoosers;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.JavadocViewer;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.actions.ActionTools;
-import qupath.lib.gui.dialogs.Dialogs;
-import qupath.lib.gui.dialogs.Dialogs.DialogButton;
+import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.ProjectDialogs;
 import qupath.lib.gui.logging.LogManager;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -130,7 +130,7 @@ import qupath.lib.gui.scripting.syntax.ScriptSyntax;
 import qupath.lib.gui.scripting.syntax.ScriptSyntaxProvider;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.MenuTools;
-import qupath.lib.gui.tools.PaneTools;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.gui.tools.WebViews;
 import qupath.lib.images.ImageData;
 import qupath.lib.projects.Project;
@@ -976,11 +976,11 @@ public class DefaultScriptEditor implements ScriptEditor {
 		paneRun.setPadding(new Insets(5));
 //		paneRun.setHgap(5.0);
 
-		PaneTools.setHGrowPriority(Priority.ALWAYS, paneSpace);
-		PaneTools.setFillWidth(Boolean.TRUE, paneSpace);
-		PaneTools.setMaxHeight(Double.MAX_VALUE, labelRunning, paneSpace, btnRun, btnMore);
-		PaneTools.setMaxWidth(Double.MAX_VALUE, labelRunning, paneSpace, btnRun, btnMore);
-		PaneTools.setFillHeight(Boolean.TRUE, labelRunning, paneSpace, btnRun, btnMore);
+		GridPaneUtils.setHGrowPriority(Priority.ALWAYS, paneSpace);
+		GridPaneUtils.setFillWidth(Boolean.TRUE, paneSpace);
+		GridPaneUtils.setMaxHeight(Double.MAX_VALUE, labelRunning, paneSpace, btnRun, btnMore);
+		GridPaneUtils.setMaxWidth(Double.MAX_VALUE, labelRunning, paneSpace, btnRun, btnMore);
+		GridPaneUtils.setFillHeight(Boolean.TRUE, labelRunning, paneSpace, btnRun, btnMore);
 		
 		return paneRun;
 	}
@@ -1290,7 +1290,9 @@ public class DefaultScriptEditor implements ScriptEditor {
 				// TODO: Allow multiple extensions to be used?
 				Collection<String> extensions = tab.getRequestedExtensions();
 				String ext = extensions.isEmpty() ? null : extensions.iterator().next();
-				File file = Dialogs.getChooser(dialog).promptToSaveFile("Save script file", dir, tab.getName(), currentLanguage.getValue().getName() + " file", ext);
+				File file = FileChoosers.promptToSaveFile(dialog, "Save script file",
+						tab.getName() == null ? null : new File(dir, tab.getName()),
+						FileChoosers.createExtensionFilter(currentLanguage.getValue().getName() + " file", ext));
 				if (file == null)
 					return false;
 				tab.saveToFile(getCurrentText(), file);
@@ -1301,7 +1303,6 @@ public class DefaultScriptEditor implements ScriptEditor {
 			}
 		} catch (Exception e) {
 			logger.error("Error saving file", e);
-			e.printStackTrace();
 		}
 		return false;
 	}
@@ -1517,7 +1518,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	void handleRunProject(final boolean doSave) {
 		Project<BufferedImage> project = qupath.getProject();
 		if (project == null) {
-			Dialogs.showNoProjectError("Script editor");
+			GuiTools.showNoProjectError("Script editor");
 			return;
 		}
 		ScriptTab tab = getCurrentScriptTab();
@@ -1841,8 +1842,19 @@ public class DefaultScriptEditor implements ScriptEditor {
 			File dir = null;
 			if (dirPath != null)
 				dir = new File(dirPath);
-//			File file = Dialogs.promptForFile("Choose script file", dir, "Known script files", SCRIPT_EXTENSIONS);
-			File file = Dialogs.promptForFile("Choose script file", dir, "Groovy script", ".groovy");
+
+			var compatibleExtensions = ScriptLanguageProvider.getAvailableLanguages().stream()
+					.flatMap(l -> l.getExtensions().stream())
+					.distinct()
+					.sorted()
+					.toList();
+
+			File file = FileChoosers.buildFileChooser()
+					.title("Choose script file")
+					.extensionFilters(FileChoosers.createExtensionFilter("Compatible files", compatibleExtensions))
+					.initialDirectory(dir)
+					.build().showOpenDialog(getStage());
+
 			if (file == null)
 				return;
 			try {
@@ -2031,10 +2043,10 @@ public class DefaultScriptEditor implements ScriptEditor {
 		// Check if we need to save
 		if (tab.isModifiedProperty().get() && tab.hasScript()) {
 			// TODO: Consider that this previously had a different parent for the dialog... and probably should
-			DialogButton option = Dialogs.showYesNoCancelDialog("Close " + tab.getName(), String.format("Save %s before closing?", tab.getName()));
-			if (option == DialogButton.CANCEL)
+			ButtonType option = Dialogs.showYesNoCancelDialog("Close " + tab.getName(), String.format("Save %s before closing?", tab.getName()));
+			if (option == ButtonType.CANCEL)
 				return false;
-			if (option == DialogButton.YES) {
+			if (option == ButtonType.YES) {
 				if (!save(tab, false))
 					return false;
 			}

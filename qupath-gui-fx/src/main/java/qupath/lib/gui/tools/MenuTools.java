@@ -56,7 +56,7 @@ public class MenuTools {
 	public static Menu createMenu(final String name, final Object... items) {
 		Menu menu = new Menu();
 		if (QuPathResources.hasString(name))
-			LocaleListener.registerProperty(menu.textProperty(), name);
+			QuPathResources.getLocalizeResourceManager().registerProperty(menu.textProperty(), name);
 		else
 			menu.setText(name);
 		if (items.length > 0)
@@ -205,7 +205,7 @@ public class MenuTools {
 	private static Menu createMenu(String keyOrName) {
 		var menu = new Menu();
 		if (QuPathResources.hasString(keyOrName))
-			LocaleListener.registerProperty(menu.textProperty(), keyOrName);
+			QuPathResources.getLocalizeResourceManager().registerProperty(menu.textProperty(), keyOrName);
 		else
 			menu.setText(keyOrName);
 		return menu;

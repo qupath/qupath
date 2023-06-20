@@ -1,25 +1,4 @@
-/*-
- * #%L
- * This file is part of QuPath.
- * %%
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
- * %%
- * QuPath is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as
- * published by the Free Software Foundation, either version 3 of the
- * License, or (at your option) any later version.
- *
- * QuPath is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with QuPath.  If not, see <https://www.gnu.org/licenses/>.
- * #L%
- */
-
-package qupath.lib.gui;
+package qupath.fx.controls;
 
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
@@ -38,15 +17,18 @@ import javafx.scene.shape.MoveTo;
 import javafx.scene.shape.Path;
 import javafx.scene.text.Font;
 import javafx.scene.text.Text;
-import qupath.lib.gui.dialogs.Dialogs;
-import qupath.lib.gui.localization.QuPathResources;
+import qupath.fx.dialogs.Dialogs;
+import qupath.fx.localization.LocalizedResourceManager;
 
 /**
  * A custom JavaFX circular-slider control.
+ * <p>
  * Currently, this only supports a rotation value in degrees. 
  * This behavior may change in the future, e.g. to support other ranges.
  */
 public class CircularSlider extends Control {
+
+    private static final LocalizedResourceManager resources = LocalizedResourceManager.createInstance("qupath.fx.localization.strings");
 
     private static final class CircularSliderSkin extends SkinBase<CircularSlider> {
         protected CircularSliderSkin(CircularSlider control) {
@@ -101,8 +83,8 @@ public class CircularSlider extends Control {
                 	rotation = Double.valueOf(MIN_DISPLAYED_VALUE);
                 else
                 	rotation = Dialogs.showInputDialog(
-                			QuPathResources.getString("CircularSlider.inputTitle"),
-                			QuPathResources.getString("CircularSlider.inputPrompt"), getValue());
+                			resources.getString("CircularSlider.inputTitle"),
+                            resources.getString("CircularSlider.inputPrompt"), getValue());
                 if (rotation != null && Double.isFinite(rotation))
                     setValue(rotation);
             }

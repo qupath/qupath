@@ -51,13 +51,13 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import qupath.fx.utils.FXUtils;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.Version;
 import qupath.lib.gui.ExtensionClassLoader;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.extensions.QuPathExtension;
 import qupath.lib.gui.tools.GuiTools;
-import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.images.servers.ImageServerBuilder;
 import qupath.lib.images.servers.ImageServerProvider;
 
@@ -102,9 +102,9 @@ class ShowInstalledExtensionsCommand {
 		}
 		
 		TitledPane titledExtensions = new TitledPane("Extensions", paneExtensions);
-		PaneTools.simplifyTitledPane(titledExtensions, false);
+		FXUtils.simplifyTitledPane(titledExtensions, false);
 		TitledPane titledServers = new TitledPane("Image Servers", paneServers);
-		PaneTools.simplifyTitledPane(titledServers, false);
+		FXUtils.simplifyTitledPane(titledServers, false);
 		
 		VBox vbox = new VBox(
 				titledExtensions,
@@ -176,7 +176,7 @@ class ShowInstalledExtensionsCommand {
 		paneEntry.setExpanded(false);
 		paneEntry.setBorder(null);
 		// Remove borders
-		PaneTools.simplifyTitledPane(paneEntry, false);
+		FXUtils.simplifyTitledPane(paneEntry, false);
 
 		
 //		Tooltip tooltip = new Tooltip(entry.getPathToJar());
