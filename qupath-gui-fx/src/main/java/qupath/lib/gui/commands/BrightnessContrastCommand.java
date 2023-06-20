@@ -28,6 +28,8 @@ import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -135,7 +137,7 @@ public class BrightnessContrastCommand implements Runnable {
 	private QuPathViewer viewer;
 	private ImageDisplay imageDisplay;
 
-	private ImageDataPropertyChangeListener imageDataPropertyChangeListener;
+	private ImageDataPropertyChangeListener imageDataPropertyChangeListener = new ImageDataPropertyChangeListener();
 	
 	private Slider sliderMin;
 	private Slider sliderMax;
@@ -159,7 +161,7 @@ public class BrightnessContrastCommand implements Runnable {
 	private BooleanProperty showGrayscale = new SimpleBooleanProperty(false);
 	private BooleanProperty invertBackground = new SimpleBooleanProperty(false);
 	
-	private BrightnessContrastKeyListener keyListener = new BrightnessContrastKeyListener();
+	private BrightnessContrastKeyTypedListener keyListener = new BrightnessContrastKeyTypedListener();
 	
 	/**
 	 * Constructor.
@@ -267,7 +269,7 @@ public class BrightnessContrastCommand implements Runnable {
 		var textPlaceholder = new Text("No channels available");
 		textPlaceholder.setStyle("-fx-fill: -fx-text-base-color;");
 		table.setPlaceholder(textPlaceholder);
-		table.addEventHandler(KeyEvent.KEY_PRESSED, new CopyTableListener());
+		table.addEventHandler(KeyEvent.KEY_PRESSED, new ChannelTableKeypressedListener());
 
 		table.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
 		table.getSelectionModel().selectedItemProperty().addListener(this::handleSelectedChannelChanged);
@@ -390,7 +392,7 @@ public class BrightnessContrastCommand implements Runnable {
 
 		if (!table.getItems().isEmpty())
 			table.getSelectionModel().select(0);
-		updateDisplay(getCurrentInfo(), true);
+		setShowChannel(getCurrentInfo());
 		updateHistogram();
 		updateSliders();
 
@@ -409,12 +411,12 @@ public class BrightnessContrastCommand implements Runnable {
 	private ObservableValue<Boolean> showChannelCellValueFactory(
 			TableColumn.CellDataFeatures<ChannelDisplayInfo, Boolean> features) {
 		SimpleBooleanProperty property = new SimpleBooleanProperty(
-				imageDisplay.selectedChannels().contains(features.getValue()));
-		// TODO: Check if repaint code can be removed here
+				isChannelShowing(features.getValue()));
 		property.addListener((v, o, n) -> {
-			imageDisplay.setChannelSelected(features.getValue(), n);
-			table.refresh();
-			Platform.runLater(() -> viewer.repaintEntireImage());
+			if (n)
+				setShowChannel(features.getValue());
+			else
+				setHideChannel(features.getValue());
 		});
 		return property;
 	}
@@ -776,28 +778,59 @@ public class BrightnessContrastCommand implements Runnable {
 			Tooltip.install(histogramPanel.getChart(), chartTooltip);
 		
 	}
-	
-	
-	private void updateDisplay(ChannelDisplayInfo channel, boolean selected) {
-		if (imageDisplay == null)
-			return;
+
+	private void setShowChannel(ChannelDisplayInfo channel) {
 		if (channel != null)
-			imageDisplay.setChannelSelected(channel, selected);
-		
+			setShowChannels(Collections.singleton(channel));
+	}
+
+	private void setShowChannels(Collection<? extends ChannelDisplayInfo> channels) {
+		if (imageDisplay == null || channels.isEmpty())
+			return;
+		for (var channel : channels)
+			imageDisplay.setChannelSelected(channel, true);
+		refreshTableAndViewer();
+	}
+
+	private void setHideChannel(ChannelDisplayInfo channel) {
+		if (channel != null)
+			setHideChannels(Collections.singleton(channel));
+	}
+
+	private void setHideChannels(Collection<? extends ChannelDisplayInfo> channels) {
+		if (imageDisplay == null || channels.isEmpty())
+			return;
+		for (var channel : channels)
+			imageDisplay.setChannelSelected(channel, false);
+		refreshTableAndViewer();
+	}
+
+	private void toggleShowHideChannel(ChannelDisplayInfo channel) {
+		if (channel == null)
+			refreshTableAndViewer();
+		else
+			toggleShowHideChannels(Collections.singletonList(channel));
+	}
+
+	private void toggleShowHideChannels(Collection<? extends ChannelDisplayInfo> channels) {
+		if (imageDisplay == null || channels.isEmpty())
+			return;
+		for (var channel : channels)
+			imageDisplay.setChannelSelected(channel, !isChannelShowing(channel));
+		refreshTableAndViewer();
+	}
+
+	private boolean isChannelShowing(ChannelDisplayInfo channel) {
+		return imageDisplay != null && imageDisplay.selectedChannels().contains(channel);
+	}
+
+	private void refreshTableAndViewer() {
 		// If the table isn't null, we are displaying something
 		if (table != null) {
 			updateHistogram();
 			table.refresh();
 		}
 		viewer.repaintEntireImage();
-	}
-	
-	
-	private void toggleDisplay(ChannelDisplayInfo channel) {
-		if (channel == null)
-			updateDisplay(null, true);
-		else
-			updateDisplay(channel, !imageDisplay.selectedChannels().contains(channel));
 	}
 
 
@@ -1095,11 +1128,11 @@ public class BrightnessContrastCommand implements Runnable {
 	/**
 	 * Listener to update the display when the user presses a key.
 	 */
-	private class BrightnessContrastKeyListener implements EventHandler<KeyEvent> {
+	private class BrightnessContrastKeyTypedListener implements EventHandler<KeyEvent> {
 
 		@Override
 		public void handle(KeyEvent event) {
-			if (imageDisplay == null)
+			if (imageDisplay == null || event.getEventType() != KeyEvent.KEY_TYPED)
 				return;
 			String character = event.getCharacter();
 			if (character != null && character.length() > 0) {
@@ -1108,7 +1141,7 @@ public class BrightnessContrastCommand implements Runnable {
 					if (table != null) {
 						table.getSelectionModel().clearAndSelect(c-1);
 					}
-					toggleDisplay(imageDisplay.availableChannels().get(c-1));
+					toggleShowHideChannel(imageDisplay.availableChannels().get(c-1));
 					event.consume();
 				}
 			}
@@ -1117,33 +1150,82 @@ public class BrightnessContrastCommand implements Runnable {
 	}
 
 	/**
-	 * Listener to support copy & based directly on the channel table.
-	 * This provides a way to quickly extract channel names, or update channel names from the clipboard.
+	 * Listener to support key presses for the channel table.
+	 * This is used for two main purposes:
+	 * <ol>
+	 *     <li>Copy/paste channel names</li>
+	 *     <li>Toggle show/hide channels</li>
+	 * </ol>
 	 */
-	private class CopyTableListener implements EventHandler<KeyEvent> {
+	private class ChannelTableKeypressedListener implements EventHandler<KeyEvent> {
 		
 		private KeyCombination copyCombo = new KeyCodeCombination(KeyCode.C, KeyCombination.SHORTCUT_DOWN);
 		private KeyCombination pasteCombo = new KeyCodeCombination(KeyCode.V, KeyCombination.SHORTCUT_DOWN);
 
+		// Show/hide/toggle combos use S, H and T
+		private KeyCombination showCombo = new KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_ANY);
+		private KeyCombination hideCombo = new KeyCodeCombination(KeyCode.H, KeyCombination.SHORTCUT_ANY);
+		private KeyCombination toggleCombo = new KeyCodeCombination(KeyCode.T, KeyCombination.SHORTCUT_ANY);
+
+		// Because S and H are awkward to find in the keyboard, show/hide/toggle can also be done with
+		// enter, backspace, and space
 		private KeyCombination spaceCombo = new KeyCodeCombination(KeyCode.SPACE, KeyCombination.SHORTCUT_ANY);
 		private KeyCombination enterCombo = new KeyCodeCombination(KeyCode.ENTER, KeyCombination.SHORTCUT_ANY);
+		private KeyCombination backspaceCombo = new KeyCodeCombination(KeyCode.BACK_SPACE, KeyCombination.SHORTCUT_ANY);
 
 		@Override
 		public void handle(KeyEvent event) {
+			if (event.getEventType() != KeyEvent.KEY_PRESSED)
+				return;
 			if (copyCombo.match(event)) {
 				doCopy(event);
 				event.consume();
 			} else if (pasteCombo.match(event)) {
 				doPaste(event);
 				event.consume();
-			} else if (spaceCombo.match(event) || enterCombo.match(event)) {
-				var channel = table.getSelectionModel().getSelectedItem();
-				if (imageDisplay != null && channel != null) {
-					updateDisplay(channel, !imageDisplay.selectedChannels().contains(channel));
+			} else if (imageDisplay != null) {
+				if (isToggleChannelsEvent(event)) {
+					toggleShowHideChannels(getSelectedChannelsToUpdate());
+					event.consume();
+				} else if (isShowChannelsEvent(event)) {
+					setShowChannels(getSelectedChannelsToUpdate());
+					event.consume();
+				} else if (isHideChannelsEvent(event)) {
+					setHideChannels(getSelectedChannelsToUpdate());
+					event.consume();
 				}
-				event.consume();
 			}
 		}
+
+		private boolean isToggleChannelsEvent(KeyEvent event) {
+			return spaceCombo.match(event) || toggleCombo.match(event);
+		}
+
+		private boolean isShowChannelsEvent(KeyEvent event) {
+			return enterCombo.match(event) || showCombo.match(event);
+		}
+
+		private boolean isHideChannelsEvent(KeyEvent event) {
+			return backspaceCombo.match(event) || hideCombo.match(event);
+		}
+
+		/**
+		 * Get the channels to update, based on the current selection.
+		 * If the main selected channel is not additive, or we're in grayscale mode, return it alone.
+		 * Otherwise, return all selected channels from the table.
+		 * This is to ensure that, if just one channel is changed, then it's the main one - and not just
+		 * the last selected channel in the list.
+		 * @return
+		 */
+		private Collection<ChannelDisplayInfo> getSelectedChannelsToUpdate() {
+			var mainSelectedChannel = table.getSelectionModel().getSelectedItem();
+			if (mainSelectedChannel != null &&
+					(imageDisplay.useGrayscaleLuts()) || !mainSelectedChannel.isAdditive())
+				return Collections.singletonList(mainSelectedChannel);
+			else
+				return table.getSelectionModel().getSelectedItems();
+		}
+
 		
 		/**
 		 * Copy the channel names to the clipboard
@@ -1281,7 +1363,7 @@ public class BrightnessContrastCommand implements Runnable {
 				var channel = getTableRow().getItem();
 				// Handle clicks within the cell but outside the checkbox
 				if (event.getTarget() == this && channel != null && imageDisplay != null) {
-					updateDisplay(channel, !imageDisplay.selectedChannels().contains(channel));
+					toggleShowHideChannel(channel);
 				}
 				event.consume();
 			}
