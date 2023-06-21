@@ -239,10 +239,9 @@ public class BrightnessContrastCommand implements Runnable {
 		histogramPanel.getChart().setAnimated(false);
 		var chartPane = chartWrapper.getPane();
 		chartPane.setPrefWidth(200);
-//		chartPane.setPrefHeight(100);
-//		pane.add(chartPane, 0, row++);
-//		GridPane.setVgrow(chartPane, Priority.ALWAYS);
-		pane.add(histogramPanel.getChart(), 0, row++);
+		chartPane.setPrefHeight(150);
+		pane.add(chartPane, 0, row++);
+//		pane.add(histogramPanel.getChart(), 0, row++);
 
 		Pane paneSliders = createSliderPane();
 		paneSliders.prefWidthProperty().bind(pane.widthProperty());
@@ -880,17 +879,18 @@ public class BrightnessContrastCommand implements Runnable {
 		if (infoSelected != null)
 			xAxis.setTickUnit(infoSelected.getMaxAllowed() - infoSelected.getMinAllowed());
 		
-		// Don't use the first or last count if it's an outlier
+		// Don't use the first or last count if it's an outlier & we have many bins
 		NumberAxis yAxis = (NumberAxis)histogramPanel.getChart().getYAxis();
-		if (infoSelected != null && histogram != null) {
-			long maxCount = 0L;
+		if (infoSelected != null && histogram != null && histogram.nBins() > 10) {
+			long maxCountExcludingEndBins = 0L;
 			for (int i = 1; i < histogram.nBins()-1; i++)
-				maxCount = Math.max(maxCount, histogram.getCountsForBin(i));
-			if (maxCount == 0)
-				maxCount = histogram.getMaxCount();
-			yAxis.setAutoRanging(false);
-			yAxis.setLowerBound(0);
-			yAxis.setUpperBound((double)maxCount / histogram.getCountSum());
+				maxCountExcludingEndBins = Math.max(maxCountExcludingEndBins, histogram.getCountsForBin(i));
+			double outlierThreshold = maxCountExcludingEndBins * 4;
+			if (histogram.getMaxCount() > outlierThreshold) {
+				yAxis.setAutoRanging(false);
+				yAxis.setLowerBound(0);
+				yAxis.setUpperBound((double)outlierThreshold / histogram.getCountSum());
+			}
 		}
 
 		

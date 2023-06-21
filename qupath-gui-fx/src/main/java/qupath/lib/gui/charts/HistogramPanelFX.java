@@ -28,6 +28,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import javafx.scene.layout.Border;
+import javafx.scene.layout.BorderPane;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -398,7 +400,7 @@ public class HistogramPanelFX {
 		
 		private XYChart<Number, Number> chart;
 		private NumberAxis xAxis, yAxis;
-		private Pane pane = new Pane();
+		private BorderPane pane = new BorderPane();
 		
 		private DoubleProperty lineWidth = new SimpleDoubleProperty(2);
 		
@@ -417,9 +419,10 @@ public class HistogramPanelFX {
 			this.chart = chart;
 			this.xAxis = (NumberAxis)chart.getXAxis();
 			this.yAxis = (NumberAxis)chart.getYAxis();
-			pane.getChildren().add(chart);
-	        chart.prefWidthProperty().bind(pane.widthProperty());
-	        chart.prefHeightProperty().bind(pane.heightProperty());
+//			pane.getChildren().add(chart);
+			pane.setCenter(chart);
+//	        chart.prefWidthProperty().bind(pane.prefWidthProperty());
+//	        chart.prefHeightProperty().bind(pane.prefHeightProperty());
 
 	        thresholds.addListener(new ListChangeListener<>() {
 
