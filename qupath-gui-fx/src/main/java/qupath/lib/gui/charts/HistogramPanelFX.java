@@ -96,7 +96,7 @@ public class HistogramPanelFX {
 			public void onChanged(Change<? extends HistogramData> c) {
 				while (c.next()) {
 					// Pattern taken from https://docs.oracle.com/javase/8/javafx/api/javafx/collections/ListChangeListener.Change.html
-					// Hower I only really need to worry about adding/removing (I hope)
+					// However I only really need to worry about adding/removing (I hope)
 					if (c.wasPermutated()) {
 						for (int i = c.getFrom(); i < c.getTo(); ++i) {
 							//permutate
@@ -251,7 +251,8 @@ public class HistogramPanelFX {
 		 */
 		private void setColor(final Color color) {
 			this.colorStroke = color;
-			this.colorFill = color == null ? null : Color.color(color.getRed(), color.getGreen(), color.getBlue(), color.getOpacity()/4);			
+			this.colorFill = color == null ? null :
+					Color.color(color.getRed(), color.getGreen(), color.getBlue(), color.getOpacity()/4);
 		}
 		
 		/**
