@@ -34,6 +34,7 @@ import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
+import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import javafx.event.ActionEvent;
@@ -46,6 +47,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ColorPicker;
+import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
@@ -142,7 +144,9 @@ public class BrightnessContrastCommand implements Runnable {
 	private ImageDisplay imageDisplay;
 
 	private ImageDataPropertyChangeListener imageDataPropertyChangeListener = new ImageDataPropertyChangeListener();
-	
+
+	private SelectedChannelsChangeListener selectedChannelsChangeListener = new SelectedChannelsChangeListener();
+
 	private Slider sliderMin;
 	private Slider sliderMax;
 	private Slider sliderGamma;
@@ -154,6 +158,11 @@ public class BrightnessContrastCommand implements Runnable {
 	private StringProperty filterText = new SimpleStringProperty("");
 	private BooleanProperty useRegex = new SimpleBooleanProperty(false);
 	private ObjectBinding<Predicate<ChannelDisplayInfo>> predicate = createChannelDisplayPredicateBinding(filterText);
+
+	/**
+	 * Checkbox used to quickly turn on or off all channels
+	 */
+	private CheckBox cbShowAll = new CheckBox();
 
 	private ColorPicker picker = new ColorPicker();
 	
@@ -181,6 +190,7 @@ public class BrightnessContrastCommand implements Runnable {
 		if (dialog == null)
 			dialog = createDialog();
 		dialog.show();
+		updateShowTableColumnHeader();
 	}
 
 	private void initializeColorPicker() {
@@ -199,6 +209,7 @@ public class BrightnessContrastCommand implements Runnable {
 		if (isInitialized())
 			throw new RuntimeException("createDialog() called after initialization!");
 
+		initializeShowAllCheckbox();
 		initializeSliders();
 		initializeColorPicker();
 		initializePopup();
@@ -399,12 +410,14 @@ public class BrightnessContrastCommand implements Runnable {
 		table.getSelectionModel().selectedItemProperty().addListener(this::handleSelectedChannelChanged);
 
 		TableColumn<ChannelDisplayInfo, ChannelDisplayInfo> col1 = new TableColumn<>("Channel");
+		col1.setId("channel-column");
 		col1.setCellValueFactory(this::channelCellValueFactory);
 		col1.setCellFactory(column -> new ChannelDisplayTableCell()); // Not using shared custom color list!
 																	  // Could change in the future if needed
 
 		col1.setSortable(false);
 		TableColumn<ChannelDisplayInfo, Boolean> col2 = new TableColumn<>("Show");
+		col2.setId("show-column");
 		col2.setCellValueFactory(this::showChannelCellValueFactory);
 		col2.setCellFactory(column -> new ShowChannelDisplayTableCell());
 		col2.setSortable(false);
@@ -422,6 +435,40 @@ public class BrightnessContrastCommand implements Runnable {
 		col1.prefWidthProperty().bind(table.widthProperty().subtract(col2.widthProperty()).subtract(25)); // Hack... space for a scrollbar
 
 		return table;
+	}
+
+	private void initializeShowAllCheckbox() {
+		cbShowAll.setTooltip(new Tooltip("Show/hide all channels"));
+		cbShowAll.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
+		cbShowAll.setIndeterminate(true);
+		// Use action listener because we may change selection status elsewhere
+		// in response to the selected channels being modified elsewhere
+		cbShowAll.setOnAction(e -> syncShowAllToCheckbox());
+	}
+
+	private void syncShowAllToCheckbox() {
+		if (imageDisplay == null || cbShowAll.isIndeterminate())
+			return;
+		if (cbShowAll.isSelected()) {
+			setShowChannels(table.getItems());
+		} else {
+			setHideChannels(table.getItems());
+		}
+	}
+
+	/**
+	 * Install the checkbox for showing all channels
+	 */
+	private void updateShowTableColumnHeader() {
+		var header = table.lookup("#show-column > .label");
+		if (header instanceof Label label) {
+			label.setContentDisplay(ContentDisplay.RIGHT);
+			label.setGraphicTextGap(5);
+			if (cbShowAll.isVisible())
+				label.setGraphic(cbShowAll);
+			// Bind visibility property to whether the checkbox is added to the label or not
+			cbShowAll.visibleProperty().addListener((v, o, n) -> label.setGraphic(n ? cbShowAll : null));
+		}
 	}
 
 
@@ -1080,7 +1127,7 @@ public class BrightnessContrastCommand implements Runnable {
 			viewer.repaintEntireImage();
 		}
 	}
-	
+
 	private void updatePredicate() {
 		var items = table.getItems();
 		if (items instanceof FilteredList) {
@@ -1102,12 +1149,14 @@ public class BrightnessContrastCommand implements Runnable {
 		}
 		table.refresh();
 		
-		// If all entries are additive, allow bulk toggling by right-click
+		// If all entries are additive, allow bulk toggling by right-click or with checkbox
 		int n = table.getItems().size();
-		if (n > 0 || n == table.getItems().stream().filter(c -> c.isAdditive()).count()) {
+		if (n > 0 && n == table.getItems().stream().filter(c -> c.isAdditive()).count()) {
 			table.setContextMenu(popup);
+			cbShowAll.setVisible(true);
 		} else {
 			table.setContextMenu(null);
+			cbShowAll.setVisible(false);
 		}
 	}
 
@@ -1134,9 +1183,14 @@ public class BrightnessContrastCommand implements Runnable {
 			invertBackground.unbindBidirectional(imageDisplay.useInvertedBackgroundProperty());
 			imageDisplay.useInvertedBackgroundProperty().unbindBidirectional(invertBackground);
 		}
-		
+
+		if (imageDisplay != null)
+			imageDisplay.selectedChannels().removeListener(selectedChannelsChangeListener);
+
 		imageDisplay = viewer == null ? null : viewer.getImageDisplay();
-		
+		if (imageDisplay != null)
+			imageDisplay.selectedChannels().addListener(selectedChannelsChangeListener);
+
 		if (imageDataOld != null)
 			imageDataOld.removePropertyChangeListener(imageDataPropertyChangeListener);
 		if (imageDataNew != null)
@@ -1546,6 +1600,26 @@ public class BrightnessContrastCommand implements Runnable {
 			}
 		}
 
+	}
+
+	class SelectedChannelsChangeListener implements ListChangeListener<ChannelDisplayInfo> {
+
+		@Override
+		public void onChanged(Change<? extends ChannelDisplayInfo> c) {
+			if (imageDisplay == null)
+				return;
+			if (imageDisplay.availableChannels().size() == imageDisplay.selectedChannels().size()) {
+				cbShowAll.setIndeterminate(false);
+				cbShowAll.setSelected(true);
+			} else if (imageDisplay.selectedChannels().isEmpty()) {
+				cbShowAll.setIndeterminate(false);
+				cbShowAll.setSelected(false);
+			} else {
+				cbShowAll.setIndeterminate(true);
+			}
+			// Only necessary because it's possible that the channel selection is changed externally
+			table.refresh();
+		}
 	}
 
 }
