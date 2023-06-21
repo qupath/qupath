@@ -856,8 +856,7 @@ public class BrightnessContrastCommand implements Runnable {
 				histogramPanel.getHistogramData().setAll(data);
 			} else
 				histogramPanel.getHistogramData().clear();
-		}
-		else {
+		} else {
 			// Any animation is slightly nicer if we can modify the current data, rather than creating a new one
 			if (histogramPanel.getHistogramData().size() == 1) {
 				Color color = infoSelected.getColor() == null ? ColorToolsFX.TRANSLUCENT_BLACK_FX : ColorToolsFX.getCachedColor(infoSelected.getColor());
@@ -897,7 +896,7 @@ public class BrightnessContrastCommand implements Runnable {
 		}
 		
 		histogramPanel.getChart().getXAxis().setTickLabelsVisible(true);
-		histogramPanel.getChart().getXAxis().setLabel("Pixel value");
+//		histogramPanel.getChart().getXAxis().setLabel("Pixel value");
 		histogramPanel.getChart().getYAxis().setTickLabelsVisible(true);
 //		histogramPanel.getChart().getYAxis().setLabel("Frequency");
 		
