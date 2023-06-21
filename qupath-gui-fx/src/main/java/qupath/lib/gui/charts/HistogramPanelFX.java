@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -419,31 +419,18 @@ public class HistogramPanelFX {
 			this.chart = chart;
 			this.xAxis = (NumberAxis)chart.getXAxis();
 			this.yAxis = (NumberAxis)chart.getYAxis();
-//			pane.getChildren().add(chart);
 			pane.setCenter(chart);
-//	        chart.prefWidthProperty().bind(pane.prefWidthProperty());
-//	        chart.prefHeightProperty().bind(pane.prefHeightProperty());
+	        thresholds.addListener(this::handleLineListChange);
+		}
 
-	        thresholds.addListener(new ListChangeListener<>() {
-
-				@Override
-				public void onChanged(ListChangeListener.Change<? extends ObservableNumberValue> c) {
-					while (c.next()) {
-						if (c.wasPermutated()) {
-							continue;
-						} else {
-							for (ObservableNumberValue removedItem : c.getRemoved()) {
-								pane.getChildren().remove(vLines.remove(removedItem));
-							}
-//	        				pane.getChildren().removeAll(c.getRemoved());
-//	        				for (ObservableNumberValue addedItem : c.getAddedSubList()) {
-//	        					addThreshold(addedItem.getValue().doubleValue());
-//	        				}
-						}
+		private void handleLineListChange(ListChangeListener.Change<? extends ObservableNumberValue> c) {
+			while (c.next()) {
+				if (!c.wasPermutated()) {
+					for (ObservableNumberValue removedItem : c.getRemoved()) {
+						pane.getChildren().remove(vLines.remove(removedItem));
 					}
 				}
-			});
-	        
+			}
 		}
 		
 		/**
@@ -614,13 +601,13 @@ public class HistogramPanelFX {
 					);
 
 			// We can only bind both ways if we have a writable value
-			if (d instanceof WritableNumberValue) {
+			if (d instanceof WritableNumberValue writableNumberValue) {
 				line.setOnMouseDragged(e -> {
 					if (isInteractive()) {
 						double xNew = xAxis.getValueForDisplay(xAxis.sceneToLocal(e.getSceneX(), e.getSceneY()).getX()).doubleValue();
 						xNew = Math.max(xNew, xAxis.getLowerBound());
 						xNew = Math.min(xNew, xAxis.getUpperBound());
-						((WritableNumberValue)d).setValue(xNew);
+						writableNumberValue.setValue(xNew);
 					}
 				});
 				
