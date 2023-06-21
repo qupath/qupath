@@ -155,7 +155,7 @@ public class BrightnessContrastCommand implements Runnable {
 
 	private TableView<ChannelDisplayInfo> table = new TableView<>();
 	private StringProperty filterText = new SimpleStringProperty("");
-	private BooleanProperty useRegex = new SimpleBooleanProperty(false);
+	private BooleanProperty useRegex = PathPrefs.createPersistentPreference("brightnessContrastFilterRegex", false);
 	private ObjectBinding<Predicate<ChannelDisplayInfo>> predicate = createChannelDisplayPredicateBinding(filterText);
 
 	/**
@@ -672,7 +672,12 @@ public class BrightnessContrastCommand implements Runnable {
 		TextField tfFilter = new TextField("");
 		tfFilter.textProperty().bindBidirectional(filterText);
 		tfFilter.setTooltip(new Tooltip("Enter text to find specific channels by name"));
-		tfFilter.setPromptText("Filter channels by name");
+		tfFilter.promptTextProperty().bind(Bindings.createStringBinding(() -> {
+			if (useRegex.get())
+				return "Filter channels by regular expression";
+			else
+				return "Filter channels by name";
+		}, useRegex));
 		predicate.addListener((v, o, n) -> updatePredicate());
 
 		ToggleButton btnRegex = new ToggleButton(".*");
@@ -880,18 +885,16 @@ public class BrightnessContrastCommand implements Runnable {
 		
 		// Don't use the first or last count if it's an outlier & we have many bins
 		NumberAxis yAxis = (NumberAxis)histogramPanel.getChart().getYAxis();
-		if (infoSelected != null && histogram != null && histogram.nBins() > 10) {
+		if (infoSelected != null && histogram != null) {
 			long maxCountExcludingEndBins = 0L;
 			for (int i = 1; i < histogram.nBins()-1; i++)
 				maxCountExcludingEndBins = Math.max(maxCountExcludingEndBins, histogram.getCountsForBin(i));
 			double outlierThreshold = maxCountExcludingEndBins * 4;
-			if (histogram.getMaxCount() > outlierThreshold) {
-				yAxis.setAutoRanging(false);
-				yAxis.setLowerBound(0);
-				yAxis.setUpperBound((double)outlierThreshold / histogram.getCountSum());
-			}
+			double yMax = Math.min(histogram.getMaxCount(), outlierThreshold) / histogram.getCountSum();
+			yAxis.setAutoRanging(false);
+			yAxis.setLowerBound(0);
+			yAxis.setUpperBound(yMax);
 		}
-
 		
 		histogramPanel.getChart().getXAxis().setTickLabelsVisible(true);
 		histogramPanel.getChart().getXAxis().setLabel("Pixel value");
@@ -1516,6 +1519,7 @@ public class BrightnessContrastCommand implements Runnable {
 				return;
 			}
 			setText(item.getName());
+			setGraphic(colorPicker);
 			Integer rgb = item.getColor();
 			// Can only set the color for direct, non-RGB channels
 			boolean canChangeColor = rgb != null && item instanceof DirectServerChannelInfo;
