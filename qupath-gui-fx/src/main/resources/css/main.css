@@ -79,3 +79,12 @@
 .minimal-color-picker > .color-picker-label > .picker-color > .picker-color-rect {
   -fx-stroke: null;
 }
+
+/* Set opacity for 1, even if the control is disabled (usually sets opacity to 0.4) */
+.always-opaque,
+.always-opaque:hover,
+.always-opaque:focused,
+.always-opaque:disabled,
+.always-opaque:disabled > * {
+  -fx-opacity: 1;
+}

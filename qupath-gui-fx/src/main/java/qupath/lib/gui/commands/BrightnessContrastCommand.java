@@ -1499,7 +1499,7 @@ public class BrightnessContrastCommand implements Runnable {
 				this.customColors = null;
 			// Minimal color picker - just a small, clickable colored square
 			colorPicker = new ColorPicker();
-			colorPicker.getStyleClass().addAll("button", "minimal-color-picker");
+			colorPicker.getStyleClass().addAll("button", "minimal-color-picker", "always-opaque");
 			colorPicker.valueProperty().addListener(this::handleColorChange);
 			setGraphic(colorPicker);
 			setEditable(true);
@@ -1522,7 +1522,7 @@ public class BrightnessContrastCommand implements Runnable {
 			Integer rgb = item.getColor();
 			// Can only set the color for direct, non-RGB channels
 			boolean canChangeColor = rgb != null && item instanceof DirectServerChannelInfo;
-			setDisable(!canChangeColor);
+			colorPicker.setDisable(!canChangeColor);
 			colorPicker.setOnShowing(null);
 			if (rgb == null) {
 				colorPicker.setValue(Color.TRANSPARENT);
