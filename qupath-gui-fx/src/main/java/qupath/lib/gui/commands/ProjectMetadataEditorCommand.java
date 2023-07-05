@@ -28,7 +28,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
-import java.util.stream.Collectors;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
@@ -57,7 +56,7 @@ import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.BorderPane;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.panes.ProjectBrowser;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.projects.Project;
@@ -102,7 +101,7 @@ class ProjectMetadataEditorCommand {
 		
 		for (String metadataName : metadataNameSet) {
 			TableColumn<ImageEntryWrapper, String> col = new TableColumn<>(metadataName);
-			col.setCellFactory(TextFieldTableCell.<ImageEntryWrapper>forTableColumn());
+			col.setCellFactory(TextFieldTableCell.forTableColumn());
 			col.setOnEditCommit(e -> {
 				ImageEntryWrapper entry = e.getRowValue();
 				String n = e.getNewValue();
@@ -125,7 +124,7 @@ class ProjectMetadataEditorCommand {
 		table.addEventHandler(KeyEvent.KEY_RELEASED, e -> {
 			if (e.getCode() == KeyCode.BACK_SPACE || e.getCode() == KeyCode.DELETE) {
 				var positions = table.getSelectionModel().getSelectedCells().stream().filter(
-						p -> !IMAGE_NAME.equals(p.getTableColumn().getText())).collect(Collectors.toList());
+						p -> !IMAGE_NAME.equals(p.getTableColumn().getText())).toList();
 				if (positions.isEmpty())
 					return;
 				if (positions.size() == 1) {

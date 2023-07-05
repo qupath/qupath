@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -39,7 +39,6 @@ import org.slf4j.LoggerFactory;
 import javafx.application.Platform;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ReadOnlyBooleanProperty;
-import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
@@ -47,7 +46,6 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.QuPathViewerListener;
-import qupath.lib.gui.viewer.QuPathViewerPlus;
 import qupath.lib.images.ImageData;
 import qupath.lib.io.PathIO;
 import qupath.lib.objects.PathObject;
@@ -63,10 +61,6 @@ import qupath.lib.plugins.ParallelTileObject;
  * and is intended mostly for cases where there aren't many objects - but where making mistakes 
  * would be especially annoying (e.g. laboriously annotating images).
  * <p>
- * Preferences are created to control the maximum number of levels of undo, and also the maximum hierarchy 
- * size.  This latter option is used to automatically turn off undo/redo support if the hierarchy size 
- * grows beyond a specified number of objects.
- * <p>
  * The reason is because of the (fairly simple) implementation: every time the hierarchy is changed, 
  * the <i>entire hierarchy</i> is serialized in case it becomes necessary to revert back.
  * <p>
@@ -77,14 +71,14 @@ import qupath.lib.plugins.ParallelTileObject;
  * @author Pete Bankhead
  *
  */
-public class UndoRedoManager implements ChangeListener<QuPathViewerPlus>, QuPathViewerListener, PathObjectHierarchyListener {
+public class UndoRedoManager implements ChangeListener<QuPathViewer>, QuPathViewerListener, PathObjectHierarchyListener {
 	
 	private static Logger logger = LoggerFactory.getLogger(UndoRedoManager.class);
+		
+	private ObservableValue<? extends QuPathViewer> viewerProperty;
 	
-	private IntegerProperty maxUndoLevels = PathPrefs.createPersistentPreference("undoMaxLevels", 10);
-	private IntegerProperty maxUndoHierarchySize = PathPrefs.createPersistentPreference("undoMaxHierarchySize", 10000);
-	
-	private ReadOnlyObjectProperty<QuPathViewerPlus> viewerProperty;
+	private IntegerProperty maxUndoHierarchySize = PathPrefs.maxUndoHierarchySizeProperty();
+	private IntegerProperty maxUndoLevels = PathPrefs.maxUndoLevelsProperty();
 	
 	private SimpleBooleanProperty canUndo = new SimpleBooleanProperty(false);
 	private SimpleBooleanProperty canRedo = new SimpleBooleanProperty(false);
@@ -93,16 +87,18 @@ public class UndoRedoManager implements ChangeListener<QuPathViewerPlus>, QuPath
 	
 	private Map<QuPathViewer, SerializableUndoRedoStack<PathObjectHierarchy>> map = new WeakHashMap<>();
 	
-	UndoRedoManager(final QuPathGUI qupath) {
-		this.viewerProperty = qupath.viewerProperty();
+	private UndoRedoManager(ObservableValue<? extends QuPathViewer> viewerProperty) {
+		this.viewerProperty = viewerProperty;
 		this.viewerProperty.addListener(this);
 		
-		qupath.getPreferencePane().addPropertyPreference(maxUndoLevels, Integer.class, "Max undo levels", "Undo/Redo", "Maximum number of 'undo' levels");
-		qupath.getPreferencePane().addPropertyPreference(maxUndoHierarchySize, Integer.class, "Max undo hierarchy size", "Undo/Redo", "Maximum number of objects in hierarchy before 'undo' switches off (for performance)");
-		
-		changed(this.viewerProperty, null, this.viewerProperty.get());
-		
+		changed(this.viewerProperty, null, this.viewerProperty.getValue());
 	}
+	
+	
+	public static UndoRedoManager createForObservableViewer(ObservableValue<? extends QuPathViewer> viewerProperty) {
+		return new UndoRedoManager(viewerProperty);
+	}
+	
 	
 	/**
 	 * Refresh the properties for the current active viewer.
@@ -114,7 +110,7 @@ public class UndoRedoManager implements ChangeListener<QuPathViewerPlus>, QuPath
 			Platform.runLater(() -> refreshProperties());
 			return;
 		}
-		SerializableUndoRedoStack<PathObjectHierarchy> undoRedo = map.get(viewerProperty.get());
+		SerializableUndoRedoStack<PathObjectHierarchy> undoRedo = map.get(viewerProperty.getValue());
 		if (undoRedo == null) {
 			canUndo.set(false);
 			canRedo.set(false);
@@ -130,7 +126,7 @@ public class UndoRedoManager implements ChangeListener<QuPathViewerPlus>, QuPath
 	 * @return {@code true} if any changes were made, false otherwise.
 	 */
 	public boolean undoOnce() {
-		return undoOnce(viewerProperty.get());
+		return undoOnce(viewerProperty.getValue());
 	}
 	
 	/**
@@ -162,7 +158,7 @@ public class UndoRedoManager implements ChangeListener<QuPathViewerPlus>, QuPath
 	 * @return True if any changes were made, false otherwise.
 	 */
 	public boolean redoOnce() {
-		return redoOnce(viewerProperty.get());
+		return redoOnce(viewerProperty.getValue());
 	}
 	
 	/**
@@ -254,7 +250,7 @@ public class UndoRedoManager implements ChangeListener<QuPathViewerPlus>, QuPath
 	
 	
 	@Override
-	public void changed(ObservableValue<? extends QuPathViewerPlus> observable, QuPathViewerPlus oldValue, QuPathViewerPlus newValue) {
+	public void changed(ObservableValue<? extends QuPathViewer> observable, QuPathViewer oldValue, QuPathViewer newValue) {
 		
 		if (newValue == null)
 			return;

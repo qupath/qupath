@@ -43,6 +43,7 @@ public class ScriptSyntaxProvider {
 	public static final ScriptSyntax YAML = new YamlSyntax();
 	public static final ScriptSyntax JSON = new JsonSyntax();
 	public static final ScriptSyntax PLAIN = new PlainSyntax();
+	public static final ScriptSyntax PROPERTIES = new PropertiesSyntax();
 	public static final ScriptSyntax PYTHON = new PythonSyntax();
 
 
@@ -69,6 +70,7 @@ public class ScriptSyntaxProvider {
 		availableSyntaxes.add(JSON);
 		availableSyntaxes.add(PYTHON);
 		availableSyntaxes.add(PLAIN);
+		availableSyntaxes.add(PROPERTIES);
 		
 		logger.debug("Number of script syntax items loaded: {}", availableSyntaxes.size());
 		return availableSyntaxes;

@@ -27,8 +27,6 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Collectors;
-
 import org.junit.jupiter.api.Test;
 
 import qupath.lib.geom.Point2;
@@ -100,11 +98,11 @@ public class TestDistanceTools {
 			
 				var tumorDetections = tumorCoordinates.stream().map(p -> PathObjects.createDetectionObject(
 						ROIs.createEllipseROI(p.getX()-radius, p.getY()-radius, radius*2, radius*2, sourcePlane),
-						PathClass.StandardPathClasses.TUMOR)).collect(Collectors.toList());
+						PathClass.StandardPathClasses.TUMOR)).toList();
 				
 				var stromaDetections = stromaCoordinates.stream().map(p -> PathObjects.createDetectionObject(
 						ROIs.createEllipseROI(p.getX()-radius, p.getY()-radius, radius*2, radius*2, targetPlane),
-						PathClass.StandardPathClasses.STROMA)).collect(Collectors.toList());
+						PathClass.StandardPathClasses.STROMA)).toList();
 				
 				if (sourcePlane.equals(targetPlane)) {
 		

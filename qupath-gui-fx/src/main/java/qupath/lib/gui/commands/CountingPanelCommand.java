@@ -51,11 +51,12 @@ import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
-import qupath.lib.gui.ActionTools;
+import qupath.fx.dialogs.FileChoosers;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.lib.gui.actions.ActionTools;
+import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.prefs.PathPrefs;
-import qupath.lib.gui.tools.PaneTools;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.gui.viewer.tools.PathTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ServerTools;
@@ -100,15 +101,15 @@ public class CountingPanelCommand implements Runnable, ChangeListener<ImageData<
 		if (qupath == null)
 			return null;
 		
-		var actionManager = qupath.getDefaultActions();
+		var overlayActions = qupath.getOverlayActions();
 		ToolBar toolbar = new ToolBar();
 		toolbar.getItems().addAll(
-				ActionTools.createToggleButton(qupath.getToolAction(PathTools.MOVE), true),
-				ActionTools.createToggleButton(qupath.getToolAction(PathTools.POINTS), true),
+				ActionTools.createToggleButtonWithGraphicOnly(qupath.getToolManager().getToolAction(PathTools.MOVE)),
+				ActionTools.createToggleButtonWithGraphicOnly(qupath.getToolManager().getToolAction(PathTools.POINTS)),
 				new Separator(Orientation.VERTICAL),
-				ActionTools.createToggleButton(actionManager.SHOW_ANNOTATIONS, true),
-				ActionTools.createToggleButton(actionManager.FILL_DETECTIONS, true),
-				ActionTools.createToggleButton(actionManager.SHOW_GRID, true));
+				ActionTools.createToggleButtonWithGraphicOnly(overlayActions.SHOW_ANNOTATIONS),
+				ActionTools.createToggleButtonWithGraphicOnly(overlayActions.FILL_DETECTIONS),
+				ActionTools.createToggleButtonWithGraphicOnly(overlayActions.SHOW_GRID));
 		return toolbar;
 	}
 	
@@ -144,7 +145,7 @@ public class CountingPanelCommand implements Runnable, ChangeListener<ImageData<
 		btnLoad.setOnAction(event -> {
 				if (hierarchy == null)
 					return;
-				File file = Dialogs.promptForFile(null, null, "TSV (Tab delimited)", new String[]{"tsv"});
+				File file = FileChoosers.promptForFile(FileChoosers.createExtensionFilter("TSV (Tab delimited)", "*.tsv"));
 				if (file == null)
 					return;
 				try {
@@ -189,13 +190,15 @@ public class CountingPanelCommand implements Runnable, ChangeListener<ImageData<
 					Dialogs.showErrorMessage("Save points", "No points available!");
 					return;
 				}
-				String defaultName = null;
+				File defaultName = null;
 				try {
-					defaultName = ServerTools.getDisplayableImageName(qupath.getViewer().getServer()) + "-points.tsv"; // Sorry, this is lazy...
+					String name = ServerTools.getDisplayableImageName(qupath.getViewer().getServer()) + "-points.tsv"; // Sorry, this is lazy...
+					defaultName = new File(name);
 				} catch (Exception e) {
 					// Ignore...
 				};
-				File file = Dialogs.promptToSaveFile(null, null, defaultName, "TSV (Tab delimited)", "tsv");
+				File file = FileChoosers.promptToSaveFile(null, defaultName,
+						FileChoosers.createExtensionFilter("TSV (Tab delimited)", "tsv"));
 				if (file == null)
 					return;
 				try {
@@ -206,7 +209,7 @@ public class CountingPanelCommand implements Runnable, ChangeListener<ImageData<
 			}
 		);
 		
-		GridPane panelLoadSave = PaneTools.createColumnGridControls(
+		GridPane panelLoadSave = GridPaneUtils.createColumnGridControls(
 				btnLoad,
 				btnSave
 				);
@@ -216,7 +219,7 @@ public class CountingPanelCommand implements Runnable, ChangeListener<ImageData<
 		var actionDetectionsToPoints = qupath.createImageDataAction(imageData -> Commands.convertDetectionsToPoints(imageData, true));
 		actionDetectionsToPoints.setText("Convert detections to points");
 		
-		var btnConvert = ActionTools.createButton(actionDetectionsToPoints, false);
+		var btnConvert = ActionTools.createButton(actionDetectionsToPoints);
 		var convertPane = new Pane(btnConvert);
 		btnConvert.prefWidthProperty().bind(convertPane.widthProperty());
 		
@@ -259,9 +262,10 @@ public class CountingPanelCommand implements Runnable, ChangeListener<ImageData<
 			return;
 		}
 		
+		var toolManager = qupath.getToolManager();
 		if (dialog != null) {
-			if (qupath.getSelectedTool() != PathTools.POINTS)
-				qupath.setSelectedTool(PathTools.POINTS);
+			if (toolManager.getSelectedTool() != PathTools.POINTS)
+				toolManager.setSelectedTool(PathTools.POINTS);
 			attemptToSelectPoints();
 			if (!dialog.isShowing())
 				dialog.show();
@@ -272,7 +276,6 @@ public class CountingPanelCommand implements Runnable, ChangeListener<ImageData<
 		dialog.setTitle("Counting");
 		
 		countingPanel = new CountingPane(qupath, hierarchy);
-//		countingPanel.setSize(countingPanel.getPreferredSize());
 		BorderPane pane = new BorderPane();
 		
 		ToolBar toolbar = makeToolbarButtons();
@@ -284,19 +287,13 @@ public class CountingPanelCommand implements Runnable, ChangeListener<ImageData<
 		if (panelButtons != null)
 			pane.setBottom(panelButtons);
 		
-//		dialog.getDialogPane().setContent(pane);
 		pane.setPadding(new Insets(10, 10, 10, 10));
 		Scene scene = new Scene(pane, 300, 450);
 		dialog.setScene(scene);
-		dialog.setOnCloseRequest(e -> qupath.setSelectedTool(PathTools.MOVE));
+		dialog.setOnCloseRequest(e -> toolManager.setSelectedTool(PathTools.MOVE));
 		
-//		dialog.getDialogPane().setMinSize(220, 350);
-//		dialog.getDialogPane().setPrefSize(300, 450);
-//		dialog.getDialogPane().setMaxSize(400, 800);
-		
-//		dialog.setAlwaysOnTop(true);
-		if (qupath.getSelectedTool() != PathTools.POINTS)
-			qupath.setSelectedTool(PathTools.POINTS);
+		if (toolManager.getSelectedTool() != PathTools.POINTS)
+			toolManager.setSelectedTool(PathTools.POINTS);
 		attemptToSelectPoints();
 		
 		dialog.initModality(Modality.NONE);

@@ -49,11 +49,11 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import javafx.stage.Window;
+import qupath.fx.utils.FXUtils;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.tools.ColorToolsFX;
-import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.PixelCalibration;
@@ -285,7 +285,7 @@ public class Charts {
 		 */
 		public Stage toStage() {
 			if (!Platform.isFxApplicationThread()) {
-				return GuiTools.callOnApplicationThread(() -> toStage());
+				return FXUtils.callOnApplicationThread(() -> toStage());
 			}
 			var stage = new Stage();
 			
@@ -325,7 +325,7 @@ public class Charts {
 		 */
 		public Stage show() {
 			if (!Platform.isFxApplicationThread())
-				return GuiTools.callOnApplicationThread(() -> show());
+				return FXUtils.callOnApplicationThread(() -> show());
 			var stage = toStage();
 			stage.show();
 			return stage;
@@ -661,7 +661,7 @@ public class Charts {
 			return series(name,
 					collection.stream()
 					.map(p -> new XYChart.Data<>(xFun.apply(p), yFun.apply(p), p))
-					.collect(Collectors.toList()));
+					.toList());
 		}
 
 		/**
@@ -784,7 +784,7 @@ public class Charts {
 		
 		@Override
 		protected ScatterChart<Number, Number> createNewChart(Axis<Number> xAxis, Axis<Number> yAxis) {
-			return new ScatterChart<Number, Number>(xAxis, yAxis);
+			return new ScatterChart<>(xAxis, yAxis);
 		}
 
 		/**

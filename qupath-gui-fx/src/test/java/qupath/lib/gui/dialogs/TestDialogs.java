@@ -24,6 +24,8 @@ package qupath.lib.gui.dialogs;
 import static org.junit.jupiter.api.Assertions.*;
 
 import org.junit.jupiter.api.Test;
+import qupath.fx.dialogs.Dialogs;
+import qupath.lib.gui.tools.GuiTools;
 
 class TestDialogs {
 
@@ -36,8 +38,8 @@ class TestDialogs {
 		assertDoesNotThrow(() -> Dialogs.showErrorMessage("Error", "Message"));
 		assertDoesNotThrow(() -> Dialogs.showErrorMessage("Error", new RuntimeException("This RuntimeException is intentional")));
 //		assertDoesNotThrow(() -> Dialogs.showMessageDialog(title, message)); // This returns true/false depending upon button
-		assertDoesNotThrow(() -> Dialogs.showNoImageError("No image title"));
-		assertDoesNotThrow(() -> Dialogs.showNoProjectError("No project title"));
+		assertDoesNotThrow(() -> GuiTools.showNoImageError("No image title"));
+		assertDoesNotThrow(() -> GuiTools.showNoProjectError("No project title"));
 		
 		assertDoesNotThrow(() -> Dialogs.showInfoNotification("Info", "Notification"));
 		assertDoesNotThrow(() -> Dialogs.showPlainNotification("Plain", "Notification"));

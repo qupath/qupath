@@ -30,8 +30,6 @@ import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
 import java.util.List;
-import java.util.stream.Collectors;
-
 import qupath.lib.common.GeneralTools;
 import qupath.lib.geom.Point2;
 import qupath.lib.regions.ImagePlane;
@@ -235,7 +233,7 @@ public class PolylineROI extends AbstractPathROI implements Serializable {
 	@Override
 	public ROI scale(double scaleX, double scaleY, double originX, double originY) {
 		return new PolylineROI(
-				getAllPoints().stream().map(p -> RoiTools.scalePoint(p, scaleX, scaleY, originX, originY)).collect(Collectors.toList()),
+				getAllPoints().stream().map(p -> RoiTools.scalePoint(p, scaleX, scaleY, originX, originY)).toList(),
 				getImagePlane());
 	}
 	

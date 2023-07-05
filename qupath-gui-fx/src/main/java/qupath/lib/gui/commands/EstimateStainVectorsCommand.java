@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Locale.Category;
 
+import javafx.scene.control.*;
 import org.apache.commons.math3.stat.correlation.PearsonsCorrelation;
 import org.apache.commons.math3.stat.correlation.SpearmansCorrelation;
 import org.slf4j.Logger;
@@ -46,11 +47,6 @@ import javafx.scene.Group;
 import javafx.scene.Node;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
-import javafx.scene.control.TableColumn;
-import javafx.scene.control.TableView;
-import javafx.scene.control.TitledPane;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
@@ -62,10 +58,10 @@ import qupath.lib.color.ColorToolsAwt;
 import qupath.lib.color.StainVector;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.ParameterPanelFX;
-import qupath.lib.gui.dialogs.Dialogs.DialogButton;
 import qupath.lib.gui.tools.ColorToolsFX;
+import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
 import qupath.lib.plugins.parameters.ParameterList;
@@ -105,10 +101,10 @@ class EstimateStainVectorsCommand {
 
 	public static void promptToEstimateStainVectors(ImageData<BufferedImage> imageData) {
 		if (imageData == null) {
-			Dialogs.showNoImageError(TITLE);
+			GuiTools.showNoImageError(TITLE);
 			return;
 		}
-		if (imageData == null || !imageData.isBrightfield() || imageData.getServer() == null || !imageData.getServer().isRGB()) {
+		if (!imageData.isBrightfield() || imageData.getServer() == null || !imageData.getServer().isRGB()) {
 			Dialogs.showErrorMessage(TITLE, "No brightfield, RGB image selected!");
 			return;
 		}
@@ -146,12 +142,12 @@ class EstimateStainVectorsCommand {
 		
 		// Check if the background values may need to be changed
 		if (rMax != stains.getMaxRed() || gMax != stains.getMaxGreen() || bMax != stains.getMaxBlue()) {
-			DialogButton response =
+			ButtonType response =
 					Dialogs.showYesNoCancelDialog(TITLE,
 							String.format("Modal RGB values %d, %d, %d do not match current background values - do you want to use the modal values?", rMax, gMax, bMax));
-			if (response == DialogButton.CANCEL)
+			if (response == ButtonType.CANCEL)
 				return;
-			else if (response == DialogButton.YES) {
+			else if (response == ButtonType.YES) {
 				stains = stains.changeMaxValues(rMax, gMax, bMax);
 				imageData.setColorDeconvolutionStains(stains);
 			}
@@ -159,7 +155,7 @@ class EstimateStainVectorsCommand {
 		
 		
 		ColorDeconvolutionStains stainsUpdated = null;
-		logger.info("Requesting region for stain vector editing: ", request);
+		logger.info("Requesting region for stain vector editing: {}", request);
 		try {
 			stainsUpdated = showStainEditor(img, stains);
 		} catch (Exception e) {

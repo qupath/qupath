@@ -132,7 +132,7 @@ public class ServerSelector {
 				logger.warn("Unable to build {}", b);
 				return null;
 			}
-		}).filter(s -> s != null).collect(Collectors.toList());
+		}).filter(s -> s != null).toList();
 		return new ServerSelector(list, true);
 	}
 	
@@ -193,7 +193,7 @@ public class ServerSelector {
 			listSeries.getSelectionModel().setSelectionMode(SelectionMode.SINGLE);
 		
 		// thumbnailBank is the map for storing thumbnails
-		Map<String, BufferedImage> thumbnailBank = new HashMap<String, BufferedImage>();
+		Map<String, BufferedImage> thumbnailBank = new HashMap<>();
 		for (ImageServer<BufferedImage> server: serverList) {
 			// Check the image size before trying to get a thumbnail
 			double downsample = server.getDownsampleForResolution(server.nResolutions()-1);

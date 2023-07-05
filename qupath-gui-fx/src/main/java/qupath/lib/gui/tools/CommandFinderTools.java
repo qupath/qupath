@@ -89,9 +89,10 @@ import javafx.stage.Popup;
 import javafx.stage.Stage;
 import javafx.stage.Window;
 import javafx.util.Duration;
-import qupath.lib.gui.ActionTools;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.actions.ActionTools;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.viewer.QuPathViewerPlus;
 
 
 /**
@@ -241,9 +242,11 @@ public class CommandFinderTools {
 		paneViewer.setContent(node);
 		
 		commandBarDisplay.addListener((v, o, n) -> {
-			var viewers = qupath.getViewers();
+			var viewers = qupath.getAllViewers();
 			for (var viewer: viewers) {
-				viewer.setSlidersPosition(!n.equals(CommandBarDisplay.NEVER));
+				if (viewer instanceof QuPathViewerPlus) {
+					((QuPathViewerPlus)viewer).setSlidersPosition(!n.equals(CommandBarDisplay.NEVER));
+				}
 			}
 		});
 		
@@ -431,7 +434,7 @@ public class CommandFinderTools {
 		for (var item : menuManager.getCommands()) {
 			String menuPath = item.getMenuPath();
 			if (menuPath != null) {
-				String menu = menuPath.split("\u2192")[0].strip();
+				String menu = menuPath.split("→")[0].strip();
 				if (!Objects.equals(menu, lastMenu)) {
 					printWriter.println("## " + menu);
 					lastMenu = menu;
@@ -453,7 +456,7 @@ public class CommandFinderTools {
 		writer.println(title);
 
 		String subtitle = entry.getCommandPath();
-		writer.print("{menuselection}`" + subtitle.replaceAll("\u2192", "-->") + "`");
+		writer.print("{menuselection}`" + subtitle.replaceAll("→", "-->") + "`");
 		String accelerator = entry.getAcceleratorText();
 		if (worthwhile(accelerator)) {
 			String a = entry.getMenuItem().getAccelerator().toString();
@@ -603,7 +606,7 @@ public class CommandFinderTools {
 			if (!item.isVisible())
 				continue;
 			if (item instanceof Menu)
-				addMenuComponents((Menu)item, menuPath + " \u2192 " + ((Menu)item).getText(), commands);
+				addMenuComponents((Menu)item, menuPath + " → " + ((Menu)item).getText(), commands);
 			else if (item instanceof SeparatorMenuItem)
 				continue;
 			else if (item.getText() != null)
@@ -628,10 +631,10 @@ public class CommandFinderTools {
 		col4.setCellValueFactory(new PropertyValueFactory<>("longText"));
 		
 		Function<CommandEntry, String> tipExtractor = entry -> entry == null ? null : entry.getLongText();
-		col1.setCellFactory(v -> new TooltipCellFactory<CommandEntry, String>(tipExtractor));
-		col2.setCellFactory(v -> new TooltipCellFactory<CommandEntry, String>(tipExtractor));
-		col3.setCellFactory(v -> new TooltipCellFactory<CommandEntry, String>(tipExtractor));
-		col4.setCellFactory(v -> new HelpCellFactory<CommandEntry>());
+		col1.setCellFactory(v -> new TooltipCellFactory<>(tipExtractor));
+		col2.setCellFactory(v -> new TooltipCellFactory<>(tipExtractor));
+		col3.setCellFactory(v -> new TooltipCellFactory<>(tipExtractor));
+		col4.setCellFactory(v -> new HelpCellFactory<>());
 		
 		// Indicate if an item is enabled or not
 		table.setRowFactory(e -> {
@@ -674,7 +677,7 @@ public class CommandFinderTools {
 	
 	
 	static void updateTableFilter(final String text, final FilteredList<CommandEntry> commands) {
-		commands.setPredicate(new Predicate<CommandEntry>() {
+		commands.setPredicate(new Predicate<>() {
 			@Override
 			public boolean test(CommandEntry entry) {
 				return entry.getCommandPath().toLowerCase().contains(text);
@@ -843,7 +846,7 @@ public class CommandFinderTools {
 		 * @return
 		 */
 		public String getCommandPath() {
-			return getMenuPath() + " \u2192 " + getText();
+			return getMenuPath() + " → " + getText();
 		}
 		
 		/**

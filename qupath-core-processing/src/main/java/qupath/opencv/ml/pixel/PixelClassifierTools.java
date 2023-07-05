@@ -201,7 +201,7 @@ public class PixelClassifierTools {
 		// Sort in descending order of area; this is because some potential child objects might have been removed already by the time they are required
 		parentObjects = parentObjects.stream().filter(p -> p.isRootObject() || (p.hasROI() && p.getROI().isArea()))
 				.sorted(Comparator.comparing(PathObject::getROI, Comparator.nullsFirst(Comparator.comparingDouble(ROI::getArea).reversed())))
-				.collect(Collectors.toList());
+				.toList();
 		
 		List<PathObject> completed = new ArrayList<>();
 		List<PathObject> toDeselect = new ArrayList<>();
@@ -429,7 +429,7 @@ public class PixelClassifierTools {
 			pathObjects.addAll(
 					geometryMap.entrySet().parallelStream()
 						.flatMap(e -> geometryToObjects(e.getValue(), creator, labelMap.get(e.getKey()), minAreaPixels, minHoleAreaPixels, doSplit, regionRequest.getImagePlane()).stream())
-						.collect(Collectors.toList())
+						.toList()
 						);
 			
 		}
@@ -646,7 +646,7 @@ public class PixelClassifierTools {
 				} catch (Exception e) {
 					return new Reclassifier(p, null, false);
 				}
-			}).collect(Collectors.toList());
+			}).toList();
 		reclassifiers.parallelStream().forEach(r -> r.apply());
 	}
 	

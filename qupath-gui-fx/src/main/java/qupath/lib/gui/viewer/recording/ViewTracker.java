@@ -51,7 +51,7 @@ import javafx.event.EventHandler;
 import javafx.scene.input.MouseEvent;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.QuPathViewerListener;
 import qupath.lib.gui.viewer.tools.PathTool;
@@ -249,7 +249,7 @@ public class ViewTracker implements QuPathViewerListener {
 			fw.write(ViewTrackerTools.getSummaryHeadings(LOG_DELIMITER, doCursorTracking.get(), doActiveToolTracking.get(), doEyeTracking.get(), hasZAndT()));
 			fw.write(System.lineSeparator());
 		} catch (IOException e) {
-			logger.error("Could not create back-up file. Recording will not be saved.", e.getLocalizedMessage());
+			logger.error("Could not create back-up file - recording will not be saved", e);
 		}
 		
 		initialized = true;

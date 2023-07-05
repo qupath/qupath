@@ -53,10 +53,10 @@ import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.layout.BorderPane;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
-import qupath.lib.gui.ActionTools;
-import qupath.lib.gui.QuPathGUI;
+import javafx.stage.Window;
+import qupath.fx.dialogs.FileChoosers;
 import qupath.lib.gui.SelectableItem;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.lib.gui.actions.ActionTools;
 import qupath.lib.gui.logging.LogManager;
 import qupath.lib.gui.logging.LogManager.LogLevel;
 import qupath.lib.gui.logging.TextAppendable;
@@ -77,9 +77,9 @@ public class LogViewerCommand implements Runnable, TextAppendable {
 	
 	private static final Logger logger = LoggerFactory.getLogger(LogViewerCommand.class);
 	
-	private QuPathGUI qupath;
 	private Stage dialog = null;
 	
+	private Window parent;
 	private BorderPane pane;
 	
 	private BooleanProperty lockScroll = new SimpleBooleanProperty(true);
@@ -97,16 +97,15 @@ public class LogViewerCommand implements Runnable, TextAppendable {
 	
 	/**
 	 * Constructor.
-	 * @param qupath the current QuPath instance
+	 * @param parent 
 	 */
-	public LogViewerCommand(final QuPathGUI qupath) {
-		this(qupath, new TextAreaControl(false));
+	public LogViewerCommand(Window parent) {
+		this(parent, new TextAreaControl(false));
 	}
 	
 	
-	private LogViewerCommand(final QuPathGUI qupath, ScriptEditorControl<?> control) {
+	private LogViewerCommand(Window parent, ScriptEditorControl<?> control) {
 		Objects.requireNonNull(control);
-		this.qupath = qupath;
 		LogManager.addTextAppendableFX(this);
 		init();
 		setLogControl(control);
@@ -124,11 +123,10 @@ public class LogViewerCommand implements Runnable, TextAppendable {
 
 			Scene scene = new Scene(pane, 400, 300);
 			dialog.setScene(scene);
-//			dialog.getDialogPane().setContent(pane);
 			dialog.setResizable(true);
 			
 			dialog.initModality(Modality.NONE);
-			dialog.initOwner(qupath.getStage());
+			dialog.initOwner(parent);
 			dialog.setResizable(true);
 		}
 		dialog.show();
@@ -179,7 +177,9 @@ public class LogViewerCommand implements Runnable, TextAppendable {
 		MenuItem miSave = new MenuItem("Save log");
 		miSave.setAccelerator(new KeyCodeCombination(KeyCode.S, KeyCodeCombination.SHORTCUT_DOWN));
 		miSave.setOnAction(e -> {
-			File fileOutput = Dialogs.getChooser(dialog).promptToSaveFile("Save log", null, "log.txt", "Log files", ".txt");
+			File fileOutput = FileChoosers.promptToSaveFile(dialog, "Save log",
+					new File("log.txt"),
+					FileChoosers.createExtensionFilter("Log files", ".txt"));
 			if (fileOutput == null)
 				return;
 			try {

@@ -33,8 +33,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.ServiceLoader;
-import java.util.stream.Collectors;
-
 import javax.script.ScriptException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,7 +50,6 @@ import qupath.lib.common.Version;
 import qupath.lib.gui.BuildInfo;
 import qupath.lib.gui.ExtensionClassLoader;
 import qupath.lib.gui.QuPathApp;
-import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.extensions.Subcommand;
 import qupath.lib.gui.images.stores.ImageRegionStoreFactory;
 import qupath.lib.gui.logging.LogManager;
@@ -124,9 +121,10 @@ public class QuPath {
 		if (System.getProperty("offline", null) == null)
 			System.setProperty("offline", "true");
 
-		
+		initializeProperties();
+
 		QuPath qupath = new QuPath();
-				
+						
 		CommandLine cmd = new CommandLine(qupath);
 		cmd.setCaseInsensitiveEnumValuesAllowed(true);
 //		cmd.setUnmatchedArgumentsAllowed(false);
@@ -175,7 +173,7 @@ public class QuPath {
 		if (!pr.hasSubcommand()) {
 
 			// If no subcommand, parse the arguments and launch QuPathApp.
-			List<String> CLIArgs = new ArrayList<String>();
+			List<String> CLIArgs = new ArrayList<>();
 			
 			if (qupath.path != null && !qupath.path.isBlank()) {
 				CLIArgs.add(getEncodedPath(qupath.path));
@@ -204,7 +202,7 @@ public class QuPath {
 	}
 	
 	
-	static void initializeProperties() {
+	private static void initializeProperties() {
 		initializeJTS();
 	}
 	
@@ -214,7 +212,7 @@ public class QuPath {
 	 * This can greatly reduce TopologyExceptions.
 	 * Use -Djts.overlay=old to turn off this behavior.
 	 */
-	static void initializeJTS() {
+	private static void initializeJTS() {
 		var prop = System.getProperty("jts.overlay");
 		if (prop == null) {
 			logger.debug("Setting -Djts.overlay=ng");
@@ -330,7 +328,7 @@ class ScriptCommand implements Runnable {
 			createTileCache();
 			
 			// Set classloader to include any available extensions
-			var extensionClassLoader = (ExtensionClassLoader)QuPathGUI.getExtensionClassLoader();
+			var extensionClassLoader = ExtensionClassLoader.getInstance();
 			extensionClassLoader.refresh();
 			ImageServerProvider.setServiceLoader(ServiceLoader.load(ImageServerBuilder.class, extensionClassLoader));
 			Thread.currentThread().setContextClassLoader(extensionClassLoader);
@@ -347,7 +345,7 @@ class ScriptCommand implements Runnable {
 				var imageList = project.getImageList();
 				// Filter out the images we need (usually all of them)
 				if (imagePath != null && !imagePath.equals("")) {
-					imageList = imageList.stream().filter(e -> imagePath.equals(e.getImageName())).collect(Collectors.toList());
+					imageList = imageList.stream().filter(e -> imagePath.equals(e.getImageName())).toList();
 				}
 					
 				int batchSize = imageList.size();

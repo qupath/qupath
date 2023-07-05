@@ -34,8 +34,6 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -150,7 +148,7 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 				if (parentObject instanceof PathCellObject)
 					processObject(parentObject, params, new ImageWrapper(imageData));
 				else {
-					List<PathObject> cellObjects = PathObjectTools.getFlattenedObjectList(parentObject, null, false).stream().filter(p -> p instanceof PathCellObject).collect(Collectors.toList());
+					List<PathObject> cellObjects = PathObjectTools.getFlattenedObjectList(parentObject, null, false).stream().filter(p -> p instanceof PathCellObject).toList();
 					for (PathObject cell : cellObjects)
 						processObject(cell, params, new ImageWrapper(imageData));
 				}

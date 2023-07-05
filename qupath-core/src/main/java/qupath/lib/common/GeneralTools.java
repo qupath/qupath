@@ -617,17 +617,17 @@ public final class GeneralTools {
 	/**
 	 * Small Greek mu (useful for micrometers)
 	 */
-	public static final char SYMBOL_MU = '\u00B5';
+	public static final char SYMBOL_MU = 'µ';
 
 	/**
 	 * Small Greek sigma (useful for Gaussian filter sizes, standard deviations)
 	 */
-	public static final char SYMBOL_SIGMA = '\u03C3';
+	public static final char SYMBOL_SIGMA = 'σ';
 
 	/**
 	 * String to represent um (but with the proper 'mu' symbol)
 	 */
-	public static final String SYMBOL_MICROMETER = '\u00B5' + "m";
+	public static final String SYMBOL_MICROMETER = "µm";
 	
 	
 	/**
@@ -899,7 +899,7 @@ public final class GeneralTools {
 	public static <T> void smartStringSort(Collection<T> collection, Function<T, String> extractor) {
 //		for (var temp : collection)
 //			System.err.println(new StringPartsSorter<T>(temp, temp.toString()));
-		var list = collection.stream().map(c -> new StringPartsSorter<>(c, extractor.apply(c))).sorted().map(s -> s.obj).collect(Collectors.toList());
+		var list = collection.stream().map(c -> new StringPartsSorter<>(c, extractor.apply(c))).sorted().map(s -> s.obj).toList();
 		collection.clear();
 		collection.addAll(list);
 	}

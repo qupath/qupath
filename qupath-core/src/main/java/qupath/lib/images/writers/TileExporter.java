@@ -126,7 +126,7 @@ public class TileExporter  {
 	public TileExporter parentObjects(Predicate<PathObject> filter) {
 		this.parentObjects = imageData.getHierarchy().getFlattenedObjectList(null).stream()
 				.filter(filter)
-				.collect(Collectors.toList());
+				.toList();
 		return this;
 	}
 	

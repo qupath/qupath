@@ -46,8 +46,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
-import java.util.stream.Collectors;
-
 import javax.swing.SwingUtilities;
 
 import org.slf4j.Logger;
@@ -56,11 +54,11 @@ import org.slf4j.LoggerFactory;
 import qupath.imagej.tools.IJTools;
 import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.ParameterPanelFX;
 import qupath.lib.gui.images.servers.ChannelDisplayTransformServer;
 import qupath.lib.gui.tools.GuiTools;
-import qupath.lib.gui.tools.PaneTools;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.PathImage;
 import qupath.lib.images.servers.ImageServer;
@@ -180,7 +178,7 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 						for (PathObject parent : parents)
 							addRunnableTasks(qupath.getViewer().getImageData(), parent, tasks);
 						
-						qupath.submitShortTask(() -> runner.runTasks(tasks, true));
+						qupath.getThreadPoolManager().submitShortTask(() -> runner.runTasks(tasks, true));
 //						runner.runTasks(tasks);
 						
 //						Runnable r = new Runnable() {
@@ -194,7 +192,7 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 			Button btnClose = new Button("Close");
 			btnClose.setOnAction(e -> dialog.hide());
 			
-			GridPane panelButtons = PaneTools.createRowGridControls(btnRun, btnClose);
+			GridPane panelButtons = GridPaneUtils.createRowGridControls(btnRun, btnClose);
 			
 			pane.setCenter(panelMacro);
 			pane.setBottom(panelButtons);
@@ -440,7 +438,7 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 		// Try to get currently-selected objects
 		PathObjectHierarchy hierarchy = getHierarchy(runner);
 		List<PathObject> pathObjects = hierarchy.getSelectionModel().getSelectedObjects().stream()
-				.filter(p -> p.isAnnotation() || p.isTMACore()).collect(Collectors.toList());
+				.filter(p -> p.isAnnotation() || p.isTMACore()).toList();
 		if (pathObjects.isEmpty()) {
 			if (GuiTools.promptForParentObjects(this.getName(), runner.getImageData(), false, getSupportedParentObjectClasses()))
 				pathObjects = new ArrayList<>(hierarchy.getSelectionModel().getSelectedObjects());

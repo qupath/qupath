@@ -21,6 +21,9 @@
 
 package qupath.lib.extension.svg;
 
+import java.awt.AlphaComposite;
+import java.awt.Color;
+import java.awt.geom.AffineTransform;
 import java.awt.geom.NoninvertibleTransformException;
 import java.awt.image.BufferedImage;
 import java.awt.image.RenderedImage;
@@ -33,6 +36,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.zip.GZIPOutputStream;
 
 import javax.imageio.ImageIO;
@@ -43,13 +47,18 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.awt.common.AwtTools;
+import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.images.stores.DefaultImageRegionStore;
 import qupath.lib.gui.images.stores.ImageRegionStoreFactory;
 import qupath.lib.gui.viewer.OverlayOptions;
-import qupath.lib.gui.viewer.PathHierarchyPaintingHelper;
+import qupath.lib.gui.viewer.PathObjectPainter;
 import qupath.lib.gui.viewer.QuPathViewer;
+import qupath.lib.gui.viewer.overlays.GridOverlay;
+import qupath.lib.gui.viewer.overlays.HierarchyOverlay;
+import qupath.lib.gui.viewer.overlays.PathOverlay;
+import qupath.lib.gui.viewer.overlays.TMAGridOverlay;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
@@ -131,6 +140,8 @@ public class SvgTools {
 		private Collection<? extends PathObject> pathObjects;
 		
 		private boolean showSelection = true;
+
+		private boolean includeOverlays = true;
 		
 		private int width = -1;
 		private int height = -1;
@@ -201,6 +212,17 @@ public class SvgTools {
 		 */
 		public SvgBuilder pathObjects(PathObject... pathObjects) {
 			return pathObjects(Arrays.asList(pathObjects));
+		}
+
+		/**
+		 * Specify whether overlays should be included.
+		 * This only has an effect if images are also included, and a viewer is provided.
+		 * @param doInclude
+		 * @return this builder
+		 */
+		public SvgBuilder includeOverlays(boolean doInclude) {
+			this.includeOverlays = doInclude;
+			return this;
 		}
 		
 		/**
@@ -389,7 +411,8 @@ public class SvgTools {
 			if (!embedImages) {
 				for (var element : g2d.getSVGImages()) {
 					var img = element.getImage();
-					ImageIO.write((RenderedImage)img, "PNG", new File(file.getParent(), imageName));
+					String name = element.getHref();
+					ImageIO.write((RenderedImage)img, "PNG", new File(file.getParent(), name));
 				}
 			}
 		}
@@ -416,6 +439,14 @@ public class SvgTools {
 				else if (viewer != null)
 					hierarchy = viewer.getHierarchy();
 			}
+
+			List<PathOverlay> overlayLayers;
+			double overlayOpacity = this.options.getOpacity();
+			if (viewer != null && includeOverlays) {
+				overlayLayers = viewer.getOverlayLayers();
+			} else {
+				overlayLayers = Collections.emptyList();
+			}
 			
 			double downsample = this.downsample;
 			if (downsample <= 0)
@@ -429,9 +460,10 @@ public class SvgTools {
 				height = (int)(region.getHeight() / downsample);
 			
 			var g2d = new SVGGraphics2D(width, height);
+//			g2d.setClip(0, 0, width, height);
 			g2d.scale(1.0/downsample, 1.0/downsample);
 			g2d.translate(-region.getX(), -region.getY());
-			
+
 			PathObjectSelectionModel selectionModel = null;
 			if (showSelection && hierarchy != null)
 				selectionModel = hierarchy.getSelectionModel();
@@ -442,11 +474,26 @@ public class SvgTools {
 				else
 					pathObjects = hierarchy.getObjectsForRegion(null, region, null);				
 			}
-			
+
+			// Important! Needed to determine where to draw objects and overlays
 			var boundsDisplayed = AwtTools.getBounds(region);
-			
+			g2d.setClip(boundsDisplayed);
+
+			// Try to get transforms needed for drawing images
+			AffineTransform transform = g2d.getTransform();
+			boolean includeImages = imageInclude == ImageIncludeType.EMBED || imageInclude == ImageIncludeType.LINK;
+			AffineTransform transformInverse = null;
+			if (includeImages) {
+				try {
+					transformInverse = transform.createInverse();
+				} catch (NoninvertibleTransformException e) {
+					logger.warn("Can't include images - unable to invert image transform: ", e.getMessage(), e);
+				}
+			}
+
 			// If the viewer is specified, draw the image
-			if (imageInclude == ImageIncludeType.EMBED || imageInclude == ImageIncludeType.LINK) {
+			boolean objectsDrawn = false;
+			if (transformInverse != null && includeImages) {
 				if (imageData != null) {
 					DefaultImageRegionStore store;
 					ImageDisplay display;
@@ -469,29 +516,74 @@ public class SvgTools {
 					} else {
 						g2d.setRenderingHint(SVGHints.KEY_IMAGE_HANDLING,  SVGHints.VALUE_IMAGE_HANDLING_EMBED);
 					}
-					
-					BufferedImage imgTemp = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+
+					BufferedImage imgTemp = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
 					var g = imgTemp.createGraphics();
-					g.setTransform(g2d.getTransform());
-					
+					g.setTransform(transform);
 					store.paintRegionCompletely(
 							imageData.getServer(), g, boundsDisplayed,
 							region.getZ(), region.getT(), downsample, null, display, 10000L);
 					g.dispose();
-					
-					try {
-						g2d.drawImage(imgTemp, g.getTransform().createInverse(), null);
-					} catch (NoninvertibleTransformException e) {
-						logger.warn("Unable to invert image transform: " + e.getLocalizedMessage(), e);
-					}
+					g2d.drawImage(imgTemp, transformInverse, null);
 				} else {
 					logger.warn("Unable to include image - I'd also need an imageData to be able to do that");
-				}				
+				}
+				// Draw overlay layers
+				if (!overlayLayers.isEmpty() && overlayOpacity > 0) {
+					AlphaComposite composite = null;
+					if (overlayOpacity < 1.0)
+						composite = AlphaComposite.getInstance(AlphaComposite.SRC_OVER, (float)overlayOpacity);
+					int overlayCount = 0;
+					for (var overlay : overlayLayers) {
+						int[] rgb = null;
+						if (overlay instanceof HierarchyOverlay && !objectsDrawn) {
+							// Draw the objects directly if we have a hierarchy overlay;
+							// this ensures the vector representation is used, and the objects are drawn in the correct order
+							if (composite != null)
+								g2d.setComposite(composite);
+							PathObjectPainter.paintSpecifiedObjects(
+									g2d, pathObjects, options, selectionModel, downsample);
+							objectsDrawn = true;
+						} else if (overlay instanceof GridOverlay || overlay instanceof TMAGridOverlay) {
+							// Directly paint the grid overlays
+							if (composite != null)
+								g2d.setComposite(composite);
+							overlay.paintOverlay(g2d, region, downsample, imageData, true);
+						} else {
+							// Rasterize all other overlays rather than painting directly
+							// Creating a new image is necessary for linked image output
+							BufferedImage imgTemp = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+							var g = imgTemp.createGraphics();
+							int transparent = ColorTools.packARGB(0, 0, 0, 0);
+							g.setBackground(new Color(transparent, true));
+							g.clearRect(0, 0, width, height);
+							g.setTransform(transform);
+							// Apply composite to the image, not the SVG graphics
+							if (composite != null)
+								g.setComposite(composite);
+							overlay.paintOverlay(g, region, downsample, imageData, true);
+							g.dispose();
+							rgb = imgTemp.getRGB(0, 0, width, height, rgb, 0, width);
+							// Some overlays don't actually have any visible content, and so should be excluded
+							boolean containsNonTransparent = Arrays.stream(rgb)
+											.anyMatch(i -> i != transparent);
+							if (containsNonTransparent) {
+								overlayCount++;
+								String overlayImageName = GeneralTools.getNameWithoutExtension(imageName)
+										+ "-overlay-" + overlayCount + ".png";
+								g2d.setRenderingHint(SVGHints.KEY_IMAGE_HREF, overlayImageName);
+								g2d.drawImage(imgTemp, transformInverse, null);
+							}
+						}
+					}
+				}
 			}
 
 			// Paint the objects
-			PathHierarchyPaintingHelper.paintSpecifiedObjects(
-					g2d, boundsDisplayed, pathObjects, options, selectionModel, downsample);
+			if (!objectsDrawn) {
+				PathObjectPainter.paintSpecifiedObjects(
+						g2d, pathObjects, options, selectionModel, downsample);
+			}
 			
 			return g2d;
 		}

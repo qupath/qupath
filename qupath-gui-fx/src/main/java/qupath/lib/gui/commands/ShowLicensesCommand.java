@@ -29,8 +29,6 @@ import java.net.URISyntaxException;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Comparator;
-import java.util.stream.Collectors;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,6 +48,7 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.Urls;
 import qupath.lib.gui.tools.GuiTools;
 
 /**
@@ -76,7 +75,7 @@ class ShowLicensesCommand {
 			sbQuPath.append(licenseText);
 		} catch (Exception e) {
 			sbQuPath.append("Error reading license information!\n\n");
-			sbQuPath.append("For the most up-to-date QuPath license information, see http://github.com/qupath/");
+			sbQuPath.append("For the most up-to-date QuPath license information, see " + Urls.getGitHubRepoUrl());
 			logger.error("Cannot read license information", e);
 		}
 
@@ -237,7 +236,7 @@ class ShowLicensesCommand {
 							.filter(f -> !f.isHidden())
 							.sorted(comparator)
 							.map(f -> new LicenseFileTreeItem(f))
-							.collect(Collectors.toList()));
+							.toList());
 			}
 			return super.getChildren();
 		}
@@ -255,8 +254,7 @@ class ShowLicensesCommand {
 							LicenseFileTreeItem item = (LicenseFileTreeItem)child;
 							sb.append(item.getName());
 							sb.append("\n");
-							for (int i = 0; i < item.getName().length(); i++)
-								sb.append("=");
+							sb.append("=".repeat(item.getName().length()));
 							sb.append("\n\n");
 							sb.append(item.getContents());
 							// Don't add another END after a directory - will already be one after any previous files

@@ -37,8 +37,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
-import java.util.stream.Collectors;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -224,7 +222,7 @@ public class MeasurementExporter {
 				ObservableMeasurementTableData model = new ObservableMeasurementTableData();
 				Collection<PathObject> pathObjects = imageData == null ? Collections.emptyList() : imageData.getHierarchy().getObjects(null, type);
 				if (filter != null)
-					pathObjects = pathObjects.stream().filter(filter).collect(Collectors.toList());
+					pathObjects = pathObjects.stream().filter(filter).toList();
 				
 				model.setImageData(imageData, pathObjects);
 				List<String> data = SummaryMeasurementTableCommand.getTableModelStrings(model, separator, excludeColumns);

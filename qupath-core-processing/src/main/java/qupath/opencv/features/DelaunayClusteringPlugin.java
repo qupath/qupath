@@ -28,8 +28,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -201,7 +199,7 @@ public class DelaunayClusteringPlugin<T> extends AbstractInteractivePlugin<T> {
 		public void run() {
 			
 			List<PathObject> pathObjects = PathObjectTools.getFlattenedObjectList(parentObject, null, false);
-			pathObjects = pathObjects.stream().filter(p -> p.isDetection()).collect(Collectors.toList());
+			pathObjects = pathObjects.stream().filter(p -> p.isDetection()).toList();
 			if (pathObjects.isEmpty()) {
 				lastResult = "No detection descendant objects for " + parentObject;
 				return;

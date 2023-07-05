@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.Map;
 import javax.imageio.ImageIO;
 
+import javafx.stage.Window;
 import org.controlsfx.control.PropertySheet;
 import org.controlsfx.control.PropertySheet.Item;
 import org.controlsfx.control.PropertySheet.Mode;
@@ -75,11 +76,12 @@ import javafx.scene.layout.Pane;
 import javafx.scene.transform.Transform;
 import javafx.stage.Stage;
 import javafx.util.Callback;
+import qupath.fx.dialogs.FileChoosers;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.panes.PreferencePane;
 import qupath.lib.gui.prefs.PathPrefs;
-import qupath.lib.gui.tools.PaneTools;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.io.GsonTools;
 
 /**
@@ -269,7 +271,9 @@ class ExportChartPane {
 		btnSave.setOnAction(e -> {
 			Image img = getChartImage();
 			String title = chart.getTitle() == null || chart.getTitle().isEmpty() ? null : chart.getTitle();
-			File fileOutput = Dialogs.getChooser(chart.getScene() == null ? null : chart.getScene().getWindow()).promptToSaveFile("Save chart", null, title, "PNG", ".png");
+			Window owner = chart.getScene() == null ? null : chart.getScene().getWindow();
+			File fileOutput = FileChoosers.promptToSaveFile(owner, "Save chart", title == null ? null : new File(title),
+					FileChoosers.createExtensionFilter("PNG", ".png"));
 			if (fileOutput != null) {
 				try {
 					ImageIO.write(SwingFXUtils.fromFXImage(img, null), "png", fileOutput);
@@ -279,7 +283,7 @@ class ExportChartPane {
 			}
 		});
 
-		Pane paneButtons = PaneTools.createColumnGridControls(btnCopy, btnSave);
+		Pane paneButtons = GridPaneUtils.createColumnGridControls(btnCopy, btnSave);
 		paneButtons.setPadding(new Insets(5, 5, 5, 5));
 
 		// Listen for changes to stroke setting
@@ -559,7 +563,7 @@ class ExportChartPane {
 			Series<Number, Number> series2 = new Series<>();
 			series2.setName(series.getName());
 			for (Data<Number, Number> data : series.getData()) {
-				series2.getData().add(new Data<Number, Number>(data.getXValue(), data.getYValue(), data.getExtraValue()));
+				series2.getData().add(new Data<>(data.getXValue(), data.getYValue(), data.getExtraValue()));
 			}
 			chart2.getData().add(series2);
 
@@ -748,7 +752,7 @@ class ExportChartPane {
 		BorderPane pane = new BorderPane();
 		combo.setMaxWidth(Double.MAX_VALUE);
 		pane.setCenter(combo);
-		pane.setBottom(PaneTools.createColumnGridControls(btnAdd, btnRemove));
+		pane.setBottom(GridPaneUtils.createColumnGridControls(btnAdd, btnRemove));
 		
 		TitledPane titledPane = new TitledPane("Presets", pane);
 		titledPane.setCollapsible(false);

@@ -545,8 +545,7 @@ public class PixelClassificationOverlay extends AbstractImageOverlay  {
                 var hierarchy = imageData == null ? null : imageData.getHierarchy();
                 try {
                 	classifierServer.readRegion(tile.getRegionRequest());
-//                    viewer.repaint();
-                	QuPathGUI.getInstance().repaintViewers();
+                	repaintAllViewers();
                     var channelType = classifierServer.getMetadata().getChannelType();
                     if (channelType == ChannelType.CLASSIFICATION || channelType == ChannelType.PROBABILITY || channelType == ChannelType.MULTICLASS_PROBABILITY) {
 		                if (hierarchy != null) {
@@ -558,7 +557,7 @@ public class PixelClassificationOverlay extends AbstractImageOverlay  {
 		                }
                     }
                 } catch (Exception e) {
-                   logger.error("Error requesting tile classification: ", e.getLocalizedMessage(), e);
+                   logger.error("Error requesting tile classification", e);
                 } finally {
                     currentRequests.remove(tile);
                     pendingRequests.remove(tile);
@@ -572,6 +571,14 @@ public class PixelClassificationOverlay extends AbstractImageOverlay  {
             });
         }
     }
+    
+    
+    private void repaintAllViewers() {
+    	var qupath = QuPathGUI.getInstance();
+    	if (qupath != null)
+    		qupath.getViewerManager().repaintAllViewers();
+    }
+    
     
     
     @Override

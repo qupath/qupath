@@ -30,41 +30,24 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
-import java.text.NumberFormat;
-import java.text.ParsePosition;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.Callable;
-import java.util.concurrent.CountDownLatch;
 import java.util.function.Consumer;
 import java.util.function.Function;
-import java.util.function.UnaryOperator;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
-
 import javax.swing.SwingUtilities;
 
-import org.controlsfx.control.CheckComboBox;
+import javafx.scene.control.*;
 import org.controlsfx.control.ListSelectionView;
 import org.controlsfx.glyphfont.Glyph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javafx.application.Platform;
-import javafx.beans.binding.Bindings;
-import javafx.beans.binding.DoubleBinding;
-import javafx.beans.property.DoubleProperty;
-import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
-import javafx.beans.property.SimpleDoubleProperty;
-import javafx.beans.property.SimpleObjectProperty;
-import javafx.beans.property.StringProperty;
-import javafx.beans.value.ObservableValue;
 import javafx.collections.ObservableList;
 import javafx.css.StyleOrigin;
 import javafx.css.StyleableObjectProperty;
@@ -72,37 +55,13 @@ import javafx.embed.swing.SwingFXUtils;
 import javafx.event.Event;
 import javafx.event.EventHandler;
 import javafx.geometry.Side;
-import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
-import javafx.scene.control.Button;
-import javafx.scene.control.ButtonType;
-import javafx.scene.control.CheckBox;
-import javafx.scene.control.CheckMenuItem;
-import javafx.scene.control.ColorPicker;
-import javafx.scene.control.ContextMenu;
-import javafx.scene.control.Label;
-import javafx.scene.control.ListCell;
-import javafx.scene.control.ListView;
-import javafx.scene.control.Menu;
-import javafx.scene.control.MenuItem;
-import javafx.scene.control.SeparatorMenuItem;
-import javafx.scene.control.Slider;
-import javafx.scene.control.Spinner;
-import javafx.scene.control.SpinnerValueFactory;
-import javafx.scene.control.SpinnerValueFactory.DoubleSpinnerValueFactory;
-import javafx.scene.control.Tab;
-import javafx.scene.control.TextArea;
-import javafx.scene.control.TextField;
-import javafx.scene.control.TextFormatter;
-import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
 import javafx.scene.image.WritableImage;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
-import javafx.scene.input.MouseEvent;
-import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
@@ -112,17 +71,19 @@ import javafx.scene.robot.Robot;
 import javafx.stage.Modality;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
-import javafx.stage.Window;
+import qupath.fx.utils.FXUtils;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.color.ColorDeconvolutionHelper;
 import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.color.ColorDeconvolutionStains.DefaultColorDeconvolutionStains;
 import qupath.lib.color.StainVector;
 import qupath.lib.common.ColorTools;
-import qupath.lib.common.GeneralTools;
-import qupath.lib.gui.ActionTools;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.actions.ActionTools;
 import qupath.lib.gui.commands.Commands;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.fx.dialogs.Dialogs;
+import qupath.lib.gui.dialogs.ParameterPanelFX;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
@@ -146,16 +107,11 @@ import qupath.lib.roi.interfaces.ROI;
  *
  */
 public class GuiTools {
-	
-	/**
-	 * Pattern object to match any letter except E/e
-	 */
-	private static final Pattern pattern = Pattern.compile("[a-zA-Z&&[^Ee]]+");
-	
+
 	/**
 	 * Vertical ellipsis, which can be used to indicate a 'more' button.
 	 */
-	private static String MORE_ELLIPSIS = "\u22EE";
+	private static String MORE_ELLIPSIS = "⋮";
 	
 	/**
 	 * Create a {@link Button} with a standardized icon and tooltip text to indicate 'More', 
@@ -173,8 +129,37 @@ public class GuiTools {
 		});
 		return btnMore;
 	}
-	
-	
+
+	/**
+	 * Show a (modal) dialog for a specified ParameterList.
+	 *
+	 * @param title
+	 * @param params
+	 * @return False if the user pressed 'cancel', true otherwise
+	 */
+	public static boolean showParameterDialog(String title, ParameterList params) {
+		return Dialogs.showConfirmDialog(title, new ParameterPanelFX(params).getPane());
+	}
+
+	/**
+	 * Show an error message that no image is available. This is included to help
+	 * standardize the message throughout the software.
+	 * @param title
+	 */
+	public static void showNoImageError(String title) {
+		Dialogs.showErrorMessage(title, QuPathResources.getString("Dialogs.noImage"));
+	}
+
+	/**
+	 * Show an error message that no project is available. This is included to help
+	 * standardize the message throughout the software.
+	 * @param title
+	 */
+	public static void showNoProjectError(String title) {
+		Dialogs.showErrorMessage(title, QuPathResources.getString("Dialogs.noProject"));
+	}
+
+
 	/**
 	 * Kinds of snapshot image that can be created for QuPath.
 	 */
@@ -363,58 +348,9 @@ public class GuiTools {
 	 * @return True if the request succeeded, false otherwise.
 	 */
 	public static boolean browseURI(final URI uri) {
-		return QuPathGUI.launchBrowserWindow(uri.toString());
+		return QuPathGUI.openInBrowser(uri.toString());
 	}
 
-	/**
-	 * Return a result after executing a Callable on the JavaFX Platform thread.
-	 * 
-	 * @param callable
-	 * @return
-	 */
-	public static <T> T callOnApplicationThread(final Callable<T> callable) {
-		if (Platform.isFxApplicationThread()) {
-			try {
-				return callable.call();
-			} catch (Exception e) {
-				logger.error("Error calling directly on Platform thread", e);
-				return null;
-			}
-		}
-		
-		CountDownLatch latch = new CountDownLatch(1);
-		ObjectProperty<T> result = new SimpleObjectProperty<>();
-		Platform.runLater(() -> {
-			T value;
-			try {
-				value = callable.call();
-				result.setValue(value);
-			} catch (Exception e) {
-				logger.error("Error calling on Platform thread", e);
-			} finally {
-				latch.countDown();
-			}
-		});
-		
-		try {
-			latch.await();
-		} catch (InterruptedException e) {
-			logger.error("Interrupted while waiting result", e);
-		}
-		return result.getValue();
-	}
-	
-	/**
-	 * Run on the application thread and wait until this is complete.
-	 * @param runnable
-	 */
-	public static void runOnApplicationThread(final Runnable runnable) {
-		callOnApplicationThread(() -> {
-			runnable.run();
-			return runnable;
-		});
-	}
-	
 
 	/**
 	 * Make a semi-educated guess at the image type of a PathImageServer.
@@ -487,9 +423,9 @@ public class GuiTools {
 
 		// Compare optical density vector angles with the defaults for hematoxylin, eosin & DAB
 		ColorDeconvolutionStains stainsH_E = ColorDeconvolutionStains.makeDefaultColorDeconvolutionStains(DefaultColorDeconvolutionStains.H_E);
-		double rOD = ColorDeconvolutionHelper.makeOD(rSum/n, stainsH_E.getMaxRed());
-		double gOD = ColorDeconvolutionHelper.makeOD(gSum/n, stainsH_E.getMaxGreen());
-		double bOD = ColorDeconvolutionHelper.makeOD(bSum/n, stainsH_E.getMaxBlue());
+		double rOD = ColorDeconvolutionHelper.makeOD((double)rSum/n, stainsH_E.getMaxRed());
+		double gOD = ColorDeconvolutionHelper.makeOD((double)gSum/n, stainsH_E.getMaxGreen());
+		double bOD = ColorDeconvolutionHelper.makeOD((double)bSum/n, stainsH_E.getMaxBlue());
 		StainVector stainMean = StainVector.createStainVector("Mean Stain", rOD, gOD, bOD);
 		double angleH = StainVector.computeAngle(stainMean, stainsH_E.getStain(1));
 		double angleE = StainVector.computeAngle(stainMean, stainsH_E.getStain(2));
@@ -529,7 +465,7 @@ public class GuiTools {
 	public static WritableImage makeSnapshotFX(final QuPathGUI qupath, QuPathViewer viewer, final GuiTools.SnapshotType type) {
 		if (!Platform.isFxApplicationThread()) {
 			var temp = viewer;
-			return callOnApplicationThread(() -> makeSnapshotFX(qupath, temp, type));
+			return FXUtils.callOnApplicationThread(() -> makeSnapshotFX(qupath, temp, type));
 		}
 		Stage stage = qupath.getStage();
 		Scene scene = stage.getScene();
@@ -641,7 +577,7 @@ public class GuiTools {
 		// Get all non-TMA core objects
 		PathObjectHierarchy hierarchy = imageData.getHierarchy();
 		Collection<PathObject> selectedRaw = hierarchy.getSelectionModel().getSelectedObjects();
-		List<PathObject> selected = selectedRaw.stream().filter(p -> !(p instanceof TMACoreObject)).collect(Collectors.toList());
+		List<PathObject> selected = selectedRaw.stream().filter(p -> !(p instanceof TMACoreObject)).toList();
 	
 		if (selected.isEmpty()) {
 			if (selectedRaw.size() > selected.size())
@@ -666,10 +602,10 @@ public class GuiTools {
 			children.removeAll(selected);
 			boolean keepChildren = true;
 			if (!children.isEmpty()) {
-				Dialogs.DialogButton response = Dialogs.showYesNoCancelDialog("Delete objects", "Keep descendant objects?");
-				if (response == Dialogs.DialogButton.CANCEL)
+				ButtonType response = Dialogs.showYesNoCancelDialog("Delete objects", "Keep descendant objects?");
+				if (response == ButtonType.CANCEL)
 					return false;
-				keepChildren = response == Dialogs.DialogButton.YES;
+				keepChildren = response == ButtonType.YES;
 			}
 			
 			
@@ -705,10 +641,10 @@ public class GuiTools {
 		if (pathObjectSelected.hasChildObjects()) {
 			int nDescendants = PathObjectTools.countDescendants(pathObjectSelected);
 			String message = nDescendants == 1 ? "Keep descendant object?" : String.format("Keep %d descendant objects?", nDescendants);
-			Dialogs.DialogButton confirm = Dialogs.showYesNoCancelDialog("Delete object", message);
-			if (confirm == Dialogs.DialogButton.CANCEL)
+			ButtonType confirm = Dialogs.showYesNoCancelDialog("Delete object", message);
+			if (confirm == ButtonType.CANCEL)
 				return false;
-			if (confirm == Dialogs.DialogButton.YES)
+			if (confirm == ButtonType.YES)
 				hierarchy.removeObject(pathObjectSelected, true);
 			else
 				hierarchy.removeObject(pathObjectSelected, false);
@@ -780,17 +716,7 @@ public class GuiTools {
 		}
 		return false;
 	}
-	
-	/**
-	 * Get the {@link Window} containing a specific {@link Node}.
-	 * @param node
-	 * @return
-	 */
-	public static Window getWindow(Node node) {
-		var scene = node.getScene();
-		return scene == null ? null : scene.getWindow();
-	}
-	
+
 
 	/**
 	 * Paint an image centered within a canvas, scaled to be as large as possible while maintaining its aspect ratio.
@@ -846,93 +772,7 @@ public class GuiTools {
 		} else
 			Platform.runLater(() -> refreshList(listView));
 	}
-	
-	
-	/**
-	 * Restrict the {@link TextField} input to positive/negative integer (or double) format (including scientific notation).
-	 * <p>
-	 * N.B: the {@code TextArea} might still finds itself in an invalid state at any moment, as:
-	 * <li> character deletion is always permitted (e.g. -1.5e5 -&gt; -1.5e; deletion of last character).</li>
-	 * <li>users are allowed to input a minus sign, in order to permit manual typing, which then needs to accept intermediate (invalid) states.</li>
-	 * <li>users are allowed to input an 'E'/'e' character, in order to permit manual typing as well, which then needs to accept intermediate (invalid) states.</li>
-	 * <li>copy-pasting is not as strictly restricted (e.g. -1.6e--5 and 1.6e4e9 are accepted, but won't be parsed).</li>
-	 * <p>
-	 * Some invalid states are accepted and should therefore be caught after this method returns.
-	 * <p>
-	 * P.S: 'copy-pasting' an entire value (e.g. {@code '' -> '1.2E-6'}) is regarded as the opposite of 'manual typing' (e.g. {@code '' -> '-', '-' -> '-1', ...}).
-	 * 
-	 * @param textField
-	 * @param allowDecimals
-	 * @implNote this is often used alongside {@link #resetSpinnerNullToPrevious(Spinner)}
-	 */
-	public static void restrictTextFieldInputToNumber(TextField textField, boolean allowDecimals) {
-		NumberFormat format;
-		if (allowDecimals)
-			format = NumberFormat.getNumberInstance();
-		else
-			format = NumberFormat.getIntegerInstance();
-		
-		UnaryOperator<TextFormatter.Change> filter = c -> {
-		    if (c.isContentChange()) {
-		    	String text = c.getControlText().toUpperCase();
-		    	String newText = c.getControlNewText().toUpperCase();
-		    	
-		    	// Check for invalid characters (weak check)
-		        Matcher matcher = pattern.matcher(newText);
-		        if (matcher.find())
-		        	return null;
-		    	
-		    	// Accept minus sign if starting character OR if following 'E'
-		    	if ((newText.length() == 1 || text.toUpperCase().endsWith("E")) && newText.endsWith("-"))
-		    		return c;
-		    	
-		    	// Accept 'E' (scientific notation) if not starting character
-		    	if ((newText.length() > 1 && !newText.startsWith("-") || (newText.length() > 2 && newText.startsWith("-"))) && 
-		    			!text.toUpperCase().contains("E") && 
-		    			newText.toUpperCase().contains("E"))
-		    		return c;
-		    	
-//		    	// Accept any deletion of characters (which means the text area might be left in an invalid state)
-		    	// Note: This was removed, because it could result in errors if selecting a longer number 
-		    	// and replacing it with an invalid character in a single edit (e.g. '=')
-//		    	if (newText.length() < text.length())
-//		    		return c;
-		    	
-		    	// Accept removing everything (which means the text area might be left in an invalid state)
-		    	if (newText.isEmpty())
-		    		return c;
 
-		        ParsePosition parsePosition = new ParsePosition(0);
-		        format.parse(newText, parsePosition);
-		        if (parsePosition.getIndex() < c.getControlNewText().length()) {
-		            return null;
-		        }
-		    }
-		    return c;
-		};
-		TextFormatter<Integer> normalizeFormatter = new TextFormatter<Integer>(filter);
-		textField.setTextFormatter(normalizeFormatter);
-	}
-	
-	/**
-	 * Add a listener to the value of a spinner, resetting it to its previous value if it 
-	 * becomes null.
-	 * @param <T>
-	 * @param spinner
-	 * @implNote this is often used alongside {@link #restrictTextFieldInputToNumber(TextField, boolean)}
-	 */
-	public static <T> void resetSpinnerNullToPrevious(Spinner<T> spinner) {
-		spinner.valueProperty().addListener((v, o, n) -> {
-			try {
-				if (n == null) {
-					spinner.getValueFactory().setValue(o);
-				}
-			} catch (Exception e) {
-				logger.warn(e.getLocalizedMessage(), e);
-			}
-		});
-	}
-	
 
 	/**
 	 * Prompt the user to set properties for the currently-selected annotation(s).
@@ -951,7 +791,7 @@ public class GuiTools {
 		Collection<PathAnnotationObject> otherAnnotations = hierarchy.getSelectionModel().getSelectedObjects().stream()
 				.filter(p -> p.isAnnotation() && p != currentObject)
 				.map(p -> (PathAnnotationObject)p)
-				.collect(Collectors.toList());
+				.toList();
 		
 		if (promptToSetAnnotationProperties((PathAnnotationObject)currentObject, otherAnnotations)) {
 			hierarchy.fireObjectsChangedEvent(null, Collections.singleton(currentObject));
@@ -1020,15 +860,15 @@ public class GuiTools {
 			panel.add(cbAll, 1, 4);
 		}
 		
-		PaneTools.setToExpandGridPaneWidth(textField, colorPicker, textAreaDescription, cbLocked, cbAll);
+		GridPaneUtils.setToExpandGridPaneWidth(textField, colorPicker, textAreaDescription, cbLocked, cbAll);
 //		PaneTools.setHGrowPriority(Priority.NEVER, labDescription);
-		PaneTools.setHGrowPriority(Priority.ALWAYS, colorPicker, textAreaDescription, cbLocked, cbAll);
-		PaneTools.setVGrowPriority(Priority.NEVER, colorPicker);
-		PaneTools.setToExpandGridPaneHeight(textAreaDescription);
+		GridPaneUtils.setHGrowPriority(Priority.ALWAYS, colorPicker, textAreaDescription, cbLocked, cbAll);
+		GridPaneUtils.setVGrowPriority(Priority.NEVER, colorPicker);
+		GridPaneUtils.setToExpandGridPaneHeight(textAreaDescription);
 		
 		panel.getColumnConstraints().setAll(
 				new ColumnConstraints(Region.USE_COMPUTED_SIZE),
-				new ColumnConstraints(00, 400, Double.MAX_VALUE)
+				new ColumnConstraints(0, 400, Double.MAX_VALUE)
 				);
 				
 		var dialog = Dialogs.builder()
@@ -1212,68 +1052,14 @@ public class GuiTools {
 				.getSelectedObjects()
 				.stream()
 				.filter(p -> p.isAnnotation())
-				.collect(Collectors.toList());
+				.toList();
 		if (setToLocked)
 			PathObjectTools.lockObjects(imageData.getHierarchy(), selectedAnnotations);
 		else
 			PathObjectTools.unlockObjects(imageData.getHierarchy(), selectedAnnotations);			
 	}
-	
-	
-	/**
-	 * Bind the value of a slider and contents of a text field with a default number of decimal places,
-	 * so that both may be used to set a numeric (double) value.
-	 * <p>
-	 * This aims to overcome the challenge of keeping both synchronized, while also quietly handling 
-	 * parsing errors that may occur whenever the text field is being edited.
-	 * 
-	 * @param slider slider that may be used to adjust the value
-	 * @param tf text field that may also be used to adjust the value and show it visually
-	 * @param expandLimits optionally expand slider min/max range to suppose the text field input; if this is false, the text field 
-	 *                     may contain a different value that is unsupported by the slider
-	 * @return a property representing the value represented by the slider and text field
-	 */
-	public static DoubleProperty bindSliderAndTextField(Slider slider, TextField tf, boolean expandLimits) {
-		return bindSliderAndTextField(slider, tf, expandLimits, -1);
-	}
-	
-	/**
-	 * Bind the value of a slider and contents of a text field, so that both may be used to 
-	 * set a numeric (double) value.
-	 * <p>
-	 * This aims to overcome the challenge of keeping both synchronized, while also quietly handling 
-	 * parsing errors that may occur whenever the text field is being edited.
-	 * 
-	 * @param slider slider that may be used to adjust the value
-	 * @param tf text field that may also be used to adjust the value and show it visually
-	 * @param expandLimits optionally expand slider min/max range to suppose the text field input; if this is false, the text field 
-	 *                     may contain a different value that is unsupported by the slider
-	 * @param ndp if &ge; 0, this will be used to define the number of decimal places shown in the text field
-	 * @return a property representing the value represented by the slider and text field
-	 */
-	public static DoubleProperty bindSliderAndTextField(Slider slider, TextField tf, boolean expandLimits, int ndp) {
-		var numberProperty = new SimpleDoubleProperty(slider.getValue());
-		new NumberAndText(numberProperty, tf.textProperty(), ndp).synchronizeTextToNumber();
-		if (expandLimits) {
-			numberProperty.addListener((v, o, n) -> {
-				double val = n.doubleValue();
-				if (Double.isFinite(val)) {
-					if (val < slider.getMin())
-						slider.setMin(val);
-					if (val > slider.getMax())
-						slider.setMax(val);
-					slider.setValue(val);
-				}
-			});
-			slider.valueProperty().addListener((v, o, n) -> numberProperty.setValue(n));
-		} else {
-			slider.valueProperty().bindBidirectional(numberProperty);
-		}
-		return numberProperty;	
-//		new NumberAndText(slider.valueProperty(), tf.textProperty(), ndp).synchronizeTextToNumber();
-//		return slider.valueProperty();		
-	}
-	
+
+
 	/**
 	 * Install a mouse click listener to prompt the user to input min/max values for a slider.
 	 * @param slider
@@ -1285,127 +1071,28 @@ public class GuiTools {
 				promptForSliderRange(slider);
 		});
 	}
-	
+
+
 	/**
 	 * Prompt the user to input min/max values for a slider.
 	 * @param slider
 	 * @return true if the user may have made changes, false if they cancelled the dialog
 	 */
 	public static boolean promptForSliderRange(Slider slider) {
-		
+
 		var params = new ParameterList()
 				.addEmptyParameter("Specify the min/max values supported by the slider")
 				.addDoubleParameter("minValue", "Slider minimum", slider.getMin())
 				.addDoubleParameter("maxValue", "Slider maximum", slider.getMax());
-		if (!Dialogs.showParameterDialog("Slider range", params))
+		if (!showParameterDialog("Slider range", params))
 			return false;
-		
+
 		slider.setMin(params.getDoubleParameterValue("minValue"));
 		slider.setMax(params.getDoubleParameterValue("maxValue"));
 		return true;
 	}
-	
-	
-	/**
-	 * Helper class to synchronize a properties between a Slider and TextField.
-	 */
-	private static class NumberAndText {
-		
-		private static Logger logger = LoggerFactory.getLogger(NumberAndText.class);
-		
-		private boolean synchronizingNumber = false;
-		private boolean synchronizingText = false;
-		
-		private DoubleProperty number;
-		private StringProperty text;
-		private NumberFormat format = GeneralTools.createFormatter(5);
-		private int ndp;
-		
-		NumberAndText(DoubleProperty number, StringProperty text, int ndp) {
-			this.number = number;
-			this.text = text;
-			this.number.addListener((v, o, n) -> synchronizeTextToNumber());
-			this.text.addListener((v, o, n) -> synchronizeNumberToText());
-			this.ndp = ndp;
-		}
-		
-		public void synchronizeNumberToText() {
-			if (synchronizingText)
-				return;
-			synchronizingNumber = true;
-			String value = text.get();
-			if (value.isBlank())
-				return;
-			try {
-				var n = format.parse(value);
-				number.setValue(n);
-			} catch (Exception e) {
-				logger.debug("Error parsing number from '{}' ({})", value, e.getLocalizedMessage());
-			}
-			synchronizingNumber = false;
-		}
-		
-		
-		public void synchronizeTextToNumber() {
-			if (synchronizingNumber)
-				return;
-			synchronizingText = true;
-			double value = number.get();
-			String s;
-			if (Double.isNaN(value))
-				s = "";
-			else if (Double.isFinite(value)) {
-				if (ndp < 0) {
-					double log10 = Math.round(Math.log10(value));
-					int ndp2 = (int)Math.max(4, -log10 + 2);
-					s = GeneralTools.formatNumber(value, ndp2);
-				} else
-					s = GeneralTools.formatNumber(value, ndp);
-			} else
-				s = Double.toString(value);
-			text.set(s);
-			synchronizingText = false;
-		}
-
-		
-	}
 
 
-	/**
-	 * Add a context menu to a CheckComboBox to quickly select all items, or clear selection.
-	 * @param combo
-	 */
-	public static void installSelectAllOrNoneMenu(CheckComboBox<?> combo) {
-		var miAll = new MenuItem("Select all");
-		var miNone = new MenuItem("Select none");
-		miAll.setOnAction(e -> combo.getCheckModel().checkAll());
-		miNone.setOnAction(e -> combo.getCheckModel().clearChecks());
-		var menu = new ContextMenu(miAll, miNone);
-		combo.setContextMenu(menu);
-	}
-	
-	
-	/**
-	 * Create a {@link ListCell} with custom methods to derive text and a graphic for a specific object.
-	 * @param <T>
-	 * @param stringFun function to extract a string
-	 * @param graphicFun function to extract a graphic
-	 * @return a new list cell
-	 */
-	public static <T> ListCell<T> createCustomListCell(Function<T, String> stringFun, Function<T, Node> graphicFun) {
-		return new CustomListCell<>(stringFun, graphicFun);
-	}
-	
-	/**
-	 * Create a {@link ListCell} with custom methods to derive text for a specific object.
-	 * @param <T>
-	 * @param stringFun function to extract a string
-	 * @return a new list cell
-	 */
-	public static <T> ListCell<T> createCustomListCell(Function<T, String> stringFun) {
-		return createCustomListCell(stringFun, t -> null);
-	}
-	
 	/**
 	 * Get a scaled (RGB or ARGB) image, achieving reasonable quality even when scaling down by a considerably amount.
 	 * 
@@ -1440,77 +1127,7 @@ public class GuiTools {
 		return SwingFXUtils.toFXImage(imgResult, null);
 	}
 	
-	
-	private static class CustomListCell<T> extends ListCell<T> {
-		
-		private Function<T, String> funString;
-		private Function<T, Node> funGraphic;
-		
-		/**
-		 * Constructor.
-		 * @param funString function capable of generating a String representation of an object.
-		 * @param funGraphic function capable of generating a Graphic representation of an object.
-		 */
-		private CustomListCell(Function<T, String> funString, Function<T, Node> funGraphic) {
-			super();
-			this.funString = funString;
-			this.funGraphic = funGraphic;
-		}
-		
-		@Override
-		protected void updateItem(T item, boolean empty) {
-			super.updateItem(item, empty);
-			if (empty) {
-				setText(null);
-				setGraphic(null);
-			} else {
-				setText(funString.apply(item));
-				setGraphic(funGraphic.apply(item));
-			}
-		}
-		
-	}
 
-	/**
-	 * Create a new {@link Spinner} for double values with a step size that adapts according to the absolute value of 
-	 * the current spinner value. This is useful for cases where the possible values cover a wide range 
-	 * (e.g. potential brightness/contrast values).
-	 * @param minValue
-	 * @param maxValue
-	 * @param defaultValue 
-	 * @param minStepValue
-	 * @param scale number of decimal places to shift the step size relative to the log10 of the value (suggested default = 1)
-	 * @return
-	 */
-	public static Spinner<Double> createDynamicStepSpinner(double minValue, double maxValue, double defaultValue, double minStepValue, int scale) {
-		var factory = new SpinnerValueFactory.DoubleSpinnerValueFactory(minValue, maxValue, defaultValue);
-		factory.amountToStepByProperty().bind(GuiTools.createStepBinding(factory.valueProperty(), minStepValue, scale));
-		var spinner = new Spinner<>(factory);
-		return spinner;
-	}
-
-	/**
-	 * Create a binding that may be used with a {@link Spinner} to adjust the step size dynamically 
-	 * based upon the absolute value of the input.
-	 * 
-	 * @param value current value for the {@link Spinner}
-	 * @param minStep minimum step size (should be &gt; 0)
-	 * @param scale number of decimal places to shift the step size relative to the log10 of the value (suggested default = 1)
-	 * @return a binding that may be attached to a {@link DoubleSpinnerValueFactory#amountToStepByProperty()}
-	 */
-	public static DoubleBinding createStepBinding(ObservableValue<Double> value, double minStep, int scale) {
-		return Bindings.createDoubleBinding(() -> {
-			double val= value.getValue();
-			if (!Double.isFinite(val))
-				return 1.0;
-			val = Math.abs(val);
-			return Math.max(Math.pow(10, Math.floor(Math.log10(val) - scale)), minStep);
-		}, value);
-	}
-
-	
-	
-	
 	private static String getNameFromURI(URI uri) {
 		if (uri == null)
 			return "No URI";
@@ -1576,9 +1193,8 @@ public class GuiTools {
 		return menuRecent;
 
 	}
-	
-	
-	
+
+
 	private static final String KEY_REGIONS = "processRegions";
 	
 	/**
@@ -1654,7 +1270,7 @@ public class GuiTools {
 		ParameterList paramsParents = new ParameterList();
 		paramsParents.addChoiceParameter(KEY_REGIONS, "Process all", choiceList.get(0), choiceList);
 
-		if (!Dialogs.showParameterDialog("Process regions", paramsParents))
+		if (!showParameterDialog("Process regions", paramsParents))
 			return false;
 
 		
@@ -1666,89 +1282,6 @@ public class GuiTools {
 		// Success!  Probably...
 		return !hierarchy.getSelectionModel().noSelection();
 	}
-	
-	
-	/**
-	 * Make a stage moveable by click and drag on the scene.
-	 * This is useful for undecorated stages.
-	 * @param stage
-	 * @implNote currently this does not handle changes of scene; the scene must be 
-	 *           set before calling this method, and not changed later.
-	 */
-	public static void makeDraggableStage(Stage stage) {
-		new MoveablePaneHandler(stage);
-	}
-	
-	
-	
-	/**
-	 * Enable an undecorated stage to be moved by clicking and dragging within it.
-	 * Requires the scene to be set. Note that this will set mouse event listeners.
-	 */
-	private static class MoveablePaneHandler implements EventHandler<MouseEvent> {
-
-		private Stage stage;
-		
-		private double xOffset = 0;
-		private double yOffset = 0;
-
-		private MoveablePaneHandler(Stage stage) {
-			this.stage = stage;
-			var scene = stage.getScene();
-			if (scene == null)
-				throw new IllegalArgumentException("Scene must be set on the stage!");
-			scene.addEventFilter(MouseEvent.ANY, this);
-		}
-
-		@Override
-		public void handle(MouseEvent event) {
-			if (event.getEventType() == MouseEvent.MOUSE_PRESSED) {
-				xOffset = stage.getX() - event.getScreenX();
-				yOffset = stage.getY() - event.getScreenY();				
-			} else if (event.getEventType() == MouseEvent.MOUSE_DRAGGED) {
-				stage.setX(event.getScreenX() + xOffset);
-				stage.setY(event.getScreenY() + yOffset);
-			}
-		}
-
-	}
 
 
-
-	/**
-	 * Make a tab undockable, via a context menu available on right-click.
-	 * When undocked, the tab will become a floating window.
-	 * If the window is closed, it will be added back to its original tab pane.
-	 * @param tab
-	 * @since v0.4.0
-	 */
-	public static void makeTabUndockable(Tab tab) {
-		var miUndock = new MenuItem("Undock tab");
-		var popup = new ContextMenu(miUndock);
-		tab.setContextMenu(popup);
-		miUndock.setOnAction(e -> {
-			var tabPane = tab.getTabPane();
-			var parent = tabPane.getScene() == null ? null : tabPane.getScene().getWindow();
-			
-			double width = tabPane.getWidth();
-			double height = tabPane.getHeight();
-			tabPane.getTabs().remove(tab);
-			var stage = new Stage();
-			stage.initOwner(parent);
-			stage.setTitle(tab.getText());
-			var content = tab.getContent();
-			tab.setContent(null);
-			var tabContent = new BorderPane(content);
-			stage.setScene(new Scene(tabContent, width, height));
-			stage.show();
-			
-			stage.setOnCloseRequest(e2 -> {
-				tabContent.getChildren().remove(tabContent);
-				tab.setContent(content);
-				tabPane.getTabs().add(tab);
-			});
-		});
-	}
-	
-	
 }

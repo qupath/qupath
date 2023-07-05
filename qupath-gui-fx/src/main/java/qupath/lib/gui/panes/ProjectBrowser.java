@@ -94,11 +94,10 @@ import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.ThreadTools;
-import qupath.lib.gui.ActionTools;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.actions.ActionTools;
 import qupath.lib.gui.commands.ProjectCommands;
-import qupath.lib.gui.dialogs.Dialogs;
-import qupath.lib.gui.dialogs.Dialogs.DialogButton;
+import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.panes.ProjectTreeRow.ImageRow;
 import qupath.lib.gui.panes.ProjectTreeRow.MetadataRow;
 import qupath.lib.gui.panes.ProjectTreeRow.Type;
@@ -107,7 +106,7 @@ import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.IconFactory;
 import qupath.lib.gui.tools.IconFactory.PathIcons;
 import qupath.lib.gui.tools.MenuTools;
-import qupath.lib.gui.tools.PaneTools;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
@@ -228,7 +227,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		tfFilter.setTooltip(new Tooltip("Type some text to filter the project entries by name or type."));
 		tfFilter.textProperty().addListener((m, o, n) -> refreshTree(null));
 		
-		var paneUserFilter = PaneTools.createRowGrid(tfFilter);
+		var paneUserFilter = GridPaneUtils.createRowGrid(tfFilter);
 		
 		BorderPane panelTree = new BorderPane();
 		panelTree.setCenter(titledTree);
@@ -236,10 +235,10 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		panel.setBottom(paneUserFilter);
 		panel.setCenter(panelTree);
 
-		Button btnOpen = ActionTools.createButton(qupath.lookupActionByText("Open project"), false);
-		Button btnCreate = ActionTools.createButton(qupath.lookupActionByText("Create project"), false);
-		Button btnAdd = ActionTools.createButton(qupath.lookupActionByText("Add images"), false);
-		GridPane paneButtons = PaneTools.createColumnGridControls(btnCreate, btnOpen, btnAdd);
+		Button btnOpen = ActionTools.createButton(qupath.getCommonActions().PROJECT_OPEN);
+		Button btnCreate = ActionTools.createButton(qupath.getCommonActions().PROJECT_NEW);
+		Button btnAdd = ActionTools.createButton(qupath.getCommonActions().PROJECT_ADD_IMAGES);
+		GridPane paneButtons = GridPaneUtils.createColumnGridControls(btnCreate, btnOpen, btnAdd);
 		paneButtons.prefWidthProperty().bind(panel.widthProperty());
 		paneButtons.setPadding(new Insets(5, 5, 5, 5));
 		panel.setTop(paneButtons);
@@ -261,7 +260,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 				return;
 			
 			// Don't allow us to remove any entries that are currently open (in any viewer)
-			for (var viewer : qupath.getViewers()) {
+			for (var viewer : qupath.getAllViewers()) {
 				var imageData = viewer.getImageData();
 				var entry = imageData == null ? null : getProject().getEntry(imageData);
 				if (entry != null && entries.contains(entry)) {
@@ -278,10 +277,10 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 			
 			var result = Dialogs.showYesNoCancelDialog("Remove project entries",
 					"Delete all associated data?");
-			if (result == DialogButton.CANCEL)
+			if (result == ButtonType.CANCEL)
 				return;
 			
-			project.removeAllImages(entries, result == DialogButton.YES);
+			project.removeAllImages(entries, result == ButtonType.YES);
 			refreshTree(null);
 			syncProject(project);
 			if (tree != null) {
@@ -317,7 +316,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 					.addStringParameter("name", namePrompt, name, nameHelp)
 					.addBooleanParameter("copyData", "Also duplicate data files", true, "Duplicate any associated data files along with the image");
 			
-			if (!Dialogs.showParameterDialog(title, params))
+			if (!GuiTools.showParameterDialog(title, params))
 				return;
 
 			boolean copyData = params.getBooleanParameterValue("copyData");
@@ -350,7 +349,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 			if (imageRows.size() == 1)
 				logger.debug("Duplicated 1 image entry");
 			else
-				logger.debug("Duplicated {} image entries");
+				logger.debug("Duplicated {} image entries", imageRows.size());
 		});
 		
 		Action actionSetImageName = new Action("Rename image", e -> {
@@ -373,7 +372,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 						.flatMap(Collection::stream)
 						.distinct()
 						.sorted()
-						.collect(Collectors.toList());
+						.toList();
 				TextFields.bindAutoCompletion(tfMetadataKey, suggestions);
 				
 				TextField tfMetadataValue = new TextField();
@@ -952,7 +951,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 					}
 				}
 			} catch (Exception ex) {
-				logger.error("Error getting children objects in the ProjectBrowser", ex.getLocalizedMessage());
+				logger.error("Error getting children objects in the ProjectBrowser", ex);
 			}
 		});
 	}
@@ -997,7 +996,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		// Try to set the name
 		boolean changed = setProjectEntryImageName(entry, name);
 		if (changed) {
-			for (var viewer : qupath.getViewers()) {
+			for (var viewer : qupath.getAllViewers()) {
 				var imageData = viewer.getImageData();
 				if (imageData == null)
 					continue;
@@ -1050,13 +1049,13 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 	
 	private List<ImageRow> getAllImageRows() {
 		if (!PathPrefs.maskImageNamesProperty().get())
-			return project.getImageList().stream().map(entry -> new ImageRow(entry)).collect(Collectors.toList());
+			return project.getImageList().stream().map(entry -> new ImageRow(entry)).toList();
 		
 		// If 'mask names' is ticked, shuffle the image list for less biased analyses
 		var imageList = project.getImageList();
-		var indices = IntStream.range(0, imageList.size()).boxed().collect(Collectors.toList());
+		var indices = IntStream.range(0, imageList.size()).boxed().toList();
 		Collections.shuffle(indices);
-		return indices.stream().map(index -> new ImageRow(imageList.get(index))).collect(Collectors.toList());
+		return indices.stream().map(index -> new ImageRow(imageList.get(index))).toList();
 	}
 
 	private class ProjectImageTreeModel {
@@ -1267,7 +1266,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 						GeneralTools.smartStringSort(values);
 						children.addAll(values.stream()
 								.map(value -> new ProjectTreeRowItem(new MetadataRow(value)))
-								.collect(Collectors.toList()));
+								.toList());
 					}
 					break;
 				case METADATA:

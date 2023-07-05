@@ -24,7 +24,6 @@ package qupath.opencv.ml.objects.features;
 import java.nio.FloatBuffer;
 import java.util.Collection;
 import java.util.List;
-import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import org.bytedeco.opencv.global.opencv_core;
@@ -48,7 +47,7 @@ class PCAProjectFeatureExtractor<T> implements FeatureExtractor<T> {
 	public List<String> getFeatureNames() {
 		return IntStream.rangeClosed(1, pca.nComponents()+1)
 				.mapToObj(i -> "PCA " + i)
-				.collect(Collectors.toList());
+				.toList();
 	}
 
 	@Override

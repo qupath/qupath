@@ -58,6 +58,7 @@ public class LoggingTools {
 		protected Level level;
 		
 		private LoggerWriter(Logger logger, Level level) {
+			this.logger = logger;
 			this.level = level;
 		}
 

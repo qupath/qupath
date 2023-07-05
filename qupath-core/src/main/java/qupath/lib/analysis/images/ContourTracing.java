@@ -96,7 +96,7 @@ public class ContourTracing {
 	 * @throws IOException if there is an error reading the images
 	 */
 	public static List<PathObject> labelsToDetections(Collection<Path> paths, boolean mergeByLabel) throws IOException {
-		var list = paths.parallelStream().flatMap(p -> labelsToDetectionsStream(p)).collect(Collectors.toList());
+		var list = paths.parallelStream().flatMap(p -> labelsToDetectionsStream(p)).toList();
 		if (mergeByLabel)
 			return mergeByName(list);
 		return list;
@@ -110,7 +110,7 @@ public class ContourTracing {
 	 * @throws IOException if there is an error reading the images
 	 */
 	public static List<PathObject> labelsToCells(Collection<Path> paths, boolean mergeByLabel) throws IOException {
-		var list = paths.parallelStream().flatMap(p -> labelsToCellsStream(p)).collect(Collectors.toList());
+		var list = paths.parallelStream().flatMap(p -> labelsToCellsStream(p)).toList();
 		if (mergeByLabel)
 			return mergeByName(list);
 		return list;
@@ -180,7 +180,7 @@ public class ContourTracing {
 	 * @throws IOException if there is an error reading the images
 	 */
 	public static List<PathObject> labelsToAnnotations(Collection<Path> paths, boolean mergeByLabel) throws IOException {
-		var list = paths.parallelStream().flatMap(p -> labelsToAnnotationsStream(p)).collect(Collectors.toList());
+		var list = paths.parallelStream().flatMap(p -> labelsToAnnotationsStream(p)).toList();
 		if (mergeByLabel)
 			return mergeByName(list);
 		return list;

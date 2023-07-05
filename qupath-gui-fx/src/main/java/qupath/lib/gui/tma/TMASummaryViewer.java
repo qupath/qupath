@@ -136,19 +136,21 @@ import javafx.scene.text.TextAlignment;
 import javafx.scene.text.TextFlow;
 import javafx.stage.Stage;
 import javafx.util.Callback;
+import qupath.fx.dialogs.FileChoosers;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.charts.ChartTools;
 import qupath.lib.gui.charts.HistogramDisplay;
 import qupath.lib.gui.commands.SummaryMeasurementTableCommand;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.measure.ObservableMeasurementTableData;
 import qupath.lib.gui.measure.PathTableData;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tma.TMAEntries.TMAEntry;
 import qupath.lib.gui.tma.TMAEntries.TMAObjectEntry;
+import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.MenuTools;
-import qupath.lib.gui.tools.PaneTools;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ServerTools;
 import qupath.lib.io.PathIO;
@@ -303,7 +305,8 @@ public class TMASummaryViewer {
 		MenuItem miOpen = new MenuItem("Open...");
 		miOpen.setAccelerator(new KeyCodeCombination(KeyCode.O, KeyCombination.SHORTCUT_DOWN));
 		miOpen.setOnAction(e -> {
-			File file = Dialogs.getChooser(stage).promptForFile(null, null, "TMA data files", new String[]{"qptma"});
+			File file = FileChoosers.promptForFile(stage, null, null,
+					FileChoosers.createExtensionFilter("TMA data files", "*.qptma"));
 			if (file == null)
 				return;
 			setInputFile(file);
@@ -569,16 +572,16 @@ public class TMASummaryViewer {
 		
 		
 		
-		model.getItems().addListener(new ListChangeListener<TMAEntry>() {
-			@Override
-			public void onChanged(ListChangeListener.Change<? extends TMAEntry> c) {
-				if (histogramDisplay != null)
-					histogramDisplay.refreshHistogram();
-				updateSurvivalCurves();
-				if (scatterPane != null)
-					scatterPane.updateChart();
-			}
-		});
+		model.getItems().addListener(new ListChangeListener<>() {
+            @Override
+            public void onChanged(ListChangeListener.Change<? extends TMAEntry> c) {
+                if (histogramDisplay != null)
+                    histogramDisplay.refreshHistogram();
+                updateSurvivalCurves();
+                if (scatterPane != null)
+                    scatterPane.updateChart();
+            }
+        });
 		
 		
 		Label labelPredicate = new Label();
@@ -1003,7 +1006,7 @@ public class TMASummaryViewer {
 		
 		BorderPane paneColumns = new BorderPane(tableColumns);
 		paneColumns.setBottom(
-				PaneTools.createColumnGridControls(
+				GridPaneUtils.createColumnGridControls(
 						ActionUtils.createButton(actionShowSelected),
 						ActionUtils.createButton(actionHideSelected)
 						)
@@ -1054,7 +1057,7 @@ public class TMASummaryViewer {
 			if (ind < 0)
 				return Collections.emptyList();
 			String part = tfCommand.getText().substring(ind+1);
-			return measurementNames.stream().filter(n -> n.startsWith(part)).map(n -> "\"" + n + "\" ").collect(Collectors.toList());
+			return measurementNames.stream().filter(n -> n.startsWith(part)).map(n -> "\"" + n + "\" ").toList();
 		});
 
 		String instructions = "Enter a predicate to filter entries.\n" + 
@@ -1173,7 +1176,7 @@ public class TMASummaryViewer {
 	private void setTMAEntriesFromOpenProject() {
 		QuPathGUI qupath = QuPathGUI.getInstance();
 		if (qupath == null || qupath.getProject() == null || qupath.getProject().getImageList().isEmpty()) {
-			Dialogs.showNoProjectError("Show TMA summary");
+			GuiTools.showNoProjectError("Show TMA summary");
 			return;
 		}
 		Project<BufferedImage> project = qupath.getProject();
@@ -1418,12 +1421,12 @@ public class TMASummaryViewer {
 		// Note: there's nothing to prevent the user reordering it along with other columns... 
 		// but hopefully it looks 'right' enough where it is that few would try to do that
 		TreeTableColumn<TMAEntry, String> columnEmpty = new TreeTableColumn<>("  ");
-		columnEmpty.setCellValueFactory(new Callback<CellDataFeatures<TMAEntry, String>, ObservableValue<String>>() {
-			@Override
-			public ObservableValue<String> call(CellDataFeatures<TMAEntry, String> p) {
-				return Bindings.createStringBinding(() -> "");
-			}
-		});
+		columnEmpty.setCellValueFactory(new Callback<>() {
+            @Override
+            public ObservableValue<String> call(CellDataFeatures<TMAEntry, String> p) {
+                return Bindings.createStringBinding(() -> "");
+            }
+        });
 		columnEmpty.setSortable(false);
 		columnEmpty.setResizable(false);
 		columns.add(columnEmpty);
@@ -1438,12 +1441,12 @@ public class TMASummaryViewer {
 			TreeTableColumn<TMAEntry, TMAEntry> columnOverlay = hasOverlay ? new TreeTableColumn<>("Overlay") : null;
 
 			if (hasImages) {
-				columnImage.setCellValueFactory(new Callback<CellDataFeatures<TMAEntry, TMAEntry>, ObservableValue<TMAEntry>>() {
-					@Override
-					public ObservableValue<TMAEntry> call(CellDataFeatures<TMAEntry, TMAEntry> p) {
-						return p.getValue().valueProperty();
-					}
-				});
+				columnImage.setCellValueFactory(new Callback<>() {
+                    @Override
+                    public ObservableValue<TMAEntry> call(CellDataFeatures<TMAEntry, TMAEntry> p) {
+                        return p.getValue().valueProperty();
+                    }
+                });
 				columnImage.setCellFactory(c -> new ImageTableCell(imageCache, false));
 				columnImage.maxWidthProperty().bind(maxSmallWidth);
 				columnImage.widthProperty().addListener((v, o, n) -> {
@@ -1457,12 +1460,12 @@ public class TMASummaryViewer {
 			}
 
 			if (hasOverlay) {
-				columnOverlay.setCellValueFactory(new Callback<CellDataFeatures<TMAEntry, TMAEntry>, ObservableValue<TMAEntry>>() {
-					@Override
-					public ObservableValue<TMAEntry> call(CellDataFeatures<TMAEntry, TMAEntry> p) {
-						return p.getValue().valueProperty();
-					}
-				});
+				columnOverlay.setCellValueFactory(new Callback<>() {
+                    @Override
+                    public ObservableValue<TMAEntry> call(CellDataFeatures<TMAEntry, TMAEntry> p) {
+                        return p.getValue().valueProperty();
+                    }
+                });
 				columnOverlay.setCellFactory(c -> new ImageTableCell(imageCache, true));
 				columnOverlay.maxWidthProperty().bind(maxSmallWidth);
 				columnOverlay.widthProperty().addListener((v, o, n) -> {
@@ -1493,23 +1496,23 @@ public class TMASummaryViewer {
 		for (String name : model.getAllNames()) {
 			if (model.getMeasurementNames().contains(name)) {
 				TreeTableColumn<TMAEntry, Number> column = new TreeTableColumn<>(name);
-				column.setCellValueFactory(new Callback<CellDataFeatures<TMAEntry, Number>, ObservableValue<Number>>() {
-					@Override
-					public ObservableValue<Number> call(CellDataFeatures<TMAEntry, Number> p) {
-						double value = p.getValue() == null ? Double.NaN : model.getNumericValue(p.getValue().getValue(), name);
-						return new SimpleDoubleProperty(value);
-					}
-				});
+				column.setCellValueFactory(new Callback<>() {
+                    @Override
+                    public ObservableValue<Number> call(CellDataFeatures<TMAEntry, Number> p) {
+                        double value = p.getValue() == null ? Double.NaN : model.getNumericValue(p.getValue().getValue(), name);
+                        return new SimpleDoubleProperty(value);
+                    }
+                });
 				column.setCellFactory(c -> new NumericTreeTableCell<>());
 				columns.add(column);
 			} else {
 				TreeTableColumn<TMAEntry, Object> column = new TreeTableColumn<>(name);
-				column.setCellValueFactory(new Callback<CellDataFeatures<TMAEntry, Object>, ObservableValue<Object>>() {
-					@Override
-					public ObservableValue<Object> call(CellDataFeatures<TMAEntry, Object> p) {
-						return new SimpleObjectProperty<>(p.getValue() == null ? null : model.getStringValue(p.getValue().getValue(), name));
-					}
-				});
+				column.setCellValueFactory(new Callback<>() {
+                    @Override
+                    public ObservableValue<Object> call(CellDataFeatures<TMAEntry, Object> p) {
+                        return new SimpleObjectProperty<>(p.getValue() == null ? null : model.getStringValue(p.getValue().getValue(), name));
+                    }
+                });
 				column.setCellFactory(c -> new CenteredTreeTableCell<>());
 				columns.add(column);
 			}
@@ -1755,13 +1758,13 @@ public class TMASummaryViewer {
 		
 		TMATableModel() {
 			useSelectedProperty.addListener((v, o, n) -> refreshList());
-			table.getSelectionModel().getSelectedItems().addListener(new ListChangeListener<TreeItem<TMAEntry>>() {
-				@Override
-				public void onChanged(ListChangeListener.Change<? extends TreeItem<TMAEntry>> c) {
-					if (useSelectedProperty.get())
-						refreshList();
-				}
-			});
+			table.getSelectionModel().getSelectedItems().addListener(new ListChangeListener<>() {
+                @Override
+                public void onChanged(ListChangeListener.Change<? extends TreeItem<TMAEntry>> c) {
+                    if (useSelectedProperty.get())
+                        refreshList();
+                }
+            });
 			refreshList();
 		}
 		
@@ -1769,13 +1772,13 @@ public class TMASummaryViewer {
 			if (table.getRoot() == null)
 				list.clear();
 			else if (useSelectedProperty.get()) {
-				List<TMAEntry> selectedList = table.getSelectionModel().getSelectedItems().stream().map(i -> i.getValue()).collect(Collectors.toList());
+				List<TMAEntry> selectedList = table.getSelectionModel().getSelectedItems().stream().map(i -> i.getValue()).toList();
 				// If we have *any* summary entries, then make sure we have *all* summary entries
 				if (selectedList.stream().anyMatch(e -> e instanceof TMASummaryEntry))
-					selectedList = selectedList.stream().filter(e -> e instanceof TMASummaryEntry).collect(Collectors.toList());
+					selectedList = selectedList.stream().filter(e -> e instanceof TMASummaryEntry).toList();
 				list.setAll(selectedList);
 			} else
-				list.setAll(table.getRoot().getChildren().stream().map(i -> i.getValue()).collect(Collectors.toList()));
+				list.setAll(table.getRoot().getChildren().stream().map(i -> i.getValue()).toList());
 		}
 		
 		

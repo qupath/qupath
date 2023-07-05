@@ -57,10 +57,11 @@ import javafx.scene.control.Tooltip;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Pane;
+import qupath.fx.utils.FXUtils;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.fx.dialogs.Dialogs;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.gui.tools.GuiTools;
-import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathCellObject;
@@ -105,7 +106,7 @@ class MeasurementManager {
 	 */
 	public static void showDetectionMeasurementManager(QuPathGUI qupath, ImageData<?> imageData) {
 		if (imageData == null) {
-			Dialogs.showNoImageError("Measurement Manager");
+			GuiTools.showNoImageError("Measurement Manager");
 			return;
 		}
 		
@@ -163,8 +164,8 @@ class MeasurementManager {
 		
 		// Create a ComboBox to choose between object types
 		comboBox = new ComboBox<>();
-		comboBox.setCellFactory(data -> GuiTools.createCustomListCell(c -> PathObjectTools.getSuitableName(c, true)));
-		comboBox.setButtonCell(GuiTools.createCustomListCell(c -> PathObjectTools.getSuitableName(c, true)));
+		comboBox.setCellFactory(data -> FXUtils.createCustomListCell(c -> PathObjectTools.getSuitableName(c, true)));
+		comboBox.setButtonCell(FXUtils.createCustomListCell(c -> PathObjectTools.getSuitableName(c, true)));
 		comboBox.getItems().setAll(mapMeasurements.keySet());
 		comboBox.getSelectionModel().selectFirst();
 		comboBox.setMaxWidth(Double.MAX_VALUE);
@@ -205,8 +206,8 @@ class MeasurementManager {
 		btnRemoveAll.setOnAction(e -> promptToRemoveAllMeasurements());
 		btnRemoveAll.disableProperty().bind(Bindings.isEmpty(listView.getItems()));
 
-		var paneButton = PaneTools.createRowGrid(tfFilter,
-				PaneTools.createColumnGrid(btnRemoveAll, btnRemove));
+		var paneButton = GridPaneUtils.createRowGrid(tfFilter,
+				GridPaneUtils.createColumnGrid(btnRemoveAll, btnRemove));
 		paneMeasurements.setBottom(paneButton);
 
 		// Operate on backspace too
@@ -258,7 +259,7 @@ class MeasurementManager {
 		if (!Dialogs.showConfirmDialog("Remove measurements", "Are you sure you want to permanently remove " + number + "?"))
 			return false;
 		
-		logger.info("Removing all measurements for ", PathObjectTools.getSuitableName(selectedClass, true));
+		logger.info("Removing all measurements for {}", PathObjectTools.getSuitableName(selectedClass, true));
 		Class<? extends PathObject> cls = comboBox.getSelectionModel().getSelectedItem();
 		String script;
 		var hierarchy = imageData.getHierarchy();

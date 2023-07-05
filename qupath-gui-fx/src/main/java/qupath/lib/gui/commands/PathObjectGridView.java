@@ -495,12 +495,12 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 			imageSize.addListener(v -> {
 				updateChildren();
 			});
-			list.addListener(new ListChangeListener<PathObject>() {
-				@Override
-				public void onChanged(javafx.collections.ListChangeListener.Change<? extends PathObject> c) {
-					updateChildren();
-				}
-			});
+			list.addListener(new ListChangeListener<>() {
+                @Override
+                public void onChanged(javafx.collections.ListChangeListener.Change<? extends PathObject> c) {
+                    updateChildren();
+                }
+            });
 			updateChildren();
 			textEmpty.setStyle("-fx-fill: -fx-text-base-color;");
 			StackPane.setAlignment(textEmpty, Pos.CENTER);

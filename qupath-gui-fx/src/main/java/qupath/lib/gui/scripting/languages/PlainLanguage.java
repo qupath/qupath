@@ -48,7 +48,7 @@ public class PlainLanguage extends ScriptLanguage {
 	 * Note: this has to be public for the {@link ServiceLoader} to work.
 	 */
 	public PlainLanguage() {
-		super("None", Set.of(".txt", ".tsv", ".csv", ".cfg"));
+		super("None", Set.of(".txt", ".tsv", ".csv"));
 		
 		if (INSTANCE != null)
 			throw new UnsupportedOperationException("Language classes cannot be instantiated more than once!");

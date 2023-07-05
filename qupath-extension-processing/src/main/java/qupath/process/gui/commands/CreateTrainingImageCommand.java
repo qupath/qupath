@@ -36,7 +36,8 @@ import org.slf4j.LoggerFactory;
 
 import javafx.concurrent.Task;
 import qupath.lib.gui.commands.ProjectCommands;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.fx.dialogs.Dialogs;
+import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.images.servers.CroppedImageServer;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
@@ -97,7 +98,7 @@ public class CreateTrainingImageCommand {
 				.addEmptyParameter("Note this command requires images to have similar bit-depths/channels/pixel sizes for compatibility.")
 				;
 		
-		if (!Dialogs.showParameterDialog(NAME, params))
+		if (!GuiTools.showParameterDialog(NAME, params))
 			return null;
 		
 		pathClass = (PathClass)params.getChoiceParameterValue("pathClass");

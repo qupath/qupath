@@ -39,7 +39,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import javax.imageio.ImageIO;
@@ -78,11 +77,12 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import javafx.stage.Stage;
+import qupath.fx.dialogs.FileChoosers;
 import qupath.imagej.tools.IJTools;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.fx.dialogs.Dialogs;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ServerTools;
@@ -175,7 +175,7 @@ public class ExportTrainingRegionsCommand implements Runnable {
 			pane.setVgap(5);
 			pane.setHgap(5);
 			
-			executorService = qupath.createSingleThreadExecutor(this);
+			executorService = qupath.getThreadPoolManager().getSingleThreadExecutor(this);
 			
 			// Export resolution (microns per pixel)
 			TextField tfResolution = new TextField("1");
@@ -410,7 +410,7 @@ public class ExportTrainingRegionsCommand implements Runnable {
 			boolean useMPP = useMicronsPerPixel.get();
 			
 			// Find all project entries with associated data files
-			List<ProjectImageEntry<BufferedImage>> entries = project.getImageList().stream().filter(entry -> entry.hasImageData()).collect(Collectors.toList());
+			List<ProjectImageEntry<BufferedImage>> entries = project.getImageList().stream().filter(entry -> entry.hasImageData()).toList();
 			
 			// Write JSON file with key
 			Gson gson = new GsonBuilder().setPrettyPrinting().create();
@@ -521,8 +521,8 @@ public class ExportTrainingRegionsCommand implements Runnable {
 			
 			// Split by region & non-region classified annotations
 			PathClass regionClass = PathClass.StandardPathClasses.REGION;
-			List<PathObject> regionAnnotations = hierarchy.getAnnotationObjects().stream().filter(p -> p.getPathClass() == regionClass).collect(Collectors.toList());
-			List<PathObject> otherAnnotations = hierarchy.getAnnotationObjects().stream().filter(p -> p.getPathClass() != regionClass && p.getROI().isArea()).collect(Collectors.toList());
+			List<PathObject> regionAnnotations = hierarchy.getAnnotationObjects().stream().filter(p -> p.getPathClass() == regionClass).toList();
+			List<PathObject> otherAnnotations = hierarchy.getAnnotationObjects().stream().filter(p -> p.getPathClass() != regionClass && p.getROI().isArea()).toList();
 
 			// Sort by area - we want to annotate largest regions first
 			otherAnnotations.sort((a, b) -> -Double.compare(a.getROI().getArea(), b.getROI().getArea()));
@@ -626,7 +626,13 @@ public class ExportTrainingRegionsCommand implements Runnable {
 			if (dirExport == null && project != null) {
 				dirExport = Projects.getBaseDirectory(project);
 			}
-			File dirSelected = Dialogs.getChooser(pane.getScene().getWindow()).promptForDirectory("Export training regions", dirExport);
+			var window = pane.getScene().getWindow();
+			File dirSelected = FileChoosers
+					.buildDirectoryChooser()
+					.title("Export training regions")
+					.initialDirectory(dirExport)
+					.build()
+					.showDialog(window);
 			if (dirSelected == null)
 				return null;
 			dirExport = dirSelected;

@@ -566,10 +566,11 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		@Override
 		protected int computeValue() {
 			Collection<PathObject> pathObjects;
-			if (pathObject.isRootObject())
+			if (pathObject.isRootObject()) {
 				pathObjects = imageData.getHierarchy().getObjects(null, cls);
-			else
+			} else {
 				pathObjects = imageData.getHierarchy().getObjectsForROI(cls, pathObject.getROI());
+			}
 			pathObjects.remove(pathObject);
 			return pathObjects.size();
 //			return PathObjectTools.countChildren(pathObject, cls, true);
@@ -1489,16 +1490,16 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		
 		@Override
 		public Binding<Number> createMeasurement(final PathObject pathObject) {
-			return new ObjectBinding<Number>() {
-				
-				@Override
-				protected Number computeValue() {
-					ROI roi = pathObject.getROI();
-					if (roi == null)
-						return null;
-					return roi.getZ();
-				}
-			};
+			return new ObjectBinding<>() {
+
+                @Override
+                protected Number computeValue() {
+                    ROI roi = pathObject.getROI();
+                    if (roi == null)
+                        return null;
+                    return roi.getZ();
+                }
+            };
 		}
 		
 	}
@@ -1512,16 +1513,16 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		
 		@Override
 		public Binding<Number> createMeasurement(final PathObject pathObject) {
-			return new ObjectBinding<Number>() {
-				
-				@Override
-				protected Number computeValue() {
-					ROI roi = pathObject.getROI();
-					if (roi == null)
-						return null;
-					return roi.getT();
-				}
-			};
+			return new ObjectBinding<>() {
+
+                @Override
+                protected Number computeValue() {
+                    ROI roi = pathObject.getROI();
+                    if (roi == null)
+                        return null;
+                    return roi.getT();
+                }
+            };
 		}
 		
 	}

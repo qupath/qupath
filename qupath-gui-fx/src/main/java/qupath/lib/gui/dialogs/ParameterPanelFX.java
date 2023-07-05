@@ -59,7 +59,7 @@ import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.gui.tools.PaneTools;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.plugins.parameters.BooleanParameter;
 import qupath.lib.plugins.parameters.ChoiceParameter;
 import qupath.lib.plugins.parameters.DoubleParameter;
@@ -112,15 +112,12 @@ public class ParameterPanelFX {
 		this.params = params;
 		this.pane = gridPane == null ? new GridPane() : gridPane;
 		initialize();
-//		pane.setMinSize(pane.getPrefWidth(), pane.getPrefHeight());
 		pane.setVgap(4);
 		pane.setHgap(4);
-//		pane.setMaxSize(pane.getPrefWidth(), pane.getPrefHeight());
-//		System.err.println("Resizable: " + pane.isResizable());
 	}
 	
 	/**
-	 * Get the {@link ParameterList} displaned in this panel.
+	 * Get the {@link ParameterList} displayed in this panel.
 	 * @return
 	 */
 	public ParameterList getParameters() {
@@ -137,7 +134,6 @@ public class ParameterPanelFX {
 	
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	private void initialize() {
-//		for (Parameter<?> p : params.getParameterList()) {
 		for (Entry<String, Parameter<?>> entry : params.getParameters().entrySet()) {
 			Parameter<?> p = entry.getValue();
 			// Don't show hidden parameters
@@ -218,7 +214,6 @@ public class ParameterPanelFX {
 	private void addNumericTextField(NumericParameter<? extends Number> param) {
 		TextField tf = getTextField(param, DEFAULT_NUMERIC_TEXT_COLS);
 		if (param.getUnit() != null) {
-//			Pane panel = new FlowPane(); // Leaves a lot of space due to wrap width
 			Pane panel = new HBox();
 			panel.getChildren().add(tf);
 			Label label = new Label(param.getUnit());
@@ -238,13 +233,9 @@ public class ParameterPanelFX {
 
 	private void addEmptyParameter(EmptyParameter param) {
 		Label label = new Label(param.getPrompt());
-//		Text label = new Text(param.getPrompt());
 		if (param.isTitle()) {
 			// Cannot change font weight for default font (at least on macOS...) - need to change the font that's used
 			label.setFont(Font.font(font.getFamily(), FontWeight.BOLD, font.getSize()));
-//			label.setStyle("-fx-font-weight: bold;");
-//			label.setStyle("-fx-font-size: 100%");
-//			label.setEffect(new DropShadow());
 			if (!map.isEmpty())
 				label.setPadding(new Insets(10, 0, 0, 0));
 		}
@@ -266,7 +257,6 @@ public class ParameterPanelFX {
 	private void addCheckBoxParameter(BooleanParameter param) {
 		CheckBox cb = new CheckBox(param.getPrompt());
 		cb.setSelected(param.getValueOrDefault());
-//		cb.setStyle("-fx-background-color: red;");
 		cb.setMinWidth(CheckBox.USE_COMPUTED_SIZE);
 		cb.setMaxWidth(Double.MAX_VALUE);
 		cb.selectedProperty().addListener((v, o, n) -> {
@@ -286,7 +276,6 @@ public class ParameterPanelFX {
 		tf.setPrefColumnCount(DEFAULT_NUMERIC_TEXT_COLS);
 		ParameterSliderChangeListener listener = new ParameterSliderChangeListener(slider, param, tf);
 		slider.valueProperty().addListener((v, o, n) -> listener.handleSliderUpdate());
-//		slider.setMinimumSize(new Dimension(slider.getPreferredSize().width, slider.getMinimumSize().height));
 		BorderPane panel = new BorderPane();
 		panel.setCenter(slider);
 		panel.setRight(tf);
@@ -295,16 +284,6 @@ public class ParameterPanelFX {
 	
 	
 	private void addSliderParameter(DoubleParameter param) {
-//		double lower = param.getLowerBound();
-//		double higher = param.getUpperBound();
-//		int sliderMax;
-//		// Choose a sensible increment
-//		if (higher - lower > 1000)
-//			sliderMax = (int)Math.round((higher - lower));
-//		else if (higher - lower > 100)
-//			sliderMax = (int)Math.round((higher - lower) * 10);
-//		else
-//			sliderMax = (int)Math.round((higher - lower) * 100);
 		final Slider slider = new Slider(param.getLowerBound(), param.getUpperBound(),  param.getValueOrDefault());
 		TextField tf = new TextField();
 		tf.setPrefColumnCount(DEFAULT_NUMERIC_TEXT_COLS);
@@ -312,7 +291,6 @@ public class ParameterPanelFX {
 		tf.setEditable(false);
 		ParameterSliderChangeListener listener = new ParameterSliderChangeListener(slider, param, tf);
 		slider.valueProperty().addListener((v, o, n) -> listener.handleSliderUpdate());
-//		slider.setMinimumSize(new Dimension(slider.getPreferredSize().width, slider.getMinimumSize().height));
 		BorderPane panel = new BorderPane();
 		panel.setCenter(slider);
 		panel.setRight(tf);
@@ -353,40 +331,33 @@ public class ParameterPanelFX {
 		
 		if (cols > 0)
 			tf.setPrefColumnCount(cols);
-//		tf.addActionListener(new ParameterActionListener(tf, param));
 		
 		tf.textProperty().addListener((v, o, n) -> {
 			if (n != null && param.setStringLastValue(Locale.getDefault(Category.FORMAT), n)) {
 				fireParameterChangedEvent(param, false);
 			}
 		});
-		// onKeyTyped wasn't causing property synchronisation of parameter values
-//		tf.setOnKeyTyped(e -> {
-//			if (param.setStringLastValue(tf.getText()))
-//				fireParameterChangedEvent(param, false);
-//		});
 		return tf;
 	}
 	
 	private int currentRow = 0;
 	
-	// GridBagLayout version... TODO: Update for JavaFX
 	private void addParamComponent(Parameter<?> parameter, String text, Node component) {
 		
 		map.put(parameter, component);
 		String help = parameter.getHelpText();
 
-		PaneTools.setFillWidth(Boolean.TRUE, component);
-		PaneTools.setHGrowPriority(Priority.ALWAYS, component);
+		GridPaneUtils.setFillWidth(Boolean.TRUE, component);
+		GridPaneUtils.setHGrowPriority(Priority.ALWAYS, component);
 
 		if (text == null) {
-			PaneTools.addGridRow(pane, currentRow++, 0, help, component, component);
+			GridPaneUtils.addGridRow(pane, currentRow++, 0, help, component, component);
 		} else {
 			Label label = new Label(text);
 			label.setMaxWidth(Double.MAX_VALUE);
 			label.setMinWidth(Label.USE_PREF_SIZE);
 			label.setLabelFor(component);
-			PaneTools.addGridRow(pane, currentRow++, 0, help, label, component);
+			GridPaneUtils.addGridRow(pane, currentRow++, 0, help, label, component);
 		}
 	}
 	
@@ -476,7 +447,6 @@ public class ParameterPanelFX {
 			String s = text.getText();
 			if (s == null || s.trim().length() == 0)
 				return;
-//			System.out.println("Text: " + s);
 			try {
 				String unit = param.getUnit();
 				if (unit != null)
@@ -484,16 +454,9 @@ public class ParameterPanelFX {
 				if (s.length() == 0)
 					return;
 				double val = NumberFormat.getInstance().parse(s).doubleValue();
-//				double val = Double.parseDouble(s);
 				double previousValue = param.getValueOrDefault().doubleValue();
 				if (Double.isNaN(val) || val == previousValue)
 					return;
-				
-//				double index = (val - param.getLowerBound()) / (param.getUpperBound() - param.getLowerBound()) * slider.getMax();
-//				if (index < 0)
-//					index = 0;
-//				if (index > slider.getMax())
-//					index = slider.getMax();
 				
 				textChanging = true;
 				param.setDoubleLastValue(val);
@@ -502,7 +465,6 @@ public class ParameterPanelFX {
 				textChanging = false;
 			} catch (Exception e) {
 				logger.debug("Cannot parse number from {} - will keep default of {}", s, param.getValueOrDefault());
-//				e.printStackTrace();
 			} finally {
 				textChanging = false;
 			};

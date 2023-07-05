@@ -32,8 +32,6 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -106,7 +104,7 @@ public class ChannelDisplayTransformServer extends TransformingImageServer<Buffe
 				}
 			}
 			this.metadata = new ImageServerMetadata.Builder(server.getMetadata())
-					.channels(channels.stream().map(c -> ImageChannel.getInstance(c.getName(), c.getColor())).collect(Collectors.toList()))
+					.channels(channels.stream().map(c -> ImageChannel.getInstance(c.getName(), c.getColor())).toList())
 					.rgb(false) // Never RGB (because we convert to 32-bit anyway)
 					.pixelType(pixelType)
 					.build();
@@ -185,7 +183,7 @@ public class ChannelDisplayTransformServer extends TransformingImageServer<Buffe
 	
 	@Override
 	public String getServerType() {
-		String name = String.join(", ", channels.stream().map(c -> c.getName()).collect(Collectors.toList()));
+		String name = String.join(", ", channels.stream().map(c -> c.getName()).toList());
 		return super.getWrappedServer().getServerType() + " (" + name + ")";
 	}
 	

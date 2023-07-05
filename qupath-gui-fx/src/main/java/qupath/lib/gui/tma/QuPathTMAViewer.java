@@ -54,7 +54,7 @@ public class QuPathTMAViewer extends Application {
 			stage.setWidth(bounds.getWidth() * 0.75);
 			stage.setHeight(bounds.getHeight() * 0.75);
 		} catch (Exception e) {
-			logger.error("Problem determining screen size: {}", e);
+			logger.error("Problem determining screen size", e);
 			stage.setWidth(600);
 		}
 		stage.show();

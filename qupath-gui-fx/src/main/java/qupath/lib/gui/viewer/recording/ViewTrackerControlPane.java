@@ -30,7 +30,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.controlsfx.control.action.Action;
@@ -76,13 +75,13 @@ import javafx.scene.control.TableRow;
 import javafx.scene.input.Dragboard;
 import javafx.scene.input.TransferMode;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.gui.ActionTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.lib.gui.actions.ActionTools;
+import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.IconFactory;
-import qupath.lib.gui.tools.PaneTools;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
 
@@ -220,7 +219,7 @@ public class ViewTrackerControlPane implements Runnable {
 				// Set non-clashing name to recording
 				var newName = GeneralTools.generateDistinctName("Recording", trackersList.stream()
 						.map(t -> t.getName())
-						.collect(Collectors.toList()));
+						.toList());
 				tracker.setName(newName);
 				
 				// Start recording and timer
@@ -304,7 +303,7 @@ public class ViewTrackerControlPane implements Runnable {
 		
 		
 		// Add all buttons to GridPane
-		GridPane btnPane = PaneTools.createColumnGrid(3);
+		GridPane btnPane = GridPaneUtils.createColumnGrid(3);
 		exportBtn.setMaxWidth(Double.MAX_VALUE);
 		deleteBtn.setMaxWidth(Double.MAX_VALUE);
 		btnMore.setMaxWidth(Double.MAX_VALUE);
@@ -323,8 +322,8 @@ public class ViewTrackerControlPane implements Runnable {
 		
 		
 		int row = 0;
-		PaneTools.addGridRow(contentPane,  row++,  0, null, table);
-		PaneTools.addGridRow(contentPane,  row++,  0, null, btnPane);
+		GridPaneUtils.addGridRow(contentPane,  row++,  0, null, table);
+		GridPaneUtils.addGridRow(contentPane,  row++,  0, null, btnPane);
 		
 		
 		table.getSelectionModel().selectedItemProperty().addListener((v, o, tracker) -> {
@@ -345,7 +344,7 @@ public class ViewTrackerControlPane implements Runnable {
 					List<File> files = dragboard.getFiles()
 							.stream()
 							.filter(f -> f.isFile() && !f.isHidden())
-							.collect(Collectors.toList());
+							.toList();
 					files.removeIf(t -> {
 						for (var element: table.getItems()) {
 							if (element.getFile().getAbsolutePath().equals(t.getAbsolutePath()))
@@ -378,7 +377,7 @@ public class ViewTrackerControlPane implements Runnable {
 		    menu.getItems().addAll(renameItem, openDirectoryItem);
 		    renameItem.setOnAction(ev -> {
 		    	var newName = Dialogs.showInputDialog("Rename", "New name", recordingRow.getItem().getFile() == null ? "" : recordingRow.getItem().getFile().getName());
-		    	newName = GeneralTools.generateDistinctName(newName, trackersList.stream().map(tracker -> tracker.getName()).collect(Collectors.toList()));
+		    	newName = GeneralTools.generateDistinctName(newName, trackersList.stream().map(tracker -> tracker.getName()).toList());
 		    	if (newName == null || newName.isEmpty() || newName.equals(recordingRow.getItem().getFile().getName()))
 		    		return;
 		    	recordingRow.getItem().setName(newName);
@@ -540,7 +539,7 @@ public class ViewTrackerControlPane implements Runnable {
 				}
 				
 				// If some recordings are not saved
-				List<ViewTracker> unsaved = trackersList.stream().filter(tracker -> tracker.getFile() == null).collect(Collectors.toList());
+				List<ViewTracker> unsaved = trackersList.stream().filter(tracker -> tracker.getFile() == null).toList();
 				if (!unsaved.isEmpty()) {
 					var response = Dialogs.showYesNoDialog("Save recordings", "You will lose your unsaved recordings." + System.lineSeparator() + "Continue?");
 					if (!response) {
@@ -629,7 +628,7 @@ public class ViewTrackerControlPane implements Runnable {
 												.filter(path -> GeneralTools.getExtension(path.toFile()).orElse("").equals(".tsv"))
 												.map(path -> ViewTrackerTools.handleImport(path))
 												.filter(t -> t != null)
-												.collect(Collectors.toList()));
+												.toList());
 			} catch (IOException ex) {
 				logger.error("Could not fetch existing recordings: " + ex.getLocalizedMessage(), ex);
 			}

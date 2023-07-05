@@ -1,3 +1,14 @@
+## Version 0.5.0-SNAPSHOT
+
+This is a work-in-progress for the next QuPath release.
+
+### Dependency updates
+* DeepJavaLibrary 0.21.0
+* Groovy 4.0.10
+* ImageJ 1.54c
+* JavaFX 20
+
+
 ## Version 0.4.3
 
 This is a *minor release* that aims to be fully compatible with previous v0.4.x releases, while fixing bugs.
@@ -20,6 +31,17 @@ This is a *minor release* that aims to be fully compatible with previous v0.4.x 
 * Bio-Formats 6.12.0
 * Groovy 4.0.9
 * JFreeSVG 5.0.5
+
+
+### Dependency updates
+* Bio-Formats 6.12.0
+* Groovy 4.0.9
+* ImageJ 1.54b
+* JavaFX 19.0.2
+* JFreeSVG 5.0.4
+* JFXtras 17-r1
+* Picocli 4.7.1
+* SLF4J 2.0.6
 
 
 ## Version 0.4.2

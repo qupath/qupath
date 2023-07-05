@@ -663,28 +663,28 @@ class KaplanMeierDisplay implements ParameterChangeListener, PathObjectHierarchy
 			for (int col = 0; col < tableModel.getColumnCount(); col++) {
 				TableColumn<Integer, String> column = new TableColumn<>(tableModel.getColumnName(col));
 				int colNumber = col;
-				column.setCellValueFactory(new Callback<CellDataFeatures<Integer, String>, ObservableValue<String>>() {
-					@Override
-					public ObservableValue<String> call(CellDataFeatures<Integer, String> p) {
-						return new SimpleStringProperty((String)tableModel.getValueAt(p.getValue(), colNumber));
-					}
-				});
+				column.setCellValueFactory(new Callback<>() {
+                    @Override
+                    public ObservableValue<String> call(CellDataFeatures<Integer, String> p) {
+                        return new SimpleStringProperty((String) tableModel.getValueAt(p.getValue(), colNumber));
+                    }
+                });
 
-				column.setCellFactory(new Callback<TableColumn<Integer, String>, TableCell<Integer, String>>() {
+				column.setCellFactory(new Callback<>() {
 
-					@Override
-					public TableCell<Integer, String> call(TableColumn<Integer, String> param) {
-						TableCell<Integer, String> cell = new TableCell<Integer, String>() {
-							@Override
-							protected void updateItem(String item, boolean empty) {
-								super.updateItem(item, empty);
-								setText(item);
-								setTooltip(new Tooltip(item));
-							}
-						};
-						return cell;
-					}
-				});
+                    @Override
+                    public TableCell<Integer, String> call(TableColumn<Integer, String> param) {
+                        TableCell<Integer, String> cell = new TableCell<>() {
+                            @Override
+                            protected void updateItem(String item, boolean empty) {
+                                super.updateItem(item, empty);
+                                setText(item);
+                                setTooltip(new Tooltip(item));
+                            }
+                        };
+                        return cell;
+                    }
+                });
 
 
 				table.getColumns().add(column);

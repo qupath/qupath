@@ -50,7 +50,7 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.TextAlignment;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.tools.GuiTools;
-import qupath.lib.gui.tools.PaneTools;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.projects.ProjectImageEntry;
 
 /**
@@ -76,10 +76,6 @@ public class ProjectDialogs {
 		
 		ListSelectionView<ProjectImageEntry<BufferedImage>> listSelectionView = GuiTools.createListSelectionView();
 		listSelectionView.getSourceItems().setAll(availableImages);
-//		if (selectedImages != null && !selectedImages.isEmpty()) {
-//			listSelectionView.getSourceItems().removeAll(selectedImages);
-//			listSelectionView.getTargetItems().addAll(selectedImages);
-//		}
 		listSelectionView.setCellFactory(c -> new ProjectEntryListCell());
 		
 		// Add a filter text field
@@ -97,8 +93,8 @@ public class ProjectDialogs {
 		paneFooter.add(tfFilter, 0, 0);
 		paneFooter.add(cbWithData, 0, 1);
 
-		PaneTools.setHGrowPriority(Priority.ALWAYS, tfFilter, cbWithData);
-		PaneTools.setFillWidth(Boolean.TRUE, tfFilter, cbWithData);
+		GridPaneUtils.setHGrowPriority(Priority.ALWAYS, tfFilter, cbWithData);
+		GridPaneUtils.setFillWidth(Boolean.TRUE, tfFilter, cbWithData);
 		cbWithData.setMinWidth(CheckBox.USE_PREF_SIZE);
 		paneFooter.setVgap(5);
 		listSelectionView.setSourceFooter(paneFooter);
@@ -131,7 +127,7 @@ public class ProjectDialogs {
 		});
 		
 		var paneSelected = new GridPane();
-		PaneTools.addGridRow(paneSelected, 0, 0, "Selected images", labelSelected);
+		GridPaneUtils.addGridRow(paneSelected, 0, 0, "Selected images", labelSelected);
 
 		// Create a warning label to display if we need to
 		if (openImageWarning != null) {
@@ -141,9 +137,9 @@ public class ProjectDialogs {
 			labelSameImageWarning.setTextAlignment(TextAlignment.CENTER);
 			labelSameImageWarning.setAlignment(Pos.CENTER);
 			labelSameImageWarning.setVisible(false);
-			PaneTools.setHGrowPriority(Priority.ALWAYS, labelSameImageWarning);
-			PaneTools.setFillWidth(Boolean.TRUE, labelSameImageWarning);
-			PaneTools.addGridRow(paneSelected, 1, 0, openImageWarning, labelSameImageWarning);
+			GridPaneUtils.setHGrowPriority(Priority.ALWAYS, labelSameImageWarning);
+			GridPaneUtils.setFillWidth(Boolean.TRUE, labelSameImageWarning);
+			GridPaneUtils.addGridRow(paneSelected, 1, 0, openImageWarning, labelSameImageWarning);
 		}
 		listSelectionView.setTargetFooter(paneSelected);
 		
@@ -157,29 +153,6 @@ public class ProjectDialogs {
 	}
 	
 	
-//	private static void refreshTargetLabels(ListSelectionView<ProjectImageEntry<BufferedImage>> listSelectionView, Label labelSelected, Label labelSameImageWarning) {
-//		
-//		var targetItems = listSelectionView.getTargetItems();
-//		
-//		targetItems.addListener((ListChangeListener.Change<? extends ProjectImageEntry<?>> e) -> {
-//			labelSelected.setText(e.getList().size() + " selected");
-//			var currentImages = getCurrentImages(qupath);
-//			if (labelSameImageWarning != null && currentImages != null) {
-//				boolean visible = false;
-//				var targets = e.getList();
-//				for (var current : currentImages) {
-//					if (targets.contains(current)) {
-//						visible = true;
-//						break;
-//					}
-//				}
-//				labelSameImageWarning.setVisible(visible);
-//			}
-//		});
-//		
-//	}
-	
-	
 	
 	/**
 	 * Get the {@link ProjectImageEntry} for each of the current images open in QuPath, if available.
@@ -187,7 +160,7 @@ public class ProjectDialogs {
 	 * @return a collection of currently-open project entries
 	 */
 	public static Collection<ProjectImageEntry<BufferedImage>> getCurrentImages(QuPathGUI qupath) {
-		return qupath.getViewers().stream()
+		return qupath.getAllViewers().stream()
 		.map(v -> {
 			var imageData = v.getImageData();
 			return imageData == null ? null : qupath.getProject().getEntry(imageData);
@@ -272,7 +245,7 @@ public class ProjectDialogs {
 			if (indSplit >= 0) {
 				filterTokens = Arrays.stream(filterText.split("\\|"))
 						.filter(t -> !t.isBlank())
-						.collect(Collectors.toList());
+						.toList();
 			} else {
 				filterTokens = Collections.emptyList();
 			}
@@ -297,7 +270,7 @@ public class ProjectDialogs {
 					.stream()
 					.map(e -> e.getKey() + "=" + e.getValue())
 					.map(t -> ignoreCase ? t.toLowerCase() : t)
-					.collect(Collectors.toList());
+					.toList();
 				for (var token : filterTokens) {
 					boolean foundMatch = imageName.contains(token);
 					if (!foundMatch) {

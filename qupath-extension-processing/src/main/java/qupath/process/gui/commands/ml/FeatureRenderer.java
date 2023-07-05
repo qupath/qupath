@@ -49,7 +49,7 @@ class FeatureRenderer extends AbstractImageRenderer {
 			var temp = currentData == null ? null : currentData.get();
 			if (temp == null || temp.getServer() != server) {
 				temp = new ImageData<>(server);
-				currentData = new WeakReference<ImageData<BufferedImage>>(temp);
+				currentData = new WeakReference<>(temp);
 			}
 			selectedChannel = new DirectServerChannelInfo(temp, channel);
 			selectedChannel.setLUTColor(255, 255, 255);

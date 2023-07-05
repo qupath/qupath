@@ -61,7 +61,7 @@ import javafx.scene.layout.Priority;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.GuiTools;
-import qupath.lib.gui.tools.PaneTools;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.gui.tools.PathObjectLabels;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
@@ -91,7 +91,6 @@ public class AnnotationPane implements PathObjectSelectionListener, ChangeListen
 	// Need to preserve this to guard against garbage collection
 	@SuppressWarnings("unused")
 	private ObservableValue<ImageData<BufferedImage>> imageDataProperty;
-	// Simply taken from imageDataProperty
 	private ImageData<BufferedImage> imageData;
 	
 	private BooleanProperty disableUpdates = new SimpleBooleanProperty(false);
@@ -145,7 +144,6 @@ public class AnnotationPane implements PathObjectSelectionListener, ChangeListen
 		
 		Pane paneAnnotations = createAnnotationsPane();
 		
-//		GridPane paneColumns = PaneTools.createColumnGrid(panelObjects, panelClasses);
 		SplitPane paneColumns = new SplitPane(
 				paneAnnotations,
 				pathClassPane.getPane()
@@ -220,7 +218,7 @@ public class AnnotationPane implements PathObjectSelectionListener, ChangeListen
 		GridPane.setHgrow(btnSelectAll, Priority.ALWAYS);
 		GridPane.setHgrow(btnDelete, Priority.ALWAYS);
 
-		PaneTools.setMaxWidth(Double.MAX_VALUE,
+		GridPaneUtils.setMaxWidth(Double.MAX_VALUE,
 				btnSelectAll, btnDelete);
 		
 		BooleanBinding disableButtons = hasImageData.not();

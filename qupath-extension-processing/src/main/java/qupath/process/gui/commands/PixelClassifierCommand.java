@@ -22,7 +22,7 @@
 package qupath.process.gui.commands;
 
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.lib.gui.tools.GuiTools;
 import qupath.process.gui.commands.ml.PixelClassifierPane;
 
 /**
@@ -38,7 +38,7 @@ public class PixelClassifierCommand implements Runnable {
 		var qupath = QuPathGUI.getInstance();
 		var imageData = qupath.getImageData();
 		if (imageData == null) {
-			Dialogs.showNoImageError("Pixel classifier");
+			GuiTools.showNoImageError("Pixel classifier");
 		} else
 			new PixelClassifierPane(qupath);
 	}

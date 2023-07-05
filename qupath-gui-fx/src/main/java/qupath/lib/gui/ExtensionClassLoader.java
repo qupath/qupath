@@ -21,14 +21,15 @@
 
 package qupath.lib.gui;
 
-import java.io.File;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.file.FileVisitOption;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.jar.JarFile;
+import java.util.Objects;
+import java.util.function.Supplier;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,90 +40,96 @@ import org.slf4j.LoggerFactory;
  * @author Pete Bankhead
  */
 public class ExtensionClassLoader extends URLClassLoader {
-	
+
 	private static final Logger logger = LoggerFactory.getLogger(ExtensionClassLoader.class);
 
-	/**
-	 * Constructor.
-	 */
-	public ExtensionClassLoader() {
+	private static ExtensionClassLoader INSTANCE = null;
+
+	private Supplier<Path> extensionsDirectorySupplier;
+
+	private ExtensionClassLoader(Supplier<Path> extensionsDirectorySupplier) {
 		super(new URL[0], QuPathGUI.class.getClassLoader());
+		Objects.requireNonNull(extensionsDirectorySupplier, "A function is needed to determine the extensions directory!");
+		this.extensionsDirectorySupplier = extensionsDirectorySupplier;
 	}
 
 	/**
-	 * Request that a specified JAR file be added to the classpath.
+	 * Get a singleton instance of the {@link ExtensionClassLoader}.
+	 * @return
+	 * @since v0.5.0
 	 * 
-	 * @param file
+	 * @implNote This was introduced in v0.5.0 to hide the constructor and avoid needing to request 
+	 * the classloader via QuPathGUI. <i>However</i> the behavior may change in the future, so as to 
+	 * avoid relying upon a single static instance.
+	 */
+	public static ExtensionClassLoader getInstance() {
+		if (INSTANCE == null) {
+			synchronized (ExtensionClassLoader.class) {
+				if (INSTANCE == null)
+					INSTANCE = new ExtensionClassLoader(() -> getExtensionsDirectory());
+			}
+		}
+		return INSTANCE;
+	}
+
+
+	private static Path getExtensionsDirectory() {
+		return UserDirectoryManager.getInstance().getUserPath();
+	}
+
+
+	/**
+	 * Directory containing extensions.
+	 * 
+	 * This can contain any jars - all will be added to the search path when starting QuPath.
+	 * 
 	 * @return
 	 */
-	boolean addJAR(final File file) {
-		try (JarFile jar = new JarFile(file)) {
-			if (jar.entries().hasMoreElements()) {
-				addURL(file.toURI().toURL());
-				return true;
-			}
-		} catch (IOException e) {
-			logger.error("Unable to add file to classpath", e);
-		}
-		return false;
+	public Path getExtensionDirectory() {
+		return extensionsDirectorySupplier == null ? null : extensionsDirectorySupplier.get();
 	}
 
 	/**
 	 * Ensure all Jars in the extensions directory (and one subdirectory down) are available
 	 */
 	public void refresh() {
-		File dirExtensions = QuPathGUI.getExtensionDirectory();
+		Path dirExtensions = extensionsDirectorySupplier.get();
 		if (dirExtensions == null) {
 			logger.debug("Extensions directory is null - no extensions will be loaded");
 			return;
 		}
-		if (!dirExtensions.exists()) {
+		if (!Files.exists(dirExtensions)) {
 			logger.debug("No extensions directory exists at {}", dirExtensions);
 			return;			
 		}
-		if (!dirExtensions.isDirectory()) {
+		if (!Files.isDirectory(dirExtensions)) {
 			logger.error("Invalid extensions directory! '{}' is not a directory.", dirExtensions);
 			return;
 		}
-		refreshExtensions(dirExtensions);
-		for (File dir : dirExtensions.listFiles()) {
-			if (!dir.isHidden() && dir.isDirectory()) {
-				Path dirPath = dir.toPath();
-				if (Files.isSymbolicLink(dirPath))
-					try {
-						dir = Files.readSymbolicLink(dirPath).toFile();
-					} catch (IOException e) {
-						logger.error("Error refreshing extensions", e);
-					}
-				refreshExtensions(dir);
-			}
+		int depth = 1;
+		try {
+			Files.walk(dirExtensions, depth, FileVisitOption.FOLLOW_LINKS)
+				.filter(this::isJarFile)
+				.map(p -> p.toAbsolutePath())
+				.distinct()
+				.forEach(this::addJarFile);
+		} catch (IOException e) {
+			logger.error("Exception refreshing extensions: " + e.getLocalizedMessage(), e);
 		}
 	}
-
-	/**
-	 * Ensure all Jars from the specified directory are available.
-	 * 
-	 * @param dirExtensions
-	 */
-	private void refreshExtensions(final File dirExtensions) {
-		if (dirExtensions == null) {
-			logger.debug("No extensions directory specified");				
-			return;
-		} else if (!dirExtensions.isDirectory()) {
-			logger.warn("Cannot load extensions from " + dirExtensions + " - not a valid directory");	
-			return;
-		}
-		logger.info("Refreshing extensions in " + dirExtensions);				
-		for (File file : dirExtensions.listFiles()) {
-			if (file.getName().toLowerCase().endsWith(".jar")) {
-				try {
-					addURL(file.toURI().toURL());
-					logger.info("Added extension: " + file.getAbsolutePath());
-				} catch (MalformedURLException e) {
-					logger.debug("Error adding {} to classpath", file, e);
-				}
-			}
+	
+	private void addJarFile(Path path) {
+		try {
+			addURL(path.toUri().toURL());
+			logger.info("Adding jar: {}", path);
+		} catch (MalformedURLException e) {
+			logger.debug("Error adding " + path + " to classpath", e);
 		}
 	}
+	
+	private boolean isJarFile(Path path) {
+		return Files.isRegularFile(path) && path.getFileName().toString().toLowerCase().endsWith(".jar");
+	}
+	
 
 }

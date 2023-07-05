@@ -3,8 +3,6 @@ package qupath.lib.gui.panes;
 import java.awt.image.BufferedImage;
 import java.util.Collection;
 import java.util.Objects;
-import java.util.stream.Collectors;
-
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectImageEntry;
 
@@ -54,11 +52,11 @@ abstract class ProjectTreeRow {
 	 * @return collection of ProjectImageEntry 
 	 */
 	static Collection<ProjectImageEntry<BufferedImage>> getEntries(Collection<ImageRow> imageRows) {
-		return imageRows.stream().map(row -> row.getEntry()).collect(Collectors.toList());
+		return imageRows.stream().map(row -> row.getEntry()).toList();
 	}
 
 	/**
-	 * Get the {@link ProjectImageEntry} corresponding to the specified {@link #ProjectTreeRow}.
+	 * Get the {@link ProjectImageEntry} corresponding to the specified {@link ProjectTreeRow}.
 	 * <p>
 	 * If the specified object is not an {@link ImageRow} (e.g. {@link MetadataRow}), return {@code null}.
 	 * @param projectTreeRow

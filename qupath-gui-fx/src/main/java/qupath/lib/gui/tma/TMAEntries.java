@@ -259,7 +259,7 @@ class TMAEntries {
 			try {
 				return new Image(new File(imagePath).toURI().toURL().toString(), maxWidth, -1, true, false);
 			} catch (MalformedURLException e) {
-				logger.error("Cannot show image: {}", e);
+				logger.error("Cannot show image: " + imagePath, e);
 			}
 			return null;
 		}
@@ -271,7 +271,7 @@ class TMAEntries {
 			try {
 				return new Image(new File(overlayPath).toURI().toURL().toString(), maxWidth, -1, true, false);
 			} catch (MalformedURLException e) {
-				logger.error("Cannot show overlay image: {}", e);
+				logger.error("Cannot show overlay image: " + overlayPath, e);
 			}
 			return null;
 		}

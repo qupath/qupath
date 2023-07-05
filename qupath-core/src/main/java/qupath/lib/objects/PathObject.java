@@ -994,7 +994,7 @@ public abstract class PathObject implements Externalizable {
 				float loadFactor = 0.75f;
 				if (capacity > 0)
 					n = (int)Math.max(n, Math.ceil(capacity / loadFactor));
-				childList = Collections.synchronizedSet(new LinkedHashSet<PathObject>(n, loadFactor));
+				childList = Collections.synchronizedSet(new LinkedHashSet<>(n, loadFactor));
 				cachedUnmodifiableChildren = Collections.unmodifiableCollection(childList);
 			}
 		}
@@ -1064,6 +1064,18 @@ public abstract class PathObject implements Externalizable {
 	protected void clearMetadataMap() {
 		if (metadata != null)
 			metadata.clear();
+	}
+	
+	/**
+	 * Get a key/value pair map for object metadata.
+	 * @return
+	 * @since v0.5.0
+	 * @implNote This is an experimental API change that may be further modified before v0.5.0 is available.
+	 */
+	public Map<String, String> getMetadata() {
+		if (metadata == null)
+			metadata = new MetadataMap();
+		return metadata;
 	}
 	
 	

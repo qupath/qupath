@@ -36,6 +36,7 @@ import java.util.Scanner;
 import java.util.Set;
 import java.util.WeakHashMap;
 
+import javafx.stage.FileChooser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,12 +55,14 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.text.TextAlignment;
+import qupath.fx.dialogs.FileChoosers;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.ColorToolsFX;
-import qupath.lib.gui.tools.PaneTools;
+import qupath.fx.utils.GridPaneUtils;
+import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.io.TMAScoreImporter;
 import qupath.lib.objects.TMACoreObject;
@@ -116,7 +119,7 @@ class TMADataImporter {
 		
 	public static void importTMAData(ImageData<?> imageData) {
 		if (imageData == null) {
-			Dialogs.showNoImageError(TITLE);
+			GuiTools.showNoImageError(TITLE);
 			return;
 		}
 		PathObjectHierarchy hierarchy = imageData.getHierarchy();
@@ -184,7 +187,7 @@ class TMADataImporter {
 				table.refresh();
 		});
 		
-		GridPane buttonPane = PaneTools.createColumnGridControls(
+		GridPane buttonPane = GridPaneUtils.createColumnGridControls(
 				btnImportData,
 				btnPasteData,
 				btnLoadGrid,
@@ -221,11 +224,15 @@ class TMADataImporter {
 			Dialogs.showMessageDialog(TITLE, "Updated " + nScores + " cores");
 		return nScores > 0;
 	}
-	
+
+	private static FileChooser.ExtensionFilter createTextFileExtensionFilter() {
+		// This is a method rather than a variable in preparation for one day being localized
+		return FileChoosers.createExtensionFilter("Text file", "*.csv", "*.txt");
+	}
 	
 	private static boolean handleImportDataFromFile(final TMAGrid infoGrid) {
 		logger.trace("Importing TMA data from file...");
-		File file = Dialogs.promptForFile(null, null, "Text file", new String[]{"csv", "txt"});
+		File file = FileChoosers.promptForFile(createTextFileExtensionFilter());
 		if (file == null)
 			return false;
 		try {
@@ -281,7 +288,7 @@ class TMADataImporter {
 	 */
 	private static boolean handleLoadGridFromFile(final TMAGrid infoGrid) {
 		logger.trace("Importing TMA grid from file...");
-		File file = Dialogs.promptForFile(null, null, "Text file", new String[]{"csv", "txt"});
+		File file = FileChoosers.promptForFile(createTextFileExtensionFilter());
 		if (file == null)
 			return false;
 		Scanner scanner;
@@ -494,7 +501,7 @@ class TMADataImporter {
 //		private List<CoreInfoRow> rows = new ArrayList<>();
 //				
 //		CoreInfoGrid(final TMAGrid grid) {
-//			super(grid.getTMACoreList().stream().map(c -> new CoreInfo(c)).collect(Collectors.toList()), grid.getGridWidth());
+//			super(grid.getTMACoreList().stream().map(c -> new CoreInfo(c)).toList(), grid.getGridWidth());
 //			for (int y = 0; y < getGridHeight(); y++) {
 //				CoreInfoRow row = new CoreInfoRow(getGridWidth());
 //				for (int x = 0; x < getGridWidth(); x++)

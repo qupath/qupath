@@ -35,6 +35,7 @@ import java.util.TreeMap;
 import java.util.WeakHashMap;
 import java.util.stream.Collectors;
 
+import javafx.scene.control.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,27 +46,22 @@ import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.geometry.Side;
 import javafx.scene.Scene;
-import javafx.scene.control.ComboBox;
-import javafx.scene.control.ContextMenu;
-import javafx.scene.control.Label;
-import javafx.scene.control.MenuItem;
-import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.input.Dragboard;
 import javafx.scene.input.TransferMode;
 import javafx.scene.layout.GridPane;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import qupath.fx.dialogs.FileChoosers;
 import qupath.lib.analysis.heatmaps.DensityMaps;
 import qupath.lib.analysis.heatmaps.DensityMaps.DensityMapBuilder;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.dialogs.Dialogs;
-import qupath.lib.gui.dialogs.Dialogs.DialogButton;
+import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.images.stores.ColorModelRenderer;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.GuiTools;
-import qupath.lib.gui.tools.PaneTools;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.gui.viewer.overlays.PixelClassificationOverlay;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
@@ -135,7 +131,7 @@ public final class LoadResourceCommand<S> implements Runnable {
 		var cachedServers = new WeakHashMap<ImageData<BufferedImage>, ImageServer<BufferedImage>>();
 		var overlay = PixelClassificationOverlay.create(qupath.getOverlayOptions(), cachedServers, new ColorModelRenderer(null));
 		overlay.setMaxThreads(nThreads);
-		for (var viewer : qupath.getViewers())
+		for (var viewer : qupath.getAllViewers())
 			viewer.setCustomPixelLayerOverlay(overlay);
 		
 		var comboClassifiers = new ComboBox<String>();
@@ -180,7 +176,8 @@ public final class LoadResourceCommand<S> implements Runnable {
 		var menu = new ContextMenu();
 		var miLoadClassifier = new MenuItem("Import from files");
 		miLoadClassifier.setOnAction(e -> {
-			List<File> files = Dialogs.promptForMultipleFiles(title, null, resourceType.filePrompt(), "json");
+			List<File> files = FileChoosers.promptForMultipleFiles(title,
+					FileChoosers.createExtensionFilter(resourceType.filePrompt(), ".*json"));
 			if (files == null || files.isEmpty())
 				return;
 			try {
@@ -223,7 +220,7 @@ public final class LoadResourceCommand<S> implements Runnable {
 							nThreads,
 							null,
 							"Number of threads to use for live prediction");
-			if (!Dialogs.showParameterDialog("Set parallel threads", params))
+			if (!GuiTools.showParameterDialog("Set parallel threads", params))
 				return;
 //			var result = Dialogs.showInputDialog("Set parallel threads", "Number of threads to use for live prediction", (double)nThreads);
 			var val = params.getIntParameterValue("nThreads");
@@ -250,8 +247,8 @@ public final class LoadResourceCommand<S> implements Runnable {
 		pane.setVgap(10);
 		pane.setPrefWidth(350.0);
 		int row = 0;
-		PaneTools.addGridRow(pane, row++, 0, "Choose model to apply to the current image", label, comboClassifiers, btnLoadExistingClassifier);
-		PaneTools.setToExpandGridPaneWidth(comboClassifiers);
+		GridPaneUtils.addGridRow(pane, row++, 0, "Choose model to apply to the current image", label, comboClassifiers, btnLoadExistingClassifier);
+		GridPaneUtils.setToExpandGridPaneWidth(comboClassifiers);
 
 		
 		if (resourceType.getResourceClass().equals(PixelClassifier.class)) {
@@ -261,16 +258,16 @@ public final class LoadResourceCommand<S> implements Runnable {
 			@SuppressWarnings("unchecked")
 			var tilePane = PixelClassifierUI.createPixelClassifierButtons(qupath.imageDataProperty(), (ObjectExpression<PixelClassifier>)selectedResource, classifierName);
 			
-			PaneTools.addGridRow(pane, row++, 0, "Control where the pixel classification is applied during preview",
+			GridPaneUtils.addGridRow(pane, row++, 0, "Control where the pixel classification is applied during preview",
 					labelRegion, comboRegionFilter, comboRegionFilter);
-			PaneTools.addGridRow(pane, row++, 0, "Apply pixel classification", tilePane, tilePane, tilePane);
+			GridPaneUtils.addGridRow(pane, row++, 0, "Apply pixel classification", tilePane, tilePane, tilePane);
 
-			PaneTools.setToExpandGridPaneWidth(tilePane);
+			GridPaneUtils.setToExpandGridPaneWidth(tilePane);
 		} else if (resourceType.getResourceClass().equals(DensityMapBuilder.class)) {
 			@SuppressWarnings("unchecked")
 			var buttonPane = DensityMapUI.createButtonPane(qupath, qupath.imageDataProperty(), (ObjectExpression<DensityMapBuilder>)selectedResource, classifierName, Bindings.createObjectBinding(() -> overlay), false);
-			PaneTools.addGridRow(pane, row++, 0, null, buttonPane, buttonPane, buttonPane);
-			PaneTools.setToExpandGridPaneWidth(buttonPane);
+			GridPaneUtils.addGridRow(pane, row++, 0, null, buttonPane, buttonPane, buttonPane);
+			GridPaneUtils.setToExpandGridPaneWidth(buttonPane);
 		}
 						
 
@@ -305,7 +302,7 @@ public final class LoadResourceCommand<S> implements Runnable {
 			if (overlay != null)
 				overlay.stop();
 			logger.debug("Resetting overlay");
-			for (var viewer : qupath.getViewers()) {
+			for (var viewer : qupath.getAllViewers()) {
 				if (viewer.getCustomPixelLayerOverlay() == overlay)
 					viewer.resetCustomPixelLayerOverlay();
 			}
@@ -313,7 +310,7 @@ public final class LoadResourceCommand<S> implements Runnable {
 		
 		stage.focusedProperty().addListener((v, o, n) -> {
 			if (n && overlay != null) {
-				for (var viewer : qupath.getViewers())
+				for (var viewer : qupath.getAllViewers())
 					viewer.setCustomPixelLayerOverlay(overlay);
 			}
 			// Make sure we have all the servers we need - but don't reset existing ones
@@ -327,7 +324,7 @@ public final class LoadResourceCommand<S> implements Runnable {
 	
 	
 	private void updateServers(S resource, Map<ImageData<BufferedImage>, ImageServer<BufferedImage>> cachedServers) {
-		for (var viewer : qupath.getViewers()) {
+		for (var viewer : qupath.getAllViewers()) {
 			var imageData = viewer.getImageData();
 			if (imageData != null) {
 				var server = cachedServers.get(imageData);
@@ -337,7 +334,7 @@ public final class LoadResourceCommand<S> implements Runnable {
 				}
 			}
 		}
-		qupath.repaintViewers();
+		qupath.getViewerManager().repaintAllViewers();
 	}
 	
 	
@@ -367,9 +364,9 @@ public final class LoadResourceCommand<S> implements Runnable {
 				logger.error(e.getLocalizedMessage(), e);
 			}
 			var response = Dialogs.showYesNoCancelDialog("Copy classifier file" + plural, "Copy classifier" + plural + " to the current project?");
-			if (response == DialogButton.CANCEL)
+			if (response == ButtonType.CANCEL)
 				return;
-			addToManager = response == DialogButton.YES;
+			addToManager = response == ButtonType.YES;
 		}
 		
 		List<File> fails = new ArrayList<>();

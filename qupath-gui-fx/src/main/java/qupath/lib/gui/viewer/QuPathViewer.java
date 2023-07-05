@@ -122,9 +122,9 @@ import qupath.lib.gui.viewer.overlays.HierarchyOverlay;
 import qupath.lib.gui.viewer.overlays.PathOverlay;
 import qupath.lib.gui.viewer.overlays.PixelClassificationOverlay;
 import qupath.lib.gui.viewer.overlays.TMAGridOverlay;
-import qupath.lib.gui.viewer.tools.MoveTool;
 import qupath.lib.gui.viewer.tools.PathTool;
 import qupath.lib.gui.viewer.tools.PathTools;
+import qupath.lib.gui.viewer.tools.handlers.MoveToolEventHandler;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
@@ -1552,7 +1552,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 					imageDisplay.setImageData(imageDataNew, keepDisplay);
 					displaySet = true;
 				} else {
-					for (var viewer : QuPathGUI.getInstance().getViewers()) {
+					for (var viewer : QuPathGUI.getInstance().getAllViewers()) {
 						if (this == viewer || viewer.getImageData() == null)
 							continue;
 						var tempServer = viewer.getServer();
@@ -1578,7 +1578,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 				var colors = imageDisplay.availableChannels().stream()
 						.filter(c -> c instanceof DirectServerChannelInfo)
 						.map(c -> c.getColor())
-						.collect(Collectors.toList());
+						.toList();
 				if (server.nChannels() == colors.size())
 					updateServerChannels(server, colors);
 			}
@@ -1643,7 +1643,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		var channels = server.getMetadata().getChannels();
 		if (channels.size() != colors.size())
 			throw new IllegalArgumentException(String.format("Number of channels (%d) does not match the number of colors (%d)!", channels.size(), colors.size()));
-		var serverChannelColors = channels.stream().map(c -> c.getColor()).collect(Collectors.toList());
+		var serverChannelColors = channels.stream().map(c -> c.getColor()).toList();
 		if (colors.equals(serverChannelColors))
 			return false;
 		channels = new ArrayList<>(channels);
@@ -1682,8 +1682,8 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		if (currentServer == null || tempServer == null)
 			return false;
 		if (tempServer.nChannels() == currentServer.nChannels() && tempServer.getPixelType() == currentServer.getPixelType()) {
-			var tempNames = tempServer.getMetadata().getChannels().stream().map(c -> c.getName()).collect(Collectors.toList());
-			var currentNames = currentServer.getMetadata().getChannels().stream().map(c -> c.getName()).collect(Collectors.toList());
+			var tempNames = tempServer.getMetadata().getChannels().stream().map(c -> c.getName()).toList();
+			var currentNames = currentServer.getMetadata().getChannels().stream().map(c -> c.getName()).toList();
 			return tempNames.equals(currentNames);
 		}
 		return false;
@@ -1949,13 +1949,8 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 				logger.trace("Painting overlay: {}", overlay);
 				if (overlay instanceof AbstractOverlay)
 					((AbstractOverlay)overlay).setPreferredOverlayColor(color);
-//				overlay.paintOverlay(g2d, regionBounds, downsample, null, paintCompletely);
 				overlay.paintOverlay(g2d, getServerBounds(), downsample, imageData, paintCompletely);
 			}
-//			if (hierarchyOverlay != null) {
-//				hierarchyOverlay.setPreferredOverlayColor(color);
-//				hierarchyOverlay.paintOverlay(g2d, getServerBounds(), downsampleFactor, null, paintCompletely);
-//			}
 		}
 		
 		// Paint the selected object
@@ -1974,9 +1969,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 						g2d.setComposite(previousComposite);
 					g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 				}
-				
-				Rectangle boundsDisplayed = shapeRegion.getBounds();
-				
+								
 				ROI pathROI = selectedObject.getROI();
 //				if ((PathPrefs.getPaintSelectedBounds() || (selectedObject.isDetection() && !PathPrefs.getUseSelectedColor())) && !(pathROI instanceof RectangleROI)) {
 				if (pathROI != null && (paintSelectedBounds || (!useSelectedColor)) && !(pathROI instanceof RectangleROI) && !pathROI.isEmpty()) {
@@ -1998,7 +1991,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 //							Math.round(boundsShape.getHeight()/downsampleFactor)*downsampleFactor+2*downsampleFactor);
 					
 //					boundsShape.setFrame(boundsShape.getX()-downsampleFactor, boundsShape.getY()-downsampleFactor, boundsShape.getWidth()+2*downsampleFactor, boundsShape.getHeight()+2*downsampleFactor);
-					PathHierarchyPaintingHelper.paintShape(boundsShape, g2d, getSuggestedOverlayColor(), PathHierarchyPaintingHelper.getCachedStroke(Math.max(downsample, 1)*2), null);
+					PathObjectPainter.paintShape(boundsShape, g2d, getSuggestedOverlayColor(), PathObjectPainter.getCachedStroke(Math.max(downsample, 1)*2), null);
 //					boundsShape.setFrame(boundsShape.getX()+downsampleFactor, boundsShape.getY()-downsampleFactor, boundsShape.getWidth(), boundsShape.getHeight());
 //					PathHierarchyPaintingHelper.paintShape(boundsShape, g2d, new Color(1f, 1f, 1f, 0.75f), PathHierarchyPaintingHelper.getCachedStroke(Math.max(downsampleFactor, 1)*2), null, downsampleFactor);
 				}
@@ -2006,11 +1999,13 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 				// Avoid double-painting of annotations (which looks odd if they are filled in)
 				// However do always paint detections, since they are otherwise painted (unselected) 
 				// in a cached way
-				if ((selectedObject.isDetection() && PathPrefs.useSelectedColorProperty().get()) || !PathObjectTools.hierarchyContainsObject(hierarchy, selectedObject))
-					PathHierarchyPaintingHelper.paintObject(selectedObject, false, g2d, boundsDisplayed, overlayOptions, getHierarchy().getSelectionModel(), downsample);
+				if ((selectedObject.isDetection() && PathPrefs.useSelectedColorProperty().get()) || !PathObjectTools.hierarchyContainsObject(hierarchy, selectedObject)) {
+					g2d.setClip(shapeRegion);
+					PathObjectPainter.paintObject(selectedObject, g2d, overlayOptions, getHierarchy().getSelectionModel(), downsample);
+				}
 				// Paint ROI handles, if required
 				if (selectedObject == mainSelectedObject && roiEditor.hasROI()) {
-					Stroke strokeThick = PathHierarchyPaintingHelper.getCachedStroke(PathPrefs.annotationStrokeThicknessProperty().get() * downsample);
+					Stroke strokeThick = PathObjectPainter.getCachedStroke(PathPrefs.annotationStrokeThicknessProperty().get() * downsample);
 					Color color = useSelectedColor ? ColorToolsAwt.getCachedColor(PathPrefs.colorSelectedObjectProperty().get()) : null;
 					if (color == null)
 						color = ColorToolsAwt.getCachedColor(ColorToolsFX.getDisplayedColorARGB(selectedObject));
@@ -2018,7 +2013,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 					// Draw ROI handles using adaptive size
 					double maxHandleSize = getMaxROIHandleSize();
 					double minHandleSize = downsample;
-					PathHierarchyPaintingHelper.paintHandles(roiEditor, g2d, minHandleSize, maxHandleSize, color, ColorToolsAwt.getTranslucentColor(color));
+					PathObjectPainter.paintHandles(roiEditor, g2d, minHandleSize, maxHandleSize, color, ColorToolsAwt.getTranslucentColor(color));
 				}
 			}
 		}
@@ -2391,7 +2386,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		int nImages = server.nTimepoints() * server.nZSlices();
 		if (nImages == 1)
 			return Collections.singletonList(regionStore.getThumbnail(server, 0, 0, true));
-		List<BufferedImage> thumbnails = new ArrayList<BufferedImage>(nImages);
+		List<BufferedImage> thumbnails = new ArrayList<>(nImages);
 		for (int t = 0; t < server.nTimepoints(); t++) {
 			for (int z = 0; z < server.nZSlices(); z++) {
 				thumbnails.add(regionStore.getThumbnail(server, getZPosition(), getTPosition(), true));
@@ -3079,7 +3074,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 //			}
 //		}
 		updateRoiEditor();
-		for (QuPathViewerListener listener : new ArrayList<QuPathViewerListener>(listeners)) {
+		for (QuPathViewerListener listener : new ArrayList<>(listeners)) {
 			listener.selectedObjectChanged(this, pathObjectSelected);
 		}
 
@@ -3448,7 +3443,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	}
 	
 	
-	private MoveTool.ViewerMover mover = new MoveTool.ViewerMover(this);
+	private MoveToolEventHandler.ViewerMover mover = new MoveToolEventHandler.ViewerMover(this);
 	
 	
 	/**

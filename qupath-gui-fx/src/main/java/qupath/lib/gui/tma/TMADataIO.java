@@ -38,9 +38,9 @@ import java.util.Scanner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import qupath.fx.dialogs.FileChoosers;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.SummaryMeasurementTableCommand;
-import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.images.servers.RenderedImageServer;
 import qupath.lib.gui.measure.ObservableMeasurementTableData;
 import qupath.lib.gui.viewer.OverlayOptions;
@@ -106,7 +106,9 @@ public class TMADataIO {
 		final ImageServer<BufferedImage> server = imageData.getServer();
 		String coreExt = imageData.getServer().isRGB() ? ".jpg" : ".tif";
 		if (file == null) {
-			file = Dialogs.promptToSaveFile("Save TMA data", null, ServerTools.getDisplayableImageName(server), "TMA data", "qptma");
+			file = FileChoosers.promptToSaveFile(
+					"Save TMA data", new File(ServerTools.getDisplayableImageName(server)),
+					FileChoosers.createExtensionFilter("TMA data", "*.qptma"));
 			if (file == null)
 				return;
 		} else if (file.isDirectory() || (!file.exists() && file.getAbsolutePath().endsWith(File.pathSeparator))) {

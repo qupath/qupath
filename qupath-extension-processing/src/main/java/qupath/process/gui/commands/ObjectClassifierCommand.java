@@ -24,6 +24,7 @@
 package qupath.process.gui.commands;
 
 import java.awt.image.BufferedImage;
+import java.io.File;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 import java.util.ArrayList;
@@ -100,6 +101,7 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import javafx.stage.Stage;
+import qupath.fx.dialogs.FileChoosers;
 import qupath.lib.classifiers.Normalization;
 import qupath.lib.classifiers.object.ObjectClassifier;
 import qupath.lib.classifiers.object.ObjectClassifiers;
@@ -108,10 +110,11 @@ import qupath.lib.common.ThreadTools;
 import qupath.lib.geom.Point2;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.charts.ChartTools;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.ProjectDialogs;
 import qupath.lib.gui.tools.ColorToolsFX;
-import qupath.lib.gui.tools.PaneTools;
+import qupath.fx.utils.GridPaneUtils;
+import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
@@ -404,7 +407,7 @@ public class ObjectClassifierCommand implements Runnable {
 			return annotations
 					.stream()
 					.filter(trainingFilter)
-					.collect(Collectors.toList());
+					.toList();
 		}
 
 		/**
@@ -421,7 +424,7 @@ public class ObjectClassifierCommand implements Runnable {
 
 			// Read annotations from all compatible images (which here means same channel names)
 			List<ImageData<BufferedImage>> list = new ArrayList<>();
-			for (var viewer : qupath.getViewers()) {
+			for (var viewer : qupath.getAllViewers()) {
 				var tempData = viewer.getImageData();
 				if (tempData != null)
 					list.add(tempData);
@@ -433,7 +436,7 @@ public class ObjectClassifierCommand implements Runnable {
 				for (var entry : trainingEntries) {
 					try {
 						if (currentEntries.contains(entry)) {
-							logger.debug("Will not load data for {} - will use the training annotations from the open viewer");
+							logger.debug("Will not load data for {} - will use the training annotations from the open viewer", entry);
 							var tempData = trainingMap.remove(entry);
 							if (tempData != null)
 								tempData.getServer().close();
@@ -459,7 +462,7 @@ public class ObjectClassifierCommand implements Runnable {
 		private boolean promptToLoadTrainingImages() {
 			var project = qupath.getProject();
 			if (project == null) {
-				Dialogs.showNoProjectError("Object classifier");
+				GuiTools.showNoProjectError("Object classifier");
 				return false;
 			}
 			
@@ -563,7 +566,7 @@ public class ObjectClassifierCommand implements Runnable {
 				}
 
 				if (doClassification) {
-					for (var viewer : qupath.getViewers()) {
+					for (var viewer : qupath.getAllViewers()) {
 						var imageData = viewer.getImageData();
 						if (imageData != null) {
 							var pathObjects = classifier.getCompatibleObjects(imageData);
@@ -639,7 +642,7 @@ public class ObjectClassifierCommand implements Runnable {
 					.getFlattenedObjectList(null)
 					.stream()
 					.filter(filter)
-					.collect(Collectors.toList());
+					.toList();
 			return PathObjectTools.getAvailableFeatures(detections);
 		}
 		
@@ -1090,7 +1093,9 @@ public class ObjectClassifierCommand implements Runnable {
 						project.getObjectClassifiers().put(classifierName, classifier);
 						logger.info("Classifier saved to project as {}", classifierName);
 					} else {
-						var file = Dialogs.promptToSaveFile("Save object classifier", null, classifierName, "Object classifier", ".obj.json");
+						var file = FileChoosers.promptToSaveFile(
+								"Save object classifier", new File(classifierName),
+								FileChoosers.createExtensionFilter("Object classifier", ".obj.json"));
 						if (file == null)
 							return false;
 						classifierName = file.getAbsolutePath();
@@ -1099,7 +1104,7 @@ public class ObjectClassifierCommand implements Runnable {
 					Dialogs.showInfoNotification("Object classifiers", "Saved classifier as \"" + classifierName + "\"");
 					// We want to now apply classifier to all images & log to workflow
 					// (might be redundant, but we do want to make sure that we are logging the classifier we applied)
-					for (var viewer : qupath.getViewers()) {
+					for (var viewer : qupath.getAllViewers()) {
 						var imageData = viewer.getImageData();
 						if (imageData != null) {
 							classifier.classifyObjects(imageData, true);
@@ -1122,7 +1127,7 @@ public class ObjectClassifierCommand implements Runnable {
 				Dialogs.showErrorMessage("Edit parameters", "No classifier selected!");
 				return false;
 			}
-			Dialogs.showParameterDialog("Edit parameters", model.getParameterList());
+			GuiTools.showParameterDialog("Edit parameters", model.getParameterList());
 			invalidateClassifier();
 			return true;
 		}
@@ -1148,7 +1153,7 @@ public class ObjectClassifierCommand implements Runnable {
 			comboObjects.getSelectionModel().select(PathObjectFilter.DETECTIONS_ALL);
 			objectFilter.addListener((v, o, n) -> invalidateClassifier());
 
-			PaneTools.addGridRow(pane, row++, 0, 
+			GridPaneUtils.addGridRow(pane, row++, 0,
 					"Choose object type to classify (default is all detections)",
 					labelObjects, comboObjects, comboObjects);
 
@@ -1172,7 +1177,7 @@ public class ObjectClassifierCommand implements Runnable {
 			btnEditClassifier.setOnAction(e -> editClassifierParameters());
 			btnEditClassifier.disableProperty().bind(selectedModel.isNull());
 
-			PaneTools.addGridRow(pane, row++, 0, 
+			GridPaneUtils.addGridRow(pane, row++, 0,
 					"Choose classifier type (RTrees or ANN_MLP are generally good choices)",
 					labelClassifier, comboClassifier, btnEditClassifier);
 
@@ -1196,7 +1201,7 @@ public class ObjectClassifierCommand implements Runnable {
 				if (promptToSelectFeatures())
 					invalidateClassifier();
 			});
-			PaneTools.addGridRow(pane, row++, 0, 
+			GridPaneUtils.addGridRow(pane, row++, 0,
 					null,
 					labelFeatures, comboFeatures, btnSelectFeatures);
 
@@ -1254,7 +1259,7 @@ public class ObjectClassifierCommand implements Runnable {
 			btnSelectClasses.setTooltip(tooltipClasses);
 			comboClasses.setTooltip(tooltipClasses);
 
-			PaneTools.addGridRow(pane, row++, 0, 
+			GridPaneUtils.addGridRow(pane, row++, 0,
 					null,
 					labelClasses, comboClasses, btnSelectClasses);
 
@@ -1268,7 +1273,7 @@ public class ObjectClassifierCommand implements Runnable {
 			trainingAnnotations = comboTraining.getSelectionModel().selectedItemProperty();
 			trainingAnnotations.addListener(v -> invalidateClassifier());
 
-			PaneTools.addGridRow(pane, row++, 0, 
+			GridPaneUtils.addGridRow(pane, row++, 0,
 					"Choose what kind of annotations to use for training",
 					labelTraining, comboTraining, comboTraining);
 
@@ -1307,7 +1312,7 @@ public class ObjectClassifierCommand implements Runnable {
 				}
 			});
 
-			var panePredict = PaneTools.createColumnGridControls(btnLoadTraining, btnAdvancedOptions);
+			var panePredict = GridPaneUtils.createColumnGridControls(btnLoadTraining, btnAdvancedOptions);
 			pane.add(panePredict, 0, row++, pane.getColumnCount(), 1);
 			
 			pane.add(btnLive, 0, row++, pane.getColumnCount(), 1);
@@ -1354,7 +1359,7 @@ public class ObjectClassifierCommand implements Runnable {
 				tfSaveName.requestFocus();
 				btnSave.requestFocus();
 			});
-			PaneTools.addGridRow(pane, row++, 0, "Specify name of the classifier - this will be used to save to "
+			GridPaneUtils.addGridRow(pane, row++, 0, "Specify name of the classifier - this will be used to save to "
 					+ "save the classifier in the current project, so it may be used for scripting later", labelSave, tfSaveName, btnSave);
 									
 //			var btnSave = new Button("Save & Apply");
@@ -1364,9 +1369,9 @@ public class ObjectClassifierCommand implements Runnable {
 //			pane.add(btnSave, 0, row++, pane.getColumnCount(), 1);
 
 
-			PaneTools.setMaxWidth(Double.MAX_VALUE, comboTraining, comboObjects, comboClassifier, comboFeatures, comboClasses, panePredict);
-			PaneTools.setHGrowPriority(Priority.ALWAYS, comboTraining, comboObjects, comboClassifier, comboFeatures, comboClasses, panePredict);
-			PaneTools.setFillWidth(Boolean.TRUE, comboTraining, comboObjects, comboClassifier, comboClasses, panePredict);
+			GridPaneUtils.setMaxWidth(Double.MAX_VALUE, comboTraining, comboObjects, comboClassifier, comboFeatures, comboClasses, panePredict);
+			GridPaneUtils.setHGrowPriority(Priority.ALWAYS, comboTraining, comboObjects, comboClassifier, comboFeatures, comboClasses, panePredict);
+			GridPaneUtils.setFillWidth(Boolean.TRUE, comboTraining, comboObjects, comboClassifier, comboClasses, panePredict);
 
 			pane.setHgap(5);
 			pane.setVgap(6);
@@ -1426,7 +1431,7 @@ public class ObjectClassifierCommand implements Runnable {
 
 		void updateLocationText(MouseEvent e) {
 			String text = "";
-			for (var viewer : qupath.getViewers()) {
+			for (var viewer : qupath.getAllViewers()) {
 				var hierarchy = viewer.getHierarchy();
 				if (hierarchy == null)
 					continue;
@@ -1514,7 +1519,7 @@ public class ObjectClassifierCommand implements Runnable {
 
 		SelectionPane(Collection<T> items, boolean includeFilter) {
 			list = FXCollections.observableArrayList(
-					items.stream().map(i -> getSelectableItem(i)).collect(Collectors.toList())
+					items.stream().map(i -> getSelectableItem(i)).toList()
 					).filtered(p -> true);
 			tableFeatures = new TableView<>(list);
 			pane = makePane(includeFilter);
@@ -1587,7 +1592,7 @@ public class ObjectClassifierCommand implements Runnable {
 				for (SelectableItem<T> feature : tableFeatures.getItems())
 					feature.setSelected(false);
 			});
-			var panelSelectButtons = PaneTools.createColumnGridControls(btnSelectAll, btnSelectNone);
+			var panelSelectButtons = GridPaneUtils.createColumnGridControls(btnSelectAll, btnSelectNone);
 
 			Pane panelButtons;
 
@@ -1608,7 +1613,7 @@ public class ObjectClassifierCommand implements Runnable {
 				paneFilter.setHgap(5);
 				paneFilter.setPadding(new Insets(5, 0, 5, 0));
 
-				panelButtons = PaneTools.createRowGrid(
+				panelButtons = GridPaneUtils.createRowGrid(
 						panelSelectButtons,
 						paneFilter
 						);

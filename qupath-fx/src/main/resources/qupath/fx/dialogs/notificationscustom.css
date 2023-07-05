@@ -1,0 +1,5 @@
+/* Set text color for controlsfx notifications */
+.notification-bar.custom > .pane .title,
+.notification-bar.custom > .pane .label {
+    -fx-text-fill: -fx-text-background-color;
+}

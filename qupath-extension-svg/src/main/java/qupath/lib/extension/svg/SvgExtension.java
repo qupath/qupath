@@ -21,12 +21,16 @@
 
 package qupath.lib.extension.svg;
 
+import org.controlsfx.control.action.Action;
+
 import qupath.lib.common.Version;
 import qupath.lib.extension.svg.SvgExportCommand.SvgExportType;
-import qupath.lib.gui.ActionTools;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.actions.ActionTools;
+import qupath.lib.gui.actions.annotations.ActionConfig;
+import qupath.lib.gui.actions.annotations.ActionMenu;
 import qupath.lib.gui.extensions.QuPathExtension;
-import qupath.lib.gui.tools.MenuTools;
+import qupath.lib.gui.localization.QuPathResources;
 
 /**
  * Extension for SVG image export.
@@ -35,34 +39,19 @@ public class SvgExtension implements QuPathExtension {
 	
     @Override
     public void installExtension(QuPathGUI qupath) {
-    	
-    	var actionExport = ActionTools.createAction(new SvgExportCommand(qupath, SvgExportType.SELECTED_REGION), "Rendered SVG");
-    	actionExport.disabledProperty().bind(qupath.imageDataProperty().isNull());
-    	actionExport.setLongText("Export the current selected region as a rendered (RGB) SVG image. "
-    			+ "Any annotations and ROIs will be stored as vectors, which can later be adjusted in other software.");
-    	var actionSnapshot = ActionTools.createAction(new SvgExportCommand(qupath, SvgExportType.VIEWER_SNAPSHOT), "Current viewer content (SVG)");
-    	actionSnapshot.setLongText("Export an RGB snapshot of the current viewer content as an SVG image. "
-    			+ "Any annotations and ROIs will be stored as vectors, which can later be adjusted in other software.");
-    	
-    	MenuTools.addMenuItems(
-                qupath.getMenu("File>Export images...", true),
-                actionExport
-        );
-    	MenuTools.addMenuItems(
-                qupath.getMenu("File>Export snapshot...", true),
-                actionSnapshot
-        );
-    	
+    	var svgActions = new SvgActions(qupath);
+    	var actions = ActionTools.getAnnotatedActions(svgActions);
+    	qupath.installActions(actions);
     }
 
     @Override
     public String getName() {
-        return "SVG export extension";
+    	return QuPathResources.getString("Extension.SVG");
     }
 
     @Override
     public String getDescription() {
-        return "Export snapshots and images in SVG format";
+        return QuPathResources.getString("Extension.SVG.description");
     }
 	
 	/**
@@ -72,5 +61,26 @@ public class SvgExtension implements QuPathExtension {
 	public Version getQuPathVersion() {
 		return getVersion();
 	}
+	
+	
+	public class SvgActions {
+		
+		@ActionMenu(value = {"Menu.File", "Menu.File.ExportImage"})
+		@ActionConfig("Action.SVG.exportImage")
+		public final Action actionExport;
+		
+		@ActionMenu(value = {"Menu.File", "Menu.File.ExportSnapshot"})
+		@ActionConfig("Action.SVG.exportSnapshot")
+		public final Action actionSnapshot;
+		
+		SvgActions(QuPathGUI qupath) {
+			
+			actionExport = ActionTools.createAction(new SvgExportCommand(qupath, SvgExportType.SELECTED_REGION));
+			actionSnapshot = ActionTools.createAction(new SvgExportCommand(qupath, SvgExportType.VIEWER_SNAPSHOT));
+			
+		}
+		
+	}
+	
 	
 }

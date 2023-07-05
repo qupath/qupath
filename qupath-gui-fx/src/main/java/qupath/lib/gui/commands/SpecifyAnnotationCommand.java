@@ -43,9 +43,10 @@ import javafx.scene.layout.Priority;
 import javafx.scene.shape.Rectangle;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.tools.ColorToolsFX;
-import qupath.lib.gui.tools.PaneTools;
+import qupath.fx.utils.GridPaneUtils;
+import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObjects;
@@ -138,14 +139,14 @@ class SpecifyAnnotationCommand {
 		}, cbMicrons.selectedProperty());
 
 
-		var comboType = new ComboBox<ROI_TYPE>(
-				FXCollections.observableArrayList(ROI_TYPE.values())
-				);
+		var comboType = new ComboBox<>(
+                FXCollections.observableArrayList(ROI_TYPE.values())
+        );
 		comboType.setMaxWidth(Double.MAX_VALUE);
 		comboType.getSelectionModel().select(ROI_TYPE.RECTANGLE);
 
 
-		PaneTools.addGridRow(
+		GridPaneUtils.addGridRow(
 				pane, row++, 0,
 				"Type of ROI to create",
 				createLabelFor(comboType, "Type"),
@@ -160,7 +161,7 @@ class SpecifyAnnotationCommand {
 		});
 		//			comboClassification.cell;
 
-		PaneTools.addGridRow(
+		GridPaneUtils.addGridRow(
 				pane, row++, 0,
 				"Classification for the annotation (may be empty if annotation should be unclassified)",
 				createLabelFor(comboClassification, "Classification"),
@@ -177,28 +178,28 @@ class SpecifyAnnotationCommand {
 		tfWidth.setPrefColumnCount(10);
 		tfHeight.setPrefColumnCount(10);
 
-		PaneTools.addGridRow(
+		GridPaneUtils.addGridRow(
 				pane, row++, 0,
 				"X-coordinate of top left of annotation bounding box (if missing or < 0, annotation will be centered in current viewer)",
 				createLabelFor(tfX, "X origin"),
 				tfX,
 				createBoundLabel(units));
 
-		PaneTools.addGridRow(
+		GridPaneUtils.addGridRow(
 				pane, row++, 0,
 				"Y-coordinate of top left of annotation bounding box (if missing or < 0, annotation will be centered in current viewer)",
 				createLabelFor(tfY, "Y origin"),
 				tfY,
 				createBoundLabel(units));
 
-		PaneTools.addGridRow(
+		GridPaneUtils.addGridRow(
 				pane, row++, 0,
 				"Width of annotation bounding box (must be > 0)",
 				createLabelFor(tfWidth, "Width"),
 				tfWidth,
 				createBoundLabel(units));
 
-		PaneTools.addGridRow(
+		GridPaneUtils.addGridRow(
 				pane, row++, 0,
 				"Height of annotation bounding box (must be > 0)",
 				createLabelFor(tfHeight, "Height"),
@@ -207,20 +208,20 @@ class SpecifyAnnotationCommand {
 
 
 		cbMicrons.setMaxWidth(Double.MAX_VALUE);
-		PaneTools.addGridRow(
+		GridPaneUtils.addGridRow(
 				pane, row++, 0,
 				"Specify coordinates in " + GeneralTools.micrometerSymbol() + " - pixel calibration information must be available",
 				cbMicrons, cbMicrons, cbMicrons);
 
 		var cbLock = new CheckBox("Set locked");
 		cbLock.setMaxWidth(Double.MAX_VALUE);
-		PaneTools.addGridRow(
+		GridPaneUtils.addGridRow(
 				pane, row++, 0,
 				"Set annotation as locked, so that it can't be immediately edited",
 				cbLock, cbLock, cbLock);
 
 		var tfName = new TextField("");
-		PaneTools.addGridRow(
+		GridPaneUtils.addGridRow(
 				pane, row++, 0,
 				"Name of annotation (can be empty)",
 				createLabelFor(tfName, "Name"),
@@ -233,7 +234,7 @@ class SpecifyAnnotationCommand {
 			var viewer = qupath.getViewer();
 			var imageData = viewer == null ? null : viewer.getImageData();
 			if (imageData == null) {
-				Dialogs.showNoImageError("Create annotation");
+				GuiTools.showNoImageError("Create annotation");
 				return;
 			}
 			var server = imageData.getServer();
@@ -316,13 +317,13 @@ class SpecifyAnnotationCommand {
 		});
 
 		btnAdd.setMaxWidth(Double.MAX_VALUE);
-		PaneTools.addGridRow(pane, row++, 0, "Create annotation with specified options & add to object hierarchy",
+		GridPaneUtils.addGridRow(pane, row++, 0, "Create annotation with specified options & add to object hierarchy",
 				btnAdd, btnAdd, btnAdd
 				);
 
-		PaneTools.setFillWidth(Boolean.TRUE,
+		GridPaneUtils.setFillWidth(Boolean.TRUE,
 				tfX, tfY, tfWidth, tfHeight, btnAdd, comboType);
-		PaneTools.setHGrowPriority(Priority.ALWAYS,
+		GridPaneUtils.setHGrowPriority(Priority.ALWAYS,
 				tfX, tfY, tfWidth, tfHeight, btnAdd, comboType
 				);
 

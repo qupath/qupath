@@ -73,18 +73,20 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.stage.Modality;
 import javafx.stage.Window;
+import qupath.fx.utils.FXUtils;
+import qupath.fx.dialogs.FileChoosers;
 import qupath.imagej.gui.IJExtension;
 import qupath.imagej.tools.IJTools;
 import qupath.lib.analysis.heatmaps.DensityMaps;
 import qupath.lib.analysis.heatmaps.DensityMaps.DensityMapBuilder;
 import qupath.lib.color.ColorToolsAwt;
-import qupath.lib.gui.ActionTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.lib.gui.actions.ActionTools;
+import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.images.servers.RenderedImageServer;
 import qupath.lib.gui.images.stores.ColorModelRenderer;
 import qupath.lib.gui.tools.GuiTools;
-import qupath.lib.gui.tools.PaneTools;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.gui.viewer.overlays.PixelClassificationOverlay;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
@@ -254,7 +256,7 @@ public class DensityMapUI {
 			// Sometimes we use the
 			boolean countsFromSameBand = countBand < 0;
 			int nBands = server.nChannels();
-			List<MinMax> results = IntStream.range(0, nBands).mapToObj(i -> new MinMax()).collect(Collectors.toList());
+			List<MinMax> results = IntStream.range(0, nBands).mapToObj(i -> new MinMax()).toList();
 			float[] pixels = null;
 			float[] countPixels = null;
 			for (var img : tiles.values()) {
@@ -398,7 +400,7 @@ public class DensityMapUI {
 			var renderer = getRenderer();
 			if (renderer != null) {
 				renderer.setColorModel(previousColorModel);
-				qupath.repaintViewers();
+				qupath.getViewerManager().repaintAllViewers();
 			}
 		}
 		
@@ -431,7 +433,7 @@ public class DensityMapUI {
 			var colorModel = new ThresholdColorModels.ThresholdColorModel(threshold, transparent, transparent, above);
 			
 			renderer.setColorModel(colorModel);
-			qupath.repaintViewers();
+			qupath.getViewerManager().repaintAllViewers();
 		}
 		
 		
@@ -446,29 +448,29 @@ public class DensityMapUI {
 
 			var cbLayer = new CheckBox("Show overlay");
 			cbLayer.selectedProperty().bindBidirectional(qupath.getOverlayOptions().showPixelClassificationProperty());
-			PaneTools.addGridRow(paneOverlay, row2++, 0, "Show or hide the overlay", cbLayer, cbLayer);	
+			GridPaneUtils.addGridRow(paneOverlay, row2++, 0, "Show or hide the overlay", cbLayer, cbLayer);
 
 			var cbPreviewThreshold = new CheckBox("Preview threshold");
 			cbPreviewThreshold.selectedProperty().bindBidirectional(previewThreshold);
-			PaneTools.addGridRow(paneOverlay, row2++, 0, "Override the main density map overlay to preview the current thresholds", cbPreviewThreshold, cbPreviewThreshold);	
+			GridPaneUtils.addGridRow(paneOverlay, row2++, 0, "Override the main density map overlay to preview the current thresholds", cbPreviewThreshold, cbPreviewThreshold);
 
 			var cbDetections = new CheckBox("Show detections");
 			cbDetections.selectedProperty().bindBidirectional(qupath.getOverlayOptions().showDetectionsProperty());
-			PaneTools.addGridRow(paneOverlay, row2++, 0, "Show or hide detections on the image", cbDetections, cbDetections);	
+			GridPaneUtils.addGridRow(paneOverlay, row2++, 0, "Show or hide detections on the image", cbDetections, cbDetections);
 
 			var sliderOpacity = new Slider(0.0, 1.0, 0.5);
 			sliderOpacity.valueProperty().bindBidirectional(qupath.getOverlayOptions().opacityProperty());
 			var labelOpacity = new Label("Opacity");
-			PaneTools.addGridRow(paneOverlay, row2++, 0, "Control the overlay opacity", labelOpacity, sliderOpacity);	
+			GridPaneUtils.addGridRow(paneOverlay, row2++, 0, "Control the overlay opacity", labelOpacity, sliderOpacity);
 
 			
-			PaneTools.setToExpandGridPaneWidth(paneOverlay, sliderOpacity, cbLayer, cbDetections, cbPreviewThreshold);
+			GridPaneUtils.setToExpandGridPaneWidth(paneOverlay, sliderOpacity, cbLayer, cbDetections, cbPreviewThreshold);
 			paneOverlay.setHgap(5);
 			paneOverlay.setVgap(5);
 			
 			var titledOverlay = new TitledPane("Overlay", paneOverlay);
 			titledOverlay.setExpanded(false);
-			PaneTools.simplifyTitledPane(titledOverlay, true);
+			FXUtils.simplifyTitledPane(titledOverlay, true);
 			
 			titledOverlay.heightProperty().addListener((v, o, n) -> titledOverlay.getScene().getWindow().sizeToScene());
 			return titledOverlay;
@@ -509,7 +511,7 @@ public class DensityMapUI {
 			sliderNum.valueProperty().bindBidirectional(nHotspots);
 			var tfNum = new TextField();
 			tfNum.setPrefColumnCount(tfWidth);
-			GuiTools.bindSliderAndTextField(sliderNum, tfNum, false, 0);
+			FXUtils.bindSliderAndTextField(sliderNum, tfNum, false, 0);
 			labelNum.setLabelFor(sliderNum);
 			
 			// Slider for the minimum counts
@@ -523,7 +525,7 @@ public class DensityMapUI {
 			sliderCounts.valueProperty().bindBidirectional(thresholdCounts);
 			var tfCounts = new TextField();
 			tfCounts.setPrefColumnCount(tfWidth);
-			GuiTools.bindSliderAndTextField(sliderCounts, tfCounts, false, 0);
+			FXUtils.bindSliderAndTextField(sliderCounts, tfCounts, false, 0);
 			labelCounts.setLabelFor(sliderCounts);
 			
 			// Other options
@@ -537,23 +539,23 @@ public class DensityMapUI {
 			var pane = new GridPane();
 			int row = 0;
 
-			PaneTools.addGridRow(pane, row++, 0, "Maximum number of hotspots to create", labelNum, sliderNum, tfNum);
+			GridPaneUtils.addGridRow(pane, row++, 0, "Maximum number of hotspots to create", labelNum, sliderNum, tfNum);
 			
-			PaneTools.addGridRow(pane, row++, 0, "The minimum number of objects required.\n"
+			GridPaneUtils.addGridRow(pane, row++, 0, "The minimum number of objects required.\n"
 					+ "This can eliminate hotspots based on just 1 or 2 objects.", labelCounts, sliderCounts, tfCounts);
 
-			PaneTools.addGridRow(pane, row++, 0, "Limit hotspots to peaks in the density map only.\n"
+			GridPaneUtils.addGridRow(pane, row++, 0, "Limit hotspots to peaks in the density map only.\n"
 					+ "This is a stricter criteria that can result in fewer hotspots being found, however those that *are* found are more distinct.", cbPeaks, cbPeaks, cbPeaks);
 
-			PaneTools.addGridRow(pane, row++, 0, "Delete existing hotspots similar to those being created.", cbDeletePrevious, cbDeletePrevious, cbDeletePrevious);
+			GridPaneUtils.addGridRow(pane, row++, 0, "Delete existing hotspots similar to those being created.", cbDeletePrevious, cbDeletePrevious, cbDeletePrevious);
 			
-			PaneTools.setToExpandGridPaneWidth(sliderNum, sliderCounts, cbDeletePrevious, cbPeaks);
+			GridPaneUtils.setToExpandGridPaneWidth(sliderNum, sliderCounts, cbDeletePrevious, cbPeaks);
 			
 						
 			var titledPane = new TitledPane("Hotspot parameters", pane);
 			titledPane.setExpanded(true);
 			titledPane.setCollapsible(false);
-			PaneTools.simplifyTitledPane(titledPane, true);
+			FXUtils.simplifyTitledPane(titledPane, true);
 			
 			// Opacity slider
 			var paneMain = new BorderPane(titledPane);
@@ -681,7 +683,7 @@ public class DensityMapUI {
 			slider.setMinorTickCount((int)(slider.getMax() + 1));
 			var tfThreshold = new TextField();
 			tfThreshold.setPrefColumnCount(6);
-			GuiTools.bindSliderAndTextField(slider, tfThreshold, false, 2);
+			FXUtils.bindSliderAndTextField(slider, tfThreshold, false, 2);
 			double t = threshold.get();
 			if (!Double.isFinite(t) || t > slider.getMax() || t < slider.getMin())
 				threshold.set(slider.getValue());
@@ -691,7 +693,7 @@ public class DensityMapUI {
 			var pane = new GridPane();
 			
 			var labelThreshold = new Label("Density threshold");
-			PaneTools.addGridRow(pane, row++, 0, "Threshold to identify high-density regions.", labelThreshold, slider, tfThreshold);
+			GridPaneUtils.addGridRow(pane, row++, 0, "Threshold to identify high-density regions.", labelThreshold, slider, tfThreshold);
 
 			boolean includeCounts = densityServer.nChannels() > 1;
 			if (includeCounts) {
@@ -705,36 +707,36 @@ public class DensityMapUI {
 				
 				var tfThresholdCounts = new TextField();
 				tfThresholdCounts.setPrefColumnCount(6);
-				GuiTools.bindSliderAndTextField(sliderCounts, tfThresholdCounts, false, 0);
+				FXUtils.bindSliderAndTextField(sliderCounts, tfThresholdCounts, false, 0);
 				double tc = thresholdCounts.get();
 				if (tc > sliderCounts.getMax())
 					thresholdCounts.set(1);
 				sliderCounts.valueProperty().bindBidirectional(thresholdCounts);				
 				
 				var labelCounts = new Label("Min object count");
-				PaneTools.addGridRow(pane, row++, 0, "The minimum number of objects required.\n"
+				GridPaneUtils.addGridRow(pane, row++, 0, "The minimum number of objects required.\n"
 						+ "Used in combination with the density threshold to remove outliers (i.e. high density based on just 1 or 2 objects).", labelCounts, sliderCounts, tfThresholdCounts);
 			}
 			
 			var cbDeleteExisting = new CheckBox("Delete existing similar annotations");
 			cbDeleteExisting.selectedProperty().bindBidirectional(deleteExisting);
-			PaneTools.addGridRow(pane, row++, 0, "Delete existing annotations that share the same classification as the new annotations", cbDeleteExisting, cbDeleteExisting, cbDeleteExisting);
+			GridPaneUtils.addGridRow(pane, row++, 0, "Delete existing annotations that share the same classification as the new annotations", cbDeleteExisting, cbDeleteExisting, cbDeleteExisting);
 			
 			var cbSplit = new CheckBox("Split new annotations");
 			cbSplit.selectedProperty().bindBidirectional(split);
-			PaneTools.addGridRow(pane, row++, 0, "Split new, multi-part annotations into separate polygons", cbSplit, cbSplit, cbSplit);
+			GridPaneUtils.addGridRow(pane, row++, 0, "Split new, multi-part annotations into separate polygons", cbSplit, cbSplit, cbSplit);
 
 			var cbSelect = new CheckBox("Select new annotations");
 			cbSelect.selectedProperty().bindBidirectional(select);
-			PaneTools.addGridRow(pane, row++, 0, "Automatically set new annotations to be selected."
+			GridPaneUtils.addGridRow(pane, row++, 0, "Automatically set new annotations to be selected."
 					+ "\nThis is useful if the next step involves manipulating the annotations (e.g. setting another classification).", cbSelect, cbSelect, cbSelect);
 			
-			PaneTools.setToExpandGridPaneWidth(slider, cbDeleteExisting, cbSplit, cbSelect);
+			GridPaneUtils.setToExpandGridPaneWidth(slider, cbDeleteExisting, cbSplit, cbSelect);
 			
 			var titledPane = new TitledPane("Threshold parameters", pane);
 			titledPane.setExpanded(true);
 			titledPane.setCollapsible(false);
-			PaneTools.simplifyTitledPane(titledPane, true);
+			FXUtils.simplifyTitledPane(titledPane, true);
 
 			
 			// Opacity slider
@@ -909,7 +911,8 @@ public class DensityMapUI {
 		}
 
 		private void promptToSaveRawImage(ImageData<BufferedImage> imageData, ImageServer<BufferedImage> densityMap, String densityMapName) throws IOException {
-			var file = Dialogs.promptToSaveFile(title, null, densityMapName, "ImageJ tif", ".tif");
+			var file = FileChoosers.promptToSaveFile(title, densityMapName == null ? null : new File(densityMapName),
+					FileChoosers.createExtensionFilter("ImageJ tif", ".tif"));
 			if (file != null) {
 				try {
 					QP.writeImage(densityMap, file.getAbsolutePath());
@@ -939,7 +942,7 @@ public class DensityMapUI {
 				fmt = "ImageJ tif";
 				ext = ".tif";
 			}
-			file = Dialogs.promptToSaveFile(title, null, null, fmt, ext);
+			file = FileChoosers.promptToSaveFile(title, null, FileChoosers.createExtensionFilter(fmt, ext));
 			if (file != null) {
 				QP.writeImage(server, file.getAbsolutePath());
 			}
@@ -986,20 +989,20 @@ public class DensityMapUI {
 		
 		var actionHotspots = createDensityMapAction("Find hotspots", imageData, builder, densityMapName, disableButtons, new HotspotFinder(qupath, overlay),
 				"Find the hotspots in the density map with highest values");
-		var btnHotspots = ActionTools.createButton(actionHotspots, false);
+		var btnHotspots = ActionTools.createButton(actionHotspots);
 
 		// TODO: Don't provide QuPath in this way...
 		var actionThreshold = createDensityMapAction("Threshold", imageData, builder, densityMapName, disableButtons, new ContourTracer(qupath, overlay),
 				"Threshold to identify high-density regions");
-		var btnThreshold = ActionTools.createButton(actionThreshold, false);
+		var btnThreshold = ActionTools.createButton(actionThreshold);
 
 		var actionExport = createDensityMapAction("Export map", imageData, builder, densityMapName, disableButtons, new DensityMapExporter(qupath, overlay),
 				"Export the density map as an image");
-		var btnExport = ActionTools.createButton(actionExport, false);
+		var btnExport = ActionTools.createButton(actionExport);
 
-		var buttonPane = PaneTools.createColumnGrid(btnHotspots, btnThreshold, btnExport);
+		var buttonPane = GridPaneUtils.createColumnGrid(btnHotspots, btnThreshold, btnExport);
 //		buttonPane.setHgap(hGap);
-		PaneTools.setToExpandGridPaneWidth(btnHotspots, btnExport, btnThreshold);
+		GridPaneUtils.setToExpandGridPaneWidth(btnHotspots, btnExport, btnThreshold);
 		
 		var pane = new BorderPane(buttonPane);
 		

@@ -1192,13 +1192,13 @@ public class OpenCVTools {
 		// If using StatUtils, average and sum have different behavior with NaNs
 		switch (reduction) {
 		case opencv_core.REDUCE_AVG:
-			return Arrays.stream(values).filter(d -> !Double.isNaN(d)).average().orElseGet(() -> Double.NaN);
+			return Arrays.stream(values).filter(d -> !Double.isNaN(d)).average().orElse(Double.NaN);
 //			return StatUtils.mean(values);
 		case opencv_core.REDUCE_MAX:
-			return Arrays.stream(values).filter(d -> !Double.isNaN(d)).max().orElseGet(() -> Double.NaN);
+			return Arrays.stream(values).filter(d -> !Double.isNaN(d)).max().orElse(Double.NaN);
 //			return StatUtils.max(values);
 		case opencv_core.REDUCE_MIN:
-			return Arrays.stream(values).filter(d -> !Double.isNaN(d)).min().orElseGet(() -> Double.NaN);
+			return Arrays.stream(values).filter(d -> !Double.isNaN(d)).min().orElse(Double.NaN);
 //			return StatUtils.min(values);
 		case opencv_core.REDUCE_SUM:
 			return Arrays.stream(values).filter(d -> !Double.isNaN(d)).sum();
@@ -2610,7 +2610,7 @@ public class OpenCVTools {
 		if (mask == null)
 			return points;
 		try (var idx = mask.createIndexer()) {
-			return points.stream().filter(p -> idx.getDouble(p.inds) != 0).collect(Collectors.toList());
+			return points.stream().filter(p -> idx.getDouble(p.inds) != 0).toList();
 		}
 		
 	}
@@ -2791,7 +2791,7 @@ public class OpenCVTools {
 		// Group by label
 		var groups = pixels.stream().collect(Collectors.groupingBy(p -> p.value));
 		
-		return groups.values().stream().map(l-> closestToCentroid(l)).collect(Collectors.toList());
+		return groups.values().stream().map(l-> closestToCentroid(l)).toList();
 	}
 	
 	/**

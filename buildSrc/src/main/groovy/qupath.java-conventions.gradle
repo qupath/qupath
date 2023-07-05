@@ -10,9 +10,9 @@ plugins {
 
 java {
     def version = project.findProperty('toolchain')
-    if (!version)
-        version = 17
-    else if (version.strip() == 'skip')
+    if (!version) {
+        version = libs.versions.jdk.get()
+    } else if (version.strip() == 'skip')
         version = null
     if (version != null) {
         logger.info("Setting toolchain to {}", version)
@@ -24,9 +24,11 @@ java {
     withJavadocJar()
 }
 
-// Include parameter names, so they are available in the script editor via reflection
 compileJava {
+    // Include parameter names, so they are available in the script editor via reflection
     options.compilerArgs << '-parameters'
+    // Specify source should be UTF8
+    options.encoding = 'UTF-8'
 }
 
 // Avoid 'Entry .gitkeep is a duplicate but no duplicate handling strategy has been set.'

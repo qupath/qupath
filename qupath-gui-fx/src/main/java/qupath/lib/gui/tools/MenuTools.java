@@ -23,6 +23,7 @@ package qupath.lib.gui.tools;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 import org.controlsfx.control.action.Action;
 import org.slf4j.Logger;
@@ -32,7 +33,8 @@ import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.SeparatorMenuItem;
-import qupath.lib.gui.ActionTools;
+import qupath.lib.gui.actions.ActionTools;
+import qupath.lib.gui.localization.QuPathResources;
 
 /**
  * Static methods to help with creating and populating JavaFX menus.
@@ -52,7 +54,11 @@ public class MenuTools {
 	 * @return the newly-created and populated menu
 	 */
 	public static Menu createMenu(final String name, final Object... items) {
-		Menu menu = new Menu(name);
+		Menu menu = new Menu();
+		if (QuPathResources.hasString(name))
+			QuPathResources.getLocalizeResourceManager().registerProperty(menu.textProperty(), name);
+		else
+			menu.setText(name);
 		if (items.length > 0)
 			addMenuItems(menu, items);
 		return menu;
@@ -146,19 +152,17 @@ public class MenuTools {
 	 */
 	public static Menu getMenu(final List<Menu> menus, final String name, final boolean createMenu) {
 		Menu menuCurrent = null;
-		for (String n : name.split(">")) {
+		for (String namePart : name.split(">")) {
+			namePart = namePart.trim();
+			boolean isResourceString = QuPathResources.hasString(namePart);
+			String text = isResourceString ? QuPathResources.getString(namePart) : namePart;
 			if (menuCurrent == null) {
-				for (Menu menu : menus) {
-					if (n.equals(menu.getText())) {
-						menuCurrent = menu;
-						break;
-					}
-				}
+				menuCurrent = findMenuByNameNonRecursive(menus, text);
 				if (menuCurrent == null) {
 					if (createMenu) {
-						menuCurrent = new Menu(n.trim());
-						// Make sure we don't replace the 'Help' menu at the end
-						if (!menus.isEmpty() && "Help".equals(menus.get(menus.size()-1).getText()))
+						menuCurrent = createMenu(namePart);
+						// Make sure we keep the 'Help' menu at the end
+						if (lastMenuIsHelp(menus))
 							menus.add(menus.size()-1, menuCurrent);
 						else
 							menus.add(menuCurrent);
@@ -166,18 +170,12 @@ public class MenuTools {
 						return null;
 				}
 			} else {
-				List<MenuItem> searchItems = menuCurrent.getItems();
-				menuCurrent = null;
-				for (MenuItem menuItem : searchItems) {
-					if (menuItem instanceof Menu && (menuItem.getText().equals(n) || menuItem.getText().equals(n.trim()))) {
-						menuCurrent = (Menu)menuItem;
-						break;
-					}
-				}
+				List<MenuItem> menuItems = menuCurrent.getItems();
+				menuCurrent = findMenuByNameNonRecursive(menuItems, text);
 				if (menuCurrent == null) {
 					if (createMenu) {
-						menuCurrent = new Menu(n.trim());
-						searchItems.add(menuCurrent);
+						menuCurrent = createMenu(namePart);
+						menuItems.add(menuCurrent);
 					} else
 						return null;
 				}				
@@ -187,31 +185,33 @@ public class MenuTools {
 	}
 	
 	
+	private static Menu findMenuByNameNonRecursive(List<? extends MenuItem> menuItems, String name) {
+		for (var item : menuItems) {
+			if (item instanceof Menu) {
+				if (Objects.equals(name, item.getText()))
+					return (Menu)item;
+			}
+		}
+		return null;
+	}
 	
 	
-//	public static MenuItem getMenuItem(List<Menu> menus, String itemName) {
-//		Collection<MenuItem> menuItems;
-//		int ind = itemName.lastIndexOf(">");
-//		if (ind >= 0) {
-//			Menu menu = getMenu(menus, itemName.substring(0, ind), false);
-//			if (menu == null) {
-//				logger.warn("No menu found for {}", itemName);
-//				return null;
-//			}
-//			menuItems = menu.getItems();
-//			itemName = itemName.substring(ind+1);
-//		} else {
-//			menuItems = new HashSet<>();
-//			for (Menu menu : menus)
-//				menuItems.addAll(menu.getItems());
-//		}
-//		for (MenuItem menuItem : menuItems) {
-//			if (itemName.equals(menuItem.getText()))
-//				return menuItem;
-//		}
-//		logger.warn("No menu item found for {}", itemName);
-//		return null;
-//	}
+	
+	private static boolean lastMenuIsHelp(List<Menu> menus) {
+		return !menus.isEmpty() && QuPathResources.getString("Menu.Help").equals(menus.get(menus.size()-1).getText());
+	}
+	
+	
+	private static Menu createMenu(String keyOrName) {
+		var menu = new Menu();
+		if (QuPathResources.hasString(keyOrName))
+			QuPathResources.getLocalizeResourceManager().registerProperty(menu.textProperty(), keyOrName);
+		else
+			menu.setText(keyOrName);
+		return menu;
+	}
+	
+	
 	
 	/**
 	 * Get a flattened list of all menu items recursively.
@@ -234,7 +234,6 @@ public class MenuTools {
 	public static List<MenuItem> getFlattenedMenuItems(boolean excludeMenusAndSeparators, MenuItem... items) {
 		List<MenuItem> result = new ArrayList<>();
 		for (var temp : items) {
-			
 			addMenuItemsRecursive(temp, result, excludeMenusAndSeparators);
 		}
 		return result;

@@ -41,7 +41,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.TreeMap;
-import java.util.stream.Collectors;
 import java.util.stream.DoubleStream;
 
 import org.slf4j.Logger;
@@ -274,7 +273,7 @@ public class ColorMaps {
     		name = name.substring(0, name.length()-4);
     	
 		// Read non-blank lines
-		List<String> lines = Files.readAllLines(path).stream().filter(s -> !s.isBlank()).collect(Collectors.toList());
+		List<String> lines = Files.readAllLines(path).stream().filter(s -> !s.isBlank()).toList();
 		
         // Parse values
 		int n = lines.size();

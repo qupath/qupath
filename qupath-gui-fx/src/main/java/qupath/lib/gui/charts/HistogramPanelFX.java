@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -28,6 +28,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import javafx.scene.layout.Border;
+import javafx.scene.layout.BorderPane;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -91,12 +93,12 @@ public class HistogramPanelFX {
 		chart.setCreateSymbols(false);
 		chart.setVisible(!chart.getData().isEmpty());
 		
-		histogramData.addListener(new ListChangeListener<HistogramData>() {
+		histogramData.addListener(new ListChangeListener<>() {
 			@Override
 			public void onChanged(Change<? extends HistogramData> c) {
 				while (c.next()) {
 					// Pattern taken from https://docs.oracle.com/javase/8/javafx/api/javafx/collections/ListChangeListener.Change.html
-					// Hower I only really need to worry about adding/removing (I hope)
+					// However I only really need to worry about adding/removing (I hope)
 					if (c.wasPermutated()) {
 						for (int i = c.getFrom(); i < c.getTo(); ++i) {
 							//permutate
@@ -114,7 +116,7 @@ public class HistogramPanelFX {
 					}
 				}
 			}
-		     });
+		});
 	}
 	
 	/**
@@ -251,7 +253,8 @@ public class HistogramPanelFX {
 		 */
 		private void setColor(final Color color) {
 			this.colorStroke = color;
-			this.colorFill = color == null ? null : Color.color(color.getRed(), color.getGreen(), color.getBlue(), color.getOpacity()/4);			
+			this.colorFill = color == null ? null :
+					Color.color(color.getRed(), color.getGreen(), color.getBlue(), color.getOpacity()/4);
 		}
 		
 		/**
@@ -397,7 +400,7 @@ public class HistogramPanelFX {
 		
 		private XYChart<Number, Number> chart;
 		private NumberAxis xAxis, yAxis;
-		private Pane pane = new Pane();
+		private BorderPane pane = new BorderPane();
 		
 		private DoubleProperty lineWidth = new SimpleDoubleProperty(2);
 		
@@ -416,30 +419,18 @@ public class HistogramPanelFX {
 			this.chart = chart;
 			this.xAxis = (NumberAxis)chart.getXAxis();
 			this.yAxis = (NumberAxis)chart.getYAxis();
-			pane.getChildren().add(chart);
-	        chart.prefWidthProperty().bind(pane.widthProperty());
-	        chart.prefHeightProperty().bind(pane.heightProperty());
+			pane.setCenter(chart);
+	        thresholds.addListener(this::handleLineListChange);
+		}
 
-	        thresholds.addListener(new ListChangeListener<ObservableNumberValue>() {
-
-	        	@Override
-	        	public void onChanged(ListChangeListener.Change<? extends ObservableNumberValue> c) {
-	        		while (c.next()) {
-	        			if (c.wasPermutated()) {
-	        				continue;
-	        			} else {
-	        				for (ObservableNumberValue removedItem : c.getRemoved()) {
-	        					pane.getChildren().remove(vLines.remove(removedItem));
-	        				}
-//	        				pane.getChildren().removeAll(c.getRemoved());
-//	        				for (ObservableNumberValue addedItem : c.getAddedSubList()) {
-//	        					addThreshold(addedItem.getValue().doubleValue());
-//	        				}
-	        			}
-	        		}
-	        	}
-	        });
-	        
+		private void handleLineListChange(ListChangeListener.Change<? extends ObservableNumberValue> c) {
+			while (c.next()) {
+				if (!c.wasPermutated()) {
+					for (ObservableNumberValue removedItem : c.getRemoved()) {
+						pane.getChildren().remove(vLines.remove(removedItem));
+					}
+				}
+			}
 		}
 		
 		/**
@@ -610,13 +601,13 @@ public class HistogramPanelFX {
 					);
 
 			// We can only bind both ways if we have a writable value
-			if (d instanceof WritableNumberValue) {
+			if (d instanceof WritableNumberValue writableNumberValue) {
 				line.setOnMouseDragged(e -> {
 					if (isInteractive()) {
 						double xNew = xAxis.getValueForDisplay(xAxis.sceneToLocal(e.getSceneX(), e.getSceneY()).getX()).doubleValue();
 						xNew = Math.max(xNew, xAxis.getLowerBound());
 						xNew = Math.min(xNew, xAxis.getUpperBound());
-						((WritableNumberValue)d).setValue(xNew);
+						writableNumberValue.setValue(xNew);
 					}
 				});
 				

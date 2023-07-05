@@ -593,7 +593,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 						// Handle the harder case, where we have a different number of channels
 						// I've seen this with a polarized light CZI image, with a channel count of 2 
 						// but in which each of these had 3 samples (resulting in a total of 6 channels)
-						logger.debug("Attempting to parse {} channels with metadata channel count", nChannels, metaChannelCount);
+						logger.debug("Attempting to parse {} channels with metadata channel count {}", nChannels, metaChannelCount);
 						int ind = 0;
 						for (int cInd = 0; cInd < metaChannelCount; cInd++) {
 							int nSamples = meta.getChannelSamplesPerPixel(series, cInd).getValue();

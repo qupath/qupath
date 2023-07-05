@@ -34,7 +34,7 @@ import javafx.scene.Scene;
 import javafx.scene.input.DragEvent;
 import javafx.scene.input.Dragboard;
 import javafx.scene.input.TransferMode;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.fx.dialogs.Dialogs;
 
 
 /**
@@ -55,10 +55,10 @@ class DragDropTMADataImportListener implements EventHandler<DragEvent> {
 	}
 	
 	void setupTarget(final Scene target) {
-		target.setOnDragOver(new EventHandler<DragEvent>() {
+		target.setOnDragOver(new EventHandler<>() {
             @Override
             public void handle(DragEvent event) {
-            	event.acceptTransferModes(TransferMode.COPY);
+                event.acceptTransferModes(TransferMode.COPY);
                 event.consume();
             }
         });

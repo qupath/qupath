@@ -41,8 +41,6 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.stream.Collectors;
-
 import org.controlsfx.control.CheckComboBox;
 import org.controlsfx.control.ListSelectionView;
 import org.controlsfx.dialog.ProgressDialog;
@@ -69,15 +67,17 @@ import javafx.scene.control.TextField;
 import javafx.scene.control.ButtonBar.ButtonData;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
+import qupath.fx.utils.FXUtils;
+import qupath.fx.dialogs.FileChoosers;
 import qupath.lib.common.ThreadTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.ProjectDialogs;
 import qupath.lib.gui.measure.ObservableMeasurementTableData;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.MeasurementExporter;
-import qupath.lib.gui.tools.PaneTools;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathCellObject;
@@ -134,7 +134,7 @@ public class MeasurementExportCommand implements Runnable {
 	private void createAndShowDialog() {
 		project = qupath.getProject();
 		if (project == null) {
-			Dialogs.showNoProjectError("Export measurements");
+			GuiTools.showNoProjectError("Export measurements");
 			return;
 		}
 		
@@ -150,7 +150,7 @@ public class MeasurementExportCommand implements Runnable {
 		project = qupath.getProject();
 		pathObjectCombo = new ComboBox<>();
 		separatorCombo = new ComboBox<>();
-		includeCombo = new CheckComboBox<String>();
+		includeCombo = new CheckComboBox<>();
 		String sameImageWarning = "A selected image is open in the viewer!\nData should be saved before exporting.";
 		var listSelectionView = ProjectDialogs.createImageChoicePane(qupath, project.getImageList(), previousImages, sameImageWarning);
 		
@@ -163,7 +163,9 @@ public class MeasurementExportCommand implements Runnable {
 			String extSelected = separatorCombo.getSelectionModel().getSelectedItem();
 			String ext = extSelected.equals("Tab (.tsv)") ? ".tsv" : ".csv";
 			String extDesc = ext.equals(".tsv") ? "TSV (Tab delimited)" : "CSV (Comma delimited)";
-			File pathOut = Dialogs.promptToSaveFile("Output file", Projects.getBaseDirectory(project), "measurements" + ext, extDesc, ext);
+			File pathOut = FileChoosers.promptToSaveFile("Output file",
+					new File(Projects.getBaseDirectory(project), "measurements" + ext),
+					FileChoosers.createExtensionFilter(extDesc, ext));
 			if (pathOut != null) {
 				if (pathOut.isDirectory())
 					pathOut = new File(pathOut.getAbsolutePath() + File.separator + "measurements" + ext);
@@ -172,7 +174,7 @@ public class MeasurementExportCommand implements Runnable {
 		});
 		
 		pathOutputLabel.setLabelFor(outputText);
-		PaneTools.addGridRow(optionPane, row++, 0, "Choose output file", pathOutputLabel, outputText, outputText, btnChooseFile, btnChooseFile);
+		GridPaneUtils.addGridRow(optionPane, row++, 0, "Choose output file", pathOutputLabel, outputText, outputText, btnChooseFile, btnChooseFile);
 		outputText.setMaxWidth(Double.MAX_VALUE);
 		btnChooseFile.setMaxWidth(Double.MAX_VALUE);
 		
@@ -186,18 +188,18 @@ public class MeasurementExportCommand implements Runnable {
 				setType(n);
 		});
 	
-		PaneTools.addGridRow(optionPane, row++, 0, "Choose the export type", pathObjectLabel, pathObjectCombo, pathObjectCombo, pathObjectCombo, pathObjectCombo);
+		GridPaneUtils.addGridRow(optionPane, row++, 0, "Choose the export type", pathObjectLabel, pathObjectCombo, pathObjectCombo, pathObjectCombo, pathObjectCombo);
 
 		Label separatorLabel = new Label("Separator");
 		separatorLabel.setLabelFor(separatorCombo);
 		separatorCombo.getItems().setAll("Tab (.tsv)", "Comma (.csv)", "Semicolon (.csv)");
 		separatorCombo.getSelectionModel().selectFirst();
-		PaneTools.addGridRow(optionPane, row++, 0, "Choose a value separator", separatorLabel, separatorCombo, separatorCombo, separatorCombo, separatorCombo);
+		GridPaneUtils.addGridRow(optionPane, row++, 0, "Choose a value separator", separatorLabel, separatorCombo, separatorCombo, separatorCombo, separatorCombo);
 		
 		
 		Label includeLabel = new Label("Columns to include (Optional)");
 		includeLabel.setLabelFor(includeCombo);
-		GuiTools.installSelectAllOrNoneMenu(includeCombo);
+		FXUtils.installSelectAllOrNoneMenu(includeCombo);
 		
 		Button btnPopulateColumns = new Button("Populate\t");
 		ProgressIndicator progressIndicator = new ProgressIndicator();
@@ -205,7 +207,7 @@ public class MeasurementExportCommand implements Runnable {
 		progressIndicator.setMinSize(20, 20);
 		progressIndicator.setOpacity(0);
 		Button btnResetColumns = new Button("Reset");
-		PaneTools.addGridRow(optionPane, row++, 0, "Choose the specific column(s) to include (default: all)", includeLabel, includeCombo, btnPopulateColumns, progressIndicator, btnResetColumns);
+		GridPaneUtils.addGridRow(optionPane, row++, 0, "Choose the specific column(s) to include (default: all)", includeLabel, includeCombo, btnPopulateColumns, progressIndicator, btnResetColumns);
 		btnPopulateColumns.setOnAction(e -> {
 			includeCombo.setDisable(true);
 			Set<String> allColumnsForCombo = Collections.synchronizedSet(new LinkedHashSet<>());
@@ -261,8 +263,8 @@ public class MeasurementExportCommand implements Runnable {
 				outputText.setText(currentOut.replace(".tsv", ".csv"));
 		});
 
-		PaneTools.getContentsOfType(optionPane, Label.class, false).forEach(e -> e.setMinWidth(160));
-		PaneTools.setToExpandGridPaneWidth(outputText, pathObjectCombo, separatorCombo, includeCombo);
+		FXUtils.getContentsOfType(optionPane, Label.class, false).forEach(e -> e.setMinWidth(160));
+		GridPaneUtils.setToExpandGridPaneWidth(outputText, pathObjectCombo, separatorCombo, includeCombo);
 		btnPopulateColumns.setMinWidth(100);
 		btnResetColumns.setMinWidth(75);
 		
@@ -298,7 +300,9 @@ public class MeasurementExportCommand implements Runnable {
 		if (new File(outputText.getText()).getParent() == null) {
 			String ext = Files.getFileExtension(outputText.getText()).equals("tsv") ? ".tsv": ".csv";
 			String extDesc = ext.equals(".tsv") ? "TSV (Tab delimited)" : "CSV (Comma delimited)";
-			File pathOut = Dialogs.promptToSaveFile("Output file", Projects.getBaseDirectory(project), outputText.getText(), extDesc, ext);
+			File pathOut = FileChoosers.promptToSaveFile("Output file",
+					new File(Projects.getBaseDirectory(project), outputText.getText()),
+					FileChoosers.createExtensionFilter(extDesc, ext));
 			if (pathOut == null)
 				return;
 			else
@@ -306,7 +310,7 @@ public class MeasurementExportCommand implements Runnable {
 		}
 				
 		var checkedItems = includeCombo.getCheckModel().getCheckedItems();
-		String[] include = checkedItems.stream().collect(Collectors.toList()).toArray(new String[checkedItems.size()]);
+		String[] include = checkedItems.stream().toList().toArray(new String[checkedItems.size()]);
 		String separator = defSep;
 
 		switch (separatorCombo.getSelectionModel().getSelectedItem()) {
@@ -348,7 +352,7 @@ public class MeasurementExportCommand implements Runnable {
 		});
 		
 		// Create & run task
-		runningTask.set(qupath.createSingleThreadExecutor(this).submit(worker));
+		runningTask.set(qupath.getThreadPoolManager().getSingleThreadExecutor(this).submit(worker));
 		progress.show();
 	}
 	
@@ -413,9 +417,9 @@ public class MeasurementExportCommand implements Runnable {
 		protected Void call() {
 			long startTime = System.currentTimeMillis();
 	
-			Map<ProjectImageEntry<?>, String[]> imageCols = new HashMap<ProjectImageEntry<?>, String[]>();
-			Map<ProjectImageEntry<?>, Integer> nImageEntries = new HashMap<ProjectImageEntry<?>, Integer>();
-			List<String> allColumns = new ArrayList<String>();
+			Map<ProjectImageEntry<?>, String[]> imageCols = new HashMap<>();
+			Map<ProjectImageEntry<?>, Integer> nImageEntries = new HashMap<>();
+			List<String> allColumns = new ArrayList<>();
 			Multimap<String, String> valueMap = LinkedListMultimap.create();
 			File file = new File(pathOut);
 			String pattern = "(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)";

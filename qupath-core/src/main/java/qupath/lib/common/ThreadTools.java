@@ -43,7 +43,11 @@ public class ThreadTools {
 	private static final Logger logger = LoggerFactory.getLogger(ThreadTools.class);
 	
 	private static int requestedThreads = ForkJoinPool.getCommonPoolParallelism();
-	
+
+	static {
+		logger.debug("Common ForkJoinPool parallelism: {}", ThreadTools.getParallelism());
+	}
+
 	/**
 	 * Create a named thread factory with a specified priority.
 	 * 

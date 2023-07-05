@@ -130,7 +130,7 @@ public class DistanceTools {
 				var names = PathClassTools.splitNames(pathClass);
 				for (var name : names) {
 					logger.debug("Computing distances for {}", pathClass);
-					var filteredAnnotations = annotations.stream().filter(a -> PathClassTools.containsName(a.getPathClass(), name)).collect(Collectors.toList());
+					var filteredAnnotations = annotations.stream().filter(a -> PathClassTools.containsName(a.getPathClass(), name)).toList();
 					if (!filteredAnnotations.isEmpty()) {
 						String measurementName = distanceString + " to annotation with " + name + " " + unit;
 						centroidToBoundsDistance2D(detections, filteredAnnotations, pixelWidth, pixelHeight, measurementName, signedDistances);
@@ -138,7 +138,7 @@ public class DistanceTools {
 				}
 			} else {
 				logger.debug("Computing distances for {}", pathClass);
-				var filteredAnnotations = annotations.stream().filter(a -> a.getPathClass() == pathClass).collect(Collectors.toList());
+				var filteredAnnotations = annotations.stream().filter(a -> a.getPathClass() == pathClass).toList();
 				if (!filteredAnnotations.isEmpty()) {
 					String name = distanceString + " to annotation " + pathClass + " " + unit;
 					centroidToBoundsDistance2D(detections, filteredAnnotations, pixelWidth, pixelHeight, name, signedDistances);
@@ -185,7 +185,7 @@ public class DistanceTools {
 				var names = PathClassTools.splitNames(pathClass);
 				for (var name : names) {
 					logger.debug("Computing distances for {}", pathClass);
-					var filteredDetections = detections.stream().filter(a -> PathClassTools.containsName(a.getPathClass(), name)).collect(Collectors.toList());
+					var filteredDetections = detections.stream().filter(a -> PathClassTools.containsName(a.getPathClass(), name)).toList();
 					if (!filteredDetections.isEmpty()) {
 						String measurementName = "Distance to detection with " + name + " " + unit;
 						centroidToCentroidDistance2D(detections, filteredDetections, pixelWidth, pixelHeight, measurementName);
@@ -193,7 +193,7 @@ public class DistanceTools {
 				}
 			} else {
 				logger.debug("Computing distances for {}", pathClass);
-				var filteredDetections = detections.stream().filter(a -> a.getPathClass() == pathClass).collect(Collectors.toList());
+				var filteredDetections = detections.stream().filter(a -> a.getPathClass() == pathClass).toList();
 				if (!filteredDetections.isEmpty()) {
 					String name = "Distance to detection " + pathClass + " " + unit;
 					centroidToCentroidDistance2D(detections, filteredDetections, pixelWidth, pixelHeight, name);

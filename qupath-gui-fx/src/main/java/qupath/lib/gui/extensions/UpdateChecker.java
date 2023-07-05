@@ -32,8 +32,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -95,7 +93,7 @@ public class UpdateChecker {
 				var json = response.body();
 				List<ReleaseGH> allReleases = GsonTools.getInstance().fromJson(json, new TypeToken<List<ReleaseGH>>() {}.getType());
 				allReleasesEtag = headers.firstValue("ETag").orElse(null);
-				allVersions = allReleases.stream().map(r -> r.getVersion()).collect(Collectors.toList());
+				allVersions = allReleases.stream().map(r -> r.getVersion()).toList();
 				
 				allReleasesEtagMap.put(uri, allReleasesEtag);
 				allVersionsMap.put(uri, allVersions);

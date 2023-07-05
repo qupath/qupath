@@ -81,15 +81,15 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import javafx.stage.Stage;
+import qupath.fx.dialogs.FileChoosers;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.charts.HistogramDisplay;
-import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.measure.ObservableMeasurementTableData;
 import qupath.lib.gui.measure.PathTableData;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.GuiTools;
-import qupath.lib.gui.tools.PaneTools;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.QuPathViewerListener;
 import qupath.lib.images.ImageData;
@@ -139,7 +139,7 @@ public class SummaryMeasurementTableCommand {
 	 */
 	public void showTable(ImageData<BufferedImage> imageData, Class<? extends PathObject> type) {
 		if (imageData == null) {
-			Dialogs.showNoImageError("Show measurement table");
+			GuiTools.showNoImageError("Show measurement table");
 			return;
 		}
 		
@@ -160,12 +160,12 @@ public class SummaryMeasurementTableCommand {
 		//		table.setTableMenuButtonVisible(true);
 		TableView<PathObject> table = new TableView<>();
 		table.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
-		table.getSelectionModel().getSelectedItems().addListener(new ListChangeListener<PathObject>() {
-			@Override
-			public void onChanged(ListChangeListener.Change<? extends PathObject> c) {
-				synchronizeSelectionModelToTable(hierarchy, c, table);
-			}
-		});
+		table.getSelectionModel().getSelectedItems().addListener(new ListChangeListener<>() {
+            @Override
+            public void onChanged(ListChangeListener.Change<? extends PathObject> c) {
+                synchronizeSelectionModelToTable(hierarchy, c, table);
+            }
+        });
 		StringProperty displayedName = new SimpleStringProperty(ServerTools.getDisplayableImageName(imageData.getServer()));
 		var title = Bindings.createStringBinding(() -> {
 			if (type == null)
@@ -199,10 +199,10 @@ public class SummaryMeasurementTableCommand {
 		colThumbnails.setCellValueFactory(val -> new SimpleObjectProperty<>(val.getValue()));
 		colThumbnails.visibleProperty().bind(showThumbnailsProperty);
 		double padding = 10;
-		var viewer = qupath.getViewers().stream().filter(v -> v.getImageData() == imageData).findFirst().orElse(null);
+		var viewer = qupath.getAllViewers().stream().filter(v -> v.getImageData() == imageData).findFirst().orElse(null);
 		colThumbnails.setCellFactory(column -> PathObjectImageManagers.createTableCell(
 				viewer, imageData.getServer(), true, padding,
-				qupath.createSingleThreadExecutor(this)));
+				qupath.getThreadPoolManager().getSingleThreadExecutor(this)));
 //			col.widthProperty().addListener((v, o, n) -> table.refresh());
 //		colThumbnails.setMaxWidth(maxWidth + padding*2);
 		table.getColumns().add(colThumbnails);
@@ -236,7 +236,7 @@ public class SummaryMeasurementTableCommand {
 			} else {
 				TableColumn<PathObject, Number> col = new TableColumn<>(columnName);
 				col.setCellValueFactory(column -> model.createNumericMeasurement(column.getValue(), column.getTableColumn().getText()));
-				col.setCellFactory(column -> new NumericTableCell<PathObject>(histogramDisplay));
+				col.setCellFactory(column -> new NumericTableCell<>(histogramDisplay));
 				table.getColumns().add(col);			
 			}
 		}
@@ -402,7 +402,7 @@ public class SummaryMeasurementTableCommand {
 		//		pane.setCenter(table);
 		splitPane.getItems().add(paneTable);
 		pane.setCenter(splitPane);
-		var paneButtons = PaneTools.createColumnGridControls(buttons.toArray(new ButtonBase[0]));
+		var paneButtons = GridPaneUtils.createColumnGridControls(buttons.toArray(new ButtonBase[0]));
 		var paneButtons2 = new BorderPane(paneButtons);
 		paneButtons2.setRight(btnExtra);
 		pane.setBottom(paneButtons2);
@@ -729,7 +729,7 @@ public class SummaryMeasurementTableCommand {
 	
 	private static File promptForOutputFile() {
 		String ext = ",".equals(PathPrefs.tableDelimiterProperty().get()) ? "csv" : "txt";
-		return Dialogs.promptToSaveFile(null, null, null, "Results data", ext);
+		return FileChoosers.promptToSaveFile(FileChoosers.createExtensionFilter("Results data", ext));
 	}
 	
 	/**

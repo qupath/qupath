@@ -524,7 +524,7 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 				iterator.remove();
 		}
 //		String serverPath = server.getPath();
-//		List<RegionRequest> keys = map.keySet().stream().filter(k -> k.getPath().equals(serverPath)).collect(Collectors.toList());
+//		List<RegionRequest> keys = map.keySet().stream().filter(k -> k.getPath().equals(serverPath)).toList();
 //		for (var key : keys)
 //			map.remove(key);
 	}
@@ -535,7 +535,7 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 			if (request.overlapsRequest(iterator.next().getKey()))
 				iterator.remove();
 		}
-//		List<RegionRequest> keys = map.keySet().stream().filter(k -> request.overlapsRequest(k)).collect(Collectors.toList());
+//		List<RegionRequest> keys = map.keySet().stream().filter(k -> request.overlapsRequest(k)).toList();
 //		for (var key : keys)
 //			map.remove(key);
 	}
@@ -782,28 +782,28 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 		private final RegionRequest request;
 		
 		DefaultTileWorker(final ImageServer<T> server, final RegionRequest request, final Map<RegionRequest, T> cache, final boolean ensureTileReturned) {
-			super(new Callable<T>() {
+			super(new Callable<>() {
 
 				@Override
 				public T call() throws Exception {
 					// Check if the cache now contains the region
-			    	// (e.g. it came from a different viewer... probably shouldn't occur now)
-			    	T imgTile = cache.get(request);
-			    	if (imgTile != null)
-			    		return imgTile;
-			    	// TODO: Investigate the (current) purpose of ensureTileReturned... doesn't seem to do anything here
-			    	if (ensureTileReturned)
-			    		return server.readRegion(request);	
-			    	// Check if we still need the tile... if not, and we go searching, there can be a backlog
-			    	// making any requests slower to fulfill
-			    	// (Also, grab a snapshot of the listener list to avoid concurrent modifications)
+					// (e.g. it came from a different viewer... probably shouldn't occur now)
+					T imgTile = cache.get(request);
+					if (imgTile != null)
+						return imgTile;
+					// TODO: Investigate the (current) purpose of ensureTileReturned... doesn't seem to do anything here
+					if (ensureTileReturned)
+						return server.readRegion(request);
+					// Check if we still need the tile... if not, and we go searching, there can be a backlog
+					// making any requests slower to fulfill
+					// (Also, grab a snapshot of the listener list to avoid concurrent modifications)
 //			    	long t1 = System.currentTimeMillis();
-			    	T img = server.readRegion(request);
+					T img = server.readRegion(request);
 //			    	long t2 = System.currentTimeMillis();
 //			    	System.out.println("Tile request time: " + (t2 - t1));
-			    	return img;
+					return img;
 				}
-				
+
 			});
 			this.request = request;
 			this.cache = cache;

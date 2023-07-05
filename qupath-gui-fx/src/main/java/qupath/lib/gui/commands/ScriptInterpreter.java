@@ -86,7 +86,7 @@ import javafx.scene.web.WebView;
 import javafx.stage.Stage;
 import jfxtras.scene.layout.GridPane;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.panes.ObjectTreeBrowser;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.scripting.QPEx;
@@ -635,7 +635,8 @@ class ScriptInterpreter {
 
 	private void updateVariableTable() {
 		Bindings bindings = engine.getBindings(ScriptContext.ENGINE_SCOPE);
-		List<String> variableNames = bindings.keySet().stream().filter(v -> !v.equals("__builtins__")).collect(Collectors.toList());
+		List<String> variableNames = bindings.keySet().stream().filter(v -> !v.equals("__builtins__"))
+				.collect(Collectors.toCollection(ArrayList::new));
 
 		// Globals
 		try {

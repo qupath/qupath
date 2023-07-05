@@ -22,6 +22,7 @@
 package qupath.process.gui.commands;
 
 import java.awt.image.BufferedImage;
+import java.io.File;
 import java.io.IOException;
 import java.util.AbstractMap;
 import java.util.Collection;
@@ -45,13 +46,14 @@ import javafx.scene.control.Tooltip;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
+import qupath.fx.dialogs.FileChoosers;
 import qupath.lib.classifiers.object.ObjectClassifier;
 import qupath.lib.classifiers.object.ObjectClassifiers;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.tools.GuiTools;
-import qupath.lib.gui.tools.PaneTools;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
 import qupath.lib.plugins.workflow.WorkflowStep;
 import qupath.lib.projects.Project;
@@ -103,9 +105,9 @@ public class CreateCompositeClassifierCommand implements Runnable {
 		ProjectClassifierBindings.bindObjectClassifierNameInput(tfName, qupath.projectProperty());
 		tfName.setPromptText("Enter composite classifier name");
 		labelName.setLabelFor(tfName);
-		PaneTools.setMaxWidth(Double.MAX_VALUE, tfName);
-		PaneTools.setFillWidth(Boolean.TRUE, tfName);
-		PaneTools.setHGrowPriority(Priority.ALWAYS, tfName);
+		GridPaneUtils.setMaxWidth(Double.MAX_VALUE, tfName);
+		GridPaneUtils.setFillWidth(Boolean.TRUE, tfName);
+		GridPaneUtils.setHGrowPriority(Priority.ALWAYS, tfName);
 		
 		Button btnSave = new Button("Save");
 		btnSave.setTooltip(new Tooltip("Save the composite classifier without applying it"));
@@ -115,7 +117,7 @@ public class CreateCompositeClassifierCommand implements Runnable {
 			btnSave.requestFocus();
 		});
 		
-		PaneTools.addGridRow(paneName, 0, 0, "Enter a name for the composite classifier", labelName, tfName, btnSave);
+		GridPaneUtils.addGridRow(paneName, 0, 0, "Enter a name for the composite classifier", labelName, tfName, btnSave);
 		paneName.setHgap(5.0);
 		
 		var pane = new BorderPane(view);
@@ -206,7 +208,8 @@ public class CreateCompositeClassifierCommand implements Runnable {
 				project.getObjectClassifiers().put(name, composite);
 				Dialogs.showInfoNotification(title, "Classifier written to project as " + name);
 			} else {
-				var file = Dialogs.promptToSaveFile(title, null, name, "JSON", ".json");
+				var file = FileChoosers.promptToSaveFile(title, name == null ? null : new File(name),
+						FileChoosers.createExtensionFilter("JSON", ".json"));
 				if (file != null) {
 					logger.info("Writing classifier to {}", file.getAbsolutePath());
 					name = file.getAbsolutePath().replaceAll("\\\\", "/");

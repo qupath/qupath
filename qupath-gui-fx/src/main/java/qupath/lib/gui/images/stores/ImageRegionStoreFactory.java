@@ -23,6 +23,11 @@
 
 package qupath.lib.gui.images.stores;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import qupath.lib.gui.prefs.PathPrefs;
+
 /**
  * Factory for creating an ImageRegionStore.
  * 
@@ -31,17 +36,50 @@ package qupath.lib.gui.images.stores;
  */
 public class ImageRegionStoreFactory {
 	
+	private static final Logger logger = LoggerFactory.getLogger(ImageRegionStoreFactory.class);
+	
 	/**
-	 * Create an ImageRegionStore.
-	 * 
-	 * TileListeners will be notified on the JavaFX application thread if isJavaFX is true,
-	 * otherwise they will be notified on the Event Dispatch Thread (for Swing).
-	 * @param tileCacheSize 
-	 * 
+	 * Create an {@link ImageRegionStore} with a specified tile cache size, in bytes.
+	 * @param tileCacheSizeBytes 
 	 * @return
 	 */
-	public static DefaultImageRegionStore createImageRegionStore(final long tileCacheSize) {
-		return new DefaultImageRegionStore(tileCacheSize);
+	public static DefaultImageRegionStore createImageRegionStore(final long tileCacheSizeBytes) {
+		return new DefaultImageRegionStore(tileCacheSizeBytes);
+	}
+	
+	
+	/**
+	 * Create an {@link ImageRegionStore} using a default tile cache size, based upon the available memory and user preferences.
+	 * @return
+	 */
+	public static DefaultImageRegionStore createImageRegionStore() {
+		return createImageRegionStore(getTileCacheSizeBytes());
+	}
+	
+	
+	/**
+	 * Calculate the appropriate tile cache size based upon the user preferences.
+	 * @return tile cache size in bytes
+	 */
+	private static long getTileCacheSizeBytes() {
+		// Try to compute a sensible value...
+		Runtime rt = Runtime.getRuntime();
+		long maxAvailable = rt.maxMemory(); // Max available memory
+		if (maxAvailable == Long.MAX_VALUE) {
+			logger.warn("No inherent maximum memory set - for caching purposes, will assume 64 GB");
+			maxAvailable = 64L * 1024L * 1024L * 1024L;
+		}
+		double percentage = PathPrefs.tileCachePercentageProperty().get();
+		if (percentage < 10) {
+			logger.warn("At least 10% of available memory needs to be used for tile caching (you requested {}%)", percentage);
+			percentage = 10;
+		} else if (percentage > 90) {
+			logger.warn("No more than 90% of available memory can be used for tile caching (you requested {}%)", percentage);
+			percentage = 90;			
+		}
+		long tileCacheSize = Math.round(maxAvailable * (percentage / 100.0));
+		logger.info(String.format("Setting tile cache size to %.2f MB (%.1f%% max memory)", tileCacheSize/(1024.*1024.), percentage));
+		return tileCacheSize;
 	}
 	
 }

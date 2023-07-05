@@ -42,7 +42,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
-import qupath.lib.gui.tools.PaneTools;
+import qupath.fx.utils.GridPaneUtils;
 
 /**
  * Create a Find/Replace command window for a {@link ScriptEditorControl}.
@@ -127,11 +127,11 @@ class ScriptFindCommand implements Runnable {
 	    HBox.setHgrow(lbFoundOccurrences, Priority.ALWAYS);
 		
 		int row = 0;
-		PaneTools.addGridRow(pane, row++, 0, "Enter the text to find", new Label("Find: "), tfFind, tfFind, tfFind);
-		PaneTools.addGridRow(pane, row++, 0, "Replace instance of query with the specified word", new Label("Replace with: "), tfReplace, tfReplace, tfReplace);
-		PaneTools.addGridRow(pane, row++, 0, "Ignore case when searching query", cbIgnoreCase, cbIgnoreCase, cbIgnoreCase, cbIgnoreCase);
-		PaneTools.addGridRow(pane, row++, 0, null, btReplaceNext, btReplaceAll, lbReplacedOccurrences, lbReplacedOccurrences);
-		PaneTools.addGridRow(pane, row++, 0, null, btPrevious, btNext, lbFoundOccurrences, btClose);
+		GridPaneUtils.addGridRow(pane, row++, 0, "Enter the text to find", new Label("Find: "), tfFind, tfFind, tfFind);
+		GridPaneUtils.addGridRow(pane, row++, 0, "Replace instance of query with the specified word", new Label("Replace with: "), tfReplace, tfReplace, tfReplace);
+		GridPaneUtils.addGridRow(pane, row++, 0, "Ignore case when searching query", cbIgnoreCase, cbIgnoreCase, cbIgnoreCase, cbIgnoreCase);
+		GridPaneUtils.addGridRow(pane, row++, 0, null, btReplaceNext, btReplaceAll, lbReplacedOccurrences, lbReplacedOccurrences);
+		GridPaneUtils.addGridRow(pane, row++, 0, null, btPrevious, btNext, lbFoundOccurrences, btClose);
 		
 		btPrevious.setMinWidth(100.0);
 		btNext.setMinWidth(100.0);

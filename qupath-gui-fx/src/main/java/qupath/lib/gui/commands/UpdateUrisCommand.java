@@ -61,10 +61,11 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
+import qupath.fx.utils.FXUtils;
+import qupath.fx.dialogs.FileChoosers;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.gui.dialogs.Dialogs;
-import qupath.lib.gui.tools.GuiTools;
-import qupath.lib.gui.tools.PaneTools;
+import qupath.fx.dialogs.Dialogs;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.io.UriResource;
 import qupath.lib.io.UriUpdater;
 import qupath.lib.io.UriUpdater.SingleUriItem;
@@ -142,7 +143,7 @@ public class UpdateUrisCommand<T extends UriResource> {
 		dialog.getDialogPane().setContent(manager.getPane());
 		dialog.setTitle("Update URIs");
 		dialog.setResizable(true);
-		var btn = dialog.showAndWait().orElseGet(() -> ButtonType.CANCEL);
+		var btn = dialog.showAndWait().orElse(ButtonType.CANCEL);
 		if (btn.equals(ButtonType.CANCEL))
 			return -1;
 		
@@ -213,7 +214,7 @@ public class UpdateUrisCommand<T extends UriResource> {
 		Button btnSearch = new Button("Search...");
 		btnSearch.setTooltip(new Tooltip("Choose a directory & search recursively for images inside"));
 		btnSearch.setOnAction(e -> {
-			var dir = Dialogs.getChooser(GuiTools.getWindow(btnSearch)).promptForDirectory("Search directory", null);
+			var dir = FileChoosers.promptForDirectory(FXUtils.getWindow(btnSearch), "Search directory", null);
 			if (dir == null) {
 				logger.debug("Search for URIs cancelled!");
 				return;
@@ -223,15 +224,15 @@ public class UpdateUrisCommand<T extends UriResource> {
 		});
 
 		int row = 0;
-		PaneTools.addGridRow(pane, row++, 0, null, table, table, table);
-		PaneTools.addGridRow(pane, row++, 0, null, labelReplacements, labelReplacements, btnSearch);
-		PaneTools.addGridRow(pane, row, 0, null, cbValid);
-		PaneTools.addGridRow(pane, row, 1, null, cbMissing);
-		PaneTools.addGridRow(pane, row++, 2, null, cbUnknown);
+		GridPaneUtils.addGridRow(pane, row++, 0, null, table, table, table);
+		GridPaneUtils.addGridRow(pane, row++, 0, null, labelReplacements, labelReplacements, btnSearch);
+		GridPaneUtils.addGridRow(pane, row, 0, null, cbValid);
+		GridPaneUtils.addGridRow(pane, row, 1, null, cbMissing);
+		GridPaneUtils.addGridRow(pane, row++, 2, null, cbUnknown);
 
-		PaneTools.setFillWidth(Boolean.TRUE, cbValid, cbMissing, cbUnknown, labelReplacements, table);
-		PaneTools.setHGrowPriority(Priority.ALWAYS, cbValid, cbMissing, cbUnknown, labelReplacements, table);
-		PaneTools.setMaxWidth(Double.MAX_VALUE, cbValid, cbMissing, cbUnknown, labelReplacements, table);
+		GridPaneUtils.setFillWidth(Boolean.TRUE, cbValid, cbMissing, cbUnknown, labelReplacements, table);
+		GridPaneUtils.setHGrowPriority(Priority.ALWAYS, cbValid, cbMissing, cbUnknown, labelReplacements, table);
+		GridPaneUtils.setMaxWidth(Double.MAX_VALUE, cbValid, cbMissing, cbUnknown, labelReplacements, table);
 		GridPane.setHalignment(btnSearch, HPos.RIGHT);
 
 		pane.setHgap(5);
@@ -388,7 +389,7 @@ public class UpdateUrisCommand<T extends UriResource> {
 				return;
 			var uriReplacement = replacements.get(uriOriginal);
 			var defaultPath = uriReplacement == null ? uriOriginal.getURI().toString() : uriReplacement.getURI().toString();
-			String path = Dialogs.getChooser(GuiTools.getWindow(this)).promptForFilePathOrURL("Change URI", defaultPath, null, null);
+			String path = FileChoosers.promptForFilePathOrURI(FXUtils.getWindow(this), "Change URI", defaultPath, null, null);
 			if (path != null && !path.isBlank()) {
 				URI uri = null;
 				try {

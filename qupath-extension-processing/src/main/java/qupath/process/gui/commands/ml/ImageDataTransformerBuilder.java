@@ -41,9 +41,9 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.Spinner;
 import javafx.scene.layout.GridPane;
-import qupath.lib.gui.dialogs.Dialogs;
-import qupath.lib.gui.tools.GuiTools;
-import qupath.lib.gui.tools.PaneTools;
+import qupath.fx.utils.FXUtils;
+import qupath.fx.dialogs.Dialogs;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ColorTransforms;
 import qupath.lib.images.servers.ColorTransforms.ColorTransform;
@@ -269,8 +269,8 @@ abstract class ImageDataTransformerBuilder {
 			// Selected channels
 
 			var labelChannels = new Label("Channels");
-			comboChannels = new CheckComboBox<ColorTransform>();
-			GuiTools.installSelectAllOrNoneMenu(comboChannels);
+			comboChannels = new CheckComboBox<>();
+			FXUtils.installSelectAllOrNoneMenu(comboChannels);
 			//			var btnChannels = new Button("Select");
 			//			btnChannels.setOnAction(e -> selectChannels());
 			@SuppressWarnings("resource")
@@ -291,7 +291,7 @@ abstract class ImageDataTransformerBuilder {
 
 
 			var comboScales = new CheckComboBox<Double>();
-			GuiTools.installSelectAllOrNoneMenu(comboScales);
+			FXUtils.installSelectAllOrNoneMenu(comboScales);
 			var labelScales = new Label("Scales");
 			comboScales.getItems().addAll(0.5, 1.0, 2.0, 4.0, 8.0);
 			comboScales.getCheckModel().check(1);
@@ -302,7 +302,7 @@ abstract class ImageDataTransformerBuilder {
 
 
 			var comboFeatures = new CheckComboBox<MultiscaleFeature>();
-			GuiTools.installSelectAllOrNoneMenu(comboFeatures);
+			FXUtils.installSelectAllOrNoneMenu(comboFeatures);
 			var labelFeatures = new Label("Features");
 			comboFeatures.getItems().addAll(MultiscaleFeature.values());
 			comboFeatures.getCheckModel().check(MultiscaleFeature.GAUSSIAN);
@@ -328,8 +328,8 @@ abstract class ImageDataTransformerBuilder {
 			var spinnerNormalize = new Spinner<Double>(0.0, 32.0, 8.0, 1.0);
 			normalizationSigma = spinnerNormalize.valueProperty();
 			spinnerNormalize.setEditable(true);
-			GuiTools.restrictTextFieldInputToNumber(spinnerNormalize.getEditor(), true);
-			GuiTools.resetSpinnerNullToPrevious(spinnerNormalize);
+			FXUtils.restrictTextFieldInputToNumber(spinnerNormalize.getEditor(), true);
+			FXUtils.resetSpinnerNullToPrevious(spinnerNormalize);
 			spinnerNormalize.focusedProperty().addListener((v, o, n) -> {
 				if (spinnerNormalize.getEditor().getText().equals(""))
 					spinnerNormalize.getValueFactory().valueProperty().set(0.0);
@@ -339,18 +339,18 @@ abstract class ImageDataTransformerBuilder {
 //			do3D = cb3D.selectedProperty();
 
 
-			PaneTools.setMaxWidth(Double.MAX_VALUE, comboChannels, comboFeatures, comboScales,
+			GridPaneUtils.setMaxWidth(Double.MAX_VALUE, comboChannels, comboFeatures, comboScales,
 					comboNormalize, spinnerNormalize);
 
-			PaneTools.addGridRow(pane, row++, 0,
+			GridPaneUtils.addGridRow(pane, row++, 0,
 					"Choose the image channels used to calculate features",
 					labelChannels, comboChannels);		
 
-			PaneTools.addGridRow(pane, row++, 0,
+			GridPaneUtils.addGridRow(pane, row++, 0,
 					"Choose the feature scales",
 					labelScales, comboScales);		
 
-			PaneTools.addGridRow(pane, row++, 0,
+			GridPaneUtils.addGridRow(pane, row++, 0,
 					"Choose the features",
 					labelFeatures, comboFeatures);		
 
@@ -358,11 +358,11 @@ abstract class ImageDataTransformerBuilder {
 //					"Use 3D filters (rather than 2D)",
 //					cb3D, cb3D);	
 
-			PaneTools.addGridRow(pane, row++, 0,
+			GridPaneUtils.addGridRow(pane, row++, 0,
 					"Apply local intensity (Gaussian-weighted) normalization before calculating features",
 					labelNormalize, comboNormalize);
 			
-			PaneTools.addGridRow(pane, row++, 0,
+			GridPaneUtils.addGridRow(pane, row++, 0,
 					"Amount of smoothing to apply for local normalization",
 					labelNormalizeScale, spinnerNormalize);
 

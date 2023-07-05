@@ -254,7 +254,7 @@ public class PixelClassificationMeasurementManager {
 	        // Skip tiles that don't intersect with the ROI shape
 	        if (shape != null) {
 	        	var shapeTemp = shape;
-	        	requests = requests.stream().filter(r -> mayIntersectTile(shapeTemp, r, r.getDownsample())).collect(Collectors.toList());
+	        	requests = requests.stream().filter(r -> mayIntersectTile(shapeTemp, r, r.getDownsample())).toList();
 	        }
         } else
         	requests = Collections.emptyList();

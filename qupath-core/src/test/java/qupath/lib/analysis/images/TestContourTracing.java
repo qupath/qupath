@@ -33,7 +33,6 @@ import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
-import java.util.stream.Collectors;
 import javax.imageio.ImageIO;
 
 import org.junit.jupiter.params.ParameterizedTest;
@@ -75,7 +74,7 @@ public class TestContourTracing {
 				.filter(p -> usePath(p))
 				.sorted(Comparator.comparingLong(p -> getSize(p)))
 				.map(p -> Arguments.of(p))
-				.collect(Collectors.toList());
+				.toList();
 
 	}
 	

@@ -68,6 +68,7 @@ import javafx.scene.control.ToggleButton;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.stage.Stage;
+import qupath.fx.utils.FXUtils;
 import qupath.lib.analysis.heatmaps.ColorModels;
 import qupath.lib.analysis.heatmaps.DensityMaps;
 import qupath.lib.analysis.heatmaps.ColorModels.ColorModelBuilder;
@@ -80,8 +81,8 @@ import qupath.lib.common.ThreadTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.images.stores.ColorModelRenderer;
 import qupath.lib.gui.images.stores.ImageRenderer;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.gui.tools.GuiTools;
-import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.viewer.ImageInterpolation;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.QuPathViewerListener;
@@ -155,18 +156,18 @@ public class DensityMapDialog {
 		var titledPaneParams = new TitledPane("Create density map", paneParams);
 		titledPaneParams.setExpanded(true);
 		titledPaneParams.setCollapsible(false);
-		PaneTools.simplifyTitledPane(titledPaneParams, true);
+		FXUtils.simplifyTitledPane(titledPaneParams, true);
 		
 		var paneDisplay = buildDisplayPane(colorModelBuilder);
 		
 		var titledPaneDisplay = new TitledPane("Customize appearance", paneDisplay);
 		titledPaneDisplay.setExpanded(false);
-		PaneTools.simplifyTitledPane(titledPaneDisplay, true);
+		FXUtils.simplifyTitledPane(titledPaneDisplay, true);
 		
 		var pane = createGridPane();
 		int row = 0;
-		PaneTools.addGridRow(pane, row++, 0, null, titledPaneParams, titledPaneParams, titledPaneParams);			
-		PaneTools.addGridRow(pane, row++, 0, null, titledPaneDisplay, titledPaneDisplay, titledPaneDisplay);
+		GridPaneUtils.addGridRow(pane, row++, 0, null, titledPaneParams, titledPaneParams, titledPaneParams);
+		GridPaneUtils.addGridRow(pane, row++, 0, null, titledPaneDisplay, titledPaneDisplay, titledPaneDisplay);
 
 		
 		var btnAutoUpdate = new ToggleButton("Live update");
@@ -174,17 +175,17 @@ public class DensityMapDialog {
 		btnAutoUpdate.setMaxWidth(Double.MAX_VALUE);
 		btnAutoUpdate.selectedProperty().bindBidirectional(densityMapBuilder.autoUpdate);
 		
-		PaneTools.addGridRow(pane, row++, 0, "Automatically update the density map. "
+		GridPaneUtils.addGridRow(pane, row++, 0, "Automatically update the density map. "
 				+ "Turn this off if changing parameters and heatmap generation is slow.", btnAutoUpdate, btnAutoUpdate, btnAutoUpdate);
 		
 		var densityMapName = new SimpleStringProperty();
 		var savePane = DensityMapUI.createSaveDensityMapPane(qupath.projectProperty(), combinedBuilder, densityMapName);
-		PaneTools.addGridRow(pane, row++, 0, null, savePane, savePane, savePane);
-		PaneTools.setToExpandGridPaneWidth(savePane);
+		GridPaneUtils.addGridRow(pane, row++, 0, null, savePane, savePane, savePane);
+		GridPaneUtils.setToExpandGridPaneWidth(savePane);
 
 		var buttonPane = DensityMapUI.createButtonPane(qupath, qupath.imageDataProperty(), combinedBuilder, densityMapName, Bindings.createObjectBinding(() -> manager == null ? null : manager.overlay), true);
-		PaneTools.addGridRow(pane, row++, 0, null, buttonPane, buttonPane, buttonPane);
-		PaneTools.setToExpandGridPaneWidth(btnAutoUpdate, buttonPane);
+		GridPaneUtils.addGridRow(pane, row++, 0, null, buttonPane, buttonPane, buttonPane);
+		GridPaneUtils.setToExpandGridPaneWidth(btnAutoUpdate, buttonPane);
 
 		pane.setPadding(new Insets(10));
 
@@ -234,14 +235,14 @@ public class DensityMapDialog {
 		params.allObjectTypes.bind(comboObjectType.getSelectionModel().selectedItemProperty());
 
 		ComboBox<PathClass> comboAllObjects = new ComboBox<>(createObservablePathClassList(DensityMapUI.ANY_CLASS));
-		comboAllObjects.setButtonCell(GuiTools.createCustomListCell(p -> classificationText(p)));
-		comboAllObjects.setCellFactory(c -> GuiTools.createCustomListCell(p -> classificationText(p)));
+		comboAllObjects.setButtonCell(FXUtils.createCustomListCell(p -> classificationText(p)));
+		comboAllObjects.setCellFactory(c -> FXUtils.createCustomListCell(p -> classificationText(p)));
 		params.allObjectClass.bind(comboAllObjects.getSelectionModel().selectedItemProperty());
 		comboAllObjects.getSelectionModel().selectFirst();
 		
 		ComboBox<PathClass> comboPrimary = new ComboBox<>(createObservablePathClassList(DensityMapUI.ANY_CLASS, DensityMapUI.ANY_POSITIVE_CLASS));
-		comboPrimary.setButtonCell(GuiTools.createCustomListCell(p -> classificationText(p)));
-		comboPrimary.setCellFactory(c -> GuiTools.createCustomListCell(p -> classificationText(p)));
+		comboPrimary.setButtonCell(FXUtils.createCustomListCell(p -> classificationText(p)));
+		comboPrimary.setCellFactory(c -> FXUtils.createCustomListCell(p -> classificationText(p)));
 		params.densityObjectClass.bind(comboPrimary.getSelectionModel().selectedItemProperty());
 		comboPrimary.getSelectionModel().selectFirst();
 		
@@ -254,29 +255,29 @@ public class DensityMapDialog {
 		int row = 0;
 		
 		var labelObjects = createTitleLabel("Choose all objects to include");
-		PaneTools.addGridRow(pane, row++, 0, null, labelObjects, labelObjects, labelObjects);
+		GridPaneUtils.addGridRow(pane, row++, 0, null, labelObjects, labelObjects, labelObjects);
 		
-		PaneTools.addGridRow(pane, row++, 0, "Select objects used to generate the density map.\n"
+		GridPaneUtils.addGridRow(pane, row++, 0, "Select objects used to generate the density map.\n"
 				+ "Use 'All detections' to include all detection objects (including cells and tiles).\n"
 				+ "Use 'All cells' to include cell objects only.\n"
 				+ "Use 'Point annotations' to use annotated points rather than detections.",
 				new Label("Object type"), comboObjectType, comboObjectType);
 		
-		PaneTools.addGridRow(pane, row++, 0, "Select object classifications to include.\n"
+		GridPaneUtils.addGridRow(pane, row++, 0, "Select object classifications to include.\n"
 				+ "Use this to filter out detections that should not contribute to the density map at all.\n"
 				+ "For example, this can be used to selectively consider tumor cells and ignore everything else.\n"
 				+ "If used in combination with 'Secondary class' and 'Density type: Objects %', the 'Secondary class' defines the numerator and the 'Main class' defines the denominator.",
 				new Label("Main class"), comboAllObjects, comboAllObjects);
 
 		var labelDensities = createTitleLabel("Define density map");
-		PaneTools.addGridRow(pane, row++, 0, null, labelDensities);
+		GridPaneUtils.addGridRow(pane, row++, 0, null, labelDensities);
 		
-		PaneTools.addGridRow(pane, row++, 0, "Calculate the density of objects containing a specified classification.\n"
+		GridPaneUtils.addGridRow(pane, row++, 0, "Calculate the density of objects containing a specified classification.\n"
 				+ "If used in combination with 'Main class' and 'Density type: Objects %', the 'Secondary class' defines the numerator and the 'Main class' defines the denominator.\n"
 				+ "For example, choose 'Main class: Tumor', 'Secondary class: Positive' and 'Density type: Objects %' to define density as the proportion of tumor cells that are positive.",
 				new Label("Secondary class"), comboPrimary, comboPrimary);
 		
-		PaneTools.addGridRow(pane, row++, 0, "Select method of normalizing densities.\n"
+		GridPaneUtils.addGridRow(pane, row++, 0, "Select method of normalizing densities.\n"
 				+ "Choose whether to show raw counts, or normalize densities by area or the number of objects locally.\n"
 				+ "This can be used to distinguish between the total number of objects in an area with a given classification, "
 				+ "and the proportion of objects within the area with that classification.\n"
@@ -291,12 +292,12 @@ public class DensityMapDialog {
 		
 		boolean expandSliderLimits = true;
 		
-		GuiTools.bindSliderAndTextField(sliderRadius, tfRadius, expandSliderLimits, 2);
+		FXUtils.bindSliderAndTextField(sliderRadius, tfRadius, expandSliderLimits, 2);
 		GuiTools.installRangePrompt(sliderRadius);
-		PaneTools.addGridRow(pane, row++, 0, "Select smoothing radius used to calculate densities.\n"
+		GridPaneUtils.addGridRow(pane, row++, 0, "Select smoothing radius used to calculate densities.\n"
 				+ "This is defined in calibrated pixel units (e.g. " + GeneralTools.micrometerSymbol() + " if available).", new Label("Density radius"), sliderRadius, tfRadius);
 		
-		PaneTools.setToExpandGridPaneWidth(comboObjectType, comboPrimary, comboAllObjects, comboDensityType, sliderRadius);
+		GridPaneUtils.setToExpandGridPaneWidth(comboObjectType, comboPrimary, comboAllObjects, comboDensityType, sliderRadius);
 
 		return pane;
 	}
@@ -318,8 +319,8 @@ public class DensityMapDialog {
 		
 		// Colormap
 		var labelColormap = createTitleLabel("Colors");
-		PaneTools.addGridRow(paneDisplay, rowDisplay++, 0, "Customize the colors of the density map", labelColormap, labelColormap, labelColormap);			
-		PaneTools.addGridRow(paneDisplay, rowDisplay++, 0, "Choose the colormap to use for display", new Label("Colormap"), comboColorMap, comboColorMap);
+		GridPaneUtils.addGridRow(paneDisplay, rowDisplay++, 0, "Customize the colors of the density map", labelColormap, labelColormap, labelColormap);
+		GridPaneUtils.addGridRow(paneDisplay, rowDisplay++, 0, "Choose the colormap to use for display", new Label("Colormap"), comboColorMap, comboColorMap);
 
 		var spinnerGrid = new GridPane();
 		int spinnerRow = 0;
@@ -333,10 +334,10 @@ public class DensityMapDialog {
 		toggleAuto.selectedProperty().bindBidirectional(displayParams.autoUpdateDisplayRange);
 		spinnerMin.disableProperty().bind(toggleAuto.selectedProperty());
 		spinnerMax.disableProperty().bind(toggleAuto.selectedProperty());
-		PaneTools.setToExpandGridPaneWidth(spinnerMin, spinnerMax);
+		GridPaneUtils.setToExpandGridPaneWidth(spinnerMin, spinnerMax);
 		
-		PaneTools.addGridRow(spinnerGrid, spinnerRow++, 0, null, new Label("Min"), spinnerMin, new Label("Max"), spinnerMax, toggleAuto);
-		PaneTools.addGridRow(paneDisplay, rowDisplay++, 0, 
+		GridPaneUtils.addGridRow(spinnerGrid, spinnerRow++, 0, null, new Label("Min"), spinnerMin, new Label("Max"), spinnerMax, toggleAuto);
+		GridPaneUtils.addGridRow(paneDisplay, rowDisplay++, 0,
 				"Set the min/max density values for the colormap.\n"
 				+ "This determines how the colors in the colormap relate to density values.\n"
 				+ "Choose 'Auto' to assign colors based upon the full range of the values in the current density map.",
@@ -344,7 +345,7 @@ public class DensityMapDialog {
 
 		// Alpha
 		var labelAlpha = createTitleLabel("Opacity");
-		PaneTools.addGridRow(paneDisplay, rowDisplay++, 0, "Customize the opacity (alpha) of the density map.\n"
+		GridPaneUtils.addGridRow(paneDisplay, rowDisplay++, 0, "Customize the opacity (alpha) of the density map.\n"
 				+ "Note that this is based upon the count of all objects.", labelAlpha, labelAlpha, labelAlpha);			
 		
 		var spinnerGridAlpha = new GridPane();
@@ -359,11 +360,11 @@ public class DensityMapDialog {
 		toggleAutoAlpha.selectedProperty().bindBidirectional(displayParams.autoUpdateAlphaRange);
 		spinnerMinAlpha.disableProperty().bind(toggleAutoAlpha.selectedProperty());
 		spinnerMaxAlpha.disableProperty().bind(toggleAutoAlpha.selectedProperty());
-		PaneTools.setToExpandGridPaneWidth(spinnerMinAlpha, spinnerMaxAlpha);
+		GridPaneUtils.setToExpandGridPaneWidth(spinnerMinAlpha, spinnerMaxAlpha);
 //		PaneTools.setToExpandGridPaneWidth(toggleAutoAlpha);
 
-		PaneTools.addGridRow(spinnerGridAlpha, spinnerRow++, 0, null, new Label("Min"), spinnerMinAlpha, new Label("Max"), spinnerMaxAlpha, toggleAutoAlpha);
-		PaneTools.addGridRow(paneDisplay, rowDisplay++, 0,
+		GridPaneUtils.addGridRow(spinnerGridAlpha, spinnerRow++, 0, null, new Label("Min"), spinnerMinAlpha, new Label("Max"), spinnerMaxAlpha, toggleAutoAlpha);
+		GridPaneUtils.addGridRow(paneDisplay, rowDisplay++, 0,
 				"Set the min/max density values for the opacity range.\n"
 				+ "This can used in combination with 'Gamma' to adjust the opacity according to the "
 				+ "number or density of objects. Use 'Auto' to use the full display range for the current image.",
@@ -373,34 +374,34 @@ public class DensityMapDialog {
 		sliderGamma.valueProperty().bindBidirectional(displayParams.gamma);
 		initializeSliderSnapping(sliderGamma, 0.1, 1, 0.1);
 		var tfGamma = createTextField();
-		GuiTools.bindSliderAndTextField(sliderGamma, tfGamma, false, 1);
-		PaneTools.addGridRow(paneDisplay, rowDisplay++, 0,
+		FXUtils.bindSliderAndTextField(sliderGamma, tfGamma, false, 1);
+		GridPaneUtils.addGridRow(paneDisplay, rowDisplay++, 0,
 				"Control how the opacity of the density map changes between min & max values.\n"
 				+ "Choose zero for an opaque map.", new Label("Gamma"), sliderGamma, tfGamma);
 
 		// Interpolation
 		var labelSmoothness = createTitleLabel("Smoothness");
-		PaneTools.addGridRow(paneDisplay, rowDisplay++, 0, "Customize density map interpolation (visual smoothness)", labelSmoothness);			
+		GridPaneUtils.addGridRow(paneDisplay, rowDisplay++, 0, "Customize density map interpolation (visual smoothness)", labelSmoothness);
 		
-		PaneTools.addGridRow(paneDisplay, rowDisplay++, 0, "Choose how the density map should be interpolated.\n"
+		GridPaneUtils.addGridRow(paneDisplay, rowDisplay++, 0, "Choose how the density map should be interpolated.\n"
 				+ "This impacts the visual smoothness, especially if the density radius is small and the image is viewed while zoomed in.", new Label("Interpolation"), comboInterpolation, comboInterpolation);
 
 		comboInterpolation.getItems().setAll(ImageInterpolation.values());
 		comboInterpolation.getSelectionModel().select(ImageInterpolation.NEAREST);
 		interpolation.bind(comboInterpolation.getSelectionModel().selectedItemProperty());
 
-		PaneTools.setToExpandGridPaneWidth(comboColorMap, comboInterpolation, sliderGamma);
+		GridPaneUtils.setToExpandGridPaneWidth(comboColorMap, comboInterpolation, sliderGamma);
 		
 		return paneDisplay;
 	}
 	
 	Spinner<Double> createSpinner(ObjectProperty<Double> property, double step) {
-		var spinner = GuiTools.createDynamicStepSpinner(0, Double.MAX_VALUE, 1, 0.1, 1);
+		var spinner = FXUtils.createDynamicStepSpinner(0, Double.MAX_VALUE, 1, 0.1, 1);
 		property.bindBidirectional(spinner.getValueFactory().valueProperty());
 		spinner.setEditable(true);
 		spinner.getEditor().setPrefColumnCount(6);
-		GuiTools.restrictTextFieldInputToNumber(spinner.getEditor(), true);
-		GuiTools.resetSpinnerNullToPrevious(spinner);
+		FXUtils.restrictTextFieldInputToNumber(spinner.getEditor(), true);
+		FXUtils.resetSpinnerNullToPrevious(spinner);
 		return spinner;
 	}
 	
@@ -835,22 +836,28 @@ public class DensityMapDialog {
 			overlay = PixelClassificationOverlay.create(options, classifierServerMap, renderer.getValue());
 			updateViewers();
 			overlay.interpolationProperty().bind(interpolation);
-			overlay.interpolationProperty().addListener((v, o, n) -> qupath.repaintViewers());
+			overlay.interpolationProperty().addListener((v, o, n) -> repaintAllViewers());
 
 			overlay.rendererProperty().bind(renderer);
-			renderer.addListener((v, o, n) -> qupath.repaintViewers());
+			renderer.addListener((v, o, n) -> repaintAllViewers());
 
 			overlay.setLivePrediction(true);
 			builder.addListener((v, o, n) -> updateDensityServers());
 			updateDensityServers();
 		}
+		
+		
+		private void repaintAllViewers() {
+			qupath.getViewerManager().repaintAllViewers();
+		}
+		
 
 		/**
 		 * Ensure the overlay is present on all viewers
 		 */
 		void updateViewers() {
 			logger.trace("Updating density server for all viewers");
-			for (var viewer : qupath.getViewers()) {
+			for (var viewer : qupath.getAllViewers()) {
 				viewer.setCustomPixelLayerOverlay(overlay);
 				if (!currentViewers.contains(viewer)) {
 					viewer.addViewerListener(this);
@@ -868,7 +875,7 @@ public class DensityMapDialog {
 		public void hierarchyChanged(PathObjectHierarchyEvent event) {
 			if (event.isChanging())
 				return;
-			qupath.getViewers().stream().filter(v -> v.getHierarchy() == event.getHierarchy()).forEach(v -> updateDensityServer(v));
+			qupath.getAllViewers().stream().filter(v -> v.getHierarchy() == event.getHierarchy()).forEach(v -> updateDensityServer(v));
 		}
 
 		@Override
@@ -887,7 +894,7 @@ public class DensityMapDialog {
 
 		private void updateDensityServers() {
 			classifierServerMap.clear(); // TODO: Check if this causes any flickering
-			for (var viewer : qupath.getViewers()) {
+			for (var viewer : qupath.getAllViewers()) {
 				updateDensityServer(viewer);
 			}
 		}
@@ -951,7 +958,7 @@ public class DensityMapDialog {
 		public void shutdown() {
 			tasks.values().stream().forEach(t -> t.cancel(true));
 			pool.shutdown();
-			for (var viewer : qupath.getViewers()) {
+			for (var viewer : qupath.getAllViewers()) {
 				imageDataChanged(viewer, viewer.getImageData(), null);
 				viewer.removeViewerListener(this);
 				if (viewer.getCustomPixelLayerOverlay() == overlay)

@@ -25,13 +25,14 @@ package qupath.imagej.gui;
 
 import ij.gui.Roi;
 import java.util.List;
-import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import qupath.fx.dialogs.FileChoosers;
 import qupath.imagej.tools.IJTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.fx.dialogs.Dialogs;
+import qupath.lib.gui.tools.GuiTools;
 
 /**
  * Import ROIs from ImageJ, saved in .roi or .zip format.
@@ -67,11 +68,12 @@ class ImportRoisCommand implements Runnable {
 		var viewer = qupath.getViewer();
 		var imageData = viewer == null ? null : viewer.getImageData();
 		if (imageData == null) {
-			Dialogs.showNoImageError(getName());
+			GuiTools.showNoImageError(getName());
 			return;
 		}
 		
-		var files = Dialogs.promptForMultipleFiles("ImageJ ROIs", null, "ImageJ ROI files", ".roi", ".zip");
+		var files = FileChoosers.promptForMultipleFiles("ImageJ ROIs",
+				FileChoosers.createExtensionFilter("ImageJ ROI files", "*.roi", "*.zip"));
 		if (files == null) {
 			logger.info("No ImageJ ROI files selected for import");
 			return;
@@ -80,7 +82,7 @@ class ImportRoisCommand implements Runnable {
 		List<Roi> rois = files.stream()
 				.filter(f -> IJTools.containsImageJRois(f))
 				.flatMap(f -> IJTools.readImageJRois(f).stream())
-				.collect(Collectors.toList());
+				.toList();
 		
 		if (rois.isEmpty()) {
 			Dialogs.showInfoNotification(getName(), "No ROIs found in selected files");
@@ -91,7 +93,7 @@ class ImportRoisCommand implements Runnable {
 		double downsample = 1.0;
 		double xOrigin = 0.0;
 		double yOrigin = 0.0;
-		var pathObjects = rois.stream().map(r -> IJTools.convertToAnnotation(r, xOrigin, yOrigin, downsample, null)).collect(Collectors.toList());
+		var pathObjects = rois.stream().map(r -> IJTools.convertToAnnotation(r, xOrigin, yOrigin, downsample, null)).toList();
 
 		var hierarchy = imageData.getHierarchy();
 		hierarchy.addObjects(pathObjects);

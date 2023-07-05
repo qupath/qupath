@@ -107,7 +107,7 @@ class MemoryMonitorDialog {
 		xAxis.setLabel("Time (seconds)");
 		var yAxis = new NumberAxis();
 		yAxis.setLabel("Memory (GB)");
-		var chart = new AreaChart<Number, Number>(xAxis, yAxis);
+		var chart = new AreaChart<>(xAxis, yAxis);
 		yAxis.setAutoRanging(false);
 		yAxis.setLowerBound(0.0);
 		yAxis.setTickUnit(1.0);
@@ -141,7 +141,7 @@ class MemoryMonitorDialog {
 				qupath.getViewer().getImageRegionStore().clearCache();
 				System.gc();
 			} catch (Exception e2) {
-				logger.error("Error clearing cache", e);
+				logger.error("Error clearing cache", e2);
 			}
 		});
 		btnClearCache.setMaxWidth(Double.MAX_VALUE);
@@ -159,7 +159,7 @@ class MemoryMonitorDialog {
 				qupath.getUndoRedoManager().clear();
 				System.gc();
 			} catch (Exception e2) {
-				logger.error("Error undo/redo", e);
+				logger.error("Error undo/redo", e2);
 			}
 		});
 		btnClearUndoRedo.setMaxWidth(Double.MAX_VALUE);
@@ -261,8 +261,8 @@ class MemoryMonitorDialog {
 			cachedTiles.set(n.cachedTiles);
 			
 			long time = (timeMillis.get() - startTimeMillis) / 1000;
-			seriesUsed.getData().add(new XYChart.Data<Number, Number>(time, usedMemory.get()*scaleGB));
-			seriesTotal.getData().add(new XYChart.Data<Number, Number>(time, totalMemory.get()*scaleGB));
+			seriesUsed.getData().add(new XYChart.Data<>(time, usedMemory.get() * scaleGB));
+			seriesTotal.getData().add(new XYChart.Data<>(time, totalMemory.get() * scaleGB));
 		});
 
 		// Show the GUI
@@ -291,8 +291,8 @@ class MemoryMonitorDialog {
 	 */
 	void snapshot() {
 		var time = seriesUsed.getData().size() + 1;
-		seriesUsed.getData().add(new XYChart.Data<Number, Number>(time, usedMemory.get()*scaleGB));
-		seriesTotal.getData().add(new XYChart.Data<Number, Number>(time, totalMemory.get()*scaleGB));
+		seriesUsed.getData().add(new XYChart.Data<>(time, usedMemory.get() * scaleGB));
+		seriesTotal.getData().add(new XYChart.Data<>(time, totalMemory.get() * scaleGB));
 	}
 	
 	
@@ -300,12 +300,12 @@ class MemoryMonitorDialog {
 
 		@Override
 		protected Task<MemorySnapshot> createTask() {
-			return new Task<MemoryMonitorDialog.MemorySnapshot>() {
-				@Override
-				protected MemorySnapshot call() {
-					return new MemorySnapshot(qupath, Runtime.getRuntime());
-				}
-			};
+			return new Task<>() {
+                @Override
+                protected MemorySnapshot call() {
+                    return new MemorySnapshot(qupath, Runtime.getRuntime());
+                }
+            };
 		}
 		
 	}

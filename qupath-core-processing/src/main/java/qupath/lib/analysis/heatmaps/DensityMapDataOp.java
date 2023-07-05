@@ -32,7 +32,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import org.bytedeco.javacpp.indexer.DoubleIndexer;
@@ -244,7 +243,7 @@ class DensityMapDataOp implements ImageDataOp {
 		var allPathObjects = imageData.getHierarchy().getObjectsForRegion(null, request, null)
 				.stream()
 				.filter(allObjects)
-				.collect(Collectors.toList());
+				.toList();
 		
 		// TODO: Consider if we can optimize things when there are no objects
 //		if (allPathObjects.isEmpty())
@@ -272,7 +271,7 @@ class DensityMapDataOp implements ImageDataOp {
 					.stream()
 					.filter(predicate)
 					.map(p -> PathObjectTools.getROI(p, true))
-					.collect(Collectors.toList());
+					.toList();
 			
 			var points = objectsToPoints(primaryROIs);
 			incrementCounts(idx, points, request, width, height, c);
@@ -284,7 +283,7 @@ class DensityMapDataOp implements ImageDataOp {
 			var allObjectROIs = allPathObjects
 					.stream()
 					.map(p -> PathObjectTools.getROI(p, true))
-					.collect(Collectors.toList());
+					.toList();
 			var points = objectsToPoints(allObjectROIs);
 			incrementCounts(idx, points, request, width, height, c);
 			c++;

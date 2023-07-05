@@ -35,8 +35,9 @@ import javafx.scene.control.ButtonType;
 import javafx.scene.control.Dialog;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Pane;
+import qupath.fx.dialogs.FileChoosers;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.ParameterPanelFX;
 import qupath.lib.gui.panes.ProjectBrowser;
 import qupath.lib.plugins.parameters.ParameterList;
@@ -240,7 +241,8 @@ public class SplitProjectTrainingCommand implements Runnable {
 				if ("file".equals(project.getURI().getScheme()))
 					fileOrig = Paths.get(project.getURI()).toFile();
 				else {
-					fileOrig = Dialogs.promptToSaveFile("Project file", null, null, "QuPath project", ext);
+					fileOrig = FileChoosers.promptToSaveFile("Project file", null,
+							FileChoosers.createExtensionFilter("QuPath project", ext));
 					if (fileOrig == null) {
 						// Save the main project
 						ProjectBrowser.syncProject(project);

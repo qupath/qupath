@@ -134,7 +134,7 @@ class GroovySyntax extends GeneralCodeSyntax {
 			control.insertText(caretPos, insertText);
 			control.deleteText(control.getCaretPosition(), control.getCaretPosition() + lineRemainder.length());
 			control.positionCaret(finalPos);
-		} else if (!trimmedSubString.endsWith("{")) {
+		} else {
 			if (trimmedSubString.matches(ifStatementPattern) || trimmedSubString.matches(elseStatementPattern)) {	// Start of a one-line if/else statement
 				insertText = "\n" + subString.substring(0, ind) + tabString;
 				control.insertText(caretPos, insertText);

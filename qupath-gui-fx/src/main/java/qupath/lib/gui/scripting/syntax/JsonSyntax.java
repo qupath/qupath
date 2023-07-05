@@ -61,7 +61,7 @@ class JsonSyntax extends GeneralCodeSyntax {
 		try {
 			return gson.toJson(gson.fromJson(text, JsonElement.class));
 		} catch (JsonSyntaxException ex) {
-			logger.warn("Could not beautify this JSON text", ex.getLocalizedMessage());
+			logger.warn("Could not beautify this JSON text", ex);
 			return text;
 		}
 	}
@@ -81,7 +81,7 @@ class JsonSyntax extends GeneralCodeSyntax {
 		try {
 			return gsonCompress.toJson(gsonCompress.fromJson(text, JsonElement.class));
 		} catch (JsonSyntaxException ex) {
-			logger.warn("Could not compress this JSON text", ex.getLocalizedMessage());
+			logger.warn("Could not compress this JSON text", ex);
 			return text;
 		}
 	}

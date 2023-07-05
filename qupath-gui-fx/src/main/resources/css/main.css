@@ -56,3 +56,35 @@
     -fx-background-color: -fx-base;
     -fx-text-fill: -fx-text-base-color;
 }
+
+/* Style a minimal colorpicker (just a clickable square) */
+.minimal-color-picker {
+  -fx-color-label-visible: false;
+  -fx-background-color: null;
+}
+
+.minimal-color-picker > .color-picker-label {
+  -fx-padding: 0;
+}
+
+.minimal-color-picker:hover {
+  -fx-effect: dropshadow(two-pass-box , rgba(0, 0, 0, 0.2), 5, 0.0 , 0, 2);
+}
+
+.minimal-color-picker:focused {
+  -fx-background-color: null;
+  -fx-background-radius: 0;
+}
+
+.minimal-color-picker > .color-picker-label > .picker-color > .picker-color-rect {
+  -fx-stroke: null;
+}
+
+/* Set opacity for 1, even if the control is disabled (usually sets opacity to 0.4) */
+.always-opaque,
+.always-opaque:hover,
+.always-opaque:focused,
+.always-opaque:disabled,
+.always-opaque:disabled > * {
+  -fx-opacity: 1;
+}

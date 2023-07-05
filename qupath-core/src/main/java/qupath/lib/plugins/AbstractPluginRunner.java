@@ -32,8 +32,6 @@ import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.stream.Collectors;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -89,7 +87,7 @@ public abstract class AbstractPluginRunner<T> implements PluginRunner<T> {
 		// Ensure we have a pool
 		if (pool == null || pool.isShutdown()) {
 			int n = ThreadTools.getParallelism();
-			pool = Executors.newFixedThreadPool(n, ThreadTools.createThreadFactory("plugin-runner-"+(+counter)+"-", false));
+			pool = Executors.newFixedThreadPool(n, ThreadTools.createThreadFactory("plugin-runner-"+(++counter)+"-", false));
 			logger.debug("New threadpool created with {} threads", n);
 			service = new ExecutorCompletionService<>(pool);
 		} else if (service == null)
@@ -107,7 +105,7 @@ public abstract class AbstractPluginRunner<T> implements PluginRunner<T> {
 		awaitCompletion();
 		
 		// Post-process any PathTasks
-		postProcess(tasks.stream().filter(t -> t instanceof PathTask).map(t -> (PathTask)t).collect(Collectors.toList()));
+		postProcess(tasks.stream().filter(t -> t instanceof PathTask).map(t -> (PathTask)t).toList());
 		
 		getImageData().getHierarchy().fireHierarchyChangedEvent(this);
 	}

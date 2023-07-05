@@ -38,8 +38,6 @@ import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
-import java.util.stream.Collectors;
-
 import org.bytedeco.javacpp.PointerScope;
 import org.bytedeco.opencv.global.opencv_core;
 import org.slf4j.Logger;
@@ -492,7 +490,7 @@ public class DensityMaps {
 	 */
 	public static boolean threshold(PathObjectHierarchy hierarchy, ImageServer<BufferedImage> densityServer, Map<Integer, ? extends Number> thresholds, String pathClassName, CreateObjectOptions... options) throws IOException {
 
-		logger.debug("Thresholding {} with thresholds {}, options", densityServer, thresholds, Arrays.asList(options));
+		logger.debug("Thresholding {} with thresholds {}, options {}", densityServer, thresholds, Arrays.asList(options));
 
 		// Apply threshold to densities
 		PathClass lessThan = PathClass.StandardPathClasses.IGNORE;
@@ -504,7 +502,7 @@ public class DensityMaps {
 		if (optionsList.contains(CreateObjectOptions.DELETE_EXISTING)) {
 			Collection<PathObject> toRemove;
 			if (hierarchy.getSelectionModel().noSelection())
-				toRemove = hierarchy.getAnnotationObjects().stream().filter(p -> p.getPathClass() == greaterThan).collect(Collectors.toList());
+				toRemove = hierarchy.getAnnotationObjects().stream().filter(p -> p.getPathClass() == greaterThan).toList();
 			else {
 				toRemove = new HashSet<>();
 				var selectedObjects = new LinkedHashSet<>(hierarchy.getSelectionModel().getSelectedObjects());
@@ -566,7 +564,7 @@ public class DensityMaps {
 			toDelete.addAll(hierarchy.getAnnotationObjects()
 					.stream()
 					.filter(p -> p.getPathClass() == hotspotClass && p.isAnnotation() && p.getName() != null && p.getName().startsWith("Hotspot"))
-					.collect(Collectors.toList()));
+					.toList());
 		}
 
 		
@@ -633,7 +631,7 @@ public class DensityMaps {
 				
 				// Try to get as many maxima as we need
 				// Impose minimum separation
-				var points = maxima.stream().map(p -> new Point2(p.getX()*downsample, p.getY()*downsample)).collect(Collectors.toList());
+				var points = maxima.stream().map(p -> new Point2(p.getX()*downsample, p.getY()*downsample)).toList();
 				var hotspotCentroids = new ArrayList<Point2>();
 				double distSqThreshold = radiusPixels * radiusPixels * 4;
 				for (var p : points) {

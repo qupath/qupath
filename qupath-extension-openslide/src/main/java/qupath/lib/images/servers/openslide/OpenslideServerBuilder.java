@@ -169,7 +169,7 @@ public class OpenslideServerBuilder implements ImageServerBuilder<BufferedImage>
 
 	@Override
 	public String getDescription() {
-		return "Provides basic access to whole slide image formats supported by OpenSlide - see http://openslide.org";
+		return "Provides basic access to whole slide image formats supported by OpenSlide - see https://openslide.org";
 	}
 	
 	@Override

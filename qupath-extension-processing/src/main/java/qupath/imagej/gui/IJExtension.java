@@ -56,14 +56,13 @@ import java.util.List;
 import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.function.Predicate;
-import java.util.stream.Collectors;
-
 import javax.swing.SwingUtilities;
 
 import org.controlsfx.control.action.Action;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import qupath.fx.dialogs.FileChoosers;
 import qupath.imagej.detect.cells.PositiveCellDetection;
 import qupath.imagej.detect.cells.SubcellularDetection;
 import qupath.imagej.detect.cells.WatershedCellDetection;
@@ -78,13 +77,14 @@ import qupath.lib.awt.common.AwtTools;
 import qupath.lib.color.ColorToolsAwt;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.Version;
-import qupath.lib.gui.ActionTools;
-import qupath.lib.gui.ActionTools.ActionDescription;
-import qupath.lib.gui.ActionTools.ActionIcon;
-import qupath.lib.gui.ActionTools.ActionMenu;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.lib.gui.actions.ActionTools;
+import qupath.lib.gui.actions.annotations.ActionConfig;
+import qupath.lib.gui.actions.annotations.ActionIcon;
+import qupath.lib.gui.actions.annotations.ActionMenu;
+import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.extensions.QuPathExtension;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.tools.IconFactory.PathIcons;
@@ -100,6 +100,7 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
+import qupath.lib.plugins.PathPlugin;
 import qupath.lib.plugins.objects.TileClassificationsToAnnotationsPlugin;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
@@ -437,51 +438,49 @@ public class IJExtension implements QuPathExtension {
 	 */
 	@SuppressWarnings("javadoc")
 	public static class IJExtensionCommands {
+		
+		private QuPathGUI qupath;
 
-		@ActionMenu("Analyze>Tiles & superpixels>")
+		@ActionMenu(value = {"Menu.Analyze", "Menu.Analyze.Tiles"})
 		public final Action SEP_0 = ActionTools.createSeparator();
 
-		@ActionMenu("Analyze>Tiles & superpixels>")
-		@ActionDescription("Create superpixel tiles using the SLIC method.")
+		@ActionMenu(value = {"Menu.Analyze", "Menu.Analyze.Tiles"})
+		@ActionConfig("Action.ImageJ.superpixelsSLIC")
 		public final Action actionSLIC;
 		
-		@ActionMenu("Analyze>Tiles & superpixels>")
-		@ActionDescription("Create superpixel tiles using a Difference of Gaussians method.")
+		@ActionMenu(value = {"Menu.Analyze", "Menu.Analyze.Tiles"})
+		@ActionConfig("Action.ImageJ.superpixelsDoG")
 		public final Action actionDoG;
 		
-		@ActionMenu("Analyze>Tiles & superpixels>")
+		@ActionMenu(value = {"Menu.Analyze", "Menu.Analyze.Tiles"})
 		public final Action SEP_1 = ActionTools.createSeparator();
 		
-		@ActionMenu("Analyze>Tiles & superpixels>")
-		@ActionDescription("Merge tiles sharing the same classification to become annotations.")
+		@ActionMenu(value = {"Menu.Analyze", "Menu.Analyze.Tiles"})
+		@ActionConfig("Action.ImageJ.tilesToAnnotations")
 		public final Action actionTiles;
 		
 		
-		@ActionMenu("Analyze>Cell detection>")		
-		@ActionDescription("Default cell detection in QuPath. "
-				+ "Note that this is general-purpose method, not optimized for any particular staining."
-				+ "\n\nIt is essential to set the image type first (e.g. brightfield or fluorescence) before running this command.")
+		@ActionMenu(value = {"Menu.Analyze", "Menu.Analyze.CellDetection"})
+		@ActionConfig("Action.ImageJ.cellDetection")
 		public final Action actionCellDetection;
 
-		@ActionMenu("Analyze>Cell detection>")		
-		@ActionDescription("Equivalent to 'Cell detection', with additional parameters to set a threshold during detection to "
-				+ "identify single-positive cells.")
+		@ActionMenu(value = {"Menu.Analyze", "Menu.Analyze.CellDetection"})
+		@ActionConfig("Action.ImageJ.positiveCellDetection")
 		public final Action actionPositiveCellDetection;
 		
-		@ActionMenu("Analyze>Cell detection>")
+		@ActionMenu(value = {"Menu.Analyze", "Menu.Analyze.CellDetection"})
 		public final Action SEP_2 = ActionTools.createSeparator();
 
-		@ActionMenu("Analyze>Cell detection>")		
-		@ActionDescription("Identify subcellular structures (e.g. spots of all kinds) within detected cells.")
+		@ActionMenu(value = {"Menu.Analyze", "Menu.Analyze.CellDetection"})
+		@ActionConfig("Action.ImageJ.subcellularDetection")
 		@Deprecated
 		public final Action actionSubcellularDetection;
 
-		@ActionMenu("Analyze>")
+		@ActionMenu("Menu.Analyze")
 		public final Action SEP_2B = ActionTools.createSeparator();
 		
-		@ActionMenu("Analyze>Deprecated>")		
-		@ActionDescription("Area-based quantification of positive pixels with DAB staining. "
-				+ "This command does not handle large regions well; if possible, pixel classification should usually be used instead.")
+		@ActionMenu(value = {"Menu.Analyze", "Menu.deprecated"})
+		@ActionConfig("Action.ImageJ.pixelCount")
 		@Deprecated
 		public final Action actionPixelCount;
 		
@@ -490,87 +489,91 @@ public class IJExtension implements QuPathExtension {
 //		public final Action actionTMADearray;
 		
 		
-		@ActionMenu("Analyze>Deprecated>")		
-		@ActionDescription("Detect large regions using a simple thresholding method. "
-				+ "This command is not very flexible and lacks any preview of the results; if possible, pixel classification should usually be used instead.")
+		@ActionMenu(value = {"Menu.Analyze", "Menu.deprecated"})
+		@ActionConfig("Action.ImageJ.simpleTissueDetection")
 		@Deprecated
 		public final Action actionSimpleTissueDetection;
 		
-		@ActionMenu("Analyze>Deprecated>")		
-		@ActionDescription("Cell detection that uses membrane information to constrain cell boundary expansion. "
-				+ "\n\nThis was designed specifically for hematoxylin and DAB staining, and works only where membrane staining is "
-				+ "either very clear or absent. It is not recommended in general.")
+		@ActionMenu(value = {"Menu.Analyze", "Menu.deprecated"})
+		@ActionConfig("Action.ImageJ.cellAndMembraneDetection")
 		@Deprecated
 		public final Action actionCellMembraneDetection;
 
 		
 		@ActionIcon(PathIcons.EXTRACT_REGION)
-		@ActionMenu("Extensions>ImageJ>Send region to ImageJ")
-		@ActionDescription("Extract the selected image region and send it to ImageJ.")
+		@ActionMenu(value = {"Menu.Extensions", "ImageJ>"})
+		@ActionConfig("Action.ImageJ.extractRegion")
 		public final Action actionExtractRegion;
 				
 		@ActionIcon(PathIcons.SCREENSHOT)
-		@ActionMenu("Extensions>ImageJ>")
-		@ActionDescription("Create a rendered (RGB) snapshot and send it to ImageJ.")
+		@ActionMenu(value = {"Menu.Extensions", "ImageJ>"})
+		@ActionConfig("Action.ImageJ.extractRegionSnapshot")
 		public final Action actionSnapshot;
 		
-		@ActionMenu("Extensions>ImageJ>Import ImageJ ROIs")
-		@ActionDescription("Import ImageJ ROIs from .roi or .zip files, converting them QuPath objects")
+		@ActionMenu(value = {"Menu.Extensions", "ImageJ>"})
+		@ActionConfig("Action.ImageJ.importRois")
 		public final Action actionImportROIs;
 
-		@ActionMenu("Extensions>ImageJ>")
+		@ActionMenu(value = {"Menu.Extensions", "ImageJ>"})
 		public final Action SEP_3 = ActionTools.createSeparator();
 		
-		@ActionMenu("Extensions>ImageJ>")
-		@ActionDescription("Set the plugins directory to use with QuPath's embedded version of ImageJ. "
-				+ "\n\nThis can be set to the plugins directory of an existing ImageJ installation, to make the plugins associated "
-				+ "with that installation available within QuPath.")
-		public final Action actionPlugins = ActionTools.createAction(() -> promptToSetPluginsDirectory(), "Set plugins directory");
+		@ActionMenu(value = {"Menu.Extensions", "ImageJ>"})
+		@ActionConfig("Action.ImageJ.setPluginsDirectory")
+		public final Action actionPlugins = ActionTools.createAction(() -> promptToSetPluginsDirectory());
 		
-		@ActionMenu("Extensions>ImageJ>")
+		@ActionMenu(value = {"Menu.Extensions", "ImageJ>"})
 		public final Action SEP_4 = ActionTools.createSeparator();
 
-		@ActionMenu("Extensions>ImageJ>")
-		@ActionDescription("Run ImageJ macros within QuPath.")
+		@ActionMenu(value = {"Menu.Extensions", "ImageJ>"})
+		@ActionConfig("Action.ImageJ.macroRunner")
 		public final Action actionMacroRunner;
 				
 		IJExtensionCommands(QuPathGUI qupath) {
 			
+			this.qupath = qupath;
+			
 			// Experimental brush tool turned off for now
 			ExtractRegionCommand commandExtractRegionCustom = new ExtractRegionCommand(qupath);
 			actionExtractRegion = qupath.createImageDataAction(imageData -> commandExtractRegionCustom.run());
-			actionExtractRegion.setLongText("Extract the selected image region and send it to ImageJ.");
 
 			var screenshotCommand = new ScreenshotCommand(qupath);
-			actionSnapshot = ActionTools.createAction(screenshotCommand, "Send snapshot to ImageJ");		
+			actionSnapshot = ActionTools.createAction(screenshotCommand);		
 			
-			actionMacroRunner = qupath.createPluginAction("ImageJ macro runner", new ImageJMacroRunner(qupath), null);
+			actionMacroRunner = createPluginAction(new ImageJMacroRunner(qupath));
 			
-			actionSLIC = qupath.createPluginAction("SLIC superpixel segmentation", SLICSuperpixelsPlugin.class, null);
-			actionDoG = qupath.createPluginAction("DoG superpixel segmentation", DoGSuperpixelsPlugin.class, null);
-			actionTiles = qupath.createPluginAction("Tile classifications to annotations", TileClassificationsToAnnotationsPlugin.class, null);
+			actionSLIC = createPluginAction(SLICSuperpixelsPlugin.class);
+			actionDoG = createPluginAction(DoGSuperpixelsPlugin.class);
+			actionTiles = createPluginAction(TileClassificationsToAnnotationsPlugin.class);
 			
-			actionPixelCount = qupath.createPluginAction("Positive pixel count", PositivePixelCounterIJ.class, null);
+			actionPixelCount = createPluginAction(PositivePixelCounterIJ.class);
 			
 //			actionTMADearray = qupath.createPluginAction("TMA dearrayer", TMADearrayerPluginIJ.class, null);
 			
-			actionSimpleTissueDetection = qupath.createPluginAction("Simple tissue detection", SimpleTissueDetection2.class, null);
+			actionSimpleTissueDetection = createPluginAction(SimpleTissueDetection2.class);
 			
-			actionCellDetection = qupath.createPluginAction("Cell detection", WatershedCellDetection.class, null);
-			actionPositiveCellDetection = qupath.createPluginAction("Positive cell detection", PositiveCellDetection.class, null);
-			actionCellMembraneDetection = qupath.createPluginAction("Cell + membrane detection", WatershedCellMembraneDetection.class, null);
-			actionSubcellularDetection = qupath.createPluginAction("Subcellular detection (experimental)", SubcellularDetection.class, null);
+			actionCellDetection = createPluginAction(WatershedCellDetection.class);
+			actionPositiveCellDetection = createPluginAction(PositiveCellDetection.class);
+			actionCellMembraneDetection = createPluginAction(WatershedCellMembraneDetection.class);
+			actionSubcellularDetection = createPluginAction(SubcellularDetection.class);
 			
 			var importRoisCommand = new ImportRoisCommand(qupath);
 			actionImportROIs = qupath.createImageDataAction(imageData -> importRoisCommand.run());
 		}
-
+		
+		private Action createPluginAction(Class<? extends PathPlugin> pluginClass) {
+			return qupath.createPluginAction(null, pluginClass, null);
+		}
+		
+		private Action createPluginAction(PathPlugin<BufferedImage> plugin) {
+			return qupath.createPluginAction(null, plugin, null);
+		}
+		
+		
 	}
-	
-	
+		
 	static void promptToSetPluginsDirectory() {
 		String path = getImageJPath();
-		File dir = Dialogs.promptForDirectory("Set ImageJ plugins directory", path == null ? null : new File(path));
+		File dir = FileChoosers.promptForDirectory("Set ImageJ plugins directory", path == null ? null : new File(path));
 		if (dir != null && dir.isDirectory())
 			setImageJPath(dir.getAbsolutePath());
 	}
@@ -618,10 +621,12 @@ public class IJExtension implements QuPathExtension {
 			logger.error("Error adding toolbar buttons", e);
 		}
 				
-		// It's awkward, but we handle TMA dearraying separation so we can ensure it falls at the top of the list
+		// It's awkward, but we handle TMA dearraying separately so we can ensure it falls at the top of the list
 		Menu menuTMA = qupath.getMenu("TMA", true);
-		var actionTMADearray = qupath.createPluginAction("TMA dearrayer", TMADearrayerPluginIJ.class, null);
-		actionTMADearray.setLongText("Identify cores and grid arrangement of a tissue microarray.");
+		
+		// TODO: Switch to use @ActionConfig
+		var actionTMADearray = qupath.createPluginAction(QuPathResources.getString("Action.ImageJ.tmaDearrayer"), TMADearrayerPluginIJ.class, null);
+		actionTMADearray.setLongText(QuPathResources.getString("Action.ImageJ.tmaDearrayer.description"));
 		menuTMA.getItems().add(0,
 						ActionTools.createMenuItem(actionTMADearray)
 				);
@@ -653,13 +658,13 @@ public class IJExtension implements QuPathExtension {
 			if (imageData == null)
 				return false;
 			
-			var roiFiles = files.stream().filter(f -> IJTools.containsImageJRois(f)).collect(Collectors.toList());
+			var roiFiles = files.stream().filter(f -> IJTools.containsImageJRois(f)).toList();
 			if (roiFiles.isEmpty())
 				return false;
 			
 			var pathObjects = files.stream().flatMap(f -> IJTools.readImageJRois(f).stream())
 					.map(r -> IJTools.convertToAnnotation(r, 1.0, null))
-					.collect(Collectors.toList());
+					.toList();
 			
 			imageData.getHierarchy().addObjects(pathObjects);
 			imageData.getHierarchy().getSelectionModel().selectObjects(pathObjects);
@@ -723,13 +728,13 @@ public class IJExtension implements QuPathExtension {
 
 	@Override
 	public String getName() {
-		return "ImageJ extension";
+		return QuPathResources.getString("Extension.ImageJ");
 	}
 
 
 	@Override
 	public String getDescription() {
-		return "QuPath commands that enable integration with ImageJ - https://imagej.nih.gov/ij/";
+		return QuPathResources.getString("Extension.ImageJ.description");
 	}
 	
 	/**

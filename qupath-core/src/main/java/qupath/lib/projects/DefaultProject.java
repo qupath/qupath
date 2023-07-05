@@ -259,7 +259,7 @@ class DefaultProject implements Project<BufferedImage> {
 		try (var stream = Files.list(path)) {
 			return stream.filter(p -> Files.isRegularFile(p) && p.toString().endsWith(ext))
 					.map(p -> nameWithoutExtension(p, ext))
-					.collect(Collectors.toList());
+					.toList();
 		}
 	}
 	
@@ -695,7 +695,7 @@ class DefaultProject implements Project<BufferedImage> {
 				try (var stream = Files.newInputStream(path)) {
 					imageData = PathIO.readImageData(stream, null, server, BufferedImage.class);
 					imageData.setLastSavedPath(path.toString(), true);
-				} catch (IOException e) {
+				} catch (Exception e) {
 					logger.error("Error reading image data from " + path, e);
 				}
 			}
@@ -1170,7 +1170,7 @@ class DefaultProject implements Project<BufferedImage> {
 			return new ResourceManager.JsonFileResourceManager(path, cls);
 		}
 		if (String.class.equals(cls))
-			return (Manager<R>)new ResourceManager.StringFileResourceManager(path, ext); 
+			return (Manager)new ResourceManager.StringFileResourceManager(path, ext);
 		return null;
 	}
 

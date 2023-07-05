@@ -27,7 +27,7 @@ import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import qupath.lib.gui.viewer.OverlayOptions;
-import qupath.lib.gui.viewer.PathHierarchyPaintingHelper;
+import qupath.lib.gui.viewer.PathObjectPainter;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.TMAGrid;
@@ -80,7 +80,7 @@ public class TMAGridOverlay extends AbstractOverlay {
 		// Ensure antialias is on...?
 		g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 		
-		PathHierarchyPaintingHelper.paintTMAGrid(g2d, tmaGrid, getOverlayOptions(), hierarchy.getSelectionModel(), downsampleFactor);
+		PathObjectPainter.paintTMAGrid(g2d, tmaGrid, getOverlayOptions(), hierarchy.getSelectionModel(), downsampleFactor);
 		
 		g2d.dispose();
 	}

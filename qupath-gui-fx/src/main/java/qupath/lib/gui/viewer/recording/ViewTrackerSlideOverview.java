@@ -28,6 +28,7 @@ import java.awt.geom.AffineTransform;
 import java.awt.geom.PathIterator;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
+import java.io.File;
 import java.io.IOException;
 
 import org.slf4j.Logger;
@@ -47,7 +48,7 @@ import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.Clipboard;
 import javafx.scene.paint.Color;
 import javafx.util.Duration;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.fx.dialogs.FileChoosers;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.overlays.BufferedImageOverlay;
@@ -132,7 +133,8 @@ final class ViewTrackerSlideOverview {
 		    final ContextMenu contextMenu = new ContextMenu(tifExportItem, copyItem);
 		    
 		    tifExportItem.setOnAction(event -> {
-		    	var path = Dialogs.promptToSaveFile("Save data map", null, "data map", "TIF", ".tif");
+		    	var path = FileChoosers.promptToSaveFile("Save data map", new File("data map"),
+						FileChoosers.createExtensionFilter("TIFF image", ".tif"));
 		    	if (path == null)
 		    		return;
 		    	
@@ -140,7 +142,7 @@ final class ViewTrackerSlideOverview {
 		    		var imgToExport = overlay.getRegionMap().get(ImageRegion.createInstance(0, 0, viewer.getServerWidth(), viewer.getServerHeight(), viewer.getZPosition(), viewer.getTPosition()));
 					ImageWriterTools.writeImage(imgToExport, path.toString());
 				} catch (IOException ex) {
-					logger.error("Could not export data", ex.getLocalizedMessage());
+					logger.error("Could not export data", ex);
 				}
 		    });
 		    

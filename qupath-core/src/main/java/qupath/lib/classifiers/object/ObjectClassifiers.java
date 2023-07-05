@@ -28,8 +28,6 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.function.Function;
-import java.util.stream.Collectors;
-
 import com.google.gson.Gson;
 import com.google.gson.TypeAdapter;
 import com.google.gson.TypeAdapterFactory;
@@ -382,7 +380,7 @@ public class ObjectClassifiers {
 					Arrays.asList(fun.pathClassBelow, fun.pathClassEquals, fun.pathClassAbove)
 						.stream().filter(p -> p != null)
 						.distinct()
-						.collect(Collectors.toList()));
+						.toList());
 		}
 		
 		

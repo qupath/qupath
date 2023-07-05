@@ -42,9 +42,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javafx.concurrent.Task;
+import qupath.fx.dialogs.FileChoosers;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.images.ImageData.ImageType;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerBuilder;
@@ -138,14 +140,15 @@ public class ProjectCommands {
 	public static void promptToExportImageList(Project<?> project) {
 		var title = "Export image list";
 		if (project == null) {
-			Dialogs.showNoProjectError(title);
+			GuiTools.showNoProjectError(title);
 			return;
 		}
 		// Try to get a project directory
 		File dirBase = Projects.getBaseDirectory(project);
 		
 		// Prompt for where to save
-		File fileOutput = Dialogs.promptToSaveFile(title, dirBase, null, "Text files", ".txt");
+		File fileOutput = FileChoosers.promptToSaveFile(title, dirBase,
+				FileChoosers.createExtensionFilter("Text files", ".txt"));
 		if (fileOutput == null)
 			return;
 		
@@ -173,7 +176,7 @@ public class ProjectCommands {
 			for (ProjectImageEntry<?> entry : project.getImageList()) {
 				try {
 					Collection<URI> uris = entry.getURIs();
-					String path = String.join(" ", uris.stream().map(u -> u.toString()).collect(Collectors.toList()));
+					String path = String.join(" ", uris.stream().map(u -> u.toString()).toList());
 	//				String path = entry.getServerPath();
 					writer.print(entry.getImageName());
 					writer.print(delim);				
@@ -219,12 +222,13 @@ public class ProjectCommands {
 		var project = qupath.getProject();
 		String title = "Import legacy project";
 		if (project == null) {
-			Dialogs.showNoProjectError(title);
+			GuiTools.showNoProjectError(title);
 			return false;
 		}
 		
 		// Prompt for the old project
-		var file = Dialogs.promptForFile(title, null, "Project (v0.1.2)", ".qpproj");
+		var file = FileChoosers.promptForFile(title,
+				FileChoosers.createExtensionFilter("Project (v0.1.2)", "*.qpproj"));
 		if (file == null)
 		    return false;
 		
@@ -257,7 +261,7 @@ public class ProjectCommands {
 		else
 			dialog.setContentText("Importing " + nImages + " images...");
 
-		qupath.submitShortTask(task);
+		qupath.getThreadPoolManager().submitShortTask(task);
 		dialog.showAndWait();
 		Integer nCompleted = task.getValue();
 		if (nCompleted == null)

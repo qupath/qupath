@@ -18,22 +18,21 @@ task mergedJavadocs(type: Javadoc,
 	// See https://docs.gradle.org/current/javadoc/org/gradle/external/javadoc/StandardJavadocDocletOptions.html
 	options.author(true)
 	options.addStringOption('Xdoclint:none', '-quiet')
-	
+
 	options.encoding = 'UTF-8'
 
-	options.links 'https://docs.oracle.com/en/java/javase/11/docs/api/'
-	options.links 'https://openjfx.io/javadoc/19/'
-	options.links 'https://javadoc.io/doc/org.bytedeco/javacpp/1.5.8/'
-	options.links 'https://javadoc.io/doc/org.bytedeco/opencv/4.6.0-1.5.8/'
-	options.links 'https://javadoc.io/doc/com.google.code.gson/gson/2.10/'
-	options.links 'https://javadoc.io/doc/org.locationtech.jts/jts-core/1.19.0/'
-	options.links 'https://javadoc.io/doc/net.imagej/ij/1.53v/'
-	options.links 'https://javadoc.scijava.org/Bio-Formats/'
-	options.links 'https://javadoc.io/doc/ai.djl/api/0.19.0/'
-	
+	options.links "https://docs.oracle.com/en/java/javase/${libs.versions.jdk.get()}/docs/api/"
+	options.links "https://openjfx.io/javadoc/${libs.versions.javafxJavadoc.get()}/"
+	options.links "https://javadoc.io/doc/org.bytedeco/javacpp/${libs.versions.javacpp.get()}/"
+	options.links "https://javadoc.io/doc/org.bytedeco/opencv/${libs.versions.opencv.get()}/"
+	options.links "https://javadoc.io/doc/com.google.code.gson/gson/${libs.versions.gson.get()}/"
+	options.links "https://javadoc.io/doc/org.locationtech.jts/jts-core/${libs.versions.jts.get()}/"
+	options.links "https://javadoc.io/doc/net.imagej/ij/${libs.versions.imagej.get()}/"
+	options.links "https://javadoc.scijava.org/Bio-Formats/"
+	options.links "https://javadoc.io/doc/ai.djl/api/${libs.versions.deepJavaLibrary.get()}/"
+
 	// Don't fail on error, because this happened too often due to a javadoc link being temporarily down
 	failOnError = false
-
 }
 
 /*

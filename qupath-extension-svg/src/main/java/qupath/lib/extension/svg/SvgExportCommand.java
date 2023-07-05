@@ -21,12 +21,19 @@
 
 package qupath.lib.extension.svg;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
 
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.ObjectProperty;
+import qupath.fx.dialogs.FileChoosers;
 import qupath.lib.extension.svg.SvgTools.SvgBuilder.ImageIncludeType;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.fx.dialogs.Dialogs;
+import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.regions.RegionRequest;
 
@@ -58,10 +65,17 @@ class SvgExportCommand implements Runnable {
 	private SvgExportType type;
 	
 	// Region export parameters
-	private double downsample = 1.0;
-	private ImageIncludeType imageType = ImageIncludeType.NONE;
-	private boolean highlightSelected = false;
-	private boolean compress = false;
+	private DoubleProperty downsample =
+			PathPrefs.createPersistentPreference("svg.export.downsample", 1.0);
+
+	private ObjectProperty<ImageIncludeType> imageType =
+			PathPrefs.createPersistentPreference("svg.export.imageType", ImageIncludeType.EMBED, ImageIncludeType.class);
+
+	private BooleanProperty highlightSelected =
+			PathPrefs.createPersistentPreference("svg.export.highlightSelected", false);
+
+	private BooleanProperty compress =
+			PathPrefs.createPersistentPreference("svg.export.compress", false);
 	
 	/**
 	 * Constructor.
@@ -78,7 +92,7 @@ class SvgExportCommand implements Runnable {
 		var viewer = qupath.getViewer();
 		var imageData = viewer.getImageData();
 		if (imageData == null) {
-			Dialogs.showNoImageError(title);
+			GuiTools.showNoImageError(title);
 			return;
 		}
 				
@@ -86,41 +100,40 @@ class SvgExportCommand implements Runnable {
 		var server = imageData.getServer();
 		String description = "SVG image";
 		String ext = ".svg";
-		String name = null;
 
 		// Prompt for more options if we are exporting a selected region
 		if (type == SvgExportType.SELECTED_REGION) {
 			var selected = viewer.getSelectedObject();
 			
 			var params = new ParameterList()
-					.addDoubleParameter("downsample", "Downsample factor", downsample, null, "Downsample factor for export resolution (default: current viewer downsample)")
-					.addChoiceParameter("includeImage", "Raster image", imageType, Arrays.asList(ImageIncludeType.values()), "Export associated raster image")
-					.addBooleanParameter("highlightSelected", "Highlight selected objects", highlightSelected, "Highlight selected objects to distinguish these from unselected objects, as they are shown in the viewer")
-					.addBooleanParameter("compress", "Compress SVGZ", compress, "Write compressed SVGZ file, rather than standard SVG (default: no compression, for improved compatibility with other software)")
+					.addDoubleParameter("downsample", "Downsample factor", downsample.get(), null, "Downsample factor for export resolution (default: current viewer downsample)")
+					.addChoiceParameter("includeImage", "Raster image", imageType.get(), Arrays.asList(ImageIncludeType.values()), "Export associated raster image")
+					.addBooleanParameter("highlightSelected", "Highlight selected objects", highlightSelected.get(), "Highlight selected objects to distinguish these from unselected objects, as they are shown in the viewer")
+					.addBooleanParameter("compress", "Compress SVGZ", compress.get(), "Write compressed SVGZ file, rather than standard SVG (default: no compression, for improved compatibility with other software)")
 					;
 			
-			if (!Dialogs.showParameterDialog(title, params))
+			if (!GuiTools.showParameterDialog(title, params))
 				return;
 			
-			downsample = params.getDoubleParameterValue("downsample");
-			imageType = (ImageIncludeType)params.getChoiceParameterValue("includeImage");
-			highlightSelected = params.getBooleanParameterValue("highlightSelected");
-			compress = params.getBooleanParameterValue("compress");
+			downsample.set(params.getDoubleParameterValue("downsample"));
+			imageType.set((ImageIncludeType)params.getChoiceParameterValue("includeImage"));
+			highlightSelected.set(params.getBooleanParameterValue("highlightSelected"));
+			compress.set(params.getBooleanParameterValue("compress"));
 			
-			if (downsample <= 0) {
+			if (downsample.get() <= 0) {
 				Dialogs.showErrorMessage(title, "Downsample factor must be > 0!");
 				return;
 			}
 			
 			RegionRequest request;
 			if (selected != null && selected.hasROI()) {
-				request = RegionRequest.createInstance(server.getPath(), downsample, selected.getROI());
+				request = RegionRequest.createInstance(server.getPath(), downsample.get(), selected.getROI());
 			} else {
-				request = RegionRequest.createInstance(server, downsample);
+				request = RegionRequest.createInstance(server, downsample.get());
 			}
 			
-			int width = (int)(request.getWidth() / downsample);
-			int height = (int)(request.getHeight() / downsample);
+			int width = (int)(request.getWidth() / downsample.get());
+			int height = (int)(request.getHeight() / downsample.get());
 			if ((width > 8192 || height > 8192)) {
 				if (!Dialogs.showYesNoDialog(title,
 						String.format("The requested image size (approx. %d x %d pixels) is very big -\n"
@@ -129,18 +142,19 @@ class SvgExportCommand implements Runnable {
 			}
 			
 			builder
-				.images(imageType)
+				.images(imageType.get())
 				.region(request)
 				.downsample(request.getDownsample())
-				.showSelection(highlightSelected);
+				.showSelection(highlightSelected.get());
 			
-			if (compress) {
+			if (compress.get()) {
 				description = "SVGZ image";
 				ext = ".svgz";
 			}
 		}
 		
-		var file = Dialogs.promptToSaveFile(title, null, name, description, ext);
+		var file = FileChoosers.promptToSaveFile(title, null,
+				FileChoosers.createExtensionFilter(description, ext));
 		if (file == null)
 			return;
 		

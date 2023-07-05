@@ -33,8 +33,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
-import java.util.stream.Collectors;
-
 import org.controlsfx.control.RangeSlider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -83,10 +81,10 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.common.ThreadTools;
 import qupath.lib.gui.ColorMapCanvas;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.IconFactory;
-import qupath.lib.gui.tools.PaneTools;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.overlays.AbstractOverlay.LocationStringFunction;
 import qupath.lib.gui.viewer.recording.ViewTrackerDataMaps.Feature;
@@ -175,12 +173,12 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 				final int col = i;
 				final String columnName = getColumnName(tracker, col);
 				TableColumn<ViewRecordingFrame, Object> column = new TableColumn<>(columnName);
-				column.setCellValueFactory(new Callback<CellDataFeatures<ViewRecordingFrame, Object>, ObservableValue<Object>>() {
-				     @Override
-					public ObservableValue<Object> call(CellDataFeatures<ViewRecordingFrame, Object> frame) {
-				         return new SimpleObjectProperty<>(getColumnValue(frame.getValue(), columnName));
-				     }
-				  });
+				column.setCellValueFactory(new Callback<>() {
+                    @Override
+                    public ObservableValue<Object> call(CellDataFeatures<ViewRecordingFrame, Object> frame) {
+                        return new SimpleObjectProperty<>(getColumnValue(frame.getValue(), columnName));
+                    }
+                });
 				table.getColumns().add(column);
 			}
 			
@@ -389,7 +387,7 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 					try {
 						tf.setTextFormatter(new TextFormatter<>(new DateTimeStringConverter(format), format.parse("00:00:00")));
 					} catch (ParseException ex) {
-						logger.error("Error parsing the input time: ", ex.getLocalizedMessage());
+						logger.error("Error parsing the input time", ex);
 					}
 					gp.addRow(0, new Label("Enter time"), tf);
 					var response = Dialogs.showConfirmDialog("Set min time", gp);
@@ -412,7 +410,7 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 					try {
 						tf.setTextFormatter(new TextFormatter<>(new DateTimeStringConverter(format), format.parse(ViewTrackerTools.getPrettyTimestamp((long) timeDisplayedSlider.getHighValue()))));
 					} catch (ParseException ex) {
-						logger.error("Error parsing the input time: ", ex.getLocalizedMessage());
+						logger.error("Error parsing the input time", ex);
 					}
 					gp.addRow(0, new Label("Enter time"), tf);
 					var response = Dialogs.showConfirmDialog("Set max time", gp);
@@ -435,7 +433,7 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 			//------------------ DOWNSAMPLE RANGESLIDER ------------------//
 			List<Double> allFramesDownsamples = tracker.getAllFrames().stream()
 					.map(e -> e.getDownsampleFactor())
-					.collect(Collectors.toList());
+					.toList();
 			
 			var minDownsample = allFramesDownsamples.stream().min(Comparator.naturalOrder()).get();
 			var maxDownsample = allFramesDownsamples.stream().max(Comparator.naturalOrder()).get();
@@ -450,7 +448,7 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 					ParameterList params = new ParameterList();
 					params.addDoubleParameter("downsampleFilterLow", "Enter downsample", downsampleSlider.getLowValue());
 					
-					if (!Dialogs.showParameterDialog("Set min downsample", params))
+					if (!GuiTools.showParameterDialog("Set min downsample", params))
 						return;
 					
 					double downFactor = params.getDoubleParameterValue("downsampleFilterLow");
@@ -464,7 +462,7 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 					ParameterList params = new ParameterList();
 					params.addDoubleParameter("downsampleFilterHigh", "Enter downsample", downsampleSlider.getHighValue());
 					
-					if (!Dialogs.showParameterDialog("Set max downsample", params))
+					if (!GuiTools.showParameterDialog("Set max downsample", params))
 						return;
 					
 					double downFactor = params.getDoubleParameterValue("downsampleFilterHigh");
@@ -556,17 +554,17 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 			btnRewind.setTooltip(new Tooltip("Rewind the recording"));
 
 			int row = 0;
-			PaneTools.addGridRow(slideOverviewPane, row++, 0, null, new HBox(), canvasPane);
-			PaneTools.addGridRow(slideOverviewPane, row++, 0, null, timeLabelLeft, timeSlider, timeLabelRight);
-			PaneTools.addGridRow(slideOverviewPane, row++, 0, "Playback options", new HBox(), playbackPane);
-			PaneTools.addGridRow(slideOverviewPane, row++, 0, null, sep, sep, sep, sep);
+			GridPaneUtils.addGridRow(slideOverviewPane, row++, 0, null, new HBox(), canvasPane);
+			GridPaneUtils.addGridRow(slideOverviewPane, row++, 0, null, timeLabelLeft, timeSlider, timeLabelRight);
+			GridPaneUtils.addGridRow(slideOverviewPane, row++, 0, "Playback options", new HBox(), playbackPane);
+			GridPaneUtils.addGridRow(slideOverviewPane, row++, 0, null, sep, sep, sep, sep);
 			
 			row = 0;
-			PaneTools.addGridRow(dataVisualizationPane, row++, 0, "Show the amount of time spent in each region of the image", visualizationCheckBox, progressIndicator);
-			PaneTools.addGridRow(dataVisualizationPane, row++, 0, "The data will only take into account the values recorded in-between this range", new Label("Time range"), timeDisplayedLeftLabel, timeDisplayedSlider, timeDisplayedRightLabel);
-			PaneTools.addGridRow(dataVisualizationPane, row++, 0, "The data will only take into account the values recorded in-between this range", new Label("Downsample range"), downsampleLeftLabel, downsampleSlider, downsampleRightLabel);
-			PaneTools.addGridRow(dataVisualizationPane, row++, 0, "Color map", new Label("Color map"), colorMapCombo, colorMapCombo, colorMapCombo);
-			PaneTools.addGridRow(dataVisualizationPane, row++, 0, null, colorMapCanvas, colorMapCanvas, colorMapCanvas, colorMapCanvas);
+			GridPaneUtils.addGridRow(dataVisualizationPane, row++, 0, "Show the amount of time spent in each region of the image", visualizationCheckBox, progressIndicator);
+			GridPaneUtils.addGridRow(dataVisualizationPane, row++, 0, "The data will only take into account the values recorded in-between this range", new Label("Time range"), timeDisplayedLeftLabel, timeDisplayedSlider, timeDisplayedRightLabel);
+			GridPaneUtils.addGridRow(dataVisualizationPane, row++, 0, "The data will only take into account the values recorded in-between this range", new Label("Downsample range"), downsampleLeftLabel, downsampleSlider, downsampleRightLabel);
+			GridPaneUtils.addGridRow(dataVisualizationPane, row++, 0, "Color map", new Label("Color map"), colorMapCombo, colorMapCombo, colorMapCombo);
+			GridPaneUtils.addGridRow(dataVisualizationPane, row++, 0, null, colorMapCanvas, colorMapCanvas, colorMapCanvas, colorMapCanvas);
 			
 			for (Node child: dataVisualizationPane.getChildren()) {
 				if (child == visualizationCheckBox)
@@ -617,8 +615,8 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 			buttons.add(btnOpen);
 			buttons.add(btnExpand);
 			
-			GridPane panelButtons = PaneTools.createColumnGridControls(buttons.toArray(new ButtonBase[0]));
-			PaneTools.addGridRow(mainLeftPane, row++, 0, null, panelButtons, panelButtons, panelButtons);
+			GridPane panelButtons = GridPaneUtils.createColumnGridControls(buttons.toArray(new ButtonBase[0]));
+			GridPaneUtils.addGridRow(mainLeftPane, row++, 0, null, panelButtons, panelButtons, panelButtons);
 
 			mainPane.getItems().add(mainLeftPane);
 			dialog.setScene(new Scene(mainPane));

@@ -25,8 +25,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
-import java.util.stream.Collectors;
-
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.global.opencv_imgproc;
 import org.bytedeco.opencv.opencv_core.Mat;
@@ -242,7 +240,7 @@ public class LocalNormalization {
 
 		@Override
 		public String toString() {
-			String sigmaString = String.format("\u03C3: %s", GeneralTools.formatNumber(sigma, 2));
+			String sigmaString = String.format("σ: %s", GeneralTools.formatNumber(sigma, 2));
 			switch (scaleType) {
 			case SCALE_3D:
 				return sigmaString + " (3D)";
@@ -346,7 +344,7 @@ public class LocalNormalization {
 //		if (sigmaZ > 0) {
 //			stackSmoothed = OpenCVTools.filterZ(stack, kz, -1, border);
 //		} else
-//			stackSmoothed = stack.stream().map(m -> m.clone()).collect(Collectors.toList());
+//			stackSmoothed = stack.stream().map(m -> m.clone()).toList();
 //		
 //		// Complete separable filtering & subtract from original
 //		for (int i = 0; i < stack.size(); i++) {
@@ -455,7 +453,7 @@ public class LocalNormalization {
 			if (doVariance)
 				stackSquared = OpenCVTools.filterZ(stackSquared, kz2, -1, border);
 		} else
-			stackSmoothed = stack.stream().map(m -> m.clone()).collect(Collectors.toList());
+			stackSmoothed = stack.stream().map(m -> m.clone()).toList();
 		
 		// Complete separable filtering & subtract from original
 		for (int i = 0; i < stack.size(); i++) {
@@ -525,7 +523,7 @@ public class LocalNormalization {
 //		if (sigmaZ > 0)
 //			stack2 = OpenCVTools.filterZ(stack, kz, -1, border);
 //		else
-//			stack2 = stack.stream().map(m -> m.clone()).collect(Collectors.toList());
+//			stack2 = stack.stream().map(m -> m.clone()).toList();
 //		
 //		// Complete separable filtering & subtract from original
 //		for (int i = 0; i < stack.size(); i++) {

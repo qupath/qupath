@@ -54,12 +54,14 @@ import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.ColorPicker;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
+import javafx.scene.control.ButtonBar.ButtonData;
 import javafx.scene.control.cell.CheckBoxListCell;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
@@ -68,26 +70,30 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
+import javafx.scene.paint.Color;
 import javafx.scene.text.TextAlignment;
 import javafx.stage.Modality;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
+import qupath.fx.utils.FXUtils;
+import qupath.fx.dialogs.FileChoosers;
 import qupath.lib.analysis.DistanceTools;
 import qupath.lib.analysis.features.ObjectMeasurements.ShapeFeatures;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.gui.ActionTools;
+import qupath.lib.gui.ExtensionClassLoader;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.dialogs.Dialogs;
-import qupath.lib.gui.dialogs.Dialogs.DialogButton;
+import qupath.lib.gui.UserDirectoryManager;
+import qupath.lib.gui.actions.ActionTools;
+import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.images.servers.RenderedImageServer;
 import qupath.lib.gui.panes.MeasurementMapPane;
 import qupath.lib.gui.panes.ObjectDescriptionPane;
-import qupath.lib.gui.panes.PathClassPane;
 import qupath.lib.gui.panes.WorkflowCommandLogView;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tma.TMASummaryViewer;
+import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.tools.GuiTools;
-import qupath.lib.gui.tools.PaneTools;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.gui.viewer.GridLines;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.QuPathViewer;
@@ -109,6 +115,7 @@ import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.PathTileObject;
 import qupath.lib.objects.TMACoreObject;
+import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
@@ -159,7 +166,7 @@ public class Commands {
 	 */
 	public static void promptToResolveHierarchy(ImageData<?> imageData) {
 		if (imageData == null) {
-			Dialogs.showNoImageError("Resolve hierarchy");
+			GuiTools.showNoImageError("Resolve hierarchy");
 			return;
 		}
 		var hierarchy = imageData == null ? null : imageData.getHierarchy();
@@ -343,8 +350,8 @@ public class Commands {
 		ComboBox<ImageWriter<BufferedImage>> comboImageType = new ComboBox<>();
 		
 		Function<ImageWriter<BufferedImage>, String> fun = (ImageWriter<BufferedImage> writer) -> writer.getName();
-		comboImageType.setCellFactory(p -> GuiTools.createCustomListCell(fun));
-		comboImageType.setButtonCell(GuiTools.createCustomListCell(fun));
+		comboImageType.setCellFactory(p -> FXUtils.createCustomListCell(fun));
+		comboImageType.setButtonCell(FXUtils.createCustomListCell(fun));
 		
 		var writers = ImageWriterTools.getCompatibleWriters(server, null);
 		comboImageType.getItems().setAll(writers);
@@ -418,8 +425,8 @@ public class Commands {
 		
 		tfDownsample.setText(Double.toString(exportDownsample.get()));
 		
-		PaneTools.setMaxWidth(Double.MAX_VALUE, labelSize, textArea, tfDownsample, comboImageType);
-		PaneTools.setHGrowPriority(Priority.ALWAYS, labelSize, textArea, tfDownsample, comboImageType);
+		GridPaneUtils.setMaxWidth(Double.MAX_VALUE, labelSize, textArea, tfDownsample, comboImageType);
+		GridPaneUtils.setHGrowPriority(Priority.ALWAYS, labelSize, textArea, tfDownsample, comboImageType);
 		
 		pane.setVgap(5);
 		pane.setHgap(5);
@@ -463,7 +470,9 @@ public class Commands {
 					GeneralTools.formatNumber(request.getDownsample(), 2),
 					request.getX(), request.getY(), request.getWidth(), request.getHeight());
 		}
-		File fileOutput = Dialogs.promptToSaveFile("Export image region", null, defaultName, writerName, ext);
+		File fileOutput = FileChoosers.promptToSaveFile("Export image region",
+				new File(defaultName),
+				FileChoosers.createExtensionFilter(writerName, ext));
 		if (fileOutput == null)
 			return;
 		
@@ -528,6 +537,19 @@ public class Commands {
 		return new Action(e -> command.show());
 	}
 	
+	/**
+	 * Create a named command that generates a persistent single dialog on demand.
+	 * A reference to the dialog can be retained, so that if the command is called again 
+	 * either the original dialog is shown and/or brought to the front.
+	 * @param supplier supplier function to generate the dialog on demand
+	 * @param name 
+	 * @return the action
+	 */
+	public static Action createSingleStageAction(Supplier<Stage> supplier, String name) {
+		var command = new SingleStageCommand(supplier);
+		return new Action(name, e -> command.show());
+	}
+	
 	static class SingleStageCommand {
 		
 		private Stage stage;
@@ -589,7 +611,7 @@ public class Commands {
 	 * @param qupath the QuPath instance
 	 */
 	public static void showScriptInterpreter(QuPathGUI qupath) {
-		var scriptInterpreter = new ScriptInterpreter(qupath, QuPathGUI.getExtensionClassLoader());
+		var scriptInterpreter = new ScriptInterpreter(qupath, ExtensionClassLoader.getInstance());
 		scriptInterpreter.getStage().initOwner(qupath.getStage());
 		scriptInterpreter.getStage().show();
 	}
@@ -621,8 +643,6 @@ public class Commands {
 	 */
 	public static Stage createPreferencesDialog(QuPathGUI qupath) {
 		
-		var panel = qupath.getPreferencePane();
-		
 		var dialog = new Stage();
 		dialog.initOwner(qupath.getStage());
 //			dialog.initModality(Modality.APPLICATION_MODAL);
@@ -642,16 +662,12 @@ public class Commands {
 		
 		GridPane paneImportExport = new GridPane();
 		paneImportExport.addRow(0, btnImport, btnExport, btnReset);
-		PaneTools.setHGrowPriority(Priority.ALWAYS, btnImport, btnExport, btnReset);
+		GridPaneUtils.setHGrowPriority(Priority.ALWAYS, btnImport, btnExport, btnReset);
 		paneImportExport.setMaxWidth(Double.MAX_VALUE);
 
-//			Button btnClose = new Button("Close");
-//			btnClose.setOnAction(e -> {
-//				dialog.hide();
-//			});
-		
 		BorderPane pane = new BorderPane();
-		pane.setCenter(panel.getPropertySheet());
+		var prefPane = qupath.getPreferencePane();
+		pane.setCenter(prefPane.getPane());
 		pane.setBottom(paneImportExport);
 		if (qupath != null && qupath.getStage() != null) {
 			pane.setPrefHeight(Math.round(Math.max(300, qupath.getStage().getHeight()*0.75)));
@@ -662,12 +678,17 @@ public class Commands {
 		dialog.setMinWidth(300);
 		dialog.setMinHeight(300);
 		
+		// Refresh the editors in case the locale has changed
+		// (we could/should check if this is required...)
+		dialog.setOnShowing(e -> prefPane.refreshAllEditors());
+		
 		return dialog;
 	}
 
 	private static boolean exportPreferences(Stage parent) {
-		var file = Dialogs.getChooser(parent).promptToSaveFile(
-				"Export preferences", null, null, "Preferences file", "xml");
+		var file = FileChoosers.promptToSaveFile(parent,
+				"Export preferences", null,
+				FileChoosers.createExtensionFilter("Preferences file", "xml"));
 		if (file != null) {
 			try (var stream = Files.newOutputStream(file.toPath())) {
 				logger.info("Exporting preferences to {}", file.getAbsolutePath());
@@ -681,8 +702,9 @@ public class Commands {
 	}
 	
 	private static boolean importPreferences(Stage parent) {
-		var file = Dialogs.getChooser(parent).promptForFile(
-				"Import preferences", null, "Preferences file", "xml");
+		var file = FileChoosers.promptForFile(parent,
+				"Import preferences",
+				FileChoosers.createExtensionFilter("Preferences file", "xml"));
 		if (file != null) {
 			try (var stream = Files.newInputStream(file.toPath())) {
 				logger.info("Importing preferences from {}", file.getAbsolutePath());
@@ -758,7 +780,7 @@ public class Commands {
 	 */
 	public static boolean promptToSaveImageData(QuPathGUI qupath, ImageData<BufferedImage> imageData, boolean overwriteExisting) {
 		if (imageData == null) {
-			Dialogs.showNoImageError("Serialization error");
+			GuiTools.showNoImageError("Serialization error");
 			return false;
 		}
 		try {
@@ -779,7 +801,10 @@ public class Commands {
 						file = new File(lastSavedPath);
 					if (file == null || !file.isFile()) {
 						File fileDefault = new File(lastSavedPath);
-						file = Dialogs.promptToSaveFile(null, fileDefault.getParentFile(), fileDefault.getName(), "QuPath Serialized Data", PathPrefs.getSerializationExtension());
+						file = FileChoosers.promptToSaveFile(
+								null,
+								fileDefault,
+						FileChoosers.createExtensionFilter("QuPath Serialized Data", PathPrefs.getSerializationExtension()));
 					}
 				}
 				else {
@@ -790,7 +815,8 @@ public class Commands {
 							name = GeneralTools.getNameWithoutExtension(new File(name));
 						} catch (Exception e) {}
 					}
-					file = Dialogs.promptToSaveFile(null, null, name, "QuPath Serialized Data", PathPrefs.getSerializationExtension());
+					file = FileChoosers.promptToSaveFile(null, new File(name),
+							FileChoosers.createExtensionFilter("QuPath Serialized Data", PathPrefs.getSerializationExtension()));
 				}
 				if (file == null)
 					return false;
@@ -824,7 +850,10 @@ public class Commands {
 			return false;
 		}
 		
-		File fileOutput = Dialogs.promptToSaveFile(null, null, null, ext, ext);
+		File fileOutput = FileChoosers.buildFileChooser()
+				.extensionFilter("Screenshot", ext)
+				.build()
+				.showOpenDialog(qupath.getStage());
 		if (fileOutput == null)
 			return false;
 		
@@ -887,7 +916,7 @@ public class Commands {
 	 */
 	public static void duplicateSelectedAnnotations(ImageData<?> imageData) {
 		if (imageData == null) {
-			Dialogs.showNoImageError("Duplicate annotations");
+			GuiTools.showNoImageError("Duplicate annotations");
 			return;
 		}
 		PathObjectHierarchy hierarchy = imageData.getHierarchy();
@@ -906,7 +935,7 @@ public class Commands {
 	public static void copySelectedAnnotationsToCurrentPlane(QuPathViewer viewer) {
 		var imageData = viewer == null ? null : viewer.getImageData();
 		if (imageData == null) {
-			Dialogs.showNoImageError("Copy selected annotations to plane");
+			GuiTools.showNoImageError("Copy selected annotations to plane");
 			return;
 		}
 		var plane = viewer.getImagePlane();
@@ -963,7 +992,7 @@ public class Commands {
 	public static boolean combineSelectedAnnotations(ImageData<?> imageData, RoiTools.CombineOp op) {
 		// TODO: CONSIDER MAKING THIS SCRIPTABLE!
 		if (imageData == null) {
-			Dialogs.showNoImageError("Combine annotations");
+			GuiTools.showNoImageError("Combine annotations");
 			return false;
 		}
 		var hierarchy = imageData.getHierarchy();
@@ -1056,9 +1085,87 @@ public class Commands {
 		var pathClass = Dialogs.showChoiceDialog("Select objects", "", qupath.getAvailablePathClasses(), null);
 		if (pathClass == null)
 			return;
-		PathClassPane.selectObjectsByClassification(imageData, pathClass);
+		selectObjectsByClassification(imageData, pathClass);
+	}
+	
+	
+	/**
+	 * Prompt to edit the name/color of a class.
+	 * @param pathClass
+	 * @return
+	 */
+	public static boolean promptToEditClass(final PathClass pathClass) {
+		if (pathClass == null || pathClass == PathClass.NULL_CLASS)
+			return false;
+
+		boolean defaultColor = pathClass == null;
+
+		BorderPane panel = new BorderPane();
+
+		BorderPane panelName = new BorderPane();
+		String name;
+		Color color;
+
+		if (defaultColor) {
+			name = "Default object color";
+			color = ColorToolsFX.getCachedColor(PathPrefs.colorDefaultObjectsProperty().get());
+			Label label = new Label(name);
+			label.setPadding(new Insets(5, 0, 10, 0));
+			panelName.setCenter(label);
+		} else {
+			name = pathClass.toString();
+			if (name == null)
+				name = "";
+			color = ColorToolsFX.getPathClassColor(pathClass);		
+			Label label = new Label(name);
+			label.setPadding(new Insets(5, 0, 10, 0));
+			panelName.setCenter(label);
+		}
+
+		panel.setTop(panelName);
+		ColorPicker panelColor = new ColorPicker(color);
+
+		panel.setCenter(panelColor);
+
+		if (!Dialogs.showConfirmDialog("Edit class", panel))
+			return false;
+
+		Color newColor = panelColor.getValue();
+
+		Integer colorValue = newColor.isOpaque() ? ColorToolsFX.getRGB(newColor) : ColorToolsFX.getARGB(newColor);
+		if (defaultColor) {
+			if (newColor.isOpaque())
+				PathPrefs.colorDefaultObjectsProperty().set(colorValue);
+			else
+				PathPrefs.colorDefaultObjectsProperty().set(colorValue);
+		}
+		else {
+			pathClass.setColor(colorValue);
+		}
+		return true;
 	}
 
+	
+	/**
+	 * Select objects by classification, logging the step (if performed) in the history workflow.
+	 * @param imageData the {@link ImageData} containing objects to be selected
+	 * @param pathClasses classifications that will result in an object being selected
+	 * @return true if a selection command was run, false otherwise (e.g. if no pathClasses were specified)
+	 */
+	public static boolean selectObjectsByClassification(ImageData<?> imageData, PathClass... pathClasses) {
+		var hierarchy = imageData.getHierarchy();
+		if (pathClasses.length == 0) {
+			logger.warn("Cannot select objects by classification - no classifications selected!");
+			return false;
+		}
+		QP.selectObjectsByPathClass(hierarchy, pathClasses);
+		var s = Arrays.stream(pathClasses)
+				.map(p -> p == null || p == PathClass.NULL_CLASS ? "null" : "\"" + p.toString() + "\"").collect(Collectors.joining(", "));
+		imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep("Select objects by classification",
+				"selectObjectsByClassification(" + s + ");"));
+		return true;
+	}
+	
 	
 	/**
 	 * Prompt to delete objects of a specified type, or all objects.
@@ -1176,7 +1283,7 @@ public class Commands {
 	 * @return true if a project was created, false otherwise (e.g. the user cancelled).
 	 */
 	public static boolean promptToCreateProject(QuPathGUI qupath) {
-		File dir = Dialogs.promptForDirectory("Select empty directory for project", null);
+		File dir = FileChoosers.promptForDirectory("Select empty directory for project", null);
 		if (dir == null)
 			return false;
 		if (!dir.isDirectory()) {
@@ -1201,7 +1308,8 @@ public class Commands {
 	 */
 
 	public static boolean promptToOpenProject(QuPathGUI qupath) {
-		File fileProject = Dialogs.promptForFile("Choose project file", null, "QuPath projects", new String[]{ProjectIO.getProjectExtension()});
+		File fileProject = FileChoosers.promptForFile("Choose project file",
+				FileChoosers.createExtensionFilter("QuPath projects", ProjectIO.getProjectExtension()));
 		if (fileProject != null) {
 			try {
 				Project<BufferedImage> project = ProjectIO.loadProject(fileProject, BufferedImage.class);
@@ -1250,7 +1358,7 @@ public class Commands {
 	public static void distanceToAnnotations2D(ImageData<?> imageData, boolean signedDistances) {
 		String title = signedDistances ? "Signed distance to annotations 2D" : "Distance to annotations 2D";
 		if (imageData == null) {
-			Dialogs.showNoImageError(title);
+			GuiTools.showNoImageError(title);
 			return;
 		}
 		
@@ -1265,9 +1373,9 @@ public class Commands {
 		
 		var result = Dialogs.showYesNoCancelDialog(title, "Split multi-part classifications?\nIf yes, each component of classifications such as \"Class1: Class2\" will be treated separately.");
 		boolean doSplit = false;
-		if (result == DialogButton.YES)
+		if (result == ButtonType.YES)
 			doSplit = true;
-		else if (result != DialogButton.NO)
+		else if (result != ButtonType.NO)
 			return;
 
 		if (signedDistances) {
@@ -1290,7 +1398,7 @@ public class Commands {
 	public static void detectionCentroidDistances2D(ImageData<?> imageData) {
 		String title = "Detection centroid distances 2D";
 		if (imageData == null) {
-			Dialogs.showNoImageError(title);
+			GuiTools.showNoImageError(title);
 			return;
 		}
 		
@@ -1305,9 +1413,9 @@ public class Commands {
 		
 		var result = Dialogs.showYesNoCancelDialog(title, "Split multi-part classifications?\nIf yes, each component of classifications such as \"Class1: Class2\" will be treated separately.");
 		boolean doSplit = false;
-		if (result == DialogButton.YES)
+		if (result == ButtonType.YES)
 			doSplit = true;
-		else if (result != DialogButton.NO)
+		else if (result != ButtonType.NO)
 			return;
 		
 		DistanceTools.detectionCentroidDistances(imageData, doSplit);
@@ -1329,7 +1437,7 @@ public class Commands {
 				.addDoubleParameter("vSpacing", "Vertical spacing", gridLines.getSpaceY())
 				.addBooleanParameter("useMicrons", "Use microns", gridLines.useMicrons());
 		
-		if (!Dialogs.showParameterDialog("Set grid spacing", params))
+		if (!GuiTools.showParameterDialog("Set grid spacing", params))
 			return;
 		
 		gridLines = new GridLines();
@@ -1341,6 +1449,67 @@ public class Commands {
 	}
 	
 	
+	
+	/**
+	 * Request the current user directory, optionally prompting the user to request a directory if none is available.
+	 * @param promptIfMissing 
+	 * @return the user directory, or null if none exists and the user did not create one
+	 */
+	public static File requestUserDirectory(boolean promptIfMissing) {
+		
+		var manager = UserDirectoryManager.getInstance();
+		var pathUser = manager.getUserPath();
+		if (pathUser != null && Files.isDirectory(pathUser))
+			return pathUser.toFile();
+		
+		if (!promptIfMissing)
+			return null;
+		
+		// Prompt to create an extensions directory
+		File dirDefault = PathPrefs.getDefaultQuPathUserDirectory().toFile();
+		String msg;
+		if (dirDefault.exists()) {
+			msg = dirDefault.getAbsolutePath() + " already exists.\n" +
+					"Do you want to use this default, or specify another directory?";
+		} else {
+			msg = String.format("Do you want to create a new user directory at\n %s?",
+					dirDefault.getAbsolutePath());
+		}
+		
+		ButtonType btUseDefault = new ButtonType("Use default", ButtonData.YES);
+		ButtonType btChooseDirectory = new ButtonType("Choose directory", ButtonData.NO);
+		ButtonType btCancel = new ButtonType("Cancel", ButtonData.CANCEL_CLOSE);
+		
+		var result = Dialogs.builder()
+			.title("Choose user directory")
+			.headerText("No user directory set")
+			.contentText(msg)
+			.buttons(btUseDefault, btChooseDirectory, btCancel)
+			.showAndWait()
+			.orElse(btCancel);
+			
+		if (result == btCancel) {
+			logger.info("Dialog cancelled - no user directory set");
+			return null;
+		}
+		if (result == btUseDefault) {
+			if (!dirDefault.exists() && !dirDefault.mkdirs()) {
+				Dialogs.showErrorMessage("Extension error", "Unable to create directory at \n" + dirDefault.getAbsolutePath());
+				return null;
+			}
+			pathUser = dirDefault.toPath();
+		} else {
+			File dirUser = FileChoosers.promptForDirectory("Set user directory", dirDefault);
+			if (dirUser == null) {
+				logger.info("No QuPath user directory set!");
+				return null;
+			}
+			pathUser = dirUser.toPath();
+		}
+		manager.setUserPath(pathUser);
+		return pathUser.toFile();
+	}
+	
 	/**
 	 * Reload the specified image data from a previously saved version,if available.
 	 * @param qupath
@@ -1348,12 +1517,12 @@ public class Commands {
 	 */
 	public static void reloadImageData(QuPathGUI qupath, ImageData<BufferedImage> imageData) {
 		if (imageData == null) {
-			Dialogs.showNoImageError("Reload data");
+			GuiTools.showNoImageError("Reload data");
 			return;
 		}
 		// TODO: Support loading from a project as well
 		
-		var viewer = qupath.getViewers().stream().filter(v -> v.getImageData() == imageData).findFirst().orElse(null);
+		var viewer = qupath.getAllViewers().stream().filter(v -> v.getImageData() == imageData).findFirst().orElse(null);
 		if (viewer == null) {
 			Dialogs.showErrorMessage("Reload data", "Specified image data not found open in any viewer!");
 			return;
@@ -1429,7 +1598,7 @@ public class Commands {
 		btnSelectAll.setMaxWidth(Double.MAX_VALUE);
 		btnSelectNone.setMaxWidth(Double.MAX_VALUE);
 		
-		pane.setBottom(PaneTools.createColumnGrid(btnSelectAll, btnSelectNone));
+		pane.setBottom(GridPaneUtils.createColumnGrid(btnSelectAll, btnSelectNone));
 		
 		var dialog = Dialogs.builder()
 				.title("Shape features")
@@ -1484,7 +1653,7 @@ public class Commands {
 	 */
 	public static void convertDetectionsToPoints(ImageData<?> imageData, boolean preferNucleus) {
 		if (imageData == null) {
-			Dialogs.showNoImageError("Convert detections to points");
+			GuiTools.showNoImageError("Convert detections to points");
 			return;
 		}
 		PathObjectHierarchy hierarchy = imageData.getHierarchy();
@@ -1510,10 +1679,10 @@ public class Commands {
 		String message = pathObjects.size() == 1 ? "Delete detection after converting to a point?" :
 			String.format("Delete %d detections after converting to points?", pathObjects.size());
 		var button = Dialogs.showYesNoCancelDialog("Detections to points", message);
-		if (button == Dialogs.DialogButton.CANCEL)
+		if (button == ButtonType.CANCEL)
 			return;
 		
-		boolean	deleteDetections = button == Dialogs.DialogButton.YES;		
+		boolean	deleteDetections = button == ButtonType.YES;
 		PathObjectTools.convertToPoints(hierarchy, pathObjects, preferNucleus, deleteDetections);
 	}
 
@@ -1527,7 +1696,7 @@ public class Commands {
 		PathObjectHierarchy hierarchy = imageData.getHierarchy();
 		List<PathObject> pathObjects = hierarchy.getSelectionModel().getSelectedObjects().stream()
 				.filter(p -> p.isAnnotation() && p.hasROI() && p.isEditable() && !p.getROI().isPoint())
-				.collect(Collectors.toList());
+				.toList();
 		if (pathObjects.isEmpty()) {
 			Dialogs.showErrorMessage("Simplify annotations", "No unlocked shape annotations selected!");
 			return;
@@ -1722,7 +1891,7 @@ public class Commands {
 	 */
 	public static void showWorkflowScript(QuPathGUI qupath, ImageData<?> imageData) {
 		if (imageData == null) {
-			Dialogs.showNoImageError("Show workflow script");
+			GuiTools.showNoImageError("Show workflow script");
 			return;
 		}
 		WorkflowCommandLogView.showScript(qupath.getScriptEditor(), imageData.getHistoryWorkflow());
@@ -1889,7 +2058,7 @@ public class Commands {
 				// Make sure all the objects are on the current plane if needed
 				if (addToCurrentPlane) {
 					var plane = viewer.getImagePlane();
-					pathObjects = pathObjects.stream().map(p -> PathObjectTools.updatePlane(p, plane, false, true)).collect(Collectors.toList());
+					pathObjects = pathObjects.stream().map(p -> PathObjectTools.updatePlane(p, plane, false, true)).toList();
 				}
 				if (!pathObjects.isEmpty()) {
 					InteractiveObjectImporter.promptToImportObjects(imageData.getHierarchy(), pathObjects);

@@ -112,12 +112,12 @@ import javafx.scene.web.WebView;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.util.Callback;
+import qupath.fx.dialogs.FileChoosers;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.gui.ActionTools;
 import qupath.lib.gui.JavadocViewer;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.dialogs.Dialogs;
-import qupath.lib.gui.dialogs.Dialogs.DialogButton;
+import qupath.lib.gui.actions.ActionTools;
+import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.ProjectDialogs;
 import qupath.lib.gui.logging.LogManager;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -130,7 +130,7 @@ import qupath.lib.gui.scripting.syntax.ScriptSyntax;
 import qupath.lib.gui.scripting.syntax.ScriptSyntaxProvider;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.MenuTools;
-import qupath.lib.gui.tools.PaneTools;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.gui.tools.WebViews;
 import qupath.lib.images.ImageData;
 import qupath.lib.projects.Project;
@@ -242,7 +242,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 			if (pos < text.length())
 				text = text.substring(0, pos);
 			text = text + " ";
-			var lines = text.lines().collect(Collectors.toList());
+			var lines = text.lines().toList();
 			lineNumber = lines.size();
 			col = lines.get(lines.size()-1).length();
 			if (col == 0)
@@ -844,13 +844,12 @@ public class DefaultScriptEditor implements ScriptEditor {
 		titledScripts.setCollapsible(false);
 		panelList.setCenter(titledScripts);
 		listScripts.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> updateSelectedScript(true));
-		listScripts.setCellFactory(new Callback<ListView<ScriptTab>, 
-	            ListCell<ScriptTab>>() {
-	                @Override 
-	                public ListCell<ScriptTab> call(ListView<ScriptTab> list) {
-	                    return new ScriptObjectListCell();
-	                }
-	            }
+		listScripts.setCellFactory(new Callback<>() {
+									   @Override
+									   public ListCell<ScriptTab> call(ListView<ScriptTab> list) {
+										   return new ScriptObjectListCell();
+									   }
+								   }
 	        );
 		listScripts.setMinWidth(150);
 		runningTask.addListener((v, o, n) -> {
@@ -914,7 +913,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	private Pane createRunPane() {
 		var paneRun = new GridPane();
 		
-		var btnRun = ActionTools.createButton(runScriptAction, false);
+		var btnRun = ActionTools.createButton(runScriptAction);
 		btnRun.setPadding(new Insets(0, 20, 0, 20));
 		
 		var popup = new ContextMenu(
@@ -977,11 +976,11 @@ public class DefaultScriptEditor implements ScriptEditor {
 		paneRun.setPadding(new Insets(5));
 //		paneRun.setHgap(5.0);
 
-		PaneTools.setHGrowPriority(Priority.ALWAYS, paneSpace);
-		PaneTools.setFillWidth(Boolean.TRUE, paneSpace);
-		PaneTools.setMaxHeight(Double.MAX_VALUE, labelRunning, paneSpace, btnRun, btnMore);
-		PaneTools.setMaxWidth(Double.MAX_VALUE, labelRunning, paneSpace, btnRun, btnMore);
-		PaneTools.setFillHeight(Boolean.TRUE, labelRunning, paneSpace, btnRun, btnMore);
+		GridPaneUtils.setHGrowPriority(Priority.ALWAYS, paneSpace);
+		GridPaneUtils.setFillWidth(Boolean.TRUE, paneSpace);
+		GridPaneUtils.setMaxHeight(Double.MAX_VALUE, labelRunning, paneSpace, btnRun, btnMore);
+		GridPaneUtils.setMaxWidth(Double.MAX_VALUE, labelRunning, paneSpace, btnRun, btnMore);
+		GridPaneUtils.setFillHeight(Boolean.TRUE, labelRunning, paneSpace, btnRun, btnMore);
 		
 		return paneRun;
 	}
@@ -1291,7 +1290,9 @@ public class DefaultScriptEditor implements ScriptEditor {
 				// TODO: Allow multiple extensions to be used?
 				Collection<String> extensions = tab.getRequestedExtensions();
 				String ext = extensions.isEmpty() ? null : extensions.iterator().next();
-				File file = Dialogs.getChooser(dialog).promptToSaveFile("Save script file", dir, tab.getName(), currentLanguage.getValue().getName() + " file", ext);
+				File file = FileChoosers.promptToSaveFile(dialog, "Save script file",
+						tab.getName() == null ? null : new File(dir, tab.getName()),
+						FileChoosers.createExtensionFilter(currentLanguage.getValue().getName() + " file", ext));
 				if (file == null)
 					return false;
 				tab.saveToFile(getCurrentText(), file);
@@ -1302,7 +1303,6 @@ public class DefaultScriptEditor implements ScriptEditor {
 			}
 		} catch (Exception e) {
 			logger.error("Error saving file", e);
-			e.printStackTrace();
 		}
 		return false;
 	}
@@ -1470,7 +1470,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 					runningTask.setValue(null);
 				}
 			} else {
-				runningTask.setValue(qupath.createSingleThreadExecutor(this).submit(new Runnable() {
+				runningTask.setValue(qupath.getThreadPoolManager().getSingleThreadExecutor(this).submit(new Runnable() {
 					@Override
 					public void run() {
 						try {
@@ -1518,7 +1518,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	void handleRunProject(final boolean doSave) {
 		Project<BufferedImage> project = qupath.getProject();
 		if (project == null) {
-			Dialogs.showNoProjectError("Script editor");
+			GuiTools.showNoProjectError("Script editor");
 			return;
 		}
 		ScriptTab tab = getCurrentScriptTab();
@@ -1546,7 +1546,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		dialog.getDialogPane().setPrefWidth(600);
 		dialog.initModality(Modality.APPLICATION_MODAL);
 		Optional<ButtonType> result = dialog.showAndWait();
-		if (!result.isPresent() || result.get() != ButtonType.OK)
+		if (result.isEmpty() || result.get() != ButtonType.OK)
 			return;
 		
 		previousImages.clear();
@@ -1582,12 +1582,12 @@ public class DefaultScriptEditor implements ScriptEditor {
 		}
 		
 		// Create & run task
-		runningTask.set(qupath.createSingleThreadExecutor(this).submit(worker));
+		runningTask.set(qupath.getThreadPoolManager().getSingleThreadExecutor(this).submit(worker));
 		progress.showAndWait();
 		
 		if (doSave) {
 			Boolean reload = null;
-			for (var viewer: qupath.getViewers()) {
+			for (var viewer: qupath.getAllViewers()) {
 				var imageData = viewer.getImageData();
 				var entry = imageData == null ? null : project.getEntry(imageData);
 				if (entry != null && imagesToProcess.contains(entry)) {
@@ -1683,7 +1683,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 						}
 					}
 				} catch (Exception e) {
-					logger.error("Error running batch script: {}", e);
+					logger.error("Error running batch script", e);
 				}
 				batchIndex++;
 			}
@@ -1842,15 +1842,26 @@ public class DefaultScriptEditor implements ScriptEditor {
 			File dir = null;
 			if (dirPath != null)
 				dir = new File(dirPath);
-//			File file = Dialogs.promptForFile("Choose script file", dir, "Known script files", SCRIPT_EXTENSIONS);
-			File file = Dialogs.promptForFile("Choose script file", dir, "Groovy script", ".groovy");
+
+			var compatibleExtensions = ScriptLanguageProvider.getAvailableLanguages().stream()
+					.flatMap(l -> l.getExtensions().stream())
+					.distinct()
+					.sorted()
+					.toList();
+
+			File file = FileChoosers.buildFileChooser()
+					.title("Choose script file")
+					.extensionFilters(FileChoosers.createExtensionFilter("Compatible files", compatibleExtensions))
+					.initialDirectory(dir)
+					.build().showOpenDialog(getStage());
+
 			if (file == null)
 				return;
 			try {
 				addScript(file, true);
 				PathPrefs.scriptsPathProperty().set(file.getParent());
 			} catch (Exception ex) {
-				logger.error("Unable to open script file: {}", ex);
+				logger.error("Unable to open script file", ex);
 				ex.printStackTrace();
 			}
 		});
@@ -1937,7 +1948,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 					String s = classifiers.isEmpty() ? "[]" : String.format(listFormat, classifiers);
 					control.replaceSelection(s);
 				} catch (IOException ex) {
-					logger.error("Could not fetch classifiers", ex.getLocalizedMessage());
+					logger.error("Could not fetch classifiers", ex);
 				}
 			} else if (name.toLowerCase().equals("object classifiers")) {
 				try {
@@ -1947,7 +1958,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 					String s = classifiers.isEmpty() ? "[]" : String.format(listFormat, classifiers);
 					control.replaceSelection(s);
 				} catch (IOException ex) {
-					logger.error("Could not fetch classifiers", ex.getLocalizedMessage());
+					logger.error("Could not fetch classifiers", ex);
 				}
 			} else if (name.toLowerCase().equals("detection")) {
 				var imageData = qupath.getImageData();
@@ -2032,10 +2043,10 @@ public class DefaultScriptEditor implements ScriptEditor {
 		// Check if we need to save
 		if (tab.isModifiedProperty().get() && tab.hasScript()) {
 			// TODO: Consider that this previously had a different parent for the dialog... and probably should
-			DialogButton option = Dialogs.showYesNoCancelDialog("Close " + tab.getName(), String.format("Save %s before closing?", tab.getName()));
-			if (option == DialogButton.CANCEL)
+			ButtonType option = Dialogs.showYesNoCancelDialog("Close " + tab.getName(), String.format("Save %s before closing?", tab.getName()));
+			if (option == ButtonType.CANCEL)
 				return false;
-			if (option == DialogButton.YES) {
+			if (option == ButtonType.YES) {
 				if (!save(tab, false))
 					return false;
 			}

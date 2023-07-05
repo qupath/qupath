@@ -23,6 +23,8 @@
 
 package qupath.lib.gui.viewer.tools;
 
+import javafx.beans.property.ReadOnlyObjectProperty;
+import javafx.beans.property.ReadOnlyStringProperty;
 import javafx.scene.Node;
 import qupath.lib.gui.viewer.QuPathViewer;
 
@@ -53,12 +55,29 @@ public interface PathTool {
 	 * Get the name of the tool
 	 * @return
 	 */
-	public String getName();
+	public default String getName() {
+		return nameProperty().get();
+	}
+	
+	/**
+	 * Property giving the name of the tool
+	 * @return
+	 */
+	public ReadOnlyStringProperty nameProperty();
+	
+	/**
+	 * Property giving the icon that should be used for the tool
+	 * @return
+	 */
+	public ReadOnlyObjectProperty<Node> iconProperty();
+
 	
 	/**
 	 * Get the icon of the tool.
 	 * @return
 	 */
-	public Node getIcon();
+	public default Node getIcon() {
+		return iconProperty().get();
+	}
 
 }

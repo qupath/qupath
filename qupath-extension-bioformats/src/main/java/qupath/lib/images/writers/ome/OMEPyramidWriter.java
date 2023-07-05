@@ -728,7 +728,7 @@ public class OMEPyramidWriter {
 								tileWidth == server.getMetadata().getPreferredTileWidth() && tileHeight == server.getMetadata().getPreferredTileHeight()) {
 							
 							logger.debug("Using tile requests directly for level {}", level);
-							logger.trace("Tiled level: {}", level, server.getMetadata().getLevel(level));
+							logger.trace("Tiled level: {} ({})", level, server.getMetadata().getLevel(level));
 							int thisZ = z;
 							int thisT = t;
 							server.getTileRequestManager()
@@ -808,7 +808,7 @@ public class OMEPyramidWriter {
 											}
 										}
 									}
-								}).collect(Collectors.toList());
+								}).toList();
 								
 								if (parallelThreads > 1) {
 									var pool = Executors.newWorkStealingPool(parallelThreads);

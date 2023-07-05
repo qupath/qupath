@@ -30,8 +30,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
-
 import javax.script.ScriptException;
 
 import org.slf4j.Logger;
@@ -43,7 +41,9 @@ import javafx.beans.value.ObservableStringValue;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.SeparatorMenuItem;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.fx.dialogs.FileChoosers;
+import qupath.lib.gui.actions.ActionTools;
+import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.scripting.ScriptEditor;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.MenuTools;
@@ -122,12 +122,12 @@ class ScriptMenuLoader {
 				.build();
 		
 		
-		if (scriptDirectory instanceof StringProperty) {
+		if (scriptDirectory instanceof StringProperty scriptDirectoryProperty) {
 			var actionSetPath = ActionTools.actionBuilder("Set script directory...", e -> {
-				File dirBase = scriptDirectory.get() == null ? null : new File(scriptDirectory.get());
-				File dir = Dialogs.promptForDirectory("Set script directory", dirBase);
+				File dirBase = scriptDirectoryProperty.get() == null ? null : new File(scriptDirectoryProperty.get());
+				File dir = FileChoosers.promptForDirectory("Set script directory", dirBase);
 				if (dir != null)
-					((StringProperty)scriptDirectory).set(dir.getAbsolutePath());
+					scriptDirectoryProperty.set(dir.getAbsolutePath());
 			})
 					.longText("Set the directory containing scripts that should be shown in this menu.")
 					.build();
@@ -176,7 +176,7 @@ class ScriptMenuLoader {
 		
 		try (var stream = Files.list(dir)) {
 			List<MenuItem> items = new ArrayList<>();
-			for (var path : stream.sorted().collect(Collectors.toList())) {
+			for (var path : stream.sorted().toList()) {
 				
 				if (Files.isHidden(path))
 					continue;

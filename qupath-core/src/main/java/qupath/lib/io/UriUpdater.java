@@ -377,7 +377,7 @@ public class UriUpdater<T extends UriResource> {
 	public Collection<SingleUriItem> getItems(UriStatus status) {
 		if (status == null)
 			return Collections.unmodifiableCollection(items);
-		return items.stream().filter(i -> i.getStatus() == status).collect(Collectors.toList());
+		return items.stream().filter(i -> i.getStatus() == status).toList();
 	}
 
 	
@@ -445,7 +445,7 @@ public class UriUpdater<T extends UriResource> {
 		for (var item : uriResources) {
 			imageUris.addAll(item.getURIs());
 		}
-		return imageUris.stream().map(u -> new SingleUriItem(u)).collect(Collectors.toList());
+		return imageUris.stream().map(u -> new SingleUriItem(u)).toList();
 	}
 
 

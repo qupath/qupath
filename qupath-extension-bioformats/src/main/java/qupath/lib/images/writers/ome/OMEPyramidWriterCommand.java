@@ -29,19 +29,19 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.stream.Collectors;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ObjectProperty;
+import qupath.fx.dialogs.FileChoosers;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.ThreadTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
@@ -143,7 +143,7 @@ public class OMEPyramidWriterCommand implements Runnable {
 		
 		ImageData<BufferedImage> imageData = viewer.getImageData();
 		if (imageData == null) {
-			Dialogs.showNoImageError("OME Pyramid writer");
+			GuiTools.showNoImageError("OME Pyramid writer");
 			return;
 		}
 		ImageServer<BufferedImage> server = imageData.getServer();
@@ -163,7 +163,7 @@ public class OMEPyramidWriterCommand implements Runnable {
 		
 		// Set compression - with a sanity check for validity, defaulting to another comparable method if necessary
 		CompressionType compression = getDefaultPyramidCompression();
-		List<String> compatibleCompression = Arrays.stream(CompressionType.values()).filter(c -> c.supportsImage(server)).map(c -> c.toFriendlyString()).collect(Collectors.toList());
+		List<String> compatibleCompression = Arrays.stream(CompressionType.values()).filter(c -> c.supportsImage(server)).map(c -> c.toFriendlyString()).toList();
 		if (!compatibleCompression.contains(compression.toFriendlyString()))
 			compression = CompressionType.DEFAULT;
 		
@@ -185,7 +185,7 @@ public class OMEPyramidWriterCommand implements Runnable {
 		params.setHiddenParameters(server.nTimepoints() == 1, "allT");
 		params.setHiddenParameters(singleTile, "tileSize", "parallelize");
 		
-		if (!Dialogs.showParameterDialog("Export OME-TIFF", params))
+		if (!GuiTools.showParameterDialog("Export OME-TIFF", params))
 			return;
 		
 		compression = CompressionType.fromFriendlyString((String)params.getChoiceParameterValue("compression"));
@@ -245,7 +245,8 @@ public class OMEPyramidWriterCommand implements Runnable {
 		
 		
 		// Prompt for file
-		File fileOutput = Dialogs.promptToSaveFile("Write pyramid", null, null, "OME TIFF pyramid", ".ome.tif");
+		File fileOutput = FileChoosers.promptToSaveFile("Write pyramid", null,
+				FileChoosers.createExtensionFilter("OME TIFF pyramid", ".ome.tif"));
 		if (fileOutput == null)
 			return;
 		String name = fileOutput.getName();

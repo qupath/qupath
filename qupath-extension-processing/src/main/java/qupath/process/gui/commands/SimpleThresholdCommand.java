@@ -46,12 +46,12 @@ import javafx.scene.control.SpinnerValueFactory;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.stage.Stage;
+import qupath.fx.utils.FXUtils;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.gui.tools.GuiTools;
-import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.overlays.PathOverlay;
 import qupath.lib.gui.viewer.overlays.PixelClassificationOverlay;
@@ -91,7 +91,7 @@ public class SimpleThresholdCommand implements Runnable {
 	@Override
 	public void run() {
 		if (qupath.getImageData() == null) {
-			Dialogs.showNoImageError("Create thresholder");
+			GuiTools.showNoImageError("Create thresholder");
 			return;
 		}
 		if (stage == null)
@@ -191,7 +191,7 @@ public class SimpleThresholdCommand implements Runnable {
 	private Spinner<Double> sigmaSpinner = new Spinner<>(new SpinnerValueFactory.DoubleSpinnerValueFactory(0, 16.0, 0.0, 0.5));
 	private ReadOnlyObjectProperty<Double> sigma = sigmaSpinner.valueProperty();
 
-	private Spinner<Double> spinner = GuiTools.createDynamicStepSpinner(-Double.MAX_VALUE, Double.MAX_VALUE, 0, 0.01, 2);
+	private Spinner<Double> spinner = FXUtils.createDynamicStepSpinner(-Double.MAX_VALUE, Double.MAX_VALUE, 0, 0.01, 2);
 	private ReadOnlyObjectProperty<Double> threshold = spinner.valueProperty();
 	
 	private ObjectProperty<PixelClassificationOverlay> selectedOverlay = new SimpleObjectProperty<>();
@@ -213,18 +213,18 @@ public class SimpleThresholdCommand implements Runnable {
 		
 		Label labelResolution = new Label("Resolution");
 		labelResolution.setLabelFor(comboResolutions);
-		PaneTools.addGridRow(pane, row++, 0, "Select image resolution to threshold (higher values mean lower resolution, and faster thresholding)",
+		GridPaneUtils.addGridRow(pane, row++, 0, "Select image resolution to threshold (higher values mean lower resolution, and faster thresholding)",
 				labelResolution, comboResolutions, comboResolutions);
 
 		Label label = new Label("Channel");
 		label.setLabelFor(transforms);
-		PaneTools.addGridRow(pane, row++, 0, "Select channel to threshold", label, transforms, transforms);
+		GridPaneUtils.addGridRow(pane, row++, 0, "Select channel to threshold", label, transforms, transforms);
 		
 		Label labelPrefilter = new Label("Prefilter");
 		labelPrefilter.setLabelFor(comboPrefilter);
 		comboPrefilter.getItems().setAll(Prefilter.values());
 		comboPrefilter.getSelectionModel().select(Prefilter.GAUSSIAN);
-		PaneTools.addGridRow(pane, row++, 0, "Select image smoothing filter (Gaussian is usually best)", labelPrefilter, comboPrefilter, comboPrefilter);
+		GridPaneUtils.addGridRow(pane, row++, 0, "Select image smoothing filter (Gaussian is usually best)", labelPrefilter, comboPrefilter, comboPrefilter);
 
 		label = new Label("Smoothing sigma");
 		label.setLabelFor(sigmaSpinner);
@@ -233,9 +233,9 @@ public class SimpleThresholdCommand implements Runnable {
 				Bindings.createStringBinding(() -> sigma.get() == null ? "" : GeneralTools.formatNumber(sigma.get(), 2), sigma)
 				);
 		labelSigma.setMinWidth(25); // Thanks to Melvin, to stop it jumping around
-		GuiTools.restrictTextFieldInputToNumber(sigmaSpinner.getEditor(), true);
-		GuiTools.resetSpinnerNullToPrevious(sigmaSpinner);
-		PaneTools.addGridRow(pane, row++, 0, "Select smoothing sigma value (higher values give a smoother result)", label, sigmaSpinner, labelSigma);
+		FXUtils.restrictTextFieldInputToNumber(sigmaSpinner.getEditor(), true);
+		FXUtils.resetSpinnerNullToPrevious(sigmaSpinner);
+		GridPaneUtils.addGridRow(pane, row++, 0, "Select smoothing sigma value (higher values give a smoother result)", label, sigmaSpinner, labelSigma);
 
 		label = new Label("Threshold");
 		label.setLabelFor(spinner);
@@ -243,18 +243,18 @@ public class SimpleThresholdCommand implements Runnable {
 		labelThreshold.textProperty().bind(
 				Bindings.createStringBinding(() -> threshold.get() == null ? "" : GeneralTools.formatNumber(threshold.get(), 2), threshold)
 				);
-		GuiTools.restrictTextFieldInputToNumber(spinner.getEditor(), true);
-		GuiTools.resetSpinnerNullToPrevious(spinner);
-		PaneTools.addGridRow(pane, row++, 0, "Select threshold value", label, spinner, labelThreshold);
+		FXUtils.restrictTextFieldInputToNumber(spinner.getEditor(), true);
+		FXUtils.resetSpinnerNullToPrevious(spinner);
+		GridPaneUtils.addGridRow(pane, row++, 0, "Select threshold value", label, spinner, labelThreshold);
 
 		Label labelAbove = new Label("Above threshold");
 		labelAbove.setLabelFor(classificationsAbove);
 
 		Label labelBelow = new Label("Below threshold");
 		labelBelow.setLabelFor(classificationsBelow);
-		PaneTools.addGridRow(pane, row++, 0, "Select classification for pixels above the threshold."
+		GridPaneUtils.addGridRow(pane, row++, 0, "Select classification for pixels above the threshold."
 				+ "\nDouble-click on labels to switch above & below.", labelAbove, classificationsAbove, classificationsAbove);
-		PaneTools.addGridRow(pane, row++, 0, "Select classification for pixels less than or equal to the threshold."
+		GridPaneUtils.addGridRow(pane, row++, 0, "Select classification for pixels less than or equal to the threshold."
 				+ "\nDouble-click on labels to switch above & below.", labelBelow, classificationsBelow, classificationsBelow);
 		
 		labelAbove.setOnMouseClicked(e -> {
@@ -265,7 +265,7 @@ public class SimpleThresholdCommand implements Runnable {
 
 		var labelRegion = new Label("Region");
 		var comboRegionFilter = PixelClassifierUI.createRegionFilterCombo(qupath.getOverlayOptions());
-		PaneTools.addGridRow(pane,  row++, 0, "Control where the pixel classification is applied during preview",
+		GridPaneUtils.addGridRow(pane,  row++, 0, "Control where the pixel classification is applied during preview",
 				labelRegion, comboRegionFilter, comboRegionFilter);
 		
 //		var nodeLimit = PixelClassifierTools.createLimitToAnnotationsControl(qupath.getOverlayOptions());
@@ -285,12 +285,12 @@ public class SimpleThresholdCommand implements Runnable {
 
 		
 		var classifierName = new SimpleStringProperty(null);
-		var tilePane = PaneTools.createRowGrid(
+		var tilePane = GridPaneUtils.createRowGrid(
 				PixelClassifierUI.createSavePixelClassifierPane(qupath.projectProperty(), currentClassifier, classifierName),
 				PixelClassifierUI.createPixelClassifierButtons(qupath.imageDataProperty(), currentClassifier, classifierName)
 				);
 		tilePane.setVgap(5);
-		PaneTools.addGridRow(pane, row++, 0, null, tilePane, tilePane, tilePane);
+		GridPaneUtils.addGridRow(pane, row++, 0, null, tilePane, tilePane, tilePane);
 		
 //		var tilePane = PixelClassifierUI.createPixelClassifierButtons(qupath.imageDataProperty(), currentClassifier);
 //		PaneTools.addGridRow(pane, row++, 0, null, tilePane, tilePane, tilePane);
@@ -311,13 +311,13 @@ public class SimpleThresholdCommand implements Runnable {
 		pane.setHgap(6.0);
 		pane.setPadding(new Insets(10.0));
 		
-		PaneTools.setMaxWidth(Double.MAX_VALUE, comboResolutions, comboPrefilter,
+		GridPaneUtils.setMaxWidth(Double.MAX_VALUE, comboResolutions, comboPrefilter,
 				transforms, spinner, sigmaSpinner, classificationsAbove, classificationsBelow,
 				btnSave, tilePane);
-		PaneTools.setFillWidth(Boolean.TRUE, comboResolutions, comboPrefilter,
+		GridPaneUtils.setFillWidth(Boolean.TRUE, comboResolutions, comboPrefilter,
 				transforms, spinner, sigmaSpinner, classificationsAbove, classificationsBelow,
 				btnSave, tilePane);
-		PaneTools.setHGrowPriority(Priority.ALWAYS, comboResolutions, comboPrefilter,
+		GridPaneUtils.setHGrowPriority(Priority.ALWAYS, comboResolutions, comboPrefilter,
 				transforms, spinner, sigmaSpinner, classificationsAbove, classificationsBelow,
 				btnSave, tilePane);
 		
@@ -473,7 +473,7 @@ public class SimpleThresholdCommand implements Runnable {
 	private void ensureOverlays() {
 		var overlay = selectedOverlay.get();
 		// Try (admittedly unsuccessfully) to reduce flicker
-		for (var viewer : qupath.getViewers()) {
+		for (var viewer : qupath.getAllViewers()) {
 			var imageData = viewer.getImageData();
 			if (imageData == null) {
 				resetOverlay(viewer, map.get(viewer));

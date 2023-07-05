@@ -27,8 +27,6 @@ import java.awt.geom.Path2D;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Collectors;
-
 import org.locationtech.jts.algorithm.locate.SimplePointInAreaLocator;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
@@ -136,7 +134,7 @@ public class GeometryROI extends AbstractPathROI implements Serializable {
 
 	@Override
 	public List<Point2> getAllPoints() {
-		return Arrays.stream(geometry.getCoordinates()).map(c -> new Point2(c.x, c.y)).collect(Collectors.toList());
+		return Arrays.stream(geometry.getCoordinates()).map(c -> new Point2(c.x, c.y)).toList();
 	}
 	
 	GeometryStats getGeometryStats() {

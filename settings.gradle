@@ -1,4 +1,4 @@
-gradle.ext.qupathVersion = "0.4.3"
+gradle.ext.qupathVersion = "0.5.0-SNAPSHOT"
 
 rootProject.name = 'qupath'
 
@@ -9,6 +9,10 @@ include 'qupath-app'
 include 'qupath-core'
 include 'qupath-core-processing'
 include 'qupath-gui-fx'
+
+// Extra GUI elements - needed for UI
+// but don't depend on other QuPath modules
+include 'qupath-fx'
 
 // Core extension
 include 'qupath-extension-processing'

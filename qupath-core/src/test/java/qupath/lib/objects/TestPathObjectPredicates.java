@@ -23,6 +23,7 @@ package qupath.lib.objects;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -91,7 +92,9 @@ public class TestPathObjectPredicates {
 				unclassifiedDetections,
 				unclassifiedAnnotations,
 				tumorAnnotations
-				).stream().flatMap(p -> p.stream()).collect(Collectors.toList());
+				).stream()
+				.flatMap(p -> p.stream())
+				.collect(Collectors.toCollection(ArrayList::new));
 		
 		Collections.shuffle(allObjects);
 
@@ -200,13 +203,13 @@ public class TestPathObjectPredicates {
 	static List<PathObject> createDetections(int n, PathClass pathClass) {
 		return IntStream.range(0, n)
 				.mapToObj(i -> PathObjects.createDetectionObject(ROIs.createEmptyROI(), pathClass))
-				.collect(Collectors.toList());
+				.toList();
 	}
 	
 	static List<PathObject> createAnnotations(int n, PathClass pathClass) {
 		return IntStream.range(0, n)
 				.mapToObj(i -> PathObjects.createAnnotationObject(ROIs.createEmptyROI(), pathClass))
-				.collect(Collectors.toList());
+				.toList();
 	}
 	
 	

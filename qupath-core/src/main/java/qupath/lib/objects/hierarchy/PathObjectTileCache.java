@@ -434,7 +434,7 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 							continue;
 						
 						if (pathObjects == null)
-							pathObjects = new HashSet<PathObject>();
+							pathObjects = new HashSet<>();
 						
 						// Add all objects that have a parent, i.e. might be in the hierarchy
 						for (PathObject pathObject : (List<PathObject>)list) {

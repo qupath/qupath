@@ -34,10 +34,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.zip.ZipFile;
 
+import com.google.gson.GsonBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -63,11 +63,10 @@ import javafx.scene.layout.Priority;
 import javafx.scene.web.WebView;
 import javafx.stage.Stage;
 import javafx.stage.Window;
+import qupath.fx.utils.FXUtils;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.prefs.PathPrefs;
-import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.WebViews;
-import qupath.lib.io.GsonTools;
 
 /**
  * Command to show javadocs in a {@link WebView}.
@@ -206,12 +205,12 @@ public class JavadocViewer {
 		toolbar.setSpacing(spacing);
 		toolbar.setPadding(new Insets(spacing));
 		
-		var btnBack = new Button("<"); // \u2190
+		var btnBack = new Button("<"); // ←
 		btnBack.setTooltip(new Tooltip("Back"));
 		btnBack.disableProperty().bind(history.currentIndexProperty().isEqualTo(0));
 		btnBack.setOnAction(e -> backOne());
 		
-		var btnForward = new Button(">"); // \u2192
+		var btnForward = new Button(">"); // →
 		btnForward.setTooltip(new Tooltip("Forward"));
 		btnForward.disableProperty().bind(Bindings.createBooleanBinding(() -> {
 			return history.getCurrentIndex() >= history.getEntries().size() - 1;
@@ -220,11 +219,11 @@ public class JavadocViewer {
 		
 		toolbar.getChildren().addAll(btnBack, btnForward);
 		
-		var comboUris = new ComboBox<URI>(uris);
+		var comboUris = new ComboBox<>(uris);
 		comboUris.setTooltip(new Tooltip("Javadoc source"));
 		comboUris.setMaxWidth(Double.MAX_VALUE);
-		comboUris.setCellFactory(v -> GuiTools.createCustomListCell(JavadocViewer::getName));
-		comboUris.setButtonCell(GuiTools.createCustomListCell((JavadocViewer::getName)));
+		comboUris.setCellFactory(v -> FXUtils.createCustomListCell(JavadocViewer::getName));
+		comboUris.setButtonCell(FXUtils.createCustomListCell((JavadocViewer::getName)));
 //			selectedUri.bind(comboUris.getSelectionModel().selectedItemProperty());
 		comboUris.setOnAction(e -> {
 			selectedUri.set(comboUris.getValue());
@@ -310,10 +309,8 @@ public class JavadocViewer {
 		var uri = webview.getEngine().getLocation();
 		if (uri == null || uri.isBlank())
 			return;
-		
-		var baseUri = uris.stream().filter(u -> uri.startsWith(u.toString())).findFirst().orElse(null);
-		if (baseUri != null)
-			selectedUri.set(baseUri);
+
+		uris.stream().filter(u -> uri.startsWith(u.toString())).findFirst().ifPresent(baseUri -> selectedUri.set(baseUri));
 	}
 	
 	
@@ -434,7 +431,7 @@ public class JavadocViewer {
 				return Collections.emptyList();
 			
 			if (Files.isDirectory(path)) {
-				return getJavadocUris(path, searchDepth).sorted().collect(Collectors.toList());
+				return getJavadocUris(path, searchDepth).sorted().toList();
 			} else {
 				var docUri = getDocUri(path);
 				return docUri == null ? Collections.emptyList() : Collections.singletonList(docUri);
@@ -557,7 +554,7 @@ public class JavadocViewer {
 			if (startInd >= 0 && endInd >= 0 && endInd < json.length())
 				json = json.substring(startInd, endInd);
 				
-			return (List<T>)GsonTools.getInstance().fromJson(json, TypeToken.getParameterized(List.class, cls).getType());
+			return (List<T>)new GsonBuilder().create().fromJson(json, TypeToken.getParameterized(List.class, cls).getType());
 		}
 		
 		/**

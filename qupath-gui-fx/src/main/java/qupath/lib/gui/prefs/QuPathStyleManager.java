@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -23,24 +23,26 @@
 
 package qupath.lib.gui.prefs;
 
+import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardWatchEventKinds;
 import java.nio.file.WatchEvent;
 import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ThreadFactory;
-import java.util.stream.Collectors;
 
+import javafx.scene.control.ButtonType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,9 +52,12 @@ import javafx.beans.property.ObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener.Change;
 import javafx.collections.ObservableList;
+import qupath.fx.utils.FXUtils;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.ThreadTools;
-import qupath.lib.gui.tools.GuiTools;
+import qupath.lib.gui.UserDirectoryManager;
+import qupath.lib.gui.commands.Commands;
+import qupath.fx.dialogs.Dialogs;
 
 
 /**
@@ -199,6 +204,12 @@ public class QuPathStyleManager {
 		}
 	}
 	
+	
+	private static Path getCssDirectory() {
+		return UserDirectoryManager.getInstance().getCssStylesPath();
+	}
+	
+	
 	/**
 	 * Request that the list of available styles is updated.
 	 * It makes sense to call this when a new user directory has been set, so that a check for CSS files 
@@ -207,10 +218,9 @@ public class QuPathStyleManager {
 	public static void updateAvailableStyles() {
 		
 		// Make sure we're still watching the correct directory for custom styles
-		var cssPathString = PathPrefs.getCssStylesPath();
-		if (cssPathString != null) {
+		var cssPath = getCssDirectory();
+		if (cssPath != null) {
 			// Create a new watcher if needed, or else check the CSS path is still correct
-			var cssPath = Paths.get(cssPathString);
 			if (watcher == null) {
 				try {
 					watcher = new CssStylesWatcher(cssPath);
@@ -252,6 +262,73 @@ public class QuPathStyleManager {
 	
 	
 	/**
+     * Handle installing CSS files (which can be used to style QuPath).
+     * @param list list of css files
+     * @return
+     */
+	public static boolean installStyles(final Collection<File> list) {
+		var dir = Commands.requestUserDirectory(true);
+		if (dir == null)
+			return false;
+		
+		var pathCss = getCssDirectory();
+		
+		int nInstalled = 0;
+		try {
+			// If we have a user directory, add a CSS subdirectory if needed
+			if (pathCss != null && !Files.exists(pathCss)) {
+				if (Files.isDirectory(pathCss.getParent()))
+					Files.createDirectory(pathCss);
+			}
+			// If we still don't have a css directory, return
+			if (!Files.isDirectory(pathCss))
+				return false;
+			
+			// Copy over the files
+			Boolean overwriteExisting = null;
+			for (var file : list) {
+				if (!file.getName().toLowerCase().endsWith(".css")) {
+					logger.warn("Cannot install style for {} - not a .css file!", file);
+					continue;
+				}
+				var source = file.toPath();
+				var target = pathCss.resolve(file.getName());
+				if (Objects.equals(source, target)) {
+					logger.warn("Can't copy CSS - source and target files are the same!");
+					continue;
+				}
+				if (Files.exists(target)) {
+					// Check if we want to overwrite - if so, retain the response so we don't 
+					// have to prompt multiple times if there are multiple files
+					if (overwriteExisting == null) {
+						var response = Dialogs.showYesNoCancelDialog("Install CSS", "Do you want to overwrite existing CSS files?");
+						if (response == ButtonType.YES)
+							overwriteExisting = Boolean.TRUE;
+						else if (response == ButtonType.NO)
+							overwriteExisting = Boolean.FALSE;
+						else // cancelled
+							return false;
+					}
+					// Skip
+					if (!overwriteExisting)
+						continue;
+				}
+				logger.info("Copying {} -> {}", source, target);
+				Files.copy(source, target, StandardCopyOption.REPLACE_EXISTING);	
+				nInstalled++;
+			}
+		} catch (IOException e) {
+			logger.error("Exception installing CSS files: " + e.getLocalizedMessage(), e);
+			return false;
+		}
+		if (nInstalled > 0)
+			QuPathStyleManager.updateAvailableStyles();
+		return true;
+	}
+	
+	
+	
+	/**
 	 * Refresh the current style.
 	 * This should not normally be required, but may be useful during startup to ensure 
 	 * that the style is properly set at the appropriate time.
@@ -270,7 +347,7 @@ public class QuPathStyleManager {
 	
 	/**
 	 * Get the current available styles as an observable list.
-	 * The list is unmodifiable, since any changes should be made via {@link PathPrefs#getCssStylesPath()}.
+	 * The list is unmodifiable, since any changes should be made via adding/removing files in {@link UserDirectoryManager#getCssStylesPath()}.
 	 * @return
 	 */
 	public static ObservableList<StyleOption> availableStylesProperty() {
@@ -623,14 +700,14 @@ public class QuPathStyleManager {
 						.filter(p -> Files.isRegularFile(p) && p.getFileName().toString().toLowerCase().endsWith(".css"))
 						.map(path -> new CustomStylesheet(path))
 						.sorted(Comparator.comparing(StyleOption::getName))
-						.collect(Collectors.toList());
-					GuiTools.runOnApplicationThread(() -> styles.setAll(newStyles));
+						.toList();
+					FXUtils.runOnApplicationThread(() -> styles.setAll(newStyles));
 					return;
 				}
 			} catch (IOException e) {
 				logger.warn(e.getLocalizedMessage(), e);
 			}
-			GuiTools.runOnApplicationThread(() -> styles.clear());
+			FXUtils.runOnApplicationThread(() -> styles.clear());
 		}
 				
 		

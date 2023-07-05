@@ -42,8 +42,8 @@ import qupath.lib.classifiers.object.ObjectClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.dialogs.Dialogs;
-import qupath.lib.gui.tools.PaneTools;
+import qupath.fx.dialogs.Dialogs;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ResourceManager.Manager;
 import qupath.process.gui.commands.ml.ProjectClassifierBindings;
@@ -184,8 +184,8 @@ public class SaveResourcePaneBuilder<T> {
 			Tooltip.install(pane, tooltip);
 		}
 		
-		PaneTools.addGridRow(pane, 0, 0, null, label, tfClassifierName, btnSave);
-		PaneTools.setToExpandGridPaneWidth(tfClassifierName);
+		GridPaneUtils.addGridRow(pane, 0, 0, null, label, tfClassifierName, btnSave);
+		GridPaneUtils.setToExpandGridPaneWidth(tfClassifierName);
 		pane.setHgap(5);
 		
 		ProjectClassifierBindings.bindPixelClassifierNameInput(tfClassifierName, project);
@@ -227,9 +227,9 @@ public class SaveResourcePaneBuilder<T> {
 	
 	private static <T, S extends T> Manager<S> getResourceManager(Project<?> project, Class<T> cls) {
 		if (PixelClassifier.class.equals(cls))
-			return (Manager<S>)project.getPixelClassifiers();
+			return (Manager)project.getPixelClassifiers();
 		if (ObjectClassifier.class.equals(cls))
-			return (Manager<S>)project.getObjectClassifiers();
+			return (Manager)project.getObjectClassifiers();
 		if (DensityMapBuilder.class.equals(cls))
 			return (Manager<S>)project.getResources(DensityMaps.PROJECT_LOCATION, cls, "json");
 		return null;

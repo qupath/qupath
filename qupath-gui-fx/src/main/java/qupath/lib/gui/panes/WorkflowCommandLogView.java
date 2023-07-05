@@ -67,9 +67,10 @@ import javafx.scene.layout.Pane;
 import javafx.stage.Stage;
 import javafx.util.Callback;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.scripting.ScriptEditor;
-import qupath.lib.gui.tools.PaneTools;
+import qupath.fx.utils.GridPaneUtils;
+import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.plugins.PathPlugin;
 import qupath.lib.plugins.parameters.ParameterList;
@@ -274,40 +275,40 @@ public class WorkflowCommandLogView implements ChangeListener<ImageData<Buffered
 					);
 		}
 		
-		list.setCellFactory(new Callback<ListView<WorkflowStep>, ListCell<WorkflowStep>>(){
+		list.setCellFactory(new Callback<>() {
 
-			@Override
-			public ListCell<WorkflowStep> call(ListView<WorkflowStep> p) {
-				ListCell<WorkflowStep> cell = new ListCell<>(){
-					@Override
-					protected void updateItem(WorkflowStep value, boolean bln) {
-						super.updateItem(value, bln);
-						if (value instanceof WorkflowStep)
-							setText(value.getName());
-						else if (value == null)
-							setText(null);
-						else
-							setText(value.toString());
-						
-						setContextMenu(contextMenu);
+            @Override
+            public ListCell<WorkflowStep> call(ListView<WorkflowStep> p) {
+                ListCell<WorkflowStep> cell = new ListCell<>() {
+                    @Override
+                    protected void updateItem(WorkflowStep value, boolean bln) {
+                        super.updateItem(value, bln);
+                        if (value instanceof WorkflowStep)
+                            setText(value.getName());
+                        else if (value == null)
+                            setText(null);
+                        else
+                            setText(value.toString());
 
-						setOnMouseClicked(e -> {
-							// Only handle double clicks
-							if (!e.isPopupTrigger() && e.getClickCount() == 2)
-								runWorkflowStepInteractively(qupath, value);
-						});
-						
-						setOnKeyPressed(e -> {
-							if (copyCombination.match(e)) {
-								copyScriptToClipboard(getSelectedIndices());
-								e.consume();
-							}
-						});
-					}
-				};
-				return cell;
-			}
-		});
+                        setContextMenu(contextMenu);
+
+                        setOnMouseClicked(e -> {
+                            // Only handle double clicks
+                            if (!e.isPopupTrigger() && e.getClickCount() == 2)
+                                runWorkflowStepInteractively(qupath, value);
+                        });
+
+                        setOnKeyPressed(e -> {
+                            if (copyCombination.match(e)) {
+                                copyScriptToClipboard(getSelectedIndices());
+                                e.consume();
+                            }
+                        });
+                    }
+                };
+                return cell;
+            }
+        });
 		
 		
 		pane.setCenter(splitPane);
@@ -334,7 +335,7 @@ public class WorkflowCommandLogView implements ChangeListener<ImageData<Buffered
 				stage.show();
 			});
 			btnCreateWorkflow.disableProperty().bind(workflowProperty.isNull());
-			pane.setBottom(PaneTools.createColumnGridControls(btnCreateWorkflow, btnCreateScript));
+			pane.setBottom(GridPaneUtils.createColumnGridControls(btnCreateWorkflow, btnCreateScript));
 		} else
 			pane.setBottom(btnCreateScript);
 		
@@ -413,7 +414,7 @@ public class WorkflowCommandLogView implements ChangeListener<ImageData<Buffered
 	private static void runWorkflowStepInteractively(final QuPathGUI qupath, final WorkflowStep step) {
 		ImageData<BufferedImage> imageData = qupath.getImageData();
 		if (imageData == null) {
-			Dialogs.showNoImageError("Run workflow step");
+			GuiTools.showNoImageError("Run workflow step");
 			return;
 		}
 		if (step instanceof SimplePluginWorkflowStep) {

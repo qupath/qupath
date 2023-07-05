@@ -32,8 +32,6 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.nio.file.Files;
 import java.util.List;
-import java.util.stream.Collectors;
-
 import org.junit.jupiter.api.Test;
 import org.locationtech.jts.geom.Geometry;
 
@@ -69,7 +67,7 @@ public class TestROIs {
 		checkROIMeasurements(rectangle, pixelWidth, pixelHeight, delta);
 		assertTrue(rectangle.getGeometry().isValid());
 		
-		ROI ellipse = ROIs.createEllipseROI(50, 00, 500, 300, ImagePlane.getDefaultPlane());
+		ROI ellipse = ROIs.createEllipseROI(50, 0, 500, 300, ImagePlane.getDefaultPlane());
 		double targetAreaEllipse = Math.PI * 250 * 150;
 		assertEquals(targetAreaEllipse, ellipse.getArea(), delta);
 		// Flattening the path results in a more substantial area difference
@@ -96,7 +94,7 @@ public class TestROIs {
 		File fileHierarchy = new File("src/test/resources/data/test-objects.hierarchy");
 		try (InputStream stream = Files.newInputStream(fileHierarchy.toPath())) {
 			PathObjectHierarchy hierarchy = (PathObjectHierarchy)new ObjectInputStream(stream).readObject();
-			List<ROI> rois = hierarchy.getFlattenedObjectList(null).stream().filter(p -> p.hasROI()).map(p -> p.getROI()).collect(Collectors.toList());
+			List<ROI> rois = hierarchy.getFlattenedObjectList(null).stream().filter(p -> p.hasROI()).map(p -> p.getROI()).toList();
 			assertNotEquals(0L, rois.size());
 			for (ROI roi : rois) {
 				Geometry geom = roi.getGeometry();

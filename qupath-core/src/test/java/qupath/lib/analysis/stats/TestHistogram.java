@@ -64,7 +64,7 @@ public class TestHistogram {
 			int random1 = (int)(random.nextDouble()*100);
 
 			// Create list out of double array, for simplicity with calculations
-			List<Double> list = DoubleStream.of(data).boxed().collect(Collectors.toList());
+			List<Double> list = DoubleStream.of(data).boxed().collect(Collectors.toCollection(ArrayList::new));
 			
 			// Remove the NaN values, so they aren't counted by the Collections 'stats' methods
 			data[random1] = Double.NaN;
@@ -85,7 +85,7 @@ public class TestHistogram {
 			int random2 = (int)(random.nextFloat()*100);
 
 			// Create list out of double array, for simplicity with calculations
-			List<Double> list2 = DoubleStream.of(data2).boxed().collect(Collectors.toList());
+			List<Double> list2 = DoubleStream.of(data2).boxed().collect(Collectors.toCollection(ArrayList::new));
 			
 			// Remove the NaN values, so they aren't counted by the Collections 'stats' methods
 			data2[random2] = Double.NaN;
@@ -103,7 +103,7 @@ public class TestHistogram {
 			int random3 = (int)(random.nextDouble()*100);
 
 			// Create list out of double array, for simplicity with calculations
-			List<Double> list3 = DoubleStream.of(data3).boxed().collect(Collectors.toList());
+			List<Double> list3 = DoubleStream.of(data3).boxed().collect(Collectors.toCollection(ArrayList::new));
 			
 			// Remove the NaN values, so they aren't counted by the Collections 'stats' methods
 			data3[random3] = Double.NaN;
@@ -201,7 +201,7 @@ public class TestHistogram {
 							return value >= Collections.min(list) + ii*binWidth1;
 						else
 							return value >= Collections.min(list) + ii*binWidth1 && value < Collections.min(list) + ii*binWidth1 + binWidth1;
-					}).collect(Collectors.toList()));
+					}).toList());
 		}
 		
 		Map<Integer, List<Double>> countPerBin1 = new HashMap<>();	// 'getBinIndexForValue(double)' check
@@ -265,7 +265,7 @@ public class TestHistogram {
 							return value >= 0 + ii*binWidth2;
 						else
 							return value >= 0 + ii*binWidth2 && value < 0 + ii*binWidth2 + binWidth2;
-					}).collect(Collectors.toList()));
+					}).toList());
 		}
 		
 		Map<Integer, List<Double>> countPerBin3 = new HashMap<>();	// 'getBinIndexForValue(double)' check
