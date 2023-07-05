@@ -590,7 +590,7 @@ public class TileExporter  {
 		var pool = Executors.newFixedThreadPool(ThreadTools.getParallelism(), ThreadTools.createThreadFactory("tile-exporter", true));
 
 		String imageName = GeneralTools.stripInvalidFilenameChars(
-				GeneralTools.getNameWithoutExtension(server.getMetadata().getName())
+				GeneralTools.stripExtension(server.getMetadata().getName())
 				);
 
 		// Create something we can input as the image path for export

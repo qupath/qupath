@@ -126,7 +126,7 @@ public final class ExportObjectsCommand {
 			if (entry != null)
 				defaultName = entry.getImageName();
 		}
-		defaultName = GeneralTools.getNameWithoutExtension(defaultName);
+		defaultName = GeneralTools.stripExtension(defaultName);
 		File defaultDirectory = project == null || project.getPath() == null ? null : project.getPath().toFile();
 		while (defaultDirectory != null && !defaultDirectory.isDirectory())
 			defaultDirectory = defaultDirectory.getParentFile();

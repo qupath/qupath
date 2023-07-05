@@ -164,7 +164,7 @@ public class NumpyTools {
 				var entry = iter.next();
 				try (var stream = new BufferedInputStream(zipFile.getInputStream(entry))) {
 					var mat = readMat(stream, squeezeDimensions);
-					map.put(GeneralTools.getNameWithoutExtension(entry.getName()), mat);
+					map.put(GeneralTools.stripExtension(entry.getName()), mat);
 					if (firstOnly)
 						break;
 				}

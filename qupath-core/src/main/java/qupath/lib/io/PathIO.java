@@ -962,7 +962,7 @@ public class PathIO {
 		String name = path.getFileName().toString();
 		if (name.toLowerCase().endsWith(".zip")) {
 			try (var zos = new ZipOutputStream(new BufferedOutputStream(Files.newOutputStream(path)))) {
-				ZipEntry entry = new ZipEntry(GeneralTools.getNameWithoutExtension(name) + ".geojson");
+				ZipEntry entry = new ZipEntry(GeneralTools.stripExtension(name) + ".geojson");
 				zos.putNextEntry(entry);
 				exportObjectsAsGeoJSON(zos, pathObjects, options);
 				zos.closeEntry();
