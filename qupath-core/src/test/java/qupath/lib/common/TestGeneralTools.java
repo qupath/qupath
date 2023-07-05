@@ -79,6 +79,7 @@ public class TestGeneralTools {
 		for (String ext : Arrays.asList(".ext", ".tif", ".ome.tiff", ".tar.gz", ".ome.tif")) {
 			File file = new File(baseName + ext);
 			String parsed = GeneralTools.getExtension(file).orElse(null);
+			assertEquals(GeneralTools.getNameWithoutExtension(file.getAbsolutePath()), GeneralTools.getNameWithoutExtension(file.getAbsoluteFile()));
 			assertEquals(ext, parsed);
 			assertEquals(baseName, GeneralTools.getNameWithoutExtension(file));
 			assertEquals(baseName, GeneralTools.getNameWithoutExtension(file.getPath()));

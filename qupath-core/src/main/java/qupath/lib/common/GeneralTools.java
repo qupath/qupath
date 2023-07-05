@@ -296,8 +296,7 @@ public final class GeneralTools {
 	 * {@link #getExtension(File)}
 	 */
 	public static String getNameWithoutExtension(String name) {
-		var ext = getExtension(name).orElse(null);
-		return ext ==  null ? name : name.substring(0, name.length() - ext.length());
+		return getNameWithoutExtension(new File(name));
 	}
 	
 	/**
