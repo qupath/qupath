@@ -569,7 +569,7 @@ public class SvgTools {
 											.anyMatch(i -> i != transparent);
 							if (containsNonTransparent) {
 								overlayCount++;
-								String overlayImageName = GeneralTools.getNameWithoutExtension(imageName)
+								String overlayImageName = GeneralTools.stripExtension(imageName)
 										+ "-overlay-" + overlayCount + ".png";
 								g2d.setRenderingHint(SVGHints.KEY_IMAGE_HREF, overlayImageName);
 								g2d.drawImage(imgTemp, transformInverse, null);

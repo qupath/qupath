@@ -279,25 +279,47 @@ public final class GeneralTools {
 	
 	/**
 	 * Get the file name with extension removed.
+	 * Note that this generally means removing the text including and after the final dot,
+	 * but also handles specific multi-part file extensions as well.
 	 * @param file
 	 * @return
-	 * {@link #getExtension(File)}
+	 * @see #stripExtension(String)
+	 * @see #getExtension(File)
 	 */
 	public static String getNameWithoutExtension(File file) {
 		var ext = getExtension(file).orElse(null);
 		String name = file.getName();
 		return ext ==  null ? name : name.substring(0, name.length() - ext.length());
 	}
-	
+
 	/**
-	 * Get the file name with extension removed.
+	 * Strip the extension from a file name or path, leaving the rest of the string unchanged.
 	 * @param name
 	 * @return
 	 * {@link #getExtension(File)}
+	 * @deprecated v0.5.0 in favor of {@link #stripExtension(String)}, which does the same thing but has
+	 *             a more descriptive name. See https://github.com/qupath/qupath/pull/1275 for details.
 	 */
+	@Deprecated
 	public static String getNameWithoutExtension(String name) {
-		var ext = getExtension(name).orElse(null);
-		return ext ==  null ? name : name.substring(0, name.length() - ext.length());
+		LogTools.warnOnce(logger, "getNameWithoutExtension(String) has been deprecated - use stripExtension(name) instead.");
+		return stripExtension(name);
+	}
+	
+	/**
+	 * Strip the extension from a file name or path, leaving the rest of the string unchanged.
+	 * Note that this generally means removing the text including and after the final dot,
+	 * but also handles specific multi-part file extensions as well.
+	 *
+	 * @param path
+	 * @return
+	 * @see #getNameWithoutExtension(File)
+	 * @see #getExtension(String)
+	 * @see #getExtension(File)
+	 */
+	public static String stripExtension(String path) {
+		var ext = getExtension(path).orElse(null);
+		return ext ==  null ? path : path.substring(0, path.length() - ext.length());
 	}
 	
 	/**

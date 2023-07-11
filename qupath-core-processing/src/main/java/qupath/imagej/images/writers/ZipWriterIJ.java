@@ -65,7 +65,7 @@ public class ZipWriterIJ extends AbstractWriterIJ {
 	@Override
 	public void writeImage(ImagePlus imp, OutputStream stream) throws IOException {
 		try (ZipOutputStream zos = new ZipOutputStream(stream)) {
-			String name = GeneralTools.getNameWithoutExtension(imp.getTitle());
+			String name = GeneralTools.stripExtension(imp.getTitle());
 			if (name == null || name.isBlank())
 				name = "image";
 			name += ".tif";

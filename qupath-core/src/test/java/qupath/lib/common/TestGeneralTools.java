@@ -81,13 +81,13 @@ public class TestGeneralTools {
 			String parsed = GeneralTools.getExtension(file).orElse(null);
 			assertEquals(ext, parsed);
 			assertEquals(baseName, GeneralTools.getNameWithoutExtension(file));
-			assertEquals(baseName, GeneralTools.getNameWithoutExtension(file.getPath()));
+			assertEquals(baseName, GeneralTools.stripExtension(file.getPath()));
 			
 			File fileUpper = new File(baseName + ext.toUpperCase());
 			String parsedUpper = GeneralTools.getExtension(fileUpper).orElse(null);
 			assertEquals(ext, parsedUpper);
 			assertEquals(baseName, GeneralTools.getNameWithoutExtension(fileUpper));
-			assertEquals(baseName, GeneralTools.getNameWithoutExtension(fileUpper.getPath()));
+			assertEquals(baseName, GeneralTools.stripExtension(fileUpper.getPath()));
 		}
 		
 		for (String ext : Arrays.asList(".ext (here)", ".tif-not-valid", ".tif?")) {
@@ -97,7 +97,7 @@ public class TestGeneralTools {
 		}
 		
 		assertEquals(noExt.getPath(), GeneralTools.getNameWithoutExtension(noExt));
-		assertEquals(noExt.getPath(), GeneralTools.getNameWithoutExtension(noExt.getPath()));
+		assertEquals(noExt.getPath(), GeneralTools.stripExtension(noExt.getPath()));
 		
 		assertTrue(GeneralTools.isMultipartExtension(".ome.tif"));
 		assertTrue(GeneralTools.isMultipartExtension("ome.tif"));

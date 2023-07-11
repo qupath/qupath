@@ -966,7 +966,7 @@ public class QP {
 	 */
 	public static String getCurrentImageNameWithoutExtension() {
 		var name = getCurrentImageName();
-		return name == null ? null : GeneralTools.getNameWithoutExtension(name);
+		return name == null ? null : GeneralTools.stripExtension(name);
 	}
 	
 	/**
