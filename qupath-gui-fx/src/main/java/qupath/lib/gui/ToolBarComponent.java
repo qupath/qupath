@@ -309,6 +309,9 @@ class ToolBarComponent {
 			setMaxWidth(60);
 			setTextAlignment(TextAlignment.CENTER);
 			setOnMouseEntered(e -> refreshMagnificationTooltip());
+			viewer.downsampleFactor().addListener((v, o, n) -> {
+				setText(GuiTools.getMagnificationString(viewer));
+			});
 			setOnMouseClicked(e -> {
 				if (e.getClickCount() == 2)
 					promptToUpdateMagnification();

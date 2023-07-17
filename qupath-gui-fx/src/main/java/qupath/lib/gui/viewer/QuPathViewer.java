@@ -644,9 +644,12 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 			repaint();
 		}
 	};
-	
-	
-	
+
+	public DoubleProperty downsampleFactor() {
+		return downsampleFactor;
+	}
+
+
 	static class ListenerManager {
 		
 		private List<ListenerHandler> handlers = new ArrayList<>();
