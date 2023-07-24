@@ -189,8 +189,7 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 						handleURLDrop(viewer2, url);
 					}
 	        	} catch (IOException e) {
-					Dialogs.showErrorMessage("Drag & Drop", e.getLocalizedMessage());
-	        		
+					Dialogs.showErrorMessage("Drag & Drop", e);
 	        	} finally {
 	        		taskRunning = false;
 	        	}
