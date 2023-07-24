@@ -177,7 +177,7 @@ public class ExtensionManager {
 		if (showNotification) {
 			// A bit convoluted... but try to show new servers that have been loaded by comparing with the past
 			List<String> serverBuilders = serverBuildersBefore.stream().map(s -> s.getName()).toList();
-			List<String> serverBuildersUpdated = ImageServerProvider.getInstalledImageServerBuilders().stream().map(s -> s.getName()).collect(Collectors.toList());
+			List<String> serverBuildersUpdated = ImageServerProvider.getInstalledImageServerBuilders().stream().map(s -> s.getName()).collect(Collectors.toCollection(ArrayList::new));
 			serverBuildersUpdated.removeAll(serverBuilders);
 			for (String builderName : serverBuildersUpdated) {
 				Dialogs.showInfoNotification("Image server loaded",  builderName);
