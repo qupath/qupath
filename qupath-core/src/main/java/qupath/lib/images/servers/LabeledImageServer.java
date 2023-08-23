@@ -2,19 +2,19 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- * 
+ *
  * QuPath is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
- * You should have received a copy of the GNU General Public License 
+ *
+ * You should have received a copy of the GNU General Public License
  * along with QuPath.  If not, see <https://www.gnu.org/licenses/>.
  * #L%
  */
@@ -36,10 +36,13 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
 import java.util.function.Function;
@@ -75,45 +78,45 @@ import qupath.lib.roi.interfaces.ROI;
  * <i>Warning!</i> This is intend for temporary use when exporting labelled images. No attempt is made to 
  * respond to changes within the hierarchy. For consistent results, the hierarchy must remain static for the 
  * time in which this server is being used.
- * 
+ *
  * @author Pete Bankhead
  *
  */
 public class LabeledImageServer extends AbstractTileableImageServer implements GeneratingImageServer<BufferedImage> {
-	
+
 	private static final Logger logger = LoggerFactory.getLogger(LabeledImageServer.class);
-	
+
 	private ImageServerMetadata originalMetadata;
-	
+
 	// Easy way to get the default color models...
 	private static final ColorModel COLOR_MODEL_GRAY_UINT8 = new BufferedImage(1, 1, BufferedImage.TYPE_BYTE_GRAY).getColorModel();
 	private static final ColorModel COLOR_MODEL_GRAY_UINT16 = new BufferedImage(1, 1, BufferedImage.TYPE_USHORT_GRAY).getColorModel();
-	
+
 	private PathObjectHierarchy hierarchy;
-		
+
 	private ColorModel colorModel;
 	private boolean multichannelOutput;
-	
+
 	private LabeledServerParameters params;
-	
+
 	/**
 	 * The maximum requested label; this is used to determine the output depth for indexed images.
 	 */
 	private int maxLabel;
-	
-	private Map<PathObject, Integer> instanceClassMap = null;	
-	private Map<Integer, PathObject> instanceClassMapInverse = null;	
-	
+
+	private Map<PathObject, Integer> instanceClassMap = null;
+	private Map<Integer, PathObject> instanceClassMapInverse = null;
+
 	private LabeledImageServer(final ImageData<BufferedImage> imageData, double downsample, int tileWidth, int tileHeight, LabeledServerParameters params, boolean multichannelOutput) {
 		super();
-		
+
 		this.multichannelOutput = multichannelOutput;
 		this.hierarchy = imageData.getHierarchy();
-		
+
 		this.params = params;
-		
+
 		var server = imageData.getServer();
-		
+
 		// Generate mapping for labels; it is permissible to have multiple classes for the same labels, in which case a derived class will be used
 		Map<Integer, PathClass> classificationLabels = new TreeMap<>();
 		if (params.createInstanceLabels) {
@@ -145,7 +148,7 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 				}
 			}
 		}
-		
+
 		for (var entry : params.boundaryLabels.entrySet()) {
 			var pathClass = getPathClass(entry.getKey());
 			var label = entry.getValue();
@@ -154,18 +157,18 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 				classificationLabels.put(label, PathClass.getInstance(previousClass, pathClass.getName(), null));
 			}
 		}
-		
+
 		if (tileWidth <= 0)
 			tileWidth = 512;
 		if (tileHeight <= 0)
 			tileHeight = tileWidth;
-		
+
 		var metadataBuilder = new ImageServerMetadata.Builder(server.getMetadata())
 				.preferredTileSize(tileWidth, tileHeight)
 				.levelsFromDownsamples(downsample)
 				.pixelType(PixelType.UINT8)
 				.rgb(false);
-		
+
 		// Check the labels are valid
 		var labelStats = classificationLabels.keySet().stream().mapToInt(i -> i).summaryStatistics();
 		int minLabel = labelStats.getMin();
@@ -178,7 +181,7 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 			if (params.maxOutputChannelLimit > 0 && nChannels > params.maxOutputChannelLimit)
 				throw new IllegalArgumentException("You've requested " + nChannels + " output channels, but the maximum supported number is " + params.maxOutputChannelLimit);
 		}
-		
+
 		if (multichannelOutput) {
 			int nLabels = maxLabel - minLabel + 1;
 			if (minLabel != 0 || nLabels != classificationLabels.size()) {
@@ -197,7 +200,7 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 			metadataBuilder = metadataBuilder
 					.channelType(ChannelType.CLASSIFICATION)
 					.classificationLabels(classificationLabels);
-			
+
 			// Update the color map, ensuring we don't have null
 			var colors = new LinkedHashMap<Integer, Integer>();
 			for (var entry : params.labelColors.entrySet()) {
@@ -215,7 +218,7 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 				}
 				colors.put(key, value);
 			}
-			
+
 			if (params.grayscaleLut) {
 				if (maxLabel < 255)
 					colorModel = COLOR_MODEL_GRAY_UINT8;
@@ -243,11 +246,11 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 				}
 			}
 		}
-		
+
 		// Set metadata, using the underlying server as a basis
 		this.originalMetadata = metadataBuilder.build();
 	}
-	
+
 	/**
 	 * @param pathClass
 	 * @return the input classification, or the unclassified classification if the input is null
@@ -255,7 +258,7 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 	private static PathClass getPathClass(PathClass pathClass) {
 		return pathClass == null ? PathClass.NULL_CLASS : pathClass;
 	}
-	
+
 	/**
 	 * Get a standardized classification for an object. 
 	 * If unique labels are requested, this will return the unique classification associated with this object 
@@ -269,14 +272,14 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 			return instanceLabelToClass(instanceClassMap.get(pathObject));
 		return getPathClass(pathObject.getPathClass());
 	}
-	
-	
+
+
 	private static PathClass instanceLabelToClass(Integer label) {
 		if (label == null)
 			return null;
 		return PathClass.getInstance("Label " + label);
 	}
-	
+
 //	/**
 //	 * Get the label associated with a specific {@link PathObject}.
 //	 * This will be based on the instance if {@link Builder#useInstanceLabels()} is selected, 
@@ -291,7 +294,7 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 //			return instanceClassMap.get(pathObject);
 //		return params.labels.get(getPathClass(pathObject));
 //	}
-	
+
 	/**
 	 * Get a mapping between objects and instance labels.
 	 * @return the instance label map, or an empty map if no objects are available or 
@@ -302,7 +305,7 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 			return Collections.emptyMap();
 		return Collections.unmodifiableMap(instanceClassMap);
 	}
-	
+
 	/**
 	 * Get an unmodifiable map of classifications and their corresponding labels.
 	 * Note that multiple classifications may use the same integer label.
@@ -313,7 +316,7 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 			return Collections.emptyMap();
 		return Collections.unmodifiableMap(params.labels);
 	}
-	
+
 	/**
 	 * Get an unmodifiable map of classifications and their corresponding boundary labels, if available.
 	 * Note that multiple classifications may use the same integer label.
@@ -324,38 +327,38 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 			return Collections.emptyMap();
 		return Collections.unmodifiableMap(params.boundaryLabels);
 	}
-		
-	
-	
+
+
+
 	private static class LabeledServerParameters {
-		
+
 		/**
 		 * Background class (name must not clash with any 'real' class)
 		 * Previously, this was achieved with a UUID - although this looks strange if exporting classes.
 		 */
 //		private PathClass unannotatedClass = PathClassFactory.getPathClass("Unannotated " + UUID.randomUUID().toString());
 		private PathClass unannotatedClass = PathClass.getInstance("*Background*");
-		
+
 		private Predicate<PathObject> objectFilter = PathObjectFilter.ANNOTATIONS;
 		private Function<PathObject, ROI> roiFunction = p -> p.getROI();
-		
+
 		private boolean createInstanceLabels = false;
 		private boolean shuffleInstanceLabels = true; // Only if using instance labels
-		
+
 		private int maxOutputChannelLimit = 256;
-		
+
 		private boolean grayscaleLut = false;
-		
+
 		private float lineThickness = 1.0f;
 		private Map<PathClass, Integer> labels = new LinkedHashMap<>();
 		private Map<PathClass, Integer> boundaryLabels = new LinkedHashMap<>();
 		private Map<Integer, Integer> labelColors = new LinkedHashMap<>();
-		
+
 		LabeledServerParameters() {
 			labels.put(unannotatedClass, 0);
 			labelColors.put(0, ColorTools.WHITE);
 		}
-		
+
 		LabeledServerParameters(LabeledServerParameters params) {
 			this.unannotatedClass = params.unannotatedClass;
 			this.lineThickness = params.lineThickness;
@@ -369,22 +372,22 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 			this.grayscaleLut = params.grayscaleLut;
 			this.shuffleInstanceLabels = params.shuffleInstanceLabels;
 		}
-		
+
 	}
-	
+
 	/**
 	 * Helper class for building a {@link LabeledImageServer}.
 	 */
 	public static class Builder {
-		
+
 		private ImageData<BufferedImage> imageData;
 		private double downsample = 1.0;
 		private int tileWidth, tileHeight;
-		
+
 		private boolean multichannelOutput = false;
-		
+
 		private LabeledServerParameters params = new LabeledServerParameters();
-		
+
 		/**
 		 * Create a Builder for a {@link LabeledImageServer} for the specified {@link ImageData}.
 		 * @param imageData
@@ -392,7 +395,7 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 		public Builder(ImageData<BufferedImage> imageData) {
 			this.imageData = imageData;
 		}
-		
+
 		/**
 		 * Use detections rather than annotations for labels.
 		 * The default is to use annotations.
@@ -403,7 +406,7 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 			params.objectFilter = PathObjectFilter.DETECTIONS_ALL;
 			return this;
 		}
-		
+
 		/**
 		 * Use cells rather than annotations for labels.
 		 * The default is to use annotations.
@@ -414,7 +417,7 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 			params.objectFilter = PathObjectFilter.CELLS;
 			return this;
 		}
-		
+
 		/**
 		 * Use cells rather than annotations for labels, requesting the nucleus ROI where available.
 		 * The default is to use annotations.
@@ -426,7 +429,7 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 			params.roiFunction = p -> PathObjectTools.getROI(p, true);
 			return this;
 		}
-		
+
 		/**
 		 * Use annotations for labels. This is the default.
 		 * @return
@@ -436,7 +439,7 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 			params.objectFilter = PathObjectFilter.ANNOTATIONS;
 			return this;
 		}
-		
+
 		/**
 		 * Use a custom method of selecting objects for inclusion.
 		 * The default is to use annotations.
@@ -448,7 +451,7 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 			params.objectFilter = filter;
 			return this;
 		}
-		
+
 		/**
 		 * Use grayscale LUT, rather than deriving colors from classifications.
 		 * This can streamline import in software that automatically converts paletted images to RGB.
@@ -459,11 +462,11 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 		public Builder grayscale() {
 			return grayscale(true);
 		}
-		
+
 		/**
 		 * Optionally use grayscale LUT, rather than deriving colors from classifications.
 		 * This can streamline import in software that automatically converts paletted images to RGB.
-		 * @param grayscaleLut 
+		 * @param grayscaleLut
 		 * @return
 		 * @since v0.4.0
 		 * @see #grayscale()
@@ -472,7 +475,7 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 			params.grayscaleLut = grayscaleLut;
 			return this;
 		}
-		
+
 		/**
 		 * Specify downsample factor. This is <i>very</i> important because it defines 
 		 * the resolution at which shapes will be drawn and the line thickness is determined.
@@ -483,7 +486,7 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 			this.downsample = downsample;
 			return this;
 		}
-		
+
 		/**
 		 * Set tile width and height (square tiles).
 		 * @param tileSize
@@ -492,7 +495,7 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 		public Builder tileSize(int tileSize) {
 			return tileSize(tileSize, tileSize);
 		}
-		
+
 		/**
 		 * Set tile width and height.
 		 * @param tileWidth
@@ -504,7 +507,7 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 			this.tileHeight = tileHeight;
 			return this;
 		}
-		
+
 		/**
 		 * Thickness of boundary lines and line annotations, defined in terms of pixels at the 
 		 * resolution specified by the downsample value of the server.
@@ -515,8 +518,8 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 			params.lineThickness = thickness;
 			return this;
 		}
-		
-		
+
+
 		/**
 		 * @return
 		 * @deprecated in favor of {@link #useInstanceLabels()}
@@ -526,7 +529,7 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 			logger.warn("useUniqueLabels() is deprecated; please switch to useInstanceLabels() instead.");
 			return useInstanceLabels();
 		}
-		
+
 		/**
 		 * Request that unique labels are used for all objects, rather than classifications.
 		 * If this flag is set, all other label requests are ignored.
@@ -537,11 +540,11 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 		public Builder useInstanceLabels() {
 			return useInstanceLabels(true);
 		}
-		
+
 		/**
 		 * Optionally request that unique labels are used for all objects, rather than classifications.
 		 * If this flag is set, all other label requests are ignored.
-		 * @param instanceLabels 
+		 * @param instanceLabels
 		 * @return
 		 * @since v0.4.0
 		 * @see #useInstanceLabels()
@@ -551,13 +554,13 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 			params.createInstanceLabels = instanceLabels;
 			return this;
 		}
-		
-		
+
+
 		/**
 		 * Optionally request that instance labels are shuffled.
 		 * Default is true.
 		 * Only has an effect if {@link #useInstanceLabels(boolean)} is called with {@code true}.
-		 * @param doShuffle 
+		 * @param doShuffle
 		 * @return
 		 * @since v0.4.0
 		 * @see #useInstanceLabels()
@@ -567,8 +570,8 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 			params.shuffleInstanceLabels = doShuffle;
 			return this;
 		}
-		
-		
+
+
 		/**
 		 * If true, the output image consists of multiple binary images concatenated as different channels, 
 		 * so that the channel number relates to a classification.
@@ -582,7 +585,7 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 			this.multichannelOutput = doMultichannel;
 			return this;
 		}
-		
+
 		/**
 		 * Specify the background label (0 by default).
 		 * @param label
@@ -591,18 +594,18 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 		public Builder backgroundLabel(int label) {
 			return backgroundLabel(label, ColorTools.packRGB(255, 255, 255));
 		}
-		
+
 		/**
 		 * Specify the background label (0 by default) and color.
 		 * @param label
-		 * @param color 
+		 * @param color
 		 * @return
 		 */
 		public Builder backgroundLabel(int label, Integer color) {
 			addLabel(params.unannotatedClass, label, color);
 			return this;
 		}
-		
+
 		/**
 		 * Add multiple labels by classname, where the key represents a classname and the value 
 		 * represents the integer label that should be used for annotations of the given class.
@@ -626,7 +629,7 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 				addLabel(entry.getKey(), entry.getValue());
 			return this;
 		}
-		
+
 		/**
 		 * Add a single label by classname, where the label represents the integer label used for 
 		 * annotations with the given classname.
@@ -660,7 +663,7 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 		public Builder addLabel(PathClass pathClass, int label) {
 			return addLabel(pathClass, label, null);
 		}
-		
+
 		/**
 		 * Add a single label by {@link PathClass}, where the label represents the integer label used for 
 		 * annotations with the given classification.
@@ -672,7 +675,7 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 		public Builder addLabel(PathClass pathClass, int label, Integer color) {
 			return addLabel(params.labels, pathClass, label, color);
 		}
-		
+
 		/**
 		 * Add a single label for objects that are unclassified, where the label represents the integer label used for 
 		 * annotations that have no classification set.
@@ -683,7 +686,7 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 		public Builder addUnclassifiedLabel(int label, Integer color) {
 			return addLabel(params.labels, PathClass.NULL_CLASS, label, color);
 		}
-		
+
 		/**
 		 * Add a single label for objects that are unclassified, where the label represents the integer label used for 
 		 * annotations that have no classification set.
@@ -693,8 +696,8 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 		public Builder addUnclassifiedLabel(int label) {
 			return addLabel(params.labels, PathClass.NULL_CLASS, label, null);
 		}
-		
-		
+
+
 		/**
 		 * Set the classification and label to use for boundaries for classified areas.
 		 * @param pathClass
@@ -704,7 +707,7 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 		public Builder setBoundaryLabel(PathClass pathClass, int label) {
 			return setBoundaryLabel(pathClass, label, null);
 		}
-		
+
 		/**
 		 * Set the classification and label to use for boundaries for classified areas.
 		 * @param pathClass
@@ -716,7 +719,7 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 			params.boundaryLabels.clear();
 			return addLabel(params.boundaryLabels, pathClass, label, color);
 		}
-		
+
 		/**
 		 * Set the classification and label to use for boundaries for classified areas.
 		 * @param pathClassName
@@ -726,7 +729,7 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 		public Builder setBoundaryLabel(String pathClassName, int label) {
 			return setBoundaryLabel(pathClassName, label, null);
 		}
-		
+
 		/**
 		 * Set the classification and label to use for boundaries for classified areas.
 		 * @param pathClassName
@@ -737,7 +740,7 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 		public Builder setBoundaryLabel(String pathClassName, int label, Integer color) {
 			return setBoundaryLabel(PathClass.fromString(pathClassName), label, color);
 		}
-		
+
 		private Builder addLabel(Map<PathClass, Integer> map, PathClass pathClass, int label, Integer color) {
 			pathClass = getPathClass(pathClass);
 			map.put(pathClass, label);
@@ -747,7 +750,7 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 				params.labelColors.put(label, pathClass.getColor());
 			return this;
 		}
-		
+
 		/**
 		 * Specify the maximum number of output channels allowed before QuPath will throw an exception.
 		 * This is used to guard against inadvertently requesting a labelled image that would have an infeasibly 
@@ -759,7 +762,7 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 			params.maxOutputChannelLimit = maxChannels;
 			return this;
 		}
-		
+
 		/**
 		 * Build the {@link ImageServer} with the requested parameters.
 		 * @return
@@ -771,7 +774,7 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 				if (params.objectFilter == null)
 					throw new IllegalArgumentException("Please specify an object filter with useInstanceLabels(), for example useDetections(), useCells(), useAnnotations(), useFilter()");
 			}
-			
+
 			return new LabeledImageServer(
 					imageData, downsample, tileWidth, tileHeight,
 					new LabeledServerParameters(params),
@@ -779,8 +782,8 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 		}
 
 	}
-	
-		
+
+
 	/**
 	 * Returns null (does not support ServerBuilders).
 	 */
@@ -788,12 +791,12 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 	protected ServerBuilder<BufferedImage> createServerBuilder() {
 		return null;
 	}
-	
+
 	@Override
 	public Collection<URI> getURIs() {
 		return Collections.emptyList();
 	}
-	
+
 	/**
 	 * Returns a UUID.
 	 */
@@ -801,7 +804,7 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 	protected String createID() {
 		return UUID.randomUUID().toString();
 	}
-	
+
 	/**
 	 * Returns true if there are no objects to be painted within the requested region.
 	 * <p>
@@ -820,16 +823,16 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 				.stream()
 				.anyMatch(p -> RoiTools.intersectsRegion(p.getROI(), request2));
 	}
-	
+
 	/**
 	 * Get the objects to be painted that fall within a specified region.
 	 * Note that this does not take into consideration line thickness, and therefore results are not guaranteed 
 	 * to match {@link #isEmptyRegion(RegionRequest)}; in other worse, an object might fall outside the region 
 	 * but still influence an image type because of thick lines being drawn.
 	 * If thicker lines should influence the result, the region should be padded accordingly.
-	 * 
+	 *
 	 * @param region
-	 * 
+	 *
 	 * @return a list of objects with ROIs that intersect the specified region
 	 */
 	public List<PathObject> getObjectsForRegion(ImageRegion region) {
@@ -838,7 +841,7 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 				.filter(p -> params.createInstanceLabels || params.labels.containsKey(p.getPathClass()) || params.boundaryLabels.containsKey(p.getPathClass()))
 				.toList();
 	}
-	
+
 	@Override
 	public void close() {}
 
@@ -867,35 +870,36 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 //		return gc.createCompatibleImage(width, height, Transparency.TRANSLUCENT);
 		return new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
 	}
-	
+
 	@Override
 	protected BufferedImage readTile(TileRequest tileRequest) throws IOException {
 		long startTime = System.currentTimeMillis();
-		
+
 		var pathObjects = hierarchy.getObjectsForRegion(null, tileRequest.getRegionRequest(), null)
 				.stream()
 				.filter(params.objectFilter)
 				.toList();
+
 		BufferedImage img;
 		if (multichannelOutput) {
 			img = createMultichannelTile(tileRequest, pathObjects);
-			
+
 		} else {
 			img = createIndexedColorTile(tileRequest, pathObjects);
 		}
-		
+
 		long endTime = System.currentTimeMillis();
 		logger.trace("Labelled tile rendered in {} ms", endTime - startTime);
 		return img;
 	}
-	
-	
+
+
 	private BufferedImage createMultichannelTile(TileRequest tileRequest, Collection<PathObject> pathObjects) {
-		
+
 		int nChannels = nChannels();
 		if (nChannels == 1)
 			return createBinaryTile(tileRequest, pathObjects, 0);
-		
+
 		int tileWidth = tileRequest.getTileWidth();
 		int tileHeight = tileRequest.getTileHeight();
 		byte[][] dataArray = new byte[nChannels][];
@@ -904,37 +908,37 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 			dataArray[i] = ((DataBufferByte)tile.getRaster().getDataBuffer()).getData();
 		}
 		DataBuffer buffer = new DataBufferByte(dataArray, tileWidth * tileHeight);
-		
+
 		int[] offsets = new int[nChannels];
 		for (int b = 0; b < nChannels; b++)
 			offsets[b] = b * tileWidth * tileHeight;
-		
+
 		var sampleModel = new BandedSampleModel(buffer.getDataType(), tileWidth, tileHeight, nChannels);
 //		var sampleModel = new ComponentSampleModel(buffer.getDataType(), tileWidth, tileHeight, 1, tileWidth, offsets);
-		
+
 		var raster = WritableRaster.createWritableRaster(sampleModel, buffer, null);
-		
+
 		return new BufferedImage(colorModel, raster, false, null);
 	}
-	
+
 	private BufferedImage createBinaryTile(TileRequest tileRequest, Collection<PathObject> pathObjects, int label) {
 		int width = tileRequest.getTileWidth();
 		int height = tileRequest.getTileHeight();
 		BufferedImage img = new BufferedImage(width, height, BufferedImage.TYPE_BYTE_GRAY);
 		WritableRaster raster = img.getRaster();
 		Graphics2D g2d = img.createGraphics();
-		
+
 		if (!pathObjects.isEmpty()) {
-			
+
 			RegionRequest request = tileRequest.getRegionRequest();
 			double downsampleFactor = request.getDownsample();
-			
+
 			g2d.setClip(0, 0, width, height);
 			double scale = 1.0/downsampleFactor;
 			g2d.scale(scale, scale);
 			g2d.translate(-request.getX(), -request.getY());
 			g2d.setColor(Color.WHITE);
-			
+
 			BasicStroke stroke = new BasicStroke((float)(params.lineThickness * tileRequest.getDownsample()));
 			g2d.setStroke(stroke);
 
@@ -977,19 +981,19 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 				}
 			}
 		}
-		
+
 		g2d.dispose();
 		return img;
 	}
-	
-	
+
+
 	private static Color getColorForLabel(int label, boolean doRGB) {
 		if (doRGB)
 			return new Color(label, false);
 		return ColorToolsAwt.getCachedColor(label, label, label);
 	}
-	
-	
+
+
 	private BufferedImage createIndexedColorTile(TileRequest tileRequest, Collection<PathObject> pathObjects) {
 
 		RegionRequest request = tileRequest.getRegionRequest();
@@ -1003,22 +1007,28 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 		// If we have > 255 labels, we can only use Graphics2D if we pretend to have an RGB image
 		BufferedImage img = doRGB ? new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB) : new BufferedImage(width, height, BufferedImage.TYPE_BYTE_GRAY);
 		WritableRaster raster = img.getRaster();
-		
+
 		Graphics2D g2d = img.createGraphics();
 		int bgLabel = params.labels.get(params.unannotatedClass);
 		Color color = getColorForLabel(bgLabel, doRGB);
 		g2d.setColor(color);
 		g2d.fillRect(0, 0, width, height);
 
+		// Optimization... for instance maps with large numbers of objects, we'll test for 'contains'
+		// so we want to ensure we have a set
+		if (instanceClassMapInverse != null && pathObjects.size() > 5 && !(pathObjects instanceof Set))
+			pathObjects = new HashSet<>(pathObjects);
+
+
 		if (!pathObjects.isEmpty()) {
 			g2d.setClip(0, 0, width, height);
 			double scale = 1.0/downsampleFactor;
 			g2d.scale(scale, scale);
 			g2d.translate(-request.getX(), -request.getY());
-			
+
 			BasicStroke stroke = new BasicStroke((float)(params.lineThickness * tileRequest.getDownsample()));
 			g2d.setStroke(stroke);
-			
+
 			// We want to order consistently to avoid confusing overlaps
 			for (var entry : params.labels.entrySet()) {
 				var pathClass = getPathClass(entry.getKey());
@@ -1027,15 +1037,15 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 				List<PathObject> toDraw;
 				if (instanceClassMapInverse != null) {
 					var temp = instanceClassMapInverse.get(c);
-					if (temp == null)
+					if (temp == null || !pathObjects.contains(temp))
 						continue;
 					toDraw = Collections.singletonList(temp);
 				} else
 					toDraw = pathObjects
-									.stream()
-									.filter(p -> getPathClass(p) == pathClass)
-									.toList();
-				
+							.stream()
+							.filter(p -> getPathClass(p) == pathClass)
+							.toList();
+
 				for (var pathObject : toDraw) {
 					var roi = params.roiFunction.apply(pathObject);
 					g2d.setColor(color);
@@ -1080,37 +1090,37 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 			int w = img.getWidth();
 			int h = img.getHeight();
 			switch (getPixelType()) {
-			case UINT8:
-				return img;
-			case FLOAT32:
-				shortRaster = WritableRaster.createWritableRaster(
-						new BandedSampleModel(DataBuffer.TYPE_FLOAT, w, h, 1),
-						null);
-				break;
-			case FLOAT64:
-				shortRaster = WritableRaster.createWritableRaster(
-						new BandedSampleModel(DataBuffer.TYPE_DOUBLE, w, h, 1),
-						null);
-				break;
-			case INT16:
-				shortRaster = WritableRaster.createWritableRaster(
-						new BandedSampleModel(DataBuffer.TYPE_SHORT, w, h, 1),
-						null);
-				break;
-			case INT8:
-			case UINT16:
-				shortRaster = WritableRaster.createWritableRaster(
-						new BandedSampleModel(DataBuffer.TYPE_USHORT, w, h, 1),
-						null);
-				break;
-			case INT32:
-			case UINT32:
-				shortRaster = WritableRaster.createWritableRaster(
-						new BandedSampleModel(DataBuffer.TYPE_INT, w, h, 1),
-						null);
-				break;
-			default:
-				break;
+				case UINT8:
+					return img;
+				case FLOAT32:
+					shortRaster = WritableRaster.createWritableRaster(
+							new BandedSampleModel(DataBuffer.TYPE_FLOAT, w, h, 1),
+							null);
+					break;
+				case FLOAT64:
+					shortRaster = WritableRaster.createWritableRaster(
+							new BandedSampleModel(DataBuffer.TYPE_DOUBLE, w, h, 1),
+							null);
+					break;
+				case INT16:
+					shortRaster = WritableRaster.createWritableRaster(
+							new BandedSampleModel(DataBuffer.TYPE_SHORT, w, h, 1),
+							null);
+					break;
+				case INT8:
+				case UINT16:
+					shortRaster = WritableRaster.createWritableRaster(
+							new BandedSampleModel(DataBuffer.TYPE_USHORT, w, h, 1),
+							null);
+					break;
+				case INT32:
+				case UINT32:
+					shortRaster = WritableRaster.createWritableRaster(
+							new BandedSampleModel(DataBuffer.TYPE_INT, w, h, 1),
+							null);
+					break;
+				default:
+					break;
 			}
 			if (maxLabel >= 65536 || shortRaster == null) {
 				return img;
@@ -1118,14 +1128,10 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 			// Transfer RGB values as labels to the new raster
 			int[] samples = img.getRGB(0, 0, width, height, null, 0, width);
 			shortRaster.setSamples(0, 0, width, height, 0, samples);
-//			System.err.println("Before: " + Arrays.stream(samples).summaryStatistics());
 			raster = shortRaster;
-//			samples = raster.getSamples(0, 0, width, height, 0, (int[])null);
-//			System.err.println("After: " + Arrays.stream(samples).summaryStatistics());
 		}
 		return new BufferedImage(colorModel, raster, false, null);
-//		return new BufferedImage((IndexColorModel)colorModel, raster, false, null);
 	}
-	
+
 
 }

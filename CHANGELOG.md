@@ -5,6 +5,8 @@ This is a work-in-progress for the next QuPath release.
 ### Bugs fixed
 * Rendered image export does not support opacity (https://github.com/qupath/qupath/issues/1292)
 * Cannot import GeoJSON with NaN measurements (https://github.com/qupath/qupath/issues/1293)
+* `isOverlayNG` should be turned on by default (https://github.com/qupath/qupath/issues/1244)
+* * Labeled image instance export doesn't work as expected for z-stacks (https://github.com/qupath/qupath/issues/1267)
 
 ### Dependency updates
 * DeepJavaLibrary 0.21.0
