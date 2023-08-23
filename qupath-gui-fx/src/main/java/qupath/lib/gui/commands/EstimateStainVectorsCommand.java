@@ -250,28 +250,6 @@ class EstimateStainVectorsCommand {
 		table.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
 		table.setPrefHeight(120);
 		
-		
-//		// Fix first & preferred column sizes
-//		int widthName = 0, widthStain = 0;
-//		for (int row = 0; row < table.getRowCount(); row++) {
-//			TableCellRenderer renderer = table.getCellRenderer(row, 0);
-//			Component comp = table.prepareRenderer(renderer, row, 0);
-//			widthName = Math.max(comp.getPreferredSize().width, widthName);
-//			
-//			renderer = table.getCellRenderer(row, 1);
-//			comp = table.prepareRenderer(renderer, row, 1);
-//			widthStain = Math.max(comp.getPreferredSize().width, widthStain);
-//			renderer = table.getCellRenderer(row, 2);
-//			comp = table.prepareRenderer(renderer, row, 2);
-//			widthStain = Math.max(comp.getPreferredSize().width, widthStain);
-//		}
-//		table.getColumnModel().getColumn(0).setMaxWidth(widthName + 10);
-//		table.getColumnModel().getColumn(0).setPreferredWidth(widthName + 10);
-//		table.getColumnModel().getColumn(1).setPreferredWidth(widthStain + 20);
-//		table.getColumnModel().getColumn(2).setPreferredWidth(widthStain + 20);
-		
-		
-		
 		// Create auto detection parameters
 		ParameterList params = new ParameterList()
 				.addDoubleParameter("minStainOD", "Min channel OD", 0.05, "", "Minimum staining OD - pixels with a lower OD in any channel (RGB) are ignored (default = 0.05)")
@@ -302,32 +280,26 @@ class EstimateStainVectorsCommand {
 //		panelAuto.setBorder(BorderFactory.createTitledBorder("Auto detect"));
 		panelAuto.setCenter(panelParams.getPane());
 		panelAuto.setBottom(btnAuto);
-		
-//		JScrollPane scrollPane = new JScrollPane(table);
-//		JPanel panelTable = new JPanel(new BorderLayout());
-//		panelTable.add(scrollPane, BorderLayout.CENTER);
-////		JTextArea textInstructions = new JTextArea();
-////		textInstructions.setWrapStyleWord(true);
-////		textInstructions.setLineWrap(true);
-////		textInstructions.setText(
-////				"Viewer for manually and automatically adjusting stain vectors used for stain separation.\n\n" +
-////				"Each stain vector is 3 values describing the red, green and blue components that define the colour of each " +
-////				"stain (e.g. hematoxylin, DAB, eosin).  The scatterplots show how these relate to pixel colours for each " +
-////				"combination of red, green and blue.\n\n" +
-////				"'Good' stain vectors should point along the edges of the scattered points, ignoring any artefacts resulting from " + 
-////				"pixels that don't belong to normal staining patterns."
-////				);
-////		panelTable.add(new JScrollPane(textInstructions), BorderLayout.SOUTH);
-//		panelTable.setBorder(BorderFactory.createTitledBorder("Stain vectors"));
-		
-		panelSouth.setCenter(new TitledPane("Stain vectors", table));
-		panelSouth.setBottom(new TitledPane("Auto detect", panelAuto));
+
+		var titledStainVectors = new TitledPane("Stain vectors", table);
+		titledStainVectors.setCollapsible(false);
+		panelSouth.setCenter(titledStainVectors);
+
+		var titledAutoDetect = new TitledPane("Auto detect", panelAuto);
+		titledAutoDetect.setCollapsible(false);
+		panelSouth.setBottom(titledAutoDetect);
 		
 		BorderPane panelMain = new BorderPane();
 		panelMain.setCenter(panelPlots);
 		panelMain.setBottom(panelSouth);
 		
-		if (Dialogs.showConfirmDialog("Visual Stain Editor", panelMain)) {
+		if (Dialogs.builder()
+				.title("Visual Stain Editor")
+				.content(panelMain)
+				.buttons(ButtonType.OK, ButtonType.CANCEL)
+				.showAndWait()
+				.orElse(ButtonType.CANCEL)
+				.equals(ButtonType.OK)) {
 			return stainsWrapper.getStains();
 		} else {
 			stainsWrapper.resetStains();
