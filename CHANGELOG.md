@@ -2,11 +2,15 @@
 
 This is a work-in-progress for the next QuPath release.
 
+### Bugs fixed
+* Rendered image export does not support opacity (https://github.com/qupath/qupath/issues/1292)
+
 ### Dependency updates
 * DeepJavaLibrary 0.21.0
 * Groovy 4.0.10
 * ImageJ 1.54c
 * JavaFX 20
+
 
 
 ## Version 0.4.3

@@ -21,6 +21,7 @@
 
 package qupath.lib.gui.images.servers;
 
+import java.awt.AlphaComposite;
 import java.awt.Color;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
@@ -31,6 +32,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
+import qupath.lib.common.GeneralTools;
 import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.images.stores.DefaultImageRegionStore;
@@ -61,14 +63,19 @@ public class RenderedImageServer extends AbstractTileableImageServer implements 
 	private ImageData<BufferedImage> imageData;
 	private List<PathOverlay> overlayLayers = new ArrayList<>();
 	private ImageRenderer renderer;
+
+	private double overlayOpacity = 1.0;
 	
 	private Color backgroundColor = Color.WHITE;
 	
 	private ImageServerMetadata metadata;
 	
-	private RenderedImageServer(DefaultImageRegionStore store, ImageData<BufferedImage> imageData, List<? extends PathOverlay> overlayLayers, ImageRenderer renderer, double[] downsamples, Color backgroundColor) {
+	private RenderedImageServer(DefaultImageRegionStore store, ImageData<BufferedImage> imageData,
+								List<? extends PathOverlay> overlayLayers, ImageRenderer renderer,
+								double[] downsamples, Color backgroundColor, double overlayOpacity) {
 		super();
 		this.store = store;
+		this.overlayOpacity = overlayOpacity;
 		if (overlayLayers != null)
 			this.overlayLayers.addAll(overlayLayers);
 		this.renderer = renderer;
@@ -128,6 +135,7 @@ public class RenderedImageServer extends AbstractTileableImageServer implements 
 		private ImageData<BufferedImage> imageData;
 		private List<PathOverlay> overlayLayers = new ArrayList<>();
 		private ImageRenderer renderer;
+		private double overlayOpacity = 1.0;
 		private Color backgroundColor;
 		private double[] downsamples;
 		
@@ -140,6 +148,7 @@ public class RenderedImageServer extends AbstractTileableImageServer implements 
 			this.store = viewer.getImageRegionStore();
 			this.overlayLayers.addAll(viewer.getOverlayLayers());
 			this.renderer = viewer.getImageDisplay();
+			this.overlayOpacity = viewer.getOverlayOptions().getOpacity();
 		}
 
 		/**
@@ -179,6 +188,17 @@ public class RenderedImageServer extends AbstractTileableImageServer implements 
 		 */
 		public Builder renderer(ImageRenderer renderer) {
 			this.renderer = renderer;
+			return this;
+		}
+
+		/**
+		 * Specify the opacity for overlay layers.
+		 * This will be clipped to the range 0 (transparent) and 1 (opaque).
+		 * @param opacity
+		 * @return
+		 */
+		public Builder overlayOpacity(double opacity) {
+			this.overlayOpacity = GeneralTools.clipValue(opacity, 0, 1);
 			return this;
 		}
 		
@@ -258,7 +278,8 @@ public class RenderedImageServer extends AbstractTileableImageServer implements 
 					this.renderer = renderer;
 			}
 			
-			return new RenderedImageServer(store, imageData, overlayLayers, renderer, downsamples, backgroundColor);
+			return new RenderedImageServer(store, imageData, overlayLayers, renderer, downsamples, backgroundColor,
+					overlayOpacity);
 		}
 		
 		
@@ -303,12 +324,17 @@ public class RenderedImageServer extends AbstractTileableImageServer implements 
 				tileRequest.getZ(), tileRequest.getT(),
 				downsample, null, renderer,
 				Integer.MAX_VALUE);
-		
-		
-		for (var overlay : overlayLayers) {
-			overlay.paintOverlay(g2d, region, downsample, imageData, true);
+
+		// Handle opacity - see https://github.com/qupath/qupath/issues/1292
+		if (overlayOpacity > 0) {
+			if (overlayOpacity < 1) {
+				g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, (float)overlayOpacity));
+			}
+			for (var overlay : overlayLayers) {
+				overlay.paintOverlay(g2d, region, downsample, imageData, true);
+			}
 		}
-		
+
 		g2d.dispose();
 		return img;
 	}
