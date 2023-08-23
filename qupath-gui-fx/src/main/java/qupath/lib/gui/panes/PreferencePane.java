@@ -256,7 +256,7 @@ public class PreferencePane {
 		@BooleanPref("Prefs.General.systemMenubar")
 		public final BooleanProperty systemMenubar = PathPrefs.useSystemMenubarProperty();
 		
-		@DoublePref("Prefs.General.tileCache")
+		@DoublePref("Prefs.General.maxMemory")
 		public final DoubleProperty maxMemoryGB = PathPrefs.hasJavaPreferences() ? createMaxMemoryProperty() : null;
 
 		@DoublePref("Prefs.General.tileCache")
