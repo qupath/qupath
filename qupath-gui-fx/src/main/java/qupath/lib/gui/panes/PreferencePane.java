@@ -26,6 +26,7 @@ package qupath.lib.gui.panes;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -36,10 +37,12 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
+import javafx.beans.binding.BooleanBinding;
 import org.controlsfx.control.PropertySheet;
 import org.controlsfx.control.PropertySheet.Item;
 import org.controlsfx.control.PropertySheet.Mode;
 import org.controlsfx.control.SearchableComboBox;
+import org.controlsfx.control.textfield.CustomTextField;
 import org.controlsfx.property.editor.AbstractPropertyEditor;
 import org.controlsfx.property.editor.DefaultPropertyEditorFactory;
 import org.controlsfx.property.editor.PropertyEditor;
@@ -111,12 +114,11 @@ public class PreferencePane {
 	
 	private static LocaleManager localeManager = new LocaleManager();
 	
-	private boolean localeChangedSinceRefresh = false;
-	
 	private BorderPane pane;
-	
+
+	private LocaleSnapshot localeSnapshot = new LocaleSnapshot();
 	private StringProperty localeChangedText = QuPathResources.getLocalizeResourceManager().createProperty("Prefs.localeChanged");
-	private BooleanProperty localeChanged = new SimpleBooleanProperty(false);
+	private BooleanBinding localeChanged;
 	
 	@SuppressWarnings("javadoc")
 	public PreferencePane() {
@@ -127,10 +129,10 @@ public class PreferencePane {
 		pane = new BorderPane();
 		propSheet = createPropertySheet();
 		populatePropertySheet();
-		
+
 		var label = createLocaleChangedLabel();
-		listenForLocaleChanges();
-		
+		localeSnapshot.refresh();
+
 		pane.setCenter(propSheet);
 		pane.setBottom(label);
 	}
@@ -181,6 +183,7 @@ public class PreferencePane {
 	private Label createLocaleChangedLabel() {
 		var label = new Label();
 		label.textProperty().bind(localeChangedText);
+		localeChanged = createLocaleChangedBinding();
 		label.visibleProperty().bind(localeChanged);
 		label.setStyle("-fx-text-fill: -qp-script-error-color;");
 		label.setPadding(new Insets(5.0));
@@ -192,15 +195,17 @@ public class PreferencePane {
 		return label;
 	}
 	
-	private void listenForLocaleChanges() {
-		PathPrefs.defaultLocaleProperty().addListener((v, o, n) -> setLocaleChanged());
-		PathPrefs.defaultLocaleDisplayProperty().addListener((v, o, n) -> setLocaleChanged());
-		PathPrefs.defaultLocaleFormatProperty().addListener((v, o, n) -> setLocaleChanged());		
-	}
-	
-	private void setLocaleChanged() {
-		localeChanged.set(true);
-		localeChangedSinceRefresh = true;
+	private BooleanBinding createLocaleChangedBinding() {
+		var initalLocale = PathPrefs.defaultLocaleProperty().get();
+		var initalLocaleDisplay = PathPrefs.defaultLocaleDisplayProperty().get();
+		var initalLocaleFormat = PathPrefs.defaultLocaleFormatProperty().get();
+		return Bindings.createBooleanBinding(() -> {
+					return !Objects.equals(initalLocale, PathPrefs.defaultLocaleProperty().get()) ||
+							!Objects.equals(initalLocaleDisplay, PathPrefs.defaultLocaleDisplayProperty().get()) ||
+							!Objects.equals(initalLocaleFormat, PathPrefs.defaultLocaleFormatProperty().get());
+				}, PathPrefs.defaultLocaleProperty(),
+				PathPrefs.defaultLocaleDisplayProperty(),
+				PathPrefs.defaultLocaleFormatProperty());
 	}
 	
 	
@@ -625,20 +630,30 @@ public class PreferencePane {
 	 * This is useful if the Locale has changed, and so the text may need to be updated.
 	 */
 	public void refreshAllEditors() {
-		// Attempt to force a property sheet refresh if the locale may have changed
-		if (localeChangedSinceRefresh) {
-//			var comp = propSheet.getCategoryComparator();
-//			propSheet.setCategoryComparator(String::compareTo);
-//			propSheet.setCategoryComparator(comp);
-//			propSheet.setModeSwitcherVisible(localeChangedSinceRefresh);
-			
+		// Attempt to force a property sheet refresh if the locale was changed
+		if (localeSnapshot.hasChanged()) {
 			// Alternative code to rebuild the editors
 			logger.info("Refreshing preferences because of locale change");
 			var items = new ArrayList<>(propSheet.getItems());
 			propSheet.getItems().clear();
 			propSheet.getItems().addAll(items);
-			localeChangedSinceRefresh = false;
+			// Try to reset any filter text - when the locale changes, this stops being meaningful.
+			// We need to do it via the text field, since it isn't bidirectionally bound to
+			// propSheet.titleFilterProperty()
+			String filterText = propSheet.getTitleFilter();
+			if (filterText != null && !filterText.isEmpty()) {
+				for (var node : propSheet.lookupAll(".custom-text-field")) {
+					if (node instanceof CustomTextField tf) {
+						if (Objects.equals(filterText, tf.getText())) {
+							tf.clear();
+							break;
+						}
+					}
+				}
+			}
+			localeSnapshot.refresh();
 		}
+		// Maybe we have new locales to support
 		localeManager.refreshAvailableLanguages();
 	}
 
@@ -929,12 +944,16 @@ public class PreferencePane {
 		private Map<String, Locale> localeMap = new TreeMap<>();
 		private StringConverter<Locale> converter;
 		
-		private Predicate<Locale> availableLanguagePredicate = QuPathResources::hasDefaultBundleForLocale;
-		private ObjectProperty<Predicate<Locale>> availableLanguagePredicateProperty = new SimpleObjectProperty<>(availableLanguagePredicate);
-		
+		private ObjectProperty<Predicate<Locale>> availableLanguagePredicateProperty = new SimpleObjectProperty<>(QuPathResources::hasDefaultBundleForLocale);
+
+		private ObservableList<Locale> allLocales;
+		private ObservableList<Locale> availableLocales;
+
 		private LocaleManager() {
 			initializeLocaleMap();
 			converter = new LocaleConverter();
+			allLocales = FXCollections.unmodifiableObservableList(FXCollections.observableArrayList(localeMap.values()));
+			createAvailableLocaleList();
 		}
 		
 		private void initializeLocaleMap() {
@@ -959,21 +978,31 @@ public class PreferencePane {
 			return locale.getDisplayName(Locale.US);
 		}
 		
-		public ObservableList<Locale> createLocaleList() {
-			return FXCollections.observableArrayList(localeMap.values());
+		public ObservableList<Locale> getAllLocales() {
+			return allLocales;
 		}
-		
-		public FilteredList<Locale> createAvailableLanguagesList() {
-			
-			var filtered = createLocaleList().filtered(availableLanguagePredicate);
-			filtered.predicateProperty().bind(availableLanguagePredicateProperty);
-			return filtered;
+
+		public ObservableList<Locale> getAvailableLocales() {
+			return availableLocales;
+		}
+
+		private void createAvailableLocaleList() {
+			// We don't use a filtered list, because there were problems with 1) refreshing the backing list, and
+			// 2) refreshing the predicate
+			availableLocales = FXCollections.observableArrayList();
+			refreshAvailableLanguages();
+			availableLanguagePredicateProperty.addListener((v, o, n) -> refreshAvailableLanguages());
 		}
 		
 		public void refreshAvailableLanguages() {
-			// Awkward... but refresh list
-			availableLanguagePredicateProperty.set(null);
-			availableLanguagePredicateProperty.set(availableLanguagePredicate);
+			var predicate = availableLanguagePredicateProperty.get();
+			List<Locale> newContents;
+			if (predicate == null)
+				newContents = allLocales;
+			else
+				newContents = allLocales.filtered(predicate);
+			if (availableLocales.size() != newContents.size() || !new HashSet<>(availableLocales).containsAll(newContents))
+				availableLocales.setAll(newContents);
 		}
 		
 		public StringConverter<Locale> getStringConverter() {
@@ -1398,7 +1427,7 @@ public class PreferencePane {
 		return buildItem(property, Locale.class)
 				.key(annotation.value())
 				.bundle(annotation.bundle())
-				.choices(annotation.availableLanguagesOnly() ? localeManager.createAvailableLanguagesList() : localeManager.createLocaleList())
+				.choices(annotation.availableLanguagesOnly() ? localeManager.getAvailableLocales() : localeManager.getAllLocales())
 				.propertyType(PropertyType.SEARCHABLE_CHOICE)
 				.build();
 	}
@@ -1417,6 +1446,33 @@ public class PreferencePane {
 				.bundle(annotation.bundle())
 				.propertyType(PropertyType.DIRECTORY)
 				.build();
+	}
+
+	/**
+	 * Snapshot of the locale, which can be used later to check for changes.
+	 */
+	private static class LocaleSnapshot {
+
+		private Locale main = Locale.getDefault();
+		private Locale display = Locale.getDefault(Locale.Category.DISPLAY);
+		private Locale format = Locale.getDefault(Locale.Category.FORMAT);
+
+		LocaleSnapshot() {
+			refresh();
+		}
+
+		private void refresh() {
+			main = Locale.getDefault();
+			display = Locale.getDefault(Locale.Category.DISPLAY);
+			format = Locale.getDefault(Locale.Category.FORMAT);
+		}
+
+		private boolean hasChanged() {
+			return !Objects.equals(main, Locale.getDefault()) ||
+					!Objects.equals(display, Locale.getDefault(Locale.Category.DISPLAY)) ||
+					!Objects.equals(format, Locale.getDefault(Locale.Category.FORMAT));
+		}
+
 	}
 		
 	
