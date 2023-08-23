@@ -169,9 +169,9 @@ public class SummaryMeasurementTableCommand {
 		StringProperty displayedName = new SimpleStringProperty(ServerTools.getDisplayableImageName(imageData.getServer()));
 		var title = Bindings.createStringBinding(() -> {
 			if (type == null)
-				return "Results " + displayedName.get();
+				return "Measurements " + displayedName.get();
 			else
-				return PathObjectTools.getSuitableName(type, false) + " results - " + displayedName.get();			
+				return PathObjectTools.getSuitableName(type, true) + ": " + displayedName.get();
 		}, displayedName);
 		
 
