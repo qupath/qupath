@@ -4,6 +4,7 @@ This is a work-in-progress for the next QuPath release.
 
 ### Bugs fixed
 * Rendered image export does not support opacity (https://github.com/qupath/qupath/issues/1292)
+* Cannot import GeoJSON with NaN measurements (https://github.com/qupath/qupath/issues/1293)
 
 ### Dependency updates
 * DeepJavaLibrary 0.21.0

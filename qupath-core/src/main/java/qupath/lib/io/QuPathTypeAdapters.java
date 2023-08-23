@@ -639,6 +639,8 @@ class QuPathTypeAdapters {
 	
 	
 	static class MeasurementListTypeAdapter extends TypeAdapter<MeasurementList> {
+
+		private static final Logger logger = LoggerFactory.getLogger(MeasurementListTypeAdapter.class);
 		
 		static MeasurementListTypeAdapter INSTANCE = new MeasurementListTypeAdapter();
 
@@ -648,8 +650,16 @@ class QuPathTypeAdapters {
 			if (value != null) {
 				for (var entry : value.asMap().entrySet()) {
 					out.name(entry.getKey());
-					out.value(entry.getValue());
-				}				
+					Double measurementValue = entry.getValue();
+					if (measurementValue == null || Double.isNaN(measurementValue))
+						out.value("NaN");
+					else if (Double.POSITIVE_INFINITY == measurementValue)
+						out.value("Infinity");
+					else if (Double.NEGATIVE_INFINITY == measurementValue)
+						out.value("-Infinity");
+					else
+						out.value(measurementValue);
+				}
 			}
 			out.endObject();
 			
@@ -681,9 +691,28 @@ class QuPathTypeAdapters {
 				list.close();
 				return list;
 			} else if (token == JsonToken.BEGIN_OBJECT) {
-				Map<String, Double> map = gson.fromJson(in, Map.class);
+				Map<String, ?> map = gson.fromJson(in, Map.class);
 				MeasurementList list = MeasurementListFactory.createMeasurementList(map.size(), MeasurementListType.DOUBLE);
-				list.putAll(map);
+				for (var entry : map.entrySet()) {
+					String key = entry.getKey();
+					var value = entry.getValue();
+					if (value instanceof Number number) {
+						list.put(key, number.doubleValue());
+					} else if (value instanceof String string) {
+						// Try to handle useful strings that aren't valid JSON numbers
+						String lower = string.toLowerCase();
+						if (lower.equals("nan"))
+							list.put(key, Double.NaN);
+						else if (lower.equals("inf"))
+							list.put(key, Double.POSITIVE_INFINITY);
+						else if (lower.equals("-inf"))
+							list.put(key, Double.NEGATIVE_INFINITY);
+						else
+							list.put(key, Double.parseDouble(string));
+					} else {
+						logger.warn("Cannot parse measurement value for key {}: {}", key, value);
+					}
+				}
 				list.close();
 				return list;
 			} else {
