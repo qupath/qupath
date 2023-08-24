@@ -299,7 +299,7 @@ public class ViewerManager implements QuPathViewerListener {
 		if (splitPaneGrid == null) {
 			// Create a reasonably-sized viewer
 			QuPathViewerPlus defaultViewer = createViewer();
-			this.viewers.add(defaultViewer);
+//			this.viewers.add(defaultViewer);
 			if (defaultViewer != null)
 				defaultViewer.addViewerListener(this);
 			setActiveViewer(defaultViewer);
