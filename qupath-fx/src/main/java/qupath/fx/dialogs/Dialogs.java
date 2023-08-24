@@ -4,6 +4,7 @@ import java.util.*;
 
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.stage.PopupWindow;
 import org.controlsfx.control.Notifications;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -124,7 +125,7 @@ public class Dialogs {
 				.content(node)
 				.resizable()
 				.showAndWait()
-				.orElse(ButtonType.NO) == ButtonType.OK;
+				.orElse(ButtonType.CANCEL) == ButtonType.OK;
 	}
 	
 	/**
@@ -494,15 +495,17 @@ public class Dialogs {
 	 * @return
 	 */
 	static Window getDefaultOwner() {
-		// Check modality, then focus, then title
+		// Check modality, then popup status, then focus, then title
 		Comparator<Window> comparator = Comparator.comparing(Dialogs::isModal)
+				.thenComparing(w -> w instanceof PopupWindow) // Don't want popup windows (e.g. a context menu)
 				.thenComparing(Window::isFocused)
 				.thenComparing(w -> w == primaryWindow)
 				.thenComparing(Dialogs::getTitle);
-		return Window.getWindows().stream()
+		var owner = Window.getWindows().stream()
 				.sorted(comparator)
 				.findFirst()
 				.orElse(primaryWindow);
+		return owner;
 	}
 
 	private static String getTitle(Window window) {
