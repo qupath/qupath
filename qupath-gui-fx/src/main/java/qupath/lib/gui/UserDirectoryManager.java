@@ -250,7 +250,7 @@ public class UserDirectoryManager {
 	 * @throws IllegalArgumentException if the path is not null, but does not represent a valid, existing directory
 	 */
 	public void setUserPath(Path path) throws IllegalArgumentException {
-		if (path != null && Files.exists(path)) {
+		if (path != null && path.toFile().exists()) {
 			if (!Files.isDirectory(path)) {
 				throw new IllegalArgumentException("User path " + path + " exists, but is not a directory!");
 			}

@@ -643,7 +643,7 @@ class DefaultProject implements Project<BufferedImage> {
 		
 		private Path getEntryPath(boolean create) throws IOException {
 			var path = getEntryPath();
-			if (create && !Files.exists(path))
+			if (create && !path.toFile().exists())
 				Files.createDirectories(path);
 			return path;
 		}
@@ -691,7 +691,7 @@ class DefaultProject implements Project<BufferedImage> {
 			if (server == null)
 				return null;
 			ImageData<BufferedImage> imageData = null;
-			if (Files.exists(path)) {
+			if (path.toFile().exists()) {
 				try (var stream = Files.newInputStream(path)) {
 					imageData = PathIO.readImageData(stream, null, server, BufferedImage.class);
 					imageData.setLastSavedPath(path.toString(), true);
@@ -703,7 +703,7 @@ class DefaultProject implements Project<BufferedImage> {
 			// See https://github.com/qupath/qupath/issues/512
 			if (imageData == null) {
 				var pathBackup = getBackupImageDataPath();
-				if (Files.exists(pathBackup)) {
+				if (pathBackup.toFile().exists()) {
 					try (var stream = Files.newInputStream(pathBackup)) {
 						imageData = PathIO.readImageData(stream, null, server, BufferedImage.class);
 						imageData.setLastSavedPath(pathBackup.toString(), true);
@@ -733,7 +733,7 @@ class DefaultProject implements Project<BufferedImage> {
 			
 			// If we already have a file, back it up first
 			var pathBackup = getBackupImageDataPath();
-			if (Files.exists(pathData))
+			if (pathData.toFile().exists())
 				Files.move(pathData, pathBackup, StandardCopyOption.REPLACE_EXISTING);
 			
 			// Set the entry property, if needed
@@ -753,11 +753,11 @@ class DefaultProject implements Project<BufferedImage> {
 				imageData.setLastSavedPath(pathData.toString(), true);
 				timestamp = Files.getLastModifiedTime(pathData).toMillis();
 				// Delete backup file if it exists
-				if (Files.exists(pathBackup))
+				if (pathBackup.toFile().exists())
 					Files.delete(pathBackup);
 			} catch (IOException e) {
 				// Try to restore the backup
-				if (Files.exists(pathBackup)) {
+				if (pathBackup.toFile().exists()) {
 					logger.warn("Exception writing image file - attempting to restore {} from backup", pathData);
 					Files.move(pathBackup, pathData, StandardCopyOption.REPLACE_EXISTING);				
 				}
@@ -794,7 +794,7 @@ class DefaultProject implements Project<BufferedImage> {
 		@Override
 		public synchronized PathObjectHierarchy readHierarchy() throws IOException {
 			var path = getImageDataPath();
-			if (Files.exists(path)) {
+			if (path.toFile().exists()) {
 				try (var stream = Files.newInputStream(path)) {
 					return PathIO.readHierarchy(stream);
 				}
@@ -828,7 +828,7 @@ class DefaultProject implements Project<BufferedImage> {
 		@Override
 		public synchronized BufferedImage getThumbnail() throws IOException {
 			var path = getThumbnailPath();
-			if (Files.exists(path)) {
+			if (path.toFile().exists()) {
 				try (var stream = Files.newInputStream(path)) {
 					return ImageIO.read(stream);
 				}
@@ -847,7 +847,7 @@ class DefaultProject implements Project<BufferedImage> {
 		
 		synchronized boolean moveDataToTrash() {
 			Path path = getEntryPath();
-			if (!Files.exists(path))
+			if (!path.toFile().exists())
 				return true;
 			if (Desktop.isDesktopSupported()) {
 				var desktop = Desktop.getDesktop();

@@ -4052,7 +4052,7 @@ public class QP {
 			if (classifier == null) {
 				try {
 					var path = Paths.get(name);
-					if (Files.exists(path))
+					if (path.toFile().exists())
 						classifier = ObjectClassifiers.readClassifier(path);
 				} catch (Exception e) {
 					exception = e;
@@ -4097,7 +4097,7 @@ public class QP {
 		}
 		try {
 			var path = Paths.get(name);
-			if (Files.exists(path))
+			if (path.toFile().exists())
 				return DensityMaps.loadDensityMap(path);
 		} catch (Exception e) {
 			exception = e;
@@ -4278,7 +4278,7 @@ public class QP {
 		}
 		try {
 			var path = Paths.get(name);
-			if (Files.exists(path))
+			if (path.toFile().exists())
 				pixelClassifier = PixelClassifiers.readClassifier(path);
 		} catch (Exception e) {
 			exception = e;

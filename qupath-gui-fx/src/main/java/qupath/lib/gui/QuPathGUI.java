@@ -1289,7 +1289,7 @@ public class QuPathGUI {
 					var urisUpdated = new HashMap<URI, URI>();
 					for (var uri : uris) {
 						var pathUri = GeneralTools.toPath(uri);
-						if (pathUri != null && Files.exists(pathUri)) {
+						if (pathUri != null && pathUri.toFile().exists()) {
 							urisUpdated.put(uri, uri);
 							continue;
 						}

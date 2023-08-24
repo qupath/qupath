@@ -172,7 +172,7 @@ public class ResourceManager {
 		@Override
 		public boolean remove(String name) throws IOException {
 			var path = getPathForName(name, true);
-			if (path != null && Files.exists(path)) {
+			if (path != null && path.toFile().exists()) {
 				logger.debug("Deleting resource '{}' from {}", name, path);
 				GeneralTools.deleteFile(path.toFile(), true);
 				return true;
@@ -187,7 +187,7 @@ public class ResourceManager {
 		@Override
 		public T get(String name) throws IOException {
 			var path = getPathForName(name, true);
-			if (path != null && Files.exists(path)) {
+			if (path != null && path.toFile().exists()) {
 				logger.debug("Reading resource '{}' from {}", name, path);
 				return readFromFile(path);
 			}

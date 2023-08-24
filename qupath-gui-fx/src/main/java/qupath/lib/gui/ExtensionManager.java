@@ -216,7 +216,7 @@ public class ExtensionManager {
 			dir = extensionClassLoader.getExtensionDirectory();
 		}
 		// Create directory if we need it
-		if (!Files.exists(dir)) {
+		if (!dir.toFile().exists()) {
 			logger.info("Creating extensions directory: {}", dir);
 			try {
 				Files.createDirectories(dir);

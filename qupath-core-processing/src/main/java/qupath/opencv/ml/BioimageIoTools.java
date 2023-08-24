@@ -124,13 +124,13 @@ public class BioimageIoTools {
 					// We can't currently handle zipped weights - so see if we can find unzipped weights
 					if (relativeSource.toLowerCase().endsWith(".zip")) {
 						pathWeights = basePath.resolve(relativeSource.substring(0, relativeSource.length()-4));
-						if (!Files.exists(pathWeights)) {
+						if (!pathWeights.toFile().exists()) {
 							logger.warn("Please unzip the model weights to {}", pathWeights);
 							continue;
 						}
 					} else {
 						pathWeights = basePath.resolve(relativeSource);
-						if (!Files.exists(pathWeights)) {
+						if (!pathWeights.toFile().exists()) {
 							logger.warn("Can't find model weights at {}", pathWeights);
 							continue;
 						}

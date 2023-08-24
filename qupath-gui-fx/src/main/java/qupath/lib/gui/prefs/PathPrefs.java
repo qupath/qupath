@@ -335,7 +335,7 @@ public class PathPrefs {
 			Path path = getConfigPath();
 			if (path == null)
 				return false;
-			return Files.exists(path) && Files.isWritable(path);
+			return path.toFile().exists() && Files.isWritable(path);
 		} catch (Exception e) {
 			logger.error("Error trying to find config file", e);
 			return false;
@@ -415,7 +415,7 @@ public class PathPrefs {
 					// With jpackage 15+, this should work
 					String memory = "java-options=-Xmx" + n.intValue() + "M";
 					Path config = getConfigPath();
-					if (config == null || !Files.exists(config)) {
+					if (config == null || !config.toFile().exists()) {
 						logger.error("Cannot find config file!");
 						return;
 					}

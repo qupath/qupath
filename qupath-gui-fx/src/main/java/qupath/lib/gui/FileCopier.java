@@ -146,11 +146,11 @@ public class FileCopier {
 				return dir.toPath();
 			var path = dir.toPath().resolve(outputPath);
 			// We are free to create user subdirectories without prompts
-			if (!Files.exists(path))
+			if (!path.toFile().exists())
 				Files.createDirectories(path);
 			return path;
 		} else if (outputPath != null){
-			if (!Files.exists(outputPath)) {
+			if (!outputPath.toFile().exists()) {
 				if (Dialogs.showYesNoDialog(title, "Create directory\n" + outputPath))
 					Files.createDirectories(outputPath);
 				else
@@ -206,7 +206,7 @@ public class FileCopier {
 		default:
 			long nExisting = paths.stream()
 				.map(p -> dir.resolve(p.getFileName()))
-				.filter(p -> Files.exists(p))
+				.filter(p -> p.toFile().exists())
 				.count();
 			if (nExisting == 0) {
 				overwriteExisting = true;
@@ -232,7 +232,7 @@ public class FileCopier {
 				logger.info("Skipping {} (source and destination are the same)", source);
 				continue;
 			}
-			if (overwriteExisting || !Files.exists(destination)) {
+			if (overwriteExisting || !destination.toFile().exists()) {
 				try {
 					logger.info("Copying {} -> {}", source, destination);
 					Files.copy(source, destination, StandardCopyOption.REPLACE_EXISTING);

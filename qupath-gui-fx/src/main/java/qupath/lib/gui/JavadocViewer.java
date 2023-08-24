@@ -531,7 +531,7 @@ public class JavadocViewer {
 			if (Files.isDirectory(baseDir)) {
 				// Handle javadoc directories
 				var file = baseDir.resolve(indexName);
-				if (Files.exists(file))
+				if (file.toFile().exists())
 					return parseJavadocSearchItems(file, cls);
 				else
 					throw new IOException("Unable to find index file " + file);

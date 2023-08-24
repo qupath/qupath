@@ -600,7 +600,7 @@ public class PathIO {
 //			if (uris.size() == 1) {
 //				var uri = uris.iterator().next();
 //				var serverPath = GeneralTools.toPath(uri);
-//				if (serverPath != null && Files.exists(serverPath))
+//				if (serverPath != null && serverPath.toFile().exists())
 //					path = serverPath.toFile().getAbsolutePath();
 //				else
 //					path = uri.toString();

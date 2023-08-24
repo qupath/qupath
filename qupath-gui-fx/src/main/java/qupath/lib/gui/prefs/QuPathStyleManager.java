@@ -276,7 +276,7 @@ public class QuPathStyleManager {
 		int nInstalled = 0;
 		try {
 			// If we have a user directory, add a CSS subdirectory if needed
-			if (pathCss != null && !Files.exists(pathCss)) {
+			if (pathCss != null && !pathCss.toFile().exists()) {
 				if (Files.isDirectory(pathCss.getParent()))
 					Files.createDirectory(pathCss);
 			}
@@ -297,7 +297,7 @@ public class QuPathStyleManager {
 					logger.warn("Can't copy CSS - source and target files are the same!");
 					continue;
 				}
-				if (Files.exists(target)) {
+				if (target.toFile().exists()) {
 					// Check if we want to overwrite - if so, retain the response so we don't 
 					// have to prompt multiple times if there are multiple files
 					if (overwriteExisting == null) {

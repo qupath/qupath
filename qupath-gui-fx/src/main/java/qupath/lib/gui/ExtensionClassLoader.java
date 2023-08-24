@@ -98,7 +98,7 @@ public class ExtensionClassLoader extends URLClassLoader {
 			logger.debug("Extensions directory is null - no extensions will be loaded");
 			return;
 		}
-		if (!Files.exists(dirExtensions)) {
+		if (!dirExtensions.toFile().exists()) {
 			logger.debug("No extensions directory exists at {}", dirExtensions);
 			return;			
 		}

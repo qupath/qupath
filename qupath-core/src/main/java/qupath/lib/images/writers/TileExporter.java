@@ -687,7 +687,7 @@ public class TileExporter  {
 				data.labels = labelList;
 			}
 			var pathJson = Paths.get(dirOutput, imageName + "-tiles.json");
-			if (Files.exists(pathJson)) {
+			if (pathJson.toFile().exists()) {
 				logger.warn("Overwriting existing JSON file {}", pathJson);
 			}
 			try (var writer = Files.newBufferedWriter(pathJson, StandardCharsets.UTF_8)) {

@@ -184,7 +184,7 @@ public class FileFormatInfo {
 				return;
 			}
 			Path path = GeneralTools.toPath(uri);
-			if (!Files.exists(path)) {
+			if (!path.toFile().exists()) {
 				return;
 			}
 			File file = path.toFile();

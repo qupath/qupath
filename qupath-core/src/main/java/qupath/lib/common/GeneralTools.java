@@ -124,9 +124,9 @@ public final class GeneralTools {
 		// v0.2, less reliable way
 		if (version == null) {
 			var path = Paths.get("VERSION");
-			if (!Files.exists(path))
+			if (!path.toFile().exists())
 				path = Paths.get("app/VERSION");
-			if (Files.exists(path)) {
+			if (path.toFile().exists()) {
 				try {
 					version = Files.readString(path);
 				} catch (IOException e) {

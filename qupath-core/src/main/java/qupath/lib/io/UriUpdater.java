@@ -406,7 +406,7 @@ public class UriUpdater<T extends UriResource> {
 							Objects.equals(pathItem.getRoot(), pathPrevious.getRoot())
 							) {
 						Path pathRelative = pathBase.resolve(pathPrevious.relativize(pathItem));
-						if (Files.exists(pathRelative)) {
+						if (pathRelative.toFile().exists()) {
 							URI uri2 = pathRelative.normalize().toUri().normalize();
 							replacements.put(item, new SingleUriItem(uri2));
 							count++;
@@ -535,7 +535,7 @@ public class UriUpdater<T extends UriResource> {
 		public UriStatus getStatus() {
 			if (path == null)
 				return UriStatus.UNKNOWN;
-			if (Files.exists(path))
+			if (path.toFile().exists())
 				return UriStatus.EXISTS;
 			return UriStatus.MISSING;
 		}
