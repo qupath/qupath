@@ -123,6 +123,7 @@ class ProjectImportImagesCommand {
 	 * @return
 	 */
 	static List<ProjectImageEntry<BufferedImage>> promptToImportImages(QuPathGUI qupath, ImageServerBuilder<BufferedImage> builder, String... defaultPaths) {
+		// TODO: I can only apologise for this code... it is dreadful
 		var project = qupath.getProject();
 		if (project == null) {
 			GuiTools.showNoProjectError(commandName);
@@ -283,16 +284,6 @@ class ProjectImportImagesCommand {
 		Optional<ButtonType> result = dialog.showAndWait();
 		if (!result.isPresent() || result.get() != typeImport)
 			return Collections.emptyList();
-		
-//		// Do the actual import
-//		List<String> pathSucceeded = new ArrayList<>();
-//		List<String> pathFailed = new ArrayList<>();
-//		for (String path : listView.getItems()) {
-//			if (qupath.getProject().addImage(path.trim()))
-//				pathSucceeded.add(path);
-//			else
-//				pathFailed.add(path);
-//		}
 				
 		ImageType type = comboType.getValue();
 		Rotation rotation = comboRotate.getValue();
@@ -323,10 +314,9 @@ class ProjectImportImagesCommand {
 		
 		List<String> pathSucceeded = new ArrayList<>();
 		List<String> pathFailed = new ArrayList<>();
-		List<ProjectImageEntry<BufferedImage>> entries = new ArrayList<>();
-		Task<Collection<ProjectImageEntry<BufferedImage>>> worker = new Task<>() {
+		Task<List<ProjectImageEntry<BufferedImage>>> worker = new Task<>() {
 			@Override
-			protected Collection<ProjectImageEntry<BufferedImage>> call() throws Exception {
+			protected List<ProjectImageEntry<BufferedImage>> call() throws Exception {
 				AtomicLong counter = new AtomicLong(0L);
 				
 				List<String> items = new ArrayList<>(listView.getItems());
@@ -336,7 +326,6 @@ class ProjectImportImagesCommand {
 				// Limit the size of the thread pool
 				// The previous use of a cached thread pool caused trouble when importing may large, non-pyramidal images
 				var pool = Executors.newFixedThreadPool(ThreadTools.getParallelism(), ThreadTools.createThreadFactory("project-import", true));
-//				var pool = Executors.newCachedThreadPool(ThreadTools.createThreadFactory("project-import", true));
 				List<Future<List<ServerBuilder<BufferedImage>>>> results = new ArrayList<>();
 				List<ProjectImageEntry<BufferedImage>> projectImages = new ArrayList<>();
 				for (var item : items) {
@@ -395,6 +384,7 @@ class ProjectImportImagesCommand {
 				}
 				
 				long max = builders.size();
+				List<ProjectImageEntry<BufferedImage>> allAddedEntries = new ArrayList<>();
 				if (!builders.isEmpty()) {
 					if (max == 1)
 						updateMessage("Preparing to add 1 image to project");
@@ -425,6 +415,7 @@ class ProjectImportImagesCommand {
 //							builder = RearrangeRGBImageServer.getSwapRedBlueBuilder(builder);
 						entries.add(project.addImage(builder));
 					}
+					allAddedEntries.addAll(entries);
 					
 					// Initialize (the slow bit)
 					int n = builders.size();
@@ -470,21 +461,8 @@ class ProjectImportImagesCommand {
 				// Now save changes
 				project.syncChanges();
 				
-				
-//				builders.parallelStream().forEach(builder -> {
-////				builders.parallelStream().forEach(builder -> {
-//					try (var server =  builder.build()) {
-//						var entry = addSingleImageToProject(project, server);
-//						updateMessage("Added " + entry.getImageName());
-//					} catch (Exception e) {
-//						logger.warn("Exception adding " + builder, e);
-//					} finally {
-//						updateProgress(counter.incrementAndGet(), max);
-//					}
-//				});
-				
 				updateProgress(max, max);
-				return entries;
+				return allAddedEntries;
 	         }
 		};
 		ProgressDialog progress = new ProgressDialog(worker);
@@ -523,7 +501,15 @@ class ProjectImportImagesCommand {
 		// TODO: Add failed and successful paths to pathFailed/pathSucceeded, so the line below prints something
 		if (sb.length() > 0)
 			logger.info(sb.toString());
-		return entries;
+
+		List<ProjectImageEntry<BufferedImage>> results = new ArrayList<>();
+		try {
+			results = worker.get();
+		} catch (Exception e) {
+			logger.error("Exception importing project entries", e);
+			results = Collections.emptyList();
+		}
+		return results;
 	}
 	
 	
