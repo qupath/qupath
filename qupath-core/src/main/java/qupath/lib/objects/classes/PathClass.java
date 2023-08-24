@@ -825,6 +825,10 @@ public final class PathClass implements Comparable<PathClass>, Serializable {
 		// This can occur during deserialization
 		if (!pathClass.isDerivedClass() && pathClass.getName() == null)
 			return NULL_CLASS;
+		if (pathClass.isDerivedClass()) {
+			PathClass parent = getSingleton(pathClass.getParentClass());
+			pathClass = PathClass.getInstance(parent, pathClass.getName(), pathClass.getColor());
+		}
 		var previous = existingClasses.putIfAbsent(createCacheString(pathClass), pathClass);
 		return previous == null ? pathClass : previous;
 	}
