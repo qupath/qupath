@@ -104,6 +104,7 @@ public class ScriptTab {
 		logger.info("Loading file {} to Script Editor", file.getAbsolutePath());
 		String content = GeneralTools.readFileAsString(file);
 		editor.setText(content);
+		editor.positionCaret(0); // Reposition caret to the beginning of the file
 		name = file.getName();
 		this.file = file;
 		lastModified = file.lastModified();
