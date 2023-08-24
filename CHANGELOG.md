@@ -10,6 +10,7 @@ This is a work-in-progress for the next QuPath release.
 * Fix PathClass singleton creation when a derived PathClass is requested (https://github.com/qupath/qupath/pull/1286)
 * 'Run for project' does not recognize when previous images have been deleted (https://github.com/qupath/qupath/issues/1291)
 * ProjectCommands.promptToImportImages always returns an empty list (https://github.com/qupath/qupath/issues/1251)
+* PathIO doesn't restore backup if writing ImageData fails (https://github.com/qupath/qupath/issues/1252)
 
 ### Dependency updates
 * Bio-Formats 7.0.0
