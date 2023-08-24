@@ -6,13 +6,21 @@ This is a work-in-progress for the next QuPath release.
 * Rendered image export does not support opacity (https://github.com/qupath/qupath/issues/1292)
 * Cannot import GeoJSON with NaN measurements (https://github.com/qupath/qupath/issues/1293)
 * `isOverlayNG` should be turned on by default (https://github.com/qupath/qupath/issues/1244)
-* * Labeled image instance export doesn't work as expected for z-stacks (https://github.com/qupath/qupath/issues/1267)
+* Labeled image instance export doesn't work as expected for z-stacks (https://github.com/qupath/qupath/issues/1267)
+* Fix PathClass singleton creation when a derived PathClass is requested (https://github.com/qupath/qupath/pull/1286)
 
 ### Dependency updates
-* DeepJavaLibrary 0.21.0
-* Groovy 4.0.10
-* ImageJ 1.54c
-* JavaFX 20
+* Bio-Formats 7.0.0
+* DeepJavaLibrary 0.23.0
+* Groovy 4.0.14
+* ImageJ 1.54f
+* JavaCPP 1.5.9
+* JavaFX 20.0.2
+* Logback 1.3.11
+* OpenCV 4.7.0
+* Picocli 4.7.4
+* RichTextFX 0.11.1
+* SLF4J 2.0.7
 
 
 

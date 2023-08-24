@@ -34,5 +34,6 @@ gradlePlugin {
 
 dependencies {
     // Make Gradle plugin available to limit platform jars
-    implementation 'org.bytedeco:gradle-javacpp:1.5.8'
+    // TODO: Try to use version catalog instead
+    implementation 'org.bytedeco:gradle-javacpp:1.5.9'
 }
