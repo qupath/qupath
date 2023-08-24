@@ -446,7 +446,8 @@ public class DefaultScriptEditor implements ScriptEditor {
 		beautifySourceAction.setAccelerator(new KeyCodeCombination(KeyCode.L, KeyCombination.SHORTCUT_DOWN, KeyCombination.ALT_DOWN));
 		beautifySourceAction.disabledProperty().bind(canBeautifyBinding);
 		compressSourceAction.disabledProperty().bind(canCompressBinding);
-		
+
+		// Reset previous images when the project changes
 		qupath.projectProperty().addListener((v, o, n) -> {
 			previousImages.clear();
 		});
@@ -1535,7 +1536,11 @@ public class DefaultScriptEditor implements ScriptEditor {
 //		FilteredList<ProjectImageEntry<?>> sourceList = new FilteredList<>(FXCollections.observableArrayList(project.getImageList()));
 		
 		String sameImageWarning = "A selected image is open in the viewer!\nAny unsaved changes will be ignored.";
-		var listSelectionView = ProjectDialogs.createImageChoicePane(qupath, project.getImageList(), previousImages, sameImageWarning);
+		var imageList = project.getImageList();
+		// Remove any images that have been removed from the project
+		// See https://github.com/qupath/qupath/issues/1291
+		previousImages.retainAll(new HashSet<>(imageList));
+		var listSelectionView = ProjectDialogs.createImageChoicePane(qupath, imageList, previousImages, sameImageWarning);
 		
 		Dialog<ButtonType> dialog = new Dialog<>();
 		dialog.initOwner(qupath.getStage());
