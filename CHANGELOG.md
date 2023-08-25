@@ -12,6 +12,7 @@ This is a work-in-progress for the next QuPath release.
 * ProjectCommands.promptToImportImages always returns an empty list (https://github.com/qupath/qupath/issues/1251)
 * PathIO doesn't restore backup if writing ImageData fails (https://github.com/qupath/qupath/issues/1252)
 * Scripts open with the caret at the bottom of the text rather than the top (https://github.com/qupath/qupath/issues/1258)
+* 'Synchronize viewers' ignores z and t positions (https://github.com/qupath/qupath/issues/1220)
 
 ### Dependency updates
 * Bio-Formats 7.0.0

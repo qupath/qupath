@@ -33,6 +33,9 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.WeakHashMap;
+
 import org.controlsfx.control.action.Action;
 import org.controlsfx.control.action.ActionUtils;
 import org.slf4j.Logger;
@@ -71,6 +74,7 @@ import javafx.scene.shape.Ellipse;
 import javafx.scene.shape.Rectangle;
 import javafx.util.Duration;
 import jfxtras.scene.menu.CirclePopupMenu;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.ToolManager;
 import qupath.lib.gui.actions.ActionTools;
@@ -128,10 +132,8 @@ public class ViewerManager implements QuPathViewerListener {
 	private final Color colorBorder = Color.rgb(180, 0, 0, 0.5);
 
 	private BooleanProperty synchronizeViewers = new SimpleBooleanProperty(true);
-	private double lastX = Double.NaN;
-	private double lastY = Double.NaN;
-	private double lastDownsample = Double.NaN;
-	private double lastRotation = Double.NaN;
+
+	private Map<QuPathViewer, ViewerPosition> lastViewerPosition = new WeakHashMap<>();
 
 	private ViewerManager(final QuPathGUI qupath) {
 		this.qupath = qupath;
@@ -237,17 +239,12 @@ public class ViewerManager implements QuPathViewerListener {
 			}
 		}
 		this.activeViewerProperty.set(viewer);
-		lastX = Double.NaN;
-		lastY = Double.NaN;
-		lastDownsample = Double.NaN;
-		lastRotation = Double.NaN;
+		getLastViewerPosition(viewer).reset();
+
 		if (viewer != null) {
 			viewer.setBorderColor(colorBorder);
 			if (viewer.getServer() != null) {
-				lastX = viewer.getCenterPixelX();
-				lastY = viewer.getCenterPixelY();
-				lastDownsample = viewer.getDownsampleFactor();
-				lastRotation = viewer.getRotation();
+				getLastViewerPosition(viewer).update(viewer);
 			}
 		}
 		logger.debug("Active viewer set to {}", viewer);
@@ -329,13 +326,6 @@ public class ViewerManager implements QuPathViewerListener {
 		viewerNew.addViewerListener(this);
 		viewers.add(viewerNew);
 		return viewerNew;
-	}
-
-
-	SplitPane getAncestorSplitPane(Node node) {
-		while (node != null && !(node instanceof SplitPane))
-			node = node.getParent();
-		return (SplitPane)node;
 	}
 
 	/**
@@ -449,13 +439,14 @@ public class ViewerManager implements QuPathViewerListener {
 		if (viewer != null && viewer == getActiveViewer()) {
 			if (viewer.getServer() != null) {
 				// Setting these to NaN prevents unexpected jumping when a new image is opened
-				lastX = Double.NaN;
-				lastY = Double.NaN;
-				lastDownsample = Double.NaN;
-				lastRotation = Double.NaN;
+				getLastViewerPosition(viewer).reset();
 			}
 			imageDataProperty.set(viewer.getImageData());
 		}
+	}
+
+	private ViewerPosition getLastViewerPosition(QuPathViewer viewer) {
+		return lastViewerPosition.computeIfAbsent(viewer, v -> new ViewerPosition());
 	}
 	
 	
@@ -468,29 +459,37 @@ public class ViewerManager implements QuPathViewerListener {
 		}
 
 		QuPathViewer activeViewer = getActiveViewer();
+
+
 		double x = activeViewer.getCenterPixelX();
 		double y = activeViewer.getCenterPixelY();
 		double rotation = activeViewer.getRotation();
 		double dx = Double.NaN, dy = Double.NaN, dr = Double.NaN;
+		int dt = 0, dz = 0;
 
 		double downsample = viewer.getDownsampleFactor();
-		double relativeDownsample = viewer.getDownsampleFactor() / lastDownsample;
+		var position = getLastViewerPosition(activeViewer);
+		double relativeDownsample = viewer.getDownsampleFactor() / position.downsample;
 
 		// Shift as required, assuming we aren't aligning cores
 		//			if (!aligningCores) {
 		//			synchronizeViewers = true;
 		if (synchronizeViewers.get()) {
-			if (!Double.isNaN(lastX + lastY)) {
-				dx = x - lastX;
-				dy = y - lastY;
-				dr = rotation - lastRotation;
+			if (!Double.isNaN( position.x + position.y)) {
+				dx = x - position.x;
+				dy = y - position.y;
+				dr = rotation - position.rotation;
+				dt = activeViewer.getTPosition() - position.t;
+				dz = activeViewer.getZPosition() - position.z;
 			}
 
 			for (QuPathViewer v : viewers) {
 				if (v == viewer)
 					continue;
+
 				if (!Double.isNaN(relativeDownsample))
 					v.setDownsampleFactor(v.getDownsampleFactor() * relativeDownsample, -1, -1, false);
+
 				if (!Double.isNaN(dr) && dr != 0)
 					v.setRotation(v.getRotation() + dr);
 
@@ -509,14 +508,20 @@ public class ViewerManager implements QuPathViewerListener {
 					double dy3 = sin * dx2 + cos * dy2;
 
 					v.setCenterPixelLocation(v.getCenterPixelX() + dx3, v.getCenterPixelY() + dy3);
+
+					// Handle z and t
+					if (dz != 0) {
+						v.setZPosition(GeneralTools.clipValue(v.getZPosition() + dz, 0, v.getServer().nZSlices()-1));
+					}
+					if (dt != 0) {
+						v.setTPosition(GeneralTools.clipValue(v.getTPosition() + dt, 0, v.getServer().nTimepoints()-1));
+					}
+
 				}
 			}
 		}
 
-		lastX = x;
-		lastY = y;
-		lastDownsample = downsample;
-		lastRotation = rotation;
+		position.update(activeViewer);
 	}
 
 
@@ -551,10 +556,7 @@ public class ViewerManager implements QuPathViewerListener {
 			return;
 
 		// Thwart the upcoming region shift
-		lastX = Double.NaN;
-		lastY = Double.NaN;
-		lastDownsample = Double.NaN;
-		lastRotation = Double.NaN;
+		getLastViewerPosition(getActiveViewer()).reset();
 
 		//			aligningCores = true;
 		String coreName = ((TMACoreObject)pathObjectSelected).getName();
@@ -1247,5 +1249,48 @@ public class ViewerManager implements QuPathViewerListener {
 		group.selectToggle(selected);
 		menuSetClassItems.setAll(itemList);
 	}
+
+
+	private static class ViewerPosition {
+
+		private double x;
+		private double y;
+		private double downsample;
+		private double rotation;
+		private int z;
+		private int t;
+
+		private ViewerPosition() {
+			reset();
+		}
+
+		private ViewerPosition(QuPathViewer viewer) {
+			update(viewer);
+		}
+
+		private void update(QuPathViewer viewer) {
+			if (viewer == null || viewer.getImageData() == null) {
+				reset();
+			} else {
+				x = viewer.getCenterPixelX();
+				y = viewer.getCenterPixelY();
+				downsample = viewer.getDownsampleFactor();
+				rotation = viewer.getRotation();
+				z = viewer.getZPosition();
+				t = viewer.getTPosition();
+			}
+		}
+
+		private void reset() {
+			x = Double.NaN;
+			y = Double.NaN;
+			downsample = Double.NaN;
+			rotation = Double.NaN;
+			z = -1;
+			t = -1;
+		}
+
+	}
+
 
 }
