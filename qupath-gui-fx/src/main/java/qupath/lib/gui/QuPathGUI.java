@@ -2262,15 +2262,6 @@ public class QuPathGUI {
 	
 	
 	/**
-	 * Set the control used to display log messages.
-	 * @param control
-	 */
-	public void setLogControl(final ScriptEditorControl<?> control) {
-		logViewerCommand.setLogControl(control);
-	}
-	
-	
-	/**
 	 * Return the global {@link OverlayOptions} instance, used to control display within viewers by default.
 	 * @return
 	 */
