@@ -32,6 +32,8 @@ dependencies {
   implementation libs.bundles.ikonli
   
   implementation libs.bundles.markdown
+
+  implementation libs.bundles.logviewer
 }
 
 javafx {

@@ -61,7 +61,6 @@ public class RichScriptEditorExtension implements QuPathExtension {
 			codeArea.getStyleClass().add("qupath-log");
 			codeArea.setStyle("-fx-font-family: sans-serif; " + codeArea.getStyle());
 			
-			qupath.setLogControl(console);
 			qupath.getPreferencePane().addPropertyPreference(styleLog, Boolean.class,
 					"General", "Style log viewer", "Use colors to distinguish between different types of log message");
 		} catch (Exception e) {

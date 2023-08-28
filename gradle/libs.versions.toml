@@ -31,6 +31,7 @@ jts             = "1.19.0"
 junit           = "5.9.2"
 
 logback         = "1.3.11"
+logviewer       = "0.1.0-SNAPSHOT"
 
 picocli         = "4.7.4"
 qupath-fxtras   = "0.1.0-SNAPSHOT"
@@ -59,6 +60,11 @@ jfxtras       = { module = "org.jfxtras:jfxtras-menu",          version.ref = "j
 jts           = { module = "org.locationtech.jts:jts-core",     version.ref = "jts" }
 
 logback       = { module = "ch.qos.logback:logback-classic",    version.ref = "logback" }
+
+logviewer     = { module = "io.github.qupath:logviewer-ui-main",        version.ref = "logviewer" }
+logviewer-console = { module = "io.github.qupath:logviewer-ui-textarea",  version.ref = "logviewer" }
+logviewer-rich    = { module = "io.github.qupath:logviewer-ui-richtextfx",  version.ref = "logviewer" }
+logviewer-logback = { module = "io.github.qupath:logviewer-logging-logback",  version.ref = "logviewer" }
 
 picocli       = { module = "info.picocli:picocli",              version.ref = "picocli" }
 
@@ -91,6 +97,7 @@ junit-engine  = { module = "org.junit.jupiter:junit-jupiter-engine", version.ref
 groovy        = ["groovy-core", "groovy-jsr223", "groovy-xml"]
 ikonli        = ["ikonli-javafx", "ikonli-ionicons4"]
 logging       = ["slf4j", "logback"]
+logviewer     = ["logviewer", "logviewer-console", "logviewer-rich", "logviewer-logback"]
 markdown      = ["commonmark"]
 opencv        = ["javacpp", "opencv"]
 opencv-gpu    = ["javacpp", "opencv-gpu", "cuda"]

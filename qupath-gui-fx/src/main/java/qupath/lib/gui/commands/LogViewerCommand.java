@@ -4,111 +4,73 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- * 
+ *
  * QuPath is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
- * You should have received a copy of the GNU General Public License 
+ *
+ * You should have received a copy of the GNU General Public License
  * along with QuPath.  If not, see <https://www.gnu.org/licenses/>.
  * #L%
  */
 
 package qupath.lib.gui.commands;
 
-import java.io.File;
-import java.io.PrintWriter;
-import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Objects;
-
-import org.controlsfx.control.action.Action;
-import org.controlsfx.control.action.ActionUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javafx.application.Platform;
-import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.SimpleBooleanProperty;
+import javafx.scene.Parent;
 import javafx.scene.Scene;
-import javafx.scene.control.CheckMenuItem;
-import javafx.scene.control.ContextMenu;
-import javafx.scene.control.Menu;
-import javafx.scene.control.MenuBar;
-import javafx.scene.control.MenuItem;
-import javafx.scene.control.SeparatorMenuItem;
-import javafx.scene.control.ToggleGroup;
-import javafx.scene.input.Clipboard;
-import javafx.scene.input.ClipboardContent;
-import javafx.scene.input.KeyCode;
-import javafx.scene.input.KeyCodeCombination;
-import javafx.scene.layout.BorderPane;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.Window;
-import qupath.fx.dialogs.FileChoosers;
-import qupath.lib.gui.SelectableItem;
-import qupath.lib.gui.actions.ActionTools;
-import qupath.lib.gui.logging.LogManager;
-import qupath.lib.gui.logging.LogManager.LogLevel;
-import qupath.lib.gui.logging.TextAppendable;
-import qupath.lib.gui.prefs.PathPrefs;
-import qupath.lib.gui.scripting.ScriptEditorControl;
-import qupath.lib.gui.scripting.TextAreaControl;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.fx.utils.FXUtils;
+import qupath.ui.logviewer.ui.main.LogViewer;
+import qupath.ui.logviewer.ui.textarea.TextAreaLogViewer;
+
+import java.io.IOException;
 
 /**
  * A viewer for log messages.
- * <p>
- * The default display is very basic, but log methods can be styled by passing an alternative {@link ScriptEditorControl} 
- * to be used instead.
- * 
+ *
  * @author Pete Bankhead
  *
  */
-public class LogViewerCommand implements Runnable, TextAppendable {
-	
+public class LogViewerCommand implements Runnable {
+
 	private static final Logger logger = LoggerFactory.getLogger(LogViewerCommand.class);
-	
+
 	private Stage dialog = null;
-	
+
 	private Window parent;
-	private BorderPane pane;
-	
-	private BooleanProperty lockScroll = new SimpleBooleanProperty(true);
-	private ContextMenu contextMenu;
-	
-	private ScriptEditorControl<?> control;
-	
-	private static List<Action> actionLogLevels = Arrays.asList(
-			createLogLevelAction(LogLevel.ERROR),
-			createLogLevelAction(LogLevel.WARN),
-			createLogLevelAction(LogLevel.INFO),
-			createLogLevelAction(LogLevel.DEBUG),
-			createLogLevelAction(LogLevel.TRACE)
-			);
-	
+
+	private Parent logviewer;
+
 	/**
 	 * Constructor.
-	 * @param parent 
+	 * @param parent
 	 */
 	public LogViewerCommand(Window parent) {
-		this(parent, new TextAreaControl(false));
-	}
-	
-	
-	private LogViewerCommand(Window parent, ScriptEditorControl<?> control) {
-		Objects.requireNonNull(control);
-		LogManager.addTextAppendableFX(this);
-		init();
-		setLogControl(control);
+		this.parent = parent;
+		try {
+			LogViewer logviewer = new LogViewer();
+			// Could bind to system menubar... but seems preferable not to?
+//			logviewer.getMenubar().useSystemMenuBarProperty().bindBidirectional(PathPrefs.useSystemMenubarProperty());
+			// Fix cell size for better performance
+			var table = logviewer.getTable();
+			table.setFixedCellSize(25);
+			this.logviewer = logviewer;
+		} catch (IOException e) {
+			logviewer = new TextAreaLogViewer();
+			logger.error("Failed to create log viewer - using console instead", e);
+		}
 	}
 
 	@Override
@@ -121,134 +83,23 @@ public class LogViewerCommand implements Runnable, TextAppendable {
 			dialog = new Stage();
 			dialog.setTitle("Log");
 
-			Scene scene = new Scene(pane, 400, 300);
+			Scene scene = new Scene(logviewer);
 			dialog.setScene(scene);
 			dialog.setResizable(true);
-			
 			dialog.initModality(Modality.NONE);
 			dialog.initOwner(parent);
 			dialog.setResizable(true);
+			dialog.show();
+			dialog.sizeToScene();
+			FXUtils.retainWindowPosition(dialog);
+		} else {
+			dialog.show();
 		}
-		dialog.show();
-	}
-	
-	
-	private static Action createLogLevelAction(LogLevel level) {
-		var command = new SelectableItem<>(LogManager.rootLogLevelProperty(), level);
-		return ActionTools.actionBuilder(e -> command.setSelected(true))
-			.text(level.toString())
-			.selectable(true)
-			.selected(command.selectedProperty())
-			.build();
-	}
-	
-	
-	private void init() {
-		
-		pane = new BorderPane();
-		
-		Action actionCopy = new Action("Copy", e -> {
-			String text = control.getSelectedText();
-			if (text == null || text.isEmpty())
-				text = control.getText();
-			ClipboardContent content = new ClipboardContent();
-			content.putString(text);
-			Clipboard.getSystemClipboard().setContent(content);
-		});
-		actionCopy.setAccelerator(new KeyCodeCombination(KeyCode.C, KeyCodeCombination.SHORTCUT_DOWN));
-		
-		Action actionClear = new Action("Clear log", e -> control.clear());
-		
-		CheckMenuItem miLockScroll = new CheckMenuItem("Scroll to end");
-		miLockScroll.selectedProperty().bindBidirectional(lockScroll);
-		
-		// Add context menu
-		contextMenu = new ContextMenu();
-		contextMenu.getItems().add(ActionUtils.createMenuItem(actionCopy));
-		contextMenu.getItems().add(new SeparatorMenuItem());
-		contextMenu.getItems().add(ActionUtils.createMenuItem(actionClear));
-		contextMenu.getItems().add(miLockScroll);
-		contextMenu.getItems().add(createLogLevelMenu());
-		
-		
-		// Add actual menubar
-		MenuBar menubar = new MenuBar();
-		Menu menuFile = new Menu("File");
-		MenuItem miSave = new MenuItem("Save log");
-		miSave.setAccelerator(new KeyCodeCombination(KeyCode.S, KeyCodeCombination.SHORTCUT_DOWN));
-		miSave.setOnAction(e -> {
-			File fileOutput = FileChoosers.promptToSaveFile(dialog, "Save log",
-					new File("log.txt"),
-					FileChoosers.createExtensionFilter("Log files", ".txt"));
-			if (fileOutput == null)
-				return;
-			try {
-				PrintWriter writer = new PrintWriter(fileOutput, StandardCharsets.UTF_8);
-				writer.print(control.getText());
-				writer.close();
-			} catch (Exception ex) {
-				logger.error("Problem writing log", ex);
-			}
-		});
-		
-		MenuItem miCloseWindow = new MenuItem("Close window");
-		miCloseWindow.setAccelerator(new KeyCodeCombination(KeyCode.W, KeyCodeCombination.SHORTCUT_DOWN));
-		miCloseWindow.setOnAction(e -> dialog.hide());
-		menuFile.getItems().addAll(miSave, miCloseWindow);
-		
-		Menu menuEdit = new Menu("Edit");
-		menuEdit.getItems().addAll(
-				ActionUtils.createMenuItem(actionCopy),
-				ActionUtils.createMenuItem(actionClear),
-				createLogLevelMenu()
-				);
-		menubar.getMenus().addAll(menuFile, menuEdit);
-		pane.setTop(menubar);
-//		menubar.setUseSystemMenuBar(true);
-		menubar.useSystemMenuBarProperty().bindBidirectional(PathPrefs.useSystemMenubarProperty());
-		
-	}
-	
-	/**
-	 * Set a new control to display log information.
-	 * This makes it possible to apply nicer styling.
-	 * @param control
-	 */
-	public void setLogControl(ScriptEditorControl<?> control) {
-		if (this.control == control)
-			return;
-		Objects.requireNonNull(control);
-		// Copy over any existing text
-		if (this.control != null) {
-			control.setText(this.control.getText());
-			this.control.getRegion().setOnContextMenuRequested(null);
+		if (logviewer instanceof LogViewer lv) {
+			// Scroll to the bottom when showing
+			var table = lv.getTable();
+			table.scrollTo(table.getItems().size() - 1);
 		}
-		
-		this.control = control;
-		control.setContextMenu(contextMenu);
-		pane.setCenter(control.getRegion());
-					
-		// Keep scrolling to the last message
-		control.textProperty().addListener((v, o, n) ->  {
-			if (dialog != null && dialog.isShowing() && lockScroll.get())
-				Platform.runLater(() -> control.requestFollowCaret());
-		});
-	}
-	
-	
-	private static Menu createLogLevelMenu() {
-		var menu = new Menu("Set log level");
-		var group = new ToggleGroup();
-		for (var action : actionLogLevels) {
-			menu.getItems().add(ActionTools.createCheckMenuItem(action, group));
-		}
-		return menu;
-	}
-
-	@Override
-	public void appendText(String text) {
-		if (control != null)
-			control.appendText(text);
 	}
 
 }
