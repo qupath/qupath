@@ -27,6 +27,7 @@ dependencies {
 //  	transitive = false
 //  }
 
+  implementation libs.qupath.fxtras
   implementation libs.controlsfx
   implementation libs.picocli
 
