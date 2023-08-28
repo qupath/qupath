@@ -19,10 +19,10 @@ configurations {
 dependencies {
   api project(':qupath-core')
   api project(':qupath-core-processing')
-  api project(':qupath-fx')
 
+  implementation libs.qupath.fxtras // API for no
   api libs.controlsfx
-  
+
   implementation libs.snakeyaml
   
   implementation libs.jfxtras

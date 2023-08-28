@@ -21,7 +21,6 @@
 
 package qupath.lib.extension.svg;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
 

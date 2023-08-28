@@ -15,6 +15,12 @@ repositories {
 	    url "https://maven.scijava.org/content/repositories/releases"
 	}
 
+    // May be required during development
+    maven {
+        name "SciJava snapshots"
+        url "https://maven.scijava.org/content/repositories/snapshots"
+    }
+
     // Required for Bio-Formats
     maven {
         name 'Unidata'

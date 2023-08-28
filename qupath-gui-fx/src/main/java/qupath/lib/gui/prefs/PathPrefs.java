@@ -33,12 +33,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
-import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Locale.Category;
-import java.util.Objects;
 import java.util.concurrent.ForkJoinPool;
 import java.util.function.Function;
 import java.util.prefs.BackingStoreException;
@@ -46,7 +44,6 @@ import java.util.prefs.InvalidPreferencesFormatException;
 import java.util.prefs.Preferences;
 
 import javafx.beans.property.*;
-import javafx.util.StringConverter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

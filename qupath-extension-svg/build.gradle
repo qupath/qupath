@@ -8,5 +8,6 @@ archivesBaseName = 'qupath-extension-svg'
 description = "QuPath extension to write SVG images using JFreeSVG."
 
 dependencies {
+  implementation libs.qupath.fxtras
   implementation libs.jfreesvg
 }
