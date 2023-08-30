@@ -1,0 +1,16 @@
+{
+  "parentClass": {
+    "parentClass": {
+      "parentClass": {
+        "name": "First-legacy",
+        "colorRGB": -16711165
+      },
+      "name": "Second-legacy",
+      "colorRGB": -16711165
+    },
+    "name": "Third-legacy",
+    "colorRGB": -16711165
+  },
+  "name": "Fourth-legacy",
+  "colorRGB": -16711165
+}
