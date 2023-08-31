@@ -1,3 +1,13 @@
+## Version 0.4.4
+
+This is a *minor release* that aims to be fully compatible with previous v0.4.x releases, while fixing one bug.
+
+> A bigger update (v0.5.0) is planned for release before the [QuPath Training Course in San Diego (October 9-11, 2023)](https://forum.image.sc/t/upcoming-qupath-training-course-october-9-11-san-diego/83751).
+
+### Bug fixed
+* Derived classifications can be read incorrectly from data files and json (https://github.com/qupath/qupath/issues/1306)
+
+
 ## Version 0.4.3
 
 This is a *minor release* that aims to be fully compatible with previous v0.4.x releases, while fixing bugs.

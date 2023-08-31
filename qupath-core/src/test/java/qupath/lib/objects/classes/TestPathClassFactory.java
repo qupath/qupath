@@ -23,10 +23,11 @@
 
 package qupath.lib.objects.classes;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Isolated;
+import qupath.lib.common.ColorTools;
 
 import java.util.Arrays;
 import java.util.HashSet;
@@ -35,13 +36,19 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Test;
-
-import qupath.lib.common.ColorTools;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SuppressWarnings("javadoc")
+@Isolated
 public class TestPathClassFactory {
+
+	@BeforeEach
+	void resetClasses() {
+		PathClass.resetCaches();
+	}
 	
 	@Test
 	public void test_getPathClass1() {
