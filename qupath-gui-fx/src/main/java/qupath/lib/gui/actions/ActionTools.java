@@ -412,7 +412,7 @@ public class ActionTools {
 		parseAccelerator(action, element.getAnnotation(ActionAccelerator.class));
 		parseIcon(action, element.getAnnotation(ActionIcon.class));
 		parseDeprecated(action, element.getAnnotation(Deprecated.class));
-		parseConfig(action, element.getAnnotation(ActionConfig.class), QuPathResources.getLocalizeResourceManager());
+		parseConfig(action, element.getAnnotation(ActionConfig.class), QuPathResources.getLocalizedResourceManager());
 	}
 	
 	private static void parseDeprecated(Action action, Deprecated annotation) {

@@ -52,16 +52,16 @@ class AnalysisTabPane {
 	
 	private QuPathGUI qupath;
 	
-	private static StringProperty titleProject = QuPathResources.getLocalizeResourceManager().createProperty("AnalysisPane.projectTab");
-	private static StringProperty titleImage = QuPathResources.getLocalizeResourceManager().createProperty("AnalysisPane.imageTab");
-	private static StringProperty titleAnnotations = QuPathResources.getLocalizeResourceManager().createProperty("AnalysisPane.annotationsTab");
-	private static StringProperty titleHierarchy = QuPathResources.getLocalizeResourceManager().createProperty("AnalysisPane.hierarchyTab");
-	private static StringProperty titleWorkflow = QuPathResources.getLocalizeResourceManager().createProperty("AnalysisPane.workflowTab");
-	private static StringProperty titleHistory = QuPathResources.getLocalizeResourceManager().createProperty("AnalysisPane.historyTab");
-	private static StringProperty titleMeasurements = QuPathResources.getLocalizeResourceManager().createProperty("AnalysisPane.measurementsTab");
-	private static StringProperty titleDescription = QuPathResources.getLocalizeResourceManager().createProperty("AnalysisPane.descriptionTab");
+	private static StringProperty titleProject = QuPathResources.getLocalizedResourceManager().createProperty("AnalysisPane.projectTab");
+	private static StringProperty titleImage = QuPathResources.getLocalizedResourceManager().createProperty("AnalysisPane.imageTab");
+	private static StringProperty titleAnnotations = QuPathResources.getLocalizedResourceManager().createProperty("AnalysisPane.annotationsTab");
+	private static StringProperty titleHierarchy = QuPathResources.getLocalizedResourceManager().createProperty("AnalysisPane.hierarchyTab");
+	private static StringProperty titleWorkflow = QuPathResources.getLocalizedResourceManager().createProperty("AnalysisPane.workflowTab");
+	private static StringProperty titleHistory = QuPathResources.getLocalizedResourceManager().createProperty("AnalysisPane.historyTab");
+	private static StringProperty titleMeasurements = QuPathResources.getLocalizedResourceManager().createProperty("AnalysisPane.measurementsTab");
+	private static StringProperty titleDescription = QuPathResources.getLocalizedResourceManager().createProperty("AnalysisPane.descriptionTab");
 
-	private static StringProperty textTabTooltip = QuPathResources.getLocalizeResourceManager().createProperty("AnalysisPane.switchText");
+	private static StringProperty textTabTooltip = QuPathResources.getLocalizedResourceManager().createProperty("AnalysisPane.switchText");
 
 	private ProjectBrowser projectBrowser;
 	private ImageDetailsPane imageDetailsPane;

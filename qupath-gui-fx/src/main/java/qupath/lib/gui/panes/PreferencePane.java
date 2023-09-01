@@ -23,66 +23,44 @@
 
 package qupath.lib.gui.panes;
 
-import java.io.File;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.TreeMap;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Function;
-import java.util.function.Predicate;
-
-import javafx.beans.binding.BooleanBinding;
-import org.controlsfx.control.PropertySheet;
-import org.controlsfx.control.PropertySheet.Item;
-import org.controlsfx.control.PropertySheet.Mode;
-import org.controlsfx.control.SearchableComboBox;
-import org.controlsfx.control.textfield.CustomTextField;
-import org.controlsfx.property.editor.AbstractPropertyEditor;
-import org.controlsfx.property.editor.DefaultPropertyEditorFactory;
-import org.controlsfx.property.editor.PropertyEditor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javafx.beans.binding.Bindings;
+import javafx.beans.binding.BooleanBinding;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.Property;
 import javafx.beans.property.SimpleDoubleProperty;
-import javafx.beans.property.SimpleObjectProperty;
-import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
-import javafx.beans.value.ChangeListener;
-import javafx.beans.value.ObservableValue;
-import javafx.collections.FXCollections;
-import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
-import javafx.scene.Parent;
-import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
-import javafx.scene.control.TextField;
-import javafx.scene.control.Tooltip;
-import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Pane;
-import javafx.scene.paint.Color;
 import javafx.scene.text.FontWeight;
 import javafx.scene.text.TextAlignment;
-import javafx.util.Duration;
-import javafx.util.StringConverter;
-import qupath.fx.utils.FXUtils;
+import org.controlsfx.control.PropertySheet;
+import org.controlsfx.control.PropertySheet.Item;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.fx.dialogs.Dialogs;
-import qupath.fx.dialogs.FileChoosers;
+import qupath.fx.localization.LocaleManager;
+import qupath.fx.localization.LocaleSnapshot;
+import qupath.fx.prefs.controlsfx.PropertyItemBuilder;
+import qupath.fx.prefs.controlsfx.PropertyItemParser;
+import qupath.fx.prefs.controlsfx.PropertySheetBuilder;
+import qupath.fx.prefs.controlsfx.PropertySheetUtils;
+import qupath.fx.prefs.annotations.BooleanPref;
+import qupath.fx.prefs.annotations.ColorPref;
+import qupath.fx.prefs.annotations.DirectoryPref;
+import qupath.fx.prefs.annotations.DoublePref;
+import qupath.fx.prefs.annotations.IntegerPref;
+import qupath.fx.prefs.annotations.LocalePref;
+import qupath.fx.prefs.annotations.Pref;
+import qupath.fx.prefs.annotations.PrefCategory;
+import qupath.lib.common.LogTools;
 import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.logging.LogManager;
 import qupath.lib.gui.logging.LogManager.LogLevel;
@@ -91,12 +69,13 @@ import qupath.lib.gui.prefs.PathPrefs.AutoUpdateType;
 import qupath.lib.gui.prefs.PathPrefs.DetectionTreeDisplayModes;
 import qupath.lib.gui.prefs.PathPrefs.FontSize;
 import qupath.lib.gui.prefs.PathPrefs.ImageTypeSetting;
-import qupath.lib.gui.prefs.annotations.*;
-import qupath.lib.gui.tools.ColorToolsFX;
-import qupath.lib.gui.tools.CommandFinderTools;
-import qupath.lib.gui.tools.CommandFinderTools.CommandBarDisplay;
 import qupath.lib.gui.prefs.QuPathStyleManager;
 import qupath.lib.gui.prefs.QuPathStyleManager.StyleOption;
+import qupath.lib.gui.tools.CommandFinderTools;
+import qupath.lib.gui.tools.CommandFinderTools.CommandBarDisplay;
+
+import java.util.Locale;
+import java.util.Objects;
 
 /**
  * QuPath's preference pane, giving a means to modify many of the properties within PathPrefs.
@@ -110,12 +89,12 @@ public class PreferencePane {
 
 	private PropertySheet propSheet;
 	
-	private static LocaleManager localeManager = new LocaleManager();
+	private static LocaleManager localeManager = new LocaleManager(QuPathResources::hasDefaultBundleForLocale);
 	
 	private BorderPane pane;
 
 	private LocaleSnapshot localeSnapshot = new LocaleSnapshot();
-	private StringProperty localeChangedText = QuPathResources.getLocalizeResourceManager().createProperty("Prefs.localeChanged");
+	private StringProperty localeChangedText = QuPathResources.getLocalizedResourceManager().createProperty("Prefs.localeChanged");
 	private BooleanBinding localeChanged;
 	
 	@SuppressWarnings("javadoc")
@@ -126,7 +105,6 @@ public class PreferencePane {
 	private void initializePane() {
 		pane = new BorderPane();
 		propSheet = createPropertySheet();
-		populatePropertySheet();
 
 		var label = createLocaleChangedLabel();
 		localeSnapshot.refresh();
@@ -136,27 +114,27 @@ public class PreferencePane {
 	}
 	
 	private PropertySheet createPropertySheet() {
-		var propSheet = new PropertySheet();
-		propSheet.setMode(Mode.CATEGORY);
-		propSheet.setPropertyEditorFactory(new PropertyEditorFactory());
-		return propSheet;
-	}
-	
-	private void populatePropertySheet() {
-		addAnnotatedProperties(new AppearancePreferences());
-		addAnnotatedProperties(new GeneralPreferences());
-		addAnnotatedProperties(new UndoRedoPreferences());
-		addAnnotatedProperties(new LocalePreferences());
-		addAnnotatedProperties(new InputOutputPreferences());
+		var parser = new PropertyItemParser()
+				.setResourceManager(QuPathResources.getLocalizedResourceManager())
+				.setLocaleManager(new LocaleManager(QuPathResources::hasDefaultBundleForLocale));
+		return new PropertySheetBuilder()
+				.parser(parser)
+				.addAnnotatedProperties(new AppearancePreferences())
+				.addAnnotatedProperties(new GeneralPreferences())
+				.addAnnotatedProperties(new UndoRedoPreferences())
+				.addAnnotatedProperties(new LocalePreferences())
+				.addAnnotatedProperties(new InputOutputPreferences())
 
-		addAnnotatedProperties(new ViewerPreferences());
-		addAnnotatedProperties(new ExtensionPreferences());
-		addAnnotatedProperties(new MeasurementPreferences());
-		addAnnotatedProperties(new ScriptingPreferences());
-		
-		addAnnotatedProperties(new DrawingPreferences());
-		addAnnotatedProperties(new ObjectPreferences());
+				.addAnnotatedProperties(new ViewerPreferences())
+				.addAnnotatedProperties(new ExtensionPreferences())
+				.addAnnotatedProperties(new MeasurementPreferences())
+				.addAnnotatedProperties(new ScriptingPreferences())
+
+				.addAnnotatedProperties(new DrawingPreferences())
+				.addAnnotatedProperties(new ObjectPreferences())
+				.build();
 	}
+
 
 	/**
 	 * Get the property sheet for this {@link PreferencePane}.
@@ -205,29 +183,11 @@ public class PreferencePane {
 				PathPrefs.defaultLocaleDisplayProperty(),
 				PathPrefs.defaultLocaleFormatProperty());
 	}
-	
-	
-	
-	/**
-	 * Install properties that are the public fields of an object, configured using annotations.
-	 * The properties themselves are accessed using reflection.
-	 * <p>
-	 * If the provided object has a {@link PrefCategory} annotation, this defines the category 
-	 * for all the identified properties.
-	 * Each property should then have a {@link Pref} annotation, or an alternative 
-	 * such as {@link DoublePref}, {@link ColorPref}, {@link DirectoryPref}, {@link IntegerPref}.
-	 * @param object
-	 * @since v0.5.0
-	 */
-	public void addAnnotatedProperties(Object object) {
-		var items = parseItems(object);
-		propSheet.getItems().addAll(items);		
-	}
 
 	
 		
 	@PrefCategory("Prefs.Appearance")
-	static class AppearancePreferences {
+	public static class AppearancePreferences {
 		
 		@Pref(value = "Prefs.Appearance.theme", type = StyleOption.class, choiceMethod = "getStyles")
 		public final ObjectProperty<StyleOption> theme = QuPathStyleManager.selectedStyleProperty();
@@ -243,7 +203,7 @@ public class PreferencePane {
 	
 
 	@PrefCategory("Prefs.General")
-	static class GeneralPreferences {
+	public static class GeneralPreferences {
 				
 		@BooleanPref("Prefs.General.showStartupMessage")
 		public final BooleanProperty startupMessage = PathPrefs.showStartupMessageProperty();
@@ -323,7 +283,7 @@ public class PreferencePane {
 	}	
 	
 	@PrefCategory("Prefs.Locale")
-	static class LocalePreferences {
+	public static class LocalePreferences {
 		
 		@LocalePref(value = "Prefs.Locale.default", availableLanguagesOnly = true)
 		public final ObjectProperty<Locale> localeDefault = PathPrefs.defaultLocaleProperty();
@@ -339,7 +299,7 @@ public class PreferencePane {
 	
 		
 	@PrefCategory("Prefs.Undo")
-	static class UndoRedoPreferences {
+	public static class UndoRedoPreferences {
 		
 		@IntegerPref("Prefs.Undo.maxUndoLevels")
 		public final IntegerProperty maxUndoLevels = PathPrefs.maxUndoLevelsProperty();
@@ -351,7 +311,7 @@ public class PreferencePane {
 	
 	
 	@PrefCategory("Prefs.InputOutput")
-	static class InputOutputPreferences {
+	public static class InputOutputPreferences {
 		
 		@IntegerPref("Prefs.InputOutput.minPyramidDimension")
 		public final IntegerProperty minimumPyramidDimension = PathPrefs.minPyramidDimensionProperty();
@@ -363,7 +323,7 @@ public class PreferencePane {
 	
 	
 	@PrefCategory("Prefs.Viewer")
-	static class ViewerPreferences {
+	public static class ViewerPreferences {
 		
 		@ColorPref("Prefs.Viewer.backgroundColor")
 		public final IntegerProperty backgroundColor = PathPrefs.viewerBackgroundColorProperty();
@@ -443,7 +403,7 @@ public class PreferencePane {
 	
 	
 	@PrefCategory("Prefs.Extensions")
-	static class ExtensionPreferences {
+	public static class ExtensionPreferences {
 		
 		@DirectoryPref("Prefs.Extensions.userPath")
 		public final Property<String> scriptsPath = PathPrefs.userPathProperty();
@@ -452,7 +412,7 @@ public class PreferencePane {
 	
 	
 	@PrefCategory("Prefs.Measurements")
-	static class MeasurementPreferences {
+	public static class MeasurementPreferences {
 		
 		@BooleanPref("Prefs.Measurements.thumbnails")
 		public final BooleanProperty showMeasurementTableThumbnails = PathPrefs.showMeasurementTableThumbnailsProperty();
@@ -464,7 +424,7 @@ public class PreferencePane {
 	
 	
 	@PrefCategory("Prefs.Scripting")
-	static class ScriptingPreferences {
+	public static class ScriptingPreferences {
 		
 		@DirectoryPref("Prefs.Scripting.scriptsPath")
 		public final StringProperty scriptsPath = PathPrefs.scriptsPathProperty();
@@ -473,7 +433,7 @@ public class PreferencePane {
 
 	
 	@PrefCategory("Prefs.Drawing")
-	static class DrawingPreferences {
+	public static class DrawingPreferences {
 		
 		@BooleanPref("Prefs.Drawing.returnToMove")
 		public final BooleanProperty returnToMove = PathPrefs.returnToMoveModeProperty();
@@ -503,7 +463,7 @@ public class PreferencePane {
 	
 	
 	@PrefCategory("Prefs.Objects")
-	static class ObjectPreferences {
+	public static class ObjectPreferences {
 		
 		@IntegerPref("Prefs.Objects.clipboard")
 		public final IntegerProperty maxClipboardObjects = PathPrefs.maxObjectsToClipboardProperty();
@@ -530,6 +490,23 @@ public class PreferencePane {
 		public final IntegerProperty tmaMissingColor = PathPrefs.colorTMAMissingProperty();
 
 	}
+
+
+	/**
+	 * Request that all the property editors are regenerated.
+	 * This is useful if the Locale has changed, and so the text may need to be updated.
+	 */
+	public void refreshAllEditors() {
+		// Attempt to force a property sheet refresh if the locale was changed
+		if (localeSnapshot.hasChanged()) {
+			// Alternative code to rebuild the editors
+			logger.info("Refreshing preferences because of locale change");
+			PropertySheetUtils.refreshEditors(propSheet);
+			localeSnapshot.refresh();
+		}
+		// Maybe we have new locales to support
+		localeManager.refreshAvailableLocales();
+	}
 	
 
 	/**
@@ -540,12 +517,17 @@ public class PreferencePane {
 	 * @param name
 	 * @param category
 	 * @param description
+	 * @deprecated use {@link PropertyItemBuilder} instead
 	 */
+	@Deprecated
 	public <T> void addPropertyPreference(final Property<T> prop, final Class<? extends T> cls, final String name, final String category, final String description) {
-		PropertySheet.Item item = new DefaultPropertyItem<>(prop, cls)
+		LogTools.warnOnce(logger, "PreferencePane.addPropertyPreference is deprecated - use PropertyItemBuilder instead");
+		PropertySheet.Item item = new PropertyItemBuilder<>(prop, cls)
+				.resourceManager(QuPathResources.getLocalizedResourceManager())
 				.name(name)
 				.category(category)
-				.description(description);
+				.description(description)
+				.build();
 		propSheet.getItems().add(item);
 	}
 	
@@ -557,30 +539,41 @@ public class PreferencePane {
 	 * @param name
 	 * @param category
 	 * @param description
+	 * @deprecated use {@link PropertyItemBuilder} instead
 	 */
+	@Deprecated
 	public void addColorPropertyPreference(final IntegerProperty prop, final String name, final String category, final String description) {
-		PropertySheet.Item item = new ColorPropertyItem(prop)
+		LogTools.warnOnce(logger, "PreferencePane.addColorPropertyPreference is deprecated - use PropertyItemBuilder instead");
+		var item = new PropertyItemBuilder<>(prop, Integer.class)
+				.resourceManager(QuPathResources.getLocalizedResourceManager())
 				.name(name)
 				.category(category)
-				.description(description);
+				.description(description)
+				.propertyType(PropertyItemBuilder.PropertyType.COLOR)
+				.build();
 		propSheet.getItems().add(item);
 	}
 	
 	
 	/**
-	 * Add a new directory preference based on a specified StrongProperty.
+	 * Add a new directory preference based on a specified StringProperty.
 	 * 
 	 * @param prop
 	 * @param name
 	 * @param category
 	 * @param description
+	 * @deprecated use {@link PropertyItemBuilder} instead
 	 */
 	@Deprecated
 	public void addDirectoryPropertyPreference(final Property<String> prop, final String name, final String category, final String description) {
-		PropertySheet.Item item = new DirectoryPropertyItem(prop)
+		LogTools.warnOnce(logger, "PreferencePane.addDirectoryPropertyPreference is deprecated - use PropertyItemBuilder instead");
+		var item = new PropertyItemBuilder<>(prop, String.class)
+				.resourceManager(QuPathResources.getLocalizedResourceManager())
 				.name(name)
 				.category(category)
-				.description(description);
+				.description(description)
+				.propertyType(PropertyItemBuilder.PropertyType.DIRECTORY)
+				.build();
 		propSheet.getItems().add(item);
 	}
 	
@@ -594,6 +587,7 @@ public class PreferencePane {
 	 * @param name
 	 * @param category
 	 * @param description
+	 * @deprecated use {@link PropertyItemBuilder} instead
 	 */
 	@Deprecated
 	public <T> void addChoicePropertyPreference(final Property<T> prop, final ObservableList<T> choices, final Class<? extends T> cls, final String name, final String category, final String description) {
@@ -611,48 +605,21 @@ public class PreferencePane {
 	 * @param category
 	 * @param description
 	 * @param makeSearchable make the choice item's editor searchable (useful for long lists)
+	 * @deprecated use {@link PropertyItemBuilder} instead
 	 */
 	@Deprecated
 	public <T> void addChoicePropertyPreference(final Property<T> prop, final ObservableList<T> choices, final Class<? extends T> cls, 
 			final String name, final String category, final String description, boolean makeSearchable) {
-		PropertySheet.Item item = new ChoicePropertyItem<>(prop, choices, cls, makeSearchable)
+		LogTools.warnOnce(logger, "PreferencePane.addChoicePropertyPreference is deprecated - use PropertyItemBuilder instead");
+		var item = new PropertyItemBuilder<>(prop, cls)
+				.resourceManager(QuPathResources.getLocalizedResourceManager())
 				.name(name)
 				.category(category)
-				.description(description);
+				.description(description)
+				.choices(choices)
+				.propertyType(makeSearchable ? PropertyItemBuilder.PropertyType.SEARCHABLE_CHOICE : PropertyItemBuilder.PropertyType.CHOICE)
+				.build();
 		propSheet.getItems().add(item);
-	}
-	
-	
-	/**
-	 * Request that all the property editors are regenerated.
-	 * This is useful if the Locale has changed, and so the text may need to be updated.
-	 */
-	public void refreshAllEditors() {
-		// Attempt to force a property sheet refresh if the locale was changed
-		if (localeSnapshot.hasChanged()) {
-			// Alternative code to rebuild the editors
-			logger.info("Refreshing preferences because of locale change");
-			var items = new ArrayList<>(propSheet.getItems());
-			propSheet.getItems().clear();
-			propSheet.getItems().addAll(items);
-			// Try to reset any filter text - when the locale changes, this stops being meaningful.
-			// We need to do it via the text field, since it isn't bidirectionally bound to
-			// propSheet.titleFilterProperty()
-			String filterText = propSheet.getTitleFilter();
-			if (filterText != null && !filterText.isEmpty()) {
-				for (var node : propSheet.lookupAll(".custom-text-field")) {
-					if (node instanceof CustomTextField tf) {
-						if (Objects.equals(filterText, tf.getText())) {
-							tf.clear();
-							break;
-						}
-					}
-				}
-			}
-			localeSnapshot.refresh();
-		}
-		// Maybe we have new locales to support
-		localeManager.refreshAvailableLanguages();
 	}
 
 	
@@ -661,816 +628,13 @@ public class PreferencePane {
 	 * @param <T> type of the property
 	 * @param property the property
 	 * @param cls the property type
-	 * @return a new {@link PropertyItem}
+	 * @return a new {@link PropertySheet.Item}
+	 * @deprecated use {@link PropertyItemBuilder} instead
 	 */
-	public static <T> PropertyItem createPropertySheetItem(Property<T> property, Class<? extends T> cls) {
-		return new DefaultPropertyItem<>(property, cls);
-	}
-	
-	
-	/**
-	 * Base implementation of {@link Item}.
-	 */
-	public abstract static class PropertyItem implements PropertySheet.Item {
-
-		private StringProperty name = new SimpleStringProperty();
-		private StringProperty category = new SimpleStringProperty();
-		private StringProperty description = new SimpleStringProperty();
-
-		/**
-		 * Support fluent interface to define a category.
-		 * @param category
-		 * @return
-		 */
-		public PropertyItem category(final String category) {
-			this.category.set(category);
-			return this;
-		}
-
-		/**
-		 * Support fluent interface to set the description.
-		 * @param description
-		 * @return
-		 */
-		public PropertyItem description(final String description) {
-			this.description.set(description);
-			return this;
-		}
-
-		/**
-		 * Support fluent interface to set the name.
-		 * @param name
-		 * @return
-		 */
-		public PropertyItem name(String name) {
-			this.name.set(name);
-			return this;
-		}
-		
-		public PropertyItem key(String bundle, String key) {
-			if (bundle.isBlank())
-				bundle = null;
-			QuPathResources.getLocalizeResourceManager().registerProperty(name, bundle, key);
-			if (QuPathResources.hasString(bundle, key + ".description"))
-				QuPathResources.getLocalizeResourceManager().registerProperty(description, bundle, key + ".description");
-			return this;
-		}
-
-		public PropertyItem categoryKey(final String bundle, final String key) {
-			QuPathResources.getLocalizeResourceManager().registerProperty(category, bundle, key);
-			return this;
-		}
-
-
-		@Override
-		public String getCategory() {
-			return category.get();
-		}
-
-		@Override
-		public String getName() {
-			return name.get();
-		}
-
-		@Override
-		public String getDescription() {
-			return description.get();
-		}
-
-	}
-
-
-	private static class DefaultPropertyItem<T> extends PropertyItem {
-
-		private Property<T> prop;
-		private Class<? extends T> cls;
-
-		DefaultPropertyItem(final Property<T> prop, final Class<? extends T> cls) {
-			this.prop = prop;
-			this.cls = cls;
-		}
-
-		@Override
-		public Class<?> getType() {
-			return cls;
-		}
-
-		@Override
-		public Object getValue() {
-			return prop.getValue();
-		}
-
-		@SuppressWarnings("unchecked")
-		@Override
-		public void setValue(Object value) {
-			prop.setValue((T)value);
-		}
-
-		@Override
-		public Optional<ObservableValue<?>> getObservableValue() {
-			return Optional.of(prop);
-		}
-
-	}
-
-
-	/**
-	 * Create a property item that handles directories based on String paths.
-	 */
-	private static class DirectoryPropertyItem extends PropertyItem {
-
-		private Property<String> prop;
-		private ObservableValue<File> fileValue;
-
-		DirectoryPropertyItem(final Property<String> prop) {
-			this.prop = prop;
-			fileValue = Bindings.createObjectBinding(() -> prop.getValue() == null || prop.getValue().isEmpty() ? null : new File(prop.getValue()), prop);
-		}
-
-		@Override
-		public Class<?> getType() {
-			return File.class;
-		}
-
-		@Override
-		public Object getValue() {
-			return fileValue.getValue();
-		}
-
-		@Override
-		public void setValue(Object value) {
-			if (value instanceof String) {
-				prop.setValue((String)value);
-			} else if (value instanceof File)
-				prop.setValue(((File)value).getAbsolutePath());
-			else if (value == null)
-				prop.setValue(null);
-			else
-				logger.error("Cannot set property {} with value {}", prop, value);
-		}
-
-		@Override
-		public Optional<ObservableValue<?>> getObservableValue() {
-			return Optional.of(fileValue);
-		}
-
-	}
-
-
-	private static class ColorPropertyItem extends PropertyItem {
-
-		private IntegerProperty prop;
-		private ObservableValue<Color> value;
-
-		ColorPropertyItem(final IntegerProperty prop) {
-			this.prop = prop;
-			this.value = Bindings.createObjectBinding(() -> ColorToolsFX.getCachedColor(prop.getValue()), prop);
-		}
-
-		@Override
-		public Class<?> getType() {
-			return Color.class;
-		}
-
-		@Override
-		public Object getValue() {
-			return value.getValue();
-		}
-
-		@Override
-		public void setValue(Object value) {
-			if (value instanceof Color)
-				value = ColorToolsFX.getARGB((Color)value);
-			if (value instanceof Integer)
-				prop.setValue((Integer)value);
-		}
-
-		@Override
-		public Optional<ObservableValue<?>> getObservableValue() {
-			return Optional.of(value);
-		}
-
-	}
-	
-	
-	private static class ChoicePropertyItem<T> extends DefaultPropertyItem<T> {
-
-		private final ObservableList<T> choices;
-		private final boolean makeSearchable;
-		
-		private ChoicePropertyItem(final Property<T> prop, final ObservableList<T> choices, final Class<? extends T> cls) {
-			this(prop, choices, cls, false);
-		}
-
-		private ChoicePropertyItem(final Property<T> prop, final ObservableList<T> choices, final Class<? extends T> cls, boolean makeSearchable) {
-			super(prop, cls);
-			this.choices = choices;
-			this.makeSearchable = makeSearchable;
-		}
-		
-		public ObservableList<T> getChoices() {
-			return choices;
-		}
-		
-		public boolean makeSearchable() {
-			return makeSearchable;
-		}
-
-	}
-
-
-
-	/**
-	 * Editor for selecting directory paths.
-	 * 
-	 * Appears as a text field that can be double-clicked to launch a directory chooser.
-	 */
-	private static class DirectoryEditor extends AbstractPropertyEditor<File, TextField> {
-
-		private ObservableValue<File> value;
-
-		private DirectoryEditor(Item property, TextField control) {
-			super(property, control, true);
-			control.setOnMouseClicked(e -> {
-				if (e.getClickCount() > 1) {
-					e.consume();
-					File dirNew = FileChoosers.promptForDirectory(control.getScene().getWindow(), null, getValue());
-					if (dirNew != null)
-						setValue(dirNew);
-				}
-			});
-			if (property.getDescription() != null) {
-				var description = property.getDescription();
-				var tooltip = new Tooltip(description);
-				tooltip.setShowDuration(Duration.millis(10_000));
-				control.setTooltip(tooltip);
-			}
-			
-			// Bind to the text property
-			if (property instanceof DirectoryPropertyItem) {
-				control.textProperty().bindBidirectional(((DirectoryPropertyItem)property).prop);
-			}
-			value = Bindings.createObjectBinding(() -> {
-				String text = control.getText();
-				if (text == null || text.trim().isEmpty() || !new File(text).isDirectory())
-					return null;
-				else
-					return new File(text);
-				}, control.textProperty());
-		}
-
-		@Override
-		public void setValue(File value) {
-			getEditor().setText(value == null ? null : value.getAbsolutePath());
-		}
-
-		@Override
-		protected ObservableValue<File> getObservableValue() {
-			return value;
-		}
-
-	}
-	
-	/**
-	 * Manage available locales, with consistent display and string conversion.
-	 * This is needed to support presenting locales in a searchable combo box.
-	 * <p>
-	 * The price of this is that the language/locale names are always shown in English.
-	 */
-	private static class LocaleManager {
-		
-		private Map<String, Locale> localeMap = new TreeMap<>();
-		private StringConverter<Locale> converter;
-		
-		private ObjectProperty<Predicate<Locale>> availableLanguagePredicateProperty = new SimpleObjectProperty<>(QuPathResources::hasDefaultBundleForLocale);
-
-		private ObservableList<Locale> allLocales;
-		private ObservableList<Locale> availableLocales;
-
-		private LocaleManager() {
-			initializeLocaleMap();
-			converter = new LocaleConverter();
-			allLocales = FXCollections.unmodifiableObservableList(FXCollections.observableArrayList(localeMap.values()));
-			createAvailableLocaleList();
-		}
-		
-		private void initializeLocaleMap() {
-			for (var locale : Locale.getAvailableLocales()) {
-				if (!localeFilter(locale))
-					continue;
-				var name = locale.getDisplayName(Locale.US);
-				localeMap.putIfAbsent(name, locale);
-			}
-		}
-		
-		private static boolean localeFilter(Locale locale) {
-			if (locale == Locale.US)
-				return true;
-			return !locale.getLanguage().isBlank() && locale.getCountry().isEmpty() && locale != Locale.ENGLISH;
-		}
-		
-		private static String getDisplayName(Locale locale) {
-			// We use the English US display name, because we're guaranteed that Java supports it 
-			// - and also it avoids needing to worry about non-unique names being generated 
-			// in different locales, which could mess up the searchable combo box & string converter
-			return locale.getDisplayName(Locale.US);
-		}
-		
-		public ObservableList<Locale> getAllLocales() {
-			return allLocales;
-		}
-
-		public ObservableList<Locale> getAvailableLocales() {
-			return availableLocales;
-		}
-
-		private void createAvailableLocaleList() {
-			// We don't use a filtered list, because there were problems with 1) refreshing the backing list, and
-			// 2) refreshing the predicate
-			availableLocales = FXCollections.observableArrayList();
-			refreshAvailableLanguages();
-			availableLanguagePredicateProperty.addListener((v, o, n) -> refreshAvailableLanguages());
-		}
-		
-		public void refreshAvailableLanguages() {
-			var predicate = availableLanguagePredicateProperty.get();
-			List<Locale> newContents;
-			if (predicate == null)
-				newContents = allLocales;
-			else
-				newContents = allLocales.filtered(predicate);
-			if (availableLocales.size() != newContents.size() || !new HashSet<>(availableLocales).containsAll(newContents))
-				availableLocales.setAll(newContents);
-		}
-		
-		public StringConverter<Locale> getStringConverter() {
-			return converter;
-		}
-		
-		class LocaleConverter extends StringConverter<Locale> {
-
-			@Override
-			public String toString(Locale locale) {
-				if (locale == null)
-					return "";
-				return getDisplayName(locale);
-			}
-
-			@Override
-			public Locale fromString(String string) {
-				return localeMap.getOrDefault(string, null);
-			}
-			
-		}
-		
-	}
-	
-	
-	private abstract static class AbstractChoiceEditor<T, S extends ComboBox<T>> extends AbstractPropertyEditor<T, S> implements ListChangeListener<T> {
-		
-		private ObservableList<T> choices;
-		
-		public AbstractChoiceEditor(S combo, Item property, ObservableList<T> choices) {
-			super(property, combo);
-			if (property.getType().equals(Locale.class)) {
-				combo.setConverter((StringConverter<T>)localeManager.getStringConverter());
-			}
-			this.choices = choices;
-			combo.getItems().setAll(choices);
-			this.choices.addListener(this);
-		}
-
-		@Override
-		public void setValue(T value) {
-//			System.err.println("SETTING: " + hashCode() + " - " + getProperty().getName());
-			// Only set the value if it's available as a choice
-			var combo = getEditor();
-			if (combo.getItems().contains(value))
-				combo.getSelectionModel().select(value);
-			else
-				combo.getSelectionModel().clearSelection();
-		}
-
-		@Override
-		protected ObservableValue<T> getObservableValue() {
-			return getEditor().getSelectionModel().selectedItemProperty();
-		}
-
-		@Override
-		public void onChanged(Change<? extends T> c) {
-			syncComboItemsToChoices();
-		}
-		
-		private void syncComboItemsToChoices() {
-			// We need to clear the existing selection
-			var selected = getProperty().getValue();
-			var comboItems = getEditor().getItems();
-			getEditor().getSelectionModel().clearSelection();
-			comboItems.setAll(choices);
-			setValue((T)selected);
-		}
-		
-	}
-	
-	/**
-	 * Editor for choosing from a longer list of items, aided by a searchable combo box.
-	 * @param <T> 
-	 */
-	static class SearchableChoiceEditor<T> extends AbstractChoiceEditor<T, SearchableComboBox<T>> {
-
-		public SearchableChoiceEditor(Item property, Collection<? extends T> choices) {
-			this(property, FXCollections.observableArrayList(choices));
-		}
-
-		public SearchableChoiceEditor(Item property, ObservableList<T> choices) {
-			super(new SearchableComboBox<>(), property, choices);
-		}
-		
-	}
-	
-	
-	/**
-	 * Editor for choosing from a combo box, which will use an observable list directly if it can 
-	 * (which differs from ControlsFX's default behavior).
-	 *
-	 * @param <T>
-	 */
-	static class ChoiceEditor<T> extends AbstractChoiceEditor<T, ComboBox<T>> {
-
-		public ChoiceEditor(Item property, Collection<? extends T> choices) {
-			this(property, FXCollections.observableArrayList(choices));
-		}
-
-		public ChoiceEditor(Item property, ObservableList<T> choices) {
-			super(new ComboBox<>(), property, choices);
-		}
-		
-	}
-	
-	
-	// We want to reformat the display of these to avoid using all uppercase
-	private static Map<Class<?>, Function<?, String>> reformatTypes = Map.of(
-			FontWeight.class, PreferencePane::simpleFormatter,
-			LogLevel.class, PreferencePane::simpleFormatter
-			);
-	
-	private static String simpleFormatter(Object obj) {
-		var s = Objects.toString(obj);
-		s = s.replaceAll("_", " ");
-		if (Objects.equals(s, s.toUpperCase()))
-			return s.substring(0, 1) + s.substring(1).toLowerCase();
-		return s;
-	}
-	
-	/**
-	 * Extends {@link DefaultPropertyEditorFactory} to handle setting directories and creating choice editors.
-	 */
-	public static class PropertyEditorFactory extends DefaultPropertyEditorFactory {
-		
-		// Set this to true to automatically update labels & tooltips
-		// (but not categories, unfortunately, so it can look odd)
-		private boolean bindLabelText = false;
-		
-		// Need to cache editors, since the property sheet is rebuilt often 
-		// (but isn't smart enough to detach the editor listeners, so old ones hang around 
-		// and respond to 'setValue()' calls)
-		private Map<Item, PropertyEditor<?>> cache = new ConcurrentHashMap<>();
-		
-		@SuppressWarnings("unchecked")
-		@Override
-		public PropertyEditor<?> call(Item item) {
-			PropertyEditor<?> editor = cache.getOrDefault(item, null);
-			if (editor != null)
-				return editor;
-			
-			if (item.getType() == File.class) {
-				editor = new DirectoryEditor(item, new TextField());
-			} else if (item instanceof ChoicePropertyItem) {
-				var choiceItem = ((ChoicePropertyItem<?>)item);
-				if (choiceItem.makeSearchable()) {
-					editor = new SearchableChoiceEditor<>(choiceItem, choiceItem.getChoices());
-				} else
-					// Use this rather than Editors.createChoiceEditor() because it wraps an existing ObservableList where available
-					editor = new ChoiceEditor<>(choiceItem, choiceItem.getChoices());
-			} else
-				editor = super.call(item);
-			
-			if (reformatTypes.containsKey(item.getType()) && editor.getEditor() instanceof ComboBox) {
-				@SuppressWarnings("rawtypes")
-				var combo = (ComboBox)editor.getEditor();
-				var formatter = reformatTypes.get(item.getType());
-				combo.setCellFactory(obj -> FXUtils.createCustomListCell(formatter));
-				combo.setButtonCell(FXUtils.createCustomListCell(formatter));
-			}
-			
-			// Make it easier to reset default locale
-			if (Locale.class.equals(item.getType())) {
-				editor.getEditor().addEventHandler(MouseEvent.MOUSE_CLICKED, e -> {
-					if (e.getClickCount() == 2) {
-						if (Dialogs.showConfirmDialog(
-								QuPathResources.getString("Prefs.localeReset"),
-								QuPathResources.getString("Prefs.localeResetMessage"))) {
-							item.setValue(Locale.US);
-						}
-					}
-				});
-			}
-			
-			if (bindLabelText && item instanceof PropertyItem) {
-				var listener = new ParentChangeListener((PropertyItem)item, editor.getEditor());
-				editor.getEditor().parentProperty().addListener(listener);
-			}
-			
-			cache.put(item, editor);
-			
-			return editor;
-		}
-		
-		/**
-		 * Listener to bind the label & tooltip text (since these aren't accessible via the PropertySheet)
-		 */
-		private static class ParentChangeListener implements ChangeListener<Parent> {
-
-			private PropertyItem item;
-			private Node node;
-			
-			private ParentChangeListener(PropertyItem item, Node node) {
-				this.item = item;
-				this.node = node;
-			}
-			
-			@Override
-			public void changed(ObservableValue<? extends Parent> observable, Parent oldValue, Parent newValue) {
-				if (newValue == null)
-					return;
-				
-				for (var labelLookup : newValue.lookupAll(".label")) {
-					if (labelLookup instanceof Label label) {
-						if (label.getLabelFor() == node) {
-							if (!label.textProperty().isBound())
-								label.textProperty().bind(item.name);
-							var tooltip = label.getTooltip();
-							if (tooltip != null && !tooltip.textProperty().isBound())
-								tooltip.textProperty().bind(item.description);
-							break;
-						}
-					}
-				}
-			}
-			
-		}
-		
-		
-	}
-	
-	
-	private static <T> PropertyItemBuilder<T> buildItem(Property<T> prop, final Class<? extends T> cls) {
-		return new PropertyItemBuilder(prop, cls);
-	}
-
-	
-	private enum PropertyType { GENERAL, DIRECTORY, COLOR, CHOICE, SEARCHABLE_CHOICE }
-	
-	
-	private static class PropertyItemBuilder<T> {
-		
-		private Property<T> property;
-		private Class<? extends T> cls;
-		
-		private PropertyType propertyType = PropertyType.GENERAL;
-		private ObservableList<T> choices;
-		
-		private String bundle;
-		private String key;
-		private String categoryKey;
-		
-		private PropertyItemBuilder(Property<T> prop, final Class<? extends T> cls) {
-			this.property = prop;
-			this.cls = cls;
-		}
-		
-		public PropertyItemBuilder<T> key(String key) {
-			this.key = key;
-			return this;
-		}
-
-		public PropertyItemBuilder<T> propertyType(PropertyType type) {
-			this.propertyType = type;
-			return this;
-		}
-		
-		public PropertyItemBuilder<T> choices(Collection<T> choices) {
-			return choices(FXCollections.observableArrayList(choices));
-		}
-		
-		public PropertyItemBuilder<T> choices(ObservableList<T> choices) {
-			this.choices = choices;
-			this.propertyType = PropertyType.CHOICE;
-			return this;
-		}
-		
-		public PropertyItemBuilder<T> bundle(String name) {
-			this.bundle = name;
-			return this;
-		}
-
-		public PropertyItem build() {
-			PropertyItem item;
-			switch (propertyType) {
-			case DIRECTORY:
-				item = new DirectoryPropertyItem((Property<String>)property);
-				break;
-			case COLOR:
-				item = new ColorPropertyItem((IntegerProperty)property);
-				break;
-			case CHOICE:
-				item = new ChoicePropertyItem<>(property, choices, cls, false);
-				break;
-			case SEARCHABLE_CHOICE:
-				item = new ChoicePropertyItem<>(property, choices, cls, true);
-				break;
-			case GENERAL:
-			default:
-				item = new DefaultPropertyItem<>(property, cls);
-				break;
-			}
-			if (key != null)
-				item.key(bundle, key);
-			if (categoryKey != null) {
-				item.categoryKey(bundle, categoryKey);
-			}
-			return item;
-		}
-		
-	}
-	
-	
-	
-	public static List<PropertyItem> parseItems(Object obj) {
-		
-		var cls = obj instanceof Class<?> ? (Class<?>)obj : obj.getClass();
-		List<PropertyItem> items = new ArrayList<>();
-
-		// Look for category annotation from the parent class
-		String categoryBundle = null;
-		String categoryKey = "Prefs.General";
-		if (cls.isAnnotationPresent(PrefCategory.class)) {
-			var annotation = cls.getAnnotation(PrefCategory.class);
-			categoryBundle = annotation.bundle().isBlank() ? null : annotation.bundle();
-			categoryKey = annotation.value();
-		}
-		
-		for (var field : cls.getDeclaredFields()) {
-			if (!field.canAccess(obj) || !Property.class.isAssignableFrom(field.getType()))
-				continue;
-			PropertyItem item = null;
-			try {
-				// Skip null fields
-				if (field.get(obj) == null)
-					continue;
-				
-				if (field.isAnnotationPresent(Pref.class)) {
-					item = parseItem((Property)field.get(obj), field.getAnnotation(Pref.class), obj);
-				} else if (field.isAnnotationPresent(BooleanPref.class)) {
-					item = parseItem((BooleanProperty)field.get(obj), field.getAnnotation(BooleanPref.class));
-				} else if (field.isAnnotationPresent(IntegerPref.class)) {
-					item = parseItem((IntegerProperty)field.get(obj), field.getAnnotation(IntegerPref.class));
-				} else if (field.isAnnotationPresent(DoublePref.class)) {
-					item = parseItem((DoubleProperty)field.get(obj), field.getAnnotation(DoublePref.class));
-				} else if (field.isAnnotationPresent(StringPref.class)) {
-					item = parseItem((Property<String>)field.get(obj), field.getAnnotation(StringPref.class));
-				} else if (field.isAnnotationPresent(LocalePref.class)) {
-					item = parseItem((Property<Locale>)field.get(obj), field.getAnnotation(LocalePref.class));
-				} else if (field.isAnnotationPresent(ColorPref.class)) {
-					item = parseItem((Property<Integer>)field.get(obj), field.getAnnotation(ColorPref.class));
-				} else if (field.isAnnotationPresent(DirectoryPref.class)) {
-					item = parseItem((Property<String>)field.get(obj), field.getAnnotation(DirectoryPref.class));
-				}
-
-				// Handle direct category annotation
-				if (field.isAnnotationPresent(PrefCategory.class)) {
-					var annotation = cls.getAnnotation(PrefCategory.class);
-					String localeCategoryBundle = annotation.bundle().isBlank() ? null : annotation.bundle();
-					String localeCategoryKey = annotation.value();
-					item.categoryKey(localeCategoryBundle, localeCategoryKey);
-				} else {
-					item.categoryKey(categoryBundle, categoryKey);
-				}
-			} catch (Exception e) {
-				logger.error(e.getLocalizedMessage(), e);
-			}
-			if (item != null) {
-				items.add(item);
-			}
-		}
-		
-		return items;
-		
-	}
-	
-	private static PropertyItem parseItem(Property property, Pref annotation, Object parent) {
-
-		var builder = buildItem(property, annotation.type())
-				.key(annotation.value())
-				.bundle(annotation.bundle());
-
-		var choiceMethod = annotation.choiceMethod();
-		if (!choiceMethod.isBlank() && parent != null) {
-			var cls = parent.getClass();
-			try {
-				var method = cls.getDeclaredMethod(choiceMethod);
-				var result = method.invoke(parent);
-				if (result instanceof ObservableList) {
-					builder.choices((ObservableList)result);
-				} else if (result instanceof Collection) {
-					builder.choices((Collection)result);
-				}
-			} catch (Exception e) {
-				logger.error("Unable to parse choices from " + annotation + ": " + e.getLocalizedMessage(), e);
-			}
-		}
-		
-		return builder.build();
-	}
-	
-	private static PropertyItem parseItem(BooleanProperty property, BooleanPref annotation) {
-		return buildItem(property, Boolean.class)
-				.key(annotation.value())
-				.bundle(annotation.bundle())
-				.build();
-	}
-	
-	private static PropertyItem parseItem(IntegerProperty property, IntegerPref annotation) {
-		return buildItem(property, Integer.class)
-				.key(annotation.value())
-				.bundle(annotation.bundle())
-				.build();
-	}
-	
-	private static PropertyItem parseItem(DoubleProperty property, DoublePref annotation) {
-		return buildItem(property, Double.class)
-				.key(annotation.value())
-				.bundle(annotation.bundle())
-				.build();
-	}
-	
-	private static PropertyItem parseItem(Property<String> property, StringPref annotation) {
-		return buildItem(property, String.class)
-				.key(annotation.value())
-				.bundle(annotation.bundle())
-				.build();
-	}
-	
-	private static PropertyItem parseItem(Property<Locale> property, LocalePref annotation) {
-		return buildItem(property, Locale.class)
-				.key(annotation.value())
-				.bundle(annotation.bundle())
-				.choices(annotation.availableLanguagesOnly() ? localeManager.getAvailableLocales() : localeManager.getAllLocales())
-				.propertyType(PropertyType.SEARCHABLE_CHOICE)
-				.build();
-	}
-	
-	private static PropertyItem parseItem(Property<Integer> property, ColorPref annotation) {
-		return buildItem(property, Integer.class)
-				.key(annotation.value())
-				.bundle(annotation.bundle())
-				.propertyType(PropertyType.COLOR)
-				.build();
-	}
-	
-	private static PropertyItem parseItem(Property<String> property, DirectoryPref annotation) {
-		return buildItem(property, String.class)
-				.key(annotation.value())
-				.bundle(annotation.bundle())
-				.propertyType(PropertyType.DIRECTORY)
-				.build();
-	}
-
-	/**
-	 * Snapshot of the locale, which can be used later to check for changes.
-	 */
-	private static class LocaleSnapshot {
-
-		private Locale main = Locale.getDefault();
-		private Locale display = Locale.getDefault(Locale.Category.DISPLAY);
-		private Locale format = Locale.getDefault(Locale.Category.FORMAT);
-
-		LocaleSnapshot() {
-			refresh();
-		}
-
-		private void refresh() {
-			main = Locale.getDefault();
-			display = Locale.getDefault(Locale.Category.DISPLAY);
-			format = Locale.getDefault(Locale.Category.FORMAT);
-		}
-
-		private boolean hasChanged() {
-			return !Objects.equals(main, Locale.getDefault()) ||
-					!Objects.equals(display, Locale.getDefault(Locale.Category.DISPLAY)) ||
-					!Objects.equals(format, Locale.getDefault(Locale.Category.FORMAT));
-		}
-
+	@Deprecated
+	public static <T> PropertySheet.Item createPropertySheetItem(Property<T> property, Class<? extends T> cls) {
+		LogTools.warnOnce(logger, "PreferencePane.createPropertySheetItem is deprecated - use PropertyItemBuilder instead");
+		return PropertySheetUtils.createPropertySheetItem(property, cls);
 	}
 		
 	

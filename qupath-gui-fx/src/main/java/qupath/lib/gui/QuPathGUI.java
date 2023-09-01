@@ -124,7 +124,6 @@ import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.prefs.PathPrefs.ImageTypeSetting;
 import qupath.lib.gui.prefs.QuPathStyleManager;
 import qupath.lib.gui.scripting.ScriptEditor;
-import qupath.lib.gui.scripting.ScriptEditorControl;
 import qupath.lib.gui.scripting.languages.GroovyLanguage;
 import qupath.lib.gui.scripting.languages.ScriptLanguageProvider;
 import qupath.lib.gui.tools.GuiTools;
@@ -596,7 +595,7 @@ public class QuPathGUI {
 	
 	private static Menu createMenuFromKey(String key) {
 		Menu menu = new Menu();
-		QuPathResources.getLocalizeResourceManager().registerProperty(menu.textProperty(), key);
+		QuPathResources.getLocalizedResourceManager().registerProperty(menu.textProperty(), key);
 		return menu;
 	}
 	

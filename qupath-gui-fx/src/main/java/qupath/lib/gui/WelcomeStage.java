@@ -74,7 +74,7 @@ public class WelcomeStage {
 	
 	private static Stage INSTANCE;
 	
-	private static final StringProperty TITLE = QuPathResources.getLocalizeResourceManager().createProperty("Welcome.title");
+	private static final StringProperty TITLE = QuPathResources.getLocalizedResourceManager().createProperty("Welcome.title");
 
 	public static Stage getInstance(QuPathGUI qupath) {
 		if (INSTANCE == null) {
@@ -87,7 +87,7 @@ public class WelcomeStage {
 	
 	private static Stage buildStage(QuPathGUI qupath) {
 
-		var localeListener = QuPathResources.getLocalizeResourceManager();
+		var localeListener = QuPathResources.getLocalizedResourceManager();
 
 		var stage = new Stage();
 		if (qupath != null)
@@ -120,7 +120,7 @@ public class WelcomeStage {
 		imageView.setPreserveRatio(true);
 		
 		var textTitle = new Text();
-		QuPathResources.getLocalizeResourceManager().registerProperty(textTitle.textProperty(), "Welcome.welcomeMessage");
+		QuPathResources.getLocalizedResourceManager().registerProperty(textTitle.textProperty(), "Welcome.welcomeMessage");
 		textTitle.setStyle("-fx-font-weight: bold; -fx-font-size: 150%; -fx-fill: -fx-text-base-color;"); 
 
 		var topPane = new VBox();
@@ -283,7 +283,7 @@ public class WelcomeStage {
 	
 	
 	private static TextFlow makeMacAarch64Message() {
-		var textProperty = QuPathResources.getLocalizeResourceManager().createProperty("Welcome.macOsAarch64");
+		var textProperty = QuPathResources.getLocalizedResourceManager().createProperty("Welcome.macOsAarch64");
 
 		var textSiliconExperimental = new Text(); 
 		textSiliconExperimental.setStyle("-fx-font-weight: bold; -fx-fill: -qp-script-error-color;"); 
@@ -323,7 +323,7 @@ public class WelcomeStage {
 		if (key == null)
 			button.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
 		else {
-			QuPathResources.getLocalizeResourceManager().registerProperty(button.textProperty(), key);
+			QuPathResources.getLocalizedResourceManager().registerProperty(button.textProperty(), key);
 			button.setContentDisplay(ContentDisplay.TOP);
 		}
 		

@@ -64,7 +64,7 @@ public class QuPathResources {
 	 * and update these whenever the locale preferences are updated.
 	 * @return
 	 */
-	public static LocalizedResourceManager getLocalizeResourceManager() {
+	public static LocalizedResourceManager getLocalizedResourceManager() {
 		return LOCALIZED_RESOURCE_MANAGER;
 	}
 
