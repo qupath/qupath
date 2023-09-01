@@ -77,9 +77,10 @@ import javafx.scene.transform.Transform;
 import javafx.stage.Stage;
 import javafx.util.Callback;
 import qupath.fx.dialogs.FileChoosers;
+import qupath.fx.prefs.controlsfx.PropertyItemBuilder;
+import qupath.fx.prefs.controlsfx.PropertySheetUtils;
 import qupath.lib.common.GeneralTools;
 import qupath.fx.dialogs.Dialogs;
-import qupath.lib.gui.panes.PreferencePane;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.io.GsonTools;
@@ -244,7 +245,7 @@ class ExportChartPane {
 	private BorderPane pane = new BorderPane();
 	private ScrollPane scrollPane;
 	private Chart chart;
-	PropertySheet sheet = new PropertySheet();
+	PropertySheet sheet = PropertySheetUtils.createDefaultPropertySheet();
 
 	private IntegerProperty requestedWidth = new SimpleIntegerProperty(requestedWidthProperty.get());
 	private IntegerProperty requestedHeight = new SimpleIntegerProperty(requestedHeightProperty.get());
@@ -304,24 +305,23 @@ class ExportChartPane {
 		requestedHeight.addListener(v -> refreshChartDisplay());
 
 		sheet.modeProperty().addListener((v, o, n) -> persistentModeProperty.set(n));
-		sheet.setPropertyEditorFactory(new PreferencePane.PropertyEditorFactory());
-		
+
 		sheet.getItems().addAll(
-				PreferencePane.createPropertySheetItem(chartStyleProperty, ChartStyle.class).name("Style").description("Color style for chart display").category("Display"),
-				PreferencePane.createPropertySheetItem(chart.titleProperty(), String.class).name("Title").description("Chart title").category("Title"),
-				PreferencePane.createPropertySheetItem(chart.titleSideProperty(), Side.class).name("Title side").description("Location of title").category("Title"),
-				PreferencePane.createPropertySheetItem(chart.legendVisibleProperty(), Boolean.class).name("Show legend").description("Show chart legend").category("Legend"),
-				PreferencePane.createPropertySheetItem(chart.legendSideProperty(), Side.class).name("Legend position").description("Position to display legend, relative to the chart").category("Legend")
+				new PropertyItemBuilder(chartStyleProperty, ChartStyle.class).name("Style").description("Color style for chart display").category("Display").build(),
+				new PropertyItemBuilder(chart.titleProperty(), String.class).name("Title").description("Chart title").category("Title").build(),
+				new PropertyItemBuilder(chart.titleSideProperty(), Side.class).name("Title side").description("Location of title").category("Title").build(),
+				new PropertyItemBuilder(chart.legendVisibleProperty(), Boolean.class).name("Show legend").description("Show chart legend").category("Legend").build(),
+				new PropertyItemBuilder(chart.legendSideProperty(), Side.class).name("Legend position").description("Position to display legend, relative to the chart").category("Legend").build()
 				);
 
 		if (chart instanceof LineChart<?, ?>) {
 			LineChart<?, ?> lineChart = (LineChart<?, ?>)chart;
 			sheet.getItems().addAll(
-					PreferencePane.createPropertySheetItem(strokeWidthProperty, ChartStrokeWidth.class).name("Line width").description("Thickness of lines used to draw on the chart").category("Display"),
-					PreferencePane.createPropertySheetItem(useSolidLines, Boolean.class).name("Solid lines").description("Use solid (rather than dashed) lines for all series").category("Display"),
+					new PropertyItemBuilder(strokeWidthProperty, ChartStrokeWidth.class).name("Line width").description("Thickness of lines used to draw on the chart").category("Display").build(),
+					new PropertyItemBuilder(useSolidLines, Boolean.class).name("Solid lines").description("Use solid (rather than dashed) lines for all series").category("Display").build(),
 					// Warning! Toggling on and off symbols changes any special efforts that went into creating them,
 					// e.g. censored ticks for survival curves
-					PreferencePane.createPropertySheetItem(lineChart.createSymbolsProperty(), Boolean.class).name("Use markers").description("Use markers to indicate each data point").category("Display")
+					new PropertyItemBuilder(lineChart.createSymbolsProperty(), Boolean.class).name("Use markers").description("Use markers to indicate each data point").category("Display").build()
 					);
 		}
 
@@ -329,20 +329,20 @@ class ExportChartPane {
 			XYChart<?, ?> xyChart = (XYChart<?, ?>)chart;
 
 			sheet.getItems().addAll(
-					PreferencePane.createPropertySheetItem(xyChart.horizontalGridLinesVisibleProperty(), Boolean.class).name("Horizontal grid lines").description("Display horizontal grid lines").category("Grid"),
-					PreferencePane.createPropertySheetItem(xyChart.horizontalZeroLineVisibleProperty(), Boolean.class).name("Horizontal zero line").description("Display horizontal zero line").category("Grid"),
-					PreferencePane.createPropertySheetItem(xyChart.verticalGridLinesVisibleProperty(), Boolean.class).name("Vertical grid lines").description("Display vertical grid lines").category("Grid"),
-					PreferencePane.createPropertySheetItem(xyChart.verticalZeroLineVisibleProperty(), Boolean.class).name("Vertical zero line").description("Display vertical zero line").category("Grid")
+					new PropertyItemBuilder(xyChart.horizontalGridLinesVisibleProperty(), Boolean.class).name("Horizontal grid lines").description("Display horizontal grid lines").category("Grid").build(),
+					new PropertyItemBuilder(xyChart.horizontalZeroLineVisibleProperty(), Boolean.class).name("Horizontal zero line").description("Display horizontal zero line").category("Grid").build(),
+					new PropertyItemBuilder(xyChart.verticalGridLinesVisibleProperty(), Boolean.class).name("Vertical grid lines").description("Display vertical grid lines").category("Grid").build(),
+					new PropertyItemBuilder(xyChart.verticalZeroLineVisibleProperty(), Boolean.class).name("Vertical zero line").description("Display vertical zero line").category("Grid").build()
 					);
 
 			if (xyChart.getXAxis() instanceof NumberAxis) {
 				NumberAxis axis = (NumberAxis)xyChart.getXAxis();
 				sheet.getItems().addAll(
-						PreferencePane.createPropertySheetItem(axis.labelProperty(), String.class).name("X axis label").description("X axis label").category("X axis"),
-						PreferencePane.createPropertySheetItem(axis.autoRangingProperty(), Boolean.class).name("X axis autorange").description("Set X axis range automatically").category("X axis"),
-						PreferencePane.createPropertySheetItem(axis.lowerBoundProperty(), Double.class).name("X lower bound").description("X lower bound").category("X axis"),
-						PreferencePane.createPropertySheetItem(axis.upperBoundProperty(), Double.class).name("X upper bound").description("X upper bound").category("X axis"),
-						PreferencePane.createPropertySheetItem(axis.tickUnitProperty(), Double.class).name("X tick unit").description("Spacing between ticks on x axis").category("X axis")
+						new PropertyItemBuilder(axis.labelProperty(), String.class).name("X axis label").description("X axis label").category("X axis").build(),
+						new PropertyItemBuilder(axis.autoRangingProperty(), Boolean.class).name("X axis autorange").description("Set X axis range automatically").category("X axis").build(),
+						new PropertyItemBuilder(axis.lowerBoundProperty(), Double.class).name("X lower bound").description("X lower bound").category("X axis").build(),
+						new PropertyItemBuilder(axis.upperBoundProperty(), Double.class).name("X upper bound").description("X upper bound").category("X axis").build(),
+						new PropertyItemBuilder(axis.tickUnitProperty(), Double.class).name("X tick unit").description("Spacing between ticks on x axis").category("X axis").build()
 						);
 
 				int counter = 0;
@@ -350,33 +350,33 @@ class ExportChartPane {
 					counter++;
 					if (!series.nameProperty().isBound()) {
 						sheet.getItems().addAll(
-								PreferencePane.createPropertySheetItem(series.nameProperty(), String.class).name("Series name " + counter + ":").description("Name of the data in the chart (will be used for legend)").category("Series")
+								new PropertyItemBuilder(series.nameProperty(), String.class).name("Series name " + counter + ":").description("Name of the data in the chart (will be used for legend)").category("Series").build()
 								);
 					}
 				}
 
 
 			} else
-				sheet.getItems().add(PreferencePane.createPropertySheetItem(xyChart.getXAxis().labelProperty(), String.class).name("X axis label").description("X axis label").category("X axis"));
+				sheet.getItems().add(new PropertyItemBuilder(xyChart.getXAxis().labelProperty(), String.class).name("X axis label").description("X axis label").category("X axis").build());
 
 			if (xyChart.getYAxis() instanceof NumberAxis) {
 				NumberAxis axis = (NumberAxis)xyChart.getYAxis();
 				sheet.getItems().addAll(
-						PreferencePane.createPropertySheetItem(axis.labelProperty(), String.class).name("Y axis label").description("Y axis label").category("Y axis"),
-						PreferencePane.createPropertySheetItem(axis.autoRangingProperty(), Boolean.class).name("Y axis autorange").description("Set Y axis range automatically").category("Y axis"),
-						PreferencePane.createPropertySheetItem(axis.lowerBoundProperty(), Double.class).name("Y lower bound").description("Y lower bound").category("Y axis"),
-						PreferencePane.createPropertySheetItem(axis.upperBoundProperty(), Double.class).name("Y upper bound").description("Y upper bound").category("Y axis"),
-						PreferencePane.createPropertySheetItem(axis.tickUnitProperty(), Double.class).name("Y tick unit").description("Spacing between ticks on y axis").category("Y axis")
+						new PropertyItemBuilder(axis.labelProperty(), String.class).name("Y axis label").description("Y axis label").category("Y axis").build(),
+						new PropertyItemBuilder(axis.autoRangingProperty(), Boolean.class).name("Y axis autorange").description("Set Y axis range automatically").category("Y axis").build(),
+						new PropertyItemBuilder(axis.lowerBoundProperty(), Double.class).name("Y lower bound").description("Y lower bound").category("Y axis").build(),
+						new PropertyItemBuilder(axis.upperBoundProperty(), Double.class).name("Y upper bound").description("Y upper bound").category("Y axis").build(),
+						new PropertyItemBuilder(axis.tickUnitProperty(), Double.class).name("Y tick unit").description("Spacing between ticks on y axis").category("Y axis").build()
 						);
 			} else
-				sheet.getItems().add(PreferencePane.createPropertySheetItem(xyChart.getYAxis().labelProperty(), String.class).name("Y axis label").description("Y axis label").category("Y axis"));
+				sheet.getItems().add(new PropertyItemBuilder(xyChart.getYAxis().labelProperty(), String.class).name("Y axis label").description("Y axis label").category("Y axis").build());
 
 		}
 
 		sheet.getItems().addAll(
-				PreferencePane.createPropertySheetItem(exportResolutionProperty, ExportResolution.class).name("Export resolution").description("Resolution at which to copy/save the chart").category("Export"),
-				PreferencePane.createPropertySheetItem(requestedWidth, Integer.class).name("Width").description("Requested chart width").category("Export"),
-				PreferencePane.createPropertySheetItem(requestedHeight, Integer.class).name("Height").description("Requested chart height").category("Export")
+				new PropertyItemBuilder(exportResolutionProperty, ExportResolution.class).name("Export resolution").description("Resolution at which to copy/save the chart").category("Export").build(),
+				new PropertyItemBuilder(requestedWidth, Integer.class).name("Width").description("Requested chart width").category("Export").build(),
+				new PropertyItemBuilder(requestedHeight, Integer.class).name("Height").description("Requested chart height").category("Export").build()
 				);
 
 

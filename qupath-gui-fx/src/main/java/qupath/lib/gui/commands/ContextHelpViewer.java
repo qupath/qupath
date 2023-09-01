@@ -69,7 +69,7 @@ public class ContextHelpViewer {
 
 	private static Map<QuPathGUI, ContextHelpViewer> INSTANCES = new ConcurrentHashMap<>();
 
-	private StringProperty title = QuPathResources.getLocalizeResourceManager().createProperty("ContextHelp.title");
+	private StringProperty title = QuPathResources.getLocalizedResourceManager().createProperty("ContextHelp.title");
 	private QuPathGUI qupath;
 	
 	private int iconSize = 16;
@@ -78,7 +78,7 @@ public class ContextHelpViewer {
 	private ObservableList<Window> windows;
 	private EventHandler<MouseEvent> handler = this::handleMouseMove;
 
-	private StringProperty defaultText = QuPathResources.getLocalizeResourceManager().createProperty("ContextHelp.defaultHelpText");
+	private StringProperty defaultText = QuPathResources.getLocalizedResourceManager().createProperty("ContextHelp.defaultHelpText");
 	private StringProperty helpText = new SimpleStringProperty(defaultText.get());
 
 	private Label label;
@@ -294,7 +294,7 @@ public class ContextHelpViewer {
 		private HelpListEntry(HelpType type, String key, Node graphic) {
 			this.type = type;
 			this.textProperty = new SimpleStringProperty();
-			QuPathResources.getLocalizeResourceManager().registerProperty(textProperty, key);
+			QuPathResources.getLocalizedResourceManager().registerProperty(textProperty, key);
 			if (graphic == null)
 				graphic = createGraphicFromType(type);
 			this.graphicProperty = new SimpleObjectProperty<>(graphic);

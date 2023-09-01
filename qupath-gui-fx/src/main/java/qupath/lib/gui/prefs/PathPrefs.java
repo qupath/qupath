@@ -302,8 +302,8 @@ public class PathPrefs {
 			defaultLocaleFormat.set(Locale.getDefault(Category.FORMAT));
 			defaultLocaleDisplay.set(Locale.getDefault(Category.DISPLAY));
 		});
-		defaultLocaleFormat.addListener((v, o, n) -> QuPathResources.getLocalizeResourceManager().refresh());
-		defaultLocaleDisplay.addListener((v, o, n) -> QuPathResources.getLocalizeResourceManager().refresh());
+		defaultLocaleFormat.addListener((v, o, n) -> QuPathResources.getLocalizedResourceManager().refresh());
+		defaultLocaleDisplay.addListener((v, o, n) -> QuPathResources.getLocalizedResourceManager().refresh());
 	}
 
 	

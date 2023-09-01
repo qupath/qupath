@@ -35,6 +35,7 @@ import org.slf4j.LoggerFactory;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.StringProperty;
+import qupath.fx.prefs.controlsfx.PropertySheetUtils;
 import qupath.lib.common.Version;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.actions.ActionTools;
@@ -43,12 +44,12 @@ import qupath.lib.gui.actions.annotations.ActionMenu;
 import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.extensions.QuPathExtension;
 import qupath.lib.gui.localization.QuPathResources;
-import qupath.lib.gui.prefs.annotations.StringPref;
+import qupath.fx.prefs.annotations.StringPref;
 import qupath.lib.gui.prefs.PathPrefs;
-import qupath.lib.gui.prefs.annotations.BooleanPref;
-import qupath.lib.gui.prefs.annotations.DirectoryPref;
-import qupath.lib.gui.prefs.annotations.IntegerPref;
-import qupath.lib.gui.prefs.annotations.PrefCategory;
+import qupath.fx.prefs.annotations.BooleanPref;
+import qupath.fx.prefs.annotations.DirectoryPref;
+import qupath.fx.prefs.annotations.IntegerPref;
+import qupath.fx.prefs.annotations.PrefCategory;
 import qupath.lib.images.writers.ome.OMEPyramidWriterCommand;
 
 /**
@@ -80,7 +81,10 @@ public class BioFormatsOptionsExtension implements QuPathExtension {
 		qupath.installActions(ActionTools.getAnnotatedActions(actions));
 
 		var prefs = new BioFormatsPreferences();
-		qupath.getPreferencePane().addAnnotatedProperties(prefs);
+		qupath.getPreferencePane()
+				.getPropertySheet()
+				.getItems()
+				.addAll(PropertySheetUtils.parseAnnotatedItemsWithResources(QuPathResources.getLocalizedResourceManager(), prefs));
 
 		if (BioFormatsServerOptions.allowMemoization()) {
 			logMemoizationStatus(prefs.options);
