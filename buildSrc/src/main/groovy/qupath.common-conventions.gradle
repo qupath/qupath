@@ -7,6 +7,12 @@ plugins {
 }
 
 repositories {
+
+    if (findProperty("use-maven-local")) {
+        logger.warn("Using Maven local")
+        mavenLocal()
+    }
+
     mavenCentral()
 
     // Required for scijava (including some QuPath jars)
