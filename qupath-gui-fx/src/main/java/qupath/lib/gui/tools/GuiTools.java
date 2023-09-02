@@ -21,31 +21,6 @@
 
 package qupath.lib.gui.tools;
 
-import java.awt.Desktop;
-import java.awt.Desktop.Action;
-import java.awt.Graphics2D;
-import java.awt.RenderingHints;
-import java.awt.Transparency;
-import java.awt.image.BufferedImage;
-import java.io.File;
-import java.io.IOException;
-import java.net.URI;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Objects;
-import java.util.function.Consumer;
-import java.util.function.Function;
-import javax.swing.SwingUtilities;
-
-import javafx.scene.control.*;
-import org.controlsfx.control.ListSelectionView;
-import org.controlsfx.glyphfont.Glyph;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javafx.application.Platform;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.ObservableList;
@@ -58,6 +33,21 @@ import javafx.geometry.Side;
 import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.CheckBox;
+import javafx.scene.control.CheckMenuItem;
+import javafx.scene.control.ColorPicker;
+import javafx.scene.control.ContextMenu;
+import javafx.scene.control.Label;
+import javafx.scene.control.ListView;
+import javafx.scene.control.Menu;
+import javafx.scene.control.MenuItem;
+import javafx.scene.control.SeparatorMenuItem;
+import javafx.scene.control.Slider;
+import javafx.scene.control.TextArea;
+import javafx.scene.control.TextField;
+import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
 import javafx.scene.image.WritableImage;
 import javafx.scene.input.Clipboard;
@@ -71,6 +61,11 @@ import javafx.scene.robot.Robot;
 import javafx.stage.Modality;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
+import org.controlsfx.control.ListSelectionView;
+import org.controlsfx.glyphfont.Glyph;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.fx.dialogs.Dialogs;
 import qupath.fx.utils.FXUtils;
 import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.awt.common.BufferedImageTools;
@@ -82,7 +77,6 @@ import qupath.lib.common.ColorTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.actions.ActionTools;
 import qupath.lib.gui.commands.Commands;
-import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.ParameterPanelFX;
 import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.viewer.QuPathViewer;
@@ -100,6 +94,25 @@ import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
 import qupath.lib.roi.PointsROI;
 import qupath.lib.roi.RoiTools.CombineOp;
 import qupath.lib.roi.interfaces.ROI;
+
+import javax.swing.SwingUtilities;
+import java.awt.Desktop;
+import java.awt.Desktop.Action;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
+import java.awt.Transparency;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
+import java.net.URI;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Objects;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
 /**
  * Assorted static methods to help with JavaFX and QuPath GUI-related tasks.
@@ -518,7 +531,23 @@ public class GuiTools {
 	 * @return
 	 */
 	public static BufferedImage makeSnapshot(final QuPathGUI qupath, final GuiTools.SnapshotType type) {
-		var img = SwingFXUtils.fromFXImage(makeSnapshotFX(qupath, qupath.getViewer(), type), null);
+		return makeSnapshot(qupath, qupath.getViewer(), type);
+	}
+
+	/**
+	 * Make a snapshot (image) showing what is currently displayed in a QuPath window
+	 * or the specified viewer, as determined by the SnapshotType.
+	 *
+	 * @param qupath
+	 * @param viewer
+	 * @param type
+	 * @return
+	 */
+	public static BufferedImage makeSnapshot(final QuPathGUI qupath, final QuPathViewer viewer, final GuiTools.SnapshotType type) {
+		var image = makeSnapshotFX(qupath, viewer, type);
+		var img = SwingFXUtils.fromFXImage(image, null);
+		// Ensuring we have ARGB improved consistency (especially when saving the image, since otherwise we can end
+		// up with 4-channel images that display strangely)
 		return BufferedImageTools.ensureBufferedImageType(img, BufferedImage.TYPE_INT_ARGB);
 	}
 	
@@ -544,7 +573,8 @@ public class GuiTools {
 	 * @return
 	 */
 	public static BufferedImage makeViewerSnapshot() {
-		return SwingFXUtils.fromFXImage(makeSnapshotFX(QuPathGUI.getInstance(), QuPathGUI.getInstance().getViewer(), GuiTools.SnapshotType.VIEWER), null);
+		var qupath = QuPathGUI.getInstance();
+		return makeSnapshot(qupath, qupath.getViewer(), GuiTools.SnapshotType.VIEWER);
 	}
 	
 	/**
