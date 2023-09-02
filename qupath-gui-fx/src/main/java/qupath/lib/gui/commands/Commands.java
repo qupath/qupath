@@ -21,30 +21,6 @@
 
 package qupath.lib.gui.commands;
 
-import java.awt.Window;
-import java.awt.image.BufferedImage;
-import java.io.File;
-import java.io.IOException;
-import java.io.StringWriter;
-import java.nio.file.Files;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.WeakHashMap;
-import java.util.function.Function;
-import java.util.function.Supplier;
-import java.util.stream.Collectors;
-
-import org.controlsfx.control.CheckListView;
-import org.controlsfx.control.action.Action;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.StringProperty;
@@ -53,6 +29,7 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonBar.ButtonData;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.ColorPicker;
 import javafx.scene.control.ComboBox;
@@ -61,7 +38,6 @@ import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
-import javafx.scene.control.ButtonBar.ButtonData;
 import javafx.scene.control.cell.CheckBoxListCell;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
@@ -72,19 +48,26 @@ import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import javafx.scene.paint.Color;
 import javafx.scene.text.TextAlignment;
+import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
-import qupath.fx.utils.FXUtils;
+import org.controlsfx.control.CheckListView;
+import org.controlsfx.control.action.Action;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.fx.dialogs.Dialogs;
 import qupath.fx.dialogs.FileChoosers;
+import qupath.fx.utils.FXUtils;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.analysis.DistanceTools;
 import qupath.lib.analysis.features.ObjectMeasurements.ShapeFeatures;
+import qupath.lib.awt.common.BufferedImageTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.ExtensionClassLoader;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.UserDirectoryManager;
 import qupath.lib.gui.actions.ActionTools;
-import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.images.servers.RenderedImageServer;
 import qupath.lib.gui.panes.MeasurementMapPane;
 import qupath.lib.gui.panes.ObjectDescriptionPane;
@@ -93,7 +76,6 @@ import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tma.TMASummaryViewer;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.tools.GuiTools;
-import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.gui.viewer.GridLines;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.QuPathViewer;
@@ -134,6 +116,26 @@ import qupath.lib.roi.RoiTools.CombineOp;
 import qupath.lib.roi.ShapeSimplifier;
 import qupath.lib.roi.interfaces.ROI;
 import qupath.lib.scripting.QP;
+
+import java.awt.Window;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
+import java.io.StringWriter;
+import java.nio.file.Files;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.WeakHashMap;
+import java.util.function.Function;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 /**
  * Helper class implementing simple 'single-method' commands for easy inclusion in the GUI.
@@ -831,7 +833,7 @@ public class Commands {
 	
 	
 	// TODO: Make the extension modifiable
-	private static StringProperty defaultScreenshotExtension = PathPrefs.createPersistentPreference("defaultScreenshotExtension", "png");
+	private static StringProperty defaultScreenshotExtension = PathPrefs.createPersistentPreference("defaultScreenshotExtension", "*.png");
 	
 	
 	/**
@@ -841,26 +843,44 @@ public class Commands {
 	 * @return true if a snapshot was saved, false otherwise
 	 */
 	public static boolean saveSnapshot(QuPathGUI qupath, GuiTools.SnapshotType type) {
-		BufferedImage img = GuiTools.makeSnapshot(qupath, type);			
-		
+		BufferedImage img = GuiTools.makeSnapshot(qupath, type);
+
 		String ext = defaultScreenshotExtension.get();
 		List<ImageWriter<BufferedImage>> compatibleWriters = ImageWriterTools.getCompatibleWriters(BufferedImage.class, ext);
 		if (compatibleWriters.isEmpty()) {
 			logger.error("No compatible image writers found for extension: " + ext);
 			return false;
 		}
-		
-		File fileOutput = FileChoosers.buildFileChooser()
-				.extensionFilter("Screenshot", ext)
-				.build()
-				.showOpenDialog(qupath.getStage());
+
+		List<FileChooser.ExtensionFilter> extensionFilters = new ArrayList<>(Arrays.asList(
+				FileChoosers.createExtensionFilter("PNG", "png"),
+				FileChoosers.createExtensionFilter("JPEG", "jpg", "jpeg"),
+				FileChoosers.createExtensionFilter("TIFF", "tif", "tiff")
+		));
+		FileChooser.ExtensionFilter selectedFilter = extensionFilters
+				.stream()
+				.filter(e -> e.getExtensions().contains(ext))
+				.findFirst()
+				.orElse(extensionFilters.get(0));
+		if (!Objects.equals(selectedFilter, extensionFilters.get(0))) {
+			extensionFilters.remove(selectedFilter);
+			extensionFilters.add(0, selectedFilter);
+		}
+		var chooser = FileChoosers.buildFileChooser()
+				.extensionFilters(extensionFilters)
+				.selectedExtensionFilter(selectedFilter)
+				.build();
+
+		File fileOutput = chooser.showSaveDialog(qupath.getStage());
 		if (fileOutput == null)
 			return false;
-		
+
 		// Loop through the writers and stop when we are successful
 		for (var writer : compatibleWriters) {
 			try {
 				writer.writeImage(img, fileOutput.getAbsolutePath());
+				String extChosen = chooser.getSelectedExtensionFilter().getExtensions().get(0);
+				defaultScreenshotExtension.set(extChosen);
 				return true;
 			} catch (Exception e) {
 				logger.error("Error saving snapshot " + type + " to " + fileOutput.getAbsolutePath(), e);

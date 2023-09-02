@@ -2,6 +2,9 @@
 
 This is a work-in-progress for the next QuPath release.
 
+### Enhancements
+* *File &rarr; Export snapshots* supports PNG, JPEG and TIFF (not just PNG)
+
 ### Bugs fixed
 * Rendered image export does not support opacity (https://github.com/qupath/qupath/issues/1292)
 * Cannot import GeoJSON with NaN measurements (https://github.com/qupath/qupath/issues/1293)

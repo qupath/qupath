@@ -73,6 +73,7 @@ import javafx.stage.Screen;
 import javafx.stage.Stage;
 import qupath.fx.utils.FXUtils;
 import qupath.fx.utils.GridPaneUtils;
+import qupath.lib.awt.common.BufferedImageTools;
 import qupath.lib.color.ColorDeconvolutionHelper;
 import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.color.ColorDeconvolutionStains.DefaultColorDeconvolutionStains;
@@ -517,7 +518,8 @@ public class GuiTools {
 	 * @return
 	 */
 	public static BufferedImage makeSnapshot(final QuPathGUI qupath, final GuiTools.SnapshotType type) {
-		return SwingFXUtils.fromFXImage(makeSnapshotFX(qupath, qupath.getViewer(), type), null);
+		var img = SwingFXUtils.fromFXImage(makeSnapshotFX(qupath, qupath.getViewer(), type), null);
+		return BufferedImageTools.ensureBufferedImageType(img, BufferedImage.TYPE_INT_ARGB);
 	}
 	
 	/**
@@ -534,7 +536,7 @@ public class GuiTools {
 	 * @return
 	 */
 	public static BufferedImage makeSnapshot() {
-		return SwingFXUtils.fromFXImage(makeSnapshotFX(QuPathGUI.getInstance(), null, GuiTools.SnapshotType.MAIN_SCENE), null);
+		return makeSnapshot(QuPathGUI.getInstance(), GuiTools.SnapshotType.MAIN_SCENE);
 	}
 	
 	/**
@@ -550,7 +552,7 @@ public class GuiTools {
 	 * @return
 	 */
 	public static BufferedImage makeFullScreenshot() {
-		return SwingFXUtils.fromFXImage(makeSnapshotFX(QuPathGUI.getInstance(), null, GuiTools.SnapshotType.FULL_SCREENSHOT), null);
+		return makeSnapshot(QuPathGUI.getInstance(), GuiTools.SnapshotType.FULL_SCREENSHOT);
 	}
 
 	/**

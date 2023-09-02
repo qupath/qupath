@@ -82,6 +82,7 @@ public class ImageWriterTools {
 			ext2 = null;
 		else {
 			ext2 = ext.trim();
+			ext2 = ext2.startsWith("*") ? ext2.substring(1) : ext2;
 			ext2 = ext2.startsWith(".") ? ext2.substring(1) : ext2;
 		}
 		List<ImageWriter<T>> writers = new ArrayList<>();
