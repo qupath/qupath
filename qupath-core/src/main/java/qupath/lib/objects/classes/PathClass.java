@@ -23,6 +23,7 @@
 
 package qupath.lib.objects.classes;
 
+import java.io.ObjectStreamException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -161,7 +162,17 @@ public final class PathClass implements Comparable<PathClass>, Serializable {
 	 */
 	private static final Map<String, PathClass> existingClasses = new ConcurrentHashMap<>();
 
-	
+	/**
+	 * Reset the cache of existing PathClass objects.
+	 * This should <b>only</b> be used for testing, to enable tests to be free of influence from previously-generated
+	 * classes.
+	 */
+	static synchronized void resetCaches() {
+		logger.warn("Resetting PathClass caches");
+		existingClasses.clear();
+	}
+
+
 	/**
 	 * Cache the set representation
 	 */
@@ -825,9 +836,11 @@ public final class PathClass implements Comparable<PathClass>, Serializable {
 		// This can occur during deserialization
 		if (!pathClass.isDerivedClass() && pathClass.getName() == null)
 			return NULL_CLASS;
+		// Addition thanks to @carlocastoldi
+		// addresses https://github.com/qupath/qupath/issues/1306
 		if (pathClass.isDerivedClass()) {
-			PathClass parent = getSingleton(pathClass.getParentClass());
-			pathClass = PathClass.getInstance(parent, pathClass.getName(), pathClass.getColor());
+			var parent = getSingleton(pathClass.getParentClass());
+			return getInstance(parent, pathClass.getName(), pathClass.getColor());
 		}
 		var previous = existingClasses.putIfAbsent(createCacheString(pathClass), pathClass);
 		return previous == null ? pathClass : previous;
@@ -944,6 +957,17 @@ public final class PathClass implements Comparable<PathClass>, Serializable {
 
 		
 	}
-	
+
+	/**
+	 * Called during deserialization to ensure that only a single instance of each PathClass exists.
+	 * Partly addresses https://github.com/qupath/qupath/issues/1306 (during standard deserialation,
+	 * but not from JSON)
+	 * @return
+	 * @throws ObjectStreamException
+	 */
+	protected Object readResolve() throws ObjectStreamException {
+		return getSingleton(this);
+	}
+
 	
 }
