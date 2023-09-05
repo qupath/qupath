@@ -245,7 +245,7 @@ public class QuPathGUI {
 	 * 
 	 * @param stage a stage to use for the main QuPath window
 	 */
-	private QuPathGUI(final Stage stage, final HostServices hostServices) {
+	private QuPathGUI(final Stage stage, final HostServices hostServices, boolean showStage) {
 		super();
 		
 		this.stage = stage;
@@ -303,8 +303,10 @@ public class QuPathGUI {
 		// Remove this to only accept drag-and-drop into a viewer
 		TMACommands.installDragAndDropHandler(this);
 
-		timeit.checkpoint("Showing");
-		stage.show();
+		if (showStage) {
+			timeit.checkpoint("Showing");
+			stage.show();
+		}
 
 		// Install extensions
 		timeit.checkpoint("Adding extensions");
@@ -373,9 +375,18 @@ public class QuPathGUI {
 		}
 		if (stage == null)
 			stage = new Stage();
-		return new QuPathGUI(stage, hostServices);
+		return new QuPathGUI(stage, hostServices, true);
 	}
 
+	/**
+	 * Create a new QuPath instance that is not visible (i.e. its stage is not shown).
+	 * @return
+	 * @throws IllegalStateException
+	 */
+	public static QuPathGUI createHiddenInstance() throws IllegalStateException {
+		var stage = new Stage();
+		return new QuPathGUI(stage, null, false);
+	}
 
 
 	/**
