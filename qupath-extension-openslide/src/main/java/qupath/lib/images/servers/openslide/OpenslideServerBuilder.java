@@ -75,7 +75,7 @@ public class OpenslideServerBuilder implements ImageServerBuilder<BufferedImage>
 	static {
 		try {
 			// Try loading OpenSlide-JNI - hopefully there is a version of OpenSlide on the PATH we should use
-			System.loadLibrary("openslide-jni");
+//			System.loadLibrary("openslide-jni");
 		} catch (UnsatisfiedLinkError e) {
 			try {
 				// If we didn't succeed, try loading dependencies in reverse order
@@ -87,7 +87,7 @@ public class OpenslideServerBuilder implements ImageServerBuilder<BufferedImage>
 		}
 		try {
 			// Finally try to get the library version
-			logger.info("OpenSlide version {}", org.openslide.OpenSlide.getLibraryVersion());
+			logger.info("OpenSlide version {}", OpenSlide.OpenSlideJNA.INSTANCE.openslide_get_version());
 		} catch (NoClassDefFoundError e) {
 			logger.warn("openslide.jar not found!");
 			openslideUnavailable = true;
@@ -140,7 +140,7 @@ public class OpenslideServerBuilder implements ImageServerBuilder<BufferedImage>
 		
 		try {
 			File file = Paths.get(uri).toFile();
-			String vendor = org.openslide.OpenSlide.detectVendor(file);
+			String vendor = OpenSlide.OpenSlideJNA.INSTANCE.openslide_detect_vendor(file.toString());
 			if (vendor == null)
 				return 0;
 		} catch (Exception e) {

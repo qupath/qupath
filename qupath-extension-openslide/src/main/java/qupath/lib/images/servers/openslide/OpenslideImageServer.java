@@ -38,8 +38,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-import org.openslide.AssociatedImage;
-import org.openslide.OpenSlide;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -65,13 +63,13 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 	private static final Logger logger = LoggerFactory.getLogger(OpenslideImageServer.class);
 
 	private static boolean useBoundingBoxes = true;
-	
+
 	private ImageServerMetadata originalMetadata;
 
 	private List<String> associatedImageList = null;
 	private Map<String, AssociatedImage> associatedImages = null;
 
-	private OpenSlide osr;
+	private final OpenSlide osr;
 	private Color backgroundColor;
 	
 	private int boundsX, boundsY, boundsWidth, boundsHeight;
@@ -114,6 +112,7 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 		System.gc();
 		File file = Paths.get(uri).toFile();
 		osr = new OpenSlide(file);
+//		osr2 = new OpenSlide2(file);
 
 		// Parse the parameters
 		int width = (int)osr.getLevel0Width();
@@ -256,8 +255,9 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 	
 	@Override
 	public void close() {
-		if (osr != null)
+		if (osr != null) {
 			osr.close();
+		}
 	}
 
 	/**
