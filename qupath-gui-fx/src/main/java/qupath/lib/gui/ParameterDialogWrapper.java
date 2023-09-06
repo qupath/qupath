@@ -115,32 +115,6 @@ class ParameterDialogWrapper<T> {
 		panel = new ParameterPanelFX(params);
 		panel.getPane().setPadding(new Insets(5, 5, 5, 5));
 
-		//			panel.addParameterChangeListener(new ParameterChangeListener() {
-		//
-		//				@Override
-		//				public void parameterChanged(ParameterList parameterList, String key, boolean isAdjusting) {
-		//					
-		//					if (!plugin.requestLiveUpdate())
-		//						return;
-		//					
-		//					PathObjectHierarchy hierarchy = pluginRunner.getHierarchy();
-		//					if (hierarchy == null)
-		//						return;
-		//					
-		//					Collection<Class<? extends PathObject>> supportedParents = plugin.getSupportedParentObjectClasses();
-		//					
-		//					PathObject selectedObject = pluginRunner.getSelectedObject();
-		//					if (selectedObject == null) {
-		//						if (supportedParents.contains(PathRootObject.class))
-		//							Collections.singleton(hierarchy.getRootObject());
-		//					} else if (supportedParents.contains(selectedObject.getClass()))
-		//						Collections.singleton(selectedObject);
-		//				}
-		//				
-		//			});
-
-
-//		final Button btnRun = new Button("Run " + plugin.getName());
 		final Button btnRun = new Button("Run");
 		btnRun.textProperty().bind(Bindings.createStringBinding(() -> {
 			if (btnRun.isDisabled())
@@ -188,9 +162,12 @@ class ParameterDialogWrapper<T> {
 				@Override
 				public void run() {
 					try {
-						WorkflowStep lastStep = pluginRunner.getImageData().getHistoryWorkflow().getLastStep();
+						// TODO: Consider the small chance that the image data changes between the time the workflow
+						//       is requested and runPlugin is called
+						var historyWorkflow = pluginRunner.getImageData().getHistoryWorkflow();
+						WorkflowStep lastStep = historyWorkflow.getLastStep();
 						boolean success = plugin.runPlugin(pluginRunner, ParameterList.convertToJson(params));
-						WorkflowStep lastStepNew = pluginRunner.getImageData().getHistoryWorkflow().getLastStep();
+						WorkflowStep lastStepNew = historyWorkflow.getLastStep();
 						if (success && lastStep != lastStepNew)
 							lastWorkflowStep = lastStepNew;
 						else

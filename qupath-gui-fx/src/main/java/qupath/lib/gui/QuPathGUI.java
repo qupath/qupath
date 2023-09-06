@@ -55,6 +55,7 @@ import javax.imageio.ImageIO;
 import javax.script.ScriptException;
 import javax.swing.SwingUtilities;
 
+import javafx.beans.value.ObservableValue;
 import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.stage.Window;
@@ -724,6 +725,15 @@ public class QuPathGUI {
 	}
 
 
+	/**
+	 * Observable value indicating that the user interface is/should be blocked.
+	 * This happens when a plugin or script is running.
+	 * @return
+	 */
+	public ObservableValue<Boolean> uiBlocked() {
+		return uiBlocked;
+	}
+
 
 	private void syncDefaultImageDataAndProjectForScripting() {
 		imageDataProperty().addListener((v, o, n) -> QP.setDefaultImageData(n));
@@ -775,6 +785,7 @@ public class QuPathGUI {
 		}
 		
 	}
+
 	
 	
 	private void ensureQuPathInstanceSet() {

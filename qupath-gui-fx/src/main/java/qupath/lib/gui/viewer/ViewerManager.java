@@ -949,6 +949,8 @@ public class ViewerManager implements QuPathViewerListener {
 				stage.titleProperty().bind(createDetachedViewerTitleBinding(viewer));
 				// It's messy... but we need to propagate key presses to the main window somehow,
 				// otherwise the viewer is non-responsive to key presses
+				stage.addEventFilter(KeyEvent.ANY, this::keyEventFilter);
+				stage.addEventFilter(MouseEvent.ANY, this::mouseEventFilter);
 				stage.addEventHandler(KeyEvent.ANY, this::propagateKeyEventToMainWindow);
 				stage.setOnCloseRequest(e -> {
 					if (viewers.size() == 1 && viewers.contains(viewer)) {
@@ -980,6 +982,16 @@ public class ViewerManager implements QuPathViewerListener {
 			return Bindings.createStringBinding(() -> {
 				return qupath.getDisplayedImageName(viewer.getImageData());
 			}, viewer.imageDataProperty());
+		}
+
+		private void keyEventFilter(KeyEvent e) {
+			if (qupath.uiBlocked().getValue())
+				e.consume();
+		}
+
+		private void mouseEventFilter(MouseEvent e) {
+			if (qupath.uiBlocked().getValue())
+				e.consume();
 		}
 
 		private void propagateKeyEventToMainWindow(KeyEvent e) {

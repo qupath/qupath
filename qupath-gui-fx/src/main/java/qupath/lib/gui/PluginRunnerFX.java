@@ -68,7 +68,10 @@ class PluginRunnerFX extends AbstractPluginRunner<BufferedImage> {
 	private static long repaintDelayMillis = 1000;
 
 	private QuPathGUI qupath;
-	//		private ImageData<BufferedImage> imageData; // Consider reinstating - at least as an option
+
+	// Snapshot of the current image data, used only within runTasks()
+	// Because the method is synchronized, it is not expected to cause trouble
+	private ImageData<BufferedImage> currentImageData; // Consider reinstating - at least as an option
 
 	/**
 	 * Constructor.
@@ -95,10 +98,12 @@ class PluginRunnerFX extends AbstractPluginRunner<BufferedImage> {
 		if (viewer != null)
 			viewer.setMinimumRepaintSpacingMillis(repaintDelayMillis);
 		try {
+			this.currentImageData = qupath.getImageData();
 			super.runTasks(tasks, updateHierarchy);
 		} catch (Exception e) {
 			throw(e);
 		} finally {
+			this.currentImageData = null;
 			if (viewer != null)
 				viewer.resetMinimumRepaintSpacingMillis();
 		}
@@ -106,7 +111,8 @@ class PluginRunnerFX extends AbstractPluginRunner<BufferedImage> {
 
 	@Override
 	public ImageData<BufferedImage> getImageData() {
-		//			return imageData;
+		if (currentImageData != null)
+			return currentImageData;
 		return qupath.getImageData();
 	}
 

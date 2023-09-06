@@ -156,8 +156,9 @@ public abstract class AbstractPlugin<T> implements PathPlugin<T> {
 	
 	@Override
 	public boolean runPlugin(final PluginRunner<T> pluginRunner, final String arg) {
-		
-		if (!parseArgument(pluginRunner.getImageData(), arg))
+
+		var imageData = pluginRunner.getImageData();
+		if (!parseArgument(imageData, arg))
 			return false;
 
 		preprocess(pluginRunner);
@@ -173,7 +174,7 @@ public abstract class AbstractPlugin<T> implements PathPlugin<T> {
 			return false;
 
 		// Only add a workflow step if plugin was not cancelled
-		addWorkflowStep(pluginRunner.getImageData(), arg);
+		addWorkflowStep(imageData, arg);
 		
 		return true;
 	}
