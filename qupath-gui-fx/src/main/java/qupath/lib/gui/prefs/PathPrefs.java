@@ -107,14 +107,20 @@ public class PathPrefs {
 		return PreferenceManager.createForUserPreferences(nodeName);
 	}
 
-	private static BooleanProperty useSystemMenubar = createPersistentPreference("useSystemMenubar", true);
-	
+	private static BooleanProperty useSystemMenubar = new SimpleBooleanProperty();
+
 	/**
-	 * Property used to specify whether the system menubar should be used.
+	 * Legacy property used to specify whether the system menubar should be used for the main QuPath stage.
 	 * This should be bound bidirectionally to the corresponding property of any menubars created.
-	 * @return
+	 * @return a bound boolean property, which is true whenever systemMenubarProperty() is set to ALL_WINDOWS.
+	 * @deprecated use {@link SystemMenubar#systemMenubarProperty()} instead
 	 */
+	@Deprecated
 	public static BooleanProperty useSystemMenubarProperty() {
+		if (!useSystemMenubar.isBound()) {
+			logger.warn("PathPrefs.useSystemMenubarProperty() is deprecated - please use PathPrefs.systemMenubarProperty() instead");
+			useSystemMenubar.bind(SystemMenubar.systemMenubarProperty().isEqualTo(SystemMenubar.SystemMenubarOption.ALL_WINDOWS));
+		}
 		return useSystemMenubar;
 	}
 

@@ -32,6 +32,7 @@ import javafx.stage.Window;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.fx.utils.FXUtils;
+import qupath.lib.gui.prefs.SystemMenubar;
 import qupath.ui.logviewer.ui.main.LogViewer;
 import qupath.ui.logviewer.ui.textarea.TextAreaLogViewer;
 
@@ -61,8 +62,7 @@ public class LogViewerCommand implements Runnable {
 		this.parent = parent;
 		try {
 			LogViewer logviewer = new LogViewer();
-			// Could bind to system menubar... but seems preferable not to?
-//			logviewer.getMenubar().useSystemMenuBarProperty().bindBidirectional(PathPrefs.useSystemMenubarProperty());
+			SystemMenubar.manageChildMenubar(logviewer.getMenubar());
 			// Fix cell size for better performance
 			var table = logviewer.getTable();
 			table.setFixedCellSize(25);

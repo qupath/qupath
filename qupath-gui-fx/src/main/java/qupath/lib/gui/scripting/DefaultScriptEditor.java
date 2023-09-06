@@ -121,6 +121,7 @@ import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.ProjectDialogs;
 import qupath.lib.gui.logging.LogManager;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.prefs.SystemMenubar;
 import qupath.lib.gui.scripting.languages.DefaultScriptLanguage;
 import qupath.lib.gui.scripting.languages.GroovyLanguage;
 import qupath.lib.gui.scripting.languages.HtmlRenderer;
@@ -904,7 +905,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		dialog.getScene().setOnDragDropped(dragDropListener);
 		
 		splitMain.setDividerPosition(0, 0.25);
-		menubar.useSystemMenuBarProperty().bindBidirectional(PathPrefs.useSystemMenubarProperty());
+		SystemMenubar.manageChildMenubar(menubar);
 //		menubar.setUseSystemMenuBar(true);
 		updateUndoActionState();
 		updateCutCopyActionState();

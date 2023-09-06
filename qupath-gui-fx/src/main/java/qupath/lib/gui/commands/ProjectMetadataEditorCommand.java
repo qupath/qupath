@@ -58,7 +58,7 @@ import javafx.scene.layout.BorderPane;
 import qupath.lib.gui.QuPathGUI;
 import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.panes.ProjectBrowser;
-import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.prefs.SystemMenubar;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectImageEntry;
 
@@ -175,8 +175,8 @@ class ProjectMetadataEditorCommand {
 		pane.setTop(menubar);
 		pane.setCenter(table);
 //		menubar.setUseSystemMenuBar(true);
-		menubar.useSystemMenuBarProperty().bindBidirectional(PathPrefs.useSystemMenubarProperty());		
-		
+		SystemMenubar.manageChildMenubar(menubar);
+
 		Dialog<ButtonType> dialog = new Dialog<>();
 		var qupath = QuPathGUI.getInstance();
 		if (qupath != null)
