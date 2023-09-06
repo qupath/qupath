@@ -284,7 +284,9 @@ public class IconFactory {
 									POLYLINE_TOOL(IconSuppliers.polylineToolIcon()),
 									
 									RECTANGLE_TOOL(IconSuppliers.rectangleToolIcon()),
-									
+
+									SCRIPT_EDITOR(IconSuppliers.fontAwesome(FontAwesome.Glyph.CODE)),
+
 									SHOW_NAMES(IconSuppliers.showNamesIcon()),
 									SHOW_SCALEBAR(IconSuppliers.icoMoon('\ue917')),
 									SCREENSHOT(IconSuppliers.icoMoon('\ue918')),

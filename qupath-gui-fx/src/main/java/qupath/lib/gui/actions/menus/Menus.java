@@ -29,37 +29,33 @@ import org.controlsfx.control.action.Action;
 
 import qupath.lib.gui.QuPathGUI;
 
-
+/**
+ * Generate actions for installation in QuPath's main menubar.
+ */
 public class Menus {
-	
-	private QuPathGUI qupath;
-	
-	private List<Action> actions;
-	
-	public Menus(QuPathGUI qupath) {
-		this.qupath = qupath;
-	}	
-	
-	
-	public synchronized Collection<Action> getActions() {
-		if (actions == null) {
-			actions = new ArrayList<>();
-			for (var builder : Arrays.asList(
-					new FileMenuActions(qupath),
-					new EditMenuActions(qupath),
-					new ObjectsMenuActions(qupath),
-					new ViewMenuActions(qupath),
-					new MeasureMenuActions(qupath),
-					new AutomateMenuActions(qupath),
-					new AnalyzeMenuActions(qupath),
-					new TMAMenuActions(qupath),
-					new ClassifyMenuActions(qupath),
-					new ExtensionsMenuActions(qupath),
-					new HelpMenuActions(qupath)
-					)) {
-				actions.addAll(builder.getActions());
-			}
-			
+
+	/**
+	 * Create a collection of all the actions that should be installed in QuPath's main menubar.
+	 * The actions are configured for installation through {@link QuPathGUI#installActions(Collection)}.
+	 * @param qupath
+	 * @return
+	 */
+	public static Collection<Action> createAllMenuActions(QuPathGUI qupath) {
+		List<Action> actions = new ArrayList<>();
+		for (var builder : Arrays.asList(
+				new FileMenuActions(qupath),
+				new EditMenuActions(qupath),
+				new ObjectsMenuActions(qupath),
+				new ViewMenuActions(qupath),
+				new MeasureMenuActions(qupath),
+				new AutomateMenuActions(qupath),
+				new AnalyzeMenuActions(qupath),
+				new TMAMenuActions(qupath),
+				new ClassifyMenuActions(qupath),
+				new ExtensionsMenuActions(qupath),
+				new HelpMenuActions(qupath)
+		)) {
+			actions.addAll(builder.getActions());
 		}
 		return actions;
 	}
