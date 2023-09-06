@@ -51,6 +51,11 @@
   -fx-opacity: 0.8;
 }
 
+/* Adapt menu icon colors */
+.menu-item > * > .qupath-icon {
+  -fx-text-fill: -fx-text-base-color;
+}
+
 /* Used in command finder for help text */
 .popover * {
     -fx-background-color: -fx-base;

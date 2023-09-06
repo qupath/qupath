@@ -57,6 +57,7 @@ import javafx.scene.shape.MoveTo;
 import javafx.scene.shape.Path;
 import javafx.scene.text.TextAlignment;
 import qupath.lib.gui.actions.ActionTools;
+import qupath.lib.gui.actions.AutomateActions;
 import qupath.lib.gui.actions.CommonActions;
 import qupath.lib.gui.actions.OverlayActions;
 import qupath.lib.gui.actions.ViewerActions;
@@ -91,7 +92,11 @@ class ToolBarComponent {
 
 	private ToolBar toolbar = new ToolBar();
 
-	ToolBarComponent(ToolManager toolManager, ViewerActions viewerManagerActions, CommonActions commonActions, OverlayActions overlayActions) {
+	ToolBarComponent(ToolManager toolManager,
+					 ViewerActions viewerManagerActions,
+					 CommonActions commonActions,
+					 AutomateActions automateActions,
+					 OverlayActions overlayActions) {
 		this.toolManager = toolManager;
 		this.viewerProperty = viewerManagerActions.getViewerManager().activeViewerProperty();
 
@@ -126,6 +131,11 @@ class ToolBarComponent {
 
 		nodes.add(magLabel);
 		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(viewerManagerActions.ZOOM_TO_FIT));
+
+		nodes.add(new Separator(Orientation.VERTICAL));
+
+		nodes.add(ActionTools.createButtonWithGraphicOnly(automateActions.SCRIPT_EDITOR));
+		nodes.add(ActionTools.createButtonWithGraphicOnly(commonActions.SHOW_LOG));
 
 		nodes.add(new Separator(Orientation.VERTICAL));
 

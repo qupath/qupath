@@ -104,6 +104,7 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.common.Timeit;
 import qupath.lib.common.Version;
 import qupath.lib.gui.actions.ActionTools;
+import qupath.lib.gui.actions.AutomateActions;
 import qupath.lib.gui.actions.CommonActions;
 import qupath.lib.gui.actions.OverlayActions;
 import qupath.lib.gui.actions.ViewerActions;
@@ -123,6 +124,7 @@ import qupath.lib.gui.panes.ServerSelector;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.prefs.PathPrefs.ImageTypeSetting;
 import qupath.lib.gui.prefs.QuPathStyleManager;
+import qupath.lib.gui.prefs.SystemMenubar;
 import qupath.lib.gui.scripting.ScriptEditor;
 import qupath.lib.gui.scripting.languages.GroovyLanguage;
 import qupath.lib.gui.scripting.languages.ScriptLanguageProvider;
@@ -231,6 +233,8 @@ public class QuPathGUI {
 	private Set<Action> actions = new LinkedHashSet<>();
 
 	private CommonActions commonActions;
+
+	private AutomateActions automateActions;
 		
 	/**
 	 * Flag to record when menus are being modified.
@@ -323,8 +327,8 @@ public class QuPathGUI {
 		
 		// Populating the scripting menu is slower, so delay it until now
 		populateScriptingMenu(getMenu(QuPathResources.getString("Menu.Automate"), false));
-		menuBar.useSystemMenuBarProperty().bindBidirectional(PathPrefs.useSystemMenubarProperty());
-		
+		SystemMenubar.manageMainMenubar(menuBar);
+
 		logger.debug("{}", timeit.stop());
 	}
 	
@@ -611,7 +615,7 @@ public class QuPathGUI {
 	}
 	
 	private void populateMenubar() {
-		installActions(new Menus(this).getActions());
+		installActions(Menus.createAllMenuActions(this));
 		// Insert a recent projects menu
 		getMenu(QuPathResources.getString("Menu.File"), true).getItems().add(1, createRecentProjectsMenu());
 	}
@@ -2747,7 +2751,7 @@ public class QuPathGUI {
 	
 	
 	/**
-	 * Get the default actions associated with this QuPath instance.
+	 * Get the common actions associated with this QuPath instance.
 	 * @return
 	 */
 	public synchronized CommonActions getCommonActions() {
@@ -2756,6 +2760,18 @@ public class QuPathGUI {
 			installActions(ActionTools.getAnnotatedActions(commonActions));
 		}
 		return commonActions;
+	}
+
+	/**
+	 * Get the automated actions associated with this QuPath instance.
+	 * @return
+	 */
+	public synchronized AutomateActions getAutomateActions() {
+		if (automateActions == null) {
+			automateActions = new AutomateActions(this);
+			installActions(ActionTools.getAnnotatedActions(automateActions));
+		}
+		return automateActions;
 	}
 	
 	
@@ -2789,7 +2805,12 @@ public class QuPathGUI {
 	
 	
 	private OverlayActions overlayActions;
-	
+
+	/**
+	 * Get the actions associated with the viewer overlay options.
+	 * This includes showing/hiding/filling objects, or adjusting opacity.
+	 * @return
+	 */
 	public OverlayActions getOverlayActions() {
 		if (overlayActions == null)
 			overlayActions = new OverlayActions(getOverlayOptions());
@@ -2797,7 +2818,11 @@ public class QuPathGUI {
 	}
 	
 	private ViewerActions viewerActions;
-	
+
+	/**
+	 * Get the associations associated with QuPath image viewers.
+	 * @return
+	 */
 	public ViewerActions getViewerActions() {
 		if (viewerActions == null)
 			viewerActions = new ViewerActions(getViewerManager());

@@ -71,7 +71,8 @@ public class CommonActions {
 	
 	@ActionConfig("CommonActions.showPointConvexHull")
 	public final Action CONVEX_POINTS;
-	
+
+	@ActionIcon(PathIcons.LOG_VIEWER)
 	@ActionAccelerator("shortcut+shift+l")
 	@ActionConfig("CommonActions.showLog")
 	public final Action SHOW_LOG;

@@ -3,7 +3,10 @@
 This is a work-in-progress for the next QuPath release.
 
 ### Enhancements
+* New toolbar buttons for script editor `</>` and log viewer
 * *File &rarr; Export snapshots* supports PNG, JPEG and TIFF (not just PNG)
+* New preference to control whether the 'system menubar' is used globally, or just for the main window
+   * Makes a difference on macOS, doesn't on Windows... on Linux it depends
 
 ### Bugs fixed
 * Rendered image export does not support opacity (https://github.com/qupath/qupath/issues/1292)

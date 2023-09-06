@@ -264,7 +264,9 @@ public class IconFactory {
 
 									INFO(IconSuppliers.fontAwesome(FontAwesome.Glyph.INFO)),
 									INACTIVE_SERVER(IconSuppliers.icoMoon('\ue915', ColorToolsFX.getCachedColor(200, 0, 0))),
-									
+
+									LOG_VIEWER(IconSuppliers.fontAwesome(FontAwesome.Glyph.LIST_ALT)), // Shows list in window
+//									LOG_VIEWER(IconSuppliers.fontAwesome(FontAwesome.Glyph.LIST_UL)), // Alternative
 									LINE_TOOL(IconSuppliers.lineToolIcon()),
 									LOCATION(IconSuppliers.icoMoon('\ue90d')),
 									
@@ -284,7 +286,9 @@ public class IconFactory {
 									POLYLINE_TOOL(IconSuppliers.polylineToolIcon()),
 									
 									RECTANGLE_TOOL(IconSuppliers.rectangleToolIcon()),
-									
+
+									SCRIPT_EDITOR(IconSuppliers.fontAwesome(FontAwesome.Glyph.CODE)),
+
 									SHOW_NAMES(IconSuppliers.showNamesIcon()),
 									SHOW_SCALEBAR(IconSuppliers.icoMoon('\ue917')),
 									SCREENSHOT(IconSuppliers.icoMoon('\ue918')),
@@ -527,6 +531,7 @@ public class IconFactory {
 
 	private static Node drawPixelClassificationIcon(int size) {
 		var label = new Label("C");
+		label.getStyleClass().add("qupath-icon");
 		return label;
 	}
 
