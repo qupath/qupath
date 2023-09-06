@@ -1110,7 +1110,14 @@ public class ViewerManager implements QuPathViewerListener {
 		
 		// Create a standard annotations menu
 		Menu menuAnnotations = GuiTools.populateAnnotationsMenu(qupath, MenuTools.createMenu("General.objects.annotations"));
-		
+
+		// Enable viewers to be 'detached' into their own windows
+		var miDetachViewer = new MenuItem("Detach viewer");
+		miDetachViewer.setOnAction(e -> {
+			if (splitPaneGrid != null)
+				splitPaneGrid.detachViewer(viewer);
+		});
+
 		SeparatorMenuItem topSeparator = new SeparatorMenuItem();
 		popup.setOnShowing(e -> {
 			// Check if we have any cells
@@ -1156,6 +1163,11 @@ public class ViewerManager implements QuPathViewerListener {
 			topSeparator.setVisible(hasAnnotations || pathObject instanceof TMACoreObject);
 			// Occasionally, the newly-visible top part of a popup menu can have the wrong size?
 			popup.setWidth(popup.getPrefWidth());
+
+			if (viewer == null || splitPaneGrid == null || splitPaneGrid.isDetached(viewer))
+				miDetachViewer.setVisible(false);
+			else
+				miDetachViewer.setVisible(true);
 		});
 
 		popup.getItems().addAll(
@@ -1167,19 +1179,11 @@ public class ViewerManager implements QuPathViewerListener {
 				menuMultiview,
 				menuCells,
 				menuView,
-				menuTools
+				menuTools,
+				miDetachViewer
 				);
 
-		if (splitPaneGrid == null || !splitPaneGrid.isDetached(viewer)) {
-			// splitPaneGrid may be null if we're still initializing
-			var miDetachViewer = new MenuItem("Detach viewer");
-			miDetachViewer.setOnAction(e -> {
-				if (splitPaneGrid != null)
-					splitPaneGrid.detachViewer(viewer);
-			});
-			popup.getItems().addAll(new SeparatorMenuItem(), miDetachViewer);
-		}
-		
+
 		popup.setAutoHide(true);
 		
 		// Enable circle pop-up for quick classification on right-click
