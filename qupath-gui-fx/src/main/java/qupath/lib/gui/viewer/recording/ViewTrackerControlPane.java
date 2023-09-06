@@ -153,7 +153,7 @@ public class ViewTrackerControlPane implements Runnable {
 		this.qupath = qupath;
 		viewer = qupath.getViewer();
 		trackersList = FXCollections.observableArrayList(getExistingRecordings(qupath, viewer.getImageData()));
-		
+
 		// Create listener that will be triggered for every imageData change
 		imageDataListener = (v, o, n) -> {
 			// Stop recording (if recording)
@@ -559,10 +559,11 @@ public class ViewTrackerControlPane implements Runnable {
 			});
 			
 			dialog.show();
+
+			// Remove the arrow in the TitledPane
+			titledPane.lookup(".arrow").setVisible(false);
 		}
 		
-		// Remove the arrow in the TitledPane
-		titledPane.lookup(".arrow").setVisible(false);
 	}
 	
 	/**
