@@ -36,6 +36,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
 
+import javafx.beans.binding.Bindings;
+import javafx.beans.binding.StringBinding;
+import javafx.scene.Scene;
+import javafx.scene.layout.BorderPane;
+import javafx.stage.Stage;
 import org.controlsfx.control.action.Action;
 import org.controlsfx.control.action.ActionUtils;
 import org.slf4j.Logger;
@@ -369,7 +374,8 @@ public class ViewerManager implements QuPathViewerListener {
 		// Easiest way is to check for a scene
 		Iterator<? extends QuPathViewer> iter = viewers.iterator();
 		while (iter.hasNext()) {
-			if (iter.next().getView().getScene() == null)
+			var view = iter.next().getView();
+			if (view.getScene() == null)
 				iter.remove();
 		}
 	}
@@ -924,7 +930,71 @@ public class ViewerManager implements QuPathViewerListener {
 			return splitPaneRows.get(0).getDividers().size() + 1;
 		}
 
+
+		public boolean isDetached(QuPathViewer viewer) {
+			return getRow(viewer.getView()) < 0;
+		}
+
+		public boolean detachViewer(QuPathViewer viewer) {
+			int row = getRow(viewer.getView());
+			int col = getColumn(viewer.getView());
+			if (row >= 0 && col >= 0) {
+				SplitPane splitRow = splitPaneRows.get(row);
+				splitRow.getItems().set(col, createViewer().getView());
+				var stage = new Stage();
+				var pane = new BorderPane(viewer.getView());
+				var scene = new Scene(pane);
+				stage.setScene(scene);
+				stage.initOwner(qupath.getStage());
+				stage.titleProperty().bind(createDetachedViewerTitleBinding(viewer));
+				// It's messy... but we need to propagate key presses to the main window somehow,
+				// otherwise the viewer is non-responsive to key presses
+				stage.addEventHandler(KeyEvent.ANY, this::propagateKeyEventToMainWindow);
+				stage.setOnCloseRequest(e -> {
+					if (viewers.size() == 1 && viewers.contains(viewer)) {
+						// This shouldn't occur if we always replace detached viewers
+						logger.error("The last viewer can't be closed!");
+						return;
+					}
+					if (qupath.closeViewer(viewer)) {
+						// Ensure we have an active viewer
+						// (If there isn't one, something has gone badly wrong)
+						var allOtherViewers = new ArrayList<>(getAllViewers());
+						allOtherViewers.remove(viewer);
+						if (!allOtherViewers.isEmpty())
+							setActiveViewer(allOtherViewers.get(0));
+						stage.close();
+						pane.getChildren().clear();
+						refreshViewerList();
+					}
+				});
+				stage.show();
+				return true;
+			} else {
+				logger.warn("Viewer is already detached!");
+				return false;
+			}
+		}
+
+		private StringBinding createDetachedViewerTitleBinding(QuPathViewer viewer) {
+			return Bindings.createStringBinding(() -> {
+				return qupath.getDisplayedImageName(viewer.getImageData());
+			}, viewer.imageDataProperty());
+		}
+
+		private void propagateKeyEventToMainWindow(KeyEvent e) {
+			if (!e.isConsumed()) {
+				if (e.getEventType() == KeyEvent.KEY_RELEASED) {
+					var handler = qupath.getStage().getScene().getOnKeyReleased();
+					if (handler != null)
+						handler.handle(e);
+				}
+			}
+		}
+
+
 	}
+
 
 	
 	
@@ -1087,7 +1157,7 @@ public class ViewerManager implements QuPathViewerListener {
 			// Occasionally, the newly-visible top part of a popup menu can have the wrong size?
 			popup.setWidth(popup.getPrefWidth());
 		});
-		
+
 		popup.getItems().addAll(
 				miClearSelectedObjects,
 				menuTMA,
@@ -1099,6 +1169,16 @@ public class ViewerManager implements QuPathViewerListener {
 				menuView,
 				menuTools
 				);
+
+		if (splitPaneGrid == null || !splitPaneGrid.isDetached(viewer)) {
+			// splitPaneGrid may be null if we're still initializing
+			var miDetachViewer = new MenuItem("Detach viewer");
+			miDetachViewer.setOnAction(e -> {
+				if (splitPaneGrid != null)
+					splitPaneGrid.detachViewer(viewer);
+			});
+			popup.getItems().addAll(new SeparatorMenuItem(), miDetachViewer);
+		}
 		
 		popup.setAutoHide(true);
 		

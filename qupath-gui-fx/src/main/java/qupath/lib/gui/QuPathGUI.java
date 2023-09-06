@@ -55,6 +55,7 @@ import javax.imageio.ImageIO;
 import javax.script.ScriptException;
 import javax.swing.SwingUtilities;
 
+import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.stage.Window;
 import org.controlsfx.control.action.Action;
@@ -820,10 +821,21 @@ public class QuPathGUI {
 		public void handle(KeyEvent e) {
 			if (e.getEventType() != KeyEvent.KEY_RELEASED)
 				return;
-			
+
+			// For detachable viewers, we can have events passed from the other viewer
+			// but which should be handled here
+			var target = e.getTarget();
+			boolean propagatedFromAnotherScene = false;
+			if (target instanceof Node node) {
+				if (node.getScene() != stage.getScene())
+					propagatedFromAnotherScene = true;
+			}
+
 			// It seems if using the system menubar on Mac, we can sometimes need to mop up missed keypresses
-			if (e.isConsumed() || e.isShortcutDown() || !(GeneralTools.isMac() && getMenuBar().isUseSystemMenuBar()) || e.getTarget() instanceof TextInputControl) {
-				return;
+			if (!propagatedFromAnotherScene) {
+				if (e.isConsumed() || e.isShortcutDown() || !(GeneralTools.isMac() && getMenuBar().isUseSystemMenuBar()) || e.getTarget() instanceof TextInputControl) {
+					return;
+				}
 			}
 
 			for (var entry : comboMap.entrySet()) {
@@ -1436,7 +1448,14 @@ public class QuPathGUI {
 			return true;
 		ProjectImageEntry<BufferedImage> entry = getProjectImageEntry(imageData);
 		String name = entry == null ? ServerTools.getDisplayableImageName(imageData.getServer()) : entry.getImageName();
-		var response = Dialogs.showYesNoCancelDialog("Save changes", "Save changes to " + name + "?");
+		var owner = FXUtils.getWindow(getViewer().getView());
+		var response = Dialogs.builder()
+				.title("Save changes")
+				.owner(owner)
+				.contentText("Save changes to " + name + "?")
+				.buttons(ButtonType.YES, ButtonType.NO, ButtonType.CANCEL)
+				.showAndWait()
+				.orElse(ButtonType.CANCEL);
 		if (response == ButtonType.CANCEL)
 			return false;
 		if (response == ButtonType.NO)
@@ -2347,8 +2366,14 @@ public class QuPathGUI {
 			return name;
 		return name + " - " + getDisplayedImageName(imageData);
 	}
-	
-	private String getDisplayedImageName(ImageData<BufferedImage> imageData) {
+
+	/**
+	 * Get the image name to display for a specified image.
+	 * This can be used to determine a name to display in the title bar, for example.
+	 * @param imageData
+	 * @return
+	 */
+	public String getDisplayedImageName(ImageData<BufferedImage> imageData) {
 		if (imageData == null)
 			return null;
 		var project = getProject();
