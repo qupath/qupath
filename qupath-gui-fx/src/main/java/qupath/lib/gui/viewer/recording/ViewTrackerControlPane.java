@@ -518,7 +518,7 @@ public class ViewTrackerControlPane implements Runnable {
 			dialog.initOwner(qupath.getStage());
 			dialog.setTitle("Tracking");
 			
-			StackPane pane = new StackPane(mainPane);
+			BorderPane pane = new BorderPane(mainPane);
 			dialog.setScene(new Scene(pane));
 
 			// Necessary for window resizing when expanding the TitledPane
