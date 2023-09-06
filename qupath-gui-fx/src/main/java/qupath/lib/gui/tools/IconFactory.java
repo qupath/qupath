@@ -531,6 +531,7 @@ public class IconFactory {
 
 	private static Node drawPixelClassificationIcon(int size) {
 		var label = new Label("C");
+		label.getStyleClass().add("qupath-icon");
 		return label;
 	}
 
