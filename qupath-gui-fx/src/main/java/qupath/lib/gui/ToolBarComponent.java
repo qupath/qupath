@@ -135,6 +135,7 @@ class ToolBarComponent {
 		nodes.add(new Separator(Orientation.VERTICAL));
 
 		nodes.add(ActionTools.createButtonWithGraphicOnly(automateActions.SCRIPT_EDITOR));
+		nodes.add(ActionTools.createButtonWithGraphicOnly(commonActions.SHOW_LOG));
 
 		nodes.add(new Separator(Orientation.VERTICAL));
 

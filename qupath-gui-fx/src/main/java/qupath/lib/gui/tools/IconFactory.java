@@ -264,7 +264,9 @@ public class IconFactory {
 
 									INFO(IconSuppliers.fontAwesome(FontAwesome.Glyph.INFO)),
 									INACTIVE_SERVER(IconSuppliers.icoMoon('\ue915', ColorToolsFX.getCachedColor(200, 0, 0))),
-									
+
+									LOG_VIEWER(IconSuppliers.fontAwesome(FontAwesome.Glyph.LIST_ALT)), // Shows list in window
+//									LOG_VIEWER(IconSuppliers.fontAwesome(FontAwesome.Glyph.LIST_UL)), // Alternative
 									LINE_TOOL(IconSuppliers.lineToolIcon()),
 									LOCATION(IconSuppliers.icoMoon('\ue90d')),
 									
