@@ -2678,8 +2678,11 @@ public class OpenCVTools {
 			opencv_core.extractChannel(mask, maskChannel, channel);
 		}
 
-		if (inputChannel.total() != maskChannel.total()) {
-			throw new IllegalArgumentException("The input and the mask must have the same dimensions");
+		if (inputChannel.rows() != maskChannel.rows()) {
+			throw new IllegalArgumentException("The input and the mask don't have the same number of rows");
+		}
+		if (inputChannel.cols() != maskChannel.cols()) {
+			throw new IllegalArgumentException("The input and the mask don't have the same number of columns");
 		}
 
 		int height = inputChannel.rows();
