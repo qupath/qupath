@@ -699,6 +699,29 @@ public class TestOpenCVTools {
 			}
 		}
 	}
+
+	@Test
+	public void testPixelExtractionWithMask() {
+		int circleRadius = 1;
+		Mat mat = OpenCVTools.createDisk(circleRadius, false);
+		Mat mask = mat.clone();
+
+		float[] maskedPixels = OpenCVTools.extractMaskedPixels(mat, mask, 0);
+
+		assertTrue(mean(OpenCVTools.extractFloats(mat)) < 1 && mean(maskedPixels) == 1);
+	}
+
+	private float mean(float[] array) {
+		if (array.length == 0) {
+			return 0;
+		} else {
+			float sum = 0;
+			for (float element: array) {
+				sum += element;
+			}
+			return sum / array.length;
+		}
+	}
 	
 
 }
