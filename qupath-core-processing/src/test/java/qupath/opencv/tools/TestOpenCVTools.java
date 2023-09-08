@@ -702,13 +702,16 @@ public class TestOpenCVTools {
 
 	@Test
 	public void testPixelExtractionWithMask() {
-		int circleRadius = 1;
-		Mat mat = OpenCVTools.createDisk(circleRadius, false);
-		Mat mask = mat.clone();
+		try (PointerScope scope = new PointerScope()) {
+			int circleRadius = 200;
+			Mat mat = OpenCVTools.createDisk(circleRadius, false);
+			Mat mask = mat.clone();
 
-		float[] maskedPixels = OpenCVTools.extractMaskedPixels(mat, mask, 0);
+			float[] maskedPixels = OpenCVTools.extractMaskedPixels(mat, mask, 0);
 
-		assertTrue(mean(OpenCVTools.extractFloats(mat)) < 1 && mean(maskedPixels) == 1);
+			assertTrue(mean(OpenCVTools.extractFloats(mat)) < 1);
+			assertEquals(1, mean(maskedPixels));
+		}
 	}
 
 	private float mean(float[] array) {

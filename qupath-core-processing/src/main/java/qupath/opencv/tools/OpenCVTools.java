@@ -2668,52 +2668,51 @@ public class OpenCVTools {
 	 * @throws IllegalArgumentException when the input and the mask don't have the same dimensions
 	 */
 	public static float[] extractMaskedPixels(Mat input, Mat mask, int channel) {
-		Mat inputChannel = new Mat();
-		opencv_core.extractChannel(input, inputChannel, channel);
+		try (PointerScope scope = new PointerScope()) {
+			Mat inputChannel = new Mat();
+			if (inputChannel.channels() == 1) {
+				inputChannel = input;
+			} else {
+				opencv_core.extractChannel(input, inputChannel, channel);
+			}
 
-		Mat maskChannel = new Mat();
-		if (mask.channels() == 1) {
-			maskChannel = mask;
-		} else {
-			opencv_core.extractChannel(mask, maskChannel, channel);
-		}
+			Mat maskChannel = new Mat();
+			if (mask.channels() == 1) {
+				maskChannel = mask;
+			} else {
+				opencv_core.extractChannel(mask, maskChannel, channel);
+			}
 
-		if (inputChannel.rows() != maskChannel.rows()) {
-			throw new IllegalArgumentException("The input and the mask don't have the same number of rows");
-		}
-		if (inputChannel.cols() != maskChannel.cols()) {
-			throw new IllegalArgumentException("The input and the mask don't have the same number of columns");
-		}
+			if (inputChannel.rows() != maskChannel.rows()) {
+				throw new IllegalArgumentException("The input and the mask don't have the same number of rows");
+			}
+			if (inputChannel.cols() != maskChannel.cols()) {
+				throw new IllegalArgumentException("The input and the mask don't have the same number of columns");
+			}
 
-		int height = inputChannel.rows();
-		int width = inputChannel.cols();
-		List<Float> outputList = new ArrayList<>();
+			int height = inputChannel.rows();
+			int width = inputChannel.cols();
+			float[] output = new float[height*width];
 
-		try (var idx = inputChannel.createIndexer()) {
-			try (var idxMask = maskChannel.createIndexer()) {
-				for (int y = 0; y < height; y++) {
-					for (int x = 0; x < width; x++) {
-						if (idxMask.getDouble(y, x) != 0) {
-							outputList.add((float) idx.getDouble(y, x));
+			long[] indices = new long[2];		// this array is used to avoid calling Indexer.getDouble() with varargs arguments (which is slower)
+			int outputIndex = 0;
+			try (var idx = inputChannel.createIndexer()) {
+				try (var idxMask = maskChannel.createIndexer()) {
+					for (int y = 0; y < height; y++) {
+						indices[0] = y;
+						for (int x = 0; x < width; x++) {
+							indices[1] = x;
+							if (idxMask.getDouble(indices) != 0) {
+								output[outputIndex] = (float) idx.getDouble(indices);
+								outputIndex++;
+							}
 						}
 					}
 				}
 			}
-		}
 
-		if (inputChannel != input) {
-			inputChannel.close();
+			return Arrays.copyOf(output, outputIndex);
 		}
-		if (maskChannel != mask) {
-			maskChannel.close();
-		}
-
-		float[] output = new float[outputList.size()];
-		for (int i=0; i<output.length; ++i) {
-			output[i] = outputList.get(i);
-		}
-
-		return output;
 	}
 	
 	
