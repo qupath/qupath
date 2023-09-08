@@ -2667,19 +2667,21 @@ public class OpenCVTools {
 	 * @return a float array containing the values of the input filtered by the mask
 	 * @throws IllegalArgumentException when the input and the mask don't have the same dimensions
 	 */
-	public static float[] extractMaskedPixels(Mat input, Mat mask, int channel) {
+	public static float[] extractMaskedFloats(Mat input, Mat mask, int channel) {
 		try (PointerScope scope = new PointerScope()) {
-			Mat inputChannel = new Mat();
-			if (inputChannel.channels() == 1) {
+			Mat inputChannel;
+			if (input.channels() == 1) {
 				inputChannel = input;
 			} else {
+				inputChannel = new Mat();
 				opencv_core.extractChannel(input, inputChannel, channel);
 			}
 
-			Mat maskChannel = new Mat();
+			Mat maskChannel;
 			if (mask.channels() == 1) {
 				maskChannel = mask;
 			} else {
+				maskChannel = new Mat();
 				opencv_core.extractChannel(mask, maskChannel, channel);
 			}
 
@@ -2711,7 +2713,80 @@ public class OpenCVTools {
 				}
 			}
 
-			return Arrays.copyOf(output, outputIndex);
+			if (outputIndex < output.length) {
+				return Arrays.copyOf(output, outputIndex);
+			} else {
+				return output;
+			}
+		}
+	}
+
+	/**
+	 * <p>Extract pixels from an image using a mask, limited to the specified channel index.</p>
+	 * <p>The mask can have one or multiple channels:</p>
+	 * <ul>
+	 *     <li>If the mask has only one channel, this channel is used.</li>
+	 *     <li>If the mask is multichannel, only the specified channel is used.</li>
+	 * </ul>
+	 * <p>The input and the mask must have the same dimensions.</p>
+	 *
+	 * @param input  the image from where the pixels should be extracted
+	 * @param mask  the mask to apply to the input
+	 * @param channel  the channel index (zero-based) to consider
+	 * @return a double array containing the values of the input filtered by the mask
+	 * @throws IllegalArgumentException when the input and the mask don't have the same dimensions
+	 */
+	public static double[] extractMaskedDoubles(Mat input, Mat mask, int channel) {
+		try (PointerScope scope = new PointerScope()) {
+			Mat inputChannel;
+			if (input.channels() == 1) {
+				inputChannel = input;
+			} else {
+				inputChannel = new Mat();
+				opencv_core.extractChannel(input, inputChannel, channel);
+			}
+
+			Mat maskChannel;
+			if (mask.channels() == 1) {
+				maskChannel = mask;
+			} else {
+				maskChannel = new Mat();
+				opencv_core.extractChannel(mask, maskChannel, channel);
+			}
+
+			if (inputChannel.rows() != maskChannel.rows()) {
+				throw new IllegalArgumentException("The input and the mask don't have the same number of rows");
+			}
+			if (inputChannel.cols() != maskChannel.cols()) {
+				throw new IllegalArgumentException("The input and the mask don't have the same number of columns");
+			}
+
+			int height = inputChannel.rows();
+			int width = inputChannel.cols();
+			double[] output = new double[height*width];
+
+			long[] indices = new long[2];		// this array is used to avoid calling Indexer.getDouble() with varargs arguments (which is slower)
+			int outputIndex = 0;
+			try (var idx = inputChannel.createIndexer()) {
+				try (var idxMask = maskChannel.createIndexer()) {
+					for (int y = 0; y < height; y++) {
+						indices[0] = y;
+						for (int x = 0; x < width; x++) {
+							indices[1] = x;
+							if (idxMask.getDouble(indices) != 0) {
+								output[outputIndex] = idx.getDouble(indices);
+								outputIndex++;
+							}
+						}
+					}
+				}
+			}
+
+			if (outputIndex < output.length) {
+				return Arrays.copyOf(output, outputIndex);
+			} else {
+				return output;
+			}
 		}
 	}
 	

@@ -707,7 +707,7 @@ public class TestOpenCVTools {
 			Mat mat = OpenCVTools.createDisk(circleRadius, false);
 			Mat mask = mat.clone();
 
-			float[] maskedPixels = OpenCVTools.extractMaskedPixels(mat, mask, 0);
+			float[] maskedPixels = OpenCVTools.extractMaskedFloats(mat, mask, 0);
 
 			assertTrue(mean(OpenCVTools.extractFloats(mat)) < 1);
 			assertEquals(1, mean(maskedPixels));
