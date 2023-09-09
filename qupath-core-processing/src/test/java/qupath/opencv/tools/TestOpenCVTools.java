@@ -27,6 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -697,6 +698,98 @@ public class TestOpenCVTools {
 					assertEquals(n, merged.channels());
 				}
 			}
+		}
+	}
+
+	@Test
+	public void testFloatPixelExtractionWithMaskOnSingleChannelImage() {
+		try (PointerScope scope = new PointerScope()) {
+			int circleRadius = 200;
+			Mat mat = OpenCVTools.createDisk(circleRadius, false);
+			Mat mask = mat.clone();
+
+			float[] maskedPixels = OpenCVTools.extractMaskedFloats(mat, mask, 0);
+
+			assertTrue(mean(OpenCVTools.extractFloats(mat)) < 1);
+			assertEquals(1, mean(maskedPixels));
+		}
+	}
+
+	@Test
+	public void testFloatPixelExtractionWithMaskOnMultiChannelImage() {
+		try (PointerScope scope = new PointerScope()) {
+			var image = new BufferedImage(3, 3, BufferedImage.TYPE_INT_ARGB);
+			var graphics = image.createGraphics();
+			graphics.setColor(Color.GREEN);
+			graphics.fillOval(0, 0, image.getWidth(), image.getHeight());
+			graphics.dispose();
+			Mat mat = OpenCVTools.imageToMat(image);
+			Mat mask = mat.clone();
+
+			float[] maskedRedPixels = OpenCVTools.extractMaskedFloats(mat, mask, 0);
+			float[] maskedGreenPixels = OpenCVTools.extractMaskedFloats(mat, mask, 1);
+
+			assertTrue(mean(OpenCVTools.extractFloats(mat)) < 255);
+			assertEquals(0, mean(maskedRedPixels));
+			assertEquals(255, mean(maskedGreenPixels));
+		}
+	}
+
+	private float mean(float[] array) {
+		if (array.length == 0) {
+			return 0;
+		} else {
+			float sum = 0;
+			for (float element: array) {
+				sum += element;
+			}
+			return sum / array.length;
+		}
+	}
+
+	@Test
+	public void testDoublePixelExtractionWithMaskOnSingleChannelImage() {
+		try (PointerScope scope = new PointerScope()) {
+			int circleRadius = 200;
+			Mat mat = OpenCVTools.createDisk(circleRadius, false);
+			Mat mask = mat.clone();
+
+			double[] maskedPixels = OpenCVTools.extractMaskedDoubles(mat, mask, 0);
+
+			assertTrue(mean(OpenCVTools.extractDoubles(mat)) < 1);
+			assertEquals(1, mean(maskedPixels));
+		}
+	}
+
+	@Test
+	public void testDoublePixelExtractionWithMaskOnMultiChannelImage() {
+		try (PointerScope scope = new PointerScope()) {
+			var image = new BufferedImage(3, 3, BufferedImage.TYPE_INT_ARGB);
+			var graphics = image.createGraphics();
+			graphics.setColor(Color.GREEN);
+			graphics.fillOval(0, 0, image.getWidth(), image.getHeight());
+			graphics.dispose();
+			Mat mat = OpenCVTools.imageToMat(image);
+			Mat mask = mat.clone();
+
+			double[] maskedRedPixels = OpenCVTools.extractMaskedDoubles(mat, mask, 0);
+			double[] maskedGreenPixels = OpenCVTools.extractMaskedDoubles(mat, mask, 1);
+
+			assertTrue(mean(OpenCVTools.extractDoubles(mat)) < 255);
+			assertEquals(0, mean(maskedRedPixels));
+			assertEquals(255, mean(maskedGreenPixels));
+		}
+	}
+
+	private double mean(double[] array) {
+		if (array.length == 0) {
+			return 0;
+		} else {
+			double sum = 0;
+			for (double element: array) {
+				sum += element;
+			}
+			return sum / array.length;
 		}
 	}
 	
