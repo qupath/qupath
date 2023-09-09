@@ -1240,7 +1240,7 @@ public class GuiTools {
 	 * @param supportedParents collection of valid parent objects
 	 * @return
 	 */
-	public static <T> boolean promptForParentObjects(final String name, final ImageData<T> imageData, final boolean includeSelected, final Collection<Class<? extends PathObject>> supportedParents) {
+	public static boolean promptForParentObjects(final String name, final ImageData<?> imageData, final boolean includeSelected, final Collection<Class<? extends PathObject>> supportedParents) {
 
 		PathObjectHierarchy hierarchy = imageData == null ? null : imageData.getHierarchy();
 		if (hierarchy == null)

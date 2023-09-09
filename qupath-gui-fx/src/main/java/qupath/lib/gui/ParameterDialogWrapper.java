@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2021 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -70,7 +70,7 @@ class ParameterDialogWrapper<T> {
 	 * @param params parameters to display
 	 * @param pluginRunner the {@link PluginRunner} that may be used to run this plugin if necessary
 	 */
-	public ParameterDialogWrapper(final PathInteractivePlugin<T> plugin, final ParameterList params, final PluginRunner<T> pluginRunner) {
+	public ParameterDialogWrapper(final PathInteractivePlugin<T> plugin, final ParameterList params, final PluginRunner pluginRunner) {
 		dialog = createDialog(plugin, params, pluginRunner);
 	}
 
@@ -111,7 +111,7 @@ class ParameterDialogWrapper<T> {
 		return panel.getParameters();
 	}
 
-	private Stage createDialog(final PathInteractivePlugin<T> plugin, final ParameterList params, final PluginRunner<T> pluginRunner) {
+	private Stage createDialog(final PathInteractivePlugin<T> plugin, final ParameterList params, final PluginRunner pluginRunner) {
 		panel = new ParameterPanelFX(params);
 		panel.getPane().setPadding(new Insets(5, 5, 5, 5));
 
@@ -138,6 +138,9 @@ class ParameterDialogWrapper<T> {
 
 		btnRun.setOnAction(e -> {
 
+			// Return the current ImageData
+			var imageData = qupath.getImageData(); // v0.5.0 change - previously pluginRunner.getImageData();
+
 			// Check if we have the parent objects available to make this worthwhile
 			if (plugin instanceof PathInteractivePlugin) {
 
@@ -145,11 +148,10 @@ class ParameterDialogWrapper<T> {
 //				params.removeParameter(KEY_REGIONS);
 
 				boolean alwaysPrompt = plugin.alwaysPromptForObjects();
-				ImageData<?> imageData = pluginRunner.getImageData();
 				Collection<PathObject> selected = imageData == null ? Collections.emptyList() : imageData.getHierarchy().getSelectionModel().getSelectedObjects();
 				Collection<? extends PathObject> parents = PathObjectTools.getSupportedObjects(selected, plugin.getSupportedParentObjectClasses());
 				if (alwaysPrompt || parents == null || parents.isEmpty()) {
-					if (!ParameterDialogWrapper.promptForParentObjects(pluginRunner, plugin, alwaysPrompt && !parents.isEmpty()))
+					if (!ParameterDialogWrapper.promptForParentObjects(imageData, plugin, alwaysPrompt && !parents.isEmpty()))
 						return;
 				}
 				//					promptForParentObjects
@@ -162,11 +164,9 @@ class ParameterDialogWrapper<T> {
 				@Override
 				public void run() {
 					try {
-						// TODO: Consider the small chance that the image data changes between the time the workflow
-						//       is requested and runPlugin is called
-						var historyWorkflow = pluginRunner.getImageData().getHistoryWorkflow();
+						var historyWorkflow = imageData.getHistoryWorkflow();
 						WorkflowStep lastStep = historyWorkflow.getLastStep();
-						boolean success = plugin.runPlugin(pluginRunner, ParameterList.convertToJson(params));
+						boolean success = plugin.runPlugin(pluginRunner, (ImageData<T>)imageData, ParameterList.convertToJson(params));
 						WorkflowStep lastStepNew = historyWorkflow.getLastStep();
 						if (success && lastStep != lastStepNew)
 							lastWorkflowStep = lastStepNew;
@@ -229,13 +229,13 @@ class ParameterDialogWrapper<T> {
 	 * Get the parent objects to use when running the plugin, or null if no suitable parent objects are found.
 	 * This involves prompting the user if multiple options are possible.
 	 * 
-	 * @param runner
+	 * @param imageData
 	 * @param plugin
 	 * @param includeSelected
 	 * @return
 	 */
-	public static <T> boolean promptForParentObjects(final PluginRunner<T> runner, final PathInteractivePlugin<T> plugin, final boolean includeSelected) {
-		return GuiTools.promptForParentObjects(plugin.getName(), runner.getImageData(), includeSelected, plugin.getSupportedParentObjectClasses());
+	public static boolean promptForParentObjects(final ImageData<?> imageData, final PathInteractivePlugin<?> plugin, final boolean includeSelected) {
+		return GuiTools.promptForParentObjects(plugin.getName(), imageData, includeSelected, plugin.getSupportedParentObjectClasses());
 	}
 
 }

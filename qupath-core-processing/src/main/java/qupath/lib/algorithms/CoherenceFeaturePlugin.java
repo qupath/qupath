@@ -352,8 +352,8 @@ public class CoherenceFeaturePlugin extends AbstractInteractivePlugin<BufferedIm
 	}
 
 	@Override
-	protected Collection<PathObject> getParentObjects(final PluginRunner<BufferedImage> runner) {
-		return runner.getImageData().getHierarchy().getDetectionObjects();
+	protected Collection<PathObject> getParentObjects(final ImageData<BufferedImage> imageData) {
+		return imageData.getHierarchy().getDetectionObjects();
 	}
 
 	@Override

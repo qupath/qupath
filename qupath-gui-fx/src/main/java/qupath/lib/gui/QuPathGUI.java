@@ -2146,8 +2146,9 @@ public class QuPathGUI {
 	 * @throws Exception
 	 */
 	public boolean runPlugin(final PathPlugin<BufferedImage> plugin, final String arg, final boolean doInteractive) throws Exception {
+		var imageData = getImageData();
 		if (doInteractive && plugin instanceof PathInteractivePlugin pluginInteractive) {
-			ParameterList params = pluginInteractive.getDefaultParameterList(getImageData());
+			ParameterList params = pluginInteractive.getDefaultParameterList(imageData);
 			// Update parameter list, if necessary
 			if (arg != null) {
 				Map<String, String> map = GeneralTools.parseArgStringValues(arg);
@@ -2164,7 +2165,7 @@ public class QuPathGUI {
 				pluginRunning.set(true);
 				var runner = new PluginRunnerFX(this);
 				@SuppressWarnings("unused")
-				var completed = plugin.runPlugin(runner, arg);
+				var completed = plugin.runPlugin(runner, imageData, arg);
 				return !runner.isCancelled();
 			} finally {
 				pluginRunning.set(false);

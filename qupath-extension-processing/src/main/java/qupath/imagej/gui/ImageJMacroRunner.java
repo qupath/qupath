@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -116,8 +116,8 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 	}
 
 	@Override
-	public boolean runPlugin(final PluginRunner<BufferedImage> runner, final String arg) {
-		if (!parseArgument(runner.getImageData(), arg))
+	public boolean runPlugin(final PluginRunner runner, final ImageData<BufferedImage> imageData, final String arg) {
+		if (!parseArgument(imageData, arg))
 			return false;
 
 		if (dialog == null) {
@@ -143,7 +143,7 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 			panelMacro.setCenter(textArea);
 
 
-			ParameterPanelFX parameterPanel = new ParameterPanelFX(getParameterList(runner.getImageData()));
+			ParameterPanelFX parameterPanel = new ParameterPanelFX(getParameterList(imageData));
 			panelMacro.setBottom(parameterPanel.getPane());
 
 
@@ -155,20 +155,23 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 					if (macroText.length() == 0)
 						return;
 
-					PathObjectHierarchy hierarchy = getHierarchy(runner);
+					// TODO: Consider that we're requesting a new ImageData here (probably right, but need to check)
+					var viewer = qupath.getViewer();
+					var imageDataLocal = viewer.getImageData();
+					PathObjectHierarchy hierarchy = imageDataLocal.getHierarchy();
 					PathObject pathObject = hierarchy.getSelectionModel().singleSelection() ? hierarchy.getSelectionModel().getSelectedObject() : null;
 					if (pathObject instanceof PathAnnotationObject || pathObject instanceof TMACoreObject) {
 						SwingUtilities.invokeLater(() -> {
-							runMacro(params, 
-									qupath.getViewer().getImageData(),
-									qupath.getViewer().getImageDisplay(), pathObject, macroText);
+							runMacro(params,
+									imageDataLocal,
+									viewer.getImageDisplay(), pathObject, macroText);
 						});
 					} else {
 						//						DisplayHelpers.showErrorMessage(getClass().getSimpleName(), "Sorry, ImageJ macros can only be run for single selected images");
 //						logger.warn("ImageJ macro being run in current thread");
 //						runPlugin(runner, arg); // TODO: Consider running in a background thread?
 						// Run in a background thread
-						Collection<? extends PathObject> parents = getParentObjects(runner);
+						Collection<? extends PathObject> parents = getParentObjects(imageDataLocal);
 						if (parents.isEmpty()) {
 							Dialogs.showErrorMessage("ImageJ macro runner", "No annotation or TMA core objects selected!");
 							return;
@@ -176,9 +179,12 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 						
 						List<Runnable> tasks = new ArrayList<>();
 						for (PathObject parent : parents)
-							addRunnableTasks(qupath.getViewer().getImageData(), parent, tasks);
+							addRunnableTasks(imageDataLocal, parent, tasks);
 						
-						qupath.getThreadPoolManager().submitShortTask(() -> runner.runTasks(tasks, true));
+						qupath.getThreadPoolManager().submitShortTask(() -> {
+							runner.runTasks(tasks);
+							imageDataLocal.getHierarchy().fireHierarchyChangedEvent(ImageJMacroRunner.this);
+						});
 //						runner.runTasks(tasks);
 						
 //						Runnable r = new Runnable() {
@@ -434,13 +440,13 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 	}
 
 	@Override
-	protected Collection<? extends PathObject> getParentObjects(final PluginRunner<BufferedImage> runner) {
+	protected Collection<? extends PathObject> getParentObjects(final ImageData<BufferedImage> imageData) {
 		// Try to get currently-selected objects
-		PathObjectHierarchy hierarchy = getHierarchy(runner);
+		PathObjectHierarchy hierarchy = imageData.getHierarchy();
 		List<PathObject> pathObjects = hierarchy.getSelectionModel().getSelectedObjects().stream()
 				.filter(p -> p.isAnnotation() || p.isTMACore()).toList();
 		if (pathObjects.isEmpty()) {
-			if (GuiTools.promptForParentObjects(this.getName(), runner.getImageData(), false, getSupportedParentObjectClasses()))
+			if (GuiTools.promptForParentObjects(this.getName(), imageData, false, getSupportedParentObjectClasses()))
 				pathObjects = new ArrayList<>(hierarchy.getSelectionModel().getSelectedObjects());
 		}
 		return pathObjects;

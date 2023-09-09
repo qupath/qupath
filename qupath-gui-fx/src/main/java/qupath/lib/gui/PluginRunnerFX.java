@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2021 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -60,7 +60,7 @@ import qupath.lib.regions.ImageRegion;
  * @author Pete Bankhead
  *
  */
-class PluginRunnerFX extends AbstractPluginRunner<BufferedImage> {
+class PluginRunnerFX extends AbstractPluginRunner {
 
 	private static final Logger logger = LoggerFactory.getLogger(PluginRunnerFX.class);
 	
@@ -80,7 +80,6 @@ class PluginRunnerFX extends AbstractPluginRunner<BufferedImage> {
 	public PluginRunnerFX(final QuPathGUI qupath) {
 		super();
 		this.qupath = qupath;
-		//			this.imageData = qupath.getImageData();
 	}
 
 	@Override
@@ -93,27 +92,18 @@ class PluginRunnerFX extends AbstractPluginRunner<BufferedImage> {
 	}
 	
 	@Override
-	public synchronized void runTasks(Collection<Runnable> tasks, boolean updateHierarchy) {
+	public synchronized void runTasks(Collection<Runnable> tasks) {
 		var viewer = qupath == null || repaintDelayMillis <= 0 ? null : qupath.getViewer();
 		if (viewer != null)
 			viewer.setMinimumRepaintSpacingMillis(repaintDelayMillis);
 		try {
-			this.currentImageData = qupath.getImageData();
-			super.runTasks(tasks, updateHierarchy);
+			super.runTasks(tasks);
 		} catch (Exception e) {
 			throw(e);
 		} finally {
-			this.currentImageData = null;
 			if (viewer != null)
 				viewer.resetMinimumRepaintSpacingMillis();
 		}
-	}
-
-	@Override
-	public ImageData<BufferedImage> getImageData() {
-		if (currentImageData != null)
-			return currentImageData;
-		return qupath.getImageData();
 	}
 
 
@@ -124,9 +114,7 @@ class PluginRunnerFX extends AbstractPluginRunner<BufferedImage> {
 			// Failing to do this leads to issues such as intermittent concurrent modification exceptions, or commands needing
 			// to be run twice
 			// This aims to ensure that can't happen
-			FutureTask<Boolean> postProcessTask = new FutureTask<>(() -> {
-					super.postProcess(tasks);
-			}, Boolean.TRUE);
+			FutureTask<Boolean> postProcessTask = new FutureTask<>(() -> super.postProcess(tasks), Boolean.TRUE);
 			Platform.runLater(postProcessTask);
 			try {
 				postProcessTask.get();
@@ -135,10 +123,9 @@ class PluginRunnerFX extends AbstractPluginRunner<BufferedImage> {
 			} catch (ExecutionException e) {
 				logger.error("Exception during post-processing", e);
 			}
-//			Platform.runLater(() -> postProcess(runnable));
 			return;
-		}
-		super.postProcess(tasks);
+		} else
+			super.postProcess(tasks);
 	}
 
 

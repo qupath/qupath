@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -113,8 +113,8 @@ public class FindConvexHullDetectionsPlugin<T> extends AbstractInteractivePlugin
 	}
 
 	@Override
-	protected Collection<? extends PathObject> getParentObjects(PluginRunner<T> runner) {
-		PathObjectHierarchy hierarchy = getHierarchy(runner);
+	protected Collection<? extends PathObject> getParentObjects(ImageData<T> imageData) {
+		PathObjectHierarchy hierarchy = imageData.getHierarchy();
 		PathObject selected = hierarchy.getSelectionModel().getSelectedObject();
 		if (selected instanceof TMACoreObject)
 			return Collections.singleton(selected);
@@ -138,9 +138,9 @@ public class FindConvexHullDetectionsPlugin<T> extends AbstractInteractivePlugin
 	
 	
 	@Override
-	public boolean runPlugin(final PluginRunner<T> pluginRunner, final String arg) {
+	public boolean runPlugin(final PluginRunner pluginRunner, final ImageData<T> imageData, final String arg) {
 		nObjectsRemoved.set(0);
-		return super.runPlugin(pluginRunner, arg);
+		return super.runPlugin(pluginRunner, imageData, arg);
 	}
 	
 

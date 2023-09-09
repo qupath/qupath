@@ -28,6 +28,7 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 
+import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
@@ -63,9 +64,9 @@ public abstract class AbstractDetectionPlugin<T> extends AbstractInteractivePlug
 	 * Get all selected objects that are instances of a supported class.
 	 */
 	@Override
-	protected Collection<? extends PathObject> getParentObjects(final PluginRunner<T> runner) {
+	protected Collection<? extends PathObject> getParentObjects(final ImageData<T> imageData) {
 		Collection<Class<? extends PathObject>> supported = getSupportedParentObjectClasses();
-		PathObjectHierarchy hierarchy = getHierarchy(runner);
+		PathObjectHierarchy hierarchy = imageData.getHierarchy();
 		Collection<PathObject> selectedObjects = hierarchy
 				.getSelectionModel()
 				.getSelectedObjects();

@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -55,7 +55,6 @@ import qupath.lib.objects.hierarchy.TMAGrid;
 import qupath.lib.plugins.AbstractInteractivePlugin;
 import qupath.lib.plugins.ObjectDetector;
 import qupath.lib.plugins.PathPlugin;
-import qupath.lib.plugins.PluginRunner;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.plugins.workflow.SimplePluginWorkflowStep;
 import qupath.lib.plugins.workflow.WorkflowStep;
@@ -377,8 +376,8 @@ public class TMADearrayerPluginIJ extends AbstractInteractivePlugin<BufferedImag
 
 
 	@Override
-	protected Collection<? extends PathObject> getParentObjects(final PluginRunner<BufferedImage> runner) {
-		return Collections.singletonList(runner.getImageData().getHierarchy().getRootObject());
+	protected Collection<? extends PathObject> getParentObjects(final ImageData<BufferedImage> imageData) {
+		return Collections.singletonList(imageData.getHierarchy().getRootObject());
 	}
 	
 	

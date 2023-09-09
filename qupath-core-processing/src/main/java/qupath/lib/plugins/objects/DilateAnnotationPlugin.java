@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -44,7 +44,6 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.plugins.AbstractInteractivePlugin;
-import qupath.lib.plugins.PluginRunner;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.GeometryTools;
@@ -135,24 +134,24 @@ public class DilateAnnotationPlugin<T> extends AbstractInteractivePlugin<T> {
 	}
 
 	@Override
-	protected Collection<? extends PathObject> getParentObjects(PluginRunner<T> runner) {
-		return getHierarchy(runner).getSelectionModel().getSelectedObjects().stream().filter(p -> p.isAnnotation()).toList();
+	protected Collection<? extends PathObject> getParentObjects(ImageData<T> imageData) {
+		return imageData.getHierarchy().getSelectionModel().getSelectedObjects().stream().filter(p -> p.isAnnotation()).toList();
 	}
 
 	@Override
 	protected void addRunnableTasks(ImageData<T> imageData, PathObject parentObject, List<Runnable> tasks) {}
 	
 	@Override
-	protected Collection<Runnable> getTasks(final PluginRunner<T> runner) {
-		Collection<? extends PathObject> parentObjects = getParentObjects(runner);
+	protected Collection<Runnable> getTasks(final ImageData<T> imageData) {
+		Collection<? extends PathObject> parentObjects = getParentObjects(imageData);
 		if (parentObjects == null || parentObjects.isEmpty())
 			return Collections.emptyList();
 		
 		// Add a single task, to avoid multithreading - which may complicate setting parents
 		List<Runnable> tasks = new ArrayList<>(parentObjects.size());
-		ImageServer<T> server = getServer(runner);
+		ImageServer<T> server = imageData.getServer();
 		Rectangle bounds = new Rectangle(0, 0, server.getWidth(), server.getHeight());
-		PathObjectHierarchy hierarchy = getHierarchy(runner);
+		PathObjectHierarchy hierarchy = imageData.getHierarchy();
 		
 		double radiusPixels;
 		PixelCalibration cal = server.getPixelCalibration();
