@@ -34,10 +34,9 @@ import ij.gui.Roi;
 import javafx.application.Platform;
 import javafx.beans.property.StringProperty;
 import javafx.geometry.Orientation;
-import javafx.scene.control.Button;
-import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
+import javafx.scene.control.MenuButton;
 import javafx.scene.control.Separator;
 import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
@@ -124,7 +123,15 @@ public class IJExtension implements QuPathExtension {
 	// Path to ImageJ - used to determine plugins directory
 	private static StringProperty imageJPath = null;
 
-	private static AwtMenuBarBlocker menuBarBlocker = new AwtMenuBarBlocker();
+	/**
+	 * It is necessary to block MenuBars created with AWT on macOS, otherwise shortcuts
+	 * can be fired twice and menus confused.
+	 * But using the same strategy on Windows causes ImageJ menus not to display.
+	 * So we need to handle both cases (and make it possible to override).
+	 */
+	private static final boolean blockAwtMenuBars = "true".equals(System.getProperty("qupath.block.awt.menubars",
+			GeneralTools.isMac() ? "true" : "false"));
+	private static final AwtMenuBarBlocker menuBarBlocker = new AwtMenuBarBlocker();
 
 	static {
 		// Try to default to the most likely ImageJ path on a Mac
@@ -232,7 +239,8 @@ public class IJExtension implements QuPathExtension {
 			// Attempt to block the AWT menu bar when ImageJ is not in focus.
 			// Also try to work around a macOS issue where ImageJ's menubar and QuPath's don't work nicely together,
 			// by ensuring that any system menubar request by QuPath is (temporarily) overridden.
-			menuBarBlocker.startBlocking();
+			if (blockAwtMenuBars)
+				menuBarBlocker.startBlocking();
 			if (ij.isShowing())
 				SystemMenuBar.setOverrideSystemMenuBar(true);
 
@@ -249,7 +257,6 @@ public class IJExtension implements QuPathExtension {
 	private static class ImageJWindowListener extends WindowAdapter {
 
 		private final ImageJ ij;
-		private MenuBar previousMenuBar;
 
 		private ImageJWindowListener(ImageJ ij) {
 			this.ij = ij;
@@ -606,17 +613,13 @@ public class IJExtension implements QuPathExtension {
 		
 		try {
 			ImageView imageView = new ImageView(getImageJIcon(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE));
-			Button btnImageJ = new Button();
+			MenuButton btnImageJ = new MenuButton();
 			btnImageJ.setGraphic(imageView);
 			btnImageJ.setTooltip(new Tooltip("ImageJ commands"));
-			ContextMenu popup = new ContextMenu();
-			popup.getItems().addAll(
+			btnImageJ.getItems().addAll(
 					ActionTools.createMenuItem(commands.actionExtractRegion),
 					ActionTools.createMenuItem(commands.actionSnapshot)
-					);
-			btnImageJ.setOnMouseClicked(e -> {
-				popup.show(btnImageJ, e.getScreenX(), e.getScreenY());
-			});
+			);
 			toolbar.getItems().add(btnImageJ);
 		} catch (Exception e) {
 			logger.error("Error adding toolbar buttons", e);
@@ -722,7 +725,6 @@ public class IJExtension implements QuPathExtension {
 		extensionInstalled = true;
 
 		Prefs.setThreads(1); // We always want a single thread, due to QuPath's multithreading
-//		Prefs.setIJMenuBar = false;
 		addQuPathCommands(qupath);
 	}
 
