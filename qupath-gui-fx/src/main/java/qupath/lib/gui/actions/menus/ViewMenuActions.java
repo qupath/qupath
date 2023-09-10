@@ -210,9 +210,20 @@ public class ViewMenuActions implements MenuActions {
 		
 		public final Action MULTIVIEW_MATCH_RESOLUTIONS = viewerActions.MATCH_VIEWER_RESOLUTIONS;
 
+		public final Action SEP_01 = ActionTools.createSeparator();
+
 		@ActionConfig("Action.View.Multiview.closeViewer")
 		public final Action MULTIVIEW_CLOSE_VIEWER = qupath.createViewerAction(viewer -> qupath.closeViewer(viewer));
-		
+
+		public final Action SEP_02 = ActionTools.createSeparator();
+
+		// Refined here to take the active viewer from QuPath itself
+		@ActionConfig("ViewerActions.detachViewer")
+		public final Action DETACH_VIEWER = qupath.createViewerAction(viewer -> qupath.getViewerManager().detachViewerFromGrid(viewer));
+
+		@ActionConfig("ViewerActions.attachViewer")
+		public final Action ATTACH_VIEWER = qupath.createViewerAction(viewer -> qupath.getViewerManager().attachViewerToGrid(viewer));
+
 	}
 	
 	
