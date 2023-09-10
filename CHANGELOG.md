@@ -5,8 +5,6 @@ This is a work-in-progress for the next QuPath release.
 ### Enhancements
 * New toolbar buttons for script editor `</>` and log viewer
 * *File &rarr; Export snapshots* supports PNG, JPEG and TIFF (not just PNG)
-* New preference to control whether the 'system menubar' is used globally, or just for the main window
-   * Makes a difference on macOS, doesn't on Windows... on Linux it depends
 
 ### Bugs fixed
 * Rendered image export does not support opacity (https://github.com/qupath/qupath/issues/1292)
@@ -19,6 +17,7 @@ This is a work-in-progress for the next QuPath release.
 * PathIO doesn't restore backup if writing ImageData fails (https://github.com/qupath/qupath/issues/1252)
 * Scripts open with the caret at the bottom of the text rather than the top (https://github.com/qupath/qupath/issues/1258)
 * 'Synchronize viewers' ignores z and t positions (https://github.com/qupath/qupath/issues/1220)
+* Menubars and shortcuts are confused when ImageJ is open but QuPath is in focus in macOS (https://github.com/qupath/qupath/issues/6)
 
 ### Dependency updates
 * Bio-Formats 7.0.0

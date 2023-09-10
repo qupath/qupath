@@ -36,7 +36,19 @@ import java.util.WeakHashMap;
 
 /**
  * Helper class for managing {@link MenuBar#useSystemMenuBarProperty()} values based upon a property value.
- * This makes it easier to control if all windows, the main window only, or no windows should use the system menubar.
+ * <p>
+ *     The original plan was to make it easier to control if all windows, the main window only, or no windows should
+ *     use the system menubar.
+ * </p>
+ * <p>
+ *     Alas, that doesn't work well - at least on macOS.
+ *     If a system menubar is set for the main window only, then its accelerators are still triggered even when
+ *     another window with a non-system menubar is active.
+ * </p>
+ * <p>
+ *     For this reason, there is no option to use the system menubar for the main window only.
+ *     This will be reinstated in the future, if a workaround can be found.
+ * </p>
  *
  * @since v0.5.0
  * @implNote Currently, this avoids binding to the MenuBar's property directly, as that would require a bidirectional
@@ -56,10 +68,10 @@ public class SystemMenuBar {
          * Use the system menubar for all windows.
          */
         ALL_WINDOWS,
-        /**
-         * Use the system menubar for the main window only.
-         */
-        MAIN_WINDOW,
+//        /**
+//         * Use the system menubar for the main window only.
+//         */
+//        MAIN_WINDOW,
         /**
          * Don't use the system menubar for any windows.
          */
@@ -73,7 +85,7 @@ public class SystemMenuBar {
     private static Set<MenuBar> childMenuBars = Collections.newSetFromMap(new WeakHashMap<>());
 
     private static ObjectProperty<SystemMenuBarOption> systemMenuBar = PathPrefs.createPersistentPreference(
-            "systemMenubar", SystemMenuBarOption.MAIN_WINDOW, SystemMenuBarOption.class);
+            "systemMenubar", SystemMenuBarOption.ALL_WINDOWS, SystemMenuBarOption.class);
 
     static {
         systemMenuBar.addListener(SystemMenuBar::updateMenuBars);
@@ -103,7 +115,8 @@ public class SystemMenuBar {
         else if (overrideSystemMenuBar.get())
             menuBar.setUseSystemMenuBar(false);
         else
-            menuBar.setUseSystemMenuBar(option == SystemMenuBarOption.MAIN_WINDOW || option == SystemMenuBarOption.ALL_WINDOWS);
+            menuBar.setUseSystemMenuBar(option == SystemMenuBarOption.ALL_WINDOWS);
+//            menuBar.setUseSystemMenuBar(option == SystemMenuBarOption.MAIN_WINDOW || option == SystemMenuBarOption.ALL_WINDOWS);
     }
 
     private static void updateChildMenuBar(MenuBar menuBar, SystemMenuBarOption option) {
