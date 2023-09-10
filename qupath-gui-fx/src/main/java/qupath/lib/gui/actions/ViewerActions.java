@@ -82,7 +82,13 @@ public class ViewerActions {
 
 	@ActionConfig("ViewerActions.matchResolutions")
 	public final Action MATCH_VIEWER_RESOLUTIONS;
-	
+
+	@ActionConfig("ViewerActions.detachViewer")
+	public final Action DETACH_VIEWER;
+
+	@ActionConfig("ViewerActions.attachViewer")
+	public final Action ATTACH_VIEWER;
+
 	private ViewerManager viewerManager;
 	
 	public ViewerActions(ViewerManager viewerManager) {
@@ -100,6 +106,9 @@ public class ViewerActions {
 		VIEWER_GRID_1x2 = ActionTools.createAction(() -> viewerManager.setGridSize(1, 2));
 		VIEWER_GRID_2x2 = ActionTools.createAction(() -> viewerManager.setGridSize(2, 2));
 		VIEWER_GRID_3x3 = ActionTools.createAction(() -> viewerManager.setGridSize(3, 3));
+
+		DETACH_VIEWER = ActionTools.createAction(() -> viewerManager.detachActiveViewerFromGrid());
+		ATTACH_VIEWER = ActionTools.createAction(() -> viewerManager.attachActiveViewerToGrid());
 
 		ActionTools.getAnnotatedActions(this);
 	}

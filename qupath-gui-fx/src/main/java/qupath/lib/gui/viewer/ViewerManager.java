@@ -31,6 +31,7 @@ import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -42,6 +43,7 @@ import javafx.beans.binding.StringBinding;
 import javafx.scene.Scene;
 import javafx.scene.layout.BorderPane;
 import javafx.stage.Stage;
+import javafx.stage.WindowEvent;
 import org.controlsfx.control.action.Action;
 import org.controlsfx.control.action.ActionUtils;
 import org.slf4j.Logger;
@@ -66,7 +68,6 @@ import javafx.scene.control.RadioMenuItem;
 import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.SplitPane;
 import javafx.scene.control.ToggleGroup;
-import javafx.scene.control.SplitPane.Divider;
 import javafx.scene.effect.DropShadow;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
@@ -80,6 +81,7 @@ import javafx.scene.shape.Ellipse;
 import javafx.scene.shape.Rectangle;
 import javafx.util.Duration;
 import jfxtras.scene.menu.CirclePopupMenu;
+import qupath.fx.utils.FXUtils;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.ToolManager;
@@ -826,11 +828,54 @@ public class ViewerManager implements QuPathViewerListener {
 				}
 			}
 		});
-		
 
 	}
 
+	/**
+	 * Detach the currently active viewer from the viewer grid, if possible.
+	 */
+	public void detachActiveViewerFromGrid() {
+		detachViewerFromGrid(getActiveViewer());
+	}
 
+	/**
+	 * Insert the currently active viewer back into the viewer grid.
+	 * @see #attachViewerToGrid(QuPathViewer)
+	 */
+	public void attachActiveViewerToGrid() {
+		attachViewerToGrid(getActiveViewer());
+	}
+
+
+	/**
+	 * Detach the specified viewer from the viewer grid, if possible.
+	 * This will remove the viewer from the grid, and create a new window to contain it.
+	 * @param viewer
+	 * @see #detachViewerFromGrid(QuPathViewer)
+	 */
+	public void detachViewerFromGrid(QuPathViewer viewer) {
+		if (viewer == null)
+			Dialogs.showWarningNotification("Attach viewer", "Viewer is null - cannot detach from the viewer grid");
+		else if (splitPaneGrid.isDetached(viewer))
+			Dialogs.showWarningNotification("Attach viewer", "Viewer is already detached from the viewer grid");
+		else
+			splitPaneGrid.detachViewer(viewer);
+	}
+
+	/**
+	 * Attach the specified viewer to the viewer grid, if possible.
+	 * It will be inserted in place of the first available empty viewer slot.
+	 * If no empty slots are available, an error will be shown.
+	 * @param viewer
+	 */
+	public void attachViewerToGrid(QuPathViewer viewer) {
+		if (viewer == null)
+			Dialogs.showWarningNotification("Attach viewer", "Viewer is null - cannot attach to the viewer grid");
+		else if (splitPaneGrid.isDetached(viewer))
+			splitPaneGrid.attachViewer(viewer);
+		else
+			Dialogs.showWarningNotification("Attach viewer", "Viewer can't be added to the viewer grid");
+	}
 
 
 
@@ -1015,6 +1060,30 @@ public class ViewerManager implements QuPathViewerListener {
 			return getRow(viewer) < 0;
 		}
 
+		public boolean attachViewer(QuPathViewer viewer) {
+			var closedViewer = getAllViewers()
+					.stream()
+					.filter(v -> !v.hasServer() && !isDetached(v))
+					.sorted(Comparator.comparingInt((QuPathViewer vv) -> getRow(vv)).thenComparing(vv -> getColumn(vv)))
+					.findFirst()
+					.orElse(null);
+			if (closedViewer == null) {
+				Dialogs.showErrorMessage("Attach viewer", "Cannot attach viewer - " +
+						"please close an existing viewer in the grid first");
+				return false;
+			}
+			var row = getRow(closedViewer);
+			int col = getColumn(closedViewer);
+			var stage = FXUtils.getWindow(viewer.getView());
+			stage.hide();
+			stage.getScene().setRoot(new BorderPane());
+			stage.fireEvent(new WindowEvent(stage, WindowEvent.WINDOW_CLOSE_REQUEST));
+			splitPaneRows.get(row).getItems().set(col, viewer.getView());
+			refreshViewerList();
+			setActiveViewer(viewer);
+			return true;
+		}
+
 		public boolean detachViewer(QuPathViewer viewer) {
 			int row = getRow(viewer.getView());
 			int col = getColumn(viewer.getView());
@@ -1033,6 +1102,11 @@ public class ViewerManager implements QuPathViewerListener {
 				stage.addEventFilter(MouseEvent.ANY, this::mouseEventFilter);
 				stage.addEventHandler(KeyEvent.ANY, this::propagateKeyEventToMainWindow);
 				stage.setOnCloseRequest(e -> {
+					if (FXUtils.getWindow(viewer.getView()) == null) {
+						logger.debug("Closing stage after viewer has been removed");
+						return;
+					}
+
 					if (viewers.size() == 1 && viewers.contains(viewer)) {
 						// This shouldn't occur if we always replace detached viewers
 						logger.error("The last viewer can't be closed!");
@@ -1130,7 +1204,10 @@ public class ViewerManager implements QuPathViewerListener {
 				null,
 				miResizeGrid
 		);
-		
+
+		var miDetachViewer = ActionTools.createMenuItem(viewerManagerActions.DETACH_VIEWER);
+		var miAttachViewer = ActionTools.createMenuItem(viewerManagerActions.ATTACH_VIEWER);
+
 		MenuItem miToggleSync = ActionTools.createCheckMenuItem(viewerManagerActions.TOGGLE_SYNCHRONIZE_VIEWERS, null);
 		MenuItem miMatchResolutions = ActionTools.createMenuItem(viewerManagerActions.MATCH_VIEWER_RESOLUTIONS);
 		Menu menuMultiview = MenuTools.createMenu(
@@ -1139,7 +1216,11 @@ public class ViewerManager implements QuPathViewerListener {
 				null,
 				miToggleSync,
 				miMatchResolutions,
-				miCloseViewer
+				null,
+				miCloseViewer,
+				null,
+				miDetachViewer,
+				miAttachViewer
 				);
 		
 		Menu menuView = MenuTools.createMenu(
@@ -1216,13 +1297,6 @@ public class ViewerManager implements QuPathViewerListener {
 		// Create a standard annotations menu
 		Menu menuAnnotations = GuiTools.populateAnnotationsMenu(qupath, MenuTools.createMenu("General.objects.annotations"));
 
-		// Enable viewers to be 'detached' into their own windows
-		var miDetachViewer = new MenuItem("Detach viewer");
-		miDetachViewer.setOnAction(e -> {
-			if (splitPaneGrid != null)
-				splitPaneGrid.detachViewer(viewer);
-		});
-
 		SeparatorMenuItem topSeparator = new SeparatorMenuItem();
 		popup.setOnShowing(e -> {
 			// Check if we have any cells
@@ -1269,10 +1343,16 @@ public class ViewerManager implements QuPathViewerListener {
 			// Occasionally, the newly-visible top part of a popup menu can have the wrong size?
 			popup.setWidth(popup.getPrefWidth());
 
-			if (viewer == null || splitPaneGrid == null || splitPaneGrid.isDetached(viewer))
+			if (viewer == null || splitPaneGrid == null) {
 				miDetachViewer.setVisible(false);
-			else
+				miAttachViewer.setVisible(false);
+			} else if (splitPaneGrid.isDetached(viewer)) {
+				miDetachViewer.setVisible(false);
+				miAttachViewer.setVisible(true);
+			} else {
 				miDetachViewer.setVisible(true);
+				miAttachViewer.setVisible(false);
+			}
 		});
 
 		popup.getItems().addAll(
@@ -1284,8 +1364,7 @@ public class ViewerManager implements QuPathViewerListener {
 				menuMultiview,
 				menuCells,
 				menuView,
-				menuTools,
-				miDetachViewer
+				menuTools
 				);
 
 
