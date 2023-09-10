@@ -547,25 +547,44 @@ public class IconFactory {
 		return label;
 	}
 
-	static Node drawViewerGridIcon(int size, int rows, int cols) {
+
+	private static Node drawViewerGridIcon(int size, int rows, int cols) {
 		double pad = 2.0;
-		List<Rectangle> rectangles = new ArrayList<>();
+		List<Node> nodes = new ArrayList<>();
 		double h = (size - pad*2) / rows;
 		double w = (size - pad*2) / cols;
-		for (int r = 0; r < rows; r++) {
+
+		var rect = new Rectangle(pad, pad, size-pad*2, size-pad*2);
+		double arcSize = size / 6.0;
+		rect.setArcHeight(arcSize);
+		rect.setArcWidth(arcSize);
+		styleIconShape(rect);
+		nodes.add(rect);
+
+		for (int r = 1; r < rows; r++) {
 			double y = pad + r * h;
-			for (int c = 0; c < cols; c++) {
-				double x = pad + c * w;
-				var rect = new Rectangle(x, y, w, h);
-				rect.setFill(Color.TRANSPARENT);
-				rect.setStrokeWidth(1.0);
-				rect.setStyle("-fx-stroke: -fx-text-fill;");
-				rectangles.add(rect);
-			}
+			var line = new Line(pad, y, size - pad, y);
+			styleIconShape(line);
+			nodes.add(line);
 		}
-		var group = wrapInGroup(size, rectangles.toArray(Rectangle[]::new));
+
+		for (int c = 1; c < cols; c++) {
+			double x = pad + c * w;
+			var line = new Line(x, pad, x, size - pad);
+			styleIconShape(line);
+			nodes.add(line);
+		}
+
+		var group = wrapInGroup(size, nodes.toArray(Node[]::new));
 		group.getStyleClass().add("qupath-icon");
 		return group;
+	}
+
+	private static void styleIconShape(Shape shape) {
+		shape.setFill(Color.TRANSPARENT);
+		shape.setStrokeWidth(1.0);
+		shape.setSmooth(true);
+		shape.setStyle("-fx-stroke: -fx-text-fill;");
 	}
 
 	
