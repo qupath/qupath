@@ -35,6 +35,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
+import java.util.stream.Collectors;
 
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.StringBinding;
@@ -342,20 +343,20 @@ public class ViewerManager implements QuPathViewerListener {
 		//			if (viewer.getServer() != null)
 		//				System.err.println(viewer.getServer().getShortServerName());
 		// Note: These are the internal row numbers... these don't necessarily match with the displayed row (?)
-		int row = splitPaneGrid.getRow(viewer.getView());
+		int row = splitPaneGrid.getRow(viewer);
 		if (row < 0) {
 			// Shouldn't occur...
-			Dialogs.showErrorMessage("Multiview error", "Cannot find " + viewer + " in the grid!");
+			Dialogs.showErrorMessage("Multiview", "Cannot find " + viewer + " in the grid!");
 			return false;
 		}
 		if (splitPaneGrid.nRows() == 1) {
-			Dialogs.showErrorMessage("Close row error", "The last row can't be removed!");
+			Dialogs.showWarningNotification("Close row", "The last row can't be removed!");
 			return false;
 		}
 
 		int nOpen = splitPaneGrid.countOpenViewersForRow(row);
 		if (nOpen > 0) {
-			Dialogs.showErrorMessage("Close row error", "Please close all open viewers in the selected row, then try again");
+			Dialogs.showWarningNotification("Close row", "Please close all open viewers in the selected row, then try again");
 			return false;
 		}
 		splitPaneGrid.removeRow(row);
@@ -395,13 +396,13 @@ public class ViewerManager implements QuPathViewerListener {
 		}
 
 		if (splitPaneGrid.nCols() == 1) {
-			Dialogs.showErrorMessage("Close row error", "The last row can't be removed!");
+			Dialogs.showWarningNotification("Close column", "The last columns can't be removed!");
 			return false;
 		}
 
 		int nOpen = splitPaneGrid.countOpenViewersForColumn(col);
 		if (nOpen > 0) {
-			Dialogs.showErrorMessage("Close column error", "Please close all open viewers in selected column, then try again");
+			Dialogs.showWarningNotification("Close column", "Please close all open viewers in selected column, then try again");
 			//				DisplayHelpers.showErrorMessage("Close column error", "Please close all open viewers in column " + col + ", then try again");
 			return false;
 		}
@@ -409,6 +410,81 @@ public class ViewerManager implements QuPathViewerListener {
 		splitPaneGrid.resetGridSize();
 		// Make sure the viewer list is up-to-date
 		refreshViewerList();
+		return true;
+	}
+
+
+	/**
+	 * Set the grid to have a specific number of rows and columns.
+	 * @param nRows
+	 * @param nCols
+	 * @return
+	 */
+	public boolean setGridSize(int nRows, int nCols) {
+		if (nRows < 1 || nCols < 1) {
+			Dialogs.showErrorMessage("Multiview grid", "There must be at least one viewer in the grid!");
+			return false;
+		}
+		// Easiest case - no resizing to do
+		if (nRows == splitPaneGrid.nRows() && nCols == splitPaneGrid.nCols()) {
+			logger.warn("Viewer grid is already {} x {} - nothing to change!", nRows, nCols);
+			return true;
+		}
+		// Get all the open viewers currently in the grid & check it fits with what we want
+		refreshViewerList();
+
+		var openViewers = getAllViewers().stream().filter(
+				v -> !splitPaneGrid.isDetached(v) && v.hasServer()).toList();
+		if (openViewers.size() > nRows * nCols) {
+			Dialogs.showWarningNotification("Multiview grid", "There are too many viewers open! Please close some, then set the grid size.");
+			return false;
+		}
+		// Adding is easy too
+		while (splitPaneGrid.nRows() < nRows)
+			splitPaneGrid.addRow(splitPaneGrid.nRows());
+		while (splitPaneGrid.nCols() < nCols)
+			splitPaneGrid.addColumn(splitPaneGrid.nCols());
+		if (nRows == splitPaneGrid.nRows() && nCols == splitPaneGrid.nCols()) {
+			return true;
+		}
+		// Removing is trickier - we first need to move any open viewers to the top-left,
+		// replacing any closed viewers we find there
+		var activeViewer = getActiveViewer();
+		var allViewers = getAllViewers();
+		var closedViewers = allViewers.stream().filter(
+				v -> !splitPaneGrid.isDetached(v)
+						&& !v.hasServer()
+						&& splitPaneGrid.getRow(v) < nRows
+						&& splitPaneGrid.getColumn(v) < nCols)
+						.collect(Collectors.toCollection(ArrayList::new));
+		for (var viewer : openViewers) {
+			var view = viewer.getView();
+			int r = splitPaneGrid.getRow(view);
+			int c = splitPaneGrid.getColumn(view);
+			if (r >= nRows || c >= nCols) {
+				var nextClosedViewer = closedViewers.remove(0);
+				int rClosed = splitPaneGrid.getRow(nextClosedViewer);
+				int cClosed = splitPaneGrid.getColumn(nextClosedViewer);
+				splitPaneGrid.splitPaneRows.get(rClosed).getItems().set(cClosed, view);
+				viewers.remove(nextClosedViewer);
+			}
+		}
+		while (splitPaneGrid.nRows() > nRows) {
+			splitPaneGrid.removeRow(splitPaneGrid.nRows()-1);
+		}
+		while (splitPaneGrid.nCols() > nCols) {
+			splitPaneGrid.removeColumn(splitPaneGrid.nCols()-1);
+		}
+		refreshViewerList();
+		if (activeViewer != null && viewers.contains(activeViewer))
+			setActiveViewer(activeViewer);
+		else if (!viewers.isEmpty())
+			setActiveViewer(viewers.get(0));
+		else
+			logger.warn("No viewers remaining, cannot set active viewer");
+
+		// Distribute the divider positions
+		resetGridSize();
 		return true;
 	}
 
@@ -429,11 +505,12 @@ public class ViewerManager implements QuPathViewerListener {
 			return;
 
 		if (splitVertical) {
-			splitPaneGrid.addColumn(splitPaneGrid.getColumn(viewer.getView()));
+			splitPaneGrid.addColumn(splitPaneGrid.getColumn(viewer.getView())+1);
 		} else {
-			splitPaneGrid.addRow(splitPaneGrid.getRow(viewer.getView()));
+			splitPaneGrid.addRow(splitPaneGrid.getRow(viewer.getView())+1);
 		}
 	}
+
 
 	public void resetGridSize() {
 		splitPaneGrid.resetGridSize();
@@ -778,25 +855,24 @@ public class ViewerManager implements QuPathViewerListener {
 
 
 		void addRow(final int position) {
-			SplitPane splitRow = new SplitPane();
-			splitRow.setOrientation(Orientation.HORIZONTAL);
+			// The new row we will add
+			SplitPane newRow = new SplitPane();
+			newRow.setOrientation(Orientation.HORIZONTAL);
 
 			// For now, we create a row with the same number of columns in every row
 			// Create viewers & bind dividers
-			splitRow.getItems().clear();
+			newRow.getItems().clear();
 			SplitPane firstRow = splitPaneRows.get(0);
-			splitRow.getItems().add(createViewer().getView());
-			for (int i = 0; i < firstRow.getDividers().size(); i++) {
-				splitRow.getItems().add(createViewer().getView());
+			for (int i = 0; i < firstRow.getItems().size(); i++) {
+				newRow.getItems().add(createViewer().getView());
 			}
 
-			// Ensure the new divider takes up half the space
-			double lastDividerPosition = position == 0 ? 0 : splitPaneMain.getDividers().get(position-1).getPosition();
-			double nextDividerPosition = position >= splitPaneRows.size()-1 ? 1 : splitPaneMain.getDividers().get(position).getPosition();
-			splitPaneRows.add(position, splitRow);
-			splitPaneMain.getItems().add(position+1, splitRow);
-			splitPaneMain.setDividerPosition(position, (lastDividerPosition + nextDividerPosition)/2);
+			// Insert the row
+			splitPaneRows.add(position, newRow);
+			splitPaneMain.getItems().add(position, newRow);
 
+			// Redistribute the positions & ensure column dividers bind to the first row
+			resetDividers(splitPaneMain);
 			refreshDividerBindings();
 		}
 
@@ -886,19 +962,19 @@ public class ViewerManager implements QuPathViewerListener {
 
 
 		void addColumn(final int position) {
-			SplitPane firstRow = splitPaneRows.get(0);
-			double lastDividerPosition = position == 0 ? 0 : firstRow.getDividers().get(position-1).getPosition();
-			double nextDividerPosition = position >= firstRow.getItems().size()-1 ? 1 : firstRow.getDividers().get(position).getPosition();
-
-			firstRow.getItems().add(position+1, createViewer().getView());
-			Divider firstDivider = firstRow.getDividers().get(position);
-			firstDivider.setPosition((lastDividerPosition + nextDividerPosition)/2);
-			for (int i = 1; i < splitPaneRows.size(); i++) {
-				SplitPane splitRow = splitPaneRows.get(i);
-				splitRow.getItems().add(position+1, createViewer().getView());
+			// Add a new column at the same position to each row
+			for (var splitRow : splitPaneRows) {
+				splitRow.getItems().add(position, createViewer().getView());
 			}
 
+			// Redistribute the positions & ensure column dividers bind to the first row
+			resetDividers(splitPaneRows.get(0));
 			refreshDividerBindings();
+		}
+
+
+		public int getRow(final QuPathViewer viewer) {
+			return getRow(viewer.getView());
 		}
 
 
@@ -911,6 +987,10 @@ public class ViewerManager implements QuPathViewerListener {
 				count++;
 			}
 			return -1;
+		}
+
+		public int getColumn(final QuPathViewer viewer) {
+			return getColumn(viewer.getView());
 		}
 
 		public int getColumn(final Node node) {
@@ -932,7 +1012,7 @@ public class ViewerManager implements QuPathViewerListener {
 
 
 		public boolean isDetached(QuPathViewer viewer) {
-			return getRow(viewer.getView()) < 0;
+			return getRow(viewer) < 0;
 		}
 
 		public boolean detachViewer(QuPathViewer viewer) {
@@ -956,6 +1036,7 @@ public class ViewerManager implements QuPathViewerListener {
 					if (viewers.size() == 1 && viewers.contains(viewer)) {
 						// This shouldn't occur if we always replace detached viewers
 						logger.error("The last viewer can't be closed!");
+						e.consume();
 						return;
 					}
 					if (qupath.closeViewer(viewer)) {
@@ -969,6 +1050,7 @@ public class ViewerManager implements QuPathViewerListener {
 						pane.getChildren().clear();
 						refreshViewerList();
 					}
+					e.consume();
 				});
 				stage.show();
 				return true;
@@ -1016,7 +1098,7 @@ public class ViewerManager implements QuPathViewerListener {
 		
 		var commonActions = qupath.getCommonActions();
 		var viewerManagerActions = qupath.getViewerActions();
-		
+
 		MenuItem miAddRow = new MenuItem(QuPathResources.getString("Action.View.Multiview.addRow"));
 		miAddRow.setOnAction(e -> addRow(viewer));
 		MenuItem miAddColumn = new MenuItem(QuPathResources.getString("Action.View.Multiview.addColumn"));
@@ -1031,22 +1113,33 @@ public class ViewerManager implements QuPathViewerListener {
 		miCloseViewer.setOnAction(e -> qupath.closeViewer(viewer));
 		MenuItem miResizeGrid = new MenuItem(QuPathResources.getString("Action.View.Multiview.resetGridSize"));
 		miResizeGrid.setOnAction(e -> resetGridSize());
-		
-		MenuItem miToggleSync = ActionTools.createCheckMenuItem(viewerManagerActions.TOGGLE_SYNCHRONIZE_VIEWERS, null);
-		MenuItem miMatchResolutions = ActionTools.createMenuItem(viewerManagerActions.MATCH_VIEWER_RESOLUTIONS);
-		Menu menuMultiview = MenuTools.createMenu(
-				"Menu.View.Multiview",
-				miToggleSync,
-				miMatchResolutions,
-				miCloseViewer,
-				null,
-				miResizeGrid,
+
+		var menuGrid = MenuTools.createMenu(
+				"Action.View.Multiview.gridMenu",
+				viewerManagerActions.VIEWER_GRID_1x1,
+				viewerManagerActions.VIEWER_GRID_1x2,
+				viewerManagerActions.VIEWER_GRID_2x1,
+				viewerManagerActions.VIEWER_GRID_2x2,
+				viewerManagerActions.VIEWER_GRID_3x3,
 				null,
 				miAddRow,
 				miAddColumn,
 				null,
 				miRemoveRow,
-				miRemoveColumn
+				miRemoveColumn,
+				null,
+				miResizeGrid
+		);
+		
+		MenuItem miToggleSync = ActionTools.createCheckMenuItem(viewerManagerActions.TOGGLE_SYNCHRONIZE_VIEWERS, null);
+		MenuItem miMatchResolutions = ActionTools.createMenuItem(viewerManagerActions.MATCH_VIEWER_RESOLUTIONS);
+		Menu menuMultiview = MenuTools.createMenu(
+				"Menu.View.Multiview",
+				menuGrid,
+				null,
+				miToggleSync,
+				miMatchResolutions,
+				miCloseViewer
 				);
 		
 		Menu menuView = MenuTools.createMenu(

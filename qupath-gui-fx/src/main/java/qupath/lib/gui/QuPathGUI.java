@@ -2579,7 +2579,7 @@ public class QuPathGUI {
 	 * 
 	 * @param dialogTitle Name to use within any displayed dialog box.
 	 * @param viewer
-	 * @return True if the viewer no longer contains an open image (either because it never did contain one, or 
+	 * @return true if the viewer no longer contains an open image (either because it never did contain one, or
 	 * the image was successfully closed), false otherwise (e.g. if the user thwarted the close request)
 	 */
 	private boolean requestToCloseViewer(final QuPathViewer viewer, final String dialogTitle) {

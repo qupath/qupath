@@ -57,8 +57,23 @@ public class ViewerActions {
 	
 	@ActionAccelerator("shortcut+alt+s")
 	@ActionConfig("ViewerActions.synchronize")
+
 	public final Action TOGGLE_SYNCHRONIZE_VIEWERS;
-	
+	@ActionConfig("ViewerActions.grid1x1")
+	public final Action VIEWER_GRID_1x1;
+
+	@ActionConfig("ViewerActions.grid1x2")
+	public final Action VIEWER_GRID_1x2;
+
+	@ActionConfig("ViewerActions.grid2x1")
+	public final Action VIEWER_GRID_2x1;
+
+	@ActionConfig("ViewerActions.grid2x2")
+	public final Action VIEWER_GRID_2x2;
+
+	@ActionConfig("ViewerActions.grid3x3")
+	public final Action VIEWER_GRID_3x3;
+
 	@ActionConfig("ViewerActions.matchResolutions")
 	public final Action MATCH_VIEWER_RESOLUTIONS;
 	
@@ -73,7 +88,13 @@ public class ViewerActions {
 		TOGGLE_SYNCHRONIZE_VIEWERS = ActionTools.createSelectableAction(viewerManager.synchronizeViewersProperty());
 		MATCH_VIEWER_RESOLUTIONS = new Action(e -> viewerManager.matchResolutions());
 		ZOOM_TO_FIT = ActionTools.createSelectableAction(viewerManager.zoomToFitProperty());
-		
+
+		VIEWER_GRID_1x1 = ActionTools.createAction(() -> viewerManager.setGridSize(1, 1));
+		VIEWER_GRID_2x1 = ActionTools.createAction(() -> viewerManager.setGridSize(2, 1));
+		VIEWER_GRID_1x2 = ActionTools.createAction(() -> viewerManager.setGridSize(1, 2));
+		VIEWER_GRID_2x2 = ActionTools.createAction(() -> viewerManager.setGridSize(2, 2));
+		VIEWER_GRID_3x3 = ActionTools.createAction(() -> viewerManager.setGridSize(3, 3));
+
 		ActionTools.getAnnotatedActions(this);
 	}
 	

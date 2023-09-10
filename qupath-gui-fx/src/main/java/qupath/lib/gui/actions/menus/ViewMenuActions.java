@@ -163,14 +163,18 @@ public class ViewMenuActions implements MenuActions {
 		public final MultitouchActions multitouchActions = new MultitouchActions();
 
 	}
-	
-	
-	
-	public class MultiviewActions {
-		
-		public final Action MULTIVIEW_SYNCHRONIZE_VIEWERS = viewerActions.TOGGLE_SYNCHRONIZE_VIEWERS;
-		
-		public final Action MULTIVIEW_MATCH_RESOLUTIONS = viewerActions.MATCH_VIEWER_RESOLUTIONS;
+
+	public class MultiviewGridActions {
+
+		public final Action MULTIVIEW_GRID_1x1 = viewerActions.VIEWER_GRID_1x1;
+
+		public final Action MULTIVIEW_GRID_1x2 = viewerActions.VIEWER_GRID_1x2;
+
+		public final Action MULTIVIEW_GRID_2x1 = viewerActions.VIEWER_GRID_2x1;
+
+		public final Action MULTIVIEW_GRID_2x2 = viewerActions.VIEWER_GRID_2x2;
+
+		public final Action MULTIVIEW_GRID_3x3 = viewerActions.VIEWER_GRID_3x3;
 
 		public final Action SEP_00 = ActionTools.createSeparator();
 
@@ -181,7 +185,7 @@ public class ViewMenuActions implements MenuActions {
 		public final Action MULTIVIEW_ADD_COLUMN = qupath.createViewerAction(viewer -> qupath.getViewerManager().addColumn(viewer));
 
 		public final Action SEP_01 = ActionTools.createSeparator();
-		
+
 		@ActionConfig("Action.View.Multiview.removeRow")
 		public final Action MULTIVIEW_REMOVE_ROW = qupath.createViewerAction(viewer -> qupath.getViewerManager().removeRow(viewer));
 
@@ -191,10 +195,21 @@ public class ViewMenuActions implements MenuActions {
 		public final Action SEP_02 = ActionTools.createSeparator();
 
 		@ActionConfig("Action.View.Multiview.resetGridSize")
-		public final Action MULTIVIEW_RESET_GRID = qupath.createViewerAction(viewer -> qupath.getViewerManager().resetGridSize());		
+		public final Action MULTIVIEW_RESET_GRID = qupath.createViewerAction(viewer -> qupath.getViewerManager().resetGridSize());
+
+	}
+	
+	public class MultiviewActions {
+
+		@ActionMenu("Action.View.Multiview.gridMenu")
+		public final MultiviewGridActions MULTIVIEW_GRID_ACTIONS = new MultiviewGridActions();
+
+		public final Action SEP_00 = ActionTools.createSeparator();
+
+		public final Action MULTIVIEW_SYNCHRONIZE_VIEWERS = viewerActions.TOGGLE_SYNCHRONIZE_VIEWERS;
 		
-		public final Action SEP_03 = ActionTools.createSeparator();
-		
+		public final Action MULTIVIEW_MATCH_RESOLUTIONS = viewerActions.MATCH_VIEWER_RESOLUTIONS;
+
 		@ActionConfig("Action.View.Multiview.closeViewer")
 		public final Action MULTIVIEW_CLOSE_VIEWER = qupath.createViewerAction(viewer -> qupath.closeViewer(viewer));
 		
