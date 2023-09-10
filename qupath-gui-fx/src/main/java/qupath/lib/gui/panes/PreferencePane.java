@@ -73,7 +73,7 @@ import qupath.lib.gui.prefs.PathPrefs.FontSize;
 import qupath.lib.gui.prefs.PathPrefs.ImageTypeSetting;
 import qupath.lib.gui.prefs.QuPathStyleManager;
 import qupath.lib.gui.prefs.QuPathStyleManager.StyleOption;
-import qupath.lib.gui.prefs.SystemMenubar;
+import qupath.lib.gui.prefs.SystemMenuBar;
 import qupath.lib.gui.tools.CommandFinderTools;
 import qupath.lib.gui.tools.CommandFinderTools.CommandBarDisplay;
 
@@ -119,7 +119,7 @@ public class PreferencePane {
 	private PropertySheet createPropertySheet() {
 		var factory = new PropertyEditorFactory();
 		factory.setReformatEnums(
-				SystemMenubar.SystemMenubarOption.class,
+				SystemMenuBar.SystemMenuBarOption.class,
 				FontWeight.class,
 				FontSize.class,
 				LogLevel.class,
@@ -222,8 +222,8 @@ public class PreferencePane {
 		@Pref(value = "Prefs.General.checkForUpdates", type = AutoUpdateType.class)
 		public final ObjectProperty<AutoUpdateType> autoUpdate = PathPrefs.autoUpdateCheckProperty();
 
-		@Pref(value = "Prefs.General.systemMenubar", type = SystemMenubar.SystemMenubarOption.class)
-		public final ObjectProperty<SystemMenubar.SystemMenubarOption> systemMenubar = SystemMenubar.systemMenubarProperty();
+		@Pref(value = "Prefs.General.systemMenubar", type = SystemMenuBar.SystemMenuBarOption.class)
+		public final ObjectProperty<SystemMenuBar.SystemMenuBarOption> systemMenubar = SystemMenuBar.systemMenubarProperty();
 		
 		@DoublePref("Prefs.General.maxMemory")
 		public final DoubleProperty maxMemoryGB = PathPrefs.hasJavaPreferences() ? createMaxMemoryProperty() : null;

@@ -51,7 +51,7 @@ public class SystemMenuBar {
      * This matters whenever the system menubar differs from the regular JavaFX behavior of adding a menubar to the
      * top of every window, e.g. on macOS where the menubar is generally at the top of the screen.
      */
-    public enum SystemMenubarOption {
+    public enum SystemMenuBarOption {
         /**
          * Use the system menubar for all windows.
          */
@@ -72,8 +72,8 @@ public class SystemMenuBar {
 
     private static Set<MenuBar> childMenuBars = Collections.newSetFromMap(new WeakHashMap<>());
 
-    private static ObjectProperty<SystemMenubarOption> systemMenuBar = PathPrefs.createPersistentPreference(
-            "systemMenubar", SystemMenubarOption.MAIN_WINDOW, SystemMenubarOption.class);
+    private static ObjectProperty<SystemMenuBarOption> systemMenuBar = PathPrefs.createPersistentPreference(
+            "systemMenubar", SystemMenuBarOption.MAIN_WINDOW, SystemMenuBarOption.class);
 
     static {
         systemMenuBar.addListener(SystemMenuBar::updateMenuBars);
@@ -84,7 +84,7 @@ public class SystemMenuBar {
         updateMenuBars(systemMenuBar, systemMenuBar.get(), systemMenuBar.get());
     }
 
-    private static void updateMenuBars(ObservableValue<? extends SystemMenubarOption> value, SystemMenubarOption old, SystemMenubarOption newValue) {
+    private static void updateMenuBars(ObservableValue<? extends SystemMenuBarOption> value, SystemMenuBarOption old, SystemMenuBarOption newValue) {
         if (Platform.isFxApplicationThread()) {
             for (var mb : mainMenuBars) {
                 updateMainMenuBar(mb, newValue);
@@ -97,22 +97,22 @@ public class SystemMenuBar {
         }
     }
 
-    private static void updateMainMenuBar(MenuBar menuBar, SystemMenubarOption option) {
+    private static void updateMainMenuBar(MenuBar menuBar, SystemMenuBarOption option) {
         if (menuBar.useSystemMenuBarProperty().isBound())
             logger.warn("MenuBar.useSystemMenuBarProperty() is already bound for {}", menuBar);
         else if (overrideSystemMenuBar.get())
             menuBar.setUseSystemMenuBar(false);
         else
-            menuBar.setUseSystemMenuBar(option == SystemMenubarOption.MAIN_WINDOW || option == SystemMenubarOption.ALL_WINDOWS);
+            menuBar.setUseSystemMenuBar(option == SystemMenuBarOption.MAIN_WINDOW || option == SystemMenuBarOption.ALL_WINDOWS);
     }
 
-    private static void updateChildMenuBar(MenuBar menuBar, SystemMenubarOption option) {
+    private static void updateChildMenuBar(MenuBar menuBar, SystemMenuBarOption option) {
         if (menuBar.useSystemMenuBarProperty().isBound())
             logger.warn("MenuBar.useSystemMenuBarProperty() is already bound for {}", menuBar);
         else if (overrideSystemMenuBar.get())
             menuBar.setUseSystemMenuBar(false);
         else
-            menuBar.setUseSystemMenuBar(option == SystemMenubarOption.ALL_WINDOWS);
+            menuBar.setUseSystemMenuBar(option == SystemMenuBarOption.ALL_WINDOWS);
     }
 
     /**
@@ -121,7 +121,7 @@ public class SystemMenuBar {
      * @return
      * @since v0.5.0
      */
-    public static ObjectProperty<SystemMenubarOption> systemMenubarProperty() {
+    public static ObjectProperty<SystemMenuBarOption> systemMenubarProperty() {
         return systemMenuBar;
     }
 
