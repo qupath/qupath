@@ -26,6 +26,8 @@ package qupath.lib.gui.tools;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Path2D;
 import java.awt.geom.PathIterator;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
 import java.util.function.IntFunction;
@@ -226,6 +228,10 @@ public class IconFactory {
 			return i -> new DuplicatableNode(() -> drawShowNamesIcon(i));
 		}
 
+		static IntFunction<Node> createViewerGridIcon(int rows, int cols) {
+			return i -> new DuplicatableNode(() -> drawViewerGridIcon(i, rows, cols));
+		}
+
 	}
 	
 	
@@ -299,6 +305,12 @@ public class IconFactory {
 
 									TABLE(IconSuppliers.icoMoon('\ue91a')),
 									TMA_GRID(IconSuppliers.icoMoon('\ue91b', PathPrefs.colorTMAProperty())),
+
+									VIEWER_GRID_1x1(IconSuppliers.createViewerGridIcon(1, 1)),
+									VIEWER_GRID_1x2(IconSuppliers.createViewerGridIcon(1, 2)),
+									VIEWER_GRID_2x1(IconSuppliers.createViewerGridIcon(2, 1)),
+									VIEWER_GRID_2x2(IconSuppliers.createViewerGridIcon(2, 2)),
+									VIEWER_GRID_3x3(IconSuppliers.createViewerGridIcon(3, 3)),
 
 									WAND_TOOL(IconSuppliers.icoMoon('\ue91c', PathPrefs.colorDefaultObjectsProperty())),
 									WARNING(IconSuppliers.fontAwesome(FontAwesome.Glyph.WARNING)),
@@ -533,6 +545,27 @@ public class IconFactory {
 		var label = new Label("C");
 		label.getStyleClass().add("qupath-icon");
 		return label;
+	}
+
+	static Node drawViewerGridIcon(int size, int rows, int cols) {
+		double pad = 2.0;
+		List<Rectangle> rectangles = new ArrayList<>();
+		double h = (size - pad*2) / rows;
+		double w = (size - pad*2) / cols;
+		for (int r = 0; r < rows; r++) {
+			double y = pad + r * h;
+			for (int c = 0; c < cols; c++) {
+				double x = pad + c * w;
+				var rect = new Rectangle(x, y, w, h);
+				rect.setFill(Color.TRANSPARENT);
+				rect.setStrokeWidth(1.0);
+				rect.setStyle("-fx-stroke: -fx-text-fill;");
+				rectangles.add(rect);
+			}
+		}
+		var group = wrapInGroup(size, rectangles.toArray(Rectangle[]::new));
+		group.getStyleClass().add("qupath-icon");
+		return group;
 	}
 
 	

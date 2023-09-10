@@ -59,19 +59,25 @@ public class ViewerActions {
 	@ActionConfig("ViewerActions.synchronize")
 
 	public final Action TOGGLE_SYNCHRONIZE_VIEWERS;
+
 	@ActionConfig("ViewerActions.grid1x1")
+	@ActionIcon(PathIcons.VIEWER_GRID_1x1)
 	public final Action VIEWER_GRID_1x1;
 
 	@ActionConfig("ViewerActions.grid1x2")
+	@ActionIcon(PathIcons.VIEWER_GRID_1x2)
 	public final Action VIEWER_GRID_1x2;
 
 	@ActionConfig("ViewerActions.grid2x1")
+	@ActionIcon(PathIcons.VIEWER_GRID_2x1)
 	public final Action VIEWER_GRID_2x1;
 
 	@ActionConfig("ViewerActions.grid2x2")
+	@ActionIcon(PathIcons.VIEWER_GRID_2x2)
 	public final Action VIEWER_GRID_2x2;
 
 	@ActionConfig("ViewerActions.grid3x3")
+	@ActionIcon(PathIcons.VIEWER_GRID_3x3)
 	public final Action VIEWER_GRID_3x3;
 
 	@ActionConfig("ViewerActions.matchResolutions")
