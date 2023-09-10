@@ -126,7 +126,7 @@ import qupath.lib.gui.panes.ServerSelector;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.prefs.PathPrefs.ImageTypeSetting;
 import qupath.lib.gui.prefs.QuPathStyleManager;
-import qupath.lib.gui.prefs.SystemMenubar;
+import qupath.lib.gui.prefs.SystemMenuBar;
 import qupath.lib.gui.scripting.ScriptEditor;
 import qupath.lib.gui.scripting.languages.GroovyLanguage;
 import qupath.lib.gui.scripting.languages.ScriptLanguageProvider;
@@ -329,7 +329,7 @@ public class QuPathGUI {
 		
 		// Populating the scripting menu is slower, so delay it until now
 		populateScriptingMenu(getMenu(QuPathResources.getString("Menu.Automate"), false));
-		SystemMenubar.manageMainMenubar(menuBar);
+		SystemMenuBar.manageMainMenuBar(menuBar);
 
 		logger.debug("{}", timeit.stop());
 	}

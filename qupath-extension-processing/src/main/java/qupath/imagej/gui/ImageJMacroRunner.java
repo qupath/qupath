@@ -173,7 +173,7 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 						// Run in a background thread
 						Collection<? extends PathObject> parents = getParentObjects(imageDataLocal);
 						if (parents.isEmpty()) {
-							Dialogs.showErrorMessage("ImageJ macro runner", "No annotation or TMA core objects selected!");
+							Dialogs.showErrorNotification("ImageJ macro runner", "No annotation or TMA core objects selected!");
 							return;
 						}
 						
@@ -185,14 +185,6 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 							runner.runTasks(tasks);
 							imageDataLocal.getHierarchy().fireHierarchyChangedEvent(ImageJMacroRunner.this);
 						});
-//						runner.runTasks(tasks);
-						
-//						Runnable r = new Runnable() {
-//							public void run() {
-//								runPlugin(runner, arg);
-//							}
-//						};
-//						new Thread(r).start();
 					}
 			});
 			Button btnClose = new Button("Close");
@@ -214,11 +206,7 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 
 
 	static void runMacro(final ParameterList params, final ImageData<BufferedImage> imageData, final ImageDisplay imageDisplay, final PathObject pathObject, final String macroText) {
-//		if (!SwingUtilities.isEventDispatchThread()) {
-//			SwingUtilities.invokeLater(() -> runMacro(params, imageData, imageDisplay, pathObject, macroText));
-//			return;
-//		}
-		
+
 		// Don't try if interrupted
 		if (Thread.currentThread().isInterrupted()) {
 			logger.warn("Skipping macro for {} - thread interrupted", pathObject);
@@ -254,12 +242,6 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 			logger.error("Unable to extract image region " + region, e);
 			return;
 		}
-
-
-		//		IJHelpers.getImageJInstance();
-		//		ImageJ ij = IJHelpers.getImageJInstance();
-		//		if (ij != null && WindowManager.getIDList() == null)
-		//			ij.setVisible(false);
 
 		// Determine a sensible argument to pass
 		String argument;
