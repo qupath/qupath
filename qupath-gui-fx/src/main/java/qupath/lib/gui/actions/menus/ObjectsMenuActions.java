@@ -180,29 +180,36 @@ public class ObjectsMenuActions implements MenuActions {
 		
 		@ActionConfig("Action.Objects.Annotation.specify")
 		public final Action SPECIFY_ANNOTATION = Commands.createSingleStageAction(() -> Commands.createSpecifyAnnotationDialog(qupath));
-		
+
+		@ActionAccelerator("shortcut+shift+a")
 		@ActionConfig("Action.Objects.Annotation.fullImage")
 		public final Action SELECT_ALL_ANNOTATION = qupath.createImageDataAction(imageData -> Commands.createFullImageAnnotation(qupath.getViewer()));
 
 		public final Action SEP_5 = ActionTools.createSeparator();
-		
+
+		@ActionAccelerator("shortcut+shift+i")
 		@ActionConfig("Action.Objects.Annotation.hierarchyInsert")
 		public final Action INSERT_INTO_HIERARCHY = qupath.createImageDataAction(imageData -> Commands.insertSelectedObjectsInHierarchy(imageData));
-		
+
+		@ActionAccelerator("shortcut+shift+r")
 		@ActionConfig("Action.Objects.Annotation.hierarchyResolve")
 		public final Action RESOLVE_HIERARCHY = qupath.createImageDataAction(imageData -> Commands.promptToResolveHierarchy(imageData));
 		
 		public final Action SEP_6 = ActionTools.createSeparator();
 
+		@ActionAccelerator("shortcut+shift+t")
 		@ActionConfig("Action.Objects.Annotation.transform")
 		public final Action RIGID_OBJECT_EDITOR = qupath.createImageDataAction(imageData -> Commands.editSelectedAnnotation(qupath));
-		
+
+		@ActionAccelerator("shift+d")
 		@ActionConfig("Action.Objects.Annotation.duplicate")
 		public final Action ANNOTATION_DUPLICATE = qupath.createImageDataAction(imageData -> Commands.duplicateSelectedAnnotations(imageData));
 
+		@ActionAccelerator("shortcut+shift+v")
 		@ActionConfig("Action.Objects.Annotation.copyToCurrentPlane")
 		public final Action ANNOTATION_COPY_TO_PLANE = qupath.createViewerAction(viewer -> Commands.copySelectedAnnotationsToCurrentPlane(viewer));
 
+		@ActionAccelerator("shift+e")
 		@ActionConfig("Action.Objects.Annotation.transferLast")
 		public final Action TRANSFER_ANNOTATION = qupath.createImageDataAction(imageData -> qupath.getViewerManager().applyLastAnnotationToActiveViewer());
 
