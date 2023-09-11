@@ -112,7 +112,6 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 		System.gc();
 		File file = Paths.get(uri).toFile();
 		osr = new OpenSlide(file);
-//		osr2 = new OpenSlide2(file);
 
 		// Parse the parameters
 		int width = (int)osr.getLevel0Width();
