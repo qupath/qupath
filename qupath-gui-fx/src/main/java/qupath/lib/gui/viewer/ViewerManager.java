@@ -143,6 +143,9 @@ public class ViewerManager implements QuPathViewerListener {
 
 	private Map<QuPathViewer, ViewerPosition> lastViewerPosition = new WeakHashMap<>();
 
+	// Hacky solution to needing a mechanism to refresh the titles of detached viewers
+	private BooleanProperty refreshTitleProperty = new SimpleBooleanProperty();
+
 	private ViewerManager(final QuPathGUI qupath) {
 		this.qupath = qupath;
 	}
@@ -155,7 +158,14 @@ public class ViewerManager implements QuPathViewerListener {
 	public static ViewerManager create(final QuPathGUI qupath) {
 		return new ViewerManager(qupath);
 	}
-	
+
+	/**
+	 * Request that viewers refresh their titles.
+	 * This is only really needed for detached viewers, so that they are notified of any changes to the image name.
+	 */
+	public void refreshTitles() {
+		refreshTitleProperty.set(!refreshTitleProperty.get());
+	}
 	
 	/**
 	 * Get an observable list of viewers.
@@ -1137,7 +1147,7 @@ public class ViewerManager implements QuPathViewerListener {
 		private StringBinding createDetachedViewerTitleBinding(QuPathViewer viewer) {
 			return Bindings.createStringBinding(() -> {
 				return qupath.getDisplayedImageName(viewer.getImageData());
-			}, viewer.imageDataProperty());
+			}, viewer.imageDataProperty(), PathPrefs.maskImageNamesProperty(), qupath.projectProperty(), refreshTitleProperty);
 		}
 
 		private void keyEventFilter(KeyEvent e) {

@@ -2357,11 +2357,12 @@ public class QuPathGUI {
 	 * Refresh the title bar in the main QuPath window.
 	 */
 	public void refreshTitle() {
-		if (Platform.isFxApplicationThread())
+		if (Platform.isFxApplicationThread()) {
 			titleBinding.invalidate();
-		else
+			viewerManager.refreshTitles();
+		} else
 			Platform.runLater(() -> refreshTitle());
-	}	
+	}
 		
 	private StringBinding createTitleBinding() {
 		return Bindings.createStringBinding(() -> createTitleFromCurrentImage(),
