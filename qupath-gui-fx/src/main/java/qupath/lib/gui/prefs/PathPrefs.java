@@ -113,13 +113,13 @@ public class PathPrefs {
 	 * Legacy property used to specify whether the system menubar should be used for the main QuPath stage.
 	 * This should be bound bidirectionally to the corresponding property of any menubars created.
 	 * @return a bound boolean property, which is true whenever systemMenubarProperty() is set to ALL_WINDOWS.
-	 * @deprecated use {@link SystemMenubar#systemMenubarProperty()} instead
+	 * @deprecated use {@link SystemMenuBar#systemMenubarProperty()} instead
 	 */
 	@Deprecated
 	public static BooleanProperty useSystemMenubarProperty() {
 		if (!useSystemMenubar.isBound()) {
 			logger.warn("PathPrefs.useSystemMenubarProperty() is deprecated - please use PathPrefs.systemMenubarProperty() instead");
-			useSystemMenubar.bind(SystemMenubar.systemMenubarProperty().isEqualTo(SystemMenubar.SystemMenubarOption.ALL_WINDOWS));
+			useSystemMenubar.bind(SystemMenuBar.systemMenubarProperty().isEqualTo(SystemMenuBar.SystemMenuBarOption.ALL_WINDOWS));
 		}
 		return useSystemMenubar;
 	}

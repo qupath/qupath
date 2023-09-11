@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -351,9 +351,9 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 	
 	
 	@Override
-	public boolean runPlugin(final PluginRunner<BufferedImage> pluginRunner, final String arg) {
-		boolean success = super.runPlugin(pluginRunner, arg);
-		getHierarchy(pluginRunner).fireHierarchyChangedEvent(this);
+	public boolean runPlugin(final PluginRunner pluginRunner, final ImageData<BufferedImage> imageData, final String arg) {
+		boolean success = super.runPlugin(pluginRunner, imageData, arg);
+		imageData.getHierarchy().fireHierarchyChangedEvent(this);
 		return success;
 	}
 	
@@ -716,8 +716,8 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 	}
 
 	@Override
-	protected Collection<PathObject> getParentObjects(final PluginRunner<BufferedImage> runner) {
-		return runner.getImageData().getHierarchy().getSelectionModel().getSelectedObjects();
+	protected Collection<PathObject> getParentObjects(final ImageData<BufferedImage> imageData) {
+		return imageData.getHierarchy().getSelectionModel().getSelectedObjects();
 	}
 
 	@Override

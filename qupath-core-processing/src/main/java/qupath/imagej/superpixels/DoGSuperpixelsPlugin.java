@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -52,7 +52,6 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.plugins.AbstractTileableDetectionPlugin;
 import qupath.lib.plugins.ObjectDetector;
-import qupath.lib.plugins.PluginRunner;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.RoiTools;
@@ -269,8 +268,8 @@ public class DoGSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffer
 	
 	
 	@Override
-	protected synchronized Collection<? extends PathObject> getParentObjects(final PluginRunner<BufferedImage> runner) {
-		Collection<? extends PathObject> parents = super.getParentObjects(runner);
+	protected synchronized Collection<? extends PathObject> getParentObjects(final ImageData<BufferedImage> imageData) {
+		Collection<? extends PathObject> parents = super.getParentObjects(imageData);
 		return parents;
 		
 		// Exploring the use of hidden objects...

@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -28,39 +28,27 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.lib.images.ImageData;
 import qupath.lib.regions.ImageRegion;
 
 /**
  * A PluginRunner that simply logs progress and output.
  * <p>
- * This doesn't need to be run on any particular thread (e.g. Platform or EDT).
+ * This doesn't need to be run on any particular thread (e.g. the JavaFX Application thread).
  * 
  * @author Pete Bankhead
- *
- * @param <T>
  */
-public class CommandLinePluginRunner<T> extends AbstractPluginRunner<T> {
+public class CommandLinePluginRunner extends AbstractPluginRunner {
 	
-	private ImageData<T> imageData;
-
 	/**
 	 * Constructor for a PluginRunner that send progress to a log.
-	 * @param imageData the ImageData for the current plugin
 	 */
-	public CommandLinePluginRunner(final ImageData<T> imageData) {
+	public CommandLinePluginRunner() {
 		super();
-		this.imageData = imageData;
 	}
 
 	@Override
 	public SimpleProgressMonitor makeProgressMonitor() {
 		return new CommandLineProgressMonitor();
-	}
-
-	@Override
-	public ImageData<T> getImageData() {
-		return imageData;
 	}
 	
 	

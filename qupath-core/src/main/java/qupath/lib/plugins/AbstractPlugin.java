@@ -32,9 +32,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.images.ImageData;
-import qupath.lib.images.servers.ImageServer;
 import qupath.lib.objects.PathObject;
-import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.plugins.workflow.SimplePluginWorkflowStep;
 import qupath.lib.plugins.workflow.WorkflowStep;
 
@@ -54,16 +52,16 @@ public abstract class AbstractPlugin<T> implements PathPlugin<T> {
 	/**
 	 * Get a collection of tasks to perform.
 	 * 
-	 * This will be called from {@link #runPlugin(PluginRunner, String)} <b>after</b> a call to {@link #parseArgument(ImageData, String)}.
-	 * 
-	 * The default implementation simply calls {@link #getParentObjects(PluginRunner)}, then {@link #addRunnableTasks(ImageData, PathObject, List)}
+	 * This will be called from {@link #runPlugin(PluginRunner, ImageData, String)} <b>after</b> a call to {@link #parseArgument(ImageData, String)}.
+	 *
+	 * The default implementation simply calls {@link #getParentObjects(ImageData)}, then {@link #addRunnableTasks(ImageData, PathObject, List)}
 	 * for every parent object that was returned.
 	 * 
-	 * @param runner
+	 * @param imageData
 	 * @return
 	 */
-	protected Collection<Runnable> getTasks(final PluginRunner<T> runner) {
-		Collection<? extends PathObject> parentObjects = getParentObjects(runner);
+	protected Collection<Runnable> getTasks(final ImageData<T> imageData) {
+		Collection<? extends PathObject> parentObjects = getParentObjects(imageData);
 		if (parentObjects == null || parentObjects.isEmpty())
 			return Collections.emptyList();
 		
@@ -71,31 +69,11 @@ public abstract class AbstractPlugin<T> implements PathPlugin<T> {
 		
 		long startTime = System.currentTimeMillis();
 		for (PathObject pathObject : parentObjects) {
-			addRunnableTasks(runner.getImageData(), pathObject, tasks);
+			addRunnableTasks(imageData, pathObject, tasks);
 		}
 		long endTime = System.currentTimeMillis();
 		logger.debug("Time to add plugin tasks: {} ms", endTime - startTime);
 		return tasks;
-	}
-	
-	/**
-	 * Get the ImageServer from a PluginRunner, or null if no server is available.
-	 * @param runner
-	 * @return
-	 */
-	protected ImageServer<T> getServer(final PluginRunner<T> runner) {
-		ImageData<T> imageData = runner.getImageData();
-		return imageData == null ? null : imageData.getServer();
-	}
-	
-	/**
-	 * Get the hierarchy from a PluginRunner, or null if no hierarchy is available.
-	 * @param runner
-	 * @return
-	 */
-	protected PathObjectHierarchy getHierarchy(final PluginRunner<T> runner) {
-		ImageData<T> imageData = runner.getImageData();
-		return imageData == null ? null : imageData.getHierarchy();
 	}
 	
 	/**
@@ -135,10 +113,10 @@ public abstract class AbstractPlugin<T> implements PathPlugin<T> {
 	 * 
 	 * In practice, this method can be overridden to return anything/nothing if getTasks is overridden instead.
 	 * 
-	 * @param runner
+	 * @param imageData
 	 * @return
 	 */
-	protected abstract Collection<? extends PathObject> getParentObjects(final PluginRunner<T> runner);
+	protected abstract Collection<? extends PathObject> getParentObjects(final ImageData<T> imageData);
 
 	
 	/**
@@ -155,25 +133,29 @@ public abstract class AbstractPlugin<T> implements PathPlugin<T> {
 	
 	
 	@Override
-	public boolean runPlugin(final PluginRunner<T> pluginRunner, final String arg) {
-		
-		if (!parseArgument(pluginRunner.getImageData(), arg))
+	public boolean runPlugin(final PluginRunner pluginRunner, ImageData<T> imageData, final String arg) {
+
+		if (!parseArgument(imageData, arg))
 			return false;
 
-		preprocess(pluginRunner);
+		preprocess(pluginRunner, imageData);
 
-		Collection<Runnable> tasks = getTasks(pluginRunner);
+		Collection<Runnable> tasks = getTasks(imageData);
 		if (tasks.isEmpty())
 			return false;
 
-		pluginRunner.runTasks(tasks, requestHierarchyUpdate());
-		postprocess(pluginRunner);
+		pluginRunner.runTasks(tasks);
+
+		if (requestHierarchyUpdate())
+			imageData.getHierarchy().fireHierarchyChangedEvent(this);
+
+		postprocess(pluginRunner, imageData);
 		
 		if (pluginRunner.isCancelled())
 			return false;
 
 		// Only add a workflow step if plugin was not cancelled
-		addWorkflowStep(pluginRunner.getImageData(), arg);
+		addWorkflowStep(imageData, arg);
 		
 		return true;
 	}
@@ -183,17 +165,19 @@ public abstract class AbstractPlugin<T> implements PathPlugin<T> {
 	 * Called after parsing the argument String, and immediately before creating &amp; running any generated tasks.
 	 * 
 	 * Does nothing by default.
-	 * @param pluginRunner 
+	 * @param pluginRunner
+	 * @param imageData
 	 */
-	protected void preprocess(final PluginRunner<T> pluginRunner) {};
+	protected void preprocess(final PluginRunner pluginRunner, final ImageData<T> imageData) {};
 
 	/**
 	 * Called immediately after running any generated tasks.
 	 * 
 	 * Does nothing by default.
-	 * @param pluginRunner 
+	 * @param pluginRunner
+	 * @param imageData
 	 */
-	protected void postprocess(final PluginRunner<T> pluginRunner) {};
+	protected void postprocess(final PluginRunner pluginRunner, final ImageData<T> imageData) {};
 
 	
 	/**

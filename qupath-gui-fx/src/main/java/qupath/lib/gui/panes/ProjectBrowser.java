@@ -45,6 +45,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import org.controlsfx.control.MasterDetailPane;
 import org.controlsfx.control.action.Action;
@@ -152,11 +153,27 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 	/**
 	 * Metadata keys that will always be present
 	 */
-	private static final String URI = "URI";
+	private enum BaseMetadataKeys {
+		IMAGE_NAME("Image name"), ENTRY_ID("Entry ID"), URI("URI");
+
+		private final String displayName;
+
+		BaseMetadataKeys(String displayName) {
+			this.displayName = displayName;
+		}
+
+		String getDisplayName() {
+			return displayName;
+		}
+
+		String getKey() {
+			return "SORT_KEY[" + toString() + "]";
+		}
+
+	}
 	private static final String UNASSIGNED_NODE = "(Unassigned)";
 	private static final String UNDEFINED_VALUE = "Undefined";
-	private static String[] baseMetadataKeys = new String[] {URI};
-	
+
 	/**
 	 * To load thumbnails in the background
 	 */
@@ -484,7 +501,6 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		Action actionOpenImageServerDirectory = createBrowsePathAction("Image...", () -> getImageServerPath());
 		
 
-		Menu menuSort = new Menu("Sort by...");
 		ContextMenu menu = new ContextMenu();
 		
 		var hasProjectBinding = qupath.projectProperty().isNotNull();
@@ -503,8 +519,10 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		MenuItem miEditDescription = ActionUtils.createMenuItem(actionEditDescription);
 		MenuItem miAddMetadata = ActionUtils.createMenuItem(actionAddMetadataValue);
 		MenuItem miMaskImages = ActionUtils.createCheckMenuItem(actionMaskImageNames);
-		
-		
+
+		// Create menu for sorting by metadata
+		Menu menuSort = createSortByMenu();
+
 		// Set visibility as menu being displayed
 		menu.setOnShowing(e -> {
 			TreeItem<ProjectTreeRow> selected = tree.getSelectionModel().getSelectedItem();
@@ -529,29 +547,12 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 			miEditDescription.setVisible(isImageEntry);
 			miRefreshThumbnail.setVisible(isImageEntry && isCurrentImage(selectedEntry));
 			miRemoveImage.setVisible(selected != null && project != null && !project.getImageList().isEmpty());
-			
+
 			if (project == null) {
 				menuSort.setVisible(false);
 				return;
 			}
-			Map<String, MenuItem> newItems = new TreeMap<>();
-			for (ProjectImageEntry<?> entry : project.getImageList()) {
-				// Add all entry metadata keys
-				for (String key : entry.getMetadataKeys()) {
-					if (!newItems.containsKey(key))
-						newItems.put(key, ActionUtils.createMenuItem(createSortByKeyAction(key, key)));
-				}
-				// Add all additional keys
-				for (String key : baseMetadataKeys) {
-					if (!newItems.containsKey(key))
-						newItems.put(key, ActionUtils.createMenuItem(createSortByKeyAction(key, key)));
-				}
-			}
-			menuSort.getItems().setAll(newItems.values());
-			
-			menuSort.getItems().add(0, ActionUtils.createMenuItem(createSortByKeyAction("None", null)));
-			menuSort.getItems().add(1, new SeparatorMenuItem());
-			
+
 			menuSort.setVisible(true);
 			
 			if (menu.getItems().isEmpty())
@@ -586,6 +587,34 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		
 		return menu;
 	}
+
+
+	Menu createSortByMenu() {
+		var menuSort = new Menu("Sort by...");
+		Map<String, MenuItem> newItems = new TreeMap<>();
+		if (project != null) {
+			for (ProjectImageEntry<?> entry : project.getImageList()) {
+				// Add all entry metadata keys
+				for (String key : entry.getMetadataKeys()) {
+					if (!newItems.containsKey(key))
+						newItems.put(key, ActionUtils.createMenuItem(createSortByKeyAction(key, key)));
+				}
+			}
+		}
+		menuSort.getItems().setAll(newItems.values());
+
+		// Add all additional keys
+		for (var key : BaseMetadataKeys.values()) {
+			if (!newItems.containsKey(key.getKey()))
+				menuSort.getItems().add(ActionUtils.createMenuItem(createSortByKeyAction(key.getDisplayName(), key.getKey())));
+		}
+
+		menuSort.getItems().add(0, ActionUtils.createMenuItem(createSortByKeyAction("None", null)));
+		menuSort.getItems().add(1, new SeparatorMenuItem());
+
+		return menuSort;
+	}
+
 	
 	Path getProjectPath() {
 		return project == null ? null : project.getPath();
@@ -896,7 +925,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 	 * @throws IOException 
 	 */
 	private static <T> String getDefaultValue(ProjectImageEntry<T> entry, String key) throws IOException {
-		if (key.equals(URI)) {
+		if (key.equals(BaseMetadataKeys.URI.getKey())) {
 			var URIs = entry.getURIs();
 			var it = URIs.iterator();
 			
@@ -911,6 +940,10 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 				return fullURI.substring(fullURI.lastIndexOf("/")+1, fullURI.length());
 			}
 			return "Multiple URIs";
+		} else if (key.equals(BaseMetadataKeys.IMAGE_NAME.getKey())) {
+			return entry.getImageName();
+		}  else if (key.equals(BaseMetadataKeys.ENTRY_ID.getKey())) {
+			return entry.getID();
 		}
 		var value = entry.getMetadataValue(key);
 		return value == null ? UNASSIGNED_NODE : value;
@@ -1053,7 +1086,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		
 		// If 'mask names' is ticked, shuffle the image list for less biased analyses
 		var imageList = project.getImageList();
-		var indices = IntStream.range(0, imageList.size()).boxed().toList();
+		var indices = IntStream.range(0, imageList.size()).boxed().collect(Collectors.toCollection(ArrayList::new));
 		Collections.shuffle(indices);
 		return indices.stream().map(index -> new ImageRow(imageList.get(index))).toList();
 	}
@@ -1131,10 +1164,12 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 				var children = getTreeItem().getChildren();
 				setText(item.getDisplayableString() + (children.size() > 0 ? " (" + children.size() + ")" : ""));
 				setGraphic(null);
+				// TODO: Extract styles to external CSS
 				setStyle("-fx-font-weight: normal; -fx-font-family: arial");
 				return;
 			} else if (item.getType() == ProjectTreeRow.Type.METADATA) {
 				var children = getTreeItem().getChildren();
+				// TODO: Try not to display count when grouping by ID
 				setText(item.getDisplayableString() + (children.size() > 0 ? " (" + children.size() + ")" : ""));
 				setGraphic(null);
 				setStyle("-fx-font-weight: normal; -fx-font-family: arial");
@@ -1264,9 +1299,24 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 					} else {
 						var values = new ArrayList<>(getAllMetadataValues(metadataKey));
 						GeneralTools.smartStringSort(values);
-						children.addAll(values.stream()
+						var potentialChildren = values.stream()
 								.map(value -> new ProjectTreeRowItem(new MetadataRow(value)))
-								.toList());
+								.toList();
+						// When sorting by name, we don't want to show grouped by name - since it looks weird,
+						// with the name effectively being repeated twice
+						if (metadataKey.equals(BaseMetadataKeys.IMAGE_NAME.getKey()))
+							potentialChildren = potentialChildren.stream().flatMap(c -> {
+								if (c.isLeaf())
+									return Stream.empty();
+								else
+									return c.getChildren().stream();
+							}).map(t -> (ProjectTreeRowItem)t).toList();
+						// When sorting by entry ID, we want to expand everything - since there should only be one
+						// entry per ID
+						if (metadataKey.equals(BaseMetadataKeys.ENTRY_ID.getKey()))
+							potentialChildren.forEach(c -> c.setExpanded(true));
+
+						children.addAll(potentialChildren);
 					}
 					break;
 				case METADATA:
@@ -1281,7 +1331,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 							if (value != null && value.equals(((MetadataRow)getValue()).getDisplayableString()))
 								children.add(new ProjectTreeRowItem(row));
 						} catch (IOException ex) {
-							logger.warn("Could not get URIs from: " + row.getDisplayableString(), ex.getLocalizedMessage());
+							logger.warn("Could not get {} from {}", metadataKey, row.getDisplayableString(), ex);
 						}
 					}
 				case IMAGE:

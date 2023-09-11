@@ -35,7 +35,6 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathROIObject;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.plugins.AbstractInteractivePlugin;
-import qupath.lib.plugins.PluginRunner;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
@@ -80,22 +79,22 @@ public class FillAnnotationHolesPlugin<T> extends AbstractInteractivePlugin<T> {
 	}
 
 	@Override
-	protected Collection<? extends PathObject> getParentObjects(PluginRunner<T> runner) {
-		return getHierarchy(runner).getSelectionModel().getSelectedObjects().stream().filter(p -> p.isAnnotation()).toList();
+	protected Collection<? extends PathObject> getParentObjects(ImageData<T> imageData) {
+		return imageData.getHierarchy().getSelectionModel().getSelectedObjects().stream().filter(p -> p.isAnnotation()).toList();
 	}
 
 	@Override
 	protected void addRunnableTasks(ImageData<T> imageData, PathObject parentObject, List<Runnable> tasks) {}
 	
 	@Override
-	protected Collection<Runnable> getTasks(final PluginRunner<T> runner) {
-		Collection<? extends PathObject> parentObjects = getParentObjects(runner);
+	protected Collection<Runnable> getTasks(final ImageData<T> imageData) {
+		Collection<? extends PathObject> parentObjects = getParentObjects(imageData);
 		if (parentObjects == null || parentObjects.isEmpty())
 			return Collections.emptyList();
 		
 		// Add a single task, to avoid multithreading - which may complicate setting parents
 		List<Runnable> tasks = new ArrayList<>(1);
-		PathObjectHierarchy hierarchy = getHierarchy(runner);
+		PathObjectHierarchy hierarchy = imageData.getHierarchy();
 		
 		// Want to reset selection
 		PathObject selected = hierarchy.getSelectionModel().getSelectedObject();
