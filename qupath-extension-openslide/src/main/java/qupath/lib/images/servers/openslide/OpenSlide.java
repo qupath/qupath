@@ -137,7 +137,7 @@ public final class OpenSlide implements Closeable {
         }
 
         // properties
-        HashMap<String, String> props = new HashMap<String, String>();
+        HashMap<String, String> props = new HashMap<>();
         for (String s : OpenSlideJNA.INSTANCE.openslide_get_property_names(osr)) {
             props.put(s, OpenSlideJNA.INSTANCE.openslide_get_property_value(osr, s));
         }
@@ -145,8 +145,7 @@ public final class OpenSlide implements Closeable {
         properties = Collections.unmodifiableMap(props);
 
         // associated images
-        HashMap<String, AssociatedImage> associated =
-                new HashMap<String, AssociatedImage>();
+        HashMap<String, AssociatedImage> associated = new HashMap<>();
         for (String s : OpenSlideJNA.INSTANCE
                 .openslide_get_associated_image_names(osr)) {
             associated.put(s, new AssociatedImage(s, this));
@@ -439,8 +438,7 @@ public final class OpenSlide implements Closeable {
             return true;
         }
 
-        if (obj instanceof OpenSlide) {
-            OpenSlide os2 = (OpenSlide) obj;
+        if (obj instanceof OpenSlide os2) {
             String quickhash1 = getProperties()
                     .get(PROPERTY_NAME_QUICKHASH1);
             String os2_quickhash1 = os2.getProperties()

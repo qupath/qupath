@@ -59,8 +59,7 @@ public class AssociatedImage {
             return true;
         }
 
-        if (obj instanceof AssociatedImage) {
-            AssociatedImage ai2 = (AssociatedImage) obj;
+        if (obj instanceof AssociatedImage ai2) {
             return os.equals(ai2.os) && name.equals(ai2.name);
         }
 
