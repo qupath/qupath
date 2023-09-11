@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -47,7 +47,6 @@ import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.plugins.AbstractInteractivePlugin;
-import qupath.lib.plugins.PluginRunner;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.roi.interfaces.ROI;
 
@@ -398,8 +397,8 @@ public class SmoothFeaturesPlugin<T> extends AbstractInteractivePlugin<T> {
 	}
 
 	@Override
-	protected Collection<PathObject> getParentObjects(final PluginRunner<T> runner) {
-		PathObjectHierarchy hierarchy = runner.getImageData().getHierarchy();
+	protected Collection<PathObject> getParentObjects(final ImageData<T> imageData) {
+		PathObjectHierarchy hierarchy = imageData.getHierarchy();
 		List<PathObject> parents = new ArrayList<>();
 		if (hierarchy.getTMAGrid() != null) {
 			logger.info("Smoothing using TMA cores");

@@ -1053,7 +1053,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		
 		// If 'mask names' is ticked, shuffle the image list for less biased analyses
 		var imageList = project.getImageList();
-		var indices = IntStream.range(0, imageList.size()).boxed().toList();
+		var indices = IntStream.range(0, imageList.size()).boxed().collect(Collectors.toCollection(ArrayList::new));
 		Collections.shuffle(indices);
 		return indices.stream().map(index -> new ImageRow(imageList.get(index))).toList();
 	}

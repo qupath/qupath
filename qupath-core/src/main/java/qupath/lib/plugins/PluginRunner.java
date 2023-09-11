@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -25,27 +25,15 @@ package qupath.lib.plugins;
 
 import java.util.Collection;
 
-import qupath.lib.images.ImageData;
-
 /**
- * Implementing classes encapsulate the data and functionality needed to run a plugin on a single image.
+ * A minimal interface for a class capable of running tasks in parallel, giving feedback to the user.
  * <p>
- * This means access to an ImageData object (along with helper methods to access its server, hierarchy &amp;
- * selected objects), as well as the ability to run a collection of tasks - possibly in parallel.
- * <p>
- * This implementation may also (optionally) provide useful feedback on progress when running tasks.
+ *     This is intended for use with {@link PathPlugin}s, but may be used elsewhere.
+ * </p>
  * 
  * @author Pete Bankhead
- *
- * @param <T>
  */
-public interface PluginRunner<T> {
-
-	/**
-	 * Get the current {@link ImageData} upon which the plugin should operate.
-	 * @return
-	 */
-	ImageData<T> getImageData();
+public interface PluginRunner {
 
 	/**
 	 * Query if the plugin can be cancelled while running.
@@ -58,10 +46,7 @@ public interface PluginRunner<T> {
 	 * Pass a collection of parallelizable tasks to run.
 	 * @param tasks the tasks to run. If these are instances of {@link PathTask} then 
 	 *              an optional postprocessing may be applied after all tasks are complete.
-	 * @param fireHierarchyUpdate if true, a hierarchy update should be fired on completion. 
-	 *                            This means that individual tasks do not need to fire their own updates,
-	 *                            which can be a performance bottleneck.
 	 */
-	void runTasks(Collection<Runnable> tasks, boolean fireHierarchyUpdate);
+	void runTasks(Collection<Runnable> tasks);
 
 }

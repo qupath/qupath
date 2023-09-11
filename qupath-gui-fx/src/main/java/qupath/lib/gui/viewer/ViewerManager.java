@@ -31,11 +31,19 @@ import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
+import java.util.stream.Collectors;
 
+import javafx.beans.binding.Bindings;
+import javafx.beans.binding.StringBinding;
+import javafx.scene.Scene;
+import javafx.scene.layout.BorderPane;
+import javafx.stage.Stage;
+import javafx.stage.WindowEvent;
 import org.controlsfx.control.action.Action;
 import org.controlsfx.control.action.ActionUtils;
 import org.slf4j.Logger;
@@ -60,7 +68,6 @@ import javafx.scene.control.RadioMenuItem;
 import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.SplitPane;
 import javafx.scene.control.ToggleGroup;
-import javafx.scene.control.SplitPane.Divider;
 import javafx.scene.effect.DropShadow;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
@@ -74,6 +81,7 @@ import javafx.scene.shape.Ellipse;
 import javafx.scene.shape.Rectangle;
 import javafx.util.Duration;
 import jfxtras.scene.menu.CirclePopupMenu;
+import qupath.fx.utils.FXUtils;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.ToolManager;
@@ -135,6 +143,9 @@ public class ViewerManager implements QuPathViewerListener {
 
 	private Map<QuPathViewer, ViewerPosition> lastViewerPosition = new WeakHashMap<>();
 
+	// Hacky solution to needing a mechanism to refresh the titles of detached viewers
+	private BooleanProperty refreshTitleProperty = new SimpleBooleanProperty();
+
 	private ViewerManager(final QuPathGUI qupath) {
 		this.qupath = qupath;
 	}
@@ -147,7 +158,14 @@ public class ViewerManager implements QuPathViewerListener {
 	public static ViewerManager create(final QuPathGUI qupath) {
 		return new ViewerManager(qupath);
 	}
-	
+
+	/**
+	 * Request that viewers refresh their titles.
+	 * This is only really needed for detached viewers, so that they are notified of any changes to the image name.
+	 */
+	public void refreshTitles() {
+		refreshTitleProperty.set(!refreshTitleProperty.get());
+	}
 	
 	/**
 	 * Get an observable list of viewers.
@@ -337,20 +355,20 @@ public class ViewerManager implements QuPathViewerListener {
 		//			if (viewer.getServer() != null)
 		//				System.err.println(viewer.getServer().getShortServerName());
 		// Note: These are the internal row numbers... these don't necessarily match with the displayed row (?)
-		int row = splitPaneGrid.getRow(viewer.getView());
+		int row = splitPaneGrid.getRow(viewer);
 		if (row < 0) {
 			// Shouldn't occur...
-			Dialogs.showErrorMessage("Multiview error", "Cannot find " + viewer + " in the grid!");
+			Dialogs.showErrorMessage("Multiview", "Cannot find " + viewer + " in the grid!");
 			return false;
 		}
 		if (splitPaneGrid.nRows() == 1) {
-			Dialogs.showErrorMessage("Close row error", "The last row can't be removed!");
+			Dialogs.showWarningNotification("Close row", "The last row can't be removed!");
 			return false;
 		}
 
 		int nOpen = splitPaneGrid.countOpenViewersForRow(row);
 		if (nOpen > 0) {
-			Dialogs.showErrorMessage("Close row error", "Please close all open viewers in the selected row, then try again");
+			Dialogs.showWarningNotification("Close row", "Please close all open viewers in the selected row, then try again");
 			return false;
 		}
 		splitPaneGrid.removeRow(row);
@@ -369,7 +387,8 @@ public class ViewerManager implements QuPathViewerListener {
 		// Easiest way is to check for a scene
 		Iterator<? extends QuPathViewer> iter = viewers.iterator();
 		while (iter.hasNext()) {
-			if (iter.next().getView().getScene() == null)
+			var view = iter.next().getView();
+			if (view.getScene() == null)
 				iter.remove();
 		}
 	}
@@ -389,13 +408,13 @@ public class ViewerManager implements QuPathViewerListener {
 		}
 
 		if (splitPaneGrid.nCols() == 1) {
-			Dialogs.showErrorMessage("Close row error", "The last row can't be removed!");
+			Dialogs.showWarningNotification("Close column", "The last columns can't be removed!");
 			return false;
 		}
 
 		int nOpen = splitPaneGrid.countOpenViewersForColumn(col);
 		if (nOpen > 0) {
-			Dialogs.showErrorMessage("Close column error", "Please close all open viewers in selected column, then try again");
+			Dialogs.showWarningNotification("Close column", "Please close all open viewers in selected column, then try again");
 			//				DisplayHelpers.showErrorMessage("Close column error", "Please close all open viewers in column " + col + ", then try again");
 			return false;
 		}
@@ -403,6 +422,81 @@ public class ViewerManager implements QuPathViewerListener {
 		splitPaneGrid.resetGridSize();
 		// Make sure the viewer list is up-to-date
 		refreshViewerList();
+		return true;
+	}
+
+
+	/**
+	 * Set the grid to have a specific number of rows and columns.
+	 * @param nRows
+	 * @param nCols
+	 * @return
+	 */
+	public boolean setGridSize(int nRows, int nCols) {
+		if (nRows < 1 || nCols < 1) {
+			Dialogs.showErrorMessage("Multiview grid", "There must be at least one viewer in the grid!");
+			return false;
+		}
+		// Easiest case - no resizing to do
+		if (nRows == splitPaneGrid.nRows() && nCols == splitPaneGrid.nCols()) {
+			logger.warn("Viewer grid is already {} x {} - nothing to change!", nRows, nCols);
+			return true;
+		}
+		// Get all the open viewers currently in the grid & check it fits with what we want
+		refreshViewerList();
+
+		var openViewers = getAllViewers().stream().filter(
+				v -> !splitPaneGrid.isDetached(v) && v.hasServer()).toList();
+		if (openViewers.size() > nRows * nCols) {
+			Dialogs.showWarningNotification("Multiview grid", "There are too many viewers open! Please close some, then set the grid size.");
+			return false;
+		}
+		// Adding is easy too
+		while (splitPaneGrid.nRows() < nRows)
+			splitPaneGrid.addRow(splitPaneGrid.nRows());
+		while (splitPaneGrid.nCols() < nCols)
+			splitPaneGrid.addColumn(splitPaneGrid.nCols());
+		if (nRows == splitPaneGrid.nRows() && nCols == splitPaneGrid.nCols()) {
+			return true;
+		}
+		// Removing is trickier - we first need to move any open viewers to the top-left,
+		// replacing any closed viewers we find there
+		var activeViewer = getActiveViewer();
+		var allViewers = getAllViewers();
+		var closedViewers = allViewers.stream().filter(
+				v -> !splitPaneGrid.isDetached(v)
+						&& !v.hasServer()
+						&& splitPaneGrid.getRow(v) < nRows
+						&& splitPaneGrid.getColumn(v) < nCols)
+						.collect(Collectors.toCollection(ArrayList::new));
+		for (var viewer : openViewers) {
+			var view = viewer.getView();
+			int r = splitPaneGrid.getRow(view);
+			int c = splitPaneGrid.getColumn(view);
+			if (r >= nRows || c >= nCols) {
+				var nextClosedViewer = closedViewers.remove(0);
+				int rClosed = splitPaneGrid.getRow(nextClosedViewer);
+				int cClosed = splitPaneGrid.getColumn(nextClosedViewer);
+				splitPaneGrid.splitPaneRows.get(rClosed).getItems().set(cClosed, view);
+				viewers.remove(nextClosedViewer);
+			}
+		}
+		while (splitPaneGrid.nRows() > nRows) {
+			splitPaneGrid.removeRow(splitPaneGrid.nRows()-1);
+		}
+		while (splitPaneGrid.nCols() > nCols) {
+			splitPaneGrid.removeColumn(splitPaneGrid.nCols()-1);
+		}
+		refreshViewerList();
+		if (activeViewer != null && viewers.contains(activeViewer))
+			setActiveViewer(activeViewer);
+		else if (!viewers.isEmpty())
+			setActiveViewer(viewers.get(0));
+		else
+			logger.warn("No viewers remaining, cannot set active viewer");
+
+		// Distribute the divider positions
+		resetGridSize();
 		return true;
 	}
 
@@ -423,11 +517,12 @@ public class ViewerManager implements QuPathViewerListener {
 			return;
 
 		if (splitVertical) {
-			splitPaneGrid.addColumn(splitPaneGrid.getColumn(viewer.getView()));
+			splitPaneGrid.addColumn(splitPaneGrid.getColumn(viewer.getView())+1);
 		} else {
-			splitPaneGrid.addRow(splitPaneGrid.getRow(viewer.getView()));
+			splitPaneGrid.addRow(splitPaneGrid.getRow(viewer.getView())+1);
 		}
 	}
+
 
 	public void resetGridSize() {
 		splitPaneGrid.resetGridSize();
@@ -743,11 +838,54 @@ public class ViewerManager implements QuPathViewerListener {
 				}
 			}
 		});
-		
 
 	}
 
+	/**
+	 * Detach the currently active viewer from the viewer grid, if possible.
+	 */
+	public void detachActiveViewerFromGrid() {
+		detachViewerFromGrid(getActiveViewer());
+	}
 
+	/**
+	 * Insert the currently active viewer back into the viewer grid.
+	 * @see #attachViewerToGrid(QuPathViewer)
+	 */
+	public void attachActiveViewerToGrid() {
+		attachViewerToGrid(getActiveViewer());
+	}
+
+
+	/**
+	 * Detach the specified viewer from the viewer grid, if possible.
+	 * This will remove the viewer from the grid, and create a new window to contain it.
+	 * @param viewer
+	 * @see #detachViewerFromGrid(QuPathViewer)
+	 */
+	public void detachViewerFromGrid(QuPathViewer viewer) {
+		if (viewer == null)
+			Dialogs.showWarningNotification("Attach viewer", "Viewer is null - cannot detach from the viewer grid");
+		else if (splitPaneGrid.isDetached(viewer))
+			Dialogs.showWarningNotification("Attach viewer", "Viewer is already detached from the viewer grid");
+		else
+			splitPaneGrid.detachViewer(viewer);
+	}
+
+	/**
+	 * Attach the specified viewer to the viewer grid, if possible.
+	 * It will be inserted in place of the first available empty viewer slot.
+	 * If no empty slots are available, an error will be shown.
+	 * @param viewer
+	 */
+	public void attachViewerToGrid(QuPathViewer viewer) {
+		if (viewer == null)
+			Dialogs.showWarningNotification("Attach viewer", "Viewer is null - cannot attach to the viewer grid");
+		else if (splitPaneGrid.isDetached(viewer))
+			splitPaneGrid.attachViewer(viewer);
+		else
+			Dialogs.showWarningNotification("Attach viewer", "Viewer can't be added to the viewer grid");
+	}
 
 
 
@@ -772,25 +910,24 @@ public class ViewerManager implements QuPathViewerListener {
 
 
 		void addRow(final int position) {
-			SplitPane splitRow = new SplitPane();
-			splitRow.setOrientation(Orientation.HORIZONTAL);
+			// The new row we will add
+			SplitPane newRow = new SplitPane();
+			newRow.setOrientation(Orientation.HORIZONTAL);
 
 			// For now, we create a row with the same number of columns in every row
 			// Create viewers & bind dividers
-			splitRow.getItems().clear();
+			newRow.getItems().clear();
 			SplitPane firstRow = splitPaneRows.get(0);
-			splitRow.getItems().add(createViewer().getView());
-			for (int i = 0; i < firstRow.getDividers().size(); i++) {
-				splitRow.getItems().add(createViewer().getView());
+			for (int i = 0; i < firstRow.getItems().size(); i++) {
+				newRow.getItems().add(createViewer().getView());
 			}
 
-			// Ensure the new divider takes up half the space
-			double lastDividerPosition = position == 0 ? 0 : splitPaneMain.getDividers().get(position-1).getPosition();
-			double nextDividerPosition = position >= splitPaneRows.size()-1 ? 1 : splitPaneMain.getDividers().get(position).getPosition();
-			splitPaneRows.add(position, splitRow);
-			splitPaneMain.getItems().add(position+1, splitRow);
-			splitPaneMain.setDividerPosition(position, (lastDividerPosition + nextDividerPosition)/2);
+			// Insert the row
+			splitPaneRows.add(position, newRow);
+			splitPaneMain.getItems().add(position, newRow);
 
+			// Redistribute the positions & ensure column dividers bind to the first row
+			resetDividers(splitPaneMain);
 			refreshDividerBindings();
 		}
 
@@ -880,19 +1017,19 @@ public class ViewerManager implements QuPathViewerListener {
 
 
 		void addColumn(final int position) {
-			SplitPane firstRow = splitPaneRows.get(0);
-			double lastDividerPosition = position == 0 ? 0 : firstRow.getDividers().get(position-1).getPosition();
-			double nextDividerPosition = position >= firstRow.getItems().size()-1 ? 1 : firstRow.getDividers().get(position).getPosition();
-
-			firstRow.getItems().add(position+1, createViewer().getView());
-			Divider firstDivider = firstRow.getDividers().get(position);
-			firstDivider.setPosition((lastDividerPosition + nextDividerPosition)/2);
-			for (int i = 1; i < splitPaneRows.size(); i++) {
-				SplitPane splitRow = splitPaneRows.get(i);
-				splitRow.getItems().add(position+1, createViewer().getView());
+			// Add a new column at the same position to each row
+			for (var splitRow : splitPaneRows) {
+				splitRow.getItems().add(position, createViewer().getView());
 			}
 
+			// Redistribute the positions & ensure column dividers bind to the first row
+			resetDividers(splitPaneRows.get(0));
 			refreshDividerBindings();
+		}
+
+
+		public int getRow(final QuPathViewer viewer) {
+			return getRow(viewer.getView());
 		}
 
 
@@ -905,6 +1042,10 @@ public class ViewerManager implements QuPathViewerListener {
 				count++;
 			}
 			return -1;
+		}
+
+		public int getColumn(final QuPathViewer viewer) {
+			return getColumn(viewer.getView());
 		}
 
 		public int getColumn(final Node node) {
@@ -924,7 +1065,114 @@ public class ViewerManager implements QuPathViewerListener {
 			return splitPaneRows.get(0).getDividers().size() + 1;
 		}
 
+
+		public boolean isDetached(QuPathViewer viewer) {
+			return getRow(viewer) < 0;
+		}
+
+		public boolean attachViewer(QuPathViewer viewer) {
+			var closedViewer = getAllViewers()
+					.stream()
+					.filter(v -> !v.hasServer() && !isDetached(v))
+					.sorted(Comparator.comparingInt((QuPathViewer vv) -> getRow(vv)).thenComparing(vv -> getColumn(vv)))
+					.findFirst()
+					.orElse(null);
+			if (closedViewer == null) {
+				Dialogs.showErrorMessage("Attach viewer", "Cannot attach viewer - " +
+						"please close an existing viewer in the grid first");
+				return false;
+			}
+			var row = getRow(closedViewer);
+			int col = getColumn(closedViewer);
+			var stage = FXUtils.getWindow(viewer.getView());
+			stage.hide();
+			stage.getScene().setRoot(new BorderPane());
+			stage.fireEvent(new WindowEvent(stage, WindowEvent.WINDOW_CLOSE_REQUEST));
+			splitPaneRows.get(row).getItems().set(col, viewer.getView());
+			refreshViewerList();
+			setActiveViewer(viewer);
+			return true;
+		}
+
+		public boolean detachViewer(QuPathViewer viewer) {
+			int row = getRow(viewer.getView());
+			int col = getColumn(viewer.getView());
+			if (row >= 0 && col >= 0) {
+				SplitPane splitRow = splitPaneRows.get(row);
+				splitRow.getItems().set(col, createViewer().getView());
+				var stage = new Stage();
+				var pane = new BorderPane(viewer.getView());
+				var scene = new Scene(pane);
+				stage.setScene(scene);
+				stage.initOwner(qupath.getStage());
+				stage.titleProperty().bind(createDetachedViewerTitleBinding(viewer));
+				// It's messy... but we need to propagate key presses to the main window somehow,
+				// otherwise the viewer is non-responsive to key presses
+				stage.addEventFilter(KeyEvent.ANY, this::keyEventFilter);
+				stage.addEventFilter(MouseEvent.ANY, this::mouseEventFilter);
+				stage.addEventHandler(KeyEvent.ANY, this::propagateKeyEventToMainWindow);
+				stage.setOnCloseRequest(e -> {
+					if (FXUtils.getWindow(viewer.getView()) == null) {
+						logger.debug("Closing stage after viewer has been removed");
+						return;
+					}
+
+					if (viewers.size() == 1 && viewers.contains(viewer)) {
+						// This shouldn't occur if we always replace detached viewers
+						logger.error("The last viewer can't be closed!");
+						e.consume();
+						return;
+					}
+					if (qupath.closeViewer(viewer)) {
+						// Ensure we have an active viewer
+						// (If there isn't one, something has gone badly wrong)
+						var allOtherViewers = new ArrayList<>(getAllViewers());
+						allOtherViewers.remove(viewer);
+						if (!allOtherViewers.isEmpty())
+							setActiveViewer(allOtherViewers.get(0));
+						stage.close();
+						pane.getChildren().clear();
+						refreshViewerList();
+					}
+					e.consume();
+				});
+				stage.show();
+				return true;
+			} else {
+				logger.warn("Viewer is already detached!");
+				return false;
+			}
+		}
+
+		private StringBinding createDetachedViewerTitleBinding(QuPathViewer viewer) {
+			return Bindings.createStringBinding(() -> {
+				return qupath.getDisplayedImageName(viewer.getImageData());
+			}, viewer.imageDataProperty(), PathPrefs.maskImageNamesProperty(), qupath.projectProperty(), refreshTitleProperty);
+		}
+
+		private void keyEventFilter(KeyEvent e) {
+			if (qupath.uiBlocked().getValue())
+				e.consume();
+		}
+
+		private void mouseEventFilter(MouseEvent e) {
+			if (qupath.uiBlocked().getValue())
+				e.consume();
+		}
+
+		private void propagateKeyEventToMainWindow(KeyEvent e) {
+			if (!e.isConsumed()) {
+				if (e.getEventType() == KeyEvent.KEY_RELEASED) {
+					var handler = qupath.getStage().getScene().getOnKeyReleased();
+					if (handler != null)
+						handler.handle(e);
+				}
+			}
+		}
+
+
 	}
+
 
 	
 	
@@ -934,7 +1182,7 @@ public class ViewerManager implements QuPathViewerListener {
 		
 		var commonActions = qupath.getCommonActions();
 		var viewerManagerActions = qupath.getViewerActions();
-		
+
 		MenuItem miAddRow = new MenuItem(QuPathResources.getString("Action.View.Multiview.addRow"));
 		miAddRow.setOnAction(e -> addRow(viewer));
 		MenuItem miAddColumn = new MenuItem(QuPathResources.getString("Action.View.Multiview.addColumn"));
@@ -949,22 +1197,40 @@ public class ViewerManager implements QuPathViewerListener {
 		miCloseViewer.setOnAction(e -> qupath.closeViewer(viewer));
 		MenuItem miResizeGrid = new MenuItem(QuPathResources.getString("Action.View.Multiview.resetGridSize"));
 		miResizeGrid.setOnAction(e -> resetGridSize());
-		
-		MenuItem miToggleSync = ActionTools.createCheckMenuItem(viewerManagerActions.TOGGLE_SYNCHRONIZE_VIEWERS, null);
-		MenuItem miMatchResolutions = ActionTools.createMenuItem(viewerManagerActions.MATCH_VIEWER_RESOLUTIONS);
-		Menu menuMultiview = MenuTools.createMenu(
-				"Menu.View.Multiview",
-				miToggleSync,
-				miMatchResolutions,
-				miCloseViewer,
-				null,
-				miResizeGrid,
+
+		var menuGrid = MenuTools.createMenu(
+				"Action.View.Multiview.gridMenu",
+				viewerManagerActions.VIEWER_GRID_1x1,
+				viewerManagerActions.VIEWER_GRID_1x2,
+				viewerManagerActions.VIEWER_GRID_2x1,
+				viewerManagerActions.VIEWER_GRID_2x2,
+				viewerManagerActions.VIEWER_GRID_3x3,
 				null,
 				miAddRow,
 				miAddColumn,
 				null,
 				miRemoveRow,
-				miRemoveColumn
+				miRemoveColumn,
+				null,
+				miResizeGrid
+		);
+
+		var miDetachViewer = ActionTools.createMenuItem(viewerManagerActions.DETACH_VIEWER);
+		var miAttachViewer = ActionTools.createMenuItem(viewerManagerActions.ATTACH_VIEWER);
+
+		MenuItem miToggleSync = ActionTools.createCheckMenuItem(viewerManagerActions.TOGGLE_SYNCHRONIZE_VIEWERS, null);
+		MenuItem miMatchResolutions = ActionTools.createMenuItem(viewerManagerActions.MATCH_VIEWER_RESOLUTIONS);
+		Menu menuMultiview = MenuTools.createMenu(
+				"Menu.View.Multiview",
+				menuGrid,
+				null,
+				miToggleSync,
+				miMatchResolutions,
+				null,
+				miCloseViewer,
+				null,
+				miDetachViewer,
+				miAttachViewer
 				);
 		
 		Menu menuView = MenuTools.createMenu(
@@ -1040,7 +1306,7 @@ public class ViewerManager implements QuPathViewerListener {
 		
 		// Create a standard annotations menu
 		Menu menuAnnotations = GuiTools.populateAnnotationsMenu(qupath, MenuTools.createMenu("General.objects.annotations"));
-		
+
 		SeparatorMenuItem topSeparator = new SeparatorMenuItem();
 		popup.setOnShowing(e -> {
 			// Check if we have any cells
@@ -1086,8 +1352,19 @@ public class ViewerManager implements QuPathViewerListener {
 			topSeparator.setVisible(hasAnnotations || pathObject instanceof TMACoreObject);
 			// Occasionally, the newly-visible top part of a popup menu can have the wrong size?
 			popup.setWidth(popup.getPrefWidth());
+
+			if (viewer == null || splitPaneGrid == null) {
+				miDetachViewer.setVisible(false);
+				miAttachViewer.setVisible(false);
+			} else if (splitPaneGrid.isDetached(viewer)) {
+				miDetachViewer.setVisible(false);
+				miAttachViewer.setVisible(true);
+			} else {
+				miDetachViewer.setVisible(true);
+				miAttachViewer.setVisible(false);
+			}
 		});
-		
+
 		popup.getItems().addAll(
 				miClearSelectedObjects,
 				menuTMA,
@@ -1099,7 +1376,8 @@ public class ViewerManager implements QuPathViewerListener {
 				menuView,
 				menuTools
 				);
-		
+
+
 		popup.setAutoHide(true);
 		
 		// Enable circle pop-up for quick classification on right-click

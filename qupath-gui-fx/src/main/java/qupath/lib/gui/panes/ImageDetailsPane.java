@@ -117,7 +117,7 @@ import qupath.lib.gui.dialogs.ParameterPanelFX;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.prefs.PathPrefs.ImageTypeSetting;
 import qupath.fx.utils.GridPaneUtils;
-import qupath.lib.gui.prefs.SystemMenubar;
+import qupath.lib.gui.prefs.SystemMenuBar;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.ImageData.ImageType;
@@ -286,7 +286,7 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 		Scene scene = new Scene(pane);
 		pane.prefWidthProperty().bind(scene.widthProperty());
 		pane.prefHeightProperty().bind(scene.heightProperty());
-		SystemMenubar.manageChildMenubar(menubar);
+		SystemMenuBar.manageChildMenuBar(menubar);
 		//				menubar.setUseSystemMenuBar(true);
 		pane.setBackground(new Background(new BackgroundFill(Color.BLACK, null, null)));
 

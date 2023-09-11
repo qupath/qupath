@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -36,7 +36,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.common.ThreadTools;
-import qupath.lib.images.ImageData;
 
 
 /**
@@ -46,16 +45,13 @@ import qupath.lib.images.ImageData;
  * Note!  This makes use of a static threadpool, which will be reused by all inheriting classes.
  * 
  * @author Pete Bankhead
- *
- * @param <T>
  */
-public abstract class AbstractPluginRunner<T> implements PluginRunner<T> {
+public abstract class AbstractPluginRunner implements PluginRunner {
 	
 	private static final Logger logger = LoggerFactory.getLogger(AbstractPluginRunner.class);
 
 	private static int counter = 0;
 
-//	private static ExecutorService pool;
 	private ExecutorService pool;
 	private ExecutorCompletionService<Runnable> service;
 
@@ -67,16 +63,12 @@ public abstract class AbstractPluginRunner<T> implements PluginRunner<T> {
 	
 	protected AbstractPluginRunner() {
 		super();
-//		monitor = makeProgressMonitor();
 	}
 	
 	protected abstract SimpleProgressMonitor makeProgressMonitor();
 	
 	@Override
-	public abstract ImageData<T> getImageData();
-	
-	@Override
-	public synchronized void runTasks(Collection<Runnable> tasks, boolean updateHierarchy) {
+	public synchronized void runTasks(Collection<Runnable> tasks) {
 		
 		if (tasks.isEmpty())
 			return;
@@ -106,8 +98,6 @@ public abstract class AbstractPluginRunner<T> implements PluginRunner<T> {
 		
 		// Post-process any PathTasks
 		postProcess(tasks.stream().filter(t -> t instanceof PathTask).map(t -> (PathTask)t).toList());
-		
-		getImageData().getHierarchy().fireHierarchyChangedEvent(this);
 	}
 
 	
@@ -182,18 +172,11 @@ public abstract class AbstractPluginRunner<T> implements PluginRunner<T> {
 		boolean wasCancelled = tasksCancelled || monitor.cancelled();
 		for (var task : tasks)
 			task.taskComplete(wasCancelled);
-		
-		var imageData = getImageData();
-		if (imageData != null)
-			imageData.getHierarchy().fireHierarchyChangedEvent(this);
-		
-//		PathTask task = runnable instanceof PathTask ? (PathTask)runnable : null;
-//		if (task != null) {
-//			task.taskComplete();
-//		}
-//		runnable.getClass().getSimpleName()
-//		System.err.println("Updating monitor from post processing");
-//		updateMonitor(task);
+
+		// Removed v0.5.0 - TODO: Check if should be reinstated
+//		var imageData = getImageData();
+//		if (imageData != null)
+//			imageData.getHierarchy().fireHierarchyChangedEvent(this);
 	}
 	
 	private void updateMonitor(final PathTask task) {

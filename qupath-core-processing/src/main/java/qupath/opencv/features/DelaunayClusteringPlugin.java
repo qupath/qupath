@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -70,16 +70,16 @@ public class DelaunayClusteringPlugin<T> extends AbstractInteractivePlugin<T> {
 	}	
 	
 	@Override
-	protected void preprocess(PluginRunner<T> pluginRunner) {
-		super.preprocess(pluginRunner);
+	protected void preprocess(PluginRunner pluginRunner, ImageData<T> imageData) {
+		super.preprocess(pluginRunner, imageData);
 		// Reset any previous connections
-		pluginRunner.getImageData().removeProperty(DefaultPathObjectConnectionGroup.KEY_OBJECT_CONNECTIONS);
+		imageData.removeProperty(DefaultPathObjectConnectionGroup.KEY_OBJECT_CONNECTIONS);
 	}
 	
 	@Override
-	protected void postprocess(PluginRunner<T> pluginRunner) {
-		super.postprocess(pluginRunner);
-		getHierarchy(pluginRunner).fireHierarchyChangedEvent(this);
+	protected void postprocess(PluginRunner pluginRunner, ImageData<T> imageData) {
+		super.postprocess(pluginRunner, imageData);
+		imageData.getHierarchy().fireHierarchyChangedEvent(this);
 	}
 	
 
@@ -121,8 +121,8 @@ public class DelaunayClusteringPlugin<T> extends AbstractInteractivePlugin<T> {
 	}
 
 	@Override
-	protected Collection<? extends PathObject> getParentObjects(PluginRunner<T> runner) {
-		PathObjectHierarchy hierarchy = getHierarchy(runner);
+	protected Collection<? extends PathObject> getParentObjects(ImageData<T> imageData) {
+		PathObjectHierarchy hierarchy = imageData.getHierarchy();
 		if (hierarchy == null)
 			return Collections.emptyList();
 		

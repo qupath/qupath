@@ -146,7 +146,7 @@ import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.measure.ObservableMeasurementTableData;
 import qupath.lib.gui.measure.PathTableData;
 import qupath.lib.gui.prefs.PathPrefs;
-import qupath.lib.gui.prefs.SystemMenubar;
+import qupath.lib.gui.prefs.SystemMenuBar;
 import qupath.lib.gui.tma.TMAEntries.TMAEntry;
 import qupath.lib.gui.tma.TMAEntries.TMAObjectEntry;
 import qupath.lib.gui.tools.GuiTools;
@@ -421,7 +421,7 @@ public class TMASummaryViewer {
 		
 		BorderPane pane = new BorderPane();
 		pane.setTop(menuBar);
-		SystemMenubar.manageMainMenubar(menuBar);
+		SystemMenuBar.manageMainMenuBar(menuBar);
 //		menuBar.setUseSystemMenuBar(true);
 
 		// Create options

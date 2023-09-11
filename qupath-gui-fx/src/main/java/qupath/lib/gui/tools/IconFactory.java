@@ -26,6 +26,8 @@ package qupath.lib.gui.tools;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Path2D;
 import java.awt.geom.PathIterator;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
 import java.util.function.IntFunction;
@@ -226,6 +228,10 @@ public class IconFactory {
 			return i -> new DuplicatableNode(() -> drawShowNamesIcon(i));
 		}
 
+		static IntFunction<Node> createViewerGridIcon(int rows, int cols) {
+			return i -> new DuplicatableNode(() -> drawViewerGridIcon(i, rows, cols));
+		}
+
 	}
 	
 	
@@ -299,6 +305,12 @@ public class IconFactory {
 
 									TABLE(IconSuppliers.icoMoon('\ue91a')),
 									TMA_GRID(IconSuppliers.icoMoon('\ue91b', PathPrefs.colorTMAProperty())),
+
+									VIEWER_GRID_1x1(IconSuppliers.createViewerGridIcon(1, 1)),
+									VIEWER_GRID_1x2(IconSuppliers.createViewerGridIcon(1, 2)),
+									VIEWER_GRID_2x1(IconSuppliers.createViewerGridIcon(2, 1)),
+									VIEWER_GRID_2x2(IconSuppliers.createViewerGridIcon(2, 2)),
+									VIEWER_GRID_3x3(IconSuppliers.createViewerGridIcon(3, 3)),
 
 									WAND_TOOL(IconSuppliers.icoMoon('\ue91c', PathPrefs.colorDefaultObjectsProperty())),
 									WARNING(IconSuppliers.fontAwesome(FontAwesome.Glyph.WARNING)),
@@ -533,6 +545,46 @@ public class IconFactory {
 		var label = new Label("C");
 		label.getStyleClass().add("qupath-icon");
 		return label;
+	}
+
+
+	private static Node drawViewerGridIcon(int size, int rows, int cols) {
+		double pad = 2.0;
+		List<Node> nodes = new ArrayList<>();
+		double h = (size - pad*2) / rows;
+		double w = (size - pad*2) / cols;
+
+		var rect = new Rectangle(pad, pad, size-pad*2, size-pad*2);
+		double arcSize = size / 6.0;
+		rect.setArcHeight(arcSize);
+		rect.setArcWidth(arcSize);
+		styleIconShape(rect);
+		nodes.add(rect);
+
+		for (int r = 1; r < rows; r++) {
+			double y = pad + r * h;
+			var line = new Line(pad, y, size - pad, y);
+			styleIconShape(line);
+			nodes.add(line);
+		}
+
+		for (int c = 1; c < cols; c++) {
+			double x = pad + c * w;
+			var line = new Line(x, pad, x, size - pad);
+			styleIconShape(line);
+			nodes.add(line);
+		}
+
+		var group = wrapInGroup(size, nodes.toArray(Node[]::new));
+		group.getStyleClass().add("qupath-icon");
+		return group;
+	}
+
+	private static void styleIconShape(Shape shape) {
+		shape.setFill(Color.TRANSPARENT);
+		shape.setStrokeWidth(1.0);
+		shape.setSmooth(true);
+		shape.setStyle("-fx-stroke: -fx-text-fill;");
 	}
 
 	

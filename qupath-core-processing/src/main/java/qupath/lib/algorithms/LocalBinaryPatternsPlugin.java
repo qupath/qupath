@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -50,7 +50,6 @@ import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.plugins.AbstractInteractivePlugin;
-import qupath.lib.plugins.PluginRunner;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.interfaces.ROI;
@@ -310,8 +309,8 @@ public class LocalBinaryPatternsPlugin extends AbstractInteractivePlugin<Buffere
 	}
 
 	@Override
-	protected Collection<PathObject> getParentObjects(final PluginRunner<BufferedImage> runner) {
-		return runner.getImageData().getHierarchy().getDetectionObjects();
+	protected Collection<PathObject> getParentObjects(final ImageData<BufferedImage> imageData) {
+		return imageData.getHierarchy().getDetectionObjects();
 	}
 
 	@Override
