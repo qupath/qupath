@@ -148,7 +148,6 @@ public class ViewMenuActions implements MenuActions {
 		public final Action SEP_7 = ActionTools.createSeparator();
 		
 		@ActionConfig("Action.View.inputDisplay")
-		@ActionAccelerator("shortcut+shift+i")
 		public final Action INPUT_DISPLAY = ActionTools.createSelectableCommandAction(qupath.showInputDisplayProperty());
 
 		@ActionConfig("Action.View.memoryMonitor")
