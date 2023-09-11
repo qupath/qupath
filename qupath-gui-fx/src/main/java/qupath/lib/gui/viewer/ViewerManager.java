@@ -1082,6 +1082,7 @@ public class ViewerManager implements QuPathViewerListener {
 						"please close an existing viewer in the grid first");
 				return false;
 			}
+			double[] positions = splitPaneRows.get(0).getDividerPositions();
 			var row = getRow(closedViewer);
 			int col = getColumn(closedViewer);
 			var stage = FXUtils.getWindow(viewer.getView());
@@ -1090,16 +1091,22 @@ public class ViewerManager implements QuPathViewerListener {
 			stage.fireEvent(new WindowEvent(stage, WindowEvent.WINDOW_CLOSE_REQUEST));
 			splitPaneRows.get(row).getItems().set(col, viewer.getView());
 			refreshViewerList();
+			refreshDividerBindings();
 			setActiveViewer(viewer);
+			splitPaneRows.get(0).setDividerPositions(positions);
 			return true;
 		}
+
+
 
 		public boolean detachViewer(QuPathViewer viewer) {
 			int row = getRow(viewer.getView());
 			int col = getColumn(viewer.getView());
 			if (row >= 0 && col >= 0) {
+				double[] positions = splitPaneRows.get(0).getDividerPositions();
 				SplitPane splitRow = splitPaneRows.get(row);
 				splitRow.getItems().set(col, createViewer().getView());
+				refreshDividerBindings();
 				var stage = new Stage();
 				var pane = new BorderPane(viewer.getView());
 				var scene = new Scene(pane);
@@ -1137,6 +1144,8 @@ public class ViewerManager implements QuPathViewerListener {
 					e.consume();
 				});
 				stage.show();
+				refreshViewerList();
+				splitPaneRows.get(0).setDividerPositions(positions);
 				return true;
 			} else {
 				logger.warn("Viewer is already detached!");
