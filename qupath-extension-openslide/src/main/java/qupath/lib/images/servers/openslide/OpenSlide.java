@@ -66,7 +66,6 @@ public final class OpenSlide implements Closeable {
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
     private final long[] levelWidths;
     private final long[] levelHeights;
-    private final double[] levelDownsamples;
     private final int levelCount;
     private final Map<String, String> properties;
     private final File canonicalFile;
@@ -101,15 +100,12 @@ public final class OpenSlide implements Closeable {
         // store dimensions
         levelWidths = new long[levelCount];
         levelHeights = new long[levelCount];
-        levelDownsamples = new double[levelCount];
 
         for (int i = 0; i < levelCount; i++) {
             long[] w = new long[1], h = new long[1];
             OpenSlideJNA.INSTANCE.openslide_get_level_dimensions(osr, i, w, h);
             levelWidths[i] = w[0];
             levelHeights[i] = h[0];
-            levelDownsamples[i] = OpenSlideJNA.INSTANCE.openslide_get_level_downsample(
-                    osr, i);
         }
 
         // properties
@@ -217,10 +213,6 @@ public final class OpenSlide implements Closeable {
         }
     }
 
-    public double getLevelDownsample(int level) {
-        return levelDownsamples[level];
-    }
-
     public Map<String, String> getProperties() {
         return properties;
     }
@@ -259,7 +251,6 @@ public final class OpenSlide implements Closeable {
     public static String getLibraryVersion() {
         return LIBRARY_VERSION;
     }
-
 
     @Override
     public int hashCode() {
