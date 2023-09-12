@@ -57,9 +57,9 @@ import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
  * @author Pete Bankhead
  *
  */
-public class OpenSlideImageServer extends AbstractTileableImageServer {
+public class OpenslideImageServer extends AbstractTileableImageServer {
 	
-	private static final Logger logger = LoggerFactory.getLogger(OpenSlideImageServer.class);
+	private static final Logger logger = LoggerFactory.getLogger(OpenslideImageServer.class);
 
 	private static boolean useBoundingBoxes = true;
 
@@ -101,7 +101,7 @@ public class OpenSlideImageServer extends AbstractTileableImageServer {
 	 * @param args
 	 * @throws IOException
 	 */
-	public OpenSlideImageServer(URI uri, String...args) throws IOException {
+	public OpenslideImageServer(URI uri, String...args) throws IOException {
 		super();
 		this.uri = uri;
 
@@ -310,7 +310,7 @@ public class OpenSlideImageServer extends AbstractTileableImageServer {
 	
 	@Override
 	protected ServerBuilder<BufferedImage> createServerBuilder() {
-		return DefaultImageServerBuilder.createInstance(OpenSlideServerBuilder.class, getMetadata(), uri, args);
+		return DefaultImageServerBuilder.createInstance(OpenslideServerBuilder.class, getMetadata(), uri, args);
 	}
 
 	@Override

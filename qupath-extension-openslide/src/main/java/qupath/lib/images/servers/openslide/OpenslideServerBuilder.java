@@ -45,9 +45,9 @@ import qupath.lib.images.servers.FileFormatInfo.ImageCheckType;
  * @author Pete Bankhead
  *
  */
-public class OpenSlideServerBuilder implements ImageServerBuilder<BufferedImage> {
+public class OpenslideServerBuilder implements ImageServerBuilder<BufferedImage> {
 	
-	private static final Logger logger = LoggerFactory.getLogger(OpenSlideServerBuilder.class);
+	private static final Logger logger = LoggerFactory.getLogger(OpenslideServerBuilder.class);
 	private static boolean openslideUnavailable = false;
 	
 	private static List<String> WIN_LIBRARIES = Arrays.asList(
@@ -114,7 +114,7 @@ public class OpenSlideServerBuilder implements ImageServerBuilder<BufferedImage>
 			return null;
 		}
 		try {
-			return new OpenSlideImageServer(uri, args);
+			return new OpenslideImageServer(uri, args);
 		} catch (Exception e) {
 			logger.warn("Unable to open {} with OpenSlide: {}", uri, e.getLocalizedMessage());
 		} catch (NoClassDefFoundError e) {
@@ -182,8 +182,8 @@ public class OpenSlideServerBuilder implements ImageServerBuilder<BufferedImage>
 		for (var className : classNames) {
 			if (this.getClass().getName().equals(className) ||
 					this.getClass().getSimpleName().equals(className) ||
-					OpenSlideImageServer.class.getName().equals(className) ||
-					OpenSlideImageServer.class.getSimpleName().equals(className) ||
+					OpenslideImageServer.class.getName().equals(className) ||
+					OpenslideImageServer.class.getSimpleName().equals(className) ||
 					"openslide".equalsIgnoreCase(className))
 				return true;			
 		}
