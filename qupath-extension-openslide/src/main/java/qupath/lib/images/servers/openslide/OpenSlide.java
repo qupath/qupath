@@ -23,9 +23,9 @@ package qupath.lib.images.servers.openslide;
 
 import com.sun.jna.Library;
 import com.sun.jna.Native;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.awt.Color;
-import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferInt;
 import java.io.Closeable;
@@ -37,79 +37,55 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-import javax.swing.filechooser.FileFilter;
 
 public final class OpenSlide implements Closeable {
-    private static final FileFilter FILE_FILTER = new FileFilter() {
-        @Override
-        public boolean accept(File f) {
-            return f.isDirectory() || OpenSlide.detectVendor(f) != null;
-        }
 
-        @Override
-        public String getDescription() {
-            return "Virtual slide";
-        }
-    };
-
+    private static final Logger logger = LoggerFactory.getLogger(OpenSlide.class);
     private static final String LIBRARY_VERSION = OpenSlideJNA.INSTANCE.openslide_get_version();
 
-    final public static String PROPERTY_NAME_COMMENT = "openslide.comment";
+    public static final String PROPERTY_NAME_COMMENT = "openslide.comment";
+    public static final String PROPERTY_NAME_VENDOR = "openslide.vendor";
+    public static final String PROPERTY_NAME_QUICKHASH1 = "openslide.quickhash-1";
+    public static final String PROPERTY_NAME_BACKGROUND_COLOR = "openslide.background-color";
+    public static final String PROPERTY_NAME_OBJECTIVE_POWER = "openslide.objective-power";
+    public static final String PROPERTY_NAME_MPP_X = "openslide.mpp-x";
+    public static final String PROPERTY_NAME_MPP_Y = "openslide.mpp-y";
+    public static final String PROPERTY_NAME_BOUNDS_X = "openslide.bounds-x";
+    public static final String PROPERTY_NAME_BOUNDS_Y = "openslide.bounds-y";
+    public static final String PROPERTY_NAME_BOUNDS_WIDTH = "openslide.bounds-width";
+    public static final String PROPERTY_NAME_BOUNDS_HEIGHT = "openslide.bounds-height";
 
-    final public static String PROPERTY_NAME_VENDOR = "openslide.vendor";
+    public List<String> getAssociatedImages() {
+        return associatedImages;
+    }
 
-    final public static String PROPERTY_NAME_QUICKHASH1 = "openslide.quickhash-1";
-
-    final public static String PROPERTY_NAME_BACKGROUND_COLOR = "openslide.background-color";
-
-    final public static String PROPERTY_NAME_OBJECTIVE_POWER = "openslide.objective-power";
-
-    final public static String PROPERTY_NAME_MPP_X = "openslide.mpp-x";
-
-    final public static String PROPERTY_NAME_MPP_Y = "openslide.mpp-y";
-
-    final public static String PROPERTY_NAME_BOUNDS_X = "openslide.bounds-x";
-
-    final public static String PROPERTY_NAME_BOUNDS_Y = "openslide.bounds-y";
-
-    final public static String PROPERTY_NAME_BOUNDS_WIDTH = "openslide.bounds-width";
-
-    final public static String PROPERTY_NAME_BOUNDS_HEIGHT = "openslide.bounds-height";
+    private final List<String> associatedImages;
 
     private long osr;
 
-    final private ReadWriteLock lock = new ReentrantReadWriteLock();
-
-    final private long[] levelWidths;
-
-    final private long[] levelHeights;
-
-    final private double[] levelDownsamples;
-
-    final private int levelCount;
-
-    final private Map<String, String> properties;
-
-    final private Map<String, AssociatedImage> associatedImages;
-
-    final private File canonicalFile;
-
-    final private int hashCodeVal;
+    private final ReadWriteLock lock = new ReentrantReadWriteLock();
+    private final long[] levelWidths;
+    private final long[] levelHeights;
+    private final double[] levelDownsamples;
+    private final int levelCount;
+    private final Map<String, String> properties;
+    private final File canonicalFile;
+    private final int hashCodeVal;
 
     public static String detectVendor(File file) {
         return OpenSlideJNA.INSTANCE.openslide_detect_vendor(file.getPath());
     }
 
-    public OpenSlide(File file) throws IOException {
-        if (!file.exists()) {
-            throw new FileNotFoundException(file.toString());
+    public OpenSlide(String file) throws IOException {
+        File f = new File (file);
+        if (!f.exists()) {
+            throw new FileNotFoundException(file);
         }
 
-        osr = OpenSlideJNA.INSTANCE.openslide_open(file.getPath());
+        osr = OpenSlideJNA.INSTANCE.openslide_open(file);
 
         if (osr == 0) {
-            throw new IOException(file
-                    + ": Not a file that OpenSlide can recognize");
+            throw new IOException(file + ": Not a file that OpenSlide can recognize");
         }
         // dispose on error, we are in the constructor
         try {
@@ -137,7 +113,7 @@ public final class OpenSlide implements Closeable {
         }
 
         // properties
-        HashMap<String, String> props = new HashMap<>();
+        Map<String, String> props = new LinkedHashMap<>();
         for (String s : OpenSlideJNA.INSTANCE.openslide_get_property_names(osr)) {
             props.put(s, OpenSlideJNA.INSTANCE.openslide_get_property_value(osr, s));
         }
@@ -145,16 +121,13 @@ public final class OpenSlide implements Closeable {
         properties = Collections.unmodifiableMap(props);
 
         // associated images
-        HashMap<String, AssociatedImage> associated = new HashMap<>();
-        for (String s : OpenSlideJNA.INSTANCE
-                .openslide_get_associated_image_names(osr)) {
-            associated.put(s, new AssociatedImage(s, this));
-        }
+        associatedImages = new ArrayList<>();
+        Collections.addAll(associatedImages, OpenSlideJNA.INSTANCE
+                .openslide_get_associated_image_names(osr));
 
-        associatedImages = Collections.unmodifiableMap(associated);
 
         // store info for hash and equals
-        canonicalFile = file.getCanonicalFile();
+        canonicalFile = f.getCanonicalFile();
         String quickhash1 = getProperties().get(PROPERTY_NAME_QUICKHASH1);
         if (quickhash1 != null) {
             hashCodeVal = (int) Long.parseLong(quickhash1.substring(0, 8), 16);
@@ -221,11 +194,6 @@ public final class OpenSlide implements Closeable {
         return levelHeights[level];
     }
 
-    public void paintRegionOfLevel(Graphics2D g, int dx, int dy, int sx,
-                                   int sy, int w, int h, int level) throws IOException {
-        paintRegion(g, dx, dy, sx, sy, w, h, levelDownsamples[level]);
-    }
-
     // takes the reader lock
     public void paintRegionARGB(int[] dest, long x, long y, int level, int w,
                                 int h) throws IOException {
@@ -249,143 +217,12 @@ public final class OpenSlide implements Closeable {
         }
     }
 
-    public void paintRegion(Graphics2D g, int dx, int dy, long sx, long sy,
-                            int w, int h, double downsample) throws IOException {
-        if (downsample < 1.0) {
-            throw new IllegalArgumentException("downsample (" + downsample
-                    + ") must be >= 1.0");
-        }
-
-        // get the level
-        int level = getBestLevelForDownsample(downsample);
-
-        // figure out its downsample
-        double levelDS = levelDownsamples[level];
-
-        // compute the difference
-        double relativeDS = downsample / levelDS;
-
-        // scale source coordinates into level coordinates
-        long baseX = (long) (downsample * sx);
-        long baseY = (long) (downsample * sy);
-        long levelX = (long) (relativeDS * sx);
-        long levelY = (long) (relativeDS * sy);
-
-        // scale width and height by relative downsample
-        int levelW = (int) Math.round(relativeDS * w);
-        int levelH = (int) Math.round(relativeDS * h);
-
-        // clip to edge of image
-        levelW = (int) Math.min(levelW, getLevelWidth(level) - levelX);
-        levelH = (int) Math.min(levelH, getLevelHeight(level) - levelY);
-        w = (int) Math.round(levelW / relativeDS);
-        h = (int) Math.round(levelH / relativeDS);
-
-        if (debug) {
-            System.out.println("levelW " + levelW + ", levelH " + levelH
-                    + ", baseX " + baseX + ", baseY " + baseY);
-        }
-
-        if (levelW <= 0 || levelH <= 0) {
-            // nothing to draw
-            return;
-        }
-
-        BufferedImage img = new BufferedImage(levelW, levelH,
-                BufferedImage.TYPE_INT_ARGB_PRE);
-
-        int[] data = ((DataBufferInt) img.getRaster().getDataBuffer())
-                .getData();
-
-        paintRegionARGB(data, baseX, baseY, level, img.getWidth(), img
-                .getHeight());
-
-        // g.scale(1.0 / relativeDS, 1.0 / relativeDS);
-        g.drawImage(img, dx, dy, w, h, null);
-
-        if (debug) {
-            System.out.println(img);
-
-            if (debugThingy == 0) {
-                g.setColor(new Color(1.0f, 0.0f, 0.0f, 0.4f));
-                debugThingy = 1;
-            } else {
-                g.setColor(new Color(0.0f, 1.0f, 0.0f, 0.4f));
-                debugThingy = 0;
-            }
-            g.fillRect(dx, dy, w, h);
-        }
-    }
-
-    final boolean debug = false;
-
-    private int debugThingy = 0;
-
-    public BufferedImage createThumbnailImage(int x, int y, long w, long h,
-                                              int maxSize, int bufferedImageType) throws IOException {
-        double ds;
-
-        if (w > h) {
-            ds = (double) w / maxSize;
-        } else {
-            ds = (double) h / maxSize;
-        }
-
-        if (ds < 1.0) {
-            ds = 1.0;
-        }
-
-        int sw = (int) (w / ds);
-        int sh = (int) (h / ds);
-        int sx = (int) (x / ds);
-        int sy = (int) (y / ds);
-
-        BufferedImage result = new BufferedImage(sw, sh, bufferedImageType);
-
-        Graphics2D g = result.createGraphics();
-        paintRegion(g, 0, 0, sx, sy, sw, sh, ds);
-        g.dispose();
-        return result;
-    }
-
-    public BufferedImage createThumbnailImage(int x, int y, long w, long h,
-                                              int maxSize) throws IOException {
-        return createThumbnailImage(x, y, w, h, maxSize,
-                BufferedImage.TYPE_INT_RGB);
-    }
-
-    public BufferedImage createThumbnailImage(int maxSize) throws IOException {
-        return createThumbnailImage(0, 0, getLevel0Width(), getLevel0Height(),
-                maxSize);
-    }
-
     public double getLevelDownsample(int level) {
         return levelDownsamples[level];
     }
 
-    public int getBestLevelForDownsample(double downsample) {
-        // too small, return first
-        if (downsample < levelDownsamples[0]) {
-            return 0;
-        }
-
-        // find where we are in the middle
-        for (int i = 1; i < levelCount; i++) {
-            if (downsample < levelDownsamples[i]) {
-                return i - 1;
-            }
-        }
-
-        // too big, return last
-        return levelCount - 1;
-    }
-
     public Map<String, String> getProperties() {
         return properties;
-    }
-
-    public Map<String, AssociatedImage> getAssociatedImages() {
-        return associatedImages;
     }
 
     // takes the reader lock
@@ -423,9 +260,6 @@ public final class OpenSlide implements Closeable {
         return LIBRARY_VERSION;
     }
 
-    public static FileFilter getFileFilter() {
-        return FILE_FILTER;
-    }
 
     @Override
     public int hashCode() {

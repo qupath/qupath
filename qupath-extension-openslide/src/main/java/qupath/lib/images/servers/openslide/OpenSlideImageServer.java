@@ -31,7 +31,6 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Paths;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -58,16 +57,15 @@ import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
  * @author Pete Bankhead
  *
  */
-public class OpenslideImageServer extends AbstractTileableImageServer {
+public class OpenSlideImageServer extends AbstractTileableImageServer {
 	
-	private static final Logger logger = LoggerFactory.getLogger(OpenslideImageServer.class);
+	private static final Logger logger = LoggerFactory.getLogger(OpenSlideImageServer.class);
 
 	private static boolean useBoundingBoxes = true;
 
 	private ImageServerMetadata originalMetadata;
 
 	private List<String> associatedImageList = null;
-	private Map<String, AssociatedImage> associatedImages = null;
 
 	private final OpenSlide osr;
 	private Color backgroundColor;
@@ -103,7 +101,7 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 	 * @param args
 	 * @throws IOException
 	 */
-	public OpenslideImageServer(URI uri, String...args) throws IOException {
+	public OpenSlideImageServer(URI uri, String...args) throws IOException {
 		super();
 		this.uri = uri;
 
@@ -111,7 +109,7 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 		// from different classloader are likely to cause an error (although upon first further investigation it seems this doesn't really solve the problem...)
 		System.gc();
 		File file = Paths.get(uri).toFile();
-		osr = new OpenSlide(file);
+		osr = new OpenSlide(uri.toString());
 
 		// Parse the parameters
 		int width = (int)osr.getLevel0Width();
@@ -214,9 +212,7 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 		 * This works, but need to come up with a better way of returning usable servers
 		 * based on the associated images
 		 */
-		associatedImages = osr.getAssociatedImages();
-		associatedImageList = new ArrayList<>(associatedImages.keySet());
-		associatedImageList = Collections.unmodifiableList(associatedImageList);
+		associatedImageList = Collections.unmodifiableList(osr.getAssociatedImages());
 		
 		// Try to get a background color
 		try {
@@ -314,13 +310,13 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 	
 	@Override
 	protected ServerBuilder<BufferedImage> createServerBuilder() {
-		return DefaultImageServerBuilder.createInstance(OpenslideServerBuilder.class, getMetadata(), uri, args);
+		return DefaultImageServerBuilder.createInstance(OpenSlideServerBuilder.class, getMetadata(), uri, args);
 	}
 
 	@Override
 	public BufferedImage getAssociatedImage(String name) {
 		try {
-			return associatedImages.get(name).toBufferedImage();
+			return osr.getAssociatedImage(name);
 		} catch (Exception e) {
 			logger.error("Error requesting associated image " + name, e);
 		}
