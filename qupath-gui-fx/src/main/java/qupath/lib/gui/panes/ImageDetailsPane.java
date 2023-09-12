@@ -218,25 +218,40 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 			return;
 		String name = listAssociatedImages.getSelectionModel().getSelectedItem();
 
-		Stage dialog = new Stage();
-		dialog.setTitle(name);
-		dialog.initModality(Modality.NONE);
+		var img = imageData.getServer().getAssociatedImage(name);
+		Stage stage = createSimpleImageStage(name, img);
+		var owner = FXUtils.getWindow(getPane());
+		var screen = FXUtils.getScreen(owner);
+		stage.initOwner(owner);
+		stage.sizeToScene();
+		double maxProportion = 0.75;
+		if (img.getWidth() > screen.getBounds().getWidth() * maxProportion)
+			stage.setWidth(screen.getBounds().getWidth() * maxProportion);
+		if (img.getHeight() > screen.getBounds().getHeight() * maxProportion)
+			stage.setHeight(screen.getBounds().getHeight() * maxProportion);
+		stage.show();
+	}
+
+
+	private static Stage createSimpleImageStage(String name, BufferedImage img) {
+		Stage stage = new Stage();
+		stage.setTitle(name);
+		stage.initModality(Modality.NONE);
 		var qupath = QuPathGUI.getInstance();
 		if (qupath != null)
-			dialog.initOwner(qupath.getStage());
+			stage.initOwner(qupath.getStage());
 
 		// Create menubar
 		MenuBar menubar = new MenuBar();
 		Menu menuFile = new Menu("File");
 		MenuItem miClose = new MenuItem("Close");
 		miClose.setAccelerator(new KeyCodeCombination(KeyCode.W, KeyCombination.SHORTCUT_DOWN));
-		miClose.setOnAction(e -> dialog.close());
+		miClose.setOnAction(e -> stage.close());
 		MenuItem miSave = new MenuItem("Save as PNG");
 		miSave.setAccelerator(new KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_DOWN));
 		miSave.setOnAction(e -> {
-			BufferedImage img = imageData.getServer().getAssociatedImage(name);
 			File fileOutput = FileChoosers.
-					promptToSaveFile(dialog, "Save image",
+					promptToSaveFile(stage, "Save image",
 							name == null ? null : new File(name),
 							FileChoosers.createExtensionFilter("PNG", ".png"));
 			if (fileOutput != null) {
@@ -253,9 +268,9 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 		MenuItem miCopy = new MenuItem("Copy");
 		miCopy.setAccelerator(new KeyCodeCombination(KeyCode.C, KeyCombination.SHORTCUT_DOWN));
 		miCopy.setOnAction(e -> {
-			Image img = SwingFXUtils.toFXImage(imageData.getServer().getAssociatedImage(name), null);
+			Image image = SwingFXUtils.toFXImage(img, null);
 			ClipboardContent content = new ClipboardContent();
-			content.putImage(img);
+			content.putImage(image);
 			Clipboard.getSystemClipboard().setContent(content);
 		});
 
@@ -265,7 +280,7 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 		menubar.getMenus().addAll(menuFile, menuEdit);
 
 		// Create image view
-		var imgBuffered = imageData.getServer().getAssociatedImage(name);
+		BufferedImage imgBuffered = img;
 		if (!BufferedImageTools.is8bitColorType(imgBuffered.getType()) && imgBuffered.getType() != BufferedImage.TYPE_BYTE_GRAY) {
 			// By wrapping the thumbnail, we avoid slow z-stack/time series requests & determine brightness & contrast just from one plane
 			var wrappedServer = new WrappedBufferedImageServer("Dummy", imgBuffered);
@@ -275,24 +290,25 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 			}
 			imgBuffered = imageDisplay.applyTransforms(imgBuffered, null);
 		}
-		Image img = SwingFXUtils.toFXImage(imgBuffered, null);
-		ImageView imageView = new ImageView(img);
+		Image image = SwingFXUtils.toFXImage(imgBuffered, null);
+		ImageView imageView = new ImageView(image);
 		BorderPane pane = new BorderPane();
 		imageView.fitWidthProperty().bind(pane.widthProperty());
 		imageView.fitHeightProperty().bind(pane.heightProperty());
 		imageView.setPreserveRatio(true);
 		pane.setCenter(imageView);
 		pane.setTop(menubar);
+
 		Scene scene = new Scene(pane);
 		pane.prefWidthProperty().bind(scene.widthProperty());
 		pane.prefHeightProperty().bind(scene.heightProperty());
 		SystemMenuBar.manageChildMenuBar(menubar);
-		//				menubar.setUseSystemMenuBar(true);
 		pane.setBackground(new Background(new BackgroundFill(Color.BLACK, null, null)));
 
-		dialog.setScene(scene);
-		dialog.show();
+		stage.setScene(scene);
+		return stage;
 	}
+
 	
 
 
