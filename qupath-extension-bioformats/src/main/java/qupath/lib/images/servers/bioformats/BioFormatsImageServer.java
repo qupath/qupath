@@ -67,6 +67,7 @@ import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ForkJoinTask;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.IntStream;
 
 import javax.imageio.ImageIO;
 
@@ -326,8 +327,10 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			}
 		}
 
+		List<ImageChannel> channels = new ArrayList<>();
+
 		// Create a reader & extract the metadata
-		readerPool = new ReaderPool(options, filePathOrUrl, bfArgs);
+		readerPool = new ReaderPool(options, filePathOrUrl, bfArgs, channels);
 		IFormatReader reader = readerPool.getMainReader();
 		var meta = (OMEPyramidStore)reader.getMetadataStore();
 
@@ -494,9 +497,6 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 				tileWidth = getDefaultTileLength(tileWidth, width);
 			if (tileHeight != height)
 				tileHeight = getDefaultTileLength(tileHeight, height);
-
-			// Prepared to set channel colors
-			List<ImageChannel> channels = new ArrayList<>();
 
 			nZSlices = reader.getSizeZ();
 //			// Workaround bug whereby VSI channels can also be replicated as z-slices
@@ -1060,12 +1060,14 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		private IFormatReader mainReader;
 		
 		private ForkJoinTask<?> task;
+		private final List<ImageChannel> channels;
 		
 		
-		ReaderPool(BioFormatsServerOptions options, String id, BioFormatsArgs args) throws FormatException, IOException {
+		ReaderPool(BioFormatsServerOptions options, String id, BioFormatsArgs args, List<ImageChannel> channels) throws FormatException, IOException {
 			this.id = id;
 			this.options = options;
 			this.args = args;
+			this.channels = channels;
 			
 			queue = new ArrayBlockingQueue<>(MAX_QUEUE_CAPACITY); // Set a reasonably large capacity (don't want to block when trying to add)
 			metadata = (OMEPyramidStore)MetadataTools.createOMEXMLMetadata();
@@ -1286,7 +1288,6 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		
 		
 		BufferedImage openImage(TileRequest tileRequest, int series, int nChannels, boolean isRGB, ColorModel colorModel) throws IOException, InterruptedException {
-			
 			int level = tileRequest.getLevel();
 			int tileX = tileRequest.getTileX();
 			int tileY = tileRequest.getTileY();
@@ -1303,6 +1304,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			boolean interleaved;
 			int pixelType;
 			boolean normalizeFloats = false;
+			int[] samplesPerPixel;
 
 			
 			IFormatReader ipReader = null;
@@ -1324,7 +1326,10 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 					interleaved = ipReader.isInterleaved();
 					pixelType = ipReader.getPixelType();
 					normalizeFloats = ipReader.isNormalized();
-	
+					samplesPerPixel = IntStream.range(0, metadata.getChannelCount(series))
+							.map(channel -> metadata.getChannelSamplesPerPixel(series, channel).getValue())
+							.toArray();
+
 					// Single-channel & RGB images are straightforward... nothing more to do
 					if ((ipReader.isRGB() && isRGB) || nChannels == 1) {
 						// Read the image - or at least the first channel
@@ -1353,122 +1358,28 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 				if (ipReader != null)
 					queue.put(ipReader);
 			}
+
+			OMEPixelParser omePixelParser = new OMEPixelParser.Builder()
+					.isInterleaved(interleaved)
+					.channels(channels)
+					.pixelType(switch (pixelType) {
+						case FormatTools.UINT8 -> PixelType.UINT8;
+						case FormatTools.INT8 -> PixelType.INT8;
+						case FormatTools.UINT16 -> PixelType.UINT16;
+						case FormatTools.INT16 -> PixelType.INT16;
+						case FormatTools.UINT32 -> PixelType.UINT32;
+						case FormatTools.INT32 -> PixelType.INT32;
+						case FormatTools.FLOAT -> PixelType.FLOAT32;
+						case FormatTools.DOUBLE -> PixelType.FLOAT64;
+						default -> throw new IllegalStateException("Unexpected value: " + pixelType);
+					})
+					.byteOrder(order)
+					.normalizeFloats(normalizeFloats)
+					.effectiveNChannels(effectiveC)
+					.samplesPerPixel(samplesPerPixel)
+					.build();
 			
-			DataBuffer dataBuffer;
-			switch (pixelType) {
-			case (FormatTools.UINT8):
-				dataBuffer = new DataBufferByte(bytes, length);
-			break;
-			case (FormatTools.UINT16):
-				length /= 2;
-				short[][] array = new short[bytes.length][length];
-				for (int i = 0; i < bytes.length; i++) {
-					ShortBuffer buffer = ByteBuffer.wrap(bytes[i]).order(order).asShortBuffer();
-					array[i] = new short[buffer.limit()];
-					buffer.get(array[i]);
-				}
-				dataBuffer = new DataBufferUShort(array, length);
-				break;
-			case (FormatTools.INT16):
-				length /= 2;
-				short[][] shortArray = new short[bytes.length][length];
-				for (int i = 0; i < bytes.length; i++) {
-					ShortBuffer buffer = ByteBuffer.wrap(bytes[i]).order(order).asShortBuffer();
-					shortArray[i] = new short[buffer.limit()];
-					buffer.get(shortArray[i]);
-				}
-				dataBuffer = new DataBufferShort(shortArray, length);
-				break;
-			case (FormatTools.INT32):
-				length /= 4;
-				int[][] intArray = new int[bytes.length][length];
-					for (int i = 0; i < bytes.length; i++) {
-						IntBuffer buffer = ByteBuffer.wrap(bytes[i]).order(order).asIntBuffer();
-						intArray[i] = new int[buffer.limit()];
-						buffer.get(intArray[i]);
-					}
-				dataBuffer = new DataBufferInt(intArray, length);
-				break;
-			case (FormatTools.FLOAT):
-				length /= 4;
-				float[][] floatArray = new float[bytes.length][length];
-				for (int i = 0; i < bytes.length; i++) {
-					FloatBuffer buffer = ByteBuffer.wrap(bytes[i]).order(order).asFloatBuffer();
-					floatArray[i] = new float[buffer.limit()];
-					buffer.get(floatArray[i]);
-					if (normalizeFloats)
-						floatArray[i] = DataTools.normalizeFloats(floatArray[i]);
-				}
-				dataBuffer = new DataBufferFloat(floatArray, length);
-				break;
-			case (FormatTools.DOUBLE):
-				length /= 8;
-				double[][] doubleArray = new double[bytes.length][length];
-				for (int i = 0; i < bytes.length; i++) {
-					DoubleBuffer buffer = ByteBuffer.wrap(bytes[i]).order(order).asDoubleBuffer();
-					doubleArray[i] = new double[buffer.limit()];
-					buffer.get(doubleArray[i]);
-					if (normalizeFloats)
-						doubleArray[i] = DataTools.normalizeDoubles(doubleArray[i]);
-				}
-				dataBuffer = new DataBufferDouble(doubleArray, length);
-				break;
-			// TODO: Consider conversion to closest supported pixel type
-			case FormatTools.BIT:
-			case FormatTools.INT8:
-			case FormatTools.UINT32:
-			default:
-				throw new UnsupportedOperationException("Unsupported pixel type " + pixelType);
-			}
-
-			SampleModel sampleModel;
-
-			if (effectiveC == 1 && sizeC > 1) {
-				// Handle channels stored in the same plane
-				int[] offsets = new int[sizeC];
-				if (interleaved) {
-					for (int b = 0; b < sizeC; b++)
-						offsets[b] = b;
-					sampleModel = new PixelInterleavedSampleModel(dataBuffer.getDataType(), tileWidth, tileHeight, sizeC, sizeC*tileWidth, offsets);
-				} else {
-					for (int b = 0; b < sizeC; b++)
-						offsets[b] = b * tileWidth * tileHeight;
-					sampleModel = new ComponentSampleModel(dataBuffer.getDataType(), tileWidth, tileHeight, 1, tileWidth, offsets);
-				}
-			} else if (sizeC > effectiveC) {
-				// Handle multiple bands, but still interleaved
-				// See https://forum.image.sc/t/qupath-cant-open-polarized-light-scans/65951
-				int[] offsets = new int[sizeC];
-				int[] bandInds = new int[sizeC];
-				int ind = 0;
-				
-				int channelCount = metadata.getChannelCount(series);
-				for (int cInd = 0; cInd < channelCount; cInd++) {
-					int nSamples = metadata.getChannelSamplesPerPixel(series, cInd).getValue();
-					for (int s = 0; s < nSamples; s++) {
-						bandInds[ind] = cInd;
-						if (interleaved) {
-							offsets[ind] = s;
-						} else {
-							offsets[ind] = s * tileWidth * tileHeight;							
-						}
-						ind++;
-					}
-				}
-				// TODO: Check this! It works for the only test image I have... (2 channels with 3 samples each)
-				// I would guess it fails if pixelStride does not equal nSamples, and if nSamples is different for different 'channels' - 
-				// but I don't know if this occurs in practice.
-				// If it does, I don't see a way to use a ComponentSampleModel... which could complicate things quite a bit
-				int pixelStride = sizeC / effectiveC;
-				int scanlineStride = pixelStride*tileWidth;
-				sampleModel = new ComponentSampleModel(dataBuffer.getDataType(), tileWidth, tileHeight, pixelStride, scanlineStride, bandInds, offsets);
-			} else {
-				// Merge channels on different planes
-				sampleModel = new BandedSampleModel(dataBuffer.getDataType(), tileWidth, tileHeight, sizeC);
-			}
-
-			WritableRaster raster = WritableRaster.createWritableRaster(sampleModel, dataBuffer, null);
-			return new BufferedImage(colorModel, raster, false, null);
+			return omePixelParser.parse(bytes, tileWidth, tileHeight, nChannels);
 			
 		}
 		
