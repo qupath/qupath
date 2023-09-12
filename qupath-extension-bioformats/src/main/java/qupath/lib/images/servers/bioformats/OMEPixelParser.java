@@ -9,6 +9,9 @@ import java.awt.image.*;
 import java.nio.*;
 import java.util.List;
 
+/**
+ * This class can parse raw bytes into a {@link BufferedImage}.
+ */
 public class OMEPixelParser {
 
     private final boolean isInterleaved;
@@ -29,6 +32,17 @@ public class OMEPixelParser {
         this.samplesPerPixel = builder.samplesPerPixel;
     }
 
+    /**
+     * Creates a {@link BufferedImage} from a 2-dimensional byte array.
+     *
+     * @param pixels  the byte array containing the pixel values. The first dimension of the
+     *                array refers to the channel and the second dimension refers to the position
+     *                of the pixel
+     * @param width  the width in pixels of the image
+     * @param height  the height in pixels of the image
+     * @param nChannels  the number of channels of this image
+     * @return the corresponding image
+     */
     public BufferedImage parse(byte[][] pixels, int width, int height, int nChannels) {
         DataBuffer dataBuffer = bytesToDataBuffer(pixels);
         SampleModel sampleModel = createSampleModel(width, height, nChannels, dataBuffer.getDataType());
@@ -147,6 +161,9 @@ public class OMEPixelParser {
         }
     }
 
+    /**
+     * Builder for instances of {@link OMEPixelParser}.
+     */
     public static class Builder {
 
         private boolean isInterleaved = false;
@@ -157,41 +174,77 @@ public class OMEPixelParser {
         private int effectiveNChannels;
         private int[] samplesPerPixel;
 
+        /**
+         * @param isInterleaved  whether pixel values are interleaved
+         * @return the current builder
+         */
         public Builder isInterleaved(boolean isInterleaved) {
             this.isInterleaved = isInterleaved;
             return this;
         }
 
+        /**
+         * @param channels  all channels of the image
+         * @return the current builder
+         */
         public Builder channels(List<ImageChannel> channels) {
             this.channels = channels;
             return this;
         }
 
+        /**
+         * @param pixelType  the bit-depth of the image pixels
+         * @return the current builder
+         */
         public Builder pixelType(PixelType pixelType) {
             this.pixelType = pixelType;
             return this;
         }
 
+        /**
+         * @param byteOrder  the byte order of each pixel
+         * @return the current builder
+         */
         public Builder byteOrder(ByteOrder byteOrder) {
             this.byteOrder = byteOrder;
             return this;
         }
 
+        /**
+         * @param effectiveNChannels  the effective size of the C dimension of the image. This is not always
+         *                            the number of channels, for example RGB values can be stored in one effective channel
+         * @return the current builder
+         */
         public Builder effectiveNChannels(int effectiveNChannels) {
             this.effectiveNChannels = effectiveNChannels;
             return this;
         }
 
+        /**
+         * @param normalizeFloats  whether float data should be normalized
+         * @return the current builder
+         */
         public Builder normalizeFloats(boolean normalizeFloats) {
             this.normalizeFloats = normalizeFloats;
             return this;
         }
 
+        /**
+         * @param samplesPerPixel  an array containing the number of samples per pixel for each channel.
+         *                         For example, samplesPerPixel[i] should contain the number of samples
+         *                         per pixel for channel i
+         * @return the current builder
+         */
         public Builder samplesPerPixel(int[] samplesPerPixel) {
             this.samplesPerPixel = samplesPerPixel;
             return this;
         }
 
+        /**
+         * Creates a new {@link OMEPixelParser} instance.
+         *
+         * @return the current builder
+         */
         public OMEPixelParser build() {
             return new OMEPixelParser(this);
         }
