@@ -26,7 +26,6 @@ package qupath.lib.gui.panes;
 import java.awt.image.BufferedImage;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
-import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URLDecoder;
@@ -43,8 +42,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.IntStream;
 
-import javax.imageio.ImageIO;
-
+import javafx.scene.control.TitledPane;
 import org.controlsfx.control.MasterDetailPane;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,7 +53,6 @@ import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
-import javafx.embed.swing.SwingFXUtils;
 import javafx.event.ActionEvent;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -63,14 +60,10 @@ import javafx.geometry.Side;
 import javafx.scene.control.Label;
 import javafx.scene.Group;
 import javafx.scene.Node;
-import javafx.scene.Scene;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.ListView;
-import javafx.scene.control.Menu;
-import javafx.scene.control.MenuBar;
-import javafx.scene.control.MenuItem;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
@@ -78,17 +71,10 @@ import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.control.Tooltip;
 import javafx.scene.effect.DropShadow;
-import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
-import javafx.scene.input.Clipboard;
-import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
-import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
-import javafx.scene.layout.Background;
-import javafx.scene.layout.BackgroundFill;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
@@ -99,25 +85,18 @@ import javafx.scene.paint.Color;
 import javafx.scene.shape.Ellipse;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.text.TextAlignment;
-import javafx.stage.Modality;
-import javafx.stage.Stage;
 import qupath.fx.utils.FXUtils;
-import qupath.fx.dialogs.FileChoosers;
-import qupath.lib.awt.common.BufferedImageTools;
 import qupath.lib.color.ColorDeconvolutionHelper;
 import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.color.StainVector;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.display.ChannelDisplayInfo;
-import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.QuPathGUI;
 import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.ParameterPanelFX;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.prefs.PathPrefs.ImageTypeSetting;
 import qupath.fx.utils.GridPaneUtils;
-import qupath.lib.gui.prefs.SystemMenuBar;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.ImageData.ImageType;
@@ -125,7 +104,6 @@ import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.images.servers.ServerTools;
-import qupath.lib.images.servers.WrappedBufferedImageServer;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
 import qupath.lib.plugins.workflow.WorkflowStep;
@@ -204,7 +182,11 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 
 		MasterDetailPane mdPane = new MasterDetailPane(Side.BOTTOM);
 		mdPane.setMasterNode(new StackPane(table));
-		mdPane.setDetailNode(new StackPane(listAssociatedImages));
+		var titlePaneAssociated = new TitledPane("Associated images", listAssociatedImages);
+		titlePaneAssociated.setCollapsible(false);
+		listAssociatedImages.setTooltip(new Tooltip(
+				"Extra images associated with the current image, e.g. a label or thumbnail"));
+		mdPane.setDetailNode(titlePaneAssociated);
 		mdPane.showDetailNodeProperty().bind(
 				Bindings.createBooleanBinding(() -> !listAssociatedImages.getItems().isEmpty(),
 						listAssociatedImages.getItems()));
@@ -219,97 +201,14 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 		String name = listAssociatedImages.getSelectionModel().getSelectedItem();
 
 		var img = imageData.getServer().getAssociatedImage(name);
-		Stage stage = createSimpleImageStage(name, img);
+		var simpleViewer = new SimpleImageViewer();
+		simpleViewer.updateImage(name, img);
+		var stage = simpleViewer.getStage();
 		var owner = FXUtils.getWindow(getPane());
-		var screen = FXUtils.getScreen(owner);
 		stage.initOwner(owner);
-		stage.sizeToScene();
-		double maxProportion = 0.75;
-		if (img.getWidth() > screen.getBounds().getWidth() * maxProportion)
-			stage.setWidth(screen.getBounds().getWidth() * maxProportion);
-		if (img.getHeight() > screen.getBounds().getHeight() * maxProportion)
-			stage.setHeight(screen.getBounds().getHeight() * maxProportion);
-		stage.show();
+		// Show with constrained size (in case we have a large image)
+		GuiTools.showWithScreenSizeConstraints(stage, 0.8);
 	}
-
-
-	private static Stage createSimpleImageStage(String name, BufferedImage img) {
-		Stage stage = new Stage();
-		stage.setTitle(name);
-		stage.initModality(Modality.NONE);
-		var qupath = QuPathGUI.getInstance();
-		if (qupath != null)
-			stage.initOwner(qupath.getStage());
-
-		// Create menubar
-		MenuBar menubar = new MenuBar();
-		Menu menuFile = new Menu("File");
-		MenuItem miClose = new MenuItem("Close");
-		miClose.setAccelerator(new KeyCodeCombination(KeyCode.W, KeyCombination.SHORTCUT_DOWN));
-		miClose.setOnAction(e -> stage.close());
-		MenuItem miSave = new MenuItem("Save as PNG");
-		miSave.setAccelerator(new KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_DOWN));
-		miSave.setOnAction(e -> {
-			File fileOutput = FileChoosers.
-					promptToSaveFile(stage, "Save image",
-							name == null ? null : new File(name),
-							FileChoosers.createExtensionFilter("PNG", ".png"));
-			if (fileOutput != null) {
-				try {
-					ImageIO.write(img, "PNG", fileOutput);
-				} catch (Exception e1) {
-					Dialogs.showErrorMessage("Save image", "Error saving " + fileOutput.getName() + "\n" + e1.getLocalizedMessage());
-				}
-			}
-		});
-		menuFile.getItems().addAll(miSave, miClose);
-
-		Menu menuEdit = new Menu("Edit");
-		MenuItem miCopy = new MenuItem("Copy");
-		miCopy.setAccelerator(new KeyCodeCombination(KeyCode.C, KeyCombination.SHORTCUT_DOWN));
-		miCopy.setOnAction(e -> {
-			Image image = SwingFXUtils.toFXImage(img, null);
-			ClipboardContent content = new ClipboardContent();
-			content.putImage(image);
-			Clipboard.getSystemClipboard().setContent(content);
-		});
-
-
-		menuEdit.getItems().add(miCopy);
-
-		menubar.getMenus().addAll(menuFile, menuEdit);
-
-		// Create image view
-		BufferedImage imgBuffered = img;
-		if (!BufferedImageTools.is8bitColorType(imgBuffered.getType()) && imgBuffered.getType() != BufferedImage.TYPE_BYTE_GRAY) {
-			// By wrapping the thumbnail, we avoid slow z-stack/time series requests & determine brightness & contrast just from one plane
-			var wrappedServer = new WrappedBufferedImageServer("Dummy", imgBuffered);
-			var imageDisplay = new ImageDisplay(new ImageData<>(wrappedServer));
-			for (ChannelDisplayInfo info : imageDisplay.selectedChannels()) {
-				imageDisplay.autoSetDisplayRange(info);
-			}
-			imgBuffered = imageDisplay.applyTransforms(imgBuffered, null);
-		}
-		Image image = SwingFXUtils.toFXImage(imgBuffered, null);
-		ImageView imageView = new ImageView(image);
-		BorderPane pane = new BorderPane();
-		imageView.fitWidthProperty().bind(pane.widthProperty());
-		imageView.fitHeightProperty().bind(pane.heightProperty());
-		imageView.setPreserveRatio(true);
-		pane.setCenter(imageView);
-		pane.setTop(menubar);
-
-		Scene scene = new Scene(pane);
-		pane.prefWidthProperty().bind(scene.widthProperty());
-		pane.prefHeightProperty().bind(scene.heightProperty());
-		SystemMenuBar.manageChildMenuBar(menubar);
-		pane.setBackground(new Background(new BackgroundFill(Color.BLACK, null, null)));
-
-		stage.setScene(scene);
-		return stage;
-	}
-
-	
 
 
 	private static boolean hasOriginalMetadata(ImageServer<BufferedImage> server) {

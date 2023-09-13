@@ -1350,4 +1350,45 @@ public class GuiTools {
 	}
 
 
+	/**
+	 * Show a stage, while ensuring that it cannot be larger than the screen size.
+	 * The screen is determined from the stage itself, its owner, or is the primary screen.
+	 * <p>
+	 *     This method is useful when there is a risk that an initial stage size is too big for the screen,
+	 *     but we do not want to prevent the user from resizing freely afterwards.
+	 * </p>
+	 * @param stage
+	 * @param proportion
+	 * @see #showWithSizeConstraints(Stage, double, double)
+	 */
+	public static void showWithScreenSizeConstraints(Stage stage, double proportion) {
+		Screen screen = FXUtils.getScreen(stage);
+		if (screen == null && stage.getOwner() != null)
+			screen = FXUtils.getScreen(stage.getOwner());
+		if (screen == null)
+			screen = Screen.getPrimary();
+		showWithSizeConstraints(stage,
+				screen.getVisualBounds().getWidth() * proportion,
+						screen.getVisualBounds().getHeight() * proportion);
+	}
+
+	/**
+	 * Show a stage, while ensuring that it cannot be larger the maximum dimensions provided
+	 * This effectively sets the maximum dimensions of the stage, shows it, and then restores the previous maximum dimensions.
+	 * @param stage
+	 * @param maxWidth
+	 * @param maxHeight
+	 * @see #showWithScreenSizeConstraints(Stage, double)
+	 */
+	public static void showWithSizeConstraints(Stage stage, double maxWidth, double maxHeight) {
+		double previousMaxWidth = stage.getMaxWidth();
+		double previousMaxHeight = stage.getMaxHeight();
+		stage.setMaxWidth(Math.min(previousMaxWidth, maxWidth));
+		stage.setMaxHeight(Math.min(previousMaxHeight, maxHeight));
+		stage.show();
+		stage.setMaxWidth(previousMaxWidth);
+		stage.setMaxHeight(previousMaxHeight);
+	}
+
+
 }
