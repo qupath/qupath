@@ -260,8 +260,9 @@ public class SimpleImageViewer {
     }
 
     private String getCurrentTile() {
-        if (image.get() == null)
-            return resources.getString("SimpleImageViewer.noImage");
+        // We use a placeholder now - so let's retain the title
+//        if (image.get() == null)
+//            return resources.getString("SimpleImageViewer.noImage");
         String name = imageName.get();
         if (name == null || name.isEmpty())
             return resources.getString("SimpleImageViewer.noTitle");

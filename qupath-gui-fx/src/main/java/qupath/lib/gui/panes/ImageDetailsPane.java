@@ -34,6 +34,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -131,6 +132,8 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 	private TableView<ImageDetailRow> table = new TableView<>();
 	private ListView<String> listAssociatedImages = new ListView<>();
 
+	private Map<String, SimpleImageViewer> associatedImageViewers = new HashMap<>();
+
 	private enum ImageDetailRow {
 		NAME, URI, PIXEL_TYPE, MAGNIFICATION, WIDTH, HEIGHT, DIMENSIONS,
 		PIXEL_WIDTH, PIXEL_HEIGHT, Z_SPACING, UNCOMPRESSED_SIZE, SERVER_TYPE, PYRAMID,
@@ -199,15 +202,26 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 		if (event.getClickCount() < 2 || listAssociatedImages.getSelectionModel().getSelectedItem() == null)
 			return;
 		String name = listAssociatedImages.getSelectionModel().getSelectedItem();
-
-		var img = imageData.getServer().getAssociatedImage(name);
-		var simpleViewer = new SimpleImageViewer();
-		simpleViewer.updateImage(name, img);
-		var stage = simpleViewer.getStage();
-		var owner = FXUtils.getWindow(getPane());
-		stage.initOwner(owner);
-		// Show with constrained size (in case we have a large image)
-		GuiTools.showWithScreenSizeConstraints(stage, 0.8);
+		var simpleViewer = associatedImageViewers.get(name);
+		if (simpleViewer == null) {
+			simpleViewer = new SimpleImageViewer();
+			var img = imageData.getServer().getAssociatedImage(name);
+			simpleViewer.updateImage(name, img);
+			var stage = simpleViewer.getStage();
+			var owner = FXUtils.getWindow(getPane());
+			stage.initOwner(owner);
+			stage.setOnCloseRequest(e -> {
+				associatedImageViewers.remove(name);
+				stage.close();
+				e.consume();
+			});
+			// Show with constrained size (in case we have a large image)
+			GuiTools.showWithScreenSizeConstraints(stage, 0.8);
+			associatedImageViewers.put(name, simpleViewer);
+		} else {
+			simpleViewer.getStage().show();
+			simpleViewer.getStage().toFront();
+		}
 	}
 
 
@@ -643,6 +657,17 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 				listAssociatedImages.getItems().clear();
 			else
 				listAssociatedImages.getItems().setAll(server.getAssociatedImageList());
+		}
+
+		// Check if we're showing associated images
+		for (var entry : associatedImageViewers.entrySet()) {
+			var name = entry.getKey();
+			var simpleViewer = entry.getValue();
+			logger.trace("Updating associated image viewer for {}", name);
+			if (server == null || !server.getAssociatedImageList().contains(name))
+				simpleViewer.updateImage(name, (BufferedImage)null); // Hack to retain the title, without an image
+			else
+				simpleViewer.updateImage(name, server.getAssociatedImage(name));
 		}
 	}
 

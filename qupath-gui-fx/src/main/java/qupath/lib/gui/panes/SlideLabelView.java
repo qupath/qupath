@@ -76,6 +76,11 @@ public class SlideLabelView implements ChangeListener<ImageData<BufferedImage>> 
 		stage = simpleImageViewer.getStage();
 		stage.initOwner(qupath.getStage());
 
+		if (simpleImageViewer.getImage() == null) {
+			stage.setWidth(240);
+			stage.setHeight(240);
+		}
+
 		showing.addListener((v, o, n) -> {
 			if (n) {
 				if (!stage.isShowing()) {
@@ -97,12 +102,7 @@ public class SlideLabelView implements ChangeListener<ImageData<BufferedImage>> 
 		if (showing.get()) {
 			Platform.runLater(() -> {
 				updateLabel(qupath.getImageData());
-				if (simpleImageViewer.getImage() == null) {
-					stage.setWidth(240);
-					stage.setHeight(240);
-				}
 				GuiTools.showWithScreenSizeConstraints(stage, 0.8);
-				stage.sizeToScene();
 			});
 		}
 	}
