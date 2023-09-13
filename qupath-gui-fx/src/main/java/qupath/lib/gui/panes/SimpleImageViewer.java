@@ -24,15 +24,21 @@ package qupath.lib.gui.panes;
 
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.DoubleBinding;
+import javafx.beans.binding.ObjectBinding;
 import javafx.beans.binding.StringBinding;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
+import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.embed.swing.SwingFXUtils;
+import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Menu;
@@ -42,7 +48,11 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
+import javafx.scene.layout.Background;
+import javafx.scene.layout.BackgroundFill;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.paint.Color;
+import javafx.scene.text.Text;
 import javafx.stage.Stage;
 import org.controlsfx.control.action.Action;
 import org.slf4j.Logger;
@@ -59,6 +69,7 @@ import qupath.lib.gui.actions.annotations.ActionConfig;
 import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.prefs.SystemMenuBar;
+import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.tools.MenuTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.WrappedBufferedImageServer;
@@ -93,6 +104,9 @@ public class SimpleImageViewer {
     private BorderPane pane;
     private ImageView imageView;
     private ContextMenu contextMenu;
+
+    private StringProperty placeholderText = new SimpleStringProperty();
+    private ObjectProperty<Text> placeholder = new SimpleObjectProperty<>();
 
     private BooleanProperty isNon8BitImage = new SimpleBooleanProperty(false);
 
@@ -131,12 +145,13 @@ public class SimpleImageViewer {
     }
 
     private void initialize() {
+        logger.trace("Initializing SimpleImageViewer");
         pane = new BorderPane();
-        pane.setStyle("-fx-background-color: black;");
 
         saturation.bind(PathPrefs.autoBrightnessContrastSaturationPercentProperty());
         saturation.addListener(this::handleSaturationChanged);
 
+        initializePlaceholder();
         initializeActions();
         initializeImageView();
         initializeMenuBar();
@@ -145,10 +160,56 @@ public class SimpleImageViewer {
         stage = new Stage();
         stage.titleProperty().bind(createTitleBinding());
         var scene = new Scene(pane);
+//        pane.setStyle("-fx-background-color: black;");
+        pane.backgroundProperty().bind(createBackgroundBinding());
         pane.prefWidthProperty().bind(scene.widthProperty());
         pane.prefHeightProperty().bind(scene.heightProperty());
+        pane.centerProperty().bind(createCenterBinding());
         stage.setScene(scene);
     }
+
+    private ObjectBinding<Background> createBackgroundBinding() {
+        return Bindings.createObjectBinding(() ->
+                new Background(new BackgroundFill(getViewerBackgroundColor(), null, null)),
+                PathPrefs.viewerBackgroundColorProperty());
+    }
+
+    private ObjectBinding<Color> createPlaceholderTextFillBinding() {
+        return Bindings.createObjectBinding(() -> {
+                    var color = getViewerBackgroundColor();
+                    if (color.getBrightness() > 0.5)
+                        return ColorToolsFX.getCachedColor(0, 0, 0, 127);
+                    else
+                        return ColorToolsFX.getCachedColor(255, 255, 255, 127);
+        }, PathPrefs.viewerBackgroundColorProperty());
+    }
+
+    private static Color getViewerBackgroundColor() {
+        return ColorToolsFX.getCachedColor(PathPrefs.viewerBackgroundColorProperty().get());
+    }
+
+    private ObjectBinding<Node> createCenterBinding() {
+        return Bindings.createObjectBinding(() -> {
+            if (imageView.getImage() != null)
+                return imageView;
+            else
+                return placeholder.get();
+        }, imageView.imageProperty());
+    }
+
+    private void initializePlaceholder() {
+        var textPlaceholder = new Text();
+        textPlaceholder.fillProperty().bind(createPlaceholderTextFillBinding());
+        textPlaceholder.textProperty().bind(
+                Bindings.createStringBinding(() -> {
+                    if (placeholderText.get() == null)
+                        return resources.getString("SimpleImageViewer.placeholderText");
+                    else
+                        return placeholderText.get();
+                }, placeholderText, PathPrefs.defaultLocaleDisplayProperty()));
+        placeholder.set(textPlaceholder);
+    }
+
 
     private void initializeActions() {
         ActionTools.getAnnotatedActions(this); // Applies annotations for configuration
@@ -163,7 +224,6 @@ public class SimpleImageViewer {
         imageView.fitHeightProperty().bind(createFitImageBinding(this::computeFitHeight));
         imageView.setPreserveRatio(true);
         imageView.imageProperty().bind(image);
-        pane.setCenter(imageView);
     }
 
     private Double computeFitWidth() {
@@ -246,6 +306,30 @@ public class SimpleImageViewer {
                 miSaturation
         );
         pane.setOnContextMenuRequested(e -> contextMenu.show(pane, e.getScreenX(), e.getScreenY()));
+    }
+
+    /**
+     * Get the placeholder text to show if no image is available.
+     * @return
+     */
+    public String getPlaceholderText() {
+        return placeholderText.get();
+    }
+
+    /**
+     * Set the placeholder text to show if no image is available.
+     * @param placeholder
+     */
+    public void setPlaceholderText(String placeholder) {
+        this.placeholderText.set(placeholder);
+    }
+
+    /**
+     * Get the placeholder text to show if no image is available.
+     * @return
+     */
+    public StringProperty placeholderTextProperty() {
+        return placeholderText;
     }
 
     /**
@@ -345,10 +429,18 @@ public class SimpleImageViewer {
      * @param image
      */
     public void updateImage(String name, Image image) {
+        logger.trace("Updating JavaFX Image to {} ({})", name, image);
         this.image.set(image);
         this.img.set(convertToBufferedImage(image));
         this.imageName.set(name);
         this.isNon8BitImage.set(requiresAutoContrast(img.get()));
+    }
+
+    /**
+     * Remove the image.
+     */
+    public void resetImage() {
+        updateImage(null, (Image) null);
     }
 
     /**
@@ -357,6 +449,7 @@ public class SimpleImageViewer {
      * @param img
      */
     public void updateImage(String name, BufferedImage img) {
+        logger.trace("Updating BufferedImage to {} ({})", name, img);
         this.img.set(img);
         this.image.set(convertToFXImage(img));
         this.imageName.set(name);
