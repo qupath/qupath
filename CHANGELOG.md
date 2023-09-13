@@ -20,6 +20,8 @@ This is a work-in-progress for the next QuPath release.
 * Scripts open with the caret at the bottom of the text rather than the top (https://github.com/qupath/qupath/issues/1258)
 * 'Synchronize viewers' ignores z and t positions (https://github.com/qupath/qupath/issues/1220)
 * Menubars and shortcuts are confused when ImageJ is open but QuPath is in focus in macOS (https://github.com/qupath/qupath/issues/6)
+* Slide label can be too big for the screen (https://github.com/qupath/qupath/issues/1263)
+* Slide label doesn't update as expected when changing the image (https://github.com/qupath/qupath/issues/1246)
 
 ### Dependency updates
 * Bio-Formats 7.0.0

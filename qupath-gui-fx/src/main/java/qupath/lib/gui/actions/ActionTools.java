@@ -327,10 +327,12 @@ public class ActionTools {
 		
 		// Get accessible fields corresponding to actions
 		for (var f : cls.getDeclaredFields()) {
-			if (Modifier.isStatic(f.getModifiers()) || !f.canAccess(obj)) {
+			if (Modifier.isStatic(f.getModifiers())) {// || !f.canAccess(obj)) {
 				continue;
 			}
 			try {
+				if (!f.canAccess(obj))
+					f.setAccessible(true);
 				var value = f.get(obj);
 				if (value instanceof Action) {
 					var action = (Action)value;
