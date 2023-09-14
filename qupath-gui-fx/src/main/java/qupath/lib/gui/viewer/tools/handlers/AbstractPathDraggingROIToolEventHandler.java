@@ -77,8 +77,10 @@ abstract class AbstractPathDraggingROIToolEventHandler extends AbstractPathROITo
 		
 		var viewer = getViewer();
 		PathObject selectedObject = viewer.getSelectedObject();
-		if (selectedObject == null)
+		if (selectedObject == null) {
+			resetConstrainingObjects();
 			return;
+		}
 		
 		RoiEditor editor = viewer.getROIEditor();
 		
@@ -93,11 +95,8 @@ abstract class AbstractPathDraggingROIToolEventHandler extends AbstractPathROITo
 			} else {
 				commitObjectToHierarchy(e, selectedObject);
 			}
-//			editor.ensureHandlesUpdated();
-//			editor.resetActiveHandle();
-//			if (PathPrefs.getReturnToMoveMode())
-//				modes.setMode(Modes.MOVE);
 		}
+		resetConstrainingObjects();
 	}
 	
 

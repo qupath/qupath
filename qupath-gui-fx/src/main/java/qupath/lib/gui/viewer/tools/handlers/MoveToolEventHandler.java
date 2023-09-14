@@ -92,9 +92,9 @@ public class MoveToolEventHandler extends AbstractPathToolEventHandler {
 		if (e.getClickCount() > 1 || e.isAltDown() || e.isShortcutDown()) {
 			boolean selected = false;
 			if (e.isAltDown() || e.isShortcutDown())
-				selected = tryToSelect(xx, yy, e.getClickCount()-1, true, true);
+				selected = ToolUtils.tryToSelect(viewer, xx, yy, e.getClickCount()-1, true, true);
 			else
-				selected = tryToSelect(xx, yy, e.getClickCount()-2, false);
+				selected = ToolUtils.tryToSelect(viewer, xx, yy, e.getClickCount()-2, false);
 			e.consume();
 			pDragging = null;
 			if (!selected && PathPrefs.doubleClickToZoomProperty().get()) {
@@ -107,27 +107,12 @@ public class MoveToolEventHandler extends AbstractPathToolEventHandler {
 			}
 			return;
 		}
-
-//		// If we are double-clicking, see if we can access a ROI
-//		if (e.getClickCount() > 1 || e.isAltDown()) {
-//			if (e.isAltDown())
-//				tryToSelect(xx, yy, e.getClickCount()-1, true, true);
-//			else
-//				tryToSelect(xx, yy, e.getClickCount()-2, false);
-//			e.consume();
-//			pDragging = null;
-//			return;
-//		}
 		
 		if (!viewer.isSpaceDown() && viewer.getHierarchy() != null) {
 			
 			// Set the current parent object based on the first click
 			PathObject currentObject = viewer.getSelectedObject();
-//			PathObject parent = currentObject == null ? null : currentObject.getParent();
-//			if (parent != null && parent.isDetection())
-//				parent = null;
-//			setConstrainedAreaParent(viewer.getHierarchy(), parent, currentObject);
-			setConstrainedAreaParent(viewer.getHierarchy(), xx, yy, Collections.singleton(currentObject));
+			updatingConstrainingObjects(viewer, xx, yy, Collections.singleton(currentObject));
 			
 			// See if we can get a handle to edit the ROI
 			// Don't want to edit detections / TMA cores
@@ -139,13 +124,11 @@ public class MoveToolEventHandler extends AbstractPathToolEventHandler {
 					// 1.5 increases the range; the handle radius alone is too small a distance, especially if the handles are painted as squares -
 					// because 1.5 >~ sqrt(2) it ensures that at least the entire square is 'active' (and a bit beyond it)
 					double search = viewer.getMaxROIHandleSize() * 0.75;
-//					if (snapping && search < 1)
-//						search = 1;
 					if (editor.grabHandle(xx, yy, search, e.isShiftDown()))
 						e.consume();
 				}
 				if (!e.isConsumed() && canAdjust(currentObject) &&
-						(RoiTools.areaContains(currentROI, xx, yy) || getSelectableObjectList(xx, yy).contains(currentObject))) {
+						(RoiTools.areaContains(currentROI, xx, yy) || ToolUtils.getSelectableObjectList(viewer, xx, yy).contains(currentObject))) {
 					// If we have a translatable ROI, try starting translation
 					if (editor.startTranslation(xx, yy, PathPrefs.usePixelSnappingProperty().get() && currentROI.isArea()))
 						e.consume();
@@ -164,7 +147,6 @@ public class MoveToolEventHandler extends AbstractPathToolEventHandler {
 	
 	private static boolean canAdjust(PathObject pathObject) {
 		return (pathObject != null && pathObject.isEditable());
-//		return (pathObject != null && !(pathObject instanceof PathDetectionObject) && pathObject.hasROI() && !GeneralHelpers.containsClass(pathObject.getPathObjectList(), PathDetectionObject.class));
 	}
 	
 	
@@ -232,7 +214,7 @@ public class MoveToolEventHandler extends AbstractPathToolEventHandler {
 			
 			// Try to select objects, if alt is down
 			if (e.isAltDown()) {
-				tryToSelect(p.getX(), p.getY(), e.getClickCount()-1, true, false);
+				ToolUtils.tryToSelect(viewer, p.getX(), p.getY(), e.getClickCount()-1, true, false);
 				e.consume();
 				return;
 			}
@@ -298,18 +280,12 @@ public class MoveToolEventHandler extends AbstractPathToolEventHandler {
 						var updatedROI = editor.getROI();
 						if (pathObject.getROI() != updatedROI && pathObject instanceof PathROIObject)
 							((PathROIObject)pathObject).setROI(updatedROI);
-						
-//						PathObject parentPrevious = pathObject.getParent();
+
 						hierarchy.removeObjectWithoutUpdate(pathObject, true);
 						if (getCurrentParent() == null || !PathPrefs.clipROIsForHierarchyProperty().get() || e.isShiftDown())
 							hierarchy.addObject(pathObject);
 						else
 							hierarchy.addObjectBelowParent(getCurrentParent(), pathObject, true);
-//						PathObject parentNew = pathObject.getParent();
-//						if (parentPrevious == parentNew)
-//							hierarchy.fireHierarchyChangedEvent(this, parentPrevious);
-//						else
-//							hierarchy.fireHierarchyChangedEvent(this);
 					}
 				}
 				viewer.setSelectedObject(pathObject);				
@@ -327,14 +303,6 @@ public class MoveToolEventHandler extends AbstractPathToolEventHandler {
 		
 		// Make sure we don't have a previous point (to prevent weird dragging artefacts)
 		pDragging = null;
-		
-//		// If we were translating, stop
-//		if (editor.isTranslating()) {
-//			editor.finishTranslation();
-//			// TODO: Make this more efficient!
-//			viewer.getPathObjectHierarchy().fireHierarchyChangedEvent();
-//			return;
-//		}
 	}
 	
 	
