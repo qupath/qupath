@@ -303,6 +303,9 @@ public class MoveToolEventHandler extends AbstractPathToolEventHandler {
 		
 		// Make sure we don't have a previous point (to prevent weird dragging artefacts)
 		pDragging = null;
+
+		// Reset any constraining objects
+		resetConstrainingObjects();
 	}
 	
 	
