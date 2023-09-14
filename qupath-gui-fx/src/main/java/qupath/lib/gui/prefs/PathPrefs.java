@@ -466,8 +466,17 @@ public class PathPrefs {
 	
 	/**
 	 * Get the {@link Preferences} object for storing user preferences.
+	 * <p>
+	 *     Note that the preferences object returned by this method must not be retained and reused,
+	 *     because it may be invalidated by a call to {@link #resetPreferences()}.
+	 *     Rather, as far as possible other methods of this class should be used rather than accessing the
+	 *     {@link Preferences} directly.
+	 * </p>
 	 * @return
+	 * @deprecated since v0.5.0 - avoid direct use of the {@link Preferences} object, since this may be invalidated by
+	 *             a call to {@link #resetPreferences()}
 	 */
+	@Deprecated
 	public static Preferences getUserPreferences() {
 		return MANAGER.getPreferences();
 	}
@@ -1525,6 +1534,18 @@ public class PathPrefs {
 	 */
 	public static DoubleProperty createPersistentPreference(final String name, final double defaultValue) {
 		return MANAGER.createPersistentDoubleProperty(name, defaultValue);
+	}
+
+
+	/**
+	 * Create a persistent property, which is one that will be saved to/reloaded from the user preferences.
+	 *
+	 * @param name
+	 * @param defaultValue
+	 * @return
+	 */
+	public static LongProperty createPersistentPreference(final String name, final long defaultValue) {
+		return MANAGER.createPersistentLongProperty(name, defaultValue);
 	}
 
 	

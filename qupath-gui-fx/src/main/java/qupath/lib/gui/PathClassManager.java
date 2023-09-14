@@ -137,7 +137,7 @@ class PathClassManager {
 	
 	/**
 	 * Load PathClasses from preferences.
-	 * Note that this also sets the color of any PathClass that is loads,
+	 * Note that this also sets the color of any PathClass that is loaded,
 	 * and is really only intended for use when initializing.
 	 * 
 	 * @return

@@ -203,7 +203,8 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 				
 				zSlider.setValue(frame.getZ());
 				tSlider.setValue(frame.getT());
-				timeSlider.setValue(frame.getTimestamp());
+				// Slider now updates automatically via binding to playback
+//				timeSlider.setValue(frame.getTimestamp());
 				
 				slideOverview.paintCanvas(o.getZ() != frame.getZ() || o.getT() != frame.getT(), false);
 			});
@@ -308,8 +309,10 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 					slideOverview.paintCanvas();
 					
 					playback.doStartPlayback();
+					timeSlider.valueProperty().bind(playback.playbackTimeProperty());
 				} else {
 					// If already playing, pause the playback where it currently is
+					timeSlider.valueProperty().unbind();
 					playback.doStopPlayback();
 				}
 			});
@@ -319,9 +322,12 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 			btnRewind.setOnAction(e -> {
 				boolean isPlaying = playback.isPlaying();
 				playback.doStopPlayback();
+				timeSlider.valueProperty().unbind();
 				timeSlider.setValue(tracker.getFrame(0).getTimestamp());
-				if (isPlaying)
+				if (isPlaying) {
 					playback.doStartPlayback();
+					timeSlider.valueProperty().bind(playback.playbackTimeProperty());
+				}
 			});
 			
 			// If we have a total of 0 or 1 frame in recording, disable playback
