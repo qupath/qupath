@@ -734,7 +734,7 @@ public class ImageOps {
 			}
 
 			@Override
-			protected Mat transformPadded(Mat input) {
+			protected List<Mat> transformPadded(Mat input) {
 				int depth = input.depth();
 				var channels = OpenCVTools.splitChannels(input);
 				for (var m : channels)
@@ -746,7 +746,7 @@ public class ImageOps {
 				if (depth != opencv_core.CV_64F)
 					depth = opencv_core.CV_32F;
 				input.convertTo(input, depth);
-				return input;
+				return Collections.singletonList(input);
 			}
 			
 			@Override
@@ -1027,15 +1027,12 @@ public class ImageOps {
 			}
 
 			@Override
-			protected Mat transformPadded(Mat input) {
-				var matvec = new MatVector();
-				opencv_core.split(input, matvec);
-				for (int i = 0; i < matvec.size(); i++) {
-					var mat = matvec.get(i);
+			protected List<Mat> transformPadded(Mat input) {
+				var split = OpenCVTools.splitChannels(input);
+				for (var mat : split) {
 					opencv_imgproc.filter2D(mat, mat, -1, kernel);
 				}
-				opencv_core.merge(matvec, input);
-				return input;
+				return split;
 			}
 			
 		}
@@ -1061,7 +1058,7 @@ public class ImageOps {
 
 			@SuppressWarnings("unchecked")
 			@Override
-			protected Mat transformPadded(Mat input) {
+			protected List<Mat> transformPadded(Mat input) {
 				var builder = getBuilder();
 				try (var scope = new PointerScope()) {
 					var output = new ArrayList<Mat>();
@@ -1069,13 +1066,13 @@ public class ImageOps {
 					for (var mat : channels) {
 						var results = builder.build(mat);
 						for (var f : features) {
-							output.add(results.get(f));
+							var temp = results.get(f);
+							temp.retainReference();
+							output.add(temp);
 						}
 					}
-					OpenCVTools.mergeChannels(output, input);
-//					scope.deallocate();
+					return output;
 				}
-				return input;
 			}
 			
 			@Override
@@ -1124,13 +1121,13 @@ public class ImageOps {
 			}
 			
 			@Override
-			public Mat transformPadded(Mat input) {
+			public List<Mat> transformPadded(Mat input) {
 				if (sigmaX == 0 && sigmaY == 0)
-					return input;
+					return Collections.singletonList(input);
 				var padding = getPadding();
 				var size = new Size(padding.getX1()*2+1, padding.getY1()*2+1);
 				OpenCVTools.applyToChannels(input, mat -> opencv_imgproc.GaussianBlur(mat, mat, size, sigmaX, sigmaY, opencv_core.BORDER_REFLECT));
-				return input;
+				return Collections.singletonList(input);
 			}
 
 			@Override
@@ -1150,11 +1147,11 @@ public class ImageOps {
 			}
 			
 			@Override
-			public Mat transformPadded(Mat input) {
+			public List<Mat> transformPadded(Mat input) {
 				opencv_imgproc.morphologyEx(input, input, getOp(), getKernel());
 //				OpenCVTools.applyToChannels(input,
 //						mat -> opencv_imgproc.morphologyEx(mat, mat, getOp(), getKernel()));
-				return input;
+				return Collections.singletonList(input);
 			}
 			
 			protected abstract int getOp();
@@ -1196,9 +1193,9 @@ public class ImageOps {
 				return Padding.symmetric(radius);
 			}
 			@Override
-			protected Mat transformPadded(Mat input) {
+			protected List<Mat> transformPadded(Mat input) {
 				OpenCVTools.sumFilter(input, radius);
-				return input;
+				return Collections.singletonList(input);
 			}
 			
 		}
@@ -1218,9 +1215,9 @@ public class ImageOps {
 				return Padding.symmetric(radius);
 			}
 			@Override
-			protected Mat transformPadded(Mat input) {
+			protected List<Mat> transformPadded(Mat input) {
 				OpenCVTools.meanFilter(input, radius);
-				return input;
+				return Collections.singletonList(input);
 			}
 			
 		}
@@ -1241,9 +1238,9 @@ public class ImageOps {
 				return Padding.symmetric(radius);
 			}
 			@Override
-			protected Mat transformPadded(Mat input) {
+			protected List<Mat> transformPadded(Mat input) {
 				OpenCVTools.varianceFilter(input, radius);
-				return input;
+				return Collections.singletonList(input);
 			}
 			
 		}
@@ -1264,9 +1261,9 @@ public class ImageOps {
 				return Padding.symmetric(radius);
 			}
 			@Override
-			protected Mat transformPadded(Mat input) {
+			protected List<Mat> transformPadded(Mat input) {
 				OpenCVTools.stdDevFilter(input, radius);
-				return input;
+				return Collections.singletonList(input);
 			}
 			
 		}
@@ -1288,7 +1285,7 @@ public class ImageOps {
 			}
 
 			@Override
-			protected Mat transformPadded(Mat input) {
+			protected List<Mat> transformPadded(Mat input) {
 				if (radius > 2 && input.depth() != opencv_core.CV_8U) {
 					logger.warn("MedianOp requires uint8 image for radius > 2");
 				}
@@ -1297,7 +1294,7 @@ public class ImageOps {
 					opencv_imgproc.medianBlur(input, input, radius*2+1);
 				else
 					OpenCVTools.applyToChannels(input, m -> opencv_imgproc.medianBlur(m, m, radius*2+1));
-				return input;
+				return Collections.singletonList(input);
 			}
 			
 		}
@@ -1369,12 +1366,12 @@ public class ImageOps {
 			}
 			
 			@Override
-			public Mat transformPadded(Mat input) {
+			public List<Mat> transformPadded(Mat input) {
 				Mat temp = new Mat();
 				opencv_imgproc.morphologyEx(input, temp, opencv_imgproc.MORPH_DILATE, getKernel());
 				input.put(opencv_core.equals(input, temp));
 				temp.close();
-				return input;
+				return Collections.singletonList(input);
 			}
 			
 			private Mat getKernel() {
@@ -1401,12 +1398,12 @@ public class ImageOps {
 			}
 			
 			@Override
-			public Mat transformPadded(Mat input) {
+			public List<Mat> transformPadded(Mat input) {
 				Mat temp = new Mat();
 				opencv_imgproc.morphologyEx(input, temp, opencv_imgproc.MORPH_ERODE, getKernel());
 				input.put(opencv_core.equals(input, temp));
 				temp.close();
-				return input;
+				return Collections.singletonList(input);
 			}
 			
 			private Mat getKernel() {
@@ -2469,9 +2466,9 @@ public class ImageOps {
 			 * Should not be called!
 			 */
 			@Override
-			protected Mat transformPadded(Mat input) {
+			protected List<Mat> transformPadded(Mat input) {
 				logger.warn("transformPadded(Mat) should not be called directly for this class!");
-				return apply(input);
+				return Collections.singletonList(apply(input));
 			}
 			
 			@Override
@@ -2529,7 +2526,7 @@ public class ImageOps {
 
 			@Override
 			public Mat apply(Mat input) {
-				return transformPadded(input);
+				return OpenCVTools.mergeChannels(transformPadded(input), input);
 			}
 			
 			@Override
@@ -2549,30 +2546,35 @@ public class ImageOps {
 
 			@SuppressWarnings("unchecked")
 			@Override
-			protected Mat transformPadded(Mat input) {
+			protected List<Mat> transformPadded(Mat input) {
 				if (ops.isEmpty())
-					return new Mat();
+					return Collections.singletonList(new Mat());
 				if (ops.size() == 1)
-					return ops.get(0).apply(input);
-				
+					return Collections.singletonList(ops.get(0).apply(input));
+
 				try (var scope = new PointerScope()) {
 					var mats = new ArrayList<Mat>();
 					// Remember we padded all branches the same - but some may have needed more or less than others
 					var padding = getPadding();
 					for (var op : ops) {
-						var temp = input.clone();
-						temp.put(op.apply(temp));
-						
-						// Strip padding if needed
+						// The input is padded to the maximum required for all ops.
+						// This may be more than we need here, so strip the extra padding now to save memory & computation
+						// (This changed in v0.5.0 - previously we stripped padding after applying the op)
+						Mat temp;
 						var padExtra = padding.subtract(op.getPadding());
-						if (!padExtra.isEmpty())
-							temp.put(stripPadding(temp, padExtra));
+						if (!padExtra.isEmpty()) {
+							temp = stripPadding(input, padExtra);
+						} else {
+							temp = input.clone();
+						}
+						// Apply the op
+						temp.put(op.apply(temp));
 
+						temp.retainReference();
 						mats.add(temp);
 					}
-					OpenCVTools.mergeChannels(mats, input);
+					return mats;
 				}
-				return input;
 			}
 			
 			@Override
@@ -2629,7 +2631,8 @@ public class ImageOps {
 
 			@Override
 			public Mat apply(Mat input) {
-				return transformPadded(input);
+				var result = transformPadded(input);
+				return result.size() == 1 ? result.get(0) : OpenCVTools.mergeChannels(result, input);
 			}
 			
 			private String getCombineStr() {
@@ -2669,7 +2672,7 @@ public class ImageOps {
 			}
 
 			@Override
-			protected Mat transformPadded(Mat input) {
+			protected List<Mat> transformPadded(Mat input) {
 				var mat2 = op2.apply(input.clone());
 				var mat1 = op1.apply(input);
 				
@@ -2699,7 +2702,7 @@ public class ImageOps {
 					throw new IllegalArgumentException("Unknown combine type " + combine);
 				}
 				mat2.close();
-				return mat1;
+				return Collections.singletonList(mat1);
 			}
 			
 			@Override
@@ -2868,12 +2871,17 @@ public class ImageOps {
 			
 
 			@Override
-			protected Mat transformPadded(Mat input) {
+			protected List<Mat> transformPadded(Mat input) {
 				var inputName = getInputName();
-				if ((inputWidth <= 0 && inputHeight <= 0) || (input.cols() == inputWidth && input.rows() == inputHeight))
-					return doPrediction(model, input, inputName, outputNames);
-				var padding = getPadding();
-				return OpenCVTools.applyTiled(m -> doPrediction(model, m, inputName, outputNames), input, inputWidth, inputHeight, padding, opencv_core.BORDER_REFLECT);
+				Mat result;
+				// TODO: Explore removing padding at an earlier stage
+				if ((inputWidth <= 0 && inputHeight <= 0) || (input.cols() == inputWidth && input.rows() == inputHeight)) {
+					result = doPrediction(model, input, inputName, outputNames);
+				} else {
+					var padding = getPadding();
+					result = OpenCVTools.applyTiled(m -> doPrediction(model, m, inputName, outputNames), input, inputWidth, inputHeight, padding, opencv_core.BORDER_REFLECT);
+				}
+				return Collections.singletonList(result);
 			}
 			
 			@Override
@@ -2906,14 +2914,15 @@ public class ImageOps {
 							// Run an example input through
 							var mat = new Mat(inputHeight, inputWidth, opencv_core.CV_32FC(channels.size()), Scalar.ZERO);
 							var output = transformPadded(mat);
+							int nChannels = output.stream().mapToInt(Mat::channels).sum();
+							output.stream().forEach(Mat::close);
 							// Create channels
-							if (names.size() == output.channels())
+							if (names.size() == nChannels)
 								outChannels = ImageChannel.getChannelList(names.toArray(String[]::new));
 							else
-								outChannels = ImageChannel.getDefaultChannelList(output.channels());					
+								outChannels = ImageChannel.getDefaultChannelList(nChannels);
 							outputChannels.put(channels.size(), outChannels);
 							mat.close();
-							output.close();
 						}
 						outputChannels.put(channels.size(), outChannels);
 					}
@@ -3100,26 +3109,31 @@ public class ImageOps {
 		protected abstract Padding calculatePadding();
 		
 		/**
-		 * Transform, but ignoring padding.
+		 * Apply the op, but ignoring padding.
 		 * Non-empty padding will be removed automatically elsewhere.
+		 * <p>
+		 * This should return a list rather than merged channels, because this makes it possible to strip the padding
+		 * before merging to create the final output to {@link #apply(Mat)} (since this can be much more efficient).
+		 * <p>
+		 * Nevertheless, if the output channels are already merged, then a singleton list should be returned -
+		 * there is no need to split channels, because the list items themselves can have any number of channels.
 		 * @param input
 		 * @return
 		 */
-		protected abstract Mat transformPadded(Mat input);
+		protected abstract List<Mat> transformPadded(Mat input);
 
 		@Override
 		public Mat apply(Mat input) {
-//			long before = input.cols();
-			var mat = transformPadded(input);
+			var mats = transformPadded(input);
 			var padding = getPadding();
-			if (padding.isEmpty())
-				return mat;
-			var mat2 = stripPadding(mat, getPadding());
-			mat.put(mat2);
-			mat2.close();
-//			long after = mat.cols();
-//			System.err.println(getClass().getSimpleName() + ": \tBefore " + before + ", after " + after + " - " + padding.getX1());
-			return mat;
+			if (!padding.isEmpty()) {
+				for (var mat : mats) {
+					var mat2 = stripPadding(mat, getPadding());
+					mat.put(mat2);
+					mat2.close();
+				}
+			}
+			return mats.size() == 1 ? mats.get(0) : OpenCVTools.mergeChannels(mats, input);
 		}
 		
 		@Override
