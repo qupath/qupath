@@ -1522,7 +1522,10 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	public void setImageData(ImageData<BufferedImage> imageDataNew) {
 		if (this.imageDataProperty.get() == imageDataNew)
 			return;
-		
+
+		// We want to stop caching the hierarchy
+		hierarchyOverlay.resetImageData();
+
 		imageDataChanging.set(true);
 		
 		// Remove listeners for previous hierarchy

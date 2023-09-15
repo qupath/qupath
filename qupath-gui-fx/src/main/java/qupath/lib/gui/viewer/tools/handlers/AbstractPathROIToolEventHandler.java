@@ -140,14 +140,14 @@ abstract class AbstractPathROIToolEventHandler extends AbstractPathToolEventHand
 		// If we are double-clicking & we don't have a polygon, see if we can access a ROI
 		if (!PathPrefs.selectionModeProperty().get() && e.getClickCount() > 1) {
 			// Reset parent... for now
-			resetConstrainedAreaParent();		
-			tryToSelect(xx, yy, e.getClickCount()-2, false);
+			resetConstrainingObjects();
+			ToolUtils.tryToSelect(viewer, xx, yy, e.getClickCount()-2, false);
 			e.consume();
 			return;
 		}
 
 		// Set the current parent object based on the first click
-		setConstrainedAreaParent(hierarchy, xx, yy, Collections.emptyList());
+		updatingConstrainingObjects(viewer, xx, yy, Collections.emptyList());
 		
 		// Create a new annotation
 		PathObject pathObject = createNewAnnotation(e, xx, yy);

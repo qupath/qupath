@@ -115,6 +115,17 @@ public class HierarchyOverlay extends AbstractOverlay {
 			overlayServer = new PathHierarchyImageServer(imageData, getOverlayOptions());
 		}
 	}
+
+
+	/**
+	 * Reset the last image data.
+	 * The hierarchy overlay stores the last-seen image data internally to assist with caching, but retaining a reference
+	 * too long could become a memory leak.
+	 */
+	public void resetImageData() {
+		this.imageData = null;
+		updateOverlayServer();
+	}
 	
 
 	@Override

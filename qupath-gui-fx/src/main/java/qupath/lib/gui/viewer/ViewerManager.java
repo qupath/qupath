@@ -28,6 +28,8 @@ import java.awt.Shape;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Area;
 import java.awt.image.BufferedImage;
+import java.lang.ref.Reference;
+import java.lang.ref.SoftReference;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -135,7 +137,11 @@ public class ViewerManager implements QuPathViewerListener {
 	
 	private BooleanProperty zoomToFit = new SimpleBooleanProperty(false);
 
-	private PathObject lastAnnotationObject = null;
+	/**
+	 * Since v0.5.0, this uses a Reference so that we can potentially allow garbage collection is memory is scare
+	 * (and the annotation might otherwise be dragging in a whole object hierarchy).
+	 */
+	private Reference<PathObject> lastAnnotationObject = null;
 
 	private final Color colorBorder = Color.rgb(180, 0, 0, 0.5);
 
@@ -252,8 +258,8 @@ public class ViewerManager implements QuPathViewerListener {
 
 			// Grab reference to the current annotation, if there is one
 			PathObject pathObjectSelected = previousActiveViewer.getSelectedObject();
-			if (pathObjectSelected instanceof PathAnnotationObject) {
-				lastAnnotationObject = pathObjectSelected;					
+			if (pathObjectSelected instanceof PathAnnotationObject annotation) {
+				updateLastAnnotation(annotation);
 			}
 		}
 		this.activeViewerProperty.set(viewer);
@@ -268,7 +274,36 @@ public class ViewerManager implements QuPathViewerListener {
 		logger.debug("Active viewer set to {}", viewer);
 		imageDataProperty.set(imageDataNew);
 	}
-	
+
+	/**
+	 * Here, we try to help achieve similar 'transfer last ROI' behavior as ImageJ - but while also attempting not
+	 * to leak memory by retaining large object hierarchies after an image has been closed.
+	 * @param pathObject
+	 */
+	private void updateLastAnnotation(PathAnnotationObject pathObject) {
+		// Don't store the original annotation, because it will drag in the entire object hierarchy
+		// Instead, create a new annotation object that shares similar properties
+		var temp = PathObjects.createAnnotationObject(pathObject.getROI(), pathObject.getPathClass());
+		temp.setID(pathObject.getID());
+
+		// We also need to handle TMA cores, since we may need to position the annotation within a TMA core
+		// rather than entirely separately
+		var core = PathObjectTools.getAncestorTMACore(pathObject);
+		if (core != null) {
+			var coreTemp = PathObjects.createTMACoreObject(
+					core.getROI().getBoundsX(), core.getROI().getBoundsY(),
+					core.getROI().getBoundsWidth(), core.getROI().getBoundsHeight(),
+					core.isMissing(), core.getROI().getImagePlane()
+			);
+			coreTemp.setID(core.getID());
+			coreTemp.setName(core.getName());
+			coreTemp.addChildObject(temp); // Also assigns itself as the parent
+			assert temp.getParent() == coreTemp;
+		}
+
+		lastAnnotationObject = new SoftReference<>(temp);
+	}
+
 	
 	/**
 	 * Read-only property containing the image open within the currently-active viewer.
@@ -636,8 +671,8 @@ public class ViewerManager implements QuPathViewerListener {
 	@Override
 	public void selectedObjectChanged(QuPathViewer viewer, PathObject pathObjectSelected) {
 		// Store any annotation ROIs, which might need to be transferred
-		if (pathObjectSelected instanceof PathAnnotationObject) {
-			lastAnnotationObject = pathObjectSelected;
+		if (pathObjectSelected instanceof PathAnnotationObject annotation) {
+			updateLastAnnotation(annotation);
 			return;
 		}
 
@@ -676,7 +711,8 @@ public class ViewerManager implements QuPathViewerListener {
 
 
 	public boolean applyLastAnnotationToActiveViewer() {
-		if (lastAnnotationObject == null) {
+		var lastAnnotation = this.lastAnnotationObject.get();
+		if (lastAnnotation == null) {
 			logger.info("No annotation object to copy");
 			return false;
 		}
@@ -687,26 +723,21 @@ public class ViewerManager implements QuPathViewerListener {
 			return false;
 		}
 
+		// We can't just use a simple 'contains' because we need work with duplicate annotations -
+		// so we need to check the ID as well
 		PathObjectHierarchy hierarchy = activeViewer.getHierarchy();
-		if (PathObjectTools.hierarchyContainsObject(hierarchy, lastAnnotationObject)) {
-			logger.info("Hierarchy already contains annotation object!");
+		if (PathObjectTools.hierarchyContainsObject(hierarchy, lastAnnotation) ||
+				hierarchy.getAnnotationObjects().stream().anyMatch(a -> a.getID().equals(lastAnnotation.getID()))) {
+			logger.info("Hierarchy already contains the annotation object!");
 			return false;
 		}
 
-		ROI roi = lastAnnotationObject.getROI().duplicate();
+		ROI roi = lastAnnotation.getROI().duplicate();
 
 		// If we are within a TMA core, try to apply any required translations
 		TMACoreObject coreNewParent = null;
 		if (hierarchy.getTMAGrid() != null) {
-			TMACoreObject coreParent = null;
-			PathObject parent = lastAnnotationObject.getParent();
-			while (parent != null) {
-				if (parent instanceof TMACoreObject) {
-					coreParent = (TMACoreObject)parent;
-					break;
-				} else
-					parent = parent.getParent();
-			}
+			TMACoreObject coreParent = PathObjectTools.getAncestorTMACore(lastAnnotation);
 			if (coreParent != null) {
 				coreNewParent = hierarchy.getTMAGrid().getTMACore(coreParent.getName());
 				if (coreNewParent != null) {
@@ -731,7 +762,7 @@ public class ViewerManager implements QuPathViewerListener {
 		}
 
 
-		PathObject annotation = PathObjects.createAnnotationObject(roi, lastAnnotationObject.getPathClass());
+		PathObject annotation = PathObjects.createAnnotationObject(roi, lastAnnotation.getPathClass());
 		//			hierarchy.addPathObject(annotation, false);
 
 		//			// Make sure any core parent is set

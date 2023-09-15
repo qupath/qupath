@@ -131,9 +131,7 @@ public final class LoadResourceCommand<S> implements Runnable {
 		var cachedServers = new WeakHashMap<ImageData<BufferedImage>, ImageServer<BufferedImage>>();
 		var overlay = PixelClassificationOverlay.create(qupath.getOverlayOptions(), cachedServers, new ColorModelRenderer(null));
 		overlay.setMaxThreads(nThreads);
-		for (var viewer : qupath.getAllViewers())
-			viewer.setCustomPixelLayerOverlay(overlay);
-		
+
 		var comboClassifiers = new ComboBox<String>();
 		try {
 			updateAvailableItems(comboClassifiers.getItems());
@@ -170,8 +168,17 @@ public final class LoadResourceCommand<S> implements Runnable {
 		selectedResource.addListener((v, o, n) -> {
 			cachedServers.clear();
 			updateServers(n, cachedServers);
+
+			for (var viewer : qupath.getAllViewers()) {
+				if (n != null) {
+					viewer.resetCustomPixelLayerOverlay();;
+					viewer.setCustomPixelLayerOverlay(overlay);
+				} else
+					viewer.resetCustomPixelLayerOverlay();;
+			}
 		});
-		
+
+
 		// Add file chooser
 		var menu = new ContextMenu();
 		var miLoadClassifier = new MenuItem("Import from files");
