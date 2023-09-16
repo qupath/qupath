@@ -28,8 +28,9 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.function.BiFunction;
 
-import javafx.scene.layout.Border;
 import javafx.scene.layout.BorderPane;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -129,13 +130,6 @@ public class HistogramPanelFX {
 		return histogramData;
 	}
 	
-//	public void addRGBHistograms(final Histogram histogramRed, final Histogram histogramGreen, final Histogram histogramBlue) {
-//		map.put(histogramRed, new HistogramData(histogramRed, Color.RED));
-//		map.put(histogramGreen, new HistogramData(histogramGreen, Color.GREEN));
-//		map.put(histogramBlue, new HistogramData(histogramBlue, Color.BLUE));
-//		updateChart();
-//	}
-	
 	
 	
 	/**
@@ -185,14 +179,32 @@ public class HistogramPanelFX {
 	 * Helper class for representing data that may be visualized with a {@link HistogramPanelFX}.
 	 */
 	public static class HistogramData {
-		
+
+		/**
+		 * Enum to specify how the counts are displayed.
+		 */
+		public enum CountsDisplay {
+			/**
+			 * Raw bin counts.
+			 */
+			RAW,
+			/**
+			 * Normalized bin counts, so that the sum of all counts is 1.0.
+			 */
+			NORMALIZED,
+			/**
+			 * Logarithm of raw bin counts.
+			 */
+			LOG
+		}
+
 		private Histogram histogram;
 		private Color colorStroke;
 		private Color colorFill;
 		private Series<Number, Number> series;
+
 		private boolean areaPlot;
-		
-		private boolean doNormalizeCounts;
+		private CountsDisplay mode = CountsDisplay.RAW;
 		
 		/**
 		 * Wrapper for histogram &amp; data relevant to its display.
@@ -212,15 +224,26 @@ public class HistogramPanelFX {
 		 * @return
 		 */
 		public boolean doNormalizeCounts() {
-			return doNormalizeCounts;
+			return mode == CountsDisplay.NORMALIZED;
 		}
 		
 		/**
 		 * Request that counts are normalized for display.
 		 * @param doNormalizeCounts
+		 * @deprecated use {@link #setCountsDisplay(CountsDisplay)} instead
 		 */
+		@Deprecated
 		public void setNormalizeCounts(final boolean doNormalizeCounts) {
-			this.doNormalizeCounts = doNormalizeCounts;
+			this.mode = doNormalizeCounts ? CountsDisplay.NORMALIZED : CountsDisplay.RAW;
+		}
+
+		public void setCountsDisplay(CountsDisplay mode) {
+			Objects.requireNonNull(mode, "Mode must not be null!");
+			this.mode = mode;
+		}
+
+		public CountsDisplay getCountsDisplay() {
+			return mode;
 		}
 		
 		/**
@@ -249,24 +272,38 @@ public class HistogramPanelFX {
 			return colorFill;
 		}
 		
-		private void createSeries() {
-			List<Data<Number,Number>> data = new ArrayList<>();
+		private void createSeries(Histogram histogram) {
+			List<Data<Number,Number>> data;
 			if (histogram == null || histogram.nBins() == 0)
 				data = Collections.emptyList();
 			else if (areaPlot)
-				data = createDataForAreaPlot(histogram);
+				data = createDataForAreaPlot(histogram, this::getCount);
 			else
-				data = createDataForBarPlot(histogram);
+				data = createDataForBarPlot(histogram, this::getCount);
 			if (series == null) {
 				series = new XYChart.Series<>();
-				series.nodeProperty().addListener(e -> updateNodeColors());
+				series.nodeProperty().addListener(e -> updateNodeColors(series));
 			}
 			series.getData().setAll(data);
-			updateNodeColors();
+			updateNodeColors(series);
 		}
 
+		private double getCount(Histogram histogram, int bin) {
+			switch (mode) {
+				case RAW:
+					return histogram.getCountsForBin(bin);
+				case NORMALIZED:
+					return histogram.getNormalizedCountsForBin(bin);
+				case LOG:
+					// Count should also be an integer; for the histogram, display 0 as 0 rather than -Infinity
+					double count = histogram.getCountsForBin(bin);
+					return count == 0 ? 0 : Math.log(count);
+				default:
+					throw new IllegalStateException("Unknown mode: " + mode);
+			}
+		}
 
-		private List<Data<Number,Number>> createDataForAreaPlot(Histogram histogram) {
+		private static List<Data<Number,Number>> createDataForAreaPlot(Histogram histogram, BiFunction<Histogram, Integer, Double> countFun) {
 			List<Data<Number,Number>> data = new ArrayList<>();
 			// Add leftmost bin edge (to stop it looking cut off strangely)
 			data.add(new XYChart.Data<>(histogram.getBinLeftEdge(0), 0));
@@ -274,7 +311,7 @@ public class HistogramPanelFX {
 				// For a 'jagged' appearance with single points use the following
 				XYChart.Data<Number, Number> dataElement = new XYChart.Data<>(
 						(histogram.getBinLeftEdge(i) / 2 + histogram.getBinRightEdge(i) / 2),
-						getCounts(histogram, i));
+						countFun.apply(histogram, i));
 				data.add(dataElement);
 			}
 			// Add rightmost bin edge (to stop it looking cut off strangely)
@@ -282,7 +319,7 @@ public class HistogramPanelFX {
 			return data;
 		}
 
-		private List<Data<Number,Number>> createDataForBarPlot(Histogram histogram) {
+		private static List<Data<Number,Number>> createDataForBarPlot(Histogram histogram, BiFunction<Histogram, Integer, Double> countFun) {
 			List<Data<Number,Number>> data = new ArrayList<>();
 			// Add leftmost bin edge (to stop it looking cut off strangely)
 			data.add(new XYChart.Data<>(histogram.getBinLeftEdge(0), 0));
@@ -292,13 +329,14 @@ public class HistogramPanelFX {
 						histogram.getBinLeftEdge(i),
 						0);
 				data.add(dataElement);
+				double val = countFun.apply(histogram, i);
 				dataElement = new XYChart.Data<>(
 						histogram.getBinLeftEdge(i),
-						getCounts(histogram, i));
+						val);
 				data.add(dataElement);
 				dataElement = new XYChart.Data<>(
 						histogram.getBinRightEdge(i),
-						getCounts(histogram, i));
+						val);
 				data.add(dataElement);
 				dataElement = new XYChart.Data<>(
 						histogram.getBinRightEdge(i),
@@ -312,15 +350,7 @@ public class HistogramPanelFX {
 		
 		
 		
-		double getCounts(Histogram histogram, int bin) {
-			if (doNormalizeCounts)
-				return histogram.getNormalizedCountsForBin(bin);
-			return histogram.getCountsForBin(bin);
-		}
-		
-		
-		
-		void updateNodeColors() {
+		void updateNodeColors(Series<Number, Number> series) {
 			// Set the colors, if we can
 			if (series.getNode() != null && (colorStroke != null || colorFill != null)) {
 				try {
@@ -338,10 +368,10 @@ public class HistogramPanelFX {
 		
 		private Series<Number,Number> getSeries() {
 			if (series == null)
-				createSeries();
+				createSeries(histogram);
 			return series;
 		}
-		
+
 		/**
 		 * Set a new histogram.
 		 * This will cause any chart using this series to be updated.
@@ -354,7 +384,7 @@ public class HistogramPanelFX {
 			this.histogram = histogram;
 			if (color != null)
 				setColor(color);
-			createSeries();
+			createSeries(histogram);
 		}
 		
 		/**

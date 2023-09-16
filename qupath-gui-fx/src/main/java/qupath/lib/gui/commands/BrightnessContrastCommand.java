@@ -161,6 +161,7 @@ public class BrightnessContrastCommand implements Runnable {
 	private TableView<ChannelDisplayInfo> table = new TableView<>();
 	private StringProperty filterText = new SimpleStringProperty("");
 	private BooleanProperty useRegex = PathPrefs.createPersistentPreference("brightnessContrastFilterRegex", false);
+	private BooleanProperty doLogCounts = PathPrefs.createPersistentPreference("brightnessContrastLogCounts", false);
 	private ObjectBinding<Predicate<ChannelDisplayInfo>> predicate = createChannelDisplayPredicateBinding(filterText);
 
 	private StringBinding selectedChannelName = createSelectedChannelNameBinding(table);
@@ -181,7 +182,7 @@ public class BrightnessContrastCommand implements Runnable {
 	private BooleanProperty invertBackground = new SimpleBooleanProperty(false);
 	
 	private BrightnessContrastKeyTypedListener keyListener = new BrightnessContrastKeyTypedListener();
-	
+
 	/**
 	 * Constructor.
 	 * @param qupath
@@ -221,6 +222,7 @@ public class BrightnessContrastCommand implements Runnable {
 		initializeColorPicker();
 		initializePopup();
 
+		doLogCounts.addListener((v, o, n) -> updateHistogram());
 		PathPrefs.keepDisplaySettingsProperty().addListener((v, o, n) -> maybeSyncSettingsAcrossViewers());
 
 		handleImageDataChange(null, null, qupath.getImageData());
@@ -263,6 +265,16 @@ public class BrightnessContrastCommand implements Runnable {
 
 		pane.add(chartPane, 0, row++);
 //		pane.add(histogramPanel.getChart(), 0, row++);
+
+		CheckBox cbLogHistogram = new CheckBox("Log histogram");
+		cbLogHistogram.selectedProperty().bindBidirectional(doLogCounts);
+		cbLogHistogram.setTooltip(new Tooltip("Show log values of histogram counts.\n" +
+				"This can help to see differences when the histogram values are low relative to the mode."));
+		cbLogHistogram.setContentDisplay(ContentDisplay.CENTER);
+		cbLogHistogram.setAlignment(Pos.CENTER);
+		GridPaneUtils.setToExpandGridPaneWidth(cbLogHistogram);
+		pane.add(cbLogHistogram, 0, row++);
+
 
 		Pane paneSliders = createSliderPane();
 		paneSliders.prefWidthProperty().bind(pane.widthProperty());
@@ -378,7 +390,7 @@ public class BrightnessContrastCommand implements Runnable {
 
 
 	private Pane createKeepSettingsPane() {
-		CheckBox cbKeepDisplaySettings = new CheckBox("Keep settings");
+		CheckBox cbKeepDisplaySettings = new CheckBox("Apply to similar images");
 		cbKeepDisplaySettings.selectedProperty().bindBidirectional(PathPrefs.keepDisplaySettingsProperty());
 		cbKeepDisplaySettings.setTooltip(new Tooltip("Retain same display settings where possible when opening similar images"));
 		return new BorderPane(cbKeepDisplaySettings);
@@ -545,6 +557,7 @@ public class BrightnessContrastCommand implements Runnable {
 		paneCheck.getChildren().add(cbInvertBackground);
 		paneCheck.setHgap(15);
 		paneCheck.setMaxHeight(Double.MAX_VALUE);
+
 		return paneCheck;
 	}
 
@@ -884,7 +897,7 @@ public class BrightnessContrastCommand implements Runnable {
 						var hist = imageDisplay.getHistogram(c);
 						if (hist != null) {
 							var histogramData = HistogramPanelFX.createHistogramData(hist, areaPlot, c.getColor());
-							histogramData.setNormalizeCounts(true);
+							histogramData.setCountsDisplay(doLogCounts.get() ? HistogramData.CountsDisplay.LOG : HistogramData.CountsDisplay.NORMALIZED);
 							data.add(histogramData);
 							if (histogram == null || hist.getMaxCount() > histogram.getMaxCount())
 								histogram = hist;
@@ -901,10 +914,11 @@ public class BrightnessContrastCommand implements Runnable {
 			// Any animation is slightly nicer if we can modify the current data, rather than creating a new one
 			if (histogramPanel.getHistogramData().size() == 1) {
 				Color color = infoSelected.getColor() == null ? ColorToolsFX.TRANSLUCENT_BLACK_FX : ColorToolsFX.getCachedColor(infoSelected.getColor());
+				histogramPanel.getHistogramData().get(0).setCountsDisplay(doLogCounts.get() ? HistogramData.CountsDisplay.LOG : HistogramData.CountsDisplay.NORMALIZED);
 				histogramPanel.getHistogramData().get(0).setHistogram(histogram, color);
 			} else {
 				HistogramData histogramData = HistogramPanelFX.createHistogramData(histogram, areaPlot, infoSelected.getColor());
-				histogramData.setNormalizeCounts(true);
+				histogramData.setCountsDisplay(doLogCounts.get() ? HistogramData.CountsDisplay.LOG : HistogramData.CountsDisplay.NORMALIZED);
 				histogramPanel.getHistogramData().setAll(histogramData);
 			}
 		}
@@ -922,7 +936,7 @@ public class BrightnessContrastCommand implements Runnable {
 		}
 		if (infoSelected != null)
 			xAxis.setTickUnit(infoSelected.getMaxAllowed() - infoSelected.getMinAllowed());
-		
+
 		// Don't use the first or last count if it's an outlier & we have many bins
 		NumberAxis yAxis = (NumberAxis)histogramPanel.getChart().getYAxis();
 		if (infoSelected != null && histogram != null) {
@@ -930,15 +944,22 @@ public class BrightnessContrastCommand implements Runnable {
 			for (int i = 1; i < histogram.nBins()-1; i++)
 				maxCountExcludingEndBins = Math.max(maxCountExcludingEndBins, histogram.getCountsForBin(i));
 			double outlierThreshold = maxCountExcludingEndBins * 4;
-			double yMax = Math.min(histogram.getMaxCount(), outlierThreshold) / histogram.getCountSum();
+//			double yMax = Math.min(histogram.getMaxCount(), outlierThreshold) / histogram.getCountSum();
+			double yMax;
+			if (doLogCounts.get())
+				yMax = Math.log(histogram.getMaxCount());
+			else
+				yMax = histogram.getMaxNormalizedCount();
 			yAxis.setAutoRanging(false);
 			yAxis.setLowerBound(0);
 			yAxis.setUpperBound(yMax);
+			yAxis.setTickLabelsVisible(false);
+			yAxis.setTickUnit(yMax);
 		}
 		
 		histogramPanel.getChart().getXAxis().setTickLabelsVisible(true);
 //		histogramPanel.getChart().getXAxis().setLabel("Pixel value");
-		histogramPanel.getChart().getYAxis().setTickLabelsVisible(true);
+		histogramPanel.getChart().getYAxis().setTickLabelsVisible(false);
 //		histogramPanel.getChart().getYAxis().setLabel("Frequency");
 		
 		GridPane pane = new GridPane();
