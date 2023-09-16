@@ -27,6 +27,7 @@ import javafx.application.Platform;
 import javafx.beans.Observable;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.ObjectBinding;
+import javafx.beans.binding.StringBinding;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
@@ -54,6 +55,7 @@ import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.SelectionMode;
+import javafx.scene.control.Separator;
 import javafx.scene.control.Slider;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
@@ -161,6 +163,8 @@ public class BrightnessContrastCommand implements Runnable {
 	private BooleanProperty useRegex = PathPrefs.createPersistentPreference("brightnessContrastFilterRegex", false);
 	private ObjectBinding<Predicate<ChannelDisplayInfo>> predicate = createChannelDisplayPredicateBinding(filterText);
 
+	private StringBinding selectedChannelName = createSelectedChannelNameBinding(table);
+
 	/**
 	 * Checkbox used to quickly turn on or off all channels
 	 */
@@ -211,6 +215,7 @@ public class BrightnessContrastCommand implements Runnable {
 		if (isInitialized())
 			throw new RuntimeException("createDialog() called after initialization!");
 
+		createChannelDisplayTable();
 		initializeShowAllCheckbox();
 		initializeSliders();
 		initializeColorPicker();
@@ -228,7 +233,6 @@ public class BrightnessContrastCommand implements Runnable {
 		int row = 0;
 
 		// Create color/channel display table
-		table = createChannelDisplayTable();
 		pane.add(table, 0, row++);
 		GridPane.setFillHeight(table, Boolean.TRUE);
 		GridPane.setVgrow(table, Priority.ALWAYS);
@@ -239,11 +243,24 @@ public class BrightnessContrastCommand implements Runnable {
 		Pane paneCheck = createCheckboxPane();
 		pane.add(paneCheck, 0, row++);
 
+		// Add small amount of spacing
+		//		pane.add(createSeparator(), 0, row++);
+
+		Label labelChannel = new Label();
+		labelChannel.setPadding(new Insets(5, 0, 0, 0));
+		labelChannel.textProperty().bind(selectedChannelName);
+		labelChannel.setStyle("-fx-font-weight: bold;");
+		labelChannel.setContentDisplay(ContentDisplay.CENTER);
+		labelChannel.setAlignment(Pos.CENTER);
+		GridPaneUtils.setToExpandGridPaneWidth(labelChannel);
+		pane.add(labelChannel, 0, row++);
+
 		histogramPanel.setShowTickLabels(false);
 		histogramPanel.getChart().setAnimated(false);
 		var chartPane = chartWrapper.getPane();
 		chartPane.setPrefWidth(200);
 		chartPane.setPrefHeight(150);
+
 		pane.add(chartPane, 0, row++);
 //		pane.add(histogramPanel.getChart(), 0, row++);
 
@@ -254,11 +271,13 @@ public class BrightnessContrastCommand implements Runnable {
 		Pane paneButtons = createAutoResetButtonPane();
 		pane.add(paneButtons, 0, row++);
 
-		Pane paneWarnings = createWarningPane();
-		pane.add(paneWarnings, 0, row++);
+		pane.add(createSeparator(), 0, row++);
 
 		Pane paneKeepSettings = createKeepSettingsPane();
 		pane.add(paneKeepSettings, 0, row++);
+
+		Pane paneWarnings = createWarningPane();
+		pane.add(paneWarnings, 0, row++);
 
 		pane.setPadding(new Insets(10, 10, 10, 10));
 		pane.setVgap(5);
@@ -289,9 +308,15 @@ public class BrightnessContrastCommand implements Runnable {
 		return dialog;
 	}
 
+	private static Separator createSeparator() {
+		var separator = new Separator();
+		separator.setPadding(new Insets(5));
+		return separator;
+	}
+
 
 	private Pane createSliderPane() {
-		GridPane box = new GridPane();
+		GridPane pane = new GridPane();
 		String blank = "      ";
 		Label labelMin = new Label("Min display");
 		Tooltip tooltipMin = new Tooltip("Set minimum lookup table value - double-click the value to edit manually");
@@ -301,9 +326,9 @@ public class BrightnessContrastCommand implements Runnable {
 		sliderMin.setTooltip(tooltipMin);
 		labelMin.setLabelFor(sliderMin);
 		labelMinValue.textProperty().bind(createSliderTextBinding(sliderMin));
-		box.add(labelMin, 0, 0);
-		box.add(sliderMin, 1, 0);
-		box.add(labelMinValue, 2, 0);
+		pane.add(labelMin, 0, 0);
+		pane.add(sliderMin, 1, 0);
+		pane.add(labelMinValue, 2, 0);
 
 		Label labelMax = new Label("Max display");
 		Tooltip tooltipMax = new Tooltip("Set maximum lookup table value - double-click the value to edit manually");
@@ -313,10 +338,10 @@ public class BrightnessContrastCommand implements Runnable {
 		sliderMax.setTooltip(tooltipMax);
 		labelMax.setLabelFor(sliderMax);
 		labelMaxValue.textProperty().bind(createSliderTextBinding(sliderMax));
-		box.add(labelMax, 0, 1);
-		box.add(sliderMax, 1, 1);
-		box.add(labelMaxValue, 2, 1);
-		box.setVgap(5);
+		pane.add(labelMax, 0, 1);
+		pane.add(sliderMax, 1, 1);
+		pane.add(labelMaxValue, 2, 1);
+		pane.setVgap(5);
 
 		Label labelGamma = new Label("Gamma");
 		Label labelGammaValue = new Label(blank);
@@ -331,13 +356,16 @@ public class BrightnessContrastCommand implements Runnable {
 		labelGammaValue.setOnMouseClicked(this::handleGammaLabelClicked);
 		labelGammaValue.styleProperty().bind(createGammaLabelStyleBinding(sliderGamma.valueProperty()));
 
-		box.add(labelGamma, 0, 2);
-		box.add(sliderGamma, 1, 2);
-		box.add(labelGammaValue, 2, 2);
+		pane.add(labelGamma, 0, 2);
+		pane.add(sliderGamma, 1, 2);
+		pane.add(labelGammaValue, 2, 2);
+
+		// Set the pref width for a value label to prevent column continually resizing
+		// (Column constraints would probably be the 'right' way to do this)
+		labelMinValue.setPrefWidth(40);
 
 		GridPane.setFillWidth(sliderMin, Boolean.TRUE);
 		GridPane.setFillWidth(sliderMax, Boolean.TRUE);
-//		box.setPadding(new Insets(5, 0, 5, 0));
 		GridPane.setHgrow(sliderMin, Priority.ALWAYS);
 		GridPane.setHgrow(sliderMax, Priority.ALWAYS);
 
@@ -345,7 +373,7 @@ public class BrightnessContrastCommand implements Runnable {
 		// manually by double-clicking on the corresponding label
 		labelMinValue.setOnMouseClicked(this::handleMinLabelClick);
 		labelMaxValue.setOnMouseClicked(this::handleMaxLabelClick);
-		return box;
+		return pane;
 	}
 
 
@@ -402,8 +430,9 @@ public class BrightnessContrastCommand implements Runnable {
 	}
 
 
-	private TableView<ChannelDisplayInfo> createChannelDisplayTable() {
-		TableView<ChannelDisplayInfo> table = new TableView<>(imageDisplay == null ? FXCollections.observableArrayList() : imageDisplay.availableChannels());
+	private void createChannelDisplayTable() {
+		if (imageDisplay != null)
+			table.setItems(imageDisplay.availableChannels());
 		var textPlaceholder = new Text("No channels available");
 		textPlaceholder.setStyle("-fx-fill: -fx-text-base-color;");
 		table.setPlaceholder(textPlaceholder);
@@ -436,8 +465,6 @@ public class BrightnessContrastCommand implements Runnable {
 		table.setEditable(true);
 		table.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
 		col1.prefWidthProperty().bind(table.widthProperty().subtract(col2.widthProperty()).subtract(25)); // Hack... space for a scrollbar
-
-		return table;
 	}
 
 	private void initializeShowAllCheckbox() {
@@ -539,6 +566,13 @@ public class BrightnessContrastCommand implements Runnable {
 				setHideChannel(features.getValue());
 		});
 		return property;
+	}
+
+	private static StringBinding createSelectedChannelNameBinding(TableView<? extends ChannelDisplayInfo> table) {
+		return Bindings.createStringBinding(() -> {
+			var selected = table.getSelectionModel().getSelectedItem();
+			return selected == null ? "" : selected.getName();
+		}, table.getSelectionModel().selectedItemProperty());
 	}
 
 	private static ObservableValue<String> createGammaLabelBinding(ObservableValue<? extends Number> gammaValue) {
@@ -1527,6 +1561,8 @@ public class BrightnessContrastCommand implements Runnable {
 		private ObservableList<Color> customColors;
 		private boolean updatingTableCell = false;
 
+		private StringBinding styleBinding;
+
 		private Comparator<Color> comparator = Comparator.comparingDouble((Color c) -> c.getHue())
 				.thenComparingDouble(c -> c.getSaturation())
 				.thenComparingDouble(c -> c.getBrightness())
@@ -1555,6 +1591,17 @@ public class BrightnessContrastCommand implements Runnable {
 
 		private ChannelDisplayTableCell() {
 			this(null);
+			// Hack - this updates with the current info (and we don't have an observable property for the info)
+			selectedChannelName.addListener((observable, oldValue, newValue) -> updateStyle());
+			updateStyle();
+		}
+
+		private void updateStyle() {
+			if (getItem() == getCurrentInfo())
+				setStyle("-fx-font-weight: bold");
+//				setStyle("-fx-font-style: italic");
+			else
+				setStyle("");
 		}
 
 		@Override
@@ -1567,6 +1614,8 @@ public class BrightnessContrastCommand implements Runnable {
 			}
 			setText(item.getName());
 			setGraphic(colorPicker);
+			updateStyle();
+
 			Integer rgb = item.getColor();
 			// Can only set the color for direct, non-RGB channels
 			boolean canChangeColor = rgb != null && item instanceof DirectServerChannelInfo;
