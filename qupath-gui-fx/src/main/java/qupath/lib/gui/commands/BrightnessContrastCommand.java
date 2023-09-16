@@ -32,6 +32,7 @@ import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
+import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
@@ -146,6 +147,8 @@ public class BrightnessContrastCommand implements Runnable {
 
 	private SelectedChannelsChangeListener selectedChannelsChangeListener = new SelectedChannelsChangeListener();
 
+	private ImageDisplayTimestampListener timestampChangeListener = new ImageDisplayTimestampListener();
+
 	private Slider sliderMin;
 	private Slider sliderMax;
 	private Slider sliderGamma;
@@ -212,6 +215,8 @@ public class BrightnessContrastCommand implements Runnable {
 		initializeSliders();
 		initializeColorPicker();
 		initializePopup();
+
+		PathPrefs.keepDisplaySettingsProperty().addListener((v, o, n) -> maybeSyncSettingsAcrossViewers());
 
 		handleImageDataChange(null, null, qupath.getImageData());
 
@@ -607,7 +612,9 @@ public class BrightnessContrastCommand implements Runnable {
 	private void handleDisplaySettingInvalidated(Observable observable) {
 		if (imageDisplay == null)
 			return;
-		Platform.runLater(() -> viewer.repaintEntireImage());
+		Platform.runLater(() -> {
+			viewer.repaintEntireImage();
+		});
 		table.refresh();
 	}
 
@@ -1006,6 +1013,33 @@ public class BrightnessContrastCommand implements Runnable {
 		imageDisplay.setMinMaxDisplay(infoVisible, (float)minValue, (float)maxValue);
 		viewer.repaintEntireImage();
 	}
+
+	/**
+	 * Sync settings from the current main viewer to all compatible viewers,
+	 * if the relevant preference is selected.
+	 */
+	private void maybeSyncSettingsAcrossViewers() {
+		if (viewer != null && viewer.hasServer())
+			maybeSyncSettingsAcrossViewers(viewer.getImageDisplay());
+	}
+
+	/**
+	 * Sync settings from the specified display to all compatible viewers,
+	 * if the relevant preference is selected.
+	 * @param display
+	 */
+	private void maybeSyncSettingsAcrossViewers(ImageDisplay display) {
+		if (display == null || !PathPrefs.keepDisplaySettingsProperty().get())
+			return;
+		for (var otherViewer : qupath.getAllViewers()) {
+			if (!otherViewer.hasServer() || Objects.equals(display, otherViewer.getImageDisplay()))
+				continue;
+			if (otherViewer.getImageDisplay().updateFromDisplay(display)) {
+				otherViewer.repaintEntireImage();
+			}
+		}
+	}
+
 	
 	
 	private void updateSliders() {
@@ -1185,19 +1219,33 @@ public class BrightnessContrastCommand implements Runnable {
 			imageDisplay.useInvertedBackgroundProperty().unbindBidirectional(invertBackground);
 		}
 
-		if (imageDisplay != null)
+		if (imageDisplay != null) {
 			imageDisplay.selectedChannels().removeListener(selectedChannelsChangeListener);
+			imageDisplay.changeTimestampProperty().removeListener(timestampChangeListener);
+		}
 
 		imageDisplay = viewer == null ? null : viewer.getImageDisplay();
-		if (imageDisplay != null)
+		if (imageDisplay != null) {
 			imageDisplay.selectedChannels().addListener(selectedChannelsChangeListener);
+			imageDisplay.changeTimestampProperty().addListener(timestampChangeListener);
+		}
 
 		if (imageDataOld != null)
 			imageDataOld.removePropertyChangeListener(imageDataPropertyChangeListener);
 		if (imageDataNew != null)
 			imageDataNew.addPropertyChangeListener(imageDataPropertyChangeListener);
-		
+
+		// Update the table - attempting to preserve the same selected object
+		var selectedItem = table.getSelectionModel().getSelectedItem();
 		updateTable();
+		if (selectedItem != null) {
+			for (var item : table.getItems()) {
+				if (Objects.equals(selectedItem.getName(), item.getName())) {
+					table.getSelectionModel().select(item);
+					break;
+				}
+			}
+		}
 		
 //		updateHistogramMap();
 		// Update if we aren't currently initializing
@@ -1621,6 +1669,19 @@ public class BrightnessContrastCommand implements Runnable {
 			}
 			// Only necessary because it's possible that the channel selection is changed externally
 			table.refresh();
+		}
+	}
+
+
+	/**
+	 * Listen to the timestamp of the current image display.
+	 * This can be used to sync settings across viewers, without needing to listen to many different properties.
+	 */
+	class ImageDisplayTimestampListener implements ChangeListener<Number> {
+
+		@Override
+		public void changed(ObservableValue<? extends Number> observable, Number oldValue, Number newValue) {
+			maybeSyncSettingsAcrossViewers();
 		}
 	}
 

@@ -53,6 +53,7 @@ import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleLongProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.collections.ListChangeListener;
 import qupath.lib.analysis.stats.Histogram;
 import qupath.lib.color.ColorTransformer;
 import qupath.lib.color.ColorTransformer.ColorTransformMethod;
@@ -121,6 +122,12 @@ public class ImageDisplay extends AbstractImageRenderer {
 		});
 		useInvertedBackground.addListener((v, o, n) -> {
 			saveChannelColorProperties();
+		});
+
+		selectedChannels.addListener((ListChangeListener<ChannelDisplayInfo>) c -> {
+			if (c.getList().contains(null)) {
+				logger.warn("Null channel selected");
+			}
 		});
 	}
 	
@@ -913,29 +920,76 @@ public class ImageDisplay extends AbstractImageRenderer {
 		} else
 			return array.toString();
 	}
+
+	/**
+	 * Check if an image display is 'compatible' with this one.
+	 * Compatible means that they have the same number of channels, and the same channel names.
+	 * This may be used p
+	 * @param display
+	 * @return
+	 */
+	public boolean isCompatible(ImageDisplay display) {
+		var available = availableChannels();
+		var other = display.availableChannels();
+		if (available.size() != other.size())
+			return false;
+		for (int i = 0; i < available.size(); i++) {
+			if (!Objects.equals(available.get(i).getClass(), other.get(i).getClass()))
+				return false;
+			if (!Objects.equals(available.get(i).getName(), other.get(i).getName()))
+				return false;
+		}
+		return true;
+	}
+
+	/**
+	 * Update the current display based upon a different display.
+	 * This only makes changes if {@link #isCompatible(ImageDisplay)} returns true.
+	 * <p>
+	 * This method exists to make it easier to sync display settings across viewers.
+	 * @param display
+	 * @return
+	 */
+	public boolean updateFromDisplay(ImageDisplay display) {
+		if (this == display)
+			return false;
+		if (isCompatible(display)) {
+			useGrayscaleLuts.set(display.useGrayscaleLuts());
+			useInvertedBackground.set(display.useInvertedBackground());
+			if (updateFromJSON(display.toJSON()))
+				saveChannelColorProperties();
+			return true;
+		}
+		return false;
+	}
 	
 	/**
 	 * Update current display info based on deserializing a JSON String.
-	 * 
+	 * This will match as many channels as possible.
 	 * @param json
+	 * @return true if changes were made, false otherwise
 	 */
-	void updateFromJSON(final String json) {
+	boolean updateFromJSON(final String json) {
 		Gson gson = new Gson();
 		Type type = new TypeToken<List<JsonHelperChannelInfo>>(){}.getType();
 		List<JsonHelperChannelInfo> helperList = gson.fromJson(json, type);
+		boolean changes = false;
 		// Try updating everything
 		for (JsonHelperChannelInfo helper : helperList) {
 			for (ChannelDisplayInfo info : channelOptions) {
 				if (helper.updateInfo(info)) {
 					if (Boolean.TRUE.equals(helper.selected)) {
-						if (!selectedChannels.contains(info))
+						if (!selectedChannels.contains(info)) {
 							selectedChannels.add(info);
-					} else
+						}
+					} else {
 						selectedChannels.remove(info);
-					break;
+					}
+					changes = true;
 				}
 			}
 		}
+		return changes;
 	}
 	
 	/**
