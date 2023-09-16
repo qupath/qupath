@@ -24,6 +24,7 @@
 package qupath.lib.gui.charts;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -93,31 +94,32 @@ public class HistogramPanelFX {
 		chart.setCreateSymbols(false);
 		chart.setVisible(!chart.getData().isEmpty());
 		
-		histogramData.addListener(new ListChangeListener<>() {
-			@Override
-			public void onChanged(Change<? extends HistogramData> c) {
-				while (c.next()) {
-					// Pattern taken from https://docs.oracle.com/javase/8/javafx/api/javafx/collections/ListChangeListener.Change.html
-					// However I only really need to worry about adding/removing (I hope)
-					if (c.wasPermutated()) {
-						for (int i = c.getFrom(); i < c.getTo(); ++i) {
-							//permutate
-						}
-					} else if (c.wasUpdated()) {
-						//update item
-					} else {
-						for (HistogramData removedItem : c.getRemoved()) {
-							chart.getData().remove(removedItem.getSeries());
-						}
-						for (HistogramData addedItem : c.getAddedSubList()) {
-							chart.getData().add(addedItem.getSeries());
-						}
-						chart.setVisible(!chart.getData().isEmpty());//.isVisible());
-					}
-				}
-			}
-		});
+		histogramData.addListener(this::handleHistogramDataChange);
 	}
+
+
+	private void handleHistogramDataChange(ListChangeListener.Change<? extends HistogramData> c) {
+		while (c.next()) {
+			// Pattern taken from https://docs.oracle.com/javase/8/javafx/api/javafx/collections/ListChangeListener.Change.html
+			// However I only really need to worry about adding/removing (I hope)
+			if (c.wasPermutated()) {
+				for (int i = c.getFrom(); i < c.getTo(); ++i) {
+					//permutate
+				}
+			} else if (c.wasUpdated()) {
+				//update item
+			} else {
+				for (HistogramData removedItem : c.getRemoved()) {
+					chart.getData().remove(removedItem.getSeries());
+				}
+				for (HistogramData addedItem : c.getAddedSubList()) {
+					chart.getData().add(addedItem.getSeries());
+				}
+				chart.setVisible(!chart.getData().isEmpty());//.isVisible());
+			}
+		}
+	}
+
 	
 	/**
 	 * Get all histogram data objects.
@@ -169,31 +171,6 @@ public class HistogramPanelFX {
 		return chart;
 	}
 	
-	
-//	public String getToolTipText(MouseEvent event) {
-//		if (histogram == null)
-//			return null;
-//		double width = getWidth() - padX1 - padX2;
-//		double value = ((event.getX() - padX1) / width) * histogram.getEdgeRange() + histogram.getEdgeMin();
-//		int ind = histogram.getBinIndexForValue(value);
-//		if (ind < 0)
-//			return null;
-//		if (histogram.getNormalizeCounts())
-//			return "Bin center: " + df.format(0.5 * (histogram.getBinLeftEdge(ind) + histogram.getBinRightEdge(ind))) +
-//					", Counts :" + df.format(histogram.getCountsForBin(ind)*100) + "%";
-//		else
-//			return "Bin center: " + df.format(0.5 * (histogram.getBinLeftEdge(ind) + histogram.getBinRightEdge(ind))) +
-//					", Counts :" + df.format(histogram.getCountsForBin(ind));
-////		if (histogram.getNormalizeCounts())
-////			return String.format("Bin center: %.2f, Counts :%.2f%%",
-////				0.5 * (histogram.getBinLeftEdge(ind) + histogram.getBinRightEdge(ind)),
-////				histogram.getCountsForBin(ind)*100);
-////		else
-////			return String.format("Bin center: %.2f, Counts :%.2f",
-////					0.5 * (histogram.getBinLeftEdge(ind) + histogram.getBinRightEdge(ind)),
-////					histogram.getCountsForBin(ind));
-//	}
-	
 	/**
 	 * Request that tick labels are visible or not for both x and y axis.
 	 * @param showTickLabels
@@ -227,7 +204,6 @@ public class HistogramPanelFX {
 		public HistogramData(final Histogram histogram, final boolean areaPlot, final Color color) {
 			this.histogram = histogram;
 			this.areaPlot = areaPlot;
-//			setColor(color == null ? DisplayHelpers.TRANSLUCENT_BLACK_FX : color);
 			setColor(color);
 		}
 		
@@ -275,48 +251,63 @@ public class HistogramPanelFX {
 		
 		private void createSeries() {
 			List<Data<Number,Number>> data = new ArrayList<>();
-			
-			if (histogram != null && histogram.nBins() > 0) {
-				// Add leftmost bin edge (to stop it looking cut off strangely)
-				data.add(new XYChart.Data<>(histogram.getBinLeftEdge(0), 0));
-				for (int i = 0; i < histogram.nBins(); i++) {
-//					// For a 'jagged' appearance with single points use the following
-					if (areaPlot) {
-						XYChart.Data<Number,Number> dataElement = new XYChart.Data<>(
-								(histogram.getBinLeftEdge(i)/2+histogram.getBinRightEdge(i)/2),
-								getCounts(histogram, i));
-						data.add(dataElement);
-					} else {
-						// For a proper, 'bar-like' appearance use the following
-						XYChart.Data<Number,Number> dataElement = new XYChart.Data<>(
-								histogram.getBinLeftEdge(i),
-								0);
-						data.add(dataElement);
-						dataElement = new XYChart.Data<>(
-								histogram.getBinLeftEdge(i),
-								getCounts(histogram, i));
-						data.add(dataElement);
-						dataElement = new XYChart.Data<>(
-								histogram.getBinRightEdge(i),
-								getCounts(histogram, i));
-						data.add(dataElement);
-						dataElement = new XYChart.Data<>(
-								histogram.getBinRightEdge(i),
-								0);
-						data.add(dataElement);
-					}
-				}
-				// Add rightmost bin edge (to stop it looking cut off strangely)
-				data.add(new XYChart.Data<>(histogram.getBinRightEdge(histogram.nBins()-1), 0));
-			}
-
-			
+			if (histogram == null || histogram.nBins() == 0)
+				data = Collections.emptyList();
+			else if (areaPlot)
+				data = createDataForAreaPlot(histogram);
+			else
+				data = createDataForBarPlot(histogram);
 			if (series == null) {
 				series = new XYChart.Series<>();
 				series.nodeProperty().addListener(e -> updateNodeColors());
 			}
 			series.getData().setAll(data);
 			updateNodeColors();
+		}
+
+
+		private List<Data<Number,Number>> createDataForAreaPlot(Histogram histogram) {
+			List<Data<Number,Number>> data = new ArrayList<>();
+			// Add leftmost bin edge (to stop it looking cut off strangely)
+			data.add(new XYChart.Data<>(histogram.getBinLeftEdge(0), 0));
+			for (int i = 0; i < histogram.nBins(); i++) {
+				// For a 'jagged' appearance with single points use the following
+				XYChart.Data<Number, Number> dataElement = new XYChart.Data<>(
+						(histogram.getBinLeftEdge(i) / 2 + histogram.getBinRightEdge(i) / 2),
+						getCounts(histogram, i));
+				data.add(dataElement);
+			}
+			// Add rightmost bin edge (to stop it looking cut off strangely)
+			data.add(new XYChart.Data<>(histogram.getBinRightEdge(histogram.nBins()-1), 0));
+			return data;
+		}
+
+		private List<Data<Number,Number>> createDataForBarPlot(Histogram histogram) {
+			List<Data<Number,Number>> data = new ArrayList<>();
+			// Add leftmost bin edge (to stop it looking cut off strangely)
+			data.add(new XYChart.Data<>(histogram.getBinLeftEdge(0), 0));
+			for (int i = 0; i < histogram.nBins(); i++) {
+				// For a proper, 'bar-like' appearance use the following
+				XYChart.Data<Number,Number> dataElement = new XYChart.Data<>(
+						histogram.getBinLeftEdge(i),
+						0);
+				data.add(dataElement);
+				dataElement = new XYChart.Data<>(
+						histogram.getBinLeftEdge(i),
+						getCounts(histogram, i));
+				data.add(dataElement);
+				dataElement = new XYChart.Data<>(
+						histogram.getBinRightEdge(i),
+						getCounts(histogram, i));
+				data.add(dataElement);
+				dataElement = new XYChart.Data<>(
+						histogram.getBinRightEdge(i),
+						0);
+				data.add(dataElement);
+			}
+			// Add rightmost bin edge (to stop it looking cut off strangely)
+			data.add(new XYChart.Data<>(histogram.getBinRightEdge(histogram.nBins()-1), 0));
+			return data;
 		}
 		
 		
@@ -338,16 +329,6 @@ public class HistogramPanelFX {
 					Path fillPath = (Path)group.getChildren().get(0);
 					seriesLine.setStroke(colorStroke);
 					fillPath.setFill(colorFill);
-					
-//					for (Data<Number, Number> item : series.getData()) {
-//						if (item.getNode() != null) {
-//							item.getNode().setStyle("fx-fill: red");
-//						}
-//					}
-					
-//					if (group.getChildren().size() > 2) {
-//						System.err.println(group.getChildren());
-//					}
 				} catch (Exception e) {
 					logger.error("Failed to set colors for series {}", series);
 				}
