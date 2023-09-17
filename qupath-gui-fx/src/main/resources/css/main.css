@@ -11,7 +11,7 @@
 
   -qp-script-error-color: ladder(-qp-script-background-color, red 30%, darkred 50%, red 70%);
 
-  -qp-script-warn-color: ladder(-qp-script-background-color, orange 30%, darkorange 50%, orange 70%);
+  -qp-script-warn-color: darkorange; /* ladder(-qp-script-background-color, darkorange 30%, orange 50%, darkorange 70%); */
 
   -qp-script-info-color: -qp-script-text-color;
 
@@ -92,4 +92,20 @@
 .always-opaque:disabled,
 .always-opaque:disabled > * {
   -fx-opacity: 1;
+}
+
+.info-message {
+  -fx-effect: dropshadow(three-pass-box, rgba(0, 0, 0, 0.5), 1, 0, 0, 0);
+}
+
+.info-message.warn {
+  -fx-fill: -qp-script-warn-color;
+}
+
+.info-message.error {
+  -fx-fill: -qp-script-error-color;
+}
+
+.info-message.info {
+  -fx-fill: -qp-script-debug-color;
 }
