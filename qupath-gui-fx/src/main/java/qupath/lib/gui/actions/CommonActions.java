@@ -121,7 +121,7 @@ public class CommonActions {
 
 		var brightnessCommand = new BrightnessContrastCommand(qupath);
 		BRIGHTNESS_CONTRAST = ActionTools.createAction(brightnessCommand);
-		ActionTools.installWarningsBadge(BRIGHTNESS_CONTRAST,  brightnessCommand.warningString());
+		ActionTools.installInfoMessage(BRIGHTNESS_CONTRAST,  brightnessCommand.infoMessage());
 
 		COUNTING_PANEL = ActionTools.createAction(new CountingPanelCommand(qupath));
 		TMA_ADD_NOTE = qupath.createImageDataAction(imageData -> TMACommands.promptToAddNoteToSelectedCores(imageData));

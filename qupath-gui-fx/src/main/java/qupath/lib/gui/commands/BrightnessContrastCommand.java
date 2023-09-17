@@ -28,8 +28,8 @@ import javafx.beans.Observable;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.binding.ObjectBinding;
+import javafx.beans.binding.ObjectExpression;
 import javafx.beans.binding.StringBinding;
-import javafx.beans.binding.StringExpression;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
@@ -95,6 +95,7 @@ import qupath.lib.display.ChannelDisplayInfo;
 import qupath.lib.display.DirectServerChannelInfo;
 import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.actions.InfoMessage;
 import qupath.lib.gui.charts.HistogramChart;
 import qupath.lib.gui.charts.HistogramChart.HistogramData;
 import qupath.lib.gui.charts.ChartThresholdPane;
@@ -136,7 +137,7 @@ public class BrightnessContrastCommand implements Runnable {
 	/**
 	 * Style used for labels that display warning text.
 	 */
-	private static final String WARNING_STYLE = "-fx-text-fill: -qp-script-error-color;";
+	private static final String WARNING_STYLE = "-fx-text-fill: -qp-script-warn-color;";
 
 	private static final double BUTTON_SPACING = 5;
 
@@ -201,6 +202,8 @@ public class BrightnessContrastCommand implements Runnable {
 //			dialog = createDialog();
 		dialog.show();
 		updateShowTableColumnHeader();
+		if (table.getSelectionModel().isEmpty())
+			table.getSelectionModel().select(getCurrentInfo());
 	}
 
 	private void initializeColorPicker() {
@@ -425,13 +428,13 @@ public class BrightnessContrastCommand implements Runnable {
 
 	private ObservableList<String> warningList = FXCollections.observableArrayList();
 
-	private StringExpression warningString = Bindings.createStringBinding(() -> {
+	private ObjectExpression<InfoMessage> infoMessage = Bindings.createObjectBinding(() -> {
 		if (warningList.isEmpty())
 			return null;
 		if (warningList.size() == 1)
-			return "1 warning";
+			return InfoMessage.warning("1 warning");
 		else
-			return warningList.size() + " warnings";
+			return InfoMessage.warning(warningList.size() + " warnings");
 	}, warningList);
 
 	/**
@@ -439,8 +442,8 @@ public class BrightnessContrastCommand implements Runnable {
 	 * This can be used to notify the user that something is amiss, even if the dialog is not open.
 	 * @return a string expression that evaluates to the warning text, or null if there are no warnings
 	 */
-	public StringExpression warningString() {
-		return warningString;
+	public ObjectExpression infoMessage() {
+		return infoMessage;
 	}
 
 

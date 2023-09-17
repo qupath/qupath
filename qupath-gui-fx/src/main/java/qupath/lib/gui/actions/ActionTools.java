@@ -34,10 +34,11 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import javafx.application.Platform;
-import javafx.beans.binding.StringExpression;
+import javafx.beans.binding.ObjectExpression;
 import javafx.geometry.Pos;
 import javafx.scene.control.Control;
 import javafx.scene.shape.Circle;
+import javafx.util.Duration;
 import org.controlsfx.control.action.Action;
 import org.controlsfx.control.action.ActionUtils;
 import org.controlsfx.control.action.ActionUtils.ActionTextBehavior;
@@ -86,7 +87,7 @@ public class ActionTools {
 	
 	private static final String ACTION_KEY = ActionTools.class.getName();
 
-	private static final String WARNINGS_KEY = ACTION_KEY + ":WARNINGS";
+	private static final String INFO_MESSAGE_KEY = ACTION_KEY + ":INFO_MESSAGE";
 	
 	/**
 	 * Builder class for custom {@link Action} objects.
@@ -497,8 +498,8 @@ public class ActionTools {
 	
 	private static <T extends Node> T includeAction(T node, Action action) {
 		node.getProperties().put(ACTION_KEY, action);
-		if (action.getProperties().getOrDefault(WARNINGS_KEY, null) instanceof StringExpression prop)
-			addWarningsDecorations(prop, node);
+		if (action.getProperties().getOrDefault(INFO_MESSAGE_KEY, null) instanceof ObjectExpression prop)
+			addInfoMessageDecoration(node, prop);
 		return node;
 	}
 	
@@ -841,34 +842,45 @@ public class ActionTools {
 	}
 
 	/**
-	 * Install an optional warnings badge to an action.
-	 * If the provided string expression is not empty, a badge will be added to nodes created from the action
+	 * Install an optional info message to the action.
+	 * If the provided object expression is not empty, a badge will be added to nodes created from the action
 	 * and display the tooltip provided by the expression.
-	 * @param action
-	 * @param warnings
+	 * @param action the action to which the message should be added
+	 * @param message an expression that can return a message; the expression should not be null, but the message can be
 	 * @implNote the badge is not added to menu items, but rather only nodes.
+	 *           The message must be installed before the node is created (i.e. previously-created nodes will not be
+	 *           updated).
 	 */
-	public static void installWarningsBadge(Action action, StringExpression warnings) {
-		action.getProperties().put(WARNINGS_KEY, warnings);
+	public static void installInfoMessage(Action action, ObjectExpression<InfoMessage> message) {
+		action.getProperties().put(INFO_MESSAGE_KEY, message);
 	}
 
-	private static void addWarningsDecorations(StringExpression warnings, Node node) {
-		logger.trace("Installing warnings decoration for {}", node);
+	private static void addInfoMessageDecoration(Node node, ObjectExpression<InfoMessage> message) {
+		logger.trace("Installing info message decoration for {}", node);
 		double radius = 3.0;
 		if (node instanceof Control control) {
 			if (control.getWidth() > 0 && control.getHeight() > 0)
 				radius = Math.min(control.getWidth(), control.getHeight()) / 8.0;
 		}
 		var circle = new Circle(radius);
+		updateInfoMessageStyleClasses(circle, message.get());
 		var tooltip = new Tooltip();
-		tooltip.textProperty().bind(warnings);
+		tooltip.textProperty().bind(message.flatMap(InfoMessage::textProperty));
 		Tooltip.install(circle, tooltip);
-		circle.setStyle("-fx-fill: -qp-script-error-color; " +
-				"-fx-effect: dropshadow(three-pass-box, rgba(0, 0, 0, 0.5), 1, 0, 0, 0);" +
-				"-fx-padding: 4px;");
+		tooltip.setShowDelay(Duration.ZERO);
+		message.addListener((v, o, n) -> updateInfoMessageStyleClasses(circle, n));
 		var decoration = new GraphicDecoration(circle, Pos.BOTTOM_RIGHT, -circle.getRadius(), -circle.getRadius());
-		circle.visibleProperty().bind(warnings.isNotEmpty());
+		circle.visibleProperty().bind(message.isNotNull());
 		Platform.runLater(() -> Decorator.addDecoration(node, decoration));
+	}
+
+	private static void updateInfoMessageStyleClasses(Node node, InfoMessage message) {
+		var style = message == null ? null : message.getMessageType().toString().toLowerCase();
+		if (style == null) {
+			node.getStyleClass().clear();
+		} else {
+			node.getStyleClass().setAll("info-message", style);
+		}
 	}
 
 }
