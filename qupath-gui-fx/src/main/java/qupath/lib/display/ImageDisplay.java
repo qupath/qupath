@@ -59,6 +59,8 @@ import qupath.lib.color.ColorTransformer;
 import qupath.lib.color.ColorTransformer.ColorTransformMethod;
 import qupath.lib.common.ColorTools;
 import qupath.lib.display.ChannelDisplayInfo.ModifiableChannelDisplayInfo;
+import qupath.lib.display.settings.ChannelSettings;
+import qupath.lib.display.settings.ImageDisplaySettings;
 import qupath.lib.gui.images.stores.AbstractImageRenderer;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.images.ImageData;
@@ -884,7 +886,6 @@ public class ImageDisplay extends AbstractImageRenderer {
 	}
 
 	
-	
 	/**
 	 * Create a JSON representation of the main components of the current display.
 	 * 
@@ -996,6 +997,7 @@ public class ImageDisplay extends AbstractImageRenderer {
 	 * Class to help with deserializing JSON representation.
 	 */
 	static class JsonHelperChannelInfo {
+
 		private String name;
 		private Class<?> cls;
 		private Float minDisplay;

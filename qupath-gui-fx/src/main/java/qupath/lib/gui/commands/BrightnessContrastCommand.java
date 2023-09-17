@@ -31,6 +31,7 @@ import javafx.beans.binding.ObjectBinding;
 import javafx.beans.binding.ObjectExpression;
 import javafx.beans.binding.StringBinding;
 import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
@@ -85,15 +86,19 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.Text;
 import javafx.scene.text.TextAlignment;
 import javafx.stage.Stage;
+import org.controlsfx.control.SearchableComboBox;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.fx.dialogs.Dialogs;
+import qupath.fx.utils.FXUtils;
 import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.analysis.stats.Histogram;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.display.ChannelDisplayInfo;
 import qupath.lib.display.DirectServerChannelInfo;
 import qupath.lib.display.ImageDisplay;
+import qupath.lib.display.settings.DisplaySettingUtils;
+import qupath.lib.display.settings.ImageDisplaySettings;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.actions.InfoMessage;
 import qupath.lib.gui.charts.HistogramChart;
@@ -106,10 +111,12 @@ import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.projects.ResourceManager;
 
 import java.awt.image.BufferedImage;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
+import java.io.IOException;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -186,6 +193,8 @@ public class BrightnessContrastCommand implements Runnable {
 	
 	private BrightnessContrastKeyTypedListener keyListener = new BrightnessContrastKeyTypedListener();
 
+	private ObjectProperty<ResourceManager.Manager<ImageDisplaySettings>> resourceManagerProperty = new SimpleObjectProperty<>();
+
 	/**
 	 * Constructor.
 	 * @param qupath
@@ -194,12 +203,11 @@ public class BrightnessContrastCommand implements Runnable {
 		this.qupath = qupath;
 		this.qupath.imageDataProperty().addListener(this::handleImageDataChange);
 		dialog = createDialog();
+		resourceManagerProperty.bind(qupath.projectProperty().map(p -> p.getResources("display", ImageDisplaySettings.class, "json")));
 	}
 
 	@Override
 	public void run() {
-//		if (dialog == null)
-//			dialog = createDialog();
 		dialog.show();
 		updateShowTableColumnHeader();
 		if (table.getSelectionModel().isEmpty())
@@ -249,8 +257,11 @@ public class BrightnessContrastCommand implements Runnable {
 		Pane paneTextFilter = createTextFilterPane();
 		pane.add(paneTextFilter, 0, row++);
 
-		Pane paneCheck = createCheckboxPane();
-		pane.add(paneCheck, 0, row++);
+		Pane paneSaveSettings = createDisplayResourcesPane();
+		pane.add(paneSaveSettings, 0, row++);
+
+//		Pane paneCheck = createCheckboxPane();
+//		pane.add(paneCheck, 0, row++);
 
 		chartPane.setPrefWidth(200);
 		chartPane.setPrefHeight(150);
@@ -288,6 +299,9 @@ public class BrightnessContrastCommand implements Runnable {
 		paneSliders.prefWidthProperty().bind(pane.widthProperty());
 		pane.add(paneSliders, 0, row++);
 
+		Pane paneCheck = createCheckboxPane();
+		pane.add(paneCheck, 0, row++);
+
 		Pane paneButtons = createAutoResetButtonPane();
 		pane.add(paneButtons, 0, row++);
 
@@ -295,6 +309,9 @@ public class BrightnessContrastCommand implements Runnable {
 
 		Pane paneKeepSettings = createKeepSettingsPane();
 		pane.add(paneKeepSettings, 0, row++);
+
+//		Pane paneSaveSettings = createDisplayResourcesPane();
+//		pane.add(paneSaveSettings, 0, row++);
 
 		Pane paneWarnings = createWarningPane();
 		pane.add(paneWarnings, 0, row++);
@@ -404,6 +421,93 @@ public class BrightnessContrastCommand implements Runnable {
 		cbKeepDisplaySettings.selectedProperty().bindBidirectional(PathPrefs.keepDisplaySettingsProperty());
 		cbKeepDisplaySettings.setTooltip(new Tooltip("Retain same display settings where possible when opening similar images"));
 		return new BorderPane(cbKeepDisplaySettings);
+	}
+
+	private ObservableList<ImageDisplaySettings> savedDisplayResources = FXCollections.observableArrayList();
+
+	private Pane createDisplayResourcesPane() {
+		GridPane pane = new GridPane();
+		pane.setHgap(5);
+		var label = new Label("Settings");
+		var combo = new SearchableComboBox<>(savedDisplayResources);
+		label.setLabelFor(combo);
+		combo.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {
+			if (n != null)
+				tryToApplySettings(n);
+		});
+		combo.setCellFactory(c -> FXUtils.createCustomListCell(ImageDisplaySettings::getName));
+		combo.setButtonCell(combo.getCellFactory().call(null));
+		combo.setPlaceholder(new Text("No saved settings"));
+		resourceManagerProperty.addListener((v, o, n) -> refreshResources());
+//		var btnApply = new Button("Apply");
+//		btnApply.disableProperty().bind(qupath.imageDataProperty().isNull().or(resourceManagerProperty.isNull()));
+//		btnApply.setOnAction(e -> tryToApplySettings(combo.getSelectionModel().getSelectedItem()));
+		var btnSave = new Button("Save");
+		btnSave.disableProperty().bind(qupath.imageDataProperty().isNull().or(resourceManagerProperty.isNull()));
+		btnSave.setOnAction(e -> promptToSaveSettings(combo.getSelectionModel().getSelectedItem() == null ? "" : combo.getSelectionModel().getSelectedItem().getName()));
+		int col = 0;
+		pane.add(label, col++, 0);
+		pane.add(combo, col++, 0);
+//		pane.add(btnApply, col++, 0);
+		pane.add(btnSave, col++, 0);
+		GridPaneUtils.setToExpandGridPaneWidth(combo);
+		return pane;
+	}
+
+	private void tryToApplySettings(ImageDisplaySettings settings) {
+		if (settings == null)
+			return;
+		try {
+			DisplaySettingUtils.applySettingsToDisplay(imageDisplay, settings);
+			PathPrefs.viewerGammaProperty().set(settings.getGamma());
+			qupath.getViewerManager().repaintAllViewers();
+		} catch (Exception e) {
+			Dialogs.showErrorMessage("Apply display settings", "Can't apply settings " + settings.getName());
+			logger.error("Error applying display settings", e);
+		}
+	}
+
+	private void promptToSaveSettings(String name) {
+		var manager = resourceManagerProperty.get();
+		if (manager == null)
+			logger.warn("No resource manager available!");
+		else if (imageDisplay == null)
+			logger.warn("No image display available!");
+		else {
+			String response = Dialogs.showInputDialog("Save display settings", "Display settings names", name);
+			if (response == null || response.isEmpty())
+				return;
+			try {
+				var settings = DisplaySettingUtils.displayToSettings(imageDisplay, response);
+				manager.put(response, settings);
+				refreshResources();
+			} catch (IOException e) {
+				Dialogs.showErrorMessage("Save display settings", "Can't save settings " + name);
+				logger.error("Error saving display settings", e);
+			}
+		}
+	}
+
+
+	private void refreshResources() {
+		var manager = resourceManagerProperty.get();
+		if (manager == null || imageDisplay == null)
+			savedDisplayResources.clear();
+		else {
+			try {
+				var names = new ArrayList<>(manager.getNames());
+				Collections.sort(names);
+				List<ImageDisplaySettings> compatibleSettings = new ArrayList<>();
+				for (var name : names) {
+					var settings = manager.get(name);
+					if (DisplaySettingUtils.settingsCompatibleWithDisplay(imageDisplay, settings))
+						compatibleSettings.add(settings);
+				}
+				savedDisplayResources.setAll(compatibleSettings);
+			} catch (IOException e) {
+				logger.error("Error loading display settings", e);
+			}
+		}
 	}
 
 
@@ -1326,6 +1430,7 @@ public class BrightnessContrastCommand implements Runnable {
 		// Update if we aren't currently initializing
 		updateHistogram();
 		updateSliders();
+		refreshResources();
 	}
 
 
