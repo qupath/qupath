@@ -26,12 +26,15 @@ package qupath.lib.gui.commands;
 import javafx.application.Platform;
 import javafx.beans.Observable;
 import javafx.beans.binding.Bindings;
+import javafx.beans.binding.BooleanBinding;
 import javafx.beans.binding.ObjectBinding;
+import javafx.beans.binding.StringBinding;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
+import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
@@ -53,6 +56,7 @@ import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.SelectionMode;
+import javafx.scene.control.Separator;
 import javafx.scene.control.Slider;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
@@ -90,9 +94,9 @@ import qupath.lib.display.ChannelDisplayInfo;
 import qupath.lib.display.DirectServerChannelInfo;
 import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.charts.HistogramPanelFX;
-import qupath.lib.gui.charts.HistogramPanelFX.HistogramData;
-import qupath.lib.gui.charts.HistogramPanelFX.ThresholdedChartWrapper;
+import qupath.lib.gui.charts.HistogramChart;
+import qupath.lib.gui.charts.HistogramChart.HistogramData;
+import qupath.lib.gui.charts.ChartThresholdPane;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.viewer.QuPathViewer;
@@ -127,24 +131,29 @@ import java.util.regex.PatternSyntaxException;
  */
 public class BrightnessContrastCommand implements Runnable {
 	
-	private static Logger logger = LoggerFactory.getLogger(BrightnessContrastCommand.class);
+	private static final Logger logger = LoggerFactory.getLogger(BrightnessContrastCommand.class);
 	
-	private static DecimalFormat df = new DecimalFormat("#.###");
+	private static final DecimalFormat df = new DecimalFormat("#.###");
 
 	/**
 	 * Style used for labels that display warning text.
 	 */
-	private static String WARNING_STYLE = "-fx-text-fill: -qp-script-error-color;";
+	private static final String WARNING_STYLE = "-fx-text-fill: -qp-script-error-color;";
 
-	private static double BUTTON_SPACING = 5;
+	private static final double BUTTON_SPACING = 5;
 
-	private QuPathGUI qupath;
+	private final QuPathGUI qupath;
 	private QuPathViewer viewer;
 	private ImageDisplay imageDisplay;
 
-	private ImageDataPropertyChangeListener imageDataPropertyChangeListener = new ImageDataPropertyChangeListener();
+	private final ImageDataPropertyChangeListener imageDataPropertyChangeListener = new ImageDataPropertyChangeListener();
 
-	private SelectedChannelsChangeListener selectedChannelsChangeListener = new SelectedChannelsChangeListener();
+	private final SelectedChannelsChangeListener selectedChannelsChangeListener = new SelectedChannelsChangeListener();
+
+	private final ImageDisplayTimestampListener timestampChangeListener = new ImageDisplayTimestampListener();
+
+	private final BooleanProperty activeChannelVisible = new SimpleBooleanProperty(false);
+	private final BooleanBinding blockChannelAdjustment = activeChannelVisible.not();
 
 	private Slider sliderMin;
 	private Slider sliderMax;
@@ -153,28 +162,31 @@ public class BrightnessContrastCommand implements Runnable {
 	
 	private boolean slidersUpdating = false;
 
-	private TableView<ChannelDisplayInfo> table = new TableView<>();
-	private StringProperty filterText = new SimpleStringProperty("");
-	private BooleanProperty useRegex = PathPrefs.createPersistentPreference("brightnessContrastFilterRegex", false);
-	private ObjectBinding<Predicate<ChannelDisplayInfo>> predicate = createChannelDisplayPredicateBinding(filterText);
+	private final TableView<ChannelDisplayInfo> table = new TableView<>();
+	private final StringProperty filterText = new SimpleStringProperty("");
+	private final BooleanProperty useRegex = PathPrefs.createPersistentPreference("brightnessContrastFilterRegex", false);
+	private final BooleanProperty doLogCounts = PathPrefs.createPersistentPreference("brightnessContrastLogCounts", false);
+	private final ObjectBinding<Predicate<ChannelDisplayInfo>> predicate = createChannelDisplayPredicateBinding(filterText);
+
+	private final StringBinding selectedChannelName = createSelectedChannelNameBinding(table);
 
 	/**
 	 * Checkbox used to quickly turn on or off all channels
 	 */
-	private CheckBox cbShowAll = new CheckBox();
+	private final CheckBox cbShowAll = new CheckBox();
 
-	private ColorPicker picker = new ColorPicker();
+	private final ColorPicker picker = new ColorPicker();
 	
-	private HistogramPanelFX histogramPanel = new HistogramPanelFX();
-	private ThresholdedChartWrapper chartWrapper = new ThresholdedChartWrapper(histogramPanel.getChart());
+	private final HistogramChart histogramChart = new HistogramChart();
+	private final ChartThresholdPane chartPane = new ChartThresholdPane(histogramChart);
 	
-	private Tooltip chartTooltip = new Tooltip(); // Basic stats go here now
+	private final Tooltip chartTooltip = new Tooltip(); // Basic stats go here now
 	private ContextMenu popup;
-	private BooleanProperty showGrayscale = new SimpleBooleanProperty(false);
-	private BooleanProperty invertBackground = new SimpleBooleanProperty(false);
+	private final BooleanProperty showGrayscale = new SimpleBooleanProperty(false);
+	private final BooleanProperty invertBackground = new SimpleBooleanProperty(false);
 	
 	private BrightnessContrastKeyTypedListener keyListener = new BrightnessContrastKeyTypedListener();
-	
+
 	/**
 	 * Constructor.
 	 * @param qupath
@@ -208,10 +220,15 @@ public class BrightnessContrastCommand implements Runnable {
 		if (isInitialized())
 			throw new RuntimeException("createDialog() called after initialization!");
 
+		initializeHistogram();
+		createChannelDisplayTable();
 		initializeShowAllCheckbox();
 		initializeSliders();
 		initializeColorPicker();
 		initializePopup();
+
+		doLogCounts.addListener((v, o, n) -> updateHistogram());
+		PathPrefs.keepDisplaySettingsProperty().addListener((v, o, n) -> maybeSyncSettingsAcrossViewers());
 
 		handleImageDataChange(null, null, qupath.getImageData());
 
@@ -223,7 +240,6 @@ public class BrightnessContrastCommand implements Runnable {
 		int row = 0;
 
 		// Create color/channel display table
-		table = createChannelDisplayTable();
 		pane.add(table, 0, row++);
 		GridPane.setFillHeight(table, Boolean.TRUE);
 		GridPane.setVgrow(table, Priority.ALWAYS);
@@ -234,13 +250,37 @@ public class BrightnessContrastCommand implements Runnable {
 		Pane paneCheck = createCheckboxPane();
 		pane.add(paneCheck, 0, row++);
 
-		histogramPanel.setShowTickLabels(false);
-		histogramPanel.getChart().setAnimated(false);
-		var chartPane = chartWrapper.getPane();
 		chartPane.setPrefWidth(200);
 		chartPane.setPrefHeight(150);
+
 		pane.add(chartPane, 0, row++);
-//		pane.add(histogramPanel.getChart(), 0, row++);
+
+		GridPane paneChannels = new GridPane();
+		paneChannels.setHgap(4);
+		Label labelChannel = new Label();
+		labelChannel.textProperty().bind(selectedChannelName);
+		labelChannel.setStyle("-fx-font-weight: bold;");
+		paneChannels.add(labelChannel, 0, 0);
+		GridPaneUtils.setToExpandGridPaneWidth(labelChannel);
+		GridPane.setHgrow(labelChannel, Priority.SOMETIMES);
+
+		Label labelChannelHidden = new Label();
+		labelChannelHidden.setText("(hidden)");
+		labelChannelHidden.visibleProperty().bind(
+				selectedChannelName.isNotNull().and(activeChannelVisible.not()));
+		labelChannelHidden.setStyle("-fx-font-weight: bold; -fx-font-style: italic; " +
+				"-fx-font-size: 90%;");
+		GridPaneUtils.setToExpandGridPaneWidth(labelChannelHidden);
+		paneChannels.add(labelChannelHidden, 1, 0);
+
+		CheckBox cbLogHistogram = new CheckBox("Log histogram");
+		cbLogHistogram.selectedProperty().bindBidirectional(doLogCounts);
+		cbLogHistogram.setTooltip(new Tooltip("Show log values of histogram counts.\n" +
+				"This can help to see differences when the histogram values are low relative to the mode."));
+		paneChannels.add(cbLogHistogram, 2, 0);
+
+		pane.add(paneChannels, 0, row++);
+
 
 		Pane paneSliders = createSliderPane();
 		paneSliders.prefWidthProperty().bind(pane.widthProperty());
@@ -249,11 +289,13 @@ public class BrightnessContrastCommand implements Runnable {
 		Pane paneButtons = createAutoResetButtonPane();
 		pane.add(paneButtons, 0, row++);
 
-		Pane paneWarnings = createWarningPane();
-		pane.add(paneWarnings, 0, row++);
+		pane.add(createSeparator(), 0, row++);
 
 		Pane paneKeepSettings = createKeepSettingsPane();
 		pane.add(paneKeepSettings, 0, row++);
+
+		Pane paneWarnings = createWarningPane();
+		pane.add(paneWarnings, 0, row++);
 
 		pane.setPadding(new Insets(10, 10, 10, 10));
 		pane.setVgap(5);
@@ -284,11 +326,18 @@ public class BrightnessContrastCommand implements Runnable {
 		return dialog;
 	}
 
+	private static Separator createSeparator() {
+		var separator = new Separator();
+		// Padding helps if we have multiple separators at the top, but not if we have just one at the bottom
+//		separator.setPadding(new Insets(5));
+		return separator;
+	}
+
 
 	private Pane createSliderPane() {
-		GridPane box = new GridPane();
+		GridPane pane = new GridPane();
 		String blank = "      ";
-		Label labelMin = new Label("Min display");
+		Label labelMin = new Label("Channel min");
 		Tooltip tooltipMin = new Tooltip("Set minimum lookup table value - double-click the value to edit manually");
 		Label labelMinValue = new Label(blank);
 		labelMinValue.setTooltip(tooltipMin);
@@ -296,11 +345,11 @@ public class BrightnessContrastCommand implements Runnable {
 		sliderMin.setTooltip(tooltipMin);
 		labelMin.setLabelFor(sliderMin);
 		labelMinValue.textProperty().bind(createSliderTextBinding(sliderMin));
-		box.add(labelMin, 0, 0);
-		box.add(sliderMin, 1, 0);
-		box.add(labelMinValue, 2, 0);
+		pane.add(labelMin, 0, 0);
+		pane.add(sliderMin, 1, 0);
+		pane.add(labelMinValue, 2, 0);
 
-		Label labelMax = new Label("Max display");
+		Label labelMax = new Label("Channel max");
 		Tooltip tooltipMax = new Tooltip("Set maximum lookup table value - double-click the value to edit manually");
 		labelMax.setTooltip(tooltipMax);
 		Label labelMaxValue = new Label(blank);
@@ -308,14 +357,15 @@ public class BrightnessContrastCommand implements Runnable {
 		sliderMax.setTooltip(tooltipMax);
 		labelMax.setLabelFor(sliderMax);
 		labelMaxValue.textProperty().bind(createSliderTextBinding(sliderMax));
-		box.add(labelMax, 0, 1);
-		box.add(sliderMax, 1, 1);
-		box.add(labelMaxValue, 2, 1);
-		box.setVgap(5);
+		pane.add(labelMax, 0, 1);
+		pane.add(sliderMax, 1, 1);
+		pane.add(labelMaxValue, 2, 1);
+		pane.setVgap(5);
+		pane.setHgap(4);
 
-		Label labelGamma = new Label("Gamma");
+		Label labelGamma = new Label("Viewer gamma");
 		Label labelGammaValue = new Label(blank);
-		Tooltip tooltipGamma = new Tooltip("Set gamma value, for all viewers.\n"
+		Tooltip tooltipGamma = new Tooltip("Set gamma value, for all viewers & all channels.\n"
 				+ "Double-click the value to edit manually, shift-click to reset to 1.\n"
 				+ "It is recommended to leave this value at 1, to avoid unnecessary nonlinear contrast adjustment.");
 		labelGammaValue.setTooltip(tooltipGamma);
@@ -326,13 +376,16 @@ public class BrightnessContrastCommand implements Runnable {
 		labelGammaValue.setOnMouseClicked(this::handleGammaLabelClicked);
 		labelGammaValue.styleProperty().bind(createGammaLabelStyleBinding(sliderGamma.valueProperty()));
 
-		box.add(labelGamma, 0, 2);
-		box.add(sliderGamma, 1, 2);
-		box.add(labelGammaValue, 2, 2);
+		pane.add(labelGamma, 0, 2);
+		pane.add(sliderGamma, 1, 2);
+		pane.add(labelGammaValue, 2, 2);
+
+		// Set the pref width for a value label to prevent column continually resizing
+		// (Column constraints would probably be the 'right' way to do this)
+		labelMinValue.setPrefWidth(40);
 
 		GridPane.setFillWidth(sliderMin, Boolean.TRUE);
 		GridPane.setFillWidth(sliderMax, Boolean.TRUE);
-//		box.setPadding(new Insets(5, 0, 5, 0));
 		GridPane.setHgrow(sliderMin, Priority.ALWAYS);
 		GridPane.setHgrow(sliderMax, Priority.ALWAYS);
 
@@ -340,12 +393,12 @@ public class BrightnessContrastCommand implements Runnable {
 		// manually by double-clicking on the corresponding label
 		labelMinValue.setOnMouseClicked(this::handleMinLabelClick);
 		labelMaxValue.setOnMouseClicked(this::handleMaxLabelClick);
-		return box;
+		return pane;
 	}
 
 
 	private Pane createKeepSettingsPane() {
-		CheckBox cbKeepDisplaySettings = new CheckBox("Keep settings");
+		CheckBox cbKeepDisplaySettings = new CheckBox("Apply to similar images");
 		cbKeepDisplaySettings.selectedProperty().bindBidirectional(PathPrefs.keepDisplaySettingsProperty());
 		cbKeepDisplaySettings.setTooltip(new Tooltip("Retain same display settings where possible when opening similar images"));
 		return new BorderPane(cbKeepDisplaySettings);
@@ -353,11 +406,14 @@ public class BrightnessContrastCommand implements Runnable {
 
 
 	private Pane createAutoResetButtonPane() {
+
 		Button btnAuto = new Button("Auto");
 		btnAuto.setOnAction(this::handleAutoButtonClicked);
+		btnAuto.disableProperty().bind(blockChannelAdjustment);
 
 		Button btnReset = new Button("Reset");
 		btnReset.setOnAction(this::handleResetButtonClicked);
+		btnReset.disableProperty().bind(blockChannelAdjustment);
 
 		GridPane pane = GridPaneUtils.createColumnGridControls(
 				btnAuto,
@@ -396,9 +452,26 @@ public class BrightnessContrastCommand implements Runnable {
 		return vboxWarnings;
 	}
 
+	private void initializeHistogram() {
+		histogramChart.countsTransformProperty().bind(
+				Bindings.createObjectBinding(() -> doLogCounts.get() ? HistogramChart.CountsTransformMode.LOGARITHM : HistogramChart.CountsTransformMode.NORMALIZED, doLogCounts));
+		histogramChart.setDisplayMode(HistogramChart.DisplayMode.AREA);
 
-	private TableView<ChannelDisplayInfo> createChannelDisplayTable() {
-		TableView<ChannelDisplayInfo> table = new TableView<>(imageDisplay == null ? FXCollections.observableArrayList() : imageDisplay.availableChannels());
+		histogramChart.setShowTickLabels(false);
+		histogramChart.setAnimated(false);
+		histogramChart.setHideIfEmpty(true);
+
+		histogramChart.getXAxis().setAutoRanging(false);
+		histogramChart.getXAxis().setTickLabelsVisible(true);
+
+		histogramChart.getYAxis().setAutoRanging(false);
+		histogramChart.getYAxis().setTickLabelsVisible(false);
+	}
+
+
+	private void createChannelDisplayTable() {
+		if (imageDisplay != null)
+			table.setItems(imageDisplay.availableChannels());
 		var textPlaceholder = new Text("No channels available");
 		textPlaceholder.setStyle("-fx-fill: -fx-text-base-color;");
 		table.setPlaceholder(textPlaceholder);
@@ -431,8 +504,6 @@ public class BrightnessContrastCommand implements Runnable {
 		table.setEditable(true);
 		table.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
 		col1.prefWidthProperty().bind(table.widthProperty().subtract(col2.widthProperty()).subtract(25)); // Hack... space for a scrollbar
-
-		return table;
 	}
 
 	private void initializeShowAllCheckbox() {
@@ -470,26 +541,6 @@ public class BrightnessContrastCommand implements Runnable {
 	}
 
 
-//	private Pane createCheckboxPane() {
-//		ToggleButton cbShowGrayscale = new ToggleButton("Show grayscale");
-//		cbShowGrayscale.selectedProperty().bindBidirectional(showGrayscale);
-//		cbShowGrayscale.setTooltip(new Tooltip("Show single channel with grayscale lookup table"));
-//		if (imageDisplay != null)
-//			cbShowGrayscale.setSelected(!imageDisplay.useColorLUTs());
-//		showGrayscale.addListener(this::handleDisplaySettingInvalidated);
-//
-//		ToggleButton cbInvertBackground = new ToggleButton("Invert background");
-//		cbInvertBackground.selectedProperty().bindBidirectional(invertBackground);
-//		cbInvertBackground.setTooltip(new Tooltip("Invert the background for display (i.e. switch between white and black).\n"
-//				+ "Use cautiously to avoid becoming confused about how the 'original' image looks (e.g. brightfield or fluorescence)."));
-//		if (imageDisplay != null)
-//			cbInvertBackground.setSelected(imageDisplay.useInvertedBackground());
-//		invertBackground.addListener(this::handleDisplaySettingInvalidated);
-//
-//		return GridPaneUtils.createColumnGridControls(cbShowGrayscale, cbInvertBackground);
-//	}
-
-
 	private Pane createCheckboxPane() {
 		CheckBox cbShowGrayscale = new CheckBox("Show grayscale");
 		cbShowGrayscale.selectedProperty().bindBidirectional(showGrayscale);
@@ -513,6 +564,7 @@ public class BrightnessContrastCommand implements Runnable {
 		paneCheck.getChildren().add(cbInvertBackground);
 		paneCheck.setHgap(15);
 		paneCheck.setMaxHeight(Double.MAX_VALUE);
+
 		return paneCheck;
 	}
 
@@ -534,6 +586,13 @@ public class BrightnessContrastCommand implements Runnable {
 				setHideChannel(features.getValue());
 		});
 		return property;
+	}
+
+	private static StringBinding createSelectedChannelNameBinding(TableView<? extends ChannelDisplayInfo> table) {
+		return Bindings.createStringBinding(() -> {
+			var selected = table.getSelectionModel().getSelectedItem();
+			return selected == null ? "" : selected.getName();
+		}, table.getSelectionModel().selectedItemProperty());
 	}
 
 	private static ObservableValue<String> createGammaLabelBinding(ObservableValue<? extends Number> gammaValue) {
@@ -607,7 +666,9 @@ public class BrightnessContrastCommand implements Runnable {
 	private void handleDisplaySettingInvalidated(Observable observable) {
 		if (imageDisplay == null)
 			return;
-		Platform.runLater(() -> viewer.repaintEntireImage());
+		Platform.runLater(() -> {
+			viewer.repaintEntireImage();
+		});
 		table.refresh();
 	}
 
@@ -666,6 +727,9 @@ public class BrightnessContrastCommand implements Runnable {
 		sliderMax.valueProperty().addListener(this::handleMinMaxSliderValueChange);
 		sliderGamma = new Slider(0.01, 5, 0.01);
 		sliderGamma.valueProperty().bindBidirectional(PathPrefs.viewerGammaProperty());
+
+		sliderMin.disableProperty().bind(blockChannelAdjustment);
+		sliderMax.disableProperty().bind(blockChannelAdjustment);
 	}
 	
 	private Pane createTextFilterPane() {
@@ -801,6 +865,7 @@ public class BrightnessContrastCommand implements Runnable {
 											  ChannelDisplayInfo oldValue, ChannelDisplayInfo newValue) {
 		updateHistogram();
 		updateSliders();
+		activeChannelVisible.set(newValue != null && isChannelShowing(newValue));
 	}
 
 
@@ -817,8 +882,6 @@ public class BrightnessContrastCommand implements Runnable {
 	private void updateHistogram() {
 		if (table == null || !isInitialized())
 			return;
-
-		boolean areaPlot = true; // Use area plot rather than proper histogram 'bars'
 
 		ChannelDisplayInfo infoSelected = getCurrentInfo();
 		Histogram histogram = (imageDisplay == null || infoSelected == null) ? null : imageDisplay.getHistogram(infoSelected);
@@ -842,8 +905,7 @@ public class BrightnessContrastCommand implements Runnable {
 					case Blue:
 						var hist = imageDisplay.getHistogram(c);
 						if (hist != null) {
-							var histogramData = HistogramPanelFX.createHistogramData(hist, areaPlot, c.getColor());
-							histogramData.setNormalizeCounts(true);
+							var histogramData = HistogramChart.createHistogramData(hist, c.getColor());
 							data.add(histogramData);
 							if (histogram == null || hist.getMaxCount() > histogram.getMaxCount())
 								histogram = hist;
@@ -853,52 +915,38 @@ public class BrightnessContrastCommand implements Runnable {
 						break;
 					}
 				}
-				histogramPanel.getHistogramData().setAll(data);
+				histogramChart.getHistogramData().setAll(data);
 			} else
-				histogramPanel.getHistogramData().clear();
+				histogramChart.getHistogramData().clear();
 		} else {
-			// Any animation is slightly nicer if we can modify the current data, rather than creating a new one
-			if (histogramPanel.getHistogramData().size() == 1) {
-				Color color = infoSelected.getColor() == null ? ColorToolsFX.TRANSLUCENT_BLACK_FX : ColorToolsFX.getCachedColor(infoSelected.getColor());
-				histogramPanel.getHistogramData().get(0).setHistogram(histogram, color);
-			} else {
-				HistogramData histogramData = HistogramPanelFX.createHistogramData(histogram, areaPlot, infoSelected.getColor());
-				histogramData.setNormalizeCounts(true);
-				histogramPanel.getHistogramData().setAll(histogramData);
-			}
+			HistogramData histogramData = HistogramChart.createHistogramData(histogram, infoSelected.getColor());
+			histogramChart.getHistogramData().setAll(histogramData);
 		}
 
-		NumberAxis xAxis = (NumberAxis)histogramPanel.getChart().getXAxis();
+		NumberAxis xAxis = (NumberAxis) histogramChart.getXAxis();
 		if (infoSelected != null && infoSelected.getMaxAllowed() == 255 && infoSelected.getMinAllowed() == 0) {
-			xAxis.setAutoRanging(false);
 			xAxis.setLowerBound(0);
 			xAxis.setUpperBound(255);
 		} else if (infoSelected != null) {
-			xAxis.setAutoRanging(false);
 			xAxis.setLowerBound(infoSelected.getMinAllowed());
 			xAxis.setUpperBound(infoSelected.getMaxAllowed());
-//			xAxis.setAutoRanging(true);
 		}
 		if (infoSelected != null)
 			xAxis.setTickUnit(infoSelected.getMaxAllowed() - infoSelected.getMinAllowed());
-		
+
 		// Don't use the first or last count if it's an outlier & we have many bins
-		NumberAxis yAxis = (NumberAxis)histogramPanel.getChart().getYAxis();
+		NumberAxis yAxis = (NumberAxis) histogramChart.getYAxis();
 		if (infoSelected != null && histogram != null) {
-			long maxCountExcludingEndBins = 0L;
-			for (int i = 1; i < histogram.nBins()-1; i++)
-				maxCountExcludingEndBins = Math.max(maxCountExcludingEndBins, histogram.getCountsForBin(i));
-			double outlierThreshold = maxCountExcludingEndBins * 4;
-			double yMax = Math.min(histogram.getMaxCount(), outlierThreshold) / histogram.getCountSum();
-			yAxis.setAutoRanging(false);
+			double yMax;
+			if (doLogCounts.get())
+				yMax = Math.log(histogram.getMaxCount());
+			else
+				yMax = histogram.getMaxNormalizedCount();
 			yAxis.setLowerBound(0);
 			yAxis.setUpperBound(yMax);
+			yAxis.setTickLabelsVisible(false);
+			yAxis.setTickUnit(yMax);
 		}
-		
-		histogramPanel.getChart().getXAxis().setTickLabelsVisible(true);
-//		histogramPanel.getChart().getXAxis().setLabel("Pixel value");
-		histogramPanel.getChart().getYAxis().setTickLabelsVisible(true);
-//		histogramPanel.getChart().getYAxis().setLabel("Frequency");
 		
 		GridPane pane = new GridPane();
 		pane.setHgap(4);
@@ -921,9 +969,9 @@ public class BrightnessContrastCommand implements Runnable {
 		chartTooltip.setGraphic(pane);
 		
 		if (row == 0)
-			Tooltip.uninstall(histogramPanel.getChart(), chartTooltip);
+			Tooltip.uninstall(histogramChart, chartTooltip);
 		else
-			Tooltip.install(histogramPanel.getChart(), chartTooltip);
+			Tooltip.install(histogramChart, chartTooltip);
 		
 	}
 
@@ -1006,6 +1054,33 @@ public class BrightnessContrastCommand implements Runnable {
 		imageDisplay.setMinMaxDisplay(infoVisible, (float)minValue, (float)maxValue);
 		viewer.repaintEntireImage();
 	}
+
+	/**
+	 * Sync settings from the current main viewer to all compatible viewers,
+	 * if the relevant preference is selected.
+	 */
+	private void maybeSyncSettingsAcrossViewers() {
+		if (viewer != null && viewer.hasServer())
+			maybeSyncSettingsAcrossViewers(viewer.getImageDisplay());
+	}
+
+	/**
+	 * Sync settings from the specified display to all compatible viewers,
+	 * if the relevant preference is selected.
+	 * @param display
+	 */
+	private void maybeSyncSettingsAcrossViewers(ImageDisplay display) {
+		if (display == null || !PathPrefs.keepDisplaySettingsProperty().get())
+			return;
+		for (var otherViewer : qupath.getAllViewers()) {
+			if (!otherViewer.hasServer() || Objects.equals(display, otherViewer.getImageDisplay()))
+				continue;
+			if (otherViewer.getImageDisplay().updateFromDisplay(display)) {
+				otherViewer.repaintEntireImage();
+			}
+		}
+	}
+
 	
 	
 	private void updateSliders() {
@@ -1013,8 +1088,6 @@ public class BrightnessContrastCommand implements Runnable {
 			return;
 		ChannelDisplayInfo infoVisible = getCurrentInfo();
 		if (infoVisible == null) {
-			sliderMin.setDisable(true);
-			sliderMax.setDisable(true);
 			return;
 		}
 		float range = infoVisible.getMaxAllowed() - infoVisible.getMinAllowed();
@@ -1052,16 +1125,12 @@ public class BrightnessContrastCommand implements Runnable {
 			sliderMax.setMinorTickCount(n);
 		}
 		slidersUpdating = false;
-		sliderMin.setDisable(false);
-		sliderMax.setDisable(false);
-		
-		chartWrapper.getThresholds().clear();
-		chartWrapper.addThreshold(sliderMin.valueProperty());
-		chartWrapper.addThreshold(sliderMax.valueProperty());
-		chartWrapper.setIsInteractive(true);
-//		chartWrapper.getThresholds().setAll(sliderMin.valueProperty(), sliderMax.valueProperty());
-		
-//		histogramPanel.setVerticalLines(new double[]{infoVisible.getMinDisplay(), infoVisible.getMaxDisplay()}, ColorToolsFX.TRANSLUCENT_BLACK_FX);
+
+		chartPane.getThresholds().clear();
+		chartPane.addThreshold(sliderMin.valueProperty());
+		chartPane.addThreshold(sliderMax.valueProperty());
+		chartPane.setIsInteractive(true);
+		chartPane.disableProperty().bind(blockChannelAdjustment);
 	}
 	
 
@@ -1185,19 +1254,33 @@ public class BrightnessContrastCommand implements Runnable {
 			imageDisplay.useInvertedBackgroundProperty().unbindBidirectional(invertBackground);
 		}
 
-		if (imageDisplay != null)
+		if (imageDisplay != null) {
 			imageDisplay.selectedChannels().removeListener(selectedChannelsChangeListener);
+			imageDisplay.changeTimestampProperty().removeListener(timestampChangeListener);
+		}
 
 		imageDisplay = viewer == null ? null : viewer.getImageDisplay();
-		if (imageDisplay != null)
+		if (imageDisplay != null) {
 			imageDisplay.selectedChannels().addListener(selectedChannelsChangeListener);
+			imageDisplay.changeTimestampProperty().addListener(timestampChangeListener);
+		}
 
 		if (imageDataOld != null)
 			imageDataOld.removePropertyChangeListener(imageDataPropertyChangeListener);
 		if (imageDataNew != null)
 			imageDataNew.addPropertyChangeListener(imageDataPropertyChangeListener);
-		
+
+		// Update the table - attempting to preserve the same selected object
+		var selectedItem = table.getSelectionModel().getSelectedItem();
 		updateTable();
+		if (selectedItem != null) {
+			for (var item : table.getItems()) {
+				if (Objects.equals(selectedItem.getName(), item.getName())) {
+					table.getSelectionModel().select(item);
+					break;
+				}
+			}
+		}
 		
 //		updateHistogramMap();
 		// Update if we aren't currently initializing
@@ -1479,6 +1562,8 @@ public class BrightnessContrastCommand implements Runnable {
 		private ObservableList<Color> customColors;
 		private boolean updatingTableCell = false;
 
+		private StringBinding styleBinding;
+
 		private Comparator<Color> comparator = Comparator.comparingDouble((Color c) -> c.getHue())
 				.thenComparingDouble(c -> c.getSaturation())
 				.thenComparingDouble(c -> c.getBrightness())
@@ -1507,6 +1592,17 @@ public class BrightnessContrastCommand implements Runnable {
 
 		private ChannelDisplayTableCell() {
 			this(null);
+			// Hack - this updates with the current info (and we don't have an observable property for the info)
+			selectedChannelName.addListener((observable, oldValue, newValue) -> updateStyle());
+			updateStyle();
+		}
+
+		private void updateStyle() {
+			if (getItem() == getCurrentInfo())
+				setStyle("-fx-font-weight: bold");
+//				setStyle("-fx-font-style: italic");
+			else
+				setStyle("");
 		}
 
 		@Override
@@ -1519,6 +1615,8 @@ public class BrightnessContrastCommand implements Runnable {
 			}
 			setText(item.getName());
 			setGraphic(colorPicker);
+			updateStyle();
+
 			Integer rgb = item.getColor();
 			// Can only set the color for direct, non-RGB channels
 			boolean canChangeColor = rgb != null && item instanceof DirectServerChannelInfo;
@@ -1608,8 +1706,10 @@ public class BrightnessContrastCommand implements Runnable {
 
 		@Override
 		public void onChanged(Change<? extends ChannelDisplayInfo> c) {
-			if (imageDisplay == null)
+			if (imageDisplay == null) {
+				activeChannelVisible.set(false);
 				return;
+			}
 			if (imageDisplay.availableChannels().size() == imageDisplay.selectedChannels().size()) {
 				cbShowAll.setIndeterminate(false);
 				cbShowAll.setSelected(true);
@@ -1621,6 +1721,21 @@ public class BrightnessContrastCommand implements Runnable {
 			}
 			// Only necessary because it's possible that the channel selection is changed externally
 			table.refresh();
+			var current = getCurrentInfo();
+			activeChannelVisible.set(current != null && isChannelShowing(current));
+		}
+	}
+
+
+	/**
+	 * Listen to the timestamp of the current image display.
+	 * This can be used to sync settings across viewers, without needing to listen to many different properties.
+	 */
+	class ImageDisplayTimestampListener implements ChangeListener<Number> {
+
+		@Override
+		public void changed(ObservableValue<? extends Number> observable, Number oldValue, Number newValue) {
+			maybeSyncSettingsAcrossViewers();
 		}
 	}
 
