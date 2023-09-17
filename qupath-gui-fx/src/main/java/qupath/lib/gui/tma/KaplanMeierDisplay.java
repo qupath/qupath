@@ -81,8 +81,8 @@ import qupath.lib.analysis.stats.survival.LogRankTest;
 import qupath.lib.analysis.stats.survival.LogRankTest.LogRankResult;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.charts.ChartTools;
-import qupath.lib.gui.charts.HistogramPanelFX;
-import qupath.lib.gui.charts.HistogramPanelFX.ThresholdedChartWrapper;
+import qupath.lib.gui.charts.HistogramChart;
+import qupath.lib.gui.charts.ThresholdedChartWrapper;
 import qupath.lib.gui.dialogs.ParameterPanelFX;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.PathObjectTools;
@@ -108,7 +108,7 @@ class KaplanMeierDisplay implements ParameterChangeListener, PathObjectHierarchy
 	private boolean calculateAllPValues = true;
 
 	private PathObjectHierarchy hierarchy;
-	private HistogramPanelFX histogramPanel;
+	private HistogramChart histogramPanel;
 	private ThresholdedChartWrapper histogramWrapper;
 
 	private LineChart<Number, Number> chartPValues;
@@ -561,14 +561,14 @@ class KaplanMeierDisplay implements ParameterChangeListener, PathObjectHierarchy
 		Histogram histogram = scoresValid ? new Histogram(newScoreData.scores, nBins) : null;
 		if (histogramPanel == null) {
 			GridPane paneHistogram = new GridPane();
-			histogramPanel = new HistogramPanelFX();
-			histogramPanel.getChart().setAnimated(false);
-			histogramWrapper = new ThresholdedChartWrapper(histogramPanel.getChart());
+			histogramPanel = new HistogramChart();
+			histogramPanel.setAnimated(false);
+			histogramWrapper = new ThresholdedChartWrapper(histogramPanel);
 			for (ObservableNumberValue val : threshProperties)
 				histogramWrapper.addThreshold(val);
 			histogramWrapper.getPane().setPrefHeight(150);
 			paneHistogram.add(histogramWrapper.getPane(), 0, 0);
-			Tooltip.install(histogramPanel.getChart(), new Tooltip("Distribution of scores"));
+			Tooltip.install(histogramPanel, new Tooltip("Distribution of scores"));
 			GridPane.setHgrow(histogramWrapper.getPane(), Priority.ALWAYS);
 			GridPane.setVgrow(histogramWrapper.getPane(), Priority.ALWAYS);
 
@@ -722,7 +722,7 @@ class KaplanMeierDisplay implements ParameterChangeListener, PathObjectHierarchy
 			// Hide threshold parameters if threshold can't be used
 			if (!scoresValid) {
 				//					params.setHiddenParameters(true, "scoreThresholdMethod", "scoreThreshold");
-				histogramPanel.getChart().setVisible(false);
+				histogramPanel.setVisible(false);
 			}
 			panelParams = new ParameterPanelFX(params);
 			panelParams.addParameterChangeListener(this);
@@ -773,11 +773,11 @@ class KaplanMeierDisplay implements ParameterChangeListener, PathObjectHierarchy
 		}
 
 		if (histogram != null) {
-			histogramPanel.getHistogramData().setAll(HistogramPanelFX.createHistogramData(histogram, false, (Color)null));
-			histogramPanel.getChart().getXAxis().setLabel(scoreColumn);
-			histogramPanel.getChart().getYAxis().setLabel("Count");
+			histogramPanel.getHistogramData().setAll(HistogramChart.createHistogramData(histogram, (Color)null));
+			histogramPanel.getXAxis().setLabel(scoreColumn);
+			histogramPanel.getYAxis().setLabel("Count");
 
-			ChartTools.addChartExportMenu(histogramPanel.getChart(), null);
+			ChartTools.addChartExportMenu(histogramPanel, null);
 
 			//				histogramWrapper.setVerticalLines(thresholds, ColorToolsFX.getCachedColor(240, 0, 0, 128));
 			// Deal with threshold adjustment

@@ -49,7 +49,7 @@ import javafx.scene.layout.Priority;
 import javafx.util.Callback;
 import qupath.lib.analysis.stats.Histogram;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.gui.charts.HistogramPanelFX.HistogramData;
+import qupath.lib.gui.charts.HistogramChart.HistogramData;
 import qupath.lib.gui.dialogs.ParameterPanelFX;
 import qupath.lib.gui.measure.PathTableData;
 import qupath.lib.plugins.parameters.IntParameter;
@@ -71,7 +71,7 @@ public class HistogramDisplay implements ParameterChangeListener {
 	private BorderPane pane = new BorderPane();
 
 	private ComboBox<String> comboName = new ComboBox<>();
-	private HistogramPanelFX panelHistogram = new HistogramPanelFX();
+	private HistogramChart histogramChart = new HistogramChart();
 	private ParameterPanelFX panelParams;
 
 	private int currentBins;
@@ -150,13 +150,13 @@ public class HistogramDisplay implements ParameterChangeListener {
 
 
 		BorderPane panelMain = new BorderPane();
-		panelMain.setCenter(panelHistogram.getChart());
+		panelMain.setCenter(histogramChart);
 
 		comboName.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {
 			setHistogram(model, n);
 		});
 
-		panelHistogram.setShowTickLabels(params.getBooleanParameterValue("drawAxes"));
+		histogramChart.setShowTickLabels(params.getBooleanParameterValue("drawAxes"));
 
 
 		panelParams = new ParameterPanelFX(params);
@@ -248,24 +248,24 @@ public class HistogramDisplay implements ParameterChangeListener {
 			Histogram histogram = new Histogram(values, nBins);
 //			histogram.setNormalizeCounts(params.getBooleanParameterValue("normalizeCounts"));
 
-			HistogramData histogramData = HistogramPanelFX.createHistogramData(histogram, false, (Integer)null);
-			histogramData.setNormalizeCounts(params.getBooleanParameterValue("normalizeCounts"));
-			panelHistogram.getHistogramData().setAll(histogramData);
+			HistogramData histogramData = HistogramChart.createHistogramData(histogram, (Integer)null);
+			boolean doNormalize = params.getBooleanParameterValue("normalizeCounts");
+			histogramChart.setCountsAxisMode(doNormalize ? HistogramChart.CountsAxisMode.NORMALIZED : HistogramChart.CountsAxisMode.RAW);
+			histogramChart.getHistogramData().setAll(histogramData);
 
 
-			AreaChart<Number, Number> chart = panelHistogram.getChart();
-			chart.setVerticalGridLinesVisible(true);
-			chart.setHorizontalGridLinesVisible(true);
-			chart.setLegendVisible(false);
-			chart.setCreateSymbols(false); // Can't stop them being orange...
-			chart.getXAxis().setLabel("Values");
-			chart.getYAxis().setLabel("Counts");
-			chart.getYAxis().setTickLabelsVisible(true);
-			chart.getYAxis().setTickMarkVisible(true);
-			chart.getXAxis().setTickLabelsVisible(true);
-			chart.getXAxis().setTickMarkVisible(true);
-			
-			chart.setAnimated(params.getBooleanParameterValue("animate"));
+			histogramChart.setVerticalGridLinesVisible(true);
+			histogramChart.setHorizontalGridLinesVisible(true);
+			histogramChart.setLegendVisible(false);
+			histogramChart.setCreateSymbols(false); // Can't stop them being orange...
+			histogramChart.getXAxis().setLabel("Values");
+			histogramChart.getYAxis().setLabel("Counts");
+			histogramChart.getYAxis().setTickLabelsVisible(true);
+			histogramChart.getYAxis().setTickMarkVisible(true);
+			histogramChart.getXAxis().setTickLabelsVisible(true);
+			histogramChart.getXAxis().setTickMarkVisible(true);
+
+			histogramChart.setAnimated(params.getBooleanParameterValue("animate"));
 
 			updateTable(histogram);
 
@@ -274,7 +274,7 @@ public class HistogramDisplay implements ParameterChangeListener {
 			currentValues = values;
 			this.model = model;
 		} else
-			panelHistogram.getHistogramData().clear();
+			histogramChart.getHistogramData().clear();
 	}
 
 
@@ -306,25 +306,25 @@ public class HistogramDisplay implements ParameterChangeListener {
 			// This is rather clumsy (compared to just updating the histogram data),
 			// but the reason is that the animations are poor when the data is updated in-place
 			List<HistogramData> list = new ArrayList<>();
-			for (HistogramData histogramData : panelHistogram.getHistogramData()) {
-				histogramData.setNormalizeCounts(doNormalize);
-				list.add(new HistogramData(histogramData.getHistogram(), false, histogramData.getStroke()));
+			histogramChart.setCountsAxisMode(doNormalize ? HistogramChart.CountsAxisMode.NORMALIZED : HistogramChart.CountsAxisMode.RAW);
+			for (HistogramData histogramData : histogramChart.getHistogramData()) {
+				list.add(new HistogramData(histogramData.getHistogram(), histogramData.getStroke()));
 				//					histogramData.update();
 			}
-			panelHistogram.getHistogramData().setAll(list);
+			histogramChart.getHistogramData().setAll(list);
 			return;
 		} else if ("drawGrid".equals(key)) {
-			panelHistogram.getChart().setHorizontalGridLinesVisible(params.getBooleanParameterValue("drawGrid"));
-			panelHistogram.getChart().setVerticalGridLinesVisible(params.getBooleanParameterValue("drawGrid"));
+			histogramChart.setHorizontalGridLinesVisible(params.getBooleanParameterValue("drawGrid"));
+			histogramChart.setVerticalGridLinesVisible(params.getBooleanParameterValue("drawGrid"));
 			return;
 		} else if ("drawAxes".equals(key)) {
-			panelHistogram.setShowTickLabels(params.getBooleanParameterValue("drawAxes"));
+			histogramChart.setShowTickLabels(params.getBooleanParameterValue("drawAxes"));
 			return;
 		} else if ("nBins".equals(key)) {
 			setHistogram(model, comboName.getSelectionModel().getSelectedItem());
 			return;
 		} else if ("animate".equals(key)) {
-			panelHistogram.getChart().setAnimated(params.getBooleanParameterValue("animate"));
+			histogramChart.setAnimated(params.getBooleanParameterValue("animate"));
 		}
 	}
 

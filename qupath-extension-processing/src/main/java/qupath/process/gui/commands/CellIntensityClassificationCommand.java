@@ -48,8 +48,8 @@ import qupath.lib.analysis.stats.Histogram;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.ThreadTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.charts.HistogramPanelFX;
-import qupath.lib.gui.charts.HistogramPanelFX.ThresholdedChartWrapper;
+import qupath.lib.gui.charts.HistogramChart;
+import qupath.lib.gui.charts.ThresholdedChartWrapper;
 import qupath.fx.dialogs.Dialogs;
 import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.gui.tools.GuiTools;
@@ -136,8 +136,8 @@ public class CellIntensityClassificationCommand implements Runnable {
 		
 		var map = new HashMap<String, double[]>();
 		
-		var histogramPanel = new HistogramPanelFX();
-		var chartWrapper = new ThresholdedChartWrapper(histogramPanel.getChart());
+		var histogramPanel = new HistogramChart();
+		var chartWrapper = new ThresholdedChartWrapper(histogramPanel);
 		chartWrapper.setIsInteractive(true);
 		
 		singleThreshold.addListener((v, o, n) -> {
@@ -158,7 +158,7 @@ public class CellIntensityClassificationCommand implements Runnable {
 					.filter(d -> Double.isFinite(d)).toArray();
 			var stats = new DescriptiveStatistics(measurementValues);
 			var histogram = new Histogram(measurementValues, 100, stats.getMin(), stats.getMax());
-			histogramPanel.getHistogramData().setAll(HistogramPanelFX.createHistogramData(histogram, false, ColorTools.packARGB(100, 200, 20, 20)));
+			histogramPanel.getHistogramData().setAll(HistogramChart.createHistogramData(histogram, ColorTools.packARGB(100, 200, 20, 20)));
 			
 			double[] values = map.get(n);
 			for (int i = 0; i < sliders.size(); i++) {
@@ -199,8 +199,8 @@ public class CellIntensityClassificationCommand implements Runnable {
 				
 		GridPaneUtils.setToExpandGridPaneHeight(chartWrapper.getPane());
 		GridPaneUtils.setToExpandGridPaneWidth(chartWrapper.getPane());
-		histogramPanel.getChart().getYAxis().setTickLabelsVisible(false);
-		histogramPanel.getChart().setAnimated(false);
+		histogramPanel.getYAxis().setTickLabelsVisible(false);
+		histogramPanel.setAnimated(false);
 		chartWrapper.getPane().setPrefSize(200, 80);
 		pane.add(chartWrapper.getPane(), pane.getColumnCount(), 0, 1, pane.getRowCount());
 		
