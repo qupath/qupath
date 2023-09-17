@@ -31,7 +31,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.function.BiFunction;
 
-import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -69,7 +68,7 @@ public class HistogramChart extends AreaChart<Number, Number> {
 	/**
 	 * Enum to specify how the counts are displayed.
 	 */
-	public enum CountsAxisMode {
+	public enum CountsTransformMode {
 		/**
 		 * Raw bin counts.
 		 */
@@ -110,7 +109,7 @@ public class HistogramChart extends AreaChart<Number, Number> {
 
 	private final ObservableList<HistogramData> histogramData = FXCollections.observableArrayList();
 
-	private final ObjectProperty<CountsAxisMode> countsAxisMode = new SimpleObjectProperty<>(CountsAxisMode.RAW);
+	private final ObjectProperty<CountsTransformMode> countsAxisMode = new SimpleObjectProperty<>(CountsTransformMode.RAW);
 
 	private final ObjectProperty<DisplayMode> displayModeObjectProperty = new SimpleObjectProperty<>(DisplayMode.BAR);
 
@@ -203,27 +202,56 @@ public class HistogramChart extends AreaChart<Number, Number> {
 		return hideIfEmptyProperty().get();
 	}
 
-	public ObjectProperty<CountsAxisMode> countsAxisModeProperty() {
+	/**
+	 * Property to control how counts should be transformed before being
+	 * shown in the histogram
+	 * @return
+	 */
+	public ObjectProperty<CountsTransformMode> countsTransformProperty() {
 		return countsAxisMode;
 	}
 
-	public CountsAxisMode getCountsAxisMode() {
+	/**
+	 * Get the current counts transform.
+	 * @return
+	 * @see #countsTransformProperty()
+	 */
+	public CountsTransformMode getCountsTransform() {
 		return countsAxisMode.get();
 	}
 
-	public void setCountsAxisMode(CountsAxisMode mode) {
-		Objects.requireNonNull(mode, "CountsAxisMode cannot be null");
+	/**
+	 * Set the current counts transform.
+	 * @param mode
+	 * @see #countsTransformProperty()
+	 */
+	public void setCountsTransform(CountsTransformMode mode) {
+		Objects.requireNonNull(mode, "CountsTransformMode cannot be null");
 		countsAxisMode.set(mode);
 	}
 
+	/**
+	 * Property to control how the histogram is displayed, either using areas or bars.
+	 * @return
+	 */
 	public ObjectProperty<DisplayMode> displayModeProperty() {
 		return displayModeObjectProperty;
 	}
 
+	/**
+	 * Get the histogram display mode.
+	 * @return
+	 * @see #displayModeProperty()
+	 */
 	public DisplayMode getDisplayMode() {
 		return displayModeObjectProperty.get();
 	}
 
+	/**
+	 * Set the histogram display mode.
+	 * @param mode
+	 * @see #displayModeProperty()
+	 */
 	public void setDisplayMode(DisplayMode mode) {
 		Objects.requireNonNull(mode, "DisplayMode cannot be null");
 		displayModeObjectProperty.set(mode);
@@ -319,7 +347,7 @@ public class HistogramChart extends AreaChart<Number, Number> {
 			return colorFill;
 		}
 		
-		private void updateSeries(Series<Number, Number> series, DisplayMode displayMode, CountsAxisMode countsDisplay) {
+		private void updateSeries(Series<Number, Number> series, DisplayMode displayMode, CountsTransformMode countsDisplay) {
 			List<Data<Number,Number>> data;
 			if (histogram == null || histogram.nBins() == 0)
 				data = Collections.emptyList();
@@ -331,7 +359,7 @@ public class HistogramChart extends AreaChart<Number, Number> {
 			updateNodeColors(series);
 		}
 
-		private static double getCount(CountsAxisMode mode, Histogram histogram, int bin) {
+		private static double getCount(CountsTransformMode mode, Histogram histogram, int bin) {
 			switch (mode) {
 				case RAW:
 					return histogram.getCountsForBin(bin);
@@ -395,13 +423,23 @@ public class HistogramChart extends AreaChart<Number, Number> {
 		
 		void updateNodeColors(Series<Number, Number> series) {
 			// Set the colors, if we can
-			if (series.getNode() != null && (colorStroke != null || colorFill != null)) {
+			if (series.getNode() != null) {
 				try {
 					Group group = (Group)series.getNode();
 					Path seriesLine = (Path)group.getChildren().get(1);
 					Path fillPath = (Path)group.getChildren().get(0);
-					seriesLine.setStroke(colorStroke);
-					fillPath.setFill(colorFill);
+					if ((colorStroke != null || colorFill != null)) {
+						seriesLine.setStroke(colorStroke);
+						seriesLine.setStyle(null);
+						fillPath.setFill(colorFill);
+						fillPath.setStyle(null);
+					} else {
+						// Note: Resetting the stroke and fill to null does not seem possible (or straightforward)
+						// and if we try this the CSS may not be applied - so we assume the stroke and fill
+						// were not previously set to anything else.
+						seriesLine.setStyle("-fx-stroke: -fx-text-base-color; -fx-opacity: 0.4;");
+						fillPath.setStyle("-fx-fill: -fx-text-base-color; -fx-opacity: 0.15;");
+					}
 				} catch (Exception e) {
 					logger.error("Failed to set colors for series {}", series);
 				}

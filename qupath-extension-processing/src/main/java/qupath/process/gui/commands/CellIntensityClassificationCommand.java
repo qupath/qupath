@@ -49,7 +49,7 @@ import qupath.lib.common.ColorTools;
 import qupath.lib.common.ThreadTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.charts.HistogramChart;
-import qupath.lib.gui.charts.ThresholdedChartWrapper;
+import qupath.lib.gui.charts.ChartThresholdPane;
 import qupath.fx.dialogs.Dialogs;
 import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.gui.tools.GuiTools;
@@ -137,17 +137,17 @@ public class CellIntensityClassificationCommand implements Runnable {
 		var map = new HashMap<String, double[]>();
 		
 		var histogramPanel = new HistogramChart();
-		var chartWrapper = new ThresholdedChartWrapper(histogramPanel);
-		chartWrapper.setIsInteractive(true);
+		var chartPane = new ChartThresholdPane(histogramPanel);
+		chartPane.setIsInteractive(true);
 		
 		singleThreshold.addListener((v, o, n) -> {
-			chartWrapper.clearThresholds();
+			chartPane.clearThresholds();
 			if (!n) {
 				for (int i = 0; i < sliders.size(); i++) {
-					chartWrapper.addThreshold(sliders.get(i).valueProperty());
+					chartPane.addThreshold(sliders.get(i).valueProperty());
 				}
 			} else
-				chartWrapper.addThreshold(sliders.get(0).valueProperty());
+				chartPane.addThreshold(sliders.get(0).valueProperty());
 		});
 
 		selectedMeasurement.addListener((v, o, n) -> {
@@ -170,7 +170,7 @@ public class CellIntensityClassificationCommand implements Runnable {
 				
 				// Add first threshold to histogram
 				if (i == 0) {
-					chartWrapper.addThreshold(sliders.get(i).valueProperty());
+					chartPane.addThreshold(sliders.get(i).valueProperty());
 				}
 			}
 		});
@@ -197,12 +197,12 @@ public class CellIntensityClassificationCommand implements Runnable {
 		pane.setHgap(5.0);
 		pane.setVgap(5.0);
 				
-		GridPaneUtils.setToExpandGridPaneHeight(chartWrapper.getPane());
-		GridPaneUtils.setToExpandGridPaneWidth(chartWrapper.getPane());
+		GridPaneUtils.setToExpandGridPaneHeight(chartPane);
+		GridPaneUtils.setToExpandGridPaneWidth(chartPane);
 		histogramPanel.getYAxis().setTickLabelsVisible(false);
 		histogramPanel.setAnimated(false);
-		chartWrapper.getPane().setPrefSize(200, 80);
-		pane.add(chartWrapper.getPane(), pane.getColumnCount(), 0, 1, pane.getRowCount());
+		chartPane.setPrefSize(200, 80);
+		pane.add(chartPane, pane.getColumnCount(), 0, 1, pane.getRowCount());
 		
 		var dialog = new Dialog<ButtonType>();
 		dialog.initOwner(qupath.getStage());

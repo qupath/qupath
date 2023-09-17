@@ -38,7 +38,6 @@ import javafx.scene.Cursor;
 import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.XYChart;
 import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Line;
 import org.slf4j.Logger;
@@ -48,15 +47,14 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Wrapper for a JavaFX XYChart that enables adjustable thresholds to be displayed.
+ * Pane that can be used to contain an XYChart, adding adjustable thresholds to be displayed.
  */
-public class ThresholdedChartWrapper {
+public class ChartThresholdPane extends BorderPane {
 
-    private static final Logger logger = LoggerFactory.getLogger(ThresholdedChartWrapper.class);
+    private static final Logger logger = LoggerFactory.getLogger(ChartThresholdPane.class);
 
     private XYChart<Number, Number> chart;
     private NumberAxis xAxis, yAxis;
-    private BorderPane pane = new BorderPane();
 
     private DoubleProperty lineWidth = new SimpleDoubleProperty(2);
 
@@ -71,11 +69,11 @@ public class ThresholdedChartWrapper {
      *
      * @param chart
      */
-    public ThresholdedChartWrapper(final XYChart<Number, Number> chart) {
+    public ChartThresholdPane(final XYChart<Number, Number> chart) {
         this.chart = chart;
         this.xAxis = (NumberAxis) chart.getXAxis();
         this.yAxis = (NumberAxis) chart.getYAxis();
-        pane.setCenter(chart);
+        setCenter(chart);
         thresholds.addListener(this::handleLineListChange);
     }
 
@@ -83,19 +81,10 @@ public class ThresholdedChartWrapper {
         while (c.next()) {
             if (!c.wasPermutated()) {
                 for (ObservableNumberValue removedItem : c.getRemoved()) {
-                    pane.getChildren().remove(vLines.remove(removedItem));
+                    getChildren().remove(vLines.remove(removedItem));
                 }
             }
         }
-    }
-
-    /**
-     * Get the pane containing the histogram, which may be added to a scene.
-     *
-     * @return
-     */
-    public Pane getPane() {
-        return pane;
     }
 
     /**
@@ -197,7 +186,7 @@ public class ThresholdedChartWrapper {
                 Bindings.createDoubleBinding(() -> {
                             double xAxisPosition = xAxis.getDisplayPosition(d.doubleValue());
                             Point2D positionInScene = xAxis.localToScene(xAxisPosition, 0);
-                            return pane.sceneToLocal(positionInScene).getX();
+                            return sceneToLocal(positionInScene).getX();
                         },
                         d,
                         chart.widthProperty(),
@@ -222,7 +211,7 @@ public class ThresholdedChartWrapper {
                 Bindings.createDoubleBinding(() -> {
                             double yAxisPosition = yAxis.getDisplayPosition(yAxis.getLowerBound());
                             Point2D positionInScene = yAxis.localToScene(0, yAxisPosition);
-                            return pane.sceneToLocal(positionInScene).getY();
+                            return sceneToLocal(positionInScene).getY();
                         },
                         chart.widthProperty(),
                         chart.heightProperty(),
@@ -240,7 +229,7 @@ public class ThresholdedChartWrapper {
                 Bindings.createDoubleBinding(() -> {
                             double yAxisPosition = yAxis.getDisplayPosition(yAxis.getUpperBound());
                             Point2D positionInScene = yAxis.localToScene(0, yAxisPosition);
-                            return pane.sceneToLocal(positionInScene).getY();
+                            return sceneToLocal(positionInScene).getY();
                         },
                         chart.widthProperty(),
                         chart.heightProperty(),
@@ -291,7 +280,7 @@ public class ThresholdedChartWrapper {
 
         thresholds.add(d);
         vLines.put(d, line);
-        pane.getChildren().add(line);
+        getChildren().add(line);
         //			updateChart();
         return d;
     }

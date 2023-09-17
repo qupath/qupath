@@ -82,7 +82,7 @@ import qupath.lib.analysis.stats.survival.LogRankTest.LogRankResult;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.charts.ChartTools;
 import qupath.lib.gui.charts.HistogramChart;
-import qupath.lib.gui.charts.ThresholdedChartWrapper;
+import qupath.lib.gui.charts.ChartThresholdPane;
 import qupath.lib.gui.dialogs.ParameterPanelFX;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.PathObjectTools;
@@ -109,10 +109,10 @@ class KaplanMeierDisplay implements ParameterChangeListener, PathObjectHierarchy
 
 	private PathObjectHierarchy hierarchy;
 	private HistogramChart histogramPanel;
-	private ThresholdedChartWrapper histogramWrapper;
+	private ChartThresholdPane histogramWrapper;
 
 	private LineChart<Number, Number> chartPValues;
-	private ThresholdedChartWrapper pValuesWrapper;
+	private ChartThresholdPane pValuesWrapper;
 	private KaplanMeierChartWrapper plotter;
 
 	private ParameterList params;
@@ -563,14 +563,14 @@ class KaplanMeierDisplay implements ParameterChangeListener, PathObjectHierarchy
 			GridPane paneHistogram = new GridPane();
 			histogramPanel = new HistogramChart();
 			histogramPanel.setAnimated(false);
-			histogramWrapper = new ThresholdedChartWrapper(histogramPanel);
+			histogramWrapper = new ChartThresholdPane(histogramPanel);
 			for (ObservableNumberValue val : threshProperties)
 				histogramWrapper.addThreshold(val);
-			histogramWrapper.getPane().setPrefHeight(150);
-			paneHistogram.add(histogramWrapper.getPane(), 0, 0);
+			histogramWrapper.setPrefHeight(150);
+			paneHistogram.add(histogramWrapper, 0, 0);
 			Tooltip.install(histogramPanel, new Tooltip("Distribution of scores"));
-			GridPane.setHgrow(histogramWrapper.getPane(), Priority.ALWAYS);
-			GridPane.setVgrow(histogramWrapper.getPane(), Priority.ALWAYS);
+			GridPane.setHgrow(histogramWrapper, Priority.ALWAYS);
+			GridPane.setVgrow(histogramWrapper, Priority.ALWAYS);
 
 			NumberAxis xAxis = new NumberAxis();
 			xAxis.setLabel("Score threshold");
@@ -589,14 +589,14 @@ class KaplanMeierDisplay implements ParameterChangeListener, PathObjectHierarchy
 			pValuesChanged = true;
 			Tooltip.install(chartPValues, new Tooltip("Distribution of p-values (log-rank test) comparing low vs. high for all possible score thresholds"));
 			//				chartPValues.getYAxis().setAutoRanging(false);
-			pValuesWrapper = new ThresholdedChartWrapper(chartPValues);
+			pValuesWrapper = new ChartThresholdPane(chartPValues);
 			for (ObservableNumberValue val : threshProperties)
 				pValuesWrapper.addThreshold(val);
 
-			pValuesWrapper.getPane().setPrefHeight(150);
-			paneHistogram.add(pValuesWrapper.getPane(), 0, 1);
-			GridPane.setHgrow(pValuesWrapper.getPane(), Priority.ALWAYS);
-			GridPane.setVgrow(pValuesWrapper.getPane(), Priority.ALWAYS);
+			pValuesWrapper.setPrefHeight(150);
+			paneHistogram.add(pValuesWrapper, 0, 1);
+			GridPane.setHgrow(pValuesWrapper, Priority.ALWAYS);
+			GridPane.setVgrow(pValuesWrapper, Priority.ALWAYS);
 
 			ContextMenu popup = new ContextMenu();
 			ChartTools.addChartExportMenu(chartPValues, popup);

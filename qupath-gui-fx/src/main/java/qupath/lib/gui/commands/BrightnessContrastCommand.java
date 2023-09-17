@@ -95,7 +95,7 @@ import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.charts.HistogramChart;
 import qupath.lib.gui.charts.HistogramChart.HistogramData;
-import qupath.lib.gui.charts.ThresholdedChartWrapper;
+import qupath.lib.gui.charts.ChartThresholdPane;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.viewer.QuPathViewer;
@@ -174,7 +174,7 @@ public class BrightnessContrastCommand implements Runnable {
 	private final ColorPicker picker = new ColorPicker();
 	
 	private final HistogramChart histogramChart = new HistogramChart();
-	private final ThresholdedChartWrapper chartWrapper = new ThresholdedChartWrapper(histogramChart);
+	private final ChartThresholdPane chartPane = new ChartThresholdPane(histogramChart);
 	
 	private final Tooltip chartTooltip = new Tooltip(); // Basic stats go here now
 	private ContextMenu popup;
@@ -259,7 +259,6 @@ public class BrightnessContrastCommand implements Runnable {
 		pane.add(labelChannel, 0, row++);
 
 //		histogramChart.titleProperty().bind(selectedChannelName);
-		var chartPane = chartWrapper.getPane();
 		chartPane.setPrefWidth(200);
 		chartPane.setPrefHeight(150);
 
@@ -442,8 +441,8 @@ public class BrightnessContrastCommand implements Runnable {
 	}
 
 	private void initializeHistogram() {
-		histogramChart.countsAxisModeProperty().bind(
-				Bindings.createObjectBinding(() -> doLogCounts.get() ? HistogramChart.CountsAxisMode.LOG :HistogramChart.CountsAxisMode.NORMALIZED, doLogCounts));
+		histogramChart.countsTransformProperty().bind(
+				Bindings.createObjectBinding(() -> doLogCounts.get() ? HistogramChart.CountsTransformMode.LOG : HistogramChart.CountsTransformMode.NORMALIZED, doLogCounts));
 		histogramChart.setDisplayMode(HistogramChart.DisplayMode.AREA);
 
 		histogramChart.setShowTickLabels(false);
@@ -1115,10 +1114,10 @@ public class BrightnessContrastCommand implements Runnable {
 		sliderMin.setDisable(false);
 		sliderMax.setDisable(false);
 		
-		chartWrapper.getThresholds().clear();
-		chartWrapper.addThreshold(sliderMin.valueProperty());
-		chartWrapper.addThreshold(sliderMax.valueProperty());
-		chartWrapper.setIsInteractive(true);
+		chartPane.getThresholds().clear();
+		chartPane.addThreshold(sliderMin.valueProperty());
+		chartPane.addThreshold(sliderMax.valueProperty());
+		chartPane.setIsInteractive(true);
 	}
 	
 

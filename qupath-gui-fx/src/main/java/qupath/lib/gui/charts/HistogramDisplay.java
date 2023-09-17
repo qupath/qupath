@@ -36,7 +36,6 @@ import javafx.beans.property.SimpleLongProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.geometry.Insets;
-import javafx.scene.chart.AreaChart;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
@@ -250,7 +249,7 @@ public class HistogramDisplay implements ParameterChangeListener {
 
 			HistogramData histogramData = HistogramChart.createHistogramData(histogram, (Integer)null);
 			boolean doNormalize = params.getBooleanParameterValue("normalizeCounts");
-			histogramChart.setCountsAxisMode(doNormalize ? HistogramChart.CountsAxisMode.NORMALIZED : HistogramChart.CountsAxisMode.RAW);
+			histogramChart.setCountsTransform(doNormalize ? HistogramChart.CountsTransformMode.NORMALIZED : HistogramChart.CountsTransformMode.RAW);
 			histogramChart.getHistogramData().setAll(histogramData);
 
 
@@ -306,7 +305,7 @@ public class HistogramDisplay implements ParameterChangeListener {
 			// This is rather clumsy (compared to just updating the histogram data),
 			// but the reason is that the animations are poor when the data is updated in-place
 			List<HistogramData> list = new ArrayList<>();
-			histogramChart.setCountsAxisMode(doNormalize ? HistogramChart.CountsAxisMode.NORMALIZED : HistogramChart.CountsAxisMode.RAW);
+			histogramChart.setCountsTransform(doNormalize ? HistogramChart.CountsTransformMode.NORMALIZED : HistogramChart.CountsTransformMode.RAW);
 			for (HistogramData histogramData : histogramChart.getHistogramData()) {
 				list.add(new HistogramData(histogramData.getHistogram(), histogramData.getStroke()));
 				//					histogramData.update();
