@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -33,9 +33,16 @@ import java.util.Map;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
+import javafx.application.Platform;
+import javafx.beans.binding.StringExpression;
+import javafx.geometry.Pos;
+import javafx.scene.control.Control;
+import javafx.scene.shape.Circle;
 import org.controlsfx.control.action.Action;
 import org.controlsfx.control.action.ActionUtils;
 import org.controlsfx.control.action.ActionUtils.ActionTextBehavior;
+import org.controlsfx.control.decoration.Decorator;
+import org.controlsfx.control.decoration.GraphicDecoration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -78,6 +85,8 @@ public class ActionTools {
 	private static Logger logger = LoggerFactory.getLogger(ActionTools.class);
 	
 	private static final String ACTION_KEY = ActionTools.class.getName();
+
+	private static final String WARNINGS_KEY = ACTION_KEY + ":WARNINGS";
 	
 	/**
 	 * Builder class for custom {@link Action} objects.
@@ -87,7 +96,7 @@ public class ActionTools {
 
 		private Consumer<ActionEvent> handler;
 		
-		private static enum Keys {TEXT, LONG_TEXT, SELECTED, GRAPHIC, DISABLED, ACCELERATOR, SELECTABLE};
+		private enum Keys {TEXT, LONG_TEXT, SELECTED, GRAPHIC, DISABLED, ACCELERATOR, SELECTABLE};
 		private Map<Keys, Object> properties = new HashMap<>();
 
 		ActionBuilder() {}
@@ -488,6 +497,8 @@ public class ActionTools {
 	
 	private static <T extends Node> T includeAction(T node, Action action) {
 		node.getProperties().put(ACTION_KEY, action);
+		if (action.getProperties().getOrDefault(WARNINGS_KEY, null) instanceof StringExpression prop)
+			addWarningsDecorations(prop, node);
 		return node;
 	}
 	
@@ -805,7 +816,7 @@ public class ActionTools {
 				.build();
 		return action;
 	}
-	
+
 	static <T> Action createSelectableCommandAction(final SelectableItem<T> command, final ObservableValue<String> name) {
 		return createSelectableCommandAction(command, name, null, null);
 	}
@@ -820,13 +831,44 @@ public class ActionTools {
 	public static <T> Action createSelectableCommandAction(final SelectableItem<T> command, String name) {
 		return createSelectableCommandAction(command, name, null, null);
 	}
-	
+
 	public static <T> Action createSelectableCommandAction(final SelectableItem<T> command) {
 		return createSelectableCommandAction(command, (String)null, null, null);
 	}
 
 	public static Action createSelectableCommandAction(ObservableBooleanValue value) {
 		return createSelectableAction(value, null);
+	}
+
+	/**
+	 * Install an optional warnings badge to an action.
+	 * If the provided string expression is not empty, a badge will be added to nodes created from the action
+	 * and display the tooltip provided by the expression.
+	 * @param action
+	 * @param warnings
+	 * @implNote the badge is not added to menu items, but rather only nodes.
+	 */
+	public static void installWarningsBadge(Action action, StringExpression warnings) {
+		action.getProperties().put(WARNINGS_KEY, warnings);
+	}
+
+	private static void addWarningsDecorations(StringExpression warnings, Node node) {
+		logger.trace("Installing warnings decoration for {}", node);
+		double radius = 3.0;
+		if (node instanceof Control control) {
+			if (control.getWidth() > 0 && control.getHeight() > 0)
+				radius = Math.min(control.getWidth(), control.getHeight()) / 8.0;
+		}
+		var circle = new Circle(radius);
+		var tooltip = new Tooltip();
+		tooltip.textProperty().bind(warnings);
+		Tooltip.install(circle, tooltip);
+		circle.setStyle("-fx-fill: -qp-script-error-color; " +
+				"-fx-effect: dropshadow(three-pass-box, rgba(0, 0, 0, 0.5), 1, 0, 0, 0);" +
+				"-fx-padding: 4px;");
+		var decoration = new GraphicDecoration(circle, Pos.BOTTOM_RIGHT, -circle.getRadius(), -circle.getRadius());
+		circle.visibleProperty().bind(warnings.isNotEmpty());
+		Platform.runLater(() -> Decorator.addDecoration(node, decoration));
 	}
 
 }

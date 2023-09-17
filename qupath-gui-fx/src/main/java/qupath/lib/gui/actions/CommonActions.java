@@ -23,6 +23,7 @@ package qupath.lib.gui.actions;
 
 import static qupath.lib.gui.actions.ActionTools.createAction;
 
+import javafx.collections.ListChangeListener;
 import org.controlsfx.control.action.Action;
 
 import qupath.lib.gui.QuPathGUI;
@@ -117,8 +118,11 @@ public class CommonActions {
 		PROJECT_NEW = createAction(() -> Commands.promptToCreateProject(qupath));
 		PROJECT_OPEN = createAction(() -> Commands.promptToOpenProject(qupath));
 		PROJECT_ADD_IMAGES = createAction(() -> ProjectCommands.promptToImportImages(qupath));
-		
-		BRIGHTNESS_CONTRAST = ActionTools.createAction(new BrightnessContrastCommand(qupath));
+
+		var brightnessCommand = new BrightnessContrastCommand(qupath);
+		BRIGHTNESS_CONTRAST = ActionTools.createAction(brightnessCommand);
+		ActionTools.installWarningsBadge(BRIGHTNESS_CONTRAST,  brightnessCommand.warningString());
+
 		COUNTING_PANEL = ActionTools.createAction(new CountingPanelCommand(qupath));
 		TMA_ADD_NOTE = qupath.createImageDataAction(imageData -> TMACommands.promptToAddNoteToSelectedCores(imageData));
 		CONVEX_POINTS = ActionTools.createSelectableAction(PathPrefs.showPointHullsProperty());
@@ -135,6 +139,13 @@ public class CommonActions {
 		
 		// This has the effect of applying the annotations
 		ActionTools.getAnnotatedActions(this);
+	}
+
+	private void handleBrightnessContrastWarnings(ListChangeListener.Change<? extends String> change) {
+		if (change.getList().isEmpty())
+			BRIGHTNESS_CONTRAST.getProperties().remove("WARNINGS");
+		else
+			BRIGHTNESS_CONTRAST.getProperties().put("WARNINGS", change.getList().size());
 	}
 	
 	/**

@@ -29,6 +29,7 @@ import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.binding.ObjectBinding;
 import javafx.beans.binding.StringBinding;
+import javafx.beans.binding.StringExpression;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
@@ -125,9 +126,6 @@ import java.util.regex.PatternSyntaxException;
 
 /**
  * Command to show a Brightness/Contrast dialog to adjust the image display.
- * 
- * @author Pete Bankhead
- *
  */
 public class BrightnessContrastCommand implements Runnable {
 	
@@ -194,12 +192,13 @@ public class BrightnessContrastCommand implements Runnable {
 	public BrightnessContrastCommand(final QuPathGUI qupath) {
 		this.qupath = qupath;
 		this.qupath.imageDataProperty().addListener(this::handleImageDataChange);
+		dialog = createDialog();
 	}
 
 	@Override
 	public void run() {
-		if (dialog == null)
-			dialog = createDialog();
+//		if (dialog == null)
+//			dialog = createDialog();
 		dialog.show();
 		updateShowTableColumnHeader();
 	}
@@ -424,6 +423,26 @@ public class BrightnessContrastCommand implements Runnable {
 		return pane;
 	}
 
+	private ObservableList<String> warningList = FXCollections.observableArrayList();
+
+	private StringExpression warningString = Bindings.createStringBinding(() -> {
+		if (warningList.isEmpty())
+			return null;
+		if (warningList.size() == 1)
+			return "1 warning";
+		else
+			return warningList.size() + " warnings";
+	}, warningList);
+
+	/**
+	 * Get a string expression to draw attention to any warnings associated with the current display settings.
+	 * This can be used to notify the user that something is amiss, even if the dialog is not open.
+	 * @return a string expression that evaluates to the warning text, or null if there are no warnings
+	 */
+	public StringExpression warningString() {
+		return warningString;
+	}
+
 
 	private Pane createWarningPane() {
 		var labelWarning = new Label("Inverted background - interpret colors cautiously!");
@@ -435,6 +454,14 @@ public class BrightnessContrastCommand implements Runnable {
 		labelWarning.visibleProperty().bind(invertBackground.and(showGrayscale.not()));
 		labelWarning.setMaxWidth(Double.MAX_VALUE);
 		labelWarning.managedProperty().bind(labelWarning.visibleProperty()); // Remove if not visible
+		labelWarning.visibleProperty().addListener((v, o, n) -> {
+			if (n)
+				warningList.add(labelWarning.getText());
+			else
+				warningList.remove(labelWarning.getText());
+		});
+		if (labelWarning.isVisible())
+			warningList.add(labelWarning.getText());
 
 		var labelWarningGamma = new Label("Gamma is not equal to 1.0 - shift+click to reset");
 		labelWarningGamma.setOnMouseClicked(this::handleGammaWarningClicked);
@@ -446,6 +473,16 @@ public class BrightnessContrastCommand implements Runnable {
 		labelWarningGamma.visibleProperty().bind(sliderGamma.valueProperty().isNotEqualTo(1.0, 0.0));
 		labelWarningGamma.setMaxWidth(Double.MAX_VALUE);
 		labelWarningGamma.managedProperty().bind(labelWarningGamma.visibleProperty()); // Remove if not visible
+
+		labelWarningGamma.visibleProperty().addListener((v, o, n) -> {
+			if (n)
+				warningList.add(labelWarningGamma.getText());
+			else
+				warningList.remove(labelWarningGamma.getText());
+		});
+		if (labelWarningGamma.isVisible())
+			warningList.add(labelWarningGamma.getText());
+
 
 		var vboxWarnings = new VBox();
 		vboxWarnings.getChildren().setAll(labelWarning, labelWarningGamma);

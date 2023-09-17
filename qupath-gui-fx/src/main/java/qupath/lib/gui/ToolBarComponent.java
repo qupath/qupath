@@ -28,6 +28,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
 
+import javafx.scene.paint.Color;
+import javafx.scene.shape.Circle;
 import org.controlsfx.control.decoration.Decorator;
 import org.controlsfx.control.decoration.GraphicDecoration;
 import org.slf4j.Logger;
