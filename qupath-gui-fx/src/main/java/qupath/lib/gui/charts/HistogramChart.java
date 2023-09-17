@@ -81,8 +81,10 @@ public class HistogramChart extends AreaChart<Number, Number> {
 		 * Natural logarithm of raw bin counts.
 		 * This is useful for displaying histograms with a wide range of counts.
 		 * Bins with zero counts are displayed as zero.
+		 * <p>
+		 * <b>Important: </b> HistogramChart cannot currently adjust the tick display to indicate a log scale.
 		 */
-		LOG
+		LOGARITHM
 	}
 
 	/**
@@ -365,7 +367,7 @@ public class HistogramChart extends AreaChart<Number, Number> {
 					return histogram.getCountsForBin(bin);
 				case NORMALIZED:
 					return histogram.getNormalizedCountsForBin(bin);
-				case LOG:
+				case LOGARITHM:
 					// Count should also be an integer; for the histogram, display 0 as 0 rather than -Infinity
 					double count = histogram.getCountsForBin(bin);
 					return count == 0 ? 0 : Math.log(count);
