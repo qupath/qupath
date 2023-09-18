@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -42,6 +42,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
 
@@ -50,6 +55,7 @@ import org.slf4j.LoggerFactory;
 
 import qupath.lib.awt.common.BufferedImageTools;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.common.ThreadTools;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
@@ -74,11 +80,11 @@ import qupath.lib.roi.interfaces.ROI;
  */
 public class PixelClassificationMeasurementManager {
 	
-	private static Logger logger = LoggerFactory.getLogger(PixelClassificationMeasurementManager.class);
+	private static final Logger logger = LoggerFactory.getLogger(PixelClassificationMeasurementManager.class);
 	
-	private static Map<ImageServer<BufferedImage>, Map<ROI, MeasurementList>> measuredROIs = new WeakHashMap<>();
+	private static final Map<ImageServer<BufferedImage>, Map<ROI, MeasurementList>> measuredROIs = Collections.synchronizedMap(new WeakHashMap<>());
 	
-	private ImageServer<BufferedImage> classifierServer;
+	private final ImageServer<BufferedImage> classifierServer;
 	private List<String> measurementNames = null;
 	
 	private ROI rootROI = null; // ROI for the Root object, if required
@@ -146,12 +152,44 @@ public class PixelClassificationMeasurementManager {
 	 * @param name the measurement name
 	 * @param cachedOnly if true, return null if the measurement cannot be determined from cached tiles
 	 * @return
+	 * @deprecated use {@link #getMeasurementValue(PathObject, String)} or {@link #getCachedMeasurementValue(PathObject, String)} instead
 	 */
+	@Deprecated
 	public Number getMeasurementValue(PathObject pathObject, String name, boolean cachedOnly) {
+		if (cachedOnly)
+			return getCachedMeasurementValue(pathObject, name);
+		else
+			return getMeasurementValue(pathObject, name);
+	}
+
+	private ROI getROI(PathObject pathObject) {
 		var roi = pathObject.getROI();
 		if (roi == null || pathObject.isRootObject())
-			roi = rootROI;
-		return getMeasurementValue(roi, name, cachedOnly);
+			return rootROI;
+		else
+			return roi;
+	}
+
+	/**
+	 * Get the value of a single measurement for a specified PathObject if all tiles are cached,
+	 * otherwise return null.
+	 * @param pathObject
+	 * @param name
+	 * @return
+	 * @see #getMeasurementValue(PathObject, String)
+	 */	public Number getCachedMeasurementValue(PathObject pathObject, String name) {
+		return getCachedMeasurementValue(getROI(pathObject), name);
+	}
+
+	/**
+	 * Get the value of a single measurement for a specified PathObject, computing it if it is unavailable.
+	 * @param pathObject
+	 * @param name
+	 * @return
+	 * @see #getCachedMeasurementValue(PathObject, String)
+	 */
+	public Number getMeasurementValue(PathObject pathObject, String name) {
+		return getMeasurementValue(getROI(pathObject), name);
 	}
 		
 	/**
@@ -161,21 +199,171 @@ public class PixelClassificationMeasurementManager {
 	 * @param name the measurement name
 	 * @param cachedOnly if true, return null if the measurement cannot be determined from cached tiles
 	 * @return
+	 * @deprecated use {@link #getMeasurementValue(ROI, String)} or {@link #getCachedMeasurementValue(ROI, String)} instead
 	 */
+	@Deprecated
 	public Number getMeasurementValue(ROI roi, String name, boolean cachedOnly) {
-		var map = measuredROIs.get(classifierServer);
-		if (map == null || roi == null)
-			return null;
-		
-		var ml = map.get(roi);
-		if (ml == null) {
-			ml = calculateMeasurements(roi, cachedOnly);
-			if (ml == null)
-				return null;
-			map.put(roi, ml);
-		}
-		return ml.get(name);
+		if (cachedOnly)
+			return getCachedMeasurementValue(roi, name);
+		else
+			return getMeasurementValue(roi, name);
 	}
+
+	/**
+	 * Get the value of a single measurement for a specified ROI if all tiles are cached,
+	 * otherwise return null.
+	 * @param roi
+	 * @param name
+	 * @return
+	 * @see #getCachedMeasurementValue(ROI, String)
+	 */
+	public Number getCachedMeasurementValue(ROI roi, String name) {
+		var ml = getMeasurementList(roi, null);
+		if (ml == null)
+			return null;
+		else
+			return ml.get(name);
+	}
+
+	/**
+	 * Get the value of a single measurement for a specified ROI, computing it if it is unavailable.
+	 * @param roi
+	 * @param name
+	 * @return
+	 * @see #getMeasurementValue(ROI, String)
+	 */
+	public Number getMeasurementValue(ROI roi, String name) {
+		var ml = getMeasurementList(roi, getDefaultPool());
+		if (ml == null)
+			return null;
+		else
+			return ml.get(name);
+	}
+
+
+	/**
+	 * Add measurements to specified objects
+	 * @param objectsToMeasure the objects to measure.
+	 * @param measurementID identifier that is prepended to measurement names, to make these identifiable later (optional; may be null)
+	 * @return true if measurements were added, false otherwise
+	 * @since v0.5.0
+	 */
+	public boolean addMeasurements(Collection<? extends PathObject> objectsToMeasure, String measurementID) {
+
+		if (objectsToMeasure.isEmpty())
+			return false;
+
+		if (measurementID == null || measurementID.isBlank())
+			measurementID = "";
+		else {
+			measurementID = measurementID.strip();
+			if (measurementID.endsWith(":"))
+				measurementID += " ";
+			else
+				measurementID += ": ";
+		}
+
+		// This is where things get complicated...
+		// If we have a lot of small objects, we want to parallelize at the object level.
+		// If we have few large objects, we want to parallelize at the tile request level.
+		// If we parallelize heavily at both levels, we risk problems with memory use, or regions having to wait a long
+		// time to be able to complete their tile requests.
+		// The awkward workaround here is to use two thread pools, with some guesses about sensible sizes.
+		// TODO: Possible use for virtual threads?
+		int maxParallelism = calculatePreferredParallelism();
+		int nObjectThreads = 1;
+		int nTileThreads = maxParallelism;
+		if (objectsToMeasure.size() > 1 && maxParallelism > 2) {
+			if (objectsToMeasure.size() > maxParallelism) {
+				// Many objects - expected to be small
+				nObjectThreads = maxParallelism - 1;
+				nTileThreads = 2; // May not be used if all objects are single-tiled
+			} else {
+				// Few objects - may well be large
+				nObjectThreads = 2;
+				nTileThreads = maxParallelism - 1;
+			}
+		}
+		logger.debug("Measuring {} objects (object threads={}, tile threads={})",
+				objectsToMeasure.size(), nObjectThreads, nTileThreads);
+
+		var factoryObjects = ThreadTools.createThreadFactory("pixel-classification-objects", true, Thread.NORM_PRIORITY+1);
+		var factoryTiles = ThreadTools.createThreadFactory("pixel-classification-tiles", true, Thread.NORM_PRIORITY);
+		ExecutorService poolObjects = Executors.newFixedThreadPool(nObjectThreads, factoryObjects);
+		ExecutorService poolTiles = Executors.newFixedThreadPool(nTileThreads, factoryTiles);
+
+		String measurementIdFinal = measurementID;
+		List<Future<?>> tasks = new ArrayList<>();
+		for (var pathObject : objectsToMeasure) {
+			tasks.add(poolObjects.submit(() -> measureObject(pathObject, measurementIdFinal, poolTiles)));
+		}
+		poolObjects.shutdown();
+		try {
+			// Not necessary - but it lets us see if there has been an exception
+			for (var t : tasks) {
+				t.get();
+			}
+		} catch (Exception e) {
+			throw new RuntimeException(e);
+		} finally {
+			poolTiles.shutdown();
+		}
+
+		// The simpler (slower) sequential version of the above
+//		int n = objectsToMeasure.size();
+//		int i = 0;
+//		for (var pathObject : objectsToMeasure) {
+//			i++;
+//			if (n < 100 || n % 100 == 0)
+//				logger.debug("Measured {}/{}", i, n);
+//			measureObject(pathObject, measurementID, pool);
+//		}
+		return true;
+	}
+
+
+	private void measureObject(PathObject pathObject, String measurementID, ExecutorService pool) {
+		try (var ml = pathObject.getMeasurementList()) {
+			var map = getMeasurementListAsMap(pathObject.getROI(), pool);
+			var measurementNames = getMeasurementNames();
+			if (map.isEmpty() || measurementNames.isEmpty())
+				logger.warn("Map or measurements names are empty!");
+			for (String name : measurementNames) {
+				Number value = map.getOrDefault(name, null);
+				if (value == null)
+					ml.put(measurementID + name, Double.NaN);
+				else
+					ml.put(measurementID + name, value.doubleValue());
+			}
+		}
+		// We really want to lock objects so we don't end up with wrong measurements
+		if (!pathObject.isRootObject())
+			pathObject.setLocked(true);
+	}
+
+
+	private ExecutorService getDefaultPool() {
+		return ForkJoinPool.commonPool();
+	}
+
+	private Map<String, Double> getMeasurementListAsMap(ROI roi, ExecutorService pool) {
+		var ml = getMeasurementList(roi, pool);
+		return ml == null ? Collections.emptyMap() : Collections.unmodifiableMap(ml.asMap());
+	}
+
+	private MeasurementList getMeasurementList(ROI roi, ExecutorService pool) {
+		if (roi == null)
+			return null;
+		var map = measuredROIs.computeIfAbsent(classifierServer, s -> new ConcurrentHashMap<>());
+		var ml = map.getOrDefault(roi, null);
+		if (ml == null) {
+			ml = calculateMeasurements(roi, pool);
+			if (ml != null)
+				map.put(roi, ml);
+		}
+		return ml;
+	}
+
 
 	/**
 	 * Get the names of all measurements that may be returned.
@@ -223,12 +411,16 @@ public class PixelClassificationMeasurementManager {
 	/**
 	 * Calculate measurements for a specified ROI if possible.
 	 * 
-	 * @param roi
-	 * @param cachedOnly abort the mission if required tiles are not cached
+	 * @param roi the ROI defining the region to measure
+	 * @param pool a pool to request tiles; if null, only cached tiles will be used and null return if the measurement
+	 *             can't be determined from cached tiles alone.
 	 * @return
 	 */
-	synchronized MeasurementList calculateMeasurements(final ROI roi, final boolean cachedOnly) {
-    	
+	private MeasurementList calculateMeasurements(final ROI roi, final ExecutorService pool) {
+
+		// Only use cached tiles if we aren't give a pool
+		boolean cachedOnly = pool == null;
+
         Map<Integer, PathClass> classificationLabels = classifierServer.getMetadata().getClassificationLabels();
         long[] counts = null;
 
@@ -266,10 +458,11 @@ public class PixelClassificationMeasurementManager {
         
 
         // Try to get all cached tiles - if this fails, we need to return quickly if cachedOnly==true
-        // TODO: Avoid pre-caching all tiles; this will fail on large regions + low memory, when not all tiles can be stored in the cache
+		// Otherwise, submit parallel tile requests with an auto-estimated pool size
         Map<TileRequest, BufferedImage> localCache = new HashMap<>();
         List<TileRequest> tilesToRequest = new ArrayList<>();
-        for (TileRequest request : requests) {
+		List<TileRequest> missingTiles = new ArrayList<>();
+		for (TileRequest request : requests) {
         	BufferedImage tile = classifierServer.getCachedTile(request);
 			// If we only accept cached tiles, and we don't have one, return immediately
 			if (cachedOnly && tile == null) {
@@ -280,10 +473,35 @@ public class PixelClassificationMeasurementManager {
 			tilesToRequest.add(request);
 			if (tile != null)
 				localCache.put(request, tile);
-			// TODO: Consider enabling requests to be made here
-        }
-        
-        // Calculate stained proportions
+			else if (cachedOnly) {
+				// We don't have a tile that we need - return
+				logger.trace("No cached tile for {} - returning now", tile);
+				return null;
+			} else
+				missingTiles.add(request);
+		}
+
+		// If we need non-cached tiles, create a thread pool to request them
+		Map<TileRequest, Future<BufferedImage>> requestMap = new HashMap<>();
+		if (!missingTiles.isEmpty()) {
+			// If we have a single tile, using a pool is likely to be *slower*, since it may take much longer for the
+			// tile to return... while in the meantime this thread just waits
+			boolean requestInPool = missingTiles.size() > 1;
+			for (TileRequest request : missingTiles) {
+				if (requestInPool)
+					requestMap.put(request, pool.submit(() -> classifierServer.readRegion(request.getRegionRequest())));
+				else {
+					try {
+						localCache.put(request, classifierServer.readRegion(request.getRegionRequest()));
+					} catch (IOException e) {
+						logger.error("Error reading tile " + request, e);
+						return null;
+					}
+				}
+			}
+		}
+
+		// Calculate stained proportions
         BasicStroke stroke = null;
         byte[] mask = null;
     	BufferedImage imgMask = imgTileMask.get();
@@ -301,11 +519,8 @@ public class PixelClassificationMeasurementManager {
         	// If null, we need to request the prediction now
         	if (!cachedOnly && tile == null) {
 	        	try {
-	        		// Try the cache again... just in case
-					tile = classifierServer.getCachedTile(region);
-					if (tile == null)
-						tile = classifierServer.readRegion(region.getRegionRequest());
-				} catch (IOException e) {
+					tile = requestMap.get(region).get();
+				} catch (Exception e) {
 					logger.error("Error requesting tile " + region, e);
 				}
         	}
@@ -434,7 +649,7 @@ public class PixelClassificationMeasurementManager {
 					logger.error("There are {} channels - are you sure this is really a classification image?", nChannels);
 			}
         }
-        
+
     	long endTime = System.currentTimeMillis();
     	if (logger.isDebugEnabled()) {
     		long totalCounts = LongStream.of(counts).sum();
@@ -443,6 +658,45 @@ public class PixelClassificationMeasurementManager {
 
     	return updateMeasurements(classificationLabels, counts, pixelArea, pixelAreaUnits);
     }
+
+
+	/**
+	 * Make a semi-educated guess as to an appropriate number of threads to use.
+	 * We lack much information about the image and pixel classifier, so this should be a fairly pessimistic
+	 * guess.
+	 * @return
+	 */
+	protected int calculatePreferredParallelism() {
+		int poolSize = getPoolSizeProp();
+		if (poolSize > 0)
+			return poolSize;
+		// We don't want to parallelize more than the general parallelism setting
+		// but otherwise we want at least 2 threads to help interleave I/O and computation
+		int minSize = 2;
+		int maxSize = ThreadTools.getParallelism();
+		if (maxSize <= minSize)
+			return maxSize;
+		// In the absence of a better calculation, assume we need 512 MB per thread.
+		// We probably don't, but it's safer to overestimate than underestimate.
+		// Also assume we can access half the memory.
+		var runtime = Runtime.getRuntime();
+		long availableMemory = runtime.maxMemory() / 2;
+		int nThreads = (int)Math.min(maxSize, availableMemory / (512L * 1024L * 1024L));
+		return GeneralTools.clipValue(nThreads, minSize, maxSize);
+	}
+
+	protected int getPoolSizeProp() {
+		String prop = System.getProperty("pixel.classification.pool.size");
+		if (prop != null) {
+			try {
+				return Integer.parseInt(prop);
+			} catch (NumberFormatException e) {
+				logger.error("Error parsing pixel.classification.pool.size", e);
+			}
+		}
+		return -1;
+	}
+
 	
 	/**
 	 * Get a suitable threshold assuming a raster contains probability values.

@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -23,7 +23,6 @@
 
 package qupath.lib.analysis.stats;
 
-//import java.io.Serializable;
 import java.util.Collection;
 
 import qupath.lib.objects.PathObject;
@@ -38,9 +37,6 @@ import qupath.lib.objects.PathObject;
  *
  */
 public class Histogram { // implements Serializable {
-	
-	 // TODO: Check if this needs to be Serializable... if so, then it may fail on the RunningStatistics not being serializable
-//	private static final long serialVersionUID = 1L;
 	
 	private double[] edges;
 	private long[] counts;

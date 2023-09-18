@@ -285,6 +285,7 @@ public class AnnotationPane implements PathObjectSelectionListener, ChangeListen
 			hierarchy.getSelectionModel().setSelectedObject(selected);
 		} else {
 			listAnnotations.getItems().clear();
+			hierarchy = null;
 		}
 		hasImageData.set(this.imageData != null);
 		pathClassPane.refresh();

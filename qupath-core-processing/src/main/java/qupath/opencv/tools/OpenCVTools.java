@@ -422,8 +422,10 @@ public class OpenCVTools {
 			} else {
 				opencv_core.merge(new MatVector(channels.toArray(Mat[]::new)), dest);
 			}
-//			scope.deallocate();
 		}
+
+		if (logger.isTraceEnabled())
+			logger.trace("Merged channels: {}", Arrays.stream(dest.createIndexer().sizes()).mapToObj(l -> l).toList());
 
 		return dest;
 	}

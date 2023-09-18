@@ -28,7 +28,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.List;
 
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
@@ -46,8 +45,6 @@ import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
-import qupath.lib.objects.PathObjectTools;
-import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.roi.GeometryTools;
 import qupath.lib.roi.ROIs;
@@ -63,25 +60,13 @@ abstract class AbstractPathToolEventHandler implements EventHandler<MouseEvent> 
 	
 	private static final Logger logger = LoggerFactory.getLogger(AbstractPathToolEventHandler.class);
 
+	private ConstrainingObjects constrainingObjects = new ConstrainingObjects();
+
 	/**
-	 * Parent object that may be used to constrain ROIs, if required.
+	 * Ensure that the specified cursor is set in the current viewer.
+	 * @param cursor
 	 */
-	private PathObject constrainedParentObject;
-	/**
-	 * Geometry of the parent object ROI used to constrain ROIs, if required.
-	 */
-	private Geometry constrainedParentGeometry;
-	/**
-	 * Collection of Geometry objects that may be subtracted if drawing a constrained ROI.
-	 */
-	private Collection<Geometry> constrainedRemoveGeometries;
-	/**
-	 * The starting point for a ROI drawn in 'constrained' mode.
-	 * ROIs containing this point should not be used for 'subtraction'.
-	 */
-	private Point2 constrainedStartPoint;
-	
-	void ensureCursorType(Cursor cursor) {
+	protected void ensureCursorType(Cursor cursor) {
 		// We don't want to change a waiting cursor unnecessarily
 		var viewer = getViewer();
 		Cursor currentCursor = viewer.getCursor();
@@ -121,7 +106,7 @@ abstract class AbstractPathToolEventHandler implements EventHandler<MouseEvent> 
 	 * @param e
 	 * @return
 	 */
-	boolean requestParentClipping(MouseEvent e) {
+	protected  boolean requestParentClipping(MouseEvent e) {
 		return PathPrefs.clipROIsForHierarchyProperty().get() != (e.isShiftDown() && e.isShortcutDown());
 	}
 	
@@ -134,7 +119,7 @@ abstract class AbstractPathToolEventHandler implements EventHandler<MouseEvent> 
 	 * @param currentROI
 	 * @return
 	 */
-	ROI refineROIByParent(ROI currentROI) {
+	protected ROI refineROIByParent(ROI currentROI) {
 		// Don't do anything with lines
 		if (currentROI.isLine())
 			return currentROI;
@@ -147,63 +132,40 @@ abstract class AbstractPathToolEventHandler implements EventHandler<MouseEvent> 
 			return GeometryTools.geometryToROI(geometry, currentROI.getImagePlane());
 	}
 	
-	Geometry refineGeometryByParent(Geometry geometry) {
-		return refineGeometryByParent(geometry, true);
+	protected Geometry refineGeometryByParent(Geometry geometry) {
+		return constrainingObjects.refineGeometryByParent(geometry, true);
 	}
-	
-	private Geometry refineGeometryByParent(Geometry geometry, boolean tryAgain) {
-		try {
-			if (constrainedParentGeometry != null)
-				geometry = geometry.intersection(constrainedParentGeometry);
-			int count = 0;
-			var constrainedRemoveGeometries = getConstrainedRemoveGeometries();
-			if (!constrainedRemoveGeometries.isEmpty()) {
-				var envelope = geometry.getEnvelopeInternal();
-				for (var temp : constrainedRemoveGeometries) {
-					// Note: the relate operation tests for interior intersections, but can be very slow
-					// Ideally, we would reduce these tests
-					if (envelope.intersects(temp.getEnvelopeInternal()) && geometry.relate(temp, "T********")) {
-						geometry = geometry.difference(temp);
-						envelope = geometry.getEnvelopeInternal();
-						count++;
-					}
-				}
-			}
-			logger.debug("Clipped ROI with {} geometries", count);
-		} catch (Exception e) {
-			if (tryAgain) {
-				logger.warn("First Error refining ROI, will retry after buffer(0): {}", e.getLocalizedMessage());
-				return refineGeometryByParent(geometry.buffer(0.0), false);
-			}
-			logger.warn("Error refining ROI: {}", e.getLocalizedMessage());
-			logger.debug("", e);
-		}
-		return geometry;
-	}
-	
-	
+
+
 	/**
-	 * Set the parent that may be used to constrain a new ROI, if possible.
-	 * 
-	 * @param hierarchy object hierarchy containing potential constraining objects
+	 * New annotations can be constrained while they are being drawn, to avoid overlaps with existing annotations
+	 * or to ensure they are drawn within a parent annotation.
+	 * <p>
+	 * This method requests that the constraining objects are identified now based upon the specified mouse position.
+	 * It is useful when starting to draw with a tool that makes use of constraining objects.
+	 *
+	 * @param viewer the viewer that may contain potential constraining objects
 	 * @param xx x-coordinate in the image space of the starting point for the new object
 	 * @param yy y-coordinate in the image space of the starting point for the new object
 	 * @param exclusions objects not to consider (e.g. the new ROI being created)
 	 */
-	void setConstrainedAreaParent(final PathObjectHierarchy hierarchy, double xx, double yy, Collection<PathObject> exclusions) {
+	protected void updatingConstrainingObjects(final QuPathViewer viewer, double xx, double yy, Collection<PathObject> exclusions) {
 		if (!Platform.isFxApplicationThread())
 			throw new IllegalStateException("Not on the FxApplication thread!");
 
 		// Reset parent area & its descendant annotation areas
-		constrainedParentGeometry = null;
-		constrainedRemoveGeometries = null;
-		
+		constrainingObjects.reset();
+
+		// Check we have a hierarchy to work with
+		var hierarchy = viewer == null ? null : viewer.getHierarchy();
+		if (hierarchy == null)
+			return;
+
 		// Identify the smallest area annotation that contains the specified point
-		constrainedParentObject = getSelectableObjectList(xx, yy)
-				.stream()
-				.filter(p -> !p.isDetection() && p.hasROI() && p.getROI().isArea() && !exclusions.contains(p))
-				.sorted(Comparator.comparing(p -> p.getROI().getArea()))
-				.findFirst()
+		var constrainedParentObject = ToolUtils.getSelectableObjectList(viewer, xx, yy)
+                .stream()
+                .filter(p -> !p.isDetection() && p.hasROI() && p.getROI().isArea() && !exclusions.contains(p))
+				.min(Comparator.comparing(p -> p.getROI().getArea()))
 				.orElse(null);
 				
 		// Check the parent is a valid potential parent
@@ -211,154 +173,25 @@ abstract class AbstractPathToolEventHandler implements EventHandler<MouseEvent> 
 			constrainedParentObject = hierarchy.getRootObject();
 		}
 		
-		// Get the parent Geometry
-		if (constrainedParentObject.hasROI() && constrainedParentObject.getROI().isArea())
-			constrainedParentGeometry = constrainedParentObject.getROI().getGeometry();
-		
-		constrainedStartPoint = new Point2(xx, yy);
+		// Update the constraining objects
+		constrainingObjects.update(viewer, constrainedParentObject, xx, yy);
 	}
-	
-	
-	Collection<Geometry> getConstrainedRemoveGeometries() {
-		if (!Platform.isFxApplicationThread())
-			throw new IllegalStateException("Not on the FxApplication thread!");
-		
-		if (constrainedRemoveGeometries == null) {
-			
-			var viewer = getViewer();
-			if (viewer == null)
-				return Collections.emptyList();
-			
-			var hierarchy = viewer.getHierarchy();			
-			if (hierarchy == null || constrainedParentObject == null)
-				return Collections.emptyList();
-			
-			var selected = viewer.getSelectedObject();
-			
-			// Figure out what needs to be subtracted
-			boolean fullImage = hierarchy.getRootObject() == constrainedParentObject;
-			Collection<PathObject> toRemove;
-			if (fullImage)
-				toRemove = hierarchy.getAnnotationObjects();
-			else
-				toRemove = hierarchy.getObjectsForRegion(PathAnnotationObject.class, ImageRegion.createInstance(constrainedParentObject.getROI()), null);
-			
-			logger.debug("Constrained ROI drawing: identifying objects to remove");
-	
-			Envelope boundsEnvelope = constrainedParentGeometry == null ? null : constrainedParentGeometry.getEnvelopeInternal();
-			constrainedRemoveGeometries = new ArrayList<>();
-			for (PathObject child : toRemove) {
-				if (child.isDetection() || child == constrainedParentObject|| !child.hasROI() || 
-						!child.getROI().isArea() || child.getROI().getZ() != viewer.getZPosition() || child.getROI().getT() != viewer.getTPosition() || 
-						child == selected ||	(constrainedStartPoint != null && child.getROI().contains(constrainedStartPoint.getX(), constrainedStartPoint.getY())))
-					continue;
-				Geometry childArea = child.getROI().getGeometry();
-				Envelope childEnvelope = childArea.getEnvelopeInternal();
-				// Quickly filter out objects that don't intersect with the bounds, or which entirely cover it
-				if (constrainedParentGeometry != null &&
-						(!boundsEnvelope.intersects(childEnvelope) || 
-								(childEnvelope.covers(boundsEnvelope) && childArea.covers(constrainedParentGeometry))))
-					continue;
-				constrainedRemoveGeometries.add(childArea);
-			}
-		}
-		return constrainedRemoveGeometries;
-	}
-	
-	synchronized void resetConstrainedAreaParent() {
-		this.constrainedParentObject = null;
-		this.constrainedParentGeometry = null;
-		this.constrainedRemoveGeometries = null;
-	}
-	
-	
-	synchronized PathObject getCurrentParent() {
-		return constrainedParentObject;
-	}
-	
+
 	/**
-	 * When drawing a constrained ROI, get a Geometry defining the outer limits.
-	 * @return
+	 * Reset the constraining objects.
+	 * These should be done as soon as they are no longer required, to prevent a memory leak by inadvertently
+	 * holding on to an object hierarchy too long.
 	 */
-	synchronized Geometry getConstrainedAreaBounds() {
-		return constrainedParentGeometry;
+	protected synchronized void resetConstrainingObjects() {
+		constrainingObjects.reset();
 	}
 	
 	
-	/**
-	 * Try to select an object with a ROI overlapping a specified coordinate.
-	 * If there is no object found, the current selected object will be reset (to null).
-	 * 
-	 * @param x
-	 * @param y
-	 * @param searchCount - how far up the hierarchy to go, i.e. how many parents to check if objects overlap
-	 * @param addToSelection 
-	 * @return true if any object was selected
-	 */
-	boolean tryToSelect(double x, double y, int searchCount, boolean addToSelection) {
-		return tryToSelect(x, y, searchCount, addToSelection, false);
+	protected synchronized PathObject getCurrentParent() {
+		return constrainingObjects.getConstrainedParentObject();
 	}
-	
-	boolean tryToSelect(double x, double y, int searchCount, boolean addToSelection, boolean toggleSelection) {
-		var viewer = getViewer();
-		PathObjectHierarchy hierarchy = viewer.getHierarchy();
-		if (hierarchy == null)
-			return false;
-		PathObject pathObject = getSelectableObject(x, y, searchCount);
-		if (toggleSelection && hierarchy.getSelectionModel().getSelectedObject() == pathObject)
-			hierarchy.getSelectionModel().deselectObject(pathObject);
-		else
-			viewer.setSelectedObject(pathObject, addToSelection);
-		// Reset selection if we have nothing
-		if (pathObject == null && addToSelection)
-			viewer.setSelectedObject(null);
-		return pathObject != null;
-	}
-	
-	
-	/**
-	 * Determine which object would be selected by a click in this location - but do not actually apply the selection.
-	 * 
-	 * @param x
-	 * @param y
-	 * @param searchCount - how far up the hierarchy to go, i.e. how many parents to check if objects overlap
-	 * @return true if any object was selected
-	 */
-	PathObject getSelectableObject(double x, double y, int searchCount) {
-		List<PathObject> pathObjectList = getSelectableObjectList(x, y);
-		if (pathObjectList == null || pathObjectList.isEmpty())
-			return null;
-//		int ind = pathObjectList.size() - searchCount % pathObjectList.size() - 1;
-		int ind = searchCount % pathObjectList.size();
-		return pathObjectList.get(ind);
-	}
-	
-	
-	/**
-	 * Get a list of all selectable objects overlapping the specified x, y coordinates, ordered by depth in the hierarchy
-	 * @param x
-	 * @param y
-	 * @return
-	 */
-	List<PathObject> getSelectableObjectList(double x, double y) {
-		var viewer = getViewer();
-		PathObjectHierarchy hierarchy = viewer.getHierarchy();
-		if (hierarchy == null)
-			return Collections.emptyList();
-		
-		Collection<PathObject> pathObjects = PathObjectTools.getObjectsForLocation(
-				hierarchy, x, y, viewer.getZPosition(), viewer.getTPosition(), viewer.getMaxROIHandleSize());
-		if (pathObjects.isEmpty())
-			return Collections.emptyList();
-		List<PathObject> pathObjectList = new ArrayList<>(pathObjects);
-		if (pathObjectList.size() == 1)
-			return pathObjectList;
-		Collections.sort(pathObjectList, PathObjectHierarchy.HIERARCHY_COMPARATOR);
-		return pathObjectList;
-	}
-	
-	
-	
+
+
 	public void mouseClicked(MouseEvent e) {}
 
 	public void mouseDragged(MouseEvent e) {}
@@ -376,8 +209,7 @@ abstract class AbstractPathToolEventHandler implements EventHandler<MouseEvent> 
 		}
 		
 		Object source = e.getSource();
-		if (source instanceof Node) {
-			Node node = (Node)source;
+		if (source instanceof Node node) {
 			if (node.isFocusTraversable() && !node.isFocused()) {
 				node.requestFocus();
 				e.consume();
@@ -388,7 +220,6 @@ abstract class AbstractPathToolEventHandler implements EventHandler<MouseEvent> 
 	public void mouseReleased(MouseEvent e) {
 		if (e.isPopupTrigger()) {
 			e.consume();
-			return;
 		}
 	}
 
@@ -410,6 +241,137 @@ abstract class AbstractPathToolEventHandler implements EventHandler<MouseEvent> 
 		else if (type == MouseEvent.MOUSE_EXITED)
 			mouseExited(event);
 	}
-	
+
+
+	private static class ConstrainingObjects {
+
+		private QuPathViewer viewer;
+
+		/**
+		 * Parent object that may be used to constrain ROIs, if required.
+		 */
+		private PathObject constrainedParentObject;
+
+		/**
+		 * Geometry of the parent object ROI used to constrain ROIs, if required.
+		 */
+		private Geometry constrainedParentGeometry;
+
+		/**
+		 * Collection of Geometry objects that may be subtracted if drawing a constrained ROI.
+		 */
+		private Collection<Geometry> constrainedRemoveGeometries;
+
+		/**
+		 * The starting point for a ROI drawn in 'constrained' mode.
+		 * ROIs containing this point should not be used for 'subtraction'.
+		 */
+		private Point2 constrainedStartPoint;
+
+		public void reset() {
+			constrainedParentObject = null;
+			constrainedParentGeometry = null;
+			constrainedRemoveGeometries = null;
+			constrainedStartPoint = null;
+		}
+
+		public void update(QuPathViewer viewer, PathObject parent, double xStart, double yStart) {
+			this.viewer = viewer;
+			this.constrainedParentObject = parent;
+			if (parent != null && parent.hasROI() && parent.getROI().isArea()) {
+				this.constrainedParentGeometry = parent.getROI().getGeometry();
+			} else {
+				this.constrainedParentGeometry = null;
+			}
+			this.constrainedRemoveGeometries = null; // Compute lazily
+			constrainedStartPoint = new Point2(xStart, yStart);
+		}
+
+		public PathObject getConstrainedParentObject() {
+			return constrainedParentObject;
+		}
+
+		public Geometry getConstrainedParentGeometry() {
+			return constrainedParentGeometry;
+		}
+
+		public Collection<Geometry> getConstrainedRemoveGeometries() {
+			if (!Platform.isFxApplicationThread())
+				throw new IllegalStateException("Not on the FxApplication thread!");
+
+			if (constrainedRemoveGeometries == null) {
+				var hierarchy = viewer == null ? null : viewer.getHierarchy();
+				if (hierarchy == null || constrainedParentObject == null)
+					return Collections.emptyList();
+
+				var selected = hierarchy.getSelectionModel().getSelectedObject();
+
+				// Figure out what needs to be subtracted
+				boolean fullImage = hierarchy.getRootObject() == constrainedParentObject;
+				Collection<PathObject> toRemove;
+				if (fullImage)
+					toRemove = hierarchy.getAnnotationObjects();
+				else
+					toRemove = hierarchy.getObjectsForRegion(PathAnnotationObject.class, ImageRegion.createInstance(constrainedParentObject.getROI()), null);
+
+				logger.debug("Constrained ROI drawing: identifying objects to remove");
+
+				Envelope boundsEnvelope = constrainedParentGeometry == null ? null : constrainedParentGeometry.getEnvelopeInternal();
+				constrainedRemoveGeometries = new ArrayList<>();
+				for (PathObject child : toRemove) {
+					if (child.isDetection() || child == constrainedParentObject|| !child.hasROI() ||
+							!child.getROI().isArea() || child.getROI().getZ() != viewer.getZPosition() || child.getROI().getT() != viewer.getTPosition() ||
+							child == selected ||	(constrainedStartPoint != null && child.getROI().contains(constrainedStartPoint.getX(), constrainedStartPoint.getY())))
+						continue;
+					Geometry childArea = child.getROI().getGeometry();
+					Envelope childEnvelope = childArea.getEnvelopeInternal();
+					// Quickly filter out objects that don't intersect with the bounds, or which entirely cover it
+					if (constrainedParentGeometry != null &&
+							(!boundsEnvelope.intersects(childEnvelope) ||
+									(childEnvelope.covers(boundsEnvelope) && childArea.covers(constrainedParentGeometry))))
+						continue;
+					constrainedRemoveGeometries.add(childArea);
+				}
+			}
+			return constrainedRemoveGeometries;
+		}
+
+		public Point2 getConstrainedStartPoint() {
+			return constrainedStartPoint;
+		}
+
+
+		private Geometry refineGeometryByParent(Geometry geometry, boolean tryAgain) {
+			try {
+				if (constrainedParentGeometry != null)
+					geometry = geometry.intersection(constrainedParentGeometry);
+				int count = 0;
+				var constrainedRemoveGeometries = getConstrainedRemoveGeometries();
+				if (!constrainedRemoveGeometries.isEmpty()) {
+					var envelope = geometry.getEnvelopeInternal();
+					for (var temp : constrainedRemoveGeometries) {
+						// Note: the relate operation tests for interior intersections, but can be very slow
+						// Ideally, we would reduce these tests
+						if (envelope.intersects(temp.getEnvelopeInternal()) && geometry.relate(temp, "T********")) {
+							geometry = geometry.difference(temp);
+							envelope = geometry.getEnvelopeInternal();
+							count++;
+						}
+					}
+				}
+				logger.debug("Clipped ROI with {} geometries", count);
+			} catch (Exception e) {
+				if (tryAgain) {
+					logger.warn("First Error refining ROI, will retry after buffer(0): {}", e.getLocalizedMessage());
+					return refineGeometryByParent(geometry.buffer(0.0), false);
+				}
+				logger.warn("Error refining ROI: {}", e.getLocalizedMessage());
+				logger.debug("", e);
+			}
+			return geometry;
+		}
+
+	}
+
 	
 }

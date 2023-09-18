@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -35,6 +35,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -68,12 +69,12 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 	private static final int DEFAULT_THUMBNAIL_WIDTH = 1000;
 	
 	private static final Logger logger = LoggerFactory.getLogger(AbstractImageRegionStore.class);
-	
-	// Collection of SwingWorkers used to request image tiles
+
+	// Workers who can get individual tiles
 	private List<TileWorker<T>> workers = Collections.synchronizedList(new ArrayList<>());
 	
 	// Set of regions for which a tile has been requested, but not yet fully loaded
-	private Map<RegionRequest, TileWorker<T>> waitingMap = Collections.synchronizedMap(new HashMap<>());
+	private Map<RegionRequest, TileWorker<T>> waitingMap = new ConcurrentHashMap<>();
 
 	private boolean clearingCache = false; // Flag that cache is currently being cleared
 	
@@ -349,7 +350,6 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 		T img = cache.get(request);
 		if (img != null)
 			return img;
-//		System.err.println(request);
 		// If the cache contains the key, but simply returns null because nothing should be painted, also return null here
 		if (cache.containsKey(request))
 			return null;
@@ -375,13 +375,10 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 					return null;
 				pool.execute(worker);
 			}
-//			worker.execute();
-//				System.out.println("Event dispatch putting: " + SwingUtilities.isEventDispatchThread());
 			synchronized (waitingMap) {
 				waitingMap.put(request, worker);
 			}
 		}
-//		workersToWait.add(worker);
 		return worker;
 	}
 	
@@ -523,10 +520,6 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 			if (serverPath.equals(iterator.next().getKey().getPath()))
 				iterator.remove();
 		}
-//		String serverPath = server.getPath();
-//		List<RegionRequest> keys = map.keySet().stream().filter(k -> k.getPath().equals(serverPath)).toList();
-//		for (var key : keys)
-//			map.remove(key);
 	}
 	
 	private synchronized void clearCacheForRequestOverlap(Map<RegionRequest, T> map, RegionRequest request) {
@@ -535,9 +528,6 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 			if (request.overlapsRequest(iterator.next().getKey()))
 				iterator.remove();
 		}
-//		List<RegionRequest> keys = map.keySet().stream().filter(k -> request.overlapsRequest(k)).toList();
-//		for (var key : keys)
-//			map.remove(key);
 	}
 	
 	
@@ -589,13 +579,8 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 			}
 			
 			// Create a new request
-//			if (clipShape instanceof Rectangle2D.Double)
-//				System.out.println(clipShape);
-//			else
-//				System.out.println(clipShape);
 			TileRequestCollection<T> requestCollection = new TileRequestCollection<>(tileListener, server, clipShape, downsampleFactor, zPosition, tPosition, 10);
 			list.add(requestCollection);
-//			list.sort(comparator);
 			Collections.sort(list, comparator);
 			assignTasks();
 			
@@ -616,15 +601,17 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 			if (list.isEmpty())
 				return;
 			int ind = 0;
-			TileRequestCollection<T> temp = list.get(ind);
-			while (busyThreads < nThreads && !list.isEmpty()) {
+			while (busyThreads < nThreads && ind < list.size()) {
+				TileRequestCollection<T> temp = list.get(ind);
 				if (!temp.hasMoreTiles()) {
-					ind++;
-					if (ind < list.size())
-						temp = list.get(ind);
-					else
-						break;
-//					list.remove(temp);
+					// v0.5.0 change - the list wasn't emptying, which caused a memory leak by retaining image servers
+					// indefinitely
+//					ind++;
+//					if (ind < list.size())
+//						temp = list.get(ind);
+//					else
+//						break;
+					list.remove(temp);
 					continue;
 				}
 				RegionRequest request = temp.nextTileRequest();
@@ -643,11 +630,9 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 					if (!pool.isShutdown())
 						pool.execute(worker);
 				}
-//				worker.execute();
 				requestedWorkers.add(worker);
 				busyThreads++;
 			}
-//			list.sort(comparator);
 			Collections.sort(list, comparator);
 		}
 		
@@ -657,7 +642,6 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 				return;
 			busyThreads--;
 			logger.trace("Number of busy threads: " + busyThreads);
-//			list.sort(comparator);
 			Collections.sort(list, comparator);
 			assignTasks();
 		}
@@ -707,7 +691,6 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 		}
 		
 		void updateRequestsForZ(final int z, final double downsample, final boolean stopBeforeDownsample) {
-//			System.out.println("REQUESTING: " + z + ", " + clipShape);
 			// Add tile requests in ascending order of resolutions, to support (faster) progressive image display
 			if (server == null)
 				return;
@@ -772,9 +755,6 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 	
 	/**
 	 * Worker for fetching image tiles asynchronously & adding to the tile cache.
-	 * 
-	 * @author Pete Bankhead
-	 *
 	 */
 	class DefaultTileWorker extends FutureTask<T> implements TileWorker<T> {
 		
