@@ -1361,7 +1361,6 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 
 			OMEPixelParser omePixelParser = new OMEPixelParser.Builder()
 					.isInterleaved(interleaved)
-					.channels(channels)
 					.pixelType(switch (pixelType) {
 						case FormatTools.UINT8 -> PixelType.UINT8;
 						case FormatTools.INT8 -> PixelType.INT8;
@@ -1379,7 +1378,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 					.samplesPerPixel(samplesPerPixel)
 					.build();
 			
-			return omePixelParser.parse(bytes, tileWidth, tileHeight, nChannels);
+			return omePixelParser.parse(bytes, tileWidth, tileHeight, nChannels, colorModel);
 			
 		}
 		

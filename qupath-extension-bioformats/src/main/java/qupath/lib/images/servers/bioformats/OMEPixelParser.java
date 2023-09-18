@@ -1,21 +1,18 @@
 package qupath.lib.images.servers.bioformats;
 
 import loci.common.DataTools;
-import qupath.lib.color.ColorModelFactory;
-import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.PixelType;
 
 import java.awt.image.*;
 import java.nio.*;
-import java.util.List;
 
 /**
  * This class can parse raw bytes into a {@link BufferedImage}.
+ * INT8 and UINT32 images are currently not supported.
  */
 public class OMEPixelParser {
 
     private final boolean isInterleaved;
-    private final List<ImageChannel> channels;
     private final PixelType pixelType;
     private final ByteOrder byteOrder;
     private final boolean normalizeFloats;
@@ -24,7 +21,6 @@ public class OMEPixelParser {
 
     private OMEPixelParser(Builder builder) {
         this.isInterleaved = builder.isInterleaved;
-        this.channels = builder.channels;
         this.pixelType = builder.pixelType;
         this.byteOrder = builder.byteOrder;
         this.normalizeFloats = builder.normalizeFloats;
@@ -41,15 +37,16 @@ public class OMEPixelParser {
      * @param width  the width in pixels of the image
      * @param height  the height in pixels of the image
      * @param nChannels  the number of channels of this image
+     * @param colorModel  the color model to use when creating the image
      * @return the corresponding image
      */
-    public BufferedImage parse(byte[][] pixels, int width, int height, int nChannels) {
+    public BufferedImage parse(byte[][] pixels, int width, int height, int nChannels, ColorModel colorModel) {
         DataBuffer dataBuffer = bytesToDataBuffer(pixels);
         SampleModel sampleModel = createSampleModel(width, height, nChannels, dataBuffer.getDataType());
         WritableRaster raster = WritableRaster.createWritableRaster(sampleModel, dataBuffer, null);
 
         return new BufferedImage(
-                createColorModel(nChannels),
+                colorModel,
                 raster,
                 false,
                 null
@@ -153,21 +150,12 @@ public class OMEPixelParser {
         }
     }
 
-    private ColorModel createColorModel(int nChannels) {
-        if (nChannels == 3 && pixelType == PixelType.UINT8 && channels.equals(ImageChannel.getDefaultRGBChannels())) {
-            return ColorModel.getRGBdefault();
-        } else {
-            return ColorModelFactory.createColorModel(pixelType, channels);
-        }
-    }
-
     /**
      * Builder for instances of {@link OMEPixelParser}.
      */
     public static class Builder {
 
         private boolean isInterleaved = false;
-        private List<ImageChannel> channels;
         private PixelType pixelType;
         private ByteOrder byteOrder;
         private boolean normalizeFloats;
@@ -180,15 +168,6 @@ public class OMEPixelParser {
          */
         public Builder isInterleaved(boolean isInterleaved) {
             this.isInterleaved = isInterleaved;
-            return this;
-        }
-
-        /**
-         * @param channels  all channels of the image
-         * @return the current builder
-         */
-        public Builder channels(List<ImageChannel> channels) {
-            this.channels = channels;
             return this;
         }
 
