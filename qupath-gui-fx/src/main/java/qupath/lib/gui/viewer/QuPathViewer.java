@@ -538,7 +538,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	public void repaint() {
 		if (repaintRequested && minimumRepaintSpacingMillis <= 0)
 			return;
-		
+
 		// We need to repaint everything if the display changed
 		if (imageDisplay != null && (lastDisplayChangeTimestamp != imageDisplay.getLastChangeTimestamp())) {
 			repaintEntireImage();
@@ -547,7 +547,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		
 		logger.trace("Repaint requested!");
 		repaintRequested = true;
-		
+
 		Platform.runLater(() -> paintCanvas());
 	}
 
@@ -630,8 +630,10 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	private InvalidationListener repainterEntire = new InvalidationListener() {
 		@Override
 		public void invalidated(Observable observable) {
-			background = ColorToolsAwt.getCachedColor(PathPrefs.viewerBackgroundColorProperty().get());
-			repaintEntireImage();
+			Platform.runLater(() -> {
+				background = ColorToolsAwt.getCachedColor(PathPrefs.viewerBackgroundColorProperty().get());
+				repaintEntireImage();
+			});
 		}
 	};
 	
@@ -826,6 +828,8 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		//		setDebugGraphicsOptions(DebugGraphics.LOG_OPTION);
 
 		this.imageDisplay = imageDisplay;
+		if (imageDisplay != null)
+			imageDisplay.changeTimestampProperty().addListener(repainterEntire);
 
 		// Prepare overlay layers
 		customOverlayLayers.addListener((Change<? extends PathOverlay> e) -> refreshAllOverlayLayers());
@@ -1738,7 +1742,6 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		imageUpdated = true;
 		if (imageDisplay != null)
 			lastDisplayChangeTimestamp = imageDisplay.getLastChangeTimestamp();
-//		ensureGammaUpdated();
 		updateThumbnail();
 		repaint();		
 	}

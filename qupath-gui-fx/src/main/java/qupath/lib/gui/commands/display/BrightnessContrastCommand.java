@@ -21,9 +21,10 @@
  * #L%
  */
 
-package qupath.lib.gui.commands;
+package qupath.lib.gui.commands.display;
 
 import javafx.application.Platform;
+import javafx.beans.InvalidationListener;
 import javafx.beans.Observable;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
@@ -36,7 +37,6 @@ import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
-import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
@@ -59,7 +59,6 @@ import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.SelectionMode;
 import javafx.scene.control.Separator;
-import javafx.scene.control.Slider;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableRow;
@@ -86,18 +85,14 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.Text;
 import javafx.scene.text.TextAlignment;
 import javafx.stage.Stage;
-import org.controlsfx.control.SearchableComboBox;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.fx.dialogs.Dialogs;
-import qupath.fx.utils.FXUtils;
 import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.analysis.stats.Histogram;
-import qupath.lib.common.GeneralTools;
 import qupath.lib.display.ChannelDisplayInfo;
 import qupath.lib.display.DirectServerChannelInfo;
 import qupath.lib.display.ImageDisplay;
-import qupath.lib.display.settings.DisplaySettingUtils;
 import qupath.lib.display.settings.ImageDisplaySettings;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.actions.InfoMessage;
@@ -111,12 +106,10 @@ import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
-import qupath.lib.projects.ResourceManager;
 
 import java.awt.image.BufferedImage;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
-import java.io.IOException;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -149,8 +142,10 @@ public class BrightnessContrastCommand implements Runnable {
 	private static final double BUTTON_SPACING = 5;
 
 	private final QuPathGUI qupath;
-	private QuPathViewer viewer;
-	private ImageDisplay imageDisplay;
+
+	private final ObjectProperty<QuPathViewer> viewerProperty = new SimpleObjectProperty<>();
+	private final ObjectProperty<ImageData<BufferedImage>> imageDataProperty = new SimpleObjectProperty<>();
+	private final ObjectProperty<ImageDisplay> imageDisplayProperty = new SimpleObjectProperty<>();
 
 	private final ImageDataPropertyChangeListener imageDataPropertyChangeListener = new ImageDataPropertyChangeListener();
 
@@ -158,16 +153,13 @@ public class BrightnessContrastCommand implements Runnable {
 
 	private final ImageDisplayTimestampListener timestampChangeListener = new ImageDisplayTimestampListener();
 
+	private final ObjectProperty<ChannelDisplayInfo> currentChannelProperty = new SimpleObjectProperty<>();
+
 	private final BooleanProperty activeChannelVisible = new SimpleBooleanProperty(false);
 	private final BooleanBinding blockChannelAdjustment = activeChannelVisible.not();
 
-	private Slider sliderMin;
-	private Slider sliderMax;
-	private Slider sliderGamma;
-	private Stage dialog;
+	private final Stage dialog;
 	
-	private boolean slidersUpdating = false;
-
 	private final TableView<ChannelDisplayInfo> table = new TableView<>();
 	private final StringProperty filterText = new SimpleStringProperty("");
 	private final BooleanProperty useRegex = PathPrefs.createPersistentPreference("brightnessContrastFilterRegex", false);
@@ -193,7 +185,9 @@ public class BrightnessContrastCommand implements Runnable {
 	
 	private BrightnessContrastKeyTypedListener keyListener = new BrightnessContrastKeyTypedListener();
 
-	private SettingsManager settingsManager;
+	private BrightnessContrastSliderPane sliderPane;
+
+	private BrightnessContrastSettingsPane settingsPane;
 
 
 	/**
@@ -202,8 +196,27 @@ public class BrightnessContrastCommand implements Runnable {
 	 */
 	public BrightnessContrastCommand(final QuPathGUI qupath) {
 		this.qupath = qupath;
-		this.qupath.imageDataProperty().addListener(this::handleImageDataChange);
+
+		viewerProperty.bind(qupath.viewerProperty());
+		imageDataProperty.bind(viewerProperty.flatMap(QuPathViewer::imageDataProperty));
+		imageDisplayProperty.bind(viewerProperty.map(QuPathViewer::getImageDisplay));
+
+		viewerProperty.addListener(this::handleViewerChanged);
+		imageDataProperty.addListener(this::handleImageDataChange);
+		imageDisplayProperty.addListener(this::handleImageDisplayChanged);
+
+		currentChannelProperty.bind(table.getSelectionModel().selectedItemProperty());
+		table.getItems().addListener(this::handleTableItemsChange);
+
 		dialog = createDialog();
+	}
+
+	private void handleTableItemsChange(ListChangeListener.Change<? extends ChannelDisplayInfo> change) {
+		// Select the first item if nothing is selected
+		// TODO: Check if this behaves sensibly
+		var items = change.getList();
+		if (table.getSelectionModel().getSelectedItem() == null && ! items.isEmpty())
+			table.getSelectionModel().selectFirst();
 	}
 
 	@Override
@@ -227,13 +240,18 @@ public class BrightnessContrastCommand implements Runnable {
 
 
 	private Stage createDialog() {
-		if (isInitialized())
+		if (dialog != null)
 			throw new RuntimeException("createDialog() called after initialization!");
 
 		initializeHistogram();
 		createChannelDisplayTable();
 		initializeShowAllCheckbox();
-		initializeSliders();
+
+		sliderPane = new BrightnessContrastSliderPane();
+		sliderPane.imageDisplayProperty().bind(imageDisplayProperty);
+		sliderPane.selectedChannelProperty().bind(currentChannelProperty);
+		sliderPane.disableMinMaxAdjustmentProperty().bind(blockChannelAdjustment);
+
 		initializeColorPicker();
 		initializePopup();
 
@@ -257,12 +275,10 @@ public class BrightnessContrastCommand implements Runnable {
 		Pane paneTextFilter = createTextFilterPane();
 		pane.add(paneTextFilter, 0, row++);
 
-		settingsManager = new SettingsManager(qupath);
-		Pane paneSaveSettings = settingsManager.createDisplayResourcesPane();
-		pane.add(paneSaveSettings, 0, row++);
-
-//		Pane paneCheck = createCheckboxPane();
-//		pane.add(paneCheck, 0, row++);
+		settingsPane = new BrightnessContrastSettingsPane();
+		settingsPane.resourceManagerProperty().bind(
+				qupath.projectProperty().map(p -> p.getResources("resources/display", ImageDisplaySettings.class, "json")));
+		pane.add(settingsPane, 0, row++);
 
 		chartPane.setPrefWidth(200);
 		chartPane.setPrefHeight(150);
@@ -295,10 +311,8 @@ public class BrightnessContrastCommand implements Runnable {
 
 		pane.add(paneChannels, 0, row++);
 
-
-		Pane paneSliders = createSliderPane();
-		paneSliders.prefWidthProperty().bind(pane.widthProperty());
-		pane.add(paneSliders, 0, row++);
+		sliderPane.prefWidthProperty().bind(pane.widthProperty());
+		pane.add(sliderPane, 0, row++);
 
 		Pane paneCheck = createCheckboxPane();
 		pane.add(paneCheck, 0, row++);
@@ -310,9 +324,6 @@ public class BrightnessContrastCommand implements Runnable {
 
 		Pane paneKeepSettings = createKeepSettingsPane();
 		pane.add(paneKeepSettings, 0, row++);
-
-//		Pane paneSaveSettings = createDisplayResourcesPane();
-//		pane.add(paneSaveSettings, 0, row++);
 
 		Pane paneWarnings = createWarningPane();
 		pane.add(paneWarnings, 0, row++);
@@ -354,70 +365,8 @@ public class BrightnessContrastCommand implements Runnable {
 	}
 
 
-	private Pane createSliderPane() {
-		GridPane pane = new GridPane();
-		String blank = "      ";
-		Label labelMin = new Label("Channel min");
-		Tooltip tooltipMin = new Tooltip("Set minimum lookup table value - double-click the value to edit manually");
-		Label labelMinValue = new Label(blank);
-		labelMinValue.setTooltip(tooltipMin);
-		labelMin.setTooltip(tooltipMin);
-		sliderMin.setTooltip(tooltipMin);
-		labelMin.setLabelFor(sliderMin);
-		labelMinValue.textProperty().bind(createSliderTextBinding(sliderMin));
-		pane.add(labelMin, 0, 0);
-		pane.add(sliderMin, 1, 0);
-		pane.add(labelMinValue, 2, 0);
 
-		Label labelMax = new Label("Channel max");
-		Tooltip tooltipMax = new Tooltip("Set maximum lookup table value - double-click the value to edit manually");
-		labelMax.setTooltip(tooltipMax);
-		Label labelMaxValue = new Label(blank);
-		labelMaxValue.setTooltip(tooltipMax);
-		sliderMax.setTooltip(tooltipMax);
-		labelMax.setLabelFor(sliderMax);
-		labelMaxValue.textProperty().bind(createSliderTextBinding(sliderMax));
-		pane.add(labelMax, 0, 1);
-		pane.add(sliderMax, 1, 1);
-		pane.add(labelMaxValue, 2, 1);
-		pane.setVgap(5);
-		pane.setHgap(4);
-
-		Label labelGamma = new Label("Viewer gamma");
-		Label labelGammaValue = new Label(blank);
-		Tooltip tooltipGamma = new Tooltip("Set gamma value, for all viewers & all channels.\n"
-				+ "Double-click the value to edit manually, shift-click to reset to 1.\n"
-				+ "It is recommended to leave this value at 1, to avoid unnecessary nonlinear contrast adjustment.");
-		labelGammaValue.setTooltip(tooltipGamma);
-		labelGammaValue.textProperty().bind(createGammaLabelBinding(sliderGamma.valueProperty()));
-		sliderGamma.setTooltip(tooltipGamma);
-		labelGamma.setLabelFor(sliderGamma);
-		labelGamma.setTooltip(tooltipGamma);
-		labelGammaValue.setOnMouseClicked(this::handleGammaLabelClicked);
-		labelGammaValue.styleProperty().bind(createGammaLabelStyleBinding(sliderGamma.valueProperty()));
-
-		pane.add(labelGamma, 0, 2);
-		pane.add(sliderGamma, 1, 2);
-		pane.add(labelGammaValue, 2, 2);
-
-		// Set the pref width for a value label to prevent column continually resizing
-		// (Column constraints would probably be the 'right' way to do this)
-		labelMinValue.setPrefWidth(40);
-
-		GridPane.setFillWidth(sliderMin, Boolean.TRUE);
-		GridPane.setFillWidth(sliderMax, Boolean.TRUE);
-		GridPane.setHgrow(sliderMin, Priority.ALWAYS);
-		GridPane.setHgrow(sliderMax, Priority.ALWAYS);
-
-		// In the absence of a better way, make it possible to enter display range values
-		// manually by double-clicking on the corresponding label
-		labelMinValue.setOnMouseClicked(this::handleMinLabelClick);
-		labelMaxValue.setOnMouseClicked(this::handleMaxLabelClick);
-		return pane;
-	}
-
-
-	private Pane createKeepSettingsPane() {
+	private static Pane createKeepSettingsPane() {
 		CheckBox cbKeepDisplaySettings = new CheckBox("Apply to similar images");
 		cbKeepDisplaySettings.selectedProperty().bindBidirectional(PathPrefs.keepDisplaySettingsProperty());
 		cbKeepDisplaySettings.setTooltip(new Tooltip("Retain same display settings where possible when opening similar images"));
@@ -440,9 +389,29 @@ public class BrightnessContrastCommand implements Runnable {
 				btnAuto,
 				btnReset
 		);
-		if (BUTTON_SPACING > 0)
-			pane.setHgap(BUTTON_SPACING);
+		pane.setHgap(BUTTON_SPACING);
 		return pane;
+	}
+
+	private void handleResetButtonClicked(ActionEvent e) {
+		var imageDisplay = imageDisplayProperty.getValue();
+		for (ChannelDisplayInfo info : table.getSelectionModel().getSelectedItems()) {
+			imageDisplay.setMinMaxDisplay(info, info.getMinAllowed(), info.getMaxAllowed());
+		}
+		sliderPane.resetAllSliders();
+	}
+
+	private void handleAutoButtonClicked(ActionEvent e) {
+		var imageDisplay = imageDisplayProperty.getValue();
+		if (imageDisplay == null)
+			return;
+		ChannelDisplayInfo info = getCurrentInfo();
+		double saturation = PathPrefs.autoBrightnessContrastSaturationPercentProperty().get()/100.0;
+		imageDisplay.autoSetDisplayRange(info, saturation);
+		for (ChannelDisplayInfo info2 : table.getSelectionModel().getSelectedItems()) {
+			imageDisplay.autoSetDisplayRange(info2, saturation);
+		}
+		updateSliders();
 	}
 
 	private ObservableList<String> warningList = FXCollections.observableArrayList();
@@ -492,7 +461,7 @@ public class BrightnessContrastCommand implements Runnable {
 		labelWarningGamma.setStyle(WARNING_STYLE);
 		labelWarningGamma.setAlignment(Pos.CENTER);
 		labelWarningGamma.setTextAlignment(TextAlignment.CENTER);
-		labelWarningGamma.visibleProperty().bind(sliderGamma.valueProperty().isNotEqualTo(1.0, 0.0));
+		labelWarningGamma.visibleProperty().bind(sliderPane.gammaValueProperty().isNotEqualTo(1.0, 0.0));
 		labelWarningGamma.setMaxWidth(Double.MAX_VALUE);
 		labelWarningGamma.managedProperty().bind(labelWarningGamma.visibleProperty()); // Remove if not visible
 
@@ -529,6 +498,7 @@ public class BrightnessContrastCommand implements Runnable {
 
 
 	private void createChannelDisplayTable() {
+		var imageDisplay = imageDisplayProperty.getValue();
 		if (imageDisplay != null)
 			table.setItems(imageDisplay.availableChannels());
 		var textPlaceholder = new Text("No channels available");
@@ -575,7 +545,7 @@ public class BrightnessContrastCommand implements Runnable {
 	}
 
 	private void syncShowAllToCheckbox() {
-		if (imageDisplay == null || cbShowAll.isIndeterminate())
+		if (cbShowAll.isIndeterminate())
 			return;
 		if (cbShowAll.isSelected()) {
 			setShowChannels(table.getItems());
@@ -604,16 +574,12 @@ public class BrightnessContrastCommand implements Runnable {
 		CheckBox cbShowGrayscale = new CheckBox("Show grayscale");
 		cbShowGrayscale.selectedProperty().bindBidirectional(showGrayscale);
 		cbShowGrayscale.setTooltip(new Tooltip("Show single channel with grayscale lookup table"));
-		if (imageDisplay != null)
-			cbShowGrayscale.setSelected(!imageDisplay.useColorLUTs());
 		showGrayscale.addListener(this::handleDisplaySettingInvalidated);
 
 		CheckBox cbInvertBackground = new CheckBox("Invert background");
 		cbInvertBackground.selectedProperty().bindBidirectional(invertBackground);
 		cbInvertBackground.setTooltip(new Tooltip("Invert the background for display (i.e. switch between white and black).\n"
 				+ "Use cautiously to avoid becoming confused about how the 'original' image looks (e.g. brightfield or fluorescence)."));
-		if (imageDisplay != null)
-			cbInvertBackground.setSelected(imageDisplay.useInvertedBackground());
 		invertBackground.addListener(this::handleDisplaySettingInvalidated);
 
 		FlowPane paneCheck = new FlowPane();
@@ -654,142 +620,21 @@ public class BrightnessContrastCommand implements Runnable {
 		}, table.getSelectionModel().selectedItemProperty());
 	}
 
-	private static ObservableValue<String> createGammaLabelBinding(ObservableValue<? extends Number> gammaValue) {
-		return Bindings.createStringBinding(() ->
-						GeneralTools.formatNumber(gammaValue.getValue().doubleValue(), 2),
-				gammaValue);
-	}
-
-	private static ObservableValue<String> createGammaLabelStyleBinding(ObservableValue<? extends Number> gammaValue) {
-		return Bindings.createStringBinding(() -> {
-			if (gammaValue.getValue().doubleValue() == 1.0)
-				return null;
-			return WARNING_STYLE;
-		}, gammaValue);
-	}
-
-	private void handleGammaLabelClicked(MouseEvent event) {
-		if (event.getClickCount() >= 3 || event.isShiftDown()) {
-			// Reset gamma to 1.0
-			sliderGamma.setValue(1.0);
-		} else {
-			var newGamma = Dialogs.showInputDialog("Gamma", "Set gamma value", sliderGamma.getValue());
-			if (newGamma != null)
-				sliderGamma.setValue(newGamma);
-		}
-	}
-
-	private void handleMaxLabelClick(MouseEvent event) {
-		if (event.getClickCount() != 2)
-			return;
-		ChannelDisplayInfo infoVisible = getCurrentInfo();
-		if (infoVisible == null)
-			return;
-
-		Double value = Dialogs.showInputDialog("Display range", "Set display range maximum", (double)infoVisible.getMaxDisplay());
-		if (value != null && !Double.isNaN(value)) {
-			sliderMax.setValue(value);
-			// Update display directly if out of slider range
-			if (value < sliderMax.getMin() || value > sliderMax.getMax()) {
-				imageDisplay.setMinMaxDisplay(infoVisible, (float)infoVisible.getMinDisplay(), (float)value.floatValue());
-				updateSliders();
-				viewer.repaintEntireImage();
-			}
-		}
-	}
-
-
-	private void handleMinLabelClick(MouseEvent event) {
-		if (event.getClickCount() != 2)
-			return;
-		ChannelDisplayInfo infoVisible = getCurrentInfo();
-		if (infoVisible == null)
-			return;
-
-		Double value = Dialogs.showInputDialog("Display range", "Set display range minimum", (double)infoVisible.getMinDisplay());
-		if (value != null && !Double.isNaN(value)) {
-			sliderMin.setValue(value);
-			// Update display directly if out of slider range
-			if (value < sliderMin.getMin() || value > sliderMin.getMax()) {
-				imageDisplay.setMinMaxDisplay(infoVisible, value.floatValue(), infoVisible.getMaxDisplay());
-				updateSliders();
-				viewer.repaintEntireImage();
-			}
-		}
-	}
-
 
 	/**
 	 * Simple invalidation listener to request an image repaint when a display setting changes.
 	 */
 	private void handleDisplaySettingInvalidated(Observable observable) {
-		if (imageDisplay == null)
-			return;
-		Platform.runLater(() -> {
-			viewer.repaintEntireImage();
-		});
 		table.refresh();
 	}
 
 
 	private void handleGammaWarningClicked(MouseEvent e) {
 		if (e.isShiftDown())
-			sliderGamma.setValue(1.0);
+			sliderPane.gammaValueProperty().setValue(1.0);
 	}
 
 
-	private ObservableValue<String> createSliderTextBinding(Slider slider) {
-		return Bindings.createStringBinding(() -> {
-			double value = slider.getValue();
-			if (value == (int)value)
-				return String.format("%d", (int) value);
-			else if (value < 1)
-				return String.format("%.3f", value);
-			else if (value < 10)
-				return String.format("%.2f", value);
-			else
-				return String.format("%.1f", value);
-		}, slider.valueProperty());
-	}
-
-
-	private void handleResetButtonClicked(ActionEvent e) {
-		for (ChannelDisplayInfo info : table.getSelectionModel().getSelectedItems()) {
-			imageDisplay.setMinMaxDisplay(info, info.getMinAllowed(), info.getMaxAllowed());
-		}
-		sliderMin.setValue(sliderMin.getMin());
-		sliderMax.setValue(sliderMax.getMax());
-		sliderGamma.setValue(1.0);
-	}
-
-	private void handleAutoButtonClicked(ActionEvent e) {
-		if (imageDisplay == null)
-			return;
-		ChannelDisplayInfo info = getCurrentInfo();
-		double saturation = PathPrefs.autoBrightnessContrastSaturationPercentProperty().get()/100.0;
-		imageDisplay.autoSetDisplayRange(info, saturation);
-		for (ChannelDisplayInfo info2 : table.getSelectionModel().getSelectedItems()) {
-			imageDisplay.autoSetDisplayRange(info2, saturation);
-		}
-		updateSliders();
-		applyMinMaxSliderChanges();
-	}
-	
-	private boolean isInitialized() {
-		return sliderMin != null && sliderMax != null;
-	}
-	
-	private void initializeSliders() {
-		sliderMin = new Slider(0, 255, 0);
-		sliderMax = new Slider(0, 255, 255);
-		sliderMin.valueProperty().addListener(this::handleMinMaxSliderValueChange);
-		sliderMax.valueProperty().addListener(this::handleMinMaxSliderValueChange);
-		sliderGamma = new Slider(0.01, 5, 0.01);
-		sliderGamma.valueProperty().bindBidirectional(PathPrefs.viewerGammaProperty());
-
-		sliderMin.disableProperty().bind(blockChannelAdjustment);
-		sliderMax.disableProperty().bind(blockChannelAdjustment);
-	}
 	
 	private Pane createTextFilterPane() {
 		TextField tfFilter = new TextField("");
@@ -811,8 +656,7 @@ public class BrightnessContrastCommand implements Runnable {
 		GridPaneUtils.setToExpandGridPaneWidth(tfFilter);
 		pane.add(tfFilter, 0, 0);
 		pane.add(btnRegex, 1, 0);
-		if (BUTTON_SPACING > 0)
-			pane.setHgap(BUTTON_SPACING);
+		pane.setHgap(BUTTON_SPACING);
 		return pane;
 	}
 
@@ -828,7 +672,7 @@ public class BrightnessContrastCommand implements Runnable {
 			return;
 
 		ChannelDisplayInfo info = row.getItem();
-		var imageData = viewer.getImageData();
+		var imageData = imageDataProperty.getValue();
 		if (info instanceof DirectServerChannelInfo && imageData != null) {
 			DirectServerChannelInfo multiInfo = (DirectServerChannelInfo)info;
 			int c = multiInfo.getChannel();
@@ -879,7 +723,7 @@ public class BrightnessContrastCommand implements Runnable {
 
 	private void updateChannelColor(DirectServerChannelInfo channel,
 										   String newName, Color newColor) {
-		var imageData = viewer.getImageData();
+		var imageData = imageDataProperty.getValue();
 		if (imageData == null) {
 			logger.warn("Cannot update channel color: no image data");
 			return;
@@ -910,8 +754,9 @@ public class BrightnessContrastCommand implements Runnable {
 		);
 
 		// Add color property
-		imageDisplay.saveChannelColorProperties();
-		viewer.repaintEntireImage();
+		var imageDisplay = imageDisplayProperty.getValue();
+		if (imageDisplay != null)
+			imageDisplay.saveChannelColorProperties();
 		updateHistogram();
 		table.refresh();
 	}
@@ -939,9 +784,10 @@ public class BrightnessContrastCommand implements Runnable {
 
 	
 	private void updateHistogram() {
-		if (table == null || !isInitialized())
+		if (table == null || sliderPane == null)
 			return;
 
+		var imageDisplay = imageDisplayProperty.getValue();
 		ChannelDisplayInfo infoSelected = getCurrentInfo();
 		Histogram histogram = (imageDisplay == null || infoSelected == null) ? null : imageDisplay.getHistogram(infoSelected);
 //		histogram = histogramMap.get(infoSelected);
@@ -1040,6 +886,7 @@ public class BrightnessContrastCommand implements Runnable {
 	}
 
 	private void setShowChannels(Collection<? extends ChannelDisplayInfo> channels) {
+		var imageDisplay = imageDisplayProperty.getValue();
 		if (imageDisplay == null || channels.isEmpty())
 			return;
 		for (var channel : channels)
@@ -1053,6 +900,7 @@ public class BrightnessContrastCommand implements Runnable {
 	}
 
 	private void setHideChannels(Collection<? extends ChannelDisplayInfo> channels) {
+		var imageDisplay = imageDisplayProperty.getValue();
 		if (imageDisplay == null || channels.isEmpty())
 			return;
 		for (var channel : channels)
@@ -1068,6 +916,7 @@ public class BrightnessContrastCommand implements Runnable {
 	}
 
 	private void toggleShowHideChannels(Collection<? extends ChannelDisplayInfo> channels) {
+		var imageDisplay = imageDisplayProperty.getValue();
 		if (imageDisplay == null || channels.isEmpty())
 			return;
 		for (var channel : channels)
@@ -1076,6 +925,7 @@ public class BrightnessContrastCommand implements Runnable {
 	}
 
 	private boolean isChannelShowing(ChannelDisplayInfo channel) {
+		var imageDisplay = imageDisplayProperty.getValue();
 		return imageDisplay != null && imageDisplay.selectedChannels().contains(channel);
 	}
 
@@ -1085,40 +935,21 @@ public class BrightnessContrastCommand implements Runnable {
 			updateHistogram();
 			table.refresh();
 		}
-		viewer.repaintEntireImage();
 	}
 
 
 	private ChannelDisplayInfo getCurrentInfo() {
-		ChannelDisplayInfo info = table.getSelectionModel().getSelectedItem();
-		// Default to first, if we don't have a selection
-		if (info == null && !table.getItems().isEmpty())
-			info = table.getItems().get(0);
-		return info;
+		return currentChannelProperty.get();
 	}
 
 
-	private void handleMinMaxSliderValueChange(ObservableValue<? extends Number> observable, Number oldValue, Number newValue) {
-		applyMinMaxSliderChanges();
-	}
-
-	private void applyMinMaxSliderChanges() {
-		if (slidersUpdating)
-			return;
-		ChannelDisplayInfo infoVisible = getCurrentInfo();
-		if (infoVisible == null)
-			return;
-		double minValue = sliderMin.getValue();
-		double maxValue = sliderMax.getValue();
-		imageDisplay.setMinMaxDisplay(infoVisible, (float)minValue, (float)maxValue);
-		viewer.repaintEntireImage();
-	}
 
 	/**
 	 * Sync settings from the current main viewer to all compatible viewers,
 	 * if the relevant preference is selected.
 	 */
 	private void maybeSyncSettingsAcrossViewers() {
+		var viewer = viewerProperty.get();
 		if (viewer != null && viewer.hasServer())
 			maybeSyncSettingsAcrossViewers(viewer.getImageDisplay());
 	}
@@ -1134,60 +965,21 @@ public class BrightnessContrastCommand implements Runnable {
 		for (var otherViewer : qupath.getAllViewers()) {
 			if (!otherViewer.hasServer() || Objects.equals(display, otherViewer.getImageDisplay()))
 				continue;
-			if (otherViewer.getImageDisplay().updateFromDisplay(display)) {
-				otherViewer.repaintEntireImage();
-			}
+			otherViewer.getImageDisplay().updateFromDisplay(display);
 		}
 	}
 
 	
 	
 	private void updateSliders() {
-		if (!isInitialized())
+		if (sliderPane == null)
 			return;
-		ChannelDisplayInfo infoVisible = getCurrentInfo();
-		if (infoVisible == null) {
-			return;
-		}
-		float range = infoVisible.getMaxAllowed() - infoVisible.getMinAllowed();
-		int n = (int)range;
-		boolean is8Bit = range == 255 && infoVisible.getMinAllowed() == 0 && infoVisible.getMaxAllowed() == 255;
-		if (is8Bit)
-			n = 256;
-		else if (n <= 20)
-			n = (int)(range / .001);
-		else if (n <= 200)
-			n = (int)(range / .01);
-		slidersUpdating = true;
-		
-		double maxDisplay = Math.max(infoVisible.getMaxDisplay(), infoVisible.getMinDisplay());
-		double minDisplay = Math.min(infoVisible.getMaxDisplay(), infoVisible.getMinDisplay());
-		double minSlider = Math.min(infoVisible.getMinAllowed(), minDisplay);
-		double maxSlider = Math.max(infoVisible.getMaxAllowed(), maxDisplay);
-		
-		sliderMin.setMin(minSlider);
-		sliderMin.setMax(maxSlider);
-		sliderMin.setValue(infoVisible.getMinDisplay());
-		sliderMax.setMin(minSlider);
-		sliderMax.setMax(maxSlider);
-		sliderMax.setValue(infoVisible.getMaxDisplay());
-		
-		if (is8Bit) {
-			sliderMin.setMajorTickUnit(1);
-			sliderMax.setMajorTickUnit(1);
-			sliderMin.setMinorTickCount(n);
-			sliderMax.setMinorTickCount(n);
-		} else {
-			sliderMin.setMajorTickUnit(1);
-			sliderMax.setMajorTickUnit(1);
-			sliderMin.setMinorTickCount(n);
-			sliderMax.setMinorTickCount(n);
-		}
-		slidersUpdating = false;
+
+		sliderPane.refreshSliders();
 
 		chartPane.getThresholds().clear();
-		chartPane.addThreshold(sliderMin.valueProperty());
-		chartPane.addThreshold(sliderMax.valueProperty());
+		chartPane.addThreshold(sliderPane.minValueProperty());
+		chartPane.addThreshold(sliderPane.maxValueProperty());
 		chartPane.setIsInteractive(true);
 		chartPane.disableProperty().bind(blockChannelAdjustment);
 	}
@@ -1225,16 +1017,13 @@ public class BrightnessContrastCommand implements Runnable {
 	 * @see #toggleTableSelectedChannels()
 	 */
 	private void setTableSelectedChannels(boolean showChannels) {
-		if (!isInitialized())
+		var imageDisplay = imageDisplayProperty.getValue();
+		if (sliderPane == null || imageDisplay == null)
 			return;
 		for (ChannelDisplayInfo info : table.getSelectionModel().getSelectedItems()) {
 			imageDisplay.setChannelSelected(info, showChannels);
 		}
 		table.refresh();
-		if (viewer != null) {
-//			viewer.updateThumbnail();
-			viewer.repaintEntireImage();
-		}
 	}
 
 	/**
@@ -1245,16 +1034,14 @@ public class BrightnessContrastCommand implements Runnable {
 	 * @see #setTableSelectedChannels(boolean)
 	 */
 	private void toggleTableSelectedChannels() {
-		if (!isInitialized())
+		var imageDisplay = imageDisplayProperty.getValue();
+		if (imageDisplay == null)
 			return;
 		Set<ChannelDisplayInfo> selected = new HashSet<>(imageDisplay.selectedChannels());
 		for (ChannelDisplayInfo info : table.getSelectionModel().getSelectedItems()) {
 			imageDisplay.setChannelSelected(info, !selected.contains(info));
 		}
 		table.refresh();
-		if (viewer != null) {
-			viewer.repaintEntireImage();
-		}
 	}
 
 	private void updatePredicate() {
@@ -1265,16 +1052,15 @@ public class BrightnessContrastCommand implements Runnable {
 	}
 	
 	void updateTable() {
-		if (!isInitialized())
+		if (table == null)
 			return;
 
 		// Update table appearance (maybe colors changed etc.)
+		var imageDisplay = imageDisplayProperty.getValue();
 		if (imageDisplay == null) {
 			table.setItems(FXCollections.emptyObservableList());
 		} else {
 			table.setItems(imageDisplay.availableChannels().filtered(predicate.get()));
-			showGrayscale.bindBidirectional(imageDisplay.useGrayscaleLutProperty());
-			invertBackground.bindBidirectional(imageDisplay.useInvertedBackgroundProperty());
 		}
 		table.refresh();
 		
@@ -1290,44 +1076,44 @@ public class BrightnessContrastCommand implements Runnable {
 	}
 
 
+	private void handleViewerChanged(ObservableValue<? extends QuPathViewer> source, QuPathViewer oldValue, QuPathViewer newValue) {
+		if (oldValue != null) {
+			oldValue.getView().removeEventHandler(KeyEvent.KEY_TYPED, keyListener);
+		}
+		if (newValue != null) {
+			newValue.getView().addEventHandler(KeyEvent.KEY_TYPED, keyListener);
+		}
+	}
+
+	private void handleImageDisplayChanged(ObservableValue<? extends ImageDisplay> source, ImageDisplay oldValue, ImageDisplay newValue) {
+		if (oldValue != null) {
+			showGrayscale.unbindBidirectional(oldValue.useGrayscaleLutProperty());
+			oldValue.useGrayscaleLutProperty().unbindBidirectional(showGrayscale);
+
+			invertBackground.unbindBidirectional(oldValue.useInvertedBackgroundProperty());
+			oldValue.useInvertedBackgroundProperty().unbindBidirectional(invertBackground);
+
+			oldValue.selectedChannels().removeListener(selectedChannelsChangeListener);
+			oldValue.changeTimestampProperty().removeListener(timestampChangeListener);
+		}
+		if (newValue != null) {
+			showGrayscale.bindBidirectional(newValue.useGrayscaleLutProperty());
+			invertBackground.bindBidirectional(newValue.useInvertedBackgroundProperty());
+
+			newValue.selectedChannels().addListener(selectedChannelsChangeListener);
+			newValue.changeTimestampProperty().addListener(timestampChangeListener);
+
+		}
+		settingsPane.imageDisplayObjectProperty().set(newValue);
+	}
+
 	private void handleImageDataChange(ObservableValue<? extends ImageData<BufferedImage>> source,
-			ImageData<BufferedImage> imageDataOld, ImageData<BufferedImage> imageDataNew) {
-		// TODO: Consider different viewers but same ImageData
-		if (imageDataOld == imageDataNew)
-			return;
-				
-		QuPathViewer viewerNew = qupath.getViewer();
-		if (viewer != viewerNew) {
-			if (viewer != null)
-				viewer.getView().removeEventHandler(KeyEvent.KEY_TYPED, keyListener);
-			if (viewerNew != null)
-				viewerNew.getView().addEventHandler(KeyEvent.KEY_TYPED, keyListener);
-			viewer = viewerNew;
-		}
-		
-		if (imageDisplay != null) {
-			showGrayscale.unbindBidirectional(imageDisplay.useGrayscaleLutProperty());
-			imageDisplay.useGrayscaleLutProperty().unbindBidirectional(showGrayscale);
-			
-			invertBackground.unbindBidirectional(imageDisplay.useInvertedBackgroundProperty());
-			imageDisplay.useInvertedBackgroundProperty().unbindBidirectional(invertBackground);
-		}
+			ImageData<BufferedImage> oldValue, ImageData<BufferedImage> newValue) {
 
-		if (imageDisplay != null) {
-			imageDisplay.selectedChannels().removeListener(selectedChannelsChangeListener);
-			imageDisplay.changeTimestampProperty().removeListener(timestampChangeListener);
-		}
-
-		imageDisplay = viewer == null ? null : viewer.getImageDisplay();
-		if (imageDisplay != null) {
-			imageDisplay.selectedChannels().addListener(selectedChannelsChangeListener);
-			imageDisplay.changeTimestampProperty().addListener(timestampChangeListener);
-		}
-
-		if (imageDataOld != null)
-			imageDataOld.removePropertyChangeListener(imageDataPropertyChangeListener);
-		if (imageDataNew != null)
-			imageDataNew.addPropertyChangeListener(imageDataPropertyChangeListener);
+		if (oldValue != null)
+			oldValue.removePropertyChangeListener(imageDataPropertyChangeListener);
+		if (newValue != null)
+			newValue.addPropertyChangeListener(imageDataPropertyChangeListener);
 
 		// Update the table - attempting to preserve the same selected object
 		var selectedItem = table.getSelectionModel().getSelectedItem();
@@ -1340,14 +1126,10 @@ public class BrightnessContrastCommand implements Runnable {
 				}
 			}
 		}
-		
-//		updateHistogramMap();
 
 		// Update if we aren't currently initializing
 		updateHistogram();
 		updateSliders();
-
-		settingsManager.imageDisplayObjectProperty().set(imageDisplay);
 	}
 
 
@@ -1410,16 +1192,15 @@ public class BrightnessContrastCommand implements Runnable {
 			// - server metadata (including channel names/LUTs)
 			// - image type
 			// Note that we don't need to respond to all changes
-			if (evt.getPropertyName().equals("serverMetadata") ||
-					((evt.getSource() instanceof ImageData<?>) && evt.getPropertyName().equals("imageType")))
-				imageDisplay.refreshChannelOptions();
+			var imageDisplay = imageDisplayProperty.getValue();
+			if (imageDisplay != null) {
+				if (evt.getPropertyName().equals("serverMetadata") ||
+						((evt.getSource() instanceof ImageData<?>) && evt.getPropertyName().equals("imageType")))
+					imageDisplay.refreshChannelOptions();
+			}
 
 			updateTable();
 			updateSliders();
-
-			if (viewer != null) {
-				viewer.repaintEntireImage();
-			}
 		}
 
 	}
@@ -1432,10 +1213,11 @@ public class BrightnessContrastCommand implements Runnable {
 
 		@Override
 		public void handle(KeyEvent event) {
+			var imageDisplay = imageDisplayProperty.getValue();
 			if (imageDisplay == null || event.getEventType() != KeyEvent.KEY_TYPED)
 				return;
 			String character = event.getCharacter();
-			if (character != null && character.length() > 0) {
+			if (character != null && !character.isEmpty()) {
 				int c = (int)event.getCharacter().charAt(0) - '0';
 				if (c >= 1 && c <= Math.min(9, imageDisplay.availableChannels().size())) {
 					if (table != null) {
@@ -1483,7 +1265,7 @@ public class BrightnessContrastCommand implements Runnable {
 			} else if (pasteCombo.match(event)) {
 				doPaste(event);
 				event.consume();
-			} else if (imageDisplay != null) {
+			} else if (imageDisplayProperty.getValue() != null) {
 				if (isToggleChannelsEvent(event)) {
 					toggleShowHideChannels(getSelectedChannelsToUpdate());
 					event.consume();
@@ -1519,7 +1301,8 @@ public class BrightnessContrastCommand implements Runnable {
 		 */
 		private Collection<ChannelDisplayInfo> getSelectedChannelsToUpdate() {
 			var mainSelectedChannel = table.getSelectionModel().getSelectedItem();
-			if (mainSelectedChannel != null &&
+			var imageDisplay = imageDisplayProperty.getValue();
+			if (mainSelectedChannel != null && imageDisplay != null &&
 					(imageDisplay.useGrayscaleLuts()) || !mainSelectedChannel.isAdditive())
 				return Collections.singletonList(mainSelectedChannel);
 			else
@@ -1544,7 +1327,7 @@ public class BrightnessContrastCommand implements Runnable {
 		 * @param event
 		 */
 		void doPaste(KeyEvent event) {
-			ImageData<BufferedImage> imageData = viewer.getImageData();
+			ImageData<BufferedImage> imageData = imageDataProperty.getValue();
 			if (imageData == null)
 				return;
 			ImageServer<BufferedImage> server = imageData.getServer();
@@ -1623,8 +1406,6 @@ public class BrightnessContrastCommand implements Runnable {
 		private ColorPicker colorPicker;
 		private ObservableList<Color> customColors;
 		private boolean updatingTableCell = false;
-
-		private StringBinding styleBinding;
 
 		private Comparator<Color> comparator = Comparator.comparingDouble((Color c) -> c.getHue())
 				.thenComparingDouble(c -> c.getSaturation())
@@ -1755,7 +1536,7 @@ public class BrightnessContrastCommand implements Runnable {
 					tableView.getSelectionModel().clearAndSelect(ind);
 				var channel = getTableRow().getItem();
 				// Handle clicks within the cell but outside the checkbox
-				if (event.getTarget() == this && channel != null && imageDisplay != null) {
+				if (event.getTarget() == this && channel != null) {
 					toggleShowHideChannel(channel);
 				}
 				event.consume();
@@ -1768,6 +1549,7 @@ public class BrightnessContrastCommand implements Runnable {
 
 		@Override
 		public void onChanged(Change<? extends ChannelDisplayInfo> c) {
+			var imageDisplay = imageDisplayProperty.getValue();
 			if (imageDisplay == null) {
 				activeChannelVisible.set(false);
 				return;
@@ -1793,124 +1575,13 @@ public class BrightnessContrastCommand implements Runnable {
 	 * Listen to the timestamp of the current image display.
 	 * This can be used to sync settings across viewers, without needing to listen to many different properties.
 	 */
-	class ImageDisplayTimestampListener implements ChangeListener<Number> {
+	class ImageDisplayTimestampListener implements InvalidationListener {
 
 		@Override
-		public void changed(ObservableValue<? extends Number> observable, Number oldValue, Number newValue) {
+		public void invalidated(Observable observable) {
 			maybeSyncSettingsAcrossViewers();
 		}
 	}
 
-
-
-	private static class SettingsManager {
-
-		private QuPathGUI qupath;
-
-		private ObjectProperty<ResourceManager.Manager<ImageDisplaySettings>> resourceManagerProperty = new SimpleObjectProperty<>();
-
-		private ObservableList<ImageDisplaySettings> savedDisplayResources = FXCollections.observableArrayList();
-
-		private ObjectProperty<ImageDisplay> imageDisplayObjectProperty = new SimpleObjectProperty<>();
-
-		SettingsManager(QuPathGUI qupath) {
-			this.qupath = qupath;
-			resourceManagerProperty.bind(qupath.projectProperty().map(p -> p.getResources("resources/display", ImageDisplaySettings.class, "json")));
-			imageDisplayObjectProperty.addListener((v, o, n) -> refreshResources());
-		}
-
-		private Pane createDisplayResourcesPane() {
-			GridPane pane = new GridPane();
-			pane.setHgap(5);
-			var label = new Label("Settings");
-			var combo = new SearchableComboBox<>(savedDisplayResources);
-			label.setLabelFor(combo);
-			combo.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {
-				if (n != null)
-					tryToApplySettings(n);
-			});
-			combo.setCellFactory(c -> FXUtils.createCustomListCell(ImageDisplaySettings::getName));
-			combo.setButtonCell(combo.getCellFactory().call(null));
-			combo.setPlaceholder(new Text("No saved settings"));
-			resourceManagerProperty.addListener((v, o, n) -> refreshResources());
-//		var btnApply = new Button("Apply");
-//		btnApply.disableProperty().bind(qupath.imageDataProperty().isNull().or(resourceManagerProperty.isNull()));
-//		btnApply.setOnAction(e -> tryToApplySettings(combo.getSelectionModel().getSelectedItem()));
-			var btnSave = new Button("Save");
-			btnSave.disableProperty().bind(qupath.imageDataProperty().isNull().or(resourceManagerProperty.isNull()));
-			btnSave.setOnAction(e -> promptToSaveSettings(combo.getSelectionModel().getSelectedItem() == null ? "" : combo.getSelectionModel().getSelectedItem().getName()));
-			int col = 0;
-			pane.add(label, col++, 0);
-			pane.add(combo, col++, 0);
-//		pane.add(btnApply, col++, 0);
-			pane.add(btnSave, col++, 0);
-			GridPaneUtils.setToExpandGridPaneWidth(combo);
-			return pane;
-		}
-
-		public ObjectProperty<ImageDisplay> imageDisplayObjectProperty() {
-			return imageDisplayObjectProperty;
-		}
-
-		private void promptToSaveSettings(String name) {
-			var manager = resourceManagerProperty.get();
-			var imageDisplay = imageDisplayObjectProperty.get();
-			if (manager == null)
-				logger.warn("No resource manager available!");
-			else if (imageDisplay == null)
-				logger.warn("No image display available!");
-			else {
-				String response = Dialogs.showInputDialog("Save display settings", "Display settings names", name);
-				if (response == null || response.isEmpty())
-					return;
-				try {
-					var settings = DisplaySettingUtils.displayToSettings(imageDisplay, response);
-					manager.put(response, settings);
-					refreshResources();
-				} catch (IOException e) {
-					Dialogs.showErrorMessage("Save display settings", "Can't save settings " + name);
-					logger.error("Error saving display settings", e);
-				}
-			}
-		}
-
-
-		private void refreshResources() {
-			var manager = resourceManagerProperty.get();
-			var imageDisplay = imageDisplayObjectProperty.get();
-			if (manager == null || imageDisplay == null)
-				savedDisplayResources.clear();
-			else {
-				try {
-					var names = new ArrayList<>(manager.getNames());
-					Collections.sort(names);
-					List<ImageDisplaySettings> compatibleSettings = new ArrayList<>();
-					for (var name : names) {
-						var settings = manager.get(name);
-						if (DisplaySettingUtils.settingsCompatibleWithDisplay(imageDisplay, settings))
-							compatibleSettings.add(settings);
-					}
-					savedDisplayResources.setAll(compatibleSettings);
-				} catch (IOException e) {
-					logger.error("Error loading display settings", e);
-				}
-			}
-		}
-
-		private void tryToApplySettings(ImageDisplaySettings settings) {
-			var imageDisplay = imageDisplayObjectProperty.get();
-			if (settings == null || imageDisplay == null)
-				return;
-			try {
-				DisplaySettingUtils.applySettingsToDisplay(imageDisplay, settings);
-				PathPrefs.viewerGammaProperty().set(settings.getGamma());
-				qupath.getViewerManager().repaintAllViewers();
-			} catch (Exception e) {
-				Dialogs.showErrorMessage("Apply display settings", "Can't apply settings " + settings.getName());
-				logger.error("Error applying display settings", e);
-			}
-		}
-
-	}
 
 }

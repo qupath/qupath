@@ -118,8 +118,15 @@ public class ImageDisplay extends AbstractImageRenderer {
 	public ImageDisplay(final ImageData<BufferedImage> imageData) {
 		setImageData(imageData, false);
 		useGrayscaleLuts.addListener((v, o, n) -> {
-			if (n && selectedChannels.size() > 1)
-				setChannelSelected(lastSelectedChannel, true);
+			if (n) {
+				if (lastSelectedChannel != null)
+					setChannelSelected(lastSelectedChannel, true);
+				else if (!selectedChannels.isEmpty())
+					setChannelSelected(selectedChannels.get(0), true);
+				else if (availableChannels.isEmpty()) {
+					setChannelSelected(availableChannels.get(0), true);
+				}
+			}
 			saveChannelColorProperties();
 		});
 		useInvertedBackground.addListener((v, o, n) -> {
