@@ -193,7 +193,8 @@ public class BrightnessContrastCommand implements Runnable {
 	
 	private BrightnessContrastKeyTypedListener keyListener = new BrightnessContrastKeyTypedListener();
 
-	private ObjectProperty<ResourceManager.Manager<ImageDisplaySettings>> resourceManagerProperty = new SimpleObjectProperty<>();
+	private SettingsManager settingsManager;
+
 
 	/**
 	 * Constructor.
@@ -203,7 +204,6 @@ public class BrightnessContrastCommand implements Runnable {
 		this.qupath = qupath;
 		this.qupath.imageDataProperty().addListener(this::handleImageDataChange);
 		dialog = createDialog();
-		resourceManagerProperty.bind(qupath.projectProperty().map(p -> p.getResources("display", ImageDisplaySettings.class, "json")));
 	}
 
 	@Override
@@ -257,7 +257,8 @@ public class BrightnessContrastCommand implements Runnable {
 		Pane paneTextFilter = createTextFilterPane();
 		pane.add(paneTextFilter, 0, row++);
 
-		Pane paneSaveSettings = createDisplayResourcesPane();
+		settingsManager = new SettingsManager(qupath);
+		Pane paneSaveSettings = settingsManager.createDisplayResourcesPane();
 		pane.add(paneSaveSettings, 0, row++);
 
 //		Pane paneCheck = createCheckboxPane();
@@ -423,92 +424,6 @@ public class BrightnessContrastCommand implements Runnable {
 		return new BorderPane(cbKeepDisplaySettings);
 	}
 
-	private ObservableList<ImageDisplaySettings> savedDisplayResources = FXCollections.observableArrayList();
-
-	private Pane createDisplayResourcesPane() {
-		GridPane pane = new GridPane();
-		pane.setHgap(5);
-		var label = new Label("Settings");
-		var combo = new SearchableComboBox<>(savedDisplayResources);
-		label.setLabelFor(combo);
-		combo.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {
-			if (n != null)
-				tryToApplySettings(n);
-		});
-		combo.setCellFactory(c -> FXUtils.createCustomListCell(ImageDisplaySettings::getName));
-		combo.setButtonCell(combo.getCellFactory().call(null));
-		combo.setPlaceholder(new Text("No saved settings"));
-		resourceManagerProperty.addListener((v, o, n) -> refreshResources());
-//		var btnApply = new Button("Apply");
-//		btnApply.disableProperty().bind(qupath.imageDataProperty().isNull().or(resourceManagerProperty.isNull()));
-//		btnApply.setOnAction(e -> tryToApplySettings(combo.getSelectionModel().getSelectedItem()));
-		var btnSave = new Button("Save");
-		btnSave.disableProperty().bind(qupath.imageDataProperty().isNull().or(resourceManagerProperty.isNull()));
-		btnSave.setOnAction(e -> promptToSaveSettings(combo.getSelectionModel().getSelectedItem() == null ? "" : combo.getSelectionModel().getSelectedItem().getName()));
-		int col = 0;
-		pane.add(label, col++, 0);
-		pane.add(combo, col++, 0);
-//		pane.add(btnApply, col++, 0);
-		pane.add(btnSave, col++, 0);
-		GridPaneUtils.setToExpandGridPaneWidth(combo);
-		return pane;
-	}
-
-	private void tryToApplySettings(ImageDisplaySettings settings) {
-		if (settings == null)
-			return;
-		try {
-			DisplaySettingUtils.applySettingsToDisplay(imageDisplay, settings);
-			PathPrefs.viewerGammaProperty().set(settings.getGamma());
-			qupath.getViewerManager().repaintAllViewers();
-		} catch (Exception e) {
-			Dialogs.showErrorMessage("Apply display settings", "Can't apply settings " + settings.getName());
-			logger.error("Error applying display settings", e);
-		}
-	}
-
-	private void promptToSaveSettings(String name) {
-		var manager = resourceManagerProperty.get();
-		if (manager == null)
-			logger.warn("No resource manager available!");
-		else if (imageDisplay == null)
-			logger.warn("No image display available!");
-		else {
-			String response = Dialogs.showInputDialog("Save display settings", "Display settings names", name);
-			if (response == null || response.isEmpty())
-				return;
-			try {
-				var settings = DisplaySettingUtils.displayToSettings(imageDisplay, response);
-				manager.put(response, settings);
-				refreshResources();
-			} catch (IOException e) {
-				Dialogs.showErrorMessage("Save display settings", "Can't save settings " + name);
-				logger.error("Error saving display settings", e);
-			}
-		}
-	}
-
-
-	private void refreshResources() {
-		var manager = resourceManagerProperty.get();
-		if (manager == null || imageDisplay == null)
-			savedDisplayResources.clear();
-		else {
-			try {
-				var names = new ArrayList<>(manager.getNames());
-				Collections.sort(names);
-				List<ImageDisplaySettings> compatibleSettings = new ArrayList<>();
-				for (var name : names) {
-					var settings = manager.get(name);
-					if (DisplaySettingUtils.settingsCompatibleWithDisplay(imageDisplay, settings))
-						compatibleSettings.add(settings);
-				}
-				savedDisplayResources.setAll(compatibleSettings);
-			} catch (IOException e) {
-				logger.error("Error loading display settings", e);
-			}
-		}
-	}
 
 
 	private Pane createAutoResetButtonPane() {
@@ -1427,10 +1342,12 @@ public class BrightnessContrastCommand implements Runnable {
 		}
 		
 //		updateHistogramMap();
+
 		// Update if we aren't currently initializing
 		updateHistogram();
 		updateSliders();
-		refreshResources();
+
+		settingsManager.imageDisplayObjectProperty().set(imageDisplay);
 	}
 
 
@@ -1882,6 +1799,118 @@ public class BrightnessContrastCommand implements Runnable {
 		public void changed(ObservableValue<? extends Number> observable, Number oldValue, Number newValue) {
 			maybeSyncSettingsAcrossViewers();
 		}
+	}
+
+
+
+	private static class SettingsManager {
+
+		private QuPathGUI qupath;
+
+		private ObjectProperty<ResourceManager.Manager<ImageDisplaySettings>> resourceManagerProperty = new SimpleObjectProperty<>();
+
+		private ObservableList<ImageDisplaySettings> savedDisplayResources = FXCollections.observableArrayList();
+
+		private ObjectProperty<ImageDisplay> imageDisplayObjectProperty = new SimpleObjectProperty<>();
+
+		SettingsManager(QuPathGUI qupath) {
+			this.qupath = qupath;
+			resourceManagerProperty.bind(qupath.projectProperty().map(p -> p.getResources("resources/display", ImageDisplaySettings.class, "json")));
+			imageDisplayObjectProperty.addListener((v, o, n) -> refreshResources());
+		}
+
+		private Pane createDisplayResourcesPane() {
+			GridPane pane = new GridPane();
+			pane.setHgap(5);
+			var label = new Label("Settings");
+			var combo = new SearchableComboBox<>(savedDisplayResources);
+			label.setLabelFor(combo);
+			combo.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {
+				if (n != null)
+					tryToApplySettings(n);
+			});
+			combo.setCellFactory(c -> FXUtils.createCustomListCell(ImageDisplaySettings::getName));
+			combo.setButtonCell(combo.getCellFactory().call(null));
+			combo.setPlaceholder(new Text("No saved settings"));
+			resourceManagerProperty.addListener((v, o, n) -> refreshResources());
+//		var btnApply = new Button("Apply");
+//		btnApply.disableProperty().bind(qupath.imageDataProperty().isNull().or(resourceManagerProperty.isNull()));
+//		btnApply.setOnAction(e -> tryToApplySettings(combo.getSelectionModel().getSelectedItem()));
+			var btnSave = new Button("Save");
+			btnSave.disableProperty().bind(qupath.imageDataProperty().isNull().or(resourceManagerProperty.isNull()));
+			btnSave.setOnAction(e -> promptToSaveSettings(combo.getSelectionModel().getSelectedItem() == null ? "" : combo.getSelectionModel().getSelectedItem().getName()));
+			int col = 0;
+			pane.add(label, col++, 0);
+			pane.add(combo, col++, 0);
+//		pane.add(btnApply, col++, 0);
+			pane.add(btnSave, col++, 0);
+			GridPaneUtils.setToExpandGridPaneWidth(combo);
+			return pane;
+		}
+
+		public ObjectProperty<ImageDisplay> imageDisplayObjectProperty() {
+			return imageDisplayObjectProperty;
+		}
+
+		private void promptToSaveSettings(String name) {
+			var manager = resourceManagerProperty.get();
+			var imageDisplay = imageDisplayObjectProperty.get();
+			if (manager == null)
+				logger.warn("No resource manager available!");
+			else if (imageDisplay == null)
+				logger.warn("No image display available!");
+			else {
+				String response = Dialogs.showInputDialog("Save display settings", "Display settings names", name);
+				if (response == null || response.isEmpty())
+					return;
+				try {
+					var settings = DisplaySettingUtils.displayToSettings(imageDisplay, response);
+					manager.put(response, settings);
+					refreshResources();
+				} catch (IOException e) {
+					Dialogs.showErrorMessage("Save display settings", "Can't save settings " + name);
+					logger.error("Error saving display settings", e);
+				}
+			}
+		}
+
+
+		private void refreshResources() {
+			var manager = resourceManagerProperty.get();
+			var imageDisplay = imageDisplayObjectProperty.get();
+			if (manager == null || imageDisplay == null)
+				savedDisplayResources.clear();
+			else {
+				try {
+					var names = new ArrayList<>(manager.getNames());
+					Collections.sort(names);
+					List<ImageDisplaySettings> compatibleSettings = new ArrayList<>();
+					for (var name : names) {
+						var settings = manager.get(name);
+						if (DisplaySettingUtils.settingsCompatibleWithDisplay(imageDisplay, settings))
+							compatibleSettings.add(settings);
+					}
+					savedDisplayResources.setAll(compatibleSettings);
+				} catch (IOException e) {
+					logger.error("Error loading display settings", e);
+				}
+			}
+		}
+
+		private void tryToApplySettings(ImageDisplaySettings settings) {
+			var imageDisplay = imageDisplayObjectProperty.get();
+			if (settings == null || imageDisplay == null)
+				return;
+			try {
+				DisplaySettingUtils.applySettingsToDisplay(imageDisplay, settings);
+				PathPrefs.viewerGammaProperty().set(settings.getGamma());
+				qupath.getViewerManager().repaintAllViewers();
+			} catch (Exception e) {
+				Dialogs.showErrorMessage("Apply display settings", "Can't apply settings " + settings.getName());
+				logger.error("Error applying display settings", e);
+			}
+		}
+
 	}
 
 }
