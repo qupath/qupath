@@ -26,13 +26,7 @@ package qupath.lib.gui.viewer;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Set;
-import java.util.Timer;
-import java.util.TimerTask;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -54,6 +48,7 @@ import qupath.lib.gui.UserDirectoryManager;
 import qupath.lib.gui.commands.InteractiveObjectImporter;
 import qupath.lib.gui.commands.ProjectCommands;
 import qupath.fx.dialogs.Dialogs;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.prefs.QuPathStyleManager;
 import qupath.lib.gui.scripting.ScriptEditor;
@@ -332,21 +327,21 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 
 			// If we have a different path, open as a new image
 			if (viewer == null) {
-				Dialogs.showErrorMessage("Load data", "Please drag the file onto a specific viewer to open!");
+				Dialogs.showErrorMessage(
+						QuPathResources.getString("DragDrop.loadData"),
+						QuPathResources.getString("DragDrop.loadMessage"));
 				return;
 			}
 			try {
 				// Check if we should be importing objects or opening the file
 				if (imageData != null) {
 					var dialog = new Dialog<ButtonType>();
-					var btOpen = new ButtonType("Open image");
-					var btImport = new ButtonType("Import objects");
+					var btOpen = new ButtonType(QuPathResources.getString("DragDrop.openImage"));
+					var btImport = new ButtonType(QuPathResources.getString("DragDrop.importObjects"));
 					dialog.getDialogPane().getButtonTypes().setAll(btOpen, btImport, ButtonType.CANCEL);
-					dialog.setTitle("Open data");
-					dialog.setHeaderText("What do you want to do with the data file?");
-					dialog.setContentText("You can\n"
-							+ " 1. Open the image in the current viewer\n"
-							+ " 2. Import objects and add them to the current image");
+					dialog.setTitle(QuPathResources.getString("DragDrop.openData"));
+					dialog.setHeaderText(QuPathResources.getString("DragDrop.chooseData"));
+					dialog.setContentText(QuPathResources.getString("DragDrop.chooseDataOptions"));
 //						dialog.setHeaderText("What do you want to do?");
 					var choice = dialog.showAndWait().orElse(ButtonType.CANCEL);
 					if (choice == ButtonType.CANCEL)
@@ -358,7 +353,7 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 				}
 				qupath.openSavedData(viewer, file, false, true);
 			} catch (Exception e) {
-				Dialogs.showErrorMessage("Load data", e);
+				Dialogs.showErrorMessage(QuPathResources.getString("DragDrop.loadData"), e);
 			}
 			return;
 		}
@@ -377,14 +372,18 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 				// Prompt to select which project file to open
 				logger.debug("Multiple project files found in directory {}", file);
 				String[] fileNames = projectFiles.stream().map(f -> f.getName()).toArray(n -> new String[n]);
-				String selectedName = Dialogs.showChoiceDialog("Select project", "Select project to open", fileNames, fileNames[0]);
+				String selectedName = Dialogs.showChoiceDialog(
+						QuPathResources.getString("DragDrop.selectProject"),
+						QuPathResources.getString("DragDrop.selectProjectToOpen"), fileNames, fileNames[0]);
 				if (selectedName == null)
 					return;
 				file = new File(file, selectedName);
 				fileName = file.getName().toLowerCase();
 			} else if (filesInDirectory.length == 0) {
 				// If we have an empty directory, offer to set it as a project
-				if (Dialogs.showYesNoDialog("Create project", "Create project for empty directory?")) {
+				if (Dialogs.showYesNoDialog(
+						QuPathResources.getString("DragDrop.createProject"),
+						QuPathResources.getString("DragDrop.createProjectForEmptyDirectory"))) {
 					Project<BufferedImage> project = Projects.createProject(file, BufferedImage.class);
 					qupath.setProject(project);
 					if (!project.isEmpty())
@@ -424,14 +423,22 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 		// Check if this is TMA dearraying data file
 		if (singleFile && (fileName.endsWith(TMADataIO.TMA_DEARRAYING_DATA_EXTENSION))) {
 			if (hierarchy == null)
-				Dialogs.showErrorMessage("TMA grid import", "Please open an image first before importing a dearrayed TMA grid!");
+				Dialogs.showErrorMessage(
+						QuPathResources.getString("DragDrop.TMAGridImport"),
+						QuPathResources.getString("DragDrop.TMAGridImportImageError")
+						);
 			else {
 				TMAGrid tmaGrid = TMADataIO.importDearrayedTMAData(file);
 				if (tmaGrid != null) {
-					if (hierarchy.isEmpty() || Dialogs.showYesNoDialog("TMA grid import", "Set TMA grid for existing hierarchy?"))
+					if (hierarchy.isEmpty() || Dialogs.showYesNoDialog(
+							QuPathResources.getString("DragDrop.TMAGridImport"),
+							QuPathResources.getString("DragDrop.TMAGridSetHierarchy")
+							))
 						hierarchy.setTMAGrid(tmaGrid);
 				} else
-					Dialogs.showErrorMessage("TMA grid import", "Could not parse TMA grid from " + file.getName());
+					Dialogs.showErrorMessage(
+							QuPathResources.getString("DragDrop.TMAGrid"),
+							String.format(QuPathResources.getString("DragDrop.TMAGridParseError"), file.getName()));
 			}
 			return;
 		}
@@ -455,7 +462,9 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 		if (singleFile && file.isFile()) {
 			// Try to open as an image, if the extension is known
 			if (viewer == null) {
-				Dialogs.showErrorMessage("Open image", "Please drag the file only a specific viewer to open!");
+				Dialogs.showErrorMessage(
+						QuPathResources.getString("DragDrop.openImage"),
+						QuPathResources.getString("DragDrop.specificViewer"));
 				return;
 			}
 			qupath.openImage(viewer, file.getAbsolutePath(), true, true);
@@ -471,14 +480,20 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 
 		if (qupath.getProject() == null) {
 			if (list.size() > 1) {
-				Dialogs.showErrorMessage("Drag & drop", "Could not handle multiple file drop - if you want to handle multiple images, you need to create a project first");
+				Dialogs.showErrorMessage(
+						QuPathResources.getString("DragDrop"),
+						QuPathResources.getString("DragDrop.projectForMultipleFiles"));
 				return;
 			}
     	}
 		if (list.size() > 1)
-			Dialogs.showErrorMessage("Drag & drop", "Sorry, I couldn't figure out what to do with these files - try opening one at a time");
+			Dialogs.showErrorMessage(
+					QuPathResources.getString("DragDrop"),
+					QuPathResources.getString("DragDrop.couldNotHandleFiles"));
 		else
-			Dialogs.showErrorMessage("Drag & drop", "Sorry, I couldn't figure out what to do with " + list.get(0).getName());
+			Dialogs.showErrorMessage(
+					QuPathResources.getString("DragDrop"),
+					String.format(QuPathResources.getString("DragDrop.couldNotHandleFile"), list.get(0).getName()));
 	}
     
      
