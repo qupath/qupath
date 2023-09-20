@@ -1,12 +1,14 @@
 package qupath.lib.gui.commands.display;
 
 import javafx.beans.binding.Bindings;
+import javafx.beans.binding.ObjectBinding;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableValue;
+import javafx.scene.Cursor;
 import javafx.scene.control.Label;
 import javafx.scene.control.Slider;
 import javafx.scene.control.Tooltip;
@@ -56,6 +58,8 @@ public class BrightnessContrastSliderPane extends GridPane {
         sliderGamma.disableProperty().bind(disableGammaAdjustment);
         sliderMin.disableProperty().bind(disableMinMaxAdjustment);
         sliderMax.disableProperty().bind(disableMinMaxAdjustment);
+
+        selectedChannel.addListener((v, o, n) -> refreshSliders());
     }
 
     private void populatePane() {
@@ -98,6 +102,20 @@ public class BrightnessContrastSliderPane extends GridPane {
         labelGamma.setTooltip(tooltipGamma);
         labelGammaValue.setOnMouseClicked(this::handleGammaLabelClicked);
         labelGammaValue.styleProperty().bind(createGammaLabelStyleBinding(sliderGamma.valueProperty()));
+
+        // Show that the label values can be clicked
+        ObjectBinding<Cursor> binding = Bindings.createObjectBinding(() -> {
+            if (disableMinMaxAdjustment.get())
+                return Cursor.DEFAULT;
+            else
+                return Cursor.HAND;
+        }, disableMinMaxAdjustment);
+        labelMinValue.cursorProperty().bind(binding);
+        labelMaxValue.cursorProperty().bind(binding);
+        labelGammaValue.setCursor(Cursor.HAND);
+
+        labelMinValue.disableProperty().bind(disableMinMaxAdjustment);
+        labelMaxValue.disableProperty().bind(disableMinMaxAdjustment);
 
         add(labelGamma, 0, 2);
         add(sliderGamma, 1, 2);
@@ -218,8 +236,8 @@ public class BrightnessContrastSliderPane extends GridPane {
     }
 
     private void handleMaxLabelClick(MouseEvent event) {
-        if (event.getClickCount() != 2)
-            return;
+//        if (event.getClickCount() != 2)
+//            return;
 
         ChannelDisplayInfo infoVisible = getCurrentInfo();
         if (infoVisible == null)
@@ -280,8 +298,8 @@ public class BrightnessContrastSliderPane extends GridPane {
 
 
     private void handleMinLabelClick(MouseEvent event) {
-        if (event.getClickCount() != 2)
-            return;
+//        if (event.getClickCount() != 2)
+//            return;
         ChannelDisplayInfo infoVisible = getCurrentInfo();
         if (infoVisible == null)
             return;
