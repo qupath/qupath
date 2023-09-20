@@ -180,11 +180,8 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 					if (files != null) {
 				        logger.debug("Files dragged onto {}", source);
 						handleFileDrop(viewer2, files);
-					} else if (url != null) {
-						logger.debug("URL dragged onto {}", source);
-						handleURLDrop(viewer2, url);
-					} else if (string != null) {
-						logger.debug("String/URL dragged onto {}", source);
+					} else if (url != null || string != null) {
+						logger.debug("URL/String dragged onto {}", source);
 						handleURLDrop(viewer2, url);
 					}
 	        	} catch (IOException e) {
