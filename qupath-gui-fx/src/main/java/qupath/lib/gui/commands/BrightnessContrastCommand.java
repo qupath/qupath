@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.lib.gui.commands.display;
+package qupath.lib.gui.commands;
 
 import javafx.application.Platform;
 import javafx.beans.InvalidationListener;
@@ -64,6 +64,10 @@ import qupath.lib.display.ImageDisplay;
 import qupath.lib.display.settings.ImageDisplaySettings;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.actions.InfoMessage;
+import qupath.lib.gui.commands.display.BrightnessContrastChannelPane;
+import qupath.lib.gui.commands.display.BrightnessContrastHistogramPane;
+import qupath.lib.gui.commands.display.BrightnessContrastSettingsPane;
+import qupath.lib.gui.commands.display.BrightnessContrastSliderPane;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
@@ -71,7 +75,6 @@ import qupath.lib.images.ImageData;
 import java.awt.image.BufferedImage;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
-import java.util.List;
 import java.util.Objects;
 
 /**
@@ -104,16 +107,10 @@ public class BrightnessContrastCommand implements Runnable {
 
 	private final BrightnessContrastChannelPane table = new BrightnessContrastChannelPane();
 
-	/**
-	 * Cache a list of channels active before selecting the 'grayscale' option.
-	 * Used to restore the channels when switching back.
-	 */
-	private List<String> beforeGrayscaleChannels;
-
 	private final BooleanProperty showGrayscale = new SimpleBooleanProperty(false);
 	private final BooleanProperty invertBackground = new SimpleBooleanProperty(false);
 
-	private final BooleanBinding blockChannelAdjustment = table.activeChannelVisible().not();
+	private final BooleanBinding blockChannelAdjustment = table.currentChannelVisible().not();
 
 	private final BrightnessContrastHistogramPane chartPane = new BrightnessContrastHistogramPane();
 
@@ -214,7 +211,7 @@ public class BrightnessContrastCommand implements Runnable {
 		Label labelChannelHidden = new Label();
 		labelChannelHidden.setText("(hidden)");
 		labelChannelHidden.visibleProperty().bind(
-				currentChannelProperty.isNotNull().and(table.activeChannelVisible().not()));
+				currentChannelProperty.isNotNull().and(table.currentChannelVisible().not()));
 		labelChannelHidden.setStyle("-fx-font-weight: bold; -fx-font-style: italic; " +
 				"-fx-font-size: 90%;");
 		GridPaneUtils.setToExpandGridPaneWidth(labelChannelHidden);
@@ -403,13 +400,13 @@ public class BrightnessContrastCommand implements Runnable {
 		CheckBox cbShowGrayscale = new CheckBox("Show grayscale");
 		cbShowGrayscale.selectedProperty().bindBidirectional(showGrayscale);
 		cbShowGrayscale.setTooltip(new Tooltip("Show single channel with grayscale lookup table"));
-		showGrayscale.addListener(this::handleDisplaySettingInvalidated);
+//		showGrayscale.addListener(this::handleDisplaySettingInvalidated);
 
 		CheckBox cbInvertBackground = new CheckBox("Invert background");
 		cbInvertBackground.selectedProperty().bindBidirectional(invertBackground);
 		cbInvertBackground.setTooltip(new Tooltip("Invert the background for display (i.e. switch between white and black).\n"
 				+ "Use cautiously to avoid becoming confused about how the 'original' image looks (e.g. brightfield or fluorescence)."));
-		invertBackground.addListener(this::handleDisplaySettingInvalidated);
+//		invertBackground.addListener(this::handleDisplaySettingInvalidated);
 
 		FlowPane paneCheck = new FlowPane();
 		paneCheck.setAlignment(Pos.CENTER);
@@ -420,14 +417,6 @@ public class BrightnessContrastCommand implements Runnable {
 		paneCheck.setMaxHeight(Double.MAX_VALUE);
 
 		return paneCheck;
-	}
-
-
-	/**
-	 * Simple invalidation listener to request an image repaint when a display setting changes.
-	 */
-	private void handleDisplaySettingInvalidated(Observable observable) {
-		table.getTable().refresh();
 	}
 
 
@@ -586,7 +575,7 @@ public class BrightnessContrastCommand implements Runnable {
 				}
 			}
 		}
-		
+
 	}
 
 	/**

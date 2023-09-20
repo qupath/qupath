@@ -1,3 +1,26 @@
+/*-
+ * #%L
+ * This file is part of QuPath.
+ * %%
+ * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
+ * Contact: IP Management (ipmanagement@qub.ac.uk)
+ * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
+ * %%
+ * QuPath is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * QuPath is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with QuPath.  If not, see <https://www.gnu.org/licenses/>.
+ * #L%
+ */
+
 package qupath.lib.gui.commands.display;
 
 import javafx.beans.binding.Bindings;
@@ -104,18 +127,26 @@ public class BrightnessContrastSliderPane extends GridPane {
         labelGammaValue.styleProperty().bind(createGammaLabelStyleBinding(sliderGamma.valueProperty()));
 
         // Show that the label values can be clicked
-        ObjectBinding<Cursor> binding = Bindings.createObjectBinding(() -> {
+        ObjectBinding<Cursor> bindingMinMax = Bindings.createObjectBinding(() -> {
             if (disableMinMaxAdjustment.get())
                 return Cursor.DEFAULT;
             else
                 return Cursor.HAND;
         }, disableMinMaxAdjustment);
-        labelMinValue.cursorProperty().bind(binding);
-        labelMaxValue.cursorProperty().bind(binding);
-        labelGammaValue.setCursor(Cursor.HAND);
+        labelMinValue.cursorProperty().bind(bindingMinMax);
+        labelMaxValue.cursorProperty().bind(bindingMinMax);
+
+        ObjectBinding<Cursor> bindingGamma = Bindings.createObjectBinding(() -> {
+            if (disableMinMaxAdjustment.get())
+                return Cursor.DEFAULT;
+            else
+                return Cursor.HAND;
+        }, disableMinMaxAdjustment);
+        labelGammaValue.cursorProperty().bind(bindingGamma);
 
         labelMinValue.disableProperty().bind(disableMinMaxAdjustment);
         labelMaxValue.disableProperty().bind(disableMinMaxAdjustment);
+        labelGammaValue.disableProperty().bind(disableGammaAdjustment);
 
         add(labelGamma, 0, 2);
         add(sliderGamma, 1, 2);
@@ -136,14 +167,26 @@ public class BrightnessContrastSliderPane extends GridPane {
         labelMaxValue.setOnMouseClicked(this::handleMaxLabelClick);
     }
 
+    /**
+     * The image display to which the sliders are applied.
+     * @return
+     */
     public ObjectProperty<ImageDisplay> imageDisplayProperty() {
         return imageDisplayProperty;
     }
 
+    /**
+     * Prevent the min and max sliders from being adjusted.
+     * @return
+     */
     public BooleanProperty disableMinMaxAdjustmentProperty() {
         return disableMinMaxAdjustment;
     }
 
+    /**
+     * Prevent gamma from being adjusted.
+     * @return
+     */
     public BooleanProperty disableGammaAdjustmentProperty() {
         return disableGammaAdjustment;
     }
@@ -152,11 +195,16 @@ public class BrightnessContrastSliderPane extends GridPane {
         applyMinMaxSliderChanges();
     }
 
+    /**
+     * The channel to which the sliders are applied.
+     * This should be a channel found within #imageDisplayProperty().
+     * @return
+     */
     public ObjectProperty<ChannelDisplayInfo> selectedChannelProperty() {
         return selectedChannel;
     }
 
-    private ChannelDisplayInfo getCurrentInfo() {
+    private ChannelDisplayInfo getCurrentChannel() {
         return selectedChannel.get();
     }
 
@@ -164,7 +212,7 @@ public class BrightnessContrastSliderPane extends GridPane {
         if (slidersUpdating)
             return;
         var imageDisplay = imageDisplayProperty.getValue();
-        ChannelDisplayInfo infoVisible = getCurrentInfo();
+        ChannelDisplayInfo infoVisible = getCurrentChannel();
         if (infoVisible == null || imageDisplay == null)
             return;
         double minValue = sliderMin.getValue();
@@ -203,23 +251,36 @@ public class BrightnessContrastSliderPane extends GridPane {
                 gammaValue);
     }
 
-
-    void resetAllSliders() {
+    /**
+     * Reset all sliders to their default values.
+     */
+    public void resetAllSliders() {
         sliderMin.setValue(sliderMin.getMin());
         sliderMax.setValue(sliderMax.getMax());
         sliderGamma.setValue(1.0);
     }
 
-
-    DoubleProperty maxValueProperty() {
+    /**
+     * Value of the maximum slider.
+     * @return
+     */
+    public DoubleProperty maxValueProperty() {
         return sliderMax.valueProperty();
     }
 
-    DoubleProperty minValueProperty() {
+    /**
+     * Value of the minimum slider.
+     * @return
+     */
+    public DoubleProperty minValueProperty() {
         return sliderMin.valueProperty();
     }
 
-    DoubleProperty gammaValueProperty() {
+    /**
+     * Value of the gamma slider.
+     * @return
+     */
+    public DoubleProperty gammaValueProperty() {
         return sliderGamma.valueProperty();
     }
 
@@ -236,10 +297,7 @@ public class BrightnessContrastSliderPane extends GridPane {
     }
 
     private void handleMaxLabelClick(MouseEvent event) {
-//        if (event.getClickCount() != 2)
-//            return;
-
-        ChannelDisplayInfo infoVisible = getCurrentInfo();
+        ChannelDisplayInfo infoVisible = getCurrentChannel();
         if (infoVisible == null)
             return;
 
@@ -255,16 +313,18 @@ public class BrightnessContrastSliderPane extends GridPane {
         }
     }
 
-
+    /**
+     * Refresh the sliders, to ensure they match with the current channel.
+     * This should be called if the channel is modified externally.
+     */
     public void refreshSliders() {
-
-        ChannelDisplayInfo infoVisible = getCurrentInfo();
-        if (infoVisible == null) {
+        ChannelDisplayInfo channel = getCurrentChannel();
+        if (channel == null) {
             return;
         }
-        float range = infoVisible.getMaxAllowed() - infoVisible.getMinAllowed();
+        float range = channel.getMaxAllowed() - channel.getMinAllowed();
         int n = (int)range;
-        boolean is8Bit = range == 255 && infoVisible.getMinAllowed() == 0 && infoVisible.getMaxAllowed() == 255;
+        boolean is8Bit = range == 255 && channel.getMinAllowed() == 0 && channel.getMaxAllowed() == 255;
         if (is8Bit)
             n = 256;
         else if (n <= 20)
@@ -274,17 +334,17 @@ public class BrightnessContrastSliderPane extends GridPane {
 
         slidersUpdating = true;
 
-        double maxDisplay = Math.max(infoVisible.getMaxDisplay(), infoVisible.getMinDisplay());
-        double minDisplay = Math.min(infoVisible.getMaxDisplay(), infoVisible.getMinDisplay());
-        double minSlider = Math.min(infoVisible.getMinAllowed(), minDisplay);
-        double maxSlider = Math.max(infoVisible.getMaxAllowed(), maxDisplay);
+        double maxDisplay = Math.max(channel.getMaxDisplay(), channel.getMinDisplay());
+        double minDisplay = Math.min(channel.getMaxDisplay(), channel.getMinDisplay());
+        double minSlider = Math.min(channel.getMinAllowed(), minDisplay);
+        double maxSlider = Math.max(channel.getMaxAllowed(), maxDisplay);
 
         sliderMin.setMin(minSlider);
         sliderMin.setMax(maxSlider);
-        sliderMin.setValue(infoVisible.getMinDisplay());
+        sliderMin.setValue(channel.getMinDisplay());
         sliderMax.setMin(minSlider);
         sliderMax.setMax(maxSlider);
-        sliderMax.setValue(infoVisible.getMaxDisplay());
+        sliderMax.setValue(channel.getMaxDisplay());
 
         sliderMin.setMajorTickUnit(1);
         sliderMax.setMajorTickUnit(1);
@@ -300,7 +360,7 @@ public class BrightnessContrastSliderPane extends GridPane {
     private void handleMinLabelClick(MouseEvent event) {
 //        if (event.getClickCount() != 2)
 //            return;
-        ChannelDisplayInfo infoVisible = getCurrentInfo();
+        ChannelDisplayInfo infoVisible = getCurrentChannel();
         if (infoVisible == null)
             return;
 

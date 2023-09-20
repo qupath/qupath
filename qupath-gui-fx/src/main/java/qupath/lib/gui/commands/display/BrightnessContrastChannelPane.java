@@ -1,3 +1,27 @@
+/*-
+ * #%L
+ * This file is part of QuPath.
+ * %%
+ * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
+ * Contact: IP Management (ipmanagement@qub.ac.uk)
+ * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
+ * %%
+ * QuPath is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * QuPath is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with QuPath.  If not, see <https://www.gnu.org/licenses/>.
+ * #L%
+ */
+
+
 package qupath.lib.gui.commands.display;
 
 import javafx.application.Platform;
@@ -69,9 +93,12 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
- * A pane responsible for the display and selection of channels from an {@link qupath.lib.display.ImageDisplay}.
+ * A pane responsible for the display and selection of channels from an image display.
+ * This uses a table to display the channels, and allows the user to adjust the selection of channels - as well as names
+ * and colors.
  */
 public class BrightnessContrastChannelPane extends BorderPane {
 
@@ -101,7 +128,7 @@ public class BrightnessContrastChannelPane extends BorderPane {
     private final CheckBox cbShowAll = new CheckBox();
 
 
-    BrightnessContrastChannelPane() {
+    public BrightnessContrastChannelPane() {
         imageDataProperty.bind(imageDisplayObjectProperty.map(ImageDisplay::getImageData));
 
         imageDisplayProperty().addListener(this::handleImageDisplayChanged);
@@ -127,7 +154,10 @@ public class BrightnessContrastChannelPane extends BorderPane {
         BorderPane.setMargin(filter, new Insets(5, 0, 0, 0));
     }
 
-
+    /**
+     * Property to disable options to toggle the visibility of channels.
+     * @return
+     */
     public BooleanProperty disableToggleMenuItemsProperty() {
         return disableToggleMenuItems;
     }
@@ -286,8 +316,12 @@ public class BrightnessContrastChannelPane extends BorderPane {
         return property;
     }
 
-
-    public ReadOnlyBooleanProperty activeChannelVisible() {
+    /**
+     * Read-only property indicating whether the currently-selected channel is visible,
+     * i.e. it is part of {@link ImageDisplay#selectedChannels()}.
+     * @return
+     */
+    public ReadOnlyBooleanProperty currentChannelVisible() {
         return activeChannelVisible.getReadOnlyProperty();
     }
 
@@ -317,6 +351,10 @@ public class BrightnessContrastChannelPane extends BorderPane {
         }
     }
 
+    /**
+     * Request that the specified channel is shown.
+     * @param channel
+     */
     public void setShowChannel(ChannelDisplayInfo channel) {
         if (channel != null)
             setShowChannels(Collections.singleton(channel));
@@ -331,7 +369,11 @@ public class BrightnessContrastChannelPane extends BorderPane {
         table.refresh();
     }
 
-    private void setHideChannel(ChannelDisplayInfo channel) {
+    /**
+     * Request that the specified channel is hidden.
+     * @param channel
+     */
+    public void setHideChannel(ChannelDisplayInfo channel) {
         if (channel != null)
             setHideChannels(Collections.singleton(channel));
     }
@@ -345,6 +387,10 @@ public class BrightnessContrastChannelPane extends BorderPane {
         table.refresh();
     }
 
+    /**
+     * Toggle the visibility of the specified channel.
+     * @param channel
+     */
     public void toggleShowHideChannel(ChannelDisplayInfo channel) {
         if (channel == null)
             table.refresh();
@@ -361,7 +407,12 @@ public class BrightnessContrastChannelPane extends BorderPane {
         table.refresh();
     }
 
-    void updateTable() {
+    /**
+     * Ensure the table is up-to-date.
+     * This should not need to be called often, but is useful if a change is made to the image display
+     * that could not be identified by listeners.
+     */
+    public void updateTable() {
         // Update table appearance (maybe colors changed etc.)
         var imageDisplay = imageDisplayProperty().getValue();
         if (imageDisplay == null) {
@@ -373,7 +424,7 @@ public class BrightnessContrastChannelPane extends BorderPane {
 
         // If all entries are additive, allow bulk toggling by right-click or with checkbox
         int n = table.getItems().size();
-        if (n > 0 && n == table.getItems().stream().filter(c -> c.isAdditive()).count()) {
+        if (n > 0 && n == table.getItems().stream().filter(ChannelDisplayInfo::isAdditive).count()) {
             table.setContextMenu(popup);
             cbShowAll.setVisible(true);
         } else {
@@ -395,8 +446,7 @@ public class BrightnessContrastChannelPane extends BorderPane {
 
         ChannelDisplayInfo info = row.getItem();
         var imageData = imageDataProperty.getValue();
-        if (info instanceof DirectServerChannelInfo && imageData != null) {
-            DirectServerChannelInfo multiInfo = (DirectServerChannelInfo)info;
+        if (imageData != null && info instanceof DirectServerChannelInfo multiInfo) {
             int c = multiInfo.getChannel();
             var channel = imageData.getServer().getMetadata().getChannel(c);
 
@@ -425,7 +475,7 @@ public class BrightnessContrastChannelPane extends BorderPane {
             paneColor.setHgap(5.0);
 
             colorDialog.getDialogPane().setContent(paneColor);
-            Platform.runLater(() -> tfName.requestFocus());
+            Platform.runLater(tfName::requestFocus);
             Optional<ButtonType> result = colorDialog.showAndWait();
             if (result.orElse(ButtonType.CANCEL) == ButtonType.APPLY) {
                 String name = tfName.getText().trim();
@@ -484,14 +534,27 @@ public class BrightnessContrastChannelPane extends BorderPane {
     }
 
 
+    /**
+     * Get the currently-selected channel.
+     * This is not necessarily showing in the image; see #currentChannelVisible() for that.
+     * @return
+     */
     public ReadOnlyObjectProperty<ChannelDisplayInfo> currentChannelProperty() {
         return table.getSelectionModel().selectedItemProperty();
     }
 
+    /**
+     * Get all channels that are available in the table.
+     * @return
+     */
     public ObservableList<ChannelDisplayInfo> getChannels() {
         return table.getItems();
     }
 
+    /**
+     * Get the selection model for the channels.
+     * @return
+     */
     public MultipleSelectionModel<ChannelDisplayInfo> getSelectionModel() {
         return table.getSelectionModel();
     }
@@ -504,7 +567,10 @@ public class BrightnessContrastChannelPane extends BorderPane {
             table.getSelectionModel().selectFirst();
     }
 
-
+    /**
+     * Property for the image display that should be shown and managed by this pane.
+     * @return
+     */
     public ObjectProperty<ImageDisplay> imageDisplayProperty() {
         return imageDisplayObjectProperty;
     }
@@ -532,8 +598,6 @@ public class BrightnessContrastChannelPane extends BorderPane {
      */
     private void handleSelectedChannelChanged(ObservableValue<? extends ChannelDisplayInfo> observableValue,
                                               ChannelDisplayInfo oldValue, ChannelDisplayInfo newValue) {
-//        updateHistogram();
-//        updateSliders();
         activeChannelVisible.set(newValue != null && isChannelShowing(newValue));
     }
 
@@ -543,19 +607,19 @@ public class BrightnessContrastChannelPane extends BorderPane {
      */
     private class ChannelDisplayTableCell extends TableCell<ChannelDisplayInfo, ChannelDisplayInfo> {
 
-        private static int MAX_CUSTOM_COLORS = 60;
+        private static final int MAX_CUSTOM_COLORS = 60;
 
-        private ColorPicker colorPicker;
-        private ObservableList<Color> customColors;
+        private final ColorPicker colorPicker;
+        private final ObservableList<Color> customColors;
         private boolean updatingTableCell = false;
 
-        private Comparator<Color> comparator = Comparator.comparingDouble((Color c) -> c.getHue())
-                .thenComparingDouble(c -> c.getSaturation())
-                .thenComparingDouble(c -> c.getBrightness())
-                .thenComparingDouble(c -> c.getOpacity()) // Regular equality uses RGB + opacity
-                .thenComparingDouble(c -> c.getRed())
-                .thenComparingDouble(c -> c.getGreen())
-                .thenComparingDouble(c -> c.getBrightness());
+        private final Comparator<Color> comparator = Comparator.comparingDouble(Color::getHue)
+                .thenComparingDouble(Color::getSaturation)
+                .thenComparingDouble(Color::getBrightness)
+                .thenComparingDouble(Color::getOpacity) // Regular equality uses RGB + opacity
+                .thenComparingDouble(Color::getRed)
+                .thenComparingDouble(Color::getGreen)
+                .thenComparingDouble(Color::getBrightness);
 
         /**
          * Create a new cell, with the optional shared list of custom colors.
@@ -563,10 +627,7 @@ public class BrightnessContrastChannelPane extends BorderPane {
          *                     If null, include only the current color as a custom color each time the picker is shown.
          */
         private ChannelDisplayTableCell(ObservableList<Color> customColors) {
-            if (customColors != null)
-                this.customColors = customColors;
-            else
-                this.customColors = null;
+            this.customColors = customColors;
             // Minimal color picker - just a small, clickable colored square
             colorPicker = new ColorPicker();
             colorPicker.getStyleClass().addAll("button", "minimal-color-picker", "always-opaque");
@@ -713,7 +774,7 @@ public class BrightnessContrastChannelPane extends BorderPane {
     }
 
 
-    public TableView<ChannelDisplayInfo> getTable() {
+    private TableView<ChannelDisplayInfo> getTable() {
         return table;
     }
 
@@ -727,19 +788,19 @@ public class BrightnessContrastChannelPane extends BorderPane {
      */
     private class ChannelTableKeypressedListener implements EventHandler<KeyEvent> {
 
-        private KeyCombination copyCombo = new KeyCodeCombination(KeyCode.C, KeyCombination.SHORTCUT_DOWN);
-        private KeyCombination pasteCombo = new KeyCodeCombination(KeyCode.V, KeyCombination.SHORTCUT_DOWN);
+        private final KeyCombination copyCombo = new KeyCodeCombination(KeyCode.C, KeyCombination.SHORTCUT_DOWN);
+        private final KeyCombination pasteCombo = new KeyCodeCombination(KeyCode.V, KeyCombination.SHORTCUT_DOWN);
 
         // Show/hide/toggle combos use S, H and T
-        private KeyCombination showCombo = new KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_ANY);
-        private KeyCombination hideCombo = new KeyCodeCombination(KeyCode.H, KeyCombination.SHORTCUT_ANY);
-        private KeyCombination toggleCombo = new KeyCodeCombination(KeyCode.T, KeyCombination.SHORTCUT_ANY);
+        private final KeyCombination showCombo = new KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_ANY);
+        private final KeyCombination hideCombo = new KeyCodeCombination(KeyCode.H, KeyCombination.SHORTCUT_ANY);
+        private final KeyCombination toggleCombo = new KeyCodeCombination(KeyCode.T, KeyCombination.SHORTCUT_ANY);
 
         // Because S and H are awkward to find in the keyboard, show/hide/toggle can also be done with
         // enter, backspace, and space
-        private KeyCombination spaceCombo = new KeyCodeCombination(KeyCode.SPACE, KeyCombination.SHORTCUT_ANY);
-        private KeyCombination enterCombo = new KeyCodeCombination(KeyCode.ENTER, KeyCombination.SHORTCUT_ANY);
-        private KeyCombination backspaceCombo = new KeyCodeCombination(KeyCode.BACK_SPACE, KeyCombination.SHORTCUT_ANY);
+        private final KeyCombination spaceCombo = new KeyCodeCombination(KeyCode.SPACE, KeyCombination.SHORTCUT_ANY);
+        private final KeyCombination enterCombo = new KeyCodeCombination(KeyCode.ENTER, KeyCombination.SHORTCUT_ANY);
+        private final KeyCombination backspaceCombo = new KeyCodeCombination(KeyCode.BACK_SPACE, KeyCombination.SHORTCUT_ANY);
 
         @Override
         public void handle(KeyEvent event) {
@@ -788,11 +849,12 @@ public class BrightnessContrastChannelPane extends BorderPane {
         private Collection<ChannelDisplayInfo> getSelectedChannelsToUpdate() {
             var mainSelectedChannel = table.getSelectionModel().getSelectedItem();
             var imageDisplay = imageDisplayProperty().getValue();
-            if (mainSelectedChannel != null && imageDisplay != null &&
-                    (imageDisplay.useGrayscaleLuts()) || !mainSelectedChannel.isAdditive())
-                return Collections.singletonList(mainSelectedChannel);
-            else
-                return table.getSelectionModel().getSelectedItems();
+            if (mainSelectedChannel != null && imageDisplay != null) {
+                if (imageDisplay.useGrayscaleLuts() || (mainSelectedChannel != null && !mainSelectedChannel.isAdditive())) {
+                    return Collections.singletonList(mainSelectedChannel);
+                }
+            }
+            return table.getSelectionModel().getSelectedItems();
         }
 
 
@@ -800,8 +862,8 @@ public class BrightnessContrastChannelPane extends BorderPane {
          * Copy the channel names to the clipboard
          * @param event
          */
-        void doCopy(KeyEvent event) {
-            var names = table.getSelectionModel().getSelectedItems().stream().map(c -> c.getName()).toList();
+        private void doCopy(KeyEvent event) {
+            var names = table.getSelectionModel().getSelectedItems().stream().map(ChannelDisplayInfo::getName).toList();
             var clipboard = Clipboard.getSystemClipboard();
             var content = new ClipboardContent();
             content.putString(String.join(System.lineSeparator(), names));
@@ -812,7 +874,7 @@ public class BrightnessContrastChannelPane extends BorderPane {
          * Paste channel names from the clipboard, if possible
          * @param event
          */
-        void doPaste(KeyEvent event) {
+        private void doPaste(KeyEvent event) {
             ImageData<BufferedImage> imageData = imageDataProperty.getValue();
             if (imageData == null)
                 return;
@@ -853,7 +915,7 @@ public class BrightnessContrastChannelPane extends BorderPane {
                 changes.add(oldChannel.getName() + " -> " + newChannel.getName());
                 channels.set(c, newChannel);
             }
-            List<String> allNewNames = channels.stream().map(c -> c.getName()).toList();
+            List<String> allNewNames = channels.stream().map(ImageChannel::getName).collect(Collectors.toCollection(ArrayList::new));
             Set<String> allNewNamesSet = new LinkedHashSet<>(allNewNames);
             if (allNewNames.size() != allNewNamesSet.size()) {
                 Dialogs.showErrorMessage("Channel", "Cannot paste channels - names would not be unique \n(check log for details)");

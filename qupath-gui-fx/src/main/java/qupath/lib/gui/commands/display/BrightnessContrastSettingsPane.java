@@ -1,3 +1,26 @@
+/*-
+ * #%L
+ * This file is part of QuPath.
+ * %%
+ * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
+ * Contact: IP Management (ipmanagement@qub.ac.uk)
+ * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
+ * %%
+ * QuPath is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * QuPath is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with QuPath.  If not, see <https://www.gnu.org/licenses/>.
+ * #L%
+ */
+
 package qupath.lib.gui.commands.display;
 
 import javafx.beans.property.ObjectProperty;
@@ -25,7 +48,10 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-class BrightnessContrastSettingsPane extends GridPane {
+/**
+ * A pane to save and load display settings, using a {@link ResourceManager}.
+ */
+public class BrightnessContrastSettingsPane extends GridPane {
 
     private static final Logger logger = LoggerFactory.getLogger(BrightnessContrastSettingsPane.class);
 
@@ -35,7 +61,7 @@ class BrightnessContrastSettingsPane extends GridPane {
 
     private ObjectProperty<ImageDisplay> imageDisplayObjectProperty = new SimpleObjectProperty<>();
 
-    BrightnessContrastSettingsPane() {
+    public BrightnessContrastSettingsPane() {
         imageDisplayObjectProperty.addListener((v, o, n) -> refreshResources());
         initializePane();
     }
@@ -53,24 +79,28 @@ class BrightnessContrastSettingsPane extends GridPane {
         combo.setButtonCell(combo.getCellFactory().call(null));
         combo.setPlaceholder(new Text("No saved settings"));
         resourceManagerProperty.addListener((v, o, n) -> refreshResources());
-//		var btnApply = new Button("Apply");
-//		btnApply.disableProperty().bind(qupath.imageDataProperty().isNull().or(resourceManagerProperty.isNull()));
-//		btnApply.setOnAction(e -> tryToApplySettings(combo.getSelectionModel().getSelectedItem()));
         var btnSave = new Button("Save");
         btnSave.disableProperty().bind(resourceManagerProperty.isNull());
         btnSave.setOnAction(e -> promptToSaveSettings(combo.getSelectionModel().getSelectedItem() == null ? "" : combo.getSelectionModel().getSelectedItem().getName()));
         int col = 0;
         add(label, col++, 0);
         add(combo, col++, 0);
-//		add(btnApply, col++, 0);
-        add(btnSave, col++, 0);
+        add(btnSave, col, 0);
         GridPaneUtils.setToExpandGridPaneWidth(combo);
     }
 
+    /**
+     * The current image display.
+     * @return
+     */
     public ObjectProperty<ImageDisplay> imageDisplayObjectProperty() {
         return imageDisplayObjectProperty;
     }
 
+    /**
+     * The resource manager used to handle saving/loading.
+     * @return
+     */
     public ObjectProperty<ResourceManager.Manager<ImageDisplaySettings>> resourceManagerProperty() {
         return resourceManagerProperty;
     }
@@ -101,9 +131,10 @@ class BrightnessContrastSettingsPane extends GridPane {
     private void refreshResources() {
         var manager = resourceManagerProperty.get();
         var imageDisplay = imageDisplayObjectProperty.get();
-        if (manager == null || imageDisplay == null)
+        if (manager == null || imageDisplay == null) {
+            // TODO: Reset the combo box? This gave a NoSuchElementException once
             savedDisplayResources.clear();
-        else {
+        } else {
             try {
                 var names = new ArrayList<>(manager.getNames());
                 Collections.sort(names);

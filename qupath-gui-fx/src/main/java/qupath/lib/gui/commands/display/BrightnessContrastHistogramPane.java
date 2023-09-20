@@ -1,3 +1,26 @@
+/*-
+ * #%L
+ * This file is part of QuPath.
+ * %%
+ * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
+ * Contact: IP Management (ipmanagement@qub.ac.uk)
+ * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
+ * %%
+ * QuPath is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * QuPath is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with QuPath.  If not, see <https://www.gnu.org/licenses/>.
+ * #L%
+ */
+
 package qupath.lib.gui.commands.display;
 
 import javafx.beans.property.BooleanProperty;
@@ -26,6 +49,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
+/**
+ * A pane to display a histogram for brightness/contrast adjustment, allowing the user to select min/max values.
+ */
 public class BrightnessContrastHistogramPane extends BorderPane {
 
     private static final Logger logger = LoggerFactory.getLogger(BrightnessContrastChannelPane.class);
@@ -43,7 +69,7 @@ public class BrightnessContrastHistogramPane extends BorderPane {
     private final DoubleProperty minValueProperty = new SimpleDoubleProperty(Double.NEGATIVE_INFINITY);
     private final DoubleProperty maxValueProperty = new SimpleDoubleProperty(Double.NEGATIVE_INFINITY);
 
-    BrightnessContrastHistogramPane() {
+    public BrightnessContrastHistogramPane() {
         logger.trace("Creating histogram pane");
         initialize();
     }
@@ -83,19 +109,37 @@ public class BrightnessContrastHistogramPane extends BorderPane {
         updateYAxis();
     }
 
-
+    /**
+     * Property to control whether the histogram shows pixel counts, or the natural logarithm of the counts.
+     * @return
+     */
     public BooleanProperty doLogCountsProperty() {
         return doLogCounts;
     }
 
+    /**
+     * The minimum value displayed on the histogram.
+     * This can be used to interactively control min/max display values from the histogram directly.
+     * @return
+     */
     public DoubleProperty minValueProperty() {
         return minValueProperty;
     }
 
+    /**
+     * The maximum value displayed on the histogram.
+     * This can be used to interactively control min/max display values from the histogram directly.
+     * @return
+     */
     public DoubleProperty maxValueProperty() {
         return maxValueProperty;
     }
 
+    /**
+     * Update the histogram to show the data for the given channel.
+     * @param imageDisplay
+     * @param channelSelected
+     */
     public void updateHistogram(ImageDisplay imageDisplay, ChannelDisplayInfo channelSelected) {
         Histogram histogram = (imageDisplay == null || channelSelected == null) ? null : imageDisplay.getHistogram(channelSelected);
         if (histogram == null) {
@@ -223,7 +267,8 @@ public class BrightnessContrastHistogramPane extends BorderPane {
         if (channel == null)
             return null;
         Integer color = channel.getColor();
-        // We want default color for black or white - since otherwise the channel may not be visible in the histogram
+        // We want default color for black or white - since otherwise the channel may not be visible in the histogram,
+        // depending upon the background color of the UI.
         if (color == null || Objects.equals(ColorTools.BLACK, color) || Objects.equals(ColorTools.WHITE, color))
             return null;
         return ColorToolsFX.getCachedColor(color);
