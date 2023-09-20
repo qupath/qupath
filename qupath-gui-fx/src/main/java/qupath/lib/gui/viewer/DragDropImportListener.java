@@ -132,7 +132,7 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
     	} else if (type == DragEvent.DRAG_OVER) {
     		// Start drag/drop
     		var dragboard = event.getDragboard();
-    		if (dragboard.hasFiles() || dragboard.hasUrl()) {
+    		if (dragboard.hasFiles() || dragboard.hasUrl() || dragboard.hasString()) {
     			event.acceptTransferModes(TransferMode.COPY);
                 event.consume();
                 return;
@@ -171,8 +171,9 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
         
         var files = dragboard.hasFiles() ? new ArrayList<>(dragboard.getFiles()) : null;
         var url = dragboard.getUrl();
+		var string = dragboard.getString();
         var viewer2 = viewer;
-        if (files != null || url != null) {
+        if (files != null || url != null || string != null) {
 	        invokeLater(() -> {
 	        	taskRunning = true;
 	        	try {
@@ -181,6 +182,9 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 						handleFileDrop(viewer2, files);
 					} else if (url != null) {
 						logger.debug("URL dragged onto {}", source);
+						handleURLDrop(viewer2, url);
+					} else if (string != null) {
+						logger.debug("String/URL dragged onto {}", source);
 						handleURLDrop(viewer2, url);
 					}
 	        	} catch (IOException e) {
