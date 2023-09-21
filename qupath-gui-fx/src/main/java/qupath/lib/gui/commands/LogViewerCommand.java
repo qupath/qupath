@@ -26,6 +26,7 @@ package qupath.lib.gui.commands;
 import javafx.application.Platform;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.layout.Region;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.Window;
@@ -52,7 +53,7 @@ public class LogViewerCommand implements Runnable {
 
 	private Window parent;
 
-	private Parent logviewer;
+	private Region logviewer;
 
 	/**
 	 * Constructor.
@@ -91,9 +92,8 @@ public class LogViewerCommand implements Runnable {
 			dialog.setResizable(true);
 			dialog.show();
 			dialog.sizeToScene();
-			// TODO: It would be nice to figure this out automatically
-			dialog.setMinWidth(650);
-			dialog.setMinHeight(440);
+			dialog.setMinWidth(logviewer.getPrefWidth());
+			dialog.setMinHeight(logviewer.getPrefHeight());
 			FXUtils.retainWindowPosition(dialog);
 		} else {
 			dialog.show();
