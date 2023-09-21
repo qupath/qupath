@@ -92,7 +92,7 @@ public class LogViewerCommand implements Runnable {
 			dialog.show();
 			dialog.sizeToScene();
 			// TODO: It would be nice to figure this out automatically
-			dialog.setMinWidth(600);
+			dialog.setMinWidth(650);
 			dialog.setMinHeight(440);
 			FXUtils.retainWindowPosition(dialog);
 		} else {
