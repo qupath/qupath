@@ -24,6 +24,10 @@ package qupath.lib.display.settings;
 import java.util.Collections;
 import java.util.List;
 
+/**
+ * A simple class to store the main information needed by QuPath to display an image,
+ * in a JSON-friendly form.
+ */
 public class ImageDisplaySettings {
 
     private static String DEFAULT_NAME = "Untitled";
@@ -33,6 +37,14 @@ public class ImageDisplaySettings {
     private boolean invertBackground = false;
     private List<ChannelSettings> channels;
 
+    /**
+     * Create a new image display settings object.
+     * @param name
+     * @param gamma
+     * @param invertBackground
+     * @param channels
+     * @return
+     */
     public static ImageDisplaySettings create(String name,
                                               double gamma,
                                               boolean invertBackground,
@@ -45,18 +57,36 @@ public class ImageDisplaySettings {
         return settings;
     }
 
+    /**
+     * Get the name of the settings.
+     * @return
+     */
     public String getName() {
         return name == null ? DEFAULT_NAME : name;
     }
 
+    /**
+     * Get the requested vamma value for the viewer.
+     * @return
+     */
     public double getGamma() {
         return gamma;
     }
 
+    /**
+     * Get whether the background should be shown 'inverted'.
+     * This can make a fluorescence image look more like a brightfield image,
+     * and vice versa.
+     * @return
+     */
     public boolean invertBackground() {
         return invertBackground;
     }
 
+    /**
+     * Get all the available channels.
+     * @return
+     */
     public List<ChannelSettings> getChannels() {
         return channels == null ? Collections.emptyList() : Collections.unmodifiableList(channels);
     }

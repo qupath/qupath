@@ -31,8 +31,20 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * Utility class for working with image display and image display settings objects.
+ * The former is used by QuPath to display images, while the latter is used to store
+ * the settings in a JSON-friendly form.
+ */
 public class DisplaySettingUtils {
 
+    /**
+     * Create a new image display settings object from the image display.
+     * This is typically used to save the settings to a file.
+     * @param display
+     * @param name
+     * @return
+     */
     public static ImageDisplaySettings displayToSettings(ImageDisplay display, String name) {
         List<ChannelSettings> channels = new ArrayList<>();
         var available = new ArrayList<>(display.availableChannels());
@@ -48,6 +60,13 @@ public class DisplaySettingUtils {
         );
     }
 
+    /**
+     * Check if the settings are compatible with the display.
+     * This is true if the number and names of the channels match.
+     * @param display
+     * @param settings
+     * @return
+     */
     public static boolean settingsCompatibleWithDisplay(ImageDisplay display, ImageDisplaySettings settings) {
         if (display == null || settings == null || display.availableChannels().size() != settings.getChannels().size())
             return false;
@@ -56,6 +75,12 @@ public class DisplaySettingUtils {
         return names.equals(namesSettings);
     }
 
+    /**
+     * Apply the settings to the display, if they are compatible.
+     * @param display
+     * @param settings
+     * @return true if the settings were applied, false otherwise.
+     */
     public static boolean applySettingsToDisplay(ImageDisplay display, ImageDisplaySettings settings) {
         if (settings == null || !settingsCompatibleWithDisplay(display, settings)) {
             return false;
