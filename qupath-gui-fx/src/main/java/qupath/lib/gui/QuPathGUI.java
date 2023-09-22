@@ -331,6 +331,9 @@ public class QuPathGUI {
 		populateScriptingMenu(getMenu(QuPathResources.getString("Menu.Automate"), false));
 		SystemMenuBar.manageMainMenuBar(menuBar);
 
+		stage.setMinWidth(800);
+		stage.setMinHeight(400);
+
 		logger.debug("{}", timeit.stop());
 	}
 	
