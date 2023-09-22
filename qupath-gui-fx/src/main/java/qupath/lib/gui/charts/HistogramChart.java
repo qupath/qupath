@@ -65,6 +65,8 @@ import qupath.lib.gui.tools.ColorToolsFX;
  */
 public class HistogramChart extends AreaChart<Number, Number> {
 
+	private static final Logger logger = LoggerFactory.getLogger(HistogramChart.class);
+
 	/**
 	 * Enum to specify how the counts are displayed.
 	 */
@@ -103,9 +105,6 @@ public class HistogramChart extends AreaChart<Number, Number> {
 		AREA;
 
 	}
-
-	
-	private static final Logger logger = LoggerFactory.getLogger(HistogramChart.class);
 
 	private final Map<HistogramData, Series<Number, Number>> seriesCache = new HashMap<>();
 
@@ -160,14 +159,19 @@ public class HistogramChart extends AreaChart<Number, Number> {
 						logger.warn("Series not found for removed histogram data: {}", removedItem);
 				}
 				for (HistogramData addedItem : c.getAddedSubList()) {
-					var series = seriesCache.computeIfAbsent(addedItem, h -> new Series<>());
-					series.nodeProperty().addListener((v, o, n) -> addedItem.updateNodeColors(series));
+					var series = seriesCache.computeIfAbsent(addedItem, this::createNewSeries);
 					addedItem.updateSeries(series, displayModeObjectProperty.get(), countsAxisMode.get());
 					getData().add(series);
 				}
 			}
 		}
 		updateVisibility();
+	}
+
+	private Series<Number, Number> createNewSeries(HistogramData histogramData) {
+		Series<Number, Number> series = new Series<>();
+		series.nodeProperty().addListener((v, o, n) -> histogramData.updateNodeColors(series));
+		return series;
 	}
 
 	private void updateSeries() {

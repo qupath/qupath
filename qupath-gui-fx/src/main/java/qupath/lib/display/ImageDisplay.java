@@ -30,12 +30,16 @@ import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.IntStream;
 
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -75,6 +79,16 @@ import qupath.lib.images.servers.PixelType;
  */
 public class ImageDisplay extends AbstractImageRenderer {
 
+	/**
+	 * TODO: This needs to be updated to make it properly observable and consistent.
+	 *       In particular, ImageData changes aren't observable.
+	 *       The problem is that changing the ImageData results in changes to available
+	 *       channels, and both should be viewable immediately.
+	 *       Storing internally as separate properties, then updating their values, doesn't
+	 *       work because then listeners bound to one property can be notified before the
+	 *       other changes.
+	 */
+
 	private static final Logger logger = LoggerFactory.getLogger(ImageDisplay.class);
 	
 	/**
@@ -103,11 +117,22 @@ public class ImageDisplay extends AbstractImageRenderer {
 	
 	private ObjectBinding<ChannelDisplayMode> displayMode = Bindings.createObjectBinding(() -> calculateDisplayMode(),
 			useGrayscaleLutProperty(), useInvertedBackgroundProperty());
-	
-	private static transient Map<String, HistogramManager> cachedHistograms = Collections.synchronizedMap(new HashMap<>());
+
+	private static Map<String, HistogramManager> cachedHistograms = Collections.synchronizedMap(new HashMap<>());
 	private HistogramManager histogramManager = null;
 	
 	private static BooleanProperty showAllRGBTransforms = PathPrefs.createPersistentPreference("showAllRGBTransforms", true);
+
+	// Used to store the channel colors before switching to grayscale, so this can be restored later
+	// We use the names rather than the actual channels so that the colors are preserved if the image is changed,
+	// and we still do our best to preserve the matching channels
+	private transient Set<String> beforeGrayscaleChannels = new HashSet<>();
+
+	// Used to store the channel that should be selected when switching to grayscale (optional).
+	// This is useful to develop more intuitive interfaces & prevent surprises when switching to grayscale mode.
+	// For example, this could be in the selected item in a list or table (independent of whether the channel is
+	// shown or hidden).
+	private transient ObjectProperty<ChannelDisplayInfo> switchToGrayscaleChannel = new SimpleObjectProperty<>();
 
 	/**
 	 * Constructor.
@@ -116,8 +141,29 @@ public class ImageDisplay extends AbstractImageRenderer {
 	public ImageDisplay(final ImageData<BufferedImage> imageData) {
 		setImageData(imageData, false);
 		useGrayscaleLuts.addListener((v, o, n) -> {
-			if (n && selectedChannels.size() > 1)
-				setChannelSelected(lastSelectedChannel, true);
+			if (n) {
+				// Snapshot the names of channels active before switching to grayscale
+				selectedChannels.stream().map(ChannelDisplayInfo::getName).forEach(beforeGrayscaleChannels::add);
+				var swithToGrayscale = switchToGrayscaleChannel.get();
+				if (swithToGrayscale != null)
+					setChannelSelected(swithToGrayscale, true);
+				if (lastSelectedChannel != null)
+					setChannelSelected(lastSelectedChannel, true);
+				else if (!selectedChannels.isEmpty())
+					setChannelSelected(selectedChannels.get(0), true);
+				else if (availableChannels.isEmpty()) {
+					setChannelSelected(availableChannels.get(0), true);
+				}
+			} else {
+				// Restore the channels that were active before switching to grayscale, if possible
+				if (!beforeGrayscaleChannels.isEmpty()) {
+					var channelsToSelect = availableChannels().stream().filter(c -> beforeGrayscaleChannels.contains(c.getName())).toList();
+					if (!channelsToSelect.isEmpty()) {
+						selectedChannels.setAll(channelsToSelect);
+					}
+				}
+				beforeGrayscaleChannels.clear();
+			}
 			saveChannelColorProperties();
 		});
 		useInvertedBackground.addListener((v, o, n) -> {
@@ -327,8 +373,39 @@ public class ImageDisplay extends AbstractImageRenderer {
 	 */
 	public void refreshChannelOptions() {
 		updateChannelOptions(false);
-		
 	}
+
+	/**
+	 * Property indicating which channel should be used if {@link #useGrayscaleLutProperty()} is turned on.
+	 * This is useful to develop more intuitive interfaces & prevent surprises when switching to grayscale mode.
+	 * <p>
+	 * Settings this value does not have any immediate effect on whether channels are selected or not, but rather it
+	 * is only used when switching to grayscale mode.
+	 * @return
+	 * @since v0.5.0
+	 */
+	public ObjectProperty<ChannelDisplayInfo> switchToGrayscaleChannelProperty() {
+		return switchToGrayscaleChannel;
+	}
+
+	/**
+	 * Set the value of {@link #switchToGrayscaleChannelProperty()}.
+	 * @param channel
+	 * @since v0.5.0
+	 */
+	public void setSwitchToGrayscaleChannel(ChannelDisplayInfo channel) {
+		switchToGrayscaleChannel.set(channel);
+	}
+
+	/**
+	 * Get the value of {@link #switchToGrayscaleChannelProperty()}.
+	 * @return
+	 * @since v0.5.0
+	 */
+	public ChannelDisplayInfo getSwitchToGrayscaleChannel() {
+		return switchToGrayscaleChannel.get();
+	}
+
 
 	private void updateChannelOptions(boolean serverChanged) {
 		
@@ -343,6 +420,8 @@ public class ImageDisplay extends AbstractImageRenderer {
 		if (server == null) {
 			selectedChannels.clear();
 			channelOptions.clear();
+			if (!switchToGrayscaleChannel.isBound())
+				switchToGrayscaleChannel.set(null);
 			return;
 		}
 		
@@ -403,6 +482,17 @@ public class ImageDisplay extends AbstractImageRenderer {
 		}
 		channelOptions.setAll(tempChannelOptions);
 		selectedChannels.setAll(tempSelectedChannels);
+
+		// Attempt to preserve the switchToGrayscaleChannel, if possible
+		if (!switchToGrayscaleChannel.isBound()) {
+			var switchToGrayscale = switchToGrayscaleChannel.get();
+			if (switchToGrayscale != null) {
+				if (!channelOptions.contains(switchToGrayscale))
+					switchToGrayscaleChannel.set(
+							channelOptions.stream().filter(c -> Objects.equals(c.getName(), switchToGrayscale.getName())).findFirst().orElse(null)
+					);
+			}
+		}
 	}
 
 	
@@ -884,7 +974,6 @@ public class ImageDisplay extends AbstractImageRenderer {
 	}
 
 	
-	
 	/**
 	 * Create a JSON representation of the main components of the current display.
 	 * 
@@ -996,6 +1085,7 @@ public class ImageDisplay extends AbstractImageRenderer {
 	 * Class to help with deserializing JSON representation.
 	 */
 	static class JsonHelperChannelInfo {
+
 		private String name;
 		private Class<?> cls;
 		private Float minDisplay;
