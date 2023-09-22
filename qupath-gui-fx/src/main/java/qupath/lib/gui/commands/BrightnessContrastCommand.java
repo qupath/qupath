@@ -54,7 +54,6 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
-import javafx.scene.text.Text;
 import javafx.scene.text.TextAlignment;
 import javafx.stage.Stage;
 import org.slf4j.Logger;
@@ -70,7 +69,6 @@ import qupath.lib.gui.commands.display.BrightnessContrastHistogramPane;
 import qupath.lib.gui.commands.display.BrightnessContrastSettingsPane;
 import qupath.lib.gui.commands.display.BrightnessContrastSliderPane;
 import qupath.lib.gui.prefs.PathPrefs;
-import qupath.lib.gui.prefs.QuPathStyleManager;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
 
