@@ -36,8 +36,14 @@ import java.util.stream.Collectors;
 import javafx.application.Platform;
 import javafx.beans.binding.ObjectExpression;
 import javafx.geometry.Pos;
+import javafx.scene.Group;
 import javafx.scene.control.Control;
+import javafx.scene.control.TextArea;
+import javafx.scene.layout.StackPane;
 import javafx.scene.shape.Circle;
+import javafx.scene.text.Text;
+import javafx.scene.text.TextAlignment;
+import javafx.scene.text.TextBoundsType;
 import javafx.util.Duration;
 import org.controlsfx.control.action.Action;
 import org.controlsfx.control.action.ActionUtils;
@@ -857,22 +863,43 @@ public class ActionTools {
 
 	private static void addInfoMessageDecoration(Node node, ObjectExpression<InfoMessage> message) {
 		logger.trace("Installing info message decoration for {}", node);
-		double radius = 3.0;
+		double radius = 5.0;
 		if (node instanceof Control control) {
 			if (control.getWidth() > 0 && control.getHeight() > 0)
 				radius = Math.min(control.getWidth(), control.getHeight()) / 8.0;
 		}
 		var circle = new Circle(radius);
+		circle.relocate(0, 0);
+		var text = new Text();
+		text.textProperty().bind(message.flatMap(InfoMessage::countProperty).map(ActionTools::countToString));
+		text.getStyleClass().add("badge-text");
+//		text.setBoundsType(TextBoundsType.VISUAL);
+
+		var stack = new StackPane();
+		stack.getChildren().addAll(circle, text);
+
 		updateInfoMessageStyleClasses(circle, message.get());
 		var tooltip = new Tooltip();
 		tooltip.textProperty().bind(message.flatMap(InfoMessage::textProperty));
 		Tooltip.install(circle, tooltip);
 		tooltip.setShowDelay(Duration.ZERO);
 		message.addListener((v, o, n) -> updateInfoMessageStyleClasses(circle, n));
-		var decoration = new GraphicDecoration(circle, Pos.BOTTOM_RIGHT, -circle.getRadius(), -circle.getRadius());
+
+		stack.getStyleClass().add("toolbar-badge");
+
+		var decoration = new GraphicDecoration(stack, Pos.TOP_RIGHT, -0.5*circle.getRadius(), 0.5*circle.getRadius());
 		circle.visibleProperty().bind(message.isNotNull());
 		Platform.runLater(() -> Decorator.addDecoration(node, decoration));
 	}
+
+	private static String countToString(Number n) {
+		if (n == null || n.intValue() <= 1)
+			return null;
+		if (n.intValue() > 99)
+			return "99"; // TODO: It'd be nice to have 99+, but hard to squeeze in...
+		return Integer.toString(n.intValue());
+	}
+
 
 	private static void updateInfoMessageStyleClasses(Node node, InfoMessage message) {
 		var style = message == null ? null : message.getMessageType().toString().toLowerCase();

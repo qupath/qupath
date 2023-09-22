@@ -83,6 +83,9 @@ public class ChartThresholdPane extends BorderPane {
                 for (ObservableNumberValue removedItem : c.getRemoved()) {
                     getChildren().remove(vLines.remove(removedItem));
                 }
+                for (ObservableNumberValue addedItem : c.getAddedSubList()) {
+                    addThreshold(addedItem);
+                }
             }
         }
     }
@@ -278,7 +281,8 @@ public class ChartThresholdPane extends BorderPane {
 
         }
 
-        thresholds.add(d);
+        if (!thresholds.contains(d))
+            thresholds.add(d);
         vLines.put(d, line);
         getChildren().add(line);
         //			updateChart();

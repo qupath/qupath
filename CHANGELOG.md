@@ -3,10 +3,29 @@
 This is a work-in-progress for the next QuPath release.
 
 ### Enhancements
-* New toolbar buttons for script editor `</>` and log viewer
-* *File &rarr; Export snapshots* supports PNG, JPEG and TIFF (not just PNG)
+
+#### User interface
+* Major upgrade to the brightness/contrast/channels command, including
+  * Save/restore display settings in projects
+  * Filter the channel names by text or regular expressions
+  * Optionally view log counts for channel histograms
+  * For multi-channel (non-RGB images):
+    * Better support to toggle channels on/off
+    * Remember previous selection when switching between grayscale & color
+    * More quickly change channel colors (the square icon is now a color picker)
+* Better support for viewing multiple images simultaneously
+  * New 'Grid size' commands to quickly create a grid of viewers
+  * Optionally synchronize display settings across images
+  * Optionally 'detach' a viewer to see it in a separate window
+* Completely new log viewer to access more logging information
+  * https://github.com/qupath/log-viewer
+* New toolbar buttons for the script editor `</>` and log viewer
+* File &rarr; Export snapshots* supports PNG, JPEG and TIFF (not just PNG)
 * Support sorting project entries by name, ID, and URI
   * Right-click on the project list to access the *Sort by...* menu
+
+#### Processing & analysis
+* Faster processing & reduced memory use for pixel classification measurements (https://github.com/qupath/qupath/pull/1332)
 
 ### Bugs fixed
 * Rendered image export does not support opacity (https://github.com/qupath/qupath/issues/1292)
@@ -22,6 +41,7 @@ This is a work-in-progress for the next QuPath release.
 * Menubars and shortcuts are confused when ImageJ is open but QuPath is in focus in macOS (https://github.com/qupath/qupath/issues/6)
 * Slide label can be too big for the screen (https://github.com/qupath/qupath/issues/1263)
 * Slide label doesn't update as expected when changing the image (https://github.com/qupath/qupath/issues/1246)
+* Several bug fixes in the view tracker (https://github.com/qupath/qupath/pull/1329)
 
 ### Dependency updates
 * Bio-Formats 7.0.0

@@ -26,6 +26,8 @@ import static qupath.lib.gui.actions.ActionTools.createAction;
 import javafx.collections.ListChangeListener;
 import org.controlsfx.control.action.Action;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.actions.annotations.ActionAccelerator;
 import qupath.lib.gui.actions.annotations.ActionConfig;
@@ -47,6 +49,8 @@ import qupath.lib.gui.tools.IconFactory.PathIcons;
  * @since v0.5.0
  */
 public class CommonActions {
+
+	private static final Logger logger = LoggerFactory.getLogger(CommonActions.class);
 	
 	@ActionConfig("Action.File.Project.createProject")
 	public final Action PROJECT_NEW;
@@ -126,7 +130,20 @@ public class CommonActions {
 		COUNTING_PANEL = ActionTools.createAction(new CountingPanelCommand(qupath));
 		TMA_ADD_NOTE = qupath.createImageDataAction(imageData -> TMACommands.promptToAddNoteToSelectedCores(imageData));
 		CONVEX_POINTS = ActionTools.createSelectableAction(PathPrefs.showPointHullsProperty());
-		SHOW_LOG = ActionTools.createAction(() -> qupath.showLogWindow());
+
+		// The log viewer should already exist - in which case we can use it to support info messages
+		var logviewer = qupath.getLogViewerCommand();
+		if (logviewer == null) {
+			// Log a warning (but who will see it?!)
+			logger.warn("Log viewer not available! Will attempt to load lazily.");
+			SHOW_LOG = ActionTools.createAction(() -> qupath.getLogViewerCommand().show());
+		} else {
+			SHOW_LOG = ActionTools.createAction(() -> logviewer.show());
+			var counts = logviewer.getLogMessageCounts();
+			if (counts != null)
+				ActionTools.installInfoMessage(SHOW_LOG, logviewer.getInfoMessage());
+		}
+
 		SHOW_ANALYSIS_PANE = ActionTools.createSelectableAction(qupath.showAnalysisPaneProperty());
 		PREFERENCES = Commands.createSingleStageAction(() -> Commands.createPreferencesDialog(qupath));
 		SHOW_OBJECT_DESCRIPTIONS = Commands.createSingleStageAction(() -> Commands.createObjectDescriptionsDialog(qupath));
