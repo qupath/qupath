@@ -524,12 +524,17 @@ public class SimpleImageViewer {
         if (requiresAutoContrast(imgBuffered)) {
             // Non-RGB images probably need to have contrast settings applied before they can be visualized.
             // By wrapping the image, we avoid slow z-stack/time series requests & determine brightness & contrast just from one plane.
-            var wrappedServer = new WrappedBufferedImageServer("Dummy", imgBuffered);
-            var imageDisplay = new ImageDisplay(new ImageData<>(wrappedServer));
-            for (ChannelDisplayInfo info : imageDisplay.selectedChannels()) {
-                imageDisplay.autoSetDisplayRange(info, saturation.get()/100.0);
+            try {
+                var wrappedServer = new WrappedBufferedImageServer("Dummy", imgBuffered);
+                var imageDisplay = ImageDisplay.create(new ImageData<>(wrappedServer));
+                for (ChannelDisplayInfo info : imageDisplay.selectedChannels()) {
+                    imageDisplay.autoSetDisplayRange(info, saturation.get() / 100.0);
+                }
+                imgBuffered = imageDisplay.applyTransforms(imgBuffered, null);
+            } catch (Exception e) {
+                // Not expect to happen, since we have a cached buffered image
+                logger.error("Error applying auto contrast to image", e);
             }
-            imgBuffered = imageDisplay.applyTransforms(imgBuffered, null);
         }
         return SwingFXUtils.toFXImage(imgBuffered, null);
     }

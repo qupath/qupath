@@ -374,7 +374,7 @@ public class ViewerManager implements QuPathViewerListener {
 	 * @return
 	 */
 	protected QuPathViewerPlus createViewer() {
-		QuPathViewerPlus viewerNew = new QuPathViewerPlus(null, qupath.getImageRegionStore(), overlayOptions, viewerDisplayOptions);
+		QuPathViewerPlus viewerNew = new QuPathViewerPlus(qupath.getImageRegionStore(), overlayOptions, viewerDisplayOptions);
 		setupViewer(viewerNew);
 		viewerNew.addViewerListener(this);
 		viewers.add(viewerNew);

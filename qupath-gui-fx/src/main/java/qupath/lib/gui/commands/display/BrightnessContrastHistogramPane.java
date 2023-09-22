@@ -160,7 +160,12 @@ public class BrightnessContrastHistogramPane extends BorderPane {
      * @param channelSelected
      */
     public void updateHistogram(ImageDisplay imageDisplay, ChannelDisplayInfo channelSelected) {
-        Histogram histogram = (imageDisplay == null || channelSelected == null) ? null : imageDisplay.getHistogram(channelSelected);
+        Histogram histogram;
+        if (imageDisplay == null || channelSelected == null)
+            histogram = null;
+        else
+            histogram = imageDisplay.getHistogram(channelSelected);
+
         if (histogram == null) {
             // Try to show RGB channels together
             if (channelSelected != null && imageDisplay != null &&

@@ -1437,6 +1437,8 @@ public class QuPathGUI {
 			return true;
 		} catch (Exception e) {
 			Dialogs.showErrorMessage("Load ImageData", e);
+			// If this failed
+			viewer.resetImageData();
 			return false;
 		}
 	}
@@ -2468,7 +2470,7 @@ public class QuPathGUI {
 			if (imageData != null) {
 				if (!checkSaveChanges(imageData))
 					return;
-				viewer.setImageData(null);
+				viewer.resetImageData();
 			}
 		}
 		
@@ -2595,7 +2597,7 @@ public class QuPathGUI {
 			if (!isReadOnly() && !promptToSaveChangesOrCancel(dialogTitle, imageData))
 				return false;
 		}
-		viewer.setImageData(null);
+		viewer.resetImageData();
 		return true;
 	}
 	

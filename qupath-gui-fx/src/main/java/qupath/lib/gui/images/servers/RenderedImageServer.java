@@ -107,7 +107,7 @@ public class RenderedImageServer extends AbstractTileableImageServer implements 
 	 * @return
 	 * @see Builder
 	 */
-	public static ImageServer<BufferedImage> createRenderedServer(QuPathViewer viewer) {
+	public static ImageServer<BufferedImage> createRenderedServer(QuPathViewer viewer) throws IOException {
 		return new Builder(viewer)
 				.build();
 	}
@@ -118,7 +118,7 @@ public class RenderedImageServer extends AbstractTileableImageServer implements 
 	 * @param renderer
 	 * @return
 	 */
-	public static ImageServer<BufferedImage> createRenderedServer(ImageServer<BufferedImage> server, ImageRenderer renderer) {
+	public static ImageServer<BufferedImage> createRenderedServer(ImageServer<BufferedImage> server, ImageRenderer renderer) throws IOException {
 		return new Builder(new ImageData<>(server))
 				.renderer(renderer)
 				.backgroundColor(new Color(0, true))
@@ -255,7 +255,7 @@ public class RenderedImageServer extends AbstractTileableImageServer implements 
 		 * Create the rendered image server.
 		 * @return
 		 */
-		public ImageServer<BufferedImage> build() {
+		public ImageServer<BufferedImage> build() throws IOException {
 			// Try to use existing store/display if possible
 			if (this.store == null || this.renderer == null) {
 				QuPathViewer viewer = null;
@@ -267,7 +267,7 @@ public class RenderedImageServer extends AbstractTileableImageServer implements 
 				ImageRenderer renderer = null;
 				if (viewer == null) {
 					store = ImageRegionStoreFactory.createImageRegionStore(Runtime.getRuntime().maxMemory() / 4L);
-					renderer = new ImageDisplay(imageData);
+					renderer = ImageDisplay.create(imageData);
 				} else {
 					store = viewer.getImageRegionStore();
 					renderer = viewer.getImageDisplay();

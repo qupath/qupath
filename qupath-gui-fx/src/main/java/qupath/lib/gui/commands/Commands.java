@@ -337,8 +337,15 @@ public class Commands {
 		}
 		
 		ImageServer<BufferedImage> server = viewer.getServer();
-		if (renderedImage)
-			server = RenderedImageServer.createRenderedServer(viewer);
+		if (renderedImage) {
+			try {
+				server = RenderedImageServer.createRenderedServer(viewer);
+			} catch (IOException e) {
+				Dialogs.showErrorMessage("Export image region", "Unable to create rendered image server");
+				logger.error(e.getMessage(), e);
+				return;
+			}
+		}
 		PathObject pathObject = viewer.getSelectedObject();
 		ROI roi = pathObject == null ? null : pathObject.getROI();
 		
@@ -453,8 +460,15 @@ public class Commands {
 		exportDownsample.set(downsample.get());
 		
 		// Now that we know the output, we can create a new server to ensure it is downsampled as the necessary resolution
-		if (renderedImage && downsample.get() != server.getDownsampleForResolution(0))
-			server = new RenderedImageServer.Builder(viewer).downsamples(downsample.get()).build();
+		if (renderedImage && downsample.get() != server.getDownsampleForResolution(0)) {
+			try {
+				server = new RenderedImageServer.Builder(viewer).downsamples(downsample.get()).build();
+			} catch (IOException e) {
+				Dialogs.showErrorMessage("Export image region", "Unable to create rendered image server");
+				logger.error(e.getMessage(), e);
+				return;
+			}
+		}
 		
 //		selectedImageType.set(comboImageType.getSelectionModel().getSelectedItem());
 		
