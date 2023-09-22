@@ -70,6 +70,7 @@ import qupath.lib.gui.commands.display.BrightnessContrastHistogramPane;
 import qupath.lib.gui.commands.display.BrightnessContrastSettingsPane;
 import qupath.lib.gui.commands.display.BrightnessContrastSliderPane;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.prefs.QuPathStyleManager;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
 
@@ -85,10 +86,7 @@ public class BrightnessContrastCommand implements Runnable {
 	
 	private static final Logger logger = LoggerFactory.getLogger(BrightnessContrastCommand.class);
 
-	/**
-	 * Style used for labels that display warning text.
-	 */
-	private static final String WARNING_STYLE = "-fx-text-fill: -qp-script-warn-color;";
+	private static final String WARNING_STYLE_CLASS = "warn-label-text";
 
 	private static final double BUTTON_SPACING = 5;
 
@@ -355,7 +353,7 @@ public class BrightnessContrastCommand implements Runnable {
 		var labelWarning = new Label("Inverted background - interpret colors cautiously!");
 		labelWarning.setTooltip(new Tooltip("Inverting the background uses processing trickery that reduces the visual information in the image.\n"
 				+ "Be careful about interpreting colors, especially for images with multiple channels"));
-		labelWarning.setStyle(WARNING_STYLE);
+		labelWarning.getStyleClass().add(WARNING_STYLE_CLASS);
 		labelWarning.setAlignment(Pos.CENTER);
 		labelWarning.setTextAlignment(TextAlignment.CENTER);
 		labelWarning.visibleProperty().bind(invertBackground.and(showGrayscale.not()));
@@ -374,7 +372,7 @@ public class BrightnessContrastCommand implements Runnable {
 		labelWarningGamma.setOnMouseClicked(this::handleGammaWarningClicked);
 		labelWarningGamma.setTooltip(new Tooltip("Adjusting the gamma results in a nonlinear contrast adjustment -\n"
 				+ "in science, such changes should usually be disclosed in any figure legends"));
-		labelWarningGamma.setStyle(WARNING_STYLE);
+		labelWarningGamma.getStyleClass().add(WARNING_STYLE_CLASS);
 		labelWarningGamma.setAlignment(Pos.CENTER);
 		labelWarningGamma.setTextAlignment(TextAlignment.CENTER);
 		labelWarningGamma.visibleProperty().bind(sliderPane.gammaValueProperty().isNotEqualTo(1.0, 0.0));

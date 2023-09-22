@@ -53,9 +53,6 @@ public class BrightnessContrastSliderPane extends GridPane {
     private ObjectProperty<ImageDisplay> imageDisplayProperty = new SimpleObjectProperty<>();
     private ObjectProperty<ChannelDisplayInfo> selectedChannel = new SimpleObjectProperty<>();
 
-    // TODO: Replace with a style class
-    private static final String WARNING_STYLE = "-fx-text-fill: -qp-script-warn-color;";
-
     private Slider sliderMin;
     private Slider sliderMax;
     private Slider sliderGamma;
@@ -124,7 +121,12 @@ public class BrightnessContrastSliderPane extends GridPane {
         labelGamma.setLabelFor(sliderGamma);
         labelGamma.setTooltip(tooltipGamma);
         labelGammaValue.setOnMouseClicked(this::handleGammaLabelClicked);
-        labelGammaValue.styleProperty().bind(createGammaLabelStyleBinding(sliderGamma.valueProperty()));
+        sliderGamma.valueProperty().addListener((v, o, n) -> {
+            if (n != null && n.doubleValue() == 1.0)
+                labelGammaValue.getStyleClass().remove("warn-label-text");
+            else
+                labelGammaValue.getStyleClass().add("warn-label-text");
+        });
 
         // Show that the label values can be clicked
         ObjectBinding<Cursor> bindingMinMax = Bindings.createObjectBinding(() -> {
@@ -218,15 +220,6 @@ public class BrightnessContrastSliderPane extends GridPane {
         double minValue = sliderMin.getValue();
         double maxValue = sliderMax.getValue();
         imageDisplay.setMinMaxDisplay(infoVisible, (float)minValue, (float)maxValue);
-    }
-
-
-    private static ObservableValue<String> createGammaLabelStyleBinding(ObservableValue<? extends Number> gammaValue) {
-        return Bindings.createStringBinding(() -> {
-            if (gammaValue.getValue().doubleValue() == 1.0)
-                return null;
-            return WARNING_STYLE;
-        }, gammaValue);
     }
 
 

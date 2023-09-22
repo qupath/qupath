@@ -23,6 +23,7 @@
 
 package qupath.lib.gui.commands.display;
 
+import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
@@ -185,10 +186,12 @@ public class BrightnessContrastSettingsPane extends GridPane {
         labelWarning.visibleProperty().bind(
                 Bindings.createBooleanBinding(() -> allNames.contains(tf.getText()),
                         tf.textProperty()));
+        labelWarning.getStyleClass().addAll("warn-label-text");
         var labelPrompt = new Label("Enter a name for the display settings");
         var pane = new VBox();
         pane.setSpacing(5.0);
         pane.getChildren().addAll(labelPrompt, tf, labelWarning);
+        Platform.runLater(tf::requestFocus);
         if (Dialogs.builder()
                 .title("Save display settings")
                 .content(pane)

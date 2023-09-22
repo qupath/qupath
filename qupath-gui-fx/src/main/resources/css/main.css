@@ -109,3 +109,11 @@
 .info-message.info {
   -fx-fill: -qp-script-debug-color;
 }
+
+.warn-label-text {
+  -fx-text-fill: -qp-script-warn-color;
+}
+
+.error-label-text {
+  -fx-text-fill: -qp-script-error-color;
+}
