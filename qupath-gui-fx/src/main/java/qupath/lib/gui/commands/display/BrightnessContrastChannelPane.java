@@ -106,8 +106,6 @@ public class BrightnessContrastChannelPane extends BorderPane {
 
     private final ObjectProperty<ImageDisplay> imageDisplayObjectProperty = new SimpleObjectProperty<>();
 
-    private final ObjectProperty<ImageData<BufferedImage>> imageDataProperty = new SimpleObjectProperty<>();
-
     private final TableView<ChannelDisplayInfo> table = new TableView<>();
 
     private final BrightnessContrastTableFilter filter = new BrightnessContrastTableFilter(table);
@@ -130,7 +128,6 @@ public class BrightnessContrastChannelPane extends BorderPane {
 
     public BrightnessContrastChannelPane() {
         imageDisplayProperty().addListener(this::handleImageDisplayChanged);
-        imageDataProperty.addListener(this::handleImageDataChange);
 
         createChannelDisplayTable();
 
@@ -230,22 +227,6 @@ public class BrightnessContrastChannelPane extends BorderPane {
                 ColorToolsFX.getCachedColor(255, 0, 255));
     }
 
-    private void handleImageDataChange(ObservableValue<? extends ImageData<BufferedImage>> source,
-                                       ImageData<BufferedImage> oldValue, ImageData<BufferedImage> newValue) {
-
-        // Update the table - attempting to preserve the same selected object
-        var selectedItem = table.getSelectionModel().getSelectedItem();
-        updateTable();
-        if (selectedItem != null) {
-            for (var item : table.getItems()) {
-                if (Objects.equals(selectedItem.getName(), item.getName())) {
-                    table.getSelectionModel().select(item);
-                    break;
-                }
-            }
-        }
-    }
-
     private void createChannelDisplayTable() {
         var imageDisplay = imageDisplayObjectProperty.getValue();
         if (imageDisplay != null)
@@ -291,9 +272,7 @@ public class BrightnessContrastChannelPane extends BorderPane {
         }
         if (newValue != null) {
             newValue.selectedChannels().addListener(selectedChannelsChangeListener);
-            imageDataProperty.set(newValue.getImageData());
-        } else
-            imageDataProperty.set(null);
+        }
         updateTable();
     }
 
@@ -440,12 +419,20 @@ public class BrightnessContrastChannelPane extends BorderPane {
         return row;
     }
 
+    private ImageData<BufferedImage> getImageData() {
+        var display = imageDisplayProperty().get();
+        if (display == null)
+            return null;
+        else
+            return display.getImageData();
+    }
+
     private void handleTableRowMouseClick(TableRow<ChannelDisplayInfo> row, MouseEvent event) {
         if (event.getClickCount() != 2)
             return;
 
         ChannelDisplayInfo info = row.getItem();
-        var imageData = imageDataProperty.getValue();
+        var imageData = getImageData();
         if (imageData != null && info instanceof DirectServerChannelInfo multiInfo) {
             int c = multiInfo.getChannel();
             var channel = imageData.getServer().getMetadata().getChannel(c);
@@ -495,7 +482,7 @@ public class BrightnessContrastChannelPane extends BorderPane {
 
     private void updateChannelColor(DirectServerChannelInfo channel,
                                     String newName, Color newColor) {
-        var imageData = imageDataProperty.getValue();
+        var imageData = getImageData();
         if (imageData == null) {
             logger.warn("Cannot update channel color: no image data");
             return;
@@ -875,7 +862,7 @@ public class BrightnessContrastChannelPane extends BorderPane {
          * @param event
          */
         private void doPaste(KeyEvent event) {
-            ImageData<BufferedImage> imageData = imageDataProperty.getValue();
+            ImageData<BufferedImage> imageData = getImageData();
             if (imageData == null)
                 return;
             ImageServer<BufferedImage> server = imageData.getServer();
