@@ -23,11 +23,14 @@
 
 package qupath.lib.gui.commands.display;
 
+import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.value.ObservableValue;
+import javafx.geometry.Pos;
 import javafx.scene.chart.NumberAxis;
+import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Label;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.BorderPane;
@@ -80,7 +83,23 @@ public class BrightnessContrastHistogramPane extends BorderPane {
         chartPane.setPrefHeight(150);
         chartPane.getThresholds().setAll(minValueProperty, maxValueProperty);
         chartPane.setIsInteractive(true);
-        setCenter(chartPane);
+//        setCenter(chartPane);
+
+        var labelPlaceholder = new Label();
+        labelPlaceholder.prefWidthProperty().bind(chartPane.prefWidthProperty());
+        labelPlaceholder.prefHeightProperty().bind(chartPane.prefHeightProperty());
+        labelPlaceholder.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+        labelPlaceholder.minWidthProperty().bind(chartPane.prefWidthProperty());
+        labelPlaceholder.minHeightProperty().bind(chartPane.prefHeightProperty());
+        labelPlaceholder.setText("No histogram available");
+        labelPlaceholder.setContentDisplay(ContentDisplay.CENTER);
+        labelPlaceholder.setAlignment(Pos.CENTER);
+        centerProperty().bind(Bindings.createObjectBinding(() -> {
+            if (!histogramChart.getHistogramData().isEmpty())
+                return chartPane;
+            else
+                return labelPlaceholder;
+        }, histogramChart.getHistogramData()));
     }
 
     private void initializeHistogram() {

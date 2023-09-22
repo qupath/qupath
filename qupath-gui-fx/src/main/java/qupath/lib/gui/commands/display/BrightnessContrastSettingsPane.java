@@ -23,14 +23,25 @@
 
 package qupath.lib.gui.commands.display;
 
+import javafx.beans.binding.Bindings;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.scene.Scene;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.TextField;
+import javafx.scene.control.Tooltip;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
+import javafx.stage.Window;
 import org.controlsfx.control.SearchableComboBox;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -57,36 +68,43 @@ public class BrightnessContrastSettingsPane extends GridPane {
 
     private ObjectProperty<ResourceManager.Manager<ImageDisplaySettings>> resourceManagerProperty = new SimpleObjectProperty<>();
 
-    private ObservableList<ImageDisplaySettings> savedDisplayResources = FXCollections.observableArrayList();
+    private ObjectProperty<ImageDisplay> imageDisplayProperty = new SimpleObjectProperty<>();
 
-    private ObjectProperty<ImageDisplay> imageDisplayObjectProperty = new SimpleObjectProperty<>();
+    private ComboBox<ImageDisplaySettings> comboSettings = new SearchableComboBox<>();
+
+    private StringProperty defaultName = null;
 
     public BrightnessContrastSettingsPane() {
-        imageDisplayObjectProperty.addListener((v, o, n) -> refreshResources());
+        comboSettings.setOnShowing(e -> refreshResources());
         initializePane();
+        tryToKeepSearchText();
     }
+
 
     private void initializePane() {
         setHgap(5);
         var label = new Label("Settings");
-        var combo = new SearchableComboBox<>(savedDisplayResources);
-        label.setLabelFor(combo);
-        combo.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {
+        label.setLabelFor(comboSettings);
+        comboSettings.setTooltip(new Tooltip("Compatible display settings saved in the project"));
+        comboSettings.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {
             if (n != null)
                 tryToApplySettings(n);
         });
-        combo.setCellFactory(c -> FXUtils.createCustomListCell(ImageDisplaySettings::getName));
-        combo.setButtonCell(combo.getCellFactory().call(null));
-        combo.setPlaceholder(new Text("No saved settings"));
+        comboSettings.setCellFactory(c -> FXUtils.createCustomListCell(ImageDisplaySettings::getName));
+        comboSettings.setButtonCell(comboSettings.getCellFactory().call(null));
+        comboSettings.setPlaceholder(new Text("No compatible settings"));
         resourceManagerProperty.addListener((v, o, n) -> refreshResources());
         var btnSave = new Button("Save");
+        btnSave.setTooltip(new Tooltip("Save the current display settings in the project"));
         btnSave.disableProperty().bind(resourceManagerProperty.isNull());
-        btnSave.setOnAction(e -> promptToSaveSettings(combo.getSelectionModel().getSelectedItem() == null ? "" : combo.getSelectionModel().getSelectedItem().getName()));
+        btnSave.setOnAction(e -> promptToSaveSettings());
         int col = 0;
         add(label, col++, 0);
-        add(combo, col++, 0);
+        add(comboSettings, col++, 0);
         add(btnSave, col, 0);
-        GridPaneUtils.setToExpandGridPaneWidth(combo);
+        GridPaneUtils.setToExpandGridPaneWidth(comboSettings);
+        GridPane.setHgrow(label, Priority.NEVER);
+        GridPane.setHgrow(btnSave, Priority.NEVER);
     }
 
     /**
@@ -94,7 +112,7 @@ public class BrightnessContrastSettingsPane extends GridPane {
      * @return
      */
     public ObjectProperty<ImageDisplay> imageDisplayObjectProperty() {
-        return imageDisplayObjectProperty;
+        return imageDisplayProperty;
     }
 
     /**
@@ -105,20 +123,50 @@ public class BrightnessContrastSettingsPane extends GridPane {
         return resourceManagerProperty;
     }
 
-    private void promptToSaveSettings(String name) {
+    /**
+     * The logic is quite tortured... but we want to access the contents of the search field just before
+     * pressing 'save', because the user might use it to type a name they want.
+     * However, the search field is only available through the skin, and the text isn't publicly accessible.
+     * And, to make it harder, the text is reset before the 'save' action is handled.
+     */
+    private void tryToKeepSearchText() {
+        comboSettings.sceneProperty().flatMap(Scene::windowProperty).flatMap(Window::showingProperty).addListener((v, o, n) -> {
+            if (n && defaultName == null)
+                handleComboShowing();
+        });
+    }
+
+    private void handleComboShowing() {
+        if (comboSettings.lookup("#search") instanceof TextField tf) {
+            defaultName = new SimpleStringProperty();
+            tf.textProperty().addListener((v, o, n) -> {
+                if (tf.isVisible())
+                    defaultName.set(n);
+            });
+        }
+    }
+
+    private String tryToGetDefaultName() {
+        var selected = comboSettings.getSelectionModel().getSelectedItem();
+        if (selected != null)
+            return selected.getName();
+        return defaultName == null ? null : defaultName.get();
+    }
+
+    private void promptToSaveSettings() {
         var manager = resourceManagerProperty.get();
-        var imageDisplay = imageDisplayObjectProperty.get();
+        var imageDisplay = imageDisplayProperty.get();
         if (manager == null)
             logger.warn("No resource manager available!");
         else if (imageDisplay == null)
             logger.warn("No image display available!");
         else {
-            String response = Dialogs.showInputDialog("Save display settings", "Display settings names", name);
-            if (response == null || response.isEmpty())
+            String name = promptForName();
+            if (name == null || name.isEmpty())
                 return;
             try {
-                var settings = DisplaySettingUtils.displayToSettings(imageDisplay, response);
-                manager.put(response, settings);
+                var settings = DisplaySettingUtils.displayToSettings(imageDisplay, name);
+                manager.put(name, settings);
                 refreshResources();
             } catch (IOException e) {
                 Dialogs.showErrorMessage("Save display settings", "Can't save settings " + name);
@@ -127,24 +175,66 @@ public class BrightnessContrastSettingsPane extends GridPane {
         }
     }
 
+    private String promptForName() {
+        String defaultName = tryToGetDefaultName();
+        var tf = new TextField(defaultName);
+        tf.setPromptText("Name of settings");
+        tf.setPrefColumnCount(16);
+        var labelWarning = new Label("Settings with the same name will be overwritten!");
+        var allNames = getAllNames();
+        labelWarning.visibleProperty().bind(
+                Bindings.createBooleanBinding(() -> allNames.contains(tf.getText()),
+                        tf.textProperty()));
+        var labelPrompt = new Label("Enter a name for the display settings");
+        var pane = new VBox();
+        pane.setSpacing(5.0);
+        pane.getChildren().addAll(labelPrompt, tf, labelWarning);
+        if (Dialogs.builder()
+                .title("Save display settings")
+                .content(pane)
+                .owner(FXUtils.getWindow(this))
+                .buttons(ButtonType.OK, ButtonType.CANCEL)
+                .showAndWait()
+                .orElse(ButtonType.CANCEL).equals(ButtonType.OK)) {
+            return tf.getText();
+        } else
+            return null;
+    }
+
+
+    private List<String> getAllNames() {
+        var manager = this.resourceManagerProperty.get();
+        if (manager == null)
+            return Collections.emptyList();
+        try {
+            var names = new ArrayList<>(manager.getNames());
+            Collections.sort(names);
+            return names;
+        } catch (IOException e) {
+            logger.error("Error loading display settings", e);
+            return Collections.emptyList();
+        }
+    }
+
 
     private void refreshResources() {
+        logger.trace("Refreshing resources");
         var manager = resourceManagerProperty.get();
-        var imageDisplay = imageDisplayObjectProperty.get();
-        if (manager == null || imageDisplay == null) {
-            // TODO: Reset the combo box? This gave a NoSuchElementException once
-            savedDisplayResources.clear();
+        var imageDisplay = imageDisplayProperty.get();
+        // If comboSettings is a SearchableComboBox, then we need to set the items to avoid an IndexOutOfBounds exception
+        // See https://github.com/controlsfx/controlsfx/issues/1320
+        if (manager == null || imageDisplay == null || imageDisplay.availableChannels().isEmpty()) {
+            comboSettings.setItems(FXCollections.observableArrayList());
         } else {
             try {
-                var names = new ArrayList<>(manager.getNames());
-                Collections.sort(names);
-                List<ImageDisplaySettings> compatibleSettings = new ArrayList<>();
+                var names = getAllNames();
+                ObservableList<ImageDisplaySettings> compatibleSettings = FXCollections.observableArrayList();
                 for (var name : names) {
                     var settings = manager.get(name);
                     if (DisplaySettingUtils.settingsCompatibleWithDisplay(imageDisplay, settings))
                         compatibleSettings.add(settings);
                 }
-                savedDisplayResources.setAll(compatibleSettings);
+                comboSettings.setItems(compatibleSettings);
             } catch (IOException e) {
                 logger.error("Error loading display settings", e);
             }
@@ -152,7 +242,7 @@ public class BrightnessContrastSettingsPane extends GridPane {
     }
 
     private void tryToApplySettings(ImageDisplaySettings settings) {
-        var imageDisplay = imageDisplayObjectProperty.get();
+        var imageDisplay = imageDisplayProperty.get();
         if (settings == null || imageDisplay == null)
             return;
         try {

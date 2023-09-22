@@ -79,6 +79,16 @@ import qupath.lib.images.servers.PixelType;
  */
 public class ImageDisplay extends AbstractImageRenderer {
 
+	/**
+	 * TODO: This needs to be updated to make it properly observable and consistent.
+	 *       In particular, ImageData changes aren't observable.
+	 *       The problem is that changing the ImageData results in changes to available
+	 *       channels, and both should be viewable immediately.
+	 *       Storing internally as separate properties, then updating their values, doesn't
+	 *       work because then listeners bound to one property can be notified before the
+	 *       other changes.
+	 */
+
 	private static final Logger logger = LoggerFactory.getLogger(ImageDisplay.class);
 	
 	/**

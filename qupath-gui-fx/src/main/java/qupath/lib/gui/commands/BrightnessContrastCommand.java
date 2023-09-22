@@ -54,6 +54,7 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
+import javafx.scene.text.Text;
 import javafx.scene.text.TextAlignment;
 import javafx.stage.Stage;
 import org.slf4j.Logger;
@@ -189,6 +190,11 @@ public class BrightnessContrastCommand implements Runnable {
 				qupath.projectProperty().map(p -> p.getResources("resources/display", ImageDisplaySettings.class, "json")));
 		pane.add(settingsPane, 0, row++);
 
+		Pane paneCheck = createCheckboxPane();
+		paneCheck.setPadding(new Insets(5, 0, 5, 0));
+		pane.add(paneCheck, 0, row++);
+
+		pane.add(createSeparator(), 0, row++);
 
 		chartPane.minValueProperty().bindBidirectional(sliderPane.minValueProperty());
 		chartPane.maxValueProperty().bindBidirectional(sliderPane.maxValueProperty());
@@ -227,9 +233,6 @@ public class BrightnessContrastCommand implements Runnable {
 
 		sliderPane.prefWidthProperty().bind(pane.widthProperty());
 		pane.add(sliderPane, 0, row++);
-
-		Pane paneCheck = createCheckboxPane();
-		pane.add(paneCheck, 0, row++);
 
 		Pane paneButtons = createAutoResetButtonPane();
 		pane.add(paneButtons, 0, row++);

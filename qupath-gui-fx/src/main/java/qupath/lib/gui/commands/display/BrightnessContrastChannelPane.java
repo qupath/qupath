@@ -129,8 +129,6 @@ public class BrightnessContrastChannelPane extends BorderPane {
 
 
     public BrightnessContrastChannelPane() {
-        imageDataProperty.bind(imageDisplayObjectProperty.map(ImageDisplay::getImageData));
-
         imageDisplayProperty().addListener(this::handleImageDisplayChanged);
         imageDataProperty.addListener(this::handleImageDataChange);
 
@@ -293,7 +291,9 @@ public class BrightnessContrastChannelPane extends BorderPane {
         }
         if (newValue != null) {
             newValue.selectedChannels().addListener(selectedChannelsChangeListener);
-        }
+            imageDataProperty.set(newValue.getImageData());
+        } else
+            imageDataProperty.set(null);
         updateTable();
     }
 
