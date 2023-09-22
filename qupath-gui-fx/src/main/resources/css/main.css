@@ -117,3 +117,10 @@
 .error-label-text {
   -fx-text-fill: -qp-script-error-color;
 }
+
+.toolbar-badge > .badge-text {
+  -fx-fill: white;
+  -fx-font-size: 6pt;
+  -fx-font-weight: bold;
+  -fx-text-alignment: center;
+}

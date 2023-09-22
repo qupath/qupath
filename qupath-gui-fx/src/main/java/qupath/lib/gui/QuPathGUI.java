@@ -161,7 +161,8 @@ import qupath.lib.scripting.languages.ExecutableLanguage;
 import qupath.lib.scripting.languages.ScriptLanguage;
 import qupath.lib.gui.scripting.DefaultScriptEditor;
 import qupath.lib.gui.scripting.QPEx;
-
+import qupath.ui.logviewer.ui.main.LogMessageCounts;
+import qupath.ui.logviewer.ui.main.LogViewer;
 
 
 /**
@@ -330,6 +331,9 @@ public class QuPathGUI {
 		// Populating the scripting menu is slower, so delay it until now
 		populateScriptingMenu(getMenu(QuPathResources.getString("Menu.Automate"), false));
 		SystemMenuBar.manageMainMenuBar(menuBar);
+
+		stage.setMinWidth(600);
+		stage.setMinHeight(400);
 
 		logger.debug("{}", timeit.stop());
 	}
@@ -2643,11 +2647,12 @@ public class QuPathGUI {
 	
 	
 	/**
-	 * Show the log window associated with this QuPath instance.
+	 * Get the log viewer associated with this QuPath instance.
+	 * @return
 	 * @since v0.5.0
 	 */
-	public void showLogWindow() {
-		logViewerCommand.run();
+	public LogViewerCommand getLogViewerCommand() {
+		return logViewerCommand;
 	}
 	
 	

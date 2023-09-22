@@ -28,10 +28,12 @@ import javafx.beans.InvalidationListener;
 import javafx.beans.Observable;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
+import javafx.beans.binding.ListBinding;
 import javafx.beans.binding.ObjectExpression;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
@@ -331,10 +333,7 @@ public class BrightnessContrastCommand implements Runnable {
 	private ObjectExpression<InfoMessage> infoMessage = Bindings.createObjectBinding(() -> {
 		if (warningList.isEmpty())
 			return null;
-		if (warningList.size() == 1)
-			return InfoMessage.warning("1 warning");
-		else
-			return InfoMessage.warning(warningList.size() + " warnings");
+		return InfoMessage.warning(new SimpleIntegerProperty(warningList.size()));
 	}, warningList);
 
 	/**
