@@ -26,7 +26,13 @@ package qupath.lib.gui.viewer;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Set;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -65,10 +71,6 @@ import qupath.lib.gui.scripting.DefaultScriptEditor;
 
 /**
  * Drag and drop support for main QuPath application, which can support a range of different object types (Files, URLs, Strings,..)
- * 
- * @author Pete Bankhead
- * @author Melvin Gelbard
- *
  */
 public class DragDropImportListener implements EventHandler<DragEvent> {
 	
@@ -79,7 +81,8 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 	private List<DropHandler<File>> dropHandlers = new ArrayList<>();
 	
 	/**
-	 * Flag to indeicate
+	 * Flag to indicate that a task is currently running, and events should be dropped until it is finished
+	 * (e.g. a dialog is showing and we need a response)
 	 */
 	private boolean taskRunning = false;
 	
@@ -527,7 +530,7 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
      *
      */
      @FunctionalInterface
-    public static interface DropHandler<T> {
+    public interface DropHandler<T> {
     	 
     	/**
     	 * Handle drop onto a viewer.
@@ -538,7 +541,7 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
     	 * @param list the dropped objects
     	 * @return true if the handler processed the drop event
     	 */
-    	public boolean handleDrop(final QuPathViewer viewer, final List<T> list);
+    	boolean handleDrop(final QuPathViewer viewer, final List<T> list);
     	
     }
     
