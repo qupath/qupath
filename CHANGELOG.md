@@ -27,8 +27,11 @@ This is a work-in-progress for the next QuPath release.
 #### Processing & analysis
 * Faster processing & reduced memory use for pixel classification measurements (https://github.com/qupath/qupath/pull/1332)
 
+#### Import & export
+* SVG export now supports overlays (https://github.com/qupath/qupath/issues/1272)
+* Rendered image export now supports overlay opacity (https://github.com/qupath/qupath/issues/1292)
+
 ### Bugs fixed
-* Rendered image export does not support opacity (https://github.com/qupath/qupath/issues/1292)
 * Cannot import GeoJSON with NaN measurements (https://github.com/qupath/qupath/issues/1293)
 * `isOverlayNG` should be turned on by default (https://github.com/qupath/qupath/issues/1244)
 * Labeled image instance export doesn't work as expected for z-stacks (https://github.com/qupath/qupath/issues/1267)
@@ -45,6 +48,8 @@ This is a work-in-progress for the next QuPath release.
 * Occasional misleading 'Reader is null - was the image already closed?' exceptions (https://github.com/qupath/qupath/issues/1265)
 * Using existing channel names (e.g. 'Red', 'Green', 'Blue') for color deconvolution can confuse brightness/contrast settings (https://github.com/qupath/qupath/issues/1245)
 * The centroid-to-centroid distance between an object & itself can be > 0 (https://github.com/qupath/qupath/issues/1249)
+* Importing objects from .qpdata including TMA cores can result in an 'invisible' TMA grid (https://github.com/qupath/qupath/issues/1303)
+* macOS downloads do not store the correct version number (https://github.com/qupath/qupath/issues/1250) (https://github.com/qupath/qupath/issues/1337)
 
 ### Dependency updates
 * Bio-Formats 7.0.0
