@@ -135,7 +135,7 @@ public class QPEx extends QP {
 	 * @param path path to the export directory
 	 * @param downsampleFactor downsample applied to each TMA core image
 	 */
-	public static void exportTMAData(final String path, final double downsampleFactor) {
+	public static void exportTMAData(final String path, final double downsampleFactor) throws IOException {
 		exportTMAData((ImageData<BufferedImage>)getCurrentImageData(), resolvePath(path), downsampleFactor);
 	}
 
@@ -146,7 +146,7 @@ public class QPEx extends QP {
 	 * @param path path to the export directory
 	 * @param downsampleFactor downsample applied to each TMA core image
 	 */
-	public static void exportTMAData(final ImageData<BufferedImage> imageData, final String path, final double downsampleFactor) {
+	public static void exportTMAData(final ImageData<BufferedImage> imageData, final String path, final double downsampleFactor) throws IOException {
 		if (imageData == null)
 			return;
 		TMADataIO.writeTMAData(new File(resolvePath(path)), imageData, null, downsampleFactor);
@@ -361,24 +361,38 @@ public class QPEx extends QP {
 	 * @param channel channel number (0-based index)
 	 * @param minDisplay
 	 * @param maxDisplay
+	 * @return true if it was possible to set the display range, false otherwise (e.g. if the image could not be accessed,
+	 *         or the channel was out of range).
 	 */
-	public static void setChannelDisplayRange(ImageData<BufferedImage> imageData, int channel, double minDisplay, double maxDisplay) {
+	public static boolean setChannelDisplayRange(ImageData<BufferedImage> imageData, int channel, double minDisplay, double maxDisplay) {
 		// Try to get an existing display if the image is currently open
 		var viewer = getQuPath().getAllViewers().stream()
 				.filter(v -> v.getImageData() == imageData)
 				.findFirst()
 				.orElse(null);
-		ImageDisplay display = viewer == null ? new ImageDisplay(imageData) : viewer.getImageDisplay();
+		ImageDisplay display;
+		if (viewer == null) {
+			try {
+				display = ImageDisplay.create(imageData);
+			} catch (IOException e) {
+				logger.warn("Unable to set the display range for {} - ImageDisplay could not be initialized",
+						imageData, e);
+				return false;
+			}
+		} else {
+			display = viewer.getImageDisplay();
+		}
 		var available = display.availableChannels();
 		if (channel < 0 || channel >= available.size()) {
 			logger.warn("Channel {} is out of range ({}-{}) - cannot set display range", channel, 0, available.size()-1);
-			return;
+			return false;
 		}
 		var info = display.availableChannels().get(channel);
 		display.setMinMaxDisplay(info, (float)minDisplay, (float)maxDisplay);
 		// Update the viewer is necessary
 		if (viewer != null)
 			viewer.repaintEntireImage();
+		return true;
 	}
 	
 	/**
@@ -404,7 +418,18 @@ public class QPEx extends QP {
 				.filter(v -> v.getImageData() == imageData)
 				.findFirst()
 				.orElse(null);
-		ImageDisplay display = viewer == null ? new ImageDisplay(imageData) : viewer.getImageDisplay();
+		ImageDisplay display;
+		if (viewer == null) {
+			try {
+				display = ImageDisplay.create(imageData);
+			} catch (IOException e) {
+				logger.warn("Unable to set the display range for {} - ImageDisplay could not be initialized",
+						imageData, e);
+				return;
+			}
+		} else {
+			display = viewer.getImageDisplay();
+		}
 		var available = display.availableChannels();
 		ChannelDisplayInfo info = null;
 		var serverChannels = imageData.getServer().getMetadata().getChannels();

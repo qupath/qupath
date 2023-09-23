@@ -27,6 +27,10 @@ import java.awt.Dimension;
 import java.awt.Rectangle;
 import java.awt.geom.Point2D;
 
+import javafx.beans.property.LongProperty;
+import javafx.beans.property.ReadOnlyLongProperty;
+import javafx.beans.property.ReadOnlyLongWrapper;
+import javafx.beans.property.SimpleLongProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -62,6 +66,8 @@ class ViewTrackerPlayback {
 	private ViewTracker tracker;
 	
 	private BooleanProperty playing;
+
+	private ReadOnlyLongWrapper playbackTimeProperty = new ReadOnlyLongWrapper();
 	
 	private Timeline timeline;
 	private long startTimestamp;
@@ -136,12 +142,16 @@ class ViewTrackerPlayback {
 	}
 
 	void handleUpdate() {
-		if (tracker.isEmpty())
+		if (tracker.isEmpty()) {
+			playbackTimeProperty.set(0);
 			return;
+		}
 		
 		long timestamp = System.currentTimeMillis();
 		ViewRecordingFrame frame = tracker.getFrameForTime(timestamp - startTimestamp + firstFrame.getTimestamp());
 		boolean requestStop;
+		if (timeline != null)
+			playbackTimeProperty.set(timestamp - startTimestamp);
 		if (frame == null)
 			requestStop = true;
 		else {
@@ -153,8 +163,13 @@ class ViewTrackerPlayback {
 		// Stop playback, if required
 		if (requestStop) {
 			timeline.stop();
+			playbackTimeProperty.set(0L);
 			playing.set(false);
 		}
+	}
+
+	ReadOnlyLongProperty playbackTimeProperty() {
+		return playbackTimeProperty.getReadOnlyProperty();
 	}
 	
 	static void setViewerForFrame(final QuPathViewer viewer, final ViewRecordingFrame frame) {

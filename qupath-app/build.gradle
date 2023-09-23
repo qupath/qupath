@@ -260,7 +260,7 @@ runtime {
             'java.net.http',        // Add HttpClient support (may be used by scripts)
             'java.management',      // Useful to check memory usage
             'jdk.management.agent', // Enables VisualVM to connect and sample CPU use
-            'jdk.jsobject'          // Needed to interact with WebView through JSObject
+            'jdk.jsobject',         // Needed to interact with WebView through JSObject
     ]
 
     def params = buildParameters()
@@ -290,6 +290,48 @@ runtime {
     }
 
 }
+
+/**
+ * Fix the version on macOS - see https://github.com/qupath/qupath/issues/1250
+ */
+def taskMacOs = tasks.register('setMacOSVersion') {
+    doLast {
+        def appFile = new File("${rootProject.layout.buildDirectory.get()}/dist/${qupathAppName}.app")
+        def plistFile = new File("${appFile.getCanonicalPath()}/Contents/Info.plist")
+        def versionToInclude = getNonSnapshotVersion()
+        if (plistFile.exists()) {
+            // Update the plist with the 'correct' version (since jpackage blocks anything before 1.x.x)
+            String path = plistFile.getCanonicalPath()
+            println "Setting CFBundleVersion to ${versionToInclude}"
+            exec {
+                commandLine '/usr/libexec/PlistBuddy', '-c', "Set :CFBundleVersion ${versionToInclude}", path
+            }
+            println "Setting CFBundleShortVersionString to ${qupathVersion}"
+            exec {
+                commandLine '/usr/libexec/PlistBuddy', '-c', "Set :CFBundleShortVersionString ${qupathVersion}", path
+            }
+            // We need to make the macOS pkg here to incorporate the changes
+            if (findProperty('package')?.toLowerCase() in ['installer', 'pkg']) {
+                println "Creating pkg"
+                exec {
+                    workingDir appFile.getParentFile()
+                    commandLine 'jpackage',
+                            '-n', 'QuPath',
+                            '--app-image', appFile.getCanonicalPath(),
+                            '--type', 'pkg',
+                            '--mac-package-identifier', 'qupath',
+                            '--app-version', qupathVersion
+                }
+            }
+        }
+    }
+}
+
+// We may need to fix the version on Mac
+jpackage.configure {
+    finalizedBy taskMacOs
+}
+
 
 
 /**
@@ -360,11 +402,19 @@ class JPackageParams {
 }
 
 /**
+ * Get the version, with any 'SNAPSHOT' element removed
+ * @return
+ */
+String getNonSnapshotVersion() {
+    qupathVersion.replace('-SNAPSHOT', '')
+}
+
+/**
  * Build default parameters for jpackage, customizing these according to the current platform
  * @return
  */
 JPackageParams buildParameters() {
-    String appVersion = qupathVersion.replace('-SNAPSHOT', '')
+    String appVersion = getNonSnapshotVersion()
 
     def params = new JPackageParams()
     params.mainJar = project.jar.getArchiveFileName().get()
@@ -407,7 +457,8 @@ JPackageParams buildParameters() {
 void updatePackageType(JPackageParams params, String... defaultInstallers) {
     // Define platform-specific jpackage configuration options
     def packageType = findProperty('package')?.toLowerCase()
-    if (!packageType || ['image', 'app-image'].contains(packageType)) {
+    if (!packageType || ['image', 'app-image'].contains(packageType) || project.properties['platform.name'] == 'macosx') {
+        // We can't make installers directly on macOS - need to base them on an image
         params.skipInstaller = true
         params.installerTypes = [null]
         logger.info("No package type specified, using default ${packageType}")
@@ -463,7 +514,6 @@ def configureJPackageMac(JPackageParams params) {
     updatePackageType(params, properties['platform.installerExt'])
 
     params.installerOptions += ['--mac-package-name', 'QuPath']
-    params.installerOptions += ['--mac-package-identifier', 'QuPath']
     params.installerOptions += ['--mac-package-identifier', 'QuPath']
 
     // File associations supported on Mac

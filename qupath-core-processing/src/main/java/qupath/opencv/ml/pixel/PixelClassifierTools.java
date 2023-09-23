@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -592,37 +592,7 @@ public class PixelClassifierTools {
 	 * @return true if measurements were added, false otherwise
 	 */
 	public static boolean addMeasurements(Collection<? extends PathObject> objectsToMeasure, PixelClassificationMeasurementManager manager, String measurementID) {
-		
-		if (measurementID == null || measurementID.isBlank())
-			measurementID = "";
-		else {
-			measurementID = measurementID.strip();
-			if (measurementID.endsWith(":"))
-				measurementID += " ";
-			else
-				measurementID += ": ";			
-		}
-		
-		
-		int n = objectsToMeasure.size();
-		int i = 0;
-		
-		for (var pathObject : objectsToMeasure) {
-			i++;
-			if (n < 100 || n % 100 == 0)
-				logger.debug("Measured {}/{}", i, n);
-			try (var ml = pathObject.getMeasurementList()) {
-				for (String name : manager.getMeasurementNames()) {
-					Number value = manager.getMeasurementValue(pathObject, name, false);
-					double val = value == null ? Double.NaN : value.doubleValue();
-					ml.put(measurementID + name, val);
-				}
-			}
-			// We really want to lock objects so we don't end up with wrong measurements
-			if (!pathObject.isRootObject())
-				pathObject.setLocked(true);
-		}
-		return true;
+		return manager.addMeasurements(objectsToMeasure, measurementID);
 	}
 	
 

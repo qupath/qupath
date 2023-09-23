@@ -487,7 +487,7 @@ public class SvgTools {
 				try {
 					transformInverse = transform.createInverse();
 				} catch (NoninvertibleTransformException e) {
-					logger.warn("Can't include images - unable to invert image transform: ", e.getMessage(), e);
+					logger.warn("Can't include images - unable to invert image transform: {}", e.getMessage(), e);
 				}
 			}
 
@@ -495,17 +495,23 @@ public class SvgTools {
 			boolean objectsDrawn = false;
 			if (transformInverse != null && includeImages) {
 				if (imageData != null) {
-					DefaultImageRegionStore store;
-					ImageDisplay display;
-					if (viewer == null) {
-						store = ImageRegionStoreFactory.createImageRegionStore(1024*1024L*16);
-						display = new ImageDisplay(imageData);
-					} else {
-						store = viewer.getImageRegionStore();
-						if (viewer.getImageData() == imageData)
-							display = viewer.getImageDisplay();
-						else
-							display = new ImageDisplay(imageData);							
+					DefaultImageRegionStore store = null;
+					ImageDisplay display = null;
+					try {
+						if (viewer == null) {
+							store = ImageRegionStoreFactory.createImageRegionStore(1024 * 1024L * 16);
+							display = ImageDisplay.create(imageData);
+						} else {
+							store = viewer.getImageRegionStore();
+							if (viewer.getImageData() == imageData)
+								display = viewer.getImageDisplay();
+							else
+								display = ImageDisplay.create(imageData);
+						}
+					} catch (IOException e) {
+						logger.warn("Unable to create image display, may not be able to include images", e);
+						if (store == null)
+							store = ImageRegionStoreFactory.createImageRegionStore(1024 * 1024L * 16);
 					}
 					
 					if (imageInclude == ImageIncludeType.LINK) {

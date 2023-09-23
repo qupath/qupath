@@ -207,7 +207,7 @@ public class BrushToolEventHandler extends AbstractPathROIToolEventHandler {
 		if (!PathPrefs.selectionModeProperty().get() && (multipleClicks || (createNew && !e.isShiftDown()))) {
 			// See if, rather than creating something, we can instead reactivate a current object
 			if (multipleClicks) {
-				PathObject objectSelectable = getSelectableObject(p.getX(), p.getY(), e.getClickCount() - 1);
+				PathObject objectSelectable = ToolUtils.getSelectableObject(viewer, p.getX(), p.getY(), e.getClickCount() - 1);
 				if (objectSelectable != null && objectSelectable.isEditable() && objectSelectable.hasROI() && objectSelectable.getROI().isArea()) {
 					createNew = false;
 					viewer.setSelectedObject(objectSelectable);
@@ -217,7 +217,7 @@ public class BrushToolEventHandler extends AbstractPathROIToolEventHandler {
 					currentObject = null;
 				}
 			} else if (!PathPrefs.selectionModeProperty().get()) {
-					List<PathObject> listSelectable = getSelectableObjectList(p.getX(), p.getY());
+					List<PathObject> listSelectable = ToolUtils.getSelectableObjectList(viewer, p.getX(), p.getY());
 					PathObject objectSelectable = null;
 					for (int i = listSelectable.size()-1; i >= 0; i--) {
 						PathObject temp = listSelectable.get(i);
@@ -255,7 +255,7 @@ public class BrushToolEventHandler extends AbstractPathROIToolEventHandler {
 //					.orElseGet(() -> null);
 //		}
 //		setConstrainedAreaParent(hierarchy, parent, currentObject);
-		setConstrainedAreaParent(hierarchy, xx, yy, Collections.singleton(currentObject));
+		updatingConstrainingObjects(viewer, xx, yy, Collections.singleton(currentObject));
 
 		
 		// Need to remove the object from the hierarchy while editing it
@@ -276,7 +276,7 @@ public class BrushToolEventHandler extends AbstractPathROIToolEventHandler {
 		lastPoint = p;
 	}
 	
-	
+
 	
 	
 	@Override
@@ -432,9 +432,11 @@ public class BrushToolEventHandler extends AbstractPathROIToolEventHandler {
 		if (currentObject != null) {
 			commitObjectToHierarchy(e, currentObject);
 		}
-		
+
 		lastPoint = null;
 		this.currentObject = null;
+
+		resetConstrainingObjects();
 	}
 	
 	
@@ -466,7 +468,7 @@ public class BrushToolEventHandler extends AbstractPathROIToolEventHandler {
 		
 		// See if we're on top of a tile
 		if (useTiles) {
-			List<PathObject> listSelectable = getSelectableObjectList(x, y);
+			List<PathObject> listSelectable = ToolUtils.getSelectableObjectList(getViewer(), x, y);
 			for (PathObject temp : listSelectable) {
 //				if ((temp instanceof PathDetectionObject) && temp.getROI() instanceof PathArea)
 				if (temp instanceof PathTileObject && temp.hasROI() && temp.getROI().isArea() && !(temp.getROI() instanceof RectangleROI)) {

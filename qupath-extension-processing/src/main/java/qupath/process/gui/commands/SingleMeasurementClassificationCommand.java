@@ -62,8 +62,8 @@ import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.ThreadTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.charts.HistogramPanelFX;
-import qupath.lib.gui.charts.HistogramPanelFX.ThresholdedChartWrapper;
+import qupath.lib.gui.charts.HistogramChart;
+import qupath.lib.gui.charts.ChartThresholdPane;
 import qupath.fx.dialogs.Dialogs;
 import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.gui.tools.GuiTools;
@@ -145,7 +145,7 @@ public class SingleMeasurementClassificationCommand implements Runnable {
 		
 		private CheckBox cbLivePreview = new CheckBox("Live preview");
 		
-		private HistogramPanelFX histogramPane = new HistogramPanelFX();
+		private HistogramChart histogramPane = new HistogramChart();
 		
 		private ClassificationRequest<BufferedImage> nextRequest;
 		
@@ -231,22 +231,22 @@ public class SingleMeasurementClassificationCommand implements Runnable {
 			GridPaneUtils.addGridRow(pane, row++, 0, "Specify name of the classifier - this will be used to save to "
 					+ "save the classifier in the current project, so it may be used for scripting later", labelSave, tfSaveName, btnSave);
 			
-			var chartWrapper = new ThresholdedChartWrapper(histogramPane.getChart());
-			chartWrapper.setIsInteractive(true);
-			chartWrapper.addThreshold(sliderThreshold.valueProperty());
+			var chartPane = new ChartThresholdPane(histogramPane);
+			chartPane.setIsInteractive(true);
+			chartPane.addThreshold(sliderThreshold.valueProperty());
 			
-			histogramPane.getChart().getYAxis().setTickLabelsVisible(false);
-			histogramPane.getChart().setAnimated(false);
+			histogramPane.getYAxis().setTickLabelsVisible(false);
+			histogramPane.setAnimated(false);
 			
-			GridPaneUtils.setToExpandGridPaneHeight(chartWrapper.getPane());
-			GridPaneUtils.setToExpandGridPaneWidth(chartWrapper.getPane());
+			GridPaneUtils.setToExpandGridPaneHeight(chartPane);
+			GridPaneUtils.setToExpandGridPaneWidth(chartPane);
 			GridPaneUtils.setToExpandGridPaneWidth(comboFilter, comboChannels, comboMeasurements, sliderThreshold,
 					comboAbove, comboBelow, tfSaveName, cbLivePreview);
 			
-			histogramPane.getChart().getYAxis().setTickLabelsVisible(false);
-			histogramPane.getChart().setAnimated(false);
-			chartWrapper.getPane().setPrefSize(200, 80);
-			pane.add(chartWrapper.getPane(), pane.getColumnCount(), 0, 1, pane.getRowCount());
+			histogramPane.getYAxis().setTickLabelsVisible(false);
+			histogramPane.setAnimated(false);
+			chartPane.setPrefSize(200, 80);
+			pane.add(chartPane, pane.getColumnCount(), 0, 1, pane.getRowCount());
 			
 			// Add listeners
 			comboChannels.valueProperty().addListener((v, o, n) -> updateChannelFilter());
@@ -490,7 +490,7 @@ public class SingleMeasurementClassificationCommand implements Runnable {
 					.filter(d -> Double.isFinite(d)).toArray();
 			var stats = new DescriptiveStatistics(allValues);
 			var histogram = new Histogram(allValues, 100, stats.getMin(), stats.getMax());
-			histogramPane.getHistogramData().setAll(HistogramPanelFX.createHistogramData(histogram, false, ColorTools.packARGB(100, 200, 20, 20)));
+			histogramPane.getHistogramData().setAll(HistogramChart.createHistogramData(histogram, ColorTools.packARGB(100, 200, 20, 20)));
 			
 			double value = previousThresholds.getOrDefault(measurement, stats.getMean());
 			sliderThreshold.setMin(stats.getMin());

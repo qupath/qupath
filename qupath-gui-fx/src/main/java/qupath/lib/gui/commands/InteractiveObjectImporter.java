@@ -181,6 +181,12 @@ public final class InteractiveObjectImporter {
 		List<PathObject> pathObjects;
 		try {
 			pathObjects = PathIO.readObjects(file);
+			var tmaCores = pathObjects.stream().filter(PathObject::isTMACore).collect(Collectors.toSet());
+			if (!tmaCores.isEmpty()) {
+				logger.warn("TMA core objects can't be imported - {} will be skipped", tmaCores.size());
+				pathObjects = new ArrayList<>(pathObjects);
+				pathObjects.removeAll(tmaCores);
+			}
 		} catch (IOException | IllegalArgumentException ex) {
 			Dialogs.showErrorNotification("Error importing objects", ex.getLocalizedMessage());
 			return false;

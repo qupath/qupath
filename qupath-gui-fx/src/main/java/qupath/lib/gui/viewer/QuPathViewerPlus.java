@@ -78,14 +78,13 @@ public class QuPathViewerPlus extends QuPathViewer {
 	
 	/**
 	 * Create a new viewer.
-	 * @param imageData image data to show within the viewer
 	 * @param regionStore store used to tile caching
 	 * @param overlayOptions overlay options to control the viewer display
 	 * @param viewerDisplayOptions viewer options to control additional panes and labels
 	 */
-	public QuPathViewerPlus(final ImageData<BufferedImage> imageData, final DefaultImageRegionStore regionStore, final OverlayOptions overlayOptions,
+	public QuPathViewerPlus(final DefaultImageRegionStore regionStore, final OverlayOptions overlayOptions,
 			final ViewerPlusDisplayOptions viewerDisplayOptions) {
-		super(imageData, regionStore, overlayOptions);
+		super(regionStore, overlayOptions);
 		
 		
 		sliderZ.setOrientation(Orientation.VERTICAL);
@@ -106,8 +105,6 @@ public class QuPathViewerPlus extends QuPathViewer {
 		});
 		
 		// Add the overview (preview image for navigation)
-		if (imageData != null)
-			overview.imageDataChanged(this, null, imageData);
 		Node overviewNode = overview.getNode();
 		basePane.getChildren().add(overviewNode);
 		AnchorPane.setTopAnchor(overviewNode, (double)padding);

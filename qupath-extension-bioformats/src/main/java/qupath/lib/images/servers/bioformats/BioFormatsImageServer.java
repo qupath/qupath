@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -23,62 +23,6 @@
 
 package qupath.lib.images.servers.bioformats;
 
-import java.awt.image.BandedSampleModel;
-import java.awt.image.BufferedImage;
-import java.awt.image.ColorModel;
-import java.awt.image.ComponentSampleModel;
-import java.awt.image.DataBuffer;
-import java.awt.image.DataBufferByte;
-import java.awt.image.DataBufferDouble;
-import java.awt.image.DataBufferFloat;
-import java.awt.image.DataBufferInt;
-import java.awt.image.DataBufferShort;
-import java.awt.image.DataBufferUShort;
-import java.awt.image.PixelInterleavedSampleModel;
-import java.awt.image.SampleModel;
-import java.awt.image.WritableRaster;
-import java.io.File;
-import java.io.IOException;
-import java.lang.ref.Cleaner;
-import java.lang.ref.Cleaner.Cleanable;
-import java.lang.reflect.InvocationTargetException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.nio.DoubleBuffer;
-import java.nio.FloatBuffer;
-import java.nio.IntBuffer;
-import java.nio.ShortBuffer;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ForkJoinPool;
-import java.util.concurrent.ForkJoinTask;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
-
-import javax.imageio.ImageIO;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import ome.units.UNITS;
-import ome.units.quantity.Length;
-import picocli.CommandLine;
-import picocli.CommandLine.Option;
-import picocli.CommandLine.Unmatched;
-import loci.common.DataTools;
 import loci.common.services.DependencyException;
 import loci.common.services.ServiceException;
 import loci.formats.ClassList;
@@ -97,6 +41,13 @@ import loci.formats.meta.DummyMetadata;
 import loci.formats.meta.MetadataStore;
 import loci.formats.ome.OMEPyramidStore;
 import loci.formats.ome.OMEXMLMetadata;
+import ome.units.UNITS;
+import ome.units.quantity.Length;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import picocli.CommandLine;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.Unmatched;
 import qupath.lib.color.ColorModelFactory;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
@@ -108,6 +59,36 @@ import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.ImageServerMetadata.ImageResolutionLevel;
 import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.TileRequest;
+
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.awt.image.ColorModel;
+import java.io.File;
+import java.io.IOException;
+import java.lang.ref.Cleaner;
+import java.lang.ref.Cleaner.Cleanable;
+import java.lang.reflect.InvocationTargetException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.ByteOrder;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.ForkJoinTask;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.IntStream;
 
 /**
  * QuPath ImageServer that uses the Bio-Formats library to read image data.
@@ -326,8 +307,10 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			}
 		}
 
+		List<ImageChannel> channels = new ArrayList<>();
+
 		// Create a reader & extract the metadata
-		readerPool = new ReaderPool(options, filePathOrUrl, bfArgs);
+		readerPool = new ReaderPool(options, filePathOrUrl, bfArgs, channels);
 		IFormatReader reader = readerPool.getMainReader();
 		var meta = (OMEPyramidStore)reader.getMetadataStore();
 
@@ -494,9 +477,6 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 				tileWidth = getDefaultTileLength(tileWidth, width);
 			if (tileHeight != height)
 				tileHeight = getDefaultTileLength(tileHeight, height);
-
-			// Prepared to set channel colors
-			List<ImageChannel> channels = new ArrayList<>();
 
 			nZSlices = reader.getSizeZ();
 //			// Workaround bug whereby VSI channels can also be replicated as z-slices
@@ -1039,7 +1019,9 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 	static class ReaderPool implements AutoCloseable {
 		
 		private static final Logger logger = LoggerFactory.getLogger(ReaderPool.class);
-		
+
+		private static final int DEFAULT_TIMEOUT_SECONDS = 60;
+
 		/**
 		 * Absolute maximum number of permitted readers (queue capacity)
 		 */
@@ -1060,15 +1042,21 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		private IFormatReader mainReader;
 		
 		private ForkJoinTask<?> task;
-		
-		
-		ReaderPool(BioFormatsServerOptions options, String id, BioFormatsArgs args) throws FormatException, IOException {
+		private final List<ImageChannel> channels;
+
+		private int timeoutSeconds;
+
+		// This may be reused by OMERO extension? Not sure, but need to change cautiously...
+		ReaderPool(BioFormatsServerOptions options, String id, BioFormatsArgs args, List<ImageChannel> channels) throws FormatException, IOException {
 			this.id = id;
 			this.options = options;
 			this.args = args;
+			this.channels = channels;
 			
 			queue = new ArrayBlockingQueue<>(MAX_QUEUE_CAPACITY); // Set a reasonably large capacity (don't want to block when trying to add)
 			metadata = (OMEPyramidStore)MetadataTools.createOMEXMLMetadata();
+
+			timeoutSeconds = getTimeoutSeconds();
 			
 			// Create the main reader
 			long startTime = System.currentTimeMillis();
@@ -1082,6 +1070,23 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			
 			// Store the class so we don't need to go hunting later
 			classList = unwrapClasslist(mainReader);
+		}
+
+		/**
+		 * Make the timeout adjustable.
+		 * See https://github.com/qupath/qupath/issues/1265
+		 * @return
+		 */
+		private int getTimeoutSeconds() {
+			String timeoutString = System.getProperty("bioformats.readerpool.timeout", null);
+			if (timeoutString != null) {
+				try {
+					return Integer.parseInt(timeoutString);
+				} catch (NumberFormatException e) {
+					logger.warn("Unable to parse timeout value: {}", timeoutString, e);
+				}
+			}
+			return DEFAULT_TIMEOUT_SECONDS;
 		}
 		
 		IFormatReader getMainReader() {
@@ -1264,7 +1269,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		
 				
 		
-		private IFormatReader nextQueuedReader() throws InterruptedException {
+		private IFormatReader nextQueuedReader() {
 			var nextReader = queue.poll();
 			if (nextReader != null)
 				return nextReader;
@@ -1277,7 +1282,13 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			if (isClosed)
 				return null;
 			try {
-				return queue.poll(60, TimeUnit.SECONDS);
+				var reader = queue.poll(timeoutSeconds, TimeUnit.SECONDS);
+				// See https://github.com/qupath/qupath/issues/1265
+				if (reader == null) {
+					logger.warn("Bio-Formats reader request timed out after {} seconds - returning main reader", timeoutSeconds);
+					return mainReader;
+				} else
+					return reader;
 			} catch (InterruptedException e) {
 				logger.warn("Interrupted exception when awaiting next queued reader: {}", e.getLocalizedMessage());
 				return isClosed ? null : mainReader;
@@ -1286,7 +1297,6 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		
 		
 		BufferedImage openImage(TileRequest tileRequest, int series, int nChannels, boolean isRGB, ColorModel colorModel) throws IOException, InterruptedException {
-			
 			int level = tileRequest.getLevel();
 			int tileX = tileRequest.getTileX();
 			int tileY = tileRequest.getTileY();
@@ -1303,6 +1313,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			boolean interleaved;
 			int pixelType;
 			boolean normalizeFloats = false;
+			int[] samplesPerPixel;
 
 			
 			IFormatReader ipReader = null;
@@ -1324,7 +1335,10 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 					interleaved = ipReader.isInterleaved();
 					pixelType = ipReader.getPixelType();
 					normalizeFloats = ipReader.isNormalized();
-	
+					samplesPerPixel = IntStream.range(0, metadata.getChannelCount(series))
+							.map(channel -> metadata.getChannelSamplesPerPixel(series, channel).getValue())
+							.toArray();
+
 					// Single-channel & RGB images are straightforward... nothing more to do
 					if ((ipReader.isRGB() && isRGB) || nChannels == 1) {
 						// Read the image - or at least the first channel
@@ -1332,8 +1346,9 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 						try {
 							byte[] bytesSimple = ipReader.openBytes(ind, tileX, tileY, tileWidth, tileHeight);
 							return AWTImageTools.openImage(bytesSimple, ipReader, tileWidth, tileHeight);
-						} catch (Exception e) {
-							logger.error("Error opening image " + ind + " for " + tileRequest.getRegionRequest(), e);
+						} catch (Exception | UnsatisfiedLinkError e) {
+							logger.warn("Unable to open image " + ind + " for " + tileRequest.getRegionRequest());
+							throw convertToIOException(e);
 						}
 					}
 					// Read bytes for all the required channels
@@ -1345,131 +1360,57 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 							bytes[c] = ipReader.openBytes(ind, tileX, tileY, tileWidth, tileHeight);
 							length = bytes[c].length;
 						}
-					} catch (FormatException e) {
-						throw new IOException(e);
+					} catch (Exception | UnsatisfiedLinkError e) {
+						throw convertToIOException(e);
 					}
 				}
 			} finally {
-				if (ipReader != null)
-					queue.put(ipReader);
+				queue.put(ipReader);
 			}
+
+			OMEPixelParser omePixelParser = new OMEPixelParser.Builder()
+					.isInterleaved(interleaved)
+					.pixelType(switch (pixelType) {
+						case FormatTools.UINT8 -> PixelType.UINT8;
+						case FormatTools.INT8 -> PixelType.INT8;
+						case FormatTools.UINT16 -> PixelType.UINT16;
+						case FormatTools.INT16 -> PixelType.INT16;
+						case FormatTools.UINT32 -> PixelType.UINT32;
+						case FormatTools.INT32 -> PixelType.INT32;
+						case FormatTools.FLOAT -> PixelType.FLOAT32;
+						case FormatTools.DOUBLE -> PixelType.FLOAT64;
+						default -> throw new IllegalStateException("Unexpected value: " + pixelType);
+					})
+					.byteOrder(order)
+					.normalizeFloats(normalizeFloats)
+					.effectiveNChannels(effectiveC)
+					.samplesPerPixel(samplesPerPixel)
+					.build();
 			
-			DataBuffer dataBuffer;
-			switch (pixelType) {
-			case (FormatTools.UINT8):
-				dataBuffer = new DataBufferByte(bytes, length);
-			break;
-			case (FormatTools.UINT16):
-				length /= 2;
-				short[][] array = new short[bytes.length][length];
-				for (int i = 0; i < bytes.length; i++) {
-					ShortBuffer buffer = ByteBuffer.wrap(bytes[i]).order(order).asShortBuffer();
-					array[i] = new short[buffer.limit()];
-					buffer.get(array[i]);
-				}
-				dataBuffer = new DataBufferUShort(array, length);
-				break;
-			case (FormatTools.INT16):
-				length /= 2;
-				short[][] shortArray = new short[bytes.length][length];
-				for (int i = 0; i < bytes.length; i++) {
-					ShortBuffer buffer = ByteBuffer.wrap(bytes[i]).order(order).asShortBuffer();
-					shortArray[i] = new short[buffer.limit()];
-					buffer.get(shortArray[i]);
-				}
-				dataBuffer = new DataBufferShort(shortArray, length);
-				break;
-			case (FormatTools.INT32):
-				length /= 4;
-				int[][] intArray = new int[bytes.length][length];
-					for (int i = 0; i < bytes.length; i++) {
-						IntBuffer buffer = ByteBuffer.wrap(bytes[i]).order(order).asIntBuffer();
-						intArray[i] = new int[buffer.limit()];
-						buffer.get(intArray[i]);
+			return omePixelParser.parse(bytes, tileWidth, tileHeight, nChannels, colorModel);
+		}
+
+		/**
+		 * Ensure a throwable is an IOException.
+		 * This gives the opportunity to include more human-readable messages for common errors.
+		 * @param t
+		 * @return
+		 */
+		private static IOException convertToIOException(Throwable t) {
+			if (GeneralTools.isMac()) {
+				String message = t.getMessage();
+				if (message != null) {
+					if (message.contains("ome.jxrlib.JXRJNI")) {
+						return new IOException("Bio-Formats does not support JPEG-XR on Apple Silicon: " + t.getMessage(), t);
 					}
-				dataBuffer = new DataBufferInt(intArray, length);
-				break;
-			case (FormatTools.FLOAT):
-				length /= 4;
-				float[][] floatArray = new float[bytes.length][length];
-				for (int i = 0; i < bytes.length; i++) {
-					FloatBuffer buffer = ByteBuffer.wrap(bytes[i]).order(order).asFloatBuffer();
-					floatArray[i] = new float[buffer.limit()];
-					buffer.get(floatArray[i]);
-					if (normalizeFloats)
-						floatArray[i] = DataTools.normalizeFloats(floatArray[i]);
-				}
-				dataBuffer = new DataBufferFloat(floatArray, length);
-				break;
-			case (FormatTools.DOUBLE):
-				length /= 8;
-				double[][] doubleArray = new double[bytes.length][length];
-				for (int i = 0; i < bytes.length; i++) {
-					DoubleBuffer buffer = ByteBuffer.wrap(bytes[i]).order(order).asDoubleBuffer();
-					doubleArray[i] = new double[buffer.limit()];
-					buffer.get(doubleArray[i]);
-					if (normalizeFloats)
-						doubleArray[i] = DataTools.normalizeDoubles(doubleArray[i]);
-				}
-				dataBuffer = new DataBufferDouble(doubleArray, length);
-				break;
-			// TODO: Consider conversion to closest supported pixel type
-			case FormatTools.BIT:
-			case FormatTools.INT8:
-			case FormatTools.UINT32:
-			default:
-				throw new UnsupportedOperationException("Unsupported pixel type " + pixelType);
-			}
-
-			SampleModel sampleModel;
-
-			if (effectiveC == 1 && sizeC > 1) {
-				// Handle channels stored in the same plane
-				int[] offsets = new int[sizeC];
-				if (interleaved) {
-					for (int b = 0; b < sizeC; b++)
-						offsets[b] = b;
-					sampleModel = new PixelInterleavedSampleModel(dataBuffer.getDataType(), tileWidth, tileHeight, sizeC, sizeC*tileWidth, offsets);
-				} else {
-					for (int b = 0; b < sizeC; b++)
-						offsets[b] = b * tileWidth * tileHeight;
-					sampleModel = new ComponentSampleModel(dataBuffer.getDataType(), tileWidth, tileHeight, 1, tileWidth, offsets);
-				}
-			} else if (sizeC > effectiveC) {
-				// Handle multiple bands, but still interleaved
-				// See https://forum.image.sc/t/qupath-cant-open-polarized-light-scans/65951
-				int[] offsets = new int[sizeC];
-				int[] bandInds = new int[sizeC];
-				int ind = 0;
-				
-				int channelCount = metadata.getChannelCount(series);
-				for (int cInd = 0; cInd < channelCount; cInd++) {
-					int nSamples = metadata.getChannelSamplesPerPixel(series, cInd).getValue();
-					for (int s = 0; s < nSamples; s++) {
-						bandInds[ind] = cInd;
-						if (interleaved) {
-							offsets[ind] = s;
-						} else {
-							offsets[ind] = s * tileWidth * tileHeight;							
-						}
-						ind++;
+					if (message.contains("org.libjpegturbo.turbojpeg.TJDecompressor")) {
+						return new IOException("Bio-Formats does not currently support libjpeg-turbo on Apple Silicon", t);
 					}
 				}
-				// TODO: Check this! It works for the only test image I have... (2 channels with 3 samples each)
-				// I would guess it fails if pixelStride does not equal nSamples, and if nSamples is different for different 'channels' - 
-				// but I don't know if this occurs in practice.
-				// If it does, I don't see a way to use a ComponentSampleModel... which could complicate things quite a bit
-				int pixelStride = sizeC / effectiveC;
-				int scanlineStride = pixelStride*tileWidth;
-				sampleModel = new ComponentSampleModel(dataBuffer.getDataType(), tileWidth, tileHeight, pixelStride, scanlineStride, bandInds, offsets);
-			} else {
-				// Merge channels on different planes
-				sampleModel = new BandedSampleModel(dataBuffer.getDataType(), tileWidth, tileHeight, sizeC);
 			}
-
-			WritableRaster raster = WritableRaster.createWritableRaster(sampleModel, dataBuffer, null);
-			return new BufferedImage(colorModel, raster, false, null);
-			
+			if (t instanceof IOException e)
+				return e;
+			return new IOException(t);
 		}
 		
 		
@@ -1493,8 +1434,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 					}
 				}
 			} finally {
-				if (reader != null)
-					queue.put(reader);
+				queue.put(reader);
 			}
 		}
 		

@@ -538,7 +538,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	public void repaint() {
 		if (repaintRequested && minimumRepaintSpacingMillis <= 0)
 			return;
-		
+
 		// We need to repaint everything if the display changed
 		if (imageDisplay != null && (lastDisplayChangeTimestamp != imageDisplay.getLastChangeTimestamp())) {
 			repaintEntireImage();
@@ -547,7 +547,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		
 		logger.trace("Repaint requested!");
 		repaintRequested = true;
-		
+
 		Platform.runLater(() -> paintCanvas());
 	}
 
@@ -630,8 +630,10 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	private InvalidationListener repainterEntire = new InvalidationListener() {
 		@Override
 		public void invalidated(Observable observable) {
-			background = ColorToolsAwt.getCachedColor(PathPrefs.viewerBackgroundColorProperty().get());
-			repaintEntireImage();
+			Platform.runLater(() -> {
+				background = ColorToolsAwt.getCachedColor(PathPrefs.viewerBackgroundColorProperty().get());
+				repaintEntireImage();
+			});
 		}
 	};
 	
@@ -765,22 +767,20 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 	/**
 	 * Create a new viewer.
-	 * @param imageData image data to show within the viewer
 	 * @param regionStore store used to tile caching
 	 * @param overlayOptions overlay options to control the viewer display
 	 */
-	public QuPathViewer(final ImageData<BufferedImage> imageData, DefaultImageRegionStore regionStore, OverlayOptions overlayOptions) {
-		this(imageData, regionStore, overlayOptions, new ImageDisplay(null));
+	public QuPathViewer(DefaultImageRegionStore regionStore, OverlayOptions overlayOptions) {
+		this(regionStore, overlayOptions, new ImageDisplay());
 	}
 	
 	/**
 	 * Create a new viewer.
-	 * @param imageData image data to show within the viewer
 	 * @param regionStore store used to tile caching
 	 * @param overlayOptions overlay options to control the viewer display
 	 * @param imageDisplay image display used to control the image display (conversion to RGB)
 	 */
-	public QuPathViewer(final ImageData<BufferedImage> imageData, DefaultImageRegionStore regionStore, OverlayOptions overlayOptions, ImageDisplay imageDisplay) {
+	private QuPathViewer(DefaultImageRegionStore regionStore, OverlayOptions overlayOptions, ImageDisplay imageDisplay) {
 		super();
 
 		this.regionStore = regionStore;
@@ -826,13 +826,15 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		//		setDebugGraphicsOptions(DebugGraphics.LOG_OPTION);
 
 		this.imageDisplay = imageDisplay;
+		if (imageDisplay != null)
+			imageDisplay.changeTimestampProperty().addListener(repainterEntire);
 
 		// Prepare overlay layers
 		customOverlayLayers.addListener((Change<? extends PathOverlay> e) -> refreshAllOverlayLayers());
 		coreOverlayLayers.addListener((Change<? extends PathOverlay> e) -> refreshAllOverlayLayers());
 		allOverlayLayers.addListener((Change<? extends PathOverlay> e) -> repaint());
 		
-		hierarchyOverlay = new HierarchyOverlay(this.regionStore, overlayOptions, imageData);
+		hierarchyOverlay = new HierarchyOverlay(this.regionStore, overlayOptions, null);
 		tmaGridOverlay = new TMAGridOverlay(overlayOptions);
 		gridOverlay = new GridOverlay(overlayOptions);
 //		pixelLayerOverlay = new PixelLayerOverlay(this);
@@ -843,8 +845,6 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 				hierarchyOverlay,
 				gridOverlay
 		);
-
-		setImageData(imageData);
 
 		this.regionStore.addTileListener(this);
 
@@ -1519,10 +1519,13 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	 * Set the current image for this viewer.
 	 * @param imageDataNew
 	 */
-	public void setImageData(ImageData<BufferedImage> imageDataNew) {
+	public void setImageData(ImageData<BufferedImage> imageDataNew) throws IOException {
 		if (this.imageDataProperty.get() == imageDataNew)
 			return;
-		
+
+		// We want to stop caching the hierarchy
+		hierarchyOverlay.resetImageData();
+
 		imageDataChanging.set(true);
 		
 		// Remove listeners for previous hierarchy
@@ -1567,8 +1570,17 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 					}
 				}
 			}
-			if (!displaySet)
-				imageDisplay.setImageData(imageDataNew, keepDisplay);
+			if (!displaySet) {
+				try {
+					imageDisplay.setImageData(imageDataNew, keepDisplay);
+				} catch (Exception | UnsatisfiedLinkError e2) {
+					// This can fail if the image isn't actually open-able.
+					// If we don't reset, then the viewer will be in a bad state and continually through exceptions.
+					logger.warn("Caught exception setting ImageData - will reset to null ({})", e2.getMessage());
+					setImageData(null);
+					throw e2;
+				}
+			}
 			
 			// For non-RGB images, the channel colors in our server metadata might now be out of sync with the 
 			// brightness/contrast, based upon whatever we extracted from the image properties or kept from the last image.
@@ -1628,7 +1640,19 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		
 		logger.info("Image data set to {}", imageDataNew);
 	}
-	
+
+
+	/**
+	 * Reset the image data to null.
+	 */
+	public void resetImageData() {
+		try {
+			setImageData(null);
+		} catch (IOException e) {
+			// Should not happen - exception only 'expected' when an image cannot be read
+			logger.error("Error resetting image data", e);
+		}
+	}
 	
 	
 	/**
@@ -1735,7 +1759,6 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		imageUpdated = true;
 		if (imageDisplay != null)
 			lastDisplayChangeTimestamp = imageDisplay.getLastChangeTimestamp();
-//		ensureGammaUpdated();
 		updateThumbnail();
 		repaint();		
 	}

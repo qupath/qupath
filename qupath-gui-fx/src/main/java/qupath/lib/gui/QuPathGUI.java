@@ -161,7 +161,8 @@ import qupath.lib.scripting.languages.ExecutableLanguage;
 import qupath.lib.scripting.languages.ScriptLanguage;
 import qupath.lib.gui.scripting.DefaultScriptEditor;
 import qupath.lib.gui.scripting.QPEx;
-
+import qupath.ui.logviewer.ui.main.LogMessageCounts;
+import qupath.ui.logviewer.ui.main.LogViewer;
 
 
 /**
@@ -261,7 +262,10 @@ public class QuPathGUI {
 		logViewerCommand = new LogViewerCommand(stage);
 		initializeLoggingToFile();
 		logBuildVersion();				
-		
+
+		// Try to ensure that any dialogs are shown with a sensible owner
+		Dialogs.setPrimaryWindow(stage);
+
 		// Set this as the current instance
 		ensureQuPathInstanceSet();
 		
@@ -330,6 +334,9 @@ public class QuPathGUI {
 		// Populating the scripting menu is slower, so delay it until now
 		populateScriptingMenu(getMenu(QuPathResources.getString("Menu.Automate"), false));
 		SystemMenuBar.manageMainMenuBar(menuBar);
+
+		stage.setMinWidth(600);
+		stage.setMinHeight(400);
 
 		logger.debug("{}", timeit.stop());
 	}
@@ -1433,6 +1440,8 @@ public class QuPathGUI {
 			return true;
 		} catch (Exception e) {
 			Dialogs.showErrorMessage("Load ImageData", e);
+			// If this failed
+			viewer.resetImageData();
 			return false;
 		}
 	}
@@ -2464,7 +2473,7 @@ public class QuPathGUI {
 			if (imageData != null) {
 				if (!checkSaveChanges(imageData))
 					return;
-				viewer.setImageData(null);
+				viewer.resetImageData();
 			}
 		}
 		
@@ -2591,7 +2600,7 @@ public class QuPathGUI {
 			if (!isReadOnly() && !promptToSaveChangesOrCancel(dialogTitle, imageData))
 				return false;
 		}
-		viewer.setImageData(null);
+		viewer.resetImageData();
 		return true;
 	}
 	
@@ -2643,11 +2652,12 @@ public class QuPathGUI {
 	
 	
 	/**
-	 * Show the log window associated with this QuPath instance.
+	 * Get the log viewer associated with this QuPath instance.
+	 * @return
 	 * @since v0.5.0
 	 */
-	public void showLogWindow() {
-		logViewerCommand.run();
+	public LogViewerCommand getLogViewerCommand() {
+		return logViewerCommand;
 	}
 	
 	

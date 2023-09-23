@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -23,30 +23,22 @@
 
 package qupath.lib.gui.panes;
 
-import java.awt.image.BufferedImage;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
-import javafx.embed.swing.SwingFXUtils;
-import javafx.scene.Scene;
-import javafx.scene.control.ContextMenu;
-import javafx.scene.control.Label;
-import javafx.scene.control.MenuItem;
-import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
-import javafx.scene.input.Clipboard;
-import javafx.scene.input.ClipboardContent;
-import javafx.scene.layout.BorderPane;
 import javafx.stage.Stage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
+
+import java.awt.image.BufferedImage;
 
 /**
  * A simple viewer for a slide label, tied to the current viewer.
@@ -59,9 +51,13 @@ public class SlideLabelView implements ChangeListener<ImageData<BufferedImage>> 
 	private static Logger logger = LoggerFactory.getLogger(SlideLabelView.class);
 	
 	private QuPathGUI qupath;
-	private Stage dialog;
+
+	private SimpleImageViewer simpleImageViewer;
+	private Stage stage;
+
 	private BooleanProperty showing = PathPrefs.createPersistentPreference("showSlideLabel", false);
-	private BorderPane pane = new BorderPane();
+
+	private StringProperty placeholderText = new SimpleStringProperty();
 	
 	/**
 	 * Constructor.
@@ -73,23 +69,30 @@ public class SlideLabelView implements ChangeListener<ImageData<BufferedImage>> 
 	}
 	
 	private void createDialog() {
-		dialog = new Stage();
-		dialog.initOwner(qupath.getStage());
-		dialog.setTitle("Label");
-		dialog.setScene(new Scene(pane, 400, 400));
-		
+		simpleImageViewer = new SimpleImageViewer();
+
+		simpleImageViewer.placeholderTextProperty().bind(placeholderText);
+
+		stage = simpleImageViewer.getStage();
+		stage.initOwner(qupath.getStage());
+
+		if (simpleImageViewer.getImage() == null) {
+			stage.setWidth(240);
+			stage.setHeight(240);
+		}
+
 		showing.addListener((v, o, n) -> {
 			if (n) {
-				if (!dialog.isShowing())
-					dialog.show();
+				if (!stage.isShowing()) {
+					GuiTools.showWithScreenSizeConstraints(stage, 0.8);
+				}
 			} else {
-				if (dialog.isShowing())
-					dialog.hide();
+				if (stage.isShowing())
+					stage.hide();
 			}
 		});
 		
-		
-		dialog.showingProperty().addListener((v, o, n) -> {
+		stage.showingProperty().addListener((v, o, n) -> {
 			if (n)
 				updateLabel(qupath.getImageData());
 			showing.set(n);
@@ -97,7 +100,10 @@ public class SlideLabelView implements ChangeListener<ImageData<BufferedImage>> 
 		
 		
 		if (showing.get()) {
-			Platform.runLater(() -> dialog.show());
+			Platform.runLater(() -> {
+				updateLabel(qupath.getImageData());
+				GuiTools.showWithScreenSizeConstraints(stage, 0.8);
+			});
 		}
 	}
 	
@@ -106,7 +112,7 @@ public class SlideLabelView implements ChangeListener<ImageData<BufferedImage>> 
 	 * @return
 	 */
 	public BooleanProperty showingProperty() {
-		if (dialog == null)
+		if (stage == null)
 			createDialog();
 		return showing;
 	}
@@ -117,70 +123,46 @@ public class SlideLabelView implements ChangeListener<ImageData<BufferedImage>> 
 	}
 	
 	private void updateLabel(final ImageData<BufferedImage> imageData) {
-		if (dialog == null || !dialog.isShowing())
+		if (stage == null || !stage.isShowing())
 			return;
 		
-		// Try to get a label image
-		Image imgLabel = null;
-		String message = "No label available";
-		if (imageData != null) {
-			ImageServer<BufferedImage> server = imageData.getServer();
-			if (server != null) {
-				var associatedNames = server.getAssociatedImageList();
-				if (!associatedNames.isEmpty()) {
-					try {
-						// Try to get a label from the associated images
-						// We start by looking for associated names equal to or containing label, and eventually broaden out to allow other associated images 
-						// as better than displaying nothing at all (since they might actually be label images).
-						// Adapted because of https://github.com/qupath/qupath/issues/643
-						String labelName = server.getAssociatedImageList().stream().filter(n -> n.toLowerCase().trim().equals("label")).findFirst().orElse(null);
-						if (labelName == null)
-							labelName = server.getAssociatedImageList().stream().filter(n -> n.toLowerCase().trim().contains("(label)")).findFirst().orElse(null);
-						if (labelName == null)
-							labelName = server.getAssociatedImageList().stream().filter(n -> n.toLowerCase().trim().contains("label")).findFirst().orElse(null);
-						if (labelName == null)
-							labelName = server.getAssociatedImageList().stream().filter(n -> n.toLowerCase().trim().contains("macro")).findFirst().orElse(null);
-						if (labelName == null)
-							labelName = associatedNames.get(0);
-						imgLabel = SwingFXUtils.toFXImage(server.getAssociatedImage(labelName), null);
-					} catch (Exception e) {
-						logger.error("Unable to read label from {}", server.getPath());
-					}
-				}
-			}
-		} else
-			message = "No image open in the current viewer";
-
-		// Update the component
-		if (imgLabel == null)
-			pane.setCenter(new Label(message));
-		else {
-			
-			ContextMenu popup = new ContextMenu();
-			MenuItem copyItem = new MenuItem("Copy");
-			var content = new ClipboardContent();
-			content.putImage(imgLabel);
-			copyItem.setOnAction(e -> {
-				Clipboard.getSystemClipboard().setContent(content);
-			});
-			popup.getItems().add(copyItem);
-			
-			ImageView view = new ImageView(imgLabel);
-			view.setPreserveRatio(true);
-			view.fitWidthProperty().bind(pane.widthProperty());
-			view.fitHeightProperty().bind(pane.heightProperty());
-			pane.setCenter(view);
-			
-			view.setOnMousePressed(e -> {
-				if (e.isPopupTrigger())
-					popup.show(view, e.getScreenX(), e.getScreenY());
-			});
-			view.setOnMouseReleased(e -> {
-				if (e.isPopupTrigger())
-					popup.show(view, e.getScreenX(), e.getScreenY());
-			});
-			
+		ImageServer<BufferedImage> server = imageData == null ? null : imageData.getServer();
+		if (server == null) {
+			placeholderText.set("No image open in the current viewer");
+			simpleImageViewer.resetImage();
+		} else {
+			String labelName = searchForLabelName(server);
+			if (labelName == null) {
+				placeholderText.set("No label found");
+				simpleImageViewer.resetImage();
+			} else
+				simpleImageViewer.updateImage(labelName, server.getAssociatedImage(labelName));
 		}
+	}
+
+	/**
+	 * Try to get the name of an associated label image.
+	 * @param server
+	 * @return
+	 */
+	private static String searchForLabelName(ImageServer<?> server) {
+		// Try to get a label from the associated images
+		// We start by looking for associated names equal to or containing label, and eventually broaden out to allow other associated images
+		// as better than displaying nothing at all (since they might actually be label images).
+		// Adapted because of https://github.com/qupath/qupath/issues/643
+		var associatedNames = server.getAssociatedImageList();
+		if (associatedNames.isEmpty())
+			return null;
+		String labelName = associatedNames.stream().filter(n -> n.toLowerCase().trim().equals("label")).findFirst().orElse(null);
+		if (labelName == null)
+			labelName = associatedNames.stream().filter(n -> n.toLowerCase().trim().contains("(label)")).findFirst().orElse(null);
+		if (labelName == null)
+			labelName = associatedNames.stream().filter(n -> n.toLowerCase().trim().contains("label")).findFirst().orElse(null);
+		if (labelName == null)
+			labelName = associatedNames.stream().filter(n -> n.toLowerCase().trim().contains("macro")).findFirst().orElse(null);
+		if (labelName == null)
+			labelName = associatedNames.get(0);
+		return labelName;
 	}
 
 }

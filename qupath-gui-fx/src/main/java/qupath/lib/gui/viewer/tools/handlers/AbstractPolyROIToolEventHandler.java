@@ -91,6 +91,7 @@ abstract class AbstractPolyROIToolEventHandler extends AbstractPathROIToolEventH
 					((PathROIObject)currentObject).setROI(roiUpdated);
 				}
 				commitObjectToHierarchy(e, currentObject);
+				resetConstrainingObjects();
 			}
 		}
 	}

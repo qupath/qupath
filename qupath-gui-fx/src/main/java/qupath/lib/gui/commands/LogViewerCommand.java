@@ -24,15 +24,23 @@
 package qupath.lib.gui.commands;
 
 import javafx.application.Platform;
-import javafx.scene.Parent;
+import javafx.beans.binding.Bindings;
+import javafx.beans.binding.ObjectExpression;
+import javafx.beans.property.LongProperty;
+import javafx.beans.property.SimpleLongProperty;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.scene.Scene;
+import javafx.scene.layout.Region;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.Window;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.fx.utils.FXUtils;
+import qupath.lib.gui.actions.InfoMessage;
 import qupath.lib.gui.prefs.SystemMenuBar;
+import qupath.ui.logviewer.ui.main.LogMessageCounts;
 import qupath.ui.logviewer.ui.main.LogViewer;
 import qupath.ui.logviewer.ui.textarea.TextAreaLogViewer;
 
@@ -44,7 +52,7 @@ import java.io.IOException;
  * @author Pete Bankhead
  *
  */
-public class LogViewerCommand implements Runnable {
+public class LogViewerCommand {
 
 	private static final Logger logger = LoggerFactory.getLogger(LogViewerCommand.class);
 
@@ -52,7 +60,13 @@ public class LogViewerCommand implements Runnable {
 
 	private Window parent;
 
-	private Parent logviewer;
+	private Region logviewer;
+
+	private LogMessageCounts counts;
+
+	private LongProperty errorMessageCounts = new SimpleLongProperty();
+
+	private ObservableList<String> errorCounts = FXCollections.observableArrayList();
 
 	/**
 	 * Constructor.
@@ -63,6 +77,10 @@ public class LogViewerCommand implements Runnable {
 		try {
 			LogViewer logviewer = new LogViewer();
 			SystemMenuBar.manageChildMenuBar(logviewer.getMenubar());
+			// Get counts so we can display warning badges
+			this.counts = logviewer.getAllLogsMessageCounts();
+			errorMessageCounts.bind(counts.errorLevelCountsProperty());
+
 			// Fix cell size for better performance
 			var table = logviewer.getTable();
 			table.setFixedCellSize(25);
@@ -73,10 +91,9 @@ public class LogViewerCommand implements Runnable {
 		}
 	}
 
-	@Override
-	public void run() {
+	public void show() {
 		if (!Platform.isFxApplicationThread()) {
-			Platform.runLater(() -> run());
+			Platform.runLater(() -> show());
 			return;
 		}
 		if (dialog == null) {
@@ -91,6 +108,11 @@ public class LogViewerCommand implements Runnable {
 			dialog.setResizable(true);
 			dialog.show();
 			dialog.sizeToScene();
+			// TODO: It would be nice to figure this out automatically
+			dialog.setMinWidth(600);
+			dialog.setMinHeight(400);
+//			dialog.setMinWidth(logviewer.getWidth());
+//			dialog.setMinHeight(logviewer.getHeight() + 30);
 			FXUtils.retainWindowPosition(dialog);
 		} else {
 			dialog.show();
@@ -101,5 +123,29 @@ public class LogViewerCommand implements Runnable {
 			table.scrollTo(table.getItems().size() - 1);
 		}
 	}
+
+	/**
+	 * Get the counts of all messages logged by the log viewer.
+	 * @return
+	 */
+	public LogMessageCounts getLogMessageCounts() {
+		return counts;
+	}
+
+
+	private ObjectExpression<InfoMessage> infoMessage = Bindings.createObjectBinding(() -> {
+		if (errorMessageCounts.get() <= 0L)
+			return null;
+		return InfoMessage.error(errorMessageCounts);
+	}, errorMessageCounts);
+
+	/**
+	 * Get a string expression to draw attention to error messages.
+	 * @return a string expression that evaluates to the error message, or null if there are no errors
+	 */
+	public ObjectExpression<InfoMessage> getInfoMessage() {
+		return infoMessage;
+	}
+
 
 }

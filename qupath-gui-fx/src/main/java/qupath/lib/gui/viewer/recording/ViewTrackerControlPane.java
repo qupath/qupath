@@ -310,9 +310,12 @@ public class ViewTrackerControlPane implements Runnable {
 		btnPane.addRow(0, exportBtn, deleteBtn, btnMore);
 		
 		// Disable all buttons if no recording is selected, disable 'Export' and 'More' if multiple selection
-		exportBtn.disableProperty().bind(Bindings.or(Bindings.equal(Bindings.size(table.getSelectionModel().getSelectedItems()), 1).not(), isAnalysisOpened));
-		deleteBtn.disableProperty().bind(Bindings.or(table.getSelectionModel().selectedItemProperty().isNull(), isAnalysisOpened));
-		btnMore.disableProperty().bind(Bindings.or(Bindings.equal(Bindings.size(table.getSelectionModel().getSelectedItems()), 1).not(), isAnalysisOpened));
+		exportBtn.disableProperty().bind(
+				playing.or(Bindings.or(Bindings.equal(Bindings.size(table.getSelectionModel().getSelectedItems()), 1).not(), isAnalysisOpened)));
+		deleteBtn.disableProperty().bind(
+				playing.or(Bindings.or(table.getSelectionModel().selectedItemProperty().isNull(), isAnalysisOpened)));
+		btnMore.disableProperty().bind(
+				playing.or(Bindings.or(Bindings.equal(Bindings.size(table.getSelectionModel().getSelectedItems()), 1).not(), isAnalysisOpened)));
 		
 		// Disable playback button if no ViewTracker or multiple ViewTrackers are selected
 		actionPlayback.disabledProperty().bind(Bindings.size(table.getSelectionModel().getSelectedItems()).isNotEqualTo(1).or(recordingMode).or(isAnalysisOpened));

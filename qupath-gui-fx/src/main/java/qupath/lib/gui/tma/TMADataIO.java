@@ -85,7 +85,7 @@ public class TMADataIO {
 	 * @param file
 	 * @param imageData
 	 */
-	public static void writeTMAData(File file, final ImageData<BufferedImage> imageData) {
+	public static void writeTMAData(File file, final ImageData<BufferedImage> imageData) throws IOException {
 		writeTMAData(file, imageData, null, -1);
 	}
 	
@@ -97,7 +97,7 @@ public class TMADataIO {
 	 * @param overlayOptions 
 	 * @param downsampleFactor The downsample factor used for the TMA cores. If NaN, an automatic downsample value will be selected (&gt;= 1).  If &lt;= 0, no cores are exported.
 	 */
-	public static void writeTMAData(File file, final ImageData<BufferedImage> imageData, OverlayOptions overlayOptions, final double downsampleFactor) {
+	public static void writeTMAData(File file, final ImageData<BufferedImage> imageData, OverlayOptions overlayOptions, final double downsampleFactor) throws IOException {
 		if (imageData == null || imageData.getHierarchy() == null || imageData.getHierarchy().getTMAGrid() == null) {
 			logger.error("No TMA data available to save!");
 			return;
