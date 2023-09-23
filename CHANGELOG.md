@@ -43,6 +43,7 @@ This is a work-in-progress for the next QuPath release.
 * Slide label doesn't update as expected when changing the image (https://github.com/qupath/qupath/issues/1246)
 * Several bug fixes in the view tracker (https://github.com/qupath/qupath/pull/1329)
 * Occasional misleading 'Reader is null - was the image already closed?' exceptions (https://github.com/qupath/qupath/issues/1265)
+* Using existing channel names (e.g. 'Red', 'Green', 'Blue') for color deconvolution can confuse brightness/contrast settings (https://github.com/qupath/qupath/issues/1245)
 
 ### Dependency updates
 * Bio-Formats 7.0.0
