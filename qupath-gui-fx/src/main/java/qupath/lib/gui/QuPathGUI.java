@@ -262,7 +262,10 @@ public class QuPathGUI {
 		logViewerCommand = new LogViewerCommand(stage);
 		initializeLoggingToFile();
 		logBuildVersion();				
-		
+
+		// Try to ensure that any dialogs are shown with a sensible owner
+		Dialogs.setPrimaryWindow(stage);
+
 		// Set this as the current instance
 		ensureQuPathInstanceSet();
 		
@@ -1437,6 +1440,8 @@ public class QuPathGUI {
 			return true;
 		} catch (Exception e) {
 			Dialogs.showErrorMessage("Load ImageData", e);
+			// If this failed
+			viewer.resetImageData();
 			return false;
 		}
 	}
@@ -2468,7 +2473,7 @@ public class QuPathGUI {
 			if (imageData != null) {
 				if (!checkSaveChanges(imageData))
 					return;
-				viewer.setImageData(null);
+				viewer.resetImageData();
 			}
 		}
 		
@@ -2595,7 +2600,7 @@ public class QuPathGUI {
 			if (!isReadOnly() && !promptToSaveChangesOrCancel(dialogTitle, imageData))
 				return false;
 		}
-		viewer.setImageData(null);
+		viewer.resetImageData();
 		return true;
 	}
 	

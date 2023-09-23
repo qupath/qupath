@@ -120,7 +120,8 @@ public class ImageDisplay extends AbstractImageRenderer {
 
 	private static Map<String, HistogramManager> cachedHistograms = Collections.synchronizedMap(new HashMap<>());
 	private HistogramManager histogramManager = null;
-	
+	private List<BufferedImage> imagesForHistograms = new ArrayList<>(); // Cache images needed to recompute histograms
+
 	private static BooleanProperty showAllRGBTransforms = PathPrefs.createPersistentPreference("showAllRGBTransforms", true);
 
 	// Used to store the channel colors before switching to grayscale, so this can be restored later
@@ -136,10 +137,8 @@ public class ImageDisplay extends AbstractImageRenderer {
 
 	/**
 	 * Constructor.
-	 * @param imageData image data that should be displayed
 	 */
-	public ImageDisplay(final ImageData<BufferedImage> imageData) {
-		setImageData(imageData, false);
+	public ImageDisplay() {
 		useGrayscaleLuts.addListener((v, o, n) -> {
 			if (n) {
 				// Snapshot the names of channels active before switching to grayscale
@@ -176,7 +175,20 @@ public class ImageDisplay extends AbstractImageRenderer {
 			}
 		});
 	}
-	
+
+	/**
+	 * Create a new image display, and set the specified image data.
+	 * @param imageData
+	 * @return
+	 * @throws IOException
+	 */
+	public static ImageDisplay create(ImageData<BufferedImage> imageData) throws IOException {
+		var display = new ImageDisplay();
+		if (imageData != null)
+			display.setImageData(imageData, false);
+		return display;
+	}
+
 
 	/**
 	 * Set the {@link ImageData} to a new value
@@ -184,7 +196,7 @@ public class ImageDisplay extends AbstractImageRenderer {
 	 * @param retainDisplaySettings if true, retain the same display settings as for the previous image if possible 
 	 *                              (i.e. the images have similar channels)
 	 */
-	public void setImageData(ImageData<BufferedImage> imageData, boolean retainDisplaySettings) {
+	public void setImageData(ImageData<BufferedImage> imageData, boolean retainDisplaySettings) throws IOException {
 		if (this.imageData == imageData)
 			return;
 
@@ -207,6 +219,7 @@ public class ImageDisplay extends AbstractImageRenderer {
 		lastDisplayJSON = retainDisplaySettings ? toJSON() : null;
 		
 		this.imageData = imageData;
+		this.imagesForHistograms = imageData == null ? Collections.emptyList() : getImagesForHistogram(imageData.getServer());
 		updateChannelOptions(true);
 		updateHistogramMap();
 		if (imageData != null) {
@@ -821,7 +834,7 @@ public class ImageDisplay extends AbstractImageRenderer {
 
 
 
-	private void updateHistogramMap() {
+	private void updateHistogramMap() throws IOException {
 		ImageServer<BufferedImage> server = imageData == null ? null : imageData.getServer();
 		if (server == null) {
 			histogramManager = null;
@@ -831,8 +844,7 @@ public class ImageDisplay extends AbstractImageRenderer {
 		histogramManager = cachedHistograms.get(server.getPath());
 		if (histogramManager == null) {
 			histogramManager = new HistogramManager(0L);
-//			histogramManager = new HistogramManager(server.getLastChangeTimestamp());
-			histogramManager.ensureChannels(server, channelOptions);
+			histogramManager.ensureChannels(server, channelOptions, imagesForHistograms);
 			if (server.getPixelType() == PixelType.UINT8) {
 				channelOptions.parallelStream().filter(c -> !(c instanceof DirectServerChannelInfo)).forEach(channel -> autoSetDisplayRange(channel, false));								
 			} else {
@@ -844,6 +856,30 @@ public class ImageDisplay extends AbstractImageRenderer {
 		}
 	}
 
+
+	private List<BufferedImage> getImagesForHistogram(final ImageServer<BufferedImage> server) throws IOException {
+		if (server == null)
+			return Collections.emptyList();
+		// Request default thumbnails (at lowest available resolution)
+		int nImages = server.nTimepoints() * server.nZSlices();
+		// Try to get the first image 'normally', so that if there is an exception it can be handled
+		var list = new ArrayList<BufferedImage>();
+		list.add(server.getDefaultThumbnail(0, 0));
+		if (nImages > 1) {
+			// If we have multiple images, we want to parallelize & return as much as we can
+			IntStream.range(1, nImages).parallel().mapToObj(i -> {
+				int z = i % server.nZSlices();
+				int t = i / server.nZSlices();
+				try {
+					return server.getDefaultThumbnail(z, t);
+				} catch (IOException e) {
+					logger.error("Error requesting thumbnail for {} (z={}, t={})", server.getPath(), z, t, e);
+					return null;
+				}
+			}).filter(img -> img != null).forEach(list::add);
+		}
+		return list;
+	}
 
 
 	private void autoSetDisplayRange(ChannelDisplayInfo info, Histogram histogram, double saturation, boolean fireUpdate) {
@@ -904,35 +940,6 @@ public class ImageDisplay extends AbstractImageRenderer {
 		}
 		logger.debug(String.format("Display range for {}: %.3f - %.3f (saturation %.3f)",  minDisplay, maxDisplay, saturation), info.getName());
 		setMinMaxDisplay(info, (float)minDisplay, (float)maxDisplay, fireUpdate);
-		
-//		double countMax = histogram.getCountSum() * saturation;
-//		double count = countMax;
-//		int ind = 0;
-//		double minDisplay = histogram.getEdgeMin();
-//		while (ind < histogram.nBins()) {
-//			double nextCount = histogram.getCountsForBin(ind);
-//			if (count < nextCount) {
-//				minDisplay = histogram.getBinLeftEdge(ind) + (count / nextCount) * histogram.getBinWidth(ind);
-//				break;
-//			}
-//			count -= nextCount;
-//			ind++;
-//		}
-//
-//		count = countMax;
-//		double maxDisplay = histogram.getEdgeMax();
-//		ind = histogram.nBins()-1;
-//		while (ind >= 0) {
-//			double nextCount = histogram.getCountsForBin(ind);
-//			if (count < nextCount) {
-//				maxDisplay = histogram.getBinRightEdge(ind) - (count / nextCount) * histogram.getBinWidth(ind);
-//				break;
-//			}
-//			count -= nextCount;
-//			ind--;
-//		}
-//		logger.debug(String.format("Display range for {}: %.3f - %.3f (saturation %.3f)",  minDisplay, maxDisplay, saturation), info.getName());
-//		setMinMaxDisplay(info, (float)minDisplay, (float)maxDisplay, fireUpdate);
 	}
 
 	void autoSetDisplayRange(ChannelDisplayInfo info, boolean fireUpdate) {
@@ -970,7 +977,7 @@ public class ImageDisplay extends AbstractImageRenderer {
 	public Histogram getHistogram(ChannelDisplayInfo info) {
 		if (info == null || histogramManager == null)
 			return null;
-		return histogramManager.getHistogram(getServer(), info);
+		return histogramManager.getHistogram(getServer(), info, imagesForHistograms);
 	}
 
 	
@@ -1135,6 +1142,8 @@ public class ImageDisplay extends AbstractImageRenderer {
 		private static int NUM_BINS = 1024;
 		
 		private Map<String, Histogram> map = Collections.synchronizedMap(new LinkedHashMap<>());
+
+		private List<BufferedImage> requiredImages;
 		
 		private long timestamp;
 		
@@ -1146,31 +1155,12 @@ public class ImageDisplay extends AbstractImageRenderer {
 			return timestamp;
 		}
 		
-		List<BufferedImage> getRequiredImages(final ImageServer<BufferedImage> server) {
-			// Request default thumbnails (at lowest available resolution)
-			int nImages = server.nTimepoints() * server.nZSlices();
-			return IntStream.range(0, nImages).parallel().mapToObj(i -> {
-				int z = i % server.nZSlices();
-				int t = i / server.nZSlices();
-				try {
-					return server.getDefaultThumbnail(z, t);
-				} catch (IOException e) {
-					logger.error("Error requesting default thumbnail for {} (z={}, t={})", server.getPath(), z, t);
-					logger.error(e.getLocalizedMessage(), e);
-					return null;
-				}
-			}).filter(img -> img != null).toList();
-		}
-		
 		String getKey(final ChannelDisplayInfo channel) {
 			return channel.getClass().getName() + "::" + channel.getName();
 		}
 		
-		void ensureChannels(final ImageServer<BufferedImage> server, final List<ChannelDisplayInfo> channels) {
-//			if (timestamp != server.getLastChangeTimestamp()) {
-//				logger.warn("Timestamp changed for server!  Histograms will be rebuilt for {}", server.getPath());
-//				map.clear();
-//			}
+		void ensureChannels(final ImageServer<BufferedImage> server, final List<ChannelDisplayInfo> channels, final List<BufferedImage> imgList) {
+
 			// Check what we might need to process
 			List<SingleChannelDisplayInfo> channelsToProcess = new ArrayList<>();
 			float serverMin = server.getMetadata().getMinValue().floatValue();
@@ -1179,28 +1169,30 @@ public class ImageDisplay extends AbstractImageRenderer {
 			for (ChannelDisplayInfo channel : channels) {
 				Histogram histogram = map.get(getKey(channel));
 				if (histogram != null) {
-					if (channel instanceof ModifiableChannelDisplayInfo) {
-						((ModifiableChannelDisplayInfo)channel).setMinMaxAllowed(
+					 // We have the histogram
+					if (channel instanceof ModifiableChannelDisplayInfo modifiableChannel) {
+						modifiableChannel.setMinMaxAllowed(
 								(float)Math.min(0, histogram.getMinValue()), (float)histogram.getMaxValue());
 					}
 					continue;
-				} else if (channel instanceof SingleChannelDisplayInfo) {
-					channelsToProcess.add((SingleChannelDisplayInfo)channel);
-					if (channel instanceof ModifiableChannelDisplayInfo) {
-						((ModifiableChannelDisplayInfo)channel).setMinMaxAllowed(serverMin, serverMax);
+				} else if (channel instanceof SingleChannelDisplayInfo singleChannel) {
+					// We need to compute the histogram
+					channelsToProcess.add(singleChannel);
+					if (channel instanceof ModifiableChannelDisplayInfo modifiableChannel) {
+						modifiableChannel.setMinMaxAllowed(serverMin, serverMax);
 					}
-				} else
+				} else {
+					// A histogram doesn't exist for the channel, and we can't compute one
 					map.put(getKey(channel), null);
+				}
 			}
-			if (channelsToProcess.isEmpty())
+
+			if (channelsToProcess.isEmpty() || imgList == null || imgList.isEmpty())
 				return;
 			
 			logger.debug("Building {} histograms for {}", channelsToProcess.size(), server.getPath());
 			long startTime = System.currentTimeMillis();
 
-			// Request appropriate images to use for histogram
-			List<BufferedImage> imgList = getRequiredImages(server);
-			
 			// Count number of pixels & estimate downsample factor
 			int imgWidth, imgHeight;
 			long nPixels = 0;
@@ -1250,14 +1242,14 @@ public class ImageDisplay extends AbstractImageRenderer {
 			logger.debug("Histograms built in {} ms", (endTime - startTime));
 		}
 		
-		Histogram getHistogram(final ImageServer<BufferedImage> server, final ChannelDisplayInfo channel) {
-			if (channel instanceof SingleChannelDisplayInfo) {
+		Histogram getHistogram(final ImageServer<BufferedImage> server, final ChannelDisplayInfo channel, final List<BufferedImage> images) {
+			if (channel instanceof SingleChannelDisplayInfo singleChannel) {
 				// Always recompute histogram for mutable channels
-				if (((SingleChannelDisplayInfo)channel).isMutable()) {
+				if (singleChannel.isMutable()) {
 					map.remove(getKey(channel));
 				}
 			}
-			ensureChannels(server, Collections.singletonList(channel));
+			ensureChannels(server, Collections.singletonList(channel), images);
 			return map.get(getKey(channel));
 		}
 		

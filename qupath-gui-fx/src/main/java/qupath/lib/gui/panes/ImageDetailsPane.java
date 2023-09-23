@@ -41,6 +41,7 @@ import java.util.Locale;
 import java.util.Locale.Category;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.IntStream;
 
 import javafx.scene.control.TitledPane;
@@ -961,7 +962,7 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 			if (roi != null) {
 				if ((roi instanceof RectangleROI) && 
 						!roi.isEmpty() &&
-						((RectangleROI) roi).getArea() < 500*500) {
+						roi.getArea() < 500*500) {
 					if (Dialogs.showYesNoDialog("Color deconvolution stains", message)) {
 						ImageServer<BufferedImage> server = imageData.getServer();
 						BufferedImage img = null;
@@ -1034,6 +1035,11 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 			String valuesAfter = params.getStringParameterValue("values");
 			if (collectiveName.equals(collectiveNameBefore) && nameAfter.equals(nameBefore) && valuesAfter.equals(valuesBefore) && !wasChanged)
 				return;
+
+			if (Set.of("Red", "Green", "Blue").contains(nameAfter)) {
+				Dialogs.showErrorMessage("Set stain vector", "Cannot set stain name to 'Red', 'Green', or 'Blue' - please choose a different name");
+				return;
+			}
 
 			double[] valuesParsed = ColorDeconvolutionStains.parseStainValues(Locale.getDefault(Category.FORMAT), valuesAfter);
 			if (valuesParsed == null) {
