@@ -1404,7 +1404,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 						return new IOException("Bio-Formats does not support JPEG-XR on Apple Silicon: " + t.getMessage(), t);
 					}
 					if (message.contains("org.libjpegturbo.turbojpeg.TJDecompressor")) {
-						return new IOException("Bio-Formats does not currently support libjpegturbo on Apple Silicon", t);
+						return new IOException("Bio-Formats does not currently support libjpeg-turbo on Apple Silicon", t);
 					}
 				}
 			}

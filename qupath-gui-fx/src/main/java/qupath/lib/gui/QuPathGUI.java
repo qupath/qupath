@@ -262,7 +262,10 @@ public class QuPathGUI {
 		logViewerCommand = new LogViewerCommand(stage);
 		initializeLoggingToFile();
 		logBuildVersion();				
-		
+
+		// Try to ensure that any dialogs are shown with a sensible owner
+		Dialogs.setPrimaryWindow(stage);
+
 		// Set this as the current instance
 		ensureQuPathInstanceSet();
 		
