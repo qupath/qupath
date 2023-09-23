@@ -23,7 +23,9 @@ package qupath.lib.analysis;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
 
@@ -230,10 +232,32 @@ public class DistanceTools {
 	 * @param signedDistances optionally calculate signed distances, i.e. negative values for source centroids that occur inside target objects representing the distance to the target object boundary
 	 * @since v0.4.0
 	 */
-	public static void centroidToBoundsDistance2D(Collection<PathObject> sourceObjects, Collection<PathObject> targetObjects, double pixelWidth, double pixelHeight, String measurementName, boolean signedDistances) {		
-		
-		boolean preferNucleus = true;
-		
+	public static void centroidToBoundsDistance2D(Collection<PathObject> sourceObjects, Collection<PathObject> targetObjects, double pixelWidth, double pixelHeight, String measurementName, boolean signedDistances) {
+		centroidToObjectsDistance2D(sourceObjects, targetObjects, pixelWidth, pixelHeight, measurementName, signedDistances, DistanceType.CENTROID_TO_BOUNDS);
+	}
+
+	/**
+	 * Define the distance type.
+	 * This is used to avoid needing to pre-compute centroids, risking inconsistency.
+	 * See https://github.com/qupath/qupath/issues/1249
+	 * @since v0.5.0
+	 */
+	private enum DistanceType {
+		CENTROID_TO_CENTROID,
+		CENTROID_TO_BOUNDS
+	}
+
+	private static void centroidToObjectsDistance2D(Collection<PathObject> sourceObjects, Collection<PathObject> targetObjects, double pixelWidth, double pixelHeight, String measurementName, boolean signedDistances, DistanceType distanceType) {
+		// Use the nucleus ROI, if available, for all centroids (source and target)
+		boolean preferNucleusForCentroids = true;
+		// Use the nucleus ROI, if available, for targets where we aren't looking for the centroid
+		boolean preferNucleusForNonCentroidTargets = false;
+
+		// We can optimize centroid tests slightly by using a set if we have many targets, since we'll frequently test 'contains'
+		if (distanceType == DistanceType.CENTROID_TO_CENTROID && targetObjects.size() > 50 && !(targetObjects instanceof Set)) {
+			targetObjects = new HashSet<>(targetObjects);
+		}
+
 		var timePoints = new TreeSet<Integer>();
 		var zSlices = new TreeSet<Integer>();
 		for (var temp : sourceObjects) {
@@ -258,7 +282,16 @@ public class DistanceTools {
 				for (var annotation : targetObjects) {
 					var roi = annotation.getROI();
 					if (roi != null && roi.getZ() == z && roi.getT() == t) {
-						var geom = annotation.getROI().getGeometry();
+						Geometry geom;
+
+						// Convert to centroid if required
+						if (distanceType == DistanceType.CENTROID_TO_CENTROID) {
+							 geom = PathObjectTools.getROI(annotation, preferNucleusForCentroids).getGeometry();
+							 geom = geom.getCentroid();
+						} else {
+							 geom = PathObjectTools.getROI(annotation, preferNucleusForNonCentroidTargets).getGeometry();
+						}
+
 						if (transform != null) {
 							geom = transform.transform(geom);
 							if (precision == null)
@@ -324,18 +357,29 @@ public class DistanceTools {
 				// See https://github.com/locationtech/jts/issues/571
 				if (locator != null)
 					locator.locate(new Coordinate(0, 0));
+
+				var finalTargets = targetObjects;
+
 				sourceObjects.parallelStream().forEach(p -> {
-					var roi = PathObjectTools.getROI(p, preferNucleus);
+					var roi = PathObjectTools.getROI(p, preferNucleusForCentroids);
 					if (roi.getZ() != zi || roi.getT() != ti)
 						return;
-					Coordinate coord = new Coordinate(roi.getCentroidX() * pixelWidth, roi.getCentroidY() * pixelHeight);
-					precisionModel.makePrecise(coord);
-					
-					double pointDistance = pointCoords == null ? Double.POSITIVE_INFINITY : computeCoordinateDistance(coord, pointCoords, pointTree, coordinateDistance);
-					double lineDistance = lineGeometry == null ? Double.POSITIVE_INFINITY : computeDistance(coord, lineGeometry, null, false);
-					double shapeDistance = shapeGeometry == null ? Double.POSITIVE_INFINITY : computeDistance(coord, shapeGeometry, locator, signedDistances);
-					double distance = Math.min(lineDistance, Math.min(pointDistance, shapeDistance));
-					
+
+					double distance;
+					if (distanceType == DistanceType.CENTROID_TO_CENTROID && finalTargets.contains(p)) {
+						// If we are getting distances between centroids, then we know it's zero if the centroids are the same
+						distance = 0.0;
+					} else {
+						// Find the distance to the closest point, line or shape
+						Coordinate coord = new Coordinate(roi.getCentroidX() * pixelWidth, roi.getCentroidY() * pixelHeight);
+						precisionModel.makePrecise(coord);
+
+						double pointDistance = pointCoords == null ? Double.POSITIVE_INFINITY : computeCoordinateDistance(coord, pointCoords, pointTree, coordinateDistance);
+						double lineDistance = lineGeometry == null ? Double.POSITIVE_INFINITY : computeDistance(coord, lineGeometry, null, false);
+						double shapeDistance = shapeGeometry == null ? Double.POSITIVE_INFINITY : computeDistance(coord, shapeGeometry, locator, signedDistances);
+						distance = Math.min(lineDistance, Math.min(pointDistance, shapeDistance));
+					}
+
 					try (var ml = p.getMeasurementList()) {
 						ml.put(measurementName, distance);
 					}
@@ -356,9 +400,7 @@ public class DistanceTools {
 	 * @param measurementName the name of the measurement to add to the measurement list
 	 */
 	public static void centroidToCentroidDistance2D(Collection<PathObject> sourceObjects, Collection<PathObject> targetObjects, double pixelWidth, double pixelHeight, String measurementName) {
-		boolean preferNucleus = true;
-		var targetPoints = PathObjectTools.convertToPoints(targetObjects, preferNucleus);
-		centroidToBoundsDistance2D(sourceObjects, targetPoints, pixelWidth, pixelHeight, measurementName);
+		centroidToObjectsDistance2D(sourceObjects, targetObjects, pixelWidth, pixelHeight, measurementName, false, DistanceType.CENTROID_TO_CENTROID);
 	}
 	
 	

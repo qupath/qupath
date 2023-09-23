@@ -44,6 +44,7 @@ This is a work-in-progress for the next QuPath release.
 * Several bug fixes in the view tracker (https://github.com/qupath/qupath/pull/1329)
 * Occasional misleading 'Reader is null - was the image already closed?' exceptions (https://github.com/qupath/qupath/issues/1265)
 * Using existing channel names (e.g. 'Red', 'Green', 'Blue') for color deconvolution can confuse brightness/contrast settings (https://github.com/qupath/qupath/issues/1245)
+* The centroid-to-centroid distance between an object & itself can be > 0 (https://github.com/qupath/qupath/issues/1249)
 
 ### Dependency updates
 * Bio-Formats 7.0.0
