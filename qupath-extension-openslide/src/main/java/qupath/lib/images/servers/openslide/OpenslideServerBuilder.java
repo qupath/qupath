@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -27,8 +27,6 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.net.URI;
 import java.nio.file.Paths;
-import java.util.Arrays;
-import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,6 +36,7 @@ import qupath.lib.images.servers.FileFormatInfo;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerBuilder;
 import qupath.lib.images.servers.FileFormatInfo.ImageCheckType;
+import qupath.lib.images.servers.openslide.jna.OpenSlideLoader;
 
 /**
  * Builder for Openslide ImageServer.
@@ -48,68 +47,11 @@ import qupath.lib.images.servers.FileFormatInfo.ImageCheckType;
 public class OpenslideServerBuilder implements ImageServerBuilder<BufferedImage> {
 	
 	private static final Logger logger = LoggerFactory.getLogger(OpenslideServerBuilder.class);
-	private static boolean openslideUnavailable = false;
-	
-	private static List<String> WIN_LIBRARIES = Arrays.asList(
-			"iconv",
-			"libjpeg-62",
-			"libsqlite3-0",
-			"libpixman-1-0",
-			"libffi-6",
-			"zlib1",
-			"libxml2-2",
-			"libopenjp2",
-			"libpng16-16",
-			"libtiff-5",
-			"libintl-8",
-			"libglib-2.0-0",
-			"libgobject-2.0-0",
-			"libcairo-2",
-			"libgmodule-2.0-0",
-			"libgio-2.0-0",
-			"libgthread-2.0-0",
-			"libgdk_pixbuf-2.0-0",
-			"libopenslide-0"
-			);
-	
-	static {
-		try {
-			// Try loading OpenSlide-JNI - hopefully there is a version of OpenSlide on the PATH we should use
-//			System.loadLibrary("openslide-jni");
-		} catch (UnsatisfiedLinkError e) {
-			try {
-				// If we didn't succeed, try loading dependencies in reverse order
-				logger.debug("Couldn't load OpenSlide directly, attempting to load dependencies first...");
-				for (var lib : WIN_LIBRARIES) {
-					System.loadLibrary(lib);
-				}
-			} catch (UnsatisfiedLinkError e2) {}
-		}
-		try {
-			// Finally try to get the library version
-			logger.info("OpenSlide version {}", OpenSlide.OpenSlideJNA.INSTANCE.openslide_get_version());
-		} catch (NoClassDefFoundError e) {
-			logger.warn("openslide.jar not found!");
-			openslideUnavailable = true;
-		} catch (UnsatisfiedLinkError e) {
-			if (GeneralTools.isMac() && "aarch64".equals(System.getProperty("os.arch"))) {
-				logger.warn("QuPath does not include OpenSlide for Apple silicon, sorry. \n"
-						+ "You may be able to solve this by installing openslide-java using homebrew, and then either\n"
-						+ "  1. copy the 'libopenslide-jni.jnilib' file to the QuPath app directory, or\n"
-						+ "  2. build QuPath from source using ./gradlew jpackage -Popenslide=/path/to/homebrew/installed/openslide.jar\n"
-						+ "Please see https://qupath.readthedocs.io for more information.");
-			} else {
-				logger.error("Could not load OpenSlide native libraries", e);
-				logger.info("If you want to use OpenSlide, you'll need to get the native libraries (either building from source or with a packager manager)\n" +
-				"and add them to your system PATH, including openslide-jni.");
-			}
-			openslideUnavailable = true;
-		}
-	}
-	
+
+
 	@Override
 	public ImageServer<BufferedImage> buildServer(URI uri, String...args) {
-		if (openslideUnavailable) {
+		if (!OpenSlideLoader.isOpenSlideAvailable()) {
 			logger.debug("OpenSlide is unavailable - will be skipped");
 			return null;
 		}
@@ -130,7 +72,7 @@ public class OpenslideServerBuilder implements ImageServerBuilder<BufferedImage>
 	}
 
 	private static float supportLevel(URI uri, String...args) {
-		if (openslideUnavailable)
+		if (!OpenSlideLoader.isOpenSlideAvailable())
 			return 0;
 		
 		// Don't handle queries or fragments with OpenSlide
@@ -140,7 +82,7 @@ public class OpenslideServerBuilder implements ImageServerBuilder<BufferedImage>
 		
 		try {
 			File file = Paths.get(uri).toFile();
-			String vendor = OpenSlide.OpenSlideJNA.INSTANCE.openslide_detect_vendor(file.toString());
+			String vendor = OpenSlideLoader.detectVendor(file.toString());
 			if (vendor == null)
 				return 0;
 		} catch (Exception e) {

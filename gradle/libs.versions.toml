@@ -25,6 +25,7 @@ javacpp         = "1.5.9"
   
 javafx          = "20.0.2"
 javafxJavadoc   = "19"
+jna             = "5.13.0"
 jfreeSvg        = "5.0.5"
 jfxtras         = "17-r1"
 jts             = "1.19.0"
@@ -55,6 +56,7 @@ guava         = { module = "com.google.guava:guava",            version.ref = "g
 
 imagej        = { module = "net.imagej:ij",                     version.ref = "imagej" }
 
+jna           = { module = "net.java.dev.jna:jna",              version.ref = "jna" }
 jfreesvg      = { module = "org.jfree:org.jfree.svg",           version.ref = "jfreeSvg" }
 jfxtras       = { module = "org.jfxtras:jfxtras-menu",          version.ref = "jfxtras" }
 jts           = { module = "org.locationtech.jts:jts-core",     version.ref = "jts" }

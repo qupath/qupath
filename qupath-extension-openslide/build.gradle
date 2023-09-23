@@ -11,5 +11,7 @@ description = "QuPath extension to support image reading using OpenSlide."
 
 dependencies {
     implementation project(':qupath-core')
-    implementation 'net.java.dev.jna:jna:5.6.0'
+    implementation project(':qupath-gui-fx')
+    implementation libs.jna
+    implementation libs.qupath.fxtras
 }
