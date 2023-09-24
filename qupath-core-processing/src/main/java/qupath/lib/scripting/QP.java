@@ -116,7 +116,6 @@ import qupath.lib.objects.PathCellObject;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.objects.hierarchy.DefaultTMAGrid;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
@@ -275,7 +274,6 @@ public class QP {
 			// Static constructors
 			PathObjects.class,
 			ROIs.class,
-			PathClassFactory.class,
 			Projects.class,
 			
 			// Tools and static classes
