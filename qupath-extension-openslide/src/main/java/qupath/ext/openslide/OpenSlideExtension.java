@@ -56,7 +56,7 @@ public class OpenSlideExtension implements QuPathExtension {
     public void installExtension(QuPathGUI qupath) {
         installPreferences(qupath);
         openslidePathProperty.addListener(openslidePathListener);
-        if (OpenSlideLoader.tryToLoadQuietly(openslidePathProperty.get())) {
+        if (!OpenSlideLoader.tryToLoadQuietly(openslidePathProperty.get())) {
             logger.warn("OpenSlide not found! Please specify the directory containing the OpenSlide library in the preferences.");
         } else {
             logger.info("OpenSlide loaded successfully: {}", OpenSlideLoader.getLibraryVersion());
