@@ -17,6 +17,7 @@ import qupath.lib.objects.PathObjects;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -24,6 +25,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiPredicate;
@@ -44,6 +46,9 @@ public class ObjectMerger {
 
     private double searchDistance = 0.125;
 
+    // Number of queries made to the spatial index - for debugging
+    private int nQueries = 0;
+
     public ObjectMerger(Collection<? extends PathObject> allObjects, BiPredicate<Geometry, Geometry> mergeTest) {
         this.allObjects = new ArrayList<>(allObjects);
         if (mergeTest != null)
@@ -59,36 +64,92 @@ public class ObjectMerger {
         geometryMap = buildMutableGeometryMap(allObjects);
         index = buildSpatialIndex(allObjects, geometryMap);
 
-        // Find potential merges
-        List<List<PathObject>> mergeableClusters = new ArrayList<>();
-        List<PathObject> singleObjects = new ArrayList<>();
+        // Comparing recursive and non-recursive approaches
+        boolean doRecursive = false;
+        List<List<PathObject>> clustersToMerge;
+        if (doRecursive)
+            clustersToMerge = computeClustersRecursive(allObjects);
+        else
+            clustersToMerge = computeClustersIterative(allObjects);
+
+        logger.trace("Total spatial index queries: {}", nQueries);
+
+        // Parallelize the merging - it can be slow
+        return clustersToMerge.stream()
+                .parallel()
+                .map(cluster -> mergeObjects(cluster))
+                .toList();
+    }
+
+    /**
+     * Recursive method - kept for reference and debugging, but not used.
+     * @param allObjects
+     * @return
+     */
+    private List<List<PathObject>> computeClustersRecursive(Collection<? extends PathObject> allObjects) {
+        List<List<PathObject>> clusters = new ArrayList<>();
         Set<PathObject> alreadyVisited = new HashSet<>();
+
         for (var p : allObjects) {
             if (alreadyVisited.contains(p))
                 continue;
             var cluster = addMergesRecursive(p, new ArrayList<>(), alreadyVisited);
             if (cluster.isEmpty()) {
                 logger.warn("Empty cluster - this is unexpected!");
-            } else if (cluster.size() == 1) {
-                singleObjects.add(p);
             } else {
-                mergeableClusters.add(cluster);
+                clusters.add(cluster);
             }
         }
-
-        // If we don't have any clusters to merge, everything should be a single object
-        if (mergeableClusters.isEmpty())
-            return singleObjects;
-
-        // Parallelize the merging - it can be slow
-        var merged = mergeableClusters.stream()
-                .parallel()
-                .map(cluster -> mergeObjects(cluster.get(0), cluster.subList(1, cluster.size())))
-                .toList();
-        var results = new ArrayList<>(singleObjects);
-        results.addAll(merged);
-        return results;
+        return clusters;
     }
+
+    /**
+     * Iterative method to compute clusters to merge.
+     * Some clusters may be singleton lists, in which case no merging is required.
+     * @param allObjects
+     * @return
+     */
+    private List<List<PathObject>> computeClustersIterative(Collection<? extends PathObject> allObjects) {
+        List<List<PathObject>> clusters = new ArrayList<>();
+        Set<PathObject> alreadyVisited = new HashSet<>();
+        Queue<PathObject> pending = new ArrayDeque<>();
+        for (var p : allObjects) {
+            if (alreadyVisited.contains(p))
+                continue;
+            List<PathObject> cluster = new ArrayList<>();
+            pending.clear();
+            pending.add(p);
+            while (!pending.isEmpty()) {
+                var current = pending.poll();
+                // Try to mark as visited, and skip if we've already done so
+                if (!alreadyVisited.add(current))
+                    continue;
+                // Add to the current cluster
+                cluster.add(current);
+                // If this is the current object, or we are using a search distance, then get the compatible neighbors.
+                // Otherwise, with no search distance all objects are compatible - and should already be pending.
+                if (p == current || useSearchDistance()) {
+                    var neighbors = findCompatibleNeighbors(current);
+                    for (var neighbor : neighbors) {
+                        if (!alreadyVisited.contains(neighbor)) {
+                            if (mergeTest.test(
+                                    getGeometry(current),
+                                    getGeometry(neighbor))) {
+                                pending.add(neighbor);
+                            }
+                        }
+                    }
+                }
+            }
+            if (cluster.isEmpty()) {
+                logger.warn("Empty cluster - this is unexpected!");
+            } else {
+                clusters.add(cluster);
+            }
+        }
+        return clusters;
+    }
+
 
     /**
      * Recursively build a cluster of objects that can be merged.
@@ -115,6 +176,10 @@ public class ObjectMerger {
         return currentCluster;
     }
 
+    private boolean useSearchDistance() {
+        return searchDistance >= 0 && searchDistance < Double.MAX_VALUE && Double.isFinite(searchDistance);
+    }
+
     /**
      * Find all objects that *could* be merged with the object, i.e. they are compatible.
      * This applies the search distance and compatibility tests, but not the merge test.
@@ -122,15 +187,16 @@ public class ObjectMerger {
      * @return
      */
     private List<PathObject> findCompatibleNeighbors(PathObject pathObject) {
-        var geom = getGeometry(pathObject);
         List<PathObject> potentialNeighbors;
-        if (searchDistance < 0 || searchDistance == Double.MAX_VALUE || !Double.isFinite(searchDistance))
-            potentialNeighbors = allObjects;
-        else {
+        if (useSearchDistance()) {
+            var geom = getGeometry(pathObject);
             var envelopeQuery = geom.getEnvelopeInternal(); // This is documented to be a copy, so we can modify it
             double expansion = 1e-6;
             envelopeQuery.expandBy(expansion);
             potentialNeighbors = index.query(envelopeQuery);
+            nQueries++;
+        } else {
+            potentialNeighbors = allObjects;
         }
         return potentialNeighbors.stream()
                 .filter(p -> p != pathObject)
@@ -249,16 +315,25 @@ public class ObjectMerger {
 
 
 
-    private static PathObject mergeObjects(PathObject pathObject, Collection<? extends PathObject> pathObjectsToMerge) {
-        if (pathObjectsToMerge.isEmpty())
+    private static PathObject mergeObjects(List<? extends PathObject> pathObjects) {
+        if (pathObjects.isEmpty())
+            return null;
+
+        var pathObject = pathObjects.get(0);
+        if (pathObjects.size() == 1)
             return pathObject;
 
-        ROI mergedROI = mergeROIs(pathObject.getROI(), pathObjectsToMerge.stream().map(PathObject::getROI).collect(Collectors.toList()));
+        var allROIs = pathObjects.stream().map(PathObject::getROI).filter(Objects::nonNull).collect(Collectors.toList());
+        ROI mergedROI = RoiTools.union(allROIs);
+
         if (pathObject.isTile()) {
             return PathObjects.createTileObject(mergedROI, pathObject.getPathClass(), null);
         } else if (pathObject.isCell()) {
-            ROI nucleusROI = mergeROIs(getNucleusROI(pathObject),
-                    pathObjectsToMerge.stream().map(ObjectMerger::getNucleusROI).collect(Collectors.toList()));
+            var nucleusROIs = pathObjects.stream()
+                    .map(ObjectMerger::getNucleusROI)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toList());
+            ROI nucleusROI = nucleusROIs.isEmpty() ? null : RoiTools.union(nucleusROIs);
             return PathObjects.createCellObject(mergedROI, nucleusROI, pathObject.getPathClass(), null);
         } else if (pathObject.isDetection()) {
             return PathObjects.createDetectionObject(mergedROI, pathObject.getPathClass());
@@ -266,21 +341,6 @@ public class ObjectMerger {
             return PathObjects.createAnnotationObject(mergedROI, pathObject.getPathClass());
         } else
             throw new IllegalArgumentException("Unsupported object type for merging: " + pathObject.getClass());
-    }
-
-
-    private static ROI mergeROIs(ROI roi, List<ROI> otherROIs) {
-       if (otherROIs.isEmpty())
-           return roi;
-       // We can have null ROIs when handling nuclei
-       List<ROI> rois = new ArrayList<>();
-       if (roi != null)
-           rois.add(roi);
-       for (var otherROI : otherROIs) {
-           if (roi != null)
-               rois.add(otherROI);
-       }
-       return RoiTools.union(rois);
     }
 
 
