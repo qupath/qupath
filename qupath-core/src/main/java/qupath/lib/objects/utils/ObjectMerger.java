@@ -7,6 +7,8 @@ import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
+import org.locationtech.jts.index.SpatialIndex;
+import org.locationtech.jts.index.hprtree.HPRtree;
 import org.locationtech.jts.index.quadtree.Quadtree;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,6 +28,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.PriorityQueue;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 public class ObjectMerger {
 
@@ -50,17 +55,29 @@ public class ObjectMerger {
                     .thenComparingDouble(p -> p.getROI().getBoundsWidth())
                     .thenComparingDouble(p -> p.getROI().getBoundsHeight());
 
+        comparator = Comparator.comparingDouble((PathObject p) -> p.getROI().getArea());
+
         PriorityQueue<PathObject> queue = new PriorityQueue<>(comparator);
         queue.addAll(pathObjects);
 
+        // Build a map of all geometries - this can be one of the slower parts, so we parallelize
+        Map<ROI, Geometry> geometryMap = pathObjects.parallelStream()
+                .filter(PathObject::hasROI)
+                .map(PathObject::getROI)
+                .collect(Collectors.toConcurrentMap(Function.identity(), ROI::getGeometry));
+
+        // We have no mutability guarantees from Collectors.toConcurrentMap
+        if (!(ConcurrentHashMap.class.equals(geometryMap.getClass())))
+            geometryMap = new ConcurrentHashMap<>(geometryMap);
+
         // Build a spatial index
-        Quadtree tree = new Quadtree();
-        Map<ROI, Geometry> geometryMap = new HashMap<>();
+        SpatialIndex tree = new Quadtree();
         for (var p : pathObjects) {
-            var geom = p.getROI().getGeometry();
-            var envelope = geom.getEnvelopeInternal();
-            tree.insert(envelope, p);
-            geometryMap.put(p.getROI(), geom);
+            var geom = geometryMap.getOrDefault(p.getROI(), null);
+            if (geom != null) {
+                var envelope = geom.getEnvelopeInternal();
+                tree.insert(envelope, p);
+            }
         }
 
         // Retain a set of objects we have already decided to remove
@@ -76,11 +93,14 @@ public class ObjectMerger {
             // Add the current object to the results (we still might remove it later)
             results.add(p);
 
+            // Choose a small pixel overlap tolerance
+            double pixelOverlapTolerance = 0.125;
+
             // Find all objects that potentially touch the current object (using a small bounding box expansion)
             var geom = geometryMap.computeIfAbsent(p.getROI(), ROI::getGeometry);
-            var envelope = geom.getEnvelopeInternal();
-            var envelopeQuery = new Envelope(envelope);
-            envelopeQuery.expandBy(0.5d);
+            var envelopeQuery = geom.getEnvelopeInternal(); // This is documented to be a copy, so we can modify it
+            double expansion = 1e-6;
+            envelopeQuery.expandToInclude(envelopeQuery.getMaxX()+expansion, envelopeQuery.getMaxY()+expansion);
             var potentialOverlaps = (List<PathObject>)tree.query(envelopeQuery);
 
             for (var overlap : potentialOverlaps) {
@@ -100,7 +120,7 @@ public class ObjectMerger {
 
                 // Search for a shared bounding box edge
                 // If the shared intersection is large enough, merge the two objects
-                if (testMergeBySharedBoundary(geom, geomOverlap, sharedBoundaryThreshold)) {
+                if (testMergeBySharedBoundary(geom, geomOverlap, pixelOverlapTolerance, sharedBoundaryThreshold)) {
                     logger.debug("Merging {} and {}", p, overlap);
                     PathObject newObject = mergeObjects(p, overlap);
 
@@ -127,8 +147,15 @@ public class ObjectMerger {
 //    private static boolean testMergeBySharedArea(Geometry geom, Geometry geomOverlap, double sharedAreaThreshold) {
 //    }
 
-    private static boolean testMergeBySharedBoundary(Geometry geom, Geometry geomOverlap, double sharedBoundaryThreshold) {
-        double pixelOverlapTolerance = 0.125;
+    /**
+     * Test whether to merge two objects based upon a shared boundary.
+     * @param geom the main geometry
+     * @param geomOverlap the geometry that (possibly) touches or overlaps
+     * @param pixelOverlapTolerance how much the objects are allowed to overlap (to compensate for slightyly misaligned tiles)
+     * @param sharedBoundaryThreshold proportion of the possibly-clipped boundary that must be shared
+     * @return
+     */
+    private static boolean testMergeBySharedBoundary(Geometry geom, Geometry geomOverlap, double pixelOverlapTolerance, double sharedBoundaryThreshold) {
         if (calculateUpperLowerSharedBoundaryIntersectionScore(geom, geomOverlap, pixelOverlapTolerance) >= sharedBoundaryThreshold)
             return true;
         else if (calculateLeftRightSharedBoundaryIntersectionScore(geom, geomOverlap, pixelOverlapTolerance) >= sharedBoundaryThreshold)
@@ -166,11 +193,11 @@ public class ObjectMerger {
 
 
 
-    private static double calculateUpperLowerSharedBoundaryIntersectionScore(Geometry upper, Geometry lower, double tolerance) {
+    private static double calculateUpperLowerSharedBoundaryIntersectionScore(Geometry upper, Geometry lower, double overlapTolerance) {
         var envUpper = upper.getEnvelopeInternal();
         var envLower = lower.getEnvelopeInternal();
         // We only consider the lower and upper boundaries, which must be very close to one another - with no gaps
-        if (envUpper.getMaxY() >= envLower.getMinY() && Math.abs(envUpper.getMaxY() - envLower.getMinY()) < tolerance) {
+        if (envUpper.getMaxY() >= envLower.getMinY() && Math.abs(envUpper.getMaxY() - envLower.getMinY()) < overlapTolerance) {
             var upperIntersection = createEnvelopeIntersection(upper, envUpper.getMinX(), envUpper.getMaxY(), envUpper.getMaxX(), envUpper.getMaxY());
             var lowerIntersection = createEnvelopeIntersection(lower, envLower.getMinX(), envLower.getMinY(), envLower.getMaxX(), envLower.getMinY());
             double smallestIntersectionLength = Math.min(upperIntersection.getLength(), lowerIntersection.getLength());
@@ -187,11 +214,11 @@ public class ObjectMerger {
         }
     }
 
-    private static double calculateLeftRightSharedBoundaryIntersectionScore(Geometry left, Geometry right, double tolerance) {
+    private static double calculateLeftRightSharedBoundaryIntersectionScore(Geometry left, Geometry right, double overlapTolerance) {
         var envLeft = left.getEnvelopeInternal();
         var envRight = right.getEnvelopeInternal();
         // We only consider the right and left boundaries, which must be very close to one another - with no gaps
-        if (envLeft.getMaxX() >= envRight.getMinX() && Math.abs(envLeft.getMaxX() - envRight.getMinX()) < tolerance) {
+        if (envLeft.getMaxX() >= envRight.getMinX() && Math.abs(envLeft.getMaxX() - envRight.getMinX()) < overlapTolerance) {
             var leftIntersection = createEnvelopeIntersection(left, envLeft.getMaxX(), envLeft.getMinY(), envLeft.getMaxX(), envLeft.getMaxY());
             var rightIntersection = createEnvelopeIntersection(right, envRight.getMinX(), envRight.getMinY(), envRight.getMinX(), envRight.getMaxY());
             double smallestIntersectionLength = Math.min(leftIntersection.getLength(), rightIntersection.getLength());
