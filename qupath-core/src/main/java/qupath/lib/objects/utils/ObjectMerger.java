@@ -3,7 +3,6 @@ package qupath.lib.objects.utils;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.CoordinateSequenceFilter;
-import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
@@ -20,21 +19,129 @@ import qupath.lib.roi.interfaces.ROI;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Comparator;
-import java.util.HashMap;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.PriorityQueue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.BiPredicate;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
 public class ObjectMerger {
 
     private static final Logger logger = LoggerFactory.getLogger(ObjectMerger.class);
+
+    private List<PathObject> allObjects;
+
+    private Map<ROI, Geometry> geometryMap;
+    private SpatialIndex index;
+
+    private BiPredicate<PathObject, PathObject> compatibilityTest = ObjectMerger::objectsAreMergable;
+    private BiPredicate<Geometry, Geometry> mergeTest = ObjectMerger::mergeAnyGeometries;
+
+    private double searchDistance = 0.125;
+
+    public ObjectMerger(Collection<? extends PathObject> allObjects, BiPredicate<Geometry, Geometry> mergeTest) {
+        this.allObjects = new ArrayList<>(allObjects);
+        if (mergeTest != null)
+            this.mergeTest = mergeTest;
+    }
+
+    public List<PathObject> calculateResults() {
+        if (allObjects == null || allObjects.isEmpty())
+            return Collections.emptyList();
+        if (allObjects.size() == 1)
+            return Collections.unmodifiableList(allObjects);
+
+        geometryMap = buildMutableGeometryMap(allObjects);
+        index = buildSpatialIndex(allObjects, geometryMap);
+
+        // Find potential merges
+        List<List<PathObject>> mergeableClusters = new ArrayList<>();
+        List<PathObject> singleObjects = new ArrayList<>();
+        Set<PathObject> alreadyVisited = new HashSet<>();
+        for (var p : allObjects) {
+            if (alreadyVisited.contains(p))
+                continue;
+            var cluster = addMergesRecursive(p, new ArrayList<>(), alreadyVisited);
+            if (cluster.isEmpty()) {
+                logger.warn("Empty cluster - this is unexpected!");
+            } else if (cluster.size() == 1) {
+                singleObjects.add(p);
+            } else {
+                mergeableClusters.add(cluster);
+            }
+        }
+
+        // If we don't have any clusters to merge, everything should be a single object
+        if (mergeableClusters.isEmpty())
+            return singleObjects;
+
+        // Parallelize the merging - it can be slow
+        var merged = mergeableClusters.stream()
+                .parallel()
+                .map(cluster -> mergeObjects(cluster.get(0), cluster.subList(1, cluster.size())))
+                .toList();
+        var results = new ArrayList<>(singleObjects);
+        results.addAll(merged);
+        return results;
+    }
+
+    /**
+     * Recursively build a cluster of objects that can be merged.
+     * @param pathObject an object to potentially add to the cluster
+     * @param currentCluster the current cluster to which objects may be added, if they are compatible
+     * @param alreadyVisited
+     * @return
+     */
+    private List<PathObject> addMergesRecursive(PathObject pathObject, List<PathObject> currentCluster, Set<PathObject> alreadyVisited) {
+        if (!alreadyVisited.add(pathObject))
+            return currentCluster;
+
+        currentCluster.add(pathObject);
+
+        var neighbors = findCompatibleNeighbors(pathObject);
+        for (var neighbor : neighbors) {
+            if (!alreadyVisited.contains(neighbor)) {
+                if (mergeTest.test(
+                        getGeometry(pathObject),
+                        getGeometry(neighbor)))
+                    addMergesRecursive(neighbor, currentCluster, alreadyVisited);
+            }
+        }
+        return currentCluster;
+    }
+
+    /**
+     * Find all objects that *could* be merged with the object, i.e. they are compatible.
+     * This applies the search distance and compatibility tests, but not the merge test.
+     * @param pathObject
+     * @return
+     */
+    private List<PathObject> findCompatibleNeighbors(PathObject pathObject) {
+        var geom = getGeometry(pathObject);
+        List<PathObject> potentialNeighbors;
+        if (searchDistance < 0 || searchDistance == Double.MAX_VALUE || !Double.isFinite(searchDistance))
+            potentialNeighbors = allObjects;
+        else {
+            var envelopeQuery = geom.getEnvelopeInternal(); // This is documented to be a copy, so we can modify it
+            double expansion = 1e-6;
+            envelopeQuery.expandBy(expansion);
+            potentialNeighbors = index.query(envelopeQuery);
+        }
+        return potentialNeighbors.stream()
+                .filter(p -> p != pathObject)
+                .filter(p -> compatibilityTest.test(pathObject, p))
+                .toList();
+    }
+
+    private Geometry getGeometry(PathObject pathObject) {
+        return geometryMap.computeIfAbsent(pathObject.getROI(), ROI::getGeometry);
+    }
+
 
     /**
      * Merge objects that share a common boundary and have the same classification.
@@ -47,31 +154,47 @@ public class ObjectMerger {
      * @return
      */
     public static List<PathObject> resolveTileSplits(Collection<? extends PathObject> pathObjects, double sharedBoundaryThreshold) {
+        var mergeable = new ObjectMerger(pathObjects, createBoundaryOverlapTest(sharedBoundaryThreshold));
+        return mergeable.calculateResults();
+    }
 
-        // Create a priority queue to ensure the objects are sorted by ROI bounds
-        Comparator<PathObject> comparator = Comparator
-                .comparingDouble((PathObject p) -> p.getROI().getBoundsX())
-                    .thenComparingDouble(p -> p.getROI().getBoundsY())
-                    .thenComparingDouble(p -> p.getROI().getBoundsWidth())
-                    .thenComparingDouble(p -> p.getROI().getBoundsHeight());
+    static boolean mergeAnyGeometries(Geometry geom, Geometry geom2) {
+        return true;
+    }
 
-        comparator = Comparator.comparingDouble((PathObject p) -> p.getROI().getArea());
+    static BiPredicate<Geometry, Geometry> createBoundaryOverlapTest(double sharedBoundaryThreshold) {
+        return createBoundaryOverlapTest(0.125, sharedBoundaryThreshold);
+    }
 
-        PriorityQueue<PathObject> queue = new PriorityQueue<>(comparator);
-        queue.addAll(pathObjects);
+    static BiPredicate<Geometry, Geometry> createBoundaryOverlapTest(double pixelOverlapTolerance, double sharedBoundaryThreshold) {
+        return (geom, geomOverlap) -> {
+            if (calculateUpperLowerSharedBoundaryIntersectionScore(geom, geomOverlap, pixelOverlapTolerance) >= sharedBoundaryThreshold)
+                return true;
+            else if (calculateLeftRightSharedBoundaryIntersectionScore(geom, geomOverlap, pixelOverlapTolerance) >= sharedBoundaryThreshold)
+                return true;
+            else if (calculateUpperLowerSharedBoundaryIntersectionScore(geomOverlap, geom, pixelOverlapTolerance) >= sharedBoundaryThreshold)
+                return true;
+            else if (calculateLeftRightSharedBoundaryIntersectionScore(geomOverlap, geom, pixelOverlapTolerance) >= sharedBoundaryThreshold)
+                return true;
+            else
+                return false;
+        };
+    }
 
-        // Build a map of all geometries - this can be one of the slower parts, so we parallelize
-        Map<ROI, Geometry> geometryMap = pathObjects.parallelStream()
-                .filter(PathObject::hasROI)
-                .map(PathObject::getROI)
-                .collect(Collectors.toConcurrentMap(Function.identity(), ROI::getGeometry));
+    private static SpatialIndex buildMutableSpatialIndex(Collection<? extends PathObject> pathObjects, Map<ROI, Geometry> geometryMap) {
+        var index = new Quadtree();
+        populateSpatialIndex(index, pathObjects, geometryMap);
+        return index;
+    }
 
-        // We have no mutability guarantees from Collectors.toConcurrentMap
-        if (!(ConcurrentHashMap.class.equals(geometryMap.getClass())))
-            geometryMap = new ConcurrentHashMap<>(geometryMap);
+    private static SpatialIndex buildSpatialIndex(Collection<? extends PathObject> pathObjects, Map<ROI, Geometry> geometryMap) {
+        var index = new HPRtree();
+        populateSpatialIndex(index, pathObjects, geometryMap);
+        return index;
+    }
 
+    private static void populateSpatialIndex(SpatialIndex tree, Collection<? extends PathObject> pathObjects, Map<ROI, Geometry> geometryMap) {
         // Build a spatial index
-        SpatialIndex tree = new Quadtree();
         for (var p : pathObjects) {
             var geom = geometryMap.getOrDefault(p.getROI(), null);
             if (geom != null) {
@@ -79,69 +202,29 @@ public class ObjectMerger {
                 tree.insert(envelope, p);
             }
         }
-
-        // Retain a set of objects we have already decided to remove
-        Set<PathObject> toRemove = new HashSet<>();
-
-        // Find potential overlaps
-        List<PathObject> results = new ArrayList<>();
-        while (!queue.isEmpty()) {
-            PathObject p = queue.poll();
-            if (toRemove.contains(p))
-                continue;
-
-            // Add the current object to the results (we still might remove it later)
-            results.add(p);
-
-            // Choose a small pixel overlap tolerance
-            double pixelOverlapTolerance = 0.125;
-
-            // Find all objects that potentially touch the current object (using a small bounding box expansion)
-            var geom = geometryMap.computeIfAbsent(p.getROI(), ROI::getGeometry);
-            var envelopeQuery = geom.getEnvelopeInternal(); // This is documented to be a copy, so we can modify it
-            double expansion = 1e-6;
-            envelopeQuery.expandToInclude(envelopeQuery.getMaxX()+expansion, envelopeQuery.getMaxY()+expansion);
-            var potentialOverlaps = (List<PathObject>)tree.query(envelopeQuery);
-
-            for (var overlap : potentialOverlaps) {
-                if (overlap == p ||
-                        toRemove.contains(overlap) ||
-                        !Objects.equals(p.getPathClass(), overlap.getPathClass()) ||
-                        !Objects.equals(p.getROI().getImagePlane(), overlap.getROI().getImagePlane()) ||
-                        !Objects.equals(p.getClass(), overlap.getClass()))
-                    continue;
-
-                // If the potential overlap is completely contained, merging is equivalent to removal
-                var geomOverlap = geometryMap.computeIfAbsent(overlap.getROI(), k -> overlap.getROI().getGeometry());
-                if (geom.covers(geomOverlap)) {
-                    toRemove.add(overlap);
-                    continue;
-                }
-
-                // Search for a shared bounding box edge
-                // If the shared intersection is large enough, merge the two objects
-                if (testMergeBySharedBoundary(geom, geomOverlap, pixelOverlapTolerance, sharedBoundaryThreshold)) {
-                    logger.debug("Merging {} and {}", p, overlap);
-                    PathObject newObject = mergeObjects(p, overlap);
-
-                    // Update our queue & spatial tree
-                    queue.add(newObject);
-                    var mergedROI = newObject.getROI();
-                    var geomNew = mergedROI.getGeometry();
-                    tree.insert(geomNew.getEnvelopeInternal(), newObject);
-                    geometryMap.put(mergedROI, geom);
-
-                    // Flag both objects for removal
-                    toRemove.add(p);
-                    toRemove.add(overlap);
-                    break;
-                }
-            }
-        }
-        logger.debug("Removing {} merged objects", toRemove.size());
-        results.removeAll(toRemove);
-        return results;
     }
+
+
+
+    private static boolean objectsAreMergable(PathObject p, PathObject overlap) {
+        return (overlap != p &&
+                Objects.equals(p.getPathClass(), overlap.getPathClass()) &&
+                Objects.equals(p.getROI().getImagePlane(), overlap.getROI().getImagePlane()) &&
+                Objects.equals(p.getClass(), overlap.getClass()));
+    }
+
+
+    private static Map<ROI, Geometry> buildMutableGeometryMap(Collection<? extends PathObject> pathObjects) {
+        // Converting ROIs to Geometries can be one of the slower parts, so we parallelize
+        var map = pathObjects.parallelStream()
+                .filter(PathObject::hasROI)
+                .map(PathObject::getROI)
+                .collect(Collectors.toConcurrentMap(Function.identity(), ROI::getGeometry));
+
+        // We have no mutability guarantees from Collectors.toConcurrentMap
+        return new ConcurrentHashMap<>(map);
+    }
+
 
 //    // TODO: Consider implementing this in the future
 //    private static boolean testMergeBySharedArea(Geometry geom, Geometry geomOverlap, double sharedAreaThreshold) {
@@ -166,16 +249,16 @@ public class ObjectMerger {
 
 
 
-    private static PathObject mergeObjects(PathObject pathObject, PathObject pathObject2) {
-        var mergedROI = RoiTools.union(pathObject.getROI(), pathObject2.getROI());
+    private static PathObject mergeObjects(PathObject pathObject, Collection<? extends PathObject> pathObjectsToMerge) {
+        if (pathObjectsToMerge.isEmpty())
+            return pathObject;
+
+        ROI mergedROI = mergeROIs(pathObject.getROI(), pathObjectsToMerge.stream().map(PathObject::getROI).collect(Collectors.toList()));
         if (pathObject.isTile()) {
             return PathObjects.createTileObject(mergedROI, pathObject.getPathClass(), null);
         } else if (pathObject.isCell()) {
-            ROI nucleusROI = getNucleusROI(pathObject);
-            if (nucleusROI == null)
-                nucleusROI = getNucleusROI(pathObject2);
-            else if (getNucleusROI(pathObject2) != null)
-                nucleusROI = RoiTools.union(nucleusROI, getNucleusROI(pathObject2));
+            ROI nucleusROI = mergeROIs(getNucleusROI(pathObject),
+                    pathObjectsToMerge.stream().map(ObjectMerger::getNucleusROI).collect(Collectors.toList()));
             return PathObjects.createCellObject(mergedROI, nucleusROI, pathObject.getPathClass(), null);
         } else if (pathObject.isDetection()) {
             return PathObjects.createDetectionObject(mergedROI, pathObject.getPathClass());
@@ -184,6 +267,22 @@ public class ObjectMerger {
         } else
             throw new IllegalArgumentException("Unsupported object type for merging: " + pathObject.getClass());
     }
+
+
+    private static ROI mergeROIs(ROI roi, List<ROI> otherROIs) {
+       if (otherROIs.isEmpty())
+           return roi;
+       // We can have null ROIs when handling nuclei
+       List<ROI> rois = new ArrayList<>();
+       if (roi != null)
+           rois.add(roi);
+       for (var otherROI : otherROIs) {
+           if (roi != null)
+               rois.add(otherROI);
+       }
+       return RoiTools.union(rois);
+    }
+
 
     private static ROI getNucleusROI(PathObject pathObject) {
         if (pathObject instanceof PathCellObject cell)
@@ -197,6 +296,7 @@ public class ObjectMerger {
         var envUpper = upper.getEnvelopeInternal();
         var envLower = lower.getEnvelopeInternal();
         // We only consider the lower and upper boundaries, which must be very close to one another - with no gaps
+        overlapTolerance = 2.0;
         if (envUpper.getMaxY() >= envLower.getMinY() && Math.abs(envUpper.getMaxY() - envLower.getMinY()) < overlapTolerance) {
             var upperIntersection = createEnvelopeIntersection(upper, envUpper.getMinX(), envUpper.getMaxY(), envUpper.getMaxX(), envUpper.getMaxY());
             var lowerIntersection = createEnvelopeIntersection(lower, envLower.getMinX(), envLower.getMinY(), envLower.getMaxX(), envLower.getMinY());
