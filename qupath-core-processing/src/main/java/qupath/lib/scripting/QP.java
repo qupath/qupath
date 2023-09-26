@@ -120,6 +120,8 @@ import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.objects.hierarchy.DefaultTMAGrid;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.TMAGrid;
+import qupath.lib.objects.utils.ObjectMerger;
+import qupath.lib.objects.utils.Tiler;
 import qupath.lib.plugins.CommandLinePluginRunner;
 import qupath.lib.plugins.PathPlugin;
 import qupath.lib.projects.Project;
@@ -284,6 +286,9 @@ public class QP {
 			BufferedImageTools.class,
 			ColorTools.class,
 			GeneralTools.class,
+
+			ObjectMerger.class,
+			Tiler.class,
 			
 			Timeit.class,
 			ScriptAttributes.class,
