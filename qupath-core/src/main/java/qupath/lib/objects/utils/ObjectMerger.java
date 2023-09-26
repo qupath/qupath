@@ -1,3 +1,24 @@
+/*-
+ * #%L
+ * This file is part of QuPath.
+ * %%
+ * Copyright (C) 2023 QuPath developers, The University of Edinburgh
+ * %%
+ * QuPath is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * QuPath is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with QuPath.  If not, see <https://www.gnu.org/licenses/>.
+ * #L%
+ */
+
 package qupath.lib.objects.utils;
 
 import org.locationtech.jts.geom.Coordinate;
@@ -8,11 +29,10 @@ import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.index.SpatialIndex;
 import org.locationtech.jts.index.hprtree.HPRtree;
-import org.locationtech.jts.index.quadtree.Quadtree;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qupath.lib.objects.PathCellObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
@@ -32,53 +52,76 @@ import java.util.function.BiPredicate;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+/**
+ * Helper class for merging objects using different criteria.
+ * <p>
+ * This is designed to be used for post-processing a segmentation, to help resolve tile boundaries.
+ *
+ * @since v0.5.0
+ */
 public class ObjectMerger {
 
     private static final Logger logger = LoggerFactory.getLogger(ObjectMerger.class);
 
-    private List<PathObject> allObjects;
+    private final BiPredicate<PathObject, PathObject> compatibilityTest;
+    private final BiPredicate<Geometry, Geometry> mergeTest;
 
-    private Map<ROI, Geometry> geometryMap;
-    private SpatialIndex index;
+    private final double searchDistance;
 
-    private BiPredicate<PathObject, PathObject> compatibilityTest = ObjectMerger::objectsAreMergable;
-    private BiPredicate<Geometry, Geometry> mergeTest = ObjectMerger::mergeAnyGeometries;
-
-    private double searchDistance = 0.125;
-
-    // Number of queries made to the spatial index - for debugging
-    private int nQueries = 0;
-
-    public ObjectMerger(Collection<? extends PathObject> allObjects, BiPredicate<Geometry, Geometry> mergeTest) {
-        this.allObjects = new ArrayList<>(allObjects);
-        if (mergeTest != null)
-            this.mergeTest = mergeTest;
+    /**
+     * Constructor.
+     * @param compatibilityTest the test to apply to check if objects are compatible (e.g. same type, plane and classification).
+     * @param mergeTest the test to apply to check if objects can be merged (e.g. a boundary or overlap test).
+     * @param searchDistance the distance to search for compatible objects. If negative, all objects are considered,
+     *                       and merging can be applied for disconnected ROIs.
+     *                       If zero, only objects that touch are considered.
+     */
+    private ObjectMerger(BiPredicate<PathObject, PathObject> compatibilityTest, BiPredicate<Geometry, Geometry> mergeTest, double searchDistance) {
+        this.compatibilityTest = compatibilityTest;
+        this.mergeTest = mergeTest;
+        this.searchDistance = searchDistance;
     }
 
-    public List<PathObject> calculateResults() {
-        if (allObjects == null || allObjects.isEmpty())
-            return Collections.emptyList();
-        if (allObjects.size() == 1)
-            return Collections.unmodifiableList(allObjects);
+    /**
+     * Calculate the result of applying the merging strategy to the input objects.
+     * <p>
+     * The output list will contain the same number of objects or fewer.
+     * Objects that are not merged will be returned unchanged, while objects that are merged will be replaced by a new
+     * objects with a new ROI.
+     * <p>
+     * New objects will be assigned new IDs.
+     * Classifications will be preserved, but other measurements and properties will not be.
+     * <p>
+     * No guarantees are made about the mutability or ordering of the returned list.
+     * @param pathObjects the input objects for which merges should be calculated
+     * @return a list of objects, with the same number or fewer than the input
+     */
+    public List<PathObject> merge(Collection<? extends PathObject> pathObjects) {
 
-        geometryMap = buildMutableGeometryMap(allObjects);
-        index = buildSpatialIndex(allObjects, geometryMap);
+        if (pathObjects == null || pathObjects.isEmpty())
+            return Collections.emptyList();
+        if (pathObjects.size() == 1)
+            return new ArrayList<>(pathObjects);
 
         // Comparing recursive and non-recursive approaches
-        boolean doRecursive = false;
+        boolean doRecursive = useSearchDistance() &&
+                System.getProperty("qupath.merge.recursive", "false").equalsIgnoreCase("true");
+        if (doRecursive)
+            logger.warn("Using recursive merging!");
+
         List<List<PathObject>> clustersToMerge;
         if (doRecursive)
-            clustersToMerge = computeClustersRecursive(allObjects);
+            clustersToMerge = computeClustersRecursive(pathObjects);
         else
-            clustersToMerge = computeClustersIterative(allObjects);
-
-        logger.trace("Total spatial index queries: {}", nQueries);
+            clustersToMerge = computeClustersIterative(pathObjects);
 
         // Parallelize the merging - it can be slow
-        return clustersToMerge.stream()
+        var output = clustersToMerge.stream()
                 .parallel()
                 .map(cluster -> mergeObjects(cluster))
                 .toList();
+        assert output.size() <= pathObjects.size();
+        return output;
     }
 
     /**
@@ -90,10 +133,13 @@ public class ObjectMerger {
         List<List<PathObject>> clusters = new ArrayList<>();
         Set<PathObject> alreadyVisited = new HashSet<>();
 
+        var geometryMap = buildMutableGeometryMap(allObjects);
+        var index = buildSpatialIndex(allObjects, geometryMap);
+
         for (var p : allObjects) {
             if (alreadyVisited.contains(p))
                 continue;
-            var cluster = addMergesRecursive(p, new ArrayList<>(), alreadyVisited);
+            var cluster = addMergesRecursive(p, new ArrayList<>(), alreadyVisited, index, geometryMap);
             if (cluster.isEmpty()) {
                 logger.warn("Empty cluster - this is unexpected!");
             } else {
@@ -106,10 +152,16 @@ public class ObjectMerger {
     /**
      * Iterative method to compute clusters to merge.
      * Some clusters may be singleton lists, in which case no merging is required.
+     * <p>
+     * This method is designed to be thread-safe.
+     *
      * @param allObjects
      * @return
      */
     private List<List<PathObject>> computeClustersIterative(Collection<? extends PathObject> allObjects) {
+        var geometryMap = buildMutableGeometryMap(allObjects);
+        var index = buildSpatialIndex(allObjects, geometryMap);
+
         List<List<PathObject>> clusters = new ArrayList<>();
         Set<PathObject> alreadyVisited = new HashSet<>();
         Queue<PathObject> pending = new ArrayDeque<>();
@@ -129,12 +181,18 @@ public class ObjectMerger {
                 // If this is the current object, or we are using a search distance, then get the compatible neighbors.
                 // Otherwise, with no search distance all objects are compatible - and should already be pending.
                 if (p == current || useSearchDistance()) {
-                    var neighbors = findCompatibleNeighbors(current);
+                    var currentGeometry = getGeometry(current, geometryMap);
+                    Collection<? extends PathObject> allPotentialNeighbors;
+                    if (useSearchDistance())
+                        allPotentialNeighbors = findCompatibleNeighbors(currentGeometry, index);
+                    else
+                        allPotentialNeighbors = allObjects;
+                    var neighbors = filterCompatibleNeighbors(current, allPotentialNeighbors);
                     for (var neighbor : neighbors) {
                         if (!alreadyVisited.contains(neighbor)) {
                             if (mergeTest.test(
-                                    getGeometry(current),
-                                    getGeometry(neighbor))) {
+                                    currentGeometry,
+                                    getGeometry(neighbor, geometryMap))) {
                                 pending.add(neighbor);
                             }
                         }
@@ -153,24 +211,31 @@ public class ObjectMerger {
 
     /**
      * Recursively build a cluster of objects that can be merged.
+     * This is a recursive implementation of the iterative method above, useful for debugging.
+     *
      * @param pathObject an object to potentially add to the cluster
      * @param currentCluster the current cluster to which objects may be added, if they are compatible
      * @param alreadyVisited
      * @return
+     * @throws UnsupportedOperationException if {@link #useSearchDistance()} is false
      */
-    private List<PathObject> addMergesRecursive(PathObject pathObject, List<PathObject> currentCluster, Set<PathObject> alreadyVisited) {
+    private List<PathObject> addMergesRecursive(PathObject pathObject, List<PathObject> currentCluster, Set<PathObject> alreadyVisited,
+                                                SpatialIndex index, Map<ROI, Geometry> geometryMap) throws UnsupportedOperationException {
         if (!alreadyVisited.add(pathObject))
             return currentCluster;
 
         currentCluster.add(pathObject);
 
-        var neighbors = findCompatibleNeighbors(pathObject);
+        if (!useSearchDistance())
+            throw new UnsupportedOperationException("Recursive merging requires a search distance");
+
+        var neighbors = findCompatibleNeighbors(getGeometry(pathObject, geometryMap), index);
         for (var neighbor : neighbors) {
             if (!alreadyVisited.contains(neighbor)) {
                 if (mergeTest.test(
-                        getGeometry(pathObject),
-                        getGeometry(neighbor)))
-                    addMergesRecursive(neighbor, currentCluster, alreadyVisited);
+                        getGeometry(pathObject, geometryMap),
+                        getGeometry(neighbor, geometryMap)))
+                    addMergesRecursive(neighbor, currentCluster, alreadyVisited, index, geometryMap);
             }
         }
         return currentCluster;
@@ -183,56 +248,140 @@ public class ObjectMerger {
     /**
      * Find all objects that *could* be merged with the object, i.e. they are compatible.
      * This applies the search distance and compatibility tests, but not the merge test.
-     * @param pathObject
+     * @param geometry
      * @return
      */
-    private List<PathObject> findCompatibleNeighbors(PathObject pathObject) {
-        List<PathObject> potentialNeighbors;
-        if (useSearchDistance()) {
-            var geom = getGeometry(pathObject);
-            var envelopeQuery = geom.getEnvelopeInternal(); // This is documented to be a copy, so we can modify it
-            double expansion = 1e-6;
-            envelopeQuery.expandBy(expansion);
-            potentialNeighbors = index.query(envelopeQuery);
-            nQueries++;
-        } else {
-            potentialNeighbors = allObjects;
-        }
+    private List<PathObject> findCompatibleNeighbors(Geometry geometry, SpatialIndex index) {
+        var envelopeQuery = geometry.getEnvelopeInternal(); // This is documented to be a copy, so we can modify it
+        double expansion = 1e-6;
+        envelopeQuery.expandBy(expansion);
+        return index.query(envelopeQuery);
+    }
+
+    private List<PathObject> filterCompatibleNeighbors(PathObject pathObject, Collection<? extends PathObject> potentialNeighbors) {
+        return filterCompatibleNeighbors(pathObject, potentialNeighbors, compatibilityTest);
+    }
+
+    private static List<PathObject> filterCompatibleNeighbors(PathObject pathObject, Collection<? extends PathObject> potentialNeighbors, BiPredicate<PathObject, PathObject> compatibilityTest) {
         return potentialNeighbors.stream()
-                .filter(p -> p != pathObject)
                 .filter(p -> compatibilityTest.test(pathObject, p))
+                .map(p -> (PathObject) p)
                 .toList();
     }
 
-    private Geometry getGeometry(PathObject pathObject) {
+    private Geometry getGeometry(PathObject pathObject, Map<ROI, Geometry> geometryMap) {
         return geometryMap.computeIfAbsent(pathObject.getROI(), ROI::getGeometry);
     }
 
 
     /**
-     * Merge objects that share a common boundary and have the same classification.
+     * Create an object merger that uses a shared boundary criterion and default overlap tolerance.
+     * <p>
+     * Objects will be merged if they a common boundary and have the same classification.
+     * A small overlap tolerance is used to compensate for sub-pixel misalignment of tiles.
      * <p>
      * This is intended for post-processing a tile-based segmentation, where the tiling has been strictly enforced
      * (i.e. any objects have been clipped to non-overlapping tile boundaries).
      *
-     * @param pathObjects
-     * @param sharedBoundaryThreshold
+     * @param sharedBoundaryThreshold proportion of the possibly-clipped boundary that must be shared
+     *
+     * @return an object merger that uses a shared boundary criterion
+     * @see #createSharedBoundaryMerger(double, double)
+     */
+    public static ObjectMerger createSharedBoundaryMerger(double sharedBoundaryThreshold) {
+        return createSharedBoundaryMerger(sharedBoundaryThreshold, 0.125);
+    }
+
+    /**
+     * Create an object merger that uses a shared boundary criterion and overlap tolerance.
+     * <p>
+     * Objects will be merged if they a common boundary and have the same classification.
+     * A small overlap tolerance can be used to compensate for slight misalignment of tiles.
+     * <p>
+     * After identifying a common boundary line between ROIs, the ROI boundaries are intersected with the line,
+     * and the two intersections are subsequently intersected with each other to determine the shared intersection.
+     * The length of the shared intersection is then divided by the smaller ROI intersection.
+     * <p>
+     * This is the shared boundary score; a value of 0 indicates no shared intersection, while a value of 1 indicates
+     * that the boundary of at least one ROI is completely shared with the other ROI along one edge.
+     * <p>
+     * This is intended for post-processing a tile-based segmentation, where the tiling has been strictly enforced
+     * (i.e. any objects have been clipped to non-overlapping tile boundaries).
+     *
+     * @param sharedBoundaryThreshold proportion of the possibly-clipped boundary that must be shared
+     * @param overlapTolerance amount of overlap allowed between objects, in pixels. If zero, the boundary must be
+     *                         shared exactly. A typical value is 0.125, which allows for a small, sub-pixel overlap.
+     * @return an object merger that uses a shared boundary criterion and overlap tolerance
+     */
+    public static ObjectMerger createSharedBoundaryMerger(double sharedBoundaryThreshold, double overlapTolerance) {
+        return new ObjectMerger(
+                ObjectMerger::sameClassTypePlaneTest,
+                createBoundaryOverlapTest(sharedBoundaryThreshold, overlapTolerance),
+                0.0625);
+    }
+
+    /**
+     * Create an object merger that can merge together any objects with similar ROIs (e.g. points, areas), the same
+     * classification, and are on the same image plane.
+     * <p>
+     * The ROIs to not need to be touching; the resulting merged objects can have discontinuous ROIs.
+     * @return an object merger that can merge together any objects with similar ROIs and the same classification
+     */
+    public static ObjectMerger createSharedClassificationMerger() {
+        return new ObjectMerger(
+                ObjectMerger::sameClassTypePlaneTest,
+                ObjectMerger::sameDimensions,
+                -1);
+    }
+
+    /**
+     * Create an object merger that can merge together any objects with similar ROIs (e.g. points, areas) that also
+     * touch one another.
+     * <p>
+     * Objects must also have the same classification and be on the same image plane to be mergeable.
+     * <p>
+     * Note that this is a strict criterion following the Java Topology Suite definition of touching, which requires
+     * that the boundaries of the geometries intersect, but the interiors do not intersect.
+     * <p>
+     * This strictness can cause unexpected results due to floating point precision issues, unless it is certain that
+     * the ROIs are perfectly aligned (e.g they are generated using integer coordinates on a pixel grid).
+     * <p>
+     * If this is not the case, {@link #createSharedBoundaryMerger(double, double)} is usually preferable, since it
+     * can include a small overlap tolerance.
+     *
+     * @return an object merger that can merge together any objects with similar ROIs and the same classification
+     * @see #createSharedBoundaryMerger(double, double)
+     */
+    public static ObjectMerger createTouchingMerger() {
+        return new ObjectMerger(
+                ObjectMerger::sameClassTypePlaneTest,
+                ObjectMerger::sameDimensionsAndTouching,
+                0);
+    }
+
+
+    /**
+     * Method to use as a predicate, indicating that two geometries have the same dimension and also touch.
+     * @param geom
+     * @param geom2
      * @return
      */
-    public static List<PathObject> resolveTileSplits(Collection<? extends PathObject> pathObjects, double sharedBoundaryThreshold) {
-        var mergeable = new ObjectMerger(pathObjects, createBoundaryOverlapTest(sharedBoundaryThreshold));
-        return mergeable.calculateResults();
+    private static boolean sameDimensionsAndTouching(Geometry geom, Geometry geom2) {
+        return sameDimensions(geom, geom2) && geom.touches(geom2);
     }
 
-    static boolean mergeAnyGeometries(Geometry geom, Geometry geom2) {
-        return true;
+
+    /**
+     * Method to use as a predicate, indicating that two geometries have the same dimension.
+     * @param geom
+     * @param geom2
+     * @return
+     */
+    private static boolean sameDimensions(Geometry geom, Geometry geom2) {
+        return geom.getDimension() == geom2.getDimension();
     }
 
-    static BiPredicate<Geometry, Geometry> createBoundaryOverlapTest(double sharedBoundaryThreshold) {
-        return createBoundaryOverlapTest(0.125, sharedBoundaryThreshold);
-    }
-
-    static BiPredicate<Geometry, Geometry> createBoundaryOverlapTest(double pixelOverlapTolerance, double sharedBoundaryThreshold) {
+    private static BiPredicate<Geometry, Geometry> createBoundaryOverlapTest(double sharedBoundaryThreshold, double pixelOverlapTolerance) {
         return (geom, geomOverlap) -> {
             if (calculateUpperLowerSharedBoundaryIntersectionScore(geom, geomOverlap, pixelOverlapTolerance) >= sharedBoundaryThreshold)
                 return true;
@@ -247,12 +396,12 @@ public class ObjectMerger {
         };
     }
 
-    private static SpatialIndex buildMutableSpatialIndex(Collection<? extends PathObject> pathObjects, Map<ROI, Geometry> geometryMap) {
-        var index = new Quadtree();
-        populateSpatialIndex(index, pathObjects, geometryMap);
-        return index;
-    }
-
+    /**
+     * Build a spatial index. Note that this implementation should not be modified later, only queried.
+     * @param pathObjects
+     * @param geometryMap
+     * @return
+     */
     private static SpatialIndex buildSpatialIndex(Collection<? extends PathObject> pathObjects, Map<ROI, Geometry> geometryMap) {
         var index = new HPRtree();
         populateSpatialIndex(index, pathObjects, geometryMap);
@@ -271,12 +420,18 @@ public class ObjectMerger {
     }
 
 
-
-    private static boolean objectsAreMergable(PathObject p, PathObject overlap) {
-        return (overlap != p &&
-                Objects.equals(p.getPathClass(), overlap.getPathClass()) &&
-                Objects.equals(p.getROI().getImagePlane(), overlap.getROI().getImagePlane()) &&
-                Objects.equals(p.getClass(), overlap.getClass()));
+    /**
+     * Simple test of object compatibility by checking if the objects are not identical but have the same
+     * classification, ROI plane and type.
+     * @param first
+     * @param second
+     * @return
+     */
+    private static boolean sameClassTypePlaneTest(PathObject first, PathObject second) {
+        return (second != first &&
+                Objects.equals(first.getPathClass(), second.getPathClass()) &&
+                Objects.equals(first.getROI().getImagePlane(), second.getROI().getImagePlane()) &&
+                Objects.equals(first.getClass(), second.getClass()));
     }
 
 
@@ -290,29 +445,6 @@ public class ObjectMerger {
         // We have no mutability guarantees from Collectors.toConcurrentMap
         return new ConcurrentHashMap<>(map);
     }
-
-
-//    // TODO: Consider implementing this in the future
-//    private static boolean testMergeBySharedArea(Geometry geom, Geometry geomOverlap, double sharedAreaThreshold) {
-//    }
-
-    /**
-     * Test whether to merge two objects based upon a shared boundary.
-     * @param geom the main geometry
-     * @param geomOverlap the geometry that (possibly) touches or overlaps
-     * @param pixelOverlapTolerance how much the objects are allowed to overlap (to compensate for slightyly misaligned tiles)
-     * @param sharedBoundaryThreshold proportion of the possibly-clipped boundary that must be shared
-     * @return
-     */
-    private static boolean testMergeBySharedBoundary(Geometry geom, Geometry geomOverlap, double pixelOverlapTolerance, double sharedBoundaryThreshold) {
-        if (calculateUpperLowerSharedBoundaryIntersectionScore(geom, geomOverlap, pixelOverlapTolerance) >= sharedBoundaryThreshold)
-            return true;
-        else if (calculateLeftRightSharedBoundaryIntersectionScore(geom, geomOverlap, pixelOverlapTolerance) >= sharedBoundaryThreshold)
-            return true;
-        else
-            return false;
-    }
-
 
 
     private static PathObject mergeObjects(List<? extends PathObject> pathObjects) {
@@ -330,7 +462,7 @@ public class ObjectMerger {
             return PathObjects.createTileObject(mergedROI, pathObject.getPathClass(), null);
         } else if (pathObject.isCell()) {
             var nucleusROIs = pathObjects.stream()
-                    .map(ObjectMerger::getNucleusROI)
+                    .map(PathObjectTools::getNucleusROI)
                     .filter(Objects::nonNull)
                     .collect(Collectors.toList());
             ROI nucleusROI = nucleusROIs.isEmpty() ? null : RoiTools.union(nucleusROIs);
@@ -344,19 +476,10 @@ public class ObjectMerger {
     }
 
 
-    private static ROI getNucleusROI(PathObject pathObject) {
-        if (pathObject instanceof PathCellObject cell)
-            return cell.getNucleusROI();
-        return null;
-    }
-
-
-
     private static double calculateUpperLowerSharedBoundaryIntersectionScore(Geometry upper, Geometry lower, double overlapTolerance) {
         var envUpper = upper.getEnvelopeInternal();
         var envLower = lower.getEnvelopeInternal();
         // We only consider the lower and upper boundaries, which must be very close to one another - with no gaps
-        overlapTolerance = 2.0;
         if (envUpper.getMaxY() >= envLower.getMinY() && Math.abs(envUpper.getMaxY() - envLower.getMinY()) < overlapTolerance) {
             var upperIntersection = createEnvelopeIntersection(upper, envUpper.getMinX(), envUpper.getMaxY(), envUpper.getMaxX(), envUpper.getMaxY());
             var lowerIntersection = createEnvelopeIntersection(lower, envLower.getMinX(), envLower.getMinY(), envLower.getMaxX(), envLower.getMinY());
@@ -406,6 +529,9 @@ public class ObjectMerger {
         return factory.createLineString(new Coordinate[]{new Coordinate(x1, y1), new Coordinate(x2, y2)});
     }
 
+    /**
+     * Ordinate filter to set a single ordinate to a fixed value, in-place.
+     */
     private static class SetOrdinateFilter implements CoordinateSequenceFilter {
 
         private final int ordinateIndex;
@@ -432,6 +558,5 @@ public class ObjectMerger {
         }
 
     }
-
 
 }

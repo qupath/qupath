@@ -1,0 +1,231 @@
+/*-
+ * #%L
+ * This file is part of QuPath.
+ * %%
+ * Copyright (C) 2023 QuPath developers, The University of Edinburgh
+ * %%
+ * QuPath is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * QuPath is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with QuPath.  If not, see <https://www.gnu.org/licenses/>.
+ * #L%
+ */
+
+package qupath.lib.objects.utils;
+
+import org.junit.jupiter.api.Test;
+import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjects;
+import qupath.lib.objects.classes.PathClass;
+import qupath.lib.regions.ImagePlane;
+import qupath.lib.roi.ROIs;
+import qupath.lib.roi.interfaces.ROI;
+
+import java.util.Arrays;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+public class TestObjectMerger {
+
+    // Convenience method for defining the default ROI width and height
+    private static final double objectSize = 10.0;
+
+    /**
+     * Test behavior when objects touch at a corner, but do not overlap.
+     */
+    @Test
+    public void test_mergeTouchingButNotOverlapping() {
+        var pathObjects = Arrays.asList(
+                createAnnotation(0, 0, "A"),
+                createAnnotation(objectSize, objectSize, "A"),
+                createAnnotation(objectSize*2, objectSize*2, "B"),
+                createAnnotation(objectSize*3, objectSize*3, "C"),
+                createAnnotation(objectSize*4, objectSize*4, "A")
+        );
+        var mergedByClassification = ObjectMerger.createSharedClassificationMerger().merge(pathObjects);
+        assertEquals(3, mergedByClassification.size());
+        assertEquals(1, mergedByClassification.stream().filter(o -> o.getPathClass().equals(PathClass.fromString("A"))).count());
+        assertEquals(1, mergedByClassification.stream().filter(o -> o.getPathClass().equals(PathClass.fromString("B"))).count());
+        assertEquals(1, mergedByClassification.stream().filter(o -> o.getPathClass().equals(PathClass.fromString("C"))).count());
+
+        var mergedByBoundary = ObjectMerger.createSharedBoundaryMerger(0.5).merge(pathObjects);
+        assertEquals(5, mergedByBoundary.size());
+        assertEquals(3, mergedByBoundary.stream().filter(o -> o.getPathClass().equals(PathClass.fromString("A"))).count());
+        assertEquals(1, mergedByBoundary.stream().filter(o -> o.getPathClass().equals(PathClass.fromString("B"))).count());
+        assertEquals(1, mergedByBoundary.stream().filter(o -> o.getPathClass().equals(PathClass.fromString("C"))).count());
+
+        var mergedByTouching = ObjectMerger.createTouchingMerger().merge(pathObjects);
+        assertEquals(4, mergedByTouching.size());
+        assertEquals(2, mergedByTouching.stream().filter(o -> o.getPathClass().equals(PathClass.fromString("A"))).count());
+        assertEquals(1, mergedByTouching.stream().filter(o -> o.getPathClass().equals(PathClass.fromString("B"))).count());
+        assertEquals(1, mergedByTouching.stream().filter(o -> o.getPathClass().equals(PathClass.fromString("C"))).count());
+    }
+
+    /**
+     * Test behavior when objects do not overlap or touch at all.
+     */
+    @Test
+    public void test_mergeNotTouching() {
+        var pathObjects = Arrays.asList(
+                createAnnotation(0, 0, "A"),
+                createAnnotation(0, objectSize*2, "A"),
+                createAnnotation(0, objectSize*4, "B"),
+                createAnnotation(0, objectSize*6, "C"),
+                createAnnotation(0, objectSize*8, "A")
+        );
+        var mergedByClassification = ObjectMerger.createSharedClassificationMerger().merge(pathObjects);
+        assertEquals(3, mergedByClassification.size());
+        assertEquals(1, mergedByClassification.stream().filter(o -> o.getPathClass().equals(PathClass.fromString("A"))).count());
+        assertEquals(1, mergedByClassification.stream().filter(o -> o.getPathClass().equals(PathClass.fromString("B"))).count());
+        assertEquals(1, mergedByClassification.stream().filter(o -> o.getPathClass().equals(PathClass.fromString("C"))).count());
+
+        var mergedByBoundary = ObjectMerger.createSharedBoundaryMerger(0.5).merge(pathObjects);
+        assertEquals(5, mergedByBoundary.size());
+        assertEquals(3, mergedByBoundary.stream().filter(o -> o.getPathClass().equals(PathClass.fromString("A"))).count());
+        assertEquals(1, mergedByBoundary.stream().filter(o -> o.getPathClass().equals(PathClass.fromString("B"))).count());
+        assertEquals(1, mergedByBoundary.stream().filter(o -> o.getPathClass().equals(PathClass.fromString("C"))).count());
+
+        var mergedByTouching = ObjectMerger.createTouchingMerger().merge(pathObjects);
+        assertEquals(5, mergedByTouching.size());
+        assertEquals(3, mergedByTouching.stream().filter(o -> o.getPathClass().equals(PathClass.fromString("A"))).count());
+        assertEquals(1, mergedByTouching.stream().filter(o -> o.getPathClass().equals(PathClass.fromString("B"))).count());
+        assertEquals(1, mergedByTouching.stream().filter(o -> o.getPathClass().equals(PathClass.fromString("C"))).count());
+    }
+
+    /**
+     * Test behavior when objects (i.e. areas) overlap by 50%.
+     */
+    @Test
+    public void test_mergeIntersecting() {
+        var pathObjects = Arrays.asList(
+                createAnnotation(0, 0, "A"),
+                createAnnotation(objectSize/2, 0, "A")
+        );
+        var mergedByClassification = ObjectMerger.createSharedClassificationMerger().merge(pathObjects);
+        assertEquals(1, mergedByClassification.size());
+        assertEquals(objectSize * objectSize * 1.5, mergedByClassification.get(0).getROI().getArea(), 0.0001);
+
+        var mergedByBoundary = ObjectMerger.createSharedBoundaryMerger(0.5).merge(pathObjects);
+        assertEquals(2, mergedByBoundary.size());
+
+        var mergedByTouching = ObjectMerger.createTouchingMerger().merge(pathObjects);
+        assertEquals(2, mergedByTouching.size());
+    }
+
+    /**
+     * Test behavior when a boundary overlaps fully.
+     */
+    @Test
+    public void test_mergeBoundaryOverlappingFull() {
+        var pathObjects = Arrays.asList(
+                createAnnotation(0, 0, "A"),
+                createAnnotation(objectSize, 0, "A")
+        );
+        var mergedByClassification = ObjectMerger.createSharedClassificationMerger().merge(pathObjects);
+        assertEquals(1, mergedByClassification.size());
+        assertEquals(objectSize * objectSize * 2, mergedByClassification.get(0).getROI().getArea(), 0.0001);
+
+        var mergedByBoundary = ObjectMerger.createSharedBoundaryMerger(0.5).merge(pathObjects);
+        assertEquals(1, mergedByBoundary.size());
+        assertEquals(objectSize * objectSize * 2, mergedByBoundary.get(0).getROI().getArea(), 0.0001);
+
+        var mergedByTouching = ObjectMerger.createTouchingMerger().merge(pathObjects);
+        assertEquals(1, mergedByTouching.size());
+        assertEquals(objectSize * objectSize * 2, mergedByTouching.get(0).getROI().getArea(), 0.0001);
+    }
+
+    /**
+     * Test behavior when a boundary overlaps by 50%.
+     */
+    @Test
+    public void test_mergeBoundaryOverlappingPartial() {
+        var pathObjects = Arrays.asList(
+                createAnnotation(0, 0, "A"),
+                createAnnotation(objectSize, objectSize/2.0, "A")
+        );
+        var mergedByClassification = ObjectMerger.createSharedClassificationMerger().merge(pathObjects);
+        assertEquals(1, mergedByClassification.size());
+        assertEquals(objectSize * objectSize * 2, mergedByClassification.get(0).getROI().getArea(), 0.0001);
+
+        var mergedByBoundary = ObjectMerger.createSharedBoundaryMerger(0.5).merge(pathObjects);
+        assertEquals(1, mergedByBoundary.size());
+        assertEquals(objectSize * objectSize * 2, mergedByBoundary.get(0).getROI().getArea(), 0.0001);
+
+        var mergedByBoundaryTooHigh = ObjectMerger.createSharedBoundaryMerger(0.75).merge(pathObjects);
+        assertEquals(2, mergedByBoundaryTooHigh.size());
+
+        var mergedByBoundaryLower = ObjectMerger.createSharedBoundaryMerger(0.25).merge(pathObjects);
+        assertEquals(1, mergedByBoundary.size());
+        assertEquals(objectSize * objectSize * 2, mergedByBoundaryLower.get(0).getROI().getArea(), 0.0001);
+
+        var mergedByTouching = ObjectMerger.createTouchingMerger().merge(pathObjects);
+        assertEquals(1, mergedByTouching.size());
+        assertEquals(objectSize * objectSize * 2, mergedByTouching.get(0).getROI().getArea(), 0.0001);
+    }
+
+
+    /**
+     * Don't merge objects of different types.
+     */
+    @Test
+    public void test_mergeBoundaryOverlappingNonMatchingTypes() {
+        var pathObjects = Arrays.asList(
+                createAnnotation(0, 0, "A"),
+                createDetection(objectSize, 0, "A"),
+                createTile(objectSize*2, 0, "A")
+        );
+        var mergedByClassification = ObjectMerger.createSharedClassificationMerger().merge(pathObjects);
+        assertEquals(3, mergedByClassification.size());
+
+        var mergedByBoundary = ObjectMerger.createSharedBoundaryMerger(0.5).merge(pathObjects);
+        assertEquals(3, mergedByBoundary.size());
+
+        var mergedByTouching = ObjectMerger.createTouchingMerger().merge(pathObjects);
+        assertEquals(3, mergedByTouching.size());
+    }
+
+
+    private static PathObject createAnnotation(double x, double y, String classification) {
+        return createAnnotation(x, y, classification, ImagePlane.getDefaultPlane());
+    }
+
+    private static PathObject createAnnotation(double x, double y, String classification, ImagePlane plane) {
+        return PathObjects.createAnnotationObject(
+                createROI(x, y, plane),
+                PathClass.fromString(classification));
+    }
+
+    private static PathObject createDetection(double x, double y, String classification) {
+        return createDetection(x, y, classification, ImagePlane.getDefaultPlane());
+    }
+
+    private static PathObject createDetection(double x, double y, String classification, ImagePlane plane) {
+        return PathObjects.createDetectionObject(
+                createROI(x, y, plane),
+                PathClass.fromString(classification));
+    }
+
+    private static PathObject createTile(double x, double y, String classification) {
+        return createTile(x, y, classification, ImagePlane.getDefaultPlane());
+    }
+
+    private static PathObject createTile(double x, double y, String classification, ImagePlane plane) {
+        return PathObjects.createTileObject(
+                createROI(x, y, plane),
+                PathClass.fromString(classification));
+    }
+
+    private static ROI createROI(double x, double y, ImagePlane plane) {
+        return ROIs.createRectangleROI(x, y, objectSize, objectSize, plane);
+    }
+
+
+}

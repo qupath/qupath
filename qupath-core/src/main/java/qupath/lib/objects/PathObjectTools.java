@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -148,7 +148,8 @@ public class PathObjectTools {
 	public static Predicate<PathObject> createImageRegionPredicate(ImageRegion region) {
 		return new ImageRegionPredicate(region);
 	}
-	
+
+
 	private static class ImageRegionPredicate implements Predicate<PathObject> {
 		
 		private ImageRegion region;
@@ -980,6 +981,36 @@ public class PathObjectTools {
 	}
 
 	/**
+	 * Get the nucleus ROI for a cell, or the main ROI if no nucleus is found.
+	 * This is equivalent to {@code getROI(pathObject, true)}, but avoids the mysterious boolean flag to make
+	 * code more readable.
+	 * @param pathObject
+	 * @return
+	 * @see #getNucleusROI(PathObject)
+	 * @since v0.5.0
+	 */
+	public static ROI getNucleusOrMainROI(PathObject pathObject) {
+		var nucleus = getNucleusROI(pathObject);
+		if (nucleus == null)
+			return pathObject.getROI();
+		return nucleus;
+	}
+
+	/**
+	 * Get the nucleus ROI for a cell, or null if the input is not a cell or no nucleus is found.
+	 * @param pathObject
+	 * @return
+	 * @see #getNucleusOrMainROI(PathObject)
+	 * @since v0.5.0
+	 */
+	public static ROI getNucleusROI(PathObject pathObject) {
+		if (pathObject instanceof PathCellObject cell)
+			return cell.getNucleusROI();
+		return null;
+	}
+
+
+	/**
 	 * Get all descendant objects with a specified type.
 	 * 
 	 * @param pathObject
@@ -1663,7 +1694,43 @@ public class PathObjectTools {
 		}
 		return output;
 	}
-	
+
+	/**
+	 * Create a new object with the same type and classification as the input object, but a new ROI and ID.
+	 * <p>
+	 * Note that TMA core objects are not supported.
+	 * @param pathObject the template object
+	 * @param roiNew the new ROI
+	 * @return a new object with the same type and classification as the input object, but different ROI and ID.
+	 * @since v0.5.0
+	 */
+	public static PathObject createLike(PathObject pathObject, ROI roiNew) {
+		return createLike(pathObject, roiNew, null);
+	}
+
+	/**
+	 * Create a new object with the same type and classification as the input object, but a new ROI and ID.
+	 * This version of the method supports cell objects with a nucleus ROI.
+	 * <p>
+	 * Note that TMA core objects are not supported.
+	 * @param pathObject the template object
+	 * @param roiNew the new ROI
+	 * @param roiNucleus nucleus ROI; only relevant if the template object is a cell
+	 * @return a new object with the same type and classification as the input object, but different ROI and ID.
+	 * @since v0.5.0
+	 */
+	public static PathObject createLike(PathObject pathObject, ROI roiNew, ROI roiNucleus) {
+		if (pathObject.isCell()) {
+			return PathObjects.createCellObject(roiNew, roiNucleus, pathObject.getPathClass(), null);
+		} else if (pathObject.isAnnotation()) {
+			return PathObjects.createAnnotationObject(roiNew, pathObject.getPathClass());
+		} else if (pathObject.isTile()) {
+			return PathObjects.createTileObject(roiNew, pathObject.getPathClass(), null);
+		} else if (pathObject.isDetection()) {
+			return PathObjects.createDetectionObject(roiNew, pathObject.getPathClass());
+		} else
+			throw new IllegalArgumentException("Unsupported object type - cannot create similar object for " + pathObject);
+	}
 	
 	
 	/**
