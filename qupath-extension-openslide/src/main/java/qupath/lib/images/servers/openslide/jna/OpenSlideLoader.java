@@ -80,7 +80,10 @@ public class OpenSlideLoader {
             }
             return Native.load("openslide", OpenSlideJNA.class);
         } finally {
-            System.setProperty("jna.library.path", jnaPath);
+            if (jnaPath == null)
+                System.clearProperty("jna.library.path");
+            else
+                System.setProperty("jna.library.path", jnaPath);
         }
     }
 
