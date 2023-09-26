@@ -25,7 +25,16 @@ package qupath.lib.gui.viewer;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.nio.channels.Channels;
+import java.nio.channels.ReadableByteChannel;
+import java.nio.file.Files;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -48,12 +57,16 @@ import javafx.scene.input.DragEvent;
 import javafx.scene.input.Dragboard;
 import javafx.scene.input.TransferMode;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.gui.ExtensionClassLoader;
 import qupath.lib.gui.FileCopier;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.UserDirectoryManager;
+import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.commands.InteractiveObjectImporter;
 import qupath.lib.gui.commands.ProjectCommands;
 import qupath.fx.dialogs.Dialogs;
+import qupath.lib.gui.extensions.GitHubProject;
+import qupath.lib.gui.extensions.UpdateChecker;
 import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.prefs.QuPathStyleManager;
@@ -90,6 +103,8 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 	 * Schedule long-running tasks
 	 */
 	private Timer timer = new Timer("drag-drop-timer", true);
+
+	private static final Pattern GITHUB_PATTERN = Pattern.compile("https://github.com/([a-zA-Z0-9-]+)/(qupath-extension-[a-zA-Z0-9]+)/?.*");
 
 	/**
 	 * Constructor.
@@ -183,12 +198,15 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 					if (files != null) {
 				        logger.debug("Files dragged onto {}", source);
 						handleFileDrop(viewer2, files);
-					} else if (url != null || string != null) {
-						logger.debug("URL/String dragged onto {}", source);
+					} else if (url != null ) {
+						logger.debug("URL dragged onto {}", source);
 						handleURLDrop(viewer2, url);
+					} else if (string != null) {
+						logger.debug("Text dragged onto {}, treating as a URL", source);
+						handleURLDrop(viewer2, string);
 					}
-	        	} catch (IOException e) {
-					Dialogs.showErrorMessage("Drag & Drop", e);
+				} catch (IOException | URISyntaxException | InterruptedException e) {
+					Dialogs.showErrorMessage(QuPathResources.getString("DragDrop"), e);
 	        	} finally {
 	        		taskRunning = false;
 	        	}
@@ -255,7 +273,11 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
     	}
     }
     
-    void handleURLDrop(final QuPathViewer viewer, final String url) throws IOException {
+    void handleURLDrop(final QuPathViewer viewer, final String url) throws IOException, URISyntaxException, InterruptedException {
+		// if it's a GitHub repo, see if it's an extension
+		if (handleGitHubURL(url)) {
+			return;
+		}
     	try {
     		qupath.openImage(viewer, url, false, false);
     	} catch (IOException e) {
@@ -264,8 +286,54 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
     		throw new IOException(e);
     	}
     }
-    
-    private void handleFileDropImpl(QuPathViewer viewer, List<File> list) throws IOException {
+
+	private boolean handleGitHubURL(String url) throws URISyntaxException, IOException, InterruptedException {
+		Matcher m = GITHUB_PATTERN.matcher(url);
+		if (!m.find()) {
+			logger.debug("URL did not match GitHub extension pattern");
+			return false;
+		}
+		var repo = GitHubProject.GitHubRepo.create("Name", m.group(1), m.group(2));
+		askToDownload(repo);
+		return true;
+	}
+
+	public static void askToDownload(GitHubProject.GitHubRepo repo) throws URISyntaxException, IOException, InterruptedException {
+		var v = UpdateChecker.checkForUpdate(repo);
+		if (v != null && Dialogs.showYesNoDialog(QuPathResources.getString("ExtensionManager"),
+				String.format(QuPathResources.getString("ExtensionManager.installExtensionFromGithub"), repo.getRepo()))) {
+			var downloadURL = String.format("https://github.com/%s/%s/releases/download/%s/%s-%s.jar",
+					repo.getOwner(), repo.getRepo(), "v" + v.getVersion().toString(), repo.getRepo(), v.getVersion().toString()
+			);
+			// https://github.com/qupath/qupath-extension-wsinfer/releases/download/v0.2.0/qupath-extension-wsinfer-0.2.0.jar
+			var dir = ExtensionClassLoader.getInstance().getExtensionDirectory();
+			if (dir == null || !Files.isDirectory(dir)) {
+				logger.info("No extension directory found!");
+				var dirUser = Commands.requestUserDirectory(true);
+				if (dirUser == null)
+					return;
+				dir = ExtensionClassLoader.getInstance().getExtensionDirectory();
+			}
+			File f = new File(dir.toString(), repo.getRepo() + "-" + v.getVersion() + ".jar");
+			downloadURLToFile(downloadURL, f);
+			Dialogs.showInfoNotification(
+					QuPathResources.getString("ExtensionManager"),
+					String.format(QuPathResources.getString("ExtensionManager.successfullyDownloaded"), repo.getRepo()));
+			QuPathGUI.getInstance().getExtensionManager().refreshExtensions(true);
+		}
+	}
+
+	private static void downloadURLToFile(String downloadURL, File file) throws IOException {
+		try (InputStream stream = new URL(downloadURL).openStream()) {
+			try (ReadableByteChannel readableByteChannel = Channels.newChannel(stream)) {
+				try (FileOutputStream fos = new FileOutputStream(file)) {
+					fos.getChannel().transferFrom(readableByteChannel, 0, Long.MAX_VALUE);
+				}
+			}
+		}
+	}
+
+	private void handleFileDropImpl(QuPathViewer viewer, List<File> list) throws IOException {
 		
 		// Shouldn't occur... but keeps FindBugs happy to check
 		if (list == null) {
@@ -405,7 +473,6 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 				Project<BufferedImage> project = ProjectIO.loadProject(file, BufferedImage.class);
 				qupath.setProject(project);
 			} catch (Exception e) {
-//				Dialogs.showErrorMessage("Project error", e);
 				logger.error("Could not open as project file - opening in the Script Editor instead", e);
 				qupath.getScriptEditor().showScript(file);
 			}
@@ -417,7 +484,6 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 			if (imageData == null || hierarchy == null) {
 				qupath.getScriptEditor().showScript(file);
 				logger.info("Opening the dragged file in the Script Editor as there is no currently opened image in the viewer");
-//				Dialogs.showErrorMessage("Open object file", "Please open an image first to import objects!");
 				return;
 			}
 			InteractiveObjectImporter.promptToImportObjectsFromFile(imageData, file);

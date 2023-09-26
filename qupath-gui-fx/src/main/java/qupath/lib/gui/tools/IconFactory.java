@@ -252,10 +252,10 @@ public class IconFactory {
 									CELL_NUCLEI_BOTH(IconSuppliers.icoMoon('\ue903')),
 									CELL_ONLY(IconSuppliers.icoMoon('\ue904')),
 									CENTROIDS_ONLY(IconSuppliers.icoMoon('\ue913')),
-									
+
 									COG(IconSuppliers.icoMoon('\ue905')),
 									CONTRAST(IconSuppliers.icoMoon('\ue906')),
-									
+
 									DETECTIONS(IconSuppliers.icoMoon('\ue908', javafx.scene.paint.Color.rgb(20, 180, 120, 0.9))),
 									DETECTIONS_FILL(IconSuppliers.icoMoon('\ue907', javafx.scene.paint.Color.rgb(20, 180, 120, 0.9))),
 
@@ -277,6 +277,7 @@ public class IconFactory {
 									LOCATION(IconSuppliers.icoMoon('\ue90d')),
 									
 									MEASURE(IconSuppliers.icoMoon('\ue90e')),
+									MINUS(IconSuppliers.fontAwesome(FontAwesome.Glyph.MINUS, Color.BLACK)),
 									MOVE_TOOL(IconSuppliers.icoMoon('\ue90f')),
 									
 									NUCLEI_ONLY(IconSuppliers.icoMoon('\ue910')),
@@ -292,6 +293,7 @@ public class IconFactory {
 									POLYLINE_TOOL(IconSuppliers.polylineToolIcon()),
 									
 									RECTANGLE_TOOL(IconSuppliers.rectangleToolIcon()),
+									REFRESH(IconSuppliers.fontAwesome(FontAwesome.Glyph.REFRESH, Color.BLACK)),
 
 									SCRIPT_EDITOR(IconSuppliers.fontAwesome(FontAwesome.Glyph.CODE)),
 

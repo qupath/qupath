@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ListView?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.Pane?>
+<?import javafx.scene.control.Tooltip?>
+<fx:root prefHeight="400.0" prefWidth="600.0" type="BorderPane" xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1">
+    <top>
+        <VBox fx:id="topVBox" VBox.vgrow="ALWAYS">
+            <HBox spacing="2">
+                <padding>
+                    <Insets bottom="2" left="2" right="2" top="2" />
+                </padding>
+                <Button fx:id="addBtn" onAction="#addExtension" text="%ExtensionManager.add">
+                    <tooltip>
+                        <Tooltip text="%ExtensionManager.addTooltip"/>
+                    </tooltip>
+                </Button>
+                <Pane HBox.hgrow="ALWAYS" />
+                <Button fx:id="openExtensionDirBtn" onAction="#openExtensionDir" text = "Open extension directory">
+                    <tooltip>
+                        <Tooltip text="%ExtensionManager.openExtensionDirectory"/>
+                    </tooltip>
+                </Button>
+            </HBox>
+            <fx:define>
+                <HBox fx:id="addHBox" alignment="CENTER" spacing="2">
+                    <padding>
+                        <Insets bottom="2" left="2" right="2" top="2" />
+                    </padding>
+                    <HBox>
+                        <Label text="%ExtensionManager.owner">
+                            <tooltip>
+                                <Tooltip text="%ExtensionManager.ownerTooltip"/>
+                            </tooltip>
+                        </Label>
+                        <TextField fx:id="ownerTextArea">
+                            <tooltip>
+                                <Tooltip text="%ExtensionManager.ownerTooltip"/>
+                            </tooltip>
+                        </TextField>
+                    </HBox>
+                    <Label text="%ExtensionManager.repository">
+                        <tooltip>
+                            <Tooltip text="%ExtensionManager.repositoryTooltip"/>
+                        </tooltip>
+                    </Label>
+                    <TextField fx:id="repoTextArea">
+                        <tooltip>
+                            <Tooltip text="%ExtensionManager.repositoryTooltip"/>
+                        </tooltip>
+                    </TextField>
+                    <Pane HBox.hgrow="ALWAYS" />
+                    <Button fx:id="cancelAdd" onAction="#cancelAdd" text="%ExtensionManager.cancel">
+                        <tooltip>
+                            <Tooltip text="%ExtensionManager.cancelTooltip"/>
+                        </tooltip>
+                    </Button>
+                    <Button fx:id="submitAdd" onAction="#submitAdd" text="%ExtensionManager.accept">
+                        <tooltip>
+                            <Tooltip text="%ExtensionManager.acceptTooltip"/>
+                        </tooltip>
+                    </Button>
+                </HBox>
+            </fx:define>
+        </VBox>
+    </top>
+   <center>
+        <ScrollPane BorderPane.alignment="CENTER" fitToWidth="true" fitToHeight="true">
+            <ListView fx:id="listView"/>
+        </ScrollPane>
+   </center>
+</fx:root>

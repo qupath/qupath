@@ -51,12 +51,15 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import qupath.fx.dialogs.Dialogs;
 import qupath.fx.utils.FXUtils;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.Version;
 import qupath.lib.gui.ExtensionClassLoader;
+import qupath.lib.gui.ExtensionManager;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.extensions.QuPathExtension;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.images.servers.ImageServerBuilder;
 import qupath.lib.images.servers.ImageServerProvider;
@@ -70,127 +73,25 @@ import qupath.lib.images.servers.ImageServerProvider;
 class ShowInstalledExtensionsCommand {
 	
 	private static final Logger logger = LoggerFactory.getLogger(ShowInstalledExtensionsCommand.class);
-	
-	
+
 	public static void showInstalledExtensions(final QuPathGUI qupath) {
 		Stage dialog = new Stage();
 		dialog.initOwner(qupath.getStage());
 		dialog.initModality(Modality.APPLICATION_MODAL);
-		dialog.setTitle("Installed extensions");
-		
-		
-		GridPane paneExtensions = new GridPane();
-		paneExtensions.setPadding(new Insets(10, 10, 10, 10));
-		paneExtensions.setHgap(5);
-		paneExtensions.setVgap(10);
-		
-		int row = 0;
-		int inc = 1;
-		for (QuPathExtension extension : qupath.getExtensionManager().getLoadedExtensions()) {
-			addEntry(paneExtensions, new QuPathExtensionEntry(extension), row);
-			row += inc;
+		dialog.setTitle(QuPathResources.getString("ExtensionManager"));
+		try {
+			var borderPane = ExtensionManager.getManagerPane();
+			dialog.setScene(new Scene(borderPane));
+			dialog.setWidth(borderPane.getPrefWidth());
+			dialog.setHeight(borderPane.getPrefHeight());
+			dialog.setMinWidth(400);
+			dialog.setMinHeight(225);
+			dialog.show();
+		} catch (IOException e) {
+			Dialogs.showErrorMessage(QuPathResources.getString("ExtensionManager"),
+					QuPathResources.getString("ExtensionManager.ExtensionManager.unableToOpen"));
 		}
-		
-		GridPane paneServers = new GridPane();
-		paneServers.setPadding(new Insets(10, 10, 10, 10));
-		paneServers.setHgap(5);
-		paneServers.setVgap(10);
-		row = 0;
-		for (ImageServerBuilder<?> builder : ImageServerProvider.getInstalledImageServerBuilders()) {
-			addEntry(paneServers, new QuPathExtensionEntry(builder), row);
-			row += inc;
-		}
-		
-		TitledPane titledExtensions = new TitledPane("Extensions", paneExtensions);
-		FXUtils.simplifyTitledPane(titledExtensions, false);
-		TitledPane titledServers = new TitledPane("Image Servers", paneServers);
-		FXUtils.simplifyTitledPane(titledServers, false);
-		
-		VBox vbox = new VBox(
-				titledExtensions,
-				titledServers
-		);
-		
-		var dir = ExtensionClassLoader.getInstance().getExtensionDirectory();
-		if (dir != null) {
-			var btnOpen = new Button("Open extensions directory");
-			btnOpen.setOnAction(e -> GuiTools.browseDirectory(dir.toFile()));
-			btnOpen.setMaxWidth(Double.MAX_VALUE);
-			vbox.getChildren().add(btnOpen);
-//		} else {
-//			var label = new Label("No user directory has been set for custom user extensions.\n"
-//					+ "Drag an extensions jar file onto QuPath to set a user directory and install the extension.");
-//			label.setTextAlignment(TextAlignment.CENTER);
-//			label.setMaxWidth(Double.MAX_VALUE);
-//			vbox.getChildren().add(label);
-		}
-		
-		vbox.setPadding(new Insets(5));
-
-		vbox.setMaxWidth(Double.POSITIVE_INFINITY);
-		dialog.setScene(new Scene(new ScrollPane(vbox)));
-		dialog.show();
 	}
-	
-	
-	private static void addEntry(final GridPane pane, final QuPathExtensionEntry entry, final int row) {
-		
-		TextArea textArea = new TextArea(entry.getDescription());
-		textArea.setPrefRowCount(3);
-		textArea.setWrapText(true);
-		textArea.setEditable(false);
-		textArea.setMinWidth(100);
-		textArea.setBorder(null);
-//		textArea.getStylesheets().add(ShowInstalledExtensionsCommand.class.getClassLoader().getResource("css/text_area_transparent.css").toExternalForm());
-		
-		for (Node node : textArea.getChildrenUnmodifiable()) {
-			if (node instanceof Region)
-				((Region)node).setBorder(null);
-		}
-////		textArea.setStyle("-fx-focus-color: transparent; -fx-text-box-border: transparent;");
-		
-//		TextFlow textArea = new TextFlow(new Text(entry.getDescription()));
-//		textArea.setBorder(null);
-		
-		BorderPane paneEntryMain = new BorderPane(textArea);
-		Label labelPath = new Label("Path: " + entry.getPathToJar());
-		labelPath.setPadding(new Insets(0, 0, 2, 0));
-		File file = new File(entry.getPathToJar());
-		if (file.exists()) {
-			// Locate file with a double-click, if possible
-			File dir = file.isDirectory() ? file : file.getParentFile();
-				labelPath.setOnMouseClicked(e -> {
-					if (e.getClickCount() == 2) {
-						GuiTools.openFile(dir);
-					}
-				});
-		}
-		paneEntryMain.setBottom(labelPath);
-		
-		String name = entry.getName();
-		String version = entry.getVersion();
-		if (version != null)
-			name = name + " (" + version + ")";
-		
-		TitledPane paneEntry = new TitledPane(name, paneEntryMain);
-		paneEntry.setExpanded(false);
-		paneEntry.setBorder(null);
-		// Remove borders
-		FXUtils.simplifyTitledPane(paneEntry, false);
-
-		
-//		Tooltip tooltip = new Tooltip(entry.getPathToJar());
-		paneEntry.setTooltip(new Tooltip(entry.getDescription()));
-//		textArea.setTooltip(tooltip);
-		textArea.setMaxWidth(Double.MAX_VALUE);
-		paneEntry.setMaxWidth(Double.MAX_VALUE);
-		GridPane.setHgrow(paneEntry, Priority.ALWAYS);
-		GridPane.setFillWidth(paneEntry, Boolean.TRUE);
-		
-		pane.add(paneEntry, 1, row);
-	}
-	
-	
 	
 	private static class QuPathExtensionEntry {
 		

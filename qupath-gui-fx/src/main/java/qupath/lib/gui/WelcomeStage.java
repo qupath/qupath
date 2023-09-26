@@ -277,7 +277,8 @@ public class WelcomeStage {
 		});
 		
 		btnStarted.requestFocus();
-		
+		stage.setMinWidth(450);
+		stage.setMinHeight(600);
 		return stage;
 	}
 	
