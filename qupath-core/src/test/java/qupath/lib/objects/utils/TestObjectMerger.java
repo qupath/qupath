@@ -56,7 +56,7 @@ public class TestObjectMerger {
         assertEquals(1, mergedByClassification.stream().filter(o -> o.getPathClass().equals(PathClass.fromString("B"))).count());
         assertEquals(1, mergedByClassification.stream().filter(o -> o.getPathClass().equals(PathClass.fromString("C"))).count());
 
-        var mergedByBoundary = ObjectMerger.createSharedBoundaryMerger(0.5).merge(pathObjects);
+        var mergedByBoundary = ObjectMerger.createSharedTileBoundaryMerger(0.5).merge(pathObjects);
         assertEquals(5, mergedByBoundary.size());
         assertEquals(3, mergedByBoundary.stream().filter(o -> o.getPathClass().equals(PathClass.fromString("A"))).count());
         assertEquals(1, mergedByBoundary.stream().filter(o -> o.getPathClass().equals(PathClass.fromString("B"))).count());
@@ -87,7 +87,7 @@ public class TestObjectMerger {
         assertEquals(1, mergedByClassification.stream().filter(o -> o.getPathClass().equals(PathClass.fromString("B"))).count());
         assertEquals(1, mergedByClassification.stream().filter(o -> o.getPathClass().equals(PathClass.fromString("C"))).count());
 
-        var mergedByBoundary = ObjectMerger.createSharedBoundaryMerger(0.5).merge(pathObjects);
+        var mergedByBoundary = ObjectMerger.createSharedTileBoundaryMerger(0.5).merge(pathObjects);
         assertEquals(5, mergedByBoundary.size());
         assertEquals(3, mergedByBoundary.stream().filter(o -> o.getPathClass().equals(PathClass.fromString("A"))).count());
         assertEquals(1, mergedByBoundary.stream().filter(o -> o.getPathClass().equals(PathClass.fromString("B"))).count());
@@ -113,7 +113,7 @@ public class TestObjectMerger {
         assertEquals(1, mergedByClassification.size());
         assertEquals(objectSize * objectSize * 1.5, mergedByClassification.get(0).getROI().getArea(), 0.0001);
 
-        var mergedByBoundary = ObjectMerger.createSharedBoundaryMerger(0.5).merge(pathObjects);
+        var mergedByBoundary = ObjectMerger.createSharedTileBoundaryMerger(0.5).merge(pathObjects);
         assertEquals(2, mergedByBoundary.size());
 
         var mergedByTouching = ObjectMerger.createTouchingMerger().merge(pathObjects);
@@ -133,7 +133,7 @@ public class TestObjectMerger {
         assertEquals(1, mergedByClassification.size());
         assertEquals(objectSize * objectSize * 2, mergedByClassification.get(0).getROI().getArea(), 0.0001);
 
-        var mergedByBoundary = ObjectMerger.createSharedBoundaryMerger(0.5).merge(pathObjects);
+        var mergedByBoundary = ObjectMerger.createSharedTileBoundaryMerger(0.5).merge(pathObjects);
         assertEquals(1, mergedByBoundary.size());
         assertEquals(objectSize * objectSize * 2, mergedByBoundary.get(0).getROI().getArea(), 0.0001);
 
@@ -155,14 +155,14 @@ public class TestObjectMerger {
         assertEquals(1, mergedByClassification.size());
         assertEquals(objectSize * objectSize * 2, mergedByClassification.get(0).getROI().getArea(), 0.0001);
 
-        var mergedByBoundary = ObjectMerger.createSharedBoundaryMerger(0.5).merge(pathObjects);
+        var mergedByBoundary = ObjectMerger.createSharedTileBoundaryMerger(0.5).merge(pathObjects);
         assertEquals(1, mergedByBoundary.size());
         assertEquals(objectSize * objectSize * 2, mergedByBoundary.get(0).getROI().getArea(), 0.0001);
 
-        var mergedByBoundaryTooHigh = ObjectMerger.createSharedBoundaryMerger(0.75).merge(pathObjects);
+        var mergedByBoundaryTooHigh = ObjectMerger.createSharedTileBoundaryMerger(0.75).merge(pathObjects);
         assertEquals(2, mergedByBoundaryTooHigh.size());
 
-        var mergedByBoundaryLower = ObjectMerger.createSharedBoundaryMerger(0.25).merge(pathObjects);
+        var mergedByBoundaryLower = ObjectMerger.createSharedTileBoundaryMerger(0.25).merge(pathObjects);
         assertEquals(1, mergedByBoundary.size());
         assertEquals(objectSize * objectSize * 2, mergedByBoundaryLower.get(0).getROI().getArea(), 0.0001);
 
@@ -185,7 +185,7 @@ public class TestObjectMerger {
         var mergedByClassification = ObjectMerger.createSharedClassificationMerger().merge(pathObjects);
         assertEquals(3, mergedByClassification.size());
 
-        var mergedByBoundary = ObjectMerger.createSharedBoundaryMerger(0.5).merge(pathObjects);
+        var mergedByBoundary = ObjectMerger.createSharedTileBoundaryMerger(0.5).merge(pathObjects);
         assertEquals(3, mergedByBoundary.size());
 
         var mergedByTouching = ObjectMerger.createTouchingMerger().merge(pathObjects);

@@ -286,10 +286,10 @@ public class ObjectMerger {
      * @param sharedBoundaryThreshold proportion of the possibly-clipped boundary that must be shared
      *
      * @return an object merger that uses a shared boundary criterion
-     * @see #createSharedBoundaryMerger(double, double)
+     * @see #createSharedTileBoundaryMerger(double, double)
      */
-    public static ObjectMerger createSharedBoundaryMerger(double sharedBoundaryThreshold) {
-        return createSharedBoundaryMerger(sharedBoundaryThreshold, 0.125);
+    public static ObjectMerger createSharedTileBoundaryMerger(double sharedBoundaryThreshold) {
+        return createSharedTileBoundaryMerger(sharedBoundaryThreshold, 0.125);
     }
 
     /**
@@ -313,7 +313,7 @@ public class ObjectMerger {
      *                         shared exactly. A typical value is 0.125, which allows for a small, sub-pixel overlap.
      * @return an object merger that uses a shared boundary criterion and overlap tolerance
      */
-    public static ObjectMerger createSharedBoundaryMerger(double sharedBoundaryThreshold, double overlapTolerance) {
+    public static ObjectMerger createSharedTileBoundaryMerger(double sharedBoundaryThreshold, double overlapTolerance) {
         return new ObjectMerger(
                 ObjectMerger::sameClassTypePlaneTest,
                 createBoundaryOverlapTest(sharedBoundaryThreshold, overlapTolerance),
@@ -346,11 +346,11 @@ public class ObjectMerger {
      * This strictness can cause unexpected results due to floating point precision issues, unless it is certain that
      * the ROIs are perfectly aligned (e.g they are generated using integer coordinates on a pixel grid).
      * <p>
-     * If this is not the case, {@link #createSharedBoundaryMerger(double, double)} is usually preferable, since it
+     * If this is not the case, {@link #createSharedTileBoundaryMerger(double, double)} is usually preferable, since it
      * can include a small overlap tolerance.
      *
      * @return an object merger that can merge together any objects with similar ROIs and the same classification
-     * @see #createSharedBoundaryMerger(double, double)
+     * @see #createSharedTileBoundaryMerger(double, double)
      */
     public static ObjectMerger createTouchingMerger() {
         return new ObjectMerger(
