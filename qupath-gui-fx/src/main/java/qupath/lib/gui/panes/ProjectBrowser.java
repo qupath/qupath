@@ -504,11 +504,13 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		ContextMenu menu = new ContextMenu();
 		
 		var hasProjectBinding = qupath.projectProperty().isNotNull();
-		var menuOpenDirectories = MenuTools.createMenu("Open directory...", 
+		var menuOpenDirectories = MenuTools.createMenu("Open directory...",
 				actionOpenProjectDirectory,
 				actionOpenProjectEntryDirectory,
 				actionOpenImageServerDirectory);
 		menuOpenDirectories.visibleProperty().bind(hasProjectBinding);
+		var separatorOpenDirectories = new SeparatorMenuItem();
+		separatorOpenDirectories.visibleProperty().bind(menuOpenDirectories.visibleProperty());
 //		MenuItem miOpenProjectDirectory = ActionUtils.createMenuItem(actionOpenProjectDirectory);
 		
 		MenuItem miOpenImage = ActionUtils.createMenuItem(actionOpenImage);
@@ -554,7 +556,10 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 			}
 
 			menuSort.setVisible(true);
-			
+
+			// Handle opening directories - requires Desktop
+			menuOpenDirectories.setVisible(Desktop.isDesktopSupported());
+
 			if (menu.getItems().isEmpty())
 				e.consume();
 		});
@@ -572,17 +577,11 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 				miMaskImages,
 				miRefreshThumbnail,
 				separator,
-				menuSort
+				menuSort,
+				separatorOpenDirectories,
+				menuOpenDirectories
 				);
-		
-		separator = new SeparatorMenuItem();
-		separator.visibleProperty().bind(menuOpenDirectories.visibleProperty());
-		if (Desktop.isDesktopSupported()) {
-			menu.getItems().addAll(
-					separator,
-					menuOpenDirectories);
-		}
-		
+
 		contextMenuShowing.bind(menu.showingProperty());
 		
 		return menu;
