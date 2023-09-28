@@ -437,11 +437,43 @@ public class Tiler {
         }
 
         /**
+         * Start tiles at the top center of the ROI bounding box.
+         * @return this builder
+         */
+        public Builder alignTopCenter() {
+            return alignment(TileAlignment.TOP_CENTER);
+        }
+
+        /**
          * Match tiles to the top right of the ROI bounding box.
          * @return this builder
          */
         public Builder alignTopRight() {
             return alignment(TileAlignment.TOP_RIGHT);
+        }
+
+        /**
+         * Match tiles to the center left of the ROI bounding box.
+         * @return this builder
+         */
+        public Builder alignCenterLeft() {
+            return alignment(TileAlignment.CENTER_LEFT);
+        }
+
+        /**
+         * Center tiles within the ROI bounding box.
+         * @return this builder
+         */
+        public Builder alignCenter() {
+            return alignment(TileAlignment.CENTER);
+        }
+
+        /**
+         * Match tiles to the center left of the ROI bounding box.
+         * @return this builder
+         */
+        public Builder alignCenterRight() {
+            return alignment(TileAlignment.CENTER_RIGHT);
         }
 
         /**
@@ -453,19 +485,19 @@ public class Tiler {
         }
 
         /**
+         * Start tiles at the bottom center of the ROI bounding box.
+         * @return this builder
+         */
+        public Builder alignBottomCenter() {
+            return alignment(TileAlignment.BOTTOM_CENTER);
+        }
+
+        /**
          * Match tiles to the bottom right of the ROI bounding box.
          * @return this builder
          */
         public Builder alignBottomRight() {
             return alignment(TileAlignment.BOTTOM_RIGHT);
-        }
-
-        /**
-         * Center tiles within the ROI bounding box.
-         * @return this builder
-         */
-        public Builder alignCenter() {
-            return alignment(TileAlignment.CENTER);
         }
 
         /**
