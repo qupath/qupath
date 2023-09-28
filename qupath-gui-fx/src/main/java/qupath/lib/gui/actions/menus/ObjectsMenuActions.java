@@ -33,6 +33,7 @@ import qupath.lib.gui.actions.annotations.ActionAccelerator;
 import qupath.lib.gui.actions.annotations.ActionConfig;
 import qupath.lib.gui.actions.annotations.ActionMenu;
 import qupath.lib.gui.commands.Commands;
+import qupath.lib.gui.commands.objects.SplitAnnotationsByLineCommand;
 import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.objects.PathAnnotationObject;
@@ -220,7 +221,12 @@ public class ObjectsMenuActions implements MenuActions {
 		
 		@ActionConfig("Action.Objects.Annotation.split")
 		public final Action SPLIT_ANNOTATIONS = qupath.createPluginAction("Split annotations", SplitAnnotationsPlugin.class, null);
-		
+
+		private final SplitAnnotationsByLineCommand splitAnnotationsByLineCommand = new SplitAnnotationsByLineCommand();
+
+		@ActionConfig("Action.Objects.Annotation.splitByLines")
+		public final Action SPLIT_ANNOTATIONS_BY_LINES = qupath.createImageDataAction(imageData -> splitAnnotationsByLineCommand.run(imageData));
+
 		@ActionConfig("Action.Objects.Annotation.removeFragmentsFillHoles")
 		public final Action REMOVE_FRAGMENTS = qupath.createPluginAction("Remove fragments & holes", RefineAnnotationsPlugin.class, null);
 		
