@@ -33,6 +33,7 @@ import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -66,6 +67,8 @@ import org.locationtech.jts.geom.impl.PackedCoordinateSequenceFactory;
 import org.locationtech.jts.geom.prep.PreparedGeometryFactory;
 import org.locationtech.jts.geom.prep.PreparedPolygon;
 import org.locationtech.jts.geom.util.AffineTransformation;
+import org.locationtech.jts.geom.util.GeometryExtracter;
+import org.locationtech.jts.geom.util.LineStringExtracter;
 import org.locationtech.jts.geom.util.PolygonExtracter;
 import org.locationtech.jts.index.quadtree.Quadtree;
 import org.locationtech.jts.operation.overlay.snap.GeometrySnapper;
@@ -748,7 +751,52 @@ public class GeometryTools {
 			return (LinearRing)lineString;
 		return lineString.getFactory().createLinearRing(lineString.getCoordinateSequence());
 	}
-	
+
+    /**
+     * Split an input polygonal geometry using a collection of split lines.
+     * <p>
+     * The main input must be polygonal, but the split lines can be any geometry type; their linestrings will be
+     * extracted and used for splitting.
+     * <p>
+     * <b>Important!</b> This will also split a {@link org.locationtech.jts.geom.MultiPolygon} into its constituent
+     * {@link Polygon} objects as a side effect. This is to ensure consistency and avoid
+     * cases where linestrings may span multiple polygons within the same multipolygon.
+     * The output may be combined to form a new multipolygon later if required.
+     *
+     * @param polygon the polygonal geometry to split
+     * @param splitLines a collection of geometries, whose union will be used to split the input geometry
+     * @return a list of polygons formed by the splitting. This may return the original geometry, or geometries within
+     *         an original collection, if these do not need to be split.
+     * @throws IllegalArgumentException if the input geometry is not polygonal
+	 * @since v0.5.0
+     */
+    public static List<Geometry> splitGeometryByLineStrings(Geometry polygon, Collection<? extends Geometry> splitLines)
+        throws IllegalArgumentException {
+        if (!(polygon instanceof Polygonal))
+            throw new IllegalArgumentException("Geometry must be polygonal");
+        if (splitLines.isEmpty()) {
+            // Splitting MultiPolygons is a side-effect of this method, so we need to handle it here
+            if (polygon instanceof GeometryCollection)
+                return GeometryExtracter.extract(polygon, Geometry.TYPENAME_POLYGON);
+            else
+                return Collections.singletonList(polygon);
+        }
+        // Merge our lines
+        var splitGeometry = union(splitLines);
+        // Get the boundary of the polygon and union it with our split lines to add nodes
+        var boundary = polygon.getBoundary().union(splitGeometry);
+        // Polygonize the lines
+        var lines = LineStringExtracter.getLines(boundary);
+        var polygonizer = new Polygonizer();
+        polygonizer.add(lines);
+        // Get the polygons & return the ones that are within our original polygon
+        // (since lines could create enclosed polygons outside the original polygon)
+        Collection<Geometry> polygons = polygonizer.getPolygons();
+        return polygons.stream()
+                .filter(g -> polygon.contains(g.getInteriorPoint()))
+                .toList();
+    }
+
 
     /**
      * Converter to help switch from a {@link ROI} to a {@link Geometry}.
