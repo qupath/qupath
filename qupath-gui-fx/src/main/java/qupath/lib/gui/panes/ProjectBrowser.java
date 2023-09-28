@@ -508,11 +508,10 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 				actionOpenProjectDirectory,
 				actionOpenProjectEntryDirectory,
 				actionOpenImageServerDirectory);
-		menuOpenDirectories.visibleProperty().bind(hasProjectBinding);
+//		menuOpenDirectories.visibleProperty().bind(hasProjectBinding);
 		var separatorOpenDirectories = new SeparatorMenuItem();
 		separatorOpenDirectories.visibleProperty().bind(menuOpenDirectories.visibleProperty());
-//		MenuItem miOpenProjectDirectory = ActionUtils.createMenuItem(actionOpenProjectDirectory);
-		
+
 		MenuItem miOpenImage = ActionUtils.createMenuItem(actionOpenImage);
 		MenuItem miRemoveImage = ActionUtils.createMenuItem(actionRemoveImage);
 		MenuItem miDuplicateImage = ActionUtils.createMenuItem(actionDuplicateImages);
@@ -523,7 +522,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		MenuItem miMaskImages = ActionUtils.createCheckMenuItem(actionMaskImageNames);
 
 		// Create menu for sorting by metadata
-		Menu menuSort = createSortByMenu();
+		Menu menuSort = new Menu("Sort by...");
 
 		// Set visibility as menu being displayed
 		menu.setOnShowing(e -> {
@@ -531,6 +530,8 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 			ProjectImageEntry<BufferedImage> selectedEntry = selected == null ? null : ProjectTreeRow.getEntry(selected.getValue());
 			var entries = getSelectedImageRowsRecursive();
 			boolean isImageEntry = selectedEntry != null;
+
+			populateSortByMenu(menuSort);
 			
 			int nSelectedEntries = ProjectTreeRow.getEntries(entries).size();
 			if (nSelectedEntries == 1) {
@@ -558,7 +559,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 			menuSort.setVisible(true);
 
 			// Handle opening directories - requires Desktop
-			menuOpenDirectories.setVisible(Desktop.isDesktopSupported());
+			menuOpenDirectories.setVisible(Desktop.isDesktopSupported() && hasProjectBinding.get());
 
 			if (menu.getItems().isEmpty())
 				e.consume();
@@ -588,8 +589,12 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 	}
 
 
-	Menu createSortByMenu() {
-		var menuSort = new Menu("Sort by...");
+	/**
+	 * Populate the 'Sort by...' menu, recreating values if necessary
+	 * @param menuSort
+	 * @return
+	 */
+	private Menu populateSortByMenu(Menu menuSort) {
 		Map<String, MenuItem> newItems = new TreeMap<>();
 		if (project != null) {
 			for (ProjectImageEntry<?> entry : project.getImageList()) {
