@@ -60,8 +60,12 @@ public class QuPathApp extends Application {
 	@Override
 	public void start(Stage stage) throws Exception {
 
+		logger.trace("Before create instance: {}", System.currentTimeMillis());
+
 		QuPathGUI qupath = QuPathGUI.createInstance(stage, getHostServices());
-		
+
+		logger.trace("Instance created: {}", System.currentTimeMillis());
+
 		// Delay logging until here, so that the UI has initialized and can display the message
 		QuPathLaunchParameters params = QuPathLaunchParameters.parse(getParameters());
 		logger.info("Starting QuPath with parameters: " + params.getRawParameters());

@@ -136,11 +136,6 @@ class ToolBarComponent {
 
 		nodes.add(new Separator(Orientation.VERTICAL));
 
-		nodes.add(ActionTools.createButtonWithGraphicOnly(automateActions.SCRIPT_EDITOR));
-		nodes.add(ActionTools.createButtonWithGraphicOnly(commonActions.SHOW_LOG));
-
-		nodes.add(new Separator(Orientation.VERTICAL));
-
 		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(overlayActions.SHOW_ANNOTATIONS));
 		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(overlayActions.SHOW_NAMES));
 		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(overlayActions.SHOW_TMA_GRID));
@@ -166,6 +161,8 @@ class ToolBarComponent {
 				);
 		nodes.add(btnMeasure);
 
+		nodes.add(ActionTools.createButtonWithGraphicOnly(automateActions.SCRIPT_EDITOR));
+
 		nodes.add(new Separator(Orientation.VERTICAL));
 
 		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(viewerManagerActions.SHOW_OVERVIEW));
@@ -175,6 +172,7 @@ class ToolBarComponent {
 
 		nodes.add(new Separator(Orientation.VERTICAL));
 		nodes.add(ActionTools.createButtonWithGraphicOnly(commonActions.PREFERENCES));
+		nodes.add(ActionTools.createButtonWithGraphicOnly(commonActions.SHOW_LOG));
 		nodes.add(ActionTools.createButtonWithGraphicOnly(commonActions.HELP_VIEWER));
 
 		toolbar.getItems().setAll(nodes);
