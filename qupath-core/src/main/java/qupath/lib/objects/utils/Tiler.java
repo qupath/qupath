@@ -51,11 +51,23 @@ public class Tiler {
 
     private static final Logger logger = LoggerFactory.getLogger(Tiler.class);
 
+    /**
+     * Enum representing the possible alignments for tiles.
+     * A tile alignment of TOP_LEFT indicates that tiling should begin at the top left bounding box,
+     * and if trimming is required then this will occur at the right and bottom.
+     * An alignment of CENTER indicates that tiles may be trimmed on all sides.
+     */
+    public enum TileAlignment {
+        TOP_LEFT, TOP_CENTER, TOP_RIGHT,
+        CENTER_LEFT, CENTER, CENTER_RIGHT,
+        BOTTOM_LEFT, BOTTOM_CENTER, BOTTOM_RIGHT
+    }
+
     private final int tileWidth;
     private final int tileHeight;
     private final boolean trimToParent;
-    private final boolean symmetric;
     private final boolean filterByCentroid;
+    private final TileAlignment alignment;
 
     /**
      * Constructor.
@@ -63,15 +75,15 @@ public class Tiler {
      * @param tileHeight tile height in pixels.
      * @param trimToParent controls whether tiles should be trimmed to fit
      *                     within the parent object.
-     * @param symmetric controls whether the Tiler should aim to split the
-     *                  parent object symmetrically. If false, it will
-     *                  begin at the top left of the parent.
+     * @param alignment controls where the tiling begins, and consequently where any
+     *                      trimming or overlaps will occur if the region being tiled is
+     *                      not an exact multiple of the tile size.
      * @param filterByCentroid controls whether tiles whose centroid is outwith
      *                         the parent object will be removed from the
      *                         output.
      */
     private Tiler(int tileWidth, int tileHeight,
-                 boolean trimToParent, boolean symmetric,
+                 boolean trimToParent, TileAlignment alignment,
                  boolean filterByCentroid) {
         if (tileWidth <= 0 || tileHeight <= 0)
             throw new IllegalArgumentException("tileWidth and tileHeight must be > 0, but were "
@@ -79,7 +91,7 @@ public class Tiler {
         this.tileWidth = tileWidth;
         this.tileHeight = tileHeight;
         this.trimToParent = trimToParent;
-        this.symmetric = symmetric;
+        this.alignment = alignment;
         this.filterByCentroid = filterByCentroid;
     }
 
@@ -108,12 +120,11 @@ public class Tiler {
     }
 
     /**
-     * Check if the tiler will try to tile symmetrically, or will start
-     * directly from the top-left of the parent.
+     * Get the tiling alignment.
      * @return The current setting
      */
-    public boolean getSymmetric() {
-        return symmetric;
+    public TileAlignment getAlignment() {
+        return alignment;
     }
 
     /**
@@ -138,27 +149,59 @@ public class Tiler {
         }
 
         Envelope boundingBox = parent.getEnvelopeInternal();
+
         double xStart = boundingBox.getMinX();
-        double yStart = boundingBox.getMinY();
         double xEnd = boundingBox.getMaxX();
-        double yEnd = boundingBox.getMaxY();
-
-        logger.debug("Tiling requested for {} (bounds={})", parent.getGeometryType(), boundingBox);
-
-        double bBoxWidth = xEnd - xStart;
-        double bBoxHeight = yEnd - yStart;
-
-        if (symmetric) {
-            if (filterByCentroid) {
-                // Shift 'inside' the parent
-                xStart += calculateInteriorOffset(tileWidth, bBoxWidth);
-                yStart += calculateInteriorOffset(tileHeight, bBoxHeight);
-            } else {
-                // Shift 'outside' the parent
-                xStart += calculateExteriorOffset(tileWidth, bBoxWidth);
-                yStart += calculateExteriorOffset(tileHeight, bBoxHeight);
-            }
+        switch (alignment) {
+            case TOP_LEFT:
+            case CENTER_LEFT:
+            case BOTTOM_LEFT:
+                break;
+            case TOP_CENTER:
+            case CENTER:
+            case BOTTOM_CENTER:
+                double bBoxWidth = xEnd - xStart;
+                if (filterByCentroid) {
+                    // Shift 'inside' the parent
+                    xStart += calculateInteriorOffset(tileWidth, bBoxWidth);
+                } else {
+                    // Shift 'outside' the parent
+                    xStart += calculateExteriorOffset(tileWidth, bBoxWidth);
+                }
+                break;
+            case TOP_RIGHT:
+            case CENTER_RIGHT:
+            case BOTTOM_RIGHT:
+                xStart += calculateRightAlignedStartOffset(tileWidth, xEnd - xStart);
+                break;
         }
+
+        double yStart = boundingBox.getMinY();
+        double yEnd = boundingBox.getMaxY();
+        switch (alignment) {
+            case TOP_LEFT:
+            case TOP_CENTER:
+            case TOP_RIGHT:
+                break;
+            case CENTER_LEFT:
+            case CENTER:
+            case CENTER_RIGHT:
+                double bBoxHeight = yEnd - yStart;
+                if (filterByCentroid) {
+                    // Shift 'inside' the parent
+                    yStart += calculateInteriorOffset(tileHeight, bBoxHeight);
+                } else {
+                    // Shift 'outside' the parent
+                    yStart += calculateExteriorOffset(tileHeight, bBoxHeight);
+                }
+                break;
+            case BOTTOM_LEFT:
+            case BOTTOM_CENTER:
+            case BOTTOM_RIGHT:
+                yStart += calculateRightAlignedStartOffset(tileHeight, yEnd - yStart);
+                break;
+        }
+
         List<Geometry> tiles = new ArrayList<>();
         for (int x = (int) xStart; x < xEnd; x += tileWidth) {
             for (int y = (int) yStart; y < yEnd; y += tileHeight) {
@@ -251,6 +294,21 @@ public class Tiler {
     }
 
     /**
+     * Calculate right-aligned start position
+     * @param tileDim
+     * @param parentDim
+     * @return
+     */
+    private static double calculateRightAlignedStartOffset(final int tileDim, final double parentDim) {
+        double mod = parentDim % tileDim;
+        if (mod == 0) {
+            return 0;
+        }
+        return -(tileDim - mod);
+    }
+
+
+    /**
      * Calculate offset for symmetric tiling where the tiles cannot extend beyond the parent bounds
      * @param tileDim
      * @param parentDim
@@ -314,7 +372,7 @@ public class Tiler {
         private int tileWidth;
         private int tileHeight;
         private boolean trimToParent = true;
-        private boolean symmetric = true;
+        private TileAlignment alignment = TileAlignment.CENTER;
         private boolean filterByCentroid = true;
 
         private Builder(int tileWidth, int tileHeight) {
@@ -326,7 +384,7 @@ public class Tiler {
             this.tileWidth = tiler.tileWidth;
             this.tileHeight = tiler.tileHeight;
             this.trimToParent = tiler.trimToParent;
-            this.symmetric = tiler.symmetric;
+            this.alignment = tiler.alignment;
             this.filterByCentroid = tiler.filterByCentroid;
         }
 
@@ -361,14 +419,53 @@ public class Tiler {
         }
 
         /**
-         * Set if the tiler will try to tile symmetrically, or will start
-         * directly from the top-left of the parent.
-         * @param symmetric the new setting
+         * Set the tile alignment.
+         * @param alignment the new setting
          * @return this builder
          */
-        public Builder symmetric(boolean symmetric) {
-            this.symmetric = symmetric;
+        public Builder alignment(TileAlignment alignment) {
+            this.alignment = alignment;
             return this;
+        }
+
+        /**
+         * Start tiles at the top left of the ROI bounding box.
+         * @return this builder
+         */
+        public Builder alignTopLeft() {
+            return alignment(TileAlignment.TOP_LEFT);
+        }
+
+        /**
+         * Match tiles to the top right of the ROI bounding box.
+         * @return this builder
+         */
+        public Builder alignTopRight() {
+            return alignment(TileAlignment.TOP_RIGHT);
+        }
+
+        /**
+         * Match tiles to the bottom left of the ROI bounding box.
+         * @return this builder
+         */
+        public Builder alignBottomLeft() {
+            return alignment(TileAlignment.BOTTOM_LEFT);
+        }
+
+        /**
+         * Match tiles to the bottom right of the ROI bounding box.
+         * @return this builder
+         */
+        public Builder alignBottomRight() {
+            return alignment(TileAlignment.BOTTOM_RIGHT);
+        }
+
+        /**
+         * Center tiles within the ROI bounding box.
+         * @return this builder
+         */
+        public Builder alignCenter() {
+            return alignment(TileAlignment.CENTER);
         }
 
         /**
@@ -387,7 +484,7 @@ public class Tiler {
          * @return
          */
         public Tiler build() {
-            return new Tiler(tileWidth, tileHeight, trimToParent, symmetric, filterByCentroid);
+            return new Tiler(tileWidth, tileHeight, trimToParent, alignment, filterByCentroid);
         }
 
     }
