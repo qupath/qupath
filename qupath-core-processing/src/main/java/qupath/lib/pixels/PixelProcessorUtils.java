@@ -1,3 +1,24 @@
+/*-
+ * #%L
+ * This file is part of QuPath.
+ * %%
+ * Copyright (C) 2023 QuPath developers, The University of Edinburgh
+ * %%
+ * QuPath is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * QuPath is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with QuPath.  If not, see <https://www.gnu.org/licenses/>.
+ * #L%
+ */
+
 package qupath.lib.pixels;
 
 import qupath.lib.objects.PathObject;
@@ -9,14 +30,18 @@ import qupath.lib.roi.interfaces.ROI;
 import java.util.Collections;
 import java.util.List;
 
-public class PixelProcessorUtils {
+/**
+ * Utility functions to help with the {@link PixelProcessor} class.
+ * @since v0.5.0
+ */
+class PixelProcessorUtils {
 
-    public static List<PathObject> clipObject(ROI roi, PathObject child) {
-        if (roi == null)
+    public static List<PathObject> maskObject(ROI parentROI, PathObject child) {
+        if (parentROI == null)
             return Collections.singletonList(child);
-        if (!childOnSamePlane(roi, child.getROI()))
+        if (!childOnSamePlane(parentROI, child.getROI()))
             return Collections.emptyList();
-        var geom = roi.getGeometry();
+        var geom = parentROI.getGeometry();
         var childGeom = child.getROI().getGeometry();
         var geomOutput = GeometryTools.homogenizeGeometryCollection(geom.intersection(childGeom));
         if (geomOutput.isEmpty() || geomOutput.getDimension() < childGeom.getDimension())
@@ -29,12 +54,12 @@ public class PixelProcessorUtils {
         }
     }
 
-    public static List<PathObject> clipObjectAndSplit(ROI roi, PathObject child) {
-        if (roi == null)
+    public static List<PathObject> maskObjectAndSplit(ROI parentROI, PathObject child) {
+        if (parentROI == null)
             return Collections.singletonList(child);
-        if (!childOnSamePlane(roi, child.getROI()))
+        if (!childOnSamePlane(parentROI, child.getROI()))
             return Collections.emptyList();
-        var geom = roi.getGeometry();
+        var geom = parentROI.getGeometry();
         var childGeom = child.getROI().getGeometry();
         var geomOutput = GeometryTools.homogenizeGeometryCollection(geom.intersection(childGeom));
         if (geomOutput.isEmpty() || geomOutput.getDimension() < childGeom.getDimension())

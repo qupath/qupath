@@ -1,41 +1,39 @@
+/*-
+ * #%L
+ * This file is part of QuPath.
+ * %%
+ * Copyright (C) 2023 QuPath developers, The University of Edinburgh
+ * %%
+ * QuPath is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * QuPath is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with QuPath.  If not, see <https://www.gnu.org/licenses/>.
+ * #L%
+ */
+
 package qupath.lib.pixels;
 
 import org.apache.commons.math3.stat.descriptive.rank.Percentile;
 import org.apache.commons.math3.stat.ranking.NaNStrategy;
-import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ColorTransforms;
-import qupath.lib.objects.PathObject;
-import qupath.lib.regions.RegionRequest;
 
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.function.Function;
 
 
-public class PixelProcessorMeasurements extends BasicPixelProcessor<Map<String, ? extends Number>> {
-
-    public PixelProcessorMeasurements(Processor<BufferedImage, BufferedImage, Map<String, ? extends Number>> processor) {
-        super(processor);
-    }
-
-    @Override
-    protected void handleOutput(ImageData<BufferedImage> imageData, RegionRequest request, PathObject pathObject,
-                                BufferedImage image, Map<String, ? extends Number> output) {
-        if (output != null) {
-            try (var ml = pathObject.getMeasurementList()){
-                for (var entry : output.entrySet()) {
-                    var key = entry.getKey();
-                    var value = entry.getValue();
-                    if (value == null)
-                        ml.remove(key);
-                    else
-                        ml.put(key, value.doubleValue());
-                }
-            }
-        }
-    }
+public class PixelProcessorMeasurements {
 
 
     public static Processor<BufferedImage, BufferedImage, Map<String, ? extends Number>> createProcessor(
@@ -84,8 +82,11 @@ public class PixelProcessorMeasurements extends BasicPixelProcessor<Map<String, 
         }
 
         @Override
-        public Map<String, ? extends Number> process(ImageData<BufferedImage> imageData, PathObject parent, BufferedImage image, BufferedImage mask) {
-            float[] original = transform.extractChannel(imageData.getServer(), image, null);
+        public Map<String, ? extends Number> process(Parameters<BufferedImage, BufferedImage> params) throws IOException {
+            var server = params.getServer();
+            var image = params.getImage();
+            var mask = params.getMask();
+            float[] original = transform.extractChannel(server, image, null);
             double[] pixels = new double[original.length];
             int ind = 0;
             var bytes = ((DataBufferByte) mask.getRaster().getDataBuffer()).getData();
