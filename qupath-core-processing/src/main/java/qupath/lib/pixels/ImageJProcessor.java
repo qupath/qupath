@@ -150,6 +150,20 @@ public class ImageJProcessor {
                 .processor(processor);
     }
 
+//    /**
+//     * Create a {@link PixelProcessor.Builder} for an ImageJ {@link ImagePlus} that runs a macro.
+//     * @param macro
+//     * @return
+//     */
+//    public static PixelProcessor.Builder<ImagePlus, ImagePlus, Object> macroBuilder(String macro) {
+//        return new PixelProcessor.Builder<ImagePlus, ImagePlus, Object>()
+//                .imageSupplier(ImageJProcessor.createImagePlusImageSupplier())
+//                .maskSupplier(ImageJProcessor.createImagePlusMaskSupplier())
+//                .outputHandler(ImageJProcessor.createDetectionOutputHandler())
+//                .processor(new MacroProcessor(macro));
+//    }
+
+
     private static ImagePlus getImage(Parameters<ImagePlus, ?> params) {
         try {
             var server = params.getServer();
@@ -259,5 +273,56 @@ public class ImageJProcessor {
         }
 
     }
+
+
+    // Placeholder - doesn't currently work reliably
+//    private static class MacroProcessor implements Processor<ImagePlus, ImagePlus, Object> {
+//
+//        private static final Logger logger = LoggerFactory.getLogger(MacroProcessor.class);
+//
+//        private final String macro;
+//
+//        private MacroProcessor(String macro) {
+//            this.macro = macro;
+//        }
+//
+//        @Override
+//        public Object process(Parameters<ImagePlus, ImagePlus> params) throws IOException {
+//            ImagePlus impOriginal = params.getImage();
+//            Roi roiOriginal = impOriginal.getRoi();
+//            try {
+//                IJ.redirectErrorMessages();
+//                Interpreter interpreter = new Interpreter();
+//                var imp = params.getImage();
+//                var impResult = interpreter.runBatchMacro(macro, imp);
+//
+//                // If we had an error, return
+//                if (interpreter.wasError()) {
+//                    Thread.currentThread().interrupt();
+//                    return null;
+//                }
+//
+//                // Get the resulting image, if available
+//                if (impResult == impOriginal) {
+//                    if (impResult.getOverlay() != null)
+//                        return impResult.getOverlay();
+//                    else if (roiOriginal != impOriginal.getRoi())
+//                        return impResult.getRoi();
+//                    else
+//                        return null;
+//                } else {
+//                    // May be null
+//                    return impResult;
+//                }
+//            } catch (RuntimeException e) {
+//                logger.error(e.getLocalizedMessage());
+//                Thread.currentThread().interrupt();
+//            } finally {
+//                WindowManager.setTempCurrentImage(null);
+//            }
+//            return null;
+//        }
+//    }
+
 
 }
