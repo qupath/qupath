@@ -33,6 +33,7 @@ import java.net.URL;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.ArrayList;
@@ -89,7 +90,11 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 	
 	private static final Logger logger = LoggerFactory.getLogger(DragDropImportListener.class);
 
-	private QuPathGUI qupath;
+	private static final Pattern GITHUB_BASE_PATTERN = Pattern.compile("https://github.com/.*");
+	private static final Pattern GITHUB_REPO_PATTERN = Pattern.compile("https://github.com/([a-zA-Z0-9-]+)/(qupath-extension-[a-zA-Z0-9]+)/?.*");
+	private static final Pattern GITHUB_JAR_PATTERN = Pattern.compile("https://github.com/[0-9a-zA-Z-]+/(qupath-extension-[0-9a-zA-Z-]+)/releases/download/[a-zA-Z0-9-.]+/(qupath-extension-wsinfer-[0-9a-zA-Z-.]+.jar)");
+
+	private final QuPathGUI qupath;
 	
 	private List<DropHandler<File>> dropHandlers = new ArrayList<>();
 	
@@ -103,8 +108,6 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 	 * Schedule long-running tasks
 	 */
 	private Timer timer = new Timer("drag-drop-timer", true);
-
-	private static final Pattern GITHUB_PATTERN = Pattern.compile("https://github.com/([a-zA-Z0-9-]+)/(qupath-extension-[a-zA-Z0-9]+)/?.*");
 
 	/**
 	 * Constructor.
@@ -274,8 +277,30 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
     }
     
     void handleURLDrop(final QuPathViewer viewer, final String url) throws IOException, URISyntaxException, InterruptedException {
-		// if it's a GitHub repo, see if it's an extension
-		if (handleGitHubURL(url)) {
+		// if it's a GitHub URL, it's probably not an image. See if it's an extension
+		if (GITHUB_BASE_PATTERN.matcher(url).matches()) {
+			Matcher jarMatcher = GITHUB_JAR_PATTERN.matcher(url);
+			if (jarMatcher.matches()) {
+				if (!Dialogs.showYesNoDialog(QuPathResources.getString("ExtensionManager"),
+						String.format(QuPathResources.getString("ExtensionManager.installExtensionFromGithub"), jarMatcher.group(1)))) {
+					return;
+				}
+				logger.debug("Trying to download extension .jar directly");
+				var dir = getExtensionPath();
+				if (dir == null) return;
+				var outputFile = new File(getExtensionPath().toString(), jarMatcher.group(2));
+				logger.info("Downloading suspected extension {} to extension directory {}", url, outputFile);
+				downloadURLToFile(url, outputFile);
+				return;
+			}
+			Matcher repoMatcher = GITHUB_REPO_PATTERN.matcher(url);
+			if (!repoMatcher.matches()) {
+				logger.debug("URL did not match GitHub extension pattern");
+				return;
+			}
+			logger.info("Trying to download .jar based on release conventions");
+			var repo = GitHubProject.GitHubRepo.create("Name", repoMatcher.group(1), repoMatcher.group(2));
+			askToDownload(repo);
 			return;
 		}
     	try {
@@ -287,16 +312,6 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
     	}
     }
 
-	private boolean handleGitHubURL(String url) throws URISyntaxException, IOException, InterruptedException {
-		Matcher m = GITHUB_PATTERN.matcher(url);
-		if (!m.find()) {
-			logger.debug("URL did not match GitHub extension pattern");
-			return false;
-		}
-		var repo = GitHubProject.GitHubRepo.create("Name", m.group(1), m.group(2));
-		askToDownload(repo);
-		return true;
-	}
 
 	public static void askToDownload(GitHubProject.GitHubRepo repo) throws URISyntaxException, IOException, InterruptedException {
 		var v = UpdateChecker.checkForUpdate(repo);
@@ -306,14 +321,8 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 					repo.getOwner(), repo.getRepo(), "v" + v.getVersion().toString(), repo.getRepo(), v.getVersion().toString()
 			);
 			// https://github.com/qupath/qupath-extension-wsinfer/releases/download/v0.2.0/qupath-extension-wsinfer-0.2.0.jar
-			var dir = ExtensionClassLoader.getInstance().getExtensionDirectory();
-			if (dir == null || !Files.isDirectory(dir)) {
-				logger.info("No extension directory found!");
-				var dirUser = Commands.requestUserDirectory(true);
-				if (dirUser == null)
-					return;
-				dir = ExtensionClassLoader.getInstance().getExtensionDirectory();
-			}
+			var dir = getExtensionPath();
+			if (dir == null) return;
 			File f = new File(dir.toString(), repo.getRepo() + "-" + v.getVersion() + ".jar");
 			downloadURLToFile(downloadURL, f);
 			Dialogs.showInfoNotification(
@@ -321,6 +330,18 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 					String.format(QuPathResources.getString("ExtensionManager.successfullyDownloaded"), repo.getRepo()));
 			QuPathGUI.getInstance().getExtensionManager().refreshExtensions(true);
 		}
+	}
+
+	private static Path getExtensionPath() {
+		var dir = ExtensionClassLoader.getInstance().getExtensionDirectory();
+		if (dir == null || !Files.isDirectory(dir)) {
+			logger.info("No extension directory found!");
+			var dirUser = Commands.requestUserDirectory(true);
+			if (dirUser == null)
+				return null;
+			dir = ExtensionClassLoader.getInstance().getExtensionDirectory();
+		}
+		return dir;
 	}
 
 	private static void downloadURLToFile(String downloadURL, File file) throws IOException {
