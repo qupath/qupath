@@ -21,13 +21,7 @@
 
 package qupath.lib.gui.charts;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -37,12 +31,7 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Side;
 import javafx.scene.Scene;
-import javafx.scene.chart.Axis;
-import javafx.scene.chart.Chart;
-import javafx.scene.chart.NumberAxis;
-import javafx.scene.chart.PieChart;
-import javafx.scene.chart.ScatterChart;
-import javafx.scene.chart.XYChart;
+import javafx.scene.chart.*;
 import javafx.scene.chart.XYChart.Data;
 import javafx.scene.chart.XYChart.Series;
 import javafx.scene.input.MouseEvent;
@@ -558,14 +547,14 @@ public class Charts {
 	/**
 	 * Builder for creating scatter charts.
 	 */
-	public static class ScatterchartBuilder extends XYNumberChartBuilder<ScatterchartBuilder, ScatterChart<Number, Number>> {
+	public static class ScatterChartBuilder extends XYNumberChartBuilder<ScatterChartBuilder, ScatterChart<Number, Number>> {
 	
 		private ObservableList<Series<Number, Number>> series = FXCollections.observableArrayList();
 		
 		private Integer DEFAULT_MAX_DATAPOINTS = 10_000;
 		private Integer maxDatapoints;
 
-		private ScatterchartBuilder() {}
+		private ScatterChartBuilder() {}
 		
 		/**
 		 * Choose the maximum number of supported datapoints.
@@ -580,7 +569,7 @@ public class Charts {
 		 * 
 		 * @see #unlimitedDatapoints()
 		 */
-		public ScatterchartBuilder limitDatapoints(int max) {
+		public ScatterChartBuilder limitDatapoints(int max) {
 			this.maxDatapoints = max;
 			return this;
 		}
@@ -593,7 +582,7 @@ public class Charts {
 		 * 
 		 * @see #limitDatapoints(int)
 		 */
-		public ScatterchartBuilder unlimitedDatapoints() {
+		public ScatterChartBuilder unlimitedDatapoints() {
 			maxDatapoints = -1;
 			return this;
 		}
@@ -609,7 +598,7 @@ public class Charts {
 		 * @param cal the pixel calibration used to convert the centroids into other units
 		 * @return this builder
 		 */
-		public <T> ScatterchartBuilder centroids(Collection<? extends PathObject> pathObjects, PixelCalibration cal) {
+		public <T> ScatterChartBuilder centroids(Collection<? extends PathObject> pathObjects, PixelCalibration cal) {
 			xLabel("x (" + cal.getPixelWidthUnit() + ")");
 			yLabel("y (" + cal.getPixelHeightUnit() + ")");
 			return series(
@@ -624,7 +613,7 @@ public class Charts {
 		 * @param pathObjects the objects to plot.
 		 * @return this builder
 		 */
-		public ScatterchartBuilder centroids(Collection<? extends PathObject> pathObjects) {
+		public ScatterChartBuilder centroids(Collection<? extends PathObject> pathObjects) {
 			var cal = imageData == null ? PixelCalibration.getDefaultInstance() : imageData.getServer().getPixelCalibration();
 			return centroids(pathObjects, cal);
 		}
@@ -637,7 +626,7 @@ public class Charts {
 		 * @param yMeasurement the measurement to extract from each object's measurement list for the y location
 		 * @return this builder
 		 */
-		public ScatterchartBuilder measurements(Collection<? extends PathObject> pathObjects, String xMeasurement, String yMeasurement) {
+		public ScatterChartBuilder measurements(Collection<? extends PathObject> pathObjects, String xMeasurement, String yMeasurement) {
 			xLabel(xMeasurement);
 			yLabel(yMeasurement);
 			return series(
@@ -651,13 +640,13 @@ public class Charts {
 		 * Plot values extracted from objects within a specified collection.
 		 * @param name 
 		 * @param <T> 
-		 * @name the name of the data series (useful if multiple series will be plot, otherwise may be null)
+		 * @name the name of the data series (useful if multiple series will be plotted, otherwise may be null)
 		 * @param collection the objects to plot
 		 * @param xFun function capable of extracting a numeric value for the x location from each object in the collection
 		 * @param yFun function capable of extracting a numeric value for the y location from each object in the collection
 		 * @return this builder
 		 */
-		public <T> ScatterchartBuilder series(String name, Collection<? extends T> collection, Function<T, Number> xFun, Function<T, Number> yFun) {
+		public <T> ScatterChartBuilder series(String name, Collection<? extends T> collection, Function<T, Number> xFun, Function<T, Number> yFun) {
 			return series(name,
 					collection.stream()
 					.map(p -> new XYChart.Data<>(xFun.apply(p), yFun.apply(p), p))
@@ -672,7 +661,7 @@ public class Charts {
 		 * @param y
 		 * @return this builder
 		 */
-		public ScatterchartBuilder series(String name, Collection<? extends Number> x, Collection<? extends Number> y) {
+		public ScatterChartBuilder series(String name, Collection<? extends Number> x, Collection<? extends Number> y) {
 			return series(name,
 					x.stream().mapToDouble(xx -> xx.doubleValue()).toArray(),
 					y.stream().mapToDouble(yy -> yy.doubleValue()).toArray());
@@ -686,7 +675,7 @@ public class Charts {
 		 * @param y y-values
 		 * @return this builder
 		 */
-		public ScatterchartBuilder series(String name, double[] x, double[] y) {
+		public ScatterChartBuilder series(String name, double[] x, double[] y) {
 			return series(name, x, y, (List<?>)null);
 		}
 		
@@ -700,7 +689,7 @@ public class Charts {
 		 * @param extra array of values to associate with each data point; should be the same length as x and y
 		 * @return this builder
 		 */
-		public <T> ScatterchartBuilder series(String name, double[] x, double[] y, T[] extra) {
+		public <T> ScatterChartBuilder series(String name, double[] x, double[] y, T[] extra) {
 			return series(name, x, y, extra == null ? null : Arrays.asList(extra));
 		}
 		
@@ -714,7 +703,7 @@ public class Charts {
 		 * @param extra list of values to associate with each data point; should be the same length as x and y
 		 * @return this builder
 		 */
-		public <T> ScatterchartBuilder series(String name, double[] x, double[] y, List<T> extra) {
+		public <T> ScatterChartBuilder series(String name, double[] x, double[] y, List<T> extra) {
 			List<Data<Number, Number>> data = new ArrayList<>();
 			for (int i = 0; i < x.length; i++) {
 				if (extra != null && i < extra.size())
@@ -732,7 +721,7 @@ public class Charts {
 		 * @param data the data points to plot
 		 * @return this builder
 		 */
-		public ScatterchartBuilder series(String name, Collection<Data<Number, Number>> data) {
+		public ScatterChartBuilder series(String name, Collection<Data<Number, Number>> data) {
 			int n;
 			if (maxDatapoints == null) {
 				n = DEFAULT_MAX_DATAPOINTS;
@@ -813,18 +802,18 @@ public class Charts {
 
 
 		@Override
-		protected ScatterchartBuilder getThis() {
+		protected ScatterChartBuilder getThis() {
 			return this;
 		}
 		
 	}
 	
 	/**
-	 * Create a {@link ScatterchartBuilder} for generating a custom scatter plot.
+	 * Create a {@link ScatterChartBuilder} for generating a custom scatter plot.
 	 * @return the builder
 	 */
-	public static ScatterchartBuilder scatterChart() {
-		return new ScatterchartBuilder();
+	public static ScatterChartBuilder scatterChart() {
+		return new ScatterChartBuilder();
 	}
 	
 	/**
@@ -834,6 +823,268 @@ public class Charts {
 	public static PieChartBuilder pieChart() {
 		return new PieChartBuilder();
 	}
-	
+
+	/**
+	 * Create a {@link ScatterChartBuilder} for generating a custom scatter plot.
+	 * @return the builder
+	 */
+	public static BarChartBuilder barChart() {
+		return new BarChartBuilder();
+	}
+
+	abstract static class XYCategoryChartBuilder<T extends XYCategoryChartBuilder<T, S>, S extends XYChart<String, Number>> extends XYChartBuilder<T, S, String, Number> {
+
+		protected abstract S createNewChart(Axis<String> xAxis, Axis<Number> yAxis);
+
+		private Double yLower, yUpper;
+
+		/**
+		 * Set the lower bound for the y-axis.
+		 * @param lowerBound
+		 * @return this builder
+		 */
+		public T yAxisMin(double lowerBound) {
+			this.yLower = lowerBound;
+			return getThis();
+		}
+
+
+		/**
+		 * Set the upper bound for the y-axis.
+		 * @param upperBound
+		 * @return this builder
+		 */
+		public T yAxisMax(double upperBound) {
+//			this.xUpper = upperBound;
+			return getThis();
+		}
+
+		/**
+		 * Set the lower and upper bounds for the y-axis.
+		 * @param lowerBound
+		 * @param upperBound
+		 * @return this builder
+		 */
+		public T yAxisRange(double lowerBound, double upperBound) {
+			this.yLower = lowerBound;
+			this.yUpper = upperBound;
+			return getThis();
+		}
+
+
+		@Override
+		protected S createNewChart() {
+			var xAxis = new CategoryAxis();
+			var yAxis = new NumberAxis();
+
+			setBoundIfValid(yAxis.lowerBoundProperty(), yLower);
+			setBoundIfValid(yAxis.upperBoundProperty(), yUpper);
+
+			if (xLabel != null)
+				xAxis.setLabel(xLabel);
+			if (yLabel != null)
+				yAxis.setLabel(yLabel);
+			return createNewChart(xAxis, yAxis);
+		}
+
+		private static void setBoundIfValid(DoubleProperty prop, Double val) {
+			if (val != null && Double.isFinite(val))
+				prop.set(val);
+		}
+
+	}
+
+	/**
+	 * Builder for creating scatter charts.
+	 */
+	public static class BarChartBuilder extends XYCategoryChartBuilder<BarChartBuilder, BarChart<String, Number>> {
+
+		private final ObservableList<Series<String, Number>> series = FXCollections.observableArrayList();
+		private final ObservableList<PathObject> pathObjects = FXCollections.observableArrayList();
+
+		private BarChartBuilder() {}
+
+		@Override
+		protected String getDefaultWindowTitle() {
+			return "Bar Chart";
+		}
+
+		/**
+		 * Plot values extracted from objects within a specified collection.
+		 * @param name
+		 * @param <T>
+		 * @name the name of the data series (useful if multiple series will be plotted, otherwise may be null)
+		 * @param collection the objects to plot
+		 * @param xFun function capable of extracting a numeric value for the x location from each object in the collection
+		 * @return this builder
+		 */
+		public <T> BarChartBuilder series(String name, Collection<? extends T> collection, Function<T, PathClass> xFun) {
+			var classAndCount = collection
+					.stream().map(xFun)
+					.collect(
+							Collectors.groupingBy(Function.identity(), Collectors.counting())
+					);
+			return series(name, classAndCount.entrySet().stream()
+					.map(e -> new Data<>(e.getKey().getName(), (Number)e.getValue(), e.getKey()))
+					.toList());
+		}
+
+		/**
+		 * Create a bar chart using collections of numeric values.
+		 * @param name
+		 * @name the name of the data series (useful if multiple series will be plotted, otherwise may be null)
+		 * @param x
+		 * @param y
+		 * @return this builder
+		 */
+		public BarChartBuilder series(String name, Collection<? extends String> x, Collection<? extends Number> y) {
+			return series(name,
+					x.stream().map(String::valueOf).toArray(String[]::new),
+					y.stream().mapToDouble(Number::doubleValue).toArray());
+		}
+
+		/**
+		 * Create a bar chart using arrays of String values and associated numeric values.
+		 * @param name
+		 * @name the name of the data series (useful if multiple series will be plotted, otherwise may be null)
+		 * @param x x-values
+		 * @param y y-values
+		 * @return this builder
+		 */
+		public BarChartBuilder series(String name, String[] x, double[] y) {
+			return series(name, x, y, (List<?>)null);
+		}
+
+		/**
+		 * Create a bar chart using collections String values and associated numeric values, with an associated custom object.
+		 * @param name
+		 * @param <T>
+		 * @name the name of the data series (useful if multiple series will be plotted, otherwise may be null)
+		 * @param x x-values
+		 * @param y y-values
+		 * @param extra array of values to associate with each data point; should be the same length as x and y
+		 * @return this builder
+		 */
+		public <T> BarChartBuilder series(String name, String[] x, double[] y, T[] extra) {
+			return series(name, x, y, extra == null ? null : Arrays.asList(extra));
+		}
+
+		/**
+		 * Create a bar chart using collections of String values and associated numeric values, with an associated custom object.
+		 * @param name
+		 * @param <T>
+		 * @name the name of the data series (useful if multiple series will be plot, otherwise may be null)
+		 * @param x x-values
+		 * @param y y-values
+		 * @param extra list of values to associate with each data point; should be the same length as x and y
+		 * @return this builder
+		 */
+		public <T> BarChartBuilder series(String name, String[] x, double[] y, List<T> extra) {
+			List<Data<String, Number>> data = new ArrayList<>();
+			for (int i = 0; i < x.length; i++) {
+				if (extra != null && i < extra.size())
+					data.add(new Data<>(x[i], y[i], extra.get(i)));
+				else
+					data.add(new Data<>(x[i], y[i]));
+			}
+			return series(name, data);
+		}
+
+		/**
+		 * Create a bar chart from existing data plots.
+		 * @param name
+		 * @name the name of the data series (useful if multiple series will be plot, otherwise may be null)
+		 * @param data the data points to plot
+		 * @return this builder
+		 */
+		public BarChartBuilder series(String name, Collection<Data<String, Number>> data) {
+			if (data instanceof ObservableList)
+				series.add(new XYChart.Series<>(name, (ObservableList<Data<String, Number>>)data));
+			else
+				series.add(new XYChart.Series<>(name, FXCollections.observableArrayList(data)));
+			return this;
+		}
+
+		@Override
+		protected void updateChart(BarChart<String, Number> chart) {
+			super.updateChart(chart);
+			chart.getData().setAll(series);
+
+			// If we have a hierarchy, and pathClasses, make the plot live
+			for (var s : series) {
+				for (var d : s.getData()) {
+					var extra = d.getExtraValue();
+					var node = d.getNode();
+					if (extra instanceof PathClass && node != null) {
+						PathClass pathClass = (PathClass)extra;
+						Integer color = pathClass.getColor();
+						String style = String.format("-fx-background-color: rgb(%d,%d,%d,%.2f);",
+								ColorTools.red(color), ColorTools.green(color), ColorTools.blue(color), markerOpacity);
+						node.setStyle(style);
+						node.addEventHandler(MouseEvent.ANY, e -> {
+							if (e.getEventType() == MouseEvent.MOUSE_CLICKED)
+								tryToSelect(pathClass, e.isShiftDown(), e.getClickCount() == 2);
+							else if (e.getEventType() == MouseEvent.MOUSE_ENTERED)
+								node.setStyle(style + ";"
+										+ "-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.5), 4, 0, 1, 1);");
+							else if (e.getEventType() == MouseEvent.MOUSE_EXITED)
+								node.setStyle(style);
+						});
+					}
+				}
+			}
+
+		}
+
+		/**
+		 * Plot two measurements against one another for the specified objects.
+		 * @name the name of the data series (useful if multiple series will be plot, otherwise may be null)
+		 * @param pathObjects the objects to plot
+		 * @return this builder
+		 */
+		public BarChartBuilder classes(Collection<? extends PathObject> pathObjects) {
+			xLabel("PathClass");
+			yLabel("Count");
+			this.pathObjects.addAll(pathObjects);
+			return series(
+					null,
+					pathObjects,
+					(PathObject p) -> p.getPathClass());
+		}
+
+		@Override
+		protected BarChart<String, Number> createNewChart(Axis<String> xAxis, Axis<Number> yAxis) {
+			return new BarChart<>(xAxis, yAxis);
+		}
+
+		/**
+		 * Try to select an object if possible (e.g. because a user clicked on it).
+		 * @param pathClass the object to select
+		 * @param addToSelection if true, add to an existing selection; if false, reset any current selection
+		 * @param centerObject if true, try to center it in a viewer (if possible)
+		 */
+		private void tryToSelect(PathClass pathClass, boolean addToSelection, boolean centerObject) {
+			PathObjectHierarchy hierarchy = null;
+			if (imageData != null)
+				hierarchy = imageData.getHierarchy();
+			else if (viewer != null)
+				hierarchy = viewer.getHierarchy();
+			if (hierarchy == null)
+				return;
+			var objects = pathObjects.stream().filter(p -> p.getPathClass().equals(pathClass)).toList();
+			if (addToSelection)
+				hierarchy.getSelectionModel().selectObjects(objects);
+			else
+				hierarchy.getSelectionModel().setSelectedObjects(objects, objects.get(0).getParent());
+		}
+
+
+		@Override
+		protected BarChartBuilder getThis() {
+			return this;
+		}
+
+	}
+
 
 }
