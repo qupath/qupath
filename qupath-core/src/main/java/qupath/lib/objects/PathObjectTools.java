@@ -32,6 +32,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -62,6 +63,7 @@ import qupath.lib.objects.hierarchy.TMAGrid;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
+import qupath.lib.roi.GeometryTools;
 import qupath.lib.roi.LineROI;
 import qupath.lib.roi.PointsROI;
 import qupath.lib.roi.RoiTools;
@@ -147,6 +149,45 @@ public class PathObjectTools {
 	 */
 	public static Predicate<PathObject> createImageRegionPredicate(ImageRegion region) {
 		return new ImageRegionPredicate(region);
+	}
+
+	/**
+	 * Get a list of objects with line ROIs from a collection of objects.
+	 * @param pathObjects
+	 * @return
+	 * @param <T>
+	 * @since v0.5.0
+	 */
+	public static <T extends PathObject> List<T> getLineObjects(Collection<T> pathObjects) {
+		return pathObjects.stream()
+				.filter(p -> p .getROI() != null && p.getROI().isLine())
+				.toList();
+	}
+
+	/**
+	 * Get a list of objects with area ROIs from a collection of objects.
+	 * @param pathObjects
+	 * @return
+	 * @param <T>
+	 * @since v0.5.0
+	 */
+	public static <T extends PathObject> List<T> getAreaObjects(Collection<T> pathObjects) {
+		return pathObjects.stream()
+				.filter(p -> p .getROI() != null && p.getROI().isArea())
+				.toList();
+	}
+
+	/**
+	 * Get a list of objects with point ROIs from a collection of objects.
+	 * @param pathObjects
+	 * @return
+	 * @param <T>
+	 * @since v0.5.0
+	 */
+	public static <T extends PathObject> List<T> getPointObjects(Collection<T> pathObjects) {
+		return pathObjects.stream()
+				.filter(p -> p .getROI() != null && p.getROI().isPoint())
+				.toList();
 	}
 
 
@@ -955,13 +996,11 @@ public class PathObjectTools {
 	 * @param supportedClasses
 	 * @return
 	 */
-	public static Collection<? extends PathObject> getSupportedObjects(final Collection<PathObject> availableObjects, final Collection<Class<? extends PathObject>> supportedClasses) {
-		List<PathObject> objects = availableObjects
+	public static Collection<? extends PathObject> getSupportedObjects(final Collection<? extends PathObject> availableObjects, final Collection<Class<? extends PathObject>> supportedClasses) {
+		return availableObjects
 			.stream()
 			.filter(p -> supportedClasses.stream().anyMatch(s -> s.isInstance(p)))
 			.toList();
-		
-		return objects;
 	}
 
 	/**
@@ -1108,6 +1147,148 @@ public class PathObjectTools {
 //		hierarchy.getSelectionModel().clearSelection();
 //		return true;
 //	}
+
+
+	/**
+	 * Given a collection of objects, split the objects with area ROIs using dividing lines extracted from the objects
+	 * with line ROIs.
+	 * @param pathObjects an input collection of objects, containing objects with different ROI types
+	 * @return a map containing the original area objects as keys, and the split objects as values.
+	 *         This only contains entries for objects that are split; if no objects are split, an empty map is returned.
+	 * @see #splitAreasByLines(Collection, Collection)
+	 * @since v0.5.0
+	 */
+	public static Map<PathObject, List<PathObject>> splitAreasByLines(Collection<? extends PathObject> pathObjects) {
+		return splitAreasByLines(
+				PathObjectTools.getLineObjects(pathObjects),
+				PathObjectTools.getAreaObjects(pathObjects));
+	}
+
+	/**
+	 * Given a collection of objects with area ROIs, split these using dividing lines extracted from objects
+	 * with line ROIs.
+	 * @param areaObjects objects with area ROIs; non-area ROIs will be ignored
+	 * @param lineObjects objects with line ROIs; area ROIs can still be used, but will be treated as lines
+	 * @return a map containing the original area objects as keys, and the split objects as values.
+	 *         This only contains entries for objects that are split; if no objects are split, an empty map is returned.
+	 * @see #splitAreasByLines(Collection)
+	 * @since v0.5.0
+	 */
+	public static Map<PathObject, List<PathObject>> splitAreasByLines(Collection<? extends PathObject> areaObjects,
+																	  Collection<? extends PathObject> lineObjects) {
+		List<ROI> linesROIs = lineObjects.stream().map(PathObject::getROI).toList();
+
+		if (linesROIs.isEmpty()) {
+			logger.debug("No lines found to split!");
+			return Collections.emptyMap();
+		}
+		var map = new LinkedHashMap<PathObject, List<PathObject>>();
+		for (var pathObject : areaObjects) {
+			var roi = pathObject.getROI();
+			if (roi == null || !roi.isArea() || pathObject.isTMACore()) {
+				continue;
+			}
+			// Split ROI using lines in the same image plane
+			var splitLineGeometries = linesROIs.stream()
+					.filter(line -> roi.getImagePlane().equals(line.getImagePlane()))
+					.map(ROI::getGeometry)
+					.toList();
+			var geom = roi.getGeometry();
+			List<Geometry> split = GeometryTools.splitGeometryByLineStrings(geom, splitLineGeometries);
+
+			// Avoid making extra changes unnecessarily
+			if (split.size() == 1 && geom.equals(split.get(0))) {
+				continue;
+			}
+			var results = split.stream()
+					.map(geometry -> GeometryTools.geometryToROI(geometry, roi.getImagePlane()))
+					.map(r -> PathObjectTools.createLike(pathObject, r))
+					.toList();
+			map.put(pathObject, results);
+		}
+		return map;
+	}
+
+	/**
+	 * Given a collection of objects, split the objects with area ROIs using dividing lines extracted from the objects
+	 * with line ROIs, after 'buffering' the lines to increase their thickness.
+	 * @param pathObjects an input collection of objects, containing objects with different ROI types
+	 * @param buffer the distance by which to buffer the lines (can be considered a radius).
+	 *               If 0, this is equivalent to #splitAreasByLines(Collection)
+	 * @return a map containing the original area objects as keys, and the split objects as values.
+	 *         This only contains entries for objects that are split; if no objects are split, an empty map is returned.
+	 * @see #splitAreasByLines(Collection)
+	 * @see #splitAreasByBufferedLines(Collection, Collection, double)
+	 * @since v0.5.0
+	 */
+	public static Map<PathObject, List<PathObject>> splitAreasByBufferedLines(Collection<? extends PathObject> pathObjects, double buffer) {
+		return splitAreasByBufferedLines(
+				PathObjectTools.getLineObjects(pathObjects),
+				PathObjectTools.getAreaObjects(pathObjects),
+				buffer);
+	}
+
+	/**
+	 * Split the objects with area ROIs using dividing lines extracted from the objects with line ROIs, after
+	 * 'buffering' the lines to increase their thickness.
+	 * @param areaObjects objects with area ROIs; non-area ROIs will be ignored
+	 * @param lineObjects objects with line ROIs; non-line ROIs will be ignored
+	 * @param buffer the distance by which to buffer the lines (can be considered a radius).
+	 *               If 0, this is equivalent to #splitAreasByLines(Collection)
+	 * @return a map containing the original area objects as keys, and the split objects as values.
+	 *         This only contains entries for objects that are split; if no objects are split, an empty map is returned.
+	 * @see #splitAreasByLines(Collection)
+	 * @see #splitAreasByBufferedLines(Collection, Collection, double)
+	 * @since v0.5.0
+	 */
+	public static Map<PathObject, List<PathObject>> splitAreasByBufferedLines(Collection<? extends PathObject> areaObjects,
+																			  Collection<? extends PathObject> lineObjects,
+																			  double buffer) {
+		if (buffer <= 0)
+			return splitAreasByLines(areaObjects, lineObjects);
+
+		ROI[] lines = lineObjects.stream()
+				.map(PathObject::getROI)
+				.filter(ROI::isLine)
+				.map(r -> RoiTools.buffer(r, buffer))
+				.toArray(ROI[]::new);
+		if (lines.length == 0) {
+			logger.debug("No lines found to split!");
+			return Collections.emptyMap();
+		}
+		var map = new LinkedHashMap<PathObject, List<PathObject>>();
+		for (var pathObject : areaObjects) {
+			var roi = pathObject.getROI();
+			if (roi == null || !roi.isArea() || pathObject.isTMACore()) {
+				continue;
+			}
+			map.put(pathObject, splitObjectBySubtraction(pathObject, lines));
+		}
+		return map;
+	}
+
+
+	private static List<PathObject> splitObjectBySubtraction(PathObject pathObject, ROI... roisToSubtract) {
+		var rois = splitRoiBySubtraction(pathObject.getROI(), roisToSubtract);
+		return rois.stream()
+				.map(roi -> PathObjectTools.createLike(pathObject, roi))
+				.toList();
+	}
+
+	private static List<ROI> splitRoiBySubtraction(ROI roi, ROI... roisToSubtract) {
+		if (roi == null)
+			return Collections.emptyList();
+		if (roisToSubtract.length == 0)
+			return Collections.singletonList(roi);
+
+		var splitBefore = RoiTools.splitROI(roi);
+		var roiSubtracted = RoiTools.subtract(roi, roisToSubtract);
+		var split = RoiTools.splitROI(roiSubtracted);
+		if (split.size() == splitBefore.size())
+			return Collections.singletonList(roi);
+		return split;
+	}
+
 	
 	/**
 	 * Merge point annotations sharing the same {@link PathClass} and {@link ImagePlane} as the selected annotations,

@@ -324,7 +324,17 @@ public class PathPrefs {
 	public static BooleanProperty showStartupMessageProperty() {
 		return showStartupMessage;
 	}
-	
+
+
+	private static BooleanProperty showToolBarBadges = createPersistentPreference("showToolBarBadges", true);
+
+	/**
+	 * Show badges on the toolbar, e.g. to provide messages or warnings.
+	 * @return
+	 */
+	public static BooleanProperty showToolBarBadgesProperty() {
+		return showToolBarBadges;
+	}
 	
 		
 	private static IntegerProperty maxMemoryMB;

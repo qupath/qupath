@@ -26,8 +26,9 @@ This is a work-in-progress for the next QuPath release.
 
 #### Processing & analysis
 * Faster processing & reduced memory use for pixel classification measurements (https://github.com/qupath/qupath/pull/1332)
+* New *Objects → Annotations... → Split annotations by lines* command (https://github.com/qupath/qupath/pull/1349)
 * New `ObjectMerger` class to simplify creating new tile-based segmentation methods (https://github.com/qupath/qupath/pull/1346)
-* New `Tiler` class to generate tiles within other objects (https://github.com/qupath/qupath/pull/1347)
+* New `Tiler` class to generate tiles within other objects (https://github.com/qupath/qupath/pull/1347) (https://github.com/qupath/qupath/pull/1349) (https://github.com/qupath/qupath/issues/1277)
 
 #### Import & export
 * SVG export now supports overlays (https://github.com/qupath/qupath/issues/1272)
