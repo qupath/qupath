@@ -95,7 +95,8 @@ public class MeasurementProcessor {
         return new PixelProcessor.Builder<BufferedImage, BufferedImage, Map<String, ? extends Number>>()
                 .imageSupplier(ImageSupplier.createBufferedImageSupplier())
                 .maskSupplier(MaskSupplier.createBufferedImageMaskSupplier())
-                .processor(createProcessor(measurements));
+                .processor(createProcessor(measurements))
+                .outputHandler(OutputHandler::handleOutputMeasurements);
     }
 
 
