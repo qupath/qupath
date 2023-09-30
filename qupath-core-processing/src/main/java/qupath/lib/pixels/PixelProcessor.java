@@ -25,6 +25,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.objects.PathObject;
 import qupath.lib.plugins.CommandLinePluginRunner;
 import qupath.lib.plugins.PathTask;
@@ -74,24 +75,24 @@ public class PixelProcessor<S, T, U> {
     private final Processor<S, T, U> processor;
 
     private final Padding padding;
-    private final double downsample;
+    private final DownsampleCalculator downsampleCalculator;
 
     private PixelProcessor(ImageSupplier<S> imageSupplier,
                           MaskSupplier<S, T> maskSupplier,
                           OutputHandler<S, T, U> outputHandler,
                           Processor<S, T, U> processor,
                           Padding padding,
-                          double downsample) {
+                           DownsampleCalculator downsampleCalculator) {
         Objects.requireNonNull(imageSupplier, "Image supplier cannot be null");
         Objects.requireNonNull(processor, "Processor cannot be null");
-        if (downsample <= 0)
-            throw new IllegalArgumentException("Downsample must be > 0");
+        if (downsampleCalculator == null)
+            throw new IllegalArgumentException("Downsample must be specified");
         this.imageSupplier = imageSupplier;
         this.maskSupplier = maskSupplier;
         this.outputHandler = outputHandler;
         this.processor = processor;
         this.padding = padding;
-        this.downsample = downsample;
+        this.downsampleCalculator = downsampleCalculator;
     }
 
     public void processObjects(ImageData<BufferedImage> imageData, Collection<? extends PathObject> pathObjects) {
@@ -139,6 +140,7 @@ public class PixelProcessor<S, T, U> {
         }
 
         protected RegionRequest createRequest(ImageServer<?> server, PathObject pathObject) {
+            double downsample = downsampleCalculator.getDownsample(server.getPixelCalibration());
             return RegionRequest.createInstance(server.getPath(), downsample, pathObject.getROI())
                     .pad2D(padding)
                     .intersect2D(0, 0, server.getWidth(), server.getHeight());
@@ -180,7 +182,7 @@ public class PixelProcessor<S, T, U> {
         private Processor<S, T, U> processor;
 
         private Padding padding = Padding.empty();
-        private double downsample = 1.0;
+        private DownsampleCalculator downsampleCalculator = DownsampleCalculator.createForDownsample(1.0);
 
         /**
          * Set the image supplier. This is required if the processor is to have access to pixels.
@@ -251,7 +253,22 @@ public class PixelProcessor<S, T, U> {
          * @return
          */
         public Builder<S, T, U> downsample(double downsample) {
-            this.downsample = downsample;
+            if (downsample <= 0)
+                throw new IllegalArgumentException("Downsample must be > 0!");
+            this.downsampleCalculator = DownsampleCalculator.createForDownsample(downsample);
+            return this;
+        }
+
+        /**
+         * Set the requested pixel size to use with requesting image regions.
+         * This will be converted to a downsample factor based on the image calibration.
+         * @param pixelSize
+         * @return
+         */
+        public Builder<S, T, U> pixelSize(double pixelSize) {
+            if (pixelSize <= 0)
+                throw new IllegalArgumentException("Requested pixel size must be > 0!");
+            this.downsampleCalculator = DownsampleCalculator.createForRequestedPixelSize(pixelSize);
             return this;
         }
 
@@ -262,11 +279,37 @@ public class PixelProcessor<S, T, U> {
          */
         public PixelProcessor<S, T, U> build() {
             return new PixelProcessor<>(imageSupplier, maskSupplier, outputHandler, processor,
-                    padding, downsample);
+                    padding, downsampleCalculator);
         }
 
 
     }
 
+    private static class DownsampleCalculator {
+
+        private final boolean isRequestedPixelSize;
+        private final double resolution;
+
+        private DownsampleCalculator(double resolution, boolean isRequestedPixelSize) {
+            this.isRequestedPixelSize = isRequestedPixelSize;
+            this.resolution = resolution;
+        }
+
+        private static DownsampleCalculator createForDownsample(double downsample) {
+            return new DownsampleCalculator(downsample, false);
+        }
+
+        private static DownsampleCalculator createForRequestedPixelSize(double pixelSize) {
+            return new DownsampleCalculator(pixelSize, true);
+        }
+
+        public double getDownsample(PixelCalibration cal) {
+            if (isRequestedPixelSize)
+                return resolution / cal.getAveragedPixelSize().doubleValue();
+            else
+                return resolution;
+        }
+
+    }
 
 }
