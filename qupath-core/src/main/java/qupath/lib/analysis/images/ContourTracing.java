@@ -1230,7 +1230,7 @@ public class ContourTracing {
 	
 
 	/**
-	 * Simple wrapper for a geometry and an label (usually a channel number of classification).
+	 * Simple wrapper for a geometry and a label (usually a channel number or classification).
 	 */
 	private static class GeometryWrapper {
 		
