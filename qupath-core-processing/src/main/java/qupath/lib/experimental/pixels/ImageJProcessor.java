@@ -19,7 +19,7 @@
  * #L%
  */
 
-package qupath.lib.pixels;
+package qupath.lib.experimental.pixels;
 
 import ij.ImagePlus;
 import ij.gui.Overlay;
@@ -83,7 +83,7 @@ public class ImageJProcessor {
     }
 
     /**
-     * Create an {@link qupath.lib.pixels.OutputHandler.OutputToObjectConverter} that attempts to convert the output
+     * Create an {@link OutputHandler.OutputToObjectConverter} that attempts to convert the output
      * into annotation objects.
      * @return
      */
@@ -92,7 +92,7 @@ public class ImageJProcessor {
     }
 
     /**
-     * Create an {@link qupath.lib.pixels.OutputHandler.OutputToObjectConverter} that attempts to convert the output
+     * Create an {@link OutputHandler.OutputToObjectConverter} that attempts to convert the output
      * into detection objects.
      * @return
      */
@@ -101,7 +101,7 @@ public class ImageJProcessor {
     }
 
     /**
-     * Create an {@link qupath.lib.pixels.OutputHandler.OutputToObjectConverter} that attempts to convert a range of
+     * Create an {@link OutputHandler.OutputToObjectConverter} that attempts to convert a range of
      * output types into objects.
      * <p>
      * The behavior depends upon whatever the {@link Processor} return.
@@ -123,7 +123,7 @@ public class ImageJProcessor {
     }
 
     /**
-     * Create an {@link qupath.lib.pixels.OutputHandler.OutputToObjectConverter} for one specify type.
+     * Create an {@link OutputHandler.OutputToObjectConverter} for one specify type.
      * See #createObjectConverter(Function) for more details; this method reduces ambiguity by handling only one
      * possible kind of output.
      * @param cls the class to handle

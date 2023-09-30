@@ -19,7 +19,7 @@
  * #L%
  */
 
-package qupath.lib.pixels;
+package qupath.lib.experimental.pixels;
 
 import java.io.IOException;
 

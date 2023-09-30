@@ -19,7 +19,7 @@
  * #L%
  */
 
-package qupath.lib.pixels;
+package qupath.lib.experimental.pixels;
 
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
@@ -146,7 +146,7 @@ public interface OutputHandler<S, T, U> {
      * @param params
      * @param output
      */
-    static void handleOutputMeasurements(Parameters<?, ?> params, Map<String, ? extends Number> output) {
+    static boolean handleOutputMeasurements(Parameters<?, ?> params, Map<String, ? extends Number> output) {
         if (output != null) {
             var pathObject = params.getParent();
             try (var ml = pathObject.getMeasurementList()){
@@ -159,7 +159,9 @@ public interface OutputHandler<S, T, U> {
                         ml.put(key, value.doubleValue());
                 }
             }
-        }
+            return true;
+        } else
+            return false;
     }
 
 
@@ -168,12 +170,13 @@ public interface OutputHandler<S, T, U> {
      * @param params
      * @param output
      */
-    static void handleOutputClassification(Parameters<?, ?> params, PathClass output) {
+    static boolean handleOutputClassification(Parameters<?, ?> params, PathClass output) {
         var pathObject = params.getParent();
         if (output == null)
             pathObject.resetPathClass();
         else
             pathObject.setPathClass(output);
+        return true;
     }
 
     /**
@@ -181,12 +184,13 @@ public interface OutputHandler<S, T, U> {
      * @param params
      * @param output
      */
-    static void handleOutputClassification(Parameters<?, ?> params, String output) {
+    static boolean handleOutputClassification(Parameters<?, ?> params, String output) {
         var pathObject = params.getParent();
         if (output == null || output.isEmpty())
             pathObject.resetPathClass();
         else
             pathObject.setPathClass(PathClass.fromString(output));
+        return true;
     }
 
     @FunctionalInterface

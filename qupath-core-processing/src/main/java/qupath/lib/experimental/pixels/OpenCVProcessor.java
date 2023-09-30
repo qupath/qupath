@@ -19,7 +19,7 @@
  * #L%
  */
 
-package qupath.lib.pixels;
+package qupath.lib.experimental.pixels;
 
 import org.bytedeco.javacpp.Pointer;
 import org.bytedeco.javacpp.PointerScope;
@@ -82,7 +82,7 @@ public class OpenCVProcessor {
     }
 
     /**
-     * Create an {@link qupath.lib.pixels.OutputHandler.OutputToObjectConverter} that attempts to convert the output
+     * Create an {@link OutputHandler.OutputToObjectConverter} that attempts to convert the output
      * into annotation objects.
      * @return
      */
@@ -91,7 +91,7 @@ public class OpenCVProcessor {
     }
 
     /**
-     * Create an {@link qupath.lib.pixels.OutputHandler.OutputToObjectConverter} that attempts to convert the output
+     * Create an {@link OutputHandler.OutputToObjectConverter} that attempts to convert the output
      * into annotation objects.
      * @param classificationMap a map used to convert labels into classifications
      * @return
@@ -101,7 +101,7 @@ public class OpenCVProcessor {
     }
 
     /**
-     * Create an {@link qupath.lib.pixels.OutputHandler.OutputToObjectConverter} that attempts to convert the output
+     * Create an {@link OutputHandler.OutputToObjectConverter} that attempts to convert the output
      * into detection objects.
      * @return
      */
@@ -110,7 +110,7 @@ public class OpenCVProcessor {
     }
 
     /**
-     * Create an {@link qupath.lib.pixels.OutputHandler.OutputToObjectConverter} that attempts to convert the output
+     * Create an {@link OutputHandler.OutputToObjectConverter} that attempts to convert the output
      * into detection objects.
      * @param classificationMap a map used to convert labels into classifications
      * @return
@@ -121,7 +121,7 @@ public class OpenCVProcessor {
 
 
     /**
-     * Create an {@link qupath.lib.pixels.OutputHandler.OutputToObjectConverter} to convert Mat binary or labeled images
+     * Create an {@link OutputHandler.OutputToObjectConverter} to convert Mat binary or labeled images
      * to path objects.
      * @param creator the creator function to determine the type of object (e.g. detection, annotation)
      * @return the converter
@@ -131,7 +131,7 @@ public class OpenCVProcessor {
     }
 
     /**
-     * Create an {@link qupath.lib.pixels.OutputHandler.OutputToObjectConverter} to convert Mat labeled images to
+     * Create an {@link OutputHandler.OutputToObjectConverter} to convert Mat labeled images to
      * path objects, optionally setting the classification.
      * @param creator the creator function to determine the type of object (e.g. detection, annotation)
      * @param classificationMap a map used to convert labels intoo
@@ -156,7 +156,7 @@ public class OpenCVProcessor {
     }
 
     /**
-     * Create an {@link qupath.lib.pixels.OutputHandler.OutputToObjectConverter} to convert Mat binary or labeled images
+     * Create an {@link OutputHandler.OutputToObjectConverter} to convert Mat binary or labeled images
      * to path objects, optionally using the label number.
      * @param creator the creator function to determine the type of object (e.g. detection, annotation).
      *                The second argument is the label, which can be used e.g. to set a classification.

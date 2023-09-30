@@ -19,7 +19,7 @@
  * #L%
  */
 
-package qupath.lib.pixels;
+package qupath.lib.experimental.pixels;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -110,10 +110,21 @@ public class PixelProcessor<S, T, U> {
         this.downsampleCalculator = downsampleCalculator;
     }
 
+    /**
+     * Process objects using the default {@link PluginRunner}.
+     * @param imageData
+     * @param pathObjects
+     */
     public void processObjects(ImageData<BufferedImage> imageData, Collection<? extends PathObject> pathObjects) {
         processObjects(new CommandLinePluginRunner(), imageData, pathObjects);
     }
 
+    /**
+     * Process objects using the specified {@link PluginRunner}.
+     * @param runner
+     * @param imageData
+     * @param pathObjects
+     */
     public void processObjects(PluginRunner runner, ImageData<BufferedImage> imageData, Collection<? extends PathObject> pathObjects) {
         if (tiler != null) {
             processTiled(runner, tiler, imageData, pathObjects);
@@ -122,6 +133,29 @@ public class PixelProcessor<S, T, U> {
         }
     }
 
+    /**
+     * Process objects without tiling. This is the 'easy' case where we just run tasks, and the output handler does the
+     * rest.
+     * @param runner
+     * @param imageData
+     * @param pathObjects
+     */
+    private void processUntiled(PluginRunner runner, ImageData<BufferedImage> imageData, Collection<? extends PathObject> pathObjects) {
+        List<? extends Runnable> tasks = pathObjects.stream()
+                .distinct()
+                .map(pathObject -> new ProcessorTask(imageData, pathObject, processor, null))
+                .toList();
+        runner.runTasks(tasks);
+    }
+
+
+    /**
+     * Process objects using tiling, then merge the detected objects across tiles.
+     * @param runner
+     * @param tiler
+     * @param imageData
+     * @param pathObjects
+     */
     private void processTiled(PluginRunner runner, Tiler tiler, ImageData<BufferedImage> imageData, Collection<? extends PathObject> pathObjects) {
         if (tiler == null)
             throw new IllegalStateException("Tiler must be specified for tiled processing");
@@ -176,6 +210,12 @@ public class PixelProcessor<S, T, U> {
            runner.runTasks(mergeTasks);
     }
 
+    /**
+     * Merge the child objects and add them to the parent.
+     * @param merger
+     * @param parent
+     * @param childObjects
+     */
     private void mergeAndAddObjects(ObjectMerger merger, PathObject parent, List<PathObject> childObjects) {
         var toAdd = merger.merge(childObjects);
         parent.clearChildObjects();
@@ -183,14 +223,6 @@ public class PixelProcessor<S, T, U> {
         parent.setLocked(true);
     }
 
-
-    private void processUntiled(PluginRunner runner, ImageData<BufferedImage> imageData, Collection<? extends PathObject> pathObjects) {
-        List<? extends Runnable> tasks = pathObjects.stream()
-                .distinct()
-                .map(pathObject -> new ProcessorTask(imageData, pathObject, processor, null))
-                .toList();
-        runner.runTasks(tasks);
-    }
 
 
     private class ProcessorTask implements PathTask {
