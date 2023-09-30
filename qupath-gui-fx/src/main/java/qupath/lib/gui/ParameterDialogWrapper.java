@@ -124,6 +124,9 @@ class ParameterDialogWrapper<T> {
 		}, btnRun.disabledProperty()));
 
 		final Stage dialog = new Stage();
+		dialog.setMinWidth(300);
+		dialog.setMinHeight(200);
+
 		QuPathGUI qupath = QuPathGUI.getInstance();
 		if (qupath != null)
 			dialog.initOwner(qupath.getStage());

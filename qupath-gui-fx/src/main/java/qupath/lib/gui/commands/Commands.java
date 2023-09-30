@@ -770,6 +770,8 @@ public class Commands {
 		var scene = new Scene(pane.getPane());
 		stage.setScene(scene);
 		stage.setWidth(300);
+		stage.setMinHeight(200);
+		stage.setMinWidth(200);
 		stage.setTitle("Specify annotation");
 		stage.initOwner(qupath.getStage());
 		return stage;
@@ -1365,6 +1367,8 @@ public class Commands {
 	 */
 	public static void launchTMADataViewer(QuPathGUI qupath) {
 		Stage stage = new Stage();
+		stage.setMinHeight(200);
+		stage.setMinWidth(200);
 		if (qupath != null)
 			stage.initOwner(qupath.getStage());
 		TMASummaryViewer tmaViewer = new TMASummaryViewer(stage);
@@ -1910,6 +1914,8 @@ public class Commands {
 	public static Stage createWorkflowDisplayDialog(QuPathGUI qupath) {
 		var view = new WorkflowCommandLogView(qupath);
 		Stage dialog = new Stage();
+		dialog.setMinHeight(200);
+		dialog.setMinWidth(200);
 		dialog.initOwner(qupath.getStage());
 		dialog.setTitle("Workflow viewer");
 		Pane pane = view.getPane();
