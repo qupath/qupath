@@ -27,15 +27,22 @@ import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.utils.ObjectMerger;
+import qupath.lib.objects.utils.Tiler;
 import qupath.lib.plugins.CommandLinePluginRunner;
 import qupath.lib.plugins.PathTask;
 import qupath.lib.plugins.PluginRunner;
+import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.Padding;
 import qupath.lib.regions.RegionRequest;
+import qupath.lib.roi.ROIs;
 
 import java.awt.image.BufferedImage;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -68,6 +75,8 @@ import java.util.Objects;
  */
 public class PixelProcessor<S, T, U> {
 
+    private static final Logger logger = LoggerFactory.getLogger(PixelProcessor.class);
+
     private final ImageSupplier<S> imageSupplier;
     private final MaskSupplier<S, T> maskSupplier;
     private final OutputHandler<S, T, U> outputHandler;
@@ -76,12 +85,17 @@ public class PixelProcessor<S, T, U> {
     private final Padding padding;
     private final DownsampleCalculator downsampleCalculator;
 
+    private final Tiler tiler;
+    private final ObjectMerger merger;
+
     private PixelProcessor(ImageSupplier<S> imageSupplier,
                           MaskSupplier<S, T> maskSupplier,
                           OutputHandler<S, T, U> outputHandler,
                           Processor<S, T, U> processor,
+                          Tiler tiler,
+                          ObjectMerger merger,
                           Padding padding,
-                           DownsampleCalculator downsampleCalculator) {
+                          DownsampleCalculator downsampleCalculator) {
         Objects.requireNonNull(imageSupplier, "Image supplier cannot be null");
         Objects.requireNonNull(processor, "Processor cannot be null");
         if (downsampleCalculator == null)
@@ -90,6 +104,8 @@ public class PixelProcessor<S, T, U> {
         this.maskSupplier = maskSupplier;
         this.outputHandler = outputHandler;
         this.processor = processor;
+        this.tiler = tiler;
+        this.merger = merger;
         this.padding = padding;
         this.downsampleCalculator = downsampleCalculator;
     }
@@ -99,11 +115,83 @@ public class PixelProcessor<S, T, U> {
     }
 
     public void processObjects(PluginRunner runner, ImageData<BufferedImage> imageData, Collection<? extends PathObject> pathObjects) {
+        if (tiler != null) {
+            processTiled(runner, tiler, imageData, pathObjects);
+        } else {
+            processUntiled(runner, imageData, pathObjects);
+        }
+    }
+
+    private void processTiled(PluginRunner runner, Tiler tiler, ImageData<BufferedImage> imageData, Collection<? extends PathObject> pathObjects) {
+        if (tiler == null)
+            throw new IllegalStateException("Tiler must be specified for tiled processing");
+        List<ProcessorTask> tasks = new ArrayList<>();
+        Map<PathObject, List<PathObject>> tempObjects = new LinkedHashMap<>();
+        for (var pathObject : pathObjects) {
+            // Skip duplicates
+            if (tempObjects.containsKey(pathObject))
+                continue;
+            // Create temp objects for each tile
+            List<PathObject> proxyList = new ArrayList<>();
+            if (pathObject.isRootObject()) {
+                // Root object means do everything
+                var server = imageData.getServer();
+                for (int t = 0; t < server.nTimepoints(); t++) {
+                    for (int z = 0; z < server.nZSlices(); z++) {
+                        var roi = ROIs.createRectangleROI(0, 0, server.getWidth(), server.getHeight(), ImagePlane.getPlane(t, z));
+                        proxyList.addAll(tiler.createAnnotations(roi));
+                    }
+                }
+            } else {
+                proxyList.addAll(tiler.createAnnotations(pathObject.getROI()));
+            }
+            tempObjects.put(pathObject, proxyList);
+            for (var proxy : proxyList)
+                tasks.add(new ProcessorTask(imageData, pathObject, processor, proxy));
+        }
+        // Run the tasks
+        runner.runTasks(tasks);
+
+        // Reassign the proxy objects to the parent
+        // If merging is involved, this can be slow - so pass these as new tasks
+        if (runner.isCancelled() || Thread.interrupted()) {
+            logger.warn("Tiled processing cancelled before merging");
+            return;
+        }
+        List<Runnable> mergeTasks = new ArrayList<>();
+        for (var entry : tempObjects.entrySet()) {
+            var pathObject = entry.getKey();
+            var proxyList = entry.getValue().stream()
+                    .flatMap(proxy -> proxy.getChildObjects().stream())
+                    .toList();
+            if (merger != null) {
+                mergeTasks.add(() -> mergeAndAddObjects(merger, pathObject, proxyList));
+            } else {
+                pathObject.clearChildObjects();
+                pathObject.addChildObjects(proxyList);
+                pathObject.setLocked(true);
+            }
+        }
+        if (!mergeTasks.isEmpty())
+           runner.runTasks(mergeTasks);
+    }
+
+    private void mergeAndAddObjects(ObjectMerger merger, PathObject parent, List<PathObject> childObjects) {
+        var toAdd = merger.merge(childObjects);
+        parent.clearChildObjects();
+        parent.addChildObjects(toAdd);
+        parent.setLocked(true);
+    }
+
+
+    private void processUntiled(PluginRunner runner, ImageData<BufferedImage> imageData, Collection<? extends PathObject> pathObjects) {
         List<? extends Runnable> tasks = pathObjects.stream()
-                .map(pathObject -> new ProcessorTask(imageData, pathObject, processor))
+                .distinct()
+                .map(pathObject -> new ProcessorTask(imageData, pathObject, processor, null))
                 .toList();
         runner.runTasks(tasks);
     }
+
 
     private class ProcessorTask implements PathTask {
 
@@ -111,24 +199,29 @@ public class PixelProcessor<S, T, U> {
 
         private final ImageData<BufferedImage> imageData;
         private final PathObject pathObject;
+        private final PathObject parentProxy;
         private final Processor<S, T, U> processor;
 
-        private ProcessorTask(ImageData<BufferedImage> imageData, PathObject pathObject, Processor<S, T, U> processor) {
+        private ProcessorTask(ImageData<BufferedImage> imageData, PathObject pathObject, Processor<S, T, U> processor,
+                              PathObject parentProxy) {
             this.imageData = imageData;
             this.pathObject = pathObject;
             this.processor = processor;
+            this.parentProxy = parentProxy;
         }
 
         @Override
         public void run() {
             try {
-                var request = createRequest(imageData.getServer(), pathObject);
+                // Use the proxy object, if available, otherwise use the path object
+                var request = createRequest(imageData.getServer(), parentProxy == null ? pathObject : parentProxy);
                 Parameters.Builder<S, T> builder = Parameters.builder();
                 Parameters<S, T> params = builder.imageData(imageData)
                         .imageFunction(imageSupplier)
                         .maskFunction(maskSupplier)
                         .region(request)
                         .parent(pathObject)
+                        .parentProxy(parentProxy)
                         .build();
                 var output = processor.process(params);
                 if (outputHandler != null)
@@ -180,6 +273,8 @@ public class PixelProcessor<S, T, U> {
         private OutputHandler<S, T, U> outputHandler;
         private Processor<S, T, U> processor;
 
+        private Tiler tiler;
+        private ObjectMerger merger;
         private Padding padding = Padding.empty();
         private DownsampleCalculator downsampleCalculator = DownsampleCalculator.createForDownsample(1.0);
 
@@ -272,13 +367,58 @@ public class PixelProcessor<S, T, U> {
         }
 
         /**
+         * Set a tiler to use. This is required for large regions, so that the image can be processed in tiles.
+         * @param tiler
+         * @return
+         */
+        public Builder<S, T, U> tiler(Tiler tiler) {
+            this.tiler = tiler;
+            return this;
+        }
+
+        /**
+         * Set a default tiler to use, with a specified tile size.
+         * @param tileWidth
+         * @param tileHeight
+         * @return
+         */
+        public Builder<S, T, U> tile(int tileWidth, int tileHeight) {
+            return tiler(Tiler.builder(tileWidth, tileHeight)
+                    .alignCenter()
+                    .filterByCentroid(false)
+                    .build());
+        }
+
+        /**
+         * Set a merger to use. This is currently only relevant when using a tiler.
+         * @param merger
+         * @return
+         * @see #mergeSharedBoundaries(double)
+         */
+        public Builder<S, T, U> merger(ObjectMerger merger) {
+            this.merger = merger;
+            return this;
+        }
+
+        /**
+         * Convenience method to set a merger that merges objects based on their shared boundary.
+         * @param threshold the shared boundary threshold; see {@link ObjectMerger#createSharedTileBoundaryMerger(double)}
+         *                  for more information.
+         * @return
+         * @see #merger(ObjectMerger)
+         */
+        public Builder<S, T, U> mergeSharedBoundaries(double threshold) {
+            return merger(ObjectMerger.createSharedTileBoundaryMerger(threshold));
+        }
+
+        /**
          * Build a {@link PixelProcessor} from the current state of the builder.
          * This will throw an exception if any of the required components are missing.
          * @return
          */
         public PixelProcessor<S, T, U> build() {
             return new PixelProcessor<>(imageSupplier, maskSupplier, outputHandler, processor,
-                    padding, downsampleCalculator);
+                    tiler, merger, padding, downsampleCalculator);
         }
 
 

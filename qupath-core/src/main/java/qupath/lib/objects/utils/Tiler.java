@@ -373,7 +373,7 @@ public class Tiler {
         private int tileHeight;
         private boolean trimToParent = true;
         private TileAlignment alignment = TileAlignment.CENTER;
-        private boolean filterByCentroid = true;
+        private boolean filterByCentroid = false;
 
         private Builder(int tileWidth, int tileHeight) {
             this.tileWidth = tileWidth;

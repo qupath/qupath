@@ -50,6 +50,7 @@ public class Parameters<S, T> {
     // if the parameters are retained for a long time
     private transient SoftReference<S> image;
     private PathObject parent;
+    private PathObject parentProxy;
 
     private Parameters(Builder<S, T> builder) {
         this.imageData = builder.imageData;
@@ -59,6 +60,7 @@ public class Parameters<S, T> {
         this.imageFun = builder.imageFun;
         this.maskFun = builder.maskFun;
         this.parent = builder.parent;
+        this.parentProxy = builder.parentProxy;
         validate();
     }
 
@@ -165,9 +167,24 @@ public class Parameters<S, T> {
     /**
      * Get the parent object.
      * @return
+     * @see #getParentOrProxy()
      */
     public PathObject getParent() {
         return parent;
+    }
+
+    /**
+     * Get the parent, or a proxy parent if one has been specified.
+     * The proxy parent is used to provide a temporary parent object for tiled processing, when using the parent
+     * directly may be problematic (e.g. because the region is too large).
+     * @return
+     * @see #getParent()
+     */
+    public PathObject getParentOrProxy() {
+        if (parentProxy != null)
+            return parentProxy;
+        else
+            return parent;
     }
 
     /**
@@ -194,6 +211,7 @@ public class Parameters<S, T> {
         private ImageSupplier<S> imageFun;
         private MaskSupplier<S, T> maskFun;
         private PathObject parent;
+        private PathObject parentProxy;
 
         /**
          * Set the image data.
@@ -267,6 +285,17 @@ public class Parameters<S, T> {
          */
         public Builder<S, T> parent(PathObject parent) {
             this.parent = parent;
+            return this;
+        }
+
+        /**
+         * Optionally set a temporary object to use as a parent.
+         * This is useful for tiled processing, when the parent object may be too large to process in a single region.
+         * @param parentProxy
+         * @return
+         */
+        public Builder<S, T> parentProxy(PathObject parentProxy) {
+            this.parentProxy = parentProxy;
             return this;
         }
 

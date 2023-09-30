@@ -21,6 +21,7 @@
 
 package qupath.lib.pixels;
 
+import org.locationtech.jts.geom.Geometry;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.roi.GeometryTools;
@@ -39,7 +40,7 @@ class PixelProcessorUtils {
     public static List<PathObject> maskObject(ROI parentROI, PathObject child) {
         if (parentROI == null)
             return Collections.singletonList(child);
-        if (!childOnSamePlane(parentROI, child.getROI()))
+        if (!childOnSamePlane(parentROI, child.getROI()) || parentROI.isEmpty())
             return Collections.emptyList();
         var geom = parentROI.getGeometry();
         var childGeom = child.getROI().getGeometry();
@@ -55,16 +56,19 @@ class PixelProcessorUtils {
     }
 
     public static List<PathObject> maskObjectAndSplit(ROI parentROI, PathObject child) {
-        if (parentROI == null)
-            return Collections.singletonList(child);
-        if (!childOnSamePlane(parentROI, child.getROI()))
+        if (!childOnSamePlane(parentROI, child.getROI()) || parentROI.isEmpty())
             return Collections.emptyList();
-        var geom = parentROI.getGeometry();
+        Geometry geomOutput;
         var childGeom = child.getROI().getGeometry();
-        var geomOutput = GeometryTools.homogenizeGeometryCollection(geom.intersection(childGeom));
+        if (parentROI != null) {
+            var geom = parentROI.getGeometry();
+            geomOutput = GeometryTools.homogenizeGeometryCollection(geom.intersection(childGeom));
+        } else {
+            geomOutput = GeometryTools.homogenizeGeometryCollection(childGeom);
+        }
         if (geomOutput.isEmpty() || geomOutput.getDimension() < childGeom.getDimension())
             return Collections.emptyList();
-        else if (childGeom.equals(geomOutput))
+        else if (childGeom.equals(geomOutput) && childGeom.getNumGeometries() == 1)
             return Collections.singletonList(child);
         else {
             var newROI = GeometryTools.geometryToROI(geomOutput, child.getROI().getImagePlane());

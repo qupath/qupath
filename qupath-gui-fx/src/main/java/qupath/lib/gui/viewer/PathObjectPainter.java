@@ -760,7 +760,6 @@ public class PathObjectPainter {
 			}
 
 			Map<ROI, Shape> map = getMap(roi, downsample);
-			//			map.clear();
 			Shape shape = map.get(roi);
 			if (shape == null) {
 				shape = RoiTools.getShape(roi);
@@ -776,7 +775,6 @@ public class PathObjectPainter {
 				}
 				map.put(roi, shape);
 			}
-			//			map.clear();
 			return shape;
 		}
 

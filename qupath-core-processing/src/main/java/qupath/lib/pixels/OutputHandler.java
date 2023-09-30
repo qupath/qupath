@@ -23,10 +23,12 @@ package qupath.lib.pixels;
 
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
+import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Stream;
 
 /**
@@ -229,20 +231,35 @@ public interface OutputHandler<S, T, U> {
                 List<PathObject> newObjects = converter.convertToObjects(params, output);
                 if (newObjects == null)
                     return false;
-                var parent = params.getParent();
+                // If using a proxy object, we want to add the objects to the proxy rather than the parent
+                var parentOrProxy = params.getParentOrProxy();
                 if (clearPreviousObjects)
-                    parent.clearChildObjects();
+                    parentOrProxy.clearChildObjects();
                 if (!newObjects.isEmpty()) {
-                    if (parent.hasROI()) {
-                        var roi = parent.getROI();
+                    // If we need to clip, then use the intersection of the 'real' parent and proxy
+                    var parent = params.getParent();
+                    var parentROI = intersection(parent.getROI(), parentOrProxy.getROI());
+                    if (parentROI != null) {
                         newObjects = newObjects.stream()
-                                .flatMap(p -> maskOrSplitIfNeeded(roi, p))
+                                .flatMap(p -> maskOrSplitIfNeeded(parentROI, p))
                                 .toList();
                     }
-                    parent.addChildObjects(newObjects);
+                    parentOrProxy.addChildObjects(newObjects);
                 }
+                parentOrProxy.setLocked(true);
                 return true;
             }
+        }
+
+        private static ROI intersection(ROI roi1, ROI roi2) {
+            if (Objects.equals(roi1, roi2))
+                return roi1;
+            else if (roi1 == null)
+                return roi2;
+            else if (roi2 == null)
+                return roi1;
+            else
+                return RoiTools.intersection(roi1, roi2);
         }
 
         private Stream<PathObject> maskOrSplitIfNeeded(ROI roi, PathObject pathObject) {
