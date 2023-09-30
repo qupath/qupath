@@ -34,6 +34,7 @@ import java.awt.RenderingHints;
 import java.awt.Shape;
 import java.awt.Stroke;
 import java.awt.geom.AffineTransform;
+import java.awt.geom.Area;
 import java.awt.geom.Ellipse2D;
 import java.awt.geom.Line2D;
 import java.awt.geom.Path2D;
@@ -45,6 +46,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -608,7 +610,7 @@ public class PathObjectPainter {
 
 		Graphics2D g2d = (Graphics2D)g.create();
 		if (RoiTools.isShapeROI(roi)) {
-			Shape shape = shapeProvider.getShape(roi, downsample);
+			Shape shape = shapeProvider.getShape(roi, downsample, g.getClipBounds());
 			// Only pass the colorFill if we have an area (i.e. not a line/polyline)
 			if (roi.isArea())
 				paintShape(shape, g, colorStroke, stroke, colorFill);
@@ -693,6 +695,8 @@ public class PathObjectPainter {
 		private Map<ROI, Shape> map10 = Collections.synchronizedMap(new WeakHashMap<>());
 		private Map<ROI, Shape> map = Collections.synchronizedMap(new WeakHashMap<>());
 
+		// Note: this relies upon the fact that the ROI is immutable shapes are cached
+		private Map<Area, GriddedArea> areaMap = Collections.synchronizedMap(new WeakHashMap<>());
 
 		private Map<ROI, Shape> getMap(final ROI shape, final double downsample) {
 			// If we don't have many vertices, just return the main map - no need to simplify
@@ -724,8 +728,18 @@ public class PathObjectPainter {
 			return shape;
 		}
 
+		public Shape getShape(final ROI roi, final double downsample, final Rectangle clip) {
+			var shape = getShape(roi, downsample);
+			// Painting performance is poor for extremely complex shapes
+			// Here, we try to get a cropped version of the shape when required
+			if (shape instanceof Area area && clip != null) {
+				var griddedArea = areaMap.computeIfAbsent(area, GriddedArea::new);
+				shape = griddedArea.getArea(clip);
+			}
+			return shape;
+		}
 
-		public Shape getShape(final ROI roi, final double downsample) {
+		private Shape getShape(final ROI roi, final double downsample) {
 			if (roi instanceof RectangleROI) {
 				Rectangle2D rectangle = rectanglePool.getShape();
 				rectangle.setFrame(roi.getBoundsX(), roi.getBoundsY(), roi.getBoundsWidth(), roi.getBoundsHeight());
@@ -769,6 +783,94 @@ public class PathObjectPainter {
 	}
 
 	/**
+	 * Helper class for working with <i>very</i> complex Areas (e.g. over 10_000 path segments).
+	 * Painting these is very slow, so this class attempts to crop the area to smaller regions and
+	 * maintain a cache of the cropped areas.
+	 */
+	private static class GriddedArea {
+
+		private static int minSegments = 10_000;
+
+		private static final Area EMPTY = new Area();
+
+		private final Area mainArea;
+		private final int nSegments;
+		private final Rectangle mainClip;
+		private final double mainClipArea;
+		private Map<Rectangle, Area> cache;
+
+		private GriddedArea(Area area) {
+			this.mainArea = area;
+			this.mainClip = area.getBounds();
+			this.mainClipArea = boundsArea(mainClip);
+			this.nSegments = countSegments(area);
+		}
+
+		private static int countSegments(Area area) {
+			var iterator = area.getPathIterator(null);
+			int nSegments = 0;
+			while (!iterator.isDone()) {
+				iterator.next();
+				nSegments++;
+			}
+			return nSegments;
+		}
+
+		private void ensureCacheExists() {
+			if (cache == null) {
+				cache = new LinkedHashMap<>() {
+					@Override
+					protected boolean removeEldestEntry(Map.Entry<Rectangle, Area> eldest) {
+						return size() > 200;
+					}
+				};
+			}
+		}
+
+		public Area getArea(Rectangle clip) {
+			if (clip.isEmpty())
+				return EMPTY;
+			if (nSegments < minSegments || clip == null || clip.contains(mainClip) || boundsArea(clip) > mainClipArea * 0.5)
+				return mainArea;
+			// Try to find a cached area that contains the clip
+			ensureCacheExists();
+			for (var entry : cache.entrySet()) {
+				if (entry.getKey().contains(clip))
+					return entry.getValue();
+			}
+			// Create a crop, if needed
+			var padded = createPaddedRectangle(clip, clip.width+1, clip.height+1);
+			var cropped = crop(padded);
+			cache.put(padded, cropped);
+			return cropped;
+		}
+
+		private static double boundsArea(Rectangle rectangle) {
+			return rectangle.getWidth() * rectangle.getHeight();
+		}
+
+		private static Rectangle createPaddedRectangle(Rectangle clip, int padX, int padY) {
+			return new Rectangle(
+					(int)(clip.getX()-padX),
+					(int)(clip.getY()-padY),
+					(int)(clip.getWidth()+padX*2),
+					(int)(clip.getHeight()+padY*2)
+					);
+		}
+
+		private Area crop(Rectangle clip) {
+			if (clip.contains(mainClip))
+				return mainArea;
+			var croppedArea = new Area(clip);
+			croppedArea.intersect(mainArea);
+			return croppedArea;
+		}
+
+
+	}
+
+
+	/**
 	 * Paint the specified shape with specified stroke and fill colors.
 	 * @param shape shape to paint
 	 * @param g2d graphics object
@@ -777,6 +879,7 @@ public class PathObjectPainter {
 	 * @param colorFill fill color (may be null)
 	 */
 	public static void paintShape(Shape shape, Graphics2D g2d, Color colorStroke, Stroke stroke, Color colorFill) {
+		long startTime = System.currentTimeMillis();
 		if (colorFill != null) {
 			g2d.setColor(colorFill);
 			g2d.fill(shape); 
@@ -786,6 +889,10 @@ public class PathObjectPainter {
 				g2d.setStroke(stroke);
 			g2d.setColor(colorStroke);
 			g2d.draw(shape);
+		}
+		long endTime = System.currentTimeMillis();
+		if (logger.isTraceEnabled() && endTime - startTime > 1000) {
+			logger.trace("Painting time: {} for shape={}", (endTime - startTime), shape);
 		}
 	}
 
