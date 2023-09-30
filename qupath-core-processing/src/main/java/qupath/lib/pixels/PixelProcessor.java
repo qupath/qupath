@@ -54,7 +54,6 @@ import java.util.Objects;
  *     </ul>
  *     The idea is that the {@link Processor} is the only component that needs to be written for a specific task...
  *     and it is usually the fun bit to work on.
- * </p>
  * <p>
  *     The other components are often very tedious to write and hard to get working correctly; also, there is much
  *     overlap in the functionality required for different tasks.

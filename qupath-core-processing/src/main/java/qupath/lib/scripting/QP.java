@@ -4585,8 +4585,7 @@ public class QP {
 	 * <p>
 	 * Using this successfully depends upon {@link #VERSION} being available.
 	 * To avoid an exception if it is not, use
-	 * <code>
-	 * <pre>{@code 
+	 * <pre>{@code
 	 * if (VERSION != null)
 	 *   checkMinVersion("0.4.0");
 	 * }
@@ -4613,8 +4612,7 @@ public class QP {
 	 * <p>
 	 * Using this successfully depends upon {@link #VERSION} being available.
 	 * To avoid an exception if it is not, use
-	 * <code>
-	 * <pre>{@code 
+	 * <pre>{@code
 	 * if (VERSION != null)
 	 *   checkVersionRange("0.4.0", "0.5.0");
 	 * }

@@ -119,9 +119,11 @@ public class GeometryTools {
      * Parse the matrix (String) to create and return an {@link AffineTransformation}. 
      * <p>
      * The order of the matrix elements should be the following:<p>
-     * <li>{@code m00 m01 m02}<p></li>
-     * <li>{@code m10 m11 m12}<p></li>
-     * 
+     * <ol>
+	 *  <li>{@code m00 m01 m02}<p></li>
+	 *  <li>{@code m10 m11 m12}<p></li>
+     * </ol>
+     *
      * @param text
      * @return affineTransformation
      * @throws ParseException 

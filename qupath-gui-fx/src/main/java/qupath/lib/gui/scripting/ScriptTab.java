@@ -46,9 +46,11 @@ import qupath.lib.scripting.languages.ScriptLanguage;
  * Class representing a script tab (e.g. on the right side of the script editor).
  * <p>
  * A {@link ScriptTab} object has:
- * <li>A main editor</li>
- * <li>A console</li>
- * <li>A language</li>
+ * <ol>
+ * 	<li>A main editor</li>
+ * 	<li>A console</li>
+ * 	<li>A language</li>
+ * </ol>
  * And is displayed on the right side of the {@link ScriptEditor}.
  * 
  * @author Pete Bankhead
