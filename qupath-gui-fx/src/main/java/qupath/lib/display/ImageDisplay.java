@@ -390,7 +390,7 @@ public class ImageDisplay extends AbstractImageRenderer {
 
 	/**
 	 * Property indicating which channel should be used if {@link #useGrayscaleLutProperty()} is turned on.
-	 * This is useful to develop more intuitive interfaces & prevent surprises when switching to grayscale mode.
+	 * This is useful to develop more intuitive interfaces and prevent surprises when switching to grayscale mode.
 	 * <p>
 	 * Settings this value does not have any immediate effect on whether channels are selected or not, but rather it
 	 * is only used when switching to grayscale mode.

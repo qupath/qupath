@@ -105,6 +105,7 @@ public class DefaultScriptLanguage extends ScriptLanguage implements ExecutableL
 		CONFUSED_CLASSES.put("ShapeSimplifierAwt", ShapeSimplifier.class);
 		CONFUSED_CLASSES.put("ImagePlusServerBuilder", IJTools.class);
 		CONFUSED_CLASSES.put("DisplayHelpers", Dialogs.class);
+		CONFUSED_CLASSES.put("Dialogs", Dialogs.class);
 		CONFUSED_CLASSES = Collections.unmodifiableMap(CONFUSED_CLASSES);
 	}
 	
@@ -363,8 +364,8 @@ public class DefaultScriptLanguage extends ScriptLanguage implements ExecutableL
 		var matcherProperty = Pattern.compile("No such property: ([A-Za-z_.-]+)").matcher(message);
 		if (matcherProperty.find()) {
 			String missingProperty = matcherProperty.group(1).strip();
-			sb.append("ERROR: It looks like you've tried to access a property '" + missingProperty + "' that doesn't exist\n");
 			if (!defaultImportsAvailable) {
+				sb.append("ERROR: It looks like you've tried to access a property '" + missingProperty + "' that doesn't exist\n");
 				sb.append("This error can sometimes by fixed by turning on 'Run -> Include default imports'.\n");
 			}
 		}
