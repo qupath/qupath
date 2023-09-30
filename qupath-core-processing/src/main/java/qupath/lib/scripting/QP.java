@@ -3650,7 +3650,7 @@ public class QP {
 	 * Split annotation objects with area ROIs using dividing lines extracted from annotations objects with line ROIs,
 	 * then remove the lines from the object hierarchy.
 	 * <p>
-	 * The new objects will be <i>added<</i> to the hierarchy, not inserted.
+	 * The new objects will be <i>added</i> to the hierarchy, not inserted.
 	 * It may therefore be necessary to fall {@link #resolveHierarchy(PathObjectHierarchy)} afterwards.
 	 * @return true if changes were made, false otherwise
 	 * @see PathObjectTools#splitAreasByLines(Collection)
@@ -3664,7 +3664,7 @@ public class QP {
 	 * Split annotation objects with area ROIs using dividing lines extracted from annotations objects with line ROIs,
 	 * with an optional line thickness and optionally removing the dividing lines.
 	 * <p>
-	 * The new objects will be <i>added<</i> to the hierarchy, not inserted.
+	 * The new objects will be <i>added</i> to the hierarchy, not inserted.
 	 * It may therefore be necessary to fall {@link #resolveHierarchy(PathObjectHierarchy)} afterwards.
 	 * @param thickness the thickness of the line; if greater than zero, the line will be buffered with a radius of
 	 *                  half this value
@@ -3681,7 +3681,7 @@ public class QP {
 	 * Split annotation objects with area ROIs using dividing lines extracted from annotations objects with line ROIs,
 	 * then remove the lines from the object hierarchy.
 	 * <p>
-	 * The new objects will be <i>added<</i> to the hierarchy, not inserted.
+	 * The new objects will be <i>added</i> to the hierarchy, not inserted.
 	 * It may therefore be necessary to fall {@link #resolveHierarchy(PathObjectHierarchy)} afterwards.
 	 * @param hierarchy the object hierarchy to use
 	 * @return true if changes were made, false otherwise
@@ -3696,7 +3696,7 @@ public class QP {
 	 * Split annotation objects with area ROIs using dividing lines extracted from annotations objects with line ROIs,
 	 * with an optional line thickness and optionally removing the dividing lines.
 	 * <p>
-	 * The new objects will be <i>added<</i> to the hierarchy, not inserted.
+	 * The new objects will be <i>added</i> to the hierarchy, not inserted.
 	 * It may therefore be necessary to fall {@link #resolveHierarchy(PathObjectHierarchy)} afterwards.
 	 * @param hierarchy the object hierarchy to use
 	 * @param thickness the thickness of the line; if greater than zero, the line will be buffered with a radius of
@@ -3714,7 +3714,7 @@ public class QP {
 	 * Split selected annotation objects with area ROIs using dividing lines extracted from annotations objects with line ROIs,
 	 * then remove the lines from the object hierarchy.
 	 * <p>
-	 * The new objects will be <i>added<</i> to the hierarchy, not inserted.
+	 * The new objects will be <i>added</i> to the hierarchy, not inserted.
 	 * It may therefore be necessary to fall {@link #resolveHierarchy(PathObjectHierarchy)} afterwards.
 	 * @return true if changes were made, false otherwise
 	 * @see PathObjectTools#splitAreasByLines(Collection)
@@ -3728,7 +3728,7 @@ public class QP {
 	 * Split selected annotation objects with area ROIs using dividing lines extracted from annotations objects with line ROIs,
 	 * with an optional line thickness and optionally removing the dividing lines.
 	 * <p>
-	 * The new objects will be <i>added<</i> to the hierarchy, not inserted.
+	 * The new objects will be <i>added</i> to the hierarchy, not inserted.
 	 * It may therefore be necessary to fall {@link #resolveHierarchy(PathObjectHierarchy)} afterwards.
 	 * @param thickness the thickness of the line; if greater than zero, the line will be buffered with a radius of
 	 *                  half this value
@@ -3744,7 +3744,7 @@ public class QP {
 	 * Split selected annotation objects with area ROIs using dividing lines extracted from annotations objects with line ROIs,
 	 * then remove the lines from the object hierarchy.
 	 * <p>
-	 * The new objects will be <i>added<</i> to the hierarchy, not inserted.
+	 * The new objects will be <i>added</i> to the hierarchy, not inserted.
 	 * It may therefore be necessary to fall {@link #resolveHierarchy(PathObjectHierarchy)} afterwards.
 	 * @param hierarchy the object hierarchy to use
 	 * @return true if changes were made, false otherwise
@@ -3759,7 +3759,7 @@ public class QP {
 	 * Split selected annotation objects with area ROIs using dividing lines extracted from annotations objects with line ROIs,
 	 * with an optional line thickness and optionally removing the dividing lines.
 	 * <p>
-	 * The new objects will be <i>added<</i> to the hierarchy, not inserted.
+	 * The new objects will be <i>added</i> to the hierarchy, not inserted.
 	 * It may therefore be necessary to fall {@link #resolveHierarchy(PathObjectHierarchy)} afterwards.
 	 * @param hierarchy the object hierarchy to use
 	 * @param thickness the thickness of the line; if greater than zero, the line will be buffered with a radius of
@@ -3779,7 +3779,7 @@ public class QP {
 	 * Split the specified objects with area ROIs using dividing lines extracted from specified objects with line ROIs,
 	 * with an optional line thickness and optionally removing the dividing lines.
 	 * <p>
-	 * The new objects will be <i>added<</i> to the hierarchy, not inserted.
+	 * The new objects will be <i>added</i> to the hierarchy, not inserted.
 	 * It may therefore be necessary to fall {@link #resolveHierarchy(PathObjectHierarchy)} afterwards.
 	 *
 	 * @param hierarchy the object hierarchy to use
