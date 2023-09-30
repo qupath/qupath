@@ -30,6 +30,7 @@ import qupath.lib.roi.interfaces.ROI;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.lang.ref.SoftReference;
 
 /**
  * Parameters for use with a {@link PixelProcessor}.
@@ -45,8 +46,9 @@ public class Parameters<S, T> {
     private RegionRequest region;
     private ImageSupplier<S> imageFun;
     private MaskSupplier<S, T> maskFun;
-    private transient S image;
-    private transient T mask;
+    // Cache the image with a soft reference, to balance performance with the potential for memory leaks
+    // if the parameters are retained for a long time
+    private transient SoftReference<S> image;
     private PathObject parent;
 
     private Parameters(Builder<S, T> builder) {
@@ -56,8 +58,6 @@ public class Parameters<S, T> {
         this.region = builder.region;
         this.imageFun = builder.imageFun;
         this.maskFun = builder.maskFun;
-//        this.image = builder.image;
-//        this.mask = builder.mask;
         this.parent = builder.parent;
         validate();
     }
@@ -110,20 +110,22 @@ public class Parameters<S, T> {
 
     /**
      * Get the image to process.
-     * This may be stored in memory, or generated on demand.
-     * If generated on demand it will be cached until {@link #clearCachedImages()} is called,
-     * and so the parameters should not be retained for long periods of time.
+     * This may return a cached value, so it is important that it is not modified
+     * by the caller.
      * @return
      */
     public S getImage() throws IOException {
-        if (image == null) {
+        var img = image == null ? null : image.get();
+        if (img == null) {
             synchronized (this) {
-                if (image == null) {
-                    image = imageFun.getImage(this);
+                img = image == null ? null : image.get();
+                if (img == null) {
+                    img = imageFun.getImage(this);
+                    image = new SoftReference<>(img);
                 }
             }
         }
-        return image;
+        return img;
     }
 
     /**
@@ -134,15 +136,8 @@ public class Parameters<S, T> {
      * @throws IOException
      */
     public T getMask() throws IOException {
-        if (mask == null) {
-            synchronized (this) {
-                if (mask == null) {
-                    var parent = getParent();
-                    mask = getMask(parent == null ? null : parent.getROI());
-                }
-            }
-        }
-        return mask;
+        var parent = getParent();
+        return getMask(parent == null ? null : parent.getROI());
     }
 
     /**
