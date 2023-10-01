@@ -58,6 +58,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.TextAlignment;
 import javafx.stage.Stage;
+import jfxtras.scene.layout.HBox;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.fx.utils.GridPaneUtils;
@@ -140,6 +141,7 @@ public class BrightnessContrastCommand implements Runnable {
 		table.disableToggleMenuItemsProperty().bind(showGrayscale);
 
 		currentChannelProperty.addListener((v, o, n) -> chartPane.updateHistogram(imageDisplayProperty.get(), n));
+		chartPane.updateHistogram(imageDisplayProperty.get(), currentChannelProperty.get());
 
 		dialog = createDialog();
 	}
@@ -147,7 +149,10 @@ public class BrightnessContrastCommand implements Runnable {
 
 	@Override
 	public void run() {
-		dialog.show();
+		if (!dialog.isShowing()) {
+			dialog.show();
+			chartPane.updateHistogram(imageDisplayProperty.get(), currentChannelProperty.get());
+		}
 		if (table.getSelectionModel().isEmpty()) {
 			var channel = currentChannelProperty.get();
 			if (channel != null)
@@ -246,12 +251,12 @@ public class BrightnessContrastCommand implements Runnable {
 		pane.setPadding(new Insets(10, 10, 10, 10));
 		pane.setVgap(5);
 
-		Scene scene = new Scene(pane, 350, 580);
+		Scene scene = new Scene(pane);
 		scene.addEventHandler(KeyEvent.KEY_TYPED, keyListener);
 		dialog.setScene(scene);
 		dialog.setMinWidth(300);
-		dialog.setMinHeight(400);
-		dialog.setMaxWidth(600);
+		dialog.setMinHeight(600);
+//		dialog.setMaxWidth(600);
 
 		table.updateTable();
 
@@ -406,12 +411,11 @@ public class BrightnessContrastCommand implements Runnable {
 				+ "Use cautiously to avoid becoming confused about how the 'original' image looks (e.g. brightfield or fluorescence)."));
 //		invertBackground.addListener(this::handleDisplaySettingInvalidated);
 
-		FlowPane paneCheck = new FlowPane();
+		HBox paneCheck = new HBox();
 		paneCheck.setAlignment(Pos.CENTER);
-		paneCheck.setVgap(5);
 		paneCheck.getChildren().add(cbShowGrayscale);
 		paneCheck.getChildren().add(cbInvertBackground);
-		paneCheck.setHgap(15);
+		paneCheck.setSpacing(10);
 		paneCheck.setMaxHeight(Double.MAX_VALUE);
 
 		return paneCheck;

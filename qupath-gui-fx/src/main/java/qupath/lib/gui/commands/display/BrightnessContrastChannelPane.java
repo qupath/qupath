@@ -173,6 +173,7 @@ public class BrightnessContrastChannelPane extends BorderPane {
                         return "Filter channels by name";
                 }, useRegex)
         );
+        filter.setSpacing(5.0);
         var tooltip = new Tooltip("Enter text to find specific channels by name");
         Tooltip.install(filter, tooltip);
         return filter;
@@ -267,6 +268,8 @@ public class BrightnessContrastChannelPane extends BorderPane {
 
         table.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
         table.getSelectionModel().selectedItemProperty().addListener(this::handleSelectedChannelChanged);
+        table.setMinHeight(100);
+        table.setPrefHeight(250);
 
         TableColumn<ChannelDisplayInfo, ChannelDisplayInfo> col1 = new TableColumn<>("Channel");
         col1.setId("channel-column");
