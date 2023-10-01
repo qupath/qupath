@@ -23,6 +23,7 @@ package qupath.lib.io;
 
 import java.awt.geom.AffineTransform;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -48,11 +49,13 @@ import com.google.gson.stream.JsonWriter;
 import qupath.lib.common.ColorTools;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.PathRootObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.regions.ImagePlane;
+import qupath.lib.roi.GeometryTools;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
@@ -336,6 +339,82 @@ public class GsonTools {
 			return getInstance().newBuilder().setPrettyPrinting().create();
 		return getInstance();
 	}
+
+
+	/**
+	 * Attempt to read PathObjects from a JsonElement, interpreting it as GeoJSON.
+	 * <p>
+	 * This deals with the fact that objects can be stored in different forms: as a Feature, FeatureCollection, or
+	 * array of Features.
+	 * <p>
+	 * This method can be provided with other JsonElements, and provided they do not contain characteristic
+	 * GeoJSON fields (i.e. a "type" of "Feature", "FeatureCollection", or a "Geometry" subtype), they will be ignored.
+	 *
+	 * @param element
+	 * @return a list of objects read from the element, or an empty list if none could be found
+	 * @throws JsonParseException
+	 * @since v0.5.0
+	 */
+	public static List<PathObject> parseObjectsFromGeoJSON(JsonElement element) throws JsonParseException {
+		var gson = getInstance();
+		var pathObjects = new ArrayList<PathObject>();
+		addPathObjects(element, pathObjects, gson);
+		return pathObjects;
+	}
+
+
+	/**
+	 * Try to parse objects from GeoJSON.
+	 * This might involve a FeatureCollection, Feature or Geometry.
+	 * @param element
+	 * @param pathObjects
+	 * @param gson
+	 * @return
+	 */
+	private static boolean addPathObjects(JsonElement element, List<PathObject> pathObjects, Gson gson) {
+		if (element == null)
+			return false;
+		if (element.isJsonArray()) {
+			var array = element.getAsJsonArray();
+			boolean changes = false;
+			for (int i = 0; i < array.size(); i++) {
+				changes = changes | addPathObjects(array.get(i), pathObjects, gson);
+			}
+			return changes;
+		}
+		if (element.isJsonObject()) {
+			var jsonObject = element.getAsJsonObject();
+			if (jsonObject.has("type")) {
+				String type = jsonObject.get("type").getAsString();
+				switch (type) {
+					case "Feature":
+						var pathObject = gson.fromJson(jsonObject, PathObject.class);
+						if (pathObject == null)
+							return false;
+						return pathObjects.add(pathObject);
+					case "FeatureCollection":
+						var featureCollection = gson.fromJson(jsonObject, FeatureCollection.class);
+						return pathObjects.addAll(featureCollection.getPathObjects());
+					case "Point":
+					case "MultiPoint":
+					case "LineString":
+					case "MultiLineString":
+					case "Polygon":
+					case "MultiPolygon":
+					case "GeometryCollection":
+						logger.warn("Creating annotation from GeoJSON geometry {}", type);
+						var geometry = gson.fromJson(jsonObject, Geometry.class);
+						geometry = GeometryTools.homogenizeGeometryCollection(geometry);
+						// TODO: Check for plane properties!
+						var roi = GeometryTools.geometryToROI(geometry, ImagePlane.getDefaultPlane());
+						var annotation = PathObjects.createAnnotationObject(roi);
+						return pathObjects.add(annotation);
+				}
+			}
+		}
+		return false;
+	}
+
 	
 	/**
 	 * TypeAdapter for PathClass objects, ensuring each is a singleton.
