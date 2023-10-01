@@ -50,15 +50,12 @@ class BrightnessContrastTableFilter extends GridPane {
 
     private static final double BUTTON_SPACING = 5.0;
 
-    private final TableView<ChannelDisplayInfo> table;
-
     private final StringProperty filterText = new SimpleStringProperty("");
     private final BooleanProperty useRegex = PathPrefs.createPersistentPreference("brightnessContrastFilterRegex", false);
     private final ObjectBinding<Predicate<ChannelDisplayInfo>> predicate = createChannelDisplayPredicateBinding(filterText);
 
 
-    BrightnessContrastTableFilter(TableView<ChannelDisplayInfo> table) {
-        this.table = table;
+    BrightnessContrastTableFilter() {
         initialize();
     }
 
@@ -73,7 +70,6 @@ class BrightnessContrastTableFilter extends GridPane {
             else
                 return "Filter channels by name";
         }, useRegex));
-        predicate.addListener((v, o, n) -> updatePredicate());
 
         ToggleButton btnRegex = new ToggleButton(".*");
         btnRegex.setTooltip(new Tooltip("Use regular expressions for channel filter"));
@@ -88,13 +84,6 @@ class BrightnessContrastTableFilter extends GridPane {
 
     public ObjectBinding<Predicate<ChannelDisplayInfo>> predicateProperty() {
         return predicate;
-    }
-
-    private void updatePredicate() {
-        var items = table.getItems();
-        if (items instanceof FilteredList) {
-            ((FilteredList<ChannelDisplayInfo>)items).setPredicate(predicate.get());
-        }
     }
 
 

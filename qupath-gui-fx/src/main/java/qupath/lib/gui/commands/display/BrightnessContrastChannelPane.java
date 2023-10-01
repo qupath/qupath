@@ -36,6 +36,7 @@ import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
+import javafx.collections.transformation.FilteredList;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
@@ -108,7 +109,7 @@ public class BrightnessContrastChannelPane extends BorderPane {
 
     private final TableView<ChannelDisplayInfo> table = new TableView<>();
 
-    private final BrightnessContrastTableFilter filter = new BrightnessContrastTableFilter(table);
+    private final BrightnessContrastTableFilter filter = new BrightnessContrastTableFilter();
 
     private final SelectedChannelsChangeListener selectedChannelsChangeListener = new SelectedChannelsChangeListener();
 
@@ -125,13 +126,18 @@ public class BrightnessContrastChannelPane extends BorderPane {
      */
     private final CheckBox cbShowAll = new CheckBox();
 
+    private ListChangeListener<ChannelDisplayInfo> availableChannelsChangeListener = this::handleAvailableChannelsChange;
+
+    private ObservableList<ChannelDisplayInfo> channelList = FXCollections.observableArrayList();
+    private FilteredList<ChannelDisplayInfo> filteredChannels = new FilteredList<>(channelList);
 
     public BrightnessContrastChannelPane() {
         imageDisplayProperty().addListener(this::handleImageDisplayChanged);
 
         createChannelDisplayTable();
 
-        table.getItems().addListener(this::handleTableItemsChange);
+        filteredChannels.predicateProperty().bind(filter.predicateProperty());
+        table.setItems(filteredChannels);
         table.sceneProperty().flatMap(Scene::windowProperty).flatMap(Window::showingProperty).addListener((v, o, n) -> {
             if (n) updateShowTableColumnHeader();
         });
@@ -230,7 +236,7 @@ public class BrightnessContrastChannelPane extends BorderPane {
     private void createChannelDisplayTable() {
         var imageDisplay = imageDisplayObjectProperty.getValue();
         if (imageDisplay != null)
-            table.setItems(imageDisplay.availableChannels());
+            channelList.setAll(imageDisplay.availableChannels());
         var textPlaceholder = new Text("No channels available");
         textPlaceholder.setStyle("-fx-fill: -fx-text-base-color;");
         table.setPlaceholder(textPlaceholder);
@@ -269,8 +275,10 @@ public class BrightnessContrastChannelPane extends BorderPane {
     private void handleImageDisplayChanged(ObservableValue<? extends ImageDisplay> source, ImageDisplay oldValue, ImageDisplay newValue) {
         if (oldValue != null) {
             oldValue.selectedChannels().removeListener(selectedChannelsChangeListener);
+            oldValue.availableChannels().removeListener(availableChannelsChangeListener);
         }
         if (newValue != null) {
+            newValue.availableChannels().addListener(availableChannelsChangeListener);
             newValue.selectedChannels().addListener(selectedChannelsChangeListener);
         }
         updateTable();
@@ -318,6 +326,7 @@ public class BrightnessContrastChannelPane extends BorderPane {
         // Use action listener because we may change selection status elsewhere
         // in response to the selected channels being modified elsewhere
         cbShowAll.setOnAction(e -> syncShowAllToCheckbox());
+        refreshShowAllCheckbox();
     }
 
     private void syncShowAllToCheckbox() {
@@ -393,23 +402,7 @@ public class BrightnessContrastChannelPane extends BorderPane {
      */
     public void updateTable() {
         // Update table appearance (maybe colors changed etc.)
-        var imageDisplay = imageDisplayProperty().getValue();
-        if (imageDisplay == null) {
-            table.setItems(FXCollections.emptyObservableList());
-        } else {
-            table.setItems(imageDisplay.availableChannels().filtered(filter.predicateProperty().get()));
-        }
         table.refresh();
-
-        // If all entries are additive, allow bulk toggling by right-click or with checkbox
-        int n = table.getItems().size();
-        if (n > 0 && n == table.getItems().stream().filter(ChannelDisplayInfo::isAdditive).count()) {
-            table.setContextMenu(popup);
-            cbShowAll.setVisible(true);
-        } else {
-            table.setContextMenu(null);
-            cbShowAll.setVisible(false);
-        }
     }
 
 
@@ -531,11 +524,11 @@ public class BrightnessContrastChannelPane extends BorderPane {
     }
 
     /**
-     * Get all channels that are available in the table.
+     * Query if the table is empty, i.e. there are no channels to display.
      * @return
      */
-    public ObservableList<ChannelDisplayInfo> getChannels() {
-        return table.getItems();
+    public boolean isEmpty() {
+        return table.getItems().isEmpty();
     }
 
     /**
@@ -546,12 +539,51 @@ public class BrightnessContrastChannelPane extends BorderPane {
         return table.getSelectionModel();
     }
 
-    private void handleTableItemsChange(ListChangeListener.Change<? extends ChannelDisplayInfo> change) {
+    private void handleAvailableChannelsChange(ListChangeListener.Change<? extends ChannelDisplayInfo> change) {
         // Select the first item if nothing is selected
         // TODO: Check if this behaves sensibly
+        var imageDisplay = imageDisplayProperty().getValue();
         var items = change.getList();
-        if (table.getSelectionModel().getSelectedItem() == null && ! items.isEmpty())
+        var selected = table.getSelectionModel().getSelectedItem();
+        if (selected == null && imageDisplayProperty().get() != null)
+            selected = imageDisplayProperty().get().switchToGrayscaleChannelProperty().get();
+        // Attempt to select an item with the same name, or alternatively the first in the list
+        channelList.setAll(items);
+        if (items.isEmpty())
+            table.getSelectionModel().clearSelection();
+        else if (selected != null) {
+            if (items.contains(selected)) {
+                table.getSelectionModel().select(selected);
+            } else {
+                String selectedName = selected.getName();
+                ChannelDisplayInfo match = items.stream()
+                        .filter(info -> Objects.equals(info.getName(), selectedName))
+                        .findFirst()
+                        .orElse(null);
+                if (match == null)
+                    table.getSelectionModel().selectFirst();
+                else
+                    table.getSelectionModel().select(match);
+            }
+        } else {
             table.getSelectionModel().selectFirst();
+        }
+        // Update show all checkbox visibility
+        refreshShowAllCheckbox();
+    }
+
+    private void refreshShowAllCheckbox() {
+        // If all entries are additive, allow bulk toggling by right-click or with checkbox
+        System.err.println("Calling refresh! " + Thread.currentThread().getStackTrace()[1].getMethodName());
+        if (!channelList.isEmpty() && channelList.stream().allMatch(ChannelDisplayInfo::isAdditive)) {
+            table.setContextMenu(popup);
+            cbShowAll.setVisible(true);
+            System.err.println("Setting visible");
+        } else {
+            table.setContextMenu(null);
+            cbShowAll.setVisible(false);
+            System.err.println("Setting NO");
+        }
     }
 
     /**
@@ -758,11 +790,6 @@ public class BrightnessContrastChannelPane extends BorderPane {
             var current = currentChannelProperty().get();
             activeChannelVisible.set(current != null && isChannelShowing(current));
         }
-    }
-
-
-    private TableView<ChannelDisplayInfo> getTable() {
-        return table;
     }
 
     /**

@@ -520,9 +520,9 @@ public class ImageDisplay extends AbstractImageRenderer {
 		}
 		// Parse display from JSON
 		Object property = imageData.getProperty(PROPERTY_DISPLAY);
-		if (property instanceof String) {
+		if (property instanceof String json) {
 			try {
-				updateFromJSON((String)property);
+				updateFromJSON(json);
 				return true;
 			} catch (Exception e) {
 				logger.warn("Unable to parse display settings from {}", property);
@@ -532,12 +532,11 @@ public class ImageDisplay extends AbstractImageRenderer {
 		// Legacy code for the old color-only-storing property approach
 		int n = 0;
 		for (ChannelDisplayInfo info : channelOptions) {
-			if (info instanceof DirectServerChannelInfo) {
-				DirectServerChannelInfo multiInfo = (DirectServerChannelInfo)info;
+			if (info instanceof DirectServerChannelInfo multiInfo) {
 				Integer colorOld = multiInfo.getColor();
 				Object colorNew = imageData.getProperty("COLOR_CHANNEL:" + info.getName());
-				if (colorNew instanceof Integer && ((Integer) colorNew).equals(colorOld)) {
-					multiInfo.setLUTColor((Integer)colorNew);
+				if (colorNew instanceof Integer colorInt && colorInt.equals(colorOld)) {
+					multiInfo.setLUTColor(colorInt);
 					n++;
 				}
 			}
@@ -564,9 +563,11 @@ public class ImageDisplay extends AbstractImageRenderer {
 	}
 	
 	void setMinMaxDisplay(final ChannelDisplayInfo info , float minDisplay, float maxDisplay, boolean fireUpdate) {
-		if (info instanceof ModifiableChannelDisplayInfo) {
-			((ModifiableChannelDisplayInfo)info).setMinDisplay(minDisplay);
-			((ModifiableChannelDisplayInfo)info).setMaxDisplay(maxDisplay);			
+		if (info instanceof ModifiableChannelDisplayInfo modifiableInfo) {
+			if (modifiableInfo.getMinDisplay() == minDisplay && modifiableInfo.getMaxDisplay() == maxDisplay)
+				return;
+			modifiableInfo.setMinDisplay(minDisplay);
+			modifiableInfo.setMaxDisplay(maxDisplay);
 		}
 		if (fireUpdate && channelOptions.contains(info))
 			saveChannelColorProperties();		

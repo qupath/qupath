@@ -255,7 +255,7 @@ public class BrightnessContrastCommand implements Runnable {
 
 		table.updateTable();
 
-		if (!table.getChannels().isEmpty())
+		if (!table.isEmpty())
 			table.getSelectionModel().select(0);
 
 		table.setShowChannel(currentChannelProperty.get());
