@@ -135,6 +135,9 @@ public class ImageDisplay extends AbstractImageRenderer {
 	// shown or hidden).
 	private transient ObjectProperty<ChannelDisplayInfo> switchToGrayscaleChannel = new SimpleObjectProperty<>();
 
+	// Flag when the image data is being set, to prevent other changes or events being processed
+	private boolean settingImageData = false;
+
 	/**
 	 * Constructor.
 	 */
@@ -200,37 +203,42 @@ public class ImageDisplay extends AbstractImageRenderer {
 		if (this.imageData == imageData)
 			return;
 
-		// Retain display settings if requested *and* we have two similar images 
-		// (i.e. same bit depth, same number and names for channels)
-		String lastDisplayJSON = null;
-		if (retainDisplaySettings && this.imageData != null && imageData != null) {
-			ImageServer<?> lastServer = this.imageData.getServer();
-			ImageServer<?> nextServer = imageData.getServer();
-			retainDisplaySettings = lastServer.nChannels() == nextServer.nChannels() &&
-					lastServer.getPixelType() == nextServer.getPixelType();
-			if (retainDisplaySettings) {
-				for (int c = 0; c < lastServer.nChannels(); c++) {
-					if (!lastServer.getChannel(c).getName().equals(nextServer.getChannel(c).getName())) {
-						retainDisplaySettings = false;
+		settingImageData = true;
+		try {
+			// Retain display settings if requested *and* we have two similar images
+			// (i.e. same bit depth, same number and names for channels)
+			String lastDisplayJSON = null;
+			if (retainDisplaySettings && this.imageData != null && imageData != null) {
+				ImageServer<?> lastServer = this.imageData.getServer();
+				ImageServer<?> nextServer = imageData.getServer();
+				retainDisplaySettings = lastServer.nChannels() == nextServer.nChannels() &&
+						lastServer.getPixelType() == nextServer.getPixelType();
+				if (retainDisplaySettings) {
+					for (int c = 0; c < lastServer.nChannels(); c++) {
+						if (!lastServer.getChannel(c).getName().equals(nextServer.getChannel(c).getName())) {
+							retainDisplaySettings = false;
+						}
 					}
 				}
 			}
-		}
-		lastDisplayJSON = retainDisplaySettings ? toJSON() : null;
-		
-		this.imageData = imageData;
-		this.imagesForHistograms = imageData == null ? Collections.emptyList() : getImagesForHistogram(imageData.getServer());
-		updateChannelOptions(true);
-		updateHistogramMap();
-		if (imageData != null) {
-			// Load any existing color properties
-			loadChannelColorProperties();
-			// Update from the last image, if required
-			if (lastDisplayJSON != null && !lastDisplayJSON.isEmpty()) {
-				updateFromJSON(lastDisplayJSON);
+			lastDisplayJSON = retainDisplaySettings ? toJSON() : null;
+
+			this.imageData = imageData;
+			this.imagesForHistograms = imageData == null ? Collections.emptyList() : getImagesForHistogram(imageData.getServer());
+			updateChannelOptions(true);
+			updateHistogramMap();
+			if (imageData != null) {
+				// Load any existing color properties
+				loadChannelColorProperties();
+				// Update from the last image, if required
+				if (lastDisplayJSON != null && !lastDisplayJSON.isEmpty()) {
+					updateFromJSON(lastDisplayJSON);
+				}
 			}
+		} finally {
+			settingImageData = false;
+			changeTimestamp.set(System.currentTimeMillis());
 		}
-		changeTimestamp.set(System.currentTimeMillis());
 	}
 	
 	
@@ -520,9 +528,9 @@ public class ImageDisplay extends AbstractImageRenderer {
 		}
 		// Parse display from JSON
 		Object property = imageData.getProperty(PROPERTY_DISPLAY);
-		if (property instanceof String) {
+		if (property instanceof String json) {
 			try {
-				updateFromJSON((String)property);
+				updateFromJSON(json);
 				return true;
 			} catch (Exception e) {
 				logger.warn("Unable to parse display settings from {}", property);
@@ -532,12 +540,11 @@ public class ImageDisplay extends AbstractImageRenderer {
 		// Legacy code for the old color-only-storing property approach
 		int n = 0;
 		for (ChannelDisplayInfo info : channelOptions) {
-			if (info instanceof DirectServerChannelInfo) {
-				DirectServerChannelInfo multiInfo = (DirectServerChannelInfo)info;
+			if (info instanceof DirectServerChannelInfo multiInfo) {
 				Integer colorOld = multiInfo.getColor();
 				Object colorNew = imageData.getProperty("COLOR_CHANNEL:" + info.getName());
-				if (colorNew instanceof Integer && ((Integer) colorNew).equals(colorOld)) {
-					multiInfo.setLUTColor((Integer)colorNew);
+				if (colorNew instanceof Integer colorInt && colorInt.equals(colorOld)) {
+					multiInfo.setLUTColor(colorInt);
 					n++;
 				}
 			}
@@ -564,9 +571,11 @@ public class ImageDisplay extends AbstractImageRenderer {
 	}
 	
 	void setMinMaxDisplay(final ChannelDisplayInfo info , float minDisplay, float maxDisplay, boolean fireUpdate) {
-		if (info instanceof ModifiableChannelDisplayInfo) {
-			((ModifiableChannelDisplayInfo)info).setMinDisplay(minDisplay);
-			((ModifiableChannelDisplayInfo)info).setMaxDisplay(maxDisplay);			
+		if (info instanceof ModifiableChannelDisplayInfo modifiableInfo) {
+			if (modifiableInfo.getMinDisplay() == minDisplay && modifiableInfo.getMaxDisplay() == maxDisplay)
+				return;
+			modifiableInfo.setMinDisplay(minDisplay);
+			modifiableInfo.setMaxDisplay(maxDisplay);
 		}
 		if (fireUpdate && channelOptions.contains(info))
 			saveChannelColorProperties();		
@@ -577,6 +586,9 @@ public class ImageDisplay extends AbstractImageRenderer {
 	 * Save color channels in the ImageData properties.  This lets them be deserialized later.
 	 */
 	public void saveChannelColorProperties() {
+		// Don't process a change if we're still setting the image data
+		if (settingImageData == true)
+			return;
 		if (imageData == null) {
 			logger.warn("Cannot save color channel properties - no ImageData available");
 			return;

@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -81,6 +81,7 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import javafx.stage.Stage;
+import qupath.fx.controls.PredicateTextField;
 import qupath.fx.dialogs.FileChoosers;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
@@ -116,6 +117,8 @@ import qupath.lib.plugins.workflow.WorkflowStep;
 public class SummaryMeasurementTableCommand {
 
 	private static final Logger logger = LoggerFactory.getLogger(SummaryMeasurementTableCommand.class);
+
+	private static final BooleanProperty useRegexColumnFilter = PathPrefs.createPersistentPreference("summaryMeasurementTableUseRegexColumnFilter", false);
 
 	private QuPathGUI qupath;
 	
@@ -342,7 +345,8 @@ public class SummaryMeasurementTableCommand {
 		BorderPane paneTable = new BorderPane();
 		paneTable.setCenter(table);
 		// Add text field to filter visible columns
-		TextField tfColumnFilter = new TextField();
+		var tfColumnFilter = new PredicateTextField<String>();
+		tfColumnFilter.useRegexProperty().bindBidirectional(useRegexColumnFilter);
 		GridPane paneFilter = new GridPane();
 		paneFilter.add(new Label("Column filter"), 0, 0);
 		paneFilter.add(tfColumnFilter, 1, 0);
@@ -362,21 +366,13 @@ public class SummaryMeasurementTableCommand {
 		
 		paneFilter.setPadding(new Insets(2, 5, 2, 5));
 		paneTable.setBottom(paneFilter);
-		StringProperty columnFilter = tfColumnFilter.textProperty();
+		var columnFilter = tfColumnFilter.predicateProperty();
 		columnFilter.addListener((v, o, n) -> {
-			String val = n.toLowerCase().trim();
-			if (val.isEmpty()) {
-				for (TableColumn<?, ?> col : table.getColumns()) {
-					if (!col.isVisible())
-						col.setVisible(true);
-				}
-				return;
-			}
 			for (TableColumn<?, ?> col : table.getColumns()) {
 				if (col == colThumbnails || col.visibleProperty().isBound()) // Retain thumbnails
 					continue;
-				var name = col.getText().toLowerCase();
-				col.setVisible(name.contains(val));
+				var name = col.getText();
+				col.setVisible(n.test(name));
 			}
 		});
 		

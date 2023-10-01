@@ -72,10 +72,11 @@ class QuPathUncaughtExceptionHandler implements UncaughtExceptionHandler {
 				Dialogs.showErrorNotification("Out of memory error",
 						"Out of memory! You may need to decrease the 'Number of parallel threads' in the preferences, "
 						+ "then restart QuPath.");
-				logger.error(e.getLocalizedMessage(), e);
+				logger.error(e.getMessage(), e);
 			} else {
 				var commonActions = qupath.getCommonActions();
 				Dialogs.showErrorNotification("QuPath exception", e);
+				logger.error(e.getMessage(), e);
 				if (commonActions.SHOW_LOG != null)
 					commonActions.SHOW_LOG.handle(null);
 			}
