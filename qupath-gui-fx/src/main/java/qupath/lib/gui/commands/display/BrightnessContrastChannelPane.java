@@ -25,6 +25,7 @@
 package qupath.lib.gui.commands.display;
 
 import javafx.application.Platform;
+import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyBooleanProperty;
@@ -72,11 +73,13 @@ import javafx.scene.text.Text;
 import javafx.stage.Window;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.fx.controls.PredicateTextField;
 import qupath.fx.dialogs.Dialogs;
 import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.display.ChannelDisplayInfo;
 import qupath.lib.display.DirectServerChannelInfo;
 import qupath.lib.display.ImageDisplay;
+import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageChannel;
@@ -109,7 +112,9 @@ public class BrightnessContrastChannelPane extends BorderPane {
 
     private final TableView<ChannelDisplayInfo> table = new TableView<>();
 
-    private final BrightnessContrastTableFilter filter = new BrightnessContrastTableFilter();
+    private final PredicateTextField<ChannelDisplayInfo> filter;
+    private final BooleanProperty useRegex = PathPrefs.createPersistentPreference("brightnessContrastFilterRegex", false);
+    private final BooleanProperty ignoreCase = PathPrefs.createPersistentPreference("brightnessContrastFilterIgnoreCase", false);
 
     private final SelectedChannelsChangeListener selectedChannelsChangeListener = new SelectedChannelsChangeListener();
 
@@ -134,6 +139,7 @@ public class BrightnessContrastChannelPane extends BorderPane {
     public BrightnessContrastChannelPane() {
         imageDisplayProperty().addListener(this::handleImageDisplayChanged);
 
+        filter = createFilter();
         createChannelDisplayTable();
 
         filteredChannels.predicateProperty().bind(filter.predicateProperty());
@@ -153,6 +159,23 @@ public class BrightnessContrastChannelPane extends BorderPane {
         setCenter(table);
         setBottom(filter);
         BorderPane.setMargin(filter, new Insets(5, 0, 0, 0));
+    }
+
+    private PredicateTextField<ChannelDisplayInfo> createFilter() {
+        var filter = new PredicateTextField<>(ChannelDisplayInfo::getName);
+        filter.useRegexProperty().bindBidirectional(useRegex);
+        filter.ignoreCaseProperty().bindBidirectional(ignoreCase);
+        filter.promptTextProperty().bind(
+                Bindings.createStringBinding(() -> {
+                    if (useRegex.get())
+                        return "Filter channels by regular expression";
+                    else
+                        return "Filter channels by name";
+                }, useRegex)
+        );
+        var tooltip = new Tooltip("Enter text to find specific channels by name");
+        Tooltip.install(filter, tooltip);
+        return filter;
     }
 
     /**
