@@ -135,6 +135,9 @@ public class ImageDisplay extends AbstractImageRenderer {
 	// shown or hidden).
 	private transient ObjectProperty<ChannelDisplayInfo> switchToGrayscaleChannel = new SimpleObjectProperty<>();
 
+	// Flag when the image data is being set, to prevent other changes or events being processed
+	private boolean settingImageData = false;
+
 	/**
 	 * Constructor.
 	 */
@@ -200,37 +203,42 @@ public class ImageDisplay extends AbstractImageRenderer {
 		if (this.imageData == imageData)
 			return;
 
-		// Retain display settings if requested *and* we have two similar images 
-		// (i.e. same bit depth, same number and names for channels)
-		String lastDisplayJSON = null;
-		if (retainDisplaySettings && this.imageData != null && imageData != null) {
-			ImageServer<?> lastServer = this.imageData.getServer();
-			ImageServer<?> nextServer = imageData.getServer();
-			retainDisplaySettings = lastServer.nChannels() == nextServer.nChannels() &&
-					lastServer.getPixelType() == nextServer.getPixelType();
-			if (retainDisplaySettings) {
-				for (int c = 0; c < lastServer.nChannels(); c++) {
-					if (!lastServer.getChannel(c).getName().equals(nextServer.getChannel(c).getName())) {
-						retainDisplaySettings = false;
+		settingImageData = true;
+		try {
+			// Retain display settings if requested *and* we have two similar images
+			// (i.e. same bit depth, same number and names for channels)
+			String lastDisplayJSON = null;
+			if (retainDisplaySettings && this.imageData != null && imageData != null) {
+				ImageServer<?> lastServer = this.imageData.getServer();
+				ImageServer<?> nextServer = imageData.getServer();
+				retainDisplaySettings = lastServer.nChannels() == nextServer.nChannels() &&
+						lastServer.getPixelType() == nextServer.getPixelType();
+				if (retainDisplaySettings) {
+					for (int c = 0; c < lastServer.nChannels(); c++) {
+						if (!lastServer.getChannel(c).getName().equals(nextServer.getChannel(c).getName())) {
+							retainDisplaySettings = false;
+						}
 					}
 				}
 			}
-		}
-		lastDisplayJSON = retainDisplaySettings ? toJSON() : null;
-		
-		this.imageData = imageData;
-		this.imagesForHistograms = imageData == null ? Collections.emptyList() : getImagesForHistogram(imageData.getServer());
-		updateChannelOptions(true);
-		updateHistogramMap();
-		if (imageData != null) {
-			// Load any existing color properties
-			loadChannelColorProperties();
-			// Update from the last image, if required
-			if (lastDisplayJSON != null && !lastDisplayJSON.isEmpty()) {
-				updateFromJSON(lastDisplayJSON);
+			lastDisplayJSON = retainDisplaySettings ? toJSON() : null;
+
+			this.imageData = imageData;
+			this.imagesForHistograms = imageData == null ? Collections.emptyList() : getImagesForHistogram(imageData.getServer());
+			updateChannelOptions(true);
+			updateHistogramMap();
+			if (imageData != null) {
+				// Load any existing color properties
+				loadChannelColorProperties();
+				// Update from the last image, if required
+				if (lastDisplayJSON != null && !lastDisplayJSON.isEmpty()) {
+					updateFromJSON(lastDisplayJSON);
+				}
 			}
+		} finally {
+			settingImageData = false;
+			changeTimestamp.set(System.currentTimeMillis());
 		}
-		changeTimestamp.set(System.currentTimeMillis());
 	}
 	
 	
@@ -578,6 +586,9 @@ public class ImageDisplay extends AbstractImageRenderer {
 	 * Save color channels in the ImageData properties.  This lets them be deserialized later.
 	 */
 	public void saveChannelColorProperties() {
+		// Don't process a change if we're still setting the image data
+		if (settingImageData == true)
+			return;
 		if (imageData == null) {
 			logger.warn("Cannot save color channel properties - no ImageData available");
 			return;

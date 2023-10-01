@@ -281,6 +281,7 @@ public class BrightnessContrastChannelPane extends BorderPane {
             newValue.availableChannels().addListener(availableChannelsChangeListener);
             newValue.selectedChannels().addListener(selectedChannelsChangeListener);
         }
+        refreshAvailableChannels();
         updateTable();
     }
 
@@ -540,10 +541,12 @@ public class BrightnessContrastChannelPane extends BorderPane {
     }
 
     private void handleAvailableChannelsChange(ListChangeListener.Change<? extends ChannelDisplayInfo> change) {
-        // Select the first item if nothing is selected
-        // TODO: Check if this behaves sensibly
-        var imageDisplay = imageDisplayProperty().getValue();
-        var items = change.getList();
+        refreshAvailableChannels();
+    }
+
+    private void refreshAvailableChannels() {
+        var display = imageDisplayProperty().get();
+        List<ChannelDisplayInfo> items = display == null ? FXCollections.emptyObservableList() : display.availableChannels();
         var selected = table.getSelectionModel().getSelectedItem();
         if (selected == null && imageDisplayProperty().get() != null)
             selected = imageDisplayProperty().get().switchToGrayscaleChannelProperty().get();
@@ -574,15 +577,12 @@ public class BrightnessContrastChannelPane extends BorderPane {
 
     private void refreshShowAllCheckbox() {
         // If all entries are additive, allow bulk toggling by right-click or with checkbox
-        System.err.println("Calling refresh! " + Thread.currentThread().getStackTrace()[1].getMethodName());
         if (!channelList.isEmpty() && channelList.stream().allMatch(ChannelDisplayInfo::isAdditive)) {
             table.setContextMenu(popup);
             cbShowAll.setVisible(true);
-            System.err.println("Setting visible");
         } else {
             table.setContextMenu(null);
             cbShowAll.setVisible(false);
-            System.err.println("Setting NO");
         }
     }
 
