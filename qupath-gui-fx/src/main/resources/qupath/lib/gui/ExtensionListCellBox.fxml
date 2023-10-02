@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<?import javafx.scene.text.Text?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.text.Font?>
+<fx:root type="HBox" xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml">
+    <VBox spacing = "5">
+        <Text fx:id="nameText"/>
+        <Text fx:id="descriptionText" opacity="0.7">
+            <font>
+                <Font size="10"/>
+            </font>
+        </Text>
+    </VBox>
+    <Pane fx:id="spacer" HBox.hgrow="ALWAYS"/>
+    <HBox fx:id="btnHBox" spacing="2" alignment="CENTER">
+        <padding>
+            <Insets top="0" right="0" bottom="2" left="4"/>
+        </padding>
+        <Button fx:id="rmBtn" onAction="#removeExtension">
+            <tooltip>
+                <Tooltip text="%ExtensionControlPane.removeExtension"/>
+            </tooltip>
+        </Button>
+        <Button fx:id="updateBtn" onAction="#updateExtension">
+            <tooltip>
+                <Tooltip text="%ExtensionControlPane.updateExtension"/>
+            </tooltip>
+        </Button>
+    </HBox>
+    <Text fx:id="versionText"/>
+</fx:root>

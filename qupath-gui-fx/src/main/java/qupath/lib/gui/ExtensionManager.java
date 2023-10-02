@@ -26,8 +26,6 @@ package qupath.lib.gui;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -39,47 +37,22 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
-import java.util.ResourceBundle;
 import java.util.ServiceLoader;
 import java.util.stream.Collectors;
 
 import javafx.collections.FXCollections;
-import javafx.collections.MapChangeListener;
 import javafx.collections.ObservableMap;
-import javafx.fxml.FXML;
-import javafx.fxml.FXMLLoader;
-import javafx.scene.Node;
-import javafx.scene.control.Button;
-import javafx.scene.control.ContextMenu;
-import javafx.scene.control.ListCell;
-import javafx.scene.control.ListView;
-import javafx.scene.control.TextField;
-import javafx.scene.control.Tooltip;
-import javafx.scene.input.KeyCode;
-import javafx.scene.input.KeyEvent;
-import javafx.scene.input.MouseButton;
-import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.VBox;
-import javafx.scene.text.Text;
-import org.apache.commons.text.WordUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
+
 import qupath.lib.common.Version;
-import qupath.lib.gui.actions.ActionTools;
 import qupath.lib.gui.commands.Commands;
 import qupath.fx.dialogs.Dialogs;
-import qupath.lib.gui.extensions.GitHubProject;
 import qupath.lib.gui.extensions.QuPathExtension;
-import qupath.lib.gui.extensions.UpdateChecker;
-import qupath.lib.gui.localization.QuPathResources;
-import qupath.lib.gui.tools.GuiTools;
-import qupath.lib.gui.tools.IconFactory;
-import qupath.lib.gui.viewer.DragDropImportListener;
 import qupath.lib.images.servers.ImageServerBuilder;
 import qupath.lib.images.servers.ImageServerProvider;
 
@@ -278,12 +251,5 @@ public class ExtensionManager {
 		refreshExtensions(true);
 	}
 
-	/**
-	 * Create a BorderPane for displaying/managing extensions.
-	 * @return A BorderPane for displaying and managing QuPath extensions.
-	 */
-	public static BorderPane getManagerPane() throws IOException {
-		return ExtensionManagerController.createInstance();
-	}
 
 }

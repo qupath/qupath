@@ -49,11 +49,16 @@ import java.util.regex.Pattern;
 public class ExtensionControlPane extends BorderPane {
 
     private static final Logger logger = LoggerFactory.getLogger(QuPathGUI.class);
-    private static final Pattern GITHUB_REPO_PATTERN = Pattern.compile("https://github.com/([a-zA-Z0-9-]+)/(qupath-extension-[a-zA-Z0-9]+)/?.*");
-    private static final Pattern GITHUB_JAR_PATTERN = Pattern.compile("https://github.com/[0-9a-zA-Z-]+/(qupath-extension-[0-9a-zA-Z-]+)/releases/download/[a-zA-Z0-9-.]+/(qupath-extension-wsinfer-[0-9a-zA-Z-.]+.jar)");
+    private static final Pattern GITHUB_REPO_PATTERN = Pattern.compile(
+            "https://github.com/([a-zA-Z0-9-]+)/(qupath-extension-[a-zA-Z0-9]+)/?.*");
+    private static final Pattern GITHUB_JAR_PATTERN = Pattern.compile(
+            "https://github.com/[0-9a-zA-Z-]+/(qupath-extension-[0-9a-zA-Z-]+)/" +
+                   "releases/download/[a-zA-Z0-9-.]+/(qupath-extension-wsinfer-[0-9a-zA-Z-.]+.jar)");
 
     @FXML
-    private ListView<QuPathExtension> listView;
+    private ListView<QuPathExtension> editableListView;
+    @FXML
+    private ListView<QuPathExtension> nonEditableListView;
 
     @FXML
     private Button addBtn;
@@ -69,6 +74,8 @@ public class ExtensionControlPane extends BorderPane {
 
     @FXML
     private Button updateBtn;
+    @FXML
+    private Button submitAddBtn;
 
     @FXML
     private VBox topVBox;
@@ -85,7 +92,7 @@ public class ExtensionControlPane extends BorderPane {
      * @return A BorderPane subclass.
      * @throws IOException If FXML or resources can't be found.
      */
-    static ExtensionControlPane createInstance() throws IOException {
+    public static ExtensionControlPane createInstance() throws IOException {
         return new ExtensionControlPane();
     }
 
@@ -95,6 +102,72 @@ public class ExtensionControlPane extends BorderPane {
         loader.setRoot(this);
         loader.setResources(ResourceBundle.getBundle("qupath/lib/gui/localization/qupath-gui-strings"));
         loader.load();
+    }
+
+
+    @FXML
+    private void initialize() {
+        this.setOnDragDropped(QuPathGUI.getInstance().getDefaultDragDropListener());
+        ExtensionManager extensionManager = QuPathGUI.getInstance().getExtensionManager();
+        ObservableMap<Class<? extends QuPathExtension>, QuPathExtension> extensions = extensionManager.getLoadedExtensions();
+        extensions.addListener((MapChangeListener<Class<? extends QuPathExtension>, QuPathExtension>) c -> {
+            if (c.wasAdded()) {
+                if (c.getValueAdded() instanceof GitHubProject) {
+                    editableListView.getItems().add(c.getValueAdded());
+                } else {
+                    nonEditableListView.getItems().add(c.getValueAdded());
+                }
+            }
+            if (c.wasRemoved()) {
+                if (c.getValueAdded() instanceof GitHubProject) {
+                    editableListView.getItems().remove(c.getValueRemoved());
+                } else {
+                    nonEditableListView.getItems().remove(c.getValueRemoved());
+                }
+            }
+        });
+        Tooltip.install(nonEditableListView, new Tooltip(QuPathResources.getString("ExtensionControlPane.cannotEditExtensions")));
+        nonEditableListView.setFocusTraversable(false);
+        openExtensionDirBtn.disableProperty().bind(
+                UserDirectoryManager.getInstance().userDirectoryProperty().isNull());
+        submitAddBtn.disableProperty().bind(
+            repoTextArea.textProperty().isEmpty().or(ownerTextArea.textProperty().isEmpty())
+        );
+
+        var items = editableListView.getItems();
+        items.addAll(
+                extensionManager.getLoadedExtensions().values()
+                        .stream()
+                        .sorted(Comparator.comparing(QuPathExtension::getName))
+                        .filter(e -> e instanceof GitHubProject)
+                        .toList());
+        editableListView.setCellFactory(ExtensionListCell::new);
+        items = nonEditableListView.getItems();
+        items.addAll(
+                extensionManager.getLoadedExtensions().values()
+                        .stream()
+                        .sorted(Comparator.comparing(QuPathExtension::getName))
+                        .filter(e -> !(e instanceof GitHubProject))
+                        .toList());
+        nonEditableListView.setCellFactory(ExtensionListCell::new);
+
+
+        ownerTextArea.addEventHandler(KeyEvent.KEY_RELEASED, e -> {
+            if (e.getCode() == KeyCode.ENTER) {
+                submitAdd();
+            }
+            if (e.getCode() == KeyCode.ESCAPE) {
+                cancelAdd();
+            }
+        });
+        repoTextArea.addEventHandler(KeyEvent.KEY_RELEASED, e -> {
+            if (e.getCode() == KeyCode.ENTER) {
+                submitAdd();
+            }
+            if (e.getCode() == KeyCode.ESCAPE) {
+                cancelAdd();
+            }
+        });
     }
 
     public static void handleGitHubURL(String url) {
@@ -130,50 +203,6 @@ public class ExtensionControlPane extends BorderPane {
             Dialogs.showErrorNotification(QuPathResources.getString("ExtensionControlPane"),
                     QuPathResources.getString("ExtensionControlPane.unableToDownload"));
         }
-
-    }
-
-
-    @FXML
-    private void initialize() {
-        this.setOnDragDropped(QuPathGUI.getInstance().getDefaultDragDropListener());
-        ExtensionManager extensionManager = QuPathGUI.getInstance().getExtensionManager();
-        ObservableMap<Class<? extends QuPathExtension>, QuPathExtension> extensions = extensionManager.getLoadedExtensions();
-        extensions.addListener((MapChangeListener<Class<? extends QuPathExtension>, QuPathExtension>) c -> {
-            if (c.wasAdded()) {
-                listView.getItems().add(c.getValueAdded());
-            }
-            if (c.wasRemoved()) {
-                listView.getItems().remove(c.getValueRemoved());
-            }
-        });
-
-        openExtensionDirBtn.disableProperty().bind(
-                UserDirectoryManager.getInstance().userDirectoryProperty().isNull());
-
-        var items = listView.getItems();
-        items.addAll(
-                extensionManager.getLoadedExtensions().values()
-                        .stream()
-                        .sorted(Comparator.comparing(QuPathExtension::getName))
-                        .toList());
-        listView.setCellFactory(param -> new ExtensionListCell(param));
-        ownerTextArea.addEventHandler(KeyEvent.KEY_RELEASED, e -> {
-            if (e.getCode() == KeyCode.ENTER) {
-                submitAdd();
-            }
-            if (e.getCode() == KeyCode.ESCAPE) {
-                cancelAdd();
-            }
-        });
-        repoTextArea.addEventHandler(KeyEvent.KEY_RELEASED, e -> {
-            if (e.getCode() == KeyCode.ENTER) {
-                submitAdd();
-            }
-            if (e.getCode() == KeyCode.ESCAPE) {
-                cancelAdd();
-            }
-        });
     }
 
     public static void askToDownload(GitHubProject.GitHubRepo repo) throws URISyntaxException, IOException, InterruptedException {
@@ -207,7 +236,7 @@ public class ExtensionControlPane extends BorderPane {
         return dir;
     }
 
-    public static boolean downloadURLToFile(String downloadURL, File file) throws IOException {
+    public static void downloadURLToFile(String downloadURL, File file) throws IOException {
         try (InputStream stream = new URL(downloadURL).openStream()) {
             try (ReadableByteChannel readableByteChannel = Channels.newChannel(stream)) {
                 try (FileOutputStream fos = new FileOutputStream(file)) {
@@ -226,7 +255,7 @@ public class ExtensionControlPane extends BorderPane {
 
     @FXML
     private void submitAdd() {
-        var repo = GitHubProject.GitHubRepo.create("tmp", ownerTextArea.getText(), repoTextArea.getText());
+        var repo = GitHubProject.GitHubRepo.create("", ownerTextArea.getText(), repoTextArea.getText());
         try {
             askToDownload(repo);
         } catch (URISyntaxException | IOException | InterruptedException e) {
@@ -319,20 +348,25 @@ public class ExtensionControlPane extends BorderPane {
                 setGraphic(null);
                 return;
             }
+            ExtensionListCellBox box = new ExtensionListCellBox(item);
             if (!(item instanceof GitHubProject)) {
                 setMouseTransparent(true);
                 setFocusTraversable(false);
                 setDisable(true);
+                setFocused(false);
+                box.rmBtn.setVisible(false);
+                box.btnHBox.getChildren().remove(box.rmBtn);
+                box.updateBtn.setVisible(false);
+                box.btnHBox.getChildren().remove(box.updateBtn);
             }
-            ExtensionListCellVBox vbox = new ExtensionListCellVBox(item);
 
-            vbox.rmBtn.setGraphic(IconFactory.createNode(8, 8, IconFactory.PathIcons.MINUS));
-            vbox.updateBtn.setGraphic(IconFactory.createNode(8, 8, IconFactory.PathIcons.REFRESH));
-            vbox.nameText.setText(item.getName());
-            vbox.versionText.setText(item.getVersion().toString());
-            vbox.descriptionText.setText(WordUtils.wrap(item.getDescription(), 80));
+            box.rmBtn.setGraphic(IconFactory.createNode(8, 8, IconFactory.PathIcons.MINUS));
+            box.updateBtn.setGraphic(IconFactory.createNode(8, 8, IconFactory.PathIcons.REFRESH));
+            box.nameText.setText(item.getName());
+            box.versionText.setText("v" + item.getVersion().toString());
+            box.descriptionText.setText(WordUtils.wrap(item.getDescription(), 80));
 
-            setGraphic(vbox);
+            setGraphic(box);
             var contextMenu = new ContextMenu();
             contextMenu.getItems().add(ActionTools.createMenuItem(
                     ActionTools.createAction(() -> openContainingFolder(item),
@@ -377,17 +411,19 @@ public class ExtensionControlPane extends BorderPane {
     /**
      * Simple class that just loads the FXML for a list cell
      */
-    static class ExtensionListCellVBox extends VBox {
+    static class ExtensionListCellBox extends HBox {
         private final QuPathExtension extension;
+        @FXML
+        private HBox btnHBox;
         @FXML
         private Button rmBtn;
         @FXML
         private Button updateBtn;
         @FXML
         private Text nameText, versionText, descriptionText;
-        ExtensionListCellVBox(QuPathExtension extension) {
+        ExtensionListCellBox(QuPathExtension extension) {
             this.extension = extension;
-            var loader = new FXMLLoader(ExtensionControlPane.class.getResource("ExtensionListCellVBox.fxml"));
+            var loader = new FXMLLoader(ExtensionControlPane.class.getResource("ExtensionListCellBox.fxml"));
             loader.setController(this);
             loader.setRoot(this);
             loader.setResources(ResourceBundle.getBundle("qupath/lib/gui/localization/qupath-gui-strings"));

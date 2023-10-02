@@ -56,6 +56,7 @@ import qupath.fx.utils.FXUtils;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.Version;
 import qupath.lib.gui.ExtensionClassLoader;
+import qupath.lib.gui.ExtensionControlPane;
 import qupath.lib.gui.ExtensionManager;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.extensions.QuPathExtension;
@@ -80,14 +81,15 @@ class ShowInstalledExtensionsCommand {
 		dialog.initModality(Modality.APPLICATION_MODAL);
 		dialog.setTitle(QuPathResources.getString("ExtensionControlPane"));
 		try {
-			var borderPane = ExtensionManager.getManagerPane();
-			dialog.setScene(new Scene(borderPane));
-			dialog.setWidth(borderPane.getPrefWidth());
-			dialog.setHeight(borderPane.getPrefHeight());
-			dialog.setMinWidth(400);
+			var pane = ExtensionControlPane.createInstance();
+			dialog.setScene(new Scene(pane));
+			dialog.setWidth(pane.getPrefWidth());
+			dialog.setHeight(pane.getPrefHeight());
+			dialog.setMinWidth(450);
 			dialog.setMinHeight(225);
 			dialog.show();
 		} catch (IOException e) {
+			logger.error("Unable to open extension control pane", e);
 			Dialogs.showErrorMessage(QuPathResources.getString("ExtensionControlPane"),
 					QuPathResources.getString("ExtensionControlPane.unableToOpen"));
 		}
