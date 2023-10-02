@@ -3,7 +3,6 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.ListView?>
-<?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
@@ -22,8 +21,8 @@
             <TitledPane text="Non-editable">
                 <ListView fx:id="nonEditableListView"/>
             </TitledPane>
-            <TitledPane>
-                <VBox>
+            <TitledPane text="%ExtensionControlPane.manageExtensions">
+                <VBox spacing="5">
                     <HBox fx:id="addHBox" alignment="CENTER" spacing="2">
                         <padding>
                             <Insets bottom="2" left="2" right="2" top="2" />
@@ -49,7 +48,7 @@
                                 <Tooltip text="%ExtensionControlPane.repositoryTooltip"/>
                             </tooltip>
                         </TextField>
-                        <Pane HBox.hgrow="ALWAYS" />
+                        <Pane HBox.hgrow="ALWAYS" minWidth="5"/>
                         <Button fx:id="submitAddBtn" onAction="#submitAdd" disable="true" text="%ExtensionControlPane.accept">
                             <tooltip>
                                 <Tooltip text="%ExtensionControlPane.acceptTooltip"/>

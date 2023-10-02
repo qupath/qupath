@@ -21,6 +21,8 @@
         <padding>
             <Insets top="0" right="0" bottom="2" left="4"/>
         </padding>
+        <Text fx:id="versionText"/>
+        <Pane minWidth="5"/>
         <Button fx:id="rmBtn" onAction="#removeExtension">
             <tooltip>
                 <Tooltip text="%ExtensionControlPane.removeExtension"/>
@@ -32,5 +34,4 @@
             </tooltip>
         </Button>
     </HBox>
-    <Text fx:id="versionText"/>
 </fx:root>
