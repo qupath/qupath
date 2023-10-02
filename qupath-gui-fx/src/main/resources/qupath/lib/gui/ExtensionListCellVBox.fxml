@@ -18,12 +18,12 @@
             </padding>
             <Button fx:id="rmBtn" onAction="#removeExtension">
                 <tooltip>
-                    <Tooltip text="%ExtensionManager.removeExtension"/>
+                    <Tooltip text="%ExtensionControlPane.removeExtension"/>
                 </tooltip>
             </Button>
             <Button fx:id="updateBtn" onAction="#updateExtension">
                 <tooltip>
-                    <Tooltip text="%ExtensionManager.updateExtension"/>
+                    <Tooltip text="%ExtensionControlPane.updateExtension"/>
                 </tooltip>
             </Button>
         </HBox>

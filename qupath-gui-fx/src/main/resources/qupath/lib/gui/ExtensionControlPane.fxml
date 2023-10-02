@@ -19,15 +19,15 @@
                 <padding>
                     <Insets bottom="2" left="2" right="2" top="2" />
                 </padding>
-                <Button fx:id="addBtn" onAction="#addExtension" text="%ExtensionManager.add">
+                <Button fx:id="addBtn" onAction="#addExtension" text="%ExtensionControlPane.add">
                     <tooltip>
-                        <Tooltip text="%ExtensionManager.addTooltip"/>
+                        <Tooltip text="%ExtensionControlPane.addTooltip"/>
                     </tooltip>
                 </Button>
                 <Pane HBox.hgrow="ALWAYS" />
                 <Button fx:id="openExtensionDirBtn" onAction="#openExtensionDir" text = "Open extension directory">
                     <tooltip>
-                        <Tooltip text="%ExtensionManager.openExtensionDirectory"/>
+                        <Tooltip text="%ExtensionControlPane.openExtensionDirectory"/>
                     </tooltip>
                 </Button>
             </HBox>
@@ -37,36 +37,36 @@
                         <Insets bottom="2" left="2" right="2" top="2" />
                     </padding>
                     <HBox>
-                        <Label text="%ExtensionManager.owner">
+                        <Label text="%ExtensionControlPane.owner">
                             <tooltip>
-                                <Tooltip text="%ExtensionManager.ownerTooltip"/>
+                                <Tooltip text="%ExtensionControlPane.ownerTooltip"/>
                             </tooltip>
                         </Label>
                         <TextField fx:id="ownerTextArea">
                             <tooltip>
-                                <Tooltip text="%ExtensionManager.ownerTooltip"/>
+                                <Tooltip text="%ExtensionControlPane.ownerTooltip"/>
                             </tooltip>
                         </TextField>
                     </HBox>
-                    <Label text="%ExtensionManager.repository">
+                    <Label text="%ExtensionControlPane.repository">
                         <tooltip>
-                            <Tooltip text="%ExtensionManager.repositoryTooltip"/>
+                            <Tooltip text="%ExtensionControlPane.repositoryTooltip"/>
                         </tooltip>
                     </Label>
                     <TextField fx:id="repoTextArea">
                         <tooltip>
-                            <Tooltip text="%ExtensionManager.repositoryTooltip"/>
+                            <Tooltip text="%ExtensionControlPane.repositoryTooltip"/>
                         </tooltip>
                     </TextField>
                     <Pane HBox.hgrow="ALWAYS" />
-                    <Button fx:id="cancelAdd" onAction="#cancelAdd" text="%ExtensionManager.cancel">
+                    <Button fx:id="cancelAdd" onAction="#cancelAdd" text="%ExtensionControlPane.cancel">
                         <tooltip>
-                            <Tooltip text="%ExtensionManager.cancelTooltip"/>
+                            <Tooltip text="%ExtensionControlPane.cancelTooltip"/>
                         </tooltip>
                     </Button>
-                    <Button fx:id="submitAdd" onAction="#submitAdd" text="%ExtensionManager.accept">
+                    <Button fx:id="submitAdd" onAction="#submitAdd" text="%ExtensionControlPane.accept">
                         <tooltip>
-                            <Tooltip text="%ExtensionManager.acceptTooltip"/>
+                            <Tooltip text="%ExtensionControlPane.acceptTooltip"/>
                         </tooltip>
                     </Button>
                 </HBox>

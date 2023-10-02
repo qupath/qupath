@@ -58,10 +58,7 @@ import javafx.scene.input.DragEvent;
 import javafx.scene.input.Dragboard;
 import javafx.scene.input.TransferMode;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.gui.ExtensionClassLoader;
-import qupath.lib.gui.FileCopier;
-import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.UserDirectoryManager;
+import qupath.lib.gui.*;
 import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.commands.InteractiveObjectImporter;
 import qupath.lib.gui.commands.ProjectCommands;
@@ -91,8 +88,6 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 	private static final Logger logger = LoggerFactory.getLogger(DragDropImportListener.class);
 
 	private static final Pattern GITHUB_BASE_PATTERN = Pattern.compile("https://github.com/.*");
-	private static final Pattern GITHUB_REPO_PATTERN = Pattern.compile("https://github.com/([a-zA-Z0-9-]+)/(qupath-extension-[a-zA-Z0-9]+)/?.*");
-	private static final Pattern GITHUB_JAR_PATTERN = Pattern.compile("https://github.com/[0-9a-zA-Z-]+/(qupath-extension-[0-9a-zA-Z-]+)/releases/download/[a-zA-Z0-9-.]+/(qupath-extension-wsinfer-[0-9a-zA-Z-.]+.jar)");
 
 	private final QuPathGUI qupath;
 	
@@ -279,28 +274,7 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
     void handleURLDrop(final QuPathViewer viewer, final String url) throws IOException, URISyntaxException, InterruptedException {
 		// if it's a GitHub URL, it's probably not an image. See if it's an extension
 		if (GITHUB_BASE_PATTERN.matcher(url).matches()) {
-			Matcher jarMatcher = GITHUB_JAR_PATTERN.matcher(url);
-			if (jarMatcher.matches()) {
-				if (!Dialogs.showYesNoDialog(QuPathResources.getString("ExtensionManager"),
-						String.format(QuPathResources.getString("ExtensionManager.installExtensionFromGithub"), jarMatcher.group(1)))) {
-					return;
-				}
-				logger.debug("Trying to download extension .jar directly");
-				var dir = getExtensionPath();
-				if (dir == null) return;
-				var outputFile = new File(getExtensionPath().toString(), jarMatcher.group(2));
-				logger.info("Downloading suspected extension {} to extension directory {}", url, outputFile);
-				downloadURLToFile(url, outputFile);
-				return;
-			}
-			Matcher repoMatcher = GITHUB_REPO_PATTERN.matcher(url);
-			if (!repoMatcher.matches()) {
-				logger.debug("URL did not match GitHub extension pattern");
-				return;
-			}
-			logger.info("Trying to download .jar based on release conventions");
-			var repo = GitHubProject.GitHubRepo.create("Name", repoMatcher.group(1), repoMatcher.group(2));
-			askToDownload(repo);
+			ExtensionControlPane.handleGitHubURL(url);
 			return;
 		}
     	try {
@@ -312,47 +286,6 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
     	}
     }
 
-
-	public static void askToDownload(GitHubProject.GitHubRepo repo) throws URISyntaxException, IOException, InterruptedException {
-		var v = UpdateChecker.checkForUpdate(repo);
-		if (v != null && Dialogs.showYesNoDialog(QuPathResources.getString("ExtensionManager"),
-				String.format(QuPathResources.getString("ExtensionManager.installExtensionFromGithub"), repo.getRepo()))) {
-			var downloadURL = String.format("https://github.com/%s/%s/releases/download/%s/%s-%s.jar",
-					repo.getOwner(), repo.getRepo(), "v" + v.getVersion().toString(), repo.getRepo(), v.getVersion().toString()
-			);
-			// https://github.com/qupath/qupath-extension-wsinfer/releases/download/v0.2.0/qupath-extension-wsinfer-0.2.0.jar
-			var dir = getExtensionPath();
-			if (dir == null) return;
-			File f = new File(dir.toString(), repo.getRepo() + "-" + v.getVersion() + ".jar");
-			downloadURLToFile(downloadURL, f);
-			Dialogs.showInfoNotification(
-					QuPathResources.getString("ExtensionManager"),
-					String.format(QuPathResources.getString("ExtensionManager.successfullyDownloaded"), repo.getRepo()));
-			QuPathGUI.getInstance().getExtensionManager().refreshExtensions(true);
-		}
-	}
-
-	private static Path getExtensionPath() {
-		var dir = ExtensionClassLoader.getInstance().getExtensionDirectory();
-		if (dir == null || !Files.isDirectory(dir)) {
-			logger.info("No extension directory found!");
-			var dirUser = Commands.requestUserDirectory(true);
-			if (dirUser == null)
-				return null;
-			dir = ExtensionClassLoader.getInstance().getExtensionDirectory();
-		}
-		return dir;
-	}
-
-	private static void downloadURLToFile(String downloadURL, File file) throws IOException {
-		try (InputStream stream = new URL(downloadURL).openStream()) {
-			try (ReadableByteChannel readableByteChannel = Channels.newChannel(stream)) {
-				try (FileOutputStream fos = new FileOutputStream(file)) {
-					fos.getChannel().transferFrom(readableByteChannel, 0, Long.MAX_VALUE);
-				}
-			}
-		}
-	}
 
 	private void handleFileDropImpl(QuPathViewer viewer, List<File> list) throws IOException {
 		

@@ -78,7 +78,7 @@ class ShowInstalledExtensionsCommand {
 		Stage dialog = new Stage();
 		dialog.initOwner(qupath.getStage());
 		dialog.initModality(Modality.APPLICATION_MODAL);
-		dialog.setTitle(QuPathResources.getString("ExtensionManager"));
+		dialog.setTitle(QuPathResources.getString("ExtensionControlPane"));
 		try {
 			var borderPane = ExtensionManager.getManagerPane();
 			dialog.setScene(new Scene(borderPane));
@@ -88,8 +88,8 @@ class ShowInstalledExtensionsCommand {
 			dialog.setMinHeight(225);
 			dialog.show();
 		} catch (IOException e) {
-			Dialogs.showErrorMessage(QuPathResources.getString("ExtensionManager"),
-					QuPathResources.getString("ExtensionManager.ExtensionManager.unableToOpen"));
+			Dialogs.showErrorMessage(QuPathResources.getString("ExtensionControlPane"),
+					QuPathResources.getString("ExtensionControlPane.unableToOpen"));
 		}
 	}
 
