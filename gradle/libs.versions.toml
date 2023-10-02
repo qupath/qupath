@@ -24,7 +24,6 @@ javacpp         = "1.5.9"
   cuda          = "12.1-8.9-1.5.9"
   
 javafx          = "20.0.2"
-javafxJavadoc   = "19"
 jfreeSvg        = "5.0.5"
 jfxtras         = "17-r1"
 jts             = "1.19.0"
