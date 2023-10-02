@@ -32,8 +32,12 @@ import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.display.ImageDisplay;
+import qupath.lib.display.settings.DisplaySettingUtils;
+import qupath.lib.display.settings.ImageDisplaySettings;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.images.stores.DefaultImageRegionStore;
 import qupath.lib.gui.images.stores.ImageRegionStoreFactory;
@@ -130,11 +134,14 @@ public class RenderedImageServer extends AbstractTileableImageServer implements 
 	 * This provides more fine-grained control of how the rendering is performed than {@link RenderedImageServer#createRenderedServer(QuPathViewer)}.
 	 */
 	public static class Builder {
+
+		private static final Logger logger = LoggerFactory.getLogger(Builder.class);
 		
 		private DefaultImageRegionStore store;
 		private ImageData<BufferedImage> imageData;
 		private List<PathOverlay> overlayLayers = new ArrayList<>();
 		private ImageRenderer renderer;
+		private ImageDisplaySettings settings;
 		private double overlayOpacity = 1.0;
 		private Color backgroundColor;
 		private double[] downsamples;
@@ -180,11 +187,25 @@ public class RenderedImageServer extends AbstractTileableImageServer implements 
 		public Builder display(ImageDisplay display) {
 			return renderer(display);
 		}
+
+		/**
+		 * Specify the {@link ImageDisplaySettings} that control conversion to RGB.
+		 * This will only be applied if no renderer has been set.
+		 * @param settings
+		 * @return
+		 * @since v0.5.0
+		 * @see #renderer(ImageRenderer)
+		 */
+		public Builder settings(ImageDisplaySettings settings) {
+			this.settings = settings;
+			return this;
+		}
 		
 		/**
 		 * Specify the {@link ImageRenderer} that controls conversion to RGB.
 		 * @param renderer
 		 * @return
+		 * @see #settings(ImageDisplaySettings)
 		 */
 		public Builder renderer(ImageRenderer renderer) {
 			this.renderer = renderer;
@@ -257,29 +278,49 @@ public class RenderedImageServer extends AbstractTileableImageServer implements 
 		 */
 		public ImageServer<BufferedImage> build() throws IOException {
 			// Try to use existing store/display if possible
-			if (this.store == null || this.renderer == null) {
-				QuPathViewer viewer = null;
-				QuPathGUI qupath = QuPathGUI.getInstance();
-				if (qupath != null) {
-					viewer = qupath.getAllViewers().stream().filter(v -> v.getImageData() == imageData).findFirst().orElse(null);					
-				}
-				DefaultImageRegionStore store = null;
-				ImageRenderer renderer = null;
-				if (viewer == null) {
-					store = ImageRegionStoreFactory.createImageRegionStore(Runtime.getRuntime().maxMemory() / 4L);
-					renderer = ImageDisplay.create(imageData);
-				} else {
-					store = viewer.getImageRegionStore();
-					renderer = viewer.getImageDisplay();
-				}
-				if (this.store == null)
-					this.store = store;
-				if (this.renderer == null)
-					this.renderer = renderer;
-			}
-			
+			var store = getStore();
+			var renderer = getRenderer();
 			return new RenderedImageServer(store, imageData, overlayLayers, renderer, downsamples, backgroundColor,
 					overlayOpacity);
+		}
+
+		private ImageRenderer getRenderer() throws IOException {
+			if (this.renderer != null)
+				return renderer;
+			if (this.settings != null) {
+				var display = ImageDisplay.create(imageData);
+				if (DisplaySettingUtils.applySettingsToDisplay(display, settings)) {
+					return display;
+				} else {
+					logger.warn("Display settings are not compatible with this image");
+				}
+			}
+			var viewer = findViewer(imageData);
+			if (viewer == null)
+				return ImageDisplay.create(imageData);
+			else
+				return viewer.getImageDisplay();
+		}
+
+		private DefaultImageRegionStore getStore() {
+			if (this.store != null)
+				return store;
+			var viewer = findViewer(imageData);
+			if (viewer == null)
+				return ImageRegionStoreFactory.createImageRegionStore(Runtime.getRuntime().maxMemory() / 4L);
+			else
+				return viewer.getImageRegionStore();
+		}
+
+		private QuPathViewer findViewer(ImageData<?> imageData) {
+			QuPathGUI qupath = QuPathGUI.getInstance();
+			if (qupath != null) {
+				return qupath.getAllViewers().stream()
+						.filter(v -> v.getImageData() == imageData)
+						.findFirst()
+						.orElse(null);
+			} else
+				return null;
 		}
 		
 		
