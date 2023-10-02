@@ -24,8 +24,6 @@
 package qupath.lib.gui.commands;
 
 import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonSyntaxException;
 import javafx.application.Platform;
 import javafx.beans.InvalidationListener;
 import javafx.beans.Observable;
@@ -66,7 +64,6 @@ import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.display.ChannelDisplayInfo;
 import qupath.lib.display.ImageDisplay;
 import qupath.lib.display.settings.DisplaySettingUtils;
-import qupath.lib.display.settings.ImageDisplaySettings;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.actions.InfoMessage;
 import qupath.lib.gui.commands.display.BrightnessContrastChannelPane;
@@ -76,13 +73,10 @@ import qupath.lib.gui.commands.display.BrightnessContrastSliderPane;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
-import qupath.lib.io.GsonTools;
 
 import java.awt.image.BufferedImage;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
-import java.io.File;
-import java.nio.file.Files;
 import java.util.List;
 import java.util.Objects;
 
@@ -154,27 +148,25 @@ public class BrightnessContrastCommand implements Runnable {
 		qupath.getDefaultDragDropListener().addJsonDropHandler(this::handleDisplaySettingsDrop);
 	}
 
+	/**
+	 * Handle drag & drop for display settings on a specified viewer.
+	 * @param viewer
+	 * @param elements
+	 * @return
+	 */
 	private boolean handleDisplaySettingsDrop(QuPathViewer viewer, List<JsonElement> elements) {
 		if (elements.size() != 1 || viewer == null || viewer.getImageDisplay() == null)
 			return false;
 		var element = elements.get(0);
-		if (element.isJsonObject()) {
-			var obj = element.getAsJsonObject();
-			if (obj.has("name") && obj.has("channels") && obj.has("gamma")) {
-				var gson = GsonTools.getInstance();
-				try {
-					var settings = gson.fromJson(element, ImageDisplaySettings.class);
-					if (DisplaySettingUtils.applySettingsToDisplay(viewer.getImageDisplay(), settings)) {
-						maybeSyncSettingsAcrossViewers(viewer.getImageDisplay());
-						logger.info("Applied display settings: {}", settings.getName());
-					} else {
-						logger.warn("Unable to apply display settings: {}", settings.getName());
-					}
-					return true;
-				} catch (JsonSyntaxException e) {
-					logger.debug("Unable to parse display settings", e);
-				}
+		var settings = DisplaySettingUtils.parseDisplaySettings(element).orElse(null);
+		if (settings != null) {
+			if (DisplaySettingUtils.applySettingsToDisplay(viewer.getImageDisplay(), settings)) {
+				maybeSyncSettingsAcrossViewers(viewer.getImageDisplay());
+				logger.info("Applied display settings: {}", settings.getName());
+			} else {
+				logger.warn("Unable to apply display settings: {}", settings.getName());
 			}
+			return true;
 		}
 		return false;
 	}
@@ -223,7 +215,7 @@ public class BrightnessContrastCommand implements Runnable {
 
 		settingsPane = new BrightnessContrastSettingsPane();
 		settingsPane.resourceManagerProperty().bind(
-				qupath.projectProperty().map(p -> p.getResources("resources/display", ImageDisplaySettings.class, "json")));
+				qupath.projectProperty().map(DisplaySettingUtils::getResourcesForProject));
 		pane.add(settingsPane, 0, row++);
 
 		Pane paneCheck = createCheckboxPane();

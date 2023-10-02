@@ -21,14 +21,25 @@
 
 package qupath.lib.display.settings;
 
+import com.google.gson.JsonElement;
+import com.google.gson.JsonSyntaxException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.lib.display.ChannelDisplayInfo;
 import qupath.lib.display.DirectServerChannelInfo;
 import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.io.GsonTools;
+import qupath.lib.projects.Project;
+import qupath.lib.projects.ResourceManager;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -37,6 +48,8 @@ import java.util.stream.Collectors;
  * the settings in a JSON-friendly form.
  */
 public class DisplaySettingUtils {
+
+    private static Logger logger = LoggerFactory.getLogger(DisplaySettingUtils.class);
 
     /**
      * Create a new image display settings object from the image display.
@@ -121,5 +134,72 @@ public class DisplaySettingUtils {
                 isShowing
         );
     }
+
+    /**
+     * Check if the JSON element is a valid image display settings object.
+     * @param element
+     * @return
+     */
+    private static boolean isDisplaySettings(JsonElement element) {
+        if (!element.isJsonObject())
+            return false;
+        var obj = element.getAsJsonObject();
+        return obj.has("name") &&
+                obj.get("name").isJsonPrimitive() &&
+                obj.has("channels") &&
+                obj.get("channels").isJsonArray() &&
+                obj.has("gamma") &&
+                obj.has("invertBackground");
+    }
+
+    /**
+     * Parse the JSON element into an image display settings object, if possible.
+     * @param element the JSON element to parse
+     * @return an optional containing the settings, or empty if the element is not a valid settings object
+     * @see #parseDisplaySettings(Path)
+     */
+    public static Optional<ImageDisplaySettings> parseDisplaySettings(JsonElement element) {
+        if (isDisplaySettings(element)) {
+            var gson = GsonTools.getInstance();
+            try {
+                var settings = gson.fromJson(element, ImageDisplaySettings.class);
+                return Optional.of(settings);
+            } catch (JsonSyntaxException e) {
+                logger.debug("Unable to parse display settings", e);
+            }
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * Parse the JSON element into an image display settings object.
+     * This assumes that the path is to a JSON file containing a valid JSON representation of an image display settings
+     * object, and throws an exception if this is not the case.
+     * <p>
+     * For a more conservative approach, use {@link #parseDisplaySettings(JsonElement)} instead.
+     * @param path
+     * @return
+     * @throws IOException
+     * @see #parseDisplaySettings(JsonElement)
+     */
+    public static ImageDisplaySettings parseDisplaySettings(Path path) throws IOException {
+        try (var reader = Files.newBufferedReader(path)) {
+            var gson = GsonTools.getInstance();
+            return gson.fromJson(reader, ImageDisplaySettings.class);
+        } catch (JsonSyntaxException e) {
+            throw new IOException(e);
+        }
+    }
+
+
+    /**
+     * Get the resource manager for image display settings from a project.
+     * @param project
+     * @return
+     */
+    public static ResourceManager.Manager<ImageDisplaySettings> getResourcesForProject(Project<?> project) {
+        return project.getResources("resources/display", ImageDisplaySettings.class, ".json");
+    }
+
 
 }
