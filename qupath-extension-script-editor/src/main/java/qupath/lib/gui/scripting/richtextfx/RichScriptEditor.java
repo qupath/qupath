@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -24,14 +24,14 @@
 package qupath.lib.gui.scripting.richtextfx;
 
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashSet;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import javafx.application.Platform;
 import org.fxmisc.richtext.CodeArea;
 import org.fxmisc.richtext.LineNumberFactory;
 import org.fxmisc.richtext.model.StyleSpans;
@@ -186,18 +186,26 @@ public class RichScriptEditor extends DefaultScriptEditor {
 			listCompletions.setPrefSize(350, 400);
 			popup.getContent().add(listCompletions);
 			listCompletions.setStyle("-fx-font-size: smaller; -fx-font-family: Courier;");
-			var completionsMap = new HashSet<Completion>();
 			Runnable completionFun = () -> {
+				// Get the selection completion - or the focused one if there is no selection
 				var selected = listCompletions.getSelectionModel().getSelectedItem();
+				if (selected == null)
+					selected = listCompletions.getFocusModel().getFocusedItem();
 				if (selected != null) {
 					applyCompletion(control, selected);
 				}
 				popup.hide();
 			};
 			listCompletions.setOnKeyReleased(e -> {
-				if (e.getCode() == KeyCode.ENTER) {
+				if (e.getCode() == KeyCode.TAB) {
+					completionFun.run();
+				}
+				if (e.getCode() == KeyCode.ENTER || e.getCode() == KeyCode.TAB) {
 					completionFun.run();
 					e.consume();
+				} else if (e.getCode() == KeyCode.ESCAPE) {
+					popup.hide();
+					listCompletions.getItems().clear();
 				}
 			});
 			listCompletions.setOnMouseClicked(e -> {
@@ -233,31 +241,35 @@ public class RichScriptEditor extends DefaultScriptEditor {
 							e.consume();
 					}
 				}
-				
 				var scriptAutoCompletor = getCurrentLanguage().getAutoCompletor();
 				if (scriptAutoCompletor != null) {
 					if (completionCodeCombination.match(e)) {
-						var completions = scriptAutoCompletor.getCompletions(control.getText(), control.getCaretPosition());
-						completionsMap.clear();
+						// Starting to show auto-completions
+						var completions = getCurrentAutoCompletions(control);
 						if (!completions.isEmpty()) {
-							completionsMap.addAll(completions);
 							var bounds = codeArea.getCaretBounds().orElse(null);
 							if (bounds != null) {
-								var list = new ArrayList<>(completions);
-								Collections.sort(list, AutoCompletions.getComparator());
-								listCompletions.getItems().setAll(list);
+								listCompletions.getItems().setAll(completions);
 								popup.show(codeArea, bounds.getMaxX(), bounds.getMaxY());
 								e.consume();
 							}
 						}
+						// No auto-completions or no caret bounds, so hide
 						if (!e.isConsumed() && popup.isShowing()) {
 							popup.hide();
 							e.consume();
 						}
-					} else if (!e.isControlDown()) {
-						listCompletions.getItems().clear();
-						if (popup.isShowing())
-							popup.hide();
+					} else if (popup.isShowing()) {
+						// A bit ugly... but we can't get the completions in the filter, or else we'll miss
+						// the current key press
+						Platform.runLater(() -> {
+							if (!popup.isShowing())
+								return;
+							var completions = getCurrentAutoCompletions(control);
+							listCompletions.getItems().setAll(completions);
+							if (completions.isEmpty())
+								popup.hide();
+						});
 					}
 				}
 			});
@@ -318,7 +330,20 @@ public class RichScriptEditor extends DefaultScriptEditor {
 			return super.getNewEditor();
 		}
 	}
-	
+
+	private List<AutoCompletions.Completion> getCurrentAutoCompletions(ScriptEditorControl<?> control) {
+		var completor = getCurrentLanguage().getAutoCompletor();
+		if (completor == null)
+			return Collections.emptyList();
+		var completions = completor.getCompletions(control.getText(), control.getCaretPosition());
+		if (completions.isEmpty() || completions.size() == 1)
+			return completions;
+		return completions.stream()
+				.sorted(AutoCompletions.getComparator())
+				.distinct()
+				.toList();
+	}
+
 	
 	/**
 	 * Insert the text from the completion to the editable text.

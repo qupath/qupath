@@ -2105,8 +2105,14 @@ public class DefaultScriptEditor implements ScriptEditor {
 		if (dialog == null)
 			createDialog();
 		addNewScript(script, getDefaultLanguage(name), true);
-		if (!dialog.isShowing())
+		if (!dialog.isShowing()) {
 			dialog.show();
+			// Attempt to focus the editor
+			// (This appears not to work, at least not for the rich script editor)
+			var current = getCurrentEditorControl();
+			if (current != null)
+				current.requestFocus();
+		}
 	}
 	
 	

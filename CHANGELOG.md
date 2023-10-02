@@ -23,6 +23,9 @@ This is a work-in-progress for the next QuPath release.
 * File &rarr; Export snapshots* supports PNG, JPEG and TIFF (not just PNG)
 * Support sorting project entries by name, ID, and URI
   * Right-click on the project list to access the *Sort by...* menu
+* Improved script editor auto-complete
+  * Activate with *Ctrl + space*, cancel with *Esc*
+  * Completions update while typing
 
 #### Processing & analysis
 * Faster processing & reduced memory use for pixel classification measurements (https://github.com/qupath/qupath/pull/1332)
