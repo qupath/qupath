@@ -33,6 +33,7 @@ import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
+import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener.Change;
 import javafx.collections.ObservableList;
@@ -62,7 +63,11 @@ import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.IconFactory;
 import qupath.lib.gui.tools.IconFactory.PathIcons;
 import qupath.lib.gui.viewer.QuPathViewer;
+import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.PixelCalibration;
 
+import java.beans.PropertyChangeEvent;
+import java.beans.PropertyChangeListener;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -105,8 +110,22 @@ public class ContextHelpViewer {
 
 	private InfoMessage warningMessage = InfoMessage.info(warningCount);
 
+	private ObjectProperty<ImageData<?>> imageDataProperty = new SimpleObjectProperty<>();
+
+	private PropertyChangeListener imageDataPropertyChange = this::imageDataPropertyChange;
+
+	private ObjectProperty<PixelCalibration> currentPixelSize = new SimpleObjectProperty<>();
+	private BooleanBinding pixelCalibrationUnset = imageDataProperty.isNotNull().and(currentPixelSize.isNull()
+			.or(currentPixelSize.isEqualTo(PixelCalibration.getDefaultInstance())));
+
+	private ObjectProperty<ImageData.ImageType> currentImageType = new SimpleObjectProperty<>();
+	private BooleanBinding imageTypeUnset = imageDataProperty.isNotNull().and(currentImageType.isNull()
+			.or(currentImageType.isEqualTo(ImageData.ImageType.UNSET)));
+
 	private ContextHelpViewer(QuPathGUI qupath) {
 		this.qupath = qupath;
+		this.imageDataProperty.addListener(this::imageDataChanged);
+		this.imageDataProperty.bind(qupath.imageDataProperty());
 		
 		initializeWindowListeners();
 
@@ -123,6 +142,32 @@ public class ContextHelpViewer {
 		createHelpLabels();
 
 		stage = createStage(new Scene(splitPane));
+	}
+
+	private void imageDataChanged(ObservableValue<? extends ImageData<?>> observable,
+								  ImageData<?> oldValue, ImageData<?> newValue) {
+		if (oldValue != null)
+			oldValue.removePropertyChangeListener(imageDataPropertyChange);
+		if (newValue != null) {
+			newValue.addPropertyChangeListener(imageDataPropertyChange);
+			currentPixelSize.set(newValue.getServer().getPixelCalibration());
+			currentImageType.set(newValue.getImageType());
+		} else {
+			currentPixelSize.set(null);
+			currentImageType.set(null);
+		}
+	}
+
+	/**
+	 * Property change listener for the current image data.
+	 * @param evt
+	 */
+	private void imageDataPropertyChange(PropertyChangeEvent evt) {
+		var imageData = imageDataProperty.get();
+		if (imageData != null) {
+			currentPixelSize.set(imageData.getServer().getPixelCalibration());
+			currentImageType.set(imageData.getImageType());
+		}
 	}
 	
 	private void initializeWindowListeners() {
@@ -155,6 +200,8 @@ public class ContextHelpViewer {
 	private List<HelpListEntry> createHelpEntries() {
 		return Arrays.asList(
 				createUnseenErrors(),
+				createPixelSizeMissing(),
+				createImageTypeMissing(),
 				createZoomToFitEntry(),
 				createSelectionModelEntry(),
 				createAnnotationsHiddenEntry(),
@@ -487,7 +534,7 @@ public class ContextHelpViewer {
 		var entry = HelpListEntry.createWarning(
 				"ContextHelp.warning.noImage");
 		entry.visibleProperty().bind(
-				qupath.imageDataProperty().isNull());
+				imageDataProperty.isNull());
 		return entry;
 	}
 	
@@ -514,6 +561,22 @@ public class ContextHelpViewer {
 				qupath.viewerProperty()
 						.map(QuPathViewer::getImageDisplay)
 						.flatMap(ImageDisplay::useInvertedBackgroundProperty));
+		return entry;
+	}
+
+	private HelpListEntry createPixelSizeMissing() {
+		var entry = HelpListEntry.createWarning(
+				"ContextHelp.warning.pixelSizeMissing");
+		entry.visibleProperty().bind(
+				pixelCalibrationUnset);
+		return entry;
+	}
+
+	private HelpListEntry createImageTypeMissing() {
+		var entry = HelpListEntry.createWarning(
+				"ContextHelp.warning.imageTypeMissing");
+		entry.visibleProperty().bind(
+				imageTypeUnset);
 		return entry;
 	}
 	
