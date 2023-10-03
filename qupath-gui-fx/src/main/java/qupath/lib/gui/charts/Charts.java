@@ -21,7 +21,12 @@
 
 package qupath.lib.gui.charts;
 
-import java.util.*;
+import java.util.Map;
+import java.util.Arrays;
+import java.util.LinkedHashMap;
+import java.util.Collection;
+import java.util.List;
+import java.util.ArrayList;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -925,7 +930,12 @@ public class Charts {
 							Collectors.groupingBy(Function.identity(), Collectors.counting())
 					);
 			return series(name, classAndCount.entrySet().stream()
-					.map(e -> new Data<>(e.getKey().getName(), (Number)e.getValue(), e.getKey()))
+					.map(e -> {
+						if (e.getKey() == null)
+							return new Data<>(PathClass.NULL_CLASS.toString(), (Number)e.getValue(), PathClass.NULL_CLASS);
+						else
+							return new Data<>(e.getKey().toString(), (Number)e.getValue(), e.getKey());
+					})
 					.toList());
 		}
 
@@ -1042,7 +1052,7 @@ public class Charts {
 		 * @param pathObjects the objects to plot
 		 * @return this builder
 		 */
-		public BarChartBuilder classes(Collection<? extends PathObject> pathObjects) {
+		public BarChartBuilder classifications(Collection<? extends PathObject> pathObjects) {
 			xLabel("PathClass");
 			yLabel("Count");
 			this.pathObjects.addAll(pathObjects);
@@ -1071,7 +1081,9 @@ public class Charts {
 				hierarchy = viewer.getHierarchy();
 			if (hierarchy == null)
 				return;
-			var objects = pathObjects.stream().filter(p -> p.getPathClass().equals(pathClass)).toList();
+			var objects = pathObjects.stream()
+					.filter(p -> p.getPathClass() != null && p.getPathClass().equals(pathClass))
+					.toList();
 			if (addToSelection)
 				hierarchy.getSelectionModel().selectObjects(objects);
 			else
