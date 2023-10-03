@@ -103,12 +103,27 @@ public class ContextHelpViewer {
 			(HelpListEntry e) -> new Observable[] {e.visibleProperty()});
 
 	private LongBinding warningCount = Bindings.createLongBinding(() ->
-		allHelpEntries.stream().filter(e -> e.visibleProperty().get() && e.getType() == HelpType.WARNING).count(),
+		allHelpEntries.stream().filter(e -> e.visibleProperty().get() && e.getType() == HelpType.WARNING || e.getType() == HelpType.ERROR).count(),
 		allHelpEntries);
 
-	private BooleanBinding hasWarnings = warningCount.greaterThan(0);
+	private LongBinding infoCount = Bindings.createLongBinding(() ->
+					allHelpEntries.stream().filter(e -> e.visibleProperty().get() && e.getType() == HelpType.INFO).count(),
+			allHelpEntries);
 
-	private InfoMessage warningMessage = InfoMessage.info(warningCount);
+	private BooleanBinding hasWarnings = warningCount.greaterThan(0);
+	private BooleanBinding hasInfo = infoCount.greaterThan(0);
+
+	private InfoMessage warningMessage = InfoMessage.warning(warningCount);
+	private InfoMessage infoMessage = InfoMessage.info(infoCount);
+
+	private ObjectExpression<InfoMessage> infoOrWarningMessage = Bindings.createObjectBinding(() -> {
+		if (hasWarnings.get())
+			return warningMessage;
+		else if (hasInfo.get())
+			return infoMessage;
+		else
+			return null;
+	}, hasWarnings, hasInfo);
 
 	private ObjectProperty<ImageData<?>> imageDataProperty = new SimpleObjectProperty<>();
 
@@ -121,6 +136,8 @@ public class ContextHelpViewer {
 	private ObjectProperty<ImageData.ImageType> currentImageType = new SimpleObjectProperty<>();
 	private BooleanBinding imageTypeUnset = imageDataProperty.isNotNull().and(currentImageType.isNull()
 			.or(currentImageType.isEqualTo(ImageData.ImageType.UNSET)));
+
+	private BooleanProperty largeNonPyramidalImage = new SimpleBooleanProperty(false);
 
 	private ContextHelpViewer(QuPathGUI qupath) {
 		this.qupath = qupath;
@@ -156,6 +173,7 @@ public class ContextHelpViewer {
 			currentPixelSize.set(null);
 			currentImageType.set(null);
 		}
+		updateLargeNonPyramidalProperty();
 	}
 
 	/**
@@ -167,6 +185,20 @@ public class ContextHelpViewer {
 		if (imageData != null) {
 			currentPixelSize.set(imageData.getServer().getPixelCalibration());
 			currentImageType.set(imageData.getImageType());
+		}
+	}
+
+	private void updateLargeNonPyramidalProperty() {
+		var imageData = imageDataProperty.get();
+		if (imageData == null)
+			largeNonPyramidalImage.set(false);
+		else {
+			var server = imageData.getServer();
+			if (server.nResolutions() == 1 && Math.max(server.getWidth(), server.getHeight()) > 10_000) {
+				largeNonPyramidalImage.set(true);
+			} else {
+				largeNonPyramidalImage.set(false);
+			}
 		}
 	}
 	
@@ -200,6 +232,7 @@ public class ContextHelpViewer {
 	private List<HelpListEntry> createHelpEntries() {
 		return Arrays.asList(
 				createUnseenErrors(),
+				createLargeNonPyramidal(),
 				createPixelSizeMissing(),
 				createImageTypeMissing(),
 				createZoomToFitEntry(),
@@ -216,15 +249,13 @@ public class ContextHelpViewer {
 				);
 	}
 
-
-	private ObjectExpression<InfoMessage> infoMessage = Bindings.createObjectBinding(() -> {
-		if (!hasWarnings.get())
-			return null;
-		return warningMessage;
-	}, hasWarnings);
-
+	/**
+	 * Get a message that may be used to create a badge indicating that info or warning messages
+	 * are available.
+	 * @return
+	 */
 	public ObjectExpression<InfoMessage> getInfoMessage() {
-		return infoMessage;
+		return infoOrWarningMessage;
 	}
 	
 	private Label createHelpTextLabel() {
@@ -442,7 +473,7 @@ public class ContextHelpViewer {
 		var label = new Label();
 		label.setGraphicTextGap(8.0);
 		label.setAlignment(Pos.CENTER);
-		label.setTextAlignment(TextAlignment.CENTER);
+//		label.setTextAlignment(TextAlignment.CENTER);
 		label.textProperty().bind(entry.textProperty());
 		label.graphicProperty().bind(entry.graphicProperty());
 		label.setPadding(new Insets(5.0, 10.0, 5.0, 10.0));
@@ -460,7 +491,7 @@ public class ContextHelpViewer {
 	
 	
 	private HelpListEntry createSelectionModelEntry() {
-		var entry = HelpListEntry.createWarning(
+		var entry = HelpListEntry.createInfo(
 				"ContextHelp.warning.selectionMode",
 				createIcon(PathIcons.SELECTION_MODE));
 		entry.visibleProperty().bind(
@@ -479,7 +510,7 @@ public class ContextHelpViewer {
 	
 	
 	private HelpListEntry createAnnotationsHiddenEntry() {
-		var entry = HelpListEntry.createWarning(
+		var entry = HelpListEntry.createInfo(
 				"ContextHelp.warning.annotationsHidden",
 				createIcon(PathIcons.ANNOTATIONS));
 		entry.visibleProperty().bind(
@@ -488,7 +519,7 @@ public class ContextHelpViewer {
 	}
 	
 	private HelpListEntry createTMAGridHiddenEntry() {
-		var entry = HelpListEntry.createWarning(
+		var entry = HelpListEntry.createInfo(
 				"ContextHelp.warning.tmaCoresHidden",
 				createIcon(PathIcons.TMA_GRID));
 		entry.visibleProperty().bind(
@@ -497,7 +528,7 @@ public class ContextHelpViewer {
 	}
 	
 	private HelpListEntry createDetectionsHiddenEntry() {
-		var entry = HelpListEntry.createWarning(
+		var entry = HelpListEntry.createInfo(
 				"ContextHelp.warning.detectionsHidden",
 				createIcon(PathIcons.DETECTIONS));
 		entry.visibleProperty().bind(
@@ -506,7 +537,7 @@ public class ContextHelpViewer {
 	}
 	
 	private HelpListEntry createPixelClassificationOverlayHiddenEntry() {
-		var entry = HelpListEntry.createWarning(
+		var entry = HelpListEntry.createInfo(
 				"ContextHelp.warning.pixelOverlayHidden",
 				createIcon(PathIcons.PIXEL_CLASSIFICATION));
 		entry.visibleProperty().bind(
@@ -515,7 +546,7 @@ public class ContextHelpViewer {
 	}
 	
 	private HelpListEntry createOpacityZeroEntry() {
-		var entry = HelpListEntry.createWarning(
+		var entry = HelpListEntry.createInfo(
 				"ContextHelp.warning.opacityZero");
 		entry.visibleProperty().bind(
 				qupath.getOverlayOptions().opacityProperty().lessThanOrEqualTo(0.0));
@@ -531,7 +562,7 @@ public class ContextHelpViewer {
 	}
 	
 	private HelpListEntry createNoImageEntry() {
-		var entry = HelpListEntry.createWarning(
+		var entry = HelpListEntry.createInfo(
 				"ContextHelp.warning.noImage");
 		entry.visibleProperty().bind(
 				imageDataProperty.isNull());
@@ -577,6 +608,14 @@ public class ContextHelpViewer {
 				"ContextHelp.warning.imageTypeMissing");
 		entry.visibleProperty().bind(
 				imageTypeUnset);
+		return entry;
+	}
+
+	private HelpListEntry createLargeNonPyramidal() {
+		var entry = HelpListEntry.createWarning(
+				"ContextHelp.warning.largeNonPyramidalImage");
+		entry.visibleProperty().bind(
+				largeNonPyramidalImage);
 		return entry;
 	}
 	
