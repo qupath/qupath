@@ -103,6 +103,11 @@ public abstract class AbstractTaskRunner implements TaskRunner {
 		monitor = makeProgressMonitor();
 		monitor.startMonitoring(null, tasks.size(), true);
 		for (Runnable task : tasks) {
+			// If a task if null, then skip it - otherwise the monitor can get stuck
+			if (task == null) {
+				logger.warn("Skipping null task");
+				continue;
+			}
 			Future<Runnable> future = service.submit(task, task);
 			pendingTasks.put(future, task);
 		}
