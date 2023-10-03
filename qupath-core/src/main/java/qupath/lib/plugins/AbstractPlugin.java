@@ -52,7 +52,7 @@ public abstract class AbstractPlugin<T> implements PathPlugin<T> {
 	/**
 	 * Get a collection of tasks to perform.
 	 * 
-	 * This will be called from {@link #runPlugin(PluginRunner, ImageData, String)} <b>after</b> a call to {@link #parseArgument(ImageData, String)}.
+	 * This will be called from {@link #runPlugin(TaskRunner, ImageData, String)} <b>after</b> a call to {@link #parseArgument(ImageData, String)}.
 	 *
 	 * The default implementation simply calls {@link #getParentObjects(ImageData)}, then {@link #addRunnableTasks(ImageData, PathObject, List)}
 	 * for every parent object that was returned.
@@ -133,25 +133,25 @@ public abstract class AbstractPlugin<T> implements PathPlugin<T> {
 	
 	
 	@Override
-	public boolean runPlugin(final PluginRunner pluginRunner, ImageData<T> imageData, final String arg) {
+	public boolean runPlugin(final TaskRunner taskRunner, ImageData<T> imageData, final String arg) {
 
 		if (!parseArgument(imageData, arg))
 			return false;
 
-		preprocess(pluginRunner, imageData);
+		preprocess(taskRunner, imageData);
 
 		Collection<Runnable> tasks = getTasks(imageData);
 		if (tasks.isEmpty())
 			return false;
 
-		pluginRunner.runTasks(tasks);
+		taskRunner.runTasks(tasks);
 
 		if (requestHierarchyUpdate())
 			imageData.getHierarchy().fireHierarchyChangedEvent(this);
 
-		postprocess(pluginRunner, imageData);
+		postprocess(taskRunner, imageData);
 		
-		if (pluginRunner.isCancelled())
+		if (taskRunner.isCancelled())
 			return false;
 
 		// Only add a workflow step if plugin was not cancelled
@@ -165,19 +165,19 @@ public abstract class AbstractPlugin<T> implements PathPlugin<T> {
 	 * Called after parsing the argument String, and immediately before creating &amp; running any generated tasks.
 	 * 
 	 * Does nothing by default.
-	 * @param pluginRunner
+	 * @param taskRunner
 	 * @param imageData
 	 */
-	protected void preprocess(final PluginRunner pluginRunner, final ImageData<T> imageData) {};
+	protected void preprocess(final TaskRunner taskRunner, final ImageData<T> imageData) {};
 
 	/**
 	 * Called immediately after running any generated tasks.
 	 * 
 	 * Does nothing by default.
-	 * @param pluginRunner
+	 * @param taskRunner
 	 * @param imageData
 	 */
-	protected void postprocess(final PluginRunner pluginRunner, final ImageData<T> imageData) {};
+	protected void postprocess(final TaskRunner taskRunner, final ImageData<T> imageData) {};
 
 	
 	/**

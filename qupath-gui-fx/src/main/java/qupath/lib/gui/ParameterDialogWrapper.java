@@ -46,7 +46,7 @@ import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.plugins.PathInteractivePlugin;
-import qupath.lib.plugins.PluginRunner;
+import qupath.lib.plugins.TaskRunner;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.plugins.workflow.WorkflowStep;
 
@@ -68,10 +68,10 @@ class ParameterDialogWrapper<T> {
 	 * Constructor.
 	 * @param plugin plugin for which this dialog should be shown
 	 * @param params parameters to display
-	 * @param pluginRunner the {@link PluginRunner} that may be used to run this plugin if necessary
+	 * @param taskRunner the {@link TaskRunner} that may be used to run this plugin if necessary
 	 */
-	public ParameterDialogWrapper(final PathInteractivePlugin<T> plugin, final ParameterList params, final PluginRunner pluginRunner) {
-		dialog = createDialog(plugin, params, pluginRunner);
+	public ParameterDialogWrapper(final PathInteractivePlugin<T> plugin, final ParameterList params, final TaskRunner taskRunner) {
+		dialog = createDialog(plugin, params, taskRunner);
 	}
 
 	/**
@@ -111,7 +111,7 @@ class ParameterDialogWrapper<T> {
 		return panel.getParameters();
 	}
 
-	private Stage createDialog(final PathInteractivePlugin<T> plugin, final ParameterList params, final PluginRunner pluginRunner) {
+	private Stage createDialog(final PathInteractivePlugin<T> plugin, final ParameterList params, final TaskRunner taskRunner) {
 		panel = new ParameterPanelFX(params);
 		panel.getPane().setPadding(new Insets(5, 5, 5, 5));
 
@@ -169,7 +169,7 @@ class ParameterDialogWrapper<T> {
 					try {
 						var historyWorkflow = imageData.getHistoryWorkflow();
 						WorkflowStep lastStep = historyWorkflow.getLastStep();
-						boolean success = plugin.runPlugin(pluginRunner, (ImageData<T>)imageData, ParameterList.convertToJson(params));
+						boolean success = plugin.runPlugin(taskRunner, (ImageData<T>)imageData, ParameterList.convertToJson(params));
 						WorkflowStep lastStepNew = historyWorkflow.getLastStep();
 						if (success && lastStep != lastStepNew)
 							lastWorkflowStep = lastStepNew;

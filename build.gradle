@@ -37,7 +37,7 @@ task mergedJavadocs(type: Javadoc,
 }
 
 /*
- * Get version cataglog
+ * Get version catalog
  */
 catalog {
     versionCatalog {

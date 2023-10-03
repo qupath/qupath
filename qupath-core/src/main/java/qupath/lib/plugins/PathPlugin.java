@@ -66,11 +66,11 @@ public interface PathPlugin<T> {
 	 * <p>
 	 * Note: This command should block until it has completed processing.
 	 * 
-	 * @param pluginRunner
+	 * @param taskRunner
 	 * @param arg
 	 * @return
 	 */
-	public boolean runPlugin(PluginRunner pluginRunner, ImageData<T> imageData, String arg);
+	public boolean runPlugin(TaskRunner taskRunner, ImageData<T> imageData, String arg);
 	
 	/**
 	 * (Optional) short one-line description of the results, e.g. to say how many objects detected.

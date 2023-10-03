@@ -122,7 +122,7 @@ import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.TMAGrid;
 import qupath.lib.objects.utils.ObjectMerger;
 import qupath.lib.objects.utils.Tiler;
-import qupath.lib.plugins.CommandLinePluginRunner;
+import qupath.lib.plugins.CommandLineTaskRunner;
 import qupath.lib.plugins.PathPlugin;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectIO;
@@ -1464,7 +1464,7 @@ public class QP {
 			Class<?> cPlugin = QP.class.getClassLoader().loadClass(className);
 			Constructor<?> cons = cPlugin.getConstructor();
 			final PathPlugin plugin = (PathPlugin)cons.newInstance();
-			return plugin.runPlugin(new CommandLinePluginRunner(), imageData, args);
+			return plugin.runPlugin(new CommandLineTaskRunner(), imageData, args);
 		} catch (Exception e) {
 			logger.error("Unable to run plugin " + className, e);
 			return false;

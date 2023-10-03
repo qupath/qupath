@@ -58,7 +58,7 @@ import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.hierarchy.DefaultTMAGrid;
 import qupath.lib.objects.hierarchy.TMAGrid;
 import qupath.lib.plugins.AbstractPlugin;
-import qupath.lib.plugins.CommandLinePluginRunner;
+import qupath.lib.plugins.CommandLineTaskRunner;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.interfaces.ROI;
 
@@ -200,7 +200,7 @@ public class TMADataIO {
 			ExportCoresPlugin plugin = new ExportCoresPlugin(dirData, renderedImageServer, downsample, coreExt);
 			var qupath = QuPathGUI.getInstance();
 			if (qupath == null || qupath.getImageData() != imageData) {
-				plugin.runPlugin(new CommandLinePluginRunner(), imageData,null);
+				plugin.runPlugin(new CommandLineTaskRunner(), imageData,null);
 			} else {
 				try {
 					qupath.runPlugin(plugin, null, false);

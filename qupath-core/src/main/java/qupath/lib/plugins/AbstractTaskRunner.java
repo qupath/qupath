@@ -41,9 +41,9 @@ import qupath.lib.common.ThreadTools;
  * Abstract PluginRunner to help with the creation of plugin runners for specific circumstances,
  * e.g. running through a GUI, or from a command line only.
  */
-public abstract class AbstractPluginRunner implements PluginRunner {
+public abstract class AbstractTaskRunner implements TaskRunner {
 	
-	private static final Logger logger = LoggerFactory.getLogger(AbstractPluginRunner.class);
+	private static final Logger logger = LoggerFactory.getLogger(AbstractTaskRunner.class);
 
 	private static int counter = 0;
 
@@ -62,7 +62,7 @@ public abstract class AbstractPluginRunner implements PluginRunner {
 	 * Constructor for a PluginRunner that uses the default number of threads, read from
 	 * {@link ThreadTools#getParallelism()}.
 	 */
-	protected AbstractPluginRunner() {
+	protected AbstractTaskRunner() {
 		this(-1);
 	}
 
@@ -71,7 +71,7 @@ public abstract class AbstractPluginRunner implements PluginRunner {
 	 * @param numThreads the number of threads to use, or -1 to use the default number of threads defined by
 	 *                   {@link ThreadTools#getParallelism()}.
 	 */
-	protected AbstractPluginRunner(int numThreads) {
+	protected AbstractTaskRunner(int numThreads) {
 		super();
 		this.numThreads = numThreads;
 	}
@@ -103,6 +103,11 @@ public abstract class AbstractPluginRunner implements PluginRunner {
 		monitor = makeProgressMonitor();
 		monitor.startMonitoring(null, tasks.size(), true);
 		for (Runnable task : tasks) {
+			// If a task if null, then skip it - otherwise the monitor can get stuck
+			if (task == null) {
+				logger.warn("Skipping null task");
+				continue;
+			}
 			Future<Runnable> future = service.submit(task, task);
 			pendingTasks.put(future, task);
 		}
