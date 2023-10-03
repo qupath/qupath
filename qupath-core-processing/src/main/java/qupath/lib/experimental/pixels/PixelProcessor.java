@@ -29,9 +29,10 @@ import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.utils.ObjectMerger;
 import qupath.lib.objects.utils.Tiler;
-import qupath.lib.plugins.CommandLinePluginRunner;
+import qupath.lib.plugins.CommandLineTaskRunner;
 import qupath.lib.plugins.PathTask;
-import qupath.lib.plugins.PluginRunner;
+import qupath.lib.plugins.TaskRunner;
+import qupath.lib.plugins.TaskRunnerUtils;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.Padding;
 import qupath.lib.regions.RegionRequest;
@@ -111,21 +112,21 @@ public class PixelProcessor<S, T, U> {
     }
 
     /**
-     * Process objects using the default {@link PluginRunner}.
+     * Process objects using the default {@link TaskRunner}.
      * @param imageData
      * @param pathObjects
      */
     public void processObjects(ImageData<BufferedImage> imageData, Collection<? extends PathObject> pathObjects) {
-        processObjects(new CommandLinePluginRunner(), imageData, pathObjects);
+        processObjects(TaskRunnerUtils.getDefaultInstance().createTaskRunner(), imageData, pathObjects);
     }
 
     /**
-     * Process objects using the specified {@link PluginRunner}.
+     * Process objects using the specified {@link TaskRunner}.
      * @param runner
      * @param imageData
      * @param pathObjects
      */
-    public void processObjects(PluginRunner runner, ImageData<BufferedImage> imageData, Collection<? extends PathObject> pathObjects) {
+    public void processObjects(TaskRunner runner, ImageData<BufferedImage> imageData, Collection<? extends PathObject> pathObjects) {
         if (tiler != null) {
             processTiled(runner, tiler, imageData, pathObjects);
         } else {
@@ -140,7 +141,7 @@ public class PixelProcessor<S, T, U> {
      * @param imageData
      * @param pathObjects
      */
-    private void processUntiled(PluginRunner runner, ImageData<BufferedImage> imageData, Collection<? extends PathObject> pathObjects) {
+    private void processUntiled(TaskRunner runner, ImageData<BufferedImage> imageData, Collection<? extends PathObject> pathObjects) {
         List<? extends Runnable> tasks = pathObjects.stream()
                 .distinct()
                 .map(pathObject -> new ProcessorTask(imageData, pathObject, processor, null))
@@ -156,7 +157,7 @@ public class PixelProcessor<S, T, U> {
      * @param imageData
      * @param pathObjects
      */
-    private void processTiled(PluginRunner runner, Tiler tiler, ImageData<BufferedImage> imageData, Collection<? extends PathObject> pathObjects) {
+    private void processTiled(TaskRunner runner, Tiler tiler, ImageData<BufferedImage> imageData, Collection<? extends PathObject> pathObjects) {
         if (tiler == null)
             throw new IllegalStateException("Tiler must be specified for tiled processing");
         List<ProcessorTask> tasks = new ArrayList<>();

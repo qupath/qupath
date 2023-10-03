@@ -67,7 +67,7 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.plugins.AbstractPlugin;
-import qupath.lib.plugins.PluginRunner;
+import qupath.lib.plugins.TaskRunner;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.LineROI;
@@ -116,7 +116,7 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 	}
 
 	@Override
-	public boolean runPlugin(final PluginRunner runner, final ImageData<BufferedImage> imageData, final String arg) {
+	public boolean runPlugin(final TaskRunner runner, final ImageData<BufferedImage> imageData, final String arg) {
 		if (!parseArgument(imageData, arg))
 			return false;
 

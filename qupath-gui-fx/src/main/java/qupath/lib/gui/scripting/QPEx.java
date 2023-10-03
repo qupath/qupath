@@ -54,12 +54,14 @@ import javafx.scene.input.ClipboardContent;
 import javafx.stage.Stage;
 import javafx.stage.Window;
 import qupath.fx.dialogs.FileChoosers;
+import qupath.lib.common.ThreadTools;
 import qupath.lib.display.ChannelDisplayInfo;
 import qupath.lib.display.DirectServerChannelInfo;
 import qupath.lib.display.ImageDisplay;
 import qupath.lib.display.settings.DisplaySettingUtils;
 import qupath.lib.display.settings.ImageDisplaySettings;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.TaskRunnerFX;
 import qupath.lib.gui.UserDirectoryManager;
 import qupath.lib.gui.charts.Charts;
 import qupath.lib.gui.commands.SummaryMeasurementTableCommand;
@@ -84,9 +86,10 @@ import qupath.lib.objects.PathRootObject;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.TMACoreObject;
-import qupath.lib.plugins.CommandLinePluginRunner;
+import qupath.lib.plugins.CommandLineTaskRunner;
 import qupath.lib.plugins.PathPlugin;
-import qupath.lib.plugins.PluginRunner;
+import qupath.lib.plugins.TaskRunner;
+import qupath.lib.plugins.TaskRunnerUtils;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.scripting.QP;
 
@@ -233,11 +236,11 @@ public class QPEx extends QP {
 			Constructor<?> cons = cPlugin.getConstructor();
 			final PathPlugin plugin = (PathPlugin)cons.newInstance();
 			pluginName = plugin.getName();
-			PluginRunner runner;
+			TaskRunner runner;
 			// TODO: Give potential of passing a plugin runner
 			var qupath = getQuPath();
 			if (isBatchMode() || imageData != qupath.getImageData()) {
-				runner = new CommandLinePluginRunner();
+				runner = new CommandLineTaskRunner();
 				completed = plugin.runPlugin(runner, imageData, args);
 				cancelled = runner.isCancelled();
 			}
@@ -271,7 +274,32 @@ public class QPEx extends QP {
 	static boolean isBatchMode() {
 		return getQuPath() == null || !getQuPath().getStage().isShowing();
 	}
-	
+
+	/**
+	 * Create a task runner with the default number of threads defined by {@link ThreadTools#getParallelism()}.
+	 * This will either be interactive (if QuPath is running, and the current image is open or headless.
+	 * @return
+	 */
+	public static TaskRunner createTaskRunner() {
+		return createTaskRunner(ThreadTools.getParallelism());
+	}
+
+	/**
+	 * Create a task runner with the specified number of threads.
+	 * This will either be interactive (if QuPath is running, and the current image is open or headless.
+	 * @param nThreads number of threads for the task runner to use
+	 * @return
+	 */
+	public static TaskRunner createTaskRunner(int nThreads) {
+		if (isBatchMode() || getCurrentViewer().getImageData() != getCurrentImageData()) {
+			logger.info("Creating headless task runner with {} threads", nThreads);
+			return TaskRunnerUtils.getDefaultInstance().createHeadlessTaskRunner(nThreads);
+		} else {
+			logger.info("Creating interactive task runner with {} threads", nThreads);
+			return new TaskRunnerFX(getQuPath(), nThreads);
+		}
+	}
+
 	
 	/**
 	 * Prompt the user to select a file from a file chooser.

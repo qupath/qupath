@@ -161,8 +161,6 @@ import qupath.lib.scripting.languages.ExecutableLanguage;
 import qupath.lib.scripting.languages.ScriptLanguage;
 import qupath.lib.gui.scripting.DefaultScriptEditor;
 import qupath.lib.gui.scripting.QPEx;
-import qupath.ui.logviewer.ui.main.LogMessageCounts;
-import qupath.ui.logviewer.ui.main.LogViewer;
 
 
 /**
@@ -2182,7 +2180,7 @@ public class QuPathGUI {
 				// We use the US locale because we need to ensure decimal points (not commas)
 				ParameterList.updateParameterList(params, map, Locale.US);
 			}
-			var runner = new PluginRunnerFX(this);
+			var runner = new TaskRunnerFX(this);
 			ParameterDialogWrapper<BufferedImage> dialog = new ParameterDialogWrapper<>(pluginInteractive, params, runner);
 			dialog.showDialog();
 			return !runner.isCancelled();
@@ -2190,7 +2188,7 @@ public class QuPathGUI {
 		else {
 			try {
 				pluginRunning.set(true);
-				var runner = new PluginRunnerFX(this);
+				var runner = new TaskRunnerFX(this);
 				@SuppressWarnings("unused")
 				var completed = plugin.runPlugin(runner, imageData, arg);
 				return !runner.isCancelled();

@@ -73,7 +73,7 @@ import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.plugins.AbstractInteractivePlugin;
-import qupath.lib.plugins.PluginRunner;
+import qupath.lib.plugins.TaskRunner;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
@@ -92,8 +92,8 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 	
 	
 	@Override
-	public boolean runPlugin(final PluginRunner pluginRunner, final ImageData<BufferedImage> imageData, final String arg) {
-		boolean success = super.runPlugin(pluginRunner, imageData, arg);
+	public boolean runPlugin(final TaskRunner taskRunner, final ImageData<BufferedImage> imageData, final String arg) {
+		boolean success = super.runPlugin(taskRunner, imageData, arg);
 		imageData.getHierarchy().fireHierarchyChangedEvent(this);
 		return success;
 	}

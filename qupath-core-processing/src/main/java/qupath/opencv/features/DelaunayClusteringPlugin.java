@@ -46,7 +46,7 @@ import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.plugins.AbstractInteractivePlugin;
 import qupath.lib.plugins.PathTask;
-import qupath.lib.plugins.PluginRunner;
+import qupath.lib.plugins.TaskRunner;
 import qupath.lib.plugins.parameters.ParameterList;
 
 /**
@@ -70,15 +70,15 @@ public class DelaunayClusteringPlugin<T> extends AbstractInteractivePlugin<T> {
 	}	
 	
 	@Override
-	protected void preprocess(PluginRunner pluginRunner, ImageData<T> imageData) {
-		super.preprocess(pluginRunner, imageData);
+	protected void preprocess(TaskRunner taskRunner, ImageData<T> imageData) {
+		super.preprocess(taskRunner, imageData);
 		// Reset any previous connections
 		imageData.removeProperty(DefaultPathObjectConnectionGroup.KEY_OBJECT_CONNECTIONS);
 	}
 	
 	@Override
-	protected void postprocess(PluginRunner pluginRunner, ImageData<T> imageData) {
-		super.postprocess(pluginRunner, imageData);
+	protected void postprocess(TaskRunner taskRunner, ImageData<T> imageData) {
+		super.postprocess(taskRunner, imageData);
 		imageData.getHierarchy().fireHierarchyChangedEvent(this);
 	}
 	

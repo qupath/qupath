@@ -35,7 +35,7 @@ public interface PathTask extends Runnable {
 	/**
 	 * Perform optional post-processing after a task has completed.
 	 * <p>
-	 * When processing a collection of tasks with a {@link PluginRunner}, this method 
+	 * When processing a collection of tasks with a {@link TaskRunner}, this method
 	 * should be called on the same thread. The choice of thread depends on the runner, but 
 	 * may be the Event Dispatch Thread when using Swing or Application thread for JavaFX.
 	 * @param wasCancelled 

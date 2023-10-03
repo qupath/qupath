@@ -48,9 +48,9 @@ import javafx.stage.Stage;
 import javafx.util.Duration;
 import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.images.ImageData;
-import qupath.lib.plugins.CommandLinePluginRunner;
+import qupath.lib.plugins.CommandLineTaskRunner;
 import qupath.lib.plugins.PathTask;
-import qupath.lib.plugins.AbstractPluginRunner;
+import qupath.lib.plugins.AbstractTaskRunner;
 import qupath.lib.plugins.SimpleProgressMonitor;
 import qupath.lib.regions.ImageRegion;
 
@@ -60,24 +60,20 @@ import qupath.lib.regions.ImageRegion;
  * @author Pete Bankhead
  *
  */
-class PluginRunnerFX extends AbstractPluginRunner {
+public class TaskRunnerFX extends AbstractTaskRunner {
 
-	private static final Logger logger = LoggerFactory.getLogger(PluginRunnerFX.class);
+	private static final Logger logger = LoggerFactory.getLogger(TaskRunnerFX.class);
 	
 	// Time to delay QuPath viewer repaints when running plugin tasks
 	private static long repaintDelayMillis = 1000;
 
 	private QuPathGUI qupath;
 
-	// Snapshot of the current image data, used only within runTasks()
-	// Because the method is synchronized, it is not expected to cause trouble
-	private ImageData<BufferedImage> currentImageData; // Consider reinstating - at least as an option
-
 	/**
 	 * Constructor.
 	 * @param qupath the QuPath instance
 	 */
-	public PluginRunnerFX(final QuPathGUI qupath) {
+	public TaskRunnerFX(final QuPathGUI qupath) {
 		super();
 		this.qupath = qupath;
 	}
@@ -87,7 +83,7 @@ class PluginRunnerFX extends AbstractPluginRunner {
 	 * @param qupath the QuPath instance
 	 * @param nThreads the number of threads to use
 	 */
-	public PluginRunnerFX(final QuPathGUI qupath, final int nThreads) {
+	public TaskRunnerFX(final QuPathGUI qupath, final int nThreads) {
 		super(nThreads);
 		this.qupath = qupath;
 	}
@@ -96,7 +92,7 @@ class PluginRunnerFX extends AbstractPluginRunner {
 	public SimpleProgressMonitor makeProgressMonitor() {
 		if (Platform.isFxApplicationThread()) {
 			logger.warn("Progress monitor cannot be created from JavaFX application thread - will default to command line monitor");
-			return new CommandLinePluginRunner.CommandLineProgressMonitor();
+			return new CommandLineTaskRunner.CommandLineProgressMonitor();
 		} else
 			return new PluginProgressMonitorFX(qupath.getStage());
 	}
