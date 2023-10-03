@@ -336,8 +336,11 @@ public class ExtensionControlPane extends BorderPane {
      */
     static class ExtensionListCell extends ListCell<QuPathExtension> {
 
+        private final ExtensionListCellBox box;
+
         public ExtensionListCell(ListView<QuPathExtension> listView) {
             super();
+            box = new ExtensionListCellBox();
         }
 
         @Override
@@ -348,7 +351,7 @@ public class ExtensionControlPane extends BorderPane {
                 setGraphic(null);
                 return;
             }
-            ExtensionListCellBox box = new ExtensionListCellBox(item);
+            box.setExtension(item);
             if (!(item instanceof GitHubProject)) {
                 setMouseTransparent(true);
                 setFocusTraversable(false);
@@ -359,12 +362,6 @@ public class ExtensionControlPane extends BorderPane {
                 box.updateBtn.setVisible(false);
                 box.btnHBox.getChildren().remove(box.updateBtn);
             }
-
-            box.rmBtn.setGraphic(IconFactory.createNode(8, 8, IconFactory.PathIcons.MINUS));
-            box.updateBtn.setGraphic(IconFactory.createNode(8, 8, IconFactory.PathIcons.REFRESH));
-            box.nameText.setText(item.getName());
-            box.versionText.setText("v" + item.getVersion().toString());
-            box.descriptionText.setText(WordUtils.wrap(item.getDescription(), 80));
 
             setGraphic(box);
             var contextMenu = new ContextMenu();
@@ -406,42 +403,61 @@ public class ExtensionControlPane extends BorderPane {
                 logger.error("Unable to open directory {}", url);
             }
         }
-    }
 
-    /**
-     * Simple class that just loads the FXML for a list cell
-     */
-    static class ExtensionListCellBox extends HBox {
-        private final QuPathExtension extension;
-        @FXML
-        private HBox btnHBox;
-        @FXML
-        private Button rmBtn;
-        @FXML
-        private Button updateBtn;
-        @FXML
-        private Text nameText, versionText, descriptionText;
-        ExtensionListCellBox(QuPathExtension extension) {
-            this.extension = extension;
-            var loader = new FXMLLoader(ExtensionControlPane.class.getResource("ExtensionListCellBox.fxml"));
-            loader.setController(this);
-            loader.setRoot(this);
-            loader.setResources(ResourceBundle.getBundle("qupath/lib/gui/localization/qupath-gui-strings"));
-            try {
-                loader.load();
-            } catch (IOException e) {
-                throw new RuntimeException(e);
+        /**
+         * Simple class that just loads the FXML for a list cell
+         */
+        static class ExtensionListCellBox extends HBox {
+            private QuPathExtension extension;
+            @FXML
+            private HBox btnHBox;
+            @FXML
+            private Button rmBtn;
+            @FXML
+            private Button updateBtn;
+            @FXML
+            private Text nameText, versionText, descriptionText;
+
+            ExtensionListCellBox() {
+                var loader = new FXMLLoader(ExtensionControlPane.class.getResource("ExtensionListCellBox.fxml"));
+                loader.setController(this);
+                loader.setRoot(this);
+                loader.setResources(ResourceBundle.getBundle("qupath/lib/gui/localization/qupath-gui-strings"));
+                try {
+                    loader.load();
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+                rmBtn.setGraphic(IconFactory.createNode(8, 8, IconFactory.PathIcons.MINUS));
+                updateBtn.setGraphic(IconFactory.createNode(8, 8, IconFactory.PathIcons.REFRESH));
+            }
+
+            ExtensionListCellBox(QuPathExtension extension) {
+                this();
+                this.extension = extension;
+            }
+
+            QuPathExtension getExtension() {
+                return extension;
+            }
+
+            void setExtension(QuPathExtension extension) {
+                nameText.setText(extension.getName());
+                versionText.setText("v" + extension.getVersion().toString());
+                descriptionText.setText(WordUtils.wrap(extension.getDescription(), 80));
+                this.extension = extension;
+            }
+
+            @FXML
+            private void updateExtension() {
+                ExtensionControlPane.updateExtension(this.extension);
+            }
+            @FXML
+            private void removeExtension() {
+                ExtensionControlPane.removeExtension(this.extension);
             }
         }
-
-        @FXML
-        private void updateExtension() {
-            ExtensionControlPane.updateExtension(this.extension);
-        }
-        @FXML
-        private void removeExtension() {
-            ExtensionControlPane.removeExtension(this.extension);
-        }
     }
+
 
 }
