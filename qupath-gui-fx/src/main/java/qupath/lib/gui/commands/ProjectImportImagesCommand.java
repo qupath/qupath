@@ -163,15 +163,20 @@ class ProjectImportImagesCommand {
 	             } else {
 	            	 if (item == null)
 	            		 setText("Default (let QuPath decide)");
-	            	 else
-	            		 setText(item.getName());
+	            	 else {
+						 // Make the name a little more readable, without adding confusing
+						 String name = item.getName();
+						 if (name.toLowerCase().endsWith("builder"))
+							 name = name.substring(0, name.length()-"builder".length()).strip();
+						 setText(name);
+					 }
 	             }
 	         }
 		}
 		
 		boolean requestBuilder = builder == null;
 		ComboBox<ImageServerBuilder<BufferedImage>> comboBuilder = new ComboBox<>();
-		Label labelBuilder = new Label("Image provider");
+		Label labelBuilder = new Label("Image server");
 		if (requestBuilder) {
 			comboBuilder.setCellFactory(p -> new BuilderListCell());
 			comboBuilder.setButtonCell(new BuilderListCell());
