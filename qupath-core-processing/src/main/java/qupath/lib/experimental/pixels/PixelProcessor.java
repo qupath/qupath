@@ -245,8 +245,17 @@ public class PixelProcessor<S, T, U> {
         @Override
         public void run() {
             try {
+                if (Thread.currentThread().isInterrupted()) {
+                    logger.trace("Thread interrupted - skipping task for {}", pathObject);
+                    return;
+                }
                 // Use the proxy object, if available, otherwise use the path object
-                var request = createRequest(imageData.getServer(), parentProxy == null ? pathObject : parentProxy);
+                RegionRequest request;
+                if (parentProxy != null) {
+                    request = createRequest(imageData.getServer(), parentProxy);
+                } else {
+                    request = createRequest(imageData.getServer(), pathObject);
+                }
                 Parameters.Builder<S, T> builder = Parameters.builder();
                 Parameters<S, T> params = builder.imageData(imageData)
                         .imageFunction(imageSupplier)
@@ -418,6 +427,7 @@ public class PixelProcessor<S, T, U> {
             return tiler(Tiler.builder(tileWidth, tileHeight)
                     .alignCenter()
                     .filterByCentroid(false)
+                    .cropTiles(false)
                     .build());
         }
 

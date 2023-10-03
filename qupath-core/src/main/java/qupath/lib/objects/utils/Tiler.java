@@ -54,8 +54,8 @@ public class Tiler {
     /**
      * Enum representing the possible alignments for tiles.
      * A tile alignment of TOP_LEFT indicates that tiling should begin at the top left bounding box,
-     * and if trimming is required then this will occur at the right and bottom.
-     * An alignment of CENTER indicates that tiles may be trimmed on all sides.
+     * and if cropping is required then this will occur at the right and bottom.
+     * An alignment of CENTER indicates that tiles may be cropped on all sides.
      */
     public enum TileAlignment {
         TOP_LEFT, TOP_CENTER, TOP_RIGHT,
@@ -65,7 +65,7 @@ public class Tiler {
 
     private final int tileWidth;
     private final int tileHeight;
-    private final boolean trimToParent;
+    private final boolean cropToParent;
     private final boolean filterByCentroid;
     private final TileAlignment alignment;
 
@@ -73,24 +73,24 @@ public class Tiler {
      * Constructor.
      * @param tileWidth tile width in pixels.
      * @param tileHeight tile height in pixels.
-     * @param trimToParent controls whether tiles should be trimmed to fit
+     * @param cropToParent controls whether tiles should be cropped to fit
      *                     within the parent object.
      * @param alignment controls where the tiling begins, and consequently where any
-     *                      trimming or overlaps will occur if the region being tiled is
+     *                      cropping or overlaps will occur if the region being tiled is
      *                      not an exact multiple of the tile size.
      * @param filterByCentroid controls whether tiles whose centroid is outwith
      *                         the parent object will be removed from the
      *                         output.
      */
     private Tiler(int tileWidth, int tileHeight,
-                 boolean trimToParent, TileAlignment alignment,
-                 boolean filterByCentroid) {
+                  boolean cropToParent, TileAlignment alignment,
+                  boolean filterByCentroid) {
         if (tileWidth <= 0 || tileHeight <= 0)
             throw new IllegalArgumentException("tileWidth and tileHeight must be > 0, but were "
                     + tileWidth + " and " + tileHeight);
         this.tileWidth = tileWidth;
         this.tileHeight = tileHeight;
-        this.trimToParent = trimToParent;
+        this.cropToParent = cropToParent;
         this.alignment = alignment;
         this.filterByCentroid = filterByCentroid;
     }
@@ -112,11 +112,11 @@ public class Tiler {
     }
 
     /**
-     * Check if the tiler is set to trim output to the input parent.
-     * @return whether the tiler is set to trim output to the parent object
+     * Check if the tiler is set to crop the output to the input parent.
+     * @return whether the tiler is set to crop output to the parent object
      */
-    public boolean getTrimToParent() {
-        return trimToParent;
+    public boolean getCropToParent() {
+        return cropToParent;
     }
 
     /**
@@ -211,12 +211,12 @@ public class Tiler {
 
         var preparedParent = PreparedGeometryFactory.prepare(parent);
         return tiles.parallelStream()
-                .map(createTileFilter(preparedParent, trimToParent, filterByCentroid))
+                .map(createTileFilter(preparedParent, cropToParent, filterByCentroid))
                 .filter(g -> g != null)
                 .collect(Collectors.toList());
     }
 
-    private static Function<Geometry, Geometry> createTileFilter(PreparedGeometry parent, boolean trimToParent, boolean filterByCentroid) {
+    private static Function<Geometry, Geometry> createTileFilter(PreparedGeometry parent, boolean cropToParent, boolean filterByCentroid) {
         return (Geometry tile) -> {
             // straightforward case 1:
             // if there's no intersection, we're in the bounding box but not
@@ -230,9 +230,9 @@ public class Tiler {
                 return tile;
             }
 
-            // trimming:
-            if (trimToParent) {
-                // trim the tile to fit the parent
+            // cropping:
+            if (cropToParent) {
+                // crop the tile to fit the parent
                 try {
                     return tile.intersection(parent.getGeometry());
                 } catch (TopologyException e) {
@@ -240,7 +240,7 @@ public class Tiler {
                     return null;
                 }
             } else if (!filterByCentroid || parent.contains(tile.getCentroid())) {
-                // return tile unchanged if we aren't trimming based on centroids,
+                // return tile unchanged if we aren't filtering based on centroids,
                 // or it'd be included anyway
                 return tile;
             }
@@ -371,7 +371,7 @@ public class Tiler {
 
         private int tileWidth;
         private int tileHeight;
-        private boolean trimToParent = true;
+        private boolean cropToParent = true;
         private TileAlignment alignment = TileAlignment.CENTER;
         private boolean filterByCentroid = false;
 
@@ -383,7 +383,7 @@ public class Tiler {
         private Builder(Tiler tiler) {
             this.tileWidth = tiler.tileWidth;
             this.tileHeight = tiler.tileHeight;
-            this.trimToParent = tiler.trimToParent;
+            this.cropToParent = tiler.cropToParent;
             this.alignment = tiler.alignment;
             this.filterByCentroid = tiler.filterByCentroid;
         }
@@ -409,12 +409,13 @@ public class Tiler {
         }
 
         /**
-         * Set whether the tiler is set to trim output to the input parent.
-         * @param trimToParent the new setting
+         * Set whether the tiler is set to crop the output to the input parent.
+         * Using this option can result in smaller and non-rectangular tiles.
+         * @param cropToParent the new setting
          * @return this builder
          */
-        public Builder trimToParent(boolean trimToParent) {
-            this.trimToParent = trimToParent;
+        public Builder cropTiles(boolean cropToParent) {
+            this.cropToParent = cropToParent;
             return this;
         }
 
@@ -516,7 +517,7 @@ public class Tiler {
          * @return
          */
         public Tiler build() {
-            return new Tiler(tileWidth, tileHeight, trimToParent, alignment, filterByCentroid);
+            return new Tiler(tileWidth, tileHeight, cropToParent, alignment, filterByCentroid);
         }
 
     }
