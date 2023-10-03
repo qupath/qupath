@@ -10,7 +10,6 @@ import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseButton;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
-import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
 import org.apache.commons.text.WordUtils;
 import org.slf4j.Logger;
@@ -56,9 +55,9 @@ public class ExtensionControlPane extends BorderPane {
                    "releases/download/[a-zA-Z0-9-.]+/(qupath-extension-wsinfer-[0-9a-zA-Z-.]+.jar)");
 
     @FXML
-    private ListView<QuPathExtension> editableListView;
+    private ListView<QuPathExtension> coreListView;
     @FXML
-    private ListView<QuPathExtension> nonEditableListView;
+    private ListView<QuPathExtension> userListView;
 
     @FXML
     private Button addBtn;
@@ -77,8 +76,6 @@ public class ExtensionControlPane extends BorderPane {
     @FXML
     private Button submitAddBtn;
 
-    @FXML
-    private VBox topVBox;
     @FXML
     private HBox addHBox;
 
@@ -112,44 +109,39 @@ public class ExtensionControlPane extends BorderPane {
         ObservableMap<Class<? extends QuPathExtension>, QuPathExtension> extensions = extensionManager.getLoadedExtensions();
         extensions.addListener((MapChangeListener<Class<? extends QuPathExtension>, QuPathExtension>) c -> {
             if (c.wasAdded()) {
-                if (c.getValueAdded() instanceof GitHubProject) {
-                    editableListView.getItems().add(c.getValueAdded());
+                if (c.getValueAdded().getClass().getClassLoader().getClass().equals(ExtensionClassLoader.class)) {
+                    userListView.getItems().add(c.getValueAdded());
                 } else {
-                    nonEditableListView.getItems().add(c.getValueAdded());
+                    coreListView.getItems().add(c.getValueAdded());
                 }
             }
             if (c.wasRemoved()) {
-                if (c.getValueAdded() instanceof GitHubProject) {
-                    editableListView.getItems().remove(c.getValueRemoved());
+                if (c.getValueAdded().getClass().getClassLoader().getClass().equals(ExtensionClassLoader.class)) {
+                    userListView.getItems().remove(c.getValueRemoved());
                 } else {
-                    nonEditableListView.getItems().remove(c.getValueRemoved());
+                    coreListView.getItems().remove(c.getValueRemoved());
                 }
             }
         });
-        Tooltip.install(nonEditableListView, new Tooltip(QuPathResources.getString("ExtensionControlPane.cannotEditExtensions")));
-        nonEditableListView.setFocusTraversable(false);
         openExtensionDirBtn.disableProperty().bind(
                 UserDirectoryManager.getInstance().userDirectoryProperty().isNull());
         submitAddBtn.disableProperty().bind(
-            repoTextArea.textProperty().isEmpty().or(ownerTextArea.textProperty().isEmpty())
-        );
+            repoTextArea.textProperty().isEmpty().or(ownerTextArea.textProperty().isEmpty()));
 
-        var items = editableListView.getItems();
-        items.addAll(
+        coreListView.getItems().addAll(
                 extensionManager.getLoadedExtensions().values()
                         .stream()
                         .sorted(Comparator.comparing(QuPathExtension::getName))
-                        .filter(e -> e instanceof GitHubProject)
+                        .filter(e -> !(e.getClass().getClassLoader().getClass().equals(ExtensionClassLoader.class)))
                         .toList());
-        editableListView.setCellFactory(ExtensionListCell::new);
-        items = nonEditableListView.getItems();
-        items.addAll(
+        coreListView.setCellFactory(ExtensionListCell::new);
+        userListView.getItems().addAll(
                 extensionManager.getLoadedExtensions().values()
                         .stream()
                         .sorted(Comparator.comparing(QuPathExtension::getName))
-                        .filter(e -> !(e instanceof GitHubProject))
+                        .filter(e -> e.getClass().getClassLoader().getClass().equals(ExtensionClassLoader.class))
                         .toList());
-        nonEditableListView.setCellFactory(ExtensionListCell::new);
+        userListView.setCellFactory(ExtensionListCell::new);
 
 
         ownerTextArea.addEventHandler(KeyEvent.KEY_RELEASED, e -> {
@@ -247,13 +239,6 @@ public class ExtensionControlPane extends BorderPane {
     }
 
     @FXML
-    private void addExtension() {
-        if (!topVBox.getChildren().contains(addHBox)) {
-            topVBox.getChildren().add(addHBox);
-        }
-    }
-
-    @FXML
     private void submitAdd() {
         var repo = GitHubProject.GitHubRepo.create("", ownerTextArea.getText(), repoTextArea.getText());
         try {
@@ -268,7 +253,6 @@ public class ExtensionControlPane extends BorderPane {
     private void cancelAdd() {
         ownerTextArea.clear();
         repoTextArea.clear();
-        topVBox.getChildren().remove(addHBox);
     }
 
     @FXML
@@ -352,31 +336,27 @@ public class ExtensionControlPane extends BorderPane {
                 return;
             }
             box.setExtension(item);
-            if (!(item instanceof GitHubProject)) {
-                setMouseTransparent(true);
-                setFocusTraversable(false);
-                setDisable(true);
-                setFocused(false);
-                box.rmBtn.setVisible(false);
-                box.btnHBox.getChildren().remove(box.rmBtn);
-                box.updateBtn.setVisible(false);
-                box.btnHBox.getChildren().remove(box.updateBtn);
-            }
-
             setGraphic(box);
-            var contextMenu = new ContextMenu();
-            contextMenu.getItems().add(ActionTools.createMenuItem(
-                    ActionTools.createAction(() -> openContainingFolder(item),
-                            QuPathResources.getString("ExtensionControlPane.openContainingFolder"))));
-            contextMenu.getItems().add(ActionTools.createMenuItem(
-                    ActionTools.createAction(() -> updateExtension(item),
-                            QuPathResources.getString("ExtensionControlPane.updateExtension"))));
-            contextMenu.getItems().add(ActionTools.createMenuItem(
-                    ActionTools.createAction(() -> removeExtension(item),
-                            QuPathResources.getString("ExtensionControlPane.removeExtension"))));
-            this.setContextMenu(contextMenu);
 
-            var tooltipText = item.getName() + "\n" + QuPathResources.getString("ExtensionControlPane.doubleClick");
+            var tooltipText = item.getName();
+            if (item instanceof GitHubProject) {
+                tooltipText += "\n" + QuPathResources.getString("ExtensionControlPane.doubleClick");
+                var contextMenu = new ContextMenu();
+                contextMenu.getItems().add(ActionTools.createMenuItem(
+                        ActionTools.createAction(() -> openContainingFolder(item),
+                                QuPathResources.getString("ExtensionControlPane.openContainingFolder"))));
+                contextMenu.getItems().add(ActionTools.createMenuItem(
+                        ActionTools.createAction(() -> updateExtension(item),
+                                QuPathResources.getString("ExtensionControlPane.updateExtension"))));
+                contextMenu.getItems().add(ActionTools.createMenuItem(
+                        ActionTools.createAction(() -> removeExtension(item),
+                                QuPathResources.getString("ExtensionControlPane.removeExtension"))));
+                this.setContextMenu(contextMenu);
+            } else if (item.getClass().getClassLoader().getClass().equals(ExtensionClassLoader.class)) {
+                tooltipText += "\n" + QuPathResources.getString("ExtensionControlPane.lackingGitHubInfo");
+            } else {
+                tooltipText += "\n" + QuPathResources.getString("ExtensionControlPane.coreExtensionCannotBeEdited");
+            }
             Tooltip.install(this, new Tooltip(tooltipText));
             setOnMouseClicked(event -> {
                 if (event.getClickCount() == 2 && event.getButton() == MouseButton.PRIMARY) {
@@ -445,6 +425,17 @@ public class ExtensionControlPane extends BorderPane {
                 nameText.setText(extension.getName());
                 versionText.setText("v" + extension.getVersion().toString());
                 descriptionText.setText(WordUtils.wrap(extension.getDescription(), 80));
+                // core and non-core extensions have different classloaders;
+                // can't remove or update core ones
+                if (!extension.getClass().getClassLoader().getClass().equals(ExtensionClassLoader.class)) {
+                    btnHBox.getChildren().remove(rmBtn);
+                    btnHBox.getChildren().remove(updateBtn);
+                }
+                // if we don't have GitHub information, we can't update
+                // but we can remove
+                if (!(extension instanceof GitHubProject)) {
+                    updateBtn.setDisable(true);
+                }
                 this.extension = extension;
             }
 

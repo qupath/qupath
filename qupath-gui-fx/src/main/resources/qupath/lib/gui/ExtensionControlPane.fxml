@@ -16,11 +16,11 @@
 <fx:root prefHeight="400.0" prefWidth="700.0" type="BorderPane" xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1">
     <center>
         <VBox>
-            <TitledPane text="Editable" animated="false">
-                <ListView fx:id="editableListView"/>
+            <TitledPane text="%ExtensionControlPane.userExtensions" animated="false">
+                <ListView fx:id="userListView"/>
             </TitledPane>
-            <TitledPane text="Non-editable" animated="false">
-                <ListView fx:id="nonEditableListView"/>
+            <TitledPane text="%ExtensionControlPane.coreExtensions" animated="false">
+                <ListView fx:id="coreListView"/>
             </TitledPane>
             <TitledPane text="%ExtensionControlPane.manageExtensions" animated="false">
                 <VBox spacing="5">
