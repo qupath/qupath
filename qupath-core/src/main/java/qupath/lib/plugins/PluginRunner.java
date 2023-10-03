@@ -27,11 +27,6 @@ import java.util.Collection;
 
 /**
  * A minimal interface for a class capable of running tasks in parallel, giving feedback to the user.
- * <p>
- *     This is intended for use with {@link PathPlugin}s, but may be used elsewhere.
- * </p>
- * 
- * @author Pete Bankhead
  */
 public interface PluginRunner {
 
@@ -47,6 +42,6 @@ public interface PluginRunner {
 	 * @param tasks the tasks to run. If these are instances of {@link PathTask} then 
 	 *              an optional postprocessing may be applied after all tasks are complete.
 	 */
-	void runTasks(Collection<Runnable> tasks);
+	void runTasks(Collection<? extends Runnable> tasks);
 
 }

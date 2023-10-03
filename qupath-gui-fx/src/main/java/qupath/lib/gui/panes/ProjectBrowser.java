@@ -42,11 +42,13 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import javafx.beans.property.SimpleObjectProperty;
 import org.controlsfx.control.MasterDetailPane;
 import org.controlsfx.control.action.Action;
 import org.controlsfx.control.action.ActionUtils;
@@ -93,6 +95,7 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
+import qupath.fx.controls.PredicateTextField;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.ThreadTools;
 import qupath.lib.gui.QuPathGUI;
@@ -141,8 +144,9 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 	private Set<ProjectTreeRow> serversFailed = Collections.synchronizedSet(new HashSet<>());
 	
 	private StringProperty descriptionText = new SimpleStringProperty();
-	
-	private static TextField tfFilter;
+
+	// Predicate for filtering tree rows
+	private ObjectProperty<Predicate<String>> predicateProperty = new SimpleObjectProperty<>(s -> true);
 
 	private static ObjectProperty<ProjectThumbnailSize> thumbnailSize = PathPrefs.createPersistentPreference("projectThumbnailSize",
 			ProjectThumbnailSize.SMALL, ProjectThumbnailSize.class);
@@ -239,10 +243,13 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		titledTree.setMaxHeight(Double.MAX_VALUE);
 		
 		
-		tfFilter = new TextField();
+		var tfFilter = new PredicateTextField<String>();
 		tfFilter.setPromptText("Search entry in project");
-		tfFilter.setTooltip(new Tooltip("Type some text to filter the project entries by name or type."));
-		tfFilter.textProperty().addListener((m, o, n) -> refreshTree(null));
+		tfFilter.setSpacing(0.0);
+		var tooltip = new Tooltip("Type some text to filter the project entries by name or type.");
+		Tooltip.install(tfFilter, tooltip);
+		predicateProperty.bind(tfFilter.predicateProperty());
+		predicateProperty.addListener((m, o, n) -> refreshTree(null));
 		
 		var paneUserFilter = GridPaneUtils.createRowGrid(tfFilter);
 		
@@ -1270,7 +1277,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 			switch(getValue().getType()) {
 				case ROOT:
 					return project != null && project.getImageList().size() > 0 && !project.getImageList().stream()
-										.filter(entry -> entry.getImageName().toLowerCase().contains(tfFilter.getText().toLowerCase()))
+										.filter(entry -> predicateProperty.get().test(entry.getImageName()))
 										.findAny()
 										.isPresent();
 				case METADATA:
@@ -1287,7 +1294,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		public ObservableList<TreeItem<ProjectTreeRow>> getChildren() {
 			if (!isLeaf() && !computed) {
 				ObservableList<TreeItem<ProjectTreeRow>> children = FXCollections.observableArrayList();
-				var filter = tfFilter.getText().toLowerCase();
+				var filter = predicateProperty.get();
 				var metadataKey = model.getMetadataKey();
 				switch (getValue().getType()) {
 				case ROOT:
@@ -1296,7 +1303,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 					
 					if (metadataKey == null) {
 						for (var row: getAllImageRows()) {
-							if (filter != null && !filter.isEmpty() && !row.getDisplayableString().toLowerCase().contains(filter))
+							if (!filter.test(row.getDisplayableString()))
 								continue;
 							children.add(new ProjectTreeRowItem(row));
 						}
@@ -1328,7 +1335,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 						break;
 					
 					for (var row: getAllImageRows()) {
-						if (filter != null && !filter.isEmpty() && !row.getDisplayableString().toLowerCase().contains(filter))
+						if (!filter.test(row.getDisplayableString()))
 							continue;
 						try {
 							var value = getDefaultValue(ProjectTreeRow.getEntry(row), metadataKey);

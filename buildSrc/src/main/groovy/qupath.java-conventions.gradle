@@ -92,9 +92,14 @@ def strictJavadoc = findProperty('strictJavadoc')
 
 tasks.withType(Javadoc).each { javadocTask ->
     if (!strictJavadoc) {
+        // This should be made more strict in the future
         javadocTask.options.addStringOption('Xdoclint:none', '-quiet')
+//        javadocTask.options.addStringOption('Xdoclint:html,syntax,reference', '-quiet')
     }
    javadocTask.options.encoding = 'UTF-8'
+   javadocTask.options.tags = ["apiNote:a:API Note",
+                    "implNote:a:Implementation Note",
+                    "implSpec:a:Implementation Requirements"]
 
     rootProject.tasks.withType(Javadoc) { rootTask ->
         rootTask.source += javadocTask.source

@@ -103,9 +103,11 @@ public class BrightnessContrastSettingsPane extends GridPane {
         add(label, col++, 0);
         add(comboSettings, col++, 0);
         add(btnSave, col, 0);
+        label.setMinWidth(Label.USE_PREF_SIZE);
+        btnSave.setMinWidth(Button.USE_PREF_SIZE);
         GridPaneUtils.setToExpandGridPaneWidth(comboSettings);
-        GridPane.setHgrow(label, Priority.NEVER);
-        GridPane.setHgrow(btnSave, Priority.NEVER);
+//        GridPane.setHgrow(label, Priority.NEVER);
+//        GridPane.setHgrow(btnSave, Priority.NEVER);
     }
 
     /**

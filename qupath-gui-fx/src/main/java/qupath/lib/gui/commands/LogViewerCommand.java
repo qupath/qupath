@@ -25,6 +25,7 @@ package qupath.lib.gui.commands;
 
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
+import javafx.beans.binding.BooleanBinding;
 import javafx.beans.binding.ObjectExpression;
 import javafx.beans.property.LongProperty;
 import javafx.beans.property.SimpleLongProperty;
@@ -66,7 +67,9 @@ public class LogViewerCommand {
 
 	private LongProperty errorMessageCounts = new SimpleLongProperty();
 
-	private ObservableList<String> errorCounts = FXCollections.observableArrayList();
+	private BooleanBinding hasErrors = errorMessageCounts.greaterThan(0);
+
+	private InfoMessage errorMessage = InfoMessage.error(errorMessageCounts);
 
 	/**
 	 * Constructor.
@@ -134,10 +137,10 @@ public class LogViewerCommand {
 
 
 	private ObjectExpression<InfoMessage> infoMessage = Bindings.createObjectBinding(() -> {
-		if (errorMessageCounts.get() <= 0L)
+		if (!hasErrors.get())
 			return null;
-		return InfoMessage.error(errorMessageCounts);
-	}, errorMessageCounts);
+		return errorMessage;
+	}, hasErrors);
 
 	/**
 	 * Get a string expression to draw attention to error messages.

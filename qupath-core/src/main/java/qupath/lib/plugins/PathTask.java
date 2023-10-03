@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -40,7 +40,7 @@ public interface PathTask extends Runnable {
 	 * may be the Event Dispatch Thread when using Swing or Application thread for JavaFX.
 	 * @param wasCancelled 
 	 */
-	public default void taskComplete(boolean wasCancelled) {}
+	default void taskComplete(boolean wasCancelled) {}
 	
 	/**
 	 * Get a description of the results from running this task, which may be used e.g. in a progress monitor or output to the command line.
@@ -48,6 +48,6 @@ public interface PathTask extends Runnable {
 	 * 
 	 * @return
 	 */
-	public default String getLastResultsDescription() {return null;}
+	default String getLastResultsDescription() {return null;}
 
 }

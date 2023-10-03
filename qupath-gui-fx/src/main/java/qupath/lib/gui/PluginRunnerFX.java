@@ -92,7 +92,7 @@ class PluginRunnerFX extends AbstractPluginRunner {
 	}
 	
 	@Override
-	public synchronized void runTasks(Collection<Runnable> tasks) {
+	public synchronized void runTasks(Collection<? extends Runnable> tasks) {
 		var viewer = qupath == null || repaintDelayMillis <= 0 ? null : qupath.getViewer();
 		if (viewer != null)
 			viewer.setMinimumRepaintSpacingMillis(repaintDelayMillis);
@@ -108,7 +108,7 @@ class PluginRunnerFX extends AbstractPluginRunner {
 
 
 	@Override
-	protected void postProcess(final Collection<PathTask> tasks) {
+	protected void postProcess(final Collection<? extends PathTask> tasks) {
 		if (!Platform.isFxApplicationThread()) {
 			// When running scripts, it's important to make sure we don't return too early before post-processing is complete
 			// Failing to do this leads to issues such as intermittent concurrent modification exceptions, or commands needing

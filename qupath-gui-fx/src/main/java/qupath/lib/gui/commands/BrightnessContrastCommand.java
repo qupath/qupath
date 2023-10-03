@@ -23,12 +23,12 @@
 
 package qupath.lib.gui.commands;
 
+import com.google.gson.JsonElement;
 import javafx.application.Platform;
 import javafx.beans.InvalidationListener;
 import javafx.beans.Observable;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
-import javafx.beans.binding.ListBinding;
 import javafx.beans.binding.ObjectExpression;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
@@ -51,19 +51,19 @@ import javafx.scene.control.Tooltip;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.TextAlignment;
 import javafx.stage.Stage;
+import jfxtras.scene.layout.HBox;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.display.ChannelDisplayInfo;
 import qupath.lib.display.ImageDisplay;
-import qupath.lib.display.settings.ImageDisplaySettings;
+import qupath.lib.display.settings.DisplaySettingUtils;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.actions.InfoMessage;
 import qupath.lib.gui.commands.display.BrightnessContrastChannelPane;
@@ -77,6 +77,7 @@ import qupath.lib.images.ImageData;
 import java.awt.image.BufferedImage;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -140,14 +141,43 @@ public class BrightnessContrastCommand implements Runnable {
 		table.disableToggleMenuItemsProperty().bind(showGrayscale);
 
 		currentChannelProperty.addListener((v, o, n) -> chartPane.updateHistogram(imageDisplayProperty.get(), n));
+		chartPane.updateHistogram(imageDisplayProperty.get(), currentChannelProperty.get());
 
 		dialog = createDialog();
+
+		qupath.getDefaultDragDropListener().addJsonDropHandler(this::handleDisplaySettingsDrop);
+	}
+
+	/**
+	 * Handle drag & drop for display settings on a specified viewer.
+	 * @param viewer
+	 * @param elements
+	 * @return
+	 */
+	private boolean handleDisplaySettingsDrop(QuPathViewer viewer, List<JsonElement> elements) {
+		if (elements.size() != 1 || viewer == null || viewer.getImageDisplay() == null)
+			return false;
+		var element = elements.get(0);
+		var settings = DisplaySettingUtils.parseDisplaySettings(element).orElse(null);
+		if (settings != null) {
+			if (DisplaySettingUtils.applySettingsToDisplay(viewer.getImageDisplay(), settings)) {
+				maybeSyncSettingsAcrossViewers(viewer.getImageDisplay());
+				logger.info("Applied display settings: {}", settings.getName());
+			} else {
+				logger.warn("Unable to apply display settings: {}", settings.getName());
+			}
+			return true;
+		}
+		return false;
 	}
 
 
 	@Override
 	public void run() {
-		dialog.show();
+		if (!dialog.isShowing()) {
+			dialog.show();
+			chartPane.updateHistogram(imageDisplayProperty.get(), currentChannelProperty.get());
+		}
 		if (table.getSelectionModel().isEmpty()) {
 			var channel = currentChannelProperty.get();
 			if (channel != null)
@@ -185,7 +215,7 @@ public class BrightnessContrastCommand implements Runnable {
 
 		settingsPane = new BrightnessContrastSettingsPane();
 		settingsPane.resourceManagerProperty().bind(
-				qupath.projectProperty().map(p -> p.getResources("resources/display", ImageDisplaySettings.class, "json")));
+				qupath.projectProperty().map(DisplaySettingUtils::getResourcesForProject));
 		pane.add(settingsPane, 0, row++);
 
 		Pane paneCheck = createCheckboxPane();
@@ -246,16 +276,16 @@ public class BrightnessContrastCommand implements Runnable {
 		pane.setPadding(new Insets(10, 10, 10, 10));
 		pane.setVgap(5);
 
-		Scene scene = new Scene(pane, 350, 580);
+		Scene scene = new Scene(pane);
 		scene.addEventHandler(KeyEvent.KEY_TYPED, keyListener);
 		dialog.setScene(scene);
 		dialog.setMinWidth(300);
-		dialog.setMinHeight(400);
-		dialog.setMaxWidth(600);
+		dialog.setMinHeight(600);
+//		dialog.setMaxWidth(600);
 
 		table.updateTable();
 
-		if (!table.getChannels().isEmpty())
+		if (!table.isEmpty())
 			table.getSelectionModel().select(0);
 
 		table.setShowChannel(currentChannelProperty.get());
@@ -406,12 +436,11 @@ public class BrightnessContrastCommand implements Runnable {
 				+ "Use cautiously to avoid becoming confused about how the 'original' image looks (e.g. brightfield or fluorescence)."));
 //		invertBackground.addListener(this::handleDisplaySettingInvalidated);
 
-		FlowPane paneCheck = new FlowPane();
+		HBox paneCheck = new HBox();
 		paneCheck.setAlignment(Pos.CENTER);
-		paneCheck.setVgap(5);
 		paneCheck.getChildren().add(cbShowGrayscale);
 		paneCheck.getChildren().add(cbInvertBackground);
-		paneCheck.setHgap(15);
+		paneCheck.setSpacing(10);
 		paneCheck.setMaxHeight(Double.MAX_VALUE);
 
 		return paneCheck;

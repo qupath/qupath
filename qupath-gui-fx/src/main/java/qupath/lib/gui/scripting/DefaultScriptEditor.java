@@ -1123,20 +1123,22 @@ public class DefaultScriptEditor implements ScriptEditor {
 			
 			var errorWriter = params.getErrorWriter();
 			try {
-				errorWriter.append("ERROR: " + e.getLocalizedMessage() + "\n");
+				var sb = new StringBuilder();
+				sb.append("ERROR: " + e.getLocalizedMessage() + "\n");
 				
 				var cause = e.getCause();
 				var stackTrace = Arrays.stream(cause.getStackTrace()).filter(s -> s != null).map(s -> s.toString())
 						.collect(Collectors.joining("\n" + "    "));
 				if (stackTrace != null)
 					stackTrace += "\n";
-				errorWriter.append(stackTrace);
-				
-				errorWriter.append("\nFor help interpreting this error, please search the forum at "
+				sb.append(stackTrace);
+
+				sb.append("\nFor help interpreting this error, please search the forum at "
 						+ "https://forum.image.sc/tag/qupath\n"
 						+ "You can also start a new discussion there, "
 						+ "including both your script & the messages in this log.");
 
+				errorWriter.append(sb.toString());
 				
 			} catch (IOException exIO) {
 				logger.error(exIO.getLocalizedMessage(), exIO);
@@ -2103,8 +2105,14 @@ public class DefaultScriptEditor implements ScriptEditor {
 		if (dialog == null)
 			createDialog();
 		addNewScript(script, getDefaultLanguage(name), true);
-		if (!dialog.isShowing())
+		if (!dialog.isShowing()) {
 			dialog.show();
+			// Attempt to focus the editor
+			// (This appears not to work, at least not for the rich script editor)
+			var current = getCurrentEditorControl();
+			if (current != null)
+				current.requestFocus();
+		}
 	}
 	
 	
