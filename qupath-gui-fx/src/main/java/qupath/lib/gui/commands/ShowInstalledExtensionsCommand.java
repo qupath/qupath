@@ -85,8 +85,8 @@ class ShowInstalledExtensionsCommand {
 			dialog.setScene(new Scene(pane));
 			dialog.setWidth(pane.getPrefWidth());
 			dialog.setHeight(pane.getPrefHeight());
-			dialog.setMinWidth(450);
-			dialog.setMinHeight(225);
+			dialog.setMinWidth(500);
+			dialog.setMinHeight(300);
 			dialog.show();
 		} catch (IOException e) {
 			logger.error("Unable to open extension control pane", e);

@@ -12,16 +12,17 @@
 <?import javafx.scene.layout.Pane?>
 <?import javafx.scene.control.Tooltip?>
 <?import javafx.scene.control.TitledPane?>
-<fx:root prefHeight="400.0" prefWidth="650.0" type="BorderPane" xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1">
+<?import javafx.scene.layout.AnchorPane?>
+<fx:root prefHeight="400.0" prefWidth="700.0" type="BorderPane" xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1">
     <center>
         <VBox>
-            <TitledPane text="Editable">
+            <TitledPane text="Editable" animated="false">
                 <ListView fx:id="editableListView"/>
             </TitledPane>
-            <TitledPane text="Non-editable">
+            <TitledPane text="Non-editable" animated="false">
                 <ListView fx:id="nonEditableListView"/>
             </TitledPane>
-            <TitledPane text="%ExtensionControlPane.manageExtensions">
+            <TitledPane text="%ExtensionControlPane.manageExtensions" animated="false">
                 <VBox spacing="5">
                     <HBox fx:id="addHBox" alignment="CENTER" spacing="2">
                         <padding>
@@ -55,11 +56,13 @@
                             </tooltip>
                         </Button>
                     </HBox>
-                    <Button fx:id="openExtensionDirBtn" onAction="#openExtensionDir" text = "%ExtensionControlPane.openExtensionDirectory">
-                        <tooltip>
-                            <Tooltip text="%ExtensionControlPane.openExtensionDirectoryTooltip"/>
-                        </tooltip>
-                    </Button>
+                    <AnchorPane>
+                        <Button fx:id="openExtensionDirBtn" AnchorPane.topAnchor="0" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0" AnchorPane.rightAnchor="0" onAction="#openExtensionDir" text = "%ExtensionControlPane.openExtensionDirectory">
+                            <tooltip>
+                                <Tooltip text="%ExtensionControlPane.openExtensionDirectoryTooltip"/>
+                            </tooltip>
+                        </Button>
+                    </AnchorPane>
                 </VBox>
             </TitledPane>
         </VBox>
