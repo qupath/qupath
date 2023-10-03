@@ -82,6 +82,16 @@ class PluginRunnerFX extends AbstractPluginRunner {
 		this.qupath = qupath;
 	}
 
+	/**
+	 * Constructor specifying the number of threads.
+	 * @param qupath the QuPath instance
+	 * @param nThreads the number of threads to use
+	 */
+	public PluginRunnerFX(final QuPathGUI qupath, final int nThreads) {
+		super(nThreads);
+		this.qupath = qupath;
+	}
+
 	@Override
 	public SimpleProgressMonitor makeProgressMonitor() {
 		if (Platform.isFxApplicationThread()) {
