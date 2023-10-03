@@ -357,6 +357,7 @@ public class ExtensionControlPane extends BorderPane {
             } else {
                 tooltipText += "\n" + QuPathResources.getString("ExtensionControlPane.coreExtensionCannotBeEdited");
             }
+
             Tooltip.install(this, new Tooltip(tooltipText));
             setOnMouseClicked(event -> {
                 if (event.getClickCount() == 2 && event.getButton() == MouseButton.PRIMARY) {
