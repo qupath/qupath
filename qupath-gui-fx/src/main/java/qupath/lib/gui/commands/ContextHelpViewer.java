@@ -154,6 +154,8 @@ public class ContextHelpViewer {
 	
 	private List<HelpListEntry> createHelpEntries() {
 		return Arrays.asList(
+				createUnseenErrors(),
+				createZoomToFitEntry(),
 				createSelectionModelEntry(),
 				createAnnotationsHiddenEntry(),
 				createDetectionsHiddenEntry(),
@@ -391,6 +393,9 @@ public class ContextHelpViewer {
 	
 	Label createHelpLabel(HelpListEntry entry) {
 		var label = new Label();
+		label.setGraphicTextGap(8.0);
+		label.setAlignment(Pos.CENTER);
+		label.setTextAlignment(TextAlignment.CENTER);
 		label.textProperty().bind(entry.textProperty());
 		label.graphicProperty().bind(entry.graphicProperty());
 		label.setPadding(new Insets(5.0, 10.0, 5.0, 10.0));
@@ -413,6 +418,15 @@ public class ContextHelpViewer {
 				createIcon(PathIcons.SELECTION_MODE));
 		entry.visibleProperty().bind(
 				PathPrefs.selectionModeProperty());
+		return entry;
+	}
+
+	private HelpListEntry createUnseenErrors() {
+		var entry = HelpListEntry.createWarning(
+				"ContextHelp.warning.unseenErrors",
+				createIcon(PathIcons.LOG_VIEWER));
+		entry.visibleProperty().bind(
+				qupath.getLogViewerCommand().hasUnseenErrors());
 		return entry;
 	}
 	
@@ -458,6 +472,14 @@ public class ContextHelpViewer {
 				"ContextHelp.warning.opacityZero");
 		entry.visibleProperty().bind(
 				qupath.getOverlayOptions().opacityProperty().lessThanOrEqualTo(0.0));
+		return entry;
+	}
+
+	private HelpListEntry createZoomToFitEntry() {
+		var entry = HelpListEntry.createWarning(
+				"ContextHelp.warning.zoomToFit", createIcon(PathIcons.ZOOM_TO_FIT));
+		entry.visibleProperty().bind(
+				qupath.viewerProperty().flatMap(QuPathViewer::zoomToFitProperty));
 		return entry;
 	}
 	

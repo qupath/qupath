@@ -29,8 +29,10 @@ import javafx.beans.binding.BooleanBinding;
 import javafx.beans.binding.NumberBinding;
 import javafx.beans.binding.ObjectExpression;
 import javafx.beans.binding.StringBinding;
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.LongProperty;
 import javafx.beans.property.SimpleLongProperty;
+import javafx.beans.value.ObservableBooleanValue;
 import javafx.scene.Scene;
 import javafx.scene.layout.Region;
 import javafx.stage.Modality;
@@ -71,7 +73,7 @@ public class LogViewerCommand {
 
 	private NumberBinding unseenMessageCounts = errorMessageCounts.subtract(lastSeenErrorMessageCount);
 
-	private BooleanBinding hasErrors = unseenMessageCounts.greaterThan(0);
+	private BooleanBinding hasUnseenErrors = unseenMessageCounts.greaterThan(0);
 
 	private StringBinding errorMessageBinding = createErrorMessageBinding();
 
@@ -160,12 +162,21 @@ public class LogViewerCommand {
 		return counts;
 	}
 
+	/**
+	 * Boolean binding indicating whether there are any unseen errors.
+	 * 'Unseen' here means errors that occur since the log viewer was visible.
+	 * @return
+	 */
+	public ObservableBooleanValue hasUnseenErrors() {
+		return hasUnseenErrors;
+	}
+
 
 	private ObjectExpression<InfoMessage> infoMessage = Bindings.createObjectBinding(() -> {
-		if (!hasErrors.get())
+		if (!hasUnseenErrors.get())
 			return null;
 		return errorMessage;
-	}, hasErrors);
+	}, hasUnseenErrors);
 
 	/**
 	 * Get a string expression to draw attention to error messages.
