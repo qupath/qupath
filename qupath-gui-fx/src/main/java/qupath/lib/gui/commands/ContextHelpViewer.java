@@ -22,11 +22,11 @@
 
 package qupath.lib.gui.commands;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-
+import javafx.beans.Observable;
+import javafx.beans.binding.Bindings;
+import javafx.beans.binding.BooleanBinding;
+import javafx.beans.binding.LongBinding;
+import javafx.beans.binding.ObjectExpression;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -53,12 +53,20 @@ import javafx.scene.layout.VBox;
 import javafx.scene.text.TextAlignment;
 import javafx.stage.Stage;
 import javafx.stage.Window;
+import qupath.fx.utils.GridPaneUtils;
+import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.actions.InfoMessage;
 import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.IconFactory;
 import qupath.lib.gui.tools.IconFactory.PathIcons;
-import qupath.fx.utils.GridPaneUtils;
+import qupath.lib.gui.viewer.QuPathViewer;
+
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Help window providing context-dependent help.
@@ -86,13 +94,22 @@ public class ContextHelpViewer {
 	private Node lastNode;
 	private VBox vbox;
 	
-	private ObservableList<HelpListEntry> allHelpEntries = FXCollections.observableArrayList();
+	private ObservableList<HelpListEntry> allHelpEntries = FXCollections.observableArrayList(
+			(HelpListEntry e) -> new Observable[] {e.visibleProperty()});
+
+	private LongBinding warningCount = Bindings.createLongBinding(() ->
+		allHelpEntries.stream().filter(e -> e.visibleProperty().get() && e.getType() == HelpType.WARNING).count(),
+		allHelpEntries);
+
+	private BooleanBinding hasWarnings = warningCount.greaterThan(0);
+
+	private InfoMessage warningMessage = InfoMessage.info(warningCount);
 
 	private ContextHelpViewer(QuPathGUI qupath) {
 		this.qupath = qupath;
 		
 		initializeWindowListeners();
-		
+
 		label = createHelpTextLabel();
 		
 		vbox = new VBox();
@@ -144,10 +161,22 @@ public class ContextHelpViewer {
 				createTMAGridHiddenEntry(),
 				createNoImageEntry(),
 				createNoProjectEntry(),
-				createOpacityZeroEntry()
+				createOpacityZeroEntry(),
+				createGammaNotDefault(),
+				createInvertedColors()
 				);
 	}
-	
+
+
+	private ObjectExpression<InfoMessage> infoMessage = Bindings.createObjectBinding(() -> {
+		if (!hasWarnings.get())
+			return null;
+		return warningMessage;
+	}, hasWarnings);
+
+	public ObjectExpression<InfoMessage> getInfoMessage() {
+		return infoMessage;
+	}
 	
 	private Label createHelpTextLabel() {
 		var label = new Label();
@@ -304,6 +333,10 @@ public class ContextHelpViewer {
 			return graphicProperty;
 		}
 
+		private HelpType getType() {
+			return type;
+		}
+
 		public StringProperty textProperty() {
 			return textProperty;
 		}
@@ -374,7 +407,7 @@ public class ContextHelpViewer {
 	}
 	
 	
-	private  HelpListEntry createSelectionModelEntry() {
+	private HelpListEntry createSelectionModelEntry() {
 		var entry = HelpListEntry.createWarning(
 				"ContextHelp.warning.selectionMode",
 				createIcon(PathIcons.SELECTION_MODE));
@@ -384,7 +417,7 @@ public class ContextHelpViewer {
 	}
 	
 	
-	private  HelpListEntry createAnnotationsHiddenEntry() {
+	private HelpListEntry createAnnotationsHiddenEntry() {
 		var entry = HelpListEntry.createWarning(
 				"ContextHelp.warning.annotationsHidden",
 				createIcon(PathIcons.ANNOTATIONS));
@@ -393,7 +426,7 @@ public class ContextHelpViewer {
 		return entry;
 	}
 	
-	private  HelpListEntry createTMAGridHiddenEntry() {
+	private HelpListEntry createTMAGridHiddenEntry() {
 		var entry = HelpListEntry.createWarning(
 				"ContextHelp.warning.tmaCoresHidden",
 				createIcon(PathIcons.TMA_GRID));
@@ -402,7 +435,7 @@ public class ContextHelpViewer {
 		return entry;
 	}
 	
-	private  HelpListEntry createDetectionsHiddenEntry() {
+	private HelpListEntry createDetectionsHiddenEntry() {
 		var entry = HelpListEntry.createWarning(
 				"ContextHelp.warning.detectionsHidden",
 				createIcon(PathIcons.DETECTIONS));
@@ -411,7 +444,7 @@ public class ContextHelpViewer {
 		return entry;
 	}
 	
-	private  HelpListEntry createPixelClassificationOverlayHiddenEntry() {
+	private HelpListEntry createPixelClassificationOverlayHiddenEntry() {
 		var entry = HelpListEntry.createWarning(
 				"ContextHelp.warning.pixelOverlayHidden",
 				createIcon(PathIcons.PIXEL_CLASSIFICATION));
@@ -420,7 +453,7 @@ public class ContextHelpViewer {
 		return entry;
 	}
 	
-	private  HelpListEntry createOpacityZeroEntry() {
+	private HelpListEntry createOpacityZeroEntry() {
 		var entry = HelpListEntry.createWarning(
 				"ContextHelp.warning.opacityZero");
 		entry.visibleProperty().bind(
@@ -428,7 +461,7 @@ public class ContextHelpViewer {
 		return entry;
 	}
 	
-	private  HelpListEntry createNoImageEntry() {
+	private HelpListEntry createNoImageEntry() {
 		var entry = HelpListEntry.createWarning(
 				"ContextHelp.warning.noImage");
 		entry.visibleProperty().bind(
@@ -436,11 +469,29 @@ public class ContextHelpViewer {
 		return entry;
 	}
 	
-	private  HelpListEntry createNoProjectEntry() {
+	private HelpListEntry createNoProjectEntry() {
 		var entry = HelpListEntry.createWarning(
 				"ContextHelp.warning.noProject");
 		entry.visibleProperty().bind(
 				qupath.projectProperty().isNull());
+		return entry;
+	}
+
+	private HelpListEntry createGammaNotDefault() {
+		var entry = HelpListEntry.createWarning(
+				"ContextHelp.warning.gamma");
+		entry.visibleProperty().bind(
+				PathPrefs.viewerGammaProperty().isNotEqualTo(1));
+		return entry;
+	}
+
+	private HelpListEntry createInvertedColors() {
+		var entry = HelpListEntry.createWarning(
+				"ContextHelp.warning.invertedBackground");
+		entry.visibleProperty().bind(
+				qupath.viewerProperty()
+						.map(QuPathViewer::getImageDisplay)
+						.flatMap(ImageDisplay::useInvertedBackgroundProperty));
 		return entry;
 	}
 	

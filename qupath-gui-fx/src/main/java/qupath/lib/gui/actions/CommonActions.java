@@ -152,7 +152,10 @@ public class CommonActions {
 		MEASURE_DETECTIONS = qupath.createImageDataAction(imageData -> Commands.showDetectionMeasurementTable(qupath, imageData));
 		MEASURE_GRID_ANNOTATIONS = qupath.createImageDataAction(imageData -> Commands.showAnnotationGridView(qupath));
 		MEASURE_GRID_TMA_CORES = qupath.createImageDataAction(imageData -> Commands.showTMACoreGridView(qupath));
-		HELP_VIEWER = Commands.createSingleStageAction(() -> ContextHelpViewer.getInstance(qupath).getStage());
+
+		var contextHelp = ContextHelpViewer.getInstance(qupath);
+		HELP_VIEWER = Commands.createSingleStageAction(() -> contextHelp.getStage());
+		ActionTools.installInfoMessage(HELP_VIEWER, contextHelp.getInfoMessage());
 		
 		// This has the effect of applying the annotations
 		ActionTools.getAnnotatedActions(this);
