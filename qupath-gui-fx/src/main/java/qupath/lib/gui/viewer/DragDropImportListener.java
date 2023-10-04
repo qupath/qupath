@@ -26,6 +26,7 @@ package qupath.lib.gui.viewer;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -35,6 +36,7 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.stream.Collectors;
 
+import com.google.gson.JsonElement;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -60,6 +62,7 @@ import qupath.lib.gui.prefs.QuPathStyleManager;
 import qupath.lib.gui.scripting.ScriptEditor;
 import qupath.lib.gui.tma.TMADataIO;
 import qupath.lib.images.ImageData;
+import qupath.lib.io.GsonTools;
 import qupath.lib.io.PathIO;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.TMAGrid;
@@ -79,7 +82,9 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 	private QuPathGUI qupath;
 	
 	private List<DropHandler<File>> dropHandlers = new ArrayList<>();
-	
+
+	private List<DropHandler<JsonElement>> jsonDropHandlers = new ArrayList<>();
+
 	/**
 	 * Flag to indicate that a task is currently running, and events should be dropped until it is finished
 	 * (e.g. a dialog is showing and we need a response)
@@ -244,6 +249,28 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 	public void removeFileDropHandler(final DropHandler<File> handler) {
 		this.dropHandlers.remove(handler);
 	}
+
+	/**
+	 * Add a new DropHandler specifically for JSON elements.
+	 * <p>
+	 * This may be called when a json file is dropped on the main QuPath window.
+	 * Handlers should quickly inspect the element and return if they cannot handle it.
+	 *
+	 * @param handler
+	 */
+	public void addJsonDropHandler(final DropHandler<JsonElement> handler) {
+		this.jsonDropHandlers.add(handler);
+	}
+
+
+	/**
+	 * Remove a JSON DropHandler.
+	 *
+	 * @param handler
+	 */
+	public void removeJsonDropHandler(final DropHandler<JsonElement> handler) {
+		this.jsonDropHandlers.remove(handler);
+	}
     
     void handleFileDrop(final QuPathViewer viewer, final List<File> list) throws IOException {
     	try {
@@ -268,7 +295,7 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
     private void handleFileDropImpl(QuPathViewer viewer, List<File> list) throws IOException {
 		
 		// Shouldn't occur... but keeps FindBugs happy to check
-		if (list == null) {
+		if (list == null || list.isEmpty()) {
 			logger.warn("No files given!");
 			return;
 		}
@@ -276,13 +303,18 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 		// Check if we have only jar or css files
 		int nJars = 0;
 		int nCss = 0;
+		int nJson = 0;
 		for (File file : list) {
 			var ext = GeneralTools.getExtension(file).orElse("").toLowerCase();
 			if (ext.equals(".jar"))
 				nJars++;
 			else if (ext.equals(".css"))
 				nCss++;
+			else if (ext.equals(".json"))
+				nJson++;
 		}
+
+		// If we only have jar files, treat them as extensions
 		if (nJars == list.size()) {
 			qupath.getExtensionManager().promptToCopyFilesToExtensionsDirectory(list);
 			return;
@@ -298,7 +330,24 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 			QuPathStyleManager.installStyles(list);
 			return;
 		}
-		
+
+		// Handle JSON files
+		if (nJson == list.size()) {
+			List<JsonElement> elements = new ArrayList<>();
+			var gson = GsonTools.getInstance();
+			// TODO: Note that this is inefficient if we have GeoJSON that we don't handle, since the file is read twice
+			for (var file : list) {
+				try (var reader = Files.newBufferedReader(file.toPath())) {
+					elements.add(gson.fromJson(reader, JsonElement.class));
+				} catch (IOException ex) {
+					logger.error("Could not read JSON file {}", file, ex);
+				}
+			}
+			for (DropHandler<JsonElement> handler: jsonDropHandlers) {
+				if (handler.handleDrop(viewer, elements))
+					return;
+			}
+		}
 
 		// Try to get a hierarchy for importing ROIs
 		ImageData<BufferedImage> imageData = viewer == null ? null : viewer.getImageData();

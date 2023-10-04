@@ -37,13 +37,21 @@ import qupath.lib.regions.ImageRegion;
  * 
  * @author Pete Bankhead
  */
-public class CommandLinePluginRunner extends AbstractPluginRunner {
+public class CommandLineTaskRunner extends AbstractTaskRunner {
 	
 	/**
-	 * Constructor for a PluginRunner that send progress to a log.
+	 * Constructor for a PluginRunner that send progress to a log, and runs tasks using the default number of threads
 	 */
-	public CommandLinePluginRunner() {
+	public CommandLineTaskRunner() {
 		super();
+	}
+
+	/**
+	 * Constructor for a PluginRunner that send progress to a log.
+	 * @param nThreads the number of threads to use when running tasks
+	 */
+	public CommandLineTaskRunner(int nThreads) {
+		super(nThreads);
 	}
 
 	@Override

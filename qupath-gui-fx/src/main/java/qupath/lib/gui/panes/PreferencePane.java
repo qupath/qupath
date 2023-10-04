@@ -202,10 +202,13 @@ public class PreferencePane {
 		
 		@Pref(value = "Prefs.Appearance.theme", type = StyleOption.class, choiceMethod = "getStyles")
 		public final ObjectProperty<StyleOption> theme = QuPathStyleManager.selectedStyleProperty();
-		
+
 		@Pref(value = "Prefs.Appearance.font", type = QuPathStyleManager.Fonts.class)
 		public final ObjectProperty<QuPathStyleManager.Fonts> autoUpdate = QuPathStyleManager.fontProperty();
-		
+
+		@BooleanPref(value = "Prefs.Appearance.badges")
+		public final BooleanProperty badges = PathPrefs.showToolBarBadgesProperty();
+
 		public final ObservableList<StyleOption> getStyles() {
 			return QuPathStyleManager.availableStylesProperty();
 		}

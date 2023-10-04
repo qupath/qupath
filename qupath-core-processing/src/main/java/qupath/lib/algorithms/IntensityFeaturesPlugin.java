@@ -64,7 +64,7 @@ import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.plugins.AbstractInteractivePlugin;
-import qupath.lib.plugins.PluginRunner;
+import qupath.lib.plugins.TaskRunner;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.RoiTools;
@@ -351,8 +351,8 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 	
 	
 	@Override
-	public boolean runPlugin(final PluginRunner pluginRunner, final ImageData<BufferedImage> imageData, final String arg) {
-		boolean success = super.runPlugin(pluginRunner, imageData, arg);
+	public boolean runPlugin(final TaskRunner taskRunner, final ImageData<BufferedImage> imageData, final String arg) {
+		boolean success = super.runPlugin(taskRunner, imageData, arg);
 		imageData.getHierarchy().fireHierarchyChangedEvent(this);
 		return success;
 	}

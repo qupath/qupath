@@ -31,7 +31,6 @@ import qupath.lib.images.ImageData;
 
 class RBGColorTransformInfo extends AbstractSingleChannelInfo {
 
-	private transient int[] buffer = null;
 	private ColorTransformer.ColorTransformMethod method;
 	private transient ColorModel colorModel;
 	private transient ColorModel colorModelInverted = null;
@@ -92,7 +91,7 @@ class RBGColorTransformInfo extends AbstractSingleChannelInfo {
 	@Override
 	public synchronized float[] getValues(BufferedImage img, int x, int y, int w, int h, float[] array) {
 		// Try to get the RGB buffer directly
-		buffer = RGBDirectChannelInfo.getRGBIntBuffer(img);
+		int[] buffer = RGBDirectChannelInfo.getRGBIntBuffer(img);
 		// If we didn't get a buffer the fast way, we need to get one the slow way...
 		if (buffer == null)
 			buffer = img.getRGB(x, y, w, h, buffer, 0, w);

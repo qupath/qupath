@@ -176,7 +176,7 @@ public class PathObjects {
 	}
 
 	/**
-	 * Create a tile object.
+	 * Create a tile object, with a classification and measurements list.
 	 * <p>
 	 * Tile objects represent a special case of a detection objects, were the ROI doesn't represent any particular structure 
 	 * (e.g. it is a superpixel or square tile representing a local collection of pixels used on the path to region segmentation).
@@ -192,6 +192,23 @@ public class PathObjects {
 		if (roi == null)
 			throw new IllegalArgumentException("A ROI is required to create a detection object!");
 		return new PathTileObject(roi, pathClass, measurements);
+	}
+
+	/**
+	 * Create a tile object.
+	 * <p>
+	 * Tile objects represent a special case of a detection objects, were the ROI doesn't represent any particular structure
+	 * (e.g. it is a superpixel or square tile representing a local collection of pixels used on the path to region segmentation).
+	 *
+	 * @param roi
+	 * @param pathClass
+	 * @return
+	 *
+	 * @see #createDetectionObject
+	 * @since v0.5.0
+	 */
+	public static PathObject createTileObject(final ROI roi, final PathClass pathClass) {
+		return createTileObject(roi, pathClass, null);
 	}
 	
 	/**
@@ -212,7 +229,7 @@ public class PathObjects {
 	}
 	
 	/**
-	 * Create a cell object.
+	 * Create a cell object with an optional classification and measurements list.
 	 * <p>
 	 * Cell objects represent a special case of a detection objects, where an additional ROI can be stored representing 
 	 * the cell nucleus.
@@ -227,6 +244,41 @@ public class PathObjects {
 	 */
 	public static PathObject createCellObject(final ROI roiCell, final ROI roiNucleus, final PathClass pathClass, final MeasurementList measurements) {
 		return new PathCellObject(roiCell, roiNucleus, pathClass, measurements);
+	}
+
+	/**
+	 * Create a cell object with an optional classification.
+	 * <p>
+	 * Cell objects represent a special case of a detection objects, where an additional ROI can be stored representing
+	 * the cell nucleus.
+	 *
+	 * @param roiCell
+	 * @param roiNucleus
+	 * @param pathClass
+	 * @return
+	 *
+	 * @see #createDetectionObject
+	 * @since v0.5.0
+	 */
+	public static PathObject createCellObject(final ROI roiCell, final ROI roiNucleus, final PathClass pathClass) {
+		return createCellObject(roiCell, roiNucleus, pathClass, null);
+	}
+
+	/**
+	 * Create a cell object.
+	 * <p>
+	 * Cell objects represent a special case of a detection objects, where an additional ROI can be stored representing
+	 * the cell nucleus.
+	 *
+	 * @param roiCell
+	 * @param roiNucleus
+	 * @return
+	 *
+	 * @see #createDetectionObject
+	 * @since v0.5.0
+	 */
+	public static PathObject createCellObject(final ROI roiCell, final ROI roiNucleus) {
+		return createCellObject(roiCell, roiNucleus, null);
 	}
 	
 

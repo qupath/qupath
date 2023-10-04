@@ -76,6 +76,7 @@ import qupath.lib.gui.actions.annotations.ActionIcon;
 import qupath.lib.gui.actions.annotations.ActionMenu;
 import qupath.lib.gui.actions.annotations.ActionMethod;
 import qupath.lib.gui.localization.QuPathResources;
+import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.IconFactory;
 import qupath.fx.localization.LocalizedResourceManager;
 
@@ -881,14 +882,14 @@ public class ActionTools {
 		updateInfoMessageStyleClasses(circle, message.get());
 		var tooltip = new Tooltip();
 		tooltip.textProperty().bind(message.flatMap(InfoMessage::textProperty));
-		Tooltip.install(circle, tooltip);
+		Tooltip.install(stack, tooltip);
 		tooltip.setShowDelay(Duration.ZERO);
 		message.addListener((v, o, n) -> updateInfoMessageStyleClasses(circle, n));
 
 		stack.getStyleClass().add("toolbar-badge");
 
 		var decoration = new GraphicDecoration(stack, Pos.TOP_RIGHT, -0.5*circle.getRadius(), 0.5*circle.getRadius());
-		circle.visibleProperty().bind(message.isNotNull());
+		stack.visibleProperty().bind(PathPrefs.showToolBarBadgesProperty().and(message.isNotNull()));
 		Platform.runLater(() -> Decorator.addDecoration(node, decoration));
 	}
 

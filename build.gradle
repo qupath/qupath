@@ -1,6 +1,7 @@
 plugins {
     id 'qupath.java-conventions'
     id 'version-catalog'
+    id 'maven-publish'
 }
 
 // We don't want to generate javadocs for the root project
@@ -23,7 +24,8 @@ task mergedJavadocs(type: Javadoc,
 	options.encoding = 'UTF-8'
 
 	options.links "https://docs.oracle.com/en/java/javase/${libs.versions.jdk.get()}/docs/api/"
-	options.links "https://openjfx.io/javadoc/${libs.versions.javafxJavadoc.get()}/"
+    // Need to use the major version only with javafx
+	options.links "https://openjfx.io/javadoc/${libs.versions.javafx.get().split('\\.')[0]}/"
 	options.links "https://javadoc.io/doc/org.bytedeco/javacpp/${libs.versions.javacpp.get()}/"
 	options.links "https://javadoc.io/doc/org.bytedeco/opencv/${libs.versions.opencv.get()}/"
 	options.links "https://javadoc.io/doc/com.google.code.gson/gson/${libs.versions.gson.get()}/"
@@ -37,7 +39,7 @@ task mergedJavadocs(type: Javadoc,
 }
 
 /*
- * Get version cataglog
+ * Get version catalog
  */
 catalog {
     versionCatalog {

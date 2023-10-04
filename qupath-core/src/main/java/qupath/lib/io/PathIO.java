@@ -23,6 +23,24 @@
 
 package qupath.lib.io;
 
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParseException;
+import com.google.gson.JsonSyntaxException;
+import com.google.gson.reflect.TypeToken;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.color.ColorDeconvolutionStains;
+import qupath.lib.common.GeneralTools;
+import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ImageServerBuilder.DefaultImageServerBuilder;
+import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
+import qupath.lib.images.servers.ImageServerProvider;
+import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectTools;
+import qupath.lib.objects.hierarchy.PathObjectHierarchy;
+import qupath.lib.plugins.workflow.Workflow;
+
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.EOFException;
@@ -55,8 +73,8 @@ import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Locale.Category;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Set;
@@ -65,30 +83,6 @@ import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
-
-import org.locationtech.jts.geom.Geometry;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.google.gson.Gson;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonParseException;
-import com.google.gson.JsonSyntaxException;
-import com.google.gson.reflect.TypeToken;
-import qupath.lib.color.ColorDeconvolutionStains;
-import qupath.lib.common.GeneralTools;
-import qupath.lib.images.ImageData;
-import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.servers.ImageServerBuilder.DefaultImageServerBuilder;
-import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
-import qupath.lib.images.servers.ImageServerProvider;
-import qupath.lib.objects.PathObject;
-import qupath.lib.objects.PathObjectTools;
-import qupath.lib.objects.PathObjects;
-import qupath.lib.objects.hierarchy.PathObjectHierarchy;
-import qupath.lib.plugins.workflow.Workflow;
-import qupath.lib.regions.ImagePlane;
-import qupath.lib.roi.GeometryTools;
 
 /**
  * Primary class for loading/saving {@link ImageData} objects.
@@ -827,65 +821,11 @@ public class PathIO {
 	 * @throws JsonParseException 
 	 */
 	public static List<PathObject> readObjectsFromGeoJSON(InputStream stream) throws IOException, JsonSyntaxException, JsonParseException {
-		// Prepare template
 		var gson = GsonTools.getInstance();
 		try (var reader = new InputStreamReader(new BufferedInputStream(stream), StandardCharsets.UTF_8)) {
 			var element = gson.fromJson(reader, JsonElement.class);
-			var pathObjects = new ArrayList<PathObject>();
-			addPathObjects(element, pathObjects, gson);
-			return pathObjects;
+			return GsonTools.parseObjectsFromGeoJSON(element);
 		}
-	}
-	
-	/**
-	 * Try to parse objects from GeoJSON.
-	 * This might involve a FeatureCollection, Feature or Geometry.
-	 * @param element
-	 * @param pathObjects
-	 * @param gson
-	 * @return
-	 */
-	private static boolean addPathObjects(JsonElement element, List<PathObject> pathObjects, Gson gson) {
-		if (element == null)
-			return false;
-		if (element.isJsonArray()) {
-			var array = element.getAsJsonArray();
-			boolean changes = false;
-			for (int i = 0; i < array.size(); i++) {
-				changes = changes | addPathObjects(array.get(i), pathObjects, gson);
-			}
-			return changes;
-		}
-		if (element.isJsonObject()) {
-			var jsonObject = element.getAsJsonObject();
-			if (jsonObject.has("type")) {
-				String type = jsonObject.get("type").getAsString();
-				switch (type) {
-				case "Feature":
-					var pathObject = gson.fromJson(jsonObject, PathObject.class);
-					if (pathObject == null)
-						return false;
-					return pathObjects.add(pathObject);
-				case "FeatureCollection":
-					var featureCollection = gson.fromJson(jsonObject, FeatureCollection.class);
-					return pathObjects.addAll(featureCollection.getPathObjects());
-				case "Point":
-				case "MultiPoint":
-				case "LineString":
-				case "MultiLineString":
-				case "Polygon":
-				case "MultiPolygon":
-				case "GeometryCollection":
-					logger.warn("Creating annotation from GeoJSON geometry {}", type);
-					var geometry = gson.fromJson(jsonObject, Geometry.class);
-					geometry = GeometryTools.homogenizeGeometryCollection(geometry);
-					var roi = GeometryTools.geometryToROI(geometry, ImagePlane.getDefaultPlane());
-					var annotation = PathObjects.createAnnotationObject(roi);
-					return pathObjects.add(annotation);
-				}
-			}
-		}
-		return false;
 	}
 	
 	

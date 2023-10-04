@@ -23,7 +23,6 @@
 package qupath.lib.gui.actions;
 
 import javafx.beans.binding.Bindings;
-import javafx.beans.property.ReadOnlyIntegerWrapper;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.beans.property.ReadOnlyStringProperty;
@@ -31,7 +30,7 @@ import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.value.ObservableNumberValue;
-import javafx.beans.value.ObservableStringValue;
+import javafx.beans.value.ObservableValue;
 
 /**
  * An informative message that should be shown to the user.
@@ -58,18 +57,16 @@ public class InfoMessage {
 
     private MessageType badgeType;
 
-    private ReadOnlyStringProperty text;
+    private ReadOnlyStringWrapper text = new ReadOnlyStringWrapper();
 
-    private ReadOnlyObjectProperty<Number> count;
+    private ReadOnlyObjectWrapper<Number> count = new ReadOnlyObjectWrapper<>();
 
-    private InfoMessage(MessageType badgeType, ObservableStringValue text, ObservableNumberValue count) {
+    private InfoMessage(MessageType badgeType, ObservableValue<String> observableText, ObservableNumberValue observableCount) {
         this.badgeType = badgeType;
-        var wrapper = new ReadOnlyStringWrapper();
-        wrapper.bind(text);
-        this.text = wrapper.getReadOnlyProperty();
-        var wrapperCount = new ReadOnlyObjectWrapper<Number>();
-        wrapperCount.bind(count.map(c -> c != null && c.intValue() < 0 ? null : c.intValue()));
-        this.count = wrapperCount.getReadOnlyProperty();
+        this.text.bind(observableText);
+        this.count.bind(Bindings.createObjectBinding(() -> {
+            return observableCount != null && observableCount.intValue() < 0 ? null : observableCount.intValue();
+        }, observableCount));
     }
 
     /**
@@ -77,7 +74,7 @@ public class InfoMessage {
      * @param text
      * @return
      */
-    public static InfoMessage info(ObservableStringValue text) {
+    public static InfoMessage info(ObservableValue<String> text) {
         return info(text, new SimpleIntegerProperty(-1));
     }
 
@@ -96,7 +93,7 @@ public class InfoMessage {
      * @param count
      * @return
      */
-    public static InfoMessage info(ObservableStringValue text, ObservableNumberValue count) {
+    public static InfoMessage info(ObservableValue<String> text, ObservableNumberValue count) {
         return new InfoMessage(MessageType.INFO, text, count);
     }
 
@@ -116,13 +113,14 @@ public class InfoMessage {
      * @return
      */
     public static InfoMessage info(ObservableNumberValue count) {
-        return info(Bindings.createStringBinding(() -> {
-            int value = count.intValue();
+        var text = count.map(val -> {
+            int value = val.intValue();
             if (value == 1)
                 return "1 message";
             else
                 return value + " messages";
-        }), count);
+        });
+        return info(text, count);
     }
 
     /**
@@ -130,7 +128,7 @@ public class InfoMessage {
      * @param text
      * @return
      */
-    public static InfoMessage warning(ObservableStringValue text) {
+    public static InfoMessage warning(ObservableValue<String> text) {
         return warning(text, new SimpleIntegerProperty(-1));
     }
 
@@ -149,7 +147,7 @@ public class InfoMessage {
      * @param count
      * @return
      */
-    public static InfoMessage warning(ObservableStringValue text, ObservableNumberValue count) {
+    public static InfoMessage warning(ObservableValue<String> text, ObservableNumberValue count) {
         return new InfoMessage(MessageType.WARN, text, count);
     }
 
@@ -159,14 +157,14 @@ public class InfoMessage {
      * @return
      */
     public static InfoMessage warning(ObservableNumberValue count) {
-        return new InfoMessage(MessageType.WARN,
-                Bindings.createStringBinding(() -> {
-                    int value = count.intValue();
-                    if (value == 1)
-                        return "1 warning";
-                    else
-                        return value + " warnings";
-                }), count);
+        var text = count.map(val -> {
+            int value = val.intValue();
+            if (value == 1)
+                return "1 warning";
+            else
+                return value + " warnings";
+        });
+        return new InfoMessage(MessageType.WARN, text, count);
     }
 
     /**
@@ -185,7 +183,7 @@ public class InfoMessage {
      * @param text
      * @return
      */
-    public static InfoMessage error(ObservableStringValue text) {
+    public static InfoMessage error(ObservableValue<String> text) {
         return error(text, new SimpleIntegerProperty(-1));
     }
 
@@ -204,7 +202,7 @@ public class InfoMessage {
      * @param count
      * @return
      */
-    public static InfoMessage error(ObservableStringValue text, ObservableNumberValue count) {
+    public static InfoMessage error(ObservableValue<String> text, ObservableNumberValue count) {
         return new InfoMessage(MessageType.ERROR, text, count);
     }
 
@@ -224,13 +222,14 @@ public class InfoMessage {
      * @return
      */
     public static InfoMessage error(ObservableNumberValue count) {
-        return error(Bindings.createStringBinding(() -> {
-                    int value = count.intValue();
-                    if (value == 1)
-                        return "1 error";
-                    else
-                        return value + " error";
-                }), count);
+        var text = count.map(val -> {
+            int value = val.intValue();
+            if (value == 1)
+                return "1 error";
+            else
+                return value + " errors";
+        });
+        return error(text, count);
     }
 
 
@@ -239,7 +238,7 @@ public class InfoMessage {
      * @return
      */
     public ReadOnlyStringProperty textProperty() {
-        return text;
+        return text.getReadOnlyProperty();
     }
 
     /**
@@ -255,7 +254,7 @@ public class InfoMessage {
      * @return
      */
     public ReadOnlyObjectProperty<Number> countProperty() {
-        return count;
+        return count.getReadOnlyProperty();
     }
 
     /**

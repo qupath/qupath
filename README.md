@@ -10,10 +10,10 @@
 
 Features include:
 
-* Extensive tools to annotate and view images, including whole slide & microscopy images
+* Lots of tools to annotate and view images, including whole slide & microscopy images
 * Workflows for brightfield & fluorescence image analysis
 * New algorithms for common tasks, including cell segmentation, tissue microarray dearraying
-* Interactive machine learning for both object & pixel classification
+* Interactive machine learning for object & pixel classification
 * Customization, batch-processing & data interrogation by scripting
 * Easy integration with other tools, including ImageJ
 
@@ -35,8 +35,11 @@ To **build QuPath from source** see [here](https://qupath.readthedocs.io/en/late
 
 QuPath is being actively developed at the University of Edinburgh by:
 
-* Pete Bankhead (creator)
-* Fiona Inglis
+* [Pete Bankhead](https://github.com/petebankhead) (creator)
+* [Fiona Inglis](https://github.com/finglis)
+* [Alan O'Callaghan](https://github.com/alanocallaghan)
+* [Léo Leplat](https://github.com/Rylern)
+* [Laura Nicolás-Sáenz](https://github.com/lauranicolass)
 
 Past QuPath dev team members:
 

@@ -24,9 +24,8 @@
 package qupath.lib.plugins;
 
 import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
@@ -41,34 +40,50 @@ import qupath.lib.common.ThreadTools;
 /**
  * Abstract PluginRunner to help with the creation of plugin runners for specific circumstances,
  * e.g. running through a GUI, or from a command line only.
- * <p>
- * Note!  This makes use of a static threadpool, which will be reused by all inheriting classes.
- * 
- * @author Pete Bankhead
  */
-public abstract class AbstractPluginRunner implements PluginRunner {
+public abstract class AbstractTaskRunner implements TaskRunner {
 	
-	private static final Logger logger = LoggerFactory.getLogger(AbstractPluginRunner.class);
+	private static final Logger logger = LoggerFactory.getLogger(AbstractTaskRunner.class);
 
 	private static int counter = 0;
 
 	private ExecutorService pool;
 	private ExecutorCompletionService<Runnable> service;
 
-	private Map<Future<Runnable>, Runnable> pendingTasks = Collections.synchronizedMap(new HashMap<>());
+	private Map<Future<Runnable>, Runnable> pendingTasks = new ConcurrentHashMap<>();
 	
 	private SimpleProgressMonitor monitor;
 	
 	private boolean tasksCancelled = false;
-	
-	protected AbstractPluginRunner() {
-		super();
+
+	private int numThreads;
+
+	/**
+	 * Constructor for a PluginRunner that uses the default number of threads, read from
+	 * {@link ThreadTools#getParallelism()}.
+	 */
+	protected AbstractTaskRunner() {
+		this(-1);
 	}
-	
+
+	/**
+	 * Constructor for a PluginRunner that optionally uses a fixed number of threads.
+	 * @param numThreads the number of threads to use, or -1 to use the default number of threads defined by
+	 *                   {@link ThreadTools#getParallelism()}.
+	 */
+	protected AbstractTaskRunner(int numThreads) {
+		super();
+		this.numThreads = numThreads;
+	}
+
+	/**
+	 * Create a progress monitor to update the user on what is happening.
+	 * @return
+	 */
 	protected abstract SimpleProgressMonitor makeProgressMonitor();
 	
 	@Override
-	public synchronized void runTasks(Collection<Runnable> tasks) {
+	public synchronized void runTasks(Collection<? extends Runnable> tasks) {
 		
 		if (tasks.isEmpty())
 			return;
@@ -78,8 +93,8 @@ public abstract class AbstractPluginRunner implements PluginRunner {
 		
 		// Ensure we have a pool
 		if (pool == null || pool.isShutdown()) {
-			int n = ThreadTools.getParallelism();
-			pool = Executors.newFixedThreadPool(n, ThreadTools.createThreadFactory("plugin-runner-"+(++counter)+"-", false));
+			int n = numThreads <= 0 ? ThreadTools.getParallelism() : numThreads;
+			pool = Executors.newFixedThreadPool(n, ThreadTools.createThreadFactory("task-runner-"+(++counter)+"-", false));
 			logger.debug("New threadpool created with {} threads", n);
 			service = new ExecutorCompletionService<>(pool);
 		} else if (service == null)
@@ -88,6 +103,11 @@ public abstract class AbstractPluginRunner implements PluginRunner {
 		monitor = makeProgressMonitor();
 		monitor.startMonitoring(null, tasks.size(), true);
 		for (Runnable task : tasks) {
+			// If a task if null, then skip it - otherwise the monitor can get stuck
+			if (task == null) {
+				logger.warn("Skipping null task");
+				continue;
+			}
 			Future<Runnable> future = service.submit(task, task);
 			pendingTasks.put(future, task);
 		}
@@ -133,24 +153,18 @@ public abstract class AbstractPluginRunner implements PluginRunner {
 			if (monitor != null)
 				monitor.pluginCompleted("Tasks completed!");
 		} catch (InterruptedException e) {
-			logger.error("Plugin interrupted: {}", e.getLocalizedMessage(), e);
-			monitor.pluginCompleted("Completed with error " + e.getLocalizedMessage());
+			logger.error("Plugin interrupted: {}", e.getMessage(), e);
+			monitor.pluginCompleted("Completed with error " + e.getMessage());
 		} catch (ExecutionException e) {
-			logger.error("Error running plugin: {}", e.getLocalizedMessage(), e);
-//			Throwable e2 = e;
-//			while ((e2 = e2.getCause()) != null) {
-//				e2 = e2.fillInStackTrace();
-//				logger.error("CAUSING Error running plugin: {}", e2.getLocalizedMessage(), e2);
-//			}
-//			e.printStackTrace();
+			logger.error("Error running plugin: {}", e.getMessage(), e);
 			if (pool != null)
 				pool.shutdownNow();
-			monitor.pluginCompleted("Completed with error " + e.getLocalizedMessage());
+			monitor.pluginCompleted("Completed with error " + e.getMessage());
 		} catch (Exception e) {
-			logger.error("Error running plugin: {}", e.getLocalizedMessage(), e);
+			logger.error("Error running plugin: {}", e.getMessage(), e);
 			if (pool != null)
 				pool.shutdownNow();
-			monitor.pluginCompleted("Completed with error " + e.getLocalizedMessage());
+			monitor.pluginCompleted("Completed with error " + e.getMessage());
 		} finally {
 			pendingTasks.clear();
 		}
@@ -168,7 +182,7 @@ public abstract class AbstractPluginRunner implements PluginRunner {
 	 * 
 	 * @param tasks
 	 */
-	protected void postProcess(final Collection<PathTask> tasks) {
+	protected void postProcess(final Collection<? extends PathTask> tasks) {
 		boolean wasCancelled = tasksCancelled || monitor.cancelled();
 		for (var task : tasks)
 			task.taskComplete(wasCancelled);

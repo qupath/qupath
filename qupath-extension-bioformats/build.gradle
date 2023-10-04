@@ -2,6 +2,8 @@ plugins {
   id 'qupath.extension-conventions'
   id 'qupath.publishing-conventions'
   id 'java-library'
+
+  alias(libs.plugins.javafx)
 }
 
 ext.moduleName = 'qupath.extension.bioformats'

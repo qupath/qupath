@@ -128,13 +128,25 @@ class ShowSystemInfoCommand {
 	    // Show paths (at the end, since they may be rather long)
 		sb.append("\n");
 		sb.append("Library path:");
-		for (String p : System.getProperty("java.library.path").split(File.pathSeparator))
+		for (String p : System.getProperty("java.library.path", "").split(File.pathSeparator))
 			sb.append("\n      ").append(p);
 		sb.append("\n\n");
+
+		// Module path often empty, but may not be depending upon how QuPath is launched
+		// (and will be useful for debugging as we attempt to become more modular)
+		var modulePath = System.getProperty("jdk.module.path", null);
+		if (modulePath != null) {
+			sb.append("Module path:");
+			for (String p : modulePath.split(File.pathSeparator))
+				sb.append("\n      ").append(p);
+			sb.append("\n\n");
+		}
+
+		// Class path currently always important
 		sb.append("Class path:");
-		for (String p : System.getProperty("java.class.path").split(File.pathSeparator))
+		for (String p : System.getProperty("java.class.path", "").split(File.pathSeparator))
 			sb.append("\n      ").append(p);
-		
+
 		logger.trace("Creating system info string:\n{}", sb);
 		
 		return sb.toString();

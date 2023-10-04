@@ -10,9 +10,9 @@ controlsFX      = "11.1.2"
 
 deepJavaLibrary = "0.23.0"
 
-groovy          = "4.0.14"
+groovy          = "4.0.15"
 gson            = "2.10.1"
-guava           = "31.1-jre"
+guava           = "32.1.2-jre"
 
 ikonli          = "12.3.1"
 imagej          = "1.54f"
@@ -23,7 +23,7 @@ javacpp         = "1.5.9"
   opencv        = "4.7.0-1.5.9"
   cuda          = "12.1-8.9-1.5.9"
   
-javafx          = "20.0.2"
+javafx          = "21"
 javafxJavadoc   = "19"
 jna             = "5.13.0"
 jfreeSvg        = "5.0.5"
@@ -34,13 +34,13 @@ junit           = "5.9.2"
 logback         = "1.3.11"
 logviewer       = "0.1.0-SNAPSHOT"
 
-picocli         = "4.7.4"
+picocli         = "4.7.5"
 qupath-fxtras   = "0.1.0-SNAPSHOT"
 
 richtextfx      = "0.11.1"
 
-slf4j           = "2.0.7"
-snakeyaml       = "1.33"
+slf4j           = "2.0.9"
+snakeyaml       = "2.2"
 
 
 [libraries]
@@ -109,7 +109,9 @@ yaml          = ["snakeyaml"]
 [plugins]
 # Use the javafx plugin to add modules
 javacpp        = { id = "org.bytedeco.gradle-javacpp-platform",     version.ref = "javacpp" }
-javafx         = { id = "org.openjfx.javafxplugin",                 version = "0.0.13" }
+# If javafx plugin causes trouble, see https://github.com/openjfx/javafx-gradle-plugin#migrating-from-0014-to-010
+javafx         = { id = "org.openjfx.javafxplugin",                 version = "0.1.0" }
+#javafx         = { id = "org.openjfx.javafxplugin",                 version = "0.0.14" }
 jpackage       = { id = "org.beryx.runtime",                        version = "1.13.0" } # Non-modular
 # jpackage       = { id = "org.beryx.jlink",                          version = "2.26.0" } # Modular
-license-report = { id = "com.github.jk1.dependency-license-report", version = "2.0" }
+license-report = { id = "com.github.jk1.dependency-license-report", version = "2.5" }

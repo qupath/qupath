@@ -2,6 +2,10 @@
 
 This is a work-in-progress for the next QuPath release.
 
+> To run on Mac, QuPath v0.5.0 requires macOS 11 or later.
+> This is because of recent changes in JavaFX - for more details, see [here](https://github.com/openjdk/jfx/blob/master/doc-files/release-notes-21.md#javafx-requires-macos-11-or-later)
+> and [here](https://bugs.openjdk.org/browse/JDK-8308114).
+
 ### Enhancements
 
 #### User interface
@@ -23,9 +27,15 @@ This is a work-in-progress for the next QuPath release.
 * File &rarr; Export snapshots* supports PNG, JPEG and TIFF (not just PNG)
 * Support sorting project entries by name, ID, and URI
   * Right-click on the project list to access the *Sort by...* menu
+* Improved script editor auto-complete
+  * Activate with *Ctrl + space*, cancel with *Esc*
+  * Completions update while typing
 
 #### Processing & analysis
 * Faster processing & reduced memory use for pixel classification measurements (https://github.com/qupath/qupath/pull/1332)
+* New *Objects → Annotations... → Split annotations by lines* command (https://github.com/qupath/qupath/pull/1349)
+* New `ObjectMerger` class to simplify creating new tile-based segmentation methods (https://github.com/qupath/qupath/pull/1346)
+* New `Tiler` class to generate tiles within other objects (https://github.com/qupath/qupath/pull/1347) (https://github.com/qupath/qupath/pull/1349) (https://github.com/qupath/qupath/issues/1277)
 
 #### Import & export
 * SVG export now supports overlays (https://github.com/qupath/qupath/issues/1272)
@@ -54,15 +64,17 @@ This is a work-in-progress for the next QuPath release.
 ### Dependency updates
 * Bio-Formats 7.0.0
 * DeepJavaLibrary 0.23.0
-* Groovy 4.0.14
+* Groovy 4.0.15
+* Guava 32.1.2-jre
 * ImageJ 1.54f
 * JavaCPP 1.5.9
-* JavaFX 20.0.2
+* JavaFX 21
 * Logback 1.3.11
 * OpenCV 4.7.0
-* Picocli 4.7.4
+* Picocli 4.7.5
 * RichTextFX 0.11.1
-* SLF4J 2.0.7
+* SLF4J 2.0.9
+* snakeyaml 2.2
 
 
 ## Version 0.4.4

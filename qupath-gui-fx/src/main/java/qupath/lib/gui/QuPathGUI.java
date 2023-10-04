@@ -161,8 +161,6 @@ import qupath.lib.scripting.languages.ExecutableLanguage;
 import qupath.lib.scripting.languages.ScriptLanguage;
 import qupath.lib.gui.scripting.DefaultScriptEditor;
 import qupath.lib.gui.scripting.QPEx;
-import qupath.ui.logviewer.ui.main.LogMessageCounts;
-import qupath.ui.logviewer.ui.main.LogViewer;
 
 
 /**
@@ -174,7 +172,7 @@ import qupath.ui.logviewer.ui.main.LogViewer;
 public class QuPathGUI {
 	
 	private static final Logger logger = LoggerFactory.getLogger(QuPathGUI.class);
-	
+
 	private static QuPathGUI instance;
 	
 	/**
@@ -186,19 +184,19 @@ public class QuPathGUI {
 	private HostServices hostServices;
 	private MenuBar menuBar;
 
-	private DefaultImageRegionStore imageRegionStore = ImageRegionStoreFactory.createImageRegionStore();
+	private DefaultImageRegionStore imageRegionStore;
 
-	private ToolManager toolManager = ToolManager.create();
-	private SharedThreadPoolManager threadPoolManager = SharedThreadPoolManager.create();
+	private ToolManager toolManager;
+	private SharedThreadPoolManager threadPoolManager;
 		
-	private PreferencePane prefsPane = new PreferencePane();
+	private PreferencePane prefsPane;
 	private LogViewerCommand logViewerCommand;
 	private ScriptEditor scriptEditor;
 		
-	private ViewerManager viewerManager = ViewerManager.create(this);
-	private PathClassManager pathClassManager = PathClassManager.create();
-	private UpdateManager updateManager = UpdateManager.create(this);
-	private ExtensionManager extensionManager = ExtensionManager.create(this);
+	private ViewerManager viewerManager;
+	private PathClassManager pathClassManager;
+	private UpdateManager updateManager;
+	private ExtensionManager extensionManager;
 
 	private QuPathMainPaneManager mainPaneManager;
 	private UndoRedoManager undoRedoManager;
@@ -206,18 +204,18 @@ public class QuPathGUI {
 
 	private boolean isStandalone = true;
 	
-	private DragDropImportListener dragAndDrop = new DragDropImportListener(this);
+	private DragDropImportListener dragAndDrop;
 	
 	private ObjectProperty<Project<BufferedImage>> projectProperty = new SimpleObjectProperty<>();
 	private ObjectProperty<QuPathViewer> viewerProperty = new SimpleObjectProperty<>();
-	private StringBinding titleBinding = createTitleBinding();
-	
+	private StringBinding titleBinding;
+
 	private BooleanProperty readOnlyProperty = new SimpleBooleanProperty(false);
 	private BooleanProperty showAnalysisPane = new SimpleBooleanProperty(true);
 		
 	private BooleanBinding noProject = projectProperty.isNull();
 	private BooleanBinding noViewer = viewerProperty.isNull();
-	private BooleanBinding noImageData = imageDataProperty().isNull();
+	private BooleanBinding noImageData;
 	
 	private BooleanProperty pluginRunning = new SimpleBooleanProperty(false);
 	private BooleanProperty scriptRunning = new SimpleBooleanProperty(false);
@@ -254,14 +252,30 @@ public class QuPathGUI {
 	 */
 	private QuPathGUI(final Stage stage, final HostServices hostServices, boolean showStage) {
 		super();
-		
+		logger.info("Initializing: {}", System.currentTimeMillis());
+
 		this.stage = stage;
 		this.hostServices = hostServices;
 		
 		var timeit = new Timeit().start("Starting");
+
+		// These could be initialized above, but doing it here helps with finding performance issues.
+		// Note that the order is sometimes important.
+		toolManager = ToolManager.create();
+		threadPoolManager = SharedThreadPoolManager.create();
+		imageRegionStore = ImageRegionStoreFactory.createImageRegionStore();
+		prefsPane = new PreferencePane();
+		viewerManager = ViewerManager.create(this);
+		pathClassManager = PathClassManager.create();
+		updateManager = UpdateManager.create(this);
+		extensionManager = ExtensionManager.create(this);
+		dragAndDrop = new DragDropImportListener(this);
+		noImageData = imageDataProperty().isNull();
+		titleBinding = createTitleBinding();
+
 		logViewerCommand = new LogViewerCommand(stage);
 		initializeLoggingToFile();
-		logBuildVersion();				
+		logBuildVersion();
 
 		// Try to ensure that any dialogs are shown with a sensible owner
 		Dialogs.setPrimaryWindow(stage);
@@ -303,7 +317,9 @@ public class QuPathGUI {
 		
 		// Add listeners to set default project and image data
 		syncDefaultImageDataAndProjectForScripting();
-		tryToInstallAppQuitHandler();
+		// We can't install the quit handler during startup, since it can cause a crash on some systems
+		// due to its reliance on Desktop - so post that request for later
+		Platform.runLater(this::tryToInstallAppQuitHandler);
 		initializeLocaleChangeListeners();
 		
 		// Refresh style - needs to be applied after showing the stage
@@ -2164,7 +2180,7 @@ public class QuPathGUI {
 				// We use the US locale because we need to ensure decimal points (not commas)
 				ParameterList.updateParameterList(params, map, Locale.US);
 			}
-			var runner = new PluginRunnerFX(this);
+			var runner = new TaskRunnerFX(this);
 			ParameterDialogWrapper<BufferedImage> dialog = new ParameterDialogWrapper<>(pluginInteractive, params, runner);
 			dialog.showDialog();
 			return !runner.isCancelled();
@@ -2172,7 +2188,7 @@ public class QuPathGUI {
 		else {
 			try {
 				pluginRunning.set(true);
-				var runner = new PluginRunnerFX(this);
+				var runner = new TaskRunnerFX(this);
 				@SuppressWarnings("unused")
 				var completed = plugin.runPlugin(runner, imageData, arg);
 				return !runner.isCancelled();

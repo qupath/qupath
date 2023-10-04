@@ -299,13 +299,11 @@ public class RoiLabeling {
 	
 	/**
 	 * Create ROIs from labels in an image.
-	 * <p>
-	 * This differs from labelsToConnectedROIs in that the ROIs created may be
-	 * disconnected and contain holes.
-	 * 
-	 * @param ipLabels
-	 * @param n
-	 * @return
+	 *
+	 * @param ipLabels the labeled image; generally this should be a ByteProcessor or ShortProcessor
+	 * @param n the total number of labels; often this is equal to the maximum value in the image
+	 * @return an array of length n; output[i] is the ROI for label i+1, or null if no Roi is found
+	 *         with that label.
 	 */
 	public static Roi[] labelsToConnectedROIs(ImageProcessor ipLabels, int n) {
 		Roi[] rois = new Roi[n];

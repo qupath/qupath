@@ -44,7 +44,11 @@ import qupath.lib.common.LogTools;
 public final class PathClassFactory {
 	
 	private static final Logger logger = LoggerFactory.getLogger(PathClassFactory.class);
-	
+
+	static {
+		logger.warn("PathClassFactory is deprecated since v0.4.0 and will be removed - use PathClass methods instead");
+	}
+
 	// Suppressed default constructor for non-instantiability
 	private PathClassFactory() {
 		throw new AssertionError();

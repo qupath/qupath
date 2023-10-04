@@ -25,11 +25,14 @@ package qupath.lib.gui.commands;
 
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
+import javafx.beans.binding.BooleanBinding;
+import javafx.beans.binding.NumberBinding;
 import javafx.beans.binding.ObjectExpression;
+import javafx.beans.binding.StringBinding;
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.LongProperty;
 import javafx.beans.property.SimpleLongProperty;
-import javafx.collections.FXCollections;
-import javafx.collections.ObservableList;
+import javafx.beans.value.ObservableBooleanValue;
 import javafx.scene.Scene;
 import javafx.scene.layout.Region;
 import javafx.stage.Modality;
@@ -64,9 +67,17 @@ public class LogViewerCommand {
 
 	private LogMessageCounts counts;
 
+	private LongProperty lastSeenErrorMessageCount = new SimpleLongProperty();
+
 	private LongProperty errorMessageCounts = new SimpleLongProperty();
 
-	private ObservableList<String> errorCounts = FXCollections.observableArrayList();
+	private NumberBinding unseenMessageCounts = errorMessageCounts.subtract(lastSeenErrorMessageCount);
+
+	private BooleanBinding hasUnseenErrors = unseenMessageCounts.greaterThan(0);
+
+	private StringBinding errorMessageBinding = createErrorMessageBinding();
+
+	private InfoMessage errorMessage = InfoMessage.error(errorMessageBinding, unseenMessageCounts);
 
 	/**
 	 * Constructor.
@@ -100,6 +111,9 @@ public class LogViewerCommand {
 			dialog = new Stage();
 			dialog.setTitle("Log");
 
+			errorMessageCounts.addListener((v, o, n) -> updateLastSeenErrors());
+			dialog.showingProperty().addListener((v, o, n) -> updateLastSeenErrors());
+
 			Scene scene = new Scene(logviewer);
 			dialog.setScene(scene);
 			dialog.setResizable(true);
@@ -111,6 +125,7 @@ public class LogViewerCommand {
 			// TODO: It would be nice to figure this out automatically
 			dialog.setMinWidth(600);
 			dialog.setMinHeight(400);
+
 //			dialog.setMinWidth(logviewer.getWidth());
 //			dialog.setMinHeight(logviewer.getHeight() + 30);
 			FXUtils.retainWindowPosition(dialog);
@@ -124,6 +139,21 @@ public class LogViewerCommand {
 		}
 	}
 
+	private StringBinding createErrorMessageBinding() {
+		return Bindings.createStringBinding(() -> {
+			int value = unseenMessageCounts.intValue();
+			if (value == 1)
+				return "1 unseen error";
+			else
+				return value + " unseen errors";
+		}, unseenMessageCounts);
+	}
+
+	private void updateLastSeenErrors() {
+		if (dialog != null && dialog.isShowing())
+			lastSeenErrorMessageCount.set(errorMessageCounts.get());
+	}
+
 	/**
 	 * Get the counts of all messages logged by the log viewer.
 	 * @return
@@ -132,12 +162,21 @@ public class LogViewerCommand {
 		return counts;
 	}
 
+	/**
+	 * Boolean binding indicating whether there are any unseen errors.
+	 * 'Unseen' here means errors that occur since the log viewer was visible.
+	 * @return
+	 */
+	public ObservableBooleanValue hasUnseenErrors() {
+		return hasUnseenErrors;
+	}
+
 
 	private ObjectExpression<InfoMessage> infoMessage = Bindings.createObjectBinding(() -> {
-		if (errorMessageCounts.get() <= 0L)
+		if (!hasUnseenErrors.get())
 			return null;
-		return InfoMessage.error(errorMessageCounts);
-	}, errorMessageCounts);
+		return errorMessage;
+	}, hasUnseenErrors);
 
 	/**
 	 * Get a string expression to draw attention to error messages.

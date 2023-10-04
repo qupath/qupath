@@ -116,12 +116,13 @@ import qupath.lib.objects.PathCellObject;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.objects.hierarchy.DefaultTMAGrid;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.TMAGrid;
-import qupath.lib.plugins.CommandLinePluginRunner;
+import qupath.lib.objects.utils.ObjectMerger;
+import qupath.lib.objects.utils.Tiler;
+import qupath.lib.plugins.CommandLineTaskRunner;
 import qupath.lib.plugins.PathPlugin;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectIO;
@@ -275,7 +276,6 @@ public class QP {
 			// Static constructors
 			PathObjects.class,
 			ROIs.class,
-			PathClassFactory.class,
 			Projects.class,
 			
 			// Tools and static classes
@@ -286,6 +286,9 @@ public class QP {
 			BufferedImageTools.class,
 			ColorTools.class,
 			GeneralTools.class,
+
+			ObjectMerger.class,
+			Tiler.class,
 			
 			Timeit.class,
 			ScriptAttributes.class,
@@ -1461,7 +1464,7 @@ public class QP {
 			Class<?> cPlugin = QP.class.getClassLoader().loadClass(className);
 			Constructor<?> cons = cPlugin.getConstructor();
 			final PathPlugin plugin = (PathPlugin)cons.newInstance();
-			return plugin.runPlugin(new CommandLinePluginRunner(), imageData, args);
+			return plugin.runPlugin(new CommandLineTaskRunner(), imageData, args);
 		} catch (Exception e) {
 			logger.error("Unable to run plugin " + className, e);
 			return false;
@@ -3642,7 +3645,176 @@ public class QP {
 	public static boolean mergePointsForSelectedObjectClasses() {
 		return PathObjectTools.mergePointsForSelectedObjectClasses(getCurrentHierarchy());
 	}
-	
+
+	/**
+	 * Split annotation objects with area ROIs using dividing lines extracted from annotations objects with line ROIs,
+	 * then remove the lines from the object hierarchy.
+	 * <p>
+	 * The new objects will be <i>added</i> to the hierarchy, not inserted.
+	 * It may therefore be necessary to fall {@link #resolveHierarchy(PathObjectHierarchy)} afterwards.
+	 * @return true if changes were made, false otherwise
+	 * @see PathObjectTools#splitAreasByLines(Collection)
+	 * @since v0.5.0
+	 */
+	public static boolean splitAllAnnotationAreasByLines() {
+		return splitAllAnnotationAreasByLines(getCurrentHierarchy());
+	}
+
+	/**
+	 * Split annotation objects with area ROIs using dividing lines extracted from annotations objects with line ROIs,
+	 * with an optional line thickness and optionally removing the dividing lines.
+	 * <p>
+	 * The new objects will be <i>added</i> to the hierarchy, not inserted.
+	 * It may therefore be necessary to fall {@link #resolveHierarchy(PathObjectHierarchy)} afterwards.
+	 * @param thickness the thickness of the line; if greater than zero, the line will be buffered with a radius of
+	 *                  half this value
+	 * @param removeLines optionally remove the lines after performing the splitting
+	 * @return true if changes were made, false otherwise
+	 * @see PathObjectTools#splitAreasByBufferedLines(Collection, double)
+	 * @since v0.5.0
+	 */
+	public static boolean splitAllAnnotationAreasByLines(double thickness, boolean removeLines) {
+		return splitAllAnnotationAreasByLines(getCurrentHierarchy(), thickness, removeLines);
+	}
+
+	/**
+	 * Split annotation objects with area ROIs using dividing lines extracted from annotations objects with line ROIs,
+	 * then remove the lines from the object hierarchy.
+	 * <p>
+	 * The new objects will be <i>added</i> to the hierarchy, not inserted.
+	 * It may therefore be necessary to fall {@link #resolveHierarchy(PathObjectHierarchy)} afterwards.
+	 * @param hierarchy the object hierarchy to use
+	 * @return true if changes were made, false otherwise
+	 * @see PathObjectTools#splitAreasByLines(Collection)
+	 * @since v0.5.0
+	 */
+	public static boolean splitAllAnnotationAreasByLines(PathObjectHierarchy hierarchy) {
+		return splitAllAnnotationAreasByLines(hierarchy, 0.0, true);
+	}
+
+	/**
+	 * Split annotation objects with area ROIs using dividing lines extracted from annotations objects with line ROIs,
+	 * with an optional line thickness and optionally removing the dividing lines.
+	 * <p>
+	 * The new objects will be <i>added</i> to the hierarchy, not inserted.
+	 * It may therefore be necessary to fall {@link #resolveHierarchy(PathObjectHierarchy)} afterwards.
+	 * @param hierarchy the object hierarchy to use
+	 * @param thickness the thickness of the line; if greater than zero, the line will be buffered with a radius of
+	 *                  half this value
+	 * @param removeLines optionally remove the lines after performing the splitting
+	 * @return true if changes were made, false otherwise
+	 * @see PathObjectTools#splitAreasByBufferedLines(Collection, double)
+	 * @since v0.5.0
+	 */
+	public static boolean splitAllAnnotationAreasByLines(PathObjectHierarchy hierarchy, double thickness, boolean removeLines) {
+		return splitSpecifiedAreasByLines(hierarchy, hierarchy.getAnnotationObjects(), thickness, removeLines);
+	}
+
+	/**
+	 * Split selected annotation objects with area ROIs using dividing lines extracted from annotations objects with line ROIs,
+	 * then remove the lines from the object hierarchy.
+	 * <p>
+	 * The new objects will be <i>added</i> to the hierarchy, not inserted.
+	 * It may therefore be necessary to fall {@link #resolveHierarchy(PathObjectHierarchy)} afterwards.
+	 * @return true if changes were made, false otherwise
+	 * @see PathObjectTools#splitAreasByLines(Collection)
+	 * @since v0.5.0
+	 */
+	public static boolean splitSelectedAnnotationAreasByLines() {
+		return splitSelectedAnnotationAreasByLines(getCurrentHierarchy());
+	}
+
+	/**
+	 * Split selected annotation objects with area ROIs using dividing lines extracted from annotations objects with line ROIs,
+	 * with an optional line thickness and optionally removing the dividing lines.
+	 * <p>
+	 * The new objects will be <i>added</i> to the hierarchy, not inserted.
+	 * It may therefore be necessary to fall {@link #resolveHierarchy(PathObjectHierarchy)} afterwards.
+	 * @param thickness the thickness of the line; if greater than zero, the line will be buffered with a radius of
+	 *                  half this value
+	 * @param removeLines optionally remove the lines after performing the splitting
+	 * @return true if changes were made, false otherwise
+	 * @see PathObjectTools#splitAreasByBufferedLines(Collection, double)
+	 * @since v0.5.0
+	 */	public static boolean splitSelectedAnnotationAreasByLines(double thickness, boolean removeLines) {
+		return splitSelectedAnnotationAreasByLines(getCurrentHierarchy(), thickness, removeLines);
+	}
+
+	/**
+	 * Split selected annotation objects with area ROIs using dividing lines extracted from annotations objects with line ROIs,
+	 * then remove the lines from the object hierarchy.
+	 * <p>
+	 * The new objects will be <i>added</i> to the hierarchy, not inserted.
+	 * It may therefore be necessary to fall {@link #resolveHierarchy(PathObjectHierarchy)} afterwards.
+	 * @param hierarchy the object hierarchy to use
+	 * @return true if changes were made, false otherwise
+	 * @see PathObjectTools#splitAreasByLines(Collection)
+	 * @since v0.5.0
+	 */
+	public static boolean splitSelectedAnnotationAreasByLines(PathObjectHierarchy hierarchy) {
+		return splitSelectedAnnotationAreasByLines(hierarchy, 0.0, true);
+	}
+
+	/**
+	 * Split selected annotation objects with area ROIs using dividing lines extracted from annotations objects with line ROIs,
+	 * with an optional line thickness and optionally removing the dividing lines.
+	 * <p>
+	 * The new objects will be <i>added</i> to the hierarchy, not inserted.
+	 * It may therefore be necessary to fall {@link #resolveHierarchy(PathObjectHierarchy)} afterwards.
+	 * @param hierarchy the object hierarchy to use
+	 * @param thickness the thickness of the line; if greater than zero, the line will be buffered with a radius of
+	 *                  half this value
+	 * @param removeLines optionally remove the lines after performing the splitting
+	 * @return true if changes were made, false otherwise
+	 * @see PathObjectTools#splitAreasByBufferedLines(Collection, double)
+	 * @since v0.5.0
+	 */
+	public static boolean splitSelectedAnnotationAreasByLines(PathObjectHierarchy hierarchy, double thickness, boolean removeLines) {
+		return splitSpecifiedAreasByLines(hierarchy,
+				hierarchy.getSelectionModel().getSelectedObjects().stream().filter(PathObject::isAnnotation).toList(),
+				thickness, removeLines);
+	}
+
+	/**
+	 * Split the specified objects with area ROIs using dividing lines extracted from specified objects with line ROIs,
+	 * with an optional line thickness and optionally removing the dividing lines.
+	 * <p>
+	 * The new objects will be <i>added</i> to the hierarchy, not inserted.
+	 * It may therefore be necessary to fall {@link #resolveHierarchy(PathObjectHierarchy)} afterwards.
+	 *
+	 * @param hierarchy the object hierarchy to use
+	 * @param pathObjects the objects to split; usually annotations, but they may be any object except for TMA cores
+	 * @param thickness the thickness of the line; if greater than zero, the line will be buffered with a radius of
+	 *                  half this value
+	 * @param removeLines optionally remove the lines after performing the splitting
+	 * @return true if changes were made, false otherwise
+	 * @see PathObjectTools#splitAreasByBufferedLines(Collection, double)
+	 * @since v0.5.0
+	 */
+	public static boolean splitSpecifiedAreasByLines(PathObjectHierarchy hierarchy,
+													   Collection<? extends PathObject> pathObjects,
+													   double thickness, boolean removeLines) {
+		if (hierarchy == null) {
+			logger.warn("No hierarchy available for splitting annotations");
+			return false;
+		}
+		var areas = PathObjectTools.getAreaObjects(pathObjects);
+		var lines = PathObjectTools.getLineObjects(pathObjects);
+		var map = PathObjectTools.splitAreasByBufferedLines(areas, lines, thickness / 2.0);
+		if (map.isEmpty() && lines.isEmpty()) {
+			return false;
+		}
+		Set<PathObject> removed = new HashSet<>(map.keySet());
+		hierarchy.removeObjects(map.keySet(), true);
+		hierarchy.addObjects(map.values().stream().flatMap(Collection::stream).toList());
+		if (removeLines) {
+			hierarchy.removeObjects(lines, true);
+			removed.addAll(lines);
+		}
+		hierarchy.getSelectionModel().deselectObjects(removed);
+		return true;
+	}
+
 	/**
 	 * Duplicate the selected annotations in the current hierarchy.
 	 * 
@@ -4413,8 +4585,7 @@ public class QP {
 	 * <p>
 	 * Using this successfully depends upon {@link #VERSION} being available.
 	 * To avoid an exception if it is not, use
-	 * <code>
-	 * <pre>{@code 
+	 * <pre>{@code
 	 * if (VERSION != null)
 	 *   checkMinVersion("0.4.0");
 	 * }
@@ -4441,8 +4612,7 @@ public class QP {
 	 * <p>
 	 * Using this successfully depends upon {@link #VERSION} being available.
 	 * To avoid an exception if it is not, use
-	 * <code>
-	 * <pre>{@code 
+	 * <pre>{@code
 	 * if (VERSION != null)
 	 *   checkVersionRange("0.4.0", "0.5.0");
 	 * }

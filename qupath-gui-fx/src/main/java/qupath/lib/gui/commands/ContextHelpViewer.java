@@ -22,17 +22,18 @@
 
 package qupath.lib.gui.commands;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-
+import javafx.beans.Observable;
+import javafx.beans.binding.Bindings;
+import javafx.beans.binding.BooleanBinding;
+import javafx.beans.binding.LongBinding;
+import javafx.beans.binding.ObjectExpression;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
+import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener.Change;
 import javafx.collections.ObservableList;
@@ -53,12 +54,24 @@ import javafx.scene.layout.VBox;
 import javafx.scene.text.TextAlignment;
 import javafx.stage.Stage;
 import javafx.stage.Window;
+import qupath.fx.utils.GridPaneUtils;
+import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.actions.InfoMessage;
 import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.IconFactory;
 import qupath.lib.gui.tools.IconFactory.PathIcons;
-import qupath.fx.utils.GridPaneUtils;
+import qupath.lib.gui.viewer.QuPathViewer;
+import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.PixelCalibration;
+
+import java.beans.PropertyChangeEvent;
+import java.beans.PropertyChangeListener;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Help window providing context-dependent help.
@@ -86,13 +99,53 @@ public class ContextHelpViewer {
 	private Node lastNode;
 	private VBox vbox;
 	
-	private ObservableList<HelpListEntry> allHelpEntries = FXCollections.observableArrayList();
+	private ObservableList<HelpListEntry> allHelpEntries = FXCollections.observableArrayList(
+			(HelpListEntry e) -> new Observable[] {e.visibleProperty()});
+
+	private LongBinding warningCount = Bindings.createLongBinding(() ->
+		allHelpEntries.stream().filter(e -> e.visibleProperty().get() && e.getType() == HelpType.WARNING || e.getType() == HelpType.ERROR).count(),
+		allHelpEntries);
+
+	private LongBinding infoCount = Bindings.createLongBinding(() ->
+					allHelpEntries.stream().filter(e -> e.visibleProperty().get() && e.getType() == HelpType.INFO).count(),
+			allHelpEntries);
+
+	private BooleanBinding hasWarnings = warningCount.greaterThan(0);
+	private BooleanBinding hasInfo = infoCount.greaterThan(0);
+
+	private InfoMessage warningMessage = InfoMessage.warning(warningCount);
+	private InfoMessage infoMessage = InfoMessage.info(infoCount);
+
+	private ObjectExpression<InfoMessage> infoOrWarningMessage = Bindings.createObjectBinding(() -> {
+		if (hasWarnings.get())
+			return warningMessage;
+		else if (hasInfo.get())
+			return infoMessage;
+		else
+			return null;
+	}, hasWarnings, hasInfo);
+
+	private ObjectProperty<ImageData<?>> imageDataProperty = new SimpleObjectProperty<>();
+
+	private PropertyChangeListener imageDataPropertyChange = this::imageDataPropertyChange;
+
+	private ObjectProperty<PixelCalibration> currentPixelSize = new SimpleObjectProperty<>();
+	private BooleanBinding pixelCalibrationUnset = imageDataProperty.isNotNull().and(currentPixelSize.isNull()
+			.or(currentPixelSize.isEqualTo(PixelCalibration.getDefaultInstance())));
+
+	private ObjectProperty<ImageData.ImageType> currentImageType = new SimpleObjectProperty<>();
+	private BooleanBinding imageTypeUnset = imageDataProperty.isNotNull().and(currentImageType.isNull()
+			.or(currentImageType.isEqualTo(ImageData.ImageType.UNSET)));
+
+	private BooleanProperty largeNonPyramidalImage = new SimpleBooleanProperty(false);
 
 	private ContextHelpViewer(QuPathGUI qupath) {
 		this.qupath = qupath;
+		this.imageDataProperty.addListener(this::imageDataChanged);
+		this.imageDataProperty.bind(qupath.imageDataProperty());
 		
 		initializeWindowListeners();
-		
+
 		label = createHelpTextLabel();
 		
 		vbox = new VBox();
@@ -106,6 +159,47 @@ public class ContextHelpViewer {
 		createHelpLabels();
 
 		stage = createStage(new Scene(splitPane));
+	}
+
+	private void imageDataChanged(ObservableValue<? extends ImageData<?>> observable,
+								  ImageData<?> oldValue, ImageData<?> newValue) {
+		if (oldValue != null)
+			oldValue.removePropertyChangeListener(imageDataPropertyChange);
+		if (newValue != null) {
+			newValue.addPropertyChangeListener(imageDataPropertyChange);
+			currentPixelSize.set(newValue.getServer().getPixelCalibration());
+			currentImageType.set(newValue.getImageType());
+		} else {
+			currentPixelSize.set(null);
+			currentImageType.set(null);
+		}
+		updateLargeNonPyramidalProperty();
+	}
+
+	/**
+	 * Property change listener for the current image data.
+	 * @param evt
+	 */
+	private void imageDataPropertyChange(PropertyChangeEvent evt) {
+		var imageData = imageDataProperty.get();
+		if (imageData != null) {
+			currentPixelSize.set(imageData.getServer().getPixelCalibration());
+			currentImageType.set(imageData.getImageType());
+		}
+	}
+
+	private void updateLargeNonPyramidalProperty() {
+		var imageData = imageDataProperty.get();
+		if (imageData == null)
+			largeNonPyramidalImage.set(false);
+		else {
+			var server = imageData.getServer();
+			if (server.nResolutions() == 1 && Math.max(server.getWidth(), server.getHeight()) > 10_000) {
+				largeNonPyramidalImage.set(true);
+			} else {
+				largeNonPyramidalImage.set(false);
+			}
+		}
 	}
 	
 	private void initializeWindowListeners() {
@@ -137,6 +231,11 @@ public class ContextHelpViewer {
 	
 	private List<HelpListEntry> createHelpEntries() {
 		return Arrays.asList(
+				createUnseenErrors(),
+				createLargeNonPyramidal(),
+				createPixelSizeMissing(),
+				createImageTypeMissing(),
+				createZoomToFitEntry(),
 				createSelectionModelEntry(),
 				createAnnotationsHiddenEntry(),
 				createDetectionsHiddenEntry(),
@@ -144,10 +243,20 @@ public class ContextHelpViewer {
 				createTMAGridHiddenEntry(),
 				createNoImageEntry(),
 				createNoProjectEntry(),
-				createOpacityZeroEntry()
+				createOpacityZeroEntry(),
+				createGammaNotDefault(),
+				createInvertedColors()
 				);
 	}
-	
+
+	/**
+	 * Get a message that may be used to create a badge indicating that info or warning messages
+	 * are available.
+	 * @return
+	 */
+	public ObjectExpression<InfoMessage> getInfoMessage() {
+		return infoOrWarningMessage;
+	}
 	
 	private Label createHelpTextLabel() {
 		var label = new Label();
@@ -304,6 +413,10 @@ public class ContextHelpViewer {
 			return graphicProperty;
 		}
 
+		private HelpType getType() {
+			return type;
+		}
+
 		public StringProperty textProperty() {
 			return textProperty;
 		}
@@ -358,6 +471,9 @@ public class ContextHelpViewer {
 	
 	Label createHelpLabel(HelpListEntry entry) {
 		var label = new Label();
+		label.setGraphicTextGap(8.0);
+		label.setAlignment(Pos.CENTER);
+//		label.setTextAlignment(TextAlignment.CENTER);
 		label.textProperty().bind(entry.textProperty());
 		label.graphicProperty().bind(entry.graphicProperty());
 		label.setPadding(new Insets(5.0, 10.0, 5.0, 10.0));
@@ -374,18 +490,27 @@ public class ContextHelpViewer {
 	}
 	
 	
-	private  HelpListEntry createSelectionModelEntry() {
-		var entry = HelpListEntry.createWarning(
+	private HelpListEntry createSelectionModelEntry() {
+		var entry = HelpListEntry.createInfo(
 				"ContextHelp.warning.selectionMode",
 				createIcon(PathIcons.SELECTION_MODE));
 		entry.visibleProperty().bind(
 				PathPrefs.selectionModeProperty());
 		return entry;
 	}
-	
-	
-	private  HelpListEntry createAnnotationsHiddenEntry() {
+
+	private HelpListEntry createUnseenErrors() {
 		var entry = HelpListEntry.createWarning(
+				"ContextHelp.warning.unseenErrors",
+				createIcon(PathIcons.LOG_VIEWER));
+		entry.visibleProperty().bind(
+				qupath.getLogViewerCommand().hasUnseenErrors());
+		return entry;
+	}
+	
+	
+	private HelpListEntry createAnnotationsHiddenEntry() {
+		var entry = HelpListEntry.createInfo(
 				"ContextHelp.warning.annotationsHidden",
 				createIcon(PathIcons.ANNOTATIONS));
 		entry.visibleProperty().bind(
@@ -393,8 +518,8 @@ public class ContextHelpViewer {
 		return entry;
 	}
 	
-	private  HelpListEntry createTMAGridHiddenEntry() {
-		var entry = HelpListEntry.createWarning(
+	private HelpListEntry createTMAGridHiddenEntry() {
+		var entry = HelpListEntry.createInfo(
 				"ContextHelp.warning.tmaCoresHidden",
 				createIcon(PathIcons.TMA_GRID));
 		entry.visibleProperty().bind(
@@ -402,8 +527,8 @@ public class ContextHelpViewer {
 		return entry;
 	}
 	
-	private  HelpListEntry createDetectionsHiddenEntry() {
-		var entry = HelpListEntry.createWarning(
+	private HelpListEntry createDetectionsHiddenEntry() {
+		var entry = HelpListEntry.createInfo(
 				"ContextHelp.warning.detectionsHidden",
 				createIcon(PathIcons.DETECTIONS));
 		entry.visibleProperty().bind(
@@ -411,8 +536,8 @@ public class ContextHelpViewer {
 		return entry;
 	}
 	
-	private  HelpListEntry createPixelClassificationOverlayHiddenEntry() {
-		var entry = HelpListEntry.createWarning(
+	private HelpListEntry createPixelClassificationOverlayHiddenEntry() {
+		var entry = HelpListEntry.createInfo(
 				"ContextHelp.warning.pixelOverlayHidden",
 				createIcon(PathIcons.PIXEL_CLASSIFICATION));
 		entry.visibleProperty().bind(
@@ -420,27 +545,77 @@ public class ContextHelpViewer {
 		return entry;
 	}
 	
-	private  HelpListEntry createOpacityZeroEntry() {
-		var entry = HelpListEntry.createWarning(
+	private HelpListEntry createOpacityZeroEntry() {
+		var entry = HelpListEntry.createInfo(
 				"ContextHelp.warning.opacityZero");
 		entry.visibleProperty().bind(
 				qupath.getOverlayOptions().opacityProperty().lessThanOrEqualTo(0.0));
 		return entry;
 	}
-	
-	private  HelpListEntry createNoImageEntry() {
+
+	private HelpListEntry createZoomToFitEntry() {
 		var entry = HelpListEntry.createWarning(
-				"ContextHelp.warning.noImage");
+				"ContextHelp.warning.zoomToFit", createIcon(PathIcons.ZOOM_TO_FIT));
 		entry.visibleProperty().bind(
-				qupath.imageDataProperty().isNull());
+				qupath.viewerProperty().flatMap(QuPathViewer::zoomToFitProperty));
 		return entry;
 	}
 	
-	private  HelpListEntry createNoProjectEntry() {
+	private HelpListEntry createNoImageEntry() {
+		var entry = HelpListEntry.createInfo(
+				"ContextHelp.warning.noImage");
+		entry.visibleProperty().bind(
+				imageDataProperty.isNull());
+		return entry;
+	}
+	
+	private HelpListEntry createNoProjectEntry() {
 		var entry = HelpListEntry.createWarning(
 				"ContextHelp.warning.noProject");
 		entry.visibleProperty().bind(
 				qupath.projectProperty().isNull());
+		return entry;
+	}
+
+	private HelpListEntry createGammaNotDefault() {
+		var entry = HelpListEntry.createWarning(
+				"ContextHelp.warning.gamma");
+		entry.visibleProperty().bind(
+				PathPrefs.viewerGammaProperty().isNotEqualTo(1));
+		return entry;
+	}
+
+	private HelpListEntry createInvertedColors() {
+		var entry = HelpListEntry.createWarning(
+				"ContextHelp.warning.invertedBackground");
+		entry.visibleProperty().bind(
+				qupath.viewerProperty()
+						.map(QuPathViewer::getImageDisplay)
+						.flatMap(ImageDisplay::useInvertedBackgroundProperty));
+		return entry;
+	}
+
+	private HelpListEntry createPixelSizeMissing() {
+		var entry = HelpListEntry.createWarning(
+				"ContextHelp.warning.pixelSizeMissing");
+		entry.visibleProperty().bind(
+				pixelCalibrationUnset);
+		return entry;
+	}
+
+	private HelpListEntry createImageTypeMissing() {
+		var entry = HelpListEntry.createWarning(
+				"ContextHelp.warning.imageTypeMissing");
+		entry.visibleProperty().bind(
+				imageTypeUnset);
+		return entry;
+	}
+
+	private HelpListEntry createLargeNonPyramidal() {
+		var entry = HelpListEntry.createWarning(
+				"ContextHelp.warning.largeNonPyramidalImage");
+		entry.visibleProperty().bind(
+				largeNonPyramidalImage);
 		return entry;
 	}
 	

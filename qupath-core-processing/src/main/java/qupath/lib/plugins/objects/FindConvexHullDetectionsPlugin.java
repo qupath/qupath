@@ -40,7 +40,7 @@ import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.plugins.AbstractInteractivePlugin;
 import qupath.lib.plugins.PathTask;
-import qupath.lib.plugins.PluginRunner;
+import qupath.lib.plugins.TaskRunner;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.roi.ConvexHull;
 
@@ -138,9 +138,9 @@ public class FindConvexHullDetectionsPlugin<T> extends AbstractInteractivePlugin
 	
 	
 	@Override
-	public boolean runPlugin(final PluginRunner pluginRunner, final ImageData<T> imageData, final String arg) {
+	public boolean runPlugin(final TaskRunner taskRunner, final ImageData<T> imageData, final String arg) {
 		nObjectsRemoved.set(0);
-		return super.runPlugin(pluginRunner, imageData, arg);
+		return super.runPlugin(taskRunner, imageData, arg);
 	}
 	
 
