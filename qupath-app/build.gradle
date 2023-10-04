@@ -24,6 +24,7 @@ plugins {
     id 'application'
     alias(libs.plugins.license.report)
     alias(libs.plugins.jpackage)
+    alias(libs.plugins.javafx)
 }
 
 
@@ -47,6 +48,18 @@ ext {
     qupathAppName = "QuPath-${qupathVersion}"
 }
 
+// Required since moving to JavaFX Gradle Plugin v0.1.0
+javafx {
+    version = libs.versions.javafx.get()
+    modules = ["javafx.base",
+               "javafx.controls",
+               "javafx.graphics",
+               "javafx.media",
+               "javafx.fxml",
+               "javafx.web",
+               "javafx.swing"]
+}
+
 // Determine java version associated with toolchain
 def toolchainJavaVersion = getToolchainJavaVersion()
 
@@ -57,6 +70,11 @@ application {
     mainClass = "qupath.QuPath"
     applicationName = qupathAppName
     applicationDefaultJvmArgs = buildDefaultJvmArgs("${rootProject.buildDir}/natives", toolchainJavaVersion)
+
+    // Necessary when using ./gradlew run to support style manager to change themes
+    applicationDefaultJvmArgs << '--add-opens'
+    applicationDefaultJvmArgs << 'javafx.graphics/com.sun.javafx.css=ALL-UNNAMED'
+
 }
 
 /**
@@ -182,6 +200,13 @@ licenseReport {
 //               new CsvReportRenderer(),
                  new InventoryHtmlReportRenderer('index.html', 'Third party licenses', fileUnknown)]
     outputDir = "${rootProject.buildDir}/reports/dependency-license"
+
+    // TODO: Try to remove this. It's needed (I think) due to the license plugin not supporting
+    //       Gradle variants, as required by the JavaFX Gradle Plugin v0.1.0. Possibly-relevant links:
+    //       - https://github.com/openjfx/javafx-gradle-plugin#variants
+    //       - https://github.com/jk1/Gradle-License-Report/issues/199
+    //       The JavaFX license is still included in QuPath, but unfortunately not in this report.
+    excludeGroups = ['org.openjfx']
 }
 tasks.startScripts.dependsOn("generateLicenseReport")
 
