@@ -21,12 +21,7 @@
 
 package qupath.lib.gui.charts;
 
-import java.util.Map;
-import java.util.Arrays;
-import java.util.LinkedHashMap;
-import java.util.Collection;
-import java.util.List;
-import java.util.ArrayList;
+import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -936,6 +931,7 @@ public class Charts {
 						else
 							return new Data<>(e.getKey().toString(), (Number)e.getValue(), e.getKey());
 					})
+					.sorted(Comparator.comparing(Data::getXValue))
 					.toList());
 		}
 
