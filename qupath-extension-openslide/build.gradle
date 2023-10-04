@@ -2,11 +2,14 @@ plugins {
   // Don't need extension-conventions because we don't require access to the UI
   id 'qupath.common-conventions'
   id 'java-library'
+  alias(libs.plugins.javafx)
 }
 
 ext.moduleName = 'qupath.extension.openslide'
 archivesBaseName = 'qupath-extension-openslide'
 description = "QuPath extension to support image reading using OpenSlide."
+
+
 
 String nativesClassifier = properties['platform.classifier']
 dependencies {
