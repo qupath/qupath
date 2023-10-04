@@ -943,10 +943,24 @@ public class Charts {
 		 * @param y
 		 * @return this builder
 		 */
-		public BarChartBuilder series(String name, Collection<? extends String> x, Collection<? extends Number> y) {
+		public <T extends Number> BarChartBuilder series(String name, Collection<? extends String> x, Collection<T> y) {
 			return series(name,
 					x.stream().map(String::valueOf).toArray(String[]::new),
 					y.stream().mapToDouble(Number::doubleValue).toArray());
+		}
+
+		/**
+		 * Create a bar chart using a map of String values and associated numeric values.
+		 * @param name
+		 * @name the name of the data series (useful if multiple series will be plotted, otherwise may be null)
+		 * @param data a map of String values to associated numeric values
+		 * @return this builder
+		 */
+		public <T extends Number> BarChartBuilder series(String name, Map<String, T> data) {
+			return series(name,
+					data.keySet().toArray(String[]::new),
+					data.values().stream().mapToDouble(Number::doubleValue).toArray(),
+					(List<?>)null);
 		}
 
 		/**
@@ -1005,7 +1019,7 @@ public class Charts {
 		 */
 		public BarChartBuilder series(String name, Collection<Data<String, Number>> data) {
 			if (data instanceof ObservableList)
-				series.add(new XYChart.Series<>(name, (ObservableList<Data<String, Number>>)data));
+				series.add(new XYChart.Series<>(name, (ObservableList)data));
 			else
 				series.add(new XYChart.Series<>(name, FXCollections.observableArrayList(data)));
 			return this;
@@ -1024,6 +1038,8 @@ public class Charts {
 					if (extra instanceof PathClass && node != null) {
 						PathClass pathClass = (PathClass)extra;
 						Integer color = pathClass.getColor();
+						if (color == null)
+							color = ColorTools.packRGB(127, 127, 127);
 						String style = String.format("-fx-background-color: rgb(%d,%d,%d,%.2f);",
 								ColorTools.red(color), ColorTools.green(color), ColorTools.blue(color), markerOpacity);
 						node.setStyle(style);
@@ -1049,13 +1065,23 @@ public class Charts {
 		 * @return this builder
 		 */
 		public BarChartBuilder classifications(Collection<? extends PathObject> pathObjects) {
-			xLabel("PathClass");
+			xLabel("Classification");
 			yLabel("Count");
 			this.pathObjects.addAll(pathObjects);
 			return series(
 					null,
 					pathObjects,
-					(PathObject p) -> p.getPathClass());
+					BarChartBuilder::getPathClassOrNullClass);
+		}
+
+		/**
+		 * Get the PathClass or {@link PathClass#NULL_CLASS} for the specified object
+		 * (but don't return null).
+		 * @param p
+		 * @return
+		 */
+		private static PathClass getPathClassOrNullClass(PathObject p) {
+			return p.getPathClass() == null ? PathClass.NULL_CLASS : p.getPathClass();
 		}
 
 		@Override
@@ -1077,12 +1103,13 @@ public class Charts {
 				hierarchy = viewer.getHierarchy();
 			if (hierarchy == null)
 				return;
+			var comparePathClass = pathClass == PathClass.NULL_CLASS ? null : pathClass;
 			var objects = pathObjects.stream()
-					.filter(p -> p.getPathClass() != null && p.getPathClass().equals(pathClass))
+					.filter(p -> Objects.equals(comparePathClass, p.getPathClass()))
 					.toList();
 			if (addToSelection)
 				hierarchy.getSelectionModel().selectObjects(objects);
-			else
+			else if (!objects.isEmpty())
 				hierarchy.getSelectionModel().setSelectedObjects(objects, objects.get(0).getParent());
 		}
 
