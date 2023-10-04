@@ -834,6 +834,5 @@ public class Charts {
 	public static PieChartBuilder pieChart() {
 		return new PieChartBuilder();
 	}
-	
 
 }

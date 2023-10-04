@@ -128,17 +128,14 @@ public class ExtensionControlPane extends BorderPane {
         submitAddBtn.disableProperty().bind(
             repoTextArea.textProperty().isEmpty().or(ownerTextArea.textProperty().isEmpty()));
 
-        coreListView.getItems().addAll(
-                extensionManager.getLoadedExtensions().values()
-                        .stream()
-                        .sorted(Comparator.comparing(QuPathExtension::getName))
+        var sortedExtensions = extensionManager.getLoadedExtensions().values()
+                .stream()
+                .sorted(Comparator.comparing(QuPathExtension::getName)).toList();
+        coreListView.getItems().addAll(sortedExtensions.stream()
                         .filter(e -> !(e.getClass().getClassLoader().getClass().equals(ExtensionClassLoader.class)))
                         .toList());
         coreListView.setCellFactory(ExtensionListCell::new);
-        userListView.getItems().addAll(
-                extensionManager.getLoadedExtensions().values()
-                        .stream()
-                        .sorted(Comparator.comparing(QuPathExtension::getName))
+        userListView.getItems().addAll(sortedExtensions.stream()
                         .filter(e -> e.getClass().getClassLoader().getClass().equals(ExtensionClassLoader.class))
                         .toList());
         userListView.setCellFactory(ExtensionListCell::new);
