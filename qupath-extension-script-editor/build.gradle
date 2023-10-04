@@ -1,6 +1,8 @@
 plugins {
   id 'qupath.extension-conventions'
   id 'java-library'
+
+  alias(libs.plugins.javafx)
 }
 
 ext.moduleName = 'qupath.extension.scripteditor'
