@@ -38,7 +38,7 @@ public final class Urls {
 	
 	private static final Logger logger = LoggerFactory.getLogger(Urls.class);
 	
-	private static final String DOCS_VERSION = "0.4";
+	private static final String DOCS_VERSION = "latest";
 	
 	static {
 		var version = QuPathGUI.getVersion();
