@@ -1,6 +1,6 @@
 # Modified jpackage workflow to build for macOS only
 
- name: Build packages with jpackage
+ name: Build packages with jpackage (macOS)
 
  on: [workflow_dispatch]
 
