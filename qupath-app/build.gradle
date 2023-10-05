@@ -179,18 +179,6 @@ task mergedJavadocJar(type: Jar, dependsOn: rootProject.tasks.mergedJavadocs) {
     from rootProject.tasks.mergedJavadocs.destinationDir
 }
 
-import org.gradle.crypto.checksum.Checksum
-/**
- * Create SHA512 checksums of JPackage outputs
- */
-task createCheckSums(type: Checksum) {
-    def params = buildParameters()
-    inputFiles.setFrom(params.outputDir.listFiles({ File f -> f.isFile() && f.name.startsWith(params.imageName)} as FileFilter))
-    outputDirectory.set(params.outputDir)
-    checksumAlgorithm.set(Checksum.Algorithm.SHA512)
-    appendFileNameToChecksum.set(true)
-}
-
 /**
  * Specify task dependencies
  */
@@ -201,9 +189,6 @@ startScripts.dependsOn(checkLdLibrary)
 jpackage.dependsOn(extractNatives)
 jpackage.dependsOn(mergedJavadocJar)
 jpackage.dependsOn(checkLdLibrary)
-jpackage.configure {
-    finalizedBy createCheckSums
-}
 
 /**
  * Create license report
@@ -332,49 +317,118 @@ runtime {
     }
 }
 
-
 /**
  * Fix the version on macOS - see https://github.com/qupath/qupath/issues/1250
+ * @param appFile
+ * @return
  */
-def taskMacOs = tasks.register('setMacOSVersion') {
-    doLast {
-        def appFile = new File("${rootProject.layout.buildDirectory.get()}/dist/${qupathAppName}.app")
-        def plistFile = new File("${appFile.getCanonicalPath()}/Contents/Info.plist")
-        def versionToInclude = getNonSnapshotVersion()
-        if (plistFile.exists()) {
-            // Update the plist with the 'correct' version (since jpackage blocks anything before 1.x.x)
-            String path = plistFile.getCanonicalPath()
-            println "Setting CFBundleVersion to ${versionToInclude}"
-            exec {
-                commandLine '/usr/libexec/PlistBuddy', '-c', "Set :CFBundleVersion ${versionToInclude}", path
-            }
-            println "Setting CFBundleShortVersionString to ${qupathVersion}"
-            exec {
-                commandLine '/usr/libexec/PlistBuddy', '-c', "Set :CFBundleShortVersionString ${qupathVersion}", path
-            }
-            // We need to make the macOS pkg here to incorporate the changes
-            if (findProperty('package')?.toLowerCase() in ['installer', 'pkg']) {
-                println "Creating pkg"
-                exec {
-                    workingDir appFile.getParentFile()
-                    commandLine 'jpackage',
-                            '-n', 'QuPath',
-                            '--app-image', appFile.getCanonicalPath(),
-                            '--type', 'pkg',
-                            '--mac-package-identifier', 'qupath',
-                            '--app-version', qupathVersion
-                }
-            }
+def fixMacOSVersion(File appFile) {
+    def plistFile = new File("${appFile.getCanonicalPath()}/Contents/Info.plist")
+    def versionToInclude = getNonSnapshotVersion()
+    if (plistFile.exists()) {
+        // Update the plist with the 'correct' version (since jpackage blocks anything before 1.x.x)
+        String path = plistFile.getCanonicalPath()
+        println "Setting CFBundleVersion to ${versionToInclude}"
+        exec {
+            commandLine '/usr/libexec/PlistBuddy', '-c', "Set :CFBundleVersion ${versionToInclude}", path
+        }
+        println "Setting CFBundleShortVersionString to ${qupathVersion}"
+        exec {
+            commandLine '/usr/libexec/PlistBuddy', '-c', "Set :CFBundleShortVersionString ${qupathVersion}", path
         }
     }
 }
 
+/**
+ * Build a .pkg for an existing .app on macOS.
+ * This is a separate task because it needs to be run after the Info.plist has been updated.
+ * @param appFile
+ * @return
+ */
+def makeMacOSPkg(File appFile) {
+    exec {
+        workingDir appFile.getParentFile()
+        commandLine 'jpackage',
+                '-n', 'QuPath',
+                '--app-image', appFile.getCanonicalPath(),
+                '--type', 'pkg',
+                '--mac-package-identifier', 'qupath',
+                '--app-version', qupathVersion
+    }
+}
+
+/**
+ * Postprocessing of jpackage outputs; this is needed to fix the macOS version
+ * and assemble the outputs for the checksums.
+ */
+tasks.register('jpackageFinalize') {
+    doLast {
+        def outputDir = new File("${rootProject.layout.buildDirectory.get()}")
+        def appFile = new File(outputDir, "/dist/${getCorrectAppName('.app')}")
+        if (appFile.exists()) {
+            fixMacOSVersion(appFile)
+            // We need to make the macOS pkg here to incorporate the changes
+            if (findProperty('package')?.toLowerCase() in ['installer', 'pkg']) {
+                println "Creating pkg"
+                makeMacOSPkg(appFile)
+                // Ensure we haven't accidentally changed the name
+                def file = new File(appFile.getParentFile(), "QuPath-${qupathVersion}.pkg")
+                String correctName = getCorrectAppName('.pkg')
+                if (file.exists() && !file.name.equals(correctName)) {
+                    file.renameTo(new File(file.getParent(), correctName))
+                }
+
+            }
+        }
+    }
+    // Identify outputs, which are used to create checksums
+    inputs.files jpackage.outputs.files
+    outputs.files(jpackage.outputs.files.asFileTree.matching {
+        include {
+            return it.name.startsWith('QuPath') &&
+                    !it.name.endsWith('.sha512') &&
+                    !it.name.endsWith('.sha256') &&
+                    !it.name.endsWith('.sha384')
+        }
+    })
+}
+
 // We may need to fix the version on Mac
 jpackage.configure {
-    finalizedBy taskMacOs
+    finalizedBy jpackageFinalize
 }
 
 
+/**
+ * Create SHA512 checksums of JPackage outputs
+ */
+task createChecksums(type: org.gradle.crypto.checksum.Checksum, dependsOn: jpackage) {
+    def params = buildParameters()
+    inputFiles.setFrom(jpackageFinalize.outputs)
+    outputDirectory.set(params.outputDir)
+    checksumAlgorithm.set(org.gradle.crypto.checksum.Checksum.Algorithm.SHA512)
+    appendFileNameToChecksum.set(true)
+}
+
+/**
+ * Get the name we want to use for the app.
+ * On macOS, we want to append the architecture to make it easier to install both
+ * the x64 and ARM versions on the same machine.
+ * @param ext
+ * @return
+ */
+String getCorrectAppName(String ext) {
+    String baseName = qupathAppName
+    if (ext == '.app' || ext == '.pkg') {
+        if (!baseName.contains('-arm64') && !baseName.contains('-x64')) {
+            if (System.properties['os.arch'] == 'aarch64')
+                baseName = "${baseName}-arm64"
+            else
+                baseName = "${baseName}-x64"
+        }
+    }
+    return "${baseName}${ext}"
+}
 
 /**
  * Try to resolve annoying macOS/Windows renaming with an invalid version
@@ -390,7 +444,7 @@ jpackage {
                 for (ext in extensions) {
                     if (!f.name.endsWith(ext))
                         continue
-                    String correctName = "${qupathAppName}${ext}"
+                    String correctName = getCorrectAppName(ext)
                     if (!f.name.equals(correctName))
                         f.renameTo(new File(f.getParent(), correctName))
                 }
