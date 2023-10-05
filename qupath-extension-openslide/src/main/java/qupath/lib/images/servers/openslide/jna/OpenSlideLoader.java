@@ -78,11 +78,6 @@ public class OpenSlideLoader {
                 if (!path.isBlank())
                     System.setProperty("jna.library.path", String.join(File.pathSeparator, path));
             }
-            if (System.getProperty("os.name").toLowerCase().startsWith("windows")) {
-                logger.debug("Trying to load extra libs on windows");
-                Native.load("ssp", OpenSlideJNA.class);
-                Native.load("winpthread", OpenSlideJNA.class);
-            }
             return Native.load("openslide", OpenSlideJNA.class);
         } finally {
             if (jnaPath == null)
