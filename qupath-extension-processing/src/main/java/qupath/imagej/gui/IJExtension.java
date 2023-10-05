@@ -692,6 +692,7 @@ public class IJExtension implements QuPathExtension {
 					return true;
 				} catch (Exception e) {
 					Dialogs.showErrorMessage("Error opening ImageJ macro", e);
+					logger.error(e.getMessage(), e);
 				}
 			}
 			return false;

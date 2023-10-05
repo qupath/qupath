@@ -161,6 +161,7 @@ public class UpdateUrisCommand<T extends UriResource> {
 				Dialogs.showInfoNotification("Update URIs", n + " URIs updated");
 		} catch (IOException e) {
 			Dialogs.showErrorMessage("Update URIs", e);
+			logger.error(e.getMessage(), e);
 		}
 		return n;
 	}

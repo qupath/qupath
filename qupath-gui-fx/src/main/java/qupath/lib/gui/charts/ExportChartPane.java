@@ -280,6 +280,7 @@ class ExportChartPane {
 					ImageIO.write(SwingFXUtils.fromFXImage(img, null), "png", fileOutput);
 				} catch (Exception e1) {
 					Dialogs.showErrorMessage("Save chart error", e1);
+					logger.error(e1.getMessage(), e1);
 				}
 			}
 		});

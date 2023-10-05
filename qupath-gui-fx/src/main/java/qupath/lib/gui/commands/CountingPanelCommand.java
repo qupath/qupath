@@ -162,6 +162,7 @@ public class CountingPanelCommand implements Runnable, ChangeListener<ImageData<
 					}
 				} catch (IOException e) {
 					Dialogs.showErrorMessage("Load points error", e);
+					logger.error(e.getMessage(), e);
 				}
 			}
 		);
@@ -205,6 +206,7 @@ public class CountingPanelCommand implements Runnable, ChangeListener<ImageData<
 					PointIO.writePoints(file, pointsList);
 				} catch (IOException e) {
 					Dialogs.showErrorMessage("Save points error", e);
+					logger.error(e.getMessage(), e);
 				}
 			}
 		);

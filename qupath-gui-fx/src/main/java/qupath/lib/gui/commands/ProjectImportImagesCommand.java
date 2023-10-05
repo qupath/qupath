@@ -267,6 +267,7 @@ class ProjectImportImagesCommand {
 						listView.getItems().addAll(paths);
 				} catch (Exception ex) {
 					Dialogs.showErrorMessage("Drag & Drop", ex);
+					logger.error(ex.getMessage(), ex);
 				}
 			}
 			e.setDropCompleted(true);
@@ -478,6 +479,7 @@ class ProjectImportImagesCommand {
 			project.syncChanges();
 		} catch (IOException e1) {
 			Dialogs.showErrorMessage("Sync project", e1);
+			logger.error(e1.getMessage(), e1);
 		}
 		qupath.refreshProject();
 		

@@ -55,7 +55,7 @@ public class BioFormatsServerBuilder implements ImageServerBuilder<BufferedImage
 			BioFormatsImageServer server = new BioFormatsImageServer(uri, args);
 			return server;
 		} catch (Exception e) {
-			logger.error("Unable to open {}: {}", uri, e);
+			logger.error("Unable to open {}: {}", uri, e.getMessage(), e);
 		}
 		return null;
 	}

@@ -128,6 +128,7 @@ public final class ObjectClassifierLoadCommand implements Runnable {
 				updatedNames.addAll(externalObjectClassifiers.keySet());
 			} catch (IOException ex) {
 				Dialogs.showErrorMessage(title, ex);
+				logger.error(ex.getMessage(), ex);
 			}
 		});
 		
@@ -153,6 +154,7 @@ public final class ObjectClassifierLoadCommand implements Runnable {
 				}
 			} catch (Exception ex) {
 				Dialogs.showErrorMessage("Error deleting classifier", ex);
+				logger.error(ex.getMessage(), ex);
 			}
 		});
 		
@@ -347,6 +349,7 @@ public final class ObjectClassifierLoadCommand implements Runnable {
 			classifier = getClassifier(project, externalClassifiers, selectedClassifiersNames);
 		} catch (IOException ex) {
 			Dialogs.showErrorMessage("Object classifier", ex);
+			logger.error(ex.getMessage(), ex);
 			return;
 		}
 		if (classifier == null) {

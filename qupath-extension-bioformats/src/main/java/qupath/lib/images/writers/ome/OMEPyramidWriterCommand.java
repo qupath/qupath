@@ -287,6 +287,7 @@ public class OMEPyramidWriterCommand implements Runnable {
 				logger.warn("OME Pyramid writer closed by interrupt (possibly due to user cancelling it)", e);
 			} catch (Exception e) {
 				Dialogs.showErrorMessage("OME Pyramid writer", e);
+				logger.error(e.getMessage(), e);
 			} finally {
 				writer = null;
 			}

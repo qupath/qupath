@@ -36,6 +36,8 @@ import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.lib.analysis.heatmaps.DensityMaps;
 import qupath.lib.analysis.heatmaps.DensityMaps.DensityMapBuilder;
 import qupath.lib.classifiers.object.ObjectClassifier;
@@ -57,7 +59,9 @@ import qupath.process.gui.commands.ml.ProjectClassifierBindings;
  * @param <T>
  */
 public class SaveResourcePaneBuilder<T> {
-	
+
+	private static final Logger logger = LoggerFactory.getLogger(SaveResourcePaneBuilder.class);
+
 	private Class<T> cls;
 	private String title = "Save resource";
 	private String textFieldPrompt = "Enter name";
@@ -219,6 +223,7 @@ public class SaveResourcePaneBuilder<T> {
 			return name;
 		} catch (IOException ex) {
 			Dialogs.showErrorMessage(title, ex);
+			logger.error(ex.getMessage(), ex);
 			return null;
 		}
 	}

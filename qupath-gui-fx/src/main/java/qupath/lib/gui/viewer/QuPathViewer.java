@@ -1637,8 +1637,11 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		// TODO: Consider shifting, fixing magnification, repainting etc.
 		if (isShowing())
 			repaint();
-		
-		logger.info("Image data set to {}", imageDataNew);
+
+		if (imageDataNew == null)
+			logger.info("Image data reset");
+		else
+			logger.info("Image data set to {}", imageDataNew);
 	}
 
 

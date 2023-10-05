@@ -636,6 +636,7 @@ public class DensityMapUI {
 					
 				} catch (IOException e) {
 					Dialogs.showErrorNotification(title, e);
+					logger.error(e.getMessage(), e);
 				}
 				
 			} catch (IOException e) {
@@ -836,6 +837,7 @@ public class DensityMapUI {
 				DensityMaps.threshold(imageData.getHierarchy(), densityServer, thresholds, pathClassName, options.toArray(CreateObjectOptions[]::new));
 			} catch (IOException e1) {
 				Dialogs.showErrorMessage(title, e1);
+				logger.error(e1.getMessage(), e1);
 				return;
 			}
 			
@@ -902,6 +904,7 @@ public class DensityMapUI {
 				}
 			} catch (IOException e) {
 				Dialogs.showErrorNotification(title, e);
+				logger.error(e.getMessage(), e);
 			}
 		}
 		
@@ -927,6 +930,7 @@ public class DensityMapUI {
 					}
 				} catch (IOException e) {
 					Dialogs.showErrorMessage("Save prediction", e);
+					logger.error(e.getMessage(), e);
 				}
 			}
 		}
