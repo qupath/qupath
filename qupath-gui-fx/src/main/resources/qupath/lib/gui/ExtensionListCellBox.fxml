@@ -20,7 +20,7 @@
         </Label>
     </VBox>
     <Pane fx:id="spacer" HBox.hgrow="ALWAYS"/>
-    <VBox>
+    <VBox alignment="CENTER_RIGHT">
         <HBox fx:id="btnHBox" spacing="2" alignment="CENTER">
             <padding>
                 <Insets top="0" right="0" bottom="2" left="4"/>

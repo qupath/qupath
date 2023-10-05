@@ -7,8 +7,11 @@ import javafx.fxml.FXMLLoader;
 import javafx.scene.control.*;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
 import org.apache.commons.text.WordUtils;
 import org.slf4j.Logger;
@@ -44,7 +47,7 @@ import java.util.regex.Pattern;
  * Borderpane that displays extensions, with options to remove,
  * open containing folder, update, where possible.
  */
-public class ExtensionControlPane extends BorderPane {
+public class ExtensionControlPane extends VBox {
 
     private static final Logger logger = LoggerFactory.getLogger(QuPathGUI.class);
     private static final Pattern GITHUB_REPO_PATTERN = Pattern.compile(
@@ -78,6 +81,11 @@ public class ExtensionControlPane extends BorderPane {
     private TextField ownerTextArea;
     @FXML
     private TextField repoTextArea;
+
+    @FXML
+    private TitledPane inst;
+    @FXML
+    private AnchorPane ap;
 
     /**
      * Create an instance of the ExtensionControlPane UI pane.
@@ -121,6 +129,7 @@ public class ExtensionControlPane extends BorderPane {
                     .sorted(Comparator.comparing(QuPathExtension::getName))
                     .toList());
         extensionListView.setCellFactory(ExtensionListCell::new);
+
 
         ownerTextArea.addEventHandler(KeyEvent.KEY_RELEASED, e -> {
             if (e.getCode() == KeyCode.ENTER) {
@@ -399,9 +408,6 @@ public class ExtensionControlPane extends BorderPane {
                     rmBtn.setDisable(true);
                     updateBtn.setDisable(true);
                     gitHubBtn.setDisable(true);
-//                    btnHBox.getChildren().remove(rmBtn);
-//                    btnHBox.getChildren().remove(updateBtn);
-//                    btnHBox.getChildren().remove(gitHubBtn);
                 }
                 // if we don't have GitHub information, we can't update
                 // but we can remove
