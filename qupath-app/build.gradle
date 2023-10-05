@@ -323,32 +323,32 @@ runtime {
  * @return
  */
 def fixMacOSVersion(File appFile) {
-//    def plistFile = new File("${appFile.getCanonicalPath()}/Contents/Info.plist")
-//    def versionToInclude = getNonSnapshotVersion()
-//    if (plistFile.exists()) {
-//        // Update the plist with the 'correct' version (since jpackage blocks anything before 1.x.x)
-//        String path = plistFile.getCanonicalPath()
-//        println "Setting CFBundleVersion to ${versionToInclude}"
-//        exec {
-//            commandLine '/usr/libexec/PlistBuddy', '-c', "Set :CFBundleVersion ${versionToInclude}", path
-//        }
-//        println "Setting CFBundleShortVersionString to ${qupathVersion}"
-//        exec {
-//            commandLine '/usr/libexec/PlistBuddy', '-c', "Set :CFBundleShortVersionString ${qupathVersion}", path
-//        }
-//        // We want an identifier that is unique to the major/minor version, but can exclude the patch
-//        // We expect that users may want to keep multiple versions of QuPath installed for reproducibility,
-//        // but making all patch versions uniquely identifiable may make encouraging updates more difficult.
-//        String majorMinorVersion = versionToInclude
-//        String[] parts = majorMinorVersion.split("\\.")
-//        if (parts.length > 2)
-//            majorMinorVersion = parts[0] + "." + parts[1]
-//        String bundleId = "qupath-${majorMinorVersion}"
-//        println "Setting CFBundleIdentifier to ${bundleId}"
-//        exec {
-//            commandLine '/usr/libexec/PlistBuddy', '-c', "Set :CFBundleIdentifier ${bundleId}", path
-//        }
-//    }
+    def plistFile = new File("${appFile.getCanonicalPath()}/Contents/Info.plist")
+    def versionToInclude = getNonSnapshotVersion()
+    if (plistFile.exists()) {
+        // Update the plist with the 'correct' version (since jpackage blocks anything before 1.x.x)
+        String path = plistFile.getCanonicalPath()
+        println "Setting CFBundleVersion to ${versionToInclude}"
+        exec {
+            commandLine '/usr/libexec/PlistBuddy', '-c', "Set :CFBundleVersion ${versionToInclude}", path
+        }
+        println "Setting CFBundleShortVersionString to ${qupathVersion}"
+        exec {
+            commandLine '/usr/libexec/PlistBuddy', '-c', "Set :CFBundleShortVersionString ${qupathVersion}", path
+        }
+        // We want an identifier that is unique to the major/minor version, but can exclude the patch
+        // We expect that users may want to keep multiple versions of QuPath installed for reproducibility,
+        // but making all patch versions uniquely identifiable may make encouraging updates more difficult.
+        String majorMinorVersion = versionToInclude
+        String[] parts = majorMinorVersion.split("\\.")
+        if (parts.length > 2)
+            majorMinorVersion = parts[0] + "." + parts[1]
+        String bundleId = "qupath-${majorMinorVersion}"
+        println "Setting CFBundleIdentifier to ${bundleId}"
+        exec {
+            commandLine '/usr/libexec/PlistBuddy', '-c', "Set :CFBundleIdentifier ${bundleId}", path
+        }
+    }
 }
 
 /**

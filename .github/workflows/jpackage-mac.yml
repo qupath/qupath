@@ -26,7 +26,7 @@
       if: matrix.container == ''
       uses: gradle/gradle-build-action@v2
       with:
-        arguments: jpackage -P git-commit=true -P package=installer mergedJavadoc createChecksums -Djavafx-version=20 -Ptoolchain=20
+        arguments: jpackage -P git-commit=true -P package=installer mergedJavadoc createChecksums
     - uses: actions/upload-artifact@v3
       with:
         name: jpackage-${{ matrix.type }}
