@@ -19,6 +19,7 @@ buildscript {
 }
 
 plugins {
+    id 'org.gradle.crypto.checksum' version '1.4.0'
     id 'qupath.common-conventions'
     id 'qupath.djl-conventions'
     id 'application'
@@ -178,6 +179,18 @@ task mergedJavadocJar(type: Jar, dependsOn: rootProject.tasks.mergedJavadocs) {
     from rootProject.tasks.mergedJavadocs.destinationDir
 }
 
+import org.gradle.crypto.checksum.Checksum
+/**
+ * Create SHA512 checksums of JPackage outputs
+ */
+task createCheckSums(type: Checksum) {
+    def params = buildParameters()
+    inputFiles.setFrom(params.outputDir.listFiles({ File f -> f.isFile() && f.name.startsWith(params.imageName)} as FileFilter))
+    outputDirectory.set(params.outputDir)
+    checksumAlgorithm.set(Checksum.Algorithm.SHA512)
+    appendFileNameToChecksum.set(true)
+}
+
 /**
  * Specify task dependencies
  */
@@ -188,6 +201,9 @@ startScripts.dependsOn(checkLdLibrary)
 jpackage.dependsOn(extractNatives)
 jpackage.dependsOn(mergedJavadocJar)
 jpackage.dependsOn(checkLdLibrary)
+jpackage.configure {
+    finalizedBy createCheckSums
+}
 
 /**
  * Create license report
@@ -260,6 +276,7 @@ distZip {
     enabled = false
 }
 
+
 /**
  * Create Java Runtime & call jpackage
  */
@@ -313,8 +330,8 @@ runtime {
             installerOutputDir = params.outputDir
         }
     }
-
 }
+
 
 /**
  * Fix the version on macOS - see https://github.com/qupath/qupath/issues/1250
