@@ -1345,7 +1345,7 @@ public class PathPrefs {
 			}
 	}
 	
-	/**
+	/*
 	 * TODO: Move this into a more sensible location
 	 */
 	private static ObjectProperty<DetectionTreeDisplayModes> detectionTreeDisplayMode = PathPrefs.createPersistentPreference(

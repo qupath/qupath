@@ -22,7 +22,8 @@ jdk             = "17"
 javacpp         = "1.5.9"
   opencv        = "4.7.0-1.5.9"
   cuda          = "12.1-8.9-1.5.9"
-  
+
+# JavaFX 20.0.1 and later seem to break search links in Javadocs
 javafx          = "20"
 jna             = "5.13.0"
 jfreeSvg        = "5.0.5"

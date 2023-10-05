@@ -29,10 +29,10 @@
       run: |
         dnf install -y binutils git rpm-build
         git config --global --add safe.directory /__w/qupath/qupath
-    - name: Set up JDK 17
+    - name: Set up JDK 20
       uses: actions/setup-java@v3
       with:
-        java-version: '17'
+        java-version: '20'
         distribution: 'temurin'
     - name: Validate Gradle wrapper
       uses: gradle/wrapper-validation-action@v1
