@@ -15,7 +15,7 @@ String nativesClassifier = properties['platform.classifier']
 dependencies {
     implementation project(':qupath-core')
     implementation project(':qupath-gui-fx')
-    implementation "io.github.qupath:openslide:3.5.0-SNAPSHOT:${nativesClassifier.replace("natives-", "")}"
+    implementation "io.github.qupath:openslide:${libs.versions.openslide.get()}:${nativesClassifier.replace("natives-", "")}"
     implementation libs.jna
     implementation libs.qupath.fxtras
 }
