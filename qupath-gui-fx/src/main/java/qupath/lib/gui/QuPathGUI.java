@@ -1396,7 +1396,8 @@ public class QuPathGUI {
 					viewer.setImageData(imageData2);
 				}
 			} catch (IOException e) {
-				Dialogs.showErrorMessage("Read image data", e);
+				Dialogs.showErrorMessage("Read image data", "Error reading image data\n" + e.getLocalizedMessage());
+				logger.error(e.getMessage(), e);
 			}
 			
 			return true;
@@ -1458,7 +1459,8 @@ public class QuPathGUI {
 			}
 			return true;
 		} catch (Exception e) {
-			Dialogs.showErrorMessage("Load ImageData", e);
+			Dialogs.showErrorMessage("Load ImageData", "Error attempting to load image data\n" + e.getLocalizedMessage());
+			logger.error(e.getMessage(), e);
 			// If this failed
 			viewer.resetImageData();
 			return false;
@@ -1517,7 +1519,8 @@ public class QuPathGUI {
 			}
 			return true;
 		} catch (IOException e) {
-			Dialogs.showErrorMessage("Save ImageData", e);
+			Dialogs.showErrorMessage("Save ImageData", "Error attempting to save image data\n" + e.getLocalizedMessage());
+			logger.error(e.getMessage(), e);
 			return false;
 		}
 	}
@@ -1536,7 +1539,8 @@ public class QuPathGUI {
 		try {
 			return openImage(getViewer(), null, true, false);
 		} catch (IOException e) {
-			Dialogs.showErrorMessage("Open image", e);
+			Dialogs.showErrorMessage("Open image", "Error opening image\n" + e.getLocalizedMessage());
+			logger.error(e.getMessage(), e);
 			return false;
 		}
 	}
@@ -1553,7 +1557,8 @@ public class QuPathGUI {
 		try {
 			return openImage(getViewer(), null, true, true);
 		} catch (IOException e) {
-			Dialogs.showErrorMessage("Open image", e);
+			Dialogs.showErrorMessage("Open image", "Error opening image\n" + e.getLocalizedMessage());
+			logger.error(e.getMessage(), e);
 			return false;
 		}
 	}
@@ -1764,7 +1769,8 @@ public class QuPathGUI {
 			try {
 				runScript(file, null);
 			} catch (ScriptException e) {
-				Dialogs.showErrorMessage("Script error", e);
+				Dialogs.showErrorMessage("Script error", e.getLocalizedMessage());
+				logger.error(e.getMessage(), e);
 			}
 		});
 	}
@@ -1783,7 +1789,8 @@ public class QuPathGUI {
 			try {
 				runScript(null, script);
 			} catch (ScriptException e) {
-				Dialogs.showErrorMessage("Script error", e);
+				Dialogs.showErrorMessage("Script error", e.getLocalizedMessage());
+				logger.error(e.getMessage(), e);
 			}
 		});
 	}
@@ -2503,7 +2510,8 @@ public class QuPathGUI {
 				if (!ProjectCommands.promptToCheckURIs(project, true))
 					return;
 			} catch (IOException e) {
-				Dialogs.showErrorMessage("Update URIs", e);
+				Dialogs.showErrorMessage("Update URIs", "Error updating URIs\n", e.getLocalizedMessage());
+				logger.error(e.getMessage(), e);
 				return;
 			}
 		}
@@ -2663,7 +2671,8 @@ public class QuPathGUI {
 				} else
 					PathIO.writeImageData(filePrevious, imageData);
 			} catch (IOException e) {
-				Dialogs.showErrorMessage("Save ImageData", e);
+				Dialogs.showErrorMessage("Save ImageData", "Error saving image data\n" + e.getLocalizedMessage());
+				logger.error(e.getMessage(), e);
 			}
 		}
 		return true;
