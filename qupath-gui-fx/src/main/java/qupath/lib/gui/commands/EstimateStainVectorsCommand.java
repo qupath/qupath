@@ -127,7 +127,7 @@ class EstimateStainVectorsCommand {
 			img = imageData.getServer().readRegion(request);
 		} catch (IOException e) {
 			Dialogs.showErrorMessage("Estimate stain vectors", e);
-			logger.error("Unable to obtain pixels for " + request.toString(), e);
+			logger.error("Unable to obtain pixels for {}", request, e);
 		}
 		
 		// Apply small amount of smoothing to reduce compression artefacts
@@ -271,6 +271,7 @@ class EstimateStainVectorsCommand {
 					stainsWrapper.setStains(stainsNew);
 				} catch (Exception e2) {
 					Dialogs.showErrorMessage("Estimate stain vectors", e2);
+					logger.error(e2.getMessage(), e2);
 				}
 		});
 		

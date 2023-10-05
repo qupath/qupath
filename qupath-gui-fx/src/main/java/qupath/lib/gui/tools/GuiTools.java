@@ -246,8 +246,10 @@ public class GuiTools {
 				// Browsing the directory (at least on Mac) seems to open the parent directory
 				if (desktop.isSupported(Desktop.Action.BROWSE_FILE_DIR))
 					SwingUtilities.invokeLater(() -> desktop.browseFileDirectory(file));
-				else
+				else {
 					Dialogs.showErrorNotification("Browse directory", e1);
+					logger.error(e1.getMessage(), e1);
+				}
 			}
 		}
 		return false;
@@ -778,6 +780,7 @@ public class GuiTools {
 				return true;
 			} catch (Exception e1) {
 				Dialogs.showErrorNotification("Open file", e1);
+				logger.error(e1.getMessage(), e1);
 			}
 		}
 		return false;

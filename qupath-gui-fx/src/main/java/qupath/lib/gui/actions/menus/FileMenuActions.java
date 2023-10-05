@@ -28,6 +28,8 @@ import java.util.List;
 
 import org.controlsfx.control.action.Action;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.actions.ActionTools;
 import qupath.lib.gui.actions.annotations.ActionAccelerator;
@@ -125,6 +127,8 @@ public class FileMenuActions implements MenuActions {
 	
 	
 	public class ProjectActions {
+
+		private static final Logger logger = LoggerFactory.getLogger(ProjectActions.class);
 		
 		@ActionConfig("Action.File.Project.createProject")
 		public final Action PROJECT_NEW = qupath.getCommonActions().PROJECT_NEW;
@@ -154,6 +158,7 @@ public class FileMenuActions implements MenuActions {
 				ProjectCommands.promptToCheckURIs(project, false);
 			} catch (IOException e) {
 				Dialogs.showErrorMessage("Check project URIs", e);
+				logger.error(e.getMessage(), e);
 			}
 		});
 		

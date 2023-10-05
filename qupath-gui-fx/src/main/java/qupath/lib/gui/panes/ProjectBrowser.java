@@ -690,6 +690,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 			return true;
 		} catch (IOException e) {
 			Dialogs.showErrorMessage("Save project", e);
+			logger.error(e.getMessage(), e);
 			return false;
 		}
 	}

@@ -2510,7 +2510,7 @@ public class QuPathGUI {
 				if (!ProjectCommands.promptToCheckURIs(project, true))
 					return;
 			} catch (IOException e) {
-				Dialogs.showErrorMessage("Update URIs", "Error updating URIs\n", e.getLocalizedMessage());
+				Dialogs.showErrorMessage("Update URIs", "Error updating URIs\n" + e.getLocalizedMessage());
 				logger.error(e.getMessage(), e);
 				return;
 			}

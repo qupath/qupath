@@ -292,6 +292,7 @@ public class ViewTrackerControlPane implements Runnable {
 					Files.delete(tracker.getFile().toPath());
 				} catch (IOException ex) {
 					Dialogs.showErrorNotification("Could not delete recording", ex);
+					logger.error(ex.getMessage(), ex);
 				}
 			}
 			// Remove all trackers to delete from ListView (even if exception when deleting file)
@@ -366,6 +367,7 @@ public class ViewTrackerControlPane implements Runnable {
 					}
 				} catch (Exception ex) {
 					Dialogs.showErrorMessage("Drag & Drop", ex);
+					logger.error(ex.getMessage(), ex);
 				}
 			}
 			e.setDropCompleted(true);

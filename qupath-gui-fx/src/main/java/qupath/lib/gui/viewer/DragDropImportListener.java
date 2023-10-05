@@ -194,6 +194,7 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 					}
 	        	} catch (IOException e) {
 					Dialogs.showErrorMessage("Drag & Drop", e);
+					logger.error(e.getMessage(), e);
 	        	} finally {
 	        		taskRunning = false;
 	        	}
@@ -407,6 +408,7 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 				qupath.openSavedData(viewer, file, false, true);
 			} catch (Exception e) {
 				Dialogs.showErrorMessage(QuPathResources.getString("DragDrop.loadData"), e);
+				logger.error(e.getMessage(), e);
 			}
 			return;
 		}

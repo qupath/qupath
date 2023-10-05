@@ -1080,6 +1080,7 @@ public class ObjectClassifierCommand implements Runnable {
 				return false;
 			} catch (ExecutionException e1) {
 				Dialogs.showErrorNotification(name, e1);
+				logger.error(e1.getMessage(), e1);
 				return false;
 			}
 			if (classifier != null) {
