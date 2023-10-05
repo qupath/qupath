@@ -336,6 +336,11 @@ def fixMacOSVersion(File appFile) {
         exec {
             commandLine '/usr/libexec/PlistBuddy', '-c', "Set :CFBundleShortVersionString ${qupathVersion}", path
         }
+        String bundleId = "qupath-${versionToInclude}"
+        println "Setting CFBundleIdentifier to ${bundleId}"
+        exec {
+            commandLine '/usr/libexec/PlistBuddy', '-c', "Set :CFBundleIdentifier ${bundleId}", path
+        }
     }
 }
 
@@ -352,7 +357,7 @@ def makeMacOSPkg(File appFile) {
                 '-n', 'QuPath',
                 '--app-image', appFile.getCanonicalPath(),
                 '--type', 'pkg',
-                '--mac-package-identifier', 'qupath',
+//                '--mac-package-identifier', 'qupath',
                 '--app-version', qupathVersion
     }
 }
@@ -364,6 +369,7 @@ def makeMacOSPkg(File appFile) {
 tasks.register('jpackageFinalize') {
     doLast {
         def outputDir = new File("${rootProject.layout.buildDirectory.get()}")
+        // Loop for Mac things to do
         def appFile = new File(outputDir, "/dist/${getCorrectAppName('.app')}")
         if (appFile.exists()) {
             fixMacOSVersion(appFile)
@@ -377,7 +383,9 @@ tasks.register('jpackageFinalize') {
                 if (file.exists() && !file.name.equals(correctName)) {
                     file.renameTo(new File(file.getParent(), correctName))
                 }
-
+                // Remove the .app as it's no longer needed (and just takes up space)
+                println "Deleting " + appFile
+                delete appFile
             }
         }
     }
@@ -610,7 +618,8 @@ def configureJPackageMac(JPackageParams params) {
     updatePackageType(params, properties['platform.installerExt'])
 
     params.installerOptions += ['--mac-package-name', 'QuPath']
-    params.installerOptions += ['--mac-package-identifier', 'QuPath']
+    // Need to include the version so that we can have multiple versions installed
+    params.installerOptions += ['--mac-package-identifier', "QuPath-${qupathVersion}"]
 
     // File associations supported on Mac
     setFileAssociations(params)
