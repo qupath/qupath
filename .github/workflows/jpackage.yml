@@ -40,12 +40,12 @@
       if: matrix.container == ''
       uses: gradle/gradle-build-action@v2
       with:
-        arguments: jpackage -P git-commit=true -P package=installer mergedJavadoc
+        arguments: jpackage -P git-commit=true -P package=installer mergedJavadoc createChecksums
     - name: Build with Gradle (Linux rpm)
       if: matrix.container == 'fedora:latest'
       uses: gradle/gradle-build-action@v2
       with:
-        arguments: jpackage -P git-commit=true -P package=rpm mergedJavadoc
+        arguments: jpackage -P git-commit=true -P package=rpm mergedJavadoc createChecksums
     - uses: actions/upload-artifact@v3
       with:
         name: jpackage-${{ matrix.type }}
