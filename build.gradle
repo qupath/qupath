@@ -1,6 +1,7 @@
 plugins {
     id 'qupath.java-conventions'
     id 'version-catalog'
+    id 'maven-publish'
 }
 
 // We don't want to generate javadocs for the root project
@@ -37,7 +38,7 @@ task mergedJavadocs(type: Javadoc,
 }
 
 /*
- * Get version cataglog
+ * Get version catalog
  */
 catalog {
     versionCatalog {

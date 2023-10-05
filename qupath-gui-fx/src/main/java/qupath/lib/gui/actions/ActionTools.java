@@ -882,7 +882,7 @@ public class ActionTools {
 		updateInfoMessageStyleClasses(circle, message.get());
 		var tooltip = new Tooltip();
 		tooltip.textProperty().bind(message.flatMap(InfoMessage::textProperty));
-		Tooltip.install(circle, tooltip);
+		Tooltip.install(stack, tooltip);
 		tooltip.setShowDelay(Duration.ZERO);
 		message.addListener((v, o, n) -> updateInfoMessageStyleClasses(circle, n));
 

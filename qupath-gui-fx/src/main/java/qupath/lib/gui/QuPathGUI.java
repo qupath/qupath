@@ -49,6 +49,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.ExecutorCompletionService;
+import java.util.concurrent.ExecutorService;
 import java.util.function.Consumer;
 
 import javax.imageio.ImageIO;
@@ -103,6 +105,7 @@ import javafx.stage.WindowEvent;
 import qupath.fx.utils.FXUtils;
 import qupath.fx.dialogs.FileChoosers;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.common.LogTools;
 import qupath.lib.common.Timeit;
 import qupath.lib.common.Version;
 import qupath.lib.gui.actions.ActionTools;
@@ -161,8 +164,6 @@ import qupath.lib.scripting.languages.ExecutableLanguage;
 import qupath.lib.scripting.languages.ScriptLanguage;
 import qupath.lib.gui.scripting.DefaultScriptEditor;
 import qupath.lib.gui.scripting.QPEx;
-import qupath.ui.logviewer.ui.main.LogMessageCounts;
-import qupath.ui.logviewer.ui.main.LogViewer;
 
 
 /**
@@ -2182,7 +2183,7 @@ public class QuPathGUI {
 				// We use the US locale because we need to ensure decimal points (not commas)
 				ParameterList.updateParameterList(params, map, Locale.US);
 			}
-			var runner = new PluginRunnerFX(this);
+			var runner = new TaskRunnerFX(this);
 			ParameterDialogWrapper<BufferedImage> dialog = new ParameterDialogWrapper<>(pluginInteractive, params, runner);
 			dialog.showDialog();
 			return !runner.isCancelled();
@@ -2190,7 +2191,7 @@ public class QuPathGUI {
 		else {
 			try {
 				pluginRunning.set(true);
-				var runner = new PluginRunnerFX(this);
+				var runner = new TaskRunnerFX(this);
 				@SuppressWarnings("unused")
 				var completed = plugin.runPlugin(runner, imageData, arg);
 				return !runner.isCancelled();
@@ -2894,5 +2895,62 @@ public class QuPathGUI {
 			viewerActions = new ViewerActions(getViewerManager());
 		return viewerActions;
 	}
-	
+
+
+	/**
+	 * Legacy methods, to be removed in future versions.
+	 */
+
+
+	/**
+	 * Create an executor using a single thread.
+	 * <p>
+	 * Optionally specify an owner, in which case the same Executor will be returned for the owner
+	 * for so long as the Executor has not been shut down; if it has been shut down, a new Executor will be returned.
+	 * <p>
+	 * Specifying an owner is a good idea if there is a chance that any submitted tasks could block,
+	 * since the same Executor will be returned for all requests that give a null owner.
+	 * <p>
+	 * The advantage of using this over creating an ExecutorService some other way is that
+	 * shutdown will be called on any pools created this way whenever QuPath is quit.
+	 *
+	 * @param owner
+	 * @return
+	 * @deprecated since v0.5.0; use {@link #getThreadPoolManager()}
+	 */
+	@Deprecated
+	public ExecutorService createSingleThreadExecutor(final Object owner) {
+		LogTools.logOnce(logger, "QuPathGUI.createSingleThreadExecutor(Object) is deprecated and will be removed; " +
+				"use QuPathGUI.getThreadPoolManager().getSingleThreadExecutor(owner) instead");
+		return getThreadPoolManager().getSingleThreadExecutor(owner);
+	}
+
+	/**
+	 * Create a completion service that uses a shared threadpool for the application.
+	 * @param <V>
+	 *
+	 * @param cls
+	 * @return
+	 * @deprecated since v0.5.0; use {@link #getThreadPoolManager()}
+	 */
+	@Deprecated
+	public <V> ExecutorCompletionService<V> createSharedPoolCompletionService(Class<V> cls) {
+		LogTools.logOnce(logger, "QuPathGUI.createSharedPoolCompletionService(Class) is deprecated and will be removed; " +
+				"use QuPathGUI.getThreadPoolManager().createSharedPoolCompletionService(Class) instead");
+		return getThreadPoolManager().createSharedPoolCompletionService(cls);
+	}
+
+	/**
+	 * Submit a short task to a shared thread pool
+	 *
+	 * @param runnable
+	 * @deprecated since v0.5.0; use {@link #getThreadPoolManager()}
+	 */
+	@Deprecated
+	public void submitShortTask(final Runnable runnable) {
+		LogTools.logOnce(logger, "QuPathGUI.submitShortTask() is deprecated and will be removed; " +
+						"use QuPathGUI.getThreadPoolManager().submitShortTask() instead");
+		getThreadPoolManager().submitShortTask(runnable);
+	}
+
 }

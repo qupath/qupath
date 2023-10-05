@@ -28,7 +28,7 @@ import java.util.Collection;
 /**
  * A minimal interface for a class capable of running tasks in parallel, giving feedback to the user.
  */
-public interface PluginRunner {
+public interface TaskRunner {
 
 	/**
 	 * Query if the plugin can be cancelled while running.
