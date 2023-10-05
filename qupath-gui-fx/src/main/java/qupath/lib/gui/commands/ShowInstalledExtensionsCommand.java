@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -23,47 +23,18 @@
 
 package qupath.lib.gui.commands;
 
-import java.io.File;
-import java.io.IOException;
-import java.net.URISyntaxException;
-import java.net.URL;
-import java.util.Objects;
-import java.util.jar.Attributes;
-import java.util.jar.JarInputStream;
-import java.util.jar.Manifest;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import javafx.geometry.Insets;
-import javafx.scene.Node;
 import javafx.scene.Scene;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
-import javafx.scene.control.ScrollPane;
-import javafx.scene.control.TextArea;
-import javafx.scene.control.TitledPane;
-import javafx.scene.control.Tooltip;
-import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.GridPane;
-import javafx.scene.layout.Priority;
-import javafx.scene.layout.Region;
-import javafx.scene.layout.VBox;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.fx.dialogs.Dialogs;
 import qupath.fx.utils.FXUtils;
-import qupath.lib.common.GeneralTools;
-import qupath.lib.common.Version;
-import qupath.lib.gui.ExtensionClassLoader;
 import qupath.lib.gui.ExtensionControlPane;
-import qupath.lib.gui.ExtensionManager;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.extensions.QuPathExtension;
 import qupath.lib.gui.localization.QuPathResources;
-import qupath.lib.gui.tools.GuiTools;
-import qupath.lib.images.servers.ImageServerBuilder;
-import qupath.lib.images.servers.ImageServerProvider;
+
+import java.io.IOException;
 
 /**
  * Command to list the names &amp; details of all installed extensions
@@ -88,6 +59,7 @@ class ShowInstalledExtensionsCommand {
 			dialog.setMinWidth(500);
 			dialog.setMinHeight(300);
 			dialog.show();
+			FXUtils.retainWindowPosition(dialog); // Remember position after hiding
 		} catch (IOException e) {
 			logger.error("Unable to open extension control pane", e);
 			Dialogs.showErrorMessage(QuPathResources.getString("ExtensionControlPane"),
