@@ -28,6 +28,7 @@ import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.fx.dialogs.Dialogs;
 import qupath.fx.localization.LocalizedResourceManager;
 import qupath.fx.prefs.annotations.DirectoryPref;
 import qupath.fx.prefs.annotations.PrefCategory;
@@ -39,6 +40,7 @@ import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.images.servers.openslide.jna.OpenSlideLoader;
 
 import java.io.File;
+import java.util.Arrays;
 
 @PrefCategory("category.openslide")
 public class OpenSlideExtension implements QuPathExtension {
@@ -46,7 +48,7 @@ public class OpenSlideExtension implements QuPathExtension {
     private static final Logger logger = LoggerFactory.getLogger(OpenSlideExtension.class);
 
     // TODO: Check why this fails if I use @DirectoryPref!
-    @StringPref("pref.openslide.path")
+    @DirectoryPref("pref.openslide.path")
     public StringProperty openslidePathProperty =
             PathPrefs.createPersistentPreference("openslide.path", "");
 
@@ -72,15 +74,46 @@ public class OpenSlideExtension implements QuPathExtension {
 
     private void handleOpenSlideDirectoryChange(ObservableValue<? extends String> value, String oldValue, String newValue) {
         if (!OpenSlideLoader.isOpenSlideAvailable() && newValue != null) {
-            if (new File(newValue).isDirectory()) {
+            // We don't have OpenSlide loaded, and the new value is a directory - then try
+            if (isPotentialOpenSlideDirectory(newValue)) {
                 try {
-                    if (OpenSlideLoader.tryToLoad(newValue))
+                    // This tries to load eagerly
+                    if (OpenSlideLoader.tryToLoad(newValue)) {
                         logger.info("OpenSlide loaded successfully: {}", OpenSlideLoader.getLibraryVersion());
+                        Dialogs.showInfoNotification("OpenSlide", "OpenSlide loaded successfully: " + OpenSlideLoader.getLibraryVersion());
+                    } else {
+                        logger.warn("OpenSlide could not be loaded from {}", newValue);
+                    }
                 } catch (Throwable t) {
                     logger.debug("OpenSlide loading failed", t);
                 }
             }
+        } else if (newValue != null && newValue.isEmpty()) {
+            // We do have OpenSlide loaded, but we want to reset the directory (i.e. use the default, not a custom one)
+            Dialogs.showInfoNotification("OpenSlide", "OpenSlide directory reset - please restart QuPath");
+        } else if (isPotentialOpenSlideDirectory(newValue)) {
+            // We do have OpenSlide loaded, and the new value is a directory - need to restart QuPath to try again
+            Dialogs.showInfoNotification("OpenSlide", "OpenSlide directory updated - please restart QuPath");
         }
+    }
+
+    /**
+     * Quick check to see whether there is any chance a path is an OpenSlide directory.
+     * This is a workaround for the fact that we can potentially get a lot of false positives if
+     * a user is typing a directory path.
+     * @param path
+     * @return
+     */
+    private static boolean isPotentialOpenSlideDirectory(String path) {
+        if (path == null || path.isEmpty())
+            return false;
+        var file = new File(path);
+        if (!file.isDirectory())
+            return false;
+        return Arrays.stream(file.listFiles())
+                .filter(File::isFile)
+                .map(f -> f.getName().toLowerCase())
+                .anyMatch(n -> n.contains("openslide"));
     }
 
     @Override

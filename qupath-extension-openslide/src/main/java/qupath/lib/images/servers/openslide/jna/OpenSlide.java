@@ -290,6 +290,32 @@ public final class OpenSlide implements Closeable {
         dispose();
     }
 
+    /**
+     * Request the bytes for an ICC profile.
+     * @return the bytes of an ICC profile is available, or null otherwise.
+     * @throws UnsupportedOperationException if an unsatisfied link error occurred, which indicates that
+     *                                       the OpenSlide version is not compatible (it should be 4.0.0 or greater).
+     */
+    public byte[] getICCProfileBytes() throws UnsupportedOperationException {
+        Lock rl = lock.readLock();
+        rl.lock();
+        try {
+            long size = jna.openslide_get_icc_profile_size(osr);
+            if (size > 0) {
+                byte[] bytes = new byte[(int) size];
+                jna.openslide_read_icc_profile(osr, bytes);
+                return bytes;
+            } else {
+                return null;
+            }
+        } catch (UnsatisfiedLinkError e) {
+            throw new UnsupportedOperationException(
+                    "ICC Profile could not be found - OpenSlide version may not be compatible", e);
+        } finally {
+            rl.unlock();
+        }
+    }
+
 
     /**
      * Exception thrown whenever a request is made after the OpenSlide object has been closed.

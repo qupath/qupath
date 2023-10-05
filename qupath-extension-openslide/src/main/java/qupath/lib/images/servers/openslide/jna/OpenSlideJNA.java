@@ -43,4 +43,8 @@ public interface OpenSlideJNA extends Library {
     void openslide_read_associated_image(long osr, String name, int[] dest);
     String openslide_get_error(long osr);
 
+    // New in OpenSlide 4.0.0
+    long openslide_get_icc_profile_size(long osr);
+    void openslide_read_icc_profile(long osr, byte[] bytes);
+
 }
