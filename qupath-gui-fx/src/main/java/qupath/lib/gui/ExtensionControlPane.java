@@ -375,12 +375,8 @@ public class ExtensionControlPane extends BorderPane {
                     throw new RuntimeException(e);
                 }
                 rmBtn.setGraphic(IconFactory.createNode(10, 10, IconFactory.PathIcons.MINUS));
-                rmBtn.setStyle("-fx-fill: -fx-text-base-color;");
-                rmBtn.setStyle("-fx-text-fill: -fx-text-base-color;");
                 updateBtn.setGraphic(IconFactory.createNode(10, 10, IconFactory.PathIcons.REFRESH));
-                updateBtn.setStyle("-fx-fill: -fx-text-base-color;");
                 gitHubBtn.setGraphic(IconFactory.createNode(10, 10, IconFactory.PathIcons.GITHUB));
-                gitHubBtn.setStyle("-fx-fill: -fx-text-base-color;");
             }
 
             ExtensionListCellBox(QuPathExtension extension) {
