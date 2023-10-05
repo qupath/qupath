@@ -28,10 +28,10 @@ public class PlatformPlugin implements Plugin<Project> {
      * rpm can be requested from the command line if supported by the platform.
      */
     public enum Platform {
-        WINDOWS("windows", "win", "natives-windows", "ico", "msi"),
-        MAC("macosx", "mac", "natives-osx", "icns", "pkg"),
-        MAC_AARCH64("macosx", "mac", "natives-mac-aarch64", "icns", "pkg"),
-        LINUX("linux", "linux", "natives-linux", "png", "deb"),
+        WINDOWS("windows", "win", "natives-win32-x86_64", "ico", "msi"),
+        MAC("macosx", "mac", "natives-darwin-x86_64", "icns", "pkg"),
+        MAC_AARCH64("macosx", "mac", "natives-darwin-aarch64", "icns", "pkg"),
+        LINUX("linux", "linux", "natives-linux-x86_64", "png", "deb"),
         UNKNOWN(null, null, null, null, null);
         
         private String platformName;

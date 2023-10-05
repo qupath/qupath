@@ -7,6 +7,7 @@ plugins {
 // We don't want to generate javadocs for the root project
 javadoc.enabled = false
 
+
 // See https://discuss.gradle.org/t/best-approach-gradle-multi-module-project-generate-just-one-global-javadoc/18657
 task mergedJavadocs(type: Javadoc, 
 		description: 'Generate merged javadocs for all projects',

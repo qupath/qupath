@@ -27,24 +27,22 @@ import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferInt;
-import java.io.File;
 import java.io.IOException;
 import java.net.URI;
-import java.nio.file.Paths;
-import java.util.ArrayList;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-import org.openslide.AssociatedImage;
-import org.openslide.OpenSlide;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.gson.GsonBuilder;
 
+import qupath.lib.common.GeneralTools;
 import qupath.lib.images.servers.AbstractTileableImageServer;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServerMetadata;
@@ -53,6 +51,8 @@ import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.TileRequest;
 import qupath.lib.images.servers.ImageServerBuilder.DefaultImageServerBuilder;
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
+import qupath.lib.images.servers.openslide.jna.OpenSlide;
+import qupath.lib.images.servers.openslide.jna.OpenSlideLoader;
 
 /**
  * ImageServer implementation using OpenSlide.
@@ -65,13 +65,12 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 	private static final Logger logger = LoggerFactory.getLogger(OpenslideImageServer.class);
 
 	private static boolean useBoundingBoxes = true;
-	
+
 	private ImageServerMetadata originalMetadata;
 
 	private List<String> associatedImageList = null;
-	private Map<String, AssociatedImage> associatedImages = null;
 
-	private OpenSlide osr;
+	private final OpenSlide osr;
 	private Color backgroundColor;
 	
 	private int boundsX, boundsY, boundsWidth, boundsHeight;
@@ -112,8 +111,16 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 		// Ensure the garbage collector has run - otherwise any previous attempts to load the required native library
 		// from different classloader are likely to cause an error (although upon first further investigation it seems this doesn't really solve the problem...)
 		System.gc();
-		File file = Paths.get(uri).toFile();
-		osr = new OpenSlide(file);
+		Path filePath = GeneralTools.toPath(uri);
+		String name;
+		// OpenSlide conventionally expects a file path, but some builds might accept a URI
+		if (Files.exists(filePath)) {
+			osr = OpenSlideLoader.openImage(filePath.toAbsolutePath().toString());
+			name = filePath.getFileName().toString();
+		} else {
+			osr = OpenSlideLoader.openImage(uri.toString());
+			name = null;
+		}
 
 		// Parse the parameters
 		int width = (int)osr.getLevel0Width();
@@ -201,7 +208,7 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 		originalMetadata = new ImageServerMetadata.Builder(getClass(),
 				path, boundsWidth, boundsHeight).
 				channels(ImageChannel.getDefaultRGBChannels()). // Assume 3 channels (RGB)
-				name(file.getName()).
+				name(name).
 				rgb(true).
 //				args(args).
 				pixelType(PixelType.UINT8).
@@ -216,9 +223,7 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 		 * This works, but need to come up with a better way of returning usable servers
 		 * based on the associated images
 		 */
-		associatedImages = osr.getAssociatedImages();
-		associatedImageList = new ArrayList<>(associatedImages.keySet());
-		associatedImageList = Collections.unmodifiableList(associatedImageList);
+		associatedImageList = Collections.unmodifiableList(osr.getAssociatedImages());
 		
 		// Try to get a background color
 		try {
@@ -256,8 +261,9 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 	
 	@Override
 	public void close() {
-		if (osr != null)
+		if (osr != null) {
 			osr.close();
+		}
 	}
 
 	/**
@@ -321,7 +327,7 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 	@Override
 	public BufferedImage getAssociatedImage(String name) {
 		try {
-			return associatedImages.get(name).toBufferedImage();
+			return osr.getAssociatedImage(name);
 		} catch (Exception e) {
 			logger.error("Error requesting associated image " + name, e);
 		}
