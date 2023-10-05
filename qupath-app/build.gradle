@@ -388,12 +388,31 @@ tasks.register('jpackageFinalize') {
                 delete appFile
             }
         }
+        // On windows, for the installer we should also zip up the image
+        if (project.properties['platform.name'] == 'windows') {
+            def imageDir = new File(outputDir, "/dist/${qupathAppName}")
+            if (imageDir.isDirectory() && findProperty('package')?.toLowerCase() in ['installer']) {
+                println "Zipping $imageDir"
+                ant.zip(destfile: new File(imageDir.getCanonicalPath() + ".zip")) {
+                    fileset(dir: imageDir.getCanonicalPath()) {
+                    }
+                }
+                // Ideally we'd delete here, but it often fails
+//                try {
+//                    delete imageDir
+//                } catch (IOException e) {
+//                    println "Exception trying to delete image: ${e.message}"
+//                }
+            }
+        }
     }
     // Identify outputs, which are used to create checksums
     inputs.files jpackage.outputs.files
     outputs.files(jpackage.outputs.files.asFileTree.matching {
+        // I think you can tell I'm not great with Gradle
         include {
-            return it.name.startsWith('QuPath') &&
+            return it.file.parentFile.name == 'dist' &&
+                    it.name.startsWith('QuPath') &&
                     !it.name.endsWith('.sha512') &&
                     !it.name.endsWith('.sha256') &&
                     !it.name.endsWith('.sha384')
