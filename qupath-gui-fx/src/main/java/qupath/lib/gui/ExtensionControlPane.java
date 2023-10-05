@@ -7,7 +7,6 @@ import javafx.fxml.FXMLLoader;
 import javafx.scene.control.*;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
-import javafx.scene.input.MouseButton;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.text.Text;
@@ -55,12 +54,8 @@ public class ExtensionControlPane extends BorderPane {
                    "releases/download/[a-zA-Z0-9-.]+/(qupath-extension-wsinfer-[0-9a-zA-Z-.]+.jar)");
 
     @FXML
-    private ListView<QuPathExtension> coreListView;
-    @FXML
-    private ListView<QuPathExtension> userListView;
+    private ListView<QuPathExtension> extensionListView;
 
-    @FXML
-    private Button addBtn;
 
     @FXML
     private Button rmBtn;
@@ -74,7 +69,7 @@ public class ExtensionControlPane extends BorderPane {
     @FXML
     private Button updateBtn;
     @FXML
-    private Button submitAddBtn;
+    private Button downloadBtn;
 
     @FXML
     private HBox addHBox;
@@ -109,52 +104,38 @@ public class ExtensionControlPane extends BorderPane {
         ObservableMap<Class<? extends QuPathExtension>, QuPathExtension> extensions = extensionManager.getLoadedExtensions();
         extensions.addListener((MapChangeListener<Class<? extends QuPathExtension>, QuPathExtension>) c -> {
             if (c.wasAdded()) {
-                if (c.getValueAdded().getClass().getClassLoader().getClass().equals(ExtensionClassLoader.class)) {
-                    userListView.getItems().add(c.getValueAdded());
-                } else {
-                    coreListView.getItems().add(c.getValueAdded());
-                }
+                extensionListView.getItems().add(c.getValueAdded());
             }
             if (c.wasRemoved()) {
-                if (c.getValueAdded().getClass().getClassLoader().getClass().equals(ExtensionClassLoader.class)) {
-                    userListView.getItems().remove(c.getValueRemoved());
-                } else {
-                    coreListView.getItems().remove(c.getValueRemoved());
-                }
+                extensionListView.getItems().remove(c.getValueRemoved());
             }
         });
         openExtensionDirBtn.disableProperty().bind(
                 UserDirectoryManager.getInstance().userDirectoryProperty().isNull());
-        submitAddBtn.disableProperty().bind(
+        downloadBtn.disableProperty().bind(
             repoTextArea.textProperty().isEmpty().or(ownerTextArea.textProperty().isEmpty()));
-
-        var sortedExtensions = extensionManager.getLoadedExtensions().values()
-                .stream()
-                .sorted(Comparator.comparing(QuPathExtension::getName)).toList();
-        coreListView.getItems().addAll(sortedExtensions.stream()
-                        .filter(e -> !(e.getClass().getClassLoader().getClass().equals(ExtensionClassLoader.class)))
-                        .toList());
-        coreListView.setCellFactory(ExtensionListCell::new);
-        userListView.getItems().addAll(sortedExtensions.stream()
-                        .filter(e -> e.getClass().getClassLoader().getClass().equals(ExtensionClassLoader.class))
-                        .toList());
-        userListView.setCellFactory(ExtensionListCell::new);
-
+        downloadBtn.setGraphic(IconFactory.createNode(12, 12, IconFactory.PathIcons.DOWNLOAD));
+        extensionListView.getItems().addAll(
+                extensionManager.getLoadedExtensions().values()
+                    .stream()
+                    .sorted(Comparator.comparing(QuPathExtension::getName))
+                    .toList());
+        extensionListView.setCellFactory(ExtensionListCell::new);
 
         ownerTextArea.addEventHandler(KeyEvent.KEY_RELEASED, e -> {
             if (e.getCode() == KeyCode.ENTER) {
-                submitAdd();
+                downloadExtension();
             }
             if (e.getCode() == KeyCode.ESCAPE) {
-                cancelAdd();
+                cancelDownload();
             }
         });
         repoTextArea.addEventHandler(KeyEvent.KEY_RELEASED, e -> {
             if (e.getCode() == KeyCode.ENTER) {
-                submitAdd();
+                downloadExtension();
             }
             if (e.getCode() == KeyCode.ESCAPE) {
-                cancelAdd();
+                cancelDownload();
             }
         });
     }
@@ -236,18 +217,18 @@ public class ExtensionControlPane extends BorderPane {
     }
 
     @FXML
-    private void submitAdd() {
+    private void downloadExtension() {
         var repo = GitHubProject.GitHubRepo.create("", ownerTextArea.getText(), repoTextArea.getText());
         try {
             askToDownload(repo);
         } catch (URISyntaxException | IOException | InterruptedException e) {
             Dialogs.showErrorNotification(QuPathResources.getString("ExtensionControlPane.unableToDownload"), e);
         }
-        cancelAdd();
+        cancelDownload();
     }
 
     @FXML
-    private void cancelAdd() {
+    private void cancelDownload() {
         ownerTextArea.clear();
         repoTextArea.clear();
     }
@@ -335,9 +316,7 @@ public class ExtensionControlPane extends BorderPane {
             box.setExtension(item);
             setGraphic(box);
 
-            var tooltipText = item.getName();
             if (item instanceof GitHubProject) {
-                tooltipText += "\n" + QuPathResources.getString("ExtensionControlPane.doubleClick");
                 var contextMenu = new ContextMenu();
                 contextMenu.getItems().add(ActionTools.createMenuItem(
                         ActionTools.createAction(() -> openContainingFolder(item),
@@ -349,28 +328,14 @@ public class ExtensionControlPane extends BorderPane {
                         ActionTools.createAction(() -> removeExtension(item),
                                 QuPathResources.getString("ExtensionControlPane.removeExtension"))));
                 this.setContextMenu(contextMenu);
-            } else if (item.getClass().getClassLoader().getClass().equals(ExtensionClassLoader.class)) {
-                tooltipText += "\n" + QuPathResources.getString("ExtensionControlPane.lackingGitHubInfo");
-            } else {
-                tooltipText += "\n" + QuPathResources.getString("ExtensionControlPane.coreExtensionCannotBeEdited");
             }
-
-            Tooltip.install(this, new Tooltip(tooltipText));
-            setOnMouseClicked(event -> {
-                if (event.getClickCount() == 2 && event.getButton() == MouseButton.PRIMARY) {
-                    if (item instanceof GitHubProject) { // this should always be true anyway...
-                        String url = ((GitHubProject)item).getRepository().getUrlString();
-                        try {
-                            logger.info("Trying to open URL {}", url);
-                            GuiTools.browseURI(new URI(url));
-                        } catch (URISyntaxException e) {
-                            Dialogs.showErrorNotification(
-                                    QuPathResources.getString("ExtensionControlPane.unableToOpenGitHubURL") + url,
-                                    e);
-                        }
-                    }
-                }
-            });
+//            setOnMouseClicked(event -> {
+//                if (event.getClickCount() == 2 && event.getButton() == MouseButton.PRIMARY) {
+//                    if (item instanceof GitHubProject) { // this should always be true anyway...
+//                        browseGitHub((GitHubProject) item);
+//                    }
+//                }
+//            });
         }
 
         private void openContainingFolder(QuPathExtension extension) {
@@ -383,10 +348,13 @@ public class ExtensionControlPane extends BorderPane {
         }
 
         /**
-         * Simple class that just loads the FXML for a list cell
+         * Simple class that just loads the FX
+         * ML for a list cell
          */
         static class ExtensionListCellBox extends HBox {
             private QuPathExtension extension;
+            @FXML
+            private Button gitHubBtn;
             @FXML
             private HBox btnHBox;
             @FXML
@@ -394,7 +362,7 @@ public class ExtensionControlPane extends BorderPane {
             @FXML
             private Button updateBtn;
             @FXML
-            private Text nameText, versionText, descriptionText;
+            private Label nameText, typeText, versionText, descriptionText;
 
             ExtensionListCellBox() {
                 var loader = new FXMLLoader(ExtensionControlPane.class.getResource("ExtensionListCellBox.fxml"));
@@ -406,8 +374,13 @@ public class ExtensionControlPane extends BorderPane {
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
-                rmBtn.setGraphic(IconFactory.createNode(8, 8, IconFactory.PathIcons.MINUS));
-                updateBtn.setGraphic(IconFactory.createNode(8, 8, IconFactory.PathIcons.REFRESH));
+                rmBtn.setGraphic(IconFactory.createNode(10, 10, IconFactory.PathIcons.MINUS));
+                rmBtn.setStyle("-fx-fill: -fx-text-base-color;");
+                rmBtn.setStyle("-fx-text-fill: -fx-text-base-color;");
+                updateBtn.setGraphic(IconFactory.createNode(10, 10, IconFactory.PathIcons.REFRESH));
+                updateBtn.setStyle("-fx-fill: -fx-text-base-color;");
+                gitHubBtn.setGraphic(IconFactory.createNode(10, 10, IconFactory.PathIcons.GITHUB));
+                gitHubBtn.setStyle("-fx-fill: -fx-text-base-color;");
             }
 
             ExtensionListCellBox(QuPathExtension extension) {
@@ -421,22 +394,50 @@ public class ExtensionControlPane extends BorderPane {
 
             void setExtension(QuPathExtension extension) {
                 nameText.setText(extension.getName());
+                typeText.setText(getExtensionType(extension));
                 versionText.setText("v" + extension.getVersion().toString());
                 descriptionText.setText(WordUtils.wrap(extension.getDescription(), 80));
                 // core and non-core extensions have different classloaders;
                 // can't remove or update core ones
                 if (!extension.getClass().getClassLoader().getClass().equals(ExtensionClassLoader.class)) {
-                    btnHBox.getChildren().remove(rmBtn);
-                    btnHBox.getChildren().remove(updateBtn);
+                    rmBtn.setDisable(true);
+                    updateBtn.setDisable(true);
+                    gitHubBtn.setDisable(true);
+//                    btnHBox.getChildren().remove(rmBtn);
+//                    btnHBox.getChildren().remove(updateBtn);
+//                    btnHBox.getChildren().remove(gitHubBtn);
                 }
                 // if we don't have GitHub information, we can't update
                 // but we can remove
                 if (!(extension instanceof GitHubProject)) {
                     updateBtn.setDisable(true);
+                    gitHubBtn.setDisable(true);
                 }
                 this.extension = extension;
             }
 
+            private String getExtensionType(QuPathExtension extension) {
+                if (!extension.getClass().getClassLoader().getClass().equals(ExtensionClassLoader.class)) {
+                    return QuPathResources.getString("ExtensionControlPane.coreExtension");
+                }
+                if (extension instanceof GitHubProject) {
+                    return QuPathResources.getString("ExtensionControlPane.githubExtension");
+                }
+                return QuPathResources.getString("ExtensionControlPane.userExtension");
+            }
+
+            @FXML
+            private void browseGitHub() {
+                String url = ((GitHubProject) extension).getRepository().getUrlString();
+                try {
+                    logger.info("Trying to open URL {}", url);
+                    GuiTools.browseURI(new URI(url));
+                } catch (URISyntaxException e) {
+                    Dialogs.showErrorNotification(
+                            QuPathResources.getString("ExtensionControlPane.unableToOpenGitHubURL") + url,
+                            e);
+                }
+            }
             @FXML
             private void updateExtension() {
                 ExtensionControlPane.updateExtension(this.extension);

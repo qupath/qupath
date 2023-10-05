@@ -1,37 +1,53 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-
-<?import javafx.scene.control.*?>
-<?import javafx.scene.layout.*?>
-
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Tooltip?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Pane?>
 <?import javafx.scene.text.Text?>
-<?import javafx.geometry.Insets?>
 <?import javafx.scene.text.Font?>
-<fx:root type="HBox" xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml">
+
+<?import javafx.geometry.Insets?>
+
+<?import javafx.scene.control.Label?>
+<fx:root type="HBox" xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml" styleClass="box">
     <VBox spacing = "5">
-        <Text fx:id="nameText"/>
-        <Text fx:id="descriptionText" opacity="0.7">
+        <Label fx:id="nameText"/>
+        <Label fx:id="descriptionText" opacity="0.7">
             <font>
                 <Font size="10"/>
             </font>
-        </Text>
+        </Label>
     </VBox>
     <Pane fx:id="spacer" HBox.hgrow="ALWAYS"/>
-    <HBox fx:id="btnHBox" spacing="2" alignment="CENTER">
-        <padding>
-            <Insets top="0" right="0" bottom="2" left="4"/>
-        </padding>
-        <Text fx:id="versionText"/>
-        <Pane minWidth="5"/>
-        <Button fx:id="rmBtn" onAction="#removeExtension">
-            <tooltip>
-                <Tooltip text="%ExtensionControlPane.removeExtension"/>
-            </tooltip>
-        </Button>
-        <Button fx:id="updateBtn" onAction="#updateExtension">
-            <tooltip>
-                <Tooltip text="%ExtensionControlPane.updateExtension"/>
-            </tooltip>
-        </Button>
-    </HBox>
+    <VBox>
+        <HBox fx:id="btnHBox" spacing="2" alignment="CENTER">
+            <padding>
+                <Insets top="0" right="0" bottom="2" left="4"/>
+            </padding>
+            <Label fx:id="versionText"/>
+            <Pane minWidth="5" HBox.hgrow="ALWAYS"/>
+            <Button fx:id="rmBtn" onAction="#removeExtension">
+                <tooltip>
+                    <Tooltip text="%ExtensionControlPane.removeExtension"/>
+                </tooltip>
+            </Button>
+            <Button fx:id="updateBtn" onAction="#updateExtension">
+                <tooltip>
+                    <Tooltip text="%ExtensionControlPane.updateExtension"/>
+                </tooltip>
+            </Button>
+            <Button fx:id="gitHubBtn" onAction="#browseGitHub">
+                <tooltip>
+                    <Tooltip text="%ExtensionControlPane.browseGitHub"/>
+                </tooltip>
+            </Button>
+        </HBox>
+        <Label fx:id="typeText">
+            <font>
+                <Font size="10"/>
+            </font>
+        </Label>
+    </VBox>
 </fx:root>

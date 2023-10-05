@@ -18,7 +18,7 @@
     -fx-light-text-color: rgb(200, 200, 200);
     
     -fx-accent: rgb(195, 223, 255, 0.5);
-    
+
     -qp-script-error-color: rgb(255, 60, 60);
     -qp-script-string-color: rgb(255, 240, 60);
     
@@ -95,3 +95,8 @@
 .axis {
     AXIS_COLOR: derive(-fx-background,40%);
 }
+
+.list-cell:filled:selected:focused .button .text {
+    -fx-fill: -fx-text-base-color;
+}
+

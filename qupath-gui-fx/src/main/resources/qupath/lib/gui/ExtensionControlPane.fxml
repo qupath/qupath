@@ -16,11 +16,8 @@
 <fx:root prefHeight="400.0" prefWidth="700.0" type="BorderPane" xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1">
     <center>
         <VBox>
-            <TitledPane text="%ExtensionControlPane.userExtensions" animated="false">
-                <ListView fx:id="userListView"/>
-            </TitledPane>
-            <TitledPane text="%ExtensionControlPane.coreExtensions" animated="false">
-                <ListView fx:id="coreListView"/>
+            <TitledPane text="%ExtensionControlPane.installedExtensions" animated="false" collapsible="false">
+                <ListView fx:id="extensionListView"/>
             </TitledPane>
             <TitledPane text="%ExtensionControlPane.manageExtensions" animated="false">
                 <VBox spacing="5">
@@ -49,8 +46,8 @@
                                 <Tooltip text="%ExtensionControlPane.repositoryTooltip"/>
                             </tooltip>
                         </TextField>
-                        <Pane HBox.hgrow="ALWAYS" minWidth="5"/>
-                        <Button fx:id="submitAddBtn" onAction="#submitAdd" disable="true" text="%ExtensionControlPane.accept">
+                        <Pane minWidth="5"/>
+                        <Button fx:id="downloadBtn" onAction="#downloadExtension" disable="true">
                             <tooltip>
                                 <Tooltip text="%ExtensionControlPane.acceptTooltip"/>
                             </tooltip>

@@ -258,13 +258,13 @@ public class IconFactory {
 
 									DETECTIONS(IconSuppliers.icoMoon('\ue908', javafx.scene.paint.Color.rgb(20, 180, 120, 0.9))),
 									DETECTIONS_FILL(IconSuppliers.icoMoon('\ue907', javafx.scene.paint.Color.rgb(20, 180, 120, 0.9))),
+									DOWNLOAD(IconSuppliers.fontAwesome(FontAwesome.Glyph.DOWNLOAD)),
 
 									ELLIPSE_TOOL(IconSuppliers.ellipseToolIcon()),
 									EXTRACT_REGION(IconSuppliers.icoMoon('\ue90a')),
 
-									SELECTION_MODE(IconSuppliers.selectionModeIcon()),
-									
 									GRID(IconSuppliers.icoMoon('\ue90b')),
+									GITHUB(IconSuppliers.fontAwesome(FontAwesome.Glyph.GITHUB)),
 
 									HELP(IconSuppliers.fontAwesome(FontAwesome.Glyph.QUESTION_CIRCLE)),
 
@@ -277,7 +277,7 @@ public class IconFactory {
 									LOCATION(IconSuppliers.icoMoon('\ue90d')),
 									
 									MEASURE(IconSuppliers.icoMoon('\ue90e')),
-									MINUS(IconSuppliers.fontAwesome(FontAwesome.Glyph.MINUS, Color.BLACK)),
+									MINUS(IconSuppliers.fontAwesome(FontAwesome.Glyph.MINUS)),
 									MOVE_TOOL(IconSuppliers.icoMoon('\ue90f')),
 									
 									NUCLEI_ONLY(IconSuppliers.icoMoon('\ue910')),
@@ -293,7 +293,9 @@ public class IconFactory {
 									POLYLINE_TOOL(IconSuppliers.polylineToolIcon()),
 									
 									RECTANGLE_TOOL(IconSuppliers.rectangleToolIcon()),
-									REFRESH(IconSuppliers.fontAwesome(FontAwesome.Glyph.REFRESH, Color.BLACK)),
+									REFRESH(IconSuppliers.fontAwesome(FontAwesome.Glyph.REFRESH)),
+
+									SELECTION_MODE(IconSuppliers.selectionModeIcon()),
 
 									SCRIPT_EDITOR(IconSuppliers.fontAwesome(FontAwesome.Glyph.CODE)),
 
