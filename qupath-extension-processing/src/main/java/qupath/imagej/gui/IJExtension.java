@@ -63,6 +63,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.fx.dialogs.FileChoosers;
+import qupath.fx.prefs.controlsfx.PropertyItemBuilder;
 import qupath.imagej.detect.cells.PositiveCellDetection;
 import qupath.imagej.detect.cells.SubcellularDetection;
 import qupath.imagej.detect.cells.WatershedCellDetection;
@@ -600,9 +601,13 @@ public class IJExtension implements QuPathExtension {
 	private void addQuPathCommands(final QuPathGUI qupath) {
 				
 		// Add a preference to set the ImageJ path
-		qupath.getPreferencePane().addDirectoryPropertyPreference(
-				imageJPath, "ImageJ plugins directory", "ImageJ",
-				"Set the path to the 'plugins' directory of an existing ImageJ installation");
+		var item = new PropertyItemBuilder<>(imageJPath, String.class)
+				.propertyType(PropertyItemBuilder.PropertyType.DIRECTORY)
+						.name("ImageJ plugins directory")
+								.category("ImageJ")
+										.description("Set the path to the 'plugins' directory of an existing ImageJ installation")
+				.build();
+		qupath.getPreferencePane().getPropertySheet().getItems().add(item);
 		
 		var commands = new IJExtensionCommands(qupath);
 		qupath.installActions(ActionTools.getAnnotatedActions(commands));
