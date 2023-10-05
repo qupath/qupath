@@ -317,39 +317,42 @@ runtime {
     }
 }
 
-/**
- * Fix the version on macOS - see https://github.com/qupath/qupath/issues/1250
- * @param appFile
- * @return
- */
-def fixMacOSVersion(File appFile) {
-    def plistFile = new File("${appFile.getCanonicalPath()}/Contents/Info.plist")
-    def versionToInclude = getNonSnapshotVersion()
-    if (plistFile.exists()) {
-        // Update the plist with the 'correct' version (since jpackage blocks anything before 1.x.x)
-        String path = plistFile.getCanonicalPath()
-        println "Setting CFBundleVersion to ${versionToInclude}"
-        exec {
-            commandLine '/usr/libexec/PlistBuddy', '-c', "Set :CFBundleVersion ${versionToInclude}", path
-        }
-        println "Setting CFBundleShortVersionString to ${qupathVersion}"
-        exec {
-            commandLine '/usr/libexec/PlistBuddy', '-c', "Set :CFBundleShortVersionString ${qupathVersion}", path
-        }
-        // We want an identifier that is unique to the major/minor version, but can exclude the patch
-        // We expect that users may want to keep multiple versions of QuPath installed for reproducibility,
-        // but making all patch versions uniquely identifiable may make encouraging updates more difficult.
-        String majorMinorVersion = versionToInclude
-        String[] parts = majorMinorVersion.split("\\.")
-        if (parts.length > 2)
-            majorMinorVersion = parts[0] + "." + parts[1]
-        String bundleId = "qupath-${majorMinorVersion}"
-        println "Setting CFBundleIdentifier to ${bundleId}"
-        exec {
-            commandLine '/usr/libexec/PlistBuddy', '-c', "Set :CFBundleIdentifier ${bundleId}", path
-        }
-    }
-}
+// Removed - this was much more trouble than it was worth, causing file permissions issues
+// that were only evident after downloading & installing (building locally was ok).
+// jpackage in Java 20 also seemed to pick up on the plist changes and wasn't pleased.
+///**
+// * Fix the version on macOS - see https://github.com/qupath/qupath/issues/1250
+// * @param appFile
+// * @return
+// */
+//def fixMacOSVersion(File appFile) {
+//    def plistFile = new File("${appFile.getCanonicalPath()}/Contents/Info.plist")
+//    def versionToInclude = getNonSnapshotVersion()
+//    if (plistFile.exists()) {
+//        // Update the plist with the 'correct' version (since jpackage blocks anything before 1.x.x)
+//        String path = plistFile.getCanonicalPath()
+//        println "Setting CFBundleVersion to ${versionToInclude}"
+//        exec {
+//            commandLine '/usr/libexec/PlistBuddy', '-c', "Set :CFBundleVersion ${versionToInclude}", path
+//        }
+//        println "Setting CFBundleShortVersionString to ${qupathVersion}"
+//        exec {
+//            commandLine '/usr/libexec/PlistBuddy', '-c', "Set :CFBundleShortVersionString ${qupathVersion}", path
+//        }
+//        // We want an identifier that is unique to the major/minor version, but can exclude the patch
+//        // We expect that users may want to keep multiple versions of QuPath installed for reproducibility,
+//        // but making all patch versions uniquely identifiable may make encouraging updates more difficult.
+//        String majorMinorVersion = versionToInclude
+//        String[] parts = majorMinorVersion.split("\\.")
+//        if (parts.length > 2)
+//            majorMinorVersion = parts[0] + "." + parts[1]
+//        String bundleId = "qupath-${majorMinorVersion}"
+//        println "Setting CFBundleIdentifier to ${bundleId}"
+//        exec {
+//            commandLine '/usr/libexec/PlistBuddy', '-c', "Set :CFBundleIdentifier ${bundleId}", path
+//        }
+//    }
+//}
 
 /**
  * Build a .pkg for an existing .app on macOS.
@@ -379,7 +382,7 @@ tasks.register('jpackageFinalize') {
         // Loop for Mac things to do
         def appFile = new File(outputDir, "/dist/${getCorrectAppName('.app')}")
         if (appFile.exists()) {
-            fixMacOSVersion(appFile)
+//            fixMacOSVersion(appFile)
             // We need to make the macOS pkg here to incorporate the changes
             if (findProperty('package')?.toLowerCase() in ['installer', 'pkg']) {
                 println "Creating pkg"
