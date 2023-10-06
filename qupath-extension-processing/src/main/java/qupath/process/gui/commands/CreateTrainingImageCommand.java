@@ -136,6 +136,7 @@ public class CreateTrainingImageCommand {
 			return entry;
 		} catch (Exception e) {
 			Dialogs.showErrorMessage("Sparse image server", e);
+			logger.error(e.getMessage(), e);
 			return null;
 		}
 	}

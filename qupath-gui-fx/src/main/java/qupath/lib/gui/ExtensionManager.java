@@ -160,7 +160,7 @@ public class ExtensionManager {
 							logger.warn("'{}' was written for QuPath {} but current version is {}", extension.getName(), version, qupathVersion);
 					}
 					try {
-						logger.error("It is recommended that you delete {} and restart QuPath",
+						logger.warn("It is recommended that you delete {} and restart QuPath",
 								URLDecoder.decode(
 										extension.getClass().getProtectionDomain().getCodeSource().getLocation().toExternalForm(),
 										StandardCharsets.UTF_8));

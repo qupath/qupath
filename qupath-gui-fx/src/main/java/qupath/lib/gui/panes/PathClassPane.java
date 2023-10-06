@@ -521,6 +521,7 @@ class PathClassPane {
 			return true;
 		} catch (Exception ex) {
 			Dialogs.showErrorMessage("Error reading project", ex);
+			logger.error(ex.getMessage(), ex);
 			return false;
 		}
 	}

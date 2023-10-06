@@ -31,6 +31,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
@@ -96,6 +97,7 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 import qupath.fx.controls.PredicateTextField;
+import qupath.fx.prefs.controlsfx.PropertyItemBuilder;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.ThreadTools;
 import qupath.lib.gui.QuPathGUI;
@@ -266,11 +268,16 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		paneButtons.prefWidthProperty().bind(panel.widthProperty());
 		paneButtons.setPadding(new Insets(5, 5, 5, 5));
 		panel.setTop(paneButtons);
-		
-		qupath.getPreferencePane().addChoicePropertyPreference(
-				thumbnailSize, FXCollections.observableArrayList(ProjectThumbnailSize.values()), ProjectThumbnailSize.class,
-				"Project thumbnails size", "Appearance", "Choose thumbnail size for the project pane");
 
+		qupath.getPreferencePane().getPropertySheet().getItems().add(
+				new PropertyItemBuilder<>(thumbnailSize, ProjectThumbnailSize.class)
+						.propertyType(PropertyItemBuilder.PropertyType.CHOICE)
+						.name("Project thumbnail size")
+						.category("Appearance")
+						.choices(Arrays.asList(ProjectThumbnailSize.values()))
+						.description("Choose thumbnail size for the project pane")
+						.build()
+		);
 	}
 
 	ContextMenu getPopup() {
@@ -683,6 +690,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 			return true;
 		} catch (IOException e) {
 			Dialogs.showErrorMessage("Save project", e);
+			logger.error(e.getMessage(), e);
 			return false;
 		}
 	}

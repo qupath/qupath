@@ -254,6 +254,7 @@ public class PixelClassifierUI {
 
 		} catch (IOException e) {
 			Dialogs.showErrorMessage("Save prediction", e);
+			logger.error(e.getMessage(), e);
 		}
 		
 		return true;
@@ -414,6 +415,7 @@ public class PixelClassifierUI {
 			}
 		} catch (IOException e) {
 			Dialogs.showErrorMessage(title, e);
+			logger.error(e.getMessage(), e);
 		}
 		return false;
 	}

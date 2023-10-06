@@ -39,6 +39,8 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.text.TextAlignment;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.ParameterPanelFX;
 import qupath.lib.gui.tools.GuiTools;
@@ -59,6 +61,8 @@ import qupath.lib.plugins.workflow.WorkflowStep;
  * @param <T>
  */
 class ParameterDialogWrapper<T> {
+
+	private static final Logger logger = LoggerFactory.getLogger(ParameterDialogWrapper.class);
 
 	private Stage dialog;
 	private ParameterPanelFX panel;
@@ -177,6 +181,7 @@ class ParameterDialogWrapper<T> {
 							lastWorkflowStep = null;
 					} catch (Exception e) {
 						Dialogs.showErrorMessage("Plugin error", e);
+						logger.error(e.getMessage(), e);
 					} catch (OutOfMemoryError e) {
 						// This doesn't actually work...
 						Dialogs.showErrorMessage("Out of memory error", "Out of memory - try to close other applications, or decrease the number of parallel processors in the QuPath preferences");

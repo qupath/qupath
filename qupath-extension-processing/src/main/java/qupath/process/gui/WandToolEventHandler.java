@@ -138,9 +138,6 @@ public class WandToolEventHandler extends BrushToolEventHandler {
 	}
 
 	
-	/**
-	 * Paint overlays and allow them to influence the want
-	 */
 	private static BooleanProperty wandUseOverlays = PathPrefs.createPersistentPreference("wandUseOverlays", true);
 
 	/**
@@ -172,9 +169,6 @@ public class WandToolEventHandler extends BrushToolEventHandler {
 		
 		
 	
-	/**
-	 * Sigma value associated with Wand tool smoothing
-	 */
 	private static DoubleProperty wandSigmaPixels = PathPrefs.createPersistentPreference("wandSigmaPixels", 4.0);
 
 	/**

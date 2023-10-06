@@ -536,6 +536,7 @@ public class SingleMeasurementClassificationCommand implements Runnable {
 				return name;
 			} catch (Exception e) {
 				Dialogs.showErrorNotification(title, e);
+				logger.error(e.getMessage(), e);
 				return null;
 			}
 		}

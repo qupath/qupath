@@ -317,27 +317,42 @@ runtime {
     }
 }
 
-/**
- * Fix the version on macOS - see https://github.com/qupath/qupath/issues/1250
- * @param appFile
- * @return
- */
-def fixMacOSVersion(File appFile) {
-    def plistFile = new File("${appFile.getCanonicalPath()}/Contents/Info.plist")
-    def versionToInclude = getNonSnapshotVersion()
-    if (plistFile.exists()) {
-        // Update the plist with the 'correct' version (since jpackage blocks anything before 1.x.x)
-        String path = plistFile.getCanonicalPath()
-        println "Setting CFBundleVersion to ${versionToInclude}"
-        exec {
-            commandLine '/usr/libexec/PlistBuddy', '-c', "Set :CFBundleVersion ${versionToInclude}", path
-        }
-        println "Setting CFBundleShortVersionString to ${qupathVersion}"
-        exec {
-            commandLine '/usr/libexec/PlistBuddy', '-c', "Set :CFBundleShortVersionString ${qupathVersion}", path
-        }
-    }
-}
+// Removed - this was much more trouble than it was worth, causing file permissions issues
+// that were only evident after downloading & installing (building locally was ok).
+// jpackage in Java 20 also seemed to pick up on the plist changes and wasn't pleased.
+///**
+// * Fix the version on macOS - see https://github.com/qupath/qupath/issues/1250
+// * @param appFile
+// * @return
+// */
+//def fixMacOSVersion(File appFile) {
+//    def plistFile = new File("${appFile.getCanonicalPath()}/Contents/Info.plist")
+//    def versionToInclude = getNonSnapshotVersion()
+//    if (plistFile.exists()) {
+//        // Update the plist with the 'correct' version (since jpackage blocks anything before 1.x.x)
+//        String path = plistFile.getCanonicalPath()
+//        println "Setting CFBundleVersion to ${versionToInclude}"
+//        exec {
+//            commandLine '/usr/libexec/PlistBuddy', '-c', "Set :CFBundleVersion ${versionToInclude}", path
+//        }
+//        println "Setting CFBundleShortVersionString to ${qupathVersion}"
+//        exec {
+//            commandLine '/usr/libexec/PlistBuddy', '-c', "Set :CFBundleShortVersionString ${qupathVersion}", path
+//        }
+//        // We want an identifier that is unique to the major/minor version, but can exclude the patch
+//        // We expect that users may want to keep multiple versions of QuPath installed for reproducibility,
+//        // but making all patch versions uniquely identifiable may make encouraging updates more difficult.
+//        String majorMinorVersion = versionToInclude
+//        String[] parts = majorMinorVersion.split("\\.")
+//        if (parts.length > 2)
+//            majorMinorVersion = parts[0] + "." + parts[1]
+//        String bundleId = "qupath-${majorMinorVersion}"
+//        println "Setting CFBundleIdentifier to ${bundleId}"
+//        exec {
+//            commandLine '/usr/libexec/PlistBuddy', '-c', "Set :CFBundleIdentifier ${bundleId}", path
+//        }
+//    }
+//}
 
 /**
  * Build a .pkg for an existing .app on macOS.
@@ -352,7 +367,7 @@ def makeMacOSPkg(File appFile) {
                 '-n', 'QuPath',
                 '--app-image', appFile.getCanonicalPath(),
                 '--type', 'pkg',
-                '--mac-package-identifier', 'qupath',
+//                '--mac-package-identifier', 'qupath',
                 '--app-version', qupathVersion
     }
 }
@@ -364,9 +379,10 @@ def makeMacOSPkg(File appFile) {
 tasks.register('jpackageFinalize') {
     doLast {
         def outputDir = new File("${rootProject.layout.buildDirectory.get()}")
+        // Loop for Mac things to do
         def appFile = new File(outputDir, "/dist/${getCorrectAppName('.app')}")
         if (appFile.exists()) {
-            fixMacOSVersion(appFile)
+//            fixMacOSVersion(appFile)
             // We need to make the macOS pkg here to incorporate the changes
             if (findProperty('package')?.toLowerCase() in ['installer', 'pkg']) {
                 println "Creating pkg"
@@ -377,15 +393,36 @@ tasks.register('jpackageFinalize') {
                 if (file.exists() && !file.name.equals(correctName)) {
                     file.renameTo(new File(file.getParent(), correctName))
                 }
-
+                // Remove the .app as it's no longer needed (and just takes up space)
+                println "Deleting " + appFile
+                delete appFile
+            }
+        }
+        // On windows, for the installer we should also zip up the image
+        if (project.properties['platform.name'] == 'windows') {
+            def imageDir = new File(outputDir, "/dist/${qupathAppName}")
+            if (imageDir.isDirectory() && findProperty('package')?.toLowerCase() in ['installer']) {
+                println "Zipping $imageDir"
+                ant.zip(destfile: new File(imageDir.getCanonicalPath() + ".zip")) {
+                    fileset(dir: imageDir.getCanonicalPath()) {
+                    }
+                }
+                // Ideally we'd delete here, but it often fails
+//                try {
+//                    delete imageDir
+//                } catch (IOException e) {
+//                    println "Exception trying to delete image: ${e.message}"
+//                }
             }
         }
     }
     // Identify outputs, which are used to create checksums
     inputs.files jpackage.outputs.files
     outputs.files(jpackage.outputs.files.asFileTree.matching {
+        // I think you can tell I'm not great with Gradle
         include {
-            return it.name.startsWith('QuPath') &&
+            return it.file.parentFile.name == 'dist' &&
+                    it.name.startsWith('QuPath') &&
                     !it.name.endsWith('.sha512') &&
                     !it.name.endsWith('.sha256') &&
                     !it.name.endsWith('.sha384')
@@ -610,7 +647,8 @@ def configureJPackageMac(JPackageParams params) {
     updatePackageType(params, properties['platform.installerExt'])
 
     params.installerOptions += ['--mac-package-name', 'QuPath']
-    params.installerOptions += ['--mac-package-identifier', 'QuPath']
+    // Need to include the version so that we can have multiple versions installed
+    params.installerOptions += ['--mac-package-identifier', "QuPath-${qupathVersion}"]
 
     // File associations supported on Mac
     setFileAssociations(params)

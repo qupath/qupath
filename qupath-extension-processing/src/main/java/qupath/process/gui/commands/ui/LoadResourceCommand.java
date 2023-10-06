@@ -157,6 +157,7 @@ public final class LoadResourceCommand<S> implements Runnable {
 				} catch (Exception ex) {
 					// TODO: Investigate why this is triggered twice
 					Dialogs.showErrorNotification(resourceType.getDialogTitle(), ex);
+					logger.error(ex.getMessage(), ex);
 				}
 			}
 			return null;
@@ -192,6 +193,7 @@ public final class LoadResourceCommand<S> implements Runnable {
 				updateAvailableItems(comboClassifiers.getItems());
 			} catch (IOException ex) {
 				Dialogs.showErrorMessage(title, ex);
+				logger.error(ex.getMessage(), ex);
 			}
 		});
 		var miOpenAsText = new MenuItem("Show as text");
@@ -293,7 +295,8 @@ public final class LoadResourceCommand<S> implements Runnable {
 					updateAvailableItems(comboClassifiers.getItems());
 				} catch (Exception ex) {
 					Dialogs.showErrorMessage(title, ex);
-				}				
+					logger.error(ex.getMessage(), ex);
+				}
 			}
 		});
 		

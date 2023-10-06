@@ -32,6 +32,8 @@ import javafx.scene.control.Tooltip;
 import javafx.scene.control.cell.CheckBoxListCell;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.lib.gui.QuPathGUI;
 import qupath.fx.dialogs.Dialogs;
 import qupath.fx.utils.GridPaneUtils;
@@ -51,7 +53,9 @@ import qupath.lib.roi.ROIs;
  *
  */
 public class CreateChannelTrainingImagesCommand implements Runnable {
-	
+
+	private static final Logger logger = LoggerFactory.getLogger(CreateChannelTrainingImagesCommand.class);
+
 	private String title = "Create training images";
 	private QuPathGUI qupath;
 	
@@ -146,6 +150,7 @@ public class CreateChannelTrainingImagesCommand implements Runnable {
 			project.syncChanges();
 		} catch (Exception e) {
 			Dialogs.showErrorMessage(title, e);
+			logger.error(e.getMessage(), e);
 		}
 		
 		qupath.refreshProject();

@@ -319,6 +319,7 @@ class ExtractRegionCommand implements Runnable {
 				imps.add(imp);
 			} catch (IOException e) {
 				Dialogs.showErrorMessage("Send region to ImageJ", e);
+				logger.error(e.getMessage(), e);
 				return;
 			}
 		}

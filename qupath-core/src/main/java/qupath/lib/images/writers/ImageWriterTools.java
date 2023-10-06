@@ -177,12 +177,12 @@ public class ImageWriterTools {
 	/**
 	 * Comparator that prefers the most 'comprehensive/flexible' ImageWriter.
 	 */
-	private static Comparator<ImageWriter<?>> COMPARATOR = 
-			Comparator.comparing(ImageWriter<?>::supportsPixelSize)
-				.thenComparing(Comparator.comparing(ImageWriter::supportsZ))
-				.thenComparing(Comparator.comparing(ImageWriter::supportsT))
-				.thenComparing(Comparator.comparing(ImageWriter::supportsPyramidal))
-				.thenComparing(Comparator.comparing(ImageWriter::supportsRGB))
-				.thenComparing(Comparator.comparing(ImageWriter::getName));	
+	private static Comparator<ImageWriter<?>> COMPARATOR =
+			Comparator.comparing((ImageWriter<?> writer) -> writer.supportsPixelSize())
+				.thenComparing(ImageWriter::supportsZ)
+				.thenComparing(ImageWriter::supportsT)
+				.thenComparing(ImageWriter::supportsPyramidal)
+				.thenComparing(ImageWriter::supportsRGB)
+				.thenComparing(ImageWriter::getName);
 
 }

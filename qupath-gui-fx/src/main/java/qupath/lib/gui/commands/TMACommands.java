@@ -30,6 +30,8 @@ import java.util.List;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.StringProperty;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.fx.dialogs.FileChoosers;
 import qupath.lib.analysis.stats.RunningStatistics;
 import qupath.lib.common.GeneralTools;
@@ -59,6 +61,8 @@ import qupath.lib.scripting.QP;
  *
  */
 public class TMACommands {
+
+	private static final Logger logger = LoggerFactory.getLogger(TMACommands.class);
 	
 	private enum TMARemoveType { ROW, COLUMN;
 		@Override
@@ -156,6 +160,7 @@ public class TMACommands {
 				imageData.getHistoryWorkflow().addStep(step);
 			} catch (IOException e) {
 				Dialogs.showErrorMessage(title, e);
+				logger.error(e.getMessage(), e);
 			}
 //			PathAwtIO.writeTMAData(file, imageData, viewer.getOverlayOptions(), Double.NaN);
 		}

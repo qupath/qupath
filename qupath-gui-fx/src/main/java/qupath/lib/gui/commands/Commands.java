@@ -502,7 +502,8 @@ public class Commands {
 				writer.writeImage(server, request, fileOutput.getAbsolutePath());
 			lastWriter = writer;
 		} catch (IOException e) {
-			Dialogs.showErrorMessage("Export region", e);
+			Dialogs.showErrorMessage("Export region", e.getLocalizedMessage());
+			logger.error(e.getMessage(), e);
 		}
 	}
 	
@@ -711,7 +712,8 @@ public class Commands {
 				PathPrefs.exportPreferences(stream);
 				return true;
 			} catch (Exception e) {
-				Dialogs.showErrorMessage("Import preferences", e);
+				Dialogs.showErrorMessage("Import preferences", e.getLocalizedMessage());
+				logger.error(e.getMessage(), e);
 			}
 		}
 		return false;
@@ -730,6 +732,7 @@ public class Commands {
 				return true;
 			} catch (Exception e) {
 				Dialogs.showErrorMessage("Import preferences", e);
+				logger.error(e.getMessage(), e);
 			}
 		}
 		return false;
@@ -843,6 +846,7 @@ public class Commands {
 			}
 		} catch (IOException e) {
 			Dialogs.showErrorMessage("Save ImageData", e);
+			logger.error(e.getMessage(), e);
 			return false;
 		}
 	}

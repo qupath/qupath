@@ -88,6 +88,7 @@ public class CreateCompositeClassifierCommand implements Runnable {
 			updateAvailableClassifiers(view);
 		} catch (IOException e) {
 			Dialogs.showErrorNotification(title, e);
+			logger.error(e.getMessage(), e);
 		}
 		
 		String instructions = 
@@ -158,6 +159,7 @@ public class CreateCompositeClassifierCommand implements Runnable {
 				}
 			} catch (Exception e) {
 				Dialogs.showErrorMessage(title, e);
+				logger.error(e.getMessage(), e);
 			}
 		}
 	}
@@ -222,6 +224,7 @@ public class CreateCompositeClassifierCommand implements Runnable {
 //			return composite;
 		} catch (Exception e) {
 			Dialogs.showErrorMessage(title, e);
+			logger.error(e.getMessage(), e);
 			return null;
 		}
 		

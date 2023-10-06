@@ -27,6 +27,8 @@ import java.util.Arrays;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.fx.dialogs.FileChoosers;
 import qupath.lib.extension.svg.SvgTools.SvgBuilder.ImageIncludeType;
 import qupath.lib.gui.QuPathGUI;
@@ -43,7 +45,9 @@ import qupath.lib.regions.RegionRequest;
  *
  */
 class SvgExportCommand implements Runnable {
-	
+
+	private static final Logger logger = LoggerFactory.getLogger(SvgExportCommand.class);
+
 	/**
 	 * Export methods for SVG.
 	 */
@@ -161,6 +165,7 @@ class SvgExportCommand implements Runnable {
 			builder.writeSVG(file);
 		} catch (IOException e) {
 			Dialogs.showErrorMessage(title, e);
+			logger.error(e.getMessage(), e);
 		}
 	}
 
