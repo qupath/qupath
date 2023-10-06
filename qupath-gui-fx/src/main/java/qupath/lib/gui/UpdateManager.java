@@ -103,7 +103,7 @@ class UpdateManager {
 		// Work through extensions
 		if (updateCheckType == AutoUpdateType.QUPATH_AND_EXTENSIONS || updateCheckType == AutoUpdateType.EXTENSIONS_ONLY) {
 			var extensionManager = qupath.getExtensionManager();
-			for (var ext : extensionManager.getLoadedExtensions()) {
+			for (var ext : extensionManager.getLoadedExtensions().values()) {
 				var v = ext.getVersion();
 				if (!(ext instanceof GitHubProject)) {
 					// This also applies to built-in QuPath extensions
@@ -129,18 +129,19 @@ class UpdateManager {
 		
 		// Check for any updates
 		for (var entry : projects.entrySet()) {
+			var project = entry.getKey();
+			var version = entry.getValue();
 			try {
-				var project = entry.getKey();
 				logger.info("Update check for {}", project.getUrlString());
-				var release = UpdateChecker.checkForUpdate(entry.getKey());
-				if (release != null && release.getVersion() != Version.UNKNOWN && entry.getValue().compareTo(release.getVersion()) < 0) {
-					logger.info("Found newer release for {} ({} -> {})", project.getName(), entry.getValue(), release.getVersion());
+				var release = UpdateChecker.checkForUpdate(project);
+				if (release != null && release.getVersion() != Version.UNKNOWN && version.compareTo(release.getVersion()) < 0) {
+					logger.info("Found newer release for {} ({} -> {})", project.getName(), version, release.getVersion());
 					projectUpdates.put(project, release);
 				} else if (release != null) {
-					logger.info("No newer release for {} ({} is newer than {})", project.getName(), entry.getValue(), release.getVersion());
+					logger.info("No newer release for {} (current {} vs upstream {})", project.getName(), version, release.getVersion());
 				}
 			} catch (Exception e) {
-				logger.error("Update check failed for {}", entry.getKey());
+				logger.error("Update check failed for {}", project);
 				logger.debug(e.getLocalizedMessage(), e);
 			}
 		}

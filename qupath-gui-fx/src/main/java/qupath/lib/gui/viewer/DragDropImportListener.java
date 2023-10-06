@@ -26,7 +26,9 @@ package qupath.lib.gui.viewer;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.net.URISyntaxException;
 import java.nio.file.Files;
+import java.util.regex.Pattern;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -50,12 +52,14 @@ import javafx.scene.input.DragEvent;
 import javafx.scene.input.Dragboard;
 import javafx.scene.input.TransferMode;
 import qupath.lib.common.GeneralTools;
+
+import qupath.fx.dialogs.Dialogs;
+import qupath.lib.gui.ExtensionControlPane;
 import qupath.lib.gui.FileCopier;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.UserDirectoryManager;
 import qupath.lib.gui.commands.InteractiveObjectImporter;
 import qupath.lib.gui.commands.ProjectCommands;
-import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.prefs.QuPathStyleManager;
@@ -79,7 +83,9 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 	
 	private static final Logger logger = LoggerFactory.getLogger(DragDropImportListener.class);
 
-	private QuPathGUI qupath;
+	private static final Pattern GITHUB_BASE_PATTERN = Pattern.compile("https://github.com/.*");
+
+	private final QuPathGUI qupath;
 	
 	private List<DropHandler<File>> dropHandlers = new ArrayList<>();
 
@@ -188,12 +194,15 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 					if (files != null) {
 				        logger.debug("Files dragged onto {}", source);
 						handleFileDrop(viewer2, files);
-					} else if (url != null || string != null) {
-						logger.debug("URL/String dragged onto {}", source);
+					} else if (url != null ) {
+						logger.debug("URL dragged onto {}", source);
 						handleURLDrop(viewer2, url);
+					} else if (string != null) {
+						logger.debug("Text dragged onto {}, treating as a URL", source);
+						handleURLDrop(viewer2, string);
 					}
-	        	} catch (IOException e) {
-					Dialogs.showErrorMessage("Drag & Drop", e);
+				} catch (IOException | URISyntaxException | InterruptedException e) {
+					Dialogs.showErrorMessage(QuPathResources.getString("DragDrop"), e);
 					logger.error(e.getMessage(), e);
 	        	} finally {
 	        		taskRunning = false;
@@ -283,7 +292,12 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
     	}
     }
     
-    void handleURLDrop(final QuPathViewer viewer, final String url) throws IOException {
+    void handleURLDrop(final QuPathViewer viewer, final String url) throws IOException, URISyntaxException, InterruptedException {
+		// if it's a GitHub URL, it's probably not an image. See if it's an extension
+		if (GITHUB_BASE_PATTERN.matcher(url).matches()) {
+			ExtensionControlPane.handleGitHubURL(url);
+			return;
+		}
     	try {
     		qupath.openImage(viewer, url, false, false);
     	} catch (IOException e) {
@@ -292,8 +306,9 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
     		throw new IOException(e);
     	}
     }
-    
-    private void handleFileDropImpl(QuPathViewer viewer, List<File> list) throws IOException {
+
+
+	private void handleFileDropImpl(QuPathViewer viewer, List<File> list) throws IOException {
 		
 		// Shouldn't occur... but keeps FindBugs happy to check
 		if (list == null || list.isEmpty()) {
@@ -456,7 +471,6 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 				Project<BufferedImage> project = ProjectIO.loadProject(file, BufferedImage.class);
 				qupath.setProject(project);
 			} catch (Exception e) {
-//				Dialogs.showErrorMessage("Project error", e);
 				logger.error("Could not open as project file - opening in the Script Editor instead", e);
 				qupath.getScriptEditor().showScript(file);
 			}
@@ -468,7 +482,6 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 			if (imageData == null || hierarchy == null) {
 				qupath.getScriptEditor().showScript(file);
 				logger.info("Opening the dragged file in the Script Editor as there is no currently opened image in the viewer");
-//				Dialogs.showErrorMessage("Open object file", "Please open an image first to import objects!");
 				return;
 			}
 			InteractiveObjectImporter.promptToImportObjectsFromFile(imageData, file);

@@ -10,13 +10,13 @@
  * it under the terms of the GNU General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- * 
+ *
  * QuPath is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
- * You should have received a copy of the GNU General Public License 
+ *
+ * You should have received a copy of the GNU General Public License
  * along with QuPath.  If not, see <https://www.gnu.org/licenses/>.
  * #L%
  */
@@ -33,22 +33,22 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.ServiceLoader;
 import java.util.stream.Collectors;
 
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
+
 import qupath.lib.common.Version;
 import qupath.lib.gui.commands.Commands;
 import qupath.fx.dialogs.Dialogs;
@@ -56,22 +56,25 @@ import qupath.lib.gui.extensions.QuPathExtension;
 import qupath.lib.images.servers.ImageServerBuilder;
 import qupath.lib.images.servers.ImageServerProvider;
 
+
 /**
  * Manage loading extensions for a QuPathGUI instance.
- * 
+ *
  * @author Pete Bankhead
- * 
+ *
  * @since v0.5.0
  */
 public class ExtensionManager {
-	
+
 	private static final Logger logger = LoggerFactory.getLogger(ExtensionManager.class);
 
-	private QuPathGUI qupath;
-	
-	private Map<Class<? extends QuPathExtension>, QuPathExtension> loadedExtensions = new HashMap<>();
+	private final QuPathGUI qupath;
 
-	private BooleanProperty refreshingExtensions = new SimpleBooleanProperty(false);
+	private final ObservableMap<Class<? extends QuPathExtension>, QuPathExtension> loadedExtensions = FXCollections.observableHashMap();
+
+	private final ObservableMap<Class<? extends QuPathExtension>, QuPathExtension> failedExtensions = FXCollections.observableHashMap();
+
+	private final BooleanProperty refreshingExtensions = new SimpleBooleanProperty(false);
 	
 	private ExtensionManager(QuPathGUI qupath) {
 		this.qupath = qupath;
@@ -84,14 +87,20 @@ public class ExtensionManager {
 	/**
 	 * @return a collection of extensions that are currently loaded
 	 */
-	public Collection<QuPathExtension> getLoadedExtensions() {
-		return loadedExtensions.values();
+	public ObservableMap<Class<? extends QuPathExtension>, QuPathExtension> getLoadedExtensions() {
+		return loadedExtensions;
+	}
+
+	/**
+	 * @return a collection of extensions that could not be loaded
+	 */
+	public ObservableMap<Class<? extends QuPathExtension>, QuPathExtension> getFailedExtensions() {
+		return failedExtensions;
 	}
 	
 	/**
 	 * Property indicating whether extensions are in the process of being refreshed.
-	 * @return
-	 */
+     */
 	public ReadOnlyBooleanProperty refreshingExtensions() {
 		return BooleanProperty.readOnlyBooleanProperty(refreshingExtensions);
 	}
@@ -129,10 +138,10 @@ public class ExtensionManager {
 				logger.error(e.getLocalizedMessage(), e);
 			}
 		}
-		Collections.sort(extensions, Comparator.comparing(QuPathExtension::getName));
+		extensions.sort(Comparator.comparing(QuPathExtension::getName));
 		Version qupathVersion = QuPathGUI.getVersion();
 		for (QuPathExtension extension : extensions) {
-			if (!loadedExtensions.containsKey(extension.getClass())) {
+			if (!loadedExtensions.containsKey(extension.getClass()) && !failedExtensions.containsKey(extension.getClass())) {
 				Version version = extension.getVersion();
 				try {
 					long startTime = System.currentTimeMillis();
@@ -148,11 +157,12 @@ public class ExtensionManager {
 						Dialogs.showInfoNotification("Extension loaded",  extension.getName());
 				} catch (Exception | LinkageError e) {
 					String message = "Unable to load " + extension.getName();
+					failedExtensions.put(extension.getClass(), extension);
 					if (showNotification)
 						Dialogs.showErrorNotification("Extension error", message);
 					logger.error("Error loading extension " + extension + ": " + e.getLocalizedMessage(), e);
 					if (!Objects.equals(qupathVersion, version)) {
-						if (version == null)
+						if (version == null || Version.UNKNOWN.equals(version))
 							logger.warn("QuPath version for which the '{}' was written is unknown!", extension.getName());
 						else if (version.equals(qupathVersion))
 							logger.warn("'{}' reports that it is compatible with the current QuPath version {}", extension.getName(), qupathVersion);
@@ -176,8 +186,12 @@ public class ExtensionManager {
 		ImageServerProvider.setServiceLoader(ServiceLoader.load(ImageServerBuilder.class, extensionClassLoader));
 		if (showNotification) {
 			// A bit convoluted... but try to show new servers that have been loaded by comparing with the past
-			List<String> serverBuilders = serverBuildersBefore.stream().map(s -> s.getName()).toList();
-			List<String> serverBuildersUpdated = ImageServerProvider.getInstalledImageServerBuilders().stream().map(s -> s.getName()).collect(Collectors.toCollection(ArrayList::new));
+			List<String> serverBuilders = serverBuildersBefore
+					.stream().map(ImageServerBuilder::getName)
+					.toList();
+			List<String> serverBuildersUpdated = ImageServerProvider.getInstalledImageServerBuilders()
+					.stream().map(ImageServerBuilder::getName)
+					.collect(Collectors.toCollection(ArrayList::new));
 			serverBuildersUpdated.removeAll(serverBuilders);
 			for (String builderName : serverBuildersUpdated) {
 				Dialogs.showInfoNotification("Image server loaded",  builderName);
@@ -246,6 +260,6 @@ public class ExtensionManager {
 		}
 		refreshExtensions(true);
 	}
-	
-	
+
+
 }
