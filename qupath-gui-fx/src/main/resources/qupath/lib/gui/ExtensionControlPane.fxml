@@ -46,7 +46,7 @@
             </VBox>
         </TitledPane>
         <TitledPane fx:id="inst" animated="false" collapsible="false" maxHeight="1.7976931348623157E308" text="%ExtensionControlPane.installedExtensions" VBox.vgrow="ALWAYS">
-            <ListView fx:id="extensionListView" maxHeight="1.7976931348623157E308" />
+            <ListView fx:id="extensionListView" maxHeight="1.7976931348623157E308" styleClass="extension-manager-list-view" />
         </TitledPane>
         <AnchorPane fx:id="ap">
             <Button fx:id="openExtensionDirBtn" onAction="#openExtensionDir" text="%ExtensionControlPane.openExtensionDirectory" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.topAnchor="0">

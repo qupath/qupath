@@ -24,6 +24,7 @@ package qupath.lib.gui;
 import javafx.collections.MapChangeListener;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
+import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
@@ -175,6 +176,10 @@ public class ExtensionControlPane extends VBox {
         }
     }
 
+    /**
+     * Handle a URL that might be an extension hosted on GitHub.
+     * @param url
+     */
     public static void handleGitHubURL(String url) {
         Matcher jarMatcher = GITHUB_JAR_PATTERN.matcher(url);
         if (jarMatcher.matches()) {
@@ -210,7 +215,7 @@ public class ExtensionControlPane extends VBox {
         }
     }
 
-    public static void askToDownload(GitHubProject.GitHubRepo repo) throws URISyntaxException, IOException, InterruptedException {
+    private static void askToDownload(GitHubProject.GitHubRepo repo) throws URISyntaxException, IOException, InterruptedException {
         var v = UpdateChecker.checkForUpdate(repo);
         if (v != null && Dialogs.showYesNoDialog(QuPathResources.getString("ExtensionControlPane"),
                 String.format(QuPathResources.getString("ExtensionControlPane.installExtensionFromGithub"), repo.getRepo()))) {
@@ -229,7 +234,7 @@ public class ExtensionControlPane extends VBox {
         }
     }
 
-    public static Path getExtensionPath() {
+    private static Path getExtensionPath() {
         var dir = ExtensionClassLoader.getInstance().getExtensionDirectory();
         if (dir == null || !Files.isDirectory(dir)) {
             logger.info("No extension directory found!");
@@ -241,7 +246,7 @@ public class ExtensionControlPane extends VBox {
         return dir;
     }
 
-    public static void downloadURLToFile(String downloadURL, File file) throws IOException {
+    private static void downloadURLToFile(String downloadURL, File file) throws IOException {
         try (InputStream stream = new URL(downloadURL).openStream()) {
             try (ReadableByteChannel readableByteChannel = Channels.newChannel(stream)) {
                 try (FileOutputStream fos = new FileOutputStream(file)) {
@@ -393,6 +398,8 @@ public class ExtensionControlPane extends VBox {
 
             private final ExtensionManager manager;
 
+            private static final String FAILED_CLASS = "failed-extension";
+
             private QuPathExtension extension;
             @FXML
             private Button gitHubBtn;
@@ -416,10 +423,18 @@ public class ExtensionControlPane extends VBox {
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
+                rmBtn.setGraphic(createIcon(IconFactory.PathIcons.MINUS));
+                updateBtn.setGraphic(createIcon(IconFactory.PathIcons.REFRESH));
+                gitHubBtn.setGraphic(createIcon(IconFactory.PathIcons.GITHUB));
+            }
+
+            private Node createIcon(IconFactory.PathIcons icon) {
                 int iconSize = 12;
-                rmBtn.setGraphic(IconFactory.createNode(iconSize, iconSize, IconFactory.PathIcons.MINUS));
-                updateBtn.setGraphic(IconFactory.createNode(iconSize, iconSize, IconFactory.PathIcons.REFRESH));
-                gitHubBtn.setGraphic(IconFactory.createNode(iconSize, iconSize, IconFactory.PathIcons.GITHUB));
+                // The style class is actually a problem here, because it doesn't handle buttons
+                // inside select list cells
+                var node = IconFactory.createNode(iconSize, iconSize, icon);
+                node.getStyleClass().setAll("extension-manager-list-icon");
+                return node;
             }
 
             QuPathExtension getExtension() {
@@ -454,9 +469,10 @@ public class ExtensionControlPane extends VBox {
                 }
                 this.extension = extension;
                 if (failedExtension) {
-                    setOpacity(0.8);
+                    if (!getStyleClass().contains(FAILED_CLASS))
+                        getStyleClass().add(FAILED_CLASS);
                 } else {
-                    setOpacity(1.0);
+                    getStyleClass().remove(FAILED_CLASS);
                 }
             }
 
