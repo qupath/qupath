@@ -2,12 +2,9 @@
 
 This is a work-in-progress for the next QuPath release.
 
-### Enhancements
+> **Important!** Some older extensions will need to be updated to work with QuPath v0.5.
 
-#### Platforms
-* Much improved Apple Silicon support, including with OpenSlide
-  * See below for details
-* New .deb and .rpm installers for Linux
+### Enhancements
 
 #### User interface
 * New toolbar badges & context help
@@ -26,12 +23,12 @@ This is a work-in-progress for the next QuPath release.
   * Optionally synchronize display settings across images
   * Optionally 'detach' a viewer to see it in a separate window
 * Completely new log viewer to access more logging information
-  * https://github.com/qupath/log-viewer
+  * Find the code at https://github.com/qupath/log-viewer
   * Includes badge to highlight errors that have occurred when the log viewer is closed
   * Information about the logger class & thread
 * New extension manager to add, remove & update extensions
 * New toolbar buttons for the script editor `</>` and log viewer
-* *File &rarr; Export snapshots* supports PNG, JPEG and TIFF (not just PNG)
+* *File → Export snapshots* supports PNG, JPEG and TIFF (not just PNG)
 * Support sorting project entries by name, ID, and URI
   * Right-click on the project list to access the *Sort by...* menu
 * Improved script editor auto-complete (https://github.com/qupath/qupath/pull/1357)
@@ -49,11 +46,25 @@ This is a work-in-progress for the next QuPath release.
 * New `ObjectMerger` class to simplify creating new tile-based segmentation methods (https://github.com/qupath/qupath/pull/1346)
 * New `Tiler` class to generate tiles within other objects (https://github.com/qupath/qupath/pull/1347) (https://github.com/qupath/qupath/pull/1349) (https://github.com/qupath/qupath/issues/1277)
 * Replaced `PluginRunner` with `TaskRunner` to more easily run tasks with a progress bar (https://github.com/qupath/qupath/pull/1360)
-* 
+
+#### Platforms
+* Much improved Apple Silicon support, including with OpenSlide
+  * See [below](#important-info-for-mac-users) for details
+* New .deb and .rpm installers for Linux
 
 #### Import & export
 * SVG export now supports overlays (https://github.com/qupath/qupath/issues/1272)
 * Rendered image export now supports overlay opacity (https://github.com/qupath/qupath/issues/1292)
+
+#### Code refactoring
+* New `qupath-fxtras` project for general-purpose JavaFX use
+  * Code at https://github.com/qupath/qupath-fxtras
+* Ongoing work to simplify QuPath's code & API, including
+  * Previous `Dialogs` class has moved to `qupath-fxtras`
+  * `ActionTools` has changed package
+  * Much smaller `QuPathGUI` class
+  * *These changes will require some extensions to be updated*
+* Initial work to support string localization
 
 ### Bugs fixed
 * Cannot import GeoJSON with NaN measurements (https://github.com/qupath/qupath/issues/1293)
