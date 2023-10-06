@@ -50,7 +50,7 @@ This is a work-in-progress for the next QuPath release.
 #### Platforms
 * Much improved Apple Silicon support, including with OpenSlide
   * See [below](#important-info-for-mac-users) for details
-* New .deb and .rpm installers for Linux
+* New .deb installer for Linux (experimental; .rpm planned for the future)
 
 #### Import & export
 * SVG export now supports overlays (https://github.com/qupath/qupath/issues/1272)
