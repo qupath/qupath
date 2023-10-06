@@ -613,7 +613,8 @@ public class BrightnessContrastCommand implements Runnable {
 
 		@Override
 		public void invalidated(Observable observable) {
-			maybeSyncSettingsAcrossViewers();
+			// Delay until the next JavaFX update because it's possible there will be multiple changes in quick succession
+			Platform.runLater(() -> maybeSyncSettingsAcrossViewers());
 		}
 	}
 
