@@ -564,10 +564,6 @@ void updatePackageType(JPackageParams params, String... defaultInstallers) {
         params.installerTypes = defaultInstallers as List
     } else {
         params.installerTypes = [packageType]
-        // TODO: Check why couldn't build rpm with rc1 suffix but SNAPSHOT was ok...?
-        if (packageType == 'rpm' && params.appVersion.contains('-rc')) {
-            params.appVersion = stripVersionSuffix(params.appVersion) + '-SNAPSHOT'
-        }
     }
 }
 
