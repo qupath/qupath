@@ -9,8 +9,9 @@
    build:
 
     strategy:
+      fail-fast: false
       matrix:
-        include: 
+        include:
           - platform: ubuntu-latest
             type: deb
           - platform: ubuntu-latest
