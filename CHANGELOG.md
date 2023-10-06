@@ -2,16 +2,20 @@
 
 This is a work-in-progress for the next QuPath release.
 
-> To run on Mac, QuPath v0.5.0 requires macOS 11 or later.
-> This is because of recent changes in JavaFX - for more details, see [here](https://github.com/openjdk/jfx/blob/master/doc-files/release-notes-21.md#javafx-requires-macos-11-or-later)
-> and [here](https://bugs.openjdk.org/browse/JDK-8308114).
-
 ### Enhancements
 
+#### Platforms
+* Much improved Apple Silicon support, including with OpenSlide
+  * See below for details
+* New .deb and .rpm installers for Linux
+
 #### User interface
+* New toolbar badges & context help
+  * Click the `?` icon in the toolbar to view the help
+  * Find tips or warnings to help avoid common errors
 * Major upgrade to the brightness/contrast/channels command, including
   * Save/restore display settings in projects
-  * Filter the channel names by text or regular expressions
+    * Import display settings by drag & drop
   * Optionally view log counts for channel histograms
   * For multi-channel (non-RGB images):
     * Better support to toggle channels on/off
@@ -23,19 +27,29 @@ This is a work-in-progress for the next QuPath release.
   * Optionally 'detach' a viewer to see it in a separate window
 * Completely new log viewer to access more logging information
   * https://github.com/qupath/log-viewer
+  * Includes badge to highlight errors that have occurred when the log viewer is closed
+  * Information about the logger class & thread
+* New extension manager to add, remove & update extensions
 * New toolbar buttons for the script editor `</>` and log viewer
-* File &rarr; Export snapshots* supports PNG, JPEG and TIFF (not just PNG)
+* *File &rarr; Export snapshots* supports PNG, JPEG and TIFF (not just PNG)
 * Support sorting project entries by name, ID, and URI
   * Right-click on the project list to access the *Sort by...* menu
-* Improved script editor auto-complete
+* Improved script editor auto-complete (https://github.com/qupath/qupath/pull/1357)
   * Activate with *Ctrl + space*, cancel with *Esc*
   * Completions update while typing
+* Support for regular expressions in several 'filter' fields, e.g. for projects, channels, log messages & measurements
 
 #### Processing & analysis
+* Includes *pre-release* of OpenSlide 4.0.0
+  * Final OpenSlide v4.0.0 release expected to be included in QuPath v0.5.0
+  * Supports Apple Silicon without needing to install it separately (see below)
+  * Optionally set a directory in QuPath's preferences to use your *own* OpenSlide build
 * Faster processing & reduced memory use for pixel classification measurements (https://github.com/qupath/qupath/pull/1332)
 * New *Objects → Annotations... → Split annotations by lines* command (https://github.com/qupath/qupath/pull/1349)
 * New `ObjectMerger` class to simplify creating new tile-based segmentation methods (https://github.com/qupath/qupath/pull/1346)
 * New `Tiler` class to generate tiles within other objects (https://github.com/qupath/qupath/pull/1347) (https://github.com/qupath/qupath/pull/1349) (https://github.com/qupath/qupath/issues/1277)
+* Replaced `PluginRunner` with `TaskRunner` to more easily run tasks with a progress bar (https://github.com/qupath/qupath/pull/1360)
+* 
 
 #### Import & export
 * SVG export now supports overlays (https://github.com/qupath/qupath/issues/1272)
@@ -59,7 +73,52 @@ This is a work-in-progress for the next QuPath release.
 * Using existing channel names (e.g. 'Red', 'Green', 'Blue') for color deconvolution can confuse brightness/contrast settings (https://github.com/qupath/qupath/issues/1245)
 * The centroid-to-centroid distance between an object & itself can be > 0 (https://github.com/qupath/qupath/issues/1249)
 * Importing objects from .qpdata including TMA cores can result in an 'invisible' TMA grid (https://github.com/qupath/qupath/issues/1303)
-* macOS downloads do not store the correct version number (https://github.com/qupath/qupath/issues/1250) (https://github.com/qupath/qupath/issues/1337)
+
+
+### Important info for Mac users
+
+#### Improved Apple Silicon support
+
+The inclusion of all-new OpenSlide builds has enabled us to include better support for Apple Silicon.
+
+This means that *almost everything* in QuPath should now work on recent M1/M2 Macs. 
+The only exception is that Bio-Formats does not support Apple Silicon for a subset of file formats, specifically
+* Images with JPEG-XR compression
+  * The includes most CZI whole slide images from Zeiss
+* Images that use libjpeg-turbo
+  * This includes NDPI files - but most of these can be read with OpenSlide anyway
+
+Apple Silicon users can download the x64 (Intel) version for use with these formats.
+
+#### Installed packages include the version & architecture
+
+*QuPath.app* is now renamed to *QuPath-v0.5.0-x64.app* (Intel processors) or *QuPath-v0.5.0-aarch64.app* (Apple Silicon).
+
+The more awkward naming is in recognition of the fact that users often want to retain multiple versions of QuPath on their computer.
+Also, many Apple Silicon users may require installing *both* versions if they need to work with a mixture of supported and unsupported file formats.
+
+Previously, versions could replace one another unless they were manually renamed - but that is no longer required.
+
+#### Installation notes
+
+Because QuPath is not signed, it is necessary to right-click and choose *Open* to run it for the first time [as described here](https://qupath.readthedocs.io/en/latest/docs/intro/installation.html).
+
+Before release, there was also a problem on some Macs where QuPath didn't have permission to access files.
+This is hopefully resolved now, but if it occurs then launching QuPath from `Terminal.app` can help, e.g.
+```
+/Applications/QuPath-v0.5.0-x64.app/Contents/MacOS/QuPath
+```
+
+#### QuPath will require macOS 11 in the future
+
+After v0.5, QuPath will require macOS 11 or later to run on Mac.
+
+This is because of recent changes in JavaFX - for more details, see [here](https://github.com/openjdk/jfx/blob/master/doc-files/release-notes-21.md#javafx-requires-macos-11-or-later) and [here](https://bugs.openjdk.org/browse/JDK-8308114).
+
+#### Startup may be slower
+
+QuPath may take a little longer to start up than previously, especially with macOS 14. 
+This appears to be related to time spent initializing JavaFX.
 
 ### Dependency updates
 * Bio-Formats 7.0.0
@@ -68,7 +127,7 @@ This is a work-in-progress for the next QuPath release.
 * Guava 32.1.2-jre
 * ImageJ 1.54f
 * JavaCPP 1.5.9
-* JavaFX 21
+* JavaFX 20
 * Logback 1.3.11
 * OpenCV 4.7.0
 * Picocli 4.7.5
