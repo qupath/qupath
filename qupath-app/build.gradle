@@ -93,27 +93,6 @@ afterEvaluate {
     }
 }
 
-/**
- * Create a start script that sets LD_LIBRARY_PATH for Linux builds.
- * This can (sometimes) help get OpenSlide working properly.
- */
-ext {
-    setLdLibraryPath = false
-}
-
-tasks.register('checkLdLibrary') {
-    doLast {
-        if (project.properties['platform.name'] == 'linux') {
-            if (rootProject.properties['ld-path']) {
-                println "Setting LD_LIBRARY_PATH"
-                setLdLibraryPath = true
-            } else {
-                println "If you experience OpenSlide issues, try './gradlew run -Pld-path=true' to set LD_LIBRARY_PATH"
-            }
-        }
-    }
-}
-
 startScripts {
     doLast {
         // Update library path
@@ -121,14 +100,6 @@ startScripts {
         def newPath = '$APP_HOME/lib'
         unixScript.text = unixScript.text.replace(currentPath, newPath)
         windowsScript.text = unixScript.text.replace(currentPath, newPath)
-
-        // If required, set LD_LIBRARY_PATH for Linux
-        if (setLdLibraryPath) {
-            println 'Setting LD_LIBRARY_PATH in start script'
-            def oldCmd = 'exec "$JAVACMD" "$@"'
-            def newCmd = 'export LD_LIBRARY_PATH="$APP_HOME/lib"' + System.lineSeparator() + oldCmd
-            unixScript.text = unixScript.text.replace(oldCmd, newCmd)
-        }
     }
 }
 
@@ -184,11 +155,8 @@ task mergedJavadocJar(type: Jar, dependsOn: rootProject.tasks.mergedJavadocs) {
  */
 extractNatives.mustRunAfter(allprojects.tasks.clean)
 compileJava.dependsOn(extractNatives)
-run.dependsOn(checkLdLibrary)
-startScripts.dependsOn(checkLdLibrary)
 jpackage.dependsOn(extractNatives)
 jpackage.dependsOn(mergedJavadocJar)
-jpackage.dependsOn(checkLdLibrary)
 
 /**
  * Create license report
@@ -485,13 +453,6 @@ jpackage {
                     if (!f.name.equals(correctName))
                         f.renameTo(new File(f.getParent(), correctName))
                 }
-
-                // Create a launch script including LD_LIBRARY_PATH for Linux
-                if (isLinux && f.isDirectory() && new File(f, "bin").exists()) {
-                    def fileLaunch = new File(f.getAbsolutePath() + "/bin/QuPath.sh")
-                    println "Generating launch script at $fileLaunch"
-                    fileLaunch.text = createLaunchScript()
-                }
             }
         }
     }
@@ -603,6 +564,10 @@ void updatePackageType(JPackageParams params, String... defaultInstallers) {
         params.installerTypes = defaultInstallers as List
     } else {
         params.installerTypes = [packageType]
+        // TODO: Check why couldn't build rpm with rc1 suffix but SNAPSHOT was ok...?
+        if (packageType == 'rpm' && params.appVersion.contains('-rc')) {
+            params.appVersion = stripVersionSuffix(params.appVersion) + '-SNAPSHOT'
+        }
     }
 }
 
@@ -727,6 +692,7 @@ JavaVersion getToolchainJavaVersion() {
 
 /**
  * Get default JVM arguments (e.g. to set memory, library path)
+ * Java version not currently used.
  * @return
  */
 static List<String> buildDefaultJvmArgs(String libraryPath = '$APPDIR', JavaVersion javaVersion = JavaVersion.current()) {
@@ -737,36 +703,8 @@ static List<String> buildDefaultJvmArgs(String libraryPath = '$APPDIR', JavaVers
     if (libraryPath != null)
         javaOptions << "-Djava.library.path=${libraryPath}"
 
-    // Revert to pre-Java-16 behavior
-    // See https://openjdk.java.net/jeps/396
-    // If this is removed, things like adding metadata to a project entry will fail with errors such as
-    //   ERROR: QuPath exception: class org.controlsfx.control.textfield.AutoCompletionBinding
-    //   (in unnamed module @0x298a5e20) cannot access class com.sun.javafx.event.EventHandlerManager
-    //   (in module javafx.base) because module javafx.base does not export com.sun.javafx.event to unnamed module
-    // This Java option is not supported in Java 17+.
-    // It is useful in Java 16, particularly for Bio-Formats memoization
-    if (javaVersion == JavaVersion.VERSION_16) {
-        println "Setting --illegal-access=permit for pre-Java 16 behavior"
-        javaOptions << '--illegal-access=permit'
-    }
-
     // Default to using 50% available memory
     javaOptions << '-XX:MaxRAMPercentage=50'
 
     return javaOptions
-}
-
-
-/**
- * Create a bash script that can be used to launch QuPath on Linux.
- * The purpose is to set LD_LIBRARY_PATH to use the local OpenSlide.
- * When not using this, other shared libraries are likely to be used instead.
- */
-static String createLaunchScript() {
-    return """#!/bin/bash
-	        	
-DIR="\$( cd "\$( dirname "\${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
-export LD_LIBRARY_PATH="\$DIR/../lib/app/"
-"\$DIR/QuPath" "\$@"
-"""
 }
