@@ -72,6 +72,8 @@ public class ExtensionManager {
 
 	private final ObservableMap<Class<? extends QuPathExtension>, QuPathExtension> loadedExtensions = FXCollections.observableHashMap();
 
+	private final ObservableMap<Class<? extends QuPathExtension>, QuPathExtension> failedExtensions = FXCollections.observableHashMap();
+
 	private final BooleanProperty refreshingExtensions = new SimpleBooleanProperty(false);
 	
 	private ExtensionManager(QuPathGUI qupath) {
@@ -87,6 +89,13 @@ public class ExtensionManager {
 	 */
 	public ObservableMap<Class<? extends QuPathExtension>, QuPathExtension> getLoadedExtensions() {
 		return loadedExtensions;
+	}
+
+	/**
+	 * @return a collection of extensions that could not be loaded
+	 */
+	public ObservableMap<Class<? extends QuPathExtension>, QuPathExtension> getFailedExtensions() {
+		return failedExtensions;
 	}
 	
 	/**
@@ -132,7 +141,7 @@ public class ExtensionManager {
 		extensions.sort(Comparator.comparing(QuPathExtension::getName));
 		Version qupathVersion = QuPathGUI.getVersion();
 		for (QuPathExtension extension : extensions) {
-			if (!loadedExtensions.containsKey(extension.getClass())) {
+			if (!loadedExtensions.containsKey(extension.getClass()) && !failedExtensions.containsKey(extension.getClass())) {
 				Version version = extension.getVersion();
 				try {
 					long startTime = System.currentTimeMillis();
@@ -148,11 +157,12 @@ public class ExtensionManager {
 						Dialogs.showInfoNotification("Extension loaded",  extension.getName());
 				} catch (Exception | LinkageError e) {
 					String message = "Unable to load " + extension.getName();
+					failedExtensions.put(extension.getClass(), extension);
 					if (showNotification)
 						Dialogs.showErrorNotification("Extension error", message);
 					logger.error("Error loading extension " + extension + ": " + e.getLocalizedMessage(), e);
 					if (!Objects.equals(qupathVersion, version)) {
-						if (version == null)
+						if (version == null || Version.UNKNOWN.equals(version))
 							logger.warn("QuPath version for which the '{}' was written is unknown!", extension.getName());
 						else if (version.equals(qupathVersion))
 							logger.warn("'{}' reports that it is compatible with the current QuPath version {}", extension.getName(), qupathVersion);

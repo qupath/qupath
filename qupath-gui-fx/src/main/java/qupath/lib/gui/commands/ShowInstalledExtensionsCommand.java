@@ -35,19 +35,37 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.localization.QuPathResources;
 
 import java.io.IOException;
+import java.util.Map;
+import java.util.WeakHashMap;
 
 /**
  * Command to list the names &amp; details of all installed extensions
- * 
- * @author Pete Bankhead
- *
  */
 class ShowInstalledExtensionsCommand {
 	
 	private static final Logger logger = LoggerFactory.getLogger(ShowInstalledExtensionsCommand.class);
 
-	public static void showInstalledExtensions(final QuPathGUI qupath) {
-		Stage dialog = new Stage();
+	private static Map<QuPathGUI, ShowInstalledExtensionsCommand> instances = new WeakHashMap<>();
+
+	private QuPathGUI qupath;
+	private Stage dialog;
+
+	private ShowInstalledExtensionsCommand(QuPathGUI qupath) {
+		this.qupath = qupath;
+	}
+
+	private void showInstalledExtensions() {
+		if (dialog == null) {
+			dialog = createDialog(qupath);
+			dialog.show();
+			FXUtils.retainWindowPosition(dialog); // Remember position after hiding
+		} else {
+			dialog.show();
+		}
+	}
+
+	private Stage createDialog(QuPathGUI qupath) {
+		dialog = new Stage();
 		dialog.initOwner(qupath.getStage());
 		dialog.initModality(Modality.APPLICATION_MODAL);
 		dialog.setTitle(QuPathResources.getString("ExtensionControlPane"));
@@ -58,13 +76,25 @@ class ShowInstalledExtensionsCommand {
 			dialog.setHeight(pane.getPrefHeight());
 			dialog.setMinWidth(500);
 			dialog.setMinHeight(300);
-			dialog.show();
-			FXUtils.retainWindowPosition(dialog); // Remember position after hiding
 		} catch (IOException e) {
 			logger.error("Unable to open extension control pane", e);
 			Dialogs.showErrorMessage(QuPathResources.getString("ExtensionControlPane"),
 					QuPathResources.getString("ExtensionControlPane.unableToOpen"));
 		}
+		return dialog;
 	}
+
+	/**
+	 * Show a dialog listing all installed extensions.
+	 * @param qupath
+	 */
+	public static void showInstalledExtensions(final QuPathGUI qupath) {
+		getInstance(qupath).showInstalledExtensions();
+	}
+
+	private static ShowInstalledExtensionsCommand getInstance(QuPathGUI qupath) {
+		return instances.computeIfAbsent(qupath, ShowInstalledExtensionsCommand::new);
+	}
+
 
 }

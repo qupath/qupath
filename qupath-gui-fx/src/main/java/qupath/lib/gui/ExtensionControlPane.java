@@ -22,7 +22,6 @@
 package qupath.lib.gui;
 
 import javafx.collections.MapChangeListener;
-import javafx.collections.ObservableMap;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.control.*;
@@ -35,6 +34,7 @@ import org.apache.commons.text.WordUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.fx.dialogs.Dialogs;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.common.Version;
 import qupath.lib.gui.actions.ActionTools;
 import qupath.lib.gui.commands.Commands;
@@ -72,7 +72,7 @@ public class ExtensionControlPane extends VBox {
             "https://github.com/([a-zA-Z0-9-]+)/(qupath-extension-[a-zA-Z0-9]+)/?.*");
     private static final Pattern GITHUB_JAR_PATTERN = Pattern.compile(
             "https://github.com/[0-9a-zA-Z-]+/(qupath-extension-[0-9a-zA-Z-]+)/" +
-                   "releases/download/[a-zA-Z0-9-.]+/(qupath-extension-wsinfer-[0-9a-zA-Z-.]+.jar)");
+                   "releases/download/[a-zA-Z0-9-.]+/(qupath-extension-[0-9a-zA-Z-.]+.jar)");
 
     @FXML
     private ListView<QuPathExtension> extensionListView;
@@ -127,26 +127,25 @@ public class ExtensionControlPane extends VBox {
     private void initialize() {
         this.setOnDragDropped(QuPathGUI.getInstance().getDefaultDragDropListener());
         ExtensionManager extensionManager = QuPathGUI.getInstance().getExtensionManager();
-        ObservableMap<Class<? extends QuPathExtension>, QuPathExtension> extensions = extensionManager.getLoadedExtensions();
-        extensions.addListener((MapChangeListener<Class<? extends QuPathExtension>, QuPathExtension>) c -> {
-            if (c.wasAdded()) {
-                extensionListView.getItems().add(c.getValueAdded());
-            }
-            if (c.wasRemoved()) {
-                extensionListView.getItems().remove(c.getValueRemoved());
-            }
-        });
+        extensionManager.getLoadedExtensions().addListener(this::handleExtensionMapChange);
+        extensionManager.getFailedExtensions().addListener(this::handleExtensionMapChange);
         openExtensionDirBtn.disableProperty().bind(
                 UserDirectoryManager.getInstance().userDirectoryProperty().isNull());
         downloadBtn.disableProperty().bind(
             repoTextArea.textProperty().isEmpty().or(ownerTextArea.textProperty().isEmpty()));
         downloadBtn.setGraphic(IconFactory.createNode(12, 12, IconFactory.PathIcons.DOWNLOAD));
+        // By default, add failed extensions at the end of the list
         extensionListView.getItems().addAll(
                 extensionManager.getLoadedExtensions().values()
                     .stream()
                     .sorted(Comparator.comparing(QuPathExtension::getName))
                     .toList());
-        extensionListView.setCellFactory(ExtensionListCell::new);
+        extensionListView.getItems().addAll(
+                extensionManager.getFailedExtensions().values()
+                        .stream()
+                        .sorted(Comparator.comparing(QuPathExtension::getName))
+                        .toList());
+        extensionListView.setCellFactory(listView -> new ExtensionListCell(extensionManager, listView));
 
 
         ownerTextArea.addEventHandler(KeyEvent.KEY_RELEASED, e -> {
@@ -165,6 +164,15 @@ public class ExtensionControlPane extends VBox {
                 cancelDownload();
             }
         });
+    }
+
+    private void handleExtensionMapChange(MapChangeListener.Change<? extends Class<? extends QuPathExtension>, ? extends QuPathExtension> change) {
+        if (change.wasAdded()) {
+            extensionListView.getItems().add(change.getValueAdded());
+        }
+        if (change.wasRemoved()) {
+            extensionListView.getItems().remove(change.getValueRemoved());
+        }
     }
 
     public static void handleGitHubURL(String url) {
@@ -284,11 +292,21 @@ public class ExtensionControlPane extends VBox {
         }
         try {
             var url = extension.getClass().getProtectionDomain().getCodeSource().getLocation();
-            logger.info("Removing extension: {}", url);
-            new File(url.toURI().getPath()).delete();
-            Dialogs.showInfoNotification(
-                    QuPathResources.getString("ExtensionControlPane"),
-                    String.format(QuPathResources.getString("ExtensionControlPane.extensionRemoved"), url));
+            var file = new File(url.toURI().getPath());
+            if (file.exists()) {
+                logger.info("Removing extension: {}", url);
+                GeneralTools.deleteFile(new File(url.toURI().getPath()), true);
+                Dialogs.showInfoNotification(
+                        QuPathResources.getString("ExtensionControlPane"),
+                        String.format(QuPathResources.getString("ExtensionControlPane.extensionRemoved"), url));
+            } else {
+                Dialogs.showWarningNotification(
+                        QuPathResources.getString("ExtensionControlPane"),
+                        String.format(QuPathResources.getString("ExtensionControlPane.unableToDelete"), url));
+            }
+            var manager = QuPathGUI.getInstance().getExtensionManager();
+            manager.getLoadedExtensions().entrySet().removeIf(entry -> entry.getValue().equals(extension));
+            manager.getFailedExtensions().entrySet().removeIf(entry -> entry.getValue().equals(extension));
         } catch (URISyntaxException e) {
             logger.error("Exception removing extension: " + extension, e);
         }
@@ -327,9 +345,9 @@ public class ExtensionControlPane extends VBox {
 
         private final ExtensionListCellBox box;
 
-        public ExtensionListCell(ListView<QuPathExtension> listView) {
+        public ExtensionListCell(ExtensionManager manager, ListView<QuPathExtension> listView) {
             super();
-            box = new ExtensionListCellBox();
+            box = new ExtensionListCellBox(manager);
         }
 
         @Override
@@ -356,13 +374,6 @@ public class ExtensionControlPane extends VBox {
                                 QuPathResources.getString("ExtensionControlPane.removeExtension"))));
                 this.setContextMenu(contextMenu);
             }
-//            setOnMouseClicked(event -> {
-//                if (event.getClickCount() == 2 && event.getButton() == MouseButton.PRIMARY) {
-//                    if (item instanceof GitHubProject) { // this should always be true anyway...
-//                        browseGitHub((GitHubProject) item);
-//                    }
-//                }
-//            });
         }
 
         private void openContainingFolder(QuPathExtension extension) {
@@ -379,6 +390,9 @@ public class ExtensionControlPane extends VBox {
          * ML for a list cell
          */
         static class ExtensionListCellBox extends HBox {
+
+            private final ExtensionManager manager;
+
             private QuPathExtension extension;
             @FXML
             private Button gitHubBtn;
@@ -391,7 +405,8 @@ public class ExtensionControlPane extends VBox {
             @FXML
             private Label nameText, typeText, versionText, descriptionText;
 
-            ExtensionListCellBox() {
+            ExtensionListCellBox(ExtensionManager manager) {
+                this.manager = manager;
                 var loader = new FXMLLoader(ExtensionControlPane.class.getResource("ExtensionListCellBox.fxml"));
                 loader.setController(this);
                 loader.setRoot(this);
@@ -401,14 +416,10 @@ public class ExtensionControlPane extends VBox {
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
-                rmBtn.setGraphic(IconFactory.createNode(10, 10, IconFactory.PathIcons.MINUS));
-                updateBtn.setGraphic(IconFactory.createNode(10, 10, IconFactory.PathIcons.REFRESH));
-                gitHubBtn.setGraphic(IconFactory.createNode(10, 10, IconFactory.PathIcons.GITHUB));
-            }
-
-            ExtensionListCellBox(QuPathExtension extension) {
-                this();
-                this.extension = extension;
+                int iconSize = 12;
+                rmBtn.setGraphic(IconFactory.createNode(iconSize, iconSize, IconFactory.PathIcons.MINUS));
+                updateBtn.setGraphic(IconFactory.createNode(iconSize, iconSize, IconFactory.PathIcons.REFRESH));
+                gitHubBtn.setGraphic(IconFactory.createNode(iconSize, iconSize, IconFactory.PathIcons.GITHUB));
             }
 
             QuPathExtension getExtension() {
@@ -416,9 +427,17 @@ public class ExtensionControlPane extends VBox {
             }
 
             void setExtension(QuPathExtension extension) {
-                nameText.setText(extension.getName());
+                boolean failedExtension = manager != null && manager.getFailedExtensions().containsValue(extension);
+                if (failedExtension)
+                    nameText.setText(extension.getName() + " (not compatible)");
+                else
+                   nameText.setText(extension.getName());
                 typeText.setText(getExtensionType(extension));
-                versionText.setText("v" + extension.getVersion().toString());
+                var version = extension.getVersion();
+                if (version == null || Version.UNKNOWN.equals(version))
+                    versionText.setText(QuPathResources.getString("ExtensionControlPane.unknownVersion"));
+                else
+                    versionText.setText("v" + version);
                 descriptionText.setText(WordUtils.wrap(extension.getDescription(), 80));
                 // core and non-core extensions have different classloaders;
                 // can't remove or update core ones
@@ -434,6 +453,11 @@ public class ExtensionControlPane extends VBox {
                     gitHubBtn.setDisable(true);
                 }
                 this.extension = extension;
+                if (failedExtension) {
+                    setOpacity(0.8);
+                } else {
+                    setOpacity(1.0);
+                }
             }
 
             private String getExtensionType(QuPathExtension extension) {
