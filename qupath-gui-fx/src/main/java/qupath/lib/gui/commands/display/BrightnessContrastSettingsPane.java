@@ -43,6 +43,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
 import javafx.stage.Window;
+import javafx.util.StringConverter;
 import org.controlsfx.control.SearchableComboBox;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,6 +60,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * A pane to save and load display settings, using a {@link ResourceManager}.
@@ -90,6 +92,24 @@ public class BrightnessContrastSettingsPane extends GridPane {
         comboSettings.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {
             if (n != null)
                 tryToApplySettings(n);
+        });
+        // Although we use a custom cell factory, we need to set the string
+        // converter for a searchable combo box to apply its filter properly
+        comboSettings.setConverter(new StringConverter<>() {
+            @Override
+            public String toString(ImageDisplaySettings object) {
+                return object == null ? null : object.getName();
+            }
+
+            @Override
+            public ImageDisplaySettings fromString(String string) {
+                if (string == null)
+                    return null;
+                else return comboSettings.getItems().stream()
+                        .filter(s -> Objects.equals(s.getName(), string))
+                        .findFirst()
+                        .orElse(null);
+            }
         });
         comboSettings.setCellFactory(c -> FXUtils.createCustomListCell(ImageDisplaySettings::getName));
         comboSettings.setButtonCell(comboSettings.getCellFactory().call(null));
