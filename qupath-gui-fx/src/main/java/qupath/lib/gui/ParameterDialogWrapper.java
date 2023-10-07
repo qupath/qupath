@@ -129,7 +129,7 @@ class ParameterDialogWrapper<T> {
 
 		final Stage dialog = new Stage();
 		dialog.setMinWidth(300);
-		dialog.setMinHeight(200);
+		dialog.setMinHeight(120);
 
 		QuPathGUI qupath = QuPathGUI.getInstance();
 		if (qupath != null)
@@ -206,19 +206,22 @@ class ParameterDialogWrapper<T> {
 		label.setMaxWidth(Double.MAX_VALUE);
 		scrollPane.setContent(panel.getPane());
 		scrollPane.setFitToWidth(true);
+
 		pane.setCenter(scrollPane);
 
 		btnRun.setMaxWidth(Double.MAX_VALUE);
 		btnRun.setPadding(new Insets(5, 5, 5, 5));
 		pane.setBottom(btnRun);
 
+		panel.getPane().setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+		scrollPane.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+		pane.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+
 		Scene scene = new Scene(pane);
 		dialog.setScene(scene);
 
 		// Request focus, to make it easier to run from the keyboard
 		btnRun.requestFocus();
-		
-		dialog.sizeToScene();
 
 		return dialog;
 	}
