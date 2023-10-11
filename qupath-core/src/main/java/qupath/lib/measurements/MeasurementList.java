@@ -362,7 +362,7 @@ public interface MeasurementList extends Serializable, AutoCloseable {
 	 * @return a map view of this measurement list
 	 * @implSpec The returned map should already be synchronized.
 	 */
-	public default Map<String, Double> asMap() {
+	public default Map<String, Number> asMap() {
 		return Collections.synchronizedMap(new MeasurementsMap(this));
 	}
 	

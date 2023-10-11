@@ -177,7 +177,7 @@ public abstract class PathObject implements Externalizable {
 		return measurements;
 	}
 	
-	private transient Map<String, Double> measurementsMap;
+	private transient Map<String, Number> measurementsMap;
 	
 	/**
 	 * Get a map-based view on {@link #getMeasurementList()}.
@@ -199,7 +199,7 @@ public abstract class PathObject implements Externalizable {
 	 * @return
 	 * @since v0.4.0
 	 */
-	public Map<String, Double> getMeasurements() {
+	public Map<String, Number> getMeasurements() {
 		if (measurementsMap == null) {
 			synchronized(this) {
 				if (measurementsMap == null)

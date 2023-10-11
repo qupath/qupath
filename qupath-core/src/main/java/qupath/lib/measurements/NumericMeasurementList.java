@@ -105,7 +105,7 @@ class NumericMeasurementList {
 
 		private Map<String, Integer> map; // Optional map for fast measurement lookup
 		
-		private transient Map<String, Double> mapView;
+		private transient Map<String, Number> mapView;
 
 		AbstractNumericMeasurementList(int capacity) {
 			names = new ArrayList<>(capacity);
@@ -266,7 +266,7 @@ class NumericMeasurementList {
 		}
 		
 		@Override
-		public Map<String, Double> asMap() {
+		public Map<String, Number> asMap() {
 			if (mapView == null) {
 				synchronized(this) {
 					if (mapView == null)
