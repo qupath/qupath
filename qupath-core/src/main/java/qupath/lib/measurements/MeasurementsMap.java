@@ -35,7 +35,7 @@ import java.util.Set;
  * @author Pete Bankhead
  * @since v0.4.0
  */
-class MeasurementsMap extends AbstractMap<String, Double> implements Map<String, Double> {
+class MeasurementsMap extends AbstractMap<String, Number> implements Map<String, Number> {
 	
 	private MeasurementList list;
 	
@@ -44,7 +44,7 @@ class MeasurementsMap extends AbstractMap<String, Double> implements Map<String,
 	}
 
 	@Override
-	public Set<Entry<String, Double>> entrySet() {
+	public Set<Entry<String, Number>> entrySet() {
 		return new MeasurementEntrySet();
 	}
 	
@@ -105,9 +105,9 @@ class MeasurementsMap extends AbstractMap<String, Double> implements Map<String,
 	 * is possible.
 	 */
 	@Override
-	public Double put(String name, Double value) {
+	public Number put(String name, Number value) {
 		Objects.requireNonNull(value);
-		Double current = null;
+		Number current = null;
 		synchronized(list) {
 			if (list.containsKey(name))
 				current = list.get(name);
@@ -118,7 +118,7 @@ class MeasurementsMap extends AbstractMap<String, Double> implements Map<String,
 	}
 	
 	@Override
-	public void putAll(Map<? extends String, ? extends Double> map) {
+	public void putAll(Map<? extends String, ? extends Number> map) {
 		synchronized (list) {
 			// Don't repeatedly call put because we only want to close the list once 
 			// and don't need to extract previous values
@@ -144,18 +144,7 @@ class MeasurementsMap extends AbstractMap<String, Double> implements Map<String,
 	}
 	
 	
-//	public Double put(String name, double value) {
-//		Double current = null;
-//		synchronized (list) {
-//			if (list.containsNamedMeasurement(name))
-//				current = list.getMeasurementValue(name);
-//			list.putMeasurement(name, value);
-//		}
-//		return current;
-//	}
-	
-	
-	class MeasurementEntrySet extends AbstractSet<Entry<String, Double>> {
+	class MeasurementEntrySet extends AbstractSet<Entry<String, Number>> {
 
 		@Override
 		public int size() {
@@ -163,7 +152,7 @@ class MeasurementsMap extends AbstractMap<String, Double> implements Map<String,
 		}
 
 		@Override
-		public Iterator<Entry<String, Double>> iterator() {
+		public Iterator<Entry<String, Number>> iterator() {
 			return new Iterator<>() {
 				
 				private int i = 0;
@@ -174,8 +163,8 @@ class MeasurementsMap extends AbstractMap<String, Double> implements Map<String,
 				}
 
 				@Override
-				public Entry<String, Double> next() {
-					SimpleEntry<String, Double> entry = new SimpleEntry<>(list.getMeasurementName(i), list.getMeasurementValue(i));
+				public Entry<String, Number> next() {
+					SimpleEntry<String, Number> entry = new SimpleEntry<>(list.getMeasurementName(i), list.getMeasurementValue(i));
 					i++;
 					return entry;
 				}

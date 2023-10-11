@@ -650,12 +650,12 @@ class QuPathTypeAdapters {
 			if (value != null) {
 				for (var entry : value.asMap().entrySet()) {
 					out.name(entry.getKey());
-					Double measurementValue = entry.getValue();
-					if (measurementValue == null || Double.isNaN(measurementValue))
+					Number measurementValue = entry.getValue();
+					if (measurementValue == null || Double.isNaN(measurementValue.doubleValue()))
 						out.value("NaN");
-					else if (Double.POSITIVE_INFINITY == measurementValue)
+					else if (Double.POSITIVE_INFINITY == measurementValue.doubleValue())
 						out.value("Infinity");
-					else if (Double.NEGATIVE_INFINITY == measurementValue)
+					else if (Double.NEGATIVE_INFINITY == measurementValue.doubleValue())
 						out.value("-Infinity");
 					else
 						out.value(measurementValue);

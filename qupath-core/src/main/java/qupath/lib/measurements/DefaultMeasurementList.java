@@ -45,7 +45,7 @@ class DefaultMeasurementList implements MeasurementList {
 	
 	private ArrayList<Measurement> list;
 	
-	private transient Map<String, Double> mapView;
+	private transient Map<String, Number> mapView;
 	
 	DefaultMeasurementList() {
 		list = new ArrayList<>();
@@ -175,7 +175,7 @@ class DefaultMeasurementList implements MeasurementList {
 	}
 
 	@Override
-	public Map<String, Double> asMap() {
+	public Map<String, Number> asMap() {
 		if (mapView == null) {
 			synchronized(this) {
 				if (mapView == null)

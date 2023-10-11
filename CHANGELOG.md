@@ -35,6 +35,8 @@ This is a work-in-progress for the next QuPath release.
   * Activate with *Ctrl + space*, cancel with *Esc*
   * Completions update while typing
 * Support for regular expressions in several 'filter' fields, e.g. for projects, channels, log messages & measurements
+* `MeasurementList.asMap()` returns `Map<String, Number` rather than `Map<String, Double>`
+  * This enables scripts to use `pathObject.measurements['Name'] = 2` rather than `pathObject.measurements['Name'] = 2d`
 
 #### Processing & analysis
 * Includes *pre-release* of OpenSlide 4.0.0

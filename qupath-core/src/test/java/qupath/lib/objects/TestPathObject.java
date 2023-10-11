@@ -203,7 +203,7 @@ public class TestPathObject {
 		double[] mapValuesByIterator = new double[p.getMeasurements().size()];
 		int count = 0;
 		for (var entry : p.getMeasurements().entrySet()) {
-			mapValuesByIterator[count++] = entry.getValue();
+			mapValuesByIterator[count++] = entry.getValue().doubleValue();
 		}
 		
 		assertArrayEquals(listValues, listValuesAsArray);

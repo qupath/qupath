@@ -346,7 +346,7 @@ public class PixelClassificationMeasurementManager {
 		return ForkJoinPool.commonPool();
 	}
 
-	private Map<String, Double> getMeasurementListAsMap(ROI roi, ExecutorService pool) {
+	private Map<String, Number> getMeasurementListAsMap(ROI roi, ExecutorService pool) {
 		var ml = getMeasurementList(roi, pool);
 		return ml == null ? Collections.emptyMap() : Collections.unmodifiableMap(ml.asMap());
 	}
