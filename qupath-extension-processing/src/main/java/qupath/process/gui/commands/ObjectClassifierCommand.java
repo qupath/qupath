@@ -101,6 +101,7 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import javafx.stage.Stage;
+import qupath.fx.controls.PredicateTextField;
 import qupath.fx.dialogs.FileChoosers;
 import qupath.lib.classifiers.Normalization;
 import qupath.lib.classifiers.object.ObjectClassifier;
@@ -1526,13 +1527,6 @@ public class ObjectClassifierCommand implements Runnable {
 			pane = makePane(includeFilter);
 		}
 
-		void updatePredicate(String text) {
-			if (text == null || text.isBlank())
-				list.setPredicate(p -> true);
-			else
-				list.setPredicate(p -> p.getItem().toString().toLowerCase().contains(text.toLowerCase()));
-		}
-
 		public Pane getPane() {
 			return pane;
 		}
@@ -1598,14 +1592,15 @@ public class ObjectClassifierCommand implements Runnable {
 			Pane panelButtons;
 
 			if (includeFilter) {
-				var tfFilter = new TextField("");
-				tfFilter.setTooltip(new Tooltip("Type to filter table entries (case-insensitive)"));
+				var tfFilter = new PredicateTextField<SelectableItem>(s -> s.getItem().toString());
+				var tooltip = new Tooltip("Type to filter table entries (case-insensitive)");
+				Tooltip.install(tfFilter, tooltip);
 				tfFilter.setPromptText("Type to filter table entries");
 				var labelFilter = new Label("Filter");
 				labelFilter.setLabelFor(tfFilter);
 				labelFilter.setPrefWidth(Label.USE_COMPUTED_SIZE);
 				tfFilter.setMaxWidth(Double.MAX_VALUE);
-				tfFilter.textProperty().addListener((v, o, n) -> updatePredicate(n));
+				list.predicateProperty().bind(tfFilter.predicateProperty());
 				var paneFilter = new GridPane();
 				paneFilter.add(labelFilter, 0, 0);
 				paneFilter.add(tfFilter, 1, 0);
