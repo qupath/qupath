@@ -29,7 +29,6 @@ import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.utils.ObjectMerger;
 import qupath.lib.objects.utils.Tiler;
-import qupath.lib.plugins.CommandLineTaskRunner;
 import qupath.lib.plugins.PathTask;
 import qupath.lib.plugins.TaskRunner;
 import qupath.lib.plugins.TaskRunnerUtils;
