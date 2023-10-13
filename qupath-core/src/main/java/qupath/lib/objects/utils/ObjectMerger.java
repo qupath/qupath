@@ -275,7 +275,7 @@ public class ObjectMerger {
 
 
     /**
-     * Create an object merger that uses a shared boundary criterion and default overlap tolerance.
+     * Create an object merger that uses a shared boundary IoU criterion and default overlap tolerance.
      * <p>
      * Objects will be merged if they a common boundary and have the same classification.
      * A small overlap tolerance is used to compensate for sub-pixel misalignment of tiles.
@@ -283,7 +283,8 @@ public class ObjectMerger {
      * This is intended for post-processing a tile-based segmentation, where the tiling has been strictly enforced
      * (i.e. any objects have been clipped to non-overlapping tile boundaries).
      *
-     * @param sharedBoundaryThreshold proportion of the possibly-clipped boundary that must be shared
+     * @param sharedBoundaryThreshold minimum intersection-over-union (IoU) proportion of the possibly-clipped boundary
+     *                                for merging
      *
      * @return an object merger that uses a shared boundary criterion
      * @see #createSharedTileBoundaryMerger(double, double)
@@ -293,22 +294,20 @@ public class ObjectMerger {
     }
 
     /**
-     * Create an object merger that uses a shared boundary criterion and overlap tolerance.
+     * Create an object merger that uses a shared boundary IoU criterion and overlap tolerance.
      * <p>
-     * Objects will be merged if they a common boundary and have the same classification.
+     * Objects will be merged if they share a common boundary and have the same classification.
      * A small overlap tolerance can be used to compensate for slight misalignment of tiles.
      * <p>
      * After identifying a common boundary line between ROIs, the ROI boundaries are intersected with the line,
      * and the two intersections are subsequently intersected with each other to determine the shared intersection.
-     * The length of the shared intersection is then divided by the smaller ROI intersection.
-     * <p>
-     * This is the shared boundary score; a value of 0 indicates no shared intersection, while a value of 1 indicates
-     * that the boundary of at least one ROI is completely shared with the other ROI along one edge.
+     * The length of the shared intersection is then used to compute the intersection over union.
      * <p>
      * This is intended for post-processing a tile-based segmentation, where the tiling has been strictly enforced
      * (i.e. any objects have been clipped to non-overlapping tile boundaries).
      *
-     * @param sharedBoundaryThreshold proportion of the possibly-clipped boundary that must be shared
+     * @param sharedBoundaryThreshold minimum intersection-over-union (IoU) proportion of the possibly-clipped boundary
+     *      *                                for merging
      * @param overlapTolerance amount of overlap allowed between objects, in pixels. If zero, the boundary must be
      *                         shared exactly. A typical value is 0.125, which allows for a small, sub-pixel overlap.
      * @return an object merger that uses a shared boundary criterion and overlap tolerance
@@ -483,15 +482,19 @@ public class ObjectMerger {
         if (envUpper.getMaxY() >= envLower.getMinY() && Math.abs(envUpper.getMaxY() - envLower.getMinY()) < overlapTolerance) {
             var upperIntersection = createEnvelopeIntersection(upper, envUpper.getMinX(), envUpper.getMaxY(), envUpper.getMaxX(), envUpper.getMaxY());
             var lowerIntersection = createEnvelopeIntersection(lower, envLower.getMinX(), envLower.getMinY(), envLower.getMaxX(), envLower.getMinY());
-            double smallestIntersectionLength = Math.min(upperIntersection.getLength(), lowerIntersection.getLength());
-            if (smallestIntersectionLength <= 0)
+            double upperLength = upperIntersection.getLength();
+            double lowerLength = lowerIntersection.getLength();
+            if (Math.min(upperLength, lowerLength) <= 0)
                 return 0.0;
             // For a non-zero tolerance, we may need to shift the geometries
             if (envUpper.getMaxY() != envLower.getMinY()) {
                 lowerIntersection.apply(new SetOrdinateFilter(CoordinateSequence.Y, envUpper.getMaxY()));
             }
+            // Use intersection over union
             var sharedIntersection = upperIntersection.intersection(lowerIntersection);
-            return sharedIntersection.getLength() / smallestIntersectionLength;
+            double intersectionLength = sharedIntersection.getLength();
+            double score = intersectionLength / (upperLength + lowerLength - intersectionLength);
+            return score;
         } else {
             return 0.0;
         }
@@ -504,15 +507,18 @@ public class ObjectMerger {
         if (envLeft.getMaxX() >= envRight.getMinX() && Math.abs(envLeft.getMaxX() - envRight.getMinX()) < overlapTolerance) {
             var leftIntersection = createEnvelopeIntersection(left, envLeft.getMaxX(), envLeft.getMinY(), envLeft.getMaxX(), envLeft.getMaxY());
             var rightIntersection = createEnvelopeIntersection(right, envRight.getMinX(), envRight.getMinY(), envRight.getMinX(), envRight.getMaxY());
-            double smallestIntersectionLength = Math.min(leftIntersection.getLength(), rightIntersection.getLength());
-            if (smallestIntersectionLength <= 0)
+            double leftLength = leftIntersection.getLength();
+            double rightLength = rightIntersection.getLength();
+            if (Math.min(leftLength, rightLength) <= 0)
                 return 0.0;
             // For a non-zero tolerance, we may need to shift the geometries
             if (envLeft.getMaxX() != envRight.getMinX()) {
-                rightIntersection.apply(new SetOrdinateFilter(CoordinateSequence.X, envLeft.getMaxX()));
+                rightIntersection.apply(new SetOrdinateFilter(CoordinateSequence.Y, envLeft.getMaxY()));
             }
-            var sharedIntersection = leftIntersection.intersection(rightIntersection);
-            return sharedIntersection.getLength() / smallestIntersectionLength;
+            // Use intersection over union
+            var sharedIntersection = rightIntersection.intersection(leftIntersection);
+            double intersectionLength = sharedIntersection.getLength();
+            return intersectionLength / (rightLength + leftLength - intersectionLength);
         } else {
             return 0.0;
         }

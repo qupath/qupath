@@ -114,7 +114,7 @@ public class BrightnessContrastChannelPane extends BorderPane {
 
     private final PredicateTextField<ChannelDisplayInfo> filter;
     private final BooleanProperty useRegex = PathPrefs.createPersistentPreference("brightnessContrastFilterRegex", false);
-    private final BooleanProperty ignoreCase = PathPrefs.createPersistentPreference("brightnessContrastFilterIgnoreCase", false);
+    private final BooleanProperty ignoreCase = PathPrefs.createPersistentPreference("brightnessContrastFilterDoIgnoreCase", true);
 
     private final SelectedChannelsChangeListener selectedChannelsChangeListener = new SelectedChannelsChangeListener();
 

@@ -59,6 +59,7 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.TextAlignment;
+import qupath.fx.controls.PredicateTextField;
 import qupath.lib.color.ColorMaps;
 import qupath.lib.color.ColorMaps.ColorMap;
 import qupath.lib.gui.QuPathGUI;
@@ -224,17 +225,11 @@ public class MeasurementMapPane {
 		Tooltip.install(colorMapKey, new Tooltip("Measurement map key"));
 		
 		// Filter to reduce visible measurements
-		TextField tfFilter = new TextField();
-		tfFilter.setTooltip(new Tooltip("Enter text to filter measurement list"));
+		var tfFilter = new PredicateTextField<String>();
+		var tooltip = new Tooltip("Enter text to filter measurement list");
+		Tooltip.install(tfFilter, tooltip);
 		tfFilter.setPromptText("Filter measurement list");
-		tfFilter.textProperty().addListener((v, o, n) -> {
-			String val = n.trim().toLowerCase();			
-			filteredList.setPredicate(s -> {
-				if (val.isEmpty())
-					return true;
-				return s.toLowerCase().contains(val);
-			});
-		});
+		filteredList.predicateProperty().bind(tfFilter.predicateProperty());
 		BorderPane paneFilter = new BorderPane();
 		paneFilter.setPadding(new Insets(5, 0, 10, 0));
 		paneFilter.setCenter(tfFilter);
