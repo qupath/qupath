@@ -155,9 +155,14 @@ public class TestObjectMerger {
         assertEquals(1, mergedByClassification.size());
         assertEquals(objectSize * objectSize * 2, mergedByClassification.get(0).getROI().getArea(), 0.0001);
 
-        var mergedByBoundary = ObjectMerger.createSharedTileBoundaryMerger(0.5).merge(pathObjects);
+        var mergedByBoundary = ObjectMerger.createSharedTileBoundaryMerger(0.33).merge(pathObjects);
         assertEquals(1, mergedByBoundary.size());
         assertEquals(objectSize * objectSize * 2, mergedByBoundary.get(0).getROI().getArea(), 0.0001);
+
+        // This changed when using IoU (using original criterion we'd merge)
+        var mergedByBoundary2 = ObjectMerger.createSharedTileBoundaryMerger(0.5).merge(pathObjects);
+        assertEquals(2, mergedByBoundary2.size());
+        assertEquals(objectSize * objectSize, mergedByBoundary2.get(0).getROI().getArea(), 0.0001);
 
         var mergedByBoundaryTooHigh = ObjectMerger.createSharedTileBoundaryMerger(0.75).merge(pathObjects);
         assertEquals(2, mergedByBoundaryTooHigh.size());
