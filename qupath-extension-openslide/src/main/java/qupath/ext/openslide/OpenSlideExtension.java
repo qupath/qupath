@@ -32,7 +32,6 @@ import qupath.fx.dialogs.Dialogs;
 import qupath.fx.localization.LocalizedResourceManager;
 import qupath.fx.prefs.annotations.DirectoryPref;
 import qupath.fx.prefs.annotations.PrefCategory;
-import qupath.fx.prefs.annotations.StringPref;
 import qupath.fx.prefs.controlsfx.PropertySheetUtils;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.extensions.QuPathExtension;
