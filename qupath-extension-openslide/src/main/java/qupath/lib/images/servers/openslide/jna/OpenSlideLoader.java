@@ -75,7 +75,7 @@ public class OpenSlideLoader {
                 File openslideFile = Native.extractFromResourcePath("openslide");
                 return Native.load(openslideFile.getAbsolutePath(), OpenSlideJNA.class);
             } catch (IOException e) {
-                logger.error("No OpenSlide search path supplied and failed to load OpenSlide from packaged jar!");
+                logger.error("No OpenSlide search path supplied and failed to load OpenSlide from packaged jar! OpenSlide will not work.");
             }
         }
 
