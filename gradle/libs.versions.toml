@@ -35,7 +35,7 @@ logback         = "1.3.11"
 logviewer       = "0.1.1"
 
 # Currently a snapshot version, before OpenSlide 4.0.0 is released
-openslide       = "3.5.0-20231005.095259-4"
+openslide       = "4.0.0-20231013.225542-2"
 
 picocli         = "4.7.5"
 qupath-fxtras   = "0.1.0"
