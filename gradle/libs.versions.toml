@@ -1,6 +1,6 @@
 [versions]
 
-bioformats      = "7.0.0"
+bioformats      = "7.0.1"
 bioimageIoSpec  = "0.1.0"
 
 commonmark      = "0.21.0"
@@ -8,20 +8,25 @@ commonsMath3    = "3.6.1"
 commonsText     = "1.10.0"
 controlsFX      = "11.1.2"
 
-deepJavaLibrary = "0.23.0"
+deepJavaLibrary = "0.24.0"
 
 groovy          = "4.0.15"
 gson            = "2.10.1"
-guava           = "32.1.2-jre"
+guava           = "32.1.3-jre"
 
 ikonli          = "12.3.1"
 imagej          = "1.54f"
 
+# Compatibility with Java 17 with QuPath v0.5.x (may update to 21 in the future)
 jdk             = "17"
 
+# Need JavaCPP 1.5.9 for gradle fixes: https://github.com/bytedeco/gradle-javacpp/issues/28
 javacpp         = "1.5.9"
+# Potential issue with 4.6.0 and some ONNX models and/or use of x86_64 build on Apple Silicon
   opencv        = "4.7.0-1.5.9"
   cuda          = "12.1-8.9-1.5.9"
+#  opencv        = "4.6.0-1.5.8"
+#  cuda          = "11.8-8.6-1.5.8"
 
 # JavaFX 20.0.1 and later seem to break search links in Javadocs
 javafx          = "20"

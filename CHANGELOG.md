@@ -134,15 +134,16 @@ QuPath may take a little longer to start up than previously, especially with mac
 This appears to be related to time spent initializing JavaFX.
 
 ### Dependency updates
-* Bio-Formats 7.0.0
-* DeepJavaLibrary 0.23.0
+* Bio-Formats 7.0.1
+* DeepJavaLibrary 0.24.0
 * Groovy 4.0.15
-* Guava 32.1.2-jre
+* Guava 32.1.3-jre
 * ImageJ 1.54f
 * JavaCPP 1.5.9
 * JavaFX 20
 * Logback 1.3.11
 * OpenCV 4.7.0
+* OpenSlide 4.0.0
 * Picocli 4.7.5
 * RichTextFX 0.11.1
 * SLF4J 2.0.9
