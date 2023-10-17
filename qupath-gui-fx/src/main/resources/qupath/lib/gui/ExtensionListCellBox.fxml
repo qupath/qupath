@@ -9,7 +9,7 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
 
-<fx:root type="HBox" xmlns="http://javafx.com/javafx/20.0.1" xmlns:fx="http://javafx.com/fxml/1" styleClass="box">
+<fx:root type="HBox" xmlns="http://javafx.com/javafx/20" xmlns:fx="http://javafx.com/fxml/1" styleClass="box">
     <VBox spacing="5">
         <Label fx:id="nameText" />
         <Label fx:id="descriptionText" opacity="0.7">

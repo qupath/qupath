@@ -16,7 +16,7 @@
 
 plugins {
     id 'groovy-gradle-plugin'
-    id 'java-gradle-plugin'
+    alias(libs.plugins.javacpp)
 }
 
 repositories {
@@ -34,6 +34,6 @@ gradlePlugin {
 
 dependencies {
     // Make Gradle plugin available to limit platform jars
-    // TODO: Try to use version catalog instead
-    implementation 'org.bytedeco:gradle-javacpp:1.5.9'
+    // Couldn't find a cleaner way to get the version from the catalog
+    implementation "org.bytedeco:gradle-javacpp:${libs.plugins.javacpp.get().version}"
 }
