@@ -142,6 +142,7 @@ class ParameterDialogWrapper<T> {
 		label.setPadding(new Insets(5, 5, 5, 5));
 		label.setAlignment(Pos.CENTER);
 		label.setTextAlignment(TextAlignment.CENTER);
+		label.setMaxWidth(Double.MAX_VALUE);
 
 		btnRun.setOnAction(e -> {
 
@@ -203,7 +204,6 @@ class ParameterDialogWrapper<T> {
 
 		BorderPane pane = new BorderPane();
 		ScrollPane scrollPane = new ScrollPane();
-		label.setMaxWidth(Double.MAX_VALUE);
 		scrollPane.setContent(panel.getPane());
 		scrollPane.setFitToWidth(true);
 
