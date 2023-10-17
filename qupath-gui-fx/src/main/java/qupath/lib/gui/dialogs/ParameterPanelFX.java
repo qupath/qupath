@@ -235,7 +235,9 @@ public class ParameterPanelFX {
 		Label label = new Label(param.getPrompt());
 		if (param.isTitle()) {
 			// Cannot change font weight for default font (at least on macOS...) - need to change the font that's used
-			label.setFont(Font.font(font.getFamily(), FontWeight.BOLD, font.getSize()));
+			// Necessary to use CSS rather than setting the font to avoid a weird focus issue that could cause the text
+			// size to change, e.g. see https://stackoverflow.com/questions/53603250/javafx-how-to-prevent-label-text-resize-during-scrollpane-focus
+			label.setStyle("-fx-font-weight: bold;");
 			if (!map.isEmpty())
 				label.setPadding(new Insets(10, 0, 0, 0));
 		}
