@@ -367,6 +367,7 @@ public class PixelClassifierPane {
 		pane.add(btnLive, 0, row++, pane.getColumnCount(), 1);
 		
 		pieChart = new PieChart();
+		pieChart.getStyleClass().add("training-chart");
 		pieChart.setAnimated(false);
 		
 //		var hierarchy = viewer.getHierarchy();
@@ -1099,6 +1100,10 @@ public class PixelClassifierPane {
 			return;
 		}
 		ChartTools.setPieChartData(pieChart, counts, PathClass::toString, p -> ColorToolsFX.getCachedColor(p.getColor()), true, !counts.isEmpty());
+		if (counts.isEmpty())
+			pieChart.setTitle(null);
+		else
+			pieChart.setTitle("Training data");
 	}
 	
 	

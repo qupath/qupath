@@ -521,7 +521,7 @@ public class ObjectClassifierCommand implements Runnable {
 			// Determine the measurements to use
 			var measurements = getRequestedMeasurements();
 			if (measurements.isEmpty()) {
-				logger.warn("No measurements - cannot update classifier");
+				Dialogs.showWarningNotification("Object classifiers", "No measurements available - cannot update classifier");
 				return null;
 			}
 
@@ -794,6 +794,10 @@ public class ObjectClassifierCommand implements Runnable {
 				}
 			}
 			ChartTools.setPieChartData(pieChart, counts, PathClass::toString, p -> ColorToolsFX.getCachedColor(p.getColor()), true, !counts.isEmpty());
+			if (counts.isEmpty())
+				pieChart.setTitle(null);
+			else
+				pieChart.setTitle("Training data");
 		}
 
 		void updatePieChart(Map<PathClass, Set<PathObject>> map) {
@@ -1323,6 +1327,7 @@ public class ObjectClassifierCommand implements Runnable {
 			 * Training proportions (pie chart)
 			 */
 			pieChart = new PieChart();
+			pieChart.getStyleClass().add("training-chart");
 			pieChart.setAnimated(false);
 
 			pieChart.setLabelsVisible(false);
