@@ -617,8 +617,10 @@ def configureJPackageMac(JPackageParams params) {
     // Can't have any -SNAPSHOT or similar added
     params.appVersion = stripVersionSuffix(params.appVersion)
 
-    params.imageName = 'QuPath'
-    params.installerName = 'QuPath'
+    params.imageName = getCorrectAppName(".app")
+    if (params.imageName.endsWith(".app"))
+        params.imageName = params.imageName.substring(0, params.imageName.length() - 4)
+    params.installerName = getCorrectAppName(".pkg")
 
     // Sadly, on a Mac we can't have an appVersion that starts with 0
     // See https://github.com/openjdk/jdk/blob/jdk-16+36/src/jdk.jpackage/macosx/classes/jdk/jpackage/internal/CFBundleVersion.java
