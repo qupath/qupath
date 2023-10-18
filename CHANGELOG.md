@@ -38,6 +38,13 @@ This is a work-in-progress for the next QuPath release.
 * `MeasurementList.asMap()` returns `Map<String, Number` rather than `Map<String, Double>`
   * This enables scripts to use `pathObject.measurements['Name'] = 2` rather than `pathObject.measurements['Name'] = 2d`
 
+#### Naming & measurements
+* Improve consistency of naming, including for measurements
+  * Use 'classification' rather then 'class' (to reduce confusion with Java 'classes')
+  * Add a new 'Object type' measurement to tables, giving a readable string ('Annotation', 'Detection', 'Cell' etc.)
+  * No longer show a default 'Name' if no name has been set
+    * e.g. don't show 'PathAnnotationObject' or the classification as a placeholder, since this causes confusion for people writing scripts and requesting the name
+
 #### Processing & analysis
 * Includes *pre-release* of OpenSlide 4.0.0
   * Final OpenSlide v4.0.0 release expected to be included in QuPath v0.5.0

@@ -123,7 +123,8 @@ class PathClassPane {
 		
 		var filteredList = availablePathClasses.filtered(createPathClassListFilter(null));
 		listClasses.setItems(filteredList);
-		listClasses.setTooltip(new Tooltip("Annotation classes available (right-click to add or remove)"));
+		listClasses.setTooltip(new Tooltip("Available classifications (right-click to add or remove).\n" +
+				"Names ending with an Asterisk* are 'ignored' under certain circumstances - see the docs for more info."));
 		
 		listClasses.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> updateAutoSetPathClassProperty());
 		
@@ -148,7 +149,7 @@ class PathClassPane {
 		BorderPane paneClasses = new BorderPane();
 		paneClasses.setCenter(listClasses);
 
-		Action setSelectedObjectClassAction = new Action("Set class", e -> promptToSetClass());
+		Action setSelectedObjectClassAction = new Action("Set selected", e -> promptToSetClass());
 		setSelectedObjectClassAction.setLongText("Set the class of the currently-selected annotation(s)");
 
 		Action autoClassifyAnnotationsAction = new Action("Auto set");
