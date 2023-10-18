@@ -449,21 +449,32 @@ public class IconFactory {
 		return group;
 	}
 
-	
 	private static Node drawPointsIcon(int sizeOrig) {
+		return drawPointsIcon(sizeOrig, null);
+	}
+
+	private static Node drawPointsIcon(int sizeOrig, Color color) {
 		
 		double pad = 1.0;
 		double size = sizeOrig - pad*2;
 		double radius = size/5.0;
 		
 		var c1 = new Circle(pad+size/2.0, pad+radius, radius, Color.TRANSPARENT);
-		bindShapeColorToObjectColor(c1);
-		
+
 		var c2 = new Circle(pad+radius, pad+size-radius, radius, Color.TRANSPARENT);
-		bindShapeColorToObjectColor(c2);
-		
+
 		var c3 = new Circle(pad+size-radius, pad+size-radius, radius, Color.TRANSPARENT);
-		bindShapeColorToObjectColor(c3);
+		if (color != null) {
+			// Use fixed color
+			c1.setStroke(color);
+			c2.setStroke(color);
+			c3.setStroke(color);
+		} else {
+			// Use default object color
+			bindShapeColorToObjectColor(c1);
+			bindShapeColorToObjectColor(c2);
+			bindShapeColorToObjectColor(c3);
+		}
 
 //		return new Group(c1, c2, c3);
 		return wrapInGroup(sizeOrig, c1, c2, c3);
@@ -733,12 +744,7 @@ public class IconFactory {
 			return line;
 		} else if (roi.isPoint()) {
 			// Just show generic points
-			Node node = IconFactory.createNode(Math.min(width, height), Math.min(width, height), IconFactory.PathIcons.POINTS_TOOL);	
-			if (node instanceof Glyph) {
-				var glyph = (Glyph)node;
-				glyph.textFillProperty().unbind();
-				glyph.setColor(color);
-			}
+			var node = drawPointsIcon(Math.min(width, height), color);
 			return node;
 		} else {
 			var path = pathCache.getOrDefault(roi, null);
