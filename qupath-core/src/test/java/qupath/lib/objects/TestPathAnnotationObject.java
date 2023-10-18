@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -75,7 +75,7 @@ public class TestPathAnnotationObject extends TestPathObjectMethods {
 	@Test
 	public void test_NamesAndColors() {
 //		test_toString(myPO, "Unassigned"); 
-		test_getDisplayedName(myPO, myPO.getClass().getSimpleName()); // name of the class by default 
+		test_getDisplayedName(myPO, "Annotation"); // name of the class by default
 		test_getName(myPO, null); // no name yet in PO
 		test_setName(myPO, "myPO");
 		test_getName(myPO, "myPO");
