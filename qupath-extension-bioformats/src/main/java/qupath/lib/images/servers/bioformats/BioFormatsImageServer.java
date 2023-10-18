@@ -998,7 +998,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 	 */
 	static String getSupportedReaderClass(String path) throws InstantiationException, IllegalAccessException, IllegalArgumentException, InvocationTargetException, NoSuchMethodException, SecurityException {
 		path = path.toLowerCase();
-		for (var cls : ImageReader.getDefaultReaderClasses().getClasses()) {
+		for (var cls : ReaderPool.getDefaultClassList().getClasses()) {
 			var reader = cls.getConstructor().newInstance();
 			if (reader.isThisType(path, false))
 				return cls.getName();
@@ -1026,6 +1026,8 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		 * Absolute maximum number of permitted readers (queue capacity)
 		 */
 		private static final int MAX_QUEUE_CAPACITY = 128;
+
+		private static ClassList<IFormatReader> defaultClassList;
 		
 		private String id;
 		private BioFormatsServerOptions options;
@@ -1088,7 +1090,33 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			}
 			return DEFAULT_TIMEOUT_SECONDS;
 		}
-		
+
+		/**
+		 * Required for Bio-Formats 7.0.1 - see https://github.com/ome/bioformats/issues/4109
+		 * @return
+		 */
+		private static ClassList<IFormatReader> getDefaultClassList() {
+			if (defaultClassList == null) {
+				synchronized (BioFormatsImageServer.class) {
+					if (defaultClassList == null) {
+						ClassList<IFormatReader> classes = new ClassList<>(IFormatReader.class);
+						for (var cls : ImageReader.getDefaultReaderClasses().getClasses()) {
+							try {
+								var instance = cls.getConstructor().newInstance();
+								if (instance != null)
+									classes.addClass(cls);
+							} catch (Throwable t) {
+								t.printStackTrace();
+								logger.debug("Cannot instantiate reader class " + cls.getName() + ": " + t.getMessage());
+							}
+						}
+						defaultClassList = classes;
+					}
+				}
+			}
+			return defaultClassList;
+		}
+
 		IFormatReader getMainReader() {
 			return mainReader;
 		}
@@ -1145,8 +1173,9 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			IFormatReader imageReader;
 			if (classList != null) {
 				imageReader = new ImageReader(classList);
-			} else
-				imageReader = new ImageReader();
+			} else {
+				imageReader = new ImageReader(getDefaultClassList());
+			}
 						
 			imageReader.setFlattenedResolutions(false);
 			
