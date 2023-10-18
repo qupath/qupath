@@ -1319,7 +1319,7 @@ public class ViewerManager implements QuPathViewerListener {
 		
 		
 		// Create an empty placeholder menu
-		Menu menuSetClass = MenuTools.createMenu("Set class");
+		Menu menuSetClass = MenuTools.createMenu("Set classification");
 		
 		var overlayActions = qupath.getOverlayActions();
 		Menu menuCells = MenuTools.createMenu(

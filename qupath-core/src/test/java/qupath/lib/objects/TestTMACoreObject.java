@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -36,7 +36,7 @@ public class TestTMACoreObject {
 	private final Double diameter = 10.0;
 	private final Boolean ismissing = Boolean.TRUE;
 	private final Double epsilon = 1e-15;
-	private final String name = "TMACoreObject";
+	private final String name = "TMA core";
 	TMACoreObject myPO = new TMACoreObject();
 	TMACoreObject myPO2 = PathObjects.createTMACoreObject(xcenter, ycenter, diameter, ismissing);
 	

@@ -162,7 +162,7 @@ class CountingPane implements PathObjectSelectionListener, PathObjectHierarchyLi
 		}
 				);
 		ContextMenu menu = new ContextMenu();
-		Menu menuSetClass = new Menu("Set class");
+		Menu menuSetClass = new Menu("Set classification");
 		menu.setOnShowing(e -> {
 			menuSetClass.getItems().setAll(
 					qupath.getAvailablePathClasses().stream()

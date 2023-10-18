@@ -821,10 +821,11 @@ public abstract class PathObject implements Externalizable {
 		String nameDisplayed = name;
 		if (nameDisplayed == null) {
 			PathClass pathClass = getPathClass();
+			nameDisplayed = PathObjectTools.getSuitableName(getClass(), false);
+
 			if (pathClass != null)
-				nameDisplayed = pathClass.toString();
-			else
-				nameDisplayed = getClass().getSimpleName();
+				nameDisplayed = nameDisplayed + " (" + pathClass.toString() + ")";
+
 		}
 		if (getParent() != null && getParent().isTMACore())
 			nameDisplayed = getParent().getDisplayedName() + " - " + nameDisplayed;

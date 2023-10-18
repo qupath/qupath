@@ -219,7 +219,7 @@ public class BrushToolEventHandler extends AbstractPathROIToolEventHandler {
 			} else if (!PathPrefs.selectionModeProperty().get()) {
 					List<PathObject> listSelectable = ToolUtils.getSelectableObjectList(viewer, p.getX(), p.getY());
 					PathObject objectSelectable = null;
-					for (int i = listSelectable.size()-1; i >= 0; i--) {
+					for (int i = 0; i < listSelectable.size(); i++) {
 						PathObject temp = listSelectable.get(i);
 						if (temp.isEditable() && temp instanceof PathAnnotationObject && temp.hasROI() && temp.getROI().isArea()) { //temp.getROI() instanceof AreaROI) {
 							objectSelectable = temp;

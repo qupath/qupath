@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -39,7 +39,7 @@ import qupath.lib.objects.TMACoreObject;
 public class TestDefaultTMAGrid {
 	private final Integer w = 9;
 	private final Integer ncores = 10;
-	private final String coreName = "TMACoreObject"; // displayed name for all cores in the grid
+	private final String coreName = "TMA core"; // displayed name for all cores in the grid
 	private final String tcoreName = "core0"; // name for the first core in the grid
 	private final Double xcenter = 0.0;
 	private final Double ycenter = 0.0;

@@ -211,13 +211,16 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		if (containsAnnotations || containsDetections || containsTMACores)
 			builderMap.put("Object ID", new ObjectIdMeasurementBuilder());
 
+		// Include the object type
+		builderMap.put("Object type", new ObjectTypeMeasurementBuilder());
+
 		// Include the object displayed name
 //		if (containsDetections || containsAnnotations || containsTMACores)
 		builderMap.put("Name", new ObjectNameMeasurementBuilder());
-		
+
 		// Include the class
 		if (containsAnnotations || containsDetections) {
-			builderMap.put("Class", new PathClassMeasurementBuilder());
+			builderMap.put("Classification", new PathClassMeasurementBuilder());
 			// Get the name of the containing TMA core if we have anything other than cores
 			if (imageData != null && imageData.getHierarchy().getTMAGrid() != null) {
 				builderMap.put("TMA core", new TMACoreNameMeasurementBuilder());
@@ -1211,9 +1214,33 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 
 		@Override
 		protected String getMeasurementValue(PathObject pathObject) {
-			return pathObject == null ? null : pathObject.getDisplayedName();
+			if (pathObject == null)
+				return null;
+			// v0.5.0 change - previously used pathObject.getDisplayedName(),
+			// but this frequently led to confusion for people writing scripts
+			String name = pathObject.getName();
+			return name;
 		}
 		
+	}
+
+	static class ObjectTypeMeasurementBuilder extends StringMeasurementBuilder {
+
+		@Override
+		public String getName() {
+			return "Object type";
+		}
+
+		@Override
+		protected String getMeasurementValue(PathObject pathObject) {
+			if (pathObject == null)
+				return null;
+			else if (pathObject.isRootObject())
+				return pathObject.getDisplayedName();
+			else
+				return PathObjectTools.getSuitableName(pathObject.getClass(), false);
+		}
+
 	}
 	
 	
@@ -1221,7 +1248,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 
 		@Override
 		public String getName() {
-			return "Class";
+			return "Classification";
 		}
 
 		@Override
