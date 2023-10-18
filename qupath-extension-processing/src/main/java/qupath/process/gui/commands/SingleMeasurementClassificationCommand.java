@@ -33,6 +33,10 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 
+import javafx.beans.binding.Bindings;
+import javafx.geometry.Pos;
+import javafx.scene.chart.NumberAxis;
+import javafx.scene.layout.BorderPane;
 import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -243,10 +247,12 @@ public class SingleMeasurementClassificationCommand implements Runnable {
 			GridPaneUtils.setToExpandGridPaneWidth(comboFilter, comboChannels, comboMeasurements, sliderThreshold,
 					comboAbove, comboBelow, tfSaveName, cbLivePreview);
 			
-			histogramPane.getYAxis().setTickLabelsVisible(false);
-			histogramPane.setAnimated(false);
 			chartPane.setPrefSize(200, 80);
-			pane.add(chartPane, pane.getColumnCount(), 0, 1, pane.getRowCount());
+
+
+			pane.add(
+					addLogHistogramCheckbox(chartPane, histogramPane),
+					pane.getColumnCount(), 0, 1, pane.getRowCount()-1);
 			
 			// Add listeners
 			comboChannels.valueProperty().addListener((v, o, n) -> updateChannelFilter());
@@ -260,6 +266,39 @@ public class SingleMeasurementClassificationCommand implements Runnable {
 			comboAbove.valueProperty().addListener((v, o, n) -> maybePreview());
 			comboBelow.valueProperty().addListener((v, o, n) -> maybePreview());
 			cbLivePreview.selectedProperty().addListener((v, o, n) -> maybePreview());
+		}
+
+
+		/**
+		 * Wrap in a BorderPane to add a checkbox for log histograms.
+		 * TODO: Find a better place for this method...
+		 * @param chartPane
+		 * @param histogramPane
+		 * @return
+		 */
+		static BorderPane addLogHistogramCheckbox(ChartThresholdPane chartPane, HistogramChart histogramPane) {
+			// Optionally show a log histogram
+			var cbLogHistogram = new CheckBox("Log histogram");
+			histogramPane.countsTransformProperty().bind(Bindings.createObjectBinding(() -> {
+				if (cbLogHistogram.isSelected())
+					return HistogramChart.CountsTransformMode.LOGARITHM;
+				else
+					return HistogramChart.CountsTransformMode.RAW;
+			}, cbLogHistogram.selectedProperty()));
+			// We don't have a proper log axis, so we need to try to avoid showing regular ticks since this is
+			// misleading (using log spacing would be preferable, but showing no ticks is better than confusing ticks)
+			if (histogramPane.getYAxis() instanceof NumberAxis yAxis) {
+				yAxis.minorTickCountProperty().bind(Bindings.createIntegerBinding(() -> {
+					if (cbLogHistogram.isSelected())
+						return 0;
+					else
+						return 5;
+				}, cbLogHistogram.selectedProperty()));
+			}
+			BorderPane.setAlignment(cbLogHistogram, Pos.CENTER);
+			var chartBorderPane = new BorderPane(chartPane);
+			chartBorderPane.setBottom(cbLogHistogram);
+			return chartBorderPane;
 		}
 		
 		
