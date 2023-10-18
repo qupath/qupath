@@ -24,6 +24,7 @@
 
 package qupath.lib.gui;
 
+import java.net.ConnectException;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -128,6 +129,7 @@ class UpdateManager {
 		}
 		
 		// Check for any updates
+		int connectErrorCount = 0;
 		for (var entry : projects.entrySet()) {
 			var project = entry.getKey();
 			var version = entry.getValue();
@@ -141,7 +143,9 @@ class UpdateManager {
 					logger.info("No newer release for {} (current {} vs upstream {})", project.getName(), version, release.getVersion());
 				}
 			} catch (Exception e) {
-				logger.error("Update check failed for {}", project);
+				if (e instanceof ConnectException)
+					connectErrorCount++;
+				logger.warn("Update check failed for {}", project);
 				logger.debug(e.getLocalizedMessage(), e);
 			}
 		}
@@ -149,8 +153,12 @@ class UpdateManager {
 		
 		// If we couldn't determine the version, tell the user only if this isn't the automatic check
 		if (projectUpdates.isEmpty()) {
-			if (!isAutoCheck)
-				Dialogs.showMessageDialog(title, "No updates found!");
+			if (!isAutoCheck) {
+				if (connectErrorCount == projects.size())
+					Dialogs.showErrorMessage(title, "Unable to check for updates - please check your internet connection");
+				else
+					Dialogs.showMessageDialog(title, "No updates found!");
+			}
 			return;
 		}
 		

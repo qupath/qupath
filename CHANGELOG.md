@@ -27,7 +27,7 @@ This is a work-in-progress for the next QuPath release.
   * Includes badge to highlight errors that have occurred when the log viewer is closed
   * Information about the logger class & thread
 * New extension manager to add, remove & update extensions
-* New toolbar buttons for the script editor `</>` and log viewer
+* New toolbar buttons for the script editor `</>`, log viewer, fill/unfill annotations
 * *File → Export snapshots* supports PNG, JPEG and TIFF (not just PNG)
 * Support sorting project entries by name, ID, and URI
   * Right-click on the project list to access the *Sort by...* menu

@@ -220,14 +220,14 @@ public class ExtensionManager {
 		}
 
 		var extensionClassLoader = getExtensionClassLoader();
-		var dir = extensionClassLoader.getExtensionDirectory();
+		var dir = extensionClassLoader.getExtensionsDirectory();
 		
 		if (dir == null || !Files.isDirectory(dir)) {
 			logger.info("No extension directory found!");
 			var dirUser = Commands.requestUserDirectory(true);
 			if (dirUser == null)
 				return;
-			dir = extensionClassLoader.getExtensionDirectory();
+			dir = extensionClassLoader.getExtensionsDirectory();
 		}
 		// Create directory if we need it
 		if (!Files.exists(dir)) {

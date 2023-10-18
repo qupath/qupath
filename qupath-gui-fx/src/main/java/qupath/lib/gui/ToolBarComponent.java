@@ -137,6 +137,7 @@ class ToolBarComponent {
 		nodes.add(new Separator(Orientation.VERTICAL));
 
 		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(overlayActions.SHOW_ANNOTATIONS));
+		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(overlayActions.FILL_ANNOTATIONS));
 		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(overlayActions.SHOW_NAMES));
 		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(overlayActions.SHOW_TMA_GRID));
 		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(overlayActions.SHOW_DETECTIONS));

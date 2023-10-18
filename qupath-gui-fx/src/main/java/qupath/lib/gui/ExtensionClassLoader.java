@@ -66,15 +66,15 @@ public class ExtensionClassLoader extends URLClassLoader {
 		if (INSTANCE == null) {
 			synchronized (ExtensionClassLoader.class) {
 				if (INSTANCE == null)
-					INSTANCE = new ExtensionClassLoader(() -> getExtensionsDirectory());
+					INSTANCE = new ExtensionClassLoader(ExtensionClassLoader::getDefaultExtensionsDirectory);
 			}
 		}
 		return INSTANCE;
 	}
 
 
-	private static Path getExtensionsDirectory() {
-		return UserDirectoryManager.getInstance().getUserPath();
+	private static Path getDefaultExtensionsDirectory() {
+		return UserDirectoryManager.getInstance().getExtensionsPath();
 	}
 
 
@@ -85,7 +85,7 @@ public class ExtensionClassLoader extends URLClassLoader {
 	 * 
 	 * @return
 	 */
-	public Path getExtensionDirectory() {
+	public Path getExtensionsDirectory() {
 		return extensionsDirectorySupplier == null ? null : extensionsDirectorySupplier.get();
 	}
 

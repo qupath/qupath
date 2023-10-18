@@ -88,7 +88,8 @@ import qupath.lib.roi.interfaces.ROI;
 public class IconFactory {
 	
 	private static final Logger logger = LoggerFactory.getLogger(IconFactory.class);
-	
+
+	private final static Color DETECTION_COLOR = javafx.scene.paint.Color.rgb(20, 180, 120, 0.9);
 	
 	static class IconSuppliers {
 
@@ -187,6 +188,34 @@ public class IconFactory {
 		static IntFunction<Node> lineToolIcon() {
 			return i -> createLineOrArrowIcon(i, "");
 		}
+
+		static IntFunction<Node> fillAnnotationsIcon() {
+			return (int i) -> new DuplicatableNode(() -> createFillAnnotationsIcon(i));
+		}
+
+		private static Node createFillAnnotationsIcon(int size) {
+			var fill = IconSuppliers.icoMoon('\ue900', PathPrefs.colorDefaultObjectsProperty()).apply(size);
+			fill.setOpacity(0.5);
+			var outline = IconSuppliers.icoMoon('\ue901', PathPrefs.colorDefaultObjectsProperty()).apply(size);
+			var group = new Group(
+					fill, outline
+			);
+			return group;
+		}
+
+		static IntFunction<Node> fillDetectionsIcon() {
+			return (int i) -> new DuplicatableNode(() -> createFillDetectionIcon(i));
+		}
+
+		private static Node createFillDetectionIcon(int size) {
+			var fill = IconSuppliers.icoMoon('\ue907', DETECTION_COLOR).apply(size);
+			fill.setOpacity(0.75);
+			var outline = IconSuppliers.icoMoon('\ue908', DETECTION_COLOR).apply(size);
+			var group = new Group(
+					fill, outline
+			);
+			return group;
+		}
 		
 		static IntFunction<Node> arrowToolIcon(String cap) {
 			return i -> createLineOrArrowIcon(i, cap);
@@ -241,7 +270,7 @@ public class IconFactory {
 	@SuppressWarnings("javadoc")
 	public enum PathIcons {	ACTIVE_SERVER(IconSuppliers.icoMoon('\ue915', ColorToolsFX.getCachedColor(0, 200, 0))),
 									ANNOTATIONS(IconSuppliers.icoMoon('\ue901', PathPrefs.colorDefaultObjectsProperty())),
-									ANNOTATIONS_FILL(IconSuppliers.icoMoon('\ue900', PathPrefs.colorDefaultObjectsProperty())),
+									ANNOTATIONS_FILL(IconSuppliers.fillAnnotationsIcon()),
 									
 									ARROW_START_TOOL(IconSuppliers.arrowToolIcon("<")),
 									ARROW_END_TOOL(IconSuppliers.arrowToolIcon(">")),
@@ -256,8 +285,8 @@ public class IconFactory {
 									COG(IconSuppliers.icoMoon('\ue905')),
 									CONTRAST(IconSuppliers.icoMoon('\ue906')),
 
-									DETECTIONS(IconSuppliers.icoMoon('\ue908', javafx.scene.paint.Color.rgb(20, 180, 120, 0.9))),
-									DETECTIONS_FILL(IconSuppliers.icoMoon('\ue907', javafx.scene.paint.Color.rgb(20, 180, 120, 0.9))),
+									DETECTIONS(IconSuppliers.icoMoon('\ue908', DETECTION_COLOR)),
+									DETECTIONS_FILL(IconSuppliers.fillDetectionsIcon()),
 									DOWNLOAD(IconSuppliers.fontAwesome(FontAwesome.Glyph.DOWNLOAD)),
 
 									ELLIPSE_TOOL(IconSuppliers.ellipseToolIcon()),
