@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -30,6 +30,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import javafx.scene.control.ContentDisplay;
+import javafx.scene.text.TextAlignment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -71,13 +73,13 @@ import qupath.lib.objects.hierarchy.PathObjectHierarchy;
  * @author Pete Bankhead
  *
  */
-public class CountingPanelCommand implements Runnable, ChangeListener<ImageData<BufferedImage>> {
+public class CountingDialogCommand implements Runnable, ChangeListener<ImageData<BufferedImage>> {
 
-	private static final Logger logger = LoggerFactory.getLogger(CountingPanelCommand.class);
+	private static final Logger logger = LoggerFactory.getLogger(CountingDialogCommand.class);
 	
 	private QuPathGUI qupath;
 	private PathObjectHierarchy hierarchy;
-	private CountingPane countingPanel = null;
+	private CountingPane countingPane = null;
 	
 	private Stage dialog;
 	
@@ -90,7 +92,7 @@ public class CountingPanelCommand implements Runnable, ChangeListener<ImageData<
 	 * Constructor.
 	 * @param qupath the current QuPath instance.
 	 */
-	public CountingPanelCommand(final QuPathGUI qupath) {
+	public CountingDialogCommand(final QuPathGUI qupath) {
 		this.qupath = qupath;
 		qupath.imageDataProperty().addListener(this);
 //		viewer.addViewerListener(this);
@@ -168,13 +170,13 @@ public class CountingPanelCommand implements Runnable, ChangeListener<ImageData<
 		);
 		btnSave = new Button("Save points");
 		btnSave.setOnAction(event -> {
-				if (countingPanel == null)
+				if (countingPane == null)
 					return;
 				
 				// Prompt the user with choice over which annotations to save
-				ListView<PathObject> listView = countingPanel.getListView();
+				ListView<PathObject> listView = countingPane.getListView();
 				var selection = listView.getSelectionModel().getSelectedItems();
-				List<PathObject> pointsList = countingPanel.getPathObjects();
+				List<PathObject> pointsList = countingPane.getPathObjects();
 				if (!selection.isEmpty()) {
 					ArrayList<String> choiceList = new ArrayList<>();
 					choiceList.addAll(Arrays.asList("All point annotations", "Selected objects"));
@@ -215,6 +217,14 @@ public class CountingPanelCommand implements Runnable, ChangeListener<ImageData<
 				btnLoad,
 				btnSave
 				);
+
+		var labelDelete = new Label("Delete individual points by clicking on them with the 'Alt' key pressed");
+		labelDelete.setWrapText(true);
+		labelDelete.setMaxHeight(Double.MAX_VALUE);
+		labelDelete.prefWidthProperty().bind(panel.widthProperty().subtract(10));
+		labelDelete.setContentDisplay(ContentDisplay.CENTER);
+		labelDelete.setStyle("-fx-font-style: italic; -fx-opacity: 0.8;");
+		labelDelete.setTextAlignment(TextAlignment.CENTER);
 		
 		var actionConvexPoints = ActionTools.createSelectableAction(PathPrefs.showPointHullsProperty(), "Show point convex hull");
 		var actionSelectedColor = ActionTools.createSelectableAction(PathPrefs.useSelectedColorProperty(), "Highlight selected objects by color");
@@ -233,7 +243,8 @@ public class CountingPanelCommand implements Runnable, ChangeListener<ImageData<
 				cbSelected,
 				sliderPane,
 				convertPane,
-				panelLoadSave
+				panelLoadSave,
+				labelDelete
 				);
 		
 		return panel;
@@ -241,13 +252,13 @@ public class CountingPanelCommand implements Runnable, ChangeListener<ImageData<
 	
 	
 	private void attemptToSelectPoints() {
-		if (hierarchy == null || countingPanel == null)
+		if (hierarchy == null || countingPane == null)
 			return;
 		logger.trace("Attempting to select");
 		PathObject pathObjectSelected = hierarchy.getSelectionModel().getSelectedObject();
 		// Try to set selected object to be a Point object
 		if (pathObjectSelected == null || !PathObjectTools.hasPointROI(pathObjectSelected)) {
-			List<PathObject> pointObjects = countingPanel.getPathObjects();
+			List<PathObject> pointObjects = countingPane.getPathObjects();
 			if (pointObjects.isEmpty())
 				hierarchy.getSelectionModel().setSelectedObject(null);
 			else
@@ -275,15 +286,15 @@ public class CountingPanelCommand implements Runnable, ChangeListener<ImageData<
 		}
 		
 		dialog = new Stage();
-		dialog.setTitle("Counting");
+		dialog.setTitle("Points");
 		
-		countingPanel = new CountingPane(qupath, hierarchy);
+		countingPane = new CountingPane(qupath, hierarchy);
 		BorderPane pane = new BorderPane();
 		
 		ToolBar toolbar = makeToolbarButtons();
 		if (toolbar != null)
 			pane.setTop(toolbar);
-		pane.setCenter(countingPanel.getPane());
+		pane.setCenter(countingPane.getPane());
 		Pane panelButtons = makeButtonPanel();
 		panelButtons.setPadding(new Insets(5, 0, 0, 0));
 		if (panelButtons != null)
@@ -308,8 +319,8 @@ public class CountingPanelCommand implements Runnable, ChangeListener<ImageData<
 	@Override
 	public void changed(ObservableValue<? extends ImageData<BufferedImage>> manager, ImageData<BufferedImage> imageDataOld, ImageData<BufferedImage> imageDataNew) {
 		this.hierarchy = imageDataNew == null ? null : imageDataNew.getHierarchy();
-		if (countingPanel != null) {
-			countingPanel.setHierarchy(this.hierarchy);
+		if (countingPane != null) {
+			countingPane.setHierarchy(this.hierarchy);
 			// If the dialog is showing, try to select points
 			if (dialog != null && dialog.isShowing())
 				attemptToSelectPoints();

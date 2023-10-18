@@ -742,7 +742,7 @@ public class QuPathGUI {
 			activateToolsForViewer(getViewer());
 			
 			if (n == PathTools.POINTS)
-				commonActions.COUNTING_PANEL.handle(null);
+				commonActions.SHOW_POINTS_DIALOG.handle(null);
 			
 			updateCursorForSelectedTool();			
 		});

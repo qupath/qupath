@@ -35,7 +35,7 @@ import qupath.lib.gui.actions.annotations.ActionIcon;
 import qupath.lib.gui.commands.BrightnessContrastCommand;
 import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.commands.ContextHelpViewer;
-import qupath.lib.gui.commands.CountingPanelCommand;
+import qupath.lib.gui.commands.CountingDialogCommand;
 import qupath.lib.gui.commands.ProjectCommands;
 import qupath.lib.gui.commands.TMACommands;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -69,7 +69,7 @@ public class CommonActions {
 	
 	@ActionIcon(PathIcons.POINTS_TOOL)
 	@ActionConfig("CommonActions.showCountingTool")
-	public final Action COUNTING_PANEL;
+	public final Action SHOW_POINTS_DIALOG;
 
 	@ActionConfig("CommonActions.addTMANote")
 	public final Action TMA_ADD_NOTE;
@@ -127,7 +127,7 @@ public class CommonActions {
 		BRIGHTNESS_CONTRAST = ActionTools.createAction(brightnessCommand);
 		ActionTools.installInfoMessage(BRIGHTNESS_CONTRAST,  brightnessCommand.infoMessage());
 
-		COUNTING_PANEL = ActionTools.createAction(new CountingPanelCommand(qupath));
+		SHOW_POINTS_DIALOG = ActionTools.createAction(new CountingDialogCommand(qupath));
 		TMA_ADD_NOTE = qupath.createImageDataAction(imageData -> TMACommands.promptToAddNoteToSelectedCores(imageData));
 		CONVEX_POINTS = ActionTools.createSelectableAction(PathPrefs.showPointHullsProperty());
 
