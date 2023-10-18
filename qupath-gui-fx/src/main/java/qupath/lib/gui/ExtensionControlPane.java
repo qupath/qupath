@@ -235,13 +235,13 @@ public class ExtensionControlPane extends VBox {
     }
 
     private static Path getExtensionPath() {
-        var dir = ExtensionClassLoader.getInstance().getExtensionDirectory();
+        var dir = ExtensionClassLoader.getInstance().getExtensionsDirectory();
         if (dir == null || !Files.isDirectory(dir)) {
             logger.info("No extension directory found!");
             var dirUser = Commands.requestUserDirectory(true);
             if (dirUser == null)
                 return null;
-            dir = ExtensionClassLoader.getInstance().getExtensionDirectory();
+            dir = ExtensionClassLoader.getInstance().getExtensionsDirectory();
         }
         return dir;
     }
@@ -275,7 +275,7 @@ public class ExtensionControlPane extends VBox {
 
     @FXML
     private void openExtensionDir() {
-        var dir = ExtensionClassLoader.getInstance().getExtensionDirectory();
+        var dir = ExtensionClassLoader.getInstance().getExtensionsDirectory();
         if (dir != null) {
             GuiTools.browseDirectory(dir.toFile());
         } else {
