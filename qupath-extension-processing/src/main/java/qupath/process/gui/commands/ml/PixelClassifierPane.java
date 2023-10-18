@@ -565,7 +565,11 @@ public class PixelClassifierPane {
 		GridPaneUtils.setMinWidth(
 				Region.USE_PREF_SIZE,
 				FXUtils.getContentsOfType(stage.getScene().getRoot(), Region.class, true).toArray(Region[]::new));
-		
+
+		// Hack... this seems to fix a bug whereby the stage would grow in size whenever
+		// this combo box (and subsequently others) was clicked on
+		comboRegionFilter.setPrefWidth(100);
+
 		stage.show();
 		stage.setOnCloseRequest(e -> destroy());
 		
