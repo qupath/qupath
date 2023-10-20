@@ -57,7 +57,6 @@ public class ViewerActions {
 	
 	@ActionAccelerator("shortcut+alt+s")
 	@ActionConfig("ViewerActions.synchronize")
-
 	public final Action TOGGLE_SYNCHRONIZE_VIEWERS;
 
 	@ActionConfig("ViewerActions.grid1x1")

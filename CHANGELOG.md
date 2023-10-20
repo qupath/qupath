@@ -22,6 +22,7 @@ This is a work-in-progress for the next QuPath release.
   * New 'Grid size' commands to quickly create a grid of viewers
   * Optionally synchronize display settings across images
   * Optionally 'detach' a viewer to see it in a separate window
+  * 'Synchronize viewers' is now a persistent preference, which is turned *off* by default
 * *'Zoom to fit'* is now a regular button, not a persistent toggle button
   * Clicking 'Zoom to fit' updates the current viewer, but doesn't 'lock' its status to block panning/zooming further
 * Completely new log viewer to access more logging information

@@ -143,7 +143,7 @@ public class ViewerManager implements QuPathViewerListener {
 
 	private final Color colorBorder = Color.rgb(180, 0, 0, 0.5);
 
-	private BooleanProperty synchronizeViewers = new SimpleBooleanProperty(true);
+	private BooleanProperty synchronizeViewers = PathPrefs.createPersistentPreference("synchronizeViewers", false);
 
 	private Map<QuPathViewer, ViewerPosition> lastViewerPosition = new WeakHashMap<>();
 
