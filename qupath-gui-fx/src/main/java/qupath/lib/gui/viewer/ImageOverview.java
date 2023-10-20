@@ -83,7 +83,7 @@ class ImageOverview implements QuPathViewerListener {
 
 	protected void mouseViewerToLocation(double x, double y) {
 		ImageServer<BufferedImage> server = viewer.getServer();
-		if (server == null || viewer.getZoomToFit())
+		if (server == null)
 			return;
 		double cx = x / getWidth() * server.getWidth();
 		double cy = y / getHeight() * server.getHeight();
@@ -147,7 +147,7 @@ class ImageOverview implements QuPathViewerListener {
 		
 		
 		// Draw the currently-visible region, if we have a viewer and it isn't 'zoom to fit' (in which case everything is visible)
-		if (!viewer.getZoomToFit() && shapeVisible != null) {
+		if (shapeVisible != null) {
 			g.setStroke(color);
 			g.setLineWidth(1);
 			

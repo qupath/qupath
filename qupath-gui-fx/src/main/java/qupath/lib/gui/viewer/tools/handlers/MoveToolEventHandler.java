@@ -220,10 +220,6 @@ public class MoveToolEventHandler extends AbstractPathToolEventHandler {
 			}
 		}
 		
-		// Don't allow dragging if 'zoom to fit' selected
-		if (viewer.getZoomToFit())
-			return;
-		
 		// If we don't have a previous point, we aren't dragging (e.g. there was an alt-click)
 		if (pDragging == null)
 			return;

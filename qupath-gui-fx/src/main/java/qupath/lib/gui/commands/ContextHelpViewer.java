@@ -235,7 +235,6 @@ public class ContextHelpViewer {
 				createLargeNonPyramidal(),
 				createPixelSizeMissing(),
 				createImageTypeMissing(),
-				createZoomToFitEntry(),
 				createSelectionModelEntry(),
 				createAnnotationsHiddenEntry(),
 				createDetectionsHiddenEntry(),
@@ -550,14 +549,6 @@ public class ContextHelpViewer {
 				"ContextHelp.warning.opacityZero");
 		entry.visibleProperty().bind(
 				qupath.getOverlayOptions().opacityProperty().lessThanOrEqualTo(0.0));
-		return entry;
-	}
-
-	private HelpListEntry createZoomToFitEntry() {
-		var entry = HelpListEntry.createWarning(
-				"ContextHelp.warning.zoomToFit", createIcon(PathIcons.ZOOM_TO_FIT));
-		entry.visibleProperty().bind(
-				qupath.viewerProperty().flatMap(QuPathViewer::zoomToFitProperty));
 		return entry;
 	}
 	

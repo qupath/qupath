@@ -222,8 +222,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	private double yCenter = 0;
 	private DoubleProperty downsampleFactor = new SimpleDoubleProperty(1.0);
 	private DoubleProperty rotationProperty = new SimpleDoubleProperty(0);
-	private BooleanProperty zoomToFit = new SimpleBooleanProperty(false);
-	
+
 	private DoubleProperty gammaProperty = new SimpleDoubleProperty(1.0);
 	
 	// Affine transform used to apply rotation
@@ -310,26 +309,12 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		});
 		
 		canvas.widthProperty().addListener((e, f, g) -> {
-			if (getZoomToFit()) {
-				centerImage();
-				// Make sure the downsample factor is being continually updated
-				downsampleFactor.set(getZoomToFitDownsampleFactor());
-				repaint();
-			} else {
-				updateAffineTransform();
-				repaint();
-			}
+			updateAffineTransform();
+			repaint();
 		});
 		canvas.heightProperty().addListener((e, f, g) -> {
-			if (getZoomToFit()) {
-				centerImage();
-				// Make sure the downsample factor is being continually updated
-				downsampleFactor.set(getZoomToFitDownsampleFactor());
-				repaint();
-			} else {
-				updateAffineTransform();
-				repaint();
-			}
+			updateAffineTransform();
+			repaint();
 		});
 		
 		pane = new StackPane();
@@ -881,15 +866,6 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 			fireVisibleRegionChangedEvent(getDisplayedRegionShape());
 		});
 		
-		zoomToFit.addListener((v, o, n) -> {
-			if (zoomToFit.get()) {
-				setDownsampleFactorImpl(getZoomToFitDownsampleFactor(), -1, -1);
-				centerImage();
-			}
-			imageUpdated = true;
-			repaint();
-		});
-		
 		rotationProperty.addListener((v, o, n) -> {
 			imageUpdated = true;
 			updateAffineTransform();
@@ -1424,20 +1400,14 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	}
 
 	/**
-	 * Returns the value of {@link #zoomToFitProperty()}.
+	 * Request that the downsample is set to contain the entire image, and the image is centered in the viewer.
 	 * @return
 	 */
-	public boolean getZoomToFit() {
-		return zoomToFit.get();
-	}
-	
-	/**
-	 * Property to request that the downsample and location properties are adjusted automatically to fit the 
-	 * current image within the available viewer component.
-	 * @return
-	 */
-	public BooleanProperty zoomToFitProperty() {
-		return zoomToFit;
+	public void zoomToFit() {
+		if (getServer() == null)
+			return;
+		setDownsampleFactorImpl(getZoomToFitDownsampleFactor(), -1, -1);
+		centerImage();
 	}
 
 	/**
@@ -2459,10 +2429,6 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	 * to the range <code>getMinDownsample</code> to <code>getMaxDownsample</code>.
 	 */
 	public void setDownsampleFactor(double downsampleFactor, double cx, double cy, boolean clipToMinMax) {
-		
-		// Don't allow setting if we have 'zoom to fit'
-		if (getZoomToFit())
-			return;
 		
 		// Ensure within range, if necessary
 		if (clipToMinMax)
