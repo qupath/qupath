@@ -203,7 +203,7 @@ final class ViewTrackerSlideOverview {
 		drawImage(g, scaledMap);
 		
 		// Draw the currently-visible region, if we have a viewer and it isn't 'zoom to fit' (in which case everything is visible)
-		if (!viewer.getZoomToFit() && shapeVisible != null) {
+		if (shapeVisible != null) {
 			g.setStroke(color);
 			g.setLineWidth(1);
 			

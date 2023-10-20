@@ -50,9 +50,6 @@ class ScrollEventPanningFilter implements EventHandler<ScrollEvent> {
 				return;
 			}
 			
-			if (viewer.getZoomToFit())
-				return;
-			
 			// Don't pan with inertia events (use the 'mover' instead)
 			if (e.isInertia()) {
 				e.consume();

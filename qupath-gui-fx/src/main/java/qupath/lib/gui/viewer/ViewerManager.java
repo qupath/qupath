@@ -135,8 +135,6 @@ public class ViewerManager implements QuPathViewerListener {
 	private ViewerPlusDisplayOptions viewerDisplayOptions = new ViewerPlusDisplayOptions();
 	private OverlayOptions overlayOptions = new OverlayOptions();
 	
-	private BooleanProperty zoomToFit = new SimpleBooleanProperty(false);
-
 	/**
 	 * Since v0.5.0, this uses a Reference so that we can potentially allow garbage collection is memory is scare
 	 * (and the annotation might otherwise be dragging in a whole object hierarchy).
@@ -145,7 +143,7 @@ public class ViewerManager implements QuPathViewerListener {
 
 	private final Color colorBorder = Color.rgb(180, 0, 0, 0.5);
 
-	private BooleanProperty synchronizeViewers = new SimpleBooleanProperty(true);
+	private BooleanProperty synchronizeViewers = PathPrefs.createPersistentPreference("synchronizeViewers", false);
 
 	private Map<QuPathViewer, ViewerPosition> lastViewerPosition = new WeakHashMap<>();
 
@@ -327,10 +325,6 @@ public class ViewerManager implements QuPathViewerListener {
 		return activeViewerProperty.get();
 	}
 	
-	public BooleanProperty zoomToFitProperty() {
-		return zoomToFit;
-	}
-
 	/**
 	 * Get a read-only property representing the currently active viewer.
 	 * Only one viewer can be active, and this should not be null (i.e. the list of {@link #getAllViewers()} 
@@ -584,7 +578,7 @@ public class ViewerManager implements QuPathViewerListener {
 	public void visibleRegionChanged(QuPathViewer viewer, Shape shape) {
 		if (viewer == null)
 			return;
-		if (viewer != getActiveViewer() || viewer.isImageDataChanging() || zoomToFit.get()) {
+		if (viewer != getActiveViewer() || viewer.isImageDataChanging()) {
 			return;
 		}
 
@@ -790,8 +784,6 @@ public class ViewerManager implements QuPathViewerListener {
 		
 		viewer.getView().addEventFilter(MouseEvent.MOUSE_PRESSED, e -> viewer.getView().requestFocus());
 
-		viewer.zoomToFitProperty().bind(zoomToFit);
-		
 		// Create popup menu
 		setViewerPopupMenu(viewer);
 		
