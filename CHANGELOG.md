@@ -62,7 +62,6 @@ This is a work-in-progress for the next QuPath release.
 #### Platforms
 * Much improved Apple Silicon support, including with OpenSlide
   * See [below](#important-info-for-mac-users) for details
-* New .deb installer for Linux (experimental; .rpm planned for the future)
 
 #### Import & export
 * SVG export now supports overlays (https://github.com/qupath/qupath/issues/1272)
@@ -155,7 +154,7 @@ This appears to be related to time spent initializing JavaFX.
 * OpenCV 4.7.0
 * OpenSlide 4.0.0
 * Picocli 4.7.5
-* RichTextFX 0.11.1
+* RichTextFX 0.11.2
 * SLF4J 2.0.9
 * snakeyaml 2.2
 
