@@ -250,7 +250,8 @@ public class PathObjectPainter {
 
 		// Always paint selected objects, otherwise check if the object should be hidden
 		if (!isSelected) {
-			if (overlayOptions.isPathClassHidden(pathObject.getPathClass()) || isHiddenObjectType(pathObject, overlayOptions))
+			if ((overlayOptions.isPathClassHidden(pathObject.getPathClass()) && !pathObject.isTMACore())
+					|| isHiddenObjectType(pathObject, overlayOptions))
 				return false;
 		}
 
