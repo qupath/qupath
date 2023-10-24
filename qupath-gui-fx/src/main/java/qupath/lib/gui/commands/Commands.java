@@ -854,7 +854,8 @@ public class Commands {
 	
 	// TODO: Make the extension modifiable
 	private static StringProperty defaultScreenshotExtension = PathPrefs.createPersistentPreference("defaultScreenshotExtension", "*.png");
-	
+
+	private static File lastSnapshotDirectory = null;
 	
 	/**
 	 * Save an image snapshot, prompting the user to select the output file.
@@ -886,14 +887,32 @@ public class Commands {
 			extensionFilters.remove(selectedFilter);
 			extensionFilters.add(0, selectedFilter);
 		}
+
+		// Choose a suitable initial directory
+		var initialDirectory = lastSnapshotDirectory;
+		if (initialDirectory == null || !initialDirectory.exists()) {
+			var project = qupath.getProject();
+			if (project != null) {
+				var path = project.getPath();
+				if (path != null) {
+					if (Files.isDirectory(path))
+						initialDirectory = path.toFile();
+					else if (Files.isRegularFile(path))
+						initialDirectory = path.getParent().toFile();
+				}
+			}
+		}
+
 		var chooser = FileChoosers.buildFileChooser()
 				.extensionFilters(extensionFilters)
 				.selectedExtensionFilter(selectedFilter)
+				.initialDirectory(initialDirectory)
 				.build();
 
 		File fileOutput = chooser.showSaveDialog(qupath.getStage());
 		if (fileOutput == null)
 			return false;
+		lastSnapshotDirectory = fileOutput.getParentFile();
 
 		// Loop through the writers and stop when we are successful
 		for (var writer : compatibleWriters) {
