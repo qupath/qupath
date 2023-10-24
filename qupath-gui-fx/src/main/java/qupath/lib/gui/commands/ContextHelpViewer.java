@@ -27,6 +27,7 @@ import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.binding.LongBinding;
 import javafx.beans.binding.ObjectExpression;
+import javafx.beans.binding.SetBinding;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -240,6 +241,7 @@ public class ContextHelpViewer {
 				createDetectionsHiddenEntry(),
 				createPixelClassificationOverlayHiddenEntry(),
 				createTMAGridHiddenEntry(),
+				createHiddenClassificationsEntry(),
 				createNoImageEntry(),
 				createNoProjectEntry(),
 				createOpacityZeroEntry(),
@@ -523,6 +525,13 @@ public class ContextHelpViewer {
 				createIcon(PathIcons.TMA_GRID));
 		entry.visibleProperty().bind(
 				qupath.getOverlayOptions().showTMAGridProperty().not());
+		return entry;
+	}
+
+	private HelpListEntry createHiddenClassificationsEntry() {
+		var entry = HelpListEntry.createWarning(
+				"ContextHelp.warning.classificationsHidden");
+		entry.visibleProperty().bind(Bindings.isEmpty(qupath.getOverlayOptions().hiddenClassesProperty()).not());
 		return entry;
 	}
 	
