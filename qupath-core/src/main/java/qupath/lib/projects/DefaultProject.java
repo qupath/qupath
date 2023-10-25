@@ -765,13 +765,17 @@ class DefaultProject implements Project<BufferedImage> {
 			}
 			
 			// If successful, write the server (including metadata)
-			var currentServerBuilder = imageData.getServer().getBuilder();
+			var server = imageData.getServer();
+			var currentServerBuilder = server.getBuilder();
 			if (currentServerBuilder != null && !currentServerBuilder.equals(this.serverBuilder)) {
 				this.serverBuilder = currentServerBuilder;
-				// Write the server - it isn't used, but it may enable us to rebuild the server from the data directory if the project is lost
+				// Write the server - it isn't used, but it may enable us to rebuild the server from the data directory
+				// if the project is lost.
+				// Note that before v0.5.0, this actually wrote the server builder - but this was missing type
+				// information, so recovery of the actual server was difficult.
 				var pathServer = getServerPath();
 				try (var out = Files.newBufferedWriter(pathServer, StandardCharsets.UTF_8)) {
-					GsonTools.getInstance().toJson(serverBuilder, out);
+					GsonTools.getInstance().toJson(server, out);
 				} catch (Exception e) {
 					logger.warn("Unable to write server to {}", pathServer);
 					Files.deleteIfExists(pathServer);
