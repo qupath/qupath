@@ -349,11 +349,18 @@ class ProjectImportImagesCommand {
 						try {
 							var uri = GeneralTools.toURI(item);
 							UriImageSupport<BufferedImage> support;
-							if (requestedBuilder == null)
+							if (requestedBuilder == null) {
 								support = ImageServers.getImageSupport(uri, args);
-							else
+								if (support == null)
+									logger.warn("Unable to open {} with any reader", uri);
+							} else {
 								support = ImageServers.getImageSupport(requestedBuilder, uri, args);
-							if (support != null)
+								if (support == null)
+									logger.warn("Unable to open {} with {}", uri, requestedBuilder.getName());
+							}
+							if (support == null)
+								return Collections.emptyList();
+							else
 								return support.getBuilders();
 						} catch (Exception e) {
 							logger.error("Unable to add " + item, e);

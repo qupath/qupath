@@ -248,7 +248,17 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 	 * @throws URISyntaxException
 	 */
 	static BioFormatsImageServer checkSupport(URI uri, final BioFormatsServerOptions options, String...args) throws FormatException, IOException, DependencyException, ServiceException, URISyntaxException {
-		return new BioFormatsImageServer(uri, options, args);
+		var server = new BioFormatsImageServer(uri, options, args);
+		// Attempt to read one pixel from the image.
+		// This is expected to throw an exception if it fails; without this check, Bio-Formats can appear to work
+		// but then fail when trying to read the first tile.
+		// The risk is that this will be slow for large, non-tiled images.
+		var reader = server.readerPool.getMainReader();
+		if (reader.getSizeX() > 0 && reader.getSizeY() > 0 && reader.openBytes(0, 0, 0, 1, 1) != null) {
+			return server;
+		} else {
+			throw new IOException("Unable to read bytes from " + uri);
+		}
 	}
 	
 	BioFormatsImageServer(URI uri, final BioFormatsServerOptions options, String...args) throws FormatException, IOException, DependencyException, ServiceException, URISyntaxException {
@@ -1176,7 +1186,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			} else {
 				imageReader = new ImageReader(getDefaultClassList());
 			}
-						
+
 			imageReader.setFlattenedResolutions(false);
 			
 			// Try to set any reader options that we have
@@ -1470,8 +1480,12 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		
 		
 		private static ClassList<IFormatReader> unwrapClasslist(IFormatReader reader) {
-			while (reader instanceof ReaderWrapper)
-				reader = ((ReaderWrapper)reader).getReader();
+			while (reader instanceof ReaderWrapper || reader instanceof ImageReader) {
+				if (reader instanceof ReaderWrapper wrapper)
+					reader = wrapper.getReader();
+				else
+					reader = ((ImageReader)reader).getReader();
+			}
 			var classlist = new ClassList<>(IFormatReader.class);
 			classlist.addClass(reader.getClass());
 			return classlist;
