@@ -321,16 +321,14 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 	}
 	
 	
-	protected synchronized boolean stopWaiting(final RegionRequest request) {
-		synchronized (waitingMap) {
-			if (clearingCache) {
-				//			synchronized(this) {
-				logger.warn("Stop waiting called while clearing cache: {}", Thread.currentThread());
-				return waitingMap.remove(request) != null;
-				//			}
-			} else
-				return waitingMap.remove(request) != null;
-		}
+	protected boolean stopWaiting(final RegionRequest request) {
+		if (clearingCache) {
+			//			synchronized(this) {
+			logger.warn("Stop waiting called while clearing cache: {}", Thread.currentThread());
+			return waitingMap.remove(request) != null;
+			//			}
+		} else
+			return waitingMap.remove(request) != null;
 	}
 	
 	
@@ -375,9 +373,7 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 					return null;
 				pool.execute(worker);
 			}
-			synchronized (waitingMap) {
-				waitingMap.put(request, worker);
-			}
+			waitingMap.put(request, worker);
 		}
 		return worker;
 	}
@@ -467,18 +463,16 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 		try {
 			if (!waitingMap.isEmpty()) {
 				String serverPath = server.getPath();
-				synchronized (waitingMap) {
-					logger.trace("Waiting map size before server cache cleared: {}", waitingMap.size());
-					Iterator<Entry<RegionRequest, TileWorker<T>>> iter = waitingMap.entrySet().iterator();
-					while (iter.hasNext()) {
-						logger.trace("Waiting map size during server clear: {}", waitingMap.size());
-						Entry<RegionRequest, TileWorker<T>> entry = iter.next();
-						if (serverPath.equals(entry.getKey().getPath())) {
-							logger.trace("Removing entry from waiting map for thread  {}", Thread.currentThread().getId());
-							iter.remove();
-							entry.getValue().cancel(true);
-							workers.remove(entry.getValue());
-						}
+				logger.trace("Waiting map size before server cache cleared: {}", waitingMap.size());
+				Iterator<Entry<RegionRequest, TileWorker<T>>> iter = waitingMap.entrySet().iterator();
+				while (iter.hasNext()) {
+					logger.trace("Waiting map size during server clear: {}", waitingMap.size());
+					Entry<RegionRequest, TileWorker<T>> entry = iter.next();
+					if (serverPath.equals(entry.getKey().getPath())) {
+						logger.trace("Removing entry from waiting map for thread  {}", Thread.currentThread().getId());
+						iter.remove();
+						entry.getValue().cancel(true);
+						workers.remove(entry.getValue());
 					}
 				}
 			}
@@ -496,15 +490,13 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 	public synchronized void clearCacheForRequestOverlap(final RegionRequest request) {
 		// Ensure any current requests are discarded
 		if (!waitingMap.isEmpty()) {
-			synchronized (waitingMap) {
-				Iterator<Entry<RegionRequest, TileWorker<T>>> iter = waitingMap.entrySet().iterator();
-				while (iter.hasNext()) {
-					Entry<RegionRequest, TileWorker<T>> entry = iter.next();
-					if (request.overlapsRequest(entry.getKey())) {
-						iter.remove();
-						entry.getValue().cancel(true);
-						workers.remove(entry.getValue());
-					}
+			Iterator<Entry<RegionRequest, TileWorker<T>>> iter = waitingMap.entrySet().iterator();
+			while (iter.hasNext()) {
+				Entry<RegionRequest, TileWorker<T>> entry = iter.next();
+				if (request.overlapsRequest(entry.getKey())) {
+					iter.remove();
+					entry.getValue().cancel(true);
+					workers.remove(entry.getValue());
 				}
 			}
 		}
@@ -620,9 +612,7 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 				
 				TileWorker<T> worker = createTileWorker(temp.server, request, cache, false);
 				logger.trace("Adding {} to waiting map for thread {}", request, Thread.currentThread().getId());
-				synchronized (waitingMap) {
-					waitingMap.put(request, worker);
-				}
+				waitingMap.put(request, worker);
 				if (temp.server instanceof GeneratingImageServer) {
 					if (!poolLocal.isShutdown())
 						poolLocal.execute(worker);
