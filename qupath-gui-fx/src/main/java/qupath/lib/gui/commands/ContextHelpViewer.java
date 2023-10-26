@@ -246,7 +246,8 @@ public class ContextHelpViewer {
 				createNoProjectEntry(),
 				createOpacityZeroEntry(),
 				createGammaNotDefault(),
-				createInvertedColors()
+				createInvertedColors(),
+				createNoChannelsVisible()
 				);
 	}
 
@@ -592,6 +593,20 @@ public class ContextHelpViewer {
 				qupath.viewerProperty()
 						.map(QuPathViewer::getImageDisplay)
 						.flatMap(ImageDisplay::useInvertedBackgroundProperty));
+		return entry;
+	}
+
+	private HelpListEntry createNoChannelsVisible() {
+		var entry = HelpListEntry.createWarning(
+				"ContextHelp.warning.noChannels",
+				createIcon(PathIcons.CONTRAST));
+		var emptyChannels = qupath.viewerProperty()
+				.map(QuPathViewer::getImageDisplay)
+				.map(ImageDisplay::selectedChannels)
+				.flatMap(Bindings::isEmpty);
+		entry.visibleProperty().bind(qupath.imageDataProperty().isNotNull().and(Bindings.createBooleanBinding(
+				() -> emptyChannels == null || emptyChannels.getValue() == null ? false : emptyChannels.getValue(), emptyChannels
+		)));
 		return entry;
 	}
 
