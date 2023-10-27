@@ -1401,7 +1401,6 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 	/**
 	 * Request that the downsample is set to contain the entire image, and the image is centered in the viewer.
-	 * @return
 	 */
 	public void zoomToFit() {
 		if (getServer() == null)
