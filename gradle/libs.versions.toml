@@ -20,13 +20,19 @@ imagej          = "1.54f"
 # Compatibility with Java 17 with QuPath v0.5.x (may update to 21 in the future)
 jdk             = "17"
 
-# Need JavaCPP 1.5.9 for gradle fixes: https://github.com/bytedeco/gradle-javacpp/issues/28
-javacpp         = "1.5.9"
-# Potential issue with 4.6.0 and some ONNX models and/or use of x86_64 build on Apple Silicon
-  opencv        = "4.7.0-1.5.9"
-  cuda          = "12.1-8.9-1.5.9"
-#  opencv        = "4.6.0-1.5.8"
-#  cuda          = "11.8-8.6-1.5.8"
+# Would ideally use JavaCPP 1.5.9 for gradle fixes: https://github.com/bytedeco/gradle-javacpp/issues/28
+# But need JavaCPP 1.5.8 for OpenCV DNN: https://github.com/qupath/qupath/issues/1406
+# When JavaCPP 1.5.10 is released we should be able to just use that for both.
+javacppgradle   = "1.5.9"
+javacpp         = "1.5.8"
+# Stuck on 4.6.0 because of problem with OpenCVN DNN running x86_64 build on Apple Silicon
+# https://github.com/qupath/qupath/issues/1406
+# This is fixed in 4.8.0, but that requires JavaCPP 1.5.10 (not released yet)
+opencv          = "4.6.0-1.5.8"
+cuda            = "11.8-8.6-1.5.8"
+#  opencv        = "4.7.0-1.5.9"
+#  cuda          = "12.1-8.9-1.5.9"
+
 
 # JavaFX 20.0.1 and later seem to break search links in Javadocs
 javafx          = "20"
@@ -115,7 +121,7 @@ yaml          = ["snakeyaml"]
 
 [plugins]
 # Use the javafx plugin to add modules
-javacpp        = { id = "org.bytedeco.gradle-javacpp-platform",     version.ref = "javacpp" }
+javacpp        = { id = "org.bytedeco.gradle-javacpp-platform",     version.ref = "javacppgradle" }
 # If javafx plugin causes trouble, see https://github.com/openjfx/javafx-gradle-plugin#migrating-from-0014-to-010
 javafx         = { id = "org.openjfx.javafxplugin",                 version = "0.1.0" }
 #javafx         = { id = "org.openjfx.javafxplugin",                 version = "0.0.14" }
