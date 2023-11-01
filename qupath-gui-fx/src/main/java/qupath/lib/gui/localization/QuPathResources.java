@@ -143,11 +143,20 @@ public class QuPathResources {
 		@Override
 		public ResourceBundle newBundle(String baseName, Locale locale, String format, ClassLoader loader, boolean reload) 
 				throws IllegalAccessException, InstantiationException, IOException {
-			
+
+			// Try to get a bundle the 'normal' way
 			ResourceBundle bundle = super.newBundle(baseName, locale, format, loader, reload);
 			if (bundle != null)
 				return bundle;
-			
+
+			// If the bundle is not found in the default location, see if we need to use the extension class loader.
+			// (The default is the app class loader, because extensions are in the unnamed module.)
+			if (loader != ExtensionClassLoader.getInstance()) {
+				bundle = super.newBundle(baseName, locale, format, ExtensionClassLoader.getInstance(), reload);
+				if (bundle != null)
+					return bundle;
+			}
+
 			return searchForBundle(baseName, locale);
 		}
 		
