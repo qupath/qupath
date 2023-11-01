@@ -447,16 +447,19 @@ public class ActionTools {
 	private static void parseConfig(Action action, ActionConfig annotation, LocalizedResourceManager localizedResourceManager) {
 		if (annotation != null) {
 			String key = annotation.value();
+			String bundle = annotation.bundle();
+			if (bundle != null && bundle.isEmpty())
+				bundle = null;
 			if (annotation.bindLocale())
-				localizedResourceManager.registerProperty(action.textProperty(), key);
+				localizedResourceManager.registerProperty(action.textProperty(), bundle, key);
 			else
-				action.setText(QuPathResources.getString(key));
+				action.setText(QuPathResources.getString(bundle, key));
 			String descriptionKey = key + ".description";
-			if (QuPathResources.hasString(descriptionKey)) {
+			if (QuPathResources.hasString(bundle, descriptionKey)) {
 				if (annotation.bindLocale())
-					localizedResourceManager.registerProperty(action.longTextProperty(), descriptionKey);
+					localizedResourceManager.registerProperty(action.longTextProperty(), bundle, descriptionKey);
 				else
-					action.setLongText(QuPathResources.getString(descriptionKey));
+					action.setLongText(QuPathResources.getString(bundle, descriptionKey));
 			}
  		}
 	}
