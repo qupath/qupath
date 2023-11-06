@@ -155,7 +155,7 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
     		logger.warn("Unexpected drag-drop event {}", event);
     		return;
     	}
-    	
+
         Dragboard dragboard = event.getDragboard();
         Object source = event.getSource();
         
@@ -195,7 +195,7 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 				        logger.debug("Files dragged onto {}", source);
 						handleFileDrop(viewer2, files);
 					} else if (url != null ) {
-						logger.debug("URL dragged onto {}", source);
+						logger.debug("URL {} dragged onto {}", url, source);
 						handleURLDrop(viewer2, url);
 					} else if (string != null) {
 						logger.debug("Text dragged onto {}, treating as a URL", source);
@@ -211,7 +211,6 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 			event.setDropCompleted(true);
         } else
         	event.setDropCompleted(false);
-
 		event.consume();
     }
     

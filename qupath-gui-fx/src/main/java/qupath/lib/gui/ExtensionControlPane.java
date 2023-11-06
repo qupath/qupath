@@ -210,6 +210,7 @@ public class ExtensionControlPane extends VBox {
         try {
             askToDownload(repo);
         } catch (IOException | URISyntaxException | InterruptedException e) {
+            logger.error("Unable to download extension", e);
             Dialogs.showErrorNotification(QuPathResources.getString("ExtensionControlPane"),
                     QuPathResources.getString("ExtensionControlPane.unableToDownload"));
         }
@@ -244,6 +245,7 @@ public class ExtensionControlPane extends VBox {
             dir = ExtensionClassLoader.getInstance().getExtensionsDirectory();
             if (!Files.exists(dir)) {
                 try {
+                    logger.info("Creating extension directory: {}", dir);
                     Files.createDirectory(dir);
                 } catch (IOException e) {
                     logger.error("Unable to create extension directory");
