@@ -333,10 +333,8 @@ public class SimpleThresholdCommand implements Runnable {
 		stage.setScene(new Scene(pane));
 		stage.show();
 
+		stage.setMinHeight(370);
 		stage.sizeToScene();
-		// Permit horizontal resizing only
-		stage.maxHeightProperty().bind(stage.heightProperty());
-		stage.minHeightProperty().bind(stage.heightProperty());
 		stage.setResizable(true);
 		
 		stage.focusedProperty().addListener((v, o, n) -> {
