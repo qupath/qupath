@@ -84,6 +84,13 @@ public class BioFormatsServerBuilder implements ImageServerBuilder<BufferedImage
 				}
 				return UriImageSupport.createInstance(this.getClass(), supportLevel, builders.values());
 			} catch (Exception e) {
+				// Special case where the issue is that Bio-Formats isn't supported on Apple Silicon -
+				// we want to make more noise so that the user knows what's going on
+				if (e instanceof IOException ioe) {
+					String msg = ioe.getLocalizedMessage();
+					if (msg != null && msg.toLowerCase().contains("apple silicon"))
+						throw ioe;
+				}
 				logger.debug("Unable to create server using Bio-Formats", e);
 			}
 		}

@@ -366,9 +366,15 @@ public class ImageServers {
 			}
 		}
 		if (supports.isEmpty()) {
-			var exception = new IOException(buildBaseExceptionMessage(uri, args));
-			for (var e : exceptions)
-				exception.addSuppressed(e);
+			IOException exception;
+			String message = buildBaseExceptionMessage(uri, args);
+			if (exceptions.size() == 1)
+				exception = new IOException(message, exceptions.get(0));
+			else {
+				exception = new IOException(message);
+				for (var e : exceptions)
+					exception.addSuppressed(e);
+			}
 			throw exception;
 		}
 		Comparator<UriImageSupport<BufferedImage>> comparator = Collections.reverseOrder(new UriImageSupportComparator<>());

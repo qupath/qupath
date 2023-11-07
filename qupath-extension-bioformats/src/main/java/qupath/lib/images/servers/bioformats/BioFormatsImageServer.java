@@ -247,17 +247,21 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 	 * @throws ServiceException
 	 * @throws URISyntaxException
 	 */
-	static BioFormatsImageServer checkSupport(URI uri, final BioFormatsServerOptions options, String...args) throws FormatException, IOException, DependencyException, ServiceException, URISyntaxException {
-		var server = new BioFormatsImageServer(uri, options, args);
-		// Attempt to read one pixel from the image.
-		// This is expected to throw an exception if it fails; without this check, Bio-Formats can appear to work
-		// but then fail when trying to read the first tile.
-		// The risk is that this will be slow for large, non-tiled images.
-		var reader = server.readerPool.getMainReader();
-		if (reader.getSizeX() > 0 && reader.getSizeY() > 0 && reader.openBytes(0, 0, 0, 1, 1) != null) {
-			return server;
-		} else {
-			throw new IOException("Unable to read bytes from " + uri);
+	static BioFormatsImageServer checkSupport(URI uri, final BioFormatsServerOptions options, String...args) throws IOException {
+		try {
+			var server = new BioFormatsImageServer(uri, options, args);
+			// Attempt to read one pixel from the image.
+			// This is expected to throw an exception if it fails; without this check, Bio-Formats can appear to work
+			// but then fail when trying to read the first tile.
+			// The risk is that this will be slow for large, non-tiled images.
+			var reader = server.readerPool.getMainReader();
+			if (reader.getSizeX() > 0 && reader.getSizeY() > 0 && reader.openBytes(0, 0, 0, 1, 1) != null) {
+				return server;
+			} else {
+				throw new IOException("Unable to read bytes from " + uri);
+			}
+		} catch (Throwable t) {
+			throw ReaderPool.convertToIOException(t);
 		}
 	}
 	
