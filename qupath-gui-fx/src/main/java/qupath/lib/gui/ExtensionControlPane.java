@@ -78,7 +78,6 @@ public class ExtensionControlPane extends VBox {
     @FXML
     private ListView<QuPathExtension> extensionListView;
 
-
     @FXML
     private Button rmBtn;
     @FXML
@@ -87,7 +86,6 @@ public class ExtensionControlPane extends VBox {
     private Button submitBtn;
     @FXML
     private Button openExtensionDirBtn;
-
     @FXML
     private Button updateBtn;
     @FXML
@@ -130,11 +128,14 @@ public class ExtensionControlPane extends VBox {
         ExtensionManager extensionManager = QuPathGUI.getInstance().getExtensionManager();
         extensionManager.getLoadedExtensions().addListener(this::handleExtensionMapChange);
         extensionManager.getFailedExtensions().addListener(this::handleExtensionMapChange);
+
         openExtensionDirBtn.disableProperty().bind(
                 UserDirectoryManager.getInstance().userDirectoryProperty().isNull());
         downloadBtn.disableProperty().bind(
             repoTextArea.textProperty().isEmpty().or(ownerTextArea.textProperty().isEmpty()));
+
         downloadBtn.setGraphic(IconFactory.createNode(12, 12, IconFactory.PathIcons.DOWNLOAD));
+
         // By default, add failed extensions at the end of the list
         extensionListView.getItems().addAll(
                 extensionManager.getLoadedExtensions().values()
@@ -147,7 +148,6 @@ public class ExtensionControlPane extends VBox {
                         .sorted(Comparator.comparing(QuPathExtension::getName))
                         .toList());
         extensionListView.setCellFactory(listView -> new ExtensionListCell(extensionManager, listView));
-
 
         ownerTextArea.addEventHandler(KeyEvent.KEY_RELEASED, e -> {
             if (e.getCode() == KeyCode.ENTER) {
@@ -210,6 +210,7 @@ public class ExtensionControlPane extends VBox {
         try {
             askToDownload(repo);
         } catch (IOException | URISyntaxException | InterruptedException e) {
+            logger.error("Unable to download extension", e);
             Dialogs.showErrorNotification(QuPathResources.getString("ExtensionControlPane"),
                     QuPathResources.getString("ExtensionControlPane.unableToDownload"));
         }
@@ -242,6 +243,14 @@ public class ExtensionControlPane extends VBox {
             if (dirUser == null)
                 return null;
             dir = ExtensionClassLoader.getInstance().getExtensionsDirectory();
+            if (!Files.exists(dir)) {
+                try {
+                    logger.info("Creating extension directory: {}", dir);
+                    Files.createDirectory(dir);
+                } catch (IOException e) {
+                    logger.error("Unable to create extension directory");
+                }
+            }
         }
         return dir;
     }
