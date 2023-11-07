@@ -795,6 +795,8 @@ public class ViewerManager implements QuPathViewerListener {
 		// Listen to the scroll wheel
 		viewer.getView().setOnScroll(e -> {
 			if (viewer == getActiveViewer() || !getSynchronizeViewers()) {
+				if (!viewer.hasServer())
+					return;
 				double scrollUnits = e.getDeltaY() * PathPrefs.getScaledScrollSpeed();
 				
 				// Use shift down to adjust opacity

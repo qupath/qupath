@@ -1662,7 +1662,8 @@ public class QuPathGUI {
 			List<ServerBuilder<BufferedImage>> builders = support == null ? Collections.emptyList() : support.getBuilders();
 			
 			if (builders.isEmpty()) {
-				String message = "Unable to build ImageServer for " + pathNew + ".\nSee View > Show log for more details";
+				String name = fileNew == null ? pathNew : fileNew.getName();
+				String message = "No supported image reader found for " + name + ".\nSee View > Show log for more details";
 				Dialogs.showErrorMessage("Unable to build server", message);
 				return false;
 			}

@@ -487,23 +487,31 @@ class ProjectImportImagesCommand {
 					logger.error("Exception waiting for project import to complete: " + e.getLocalizedMessage(), e);
 				}
 
+				String errorMessage = null;
 				if (!failures.isEmpty()) {
-					String message;
 					if (failures.size() == 1)
-						message = "Failed to load one image.";
+						errorMessage = "Failed to load one image.";
 					else
-						message = "Failed to load " + failures.size() + " images.";
+						errorMessage = "Failed to load " + failures.size() + " images.";
 					if (requestedBuilder != null)
-						message += "\nThe image type might not be supported by '" + requestedBuilder.getName() + "'";
-					Dialogs.showErrorMessage("Import images", message);
-					
+						errorMessage += "\nThe image type might not be supported by '" + requestedBuilder.getName() + "'";
 					var toRemove = failures.stream().filter(p -> project.getImageList().contains(p)).toList();
 					project.removeAllImages(toRemove, true);
+				} else if (max == 0 && !items.isEmpty()) {
+					// If we have items, but no images to add, then probably none of the items were supported images
+					errorMessage = "Unable to add images - see log for more details";
 				}
-				
+				if (errorMessage != null) {
+					Dialogs.builder()
+							.error()
+							.owner(qupath.getStage())
+							.title("Import images")
+							.contentText(errorMessage)
+							.show();
+				}
+
 				// Now save changes
 				project.syncChanges();
-				
 				updateProgress(max, max);
 				return allAddedEntries;
 	         }

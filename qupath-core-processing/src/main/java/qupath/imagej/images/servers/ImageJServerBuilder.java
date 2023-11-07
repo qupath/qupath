@@ -26,10 +26,17 @@ package qupath.imagej.images.servers;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.net.URI;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
+import ij.IJ;
+import ij.io.Opener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import qupath.lib.common.GeneralTools;
 import qupath.lib.images.servers.FileFormatInfo;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerBuilder;
@@ -44,6 +51,13 @@ import qupath.lib.images.servers.FileFormatInfo.ImageCheckType;
 public class ImageJServerBuilder implements ImageServerBuilder<BufferedImage> {
 	
 	private static Logger logger = LoggerFactory.getLogger(ImageJServerBuilder.class);
+
+	/**
+	 * Check if image is a type that ImageJ won't be able to read
+	 */
+	private static Set<String> UNSUPPORTED_FORMATS = IntStream.of(
+		Opener.UNKNOWN, Opener.JAVA_OR_TEXT, Opener.ROI, Opener.TABLE, Opener.TEXT
+				).mapToObj(i -> Opener.types[i]).collect(Collectors.toSet());
 
 	@Override
 	public ImageServer<BufferedImage> buildServer(URI uri, String...args) {
@@ -76,8 +90,21 @@ public class ImageJServerBuilder implements ImageServerBuilder<BufferedImage> {
 		long height = type.getLargestImageHeight();
 		if (width > 0 && height > 0 && width * height >= Integer.MAX_VALUE)
 			return 0;
-		
-		return 1;
+
+		var path = GeneralTools.toPath(uri);
+		if (path == null)
+			return 0;
+		else {
+			// We can't use ImageJ to read ROIs, tables, etc.
+			String format = Opener.getFileFormat(path.toAbsolutePath().toString());
+			var unsupportedFormats = IntStream.of(
+					Opener.UNKNOWN, Opener.JAVA_OR_TEXT, Opener.ROI, Opener.TABLE, Opener.TEXT
+			).mapToObj(i -> Opener.types[i]).collect(Collectors.toSet());
+			if (unsupportedFormats.contains(format))
+				return 0f;
+			else
+				return 1f;
+		}
 	}
 	
 	@Override
