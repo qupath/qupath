@@ -754,14 +754,15 @@ public final class GeneralTools {
 	 * 
 	 * @param fileToDelete
 	 * @param preferTrash
+	 * @return true if the file is successfully deleted, false otherwise
 	 */
-	public static void deleteFile(File fileToDelete, boolean preferTrash) {
+	public static boolean deleteFile(File fileToDelete, boolean preferTrash) {
 		if (preferTrash && Desktop.isDesktopSupported()) {
 			var desktop = Desktop.getDesktop();
 			if (desktop.isSupported(Desktop.Action.MOVE_TO_TRASH) && desktop.moveToTrash(fileToDelete))
-				return;
+				return true;
 		}
-		fileToDelete.delete();
+		return fileToDelete.delete();
 	}
 
 

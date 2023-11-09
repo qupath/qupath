@@ -35,6 +35,7 @@ import org.apache.commons.text.WordUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.fx.dialogs.Dialogs;
+import qupath.fx.utils.FXUtils;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.Version;
 import qupath.lib.gui.actions.ActionTools;
@@ -309,14 +310,21 @@ public class ExtensionControlPane extends VBox {
             var file = new File(url.toURI().getPath());
             if (file.exists()) {
                 logger.info("Removing extension: {}", url);
-                GeneralTools.deleteFile(new File(url.toURI().getPath()), true);
-                Dialogs.showInfoNotification(
-                        QuPathResources.getString("ExtensionControlPane"),
-                        String.format(QuPathResources.getString("ExtensionControlPane.extensionRemoved"), url));
+                if (GeneralTools.deleteFile(new File(url.toURI().getPath()), true)) {
+                    Dialogs.showInfoNotification(
+                            QuPathResources.getString("ExtensionControlPane"),
+                            String.format(QuPathResources.getString("ExtensionControlPane.extensionRemoved"), url));
+                } else {
+                    if (Dialogs.showYesNoDialog(QuPathResources.getString("ExtensionControlPane"),
+                            QuPathResources.getString("ExtensionControlPane.unableToDeletePrompt"))) {
+                        GuiTools.browseDirectory(file);
+                    }
+                    return;
+                }
             } else {
                 Dialogs.showWarningNotification(
                         QuPathResources.getString("ExtensionControlPane"),
-                        String.format(QuPathResources.getString("ExtensionControlPane.unableToDelete"), url));
+                        QuPathResources.getString("ExtensionControlPane.unableToFind"));
             }
             var manager = QuPathGUI.getInstance().getExtensionManager();
             manager.getLoadedExtensions().entrySet().removeIf(entry -> entry.getValue().equals(extension));
