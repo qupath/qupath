@@ -28,7 +28,9 @@ import java.net.URLClassLoader;
 import java.nio.file.FileVisitOption;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashSet;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Supplier;
 
 import org.slf4j.Logger;
@@ -46,6 +48,10 @@ public class ExtensionClassLoader extends URLClassLoader {
 	private static ExtensionClassLoader INSTANCE = null;
 
 	private Supplier<Path> extensionsDirectorySupplier;
+
+	private Set<Path> loadedJars = new HashSet<>();
+
+	private boolean isClosed = false;
 
 	private ExtensionClassLoader(Supplier<Path> extensionsDirectorySupplier) {
 		super(new URL[0], QuPathGUI.class.getClassLoader());
@@ -120,13 +126,27 @@ public class ExtensionClassLoader extends URLClassLoader {
 	
 	private void addJarFile(Path path) {
 		try {
-			addURL(path.toUri().toURL());
-			logger.info("Adding jar: {}", path);
-		} catch (MalformedURLException e) {
+			if (loadedJars.add(path)) {
+				if (isClosed) {
+					logger.warn("Extension classloader has been closed - you need to restart QuPath to add new extensions");
+					return;
+				}
+				var url = path.toUri().toURL();
+				addURL(url);
+				logger.info("Adding jar: {}", path);
+			}
+		} catch (Exception e) {
 			logger.debug("Error adding " + path + " to classpath", e);
 		}
 	}
-	
+
+	@Override
+	public void close() throws IOException {
+		// Retain a flag to avoid failing to load jars silently (without logging)
+		isClosed = true;
+		super.close();
+	}
+
 	private boolean isJarFile(Path path) {
 		return Files.isRegularFile(path) && path.getFileName().toString().toLowerCase().endsWith(".jar");
 	}

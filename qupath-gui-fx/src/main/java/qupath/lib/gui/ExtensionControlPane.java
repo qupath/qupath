@@ -310,16 +310,24 @@ public class ExtensionControlPane extends VBox {
             var file = new File(url.toURI().getPath());
             if (file.exists()) {
                 logger.info("Removing extension: {}", url);
-                if (GeneralTools.deleteFile(new File(url.toURI().getPath()), true)) {
-                    Dialogs.showInfoNotification(
-                            QuPathResources.getString("ExtensionControlPane"),
-                            String.format(QuPathResources.getString("ExtensionControlPane.extensionRemoved"), url));
-                } else {
-                    if (Dialogs.showYesNoDialog(QuPathResources.getString("ExtensionControlPane"),
-                            QuPathResources.getString("ExtensionControlPane.unableToDeletePrompt"))) {
-                        GuiTools.browseDirectory(file);
+                if (!GeneralTools.deleteFile(new File(url.toURI().getPath()), true)) {
+                    try {
+                        logger.warn("Closing extension classloader - will need to restart QuPath to add new extensions");
+                        ExtensionClassLoader.getInstance().close();
+                    } catch (Exception e) {
+                        logger.error("Error closing extension classloader: " + e.getMessage(), e);
                     }
-                    return;
+                    if (GeneralTools.deleteFile(new File(url.toURI().getPath()), true)) {
+                        Dialogs.showInfoNotification(
+                                QuPathResources.getString("ExtensionControlPane"),
+                                String.format(QuPathResources.getString("ExtensionControlPane.extensionRemoved"), url));
+                    } else {
+                        if (Dialogs.showYesNoDialog(QuPathResources.getString("ExtensionControlPane"),
+                                QuPathResources.getString("ExtensionControlPane.unableToDeletePrompt"))) {
+                            GuiTools.browseDirectory(file);
+                        }
+                        return;
+                    }
                 }
             } else {
                 Dialogs.showWarningNotification(
@@ -473,11 +481,10 @@ public class ExtensionControlPane extends VBox {
                 descriptionText.setText(WordUtils.wrap(extension.getDescription(), 80));
                 // core and non-core extensions have different classloaders;
                 // can't remove or update core ones
-                if (!extension.getClass().getClassLoader().getClass().equals(ExtensionClassLoader.class)) {
-                    rmBtn.setDisable(true);
-                    updateBtn.setDisable(true);
-                    gitHubBtn.setDisable(true);
-                }
+                boolean disableButtons = !extension.getClass().getClassLoader().getClass().equals(ExtensionClassLoader.class);
+                rmBtn.setDisable(disableButtons);
+                updateBtn.setDisable(disableButtons);
+                gitHubBtn.setDisable(disableButtons);
                 // if we don't have GitHub information, we can't update
                 // but we can remove
                 if (!(extension instanceof GitHubProject)) {
