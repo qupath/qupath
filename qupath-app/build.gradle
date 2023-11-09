@@ -115,33 +115,6 @@ dependencies {
 }
 
 /**
- * Extract native libraries.
- * This happens early, because it is useful to ensure the native libraries are
- * available if launching QuPath from an IDE.
- */
-tasks.register("extractNatives") {
-    description "Extract native libraries to a 'natives' directory"
-    group "QuPath"
-
-    doLast {
-        def nativesClassifier = project.properties['platform.classifier']
-        if (nativesClassifier == null) {
-            logger.warn("No natives classifier found!")
-            return
-        }
-        def additionalResourcesDir = file("${rootProject.buildDir}/natives")
-        configurations.runtimeClasspath.files.findAll({ it.getName().contains(nativesClassifier) }).each { file ->
-            logger.info("Extracting native libraries from {} into {}", file, additionalResourcesDir)
-            copy {
-                from zipTree(file)
-                into additionalResourcesDir.getAbsolutePath()
-                exclude "/META-INF/"
-            }
-        }
-    }
-}
-
-/**
  * Create a single javadoc jar
  */
 task mergedJavadocJar(type: Jar, dependsOn: rootProject.tasks.mergedJavadocs) {
@@ -153,9 +126,6 @@ task mergedJavadocJar(type: Jar, dependsOn: rootProject.tasks.mergedJavadocs) {
 /**
  * Specify task dependencies
  */
-extractNatives.mustRunAfter(allprojects.tasks.clean)
-compileJava.dependsOn(extractNatives)
-jpackage.dependsOn(extractNatives)
 jpackage.dependsOn(mergedJavadocJar)
 
 /**
@@ -705,4 +675,26 @@ static List<String> buildDefaultJvmArgs(String libraryPath = '$APPDIR', JavaVers
     javaOptions << '-XX:MaxRAMPercentage=50'
 
     return javaOptions
+}
+
+
+
+
+/**
+ * Export all icons from the icon factory (useful for documentation).
+ * This is here (and not in the gui-fx module) because it's needed to load extensions.
+ */
+task exportDocs(type: JavaExec) {
+    description "Export icons and command descriptions for documentation"
+    group "QuPath"
+
+    dependsOn('compileJava')
+    def docsDir = rootProject.layout.getBuildDirectory().dir('qupath-docs').get().getAsFile()
+    doFirst {
+        println "Making docs dir in ${docsDir.getAbsolutePath()}"
+        docsDir.mkdirs()
+    }
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'qupath.lib.gui.tools.DocGenerator'
+    args docsDir.getAbsolutePath(), "--all"
 }

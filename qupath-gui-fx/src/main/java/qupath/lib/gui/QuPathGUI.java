@@ -321,8 +321,10 @@ public class QuPathGUI {
 		// Add listeners to set default project and image data
 		syncDefaultImageDataAndProjectForScripting();
 		// We can't install the quit handler during startup, since it can cause a crash on some systems
-		// due to its reliance on Desktop - so post that request for later
-		Platform.runLater(this::tryToInstallAppQuitHandler);
+		// due to its reliance on Desktop - so post that request for later.
+		// (This is only done if the stage is shown, since when it is hidden the calls to Desktop can be problematic)
+		if (showStage)
+			Platform.runLater(this::tryToInstallAppQuitHandler);
 		initializeLocaleChangeListeners();
 		
 		// Refresh style - needs to be applied after showing the stage
