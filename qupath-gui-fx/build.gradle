@@ -46,21 +46,3 @@ javafx {
 	           "javafx.swing"]
 	configuration = 'api'
 }
-
-/**
- * Export all icons from the icon factory (useful for documentation).
- */
-task exportDocs(type: JavaExec) {
-    description "Export icons and command descriptions for documentation"
-    group "QuPath"
-
-    dependsOn('compileJava')
-    def docsDir = rootProject.layout.getBuildDirectory().dir('qupath-docs').get().getAsFile()
-    doFirst {
-        println "Making docs dir in ${docsDir.getAbsolutePath()}"
-        docsDir.mkdirs()
-    }
-    classpath = sourceSets.main.runtimeClasspath
-    mainClass = 'qupath.lib.gui.tools.DocGenerator'
-    args docsDir.getAbsolutePath(), "--all"
-}
