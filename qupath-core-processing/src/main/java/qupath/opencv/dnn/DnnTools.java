@@ -427,12 +427,12 @@ public class DnnTools {
 		var img = server.readRegion(request);
 		return OpenCVTools.imageToMat(img);
 	}
-	
+
 	/**
-	 * Read an image patch, optionally with a fixed size.
-	 * If the patch width and height are specified, these relate to the output (downsampled) image 
+	 * Read an image patch, optionally with a fixed size and using zero-padding if required.
+	 * If the patch width and height are specified, these relate to the output (downsampled) image
 	 * and are centered on the ROI centroid. Otherwise the ROI bounds are used.
-	 * 
+	 *
 	 * @param server the image server
 	 * @param roi the ROI for which the patch should be extracted
 	 * @param downsample the downsample value
@@ -440,8 +440,29 @@ public class DnnTools {
 	 * @param height the patch height, or -1 if the ROI bounds should be used
 	 * @return
 	 * @throws IOException
+	 * @see #readPatch(ImageServer, ROI, double, int, int, int)
 	 */
 	public static Mat readPatch(ImageServer<BufferedImage> server, ROI roi, double downsample, int width, int height) throws IOException {
+		return readPatch(server, roi, downsample, width, height, opencv_core.BORDER_CONSTANT);
+	}
+
+	/**
+	 * Read an image patch, optionally with a fixed size.
+	 * If the patch width and height are specified, these relate to the output (downsampled) image
+	 * and are centered on the ROI centroid. Otherwise the ROI bounds are used.
+	 *
+	 * @param server the image server
+	 * @param roi the ROI for which the patch should be extracted
+	 * @param downsample the downsample value
+	 * @param width the patch width, or -1 if the ROI bounds should be used
+	 * @param height the patch height, or -1 if the ROI bounds should be used
+	 * @param borderPadding the border padding for out-of-bounds requests, for use with OpenCV's copyMakeBorder
+	 * @return
+	 * @throws IOException
+	 * @see #readPatch(ImageServer, ROI, double, int, int)
+	 */
+	public static Mat readPatch(ImageServer<BufferedImage> server, ROI roi, double downsample, int width, int height,
+								int borderPadding) throws IOException {
 		Mat input;
 		if (width < 0 && height < 0) {
 			var request = RegionRequest.createInstance(server.getPath(), downsample, roi);
@@ -485,14 +506,12 @@ public class DnnTools {
 					int padX = (int)Math.round((width - matWidth) * xProp);
 					int padY = (int)Math.round((height - matHeight) * yProp);
 					
-					// TODO: Consider most appropriate boundary padding
 					opencv_core.copyMakeBorder(input, input,
 							padY,
 							height - matHeight - padY,
 							padX,
 							width - matWidth - padX,
-							opencv_core.BORDER_CONSTANT);
-//							opencv_core.BORDER_REPLICATE);
+							borderPadding);
 				}
 			}
 		}
