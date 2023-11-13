@@ -88,9 +88,9 @@ public class BioimageIoTools {
 	 * @param spec
 	 * @return
 	 */
-	public static DnnModel<?> buildDnnModel(BioimageIoModel spec) {
+	public static DnnModel buildDnnModel(BioimageIoModel spec) {
 		// Try to find compatible weights
-		DnnModel<?> dnn = null;
+		DnnModel dnn = null;
 		
 		// Check for weights in the order that we're likely to support them
 		// This is based upon the fact that we will most likely be relying upon 
@@ -300,7 +300,7 @@ public class BioimageIoTools {
 		}
 		
 		// Try to find compatible weights
-		DnnModel<?> dnn = buildDnnModel(modelSpec);
+		var dnn = buildDnnModel(modelSpec);
 		
 		if (dnn == null)
 			throw new UnsupportedOperationException("Unable to create a DnnModel for " + modelSpec.getName() + 

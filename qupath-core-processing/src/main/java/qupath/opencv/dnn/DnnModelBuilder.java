@@ -28,10 +28,9 @@ package qupath.opencv.dnn;
  * 
  * @author Pete Bankhead
  *
- * @param <T>
  * @since v0.4.0
  */
-public interface DnnModelBuilder<T> {
+public interface DnnModelBuilder {
 	
 	/**
 	 * Build a {@link DnnModel} if possible, or return null otherwise.
@@ -39,6 +38,6 @@ public interface DnnModelBuilder<T> {
 	 * @param params
 	 * @return
 	 */
-	public DnnModel<T> buildModel(DnnModelParams params);
+	DnnModel buildModel(DnnModelParams params);
 	
 }

@@ -254,7 +254,7 @@ public class PatchClassifierParams {
 		private PatchClassifierParams params;
 		
 		private Padding dnnPadding;
-		private DnnModel<?> dnnModel;
+		private DnnModel dnnModel;
 		private String[] dnnOutputNames;
 		
 		private Builder() {
@@ -412,7 +412,7 @@ public class PatchClassifierParams {
 		 * @return
 		 * @see #prediction(ImageOp)
 		 */
-		public Builder prediction(DnnModel<?> model, Padding padding, String... outputNames) {
+		public Builder prediction(DnnModel model, Padding padding, String... outputNames) {
 			this.dnnModel = model;
 			this.dnnPadding = padding;
 			this.dnnOutputNames = outputNames;

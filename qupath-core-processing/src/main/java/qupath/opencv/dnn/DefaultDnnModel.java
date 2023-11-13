@@ -37,7 +37,7 @@ import org.slf4j.LoggerFactory;
  *
  * @param <T>
  */
-class DefaultDnnModel<T> implements DnnModel<T> {
+class DefaultDnnModel<T> extends AbstractDnnModel<T> {
 	
 	private static final Logger logger = LoggerFactory.getLogger(DefaultDnnModel.class);
 	

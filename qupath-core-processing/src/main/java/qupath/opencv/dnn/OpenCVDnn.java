@@ -68,7 +68,7 @@ import qupath.opencv.ops.ImageOps;
  * @author Pete Bankhead
  *
  */
-public class OpenCVDnn implements UriResource, DnnModel<Mat> {
+public class OpenCVDnn extends AbstractDnnModel<Mat> implements UriResource {
 	
 	private static Logger logger = LoggerFactory.getLogger(OpenCVDnn.class);
 	

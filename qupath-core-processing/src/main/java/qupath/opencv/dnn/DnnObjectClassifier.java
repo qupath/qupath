@@ -57,14 +57,13 @@ import qupath.lib.objects.classes.PathClass;
  * <b>Warning!</b> This implementation is likely to change in the future.
  * 
  * @author Pete Bankhead
- * @param <T> class of the blob used by the deep learning model
  * @version 0.3.0
  */
-public class DnnObjectClassifier<T> extends AbstractObjectClassifier<BufferedImage> implements UriResource {
+public class DnnObjectClassifier extends AbstractObjectClassifier<BufferedImage> implements UriResource {
 	
 	private static final Logger logger = LoggerFactory.getLogger(DnnObjectClassifier.class);
 	
-	private DnnModel<T> model;
+	private DnnModel model;
 	private List<PathClass> pathClasses;
 	private double requestedPixelSize = 1.0;
 	private int width, height;
@@ -86,7 +85,7 @@ public class DnnObjectClassifier<T> extends AbstractObjectClassifier<BufferedIma
 	 * @param height patch height, in pixels, at the classification side
 	 * @param requestedPixelSize requested pixel size, in calibrated units, used to calculate the downsample value
 	 */
-	public DnnObjectClassifier(PathObjectFilter filter, DnnModel<T> model, List<PathClass> pathClasses, int width, int height, double requestedPixelSize) {
+	public DnnObjectClassifier(PathObjectFilter filter, DnnModel model, List<PathClass> pathClasses, int width, int height, double requestedPixelSize) {
 		super(filter);
 		this.model = model;
 		this.pathClasses = new ArrayList<>(pathClasses);
