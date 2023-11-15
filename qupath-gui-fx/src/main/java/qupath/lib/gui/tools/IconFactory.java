@@ -862,6 +862,7 @@ public class IconFactory {
 		double scale = size / maxDim;
 		var params = new SnapshotParameters();
 		params.setTransform(Transform.scale(scale, scale));
+		params.setFill(Color.TRANSPARENT);
 
 		return glyph.snapshot(params, image);
 	}
