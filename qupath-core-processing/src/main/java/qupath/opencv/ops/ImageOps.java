@@ -2987,7 +2987,7 @@ public class ImageOps {
 
 		try (@SuppressWarnings("unchecked")var scope = new PointerScope()) {
 			
-			var output = model.convertAndPredict(Map.of(inputName, mat));
+			var output = model.predict(Map.of(inputName, mat));
 			
 			if (!output.isEmpty()) {
 				if (outputNames.length == 0 || (outputNames.length == 1 && output.containsKey(outputNames[0])))

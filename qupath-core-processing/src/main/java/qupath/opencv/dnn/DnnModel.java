@@ -42,7 +42,7 @@ import org.bytedeco.opencv.opencv_core.Mat;
  *   <li>Single input, single output; batch size &gt; 1</li>
  * </ul>
  * <p>
- * If only a single input and output are required, then only {@link #convertAndPredict(Mat)}
+ * If only a single input and output are required, then only {@link #predict(Mat)}
  * needs to be implemented.
  * <p>
  * <b>Note: </b>This was originally implemented in QuPath v0.3.0, but simplified for
@@ -75,15 +75,15 @@ public interface DnnModel extends AutoCloseable {
 	 * @param blobs
 	 * @return
 	 */
-	Map<String, Mat> convertAndPredict(Map<String, Mat> blobs);
+	Map<String, Mat> predict(Map<String, Mat> blobs);
 
 	/**
 	 * Prediction function that takes a single input and gives a single output.
 	 * @param mat
 	 * @return
 	 */
-	default Mat convertAndPredict(Mat mat) {
-		return convertAndPredict(Map.of(DEFAULT_INPUT_NAME, mat)).get(DEFAULT_OUTPUT_NAME);
+	default Mat predict(Mat mat) {
+		return predict(Map.of(DEFAULT_INPUT_NAME, mat)).get(DEFAULT_OUTPUT_NAME);
 	}
 	
 	/**
@@ -93,10 +93,10 @@ public interface DnnModel extends AutoCloseable {
 	 * @param mats
 	 * @return
 	 */
-	default List<Mat> batchConvertAndPredict(Mat... mats) {
+	default List<Mat> batchPredict(List<? extends Mat> mats) {
 		List<Mat> output = new ArrayList<>();
 		for (var input : mats) {
-			output.add(convertAndPredict(input));
+			output.add(predict(input));
 		}
 		return output;
 	}

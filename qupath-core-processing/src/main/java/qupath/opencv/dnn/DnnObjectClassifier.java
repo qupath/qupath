@@ -141,7 +141,7 @@ public class DnnObjectClassifier extends AbstractObjectClassifier<BufferedImage>
 	protected int tryToClassify(List<? extends PathObject> pathObjects, ImageServer<BufferedImage> server, double downsample, IntFunction<PathClass> classifier) {
 		int count = 0;
 		try {			
-			Mat[] inputImages = new Mat[pathObjects.size()];
+			List<Mat> inputImages = new ArrayList<>();
 			int n = pathObjects.size();
 			int i = 0;
 			for (var pathObject : pathObjects) {
@@ -151,12 +151,12 @@ public class DnnObjectClassifier extends AbstractObjectClassifier<BufferedImage>
 					return 0;
 				}
 				Mat input = DnnTools.readPatch(server, roi, downsample, width, height);
-				inputImages[i] = input;
+				inputImages.add(input);
 				i++;
 			}
 			// TODO: Consider using batchConvertAndPredict instead
 			
-			var output = model.batchConvertAndPredict(inputImages);
+			var output = model.batchPredict(inputImages);
 //			var blob = model.getBlobFunction().toBlob(inputImages);
 //			var prediction = model.getPredictionFunction().call(blob);
 //			var output = model.getBlobFunction().fromBlob(prediction);

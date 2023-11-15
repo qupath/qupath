@@ -83,7 +83,7 @@ public abstract class AbstractDnnModel<T> implements DnnModel {
      * @return
      */
     @Override
-    public Map<String, Mat> convertAndPredict(Map<String, Mat> blobs) {
+    public Map<String, Mat> predict(Map<String, Mat> blobs) {
 
         var input = blobs.entrySet().stream().collect(Collectors.toMap(e -> e.getKey(), e -> getBlobFunction(e.getKey()).toBlob(e.getValue())));
         var prediction = getPredictionFunction().predict(input);
@@ -104,7 +104,7 @@ public abstract class AbstractDnnModel<T> implements DnnModel {
      * @return
      */
     @Override
-    public Mat convertAndPredict(Mat mat) {
+    public Mat predict(Mat mat) {
         var blob = getBlobFunction().toBlob(mat);
         var prediction = getPredictionFunction().predict(blob);
         var output = getBlobFunction().fromBlob(prediction);
@@ -115,14 +115,14 @@ public abstract class AbstractDnnModel<T> implements DnnModel {
 
     /**
      * Convenience method to convert one or more image patches to a blob, apply the {@link PredictionFunction}, and convert the output to standard Mats.
-     * This method is intended for cases where the batch size should be greater than one; for a batch size of one, {@link #convertAndPredict(Mat)} can
+     * This method is intended for cases where the batch size should be greater than one; for a batch size of one, {@link #predict(Mat)} can
      * be used instead.
      * @param mats
      * @return
      */
     @Override
-    public List<Mat> batchConvertAndPredict(Mat... mats) {
-        var blob = getBlobFunction().toBlob(mats);
+    public List<Mat> batchPredict(List<? extends Mat> mats) {
+        var blob = getBlobFunction().toBlob(mats.toArray(Mat[]::new));
         var prediction = getPredictionFunction().predict(blob);
         var output = getBlobFunction().fromBlob(prediction);
         return output;
