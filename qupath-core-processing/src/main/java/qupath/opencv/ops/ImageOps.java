@@ -70,6 +70,7 @@ import qupath.lib.io.GsonTools.SubTypeAdapterFactory;
 import qupath.lib.io.UriResource;
 import qupath.lib.regions.Padding;
 import qupath.lib.regions.RegionRequest;
+import qupath.opencv.dnn.AbstractDnnModel;
 import qupath.opencv.dnn.DnnModel;
 import qupath.opencv.dnn.DnnShape;
 import qupath.opencv.dnn.PredictionFunction;
@@ -2761,7 +2762,7 @@ public class ImageOps {
 		 *                    and they be concatenated along the channels dimension.
 		 * @return
 		 */
-		public static ImageOp dnn(DnnModel<?> model, int inputWidth, int inputHeight, Padding padding, String... outputNames) {
+		public static ImageOp dnn(DnnModel model, int inputWidth, int inputHeight, Padding padding, String... outputNames) {
 			return new DnnOp<>(model, inputWidth, inputHeight, padding, outputNames);
 		}
 				
@@ -2816,7 +2817,7 @@ public class ImageOps {
 			
 			private static final Logger logger = LoggerFactory.getLogger(DnnOp.class);
 
-			private DnnModel<T> model;
+			private DnnModel model;
 			private int inputWidth;
 			private int inputHeight;
 			
@@ -2836,7 +2837,7 @@ public class ImageOps {
 			 * @param padding
 			 * @param outputNames names of output layers; if more than one, these will be concatenated along the channels dimension
 			 */
-			DnnOp(DnnModel<T> model, int inputWidth, int inputHeight, Padding padding, String... outputNames) {
+			DnnOp(DnnModel model, int inputWidth, int inputHeight, Padding padding, String... outputNames) {
 				this.model = model;
 				this.inputWidth = inputWidth;
 				this.inputHeight = inputHeight;
@@ -2848,31 +2849,10 @@ public class ImageOps {
 			protected Padding calculatePadding() {
 				return padding;
 			}
-			
-			private String getInputName() {
-				if (inputName != null)
-					return inputName;
-				synchronized(this) {
-					if (inputName == null) {
-						var fun = model.getPredictionFunction();
-						var inputs = fun.getInputs();
-						if (inputs.isEmpty()) {
-							logger.warn("Input names empty for {}", model);
-							inputName = DnnModel.DEFAULT_INPUT_NAME;
-						} else {
-							inputName = inputs.keySet().iterator().next();
-						}
-						if (inputs.size() > 1)
-							logger.warn("DnnOp only supports single inputs, but {} expects {}", model, inputs.size());
-					}
-				}
-				return inputName;
-			}
-			
 
 			@Override
 			protected List<Mat> transformPadded(Mat input) {
-				var inputName = getInputName();
+				var inputName = DnnModel.DEFAULT_INPUT_NAME; // Only support one input
 				Mat result;
 				// TODO: Explore removing padding at an earlier stage
 				if ((inputWidth <= 0 && inputHeight <= 0) || (input.cols() == inputWidth && input.rows() == inputHeight)) {
@@ -2897,18 +2877,21 @@ public class ImageOps {
 						outChannels = outputChannels.get(channels.size());
 						if (outChannels == null) {
 							// If we have multiple outputs, try to get output names from the layers
-							var outputs = model.getPredictionFunction().getOutputs(DnnShape.of(1, channels.size(), inputHeight, inputWidth));
 							List<String> names = new ArrayList<>();
-							if (outputs.size() > 1) {
-								Collection<String> outputKeys = outputNames == null || outputNames.length == 0 ? outputs.keySet() : Arrays.asList(outputNames);
-								for (var key : outputKeys) {
-									var shape = outputs.get(key);
-									if (shape != null && !shape.isUnknown() && shape.numDimensions() > 2 && shape.get(1) != DnnShape.UNKNOWN_LENGTH) {
-										for (int c = 0; c < shape.get(1); c++) {
-											names.add(key + ": " + c);
-										}
-									} else
-										logger.warn("Unknown output shape for {} - output channels are unknown", key);
+							// We can *sometimes* get more informative names from an AbstractDnnModel
+							if (model instanceof AbstractDnnModel<?> predictionModel) {
+								var outputs = predictionModel.getPredictionFunction().getOutputs(DnnShape.of(1, channels.size(), inputHeight, inputWidth));
+								if (outputs.size() > 1) {
+									Collection<String> outputKeys = outputNames == null || outputNames.length == 0 ? outputs.keySet() : Arrays.asList(outputNames);
+									for (var key : outputKeys) {
+										var shape = outputs.get(key);
+										if (shape != null && !shape.isUnknown() && shape.numDimensions() > 2 && shape.get(1) != DnnShape.UNKNOWN_LENGTH) {
+											for (int c = 0; c < shape.get(1); c++) {
+												names.add(key + ": " + c);
+											}
+										} else
+											logger.warn("Unknown output shape for {} - output channels are unknown", key);
+									}
 								}
 							}
 							// Run an example input through
@@ -2998,13 +2981,13 @@ public class ImageOps {
 	}
 	
 	
-	private static <T> Mat doPrediction(DnnModel<T> model, Mat mat, String inputName, String... outputNames) {
+	private static Mat doPrediction(DnnModel model, Mat mat, String inputName, String... outputNames) {
 
 		var matResult = new Mat();
 
 		try (@SuppressWarnings("unchecked")var scope = new PointerScope()) {
 			
-			var output = model.convertAndPredict(Map.of(inputName, mat));
+			var output = model.predict(Map.of(inputName, mat));
 			
 			if (!output.isEmpty()) {
 				if (outputNames.length == 0 || (outputNames.length == 1 && output.containsKey(outputNames[0])))

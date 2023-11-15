@@ -57,14 +57,13 @@ import qupath.lib.objects.classes.PathClass;
  * <b>Warning!</b> This implementation is likely to change in the future.
  * 
  * @author Pete Bankhead
- * @param <T> class of the blob used by the deep learning model
  * @version 0.3.0
  */
-public class DnnObjectClassifier<T> extends AbstractObjectClassifier<BufferedImage> implements UriResource {
+public class DnnObjectClassifier extends AbstractObjectClassifier<BufferedImage> implements UriResource {
 	
 	private static final Logger logger = LoggerFactory.getLogger(DnnObjectClassifier.class);
 	
-	private DnnModel<T> model;
+	private DnnModel model;
 	private List<PathClass> pathClasses;
 	private double requestedPixelSize = 1.0;
 	private int width, height;
@@ -86,7 +85,7 @@ public class DnnObjectClassifier<T> extends AbstractObjectClassifier<BufferedIma
 	 * @param height patch height, in pixels, at the classification side
 	 * @param requestedPixelSize requested pixel size, in calibrated units, used to calculate the downsample value
 	 */
-	public DnnObjectClassifier(PathObjectFilter filter, DnnModel<T> model, List<PathClass> pathClasses, int width, int height, double requestedPixelSize) {
+	public DnnObjectClassifier(PathObjectFilter filter, DnnModel model, List<PathClass> pathClasses, int width, int height, double requestedPixelSize) {
 		super(filter);
 		this.model = model;
 		this.pathClasses = new ArrayList<>(pathClasses);
@@ -142,7 +141,7 @@ public class DnnObjectClassifier<T> extends AbstractObjectClassifier<BufferedIma
 	protected int tryToClassify(List<? extends PathObject> pathObjects, ImageServer<BufferedImage> server, double downsample, IntFunction<PathClass> classifier) {
 		int count = 0;
 		try {			
-			Mat[] inputImages = new Mat[pathObjects.size()];
+			List<Mat> inputImages = new ArrayList<>();
 			int n = pathObjects.size();
 			int i = 0;
 			for (var pathObject : pathObjects) {
@@ -152,12 +151,12 @@ public class DnnObjectClassifier<T> extends AbstractObjectClassifier<BufferedIma
 					return 0;
 				}
 				Mat input = DnnTools.readPatch(server, roi, downsample, width, height);
-				inputImages[i] = input;
+				inputImages.add(input);
 				i++;
 			}
 			// TODO: Consider using batchConvertAndPredict instead
 			
-			var output = model.batchConvertAndPredict(inputImages);
+			var output = model.batchPredict(inputImages);
 //			var blob = model.getBlobFunction().toBlob(inputImages);
 //			var prediction = model.getPredictionFunction().call(blob);
 //			var output = model.getBlobFunction().fromBlob(prediction);

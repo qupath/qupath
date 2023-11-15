@@ -76,6 +76,8 @@ This is a work-in-progress for the next QuPath release.
   * Much smaller `QuPathGUI` class
   * *These changes will require some extensions to be updated*
 * Initial work to support string localization
+* `DnnModel` simplified
+  * Generic parameter removed; see javadoc for details
 
 ### Bugs fixed
 * Cannot import GeoJSON with NaN measurements (https://github.com/qupath/qupath/issues/1293)

@@ -55,7 +55,7 @@ public class DnnModels {
 	@SuppressWarnings("rawtypes")
 	private static final SubTypeAdapterFactory<PredictionFunction> predictionAdapter;
 	
-	private static Set<DnnModelBuilder<?>> builders;
+	private static Set<DnnModelBuilder> builders;
 	
 	static {
 		
@@ -102,19 +102,19 @@ public class DnnModels {
 	 *           the fact that the {@link ServiceLoader} used to identify builders 
 	 *           may not see those that are added via extensions.
 	 */
-	public static boolean registerBuilder(DnnModelBuilder<?> builder) {
+	public static boolean registerBuilder(DnnModelBuilder builder) {
 		if (builder != null)
 			return getBuilders().add(builder);
 		return false;
 	}
 	
 	
-	private static Set<DnnModelBuilder<?>> getBuilders() {
+	private static Set<DnnModelBuilder> getBuilders() {
 		if (builders == null) {
 			synchronized (DnnModels.class) {
 				if (builders == null) {
 					builders = new LinkedHashSet<>();
-					for (DnnModelBuilder<?> builder : ServiceLoader.load(DnnModelBuilder.class)) {
+					for (DnnModelBuilder builder : ServiceLoader.load(DnnModelBuilder.class)) {
 						builders.add(builder);
 					}
 				}
@@ -127,16 +127,15 @@ public class DnnModels {
 	/**
 	 * Build a {@link DnnModel} from the given parameters.
 	 * This queries all available {@linkplain DnnModelBuilder DnnModelBuilders} through a service loader.
-	 * @param <T>
 	 * @param params
 	 * @return a new DnnModel, or null if no model could be built
 	 */
-	public static <T> DnnModel<T> buildModel(DnnModelParams params) {
-		for (DnnModelBuilder<?> builder : getBuilders()) {
+	public static DnnModel buildModel(DnnModelParams params) {
+		for (DnnModelBuilder builder : getBuilders()) {
 			try {
 				var model = builder.buildModel(params);
 				if (model != null)
-					return (DnnModel<T>)model;
+					return model;
 				else {
 					logger.info("Cannot build model with {}", builder);
 				}

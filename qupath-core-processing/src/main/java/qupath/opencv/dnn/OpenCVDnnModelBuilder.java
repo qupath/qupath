@@ -36,7 +36,7 @@ import qupath.lib.common.GeneralTools;
  * @author Pete Bankhead
  * @since v0.4.0
  */
-public class OpenCVDnnModelBuilder implements DnnModelBuilder<Mat> {
+public class OpenCVDnnModelBuilder implements DnnModelBuilder {
 	
 	private static Set<String> weightsExtensions = Set.of(".pb", ".onnx", ".caffemodel", ".t7", ".net", ".weights", ".bin");
 	private static Set<String> configExtensions = Set.of(".prototxt", ".pbtxt", ".cfg", ".xml");
@@ -67,7 +67,7 @@ public class OpenCVDnnModelBuilder implements DnnModelBuilder<Mat> {
 	}
 
 	@Override
-	public DnnModel<Mat> buildModel(DnnModelParams params) {
+	public DnnModel buildModel(DnnModelParams params) {
 		if (!canBuild(params))
 			return null;
 		var uris = params.getURIs();
