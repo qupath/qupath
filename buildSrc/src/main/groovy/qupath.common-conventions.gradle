@@ -101,8 +101,7 @@ dependencies {
 
 dependencies {
     testImplementation libs.junit
-    testImplementation libs.junit.api
-    testRuntimeOnly libs.junit.engine
+    testRuntimeOnly libs.junit.platform
 
     implementation libs.bundles.logging
 }
