@@ -106,9 +106,8 @@ cuda-redist   = { module = "org.bytedeco:cuda-platform-redist", version.ref = "c
 ikonli-javafx    = { module = "org.kordamp.ikonli:ikonli-javafx",         version.ref = "ikonli" }
 ikonli-ionicons4 = { module = "org.kordamp.ikonli:ikonli-ionicons4-pack", version.ref = "ikonli" }
 
-junit         = { module = "org.junit.jupiter:junit-jupiter",        version.ref = "junit" }
-junit-api     = { module = "org.junit.jupiter:junit-jupiter-api",    version.ref = "junit" }
-junit-engine  = { module = "org.junit.jupiter:junit-jupiter-engine", version.ref = "junit" }
+junit            = { module = "org.junit.jupiter:junit-jupiter",        version.ref = "junit" }
+junit-platform   = { module = "org.junit.platform:junit-platform-launcher" }
 
 
 [bundles]

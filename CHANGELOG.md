@@ -146,7 +146,7 @@ This appears to be related to time spent initializing JavaFX.
 
 ### Dependency updates
 * Bio-Formats 7.0.1
-* DeepJavaLibrary 0.24.0
+* DeepJavaLibrary 0.25.0
 * Groovy 4.0.15
 * Guava 32.1.3-jre
 * ImageJ 1.54f
