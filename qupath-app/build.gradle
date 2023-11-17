@@ -95,16 +95,6 @@ afterEvaluate {
     }
 }
 
-startScripts {
-    doLast {
-        // Update library path
-        def currentPath = "${rootProject.buildDir}/natives"
-        def newPath = '$APP_HOME/lib'
-        unixScript.text = unixScript.text.replace(currentPath, newPath)
-        windowsScript.text = unixScript.text.replace(currentPath, newPath)
-    }
-}
-
 /**
  * Determine which projects to include/exclude as dependencies
  */
