@@ -121,7 +121,7 @@ dependencies {
  */
 task mergedJavadocJar(type: Jar, dependsOn: rootProject.tasks.mergedJavadocs) {
     archiveFileName = "qupath-$qupathVersion-javadoc.jar"
-    destinationDirectory = file("${rootProject.buildDir}/docs-merged/")
+    destinationDirectory = rootProject.layout.buildDirectory.dir("docs-merged")
     from rootProject.tasks.mergedJavadocs.destinationDir
 }
 
@@ -140,7 +140,8 @@ licenseReport {
     renderers = [new TextReportRenderer('THIRD-PARTY.txt'),
 //               new CsvReportRenderer(),
                  new InventoryHtmlReportRenderer('index.html', 'Third party licenses', fileUnknown)]
-    outputDir = "${rootProject.buildDir}/reports/dependency-license"
+
+    outputDir = rootProject.layout.buildDirectory.dir("reports/dependency-license").get().getAsFile().getAbsolutePath()
 
     // TODO: Try to remove this. It's needed (I think) due to the license plugin not supporting
     //       Gradle variants, as required by the JavaFX Gradle Plugin v0.1.0. Possibly-relevant links:
@@ -179,12 +180,8 @@ distributions {
             }
             // Copy license report
             into('lib/licenses') {
-                from "${rootProject.buildDir}/reports/dependency-license/"
+                from this.rootProject.layout.buildDirectory.dir("reports/dependency-license")
                 include 'THIRD-PARTY.txt'
-            }
-            // Copy native libraries
-            into('lib') {
-                from "${rootProject.buildDir}/natives"
             }
             // Copy native libraries
             into('lib/docs') {
@@ -318,7 +315,7 @@ def makeMacOSPkg(File appFile) {
  */
 tasks.register('jpackageFinalize') {
     doLast {
-        def outputDir = new File("${rootProject.layout.buildDirectory.get()}")
+        def outputDir = rootProject.layout.buildDirectory.get().asFile
         // Loop for Mac things to do
         def appFile = new File(outputDir, "/dist/${getCorrectAppName('.app')}")
         if (appFile.exists()) {
@@ -484,7 +481,7 @@ JPackageParams buildParameters() {
 
     def params = new JPackageParams()
     params.mainJar = project.jar.getArchiveFileName().get()
-    params.outputDir = file("${rootProject.buildDir}/dist")
+    params.outputDir = rootProject.layout.buildDirectory.dir("dist").get().getAsFile()
     params.appVersion = appVersion
     params.imageName = qupathAppName // Will need to be removed for some platforms
     params.installerName = "QuPath"
@@ -691,7 +688,7 @@ task exportDocs(type: JavaExec) {
     group "QuPath"
 
     dependsOn('compileJava')
-    def docsDir = rootProject.layout.getBuildDirectory().dir('qupath-docs').get().getAsFile()
+    def docsDir = rootProject.layout.buildDirectory.dir('qupath-docs').get().getAsFile()
     doFirst {
         println "Making docs dir in ${docsDir.getAbsolutePath()}"
         docsDir.mkdirs()
