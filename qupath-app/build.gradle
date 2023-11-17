@@ -70,7 +70,7 @@ def toolchainJavaVersion = getToolchainJavaVersion()
 application {
     mainClass = "qupath.QuPath"
     applicationName = qupathAppName
-    applicationDefaultJvmArgs = buildDefaultJvmArgs("${rootProject.buildDir}/natives", toolchainJavaVersion)
+    applicationDefaultJvmArgs = buildDefaultJvmArgs()
 
     // Necessary when using ./gradlew run to support style manager to change themes
     applicationDefaultJvmArgs << '--add-opens'
@@ -486,7 +486,7 @@ JPackageParams buildParameters() {
     params.appVersion = appVersion
     params.imageName = qupathAppName // Will need to be removed for some platforms
     params.installerName = "QuPath"
-    params.jvmArgs += buildDefaultJvmArgs('$APPDIR', toolchainJavaVersion)
+    params.jvmArgs += buildDefaultJvmArgs()
 
     // Configure according to the current platform
     def platform = properties['platform.name']
@@ -663,7 +663,7 @@ JavaVersion getToolchainJavaVersion() {
  * Java version not currently used.
  * @return
  */
-static List<String> buildDefaultJvmArgs(String libraryPath = '$APPDIR', JavaVersion javaVersion = JavaVersion.current()) {
+static List<String> buildDefaultJvmArgs(String libraryPath = null) {
     // Set up the main Java options
     def javaOptions = []
 
