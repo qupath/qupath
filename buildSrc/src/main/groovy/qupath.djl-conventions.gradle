@@ -41,7 +41,7 @@ def djlVersion = libs.versions.deepJavaLibrary.get()
 
 dependencies {
 	if (djlApi)
-		implementation "ai.djl:api:$djlVersion"
+		implementation libs.deepJavaLibrary
 		
     if ('pytorch' in djlEngines) {
 	    implementation "ai.djl.pytorch:pytorch-engine:$djlVersion"
