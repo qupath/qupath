@@ -7,8 +7,10 @@ plugins {
 }
 
 ext.moduleName = 'qupath.extension.bioformats'
-archivesBaseName = 'qupath-extension-bioformats'
-description = "QuPath extension to support image reading and writing using Bio-Formats."
+base {
+  archivesName = 'qupath-extension-bioformats'
+  description = 'QuPath extension to support image reading and writing using Bio-Formats.'
+}
 
 def bioformatsVersion = libs.versions.bioformats.get()
 def versionOverride = project.properties.getOrDefault('bioformats-version', null)

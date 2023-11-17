@@ -5,8 +5,10 @@ plugins {
 }
 
 ext.moduleName = 'qupath.core.processing'
-archivesBaseName = 'qupath-core-processing'
-description = "Core QuPath module containing the main processing operations."
+base {
+  archivesName = 'qupath-core-processing'
+  description = 'Core QuPath module containing the main processing operations.'
+}
 
 configurations {
   api.extendsFrom opencv

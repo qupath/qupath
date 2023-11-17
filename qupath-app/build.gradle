@@ -30,8 +30,10 @@ plugins {
 
 
 ext.moduleName = 'qupath.app'
-archivesBaseName = 'qupath-app'
-description = "Main QuPath application."
+base {
+    archivesName = 'qupath-app'
+    description = 'Main QuPath application.'
+}
 
 /*
  * There are several problems with jpackage on macOS:

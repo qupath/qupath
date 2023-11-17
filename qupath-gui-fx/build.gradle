@@ -7,8 +7,10 @@ plugins {
 }
 
 ext.moduleName = 'qupath.gui.fx'
-archivesBaseName = 'qupath-gui-fx'
-description = "Main QuPath user interface."
+base {
+    archivesName = 'qupath-gui-fx'
+    description = 'Main QuPath user interface.'
+}
 
 configurations {
   implementation.extendsFrom guava

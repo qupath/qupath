@@ -6,8 +6,11 @@ plugins {
 }
 
 ext.moduleName = 'qupath.extension.scripteditor'
-archivesBaseName = 'qupath-extension-script-editor'
-description = "QuPath extension to provide an alternative script editor using RichTextFX."
+
+base {
+  archivesName = 'qupath-extension-script-editor'
+  description = 'QuPath extension to provide an alternative script editor using RichTextFX.'
+}
 
 dependencies {
   implementation libs.qupath.fxtras
