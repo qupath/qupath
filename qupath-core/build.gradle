@@ -5,8 +5,10 @@ plugins {
 }
 
 ext.moduleName = 'qupath.core'
-archivesBaseName = 'qupath-core'
-description = "Core QuPath module containing the main classes and datastructures."
+base {
+  archivesName = 'qupath-core'
+  description = 'Core QuPath module containing the main classes and data structures.'
+}
 
 configurations {
   implementation.extendsFrom guava

@@ -65,6 +65,8 @@ commons-math  = { module = "org.apache.commons:commons-math3",  version.ref = "c
 commons-text  = { module = "org.apache.commons:commons-text",   version.ref = "commonsText" }
 controlsfx    = { module = "org.controlsfx:controlsfx",         version.ref = "controlsFX" }
 
+deepJavaLibrary = { module = "ai.djl:api",                      version.ref = "deepJavaLibrary" }
+
 gson          = { module = "com.google.code.gson:gson",         version.ref = "gson" }
 guava         = { module = "com.google.guava:guava",            version.ref = "guava" }
 

@@ -6,8 +6,11 @@ plugins {
 }
 
 ext.moduleName = 'qupath.extension.svg'
-archivesBaseName = 'qupath-extension-svg'
-description = "QuPath extension to write SVG images using JFreeSVG."
+
+base {
+  archivesName = 'qupath-extension-svg'
+  description = 'QuPath extension to write SVG images using JFreeSVG.'
+}
 
 dependencies {
   implementation libs.qupath.fxtras

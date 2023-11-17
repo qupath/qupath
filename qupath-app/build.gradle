@@ -30,8 +30,10 @@ plugins {
 
 
 ext.moduleName = 'qupath.app'
-archivesBaseName = 'qupath-app'
-description = "Main QuPath application."
+base {
+    archivesName = 'qupath-app'
+    description = 'Main QuPath application.'
+}
 
 /*
  * There are several problems with jpackage on macOS:
@@ -70,7 +72,7 @@ def toolchainJavaVersion = getToolchainJavaVersion()
 application {
     mainClass = "qupath.QuPath"
     applicationName = qupathAppName
-    applicationDefaultJvmArgs = buildDefaultJvmArgs("${rootProject.buildDir}/natives", toolchainJavaVersion)
+    applicationDefaultJvmArgs = buildDefaultJvmArgs()
 
     // Necessary when using ./gradlew run to support style manager to change themes
     applicationDefaultJvmArgs << '--add-opens'
@@ -93,16 +95,6 @@ afterEvaluate {
     }
 }
 
-startScripts {
-    doLast {
-        // Update library path
-        def currentPath = "${rootProject.buildDir}/natives"
-        def newPath = '$APP_HOME/lib'
-        unixScript.text = unixScript.text.replace(currentPath, newPath)
-        windowsScript.text = unixScript.text.replace(currentPath, newPath)
-    }
-}
-
 /**
  * Determine which projects to include/exclude as dependencies
  */
@@ -119,7 +111,7 @@ dependencies {
  */
 task mergedJavadocJar(type: Jar, dependsOn: rootProject.tasks.mergedJavadocs) {
     archiveFileName = "qupath-$qupathVersion-javadoc.jar"
-    destinationDirectory = file("${rootProject.buildDir}/docs-merged/")
+    destinationDirectory = rootProject.layout.buildDirectory.dir("docs-merged")
     from rootProject.tasks.mergedJavadocs.destinationDir
 }
 
@@ -138,7 +130,8 @@ licenseReport {
     renderers = [new TextReportRenderer('THIRD-PARTY.txt'),
 //               new CsvReportRenderer(),
                  new InventoryHtmlReportRenderer('index.html', 'Third party licenses', fileUnknown)]
-    outputDir = "${rootProject.buildDir}/reports/dependency-license"
+
+    outputDir = rootProject.layout.buildDirectory.dir("reports/dependency-license").get().getAsFile().getAbsolutePath()
 
     // TODO: Try to remove this. It's needed (I think) due to the license plugin not supporting
     //       Gradle variants, as required by the JavaFX Gradle Plugin v0.1.0. Possibly-relevant links:
@@ -177,12 +170,8 @@ distributions {
             }
             // Copy license report
             into('lib/licenses') {
-                from "${rootProject.buildDir}/reports/dependency-license/"
+                from this.rootProject.layout.buildDirectory.dir("reports/dependency-license")
                 include 'THIRD-PARTY.txt'
-            }
-            // Copy native libraries
-            into('lib') {
-                from "${rootProject.buildDir}/natives"
             }
             // Copy native libraries
             into('lib/docs') {
@@ -316,7 +305,7 @@ def makeMacOSPkg(File appFile) {
  */
 tasks.register('jpackageFinalize') {
     doLast {
-        def outputDir = new File("${rootProject.layout.buildDirectory.get()}")
+        def outputDir = rootProject.layout.buildDirectory.get().asFile
         // Loop for Mac things to do
         def appFile = new File(outputDir, "/dist/${getCorrectAppName('.app')}")
         if (appFile.exists()) {
@@ -482,11 +471,11 @@ JPackageParams buildParameters() {
 
     def params = new JPackageParams()
     params.mainJar = project.jar.getArchiveFileName().get()
-    params.outputDir = file("${rootProject.buildDir}/dist")
+    params.outputDir = rootProject.layout.buildDirectory.dir("dist").get().getAsFile()
     params.appVersion = appVersion
     params.imageName = qupathAppName // Will need to be removed for some platforms
     params.installerName = "QuPath"
-    params.jvmArgs += buildDefaultJvmArgs('$APPDIR', toolchainJavaVersion)
+    params.jvmArgs += buildDefaultJvmArgs()
 
     // Configure according to the current platform
     def platform = properties['platform.name']
@@ -663,7 +652,7 @@ JavaVersion getToolchainJavaVersion() {
  * Java version not currently used.
  * @return
  */
-static List<String> buildDefaultJvmArgs(String libraryPath = '$APPDIR', JavaVersion javaVersion = JavaVersion.current()) {
+static List<String> buildDefaultJvmArgs(String libraryPath = null) {
     // Set up the main Java options
     def javaOptions = []
 
@@ -689,7 +678,7 @@ task exportDocs(type: JavaExec) {
     group "QuPath"
 
     dependsOn('compileJava')
-    def docsDir = rootProject.layout.getBuildDirectory().dir('qupath-docs').get().getAsFile()
+    def docsDir = rootProject.layout.buildDirectory.dir('qupath-docs').get().getAsFile()
     doFirst {
         println "Making docs dir in ${docsDir.getAbsolutePath()}"
         docsDir.mkdirs()
