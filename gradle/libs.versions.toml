@@ -8,7 +8,7 @@ commonsMath3    = "3.6.1"
 commonsText     = "1.10.0"
 controlsFX      = "11.1.2"
 
-deepJavaLibrary = "0.24.0"
+deepJavaLibrary = "0.25.0"
 
 groovy          = "4.0.15"
 gson            = "2.10.1"
@@ -48,7 +48,7 @@ logviewer       = "0.1.1"
 openslide       = "4.0.0"
 
 picocli         = "4.7.5"
-qupath-fxtras   = "0.1.0"
+qupath-fxtras   = "0.1.1"
 
 richtextfx      = "0.11.2"
 
