@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -23,23 +23,7 @@
 
 package qupath.lib.gui.tools;
 
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.io.StringWriter;
-import java.io.Writer;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.WeakHashMap;
-import java.util.function.Function;
-import java.util.function.Predicate;
-
-import org.controlsfx.control.HiddenSidesPane;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
+import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.DoubleBinding;
 import javafx.beans.property.BooleanProperty;
@@ -67,6 +51,7 @@ import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.CheckMenuItem;
+import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
@@ -80,6 +65,8 @@ import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.control.skin.TableColumnHeader;
+import javafx.scene.input.Clipboard;
+import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
@@ -89,10 +76,28 @@ import javafx.stage.Popup;
 import javafx.stage.Stage;
 import javafx.stage.Window;
 import javafx.util.Duration;
+import org.controlsfx.control.HiddenSidesPane;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.actions.ActionTools;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.QuPathViewerPlus;
+
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.io.Writer;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.WeakHashMap;
+import java.util.function.Function;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 
 /**
@@ -136,9 +141,8 @@ public class CommandFinderTools {
 		}
 		
 	};
-	
+
 	private static BooleanProperty autoCloseCommandListProperty = PathPrefs.createPersistentPreference("autoCloseCommandList", true); // Return to the pan tool after drawing a ROI
-	
 
 	
 	private static ObjectProperty<CommandBarDisplay> commandBarDisplay = PathPrefs.createPersistentPreference("commandFinderDisplayMode", CommandBarDisplay.NEVER, CommandBarDisplay.class);
@@ -637,26 +641,16 @@ public class CommandFinderTools {
 		col4.setCellFactory(v -> new HelpCellFactory<>());
 		
 		// Indicate if an item is enabled or not
-		table.setRowFactory(e -> {
-			return new TableRow<>() {
-				@Override
-				public void updateItem(CommandEntry entry, boolean empty) {
-					super.updateItem(entry, empty);
-					if (entry == null || empty || !entry.item.get().isDisable()) {
-						setStyle("-fx-opacity: 1.0;");
-					} else
-						setStyle("-fx-opacity: 0.5;");
-				}
-			};
-		});
-		
-		
+		table.setRowFactory(e -> new CommandTableRow());
+
 		table.setOnKeyPressed(e -> {
-			if (e.isConsumed() || e.getCode() != KeyCode.ENTER)
+			if (e.isConsumed())
 				return;
-			var selected = table.getSelectionModel().getSelectedItem();
-			if (selected != null)
-				runSelectedCommand(selected);
+			if (e.getCode() == KeyCode.ENTER) {
+				var selected = table.getSelectionModel().getSelectedItem();
+				if (selected != null)
+					runSelectedCommand(selected);
+			}
 		});
 		
 		
@@ -685,8 +679,17 @@ public class CommandFinderTools {
 		});
 		
 	}
-	
-	
+
+
+	private static void copyStringToClipboard(String text) {
+		if (Platform.isFxApplicationThread()) {
+			var content = new ClipboardContent();
+			content.putString(text);
+			Clipboard.getSystemClipboard().setContent(content);
+		} else
+			Platform.runLater(() -> copyStringToClipboard(text));
+	}
+
 	
 	static boolean runSelectedCommand(final CommandEntry entry) {
 		if (entry != null) {
@@ -694,6 +697,33 @@ public class CommandFinderTools {
 			return MenuManager.fireMenuItem(item);
 		}
 		return false;
+	}
+
+	private static class CommandTableRow extends TableRow<CommandEntry> {
+
+		private ContextMenu popup;
+
+		private CommandTableRow() {
+			popup = new ContextMenu();
+			var miCopyPath = new MenuItem("Copy to clipboard");
+			miCopyPath.setOnAction(e -> {
+				var item = getItem();
+				if (item != null)
+					copyStringToClipboard(item.getCommandPath());
+			});
+			popup.getItems().add(miCopyPath);
+			setContextMenu(popup);
+		}
+
+		@Override
+		public void updateItem(CommandEntry entry, boolean empty) {
+			super.updateItem(entry, empty);
+			if (entry == null || empty || !entry.item.get().isDisable()) {
+				setStyle("-fx-opacity: 1.0;");
+			} else
+				setStyle("-fx-opacity: 0.5;");
+		}
+
 	}
 	
 	
