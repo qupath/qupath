@@ -25,6 +25,7 @@ if ('tensorflow' in djlEngines && properties['platform.shortName'] == 'mac' && S
 }
 	
 def djlApi = !djlEngines.isEmpty() || project.findProperty('djl.api')
+def djlZero = djlApi && project.findProperty('djl.zero')
 
 def djlZoosProp = project.findProperty('djl.zoos') ?: "all"
 djlZoosProp = djlZoosProp.strip().toLowerCase()
@@ -40,9 +41,13 @@ else
 def djlVersion = libs.versions.deepJavaLibrary.get()
 
 dependencies {
-	if (djlApi)
+	if (djlApi) {
 		implementation libs.deepJavaLibrary
-		
+	}
+	if (djlZero) {
+		implementation "ai.djl:djl-zero:$djlVersion"
+	}
+
     if ('pytorch' in djlEngines) {
 	    implementation "ai.djl.pytorch:pytorch-engine:$djlVersion"
 	    if ('pytorch' in djlZoos)
