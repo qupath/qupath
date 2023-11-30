@@ -32,6 +32,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.ServiceLoader;
 import javax.script.ScriptException;
 import org.slf4j.Logger;
@@ -107,19 +108,17 @@ public class QuPath {
 
 	@Option(names = {"-l", "--log"}, description = {"Log level (default = INFO).", "Options: ${COMPLETION-CANDIDATES}"} )
 	private LogLevel logLevel = LogLevel.INFO;
-			
-	
+
+	@Option(names = {"-D"}, description = "Pass system properties to the QuPath launcher.")
+	private Map<String, String> systemProperties;
+
+
 	/**
 	 * Main class to launch QuPath.
 	 * 
 	 * @param args
 	 */
 	public static void main(String[] args) {
-		
-		// Set offline mode - used to prevent DJL downloading anything 
-		// except when explicitly requested
-		if (System.getProperty("offline", null) == null)
-			System.setProperty("offline", "true");
 
 		initializeProperties();
 
@@ -142,6 +141,14 @@ public class QuPath {
 		} catch (Exception e) {
 			logger.error("An error has occurred, please type -h to display help message.\n" + e.getLocalizedMessage());
 			return;
+		}
+
+		// Set any system properties
+		if (qupath.systemProperties != null) {
+			for (var entry : qupath.systemProperties.entrySet()) {
+				logger.info("Setting system property {}={}", entry.getKey(), entry.getValue());
+				System.setProperty(entry.getKey(), entry.getValue());
+			}
 		}
 		
 		// Catch -h/--help and -V/--version
@@ -203,9 +210,19 @@ public class QuPath {
 	
 	
 	private static void initializeProperties() {
+		initializeDJL();
 		initializeJTS();
 	}
-	
+
+	/**
+	 * Set system properties related to Deep Java Library.
+	 */
+	private static void initializeDJL() {
+		// Set offline mode - used to prevent DJL downloading anything
+		// except when explicitly requested
+		if (System.getProperty("offline", null) == null)
+			System.setProperty("offline", "true");
+	}
 	
 	/**
 	 * Use OverlayNG with Java Topology Suite by default.

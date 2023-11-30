@@ -65,6 +65,11 @@ This is a work-in-progress for the next QuPath release.
 * New `Tiler` class to generate tiles within other objects (https://github.com/qupath/qupath/pull/1347) (https://github.com/qupath/qupath/pull/1349) (https://github.com/qupath/qupath/issues/1277)
 * Replaced `PluginRunner` with `TaskRunner` to more easily run tasks with a progress bar (https://github.com/qupath/qupath/pull/1360)
 
+#### Command line
+* System properties can be passed via the command line using Java `-D` syntax
+  * Example `QuPath -DPYTORCH_VERSION=1.13.1 -Doffline=false`
+  * These are set as QuPath is being launched, before the user interface is created
+
 #### Platforms
 * Much improved Apple Silicon support, including with OpenSlide
   * See [below](#important-info-for-mac-users) for details
