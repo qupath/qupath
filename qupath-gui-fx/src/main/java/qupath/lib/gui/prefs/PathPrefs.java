@@ -326,6 +326,17 @@ public class PathPrefs {
 	}
 
 
+	private static StringProperty startupScriptPath = createPersistentPreference("startupScriptPath", null);
+
+	/**
+	 * Path to a startup script that should be run immediately after QuPath's launch.
+	 * @return
+	 */
+	public static StringProperty startupScriptProperty() {
+		return startupScriptPath;
+	}
+
+
 	private static BooleanProperty showToolBarBadges = createPersistentPreference("showToolBarBadges", true);
 
 	/**
