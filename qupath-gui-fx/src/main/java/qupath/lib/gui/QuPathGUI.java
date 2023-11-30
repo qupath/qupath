@@ -360,8 +360,47 @@ public class QuPathGUI {
 		stage.setMinHeight(400);
 
 		logger.debug("{}", timeit.stop());
+
+		// Run startup script if available, posted later to ensure UI is fully initialized
+		Platform.runLater(this::maybeRunStartupScript);
 	}
-	
+
+
+	private void maybeRunStartupScript() {
+		String property = System.getProperty("qupath.startup.script", null);
+		String path = PathPrefs.startupScriptProperty().get();
+		if (property != null) {
+			// Block startup script is property is 'false' or 'block'
+			if ("false".equalsIgnoreCase(property) || "block".equalsIgnoreCase(property)) {
+				logger.debug("Startup script blocked by system property");
+				return;
+			} else {
+				if (path != null && !path.isEmpty())
+					logger.warn("Startup script is overridden by system property");
+				else
+					logger.debug("Startup script specified by system property");
+				path = property;
+			}
+		}
+		if (path == null || path.isEmpty()) {
+			logger.debug("No startup script found");
+			return;
+		}
+		var file = new File(path);
+		if (!file.exists()) {
+			logger.warn("Startup script does not exist: {}", path);
+			return;
+		}
+		try {
+			logger.info("Running startup script {}", path);
+			Dialogs.showInfoNotification(QuPathResources.getString("Startup.scriptTitle"),
+					String.format(QuPathResources.getString("Startup.scriptRun"), file.getName()));
+			runScript(file, null);
+		} catch (ScriptException | IllegalArgumentException e) {
+			logger.warn("Exception running startup script: {}", e.getMessage());
+			throw new RuntimeException(e);
+		}
+	}
 		
 	
 	/**

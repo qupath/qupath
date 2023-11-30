@@ -42,6 +42,10 @@ This is a work-in-progress for the next QuPath release.
   * This enables scripts to use `pathObject.measurements['Name'] = 2` rather than `pathObject.measurements['Name'] = 2d`
 * *View → Show command list* supports copying commands to the clipboard
   * This helps when creating docs or answering forum posts that need specific commands
+* New *Startup script path* preference
+  * Support running a single Groovy script when QuPath launches (useful for customization)
+  * The preference can also be overridden with the system property `qupath.startup.script=/path/to/script.groovy` 
+    or blocked with `qupath.startup.script=false` (e.g. in QuPath.cfg)
 
 #### Naming & measurements
 * Improve consistency of naming, including for measurements

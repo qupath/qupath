@@ -49,6 +49,7 @@ import org.slf4j.event.Level;
 import qupath.fx.dialogs.Dialogs;
 import qupath.fx.localization.LocaleManager;
 import qupath.fx.localization.LocaleSnapshot;
+import qupath.fx.prefs.annotations.FilePref;
 import qupath.fx.prefs.controlsfx.PropertyEditorFactory;
 import qupath.fx.prefs.controlsfx.PropertyItemBuilder;
 import qupath.fx.prefs.controlsfx.PropertyItemParser;
@@ -221,6 +222,9 @@ public class PreferencePane {
 				
 		@BooleanPref("Prefs.General.showStartupMessage")
 		public final BooleanProperty startupMessage = PathPrefs.showStartupMessageProperty();
+
+		@FilePref(value = "Prefs.General.startupScriptPath", extensions = "*.groovy")
+		public final StringProperty startupScriptPath = PathPrefs.startupScriptProperty();
 
 		@Pref(value = "Prefs.General.checkForUpdates", type = AutoUpdateType.class)
 		public final ObjectProperty<AutoUpdateType> autoUpdate = PathPrefs.autoUpdateCheckProperty();
