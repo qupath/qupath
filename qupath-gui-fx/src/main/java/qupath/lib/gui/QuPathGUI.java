@@ -393,7 +393,8 @@ public class QuPathGUI {
 		}
 		try {
 			logger.info("Running startup script {}", path);
-			Dialogs.showInfoNotification("Startup script", "Running startup script\n" + file.getName());
+			Dialogs.showInfoNotification(QuPathResources.getString("Startup.scriptTitle"),
+					String.format(QuPathResources.getString("Startup.scriptRun"), file.getName()));
 			runScript(file, null);
 		} catch (ScriptException | IllegalArgumentException e) {
 			logger.warn("Exception running startup script: {}", e.getMessage());
