@@ -156,6 +156,43 @@ public class DefaultScriptEditor implements ScriptEditor {
 	private static final Logger logger = LoggerFactory.getLogger(DefaultScriptEditor.class);
 			
 	private final ScriptEditorDragDropListener dragDropListener;
+
+	/**
+	 * Font sizes available for the script editor.
+	 */
+	public enum FontSize {
+		NORMAL(null), BIG(15), BIGGER(18), BIGGEST(22);
+
+		private String style;
+
+		private FontSize(Integer size) {
+			if (size != null)
+				this.style = "-fx-font-size: " + size + ";";
+		}
+
+		String style() {
+			return style;
+		}
+
+		@Override
+		public String toString() {
+			switch (this) {
+			case NORMAL:
+				return "Normal";
+			case BIG:
+				return "Big";
+			case BIGGER:
+				return "Bigger";
+			case BIGGEST:
+				return "Biggest";
+			default:
+				return "Unknown";
+			}
+		}
+	}
+
+	private static ObjectProperty<FontSize> fontSize = PathPrefs.createPersistentPreference(
+			"scriptingFontSize", FontSize.NORMAL, FontSize.class);
 	
 	private ObjectProperty<Future<?>> runningTask = new SimpleObjectProperty<>();
 
@@ -171,10 +208,15 @@ public class DefaultScriptEditor implements ScriptEditor {
 	private BorderPane paneCode = new BorderPane();
 	
 	/**
-	 * Pane to hold the main console in its center
+	 * Pane to hold the main console only
 	 */
 	private BorderPane paneConsole = new BorderPane();
-	
+
+	/**
+	 * Pane to hold the main console in its center, and the run pane below
+	 */
+	private BorderPane paneBottom = new BorderPane(paneConsole);
+
 	private ObjectProperty<ScriptTab> selectedScript = new SimpleObjectProperty<>();
 	
 	private ObjectProperty<ScriptLanguage> currentLanguage = new SimpleObjectProperty<>();
@@ -526,7 +568,18 @@ public class DefaultScriptEditor implements ScriptEditor {
 	public ObservableValue<Boolean> scriptRunning() {
 		return runningTask.isNotNull();
 	}
-	
+
+	/**
+	 * Update the font size for the script editor and console.
+	 * @param fontSize
+	 */
+	protected void updateFontSize(FontSize fontSize) {
+		String style = fontSize == null ? null : fontSize.style();
+		// This only works if no other style is set!
+		paneCode.setStyle(style);
+		paneConsole.setStyle(style);
+	}
+
 	/**
 	 * Create a new script in the specified language.
 	 * @param script text of the script to add
@@ -741,6 +794,24 @@ public class DefaultScriptEditor implements ScriptEditor {
 //		menuEdit.add(menuItem);
 		menubar.getMenus().add(menuEdit);
 
+		// Set font size (common user request)
+		Menu menuView = new Menu("View");
+		Menu menuFontSize = new Menu("Font size");
+		ToggleGroup toggleFontSize = new ToggleGroup();
+		for (FontSize size : FontSize.values()) {
+			String name = size.toString();
+			RadioMenuItem item = new RadioMenuItem(name);
+			item.setToggleGroup(toggleFontSize);
+			item.setUserData(size);
+			item.selectedProperty().addListener((v, o, n) -> {
+				if (n)
+					updateFontSize((FontSize)item.getUserData());
+			});
+			menuFontSize.getItems().add(item);
+		}
+		menuView.getItems().add(menuFontSize);
+		menubar.getMenus().add(menuView);
+
 		// Languages menu - ensure each language only gets added once
 		Menu menuLanguages = new Menu("Language");
 		List<RadioMenuItem> nonRunnableLanguages = new ArrayList<>();
@@ -866,7 +937,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		var splitCode = new SplitPane();
 		splitCode.setOrientation(Orientation.VERTICAL);
 		var paneRun = createRunPane();
-		paneConsole.setBottom(paneRun);
+		paneBottom.setBottom(paneRun);
 
 		// Set the components if we have them
 		var textComponent = getCurrentEditorControl();
@@ -877,9 +948,9 @@ public class DefaultScriptEditor implements ScriptEditor {
 			paneConsole.setCenter(consoleComponent.getRegion());
 
 		// Set divider position
-		splitCode.getItems().setAll(paneCode, paneConsole);
+		splitCode.getItems().setAll(paneCode, paneBottom);
 		splitCode.setDividerPosition(0, 0.6);
-		SplitPane.setResizableWithParent(paneConsole, Boolean.FALSE);
+		SplitPane.setResizableWithParent(paneBottom, Boolean.FALSE);
 				
 		splitMain = new SplitPane();
 		splitMain.getItems().addAll(panelList, splitCode);
