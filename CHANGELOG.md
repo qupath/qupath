@@ -1,6 +1,6 @@
-## Version 0.5.0-SNAPSHOT
+## Version 0.5.0
 
-This is a work-in-progress for the next QuPath release.
+This is a **major update**, with many enhancements and new features.
 
 > **Important!** Some older extensions will need to be updated to work with QuPath v0.5.
 
