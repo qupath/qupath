@@ -55,5 +55,5 @@
     - uses: actions/upload-artifact@v3
       with:
         name: javadoc-${{ matrix.type }}
-        path: build/docs/javadoc
-        retention-days: 1
+        path: build/docs-merged/javadoc
+        retention-days: 7
