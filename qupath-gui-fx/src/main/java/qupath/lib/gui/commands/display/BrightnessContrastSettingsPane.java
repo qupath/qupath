@@ -24,11 +24,15 @@
 package qupath.lib.gui.commands.display;
 
 import javafx.application.Platform;
+import javafx.beans.Observable;
 import javafx.beans.binding.Bindings;
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
+import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.scene.Scene;
@@ -36,10 +40,10 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.ListCell;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.GridPane;
-import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
 import javafx.stage.Window;
@@ -77,10 +81,28 @@ public class BrightnessContrastSettingsPane extends GridPane {
 
     private StringProperty defaultName = null;
 
+    /**
+     * Whether the settings *may have* changed since they were last applied.
+     * This does not perform a full check to reduce any performance impact.
+     */
+    private BooleanProperty settingsChanged = new SimpleBooleanProperty(false);
+    private ObservableValue<Number> lastChangeTimestamp;
+
     public BrightnessContrastSettingsPane() {
         comboSettings.setOnShowing(e -> refreshResources());
         initializePane();
         tryToKeepSearchText();
+        // Change on invalidation
+        lastChangeTimestamp = imageDisplayProperty.flatMap(ImageDisplay::changeTimestampProperty);
+        lastChangeTimestamp.addListener(this::timestampInvalidated);
+        settingsChanged.addListener((v, o, n) -> {
+            if (!n)
+                lastChangeTimestamp.getValue(); // Evaluate in preparation for future invalidation events
+        });
+    }
+
+    private void timestampInvalidated(Observable observable) {
+        settingsChanged.set(true);
     }
 
 
@@ -112,7 +134,7 @@ public class BrightnessContrastSettingsPane extends GridPane {
             }
         });
         comboSettings.setCellFactory(c -> FXUtils.createCustomListCell(ImageDisplaySettings::getName));
-        comboSettings.setButtonCell(comboSettings.getCellFactory().call(null));
+        comboSettings.setButtonCell(new SettingListCell(settingsChanged));
         comboSettings.setPlaceholder(new Text("No compatible settings"));
         resourceManagerProperty.addListener((v, o, n) -> refreshResources());
         var btnSave = new Button("Save");
@@ -191,6 +213,8 @@ public class BrightnessContrastSettingsPane extends GridPane {
                 var settings = DisplaySettingUtils.displayToSettings(imageDisplay, name);
                 manager.put(name, settings);
                 refreshResources();
+                settingsChanged.set(false);
+                comboSettings.getSelectionModel().select(settings);
             } catch (IOException e) {
                 Dialogs.showErrorMessage("Save display settings", "Can't save settings " + name);
                 logger.error("Error saving display settings", e);
@@ -273,10 +297,55 @@ public class BrightnessContrastSettingsPane extends GridPane {
         try {
             DisplaySettingUtils.applySettingsToDisplay(imageDisplay, settings);
             PathPrefs.viewerGammaProperty().set(settings.getGamma());
+            settingsChanged.set(false);
         } catch (Exception e) {
             Dialogs.showErrorMessage("Apply display settings", "Can't apply settings " + settings.getName());
             logger.error("Error applying display settings", e);
         }
     }
+
+
+    /**
+     * List cell that can indicate when settings have changed (at least potentially).
+     */
+    private static class SettingListCell extends ListCell<ImageDisplaySettings> {
+
+        private BooleanProperty settingsChanged;
+
+        private SettingListCell(BooleanProperty settingsChanged) {
+            super();
+            this.settingsChanged = settingsChanged;
+            this.settingsChanged.addListener((v, o, n) -> updateTextAndStyle());
+        }
+
+        @Override
+        protected void updateItem(ImageDisplaySettings item, boolean empty) {
+            super.updateItem(item, empty);
+            if (empty) {
+                setText(null);
+                setGraphic(null);
+            } else {
+                updateTextAndStyle();
+            }
+        }
+
+        private void updateTextAndStyle() {
+            var item = getItem();
+            if (item == null) {
+                setText(null);
+                setStyle(null);
+            } else {
+                if (settingsChanged.get()) {
+                    setText(item.getName() + "*");
+                    setStyle("-fx-font-style: italic;");
+                } else {
+                    setText(item.getName());
+                    setStyle(null);
+                }
+            }
+        }
+
+    }
+
 
 }
