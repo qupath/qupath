@@ -157,42 +157,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 			
 	private final ScriptEditorDragDropListener dragDropListener;
 
-	/**
-	 * Font sizes available for the script editor.
-	 */
-	public enum FontSize {
-		NORMAL(null), BIG(15), BIGGER(18), BIGGEST(22);
-
-		private String style;
-
-		private FontSize(Integer size) {
-			if (size != null)
-				this.style = "-fx-font-size: " + size + ";";
-		}
-
-		String style() {
-			return style;
-		}
-
-		@Override
-		public String toString() {
-			switch (this) {
-			case NORMAL:
-				return "Normal";
-			case BIG:
-				return "Big";
-			case BIGGER:
-				return "Bigger";
-			case BIGGEST:
-				return "Biggest";
-			default:
-				return "Unknown";
-			}
-		}
-	}
-
-	private static ObjectProperty<FontSize> fontSize = PathPrefs.createPersistentPreference(
-			"scriptingFontSize", FontSize.NORMAL, FontSize.class);
+	private StringProperty fontSize = PathPrefs.createPersistentPreference("scriptingFontSize", null);
 	
 	private ObjectProperty<Future<?>> runningTask = new SimpleObjectProperty<>();
 
@@ -447,6 +412,11 @@ public class DefaultScriptEditor implements ScriptEditor {
 			selectedScriptText.bind(n.getEditorControl().selectedTextProperty());
 			
 		});
+
+		// Set the font size/style
+		String style = fontSize.get();
+		paneCode.setStyle(style);
+		paneConsole.setStyle(style);
 	}
 	
 	private void setToggle(ScriptLanguage language) {
@@ -571,14 +541,36 @@ public class DefaultScriptEditor implements ScriptEditor {
 
 	/**
 	 * Update the font size for the script editor and console.
-	 * @param fontSize
 	 */
-	protected void updateFontSize(FontSize fontSize) {
-		String style = fontSize == null ? null : fontSize.style();
+	protected void promptToSetFontSize() {
+		String current = fontSize.getValue();
+		if (current != null && current.length() - current.replaceAll(";", "").length() == 1) {
+			// Usually we store the style in a standard way, but sometimes we store a style exactly
+			current = current.replaceAll("-fx-font-size: ", "")
+					.replaceAll(";", "")
+					.strip();
+		}
+		String output = Dialogs.showInputDialog("Set font size",
+				"Enter the font size, in points or as a percentage \n(e.g. 16, 120%)", current);
+		if (output == null) {
+			return;
+		}
+		String style = null;
+		output = output.strip();
+		if (!output.isBlank()) {
+			if (output.contains("-fx"))
+				style = output;
+			else
+				style = "-fx-font-size: " + output;
+			if (!style.endsWith(";"))
+				style = style + ";";
+		}
 		// This only works if no other style is set!
+		fontSize.setValue(style);
 		paneCode.setStyle(style);
 		paneConsole.setStyle(style);
 	}
+
 
 	/**
 	 * Create a new script in the specified language.
@@ -796,20 +788,9 @@ public class DefaultScriptEditor implements ScriptEditor {
 
 		// Set font size (common user request)
 		Menu menuView = new Menu("View");
-		Menu menuFontSize = new Menu("Font size");
-		ToggleGroup toggleFontSize = new ToggleGroup();
-		for (FontSize size : FontSize.values()) {
-			String name = size.toString();
-			RadioMenuItem item = new RadioMenuItem(name);
-			item.setToggleGroup(toggleFontSize);
-			item.setUserData(size);
-			item.selectedProperty().addListener((v, o, n) -> {
-				if (n)
-					updateFontSize((FontSize)item.getUserData());
-			});
-			menuFontSize.getItems().add(item);
-		}
-		menuView.getItems().add(menuFontSize);
+		MenuItem miSetFontSize = new MenuItem("Set font size");
+		miSetFontSize.setOnAction(e -> promptToSetFontSize());
+		menuView.getItems().add(miSetFontSize);
 		menubar.getMenus().add(menuView);
 
 		// Languages menu - ensure each language only gets added once
