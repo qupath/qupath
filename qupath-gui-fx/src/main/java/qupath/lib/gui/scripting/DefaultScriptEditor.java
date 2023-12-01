@@ -156,6 +156,8 @@ public class DefaultScriptEditor implements ScriptEditor {
 	private static final Logger logger = LoggerFactory.getLogger(DefaultScriptEditor.class);
 			
 	private final ScriptEditorDragDropListener dragDropListener;
+
+	private StringProperty fontSize = PathPrefs.createPersistentPreference("scriptingFontSize", null);
 	
 	private ObjectProperty<Future<?>> runningTask = new SimpleObjectProperty<>();
 
@@ -171,10 +173,15 @@ public class DefaultScriptEditor implements ScriptEditor {
 	private BorderPane paneCode = new BorderPane();
 	
 	/**
-	 * Pane to hold the main console in its center
+	 * Pane to hold the main console only
 	 */
 	private BorderPane paneConsole = new BorderPane();
-	
+
+	/**
+	 * Pane to hold the main console in its center, and the run pane below
+	 */
+	private BorderPane paneBottom = new BorderPane(paneConsole);
+
 	private ObjectProperty<ScriptTab> selectedScript = new SimpleObjectProperty<>();
 	
 	private ObjectProperty<ScriptLanguage> currentLanguage = new SimpleObjectProperty<>();
@@ -405,6 +412,11 @@ public class DefaultScriptEditor implements ScriptEditor {
 			selectedScriptText.bind(n.getEditorControl().selectedTextProperty());
 			
 		});
+
+		// Set the font size/style
+		String style = fontSize.get();
+		paneCode.setStyle(style);
+		paneConsole.setStyle(style);
 	}
 	
 	private void setToggle(ScriptLanguage language) {
@@ -526,7 +538,40 @@ public class DefaultScriptEditor implements ScriptEditor {
 	public ObservableValue<Boolean> scriptRunning() {
 		return runningTask.isNotNull();
 	}
-	
+
+	/**
+	 * Update the font size for the script editor and console.
+	 */
+	protected void promptToSetFontSize() {
+		String current = fontSize.getValue();
+		if (current != null && current.length() - current.replaceAll(";", "").length() == 1) {
+			// Usually we store the style in a standard way, but sometimes we store a style exactly
+			current = current.replaceAll("-fx-font-size: ", "")
+					.replaceAll(";", "")
+					.strip();
+		}
+		String output = Dialogs.showInputDialog("Set font size",
+				"Enter the font size, in points or as a percentage \n(e.g. 16, 120%)", current);
+		if (output == null) {
+			return;
+		}
+		String style = null;
+		output = output.strip();
+		if (!output.isBlank()) {
+			if (output.contains("-fx"))
+				style = output;
+			else
+				style = "-fx-font-size: " + output;
+			if (!style.endsWith(";"))
+				style = style + ";";
+		}
+		// This only works if no other style is set!
+		fontSize.setValue(style);
+		paneCode.setStyle(style);
+		paneConsole.setStyle(style);
+	}
+
+
 	/**
 	 * Create a new script in the specified language.
 	 * @param script text of the script to add
@@ -741,6 +786,13 @@ public class DefaultScriptEditor implements ScriptEditor {
 //		menuEdit.add(menuItem);
 		menubar.getMenus().add(menuEdit);
 
+		// Set font size (common user request)
+		Menu menuView = new Menu("View");
+		MenuItem miSetFontSize = new MenuItem("Set font size");
+		miSetFontSize.setOnAction(e -> promptToSetFontSize());
+		menuView.getItems().add(miSetFontSize);
+		menubar.getMenus().add(menuView);
+
 		// Languages menu - ensure each language only gets added once
 		Menu menuLanguages = new Menu("Language");
 		List<RadioMenuItem> nonRunnableLanguages = new ArrayList<>();
@@ -866,7 +918,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		var splitCode = new SplitPane();
 		splitCode.setOrientation(Orientation.VERTICAL);
 		var paneRun = createRunPane();
-		paneConsole.setBottom(paneRun);
+		paneBottom.setBottom(paneRun);
 
 		// Set the components if we have them
 		var textComponent = getCurrentEditorControl();
@@ -877,9 +929,9 @@ public class DefaultScriptEditor implements ScriptEditor {
 			paneConsole.setCenter(consoleComponent.getRegion());
 
 		// Set divider position
-		splitCode.getItems().setAll(paneCode, paneConsole);
+		splitCode.getItems().setAll(paneCode, paneBottom);
 		splitCode.setDividerPosition(0, 0.6);
-		SplitPane.setResizableWithParent(paneConsole, Boolean.FALSE);
+		SplitPane.setResizableWithParent(paneBottom, Boolean.FALSE);
 				
 		splitMain = new SplitPane();
 		splitMain.getItems().addAll(panelList, splitCode);

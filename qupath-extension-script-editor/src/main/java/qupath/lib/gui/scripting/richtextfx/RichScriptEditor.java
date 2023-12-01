@@ -303,8 +303,8 @@ public class RichScriptEditor extends DefaultScriptEditor {
 					})
 					.subscribe(styles -> codeArea.setStyleSpans(0, styles));
 
-			codeArea.getStylesheets().add(getClass().getClassLoader().getResource("scripting_styles.css").toExternalForm());
-			
+			codeArea.getStylesheets().add(RichScriptEditor.class.getClassLoader().getResource("scripting_styles.css").toExternalForm());
+
 			scriptStyler.bind(Bindings.createObjectBinding(() -> ScriptStylerProvider.getStylerFromLanguage(getCurrentLanguage()), currentLanguageProperty()));
 			
 			// Triggered whenever the script styling changes (e.g. change of language)
