@@ -34,7 +34,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -514,12 +513,18 @@ class DefaultProject implements Project<BufferedImage> {
 		void copyDataFromEntry(final DefaultProjectImageEntry entry) throws IOException {
 			// Ensure we have the necessary directory
 			getEntryPath(true);
-			if (Files.exists(entry.getImageDataPath()))
-				Files.copy(entry.getImageDataPath(), getImageDataPath(), StandardCopyOption.REPLACE_EXISTING);
-			if (Files.exists(entry.getDataSummaryPath()))
-				Files.copy(entry.getDataSummaryPath(), getDataSummaryPath(), StandardCopyOption.REPLACE_EXISTING);
-			if (getThumbnail() == null && Files.exists(entry.getThumbnailPath()))
-				Files.copy(entry.getThumbnailPath(), getThumbnailPath(), StandardCopyOption.REPLACE_EXISTING);
+			if (Files.exists(entry.getImageDataPath())) {
+				Files.deleteIfExists(getImageDataPath());
+				Files.copy(entry.getImageDataPath(), getImageDataPath());
+			}
+			if (Files.exists(entry.getDataSummaryPath())) {
+				Files.deleteIfExists(getDataSummaryPath());
+				Files.copy(entry.getDataSummaryPath(), getDataSummaryPath());
+			}
+			if (getThumbnail() == null && Files.exists(entry.getThumbnailPath())) {
+				Files.deleteIfExists(getThumbnailPath());
+				Files.copy(entry.getThumbnailPath(), getThumbnailPath());
+			}
 		}
 		
 		private transient ImageResourceManager<BufferedImage> imageManager = null;
@@ -733,8 +738,10 @@ class DefaultProject implements Project<BufferedImage> {
 			
 			// If we already have a file, back it up first
 			var pathBackup = getBackupImageDataPath();
-			if (Files.exists(pathData))
-				Files.move(pathData, pathBackup, StandardCopyOption.REPLACE_EXISTING);
+			if (Files.exists(pathData)) {
+				Files.deleteIfExists(pathBackup);
+				Files.move(pathData, pathBackup);
+			}
 			
 			// Set the entry property, if needed
 			// This handles cases where an ImageData is being moved to become part of this project, 
@@ -759,7 +766,8 @@ class DefaultProject implements Project<BufferedImage> {
 				// Try to restore the backup
 				if (Files.exists(pathBackup)) {
 					logger.warn("Exception writing image file - attempting to restore {} from backup", pathData);
-					Files.move(pathBackup, pathData, StandardCopyOption.REPLACE_EXISTING);				
+					Files.deleteIfExists(pathData);
+					Files.move(pathBackup, pathData);
 				}
 				throw e;
 			}
@@ -848,7 +856,7 @@ class DefaultProject implements Project<BufferedImage> {
 				ImageIO.write(img, "JPEG", stream);
 			}
 		}
-		
+
 		synchronized boolean moveDataToTrash() {
 			Path path = getEntryPath();
 			if (!Files.exists(path))
@@ -996,12 +1004,14 @@ class DefaultProject implements Project<BufferedImage> {
 		if (fileProject.exists()) {
 			var pathBackup = new File(fileProject.getAbsolutePath() + ".backup").toPath();
 			logger.debug("Backing up existing project to {}", pathBackup);
-			Files.move(pathProject, pathBackup, StandardCopyOption.REPLACE_EXISTING);
+			Files.deleteIfExists(pathBackup);		// don't use move(StandardCopyOption.REPLACE_EXISTING)
+			Files.move(pathProject, pathBackup);	// because it won't work with sshfs-win: https://github.com/winfsp/sshfs-win/issues/349
 		}
 		
 		// If this succeeded, rename files
 		logger.debug("Renaming project to {}", pathProject);
-		Files.move(pathTempNew, pathProject, StandardCopyOption.REPLACE_EXISTING);	
+		Files.deleteIfExists(pathProject);
+		Files.move(pathTempNew, pathProject);
 		
 		
 //		// TODO: Consider the (admittedly unexpected) case where the JSON is too long for a String
