@@ -34,6 +34,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -395,11 +396,39 @@ class DefaultProject implements Project<BufferedImage> {
 		return modificationTimestamp;
 	}
 	
-	
 	Path ensureDirectoryExists(Path path) throws IOException {
 		if (!Files.isDirectory(path))
 			Files.createDirectories(path);
 		return path;
+	}
+
+	private static void safeUpdateState(Path source, Path target, boolean keepBackup) throws IOException {
+		// don't use move(StandardCopyOption.REPLACE_EXISTING)
+		// because it won't work with sshfs-win: https://github.com/winfsp/sshfs-win/issues/349
+		Path targetBackup = target.resolveSibling(target.getFileName() + ".backup");
+		Files.deleteIfExists(targetBackup);										// if it fails, 	LAST VERSION: 'source'		BACKUP VERSION: 'target'
+		if (Files.exists(target)) {
+			logger.debug("Backing up existing state to '{}'", targetBackup);
+			Files.move(target, targetBackup, StandardCopyOption.ATOMIC_MOVE);	// if it fails, 	LAST VERSION: 'source'		BACKUP VERSION: 'target'
+		}
+		logger.debug("Saving the newest state to '{}'", target);
+		try {
+			Files.move(source, target, StandardCopyOption.ATOMIC_MOVE);  		// if it fails, 	LAST VERSION: 'source'		BACKUP VERSION: 'targetBackup' (only if a previous backup existed)
+		} catch (IOException e) {
+			// Try to restore the backup
+			if (Files.exists(targetBackup)) {
+				logger.warn("Exception writing image file - attempting to restore '{}' from backup", target);
+				Files.move(targetBackup, target, StandardCopyOption.ATOMIC_MOVE);
+			}
+			throw e;
+		}
+																				// if it succeeds,	LAST VERSION: 'target'		BACKUP VERSION: 'targetBackup'
+		if(!keepBackup)
+			try {
+				Files.delete(targetBackup);										// if it fails, not a big deal
+			} catch (IOException e) {
+				logger.error("Failed to remove the backup file '"+targetBackup+"'. You can remove it by hand", e);
+			}
 	}
 	
 	private AtomicLong counter = new AtomicLong(0L);
@@ -734,14 +763,7 @@ class DefaultProject implements Project<BufferedImage> {
 		public synchronized void saveImageData(ImageData<BufferedImage> imageData) throws IOException {
 			// Get entry path, creating if needed
 			getEntryPath(true);
-			var pathData = getImageDataPath();
-			
-			// If we already have a file, back it up first
-			var pathBackup = getBackupImageDataPath();
-			if (Files.exists(pathData)) {
-				Files.deleteIfExists(pathBackup);
-				Files.move(pathData, pathBackup);
-			}
+			Path pathData = getImageDataPath();
 			
 			// Set the entry property, if needed
 			// This handles cases where an ImageData is being moved to become part of this project, 
@@ -752,25 +774,15 @@ class DefaultProject implements Project<BufferedImage> {
 				imageData.setProperty(IMAGE_ID, id);
 			}
 			
-			// Write to a temp file first
 			long timestamp = 0L;
-			try (var stream = Files.newOutputStream(pathData)) {
-				logger.debug("Saving image data to {}", pathData);
+			Path pathDataTmpNew = pathData.resolveSibling(pathData.getFileName() + ".tmp");
+			try (var stream = Files.newOutputStream(pathDataTmpNew)) {
+				logger.debug("Saving image data to {}", pathDataTmpNew);
 				PathIO.writeImageData(stream, imageData);
-				imageData.setLastSavedPath(pathData.toString(), true);
-				timestamp = Files.getLastModifiedTime(pathData).toMillis();
-				// Delete backup file if it exists
-				if (Files.exists(pathBackup))
-					Files.delete(pathBackup);
-			} catch (IOException e) {
-				// Try to restore the backup
-				if (Files.exists(pathBackup)) {
-					logger.warn("Exception writing image file - attempting to restore {} from backup", pathData);
-					Files.deleteIfExists(pathData);
-					Files.move(pathBackup, pathData);
-				}
-				throw e;
 			}
+			DefaultProject.safeUpdateState(pathDataTmpNew, pathData, false);
+			imageData.setLastSavedPath(pathData.toString(), true);
+			timestamp = Files.getLastModifiedTime(pathData).toMillis();
 			
 			// If successful, write the server (including metadata)
 			var server = imageData.getServer();
@@ -999,21 +1011,9 @@ class DefaultProject implements Project<BufferedImage> {
 //			logger.debug("Project contents are unchanged - no need to overwrite file");
 //			return;
 //		}
-		
-		// If we already have a project, back it up
-		if (fileProject.exists()) {
-			var pathBackup = new File(fileProject.getAbsolutePath() + ".backup").toPath();
-			logger.debug("Backing up existing project to {}", pathBackup);
-			Files.deleteIfExists(pathBackup);		// don't use move(StandardCopyOption.REPLACE_EXISTING)
-			Files.move(pathProject, pathBackup);	// because it won't work with sshfs-win: https://github.com/winfsp/sshfs-win/issues/349
-		}
-		
-		// If this succeeded, rename files
-		logger.debug("Renaming project to {}", pathProject);
-		Files.deleteIfExists(pathProject);
-		Files.move(pathTempNew, pathProject);
-		
-		
+
+		DefaultProject.safeUpdateState(pathTempNew, pathProject, true);
+
 //		// TODO: Consider the (admittedly unexpected) case where the JSON is too long for a String
 //		var jsonString = gson.toJson(builder);
 //
