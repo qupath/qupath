@@ -109,7 +109,7 @@ public class ConvertCommand implements Runnable, Subcommand {
 	
 	@Option(names = {"-h", "--help"}, usageHelp = true, description = "Show this help message and exit.")
 	private boolean usageHelpRequested;
-	
+
 	
 	@Override
 	public void run() {
@@ -121,7 +121,7 @@ public class ConvertCommand implements Runnable, Subcommand {
 				throw new IOException("Incorrect given path(s)");
 		} catch (IOException e) {
 			logger.error(e.getLocalizedMessage());
-			return;
+			System.exit(-1);
 		}
 		
 		// Change name if not ending with .ome.tif
@@ -129,11 +129,11 @@ public class ConvertCommand implements Runnable, Subcommand {
 			outputFile = new File(outputFile.getParentFile(), GeneralTools.getNameWithoutExtension(outputFile) + ".ome.tif");
 		if (outputFile.exists() && !overwrite) {
 			logger.error("Output file " + outputFile + " exists!");
-			return;
+			System.exit(-1);
 		}
 		if (inputFile.equals(outputFile)) {
 			logger.error("Input and output files are the same!");
-			return;
+			System.exit(-1);
 		}
 		
 		String[] args;
@@ -198,7 +198,7 @@ public class ConvertCommand implements Runnable, Subcommand {
 					builder.zSlice(zStart-1);
 				else if (zStart > zEnd) {
 					logger.error("Invalid range of --zslices (must be ascending): " + zSlices);
-					return;
+					System.exit(-1);
 				} else
 					builder.zSlices(zStart-1, zEnd);
 			} else if (zSlices.matches(patternInteger)) {
@@ -206,7 +206,7 @@ public class ConvertCommand implements Runnable, Subcommand {
 				builder.zSlice(z-1);
 			} else {
 				logger.error("Unknown value for --zslices: " + zSlices);
-				return;
+				System.exit(-1);
 			}
 			
 			// Parse timepoints, remembering to convert from 1-based (inclusive) to 0-based (upper value exclusive) indexing
@@ -219,7 +219,7 @@ public class ConvertCommand implements Runnable, Subcommand {
 					builder.timePoint(tStart-1);
 				else if (tStart > tEnd) {
 					logger.error("Invalid range of --timepoints (must be ascending): " + timepoints);
-					return;
+					System.exit(-1);
 				} else
 					builder.timePoints(tStart-1, tEnd);
 			} else if (timepoints.matches(patternInteger)) {
@@ -227,7 +227,7 @@ public class ConvertCommand implements Runnable, Subcommand {
 				builder.timePoint(t-1);
 			} else {
 				logger.error("Unknown value for --timepoints: " + timepoints);
-				return;
+				System.exit(-1);
 			}
 			
 			// Parse the bounding box, if required
@@ -240,8 +240,8 @@ public class ConvertCommand implements Runnable, Subcommand {
 					int h = Integer.parseInt(matcher.group(4));
 					builder.region(x, y, w, h);
 				} else {
-					logger.error("Unknown value for --crop: " + crop);					
-					return;
+					logger.error("Unknown value for --crop: " + crop);
+					System.exit(-1);
 				}
 			}
 			
@@ -252,6 +252,7 @@ public class ConvertCommand implements Runnable, Subcommand {
 
 		} catch (Exception e) {
 			logger.error(e.getLocalizedMessage(), e);
+			System.exit(-1);
 		}
 	}
 	
