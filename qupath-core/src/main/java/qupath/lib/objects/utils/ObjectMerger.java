@@ -25,6 +25,7 @@ import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.CoordinateSequenceFilter;
 import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.GeometryCollection;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.index.SpatialIndex;
@@ -51,6 +52,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /**
  * Helper class for merging objects using different criteria.
@@ -516,14 +518,17 @@ public class ObjectMerger {
                 rightIntersection.apply(new SetOrdinateFilter(CoordinateSequence.Y, envLeft.getMaxY()));
             }
             // Use intersection over union
-            var sharedIntersection = rightIntersection.intersection(leftIntersection);
-            double intersectionLength = sharedIntersection.getLength();
-            return intersectionLength / (rightLength + leftLength - intersectionLength);
+            if (isGeometryHeterogeneousCollection(leftIntersection)) {
+                return 0.0;
+            } else {
+                var sharedIntersection = rightIntersection.intersection(leftIntersection);
+                double intersectionLength = sharedIntersection.getLength();
+                return intersectionLength / (rightLength + leftLength - intersectionLength);
+            }
         } else {
             return 0.0;
         }
     }
-
 
     private static Geometry createEnvelopeIntersection(Geometry geom, double x1, double y1, double x2, double y2) {
         var factory = geom.getFactory();
@@ -533,6 +538,18 @@ public class ObjectMerger {
 
     private static LineString createLine(GeometryFactory factory, double x1, double y1, double x2, double y2) {
         return factory.createLineString(new Coordinate[]{new Coordinate(x1, y1), new Coordinate(x2, y2)});
+    }
+
+    private static boolean isGeometryHeterogeneousCollection(Geometry geometry) {
+        if (geometry instanceof GeometryCollection) {
+            return IntStream.range(0, geometry.getNumGeometries())
+                    .mapToObj(geometry::getGeometryN)
+                    .map(Geometry::getClass)
+                    .distinct()
+                    .count() > 1;
+        } else {
+            return false;
+        }
     }
 
     /**
