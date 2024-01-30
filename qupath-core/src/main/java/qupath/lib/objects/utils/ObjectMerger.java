@@ -25,7 +25,6 @@ import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.CoordinateSequenceFilter;
 import org.locationtech.jts.geom.Geometry;
-import org.locationtech.jts.geom.GeometryCollection;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.index.SpatialIndex;
@@ -35,6 +34,7 @@ import org.slf4j.LoggerFactory;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
+import qupath.lib.roi.GeometryTools;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
 
@@ -52,7 +52,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 /**
  * Helper class for merging objects using different criteria.
@@ -493,10 +492,10 @@ public class ObjectMerger {
                 lowerIntersection.apply(new SetOrdinateFilter(CoordinateSequence.Y, envUpper.getMaxY()));
             }
             // Use intersection over union
+            lowerIntersection = GeometryTools.homogenizeGeometryCollection(lowerIntersection);
             var sharedIntersection = upperIntersection.intersection(lowerIntersection);
             double intersectionLength = sharedIntersection.getLength();
-            double score = intersectionLength / (upperLength + lowerLength - intersectionLength);
-            return score;
+            return intersectionLength / (upperLength + lowerLength - intersectionLength);
         } else {
             return 0.0;
         }
@@ -518,13 +517,10 @@ public class ObjectMerger {
                 rightIntersection.apply(new SetOrdinateFilter(CoordinateSequence.Y, envLeft.getMaxY()));
             }
             // Use intersection over union
-            if (isGeometryHeterogeneousCollection(leftIntersection)) {
-                return 0.0;
-            } else {
-                var sharedIntersection = rightIntersection.intersection(leftIntersection);
-                double intersectionLength = sharedIntersection.getLength();
-                return intersectionLength / (rightLength + leftLength - intersectionLength);
-            }
+            leftIntersection = GeometryTools.homogenizeGeometryCollection(leftIntersection);
+            var sharedIntersection = rightIntersection.intersection(leftIntersection);
+            double intersectionLength = sharedIntersection.getLength();
+            return intersectionLength / (rightLength + leftLength - intersectionLength);
         } else {
             return 0.0;
         }
@@ -538,18 +534,6 @@ public class ObjectMerger {
 
     private static LineString createLine(GeometryFactory factory, double x1, double y1, double x2, double y2) {
         return factory.createLineString(new Coordinate[]{new Coordinate(x1, y1), new Coordinate(x2, y2)});
-    }
-
-    private static boolean isGeometryHeterogeneousCollection(Geometry geometry) {
-        if (geometry instanceof GeometryCollection) {
-            return IntStream.range(0, geometry.getNumGeometries())
-                    .mapToObj(geometry::getGeometryN)
-                    .map(Geometry::getClass)
-                    .distinct()
-                    .count() > 1;
-        } else {
-            return false;
-        }
     }
 
     /**
