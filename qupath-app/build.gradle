@@ -218,7 +218,7 @@ runtime {
     ]
 
     def params = buildParameters()
-//  println params
+
     ext {
         preferredName = 'QuPath'
     }
