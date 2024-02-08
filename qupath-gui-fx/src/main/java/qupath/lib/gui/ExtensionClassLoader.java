@@ -44,13 +44,10 @@ import org.slf4j.LoggerFactory;
 public class ExtensionClassLoader extends URLClassLoader {
 
 	private static final Logger logger = LoggerFactory.getLogger(ExtensionClassLoader.class);
-
+	private static final int MAX_EXTENSION_JARS_DEPTH = 3;
 	private static ExtensionClassLoader INSTANCE = null;
-
 	private final Supplier<Path> extensionsDirectorySupplier;
-
 	private final Set<Path> loadedJars = new HashSet<>();
-
 	private boolean isClosed = false;
 
 	private ExtensionClassLoader(Supplier<Path> extensionsDirectorySupplier) {
@@ -113,7 +110,7 @@ public class ExtensionClassLoader extends URLClassLoader {
 			return;
 		}
 		try {
-			try (Stream<Path> walk = Files.walk(dirExtensions, FileVisitOption.FOLLOW_LINKS)) {
+			try (Stream<Path> walk = Files.walk(dirExtensions, MAX_EXTENSION_JARS_DEPTH, FileVisitOption.FOLLOW_LINKS)) {
 				walk
 						.filter(this::isJarFile)
 						.map(Path::toAbsolutePath)
