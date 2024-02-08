@@ -44,7 +44,7 @@ import org.slf4j.LoggerFactory;
 public class ExtensionClassLoader extends URLClassLoader {
 
 	private static final Logger logger = LoggerFactory.getLogger(ExtensionClassLoader.class);
-	private static final int MAX_EXTENSION_JARS_DEPTH = 3;
+	private static int MAX_EXTENSION_JARS_DEPTH = 3;		// non-final to be editable with Groovy
 	private static ExtensionClassLoader INSTANCE = null;
 	private final Supplier<Path> extensionsDirectorySupplier;
 	private final Set<Path> loadedJars = new HashSet<>();
