@@ -55,6 +55,7 @@ import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.LongProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleLongProperty;
+import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.ListChangeListener;
@@ -119,7 +120,7 @@ public class ImageDisplay extends AbstractImageRenderer {
 			useGrayscaleLutProperty(), useInvertedBackgroundProperty());
 
 	private static Map<String, HistogramManager> cachedHistograms = Collections.synchronizedMap(new HashMap<>());
-	private HistogramManager histogramManager = null;
+	private final ObjectProperty<HistogramManager> histogramManager = new SimpleObjectProperty<>(null);
 	private List<BufferedImage> imagesForHistograms = new ArrayList<>(); // Cache images needed to recompute histograms
 
 	private static BooleanProperty showAllRGBTransforms = PathPrefs.createPersistentPreference("showAllRGBTransforms", true);
@@ -349,6 +350,14 @@ public class ImageDisplay extends AbstractImageRenderer {
 	public LongProperty changeTimestampProperty() {
 		return changeTimestamp;
 	}
+
+	/**
+	 * @return the current histogram manager used. This can be used to listen for
+	 * changes in the current histogram
+	 */
+	public ReadOnlyObjectProperty<HistogramManager> getHistogramManager() {
+		return histogramManager;
+	}
 	
 	
 	private void createRGBChannels(final ImageData<BufferedImage> imageData) {
@@ -431,7 +440,7 @@ public class ImageDisplay extends AbstractImageRenderer {
 	private void updateChannelOptions(boolean serverChanged) {
 		
 		logger.trace("Updating channel options (serverChanged={})", serverChanged);
-		
+
 		// If the server has changed, reset the RGB channels that we have cached
 		if (serverChanged) {
 			createRGBChannels(null);
@@ -445,7 +454,7 @@ public class ImageDisplay extends AbstractImageRenderer {
 				switchToGrayscaleChannel.set(null);
 			return;
 		}
-		
+
 		List<ChannelDisplayInfo> tempChannelOptions = new ArrayList<>();
 		List<ChannelDisplayInfo> tempSelectedChannels = new ArrayList<>(this.selectedChannels);
 		if (server.isRGB()) {
@@ -491,7 +500,7 @@ public class ImageDisplay extends AbstractImageRenderer {
 			if (colorsUpdated)
 				saveChannelColorProperties();
 		}
-		
+
 		// Select all the channels
 		if (serverChanged) {
 			tempSelectedChannels.clear();
@@ -849,20 +858,20 @@ public class ImageDisplay extends AbstractImageRenderer {
 	private void updateHistogramMap() throws IOException {
 		ImageServer<BufferedImage> server = imageData == null ? null : imageData.getServer();
 		if (server == null) {
-			histogramManager = null;
+			histogramManager.set(null);
 			return;
 		}
-		
-		histogramManager = cachedHistograms.get(server.getPath());
-		if (histogramManager == null) {
-			histogramManager = new HistogramManager(0L);
-			histogramManager.ensureChannels(server, channelOptions, imagesForHistograms);
+
+		histogramManager.set(cachedHistograms.get(server.getPath()));
+		if (histogramManager.get() == null) {
+			histogramManager.set(new HistogramManager(0L));
+			histogramManager.get().ensureChannels(server, channelOptions, imagesForHistograms);
 			if (server.getPixelType() == PixelType.UINT8) {
 				channelOptions.parallelStream().filter(c -> !(c instanceof DirectServerChannelInfo)).forEach(channel -> autoSetDisplayRange(channel, false));								
 			} else {
 				channelOptions.parallelStream().forEach(channel -> autoSetDisplayRange(channel, false));				
 			}
-			cachedHistograms.put(server.getPath(), histogramManager);
+			cachedHistograms.put(server.getPath(), histogramManager.get());
 		} else {
 			channelOptions.parallelStream().forEach(channel -> autoSetDisplayRange(channel, false));
 		}
@@ -987,9 +996,9 @@ public class ImageDisplay extends AbstractImageRenderer {
 	 * @return
 	 */
 	public Histogram getHistogram(ChannelDisplayInfo info) {
-		if (info == null || histogramManager == null)
+		if (info == null || histogramManager.get() == null)
 			return null;
-		return histogramManager.getHistogram(getServer(), info, imagesForHistograms);
+		return histogramManager.get().getHistogram(getServer(), info, imagesForHistograms);
 	}
 
 	
@@ -1149,7 +1158,7 @@ public class ImageDisplay extends AbstractImageRenderer {
 	
 	
 	
-	static class HistogramManager {
+	public static class HistogramManager {
 		
 		private static int NUM_BINS = 1024;
 		
@@ -1201,7 +1210,7 @@ public class ImageDisplay extends AbstractImageRenderer {
 
 			if (channelsToProcess.isEmpty() || imgList == null || imgList.isEmpty())
 				return;
-			
+
 			logger.debug("Building {} histograms for {}", channelsToProcess.size(), server.getPath());
 			long startTime = System.currentTimeMillis();
 

@@ -141,6 +141,9 @@ public class BrightnessContrastCommand implements Runnable {
 		table.disableToggleMenuItemsProperty().bind(showGrayscale);
 
 		currentChannelProperty.addListener((v, o, n) -> chartPane.updateHistogram(imageDisplayProperty.get(), n));
+		viewerProperty.map(QuPathViewer::getImageDisplay).flatMap(ImageDisplay::getHistogramManager).addListener((v, o, n) ->
+				chartPane.updateHistogram(imageDisplayProperty.get(), currentChannelProperty.get())
+		);
 		chartPane.updateHistogram(imageDisplayProperty.get(), currentChannelProperty.get());
 
 		dialog = createDialog();
