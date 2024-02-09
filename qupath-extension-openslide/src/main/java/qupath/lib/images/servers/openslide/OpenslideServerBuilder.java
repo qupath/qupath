@@ -23,20 +23,19 @@
 
 package qupath.lib.images.servers.openslide;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.common.LogTools;
+import qupath.lib.images.servers.FileFormatInfo;
+import qupath.lib.images.servers.FileFormatInfo.ImageCheckType;
+import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ImageServerBuilder;
+import qupath.lib.images.servers.openslide.jna.OpenSlideLoader;
+
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.net.URI;
 import java.nio.file.Paths;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import qupath.lib.common.GeneralTools;
-import qupath.lib.common.LogTools;
-import qupath.lib.images.servers.FileFormatInfo;
-import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.servers.ImageServerBuilder;
-import qupath.lib.images.servers.FileFormatInfo.ImageCheckType;
-import qupath.lib.images.servers.openslide.jna.OpenSlideLoader;
 
 /**
  * Builder for Openslide ImageServer.
@@ -51,7 +50,7 @@ public class OpenslideServerBuilder implements ImageServerBuilder<BufferedImage>
 
 	@Override
 	public ImageServer<BufferedImage> buildServer(URI uri, String...args) {
-		if (!OpenSlideLoader.isOpenSlideAvailable()) {
+		if (!OpenSlideLoader.isOpenSlideAvailable() && !OpenSlideLoader.tryToLoadQuietly()) {
 			logger.debug("OpenSlide is unavailable - will be skipped");
 			return null;
 		}
