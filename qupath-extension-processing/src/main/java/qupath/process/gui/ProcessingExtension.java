@@ -272,7 +272,7 @@ public class ProcessingExtension implements QuPathExtension {
 			Platform.runLater(() -> {
 				qupath.getToolManager().installTool(wandTool, new KeyCodeCombination(KeyCode.W));
 				qupath.getToolManager().getToolAction(wandTool).setLongText(
-						"Click and drag to draw with a wand tool. "
+						"(W) Click and drag to draw with a wand tool. "
 						+ "Adjust brightness/contrast or wand preferences to customize the sensitivity and behavior."
 						);
 			});
