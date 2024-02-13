@@ -493,6 +493,7 @@ public class ObjectMerger {
             }
             // Use intersection over union
             lowerIntersection = GeometryTools.homogenizeGeometryCollection(lowerIntersection);
+            upperIntersection = GeometryTools.homogenizeGeometryCollection(upperIntersection);
             var sharedIntersection = upperIntersection.intersection(lowerIntersection);
             double intersectionLength = sharedIntersection.getLength();
             return intersectionLength / (upperLength + lowerLength - intersectionLength);
@@ -518,6 +519,7 @@ public class ObjectMerger {
             }
             // Use intersection over union
             leftIntersection = GeometryTools.homogenizeGeometryCollection(leftIntersection);
+            rightIntersection = GeometryTools.homogenizeGeometryCollection(rightIntersection);
             var sharedIntersection = rightIntersection.intersection(leftIntersection);
             double intersectionLength = sharedIntersection.getLength();
             return intersectionLength / (rightLength + leftLength - intersectionLength);
