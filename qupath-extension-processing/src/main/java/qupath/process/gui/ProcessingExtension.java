@@ -270,11 +270,15 @@ public class ProcessingExtension implements QuPathExtension {
 					IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, PathIcons.WAND_TOOL));
 			logger.debug("Installing wand tool");
 			Platform.runLater(() -> {
-				qupath.getToolManager().installTool(wandTool, new KeyCodeCombination(KeyCode.W));
-				qupath.getToolManager().getToolAction(wandTool).setLongText(
-						"(W) Click and drag to draw with a wand tool. "
-						+ "Adjust brightness/contrast or wand preferences to customize the sensitivity and behavior."
-						);
+				KeyCodeCombination keyCodeCombination = new KeyCodeCombination(KeyCode.W);
+				qupath.getToolManager().installTool(wandTool, keyCodeCombination);
+				qupath.getToolManager().getToolAction(wandTool).setLongText(String.format(
+        				"""
+						(%s) Click and drag to draw with a wand tool.
+						Adjust brightness/contrast or wand preferences to customize the sensitivity and behavior.
+						""",
+						keyCodeCombination
+				));
 			});
 			
 			logger.debug("Loading OpenCV classes");

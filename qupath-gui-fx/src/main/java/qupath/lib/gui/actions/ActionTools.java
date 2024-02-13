@@ -35,15 +35,12 @@ import java.util.stream.Collectors;
 
 import javafx.application.Platform;
 import javafx.beans.binding.ObjectExpression;
+import javafx.beans.property.StringProperty;
 import javafx.geometry.Pos;
-import javafx.scene.Group;
 import javafx.scene.control.Control;
-import javafx.scene.control.TextArea;
 import javafx.scene.layout.StackPane;
 import javafx.scene.shape.Circle;
 import javafx.scene.text.Text;
-import javafx.scene.text.TextAlignment;
-import javafx.scene.text.TextBoundsType;
 import javafx.util.Duration;
 import org.controlsfx.control.action.Action;
 import org.controlsfx.control.action.ActionUtils;
@@ -454,12 +451,27 @@ public class ActionTools {
 				localizedResourceManager.registerProperty(action.textProperty(), bundle, key);
 			else
 				action.setText(QuPathResources.getString(bundle, key));
+
 			String descriptionKey = key + ".description";
 			if (QuPathResources.hasString(bundle, descriptionKey)) {
-				if (annotation.bindLocale())
-					localizedResourceManager.registerProperty(action.longTextProperty(), bundle, descriptionKey);
-				else
-					action.setLongText(QuPathResources.getString(bundle, descriptionKey));
+				if (annotation.bindLocale()) {
+					StringProperty resourceLongTextProperty = new SimpleStringProperty();
+					resourceLongTextProperty.addListener((p, o, n) -> {
+						String longText = n;
+						if (action.getAccelerator() != null) {
+							longText = "(" + action.getAccelerator() + ") " + longText;
+						}
+						action.setLongText(longText);
+					});
+					localizedResourceManager.registerProperty(resourceLongTextProperty, bundle, descriptionKey);
+				}
+				else {
+					String longText = QuPathResources.getString(bundle, descriptionKey);
+					if (action.getAccelerator() != null) {
+						longText = "(" + action.getAccelerator() + ") " + longText;
+					}
+					action.setLongText(longText);
+				}
 			}
  		}
 	}
