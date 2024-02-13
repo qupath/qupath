@@ -34,6 +34,7 @@ import org.slf4j.LoggerFactory;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
+import qupath.lib.roi.GeometryTools;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
 
@@ -491,10 +492,11 @@ public class ObjectMerger {
                 lowerIntersection.apply(new SetOrdinateFilter(CoordinateSequence.Y, envUpper.getMaxY()));
             }
             // Use intersection over union
+            lowerIntersection = GeometryTools.homogenizeGeometryCollection(lowerIntersection);
+            upperIntersection = GeometryTools.homogenizeGeometryCollection(upperIntersection);
             var sharedIntersection = upperIntersection.intersection(lowerIntersection);
             double intersectionLength = sharedIntersection.getLength();
-            double score = intersectionLength / (upperLength + lowerLength - intersectionLength);
-            return score;
+            return intersectionLength / (upperLength + lowerLength - intersectionLength);
         } else {
             return 0.0;
         }
@@ -516,6 +518,8 @@ public class ObjectMerger {
                 rightIntersection.apply(new SetOrdinateFilter(CoordinateSequence.Y, envLeft.getMaxY()));
             }
             // Use intersection over union
+            leftIntersection = GeometryTools.homogenizeGeometryCollection(leftIntersection);
+            rightIntersection = GeometryTools.homogenizeGeometryCollection(rightIntersection);
             var sharedIntersection = rightIntersection.intersection(leftIntersection);
             double intersectionLength = sharedIntersection.getLength();
             return intersectionLength / (rightLength + leftLength - intersectionLength);
@@ -523,7 +527,6 @@ public class ObjectMerger {
             return 0.0;
         }
     }
-
 
     private static Geometry createEnvelopeIntersection(Geometry geom, double x1, double y1, double x2, double y2) {
         var factory = geom.getFactory();
