@@ -119,14 +119,10 @@ class NumericMeasurementList {
 		 * @param value
 		 */
 		protected abstract void setValue(int index, double value);
-		
-		boolean isClosed() {
-			return isClosed;
-		}
 
 		@Override
-		public void close() {
-			if (isClosed())
+		public synchronized void close() {
+			if (isClosed)
 				return;
 			compactStorage();
 			// Try to get a shared list & map
@@ -154,7 +150,7 @@ class NumericMeasurementList {
 		
 
 		@Override
-		public boolean isEmpty() {
+		public synchronized boolean isEmpty() {
 			return names.isEmpty();
 		}
 		
@@ -163,17 +159,17 @@ class NumericMeasurementList {
 		 * @param name
 		 * @return
 		 */
-		int getMeasurementIndex(String name) {
+		synchronized int getMeasurementIndex(String name) {
 			// Read from map, if possible
 			if (map != null) {
 				Integer ind = map.get(name);
-				return ind == null ? -1 : ind.intValue();
+				return ind == null ? -1 : ind;
 			}
 			return names.indexOf(name);
 		}
 		
 		@Override
-		public final int size() {
+		public final synchronized int size() {
 			return names.size();
 		}
 
@@ -182,7 +178,7 @@ class NumericMeasurementList {
 			if (names.isEmpty())
 				return Collections.emptyList();
 			// Try to return the same unmodifiable list of names if we can - this speeds up comparisons
-			if (isClosed()) {
+			if (isClosed) {
 				if (namesUnmodifiable == null) {
 					var nameMap = getNameMap();
 					namesUnmodifiable = nameMap.getUnmodifiableNames();
@@ -201,27 +197,27 @@ class NumericMeasurementList {
 		}
 
 		@Override
-		public boolean containsKey(String measurementName) {
+		public synchronized boolean containsKey(String measurementName) {
 			if (!isClosed)
 				logger.trace("containsNamedMeasurement called on open NumericMeasurementList - consider closing list earlier for efficiency");
 			return names.contains(measurementName);
 		}
 
 		@Override
-		public String getMeasurementName(int ind) {
+		public synchronized String getMeasurementName(int ind) {
 			return names.get(ind);
 		}
 		
 		@Override
-		public void clear() {
+		public synchronized void clear() {
 			ensureListOpen();
 			names.clear();
 			namesUnmodifiable = null;
 			compactStorage();
 		}
 		
-		void ensureListOpen() {
-			if (isClosed()) {
+		synchronized void ensureListOpen() {
+			if (isClosed) {
 				isClosed = false;
 				map = null;
 				names = new ArrayList<>(names);	
@@ -249,8 +245,8 @@ class NumericMeasurementList {
 			return false;
 		}
 		
-		void compactStorage() {
-			if (isClosed())
+		synchronized void compactStorage() {
+			if (isClosed)
 				return;
 			if (names instanceof ArrayList)
 				((ArrayList<String>)names).trimToSize();
@@ -309,7 +305,7 @@ class NumericMeasurementList {
 		}
 		
 		@Override
-		public double getMeasurementValue(int ind) {
+		public synchronized double getMeasurementValue(int ind) {
 			if (ind >= 0 && ind < size())
 				return values[ind];
 			return Double.NaN;
@@ -321,20 +317,20 @@ class NumericMeasurementList {
 		}
 
 		@Override
-		protected void setValue(int index, double value) {
+		protected synchronized void setValue(int index, double value) {
 			ensureArraySize(index + 1);
 			values[index] = (float)value;
 		}
 		
 		@Override
-		public void compactStorage() {
+		public synchronized void compactStorage() {
 			super.compactStorage();
 			if (size() < values.length)
 				values = Arrays.copyOf(values, size());
 		}
 
 		@Override
-		public void removeMeasurements(String... measurementNames) {
+		public synchronized void removeMeasurements(String... measurementNames) {
 			ensureListOpen();
 			for (String name : measurementNames) {
 				int ind = getMeasurementIndex(name);
@@ -363,7 +359,7 @@ class NumericMeasurementList {
 		}
 
 		@Override
-		public double getMeasurementValue(int ind) {
+		public synchronized double getMeasurementValue(int ind) {
 			if (ind >= 0 && ind < size())
 				return values[ind];
 			return Double.NaN;
@@ -375,13 +371,13 @@ class NumericMeasurementList {
 		}
 
 		@Override
-		protected void setValue(int index, double value) {
+		protected synchronized void setValue(int index, double value) {
 			ensureArraySize(index + 1);
 			values[index] = (float)value;
 		}
 		
 		@Override
-		public void compactStorage() {
+		public synchronized void compactStorage() {
 			super.compactStorage();
 			if (size() < values.length)
 				values = Arrays.copyOf(values, size());
@@ -389,7 +385,7 @@ class NumericMeasurementList {
 
 		
 		@Override
-		public void removeMeasurements(String... measurementNames) {
+		public synchronized void removeMeasurements(String... measurementNames) {
 			ensureListOpen();
 			for (String name : measurementNames) {
 				int ind = getMeasurementIndex(name);
