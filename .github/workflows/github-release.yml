@@ -1,0 +1,54 @@
+
+name: Draft a GitHub release
+
+on: workflow_dispatch
+
+concurrency: release-${{ github.ref }}
+permissions:
+  contents: write
+
+jobs:
+  jpackage:
+    name: Run JPackage
+    uses: ./.github/workflows/jpackage.yml
+
+  release:
+    needs: jpackage
+    name: Draft release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get qupath version from gradle
+        shell: bash
+        run: |
+          # grep reads the version line, sed strips everything before =
+          # GITHUB_ENV means it's stored in env.QUPATH_VERSION persistently
+          # not just for the current step...                
+          echo "QUPATH_VERSION=$(grep 'qupathVersion = \".*\"' settings.gradle  | sed -e 's/.*= "\(.*\)"/\1/')" >> $GITHUB_ENV
+
+      - uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+          pattern: QuPath*
+
+      - name: Wrangle files
+        shell: bash
+        run: |
+          mv QuPath-${{ env.QUPATH_VERSION }}.msi QuPath-v${{ env.QUPATH_VERSION }}-Windows.msi
+          mv QuPath-${{ env.QUPATH_VERSION }}.zip QuPath-v${{ env.QUPATH_VERSION }}-Windows.zip
+          mv QuPath-${{ env.QUPATH_VERSION }}-x64.pkg QuPath-v${{ env.QUPATH_VERSION }}-Mac-x64.pkg
+          mv QuPath-${{ env.QUPATH_VERSION }}-arm64.pkg QuPath-v${{ env.QUPATH_VERSION }}-Mac-arm64.pkg
+
+      - name: Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create --draft v${{ env.QUPATH_VERSION }} -t ${{ github.sha }} --title v${{ env.QUPATH_VERSION }} \
+              QuPath-v${{ env.QUPATH_VERSION }}-Windows.msi \
+              QuPath-v${{ env.QUPATH_VERSION }}-Windows.zip \
+              QuPath-v${{ env.QUPATH_VERSION }}-Mac-x64.pkg \
+              QuPath-v${{ env.QUPATH_VERSION }}-Mac-arm64.pkg \
+              QuPath-v${{ env.QUPATH_VERSION }}-Linux.tar.xz
+
