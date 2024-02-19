@@ -462,8 +462,8 @@ public class ColorMaps {
 		private static final int[] r = {0, 0,   0,   0,   255, 255};
 		private static final int[] g = {0, 0,   255, 255, 255, 0};
 		private static final int[] b = {0, 255, 255, 0,   0,   0};
-		private static int nColors = 256;
-		private static Integer[] colors = new Integer[nColors];
+		private static final int nColors = 256;
+		private static final Integer[] colors = new Integer[nColors];
 
 		static {
 			double scale = (double)(r.length - 1) / nColors;
@@ -499,13 +499,12 @@ public class ColorMaps {
 
 		@Override
 		public Integer getColor(double value, double minValue, double maxValue) {
-			//			System.out.println("Measurement map: " + minValue + ", " + maxValue);
 			int ind = 0;
-			if (maxValue > minValue) {
-				ind = (int)((value - minValue) / (maxValue - minValue) * nColors + .5);
-				ind = ind >= nColors ? nColors - 1 : ind;
-				ind = ind < 0 ? 0 : ind;
-			}
+			double max = Math.max(minValue, maxValue);
+			double min = Math.min(minValue, maxValue);
+			ind = (int)((value - min) / (max - min) * nColors + .5);
+			ind = ind >= nColors ? nColors - 1 : ind;
+			ind = Math.max(ind, 0);
 			return getColor(ind);
 		}
 
