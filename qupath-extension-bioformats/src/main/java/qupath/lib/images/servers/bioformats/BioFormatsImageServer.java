@@ -37,6 +37,7 @@ import loci.formats.ReaderWrapper;
 import loci.formats.gui.AWTImageTools;
 import loci.formats.in.DynamicMetadataOptions;
 import loci.formats.in.MetadataOptions;
+import loci.formats.in.ZarrReader;
 import loci.formats.meta.DummyMetadata;
 import loci.formats.meta.MetadataStore;
 import loci.formats.ome.OMEPyramidStore;
@@ -1185,10 +1186,15 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			}
 			
 			IFormatReader imageReader;
-			if (classList != null) {
-				imageReader = new ImageReader(classList);
+			if (new File(id).isDirectory()) {
+				// Using new ImageReader() on a directory won't work
+				imageReader = new ZarrReader();
 			} else {
-				imageReader = new ImageReader(getDefaultClassList());
+				if (classList != null) {
+					imageReader = new ImageReader(classList);
+				} else {
+					imageReader = new ImageReader(getDefaultClassList());
+				}
 			}
 
 			imageReader.setFlattenedResolutions(false);

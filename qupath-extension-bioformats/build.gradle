@@ -34,6 +34,7 @@ dependencies {
   implementation libs.qupath.fxtras
   implementation libs.controlsfx
   implementation libs.picocli
+  implementation libs.jna           // needed for OMEZarrReader (see https://github.com/bcdev/jzarr/issues/31)
 
   implementation "ome:formats-gpl:${bioformatsVersion}", {
     exclude group: 'xalan', module: 'serializer'
@@ -45,6 +46,8 @@ dependencies {
     exclude group: 'com.google.code.findbugs', module: 'jsr305'
     exclude group: 'com.google.code.findbugs', module: 'annotations'
   }
+  implementation group: 'ome', name: 'OMEZarrReader', version: libs.versions.omeZarrReader.get()
+  implementation "io.github.qupath:blosc:${libs.versions.blosc.get()}:${nativesClassifier.replace("natives-", "")}"
 
 //  testImplementation("ome:bioformats_package:${bioformatsVersion}")
   testImplementation "ome:bio-formats_plugins:${bioformatsVersion}"
