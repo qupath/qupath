@@ -213,6 +213,7 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 	public Stage getStage() {
 		if (stage == null)
 			initializeGUI();
+			stage.setWidth(850);
 		return stage;
 	}
 	
