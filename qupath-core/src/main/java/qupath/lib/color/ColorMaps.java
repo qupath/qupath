@@ -431,19 +431,7 @@ public class ColorMaps {
 
 		@Override
 		public Integer getColor(double value, double minValue, double maxValue) {
-			//			System.out.println("Measurement map: " + minValue + ", " + maxValue);
-			int ind = 0;
-			if (maxValue > minValue) {
-				ind = (int)Math.round((value - minValue) / (maxValue - minValue) * nColors);
-				ind = ind >= nColors ? nColors - 1 : ind;
-				ind = ind < 0 ? 0 : ind;
-			} else if (minValue > maxValue) {
-				ind = (int)Math.round((value - maxValue) / (minValue - maxValue) * nColors);
-				ind = ind >= nColors ? nColors - 1 : ind;
-				ind = ind < 0 ? 0 : ind;
-				ind = nColors - 1 - ind;
-			}
-			return getColor(ind);
+			return getColor(getInd(value, minValue, maxValue, nColors));
 		}
 
 
@@ -499,13 +487,7 @@ public class ColorMaps {
 
 		@Override
 		public Integer getColor(double value, double minValue, double maxValue) {
-			int ind = 0;
-			double max = Math.max(minValue, maxValue);
-			double min = Math.min(minValue, maxValue);
-			ind = (int)((value - min) / (max - min) * nColors + .5);
-			ind = ind >= nColors ? nColors - 1 : ind;
-			ind = Math.max(ind, 0);
-			return getColor(ind);
+			return getColor(getInd(value, minValue, maxValue, nColors));
 		}
 
 
@@ -515,8 +497,25 @@ public class ColorMaps {
 //		}
 
 	}
-	
-	
+
+	/**
+	 * Utility method to translate values to indices, handling swapped min/max values.
+	 * @param value The value to be mapped.
+	 * @param minValue The min value of the color scale.
+	 * @param maxValue The max value of the color scale.
+	 * @param nColors The number of colors in the color scale.
+	 * @return An integer to index the colors.
+	 */
+	static int getInd(double value, double minValue, double maxValue, int nColors) {
+		int ind = 0;
+		double max = Math.max(minValue, maxValue);
+		double min = Math.min(minValue, maxValue);
+		ind = (int)((value - min) / (max - min) * nColors + .5);
+		ind = ind >= nColors ? nColors - 1 : ind;
+		ind = Math.max(ind, 0);
+		if (minValue > maxValue) ind = (nColors - 1) - ind;
+		return ind;
+	}
 	
 	private static class GammaColorMap implements ColorMap {
 		
