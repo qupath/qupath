@@ -581,23 +581,22 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 			}
 			
 			int padding = 5;
-			
-			int w = (int)getWidth(); //Width of the stage
-			int dx = imageSize.get() + padding; //Width of the image + padding
-			int nx = (int)Math.floor(w / dx); //Number of images that can fit in a row
+			int dx = imageSize.get() + padding;
+			int w = Math.max(dx, (int)getWidth());
+			int nx = (int)Math.floor(w / dx);
 			nx = Math.max(1, nx);
 			int spaceX = (int)((w - (dx) * nx) / (nx)); // Space to divide equally
 			
-			int x = spaceX/2;
+			int x = spaceX/2; //1 space increment to divide equally
 			int y = padding;
 			
 			for (Node node : getChildren()) {
 				if (x + dx > w) {
 					x = spaceX/2;
-					if (node instanceof Label label) // If the node is a label, then the height is the height of the label
+					if (node instanceof Label label)
 						y += label.getHeight() + spaceX + 2;
 					else
-						y += imageSize.get() + spaceX + 2; // If the node is not a label, then the height is the height of the image
+						y += imageSize.get() + spaceX + 2;
 				}
 				
 				if (doAnimate.get()) {
