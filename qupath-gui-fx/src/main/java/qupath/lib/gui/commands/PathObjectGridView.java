@@ -213,7 +213,7 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 	public Stage getStage() {
 		if (stage == null)
 			initializeGUI();
-			stage.setWidth(850);
+			stage.setWidth(600);
 		return stage;
 	}
 	
@@ -587,7 +587,7 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 			nx = Math.max(1, nx);
 			int spaceX = (int)((w - (dx) * nx) / (nx)); // Space to divide equally
 			
-			int x = spaceX/2; //1 space increment to divide equally
+			int x = spaceX/2;
 			int y = padding;
 			
 			for (Node node : getChildren()) {
