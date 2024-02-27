@@ -24,6 +24,11 @@
 
 package qupath.lib.color;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.common.ColorTools;
+import qupath.lib.common.GeneralTools;
+
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.FileSystem;
@@ -42,12 +47,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.TreeMap;
 import java.util.stream.DoubleStream;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import qupath.lib.common.ColorTools;
-import qupath.lib.common.GeneralTools;
 
 /**
  * Helper class to manage colormaps, which are rather like lookup tables but easily support interpolation.
@@ -510,10 +509,12 @@ public class ColorMaps {
 		int ind = 0;
 		double max = Math.max(minValue, maxValue);
 		double min = Math.min(minValue, maxValue);
-		ind = (int)((value - min) / (max - min) * nColors + .5);
+		ind = (int) Math.round((value - min) / (max - min) * nColors);
 		ind = ind >= nColors ? nColors - 1 : ind;
 		ind = Math.max(ind, 0);
-		if (minValue > maxValue) ind = (nColors - 1) - ind;
+		if (minValue > maxValue) {
+			ind = (nColors - 1) - ind;
+		}
 		return ind;
 	}
 	
