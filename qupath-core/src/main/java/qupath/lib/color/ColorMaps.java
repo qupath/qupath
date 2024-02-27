@@ -92,13 +92,7 @@ public class ColorMaps {
 		 * Get the name of the colormap.
 		 * @return
 		 */
-		public String getName();
-
-//		/**
-//		 * Returns true if the map uses alpha values within its colors.
-//		 * @return
-//		 */
-//		public boolean hasAlpha();
+		String getName();
 
 		/**
 		 * Get a packed ARGB representation of the (interpolated) color at the specified value,.
@@ -107,7 +101,7 @@ public class ColorMaps {
 		 * @param maxValue maximum display value, corresponding to the first last in the lookup table of this map
 		 * @return
 		 */
-		public Integer getColor(double value, double minValue, double maxValue);
+		Integer getColor(double value, double minValue, double maxValue);
 
 	}
 	
@@ -339,21 +333,7 @@ public class ColorMaps {
 	public static ColorMap createColorMap(String name, int[] r, int[] g, int[] b) {
 		return new DefaultColorMap(name, r, g, b);
 	}
-	
-//	/**
-//	 * Create a colormap using double values for red, green and blue.
-//	 * These should be in the range 0-1.
-//	 * @param name
-//	 * @param r
-//	 * @param g
-//	 * @param b
-//	 * @return
-//	 * @throws IllegalArgumentException if r, g or b values are out of range.
-//	 */
-//	public static ColorMap createDoubleColorMap(String name, double r, double g, double b) {
-//		return createColorMap(name, convertToInt(r), convertToInt(g), convertToInt(b));
-//	}
-	
+
 	/**
 	 * Create a colormap using int values for red, green and blue corresponding to the maximum value; 
 	 * the minimum color will be black.
@@ -433,12 +413,6 @@ public class ColorMaps {
 			return getColor(getInd(value, minValue, maxValue, nColors));
 		}
 
-
-//		@Override
-//		public boolean hasAlpha() {
-//			return false;
-//		}
-
 	}
 
 	/**
@@ -488,12 +462,6 @@ public class ColorMaps {
 		public Integer getColor(double value, double minValue, double maxValue) {
 			return getColor(getInd(value, minValue, maxValue, nColors));
 		}
-
-
-//		@Override
-//		public boolean hasAlpha() {
-//			return false;
-//		}
 
 	}
 
