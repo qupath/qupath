@@ -512,10 +512,7 @@ public class ColorMaps {
 		ind = (int) Math.round((value - min) / (max - min) * nColors);
 		ind = ind >= nColors ? nColors - 1 : ind;
 		ind = Math.max(ind, 0);
-		if (minValue > maxValue) {
-			ind = (nColors - 1) - ind;
-		}
-		return ind;
+		return minValue > maxValue ? (nColors - 1 - ind) : ind;
 	}
 	
 	private static class GammaColorMap implements ColorMap {
