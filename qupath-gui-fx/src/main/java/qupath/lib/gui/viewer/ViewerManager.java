@@ -503,10 +503,15 @@ public class ViewerManager implements QuPathViewerListener {
 			int r = splitPaneGrid.getRow(view);
 			int c = splitPaneGrid.getColumn(view);
 			if (r >= nRows || c >= nCols) {
+				// If the open viewer is outside the new grid, we need to move it
 				var nextClosedViewer = closedViewers.remove(0);
 				int rClosed = splitPaneGrid.getRow(nextClosedViewer);
 				int cClosed = splitPaneGrid.getColumn(nextClosedViewer);
+				// Add a dummy to the open viewer's position, to detach it from the scene
+				splitPaneGrid.splitPaneRows.get(r).getItems().set(c, new BorderPane());
+				// Set the open viewer to the closed viewer's position, to reattach it to the scene
 				splitPaneGrid.splitPaneRows.get(rClosed).getItems().set(cClosed, view);
+				// Remove the closed viewer from the list of all viewers
 				viewers.remove(nextClosedViewer);
 			}
 		}
