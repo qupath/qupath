@@ -35,15 +35,12 @@ import java.util.stream.Collectors;
 
 import javafx.application.Platform;
 import javafx.beans.binding.ObjectExpression;
+import javafx.beans.property.StringProperty;
 import javafx.geometry.Pos;
-import javafx.scene.Group;
 import javafx.scene.control.Control;
-import javafx.scene.control.TextArea;
 import javafx.scene.layout.StackPane;
 import javafx.scene.shape.Circle;
 import javafx.scene.text.Text;
-import javafx.scene.text.TextAlignment;
-import javafx.scene.text.TextBoundsType;
 import javafx.util.Duration;
 import org.controlsfx.control.action.Action;
 import org.controlsfx.control.action.ActionUtils;
@@ -447,24 +444,39 @@ public class ActionTools {
 	private static void parseConfig(Action action, ActionConfig annotation, LocalizedResourceManager localizedResourceManager) {
 		if (annotation != null) {
 			String key = annotation.value();
-			String bundle = annotation.bundle();
-			if (bundle != null && bundle.isEmpty())
-				bundle = null;
+			String bundle = annotation.bundle() != null && annotation.bundle().isEmpty() ? null : annotation.bundle();
 			if (annotation.bindLocale())
 				localizedResourceManager.registerProperty(action.textProperty(), bundle, key);
 			else
 				action.setText(QuPathResources.getString(bundle, key));
+
 			String descriptionKey = key + ".description";
 			if (QuPathResources.hasString(bundle, descriptionKey)) {
-				if (annotation.bindLocale())
-					localizedResourceManager.registerProperty(action.longTextProperty(), bundle, descriptionKey);
-				else
-					action.setLongText(QuPathResources.getString(bundle, descriptionKey));
+				if (annotation.bindLocale()) {
+					StringProperty resourceLongTextProperty = new SimpleStringProperty();
+					resourceLongTextProperty.addListener((p, o, n) -> action.setLongText(getActionText(action.getAccelerator(), n)));
+					localizedResourceManager.registerProperty(resourceLongTextProperty, bundle, descriptionKey);
+
+					action.acceleratorProperty().addListener((p, o, n) ->
+							action.setLongText(getActionText(n, resourceLongTextProperty.get()))
+					);
+				}
+				else {
+					action.setLongText(getActionText(action.getAccelerator(), QuPathResources.getString(bundle, descriptionKey)));
+
+					action.acceleratorProperty().addListener((p, o, n) ->
+							action.setLongText(getActionText(n, QuPathResources.getString(bundle, descriptionKey)))
+					);
+				}
 			}
  		}
 	}
-	
-	
+
+	private static String getActionText(KeyCombination accelerator, String description) {
+		return accelerator == null ?
+				description :
+				"(" + accelerator.getDisplayText() + ") " + description;
+	}
 	
 	private static void parseMenu(Action action, ActionMenu annotation, String baseMenu) {
 		String menuString = baseMenu == null || baseMenu.isBlank() ? "" : baseMenu;
