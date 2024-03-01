@@ -456,27 +456,21 @@ public class ActionTools {
 			if (QuPathResources.hasString(bundle, descriptionKey)) {
 				if (annotation.bindLocale()) {
 					StringProperty resourceLongTextProperty = new SimpleStringProperty();
-					resourceLongTextProperty.addListener((p, o, n) -> {
-						String longText = n;
-						if (action.getAccelerator() != null) {
-							longText = "(" + action.getAccelerator().getDisplayText() + ") " + longText;
-						}
-						action.setLongText(longText);
-					});
+					resourceLongTextProperty.addListener((p, o, n) -> action.setLongText(getActionText(action, n)));
 					localizedResourceManager.registerProperty(resourceLongTextProperty, bundle, descriptionKey);
 				}
 				else {
-					String longText = QuPathResources.getString(bundle, descriptionKey);
-					if (action.getAccelerator() != null) {
-						longText = "(" + action.getAccelerator().getDisplayText() + ") " + longText;
-					}
-					action.setLongText(longText);
+					action.setLongText(getActionText(action, QuPathResources.getString(bundle, descriptionKey)));
 				}
 			}
  		}
 	}
-	
-	
+
+	private static String getActionText(Action action, String description) {
+		return action.getAccelerator() == null ?
+				description :
+				"(" + action.getAccelerator().getDisplayText() + ") " + description;
+	}
 	
 	private static void parseMenu(Action action, ActionMenu annotation, String baseMenu) {
 		String menuString = baseMenu == null || baseMenu.isBlank() ? "" : baseMenu;
