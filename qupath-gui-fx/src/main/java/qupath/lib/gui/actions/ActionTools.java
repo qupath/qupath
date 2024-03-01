@@ -444,9 +444,7 @@ public class ActionTools {
 	private static void parseConfig(Action action, ActionConfig annotation, LocalizedResourceManager localizedResourceManager) {
 		if (annotation != null) {
 			String key = annotation.value();
-			String bundle = annotation.bundle();
-			if (bundle != null && bundle.isEmpty())
-				bundle = null;
+			String bundle = annotation.bundle() != null && annotation.bundle().isEmpty() ? null : annotation.bundle();
 			if (annotation.bindLocale())
 				localizedResourceManager.registerProperty(action.textProperty(), bundle, key);
 			else
@@ -456,20 +454,28 @@ public class ActionTools {
 			if (QuPathResources.hasString(bundle, descriptionKey)) {
 				if (annotation.bindLocale()) {
 					StringProperty resourceLongTextProperty = new SimpleStringProperty();
-					resourceLongTextProperty.addListener((p, o, n) -> action.setLongText(getActionText(action, n)));
+					resourceLongTextProperty.addListener((p, o, n) -> action.setLongText(getActionText(action.getAccelerator(), n)));
 					localizedResourceManager.registerProperty(resourceLongTextProperty, bundle, descriptionKey);
+
+					action.acceleratorProperty().addListener((p, o, n) ->
+							action.setLongText(getActionText(n, resourceLongTextProperty.get()))
+					);
 				}
 				else {
-					action.setLongText(getActionText(action, QuPathResources.getString(bundle, descriptionKey)));
+					action.setLongText(getActionText(action.getAccelerator(), QuPathResources.getString(bundle, descriptionKey)));
+
+					action.acceleratorProperty().addListener((p, o, n) ->
+							action.setLongText(getActionText(n, QuPathResources.getString(bundle, descriptionKey)))
+					);
 				}
 			}
  		}
 	}
 
-	private static String getActionText(Action action, String description) {
-		return action.getAccelerator() == null ?
+	private static String getActionText(KeyCombination accelerator, String description) {
+		return accelerator == null ?
 				description :
-				"(" + action.getAccelerator().getDisplayText() + ") " + description;
+				"(" + accelerator.getDisplayText() + ") " + description;
 	}
 	
 	private static void parseMenu(Action action, ActionMenu annotation, String baseMenu) {
