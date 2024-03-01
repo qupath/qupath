@@ -1376,16 +1376,24 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 				if (tileWidth <= 0 || tileHeight <= 0) {
 					throw new IOException("Unable to request pixels for region with downsampled size " + tileWidth + " x " + tileHeight);
 				}
-
-				// OME Zarr files provide z scaling (the number of z stacks decreases when the resolution becomes
-				// lower, like the width and height)
-				if (ipReader instanceof ZarrReader) {
-					z /= tileRequest.getDownsample();
-				}
 		
 				synchronized(ipReader) {
 					ipReader.setSeries(series);
 					ipReader.setResolution(level);
+
+					// Some files provide z scaling (the number of z stacks decreases when the resolution becomes
+					// lower, like the width and height), so z needs to be updated for levels > 0
+					if (level > 0) {
+						ipReader.setResolution(0);
+						int zStacksFullResolution = ipReader.getSizeZ();
+						ipReader.setResolution(level);
+						int zStacksCurrentResolution = ipReader.getSizeZ();
+
+						if (zStacksFullResolution != zStacksCurrentResolution) {
+							z = (int) Math.round(z / tileRequest.getDownsample());
+						}
+					}
+
 					order = ipReader.isLittleEndian() ? ByteOrder.LITTLE_ENDIAN : ByteOrder.BIG_ENDIAN;
 					interleaved = ipReader.isInterleaved();
 					pixelType = ipReader.getPixelType();
