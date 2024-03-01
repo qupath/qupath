@@ -10,6 +10,7 @@ This is a *minor release* that aims to be fully compatible with v0.5.0, while fi
 * OpenSlide is not available when running from command line (https://github.com/qupath/qupath/pull/1447)
 * `convert-ome` always returns 0 even if it fails (https://github.com/qupath/qupath/issues/1451)
 * Grid views don't show objects by default if no measurements are available (https://github.com/qupath/qupath/issues/1472)
+* Reducing the number of open viewers can break QuPath & require it to be restarted (https://github.com/qupath/qupath/issues/1469)
 
 ### Enhancement
 * Add keyboard shortcuts to tooltips (https://github.com/qupath/qupath/issues/1450)
