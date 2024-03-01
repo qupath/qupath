@@ -396,11 +396,39 @@ class DefaultProject implements Project<BufferedImage> {
 		return modificationTimestamp;
 	}
 	
-	
 	Path ensureDirectoryExists(Path path) throws IOException {
 		if (!Files.isDirectory(path))
 			Files.createDirectories(path);
 		return path;
+	}
+
+	private static void safeUpdateState(Path source, Path target, boolean keepBackup) throws IOException {
+		// don't use move(StandardCopyOption.REPLACE_EXISTING)
+		// because it won't work with sshfs-win: https://github.com/winfsp/sshfs-win/issues/349
+		Path targetBackup = target.resolveSibling(target.getFileName() + ".backup");
+		Files.deleteIfExists(targetBackup);										// if it fails, 	LAST VERSION: 'source'		BACKUP VERSION: 'target'
+		if (Files.exists(target)) {
+			logger.debug("Backing up existing state to '{}'", targetBackup);
+			Files.move(target, targetBackup, StandardCopyOption.ATOMIC_MOVE);	// if it fails, 	LAST VERSION: 'source'		BACKUP VERSION: 'target'
+		}
+		logger.debug("Saving the newest state to '{}'", target);
+		try {
+			Files.move(source, target, StandardCopyOption.ATOMIC_MOVE);  		// if it fails, 	LAST VERSION: 'source'		BACKUP VERSION: 'targetBackup' (only if a previous backup existed)
+		} catch (IOException e) {
+			// Try to restore the backup
+			if (Files.exists(targetBackup)) {
+				logger.warn("Exception writing image file - attempting to restore '{}' from backup", target);
+				Files.move(targetBackup, target, StandardCopyOption.ATOMIC_MOVE);
+			}
+			throw e;
+		}
+																				// if it succeeds,	LAST VERSION: 'target'		BACKUP VERSION: 'targetBackup'
+		if(!keepBackup)
+			try {
+				Files.delete(targetBackup);										// if it fails, not a big deal
+			} catch (IOException e) {
+				logger.error("Failed to remove the backup file '"+targetBackup+"'. You can remove it by hand", e);
+			}
 	}
 	
 	private AtomicLong counter = new AtomicLong(0L);
@@ -514,12 +542,18 @@ class DefaultProject implements Project<BufferedImage> {
 		void copyDataFromEntry(final DefaultProjectImageEntry entry) throws IOException {
 			// Ensure we have the necessary directory
 			getEntryPath(true);
-			if (Files.exists(entry.getImageDataPath()))
-				Files.copy(entry.getImageDataPath(), getImageDataPath(), StandardCopyOption.REPLACE_EXISTING);
-			if (Files.exists(entry.getDataSummaryPath()))
-				Files.copy(entry.getDataSummaryPath(), getDataSummaryPath(), StandardCopyOption.REPLACE_EXISTING);
-			if (getThumbnail() == null && Files.exists(entry.getThumbnailPath()))
-				Files.copy(entry.getThumbnailPath(), getThumbnailPath(), StandardCopyOption.REPLACE_EXISTING);
+			if (Files.exists(entry.getImageDataPath())) {
+				Files.deleteIfExists(getImageDataPath());
+				Files.copy(entry.getImageDataPath(), getImageDataPath());
+			}
+			if (Files.exists(entry.getDataSummaryPath())) {
+				Files.deleteIfExists(getDataSummaryPath());
+				Files.copy(entry.getDataSummaryPath(), getDataSummaryPath());
+			}
+			if (getThumbnail() == null && Files.exists(entry.getThumbnailPath())) {
+				Files.deleteIfExists(getThumbnailPath());
+				Files.copy(entry.getThumbnailPath(), getThumbnailPath());
+			}
 		}
 		
 		private transient ImageResourceManager<BufferedImage> imageManager = null;
@@ -729,12 +763,7 @@ class DefaultProject implements Project<BufferedImage> {
 		public synchronized void saveImageData(ImageData<BufferedImage> imageData) throws IOException {
 			// Get entry path, creating if needed
 			getEntryPath(true);
-			var pathData = getImageDataPath();
-			
-			// If we already have a file, back it up first
-			var pathBackup = getBackupImageDataPath();
-			if (Files.exists(pathData))
-				Files.move(pathData, pathBackup, StandardCopyOption.REPLACE_EXISTING);
+			Path pathData = getImageDataPath();
 			
 			// Set the entry property, if needed
 			// This handles cases where an ImageData is being moved to become part of this project, 
@@ -745,24 +774,15 @@ class DefaultProject implements Project<BufferedImage> {
 				imageData.setProperty(IMAGE_ID, id);
 			}
 			
-			// Write to a temp file first
 			long timestamp = 0L;
-			try (var stream = Files.newOutputStream(pathData)) {
-				logger.debug("Saving image data to {}", pathData);
+			Path pathDataTmpNew = pathData.resolveSibling(pathData.getFileName() + ".tmp");
+			try (var stream = Files.newOutputStream(pathDataTmpNew)) {
+				logger.debug("Saving image data to {}", pathDataTmpNew);
 				PathIO.writeImageData(stream, imageData);
-				imageData.setLastSavedPath(pathData.toString(), true);
-				timestamp = Files.getLastModifiedTime(pathData).toMillis();
-				// Delete backup file if it exists
-				if (Files.exists(pathBackup))
-					Files.delete(pathBackup);
-			} catch (IOException e) {
-				// Try to restore the backup
-				if (Files.exists(pathBackup)) {
-					logger.warn("Exception writing image file - attempting to restore {} from backup", pathData);
-					Files.move(pathBackup, pathData, StandardCopyOption.REPLACE_EXISTING);				
-				}
-				throw e;
 			}
+			DefaultProject.safeUpdateState(pathDataTmpNew, pathData, false);
+			imageData.setLastSavedPath(pathData.toString(), true);
+			timestamp = Files.getLastModifiedTime(pathData).toMillis();
 			
 			// If successful, write the server (including metadata)
 			var server = imageData.getServer();
@@ -848,7 +868,7 @@ class DefaultProject implements Project<BufferedImage> {
 				ImageIO.write(img, "JPEG", stream);
 			}
 		}
-		
+
 		synchronized boolean moveDataToTrash() {
 			Path path = getEntryPath();
 			if (!Files.exists(path))
@@ -991,19 +1011,9 @@ class DefaultProject implements Project<BufferedImage> {
 //			logger.debug("Project contents are unchanged - no need to overwrite file");
 //			return;
 //		}
-		
-		// If we already have a project, back it up
-		if (fileProject.exists()) {
-			var pathBackup = new File(fileProject.getAbsolutePath() + ".backup").toPath();
-			logger.debug("Backing up existing project to {}", pathBackup);
-			Files.move(pathProject, pathBackup, StandardCopyOption.REPLACE_EXISTING);
-		}
-		
-		// If this succeeded, rename files
-		logger.debug("Renaming project to {}", pathProject);
-		Files.move(pathTempNew, pathProject, StandardCopyOption.REPLACE_EXISTING);	
-		
-		
+
+		DefaultProject.safeUpdateState(pathTempNew, pathProject, true);
+
 //		// TODO: Consider the (admittedly unexpected) case where the JSON is too long for a String
 //		var jsonString = gson.toJson(builder);
 //
