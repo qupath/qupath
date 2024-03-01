@@ -459,7 +459,7 @@ public class ActionTools {
 					resourceLongTextProperty.addListener((p, o, n) -> {
 						String longText = n;
 						if (action.getAccelerator() != null) {
-							longText = "(" + action.getAccelerator() + ") " + longText;
+							longText = "(" + action.getAccelerator().getDisplayText() + ") " + longText;
 						}
 						action.setLongText(longText);
 					});
@@ -468,7 +468,7 @@ public class ActionTools {
 				else {
 					String longText = QuPathResources.getString(bundle, descriptionKey);
 					if (action.getAccelerator() != null) {
-						longText = "(" + action.getAccelerator() + ") " + longText;
+						longText = "(" + action.getAccelerator().getDisplayText() + ") " + longText;
 					}
 					action.setLongText(longText);
 				}

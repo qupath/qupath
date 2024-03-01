@@ -277,7 +277,7 @@ public class ProcessingExtension implements QuPathExtension {
 						(%s) Click and drag to draw with a wand tool.
 						Adjust brightness/contrast or wand preferences to customize the sensitivity and behavior.
 						""",
-						keyCodeCombination
+						keyCodeCombination.getDisplayText()
 				));
 			});
 			
