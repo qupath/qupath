@@ -9,6 +9,7 @@ This is a *minor release* that aims to be fully compatible with v0.5.0, while fi
 * Extensions can't be loaded from sub-directories of the extension directory (https://github.com/qupath/qupath/pull/1461)
 * OpenSlide is not available when running from command line (https://github.com/qupath/qupath/pull/1447)
 * `convert-ome` always returns 0 even if it fails (https://github.com/qupath/qupath/issues/1451)
+* Grid views don't show objects by default if no measurements are available (https://github.com/qupath/qupath/issues/1472)
 
 ### Enhancement
 * Add keyboard shortcuts to tooltips (https://github.com/qupath/qupath/issues/1450)
