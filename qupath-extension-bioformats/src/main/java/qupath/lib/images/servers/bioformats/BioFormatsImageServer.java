@@ -1390,7 +1390,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 						int zStacksCurrentResolution = ipReader.getSizeZ();
 
 						if (zStacksFullResolution != zStacksCurrentResolution) {
-							z = (int) Math.round(z / tileRequest.getDownsample());
+							z = (int) Math.floor(z / tileRequest.getDownsample());
 						}
 					}
 
