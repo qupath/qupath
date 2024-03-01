@@ -538,6 +538,7 @@ public class BrightnessContrastCommand implements Runnable {
 			newValue.addPropertyChangeListener(imageDataPropertyChangeListener);
 
 		updateSliders();
+		Platform.runLater(() -> chartPane.updateHistogram(imageDisplayProperty.get(), currentChannelProperty.get()));
 	}
 
 
