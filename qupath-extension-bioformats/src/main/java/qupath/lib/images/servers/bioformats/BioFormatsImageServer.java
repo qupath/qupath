@@ -1379,19 +1379,22 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		
 				synchronized(ipReader) {
 					ipReader.setSeries(series);
-					ipReader.setResolution(level);
 
 					// Some files provide z scaling (the number of z stacks decreases when the resolution becomes
 					// lower, like the width and height), so z needs to be updated for levels > 0
-					if (level > 0) {
+					if (level > 0 && z > 0) {
 						ipReader.setResolution(0);
 						int zStacksFullResolution = ipReader.getSizeZ();
 						ipReader.setResolution(level);
 						int zStacksCurrentResolution = ipReader.getSizeZ();
 
 						if (zStacksFullResolution != zStacksCurrentResolution) {
-							z = (int) Math.floor(z / tileRequest.getDownsample());
+							z = (int) (z * zStacksCurrentResolution / (float) zStacksFullResolution);
 						}
+
+
+					} else {
+						ipReader.setResolution(level);
 					}
 
 					order = ipReader.isLittleEndian() ? ByteOrder.LITTLE_ENDIAN : ByteOrder.BIG_ENDIAN;
