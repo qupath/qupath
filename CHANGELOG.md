@@ -11,9 +11,13 @@ This is a *minor release* that aims to be fully compatible with v0.5.0, while fi
 * `convert-ome` always returns 0 even if it fails (https://github.com/qupath/qupath/issues/1451)
 * Grid views don't show objects by default if no measurements are available (https://github.com/qupath/qupath/issues/1472)
 * Reducing the number of open viewers can break QuPath & require it to be restarted (https://github.com/qupath/qupath/issues/1469)
+* Exception when opening script if the last directory isn't available (https://github.com/qupath/qupath/issues/1441)
 
 ### Enhancement
 * Add keyboard shortcuts to tooltips (https://github.com/qupath/qupath/issues/1450)
+
+### Dependency update
+* qupath-fxtras 0.1.4
 
 
 ## Version 0.5.0
