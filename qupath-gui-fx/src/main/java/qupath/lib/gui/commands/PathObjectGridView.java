@@ -75,6 +75,7 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.Text;
 import javafx.stage.Stage;
 import javafx.util.Duration;
+import qupath.fx.utils.FXUtils;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.measure.ObservableMeasurementTableData;
@@ -213,7 +214,14 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 	public Stage getStage() {
 		if (stage == null) {
 			initializeGUI();
-			stage.setWidth(600);
+			var owner = stage.getOwner();
+			if (owner != null) {
+				var screen = FXUtils.getScreen(owner);
+				if (screen != null) {
+					stage.setWidth(Math.min(850, screen.getVisualBounds().getWidth() * 0.8));
+					stage.centerOnScreen();
+				}
+			}
 		}
 		return stage;
 	}
