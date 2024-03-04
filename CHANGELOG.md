@@ -13,6 +13,7 @@ This is a *minor release* that aims to be fully compatible with v0.5.0, while fi
 * Reducing the number of open viewers can break QuPath & require it to be restarted (https://github.com/qupath/qupath/issues/1469)
 * Exception when opening script if the last directory isn't available (https://github.com/qupath/qupath/issues/1441)
 * 'Show grayscale' sometimes show an extra channel when multiple viewers are used (https://github.com/qupath/qupath/issues/1468)
+* Displaying large numbers of thumbnails in a project is too slow (https://github.com/qupath/qupath/issues/1446)
 
 ### Enhancement
 * Add keyboard shortcuts to tooltips (https://github.com/qupath/qupath/issues/1450)

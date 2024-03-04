@@ -28,6 +28,7 @@ import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.lang.ref.SoftReference;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
@@ -446,6 +447,13 @@ class DefaultProject implements Project<BufferedImage> {
 		 * Map of associated metadata for the entry.
 		 */
 		private Map<String, String> metadata = new LinkedHashMap<>();
+
+		/**
+		 * Store a soft reference to the thumbnail, so that it can be garbage collected if necessary.
+		 * Intended to help with https://github.com/qupath/qupath/issues/1446 without a need to introduce
+		 * another cache in the UI.
+		 */
+		private transient SoftReference<BufferedImage> cachedThumbnail;
 		
 		DefaultProjectImageEntry(final ServerBuilder<BufferedImage> builder) throws IOException {
 			this(builder, null, null, null, null);
@@ -831,22 +839,42 @@ class DefaultProject implements Project<BufferedImage> {
 
 		@Override
 		public synchronized BufferedImage getThumbnail() throws IOException {
-			var path = getThumbnailPath();
-			if (Files.exists(path)) {
-				try (var stream = Files.newInputStream(path)) {
-					return ImageIO.read(stream);
+			long startTime = System.nanoTime();
+			var thumbnail = cachedThumbnail == null ? null : cachedThumbnail.get();
+			boolean cached = thumbnail != null;
+			if (thumbnail == null) {
+				var path = getThumbnailPath();
+				if (Files.exists(path)) {
+					try (var stream = Files.newInputStream(path)) {
+						thumbnail = ImageIO.read(stream);
+						cachedThumbnail = new SoftReference<>(thumbnail);
+					}
 				}
 			}
-			return null;
+			long endTime = System.nanoTime();
+			if (cached)
+				logger.trace("Thumbnail accessed from cache in {} ms", (endTime - startTime) / 1000000);
+			else
+				logger.trace("Thumbnail read in {} ms", (endTime - startTime) / 1000000);
+			return thumbnail;
 		}
 
 		@Override
 		public synchronized void setThumbnail(BufferedImage img) throws IOException {
+			resetCachedThumbnail();
 			getEntryPath(true);
 			var path = getThumbnailPath();
 			try (var stream = Files.newOutputStream(path)) {
 				ImageIO.write(img, "JPEG", stream);
 			}
+		}
+
+		/**
+		 * Reset the cached thumbnail, so that it will be reloaded next time it is requested.
+		 */
+		private synchronized void resetCachedThumbnail() {
+			logger.trace("Resetting cached thumbnail for {}", getID());
+			cachedThumbnail = null;
 		}
 		
 		synchronized boolean moveDataToTrash() {
