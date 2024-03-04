@@ -479,10 +479,10 @@ public class ImageDisplay extends AbstractImageRenderer {
 			boolean colorsUpdated = false;
 			for (int c = 0; c < channelOptions.size(); c++) {
 				var option = channelOptions.get(c);
-				if (option instanceof DirectServerChannelInfo && c < server.nChannels()) {
+				if (option instanceof DirectServerChannelInfo directChannel && c < server.nChannels()) {
 					var channel = server.getChannel(c);
 					if (!Objects.equals(option.getColor(), channel.getColor())) {
-						((DirectServerChannelInfo)option).setLUTColor(channel.getColor());
+						directChannel.setLUTColor(channel.getColor());
 						colorsUpdated = true;
 					}
 				}
@@ -1081,21 +1081,21 @@ public class ImageDisplay extends AbstractImageRenderer {
 		Gson gson = new Gson();
 		Type type = new TypeToken<List<JsonHelperChannelInfo>>(){}.getType();
 		List<JsonHelperChannelInfo> helperList = gson.fromJson(json, type);
-		boolean changes = false;
 		// Try updating everything
+		List<ChannelDisplayInfo> newSelectedChannels = new ArrayList<>();
 		for (JsonHelperChannelInfo helper : helperList) {
 			for (ChannelDisplayInfo info : channelOptions) {
 				if (helper.updateInfo(info)) {
 					if (Boolean.TRUE.equals(helper.selected)) {
-						if (!selectedChannels.contains(info)) {
-							selectedChannels.add(info);
-						}
-					} else {
-						selectedChannels.remove(info);
+						newSelectedChannels.add(info);
 					}
-					changes = true;
 				}
 			}
+		}
+		boolean changes = false;
+		if (!newSelectedChannels.equals(selectedChannels)) {
+			selectedChannels.setAll(newSelectedChannels);
+			changes = true;
 		}
 		return changes;
 	}
