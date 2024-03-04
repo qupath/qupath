@@ -24,6 +24,21 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+/**
+ * <p>
+ *     Create an OME-Zarr file writer as described by version 0.4 of the specifications of the
+ *     <a href="https://ngff.openmicroscopy.org/0.4/index.html">Next-generation file formats (NGFF)</a>.
+ * </p>
+ * <p>
+ *     Use a {@link Builder} to create an instance of this class.
+ * </p>
+ * <p>
+ *     This class is thread-safe but already uses concurrency internally to write tiles.
+ * </p>
+ * <p>
+ *     This writer has to be {@link #close() closed} once no longer used.
+ * </p>
+ */
 public class OMEZarrWriter implements AutoCloseable {
 
     private final ImageServer<BufferedImage> server;
@@ -33,7 +48,7 @@ public class OMEZarrWriter implements AutoCloseable {
     private int numberOfTasksRunning = 0;
 
     private OMEZarrWriter(Builder builder) throws IOException {
-        OMEZarrAttributes attributes = new OMEZarrAttributes(
+        OMEZarrAttributesCreator attributes = new OMEZarrAttributesCreator(
                 builder.server.getMetadata().getName(),
                 builder.server.nZSlices(),
                 builder.server.nTimepoints(),
@@ -60,6 +75,18 @@ public class OMEZarrWriter implements AutoCloseable {
         executorService.shutdown();
     }
 
+    /**
+     * <p>
+     *     Write the provided tile in a background thread.
+     * </p>
+     * <p>
+     *     The tile will be written from an internal pool of thread, so this function may
+     *     return before the tile is actually written.
+     * </p>
+     *
+     * @param tileRequest  the tile to write
+     * @throws IOException when an error occurs while writing the tile
+     */
     public void write(TileRequest tileRequest) throws IOException {
         try {
             CompletableFuture.runAsync(() -> {
@@ -77,10 +104,17 @@ public class OMEZarrWriter implements AutoCloseable {
         }
     }
 
+    /**
+     * @return whether this writer is currently writing tiles. This can be useful to wait
+     * for tiles to finish being written
+     */
     public synchronized boolean isWriting() {
         return numberOfTasksRunning > 0;
     }
 
+    /**
+     * Builder to create an instance of a {@link OMEZarrWriter}.
+     */
     public static class Builder {
 
         private static final String FILE_EXTENSION = ".ome.zarr";
@@ -89,6 +123,13 @@ public class OMEZarrWriter implements AutoCloseable {
         private Compressor compressor = CompressorFactory.createDefaultCompressor();
         private int numberOfThreads = 12;
 
+        /**
+         * Create the builder.
+         *
+         * @param server  the image to write
+         * @param path  the path where to write the image. It must end with ".ome.zarr"
+         * @throws IllegalArgumentException when the provided path doesn't end with ".ome.zarr"
+         */
         public Builder(ImageServer<BufferedImage> server, String path) {
             if (!path.endsWith(FILE_EXTENSION)) {
                 throw new IllegalArgumentException(String.format("The provided path (%s) does not have the OME-Zarr extension (%s)", path, FILE_EXTENSION));
@@ -98,16 +139,38 @@ public class OMEZarrWriter implements AutoCloseable {
             this.path = path;
         }
 
+        /**
+         * Set the compressor to use when writing tiles. By default, the blocs compression is used.
+         *
+         * @param compressor  the compressor to use when writing tiles
+         * @return this builder
+         */
         public Builder setCompressor(Compressor compressor) {
             this.compressor = compressor;
             return this;
         }
 
+        /**
+         * Tiles will be written from a pool of thread. This function
+         * specifies the number of threads to use. By default, 12 threads are
+         * used.
+         *
+         * @param numberOfThreads  the number of threads to use when writing tiles
+         * @return this builder
+         */
         public Builder setNumberOfThreads(int numberOfThreads) {
             this.numberOfThreads = numberOfThreads;
             return this;
         }
 
+        /**
+         * Create a new instance of {@link OMEZarrWriter}. This will also
+         * create an empty image on the provided path.
+         *
+         * @return the new {@link OMEZarrWriter}
+         * @throws IOException when the empty image cannot be created. This can happen
+         * if the provided path is incorrect or if the user doesn't have enough permissions
+         */
         public OMEZarrWriter build() throws IOException {
             return new OMEZarrWriter(this);
         }
