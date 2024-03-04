@@ -53,7 +53,7 @@
       if: matrix.name == 'Linux'
       shell: bash
       run: |
-        tar -c build/dist/QuPath/ | xz > build/dist/QuPath-v${{ env.QUPATH_VERSION }}-${{ matrix.name }}.tar.xz
+        tar -c -C build/dist/ QuPath | xz > build/dist/QuPath-v${{ env.QUPATH_VERSION }}-${{ matrix.name }}.tar.xz
         rm -r build/dist/QuPath/
 
     - name: Clean windows artifact
