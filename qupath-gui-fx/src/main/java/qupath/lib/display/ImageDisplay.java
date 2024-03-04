@@ -146,14 +146,25 @@ public class ImageDisplay extends AbstractImageRenderer {
 			if (n) {
 				// Snapshot the names of channels active before switching to grayscale
 				selectedChannels.stream().map(ChannelDisplayInfo::getName).forEach(beforeGrayscaleChannels::add);
-				var swithToGrayscale = switchToGrayscaleChannel.get();
-				if (swithToGrayscale != null)
-					setChannelSelected(swithToGrayscale, true);
+				var switchToGrayscale = switchToGrayscaleChannel.get();
+				if (switchToGrayscale != null) {
+					if (!availableChannels.contains(switchToGrayscale)) {
+						// If we have a different object to represent the channel, search for it by name -
+						// because we need to be careful not to select a channel that isn't 'available'
+						// See https://github.com/qupath/qupath/pull/1482
+						String switchToGrayscaleChannelName = switchToGrayscale.getName();
+						switchToGrayscale = availableChannels.stream()
+								.filter(c -> Objects.equals(c.getName(), switchToGrayscaleChannelName))
+								.findFirst().orElse(null);
+					}
+					if (switchToGrayscale != null)
+						setChannelSelected(switchToGrayscale, true);
+				}
 				if (lastSelectedChannel != null)
 					setChannelSelected(lastSelectedChannel, true);
 				else if (!selectedChannels.isEmpty())
 					setChannelSelected(selectedChannels.get(0), true);
-				else if (availableChannels.isEmpty()) {
+				else if (!availableChannels.isEmpty()) {
 					setChannelSelected(availableChannels.get(0), true);
 				}
 			} else {
@@ -479,10 +490,10 @@ public class ImageDisplay extends AbstractImageRenderer {
 			boolean colorsUpdated = false;
 			for (int c = 0; c < channelOptions.size(); c++) {
 				var option = channelOptions.get(c);
-				if (option instanceof DirectServerChannelInfo && c < server.nChannels()) {
+				if (option instanceof DirectServerChannelInfo directChannel && c < server.nChannels()) {
 					var channel = server.getChannel(c);
 					if (!Objects.equals(option.getColor(), channel.getColor())) {
-						((DirectServerChannelInfo)option).setLUTColor(channel.getColor());
+						directChannel.setLUTColor(channel.getColor());
 						colorsUpdated = true;
 					}
 				}
@@ -1081,21 +1092,21 @@ public class ImageDisplay extends AbstractImageRenderer {
 		Gson gson = new Gson();
 		Type type = new TypeToken<List<JsonHelperChannelInfo>>(){}.getType();
 		List<JsonHelperChannelInfo> helperList = gson.fromJson(json, type);
-		boolean changes = false;
 		// Try updating everything
+		List<ChannelDisplayInfo> newSelectedChannels = new ArrayList<>();
 		for (JsonHelperChannelInfo helper : helperList) {
 			for (ChannelDisplayInfo info : channelOptions) {
 				if (helper.updateInfo(info)) {
 					if (Boolean.TRUE.equals(helper.selected)) {
-						if (!selectedChannels.contains(info)) {
-							selectedChannels.add(info);
-						}
-					} else {
-						selectedChannels.remove(info);
+						newSelectedChannels.add(info);
 					}
-					changes = true;
 				}
 			}
+		}
+		boolean changes = false;
+		if (!newSelectedChannels.equals(selectedChannels)) {
+			selectedChannels.setAll(newSelectedChannels);
+			changes = true;
 		}
 		return changes;
 	}
