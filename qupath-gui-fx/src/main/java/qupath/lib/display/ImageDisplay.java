@@ -147,8 +147,19 @@ public class ImageDisplay extends AbstractImageRenderer {
 				// Snapshot the names of channels active before switching to grayscale
 				selectedChannels.stream().map(ChannelDisplayInfo::getName).forEach(beforeGrayscaleChannels::add);
 				var switchToGrayscale = switchToGrayscaleChannel.get();
-				if (switchToGrayscale != null)
-					setChannelSelected(switchToGrayscale, true);
+				if (switchToGrayscale != null) {
+					if (!availableChannels.contains(switchToGrayscale)) {
+						// If we have a different object to represent the channel, search for it by name -
+						// because we need to be careful not to select a channel that isn't 'available'
+						// See https://github.com/qupath/qupath/pull/1482
+						String switchToGrayscaleChannelName = switchToGrayscale.getName();
+						switchToGrayscale = availableChannels.stream()
+								.filter(c -> Objects.equals(c.getName(), switchToGrayscaleChannelName))
+								.findFirst().orElse(null);
+					}
+					if (switchToGrayscale != null)
+						setChannelSelected(switchToGrayscale, true);
+				}
 				if (lastSelectedChannel != null)
 					setChannelSelected(lastSelectedChannel, true);
 				else if (!selectedChannels.isEmpty())
