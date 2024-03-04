@@ -9,6 +9,7 @@ import com.bc.zarr.ZarrArray;
 import com.bc.zarr.ZarrGroup;
 import loci.formats.gui.AWTImageTools;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.TileRequest;
 import ucar.ma2.InvalidRangeException;
@@ -32,12 +33,25 @@ public class OMEZarrWriter implements AutoCloseable {
     private int numberOfTasksRunning = 0;
 
     private OMEZarrWriter(Builder builder) throws IOException {
+        OMEZarrAttributes attributes = new OMEZarrAttributes(
+                builder.server.getMetadata().getName(),
+                builder.server.nZSlices(),
+                builder.server.nTimepoints(),
+                builder.server.nChannels(),
+                builder.server.getMetadata().getPixelCalibration().getPixelWidthUnit().equals(PixelCalibration.MICROMETER),
+                builder.server.getMetadata().getTimeUnit(),
+                builder.server.getPreferredDownsamples()
+        );
+
         this.server = builder.server;
         this.compressor = builder.compressor;
-        this.levelArrays = createLevelArrays(ZarrGroup.create(
-                builder.path,
-                OMEZarrAttributes.getGroupAttributes(server)
-        ));
+        this.levelArrays = createLevelArrays(
+                ZarrGroup.create(
+                        builder.path,
+                        attributes.getGroupAttributes()
+                ),
+                attributes.getLevelAttributes()
+        );
         executorService = Executors.newFixedThreadPool(builder.numberOfThreads);
     }
 
@@ -99,7 +113,7 @@ public class OMEZarrWriter implements AutoCloseable {
         }
     }
 
-    private Map<Integer, ZarrArray> createLevelArrays(ZarrGroup root) throws IOException {
+    private Map<Integer, ZarrArray> createLevelArrays(ZarrGroup root, Map<String, Object> levelAttributes) throws IOException {
         Map<Integer, ZarrArray> levelArrays = new HashMap<>();
 
         for (int level=0; level<server.getMetadata().nLevels(); ++level) {
@@ -120,7 +134,7 @@ public class OMEZarrWriter implements AutoCloseable {
                                 case FLOAT64 -> DataType.f8;
                             })
                             .dimensionSeparator(DimensionSeparator.SLASH),
-                    OMEZarrAttributes.getLevelAttributes(server)
+                    levelAttributes
             ));
         }
 
