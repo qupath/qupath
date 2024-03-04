@@ -146,14 +146,14 @@ public class ImageDisplay extends AbstractImageRenderer {
 			if (n) {
 				// Snapshot the names of channels active before switching to grayscale
 				selectedChannels.stream().map(ChannelDisplayInfo::getName).forEach(beforeGrayscaleChannels::add);
-				var swithToGrayscale = switchToGrayscaleChannel.get();
-				if (swithToGrayscale != null)
-					setChannelSelected(swithToGrayscale, true);
+				var switchToGrayscale = switchToGrayscaleChannel.get();
+				if (switchToGrayscale != null)
+					setChannelSelected(switchToGrayscale, true);
 				if (lastSelectedChannel != null)
 					setChannelSelected(lastSelectedChannel, true);
 				else if (!selectedChannels.isEmpty())
 					setChannelSelected(selectedChannels.get(0), true);
-				else if (availableChannels.isEmpty()) {
+				else if (!availableChannels.isEmpty()) {
 					setChannelSelected(availableChannels.get(0), true);
 				}
 			} else {
