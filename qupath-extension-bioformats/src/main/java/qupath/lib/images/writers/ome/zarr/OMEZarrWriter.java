@@ -85,6 +85,23 @@ public class OMEZarrWriter implements AutoCloseable {
 
     /**
      * <p>
+     *     Write the entire image in a background thread.
+     * </p>
+     * <p>
+     *     The image will be written from an internal pool of thread, so this function may
+     *     return before the image is actually written.
+     * </p>
+     *
+     * @throws IOException when an error occurs while writing the tile
+     */
+    public void writeImage() throws IOException {
+        for (TileRequest tileRequest: server.getTileRequestManager().getAllTileRequests()) {
+            writeTile(tileRequest);
+        }
+    }
+
+    /**
+     * <p>
      *     Write the provided tile in a background thread.
      * </p>
      * <p>
@@ -95,7 +112,7 @@ public class OMEZarrWriter implements AutoCloseable {
      * @param tileRequest  the tile to write
      * @throws IOException when an error occurs while writing the tile
      */
-    public void write(TileRequest tileRequest) throws IOException {
+    public void writeTile(TileRequest tileRequest) throws IOException {
         try {
             CompletableFuture.runAsync(() -> {
                 try {
