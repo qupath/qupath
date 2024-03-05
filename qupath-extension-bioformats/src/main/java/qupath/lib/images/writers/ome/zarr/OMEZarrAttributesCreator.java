@@ -1,5 +1,9 @@
 package qupath.lib.images.writers.ome.zarr;
 
+import qupath.lib.common.ColorTools;
+import qupath.lib.images.servers.ImageChannel;
+import qupath.lib.images.servers.PixelType;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -13,6 +17,7 @@ import java.util.stream.IntStream;
  */
 class OMEZarrAttributesCreator {
 
+    private static final String VERSION = "0.4";
     private final String imageName;
     private final int numberOfZSlices;
     private final int numberOfTimePoints;
@@ -20,6 +25,9 @@ class OMEZarrAttributesCreator {
     private final boolean pixelSizeInMicrometer;
     private final TimeUnit timeUnit;
     private final double[] downSamples;
+    private final List<ImageChannel> channels;
+    private final boolean isRGB;
+    private final PixelType pixelType;
     private enum Dimension {
         X,
         Y,
@@ -38,6 +46,9 @@ class OMEZarrAttributesCreator {
      * @param pixelSizeInMicrometer  whether pixel sizes are in micrometer
      * @param timeUnit  the unit of the time dimension of the image
      * @param downSamples  the downsamples of the image
+     * @param channels  the channels of the image
+     * @param isRGB  whether the image stores pixel values with the RGB format
+     * @param pixelType  the type of the pixel values of the image
      */
     public OMEZarrAttributesCreator(
             String imageName,
@@ -46,7 +57,10 @@ class OMEZarrAttributesCreator {
             int numberOfChannels,
             boolean pixelSizeInMicrometer,
             TimeUnit timeUnit,
-            double[] downSamples
+            double[] downSamples,
+            List<ImageChannel> channels,
+            boolean isRGB,
+            PixelType pixelType
     ) {
         this.imageName = imageName;
         this.numberOfZSlices = numberOfZSlices;
@@ -55,6 +69,9 @@ class OMEZarrAttributesCreator {
         this.pixelSizeInMicrometer = pixelSizeInMicrometer;
         this.timeUnit = timeUnit;
         this.downSamples = downSamples;
+        this.channels = channels;
+        this.isRGB = isRGB;
+        this.pixelType = pixelType;
     }
 
     /**
@@ -67,8 +84,18 @@ class OMEZarrAttributesCreator {
                         "axes", getAxes(),
                         "datasets", getDatasets(),
                         "name", imageName,
-                        "version", "0.4"
-                ))
+                        "version", VERSION
+                )),
+                "omero", Map.of(
+                        "name", imageName,
+                        "version", VERSION,
+                        "channels", getChannels(),
+                        "rdefs", Map.of(
+                                "defaultT", 0,
+                                "defaultZ", 0,
+                                "model", "color"
+                        )
+                )
         );
     }
 
@@ -116,6 +143,38 @@ class OMEZarrAttributesCreator {
                 .mapToObj(level -> Map.of(
                         "path", "s" + level,
                         "coordinateTransformations", List.of(getCoordinateTransformation((float) downSamples[level]))
+                ))
+                .toList();
+    }
+
+    private List<Map<String, Object>> getChannels() {
+        Object maxValue = isRGB ? Integer.MAX_VALUE : switch (pixelType) {
+            case UINT8, INT8 -> Byte.MAX_VALUE;
+            case UINT16, INT16 -> Short.MAX_VALUE;
+            case UINT32, INT32 -> Integer.MAX_VALUE;
+            case FLOAT32 -> Float.MAX_VALUE;
+            case FLOAT64 -> Double.MAX_VALUE;
+        };
+
+        return channels.stream()
+                .map(channel -> Map.of(
+                        "active", true,
+                        "coefficient", 1d,
+                        "color", String.format(
+                                "%02X%02X%02X",
+                                ColorTools.unpackRGB(channel.getColor())[0],
+                                ColorTools.unpackRGB(channel.getColor())[1],
+                                ColorTools.unpackRGB(channel.getColor())[2]
+                        ),
+                        "family", "linear",
+                        "inverted", false,
+                        "label", channel.getName(),
+                        "window", Map.of(
+                                "start", 0d,
+                                "end", maxValue,
+                                "min", 0d,
+                                "max", maxValue
+                        )
                 ))
                 .toList();
     }

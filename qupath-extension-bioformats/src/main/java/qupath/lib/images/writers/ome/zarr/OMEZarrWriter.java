@@ -12,7 +12,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.PixelCalibration;
-import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.TileRequest;
 import ucar.ma2.InvalidRangeException;
 
@@ -48,7 +47,6 @@ public class OMEZarrWriter implements AutoCloseable {
     private final ImageServer<BufferedImage> server;
     private final Compressor compressor;
     private final Map<Integer, ZarrArray> levelArrays;
-    private final DownSampledTileCreator downSampledTileCreator;
     private final ExecutorService executorService;
 
     private OMEZarrWriter(Builder builder) throws IOException {
@@ -59,7 +57,10 @@ public class OMEZarrWriter implements AutoCloseable {
                 builder.server.nChannels(),
                 builder.server.getMetadata().getPixelCalibration().getPixelWidthUnit().equals(PixelCalibration.MICROMETER),
                 builder.server.getMetadata().getTimeUnit(),
-                builder.server.getPreferredDownsamples()
+                builder.server.getPreferredDownsamples(),
+                builder.server.getMetadata().getChannels(),
+                builder.server.isRGB(),
+                builder.server.getPixelType()
         );
 
         this.server = builder.server;
@@ -70,10 +71,6 @@ public class OMEZarrWriter implements AutoCloseable {
                         attributes.getGroupAttributes()
                 ),
                 attributes.getLevelAttributes()
-        );
-        this.downSampledTileCreator = builder.downSamplesToCreate.isEmpty() ? null : new DownSampledTileCreator(
-                this::writeTile,
-                builder.downSamplesToCreate
         );
         this.executorService = Executors.newFixedThreadPool(builder.numberOfThreads);
     }
@@ -98,10 +95,8 @@ public class OMEZarrWriter implements AutoCloseable {
      *     The image will be written from an internal pool of thread, so this function may
      *     return before the image is actually written.
      * </p>
-     *
-     * @throws IOException when an error occurs while writing the tile
      */
-    public void writeImage() throws IOException {
+    public void writeImage() {
         for (TileRequest tileRequest: server.getTileRequestManager().getAllTileRequests()) {
             writeTile(tileRequest);
         }
@@ -117,29 +112,21 @@ public class OMEZarrWriter implements AutoCloseable {
      * </p>
      *
      * @param tileRequest  the tile to write
-     * @throws IOException when an error occurs while writing the tile
      */
-    public void writeTile(TileRequest tileRequest) throws IOException {
-        try {
-            CompletableFuture.runAsync(() -> {
-                try {
-                    Object data = getData(
-                            server.readRegion(tileRequest.getRegionRequest()),
-                            server.getPixelType(),
-                            server.nChannels(),
-                            tileRequest.getTileHeight(),
-                            tileRequest.getTileWidth()
-                    );
+    public void writeTile(TileRequest tileRequest) {
+        CompletableFuture.runAsync(() -> {
+            try {
+                Object data = getData(
+                        server.readRegion(tileRequest.getRegionRequest()),
+                        tileRequest.getTileHeight(),
+                        tileRequest.getTileWidth()
+                );
 
-                    writeTile(tileRequest, data);
-                    downSampledTileCreator.addTile(tileRequest, data);
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-            }, executorService);
-        } catch (Exception e) {
-            throw new IOException(e);
-        }
+                writeTile(tileRequest, data);
+            } catch (Exception e) {
+                logger.error("Error when writing tile", e);
+            }
+        }, executorService);
     }
 
     /**
@@ -152,7 +139,6 @@ public class OMEZarrWriter implements AutoCloseable {
         private final String path;
         private Compressor compressor = CompressorFactory.createDefaultCompressor();
         private int numberOfThreads = 12;
-        private List<Double> downSamplesToCreate = List.of();
 
         /**
          * Create the builder.
@@ -191,26 +177,6 @@ public class OMEZarrWriter implements AutoCloseable {
          */
         public Builder setNumberOfThreads(int numberOfThreads) {
             this.numberOfThreads = numberOfThreads;
-            return this;
-        }
-
-        /**
-         * When writing the image, additional levels not present in the original image can be created by
-         * downsampling the full resolution image. This function specifies the downsamples of such levels.
-         * By default, no additional levels will be created.
-         *
-         * @param downSamplesToCreate  the downsamples of each level that should be added to the output image
-         * @return this builder
-         * @throws IllegalArgumentException when one of the provided downsamples is less than or equal to 1
-         */
-        public Builder setDownSamplesToCreate(List<Double> downSamplesToCreate) {
-            for (double downSample: downSamplesToCreate) {
-                if (downSample <= 1) {
-                    throw new IllegalArgumentException(String.format("The provided downsample (%.2f) is less than or equal to 1", downSample));
-                }
-            }
-
-            this.downSamplesToCreate = downSamplesToCreate;
             return this;
         }
 
@@ -300,7 +266,6 @@ public class OMEZarrWriter implements AutoCloseable {
             chunks.add(Math.max(server.getMetadata().getPreferredTileWidth(), server.getMetadata().getPreferredTileHeight()));
         }
         chunks.add(server.getMetadata().getPreferredTileHeight());
-
         chunks.add(server.getMetadata().getPreferredTileWidth());
 
         int[] chunksArray = new int[chunks.size()];
@@ -352,85 +317,101 @@ public class OMEZarrWriter implements AutoCloseable {
         return offsetArray;
     }
 
-    private static Object getData(BufferedImage image, PixelType pixelType, int numberOfChannels, int height, int width) {
+    private Object getData(BufferedImage image, int height, int width) {
         Object pixels = AWTImageTools.getPixels(image);
 
-        return switch (pixelType) {
-            case UINT8, INT8 -> {
-                byte[][] data = (byte[][]) pixels;
+        if (server.isRGB()) {
+            int[][] data = (int[][]) pixels;
 
-                byte[] output = new byte[numberOfChannels * width * height];
-                int i = 0;
-                for (int c=0; c<numberOfChannels; ++c) {
-                    for (int y=0; y<height; ++y) {
-                        for (int x=0; x<width; ++x) {
-                            output[i] = data[c][x + width*y];
-                            i++;
-                        }
+            int[] output = new int[server.nChannels() * width * height];
+            int i = 0;
+            for (int c=0; c<server.nChannels(); ++c) {
+                for (int y=0; y<height; ++y) {
+                    for (int x=0; x<width; ++x) {
+                        output[i] = data[c][x + width*y];
+                        i++;
                     }
                 }
-                yield output;
             }
-            case UINT16, INT16 -> {
-                short[][] data = (short[][]) pixels;
+            return output;
+        } else {
+            return switch (server.getPixelType()) {
+                case UINT8, INT8 -> {
+                    byte[][] data = (byte[][]) pixels;
 
-                short[] output = new short[numberOfChannels * width * height];
-                int i = 0;
-                for (int c=0; c<numberOfChannels; ++c) {
-                    for (int y=0; y<height; ++y) {
-                        for (int x=0; x<width; ++x) {
-                            output[i] = data[c][x + width*y];
-                            i++;
+                    byte[] output = new byte[server.nChannels() * width * height];
+                    int i = 0;
+                    for (int c=0; c<server.nChannels(); ++c) {
+                        for (int y=0; y<height; ++y) {
+                            for (int x=0; x<width; ++x) {
+                                output[i] = data[c][x + width*y];
+                                i++;
+                            }
                         }
                     }
+                    yield output;
                 }
-                yield output;
-            }
-            case UINT32, INT32 -> {
-                int[][] data = (int[][]) pixels;
+                case UINT16, INT16 -> {
+                    short[][] data = (short[][]) pixels;
 
-                int[] output = new int[numberOfChannels * width * height];
-                int i = 0;
-                for (int c=0; c<numberOfChannels; ++c) {
-                    for (int y=0; y<height; ++y) {
-                        for (int x=0; x<width; ++x) {
-                            output[i] = data[c][x + width*y];
-                            i++;
+                    short[] output = new short[server.nChannels() * width * height];
+                    int i = 0;
+                    for (int c=0; c<server.nChannels(); ++c) {
+                        for (int y=0; y<height; ++y) {
+                            for (int x=0; x<width; ++x) {
+                                output[i] = data[c][x + width*y];
+                                i++;
+                            }
                         }
                     }
+                    yield output;
                 }
-                yield output;
-            }
-            case FLOAT32 -> {
-                float[][] data = (float[][]) pixels;
+                case UINT32, INT32 -> {
+                    int[][] data = (int[][]) pixels;
 
-                float[] output = new float[numberOfChannels * width * height];
-                int i = 0;
-                for (int c=0; c<numberOfChannels; ++c) {
-                    for (int y=0; y<height; ++y) {
-                        for (int x=0; x<width; ++x) {
-                            output[i] = data[c][x + width*y];
-                            i++;
+                    int[] output = new int[server.nChannels() * width * height];
+                    int i = 0;
+                    for (int c=0; c<server.nChannels(); ++c) {
+                        for (int y=0; y<height; ++y) {
+                            for (int x=0; x<width; ++x) {
+                                output[i] = data[c][x + width*y];
+                                i++;
+                            }
                         }
                     }
+                    yield output;
                 }
-                yield output;
-            }
-            case FLOAT64 -> {
-                double[][] data = (double[][]) pixels;
+                case FLOAT32 -> {
+                    float[][] data = (float[][]) pixels;
 
-                double[] output = new double[numberOfChannels * width * height];
-                int i = 0;
-                for (int c=0; c<numberOfChannels; ++c) {
-                    for (int y=0; y<height; ++y) {
-                        for (int x=0; x<width; ++x) {
-                            output[i] = data[c][x + width*y];
-                            i++;
+                    float[] output = new float[server.nChannels() * width * height];
+                    int i = 0;
+                    for (int c=0; c<server.nChannels(); ++c) {
+                        for (int y=0; y<height; ++y) {
+                            for (int x=0; x<width; ++x) {
+                                output[i] = data[c][x + width*y];
+                                i++;
+                            }
                         }
                     }
+                    yield output;
                 }
-                yield output;
-            }
-        };
+                case FLOAT64 -> {
+                    double[][] data = (double[][]) pixels;
+
+                    double[] output = new double[server.nChannels() * width * height];
+                    int i = 0;
+                    for (int c=0; c<server.nChannels(); ++c) {
+                        for (int y=0; y<height; ++y) {
+                            for (int x=0; x<width; ++x) {
+                                output[i] = data[c][x + width*y];
+                                i++;
+                            }
+                        }
+                    }
+                    yield output;
+                }
+            };
+        }
     }
 }
