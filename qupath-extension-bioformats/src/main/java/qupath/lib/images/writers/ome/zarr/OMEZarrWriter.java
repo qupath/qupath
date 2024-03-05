@@ -8,6 +8,8 @@ import com.bc.zarr.DimensionSeparator;
 import com.bc.zarr.ZarrArray;
 import com.bc.zarr.ZarrGroup;
 import loci.formats.gui.AWTImageTools;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.images.servers.PixelType;
@@ -41,9 +43,11 @@ import java.util.concurrent.Executors;
  */
 public class OMEZarrWriter implements AutoCloseable {
 
+    private static final Logger logger = LoggerFactory.getLogger(OMEZarrWriter.class);
     private final ImageServer<BufferedImage> server;
     private final Compressor compressor;
     private final Map<Integer, ZarrArray> levelArrays;
+    private final DownSampledTileCreator downSampledTileCreator;
     private final ExecutorService executorService;
     private int numberOfTasksRunning = 0;
 
@@ -67,7 +71,11 @@ public class OMEZarrWriter implements AutoCloseable {
                 ),
                 attributes.getLevelAttributes()
         );
-        executorService = Executors.newFixedThreadPool(builder.numberOfThreads);
+        this.downSampledTileCreator = builder.downSamplesToCreate.isEmpty() ? null : new DownSampledTileCreator(
+                this::writeTile,
+                builder.downSamplesToCreate
+        );
+        this.executorService = Executors.newFixedThreadPool(builder.numberOfThreads);
     }
 
     @Override
@@ -92,7 +100,17 @@ public class OMEZarrWriter implements AutoCloseable {
             CompletableFuture.runAsync(() -> {
                 try {
                     addTask();
-                    writeTile(tileRequest);
+
+                    Object data = getData(
+                            server.readRegion(tileRequest.getRegionRequest()),
+                            server.getPixelType(),
+                            server.nChannels(),
+                            tileRequest.getTileHeight(),
+                            tileRequest.getTileWidth()
+                    );
+
+                    writeTile(tileRequest, data);
+                    downSampledTileCreator.addTile(tileRequest, data);
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 } finally {
@@ -122,6 +140,7 @@ public class OMEZarrWriter implements AutoCloseable {
         private final String path;
         private Compressor compressor = CompressorFactory.createDefaultCompressor();
         private int numberOfThreads = 12;
+        private List<Double> downSamplesToCreate = List.of();
 
         /**
          * Create the builder.
@@ -160,6 +179,26 @@ public class OMEZarrWriter implements AutoCloseable {
          */
         public Builder setNumberOfThreads(int numberOfThreads) {
             this.numberOfThreads = numberOfThreads;
+            return this;
+        }
+
+        /**
+         * When writing the image, additional levels not present in the original image can be created by
+         * downsampling the full resolution image. This function specifies the downsamples of such levels.
+         * By default, no additional levels will be created.
+         *
+         * @param downSamplesToCreate  the downsamples of each level that should be added to the output image
+         * @return this builder
+         * @throws IllegalArgumentException when one of the provided downsamples is less than or equal to 1
+         */
+        public Builder setDownSamplesToCreate(List<Double> downSamplesToCreate) {
+            for (double downSample: downSamplesToCreate) {
+                if (downSample <= 1) {
+                    throw new IllegalArgumentException(String.format("The provided downsample (%.2f) is less than or equal to 1", downSample));
+                }
+            }
+
+            this.downSamplesToCreate = downSamplesToCreate;
             return this;
         }
 
@@ -212,21 +251,15 @@ public class OMEZarrWriter implements AutoCloseable {
         numberOfTasksRunning--;
     }
 
-    private void writeTile(TileRequest tileRequest) throws IOException {
+    private void writeTile(TileRequest tileRequest, Object data) {
         try {
             levelArrays.get(tileRequest.getLevel()).write(
-                    getData(
-                            server.readRegion(tileRequest.getRegionRequest()),
-                            server.getPixelType(),
-                            server.nChannels(),
-                            tileRequest.getTileHeight(),
-                            tileRequest.getTileWidth()
-                    ),
+                    data,
                     getDimensionsOfTile(tileRequest),
                     getOffsetsOfTile(tileRequest)
             );
-        } catch (InvalidRangeException e) {
-            throw new IOException(e);
+        } catch (InvalidRangeException | IOException e) {
+            logger.error(String.format("Could not write tile %s", tileRequest));
         }
     }
 
