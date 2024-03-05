@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 /**
  * <p>
@@ -49,7 +50,6 @@ public class OMEZarrWriter implements AutoCloseable {
     private final Map<Integer, ZarrArray> levelArrays;
     private final DownSampledTileCreator downSampledTileCreator;
     private final ExecutorService executorService;
-    private int numberOfTasksRunning = 0;
 
     private OMEZarrWriter(Builder builder) throws IOException {
         OMEZarrAttributesCreator attributes = new OMEZarrAttributesCreator(
@@ -78,9 +78,16 @@ public class OMEZarrWriter implements AutoCloseable {
         this.executorService = Executors.newFixedThreadPool(builder.numberOfThreads);
     }
 
+    /**
+     * Close this writer. This will wait until all pending tiles
+     * are written.
+     *
+     * @throws InterruptedException when the waiting is interrupted
+     */
     @Override
-    public void close() {
+    public void close() throws InterruptedException {
         executorService.shutdown();
+        executorService.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
     }
 
     /**
@@ -116,8 +123,6 @@ public class OMEZarrWriter implements AutoCloseable {
         try {
             CompletableFuture.runAsync(() -> {
                 try {
-                    addTask();
-
                     Object data = getData(
                             server.readRegion(tileRequest.getRegionRequest()),
                             server.getPixelType(),
@@ -130,21 +135,11 @@ public class OMEZarrWriter implements AutoCloseable {
                     downSampledTileCreator.addTile(tileRequest, data);
                 } catch (IOException e) {
                     throw new RuntimeException(e);
-                } finally {
-                    removeTask();
                 }
             }, executorService);
         } catch (Exception e) {
             throw new IOException(e);
         }
-    }
-
-    /**
-     * @return whether this writer is currently writing tiles. This can be useful to wait
-     * for tiles to finish being written
-     */
-    public synchronized boolean isWriting() {
-        return numberOfTasksRunning > 0;
     }
 
     /**
@@ -258,14 +253,6 @@ public class OMEZarrWriter implements AutoCloseable {
         }
 
         return levelArrays;
-    }
-
-    private synchronized void addTask() {
-        numberOfTasksRunning++;
-    }
-
-    private synchronized void removeTask() {
-        numberOfTasksRunning--;
     }
 
     private void writeTile(TileRequest tileRequest, Object data) {
