@@ -21,7 +21,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -114,19 +113,20 @@ public class OMEZarrWriter implements AutoCloseable {
      * @param tileRequest  the tile to write
      */
     public void writeTile(TileRequest tileRequest) {
-        CompletableFuture.runAsync(() -> {
+        executorService.execute(() -> {
             try {
-                Object data = getData(
-                        server.readRegion(tileRequest.getRegionRequest()),
-                        tileRequest.getTileHeight(),
-                        tileRequest.getTileWidth()
+                writeTile(
+                        tileRequest,
+                        getData(
+                                server.readRegion(tileRequest.getRegionRequest()),
+                                tileRequest.getTileHeight(),
+                                tileRequest.getTileWidth()
+                        )
                 );
-
-                writeTile(tileRequest, data);
             } catch (Exception e) {
                 logger.error("Error when writing tile", e);
             }
-        }, executorService);
+        });
     }
 
     /**
