@@ -277,6 +277,12 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		int width = 0, height = 0, nChannels = 1, nZSlices = 1, nTimepoints = 1, tileWidth = 0, tileHeight = 0;
 		double pixelWidth = Double.NaN, pixelHeight = Double.NaN, zSpacing = Double.NaN, magnification = Double.NaN;
 		TimeUnit timeUnit = null;
+
+		// Zarr images can be opened by selecting the .zattrs or .zgroup file
+		// In that case, the parent directory contains the whole image
+		if (uri.toString().endsWith(".zattrs") || uri.toString().endsWith(".zgroup")) {
+			uri = new File(uri).getParentFile().toURI();
+		}
 		
 		// See if there is a series name embedded in the path (temporarily the way things were done in v0.2.0-m1 and v0.2.0-m2)
 		// Add it to the args if so
