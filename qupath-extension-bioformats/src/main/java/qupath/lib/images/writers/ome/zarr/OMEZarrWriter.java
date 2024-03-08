@@ -11,8 +11,10 @@ import loci.formats.gui.AWTImageTools;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ImageServers;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.images.servers.TileRequest;
+import qupath.lib.images.servers.TileRequestManager;
 import ucar.ma2.InvalidRangeException;
 
 import java.awt.image.BufferedImage;
@@ -49,27 +51,33 @@ public class OMEZarrWriter implements AutoCloseable {
     private final ExecutorService executorService;
 
     private OMEZarrWriter(Builder builder) throws IOException {
-        OMEZarrAttributesCreator attributes = new OMEZarrAttributesCreator(
-                builder.server.getMetadata().getName(),
-                builder.server.nZSlices(),
-                builder.server.nTimepoints(),
-                builder.server.nChannels(),
-                builder.server.getMetadata().getPixelCalibration().getPixelWidthUnit().equals(PixelCalibration.MICROMETER),
-                builder.server.getMetadata().getTimeUnit(),
-                builder.server.getPreferredDownsamples(),
-                builder.server.getMetadata().getChannels(),
-                builder.server.isRGB(),
-                builder.server.getPixelType()
-        );
-
-        this.server = builder.server;
+        this.server = builder.downsamples.length == 0 ?
+                builder.server :
+                ImageServers.pyramidalize(
+                        builder.server,
+                        builder.downsamples
+                );
         this.compressor = builder.compressor;
+
+        OMEZarrAttributesCreator attributes = new OMEZarrAttributesCreator(
+                server.getMetadata().getName(),
+                server.nZSlices(),
+                server.nTimepoints(),
+                server.nChannels(),
+                server.getMetadata().getPixelCalibration().getPixelWidthUnit().equals(PixelCalibration.MICROMETER),
+                server.getMetadata().getTimeUnit(),
+                server.getPreferredDownsamples(),
+                server.getMetadata().getChannels(),
+                server.isRGB(),
+                server.getPixelType()
+        );
         this.levelArrays = createLevelArrays(
                 ZarrGroup.create(
                         builder.path,
                         attributes.getGroupAttributes()
                 ),
-                attributes.getLevelAttributes()
+                attributes.getLevelAttributes(),
+                builder.maxChunkSize
         );
         this.executorService = Executors.newFixedThreadPool(builder.numberOfThreads);
     }
@@ -109,6 +117,12 @@ public class OMEZarrWriter implements AutoCloseable {
      *     The tile will be written from an internal pool of thread, so this function may
      *     return before the tile is actually written.
      * </p>
+     * <p>
+     *     Note that the image server used internally by this writer may not be the one given in
+     *     {@link Builder#Builder(ImageServer, String)}. Therefore, the {@link ImageServer#getTileRequestManager() TileRequestManager}
+     *     of the internal image server may be different from the one of the provided image server,
+     *     so functions like {@link TileRequestManager#getAllTileRequests()} may not return the expected tiles.
+     * </p>
      *
      * @param tileRequest  the tile to write
      */
@@ -117,11 +131,7 @@ public class OMEZarrWriter implements AutoCloseable {
             try {
                 writeTile(
                         tileRequest,
-                        getData(
-                                server.readRegion(tileRequest.getRegionRequest()),
-                                tileRequest.getTileHeight(),
-                                tileRequest.getTileWidth()
-                        )
+                        getData(server.readRegion(tileRequest.getRegionRequest()))
                 );
             } catch (Exception e) {
                 logger.error("Error when writing tile", e);
@@ -139,6 +149,8 @@ public class OMEZarrWriter implements AutoCloseable {
         private final String path;
         private Compressor compressor = CompressorFactory.createDefaultCompressor();
         private int numberOfThreads = 12;
+        private double[] downsamples = new double[0];
+        private int maxChunkSize = 12;
 
         /**
          * Create the builder.
@@ -181,6 +193,37 @@ public class OMEZarrWriter implements AutoCloseable {
         }
 
         /**
+         * <p>
+         *     Enable the creation of a pyramidal image with the provided downsamples. The levels corresponding
+         *     to the provided downsamples will be automatically generated.
+         * </p>
+         * <p>
+         *     If this function is not called (or if it is called with no parameters), the downsamples of
+         *     the provided image server will be used instead.
+         * </p>
+         *
+         * @param downsamples  the downsamples of the pyramid to generate
+         * @return this builder
+         */
+        public Builder setDownsamples(double... downsamples) {
+            this.downsamples = downsamples;
+            return this;
+        }
+
+        /**
+         * In Zarr files, data is stored in chunks. This parameter
+         * defines the maximum number of chunks on the x,y, and z dimensions.
+         * By default, this value is set to 12.
+         *
+         * @param maxChunkSize  the maximum number of chunks on the x,y, and z dimensions
+         * @return this builder
+         */
+        public Builder setMaxChunkSize(int maxChunkSize) {
+            this.maxChunkSize = maxChunkSize;
+            return this;
+        }
+
+        /**
          * Create a new instance of {@link OMEZarrWriter}. This will also
          * create an empty image on the provided path.
          *
@@ -193,7 +236,7 @@ public class OMEZarrWriter implements AutoCloseable {
         }
     }
 
-    private Map<Integer, ZarrArray> createLevelArrays(ZarrGroup root, Map<String, Object> levelAttributes) throws IOException {
+    private Map<Integer, ZarrArray> createLevelArrays(ZarrGroup root, Map<String, Object> levelAttributes, int maxChunkSize) throws IOException {
         Map<Integer, ZarrArray> levelArrays = new HashMap<>();
 
         for (int level=0; level<server.getMetadata().nLevels(); ++level) {
@@ -201,7 +244,7 @@ public class OMEZarrWriter implements AutoCloseable {
                     "s" + level,
                     new ArrayParams()
                             .shape(getDimensionsOfImage(level))
-                            .chunks(getChunksOfImage())
+                            .chunks(getChunksOfImage(maxChunkSize))
                             .compressor(compressor)
                             .dataType(switch (server.getPixelType()) {
                                 case UINT8 -> DataType.u1;
@@ -254,7 +297,10 @@ public class OMEZarrWriter implements AutoCloseable {
         return dimensionArray;
     }
 
-    private int[] getChunksOfImage() {
+    private int[] getChunksOfImage(int maxChunkSize) {
+        int chunkWidth = Math.max(server.getMetadata().getPreferredTileWidth(), server.getWidth() / maxChunkSize);
+        int chunkHeight = Math.max(server.getMetadata().getPreferredTileHeight(), server.getHeight() / maxChunkSize);
+
         List<Integer> chunks = new ArrayList<>();
         if (server.nTimepoints() > 1) {
             chunks.add(1);
@@ -263,10 +309,10 @@ public class OMEZarrWriter implements AutoCloseable {
             chunks.add(1);
         }
         if (server.nZSlices() > 1) {
-            chunks.add(Math.max(server.getMetadata().getPreferredTileWidth(), server.getMetadata().getPreferredTileHeight()));
+            chunks.add(Math.max(chunkWidth, chunkHeight));
         }
-        chunks.add(server.getMetadata().getPreferredTileHeight());
-        chunks.add(server.getMetadata().getPreferredTileWidth());
+        chunks.add(chunkHeight);
+        chunks.add(chunkWidth);
 
         int[] chunksArray = new int[chunks.size()];
         for (int i = 0; i < chunks.size(); i++) {
@@ -317,18 +363,18 @@ public class OMEZarrWriter implements AutoCloseable {
         return offsetArray;
     }
 
-    private Object getData(BufferedImage image, int height, int width) {
+    private Object getData(BufferedImage image) {
         Object pixels = AWTImageTools.getPixels(image);
 
         if (server.isRGB()) {
             int[][] data = (int[][]) pixels;
 
-            int[] output = new int[server.nChannels() * width * height];
+            int[] output = new int[server.nChannels() * image.getWidth() * image.getHeight()];
             int i = 0;
             for (int c=0; c<server.nChannels(); ++c) {
-                for (int y=0; y<height; ++y) {
-                    for (int x=0; x<width; ++x) {
-                        output[i] = data[c][x + width*y];
+                for (int y=0; y<image.getHeight(); ++y) {
+                    for (int x=0; x<image.getWidth(); ++x) {
+                        output[i] = data[c][x + image.getWidth()*y];
                         i++;
                     }
                 }
@@ -339,12 +385,12 @@ public class OMEZarrWriter implements AutoCloseable {
                 case UINT8, INT8 -> {
                     byte[][] data = (byte[][]) pixels;
 
-                    byte[] output = new byte[server.nChannels() * width * height];
+                    byte[] output = new byte[server.nChannels() * image.getWidth() * image.getHeight()];
                     int i = 0;
                     for (int c=0; c<server.nChannels(); ++c) {
-                        for (int y=0; y<height; ++y) {
-                            for (int x=0; x<width; ++x) {
-                                output[i] = data[c][x + width*y];
+                        for (int y=0; y<image.getHeight(); ++y) {
+                            for (int x=0; x<image.getWidth(); ++x) {
+                                output[i] = data[c][x + image.getWidth()*y];
                                 i++;
                             }
                         }
@@ -354,12 +400,12 @@ public class OMEZarrWriter implements AutoCloseable {
                 case UINT16, INT16 -> {
                     short[][] data = (short[][]) pixels;
 
-                    short[] output = new short[server.nChannels() * width * height];
+                    short[] output = new short[server.nChannels() * image.getWidth() * image.getHeight()];
                     int i = 0;
                     for (int c=0; c<server.nChannels(); ++c) {
-                        for (int y=0; y<height; ++y) {
-                            for (int x=0; x<width; ++x) {
-                                output[i] = data[c][x + width*y];
+                        for (int y=0; y<image.getHeight(); ++y) {
+                            for (int x=0; x<image.getWidth(); ++x) {
+                                output[i] = data[c][x + image.getWidth()*y];
                                 i++;
                             }
                         }
@@ -369,12 +415,12 @@ public class OMEZarrWriter implements AutoCloseable {
                 case UINT32, INT32 -> {
                     int[][] data = (int[][]) pixels;
 
-                    int[] output = new int[server.nChannels() * width * height];
+                    int[] output = new int[server.nChannels() * image.getWidth() * image.getHeight()];
                     int i = 0;
                     for (int c=0; c<server.nChannels(); ++c) {
-                        for (int y=0; y<height; ++y) {
-                            for (int x=0; x<width; ++x) {
-                                output[i] = data[c][x + width*y];
+                        for (int y=0; y<image.getHeight(); ++y) {
+                            for (int x=0; x<image.getWidth(); ++x) {
+                                output[i] = data[c][x + image.getWidth()*y];
                                 i++;
                             }
                         }
@@ -384,12 +430,12 @@ public class OMEZarrWriter implements AutoCloseable {
                 case FLOAT32 -> {
                     float[][] data = (float[][]) pixels;
 
-                    float[] output = new float[server.nChannels() * width * height];
+                    float[] output = new float[server.nChannels() * image.getWidth() * image.getHeight()];
                     int i = 0;
                     for (int c=0; c<server.nChannels(); ++c) {
-                        for (int y=0; y<height; ++y) {
-                            for (int x=0; x<width; ++x) {
-                                output[i] = data[c][x + width*y];
+                        for (int y=0; y<image.getHeight(); ++y) {
+                            for (int x=0; x<image.getWidth(); ++x) {
+                                output[i] = data[c][x + image.getWidth()*y];
                                 i++;
                             }
                         }
@@ -399,12 +445,12 @@ public class OMEZarrWriter implements AutoCloseable {
                 case FLOAT64 -> {
                     double[][] data = (double[][]) pixels;
 
-                    double[] output = new double[server.nChannels() * width * height];
+                    double[] output = new double[server.nChannels() * image.getWidth() * image.getHeight()];
                     int i = 0;
                     for (int c=0; c<server.nChannels(); ++c) {
-                        for (int y=0; y<height; ++y) {
-                            for (int x=0; x<width; ++x) {
-                                output[i] = data[c][x + width*y];
+                        for (int y=0; y<image.getHeight(); ++y) {
+                            for (int x=0; x<image.getWidth(); ++x) {
+                                output[i] = data[c][x + image.getWidth()*y];
                                 i++;
                             }
                         }
