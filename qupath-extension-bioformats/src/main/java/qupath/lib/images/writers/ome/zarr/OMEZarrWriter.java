@@ -15,7 +15,6 @@ import qupath.lib.images.servers.ImageServers;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.images.servers.TileRequest;
 import qupath.lib.images.servers.TileRequestManager;
-import ucar.ma2.InvalidRangeException;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
@@ -77,7 +76,7 @@ public class OMEZarrWriter implements AutoCloseable {
                         attributes.getGroupAttributes()
                 ),
                 attributes.getLevelAttributes(),
-                builder.maxChunkSize
+                builder.maxNumberOfChunks
         );
         this.executorService = Executors.newFixedThreadPool(builder.numberOfThreads);
     }
@@ -129,9 +128,10 @@ public class OMEZarrWriter implements AutoCloseable {
     public void writeTile(TileRequest tileRequest) {
         executorService.execute(() -> {
             try {
-                writeTile(
-                        tileRequest,
-                        getData(server.readRegion(tileRequest.getRegionRequest()))
+                levelArrays.get(tileRequest.getLevel()).write(
+                        getData(server.readRegion(tileRequest.getRegionRequest())),
+                        getDimensionsOfTile(tileRequest),
+                        getOffsetsOfTile(tileRequest)
                 );
             } catch (Exception e) {
                 logger.error("Error when writing tile", e);
@@ -150,7 +150,7 @@ public class OMEZarrWriter implements AutoCloseable {
         private Compressor compressor = CompressorFactory.createDefaultCompressor();
         private int numberOfThreads = 12;
         private double[] downsamples = new double[0];
-        private int maxChunkSize = 12;
+        private int maxNumberOfChunks = 12;
 
         /**
          * Create the builder.
@@ -211,15 +211,20 @@ public class OMEZarrWriter implements AutoCloseable {
         }
 
         /**
-         * In Zarr files, data is stored in chunks. This parameter
-         * defines the maximum number of chunks on the x,y, and z dimensions.
-         * By default, this value is set to 12.
          *
-         * @param maxChunkSize  the maximum number of chunks on the x,y, and z dimensions
+         * <p>
+         *     In Zarr files, data is stored in chunks. This parameter defines the maximum number
+         *     of chunks on the x,y, and z dimensions. By default, this value is set to 12.
+         * </p>
+         * <p>
+         *     Use a negative value to not define any maximum number of chunks.
+         * </p>
+         *
+         * @param maxNumberOfChunks  the maximum number of chunks on the x,y, and z dimensions
          * @return this builder
          */
-        public Builder setMaxChunkSize(int maxChunkSize) {
-            this.maxChunkSize = maxChunkSize;
+        public Builder setMaxNumberOfChunks(int maxNumberOfChunks) {
+            this.maxNumberOfChunks = maxNumberOfChunks;
             return this;
         }
 
@@ -236,7 +241,7 @@ public class OMEZarrWriter implements AutoCloseable {
         }
     }
 
-    private Map<Integer, ZarrArray> createLevelArrays(ZarrGroup root, Map<String, Object> levelAttributes, int maxChunkSize) throws IOException {
+    private Map<Integer, ZarrArray> createLevelArrays(ZarrGroup root, Map<String, Object> levelAttributes, int maxNumberOfChunks) throws IOException {
         Map<Integer, ZarrArray> levelArrays = new HashMap<>();
 
         for (int level=0; level<server.getMetadata().nLevels(); ++level) {
@@ -244,7 +249,7 @@ public class OMEZarrWriter implements AutoCloseable {
                     "s" + level,
                     new ArrayParams()
                             .shape(getDimensionsOfImage(level))
-                            .chunks(getChunksOfImage(maxChunkSize))
+                            .chunks(getChunksOfImage(maxNumberOfChunks))
                             .compressor(compressor)
                             .dataType(switch (server.getPixelType()) {
                                 case UINT8 -> DataType.u1;
@@ -262,18 +267,6 @@ public class OMEZarrWriter implements AutoCloseable {
         }
 
         return levelArrays;
-    }
-
-    private void writeTile(TileRequest tileRequest, Object data) {
-        try {
-            levelArrays.get(tileRequest.getLevel()).write(
-                    data,
-                    getDimensionsOfTile(tileRequest),
-                    getOffsetsOfTile(tileRequest)
-            );
-        } catch (InvalidRangeException | IOException e) {
-            logger.error(String.format("Could not write tile %s", tileRequest));
-        }
     }
 
     private int[] getDimensionsOfImage(int level) {
@@ -297,9 +290,13 @@ public class OMEZarrWriter implements AutoCloseable {
         return dimensionArray;
     }
 
-    private int[] getChunksOfImage(int maxChunkSize) {
-        int chunkWidth = Math.max(server.getMetadata().getPreferredTileWidth(), server.getWidth() / maxChunkSize);
-        int chunkHeight = Math.max(server.getMetadata().getPreferredTileHeight(), server.getHeight() / maxChunkSize);
+    private int[] getChunksOfImage(int maxNumberOfChunks) {
+        int chunkWidth = maxNumberOfChunks > 0 ?
+                Math.max(server.getMetadata().getPreferredTileWidth(), server.getWidth() / maxNumberOfChunks) :
+                server.getMetadata().getPreferredTileWidth();
+        int chunkHeight = maxNumberOfChunks > 0 ?
+                Math.max(server.getMetadata().getPreferredTileHeight(), server.getHeight() / maxNumberOfChunks) :
+                server.getMetadata().getPreferredTileHeight();
 
         List<Integer> chunks = new ArrayList<>();
         if (server.nTimepoints() > 1) {
