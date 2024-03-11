@@ -45,18 +45,20 @@ public class OMEZarrWriter implements AutoCloseable {
 
     private static final Logger logger = LoggerFactory.getLogger(OMEZarrWriter.class);
     private final ImageServer<BufferedImage> server;
-    private final Compressor compressor;
     private final Map<Integer, ZarrArray> levelArrays;
     private final ExecutorService executorService;
 
     private OMEZarrWriter(Builder builder) throws IOException {
-        this.server = builder.downsamples.length == 0 ?
-                builder.server :
-                ImageServers.pyramidalize(
-                        builder.server,
-                        builder.downsamples
-                );
-        this.compressor = builder.compressor;
+        server = ImageServers.pyramidalizeTiled(
+                builder.server,
+                builder.maxNumberOfChunks > 0 ?
+                        Math.max(builder.server.getMetadata().getPreferredTileWidth(), builder.server.getWidth() / builder.maxNumberOfChunks) :
+                        builder.server.getMetadata().getPreferredTileWidth(),
+                builder.maxNumberOfChunks > 0 ?
+                        Math.max(builder.server.getMetadata().getPreferredTileHeight(), builder.server.getHeight() / builder.maxNumberOfChunks) :
+                        builder.server.getMetadata().getPreferredTileHeight(),
+                builder.downsamples.length == 0 ? builder.server.getPreferredDownsamples() : builder.downsamples
+        );
 
         OMEZarrAttributesCreator attributes = new OMEZarrAttributesCreator(
                 server.getMetadata().getName(),
@@ -70,15 +72,17 @@ public class OMEZarrWriter implements AutoCloseable {
                 server.isRGB(),
                 server.getPixelType()
         );
-        this.levelArrays = createLevelArrays(
+        levelArrays = createLevelArrays(
+                server,
                 ZarrGroup.create(
                         builder.path,
                         attributes.getGroupAttributes()
                 ),
                 attributes.getLevelAttributes(),
-                builder.maxNumberOfChunks
+                builder.compressor
         );
-        this.executorService = Executors.newFixedThreadPool(builder.numberOfThreads);
+
+        executorService = Executors.newFixedThreadPool(builder.numberOfThreads);
     }
 
     /**
@@ -121,6 +125,8 @@ public class OMEZarrWriter implements AutoCloseable {
      *     {@link Builder#Builder(ImageServer, String)}. Therefore, the {@link ImageServer#getTileRequestManager() TileRequestManager}
      *     of the internal image server may be different from the one of the provided image server,
      *     so functions like {@link TileRequestManager#getAllTileRequests()} may not return the expected tiles.
+     *     Use the {@link ImageServer#getTileRequestManager() TileRequestManager} of {@link #getReaderServer()}
+     *     to get accurate tiles.
      * </p>
      *
      * @param tileRequest  the tile to write
@@ -140,6 +146,23 @@ public class OMEZarrWriter implements AutoCloseable {
     }
 
     /**
+     *
+     * <p>
+     *     Get the image server used internally by this writer to read the tiles. It can be
+     *     different from the one given in {@link Builder#Builder(ImageServer, String)}.
+     * </p>
+     * <p>
+     *     This function can be useful to get information like the tiles used by this server
+     *     (for example when using the {@link #writeTile(TileRequest)} function).
+     * </p>
+     *
+     * @return the image server used internally by this writer to read the tiles
+     */
+    public ImageServer<BufferedImage> getReaderServer() {
+        return server;
+    }
+
+    /**
      * Builder to create an instance of a {@link OMEZarrWriter}.
      */
     public static class Builder {
@@ -150,7 +173,7 @@ public class OMEZarrWriter implements AutoCloseable {
         private Compressor compressor = CompressorFactory.createDefaultCompressor();
         private int numberOfThreads = 12;
         private double[] downsamples = new double[0];
-        private int maxNumberOfChunks = 12;
+        private int maxNumberOfChunks = 30;
 
         /**
          * Create the builder.
@@ -214,7 +237,7 @@ public class OMEZarrWriter implements AutoCloseable {
          *
          * <p>
          *     In Zarr files, data is stored in chunks. This parameter defines the maximum number
-         *     of chunks on the x,y, and z dimensions. By default, this value is set to 12.
+         *     of chunks on the x,y, and z dimensions. By default, this value is set to 30.
          * </p>
          * <p>
          *     Use a negative value to not define any maximum number of chunks.
@@ -241,15 +264,20 @@ public class OMEZarrWriter implements AutoCloseable {
         }
     }
 
-    private Map<Integer, ZarrArray> createLevelArrays(ZarrGroup root, Map<String, Object> levelAttributes, int maxNumberOfChunks) throws IOException {
+    private static Map<Integer, ZarrArray> createLevelArrays(
+            ImageServer<BufferedImage> server,
+            ZarrGroup root,
+            Map<String, Object> levelAttributes,
+            Compressor compressor
+    ) throws IOException {
         Map<Integer, ZarrArray> levelArrays = new HashMap<>();
 
         for (int level=0; level<server.getMetadata().nLevels(); ++level) {
             levelArrays.put(level, root.createArray(
                     "s" + level,
                     new ArrayParams()
-                            .shape(getDimensionsOfImage(level))
-                            .chunks(getChunksOfImage(maxNumberOfChunks))
+                            .shape(getDimensionsOfImage(server, level))
+                            .chunks(getChunksOfImage(server))
                             .compressor(compressor)
                             .dataType(switch (server.getPixelType()) {
                                 case UINT8 -> DataType.u1;
@@ -269,7 +297,7 @@ public class OMEZarrWriter implements AutoCloseable {
         return levelArrays;
     }
 
-    private int[] getDimensionsOfImage(int level) {
+    private static int[] getDimensionsOfImage(ImageServer<BufferedImage> server, int level) {
         List<Integer> dimensions = new ArrayList<>();
         if (server.nTimepoints() > 1) {
             dimensions.add(server.nTimepoints());
@@ -290,14 +318,7 @@ public class OMEZarrWriter implements AutoCloseable {
         return dimensionArray;
     }
 
-    private int[] getChunksOfImage(int maxNumberOfChunks) {
-        int chunkWidth = maxNumberOfChunks > 0 ?
-                Math.max(server.getMetadata().getPreferredTileWidth(), server.getWidth() / maxNumberOfChunks) :
-                server.getMetadata().getPreferredTileWidth();
-        int chunkHeight = maxNumberOfChunks > 0 ?
-                Math.max(server.getMetadata().getPreferredTileHeight(), server.getHeight() / maxNumberOfChunks) :
-                server.getMetadata().getPreferredTileHeight();
-
+    private static int[] getChunksOfImage(ImageServer<BufferedImage> server) {
         List<Integer> chunks = new ArrayList<>();
         if (server.nTimepoints() > 1) {
             chunks.add(1);
@@ -306,10 +327,10 @@ public class OMEZarrWriter implements AutoCloseable {
             chunks.add(1);
         }
         if (server.nZSlices() > 1) {
-            chunks.add(Math.max(chunkWidth, chunkHeight));
+            chunks.add(Math.max(server.getMetadata().getPreferredTileWidth(), server.getMetadata().getPreferredTileHeight()));
         }
-        chunks.add(chunkHeight);
-        chunks.add(chunkWidth);
+        chunks.add(server.getMetadata().getPreferredTileHeight());
+        chunks.add(server.getMetadata().getPreferredTileWidth());
 
         int[] chunksArray = new int[chunks.size()];
         for (int i = 0; i < chunks.size(); i++) {
