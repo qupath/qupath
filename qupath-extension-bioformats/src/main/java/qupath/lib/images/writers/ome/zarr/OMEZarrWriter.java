@@ -51,12 +51,16 @@ public class OMEZarrWriter implements AutoCloseable {
     private OMEZarrWriter(Builder builder) throws IOException {
         server = ImageServers.pyramidalizeTiled(
                 builder.server,
-                builder.maxNumberOfChunks > 0 ?
-                        Math.max(builder.server.getMetadata().getPreferredTileWidth(), builder.server.getWidth() / builder.maxNumberOfChunks) :
-                        builder.server.getMetadata().getPreferredTileWidth(),
-                builder.maxNumberOfChunks > 0 ?
-                        Math.max(builder.server.getMetadata().getPreferredTileHeight(), builder.server.getHeight() / builder.maxNumberOfChunks) :
-                        builder.server.getMetadata().getPreferredTileHeight(),
+                getChunkSize(
+                        builder.tileWidth > 0 ? builder.tileWidth : builder.server.getMetadata().getPreferredTileWidth(),
+                        builder.maxNumberOfChunks,
+                        builder.server.getWidth()
+                ),
+                getChunkSize(
+                        builder.tileHeight > 0 ? builder.tileHeight : builder.server.getMetadata().getPreferredTileHeight(),
+                        builder.maxNumberOfChunks,
+                        builder.server.getHeight()
+                ),
                 builder.downsamples.length == 0 ? builder.server.getPreferredDownsamples() : builder.downsamples
         );
 
@@ -173,7 +177,9 @@ public class OMEZarrWriter implements AutoCloseable {
         private Compressor compressor = CompressorFactory.createDefaultCompressor();
         private int numberOfThreads = 12;
         private double[] downsamples = new double[0];
-        private int maxNumberOfChunks = 30;
+        private int maxNumberOfChunks = 50;
+        private int tileWidth = 512;
+        private int tileHeight = 512;
 
         /**
          * Create the builder.
@@ -234,10 +240,9 @@ public class OMEZarrWriter implements AutoCloseable {
         }
 
         /**
-         *
          * <p>
          *     In Zarr files, data is stored in chunks. This parameter defines the maximum number
-         *     of chunks on the x,y, and z dimensions. By default, this value is set to 30.
+         *     of chunks on the x,y, and z dimensions. By default, this value is set to 50.
          * </p>
          * <p>
          *     Use a negative value to not define any maximum number of chunks.
@@ -246,8 +251,50 @@ public class OMEZarrWriter implements AutoCloseable {
          * @param maxNumberOfChunks  the maximum number of chunks on the x,y, and z dimensions
          * @return this builder
          */
-        public Builder setMaxNumberOfChunks(int maxNumberOfChunks) {
+        public Builder setMaxNumberOfChunksOnEachSpatialDimension(int maxNumberOfChunks) {
             this.maxNumberOfChunks = maxNumberOfChunks;
+            return this;
+        }
+
+        /**
+         * <p>
+         *     In Zarr files, data is stored in chunks. This parameter defines the size
+         *     of chunks on the x dimension. By default, this value is set to 512.
+         * </p>
+         * <p>
+         *     Use a negative value to use the tile width of the provided image server.
+         * </p>
+         * <p>
+         *     The provided tile width may not be used if this implies creating more chunks
+         *     than the value given in {@link #setMaxNumberOfChunksOnEachSpatialDimension(int)}.
+         * </p>
+         *
+         * @param tileWidth  the width each chunk should have
+         * @return this builder
+         */
+        public Builder setTileWidth(int tileWidth) {
+            this.tileWidth = tileWidth;
+            return this;
+        }
+
+        /**
+         * <p>
+         *     In Zarr files, data is stored in chunks. This parameter defines the size
+         *     of chunks on the x dimension. By default, this value is set to 512.
+         * </p>
+         * <p>
+         *     Use a negative value to use the tile width of the provided image server.
+         * </p>
+         * <p>
+         *     The provided tile width may not be used if this implies creating more chunks
+         *     than the value given in {@link #setMaxNumberOfChunksOnEachSpatialDimension(int)}.
+         * </p>
+         *
+         * @param tileHeight  the height each chunk should have
+         * @return this builder
+         */
+        public Builder setTileHeight(int tileHeight) {
+            this.tileHeight = tileHeight;
             return this;
         }
 
@@ -262,6 +309,12 @@ public class OMEZarrWriter implements AutoCloseable {
         public OMEZarrWriter build() throws IOException {
             return new OMEZarrWriter(this);
         }
+    }
+
+    private static int getChunkSize(int tileSize, int maxNumberOfChunks, int imageSize) {
+        return maxNumberOfChunks > 0 ?
+                Math.max(tileSize, imageSize / maxNumberOfChunks) :
+                tileSize;
     }
 
     private static Map<Integer, ZarrArray> createLevelArrays(
