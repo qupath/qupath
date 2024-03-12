@@ -280,13 +280,13 @@ public class OMEZarrWriter implements AutoCloseable {
         /**
          * <p>
          *     In Zarr files, data is stored in chunks. This parameter defines the size
-         *     of chunks on the x dimension. By default, this value is set to 512.
+         *     of chunks on the y dimension. By default, this value is set to 512.
          * </p>
          * <p>
-         *     Use a negative value to use the tile width of the provided image server.
+         *     Use a negative value to use the tile height of the provided image server.
          * </p>
          * <p>
-         *     The provided tile width may not be used if this implies creating more chunks
+         *     The provided tile height may not be used if this implies creating more chunks
          *     than the value given in {@link #setMaxNumberOfChunksOnEachSpatialDimension(int)}.
          * </p>
          *
@@ -392,48 +392,6 @@ public class OMEZarrWriter implements AutoCloseable {
         return chunksArray;
     }
 
-    private int[] getDimensionsOfTile(TileRequest tileRequest) {
-        List<Integer> dimensions = new ArrayList<>();
-        if (server.nTimepoints() > 1) {
-            dimensions.add(1);
-        }
-        if (server.nChannels() > 1) {
-            dimensions.add(server.nChannels());
-        }
-        if (server.nZSlices() > 1) {
-            dimensions.add(1);
-        }
-        dimensions.add(tileRequest.getTileHeight());
-        dimensions.add(tileRequest.getTileWidth());
-
-        int[] dimensionArray = new int[dimensions.size()];
-        for (int i = 0; i < dimensions.size(); i++) {
-            dimensionArray[i] = dimensions.get(i);
-        }
-        return dimensionArray;
-    }
-
-    private int[] getOffsetsOfTile(TileRequest tileRequest) {
-        List<Integer> offset = new ArrayList<>();
-        if (server.nTimepoints() > 1) {
-            offset.add(tileRequest.getT());
-        }
-        if (server.nChannels() > 1) {
-            offset.add(0);
-        }
-        if (server.nZSlices() > 1) {
-            offset.add(tileRequest.getZ());
-        }
-        offset.add(tileRequest.getTileY());
-        offset.add(tileRequest.getTileX());
-
-        int[] offsetArray = new int[offset.size()];
-        for (int i = 0; i < offset.size(); i++) {
-            offsetArray[i] = offset.get(i);
-        }
-        return offsetArray;
-    }
-
     private Object getData(BufferedImage image) {
         Object pixels = AWTImageTools.getPixels(image);
 
@@ -530,5 +488,47 @@ public class OMEZarrWriter implements AutoCloseable {
                 }
             };
         }
+    }
+
+    private int[] getDimensionsOfTile(TileRequest tileRequest) {
+        List<Integer> dimensions = new ArrayList<>();
+        if (server.nTimepoints() > 1) {
+            dimensions.add(1);
+        }
+        if (server.nChannels() > 1) {
+            dimensions.add(server.nChannels());
+        }
+        if (server.nZSlices() > 1) {
+            dimensions.add(1);
+        }
+        dimensions.add(tileRequest.getTileHeight());
+        dimensions.add(tileRequest.getTileWidth());
+
+        int[] dimensionArray = new int[dimensions.size()];
+        for (int i = 0; i < dimensions.size(); i++) {
+            dimensionArray[i] = dimensions.get(i);
+        }
+        return dimensionArray;
+    }
+
+    private int[] getOffsetsOfTile(TileRequest tileRequest) {
+        List<Integer> offset = new ArrayList<>();
+        if (server.nTimepoints() > 1) {
+            offset.add(tileRequest.getT());
+        }
+        if (server.nChannels() > 1) {
+            offset.add(0);
+        }
+        if (server.nZSlices() > 1) {
+            offset.add(tileRequest.getZ());
+        }
+        offset.add(tileRequest.getTileY());
+        offset.add(tileRequest.getTileX());
+
+        int[] offsetArray = new int[offset.size()];
+        for (int i = 0; i < offset.size(); i++) {
+            offsetArray[i] = offset.get(i);
+        }
+        return offsetArray;
     }
 }
