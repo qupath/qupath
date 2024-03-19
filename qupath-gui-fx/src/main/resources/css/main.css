@@ -125,19 +125,30 @@
   -fx-text-alignment: center;
 }
 
-.list-cell > .failed-extension {
-  -fx-text-background-color: -qp-script-error-color;
-  -fx-opacity: 0.8;
+/*to prevent icons from being dark when the row is selected*/
+.list-cell .button .text {
+  -fx-fill: -fx-text-base-color;
+}
+.table-row-cell .button .text {
+  -fx-fill: -fx-text-base-color;
 }
 
 .list-cell .extension-manager-list-icon {
   -fx-text-fill: -fx-text-background-color;
 }
 
+.table-row-cell .extension-manager-list-icon {
+  -fx-text-fill: -fx-text-background-color;
+}
+
+.list-cell > .failed-extension {
+  -fx-text-background-color: -qp-script-error-color;
+  -fx-opacity: 0.8;
+}
+
 .list-cell > .failed-extension .extension-manager-list-icon {
   -fx-text-fill: -qp-script-error-color;
 }
-
 
 /* Don't make the title for the training piechart too large */
 .training-chart .chart-title {

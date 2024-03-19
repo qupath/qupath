@@ -21,21 +21,42 @@
 
 package qupath.lib.gui;
 
+import com.google.gson.Gson;
+import javafx.beans.binding.DoubleBinding;
+import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.MapChangeListener;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.Node;
-import javafx.scene.control.*;
+import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.ContextMenu;
+import javafx.scene.control.Dialog;
+import javafx.scene.control.Label;
+import javafx.scene.control.ListCell;
+import javafx.scene.control.ListView;
+import javafx.scene.control.SelectionMode;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableView;
+import javafx.scene.control.TextField;
+import javafx.scene.control.TitledPane;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.AnchorPane;
+import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
+import javafx.scene.web.WebView;
 import org.apache.commons.text.WordUtils;
+import org.commonmark.parser.Parser;
+import org.commonmark.renderer.html.HtmlRenderer;
+import org.controlsfx.control.PopOver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.fx.dialogs.Dialogs;
-import qupath.fx.utils.FXUtils;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.Version;
 import qupath.lib.gui.actions.ActionTools;
@@ -54,14 +75,23 @@ import java.io.InputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.text.SimpleDateFormat;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Comparator;
+import java.util.Date;
+import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
  * Borderpane that displays extensions, with options to remove,
@@ -194,8 +224,9 @@ public class ExtensionControlPane extends VBox {
             var outputFile = new File(dir.toString(), jarMatcher.group(2));
             logger.info("Downloading suspected extension {} to extension directory {}", url, outputFile);
             try {
-                downloadURLToFile(url, outputFile);
+                downloadURLToFile(new URL(url), outputFile);
             } catch (IOException e) {
+                logger.error("Unable to download extension", e);
                 Dialogs.showErrorNotification(QuPathResources.getString("ExtensionControlPane"),
                         QuPathResources.getString("ExtensionControlPane.unableToDownload"));
             }
@@ -219,21 +250,256 @@ public class ExtensionControlPane extends VBox {
 
     private static void askToDownload(GitHubProject.GitHubRepo repo) throws URISyntaxException, IOException, InterruptedException {
         var v = UpdateChecker.checkForUpdate(repo);
-        if (v != null && Dialogs.showYesNoDialog(QuPathResources.getString("ExtensionControlPane"),
+        if (v == null) {
+            Dialogs.showErrorNotification(QuPathResources.getString("ExtensionControlPane"),
+                    String.format(QuPathResources.getString("ExtensionControlPane.unableToFetchUpdates"), repo.getOwner(), repo.getRepo()));
+            return;
+        }
+
+        if (Dialogs.showYesNoDialog(QuPathResources.getString("ExtensionControlPane"),
                 String.format(QuPathResources.getString("ExtensionControlPane.installExtensionFromGithub"), repo.getRepo()))) {
-            var downloadURL = String.format("https://github.com/%s/%s/releases/download/%s/%s-%s.jar",
-                    repo.getOwner(), repo.getRepo(), "v" + v.getVersion().toString(), repo.getRepo(), v.getVersion().toString()
-            );
-            // https://github.com/qupath/qupath-extension-wsinfer/releases/download/v0.2.0/qupath-extension-wsinfer-0.2.0.jar
+
+            var asset = resolveReleaseAndAsset(repo);
+            if (asset.isEmpty()) {
+                return;
+            }
+            var downloadURL = asset.get().getUrl();
             var dir = getExtensionPath();
             if (dir == null) return;
-            File f = new File(dir.toString(), repo.getRepo() + "-" + v.getVersion() + ".jar");
-            downloadURLToFile(downloadURL, f);
+            File f = new File(dir.toString(), asset.get().getName());
+            try {
+                downloadURLToFile(downloadURL, f);
+            } catch (IOException e) {
+                logger.error("Unable to download extension", e);
+            }
             Dialogs.showInfoNotification(
                     QuPathResources.getString("ExtensionControlPane"),
                     String.format(QuPathResources.getString("ExtensionControlPane.successfullyDownloaded"), repo.getRepo()));
             QuPathGUI.getInstance().getExtensionManager().refreshExtensions(true);
         }
+    }
+
+    private static class GitHubRelease {
+        URL assets_url;
+        int id;
+        String tag_name;
+        String name;
+        boolean draft;
+        boolean prerelease;
+        Date published_at;
+        GitHubAsset[] assets;
+        String body;
+
+        String getName() {
+            return name;
+        }
+        String getBody() {
+            return body;
+        }
+        Date getDate() {
+            return published_at;
+        }
+        String getTag() {
+            return tag_name;
+        }
+
+        @Override
+        public String toString() {
+            return name + " with assets:" + Arrays.toString(assets);
+        }
+    }
+
+    private static class GitHubAsset {
+        URL url;
+        int id;
+        String name;
+        String content_type;
+        URL browser_download_url;
+        @Override
+        public String toString() {
+            return name;
+        }
+
+        String getType() {
+            return content_type;
+        }
+
+        URL getUrl() {
+            return browser_download_url;
+        }
+
+        public String getName() {
+            return name;
+        }
+    }
+
+    private static <T> Optional<T> chooseAsset(GitHubProject.GitHubRepo repo, Collection<T> options) {
+        ListView<T> listView = new ListView<>();
+        listView.getSelectionModel().setSelectionMode(SelectionMode.SINGLE);
+        for (var option: options) {
+            listView.getItems().add(option);
+        }
+        listView.getSelectionModel().select(0);
+        var dialog = createDialog(repo, listView, "asset", "release");
+        dialog.setResizable(true);
+        var choice = dialog.showAndWait();
+
+        if (choice.orElse(ButtonType.CANCEL).equals(ButtonType.APPLY)) {
+            return Optional.ofNullable(listView.getSelectionModel().getSelectedItem());
+        }
+        return Optional.empty();
+    }
+
+    private static Optional<GitHubRelease> chooseRelease(GitHubProject.GitHubRepo repo, Collection<GitHubRelease> options) {
+        TableView<GitHubRelease> table = new TableView<>();
+        TableColumn<GitHubRelease, String> colTag = new TableColumn<>("Tag");
+        colTag.setCellValueFactory(param -> new SimpleStringProperty(param.getValue().getTag()));
+        colTag.setSortable(false);
+        table.getColumns().add(colTag);
+
+        TableColumn<GitHubRelease, String> colName = new TableColumn<>("Name");
+        colName.setCellValueFactory(param -> new SimpleStringProperty(WordUtils.wrap(param.getValue().getName(), 40)));
+        colName.setSortable(false);
+        table.getColumns().add(colName);
+
+        TableColumn<GitHubRelease, String> colDate = new TableColumn<>("Date published");
+        colDate.setCellValueFactory(param -> {
+            SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
+            return new SimpleStringProperty(formatter.format(param.getValue().getDate()));
+        });
+        colDate.setSortable(false);
+        table.getColumns().add(colDate);
+
+        TableColumn<GitHubRelease, Button> colBody = new TableColumn<>("Description");
+        WebView webView = new WebView();
+        PopOver infoPopover = new PopOver(webView);
+        colBody.setCellValueFactory(param -> {
+            Button button = new Button();
+            button.setGraphic(createIcon(IconFactory.PathIcons.INFO));
+            button.setOnAction(e -> parseMarkdown(param.getValue(), webView, button, infoPopover));
+            return new SimpleObjectProperty<>(button);
+        });
+        colBody.setSortable(false);
+        table.getColumns().add(colBody);
+
+        for (var option: options) {
+            table.getItems().add(option);
+        }
+        // to try to ensure something is selected
+        table.getSelectionModel().setSelectionMode(SelectionMode.SINGLE);
+        table.getSelectionModel().select(0);
+
+        var dialog = createDialog(repo, table, "release", "extension");
+        dialog.getDialogPane().setMinWidth(300);
+
+        DoubleBinding width = colTag.widthProperty()
+                .add(colName.widthProperty())
+                .add(colDate.widthProperty())
+                .add(colBody.widthProperty()).add(25);
+        width.addListener((v, o, n) -> dialog.getDialogPane().setPrefWidth(n.doubleValue()));
+        dialog.getDialogPane().setPrefWidth(width.doubleValue());
+        var choice = dialog.showAndWait();
+
+        if (choice.orElse(ButtonType.CANCEL).equals(ButtonType.APPLY)) {
+            return Optional.ofNullable(table.getSelectionModel().getSelectedItem());
+        }
+        return Optional.empty();
+    }
+
+    private static Node createIcon(IconFactory.PathIcons icon) {
+        int iconSize = 12;
+        // The style class is actually a problem here, because it doesn't handle buttons
+        // inside select list cells
+        var node = IconFactory.createNode(iconSize, iconSize, icon);
+        node.getStyleClass().setAll("extension-manager-list-icon");
+        return node;
+    }
+
+    private static void parseMarkdown(GitHubRelease release, WebView webView, Button infoButton, PopOver infoPopover) {
+        String body = release.getBody();
+        // Parse the initial markdown only, to extract any YAML front matter
+        var parser = Parser.builder().build();
+        var doc = parser.parse(body);
+
+        // If the markdown doesn't start with a title, pre-pending the model title & description (if available)
+        if (!body.startsWith("#")) {
+            var sb = new StringBuilder();
+            sb.append("## ").append(release.getName()).append("\n\n");
+            sb.append("----\n\n");
+            doc.prependChild(parser.parse(sb.toString()));
+        }
+        webView.getEngine().loadContent(HtmlRenderer.builder().build().render(doc));
+        infoPopover.show(infoButton);
+    }
+
+
+    private static Dialog<ButtonType> createDialog(GitHubProject.GitHubRepo repo, Node control, String optionType, String parentType) {
+        BorderPane bp = new BorderPane();
+        AnchorPane ap = new AnchorPane();
+        Button githubButton = new Button("Browse GitHub repository");
+        ap.getChildren().add(githubButton);
+        AnchorPane.setBottomAnchor(githubButton, 0.0);
+        AnchorPane.setLeftAnchor(githubButton, 0.0);
+        AnchorPane.setRightAnchor(githubButton, 0.0);
+        AnchorPane.setTopAnchor(githubButton, 0.0);
+        githubButton.setOnAction(e -> browseGitHub(repo));
+        bp.setTop(ap);
+        bp.setBottom(control);
+        HBox hboxText = new HBox();
+        hboxText.setPadding(new Insets(5));
+        hboxText.setAlignment(Pos.CENTER_LEFT);
+        hboxText.getChildren().add(new Label(String.format("More than one %s available for this %s.\nPlease choose one:", optionType, parentType)));
+        bp.setCenter(hboxText);
+
+        Dialog<ButtonType> dialog = new Dialog<>();
+        dialog.getDialogPane().setContent(bp);
+        dialog.getDialogPane().getButtonTypes().setAll(ButtonType.APPLY, ButtonType.CANCEL);
+        dialog.setTitle("Extension manager");
+        return dialog;
+    }
+
+    private static Optional<GitHubAsset> resolveReleaseAndAsset(GitHubProject.GitHubRepo repo) throws IOException, InterruptedException {
+        String uString = String.format("https://api.github.com/repos/%s/%s/releases", repo.getOwner(), repo.getRepo());
+        HttpClient client = HttpClient.newHttpClient();
+
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(uString))
+                .GET()
+                .build();
+
+        String response = client.send(request, HttpResponse.BodyHandlers.ofString()).body();
+
+        Gson gson = new Gson();
+        var releases = gson.fromJson(response, GitHubRelease[].class);
+        if (!(releases.length > 0)) {
+            Dialogs.showErrorMessage(QuPathResources.getString("ExtensionControlPane"),
+                    QuPathResources.getString("ExtensionControlPane.noValidRelease"));
+            return Optional.empty();
+        }
+
+        var release = chooseRelease(repo, Arrays.asList(releases));
+        if (release.isEmpty()) {
+            return Optional.empty();
+        }
+        var assets = Arrays.stream(release.get().assets)
+                .filter(a -> a.getType().equals("application/java-archive"))
+                .filter(a -> !a.getName().endsWith("javadoc.jar"))
+                .filter(a -> !a.getName().endsWith("sources.jar"))
+                .toList();
+        if (assets.isEmpty()) {
+            Dialogs.showInfoNotification(QuPathResources.getString("ExtensionControlPane"),
+                    QuPathResources.getString("ExtensionControlPane.noValidAsset"));
+            logger.info("No valid assets identified for {}/{}", repo.getOwner(), repo.getRepo());
+            return Optional.empty();
+        }
+        if (assets.size() == 1) {
+            return Optional.of(assets.get(0));
+        }
+
+        // otherwise, make the user choose...
+        logger.info("More than one asset for release {}", release);
+
+        return chooseAsset(repo, assets);
     }
 
     private static Path getExtensionPath() {
@@ -256,8 +522,21 @@ public class ExtensionControlPane extends VBox {
         return dir;
     }
 
-    private static void downloadURLToFile(String downloadURL, File file) throws IOException {
-        try (InputStream stream = new URL(downloadURL).openStream()) {
+    private static void browseGitHub(GitHubProject.GitHubRepo repo) {
+        String url = repo.getUrlString();
+        try {
+            logger.info("Trying to open URL {}", url);
+            GuiTools.browseURI(new URI(url));
+        } catch (URISyntaxException e) {
+            Dialogs.showErrorNotification(
+                    QuPathResources.getString("ExtensionControlPane.unableToOpenGitHubURL") + url,
+                    e);
+        }
+    }
+
+
+    private static void downloadURLToFile(URL downloadURL, File file) throws IOException {
+        try (InputStream stream = downloadURL.openStream()) {
             try (ReadableByteChannel readableByteChannel = Channels.newChannel(stream)) {
                 try (FileOutputStream fos = new FileOutputStream(file)) {
                     fos.getChannel().transferFrom(readableByteChannel, 0, Long.MAX_VALUE);
@@ -272,6 +551,7 @@ public class ExtensionControlPane extends VBox {
         try {
             askToDownload(repo);
         } catch (URISyntaxException | IOException | InterruptedException e) {
+            logger.error("Unable to download extension", e);
             Dialogs.showErrorNotification(QuPathResources.getString("ExtensionControlPane.unableToDownload"), e);
         }
         cancelDownload();
@@ -367,6 +647,11 @@ public class ExtensionControlPane extends VBox {
         }
     }
 
+    private static String truncateLines(String text, int nChars) {
+        return text.lines()
+                .map(l -> l.length() <= nChars ? l : (l.substring(0, nChars) + "[...]"))
+                .collect(Collectors.joining("\n"));
+    }
 
     /**
      * Controller class for extension list cells
@@ -522,10 +807,12 @@ public class ExtensionControlPane extends VBox {
                             e);
                 }
             }
+
             @FXML
             private void updateExtension() {
                 ExtensionControlPane.updateExtension(this.extension);
             }
+
             @FXML
             private void removeExtension() {
                 ExtensionControlPane.removeExtension(this.extension);
