@@ -25,7 +25,13 @@ import javafx.collections.MapChangeListener;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Node;
-import javafx.scene.control.*;
+import javafx.scene.control.Button;
+import javafx.scene.control.ContextMenu;
+import javafx.scene.control.Label;
+import javafx.scene.control.ListCell;
+import javafx.scene.control.ListView;
+import javafx.scene.control.TextField;
+import javafx.scene.control.TitledPane;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.AnchorPane;
@@ -35,7 +41,6 @@ import org.apache.commons.text.WordUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.fx.dialogs.Dialogs;
-import qupath.fx.utils.FXUtils;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.Version;
 import qupath.lib.gui.actions.ActionTools;
@@ -196,6 +201,7 @@ public class ExtensionControlPane extends VBox {
             try {
                 downloadURLToFile(url, outputFile);
             } catch (IOException e) {
+                logger.error("Unable to download extension", e);
                 Dialogs.showErrorNotification(QuPathResources.getString("ExtensionControlPane"),
                         QuPathResources.getString("ExtensionControlPane.unableToDownload"));
             }
@@ -221,6 +227,7 @@ public class ExtensionControlPane extends VBox {
         var v = UpdateChecker.checkForUpdate(repo);
         if (v != null && Dialogs.showYesNoDialog(QuPathResources.getString("ExtensionControlPane"),
                 String.format(QuPathResources.getString("ExtensionControlPane.installExtensionFromGithub"), repo.getRepo()))) {
+            // todo: should list files and select candidate jars based on names...
             var downloadURL = String.format("https://github.com/%s/%s/releases/download/%s/%s-%s.jar",
                     repo.getOwner(), repo.getRepo(), "v" + v.getVersion().toString(), repo.getRepo(), v.getVersion().toString()
             );
@@ -228,7 +235,15 @@ public class ExtensionControlPane extends VBox {
             var dir = getExtensionPath();
             if (dir == null) return;
             File f = new File(dir.toString(), repo.getRepo() + "-" + v.getVersion() + ".jar");
-            downloadURLToFile(downloadURL, f);
+            try {
+                downloadURLToFile(downloadURL, f);
+            } catch (IOException e) {
+                logger.error("Unable to download extension, trying again with \"-all\" suffix", e);
+                downloadURL = String.format("https://github.com/%s/%s/releases/download/%s/%s-%s-all.jar",
+                        repo.getOwner(), repo.getRepo(), "v" + v.getVersion().toString(), repo.getRepo(), v.getVersion().toString()
+                );
+                downloadURLToFile(downloadURL, f);
+            }
             Dialogs.showInfoNotification(
                     QuPathResources.getString("ExtensionControlPane"),
                     String.format(QuPathResources.getString("ExtensionControlPane.successfullyDownloaded"), repo.getRepo()));
@@ -272,6 +287,7 @@ public class ExtensionControlPane extends VBox {
         try {
             askToDownload(repo);
         } catch (URISyntaxException | IOException | InterruptedException e) {
+            logger.error("Unable to download extension", e);
             Dialogs.showErrorNotification(QuPathResources.getString("ExtensionControlPane.unableToDownload"), e);
         }
         cancelDownload();
