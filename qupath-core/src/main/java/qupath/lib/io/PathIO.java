@@ -36,6 +36,7 @@ import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerBuilder.DefaultImageServerBuilder;
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.images.servers.ImageServerProvider;
+import qupath.lib.images.servers.ImageServerStub;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
@@ -605,7 +606,7 @@ public class PathIO {
 			// Write JSON object including QuPath version and ServerBuilder
 			// Note that the builder may be null, in which case the server cannot be recreated
 			var builder = server.getBuilder();
-			if (builder == null)
+			if (builder == null && !(server instanceof ImageServerStub))
 				logger.warn("Server {} does not provide a builder - it will not be possible to recover the ImageServer from this data file", server);
 			var wrapper = ServerBuilderWrapper.create(builder, server.getPath());
 			String json = GsonTools.getInstance().toJson(wrapper);

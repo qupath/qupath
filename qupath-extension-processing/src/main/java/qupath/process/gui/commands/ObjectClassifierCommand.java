@@ -444,7 +444,7 @@ public class ObjectClassifierCommand implements Runnable {
 						} else {
 							var tempData = trainingMap.get(entry);
 							if (tempData == null) {
-								tempData = entry.readImageData();
+								tempData = entry.readImageData(false);
 								trainingMap.put(entry, tempData);
 							}
 							list.add(tempData);

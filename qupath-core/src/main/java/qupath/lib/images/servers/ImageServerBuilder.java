@@ -146,8 +146,13 @@ public interface ImageServerBuilder<T> {
 		 * @see #getURIs()
 		 */
 		public ServerBuilder<T> updateURIs(Map<URI, URI> updateMap);
-		
-	}
+
+		/**
+		 * Get essential metadata associated with the ImageServer as a distinct object.  This may be edited by the user.
+		 * @return
+		 */
+		public ImageServerMetadata getMetadata();
+    }
 	
 	
 	/**
@@ -164,8 +169,9 @@ public interface ImageServerBuilder<T> {
 		}
 		
 		protected abstract ImageServer<T> buildOriginal() throws Exception;
-		
-		protected ImageServerMetadata getMetadata() {
+
+		@Override
+		public ImageServerMetadata getMetadata() {
 			return metadata;
 		}
 		
