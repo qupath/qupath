@@ -186,12 +186,17 @@ public interface ProjectImageEntry<T> extends UriResource {
 	 * <p>
 	 * If the full data is not needed, but rather only the objects {@link #readHierarchy()} can be much faster.
 	 * 
+	 * @param openImage if true, returns an ImageData whose image server is instance of qupath.lib.projects.Project
 	 * @return
 	 * @throws IOException 
 	 * 
 	 * @see #readHierarchy()
 	 */
-	public ImageData<T> readImageData() throws IOException;
+	public ImageData<T> readImageData(final boolean openImage) throws IOException;
+	
+	public default ImageData<T> readImageData() throws IOException {
+		return readImageData(true);
+	}
 	
 	/**
 	 * Save the {@link ImageData} for this entry using the default storage location for the project.

@@ -115,7 +115,9 @@ public class RichScriptEditor extends DefaultScriptEditor {
 						runScriptAction,
 						runSelectedAction,
 						runProjectScriptAction,
-						runProjectScriptNoSaveAction
+						runProjectScriptNoSaveAction,
+						runProjectScriptNoOpenAction,
+						runProjectScriptNoSaveNoOpenAction
 						),
 				MenuTools.createMenu("Undo/Redo...",
 					undoAction,

@@ -134,6 +134,7 @@ import qupath.lib.gui.tools.MenuTools;
 import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.gui.tools.WebViews;
 import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.ImageStubNotReadableException;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectImageEntry;
 import qupath.lib.projects.Projects;
@@ -327,6 +328,10 @@ public class DefaultScriptEditor implements ScriptEditor {
 	protected Action runSelectedAction;
 	protected Action runProjectScriptAction;
 	protected Action runProjectScriptNoSaveAction;
+
+	protected Action runProjectScriptNoOpenAction;
+
+	protected Action runProjectScriptNoSaveNoOpenAction;
 	
 	protected Action killRunningScriptAction;
 
@@ -444,8 +449,10 @@ public class DefaultScriptEditor implements ScriptEditor {
 		
 		runScriptAction = createRunScriptAction("Run", false);
 		runSelectedAction = createRunScriptAction("Run selected code", true);
-		runProjectScriptAction = createRunProjectScriptAction("Run for project", true);
-		runProjectScriptNoSaveAction = createRunProjectScriptAction("Run for project (without saving)", false);
+		runProjectScriptAction = createRunProjectScriptAction("Run for project", true, true);
+		runProjectScriptNoSaveAction = createRunProjectScriptAction("Run for project (without saving)", false, true);
+		runProjectScriptNoOpenAction = createRunProjectScriptAction("Run for project (without opening)", true, false);
+		runProjectScriptNoSaveNoOpenAction = createRunProjectScriptAction("Run for project (without saving and opening)", false, false);
 		killRunningScriptAction = createKillRunningScriptAction("Kill running script");
 		
 		insertMuAction = createInsertAction(GeneralTools.SYMBOL_MU + "");
@@ -869,6 +876,8 @@ public class DefaultScriptEditor implements ScriptEditor {
 				runSelectedAction,
 				runProjectScriptAction,
 				runProjectScriptNoSaveAction,
+				runProjectScriptNoOpenAction,
+				runProjectScriptNoSaveNoOpenAction,
 				null,
 				killRunningScriptAction,
 				null,
@@ -973,6 +982,8 @@ public class DefaultScriptEditor implements ScriptEditor {
 		var popup = new ContextMenu(
 				ActionTools.createMenuItem(runProjectScriptAction),
 				ActionTools.createMenuItem(runProjectScriptNoSaveAction),
+				ActionTools.createMenuItem(runProjectScriptNoOpenAction),
+				ActionTools.createMenuItem(runProjectScriptNoSaveNoOpenAction),
 				ActionTools.createMenuItem(runSelectedAction),
 				new SeparatorMenuItem(),
 				ActionTools.createMenuItem(killRunningScriptAction),
@@ -1172,13 +1183,18 @@ public class DefaultScriptEditor implements ScriptEditor {
 			if (outputScriptStartTime.get())
 				printWriter.println(String.format("Total run time: %.2f seconds", (System.nanoTime() - startTime)/1e9));
 		} catch (ScriptException e) {
+			var cause = e.getCause();
+			if (cause instanceof ImageStubNotReadableException)
+				// This can only happen with ProjectTask.call(), when imageData can be read into an instance with have ImageServerStub.
+				// If for one image this script is trying to access the image's pixel, it will probably try to do the same for the rest of the images too.
+				// Thus, we throw the exception back to the caller to handle it, whether for stopping the whole project execution, skip it or retrying by allowing to read the image files.
+				throw (ImageStubNotReadableException) cause;
 			
 			var errorWriter = params.getErrorWriter();
 			try {
 				var sb = new StringBuilder();
 				sb.append("ERROR: " + e.getLocalizedMessage() + "\n");
-				
-				var cause = e.getCause();
+
 				var stackTrace = Arrays.stream(cause.getStackTrace()).filter(s -> s != null).map(s -> s.toString())
 						.collect(Collectors.joining("\n" + "    "));
 				if (stackTrace != null)
@@ -1555,8 +1571,8 @@ public class DefaultScriptEditor implements ScriptEditor {
 	}
 	
 	
-	Action createRunProjectScriptAction(final String name, final boolean doSave) {
-		Action action = new Action(name, e -> handleRunProject(doSave));
+	Action createRunProjectScriptAction(final String name, final boolean doSave, final boolean openImages) {
+		Action action = new Action(name, e -> handleRunProject(doSave, openImages));
 		action.disabledProperty().bind(disableRun.or(qupath.projectProperty().isNull()));
 		if (doSave)
 			action.setLongText("Run the current script for multiple images in the project and save the results");
@@ -1571,7 +1587,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	 * Request project image entries to run script for.
 	 * @param doSave 
 	 */
-	void handleRunProject(final boolean doSave) {
+	void handleRunProject(final boolean doSave, final boolean openImages) {
 		Project<BufferedImage> project = qupath.getProject();
 		if (project == null) {
 			GuiTools.showNoProjectError("Script editor");
@@ -1617,7 +1633,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		
 		List<ProjectImageEntry<BufferedImage>> imagesToProcess = new ArrayList<>(previousImages);
 
-		ProjectTask worker = new ProjectTask(project, imagesToProcess, tab, doSave, useCompiled.get());
+		ProjectTask worker = new ProjectTask(project, imagesToProcess, tab, doSave, openImages, useCompiled.get());
 		
 		
 		ProgressDialog progress = new ProgressDialog(worker);
@@ -1677,13 +1693,15 @@ public class DefaultScriptEditor implements ScriptEditor {
 		private ScriptTab tab;
 		private boolean quietCancel = false;
 		private boolean doSave = false;
+		private boolean openImages = true;
 		private boolean useCompiled = false;
 		
-		ProjectTask(final Project<BufferedImage> project, final Collection<ProjectImageEntry<BufferedImage>> imagesToProcess, final ScriptTab tab, final boolean doSave, final boolean useCompiled) {
+		ProjectTask(final Project<BufferedImage> project, final Collection<ProjectImageEntry<BufferedImage>> imagesToProcess, final ScriptTab tab, final boolean doSave, final boolean openImages, final boolean useCompiled) {
 			this.project = project;
 			this.imagesToProcess = imagesToProcess;
 			this.tab = tab;
 			this.doSave = doSave;
+			this.openImages = openImages;
 			this.useCompiled = useCompiled;
 		}
 		
@@ -1705,6 +1723,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 			int counter = 0;
 			int batchSize = imagesToProcess.size();
 			int batchIndex = 0;
+			ImageData<BufferedImage> imageData = null;
 			for (ProjectImageEntry<BufferedImage> entry : imagesToProcess) {
 				try {
 					// Stop
@@ -1721,17 +1740,29 @@ public class DefaultScriptEditor implements ScriptEditor {
 					System.gc();
 
 					// Open saved data if there is any, or else the image itself
-					ImageData<BufferedImage> imageData = entry.readImageData();
+					imageData = entry.readImageData(this.openImages);
 					if (imageData == null) {
 						logger.warn("Unable to open {} - will be skipped", entry.getImageName());
 						continue;
 					}
 //					QPEx.setBatchImageData(imageData);
-					executeScript(tab, tab.getEditorControl().getText(), project, imageData, batchIndex, batchSize, doSave, useCompiled);
-					if (doSave)
+					try {
+						executeScript(tab, tab.getEditorControl().getText(), project, imageData, batchIndex, batchSize, doSave, useCompiled);
+					} catch (ImageStubNotReadableException e) {
+						var console = tab.getConsoleControl();
+						LogManager.addTextAppendableFX(console);
+						var writer = new ScriptConsoleWriter(console, true);
+						var printWriter = new PrintWriter(writer);
+						String msg = "The script tried to read pixels off an image while also requiring to run the script without accessing the image files.";
+						printWriter.println(msg);
+						// e.printStackTrace(printWriter);
+						Platform.runLater(() -> LogManager.removeTextAppendableFX(console));
+						this.quietCancel();
+					}
+					if (doSave && !isQuietlyCancelled())
 						entry.saveImageData(imageData);
 					imageData.getServer().close();
-					
+
 					if (clearCache.get()) {
 						try {
 							var store = qupath == null ? null : qupath.getImageRegionStore();
@@ -1739,7 +1770,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 								store.clearCache();
 							System.gc();
 						} catch (Exception e) {
-							
+
 						}
 					}
 				} catch (Exception e) {

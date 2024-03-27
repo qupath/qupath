@@ -63,6 +63,7 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.ImageData.ImageType;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ImageServerStub;
 import qupath.lib.images.servers.ServerTools;
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.io.GsonTools;
@@ -686,15 +687,19 @@ class DefaultProject implements Project<BufferedImage> {
 		}
 
 		@Override
-		public synchronized ImageData<BufferedImage> readImageData() throws IOException {
+		public synchronized ImageData<BufferedImage> readImageData(final boolean openImage) throws IOException {
 			Path path = getImageDataPath();
 			ImageServer<BufferedImage> server;
-			try {
-				server = getServerBuilder().build();
-			} catch (IOException e) {
-				throw e;
-			} catch (Exception e) {
-				throw new IOException(e);
+			if (openImage) {
+				try {
+					server = getServerBuilder().build();
+				} catch (IOException e) {
+					throw e;
+				} catch (Exception e) {
+					throw new IOException(e);
+				}
+			} else {
+				server = new ImageServerStub(this, false);
 			}
 			if (server == null)
 				return null;
