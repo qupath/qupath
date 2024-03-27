@@ -64,6 +64,7 @@ import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerBuilder;
 import qupath.lib.images.servers.ImageServerProvider;
 import qupath.lib.images.servers.ImageServers;
+import qupath.lib.images.servers.ImageStubNotReadableException;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectIO;
 import qupath.lib.scripting.QP;
@@ -313,6 +314,9 @@ class ScriptCommand implements Runnable {
 	
 	@Option(names = {"-p", "--project"}, description = "Path to a project file (.qpproj).", paramLabel = "project")
 	private String projectPath;
+
+	@Option(names = {"-n", "--no-images"}, description = "Execute the script by opening and reading the images", paramLabel = "notOpenImages")
+	private boolean notOpenImages;
 	
 	@Option(names = {"-s", "--save"}, description = "Request that data files are updated for each image in the project.", paramLabel = "save")
 	private boolean save;
@@ -370,13 +374,15 @@ class ScriptCommand implements Runnable {
 				for (int batchIndex = 0; batchIndex < batchSize; batchIndex++) {
 					var entry = imageList.get(batchIndex);
 					logger.info("Running script for {} ({}/{})", entry.getImageName(), batchIndex, batchSize);
-					imageData = entry.readImageData();
+					imageData = entry.readImageData(!notOpenImages);
 					try {
 						Object result = runBatchScript(project, imageData, batchIndex, batchSize, save);
 						if (result != null)
 							logger.info("Script result: {}", result);
 						if (save)
 							entry.saveImageData(imageData);
+					} catch (ImageStubNotReadableException e) {
+						logger.error("The script tried to read pixels off an image while also requiring to run the script without accessing the image files.");
 					} catch (Exception e) {
 						logger.error("Error running script for image: " + entry.getImageName(), e);
 						// Throw an exception if we have a single image
@@ -505,6 +511,11 @@ class ScriptCommand implements Runnable {
 		// Evaluate the script
 		try {
 			result = language.execute(params);
+		} catch (ScriptException e) {
+			Throwable cause = e.getCause();
+			if (cause instanceof ImageStubNotReadableException)
+				throw (ImageStubNotReadableException) cause;
+			throw e;
 		} finally {
 			// Ensure writers are flushed
 			outWriter.flush();
