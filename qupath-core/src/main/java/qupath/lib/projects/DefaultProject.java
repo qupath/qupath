@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -47,6 +47,7 @@ import java.util.UUID;
 import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import javax.imageio.ImageIO;
@@ -688,20 +689,25 @@ class DefaultProject implements Project<BufferedImage> {
 		@Override
 		public synchronized ImageData<BufferedImage> readImageData() throws IOException {
 			Path path = getImageDataPath();
-			ImageServer<BufferedImage> server;
-			try {
-				server = getServerBuilder().build();
-			} catch (IOException e) {
-				throw e;
-			} catch (Exception e) {
-				throw new IOException(e);
-			}
-			if (server == null)
-				return null;
+			Supplier<ImageServer<BufferedImage>> serverSupplier = () -> {
+				try {
+					var server = getServerBuilder().build();
+					// Ensure the names match
+					var name = getOriginalImageName();
+					if (name != null)
+						ServerTools.setImageName(server, name);
+					return server;
+				} catch (Exception e) {
+					if (e instanceof RuntimeException exception)
+						throw exception;
+					else
+						throw new RuntimeException(e);
+				}
+			};
 			ImageData<BufferedImage> imageData = null;
 			if (Files.exists(path)) {
 				try (var stream = Files.newInputStream(path)) {
-					imageData = PathIO.readImageData(stream, null, server, BufferedImage.class);
+					imageData = PathIO.readLazyImageData(stream, serverSupplier, BufferedImage.class);
 					imageData.setLastSavedPath(path.toString(), true);
 				} catch (Exception e) {
 					logger.error("Error reading image data from " + path, e);
@@ -713,7 +719,7 @@ class DefaultProject implements Project<BufferedImage> {
 				var pathBackup = getBackupImageDataPath();
 				if (Files.exists(pathBackup)) {
 					try (var stream = Files.newInputStream(pathBackup)) {
-						imageData = PathIO.readImageData(stream, null, server, BufferedImage.class);
+						imageData = PathIO.readLazyImageData(stream, serverSupplier, BufferedImage.class);
 						imageData.setLastSavedPath(pathBackup.toString(), true);
 						logger.warn("Restored previous ImageData from {}", pathBackup);
 					} catch (IOException e) {
@@ -723,11 +729,7 @@ class DefaultProject implements Project<BufferedImage> {
 			}
 			
 			if (imageData == null)
-				imageData = new ImageData<>(server);
-			// Ensure the names match
-			var name = getOriginalImageName();
-			if (name != null)
-				ServerTools.setImageName(server, name);
+				imageData = new ImageData<>(serverSupplier, null, new PathObjectHierarchy(), ImageType.UNSET);
 			imageData.setProperty(IMAGE_ID, getFullProjectEntryID()); // Required to be able to test for the ID later
 			imageData.setChanged(false);
 			return imageData;
