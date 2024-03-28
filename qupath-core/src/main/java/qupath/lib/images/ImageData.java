@@ -364,10 +364,14 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 	 */
 	public ImageServer<T> getServer() {
 		if (server == null && serverSupplier != null) {
-			logger.debug("Lazily requesting image server");
-			server = serverSupplier.get();
-			if (lazyMetadata != null && !lazyMetadata.equals(server.getMetadata())) {
-				updateServerMetadata(lazyMetadata);
+			synchronized (this) {
+				if (server == null) {
+					logger.debug("Lazily requesting image server");
+					server = serverSupplier.get();
+					if (lazyMetadata != null && !lazyMetadata.equals(server.getMetadata())) {
+						updateServerMetadata(lazyMetadata);
+					}
+				}
 			}
 		}
 		return server;
