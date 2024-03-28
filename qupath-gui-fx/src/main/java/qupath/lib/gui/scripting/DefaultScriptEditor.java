@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -1730,7 +1730,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 					executeScript(tab, tab.getEditorControl().getText(), project, imageData, batchIndex, batchSize, doSave, useCompiled);
 					if (doSave)
 						entry.saveImageData(imageData);
-					imageData.getServer().close();
+					imageData.close();
 					
 					if (clearCache.get()) {
 						try {

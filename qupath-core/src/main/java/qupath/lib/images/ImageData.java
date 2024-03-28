@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -29,6 +29,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Supplier;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,8 +61,8 @@ import qupath.lib.plugins.workflow.WorkflowStep;
  * @param <T> 
  *
  */
-public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListener {
-	
+public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListener, AutoCloseable {
+
 	/**
 	 * Enum representing possible image types.
 	 * <p>
@@ -109,7 +110,10 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 	private static final Logger logger = LoggerFactory.getLogger(ImageData.class);
 
 	private transient PropertyChangeSupport pcs;
-	
+
+	private transient Supplier<ImageServer<T>> serverSupplier;
+	private transient ImageServerMetadata lazyMetadata;
+
 	private transient ImageServer<T> server;
 	
 	private String lastSavedPath = null;
@@ -138,8 +142,9 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 	 * @param hierarchy 
 	 * @param type
 	 */
-	public ImageData(ImageServer<T> server, PathObjectHierarchy hierarchy, ImageType type) {
-		pcs = new PropertyChangeSupport(this);
+	public ImageData(Supplier<ImageServer<T>> supplier, ImageServer<T> server, PathObjectHierarchy hierarchy, ImageType type) {
+		this.pcs = new PropertyChangeSupport(this);
+		this.serverSupplier = supplier;
 		this.server = server;
 		this.hierarchy = hierarchy == null ? new PathObjectHierarchy() : hierarchy;
 		this.serverPath = server == null ? null : server.getPath(); // TODO: Deal with sub image servers
@@ -147,13 +152,17 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 		if (type == null)
 			type = ImageType.UNSET;
 		setImageType(type);
-		
+
 		// Add listeners for changes
 		this.hierarchy.addListener(this);
 		workflow.addWorkflowListener(this);
-		
+
 		// Discard any changes during construction
 		changes = false;
+	}
+
+	public ImageData(ImageServer<T> server, PathObjectHierarchy hierarchy, ImageType type) {
+		this(null, server, hierarchy, type);
 	}
 	
 	/**
@@ -231,6 +240,15 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 	 */
 	public void updateServerMetadata(ImageServerMetadata newMetadata) {
 		Objects.requireNonNull(newMetadata);
+		if (server == null) {
+			if (serverSupplier == null)
+				throw new IllegalStateException("Cannot update server metadata without a server or server supplier");
+			else {
+				logger.debug("Setting serve metadata lazily (no change will be fired)");
+				lazyMetadata = newMetadata;
+				return;
+			}
+		}
 		logger.trace("Updating server metadata");
 		var oldMetadata = server.getMetadata();
 		server.setMetadata(newMetadata);
@@ -345,6 +363,13 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 	 * @return
 	 */
 	public ImageServer<T> getServer() {
+		if (server == null && serverSupplier != null) {
+			logger.debug("Lazily requesting image server");
+			server = serverSupplier.get();
+			if (lazyMetadata != null && !lazyMetadata.equals(server.getMetadata())) {
+				updateServerMetadata(lazyMetadata);
+			}
+		}
 		return server;
 	}
 	
@@ -506,14 +531,33 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 	public void workflowUpdated(Workflow workflow) {
 		changes = true;
 	}
-	
-	
+
+	/**
+	 * Close the server if it has been loaded.
+	 * @throws Exception
+	 */
+	@Override
+	public void close() throws Exception {
+		if (server != null)
+			server.close();
+	}
+
+
 	@Override
 	public String toString() {
-		if (getServer() == null)
-			return "ImageData: " + getImageType() + ", no server";
-		else
-			return "ImageData: " + getImageType() + ", " + ServerTools.getDisplayableImageName(getServer());
+		String serverName;
+		if (server == null) {
+			if (serverSupplier == null) {
+				serverName = "no server";
+			} else if (lazyMetadata != null){
+				serverName = lazyMetadata.getName() + " (not yet loaded)";
+			} else {
+				serverName = "lazy-loaded server";
+			}
+		} else {
+			serverName = ServerTools.getDisplayableImageName(server);
+		}
+		return "ImageData: " + getImageType() + ", " + serverName;
 	}
 
     
