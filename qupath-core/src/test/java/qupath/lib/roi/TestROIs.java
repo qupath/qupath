@@ -127,6 +127,20 @@ public class TestROIs {
 		}
 		
 	}
+
+	@Test
+	public void rectangleContains() {
+		ROI rectangle = ROIs.createRectangleROI(0,0,1,1, ImagePlane.getDefaultPlane());
+		assertTrue(rectangle.contains(.5, .5));
+		assertTrue(rectangle.contains(.9999, .9999));
+		assertFalse(rectangle.contains(1.0001, 1.0001));
+		assertTrue(rectangle.contains(0, 0));
+		assertTrue(rectangle.contains(.9999, 0));
+		assertTrue(rectangle.contains(0, .9999));
+		assertTrue(rectangle.contains(1, 0));
+		assertTrue(rectangle.contains(0, 1));
+		assertTrue(rectangle.contains(1, 1));
+	}
 	
 	static void checkROIMeasurements(ROI roi, double pixelWidth, double pixelHeight, double delta) {
 		if (roi.isPoint()) {

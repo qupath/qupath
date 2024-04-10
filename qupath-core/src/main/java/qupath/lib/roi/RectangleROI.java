@@ -59,7 +59,7 @@ public class RectangleROI extends AbstractPathBoundedROI implements Serializable
 	
 	@Override
 	public boolean contains(double x, double y) {
-		return x >= this.x && x < x2 && y >= this.y && y < y2;
+		return x >= this.x && x <= x2 && y >= this.y && y <= y2;
 	}
 	
 	@Override
