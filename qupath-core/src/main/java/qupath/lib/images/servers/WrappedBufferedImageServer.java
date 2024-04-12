@@ -101,8 +101,10 @@ public class WrappedBufferedImageServer extends AbstractTileableImageServer {
 		int nChannels = img.getSampleModel().getNumBands();
 		boolean isRGB = false;
 		for (int type : rgbTypes) {
-			isRGB = isRGB | type == img.getType();
-			pixelType = PixelType.UINT8;
+			if (type == img.getType()) {
+				isRGB = true;
+				pixelType = PixelType.UINT8;
+			}
 		}
 		// Warning! This method of obtaining channels risks resulting in different colors from the original image
 		if (channels == null) {

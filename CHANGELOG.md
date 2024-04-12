@@ -1,3 +1,10 @@
+## Version 0.6.0-SNAPSHOT
+
+This is a *work in progress* for the next major release.
+
+### Bugs fixed
+* Tile export to .ome.tif can convert to 8-bit unnecessarily (https://github.com/qupath/qupath/issues/1494)
+
 ## Version 0.5.1
 
 This is a *minor release* that aims to be fully compatible with v0.5.0, while fixing several bugs.
