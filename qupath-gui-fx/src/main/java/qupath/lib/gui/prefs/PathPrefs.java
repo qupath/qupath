@@ -83,14 +83,14 @@ public class PathPrefs {
 	/**
 	 * Default name for preference node in this QuPath version
 	 */
-	private static final String DEFAULT_NODE_NAME = "io.github.qupath/0.5";
+	private static final String DEFAULT_NODE_NAME = "io.github.qupath/0.6";
 
 	/**
 	 * Previous preference node, in case these need to be restored.
 	 * For now, this isn't supported.
 	 */
 	@SuppressWarnings("unused")
-	private static final String PREVIOUS_NODE_NAME = "io.github.qupath/0.4";
+	private static final String PREVIOUS_NODE_NAME = "io.github.qupath/0.5";
 
 	/**
 	 * The preference manager used to store preferences.
