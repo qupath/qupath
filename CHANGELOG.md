@@ -11,7 +11,6 @@ This is a *work in progress* for the next major release.
 * DeepJavaLibrary 0.27.0
 * Groovy 4.0.21
 * Guava 33.1.0-jre
-* ImageJ 1.54i
 * JavaFX 22
 * JNA 5.14.0
 * OpenCV 4.9.0
