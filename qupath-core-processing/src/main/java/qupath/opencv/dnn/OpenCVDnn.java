@@ -218,7 +218,7 @@ public class OpenCVDnn extends AbstractDnnModel<Mat> implements UriResource {
 		if (mean != null)
 			model.setInputMean(mean);
 		if (Double.isFinite(scale))
-			model.setInputScale(scale);
+			model.setInputScale(Scalar.all(scale));
 		if (size != null)
 			model.setInputSize(size);
 	}
