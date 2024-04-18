@@ -2,7 +2,7 @@
 
 bioformats      = "7.0.1"
 bioimageIoSpec  = "0.1.0"
-omeZarrReader   = "0.4.1-SNAPSHOT"
+omeZarrReader   = "0.4.1"
 blosc           = "1.21.5"
 
 commonmark      = "0.21.0"

@@ -24,7 +24,7 @@ class OMEZarrAttributesCreator {
     private final int numberOfChannels;
     private final boolean pixelSizeInMicrometer;
     private final TimeUnit timeUnit;
-    private final double[] downSamples;
+    private final double[] downsamples;
     private final List<ImageChannel> channels;
     private final boolean isRGB;
     private final PixelType pixelType;
@@ -45,7 +45,7 @@ class OMEZarrAttributesCreator {
      * @param numberOfChannels  the number of channels
      * @param pixelSizeInMicrometer  whether pixel sizes are in micrometer
      * @param timeUnit  the unit of the time dimension of the image
-     * @param downSamples  the downsamples of the image
+     * @param downsamples  the downsamples of the image
      * @param channels  the channels of the image
      * @param isRGB  whether the image stores pixel values with the RGB format
      * @param pixelType  the type of the pixel values of the image
@@ -57,7 +57,7 @@ class OMEZarrAttributesCreator {
             int numberOfChannels,
             boolean pixelSizeInMicrometer,
             TimeUnit timeUnit,
-            double[] downSamples,
+            double[] downsamples,
             List<ImageChannel> channels,
             boolean isRGB,
             PixelType pixelType
@@ -68,7 +68,7 @@ class OMEZarrAttributesCreator {
         this.numberOfChannels = numberOfChannels;
         this.pixelSizeInMicrometer = pixelSizeInMicrometer;
         this.timeUnit = timeUnit;
-        this.downSamples = downSamples;
+        this.downsamples = downsamples;
         this.channels = channels;
         this.isRGB = isRGB;
         this.pixelType = pixelType;
@@ -124,25 +124,25 @@ class OMEZarrAttributesCreator {
         List<Map<String, Object>> axes = new ArrayList<>();
 
         if (numberOfTimePoints > 1) {
-            axes.add(getAxe(Dimension.T));
+            axes.add(getAxis(Dimension.T));
         }
         if (numberOfChannels > 1) {
-            axes.add(getAxe(Dimension.C));
+            axes.add(getAxis(Dimension.C));
         }
         if (numberOfZSlices > 1) {
-            axes.add(getAxe(Dimension.Z));
+            axes.add(getAxis(Dimension.Z));
         }
-        axes.add(getAxe(Dimension.Y));
-        axes.add(getAxe(Dimension.X));
+        axes.add(getAxis(Dimension.Y));
+        axes.add(getAxis(Dimension.X));
 
         return axes;
     }
 
     private List<Map<String, Object>> getDatasets() {
-        return IntStream.range(0, downSamples.length)
+        return IntStream.range(0, downsamples.length)
                 .mapToObj(level -> Map.of(
                         "path", "s" + level,
-                        "coordinateTransformations", List.of(getCoordinateTransformation((float) downSamples[level]))
+                        "coordinateTransformations", List.of(getCoordinateTransformation((float) downsamples[level]))
                 ))
                 .toList();
     }
@@ -179,16 +179,16 @@ class OMEZarrAttributesCreator {
                 .toList();
     }
 
-    private Map<String, Object> getAxe(Dimension dimension) {
-        Map<String, Object> axes = new HashMap<>();
-        axes.put("name", switch (dimension) {
+    private Map<String, Object> getAxis(Dimension dimension) {
+        Map<String, Object> axis = new HashMap<>();
+        axis.put("name", switch (dimension) {
             case X -> "x";
             case Y -> "y";
             case Z -> "z";
             case T -> "t";
             case C -> "c";
         });
-        axes.put("type", switch (dimension) {
+        axis.put("type", switch (dimension) {
             case X, Y, Z -> "space";
             case T -> "time";
             case C -> "channel";
@@ -197,10 +197,10 @@ class OMEZarrAttributesCreator {
         switch (dimension) {
             case X, Y, Z -> {
                 if (pixelSizeInMicrometer) {
-                    axes.put("unit", "micrometer");
+                    axis.put("unit", "micrometer");
                 }
             }
-            case T -> axes.put("unit", switch (timeUnit) {
+            case T -> axis.put("unit", switch (timeUnit) {
                 case NANOSECONDS -> "nanosecond";
                 case MICROSECONDS -> "microsecond";
                 case MILLISECONDS -> "millisecond";
@@ -211,10 +211,10 @@ class OMEZarrAttributesCreator {
             });
         }
 
-        return axes;
+        return axis;
     }
 
-    private Map<String, Object> getCoordinateTransformation(float downSample) {
+    private Map<String, Object> getCoordinateTransformation(float downsample) {
         List<Float> scales = new ArrayList<>();
         if (numberOfTimePoints > 1) {
             scales.add(1F);
@@ -225,8 +225,8 @@ class OMEZarrAttributesCreator {
         if (numberOfZSlices > 1) {
             scales.add(1F);
         }
-        scales.add(downSample);
-        scales.add(downSample);
+        scales.add(downsample);
+        scales.add(downsample);
 
         return Map.of(
                 "type", "scale",

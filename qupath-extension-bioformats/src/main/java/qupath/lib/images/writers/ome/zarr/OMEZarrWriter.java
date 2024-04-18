@@ -364,11 +364,7 @@ public class OMEZarrWriter implements AutoCloseable {
         dimensions.add((int) (server.getHeight() / server.getDownsampleForResolution(level)));
         dimensions.add((int) (server.getWidth() / server.getDownsampleForResolution(level)));
 
-        int[] dimensionArray = new int[dimensions.size()];
-        for(int i = 0; i < dimensions.size(); i++) {
-            dimensionArray[i] = dimensions.get(i);
-        }
-        return dimensionArray;
+        return dimensions.stream().mapToInt(i -> i).toArray();
     }
 
     private static int[] getChunksOfImage(ImageServer<BufferedImage> server) {
@@ -385,11 +381,7 @@ public class OMEZarrWriter implements AutoCloseable {
         chunks.add(server.getMetadata().getPreferredTileHeight());
         chunks.add(server.getMetadata().getPreferredTileWidth());
 
-        int[] chunksArray = new int[chunks.size()];
-        for (int i = 0; i < chunks.size(); i++) {
-            chunksArray[i] = chunks.get(i);
-        }
-        return chunksArray;
+        return chunks.stream().mapToInt(i -> i).toArray();
     }
 
     private Object getData(BufferedImage image) {
@@ -504,11 +496,7 @@ public class OMEZarrWriter implements AutoCloseable {
         dimensions.add(tileRequest.getTileHeight());
         dimensions.add(tileRequest.getTileWidth());
 
-        int[] dimensionArray = new int[dimensions.size()];
-        for (int i = 0; i < dimensions.size(); i++) {
-            dimensionArray[i] = dimensions.get(i);
-        }
-        return dimensionArray;
+        return dimensions.stream().mapToInt(i -> i).toArray();
     }
 
     private int[] getOffsetsOfTile(TileRequest tileRequest) {
@@ -525,10 +513,6 @@ public class OMEZarrWriter implements AutoCloseable {
         offset.add(tileRequest.getTileY());
         offset.add(tileRequest.getTileX());
 
-        int[] offsetArray = new int[offset.size()];
-        for (int i = 0; i < offset.size(); i++) {
-            offsetArray[i] = offset.get(i);
-        }
-        return offsetArray;
+        return offset.stream().mapToInt(i -> i).toArray();
     }
 }
