@@ -382,11 +382,13 @@ public class ObjectMerger {
 
     private static BiPredicate<Geometry, Geometry> createIoUMergeTest(double iouThreshold) {
         return (geom, geomOverlap) -> {
-            double union = geomOverlap.union(geomOverlap).getArea();
+            var i = geom.intersection(geomOverlap);
+            var intersection = i.getArea();
+            double union = geom.getArea() + geomOverlap.getArea() - intersection;
             if (union == 0) {
                 return false;
             }
-            return geom.intersection(geomOverlap).getArea() / union > iouThreshold;
+            return intersection / union > iouThreshold;
         };
     }
 
