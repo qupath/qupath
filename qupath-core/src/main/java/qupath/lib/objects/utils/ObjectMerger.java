@@ -53,6 +53,7 @@ import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /**
  * Helper class for merging objects using different criteria.
@@ -190,13 +191,14 @@ public class ObjectMerger {
                     else
                         allPotentialNeighbors = allObjects;
                     var neighbors = filterCompatibleNeighbors(current, allPotentialNeighbors);
+                    // alreadyVisited is not concurrent, so do this serially
                     var addable = neighbors.stream()
-                            .filter(neighbor -> !alreadyVisited.contains(neighbor)) // alreadyVisited (set) is not thread-safe
-                            .parallel()
+                            .filter(neighbor -> !alreadyVisited.contains(neighbor)).toList();
+                    addable = addable.parallelStream()
                             .filter(neighbor -> mergeTest.test(
                                     currentGeometry,
-                                    getGeometry(neighbor, geometryMap)));
-                    pending.addAll(addable.toList());
+                                    getGeometry(neighbor, geometryMap))).toList();
+                    pending.addAll(addable);
                 }
             }
             if (cluster.isEmpty()) {
@@ -207,7 +209,6 @@ public class ObjectMerger {
         }
         return clusters;
     }
-
 
     /**
      * Recursively build a cluster of objects that can be merged.
