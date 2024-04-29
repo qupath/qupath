@@ -166,7 +166,7 @@ public class ObjectMerger {
 
         List<List<PathObject>> clusters = new ArrayList<>();
         Set<PathObject> alreadyVisited = new HashSet<>();
-        Queue<PathObject> pending = new ConcurrentLinkedDeque<>();
+        Queue<PathObject> pending = new ArrayDeque<>();
         for (var p : allObjects) {
             if (alreadyVisited.contains(p))
                 continue;
@@ -190,15 +190,13 @@ public class ObjectMerger {
                     else
                         allPotentialNeighbors = allObjects;
                     var neighbors = filterCompatibleNeighbors(current, allPotentialNeighbors);
-                    neighbors.parallelStream().forEach(neighbor -> {
-                        if (!alreadyVisited.contains(neighbor)) {
-                            if (mergeTest.test(
+                    var addable = neighbors.stream()
+                            .filter(neighbor -> !alreadyVisited.contains(neighbor)) // alreadyVisited (set) is not thread-safe
+                            .parallel()
+                            .filter(neighbor -> mergeTest.test(
                                     currentGeometry,
-                                    getGeometry(neighbor, geometryMap))) {
-                                pending.add(neighbor);
-                            }
-                        }
-                    });
+                                    getGeometry(neighbor, geometryMap)));
+                    pending.addAll(addable.toList());
                 }
             }
             if (cluster.isEmpty()) {
