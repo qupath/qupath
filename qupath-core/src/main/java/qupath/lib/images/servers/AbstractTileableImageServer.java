@@ -397,7 +397,12 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 					}
 				}
 			}
-			// Maybe we don't have anything at all (which is not an error if the image is sparse!)
+
+			// If we have an empty region, try to use an empty tile
+			if (isEmptyRegion) {
+				return getEmptyTile(request.getWidth(), request.getHeight());
+			}
+
 			if (raster == null)
 				return null;
 			
@@ -426,11 +431,6 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 				var raster2 = raster.createCompatibleWritableRaster(w, h);
 				copyPixels(raster, -x, -y, raster2);
 				raster = raster2;
-			}
-
-			// If we have an empty region, try to use an empty tile
-			if (isEmptyRegion) {
-				return getEmptyTile(raster.getWidth(), raster.getHeight());
 			}
 
 			// Return the image, resizing if necessary

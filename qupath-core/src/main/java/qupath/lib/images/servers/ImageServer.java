@@ -306,15 +306,16 @@ public interface ImageServer<T> extends AutoCloseable {
 	
 	/**
 	 * Test whether a region is empty, i.e. it contains nothing to be painted (e.g. the server paints objects
-	 * but there are no objects present in the region) and readBufferedImage(RegionRequest region) would return null.
+	 * but there are no objects present in the region) and {@link #readRegion(RegionRequest)} would return an empty
+	 * tile.
 	 * <p>
 	 * This makes it possible to avoid a (potentially more expensive) request to {@link #readRegion(RegionRequest)},
 	 * or to add it to a request queue, if we know there will be nothing to show for it.
 	 * <p>
-	 * Note: if this method returns true, it is safe to assume readBufferedImage would return null.
-	 * However, even if the method returns false it is possible that the region is still empty -
+	 * Note: Even if the method returns false it is possible that the region is still empty -
 	 * the purpose of this method is to assist performance, and it should return quickly.
-	 * Therefore if the calculations needed to identify if the region is empty are too onerous, it may conservatively return false.
+	 * Therefore if the calculations needed to identify if the region is empty are too onerous, it may conservatively
+	 * return false.
 	 * 
 	 * @param request
 	 * @return
