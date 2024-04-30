@@ -24,6 +24,11 @@
 
 package qupath.lib.color;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.common.ColorTools;
+import qupath.lib.common.GeneralTools;
+
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.FileSystem;
@@ -42,12 +47,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.TreeMap;
 import java.util.stream.DoubleStream;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import qupath.lib.common.ColorTools;
-import qupath.lib.common.GeneralTools;
 
 /**
  * Helper class to manage colormaps, which are rather like lookup tables but easily support interpolation.
@@ -93,13 +92,7 @@ public class ColorMaps {
 		 * Get the name of the colormap.
 		 * @return
 		 */
-		public String getName();
-
-//		/**
-//		 * Returns true if the map uses alpha values within its colors.
-//		 * @return
-//		 */
-//		public boolean hasAlpha();
+		String getName();
 
 		/**
 		 * Get a packed ARGB representation of the (interpolated) color at the specified value,.
@@ -108,7 +101,7 @@ public class ColorMaps {
 		 * @param maxValue maximum display value, corresponding to the first last in the lookup table of this map
 		 * @return
 		 */
-		public Integer getColor(double value, double minValue, double maxValue);
+		Integer getColor(double value, double minValue, double maxValue);
 
 	}
 	
@@ -340,21 +333,7 @@ public class ColorMaps {
 	public static ColorMap createColorMap(String name, int[] r, int[] g, int[] b) {
 		return new DefaultColorMap(name, r, g, b);
 	}
-	
-//	/**
-//	 * Create a colormap using double values for red, green and blue.
-//	 * These should be in the range 0-1.
-//	 * @param name
-//	 * @param r
-//	 * @param g
-//	 * @param b
-//	 * @return
-//	 * @throws IllegalArgumentException if r, g or b values are out of range.
-//	 */
-//	public static ColorMap createDoubleColorMap(String name, double r, double g, double b) {
-//		return createColorMap(name, convertToInt(r), convertToInt(g), convertToInt(b));
-//	}
-	
+
 	/**
 	 * Create a colormap using int values for red, green and blue corresponding to the maximum value; 
 	 * the minimum color will be black.
@@ -431,26 +410,8 @@ public class ColorMaps {
 
 		@Override
 		public Integer getColor(double value, double minValue, double maxValue) {
-			//			System.out.println("Measurement map: " + minValue + ", " + maxValue);
-			int ind = 0;
-			if (maxValue > minValue) {
-				ind = (int)Math.round((value - minValue) / (maxValue - minValue) * nColors);
-				ind = ind >= nColors ? nColors - 1 : ind;
-				ind = ind < 0 ? 0 : ind;
-			} else if (minValue > maxValue) {
-				ind = (int)Math.round((value - maxValue) / (minValue - maxValue) * nColors);
-				ind = ind >= nColors ? nColors - 1 : ind;
-				ind = ind < 0 ? 0 : ind;
-				ind = nColors - 1 - ind;
-			}
-			return getColor(ind);
+			return getColor(getInd(value, minValue, maxValue, nColors));
 		}
-
-
-//		@Override
-//		public boolean hasAlpha() {
-//			return false;
-//		}
 
 	}
 
@@ -462,8 +423,8 @@ public class ColorMaps {
 		private static final int[] r = {0, 0,   0,   0,   255, 255};
 		private static final int[] g = {0, 0,   255, 255, 255, 0};
 		private static final int[] b = {0, 255, 255, 0,   0,   0};
-		private static int nColors = 256;
-		private static Integer[] colors = new Integer[nColors];
+		private static final int nColors = 256;
+		private static final Integer[] colors = new Integer[nColors];
 
 		static {
 			double scale = (double)(r.length - 1) / nColors;
@@ -499,25 +460,28 @@ public class ColorMaps {
 
 		@Override
 		public Integer getColor(double value, double minValue, double maxValue) {
-			//			System.out.println("Measurement map: " + minValue + ", " + maxValue);
-			int ind = 0;
-			if (maxValue > minValue) {
-				ind = (int)((value - minValue) / (maxValue - minValue) * nColors + .5);
-				ind = ind >= nColors ? nColors - 1 : ind;
-				ind = ind < 0 ? 0 : ind;
-			}
-			return getColor(ind);
+			return getColor(getInd(value, minValue, maxValue, nColors));
 		}
 
-
-//		@Override
-//		public boolean hasAlpha() {
-//			return false;
-//		}
-
 	}
-	
-	
+
+	/**
+	 * Utility method to translate values to indices, handling swapped min/max values.
+	 * @param value The value to be mapped.
+	 * @param minValue The min value of the color scale.
+	 * @param maxValue The max value of the color scale.
+	 * @param nColors The number of colors in the color scale.
+	 * @return An integer to index the colors.
+	 */
+	static int getInd(double value, double minValue, double maxValue, int nColors) {
+		int ind = 0;
+		double max = Math.max(minValue, maxValue);
+		double min = Math.min(minValue, maxValue);
+		ind = (int) Math.round((value - min) / (max - min) * nColors);
+		ind = ind >= nColors ? nColors - 1 : ind;
+		ind = Math.max(ind, 0);
+		return minValue > maxValue ? (nColors - 1 - ind) : ind;
+	}
 	
 	private static class GammaColorMap implements ColorMap {
 		

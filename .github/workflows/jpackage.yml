@@ -3,7 +3,9 @@
 
  name: Build packages with jpackage
 
- on: [workflow_dispatch]
+ on: 
+  - workflow_dispatch
+  - workflow_call
 
  jobs:
    build:
@@ -13,47 +15,62 @@
       matrix:
         include:
           - platform: ubuntu-latest
-            type: deb
-          - platform: ubuntu-latest
-            container: fedora:latest
-            type: rpm
-          - platform: macos-latest
-            type: pkg
+            name: Linux
+          - platform: macos-12 # x64
+            name: Mac-x64
+          - platform: macos-14 # aarch64
+            name: Mac-arm64
           - platform: windows-latest
-            type: msi
-    container: ${{ matrix.container }}
+            name: Windows
     runs-on: ${{ matrix.platform }}
     steps:
+
     - uses: actions/checkout@v4
-    - name: Install dependencies (fedora)
-      if: matrix.container == 'fedora:latest'
+
+    - name: Get qupath version from gradle
+      shell: bash
       run: |
-        dnf install -y binutils git rpm-build
-        git config --global --add safe.directory /__w/qupath/qupath
+        # grep reads the version line, sed strips everything before =
+        # GITHUB_ENV means it's stored in ${{env.QUPATH_VERSION}} persistently
+        # not just for the current step...
+        echo "QUPATH_VERSION=$(grep 'qupathVersion = \".*\"' settings.gradle  | sed -e 's/.*= \"\(.*\)\"/\1/')" >> $GITHUB_ENV
+
     - name: Set up JDK 21
-      uses: actions/setup-java@v3
+      uses: actions/setup-java@v4
       with:
         java-version: '21'
         distribution: 'temurin'
+
     - name: Validate Gradle wrapper
-      uses: gradle/wrapper-validation-action@v1
-    - name: Build with Gradle (Win/Mac/Linux deb)
-      if: matrix.container == ''
-      uses: gradle/gradle-build-action@v2
+      uses: gradle/wrapper-validation-action@v2
+
+    - name: Build with Gradle
+      uses: gradle/gradle-build-action@v3
       with:
         arguments: jpackage -P git-commit=true -P package=installer mergedJavadoc createChecksums -P toolchain=21
-    - name: Build with Gradle (Linux rpm)
-      if: matrix.container == 'fedora:latest'
-      uses: gradle/gradle-build-action@v2
+
+    - name: Make Linux tar.xz
+      if: matrix.name == 'Linux'
+      shell: bash
+      run: |
+        tar -c -C build/dist/ QuPath | xz > build/dist/QuPath-v${{ env.QUPATH_VERSION }}-${{ matrix.name }}.tar.xz
+        rm -r build/dist/QuPath/
+
+    - name: Clean windows artifact
+      if: matrix.name == 'Windows'
+      shell: bash
+      run: |
+        rm -r build/dist/QuPath-${{ env.QUPATH_VERSION }}
+
+    - uses: actions/upload-artifact@v4
       with:
-        arguments: jpackage -P git-commit=true -P package=rpm mergedJavadoc createChecksums -P toolchain=21
-    - uses: actions/upload-artifact@v3
-      with:
-        name: jpackage-${{ matrix.type }}
-        path: build/dist
+        name: QuPath-v${{ env.QUPATH_VERSION }}-${{ matrix.name }}
+        path: build/dist/QuPath*
         retention-days: 1
-    - uses: actions/upload-artifact@v3
+
+    - uses: actions/upload-artifact@v4
+      if: matrix.name == 'Mac-arm64'
       with:
-        name: javadoc-${{ matrix.type }}
+        name: javadoc-QuPath-v${{ env.QUPATH_VERSION }}
         path: build/docs-merged/javadoc
         retention-days: 7

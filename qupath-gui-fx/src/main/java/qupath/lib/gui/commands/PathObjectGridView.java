@@ -75,6 +75,7 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.Text;
 import javafx.stage.Stage;
 import javafx.util.Duration;
+import qupath.fx.utils.FXUtils;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.measure.ObservableMeasurementTableData;
@@ -211,8 +212,17 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 	 * @return
 	 */
 	public Stage getStage() {
-		if (stage == null)
+		if (stage == null) {
 			initializeGUI();
+			var owner = stage.getOwner();
+			if (owner != null) {
+				var screen = FXUtils.getScreen(owner);
+				if (screen != null) {
+					stage.setWidth(Math.min(850, screen.getVisualBounds().getWidth() * 0.8));
+					stage.centerOnScreen();
+				}
+			}
+		}
 		return stage;
 	}
 	
@@ -305,9 +315,7 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 		
 		String m = measurement.getValue();
 		sortPathObjects(backingList, model, m, descending.get());
-		filteredList.setPredicate(p -> {
-			return !(isMissingCore(p) || Double.isNaN(model.getNumericValue(p, m)));
-		});
+		filteredList.setPredicate(p -> m == null || !(isMissingCore(p) || Double.isNaN(model.getNumericValue(p, m))));
 		grid.getItems().setAll(filteredList);
 		
 		// Select the first measurement if necessary
@@ -344,6 +352,7 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 		
 
 		comboMeasurement = new ComboBox<>();
+		comboMeasurement.setPlaceholder(createPlaceholderText("No measurements!"));
 		comboMeasurement.setItems(model.getMeasurementNames());
 		if (!comboMeasurement.getItems().isEmpty())
 			comboMeasurement.getSelectionModel().select(0);
@@ -374,14 +383,7 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 		
 		CheckBox cbShowMeasurement = new CheckBox("Show measurement");
 		showMeasurement.bind(cbShowMeasurement.selectedProperty());
-		showMeasurement.addListener(c -> {
-			String m = measurement.getValue();
-			sortPathObjects(backingList, model, m, descending.get());
-			filteredList.setPredicate(p -> {
-				return m == null || !(isMissingCore(p) || Double.isNaN(model.getNumericValue(p, m)));
-			});
-			grid.getItems().setAll(filteredList);
-		}); // Force an update
+		showMeasurement.addListener(c -> updateMeasurement()); // Force an update
 		
 		
 		CheckBox cbAnimation = new CheckBox("Animate");
@@ -439,6 +441,14 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 		stage.setOnShowing(e -> refresh());
 		stage.show();
 	}
+
+
+	private void updateMeasurement() {
+		String m = measurement.getValue();
+		sortPathObjects(backingList, model, m, descending.get());
+		filteredList.setPredicate(p -> m == null || !(isMissingCore(p) || Double.isNaN(model.getNumericValue(p, m))));
+		grid.getItems().setAll(filteredList);
+	}
 	
 	
 	/**
@@ -478,8 +488,13 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 			requestUpdate(imageData);
 		}
 	}
-	
-	
+
+
+	private static Text createPlaceholderText(String text) {
+		var textNode = new Text(text);
+		textNode.setStyle("-fx-fill: -fx-text-base-color;");
+		return textNode;
+	}
 	
 	class QuPathGridView extends StackPane {
 		
@@ -489,7 +504,7 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 		
 		private IntegerProperty imageSize = new SimpleIntegerProperty();
 		
-		private Text textEmpty = new Text("No objects available!");
+		private Text textEmpty = createPlaceholderText("No objects available!");
 		
 		QuPathGridView() {
 			imageSize.addListener(v -> {
@@ -502,7 +517,6 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
                 }
             });
 			updateChildren();
-			textEmpty.setStyle("-fx-fill: -fx-text-base-color;");
 			StackPane.setAlignment(textEmpty, Pos.CENTER);
 		}
 		
@@ -580,11 +594,10 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 			}
 			
 			int padding = 5;
-			
-			int w = (int)getWidth();
-//			int h = (int)getHeight();
 			int dx = imageSize.get() + padding;
+			int w = Math.max(dx, (int)getWidth());
 			int nx = (int)Math.floor(w / dx);
+			nx = Math.max(1, nx);
 			int spaceX = (int)((w - (dx) * nx) / (nx)); // Space to divide equally
 			
 			int x = spaceX/2;
@@ -593,8 +606,8 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 			for (Node node : getChildren()) {
 				if (x + dx > w) {
 					x = spaceX/2;
-					if (node instanceof Label)
-						y += ((Label)node).getHeight() + spaceX + 2;
+					if (node instanceof Label label)
+						y += label.getHeight() + spaceX + 2;
 					else
 						y += imageSize.get() + spaceX + 2;
 				}
@@ -603,7 +616,7 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 					TranslateTransition translate = translationMap.get(node);
 					boolean doChanges = false;
 					if (translate == null) {
-						translate = new TranslateTransition(Duration.seconds(0.5));
+						translate = new TranslateTransition(Duration.seconds(0.25));
 						translate.setNode(node);
 						translationMap.put(node, translate);
 						doChanges = true;
@@ -611,7 +624,7 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 						if (!GeneralTools.almostTheSame(x, translate.getToX(), 0.001)
 								|| !GeneralTools.almostTheSame(y, translate.getToY(), 0.001)) {
 							translate.stop();
-							translate.setDuration(Duration.seconds(0.5));
+							translate.setDuration(Duration.seconds(0.25));
 							doChanges = true;
 						}
 					}
