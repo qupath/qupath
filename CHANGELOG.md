@@ -9,6 +9,7 @@ This is a *work in progress* for the next major release.
 * Tile export to .ome.tif can convert to 8-bit unnecessarily (https://github.com/qupath/qupath/issues/1494)
 * Brightness/Contrast 'Apply to similar images' fails to update settings immediately across viewers (https://github.com/qupath/qupath/issues/1499)
 * Full image annotation for Sparse training image throws errors for detections (https://github.com/qupath/qupath/issues/1443)
+  Channel name can sometimes change when using the quick channel color selector (https://github.com/qupath/qupath/issues/1500)
 
 ### Dependency updates
 * Bio-Formats 7.3.0
