@@ -1,6 +1,6 @@
 [versions]
 
-bioformats      = "7.2.0"
+bioformats      = "7.3.0"
 bioimageIoSpec  = "0.1.0"
 omeZarrReader   = "0.4.1"
 blosc           = "1.21.5"
@@ -22,14 +22,13 @@ imagej          = "1.54f"
 # Compatibility with Java 21 with QuPath v0.6.x
 jdk             = "21"
 
-javacppgradle   = "1.5.10"
 javacpp         = "1.5.10"
 
 opencv          = "4.9.0-1.5.10"
 cuda            = "12.3-8.9-1.5.10"
 
 # Warning! JavaFX 20.0.1 and later seem to break search links in Javadocs
-javafx          = "22"
+javafx          = "22.0.1"
 jna             = "5.14.0"
 jfreeSvg        = "5.0.5"
 jfxtras         = "17-r1"
@@ -117,7 +116,7 @@ yaml          = ["snakeyaml"]
 
 [plugins]
 # Use the javafx plugin to add modules
-javacpp        = { id = "org.bytedeco.gradle-javacpp-platform",     version.ref = "javacppgradle" }
+javacpp        = { id = "org.bytedeco.gradle-javacpp-platform",     version.ref = "javacpp" }
 # If javafx plugin causes trouble, see https://github.com/openjfx/javafx-gradle-plugin#migrating-from-0014-to-010
 javafx         = { id = "org.openjfx.javafxplugin",                 version = "0.1.0" }
 #javafx         = { id = "org.openjfx.javafxplugin",                 version = "0.0.14" }

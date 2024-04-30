@@ -2,16 +2,19 @@
 
 This is a *work in progress* for the next major release.
 
+### Enhancements
+* Read and write OME-Zarr images (https://github.com/qupath/qupath/pull/1474)
+
 ### Bugs fixed
 * Tile export to .ome.tif can convert to 8-bit unnecessarily (https://github.com/qupath/qupath/issues/1494)
 
 ### Dependency updates
-* Bio-Formats 7.2.0
+* Bio-Formats 7.3.0
 * Commonmark 0.22.0
 * DeepJavaLibrary 0.27.0
 * Groovy 4.0.21
 * Guava 33.1.0-jre
-* JavaFX 22
+* JavaFX 22.0.1
 * JNA 5.14.0
 * OpenCV 4.9.0
 * OpenJDK 21
