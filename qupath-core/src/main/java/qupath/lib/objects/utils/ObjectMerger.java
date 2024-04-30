@@ -359,6 +359,39 @@ public class ObjectMerger {
                 0);
     }
 
+    /**
+     * Create an object merger that can merge together any objects with sufficiently large intersection over union.
+     * <p>
+     * Objects must also have the same classification and be on the same image plane to be mergeable.
+     * <p>
+     * IoU is calculated using Java Topology Suite intersection, union, and getArea calls.
+     * <p>
+     * This merger assumes that you are using an OutputHandler that doesn't clip to tile boundaries (only to region
+     * requests) and that you are using sufficient padding to ensure that objects are being detected in more than on
+     * tile/region request.
+     * You should probably also remove any objects that touch the regionRequest boundaries, as these will probably be
+     * clipped, and merging them will result in weirdly shaped detections.
+     * @param iouThreshold Intersection over union threshold; any pairs with values greater than or equal to this are merged.
+     * @return an object merger that can merge together any objects with sufficiently high IoU and the same classification
+     */
+    public static ObjectMerger createIoUMerger(double iouThreshold) {
+        return new ObjectMerger(
+                ObjectMerger::sameClassTypePlaneTest,
+                createIoUMergeTest(iouThreshold),
+                0.0625);
+    }
+
+    private static BiPredicate<Geometry, Geometry> createIoUMergeTest(double iouThreshold) {
+        return (geom, geomOverlap) -> {
+            var i = geom.intersection(geomOverlap);
+            var intersection = i.getArea();
+            double union = geom.getArea() + geomOverlap.getArea() - intersection;
+            if (union == 0) {
+                return false;
+            }
+            return (intersection / union) >= iouThreshold;
+        };
+    }
 
     /**
      * Method to use as a predicate, indicating that two geometries have the same dimension and also touch.
