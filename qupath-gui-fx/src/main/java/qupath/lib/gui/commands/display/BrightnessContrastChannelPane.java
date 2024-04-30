@@ -676,7 +676,11 @@ public class BrightnessContrastChannelPane extends BorderPane {
             // Minimal color picker - just a small, clickable colored square
             colorPicker = new ColorPicker();
             colorPicker.getStyleClass().addAll("button", "minimal-color-picker", "always-opaque");
-            colorPicker.valueProperty().addListener(this::handleColorChange);
+            // See https://forum.image.sc/t/bug-channel-name-changed-when-changing-color/95010/6
+            // Need to use the hiding event to update the color, rather than listen to the value property
+            // (which changes very eagerly...)
+//            colorPicker.valueProperty().addListener(this::handleColorChange);
+            colorPicker.setOnHiding(e -> this.handleColorChange(colorPicker.getValue()));
             setGraphic(colorPicker);
             setEditable(true);
         }
@@ -742,13 +746,11 @@ public class BrightnessContrastChannelPane extends BorderPane {
             updatingTableCell = false;
         }
 
-        private void handleColorChange(ObservableValue<? extends Color> observable, Color oldValue, Color newValue) {
+        private void handleColorChange(Color newValue) {
             if (updatingTableCell)
                 return;
             if (newValue == null) {
-                logger.debug("Attempting to set channel color to null!");
-                if (oldValue != null)
-                    setColorQuietly(oldValue);
+                logger.warn("Can't set channel color to null!");
                 return;
             }
             var item = this.getItem();
