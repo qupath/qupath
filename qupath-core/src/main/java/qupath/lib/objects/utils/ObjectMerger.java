@@ -371,7 +371,7 @@ public class ObjectMerger {
      * tile/region request.
      * You should probably also remove any objects that touch the regionRequest boundaries, as these will probably be
      * clipped, and merging them will result in weirdly shaped detections.
-     * @param iouThreshold Intersection over union threshold; any pairs with values above this are merged.
+     * @param iouThreshold Intersection over union threshold; any pairs with values greater than or equal to this are merged.
      * @return an object merger that can merge together any objects with sufficiently high IoU and the same classification
      */
     public static ObjectMerger createIoUMerger(double iouThreshold) {
