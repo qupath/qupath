@@ -1094,16 +1094,21 @@ public class ImageDisplay extends AbstractImageRenderer {
 		List<JsonHelperChannelInfo> helperList = gson.fromJson(json, type);
 		// Try updating everything
 		List<ChannelDisplayInfo> newSelectedChannels = new ArrayList<>();
+		boolean changes = false;
 		for (JsonHelperChannelInfo helper : helperList) {
 			for (ChannelDisplayInfo info : channelOptions) {
-				if (helper.updateInfo(info)) {
+				if (helper.matches(info)) {
+					// Set the min/max display & color if needed
+					if (helper.updateInfo(info)) {
+						changes = true;
+					}
+					// Store whether the channel is selected
 					if (Boolean.TRUE.equals(helper.selected)) {
 						newSelectedChannels.add(info);
 					}
 				}
 			}
 		}
-		boolean changes = false;
 		if (!newSelectedChannels.equals(selectedChannels)) {
 			selectedChannels.setAll(newSelectedChannels);
 			changes = true;
@@ -1141,20 +1146,29 @@ public class ImageDisplay extends AbstractImageRenderer {
 		 * Check is this helper <code>matches</code> the info, and set its properties if so.
 		 * 
 		 * @param info
-		 * @return
+		 * @return true if changes were made, false otherwise
 		 */
 		boolean updateInfo(final ChannelDisplayInfo info) {
 			if (!matches(info))
 				return false;
-			if (info instanceof ModifiableChannelDisplayInfo) {
-				if (minDisplay != null)
-					((ModifiableChannelDisplayInfo)info).setMinDisplay(minDisplay);
-				if (maxDisplay != null)
-					((ModifiableChannelDisplayInfo)info).setMaxDisplay(maxDisplay);				
+			boolean changes = false;
+			if (info instanceof ModifiableChannelDisplayInfo modifiableInfo) {
+				if (minDisplay != null && minDisplay != modifiableInfo.getMinDisplay()) {
+					modifiableInfo.setMinDisplay(minDisplay);
+					changes = true;
+				}
+				if (maxDisplay != null && maxDisplay != modifiableInfo.getMaxDisplay()) {
+					modifiableInfo.setMaxDisplay(maxDisplay);
+					changes = true;
+				}
 			}
-			if (color != null && info instanceof DirectServerChannelInfo)
-				((DirectServerChannelInfo)info).setLUTColor(color);
-			return true;
+			if (color != null && info instanceof DirectServerChannelInfo directInfo) {
+				if (!Objects.equals(color, directInfo.getColor())) {
+					directInfo.setLUTColor(color);
+					changes = true;
+				}
+			}
+			return changes;
 		}
 	}
 	
