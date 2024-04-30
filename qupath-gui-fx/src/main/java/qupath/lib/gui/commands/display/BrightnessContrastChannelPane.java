@@ -752,9 +752,13 @@ public class BrightnessContrastChannelPane extends BorderPane {
                 return;
             }
             var item = this.getItem();
-            if (item instanceof DirectServerChannelInfo)
-                updateChannelColor((DirectServerChannelInfo)item, item.getName(), newValue);
-            else
+            if (item instanceof DirectServerChannelInfo directInfo) {
+                // See https://github.com/qupath/qupath/issues/1500
+                String name = directInfo.getOriginalChannelName();
+                if (name == null)
+                    name = item.getName(); // Not expected to occur
+                updateChannelColor(directInfo, name, newValue);
+            } else
                 logger.debug("Invalid channel type - cannot set color for {}", item);
         }
 

@@ -90,6 +90,18 @@ public class DirectServerChannelInfo extends AbstractSingleChannelInfo {
 		return channelName + postfix;		
 	}
 
+	/**
+	 * Get the original channel name, extracted for the current ImageData if available.
+	 * This differs from {@link #getName()} in that it does not append the channel number, or return a default name
+	 * if no ImageData is present.
+	 * @return the channel name, or null if no image is available
+	 */
+	public String getOriginalChannelName() {
+		// See https://github.com/qupath/qupath/issues/1500
+		ImageData<BufferedImage> imageData = getImageData();
+		return imageData == null ? null : imageData.getServer().getChannel(channel).getName();
+	}
+
 
 	void setLUTColor(int rgb) {
 		setLUTColor(
