@@ -270,6 +270,7 @@ public class MeasurementExportCommand implements Runnable {
 		
 		dialog = Dialogs.builder()
 				.title("Export measurements")
+				.resizable()
 				.buttons(btnExport, ButtonType.CANCEL)
 				.content(mainPane)
 				.build();
@@ -281,7 +282,7 @@ public class MeasurementExportCommand implements Runnable {
 		var emptyOutputTextBinding = outputText.textProperty().isEqualTo("");
 		dialog.getDialogPane().lookupButton(btnExport).disableProperty().bind(Bindings.or(emptyOutputTextBinding, targetItemBinding));
 		
-		mainPane.setTop(imageEntryPane);
+		mainPane.setCenter(imageEntryPane);
 		mainPane.setBottom(optionPane);
 		
 		Optional<ButtonType> result = dialog.showAndWait();
