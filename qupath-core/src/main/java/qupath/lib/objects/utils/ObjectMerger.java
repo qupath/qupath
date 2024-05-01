@@ -491,21 +491,28 @@ public class ObjectMerger {
         var allROIs = pathObjects.stream().map(PathObject::getROI).filter(Objects::nonNull).collect(Collectors.toList());
         ROI mergedROI = RoiTools.union(allROIs);
 
+        PathObject mergedObject = null;
         if (pathObject.isTile()) {
-            return PathObjects.createTileObject(mergedROI, pathObject.getPathClass(), null);
+            mergedObject = PathObjects.createTileObject(mergedROI, pathObject.getPathClass(), null);
         } else if (pathObject.isCell()) {
             var nucleusROIs = pathObjects.stream()
                     .map(PathObjectTools::getNucleusROI)
                     .filter(Objects::nonNull)
                     .collect(Collectors.toList());
             ROI nucleusROI = nucleusROIs.isEmpty() ? null : RoiTools.union(nucleusROIs);
-            return PathObjects.createCellObject(mergedROI, nucleusROI, pathObject.getPathClass(), null);
+            mergedObject = PathObjects.createCellObject(mergedROI, nucleusROI, pathObject.getPathClass(), null);
         } else if (pathObject.isDetection()) {
-            return PathObjects.createDetectionObject(mergedROI, pathObject.getPathClass());
+            mergedObject = PathObjects.createDetectionObject(mergedROI, pathObject.getPathClass());
         } else if (pathObject.isAnnotation()) {
-            return PathObjects.createAnnotationObject(mergedROI, pathObject.getPathClass());
+            mergedObject = PathObjects.createAnnotationObject(mergedROI, pathObject.getPathClass());
         } else
             throw new IllegalArgumentException("Unsupported object type for merging: " + pathObject.getClass());
+
+        // We might need to transfer over the color as well
+        var color = pathObject.getColor();
+        if (color != null)
+            mergedObject.setColor(color);
+        return mergedObject;
     }
 
 

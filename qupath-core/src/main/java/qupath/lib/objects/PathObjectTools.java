@@ -1890,7 +1890,7 @@ public class PathObjectTools {
 	}
 
 	/**
-	 * Create a new object with the same type and classification as the input object, but a new ROI and ID.
+	 * Create a new object with the same type, classification, name and color as the input object, but a new ROI and ID.
 	 * This version of the method supports cell objects with a nucleus ROI.
 	 * <p>
 	 * Note that TMA core objects are not supported.
@@ -1901,16 +1901,21 @@ public class PathObjectTools {
 	 * @since v0.5.0
 	 */
 	public static PathObject createLike(PathObject pathObject, ROI roiNew, ROI roiNucleus) {
+		PathObject newObject;
 		if (pathObject.isCell()) {
-			return PathObjects.createCellObject(roiNew, roiNucleus, pathObject.getPathClass(), null);
+			newObject = PathObjects.createCellObject(roiNew, roiNucleus, pathObject.getPathClass(), null);
 		} else if (pathObject.isAnnotation()) {
-			return PathObjects.createAnnotationObject(roiNew, pathObject.getPathClass());
+			newObject = PathObjects.createAnnotationObject(roiNew, pathObject.getPathClass());
 		} else if (pathObject.isTile()) {
-			return PathObjects.createTileObject(roiNew, pathObject.getPathClass(), null);
+			newObject = PathObjects.createTileObject(roiNew, pathObject.getPathClass(), null);
 		} else if (pathObject.isDetection()) {
-			return PathObjects.createDetectionObject(roiNew, pathObject.getPathClass());
+			newObject = PathObjects.createDetectionObject(roiNew, pathObject.getPathClass());
 		} else
 			throw new IllegalArgumentException("Unsupported object type - cannot create similar object for " + pathObject);
+		// Retain name and color as well
+		newObject.setName(pathObject.getName());
+		newObject.setColor(pathObject.getColor());
+		return newObject;
 	}
 	
 	
