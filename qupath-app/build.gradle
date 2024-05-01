@@ -120,6 +120,33 @@ task mergedJavadocJar(type: Jar, dependsOn: rootProject.tasks.mergedJavadocs) {
  */
 jpackage.dependsOn(mergedJavadocJar)
 
+
+/**
+ * Retrieve Javadocs of dependencies
+ */
+tasks.register("getJavadocsOfDependencies", Copy) {
+    def componentIds = configurations
+            .runtimeClasspath
+            .incoming
+            .resolutionResult
+            .allDependencies
+            .collect { it.selected.id }
+
+    def result = dependencies.createArtifactResolutionQuery()
+            .forComponents(componentIds)
+            .withArtifacts(JvmLibrary, SourcesArtifact, JavadocArtifact)
+            .execute()
+
+    def javadocFiles = new TreeSet<File>()
+    for (component in result.resolvedComponents) {
+        def artifacts = component.getArtifacts(JavadocArtifact)
+        javadocFiles.addAll(artifacts.collect(a -> a.file))
+    }
+    from javadocFiles
+    into layout.buildDirectory.dir("dependencies-javadoc")
+}
+tasks.installDist.dependsOn("getJavadocsOfDependencies")
+
 /**
  * Create license report
  */
@@ -176,6 +203,10 @@ distributions {
             // Copy native libraries
             into('lib/docs') {
                 from mergedJavadocJar.archiveFile
+            }
+            // Copy javadoc of dependencies
+            into('lib/docs') {
+                from layout.buildDirectory.dir("dependencies-javadoc")
             }
         }
     }
