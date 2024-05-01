@@ -477,6 +477,7 @@ public class ObjectClassifierCommand implements Runnable {
 			if (Dialogs.builder()
 					.title("Object classifier training images")
 					.content(pane)
+					.resizable()
 					.buttons(ButtonType.APPLY, ButtonType.CANCEL)
 					.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.CANCEL)
 				return false;

@@ -1402,6 +1402,7 @@ public class PixelClassifierPane {
 		if (Dialogs.builder()
 				.title("Pixel classifier training images")
 				.content(pane)
+				.resizable()
 				.buttons(ButtonType.APPLY, ButtonType.CANCEL)
 				.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.CANCEL)
 			return false;
