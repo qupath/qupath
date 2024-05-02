@@ -137,8 +137,9 @@ public class PixelProcessorUtils {
                 var nucleusGeom = nucleusROI.getGeometry();
                 var nucleusOutput = GeometryTools.homogenizeGeometryCollection(geom.intersection(nucleusGeom));
                 if (nucleusOutput.isEmpty() || nucleusOutput.getDimension() < nucleusGeom.getDimension())
-                    return Collections.emptyList();
-                nucleusROI = GeometryTools.geometryToROI(nucleusOutput, child.getROI().getImagePlane());
+                    nucleusROI = null;
+                else
+                    nucleusROI = GeometryTools.geometryToROI(nucleusOutput, child.getROI().getImagePlane());
             }
             return Collections.singletonList(PathObjectTools.createLike(child, newROI, nucleusROI));
         }
