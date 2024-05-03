@@ -122,30 +122,52 @@ jpackage.dependsOn(mergedJavadocJar)
 
 
 /**
- * Retrieve Javadocs of dependencies
+ * Retrieve Javadocs of dependencies and sub-projects
  */
-tasks.register("getJavadocsOfDependencies", Copy) {
-    def componentIds = configurations
-            .runtimeClasspath
-            .incoming
-            .resolutionResult
-            .allDependencies
-            .collect { it.selected.id }
+tasks.register("getJavadocs", Copy) {
+    group = "documentation"
+    description = "Retrieve the Javadocs Jar of all dependencies and sub-projects"
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    dependsOn rootProject.subprojects.tasks.collect {it.withType(Jar)}
 
-    def result = dependencies.createArtifactResolutionQuery()
-            .forComponents(componentIds)
+    def subProjectsJavadoc = rootProject.subprojects
+            .collect {it.layout.buildDirectory.dir("libs").get().getAsFileTree().getFiles().findAll {it.name.contains("javadoc")}}
+            .findAll {it.size() == 1}
+            .collect {it.toList().get(0)}
+    def dependenciesJavadoc = dependencies.createArtifactResolutionQuery()
+            .forComponents(configurations
+                    .runtimeClasspath
+                    .incoming
+                    .resolutionResult
+                    .allDependencies
+                    .collect { it.selected.id }
+            )
             .withArtifacts(JvmLibrary, SourcesArtifact, JavadocArtifact)
             .execute()
+            .resolvedComponents
+            .collect {
+                it.getArtifacts(JavadocArtifact).collect {it.file}
+            }
+            .flatten()
+    def allJavadocs = subProjectsJavadoc + dependenciesJavadoc
 
-    def javadocFiles = new TreeSet<File>()
-    for (component in result.resolvedComponents) {
-        def artifacts = component.getArtifacts(JavadocArtifact)
-        javadocFiles.addAll(artifacts.collect(a -> a.file))
-    }
-    from javadocFiles
-    into layout.buildDirectory.dir("dependencies-javadoc")
+    from allJavadocs
+            .findAll {
+                def docs = findProperty('docs') ?: 'default'
+
+                if (docs == "all") {
+                    return true
+                } else if (docs == "none") {
+                    return false
+                } else if (docs == "qupath") {
+                    return it.name.startsWith("qupath")
+                } else {
+                    return it.name.startsWith("qupath") || it.name.startsWith("jts")  || it.name.startsWith("ij")
+                }
+            }
+    into layout.buildDirectory.dir("javadocs")
 }
-tasks.installDist.dependsOn("getJavadocsOfDependencies")
+tasks.installDist.dependsOn("getJavadocs")
 
 /**
  * Create license report
@@ -204,9 +226,9 @@ distributions {
             into('lib/docs') {
                 from mergedJavadocJar.archiveFile
             }
-            // Copy javadoc of dependencies
+            // Copy javadocs
             into('lib/docs') {
-                from layout.buildDirectory.dir("dependencies-javadoc")
+                from layout.buildDirectory.dir("javadocs")
             }
         }
     }
