@@ -241,6 +241,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		});
 
 		TitledPane titledTree = new TitledPane("Image list", mdTree);
+		titledTree.getStyleClass().add("uncollapsible-titled-pane");
 		titledTree.setCollapsible(false);
 		titledTree.setMaxHeight(Double.MAX_VALUE);
 		

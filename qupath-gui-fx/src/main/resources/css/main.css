@@ -138,9 +138,12 @@
   -fx-text-fill: -qp-script-error-color;
 }
 
-
 /* Don't make the title for the training piechart too large */
 .training-chart .chart-title {
   -fx-font-size: 1em;
   -fx-font-weight: bold;
+}
+
+.uncollapsible-titled-pane > .title:hover {
+  -fx-color: -fx-base;
 }

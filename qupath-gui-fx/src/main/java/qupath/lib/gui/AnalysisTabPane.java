@@ -151,6 +151,7 @@ class AnalysisTabPane {
 		
 		
 		TitledPane titledLog = new TitledPane(titleHistory.get(), workflowLogView.getPane());
+		titledLog.getStyleClass().add("uncollapsible-titled-pane");
 		titledLog.textProperty().bind(titleHistory);
 		titledLog.setCollapsible(false);
 		titledLog.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);

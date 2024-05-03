@@ -156,6 +156,7 @@ public class DensityMapDialog {
 		var titledPaneParams = new TitledPane("Create density map", paneParams);
 		titledPaneParams.setExpanded(true);
 		titledPaneParams.setCollapsible(false);
+		titledPaneParams.getStyleClass().add("uncollapsible-titled-pane");
 		FXUtils.simplifyTitledPane(titledPaneParams, true);
 		
 		var paneDisplay = buildDisplayPane(colorModelBuilder);
@@ -252,6 +253,7 @@ public class DensityMapDialog {
 		params.densityType.bind(comboDensityType.getSelectionModel().selectedItemProperty());
 		
 		var pane = createGridPane();
+		pane.setPadding(Insets.EMPTY);
 		int row = 0;
 		
 		var labelObjects = createTitleLabel("Choose all objects to include");
