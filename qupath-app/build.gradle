@@ -106,20 +106,6 @@ dependencies {
     implementation libs.picocli
 }
 
-/**
- * Create a single javadoc jar
- */
-task mergedJavadocJar(type: Jar, dependsOn: rootProject.tasks.mergedJavadocs) {
-    archiveFileName = "qupath-$qupathVersion-javadoc.jar"
-    destinationDirectory = rootProject.layout.buildDirectory.dir("docs-merged")
-    from rootProject.tasks.mergedJavadocs.destinationDir
-}
-
-/**
- * Specify task dependencies
- */
-jpackage.dependsOn(mergedJavadocJar)
-
 
 /**
  * Retrieve Javadocs of dependencies and sub-projects
@@ -221,10 +207,6 @@ distributions {
             into('lib/licenses') {
                 from this.rootProject.layout.buildDirectory.dir("reports/dependency-license")
                 include 'THIRD-PARTY.txt'
-            }
-            // Copy native libraries
-            into('lib/docs') {
-                from mergedJavadocJar.archiveFile
             }
             // Copy javadocs
             into('lib/docs') {
