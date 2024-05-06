@@ -757,6 +757,7 @@ class ExportChartPane {
 		
 		TitledPane titledPane = new TitledPane("Presets", pane);
 		titledPane.setCollapsible(false);
+		titledPane.getStyleClass().add("uncollapsible-titled-pane");
 		return titledPane;
 	}
 

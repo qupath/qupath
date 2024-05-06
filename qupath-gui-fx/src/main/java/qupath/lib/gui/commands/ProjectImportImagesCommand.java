@@ -151,8 +151,7 @@ class ProjectImportImagesCommand {
 		
 		TitledPane paneList = new TitledPane("Image paths", listView);
 		paneList.setCollapsible(false);
-		
-
+		paneList.getStyleClass().add("uncollapsible-titled-pane");
 		BorderPane paneImages = new BorderPane();
 		
 		class BuilderListCell extends ListCell<ImageServerBuilder<BufferedImage>> {

@@ -188,6 +188,7 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 		mdPane.setMasterNode(new StackPane(table));
 		var titlePaneAssociated = new TitledPane("Associated images", listAssociatedImages);
 		titlePaneAssociated.setCollapsible(false);
+		titlePaneAssociated.getStyleClass().add("uncollapsible-titled-pane");
 		listAssociatedImages.setTooltip(new Tooltip(
 				"Extra images associated with the current image, e.g. a label or thumbnail"));
 		mdPane.setDetailNode(titlePaneAssociated);

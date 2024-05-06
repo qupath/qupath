@@ -1042,6 +1042,7 @@ public class TMASummaryViewer {
 		
 		TitledPane tpMetadata = new TitledPane("Metadata filter", paneMetadata);
 		tpMetadata.setExpanded(false);
+//		tpMetadata.getStyleClass().add("uncollapsible-titled-pane");
 //		tpMetadata.setCollapsible(false);
 		Tooltip tooltipMetadata = new Tooltip("Enter text to filter entries according to a selected metadata column");
 		Tooltip.install(paneMetadata, tooltipMetadata);

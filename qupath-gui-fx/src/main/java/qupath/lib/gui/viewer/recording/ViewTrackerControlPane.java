@@ -508,6 +508,7 @@ public class ViewTrackerControlPane implements Runnable {
 		titledPane.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
 		titledPane.setOnMouseClicked(mouseEvent -> titledPane.setExpanded(!recordingMode.getValue()));
 		titledPane.setPrefWidth(250);
+		titledPane.getStyleClass().add("uncollapsible-titled-pane");
 		
 		mainPane.setTop(titledPane);
 		mainPane.setMaxSize(250, 300);

@@ -187,6 +187,7 @@ class MeasurementManager {
 			return "Measurements (" + measurementList.size() + ")";
 		}, measurementList));
 		titledMeasurements.setCollapsible(false);
+		titledMeasurements.getStyleClass().add("uncollapsible-titled-pane");
 		titledMeasurements.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
 		
 		TextField tfFilter = new TextField();

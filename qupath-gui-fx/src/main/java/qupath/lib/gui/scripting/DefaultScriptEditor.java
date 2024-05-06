@@ -896,6 +896,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		titledScripts.prefWidthProperty().bind(panelList.widthProperty());
 		titledScripts.prefHeightProperty().bind(panelList.heightProperty());
 		titledScripts.setCollapsible(false);
+		titledScripts.getStyleClass().add("uncollapsible-titled-pane");
 		panelList.setCenter(titledScripts);
 		listScripts.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> updateSelectedScript(true));
 		listScripts.setCellFactory(new Callback<>() {
