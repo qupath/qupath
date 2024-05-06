@@ -153,6 +153,7 @@ tasks.register("getJavadocs", Copy) {
             }
     into layout.buildDirectory.dir("javadocs")
 }
+tasks.run.dependsOn("getJavadocs")
 tasks.installDist.dependsOn("getJavadocs")
 
 /**
