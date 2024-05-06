@@ -106,19 +106,55 @@ dependencies {
     implementation libs.picocli
 }
 
-/**
- * Create a single javadoc jar
- */
-task mergedJavadocJar(type: Jar, dependsOn: rootProject.tasks.mergedJavadocs) {
-    archiveFileName = "qupath-$qupathVersion-javadoc.jar"
-    destinationDirectory = rootProject.layout.buildDirectory.dir("docs-merged")
-    from rootProject.tasks.mergedJavadocs.destinationDir
-}
 
 /**
- * Specify task dependencies
+ * Retrieve Javadocs of dependencies and sub-projects
  */
-jpackage.dependsOn(mergedJavadocJar)
+tasks.register("getJavadocs", Copy) {
+    group = "documentation"
+    description = "Retrieve the Javadocs Jar of all dependencies and sub-projects"
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    dependsOn rootProject.subprojects.tasks.collect {it.withType(Jar)}
+
+    def subProjectsJavadoc = rootProject.subprojects
+            .collect {it.layout.buildDirectory.dir("libs").get().getAsFileTree().getFiles().findAll {it.name.contains("javadoc")}}
+            .findAll {it.size() == 1}
+            .collect {it.toList().get(0)}
+    def dependenciesJavadoc = dependencies.createArtifactResolutionQuery()
+            .forComponents(configurations
+                    .runtimeClasspath
+                    .incoming
+                    .resolutionResult
+                    .allDependencies
+                    .collect { it.selected.id }
+            )
+            .withArtifacts(JvmLibrary, SourcesArtifact, JavadocArtifact)
+            .execute()
+            .resolvedComponents
+            .collect {
+                it.getArtifacts(JavadocArtifact).collect {it.file}
+            }
+            .flatten()
+    def allJavadocs = subProjectsJavadoc + dependenciesJavadoc
+
+    from allJavadocs
+            .findAll {
+                def docs = findProperty('docs') ?: 'default'
+
+                if (docs == "all") {
+                    return true
+                } else if (docs == "none") {
+                    return false
+                } else if (docs == "qupath") {
+                    return it.name.startsWith("qupath")
+                } else {
+                    return it.name.startsWith("qupath") || it.name.startsWith("jts")  || it.name.startsWith("ij")
+                }
+            }
+    into layout.buildDirectory.dir("javadocs")
+}
+tasks.run.dependsOn("getJavadocs")
+tasks.installDist.dependsOn("getJavadocs")
 
 /**
  * Create license report
@@ -173,9 +209,9 @@ distributions {
                 from this.rootProject.layout.buildDirectory.dir("reports/dependency-license")
                 include 'THIRD-PARTY.txt'
             }
-            // Copy native libraries
+            // Copy javadocs
             into('lib/docs') {
-                from mergedJavadocJar.archiveFile
+                from layout.buildDirectory.dir("javadocs")
             }
         }
     }
