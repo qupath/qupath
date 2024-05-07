@@ -321,7 +321,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	private Action zapGremlinsAction = createReplaceTextAction("Zap gremlins", GeneralTools::zapGremlins, true);
 	private Action replaceQuotesAction = createReplaceTextAction("Replace curly quotes", GeneralTools::replaceCurlyQuotes, true);
 	
-	private Action showJavadocsAction = ActionTools.createAction(() -> JavadocViewer.getInstance().getStage().show(), "Show Javadocs");
+	private final Action showJavadocsAction;
 	
 	protected Action runScriptAction;
 	protected Action runSelectedAction;
@@ -417,6 +417,8 @@ public class DefaultScriptEditor implements ScriptEditor {
 		String style = fontSize.get();
 		paneCode.setStyle(style);
 		paneConsole.setStyle(style);
+
+		showJavadocsAction = ActionTools.createAction(new JavadocViewer(qupath.getStage()), "Show Javadocs");
 	}
 	
 	private void setToggle(ScriptLanguage language) {

@@ -38,6 +38,8 @@ junit           = "5.9.2"
 logback         = "1.3.11"
 logviewer       = "0.2.0-SNAPSHOT"
 
+javadocviewer   = "0.1.0-SNAPSHOT"
+
 openslide       = "4.0.0"
 
 picocli         = "4.7.5"
@@ -76,6 +78,8 @@ logviewer     = { module = "io.github.qupath:logviewer-ui-main",        version.
 logviewer-console = { module = "io.github.qupath:logviewer-ui-textarea",  version.ref = "logviewer" }
 logviewer-rich    = { module = "io.github.qupath:logviewer-ui-richtextfx",  version.ref = "logviewer" }
 logviewer-logback = { module = "io.github.qupath:logviewer-logging-logback",  version.ref = "logviewer" }
+
+javadocviewer = { module = "io.github.qupath:javadocviewer",    version.ref = "javadocviewer" }
 
 picocli       = { module = "info.picocli:picocli",              version.ref = "picocli" }
 
