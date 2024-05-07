@@ -108,11 +108,11 @@ dependencies {
 
 
 /**
- * Retrieve Javadocs of dependencies and sub-projects
+ * Copies the Javadoc jars to a directory for access within QuPath
  */
-tasks.register("getJavadocs", Copy) {
+tasks.register("assembleJavadocs", Copy) {
     group = "documentation"
-    description = "Retrieve the Javadocs Jar of all dependencies and sub-projects"
+    description = "Copies the Javadoc jars to a directory for access within QuPath"
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     dependsOn rootProject.subprojects.tasks.collect {it.withType(Jar)}
 
@@ -153,8 +153,7 @@ tasks.register("getJavadocs", Copy) {
             }
     into layout.buildDirectory.dir("javadocs")
 }
-tasks.run.dependsOn("getJavadocs")
-tasks.installDist.dependsOn("getJavadocs")
+tasks.installDist.dependsOn("assembleJavadocs")
 
 /**
  * Create license report
