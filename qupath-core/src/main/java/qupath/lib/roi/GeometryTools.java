@@ -403,10 +403,8 @@ public class GeometryTools {
 		}
 		if (keepGeometries.isEmpty())
 			return geometry.getFactory().createPolygon();
-		if (keepGeometries.size() < geometry.getNumGeometries())
-			return geometry.getFactory().buildGeometry(keepGeometries);
 		else
-			return geometry;
+			return geometry.getFactory().buildGeometry(keepGeometries);
     }
     
     /**

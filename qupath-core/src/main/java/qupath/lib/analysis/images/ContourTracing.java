@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2020-2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -24,19 +24,18 @@ package qupath.lib.analysis.images;
 
 import java.awt.image.BufferedImage;
 import java.awt.image.Raster;
+import java.awt.image.WritableRaster;
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Deque;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import java.util.SequencedCollection;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.ExecutionException;
@@ -54,12 +53,12 @@ import javax.imageio.ImageIO;
 
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
-import org.locationtech.jts.geom.Coordinates;
+import org.locationtech.jts.geom.CoordinateXY;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
-import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.Polygon;
+import org.locationtech.jts.geom.PrecisionModel;
 import org.locationtech.jts.geom.impl.CoordinateArraySequence;
 import org.locationtech.jts.geom.util.AffineTransformation;
 import org.locationtech.jts.geom.util.PolygonExtracter;
@@ -603,16 +602,40 @@ public class ContourTracing {
 			maxLabel = (int)maxValue;
 		}
 		// We don't want to search for all possible labels, since they might not be present in the image
-		// Therefore we loop through pixels & search only for labels that haven't previously been handled
+		// Therefore we loop through pixels & first find all unique labels and their bounding boxes, then
+		// trace the contours for each label
 		Map<Number, ROI> rois = new TreeMap<>();
 		if (maxLabel > minLabel) {
-			float lastLabel = Float.NaN;
-			for (float p : pixels) {
-				if (p >= minLabel && p <= maxLabel && p != lastLabel && !rois.containsKey(p)) {
-					var roi = createTracedROI(image, p, p, region);
-					if (roi != null && !roi.isEmpty())
-						rois.put(p, roi);
-					lastLabel = p;
+			var envelopes = new HashMap<Float, Envelope>();
+			for (int y = 0; y < image.getHeight(); y++) {
+				for (int x = 0; x < image.getWidth(); x++) {
+					float val = image.getValue(x, y);
+					if (val >= minLabel && val <= maxLabel) {
+						envelopes.computeIfAbsent(val, k -> new Envelope()).expandToInclude(x, y);
+					}
+				}
+			}
+			double xOffset = 0;
+			double yOffset = 0;
+			if (region != null && region.getDownsample() == 1) {
+				xOffset = region.getX();
+				yOffset = region.getY();
+			}
+			for (var entry : envelopes.entrySet()) {
+				var val = entry.getKey();
+				var envelope = entry.getValue();
+				var geom = traceGeometry(image, val, val, xOffset, yOffset, envelope);
+				if (geom != null && !geom.isEmpty()) {
+					// Handle rescaling if needed
+					if (region != null && region.getDownsample() != 1 && geom != null) {
+						double scale = region.getDownsample();
+						var transform = AffineTransformation.scaleInstance(scale, scale);
+						transform = transform.translate(region.getX(), region.getY());
+						if (!transform.isIdentity())
+							geom = transform.transform(geom);
+					}
+					var roi = GeometryTools.geometryToROI(geom, region == null ? ImagePlane.getDefaultPlane() : region.getImagePlane());
+					rois.put(val, roi);
 				}
 			}
 		} else {
@@ -669,11 +692,13 @@ public class ContourTracing {
 	 * @param maxThresholdInclusive
 	 * @param band
 	 * @param request
+	 * @param envelope
 	 * @return
 	 */
-	private static Geometry createTracedGeometry(Raster raster, double minThresholdInclusive, double maxThresholdInclusive, int band, TileRequest request) {
+	private static Geometry createTracedGeometry(Raster raster, double minThresholdInclusive, double maxThresholdInclusive,
+												 int band, TileRequest request, Envelope envelope) {
 		var image = extractBand(raster, band);
-		return createTracedGeometry(image, minThresholdInclusive, maxThresholdInclusive, request);
+		return createTracedGeometry(image, minThresholdInclusive, maxThresholdInclusive, request, envelope);
 	}
 	
 	
@@ -686,9 +711,10 @@ public class ContourTracing {
 	 * @param minThresholdInclusive
 	 * @param maxThresholdInclusive
 	 * @param tile
+	 * @param envelope
 	 * @return
 	 */
-	private static Geometry createTracedGeometry(SimpleImage image, double minThresholdInclusive, double maxThresholdInclusive, TileRequest tile) {
+	private static Geometry createTracedGeometry(SimpleImage image, double minThresholdInclusive, double maxThresholdInclusive, TileRequest tile, Envelope envelope) {
 		
 		// If we are translating but not rescaling, we can do this during tracing
 		double xOffset = 0;
@@ -698,7 +724,7 @@ public class ContourTracing {
 			yOffset = tile.getTileY() * tile.getDownsample();
 		}
 		
-		var geom = traceGeometry(image, minThresholdInclusive, maxThresholdInclusive, xOffset, yOffset);
+		var geom = traceGeometry(image, minThresholdInclusive, maxThresholdInclusive, xOffset, yOffset, envelope);
 		
 		// Handle rescaling if needed
 		if (tile != null && tile.getDownsample() != 1 && geom != null) {
@@ -732,7 +758,7 @@ public class ContourTracing {
 			yOffset = request.getY();
 		}
 		
-		var geom = traceGeometry(image, minThresholdInclusive, maxThresholdInclusive, xOffset, yOffset);
+		var geom = traceGeometry(image, minThresholdInclusive, maxThresholdInclusive, xOffset, yOffset, null);
 		
 		// Handle rescaling if needed
 		if (request != null && request.getDownsample() != 1 && geom != null) {
@@ -865,60 +891,6 @@ public class ContourTracing {
 		}
 		
 	}
-	
-	
-	// Beginnings of a builder class (incomplete and unused)
-//	public static Tracer createTracer(ImageServer<BufferedImage> server) {
-//		return new Tracer(server);
-//	}
-//	
-//	public static class Tracer {
-//		
-//		private ImageServer<BufferedImage> server;
-//		private List<ChannelThreshold> thresholds = new ArrayList<>();
-//		private RegionRequest region;
-//		
-//		private Tracer(ImageServer<BufferedImage> server) {
-//			this.server = server;
-//		}
-//		
-//		public Tracer channel(int channel, float minThreshold, float maxThreshold) {
-//			return channels(ChannelThreshold.create(channel, minThreshold, maxThreshold));
-//		}
-//		
-//		public Tracer channels(ChannelThreshold... thresholds) {
-//			for (var c : thresholds)
-//				this.thresholds.add(c);
-//			return this;
-//		}
-//		
-//		public Tracer downsample(double downsample) {
-//			if (region == null)
-//				region = RegionRequest.createInstance(server, downsample);
-//			else
-//				region = region.updateDownsample(downsample);
-//			return this;
-//		}
-//		
-//		public Tracer region(RegionRequest region) {
-//			this.region = region;
-//			return this;
-//		}
-//		
-//		public Geometry traceGeometry(Geometry clipArea) {
-//			if (thresholds.isEmpty())
-//				throw new IllegalArgumentException("No thresholds have been specified!");
-//			var threshold = thresholds.get(0);
-//			return ContourTracing.traceGeometry(server, region, clipArea, threshold.channel, threshold.minThreshold, threshold.maxThreshold);
-//		}
-//		
-//		public Map<Integer, Geometry> traceAllGeometries(Geometry clipArea) {
-//			if (thresholds.isEmpty())
-//				throw new IllegalArgumentException("No thresholds have been specified!");
-//			return ContourTracing.traceGeometries(server, region, clipArea, thresholds.toArray(ChannelThreshold[]::new));			
-//		}
-//		
-//	}
 	
 
 	/**
@@ -1164,7 +1136,7 @@ public class ContourTracing {
 		int h = img.getHeight();
 		int w = img.getWidth();
 		var nChannels = server.nChannels();
-		
+
 		// If we have probabilities, then the 'true' classification is the one with the highest values.
 		// If we have classifications, then the 'true' classification is the value of the pixel (which is expected to have a single band).
 		boolean doClassification = (channelType == ImageServerMetadata.ChannelType.PROBABILITY && nChannels > 1) || channelType == ImageServerMetadata.ChannelType.CLASSIFICATION;
@@ -1198,7 +1170,7 @@ public class ContourTracing {
 			}
 			for (var threshold : thresholds) {
 				int c = threshold.getChannel();
-				Geometry geometry = ContourTracing.createTracedGeometry(image, c, c, tile);
+				Geometry geometry = ContourTracing.createTracedGeometry(image, c, c, tile, null);
 				if (geometry != null && !geometry.isEmpty()) {
 					if (clipArea != null) {
 						geometry = GeometryTools.attemptOperation(geometry, g -> g.intersection(clipArea));
@@ -1213,9 +1185,17 @@ public class ContourTracing {
 		} else {
 			// Apply the provided threshold to all channels
 			var raster = img.getRaster();
+
+			// Precompute envelopes if we have multiple thresholds, to avoid needing to iterate all pixels many times
+			Map<ChannelThreshold, Envelope> envelopes = new HashMap<>();
+			if (thresholds.length > -1) {
+				logger.info("Populating envelopes!");
+				populateEnvelopes(raster, envelopes, thresholds);
+			}
+
 			for (var threshold : thresholds) {
 				Geometry geometry = ContourTracing.createTracedGeometry(
-						raster, threshold.getMinThreshold(), threshold.getMaxThreshold(), threshold.getChannel(), tile);
+						raster, threshold.getMinThreshold(), threshold.getMaxThreshold(), threshold.getChannel(), tile, envelopes.getOrDefault(threshold, null));
 				if (geometry != null) {
 					if (clipArea != null) {
 						geometry = GeometryTools.attemptOperation(geometry, g -> g.intersection(clipArea));
@@ -1230,6 +1210,45 @@ public class ContourTracing {
 			
 		}
 		return list;
+	}
+
+	/**
+	 * Populate an existing map of envelopes with the bounding boxes of pixels that fall within the specified thresholds.
+	 * @param raster
+	 * @param envelopes
+	 * @param thresholds
+	 */
+	private static void populateEnvelopes(WritableRaster raster, Map<ChannelThreshold, Envelope> envelopes, ChannelThreshold... thresholds) {
+		var groups = Arrays.stream(thresholds).collect(Collectors.groupingBy(ChannelThreshold::getChannel));
+		for (var entry : groups.entrySet()) {
+			int channel = entry.getKey().intValue();
+			var channelThresholds = entry.getValue();
+			var image = extractBand(raster, channel);
+			populateEnvelopes(image, envelopes, channelThresholds.toArray(ChannelThreshold[]::new));
+		}
+	}
+
+	/**
+	 * Populate an existing map of envelopes with the bounding boxes of pixels that fall within the specified thresholds.
+	 * @param image
+	 * @param envelopes
+	 * @param thresholds
+	 */
+	private static void populateEnvelopes(SimpleImage image, Map<ChannelThreshold, Envelope> envelopes, ChannelThreshold... thresholds) {
+		int w = image.getWidth();
+		int h = image.getHeight();
+		for (var t : thresholds) {
+			envelopes.computeIfAbsent(t, k -> new Envelope());
+		}
+		for (int y = 0; y < h; y++) {
+			for (int x = 0; x < w; x++) {
+				float val = image.getValue(x, y);
+				for (var t : thresholds) {
+					if (selected(val, t.getMinThreshold(), t.getMaxThreshold()))
+						envelopes.get(t).expandToInclude(x, y);
+				}
+			}
+		}
 	}
 	
 
@@ -1258,208 +1277,92 @@ public class ContourTracing {
 	
 	
 	/**
-	 * This is adapted from ImageJ's ThresholdToSelection.java (public domain) written by Johannes E. Schindelin 
-	 * based on a proposal by Tom Larkworthy.
-	 * <p>
-	 * See https://github.com/imagej/imagej1/blob/573ab799ae8deb0f4feb79724a5a6f82f60cd2d6/ij/plugin/filter/ThresholdToSelection.java
-	 * <p>
-	 * The code has been substantially rewritten to enable more efficient use within QuPath and to use Java Topology Suite.
+	 * This was rewritten for QuPath v0.6.0 to use JTS Polygonizer instead of the previous approach.
+	 * It should be considerably faster.
 	 * 
-	 * @param image
-	 * @param min
-	 * @param max
-	 * @param xOffset
-	 * @param yOffset
+	 * @param image the image containing the contour
+	 * @param min the minimum value to consider as part of the contour (inclusive)
+	 * @param max the maximum value to consider as part of the contour (inclusive)
+	 * @param xOffset the x offset to add to the contour
+	 * @param yOffset the y offset to add to the contour
+	 * @param envelope optional bounding box, in the image space, to restrict the contour search (may be null).
+	 *                 This is useful to avoid searching the entire image when only a small region is needed.
 	 * @return
 	 */
-	private static Geometry traceGeometry(SimpleImage image, double min, double max, double xOffset, double yOffset) {
-//		if (4 > 2)
-//			return traceGeometryBackup(image, min, max, xOffset, yOffset);
+	private static Geometry traceGeometry(SimpleImage image, double min, double max, double xOffset, double yOffset, Envelope envelope) {
 
 		var factory = GeometryTools.getDefaultFactory();
-		int w = image.getWidth();
-		int h = image.getHeight();
+		var pm = factory.getPrecisionModel();
+
+		int xStart = 0;
+		int yStart = 0;
+		int xEnd = image.getWidth();
+		int yEnd = image.getHeight();
+		// Clip searched pixels using the envelope if provided
+		if (envelope != null) {
+			xStart = Math.max(xStart, (int)Math.floor(envelope.getMinX()-1));
+			yStart = Math.max(yStart, (int)Math.floor(envelope.getMinY()-1));
+			xEnd = Math.min(xEnd, (int)Math.ceil(envelope.getMaxX())+1);
+			yEnd = Math.min(yEnd, (int)Math.ceil(envelope.getMaxY())+1);
+		}
 
 		List<LineString> lines = new ArrayList<>();
 		Coordinate lastHorizontalEdgeCoord = null;
-		Coordinate[] lastVerticalEdgeCoords = new Coordinate[w+1];
-		for (int y = 0; y <= h; y++) {
-			for (int x = 0; x <= w; x++) {
+		Coordinate[] lastVerticalEdgeCoords = new Coordinate[xEnd-xStart+1];
+		for (int y = yStart; y <= yEnd; y++) {
+			for (int x = xStart; x <= xEnd; x++) {
 				boolean isOn = inRange(image, x, y, min, max);
 				boolean onHorizontalEdge = isOn != inRange(image, x, y-1, min, max);
 				boolean onVerticalEdge = isOn != inRange(image, x-1, y, min, max);
 				// Check if on a horizontal edge with the previous row
 				if (onHorizontalEdge) {
-					var nextEdgeCoord = new Coordinate(xOffset + x, yOffset + y);
+					var nextEdgeCoord = createCoordinate(pm, xOffset + x, yOffset + y);
 					if (lastHorizontalEdgeCoord != null) {
 						lines.add(factory.createLineString(createCoordinateSequence(lastHorizontalEdgeCoord, nextEdgeCoord)));
 					}
 					lastHorizontalEdgeCoord = nextEdgeCoord;
 				} else {
 					if (lastHorizontalEdgeCoord != null) {
-						var nextEdgeCoord = new Coordinate(xOffset + x, yOffset + y);
+						var nextEdgeCoord = createCoordinate(pm, xOffset + x, yOffset + y);
 						lines.add(factory.createLineString(createCoordinateSequence(lastHorizontalEdgeCoord, nextEdgeCoord)));
 						lastHorizontalEdgeCoord = null;
 					}
 				}
 				// Check if on a vertical edge with the previous column
-				var lastVerticalEdgeCoord = lastVerticalEdgeCoords[x];
+				var lastVerticalEdgeCoord = lastVerticalEdgeCoords[x - xStart];
 				if (onVerticalEdge) {
-					var nextEdgeCoord = new Coordinate(xOffset + x, yOffset + y);
+					var nextEdgeCoord = createCoordinate(pm, xOffset + x, yOffset + y);
 					if (lastVerticalEdgeCoord != null) {
 						lines.add(factory.createLineString(createCoordinateSequence(lastVerticalEdgeCoord, nextEdgeCoord)));
 					}
-					lastVerticalEdgeCoords[x] = nextEdgeCoord;
+					lastVerticalEdgeCoords[x - xStart] = nextEdgeCoord;
 				} else {
 					if (lastVerticalEdgeCoord != null) {
-						var nextEdgeCoord = new Coordinate(xOffset + x, yOffset + y);
+						var nextEdgeCoord = createCoordinate(pm, xOffset + x, yOffset + y);
 						lines.add(factory.createLineString(createCoordinateSequence(lastVerticalEdgeCoord, nextEdgeCoord)));
-						lastVerticalEdgeCoords[x] = null;
+						lastVerticalEdgeCoords[x - xStart] = null;
 					}
 				}
 			}
 		}
 
-//		List<LineString> lines = new ArrayList<>();
-//		Coordinate lastEdgeCoord = null;
-//		for (int y = 0; y <= h; y++) {
-//			for (int x = 0; x <= w; x++) {
-//				// Check if on a horizontal edge with the previous row
-//				boolean onEdge = inRange(image, x, y-1, min, max) != inRange(image, x, y, min, max);
-//				if (onEdge) {
-//					var nextEdgeCoord = new Coordinate(xOffset + x, yOffset + y);
-//					if (lastEdgeCoord != null) {
-//						lines.add(factory.createLineString(createCoordinateSequence(lastEdgeCoord, nextEdgeCoord)));
-//					}
-//					lastEdgeCoord = nextEdgeCoord;
-//				} else {
-//					if (lastEdgeCoord != null) {
-//						var nextEdgeCoord = new Coordinate(xOffset + x, yOffset + y);
-//						lines.add(factory.createLineString(createCoordinateSequence(lastEdgeCoord, nextEdgeCoord)));
-//						lastEdgeCoord = null;
-//					}
-//				}
-//			}
-//		}
-//
-//		for (int x = 0; x <= w; x++) {
-//			for (int y = 0; y <= h; y++) {
-//				// Check if on a vertical edge with the previous column
-//				boolean onEdge = inRange(image, x-1, y, min, max) != inRange(image, x, y, min, max);
-//				if (onEdge) {
-//					var nextEdgeCoord = new Coordinate(xOffset + x, yOffset + y);
-//					if (lastEdgeCoord != null) {
-//						lines.add(factory.createLineString(createCoordinateSequence(lastEdgeCoord, nextEdgeCoord)));
-//					}
-//					lastEdgeCoord = nextEdgeCoord;
-//				} else {
-//					if (lastEdgeCoord != null) {
-//						var nextEdgeCoord = new Coordinate(xOffset + x, yOffset + y);
-//						lines.add(factory.createLineString(createCoordinateSequence(lastEdgeCoord, nextEdgeCoord)));
-//						lastEdgeCoord = null;
-//					}
-//				}
-//			}
-//		}
-
+		// This passes the test and is fast... but beware https://github.com/locationtech/jts/issues/874
 		var polygonizer = new Polygonizer(true);
 		polygonizer.add(lines);
-		var myResult =  polygonizer.getGeometry();
-//		var legacyResult = traceGeometryBackup(image, min, max, xOffset, yOffset);
-//		logger.info("Mine: {}, Legacy: {}", myResult, legacyResult);
-		return myResult;
+		var originalPolygon = polygonizer.getGeometry();
+		return originalPolygon;
 	}
 
-//	private static CoordinateSequence createCoordinateSequence(Coordinate c1, Coordinate c2) {
-//		return new CoordinatePairSequence(c1, c2);
-//	}
+	private static Coordinate createCoordinate(PrecisionModel pm, double x, double y) {
+		return new CoordinateXY(
+				pm.makePrecise(x),
+				pm.makePrecise(y));
+	}
 
 	private static CoordinateSequence createCoordinateSequence(Coordinate... coords) {
+		for (var c : coords)
+			GeometryTools.getDefaultFactory().getPrecisionModel().makePrecise(c);
 		return new CoordinateArraySequence(coords, 3, 0);
-	}
-
-	private static class CoordinatePairSequence implements CoordinateSequence {
-
-		private final Coordinate c1, c2;
-		private final int dimension;
-
-		private CoordinatePairSequence(Coordinate c1, Coordinate c2) {
-			this.c1 = c1;
-			this.c2 = c2;
-			this.dimension = 3;
-		}
-
-		@Override
-		public int getDimension() {
-			return dimension;
-		}
-
-		@Override
-		public Coordinate getCoordinate(int i) {
-			if (i == 0)
-				return c1;
-			else if (i == 1)
-				return c2;
-			else
-				throw new IllegalArgumentException("No coordinate for index " + i);
-		}
-
-		@Override
-		public Coordinate getCoordinateCopy(int i) {
-			return getCoordinate(i).copy();
-		}
-
-		@Override
-		public void getCoordinate(int index, Coordinate coord) {
-			coord.setCoordinate(getCoordinate(index));
-		}
-
-		@Override
-		public double getX(int index) {
-			return getOrdinate(index, Coordinate.X);
-		}
-
-		@Override
-		public double getY(int index) {
-			return getOrdinate(index, Coordinate.Y);
-		}
-
-		@Override
-		public double getOrdinate(int index, int ordinateIndex) {
-			return getCoordinate(index).getOrdinate(ordinateIndex);
-		}
-
-		@Override
-		public int size() {
-			return 2;
-		}
-
-		@Override
-		public void setOrdinate(int index, int ordinateIndex, double value) {
-			throw new UnsupportedOperationException();
-		}
-
-		@Override
-		public Coordinate[] toCoordinateArray() {
-			return new Coordinate[] { c1, c2 };
-		}
-
-		@Override
-		public Envelope expandEnvelope(Envelope env) {
-			env.expandToInclude(c1);
-			env.expandToInclude(c2);
-			return env;
-		}
-
-		@Override
-		public Object clone() {
-			return copy();
-		}
-
-		@Override
-		public CoordinateSequence copy() {
-			return new CoordinatePairSequence(c1.copy(), c2.copy());
-		}
 	}
 
 
@@ -1468,395 +1371,6 @@ public class ContourTracing {
 			return false;
 		double val = image.getValue(x, y);
 		return val >= min && val <= max;
-	}
-
-
-	private static Geometry traceGeometryBackup(SimpleImage image, double min, double max, double xOffset, double yOffset) {
-		
-		int w = image.getWidth();
-		int h = image.getHeight();
-		
-		boolean[] prevRow, thisRow;
-		var manager = new GeometryManager(GeometryTools.getDefaultFactory());
-
-		// Cache for the current and previous thresholded rows
-		prevRow = new boolean[w + 2];
-		thisRow = new boolean[w + 2];
-		
-		// Current outlines
-		Outline[] movingDown = new Outline[w + 1];
-		Outline movingRight = null;
-		
-		int pixelCount = 0;
-		
-		for (int y = 0; y <= h; y++) {
-			
-			// Swap this and previous rows (this row data will be overwritten as we go)
-			boolean[] tempSwap = prevRow;
-			prevRow = thisRow;
-			thisRow = tempSwap;
-			
-//			thisRow[1] = y < h ? selected(raster, 0, y, min, max) : false;
-			thisRow[1] = y < h ? selected(image.getValue(0, y), min, max) : false;
-			
-			for (int x = 0; x <= w; x++) {
-				
-				int left = x;
-				int center = x + 1;
-				int right = x + 2;
-				
-				if (y < h && x < w - 1)
-					thisRow[right] = selected(image.getValue(x+1, y), min, max);  //we need to read one pixel ahead
-//					thisRow[right] = selected(raster, center, y, min, max);  //we need to read one pixel ahead
-				else if (x < w - 1)
-					thisRow[right] = false;
-				
-				if (thisRow[center])
-					pixelCount++;
-									
-				/*
-				 * Pixels are considered in terms of a 2x2 square.
-				 * ----0----
-				 * | A | B |
-				 * 0---X====
-				 * | C | D |
-				 * ----=====
-				 * 
-				 * The current focus is on D, which is considered the 'center' (since subsequent 
-				 * pixels matter too for the pattern, but we don't need them during this iteration).
-				 * 
-				 * In each case, the question is whether or not an outline will be created,
-				 * or moved for a location 0 to location X - possibly involving merges or completion of 
-				 * an outline.
-				 * 
-				 * Note that outlines are always drawn so that the 'on' pixels are on the left, 
-				 * from the point of view of the directed line.
-				 * Therefore shells are anticlockwise whereas holes are clockwise.
-				 */
-				
-				// Extract the local 2x2 binary pattern
-				// This represented by a value between 0 and 15, where bits indicate if a pixel is selected or not
-				int pattern = (prevRow[left] ? 8 : 0) 
-								+ (prevRow[center] ? 4 : 0) 
-								+ (thisRow[left] ? 2 : 0)
-								+ (thisRow[center] ? 1 : 0);
-
-				
-				switch (pattern) {
-				case 0: 
-					// Nothing selected
-//					assert movingDown[x] == null;
-//					assert movingRight == null;
-					break;
-				case 1: 
-					// Selected D
-//					assert movingDown[x] == null;
-//					assert movingRight == null;
-					// Create new shell
-					movingRight = new Outline(xOffset, yOffset);
-					movingRight.append(x, y);
-					movingDown[x] = movingRight;
-					break;
-				case 2: 
-					// Selected C
-//					assert movingDown[x] == null;
-					movingRight.prepend(x, y);
-					movingDown[x] = movingRight;
-					movingRight = null;
-					break;
-				case 3: 
-					// Selected C, D
-//					assert movingDown[x] == null;
-//					assert movingRight != null;
-					break;
-				case 4: 
-					// Selected B
-//					assert movingRight == null;
-					movingDown[x].append(x, y);
-					movingRight = movingDown[x];
-					movingDown[x] = null;
-					break;
-				case 5: 
-					// Selected B, D
-//					assert movingRight == null;
-//					assert movingDown[x] != null;
-					break;
-				case 6: 
-					// Selected B, C
-//					assert movingDown[x] != null;
-//					assert movingRight != null;
-					movingRight.prepend(x, y);
-					if (Objects.equals(movingRight, movingDown[x])) {
-						// Hole completed!
-						manager.addHole(movingRight);
-						movingRight = new Outline(xOffset, yOffset);
-						movingRight.append(x, y);
-						movingDown[x] = movingRight;
-					} else {
-						movingDown[x].append(x, y);
-						var temp = movingRight;
-						movingRight = movingDown[x];
-						movingDown[x] = temp;
-					}
-					break;
-				case 7: 
-					// Selected B, C, D
-//					assert movingDown[x] != null;
-//					assert movingRight != null;
-					movingDown[x].append(x, y);
-					if (Objects.equals(movingRight, movingDown[x])) {
-						// Hole completed!
-						manager.addHole(movingRight);
-					} else {
-						movingRight.prepend(movingDown[x]);
-						replace(movingDown, movingDown[x], movingRight);
-					}
-					movingRight = null;
-					movingDown[x] = null;
-					break;
-				case 8: 
-					// Selected A
-//					assert movingDown[x] != null;
-//					assert movingRight != null;
-					movingRight.append(x, y);
-					if (Objects.equals(movingRight, movingDown[x])) {
-						// Shell completed!
-						manager.addShell(movingRight);
-					} else {
-						movingDown[x].prepend(movingRight);
-						replace(movingDown, movingRight, movingDown[x]);
-					}
-					movingRight = null;
-					movingDown[x] = null;
-					break;
-				case 9: 
-					// Selected A, D
-//					assert movingDown[x] != null;
-//					assert movingRight != null;
-					movingRight.append(x, y);
-					if (Objects.equals(movingRight, movingDown[x])) {
-						// Shell completed!
-						manager.addShell(movingRight);
-						movingRight = new Outline(xOffset, yOffset);
-						movingRight.append(x, y);
-						movingDown[x] = movingRight;
-					} else {
-						movingDown[x].prepend(x, y);
-						var temp = movingRight;
-						movingRight = movingDown[x];
-						movingDown[x] = temp;
-					}
-					break;
-				case 10: 
-					// Selected A, C
-//					assert movingRight == null;
-//					assert movingDown[x] != null;
-					break;
-				case 11: 
-					// Selected A, C, D
-//					assert movingRight == null;
-//					assert movingDown[x] != null;
-					movingDown[x].prepend(x, y);
-					movingRight = movingDown[x];
-					movingDown[x] = null;
-					break;
-				case 12: 
-					// Selected A, B
-//					assert movingDown[x] == null;
-//					assert movingRight != null;
-					break;
-				case 13: 
-					// Selected A, B, D
-//					assert movingDown[x] == null;
-//					assert movingRight != null;
-					movingRight.append(x, y);
-					movingDown[x] = movingRight;
-					movingRight = null;
-					break;
-				case 14: 
-					// Selected A, B, C
-//					assert movingRight == null;
-//					assert movingDown[x] == null;
-					// Create new hole
-					movingRight = new Outline(xOffset, yOffset);
-					movingRight.append(x, y);
-					movingDown[x] = movingRight;
-					break;
-				case 15: 
-					// Selected A, B, C, D
-//					assert movingDown[x] == null;
-//					assert movingRight == null;
-					break;
-				}
-			}
-		}
-		
-		var geom = manager.getFinalGeometry();
-		if (geom == null)
-			return null;
-		
-		var area = geom.getArea();
-		if (pixelCount != area) {
-			logger.warn("Pixel count {} is not equal to geometry area {}", pixelCount, area);
-		}
-		
-		return geom;
-
-	}
-	
-	
-	private static void replace(Outline[] outlines, Outline original, Outline replacement) {
-		for (int i = 0; i < outlines.length; i++) {
-			if (outlines[i] == original)
-				outlines[i] = replacement;
-		}
-	}
-	
-	
-	private static class GeometryManager {
-
-		private Polygonizer polygonizer = new Polygonizer(true);
-		private GeometryFactory factory;
-		
-		private List<LineString> lines = new ArrayList<>();
-
-		GeometryManager(GeometryFactory factory) {
-			this.factory = factory;
-		}
-
-		public void addHole(Outline outline) {
-			addOutline(outline, true);
-		}
-
-		public void addShell(Outline outline) {
-			addOutline(outline, false);
-		}
-
-		private void addOutline(Outline outline, boolean isHole) {
-			lines.add(factory.createLineString(outline.getRing()));
-		}
-
-		public Geometry getFinalGeometry() {
-			if (lines.isEmpty())
-				return null;//factory.createEmpty(2);
-			long a = System.nanoTime();
-			var geomTemp = factory.buildGeometry(lines).union();
-			long b = System.nanoTime();
-			polygonizer.add(geomTemp);
-			long c = System.nanoTime();
-			var result = polygonizer.getGeometry();
-			long d = System.nanoTime();
-			long ba = b - a;
-			long cb = c - b;
-			long dc = d - c;
-//			logger.info("Union: {} ms, Polygonizer: {} ms, Result: {} ms", ba / 1e6, cb / 1e6, dc / 1e6);
-			return result;
-		}
-
-	}
-
-	
-	
-
-	private static class Outline {
-
-		private SequencedCollection<Coordinate> coords;
-
-		private double xOffset, yOffset;
-
-		/**
-		 * Initialize an output. Optional x and y offsets may be provided, in which case
-		 * these will be added to coordinates. The reason for this is to help support 
-		 * working with tiled images, where the tile origin is not 0,0 but we don't want to 
-		 * have to handle this elsewhere.
-		 * 
-		 * @param xOffset
-		 * @param yOffset
-		 */
-		public Outline(double xOffset, double yOffset) {
-			this.xOffset = xOffset;
-			this.yOffset = yOffset;
-			coords = new ArrayList<>();
-		}
-
-		public void append(int x, int y) {
-			append(new Coordinate(xOffset + x, yOffset + y));
-		}
-
-		public void append(Coordinate c) {
-			// Don't add repeating coordinate
-			if (!coords.isEmpty() && coords.getLast().equals(c))
-				return;
-			coords.addLast(c);
-		}
-
-
-		public void prepend(int x, int y) {
-			prepend(new Coordinate(xOffset + x, yOffset + y));
-		}
-
-		public void prepend(Coordinate c) {
-			// Don't add repeating coordinate
-			if (!coords.isEmpty() && coords.getFirst().equals(c))
-				return;
-			coords.addFirst(c);
-		}
-
-		public void prepend(Outline outline) {
-			outline.coords.reversed().forEach(c -> prepend(c));
-//			outline.coords.descendingIterator().forEachRemaining(c -> prepend(c));
-			// Update the coordinate array for the other - since they are now part of the same outline
-			outline.coords = coords;
-		}
-
-		public Coordinate[] getRing() {
-			if (!coords.getFirst().equals(coords.getLast()))
-				coords.add(coords.getFirst());
-			return coords.toArray(Coordinate[]::new);
-		}
-
-		@Override
-		public int hashCode() {
-			final int prime = 31;
-			int result = 1;
-			result = prime * result + ((coords == null) ? 0 : coords.hashCode());
-			long temp;
-			temp = Double.doubleToLongBits(xOffset);
-			result = prime * result + (int) (temp ^ (temp >>> 32));
-			temp = Double.doubleToLongBits(yOffset);
-			result = prime * result + (int) (temp ^ (temp >>> 32));
-			return result;
-		}
-
-		@Override
-		public boolean equals(Object obj) {
-			if (this == obj)
-				return true;
-			if (obj == null)
-				return false;
-			if (getClass() != obj.getClass())
-				return false;
-			Outline other = (Outline) obj;
-			if (coords == null) {
-				if (other.coords != null)
-					return false;
-			} else if (!coords.equals(other.coords))
-				return false;
-			if (Double.doubleToLongBits(xOffset) != Double.doubleToLongBits(other.xOffset))
-				return false;
-			if (Double.doubleToLongBits(yOffset) != Double.doubleToLongBits(other.yOffset))
-				return false;
-			return true;
-		}
-
-		@Override
-		public String toString() {
-			return "[" + coords.stream()
-			.map(c -> "(" + GeneralTools.formatNumber(c.x, 2) + ", " + GeneralTools.formatNumber(c.y, 2) + ")")
-			.collect(Collectors.joining(", ")) + "]";
-		}
-
-
 	}
 
 }
