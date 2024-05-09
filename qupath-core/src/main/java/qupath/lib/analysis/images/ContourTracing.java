@@ -36,6 +36,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.SequencedCollection;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.ExecutionException;
@@ -52,11 +53,14 @@ import java.util.stream.Stream;
 import javax.imageio.ImageIO;
 
 import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.CoordinateSequence;
+import org.locationtech.jts.geom.Coordinates;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.Polygon;
+import org.locationtech.jts.geom.impl.CoordinateArraySequence;
 import org.locationtech.jts.geom.util.AffineTransformation;
 import org.locationtech.jts.geom.util.PolygonExtracter;
 import org.locationtech.jts.index.quadtree.Quadtree;
@@ -1269,6 +1273,205 @@ public class ContourTracing {
 	 * @return
 	 */
 	private static Geometry traceGeometry(SimpleImage image, double min, double max, double xOffset, double yOffset) {
+//		if (4 > 2)
+//			return traceGeometryBackup(image, min, max, xOffset, yOffset);
+
+		var factory = GeometryTools.getDefaultFactory();
+		int w = image.getWidth();
+		int h = image.getHeight();
+
+		List<LineString> lines = new ArrayList<>();
+		Coordinate lastHorizontalEdgeCoord = null;
+		Coordinate[] lastVerticalEdgeCoords = new Coordinate[w+1];
+		for (int y = 0; y <= h; y++) {
+			for (int x = 0; x <= w; x++) {
+				boolean isOn = inRange(image, x, y, min, max);
+				boolean onHorizontalEdge = isOn != inRange(image, x, y-1, min, max);
+				boolean onVerticalEdge = isOn != inRange(image, x-1, y, min, max);
+				// Check if on a horizontal edge with the previous row
+				if (onHorizontalEdge) {
+					var nextEdgeCoord = new Coordinate(xOffset + x, yOffset + y);
+					if (lastHorizontalEdgeCoord != null) {
+						lines.add(factory.createLineString(createCoordinateSequence(lastHorizontalEdgeCoord, nextEdgeCoord)));
+					}
+					lastHorizontalEdgeCoord = nextEdgeCoord;
+				} else {
+					if (lastHorizontalEdgeCoord != null) {
+						var nextEdgeCoord = new Coordinate(xOffset + x, yOffset + y);
+						lines.add(factory.createLineString(createCoordinateSequence(lastHorizontalEdgeCoord, nextEdgeCoord)));
+						lastHorizontalEdgeCoord = null;
+					}
+				}
+				// Check if on a vertical edge with the previous column
+				var lastVerticalEdgeCoord = lastVerticalEdgeCoords[x];
+				if (onVerticalEdge) {
+					var nextEdgeCoord = new Coordinate(xOffset + x, yOffset + y);
+					if (lastVerticalEdgeCoord != null) {
+						lines.add(factory.createLineString(createCoordinateSequence(lastVerticalEdgeCoord, nextEdgeCoord)));
+					}
+					lastVerticalEdgeCoords[x] = nextEdgeCoord;
+				} else {
+					if (lastVerticalEdgeCoord != null) {
+						var nextEdgeCoord = new Coordinate(xOffset + x, yOffset + y);
+						lines.add(factory.createLineString(createCoordinateSequence(lastVerticalEdgeCoord, nextEdgeCoord)));
+						lastVerticalEdgeCoords[x] = null;
+					}
+				}
+			}
+		}
+
+//		List<LineString> lines = new ArrayList<>();
+//		Coordinate lastEdgeCoord = null;
+//		for (int y = 0; y <= h; y++) {
+//			for (int x = 0; x <= w; x++) {
+//				// Check if on a horizontal edge with the previous row
+//				boolean onEdge = inRange(image, x, y-1, min, max) != inRange(image, x, y, min, max);
+//				if (onEdge) {
+//					var nextEdgeCoord = new Coordinate(xOffset + x, yOffset + y);
+//					if (lastEdgeCoord != null) {
+//						lines.add(factory.createLineString(createCoordinateSequence(lastEdgeCoord, nextEdgeCoord)));
+//					}
+//					lastEdgeCoord = nextEdgeCoord;
+//				} else {
+//					if (lastEdgeCoord != null) {
+//						var nextEdgeCoord = new Coordinate(xOffset + x, yOffset + y);
+//						lines.add(factory.createLineString(createCoordinateSequence(lastEdgeCoord, nextEdgeCoord)));
+//						lastEdgeCoord = null;
+//					}
+//				}
+//			}
+//		}
+//
+//		for (int x = 0; x <= w; x++) {
+//			for (int y = 0; y <= h; y++) {
+//				// Check if on a vertical edge with the previous column
+//				boolean onEdge = inRange(image, x-1, y, min, max) != inRange(image, x, y, min, max);
+//				if (onEdge) {
+//					var nextEdgeCoord = new Coordinate(xOffset + x, yOffset + y);
+//					if (lastEdgeCoord != null) {
+//						lines.add(factory.createLineString(createCoordinateSequence(lastEdgeCoord, nextEdgeCoord)));
+//					}
+//					lastEdgeCoord = nextEdgeCoord;
+//				} else {
+//					if (lastEdgeCoord != null) {
+//						var nextEdgeCoord = new Coordinate(xOffset + x, yOffset + y);
+//						lines.add(factory.createLineString(createCoordinateSequence(lastEdgeCoord, nextEdgeCoord)));
+//						lastEdgeCoord = null;
+//					}
+//				}
+//			}
+//		}
+
+		var polygonizer = new Polygonizer(true);
+		polygonizer.add(lines);
+		var myResult =  polygonizer.getGeometry();
+//		var legacyResult = traceGeometryBackup(image, min, max, xOffset, yOffset);
+//		logger.info("Mine: {}, Legacy: {}", myResult, legacyResult);
+		return myResult;
+	}
+
+//	private static CoordinateSequence createCoordinateSequence(Coordinate c1, Coordinate c2) {
+//		return new CoordinatePairSequence(c1, c2);
+//	}
+
+	private static CoordinateSequence createCoordinateSequence(Coordinate... coords) {
+		return new CoordinateArraySequence(coords, 3, 0);
+	}
+
+	private static class CoordinatePairSequence implements CoordinateSequence {
+
+		private final Coordinate c1, c2;
+		private final int dimension;
+
+		private CoordinatePairSequence(Coordinate c1, Coordinate c2) {
+			this.c1 = c1;
+			this.c2 = c2;
+			this.dimension = 3;
+		}
+
+		@Override
+		public int getDimension() {
+			return dimension;
+		}
+
+		@Override
+		public Coordinate getCoordinate(int i) {
+			if (i == 0)
+				return c1;
+			else if (i == 1)
+				return c2;
+			else
+				throw new IllegalArgumentException("No coordinate for index " + i);
+		}
+
+		@Override
+		public Coordinate getCoordinateCopy(int i) {
+			return getCoordinate(i).copy();
+		}
+
+		@Override
+		public void getCoordinate(int index, Coordinate coord) {
+			coord.setCoordinate(getCoordinate(index));
+		}
+
+		@Override
+		public double getX(int index) {
+			return getOrdinate(index, Coordinate.X);
+		}
+
+		@Override
+		public double getY(int index) {
+			return getOrdinate(index, Coordinate.Y);
+		}
+
+		@Override
+		public double getOrdinate(int index, int ordinateIndex) {
+			return getCoordinate(index).getOrdinate(ordinateIndex);
+		}
+
+		@Override
+		public int size() {
+			return 2;
+		}
+
+		@Override
+		public void setOrdinate(int index, int ordinateIndex, double value) {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public Coordinate[] toCoordinateArray() {
+			return new Coordinate[] { c1, c2 };
+		}
+
+		@Override
+		public Envelope expandEnvelope(Envelope env) {
+			env.expandToInclude(c1);
+			env.expandToInclude(c2);
+			return env;
+		}
+
+		@Override
+		public Object clone() {
+			return copy();
+		}
+
+		@Override
+		public CoordinateSequence copy() {
+			return new CoordinatePairSequence(c1.copy(), c2.copy());
+		}
+	}
+
+
+	private static boolean inRange(SimpleImage image, int x, int y, double min, double max) {
+		if (x < 0 || x >= image.getWidth() || y < 0 || y >= image.getHeight())
+			return false;
+		double val = image.getValue(x, y);
+		return val >= min && val <= max;
+	}
+
+
+	private static Geometry traceGeometryBackup(SimpleImage image, double min, double max, double xOffset, double yOffset) {
 		
 		int w = image.getWidth();
 		int h = image.getHeight();
@@ -1536,9 +1739,18 @@ public class ContourTracing {
 		public Geometry getFinalGeometry() {
 			if (lines.isEmpty())
 				return null;//factory.createEmpty(2);
+			long a = System.nanoTime();
 			var geomTemp = factory.buildGeometry(lines).union();
+			long b = System.nanoTime();
 			polygonizer.add(geomTemp);
-			return polygonizer.getGeometry();
+			long c = System.nanoTime();
+			var result = polygonizer.getGeometry();
+			long d = System.nanoTime();
+			long ba = b - a;
+			long cb = c - b;
+			long dc = d - c;
+//			logger.info("Union: {} ms, Polygonizer: {} ms, Result: {} ms", ba / 1e6, cb / 1e6, dc / 1e6);
+			return result;
 		}
 
 	}
@@ -1548,7 +1760,7 @@ public class ContourTracing {
 
 	private static class Outline {
 
-		private Deque<Coordinate> coords = new ArrayDeque<>();
+		private SequencedCollection<Coordinate> coords;
 
 		private double xOffset, yOffset;
 
@@ -1564,6 +1776,7 @@ public class ContourTracing {
 		public Outline(double xOffset, double yOffset) {
 			this.xOffset = xOffset;
 			this.yOffset = yOffset;
+			coords = new ArrayList<>();
 		}
 
 		public void append(int x, int y) {
@@ -1590,7 +1803,8 @@ public class ContourTracing {
 		}
 
 		public void prepend(Outline outline) {
-			outline.coords.descendingIterator().forEachRemaining(c -> prepend(c));
+			outline.coords.reversed().forEach(c -> prepend(c));
+//			outline.coords.descendingIterator().forEachRemaining(c -> prepend(c));
 			// Update the coordinate array for the other - since they are now part of the same outline
 			outline.coords = coords;
 		}
