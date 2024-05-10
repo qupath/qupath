@@ -591,58 +591,66 @@ public class ContourTracing {
 	 * @return an ordered map containing all the ROIs that could be found; corresponding labels are keys in the map
 	 */
 	public static Map<Number, ROI> createROIs(SimpleImage image, RegionRequest region, int minLabel, int maxLabel) {
-		// Check how many labels are needed
-		float[] pixels = SimpleImages.getPixels(image, true);
-		if (maxLabel < minLabel) {
-			float maxValue = minLabel;
-			for (float p : pixels) {
-				if (p > maxValue)
-					maxValue = p;
+		var envelopes = new HashMap<Number, Envelope>();
+		if (minLabel != maxLabel) {
+			// Check if we need to identify the max label because it hasn't been provided
+			boolean searchingMaxLabel = maxLabel < minLabel;
+			int maxLabelFound = Integer.MIN_VALUE;
+			// If we want ROIs for more than one label, do a first pass to find envelopes
+			// (If we have just one label, we can skip this)
+			for (int y = 0; y < image.getHeight(); y++) {
+				for (int x = 0; x < image.getWidth(); x++) {
+					float val = Math.round(image.getValue(x, y));
+					int label = Math.round(val);
+					if (val != label)
+						continue;
+					// Update our max label if required
+					if (label > maxLabel) {
+						maxLabelFound = label;
+						if (searchingMaxLabel)
+							maxLabel = maxLabelFound;
+					}
+					// Update envelope if required
+					if (selected(label, minLabel, maxLabel)) {
+						envelopes.computeIfAbsent(label, k -> new Envelope()).expandToInclude(x, y);
+					}
+				}
 			}
-			maxLabel = (int)maxValue;
+			// If no label exceeds the min label, return an empty map
+			if (maxLabelFound < minLabel)
+				return Collections.emptyMap();
+		} else {
+			// Don't bother storing an envelope here - we'll iterate the full image when tracing
+			// But do store the label so that we can use the map for iterating
+			envelopes.put((float)minLabel, null);
 		}
+
 		// We don't want to search for all possible labels, since they might not be present in the image
 		// Therefore we loop through pixels & first find all unique labels and their bounding boxes, then
 		// trace the contours for each label
 		Map<Number, ROI> rois = new TreeMap<>();
-		if (maxLabel > minLabel) {
-			var envelopes = new HashMap<Float, Envelope>();
-			for (int y = 0; y < image.getHeight(); y++) {
-				for (int x = 0; x < image.getWidth(); x++) {
-					float val = image.getValue(x, y);
-					if (val >= minLabel && val <= maxLabel) {
-						envelopes.computeIfAbsent(val, k -> new Envelope()).expandToInclude(x, y);
-					}
+		double xOffset = 0;
+		double yOffset = 0;
+		// If we are translating but not rescaling, we can do this during tracing
+		if (region != null && region.getDownsample() == 1) {
+			xOffset = region.getX();
+			yOffset = region.getY();
+		}
+		for (var entry : envelopes.entrySet()) {
+			var label = entry.getKey();
+			var envelope = entry.getValue();
+			var geom = traceGeometry(image, label.doubleValue(), label.doubleValue(), xOffset, yOffset, envelope);
+			if (geom != null && !geom.isEmpty()) {
+				// Handle any additional rescaling if needed
+				if (region != null && region.getDownsample() != 1 && geom != null) {
+					double scale = region.getDownsample();
+					var transform = AffineTransformation.scaleInstance(scale, scale);
+					transform = transform.translate(region.getX(), region.getY());
+					if (!transform.isIdentity())
+						geom = transform.transform(geom);
 				}
-			}
-			double xOffset = 0;
-			double yOffset = 0;
-			if (region != null && region.getDownsample() == 1) {
-				xOffset = region.getX();
-				yOffset = region.getY();
-			}
-			for (var entry : envelopes.entrySet()) {
-				var val = entry.getKey();
-				var envelope = entry.getValue();
-				var geom = traceGeometry(image, val, val, xOffset, yOffset, envelope);
-				if (geom != null && !geom.isEmpty()) {
-					// Handle rescaling if needed
-					if (region != null && region.getDownsample() != 1 && geom != null) {
-						double scale = region.getDownsample();
-						var transform = AffineTransformation.scaleInstance(scale, scale);
-						transform = transform.translate(region.getX(), region.getY());
-						if (!transform.isIdentity())
-							geom = transform.transform(geom);
-					}
-					var roi = GeometryTools.geometryToROI(geom, region == null ? ImagePlane.getDefaultPlane() : region.getImagePlane());
-					rois.put(val, roi);
-				}
-			}
-		} else {
-			for (int i = minLabel; i <= maxLabel; i++) {
-				var roi = createTracedROI(image, i, i, region);
-				if (roi != null && !roi.isEmpty())
-					rois.put(i, roi);
+				var roi = GeometryTools.geometryToROI(geom, region == null ? ImagePlane.getDefaultPlane() : region.getImagePlane());
+				rois.put(label, roi);
 			}
 		}
 		return rois;
@@ -1266,9 +1274,15 @@ public class ContourTracing {
 		}
 		
 	}
-	
-	
-	
+
+
+	private static boolean selected(int v, int min, int max) {
+		return v >= min && v <= max;
+	}
+
+	private static boolean selected(float v, float min, float max) {
+		return v >= min && v <= max;
+	}
 	
 	private static boolean selected(double v, double min, double max) {
 		return v >= min && v <= max;
