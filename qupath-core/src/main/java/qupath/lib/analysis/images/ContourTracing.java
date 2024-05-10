@@ -592,12 +592,17 @@ public class ContourTracing {
 	 */
 	public static Map<Number, ROI> createROIs(SimpleImage image, RegionRequest region, int minLabel, int maxLabel) {
 		var envelopes = new HashMap<Number, Envelope>();
-		if (minLabel != maxLabel) {
+		if (minLabel == maxLabel) {
+			// Don't bother storing an envelope here - we'll iterate the full image when tracing
+			// But do store the label so that we can use the map for iterating
+			envelopes.put(minLabel, null);
+		} else {
 			// Check if we need to identify the max label because it hasn't been provided
 			boolean searchingMaxLabel = maxLabel < minLabel;
 			int maxLabelFound = Integer.MIN_VALUE;
-			// If we want ROIs for more than one label, do a first pass to find envelopes
-			// (If we have just one label, we can skip this)
+			// If we want ROIs for more than one label (or an unknown number of labels,
+			// do a first pass to find envelopes (i.e. bounding boxes)
+			// so that we don't need to visit all pixels every time we trace a contour later
 			for (int y = 0; y < image.getHeight(); y++) {
 				for (int x = 0; x < image.getWidth(); x++) {
 					float val = Math.round(image.getValue(x, y));
@@ -619,15 +624,9 @@ public class ContourTracing {
 			// If no label exceeds the min label, return an empty map
 			if (maxLabelFound < minLabel)
 				return Collections.emptyMap();
-		} else {
-			// Don't bother storing an envelope here - we'll iterate the full image when tracing
-			// But do store the label so that we can use the map for iterating
-			envelopes.put((float)minLabel, null);
 		}
 
-		// We don't want to search for all possible labels, since they might not be present in the image
-		// Therefore we loop through pixels & first find all unique labels and their bounding boxes, then
-		// trace the contours for each label
+		// Trace contours for all requested labels
 		var map = envelopes.entrySet()
 				.parallelStream()
 				.collect(
