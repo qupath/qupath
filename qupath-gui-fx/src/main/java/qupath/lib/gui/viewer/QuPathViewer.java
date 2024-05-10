@@ -2474,6 +2474,13 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 			yCenter = p2.getY() - dy;
 		}
 
+		// Downsample might not be finite if the width and height are 0
+		// (and this method has been called too early) - we need a finite
+		// value to avoid the UI becoming unstable
+		if (!Double.isFinite(downsampleFactor)) {
+			logger.debug("Setting non-finite downsample {} to 1.0", downsampleFactor);
+			downsampleFactor = 1.0;
+		}
 		this.downsampleFactor.set(downsampleFactor);
 		updateAffineTransform();
 
