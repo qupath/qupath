@@ -628,32 +628,25 @@ public class ContourTracing {
 		// We don't want to search for all possible labels, since they might not be present in the image
 		// Therefore we loop through pixels & first find all unique labels and their bounding boxes, then
 		// trace the contours for each label
+		var map = envelopes.entrySet()
+				.parallelStream()
+				.collect(
+						Collectors.toMap(
+								Map.Entry::getKey,
+								e -> labelToROI(image, e.getKey().doubleValue(), region, e.getValue()))
+				);
+
+		// Return a sorted map with all non-empty ROIs
 		Map<Number, ROI> rois = new TreeMap<>();
-		double xOffset = 0;
-		double yOffset = 0;
-		// If we are translating but not rescaling, we can do this during tracing
-		if (region != null && region.getDownsample() == 1) {
-			xOffset = region.getX();
-			yOffset = region.getY();
-		}
-		for (var entry : envelopes.entrySet()) {
-			var label = entry.getKey();
-			var envelope = entry.getValue();
-			var geom = traceGeometry(image, label.doubleValue(), label.doubleValue(), xOffset, yOffset, envelope);
-			if (geom != null && !geom.isEmpty()) {
-				// Handle any additional rescaling if needed
-				if (region != null && region.getDownsample() != 1 && geom != null) {
-					double scale = region.getDownsample();
-					var transform = AffineTransformation.scaleInstance(scale, scale);
-					transform = transform.translate(region.getX(), region.getY());
-					if (!transform.isIdentity())
-						geom = transform.transform(geom);
-				}
-				var roi = GeometryTools.geometryToROI(geom, region == null ? ImagePlane.getDefaultPlane() : region.getImagePlane());
-				rois.put(label, roi);
-			}
+		for (var entry : map.entrySet()) {
+			if (entry.getValue() != null && !entry.getValue().isEmpty())
+				rois.put(entry.getKey(), entry.getValue());
 		}
 		return rois;
+	}
+
+	private static ROI labelToROI(SimpleImage image, double label, RegionRequest region, Envelope envelope) {
+		return createTracedROI(image, label, label, region, envelope);
 	}
 	
 	/**
@@ -685,7 +678,12 @@ public class ContourTracing {
 	 * @see #createTracedGeometry(SimpleImage, double, double, RegionRequest)
 	 */
 	public static ROI createTracedROI(SimpleImage image, double minThresholdInclusive, double maxThresholdInclusive, RegionRequest request) {
-		var geom = createTracedGeometry(image, minThresholdInclusive, maxThresholdInclusive, request);
+		return createTracedROI(image, minThresholdInclusive, maxThresholdInclusive, request, null);
+	}
+
+
+	private static ROI createTracedROI(SimpleImage image, double minThresholdInclusive, double maxThresholdInclusive, RegionRequest request, Envelope envelope) {
+		var geom = createTracedGeometry(image, minThresholdInclusive, maxThresholdInclusive, request, envelope);
 		return geom == null ? null : GeometryTools.geometryToROI(geom, request == null ? ImagePlane.getDefaultPlane() : request.getImagePlane());
 	}
 	
@@ -757,7 +755,11 @@ public class ContourTracing {
 	 * @return a polygonal geometry created by tracing pixel values &ge; minThresholdInclusive and &le; maxThresholdInclusive
 	 */
 	public static Geometry createTracedGeometry(SimpleImage image, double minThresholdInclusive, double maxThresholdInclusive, RegionRequest request) {
-		
+		return createTracedGeometry(image, minThresholdInclusive, maxThresholdInclusive, request, null);
+	}
+
+	private static Geometry createTracedGeometry(SimpleImage image, double minThresholdInclusive, double maxThresholdInclusive, RegionRequest request, Envelope envelope) {
+
 		// If we are translating but not rescaling, we can do this during tracing
 		double xOffset = 0;
 		double yOffset = 0;
@@ -765,9 +767,9 @@ public class ContourTracing {
 			xOffset = request.getX();
 			yOffset = request.getY();
 		}
-		
-		var geom = traceGeometry(image, minThresholdInclusive, maxThresholdInclusive, xOffset, yOffset, null);
-		
+
+		var geom = traceGeometry(image, minThresholdInclusive, maxThresholdInclusive, xOffset, yOffset, envelope);
+
 		// Handle rescaling if needed
 		if (request != null && request.getDownsample() != 1 && geom != null) {
 			double scale = request.getDownsample();
@@ -776,7 +778,7 @@ public class ContourTracing {
 			if (!transform.isIdentity())
 				geom = transform.transform(geom);
 		}
-		
+
 		return geom;
 	}
 	
