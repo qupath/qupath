@@ -516,10 +516,10 @@ public class DefaultScriptEditor implements ScriptEditor {
 	public boolean promptToClose() {
 		if (listScripts.getItems().isEmpty())
 			dialog.close();
-		while (promptToClose(getCurrentScriptTab())) {
+		var ret = true;
+		while (ret &= promptToClose(getCurrentScriptTab()))
 			continue;
-		}
-		return true;
+		return ret;
 	}
 
 
