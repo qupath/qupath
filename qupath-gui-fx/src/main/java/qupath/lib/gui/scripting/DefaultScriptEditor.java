@@ -511,7 +511,16 @@ public class DefaultScriptEditor implements ScriptEditor {
 		}
 		return false;
 	}
-	
+
+	@Override
+	public boolean promptToClose() {
+		if (listScripts.getItems().isEmpty())
+			dialog.close();
+		while (promptToClose(getCurrentScriptTab())) {
+			continue;
+		}
+		return true;
+	}
 
 
 	void maybeRefreshTab(final ScriptTab tab, boolean updateLanguage) {

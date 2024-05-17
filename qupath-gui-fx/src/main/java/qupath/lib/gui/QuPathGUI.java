@@ -1013,6 +1013,9 @@ public class QuPathGUI {
 				return;
 			}
 		}
+
+		// should prompt users to save changes if desired.
+		scriptEditor.promptToClose();
 		
 		// Warn if there is a script running
 		if (scriptRunning.get()) {

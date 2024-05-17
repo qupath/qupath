@@ -56,5 +56,12 @@ public interface ScriptEditor {
 	 * @return
 	 */
 	public boolean supportsFile(File file);
+
+	/**
+	 * Attempt to close the editor, saving changes if requested.
+	 * @return True if the editor can be closed without losing changes,
+	 * unless the user consents to losing changes.
+	 */
+	public boolean promptToClose();
 	
 }
