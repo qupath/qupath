@@ -517,8 +517,14 @@ public class DefaultScriptEditor implements ScriptEditor {
 		if (listScripts.getItems().isEmpty())
 			dialog.close();
 		var ret = true;
-		while (ret &= promptToClose(getCurrentScriptTab()))
-			continue;
+		while (ret) {
+			var tab = getCurrentScriptTab();
+			if (tab == null) {
+				break;
+			}
+			boolean bb = promptToClose(tab);
+			ret &= bb;
+		}
 		return ret;
 	}
 
