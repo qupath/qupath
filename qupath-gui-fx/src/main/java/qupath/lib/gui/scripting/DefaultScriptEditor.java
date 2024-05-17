@@ -522,8 +522,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 			if (tab == null) {
 				break;
 			}
-			boolean bb = promptToClose(tab);
-			ret &= bb;
+			ret = promptToClose(tab);
 		}
 		return ret;
 	}
