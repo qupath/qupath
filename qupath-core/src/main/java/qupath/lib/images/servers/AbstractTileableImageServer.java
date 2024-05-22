@@ -263,7 +263,7 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 	
 	
 	@Override
-	public BufferedImage readRegion(final RegionRequest request) throws IOException {
+	public BufferedImage readRegion(RegionRequest request) throws IOException {
 		// Check if we already have a tile for precisely this occasion - with the right server path
 		// Make a defensive copy, since the cache is critical
 		var cache = getCache();
@@ -293,11 +293,35 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 		
 		// Ensure all tiles are either cached or pending before we continue
 		prerequestTiles(tiles);
-		
-		long startTime = System.currentTimeMillis();
-		// Handle the general case for RGB
+
+		// Fix output size to match tiles, if necessary
+		// See https://github.com/qupath/qupath/issues/1527
+		if (request.getDownsample() > 1 && nResolutions() > 1
+				&& request.getMaxX() <= getWidth() && request.getMaxY() <=  getHeight()
+				&& request.getMinX() >= 0 && request.getMinY() >= 0) {
+			int minX = Integer.MAX_VALUE;
+			int minY = Integer.MAX_VALUE;
+			int maxX = -Integer.MAX_VALUE;
+			int maxY = -Integer.MAX_VALUE;
+			for (var tile : tiles) {
+				minX = Math.min(minX, tile.getRegionRequest().getMinX());
+				minY = Math.min(minY, tile.getRegionRequest().getMinY());
+				maxX = Math.max(maxX, tile.getRegionRequest().getMaxX());
+				maxY = Math.max(maxY, tile.getRegionRequest().getMaxY());
+			}
+			if (minX != request.getMinX() || minY != request.getMinY() || maxX != request.getMaxX() || maxY != request.getMaxY()) {
+				var request2 = request.intersect2D(minX, minY, maxX, maxY);
+				logger.debug("RegionRequest updated from {} -> {}", request, request2);
+				request = request2;
+			}
+		}
+
+		// Determine output image size
 		int width = (int)Math.max(1, Math.round(request.getWidth() / request.getDownsample()));
 		int height = (int)Math.max(1, Math.round(request.getHeight() / request.getDownsample()));
+
+		long startTime = System.currentTimeMillis();
+		// Handle the general case for RGB
 		if (isRGB()) {
 			BufferedImage imgResult = createDefaultRGBImage(width, height);
 			Graphics2D g2d = imgResult.createGraphics();
@@ -306,22 +330,6 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 			// Interpolate if downsampling
 			if (request.getDownsample() > 1)
 				g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-			
-			// Requests could be parallelized, but should consider the number of threads created/what happens if one blocks
-//			Map<TileRequest, BufferedImage> map = tiles.stream()
-//					.collect(Collectors.toMap(tileRequest -> tileRequest,
-//							tileRequest -> {
-//					try {
-//						return getTile(tileRequest);
-//					} catch (Exception ex) {
-//						return null;
-//					}
-//					}));
-//			for (TileRequest tileRequest : tiles) {
-//				BufferedImage imgTile = map.get(tileRequest);
-//				if (imgTile != null)
-//					g2d.drawImage(imgTile, tileRequest.getImageX(), tileRequest.getImageY(), tileRequest.getImageWidth(), tileRequest.getImageHeight(), null);
-//			}
 			
 			for (TileRequest tileRequest : tiles) {
 				BufferedImage imgTile = getTile(tileRequest);
