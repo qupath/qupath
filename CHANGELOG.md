@@ -15,11 +15,13 @@ This is a *work in progress* for the next major release.
 ### Dependency updates
 * Bio-Formats 7.3.0
 * Commonmark 0.22.0
-* DeepJavaLibrary 0.27.0
+* DeepJavaLibrary 0.28.0
 * Groovy 4.0.21
+* Gson 2.11.0
 * Guava 33.1.0-jre
 * JavaFX 22.0.1
 * JNA 5.14.0
+* Picocli 4.7.6
 * OpenCV 4.9.0
 * OpenJDK 21
 * slf4j 2.0.12

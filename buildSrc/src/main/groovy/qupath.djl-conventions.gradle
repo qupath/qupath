@@ -42,7 +42,7 @@ def djlVersion = libs.versions.deepJavaLibrary.get()
 
 dependencies {
 	if (djlApi) {
-		implementation libs.deepJavaLibrary
+		implementation libs.bundles.djl
 	}
 	if (djlZero) {
 		implementation "ai.djl:djl-zero:$djlVersion"

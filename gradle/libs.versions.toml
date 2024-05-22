@@ -10,10 +10,10 @@ commonsMath3    = "3.6.1"
 commonsText     = "1.10.0"
 controlsFX      = "11.1.2"
 
-deepJavaLibrary = "0.27.0"
+deepJavaLibrary = "0.28.0"
 
 groovy          = "4.0.21"
-gson            = "2.10.1"
+gson            = "2.11.0"
 guava           = "33.1.0-jre"
 
 ikonli          = "12.3.1"
@@ -40,7 +40,7 @@ logviewer       = "0.2.0-SNAPSHOT"
 
 openslide       = "4.0.0"
 
-picocli         = "4.7.5"
+picocli         = "4.7.6"
 qupath-fxtras   = "0.1.5-SNAPSHOT"
 
 richtextfx      = "0.11.2"
@@ -59,6 +59,7 @@ commons-text  = { module = "org.apache.commons:commons-text",   version.ref = "c
 controlsfx    = { module = "org.controlsfx:controlsfx",         version.ref = "controlsFX" }
 
 deepJavaLibrary = { module = "ai.djl:api",                      version.ref = "deepJavaLibrary" }
+deepJavaLibrary-zoo = { module = "ai.djl:model-zoo",            version.ref = "deepJavaLibrary" }
 
 gson          = { module = "com.google.code.gson:gson",         version.ref = "gson" }
 guava         = { module = "com.google.guava:guava",            version.ref = "guava" }
@@ -104,6 +105,7 @@ junit-platform   = { module = "org.junit.platform:junit-platform-launcher" }
 
 
 [bundles]
+djl           = ["deepJavaLibrary", "deepJavaLibrary-zoo"]
 groovy        = ["groovy-core", "groovy-jsr223", "groovy-xml"]
 ikonli        = ["ikonli-javafx", "ikonli-ionicons4"]
 logging       = ["slf4j", "logback"]
