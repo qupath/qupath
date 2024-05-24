@@ -6,9 +6,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.tools.WebViews;
 import qupath.ui.javadocviewer.gui.viewer.JavadocViewerCommand;
 
 import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Objects;
 import java.util.stream.Stream;
 
@@ -43,7 +47,9 @@ public class JavadocViewer implements Runnable {
     public JavadocViewer(Stage owner) {
         command = new JavadocViewerCommand(
                 owner,
+                WebViews.getStyleSheet(),
                 Stream.of(
+                                findJavadocUriAroundExecutable(),
                                 System.getProperty(JAVADOC_PATH_SYSTEM_PROPERTY),
                                 javadocPath.get(),
                                 PathPrefs.userPathProperty().get()
@@ -65,5 +71,40 @@ public class JavadocViewer implements Runnable {
     @Override
     public void run() {
         command.run();
+    }
+
+    private static String findJavadocUriAroundExecutable() {
+        URI codeUri;
+        try {
+            codeUri = JavadocViewer.class.getProtectionDomain().getCodeSource().getLocation().toURI();
+        } catch (URISyntaxException e) {
+            logger.debug("Could not convert URI", e);
+            return null;
+        }
+
+        Path codePath;
+        try {
+            codePath = Paths.get(codeUri);
+        } catch (Exception e) {
+            logger.debug(String.format("Could not convert URI %s to path", codeUri), e);
+            return null;
+        }
+
+        // If we have a jar file, we need to check the location...
+        if (codePath.getFileName().toString().toLowerCase().endsWith(".jar")) {
+            if (codePath.getParent().toString().endsWith("/build/libs")) {
+                // We are probably using gradlew run
+                // We can go up several directories to the root project, and then search inside for javadocs
+                return codePath.getParent().resolve("../../../").normalize().toString();
+            } else {
+                // We are probably within a pre-built package
+                // javadoc jars should be either in the same directory or a subdirectory
+                return codePath.getParent().toString();
+            }
+        } else {
+            // If we have a binary directory, we may well be launching from an IDE
+            // We can go up several directories to the root project, and then search inside for javadocs
+            return codePath.resolve("../../../").normalize().toString();
+        }
     }
 }
