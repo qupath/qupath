@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -30,6 +30,7 @@ import java.awt.Font;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.Shape;
+import java.awt.geom.Line2D;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
@@ -37,18 +38,24 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.WeakHashMap;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.awt.common.AwtTools;
 import qupath.lib.color.ColorToolsAwt;
+import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.geom.Point2;
 import qupath.lib.gui.images.servers.PathHierarchyImageServer;
 import qupath.lib.gui.images.stores.DefaultImageRegionStore;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.PathObjectPainter;
 import qupath.lib.images.ImageData;
@@ -61,6 +68,10 @@ import qupath.lib.objects.PathObjectConnections;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
+import qupath.lib.roi.EllipseROI;
+import qupath.lib.roi.LineROI;
+import qupath.lib.roi.RectangleROI;
+import qupath.lib.roi.interfaces.ROI;
 
 
 /**
@@ -84,7 +95,13 @@ public class HierarchyOverlay extends AbstractOverlay {
 	private int lastPointRadius = PathPrefs.pointRadiusProperty().get();
 	
 	private Font font = new Font("SansSerif", Font.BOLD, 10);
-	
+
+	// Map of points around which names should be displayed, to avoid frequent searches
+	private Map<ROI, Point2> nameConnectionPointMap = Collections.synchronizedMap(new WeakHashMap<>());
+
+	// Map of colors to use for displaying names, to avoid generating new color objects too often
+	private Map<Integer, Color> nameColorMap = new ConcurrentHashMap<>();
+
 	/**
 	 * Comparator to determine the order in which detections should be painted.
 	 * This should be used with caution! Check out the docs for the class for details.
@@ -290,13 +307,15 @@ public class HierarchyOverlay extends AbstractOverlay {
 					break;
 				}
 			}
-			float fontSize = (float)(requestedFontSize * downsampleFactor);
+			double fontDownsample = Math.min(downsampleFactor, 16);
+			float fontSize = (float)(requestedFontSize * fontDownsample);
 			if (!GeneralTools.almostTheSame(font.getSize2D(), fontSize, 0.001))
 				font = font.deriveFont(fontSize);
 			
 			g2d.setFont(font);
 			var metrics = g2d.getFontMetrics(font);
 			var rect = new Rectangle2D.Double();
+			var connector = new Line2D.Double();
 			g2d.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_ON);
 			g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 
@@ -306,23 +325,80 @@ public class HierarchyOverlay extends AbstractOverlay {
 				var roi = annotation.getROI();
 				
 				if (name != null && !name.isBlank() && roi != null && !overlayOptions.isPathClassHidden(annotation.getPathClass())) {
-					g2d.setColor(ColorToolsAwt.TRANSLUCENT_BLACK);
-	
+
 					var bounds = metrics.getStringBounds(name, g2d);
-					
-					double pad = 5.0 * downsampleFactor;
-					double x = roi.getCentroidX() - bounds.getWidth() / 2.0;
-					double y = roi.getCentroidY() + bounds.getY() + metrics.getAscent() + pad;
-	
+
+					// Find a point to connect to within the ROI
+					Point2 point = nameConnectionPointMap.computeIfAbsent(roi, this::findNamePointForROI);
+
+					double pad = 5.0 * fontDownsample;
+					double x = point.getX() - bounds.getWidth()/2.0;
+					double y = point.getY() - (bounds.getY() + metrics.getAscent() + pad*4);
 					rect.setFrame(x+bounds.getX()-pad, y+bounds.getY()-pad, bounds.getWidth()+pad*2, bounds.getHeight()+pad*2);
+
+					// Get the object color
+					int objectColorInt;
+					if (hierarchy.getSelectionModel().isSelected(annotation) && PathPrefs.useSelectedColorProperty().get())
+						objectColorInt = PathPrefs.colorSelectedObjectProperty().get();
+					else
+						objectColorInt = ColorToolsFX.getDisplayedColorARGB(annotation).intValue();
+
+					// Draw a line to where the name box will be
+					var objectColor = ColorToolsAwt.getCachedColor(objectColorInt);
+					float thickness = (float)(PathPrefs.annotationStrokeThicknessProperty().get() * fontDownsample);
+					g2d.setColor(objectColor);
+					g2d.setStroke(PathObjectPainter.getCachedStroke(thickness));
+					connector.setLine(rect.getCenterX(), rect.getMaxY(), point.getX(), point.getY());
+					g2d.draw(connector);
+
+					// Draw a name box
+					g2d.draw(rect);
+					var colorTranslucent = nameColorMap.computeIfAbsent(objectColorInt, this::getNameRectangleColor);
+					g2d.setColor(colorTranslucent);
 					g2d.fill(rect);
 					g2d.setColor(Color.WHITE);
-	
+
+					// Draw the text
 					g2d.drawString(name, (float)x, (float)y);
 				}
 			}
 		}
-		
+	}
+
+	/**
+	 * Get a color to use to fill the bounding box when showing an object's name
+	 * @param objectColorInt
+	 * @return
+	 */
+	private Color getNameRectangleColor(Integer objectColorInt) {
+		float darken = 0.6f;
+		return ColorToolsAwt.getCachedColor(
+				Math.round(ColorTools.red(objectColorInt) * darken),
+				Math.round(ColorTools.green(objectColorInt) * darken),
+				Math.round(ColorTools.blue(objectColorInt) * darken),
+				128
+		);
+	}
+
+	/**
+	 * Find a point around which to display an object's name, if required.
+	 * @param roi
+	 * @return
+	 */
+	private Point2 findNamePointForROI(ROI roi) {
+		if (roi instanceof RectangleROI || roi instanceof EllipseROI) {
+			// Use top centre for rectangle and ellipses
+			return new Point2(roi.getCentroidX(), roi.getBoundsY());
+		} else if (roi instanceof LineROI) {
+			// Use centroids for lines (2 points only)
+			return new Point2(roi.getCentroidX(), roi.getCentroidY());
+		} else {
+			Point2 target = new Point2(roi.getCentroidX(), roi.getBoundsY());
+			return roi.getAllPoints().stream()
+					.filter(p -> Math.abs(p.getY() - target.getY()) < 1e-3)
+					.min(Comparator.comparingDouble(p -> p.distanceSq(target)))
+					.get();
+		}
 	}
 	
 	/**
