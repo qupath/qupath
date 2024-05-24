@@ -35,6 +35,8 @@ dependencies {
   implementation libs.bundles.markdown
 
   implementation libs.bundles.logviewer
+
+  implementation libs.javadocviewer
 }
 
 javafx {
