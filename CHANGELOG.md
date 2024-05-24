@@ -13,6 +13,7 @@ This is a *work in progress* for the next major release.
   Channel name can sometimes change when using the quick channel color selector (https://github.com/qupath/qupath/issues/1500)
 * TileExporter exports ImageJ TIFFs with channels converted to z-stacks (https://github.com/qupath/qupath/issues/1503)
 * Black row or column appears on some downsampled images (https://github.com/qupath/qupath/issues/1527)
+* Full image annotations can be shifted accidentally outside the image bounds (https://github.com/qupath/qupath/issues/1533)
 
 ### Dependency updates
 * Bio-Formats 7.3.0
