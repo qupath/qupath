@@ -178,11 +178,11 @@ public class RoiEditor {
 			if (bounds.getMinX() + dx < constrainBounds.getMinX())
 				dx = constrainBounds.getMinX() - bounds.getMinX();
 			else if (bounds.getMaxX() + dx >= constrainBounds.getMaxX())
-				dx = constrainBounds.getMaxX() - bounds.getMaxX() - 1;
+				dx = constrainBounds.getMaxX() - bounds.getMaxX();
 			if (bounds.getMinY() + dy < constrainBounds.getMinY())
 				dy = constrainBounds.getMinY() - bounds.getMinY();
 			else if (bounds.getMaxY() + dy >= constrainBounds.getMaxY())
-				dy = constrainBounds.getMaxY() - bounds.getMaxY() - 1;
+				dy = constrainBounds.getMaxY() - bounds.getMaxY();
 		}
 
 		pTranslateCurrent.setLocation(pTranslateCurrent.getX() + dx, pTranslateCurrent.getY() + dy);
