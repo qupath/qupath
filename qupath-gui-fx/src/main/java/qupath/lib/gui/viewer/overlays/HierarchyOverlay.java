@@ -325,8 +325,7 @@ public class HierarchyOverlay extends AbstractOverlay {
 				var roi = annotation.getROI();
 				
 				if (name != null && !name.isBlank() && roi != null && !overlayOptions.isPathClassHidden(annotation.getPathClass())) {
-					g2d.setColor(ColorToolsAwt.TRANSLUCENT_BLACK);
-	
+
 					var bounds = metrics.getStringBounds(name, g2d);
 
 					// Find a point to connect to within the ROI
@@ -338,7 +337,11 @@ public class HierarchyOverlay extends AbstractOverlay {
 					rect.setFrame(x+bounds.getX()-pad, y+bounds.getY()-pad, bounds.getWidth()+pad*2, bounds.getHeight()+pad*2);
 
 					// Get the object color
-					var objectColorInt = ColorToolsFX.getDisplayedColorARGB(annotation).intValue();
+					int objectColorInt;
+					if (hierarchy.getSelectionModel().isSelected(annotation) && PathPrefs.useSelectedColorProperty().get())
+						objectColorInt = PathPrefs.colorSelectedObjectProperty().get();
+					else
+						objectColorInt = ColorToolsFX.getDisplayedColorARGB(annotation).intValue();
 
 					// Draw a line to where the name box will be
 					var objectColor = ColorToolsAwt.getCachedColor(objectColorInt);
