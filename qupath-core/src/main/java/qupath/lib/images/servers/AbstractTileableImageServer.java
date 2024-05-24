@@ -476,6 +476,8 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 				maxY = Math.max(maxY, tile.getRegionRequest().getMaxY());
 			}
 			if (maxX < request.getMaxX() || maxY < request.getMaxY()) {
+				// Compute the expected size of the image based on what the tiles can cover
+				// (the subtraction is so that x.5 is rounded down, not up)
 				int width2 = (int)Math.max(1, Math.round((maxX - request.getMinX()) / request.getDownsample() - 1e-9));
 				int height2 = (int)Math.max(1, Math.round((maxY - request.getMinY()) / request.getDownsample() - 1e-9));
 				// Be cautious with size adjustments - only permit changing by one pixel

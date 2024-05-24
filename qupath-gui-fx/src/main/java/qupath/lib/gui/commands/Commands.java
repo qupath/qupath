@@ -494,10 +494,16 @@ public class Commands {
 		
 		try {
 			if (request == null) {
-				if (exportDownsample.get() == 1.0)
+				if (exportDownsample.get() == 1.0) {
 					writer.writeImage(server, fileOutput.getAbsolutePath());
-				else
+				} else {
+					// On rare (hopefully?) occasions this can be problematic, including a black line as the final
+					// row and/or column. The workaround is to create a RegionRequest and use that instead.
+					// (The benefit of pyramidalization is that it can potentially do a better job of writing tiled
+					// images... or at least, I presume that's why I did this)
+					// See https://github.com/qupath/qupath/pull/1531
 					writer.writeImage(ImageServers.pyramidalize(server, exportDownsample.get()), fileOutput.getAbsolutePath());
+				}
 			} else
 				writer.writeImage(server, request, fileOutput.getAbsolutePath());
 			lastWriter = writer;
