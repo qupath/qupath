@@ -263,7 +263,7 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 	
 	
 	@Override
-	public BufferedImage readRegion(RegionRequest request) throws IOException {
+	public BufferedImage readRegion(final RegionRequest request) throws IOException {
 		// Check if we already have a tile for precisely this occasion - with the right server path
 		// Make a defensive copy, since the cache is critical
 		var cache = getCache();
@@ -294,31 +294,32 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 		// Ensure all tiles are either cached or pending before we continue
 		prerequestTiles(tiles);
 
-		// Fix output size to match tiles, if necessary
-		// See https://github.com/qupath/qupath/issues/1527
-		if (request.getDownsample() > 1 && nResolutions() > 1
-				&& request.getMaxX() <= getWidth() && request.getMaxY() <=  getHeight()
-				&& request.getMinX() >= 0 && request.getMinY() >= 0) {
-			int minX = Integer.MAX_VALUE;
-			int minY = Integer.MAX_VALUE;
-			int maxX = -Integer.MAX_VALUE;
-			int maxY = -Integer.MAX_VALUE;
-			for (var tile : tiles) {
-				minX = Math.min(minX, tile.getRegionRequest().getMinX());
-				minY = Math.min(minY, tile.getRegionRequest().getMinY());
-				maxX = Math.max(maxX, tile.getRegionRequest().getMaxX());
-				maxY = Math.max(maxY, tile.getRegionRequest().getMaxY());
-			}
-			if (minX != request.getMinX() || minY != request.getMinY() || maxX != request.getMaxX() || maxY != request.getMaxY()) {
-				var request2 = request.intersect2D(minX, minY, maxX, maxY);
-				logger.debug("RegionRequest updated from {} -> {}", request, request2);
-				request = request2;
-			}
-		}
-
 		// Determine output image size
 		int width = (int)Math.max(1, Math.round(request.getWidth() / request.getDownsample()));
 		int height = (int)Math.max(1, Math.round(request.getHeight() / request.getDownsample()));
+
+		// Fix output size to handle right/bottom edge issue caused by rounding/flooring within image pyramid
+		// See https://github.com/qupath/qupath/issues/1527
+		// The problem is that a black border can be created when there aren't quite enough pixels to fill the region,
+		// which happens if the lower-resolution levels have been truncated (even by a fraction of a pixel)
+		if (request.getDownsample() > 1 && nResolutions() > 1
+				&& request.getMaxX() == getWidth() || request.getMaxY() ==  getHeight()) {
+			int maxX = -Integer.MAX_VALUE;
+			int maxY = -Integer.MAX_VALUE;
+			for (var tile : tiles) {
+				maxX = Math.max(maxX, tile.getRegionRequest().getMaxX());
+				maxY = Math.max(maxY, tile.getRegionRequest().getMaxY());
+			}
+			if (maxX < request.getMaxX() || maxY < request.getMaxY()) {
+				int width2 = (int)Math.max(1, Math.round((maxX - request.getMinX()) / request.getDownsample() - 1e-9));
+				int height2 = (int)Math.max(1, Math.round((maxY - request.getMinY()) / request.getDownsample() - 1e-9));
+				if (width != width2 || height != height2) {
+					logger.debug("Region size updated from {}x{} to {}x{}", width, height, width2, height2);
+					width = width2;
+					height = height2;
+				}
+			}
+		}
 
 		long startTime = System.currentTimeMillis();
 		// Handle the general case for RGB
