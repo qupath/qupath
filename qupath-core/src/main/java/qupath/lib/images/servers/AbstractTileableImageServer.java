@@ -298,33 +298,10 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 		int width = (int)Math.max(1, Math.round(request.getWidth() / request.getDownsample()));
 		int height = (int)Math.max(1, Math.round(request.getHeight() / request.getDownsample()));
 
-		// Fix output size to handle right/bottom edge issue caused by rounding/flooring within image pyramid
-		// See https://github.com/qupath/qupath/issues/1527
-		// The problem is that a black border can be created when there aren't quite enough pixels to fill the region,
-		// which happens if the lower-resolution levels have been truncated (even by a fraction of a pixel)
-		if (request.getDownsample() > 1 && nResolutions() > 1
-				&& request.getMaxX() == getWidth() || request.getMaxY() ==  getHeight()) {
-			int maxX = -Integer.MAX_VALUE;
-			int maxY = -Integer.MAX_VALUE;
-			for (var tile : tiles) {
-				maxX = Math.max(maxX, tile.getRegionRequest().getMaxX());
-				maxY = Math.max(maxY, tile.getRegionRequest().getMaxY());
-			}
-			if (maxX < request.getMaxX() || maxY < request.getMaxY()) {
-				int width2 = (int)Math.max(1, Math.round((maxX - request.getMinX()) / request.getDownsample() - 1e-9));
-				int height2 = (int)Math.max(1, Math.round((maxY - request.getMinY()) / request.getDownsample() - 1e-9));
-				if (width != width2 || height != height2) {
-					logger.debug("Region size updated from {}x{} to {}x{}", width, height, width2, height2);
-					width = width2;
-					height = height2;
-				}
-			}
-		}
-
 		long startTime = System.currentTimeMillis();
 		// Handle the general case for RGB
 		if (isRGB()) {
-			BufferedImage imgResult = createDefaultRGBImage(width, height);
+			BufferedImage imgResult = createRGBImage(request, tiles, width, height);
 			Graphics2D g2d = imgResult.createGraphics();
 			g2d.scale(1.0/request.getDownsample(), 1.0/request.getDownsample());
 			g2d.translate(-request.getX(), -request.getY());
@@ -341,9 +318,9 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 			long endTime = System.currentTimeMillis();
 			logger.trace("Requested " + tiles.size() + " tiles in " + (endTime - startTime) + " ms (RGB)");
 
-			return imgResult;
+			return resizeIfNeeded(imgResult, width, height);
 		} else {
-			// Request all of the tiles we need & figure out image dimensions
+			// Request all the tiles we need & figure out image dimensions
 			// Do all this at the pyramid level of the tiles
 			WritableRaster raster = null;
 			ColorModel colorModel = null;
@@ -398,11 +375,6 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 							continue;
 						
 						copyPixels(imgTile.getRaster(), dx, dy, raster);
-
-//						raster.setRect(
-//								dx,
-//								dy,
-//								imgTile.getRaster());
 					}
 				}
 			}
@@ -435,26 +407,89 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 				int w = xEnd - xStart;
 				int h = yEnd - yStart;
 				
-//				int w = Math.min(raster.getWidth() - xStart, xEnd - xStart);
-//				int h = Math.min(raster.getHeight() - yStart, yEnd - yStart);
 				var raster2 = raster.createCompatibleWritableRaster(w, h);
 				copyPixels(raster, -x, -y, raster2);
 				raster = raster2;
 			}
 
-			// Return the image, resizing if necessary
+			// Return the image, resizing if necessary (we determined the raster size based on tiles, not the request)
 			BufferedImage imgResult = new BufferedImage(colorModel, raster, alphaPremultiplied, null);
-			int currentWidth = imgResult.getWidth();
-			int currentHeight = imgResult.getHeight();
-			if (currentWidth != width || currentHeight != height) {
-				imgResult = BufferedImageTools.resize(imgResult, width, height, allowSmoothInterpolation());
-			}
-			
+			imgResult = resizeIfNeeded(imgResult, width, height);
+
 			long endTime = System.currentTimeMillis();
 			logger.trace("Requested " + tiles.size() + " tiles in " + (endTime - startTime) + " ms (non-RGB)");
 			return imgResult;
 		}
 	}
+
+	/**
+	 * Resize an image if it doesn't match the expected dimensions, and log a debug message.
+	 * @param img the input image
+	 * @param width the required width
+	 * @param height the required height
+	 * @return the resized image if necessary, or the original image otherwise
+	 */
+	private BufferedImage resizeIfNeeded(BufferedImage img, int width, int height) {
+		int currentWidth = img.getWidth();
+		int currentHeight = img.getHeight();
+		if (currentWidth != width || currentHeight != height) {
+			logger.debug("Region size updated from {}x{} to {}x{}", currentWidth, currentHeight, width, height);
+			return BufferedImageTools.resize(img, width, height, allowSmoothInterpolation());
+		} else
+			return img;
+	}
+
+
+	/**
+	 * Create an RGB image to fulfill a request with the given tiles.
+	 * This method exists because of https://github.com/qupath/qupath/issues/1527
+	 * <p>
+	 * The problem is that a black border can be created when there aren't quite enough pixels to fill the region,
+	 * which happens if the lower-resolution levels have been truncated (even by a fraction of a pixel).
+	 * <p>
+	 * In this case, we want to paint to a small enough image that <i>does</i> fit, and handle resizing later if needed.
+	 * <p>
+	 * This method tries to be conservative in making these adjustments; it is better to allow a border than to
+	 * create an image that is of a very different size.
+	 * Therefore we only permit changing the size by one pixel in each dimension.
+	 *
+	 * @param request the region being requested
+	 * @param tiles the tiles to fulfil the request
+	 * @param expectedWidth the expected width of the image (computed from the request)
+	 * @param expectedHeight the expected height of the image (computed from the request)
+	 * @return a blank RGB image that can be used to draw the requested image
+	 */
+	private BufferedImage createRGBImage(RegionRequest request, Collection<TileRequest> tiles, int expectedWidth, int expectedHeight) {
+		int imgWidth = expectedWidth;
+		int imgHeight = expectedHeight;
+		// Fix output size to handle right/bottom edge issue caused by rounding/flooring within image pyramid
+		// See https://github.com/qupath/qupath/issues/1527
+		// Only permit adjustments if we expect to be fulfilling the request from only pixels within the image
+		// (don't change anything if the request is already known to be out-of-bounds at the full resolution)
+		if (request.getDownsample() > 1 && nResolutions() > 1
+				&& (request.getMaxX() == getWidth() || request.getMaxY() == getHeight())
+				&& (request.getMinX() >= 0 && request.getMinY() >= 0)) {
+			int maxX = -Integer.MAX_VALUE;
+			int maxY = -Integer.MAX_VALUE;
+			for (var tile : tiles) {
+				maxX = Math.max(maxX, tile.getRegionRequest().getMaxX());
+				maxY = Math.max(maxY, tile.getRegionRequest().getMaxY());
+			}
+			if (maxX < request.getMaxX() || maxY < request.getMaxY()) {
+				int width2 = (int)Math.max(1, Math.round((maxX - request.getMinX()) / request.getDownsample() - 1e-9));
+				int height2 = (int)Math.max(1, Math.round((maxY - request.getMinY()) / request.getDownsample() - 1e-9));
+				// Be cautious with size adjustments - only permit changing by one pixel
+				if (expectedWidth == width2+1 || expectedHeight == height2+1) {
+					logger.trace("RGB image size updated from {}x{} to {}x{} to avoid border problems",
+							expectedWidth, expectedHeight, width2, height2);
+					imgWidth = width2;
+					imgHeight = height2;
+				}
+			}
+		}
+		return createDefaultRGBImage(imgWidth, imgHeight);
+	}
+
 	
 	/**
 	 * Ensure all tiles in a list are either cached or requested.
