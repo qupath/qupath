@@ -3,3 +3,8 @@ body {
     color: rgb(200, 200, 200);
     background: rgb(45, 48, 50);
 }
+
+.sub-nav .nav-list-search {
+    /* Don't display built-in search, as it fails within a WebView */
+    display: none;
+}
