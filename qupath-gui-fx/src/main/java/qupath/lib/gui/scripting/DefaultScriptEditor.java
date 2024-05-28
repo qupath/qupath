@@ -2076,15 +2076,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 			
 		return action;
 	}
-	
-	
-	void attemptToQuitScriptEditor() {
-		if (listScripts.getItems().isEmpty())
-			dialog.close();
-		while (promptToClose(getCurrentScriptTab()))
-			continue;
-	}
-	
+
 	boolean promptToClose(final ScriptTab tab) {
 		int ind = listScripts.getItems().indexOf(tab);
 		if (ind < 0) {
