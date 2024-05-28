@@ -62,6 +62,6 @@ public interface ScriptEditor {
 	 * @return True if the editor can be closed without losing changes,
 	 * unless the user consents to losing changes.
 	 */
-	public boolean promptToClose();
+	public boolean requestClose();
 	
 }

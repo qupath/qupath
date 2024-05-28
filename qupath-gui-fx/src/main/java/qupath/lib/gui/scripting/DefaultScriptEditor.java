@@ -513,9 +513,10 @@ public class DefaultScriptEditor implements ScriptEditor {
 	}
 
 	@Override
-	public boolean promptToClose() {
-		if (listScripts.getItems().isEmpty())
+	public boolean requestClose() {
+		if (listScripts.getItems().isEmpty() && dialog != null) {
 			dialog.close();
+		}
 		var ret = true;
 		while (ret) {
 			var tab = getCurrentScriptTab();
@@ -701,13 +702,6 @@ public class DefaultScriptEditor implements ScriptEditor {
 				e.consume();
 			}
 	    });
-
-//		editor.getDocument().addUndoableEditListener(new UndoManager());
-//		// Handle tabs
-//		editor.getInputMap().put(KeyStroke.getKeyStroke(KeyEvent.VK_TAB, 0), "tab");
-//		editor.getActionMap().put("tab", new TabIndenter(editor, false));
-//		editor.getInputMap().put(KeyStroke.getKeyStroke(KeyEvent.VK_TAB, KeyEvent.SHIFT_DOWN_MASK), "shiftTab");
-//		editor.getActionMap().put("shiftTab", new TabIndenter(editor, true));
 		return control;
 	}
 	
@@ -723,7 +717,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 				maybeRefreshTab(getCurrentScriptTab(), false);
 		});
 
-//		dialog.setOnCloseRequest(e -> attemptToQuitScriptEditor());
+		dialog.setOnCloseRequest(e -> requestClose());
 		if (qupath != null)
 			dialog.initOwner(qupath.getStage());
 		dialog.titleProperty().bind(title);
@@ -744,10 +738,8 @@ public class DefaultScriptEditor implements ScriptEditor {
 				createRevertAction("Revert/Refresh"),
 				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(autoRefreshFiles, "Auto refresh files")),
 				null,
-				createCloseAction("Close script")
-//				null,
-//				createExitAction("Exit") // Exit actually dramatically quits the entire application...
-				);
+				createCloseAction("Close script"),
+				createExitAction("Close editor"));
 		
 		
 		menubar.getMenus().add(menuFile);
@@ -777,27 +769,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 				smartEditingAction,
 				miWrapLines
 				);
-//		menuEdit.setMnemonic(KeyEvent.VK_E);
-//
-//		menuEdit.add(undoAction);
-//		menuEdit.add(redoAction);
-//		menuEdit.addSeparator();
-//		
-//		menuItem = new MenuItem(cutAction);
-//		menuItem.setText("Cut");
-//		menuItem.setMnemonic(KeyEvent.VK_T);
-//		menuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_X, SHORTCUT_MASK));
-//		menuEdit.add(menuItem);
-//		menuItem = new MenuItem(copyAction);
-//		menuItem.setText("Copy");
-//		menuItem.setMnemonic(KeyEvent.VK_C);
-//		menuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_C, SHORTCUT_MASK));
-//		menuEdit.add(menuItem);
-//		menuItem = new MenuItem(pasteAction);
-//		menuItem.setText("Paste");
-//		menuItem.setMnemonic(KeyEvent.VK_P);
-//		menuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_V, SHORTCUT_MASK));
-//		menuEdit.add(menuItem);
+
 		menubar.getMenus().add(menuEdit);
 
 		// Set font size (common user request)
@@ -2001,7 +1973,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	
 	Action createExitAction(final String name) {
 		Action action = new Action(name, e -> {
-			attemptToQuitScriptEditor();
+			requestClose();
 			e.consume();
 		});
 		action.setAccelerator(new KeyCodeCombination(KeyCode.Q, KeyCombination.SHORTCUT_DOWN));
@@ -2111,9 +2083,10 @@ public class DefaultScriptEditor implements ScriptEditor {
 	
 	boolean promptToClose(final ScriptTab tab) {
 		int ind = listScripts.getItems().indexOf(tab);
-		if (ind < 0)
+		if (ind < 0) {
 			return false;
-		
+		}
+
 		// Check if we need to save
 		if (tab.isModifiedProperty().get() && tab.hasScript()) {
 			// TODO: Consider that this previously had a different parent for the dialog... and probably should
