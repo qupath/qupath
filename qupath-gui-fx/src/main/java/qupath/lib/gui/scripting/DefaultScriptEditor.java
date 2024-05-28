@@ -514,9 +514,6 @@ public class DefaultScriptEditor implements ScriptEditor {
 
 	@Override
 	public boolean requestClose() {
-		if (listScripts.getItems().isEmpty() && dialog != null) {
-			dialog.close();
-		}
 		var ret = true;
 		while (ret) {
 			var tab = getCurrentScriptTab();
@@ -524,6 +521,9 @@ public class DefaultScriptEditor implements ScriptEditor {
 				break;
 			}
 			ret = promptToClose(tab);
+		}
+		if (ret && dialog != null) {
+			dialog.close();
 		}
 		return ret;
 	}
@@ -717,7 +717,11 @@ public class DefaultScriptEditor implements ScriptEditor {
 				maybeRefreshTab(getCurrentScriptTab(), false);
 		});
 
-		dialog.setOnCloseRequest(e -> requestClose());
+		dialog.setOnCloseRequest(e -> {
+			if (!requestClose()) {
+				e.consume();
+			}
+		});
 		if (qupath != null)
 			dialog.initOwner(qupath.getStage());
 		dialog.titleProperty().bind(title);
