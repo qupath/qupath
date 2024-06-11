@@ -464,7 +464,9 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 						tree.refresh();
 					}
 				}
-							
+				ImageRow selectedImageRow = getSelectedImageRow();
+				refreshTree(selectedImageRow);
+
 			} else {
 				Dialogs.showErrorMessage("Edit image description", "No entry is selected!");
 			}
