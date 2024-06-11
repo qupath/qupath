@@ -5,6 +5,8 @@ This is a *work in progress* for the next major release.
 ### Enhancements
 * Read and write OME-Zarr images (https://github.com/qupath/qupath/pull/1474)
 * Improved display of annotation names
+* Support log10 counts with histograms (no longer use natural log)
+  * Log counts also now available in measurement tables
 
 ### Bugs fixed
 * Tile export to .ome.tif can convert to 8-bit unnecessarily (https://github.com/qupath/qupath/issues/1494)

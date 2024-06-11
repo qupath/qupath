@@ -78,10 +78,12 @@ public class HistogramDisplay implements ParameterChangeListener {
 	private String currentColumn = null;
 
 	private ParameterList params = new ParameterList()
-			.addBooleanParameter("normalizeCounts", "Normalize counts", false, "Normalize counts (probability distribution)")
+			.addChoiceParameter("countsTransform", "Counts",
+					HistogramChart.CountsTransformMode.RAW, Arrays.asList(HistogramChart.CountsTransformMode.values()),
+					"Normalize counts (probability distribution)")
+			.addIntParameter("nBins", "Number of bins", 32, null, "Number of histogram bins (>= 2 and <= 1000)")
 			.addBooleanParameter("drawGrid", "Draw grid", true, "Draw grid")
 			.addBooleanParameter("drawAxes", "Draw axes", true, "Draw axes")
-			.addIntParameter("nBins", "Number of bins", 32, null, "Number of histogram bins (>= 2 and <= 1000)")
 			.addBooleanParameter("animate", "Animate changes", false, "Animate changes");
 	private TableView<Property<Number>> table = new TableView<>();
 
@@ -248,8 +250,7 @@ public class HistogramDisplay implements ParameterChangeListener {
 //			histogram.setNormalizeCounts(params.getBooleanParameterValue("normalizeCounts"));
 
 			HistogramData histogramData = HistogramChart.createHistogramData(histogram, (Integer)null);
-			boolean doNormalize = params.getBooleanParameterValue("normalizeCounts");
-			histogramChart.setCountsTransform(doNormalize ? HistogramChart.CountsTransformMode.NORMALIZED : HistogramChart.CountsTransformMode.RAW);
+			updateCountsTransform(histogramChart, params);
 			histogramChart.getHistogramData().setAll(histogramData);
 
 
@@ -276,6 +277,18 @@ public class HistogramDisplay implements ParameterChangeListener {
 			histogramChart.getHistogramData().clear();
 	}
 
+	private static void updateCountsTransform(HistogramChart histogramChart, ParameterList params) {
+		var transform = params.getChoiceParameterValue("countsTransform");
+		if (transform instanceof HistogramChart.CountsTransformMode mode) {
+			histogramChart.setCountsTransform(mode);
+			if (transform == HistogramChart.CountsTransformMode.RAW)
+				histogramChart.getYAxis().setLabel("Counts");
+			else
+				histogramChart.getYAxis().setLabel("Counts (" + transform + ")");
+		} else
+			logger.warn("Histogram counts transform not supported: {}", transform);
+	}
+
 
 	/**
 	 * Refresh the currently-displayed histogram (e.g. because underlying data has changed).
@@ -300,28 +313,15 @@ public class HistogramDisplay implements ParameterChangeListener {
 
 	@Override
 	public void parameterChanged(ParameterList parameterList, String key, boolean isAdjusting) {
-		if ("normalizeCounts".equals(key)) {
-			boolean doNormalize = params.getBooleanParameterValue("normalizeCounts");
-			// This is rather clumsy (compared to just updating the histogram data),
-			// but the reason is that the animations are poor when the data is updated in-place
-			List<HistogramData> list = new ArrayList<>();
-			histogramChart.setCountsTransform(doNormalize ? HistogramChart.CountsTransformMode.NORMALIZED : HistogramChart.CountsTransformMode.RAW);
-			for (HistogramData histogramData : histogramChart.getHistogramData()) {
-				list.add(new HistogramData(histogramData.getHistogram(), histogramData.getStroke()));
-				//					histogramData.update();
-			}
-			histogramChart.getHistogramData().setAll(list);
-			return;
+		if ("countsTransform".equals(key)) {
+			updateCountsTransform(histogramChart, parameterList);
 		} else if ("drawGrid".equals(key)) {
 			histogramChart.setHorizontalGridLinesVisible(params.getBooleanParameterValue("drawGrid"));
 			histogramChart.setVerticalGridLinesVisible(params.getBooleanParameterValue("drawGrid"));
-			return;
 		} else if ("drawAxes".equals(key)) {
 			histogramChart.setShowTickLabels(params.getBooleanParameterValue("drawAxes"));
-			return;
 		} else if ("nBins".equals(key)) {
 			setHistogram(model, comboName.getSelectionModel().getSelectedItem());
-			return;
 		} else if ("animate".equals(key)) {
 			histogramChart.setAnimated(params.getBooleanParameterValue("animate"));
 		}

@@ -86,7 +86,20 @@ public class HistogramChart extends AreaChart<Number, Number> {
 		 * <p>
 		 * <b>Important: </b> HistogramChart cannot currently adjust the tick display to indicate a log scale.
 		 */
-		LOGARITHM
+		LOGARITHM;
+
+		public String toString() {
+			switch (this) {
+				case RAW:
+					return "Raw";
+				case NORMALIZED:
+					return "Normalized";
+				case LOGARITHM:
+					return "Log10";
+				default:
+					throw new IllegalArgumentException("Unknown count transform mode: " + this);
+			}
+		}
 	}
 
 	/**
@@ -374,7 +387,7 @@ public class HistogramChart extends AreaChart<Number, Number> {
 				case LOGARITHM:
 					// Count should also be an integer; for the histogram, display 0 as 0 rather than -Infinity
 					double count = histogram.getCountsForBin(bin);
-					return count == 0 ? 0 : Math.log(count);
+					return count == 0 ? 0 : Math.log10(count);
 				default:
 					throw new IllegalStateException("Unknown mode: " + mode);
 			}
