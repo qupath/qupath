@@ -28,6 +28,7 @@ import java.awt.geom.GeneralPath;
 import java.awt.geom.Path2D;
 import java.awt.geom.PathIterator;
 import java.awt.geom.Point2D;
+import java.awt.geom.Rectangle2D;
 import java.text.NumberFormat;
 import java.text.ParseException;
 import java.util.ArrayList;
@@ -1254,28 +1255,23 @@ public class GeometryTools {
 	
 	    private ShapeWriter getShapeWriter() {
 	    	return new ShapeWriter(transformer);
-//	        if (shapeWriter == null)
-//	            shapeWriter = new ShapeWriter(new Transformer());
-//	        return shapeWriter;
 	    }
 	
-	
-	//    private CoordinateSequence toCoordinates(PolygonROI roi) {
-	//        CoordinateList list = new CoordinateList();
-	//        for (Point2 p : roi.getPolygonPoints())
-	//            list.add(new Coordinate(p.getX() * pixelWidth, p.getY() * pixelHeight));
-	//        return new CoordinateArraySequence(list.toCoordinateArray());
-	//    }
+
 	
 	    private Shape geometryToShape(Geometry geometry) {
 	        var shape = getShapeWriter().toShape(geometry);
-	        // JTS Shapes can have some odd behavior (e.g. lack of contains method), so convert to Area if that is a suitable match
+	        // JTS Shapes can have some odd behavior (e.g. lack of contains method).
+			// Previously we converted to Area, but this could have terrible (unusable) performance for
+			// large and complex shapes - so instead we wrap and implement the missing methods
+			// using the geometry directly.
 	        if (geometry instanceof Polygonal && shape instanceof GeometryCollectionShape)
-	        	return new Area(shape);
+				return new GeometryShapeWrapper(geometry, shape);
 	        return shape;
 	    }
-	
-	    private ROI geometryToROI(Geometry geometry, ImagePlane plane) {
+
+
+		private ROI geometryToROI(Geometry geometry, ImagePlane plane) {
 	    	if (geometry.isEmpty())
 	    		return ROIs.createEmptyROI(plane);
 	    	
@@ -1375,4 +1371,71 @@ public class GeometryTools {
     }
 
 
+	/**
+	 * Wrapper for a JTS Shape.
+	 * This implements missing methods based on the original geometry,
+	 * to avoid unexpected exceptions when using the shape.
+	 */
+	private static class GeometryShapeWrapper implements Shape {
+
+		private final Shape shape;
+		private final Geometry geometry;
+
+		private GeometryShapeWrapper(Geometry geom, Shape shape) {
+			this.geometry = geom.copy();
+			this.shape = shape;
+		}
+
+		@Override
+		public Rectangle getBounds() {
+			return shape.getBounds();
+		}
+
+		@Override
+		public Rectangle2D getBounds2D() {
+			return shape.getBounds2D();
+		}
+
+		@Override
+		public boolean contains(double x, double y) {
+			return SimplePointInAreaLocator.isContained(new Coordinate(x, y), geometry);
+		}
+
+		@Override
+		public boolean contains(Point2D p) {
+			return contains(p.getX(), p.getY());
+		}
+
+		@Override
+		public boolean intersects(double x, double y, double w, double h) {
+			return geometry.intersects(
+					GeometryTools.createRectangle(x, y, w, h)
+			);
+		}
+
+		@Override
+		public boolean intersects(Rectangle2D r) {
+			return intersects(r.getX(), r.getY(), r.getWidth(), r.getHeight());
+		}
+
+		@Override
+		public boolean contains(double x, double y, double w, double h) {
+			return false;
+		}
+
+		@Override
+		public boolean contains(Rectangle2D r) {
+			return false;
+		}
+
+		@Override
+		public PathIterator getPathIterator(AffineTransform at) {
+			return shape.getPathIterator(at);
+		}
+
+		@Override
+		public PathIterator getPathIterator(AffineTransform at, double flatness) {
+			return shape.getPathIterator(at, flatness);
+		}
+	}
 }
