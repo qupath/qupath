@@ -74,33 +74,24 @@ public class FastPolygonUnion {
 
     private static final Logger logger = LoggerFactory.getLogger(FastPolygonUnion.class);
 
-    private static void populateAdjacencyMatrix(List<Polygon> allPolygons, AdjacencyMatrix matrix, SpatialIndex tree, int ind) {
-        var poly = allPolygons.get(ind);
-        for (int ind2 : (List<Integer>)tree.query(poly.getEnvelopeInternal())) {
-            // Matrix is symmetric, so only test where needed
-            if (ind2 <= ind || matrix.isAdjacent(ind, ind2))
-                continue;
-            // Check if polygons intersect
-            var poly2 = allPolygons.get(ind2);
-            if (poly.intersects(poly2)) {
-                matrix.setAdjacent(ind, ind2);
-            }
-        }
-    }
-
+    /**
+     * Compute a union of all polygons contained in an array of geometries.
+     * Non-polygon geometries will be ignored.
+     * @param geoms
+     * @return the union of polygons, or an empty polygon if no geometries are provided
+     */
     public static Geometry union(Geometry... geoms) {
         return union(Arrays.asList(geoms));
     }
 
-    private static List<Polygon> extractAllPolygons(Collection<? extends Geometry> geoms) {
-        List<Polygon> allPolygons = new ArrayList<>();
-        for (var g : geoms) {
-            PolygonExtracter.getPolygons(g, allPolygons);
-        }
-        return allPolygons;
-    }
-
+    /**
+     * Compute a union of all polygons contained in a collection of geometries.
+     * Non-polygon geometries will be ignored.
+     * @param geoms
+     * @return the union of polygons, or an empty polygon if no geometries are provided
+     */
     public static Geometry union(Collection<? extends Geometry> geoms) {
+        logger.trace("Calling union for {} geometries", geoms.size());
         List<Polygon> allPolygons = extractAllPolygons(geoms);
 
         // Create a tree of envelopes and polygon indices
@@ -148,6 +139,24 @@ public class FastPolygonUnion {
        return createPolygonalGeometry(toKeep);
     }
 
+    /**
+     * Extract all polygons from a collection of geometries.
+     * @param geoms
+     * @return
+     */
+    private static List<Polygon> extractAllPolygons(Collection<? extends Geometry> geoms) {
+        List<Polygon> allPolygons = new ArrayList<>();
+        for (var g : geoms) {
+            PolygonExtracter.getPolygons(g, allPolygons);
+        }
+        return allPolygons;
+    }
+
+    /**
+     * Create a standard union with JTS.
+     * @param geoms
+     * @return
+     */
     private static Geometry unionOpNg(Collection<Geometry> geoms) {
         var factory = GeometryTools.getDefaultFactory();
         return UnaryUnionNG.union(geoms, factory, factory.getPrecisionModel());
@@ -166,6 +175,20 @@ public class FastPolygonUnion {
             return list.get(0);
         else
             return GeometryTools.getDefaultFactory().createMultiPolygon(list.toArray(Polygon[]::new));
+    }
+
+    private static void populateAdjacencyMatrix(List<Polygon> allPolygons, AdjacencyMatrix matrix, SpatialIndex tree, int ind) {
+        var poly = allPolygons.get(ind);
+        for (int ind2 : (List<Integer>)tree.query(poly.getEnvelopeInternal())) {
+            // Matrix is symmetric, so only test where needed
+            if (ind2 <= ind || matrix.isAdjacent(ind, ind2))
+                continue;
+            // Check if polygons intersect
+            var poly2 = allPolygons.get(ind2);
+            if (poly.intersects(poly2)) {
+                matrix.setAdjacent(ind, ind2);
+            }
+        }
     }
 
     /**

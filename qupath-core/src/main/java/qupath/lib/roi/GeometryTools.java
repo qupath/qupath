@@ -74,8 +74,8 @@ import org.locationtech.jts.geom.util.LineStringExtracter;
 import org.locationtech.jts.geom.util.PolygonExtracter;
 import org.locationtech.jts.index.quadtree.Quadtree;
 import org.locationtech.jts.operation.overlay.snap.GeometrySnapper;
+import org.locationtech.jts.operation.overlayng.UnaryUnionNG;
 import org.locationtech.jts.operation.polygonize.Polygonizer;
-import org.locationtech.jts.operation.union.UnaryUnionOp;
 import org.locationtech.jts.operation.valid.IsValidOp;
 import org.locationtech.jts.operation.valid.TopologyValidationError;
 import org.locationtech.jts.precision.GeometryPrecisionReducer;
@@ -261,7 +261,7 @@ public class GeometryTools {
      * @param height
      * @return
      */
-    public static Geometry createRectangle(double x, double y, double width, double height) {
+    public static Polygon createRectangle(double x, double y, double width, double height) {
     	var shapeFactory = new GeometricShapeFactory(DEFAULT_FACTORY);
     	shapeFactory.setNumPoints(4); // Probably 5, but should be increased automatically
 		shapeFactory.setEnvelope(
@@ -270,6 +270,32 @@ public class GeometryTools {
 				);
 		return shapeFactory.createRectangle();
     }
+
+
+	/**
+	 * Create a line Geometry for the specified end points.
+	 * @param x1
+	 * @param y1
+	 * @param x2
+	 * @param y2
+	 * @return
+	 * @since v0.6.0
+	 */
+	public static LineString createLineString(double x1, double y1, double x2, double y2) {
+		return createLineString(new Point2(x1, y1), new Point2(x2, y2));
+	}
+
+	/**
+	 * Create a line Geometry for the specified array of points.
+	 * @param points
+	 * @return
+	 * @since v0.6.0
+	 */
+	public static LineString createLineString(Point2... points) {
+		return getDefaultFactory().createLineString(
+				Arrays.stream(points).map(p -> new Coordinate(p.getX(), p.getY())).toArray(Coordinate[]::new)
+		);
+	}
     
     
     /**
@@ -315,50 +341,42 @@ public class GeometryTools {
     	coords[4] = coords[0];
     	return DEFAULT_INSTANCE.factory.createPolygon(coords);
     }
-    
-    
-    /**
+
+	/**
+	 * Calculate the union of multiple Geometry objects.
+	 * @param geometries
+	 * @return
+	 * @since v0.6.0
+	 */
+	public static Geometry union(Geometry... geometries) {
+		return union(Arrays.asList(geometries));
+	}
+
+	/**
      * Calculate the union of multiple Geometry objects.
      * @param geometries
      * @return
+	 * @implNote since v0.6.0 this uses {@link FastPolygonUnion} for merging polygons.
      */
     public static Geometry union(Collection<? extends Geometry> geometries) {
-    	return union(geometries, false);
-    }
-    
-    
-    /**
-     * Calculate the union of multiple Geometry objects.
-     * @param geometries
-     * @param fastUnion if true, it can be assumed that the Geometries are valid and cannot overlap. This may permit a faster union operation.
-     * @return
-     */
-    private static Geometry union(Collection<? extends Geometry> geometries, boolean fastUnion) {
     	if (geometries.isEmpty())
-    		return DEFAULT_INSTANCE.factory.createPolygon();
+    		return getDefaultFactory().createPolygon();
     	if (geometries.size() == 1)
     		return geometries.iterator().next();
-    	if (fastUnion) {
-    		double areaSum = geometries.stream().mapToDouble(Geometry::getArea).sum();
-    		var union = DEFAULT_INSTANCE.factory.buildGeometry(geometries).buffer(0);
-    		double areaUnion = union.getArea();
-    		if (GeneralTools.almostTheSame(areaSum, areaUnion, 0.00001)) {
-    			return union;
-    		}
-    		logger.warn("Fast union failed with different areas ({} before vs {} after)", areaSum, areaUnion);
-    	}
-    	try {
-    		return UnaryUnionOp.union(geometries);
-    	} catch (Exception e) {
-    		// Throw exception if we have no other options
-    		if (fastUnion)
-    			throw e;
-    		else {
-    			// Try again with other path
-    			logger.warn("Exception attempting default union: {}", e.getLocalizedMessage());
-    			return union(geometries, true);
-    		}
-    	}
+		try {
+			if (geometries.size() > 2 || geometries.stream().allMatch(g -> g instanceof Polygonal)) {
+				// If we have multiple polygonal geometries, do things the 'fast' way
+				// (which may admittedly be slightly slower in some cases, but orders of magnitude faster in others)
+				return FastPolygonUnion.union(geometries);
+			} else {
+				// Standard union operation
+				logger.trace("Calling UnaryUnionNG for {} geometries", geometries.size());
+				return UnaryUnionNG.union(new ArrayList<>(geometries), getDefaultFactory().getPrecisionModel());
+			}
+		} catch (Exception e) {
+			logger.warn("Geometry union failed - attempting with buffer(0)");
+			return getDefaultFactory().buildGeometry(geometries).buffer(0);
+		}
     }
     
     /**
@@ -1120,12 +1138,12 @@ public class GeometryTools {
 			Geometry geometryOuter;
 			if (holes.isEmpty()) {
 				// If we have no holes, just use the outer geometry
-				geometryOuter = union(outer, true);
+				geometryOuter = union(outer);
 				geometry = geometryOuter;
 			} else if (outer.size() == 1) {
 				// If we just have one outer geometry, remove all the holes
-				geometryOuter = union(outer, true);
-				geometry = geometryOuter.difference(union(holes, true));
+				geometryOuter = union(outer);
+				geometry = geometryOuter.difference(union(holes));
 			} else {
 				// We need to handle holes... and, in particular, additional objects that may be nested within holes.
 				// To do that, we iterate through the holes and try to match these with the containing polygon, updating it accordingly.
