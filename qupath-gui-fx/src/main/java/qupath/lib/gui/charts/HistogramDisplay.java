@@ -67,17 +67,15 @@ public class HistogramDisplay implements ParameterChangeListener {
 	static final Logger logger = LoggerFactory.getLogger(HistogramDisplay.class);
 
 	private PathTableData<?> model;
-	private BorderPane pane = new BorderPane();
+	private final BorderPane pane = new BorderPane();
 
-	private ComboBox<String> comboName = new ComboBox<>();
-	private HistogramChart histogramChart = new HistogramChartLine();
-	private ParameterPanelFX panelParams;
+	private final ComboBox<String> comboName = new ComboBox<>();
+	private final HistogramChart histogramChart = new HistogramChart();
+	private final ParameterPanelFX panelParams;
 
 	private int currentBins;
 	private double[] currentValues;
 	private String currentColumn = null;
-
-	private final ParameterList paramsScatter = new ParameterList();
 
 	private final ParameterList paramsHistogram = new ParameterList()
 			.addChoiceParameter("countsTransform", "Counts",
