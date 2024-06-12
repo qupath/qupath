@@ -205,7 +205,7 @@ public class CellIntensityClassificationCommand implements Runnable {
 
 		// Add a log histogram checkbox below the histogram
 		pane.add(
-				SingleMeasurementClassificationCommand.SingleMeasurementPane.addLogHistogramCheckbox(
+				TwoMeasurementClassificationCommand.TwoMeasurementPane.addLogHistogramCheckbox(
 						chartPane, histogramPanel
 				), pane.getColumnCount(), 0, 1, pane.getRowCount());
 		

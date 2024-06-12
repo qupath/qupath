@@ -61,6 +61,7 @@ import qupath.process.gui.commands.ObjectClassifierLoadCommand;
 import qupath.process.gui.commands.PixelClassifierCommand;
 import qupath.process.gui.commands.SimpleThresholdCommand;
 import qupath.process.gui.commands.SingleMeasurementClassificationCommand;
+import qupath.process.gui.commands.TwoMeasurementClassificationCommand;
 import qupath.process.gui.commands.SplitProjectTrainingCommand;
 import qupath.process.gui.commands.ui.LoadResourceCommand;
 
@@ -165,13 +166,17 @@ public class ProcessingExtension implements QuPathExtension {
 		@ActionConfig("Action.Processing.Classify.createSingleMeasurementClassifier")
 		public final Action actionMeasurement;
 
+		@ActionConfig("Action.Processing.Classify.createTwoMeasurementClassifier")
+		public final Action actionDoubleMeasurement;
+
 		@ActionConfig("Action.Processing.Classify.createCompositeClassifier")
 		public final Action actionComposite;
-				
+
 		@ActionConfig("Action.Processing.Classify.setCellIntensityClassifications")
 		public final Action actionIntensity;
-		
-		
+
+
+
 		private ObjectClassificationCommands(QuPathGUI qupath) {
 			var commandLoad = new ObjectClassifierLoadCommand(qupath);
 			actionLoadObjectClassifier = qupath.createImageDataAction(imageData -> commandLoad.run());
@@ -181,7 +186,10 @@ public class ProcessingExtension implements QuPathExtension {
 			
 			var commandSingle = new SingleMeasurementClassificationCommand(qupath);
 			actionMeasurement = qupath.createImageDataAction(imageData -> commandSingle.run());
-			
+
+			var commandDouble = new TwoMeasurementClassificationCommand(qupath);
+			actionDoubleMeasurement = qupath.createImageDataAction(imageData -> commandDouble.run());
+
 			var commandIntensity = new CellIntensityClassificationCommand(qupath);
 			actionIntensity = qupath.createImageDataAction(imageData -> commandIntensity.run());
 			

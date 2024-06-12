@@ -70,14 +70,16 @@ public class HistogramDisplay implements ParameterChangeListener {
 	private BorderPane pane = new BorderPane();
 
 	private ComboBox<String> comboName = new ComboBox<>();
-	private HistogramChart histogramChart = new HistogramChart();
+	private HistogramChart histogramChart = new HistogramChartLine();
 	private ParameterPanelFX panelParams;
 
 	private int currentBins;
 	private double[] currentValues;
 	private String currentColumn = null;
 
-	private ParameterList params = new ParameterList()
+	private final ParameterList paramsScatter = new ParameterList();
+
+	private final ParameterList paramsHistogram = new ParameterList()
 			.addChoiceParameter("countsTransform", "Counts",
 					HistogramChart.CountsTransformMode.RAW, Arrays.asList(HistogramChart.CountsTransformMode.values()),
 					"Normalize counts (probability distribution)")
@@ -156,11 +158,10 @@ public class HistogramDisplay implements ParameterChangeListener {
 		comboName.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {
 			setHistogram(model, n);
 		});
+		histogramChart.setShowTickLabels(paramsHistogram.getBooleanParameterValue("drawAxes"));
 
-		histogramChart.setShowTickLabels(params.getBooleanParameterValue("drawAxes"));
 
-
-		panelParams = new ParameterPanelFX(params);
+		panelParams = new ParameterPanelFX(paramsHistogram);
 		panelParams.addParameterChangeListener(this);
 		panelParams.getPane().setPadding(new Insets(20, 5, 5, 5));
 		panelParams.getPane().setMinWidth(Pane.USE_PREF_SIZE);
@@ -207,11 +208,15 @@ public class HistogramDisplay implements ParameterChangeListener {
 	 * Set the number of bins for the histogram.
 	 * @param nBins the number of bins to use
 	 */
-	public void setNumBins(final int nBins) {
+	public void setNumBins(int nBins) {
+		if (nBins > 1e5) {
+			logger.warn("nBins set to strange value {}; resetting to 32.", nBins);
+			nBins = 32;
+		}
 		if (panelParams != null)
 			panelParams.setNumericParameterValue("nBins", nBins);
 		else
-			((IntParameter)params.getParameters().get("nBins")).setValue(nBins);
+			((IntParameter) paramsHistogram.getParameters().get("nBins")).setValue(nBins);
 	}
 
 	/**
@@ -219,7 +224,7 @@ public class HistogramDisplay implements ParameterChangeListener {
 	 * @return
 	 */
 	public int getNumBins() {
-		return params.getIntParameterValue("nBins");
+		return paramsHistogram.getIntParameterValue("nBins");
 	}
 
 	/**
@@ -233,7 +238,7 @@ public class HistogramDisplay implements ParameterChangeListener {
 	void setHistogram(final PathTableData<?> model, final String columnName) {
 		if (model != null && model.getMeasurementNames().contains(columnName)) {
 			double[] values = model.getDoubleValues(columnName);
-			int nBins = params.getIntParameterValue("nBins");
+			int nBins = paramsHistogram.getIntParameterValue("nBins");
 			if (nBins < 2)
 				nBins = 2;
 			else if (nBins > 1000)
@@ -250,7 +255,7 @@ public class HistogramDisplay implements ParameterChangeListener {
 //			histogram.setNormalizeCounts(params.getBooleanParameterValue("normalizeCounts"));
 
 			HistogramData histogramData = HistogramChart.createHistogramData(histogram, (Integer)null);
-			updateCountsTransform(histogramChart, params);
+			updateCountsTransform(histogramChart, paramsHistogram);
 			histogramChart.getHistogramData().setAll(histogramData);
 
 
@@ -265,7 +270,7 @@ public class HistogramDisplay implements ParameterChangeListener {
 			histogramChart.getXAxis().setTickLabelsVisible(true);
 			histogramChart.getXAxis().setTickMarkVisible(true);
 
-			histogramChart.setAnimated(params.getBooleanParameterValue("animate"));
+			histogramChart.setAnimated(paramsHistogram.getBooleanParameterValue("animate"));
 
 			updateTable(histogram);
 
@@ -316,14 +321,14 @@ public class HistogramDisplay implements ParameterChangeListener {
 		if ("countsTransform".equals(key)) {
 			updateCountsTransform(histogramChart, parameterList);
 		} else if ("drawGrid".equals(key)) {
-			histogramChart.setHorizontalGridLinesVisible(params.getBooleanParameterValue("drawGrid"));
-			histogramChart.setVerticalGridLinesVisible(params.getBooleanParameterValue("drawGrid"));
+			histogramChart.setHorizontalGridLinesVisible(paramsHistogram.getBooleanParameterValue("drawGrid"));
+			histogramChart.setVerticalGridLinesVisible(paramsHistogram.getBooleanParameterValue("drawGrid"));
 		} else if ("drawAxes".equals(key)) {
-			histogramChart.setShowTickLabels(params.getBooleanParameterValue("drawAxes"));
+			histogramChart.setShowTickLabels(paramsHistogram.getBooleanParameterValue("drawAxes"));
 		} else if ("nBins".equals(key)) {
 			setHistogram(model, comboName.getSelectionModel().getSelectedItem());
 		} else if ("animate".equals(key)) {
-			histogramChart.setAnimated(params.getBooleanParameterValue("animate"));
+			histogramChart.setAnimated(paramsHistogram.getBooleanParameterValue("animate"));
 		}
 	}
 
@@ -341,7 +346,6 @@ public class HistogramDisplay implements ParameterChangeListener {
 			table.getItems().setAll(stats);
 			return;
 		}
-
 		List<Property<Number>> stats = new ArrayList<>();
 		stats.add(new SimpleLongProperty(null, "Count", histogram.nValues()));
 		stats.add(new SimpleLongProperty(null, "Missing", histogram.nMissingValues()));
