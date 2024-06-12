@@ -54,8 +54,9 @@ import qupath.lib.roi.interfaces.ROI;
  * (e.g. java.awt.Area or some JavaFX alternative.)
  * 
  * @author Pete Bankhead
- *
+ * @deprecated since v0.6.0 (but really not used in recent versions)
  */
+@Deprecated
 public class AreaROI extends AbstractPathROI implements Serializable {
 	
 //	private static final Logger logger = LoggerFactory.getLogger(AreaROI.class);

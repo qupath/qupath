@@ -22,6 +22,7 @@
 package qupath.lib.roi;
 
 import java.awt.Shape;
+import java.awt.Rectangle;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Area;
 import java.awt.geom.GeneralPath;
@@ -96,7 +97,7 @@ import qupath.lib.roi.interfaces.ROI;
  */
 public class GeometryTools {
 	
-	private static Logger logger = LoggerFactory.getLogger(GeometryTools.class);
+	private static final Logger logger = LoggerFactory.getLogger(GeometryTools.class);
 	
 	private static final GeometryFactory DEFAULT_FACTORY = new GeometryFactory(
 			new PrecisionModel(100.0),
@@ -105,7 +106,7 @@ public class GeometryTools {
 
 	private static final PrecisionModel INTEGER_PRECISION_MODEL = new PrecisionModel(1);
     
-    private static GeometryConverter DEFAULT_INSTANCE = new GeometryConverter.Builder()
+    private static final GeometryConverter DEFAULT_INSTANCE = new GeometryConverter.Builder()
     		.build();
     
     /**
@@ -180,32 +181,9 @@ public class GeometryTools {
      * @return
      */
     public static Geometry shapeToGeometry(Shape shape) {
-//    	System.err.println("Shape area: " + new ClosedShapeStatistics(shape).getArea());
-    	var geometry = DEFAULT_INSTANCE.shapeToGeometry(shape);
-//    	System.err.println("Geometry area: " + geometry.getArea());
-    	return geometry;
-//    	return ShapeReader.read(shape, DEFAULT_INSTANCE.flatness, DEFAULT_INSTANCE.factory);
+    	return DEFAULT_INSTANCE.shapeToGeometry(shape);
     }
-    
-    
-//    /**
-//	 * Round coordinates in a Geometry to integer values, and constrain to the specified bounding box.
-//	 * @param geometry
-//     * @param minX 
-//     * @param minY 
-//     * @param maxX 
-//     * @param maxY 
-//     * @return 
-//	 */
-//	protected Geometry roundAndConstrain(Geometry geometry, double minX, double minY, double maxX, double maxY) {
-//		geometry = GeometryPrecisionReducer.reduce(geometry, new PrecisionModel(1));
-//		geometry = TopologyPreservingSimplifier.simplify(geometry, 0.0);
-//		geometry = geometry.intersection(GeometryTools.createRectangle(minX, minY, maxX-minX, maxY-minY));
-//		return geometry;
-////		roundingFilter.setBounds(minX, minY, maxX, maxY);
-////		geometry.apply(roundingFilter);
-////		return VWSimplifier.simplify(geometry, 0.5);
-//	}
+
 	
 	
     /**
@@ -361,7 +339,7 @@ public class GeometryTools {
     	if (geometries.size() == 1)
     		return geometries.iterator().next();
     	if (fastUnion) {
-    		double areaSum = geometries.stream().mapToDouble(g -> g.getArea()).sum();
+    		double areaSum = geometries.stream().mapToDouble(Geometry::getArea).sum();
     		var union = DEFAULT_INSTANCE.factory.buildGeometry(geometries).buffer(0);
     		double areaUnion = union.getArea();
     		if (GeneralTools.almostTheSame(areaSum, areaUnion, 0.00001)) {
@@ -531,10 +509,6 @@ public class GeometryTools {
         				iter.remove();
         				break;
         			}
-//        			if (PointLocation.isInRing(small.getInteriorPoint().getCoordinate(), ring.getCoordinates())) {
-//        				iter.remove();
-//        				break;
-//        			}
         		}
     		}
     	}
@@ -672,7 +646,7 @@ public class GeometryTools {
     	if (error == null)
     		return polygon;
     	
-		logger.debug("Invalid polygon detected! Attempting to correct {}", error.toString());
+		logger.debug("Invalid polygon detected! Attempting to correct {}", error);
 		
 		// Area calculations seem to be reliable... even if the topology is invalid
 		double areaBefore = polygon.getArea();
@@ -692,7 +666,7 @@ public class GeometryTools {
 				if (geomDifference.isValid())
 					return geomDifference;
 			} catch (Exception e) {
-				logger.debug("Attempting to fix by difference failed: " + e.getLocalizedMessage(), e);
+				logger.debug("Attempting to fix by difference failed: {}", e.getMessage(), e);
 			}
 		}
 		
@@ -804,10 +778,10 @@ public class GeometryTools {
      */
     public static class GeometryConverter {
     	
-        private GeometryFactory factory;
+        private final GeometryFactory factory;
 
-        private double pixelHeight, pixelWidth;
-        private double flatness = 0.1;
+        private final double pixelHeight, pixelWidth;
+        private final double flatness;
 
         private AffineTransform transform = null;
         private Transformer transformer;
@@ -948,18 +922,7 @@ public class GeometryTools {
 	    }
 	    
 	    private Geometry areaToGeometry(Area shape) {
-//	    	Geometry geometry = null;
-//	    	if (shape.isSingular()) {
-//	        	PathIterator iterator = shape.getPathIterator(transform, flatness);
-//	        	geometry = getShapeReader().read(iterator);
-//	    	} else {
 	    	return convertAreaToGeometry(shape, transform, flatness, factory);
-//	    	}
-	    	// Use simplifier to ensure a valid geometry
-//	    	var error = new IsValidOp(geometry).getValidationError();
-//	    	System.err.println(geometry.getArea());
-////	    	geometry = GeometrySnapper.snapToSelf(geometry, GeometryS, cleanResult)
-//	    	return VWSimplifier.simplify(geometry, 0);    		
 	    }
 	    
 	    
@@ -1075,7 +1038,7 @@ public class GeometryTools {
 				default:
 					// Shouldn't happen because of flattened PathIterator
 					throw new RuntimeException("Invalid area computation!");
-				};
+				}
 				areaTempSigned += 0.5 * (x0 * y1 - x1 * y0);
 				// Add polygon if it has just been closed
 				if (closed && points.size() == 1) {
@@ -1168,8 +1131,8 @@ public class GeometryTools {
 				// To do that, we iterate through the holes and try to match these with the containing polygon, updating it accordingly.
 				// By doing this in order we should find the 'correct' containing polygon.
 				var ascendingArea = Comparator.comparingDouble((GeometryWithArea g) -> g.area);
-				var outerWithArea = outer.stream().map(g -> new GeometryWithArea(g)).sorted(ascendingArea).toList();
-				var holesWithArea = holes.stream().map(g -> new GeometryWithArea(g)).sorted(ascendingArea).toList();
+				var outerWithArea = outer.stream().map(GeometryWithArea::new).sorted(ascendingArea).toList();
+				var holesWithArea = holes.stream().map(GeometryWithArea::new).sorted(ascendingArea).toList();
 				
 				// For each hole, find the smallest polygon that contains it
 				Map<Geometry, List<Geometry>> matches = new HashMap<>();
