@@ -374,7 +374,7 @@ public class GeometryTools {
 				return UnaryUnionNG.union(new ArrayList<>(geometries), getDefaultFactory().getPrecisionModel());
 			}
 		} catch (Exception e) {
-			logger.warn("Geometry union failed - attempting with buffer(0)");
+			logger.warn("Geometry union failed - attempting with buffer(0)", e);
 			return getDefaultFactory().buildGeometry(geometries).buffer(0);
 		}
     }
