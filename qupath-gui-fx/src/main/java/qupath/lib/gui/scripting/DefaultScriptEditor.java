@@ -1980,7 +1980,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 			requestClose();
 			e.consume();
 		});
-		action.setAccelerator(new KeyCodeCombination(KeyCode.W, KeyCombination.SHORTCUT_DOWN, KeyCombination.CONTROL_DOWN));
+		action.setAccelerator(new KeyCodeCombination(KeyCode.W, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
 		return action;
 	}
 	
