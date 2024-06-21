@@ -140,16 +140,19 @@ public class FastPolygonUnion {
     }
 
     /**
-     * Extract all polygons from a collection of geometries.
+     * Extract all non-empty polygons from a collection of geometries.
      * @param geoms
      * @return
      */
     private static List<Polygon> extractAllPolygons(Collection<? extends Geometry> geoms) {
         List<Polygon> allPolygons = new ArrayList<>();
         for (var g : geoms) {
-            PolygonExtracter.getPolygons(g, allPolygons);
+            if (g != null)
+                PolygonExtracter.getPolygons(g, allPolygons);
         }
-        return allPolygons;
+        return allPolygons.stream()
+                .filter(p -> p != null && !p.isEmpty())
+                .toList();
     }
 
     /**
@@ -159,7 +162,18 @@ public class FastPolygonUnion {
      */
     private static Geometry unionOpNg(Collection<Geometry> geoms) {
         var factory = GeometryTools.getDefaultFactory();
-        return UnaryUnionNG.union(geoms, factory, factory.getPrecisionModel());
+
+        if (geoms.isEmpty())
+            return factory.createPolygon();
+        else if (geoms.size() == 1)
+            return geoms.iterator().next();
+
+        try {
+            return UnaryUnionNG.union(geoms, factory, factory.getPrecisionModel());
+        } catch (Exception e) {
+            logger.error("Error during unary union operation for {} geometries, will attempt with buffer(0)", geoms.size(), e);
+            return factory.createGeometryCollection(geoms.toArray(Geometry[]::new)).buffer(0);
+        }
     }
 
     /**
