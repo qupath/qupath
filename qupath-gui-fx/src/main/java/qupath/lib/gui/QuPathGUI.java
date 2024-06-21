@@ -1013,9 +1013,15 @@ public class QuPathGUI {
 				return;
 			}
 		}
+
+		// should prompt users to save changes if desired.
+		if (!scriptEditor.requestClose()) {
+			e.consume();
+			return;
+		}
 		
 		// Warn if there is a script running
-		if (scriptRunning.get()) {
+        if (scriptRunning.get()) {
 			if (!Dialogs.showYesNoDialog("Quit QuPath", "A script is currently running! Quit anyway?")) {
 				logger.trace("Pressed no to quit window with script running!");
 				e.consume();
