@@ -52,6 +52,7 @@ import javafx.scene.layout.GridPane;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import qupath.fx.dialogs.FileChoosers;
+import qupath.fx.utils.FXUtils;
 import qupath.lib.analysis.heatmaps.DensityMaps;
 import qupath.lib.analysis.heatmaps.DensityMaps.DensityMapBuilder;
 import qupath.lib.classifiers.pixel.PixelClassifier;
@@ -306,6 +307,7 @@ public final class LoadResourceCommand<S> implements Runnable {
 		stage.initOwner(qupath.getStage());
 		stage.sizeToScene();
 		stage.setResizable(false);
+		FXUtils.addCloseWindowShortcuts(stage);
 		stage.show();
 		
 		stage.setOnHiding(e -> {

@@ -435,6 +435,7 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 		Scene scene = new Scene(pane, 640, 480);
 		
 		stage = new Stage();
+		FXUtils.addCloseWindowShortcuts(stage);
 		stage.initOwner(qupath.getStage());
 		stage.titleProperty().bindBidirectional(title);
 		stage.setScene(scene);
