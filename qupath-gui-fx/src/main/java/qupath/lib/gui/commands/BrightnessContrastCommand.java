@@ -60,6 +60,7 @@ import javafx.stage.Stage;
 import jfxtras.scene.layout.HBox;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.fx.utils.FXUtils;
 import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.display.ChannelDisplayInfo;
 import qupath.lib.display.ImageDisplay;
@@ -282,6 +283,7 @@ public class BrightnessContrastCommand implements Runnable {
 		dialog.setMinWidth(300);
 		dialog.setMinHeight(600);
 //		dialog.setMaxWidth(600);
+		FXUtils.addCloseWindowShortcuts(dialog);
 
 		table.updateTable();
 
