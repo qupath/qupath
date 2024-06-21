@@ -166,7 +166,19 @@ public class DefaultScriptEditor implements ScriptEditor {
 	private SplitPane splitMain;
 	private ToggleGroup toggleLanguages = new ToggleGroup();
 	private Font fontMain = Font.font("Courier");
-	
+
+	/**
+	 * Flag that quit was cancelled.
+	 * This is a workaround for the fact that (on macOS at least) Cmd+Q triggers a close request on all windows,
+	 * which can't be cancelled.
+	 * If the user cancels quitting because of unsaved changes, the window close requests continue anyway - leading to
+	 * the 'Save changes?' dialog being shown again.
+	 * This flag is set to true if the quit was cancelled recently, and then reset by Platform.runLater().
+	 * The purpose is to give an indication that the user has already requested to cancel quitting, and shouldn't be
+	 * immediately prompted again.
+	 */
+	private boolean quitCancelled = false;
+
 	/**
 	 * Pane to hold the main code component in its center
 	 */
@@ -514,6 +526,11 @@ public class DefaultScriptEditor implements ScriptEditor {
 
 	@Override
 	public boolean requestClose() {
+		// If the quit was cancelled, don't prompt again
+		if (quitCancelled) {
+			logger.debug("Script editor quit was cancelled, won't close or prompt again");
+			return false;
+		}
 		var ret = true;
 		while (ret) {
 			var tab = getCurrentScriptTab();
@@ -524,6 +541,10 @@ public class DefaultScriptEditor implements ScriptEditor {
 		}
 		if (ret && dialog != null) {
 			dialog.close();
+		} else if (!ret) {
+			quitCancelled = true;
+			logger.trace("Script Editor quit was cancelled");
+			Platform.runLater(() -> quitCancelled = false);
 		}
 		return ret;
 	}
