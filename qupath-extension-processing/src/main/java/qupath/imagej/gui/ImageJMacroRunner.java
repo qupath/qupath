@@ -51,6 +51,7 @@ import javax.swing.SwingUtilities;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import qupath.fx.utils.FXUtils;
 import qupath.imagej.tools.IJTools;
 import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.QuPathGUI;
@@ -124,7 +125,8 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 			dialog = new Stage();
 			dialog.initOwner(qupath.getStage());
 			dialog.setTitle("ImageJ macro runner");
-			
+			FXUtils.addCloseWindowShortcuts(dialog);
+
 			BorderPane pane = new BorderPane();
 
 			if (arg != null)

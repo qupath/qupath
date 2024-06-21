@@ -82,6 +82,7 @@ import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.RowConstraints;
 import javafx.stage.Stage;
+import qupath.fx.utils.FXUtils;
 import qupath.lib.awt.common.AwtTools;
 import qupath.lib.color.ColorToolsAwt;
 import qupath.lib.common.ColorTools;
@@ -128,7 +129,7 @@ public class MiniViewers {
 		
 		final Stage dialog = new Stage();
 		dialog.initOwner(viewer.getView().getScene().getWindow());
-		
+		FXUtils.addCloseWindowShortcuts(dialog);
 		
 		var channels = getChannels(viewer.getImageDisplay());
 		MiniViewerManager manager = createManager(viewer, channelViewer ? channels : Collections.emptyList());

@@ -39,6 +39,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javafx.stage.Stage;
+import qupath.fx.utils.FXUtils;
 import qupath.lib.analysis.stats.RunningStatistics;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.tma.TMAEntries.TMAEntry;
@@ -194,6 +195,7 @@ public class TMAExplorer implements Runnable {
 		
 		
 		Stage stage = new Stage();
+		FXUtils.addCloseWindowShortcuts(stage);
 		stage.initOwner(qupath.getStage());
 		TMASummaryViewer summaryViewer = new TMASummaryViewer(stage);
 		summaryViewer.setTMAEntries(entries);

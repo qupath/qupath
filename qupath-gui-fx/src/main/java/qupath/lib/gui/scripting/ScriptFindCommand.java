@@ -42,6 +42,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import qupath.fx.utils.FXUtils;
 import qupath.fx.utils.GridPaneUtils;
 
 /**
@@ -103,6 +104,7 @@ class ScriptFindCommand implements Runnable {
 	private void createFindStage() {
 		stage = new Stage();
 		stage.setTitle("Find/Replace");
+		FXUtils.addCloseWindowShortcuts(stage);
 		stage.initOwner(scriptEditor.getStage());
 		stage.initModality(Modality.NONE);
 		stage.setOnHiding(e -> {

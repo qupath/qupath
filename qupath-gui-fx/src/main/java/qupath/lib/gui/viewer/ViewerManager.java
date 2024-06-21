@@ -1138,6 +1138,7 @@ public class ViewerManager implements QuPathViewerListener {
 				splitRow.getItems().set(col, createViewer().getView());
 				refreshDividerBindings();
 				var stage = new Stage();
+				FXUtils.addCloseWindowShortcuts(stage);
 				var pane = new BorderPane(viewer.getView());
 				var scene = new Scene(pane);
 				stage.setScene(scene);

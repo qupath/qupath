@@ -204,6 +204,7 @@ public class BrightnessContrastCommand implements Runnable {
 
 		Stage dialog = new Stage();
 		dialog.initOwner(qupath.getStage());
+		FXUtils.addCloseWindowShortcuts(dialog);
 		dialog.setTitle("Brightness & contrast");
 
 		GridPane pane = new GridPane();

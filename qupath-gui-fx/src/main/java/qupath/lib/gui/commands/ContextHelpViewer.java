@@ -89,7 +89,7 @@ public class ContextHelpViewer {
 	
 	private int iconSize = 16;
 
-	private Stage stage = new Stage();
+	private Stage stage;
 	private ObservableList<Window> windows;
 	private EventHandler<MouseEvent> handler = this::handleMouseMove;
 
@@ -161,7 +161,6 @@ public class ContextHelpViewer {
 		createHelpLabels();
 
 		stage = createStage(new Scene(splitPane));
-		FXUtils.addCloseWindowShortcuts(stage);
 	}
 
 	private void imageDataChanged(ObservableValue<? extends ImageData<?>> observable,
@@ -220,7 +219,8 @@ public class ContextHelpViewer {
 		stage.titleProperty().bind(title);
 		stage.setWidth(300);
 		stage.setHeight(400);
-		stage.setScene(scene);		
+		stage.setScene(scene);
+		FXUtils.addCloseWindowShortcuts(stage);
 		return stage;
 	}
 	

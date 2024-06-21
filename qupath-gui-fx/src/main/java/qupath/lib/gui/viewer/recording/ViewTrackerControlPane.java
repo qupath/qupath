@@ -74,6 +74,7 @@ import javafx.util.Duration;
 import javafx.scene.control.TableRow;
 import javafx.scene.input.Dragboard;
 import javafx.scene.input.TransferMode;
+import qupath.fx.utils.FXUtils;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.actions.ActionTools;
@@ -519,6 +520,7 @@ public class ViewTrackerControlPane implements Runnable {
 			dialog.requestFocus();
 		else {
 			dialog = new Stage();
+			FXUtils.addCloseWindowShortcuts(dialog);
 			dialog.sizeToScene();
 			dialog.initOwner(qupath.getStage());
 			dialog.setTitle("Tracking");

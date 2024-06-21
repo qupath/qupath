@@ -603,6 +603,7 @@ public class Commands {
 		var dialog = new Stage();
 		if (qupath != null)
 			dialog.initOwner(qupath.getStage());
+		FXUtils.addCloseWindowShortcuts(dialog);
 		dialog.setTitle("Measurement maps");
 		
 		var panel = new MeasurementMapPane(qupath);
@@ -668,6 +669,7 @@ public class Commands {
 		
 		var dialog = new Stage();
 		dialog.initOwner(qupath.getStage());
+		FXUtils.addCloseWindowShortcuts(dialog);
 //			dialog.initModality(Modality.APPLICATION_MODAL);
 		dialog.setTitle("Preferences");
 		
@@ -776,6 +778,7 @@ public class Commands {
 	public static Stage createSpecifyAnnotationDialog(QuPathGUI qupath) {
 		SpecifyAnnotationCommand pane = new SpecifyAnnotationCommand(qupath);
 		var stage = new Stage();
+		FXUtils.addCloseWindowShortcuts(stage);
 		var scene = new Scene(pane.getPane());
 		stage.setScene(scene);
 		stage.setWidth(300);
@@ -1396,6 +1399,7 @@ public class Commands {
 	 */
 	public static void launchTMADataViewer(QuPathGUI qupath) {
 		Stage stage = new Stage();
+		FXUtils.addCloseWindowShortcuts(stage);
 		stage.setMinHeight(200);
 		stage.setMinWidth(200);
 		if (qupath != null)
@@ -1943,6 +1947,7 @@ public class Commands {
 	public static Stage createWorkflowDisplayDialog(QuPathGUI qupath) {
 		var view = new WorkflowCommandLogView(qupath);
 		Stage dialog = new Stage();
+		FXUtils.addCloseWindowShortcuts(dialog);
 		dialog.setMinHeight(200);
 		dialog.setMinWidth(200);
 		dialog.initOwner(qupath.getStage());
