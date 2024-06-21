@@ -879,6 +879,20 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		}
 		return id;
 	}
+
+	@Override
+	public void setMetadata(ImageServerMetadata metadata) {
+		var currentMetadata = getMetadata();
+		super.setMetadata(metadata);
+		if (currentMetadata != metadata && !currentMetadata.getLevels().equals(metadata.getLevels())) {
+			logger.warn("Can't set metadata to use incompatible pyramid levels - reverting to original pyramid levels");
+			super.setMetadata(
+					new ImageServerMetadata.Builder(metadata)
+					.levels(currentMetadata.getLevels())
+					.build()
+			);
+		}
+	}
 	
 	/**
 	 * Returns a builder capable of creating a server like this one.

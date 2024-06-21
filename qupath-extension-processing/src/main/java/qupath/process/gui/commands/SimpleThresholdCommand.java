@@ -328,6 +328,7 @@ public class SimpleThresholdCommand implements Runnable {
 		pane.setMaxSize(GridPane.USE_COMPUTED_SIZE, GridPane.USE_COMPUTED_SIZE);
 		
 		stage = new Stage();
+		FXUtils.addCloseWindowShortcuts(stage);
 		stage.setTitle("Create thresholder");
 		stage.initOwner(qupath.getStage());
 		stage.setScene(new Scene(pane));

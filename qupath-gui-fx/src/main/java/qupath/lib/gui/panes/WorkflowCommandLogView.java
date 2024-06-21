@@ -66,6 +66,7 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Pane;
 import javafx.stage.Stage;
 import javafx.util.Callback;
+import qupath.fx.utils.FXUtils;
 import qupath.lib.gui.QuPathGUI;
 import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.scripting.ScriptEditor;
@@ -327,6 +328,7 @@ public class WorkflowCommandLogView implements ChangeListener<ImageData<Buffered
 				if (workflow == null)
 					return;
 				Stage stage = new Stage();
+				FXUtils.addCloseWindowShortcuts(stage);
 				stage.initOwner(qupath.getStage());
 				stage.setTitle("Workflow");
 				Workflow workflowNew = new Workflow();

@@ -79,6 +79,7 @@ import javafx.util.Duration;
 import org.controlsfx.control.HiddenSidesPane;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.fx.utils.FXUtils;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.actions.ActionTools;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -322,12 +323,7 @@ public class CommandFinderTools {
 
 		stage.setScene(new Scene(pane, 600, 400));
 
-		stage.getScene().addEventFilter(KeyEvent.KEY_PRESSED, e -> {
-			if (e.getCode() == KeyCode.ESCAPE) {
-				stage.hide();
-				e.consume();
-			}
-		});
+		FXUtils.addCloseWindowShortcuts(stage);
 
 		textField.textProperty().addListener((v, o, n) -> {
 			// Ensure the table is up to date if we are just starting
@@ -382,13 +378,8 @@ public class CommandFinderTools {
 		pane.setBottom(panelSearch);
 		
 		stage.setScene(new Scene(pane, 600, 400));
-		
-		stage.getScene().addEventFilter(KeyEvent.KEY_PRESSED, e -> {
-	        if (e.getCode() == KeyCode.ESCAPE) {
-	        	stage.hide();
-	        	e.consume();
-	        }
-		});
+
+		FXUtils.addCloseWindowShortcuts(stage);
 		
 		textField.textProperty().addListener((v, o, n) -> {
 			// Ensure the table is up to date if we are just starting

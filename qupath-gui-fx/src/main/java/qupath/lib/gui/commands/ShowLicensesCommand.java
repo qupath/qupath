@@ -46,6 +46,7 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Pane;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import qupath.fx.utils.FXUtils;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.Urls;
@@ -126,6 +127,7 @@ class ShowLicensesCommand {
 		
 		// Create and show dialog
 		Stage dialog = new Stage();
+		FXUtils.addCloseWindowShortcuts(dialog);
 		dialog.initOwner(qupath.getStage());
 		dialog.initModality(Modality.APPLICATION_MODAL);
 		dialog.setTitle("Licenses");

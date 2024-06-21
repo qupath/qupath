@@ -45,6 +45,7 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.stage.Stage;
 import javafx.util.Duration;
+import qupath.fx.utils.FXUtils;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.prefs.PathPrefs;
 
@@ -270,7 +271,8 @@ class MemoryMonitorDialog {
 		stage.initOwner(qupath.getStage());
 		stage.setScene(new Scene(pane));
 		stage.setTitle("Memory monitor");
-		
+		FXUtils.addCloseWindowShortcuts(stage);
+
 		stage.setOnShowing(e -> {
 			btnToggleMonitoring.setSelected(true);
 		});

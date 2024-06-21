@@ -78,6 +78,7 @@ import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import javafx.stage.Stage;
 import qupath.fx.dialogs.FileChoosers;
+import qupath.fx.utils.FXUtils;
 import qupath.imagej.tools.IJTools;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
@@ -132,6 +133,7 @@ public class ExportTrainingRegionsCommand implements Runnable {
 			stage.setTitle("Export training");
 			exporter = new TrainingRegionExporter(qupath);
 			stage.setScene(new Scene(exporter.getPane()));
+			FXUtils.addCloseWindowShortcuts(stage);
 //		}
 		stage.show();
 	}

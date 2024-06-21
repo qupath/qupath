@@ -546,6 +546,7 @@ public class PixelClassifierPane {
 		pane.setPadding(new Insets(5));
 		
 		stage = new Stage();
+		FXUtils.addCloseWindowShortcuts(stage);
 		stage.setScene(new Scene(fullPane));
 		
 		stage.setMinHeight(400);

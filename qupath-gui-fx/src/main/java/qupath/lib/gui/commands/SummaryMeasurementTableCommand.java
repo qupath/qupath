@@ -83,6 +83,7 @@ import javafx.scene.layout.Priority;
 import javafx.stage.Stage;
 import qupath.fx.controls.PredicateTextField;
 import qupath.fx.dialogs.FileChoosers;
+import qupath.fx.utils.FXUtils;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.charts.HistogramDisplay;
@@ -338,6 +339,7 @@ public class SummaryMeasurementTableCommand {
 
 
 		Stage frame = new Stage();
+		FXUtils.addCloseWindowShortcuts(frame);
 		frame.initOwner(qupath.getStage());
 		frame.titleProperty().bind(title);
 
