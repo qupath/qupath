@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -78,6 +78,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
@@ -287,15 +288,29 @@ public class PathIO {
 		}
 		
 	}
-	
-	
-	
-	private static <T> ImageData<T> readImageDataSerialized(final Path path, ImageData<T> imageData, ImageServer<T> server, Class<T> cls) throws FileNotFoundException, IOException {
+
+
+	private static <T> ImageData<T> readImageDataSerialized(final Path path, ImageData<T> imageData,
+															ImageServer<T> server, Class<T> cls) throws FileNotFoundException, IOException {
+		imageData = readImageDataSerialized(path, imageData, () -> server, cls);
+		imageData.getServer(); // Ensure the server is loaded
+		return imageData;
+	}
+
+	private static <T> ImageData<T> readImageDataSerialized(final InputStream stream, ImageData<T> imageData,
+															ImageServer<T> server, Class<T> cls) throws FileNotFoundException, IOException {
+		imageData = readImageDataSerialized(stream, imageData, () -> server, cls);
+		imageData.getServer(); // Ensure the server is loaded
+		return imageData;
+	}
+
+	private static <T> ImageData<T> readImageDataSerialized(final Path path, ImageData<T> imageData,
+															Supplier<ImageServer<T>> serverSupplier, Class<T> cls) throws FileNotFoundException, IOException {
 		if (path == null)
 			return null;
 		logger.info("Reading data from {}...", path.getFileName().toString());
 		try (InputStream stream = Files.newInputStream(path)) {
-			imageData = readImageDataSerialized(stream, imageData, server, cls);	
+			imageData = readImageDataSerialized(stream, imageData, serverSupplier, cls);
 			// Set the last saved path (actually the path from which this was opened)
 			if (imageData != null)
 				imageData.setLastSavedPath(path.toAbsolutePath().toString(), true);
@@ -307,7 +322,7 @@ public class PathIO {
 	}
 	
 	@SuppressWarnings("unchecked")
-	private static <T> ImageData<T> readImageDataSerialized(final InputStream stream, ImageData<T> imageData, ImageServer<T> server, Class<T> cls) throws IOException {
+	private static <T> ImageData<T> readImageDataSerialized(final InputStream stream, ImageData<T> imageData, Supplier<ImageServer<T>> serverSupplier, Class<T> cls) throws IOException {
 		
 		long startTime = System.currentTimeMillis();
 		Locale locale = Locale.getDefault(Category.FORMAT);
@@ -338,7 +353,7 @@ public class PathIO {
 
 			String serverString = (String)inStream.readObject();
 			// Don't log warnings if we are provided with a server
-			serverBuilder = extractServerBuilder(serverString, server == null);
+			serverBuilder = extractServerBuilder(serverString, serverSupplier == null);
 
 			while (true) {
 				//					logger.debug("Starting read: " + inStream.available());
@@ -395,23 +410,27 @@ public class PathIO {
 			var existingBuilder = imageData == null || imageData.getServer() == null ? null : imageData.getServer().getBuilder();
 			if (imageData == null || !Objects.equals(serverBuilder, existingBuilder)) {
 				// Create a new server if we need to
-				if (server == null) {
-					try {
-						server = serverBuilder.build();
-					} catch (Exception e) {
-						logger.error(e.getLocalizedMessage());
+				if (serverSupplier == null) {
+					// Load the server lazily
+					var builder = serverBuilder;
+					serverSupplier = () -> {
+						try {
+							return builder.build();
+						} catch (Exception e) {
+							logger.error("Warning: Unable to build server with " + builder);
+							if (e instanceof RuntimeException runtimeException)
+								throw runtimeException;
+							else
+								throw new RuntimeException(e);
+						}
 					};
-					if (server == null) {
-						logger.error("Warning: Unable to build server with " + serverBuilder);
-						//							throw new RuntimeException("Warning: Unable to create server for path " + serverPath);
-					}
 				}
 				// TODO: Make this less clumsy... but for now we need to ensure we have a fully-initialized hierarchy (which deserialization alone doesn't achieve)
 				PathObjectHierarchy hierarchy2 = new PathObjectHierarchy();
 				hierarchy2.setHierarchy(hierarchy);
 				hierarchy = hierarchy2;
 
-				imageData = new ImageData<>(server, hierarchy, imageType);
+				imageData = new ImageData<>(serverSupplier, null, hierarchy, imageType);
 			} else {
 				if (imageType != null)
 					imageData.setImageType(imageType);
@@ -485,6 +504,20 @@ public class PathIO {
 	 */
 	public static <T> ImageData<T> readImageData(final InputStream stream, ImageData<T> imageData, ImageServer<T> server, Class<T> cls) throws IOException {
 		return readImageDataSerialized(stream, imageData, server, cls);
+	}
+
+
+	/**
+	 * Read an ImageData with lazy image loading.
+	 * @param stream
+	 * @param serverSupplier
+	 * @param cls
+	 * @return
+	 * @param <T>
+	 * @throws IOException
+	 */
+	public static <T> ImageData<T> readLazyImageData(final InputStream stream, Supplier<ImageServer<T>> serverSupplier, Class<T> cls) throws IOException {
+		return readImageDataSerialized(stream, null, serverSupplier, cls);
 	}
 
 	
