@@ -60,6 +60,7 @@ import qupath.lib.gui.dialogs.ParameterPanelFX;
 import qupath.lib.gui.images.servers.ChannelDisplayTransformServer;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.fx.utils.GridPaneUtils;
+import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.PathImage;
 import qupath.lib.images.servers.ImageServer;
@@ -159,6 +160,7 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 
 					// TODO: Consider that we're requesting a new ImageData here (probably right, but need to check)
 					var viewer = qupath.getViewer();
+					var overlayOptions = viewer.getOverlayOptions();
 					var imageDataLocal = viewer.getImageData();
 					PathObjectHierarchy hierarchy = imageDataLocal.getHierarchy();
 					PathObject pathObject = hierarchy.getSelectionModel().singleSelection() ? hierarchy.getSelectionModel().getSelectedObject() : null;
@@ -166,7 +168,10 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 						SwingUtilities.invokeLater(() -> {
 							runMacro(params,
 									imageDataLocal,
-									viewer.getImageDisplay(), pathObject, macroText);
+									viewer.getImageDisplay(),
+									pathObject,
+									macroText,
+									overlayOptions);
 						});
 					} else {
 						//						DisplayHelpers.showErrorMessage(getClass().getSimpleName(), "Sorry, ImageJ macros can only be run for single selected images");
@@ -205,9 +210,14 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 		return true;
 	}
 
-
-
 	static void runMacro(final ParameterList params, final ImageData<BufferedImage> imageData, final ImageDisplay imageDisplay, final PathObject pathObject, final String macroText) {
+		runMacro(params, imageData, imageDisplay, pathObject, macroText, null);
+	}
+
+
+	static void runMacro(final ParameterList params, final ImageData<BufferedImage> imageData, final ImageDisplay imageDisplay,
+						 final PathObject pathObject, final String macroText,
+						 final OverlayOptions options) {
 
 		// Don't try if interrupted
 		if (Thread.currentThread().isInterrupted()) {
@@ -236,8 +246,10 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 		}
 		
 		try {
+			// TODO: Consider use of OverlayOptions to provide more control
+			// see https://forum.image.sc/t/unexpected-behavior-difference-in-imagej-macro-runner-vs-send-region-to-imagej/96089
 			if (sendOverlay)
-				pathImage = IJExtension.extractROIWithOverlay(server, pathObject, imageData.getHierarchy(), region, sendROI, null);
+				pathImage = IJExtension.extractROIWithOverlay(server, pathObject, imageData.getHierarchy(), region, sendROI, options);
 			else
 				pathImage = IJExtension.extractROI(server, pathObject, region, sendROI);
 		} catch (IOException e) {
@@ -343,8 +355,7 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 				
 //			});
 		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			logger.error(e.getMessage(), e);
 		}
 
 	}
@@ -397,29 +408,20 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 	protected void addRunnableTasks(final ImageData<BufferedImage> imageData, final PathObject parentObject, final List<Runnable> tasks) {
 		final ParameterList params = getParameterList(imageData);
 		boolean doParallel = Boolean.TRUE.equals(params.getBooleanParameterValue("doParallel"));
-		tasks.add(new Runnable() {
-
-			@Override
-			public void run() {
-				if (Thread.currentThread().isInterrupted()) {
-					logger.warn("Execution interrupted - skipping {}", parentObject);
-					return;
-				}
-				if (SwingUtilities.isEventDispatchThread() || doParallel)
-					runMacro(params, imageData, null, parentObject, macroText); // TODO: Deal with logging macro text properly
-				else {
-					try {
-						SwingUtilities.invokeAndWait(() -> runMacro(params, imageData, null, parentObject, macroText));
-					} catch (InvocationTargetException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					} catch (InterruptedException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					} // TODO: Deal with logging macro text properly
+		tasks.add(() -> {
+			if (Thread.currentThread().isInterrupted()) {
+				logger.warn("Execution interrupted - skipping {}", parentObject);
+				return;
+			}
+			if (SwingUtilities.isEventDispatchThread() || doParallel)
+				runMacro(params, imageData, null, parentObject, macroText); // TODO: Deal with logging macro text properly
+			else {
+				try {
+					SwingUtilities.invokeAndWait(() -> runMacro(params, imageData, null, parentObject, macroText));
+				} catch (Exception e) {
+					logger.error(e.getMessage(), e);
 				}
 			}
-
 		});
 	}
 
@@ -434,13 +436,5 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 				pathObjects = new ArrayList<>(hierarchy.getSelectionModel().getSelectedObjects());
 		}
 		return pathObjects;
-		
-//		// TODO: Give option to analyse annotations, even when TMA grid is present
-//		ImageData<BufferedImage> imageData = runner.getImageData();
-//		TMAGrid tmaGrid = imageData.getHierarchy().getTMAGrid();
-//		if (tmaGrid != null && tmaGrid.nCores() > 0)
-//			return PathObjectTools.getTMACoreObjects(imageData.getHierarchy(), false);
-//		else
-//			return imageData.getHierarchy().getObjects(null, PathAnnotationObject.class);
 	}
 }
