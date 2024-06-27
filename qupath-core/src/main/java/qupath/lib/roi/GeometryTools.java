@@ -22,12 +22,14 @@
 package qupath.lib.roi;
 
 import java.awt.Shape;
+import java.awt.Rectangle;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Area;
 import java.awt.geom.GeneralPath;
 import java.awt.geom.Path2D;
 import java.awt.geom.PathIterator;
 import java.awt.geom.Point2D;
+import java.awt.geom.Rectangle2D;
 import java.text.NumberFormat;
 import java.text.ParseException;
 import java.util.ArrayList;
@@ -72,8 +74,8 @@ import org.locationtech.jts.geom.util.LineStringExtracter;
 import org.locationtech.jts.geom.util.PolygonExtracter;
 import org.locationtech.jts.index.quadtree.Quadtree;
 import org.locationtech.jts.operation.overlay.snap.GeometrySnapper;
+import org.locationtech.jts.operation.overlayng.UnaryUnionNG;
 import org.locationtech.jts.operation.polygonize.Polygonizer;
-import org.locationtech.jts.operation.union.UnaryUnionOp;
 import org.locationtech.jts.operation.valid.IsValidOp;
 import org.locationtech.jts.operation.valid.TopologyValidationError;
 import org.locationtech.jts.precision.GeometryPrecisionReducer;
@@ -95,7 +97,7 @@ import qupath.lib.roi.interfaces.ROI;
  */
 public class GeometryTools {
 	
-	private static Logger logger = LoggerFactory.getLogger(GeometryTools.class);
+	private static final Logger logger = LoggerFactory.getLogger(GeometryTools.class);
 	
 	private static final GeometryFactory DEFAULT_FACTORY = new GeometryFactory(
 			new PrecisionModel(100.0),
@@ -104,7 +106,7 @@ public class GeometryTools {
 
 	private static final PrecisionModel INTEGER_PRECISION_MODEL = new PrecisionModel(1);
     
-    private static GeometryConverter DEFAULT_INSTANCE = new GeometryConverter.Builder()
+    private static final GeometryConverter DEFAULT_INSTANCE = new GeometryConverter.Builder()
     		.build();
     
     /**
@@ -179,32 +181,9 @@ public class GeometryTools {
      * @return
      */
     public static Geometry shapeToGeometry(Shape shape) {
-//    	System.err.println("Shape area: " + new ClosedShapeStatistics(shape).getArea());
-    	var geometry = DEFAULT_INSTANCE.shapeToGeometry(shape);
-//    	System.err.println("Geometry area: " + geometry.getArea());
-    	return geometry;
-//    	return ShapeReader.read(shape, DEFAULT_INSTANCE.flatness, DEFAULT_INSTANCE.factory);
+    	return DEFAULT_INSTANCE.shapeToGeometry(shape);
     }
-    
-    
-//    /**
-//	 * Round coordinates in a Geometry to integer values, and constrain to the specified bounding box.
-//	 * @param geometry
-//     * @param minX 
-//     * @param minY 
-//     * @param maxX 
-//     * @param maxY 
-//     * @return 
-//	 */
-//	protected Geometry roundAndConstrain(Geometry geometry, double minX, double minY, double maxX, double maxY) {
-//		geometry = GeometryPrecisionReducer.reduce(geometry, new PrecisionModel(1));
-//		geometry = TopologyPreservingSimplifier.simplify(geometry, 0.0);
-//		geometry = geometry.intersection(GeometryTools.createRectangle(minX, minY, maxX-minX, maxY-minY));
-//		return geometry;
-////		roundingFilter.setBounds(minX, minY, maxX, maxY);
-////		geometry.apply(roundingFilter);
-////		return VWSimplifier.simplify(geometry, 0.5);
-//	}
+
 	
 	
     /**
@@ -282,7 +261,7 @@ public class GeometryTools {
      * @param height
      * @return
      */
-    public static Geometry createRectangle(double x, double y, double width, double height) {
+    public static Polygon createRectangle(double x, double y, double width, double height) {
     	var shapeFactory = new GeometricShapeFactory(DEFAULT_FACTORY);
     	shapeFactory.setNumPoints(4); // Probably 5, but should be increased automatically
 		shapeFactory.setEnvelope(
@@ -291,6 +270,32 @@ public class GeometryTools {
 				);
 		return shapeFactory.createRectangle();
     }
+
+
+	/**
+	 * Create a line Geometry for the specified end points.
+	 * @param x1
+	 * @param y1
+	 * @param x2
+	 * @param y2
+	 * @return
+	 * @since v0.6.0
+	 */
+	public static LineString createLineString(double x1, double y1, double x2, double y2) {
+		return createLineString(new Point2(x1, y1), new Point2(x2, y2));
+	}
+
+	/**
+	 * Create a line Geometry for the specified array of points.
+	 * @param points
+	 * @return
+	 * @since v0.6.0
+	 */
+	public static LineString createLineString(Point2... points) {
+		return getDefaultFactory().createLineString(
+				Arrays.stream(points).map(p -> new Coordinate(p.getX(), p.getY())).toArray(Coordinate[]::new)
+		);
+	}
     
     
     /**
@@ -336,50 +341,42 @@ public class GeometryTools {
     	coords[4] = coords[0];
     	return DEFAULT_INSTANCE.factory.createPolygon(coords);
     }
-    
-    
-    /**
+
+	/**
+	 * Calculate the union of multiple Geometry objects.
+	 * @param geometries
+	 * @return
+	 * @since v0.6.0
+	 */
+	public static Geometry union(Geometry... geometries) {
+		return union(Arrays.asList(geometries));
+	}
+
+	/**
      * Calculate the union of multiple Geometry objects.
      * @param geometries
      * @return
+	 * @implNote since v0.6.0 this uses {@link FastPolygonUnion} for merging polygons.
      */
     public static Geometry union(Collection<? extends Geometry> geometries) {
-    	return union(geometries, false);
-    }
-    
-    
-    /**
-     * Calculate the union of multiple Geometry objects.
-     * @param geometries
-     * @param fastUnion if true, it can be assumed that the Geometries are valid and cannot overlap. This may permit a faster union operation.
-     * @return
-     */
-    private static Geometry union(Collection<? extends Geometry> geometries, boolean fastUnion) {
     	if (geometries.isEmpty())
-    		return DEFAULT_INSTANCE.factory.createPolygon();
+    		return getDefaultFactory().createPolygon();
     	if (geometries.size() == 1)
     		return geometries.iterator().next();
-    	if (fastUnion) {
-    		double areaSum = geometries.stream().mapToDouble(g -> g.getArea()).sum();
-    		var union = DEFAULT_INSTANCE.factory.buildGeometry(geometries).buffer(0);
-    		double areaUnion = union.getArea();
-    		if (GeneralTools.almostTheSame(areaSum, areaUnion, 0.00001)) {
-    			return union;
-    		}
-    		logger.warn("Fast union failed with different areas ({} before vs {} after)", areaSum, areaUnion);
-    	}
-    	try {
-    		return UnaryUnionOp.union(geometries);
-    	} catch (Exception e) {
-    		// Throw exception if we have no other options
-    		if (fastUnion)
-    			throw e;
-    		else {
-    			// Try again with other path
-    			logger.warn("Exception attempting default union: {}", e.getLocalizedMessage());
-    			return union(geometries, true);
-    		}
-    	}
+		try {
+			if (geometries.size() > 2 || geometries.stream().allMatch(g -> g instanceof Polygonal)) {
+				// If we have multiple polygonal geometries, do things the 'fast' way
+				// (which may admittedly be slightly slower in some cases, but orders of magnitude faster in others)
+				return FastPolygonUnion.union(geometries);
+			} else {
+				// Standard union operation
+				logger.trace("Calling UnaryUnionNG for {} geometries", geometries.size());
+				return UnaryUnionNG.union(new ArrayList<>(geometries), getDefaultFactory().getPrecisionModel());
+			}
+		} catch (Exception e) {
+			logger.warn("Geometry union failed - attempting with buffer(0)", e);
+			return getDefaultFactory().buildGeometry(geometries).buffer(0);
+		}
     }
     
     /**
@@ -530,10 +527,6 @@ public class GeometryTools {
         				iter.remove();
         				break;
         			}
-//        			if (PointLocation.isInRing(small.getInteriorPoint().getCoordinate(), ring.getCoordinates())) {
-//        				iter.remove();
-//        				break;
-//        			}
         		}
     		}
     	}
@@ -671,7 +664,7 @@ public class GeometryTools {
     	if (error == null)
     		return polygon;
     	
-		logger.debug("Invalid polygon detected! Attempting to correct {}", error.toString());
+		logger.debug("Invalid polygon detected! Attempting to correct {}", error);
 		
 		// Area calculations seem to be reliable... even if the topology is invalid
 		double areaBefore = polygon.getArea();
@@ -691,7 +684,7 @@ public class GeometryTools {
 				if (geomDifference.isValid())
 					return geomDifference;
 			} catch (Exception e) {
-				logger.debug("Attempting to fix by difference failed: " + e.getLocalizedMessage(), e);
+				logger.debug("Attempting to fix by difference failed: {}", e.getMessage(), e);
 			}
 		}
 		
@@ -803,10 +796,10 @@ public class GeometryTools {
      */
     public static class GeometryConverter {
     	
-        private GeometryFactory factory;
+        private final GeometryFactory factory;
 
-        private double pixelHeight, pixelWidth;
-        private double flatness = 0.1;
+        private final double pixelHeight, pixelWidth;
+        private final double flatness;
 
         private AffineTransform transform = null;
         private Transformer transformer;
@@ -947,18 +940,7 @@ public class GeometryTools {
 	    }
 	    
 	    private Geometry areaToGeometry(Area shape) {
-//	    	Geometry geometry = null;
-//	    	if (shape.isSingular()) {
-//	        	PathIterator iterator = shape.getPathIterator(transform, flatness);
-//	        	geometry = getShapeReader().read(iterator);
-//	    	} else {
 	    	return convertAreaToGeometry(shape, transform, flatness, factory);
-//	    	}
-	    	// Use simplifier to ensure a valid geometry
-//	    	var error = new IsValidOp(geometry).getValidationError();
-//	    	System.err.println(geometry.getArea());
-////	    	geometry = GeometrySnapper.snapToSelf(geometry, GeometryS, cleanResult)
-//	    	return VWSimplifier.simplify(geometry, 0);    		
 	    }
 	    
 	    
@@ -1074,7 +1056,7 @@ public class GeometryTools {
 				default:
 					// Shouldn't happen because of flattened PathIterator
 					throw new RuntimeException("Invalid area computation!");
-				};
+				}
 				areaTempSigned += 0.5 * (x0 * y1 - x1 * y0);
 				// Add polygon if it has just been closed
 				if (closed && points.size() == 1) {
@@ -1156,19 +1138,19 @@ public class GeometryTools {
 			Geometry geometryOuter;
 			if (holes.isEmpty()) {
 				// If we have no holes, just use the outer geometry
-				geometryOuter = union(outer, true);
+				geometryOuter = union(outer);
 				geometry = geometryOuter;
 			} else if (outer.size() == 1) {
 				// If we just have one outer geometry, remove all the holes
-				geometryOuter = union(outer, true);
-				geometry = geometryOuter.difference(union(holes, true));
+				geometryOuter = union(outer);
+				geometry = geometryOuter.difference(union(holes));
 			} else {
 				// We need to handle holes... and, in particular, additional objects that may be nested within holes.
 				// To do that, we iterate through the holes and try to match these with the containing polygon, updating it accordingly.
 				// By doing this in order we should find the 'correct' containing polygon.
 				var ascendingArea = Comparator.comparingDouble((GeometryWithArea g) -> g.area);
-				var outerWithArea = outer.stream().map(g -> new GeometryWithArea(g)).sorted(ascendingArea).toList();
-				var holesWithArea = holes.stream().map(g -> new GeometryWithArea(g)).sorted(ascendingArea).toList();
+				var outerWithArea = outer.stream().map(GeometryWithArea::new).sorted(ascendingArea).toList();
+				var holesWithArea = holes.stream().map(GeometryWithArea::new).sorted(ascendingArea).toList();
 				
 				// For each hole, find the smallest polygon that contains it
 				Map<Geometry, List<Geometry>> matches = new HashMap<>();
@@ -1254,28 +1236,23 @@ public class GeometryTools {
 	
 	    private ShapeWriter getShapeWriter() {
 	    	return new ShapeWriter(transformer);
-//	        if (shapeWriter == null)
-//	            shapeWriter = new ShapeWriter(new Transformer());
-//	        return shapeWriter;
 	    }
 	
-	
-	//    private CoordinateSequence toCoordinates(PolygonROI roi) {
-	//        CoordinateList list = new CoordinateList();
-	//        for (Point2 p : roi.getPolygonPoints())
-	//            list.add(new Coordinate(p.getX() * pixelWidth, p.getY() * pixelHeight));
-	//        return new CoordinateArraySequence(list.toCoordinateArray());
-	//    }
+
 	
 	    private Shape geometryToShape(Geometry geometry) {
 	        var shape = getShapeWriter().toShape(geometry);
-	        // JTS Shapes can have some odd behavior (e.g. lack of contains method), so convert to Area if that is a suitable match
+	        // JTS Shapes can have some odd behavior (e.g. lack of contains method).
+			// Previously we converted to Area, but this could have terrible (unusable) performance for
+			// large and complex shapes - so instead we wrap and implement the missing methods
+			// using the geometry directly.
 	        if (geometry instanceof Polygonal && shape instanceof GeometryCollectionShape)
-	        	return new Area(shape);
+				return new GeometryShapeWrapper(geometry, shape);
 	        return shape;
 	    }
-	
-	    private ROI geometryToROI(Geometry geometry, ImagePlane plane) {
+
+
+		private ROI geometryToROI(Geometry geometry, ImagePlane plane) {
 	    	if (geometry.isEmpty())
 	    		return ROIs.createEmptyROI(plane);
 	    	
@@ -1375,4 +1352,71 @@ public class GeometryTools {
     }
 
 
+	/**
+	 * Wrapper for a JTS Shape.
+	 * This implements missing methods based on the original geometry,
+	 * to avoid unexpected exceptions when using the shape.
+	 */
+	private static class GeometryShapeWrapper implements Shape {
+
+		private final Shape shape;
+		private final Geometry geometry;
+
+		private GeometryShapeWrapper(Geometry geom, Shape shape) {
+			this.geometry = geom.copy();
+			this.shape = shape;
+		}
+
+		@Override
+		public Rectangle getBounds() {
+			return shape.getBounds();
+		}
+
+		@Override
+		public Rectangle2D getBounds2D() {
+			return shape.getBounds2D();
+		}
+
+		@Override
+		public boolean contains(double x, double y) {
+			return SimplePointInAreaLocator.isContained(new Coordinate(x, y), geometry);
+		}
+
+		@Override
+		public boolean contains(Point2D p) {
+			return contains(p.getX(), p.getY());
+		}
+
+		@Override
+		public boolean intersects(double x, double y, double w, double h) {
+			return geometry.intersects(
+					GeometryTools.createRectangle(x, y, w, h)
+			);
+		}
+
+		@Override
+		public boolean intersects(Rectangle2D r) {
+			return intersects(r.getX(), r.getY(), r.getWidth(), r.getHeight());
+		}
+
+		@Override
+		public boolean contains(double x, double y, double w, double h) {
+			return false;
+		}
+
+		@Override
+		public boolean contains(Rectangle2D r) {
+			return false;
+		}
+
+		@Override
+		public PathIterator getPathIterator(AffineTransform at) {
+			return shape.getPathIterator(at);
+		}
+
+		@Override
+		public PathIterator getPathIterator(AffineTransform at, double flatness) {
+			return shape.getPathIterator(at, flatness);
+		}
+	}
 }
