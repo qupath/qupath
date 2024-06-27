@@ -817,7 +817,15 @@ public class PathObjectTools {
 			if (hierarchy == null)
 				return Collections.emptyList();
 			Set<PathObject> pathObjects = new HashSet<>(8);
-			hierarchy.getObjectsForRegion(PathObject.class, ImageRegion.createInstance((int)x, (int)y, 1, 1, zPos, tPos), pathObjects);
+			// Introduce searchWidth to address https://github.com/qupath/qupath/issues/1552 -
+			// previously points were often missed
+			int searchWidth = (int)Math.ceil(Math.max(vertexDistance * 2, 2));
+			hierarchy.getObjectsForRegion(PathObject.class, ImageRegion.createInstance(
+					(int)(x - searchWidth/2),
+					(int)(y - searchWidth/2),
+					searchWidth,
+					searchWidth,
+					zPos, tPos), pathObjects);
 			if (vertexDistance < 0)
 				removePoints(pathObjects); // Ensure we don't have any PointROIs
 			
