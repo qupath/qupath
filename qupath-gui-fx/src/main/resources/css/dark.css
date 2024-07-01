@@ -96,7 +96,4 @@
     AXIS_COLOR: derive(-fx-background,40%);
 }
 
-.list-cell:filled:selected:focused .button .text {
-    -fx-fill: -fx-text-base-color;
-}
 
