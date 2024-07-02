@@ -35,6 +35,7 @@ import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.geometry.Point2D;
 import javafx.scene.Cursor;
+import javafx.scene.chart.Axis;
 import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.XYChart;
 import javafx.scene.layout.BorderPane;
@@ -50,6 +51,11 @@ import java.util.Map;
  * Pane that can be used to contain an XYChart, adding adjustable thresholds to be displayed.
  */
 public class ChartThresholdPane extends BorderPane {
+
+    public enum ThresholdAxis {
+        X,
+        Y
+    }
 
     private static final Logger logger = LoggerFactory.getLogger(ChartThresholdPane.class);
 
@@ -83,9 +89,9 @@ public class ChartThresholdPane extends BorderPane {
                 for (ObservableNumberValue removedItem : c.getRemoved()) {
                     getChildren().remove(vLines.remove(removedItem));
                 }
-                for (ObservableNumberValue addedItem : c.getAddedSubList()) {
-                    addThreshold(addedItem);
-                }
+                // for (ObservableNumberValue addedItem : c.getAddedSubList()) {
+                //     addThreshold(addedItem);
+                // }
             }
         }
     }
@@ -152,7 +158,7 @@ public class ChartThresholdPane extends BorderPane {
      * @return
      */
     public ObservableNumberValue addThreshold(final double x, final Color color) {
-        return addThreshold(new SimpleDoubleProperty(x), color);
+        return addThreshold(new SimpleDoubleProperty(x), color, ThresholdAxis.X);
     }
 
     /**
@@ -162,7 +168,7 @@ public class ChartThresholdPane extends BorderPane {
      * @return
      */
     public ObservableNumberValue addThreshold(final ObservableNumberValue d) {
-        return addThreshold(d, null);
+        return addThreshold(d, null, ThresholdAxis.X);
     }
 
     /**
@@ -172,7 +178,7 @@ public class ChartThresholdPane extends BorderPane {
      * @param color
      * @return
      */
-    private ObservableNumberValue addThreshold(final ObservableNumberValue d, final Color color) {
+    public ObservableNumberValue addThreshold(final ObservableNumberValue d, final Color color, ThresholdAxis whichAxis) {
         Line line = new Line();
         line.getStyleClass().add("qupath-histogram-line");
         if (color != null)
@@ -182,70 +188,13 @@ public class ChartThresholdPane extends BorderPane {
 //            line.setStyle("-fx-stroke: ladder(-fx-background, "
 //                    + "derive(-fx-background, 30%) 49%, "
 //                    + "derive(-fx-background, -30%) 50%);");
+
         line.strokeWidthProperty().bind(lineWidth);
+        boolean isX = whichAxis == ThresholdAxis.X;
 
-        // Bind the requested x position of the line to the 'actual' coordinate within the parent
-        line.startXProperty().bind(
-                Bindings.createDoubleBinding(() -> {
-                            double xAxisPosition = xAxis.getDisplayPosition(d.doubleValue());
-                            Point2D positionInScene = xAxis.localToScene(xAxisPosition, 0);
-                            return sceneToLocal(positionInScene).getX();
-                        },
-                        d,
-                        chart.widthProperty(),
-                        chart.heightProperty(),
-                        chart.boundsInParentProperty(),
-                        xAxis.lowerBoundProperty(),
-                        xAxis.upperBoundProperty(),
-                        xAxis.autoRangingProperty(),
-                        yAxis.autoRangingProperty(),
-                        yAxis.lowerBoundProperty(),
-                        yAxis.upperBoundProperty(),
-                        yAxis.scaleProperty()
-                )
-        );
+        bindThresholdLine(d, line, isX);
 
-        // End position same as starting position for vertical line
-        line.endXProperty().bind(line.startXProperty());
-
-        // Bind the y coordinates to the top and bottom of the chart
-        // Binding to scale property can cause 2 calls, but this is required
-        line.startYProperty().bind(
-                Bindings.createDoubleBinding(() -> {
-                            double yAxisPosition = yAxis.getDisplayPosition(yAxis.getLowerBound());
-                            Point2D positionInScene = yAxis.localToScene(0, yAxisPosition);
-                            return sceneToLocal(positionInScene).getY();
-                        },
-                        chart.widthProperty(),
-                        chart.heightProperty(),
-                        chart.boundsInParentProperty(),
-                        xAxis.lowerBoundProperty(),
-                        xAxis.upperBoundProperty(),
-                        xAxis.autoRangingProperty(),
-                        yAxis.autoRangingProperty(),
-                        yAxis.lowerBoundProperty(),
-                        yAxis.upperBoundProperty(),
-                        yAxis.scaleProperty()
-                )
-        );
-        line.endYProperty().bind(
-                Bindings.createDoubleBinding(() -> {
-                            double yAxisPosition = yAxis.getDisplayPosition(yAxis.getUpperBound());
-                            Point2D positionInScene = yAxis.localToScene(0, yAxisPosition);
-                            return sceneToLocal(positionInScene).getY();
-                        },
-                        chart.widthProperty(),
-                        chart.heightProperty(),
-                        chart.boundsInParentProperty(),
-                        xAxis.lowerBoundProperty(),
-                        xAxis.upperBoundProperty(),
-                        xAxis.autoRangingProperty(),
-                        yAxis.autoRangingProperty(),
-                        yAxis.lowerBoundProperty(),
-                        yAxis.upperBoundProperty(),
-                        yAxis.scaleProperty()
-                )
-        );
+        bindStaticPoints(line, isX);
 
         line.visibleProperty().bind(
                 Bindings.createBooleanBinding(() -> {
@@ -287,6 +236,79 @@ public class ChartThresholdPane extends BorderPane {
         getChildren().add(line);
         //			updateChart();
         return d;
+    }
+
+    private void bindStaticPoints(Line line, boolean isX) {
+        // Bind the other coordinates to the extrema of the chart
+        // Binding to scale property can cause 2 calls, but this is required
+        var axisOther = isX ? yAxis : xAxis;
+        var startProp = isX ? line.startYProperty() : line.startXProperty();
+        startProp.bind(
+                Bindings.createDoubleBinding(() -> {
+                            double axisPosition = axisOther.getDisplayPosition(axisOther.getLowerBound());
+                            Point2D positionInScene = isX ? axisOther.localToScene(0, axisPosition) : axisOther.localToScene(axisPosition, 0);
+                            return isX ? sceneToLocal(positionInScene).getY() : sceneToLocal(positionInScene).getX();
+                        },
+                        chart.widthProperty(),
+                        chart.heightProperty(),
+                        chart.boundsInParentProperty(),
+                        xAxis.lowerBoundProperty(),
+                        xAxis.upperBoundProperty(),
+                        xAxis.autoRangingProperty(),
+                        yAxis.autoRangingProperty(),
+                        yAxis.lowerBoundProperty(),
+                        yAxis.upperBoundProperty(),
+                        yAxis.scaleProperty()
+                )
+        );
+        var endProp = isX ? line.endYProperty() : line.endXProperty();
+        endProp.bind(
+                Bindings.createDoubleBinding(() -> {
+                            double axisPosition = axisOther.getDisplayPosition(axisOther.getUpperBound());
+                            Point2D positionInScene = isX ? axisOther.localToScene(0, axisPosition) : axisOther.localToScene(axisPosition, 0);
+                            return isX ? sceneToLocal(positionInScene).getY() : sceneToLocal(positionInScene).getX();
+                        },
+                        chart.widthProperty(),
+                        chart.heightProperty(),
+                        chart.boundsInParentProperty(),
+                        xAxis.lowerBoundProperty(),
+                        xAxis.upperBoundProperty(),
+                        xAxis.autoRangingProperty(),
+                        yAxis.autoRangingProperty(),
+                        yAxis.lowerBoundProperty(),
+                        yAxis.upperBoundProperty(),
+                        yAxis.scaleProperty()
+                )
+        );
+    }
+
+    private void bindThresholdLine(ObservableNumberValue d, Line line, boolean isX) {
+        // Bind the requested x position of the line to the 'actual' coordinate within the parent
+        var startProp = isX ? line.startXProperty(): line.startYProperty();
+        Axis<Number> axisUse = isX ? xAxis : yAxis;
+        startProp.bind(
+                Bindings.createDoubleBinding(() -> {
+                            double axisPosition = axisUse.getDisplayPosition(d.doubleValue());
+                            Point2D positionInScene = isX ? axisUse.localToScene(axisPosition, 0) : axisUse.localToScene(0, axisPosition);
+                            return isX ? sceneToLocal(positionInScene).getX(): sceneToLocal(positionInScene).getY();
+                        },
+                        d,
+                        chart.widthProperty(),
+                        chart.heightProperty(),
+                        chart.boundsInParentProperty(),
+                        xAxis.lowerBoundProperty(),
+                        xAxis.upperBoundProperty(),
+                        xAxis.autoRangingProperty(),
+                        yAxis.autoRangingProperty(),
+                        yAxis.lowerBoundProperty(),
+                        yAxis.upperBoundProperty(),
+                        yAxis.scaleProperty()
+                )
+        );
+        var endProp = isX ? line.endXProperty(): line.endYProperty();
+
+        // End position same as starting position for vertical/horizontal line
+        endProp.bind(startProp);
     }
 
     /**
