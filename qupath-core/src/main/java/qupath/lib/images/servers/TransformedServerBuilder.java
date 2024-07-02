@@ -32,6 +32,9 @@ import java.util.List;
 import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.images.servers.ColorTransforms.ColorTransform;
 import qupath.lib.images.servers.RotatedImageServer.Rotation;
+import qupath.lib.images.servers.transforms.BufferedImageNormalizer;
+import qupath.lib.images.servers.transforms.ColorDeconvolutionNormalizer;
+import qupath.lib.images.servers.transforms.SubtractOffsetAndScaleNormalizer;
 import qupath.lib.regions.ImageRegion;
 
 /**
@@ -144,8 +147,8 @@ public class TransformedServerBuilder {
 	 * @return
 	 */
 	public TransformedServerBuilder maxChannelProject() {
-		server = new ChannelTransformFeatureServer(server, 
-				Arrays.asList(ColorTransforms.createMaximumChannelTransform()));
+		server = new ChannelTransformFeatureServer(server,
+				List.of(ColorTransforms.createMaximumChannelTransform()));
 		return this;
 	}
 	
@@ -154,8 +157,8 @@ public class TransformedServerBuilder {
 	 * @return
 	 */
 	public TransformedServerBuilder averageChannelProject() {
-		server = new ChannelTransformFeatureServer(server, 
-				Arrays.asList(ColorTransforms.createMeanChannelTransform()));
+		server = new ChannelTransformFeatureServer(server,
+				List.of(ColorTransforms.createMeanChannelTransform()));
 		return this;
 	}
 	
@@ -164,8 +167,8 @@ public class TransformedServerBuilder {
 	 * @return
 	 */
 	public TransformedServerBuilder minChannelProject() {
-		server = new ChannelTransformFeatureServer(server, 
-				Arrays.asList(ColorTransforms.createMinimumChannelTransform()));
+		server = new ChannelTransformFeatureServer(server,
+				List.of(ColorTransforms.createMinimumChannelTransform()));
 		return this;
 	}
 	
@@ -204,16 +207,67 @@ public class TransformedServerBuilder {
 		}
 		return concatChannels(Arrays.asList(additionalChannels));
 	}
-	
-//	/**
-//	 * Concatenate additional server along the 'channels' dimension.
-//	 * @param additionalChannel additional server from which channels will be added; note that the server should be 
-//	 * 								of an appropriate type and dimension for concatenation.
-//	 * @return
-//	 */
-//	public TransformedServerBuilder concatChannel(ImageServer<BufferedImage> additionalChannel) {
-//		return concatChannels(Arrays.asList(additionalChannel));
-//	}
+
+	/**
+	 * Subtract a constant offset from all channels, without clipping.
+	 * @param offsets a single offset to subtract from all channels, or an array of offsets to subtract from each channel.
+	 * @return
+	 */
+	public TransformedServerBuilder subtractOffset(double... offsets) {
+		return normalize(SubtractOffsetAndScaleNormalizer.createSubtractOffset(offsets));
+	}
+
+	/**
+	 * Subtract a constant offset from all channels, clipping the result to be &geq; 0.
+	 * @param offsets a single offset to subtract from all channels, or an array of offsets to subtract from each channel.
+	 * @return
+	 */
+	public TransformedServerBuilder subtractOffsetAndClipZero(double... offsets) {
+		return normalize(SubtractOffsetAndScaleNormalizer.createSubtractOffsetAndClipZero(offsets));
+	}
+
+	/**
+	 * Subtract a constant offset from all channels, then multiply the result by a scale factor.
+	 * @param offsets a single offset to subtract from all channels, or an array of offsets to subtract from each channel.
+	 * @param scales a single scale factor to apply to all channels, or an array of scale factors to apply to each channel.
+	 * @return
+	 */
+	public TransformedServerBuilder subtractOffsetAndScale(double[] offsets, double[] scales) {
+		return normalize(SubtractOffsetAndScaleNormalizer.create(offsets, scales));
+	}
+
+	/**
+	 * Scale all channels by a constant factor.
+	 * @param scales a single scale factor to apply to all channels, or an array of scale factors to apply to each channel.
+	 * @return
+	 */
+	public TransformedServerBuilder scaleChannels(double... scales) {
+		return normalize(SubtractOffsetAndScaleNormalizer.create(null, scales));
+	}
+
+	/**
+	 * Normalize stains using color deconvolution and reconvolution.
+	 * @param stainsInput stain vectors to apply to deconvolve the input image, which should relate to the original colors
+	 * @param stainsOutput stain vectors to apply for reconvolution, determining the output colors
+	 * @param scales optional array of scale factors to apply to each deconvolved channel.
+	 *               A scale factor of 1.0 will leave the channel unchanged, while a scale of 0.0 will suppress the channel.
+	 * @return
+	 */
+	public TransformedServerBuilder stainNormalize(ColorDeconvolutionStains stainsInput, ColorDeconvolutionStains stainsOutput, double... scales) {
+		return normalize(ColorDeconvolutionNormalizer.create(stainsInput, stainsOutput, scales));
+	}
+
+	/**
+	 * Normalize the image using the provided normalizer.
+	 * @param normalizer
+	 * @return
+	 * @ImplNote To use this method to create an image that can be added to a project, the normalizers must be JSON-serializable
+	 *           and registered under {@link ImageServers#getNormalizerFactory()}.
+	 */
+	public TransformedServerBuilder normalize(BufferedImageNormalizer normalizer) {
+		this.server = new NormalizedImageServer(server, normalizer);
+		return this;
+	}
 	
 	/**
 	 * Get the {@link ImageServer} that applies all the requested transforms.
