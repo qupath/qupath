@@ -2,7 +2,7 @@
 
 bioformats      = "7.3.0"
 bioimageIoSpec  = "0.1.0"
-omeZarrReader   = "0.4.1"
+omeZarrReader   = "0.5.1"
 blosc           = "1.21.5"
 
 commonmark      = "0.22.0"
@@ -12,9 +12,9 @@ controlsFX      = "11.1.2"
 
 deepJavaLibrary = "0.28.0"
 
-groovy          = "4.0.21"
+groovy          = "4.0.22"
 gson            = "2.11.0"
-guava           = "33.1.0-jre"
+guava           = "33.2.0-jre"
 
 ikonli          = "12.3.1"
 imagej          = "1.54f"
@@ -30,7 +30,7 @@ cuda            = "12.3-8.9-1.5.10"
 # Warning! JavaFX 20.0.1 and later seem to break search links in Javadocs
 javafx          = "22.0.1"
 jna             = "5.14.0"
-jfreeSvg        = "5.0.5"
+jfreeSvg        = "5.0.6"
 jfxtras         = "17-r1"
 jts             = "1.19.0"
 junit           = "5.9.2"
@@ -45,7 +45,7 @@ openslide       = "4.0.0"
 picocli         = "4.7.6"
 qupath-fxtras   = "0.1.5-SNAPSHOT"
 
-richtextfx      = "0.11.2"
+richtextfx      = "0.11.3"
 
 slf4j           = "2.0.12"
 snakeyaml       = "2.2"
@@ -128,4 +128,4 @@ javafx         = { id = "org.openjfx.javafxplugin",                 version = "0
 #javafx         = { id = "org.openjfx.javafxplugin",                 version = "0.0.14" }
 jpackage       = { id = "org.beryx.runtime",                        version = "1.13.0" } # Non-modular
 # jpackage       = { id = "org.beryx.jlink",                          version = "2.26.0" } # Modular
-license-report = { id = "com.github.jk1.dependency-license-report", version = "2.5" }
+license-report = { id = "com.github.jk1.dependency-license-report", version = "2.8" }

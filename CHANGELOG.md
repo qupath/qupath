@@ -24,14 +24,16 @@ This is a *work in progress* for the next major release.
 * Bio-Formats 7.3.0
 * Commonmark 0.22.0
 * DeepJavaLibrary 0.28.0
-* Groovy 4.0.21
+* Groovy 4.0.22
 * Gson 2.11.0
-* Guava 33.1.0-jre
+* Guava 33.2.0-jre
 * JavaFX 22.0.1
+* JFreeSVG 5.0.6
 * JNA 5.14.0
 * Picocli 4.7.6
 * OpenCV 4.9.0
 * OpenJDK 21
+* RichTextFX 0.11.3
 * slf4j 2.0.12
 
 
