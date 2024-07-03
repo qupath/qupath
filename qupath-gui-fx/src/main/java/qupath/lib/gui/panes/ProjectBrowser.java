@@ -1202,7 +1202,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 
 			if (item.getType() == ProjectTreeRow.Type.ROOT) {
 				var children = getTreeItem().getChildren();
-				setText(item.getDisplayableString() + (children.size() > 0 ? " (" + children.size() + ")" : ""));
+				setText(item.getDisplayableString() + (!children.isEmpty() ? " (" + children.size() + ")" : ""));
 				setGraphic(null);
 				// TODO: Extract styles to external CSS
 				setStyle("-fx-font-weight: normal; -fx-font-family: arial");
@@ -1210,7 +1210,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 			} else if (item.getType() == ProjectTreeRow.Type.METADATA) {
 				var children = getTreeItem().getChildren();
 				// TODO: Try not to display count when grouping by ID
-				setText(item.getDisplayableString() + (children.size() > 0 ? " (" + children.size() + ")" : ""));
+				setText(item.getDisplayableString() + (!children.isEmpty() ? " (" + children.size() + ")" : ""));
 				setGraphic(null);
 				setStyle("-fx-font-weight: normal; -fx-font-family: arial");
 				return;
@@ -1226,7 +1226,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 				setStyle("-fx-font-style: italic; -fx-font-family: arial");
 			
 			if (entry == null) {
-				setText(item.toString() + " (" + getTreeItem().getChildren().size() + ")");
+				setText(item + " (" + getTreeItem().getChildren().size() + ")");
 				tooltip.setText(item.toString());
                 showTooltip.set(true);
 				setGraphic(null);
@@ -1234,54 +1234,59 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 				setGraphic(null);
 				// Set whatever tooltip we have
 				tooltip.setGraphic(null);
-                showTooltip.set(true);
+				showTooltip.set(true);
 
 				setText(entry.getImageName());
 				tooltip.setText(entry.getSummary());
 
-				try {
-					// Fetch the thumbnail or generate it if not present
-					BufferedImage img = entry.getThumbnail();
-					if (img != null) {
-						// If the cell contains the same object, no need to repaint the graphic
-						if (objectCell == item && getGraphic() != null)
-							return;
-						
-						Image image = SwingFXUtils.toFXImage(img, null);
-						viewTooltip.setImage(image);
-						tooltip.setGraphic(viewTooltip);
-						GuiTools.paintImage(viewCanvas, image);
-						objectCell = item;
-						if (getGraphic() == null)
-							setGraphic(label);
-					} else if (!serversFailed.contains(item)) {
-						executor.submit(() -> {
-							final ProjectTreeRow objectTemp = getItem();
-							final ProjectImageEntry<BufferedImage> entryTemp = ProjectTreeRow.getEntry(objectTemp);
-							try {
-								if (entryTemp != null && objectCell != objectTemp && entryTemp.getThumbnail() == null) {
-									try (ImageServer<BufferedImage> server = entryTemp.getServerBuilder().build()) {
-										entryTemp.setThumbnail(ProjectCommands.getThumbnailRGB(server));
-										objectCell = objectTemp;
-										tree.refresh();
-									} catch (Exception ex) {
-										logger.warn("Error opening ImageServer (thumbnail generation): " + ex.getLocalizedMessage(), ex);
-										Platform.runLater(() -> setGraphic(IconFactory.createNode(15, 15, PathIcons.INACTIVE_SERVER)));
-										serversFailed.add(item);
+				if (thumbnailSize.get() == ProjectThumbnailSize.HIDDEN) {
+					viewTooltip.setImage(null);
+					viewCanvas.getGraphicsContext2D().clearRect(0, 0, viewCanvas.getWidth(), viewCanvas.getHeight());
+				} else {
+					try {
+						// Fetch the thumbnail or generate it if not present
+						BufferedImage img = entry.getThumbnail();
+						if (img != null) {
+							// If the cell contains the same object, no need to repaint the graphic
+							if (objectCell == item && getGraphic() != null)
+								return;
+
+							Image image = SwingFXUtils.toFXImage(img, null);
+							viewTooltip.setImage(image);
+							tooltip.setGraphic(viewTooltip);
+							GuiTools.paintImage(viewCanvas, image);
+							objectCell = item;
+							if (getGraphic() == null)
+								setGraphic(label);
+						} else if (!serversFailed.contains(item)) {
+							executor.submit(() -> {
+								final ProjectTreeRow objectTemp = getItem();
+								final ProjectImageEntry<BufferedImage> entryTemp = ProjectTreeRow.getEntry(objectTemp);
+								try {
+									if (entryTemp != null && objectCell != objectTemp && entryTemp.getThumbnail() == null) {
+										try (ImageServer<BufferedImage> server = entryTemp.getServerBuilder().build()) {
+											entryTemp.setThumbnail(ProjectCommands.getThumbnailRGB(server));
+											objectCell = objectTemp;
+											tree.refresh();
+										} catch (Exception ex) {
+											logger.warn("Error opening ImageServer (thumbnail generation): {}", ex.getLocalizedMessage(), ex);
+											Platform.runLater(() -> setGraphic(IconFactory.createNode(15, 15, PathIcons.INACTIVE_SERVER)));
+											serversFailed.add(item);
+										}
 									}
+								} catch (IOException ex) {
+									logger.warn("Error getting thumbnail: {}", ex.getLocalizedMessage());
+									Platform.runLater(() -> setGraphic(IconFactory.createNode(15, 15, PathIcons.INACTIVE_SERVER)));
+									serversFailed.add(item);
 								}
-							} catch (IOException ex) {
-								logger.warn("Error getting thumbnail: " + ex.getLocalizedMessage());
-								Platform.runLater(() -> setGraphic(IconFactory.createNode(15, 15, PathIcons.INACTIVE_SERVER)));
-								serversFailed.add(item);
-							}
-						});
-					} else
+							});
+						} else
+							setGraphic(IconFactory.createNode(15, 15, PathIcons.INACTIVE_SERVER));
+					} catch (Exception e) {
 						setGraphic(IconFactory.createNode(15, 15, PathIcons.INACTIVE_SERVER));
-				} catch (Exception e) {
-					setGraphic(IconFactory.createNode(15, 15, PathIcons.INACTIVE_SERVER));
-					logger.warn("Unable to read thumbnail for {} ({})" + entry.getImageName(), e.getLocalizedMessage());
-					serversFailed.add(item);
+						logger.warn("Unable to read thumbnail for {} ({})", entry.getImageName(), e.getMessage());
+						serversFailed.add(item);
+					}
 				}
 			}
 		}
@@ -1385,8 +1390,9 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 			return super.getChildren();
 		}
 	}
-	static enum ProjectThumbnailSize {
-		SMALL, MEDIUM, LARGE;
+
+	enum ProjectThumbnailSize {
+		HIDDEN, SMALL, MEDIUM, LARGE;
 		
 		private double defaultHeight = 40;
 		private double defaultWidth = 50;
@@ -1394,6 +1400,8 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		@Override
 		public String toString() {
 			switch(this) {
+			case HIDDEN:
+				return "Hidden";
 			case LARGE:
 				return "Large";
 			case MEDIUM:
@@ -1407,6 +1415,8 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		
 		public double getWidth() {
 			switch(this) {
+			case HIDDEN:
+				return 0;
 			case LARGE:
 				return defaultWidth * 3.0;
 			case MEDIUM:
@@ -1419,6 +1429,8 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		
 		public double getHeight() {
 			switch(this) {
+			case HIDDEN:
+				return 0;
 			case LARGE:
 				return defaultHeight * 3.0;
 			case MEDIUM:
