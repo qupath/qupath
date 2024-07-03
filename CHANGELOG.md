@@ -9,6 +9,11 @@ This is a *work in progress* for the next major release.
   * Log counts also now available in measurement tables
 * Prompt to save modified scripts when closing QuPath (https://github.com/qupath/qupath/pull/1524)
 * Close most sub-windows from the keyboard with `Ctrl/Cmd + W` or `Esc` (https://github.com/qupath/qupath/pull/1548)
+* Project browser improvements (https://github.com/qupath/qupath/pull/1556)
+  * Project thumbnails can be hidden or their size adjusted from a context menu
+  * Images remain sorted after adding new metadata values
+  * A warning indicator is shown if image files are missing
+    * Use the 'Skip file checks in projects' preference if you need to turn this off (e.g. your images are on a slow network)
 
 ### Bugs fixed
 * Tile export to .ome.tif can convert to 8-bit unnecessarily (https://github.com/qupath/qupath/issues/1494)
