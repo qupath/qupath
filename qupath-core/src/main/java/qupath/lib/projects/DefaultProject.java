@@ -864,8 +864,18 @@ class DefaultProject implements Project<BufferedImage> {
 			resetCachedThumbnail();
 			getEntryPath(true);
 			var path = getThumbnailPath();
-			try (var stream = Files.newOutputStream(path)) {
-				ImageIO.write(img, "JPEG", stream);
+			if (img == null) {
+				// Reset the thumbnail
+				if (Files.exists(path)) {
+					logger.debug("Deleting thumbnail for {}", path);
+					Files.delete(path);
+				}
+			} else {
+				// Save the thumbnail
+				try (var stream = Files.newOutputStream(path)) {
+					logger.debug("Writing thumbnail to {}", path);
+					ImageIO.write(img, "JPEG", stream);
+				}
 			}
 		}
 
