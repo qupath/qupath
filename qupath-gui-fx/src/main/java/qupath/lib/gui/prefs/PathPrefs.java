@@ -848,8 +848,22 @@ public class PathPrefs {
 	public static ObservableList<URI> getRecentScriptsList() {
 		return recentScripts;
 	}
-	
-	
+
+
+	private static BooleanProperty skipProjectUriChecks = createPersistentPreference("Skip checking URIs in the project browser",
+			false);
+
+	/**
+	 * Property to suppress checking whether image files exists in the project browser.
+	 * You might want to skip these checks if they are causing performance problems, e.g. working with images on a
+	 * server with slow access.
+	 *
+	 * @return skipProjectUriChecks
+	 */
+	public static BooleanProperty skipProjectUriChecksProperty() {
+		return skipProjectUriChecks;
+	}
+
 	
 	private static BooleanProperty invertScrolling = createPersistentPreference("invertScrolling", !GeneralTools.isMac());
 	

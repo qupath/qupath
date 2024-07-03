@@ -29,6 +29,7 @@ import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.net.URI;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -41,6 +42,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Predicate;
@@ -50,6 +52,7 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.scene.Node;
 import javafx.scene.control.RadioMenuItem;
 import javafx.scene.control.ToggleGroup;
 import org.controlsfx.control.MasterDetailPane;
@@ -118,6 +121,7 @@ import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.io.UriUpdater;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectImageEntry;
@@ -202,6 +206,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		executor = Executors.newSingleThreadExecutor(ThreadTools.createThreadFactory("thumbnail-loader", true));
 
 		PathPrefs.maskImageNamesProperty().addListener((v, o, n) -> refreshTree(null));
+		PathPrefs.skipProjectUriChecksProperty().addListener((v, o, n) -> tree.refresh());
 
 		panel = new BorderPane();
 		panel.getStyleClass().add("project-browser");
@@ -785,6 +790,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 			return true;		
 		
 		this.project = project;
+		ProjectTreeRowCell.resetUriStatus();
 		model = new ProjectImageTreeModel(project);
 		tree.setRoot(model.getRoot());
 		tree.getRoot().setExpanded(true);
@@ -1188,12 +1194,34 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 	private class ProjectTreeRowCell extends TreeCell<ProjectTreeRow> {
 		
 		private Tooltip tooltip = new Tooltip();
-		private StackPane label = new StackPane();
-		private ImageView viewTooltip = new ImageView();
+
+		private Node missingGraphic;
+
+		private StackPane viewPane = new StackPane();
 		private Canvas viewCanvas = new Canvas();
+		private ImageView viewTooltip = new ImageView();
+
 		private ProjectTreeRow objectCell = null;
 		private BooleanProperty showTooltip = new SimpleBooleanProperty();
-		
+
+		private BooleanProperty urisMissing = new SimpleBooleanProperty(false);
+
+		/**
+		 * Cache whether or not URIs refer to missing files.
+		 * We want to be able to inform the user when files are missing, but we don't want to call Files.exists()
+		 * too often, so we retain the result.
+		 * This means that, if the file was deleted or moved later, the user will need to refresh the project to see
+		 * the change.
+		 */
+		private static Map<URI, UriUpdater.UriStatus> uriStatus = new ConcurrentHashMap<>();
+
+		/**
+		 * Reset the cache of URI statuses (called when a new project is opened).
+		 */
+		static void resetUriStatus() {
+			uriStatus.clear();
+		}
+
 		private DoubleBinding viewWidth = Bindings.createDoubleBinding(
 				() -> thumbnailSize.get().getWidth(),
 				thumbnailSize);
@@ -1209,9 +1237,20 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 			viewCanvas.getStyleClass().add("project-thumbnail");
 			viewCanvas.widthProperty().bind(viewWidth);
 			viewCanvas.heightProperty().bind(viewHeight);
-			label.getChildren().add(viewCanvas);
-			label.prefWidthProperty().bind(viewCanvas.widthProperty());
-			label.prefHeightProperty().bind(viewCanvas.heightProperty());
+			viewPane.getChildren().add(viewCanvas);
+			viewPane.prefWidthProperty().bind(viewCanvas.widthProperty());
+			viewPane.prefHeightProperty().bind(viewCanvas.heightProperty());
+			viewCanvas.opacityProperty().bind(
+					Bindings.createDoubleBinding(() -> urisMissing.get() ? 0.2 : 1.0, urisMissing));
+
+			missingGraphic = IconFactory.createNode(
+					15, 15, PathIcons.WARNING);
+			missingGraphic.getStyleClass().add("missing-uri");
+			Tooltip.install(missingGraphic, new Tooltip("File not found"));
+
+			viewPane.getChildren().add(missingGraphic);
+			missingGraphic.visibleProperty().bind(urisMissing);
+
 			// Avoid having the tooltip obscure any popup menu
 			tooltipProperty().bind(Bindings.createObjectBinding(() -> {
 				return showTooltip.get() && !contextMenuShowing.get() ? tooltip : null;
@@ -1229,6 +1268,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
             }
 
 			getStyleClass().setAll("tree-cell");
+			urisMissing.set(false);
 
 			if (item.getType() == ProjectTreeRow.Type.ROOT) {
 				var children = getTreeItem().getChildren();
@@ -1250,19 +1290,36 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 			if (entry != null && !entry.hasImageData())
 				getStyleClass().add("no-saved-data");
 
+			// Check for URIs
+			if (entry != null && !PathPrefs.skipProjectUriChecksProperty().get()) {
+				try {
+					for (var uri : entry.getURIs()) {
+						if (uriStatus.computeIfAbsent(uri, ProjectTreeRowCell::checkUri) == UriUpdater.UriStatus.MISSING) {
+							urisMissing.set(true);
+							break;
+						}
+					}
+				} catch (IOException e) {
+					logger.error("Exception checking URIs: {}", e.getMessage(), e);
+				}
+			}
+
 			if (entry == null) {
 				setText(item + " (" + getTreeItem().getChildren().size() + ")");
 				tooltip.setText(item.toString());
                 showTooltip.set(true);
 				setGraphic(null);
 			} else {
-				setGraphic(null);
+				setGraphic(viewPane);
 				// Set whatever tooltip we have
 				tooltip.setGraphic(null);
 				showTooltip.set(true);
 
 				setText(entry.getImageName());
-				tooltip.setText(entry.getSummary());
+				if (urisMissing.get())
+					tooltip.setText("Warning: At least one file is missing!\n\n" + entry.getSummary());
+				else
+					tooltip.setText(entry.getSummary());
 
 				if (thumbnailSize.get() == ProjectThumbnailSize.HIDDEN) {
 					viewTooltip.setImage(null);
@@ -1282,7 +1339,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 							GuiTools.paintImage(viewCanvas, image);
 							objectCell = item;
 							if (getGraphic() == null)
-								setGraphic(label);
+								setGraphic(viewPane);
 						} else if (!serversFailed.contains(item)) {
 							executor.submit(() -> {
 								final ProjectTreeRow objectTemp = getItem();
@@ -1315,7 +1372,22 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 				}
 			}
 		}
+
+
+		private static UriUpdater.UriStatus checkUri(URI uri) {
+			var path = GeneralTools.toPath(uri);
+			// In case the check is slow, we make it possible for the user to turn it off.
+			// See also https://github.com/qupath/qupath/pull/1298 for performance considerations.
+			// TODO: Can we check if this is a network drive, to skip the test?
+			if (path == null)
+				return UriUpdater.UriStatus.UNKNOWN;
+			else if (Files.notExists(path))
+				return UriUpdater.UriStatus.MISSING;
+			else
+				return UriUpdater.UriStatus.EXISTS;
+		}
 	}
+
 		
 	/**
 	 * TreeItem to help with the display of project objects.
@@ -1413,7 +1485,9 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 
 	enum ProjectThumbnailSize {
 		HIDDEN, SMALL, MEDIUM, LARGE;
-		
+
+		private static int hiddenSize = 20;
+
 		private double defaultHeight = 40;
 		private double defaultWidth = 50;
 		
@@ -1435,12 +1509,12 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		
 		public double getWidth() {
 			switch(this) {
-			case HIDDEN:
-				return 0;
 			case LARGE:
 				return defaultWidth * 3.0;
 			case MEDIUM:
 				return defaultWidth * 2.0;
+			case HIDDEN:
+				return hiddenSize;
 			case SMALL:
 			default:
 				return defaultWidth;
@@ -1449,12 +1523,12 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		
 		public double getHeight() {
 			switch(this) {
-			case HIDDEN:
-				return 0;
 			case LARGE:
 				return defaultHeight * 3.0;
 			case MEDIUM:
 				return defaultHeight * 2.0;
+			case HIDDEN:
+				return hiddenSize;
 			case SMALL:
 			default:
 				return defaultHeight;

@@ -158,6 +158,16 @@
   -fx-font-style: italic;
 }
 
+.project-browser .tree-cell.missing-uri {
+  -fx-text-fill: -qp-script-warn-color;
+}
+
 .project-browser .project-thumbnail {
   -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.5), 4, 0, 1, 1);
+}
+
+.project-browser .missing-uri {
+  -fx-text-fill: -qp-script-warn-color;
+  -fx-fill: -qp-script-warn-color;
+  -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.25), 2, 0, 1, 1);
 }
