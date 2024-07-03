@@ -21,10 +21,7 @@
 
 package qupath.lib.images.servers;
 
-import qupath.lib.regions.RegionRequest;
-
 import java.awt.image.BufferedImage;
-import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
 
