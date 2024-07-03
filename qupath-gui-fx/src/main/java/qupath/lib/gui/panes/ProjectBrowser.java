@@ -50,6 +50,8 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.scene.control.RadioMenuItem;
+import javafx.scene.control.ToggleGroup;
 import org.controlsfx.control.MasterDetailPane;
 import org.controlsfx.control.action.Action;
 import org.controlsfx.control.action.ActionUtils;
@@ -198,7 +200,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		
 		// Get thumbnails in separate thread
 		executor = Executors.newSingleThreadExecutor(ThreadTools.createThreadFactory("thumbnail-loader", true));
-		
+
 		PathPrefs.maskImageNamesProperty().addListener((v, o, n) -> refreshTree(null));
 
 		panel = new BorderPane();
@@ -381,6 +383,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 				miAddMetadata,
 				miEditDescription,
 				miMaskImages,
+				createThumbnailSizeMenu(),
 				miRefreshThumbnail,
 				separator,
 				menuSort,
@@ -391,6 +394,30 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		contextMenuShowing.bind(menu.showingProperty());
 		
 		return menu;
+	}
+
+	private Menu createThumbnailSizeMenu() {
+		Menu menu = new Menu("Thumbnail size");
+		ToggleGroup group = new ToggleGroup();
+		for (ProjectThumbnailSize size : ProjectThumbnailSize.values()) {
+			RadioMenuItem item = new RadioMenuItem(size.toString());
+			item.setOnAction(e -> thumbnailSize.set(size));
+			item.setUserData(size);
+			menu.getItems().add(item);
+			group.getToggles().add(item);
+		}
+		thumbnailSize.addListener((v, o, n) -> syncToggleGroupByUserData(group, n));
+		syncToggleGroupByUserData(group, thumbnailSize.get());
+		return menu;
+	}
+
+	private void syncToggleGroupByUserData(ToggleGroup group, Object userData) {
+		for (var toggle : group.getToggles()) {
+			if (Objects.equals(toggle.getUserData(), userData)) {
+				group.selectToggle(toggle);
+				return;
+			}
+		}
 	}
 
 
