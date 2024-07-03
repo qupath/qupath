@@ -204,6 +204,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		PathPrefs.maskImageNamesProperty().addListener((v, o, n) -> refreshTree(null));
 
 		panel = new BorderPane();
+		panel.getStyleClass().add("project-browser");
 
 		tree.setCellFactory(n -> new ProjectTreeRowCell());
 		
@@ -1205,9 +1206,9 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 			viewTooltip.setFitHeight(250);
 			viewTooltip.setFitWidth(250);
 			viewTooltip.setPreserveRatio(true);
+			viewCanvas.getStyleClass().add("project-thumbnail");
 			viewCanvas.widthProperty().bind(viewWidth);
 			viewCanvas.heightProperty().bind(viewHeight);
-			viewCanvas.setStyle("-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.5), 4, 0, 1, 1);");
 			label.getChildren().add(viewCanvas);
 			label.prefWidthProperty().bind(viewCanvas.widthProperty());
 			label.prefHeightProperty().bind(viewCanvas.heightProperty());
@@ -1227,31 +1228,28 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
                 return;
             }
 
+			getStyleClass().setAll("tree-cell");
+
 			if (item.getType() == ProjectTreeRow.Type.ROOT) {
 				var children = getTreeItem().getChildren();
 				setText(item.getDisplayableString() + (!children.isEmpty() ? " (" + children.size() + ")" : ""));
 				setGraphic(null);
-				// TODO: Extract styles to external CSS
-				setStyle("-fx-font-weight: normal; -fx-font-family: arial");
 				return;
 			} else if (item.getType() == ProjectTreeRow.Type.METADATA) {
 				var children = getTreeItem().getChildren();
 				// TODO: Try not to display count when grouping by ID
 				setText(item.getDisplayableString() + (!children.isEmpty() ? " (" + children.size() + ")" : ""));
 				setGraphic(null);
-				setStyle("-fx-font-weight: normal; -fx-font-family: arial");
 				return;
 			}
 			
 			// IMAGE
 			ProjectImageEntry<BufferedImage> entry = item.getType() == ProjectTreeRow.Type.IMAGE ? ProjectTreeRow.getEntry(item) : null;
 			if (isCurrentImage(entry))
-				setStyle("-fx-font-weight: bold; -fx-font-family: arial");
-			else if (entry == null || entry.hasImageData())
-				setStyle("-fx-font-weight: normal; -fx-font-family: arial");
-			else
-				setStyle("-fx-font-style: italic; -fx-font-family: arial");
-			
+				getStyleClass().add("current-image");
+			if (entry != null && !entry.hasImageData())
+				getStyleClass().add("no-saved-data");
+
 			if (entry == null) {
 				setText(item + " (" + getTreeItem().getChildren().size() + ")");
 				tooltip.setText(item.toString());
@@ -1333,21 +1331,16 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		@Override
 		public boolean isLeaf() {
 			if (computed)
-				return super.getChildren().size() == 0;
-		
-			switch(getValue().getType()) {
-				case ROOT:
-					return project != null && project.getImageList().size() > 0 && !project.getImageList().stream()
-										.filter(entry -> predicateProperty.get().test(entry.getImageName()))
-										.findAny()
-										.isPresent();
-				case METADATA:
-					return false;
-				case IMAGE:
-					return true;
-				default:
-					throw new IllegalArgumentException("Could not understand the type of the object: " + getValue().getType());
-			}
+				return super.getChildren().isEmpty();
+
+            return switch (getValue().getType()) {
+                case ROOT -> project != null && !project.getImageList().isEmpty() && project.getImageList().stream()
+                        .noneMatch(entry -> predicateProperty.get().test(entry.getImageName()));
+                case METADATA -> false;
+                case IMAGE -> true;
+                default ->
+                        throw new IllegalArgumentException("Could not understand the type of the object: " + getValue().getType());
+            };
 			
 		}
 		

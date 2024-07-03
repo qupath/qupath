@@ -9,6 +9,7 @@ This is a *work in progress* for the next major release.
   * Log counts also now available in measurement tables
 * Prompt to save modified scripts when closing QuPath (https://github.com/qupath/qupath/pull/1524)
 * Close most sub-windows from the keyboard with `Ctrl/Cmd + W` or `Esc` (https://github.com/qupath/qupath/pull/1548)
+* Project thumbnails can be hidden or their size adjusted from a context menu (https://github.com/qupath/qupath/pull/1556)
 
 ### Bugs fixed
 * Tile export to .ome.tif can convert to 8-bit unnecessarily (https://github.com/qupath/qupath/issues/1494)
