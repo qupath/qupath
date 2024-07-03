@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2021 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -283,231 +283,22 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 	ContextMenu getPopup() {
 		
 		Action actionOpenImage = new Action("Open image", e -> qupath.openImageEntry(getSelectedEntry()));
-		Action actionRemoveImage = new Action("Remove image(s)", e -> {
-			Collection<ImageRow> imageRows = getSelectedImageRowsRecursive();
-			Collection<ProjectImageEntry<BufferedImage>> entries = ProjectTreeRow.getEntries(imageRows);
-			
-			if (entries.isEmpty())
-				return;
-			
-			// Don't allow us to remove any entries that are currently open (in any viewer)
-			for (var viewer : qupath.getAllViewers()) {
-				var imageData = viewer.getImageData();
-				var entry = imageData == null ? null : getProject().getEntry(imageData);
-				if (entry != null && entries.contains(entry)) {
-					Dialogs.showErrorMessage("Remove project entries", "Please close all images you want to remove!");
-					return;
-				}
-			}
-			
-			if (entries.size() == 1) {
-				if (!Dialogs.showConfirmDialog("Remove project entry", "Remove " + entries.iterator().next().getImageName() + " from project?"))
-					return;
-			} else if (!Dialogs.showYesNoDialog("Remove project entries", String.format("Remove %d entries?", entries.size())))
-				return;
-			
-			var result = Dialogs.showYesNoCancelDialog("Remove project entries",
-					"Delete all associated data?");
-			if (result == ButtonType.CANCEL)
-				return;
-			
-			project.removeAllImages(entries, result == ButtonType.YES);
-			refreshTree(null);
-			syncProject(project);
-			if (tree != null) {
-				boolean isExpanded = tree.getRoot() != null && tree.getRoot().isExpanded();
-				tree.setRoot(model.getRoot());
-				tree.getRoot().setExpanded(isExpanded);
-			}
-		});
+		Action actionRemoveImage = new Action("Remove image(s)", e -> promptToRemoveSelectedImages());
 		
-		Action actionDuplicateImages = new Action("Duplicate image(s)", e -> {
-			Collection<ImageRow> imageRows = getSelectedImageRowsRecursive();
-			if (imageRows.isEmpty()) {
-				logger.debug("Nothing to duplicate - no entries selected");
-				return;
-			}
-			
-			boolean singleImage = false;
-			String name = "";
-			String title = "Duplicate images";
-			String namePrompt = "Append to image name";
-			String nameHelp = "Specify text to append to the image name to distinguish duplicated images";
-			if (imageRows.size() == 1) {
-				title = "Duplicate image";
-				namePrompt = "Duplicate image name";
-				nameHelp = "Specify name for the duplicated image";
-				singleImage = true;
-				name = imageRows.iterator().next().getDisplayableString();
-				name = GeneralTools.generateDistinctName(
-						name,
-						project.getImageList().stream().map(p -> p.getImageName()).collect(Collectors.toSet()));
-			}
-			var params = new ParameterList()
-					.addStringParameter("name", namePrompt, name, nameHelp)
-					.addBooleanParameter("copyData", "Also duplicate data files", true, "Duplicate any associated data files along with the image");
-			
-			if (!GuiTools.showParameterDialog(title, params))
-				return;
-
-			boolean copyData = params.getBooleanParameterValue("copyData");
-			name = params.getStringParameterValue("name");
-
-			// Ensure we have a single space and then the text to append, with extra whitespace removed
-			if (!singleImage && !name.isBlank())
-				name = " " + name.strip();
-			
-			for (var imageRow : imageRows) {
-				try {
-					var newEntry = project.addDuplicate(ProjectTreeRow.getEntry(imageRow), copyData);
-					if (newEntry != null && !name.isBlank()) {
-						if (singleImage)
-							newEntry.setImageName(name);
-						else
-							newEntry.setImageName(newEntry.getImageName() + name);
-					}
-				} catch (Exception ex) {
-					Dialogs.showErrorNotification("Duplicating image", "Error duplicating " + ProjectTreeRow.getEntry(imageRow).getImageName());
-					logger.error(ex.getLocalizedMessage(), ex);
-				}
-			}
-			try {
-				project.syncChanges();
-			} catch (Exception ex) {
-				logger.error("Error synchronizing project changes: " + ex.getLocalizedMessage(), ex);
-			}
-			refreshProject();
-			if (imageRows.size() == 1)
-				logger.debug("Duplicated 1 image entry");
-			else
-				logger.debug("Duplicated {} image entries", imageRows.size());
-		});
+		Action actionDuplicateImages = new Action("Duplicate image(s)", e -> promptToDuplicateSelectedImages());
 		
-		Action actionSetImageName = new Action("Rename image", e -> {
-			TreeItem<ProjectTreeRow> path = tree.getSelectionModel().getSelectedItem();
-			if (path == null)
-				return;
-			if (path.getValue().getType() == ProjectTreeRow.Type.IMAGE) {
-				if (setProjectEntryImageName(ProjectTreeRow.getEntry(path.getValue())) && project != null)
-					syncProject(project);
-			}
-		});
+		Action actionSetImageName = new Action("Rename image", e -> promptToRenameSelectedImage());
 		// Add a metadata value
-		Action actionAddMetadataValue = new Action("Add metadata", e -> {
-			Project<BufferedImage> project = getProject();
-			Collection<ImageRow> imageRows = getSelectedImageRowsRecursive();
-			if (project != null && !imageRows.isEmpty()) {
-				TextField tfMetadataKey = new TextField();
-				var suggestions = project.getImageList().stream()
-						.map(p -> p.getMetadataKeys())
-						.flatMap(Collection::stream)
-						.distinct()
-						.sorted()
-						.toList();
-				TextFields.bindAutoCompletion(tfMetadataKey, suggestions);
-				
-				TextField tfMetadataValue = new TextField();
-				Label labKey = new Label("New key");
-				Label labValue = new Label("New value");
-				labKey.setLabelFor(tfMetadataKey);
-				labValue.setLabelFor(tfMetadataValue);
-				tfMetadataKey.setTooltip(new Tooltip("Enter the name for the metadata entry"));
-				tfMetadataValue.setTooltip(new Tooltip("Enter the value for the metadata entry"));
-				
-				ProjectImageEntry<BufferedImage> entry = imageRows.size() == 1 ? ProjectTreeRow.getEntry(imageRows.iterator().next()) : null;
-				int nMetadataValues = entry == null ? 0 : entry.getMetadataKeys().size();
-				
-				GridPane pane = new GridPane();
-				pane.setVgap(5);
-				pane.setHgap(5);
-				pane.add(labKey, 0, 0);
-				pane.add(tfMetadataKey, 1, 0);
-				pane.add(labValue, 0, 1);
-				pane.add(tfMetadataValue, 1, 1);
-				String name = imageRows.size() + " images";
-				if (entry != null) {
-					name = entry.getImageName();
-					if (nMetadataValues > 0) {
-						Label labelCurrent = new Label("Current metadata");
-						TextArea textAreaCurrent = new TextArea();
-						textAreaCurrent.setEditable(false);
-	
-						String keyString = entry.getMetadataSummaryString();
-						if (keyString.isEmpty())
-							textAreaCurrent.setText("No metadata entries yet");
-						else
-							textAreaCurrent.setText(keyString);
-						textAreaCurrent.setPrefRowCount(3);
-						labelCurrent.setLabelFor(textAreaCurrent);
-	
-						pane.add(labelCurrent, 0, 2);
-						pane.add(textAreaCurrent, 1, 2);	
-					}
-				}
-				
-				Dialog<ButtonType> dialog = new Dialog<>();
-				dialog.setTitle("Metadata");
-				dialog.getDialogPane().getButtonTypes().setAll(ButtonType.OK, ButtonType.CANCEL);
-				dialog.getDialogPane().setHeaderText("Set metadata for " + name);
-				dialog.getDialogPane().setContent(pane);
-				Optional<ButtonType> result = dialog.showAndWait();
-				if (result.isPresent() && result.get() == ButtonType.OK) {
-					String key = tfMetadataKey.getText().trim();
-					String value = tfMetadataValue.getText();
-					if (key.isEmpty()) {
-						logger.warn("Attempted to set metadata value for {}, but key was empty!", name);
-					} else {
-						// Set metadata for all entries
-						for (var temp : imageRows)
-							ProjectTreeRow.getEntry(temp).putMetadataValue(key, value);
-						syncProject(project);
-						tree.refresh();
-					}
-				}
-							
-			} else {
-				Dialogs.showErrorMessage("Edit image description", "No entry is selected!");
-			}
-		});
+		Action actionAddMetadataValue = new Action("Add metadata", e -> promptToAddMetadataToSelectedImages());
 		
 		// Edit the description for the image
-		Action actionEditDescription = new Action("Edit description", e -> {
-			Project<?> project = getProject();
-			ProjectImageEntry<?> entry = getSelectedEntry();
-			if (project != null && entry != null) {
-				if (showDescriptionEditor(entry)) {
-					descriptionText.set(entry.getDescription());
-					syncProject(project);						
-				}
-			} else {
-				Dialogs.showErrorMessage("Edit image description", "No entry is selected!");
-			}
-		});
+		Action actionEditDescription = new Action("Edit description", e -> promptToEditSelectedImageDescription());
 		
 		// Mask the name of the images and shuffle the entry
 		Action actionMaskImageNames = ActionTools.createSelectableAction(PathPrefs.maskImageNamesProperty(), "Mask image names");
 		
 		// Refresh thumbnail according to current display settings
-		Action actionRefreshThumbnail = new Action("Refresh thumbnail", e -> {
-			TreeItem<ProjectTreeRow> path = tree.getSelectionModel().getSelectedItem();
-			if (path == null)
-				return;
-			if (path.getValue().getType() == ProjectTreeRow.Type.IMAGE) {
-				ProjectImageEntry<BufferedImage> entry =ProjectTreeRow.getEntry(path.getValue());
-				if (!isCurrentImage(entry)) {
-					logger.warn("Cannot refresh entry for image that is not open!");
-					return;
-				}
-				BufferedImage imgThumbnail = qupath.getViewer().getRGBThumbnail();
-				imgThumbnail = resizeForThumbnail(imgThumbnail);
-				try {
-					entry.setThumbnail(imgThumbnail);
-				} catch (IOException e1) {
-					logger.error("Error writing thumbnail", e1);
-				}
-				tree.refresh();
-			}
-		});
+		Action actionRefreshThumbnail = new Action("Refresh thumbnail", e -> promptToRefreshSelectedThumbnails());
 				
 		// Open the project directory using Explorer/Finder etc.
 		Action actionOpenProjectDirectory = createBrowsePathAction("Project...", () -> getProjectPath());
@@ -600,6 +391,236 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		contextMenuShowing.bind(menu.showingProperty());
 		
 		return menu;
+	}
+
+
+	private void promptToEditSelectedImageDescription() {
+		Project<?> project = getProject();
+		ProjectImageEntry<?> entry = getSelectedEntry();
+		if (project != null && entry != null) {
+			if (showDescriptionEditor(entry)) {
+				descriptionText.set(entry.getDescription());
+				syncProject(project);
+			}
+		} else {
+			Dialogs.showErrorMessage("Edit image description", "No entry is selected!");
+		}
+	}
+
+
+	private void promptToRemoveSelectedImages() {
+		Collection<ImageRow> imageRows = getSelectedImageRowsRecursive();
+		Collection<ProjectImageEntry<BufferedImage>> entries = ProjectTreeRow.getEntries(imageRows);
+
+		if (entries.isEmpty())
+			return;
+
+		// Don't allow us to remove any entries that are currently open (in any viewer)
+		for (var viewer : qupath.getAllViewers()) {
+			var imageData = viewer.getImageData();
+			var entry = imageData == null ? null : getProject().getEntry(imageData);
+			if (entry != null && entries.contains(entry)) {
+				Dialogs.showErrorMessage("Remove project entries", "Please close all images you want to remove!");
+				return;
+			}
+		}
+
+		if (entries.size() == 1) {
+			if (!Dialogs.showConfirmDialog("Remove project entry", "Remove " + entries.iterator().next().getImageName() + " from project?"))
+				return;
+		} else if (!Dialogs.showYesNoDialog("Remove project entries", String.format("Remove %d entries?", entries.size())))
+			return;
+
+		var result = Dialogs.showYesNoCancelDialog("Remove project entries",
+				"Delete all associated data?");
+		if (result == ButtonType.CANCEL)
+			return;
+
+		project.removeAllImages(entries, result == ButtonType.YES);
+		refreshTree(null);
+		syncProject(project);
+		if (tree != null) {
+			boolean isExpanded = tree.getRoot() != null && tree.getRoot().isExpanded();
+			tree.setRoot(model.getRoot());
+			tree.getRoot().setExpanded(isExpanded);
+		}
+	}
+
+
+	private void promptToRefreshSelectedThumbnails() {
+		TreeItem<ProjectTreeRow> path = tree.getSelectionModel().getSelectedItem();
+		if (path == null)
+			return;
+		if (path.getValue().getType() == ProjectTreeRow.Type.IMAGE) {
+			ProjectImageEntry<BufferedImage> entry = ProjectTreeRow.getEntry(path.getValue());
+			if (!isCurrentImage(entry)) {
+				logger.warn("Cannot refresh entry for image that is not open!");
+				return;
+			}
+			BufferedImage imgThumbnail = qupath.getViewer().getRGBThumbnail();
+			imgThumbnail = resizeForThumbnail(imgThumbnail);
+			try {
+				entry.setThumbnail(imgThumbnail);
+			} catch (IOException e1) {
+				logger.error("Error writing thumbnail", e1);
+			}
+			tree.refresh();
+		}
+	}
+
+
+	private void promptToDuplicateSelectedImages() {
+		Collection<ImageRow> imageRows = getSelectedImageRowsRecursive();
+		if (imageRows.isEmpty()) {
+			logger.debug("Nothing to duplicate - no entries selected");
+			return;
+		}
+
+		boolean singleImage = false;
+		String name = "";
+		String title = "Duplicate images";
+		String namePrompt = "Append to image name";
+		String nameHelp = "Specify text to append to the image name to distinguish duplicated images";
+		if (imageRows.size() == 1) {
+			title = "Duplicate image";
+			namePrompt = "Duplicate image name";
+			nameHelp = "Specify name for the duplicated image";
+			singleImage = true;
+			name = imageRows.iterator().next().getDisplayableString();
+			name = GeneralTools.generateDistinctName(
+					name,
+					project.getImageList().stream().map(p -> p.getImageName()).collect(Collectors.toSet()));
+		}
+		var params = new ParameterList()
+				.addStringParameter("name", namePrompt, name, nameHelp)
+				.addBooleanParameter("copyData", "Also duplicate data files", true, "Duplicate any associated data files along with the image");
+
+		if (!GuiTools.showParameterDialog(title, params))
+			return;
+
+		boolean copyData = params.getBooleanParameterValue("copyData");
+		name = params.getStringParameterValue("name");
+
+		// Ensure we have a single space and then the text to append, with extra whitespace removed
+		if (!singleImage && !name.isBlank())
+			name = " " + name.strip();
+
+		for (var imageRow : imageRows) {
+			try {
+				var newEntry = project.addDuplicate(ProjectTreeRow.getEntry(imageRow), copyData);
+				if (newEntry != null && !name.isBlank()) {
+					if (singleImage)
+						newEntry.setImageName(name);
+					else
+						newEntry.setImageName(newEntry.getImageName() + name);
+				}
+			} catch (Exception ex) {
+				Dialogs.showErrorNotification("Duplicating image", "Error duplicating " + ProjectTreeRow.getEntry(imageRow).getImageName());
+				logger.error(ex.getLocalizedMessage(), ex);
+			}
+		}
+		try {
+			project.syncChanges();
+		} catch (Exception ex) {
+			logger.error("Error synchronizing project changes: " + ex.getLocalizedMessage(), ex);
+		}
+		refreshProject();
+		if (imageRows.size() == 1)
+			logger.debug("Duplicated 1 image entry");
+		else
+			logger.debug("Duplicated {} image entries", imageRows.size());
+	}
+
+
+	private void promptToRenameSelectedImage() {
+		TreeItem<ProjectTreeRow> path = tree.getSelectionModel().getSelectedItem();
+		if (path == null)
+			return;
+		if (path.getValue().getType() == ProjectTreeRow.Type.IMAGE) {
+			if (setProjectEntryImageName(ProjectTreeRow.getEntry(path.getValue())) && project != null)
+				syncProject(project);
+		}
+	}
+
+
+	private void promptToAddMetadataToSelectedImages() {
+		Project<BufferedImage> project = getProject();
+		Collection<ImageRow> imageRows = getSelectedImageRowsRecursive();
+		if (project != null && !imageRows.isEmpty()) {
+			TextField tfMetadataKey = new TextField();
+			var suggestions = project.getImageList().stream()
+					.map(p -> p.getMetadataKeys())
+					.flatMap(Collection::stream)
+					.distinct()
+					.sorted()
+					.toList();
+			TextFields.bindAutoCompletion(tfMetadataKey, suggestions);
+
+			TextField tfMetadataValue = new TextField();
+			Label labKey = new Label("New key");
+			Label labValue = new Label("New value");
+			labKey.setLabelFor(tfMetadataKey);
+			labValue.setLabelFor(tfMetadataValue);
+			tfMetadataKey.setTooltip(new Tooltip("Enter the name for the metadata entry"));
+			tfMetadataValue.setTooltip(new Tooltip("Enter the value for the metadata entry"));
+
+			ProjectImageEntry<BufferedImage> entry = imageRows.size() == 1 ? ProjectTreeRow.getEntry(imageRows.iterator().next()) : null;
+			int nMetadataValues = entry == null ? 0 : entry.getMetadataKeys().size();
+
+			GridPane pane = new GridPane();
+			pane.setVgap(5);
+			pane.setHgap(5);
+			pane.add(labKey, 0, 0);
+			pane.add(tfMetadataKey, 1, 0);
+			pane.add(labValue, 0, 1);
+			pane.add(tfMetadataValue, 1, 1);
+			String name = imageRows.size() + " images";
+			if (entry != null) {
+				name = entry.getImageName();
+				if (nMetadataValues > 0) {
+					Label labelCurrent = new Label("Current metadata");
+					TextArea textAreaCurrent = new TextArea();
+					textAreaCurrent.setEditable(false);
+
+					String keyString = entry.getMetadataSummaryString();
+					if (keyString.isEmpty())
+						textAreaCurrent.setText("No metadata entries yet");
+					else
+						textAreaCurrent.setText(keyString);
+					textAreaCurrent.setPrefRowCount(3);
+					labelCurrent.setLabelFor(textAreaCurrent);
+
+					pane.add(labelCurrent, 0, 2);
+					pane.add(textAreaCurrent, 1, 2);
+				}
+			}
+
+			Dialog<ButtonType> dialog = new Dialog<>();
+			dialog.setTitle("Metadata");
+			dialog.getDialogPane().getButtonTypes().setAll(ButtonType.OK, ButtonType.CANCEL);
+			dialog.getDialogPane().setHeaderText("Set metadata for " + name);
+			dialog.getDialogPane().setContent(pane);
+			Optional<ButtonType> result = dialog.showAndWait();
+			if (result.isPresent() && result.get() == ButtonType.OK) {
+				String key = tfMetadataKey.getText().trim();
+				String value = tfMetadataValue.getText();
+				if (key.isEmpty()) {
+					logger.warn("Attempted to set metadata value for {}, but key was empty!", name);
+				} else {
+					// Set metadata for all entries
+					for (var temp : imageRows)
+						ProjectTreeRow.getEntry(temp).putMetadataValue(key, value);
+					syncProject(project);
+					tree.refresh();
+				}
+			}
+
+			ImageRow selectedImageRow = getSelectedImageRow();
+			refreshTree(selectedImageRow);
+
+		} else {
+			Dialogs.showErrorMessage("Edit image description", "No entry is selected!");
+		}
 	}
 
 
