@@ -133,11 +133,11 @@ public class TestSubtractOffsetAndScaleNormalizer {
     private BufferedImage createImage(PixelType type, double... channelValues) {
         int nChannels = channelValues.length;
         DataBuffer dataBuffer = switch(type) {
-            case PixelType.UINT8 -> new DataBufferByte(1, nChannels);
-            case PixelType.UINT16 -> new DataBufferUShort(1, nChannels);
-            case PixelType.UINT32 -> new DataBufferInt(1, nChannels);
-            case PixelType.FLOAT32 -> new DataBufferFloat(1, nChannels);
-            case PixelType.FLOAT64 -> new DataBufferDouble(1, nChannels);
+            case UINT8 -> new DataBufferByte(1, nChannels);
+            case UINT16 -> new DataBufferUShort(1, nChannels);
+            case UINT32 -> new DataBufferInt(1, nChannels);
+            case FLOAT32 -> new DataBufferFloat(1, nChannels);
+            case FLOAT64 -> new DataBufferDouble(1, nChannels);
             default ->
                 throw new UnsupportedOperationException("Unsupported pixel type: " + type);
         };
