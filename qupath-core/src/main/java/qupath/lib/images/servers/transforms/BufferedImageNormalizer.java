@@ -21,7 +21,16 @@
 
 package qupath.lib.images.servers.transforms;
 
+import qupath.lib.awt.common.BufferedImageTools;
+
+import java.awt.Rectangle;
+import java.awt.RenderingHints;
+import java.awt.geom.Point2D;
+import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
+import java.awt.image.BufferedImageOp;
+import java.awt.image.ColorModel;
+import java.util.Objects;
 
 /**
  * Interface for normalizing a BufferedImage.
@@ -30,14 +39,42 @@ import java.awt.image.BufferedImage;
  *
  * @since v0.6.0
  */
-public interface BufferedImageNormalizer {
+public interface BufferedImageNormalizer extends BufferedImageOp {
 
-    /**
-     * Apply the normalization to the input image.
-     * Note that the input image may be modified in place.
-     * @param input
-     * @return
-     */
-    BufferedImage apply(BufferedImage input);
+
+    @Override
+    default Rectangle2D getBounds2D(BufferedImage src) {
+        return new Rectangle(src.getRaster().getBounds());
+    }
+
+    @Override
+    default BufferedImage createCompatibleDestImage(BufferedImage src,
+                                                   ColorModel destCM) {
+        // If we have an 8-bit color source, we can just use the type - using the color model can result
+        // in a BufferedImage.TYPE_CUSTOM, which is not what we want.
+        if (BufferedImageTools.is8bitColorType(src.getType()) &&
+                (destCM == null || Objects.equals(destCM, ColorModel.getRGBdefault())))
+            return new BufferedImage(src.getWidth(), src.getHeight(), src.getType());
+
+        if (destCM == null) {
+            destCM = src.getColorModel();
+        }
+        return new BufferedImage(
+                destCM,
+                destCM.createCompatibleWritableRaster(src.getWidth(), src.getHeight()),
+                destCM.isAlphaPremultiplied(),
+                null
+        );
+    }
+
+    @Override
+    default Point2D getPoint2D(Point2D srcPt, Point2D dstPt) {
+        return new Point2D.Double(srcPt.getX(), srcPt.getY());
+    }
+
+    @Override
+    default RenderingHints getRenderingHints() {
+        return null;
+    }
 
 }

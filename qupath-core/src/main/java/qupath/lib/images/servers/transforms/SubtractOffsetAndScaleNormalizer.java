@@ -24,12 +24,16 @@ package qupath.lib.images.servers.transforms;
 import qupath.lib.common.GeneralTools;
 
 import java.awt.image.BufferedImage;
+import java.awt.image.DataBuffer;
 
 /**
  * Normalizes the pixel values of a BufferedImage by subtracting and offset and multiplying by a scale factor.
  * <p>
  * An expected use is to subtract a constant background value in a fluorescence image, with optional channel
  * rescaling.
+ * <p>
+ * Note that the result is necessarily clipped to the range of the output data type, and non-integer values
+ * are rounded if necessary.
  *
  * @since v0.6.0
  */
@@ -99,23 +103,74 @@ public class SubtractOffsetAndScaleNormalizer implements BufferedImageNormalizer
     }
 
     @Override
-    public BufferedImage apply(BufferedImage img) {
+    public BufferedImage filter(BufferedImage img, BufferedImage output) {
+        if (output == null)
+            output = createCompatibleDestImage(img, img.getColorModel());
         var raster = img.getRaster();
         int w = img.getWidth();
         int h = img.getHeight();
         double[] pixels = null;
+        // Clip to the range of the output data type
+        var outputRaster = output.getRaster();
+        double minClip = getMinClip(outputRaster.getDataBuffer().getDataType());
+        double maxClip = getMaxClip(outputRaster.getDataBuffer().getDataType());
+        boolean doRounding = isIntegerType(outputRaster.getDataBuffer().getDataType());
         for (int b = 0; b < raster.getNumBands(); b++) {
             pixels = raster.getSamples(0, 0, w, h, b, pixels);
             double offset = offsetForChannel(b);
             double scale = scaleForChannel(b);
             if (offset != 0 || scale != 1) {
                 for (int i = 0; i < pixels.length; i++) {
-                    pixels[i] = GeneralTools.clipValue((pixels[i] - offset) * scale, minClip, maxClip);
+                    double val = GeneralTools.clipValue((pixels[i] - offset) * scale, minClip, maxClip);
+                    if (doRounding)
+                        val = Math.round(val);
+                    pixels[i] = val;
                 }
-                raster.setSamples(0, 0, w, h, b, pixels);
             }
+            outputRaster.setSamples(0, 0, w, h, b, pixels);
         }
-        return img;
+        return output;
+    }
+
+    boolean isIntegerType(int dataType) {
+        switch (dataType) {
+            case DataBuffer.TYPE_BYTE:
+            case DataBuffer.TYPE_SHORT:
+            case DataBuffer.TYPE_USHORT:
+            case DataBuffer.TYPE_INT:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    double getMinClip(int dataType) {
+        switch (dataType) {
+            case DataBuffer.TYPE_BYTE:
+            case DataBuffer.TYPE_USHORT:
+                return Math.max(0, minClip);
+            case DataBuffer.TYPE_INT:
+                return Math.max(Integer.MIN_VALUE, minClip);
+            case DataBuffer.TYPE_SHORT:
+                return Math.max(Short.MIN_VALUE, minClip);
+            default:
+                return minClip;
+        }
+    }
+
+    double getMaxClip(int dataType) {
+        switch (dataType) {
+            case DataBuffer.TYPE_BYTE:
+                return Math.min(255, maxClip);
+            case DataBuffer.TYPE_USHORT:
+                return Math.min(65535, maxClip);
+            case DataBuffer.TYPE_INT:
+                return Math.min(Integer.MAX_VALUE, maxClip);
+            case DataBuffer.TYPE_SHORT:
+                return Math.min(Short.MAX_VALUE, maxClip);
+            default:
+                return maxClip;
+        }
     }
 
     private double scaleForChannel(int channel) {
@@ -131,7 +186,7 @@ public class SubtractOffsetAndScaleNormalizer implements BufferedImageNormalizer
 
     private double offsetForChannel(int channel) {
         if (offsets == null)
-            return 1.0;
+            return 0.0;
         if (channel < offsets.length)
             return offsets[channel];
         else if (offsets.length == 1)

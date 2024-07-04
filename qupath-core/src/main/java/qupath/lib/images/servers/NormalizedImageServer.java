@@ -75,7 +75,7 @@ public class NormalizedImageServer extends AbstractTileableImageServer {
 	@Override
 	protected BufferedImage readTile(TileRequest tileRequest) throws IOException {
 		var img = getWrappedServer().readRegion(tileRequest.getRegionRequest());
-		return img == null ? null : transform.apply(img);
+		return img == null ? null : transform.filter(img, img);
 	}
 
 	@Override

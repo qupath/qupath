@@ -21,6 +21,7 @@
 
 package qupath.lib.images.servers.transforms;
 
+import qupath.lib.awt.common.BufferedImageTools;
 import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.color.ColorTransformer;
 
@@ -57,7 +58,13 @@ public class ColorDeconvolutionNormalizer implements BufferedImageNormalizer {
     }
 
     @Override
-    public BufferedImage apply(BufferedImage img) {
+    public BufferedImage filter(BufferedImage img, BufferedImage output) {
+        if (output == null)
+            output = createCompatibleDestImage(img, null);
+
+        if (!BufferedImageTools.is8bitColorType(img.getType()) || !BufferedImageTools.is8bitColorType(output.getType()))
+            throw new IllegalArgumentException("Color deconvolution normalizer only supports 8-bit RGB inputs and outputs");
+
         var rgb = img.getRGB(0, 0, img.getWidth(), img.getHeight(), null, 0, img.getWidth());
         ColorTransformer.colorDeconvolveReconvolveRGBArray(
                 rgb,
@@ -66,7 +73,7 @@ public class ColorDeconvolutionNormalizer implements BufferedImageNormalizer {
                 rgb,
                 scales
         );
-        img.setRGB(0, 0, img.getWidth(), img.getHeight(), rgb, 0, img.getWidth());
-        return img;
+        output.setRGB(0, 0, img.getWidth(), img.getHeight(), rgb, 0, img.getWidth());
+        return output;
     }
 }
