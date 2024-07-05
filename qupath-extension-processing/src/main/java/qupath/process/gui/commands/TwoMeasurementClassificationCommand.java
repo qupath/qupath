@@ -1,29 +1,5 @@
 package qupath.process.gui.commands;
 
-import java.awt.image.BufferedImage;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.WeakHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Predicate;
-
-import javafx.beans.binding.Bindings;
-import javafx.geometry.Pos;
-import javafx.scene.chart.NumberAxis;
-import javafx.scene.chart.ScatterChart;
-import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.Pane;
-import javafx.scene.paint.Color;
-import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.beans.value.ChangeListener;
@@ -31,6 +7,7 @@ import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
+import javafx.scene.chart.ScatterChart;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
@@ -39,20 +16,24 @@ import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.Slider;
 import javafx.scene.control.TextField;
+import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
+import javafx.scene.paint.Color;
 import javafx.stage.Modality;
+import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.fx.dialogs.Dialogs;
 import qupath.fx.utils.FXUtils;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.classifiers.object.ObjectClassifier;
 import qupath.lib.classifiers.object.ObjectClassifiers;
 import qupath.lib.classifiers.object.ObjectClassifiers.ClassifyByMeasurementBuilder;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.ThreadTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.charts.Charts;
-import qupath.lib.gui.charts.HistogramChart;
 import qupath.lib.gui.charts.ChartThresholdPane;
-import qupath.fx.dialogs.Dialogs;
-import qupath.fx.utils.GridPaneUtils;
+import qupath.lib.gui.charts.Charts;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
@@ -63,8 +44,20 @@ import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.process.gui.commands.ml.ProjectClassifierBindings;
 
+import java.awt.image.BufferedImage;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.WeakHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Predicate;
+
 /**
- * Command to (sub)classify objects based on a single measurement.
+ * Command to (sub)classify objects based on two measurements.
  *
  * @author Pete Bankhead
  */
@@ -77,7 +70,7 @@ public class TwoMeasurementClassificationCommand implements Runnable {
 
     /**
      * Constructor.
-     * @param qupath
+     * @param qupath The GUI instance
      */
     public TwoMeasurementClassificationCommand(QuPathGUI qupath) {
         this.qupath = qupath;
@@ -129,8 +122,8 @@ public class TwoMeasurementClassificationCommand implements Runnable {
         private final Slider sliderThresholdX = new Slider();
         private final Slider sliderThresholdY = new Slider();
         private ChartThresholdPane chartPane;
-        private ComboBox<PathClass> comboAbove;
-        private ComboBox<PathClass> comboBelow;
+        private final ComboBox<PathClass> comboAbove;
+        private final ComboBox<PathClass> comboBelow;
 
         private final CheckBox cbLivePreview = new CheckBox("Live preview");
 
@@ -261,39 +254,6 @@ public class TwoMeasurementClassificationCommand implements Runnable {
         }
 
 
-        /**
-         * Wrap in a BorderPane to add a checkbox for log histograms.
-         * TODO: Find a better place for this method...
-         * @param chartPane
-         * @param histogramPane
-         * @return
-         */
-        static BorderPane addLogHistogramCheckbox(ChartThresholdPane chartPane, HistogramChart histogramPane) {
-            // Optionally show a log histogram
-            var cbLogHistogram = new CheckBox("Log histogram");
-            histogramPane.countsTransformProperty().bind(Bindings.createObjectBinding(() -> {
-                if (cbLogHistogram.isSelected())
-                    return HistogramChart.CountsTransformMode.LOGARITHM;
-                else
-                    return HistogramChart.CountsTransformMode.RAW;
-            }, cbLogHistogram.selectedProperty()));
-            // We don't have a proper log axis, so we need to try to avoid showing regular ticks since this is
-            // misleading (using log spacing would be preferable, but showing no ticks is better than confusing ticks)
-            if (histogramPane.getYAxis() instanceof NumberAxis yAxis) {
-                yAxis.minorTickCountProperty().bind(Bindings.createIntegerBinding(() -> {
-                    if (cbLogHistogram.isSelected())
-                        return 0;
-                    else
-                        return 5;
-                }, cbLogHistogram.selectedProperty()));
-            }
-            BorderPane.setAlignment(cbLogHistogram, Pos.CENTER);
-            var chartBorderPane = new BorderPane(chartPane);
-            chartBorderPane.setBottom(cbLogHistogram);
-            return chartBorderPane;
-        }
-
-
         void updateChannelFilter() {
             var selected = comboChannels.getSelectionModel().getSelectedItem();
             if (selected == null || selected.isBlank() || NO_CHANNEL_FILTER.equals(selected)) {
@@ -326,11 +286,11 @@ public class TwoMeasurementClassificationCommand implements Runnable {
         }
 
 
-        private Map<PathObjectHierarchy, Map<PathObject, PathClass>> mapPrevious = new WeakHashMap<>();
+        private final Map<PathObjectHierarchy, Map<PathObject, PathClass>> mapPrevious = new WeakHashMap<>();
 
         /**
          * Store the classifications for the current hierarchy, so these may be reset if the user cancels.
-         * @param hierarchy
+         * @param hierarchy The object hierarchy
          */
         void storeClassificationMap(PathObjectHierarchy hierarchy) {
             if (hierarchy == null)
@@ -380,7 +340,7 @@ public class TwoMeasurementClassificationCommand implements Runnable {
 
         /**
          * Cleanup after the dialog is closed.
-         * @param applyLastClassifier
+         * @param applyLastClassifier Should we apply the last classifier before closing?
          */
         void cleanup(boolean applyLastClassifier) {
             pool.shutdown();
@@ -426,7 +386,7 @@ public class TwoMeasurementClassificationCommand implements Runnable {
 
         /**
          * Get objects for which the classification should be applied (depending upon image and filter).
-         * @return
+         * @return The PathObjects that we're classifying.
          */
         Collection<? extends PathObject> getCurrentObjects() {
             var hierarchy = getHierarchy();
@@ -443,6 +403,7 @@ public class TwoMeasurementClassificationCommand implements Runnable {
         double getThresholdX() {
             return sliderThresholdX.getValue();
         }
+
         double getThresholdY() {
             return sliderThresholdY.getValue();
         }
@@ -521,7 +482,7 @@ public class TwoMeasurementClassificationCommand implements Runnable {
                 return;
             }
             double[] allValues = pathObjects.stream().mapToDouble(p -> p.getMeasurementList().get(measurement))
-                    .filter(d -> Double.isFinite(d)).toArray();
+                    .filter(Double::isFinite).toArray();
             var stats = new DescriptiveStatistics(allValues);
             updateChart();
 
