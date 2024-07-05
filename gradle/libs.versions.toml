@@ -40,7 +40,7 @@ logviewer       = "0.2.0-SNAPSHOT"
 
 javadocviewer   = "0.1.1-SNAPSHOT"
 
-openslide       = "4.0.0"
+openslide       = "4.0.0.3"
 
 picocli         = "4.7.6"
 qupath-fxtras   = "0.1.5-SNAPSHOT"
