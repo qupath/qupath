@@ -21,17 +21,10 @@
 
 package qupath.lib.analysis.features;
 
-import java.awt.image.BufferedImage;
-import java.io.IOException;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.Map;
-import java.util.Set;
-
+import ij.process.ByteProcessor;
+import ij.process.ColorProcessor;
+import ij.process.FloatProcessor;
+import ij.process.ImageProcessor;
 import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 import org.apache.commons.math3.stat.descriptive.StatisticalSummary;
 import org.locationtech.jts.algorithm.Area;
@@ -45,11 +38,6 @@ import org.locationtech.jts.geom.Polygonal;
 import org.locationtech.jts.geom.util.AffineTransformation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import ij.process.ByteProcessor;
-import ij.process.ColorProcessor;
-import ij.process.FloatProcessor;
-import ij.process.ImageProcessor;
 import qupath.imagej.tools.IJTools;
 import qupath.imagej.tools.PixelImageIJ;
 import qupath.lib.analysis.images.SimpleImage;
@@ -62,6 +50,17 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.EllipseROI;
 import qupath.lib.roi.interfaces.ROI;
+
+import java.awt.image.BufferedImage;
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Experimental class to generate object measurements.
@@ -193,11 +192,23 @@ public class ObjectMeasurements {
 	 * @param features specific features to add; if empty, all available shape features will be added
 	 */
 	public static void addShapeMeasurements(Collection<? extends PathObject> pathObjects, PixelCalibration cal, ShapeFeatures... features) {
-		
+		addShapeMeasurements(pathObjects, cal, Arrays.asList(features));
+	}
+
+	/**
+	 * Add shape measurements for multiple objects. If any of these objects is a cell, measurements will be made for both the
+	 * nucleus and cell boundary where possible.
+	 *
+	 * @param pathObjects the objects for which measurements should be added
+	 * @param cal pixel calibration, used to determine units and scaling
+	 * @param features specific features to add; if empty, all available shape features will be added
+	 */
+	public static void addShapeMeasurements(Collection<? extends PathObject> pathObjects, PixelCalibration cal, Collection<ShapeFeatures> features) {
+
 		PixelCalibration calibration = cal == null || !cal.unitsMatch2D() ? PixelCalibration.getDefaultInstance() : cal;
-		Collection<ShapeFeatures> featureCollection = features.length == 0 ? ALL_SHAPE_FEATURES : Arrays.asList(features);
+		Collection<ShapeFeatures> featureCollection = features.isEmpty() ? ALL_SHAPE_FEATURES : features;
 		
-		pathObjects.parallelStream().filter(p -> p.hasROI()).forEach(pathObject -> {
+		pathObjects.parallelStream().filter(PathObject::hasROI).forEach(pathObject -> {
 			if (pathObject instanceof PathCellObject) {
 				addCellShapeMeasurements((PathCellObject)pathObject, calibration, featureCollection);
 			} else {
