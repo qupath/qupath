@@ -246,8 +246,9 @@ public class QuPathGUI {
 	 * can result in exceptions (or even segfaults...).
 	 */
 	private BooleanProperty menusInitializing = new SimpleBooleanProperty(false);
-	
-	
+	private final Map<Class<?>, ParameterDialogWrapper<BufferedImage>> pluginDialogs = new HashMap<>();
+
+
 	/**
 	 * Create a new QuPath instance.
 	 * 
@@ -2232,14 +2233,16 @@ public class QuPathGUI {
 		var imageData = getImageData();
 		if (doInteractive && plugin instanceof PathInteractivePlugin pluginInteractive) {
 			ParameterList params = pluginInteractive.getDefaultParameterList(imageData);
+			var runner = new TaskRunnerFX(this);
+			ParameterDialogWrapper<BufferedImage> dialog = pluginDialogs.computeIfAbsent(
+					plugin.getClass(),
+					(p) -> new ParameterDialogWrapper<BufferedImage>(pluginInteractive, params, runner));
 			// Update parameter list, if necessary
 			if (arg != null) {
 				Map<String, String> map = GeneralTools.parseArgStringValues(arg);
 				// We use the US locale because we need to ensure decimal points (not commas)
-				ParameterList.updateParameterList(params, map, Locale.US);
+				ParameterList.updateParameterList(dialog.getParameterList(), map, Locale.US);
 			}
-			var runner = new TaskRunnerFX(this);
-			ParameterDialogWrapper<BufferedImage> dialog = new ParameterDialogWrapper<>(pluginInteractive, params, runner);
 			dialog.showDialog();
 			return !runner.isCancelled();
 		}
