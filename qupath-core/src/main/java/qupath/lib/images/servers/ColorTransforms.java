@@ -24,13 +24,19 @@ package qupath.lib.images.servers;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.Strictness;
 import com.google.gson.TypeAdapter;
+import com.google.gson.reflect.TypeToken;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
 
@@ -48,9 +54,13 @@ import qupath.lib.io.GsonTools;
 public class ColorTransforms {
 	
 	/**
-	 * Interface defining a color transform that can extract a float values from a BufferedImage.
+	 * Interface defining a color transform that can extract a float value from a BufferedImage.
 	 * <p>
 	 * The simplest example of this is to extract a single channel (band) from an image.
+	 * <p>
+	 * Note that only implementations of this interface present in this file will be correctly
+	 * serialized/deserialized into JSON, and not custom implementations. As such, some features
+	 * of QuPath (such as saving a ColorTransform in a project) won't work for custom implementations.
 	 */
 	public interface ColorTransform {
 
@@ -77,7 +87,6 @@ public class ColorTransforms {
 		 * Get a displayable name for the transform. Can be null
 		 */
 		String getName();
-		
 	}
 	
 	/**
@@ -95,28 +104,36 @@ public class ColorTransforms {
 		@Override
 		public ColorTransform read(JsonReader in) throws IOException {
 			JsonObject obj = gson.fromJson(in, JsonObject.class);
-			if (obj.has("channel"))
+
+			if (obj.has("channel")) {
 				return new ExtractChannel(obj.get("channel").getAsInt());
-			if (obj.has("channelName"))
+			} else if (obj.has("channelName")) {
 				return new ExtractChannelByName(obj.get("channelName").getAsString());
-			if (obj.has("stains"))
+			} else if (obj.has("channelNamesToCoefficients") || obj.has("channelIndicesToCoefficients")) {
+				Map<String, Float> channelNamesToCoefficients = null;
+				List<Float> channelIndicesToCoefficients = null;
+
+				if (obj.get("channelNamesToCoefficients") != null) {
+					channelNamesToCoefficients = gson.fromJson(obj.get("channelNamesToCoefficients").getAsString(), new TypeToken<Map<String, Float>>() {}.getType());
+				}
+				if (obj.get("channelIndicesToCoefficients") != null) {
+					channelIndicesToCoefficients = obj.get("channelIndicesToCoefficients").getAsJsonArray().asList().stream().map(JsonElement::getAsFloat).toList();
+				}
+
+				return new LinearCombinationChannel(channelNamesToCoefficients, channelIndicesToCoefficients);
+			} else if (obj.has("stains")) {
 				return new ColorDeconvolvedChannel(
 						GsonTools.getInstance().fromJson(obj.get("stains"), ColorDeconvolutionStains.class),
 						obj.get("stainNumber").getAsInt());
-			if (obj.has("combineType")) {
-				String combine = obj.get("combineType").getAsString();
-				switch (CombineType.valueOf(combine)) {
-				case MAXIMUM:
-					return new MaxChannels();
-				case MEAN:
-					return new AverageChannels();
-				case MINIMUM:
-					return new MinChannels();
-				default:
-					break;
-				}
+			} else if (obj.has("combineType")) {
+				return switch (CombineType.valueOf(obj.get("combineType").getAsString())) {
+					case MEAN -> new AverageChannels();
+					case MAXIMUM -> new MaxChannels();
+					case MINIMUM -> new MinChannels();
+				};
+			} else {
+				throw new IOException("Unknown ColorTransform " + obj);
 			}
-			throw new IOException("Unknown ColorTransform " + obj);
 		}
 	}
 
@@ -139,6 +156,30 @@ public class ColorTransforms {
 	 */
 	public static ColorTransform createChannelExtractor(String channelName) {
 		return new ExtractChannelByName(channelName);
+	}
+
+	/**
+	 * Create a ColorTransform that apply a linear combination to the channels.
+	 * For example, calling this function with the Map {"c1": 0.5, "c3": 0.2}
+	 * will create a new channel with values "0.5*c1 + 0.2*c3".
+	 *
+	 * @param coefficients the channel names mapped to coefficients
+	 * @return a ColorTransform computing the provided linear combination
+	 */
+	public static ColorTransform createLinearCombinationChannelTransform(Map<String, Float> coefficients) {
+		return new LinearCombinationChannel(coefficients);
+	}
+
+	/**
+	 * Create a ColorTransform that apply a linear combination to the channels.
+	 * For example, calling this function with the list [0.5, 0.9, 0.2]
+	 * will create a new channel with values "0.5*channel1 + 0.9*channel2 + 0.2*channel3".
+	 *
+	 * @param coefficients the list of coefficients to apply to each channel
+	 * @return a ColorTransform computing the provided linear combination
+	 */
+	public static ColorTransform createLinearCombinationChannelTransform(List<Float> coefficients) {
+		return new LinearCombinationChannel(coefficients);
 	}
 	
 	/**
@@ -295,6 +336,116 @@ public class ColorTransforms {
 		}
 	}
 
+	static class LinearCombinationChannel implements ColorTransform {
+
+		private final Map<String, Float> channelNamesToCoefficients;
+		private final List<Float> channelIndicesToCoefficients;
+
+		private LinearCombinationChannel(Map<String, Float> channelNamesToCoefficients, List<Float> channelIndicesToCoefficients) {
+			this.channelNamesToCoefficients = channelNamesToCoefficients;
+			this.channelIndicesToCoefficients = channelIndicesToCoefficients;
+		}
+
+		public LinearCombinationChannel(Map<String, Float> coefficients) {
+			this(coefficients, null);
+		}
+
+		public LinearCombinationChannel(List<Float> coefficients) {
+			this(null, coefficients);
+		}
+
+		@Override
+		public float[] extractChannel(ImageServer<BufferedImage> server, BufferedImage img, float[] pixels) {
+			pixels = ensureArrayLength(img, pixels);
+			int w = img.getWidth();
+			int h = img.getHeight();
+			var raster = img.getRaster();
+			Map<Integer, Float> coefficients = getCoefficients(server);
+
+			for (int y = 0; y < h; y++) {
+				for (int x = 0; x < w; x++) {
+					double[] vals = raster.getPixel(x, y, (double[]) null);
+
+					pixels[y*w+x] = (float) coefficients.entrySet().stream()
+							.mapToDouble(entry -> entry.getValue() * vals[entry.getKey()])
+							.sum();
+				}
+			}
+			return pixels;
+		}
+
+		@Override
+		public String getName() {
+			if (channelNamesToCoefficients != null) {
+				return channelNamesToCoefficients.entrySet().stream()
+						.map(entry -> entry.getValue() + "*" + entry.getKey())
+						.collect(Collectors.joining(" + "));
+			} else if (channelIndicesToCoefficients != null) {
+				return IntStream.range(0, channelIndicesToCoefficients.size())
+						.mapToObj(i -> channelIndicesToCoefficients.get(i) + "*channel" + i)
+						.collect(Collectors.joining(" + "));
+			} else {
+				return "Linear combination channels";
+			}
+		}
+
+		@Override
+		public boolean supportsImage(ImageServer<BufferedImage> server) {
+			if (channelNamesToCoefficients != null) {
+				return server.getMetadata().getChannels().stream()
+						.map(ImageChannel::getName)
+						.collect(Collectors.toSet())
+						.containsAll(channelNamesToCoefficients.keySet());
+			} else if (channelIndicesToCoefficients != null) {
+				return server.nChannels() >= channelIndicesToCoefficients.size();
+			} else {
+				return false;
+			}
+		}
+
+		@Override
+		public String toString() {
+			return getName();
+		}
+
+		@Override
+		public int hashCode() {
+			final int prime = 31;
+			int result = 1;
+			result = prime * result + ((channelNamesToCoefficients == null) ? 0 : channelNamesToCoefficients.hashCode());
+			result = prime * result + ((channelIndicesToCoefficients == null) ? 0 : channelIndicesToCoefficients.hashCode());
+			return result;
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (this == obj)
+				return true;
+			if (!(obj instanceof LinearCombinationChannel linearCombinationChannel))
+				return false;
+			return Objects.equals(channelNamesToCoefficients, linearCombinationChannel.channelNamesToCoefficients) &&
+					Objects.equals(channelIndicesToCoefficients, linearCombinationChannel.channelIndicesToCoefficients);
+		}
+
+		private Map<Integer, Float> getCoefficients(ImageServer<BufferedImage> server) {
+			List<String> channelNames = server.getMetadata().getChannels().stream().map(ImageChannel::getName).toList();
+
+			if (channelNamesToCoefficients != null) {
+				return channelNamesToCoefficients.entrySet().stream()
+						.collect(Collectors.toMap(
+								entry -> channelNames.indexOf(entry.getKey()),
+								Map.Entry::getValue
+						));
+			} else if (channelIndicesToCoefficients != null) {
+				return IntStream.range(0, channelIndicesToCoefficients.size())
+						.boxed()
+						.collect(Collectors.toMap(i -> i, channelIndicesToCoefficients::get));
+			} else {
+				return Map.of();
+			}
+		}
+	}
+
 	abstract static class CombineChannels implements ColorTransform {
 
 		@Override
@@ -307,7 +458,7 @@ public class ColorTransforms {
 			for (int y = 0; y < h; y++) {
 				for (int x = 0; x < w; x++) {
 					vals = raster.getPixel(x, y, vals);
-					pixels[y*w+x] = (float)computeValue(vals);
+					pixels[y*w+x] = (float) computeValue(vals);
 				}
 			}
 			return pixels;
@@ -480,7 +631,11 @@ public class ColorTransforms {
 	/**
 	 * Store the {@link CombineType}. This is really to add deserialization from JSON.
 	 */
-	private enum CombineType {MEAN, MINIMUM, MAXIMUM}
+	private enum CombineType {
+		MEAN,
+		MINIMUM,
+		MAXIMUM
+	}
 
 	private static float[] ensureArrayLength(BufferedImage img, float[] pixels) {
 		int n = img.getWidth() * img.getHeight();
