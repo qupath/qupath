@@ -1476,7 +1476,8 @@ public class PathObjectTools {
 		PathClass pathClass = pathObject.getPathClass();
 		PathObject newObject;
 		if (pathObject instanceof PathCellObject) {
-			ROI roiNucleus = roiTransformer.apply(((PathCellObject)pathObject).getNucleusROI());
+			ROI roiNucleus = ((PathCellObject)pathObject).getNucleusROI();
+			roiNucleus = roiNucleus == null ? null : roiTransformer.apply(roiNucleus);
 			newObject = PathObjects.createCellObject(roi, roiNucleus, pathClass, null);
 		} else if (pathObject instanceof PathTileObject) {
 			newObject = PathObjects.createTileObject(roi, pathClass, null);
