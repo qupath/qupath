@@ -842,13 +842,90 @@ public final class PathObjectHierarchy implements Serializable {
 	 * @param cls class of PathObjects (e.g. PathDetectionObject), or null to accept all
 	 * @param roi
 	 * @return
+	 * @deprecated v0.6.0; use {@link #getAllObjectsForROI(ROI)} instead and filter the returned collection,
+	 *                     or use {@link #getAnnotationsForROI(ROI)}, {@link #getCellsForROI(ROI)},
+	 *                     {@link #getAllDetectionsForROI(ROI)} or {@link #getTilesForROI(ROI)}.
 	 */
+	@Deprecated
 	public Collection<PathObject> getObjectsForROI(Class<? extends PathObject> cls, ROI roi) {
 		if (roi.isEmpty() || !roi.isArea())
 			return Collections.emptyList();
 		
 		Collection<PathObject> pathObjects = tileCache.getObjectsForRegion(cls, ImageRegion.createInstance(roi), new HashSet<>(), true);
 		return filterObjectsForROI(roi, pathObjects);
+	}
+
+	/**
+	 * Get all objects for a ROI.
+	 * This uses the same rules as {@link #resolveHierarchy()}: annotations must be completely covered
+	 * by the ROI, while detection need only have their centroid within the ROI.
+	 * @param roi
+	 * @return
+	 * @see #getAnnotationsForROI(ROI)
+	 * @see #getCellsForROI(ROI)
+	 * @see #getAllDetectionsForROI(ROI)
+	 * @see #getTilesForROI(ROI)
+	 */
+	public Collection<PathObject> getAllObjectsForROI(ROI roi) {
+		return getObjectsForROI(null, roi);
+	}
+
+	/**
+	 * Get all the annotations covered by the specified ROI.
+	 * @param roi the ROI to use for filtering
+	 * @return a collection of annotation objects that are completely covered by the specified ROI
+	 * @see #getAllObjectsForROI(ROI)
+	 * @implSpec This does <i>not</i> return all annotations that intersect with the ROI,
+	 *           but rather only those that are <i>covered</i> by the ROI - consistent with the
+	 *           behavior of {@link #resolveHierarchy()}.
+	 */
+	public Collection<PathObject> getAnnotationsForROI(ROI roi) {
+		return getObjectsForROI(PathAnnotationObject.class, roi);
+	}
+
+	/**
+	 * Get all the tile objects covered by the specified ROI.
+	 * Tile objects are a special subclass of detections.
+	 * @param roi the ROI to use for filtering
+	 * @return a collection of tile objects with centroids contained within the specified ROI
+	 * @see #getAllObjectsForROI(ROI)
+	 * @see #getAllDetectionsForROI(ROI)
+	 * @implSpec This does <i>not</i> return all tiles that intersect with the ROI,
+	 *           but rather only those whose centroid falls within the ROI - consistent with the
+	 *           behavior of {@link #resolveHierarchy()}.
+	 */
+	public Collection<PathObject> getTilesForROI(ROI roi) {
+		return getObjectsForROI(PathTileObject.class, roi);
+	}
+
+	/**
+	 * Get all the cell objects covered by the specified ROI.
+	 * Cell objects are a special subclass of detections.
+	 * @param roi the ROI to use for filtering
+	 * @return a collection of cell objects with centroids contained within the specified ROI
+	 * @see #getAllObjectsForROI(ROI)
+	 * @see #getAllDetectionsForROI(ROI)
+	 * @implSpec This does <i>not</i> return all cells that intersect with the ROI,
+	 *           but rather only those whose centroid falls within the ROI - consistent with the
+	 *           behavior of {@link #resolveHierarchy()}.
+	 */	public Collection<PathObject> getCellsForROI(ROI roi) {
+		return getObjectsForROI(PathCellObject.class, roi);
+	}
+
+	/**
+	 * Get all the detection objects covered by the specified ROI - including subclasses of detections,
+	 * such as cells and tiles.
+	 * @param roi the ROI to use for filtering
+	 * @return a collection of detection objects with centroids contained within the specified ROI
+	 * @see #getAllObjectsForROI(ROI)
+	 * @see #getCellsForROI(ROI)
+	 * @see #getTilesForROI(ROI)
+	 * @implSpec This does <i>not</i> return all cells that intersect with the ROI,
+	 *           but rather only those whose centroid falls within the ROI - consistent with the
+	 *           behavior of {@link #resolveHierarchy()}.
+	 */
+	public Collection<PathObject> getAllDetectionsForROI(ROI roi) {
+		return getObjectsForROI(PathDetectionObject.class, roi);
 	}
 	
 	/**
