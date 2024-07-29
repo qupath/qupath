@@ -52,6 +52,10 @@ import qupath.lib.io.GsonTools;
  * @author Pete Bankhead
  */
 public class ColorTransforms {
+
+	private ColorTransforms() {
+		throw new AssertionError("This class is not instantiable.");
+	}
 	
 	/**
 	 * Interface defining a color transform that can extract a float value from a BufferedImage.
@@ -172,8 +176,8 @@ public class ColorTransforms {
 
 	/**
 	 * Create a ColorTransform that apply a linear combination to the channels.
-	 * For example, calling this function with the list [0.5, 0.9, 0.2]
-	 * will create a new channel with values "0.5*channel1 + 0.9*channel2 + 0.2*channel3".
+	 * For example, calling this function with the list [0.5, 0.9]
+	 * will create a new channel with values "0.5*firstChannel + 0.9*secondChannel".
 	 *
 	 * @param coefficients the list of coefficients to apply to each channel
 	 * @return a ColorTransform computing the provided linear combination
