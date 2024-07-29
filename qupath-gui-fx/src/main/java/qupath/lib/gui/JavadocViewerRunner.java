@@ -29,6 +29,7 @@ import org.slf4j.LoggerFactory;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.WebViews;
+import qupath.ui.javadocviewer.gui.viewer.JavadocViewer;
 import qupath.ui.javadocviewer.gui.viewer.JavadocViewerCommand;
 
 import java.net.URI;
@@ -53,9 +54,9 @@ import java.util.stream.Stream;
  *     </ul>
  * </p>
  */
-public class JavadocViewer implements Runnable {
+public class JavadocViewerRunner implements Runnable {
 
-    private static final Logger logger = LoggerFactory.getLogger(JavadocViewer.class);
+    private static final Logger logger = LoggerFactory.getLogger(JavadocViewerRunner.class);
     private static final String JAVADOC_PATH_SYSTEM_PROPERTY = "javadoc";
     private static final String JAVADOC_PATH_PREFERENCE = "javadocPath";
     private static final StringProperty javadocPath = PathPrefs.createPersistentPreference(JAVADOC_PATH_PREFERENCE, null);
@@ -66,7 +67,7 @@ public class JavadocViewer implements Runnable {
      *
      * @param owner  the stage that should own the viewer window. Can be null
      */
-    public JavadocViewer(Stage owner) {
+    public JavadocViewerRunner(Stage owner) {
         command = new JavadocViewerCommand(
                 owner,
                 WebViews.getStyleSheet(),
@@ -90,6 +91,14 @@ public class JavadocViewer implements Runnable {
         );
     }
 
+    /**
+     * Get a reference to the viewer launched by the {@link JavadocViewerCommand}.
+     * @return A reference to the Javadoc viewer.
+     */
+    public JavadocViewer getJavadocViewer() {
+        return command.getJavadocViewer();
+    }
+
     @Override
     public void run() {
         command.run();
@@ -98,7 +107,7 @@ public class JavadocViewer implements Runnable {
     private static String findJavadocUriAroundExecutable() {
         URI codeUri;
         try {
-            codeUri = JavadocViewer.class.getProtectionDomain().getCodeSource().getLocation().toURI();
+            codeUri = JavadocViewerRunner.class.getProtectionDomain().getCodeSource().getLocation().toURI();
         } catch (URISyntaxException e) {
             logger.debug("Could not convert URI", e);
             return null;
