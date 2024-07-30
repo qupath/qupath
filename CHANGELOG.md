@@ -24,6 +24,7 @@ This is a *work in progress* for the next major release.
 * Black row or column appears on some downsampled images (https://github.com/qupath/qupath/issues/1527)
 * Full image annotations can be shifted accidentally outside the image bounds (https://github.com/qupath/qupath/issues/1533)
 * Search distance when selecting points in the viewer is too low (https://github.com/qupath/qupath/issues/1552)
+* `ImageOps.Core.replace()` does not work as expected (https://github.com/qupath/qupath/issues/1564)
 
 ### Dependency updates
 * Bio-Formats 7.3.0
