@@ -1,11 +1,13 @@
 package qupath.lib.objects.hierarchy;
 
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.ImageRegion;
+import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
 
@@ -14,6 +16,10 @@ import java.util.Collection;
 import java.util.List;
 import java.util.function.Function;
 import java.util.stream.Stream;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class TestPathObjectHierarchy {
 
@@ -55,6 +61,102 @@ public class TestPathObjectHierarchy {
         hierarchy.addObjects(defaultPlaneObjects);
         hierarchy.addObjects(z1Objects);
         hierarchy.addObjects(t1Objects);
+
+        var region1Smaller = ImageRegion.createInstance(region1.getX(), region1.getY(), region1.getWidth() - 1, region1.getHeight() - 1, region1.getZ(), region1.getT());
+
+        // ANNOTATIONS
+
+        // Check we get rectangles and ellipses for the correct regions
+        assertTrue(hierarchy.getAnnotationsForROI(ROIs.createRectangleROI(region1)).stream().allMatch(PathObject::isAnnotation));
+        assertFalse(hierarchy.getAnnotationsForROI(ROIs.createRectangleROI(region1)).stream().allMatch(PathObject::isDetection));
+        assertEquals(2, hierarchy.getAnnotationsForROI(ROIs.createRectangleROI(region1)).size());
+        assertEquals(1, hierarchy.getAnnotationsForROI(ROIs.createEllipseROI(region1)).size());
+        assertEquals(2, hierarchy.getAnnotationsForROI(ROIs.createRectangleROI(region2)).size());
+        assertEquals(1, hierarchy.getAnnotationsForROI(ROIs.createEllipseROI(region2)).size());
+
+        // Check we get no annotations for a smaller region (due to 'covers' rule)
+        assertEquals(0, hierarchy.getAnnotationsForROI(ROIs.createRectangleROI(region1Smaller)).size());
+
+        // Check behavior when z and t changes
+        assertEquals(2, hierarchy.getAnnotationsForROI(ROIs.createRectangleROI(region1).updatePlane(ImagePlane.getPlane(1, 0))).size());
+        assertEquals(2, hierarchy.getAnnotationsForROI(ROIs.createRectangleROI(region1).updatePlane(ImagePlane.getPlane(0, 1))).size());
+        assertEquals(0, hierarchy.getAnnotationsForROI(ROIs.createRectangleROI(region1).updatePlane(ImagePlane.getPlane(2, 0))).size());
+        assertEquals(0, hierarchy.getAnnotationsForROI(ROIs.createRectangleROI(region1).updatePlane(ImagePlane.getPlane(0, 2))).size());
+
+        // CELLS
+
+        // Check we get rectangles and ellipses for the correct regions
+        // Here, we expect both ellipses and rectangles when we use an ellipse - because of the 'centroid' rule for detections
+        assertEquals(2, hierarchy.getCellsForROI(ROIs.createRectangleROI(region1)).size());
+        assertEquals(2, hierarchy.getCellsForROI(ROIs.createEllipseROI(region1)).size());
+        assertEquals(2, hierarchy.getCellsForROI(ROIs.createRectangleROI(region2)).size());
+        assertEquals(2, hierarchy.getCellsForROI(ROIs.createEllipseROI(region2)).size());
+
+        // Check we get no annotations for a smaller region (due to 'covers' rule)
+        assertEquals(2, hierarchy.getCellsForROI(ROIs.createRectangleROI(region1Smaller)).size());
+
+        // Check behavior when z and t changes
+        assertEquals(2, hierarchy.getCellsForROI(ROIs.createRectangleROI(region1).updatePlane(ImagePlane.getPlane(1, 0))).size());
+        assertEquals(2, hierarchy.getCellsForROI(ROIs.createRectangleROI(region1).updatePlane(ImagePlane.getPlane(0, 1))).size());
+        assertEquals(0, hierarchy.getCellsForROI(ROIs.createRectangleROI(region1).updatePlane(ImagePlane.getPlane(2, 0))).size());
+        assertEquals(0, hierarchy.getCellsForROI(ROIs.createRectangleROI(region1).updatePlane(ImagePlane.getPlane(0, 2))).size());
+
+        // Check type
+        assertTrue(hierarchy.getCellsForROI(ROIs.createRectangleROI(region1)).stream().allMatch(PathObject::isCell));
+        assertTrue(hierarchy.getCellsForROI(ROIs.createRectangleROI(region1)).stream().allMatch(PathObject::isDetection));
+        assertFalse(hierarchy.getCellsForROI(ROIs.createRectangleROI(region1)).stream().allMatch(PathObject::isAnnotation));
+        assertFalse(hierarchy.getCellsForROI(ROIs.createRectangleROI(region1)).stream().allMatch(PathObject::isTile));
+
+        // TILES
+
+        // Check we get rectangles and ellipses for the correct regions
+        // Here, we expect both ellipses and rectangles when we use an ellipse - because of the 'centroid' rule for detections
+        assertTrue(hierarchy.getTilesForROI(ROIs.createRectangleROI(region1)).stream().allMatch(PathObject::isTile));
+        assertEquals(2, hierarchy.getTilesForROI(ROIs.createRectangleROI(region1)).size());
+        assertEquals(2, hierarchy.getTilesForROI(ROIs.createEllipseROI(region1)).size());
+        assertEquals(2, hierarchy.getTilesForROI(ROIs.createRectangleROI(region2)).size());
+        assertEquals(2, hierarchy.getTilesForROI(ROIs.createEllipseROI(region2)).size());
+
+        // Check we get no annotations for a smaller region (due to 'covers' rule)
+        assertEquals(2, hierarchy.getTilesForROI(ROIs.createRectangleROI(region1Smaller)).size());
+
+        // Check behavior when z and t changes
+        assertEquals(2, hierarchy.getTilesForROI(ROIs.createRectangleROI(region1).updatePlane(ImagePlane.getPlane(1, 0))).size());
+        assertEquals(2, hierarchy.getTilesForROI(ROIs.createRectangleROI(region1).updatePlane(ImagePlane.getPlane(0, 1))).size());
+        assertEquals(0, hierarchy.getTilesForROI(ROIs.createRectangleROI(region1).updatePlane(ImagePlane.getPlane(2, 0))).size());
+        assertEquals(0, hierarchy.getTilesForROI(ROIs.createRectangleROI(region1).updatePlane(ImagePlane.getPlane(0, 2))).size());
+
+        // Check type
+        assertFalse(hierarchy.getTilesForROI(ROIs.createRectangleROI(region1)).stream().allMatch(PathObject::isCell));
+        assertTrue(hierarchy.getTilesForROI(ROIs.createRectangleROI(region1)).stream().allMatch(PathObject::isDetection));
+        assertFalse(hierarchy.getTilesForROI(ROIs.createRectangleROI(region1)).stream().allMatch(PathObject::isAnnotation));
+        assertTrue(hierarchy.getTilesForROI(ROIs.createRectangleROI(region1)).stream().allMatch(PathObject::isTile));
+
+
+        // ALL DETECTIONS
+
+        // Check we get rectangles and ellipses for the correct regions
+        // Here, we expect both ellipses and rectangles when we use an ellipse - because of the 'centroid' rule for detections
+        // We also expect to receive all detections, regardless of type (i.e. including detections, cells and tiles)
+        assertEquals(6, hierarchy.getAllDetectionsForROI(ROIs.createRectangleROI(region1)).size());
+        assertEquals(6, hierarchy.getAllDetectionsForROI(ROIs.createEllipseROI(region1)).size());
+        assertEquals(6, hierarchy.getAllDetectionsForROI(ROIs.createRectangleROI(region2)).size());
+        assertEquals(6, hierarchy.getAllDetectionsForROI(ROIs.createEllipseROI(region2)).size());
+
+        // Check we get no annotations for a smaller region (due to 'covers' rule)
+        assertEquals(6, hierarchy.getAllDetectionsForROI(ROIs.createRectangleROI(region1Smaller)).size());
+
+        // Check behavior when z and t changes
+        assertEquals(6, hierarchy.getAllDetectionsForROI(ROIs.createRectangleROI(region1).updatePlane(ImagePlane.getPlane(1, 0))).size());
+        assertEquals(6, hierarchy.getAllDetectionsForROI(ROIs.createRectangleROI(region1).updatePlane(ImagePlane.getPlane(0, 1))).size());
+        assertEquals(0, hierarchy.getAllDetectionsForROI(ROIs.createRectangleROI(region1).updatePlane(ImagePlane.getPlane(2, 0))).size());
+        assertEquals(0, hierarchy.getAllDetectionsForROI(ROIs.createRectangleROI(region1).updatePlane(ImagePlane.getPlane(0, 2))).size());
+
+        // Check type
+        assertFalse(hierarchy.getAllDetectionsForROI(ROIs.createRectangleROI(region1)).stream().allMatch(PathObject::isCell));
+        assertTrue(hierarchy.getAllDetectionsForROI(ROIs.createRectangleROI(region1)).stream().allMatch(PathObject::isDetection));
+        assertFalse(hierarchy.getAllDetectionsForROI(ROIs.createRectangleROI(region1)).stream().allMatch(PathObject::isAnnotation));
+        assertFalse(hierarchy.getAllDetectionsForROI(ROIs.createRectangleROI(region1)).stream().allMatch(PathObject::isTile));
     }
 
     private static List<PathObject> createObjects(Collection<? extends ImageRegion> regions, Function<ImageRegion, ROI> roiCreator, Function<ROI, PathObject> objectCreator) {

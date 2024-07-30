@@ -858,7 +858,7 @@ public final class PathObjectHierarchy implements Serializable {
 	/**
 	 * Get all objects for a ROI.
 	 * This uses the same rules as {@link #resolveHierarchy()}: annotations must be completely covered
-	 * by the ROI, while detection need only have their centroid within the ROI.
+	 * by the ROI, while detections need only have their centroid within the ROI.
 	 * @param roi
 	 * @return
 	 * @see #getAnnotationsForROI(ROI)
@@ -884,7 +884,7 @@ public final class PathObjectHierarchy implements Serializable {
 	}
 
 	/**
-	 * Get all the tile objects covered by the specified ROI.
+	 * Get all the tile objects with centroids falling within the specified ROI.
 	 * Tile objects are a special subclass of detections.
 	 * @param roi the ROI to use for filtering
 	 * @return a collection of tile objects with centroids contained within the specified ROI
@@ -899,7 +899,7 @@ public final class PathObjectHierarchy implements Serializable {
 	}
 
 	/**
-	 * Get all the cell objects covered by the specified ROI.
+	 * Get all the cell objects with centroids falling within the specified ROI.
 	 * Cell objects are a special subclass of detections.
 	 * @param roi the ROI to use for filtering
 	 * @return a collection of cell objects with centroids contained within the specified ROI
@@ -913,8 +913,8 @@ public final class PathObjectHierarchy implements Serializable {
 	}
 
 	/**
-	 * Get all the detection objects covered by the specified ROI - including subclasses of detections,
-	 * such as cells and tiles.
+	 * Get all the detection objects with centroids falling within the specified ROI -
+	 * including subclasses of detections, such as cells and tiles.
 	 * @param roi the ROI to use for filtering
 	 * @return a collection of detection objects with centroids contained within the specified ROI
 	 * @see #getAllObjectsForROI(ROI)
