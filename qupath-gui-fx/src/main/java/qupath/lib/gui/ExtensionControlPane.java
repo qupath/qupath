@@ -67,6 +67,7 @@ import qupath.lib.gui.extensions.UpdateChecker;
 import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.IconFactory;
+import qupath.lib.gui.tools.WebViews;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -126,9 +127,8 @@ public class ExtensionControlPane extends VBox {
     private HBox addHBox;
 
     @FXML
-    private TextField ownerTextArea;
-    @FXML
-    private TextField repoTextArea;
+    private TextField textArea;
+
 
     @FXML
     private TitledPane inst;
@@ -163,7 +163,7 @@ public class ExtensionControlPane extends VBox {
         openExtensionDirBtn.disableProperty().bind(
                 UserDirectoryManager.getInstance().userDirectoryProperty().isNull());
         downloadBtn.disableProperty().bind(
-            repoTextArea.textProperty().isEmpty().or(ownerTextArea.textProperty().isEmpty()));
+            textArea.textProperty().isEmpty());
 
         downloadBtn.setGraphic(IconFactory.createNode(12, 12, IconFactory.PathIcons.DOWNLOAD));
 
@@ -180,15 +180,7 @@ public class ExtensionControlPane extends VBox {
                         .toList());
         extensionListView.setCellFactory(listView -> new ExtensionListCell(extensionManager, listView));
 
-        ownerTextArea.addEventHandler(KeyEvent.KEY_RELEASED, e -> {
-            if (e.getCode() == KeyCode.ENTER) {
-                downloadExtension();
-            }
-            if (e.getCode() == KeyCode.ESCAPE) {
-                cancelDownload();
-            }
-        });
-        repoTextArea.addEventHandler(KeyEvent.KEY_RELEASED, e -> {
+        textArea.addEventHandler(KeyEvent.KEY_RELEASED, e -> {
             if (e.getCode() == KeyCode.ENTER) {
                 downloadExtension();
             }
@@ -371,7 +363,7 @@ public class ExtensionControlPane extends VBox {
         table.getColumns().add(colDate);
 
         TableColumn<GitHubRelease, Button> colBody = new TableColumn<>("Description");
-        WebView webView = new WebView();
+        WebView webView = WebViews.create(true);
         PopOver infoPopover = new PopOver(webView);
         colBody.setCellValueFactory(param -> {
             Button button = new Button();
@@ -547,7 +539,21 @@ public class ExtensionControlPane extends VBox {
 
     @FXML
     private void downloadExtension() {
-        var repo = GitHubProject.GitHubRepo.create("", ownerTextArea.getText(), repoTextArea.getText());
+        // todo: parse various types of input (https/git URL, owner/repo spec...)
+        var components = parseComponents(textArea.getText());
+        if (!(components.length > 0)) {
+            Dialogs.showErrorNotification(QuPathResources.getString("ExtensionControlPane.unableToDownload"), QuPathResources.getString("ExtensionControlPane.unableToParseURL"));
+            return;
+        }
+        GitHubProject.GitHubRepo repo;
+        if (components.length == 1) {
+            repo = GitHubProject.GitHubRepo.create("", "qupath", components[0]);
+        } else if (components.length == 2) {
+            repo = GitHubProject.GitHubRepo.create("", components[0], components[1]);
+        } else {
+            Dialogs.showErrorNotification(QuPathResources.getString("ExtensionControlPane.unableToDownload"), QuPathResources.getString("ExtensionControlPane.unableToParseURL"));
+            return;
+        }
         try {
             askToDownload(repo);
         } catch (URISyntaxException | IOException | InterruptedException e) {
@@ -557,10 +563,33 @@ public class ExtensionControlPane extends VBox {
         cancelDownload();
     }
 
+
+    private String[] parseComponents(String text) {
+        // https://stackoverflow.com/questions/59081778/rules-for-special-characters-in-github-repository-name
+        String repoPart = "[\\w.-]+";
+        // if it's just a repo name, then assume it's under qupath
+        if (text.matches("^" + repoPart + "$")) {
+            return new String[]{text};
+        }
+        // if it's a something/somethingelse, then assume it's a github repo with owner/repo
+        if (text.matches("^" + repoPart + "/" + repoPart + "$")) {
+            return text.split("/");
+        }
+        // last chance, it's a git https or git URL
+        if (text.matches("^(https://)?(www.)?github.com/" + repoPart + "/" + repoPart + "/?$") ||
+                text.matches("^git@github.com/" + repoPart + "/" + repoPart + "/?$")) {
+            text = text.replace("https://", "");
+            text = text.replace("www.", "");
+            text = text.replace("git@", "");
+            text = text.replace("github.com", "");
+            return parseComponents(text);
+        }
+        return new String[0];
+    }
+
     @FXML
     private void cancelDownload() {
-        ownerTextArea.clear();
-        repoTextArea.clear();
+        // textArea.clear();
     }
 
     @FXML
