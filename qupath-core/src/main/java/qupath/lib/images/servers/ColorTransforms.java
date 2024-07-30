@@ -118,7 +118,7 @@ public class ColorTransforms {
 				List<Float> channelIndicesToCoefficients = null;
 
 				if (obj.get("channelNamesToCoefficients") != null) {
-					channelNamesToCoefficients = gson.fromJson(obj.get("channelNamesToCoefficients").getAsString(), new TypeToken<Map<String, Float>>() {}.getType());
+					channelNamesToCoefficients = gson.fromJson(obj.get("channelNamesToCoefficients"), new TypeToken<Map<String, Float>>() {}.getType());
 				}
 				if (obj.get("channelIndicesToCoefficients") != null) {
 					channelIndicesToCoefficients = obj.get("channelIndicesToCoefficients").getAsJsonArray().asList().stream().map(JsonElement::getAsFloat).toList();
@@ -209,7 +209,7 @@ public class ColorTransforms {
 	}
 
 	/**
-	 * Create a ColorTransform that applies color deconvolution.
+	 * Create a ColorTransform that applies color deconvolution. It only works on RGB images.
 	 *
 	 * @param stains the stains (this will be 'fixed', and not adapted for each image)
 	 * @param stainNumber number of the stain (1, 2 or 3)
