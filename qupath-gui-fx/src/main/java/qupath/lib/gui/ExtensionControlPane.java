@@ -129,7 +129,6 @@ public class ExtensionControlPane extends VBox {
     @FXML
     private TextField textArea;
 
-
     @FXML
     private TitledPane inst;
     @FXML
@@ -151,7 +150,6 @@ public class ExtensionControlPane extends VBox {
         loader.setResources(ResourceBundle.getBundle("qupath/lib/gui/localization/qupath-gui-strings"));
         loader.load();
     }
-
 
     @FXML
     private void initialize() {
@@ -344,17 +342,17 @@ public class ExtensionControlPane extends VBox {
 
     private static Optional<GitHubRelease> chooseRelease(GitHubProject.GitHubRepo repo, Collection<GitHubRelease> options) {
         TableView<GitHubRelease> table = new TableView<>();
-        TableColumn<GitHubRelease, String> colTag = new TableColumn<>("Tag");
+        TableColumn<GitHubRelease, String> colTag = new TableColumn<>(QuPathResources.getString("ExtensionControlPane.tag"));
         colTag.setCellValueFactory(param -> new SimpleStringProperty(param.getValue().getTag()));
         colTag.setSortable(false);
         table.getColumns().add(colTag);
 
-        TableColumn<GitHubRelease, String> colName = new TableColumn<>("Name");
+        TableColumn<GitHubRelease, String> colName = new TableColumn<>(QuPathResources.getString("ExtensionControlPane.name"));
         colName.setCellValueFactory(param -> new SimpleStringProperty(WordUtils.wrap(param.getValue().getName(), 40)));
         colName.setSortable(false);
         table.getColumns().add(colName);
 
-        TableColumn<GitHubRelease, String> colDate = new TableColumn<>("Date published");
+        TableColumn<GitHubRelease, String> colDate = new TableColumn<>(QuPathResources.getString("ExtensionControlPane.datePublished"));
         colDate.setCellValueFactory(param -> {
             SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
             return new SimpleStringProperty(formatter.format(param.getValue().getDate()));
@@ -362,7 +360,7 @@ public class ExtensionControlPane extends VBox {
         colDate.setSortable(false);
         table.getColumns().add(colDate);
 
-        TableColumn<GitHubRelease, Button> colBody = new TableColumn<>("Description");
+        TableColumn<GitHubRelease, Button> colBody = new TableColumn<>(QuPathResources.getString("ExtensionControlPane.description"));
         WebView webView = WebViews.create(true);
         PopOver infoPopover = new PopOver(webView);
         colBody.setCellValueFactory(param -> {
@@ -424,11 +422,10 @@ public class ExtensionControlPane extends VBox {
         infoPopover.show(infoButton);
     }
 
-
     private static Dialog<ButtonType> createDialog(GitHubProject.GitHubRepo repo, Node control, String optionType, String parentType) {
         BorderPane bp = new BorderPane();
         AnchorPane ap = new AnchorPane();
-        Button githubButton = new Button("Browse GitHub repository");
+        Button githubButton = new Button(QuPathResources.getString("ExtensionControlPane.browseGitHub"));
         ap.getChildren().add(githubButton);
         AnchorPane.setBottomAnchor(githubButton, 0.0);
         AnchorPane.setLeftAnchor(githubButton, 0.0);
@@ -440,13 +437,13 @@ public class ExtensionControlPane extends VBox {
         HBox hboxText = new HBox();
         hboxText.setPadding(new Insets(5));
         hboxText.setAlignment(Pos.CENTER_LEFT);
-        hboxText.getChildren().add(new Label(String.format("More than one %s available for this %s.\nPlease choose one:", optionType, parentType)));
+        hboxText.getChildren().add(new Label(String.format(QuPathResources.getString("ExtensionControlPane.moreThanOneThing"), optionType, parentType)));
         bp.setCenter(hboxText);
 
         Dialog<ButtonType> dialog = new Dialog<>();
         dialog.getDialogPane().setContent(bp);
         dialog.getDialogPane().getButtonTypes().setAll(ButtonType.APPLY, ButtonType.CANCEL);
-        dialog.setTitle("Extension manager");
+        dialog.setTitle(QuPathResources.getString("ExtensionControlPane"));
         return dialog;
     }
 
@@ -539,7 +536,6 @@ public class ExtensionControlPane extends VBox {
 
     @FXML
     private void downloadExtension() {
-        // todo: parse various types of input (https/git URL, owner/repo spec...)
         var components = parseComponents(textArea.getText());
         if (!(components.length > 0)) {
             Dialogs.showErrorNotification(QuPathResources.getString("ExtensionControlPane.unableToDownload"), QuPathResources.getString("ExtensionControlPane.unableToParseURL"));
@@ -848,6 +844,5 @@ public class ExtensionControlPane extends VBox {
             }
         }
     }
-
 
 }
