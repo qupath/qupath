@@ -538,17 +538,16 @@ public class ExtensionControlPane extends VBox {
     private void downloadExtension() {
         var components = parseComponents(textArea.getText());
         if (!(components.length > 0)) {
-            Dialogs.showErrorNotification(QuPathResources.getString("ExtensionControlPane.unableToDownload"), QuPathResources.getString("ExtensionControlPane.unableToParseURL"));
+            Dialogs.showErrorNotification(
+                    QuPathResources.getString("ExtensionControlPane.unableToDownload"),
+                    QuPathResources.getString("ExtensionControlPane.unableToParseURL"));
             return;
         }
         GitHubProject.GitHubRepo repo;
         if (components.length == 1) {
             repo = GitHubProject.GitHubRepo.create("", "qupath", components[0]);
-        } else if (components.length == 2) {
-            repo = GitHubProject.GitHubRepo.create("", components[0], components[1]);
         } else {
-            Dialogs.showErrorNotification(QuPathResources.getString("ExtensionControlPane.unableToDownload"), QuPathResources.getString("ExtensionControlPane.unableToParseURL"));
-            return;
+            repo = GitHubProject.GitHubRepo.create("", components[0], components[1]);
         }
         try {
             askToDownload(repo);
@@ -779,7 +778,7 @@ public class ExtensionControlPane extends VBox {
             void setExtension(QuPathExtension extension) {
                 boolean failedExtension = manager != null && manager.getFailedExtensions().containsValue(extension);
                 if (failedExtension)
-                    nameText.setText(extension.getName() + " (not compatible)");
+                    nameText.setText(extension.getName() + " " + QuPathResources.getString("ExtensionControlPane.notCompatible"));
                 else
                    nameText.setText(extension.getName());
                 typeText.setText(getExtensionType(extension));

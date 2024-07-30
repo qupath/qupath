@@ -20,7 +20,8 @@
                             <Tooltip text="%ExtensionControlPane.repositoryTooltip" />
                         </tooltip>
                     </Label>
-                    <TextField fx:id="textArea">
+                    <Pane minWidth="5" />
+                    <TextField fx:id="textArea" HBox.hgrow="ALWAYS">
                         <tooltip>
                             <Tooltip text="%ExtensionControlPane.repositoryTooltip" />
                         </tooltip>
