@@ -25,6 +25,7 @@ This is a *work in progress* for the next major release.
 * Full image annotations can be shifted accidentally outside the image bounds (https://github.com/qupath/qupath/issues/1533)
 * Search distance when selecting points in the viewer is too low (https://github.com/qupath/qupath/issues/1552)
 * `ImageOps.Core.replace()` does not work as expected (https://github.com/qupath/qupath/issues/1564)
+* QuPath doesn't always use the specified file extension when exporting snapshots (https://github.com/qupath/qupath/issues/1567)
 
 ### Dependency updates
 * Bio-Formats 7.3.0
