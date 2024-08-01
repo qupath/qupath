@@ -1753,7 +1753,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 			if (parentObject.isRootObject())
 				pathObjects = hierarchy.getDetectionObjects();
 			else
-				pathObjects = hierarchy.getObjectsForROI(PathDetectionObject.class, parentObject.getROI());
+				pathObjects = hierarchy.getAllDetectionsForROI(parentObject.getROI());
 			
 			for (PathObject child : pathObjects) {
 				if (child == parentObject || !child.isDetection())

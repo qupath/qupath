@@ -660,6 +660,7 @@ public final class PathObjectHierarchy implements Serializable {
 	 */
 	@Deprecated
 	public synchronized Collection<PathObject> getPointObjects(Class<? extends PathObject> cls) {
+		LogTools.warnOnce(logger, "getPointObjects() is deprecated, use getAllPointObjects() instead");
 		Collection<PathObject> pathObjects = getObjects(null, cls);
 		if (!pathObjects.isEmpty()) {
             pathObjects.removeIf(pathObject -> !PathObjectTools.hasPointROI(pathObject));
@@ -819,19 +820,27 @@ public final class PathObjectHierarchy implements Serializable {
 	/**
 	 * Get the objects within a specified ROI, as defined by the general rules for resolving the hierarchy. 
 	 * This relies on centroids for detections (including subclasses), and a 'covers' rule for others (annotations, TMA cores).
-	 * 
+	 * <p>
+	 * <b>Note: </b> Since v0.6.0 use of this method is discouraged, and it may be deprecated and/or removed in a future
+	 * release.
+	 * Instead use {@link #getAllObjectsForROI(ROI)} and filter the returned collection;
+	 * or, alternatively, use {@link #getAnnotationsForROI(ROI)}, {@link #getCellsForROI(ROI)},
+	 * {@link #getAllDetectionsForROI(ROI)} or {@link #getTilesForROI(ROI)}.
+	 * </p>
 	 * @param cls class of PathObjects (e.g. PathDetectionObject), or null to accept all
 	 * @param roi
 	 * @return
-	 * @deprecated v0.6.0; use {@link #getAllObjectsForROI(ROI)} instead and filter the returned collection,
-	 *                     or use {@link #getAnnotationsForROI(ROI)}, {@link #getCellsForROI(ROI)},
-	 *                     {@link #getAllDetectionsForROI(ROI)} or {@link #getTilesForROI(ROI)}.
 	 */
-	@Deprecated
 	public Collection<PathObject> getObjectsForROI(Class<? extends PathObject> cls, ROI roi) {
+		return getObjectsOfClassForROI(cls, roi);
+	}
+
+
+	private Collection<PathObject> getObjectsOfClassForROI(Class<? extends PathObject> cls, ROI roi) {
+		LogTools.warnOnce(logger, "getObjectsForROI(Class, ROI) is deprecated, use getAllObjectsForROI(ROI) instead");
 		if (roi.isEmpty() || !roi.isArea())
 			return Collections.emptyList();
-		
+
 		Collection<PathObject> pathObjects = tileCache.getObjectsForRegion(cls, ImageRegion.createInstance(roi), new HashSet<>(), true);
 		return filterObjectsForROI(roi, pathObjects);
 	}
@@ -846,9 +855,10 @@ public final class PathObjectHierarchy implements Serializable {
 	 * @see #getCellsForROI(ROI)
 	 * @see #getAllDetectionsForROI(ROI)
 	 * @see #getTilesForROI(ROI)
+	 * @since v0.6.0
 	 */
 	public Collection<PathObject> getAllObjectsForROI(ROI roi) {
-		return getObjectsForROI(null, roi);
+		return getObjectsOfClassForROI(null, roi);
 	}
 
 	/**
@@ -859,9 +869,10 @@ public final class PathObjectHierarchy implements Serializable {
 	 * @implSpec This does <i>not</i> return all annotations that intersect with the ROI,
 	 *           but rather only those that are <i>covered</i> by the ROI - consistent with the
 	 *           behavior of {@link #resolveHierarchy()}.
+	 * @since v0.6.0
 	 */
 	public Collection<PathObject> getAnnotationsForROI(ROI roi) {
-		return getObjectsForROI(PathAnnotationObject.class, roi);
+		return getObjectsOfClassForROI(PathAnnotationObject.class, roi);
 	}
 
 	/**
@@ -874,9 +885,10 @@ public final class PathObjectHierarchy implements Serializable {
 	 * @implSpec This does <i>not</i> return all tiles that intersect with the ROI,
 	 *           but rather only those whose centroid falls within the ROI - consistent with the
 	 *           behavior of {@link #resolveHierarchy()}.
+	 * @since v0.6.0
 	 */
 	public Collection<PathObject> getTilesForROI(ROI roi) {
-		return getObjectsForROI(PathTileObject.class, roi);
+		return getObjectsOfClassForROI(PathTileObject.class, roi);
 	}
 
 	/**
@@ -889,9 +901,10 @@ public final class PathObjectHierarchy implements Serializable {
 	 * @implSpec This does <i>not</i> return all cells that intersect with the ROI,
 	 *           but rather only those whose centroid falls within the ROI - consistent with the
 	 *           behavior of {@link #resolveHierarchy()}.
+	 * @since v0.6.0
 	 */
 	public Collection<PathObject> getCellsForROI(ROI roi) {
-		return getObjectsForROI(PathCellObject.class, roi);
+		return getObjectsOfClassForROI(PathCellObject.class, roi);
 	}
 
 	/**
@@ -905,9 +918,10 @@ public final class PathObjectHierarchy implements Serializable {
 	 * @implSpec This does <i>not</i> return all cells that intersect with the ROI,
 	 *           but rather only those whose centroid falls within the ROI - consistent with the
 	 *           behavior of {@link #resolveHierarchy()}.
+	 * @since v0.6.0
 	 */
 	public Collection<PathObject> getAllDetectionsForROI(ROI roi) {
-		return getObjectsForROI(PathDetectionObject.class, roi);
+		return getObjectsOfClassForROI(PathDetectionObject.class, roi);
 	}
 	
 	/**
@@ -968,6 +982,7 @@ public final class PathObjectHierarchy implements Serializable {
 	 * @see #getAllObjectsForRegion(ImageRegion, Collection)
 	 * @see #getAnnotationsForRegion(ImageRegion, Collection)
 	 * @see #getAllDetectionsForRegion(ImageRegion, Collection)
+	 * @since v0.6.0
 	 */
 	@Deprecated
 	public Collection<PathObject> getObjectsForRegion(Class<? extends PathObject> cls, ImageRegion region, Collection<PathObject> pathObjects) {
@@ -985,6 +1000,7 @@ public final class PathObjectHierarchy implements Serializable {
 	 * @see PathObjectTools#filterByRoiCovers(ROI, Collection)
 	 * @see PathObjectTools#filterByRoiIntersects(ROI, Collection) (ROI, Collection)
 	 * @see PathObjectTools#filterByRoiContainsCentroid(ROI, Collection) (ROI, Collection) (ROI, Collection)
+	 * @since v0.6.0
 	 */
 	public Collection<PathObject> getAllObjectsForRegion(ImageRegion region, Collection<PathObject> pathObjects) {
 		return tileCache.getObjectsForRegion(null, region, pathObjects, true);
@@ -999,6 +1015,7 @@ public final class PathObjectHierarchy implements Serializable {
 	 * @return collection containing identified objects (same as the input collection, if provided)
 	 * @see #getAllObjectsForRegion(ImageRegion, Collection)
 	 * @see #getAnnotationsForROI(ROI)
+	 * @since v0.6.0
 	 */
 	public Collection<PathObject> getAnnotationsForRegion(ImageRegion region, Collection<PathObject> pathObjects) {
 		return tileCache.getObjectsForRegion(PathAnnotationObject.class, region, pathObjects, true);
@@ -1013,6 +1030,7 @@ public final class PathObjectHierarchy implements Serializable {
 	 * @return collection containing identified objects (same as the input collection, if provided)
 	 * @see #getAllObjectsForRegion(ImageRegion, Collection)
 	 * @see #getAllDetectionsForROI(ROI) (ROI)
+	 * @since v0.6.0
 	 */
 	public Collection<PathObject> getAllDetectionsForRegion(ImageRegion region, Collection<PathObject> pathObjects) {
 		return tileCache.getObjectsForRegion(PathDetectionObject.class, region, pathObjects, true);
@@ -1024,6 +1042,7 @@ public final class PathObjectHierarchy implements Serializable {
 	 * @param cls
 	 * @param region
 	 * @return
+	 * @since v0.6.0
 	 */
 	public boolean hasObjectsForRegion(Class<? extends PathObject> cls, ImageRegion region) {
 		return tileCache.hasObjectsForRegion(cls, region, true);
@@ -1036,6 +1055,7 @@ public final class PathObjectHierarchy implements Serializable {
 	 * @param region
 	 * @return true if objects are found, false otherwise.
 	 * @see #getAllObjectsForRegion(ImageRegion, Collection)
+	 * @since v0.6.0
 	 */
 	public boolean hasObjectsForRegion(ImageRegion region) {
 		return tileCache.hasObjectsForRegion(null, region, true);
@@ -1048,6 +1068,7 @@ public final class PathObjectHierarchy implements Serializable {
 	 * @param region
 	 * @return true if annotations are found, false otherwise.
 	 * @see #getAnnotationsForRegion(ImageRegion, Collection)
+	 * @since v0.6.0
 	 */
 	public boolean hasAnnotationsForRegion(ImageRegion region) {
 		return tileCache.hasObjectsForRegion(PathAnnotationObject.class, region, true);
@@ -1060,6 +1081,7 @@ public final class PathObjectHierarchy implements Serializable {
 	 * @param region
 	 * @return true if detections are found, false otherwise.
 	 * @see #getAllDetectionsForRegion(ImageRegion, Collection)
+	 * @since v0.6.0
 	 */
 	public boolean hasDetectionsForRegion(ImageRegion region) {
 		return tileCache.hasObjectsForRegion(PathDetectionObject.class, region, true);

@@ -311,7 +311,7 @@ class CountingPane implements PathObjectSelectionListener, PathObjectHierarchyLi
 			return;
 		}
 		
-		Collection<PathObject> newList = hierarchy.getPointObjects(PathAnnotationObject.class);
+		Collection<PathObject> newList = hierarchy.getAllPointAnnotations();
 		
 		// We want to avoid shuffling the list if possible we adding points
 		var items = listCounts.getItems();

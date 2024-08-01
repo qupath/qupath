@@ -211,12 +211,12 @@ public class HierarchyOverlay extends AbstractOverlay {
 				Collection<PathObject> pathObjects;
 				try {
 					Set<PathObject> pathObjectsToPaint = new TreeSet<>(comparator);					
-					pathObjects = hierarchy.getObjectsForRegion(PathDetectionObject.class, region, pathObjectsToPaint);
+					pathObjects = hierarchy.getAllDetectionsForRegion(region, pathObjectsToPaint);
 				} catch (IllegalArgumentException e) {
 					// This can happen (rarely) in a multithreaded environment if the level of a detection changes.
 					// However, protecting against this fully by caching the level with integer boxing/unboxing would be expensive.
 					logger.debug("Exception requesting detections to paint: " + e.getLocalizedMessage(), e);
-					pathObjects = hierarchy.getObjectsForRegion(PathDetectionObject.class, region, null);
+					pathObjects = hierarchy.getAllDetectionsForRegion(region, null);
 				}
 				g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
 				PathObjectPainter.paintSpecifiedObjects(g2d, pathObjects, overlayOptions, hierarchy.getSelectionModel(), downsampleFactor);
@@ -254,7 +254,7 @@ public class HierarchyOverlay extends AbstractOverlay {
 
 		// Prepare to handle labels, if we need to
 		Collection<PathObject> objectsWithNames = new ArrayList<>();
-		Collection<PathObject> annotations = hierarchy.getObjectsForRegion(PathAnnotationObject.class, region, null);
+		Collection<PathObject> annotations = hierarchy.getAnnotationsForRegion(region, null);
 		for (var iterator = annotations.iterator(); iterator.hasNext(); ) {
 			var next = iterator.next();
 			if ((next.getName() != null && !next.getName().isBlank()))

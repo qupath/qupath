@@ -301,6 +301,7 @@ public class PathObjectTools {
 	 * @param pathObjects the objects to filter
 	 * @return a new collection that contains only the objects that are covered by the ROI
 	 * @param <T>
+	 * @since v0.6.0
 	 */
 	public static <T extends PathObject> Collection<T> filterByRoiCovers(ROI roi, Collection<T> pathObjects) {
 		Predicate<PathObject> predicate;
@@ -320,6 +321,7 @@ public class PathObjectTools {
 	 * @param pathObjects the objects to filter
 	 * @return a new collection that contains only the objects that intersect with the ROI
 	 * @param <T>
+	 * @since v0.6.0
 	 */
 	public static <T extends PathObject> Collection<T> filterByRoiIntersects(ROI roi, Collection<T> pathObjects) {
 		Predicate<PathObject> predicate;
@@ -341,6 +343,7 @@ public class PathObjectTools {
 	 * @param pathObjects the collection to filter
 	 * @return
 	 * @param <T>
+	 * @since v0.6.0
 	 */
 	private static <T extends PathObject> Collection<T> filterByRoiPredicate(ROI roi, Predicate<PathObject> predicate, Collection<T> pathObjects) {
 		var planePredicate = createPlanePredicate(roi.getImagePlane());
@@ -366,6 +369,7 @@ public class PathObjectTools {
 	 * @param pathObjects the objects to filter
 	 * @return a new collection that contains only the objects with centroids that fall within the ROI
 	 * @param <T>
+	 * @since v0.6.0
 	 */
 	public static <T extends PathObject> Collection<T> filterByRoiContainsCentroid(ROI roi, Collection<T> pathObjects) {
 		return filterByRoiPredicate(roi, p -> roi.contains(p.getROI().getCentroidX(), p.getROI().getCentroidY()), pathObjects);
@@ -774,7 +778,7 @@ public class PathObjectTools {
 			// Introduce searchWidth to address https://github.com/qupath/qupath/issues/1552 -
 			// previously points were often missed
 			int searchWidth = (int)Math.ceil(Math.max(vertexDistance * 2, 2));
-			hierarchy.getObjectsForRegion(PathObject.class, ImageRegion.createInstance(
+			hierarchy.getAllObjectsForRegion(ImageRegion.createInstance(
 					(int)(x - searchWidth/2),
 					(int)(y - searchWidth/2),
 					searchWidth,
