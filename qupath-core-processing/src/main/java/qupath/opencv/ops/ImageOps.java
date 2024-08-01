@@ -2187,7 +2187,8 @@ public class ImageOps {
 			private double newValue;
 			
 			ReplaceValueOp(double originalValue, double newValue) {
-				this.originalValue = newValue;
+				this.originalValue = originalValue;
+				this.newValue = newValue;
 			}
 
 			@Override

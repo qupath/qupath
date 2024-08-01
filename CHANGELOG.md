@@ -14,6 +14,7 @@ This is a *work in progress* for the next major release.
   * Images remain sorted after adding new metadata values
   * A warning indicator is shown if image files are missing
     * Use the 'Skip file checks in projects' preference if you need to turn this off (e.g. your images are on a slow network)
+* Create a new channel as a linear combination of other channels (https://github.com/qupath/qupath/pull/1566)
 * Simplify `TileClassificationsToAnnotationsPlugin` implementation (https://github.com/qupath/qupath/pull/1563)
 * Add methods to `PathObjectHierarchy` to simplify requesting objects for regions (https://github.com/qupath/qupath/pull/1563)
 
@@ -26,6 +27,8 @@ This is a *work in progress* for the next major release.
 * Black row or column appears on some downsampled images (https://github.com/qupath/qupath/issues/1527)
 * Full image annotations can be shifted accidentally outside the image bounds (https://github.com/qupath/qupath/issues/1533)
 * Search distance when selecting points in the viewer is too low (https://github.com/qupath/qupath/issues/1552)
+* `ImageOps.Core.replace()` does not work as expected (https://github.com/qupath/qupath/issues/1564)
+* QuPath doesn't always use the specified file extension when exporting snapshots (https://github.com/qupath/qupath/issues/1567)
 
 ### Dependency updates
 * Bio-Formats 7.3.0

@@ -114,7 +114,7 @@ import javafx.stage.Stage;
 import javafx.util.Callback;
 import qupath.fx.dialogs.FileChoosers;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.gui.JavadocViewer;
+import qupath.lib.gui.JavadocViewerRunner;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.actions.ActionTools;
 import qupath.fx.dialogs.Dialogs;
@@ -430,7 +430,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		paneCode.setStyle(style);
 		paneConsole.setStyle(style);
 
-		showJavadocsAction = ActionTools.createAction(new JavadocViewer(qupath.getStage()), "Show Javadocs");
+		showJavadocsAction = ActionTools.createAction(new JavadocViewerRunner(qupath.getStage()), "Show Javadocs");
 	}
 	
 	private void setToggle(ScriptLanguage language) {

@@ -875,12 +875,7 @@ public class Commands {
 	public static boolean saveSnapshot(QuPathGUI qupath, GuiTools.SnapshotType type) {
 		BufferedImage img = GuiTools.makeSnapshot(qupath, type);
 
-		String ext = defaultScreenshotExtension.get();
-		List<ImageWriter<BufferedImage>> compatibleWriters = ImageWriterTools.getCompatibleWriters(BufferedImage.class, ext);
-		if (compatibleWriters.isEmpty()) {
-			logger.error("No compatible image writers found for extension: " + ext);
-			return false;
-		}
+		String defaultExtension = defaultScreenshotExtension.get();
 
 		List<FileChooser.ExtensionFilter> extensionFilters = new ArrayList<>(Arrays.asList(
 				FileChoosers.createExtensionFilter("PNG", "png"),
@@ -889,7 +884,7 @@ public class Commands {
 		));
 		FileChooser.ExtensionFilter selectedFilter = extensionFilters
 				.stream()
-				.filter(e -> e.getExtensions().contains(ext))
+				.filter(e -> defaultExtension == null ? false : e.getExtensions().contains(defaultExtension))
 				.findFirst()
 				.orElse(extensionFilters.get(0));
 		if (!Objects.equals(selectedFilter, extensionFilters.get(0))) {
@@ -922,6 +917,14 @@ public class Commands {
 		if (fileOutput == null)
 			return false;
 		lastSnapshotDirectory = fileOutput.getParentFile();
+
+		String ext = GeneralTools.getExtension(fileOutput).orElse(null);
+		List<ImageWriter<BufferedImage>> compatibleWriters = ext == null ? Collections.emptyList() :
+				ImageWriterTools.getCompatibleWriters(BufferedImage.class, ext);
+		if (compatibleWriters.isEmpty()) {
+			logger.error("No compatible image writers found for extension: " + ext);
+			return false;
+		}
 
 		// Loop through the writers and stop when we are successful
 		for (var writer : compatibleWriters) {
