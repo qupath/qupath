@@ -78,26 +78,6 @@ public final class PathObjectHierarchy implements Serializable {
 	private static final long serialVersionUID = 1L;
 	
 	private static final Logger logger = LoggerFactory.getLogger(PathObjectHierarchy.class);
-			
-	// TODO: Make this a choice - currently a cell object is considered 'inside' if its nucleus is fully contained (as cell boundaries themselves are a little more questionable)
-	/*
-	 * TODO: Consider how to explain this...
-	 * The idea is that cell nuclei are used to determine whether an object is 'inside' another object,
-	 * which is important when adding annotations etc. to the object hierarchy.
-	 * 
-	 * @return
-	 */
-	static boolean useCellNucleiForInsideTest = true;
-	/*
-	 * TODO: Consider how to explain this...
-	 * The idea is that tile centroids are used to determine whether an object is 'inside' another object,
-	 * which is important when adding annotations etc. to the object hierarchy.
-	 * 
-	 * @return
-	 */
-	static boolean useTileCentroidsForInsideTest = true;
-
-	
 	
 	private TMAGrid tmaGrid = null;
 	private PathObject rootObject = new PathRootObject();
@@ -192,20 +172,6 @@ public final class PathObjectHierarchy implements Serializable {
 	public PathObjectSelectionModel getSelectionModel() {
 		return selectionModel;
 	}
-	
-//	/**
-//	 * Check if the hierarchy is changing.  This can occur, for example, if a plugin is running
-//	 * that modifies the hierarchy frequently, and so listeners may want to avoid responding to
-//	 * events for performance reasons.
-//	 * @return
-//	 */
-//	public boolean isChanging() {
-//		return changing;
-//	}
-//	
-//	public void setChanging(boolean changing) {
-//		this.changing = changing;
-//	}
 	
 	/**
 	 * Set the tma grid for this hierarchy.
@@ -837,7 +803,7 @@ public final class PathObjectHierarchy implements Serializable {
 	
 	/**
 	 * Get the objects within a specified ROI, as defined by the general rules for resolving the hierarchy. 
-	 * This relies on centroids for detections, and a 'covers' rule for others.
+	 * This relies on centroids for detections (including subclasses), and a 'covers' rule for others (annotations, TMA cores).
 	 * 
 	 * @param cls class of PathObjects (e.g. PathDetectionObject), or null to accept all
 	 * @param roi
@@ -966,7 +932,7 @@ public final class PathObjectHierarchy implements Serializable {
 	 * @param checkChannel
 	 * @return
 	 */
-	static boolean samePlane(ROI roi1, ROI roi2, boolean checkChannel) {
+	private static boolean samePlane(ROI roi1, ROI roi2, boolean checkChannel) {
 		if (checkChannel)
 			return roi1.getImagePlane().equals(roi2.getImagePlane());
 		else
