@@ -157,6 +157,16 @@ public class TestPathObjectHierarchy {
         assertTrue(hierarchy.getAllDetectionsForROI(ROIs.createRectangleROI(region1)).stream().allMatch(PathObject::isDetection));
         assertFalse(hierarchy.getAllDetectionsForROI(ROIs.createRectangleROI(region1)).stream().allMatch(PathObject::isAnnotation));
         assertFalse(hierarchy.getAllDetectionsForROI(ROIs.createRectangleROI(region1)).stream().allMatch(PathObject::isTile));
+
+
+        // Get for region
+        assertTrue(hierarchy.getAnnotationsForRegion(region1, null).stream().allMatch(PathObject::isAnnotation));
+        assertFalse(hierarchy.getAnnotationsForRegion(region1, null).stream().allMatch(PathObject::isDetection));
+        assertEquals(2, hierarchy.getAnnotationsForRegion(region1, null).size());
+        assertEquals(1, hierarchy.getAnnotationsForRegion(region1, null).size());
+        assertEquals(2, hierarchy.getAnnotationsForRegion(region1, null).size());
+        assertEquals(1, hierarchy.getAnnotationsForRegion(region1, null).size());
+
     }
 
     private static List<PathObject> createObjects(Collection<? extends ImageRegion> regions, Function<ImageRegion, ROI> roiCreator, Function<ROI, PathObject> objectCreator) {
@@ -175,6 +185,26 @@ public class TestPathObjectHierarchy {
                 pathObject,
                 ImagePlane.getPlane(pathObject.getROI().getZ(), t),
                 false, true);
+    }
+
+
+    @Test
+    public void testGetPoints() {
+        var points = ROIs.createPointsROI(1, 2, ImagePlane.getDefaultPlane());
+        var points2 = ROIs.createPointsROI(new double[]{1, 2}, new double[]{3, 4}, ImagePlane.getDefaultPlane());
+        var rect = ROIs.createRectangleROI(0, 0, 10, 10, ImagePlane.getDefaultPlane());
+
+        var annotations = List.of(points, points2, rect).stream().map(PathObjects::createAnnotationObject).toList();
+        var detections = List.of(points, points2, rect).stream().map(PathObjects::createDetectionObject).toList();
+        var hierarchy = new PathObjectHierarchy();
+        hierarchy.addObjects(annotations);
+        hierarchy.addObjects(detections);
+
+        assertEquals(7, hierarchy.getAllObjects(true).size());
+        assertEquals(6, hierarchy.getAllObjects(false).size());
+        assertEquals(4, hierarchy.getAllPointObjects().size());
+        assertEquals(2, hierarchy.getAllPointAnnotations().size());
+        assertTrue(hierarchy.getAllPointAnnotations().stream().allMatch(PathObject::isAnnotation));
     }
 
 }
