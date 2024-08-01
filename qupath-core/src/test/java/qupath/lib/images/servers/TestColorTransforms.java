@@ -149,8 +149,8 @@ public class TestColorTransforms {
     void Check_Map_Linear_Combination_Channel_Supported() throws Exception {
         ImageServer<BufferedImage> sampleServer = new SampleImageServer();
         ColorTransforms.ColorTransform colorTransform = ColorTransforms.createLinearCombinationChannelTransform(Map.of(
-                sampleServer.getChannel(0).getName(), 0.5f,
-                sampleServer.getChannel(1).getName(), 0.1f
+                sampleServer.getChannel(0).getName(), 0.5,
+                sampleServer.getChannel(1).getName(), 0.1
         ));
 
         boolean supported = colorTransform.supportsImage(sampleServer);
@@ -164,8 +164,8 @@ public class TestColorTransforms {
     void Check_Map_Linear_Combination_Channel_Not_Supported() throws Exception {
         ImageServer<BufferedImage> sampleServer = new SampleImageServer();
         ColorTransforms.ColorTransform colorTransform = ColorTransforms.createLinearCombinationChannelTransform(Map.of(
-                "channel not present in sample image server", 0.5f,
-                sampleServer.getChannel(1).getName(), 0.1f
+                "channel not present in sample image server", 0.5,
+                sampleServer.getChannel(1).getName(), 0.1
         ));
 
         boolean supported = colorTransform.supportsImage(sampleServer);
@@ -178,16 +178,16 @@ public class TestColorTransforms {
     @Test
     void Check_Map_Linear_Combination_Channel_Pixels() throws Exception {
         ImageServer<BufferedImage> sampleServer = new SampleImageServer();
-        Map<String, Float> coefficients = Map.of(
-                sampleServer.getChannel(0).getName(), 0.4f,
-                sampleServer.getChannel(2).getName(), 0.6f
+        Map<String, Double> coefficients = Map.of(
+                sampleServer.getChannel(0).getName(), 0.4,
+                sampleServer.getChannel(2).getName(), 0.6
         );
         ColorTransforms.ColorTransform colorTransform = ColorTransforms.createLinearCombinationChannelTransform(coefficients);
         BufferedImage image = sampleServer.readRegion(1, 0, 0, 10, 10);
         float[] expectedPixels = new float[image.getWidth() * image.getHeight()];
         for (int y=0; y<image.getHeight(); y++) {
             for (int x=0; x<image.getWidth(); x++) {
-                for (Map.Entry<String, Float> entry: coefficients.entrySet()) {
+                for (Map.Entry<String, Double> entry: coefficients.entrySet()) {
                     int channelIndex = sampleServer.getMetadata().getChannels().stream()
                             .map(ImageChannel::getName)
                             .toList()
@@ -208,8 +208,8 @@ public class TestColorTransforms {
     @Test
     void Check_Map_Linear_Combination_Channel_To_And_From_JSON() {
         ColorTransforms.ColorTransform expectedColorTransform = ColorTransforms.createLinearCombinationChannelTransform(Map.of(
-                "some channel", 0.5f,
-                "some other channel", 0.1f
+                "some channel", 0.5,
+                "some other channel", 0.1
         ));
         Gson gson = new GsonBuilder()
                 .registerTypeAdapter(ColorTransforms.ColorTransform.class, new ColorTransforms.ColorTransformTypeAdapter())
@@ -227,7 +227,7 @@ public class TestColorTransforms {
     void Check_List_Linear_Combination_Channel_Supported() throws Exception {
         ImageServer<BufferedImage> sampleServer = new SampleImageServer();
         ColorTransforms.ColorTransform colorTransform = ColorTransforms.createLinearCombinationChannelTransform(
-                sampleServer.getMetadata().getChannels().stream().map(c -> 1f).toList()
+                sampleServer.getMetadata().getChannels().stream().map(c -> 1).toList()
         );
 
         boolean supported = colorTransform.supportsImage(sampleServer);
@@ -242,8 +242,8 @@ public class TestColorTransforms {
         ImageServer<BufferedImage> sampleServer = new SampleImageServer();
         ColorTransforms.ColorTransform colorTransform = ColorTransforms.createLinearCombinationChannelTransform(
                 Stream.concat(
-                        sampleServer.getMetadata().getChannels().stream().map(c -> 1f),
-                        Stream.of(3f)
+                        sampleServer.getMetadata().getChannels().stream().map(c -> 1),
+                        Stream.of(3)
                 ).toList()
         );
 
@@ -279,8 +279,73 @@ public class TestColorTransforms {
     @Test
     void Check_List_Linear_Combination_Channel_To_And_From_JSON() {
         ColorTransforms.ColorTransform expectedColorTransform = ColorTransforms.createLinearCombinationChannelTransform(List.of(
-                0.5f, 0.1f
+                5, 1
         ));
+        Gson gson = new GsonBuilder()
+                .registerTypeAdapter(ColorTransforms.ColorTransform.class, new ColorTransforms.ColorTransformTypeAdapter())
+                .create();
+
+        ColorTransforms.ColorTransform colorTransform = gson.fromJson(
+                gson.toJson(expectedColorTransform),
+                ColorTransforms.ColorTransform.class
+        );
+
+        Assertions.assertEquals(expectedColorTransform, colorTransform);
+    }
+
+    @Test
+    void Check_Array_Linear_Combination_Channel_Supported() throws Exception {
+        ImageServer<BufferedImage> sampleServer = new SampleImageServer();
+        ColorTransforms.ColorTransform colorTransform = ColorTransforms.createLinearCombinationChannelTransform(
+                new double[sampleServer.nChannels()]
+        );
+
+        boolean supported = colorTransform.supportsImage(sampleServer);
+
+        Assertions.assertTrue(supported);
+
+        sampleServer.close();
+    }
+
+    @Test
+    void Check_Array_Linear_Combination_Channel_Not_Supported() throws Exception {
+        ImageServer<BufferedImage> sampleServer = new SampleImageServer();
+        ColorTransforms.ColorTransform colorTransform = ColorTransforms.createLinearCombinationChannelTransform(
+                new double[sampleServer.nChannels() + 1]
+        );
+
+        boolean supported = colorTransform.supportsImage(sampleServer);
+
+        Assertions.assertFalse(supported);
+
+        sampleServer.close();
+    }
+
+    @Test
+    void Check_Array_Linear_Combination_Channel_Pixels() throws Exception {
+        ImageServer<BufferedImage> sampleServer = new SampleImageServer();
+        double[] coefficients = new double[] {0.2, 0.5, 2};
+        ColorTransforms.ColorTransform colorTransform = ColorTransforms.createLinearCombinationChannelTransform(coefficients);
+        BufferedImage image = sampleServer.readRegion(1, 0, 0, 10, 10);
+        float[] expectedPixels = new float[image.getWidth() * image.getHeight()];
+        for (int y=0; y<image.getHeight(); y++) {
+            for (int x=0; x<image.getWidth(); x++) {
+                for (int i=0; i<coefficients.length; i++) {
+                    expectedPixels[y*image.getWidth() + x] += coefficients[i] * SampleImageServer.getPixel(x, y, i);
+                }
+            }
+        }
+
+        float[] pixels = colorTransform.extractChannel(sampleServer, image, null);
+
+        Assertions.assertArrayEquals(expectedPixels, pixels, 0.001f);   // delta for rounding errors
+
+        sampleServer.close();
+    }
+
+    @Test
+    void Check_Array_Linear_Combination_Channel_To_And_From_JSON() {
+        ColorTransforms.ColorTransform expectedColorTransform = ColorTransforms.createLinearCombinationChannelTransform(0.5, 0.1);
         Gson gson = new GsonBuilder()
                 .registerTypeAdapter(ColorTransforms.ColorTransform.class, new ColorTransforms.ColorTransformTypeAdapter())
                 .create();

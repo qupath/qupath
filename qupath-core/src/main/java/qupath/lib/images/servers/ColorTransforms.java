@@ -114,14 +114,14 @@ public class ColorTransforms {
 			} else if (obj.has("channelName")) {
 				return new ExtractChannelByName(obj.get("channelName").getAsString());
 			} else if (obj.has("channelNamesToCoefficients") || obj.has("channelIndicesToCoefficients")) {
-				Map<String, Float> channelNamesToCoefficients = null;
-				List<Float> channelIndicesToCoefficients = null;
+				Map<String, Double> channelNamesToCoefficients = null;
+				List<Double> channelIndicesToCoefficients = null;
 
 				if (obj.get("channelNamesToCoefficients") != null) {
-					channelNamesToCoefficients = gson.fromJson(obj.get("channelNamesToCoefficients"), new TypeToken<Map<String, Float>>() {}.getType());
+					channelNamesToCoefficients = gson.fromJson(obj.get("channelNamesToCoefficients"), new TypeToken<Map<String, Double>>() {}.getType());
 				}
 				if (obj.get("channelIndicesToCoefficients") != null) {
-					channelIndicesToCoefficients = obj.get("channelIndicesToCoefficients").getAsJsonArray().asList().stream().map(JsonElement::getAsFloat).toList();
+					channelIndicesToCoefficients = obj.get("channelIndicesToCoefficients").getAsJsonArray().asList().stream().map(JsonElement::getAsDouble).toList();
 				}
 
 				return new LinearCombinationChannel(channelNamesToCoefficients, channelIndicesToCoefficients);
@@ -170,7 +170,7 @@ public class ColorTransforms {
 	 * @param coefficients the channel names mapped to coefficients
 	 * @return a ColorTransform computing the provided linear combination
 	 */
-	public static ColorTransform createLinearCombinationChannelTransform(Map<String, Float> coefficients) {
+	public static ColorTransform createLinearCombinationChannelTransform(Map<String, ? extends Number> coefficients) {
 		return new LinearCombinationChannel(coefficients);
 	}
 
@@ -182,8 +182,20 @@ public class ColorTransforms {
 	 * @param coefficients the list of coefficients to apply to each channel
 	 * @return a ColorTransform computing the provided linear combination
 	 */
-	public static ColorTransform createLinearCombinationChannelTransform(List<Float> coefficients) {
+	public static ColorTransform createLinearCombinationChannelTransform(List<? extends Number> coefficients) {
 		return new LinearCombinationChannel(coefficients);
+	}
+
+	/**
+	 * Create a ColorTransform that apply a linear combination to the channels.
+	 * For example, calling this function with the coefficients (0.5, 0.9)
+	 * will create a new channel with values "0.5*firstChannel + 0.9*secondChannel".
+	 *
+	 * @param coefficients the coefficients to apply to each channel
+	 * @return a ColorTransform computing the provided linear combination
+	 */
+	public static ColorTransform createLinearCombinationChannelTransform(double... coefficients) {
+		return createLinearCombinationChannelTransform(Arrays.stream(coefficients).boxed().toList());
 	}
 	
 	/**
@@ -332,30 +344,43 @@ public class ColorTransforms {
 		}
 
 		private int getChannelNumber(ImageServer<BufferedImage> server) {
-			return server.getMetadata().getChannels()
-					.stream()
-					.map(ImageChannel::getName)
-					.toList()
-					.indexOf(channelName);
+			int i = 0;
+			for (ImageChannel channel : server.getMetadata().getChannels()) {
+				if (channel.getName().equals(channelName)) {
+					return i;
+				}
+				i++;
+			}
+			return -1;
 		}
 	}
 
 	static class LinearCombinationChannel implements ColorTransform {
 
-		private final Map<String, Float> channelNamesToCoefficients;
-		private final List<Float> channelIndicesToCoefficients;
+		private final Map<String, Double> channelNamesToCoefficients;
+		private final List<Double> channelIndicesToCoefficients;
+		private transient String name;
 
-		private LinearCombinationChannel(Map<String, Float> channelNamesToCoefficients, List<Float> channelIndicesToCoefficients) {
+		private LinearCombinationChannel(Map<String, Double> channelNamesToCoefficients, List<Double> channelIndicesToCoefficients) {
 			this.channelNamesToCoefficients = channelNamesToCoefficients;
 			this.channelIndicesToCoefficients = channelIndicesToCoefficients;
 		}
 
-		public LinearCombinationChannel(Map<String, Float> coefficients) {
-			this(coefficients, null);
+		public LinearCombinationChannel(Map<String, ? extends Number> coefficients) {
+			this(
+					coefficients.entrySet().stream().collect(Collectors.toMap(
+							Map.Entry::getKey,
+							entry -> entry.getValue().doubleValue()
+					)),
+					null
+			);
 		}
 
-		public LinearCombinationChannel(List<Float> coefficients) {
-			this(null, coefficients);
+		public LinearCombinationChannel(List<? extends Number> coefficients) {
+			this(
+					null,
+					coefficients.stream().map(Number::doubleValue).toList()
+			);
 		}
 
 		@Override
@@ -364,15 +389,18 @@ public class ColorTransforms {
 			int w = img.getWidth();
 			int h = img.getHeight();
 			var raster = img.getRaster();
-			Map<Integer, Float> coefficients = getCoefficients(server);
+			double[] coefficients = getCoefficients(server);
 
+			double[] values = null;
 			for (int y = 0; y < h; y++) {
 				for (int x = 0; x < w; x++) {
-					double[] vals = raster.getPixel(x, y, (double[]) null);
+					values = raster.getPixel(x, y, values);
 
-					pixels[y*w+x] = (float) coefficients.entrySet().stream()
-							.mapToDouble(entry -> entry.getValue() * vals[entry.getKey()])
-							.sum();
+					double result = 0;
+					for (int i = 0; i < values.length; i++) {
+						result += values[i] * coefficients[i];
+					}
+					pixels[y*w+x] = (float) result;
 				}
 			}
 			return pixels;
@@ -380,17 +408,20 @@ public class ColorTransforms {
 
 		@Override
 		public String getName() {
-			if (channelNamesToCoefficients != null) {
-				return channelNamesToCoefficients.entrySet().stream()
-						.map(entry -> entry.getValue() + "*" + entry.getKey())
-						.collect(Collectors.joining(" + "));
-			} else if (channelIndicesToCoefficients != null) {
-				return IntStream.range(0, channelIndicesToCoefficients.size())
-						.mapToObj(i -> channelIndicesToCoefficients.get(i) + "*channel" + i)
-						.collect(Collectors.joining(" + "));
-			} else {
-				return "Linear combination channels";
+			if (name == null) {
+				if (channelNamesToCoefficients != null) {
+					name = channelNamesToCoefficients.entrySet().stream()
+							.map(entry -> entry.getValue() + "*" + entry.getKey())
+							.collect(Collectors.joining(" + "));
+				} else if (channelIndicesToCoefficients != null) {
+					name = IntStream.range(0, channelIndicesToCoefficients.size())
+							.mapToObj(i -> channelIndicesToCoefficients.get(i) + "*channel" + i)
+							.collect(Collectors.joining(" + "));
+				} else {
+					name = "Linear combination channels";
+				}
 			}
+			return name;
 		}
 
 		@Override
@@ -431,22 +462,20 @@ public class ColorTransforms {
 					Objects.equals(channelIndicesToCoefficients, linearCombinationChannel.channelIndicesToCoefficients);
 		}
 
-		private Map<Integer, Float> getCoefficients(ImageServer<BufferedImage> server) {
-			List<String> channelNames = server.getMetadata().getChannels().stream().map(ImageChannel::getName).toList();
+		private double[] getCoefficients(ImageServer<BufferedImage> server) {
+			double[] coefficients = new double[server.nChannels()];
 
 			if (channelNamesToCoefficients != null) {
-				return channelNamesToCoefficients.entrySet().stream()
-						.collect(Collectors.toMap(
-								entry -> channelNames.indexOf(entry.getKey()),
-								Map.Entry::getValue
-						));
+				for (int i=0; i<server.nChannels(); i++) {
+					coefficients[i] = channelNamesToCoefficients.getOrDefault(server.getChannel(i).getName(), 0d);
+				}
 			} else if (channelIndicesToCoefficients != null) {
-				return IntStream.range(0, channelIndicesToCoefficients.size())
-						.boxed()
-						.collect(Collectors.toMap(i -> i, channelIndicesToCoefficients::get));
-			} else {
-				return Map.of();
+				for (int i=0; i<channelIndicesToCoefficients.size(); i++) {
+					coefficients[i] = channelIndicesToCoefficients.get(i);
+				}
 			}
+
+			return coefficients;
 		}
 	}
 
