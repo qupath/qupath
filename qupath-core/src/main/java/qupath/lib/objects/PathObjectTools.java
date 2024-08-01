@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -86,11 +86,7 @@ public class PathObjectTools {
 	 */
 	private static void removePoints(Collection<PathObject> pathObjects) {
 		logger.trace("Remove points");
-		Iterator<PathObject> iter = pathObjects.iterator();
-		while (iter.hasNext()) {
-			if (hasPointROI(iter.next()))
-				iter.remove();
-		}
+        pathObjects.removeIf(PathObjectTools::hasPointROI);
 	}
 	
 	/**
@@ -193,8 +189,8 @@ public class PathObjectTools {
 
 	private static class ImageRegionPredicate implements Predicate<PathObject> {
 		
-		private ImageRegion region;
-		private PreparedGeometry geometry;
+		private final ImageRegion region;
+		private final PreparedGeometry geometry;
 		
 		ImageRegionPredicate(ImageRegion region) {
 			this.region = region;
@@ -246,111 +242,7 @@ public class PathObjectTools {
 		return pathObject.nDescendants();
 	}
 
-	
 
-	/**
-	 * Test whether one ROI is can completely contain a second ROI.
-	 * Returns false if either ROI is null.
-	 * <p>
-	 * Note: This is not a perfect test, since it really only checks if the vertices of the child ROI fall within the parent - it is possible
-	 * that connecting lines stray outside the parent, yet it still returns true.  This behavior may change in later versions.
-	 * <p>
-	 * TODO: Consider improving 'containsROI' method accuracy.
-	 * 
-	 * @param parentROI
-	 * @param childROI
-	 * @return
-	 */
-	@Deprecated
-	public static boolean containsROI(final ROI parentROI, final ROI childROI) {
-		// Check for nulls... just to be sure
-		if (parentROI == null || childROI == null || !parentROI.isArea() || childROI.isEmpty() || parentROI.isEmpty())
-			return false;
-		
-		// Check points
-		if (childROI != null && childROI.isPoint()) {
-			for (Point2 p : childROI.getAllPoints()) {
-				if (!parentROI.contains(p.getX(), p.getY()))
-					return false;
-			}
-			return true;
-		}
-		
-		// Check areas - child can't have a larger area
-		if (childROI.isArea()) {
-			if (childROI.getArea() > parentROI.getArea())
-				return false;
-		}
-
-		// Check bounds dimensions
-		if (childROI.getBoundsWidth() > parentROI.getBoundsWidth() || childROI.getBoundsHeight() > parentROI.getBoundsHeight())
-			return false;
-
-		// Check bounds
-		double px = parentROI.getBoundsX();
-		double py = parentROI.getBoundsY();
-		double px2 = px + parentROI.getBoundsWidth();
-		double py2 = py + parentROI.getBoundsHeight();
-		double cx = childROI.getBoundsX();
-		double cy = childROI.getBoundsY();
-		double cx2 = px + childROI.getBoundsWidth();
-		double cy2 = py + childROI.getBoundsHeight();
-		if (!(cx >= px && cx2 <= px2 && cy >= py && cy2 <= py2))
-			return false;
-		
-		// Check shapes
-		for (Point2 p : childROI.getAllPoints()) {
-			if (!parentROI.contains(p.getX(), p.getY()))
-				return false;
-		}
-		
-		if (parentROI.isArea() && childROI.isArea())
-			return parentROI.getGeometry().covers(childROI.getGeometry());
-		
-//		List<Point> points = parentArea.getPolygonPoints();
-//		for (Point p : childROI.getPolygonPoints()) {
-//			int windingNumber = WindingTest.getWindingNumber(points, p.getX(), p.getY());
-//			//				logger.info("Winding number: " + windingNumber);
-//			if (windingNumber == 0)
-//				return false;
-//		}
-		return true;
-//		logger.info("Doing standard (AWT) test...");
-//		return PathROIToolsAwt.containsShape(parentArea, (PathShape)childROI);
-
-//		return false;
-
-		//			// Check for lines
-		//			if (childROI instanceof PathLineROI) {
-		//				PathLineROI line = (PathLineROI)childROI;
-		//				return parentROI.contains(line.getX1(), line.getY1()) && parentROI.contains(line.getX2(), line.getY2());
-		//			}
-		//			
-		//			// If we have areas, check these
-		//			if (parentROI instanceof PathArea && childROI instanceof PathArea) {
-		//				double area = ((PathArea)parentROI).getArea();
-		//				if (!Double.isNaN(area) && area < ((PathArea)childROI).getArea())
-		//					return false;
-		//			}
-		//			
-		//			// Check bounds
-		//	//		if (!parentROI.getBounds2D().contains(childROI.getBounds2D())
-		//			Rectangle2D childBounds = childROI.getBounds2D();
-		//			if (!parentROI.intersects(childBounds))
-		//				return false;
-		//			
-		//			// If we have shapes, do a proper test
-		//			if ((parentROI instanceof PathShape) && (childROI instanceof PathShape)) {
-		//				PathShape parentShape = (PathShape)parentROI;
-		//				if (parentShape.contains(childBounds))
-		//					return true;
-		//				PathShape childShape = (PathShape)childROI;
-		//				Area areaDifference = parentShape.getShapeAsArea();
-		//				areaDifference.subtract(childShape.getShapeAsArea());
-		//				return areaDifference.isEmpty();
-		//			}
-		//			return true;
-	}
 
 	/**
 	 * Get all the objects with ROIs that are outside the bounds of an image.
@@ -402,8 +294,84 @@ public class PathObjectTools {
 				.filter(p -> !checkRegionContainsROI(p.getROI(), region, minZ, maxZ, minT, maxT, ignoreIntersecting))
 				.collect(Collectors.toList());
 	}
-	
-	
+
+	/**
+	 * Filter a collection of PathObjects to identify those that have ROIs that are covered by a specified ROI.
+	 * @param roi the ROI to test against
+	 * @param pathObjects the objects to filter
+	 * @return a new collection that contains only the objects that are covered by the ROI
+	 * @param <T>
+	 */
+	public static <T extends PathObject> Collection<T> filterByRoiCovers(ROI roi, Collection<T> pathObjects) {
+		Predicate<PathObject> predicate;
+		var geom = roi.getGeometry();
+		if (pathObjects.size() > 1) {
+			var prepared = PreparedGeometryFactory.prepare(geom);
+			predicate = createGeometryPredicate(prepared::covers);
+		} else {
+			predicate = createGeometryPredicate(geom::covers);
+		}
+		return filterByRoiPredicate(roi, predicate, pathObjects);
+	}
+
+	/**
+	 * Filter a collection of PathObjects to identify those that intersect with a specified ROI.
+	 * @param roi the ROI to test against
+	 * @param pathObjects the objects to filter
+	 * @return a new collection that contains only the objects that intersect with the ROI
+	 * @param <T>
+	 */
+	public static <T extends PathObject> Collection<T> filterByRoiIntersects(ROI roi, Collection<T> pathObjects) {
+		Predicate<PathObject> predicate;
+		var geom = roi.getGeometry();
+		if (pathObjects.size() > 1) {
+			var prepared = PreparedGeometryFactory.prepare(geom);
+			predicate = createGeometryPredicate(prepared::intersects);
+		} else {
+			predicate = createGeometryPredicate(geom::intersects);
+		}
+		return filterByRoiPredicate(roi, predicate, pathObjects);
+	}
+
+	/**
+	 * Filter a collection of PathObjects using a ROI predicate.
+	 * This also tests that the object *has* a ROI, and that it is on the same place as the provided ROI.
+	 * @param roi the main ROI to test against
+	 * @param predicate any additional test to perform
+	 * @param pathObjects the collection to filter
+	 * @return
+	 * @param <T>
+	 */
+	private static <T extends PathObject> Collection<T> filterByRoiPredicate(ROI roi, Predicate<PathObject> predicate, Collection<T> pathObjects) {
+		var planePredicate = createPlanePredicate(roi.getImagePlane());
+		return pathObjects
+				.parallelStream()
+				.filter(PathObject::hasROI)
+				.filter(planePredicate)
+				.filter(predicate)
+				.collect(Collectors.toList());
+	}
+
+	private static Predicate<PathObject> createPlanePredicate(ImagePlane plane) {
+		return p -> p.getROI().getZ() == plane.getZ() && p.getROI().getT() == plane.getT();
+	}
+
+	private static Predicate<PathObject> createGeometryPredicate(Predicate<Geometry> predicate) {
+		return (PathObject p) -> predicate.test(p.getROI().getGeometry());
+	}
+
+	/**
+	 * Filter a collection of PathObjects to identify those with centroids that fall within specified ROI.
+	 * @param roi the ROI to test against
+	 * @param pathObjects the objects to filter
+	 * @return a new collection that contains only the objects with centroids that fall within the ROI
+	 * @param <T>
+	 */
+	public static <T extends PathObject> Collection<T> filterByRoiContainsCentroid(ROI roi, Collection<T> pathObjects) {
+		return filterByRoiPredicate(roi, p -> roi.contains(p.getROI().getCentroidX(), p.getROI().getCentroidY()), pathObjects);
+	}
+
+
 	private static boolean checkRegionContainsROI(ROI roi, ImageRegion region, int minZ, int maxZ, int minT, int maxT, boolean ignoreIntersecting) {
 		if (roi == null)
 			return false;
@@ -519,21 +487,7 @@ public class PathObjectTools {
 		return cls.getSimpleName();
 	}
 	
-	
-	/**
-	 * Test whether the ROI associated with one object can completely the ROI of a second object.
-	 * Returns false if either ROI is null.
-	 * 
-	 * @param parentObject
-	 * @param childObject
-	 * @return
-	 */
-	@Deprecated
-	public static boolean containsObject(PathObject parentObject, PathObject childObject) {
-		if (parentObject == null || childObject == null)
-			return false;
-		return containsROI(parentObject.getROI(), childObject.getROI());
-	}
+
 
 	/**
 	 * Query if one object is the ancestor of another.
