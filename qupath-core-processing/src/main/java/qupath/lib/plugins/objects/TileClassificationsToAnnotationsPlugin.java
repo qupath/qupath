@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -23,8 +23,6 @@
 
 package qupath.lib.plugins.objects;
 
-import java.awt.geom.Area;
-import java.awt.geom.Path2D;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -51,9 +49,7 @@ import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.plugins.AbstractDetectionPlugin;
 import qupath.lib.plugins.PathTask;
 import qupath.lib.plugins.parameters.ParameterList;
-import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.RoiTools;
-import qupath.lib.roi.PolygonROI;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
@@ -192,24 +188,15 @@ public class TileClassificationsToAnnotationsPlugin<T> extends AbstractDetection
 				PathObject pathSingleAnnotation = null;
 				List<PathObject> tiles = new ArrayList<>();
 				if (pathClass != null && !PathClassTools.isIgnoredClass(pathClass)) {
-					Path2D path = null;
+					List<ROI> roisToMerge = new ArrayList<>();
 					for (PathObject pathObject : parentObject.getChildObjectsAsArray()) {
 						if ((pathObject instanceof PathTileObject) && (RoiTools.isShapeROI(pathObject.getROI())) && pathClass.equals(pathObject.getPathClass())) {
-							ROI pathShape = pathObject.getROI();
-							if (path == null)
-								path = new Path2D.Float(RoiTools.getShape(pathShape));
-							else
-								path.append(RoiTools.getShape(pathShape), false);
+							roisToMerge.add(pathObject.getROI());
 							tiles.add(pathObject);
 						}
 					}
 					if (!tiles.isEmpty()) {
-						ROI pathROINew = null;
-						ROI parentROI = parentObject.getROI();
-						if (parentROI != null)
-							pathROINew = RoiTools.getShapeROI(new Area(path), parentROI.getImagePlane());
-						else
-							pathROINew = RoiTools.getShapeROI(new Area(path), ImagePlane.getDefaultPlane());
+						ROI pathROINew = RoiTools.union(roisToMerge);
 						pathSingleAnnotation = PathObjects.createAnnotationObject(pathROINew, pathClass);
 						if (!deleteTiles)
 							pathSingleAnnotation.addChildObjects(tiles);
@@ -222,44 +209,13 @@ public class TileClassificationsToAnnotationsPlugin<T> extends AbstractDetection
 				
 				// Split if necessary
 				if (doSplit) {
-					ROI pathShape = pathSingleAnnotation.getROI();
-					Area area = RoiTools.getArea(pathShape);
-					if (area.isSingular()) {
-						pathAnnotations.add(pathSingleAnnotation);
-//						resultsString = "Created 1 annotation from " + tiles.size() + " tiles: " + pathSingleAnnotation;
-					}
-					else {
-						PolygonROI[][] polygons = RoiTools.splitAreaToPolygons(area, pathShape.getC(), pathShape.getZ(), pathShape.getT());
-						for (PolygonROI poly : polygons[1]) {
-							ROI shape = poly;
-							Iterator<PathObject> iter = tiles.iterator();
-							List<PathObject> children = new ArrayList<>();
-							if (!deleteTiles) {
-								while (iter.hasNext()) {
-									PathObject next = iter.next();
-									ROI roi = next.getROI();
-									if (poly.contains(roi.getCentroidX(), roi.getCentroidY())) {
-										iter.remove();
-										children.add(next);
-									}
-								}
-							}
-							
-							for (PolygonROI hole : polygons[0]) {
-								if (PathObjectTools.containsROI(poly, hole))
-									shape = RoiTools.combineROIs(shape, hole, RoiTools.CombineOp.SUBTRACT);
-							}
-//							PathObjectTools.containsObject(pathSingleAnnotation, childObject)
-							PathObject annotation = PathObjects.createAnnotationObject(shape, pathClass);
-							if (!deleteTiles)
-								annotation.addChildObjects(children);
-							pathAnnotations.add(annotation);
-						}
-					}
+					RoiTools.splitROI(pathSingleAnnotation.getROI())
+							.stream()
+							.map(p -> PathObjects.createAnnotationObject(p, pathClass))
+							.forEach(pathAnnotations::add);
 				}
 				else {
 					pathAnnotations.add(pathSingleAnnotation);
-//					resultsString = "Created annotation from " + tiles.size() + " tiles: " + pathSingleAnnotation;
 				}
 			}
 			
