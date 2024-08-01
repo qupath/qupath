@@ -656,18 +656,33 @@ public final class PathObjectHierarchy implements Serializable {
 	 * Get objects that contain Point ROIs.
 	 * @param cls
 	 * @return
+	 * @deprecated v0.6.0; use {@link #getAllPointObjects()} instead, and filter by object type if required.
 	 */
+	@Deprecated
 	public synchronized Collection<PathObject> getPointObjects(Class<? extends PathObject> cls) {
 		Collection<PathObject> pathObjects = getObjects(null, cls);
 		if (!pathObjects.isEmpty()) {
-			Iterator<PathObject> iter = pathObjects.iterator();
-			while (iter.hasNext()) {
-				if (!PathObjectTools.hasPointROI(iter.next())) {
-					iter.remove();
-				}
-			}
+            pathObjects.removeIf(pathObject -> !PathObjectTools.hasPointROI(pathObject));
 		}
 		return pathObjects;
+	}
+
+	/**
+	 * Get all objects in the hierarchy that have a point (or multi-point) ROI.
+	 * @return
+	 */
+	public Collection<PathObject> getAllPointObjects() {
+		return getAllObjects(false).stream().filter(PathObjectTools::hasPointROI).toList();
+	}
+
+	/**
+	 * Get all annotation objects in the hierarchy that have a point (or multi-point) ROI.
+	 * @return
+	 */
+	public Collection<PathObject> getAllPointAnnotations() {
+		return getAnnotationObjects().stream()
+				.filter(PathObjectTools::hasPointROI)
+				.toList();
 	}
 	
 	/**
@@ -874,7 +889,8 @@ public final class PathObjectHierarchy implements Serializable {
 	 * @implSpec This does <i>not</i> return all cells that intersect with the ROI,
 	 *           but rather only those whose centroid falls within the ROI - consistent with the
 	 *           behavior of {@link #resolveHierarchy()}.
-	 */	public Collection<PathObject> getCellsForROI(ROI roi) {
+	 */
+	public Collection<PathObject> getCellsForROI(ROI roi) {
 		return getObjectsForROI(PathCellObject.class, roi);
 	}
 
@@ -938,7 +954,7 @@ public final class PathObjectHierarchy implements Serializable {
 		else
 			return roi1.getZ() == roi2.getZ() && roi1.getT() == roi2.getT();
 	}
-	
+
 	
 	/**
 	 * Get the objects overlapping or close to a specified region.
@@ -948,9 +964,58 @@ public final class PathObjectHierarchy implements Serializable {
 	 * @param region requested region overlapping the objects ROI
 	 * @param pathObjects optionally collection to which objects will be added
 	 * @return collection containing identified objects (same as the input collection, if provided)
+	 * @deprecated v0.6.0, use {@link #getAllObjectsForRegion(ImageRegion, Collection)} or its related methods instead.
+	 * @see #getAllObjectsForRegion(ImageRegion, Collection)
+	 * @see #getAnnotationsForRegion(ImageRegion, Collection)
+	 * @see #getAllDetectionsForRegion(ImageRegion, Collection)
 	 */
+	@Deprecated
 	public Collection<PathObject> getObjectsForRegion(Class<? extends PathObject> cls, ImageRegion region, Collection<PathObject> pathObjects) {
 		return tileCache.getObjectsForRegion(cls, region, pathObjects, true);
+	}
+
+	/**
+	 * Get all the objects overlapping or close to a specified region.
+	 * Note that this performs a quick check; the results typically should be filtered if a more strict test for overlapping is applied.
+	 *
+	 * @param region requested region overlapping the objects ROI
+	 * @param pathObjects optional collection to which objects will be added
+	 * @return collection containing identified objects (same as the input collection, if provided)
+	 * @see #getAllObjectsForROI(ROI)
+	 * @see PathObjectTools#filterByRoiCovers(ROI, Collection)
+	 * @see PathObjectTools#filterByRoiIntersects(ROI, Collection) (ROI, Collection)
+	 * @see PathObjectTools#filterByRoiContainsCentroid(ROI, Collection) (ROI, Collection) (ROI, Collection)
+	 */
+	public Collection<PathObject> getAllObjectsForRegion(ImageRegion region, Collection<PathObject> pathObjects) {
+		return tileCache.getObjectsForRegion(null, region, pathObjects, true);
+	}
+
+	/**
+	 * Get all the annotation objects overlapping or close to a specified region.
+	 * Note that this performs a quick check; the results typically should be filtered if a more strict test for overlapping is applied.
+	 *
+	 * @param region requested region overlapping the objects ROI
+	 * @param pathObjects optional collection to which objects will be added
+	 * @return collection containing identified objects (same as the input collection, if provided)
+	 * @see #getAllObjectsForRegion(ImageRegion, Collection)
+	 * @see #getAnnotationsForROI(ROI)
+	 */
+	public Collection<PathObject> getAnnotationsForRegion(ImageRegion region, Collection<PathObject> pathObjects) {
+		return tileCache.getObjectsForRegion(PathAnnotationObject.class, region, pathObjects, true);
+	}
+
+	/**
+	 * Get all the detection objects overlapping or close to a specified region.
+	 * Note that this performs a quick check; the results typically should be filtered if a more strict test for overlapping is applied.
+	 *
+	 * @param region requested region overlapping the objects ROI
+	 * @param pathObjects optional collection to which objects will be added
+	 * @return collection containing identified objects (same as the input collection, if provided)
+	 * @see #getAllObjectsForRegion(ImageRegion, Collection)
+	 * @see #getAllDetectionsForROI(ROI) (ROI)
+	 */
+	public Collection<PathObject> getAllDetectionsForRegion(ImageRegion region, Collection<PathObject> pathObjects) {
+		return tileCache.getObjectsForRegion(PathDetectionObject.class, region, pathObjects, true);
 	}
 	
 	/**
@@ -963,7 +1028,42 @@ public final class PathObjectHierarchy implements Serializable {
 	public boolean hasObjectsForRegion(Class<? extends PathObject> cls, ImageRegion region) {
 		return tileCache.hasObjectsForRegion(cls, region, true);
 	}
-	
+
+	/**
+	 * Returns true if the hierarchy contains any objects intersecting a specific region.
+	 * This is similar to {@link #getAllObjectsForRegion(ImageRegion, Collection)}, 
+	 * but does not return the objects themselves.
+	 * @param region
+	 * @return true if objects are found, false otherwise.
+	 * @see #getAllObjectsForRegion(ImageRegion, Collection)
+	 */
+	public boolean hasObjectsForRegion(ImageRegion region) {
+		return tileCache.hasObjectsForRegion(null, region, true);
+	}
+
+	/**
+	 * Returns true if the hierarchy contains any annotation objects intersecting a specific region.
+	 * This is similar to {@link #getAnnotationsForRegion(ImageRegion, Collection)}, 
+	 * but does not return the objects themselves.
+	 * @param region
+	 * @return true if annotations are found, false otherwise.
+	 * @see #getAnnotationsForRegion(ImageRegion, Collection)
+	 */
+	public boolean hasAnnotationsForRegion(ImageRegion region) {
+		return tileCache.hasObjectsForRegion(PathAnnotationObject.class, region, true);
+	}
+
+	/**
+	 * Returns true if the hierarchy contains any detection objects (including subclasses) intersecting a specific region.
+	 * This is similar to {@link #getAllDetectionsForRegion(ImageRegion, Collection)},
+	 * but does not return the objects themselves.
+	 * @param region
+	 * @return true if detections are found, false otherwise.
+	 * @see #getAllDetectionsForRegion(ImageRegion, Collection)
+	 */
+	public boolean hasDetectionsForRegion(ImageRegion region) {
+		return tileCache.hasObjectsForRegion(PathDetectionObject.class, region, true);
+	}
 	
 	void fireObjectRemovedEvent(Object source, PathObject pathObject, PathObject previousParent) {
 		PathObjectHierarchyEvent event = PathObjectHierarchyEvent.createObjectRemovedEvent(source, this, previousParent, pathObject);
