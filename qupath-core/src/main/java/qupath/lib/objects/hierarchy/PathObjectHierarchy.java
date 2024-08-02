@@ -30,7 +30,6 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -997,9 +996,9 @@ public final class PathObjectHierarchy implements Serializable {
 	 * @return collection containing identified objects (same as the input collection, if provided)
 	 * @see #getAllObjectsForROI(ROI)
 	 * @see #getAllObjectsForRegion(ImageRegion)
-	 * @see PathObjectTools#filterByRoiCovers(ROI, Collection)
-	 * @see PathObjectTools#filterByRoiIntersects(ROI, Collection) (ROI, Collection)
-	 * @see PathObjectTools#filterByRoiContainsCentroid(ROI, Collection) (ROI, Collection) (ROI, Collection)
+	 * @see PathObjectTools#filterByROICovers(ROI, Collection)
+	 * @see PathObjectTools#filterByROIIntersects(ROI, Collection) (ROI, Collection)
+	 * @see PathObjectTools#filterByROIContainsCentroid(ROI, Collection) (ROI, Collection) (ROI, Collection)
 	 * @since v0.6.0
 	 */
 	public Collection<PathObject> getAllObjectsForRegion(ImageRegion region, Collection<PathObject> pathObjects) {
@@ -1014,9 +1013,9 @@ public final class PathObjectHierarchy implements Serializable {
 	 * @return collection containing identified objects (same as the input collection, if provided)
 	 * @see #getAllObjectsForROI(ROI)
 	 * @see #getAllObjectsForRegion(ImageRegion, Collection)
-	 * @see PathObjectTools#filterByRoiCovers(ROI, Collection)
-	 * @see PathObjectTools#filterByRoiIntersects(ROI, Collection) (ROI, Collection)
-	 * @see PathObjectTools#filterByRoiContainsCentroid(ROI, Collection) (ROI, Collection) (ROI, Collection)
+	 * @see PathObjectTools#filterByROICovers(ROI, Collection)
+	 * @see PathObjectTools#filterByROIIntersects(ROI, Collection) (ROI, Collection)
+	 * @see PathObjectTools#filterByROIContainsCentroid(ROI, Collection) (ROI, Collection) (ROI, Collection)
 	 * @since v0.6.0
 	 */
 	public Collection<PathObject> getAllObjectsForRegion(ImageRegion region) {

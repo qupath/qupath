@@ -197,29 +197,29 @@ public class TestPathObjectTools extends TestPathObjectMethods {
 
 		// Test covers
 		assertEquals(List.of(roiRect, roiEllipse, roiDiamond),
-				PathObjectTools.filterByRoiCovers(roiRect, pathObjects).stream().map(PathObject::getROI).toList());
+				PathObjectTools.filterByROICovers(roiRect, pathObjects).stream().map(PathObject::getROI).toList());
 		// Every other ROI only completely covers itself
 		for (var roi : List.of(roiEllipse, roiDiamond, roiOverlaps, roiOverlaps2, roiSeparate)) {
 			assertEquals(List.of(roi),
-					PathObjectTools.filterByRoiCovers(roi, pathObjects).stream().map(PathObject::getROI).toList());
+					PathObjectTools.filterByROICovers(roi, pathObjects).stream().map(PathObject::getROI).toList());
 		}
 
 		// Test intersects
 		// One ROI is separate, all other intersect
 		assertEquals(List.of(roiSeparate),
-				PathObjectTools.filterByRoiIntersects(roiSeparate, pathObjects).stream().map(PathObject::getROI).toList());
+				PathObjectTools.filterByROIIntersects(roiSeparate, pathObjects).stream().map(PathObject::getROI).toList());
 		for (var roi : List.of(roiRect, roiEllipse, roiDiamond, roiOverlaps, roiOverlaps2)) {
 			assertEquals(List.of(roiRect, roiEllipse, roiDiamond, roiOverlaps, roiOverlaps2),
-					PathObjectTools.filterByRoiIntersects(roi, pathObjects).stream().map(PathObject::getROI).toList());
+					PathObjectTools.filterByROIIntersects(roi, pathObjects).stream().map(PathObject::getROI).toList());
 		}
 
 		// Test contains centroid
 		// One ROI is separate, all other intersect
 		assertEquals(List.of(roiSeparate),
-				PathObjectTools.filterByRoiContainsCentroid(roiSeparate, pathObjects).stream().map(PathObject::getROI).toList());
+				PathObjectTools.filterByROIContainsCentroid(roiSeparate, pathObjects).stream().map(PathObject::getROI).toList());
 		for (var roi : List.of(roiRect, roiEllipse, roiDiamond, roiOverlaps, roiOverlaps2)) {
 			assertEquals(List.of(roiRect, roiEllipse, roiDiamond, roiOverlaps, roiOverlaps2),
-					PathObjectTools.filterByRoiContainsCentroid(roi, pathObjects).stream().map(PathObject::getROI).toList());
+					PathObjectTools.filterByROIContainsCentroid(roi, pathObjects).stream().map(PathObject::getROI).toList());
 		}
 	}
 	

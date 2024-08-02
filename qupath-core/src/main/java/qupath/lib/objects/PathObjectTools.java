@@ -304,8 +304,8 @@ public class PathObjectTools {
 	 * @return a new collection that contains only the objects that are covered by the ROI
 	 * @since v0.6.0
 	 */
-	public static <T extends PathObject> Collection<T> filterByRoiCovers(ROI roi, Collection<T> pathObjects) {
-		return filterByRoiCovers(roi, pathObjects, PathObject::getROI);
+	public static <T extends PathObject> Collection<T> filterByROICovers(ROI roi, Collection<T> pathObjects) {
+		return filterByROICovers(roi, pathObjects, PathObject::getROI);
 	}
 
 	/**
@@ -319,11 +319,11 @@ public class PathObjectTools {
 	 *  		   where available and main ROI otherwise
 	 * @since v0.6.0
 	 */
-	public static <T extends PathObject> Collection<T> filterByRoiCoversNucleus(ROI roi, Collection<T> pathObjects) {
-		return filterByRoiCovers(roi, pathObjects, PathObjectTools::getNucleusOrMainROI);
+	public static <T extends PathObject> Collection<T> filterByROICoversNucleus(ROI roi, Collection<T> pathObjects) {
+		return filterByROICovers(roi, pathObjects, PathObjectTools::getNucleusOrMainROI);
 	}
 
-	private static <T extends PathObject> Collection<T> filterByRoiCovers(ROI roi, Collection<T> pathObjects,
+	private static <T extends PathObject> Collection<T> filterByROICovers(ROI roi, Collection<T> pathObjects,
 																		  Function<PathObject, ROI> roiExtractor) {
 		Predicate<PathObject> predicate;
 		var geom = roi.getGeometry();
@@ -333,7 +333,7 @@ public class PathObjectTools {
 		} else {
 			predicate = createGeometryPredicate(geom::covers, roiExtractor);
 		}
-		return filterByRoiPredicate(roi, predicate, pathObjects);
+		return filterByROIPredicate(roi, predicate, pathObjects);
 	}
 
 	/**
@@ -344,10 +344,10 @@ public class PathObjectTools {
 	 * @param <T>
 	 * @return a new collection that contains only the objects that intersect with the ROI
 	 * @since v0.6.0
-	 * @see #filterByRoiIntersectsNucleus(ROI, Collection)
+	 * @see #filterByROIIntersectsNucleus(ROI, Collection)
 	 */
-	public static <T extends PathObject> Collection<T> filterByRoiIntersects(ROI roi, Collection<T> pathObjects) {
-		return filterByRoiIntersects(roi, pathObjects, PathObject::getROI);
+	public static <T extends PathObject> Collection<T> filterByROIIntersects(ROI roi, Collection<T> pathObjects) {
+		return filterByROIIntersects(roi, pathObjects, PathObject::getROI);
 	}
 
 	/**
@@ -360,13 +360,13 @@ public class PathObjectTools {
 	 * @return a new collection that contains only the objects that intersect with the ROI, using the nucleus ROI
 	 * 		   where available and main ROI otherwise
 	 * @since v0.6.0
-	 * @see #filterByRoiIntersects(ROI, Collection)
+	 * @see #filterByROIIntersects(ROI, Collection)
 	 */
-	public static <T extends PathObject> Collection<T> filterByRoiIntersectsNucleus(ROI roi, Collection<T> pathObjects) {
-		return filterByRoiIntersects(roi, pathObjects, PathObjectTools::getNucleusOrMainROI);
+	public static <T extends PathObject> Collection<T> filterByROIIntersectsNucleus(ROI roi, Collection<T> pathObjects) {
+		return filterByROIIntersects(roi, pathObjects, PathObjectTools::getNucleusOrMainROI);
 	}
 
-	private static <T extends PathObject> Collection<T> filterByRoiIntersects(ROI roi, Collection<T> pathObjects,
+	private static <T extends PathObject> Collection<T> filterByROIIntersects(ROI roi, Collection<T> pathObjects,
 																			  Function<PathObject, ROI> roiExtractor) {
 		Predicate<PathObject> predicate;
 		var geom = roi.getGeometry();
@@ -376,7 +376,7 @@ public class PathObjectTools {
 		} else {
 			predicate = createGeometryPredicate(geom::intersects, roiExtractor);
 		}
-		return filterByRoiPredicate(roi, predicate, pathObjects);
+		return filterByROIPredicate(roi, predicate, pathObjects);
 	}
 
 	/**
@@ -389,7 +389,7 @@ public class PathObjectTools {
 	 * @param <T>
 	 * @since v0.6.0
 	 */
-	private static <T extends PathObject> Collection<T> filterByRoiPredicate(ROI roi, Predicate<PathObject> predicate, Collection<T> pathObjects) {
+	private static <T extends PathObject> Collection<T> filterByROIPredicate(ROI roi, Predicate<PathObject> predicate, Collection<T> pathObjects) {
 		var planePredicate = createPlanePredicate(roi.getImagePlane());
 		return pathObjects
 				.parallelStream()
@@ -417,8 +417,8 @@ public class PathObjectTools {
 	 * @param <T>
 	 * @since v0.6.0
 	 */
-	public static <T extends PathObject> Collection<T> filterByRoiContainsCentroid(ROI roi, Collection<T> pathObjects) {
-		return filterByRoiPredicate(roi, p -> roi.contains(
+	public static <T extends PathObject> Collection<T> filterByROIContainsCentroid(ROI roi, Collection<T> pathObjects) {
+		return filterByROIPredicate(roi, p -> roi.contains(
 				p.getROI().getCentroidX(),
 				p.getROI().getCentroidY()), pathObjects);
 	}
@@ -433,7 +433,7 @@ public class PathObjectTools {
 	 * @since v0.6.0
 	 */
 	public static <T extends PathObject> Collection<T> filterByRoiContainsNucleusCentroid(ROI roi, Collection<T> pathObjects) {
-		return filterByRoiPredicate(roi, p -> roi.contains(
+		return filterByROIPredicate(roi, p -> roi.contains(
 				getNucleusOrMainROI(p).getCentroidX(),
 				getNucleusOrMainROI(p).getCentroidY()), pathObjects);
 	}
