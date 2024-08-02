@@ -297,40 +297,84 @@ public class PathObjectTools {
 
 	/**
 	 * Filter a collection of PathObjects to identify those that have ROIs that are covered by a specified ROI.
-	 * @param roi the ROI to test against
+	 *
+	 * @param roi         the ROI to test against
 	 * @param pathObjects the objects to filter
-	 * @return a new collection that contains only the objects that are covered by the ROI
 	 * @param <T>
+	 * @return a new collection that contains only the objects that are covered by the ROI
 	 * @since v0.6.0
 	 */
 	public static <T extends PathObject> Collection<T> filterByRoiCovers(ROI roi, Collection<T> pathObjects) {
+		return filterByRoiCovers(roi, pathObjects, PathObject::getROI);
+	}
+
+	/**
+	 * Filter a collection of PathObjects to identify those that have ROIs that are covered by a specified ROI, using
+	 * the object's nucleus ROI where available.
+	 *
+	 * @param roi         the ROI to test against
+	 * @param pathObjects the objects to filter
+	 * @param <T>
+	 * @return a new collection that contains only the objects that are covered by the ROI, using the nucleus ROI
+	 *  		   where available and main ROI otherwise
+	 * @since v0.6.0
+	 */
+	public static <T extends PathObject> Collection<T> filterByRoiCoversNucleus(ROI roi, Collection<T> pathObjects) {
+		return filterByRoiCovers(roi, pathObjects, PathObjectTools::getNucleusOrMainROI);
+	}
+
+	private static <T extends PathObject> Collection<T> filterByRoiCovers(ROI roi, Collection<T> pathObjects,
+																		  Function<PathObject, ROI> roiExtractor) {
 		Predicate<PathObject> predicate;
 		var geom = roi.getGeometry();
 		if (pathObjects.size() > 1) {
 			var prepared = PreparedGeometryFactory.prepare(geom);
-			predicate = createGeometryPredicate(prepared::covers);
+			predicate = createGeometryPredicate(prepared::covers, roiExtractor);
 		} else {
-			predicate = createGeometryPredicate(geom::covers);
+			predicate = createGeometryPredicate(geom::covers, roiExtractor);
 		}
 		return filterByRoiPredicate(roi, predicate, pathObjects);
 	}
 
 	/**
 	 * Filter a collection of PathObjects to identify those that intersect with a specified ROI.
-	 * @param roi the ROI to test against
+	 *
+	 * @param roi         the ROI to test against
 	 * @param pathObjects the objects to filter
-	 * @return a new collection that contains only the objects that intersect with the ROI
 	 * @param <T>
+	 * @return a new collection that contains only the objects that intersect with the ROI
 	 * @since v0.6.0
+	 * @see #filterByRoiIntersectsNucleus(ROI, Collection)
 	 */
 	public static <T extends PathObject> Collection<T> filterByRoiIntersects(ROI roi, Collection<T> pathObjects) {
+		return filterByRoiIntersects(roi, pathObjects, PathObject::getROI);
+	}
+
+	/**
+	 * Filter a collection of PathObjects to identify those that intersect with a specified ROI, using the object's
+	 * nucleus ROI where available.
+	 *
+	 * @param roi         the ROI to test against
+	 * @param pathObjects the objects to filter
+	 * @param <T>
+	 * @return a new collection that contains only the objects that intersect with the ROI, using the nucleus ROI
+	 * 		   where available and main ROI otherwise
+	 * @since v0.6.0
+	 * @see #filterByRoiIntersects(ROI, Collection)
+	 */
+	public static <T extends PathObject> Collection<T> filterByRoiIntersectsNucleus(ROI roi, Collection<T> pathObjects) {
+		return filterByRoiIntersects(roi, pathObjects, PathObjectTools::getNucleusOrMainROI);
+	}
+
+	private static <T extends PathObject> Collection<T> filterByRoiIntersects(ROI roi, Collection<T> pathObjects,
+																			  Function<PathObject, ROI> roiExtractor) {
 		Predicate<PathObject> predicate;
 		var geom = roi.getGeometry();
 		if (pathObjects.size() > 1) {
 			var prepared = PreparedGeometryFactory.prepare(geom);
-			predicate = createGeometryPredicate(prepared::intersects);
+			predicate = createGeometryPredicate(prepared::intersects, roiExtractor);
 		} else {
-			predicate = createGeometryPredicate(geom::intersects);
+			predicate = createGeometryPredicate(geom::intersects, roiExtractor);
 		}
 		return filterByRoiPredicate(roi, predicate, pathObjects);
 	}
@@ -359,12 +403,14 @@ public class PathObjectTools {
 		return p -> p.getROI().getZ() == plane.getZ() && p.getROI().getT() == plane.getT();
 	}
 
-	private static Predicate<PathObject> createGeometryPredicate(Predicate<Geometry> predicate) {
-		return (PathObject p) -> predicate.test(p.getROI().getGeometry());
+	private static Predicate<PathObject> createGeometryPredicate(Predicate<Geometry> predicate, Function<PathObject, ROI> roiFunction) {
+		return (PathObject p) -> predicate.test(roiFunction.apply(p).getGeometry());
 	}
 
 	/**
 	 * Filter a collection of PathObjects to identify those with centroids that fall within specified ROI.
+	 * Note that, for cell objects, this tests the main (outer) ROI only.
+	 * If you want to use the nucleus centroid, use {@link #filterByRoiContainsNucleusCentroid(ROI, Collection)}.
 	 * @param roi the ROI to test against
 	 * @param pathObjects the objects to filter
 	 * @return a new collection that contains only the objects with centroids that fall within the ROI
@@ -372,7 +418,24 @@ public class PathObjectTools {
 	 * @since v0.6.0
 	 */
 	public static <T extends PathObject> Collection<T> filterByRoiContainsCentroid(ROI roi, Collection<T> pathObjects) {
-		return filterByRoiPredicate(roi, p -> roi.contains(p.getROI().getCentroidX(), p.getROI().getCentroidY()), pathObjects);
+		return filterByRoiPredicate(roi, p -> roi.contains(
+				p.getROI().getCentroidX(),
+				p.getROI().getCentroidY()), pathObjects);
+	}
+
+	/**
+	 * Filter a collection of PathObjects to identify those with centroids that fall within specified ROI.
+	 * This uses the nucleus ROI for cell objects, where available, and the main ROI otherwise.
+	 * @param roi the ROI to test against
+	 * @param pathObjects the objects to filter
+	 * @return a new collection that contains only the objects with centroids that fall within the ROI
+	 * @param <T>
+	 * @since v0.6.0
+	 */
+	public static <T extends PathObject> Collection<T> filterByRoiContainsNucleusCentroid(ROI roi, Collection<T> pathObjects) {
+		return filterByRoiPredicate(roi, p -> roi.contains(
+				getNucleusOrMainROI(p).getCentroidX(),
+				getNucleusOrMainROI(p).getCentroidY()), pathObjects);
 	}
 
 
