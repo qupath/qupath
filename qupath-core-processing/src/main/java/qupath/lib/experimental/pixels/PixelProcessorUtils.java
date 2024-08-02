@@ -129,8 +129,19 @@ public class PixelProcessorUtils {
         else if (childGeom.equals(geomOutput))
             return Collections.singletonList(child);
         else {
+            // Handle a nucleus if necessary
+            // We assume that the nucleus *must* be inside the cell, so don't check it elsewhere
             var newROI = GeometryTools.geometryToROI(geomOutput, child.getROI().getImagePlane());
-            return Collections.singletonList(PathObjectTools.createLike(child, newROI));
+            var nucleusROI = PathObjectTools.getNucleusROI(child);
+            if (nucleusROI != null) {
+                var nucleusGeom = nucleusROI.getGeometry();
+                var nucleusOutput = GeometryTools.homogenizeGeometryCollection(geom.intersection(nucleusGeom));
+                if (nucleusOutput.isEmpty() || nucleusOutput.getDimension() < nucleusGeom.getDimension())
+                    nucleusROI = null;
+                else
+                    nucleusROI = GeometryTools.geometryToROI(nucleusOutput, child.getROI().getImagePlane());
+            }
+            return Collections.singletonList(PathObjectTools.createLike(child, newROI, nucleusROI));
         }
     }
 

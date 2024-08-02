@@ -114,7 +114,7 @@ import javafx.stage.Stage;
 import javafx.util.Callback;
 import qupath.fx.dialogs.FileChoosers;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.gui.JavadocViewer;
+import qupath.lib.gui.JavadocViewerRunner;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.actions.ActionTools;
 import qupath.fx.dialogs.Dialogs;
@@ -166,7 +166,19 @@ public class DefaultScriptEditor implements ScriptEditor {
 	private SplitPane splitMain;
 	private ToggleGroup toggleLanguages = new ToggleGroup();
 	private Font fontMain = Font.font("Courier");
-	
+
+	/**
+	 * Flag that quit was cancelled.
+	 * This is a workaround for the fact that (on macOS at least) Cmd+Q triggers a close request on all windows,
+	 * which can't be cancelled.
+	 * If the user cancels quitting because of unsaved changes, the window close requests continue anyway - leading to
+	 * the 'Save changes?' dialog being shown again.
+	 * This flag is set to true if the quit was cancelled recently, and then reset by Platform.runLater().
+	 * The purpose is to give an indication that the user has already requested to cancel quitting, and shouldn't be
+	 * immediately prompted again.
+	 */
+	private boolean quitCancelled = false;
+
 	/**
 	 * Pane to hold the main code component in its center
 	 */
@@ -321,7 +333,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	private Action zapGremlinsAction = createReplaceTextAction("Zap gremlins", GeneralTools::zapGremlins, true);
 	private Action replaceQuotesAction = createReplaceTextAction("Replace curly quotes", GeneralTools::replaceCurlyQuotes, true);
 	
-	private Action showJavadocsAction = ActionTools.createAction(() -> JavadocViewer.getInstance().getStage().show(), "Show Javadocs");
+	private final Action showJavadocsAction;
 	
 	protected Action runScriptAction;
 	protected Action runSelectedAction;
@@ -417,6 +429,8 @@ public class DefaultScriptEditor implements ScriptEditor {
 		String style = fontSize.get();
 		paneCode.setStyle(style);
 		paneConsole.setStyle(style);
+
+		showJavadocsAction = ActionTools.createAction(new JavadocViewerRunner(qupath.getStage()), "Show Javadocs");
 	}
 	
 	private void setToggle(ScriptLanguage language) {
@@ -511,7 +525,31 @@ public class DefaultScriptEditor implements ScriptEditor {
 		}
 		return false;
 	}
-	
+
+	@Override
+	public boolean requestClose() {
+		// If the quit was cancelled, don't prompt again
+		if (quitCancelled) {
+			logger.debug("Script editor quit was cancelled, won't close or prompt again");
+			return false;
+		}
+		var ret = true;
+		while (ret) {
+			var tab = getCurrentScriptTab();
+			if (tab == null) {
+				break;
+			}
+			ret = promptToClose(tab);
+		}
+		if (ret && dialog != null) {
+			dialog.close();
+		} else if (!ret) {
+			quitCancelled = true;
+			logger.trace("Script Editor quit was cancelled");
+			Platform.runLater(() -> quitCancelled = false);
+		}
+		return ret;
+	}
 
 
 	void maybeRefreshTab(final ScriptTab tab, boolean updateLanguage) {
@@ -687,13 +725,6 @@ public class DefaultScriptEditor implements ScriptEditor {
 				e.consume();
 			}
 	    });
-
-//		editor.getDocument().addUndoableEditListener(new UndoManager());
-//		// Handle tabs
-//		editor.getInputMap().put(KeyStroke.getKeyStroke(KeyEvent.VK_TAB, 0), "tab");
-//		editor.getActionMap().put("tab", new TabIndenter(editor, false));
-//		editor.getInputMap().put(KeyStroke.getKeyStroke(KeyEvent.VK_TAB, KeyEvent.SHIFT_DOWN_MASK), "shiftTab");
-//		editor.getActionMap().put("shiftTab", new TabIndenter(editor, true));
 		return control;
 	}
 	
@@ -709,7 +740,11 @@ public class DefaultScriptEditor implements ScriptEditor {
 				maybeRefreshTab(getCurrentScriptTab(), false);
 		});
 
-//		dialog.setOnCloseRequest(e -> attemptToQuitScriptEditor());
+		dialog.setOnCloseRequest(e -> {
+			if (!requestClose()) {
+				e.consume();
+			}
+		});
 		if (qupath != null)
 			dialog.initOwner(qupath.getStage());
 		dialog.titleProperty().bind(title);
@@ -730,10 +765,8 @@ public class DefaultScriptEditor implements ScriptEditor {
 				createRevertAction("Revert/Refresh"),
 				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(autoRefreshFiles, "Auto refresh files")),
 				null,
-				createCloseAction("Close script")
-//				null,
-//				createExitAction("Exit") // Exit actually dramatically quits the entire application...
-				);
+				createCloseAction("Close script"),
+				createExitAction("Close editor"));
 		
 		
 		menubar.getMenus().add(menuFile);
@@ -763,27 +796,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 				smartEditingAction,
 				miWrapLines
 				);
-//		menuEdit.setMnemonic(KeyEvent.VK_E);
-//
-//		menuEdit.add(undoAction);
-//		menuEdit.add(redoAction);
-//		menuEdit.addSeparator();
-//		
-//		menuItem = new MenuItem(cutAction);
-//		menuItem.setText("Cut");
-//		menuItem.setMnemonic(KeyEvent.VK_T);
-//		menuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_X, SHORTCUT_MASK));
-//		menuEdit.add(menuItem);
-//		menuItem = new MenuItem(copyAction);
-//		menuItem.setText("Copy");
-//		menuItem.setMnemonic(KeyEvent.VK_C);
-//		menuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_C, SHORTCUT_MASK));
-//		menuEdit.add(menuItem);
-//		menuItem = new MenuItem(pasteAction);
-//		menuItem.setText("Paste");
-//		menuItem.setMnemonic(KeyEvent.VK_P);
-//		menuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_V, SHORTCUT_MASK));
-//		menuEdit.add(menuItem);
+
 		menubar.getMenus().add(menuEdit);
 
 		// Set font size (common user request)
@@ -1987,10 +2000,10 @@ public class DefaultScriptEditor implements ScriptEditor {
 	
 	Action createExitAction(final String name) {
 		Action action = new Action(name, e -> {
-			attemptToQuitScriptEditor();
+			requestClose();
 			e.consume();
 		});
-		action.setAccelerator(new KeyCodeCombination(KeyCode.Q, KeyCombination.SHORTCUT_DOWN));
+		action.setAccelerator(new KeyCodeCombination(KeyCode.W, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
 		return action;
 	}
 	
@@ -2086,20 +2099,13 @@ public class DefaultScriptEditor implements ScriptEditor {
 			
 		return action;
 	}
-	
-	
-	void attemptToQuitScriptEditor() {
-		if (listScripts.getItems().isEmpty())
-			dialog.close();
-		while (promptToClose(getCurrentScriptTab()))
-			continue;
-	}
-	
+
 	boolean promptToClose(final ScriptTab tab) {
 		int ind = listScripts.getItems().indexOf(tab);
-		if (ind < 0)
+		if (ind < 0) {
 			return false;
-		
+		}
+
 		// Check if we need to save
 		if (tab.isModifiedProperty().get() && tab.hasScript()) {
 			// TODO: Consider that this previously had a different parent for the dialog... and probably should

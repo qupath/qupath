@@ -749,7 +749,8 @@ public class IconFactory {
 		} else {
 			var path = pathCache.getOrDefault(roi, null);
 			if (path == null) {
-				var shape = roi.isArea() ? RoiTools.getArea(roi) : RoiTools.getShape(roi);
+				var shape = RoiTools.getShape(roi);
+//				var shape = roi.isArea() ? RoiTools.getArea(roi) : RoiTools.getShape(roi);
 				if (shape != null) {
 					var transform = new AffineTransform();
 					transform.translate(-roi.getBoundsX(), -roi.getBoundsY());

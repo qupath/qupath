@@ -192,7 +192,23 @@ public class TestImageOps {
 			}
 		}
 	}
-	
+
+	@Test
+	public void testReplaceValues() {
+		try (var scope = new PointerScope()) {
+			float[] vals = new float[]{1f, 2f, 3f, 4f};
+			var mat = new Mat(vals);
+
+			var matSame = ImageOps.Core.replace(0, 10).apply(mat.clone());
+			assertArrayEquals(vals, OpenCVTools.extractFloats(matSame));
+
+			var matOneToZero = ImageOps.Core.replace(1, 0).apply(mat.clone());
+			assertArrayEquals(new float[]{0f, 2f, 3f, 4f}, OpenCVTools.extractFloats(matOneToZero));
+
+			var matTwoToOne = ImageOps.Core.replace(2, 1).apply(mat.clone());
+			assertArrayEquals(new float[]{1f, 1f, 3f, 4f}, OpenCVTools.extractFloats(matTwoToOne));
+		}
+	}
 	
 	
 	@Test

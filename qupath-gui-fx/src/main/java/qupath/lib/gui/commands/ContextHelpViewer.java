@@ -55,6 +55,7 @@ import javafx.scene.layout.VBox;
 import javafx.scene.text.TextAlignment;
 import javafx.stage.Stage;
 import javafx.stage.Window;
+import qupath.fx.utils.FXUtils;
 import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.QuPathGUI;
@@ -88,7 +89,7 @@ public class ContextHelpViewer {
 	
 	private int iconSize = 16;
 
-	private Stage stage = new Stage();
+	private Stage stage;
 	private ObservableList<Window> windows;
 	private EventHandler<MouseEvent> handler = this::handleMouseMove;
 
@@ -218,7 +219,8 @@ public class ContextHelpViewer {
 		stage.titleProperty().bind(title);
 		stage.setWidth(300);
 		stage.setHeight(400);
-		stage.setScene(scene);		
+		stage.setScene(scene);
+		FXUtils.addCloseWindowShortcuts(stage);
 		return stage;
 	}
 	

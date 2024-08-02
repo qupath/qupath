@@ -137,6 +137,7 @@ import javafx.scene.text.TextFlow;
 import javafx.stage.Stage;
 import javafx.util.Callback;
 import qupath.fx.dialogs.FileChoosers;
+import qupath.fx.utils.FXUtils;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.charts.ChartTools;
@@ -272,9 +273,10 @@ public class TMASummaryViewer {
 	 * @param stage stage that should be used for this TMA summary viewer. If null, a new stage will be created.
 	 */
 	public TMASummaryViewer(final Stage stage) {
-		if (stage == null)
+		if (stage == null) {
 			this.stage = new Stage();
-		else
+			FXUtils.addCloseWindowShortcuts(stage);
+		} else
 			this.stage = stage;
 		
 		logger.trace("Creating TMA summary viewer");

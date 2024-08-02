@@ -182,7 +182,7 @@ public class RoiTools {
 		Geometry first = geometries.remove(0);
 		for (var geom : geometries)
 			first = first.intersection(geom);
-		return GeometryTools.geometryToROI(first, plane);
+		return GeometryTools.geometryToROI(GeometryTools.homogenizeGeometryCollection(first), plane);
 	}
 	
 	

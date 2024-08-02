@@ -22,8 +22,9 @@
 
 package qupath.lib.gui.tools;
 
-import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.property.ReadOnlyStringProperty;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
 import javafx.scene.web.WebEngine;
 import javafx.scene.web.WebView;
 import qupath.lib.gui.prefs.QuPathStyleManager;
@@ -37,7 +38,7 @@ import qupath.lib.gui.prefs.QuPathStyleManager;
 public class WebViews {
 	
 	// Choose a stylesheet based on the current QuPath style
-	private static ObjectProperty<String> userStylesheet = new SimpleObjectProperty<>();
+	private static final StringProperty userStylesheet = new SimpleStringProperty();
 	
 	static {
 		QuPathStyleManager.fontProperty().addListener((v, o, n) -> updateStylesheet());
@@ -70,8 +71,13 @@ public class WebViews {
 		engine.userStyleSheetLocationProperty().unbind();
 		engine.userStyleSheetLocationProperty().bind(userStylesheet);
 	}
-	
-	
+
+	/**
+	 * @return a stylesheet based on QuPath's current style (e.g. light or dark mode, serif or sans-serif fonts)
+	 */
+	public static ReadOnlyStringProperty getStyleSheet() {
+		return userStylesheet;
+	}
 	
 	private static void updateStylesheet() {
 		String cssName = "/css/web-";

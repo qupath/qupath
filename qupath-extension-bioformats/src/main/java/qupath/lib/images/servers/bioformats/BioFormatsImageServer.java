@@ -37,6 +37,7 @@ import loci.formats.ReaderWrapper;
 import loci.formats.gui.AWTImageTools;
 import loci.formats.in.DynamicMetadataOptions;
 import loci.formats.in.MetadataOptions;
+import loci.formats.in.ZarrReader;
 import loci.formats.meta.DummyMetadata;
 import loci.formats.meta.MetadataStore;
 import loci.formats.ome.OMEPyramidStore;
@@ -276,6 +277,12 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		int width = 0, height = 0, nChannels = 1, nZSlices = 1, nTimepoints = 1, tileWidth = 0, tileHeight = 0;
 		double pixelWidth = Double.NaN, pixelHeight = Double.NaN, zSpacing = Double.NaN, magnification = Double.NaN;
 		TimeUnit timeUnit = null;
+
+		// Zarr images can be opened by selecting the .zattrs or .zgroup file
+		// In that case, the parent directory contains the whole image
+		if (uri.toString().endsWith(".zattrs") || uri.toString().endsWith(".zgroup")) {
+			uri = new File(uri).getParentFile().toURI();
+		}
 		
 		// See if there is a series name embedded in the path (temporarily the way things were done in v0.2.0-m1 and v0.2.0-m2)
 		// Add it to the args if so
@@ -872,6 +879,20 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		}
 		return id;
 	}
+
+	@Override
+	public void setMetadata(ImageServerMetadata metadata) {
+		var currentMetadata = getMetadata();
+		super.setMetadata(metadata);
+		if (currentMetadata != metadata && !currentMetadata.getLevels().equals(metadata.getLevels())) {
+			logger.warn("Can't set metadata to use incompatible pyramid levels - reverting to original pyramid levels");
+			super.setMetadata(
+					new ImageServerMetadata.Builder(metadata)
+					.levels(currentMetadata.getLevels())
+					.build()
+			);
+		}
+	}
 	
 	/**
 	 * Returns a builder capable of creating a server like this one.
@@ -1185,10 +1206,15 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			}
 			
 			IFormatReader imageReader;
-			if (classList != null) {
-				imageReader = new ImageReader(classList);
+			if (new File(id).isDirectory()) {
+				// Using new ImageReader() on a directory won't work
+				imageReader = new ZarrReader();
 			} else {
-				imageReader = new ImageReader(getDefaultClassList());
+				if (classList != null) {
+					imageReader = new ImageReader(classList);
+				} else {
+					imageReader = new ImageReader(getDefaultClassList());
+				}
 			}
 
 			imageReader.setFlattenedResolutions(false);
@@ -1373,7 +1399,24 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		
 				synchronized(ipReader) {
 					ipReader.setSeries(series);
-					ipReader.setResolution(level);
+
+					// Some files provide z scaling (the number of z stacks decreases when the resolution becomes
+					// lower, like the width and height), so z needs to be updated for levels > 0
+					if (level > 0 && z > 0) {
+						ipReader.setResolution(0);
+						int zStacksFullResolution = ipReader.getSizeZ();
+						ipReader.setResolution(level);
+						int zStacksCurrentResolution = ipReader.getSizeZ();
+
+						if (zStacksFullResolution != zStacksCurrentResolution) {
+							z = (int) (z * zStacksCurrentResolution / (float) zStacksFullResolution);
+						}
+
+
+					} else {
+						ipReader.setResolution(level);
+					}
+
 					order = ipReader.isLittleEndian() ? ByteOrder.LITTLE_ENDIAN : ByteOrder.BIG_ENDIAN;
 					interleaved = ipReader.isInterleaved();
 					pixelType = ipReader.getPixelType();

@@ -1,3 +1,52 @@
+## Version 0.6.0-SNAPSHOT
+
+This is a *work in progress* for the next major release.
+
+### Enhancements
+* Read and write OME-Zarr images (https://github.com/qupath/qupath/pull/1474)
+* Improved display of annotation names (https://github.com/qupath/qupath/pull/1532)
+* Support log10 counts with histograms (no longer use natural log) (https://github.com/qupath/qupath/pull/1540)
+  * Log counts also now available in measurement tables
+* Prompt to save modified scripts when closing QuPath (https://github.com/qupath/qupath/pull/1524)
+* Close most sub-windows from the keyboard with `Ctrl/Cmd + W` or `Esc` (https://github.com/qupath/qupath/pull/1548)
+* Project browser improvements (https://github.com/qupath/qupath/pull/1556)
+  * Project thumbnails can be hidden or their size adjusted from a context menu
+  * Images remain sorted after adding new metadata values
+  * A warning indicator is shown if image files are missing
+    * Use the 'Skip file checks in projects' preference if you need to turn this off (e.g. your images are on a slow network)
+* Create a new channel as a linear combination of other channels (https://github.com/qupath/qupath/pull/1566)
+* Simplify `TileClassificationsToAnnotationsPlugin` implementation (https://github.com/qupath/qupath/pull/1563)
+* Add methods to `PathObjectHierarchy` to simplify requesting objects for regions (https://github.com/qupath/qupath/pull/1563)
+
+### Bugs fixed
+* Tile export to .ome.tif can convert to 8-bit unnecessarily (https://github.com/qupath/qupath/issues/1494)
+* Brightness/Contrast 'Apply to similar images' fails to update settings immediately across viewers (https://github.com/qupath/qupath/issues/1499)
+* Full image annotation for Sparse training image throws errors for detections (https://github.com/qupath/qupath/issues/1443)
+  Channel name can sometimes change when using the quick channel color selector (https://github.com/qupath/qupath/issues/1500)
+* TileExporter exports ImageJ TIFFs with channels converted to z-stacks (https://github.com/qupath/qupath/issues/1503)
+* Black row or column appears on some downsampled images (https://github.com/qupath/qupath/issues/1527)
+* Full image annotations can be shifted accidentally outside the image bounds (https://github.com/qupath/qupath/issues/1533)
+* Search distance when selecting points in the viewer is too low (https://github.com/qupath/qupath/issues/1552)
+* `ImageOps.Core.replace()` does not work as expected (https://github.com/qupath/qupath/issues/1564)
+* QuPath doesn't always use the specified file extension when exporting snapshots (https://github.com/qupath/qupath/issues/1567)
+
+### Dependency updates
+* Bio-Formats 7.3.1
+* Commonmark 0.22.0
+* DeepJavaLibrary 0.29.0
+* Groovy 4.0.22
+* Gson 2.11.0
+* Guava 33.2.0-jre
+* JavaFX 22.0.2
+* JFreeSVG 5.0.6
+* JNA 5.14.0
+* Picocli 4.7.6
+* OpenCV 4.9.0
+* OpenJDK 21
+* RichTextFX 0.11.3
+* slf4j 2.0.12
+
+
 ## Version 0.5.1
 
 This is a *minor release* that aims to be fully compatible with v0.5.0, while fixing several bugs.
@@ -75,7 +124,7 @@ This is a **major update**, with many enhancements and new features.
 
 #### Naming & measurements
 * Improve consistency of naming, including for measurements
-  * Use 'classification' rather then 'class' (to reduce confusion with Java 'classes')
+  * Use 'classification' rather than 'class' (to reduce confusion with Java 'classes')
   * Add a new 'Object type' measurement to tables, giving a readable string ('Annotation', 'Detection', 'Cell' etc.)
   * No longer show a default 'Name' if no name has been set
     * e.g. don't show 'PathAnnotationObject' or the classification as a placeholder, since this causes confusion for people writing scripts and requesting the name
@@ -415,7 +464,7 @@ Here's an abridged version of the main changes, grouped by category.
   * Warn if trying to train a pixel classifier with too many features (https://github.com/qupath/qupath/issues/947)
 * New 'Analyze > Spatial analysis > Signed distance to annotations 2D' command (https://github.com/qupath/qupath/issues/1032)
 * New 'Objects > Lock... >' commands
-  * Enables annotations & TMA cores to be locked so they cannot accidentally be moved or edited (deletion is still possible)
+  * Enables annotations & TMA cores to be locked, so they cannot accidentally be moved or edited (deletion is still possible)
   * Toggle the 'locked' status of any selected object with `Ctrl/Cmd + K`
   * View locked status for annotations under the 'Annotation' tab
 * New 'TMA > Specify TMA grid' command to manually specify a TMA grid (rather than relying on the dearrayer)
@@ -695,7 +744,7 @@ For full details, see the [Commit log](https://github.com/qupath/qupath/commits/
 * Load object & pixel classifier dialogs support importing classifiers from other locations
 * Brightness/Contrast panel shows small min/max values to 2 decimal places
 * Better validation when entering numeric values in text fields
-* BufferedImageOverlays are now tied to the the pixel classification display setting (rather than the detection display)
+* BufferedImageOverlays are now tied to the pixel classification display setting (rather than the detection display)
 * Bio-Formats now optionally accepts URLs, not only local files (requires opt-in through the preferences)
 * Specify the logging level for the current QuPath session through the preferences, e.g. to emit extra debugging messages
   * Log files are now turned off by default; this can be changed in the preferences if a QuPath user directory is set
@@ -749,7 +798,7 @@ For full details, see the [Commit log](https://github.com/qupath/qupath/commits/
 * The requestedPixelSize option for `TileExporter` calculated the wrong downsample (https://github.com/qupath/qupath/issues/648)
 * Unable to find slide labels when reading images with Bio-Formats (https://github.com/qupath/qupath/issues/643)
 * The `TileExporter` could not properly export tiles from z-stacks/time series (https://github.com/qupath/qupath/issues/650)
-* `PathClassifierTools.setIntensityClassification` method now correctly ignores ignored classes such as 'myClass*' (https://github.com/qupath/qupath/issues/691)
+* `PathClassifierTools.setIntensityClassification` method now correctly ignores 'ignored' classes such as 'myClass*' (https://github.com/qupath/qupath/issues/691)
 * `Dialogs.showConfirmDialog(title, text)` shows the text in the title bar, rather than the title (https://github.com/qupath/qupath/issues/662)
 * Error in StarDist intensity measurements for 8-bit RGB fluorescence images (https://github.com/qupath/qupath/issues/686)
 * Opening images with very narrow tiles can fail with Bio-Formats (https://github.com/qupath/qupath/issues/715)
@@ -843,7 +892,7 @@ Full list of bugs fixed:
 * Closing QuPath from the dock icon on macOS closes immediately with no opportunity to save data
 * Switched zoom in/out direction, + shortcut does not zoom in (https://github.com/qupath/qupath/issues/518)
 * Misbehaving 'Update URIs' dialog (https://github.com/qupath/qupath/issues/519)
-* Create thresholder' dialog grows in size and forgets recent options when reopening (https://github.com/qupath/qupath/issues/517)
+* 'Create thresholder' dialog grows in size and forgets recent options when reopening (https://github.com/qupath/qupath/issues/517)
 * Brightness/Contrast & color transforms reset when training a pixel classifier/creating a thresholder for an RGB image (https://github.com/qupath/qupath/issues/509)
 * Launching QuPath from the command line on Windows does not handle non-ASCII characters (https://github.com/qupath/qupath/issues/320)
 * Exception thrown by 'Add shape features' dialog under some circumstances (https://github.com/qupath/qupath/issues/522)
@@ -918,9 +967,9 @@ This is the *release candidate* for v0.2.0 (i.e. the proposed stable version).
   * Changed behavior! Area thresholds now refer to total polygon/hole area ignoring any nested polygons or holes
 * Script editor improvements
   * Display which script is currently running in the script editor
-  * Current project now accessible in scripts run outside of the script editor (e.g. from the command line)
+  * Current project now accessible in scripts run outside the script editor (e.g. from the command line)
   * Intercept mouse clicks for main window while a script is running & show a warning
-  * Show a confirm prompt if trying to quit QuPath while a script is running
+  * Show a 'confirm' prompt if trying to quit QuPath while a script is running
   * Adapted "Show log in console" option gives better control of script output (turn off to see less console output)
 * Improved OMERO web API support
   * Supports a wider range of URLs, including import for multiple images via one 'link' URL

@@ -787,7 +787,7 @@ public class IJTools {
 	 * @return
 	 */
 	public static ImagePlus convertToUncalibratedImagePlus(String title, BufferedImage img) {
-		ImagePlus imp = null;
+		ImagePlus imp;
 		int nBands = img.getSampleModel().getNumBands();
 		// Let ImageJ handle indexed & 8-bit color images
 		if ((img.getType() == BufferedImage.TYPE_BYTE_INDEXED && nBands == 1) || BufferedImageTools.is8bitColorType(img.getType()))
@@ -798,6 +798,7 @@ public class IJTools {
 				stack.addSlice(convertToImageProcessor(img, b));
 			}
 			imp = new ImagePlus(title, stack);
+			imp.setDimensions(nBands, 1, 1);
 		}
 		return imp;
 	}
@@ -863,7 +864,7 @@ public class IJTools {
 			img = server.readRegion(request);
 		ImagePlus imp = convertToUncalibratedImagePlus(title, img);
 		// Set dimensions - because RegionRequest is only 2D, every 'slice' is a channel
-		imp.setDimensions(imp.getNSlices(), 1, 1);
+		imp.setDimensions(imp.getStackSize(), 1, 1);
 		// Set colors
 		SampleModel sampleModel = img.getSampleModel();
 		if (!server.isRGB() && sampleModel.getNumBands() > 1) {

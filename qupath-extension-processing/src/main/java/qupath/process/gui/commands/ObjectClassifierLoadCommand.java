@@ -49,6 +49,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.text.TextAlignment;
 import javafx.stage.Stage;
 import qupath.fx.dialogs.FileChoosers;
+import qupath.fx.utils.FXUtils;
 import qupath.lib.classifiers.object.ObjectClassifier;
 import qupath.lib.classifiers.object.ObjectClassifiers;
 import qupath.lib.common.GeneralTools;
@@ -244,6 +245,7 @@ public final class ObjectClassifierLoadCommand implements Runnable {
 		GridPaneUtils.setMaxWidth(Double.MAX_VALUE, listClassifiers, btnApplyClassifier);
 				
 		var stage = new Stage();
+		FXUtils.addCloseWindowShortcuts(stage);
 		stage.setTitle(title);
 		stage.setScene(new Scene(pane));
 		stage.initOwner(qupath.getStage());

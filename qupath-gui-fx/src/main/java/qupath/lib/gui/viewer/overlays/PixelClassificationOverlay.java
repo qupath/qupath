@@ -552,7 +552,7 @@ public class PixelClassificationOverlay extends AbstractImageOverlay  {
 //		                	if (pendingRequests.size() <= 1)
 //		                		changed.add(hierarchy.getRootObject());
 	                		changed.add(hierarchy.getRootObject());
-		                	hierarchy.getObjectsForRegion(PathAnnotationObject.class, tile.getRegionRequest(), changed);
+		                	hierarchy.getAnnotationsForRegion(tile.getRegionRequest(), changed);
 //		                	changed.addAll(hierarchy.getAnnotationObjects());
 		                }
                     }

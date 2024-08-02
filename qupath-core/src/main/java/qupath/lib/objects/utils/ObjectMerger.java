@@ -49,9 +49,11 @@ import java.util.Objects;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /**
  * Helper class for merging objects using different criteria.
@@ -119,7 +121,7 @@ public class ObjectMerger {
         // Parallelize the merging - it can be slow
         var output = clustersToMerge.stream()
                 .parallel()
-                .map(cluster -> mergeObjects(cluster))
+                .map(ObjectMerger::mergeObjects)
                 .toList();
         assert output.size() <= pathObjects.size();
         return output;
@@ -189,15 +191,14 @@ public class ObjectMerger {
                     else
                         allPotentialNeighbors = allObjects;
                     var neighbors = filterCompatibleNeighbors(current, allPotentialNeighbors);
-                    for (var neighbor : neighbors) {
-                        if (!alreadyVisited.contains(neighbor)) {
-                            if (mergeTest.test(
+                    // alreadyVisited is not concurrent, so do this serially
+                    var addable = neighbors.stream()
+                            .filter(neighbor -> !alreadyVisited.contains(neighbor)).toList();
+                    addable = addable.parallelStream()
+                            .filter(neighbor -> mergeTest.test(
                                     currentGeometry,
-                                    getGeometry(neighbor, geometryMap))) {
-                                pending.add(neighbor);
-                            }
-                        }
-                    }
+                                    getGeometry(neighbor, geometryMap))).toList();
+                    pending.addAll(addable);
                 }
             }
             if (cluster.isEmpty()) {
@@ -208,7 +209,6 @@ public class ObjectMerger {
         }
         return clusters;
     }
-
 
     /**
      * Recursively build a cluster of objects that can be merged.
@@ -359,6 +359,39 @@ public class ObjectMerger {
                 0);
     }
 
+    /**
+     * Create an object merger that can merge together any objects with sufficiently large intersection over union.
+     * <p>
+     * Objects must also have the same classification and be on the same image plane to be mergeable.
+     * <p>
+     * IoU is calculated using Java Topology Suite intersection, union, and getArea calls.
+     * <p>
+     * This merger assumes that you are using an OutputHandler that doesn't clip to tile boundaries (only to region
+     * requests) and that you are using sufficient padding to ensure that objects are being detected in more than on
+     * tile/region request.
+     * You should probably also remove any objects that touch the regionRequest boundaries, as these will probably be
+     * clipped, and merging them will result in weirdly shaped detections.
+     * @param iouThreshold Intersection over union threshold; any pairs with values greater than or equal to this are merged.
+     * @return an object merger that can merge together any objects with sufficiently high IoU and the same classification
+     */
+    public static ObjectMerger createIoUMerger(double iouThreshold) {
+        return new ObjectMerger(
+                ObjectMerger::sameClassTypePlaneTest,
+                createIoUMergeTest(iouThreshold),
+                0.0625);
+    }
+
+    private static BiPredicate<Geometry, Geometry> createIoUMergeTest(double iouThreshold) {
+        return (geom, geomOverlap) -> {
+            var i = geom.intersection(geomOverlap);
+            var intersection = i.getArea();
+            double union = geom.getArea() + geomOverlap.getArea() - intersection;
+            if (union == 0) {
+                return false;
+            }
+            return (intersection / union) >= iouThreshold;
+        };
+    }
 
     /**
      * Method to use as a predicate, indicating that two geometries have the same dimension and also touch.
@@ -458,21 +491,28 @@ public class ObjectMerger {
         var allROIs = pathObjects.stream().map(PathObject::getROI).filter(Objects::nonNull).collect(Collectors.toList());
         ROI mergedROI = RoiTools.union(allROIs);
 
+        PathObject mergedObject = null;
         if (pathObject.isTile()) {
-            return PathObjects.createTileObject(mergedROI, pathObject.getPathClass(), null);
+            mergedObject = PathObjects.createTileObject(mergedROI, pathObject.getPathClass(), null);
         } else if (pathObject.isCell()) {
             var nucleusROIs = pathObjects.stream()
                     .map(PathObjectTools::getNucleusROI)
                     .filter(Objects::nonNull)
                     .collect(Collectors.toList());
             ROI nucleusROI = nucleusROIs.isEmpty() ? null : RoiTools.union(nucleusROIs);
-            return PathObjects.createCellObject(mergedROI, nucleusROI, pathObject.getPathClass(), null);
+            mergedObject = PathObjects.createCellObject(mergedROI, nucleusROI, pathObject.getPathClass(), null);
         } else if (pathObject.isDetection()) {
-            return PathObjects.createDetectionObject(mergedROI, pathObject.getPathClass());
+            mergedObject = PathObjects.createDetectionObject(mergedROI, pathObject.getPathClass());
         } else if (pathObject.isAnnotation()) {
-            return PathObjects.createAnnotationObject(mergedROI, pathObject.getPathClass());
+            mergedObject = PathObjects.createAnnotationObject(mergedROI, pathObject.getPathClass());
         } else
             throw new IllegalArgumentException("Unsupported object type for merging: " + pathObject.getClass());
+
+        // We might need to transfer over the color as well
+        var color = pathObject.getColor();
+        if (color != null)
+            mergedObject.setColor(color);
+        return mergedObject;
     }
 
 

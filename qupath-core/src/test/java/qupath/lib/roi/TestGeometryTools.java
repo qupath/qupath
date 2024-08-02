@@ -133,6 +133,45 @@ public class TestGeometryTools {
 		}
 		
 	}
+
+	@Test
+	public void testUnion() {
+		var g1 = GeometryTools.createRectangle(0, 0, 100, 200).norm();
+		var gBeside = GeometryTools.createRectangle(100, 0, 100, 200).norm();
+		var gDiagonal = GeometryTools.createRectangle(100, 200, 100, 200).norm();
+		var gDisconnected = GeometryTools.createRectangle(400, 400, 100, 200).norm();
+		var gOverlapping = GeometryTools.createRectangle(0, 100, 100, 200).norm();
+		var gLine = GeometryTools.createLineString(1000, 2000, 3000, 4000).norm();
+
+		assertEquals(g1.copy().norm(), GeometryTools.union(g1, g1.copy()).norm());
+		assertEquals(g1.copy().norm(), FastPolygonUnion.union(g1, g1.copy()).norm());
+		assertEquals(1, FastPolygonUnion.union(g1, g1).getNumGeometries());
+
+		assertEquals(g1.union(gBeside).norm(), GeometryTools.union(g1, gBeside).norm());
+		assertEquals(g1.union(gBeside).norm(), FastPolygonUnion.union(g1, gBeside).norm());
+		assertEquals(1, FastPolygonUnion.union(g1, gBeside).getNumGeometries());
+
+		assertEquals(g1.union(gDiagonal).norm(), GeometryTools.union(g1, gDiagonal).norm());
+		assertEquals(g1.union(gDiagonal).norm(), FastPolygonUnion.union(g1, gDiagonal).norm());
+		assertEquals(2, FastPolygonUnion.union(g1, gDiagonal).getNumGeometries());
+
+		assertEquals(g1.union(gDisconnected).norm(), GeometryTools.union(g1, gDisconnected).norm());
+		assertEquals(g1.union(gDisconnected).norm(), FastPolygonUnion.union(g1, gDisconnected).norm());
+		assertEquals(2, FastPolygonUnion.union(g1, gDisconnected).getNumGeometries());
+
+		assertEquals(g1.union(gOverlapping).norm(), GeometryTools.union(g1, gOverlapping).norm());
+		assertEquals(g1.union(gOverlapping).norm(), FastPolygonUnion.union(g1, gOverlapping).norm());
+		assertEquals(1, FastPolygonUnion.union(g1, gOverlapping).getNumGeometries());
+
+		var unionAll = g1.union(gOverlapping).union(gDisconnected).union(gBeside).union(gDiagonal).norm();
+		assertEquals(unionAll, GeometryTools.union(g1, gOverlapping, gDisconnected, gBeside, gDiagonal).norm());
+		assertEquals(unionAll, FastPolygonUnion.union(g1, gOverlapping, gDisconnected, gBeside, gDiagonal).norm());
+
+		// We can compute a union with a line string
+		assertEquals(2, GeometryTools.union(g1, gLine).getNumGeometries());
+		// The fast polygon union discards lines
+		assertEquals(1, FastPolygonUnion.union(g1, gLine).getNumGeometries());
+	}
 	
 
 }

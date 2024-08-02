@@ -79,6 +79,7 @@ import javafx.util.Callback;
 import qupath.fx.dialogs.FileChoosers;
 import qupath.fx.prefs.controlsfx.PropertyItemBuilder;
 import qupath.fx.prefs.controlsfx.PropertySheetUtils;
+import qupath.fx.utils.FXUtils;
 import qupath.lib.common.GeneralTools;
 import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -427,6 +428,7 @@ class ExportChartPane {
 		ExportChartPane panel = new ExportChartPane(duplicator == null ? chart : duplicator.call(chart));
 		Scene scene = new Scene(panel.getPane());
 		Stage stage = new Stage();
+		FXUtils.addCloseWindowShortcuts(stage);
 		stage.setTitle("Export chart");
 		stage.setScene(scene);
 		stage.show();

@@ -83,14 +83,14 @@ public class PathPrefs {
 	/**
 	 * Default name for preference node in this QuPath version
 	 */
-	private static final String DEFAULT_NODE_NAME = "io.github.qupath/0.5";
+	private static final String DEFAULT_NODE_NAME = "io.github.qupath/0.6";
 
 	/**
 	 * Previous preference node, in case these need to be restored.
 	 * For now, this isn't supported.
 	 */
 	@SuppressWarnings("unused")
-	private static final String PREVIOUS_NODE_NAME = "io.github.qupath/0.4";
+	private static final String PREVIOUS_NODE_NAME = "io.github.qupath/0.5";
 
 	/**
 	 * The preference manager used to store preferences.
@@ -848,8 +848,22 @@ public class PathPrefs {
 	public static ObservableList<URI> getRecentScriptsList() {
 		return recentScripts;
 	}
-	
-	
+
+
+	private static BooleanProperty skipProjectUriChecks = createPersistentPreference("Skip checking URIs in the project browser",
+			false);
+
+	/**
+	 * Property to suppress checking whether image files exists in the project browser.
+	 * You might want to skip these checks if they are causing performance problems, e.g. working with images on a
+	 * server with slow access.
+	 *
+	 * @return skipProjectUriChecks
+	 */
+	public static BooleanProperty skipProjectUriChecksProperty() {
+		return skipProjectUriChecks;
+	}
+
 	
 	private static BooleanProperty invertScrolling = createPersistentPreference("invertScrolling", !GeneralTools.isMac());
 	

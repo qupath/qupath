@@ -36,6 +36,7 @@ import javafx.scene.control.Tooltip;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.stage.Stage;
+import qupath.fx.utils.FXUtils;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.fx.dialogs.Dialogs;
@@ -78,6 +79,7 @@ public class CreateRegionAnnotationsCommand implements Runnable {
 			stage.initOwner(qupath.getStage());
 			stage.setTitle("Create regions");
 			stage.setScene(new Scene(RegionMaker.create(qupath).getPane()));
+			FXUtils.addCloseWindowShortcuts(stage);
 		}
 		stage.show();
 	}
