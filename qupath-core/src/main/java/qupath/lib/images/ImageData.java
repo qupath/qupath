@@ -118,7 +118,6 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 	
 	private String lastSavedPath = null;
 	
-	private String serverPath;
 	private PathObjectHierarchy hierarchy;
 	private ImageType type = ImageType.UNSET;
 	
@@ -152,7 +151,6 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 		this.serverSupplier = supplier;
 		this.server = server;
 		this.hierarchy = hierarchy == null ? new PathObjectHierarchy() : hierarchy;
-		this.serverPath = server == null ? null : server.getPath(); // TODO: Deal with sub image servers
 		initializeStainMap();
 		if (type == null)
 			type = ImageType.UNSET;
@@ -373,7 +371,7 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 	 * @return
 	 */
 	public String getServerPath() {
-		return serverPath;
+		return getServer().getPath();
 	}
 	
 	/**
