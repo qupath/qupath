@@ -356,7 +356,7 @@ class ToolBarComponent {
 			if (tooltipMag == null || viewer == null)
 				return;
 			var imageData = viewer.getImageData();
-			var mag = imageData == null ? null : imageData.getServer().getMetadata().getMagnification();
+			var mag = imageData == null ? null : imageData.getServerMetadata().getMagnification();
 			if (imageData == null)
 				tooltipMag.setText(getName("magnification"));
 			else if (mag != null && !Double.isNaN(mag))

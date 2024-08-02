@@ -276,6 +276,23 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 		pcs.firePropertyChange("serverMetadata", oldMetadata, newMetadata);
 		changes = changes || !oldMetadata.equals(newMetadata);
 	}
+
+	/**
+	 * Get the metadata for the server.
+	 * <p>
+	 * If the server has not yet been lazy-loaded <i>and</i> {@code updateServerMetadata} has been called to specify the
+	 * metadata that should be used, then that cached metadata will be returned directly without loading the server.
+	 * <p>
+	 * In all other cases this is equivalent to {@code getServer().getMetadata()}.
+	 * @return
+	 */
+	public ImageServerMetadata getServerMetadata() {
+		if (server == null && lazyMetadata != null) {
+			logger.trace("Returning lazy metadata");
+			return lazyMetadata;
+		}
+		return getServer().getMetadata();
+	}
 	
 	/**
 	 * Returns true if the image type is set to brightfield.

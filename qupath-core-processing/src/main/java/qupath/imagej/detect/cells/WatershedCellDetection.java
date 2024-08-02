@@ -292,7 +292,7 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 				
 			} //else {
 			if (fpDetection == null) {
-				List<ImageChannel> imageChannels = imageData.getServer().getMetadata().getChannels();
+				List<ImageChannel> imageChannels = imageData.getServerMetadata().getChannels();
 				if (ip instanceof ColorProcessor) {
 					for (int c = 0; c < 3; c++) {
 						String name = imageChannels.get(c).getName();
@@ -415,7 +415,7 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 		String defaultChannel = null;
 		List<String> channelNames = new ArrayList<>();
 		String[] nucleusGuesses = new String[] {"dapi", "hoechst", "nucleus", "nuclei", "nuclear", "hematoxylin", "haematoxylin"};
-		for (ImageChannel channel : imageData.getServer().getMetadata().getChannels()) {
+		for (ImageChannel channel : imageData.getServerMetadata().getChannels()) {
 			String name = channel.getName();
 			channelNames.add(name);
 			if (defaultChannel == null) {

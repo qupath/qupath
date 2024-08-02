@@ -455,7 +455,7 @@ public class BrightnessContrastChannelPane extends BorderPane {
         var imageData = getImageData();
         if (imageData != null && info instanceof DirectServerChannelInfo multiInfo) {
             int c = multiInfo.getChannel();
-            var channel = imageData.getServer().getMetadata().getChannel(c);
+            var channel = imageData.getServerMetadata().getChannel(c);
 
             Color color = ColorToolsFX.getCachedColor(multiInfo.getColor());
             picker.setValue(color);

@@ -466,7 +466,7 @@ public class SingleMeasurementClassificationCommand implements Runnable {
 						imageName = entry.getImageName();
 				}
 				if (imageName == null)
-					imageName = imageData.getServer().getMetadata().getName();
+					imageName = imageData.getServerMetadata().getName();
 				titleProperty.set(title + " (" + imageName + ")");
 			}
 		}
@@ -495,7 +495,7 @@ public class SingleMeasurementClassificationCommand implements Runnable {
 							list.add(stain.getName());
 					}
 				}
-				for (var channel : imageData.getServer().getMetadata().getChannels()) {
+				for (var channel : imageData.getServerMetadata().getChannels()) {
 					list.add(channel.getName());
 				}
 			}
