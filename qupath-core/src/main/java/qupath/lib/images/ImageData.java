@@ -25,6 +25,7 @@ package qupath.lib.images;
 
 import java.beans.PropertyChangeListener;
 import java.beans.PropertyChangeSupport;
+import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -38,6 +39,7 @@ import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.color.ColorDeconvolutionStains.DefaultColorDeconvolutionStains;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ImageServerBuilder;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.ServerTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
@@ -111,7 +113,7 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 
 	private transient PropertyChangeSupport pcs;
 
-	private transient Supplier<ImageServer<T>> serverSupplier;
+	private transient ImageServerBuilder.ServerBuilder<T> serverBuilder;
 	private transient ImageServerMetadata lazyMetadata;
 
 	private transient ImageServer<T> server;
@@ -137,18 +139,18 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 	
 	/**
 	 * Create a new ImageData with a specified object hierarchy and type.
-	 * @param supplier supplier to use if the server is to be loaded lazily; may be null to se server instead
-	 * @param server server to use directly; may be null to use supplier instead
+	 * @param serverBuilder builder to use if the server is to be loaded lazily; may be null to se server instead
+	 * @param server server to use directly; may be null to use builder instead
 	 * @param hierarchy an object hierarchy, or null to create a new one
 	 * @param type the image type, or null to default to ImageType.UNSET
-	 * @throws IllegalArgumentException if neither a server nor a server supplier is provided
+	 * @throws IllegalArgumentException if neither a server nor a server builder is provided
 	 */
-	private ImageData(Supplier<ImageServer<T>> supplier, ImageServer<T> server, PathObjectHierarchy hierarchy, ImageType type)
+	private ImageData(ImageServerBuilder.ServerBuilder<T> serverBuilder, ImageServer<T> server, PathObjectHierarchy hierarchy, ImageType type)
 			throws IllegalArgumentException {
-		if (server == null && supplier == null)
-			throw new IllegalArgumentException("Cannot create ImageData without a server or server supplier");
+		if (server == null && serverBuilder == null)
+			throw new IllegalArgumentException("Cannot create ImageData without a server or server builder");
 		this.pcs = new PropertyChangeSupport(this);
-		this.serverSupplier = supplier;
+		this.serverBuilder = serverBuilder;
 		this.server = server;
 		this.hierarchy = hierarchy == null ? new PathObjectHierarchy() : hierarchy;
 		initializeStainMap();
@@ -166,16 +168,16 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 
 	/**
 	 * Create a new ImageData with a lazily-loaded server, hierarchy and type.
-	 * The supplier provides the ImageServer required to access pixels and metadata on demand.
+	 * The server builder provides the ImageServer required to access pixels and metadata on demand.
 	 * <p>
-	 * If the server is never requested, then the supplier is not used - which can save time and resources.
+	 * If the server is never requested, then the builder is not used - which can save time and resources.
 	 *
-	 * @param supplier object to supply the ImageServer
+	 * @param serverBuilder builder to create the ImageServer
 	 * @param hierarchy an object hierarchy, or null to create a new one
 	 * @param type the image type, or null to default to ImageType.UNSET
 	 */
-	public ImageData(Supplier<ImageServer<T>> supplier, PathObjectHierarchy hierarchy, ImageType type) {
-		this(supplier, null, hierarchy, type);
+	public ImageData(ImageServerBuilder.ServerBuilder<T> serverBuilder, PathObjectHierarchy hierarchy, ImageType type) {
+		this(serverBuilder, null, hierarchy, type);
 	}
 
 	/**
@@ -262,8 +264,8 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 	public void updateServerMetadata(ImageServerMetadata newMetadata) {
 		Objects.requireNonNull(newMetadata);
 		if (server == null) {
-			if (serverSupplier == null)
-				throw new IllegalStateException("Cannot update server metadata without a server or server supplier");
+			if (serverBuilder == null)
+				throw new IllegalStateException("Cannot update server metadata without a server or server builder");
 			else {
 				logger.debug("Setting serve metadata lazily (no change will be fired)");
 				lazyMetadata = newMetadata;
@@ -280,16 +282,20 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 	/**
 	 * Get the metadata for the server.
 	 * <p>
-	 * If the server has not yet been lazy-loaded <i>and</i> {@code updateServerMetadata} has been called to specify the
-	 * metadata that should be used, then that cached metadata will be returned directly without loading the server.
-	 * <p>
-	 * In all other cases this is equivalent to {@code getServer().getMetadata()}.
+	 * This is equivalent to {@code getServer().getMetadata()}, <i>unless</i> the server is being loaded lazily
+	 * <i>and</i> it is possible to query the metadata without loading the server.
 	 * @return
 	 */
 	public ImageServerMetadata getServerMetadata() {
-		if (server == null && lazyMetadata != null) {
-			logger.trace("Returning lazy metadata");
-			return lazyMetadata;
+		if (server == null) {
+			if (lazyMetadata != null) {
+				logger.trace("Returning lazy metadata");
+				return lazyMetadata;
+			} else if (serverBuilder != null) {
+				var metadata = serverBuilder.getMetadata();
+				if (metadata != null)
+					return metadata;
+			}
 		}
 		return getServer().getMetadata();
 	}
@@ -369,13 +375,17 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 	 * @return
 	 */
 	public ImageServer<T> getServer() {
-		if (server == null && serverSupplier != null) {
+		if (server == null && serverBuilder != null) {
 			synchronized (this) {
 				if (server == null) {
-					logger.debug("Lazily requesting image server");
-					server = serverSupplier.get();
-					if (lazyMetadata != null && !lazyMetadata.equals(server.getMetadata())) {
-						updateServerMetadata(lazyMetadata);
+					try {
+						logger.debug("Lazily requesting image server: {}", serverBuilder);
+						server = serverBuilder.build();
+						if (lazyMetadata != null && !lazyMetadata.equals(server.getMetadata())) {
+							updateServerMetadata(lazyMetadata);
+						}
+					} catch (Exception e) {
+						throw new RuntimeException("Failed to lazy-load ImageServer", e);
 					}
 				}
 			}
@@ -557,7 +567,7 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 	public String toString() {
 		String serverName;
 		if (server == null) {
-			if (serverSupplier == null) {
+			if (serverBuilder == null) {
 				serverName = "no server";
 			} else if (lazyMetadata != null){
 				serverName = lazyMetadata.getName() + " (not yet loaded)";

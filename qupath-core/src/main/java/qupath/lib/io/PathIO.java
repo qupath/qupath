@@ -292,25 +292,25 @@ public class PathIO {
 
 	private static <T> ImageData<T> readImageDataSerialized(final Path path, ImageData<T> imageData,
 															ImageServer<T> server, Class<T> cls) throws FileNotFoundException, IOException {
-		imageData = readImageDataSerialized(path, imageData, () -> server, cls);
+		imageData = readImageDataSerialized(path, imageData, server, cls);
 		imageData.getServer(); // Ensure the server is loaded
 		return imageData;
 	}
 
 	private static <T> ImageData<T> readImageDataSerialized(final InputStream stream, ImageData<T> imageData,
 															ImageServer<T> server, Class<T> cls) throws FileNotFoundException, IOException {
-		imageData = readImageDataSerialized(stream, imageData, () -> server, cls);
+		imageData = readImageDataSerialized(stream, imageData, server, cls);
 		imageData.getServer(); // Ensure the server is loaded
 		return imageData;
 	}
 
 	private static <T> ImageData<T> readImageDataSerialized(final Path path, ImageData<T> imageData,
-															Supplier<ImageServer<T>> serverSupplier, Class<T> cls) throws FileNotFoundException, IOException {
+															ServerBuilder<T> serverBuilder, Class<T> cls) throws FileNotFoundException, IOException {
 		if (path == null)
 			return null;
 		logger.info("Reading data from {}...", path.getFileName().toString());
 		try (InputStream stream = Files.newInputStream(path)) {
-			imageData = readImageDataSerialized(stream, imageData, serverSupplier, cls);
+			imageData = readImageDataSerialized(stream, imageData, serverBuilder, cls);
 			// Set the last saved path (actually the path from which this was opened)
 			if (imageData != null)
 				imageData.setLastSavedPath(path.toAbsolutePath().toString(), true);
@@ -322,7 +322,8 @@ public class PathIO {
 	}
 	
 	@SuppressWarnings("unchecked")
-	private static <T> ImageData<T> readImageDataSerialized(final InputStream stream, ImageData<T> imageData, Supplier<ImageServer<T>> serverSupplier, Class<T> cls) throws IOException {
+	private static <T> ImageData<T> readImageDataSerialized(final InputStream stream, ImageData<T> imageData,
+															ServerBuilder<T> requestedServerBuilder, Class<T> cls) throws IOException {
 		
 		long startTime = System.currentTimeMillis();
 		Locale locale = Locale.getDefault(Category.FORMAT);
@@ -330,7 +331,7 @@ public class PathIO {
 
 		try (ObjectInputStream inStream = createObjectInputStream(new BufferedInputStream(stream))) {
 			
-			ServerBuilder<T> serverBuilder = null;
+			ServerBuilder<T> serverBuilder = requestedServerBuilder;
 			PathObjectHierarchy hierarchy = null;
 			ImageData.ImageType imageType = null;
 			ColorDeconvolutionStains stains = null;
@@ -353,7 +354,8 @@ public class PathIO {
 
 			String serverString = (String)inStream.readObject();
 			// Don't log warnings if we are provided with a server
-			serverBuilder = extractServerBuilder(serverString, serverSupplier == null);
+			if (serverBuilder == null)
+				serverBuilder = extractServerBuilder(serverString, true);
 
 			while (true) {
 				//					logger.debug("Starting read: " + inStream.available());
@@ -410,27 +412,11 @@ public class PathIO {
 			var existingBuilder = imageData == null || imageData.getServer() == null ? null : imageData.getServer().getBuilder();
 			if (imageData == null || !Objects.equals(serverBuilder, existingBuilder)) {
 				// Create a new server if we need to
-				if (serverSupplier == null) {
-					// Load the server lazily
-					var builder = serverBuilder;
-					serverSupplier = () -> {
-						try {
-							return builder.build();
-						} catch (Exception e) {
-							logger.error("Warning: Unable to build server with " + builder);
-							if (e instanceof RuntimeException runtimeException)
-								throw runtimeException;
-							else
-								throw new RuntimeException(e);
-						}
-					};
-				}
 				// TODO: Make this less clumsy... but for now we need to ensure we have a fully-initialized hierarchy (which deserialization alone doesn't achieve)
 				PathObjectHierarchy hierarchy2 = new PathObjectHierarchy();
 				hierarchy2.setHierarchy(hierarchy);
 				hierarchy = hierarchy2;
-
-				imageData = new ImageData<>(serverSupplier, hierarchy, imageType);
+				imageData = new ImageData<>(serverBuilder, hierarchy, imageType);
 			} else {
 				if (imageType != null)
 					imageData.setImageType(imageType);
@@ -510,14 +496,14 @@ public class PathIO {
 	/**
 	 * Read an ImageData with lazy image loading.
 	 * @param stream
-	 * @param serverSupplier
+	 * @param serverBuilder
 	 * @param cls
 	 * @return
 	 * @param <T>
 	 * @throws IOException
 	 */
-	public static <T> ImageData<T> readLazyImageData(final InputStream stream, Supplier<ImageServer<T>> serverSupplier, Class<T> cls) throws IOException {
-		return readImageDataSerialized(stream, null, serverSupplier, cls);
+	public static <T> ImageData<T> readLazyImageData(final InputStream stream, ServerBuilder<T> serverBuilder, Class<T> cls) throws IOException {
+		return readImageDataSerialized(stream, null, serverBuilder, cls);
 	}
 
 	

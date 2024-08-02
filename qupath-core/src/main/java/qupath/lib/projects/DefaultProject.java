@@ -689,25 +689,11 @@ class DefaultProject implements Project<BufferedImage> {
 		@Override
 		public synchronized ImageData<BufferedImage> readImageData() throws IOException {
 			Path path = getImageDataPath();
-			Supplier<ImageServer<BufferedImage>> serverSupplier = () -> {
-				try {
-					var server = getServerBuilder().build();
-					// Ensure the names match
-					var name = getOriginalImageName();
-					if (name != null)
-						ServerTools.setImageName(server, name);
-					return server;
-				} catch (Exception e) {
-					if (e instanceof RuntimeException exception)
-						throw exception;
-					else
-						throw new RuntimeException(e);
-				}
-			};
 			ImageData<BufferedImage> imageData = null;
+			// TODO: Consider whether we can set the image name for the lazy-loaded server
 			if (Files.exists(path)) {
 				try (var stream = Files.newInputStream(path)) {
-					imageData = PathIO.readLazyImageData(stream, serverSupplier, BufferedImage.class);
+					imageData = PathIO.readLazyImageData(stream, getServerBuilder(), BufferedImage.class);
 					imageData.setLastSavedPath(path.toString(), true);
 				} catch (Exception e) {
 					logger.error("Error reading image data from " + path, e);
@@ -719,7 +705,7 @@ class DefaultProject implements Project<BufferedImage> {
 				var pathBackup = getBackupImageDataPath();
 				if (Files.exists(pathBackup)) {
 					try (var stream = Files.newInputStream(pathBackup)) {
-						imageData = PathIO.readLazyImageData(stream, serverSupplier, BufferedImage.class);
+						imageData = PathIO.readLazyImageData(stream, getServerBuilder(), BufferedImage.class);
 						imageData.setLastSavedPath(pathBackup.toString(), true);
 						logger.warn("Restored previous ImageData from {}", pathBackup);
 					} catch (IOException e) {
@@ -729,7 +715,7 @@ class DefaultProject implements Project<BufferedImage> {
 			}
 			
 			if (imageData == null)
-				imageData = new ImageData<>(serverSupplier, new PathObjectHierarchy(), ImageType.UNSET);
+				imageData = new ImageData<>(getServerBuilder(), new PathObjectHierarchy(), ImageType.UNSET);
 			imageData.setProperty(IMAGE_ID, getFullProjectEntryID()); // Required to be able to test for the ID later
 			imageData.setChanged(false);
 			return imageData;

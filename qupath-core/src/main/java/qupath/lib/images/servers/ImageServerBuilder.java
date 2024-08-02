@@ -118,14 +118,14 @@ public interface ImageServerBuilder<T> {
 	 * 
 	 * @param <T>
 	 */
-	public static interface ServerBuilder<T> {
+	interface ServerBuilder<T> {
 		
 		/**
 		 * Build a new ImageServer instance.
 		 * @return
 		 * @throws Exception
 		 */
-		public ImageServer<T> build() throws Exception;
+		ImageServer<T> build() throws Exception;
 		
 		/**
 		 * Get a list of URIs required by this builder.
@@ -134,7 +134,7 @@ public interface ImageServerBuilder<T> {
 		 * 
 		 * @see #updateURIs(Map)
 		 */
-		public Collection<URI> getURIs();
+		Collection<URI> getURIs();
 		
 		/**
 		 * Update the URIs required by this builder.
@@ -145,8 +145,20 @@ public interface ImageServerBuilder<T> {
 		 * 
 		 * @see #getURIs()
 		 */
-		public ServerBuilder<T> updateURIs(Map<URI, URI> updateMap);
-		
+		ServerBuilder<T> updateURIs(Map<URI, URI> updateMap);
+
+		/**
+		 * Optional method to get metadata associated with the image.
+		 * The default implementation returns null, which indicates that the server itself must be built before
+		 * metadata is available.
+		 * <p>
+		 * Subclasses may override this to provide metadata more efficiently.
+		 * @return the metadata, or null if this is not available
+		 */
+		default ImageServerMetadata getMetadata() {
+			return null;
+		}
+
 	}
 	
 	
@@ -155,7 +167,7 @@ public interface ImageServerBuilder<T> {
 	 *
 	 * @param <T>
 	 */
-	abstract static class AbstractServerBuilder<T> implements ServerBuilder<T> {
+	abstract class AbstractServerBuilder<T> implements ServerBuilder<T> {
 		
 		private ImageServerMetadata metadata;
 		
@@ -164,8 +176,9 @@ public interface ImageServerBuilder<T> {
 		}
 		
 		protected abstract ImageServer<T> buildOriginal() throws Exception;
-		
-		protected ImageServerMetadata getMetadata() {
+
+		@Override
+		public ImageServerMetadata getMetadata() {
 			return metadata;
 		}
 		
