@@ -349,7 +349,7 @@ public class PixelClassifierTraining {
 		TileFeatures features = cache.get(request);
 		Map<ROI, PathClass> rois = null;
 		
-		var annotations = featureServer.getImageData().getHierarchy().getObjectsForRegion(PathAnnotationObject.class, request, null);
+		var annotations = featureServer.getImageData().getHierarchy().getAllObjectsForRegion(request, null);
 		if (annotations != null && !annotations.isEmpty()) {
     		rois = new HashMap<>();
     		for (var annotation : annotations) {

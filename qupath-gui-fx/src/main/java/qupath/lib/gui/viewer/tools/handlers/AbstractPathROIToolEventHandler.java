@@ -195,7 +195,7 @@ abstract class AbstractPathROIToolEventHandler extends AbstractPathToolEventHand
 		// If we are in selection mode, try to get objects to select
 		if (PathPrefs.selectionModeProperty().get()) {
 			var pathClass = PathPrefs.autoSetAnnotationClassProperty().get();
-			var toSelect = hierarchy.getObjectsForROI(null, currentROI);
+			var toSelect = hierarchy.getAllObjectsForROI(currentROI);
 			if (!toSelect.isEmpty() && pathClass != null) {
 				boolean retainIntensityClass = !(PathClassTools.isPositiveOrGradedIntensityClass(pathClass) || PathClassTools.isNegativeClass(pathClass));
 				var reclassified = toSelect.stream()

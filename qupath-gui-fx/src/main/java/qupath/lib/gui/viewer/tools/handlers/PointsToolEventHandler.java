@@ -173,7 +173,7 @@ class PointsToolEventHandler extends AbstractPathToolEventHandler {
 		
 		// Activate a points object if there is one
 		boolean currentIsValid = false;
-		for (PathObject pathObject : hierarchy.getPointObjects(PathObject.class)) {
+		for (PathObject pathObject : hierarchy.getAllPointObjects()) {
 			if (!pathObject.getROI().getImagePlane().equals(viewerPlane))
 				continue;
 			// See if we've almost clicked on a point

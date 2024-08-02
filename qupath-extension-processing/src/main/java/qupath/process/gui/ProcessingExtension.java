@@ -105,7 +105,6 @@ public class ProcessingExtension implements QuPathExtension {
 				
 		private OpenCVCommands(QuPathGUI qupath) {
 			actionDelaunay = qupath.createPluginAction("Delaunay cluster features 2D", DelaunayClusteringPlugin.class, null);
-//			actionCytokeratin = qupath.createPluginAction("Create cytokeratin annotations (experimental)", DetectCytokeratinCV.class, null);
 			actionFastCellCounts = qupath.createPluginAction("Fast cell counts (brightfield)", CellCountsCV.class, null);
 			var densityMapCommand = new DensityMapCommand(qupath);
 			actionDensityMap = qupath.createImageDataAction(imageData -> densityMapCommand.run());

@@ -15,6 +15,8 @@ This is a *work in progress* for the next major release.
   * A warning indicator is shown if image files are missing
     * Use the 'Skip file checks in projects' preference if you need to turn this off (e.g. your images are on a slow network)
 * Create a new channel as a linear combination of other channels (https://github.com/qupath/qupath/pull/1566)
+* Simplify `TileClassificationsToAnnotationsPlugin` implementation (https://github.com/qupath/qupath/pull/1563)
+* Add methods to `PathObjectHierarchy` to simplify requesting objects for regions (https://github.com/qupath/qupath/pull/1563)
 
 ### Bugs fixed
 * Tile export to .ome.tif can convert to 8-bit unnecessarily (https://github.com/qupath/qupath/issues/1494)
