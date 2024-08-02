@@ -31,13 +31,13 @@ This is a *work in progress* for the next major release.
 * QuPath doesn't always use the specified file extension when exporting snapshots (https://github.com/qupath/qupath/issues/1567)
 
 ### Dependency updates
-* Bio-Formats 7.3.0
+* Bio-Formats 7.3.1
 * Commonmark 0.22.0
-* DeepJavaLibrary 0.28.0
+* DeepJavaLibrary 0.29.0
 * Groovy 4.0.22
 * Gson 2.11.0
 * Guava 33.2.0-jre
-* JavaFX 22.0.1
+* JavaFX 22.0.2
 * JFreeSVG 5.0.6
 * JNA 5.14.0
 * Picocli 4.7.6
