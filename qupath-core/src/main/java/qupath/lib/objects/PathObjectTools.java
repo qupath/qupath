@@ -410,7 +410,7 @@ public class PathObjectTools {
 	/**
 	 * Filter a collection of PathObjects to identify those with centroids that fall within specified ROI.
 	 * Note that, for cell objects, this tests the main (outer) ROI only.
-	 * If you want to use the nucleus centroid, use {@link #filterByRoiContainsNucleusCentroid(ROI, Collection)}.
+	 * If you want to use the nucleus centroid, use {@link #filterByROIContainsNucleusCentroid(ROI, Collection)}.
 	 * @param roi the ROI to test against
 	 * @param pathObjects the objects to filter
 	 * @return a new collection that contains only the objects with centroids that fall within the ROI
@@ -432,7 +432,7 @@ public class PathObjectTools {
 	 * @param <T>
 	 * @since v0.6.0
 	 */
-	public static <T extends PathObject> Collection<T> filterByRoiContainsNucleusCentroid(ROI roi, Collection<T> pathObjects) {
+	public static <T extends PathObject> Collection<T> filterByROIContainsNucleusCentroid(ROI roi, Collection<T> pathObjects) {
 		return filterByROIPredicate(roi, p -> roi.contains(
 				getNucleusOrMainROI(p).getCentroidX(),
 				getNucleusOrMainROI(p).getCentroidY()), pathObjects);
@@ -1298,13 +1298,13 @@ public class PathObjectTools {
 
 
 	private static List<PathObject> splitObjectBySubtraction(PathObject pathObject, ROI... roisToSubtract) {
-		var rois = splitRoiBySubtraction(pathObject.getROI(), roisToSubtract);
+		var rois = splitROIBySubtraction(pathObject.getROI(), roisToSubtract);
 		return rois.stream()
 				.map(roi -> PathObjectTools.createLike(pathObject, roi))
 				.toList();
 	}
 
-	private static List<ROI> splitRoiBySubtraction(ROI roi, ROI... roisToSubtract) {
+	private static List<ROI> splitROIBySubtraction(ROI roi, ROI... roisToSubtract) {
 		if (roi == null)
 			return Collections.emptyList();
 		if (roisToSubtract.length == 0)
