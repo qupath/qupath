@@ -837,7 +837,6 @@ public final class PathObjectHierarchy implements Serializable {
 
 
 	private Collection<PathObject> getObjectsOfClassForROI(Class<? extends PathObject> cls, ROI roi) {
-		LogTools.warnOnce(logger, "getObjectsForROI(Class, ROI) is deprecated, use getAllObjectsForROI(ROI) instead");
 		if (roi.isEmpty() || !roi.isArea())
 			return Collections.emptyList();
 
@@ -990,13 +989,14 @@ public final class PathObjectHierarchy implements Serializable {
 	}
 
 	/**
-	 * Get all the objects overlapping or close to a specified region.
+	 * Get all the objects overlapping or close to a specified region, optionally adding to an existing collection.
 	 * Note that this performs a quick check; the results typically should be filtered if a more strict test for overlapping is applied.
 	 *
 	 * @param region requested region overlapping the objects ROI
 	 * @param pathObjects optional collection to which objects will be added
 	 * @return collection containing identified objects (same as the input collection, if provided)
 	 * @see #getAllObjectsForROI(ROI)
+	 * @see #getAllObjectsForRegion(ImageRegion)
 	 * @see PathObjectTools#filterByRoiCovers(ROI, Collection)
 	 * @see PathObjectTools#filterByRoiIntersects(ROI, Collection) (ROI, Collection)
 	 * @see PathObjectTools#filterByRoiContainsCentroid(ROI, Collection) (ROI, Collection) (ROI, Collection)
@@ -1007,12 +1007,30 @@ public final class PathObjectHierarchy implements Serializable {
 	}
 
 	/**
-	 * Get all the annotation objects overlapping or close to a specified region.
+	 * Get all the objects overlapping or close to a specified region.
+	 * Note that this performs a quick check; the results typically should be filtered if a more strict test for overlapping is applied.
+	 *
+	 * @param region requested region overlapping the objects ROI
+	 * @return collection containing identified objects (same as the input collection, if provided)
+	 * @see #getAllObjectsForROI(ROI)
+	 * @see #getAllObjectsForRegion(ImageRegion, Collection)
+	 * @see PathObjectTools#filterByRoiCovers(ROI, Collection)
+	 * @see PathObjectTools#filterByRoiIntersects(ROI, Collection) (ROI, Collection)
+	 * @see PathObjectTools#filterByRoiContainsCentroid(ROI, Collection) (ROI, Collection) (ROI, Collection)
+	 * @since v0.6.0
+	 */
+	public Collection<PathObject> getAllObjectsForRegion(ImageRegion region) {
+		return getAllObjectsForRegion(region, null);
+	}
+
+	/**
+	 * Get all the annotation objects overlapping or close to a specified region, optionally adding to an existing collection.
 	 * Note that this performs a quick check; the results typically should be filtered if a more strict test for overlapping is applied.
 	 *
 	 * @param region requested region overlapping the objects ROI
 	 * @param pathObjects optional collection to which objects will be added
 	 * @return collection containing identified objects (same as the input collection, if provided)
+	 * @see #getAnnotationsForRegion(ImageRegion)
 	 * @see #getAllObjectsForRegion(ImageRegion, Collection)
 	 * @see #getAnnotationsForROI(ROI)
 	 * @since v0.6.0
@@ -1022,18 +1040,49 @@ public final class PathObjectHierarchy implements Serializable {
 	}
 
 	/**
-	 * Get all the detection objects overlapping or close to a specified region.
+	 * Get all the annotation objects overlapping or close to a specified region.
+	 * Note that this performs a quick check; the results typically should be filtered if a more strict test for overlapping is applied.
+	 *
+	 * @param region requested region overlapping the objects ROI
+	 * @return collection containing identified objects (same as the input collection, if provided)
+	 * @see #getAnnotationsForRegion(ImageRegion, Collection)
+	 * @see #getAllObjectsForRegion(ImageRegion)
+	 * @see #getAnnotationsForROI(ROI)
+	 * @since v0.6.0
+	 */
+	public Collection<PathObject> getAnnotationsForRegion(ImageRegion region) {
+		return getAnnotationsForRegion(region, null);
+	}
+
+	/**
+	 * Get all the detection objects overlapping or close to a specified region, optionally adding to an existing collection.
 	 * Note that this performs a quick check; the results typically should be filtered if a more strict test for overlapping is applied.
 	 *
 	 * @param region requested region overlapping the objects ROI
 	 * @param pathObjects optional collection to which objects will be added
 	 * @return collection containing identified objects (same as the input collection, if provided)
+	 * @see #getAllDetectionsForRegion(ImageRegion)
 	 * @see #getAllObjectsForRegion(ImageRegion, Collection)
 	 * @see #getAllDetectionsForROI(ROI) (ROI)
 	 * @since v0.6.0
 	 */
 	public Collection<PathObject> getAllDetectionsForRegion(ImageRegion region, Collection<PathObject> pathObjects) {
 		return tileCache.getObjectsForRegion(PathDetectionObject.class, region, pathObjects, true);
+	}
+
+	/**
+	 * Get all the detection objects overlapping or close to a specified region.
+	 * Note that this performs a quick check; the results typically should be filtered if a more strict test for overlapping is applied.
+	 *
+	 * @param region requested region overlapping the objects ROI
+	 * @return collection containing identified objects (same as the input collection, if provided)
+	 * @see #getAllDetectionsForRegion(ImageRegion, Collection)
+	 * @see #getAllObjectsForRegion(ImageRegion)
+	 * @see #getAllDetectionsForROI(ROI) (ROI)
+	 * @since v0.6.0
+	 */
+	public Collection<PathObject> getAllDetectionsForRegion(ImageRegion region) {
+		return getAllDetectionsForRegion(region, null);
 	}
 	
 	/**
