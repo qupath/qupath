@@ -430,7 +430,7 @@ public class PathIO {
 				hierarchy2.setHierarchy(hierarchy);
 				hierarchy = hierarchy2;
 
-				imageData = new ImageData<>(serverSupplier, null, hierarchy, imageType);
+				imageData = new ImageData<>(serverSupplier, hierarchy, imageType);
 			} else {
 				if (imageType != null)
 					imageData.setImageType(imageType);

@@ -138,11 +138,16 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 	
 	/**
 	 * Create a new ImageData with a specified object hierarchy and type.
-	 * @param server
-	 * @param hierarchy 
-	 * @param type
+	 * @param supplier supplier to use if the server is to be loaded lazily; may be null to se server instead
+	 * @param server server to use directly; may be null to use supplier instead
+	 * @param hierarchy an object hierarchy, or null to create a new one
+	 * @param type the image type, or null to default to ImageType.UNSET
+	 * @throws IllegalArgumentException if neither a server nor a server supplier is provided
 	 */
-	public ImageData(Supplier<ImageServer<T>> supplier, ImageServer<T> server, PathObjectHierarchy hierarchy, ImageType type) {
+	private ImageData(Supplier<ImageServer<T>> supplier, ImageServer<T> server, PathObjectHierarchy hierarchy, ImageType type)
+			throws IllegalArgumentException {
+		if (server == null && supplier == null)
+			throw new IllegalArgumentException("Cannot create ImageData without a server or server supplier");
 		this.pcs = new PropertyChangeSupport(this);
 		this.serverSupplier = supplier;
 		this.server = server;
@@ -161,6 +166,26 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 		changes = false;
 	}
 
+	/**
+	 * Create a new ImageData with a lazily-loaded server, hierarchy and type.
+	 * The supplier provides the ImageServer required to access pixels and metadata on demand.
+	 * <p>
+	 * If the server is never requested, then the supplier is not used - which can save time and resources.
+	 *
+	 * @param supplier object to supply the ImageServer
+	 * @param hierarchy an object hierarchy, or null to create a new one
+	 * @param type the image type, or null to default to ImageType.UNSET
+	 */
+	public ImageData(Supplier<ImageServer<T>> supplier, PathObjectHierarchy hierarchy, ImageType type) {
+		this(supplier, null, hierarchy, type);
+	}
+
+	/**
+	 * Create a new ImageData with a specified server, hierarchy and type.
+	 * @param server server to use to access pixels and metadata
+	 * @param hierarchy an object hierarchy, or null to create a new one
+	 * @param type the image type, or null to default to ImageType.UNSET
+	 */
 	public ImageData(ImageServer<T> server, PathObjectHierarchy hierarchy, ImageType type) {
 		this(null, server, hierarchy, type);
 	}
@@ -182,7 +207,6 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 	public Workflow getHistoryWorkflow() {
 		return workflow;
 	}
-	
 	
 	
 	/**
@@ -227,8 +251,7 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 		pcs.firePropertyChange("stains", stainsOld, stains);
 		
 		addColorDeconvolutionStainsToWorkflow(this);
-//		logger.error("WARNING: Setting color deconvolution stains is not yet scriptable!!!!");
-		
+
 		changes = true;
 	}
 	
@@ -255,14 +278,6 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 		pcs.firePropertyChange("serverMetadata", oldMetadata, newMetadata);
 		changes = changes || !oldMetadata.equals(newMetadata);
 	}
-	
-//	public void setColorDeconvolutionStains(final String stainsString) {
-//		setColorDeconvolutionStains(ColorDeconvolutionStains.parseColorDeconvolutionStainsArg(stainsString));
-//	}
-//	
-//	public void setImageType(final String type) {
-//		setImageType(ImageType.valueOf(type));
-//	}
 	
 	/**
 	 * Returns true if the image type is set to brightfield.
@@ -316,10 +331,7 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 	
 	
 	
-	// TODO: REINTRODUCE LOGGING!
 	private static void addColorDeconvolutionStainsToWorkflow(ImageData<?> imageData) {
-//		logger.warn("Color deconvolution stain logging not currently enabled!");
-
 		ColorDeconvolutionStains stains = imageData.getColorDeconvolutionStains();
 		if (stains == null) {
 			return;
@@ -333,29 +345,8 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 				map,
 				"setColorDeconvolutionStains(\'" + arg + "');");
 		
-//		if (lastStep != null && commandName.equals(lastStep.getName()))
-//			imageData.getHistoryWorkflow().replaceLastStep(newStep);
-//		else
 		if (!Objects.equals(newStep, lastStep))
 			imageData.getHistoryWorkflow().addStep(newStep);
-
-		
-//		ColorDeconvolutionStains stains = imageData.getColorDeconvolutionStains();
-//		if (stains == null)
-//			return;
-//		
-//		String arg = ColorDeconvolutionStains.getColorDeconvolutionStainsAsString(imageData.getColorDeconvolutionStains(), 5);
-//		Map<String, String> map = GeneralTools.parseArgStringValues(arg);
-//		WorkflowStep lastStep = imageData.getWorkflow().getLastStep();
-//		String commandName = "Set color deconvolution stains";
-//		WorkflowStep newStep = new DefaultScriptableWorkflowStep(commandName,
-//				map,
-//				QP.class.getSimpleName() + ".setColorDeconvolutionStains(\'" + arg + "');");
-//		
-//		if (lastStep != null && commandName.equals(lastStep.getName()))
-//			imageData.getWorkflow().replaceLastStep(newStep);
-//		else
-//			imageData.getWorkflow().addStep(newStep);
 	}
 	
 	/**
@@ -453,7 +444,6 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 	    	else
 	    		changes = changes || !oldValue.equals(value);
 	    	logger.trace("Setting property: {}: {}", key, value);
-//	    	System.err.println(changes + " setting " + key + " to " + value);
 	    	if (oldValue != value)
 	    		pcs.firePropertyChange(key, oldValue, value);
 	    	return oldValue;
@@ -538,6 +528,7 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 
 	/**
 	 * Close the server if it has been loaded.
+	 * Note that this should <i>not</i> be called if the server is still in use.
 	 * @throws Exception
 	 */
 	@Override

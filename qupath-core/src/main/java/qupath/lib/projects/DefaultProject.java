@@ -729,7 +729,7 @@ class DefaultProject implements Project<BufferedImage> {
 			}
 			
 			if (imageData == null)
-				imageData = new ImageData<>(serverSupplier, null, new PathObjectHierarchy(), ImageType.UNSET);
+				imageData = new ImageData<>(serverSupplier, new PathObjectHierarchy(), ImageType.UNSET);
 			imageData.setProperty(IMAGE_ID, getFullProjectEntryID()); // Required to be able to test for the ID later
 			imageData.setChanged(false);
 			return imageData;
