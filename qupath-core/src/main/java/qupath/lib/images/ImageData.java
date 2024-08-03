@@ -139,7 +139,7 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 	
 	/**
 	 * Create a new ImageData with a specified object hierarchy and type.
-	 * @param serverBuilder builder to use if the server is to be loaded lazily; may be null to se server instead
+	 * @param serverBuilder builder to use if the server is to be loaded lazily; may be null to use server instead
 	 * @param server server to use directly; may be null to use builder instead
 	 * @param hierarchy an object hierarchy, or null to create a new one
 	 * @param type the image type, or null to default to ImageType.UNSET
@@ -267,7 +267,7 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 			if (serverBuilder == null)
 				throw new IllegalStateException("Cannot update server metadata without a server or server builder");
 			else {
-				logger.debug("Setting serve metadata lazily (no change will be fired)");
+				logger.debug("Setting server metadata lazily (no change will be fired)");
 				lazyMetadata = newMetadata;
 				return;
 			}
