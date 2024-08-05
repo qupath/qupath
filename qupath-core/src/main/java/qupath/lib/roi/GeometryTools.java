@@ -636,8 +636,8 @@ public class GeometryTools {
 		if (polygons.isEmpty())
 			return null;
 		else if (polygons.size() == 1)
-			return polygons.getFirst();
-		double maxArea = polygons.getFirst().getArea();
+			return polygons.get(0);
+		double maxArea = polygons.get(0).getArea();
 		int maxInd = 0;
 		for (int i = 1; i < polygons.size(); i++) {
 			double area = polygons.get(i).getArea();
