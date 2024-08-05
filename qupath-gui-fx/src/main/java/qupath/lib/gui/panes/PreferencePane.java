@@ -507,8 +507,8 @@ public class PreferencePane {
 		@ColorPref("Prefs.Objects.tmaCoreColor")
 		public final IntegerProperty tmaColor = PathPrefs.colorTMAProperty();
 
-		@ColorPref("Prefs.Objects.tmaCoreMissingColor")
-		public final IntegerProperty tmaMissingColor = PathPrefs.colorTMAMissingProperty();
+		@DoublePref("Prefs.Objects.tmaCoreMissingOpacity")
+		public final DoubleProperty tmaMissingOpacity = PathPrefs.opacityTMAMissingProperty();
 
 	}
 

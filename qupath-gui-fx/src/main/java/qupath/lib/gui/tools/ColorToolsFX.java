@@ -30,6 +30,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import javafx.scene.paint.Color;
 import qupath.lib.common.ColorTools;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathTileObject;
@@ -233,17 +234,21 @@ public class ColorToolsFX {
 		PathClass pathClass = pathObject.getPathClass();
 		if (pathClass != null)
 			color = pathClass.getColor();
-		if (color != null)
+		else if (pathObject instanceof TMACoreObject)
+			color = PathPrefs.colorTMAProperty().getValue();;
+
+		if (color != null) {
+			// Make missing TMA cores translucent
+			if (pathObject instanceof TMACoreObject core && core.isMissing()) {
+				color = ColorTools.packARGB(
+						GeneralTools.clipValue((int)Math.round(255 * PathPrefs.opacityTMAMissingProperty().get()), 0, 255),
+						ColorTools.red(color), ColorTools.green(color), ColorTools.blue(color)
+				);
+			}
 			return color;
-	
+		}
 		if (pathObject instanceof PathTileObject)
 			return PathPrefs.colorTileProperty().getValue();
-		if (pathObject instanceof TMACoreObject) {
-			if (((TMACoreObject)pathObject).isMissing())
-				return PathPrefs.colorTMAMissingProperty().getValue();
-			else
-				return PathPrefs.colorTMAProperty().getValue();
-		}
 		return PathPrefs.colorDefaultObjectsProperty().getValue();
 	}
 	
