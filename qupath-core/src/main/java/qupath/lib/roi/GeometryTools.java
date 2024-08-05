@@ -612,6 +612,42 @@ public class GeometryTools {
     	return GeometryTools.union(filtered);
 //    	return geometry.getFactory().buildGeometry(filtered);
     }
+
+	/**
+	 * Find the polygon with the largest area in a Geometry.
+	 * <p>
+	 * If the input is a polygon, then it is returned unchanged.
+	 * <p>
+	 * Otherwise, polygons are extracted and the one with the largest area is returned -
+	 * or the first encountered polygon with the largest area in the case of a tie.
+	 * <p>
+	 * If no polygons are found, then the method returns null.
+	 * @param geometry
+	 * @return
+	 */
+	public static Polygon findLargestPolygon(Geometry geometry) {
+		if (geometry instanceof Polygon)
+			return (Polygon)geometry;
+		var polygons = flatten(geometry, null)
+				.stream()
+				.filter(g -> g instanceof Polygon)
+				.map(g -> (Polygon)g)
+				.toList();
+		if (polygons.isEmpty())
+			return null;
+		else if (polygons.size() == 1)
+			return polygons.getFirst();
+		double maxArea = polygons.getFirst().getArea();
+		int maxInd = 0;
+		for (int i = 1; i < polygons.size(); i++) {
+			double area = polygons.get(i).getArea();
+			if (area > maxArea) {
+				maxArea = area;
+				maxInd = i;
+			}
+		}
+		return polygons.get(maxInd);
+	}
     
     /**
      * Remove fragments smaller than the specified area from a Geometry, ignoring internal rings.
