@@ -24,6 +24,7 @@ package qupath.lib.roi;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -33,10 +34,12 @@ import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.Test;
 import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.util.AffineTransformation;
 
@@ -171,6 +174,86 @@ public class TestGeometryTools {
 		assertEquals(2, GeometryTools.union(g1, gLine).getNumGeometries());
 		// The fast polygon union discards lines
 		assertEquals(1, FastPolygonUnion.union(g1, gLine).getNumGeometries());
+	}
+
+
+	@Test
+	public void testFindLargestPolygonLineString() {
+		var factory = GeometryTools.getDefaultFactory();
+		var coords = new Coordinate[]{new Coordinate(0, 0), new Coordinate(0, 1), new Coordinate(1, 1)};
+		assertNull(GeometryTools.findLargestPolygon(factory.createLineString(coords)));
+	}
+
+	@Test
+	public void testFindLargestPolygonLinearRing() {
+		var factory = GeometryTools.getDefaultFactory();
+		var rectangle = GeometryTools.createRectangle(0, 0, 10, 10);
+		assertNull(GeometryTools.findLargestPolygon(factory.createLinearRing(rectangle.getCoordinates())));
+	}
+
+	@Test
+	public void testFindLargestPolygonPoints() {
+		var factory = GeometryTools.getDefaultFactory();
+		var coords = new Coordinate[]{new Coordinate(0, 0), new Coordinate(0, 1), new Coordinate(1, 1)};
+		assertNull(GeometryTools.findLargestPolygon(factory.createMultiPointFromCoords(coords)));
+	}
+
+	@Test
+	public void testFindLargestPolygonSingle() {
+		var rectangle = GeometryTools.createRectangle(0, 0, 10, 10);
+		assertEquals(rectangle, GeometryTools.findLargestPolygon(rectangle));
+
+		var factory = GeometryTools.getDefaultFactory();
+		var multipolygon = factory.createMultiPolygon(new Polygon[]{rectangle});
+		assertEquals(rectangle, GeometryTools.findLargestPolygon(multipolygon));
+
+		var geomCollection = factory.createGeometryCollection(new Geometry[]{rectangle});
+		assertEquals(rectangle, GeometryTools.findLargestPolygon(geomCollection));
+	}
+
+	@Test
+	public void testFindLargestPolygonMulti() {
+		var small = GeometryTools.createRectangle(0, 0, 10, 10);
+		var large = GeometryTools.createRectangle(0, 0, 20, 20);
+		// Same area, but at the end of the list (so 'large' should be encountered first)
+		var largeTranslated = GeometryTools.createRectangle(10, 10, 20, 20);
+
+		var factory = GeometryTools.getDefaultFactory();
+		var multipolygon1 = factory.createMultiPolygon(new Polygon[]{small, large, largeTranslated});
+		var multipolygon2 = factory.createMultiPolygon(new Polygon[]{large, small, largeTranslated});
+		var geomcollection1 = factory.createGeometryCollection(new Geometry[]{small, large, largeTranslated});
+		var geomcollection2 = factory.createGeometryCollection(new Geometry[]{large, small, largeTranslated});
+
+		assertEquals(large, GeometryTools.findLargestPolygon(multipolygon1));
+		assertEquals(large, GeometryTools.findLargestPolygon(multipolygon2));
+		assertEquals(large, GeometryTools.findLargestPolygon(geomcollection1));
+		assertEquals(large, GeometryTools.findLargestPolygon(geomcollection2));
+	}
+
+	@Test
+	public void testFindLargestPolygonHoles() {
+		var outer = GeometryTools.createRectangle(0, 0, 100, 100);
+		var hole = GeometryTools.createRectangle(10, 10, 20, 20);
+		var withHole = outer.difference(hole);
+		var large = GeometryTools.createRectangle(0, 0, 99, 99);
+
+		var factory = GeometryTools.getDefaultFactory();
+		var geomcollection1 = factory.createGeometryCollection(new Geometry[]{withHole, large});
+		var geomcollection2 = factory.createGeometryCollection(new Geometry[]{large, withHole});
+
+		assertEquals(large, GeometryTools.findLargestPolygon(geomcollection1));
+		assertEquals(large, GeometryTools.findLargestPolygon(geomcollection2));
+	}
+
+	@Test
+	public void testFillHoles() {
+		var outer = GeometryTools.createRectangle(0, 0, 100, 100).norm();
+		var hole = GeometryTools.createRectangle(10, 10, 20, 20).norm();
+		var withHole = outer.difference(hole).norm();
+
+		assertEquals(100*100 - 20*20, withHole.getArea(), 0.001);
+		assertNotEquals(outer, withHole);
+		assertEquals(outer, GeometryTools.fillHoles(withHole).norm());
 	}
 	
 
