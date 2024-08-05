@@ -17,6 +17,9 @@ This is a *work in progress* for the next major release.
 * Create a new channel as a linear combination of other channels (https://github.com/qupath/qupath/pull/1566)
 * Simplify `TileClassificationsToAnnotationsPlugin` implementation (https://github.com/qupath/qupath/pull/1563)
 * Add methods to `PathObjectHierarchy` to simplify requesting objects for regions (https://github.com/qupath/qupath/pull/1563)
+* TMA cores can now have classifications assigned to them
+  * Default color for TMA cores is lighter (to make it easier to see on both bright and dark backgrounds)
+  * TMA core 'missing' status is now shown using opacity, not a different color, to preserve any classification color
 
 ### Bugs fixed
 * Tile export to .ome.tif can convert to 8-bit unnecessarily (https://github.com/qupath/qupath/issues/1494)

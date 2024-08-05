@@ -195,8 +195,8 @@ class PathClassPane {
 		var pathObjects = new ArrayList<>(hierarchy.getSelectionModel().getSelectedObjects());
 		List<PathObject> changed = new ArrayList<>();
 		for (PathObject pathObject : pathObjects) {
-			if (pathObject.isTMACore())
-				continue;
+			// Previously we didn't allow TMA core objects to be classified this way,
+			// but since v0.6.0 we do
 			if (pathObject.getPathClass() == pathClass)
 				continue;				
 			pathObject.setPathClass(pathClass);

@@ -107,7 +107,7 @@ public class PathObjectHierarchyView implements ChangeListener<ImageData<Buffere
 		
 		PathPrefs.colorDefaultObjectsProperty().addListener((v, o, n) -> treeView.refresh());
 		PathPrefs.colorTMAProperty().addListener((v, o, n) -> treeView.refresh());
-		PathPrefs.colorTMAMissingProperty().addListener((v, o, n) -> treeView.refresh());
+		PathPrefs.opacityTMAMissingProperty().addListener((v, o, n) -> treeView.refresh());
 		PathPrefs.colorTileProperty().addListener((v, o, n) -> treeView.refresh());
 		
 		treeView.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);

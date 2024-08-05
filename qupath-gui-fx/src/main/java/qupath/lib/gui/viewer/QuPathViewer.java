@@ -789,7 +789,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		manager.attachListener(PathPrefs.colorSelectedObjectProperty(), repainter);
 		manager.attachListener(PathPrefs.colorTileProperty(), repainter);
 		manager.attachListener(PathPrefs.colorTMAProperty(), repainter);
-		manager.attachListener(PathPrefs.colorTMAMissingProperty(), repainter);
+		manager.attachListener(PathPrefs.opacityTMAMissingProperty(), repainter);
 		manager.attachListener(PathPrefs.alwaysPaintSelectedObjectsProperty(), repainter);
 		manager.attachListener(PathPrefs.locationFontSizeProperty(), repainter);
 		manager.attachListener(PathPrefs.scalebarFontSizeProperty(), repainter);
@@ -2716,8 +2716,18 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		TMAGrid tmaGrid = getHierarchy().getTMAGrid();
 		if (tmaGrid != null) {
 			TMACoreObject core = PathObjectTools.getTMACoreForPixel(tmaGrid, xx, yy);
-			if (core != null && core.getName() != null)
-				prefix = "Core: " + core.getName() + "\n";
+			if (core != null) {
+				if (core.getName() != null)
+					prefix = "Core: " + core.getName();
+				else
+					prefix = "TMA core";
+				var pathClass = core.getPathClass();
+				if (pathClass != null)
+					prefix += " (" + pathClass + ")";
+				if (core.isMissing())
+					prefix += " (missing)";
+				prefix += "\n";
+			}
 		}
 
 		String s = null;
