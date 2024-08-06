@@ -34,6 +34,7 @@ import qupath.ui.javadocviewer.gui.viewer.JavadocViewerCommand;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URL;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Objects;
@@ -61,6 +62,7 @@ public class JavadocViewerRunner implements Runnable {
     private static final String JAVADOC_PATH_PREFERENCE = "javadocPath";
     private static final StringProperty javadocPath = PathPrefs.createPersistentPreference(JAVADOC_PATH_PREFERENCE, null);
     private final JavadocViewerCommand command;
+    private boolean stylesheetAdded = false;
 
     /**
      * Create the command. This will not create the viewer yet.
@@ -101,6 +103,14 @@ public class JavadocViewerRunner implements Runnable {
 
     @Override
     public void run() {
+        if (!stylesheetAdded) {
+            URL stylesheetURL = JavadocViewerRunner.class.getResource("/css/javadoc.css");
+            if (stylesheetURL != null) {
+                command.getJavadocViewer().getStylesheets().add(stylesheetURL.toExternalForm());
+            }
+            stylesheetAdded = true;
+        }
+
         command.run();
     }
 
