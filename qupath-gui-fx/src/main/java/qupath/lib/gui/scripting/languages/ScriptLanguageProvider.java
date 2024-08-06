@@ -23,21 +23,19 @@
 
 package qupath.lib.gui.scripting.languages;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.gui.ExtensionClassLoader;
+import qupath.lib.scripting.languages.ScriptLanguage;
+
+import javax.script.ScriptEngine;
+import javax.script.ScriptEngineFactory;
+import javax.script.ScriptEngineManager;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.ServiceLoader;
 import java.util.Set;
-
-import javax.script.ScriptEngine;
-import javax.script.ScriptEngineFactory;
-import javax.script.ScriptEngineManager;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import qupath.lib.gui.ExtensionClassLoader;
-import qupath.lib.scripting.languages.ScriptLanguage;
 
 /**
  * Class with static methods to fetch all the available {@linkplain ScriptLanguage ScriptLanguages}.
@@ -137,7 +135,10 @@ public class ScriptLanguageProvider {
 	 * @return corresponding script language, or {@link PlainLanguage} if no match
 	 */
 	public static ScriptLanguage fromString(String languageString) {
-		return getAvailableLanguages().stream().filter(l -> l.getName().equals(languageString)).findFirst().orElseGet(() -> PlainLanguage.getInstance());
+		return getAvailableLanguages().stream()
+				.filter(l -> l.getName().equalsIgnoreCase(languageString))
+				.findFirst()
+				.orElseGet(PlainLanguage::getInstance);
 	}
 	
 	/**
