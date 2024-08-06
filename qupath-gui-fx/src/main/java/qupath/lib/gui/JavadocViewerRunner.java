@@ -62,6 +62,8 @@ public class JavadocViewerRunner implements Runnable {
     private static final StringProperty javadocPath = PathPrefs.createPersistentPreference(JAVADOC_PATH_PREFERENCE, null);
     private final JavadocViewerCommand command;
 
+    private static final String JAVADOCS_STYLE_CLASS = "javadoc-viewer";
+
     /**
      * Create the command. This will not create the viewer yet.
      *
@@ -89,6 +91,8 @@ public class JavadocViewerRunner implements Runnable {
                         .filter(Objects::nonNull)
                         .toArray(URI[]::new)
         );
+        if (!command.getJavadocViewer().getStyleClass().contains(JAVADOCS_STYLE_CLASS))
+            command.getJavadocViewer().getStyleClass().add("javadoc-viewer");
     }
 
     /**

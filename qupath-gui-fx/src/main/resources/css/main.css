@@ -45,6 +45,10 @@
 
 }
 
+/* Default to using a very light scrollbar with javadocs */
+.javadoc-viewer .scroll-bar {
+  -fx-base: #fcfcfc;
+}
 
 /* Soften the main toolbar icons */
 .tool-bar .qupath-icon * {
