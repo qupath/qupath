@@ -362,7 +362,7 @@ public class PathIO {
 				try {
 					// Try to read a relevant object from the stream
 					Object input = inStream.readObject();
-					logger.debug("Read: {}", input);
+					logger.trace("Read object: {}", input);
 
 					// If we have a Locale, then set it
 					if (input instanceof Locale) {
