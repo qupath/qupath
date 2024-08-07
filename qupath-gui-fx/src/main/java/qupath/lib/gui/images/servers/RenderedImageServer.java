@@ -62,7 +62,8 @@ import qupath.lib.images.servers.TileRequest;
  * @author Pete Bankhead
  */
 public class RenderedImageServer extends AbstractTileableImageServer implements GeneratingImageServer<BufferedImage> {
-	
+
+	private final boolean dedicatedStore;
 	private DefaultImageRegionStore store;
 	private ImageData<BufferedImage> imageData;
 	private List<PathOverlay> overlayLayers = new ArrayList<>();
@@ -76,7 +77,8 @@ public class RenderedImageServer extends AbstractTileableImageServer implements 
 	
 	private RenderedImageServer(DefaultImageRegionStore store, ImageData<BufferedImage> imageData,
 								List<? extends PathOverlay> overlayLayers, ImageRenderer renderer,
-								double[] downsamples, Color backgroundColor, double overlayOpacity) {
+								double[] downsamples, Color backgroundColor, double overlayOpacity,
+								boolean dedicatedStore) {
 		super();
 		this.store = store;
 		this.overlayOpacity = overlayOpacity;
@@ -93,6 +95,7 @@ public class RenderedImageServer extends AbstractTileableImageServer implements 
 		if (downsamples != null && downsamples.length > 0)
 			builder = builder.levelsFromDownsamples(downsamples);
 		this.metadata = builder.build();
+		this.dedicatedStore = dedicatedStore;
 	}
 	
 	/**
@@ -145,6 +148,7 @@ public class RenderedImageServer extends AbstractTileableImageServer implements 
 		private double overlayOpacity = 1.0;
 		private Color backgroundColor;
 		private double[] downsamples;
+		private boolean dedicatedStore = false;
 		
 		/**
 		 * Create a rendered image server build using viewer defaults.
@@ -280,8 +284,9 @@ public class RenderedImageServer extends AbstractTileableImageServer implements 
 			// Try to use existing store/display if possible
 			var store = getStore();
 			var renderer = getRenderer();
-			return new RenderedImageServer(store, imageData, overlayLayers, renderer, downsamples, backgroundColor,
-					overlayOpacity);
+			return new RenderedImageServer(
+					store, imageData, overlayLayers, renderer, downsamples, backgroundColor, overlayOpacity, dedicatedStore
+			);
 		}
 
 		private ImageRenderer getRenderer() throws IOException {
@@ -306,10 +311,12 @@ public class RenderedImageServer extends AbstractTileableImageServer implements 
 			if (this.store != null)
 				return store;
 			var viewer = findViewer(imageData);
-			if (viewer == null)
+			if (viewer == null) {
+				dedicatedStore = true;
 				return ImageRegionStoreFactory.createImageRegionStore(Runtime.getRuntime().maxMemory() / 4L);
-			else
+			} else {
 				return viewer.getImageRegionStore();
+			}
 		}
 
 		private QuPathViewer findViewer(ImageData<?> imageData) {
@@ -402,4 +409,10 @@ public class RenderedImageServer extends AbstractTileableImageServer implements 
 		return UUID.randomUUID().toString();
 	}
 
+	@Override
+	public void close() {
+		if (dedicatedStore) {
+			store.close();
+		}
+	}
 }
