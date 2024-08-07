@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -58,22 +58,19 @@ import qupath.lib.images.servers.TileRequest;
 /**
  * An ImageServer that can display a rendered image, with optional overlays.
  * This is intended for use when exporting 'flattened' RGB images.
- * 
- * @author Pete Bankhead
  */
 public class RenderedImageServer extends AbstractTileableImageServer implements GeneratingImageServer<BufferedImage> {
 
 	private final boolean dedicatedStore;
-	private DefaultImageRegionStore store;
-	private ImageData<BufferedImage> imageData;
-	private List<PathOverlay> overlayLayers = new ArrayList<>();
-	private ImageRenderer renderer;
+	private final DefaultImageRegionStore store;
+	private final ImageData<BufferedImage> imageData;
+	private final List<PathOverlay> overlayLayers = new ArrayList<>();
+	private final ImageRenderer renderer;
 
-	private double overlayOpacity = 1.0;
-	
-	private Color backgroundColor = Color.WHITE;
-	
-	private ImageServerMetadata metadata;
+	private final double overlayOpacity;
+	private final Color backgroundColor;
+
+	private final ImageServerMetadata metadata;
 	
 	private RenderedImageServer(DefaultImageRegionStore store, ImageData<BufferedImage> imageData,
 								List<? extends PathOverlay> overlayLayers, ImageRenderer renderer,
@@ -410,9 +407,10 @@ public class RenderedImageServer extends AbstractTileableImageServer implements 
 	}
 
 	@Override
-	public void close() {
+	public void close() throws Exception {
 		if (dedicatedStore) {
 			store.close();
 		}
+		super.close();
 	}
 }
