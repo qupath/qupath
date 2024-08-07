@@ -131,18 +131,20 @@ public class DnnModels {
 	 * @return a new DnnModel, or null if no model could be built
 	 */
 	public static DnnModel buildModel(DnnModelParams params) {
-		for (DnnModelBuilder builder : getBuilders()) {
+		var allBuilders = getBuilders();
+		for (DnnModelBuilder builder : allBuilders) {
 			try {
 				var model = builder.buildModel(params);
 				if (model != null)
 					return model;
 				else {
-					logger.info("Cannot build model with {}", builder);
+					logger.debug("Cannot build model with {}", builder);
 				}
 			} catch (Exception e) {
 				logger.error(e.getLocalizedMessage(), e);
 			}
 		}
+		logger.warn("Cannot build model with any of the available builders: {}", allBuilders);
 		return null;
 	}
 	
