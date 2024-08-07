@@ -1329,10 +1329,6 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 						// Fetch the thumbnail or generate it if not present
 						BufferedImage img = entry.getThumbnail();
 						if (img != null) {
-							// If the cell contains the same object, no need to repaint the graphic
-							if (objectCell == item && getGraphic() != null)
-								return;
-
 							Image image = SwingFXUtils.toFXImage(img, null);
 							viewTooltip.setImage(image);
 							tooltip.setGraphic(viewTooltip);
