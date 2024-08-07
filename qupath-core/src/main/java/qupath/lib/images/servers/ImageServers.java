@@ -38,6 +38,7 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import com.google.gson.Strictness;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -785,9 +786,9 @@ public class ImageServers {
 		
 		@Override
 		public void write(JsonWriter out, ImageServer<BufferedImage> server) throws IOException {
-			boolean lenient = out.isLenient();
+			var strictness = out.getStrictness();
 			try {
-				out.setLenient(true);
+				out.setStrictness(Strictness.LENIENT);
 				var builder = server.getBuilder();
 				out.beginObject();
 				out.name("builder");
@@ -802,33 +803,44 @@ public class ImageServers {
 			} catch (Exception e) {
 				throw new IOException(e);
 			} finally {
-				out.setLenient(lenient);
+				out.setStrictness(strictness);
 			}
 		}
 
 		@Override
+		@SuppressWarnings("unchecked")
 		public ImageServer<BufferedImage> read(JsonReader in) throws IOException {
-			boolean lenient = in.isLenient();
+			var strictness = in.getStrictness();
 			try {
-				in.setLenient(true);
+				in.setStrictness(Strictness.LENIENT);
 				JsonElement element = JsonParser.parseReader(in);
 				JsonObject obj = element.getAsJsonObject();
 				
 				// Create from builder
-				ImageServer<BufferedImage> server = GsonTools.getInstance().fromJson(obj.get("builder"), ServerBuilder.class).build();
-				
-				// Set metadata, if we have any
-				if (obj.has("metadata")) {
-					ImageServerMetadata metadata = GsonTools.getInstance().fromJson(obj.get("metadata"), ImageServerMetadata.class);
-					if (metadata != null)
-						server.setMetadata(metadata);
+				ImageServer<BufferedImage> server;
+				if (obj.has("builder")) {
+					// We have ImageServer serialized - the builder is within its own field
+					server = GsonTools.getInstance().fromJson(obj.get("builder"), ServerBuilder.class).build();
+					// We may have metadata serialized separately - ensure that it is set
+					if (obj.has("metadata")) {
+						ImageServerMetadata metadata = GsonTools.getInstance().fromJson(obj.get("metadata"), ImageServerMetadata.class);
+						if (metadata != null)
+							server.setMetadata(metadata);
+					}
+				} else if (obj.has("builderType")) {
+					// We have a ServerBuilder serialized - but we can still use that for deserialization
+					var serverBuilder = GsonTools.getInstance().fromJson(obj, ServerBuilder.class);
+					server = serverBuilder.build();
+				} else {
+					logger.error("No ImageServer builder found in JSON object: {}", obj);
+					throw new IOException("No ImageServer builder found in JSON object");
 				}
-								
+
 				return server;
 			} catch (Exception e) {
 				throw new IOException(e);
 			} finally {
-				in.setLenient(lenient);
+				in.setStrictness(strictness);
 			}
 		}
 		

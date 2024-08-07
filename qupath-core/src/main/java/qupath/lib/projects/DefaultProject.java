@@ -47,7 +47,6 @@ import java.util.UUID;
 import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import javax.imageio.ImageIO;
@@ -64,7 +63,6 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.ImageData.ImageType;
 import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.servers.ServerTools;
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.io.GsonTools;
 import qupath.lib.io.PathIO;
@@ -527,6 +525,8 @@ class DefaultProject implements Project<BufferedImage> {
 				Files.copy(entry.getImageDataPath(), getImageDataPath(), StandardCopyOption.REPLACE_EXISTING);
 			if (Files.exists(entry.getDataSummaryPath()))
 				Files.copy(entry.getDataSummaryPath(), getDataSummaryPath(), StandardCopyOption.REPLACE_EXISTING);
+			if (Files.exists(entry.getServerPath()))
+				Files.copy(entry.getServerPath(), getServerPath(), StandardCopyOption.REPLACE_EXISTING);
 			if (getThumbnail() == null && Files.exists(entry.getThumbnailPath()))
 				Files.copy(entry.getThumbnailPath(), getThumbnailPath(), StandardCopyOption.REPLACE_EXISTING);
 		}
@@ -562,6 +562,8 @@ class DefaultProject implements Project<BufferedImage> {
 			var builderBefore = serverBuilder;
 			serverBuilder = serverBuilder.updateURIs(replacements);
 			boolean changes = builderBefore != serverBuilder;
+			if (changes)
+				writeServerBuilder();
 			return changes;
 		}
 		
@@ -765,17 +767,8 @@ class DefaultProject implements Project<BufferedImage> {
 			var currentServerBuilder = server.getBuilder();
 			if (currentServerBuilder != null && !currentServerBuilder.equals(this.serverBuilder)) {
 				this.serverBuilder = currentServerBuilder;
-				// Write the server - it isn't used, but it may enable us to rebuild the server from the data directory
-				// if the project is lost.
-				// Note that before v0.5.0, this actually wrote the server builder - but this was missing type
-				// information, so recovery of the actual server was difficult.
-				var pathServer = getServerPath();
-				try (var out = Files.newBufferedWriter(pathServer, StandardCharsets.UTF_8)) {
-					GsonTools.getInstance().toJson(server, out);
-				} catch (Exception e) {
-					logger.warn("Unable to write server to {}", pathServer);
-					Files.deleteIfExists(pathServer);
-				}
+				writeServerBuilder();
+				// This ensures that the metadata is updated in the project file
 //				syncChanges();
 			}
 			
@@ -784,6 +777,21 @@ class DefaultProject implements Project<BufferedImage> {
 				GsonTools.getInstance().toJson(new ImageDataSummary(imageData, timestamp), out);
 			}			
 
+		}
+
+		private void writeServerBuilder() throws IOException {
+			// Write the server - it isn't used, but it may enable us to rebuild the server from the data directory
+			// if the project is lost.
+			// Note that before v0.5.0, this actually wrote the server builder - but this was missing type
+			// information, so recovery of the actual server was difficult.
+			var pathServer = getServerPath();
+			try (var out = Files.newBufferedWriter(pathServer, StandardCharsets.UTF_8)) {
+				// Important to specify the class as ServerBuilder, so that the type adapter writes the type!
+				GsonTools.getInstance(true).toJson(this.serverBuilder, ServerBuilder.class, out);
+			} catch (Exception e) {
+				logger.warn("Unable to write server to {}", pathServer);
+				Files.deleteIfExists(pathServer);
+			}
 		}
 
 		@Override
