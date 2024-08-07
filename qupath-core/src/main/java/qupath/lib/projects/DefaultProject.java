@@ -64,6 +64,7 @@ import qupath.lib.images.ImageData;
 import qupath.lib.images.ImageData.ImageType;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
+import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.io.GsonTools;
 import qupath.lib.io.PathIO;
 import qupath.lib.objects.PathObject;
@@ -720,6 +721,13 @@ class DefaultProject implements Project<BufferedImage> {
 				imageData = new ImageData<>(getServerBuilder(), new PathObjectHierarchy(), ImageType.UNSET);
 			imageData.setProperty(IMAGE_ID, getFullProjectEntryID()); // Required to be able to test for the ID later
 			imageData.setChanged(false);
+			// I don't like it either - but we want to ensure that the server name matches with the image entry name.
+			// This can trigger lazy-loading of the server, but it's necessary to ensure that the server name is correct.
+			imageData.updateServerMetadata(
+					new ImageServerMetadata.Builder(imageData.getServerMetadata())
+							.name(getImageName())
+							.build()
+			);
 			return imageData;
 		}
 

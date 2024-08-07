@@ -401,7 +401,10 @@ public interface ImageServerBuilder<T> {
 		
 		@Override
 		public String toString() {
-			return String.format("DefaultImageServerBuilder (classname=%s, uri=%s, args=%s)", providerClassName, uri.toString(), String.join(", ", args));
+			return String.format("DefaultServerBuilder (classname=%s, uri=%s, args=%s)",
+					providerClassName,
+					uri.toString(),
+					"[" + String.join(", ", args) + "]");
 		}
 
 		@Override

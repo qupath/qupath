@@ -263,16 +263,16 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 	 */
 	public void updateServerMetadata(ImageServerMetadata newMetadata) {
 		Objects.requireNonNull(newMetadata);
-		if (server == null) {
-			if (serverBuilder == null)
-				throw new IllegalStateException("Cannot update server metadata without a server or server builder");
-			else {
-				logger.debug("Setting server metadata lazily (no change will be fired)");
-				lazyMetadata = newMetadata;
-				return;
-			}
+		// Try to check if metadata can be dropped - this is important for lazy loading
+		var currentMetadata = getServerMetadata();
+		if (Objects.equals(currentMetadata, newMetadata)) {
+			logger.trace("Call to updateServerMetadata ignored - metadata is unchanged");
+			return;
 		}
+		// Request the server if we need to update the metadata.
+		// This can trigger lazy-loading, but reduces the risk of inconsistent metadata.
 		logger.trace("Updating server metadata");
+		var server = getServer();
 		var oldMetadata = server.getMetadata();
 		server.setMetadata(newMetadata);
 		pcs.firePropertyChange("serverMetadata", oldMetadata, newMetadata);
