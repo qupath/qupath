@@ -475,7 +475,9 @@ class DefaultProject implements Project<BufferedImage> {
 				setDescription(description);
 			
 			if (metadataMap != null)
-				metadata.putAll(metadataMap);		
+				metadata.putAll(metadataMap);
+
+			writeServerBuilder();
 		}
 		
 		DefaultProjectImageEntry(final DefaultProjectImageEntry entry) {
@@ -792,6 +794,7 @@ class DefaultProject implements Project<BufferedImage> {
 			// if the project is lost.
 			// Note that before v0.5.0, this actually wrote the server builder - but this was missing type
 			// information, so recovery of the actual server was difficult.
+			getEntryPath(true); // Ensure the directory exists
 			var pathServer = getServerPath();
 			try (var out = Files.newBufferedWriter(pathServer, StandardCharsets.UTF_8)) {
 				// Important to specify the class as ServerBuilder, so that the type adapter writes the type!
