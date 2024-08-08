@@ -21,95 +21,131 @@
 
 package qupath.lib.objects;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import com.google.common.collect.Streams;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import qupath.lib.geom.Point2;
+import qupath.lib.objects.classes.PathClass;
+import qupath.lib.regions.ImagePlane;
+import qupath.lib.regions.ImageRegion;
+import qupath.lib.roi.PolygonROI;
+import qupath.lib.roi.ROIs;
+import qupath.lib.roi.interfaces.ROI;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import org.junit.jupiter.api.Test;
-
-import com.google.common.collect.Streams;
-
-import qupath.lib.geom.Point2;
-import qupath.lib.objects.classes.PathClass;
-import qupath.lib.regions.ImagePlane;
-import qupath.lib.regions.ImageRegion;
-import qupath.lib.roi.ROIs;
-import qupath.lib.roi.interfaces.ROI;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 @SuppressWarnings("javadoc")
-public class TestPathObjectTools extends TestPathObjectMethods { 
-	
-	@Test
-	public void test_BasicPO() {
-		
-		// Check that duplicating objects works
-		var rois = Arrays.asList(
-				ROIs.createRectangleROI(1, 2, 100, 200, ImagePlane.getDefaultPlane()),
-				ROIs.createRectangleROI(1, 2, 100, 200, ImagePlane.getPlane(1, 2))
-				);
-		
-		var pathClasses = Arrays.asList(
-				PathClass.fromString("First"),
-				PathClass.getInstance("Second"),
-				PathClass.fromString("Third: Fourth"),
-				null
-				);
-		
-		var pathObjects = new ArrayList<PathObject>();
-		for (var r : rois) {
+public class TestPathObjectTools extends TestPathObjectMethods {
+
+	private static List<PathObject> duplicateObjectsNewIds;
+	private static List<PathObject> duplicateObjectsSameIds;
+	private static final List<ROI> rectangleROIs = Arrays.asList(
+			ROIs.createRectangleROI(1, 2, 100, 200, ImagePlane.getDefaultPlane()),
+			ROIs.createRectangleROI(1, 2, 100, 200, ImagePlane.getPlane(1, 2))
+			);
+	private static final List<PathClass> pathClasses = Arrays.asList(
+			PathClass.fromString("First"),
+			PathClass.getInstance("Second"),
+			PathClass.fromString("Third: Fourth"),
+			null
+	);
+	private static final ArrayList<PathObject> pathObjects = new ArrayList<>();
+	private final ROI roiRect = ROIs.createRectangleROI(1, 2, 100, 200, ImagePlane.getDefaultPlane());
+	private final ROI roiEllipse = ROIs.createEllipseROI(1, 2, 100, 200, ImagePlane.getDefaultPlane());
+	private final PolygonROI roiDiamond = ROIs.createPolygonROI(List.of(
+			new Point2(roiRect.getBoundsX(), roiRect.getCentroidY()),
+			new Point2(roiRect.getCentroidX(), roiRect.getBoundsY()),
+			new Point2(roiRect.getBoundsX()+ roiRect.getBoundsWidth(), roiRect.getCentroidY()),
+			new Point2(roiRect.getBoundsX(), roiRect.getBoundsY()+ roiRect.getBoundsHeight())
+	), ImagePlane.getDefaultPlane());;
+	private final ROI roiOverlaps = roiRect.translate(10, 0);
+	private final ROI roiOverlaps2 = roiRect.translate(0, 10);
+	private final ROI roiSeparate = roiRect.translate(1000, 1000);
+	private final List<ROI> allRois = List.of(roiRect, roiEllipse, roiDiamond, roiOverlaps, roiOverlaps2, roiSeparate);
+	private final List<PathObject> pathObjectsAllROIs = allRois
+			.stream()
+			.map(PathObjects::createDetectionObject)
+			.toList();
+
+	@BeforeAll
+	public static void init() {
+		for (var r : rectangleROIs) {
 			for (var pc : pathClasses) {
 				pathObjects.add(PathObjects.createAnnotationObject(r, pc));
 				pathObjects.add(PathObjects.createDetectionObject(r, pc));
 				pathObjects.add(PathObjects.createTileObject(r, pc, null));
 			}
 		}
-		
-		var duplicateObjectsNewIds = pathObjects.stream().map(p -> PathObjectTools.transformObject(p, null, true, true)).toList();
-		var duplicateObjectsSameIds = pathObjects.stream().map(p -> PathObjectTools.transformObject(p, null, true, false)).toList();
-		
+
+		duplicateObjectsNewIds = pathObjects.stream().map(p -> PathObjectTools.transformObject(p, null, true, true)).toList();
+		duplicateObjectsSameIds = pathObjects.stream().map(p -> PathObjectTools.transformObject(p, null, true, false)).toList();
+	}
+
+	@Test
+	public void test_duplicating_PO() {
 		for (int i = 0; i < pathObjects.size(); i++) {
-			
 			var pathObject = pathObjects.get(i);
 			var sameID = duplicateObjectsSameIds.get(i);
 			var newID = duplicateObjectsNewIds.get(i);
-			
+
 			assertSame(pathObject, sameID, true);
 			assertSame(pathObject, newID, false);
-
 		}
-		
+	}
+
+	@Test
+	public void test_match_by_ID_newID() {
 		// Check the matching functions work as well
 		Collections.shuffle(pathObjects);
 		var mapNewIds = PathObjectTools.matchByID(pathObjects, duplicateObjectsNewIds);
 		assertEquals(pathObjects.size(), mapNewIds.size());
-		assertEquals(0L, mapNewIds.values().stream().filter(p -> p != null).count());
+		assertEquals(0L, mapNewIds.values().stream().filter(Objects::nonNull).count());
+	}
 
-		var mapNewIds2 = PathObjectTools.findByUUID(pathObjects.stream().map(p -> p.getID()).toList(), duplicateObjectsNewIds);
+	@Test
+	public void test_find_by_UUID_newID() {
+		var mapNewIds2 = PathObjectTools.findByUUID(pathObjects.stream().map(PathObject::getID).toList(), duplicateObjectsNewIds);
 		assertEquals(pathObjects.size(), mapNewIds2.size());
-		assertEquals(0L, mapNewIds2.values().stream().filter(p -> p != null).count());
+		assertEquals(0L, mapNewIds2.values().stream().filter(Objects::nonNull).count());
+	}
+
+	@Test
+	public void test_find_by_String_ID_newID() {
 
 		var mapNewIds3 = PathObjectTools.findByStringID(pathObjects.stream().map(p -> p.getID().toString()).toList(), duplicateObjectsNewIds);
 		assertEquals(pathObjects.size(), mapNewIds3.size());
-		assertEquals(0L, mapNewIds3.values().stream().filter(p -> p != null).count());
+		assertEquals(0L, mapNewIds3.values().stream().filter(Objects::nonNull).count());
+	}
 
+	@Test
+	public void test_match_by_ID_sameID() {
 		var mapSameIds = PathObjectTools.matchByID(pathObjects, duplicateObjectsSameIds);
 		assertEquals(pathObjects.size(), mapSameIds.size());
-		assertEquals(pathObjects.size(), mapSameIds.values().stream().filter(p -> p != null).count());
-		
-		var mapSameIds2 = PathObjectTools.findByUUID(pathObjects.stream().map(p -> p.getID()).toList(), duplicateObjectsSameIds);
-		assertEquals(pathObjects.size(), mapSameIds2.size());
-		assertEquals(pathObjects.size(), mapSameIds2.values().stream().filter(p -> p != null).count());
+		assertEquals(pathObjects.size(), mapSameIds.values().stream().filter(Objects::nonNull).count());
+	}
 
+	@Test
+	public void test_find_by_UUID_sameID() {
+		var mapSameIds2 = PathObjectTools.findByUUID(pathObjects.stream().map(PathObject::getID).toList(), duplicateObjectsSameIds);
+		assertEquals(pathObjects.size(), mapSameIds2.size());
+		assertEquals(pathObjects.size(), mapSameIds2.values().stream().filter(Objects::nonNull).count());
+	}
+
+	@Test
+	public void test_find_by_string_ID_sameID() {
 		var mapSameIds3 = PathObjectTools.findByStringID(pathObjects.stream().map(p -> p.getID().toString()).toList(), duplicateObjectsSameIds);
 		assertEquals(pathObjects.size(), mapSameIds3.size());
-		assertEquals(pathObjects.size(), mapSameIds3.values().stream().filter(p -> p != null).count());
+		assertEquals(pathObjects.size(), mapSameIds3.values().stream().filter(Objects::nonNull).count());
 	}
 	
 	
@@ -169,59 +205,60 @@ public class TestPathObjectTools extends TestPathObjectMethods {
 	
 	
 	private static Set<PathObject> createObjects(ROI...rois) {
-		return Arrays.asList(rois).stream().map(r -> PathObjects.createDetectionObject(r)).collect(Collectors.toSet());
+		return Arrays.stream(rois).map(PathObjects::createDetectionObject).collect(Collectors.toSet());
 	}
 
 
-	@Test
-	public void testRoiFilters() {
-		var roiRect = ROIs.createRectangleROI(1, 2, 100, 200, ImagePlane.getDefaultPlane());
-		var roiEllipse = ROIs.createEllipseROI(1, 2, 100, 200, ImagePlane.getDefaultPlane());
-		var roiDiamond = ROIs.createPolygonROI(List.of(
-				new Point2(roiRect.getBoundsX(), roiRect.getCentroidY()),
-				new Point2(roiRect.getCentroidX(), roiRect.getBoundsY()),
-				new Point2(roiRect.getBoundsX()+roiRect.getBoundsWidth(), roiRect.getCentroidY()),
-				new Point2(roiRect.getBoundsX(), roiRect.getBoundsY()+roiRect.getBoundsHeight())
-				), ImagePlane.getDefaultPlane());
-		var roiOverlaps = roiRect.translate(10, 0);
-		var roiOverlaps2 = roiRect.translate(0, 10);
-		var roiSeparate = roiRect.translate(1000, 1000);
 
-		var allRois = List.of(roiRect, roiEllipse, roiDiamond, roiOverlaps, roiOverlaps2, roiSeparate);
-		var pathObjects = allRois
-				.stream()
-				.map(r -> PathObjects.createDetectionObject(r))
-				.toList();
+
+	@Test
+	public void test_filter_by_roi_covers_others() {
 
 		// Note that we can test list equality since we don't expect any reordering
 
 		// Test covers
 		assertEquals(List.of(roiRect, roiEllipse, roiDiamond),
-				PathObjectTools.filterByROICovers(roiRect, pathObjects).stream().map(PathObject::getROI).toList());
+				PathObjectTools.filterByROICovers(roiRect, pathObjectsAllROIs).stream().map(PathObject::getROI).toList());
+	}
+
+	@Test
+	public void test_filter_by_roi_covers_self() {
 		// Every other ROI only completely covers itself
 		for (var roi : List.of(roiEllipse, roiDiamond, roiOverlaps, roiOverlaps2, roiSeparate)) {
 			assertEquals(List.of(roi),
-					PathObjectTools.filterByROICovers(roi, pathObjects).stream().map(PathObject::getROI).toList());
+					PathObjectTools.filterByROICovers(roi, pathObjectsAllROIs).stream().map(PathObject::getROI).toList());
 		}
+	}
 
+	@Test
+	public void test_filter_by_roi_intersects_disjoint_separate() {
 		// Test intersects
 		// One ROI is separate, all other intersect
 		assertEquals(List.of(roiSeparate),
-				PathObjectTools.filterByROIIntersects(roiSeparate, pathObjects).stream().map(PathObject::getROI).toList());
+				PathObjectTools.filterByROIIntersects(roiSeparate, pathObjectsAllROIs).stream().map(PathObject::getROI).toList());
+	}
+
+	@Test
+	public void test_filter_by_roi_intersects_notseparate() {
 		for (var roi : List.of(roiRect, roiEllipse, roiDiamond, roiOverlaps, roiOverlaps2)) {
 			assertEquals(List.of(roiRect, roiEllipse, roiDiamond, roiOverlaps, roiOverlaps2),
-					PathObjectTools.filterByROIIntersects(roi, pathObjects).stream().map(PathObject::getROI).toList());
+					PathObjectTools.filterByROIIntersects(roi, pathObjectsAllROIs).stream().map(PathObject::getROI).toList());
 		}
+	}
 
+	@Test
+	public void test_filter_by_roi_contains_centroid_separate() {
 		// Test contains centroid
 		// One ROI is separate, all other intersect
 		assertEquals(List.of(roiSeparate),
-				PathObjectTools.filterByROIContainsCentroid(roiSeparate, pathObjects).stream().map(PathObject::getROI).toList());
+				PathObjectTools.filterByROIContainsCentroid(roiSeparate, pathObjectsAllROIs).stream().map(PathObject::getROI).toList());
+	}
+
+	@Test
+	public void test_filter_by_roi_contains_centroid_notseparate() {
 		for (var roi : List.of(roiRect, roiEllipse, roiDiamond, roiOverlaps, roiOverlaps2)) {
 			assertEquals(List.of(roiRect, roiEllipse, roiDiamond, roiOverlaps, roiOverlaps2),
-					PathObjectTools.filterByROIContainsCentroid(roi, pathObjects).stream().map(PathObject::getROI).toList());
+					PathObjectTools.filterByROIContainsCentroid(roi, pathObjectsAllROIs).stream().map(PathObject::getROI).toList());
 		}
 	}
-	
-	
 }
