@@ -61,23 +61,27 @@ import qupath.lib.images.servers.TileRequest;
  */
 public class RenderedImageServer extends AbstractTileableImageServer implements GeneratingImageServer<BufferedImage> {
 
-	private final boolean dedicatedStore;
 	private final DefaultImageRegionStore store;
 	private final ImageData<BufferedImage> imageData;
 	private final List<PathOverlay> overlayLayers = new ArrayList<>();
 	private final ImageRenderer renderer;
-
 	private final double overlayOpacity;
 	private final Color backgroundColor;
-
 	private final ImageServerMetadata metadata;
+	private final boolean dedicatedStore;
 	
 	private RenderedImageServer(DefaultImageRegionStore store, ImageData<BufferedImage> imageData,
 								List<? extends PathOverlay> overlayLayers, ImageRenderer renderer,
-								double[] downsamples, Color backgroundColor, double overlayOpacity,
-								boolean dedicatedStore) {
+								double[] downsamples, Color backgroundColor, double overlayOpacity) {
 		super();
-		this.store = store;
+
+		if (store == null) {
+			this.store = ImageRegionStoreFactory.createImageRegionStore(Runtime.getRuntime().maxMemory() / 4L);
+			this.dedicatedStore = true;
+		} else {
+			this.store = store;
+			this.dedicatedStore = false;
+		}
 		this.overlayOpacity = overlayOpacity;
 		if (overlayLayers != null)
 			this.overlayLayers.addAll(overlayLayers);
@@ -92,7 +96,6 @@ public class RenderedImageServer extends AbstractTileableImageServer implements 
 		if (downsamples != null && downsamples.length > 0)
 			builder = builder.levelsFromDownsamples(downsamples);
 		this.metadata = builder.build();
-		this.dedicatedStore = dedicatedStore;
 	}
 	
 	/**
@@ -145,7 +148,6 @@ public class RenderedImageServer extends AbstractTileableImageServer implements 
 		private double overlayOpacity = 1.0;
 		private Color backgroundColor;
 		private double[] downsamples;
-		private boolean dedicatedStore = false;
 		
 		/**
 		 * Create a rendered image server build using viewer defaults.
@@ -282,7 +284,7 @@ public class RenderedImageServer extends AbstractTileableImageServer implements 
 			var store = getStore();
 			var renderer = getRenderer();
 			return new RenderedImageServer(
-					store, imageData, overlayLayers, renderer, downsamples, backgroundColor, overlayOpacity, dedicatedStore
+					store, imageData, overlayLayers, renderer, downsamples, backgroundColor, overlayOpacity
 			);
 		}
 
@@ -309,8 +311,7 @@ public class RenderedImageServer extends AbstractTileableImageServer implements 
 				return store;
 			var viewer = findViewer(imageData);
 			if (viewer == null) {
-				dedicatedStore = true;
-				return ImageRegionStoreFactory.createImageRegionStore(Runtime.getRuntime().maxMemory() / 4L);
+				return null;
 			} else {
 				return viewer.getImageRegionStore();
 			}
@@ -326,11 +327,7 @@ public class RenderedImageServer extends AbstractTileableImageServer implements 
 			} else
 				return null;
 		}
-		
-		
-		
 	}
-	
 
 	@Override
 	public Collection<URI> getURIs() {
@@ -408,9 +405,9 @@ public class RenderedImageServer extends AbstractTileableImageServer implements 
 
 	@Override
 	public void close() throws Exception {
+		super.close();
 		if (dedicatedStore) {
 			store.close();
 		}
-		super.close();
 	}
 }
