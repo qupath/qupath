@@ -623,7 +623,7 @@ public final class PathObjectHierarchy implements Serializable {
 			counter++;
 		}
 		if (changes)
-			fireHierarchyChangedEvent(getRootObject());
+			fireObjectAddedEvent(getRootObject(), pathObjects.iterator().next());
 //			fireChangeEvent(getRootObject());
 		return changes;
 	}
