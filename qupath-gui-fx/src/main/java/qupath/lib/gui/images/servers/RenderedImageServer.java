@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -58,34 +58,37 @@ import qupath.lib.images.servers.TileRequest;
 /**
  * An ImageServer that can display a rendered image, with optional overlays.
  * This is intended for use when exporting 'flattened' RGB images.
- * 
- * @author Pete Bankhead
  */
 public class RenderedImageServer extends AbstractTileableImageServer implements GeneratingImageServer<BufferedImage> {
-	
-	private DefaultImageRegionStore store;
-	private ImageData<BufferedImage> imageData;
-	private List<PathOverlay> overlayLayers = new ArrayList<>();
-	private ImageRenderer renderer;
 
-	private double overlayOpacity = 1.0;
-	
-	private Color backgroundColor = Color.WHITE;
-	
-	private ImageServerMetadata metadata;
+	private final DefaultImageRegionStore store;
+	private final ImageData<BufferedImage> imageData;
+	private final List<PathOverlay> overlayLayers = new ArrayList<>();
+	private final ImageRenderer renderer;
+	private final double overlayOpacity;
+	private final Color backgroundColor;
+	private final ImageServerMetadata metadata;
+	private final boolean dedicatedStore;
 	
 	private RenderedImageServer(DefaultImageRegionStore store, ImageData<BufferedImage> imageData,
 								List<? extends PathOverlay> overlayLayers, ImageRenderer renderer,
 								double[] downsamples, Color backgroundColor, double overlayOpacity) {
 		super();
-		this.store = store;
+
+		if (store == null) {
+			this.store = ImageRegionStoreFactory.createImageRegionStore(Runtime.getRuntime().maxMemory() / 4L);
+			this.dedicatedStore = true;
+		} else {
+			this.store = store;
+			this.dedicatedStore = false;
+		}
 		this.overlayOpacity = overlayOpacity;
 		if (overlayLayers != null)
 			this.overlayLayers.addAll(overlayLayers);
 		this.renderer = renderer;
 		this.imageData = imageData;
 		this.backgroundColor = backgroundColor;
-		var builder = new ImageServerMetadata.Builder(imageData.getServer().getMetadata())
+		var builder = new ImageServerMetadata.Builder(imageData.getServerMetadata())
 				.rgb(true)
 				.channels(ImageChannel.getDefaultRGBChannels())
 				.pixelType(PixelType.UINT8)
@@ -138,8 +141,8 @@ public class RenderedImageServer extends AbstractTileableImageServer implements 
 		private static final Logger logger = LoggerFactory.getLogger(Builder.class);
 		
 		private DefaultImageRegionStore store;
-		private ImageData<BufferedImage> imageData;
-		private List<PathOverlay> overlayLayers = new ArrayList<>();
+		private final ImageData<BufferedImage> imageData;
+		private final List<PathOverlay> overlayLayers = new ArrayList<>();
 		private ImageRenderer renderer;
 		private ImageDisplaySettings settings;
 		private double overlayOpacity = 1.0;
@@ -280,8 +283,9 @@ public class RenderedImageServer extends AbstractTileableImageServer implements 
 			// Try to use existing store/display if possible
 			var store = getStore();
 			var renderer = getRenderer();
-			return new RenderedImageServer(store, imageData, overlayLayers, renderer, downsamples, backgroundColor,
-					overlayOpacity);
+			return new RenderedImageServer(
+					store, imageData, overlayLayers, renderer, downsamples, backgroundColor, overlayOpacity
+			);
 		}
 
 		private ImageRenderer getRenderer() throws IOException {
@@ -306,10 +310,11 @@ public class RenderedImageServer extends AbstractTileableImageServer implements 
 			if (this.store != null)
 				return store;
 			var viewer = findViewer(imageData);
-			if (viewer == null)
-				return ImageRegionStoreFactory.createImageRegionStore(Runtime.getRuntime().maxMemory() / 4L);
-			else
+			if (viewer == null) {
+				return null;
+			} else {
 				return viewer.getImageRegionStore();
+			}
 		}
 
 		private QuPathViewer findViewer(ImageData<?> imageData) {
@@ -322,11 +327,7 @@ public class RenderedImageServer extends AbstractTileableImageServer implements 
 			} else
 				return null;
 		}
-		
-		
-		
 	}
-	
 
 	@Override
 	public Collection<URI> getURIs() {
@@ -402,4 +403,11 @@ public class RenderedImageServer extends AbstractTileableImageServer implements 
 		return UUID.randomUUID().toString();
 	}
 
+	@Override
+	public void close() throws Exception {
+		super.close();
+		if (dedicatedStore) {
+			store.close();
+		}
+	}
 }

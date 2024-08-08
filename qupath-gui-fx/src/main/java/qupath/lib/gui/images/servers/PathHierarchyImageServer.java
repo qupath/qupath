@@ -150,7 +150,7 @@ public class PathHierarchyImageServer extends AbstractTileableImageServer implem
 
 	private Collection<PathObject> getObjectsToPaint(RegionRequest request) {
 //		Rectangle region = request.getBounds();
-		return hierarchy.getObjectsForRegion(PathDetectionObject.class, request, null);
+		return hierarchy.getAllDetectionsForRegion(request, null);
 	}
 	
 	/**

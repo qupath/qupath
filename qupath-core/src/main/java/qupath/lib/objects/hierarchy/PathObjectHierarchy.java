@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -30,7 +30,6 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -78,26 +77,6 @@ public final class PathObjectHierarchy implements Serializable {
 	private static final long serialVersionUID = 1L;
 	
 	private static final Logger logger = LoggerFactory.getLogger(PathObjectHierarchy.class);
-			
-	// TODO: Make this a choice - currently a cell object is considered 'inside' if its nucleus is fully contained (as cell boundaries themselves are a little more questionable)
-	/*
-	 * TODO: Consider how to explain this...
-	 * The idea is that cell nuclei are used to determine whether an object is 'inside' another object,
-	 * which is important when adding annotations etc. to the object hierarchy.
-	 * 
-	 * @return
-	 */
-	static boolean useCellNucleiForInsideTest = true;
-	/*
-	 * TODO: Consider how to explain this...
-	 * The idea is that tile centroids are used to determine whether an object is 'inside' another object,
-	 * which is important when adding annotations etc. to the object hierarchy.
-	 * 
-	 * @return
-	 */
-	static boolean useTileCentroidsForInsideTest = true;
-
-	
 	
 	private TMAGrid tmaGrid = null;
 	private PathObject rootObject = new PathRootObject();
@@ -192,20 +171,6 @@ public final class PathObjectHierarchy implements Serializable {
 	public PathObjectSelectionModel getSelectionModel() {
 		return selectionModel;
 	}
-	
-//	/**
-//	 * Check if the hierarchy is changing.  This can occur, for example, if a plugin is running
-//	 * that modifies the hierarchy frequently, and so listeners may want to avoid responding to
-//	 * events for performance reasons.
-//	 * @return
-//	 */
-//	public boolean isChanging() {
-//		return changing;
-//	}
-//	
-//	public void setChanging(boolean changing) {
-//		this.changing = changing;
-//	}
 	
 	/**
 	 * Set the tma grid for this hierarchy.
@@ -690,18 +655,34 @@ public final class PathObjectHierarchy implements Serializable {
 	 * Get objects that contain Point ROIs.
 	 * @param cls
 	 * @return
+	 * @deprecated v0.6.0; use {@link #getAllPointObjects()} instead, and filter by object type if required.
 	 */
+	@Deprecated
 	public synchronized Collection<PathObject> getPointObjects(Class<? extends PathObject> cls) {
+		LogTools.warnOnce(logger, "getPointObjects() is deprecated, use getAllPointObjects() instead");
 		Collection<PathObject> pathObjects = getObjects(null, cls);
 		if (!pathObjects.isEmpty()) {
-			Iterator<PathObject> iter = pathObjects.iterator();
-			while (iter.hasNext()) {
-				if (!PathObjectTools.hasPointROI(iter.next())) {
-					iter.remove();
-				}
-			}
+            pathObjects.removeIf(pathObject -> !PathObjectTools.hasPointROI(pathObject));
 		}
 		return pathObjects;
+	}
+
+	/**
+	 * Get all objects in the hierarchy that have a point (or multi-point) ROI.
+	 * @return
+	 */
+	public Collection<PathObject> getAllPointObjects() {
+		return getAllObjects(false).stream().filter(PathObjectTools::hasPointROI).toList();
+	}
+
+	/**
+	 * Get all annotation objects in the hierarchy that have a point (or multi-point) ROI.
+	 * @return
+	 */
+	public Collection<PathObject> getAllPointAnnotations() {
+		return getAnnotationObjects().stream()
+				.filter(PathObjectTools::hasPointROI)
+				.toList();
 	}
 	
 	/**
@@ -837,18 +818,108 @@ public final class PathObjectHierarchy implements Serializable {
 	
 	/**
 	 * Get the objects within a specified ROI, as defined by the general rules for resolving the hierarchy. 
-	 * This relies on centroids for detections, and a 'covers' rule for others.
-	 * 
+	 * This relies on centroids for detections (including subclasses), and a 'covers' rule for others (annotations, TMA cores).
+	 * <p>
+	 * <b>Note: </b> Since v0.6.0 use of this method is discouraged, and it may be deprecated and/or removed in a future
+	 * release.
+	 * Instead use {@link #getAllObjectsForROI(ROI)} and filter the returned collection;
+	 * or, alternatively, use {@link #getAnnotationsForROI(ROI)}, {@link #getCellsForROI(ROI)},
+	 * {@link #getAllDetectionsForROI(ROI)} or {@link #getTilesForROI(ROI)}.
+	 * </p>
 	 * @param cls class of PathObjects (e.g. PathDetectionObject), or null to accept all
 	 * @param roi
 	 * @return
 	 */
 	public Collection<PathObject> getObjectsForROI(Class<? extends PathObject> cls, ROI roi) {
+		return getObjectsOfClassForROI(cls, roi);
+	}
+
+
+	private Collection<PathObject> getObjectsOfClassForROI(Class<? extends PathObject> cls, ROI roi) {
 		if (roi.isEmpty() || !roi.isArea())
 			return Collections.emptyList();
-		
+
 		Collection<PathObject> pathObjects = tileCache.getObjectsForRegion(cls, ImageRegion.createInstance(roi), new HashSet<>(), true);
 		return filterObjectsForROI(roi, pathObjects);
+	}
+
+	/**
+	 * Get all objects for a ROI.
+	 * This uses the same rules as {@link #resolveHierarchy()}: annotations must be completely covered
+	 * by the ROI, while detections need only have their centroid within the ROI.
+	 * @param roi
+	 * @return
+	 * @see #getAnnotationsForROI(ROI)
+	 * @see #getCellsForROI(ROI)
+	 * @see #getAllDetectionsForROI(ROI)
+	 * @see #getTilesForROI(ROI)
+	 * @since v0.6.0
+	 */
+	public Collection<PathObject> getAllObjectsForROI(ROI roi) {
+		return getObjectsOfClassForROI(null, roi);
+	}
+
+	/**
+	 * Get all the annotations covered by the specified ROI.
+	 * @param roi the ROI to use for filtering
+	 * @return a collection of annotation objects that are completely covered by the specified ROI
+	 * @see #getAllObjectsForROI(ROI)
+	 * @implSpec This does <i>not</i> return all annotations that intersect with the ROI,
+	 *           but rather only those that are <i>covered</i> by the ROI - consistent with the
+	 *           behavior of {@link #resolveHierarchy()}.
+	 * @since v0.6.0
+	 */
+	public Collection<PathObject> getAnnotationsForROI(ROI roi) {
+		return getObjectsOfClassForROI(PathAnnotationObject.class, roi);
+	}
+
+	/**
+	 * Get all the tile objects with centroids falling within the specified ROI.
+	 * Tile objects are a special subclass of detections.
+	 * @param roi the ROI to use for filtering
+	 * @return a collection of tile objects with centroids contained within the specified ROI
+	 * @see #getAllObjectsForROI(ROI)
+	 * @see #getAllDetectionsForROI(ROI)
+	 * @implSpec This does <i>not</i> return all tiles that intersect with the ROI,
+	 *           but rather only those whose centroid falls within the ROI - consistent with the
+	 *           behavior of {@link #resolveHierarchy()}.
+	 * @since v0.6.0
+	 */
+	public Collection<PathObject> getTilesForROI(ROI roi) {
+		return getObjectsOfClassForROI(PathTileObject.class, roi);
+	}
+
+	/**
+	 * Get all the cell objects with centroids falling within the specified ROI.
+	 * Cell objects are a special subclass of detections.
+	 * @param roi the ROI to use for filtering
+	 * @return a collection of cell objects with centroids contained within the specified ROI
+	 * @see #getAllObjectsForROI(ROI)
+	 * @see #getAllDetectionsForROI(ROI)
+	 * @implSpec This does <i>not</i> return all cells that intersect with the ROI,
+	 *           but rather only those whose centroid falls within the ROI - consistent with the
+	 *           behavior of {@link #resolveHierarchy()}.
+	 * @since v0.6.0
+	 */
+	public Collection<PathObject> getCellsForROI(ROI roi) {
+		return getObjectsOfClassForROI(PathCellObject.class, roi);
+	}
+
+	/**
+	 * Get all the detection objects with centroids falling within the specified ROI -
+	 * including subclasses of detections, such as cells and tiles.
+	 * @param roi the ROI to use for filtering
+	 * @return a collection of detection objects with centroids contained within the specified ROI
+	 * @see #getAllObjectsForROI(ROI)
+	 * @see #getCellsForROI(ROI)
+	 * @see #getTilesForROI(ROI)
+	 * @implSpec This does <i>not</i> return all cells that intersect with the ROI,
+	 *           but rather only those whose centroid falls within the ROI - consistent with the
+	 *           behavior of {@link #resolveHierarchy()}.
+	 * @since v0.6.0
+	 */
+	public Collection<PathObject> getAllDetectionsForROI(ROI roi) {
+		return getObjectsOfClassForROI(PathDetectionObject.class, roi);
 	}
 	
 	/**
@@ -889,13 +960,13 @@ public final class PathObjectHierarchy implements Serializable {
 	 * @param checkChannel
 	 * @return
 	 */
-	static boolean samePlane(ROI roi1, ROI roi2, boolean checkChannel) {
+	private static boolean samePlane(ROI roi1, ROI roi2, boolean checkChannel) {
 		if (checkChannel)
 			return roi1.getImagePlane().equals(roi2.getImagePlane());
 		else
 			return roi1.getZ() == roi2.getZ() && roi1.getT() == roi2.getT();
 	}
-	
+
 	
 	/**
 	 * Get the objects overlapping or close to a specified region.
@@ -905,9 +976,112 @@ public final class PathObjectHierarchy implements Serializable {
 	 * @param region requested region overlapping the objects ROI
 	 * @param pathObjects optionally collection to which objects will be added
 	 * @return collection containing identified objects (same as the input collection, if provided)
+	 * @deprecated v0.6.0, use {@link #getAllObjectsForRegion(ImageRegion, Collection)} or its related methods instead.
+	 * @see #getAllObjectsForRegion(ImageRegion, Collection)
+	 * @see #getAnnotationsForRegion(ImageRegion, Collection)
+	 * @see #getAllDetectionsForRegion(ImageRegion, Collection)
+	 * @since v0.6.0
 	 */
+	@Deprecated
 	public Collection<PathObject> getObjectsForRegion(Class<? extends PathObject> cls, ImageRegion region, Collection<PathObject> pathObjects) {
 		return tileCache.getObjectsForRegion(cls, region, pathObjects, true);
+	}
+
+	/**
+	 * Get all the objects overlapping or close to a specified region, optionally adding to an existing collection.
+	 * Note that this performs a quick check; the results typically should be filtered if a more strict test for overlapping is applied.
+	 *
+	 * @param region requested region overlapping the objects ROI
+	 * @param pathObjects optional collection to which objects will be added
+	 * @return collection containing identified objects (same as the input collection, if provided)
+	 * @see #getAllObjectsForROI(ROI)
+	 * @see #getAllObjectsForRegion(ImageRegion)
+	 * @see PathObjectTools#filterByROICovers(ROI, Collection)
+	 * @see PathObjectTools#filterByROIIntersects(ROI, Collection) (ROI, Collection)
+	 * @see PathObjectTools#filterByROIContainsCentroid(ROI, Collection) (ROI, Collection) (ROI, Collection)
+	 * @since v0.6.0
+	 */
+	public Collection<PathObject> getAllObjectsForRegion(ImageRegion region, Collection<PathObject> pathObjects) {
+		return tileCache.getObjectsForRegion(null, region, pathObjects, true);
+	}
+
+	/**
+	 * Get all the objects overlapping or close to a specified region.
+	 * Note that this performs a quick check; the results typically should be filtered if a more strict test for overlapping is applied.
+	 *
+	 * @param region requested region overlapping the objects ROI
+	 * @return collection containing identified objects (same as the input collection, if provided)
+	 * @see #getAllObjectsForROI(ROI)
+	 * @see #getAllObjectsForRegion(ImageRegion, Collection)
+	 * @see PathObjectTools#filterByROICovers(ROI, Collection)
+	 * @see PathObjectTools#filterByROIIntersects(ROI, Collection) (ROI, Collection)
+	 * @see PathObjectTools#filterByROIContainsCentroid(ROI, Collection) (ROI, Collection) (ROI, Collection)
+	 * @since v0.6.0
+	 */
+	public Collection<PathObject> getAllObjectsForRegion(ImageRegion region) {
+		return getAllObjectsForRegion(region, null);
+	}
+
+	/**
+	 * Get all the annotation objects overlapping or close to a specified region, optionally adding to an existing collection.
+	 * Note that this performs a quick check; the results typically should be filtered if a more strict test for overlapping is applied.
+	 *
+	 * @param region requested region overlapping the objects ROI
+	 * @param pathObjects optional collection to which objects will be added
+	 * @return collection containing identified objects (same as the input collection, if provided)
+	 * @see #getAnnotationsForRegion(ImageRegion)
+	 * @see #getAllObjectsForRegion(ImageRegion, Collection)
+	 * @see #getAnnotationsForROI(ROI)
+	 * @since v0.6.0
+	 */
+	public Collection<PathObject> getAnnotationsForRegion(ImageRegion region, Collection<PathObject> pathObjects) {
+		return tileCache.getObjectsForRegion(PathAnnotationObject.class, region, pathObjects, true);
+	}
+
+	/**
+	 * Get all the annotation objects overlapping or close to a specified region.
+	 * Note that this performs a quick check; the results typically should be filtered if a more strict test for overlapping is applied.
+	 *
+	 * @param region requested region overlapping the objects ROI
+	 * @return collection containing identified objects (same as the input collection, if provided)
+	 * @see #getAnnotationsForRegion(ImageRegion, Collection)
+	 * @see #getAllObjectsForRegion(ImageRegion)
+	 * @see #getAnnotationsForROI(ROI)
+	 * @since v0.6.0
+	 */
+	public Collection<PathObject> getAnnotationsForRegion(ImageRegion region) {
+		return getAnnotationsForRegion(region, null);
+	}
+
+	/**
+	 * Get all the detection objects overlapping or close to a specified region, optionally adding to an existing collection.
+	 * Note that this performs a quick check; the results typically should be filtered if a more strict test for overlapping is applied.
+	 *
+	 * @param region requested region overlapping the objects ROI
+	 * @param pathObjects optional collection to which objects will be added
+	 * @return collection containing identified objects (same as the input collection, if provided)
+	 * @see #getAllDetectionsForRegion(ImageRegion)
+	 * @see #getAllObjectsForRegion(ImageRegion, Collection)
+	 * @see #getAllDetectionsForROI(ROI) (ROI)
+	 * @since v0.6.0
+	 */
+	public Collection<PathObject> getAllDetectionsForRegion(ImageRegion region, Collection<PathObject> pathObjects) {
+		return tileCache.getObjectsForRegion(PathDetectionObject.class, region, pathObjects, true);
+	}
+
+	/**
+	 * Get all the detection objects overlapping or close to a specified region.
+	 * Note that this performs a quick check; the results typically should be filtered if a more strict test for overlapping is applied.
+	 *
+	 * @param region requested region overlapping the objects ROI
+	 * @return collection containing identified objects (same as the input collection, if provided)
+	 * @see #getAllDetectionsForRegion(ImageRegion, Collection)
+	 * @see #getAllObjectsForRegion(ImageRegion)
+	 * @see #getAllDetectionsForROI(ROI) (ROI)
+	 * @since v0.6.0
+	 */
+	public Collection<PathObject> getAllDetectionsForRegion(ImageRegion region) {
+		return getAllDetectionsForRegion(region, null);
 	}
 	
 	/**
@@ -916,11 +1090,50 @@ public final class PathObjectHierarchy implements Serializable {
 	 * @param cls
 	 * @param region
 	 * @return
+	 * @since v0.6.0
 	 */
 	public boolean hasObjectsForRegion(Class<? extends PathObject> cls, ImageRegion region) {
 		return tileCache.hasObjectsForRegion(cls, region, true);
 	}
-	
+
+	/**
+	 * Returns true if the hierarchy contains any objects intersecting a specific region.
+	 * This is similar to {@link #getAllObjectsForRegion(ImageRegion, Collection)}, 
+	 * but does not return the objects themselves.
+	 * @param region
+	 * @return true if objects are found, false otherwise.
+	 * @see #getAllObjectsForRegion(ImageRegion, Collection)
+	 * @since v0.6.0
+	 */
+	public boolean hasObjectsForRegion(ImageRegion region) {
+		return tileCache.hasObjectsForRegion(null, region, true);
+	}
+
+	/**
+	 * Returns true if the hierarchy contains any annotation objects intersecting a specific region.
+	 * This is similar to {@link #getAnnotationsForRegion(ImageRegion, Collection)}, 
+	 * but does not return the objects themselves.
+	 * @param region
+	 * @return true if annotations are found, false otherwise.
+	 * @see #getAnnotationsForRegion(ImageRegion, Collection)
+	 * @since v0.6.0
+	 */
+	public boolean hasAnnotationsForRegion(ImageRegion region) {
+		return tileCache.hasObjectsForRegion(PathAnnotationObject.class, region, true);
+	}
+
+	/**
+	 * Returns true if the hierarchy contains any detection objects (including subclasses) intersecting a specific region.
+	 * This is similar to {@link #getAllDetectionsForRegion(ImageRegion, Collection)},
+	 * but does not return the objects themselves.
+	 * @param region
+	 * @return true if detections are found, false otherwise.
+	 * @see #getAllDetectionsForRegion(ImageRegion, Collection)
+	 * @since v0.6.0
+	 */
+	public boolean hasDetectionsForRegion(ImageRegion region) {
+		return tileCache.hasObjectsForRegion(PathDetectionObject.class, region, true);
+	}
 	
 	void fireObjectRemovedEvent(Object source, PathObject pathObject, PathObject previousParent) {
 		PathObjectHierarchyEvent event = PathObjectHierarchyEvent.createObjectRemovedEvent(source, this, previousParent, pathObject);

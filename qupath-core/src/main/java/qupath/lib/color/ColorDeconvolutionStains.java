@@ -32,6 +32,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.StringTokenizer;
 
 import org.slf4j.Logger;
@@ -418,6 +419,31 @@ public class ColorDeconvolutionStains implements Externalizable {
 	@Override
 	public String toString() {
 		return "Color deconvolution stains: " + stain1 + ", " + stain2 + ", " + stain3;
+	}
+
+	public int hashCode() {
+		int hash = 7;
+		hash = 31 * hash + (int) maxRed;
+		hash = 31 * hash + (int) maxGreen;
+		hash = 31 * hash + (int) maxBlue;
+		hash = 31 * hash + (name == null ? 0 : name.hashCode());
+		hash = 31 * hash + (stain1 == null ? 0 : stain1.hashCode());
+		hash = 31 * hash + (stain2 == null ? 0 : stain2.hashCode());
+		hash = 31 * hash + (stain3 == null ? 0 : stain3.hashCode());
+		return hash;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (!(obj instanceof ColorDeconvolutionStains colorDeconvolutionStains))
+			return false;
+		return maxRed == colorDeconvolutionStains.maxRed && maxGreen == colorDeconvolutionStains.maxGreen && maxBlue == colorDeconvolutionStains.maxBlue &&
+				Objects.equals(stain1, colorDeconvolutionStains.stain1) &&
+				Objects.equals(stain2, colorDeconvolutionStains.stain2) &&
+				Objects.equals(stain3, colorDeconvolutionStains.stain3) &&
+				Objects.equals(name, colorDeconvolutionStains.name);
 	}
 
 

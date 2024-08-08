@@ -312,7 +312,7 @@ abstract class AbstractPathToolEventHandler implements EventHandler<MouseEvent> 
 				if (fullImage)
 					toRemove = hierarchy.getAnnotationObjects();
 				else
-					toRemove = hierarchy.getObjectsForRegion(PathAnnotationObject.class, ImageRegion.createInstance(constrainedParentObject.getROI()), null);
+					toRemove = hierarchy.getAnnotationsForRegion(ImageRegion.createInstance(constrainedParentObject.getROI()), null);
 
 				logger.debug("Constrained ROI drawing: identifying objects to remove");
 

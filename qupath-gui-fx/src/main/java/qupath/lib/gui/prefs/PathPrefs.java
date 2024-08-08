@@ -848,8 +848,22 @@ public class PathPrefs {
 	public static ObservableList<URI> getRecentScriptsList() {
 		return recentScripts;
 	}
-	
-	
+
+
+	private static BooleanProperty skipProjectUriChecks = createPersistentPreference("Skip checking URIs in the project browser",
+			false);
+
+	/**
+	 * Property to suppress checking whether image files exists in the project browser.
+	 * You might want to skip these checks if they are causing performance problems, e.g. working with images on a
+	 * server with slow access.
+	 *
+	 * @return skipProjectUriChecks
+	 */
+	public static BooleanProperty skipProjectUriChecksProperty() {
+		return skipProjectUriChecks;
+	}
+
 	
 	private static BooleanProperty invertScrolling = createPersistentPreference("invertScrolling", !GeneralTools.isMac());
 	
@@ -1244,8 +1258,8 @@ public class PathPrefs {
 	private static IntegerProperty colorDefaultObjects = createPersistentPreference("colorDefaultAnnotations", ColorTools.packRGB(255, 0, 0));
 		
 	private static IntegerProperty colorSelectedObject = createPersistentPreference("colorSelectedObject", ColorTools.packRGB(255, 255, 0));
-	private static IntegerProperty colorTMA = createPersistentPreference("colorTMA", ColorTools.packRGB(20, 20, 180));
-	private static IntegerProperty colorTMAMissing = createPersistentPreference("colorTMAMissing", ColorTools.packARGB(50, 20, 20, 180));
+	private static IntegerProperty colorTMA = createPersistentPreference("colorTMA", ColorTools.packRGB(102, 128, 230));
+	private static DoubleProperty opacityTMAMissing = createPersistentPreference("opacityTMAMissing", 0.4);
 	private static IntegerProperty colorTile = createPersistentPreference("colorTile", ColorTools.packRGB(80, 80, 80));
 	
 	/**
@@ -1272,13 +1286,13 @@ public class PathPrefs {
 	public static IntegerProperty colorTMAProperty() {
 		return colorTMA;
 	}
-	
+
 	/**
-	 * The default color used to display missing TMA core objects.
+	 * The default opacity to use when display TMA core objects, between 0 and 1.
 	 * @return
 	 */
-	public static IntegerProperty colorTMAMissingProperty() {
-		return colorTMAMissing;
+	public static DoubleProperty opacityTMAMissingProperty() {
+		return opacityTMAMissing;
 	}
 	
 	/**

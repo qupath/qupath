@@ -243,7 +243,10 @@ public class PreferencePane {
 
 		@BooleanPref("Prefs.General.maskImageNames")
 		public final BooleanProperty maskImageNames = PathPrefs.maskImageNamesProperty();
-		
+
+		@BooleanPref("Prefs.General.skipProjectUriChecks")
+		public final BooleanProperty skipProjectUriChecks = PathPrefs.skipProjectUriChecksProperty();
+
 		@BooleanPref("Prefs.General.logFiles")
 		public final BooleanProperty createLogFiles = PathPrefs.doCreateLogFilesProperty();
 
@@ -504,8 +507,8 @@ public class PreferencePane {
 		@ColorPref("Prefs.Objects.tmaCoreColor")
 		public final IntegerProperty tmaColor = PathPrefs.colorTMAProperty();
 
-		@ColorPref("Prefs.Objects.tmaCoreMissingColor")
-		public final IntegerProperty tmaMissingColor = PathPrefs.colorTMAMissingProperty();
+		@DoublePref("Prefs.Objects.tmaCoreMissingOpacity")
+		public final DoubleProperty tmaMissingOpacity = PathPrefs.opacityTMAMissingProperty();
 
 	}
 

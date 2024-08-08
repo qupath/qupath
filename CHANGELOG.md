@@ -9,6 +9,19 @@ This is a *work in progress* for the next major release.
   * Log counts also now available in measurement tables
 * Prompt to save modified scripts when closing QuPath (https://github.com/qupath/qupath/pull/1524)
 * Close most sub-windows from the keyboard with `Ctrl/Cmd + W` or `Esc` (https://github.com/qupath/qupath/pull/1548)
+* Project browser improvements (https://github.com/qupath/qupath/pull/1556)
+  * Project thumbnails can be hidden or their size adjusted from a context menu
+  * Images remain sorted after adding new metadata values
+  * A warning indicator is shown if image files are missing
+    * Use the 'Skip file checks in projects' preference if you need to turn this off (e.g. your images are on a slow network)
+* Create a new channel as a linear combination of other channels (https://github.com/qupath/qupath/pull/1566)
+* Simplify `TileClassificationsToAnnotationsPlugin` implementation (https://github.com/qupath/qupath/pull/1563)
+* Add methods to `PathObjectHierarchy` to simplify requesting objects for regions (https://github.com/qupath/qupath/pull/1563)
+* TMA cores can now have classifications assigned to them
+  * Default color for TMA cores is lighter (to make it easier to see on both bright and dark backgrounds)
+  * TMA core 'missing' status is now shown using opacity, not a different color, to preserve any classification color
+* Faster *Run for project (without save)* scripts when the image doesn't need to be loaded (https://github.com/qupath/qupath/pull/1489)
+  * This can substantially speed up _some_ scripts that don't need to access the image data (e.g. for some measurement export)
 
 ### Bugs fixed
 * Tile export to .ome.tif can convert to 8-bit unnecessarily (https://github.com/qupath/qupath/issues/1494)
@@ -19,15 +32,17 @@ This is a *work in progress* for the next major release.
 * Black row or column appears on some downsampled images (https://github.com/qupath/qupath/issues/1527)
 * Full image annotations can be shifted accidentally outside the image bounds (https://github.com/qupath/qupath/issues/1533)
 * Search distance when selecting points in the viewer is too low (https://github.com/qupath/qupath/issues/1552)
+* `ImageOps.Core.replace()` does not work as expected (https://github.com/qupath/qupath/issues/1564)
+* QuPath doesn't always use the specified file extension when exporting snapshots (https://github.com/qupath/qupath/issues/1567)
 
 ### Dependency updates
-* Bio-Formats 7.3.0
+* Bio-Formats 7.3.1
 * Commonmark 0.22.0
-* DeepJavaLibrary 0.28.0
+* DeepJavaLibrary 0.29.0
 * Groovy 4.0.22
 * Gson 2.11.0
 * Guava 33.2.0-jre
-* JavaFX 22.0.1
+* JavaFX 22.0.2
 * JFreeSVG 5.0.6
 * JNA 5.14.0
 * Picocli 4.7.6

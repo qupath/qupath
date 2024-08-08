@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -114,7 +114,7 @@ import javafx.stage.Stage;
 import javafx.util.Callback;
 import qupath.fx.dialogs.FileChoosers;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.gui.JavadocViewer;
+import qupath.lib.gui.JavadocViewerRunner;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.actions.ActionTools;
 import qupath.fx.dialogs.Dialogs;
@@ -430,7 +430,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		paneCode.setStyle(style);
 		paneConsole.setStyle(style);
 
-		showJavadocsAction = ActionTools.createAction(new JavadocViewer(qupath.getStage()), "Show Javadocs");
+		showJavadocsAction = ActionTools.createAction(new JavadocViewerRunner(qupath.getStage()), "Show Javadocs");
 	}
 	
 	private void setToggle(ScriptLanguage language) {
@@ -1743,7 +1743,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 					executeScript(tab, tab.getEditorControl().getText(), project, imageData, batchIndex, batchSize, doSave, useCompiled);
 					if (doSave)
 						entry.saveImageData(imageData);
-					imageData.getServer().close();
+					imageData.close();
 					
 					if (clearCache.get()) {
 						try {

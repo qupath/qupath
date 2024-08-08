@@ -115,7 +115,7 @@ public class CellCountsCV extends AbstractTileableDetectionPlugin<BufferedImage>
 			// Get the filter size & calculate a suitable downsample value
 			double gaussianSigma;
 			double backgroundRadius;
-			double downsample = imageData.getServer().getMetadata().getMagnification() / magnification;
+			double downsample = imageData.getServerMetadata().getMagnification() / magnification;
 			if (downsample < 1)
 				downsample = 1;
 			if (hasMicrons) {

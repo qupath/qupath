@@ -723,7 +723,7 @@ public class ObjectClassifierCommand implements Runnable {
 							set.addAll(pathObjectsTemp);
 						}
 					} else {
-						var pathObjectsTemp = hierarchy.getObjectsForROI(PathDetectionObject.class, annotation.getROI());
+						var pathObjectsTemp = hierarchy.getAllDetectionsForROI(annotation.getROI());
 						pathObjectsTemp.removeIf(filterNegated);
 						set.addAll(pathObjectsTemp);
 					}

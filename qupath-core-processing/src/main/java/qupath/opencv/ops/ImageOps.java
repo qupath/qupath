@@ -333,9 +333,9 @@ public class ImageOps {
 		@Override
 		public List<ImageChannel> getChannels(ImageData<BufferedImage> imageData) {
 			if (op == null)
-				return imageData.getServer().getMetadata().getChannels();
+				return imageData.getServerMetadata().getChannels();
 			else
-				return op.getChannels(imageData.getServer().getMetadata().getChannels());
+				return op.getChannels(imageData.getServerMetadata().getChannels());
 		}
 
 		@Override
@@ -2187,7 +2187,8 @@ public class ImageOps {
 			private double newValue;
 			
 			ReplaceValueOp(double originalValue, double newValue) {
-				this.originalValue = newValue;
+				this.originalValue = originalValue;
+				this.newValue = newValue;
 			}
 
 			@Override

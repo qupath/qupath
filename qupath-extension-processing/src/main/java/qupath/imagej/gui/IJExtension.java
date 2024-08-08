@@ -404,7 +404,7 @@ public class IJExtension implements QuPathExtension {
 		double yOrigin = -request.getY() / downsample;
 		
 		// TODO: Permit filling/unfilling ROIs
-		for (PathObject child : hierarchy.getObjectsForRegion(PathObject.class, request, null)) {
+		for (PathObject child : hierarchy.getAllObjectsForRegion(request, null)) {
 			if (filter != null && !filter.test(child))
 				continue;
 			
