@@ -20,6 +20,8 @@ This is a *work in progress* for the next major release.
 * TMA cores can now have classifications assigned to them
   * Default color for TMA cores is lighter (to make it easier to see on both bright and dark backgrounds)
   * TMA core 'missing' status is now shown using opacity, not a different color, to preserve any classification color
+* Faster *Run for project (without save)* scripts when the image doesn't need to be loaded (https://github.com/qupath/qupath/pull/1489)
+  * This can substantially speed up _some_ scripts that don't need to access the image data (e.g. for some measurement export)
 
 ### Bugs fixed
 * Tile export to .ome.tif can convert to 8-bit unnecessarily (https://github.com/qupath/qupath/issues/1494)

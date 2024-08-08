@@ -466,7 +466,7 @@ public class QPEx extends QP {
 		}
 		var available = display.availableChannels();
 		ChannelDisplayInfo info = null;
-		var serverChannels = imageData.getServer().getMetadata().getChannels();
+		var serverChannels = imageData.getServerMetadata().getChannels();
 		for (var c : available) {
 			if (channelName.equals(c.getName())) {
 				info = c;
