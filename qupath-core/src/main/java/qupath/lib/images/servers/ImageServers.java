@@ -65,6 +65,9 @@ import qupath.lib.images.servers.ImageServerProvider.UriImageSupportComparator;
 import qupath.lib.images.servers.RotatedImageServer.Rotation;
 import qupath.lib.images.servers.SparseImageServer.SparseImageServerManagerRegion;
 import qupath.lib.images.servers.SparseImageServer.SparseImageServerManagerResolution;
+import qupath.lib.images.servers.transforms.BufferedImageNormalizer;
+import qupath.lib.images.servers.transforms.ColorDeconvolutionNormalizer;
+import qupath.lib.images.servers.transforms.SubtractOffsetAndScaleNormalizer;
 import qupath.lib.io.GsonTools;
 import qupath.lib.io.GsonTools.SubTypeAdapterFactory;
 import qupath.lib.projects.Project;
@@ -96,12 +99,19 @@ public class ImageServers {
 			.registerSubtype(PyramidGeneratingServerBuilder.class, "pyramidize") // For consistency, this would ideally be pyramidalize... but need to keep backwards-compatibility
 			.registerSubtype(ReorderRGBServerBuilder.class, "swapRedBlue")
 			.registerSubtype(ColorDeconvolutionServerBuilder.class, "color_deconvolved")
+			.registerSubtype(NormalizedImageServerBuilder.class, "normalized")
 			;
-	
+
+	private static GsonTools.SubTypeAdapterFactory<BufferedImageNormalizer> normalizerFactory =
+			GsonTools.createSubTypeAdapterFactory(BufferedImageNormalizer.class, "normalizerType")
+					.registerSubtype(ColorDeconvolutionNormalizer.class, "colorDeconvolution")
+					.registerSubtype(SubtractOffsetAndScaleNormalizer.class, "offsetAndScale");
+
 	static {
 		GsonTools.getDefaultBuilder()
 			.registerTypeAdapterFactory(ImageServers.getImageServerTypeAdapterFactory(true))
-			.registerTypeAdapterFactory(ImageServers.getServerBuilderFactory());
+			.registerTypeAdapterFactory(ImageServers.getServerBuilderFactory())
+			.registerTypeAdapterFactory(ImageServers.getNormalizerFactory());
 	}
 	
 	
@@ -117,6 +127,14 @@ public class ImageServers {
 	 */
 	public static TypeAdapterFactory getServerBuilderFactory() {
 		return serverBuilderFactory;
+	}
+
+	/**
+	 * Get a TypeAdapterFactory to handle {@linkplain BufferedImageNormalizer BufferedImageNormalizers}.
+	 * @return
+	 */
+	public static TypeAdapterFactory getNormalizerFactory() {
+		return normalizerFactory;
 	}
 
 	
@@ -697,6 +715,37 @@ public class ImageServers {
 			return new RotatedImageServerBuilder(getMetadata().orElse(null), newBuilder, rotation);
 		}
 	
+	}
+
+	static class NormalizedImageServerBuilder extends AbstractServerBuilder<BufferedImage> {
+
+		private ServerBuilder<BufferedImage> builder;
+		private BufferedImageNormalizer normalizer;
+
+		NormalizedImageServerBuilder(ImageServerMetadata metadata, ServerBuilder<BufferedImage> builder, BufferedImageNormalizer normalizer) {
+			super(metadata);
+			this.builder = builder;
+			this.normalizer = normalizer;
+		}
+
+		@Override
+		protected ImageServer<BufferedImage> buildOriginal() throws Exception {
+			return new NormalizedImageServer(builder.build(), normalizer);
+		}
+
+		@Override
+		public Collection<URI> getURIs() {
+			return builder.getURIs();
+		}
+
+		@Override
+		public ServerBuilder<BufferedImage> updateURIs(Map<URI, URI> updateMap) {
+			ServerBuilder<BufferedImage> newBuilder = builder.updateURIs(updateMap);
+			if (newBuilder == builder)
+				return this;
+			return new NormalizedImageServerBuilder(getMetadata().orElse(null), newBuilder, normalizer);
+		}
+
 	}
 	
 	static class ReorderRGBServerBuilder extends AbstractServerBuilder<BufferedImage> {
