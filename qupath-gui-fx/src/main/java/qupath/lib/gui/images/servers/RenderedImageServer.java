@@ -141,8 +141,8 @@ public class RenderedImageServer extends AbstractTileableImageServer implements 
 		private static final Logger logger = LoggerFactory.getLogger(Builder.class);
 		
 		private DefaultImageRegionStore store;
-		private ImageData<BufferedImage> imageData;
-		private List<PathOverlay> overlayLayers = new ArrayList<>();
+		private final ImageData<BufferedImage> imageData;
+		private final List<PathOverlay> overlayLayers = new ArrayList<>();
 		private ImageRenderer renderer;
 		private ImageDisplaySettings settings;
 		private double overlayOpacity = 1.0;
