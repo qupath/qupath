@@ -383,11 +383,8 @@ class TMADataImporter {
 				setTooltip(null);
 				return;
 			}
-			if (item.isMissing())
-				setTextFill(ColorToolsFX.getCachedColor(PathPrefs.colorTMAMissingProperty().get()));
-			else
-				setTextFill(ColorToolsFX.getCachedColor(PathPrefs.colorTMAProperty().get()));
-			
+			setTextFill(ColorToolsFX.getDisplayedColor(item));
+
 			setAlignment(Pos.CENTER);
 			setTextAlignment(TextAlignment.CENTER);
 			setContentDisplay(ContentDisplay.CENTER);

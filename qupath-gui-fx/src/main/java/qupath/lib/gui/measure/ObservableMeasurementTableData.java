@@ -219,7 +219,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		builderMap.put("Name", new ObjectNameMeasurementBuilder());
 
 		// Include the class
-		if (containsAnnotations || containsDetections) {
+		if (containsAnnotations || containsDetections || containsTMACores) {
 			builderMap.put("Classification", new PathClassMeasurementBuilder());
 			// Get the name of the containing TMA core if we have anything other than cores
 			if (imageData != null && imageData.getHierarchy().getTMAGrid() != null) {
