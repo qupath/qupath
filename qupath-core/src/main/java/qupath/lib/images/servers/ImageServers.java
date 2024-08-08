@@ -743,7 +743,7 @@ public class ImageServers {
 			ServerBuilder<BufferedImage> newBuilder = builder.updateURIs(updateMap);
 			if (newBuilder == builder)
 				return this;
-			return new NormalizedImageServerBuilder(getMetadata(), newBuilder, normalizer);
+			return new NormalizedImageServerBuilder(getMetadata().orElse(null), newBuilder, normalizer);
 		}
 
 	}
