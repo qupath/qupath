@@ -369,6 +369,23 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 		if (!Objects.equals(newStep, lastStep))
 			imageData.getHistoryWorkflow().addStep(newStep);
 	}
+
+	/**
+	 * Whether the corresponding ImageServer was lazy-loaded or not,
+	 * @return
+	 */
+	public boolean isLoaded() {
+		return this.server != null;
+	}
+
+	/**
+	 * Get the ServerBuilder corresponding to the newest ImageServer known associated to this ImageData.
+	 * @return
+	 * @see #getServer()
+	 */
+	public ImageServerBuilder.ServerBuilder<T> getServerBuilder() {
+		return this.isLoaded() ? getServer().getBuilder() : this.serverBuilder;
+	}
 	
 	/**
 	 * Get the ImageServer.

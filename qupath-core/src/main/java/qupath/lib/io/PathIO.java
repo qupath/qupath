@@ -607,7 +607,7 @@ public class PathIO {
 			outStream.writeUTF("Data file version " + DATA_FILE_VERSION);
 			
 			// Try to write a backwards-compatible image path
-			var server = imageData.getServer();
+//			var server = imageData.getServer();
 //			var uris = server.getURIs();
 //			String path;
 //			if (uris.size() == 1) {
@@ -623,10 +623,16 @@ public class PathIO {
 			
 			// Write JSON object including QuPath version and ServerBuilder
 			// Note that the builder may be null, in which case the server cannot be recreated
-			var builder = server.getBuilder();
-			if (builder == null)
+			var builder = imageData.getServerBuilder();
+			String serverPath;
+			if (builder == null) {
+				var server = imageData.getServer();
 				logger.warn("Server {} does not provide a builder - it will not be possible to recover the ImageServer from this data file", server);
-			var wrapper = ServerBuilderWrapper.create(builder, server.getPath());
+				serverPath = server.getPath();
+			} else {
+				serverPath = imageData.getLastSavedPath();
+			}
+			var wrapper = ServerBuilderWrapper.create(builder, serverPath);
 			String json = GsonTools.getInstance().toJson(wrapper);
 			outStream.writeObject(json);
 			

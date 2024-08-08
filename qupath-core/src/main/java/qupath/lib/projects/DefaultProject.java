@@ -773,8 +773,7 @@ class DefaultProject implements Project<BufferedImage> {
 			}
 			
 			// If successful, write the server (including metadata)
-			var server = imageData.getServer();
-			var currentServerBuilder = server.getBuilder();
+			var currentServerBuilder = imageData.getServerBuilder();
 			if (currentServerBuilder != null && !currentServerBuilder.equals(this.serverBuilder)) {
 				this.serverBuilder = currentServerBuilder;
 				writeServerBuilder();
@@ -920,7 +919,10 @@ class DefaultProject implements Project<BufferedImage> {
 		
 		ImageDataSummary(ImageData<?> imageData, long timestamp) {
 			this.imageType = imageData.getImageType();
-			this.server = new ServerSummary(imageData.getServer());
+			if (imageData.isLoaded())
+				this.server = new ServerSummary(imageData.getServer());
+			else
+				this.server = new ServerSummary(imageData.getServerMetadata());
 			this.timestamp = timestamp;
 			this.hierarchy = new HierarchySummary(imageData.getHierarchy());
 		}
@@ -948,6 +950,14 @@ class DefaultProject implements Project<BufferedImage> {
 			this.sizeC = server.nChannels();
 			this.sizeZ = server.nZSlices();
 			this.sizeT = server.nTimepoints();
+		}
+
+		ServerSummary(ImageServerMetadata metadata) {
+			this.width = metadata.getWidth();
+			this.height = metadata.getHeight();
+			this.sizeC = metadata.getChannels().size();
+			this.sizeZ = metadata.getSizeZ();
+			this.sizeT = metadata.getSizeZ();
 		}
 		
 	}
