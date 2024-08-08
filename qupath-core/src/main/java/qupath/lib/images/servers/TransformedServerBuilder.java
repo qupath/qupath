@@ -43,7 +43,6 @@ import qupath.lib.regions.ImageRegion;
  * Note: This is an early-stage experimental class, which may well change!
  * 
  * @author Pete Bankhead
- *
  */
 public class TransformedServerBuilder {
 	
@@ -214,6 +213,7 @@ public class TransformedServerBuilder {
 	 * Subtract a constant offset from all channels, without clipping.
 	 * @param offsets a single offset to subtract from all channels, or an array of offsets to subtract from each channel.
 	 * @return
+	 * @since v0.6.0
 	 */
 	public TransformedServerBuilder subtractOffset(double... offsets) {
 		return normalize(SubtractOffsetAndScaleNormalizer.createSubtractOffset(offsets));
@@ -223,6 +223,7 @@ public class TransformedServerBuilder {
 	 * Subtract a constant offset from all channels, clipping the result to be &geq; 0.
 	 * @param offsets a single offset to subtract from all channels, or an array of offsets to subtract from each channel.
 	 * @return
+	 * @since v0.6.0
 	 */
 	public TransformedServerBuilder subtractOffsetAndClipZero(double... offsets) {
 		return normalize(SubtractOffsetAndScaleNormalizer.createSubtractOffsetAndClipZero(offsets));
@@ -233,6 +234,7 @@ public class TransformedServerBuilder {
 	 * @param offsets a single offset to subtract from all channels, or an array of offsets to subtract from each channel.
 	 * @param scales a single scale factor to apply to all channels, or an array of scale factors to apply to each channel.
 	 * @return
+	 * @since v0.6.0
 	 */
 	public TransformedServerBuilder subtractOffsetAndScale(double[] offsets, double[] scales) {
 		return normalize(SubtractOffsetAndScaleNormalizer.create(offsets, scales));
@@ -242,6 +244,7 @@ public class TransformedServerBuilder {
 	 * Scale all channels by a constant factor.
 	 * @param scales a single scale factor to apply to all channels, or an array of scale factors to apply to each channel.
 	 * @return
+	 * @since v0.6.0
 	 */
 	public TransformedServerBuilder scaleChannels(double... scales) {
 		return normalize(SubtractOffsetAndScaleNormalizer.create(null, scales));
@@ -254,6 +257,7 @@ public class TransformedServerBuilder {
 	 * @param scales optional array of scale factors to apply to each deconvolved channel.
 	 *               A scale factor of 1.0 will leave the channel unchanged, while a scale of 0.0 will suppress the channel.
 	 * @return
+	 * @since v0.6.0
 	 */
 	public TransformedServerBuilder stainNormalize(ColorDeconvolutionStains stainsInput, ColorDeconvolutionStains stainsOutput, double... scales) {
 		return normalize(ColorDeconvolutionNormalizer.create(stainsInput, stainsOutput, scales));
@@ -265,6 +269,7 @@ public class TransformedServerBuilder {
 	 * @return
 	 * @ImplNote To use this method to create an image that can be added to a project, the normalizers must be JSON-serializable
 	 *           and registered under {@link ImageServers#getNormalizerFactory()}.
+	 * @since v0.6.0
 	 */
 	public TransformedServerBuilder normalize(BufferedImageNormalizer normalizer) {
 		this.server = new NormalizedImageServer(server, normalizer);
@@ -276,6 +281,7 @@ public class TransformedServerBuilder {
 	 *
 	 * @param transforms the transforms to apply
 	 * @return this builder
+	 * @since v0.6.0
 	 */
 	public TransformedServerBuilder applyColorTransforms(Collection<? extends ColorTransform> transforms) {
 		server = new ChannelTransformFeatureServer(server, new ArrayList<>(transforms));
@@ -287,14 +293,27 @@ public class TransformedServerBuilder {
 	 *
 	 * @param transforms the transforms to apply
 	 * @return this builder
+	 * @since v0.6.0
 	 */
 	public TransformedServerBuilder applyColorTransforms(ColorTransform... transforms) {
 		return applyColorTransforms(Arrays.asList(transforms));
 	}
 
+	/**
+	 * Convert to the specified pixel type.
+	 *
+	 * @param pixelType the target pixel type
+	 * @return this builder
+	 * @since v0.6.0
+	 */
+	public TransformedServerBuilder convertType(PixelType pixelType) {
+		server = new TypeConvertImageServer(server, pixelType);
+		return this;
+	}
+
 	
 	/**
-	 * Get the {@link ImageServer} that applies all the requested transforms.
+	 * Get the {@link ImageServer} that applies the requested transforms sequentially.
 	 */
 	public ImageServer<BufferedImage> build() {
 		return server;

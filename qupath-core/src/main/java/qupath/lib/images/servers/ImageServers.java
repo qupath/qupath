@@ -747,6 +747,37 @@ public class ImageServers {
 		}
 
 	}
+
+	static class TypeConvertImageServerBuilder extends AbstractServerBuilder<BufferedImage> {
+
+		private ServerBuilder<BufferedImage> builder;
+		private PixelType pixelType;
+
+		TypeConvertImageServerBuilder(ImageServerMetadata metadata, ServerBuilder<BufferedImage> builder, PixelType pixelType) {
+			super(metadata);
+			this.builder = builder;
+			this.pixelType = pixelType;
+		}
+
+		@Override
+		protected ImageServer<BufferedImage> buildOriginal() throws Exception {
+			return new TypeConvertImageServer(builder.build(), pixelType);
+		}
+
+		@Override
+		public Collection<URI> getURIs() {
+			return builder.getURIs();
+		}
+
+		@Override
+		public ServerBuilder<BufferedImage> updateURIs(Map<URI, URI> updateMap) {
+			ServerBuilder<BufferedImage> newBuilder = builder.updateURIs(updateMap);
+			if (newBuilder == builder)
+				return this;
+			return new TypeConvertImageServerBuilder(getMetadata().orElse(null), newBuilder, pixelType);
+		}
+
+	}
 	
 	static class ReorderRGBServerBuilder extends AbstractServerBuilder<BufferedImage> {
 		
