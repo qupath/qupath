@@ -292,7 +292,7 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 				logger.trace("Returning lazy metadata");
 				return lazyMetadata;
 			} else if (serverBuilder != null) {
-				var metadata = serverBuilder.getMetadata();
+				var metadata = serverBuilder.getMetadata().orElse(null);
 				if (metadata != null)
 					return metadata;
 			}

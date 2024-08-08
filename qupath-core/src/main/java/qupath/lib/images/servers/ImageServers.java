@@ -158,7 +158,7 @@ public class ImageServers {
 				}
 				newRegions.add(new SparseImageServerManagerRegion(region.getRegion(), newResolutions));
 			}
-			return new SparseImageServerBuilder(getMetadata(), newRegions, path);
+			return new SparseImageServerBuilder(getMetadata().orElse(null), newRegions, path);
 		}
 		
 	}
@@ -175,7 +175,7 @@ public class ImageServers {
 		
 		@Override
 		protected ImageServer<BufferedImage> buildOriginal() throws Exception {
-			var metadata = getMetadata();
+			var metadata = getMetadata().orElseThrow();
 			return new PyramidGeneratingImageServer(builder.build(),
 					metadata.getPreferredTileWidth(),
 					metadata.getPreferredTileHeight(),
@@ -192,7 +192,7 @@ public class ImageServers {
 			ServerBuilder<BufferedImage> newBuilder = builder.updateURIs(updateMap);
 			if (newBuilder == builder)
 				return this;
-			return new PyramidGeneratingServerBuilder(getMetadata(), newBuilder);
+			return new PyramidGeneratingServerBuilder(getMetadata().orElse(null), newBuilder);
 		}
 		
 	}
@@ -506,7 +506,7 @@ public class ImageServers {
 			ServerBuilder<BufferedImage> newBuilder = builder.updateURIs(updateMap);
 			if (newBuilder == builder)
 				return this;
-			return new CroppedImageServerBuilder(getMetadata(), newBuilder, region);
+			return new CroppedImageServerBuilder(getMetadata().orElse(null), newBuilder, region);
 		}
 		
 	}
@@ -546,7 +546,7 @@ public class ImageServers {
 			ServerBuilder<BufferedImage> newBuilder = builder.updateURIs(updateMap);
 			if (newBuilder == builder)
 				return this;
-			return new AffineTransformImageServerBuilder(getMetadata(), newBuilder, transform);
+			return new AffineTransformImageServerBuilder(getMetadata().orElse(null), newBuilder, transform);
 		}
 		
 	}
@@ -599,7 +599,7 @@ public class ImageServers {
 			}
 			if (!changes)
 				return this;
-			return new ConcatChannelsImageServerBuilder(getMetadata(), newBuilder, newChannels);
+			return new ConcatChannelsImageServerBuilder(getMetadata().orElse(null), newBuilder, newChannels);
 		}
 		
 	}
@@ -630,7 +630,7 @@ public class ImageServers {
 			ServerBuilder<BufferedImage> newBuilder = builder.updateURIs(updateMap);
 			if (newBuilder == builder)
 				return this;
-			return new ChannelTransformFeatureServerBuilder(getMetadata(), newBuilder, transforms);
+			return new ChannelTransformFeatureServerBuilder(getMetadata().orElse(null), newBuilder, transforms);
 		}
 		
 	}
@@ -663,7 +663,7 @@ public class ImageServers {
 			ServerBuilder<BufferedImage> newBuilder = builder.updateURIs(updateMap);
 			if (newBuilder == builder)
 				return this;
-			return new ColorDeconvolutionServerBuilder(getMetadata(), newBuilder, stains, channels);
+			return new ColorDeconvolutionServerBuilder(getMetadata().orElse(null), newBuilder, stains, channels);
 		}
 		
 	}
@@ -694,7 +694,7 @@ public class ImageServers {
 			ServerBuilder<BufferedImage> newBuilder = builder.updateURIs(updateMap);
 			if (newBuilder == builder)
 				return this;
-			return new RotatedImageServerBuilder(getMetadata(), newBuilder, rotation);
+			return new RotatedImageServerBuilder(getMetadata().orElse(null), newBuilder, rotation);
 		}
 	
 	}
@@ -725,7 +725,7 @@ public class ImageServers {
 			ServerBuilder<BufferedImage> newBuilder = builder.updateURIs(updateMap);
 			if (newBuilder == builder)
 				return this;
-			return new ReorderRGBServerBuilder(getMetadata(), newBuilder, order);
+			return new ReorderRGBServerBuilder(getMetadata().orElse(null), newBuilder, order);
 		}
 		
 	}

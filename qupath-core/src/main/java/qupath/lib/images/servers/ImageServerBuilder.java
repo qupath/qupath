@@ -34,6 +34,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -149,14 +150,16 @@ public interface ImageServerBuilder<T> {
 
 		/**
 		 * Optional method to get metadata associated with the image.
-		 * The default implementation returns null, which indicates that the server itself must be built before
-		 * metadata is available.
+		 * The default implementation returns an empty optional, which indicates that the server itself
+		 * must be built before metadata is available.
 		 * <p>
 		 * Subclasses may override this to provide metadata more efficiently.
-		 * @return the metadata, or null if this is not available
+		 * <p>
+		 *
+		 * @return the metadata, or an empty optional if this is not available
 		 */
-		default ImageServerMetadata getMetadata() {
-			return null;
+		default Optional<ImageServerMetadata> getMetadata() {
+			return Optional.empty();
 		}
 
 	}
@@ -178,8 +181,8 @@ public interface ImageServerBuilder<T> {
 		protected abstract ImageServer<T> buildOriginal() throws Exception;
 
 		@Override
-		public ImageServerMetadata getMetadata() {
-			return metadata;
+		public Optional<ImageServerMetadata> getMetadata() {
+			return Optional.ofNullable(metadata);
 		}
 		
 		@Override
@@ -396,7 +399,7 @@ public interface ImageServerBuilder<T> {
 			URI uriNew = updateMap.getOrDefault(uri, null);
 			if (uriNew == null)
 				return this;
-			return new DefaultImageServerBuilder<>(providerClassName, uriNew, args, getMetadata());
+			return new DefaultImageServerBuilder<>(providerClassName, uriNew, args, getMetadata().orElse(null));
 		}
 		
 		@Override
