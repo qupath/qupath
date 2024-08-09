@@ -369,9 +369,33 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 		if (!Objects.equals(newStep, lastStep))
 			imageData.getHistoryWorkflow().addStep(newStep);
 	}
+
+	/**
+	 * Query whether the corresponding ImageServer was lazy-loaded or not,
+	 * If {@code isLoaded()} returns false, then calls to {@link #getServer()} will result
+	 * in an attempt to load the server.
+	 * @return
+	 */
+	public boolean isLoaded() {
+		return this.server != null;
+	}
+
+	/**
+	 * Get the ServerBuilde corresponding to the ImageServer associated with this ImageData.
+	 * <p>
+	 * If the server has not yet been loaded, this will return a cached server builder
+	 * if it is available and null otherwise.
+	 * @return
+	 * @see #getServer()
+	 */
+	public ImageServerBuilder.ServerBuilder<T> getServerBuilder() {
+		return this.isLoaded() ? getServer().getBuilder() : this.serverBuilder;
+	}
 	
 	/**
-	 * Get the ImageServer.
+	 * Get the ImageServer, loading it if necessary.
+	 * <p>
+	 * If no server is available and loading fails, this method may throw an unchecked exception.
 	 * @return
 	 */
 	public ImageServer<T> getServer() {
@@ -385,7 +409,7 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 							updateServerMetadata(lazyMetadata);
 						}
 					} catch (Exception e) {
-						throw new RuntimeException("Failed to lazy-load ImageServer", e);
+						throw new RuntimeException("Failed to load ImageServer", e);
 					}
 				}
 			}
