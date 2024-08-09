@@ -420,14 +420,16 @@ public class IJExtension implements QuPathExtension {
 				boolean isCell = child instanceof PathCellObject;
 				
 				Color color = ColorToolsAwt.getCachedColor(ColorToolsFX.getDisplayedColorARGB(child));
-				if (!(isCell && (options == null || !options.getShowCellBoundaries()))) {
+				boolean showOuterRoi = !isCell || (options == null || options.getShowCellBoundaries());
+				boolean showNucleusRoi = isCell && (options == null || options.getShowCellNuclei());
+				if (showOuterRoi) {
 					Roi roi = IJTools.convertToIJRoi(child.getROI(), xOrigin, yOrigin, downsample);
 					roi.setStrokeColor(color);
 					roi.setName(child.getDisplayedName());
 					//						roi.setStrokeWidth(2);
 					overlay.add(roi);
 				}
-				if (isCell && (options == null || options.getShowCellNuclei())) {
+				if (showNucleusRoi) {
 					ROI nucleus = ((PathCellObject)child).getNucleusROI();
 					if (nucleus == null)
 						continue;
