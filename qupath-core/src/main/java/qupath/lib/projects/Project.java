@@ -270,17 +270,17 @@ public interface Project<T> {
 	}
 
 	/**
-	 * Get the manager for sort keys saved within this project.
+	 * Get the manager for sorting keys saved within this project.
 	 * <p>
-	 * Sort keys can be used to group and sort project entries.
+	 * Sorting keys can be used to group and sort project entries.
 	 * <p>
-	 * The names of this manager correspond to keys, while their values are string representations
+	 * The names of this manager correspond to sorting keys, while their values are string representations
 	 * of booleans corresponding to whether the key is in ascending or descending order.
 	 *
-	 * @return the manager for sort keys, or {@code null} if the project does not support storing sort keys
+	 * @return the manager for sorting keys, or {@code null} if the project does not support storing sorting keys
 	 */
-	default Manager<String> getSortKeys() {
-		return getResources("sort_keys", String.class, "txt");
+	default Manager<String> getSortingKeys() {
+		return getResources("sorting_keys", String.class, "txt");
 	}
 	
 	/**
