@@ -24,6 +24,7 @@ package qupath.lib.awt.common;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.awt.Color;
 import java.awt.Image;
@@ -45,6 +46,7 @@ import java.util.stream.IntStream;
 import org.junit.jupiter.api.Test;
 
 import qupath.lib.common.ColorTools;
+import qupath.lib.images.servers.PixelType;
 
 @SuppressWarnings("javadoc")
 public class TestBufferedImageTools {
@@ -591,4 +593,75 @@ public class TestBufferedImageTools {
 			}
 		}
 	}
+
+
+	@Test
+	public void test_getDataBufferType() {
+		assertEquals(DataBuffer.TYPE_BYTE, BufferedImageTools.getDataBufferType(PixelType.UINT8));
+		assertEquals(DataBuffer.TYPE_USHORT, BufferedImageTools.getDataBufferType(PixelType.UINT16));
+		assertEquals(DataBuffer.TYPE_SHORT, BufferedImageTools.getDataBufferType(PixelType.INT16));
+		assertEquals(DataBuffer.TYPE_INT, BufferedImageTools.getDataBufferType(PixelType.INT32));
+		assertEquals(DataBuffer.TYPE_FLOAT, BufferedImageTools.getDataBufferType(PixelType.FLOAT32));
+		assertEquals(DataBuffer.TYPE_DOUBLE, BufferedImageTools.getDataBufferType(PixelType.FLOAT64));
+		assertThrows(IllegalArgumentException.class, () -> BufferedImageTools.getDataBufferType(PixelType.INT8));
+		assertThrows(IllegalArgumentException.class, () -> BufferedImageTools.getDataBufferType(PixelType.UINT32));
+	}
+
+	@Test
+	public void test_createImage() {
+		checkImageProperties(BufferedImageTools.createImage(100, 200, PixelType.UINT8, 4),
+				DataBuffer.TYPE_BYTE, 100, 200, 4);
+		checkImageProperties(BufferedImageTools.createImage(100, 200, PixelType.INT16, 5),
+				DataBuffer.TYPE_SHORT, 100, 200, 5);
+		checkImageProperties(BufferedImageTools.createImage(100, 200, PixelType.FLOAT32, 1),
+				DataBuffer.TYPE_FLOAT, 100, 200, 1);
+		checkImageProperties(BufferedImageTools.createImage(100, 200, PixelType.FLOAT64, 2),
+				DataBuffer.TYPE_DOUBLE, 100, 200, 2);
+	}
+
+	@Test
+	public void test_convertImage() {
+		int w = 10;
+		int h = 20;
+		int nBands = 4;
+		var img = BufferedImageTools.createImage(w, h, PixelType.UINT16, nBands);
+		checkImageProperties(BufferedImageTools.convertImageType(img, PixelType.INT16, null),
+				DataBuffer.TYPE_SHORT, img.getWidth(), img.getHeight(), nBands);
+		checkImageProperties(BufferedImageTools.convertImageType(img, PixelType.FLOAT32, null),
+				DataBuffer.TYPE_FLOAT, img.getWidth(), img.getHeight(), nBands);
+		checkImageProperties(BufferedImageTools.convertImageType(img, PixelType.UINT8, null),
+				DataBuffer.TYPE_BYTE, img.getWidth(), img.getHeight(), nBands);
+	}
+
+	private static void checkImageProperties(BufferedImage img, int dataType, int width, int height, int nBands) {
+		assertEquals(dataType, img.getRaster().getDataBuffer().getDataType());
+		assertEquals(width, img.getWidth());
+		assertEquals(height, img.getHeight());
+		assertEquals(nBands, img.getRaster().getNumBands());
+	}
+
+	@Test
+	public void test_convertFloatRaster() {
+		int w = 1;
+		int h = 1;
+		int nBands = 2;
+		var img = BufferedImageTools.createImage(w, h, PixelType.FLOAT64, nBands);
+		var raster = img.getRaster();
+		raster.setPixels(0, 0, 1, 1, new double[]{1000.5, -1000.5});
+
+		assertArrayEquals(new double[]{1000.5, -1000.5}, img.getRaster().getPixels(0, 0, 1, 1, (double[])null));
+		assertArrayEquals(new double[]{1000.5, -1000.5},
+				BufferedImageTools.convertRasterType(raster, PixelType.FLOAT64).getPixels(0, 0, 1, 1, (double[])null));
+		assertArrayEquals(new double[]{1000.5, -1000.5},
+				BufferedImageTools.convertRasterType(raster, PixelType.FLOAT32).getPixels(0, 0, 1, 1, (double[])null));
+		assertArrayEquals(new double[]{1001, -1000.0},
+				BufferedImageTools.convertRasterType(raster, PixelType.INT16).getPixels(0, 0, 1, 1, (double[])null));
+		assertArrayEquals(new double[]{1001, -1000.0},
+				BufferedImageTools.convertRasterType(raster, PixelType.INT32).getPixels(0, 0, 1, 1, (double[])null));
+		assertArrayEquals(new double[]{1001, 0.0},
+				BufferedImageTools.convertRasterType(raster, PixelType.UINT16).getPixels(0, 0, 1, 1, (double[])null));
+		assertArrayEquals(new double[]{255.0, 0.0},
+				BufferedImageTools.convertRasterType(raster, PixelType.UINT8).getPixels(0, 0, 1, 1, (double[])null));
+	}
+
 }

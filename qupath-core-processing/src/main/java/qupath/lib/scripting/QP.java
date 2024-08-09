@@ -96,6 +96,7 @@ import qupath.lib.images.servers.ImageServers;
 import qupath.lib.images.servers.LabeledImageServer;
 import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.ServerTools;
+import qupath.lib.images.servers.TransformedServerBuilder;
 import qupath.lib.images.writers.ImageWriterTools;
 import qupath.lib.images.writers.TileExporter;
 import qupath.lib.io.GsonTools;
@@ -265,6 +266,8 @@ public class QP {
 			PathObject.class,
 			PathObjectHierarchy.class,
 			PathClass.class,
+
+			TransformedServerBuilder.class,
 			
 			ImageRegion.class,
 			RegionRequest.class,
