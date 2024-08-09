@@ -268,6 +268,20 @@ public interface Project<T> {
 	public default Manager<PixelClassifier> getPixelClassifiers() {
 		return getResources(PixelClassifier.PROJECT_LOCATION, PixelClassifier.class, "json");
 	}
+
+	/**
+	 * Get the manager for sorting keys saved within this project.
+	 * <p>
+	 * Sorting keys can be used to group and sort project entries.
+	 * <p>
+	 * The names of this manager correspond to sorting keys, while their values are string representations
+	 * of booleans corresponding to whether the key is in ascending or descending order.
+	 *
+	 * @return the manager for sorting keys, or {@code null} if the project does not support storing sorting keys
+	 */
+	default Manager<String> getSortingKeys() {
+		return getResources("sorting_keys", String.class, "txt");
+	}
 	
 	/**
 	 * Get a manager for objects of a specified class within this project.
