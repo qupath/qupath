@@ -37,12 +37,15 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -65,11 +68,13 @@ import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectConnections;
+import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.EllipseROI;
 import qupath.lib.roi.LineROI;
+import qupath.lib.roi.ROIs;
 import qupath.lib.roi.RectangleROI;
 import qupath.lib.roi.interfaces.ROI;
 
@@ -196,30 +201,49 @@ public class HierarchyOverlay extends AbstractOverlay {
 		if (boundsDisplayed.width <= 0 || boundsDisplayed.height <= 0)
 			return;
 
-		// Get the annotations & selected objects (which must be painted directly)
-		Collection<PathObject> selectedObjects = new ArrayList<>(hierarchy.getSelectionModel().getSelectedObjects());
-		selectedObjects.removeIf(p -> p == null || !p.hasROI() || (p.getROI().getZ() != z || p.getROI().getT() != t));
-
+		// Determine the visible region
 		ImageRegion region = AwtTools.getImageRegion(boundsDisplayed, z, t);
-		
-		// Paint detection objects	
+
+		// Get the annotations & selected objects (which must be painted directly)
+		Set<PathObject> visibleSelectedObjects = new LinkedHashSet<>(hierarchy.getSelectionModel().getSelectedObjects());
+		visibleSelectedObjects.removeIf(p -> p == null || !p.hasROI() || (p.getROI().getZ() != z || p.getROI().getT() != t ||
+				!region.intersects(p.getROI().getBoundsX(), p.getROI().getBoundsY(), p.getROI().getBoundsWidth(), p.getROI().getBoundsHeight())));
+
+		// Get all visible objects (including selected ones)
+		boolean showAnnotations = overlayOptions.getShowAnnotations();
+		boolean showDetections = overlayOptions.getShowDetections();
+		Collection<PathObject> visibleDetections = showDetections ?
+				hierarchy.getAllDetectionsForRegion(region) :
+				Collections.emptyList();
+
+		Collection<PathObject> visibleAnnotations = showAnnotations ?
+				hierarchy.getAnnotationsForRegion(region) :
+				Collections.emptyList();
+
+		// Return if nothing visible
+		if (visibleSelectedObjects.isEmpty() && visibleDetections.isEmpty() && visibleAnnotations.isEmpty())
+			return;
+
+		// Paint detection objects, if required
 		long startTime = System.currentTimeMillis();
-		if (overlayOptions.getShowDetections() && !hierarchy.isEmpty()) {
+		if (overlayOptions.getShowDetections() && !visibleDetections.isEmpty()) {
 
 			// If we aren't downsampling by much, or we're upsampling, paint directly - making sure to paint the right number of times, and in the right order
 			if (overlayServer == null || regionStore == null || downsampleFactor < 1.0) {
-				Collection<PathObject> pathObjects;
+				Collection<PathObject> detectionsToPaint;
 				try {
-					Set<PathObject> pathObjectsToPaint = new TreeSet<>(comparator);					
-					pathObjects = hierarchy.getAllDetectionsForRegion(region, pathObjectsToPaint);
+					detectionsToPaint = new TreeSet<>(comparator);
+					detectionsToPaint.addAll(visibleDetections);
 				} catch (IllegalArgumentException e) {
 					// This can happen (rarely) in a multithreaded environment if the level of a detection changes.
 					// However, protecting against this fully by caching the level with integer boxing/unboxing would be expensive.
 					logger.debug("Exception requesting detections to paint: " + e.getLocalizedMessage(), e);
-					pathObjects = hierarchy.getAllDetectionsForRegion(region, null);
+					detectionsToPaint = visibleDetections;
 				}
+				// Paint selected objects at the end
+				detectionsToPaint.removeIf(p -> visibleSelectedObjects.contains(p));
 				g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
-				PathObjectPainter.paintSpecifiedObjects(g2d, pathObjects, overlayOptions, hierarchy.getSelectionModel(), downsampleFactor);
+				PathObjectPainter.paintSpecifiedObjects(g2d, detectionsToPaint, overlayOptions, hierarchy.getSelectionModel(), downsampleFactor);
 				
 				if (overlayOptions.getShowConnections()) {
 					Object connections = imageData.getProperty(DefaultPathObjectConnectionGroup.KEY_OBJECT_CONNECTIONS);
@@ -252,39 +276,38 @@ public class HierarchyOverlay extends AbstractOverlay {
 		g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, defaultAntiAlias);
 		g2d.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, defaultStroke);
 
-		// Prepare to handle labels, if we need to
-		Collection<PathObject> objectsWithNames = new ArrayList<>();
-		Collection<PathObject> annotations = hierarchy.getAnnotationsForRegion(region, null);
-		for (var iterator = annotations.iterator(); iterator.hasNext(); ) {
-			var next = iterator.next();
-			if ((next.getName() != null && !next.getName().isBlank()))
-				objectsWithNames.add(next);
-			if (selectedObjects.contains(next))
-				iterator.remove();
-		}
-		
-		// Paint the annotations
-		List<PathObject> pathObjectList = new ArrayList<>(annotations);
-		Collections.sort(pathObjectList, Comparator.comparingInt(PathObject::getLevel).reversed()
-				.thenComparing(Comparator.comparingDouble((PathObject p) -> -p.getROI().getArea())));
-		PathObjectPainter.paintSpecifiedObjects(g2d, pathObjectList, overlayOptions, null, downsampleFactor);	
+		// Paint annotations, using a defined order based on hierarchy level and area
+		var annotationsToPaint = visibleAnnotations.stream()
+				.filter(p -> !visibleSelectedObjects.contains(p))
+				.sorted(Comparator.comparingInt(PathObject::getLevel).reversed()
+						.thenComparing((PathObject p) -> -p.getROI().getArea()))
+				.toList();
+		PathObjectPainter.paintSpecifiedObjects(g2d, annotationsToPaint, overlayOptions, null, downsampleFactor);
 		
 		// Ensure that selected objects are painted last, to make sure they aren't obscured
-		if (!selectedObjects.isEmpty()) {
+		if (!visibleSelectedObjects.isEmpty()) {
 			Composite previousComposite = g2d.getComposite();
 			float opacity = overlayOptions.getOpacity();
 			if (opacity < 1) {
 				g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER));
-				PathObjectPainter.paintSpecifiedObjects(g2d, selectedObjects, overlayOptions, hierarchy.getSelectionModel(), downsampleFactor);
+				PathObjectPainter.paintSpecifiedObjects(g2d, visibleSelectedObjects, overlayOptions, hierarchy.getSelectionModel(), downsampleFactor);
 				g2d.setComposite(previousComposite);
 			} else {
-				PathObjectPainter.paintSpecifiedObjects(g2d, selectedObjects, overlayOptions, hierarchy.getSelectionModel(), downsampleFactor);				
+				PathObjectPainter.paintSpecifiedObjects(g2d, visibleSelectedObjects, overlayOptions, hierarchy.getSelectionModel(), downsampleFactor);
 			}
 		}
 		
 		// Paint labels
-		if (overlayOptions.getShowNames() && !objectsWithNames.isEmpty()) {
-			
+		if (overlayOptions.getShowNames()) {
+
+			// Get all objects with names that we might need to paint
+			Set<PathObject> objectsWithNames = new LinkedHashSet<>();
+			visibleDetections.stream().filter(p -> p.getName() != null).forEach(objectsWithNames::add);
+			visibleAnnotations.stream().filter(p -> p.getName() != null).forEach(objectsWithNames::add);
+			visibleSelectedObjects.stream().filter(p -> p.getName() != null).forEach(objectsWithNames::add);
+
+			var detectionDisplayMode = overlayOptions.getDetectionDisplayMode();
+
 			double requestedFontSize = overlayOptions.getFontSize();
 			if (requestedFontSize <= 0 || !Double.isFinite(requestedFontSize)) {
 				// Get it from the location font size instead
@@ -319,12 +342,20 @@ public class HierarchyOverlay extends AbstractOverlay {
 			g2d.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_ON);
 			g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 
-			for (var annotation : objectsWithNames) {
-				var name = annotation.getName();
+			for (var namedObject : objectsWithNames) {
+				var name = namedObject.getName();
+
+				var roi = namedObject.getROI();
+				if (namedObject.isCell()) {
+					if (detectionDisplayMode == OverlayOptions.DetectionDisplayMode.NUCLEI_ONLY) {
+						roi = PathObjectTools.getNucleusOrMainROI(namedObject);
+					} else if (detectionDisplayMode == OverlayOptions.DetectionDisplayMode.CENTROIDS) {
+						roi = PathObjectTools.getNucleusOrMainROI(namedObject);
+						roi = ROIs.createPointsROI(roi.getCentroidX(), roi.getCentroidY(), roi.getImagePlane());
+					}
+				}
 				
-				var roi = annotation.getROI();
-				
-				if (name != null && !name.isBlank() && roi != null && !overlayOptions.isPathClassHidden(annotation.getPathClass())) {
+				if (name != null && !name.isBlank() && roi != null && !overlayOptions.isPathClassHidden(namedObject.getPathClass())) {
 
 					var bounds = metrics.getStringBounds(name, g2d);
 
@@ -338,10 +369,10 @@ public class HierarchyOverlay extends AbstractOverlay {
 
 					// Get the object color
 					int objectColorInt;
-					if (hierarchy.getSelectionModel().isSelected(annotation) && PathPrefs.useSelectedColorProperty().get())
+					if (hierarchy.getSelectionModel().isSelected(namedObject) && PathPrefs.useSelectedColorProperty().get())
 						objectColorInt = PathPrefs.colorSelectedObjectProperty().get();
 					else
-						objectColorInt = ColorToolsFX.getDisplayedColorARGB(annotation).intValue();
+						objectColorInt = ColorToolsFX.getDisplayedColorARGB(namedObject).intValue();
 
 					// Draw a line to where the name box will be
 					var objectColor = ColorToolsAwt.getCachedColor(objectColorInt);
