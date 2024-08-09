@@ -417,7 +417,7 @@ class ProjectImportImagesCommand {
 						updateMessage("Importing " + existingDataFiles.size() + " images from existing data files");
 					for (var file : existingDataFiles) {
 						try {
-							var imageData = PathIO.readImageData(file, null, null, BufferedImage.class);
+							ImageData<BufferedImage> imageData = PathIO.readImageData(file);
 							var entry = project.addImage(imageData.getServer().getBuilder());
 							initializeEntry(entry, imageData.getImageType(), false, false);
 							entry.saveImageData(imageData);

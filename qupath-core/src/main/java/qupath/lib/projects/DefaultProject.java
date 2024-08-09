@@ -697,11 +697,10 @@ class DefaultProject implements Project<BufferedImage> {
 			ImageData<BufferedImage> imageData = null;
 			// TODO: Consider whether we can set the image name for the lazy-loaded server
 			if (Files.exists(path)) {
-				try (var stream = Files.newInputStream(path)) {
-					imageData = PathIO.readLazyImageData(stream, getServerBuilder(), BufferedImage.class);
-					imageData.setLastSavedPath(path.toString(), true);
+				try {
+					imageData = PathIO.readImageData(path, getServerBuilder());
 				} catch (Exception e) {
-					logger.error("Error reading image data from " + path, e);
+					logger.error("Error reading image data from {}", path, e);
 				}
 			}
 			// If we find a backup file, try to restore what we can from it
@@ -709,12 +708,11 @@ class DefaultProject implements Project<BufferedImage> {
 			if (imageData == null) {
 				var pathBackup = getBackupImageDataPath();
 				if (Files.exists(pathBackup)) {
-					try (var stream = Files.newInputStream(pathBackup)) {
-						imageData = PathIO.readLazyImageData(stream, getServerBuilder(), BufferedImage.class);
-						imageData.setLastSavedPath(pathBackup.toString(), true);
+					try {
+						imageData = PathIO.readImageData(pathBackup, getServerBuilder());
 						logger.warn("Restored previous ImageData from {}", pathBackup);
 					} catch (IOException e) {
-						logger.error("Error reading backup image data from " + pathBackup, e);
+						logger.error("Error reading backup image data from {}", pathBackup, e);
 					}
 				}
 			}

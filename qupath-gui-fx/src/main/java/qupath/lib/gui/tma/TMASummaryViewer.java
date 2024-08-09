@@ -1242,7 +1242,7 @@ public class TMASummaryViewer {
 		
 		if (file.getName().toLowerCase().endsWith(PathPrefs.getSerializationExtension())) {
 			try {
-				ImageData<BufferedImage> imageData = PathIO.readImageData(file, null, null, BufferedImage.class);
+				ImageData<BufferedImage> imageData = PathIO.readImageData(file);
 				setTMAEntriesFromImageData(imageData);
 			} catch (IOException e) {
 				logger.error("Error reading image data", e);

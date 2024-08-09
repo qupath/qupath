@@ -47,6 +47,7 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.GuiTools;
+import qupath.lib.images.ImageData;
 import qupath.lib.images.ImageData.ImageType;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerBuilder;
@@ -317,7 +318,7 @@ public class ProjectCommands {
 			        // Save the data if needed
 			        if (fileData.exists()) {
 			            logger.debug("Reading image data found for {}", name);
-			            var imageData = PathIO.readImageData(fileData, null, server, BufferedImage.class);
+			            ImageData<BufferedImage> imageData = PathIO.readImageData(fileData, server);
 			            entry.saveImageData(imageData);
 			        } else {
 			            logger.warn("No image data found for {}", name);
