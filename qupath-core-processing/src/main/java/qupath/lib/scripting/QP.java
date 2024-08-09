@@ -553,7 +553,7 @@ public class QP {
 	 */
 	@Deprecated
 	public static ImageData<BufferedImage> loadImageData(final String path, final boolean setBatchData) throws IOException {
-		ImageData<BufferedImage> imageData = PathIO.readImageData(new File(resolvePath(path)), null, null, BufferedImage.class);
+		ImageData<BufferedImage> imageData = PathIO.readImageData(new File(resolvePath(path)));
 		if (setBatchData && imageData != null)
 			setBatchImageData(imageData);
 		return imageData;

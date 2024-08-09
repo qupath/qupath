@@ -1619,7 +1619,7 @@ public class Commands {
 					imageDataNew = entry.readImageData();
 				} else {
 					logger.info("Reverting to last saved version: {}", savedFile.getAbsolutePath());
-					imageDataNew = PathIO.readImageData(savedFile, null, imageData.getServer(), BufferedImage.class);
+					imageDataNew = PathIO.readImageData(savedFile, imageData.getServer());
 				}
 				viewer.setImageData(imageDataNew);
 			} catch (Exception e) {
