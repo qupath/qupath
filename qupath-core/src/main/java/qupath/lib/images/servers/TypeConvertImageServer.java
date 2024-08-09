@@ -27,6 +27,7 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -53,6 +54,8 @@ public class TypeConvertImageServer extends AbstractTileableImageServer {
         this.pixelType = outputType;
         this.metadata = new ImageServerMetadata.Builder(server.getMetadata())
                 .pixelType(outputType)
+                .rgb(outputType == PixelType.UINT8 &&
+                        Objects.equals(server.getMetadata().getChannels(), ImageChannel.getDefaultRGBChannels()))
                 .name(server.getMetadata().getName() + " (" + outputType + ")")
                 .build();
     }
@@ -73,7 +76,7 @@ public class TypeConvertImageServer extends AbstractTileableImageServer {
 
     @Override
     public String getServerType() {
-        return "Type convert image server (" + pixelType + ")";
+        return "Type convert (" + pixelType + ")";
     }
 
     @Override

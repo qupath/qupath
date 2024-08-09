@@ -100,6 +100,7 @@ public class ImageServers {
 			.registerSubtype(ReorderRGBServerBuilder.class, "swapRedBlue")
 			.registerSubtype(ColorDeconvolutionServerBuilder.class, "color_deconvolved")
 			.registerSubtype(NormalizedImageServerBuilder.class, "normalized")
+			.registerSubtype(TypeConvertImageServerBuilder.class, "typeConvert")
 			;
 
 	private static GsonTools.SubTypeAdapterFactory<BufferedImageNormalizer> normalizerFactory =
