@@ -31,6 +31,11 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+
+import javafx.scene.control.ContextMenu;
+import javafx.scene.control.MenuItem;
+import javafx.scene.input.Clipboard;
+import javafx.scene.input.ClipboardContent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,7 +55,6 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
 import javafx.scene.control.Slider;
-import javafx.scene.control.TextField;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
@@ -223,7 +227,28 @@ public class MeasurementMapPane {
 			}
 		};
 		Tooltip.install(colorMapKey, new Tooltip("Measurement map key"));
-		
+
+		ContextMenu colorMapContextMenu = new ContextMenu();
+		MenuItem copyColorMap = new MenuItem("Copy");
+		copyColorMap.setOnAction(event -> {
+			if (colorMapKeyImage != null) {
+				Clipboard clipboard = Clipboard.getSystemClipboard();
+				ClipboardContent content = new ClipboardContent();
+				content.putImage(colorMapKeyImage);
+				clipboard.setContent(content);
+				Dialogs.showInfoNotification(
+						"Color map",
+						"Color map copied to clipboard"
+				);
+			}
+		});
+		colorMapContextMenu.getItems().add(copyColorMap);
+		colorMapKey.setOnMousePressed(event -> {
+            if (event.isSecondaryButtonDown()) {
+                colorMapContextMenu.show(pane, event.getScreenX(), event.getScreenY());
+            }
+        });
+
 		// Filter to reduce visible measurements
 		var tfFilter = new PredicateTextField<String>();
 		var tooltip = new Tooltip("Enter text to filter measurement list");
