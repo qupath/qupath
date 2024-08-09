@@ -1174,7 +1174,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 			this.root = new ProjectTreeRowItem(new ProjectTreeRow.RootRow(project));
 
 			try {
-				if (project != null && !project.getSortKeys().getNames().isEmpty()) {
+				if (project != null && project.getSortKeys() != null && !project.getSortKeys().getNames().isEmpty()) {
 					this.metadataKey = project.getSortKeys().getNames().iterator().next();
 				}
 			} catch (IOException e) {
@@ -1194,11 +1194,13 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 			this.metadataKey = metadataKey;
 
 			try {
-				for (String keyName: project.getSortKeys().getNames()) {
-					project.getSortKeys().remove(keyName);
-				}
-				if (metadataKey != null) {
-					project.getSortKeys().put(metadataKey, String.valueOf(true));
+				if (project != null && project.getSortKeys() != null) {
+					for (String keyName: project.getSortKeys().getNames()) {
+						project.getSortKeys().remove(keyName);
+					}
+					if (metadataKey != null) {
+						project.getSortKeys().put(metadataKey, String.valueOf(true));
+					}
 				}
 			} catch (IOException e) {
 				logger.warn("Error while setting new metadata key", e);

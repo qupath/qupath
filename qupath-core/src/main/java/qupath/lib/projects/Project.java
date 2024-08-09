@@ -277,7 +277,7 @@ public interface Project<T> {
 	 * The names of this manager correspond to keys, while their values are string representations
 	 * of booleans corresponding to whether the key is in ascending or descending order.
 	 *
-	 * @return the manager for sort keys
+	 * @return the manager for sort keys, or {@code null} if the project does not support storing sort keys
 	 */
 	default Manager<String> getSortKeys() {
 		return getResources("sort_keys", String.class, "txt");
