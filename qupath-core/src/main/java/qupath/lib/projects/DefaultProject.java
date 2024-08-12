@@ -28,6 +28,7 @@ import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.io.Reader;
 import java.lang.ref.SoftReference;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -40,9 +41,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.Map.Entry;
 import java.util.Objects;
@@ -1233,7 +1236,6 @@ class DefaultProject implements Project<BufferedImage> {
 		return null;
 	}
 
-
 	@Override
 	public Project<BufferedImage> createSubProject(String name, Collection<ProjectImageEntry<BufferedImage>> entries) {
 		if (!name.endsWith(ext)) {
@@ -1249,5 +1251,47 @@ class DefaultProject implements Project<BufferedImage> {
 			changes = project.addImage(entry) | changes;
 		return project;
 	}
-	
+
+	@Override
+	public void putMetadataValue(String key, String value) {
+		Map<String, String> metadata = getStoredMetadata();
+		metadata.put(key, value);
+		setStoredMetadata(metadata);
+    }
+
+	@Override
+	public Optional<String> getMetadataValue(String key) {
+		return Optional.ofNullable(getStoredMetadata().get(key));
+	}
+
+	@Override
+	public void removeMetadataValue(String key) {
+		Map<String, String> metadata = getStoredMetadata();
+		metadata.remove(key);
+		setStoredMetadata(metadata);
+	}
+
+	private Map<String, String> getStoredMetadata() {
+		if (getMetadataPath().toFile().exists()) {
+			try (Reader reader = Files.newBufferedReader(getMetadataPath(), StandardCharsets.UTF_8)) {
+				return new Gson().fromJson(reader, new TypeToken<Map<String, String>>(){}.getType());
+			} catch (IOException e) {
+				logger.error("Error while retrieving project metadata", e);
+			}
+		}
+
+		return new HashMap<>();
+	}
+
+	private void setStoredMetadata(Map<String, String> metadata) {
+		try (var writer = Files.newBufferedWriter(getMetadataPath(), StandardCharsets.UTF_8)) {
+			new Gson().toJson(metadata, writer);
+		} catch (IOException e) {
+			logger.error("Error while saving project metadata", e);
+		}
+	}
+
+	private Path getMetadataPath() {
+		return Paths.get(getBasePath().toString(), "metadata.json");
+	}
 }

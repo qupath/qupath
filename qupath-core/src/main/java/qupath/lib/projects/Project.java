@@ -28,6 +28,7 @@ import java.net.URI;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 import qupath.lib.classifiers.object.ObjectClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifier;
@@ -268,20 +269,6 @@ public interface Project<T> {
 	public default Manager<PixelClassifier> getPixelClassifiers() {
 		return getResources(PixelClassifier.PROJECT_LOCATION, PixelClassifier.class, "json");
 	}
-
-	/**
-	 * Get the manager for sorting keys saved within this project.
-	 * <p>
-	 * Sorting keys can be used to group and sort project entries.
-	 * <p>
-	 * The names of this manager correspond to sorting keys, while their values are string representations
-	 * of booleans corresponding to whether the key is in ascending or descending order.
-	 *
-	 * @return the manager for sorting keys, or {@code null} if the project does not support storing sorting keys
-	 */
-	default Manager<String> getSortingKeys() {
-		return getResources("sorting_keys", String.class, "txt");
-	}
 	
 	/**
 	 * Get a manager for objects of a specified class within this project.
@@ -297,13 +284,29 @@ public interface Project<T> {
 	public default <S, R extends S> Manager<R> getResources(String location, Class<S> cls, String ext) {
 		return null;
 	}
-	
-	
-//	public List<String> listPixelClassifiers();
-//	
-//	public PixelClassifier loadPixelClassifier(String name);
-//	
-//	public void savePixelClassifier(String name, String PixelClassifier);
 
-	
+	/**
+	 * Store a metadata key-value pair in this project.
+	 * If a value already exists for the provided key, it will be overridden.
+	 *
+	 * @param key the key to store
+	 * @param value the value to store
+     */
+	void putMetadataValue(String key, String value);
+
+	/**
+	 * Request a metadata value stored in this project.
+	 *
+	 * @param key the key associated with the value to retrieve
+	 * @return the value associated with the provided key, or an empty Optional if no such value exists
+	 */
+	Optional<String> getMetadataValue(String key);
+
+	/**
+	 * Remove a metadata key-value pair from this project.
+	 * This function does nothing if the provided key is not present in this project.
+	 *
+	 * @param key the key associated with the value to remove
+	 */
+	void removeMetadataValue(String key);
 }
