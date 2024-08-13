@@ -37,6 +37,9 @@ public interface MetadataStore {
 
 	/**
 	 * Returns a modifiable map containing the metadata.
+	 * <p>
+	 * The returned map may or may not be thread-safe. Implementing classes must
+	 * document the thread-safeness of the map.
 	 *
 	 * @return the metadata of this store
 	 */

@@ -29,6 +29,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.Reader;
+import java.io.Writer;
 import java.lang.ref.SoftReference;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -41,11 +42,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.Map.Entry;
 import java.util.Objects;
@@ -92,13 +91,14 @@ class DefaultProject implements Project<BufferedImage> {
 	private static Logger logger = LoggerFactory.getLogger(DefaultProject.class);
 	
 	private final String LATEST_VERSION = GeneralTools.getVersion();
+	private final Map<String, String> metadata;
 	
 	private String version = null;
 
 	/**
 	 * Base directory.
 	 */
-	private File dirBase;
+	private final File dirBase;
 
 	/**
 	 * Project file.
@@ -136,6 +136,7 @@ class DefaultProject implements Project<BufferedImage> {
 			this.dirBase = file.getParentFile();
 		creationTimestamp = System.currentTimeMillis();
 		modificationTimestamp = System.currentTimeMillis();
+		this.metadata = Collections.synchronizedMap(getStoredMetadata(this.dirBase.toPath()));
 	}
 	
 	@Override
@@ -342,6 +343,7 @@ class DefaultProject implements Project<BufferedImage> {
 	public synchronized void syncChanges() throws IOException {
 		writeProject(getFile());
 		writePathClasses(pathClasses);
+		setStoredMetadata(getBasePath(), metadata);
 //		if (file.isDirectory())
 //			file = new File(dirBase, "project.qpproj");
 //		var json = new GsonBuilder().setLenient().setPrettyPrinting().create().toJson(this);
@@ -1252,46 +1254,49 @@ class DefaultProject implements Project<BufferedImage> {
 		return project;
 	}
 
+	/**
+	 * Returns a thread-safe and modifiable map containing the metadata
+	 * of this project.
+	 * <p>
+	 * Modifications to this map are saved when calling {@link #syncChanges()}.
+	 *
+	 * @return the metadata of this project
+	 */
 	@Override
-	public void putMetadataValue(String key, String value) {
-		Map<String, String> metadata = getStoredMetadata();
-		metadata.put(key, value);
-		setStoredMetadata(metadata);
-    }
-
-	@Override
-	public Optional<String> getMetadataValue(String key) {
-		return Optional.ofNullable(getStoredMetadata().get(key));
+	public Map<String, String> getMetadata() {
+		return metadata;
 	}
 
-	@Override
-	public void removeMetadataValue(String key) {
-		Map<String, String> metadata = getStoredMetadata();
-		metadata.remove(key);
-		setStoredMetadata(metadata);
-	}
+	private static Map<String, String> getStoredMetadata(Path projectPath) {
+		Map<String, String> metadata = new LinkedHashMap<>();
 
-	private Map<String, String> getStoredMetadata() {
-		if (getMetadataPath().toFile().exists()) {
-			try (Reader reader = Files.newBufferedReader(getMetadataPath(), StandardCharsets.UTF_8)) {
-				return new Gson().fromJson(reader, new TypeToken<Map<String, String>>(){}.getType());
+		Path metadataPath = getMetadataPath(projectPath);
+		if (Files.exists(metadataPath)) {
+			try (Reader reader = Files.newBufferedReader(metadataPath, StandardCharsets.UTF_8)) {
+				metadata.putAll(GsonTools.getInstance().fromJson(reader, new TypeToken<Map<String, String>>(){}.getType()));
 			} catch (IOException e) {
 				logger.error("Error while retrieving project metadata", e);
 			}
 		}
 
-		return new HashMap<>();
+		return metadata;
 	}
 
-	private void setStoredMetadata(Map<String, String> metadata) {
-		try (var writer = Files.newBufferedWriter(getMetadataPath(), StandardCharsets.UTF_8)) {
-			new Gson().toJson(metadata, writer);
+	private static void setStoredMetadata(Path projectPath, Map<String, String> metadata) {
+		Path metadataPath = getMetadataPath(projectPath);
+
+		try {
+			Files.createDirectories(metadataPath.getParent());
+
+			try (Writer writer = Files.newBufferedWriter(metadataPath, StandardCharsets.UTF_8)) {
+				GsonTools.getInstance().toJson(metadata, writer);
+			}
 		} catch (IOException e) {
-			logger.error("Error while saving project metadata", e);
+			logger.error("Error while creating project data directory", e);
 		}
 	}
 
-	private Path getMetadataPath() {
-		return Paths.get(getBasePath().toString(), "metadata.json");
+	private static Path getMetadataPath(Path projectPath) {
+		return Paths.get(projectPath.toString(), "data", "metadata.json");
 	}
 }

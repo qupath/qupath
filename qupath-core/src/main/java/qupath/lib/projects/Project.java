@@ -28,12 +28,12 @@ import java.net.URI;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
-import java.util.Optional;
 
 import qupath.lib.classifiers.object.ObjectClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
+import qupath.lib.objects.MetadataStore;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.projects.ResourceManager.Manager;
 
@@ -44,7 +44,7 @@ import qupath.lib.projects.ResourceManager.Manager;
  *
  * @param <T>
  */
-public interface Project<T> {
+public interface Project<T> extends MetadataStore {
 		
 	/**
 	 * Get an unmodifiable list representing the <code>PathClass</code>es associated with this project.
@@ -284,29 +284,4 @@ public interface Project<T> {
 	public default <S, R extends S> Manager<R> getResources(String location, Class<S> cls, String ext) {
 		return null;
 	}
-
-	/**
-	 * Store a metadata key-value pair in this project.
-	 * If a value already exists for the provided key, it will be overridden.
-	 *
-	 * @param key the key to store
-	 * @param value the value to store
-     */
-	void putMetadataValue(String key, String value);
-
-	/**
-	 * Request a metadata value stored in this project.
-	 *
-	 * @param key the key associated with the value to retrieve
-	 * @return the value associated with the provided key, or an empty Optional if no such value exists
-	 */
-	Optional<String> getMetadataValue(String key);
-
-	/**
-	 * Remove a metadata key-value pair from this project.
-	 * This function does nothing if the provided key is not present in this project.
-	 *
-	 * @param key the key associated with the value to remove
-	 */
-	void removeMetadataValue(String key);
 }

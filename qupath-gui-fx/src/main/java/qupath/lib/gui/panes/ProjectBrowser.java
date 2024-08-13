@@ -1175,7 +1175,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 			this.root = new ProjectTreeRowItem(new ProjectTreeRow.RootRow(project));
 
 			if (project != null) {
-				this.metadataKey = project.getMetadataValue(SORTING_KEY).orElse(null);
+				this.metadataKey = project.getMetadata().get(SORTING_KEY);
 			}
 		}
 		
@@ -1191,9 +1191,9 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 			this.metadataKey = metadataKey;
 
 			if (metadataKey == null) {
-				project.removeMetadataValue(SORTING_KEY);
+				project.getMetadata().remove(SORTING_KEY);
 			} else {
-				project.putMetadataValue(SORTING_KEY, metadataKey);
+				project.getMetadata().put(SORTING_KEY, metadataKey);
 			}
 		}
 		
