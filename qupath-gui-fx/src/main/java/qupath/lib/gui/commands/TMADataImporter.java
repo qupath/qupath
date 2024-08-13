@@ -59,7 +59,6 @@ import qupath.fx.dialogs.FileChoosers;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.fx.dialogs.Dialogs;
-import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.gui.tools.GuiTools;
@@ -547,7 +546,7 @@ class TMADataImporter {
 				core.getMeasurementList().put(name, getMeasurementList().get(name));
 			}
 			core.getMeasurementList().close();
-			for (Entry<String, String> entry : getMetadataMap().entrySet()) {
+			for (Entry<String, String> entry : this.getMetadata().entrySet()) {
 				core.putMetadataValue(entry.getKey(), (String)entry.getValue());
 			}
 		}
@@ -591,7 +590,7 @@ class TMADataImporter {
 //		else
 //			sb.append("-");
 		sb.append("\n");
-		for (Entry<String, String> entry : core.getMetadataMap().entrySet()) {
+		for (Entry<String, String> entry : core.getMetadata().entrySet()) {
 			sb.append(entry.getKey()).append("\t").append(entry.getValue()).append("\n");
 		}
 		for (String name : core.getMeasurementList().getMeasurementNames()) {
