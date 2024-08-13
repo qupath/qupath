@@ -1292,7 +1292,7 @@ class DefaultProject implements Project<BufferedImage> {
 				GsonTools.getInstance().toJson(metadata, writer);
 			}
 		} catch (IOException e) {
-			logger.error("Error while creating project data directory", e);
+			logger.error("Error while saving project metadata", e);
 		}
 	}
 
