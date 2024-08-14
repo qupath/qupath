@@ -27,6 +27,7 @@ import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.concurrent.ForkJoinPool;
@@ -101,31 +102,29 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 	
 	private static final Logger logger = LoggerFactory.getLogger(PathObjectGridView.class);
 	
-	private QuPathGUI qupath;
+	private final QuPathGUI qupath;
 	private Stage stage;
 	
-	private StringProperty title = new SimpleStringProperty("Object grid view");
+	private final StringProperty title = new SimpleStringProperty("Object grid view");
 	
-	private QuPathGridView grid = new QuPathGridView();
+	private final QuPathGridView grid = new QuPathGridView();
 	
 	private ComboBox<String> comboMeasurement;
 	
-	private ObservableList<PathObject> backingList = FXCollections.observableArrayList();
-	private FilteredList<PathObject> filteredList = new FilteredList<>(backingList);
+	private final ObservableList<PathObject> backingList = FXCollections.observableArrayList();
+	private final FilteredList<PathObject> filteredList = new FilteredList<>(backingList);
 	
-	private ObservableMeasurementTableData model = new ObservableMeasurementTableData();
+	private final ObservableMeasurementTableData model = new ObservableMeasurementTableData();
 
-	private ObjectProperty<ImageData<BufferedImage>> imageDataProperty = new SimpleObjectProperty<>();
-	
-	
-	private StringProperty measurement = new SimpleStringProperty();
-	private BooleanProperty showMeasurement = new SimpleBooleanProperty(true);
-	private BooleanProperty descending = new SimpleBooleanProperty(false);
-	private BooleanProperty doAnimate = new SimpleBooleanProperty(true);
-	
-	private Function<PathObjectHierarchy, Collection<? extends PathObject>> objectExtractor;
+	private final ObjectProperty<ImageData<BufferedImage>> imageDataProperty = new SimpleObjectProperty<>();
+	private final StringProperty measurement = new SimpleStringProperty();
+	private final BooleanProperty showMeasurement = new SimpleBooleanProperty(true);
+	private final BooleanProperty descending = new SimpleBooleanProperty(false);
+	private final BooleanProperty doAnimate = new SimpleBooleanProperty(true);
 
-	
+	private final Function<PathObjectHierarchy, Collection<? extends PathObject>> objectExtractor;
+
+
 	public static enum GridDisplaySize {
 			TINY("Tiny", 60),
 			SMALL("Small", 100),
@@ -249,9 +248,18 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 	
 	
 	private static void sortPathObjects(final ObservableList<? extends PathObject> cores, final ObservableMeasurementTableData model, final String measurementName, final boolean doDescending) {
-		cores.sort((t1, t2) -> {
-			double m1 = model.getNumericValue(t1, measurementName);
-			double m2 = model.getNumericValue(t2, measurementName);
+		if (measurementName.equals("PathClass")) {
+			cores.sort((po1, po2) -> {
+				if (po1.getPathClass() == null || po2.getPathClass() == null) return 0;
+				Comparator<PathObject> comp = Comparator.comparing((po) -> po.getPathClass().toString());
+				comp = doDescending ? comp.reversed() : comp;
+				return comp.compare(po1, po2);
+			});
+			return;
+		}
+		cores.sort((po1, po2) -> {
+			double m1 = model.getNumericValue(po1, measurementName);
+			double m2 = model.getNumericValue(po2, measurementName);
 			int comp;
 			if (doDescending)
 				comp = -Double.compare(m1, m2);
@@ -264,9 +272,9 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 					return doDescending ? -1 : 1;
 				
 				if (doDescending)
-					comp = t2.getDisplayedName().compareTo(t1.getDisplayedName());
+					comp = po2.getDisplayedName().compareTo(po1.getDisplayedName());
 				else
-					comp = t1.getDisplayedName().compareTo(t2.getDisplayedName());
+					comp = po1.getDisplayedName().compareTo(po2.getDisplayedName());
 			}
 			return comp;
 		});
@@ -312,12 +320,10 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 		
 		model.setImageData(imageData, pathObjects);
 		backingList.setAll(pathObjects);
-		
+
 		String m = measurement.getValue();
-		sortPathObjects(backingList, model, m, descending.get());
-		filteredList.setPredicate(p -> m == null || !(isMissingCore(p) || Double.isNaN(model.getNumericValue(p, m))));
-		grid.getItems().setAll(filteredList);
-		
+		sortAndFilter();
+
 		// Select the first measurement if necessary
 		var names = model.getMeasurementNames();
 		if (m == null || !names.contains(m)) {
@@ -329,18 +335,11 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 	
 	
 	private void initializeGUI() {
-		
-//		grid.setVerticalCellSpacing(10);
-//		grid.setHorizontalCellSpacing(5);
-	
-		
+
 		ComboBox<GridDisplaySize> comboDisplaySize = new ComboBox<>();
 		comboDisplaySize.getItems().setAll(GridDisplaySize.values());
 		comboDisplaySize.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {
 			grid.imageSize.set(n.getSize());
-//			grid.setCellWidth(n.getSize());
-//			grid.setCellHeight(n.getSize());
-//			updateGridDisplay();
 		});
 		comboDisplaySize.getSelectionModel().select(GridDisplaySize.SMALL);
 		
@@ -353,45 +352,25 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 
 		comboMeasurement = new ComboBox<>();
 		comboMeasurement.setPlaceholder(createPlaceholderText("No measurements!"));
-		comboMeasurement.setItems(model.getMeasurementNames());
+		var measureList = FXCollections.observableArrayList(model.getMeasurementNames());
+		measureList.add("PathClass");
+		comboMeasurement.setItems(measureList);
 		if (!comboMeasurement.getItems().isEmpty())
 			comboMeasurement.getSelectionModel().select(0);
-		
-		
-		measurement.bind(comboMeasurement.getSelectionModel().selectedItemProperty());
-		
-		comboOrder.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {
-			String m = measurement.getValue();
-			sortPathObjects(backingList, model, m, descending.get());
-			filteredList.setPredicate(p -> {
-				return m == null || !(isMissingCore(p) || Double.isNaN(model.getNumericValue(p, m)));
-			});
 
-			
-			grid.getItems().setAll(filteredList);
-		});
-		
-		comboMeasurement.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {
-			String m = measurement.getValue();
-			sortPathObjects(backingList, model, m, descending.get());
-			filteredList.setPredicate(p -> {
-				return m == null || !(isMissingCore(p) || Double.isNaN(model.getNumericValue(p, m)));
-			});
-			grid.getItems().setAll(filteredList);
-		});
-		
-		
+		measurement.bind(comboMeasurement.getSelectionModel().selectedItemProperty());
+
+		addSortAndFilterer(comboOrder);
+		addSortAndFilterer(comboMeasurement);
+
 		CheckBox cbShowMeasurement = new CheckBox("Show measurement");
 		showMeasurement.bind(cbShowMeasurement.selectedProperty());
 		showMeasurement.addListener(c -> updateMeasurement()); // Force an update
-		
-		
+
 		CheckBox cbAnimation = new CheckBox("Animate");
 		cbAnimation.setSelected(doAnimate.get());
 		doAnimate.bindBidirectional(cbAnimation.selectedProperty());
-		
-		
-		
+
 		BorderPane pane = new BorderPane();
 		
 		ToolBar paneTop = new ToolBar();
@@ -413,25 +392,18 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 				((Label) item).setMinWidth(Label.USE_PREF_SIZE);
 			}
 		}
-//		paneTop.setHgap(5);
-//		paneTop.setVgap(5);
-		
+
 		comboMeasurement.setMaxWidth(Double.MAX_VALUE);
 		comboOrder.setMaxWidth(Double.MAX_VALUE);
-//		GridPane.setHgrow(comboMeasurement, Priority.SOMETIMES);
-		
+
 		pane.setTop(paneTop);
 		
 		var scrollPane = new ScrollPane(grid);
 		scrollPane.setFitToWidth(true);
-//		scrollPane.setFitToHeight(true);
 		scrollPane.setVbarPolicy(ScrollBarPolicy.AS_NEEDED);
 		
 		pane.setCenter(scrollPane);
-//		if (grid.getSkin() != null)
-//			((GridViewSkin<?>)grid.getSkin()).updateGridViewItems();
-		
-		
+
 		Scene scene = new Scene(pane, 640, 480);
 		
 		stage = new Stage();
@@ -443,15 +415,25 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 		stage.show();
 	}
 
+	private void addSortAndFilterer(ComboBox<String> comboMeasurement) {
+		comboMeasurement.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {
+			sortAndFilter();
+		});
+	}
+
 
 	private void updateMeasurement() {
+		sortAndFilter();
+	}
+
+	private void sortAndFilter() {
 		String m = measurement.getValue();
 		sortPathObjects(backingList, model, m, descending.get());
-		filteredList.setPredicate(p -> m == null || !(isMissingCore(p) || Double.isNaN(model.getNumericValue(p, m))));
+		filteredList.setPredicate(p -> m == null || m.equals("PathClass") || !(isMissingCore(p) || Double.isNaN(model.getNumericValue(p, m))));
 		grid.getItems().setAll(filteredList);
 	}
-	
-	
+
+
 	/**
 	 * Check if an object is a TMA core flagged as missing
 	 * @param pathObject
@@ -641,22 +623,13 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 					node.setTranslateX(x);
 					node.setTranslateY(y);
 				}
-				
-//				node.setLayoutX(x);
-//				node.setLayoutY(y);
 				x += (dx + spaceX);
 			}
 			
-//			setHeight(y);
 			setHeight(y + dx);
 			setPrefHeight(y + dx);
 		}
-		
-		
-		
-		
+
 	}
-	
-	
 
 }
