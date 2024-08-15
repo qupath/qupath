@@ -264,9 +264,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		Set<String> metadataNames = new LinkedHashSet<>();
 		metadataNames.addAll(builderMap.keySet());
 		for (PathObject pathObject : pathObjectListCopy) {
-			if (pathObject instanceof MinimalMetadataStore metadataStore) {
-				metadataNames.addAll(metadataStore.getMetadata().keySet());
-			}
+			metadataNames.addAll(pathObject.getMetadata().keySet());
 		}
 		// Ensure we have suitable builders
 		for (String name : metadataNames) {
@@ -1347,8 +1345,8 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 
 		@Override
 		public String getMeasurementValue(PathObject pathObject) {
-			if (pathObject instanceof MinimalMetadataStore store) {
-				return store.getMetadata().getOrDefault(name, null);
+			if (pathObject != null) {
+				return pathObject.getMetadata().getOrDefault(name, null);
 			}
 			return null;
 		}
