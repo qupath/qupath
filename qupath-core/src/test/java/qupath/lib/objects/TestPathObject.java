@@ -251,7 +251,7 @@ public class TestPathObject {
 
 			// Set the legacy ID - don't automatically update it
 			var core3 = PathObjects.createTMACoreObject(0, 10, 20, 30, false);
-			((MetadataStore)core).putMetadataValue(TMACoreObject.LEGACY_KEY_UNIQUE_ID, id);
+			core.getMetadata().put(TMACoreObject.LEGACY_KEY_UNIQUE_ID, id);
 			assertNull(core3.getCaseID());
 
 			// Update legacy ID during deserialization

@@ -23,6 +23,9 @@
 
 package qupath.lib.objects;
 
+import qupath.lib.interfaces.MinimalMetadataStore;
+
+import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
 
@@ -31,19 +34,11 @@ import java.util.Set;
  * <p>
  * Implementing classes should ensure that entries are stored in insertion order.
  * 
- * @author Pete Bankhead
+ * @deprecated v0.6.0. Use {@link MinimalMetadataStore} instead.
  */
-public interface MetadataStore {
+@Deprecated
+public interface MetadataStore extends MinimalMetadataStore {
 
-	/**
-	 * Returns a modifiable map containing the metadata.
-	 * <p>
-	 * The returned map may or may not be thread-safe. Implementing classes must
-	 * document the thread-safeness of the map.
-	 *
-	 * @return the metadata of this store
-	 */
-	Map<String, String> getMetadata();
 	
 	/**
 	 * Store a new metadata value.
@@ -94,6 +89,16 @@ public interface MetadataStore {
 	@Deprecated
 	default Set<String> getMetadataKeys() {
 		return getMetadata().keySet();
+	}
+
+	/**
+	 * Returns an unmodifiable map containing the metadata.
+	 *
+	 * @return
+	 */
+	@Deprecated
+	default Map<String, String> getMetadataMap() {
+		return Collections.unmodifiableMap(getMetadata());
 	}
 	
 }

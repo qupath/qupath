@@ -39,6 +39,14 @@ This is a *work in progress* for the next major release.
 * `ImageOps.Core.replace()` does not work as expected (https://github.com/qupath/qupath/issues/1564)
 * QuPath doesn't always use the specified file extension when exporting snapshots (https://github.com/qupath/qupath/issues/1567)
 
+### API changes
+* `PathObject` now has a `getMetadata()` method to access key/value `String` pairs
+  * Use judiciously! Adding metadata to any object can increase its memory footprint - 
+    for detections, it is best to try to avoid adding even a single value because then no 
+    storage needs to be created.
+  * `qupath.lib.objects.MetadataStore` is deprecated and will be removed in the next release - 
+    along with older metadata-related methods in `PathObject`.
+
 ### Dependency updates
 * Bio-Formats 7.3.1
 * Commonmark 0.22.0

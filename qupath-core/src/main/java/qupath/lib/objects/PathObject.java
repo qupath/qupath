@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -43,6 +43,7 @@ import org.slf4j.LoggerFactory;
 
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.LogTools;
+import qupath.lib.interfaces.MinimalMetadataStore;
 import qupath.lib.io.PathIO;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.measurements.MeasurementListFactory;
@@ -58,7 +59,7 @@ import qupath.lib.roi.interfaces.ROI;
  * @author Pete Bankhead
  *
  */
-public abstract class PathObject implements Externalizable {
+public abstract class PathObject implements Externalizable, MinimalMetadataStore {
 	
 	private static final long serialVersionUID = 1L;
 		
@@ -1022,7 +1023,9 @@ public abstract class PathObject implements Externalizable {
 	 * @return 
 	 * 
 	 * @see #retrieveMetadataValue
+	 * @deprecated v0.6.0, use {@link #getMetadata()} to directly access the metadata instead.
 	 */
+	@Deprecated
 	protected Object storeMetadataValue(final String key, final String value) {
 		if (metadata == null)
 			metadata = new MetadataMap();
@@ -1036,7 +1039,9 @@ public abstract class PathObject implements Externalizable {
 	 * @return the metadata value if set, or null if not
 	 * 
 	 * @see #storeMetadataValue
+	 * @deprecated v0.6.0, use {@link #getMetadata()} to directly access the metadata instead.
 	 */
+	@Deprecated
 	protected Object retrieveMetadataValue(final String key) {
 		return metadata == null ? null : metadata.get(key);
 	}
@@ -1045,7 +1050,9 @@ public abstract class PathObject implements Externalizable {
 	 * Get the set of metadata keys.
 	 * 
 	 * @return
+	 * @deprecated v0.6.0, use {@link #getMetadata()} to directly access the metadata instead.
 	 */
+	@Deprecated
 	protected Set<String> retrieveMetadataKeys() {
 		return metadata == null ? Collections.emptySet() : metadata.keySet();
 	}
@@ -1054,14 +1061,18 @@ public abstract class PathObject implements Externalizable {
 	 * Get an unmodifiable map of the metadata.
 	 * 
 	 * @return
+	 * @deprecated v0.6.0, use {@link #getMetadata()} to directly access the metadata instead.
 	 */
+	@Deprecated
 	protected Map<String, String> getUnmodifiableMetadataMap() {
 		return metadata == null ? Collections.emptyMap() : Collections.unmodifiableMap(metadata);
 	}
 	
 	/**
 	 * Remove all stored metadata values.
+	 * @deprecated v0.6.0, use {@link #getMetadata()} to directly access the metadata instead.
 	 */
+	@Deprecated
 	protected void clearMetadataMap() {
 		if (metadata != null)
 			metadata.clear();
@@ -1073,6 +1084,7 @@ public abstract class PathObject implements Externalizable {
 	 * @since v0.5.0
 	 * @implNote This is an experimental API change that may be further modified before v0.5.0 is available.
 	 */
+	@Override
 	public Map<String, String> getMetadata() {
 		if (metadata == null)
 			metadata = new MetadataMap();
@@ -1097,7 +1109,7 @@ public abstract class PathObject implements Externalizable {
 				nFields++;
 			}
 			out.writeInt(nFields);
-			if (metadata != null)
+			if (metadata != null && !metadata.isEmpty())
 				out.writeObject(metadata);
 			out.writeObject(measurements);
 		} else {
@@ -1155,13 +1167,14 @@ public abstract class PathObject implements Externalizable {
 			int nFields = in.readInt();
 			for (int i = 0; i < nFields; i++) {
 				nextObject = in.readObject();
-				if (nextObject instanceof MetadataMap) {
+				if (nextObject instanceof MetadataMap mm) {
 					// Read metadata, if we have it
-					metadata = (MetadataMap)nextObject;
-				} else if (nextObject instanceof MeasurementList) {
+					if (!mm.isEmpty())
+						metadata = mm;
+				} else if (nextObject instanceof MeasurementList ml) {
 					// Read a measurement list, if we have one
 					// This is rather hack-ish... but re-closing a list can prompt it to be stored more efficiently
-					measurements = (MeasurementList)nextObject;
+					measurements = ml;
 					measurements.close();
 				} else if (nextObject != null) {
 					logger.debug("Unsupported field during deserialization {}", nextObject);
