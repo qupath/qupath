@@ -23,23 +23,6 @@
 
 package qupath.lib.gui.commands;
 
-import java.awt.image.BufferedImage;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map.Entry;
-import java.util.Set;
-import java.util.concurrent.ForkJoinPool;
-import java.util.WeakHashMap;
-import java.util.function.Function;
-import java.util.stream.Collectors;
-
-import org.controlsfx.control.CheckComboBox;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javafx.animation.Interpolator;
 import javafx.animation.TranslateTransition;
 import javafx.application.Platform;
@@ -79,6 +62,9 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.Text;
 import javafx.stage.Stage;
 import javafx.util.Duration;
+import org.controlsfx.control.CheckComboBox;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.fx.utils.FXUtils;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
@@ -87,12 +73,23 @@ import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
 import qupath.lib.roi.interfaces.ROI;
-import qupath.lib.scripting.QP;
+
+import java.awt.image.BufferedImage;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map.Entry;
+import java.util.Set;
+import java.util.WeakHashMap;
+import java.util.concurrent.ForkJoinPool;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * Grid display of objects.
@@ -389,15 +386,11 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 		CheckComboBox<PathClass> classComboBox = new CheckComboBox<>();
 		selectedClasses = classComboBox.getCheckModel().getCheckedItems();
 		selectedClasses.addListener((ListChangeListener<PathClass>) c -> sortAndFilter());
-		Set<PathClass> representedClasses = qupath.getImageData().getHierarchy().getFlattenedObjectList(null).stream()
-				.filter(p -> !p.isRootObject())
-				.map(PathObject::getPathClass)
-				.filter(p -> p != null && p != PathClass.NULL_CLASS)
-				.collect(Collectors.toSet());
-		// todo: refresh on hierarchy update?
-		classComboBox.getItems().clear();
-		classComboBox.getItems().addAll(representedClasses);
 		FXUtils.installSelectAllOrNoneMenu(classComboBox);
+
+		updateClasses(classComboBox);
+		qupath.getImageData().getHierarchy().addListener(event -> updateClasses(classComboBox));
+
 		classComboBox.getCheckModel().checkAll();
 
 		BorderPane pane = new BorderPane();
@@ -445,6 +438,16 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 		stage.setScene(scene);
 		stage.setOnShowing(e -> refresh());
 		stage.show();
+	}
+
+	private void updateClasses(CheckComboBox<PathClass> classComboBox) {
+		Set<PathClass> representedClasses = qupath.getImageData().getHierarchy().getFlattenedObjectList(null).stream()
+				.filter(p -> !p.isRootObject())
+				.map(PathObject::getPathClass)
+				.filter(p -> p != null && p != PathClass.NULL_CLASS)
+				.collect(Collectors.toSet());
+		classComboBox.getItems().clear();
+		classComboBox.getItems().addAll(representedClasses);
 	}
 
 	private void addSortAndFilterer(ComboBox<String> comboMeasurement) {
