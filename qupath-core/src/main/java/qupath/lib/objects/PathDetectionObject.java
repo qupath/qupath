@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -22,8 +22,6 @@
  */
 
 package qupath.lib.objects;
-
-import java.util.Map;
 
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.measurements.MeasurementList.MeasurementListType;
@@ -73,10 +71,6 @@ public class PathDetectionObject extends PathROIObject {
 		super(pathROI, pathClass);
 	}
 	
-	PathDetectionObject(ROI pathROI) {
-		this(pathROI, null);
-	}
-	
 	/**
 	 * Always returns false - detection objects shouldn't be edited.
 	 */
@@ -92,16 +86,5 @@ public class PathDetectionObject extends PathROIObject {
 	protected MeasurementList createEmptyMeasurementList() {
 		return MeasurementListFactory.createMeasurementList(0, MeasurementListType.FLOAT);
 	}
-	
-	/**
-	 * Get a map of metadata values.
-	 * Note that, for detection objects, this map is unmodifiable to avoid excessive memory use.
-	 * @since v0.5.0
-	 */
-	@Override
-	public Map<String, String> getMetadata() {
-		return getUnmodifiableMetadataMap();
-	}
-
 	
 }

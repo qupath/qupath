@@ -54,6 +54,7 @@ import org.slf4j.LoggerFactory;
 import qupath.lib.geom.Point2;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.interfaces.MinimalMetadataStore;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassTools;
@@ -1524,8 +1525,8 @@ public class PathObjectTools {
 		newObject.setColor(pathObject.getColor());
 		newObject.setLocked(pathObject.isLocked());
 		// Copy over metadata if we have it
-		if (copyMeasurements && newObject instanceof MetadataStore)
-			((MetadataStore)newObject).getMetadata().putAll(pathObject.getUnmodifiableMetadataMap());
+		if (copyMeasurements && !pathObject.getMetadata().isEmpty())
+			newObject.getMetadata().putAll(pathObject.getMetadata());
 		// Retain the ID, if needed
 		if (!createNewIDs)
 			newObject.setID(pathObject.getID());

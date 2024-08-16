@@ -61,7 +61,7 @@ import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.PixelCalibration;
-import qupath.lib.objects.MetadataStore;
+import qupath.lib.interfaces.MinimalMetadataStore;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
@@ -264,9 +264,12 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		Set<String> metadataNames = new LinkedHashSet<>();
 		metadataNames.addAll(builderMap.keySet());
 		for (PathObject pathObject : pathObjectListCopy) {
-			if (pathObject instanceof MetadataStore) {
-				metadataNames.addAll(((MetadataStore)pathObject).getMetadataKeys());
-			}
+			// Don't show metadata keys that start with "_"
+			pathObject.getMetadata()
+					.keySet()
+							.stream()
+									.filter(key -> key != null && !key.startsWith("_"))
+											.forEach(metadataNames::add);
 		}
 		// Ensure we have suitable builders
 		for (String name : metadataNames) {
@@ -1347,9 +1350,8 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 
 		@Override
 		public String getMeasurementValue(PathObject pathObject) {
-			if (pathObject instanceof MetadataStore) {
-				MetadataStore store = (MetadataStore)pathObject;
-				return store.getMetadataString(name);
+			if (pathObject != null) {
+				return pathObject.getMetadata().getOrDefault(name, null);
 			}
 			return null;
 		}

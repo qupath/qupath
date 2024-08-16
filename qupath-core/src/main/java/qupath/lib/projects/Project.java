@@ -33,7 +33,7 @@ import qupath.lib.classifiers.object.ObjectClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
-import qupath.lib.objects.MetadataStore;
+import qupath.lib.interfaces.MinimalMetadataStore;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.projects.ResourceManager.Manager;
 
@@ -44,13 +44,13 @@ import qupath.lib.projects.ResourceManager.Manager;
  *
  * @param <T>
  */
-public interface Project<T> extends MetadataStore {
+public interface Project<T> extends MinimalMetadataStore {
 		
 	/**
 	 * Get an unmodifiable list representing the <code>PathClass</code>es associated with this project.
 	 * @return
 	 */
-	public List<PathClass> getPathClasses();
+	List<PathClass> getPathClasses();
 	
 	/**
 	 * Query whether 'true' or masked image names are being returned.
@@ -59,7 +59,7 @@ public interface Project<T> extends MetadataStore {
 	 * 
 	 * @see #setMaskImageNames(boolean)
 	 */
-	public boolean getMaskImageNames();
+	boolean getMaskImageNames();
 	
 	/**
 	 * Request that entries return masked image names, rather than the 'true' image names.
@@ -71,7 +71,7 @@ public interface Project<T> extends MetadataStore {
 	 * 
 	 * @see #getMaskImageNames()
 	 */
-	public void setMaskImageNames(boolean maskNames);
+	void setMaskImageNames(boolean maskNames);
 	
 	/**
 	 * Update the available PathClasses.
@@ -79,14 +79,14 @@ public interface Project<T> extends MetadataStore {
 	 * @param pathClasses
 	 * @return <code>true</code> if the stored values changed, false otherwise.
 	 */
-	public boolean setPathClasses(Collection<? extends PathClass> pathClasses);
+	boolean setPathClasses(Collection<? extends PathClass> pathClasses);
 	
 	/**
 	 * Get a URI that can be used when saving/reloading this project.
 	 * 
 	 * @return
 	 */
-	public URI getURI();
+	URI getURI();
 	
 	/**
 	 * Sometimes projects move (unfortunately). This returns the previous URI, if known - 
@@ -95,7 +95,7 @@ public interface Project<T> extends MetadataStore {
 	 * 
 	 * @return
 	 */
-	public URI getPreviousURI();
+	URI getPreviousURI();
 	
 	/**
 	 * Extract a usable project name from a URI.
@@ -128,7 +128,7 @@ public interface Project<T> extends MetadataStore {
 	 * 
 	 * @return
 	 */
-	public String getVersion();
+	String getVersion();
 	
 	/**
 	 * Get a path to this project, or null if this project is not on a local file system.
@@ -138,7 +138,7 @@ public interface Project<T> extends MetadataStore {
 	 * @return
 	 * @see ProjectImageEntry#getEntryPath()
 	 */
-	public Path getPath();
+	Path getPath();
 	
 	/**
 	 * Create a sub-project that provides a view on the specified entries.
@@ -150,13 +150,13 @@ public interface Project<T> extends MetadataStore {
 	 * @param entries the entries to retain within the sub-project
 	 * @return
 	 */
-	public Project<T> createSubProject(final String name, final Collection<ProjectImageEntry<T>> entries);
+	Project<T> createSubProject(final String name, final Collection<ProjectImageEntry<T>> entries);
 	
 	/**
 	 * Test if the project contains any images.
 	 * @return
 	 */
-	public boolean isEmpty();
+	boolean isEmpty();
 
 	/**
 	 * Add an image for a particular ImageServer.
@@ -164,7 +164,7 @@ public interface Project<T> extends MetadataStore {
 	 * @return
 	 * @throws IOException 
 	 */
-	public ProjectImageEntry<T> addImage(final ServerBuilder<T> server) throws IOException;
+	ProjectImageEntry<T> addImage(final ServerBuilder<T> server) throws IOException;
 	
 	/**
 	 * Add an image by duplicating an existing entry.
@@ -176,14 +176,14 @@ public interface Project<T> extends MetadataStore {
 	 * @return the new entry that has been added to the project
 	 * @throws IOException
 	 */
-	public ProjectImageEntry<T> addDuplicate(final ProjectImageEntry<T> entry, boolean copyData) throws IOException;
+	ProjectImageEntry<T> addDuplicate(final ProjectImageEntry<T> entry, boolean copyData) throws IOException;
 		
 	/**
 	 * Request a {@link ProjectImageEntry} associated with an {@link ImageData}
 	 * @param imageData
 	 * @return
 	 */
-	public ProjectImageEntry<T> getEntry(final ImageData<T> imageData);
+	ProjectImageEntry<T> getEntry(final ImageData<T> imageData);
 	
 	/**
 	 * Remove an image from the project, optionally including associated data.
@@ -191,7 +191,7 @@ public interface Project<T> extends MetadataStore {
 	 * @param entry
 	 * @param removeAllData 
 	 */
-	public void removeImage(final ProjectImageEntry<?> entry, boolean removeAllData);
+	void removeImage(final ProjectImageEntry<?> entry, boolean removeAllData);
 
 	/**
 	 * Remove multiple images from the project, optionally including associated data.
@@ -199,34 +199,34 @@ public interface Project<T> extends MetadataStore {
 	 * @param entries
 	 * @param removeAllData
 	 */
-	public void removeAllImages(final Collection<ProjectImageEntry<T>> entries, boolean removeAllData);
+	void removeAllImages(final Collection<ProjectImageEntry<T>> entries, boolean removeAllData);
 	
 	/**
 	 * Save the project.
 	 * 
 	 * @throws IOException
 	 */
-	public void syncChanges() throws IOException;
+	void syncChanges() throws IOException;
 	
 	/**
 	 * Get a list of image entries for the project.
 	 * 
 	 * @return
 	 */
-	public List<ProjectImageEntry<T>> getImageList();
+	List<ProjectImageEntry<T>> getImageList();
 	
 	/**
 	 * Get the name of the project.
 	 * 
 	 * @return
 	 */
-	public String getName();
+	String getName();
 	
 	/**
 	 * Request a timestamp from when the project was created.
 	 * @return
 	 */
-	public long getCreationTimestamp();
+	long getCreationTimestamp();
 	
 	/**
 	 * Request a timestamp from when the project was last synchronized.
@@ -234,7 +234,7 @@ public interface Project<T> extends MetadataStore {
 	 * 
 	 * @see #syncChanges()
 	 */
-	public long getModificationTimestamp();
+	long getModificationTimestamp();
 	
 	
 	
@@ -246,7 +246,7 @@ public interface Project<T> extends MetadataStore {
 	 * @return
 	 * @see #getResources(String, Class, String)
 	 */
-	public default Manager<String> getScripts() {
+	default Manager<String> getScripts() {
 		return getResources("scripts", String.class, "groovy");
 	}
 	
@@ -256,7 +256,7 @@ public interface Project<T> extends MetadataStore {
 	 * @return
 	 * @see #getResources(String, Class, String)
 	 */
-	public default Manager<ObjectClassifier<T>> getObjectClassifiers() {
+	default Manager<ObjectClassifier<T>> getObjectClassifiers() {
 		return getResources(ObjectClassifier.PROJECT_LOCATION, ObjectClassifier.class, "json");
 	}
 	
@@ -266,7 +266,7 @@ public interface Project<T> extends MetadataStore {
 	 * @return
 	 * @see #getResources(String, Class, String)
 	 */
-	public default Manager<PixelClassifier> getPixelClassifiers() {
+	default Manager<PixelClassifier> getPixelClassifiers() {
 		return getResources(PixelClassifier.PROJECT_LOCATION, PixelClassifier.class, "json");
 	}
 	
@@ -281,7 +281,7 @@ public interface Project<T> extends MetadataStore {
 	 * @return a {@link Manager} for the specified resource, or {@code null} if the project does not support the resource or extension.
 	 * @implNote the default implementation returns null. Subclasses should override this.
 	 */
-	public default <S, R extends S> Manager<R> getResources(String location, Class<S> cls, String ext) {
+	default <S, R extends S> Manager<R> getResources(String location, Class<S> cls, String ext) {
 		return null;
 	}
 }
