@@ -14,6 +14,7 @@ This is a *work in progress* for the next major release.
   * Images remain sorted after adding new metadata values
   * A warning indicator is shown if image files are missing
     * Use the 'Skip file checks in projects' preference if you need to turn this off (e.g. your images are on a slow network)
+* Project sorting is persistent when projects are re-opened (https://github.com/qupath/qupath/pull/1584)
 * Create a new channel as a linear combination of other channels (https://github.com/qupath/qupath/pull/1566)
 * Simplify `TileClassificationsToAnnotationsPlugin` implementation (https://github.com/qupath/qupath/pull/1563)
 * Add methods to `PathObjectHierarchy` to simplify requesting objects for regions (https://github.com/qupath/qupath/pull/1563)
@@ -40,12 +41,14 @@ This is a *work in progress* for the next major release.
 * QuPath doesn't always use the specified file extension when exporting snapshots (https://github.com/qupath/qupath/issues/1567)
 
 ### API changes
-* `PathObject` now has a `getMetadata()` method to access key/value `String` pairs
-  * Use judiciously! Adding metadata to any object can increase its memory footprint - 
+* New `Map<String, String> getMetadata()` method added to `PathObject`, `Project` and `ProjectImageEntry` (https://github.com/qupath/qupath/pull/1587)
+  * Supports storing key/value `String` pairs
+  * Use judiciously with `PathObject`! Adding metadata to any object can increase its memory footprint - 
     for detections, it is best to try to avoid adding even a single value because then no 
     storage needs to be created.
   * `qupath.lib.objects.MetadataStore` is deprecated and will be removed in the next release - 
-    along with older metadata-related methods in `PathObject`.
+    along with older metadata-related methods in `PathObject` and `ProjectImageEntry`
+  * _Extensions with subclasses may need updated for compatibity by implementing `getMetadata()`_
 
 ### Dependency updates
 * Bio-Formats 7.3.1

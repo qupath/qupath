@@ -224,11 +224,7 @@ class DefaultProject implements Project<BufferedImage> {
 	}
 	
 	private boolean addImage(final DefaultProjectImageEntry entry) {
-		images.add(entry);
-//		if (images.containsKey(entry.getServerPath()))
-//			return false;
-//		images.put(entry.getServerPath(), entry);
-		return true;
+		return images.add(entry);
 	}
 	
 	private File getFile() {
@@ -304,6 +300,11 @@ class DefaultProject implements Project<BufferedImage> {
 				if (img != null)
 					entryNew.setThumbnail(img);
 			}
+			// TODO: Consider whether description & metadata should be set
+			// This hasn't been done at least in v0.5.x, but I'm not sure if that was intentional...
+//			entryNew.setDescription(entry.getDescription());
+//			for (String key : entry.getMetadataKeys())
+//				entryNew.putMetadataValue(key, entry.getMetadataValue(key));
 			return entryNew;
 		}
 		throw new IOException("Unable to add duplicate of " + entry);
@@ -313,20 +314,16 @@ class DefaultProject implements Project<BufferedImage> {
 	@Override
 	public ProjectImageEntry<BufferedImage> getEntry(final ImageData<BufferedImage> imageData) {
 		Object id = imageData.getProperty(IMAGE_ID);
-//		String id = imageData.getServer().getPath();
 		for (var entry : images) {
 			if (entry.getFullProjectEntryID().equals(id))
 				return entry;
 		}
 		return null;
-//		return images.get(imageData.getServer().getPath());
-//		return images.get(imageData.getProperty(IMAGE_ID));
 	}
 
 	@Override
 	public void removeImage(final ProjectImageEntry<?> entry, boolean removeAllData) {
 		boolean couldRemove = images.remove(entry);
-//		images.remove(entry.getServerPath());
 		// Need to make sure we only delete data if it's really inside this project!
 		if (couldRemove && removeAllData && entry instanceof DefaultProjectImageEntry) {
 			((DefaultProjectImageEntry)entry).moveDataToTrash();
@@ -344,11 +341,6 @@ class DefaultProject implements Project<BufferedImage> {
 		writeProject(getFile());
 		writePathClasses(pathClasses);
 		setStoredMetadata(getBasePath(), metadata);
-//		if (file.isDirectory())
-//			file = new File(dirBase, "project.qpproj");
-//		var json = new GsonBuilder().setLenient().setPrettyPrinting().create().toJson(this);
-//		Files.writeString(file.toPath(), json);
-//		logger.warn("Syncing project not yet implemented!");
 	}
 	
 	@Override
@@ -362,15 +354,13 @@ class DefaultProject implements Project<BufferedImage> {
 	}
 
 	/**
-	 * Get a list of image entries for the project.
+	 * Get an unmodifiable list of image entries for the project.
 	 * 
 	 * @return
 	 */
 	@Override
 	public List<ProjectImageEntry<BufferedImage>> getImageList() {
-		List<ProjectImageEntry<BufferedImage>> list = new ArrayList<>(images);
-//		list.sort(ImageEntryComparator.instance);
-		return list;
+		return Collections.unmodifiableList(images);
 	}
 	
 	
@@ -451,7 +441,7 @@ class DefaultProject implements Project<BufferedImage> {
 		/**
 		 * Map of associated metadata for the entry.
 		 */
-		private Map<String, String> metadata = new LinkedHashMap<>();
+		private Map<String, String> metadata = Collections.synchronizedMap(new LinkedHashMap<>());
 
 		/**
 		 * Store a soft reference to the thumbnail, so that it can be garbage collected if necessary.
@@ -490,19 +480,8 @@ class DefaultProject implements Project<BufferedImage> {
 			this.entryID = entry.entryID;
 			this.imageName = entry.imageName;
 			this.description = entry.description;
-			this.metadata = entry.metadata;
-		}
-		
-		/**
-		 * Copy the name, description and metadata from another entry.
-		 * @param entry
-		 * @throws IOException
-		 */
-		void copyPropertiesFromEntry(final ProjectImageEntry<BufferedImage> entry) throws IOException {
-			setImageName(entry.getImageName());
-			setDescription(entry.getDescription());
-			for (String key : entry.getMetadataKeys())
-				putMetadataValue(key, entry.getMetadataValue(key));
+			if (entry.metadata != null)
+				this.metadata.putAll(entry.metadata);
 		}
 		
 		/**
@@ -579,11 +558,6 @@ class DefaultProject implements Project<BufferedImage> {
 		String getUniqueName() {
 			return Long.toString(entryID);
 		}
-		
-//		@Override
-//		public String getServerPath() {
-//			return serverID;
-//		}
 
 		@Override
 		public String getImageName() {
@@ -611,26 +585,6 @@ class DefaultProject implements Project<BufferedImage> {
 		}
 		
 		@Override
-		public String removeMetadataValue(final String key) {
-			return metadata.remove(key);
-		}
-		
-		@Override
-		public String getMetadataValue(final String key) {
-			return metadata.get(key);
-		}
-
-		@Override
-		public String putMetadataValue(final String key, final String value) {
-			return metadata.put(key, value);
-		}
-		
-		@Override
-		public boolean containsMetadata(final String key) {
-			return metadata.containsKey(key);
-		}
-		
-		@Override
 		public String getDescription() {
 			return description;
 		}
@@ -641,18 +595,8 @@ class DefaultProject implements Project<BufferedImage> {
 		}
 		
 		@Override
-		public void clearMetadata() {
-			this.metadata.clear();
-		}
-		
-		@Override
-		public Map<String, String> getMetadataMap() {
-			return Collections.unmodifiableMap(metadata);
-		}
-		
-		@Override
-		public Collection<String> getMetadataKeys() {
-			return Collections.unmodifiableSet(metadata.keySet());
+		public Map<String, String> getMetadata() {
+			return metadata;
 		}
 		
 		@Override
@@ -1007,35 +951,14 @@ class DefaultProject implements Project<BufferedImage> {
 
 		Gson gson = GsonTools.getInstance(true);
 		
-//		List<PathClass> pathClasses = project.getPathClasses();
-//		JsonArray pathClassArray = null;
-//		if (!pathClasses.isEmpty()) {
-//			pathClassArray = new JsonArray();
-//			for (PathClass pathClass : pathClasses) {
-//				JsonObject jsonEntry = new JsonObject();
-//				jsonEntry.addProperty("name", pathClass.toString());
-//				jsonEntry.addProperty("color", pathClass.getColor());
-//				pathClassArray.add(jsonEntry);
-//			}
-//		}		
-		
 		JsonObject builder = new JsonObject();
 		builder.addProperty("version", LATEST_VERSION);
 		builder.addProperty("createTimestamp", getCreationTimestamp());
 		builder.addProperty("modifyTimestamp", getModificationTimestamp());
 		builder.addProperty("uri", fileProject.toURI().toString());
 		builder.addProperty("lastID", counter.get());
-//		if (pathClassArray != null) {
-//			builder.add("pathClasses", pathClassArray);			
-//		}
-		
-//		JsonElement array = new JsonArray();
-//		for (var entry : images.values()) {
-//			entry.
-//			builder.add("images", array);
-//		}
+
 		builder.add("images", gson.toJsonTree(images));
-		
 		
 		// Write project to a new file
 		var pathProject = fileProject.toPath();
@@ -1044,11 +967,6 @@ class DefaultProject implements Project<BufferedImage> {
 		try (var writer = Files.newBufferedWriter(pathTempNew, StandardCharsets.UTF_8)) {
 			gson.toJson(builder, writer);
 		}
-//		// In Java 12 we could check if there is a mismatch - to avoid writing unnecessarily (and reducing the usefulness of any backup)
-//		if (Files.mismatch(pathTempNew, pathProject) == -1) {
-//			logger.debug("Project contents are unchanged - no need to overwrite file");
-//			return;
-//		}
 		
 		// If we already have a project, back it up
 		if (fileProject.exists()) {
@@ -1059,26 +977,7 @@ class DefaultProject implements Project<BufferedImage> {
 		
 		// If this succeeded, rename files
 		logger.debug("Renaming project to {}", pathProject);
-		Files.move(pathTempNew, pathProject, StandardCopyOption.REPLACE_EXISTING);	
-		
-		
-//		// TODO: Consider the (admittedly unexpected) case where the JSON is too long for a String
-//		var jsonString = gson.toJson(builder);
-//
-//		// If we already have a project, back it up
-//		if (fileProject.exists()) {
-//			File fileBackup = new File(fileProject.getAbsolutePath() + ".backup");
-//			if (fileProject.renameTo(fileBackup))
-//				logger.debug("Existing project file backed up at {}", fileBackup.getAbsolutePath());
-//			else
-//				logger.debug("Unable to backup existing project to {}", fileBackup.getAbsolutePath());				
-//		}
-//
-//		// Write project
-//		logger.info("Writing project to {}", fileProject.getAbsolutePath());
-//		try (PrintWriter writer = new PrintWriter(fileProject, StandardCharsets.UTF_8)) {
-//			writer.write(jsonString);
-//		}
+		Files.move(pathTempNew, pathProject, StandardCopyOption.REPLACE_EXISTING);
 	}
 	
 	
