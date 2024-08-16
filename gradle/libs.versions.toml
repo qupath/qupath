@@ -2,7 +2,7 @@
 
 bioformats      = "7.3.1"
 bioimageIoSpec  = "0.1.0"
-omeZarrReader   = "0.5.1"
+omeZarrReader   = "0.5.2"
 blosc           = "1.21.5"
 
 commonmark      = "0.22.0"
@@ -128,4 +128,4 @@ javafx         = { id = "org.openjfx.javafxplugin",                 version = "0
 #javafx         = { id = "org.openjfx.javafxplugin",                 version = "0.0.14" }
 jpackage       = { id = "org.beryx.runtime",                        version = "1.13.0" } # Non-modular
 # jpackage       = { id = "org.beryx.jlink",                          version = "2.26.0" } # Modular
-license-report = { id = "com.github.jk1.dependency-license-report", version = "2.8" }
+license-report = { id = "com.github.jk1.dependency-license-report", version = "2.9" }
