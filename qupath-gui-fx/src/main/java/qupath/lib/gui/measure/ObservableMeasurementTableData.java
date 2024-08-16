@@ -264,7 +264,12 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		Set<String> metadataNames = new LinkedHashSet<>();
 		metadataNames.addAll(builderMap.keySet());
 		for (PathObject pathObject : pathObjectListCopy) {
-			metadataNames.addAll(pathObject.getMetadata().keySet());
+			// Don't show metadata keys that start with "_"
+			pathObject.getMetadata()
+					.keySet()
+							.stream()
+									.filter(key -> key != null && !key.startsWith("_"))
+											.forEach(metadataNames::add);
 		}
 		// Ensure we have suitable builders
 		for (String name : metadataNames) {

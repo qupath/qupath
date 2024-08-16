@@ -593,7 +593,14 @@ class DefaultProject implements Project<BufferedImage> {
 		public void setDescription(final String description) {
 			this.description = description;
 		}
-		
+		/**
+		 * Returns a thread-safe and modifiable map containing the metadata
+		 * of this entry.
+		 * <p>
+		 * Modifications to this map are saved when calling {@link #syncChanges()}.
+		 *
+		 * @return the metadata of this entry
+		 */
 		@Override
 		public Map<String, String> getMetadata() {
 			return metadata;

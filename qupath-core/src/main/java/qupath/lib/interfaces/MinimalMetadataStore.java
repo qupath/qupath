@@ -25,6 +25,11 @@ import java.util.Map;
 
 /**
  * Minimal interface to indicate that an object can provide a map of metadata key/value pairs.
+ * <p>
+ * In some use-cases, there will be a need to store some metadata values for internal use
+ * and others that should be visible to the user.
+ * When this is the case, it is suggested to use the convention that metadata keys that start with {@code "_"}
+ * are to be used internally, but this is not enforced by this interface.
  */
 public interface MinimalMetadataStore {
 

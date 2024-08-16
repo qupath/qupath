@@ -73,7 +73,7 @@ public abstract class PathObject implements Externalizable, MinimalMetadataStore
 	private Collection<PathObject> childList = null; // Collections.synchronizedList(new ArrayList<>(0));
 	private MeasurementList measurements = null;
 	
-	private MetadataMap metadata = null;
+	private volatile MetadataMap metadata = null;
 	
 	private String name = null;
 	private Integer color;
@@ -1080,15 +1080,24 @@ public abstract class PathObject implements Externalizable, MinimalMetadataStore
 	
 	/**
 	 * Get a key/value pair map for object metadata.
+	 * <p>
+	 * Note that the returned map currently is <i>not</i> threadsafe.
+	 * This may change in future versions.
+	 * <p>
+	 * When adding metadata,
 	 * @return
 	 * @since v0.5.0
-	 * @implNote This is an experimental API change that may be further modified before v0.5.0 is available.
 	 */
 	@Override
 	public Map<String, String> getMetadata() {
-		if (metadata == null)
-			metadata = new MetadataMap();
-		return metadata;
+		var map = metadata;
+		if (map == null) {
+			synchronized (this) {
+				if (metadata == null)
+					metadata = map = new MetadataMap();
+			}
+		}
+		return map;
 	}
 	
 	
