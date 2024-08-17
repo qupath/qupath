@@ -199,6 +199,8 @@ public interface MeasurementList extends Serializable, AutoCloseable {
 
 	/**
 	 * Get the names of all measurements currently in the list.
+	 * Note that this method should return an unmodifiable snapshot of the current names, and not be affected by
+	 * changes to the list.
 	 * @return
 	 */
 	List<String> getMeasurementNames();
