@@ -301,17 +301,7 @@ public abstract class PathObject implements Externalizable, MinimalMetadataStore
 			throw new IllegalArgumentException("PathRootObject cannot be added as child to another PathObject"); //J 
 		addChildObjectImpl(pathObject);
 	}
-	
-	/**
-	 * Legacy method to add a single child object.
-	 * @param pathObject
-	 * @deprecated since v0.4.0, replaced by {@link #addChildObject(PathObject)}
-	 */
-	@Deprecated
-	public void addPathObject(PathObject pathObject) {
-		LogTools.warnOnce(logger, "addPathObject(Collection) is deprecated - use addChildObject(Collection) instead");
-		addChildObject(pathObject);
-	}
+
 	
 	private synchronized void addChildObjectImpl(PathObject pathObject) {
 		ensureChildList(nChildObjects() + 1);
@@ -411,17 +401,7 @@ public abstract class PathObject implements Externalizable, MinimalMetadataStore
 	public synchronized void addChildObjects(Collection<? extends PathObject> pathObjects) {
 		addChildObjectsImpl(pathObjects);
 	}
-	
-	/**
-	 * Legacy method to add child objects.
-	 * @param pathObjects
-	 * @deprecated since v0.4.0, replaced by {@link #addChildObjects(Collection)}
-	 */
-	@Deprecated
-	public void addPathObjects(Collection<? extends PathObject> pathObjects) {
-		LogTools.warnOnce(logger, "addPathObjects(Collection) is deprecated - use addChildObjects(Collection) instead");
-		addChildObjects(pathObjects);
-	}
+
 
 	/**
 	 * Remove a single object from the child list of this object.
@@ -435,17 +415,7 @@ public abstract class PathObject implements Externalizable, MinimalMetadataStore
 			pathObject.parent = null; //.setParent(null);
 		childList.remove(pathObject);
 	}
-	
-	/**
-	 * Legacy method to remove a single child object.
-	 * @param pathObject
-	 * @deprecated since v0.4.0, replaced by {@link #removeChildObject(PathObject)}
-	 */
-	@Deprecated
-	public void removePathObject(PathObject pathObject) {
-		LogTools.warnOnce(logger, "removePathObject(PathObject) is deprecated - use removeChildObject(PathObject) instead");
-		removeChildObject(pathObject);
-	}
+
 	
 	/**
 	 * Remove multiple objects from the child list of this object.
@@ -463,17 +433,7 @@ public abstract class PathObject implements Externalizable, MinimalMetadataStore
 			removeAllQuickly(childList, pathObjects);
 		}
 	}
-	
-	/**
-	 * Legacy method to remove specified child objects.
-	 * @param pathObjects 
-	 * @deprecated since v0.4.0, replaced by {@link #removeChildObjects(Collection)}
-	 */
-	@Deprecated
-	public void removePathObjects(Collection<PathObject> pathObjects) {
-		LogTools.warnOnce(logger, "removePathObjects(Collection) is deprecated - use removeChildObjects(Collection) instead");
-		removeChildObjects(pathObjects);
-	}
+
 	
 	/**
 	 * Remove all child objects.
@@ -490,16 +450,7 @@ public abstract class PathObject implements Externalizable, MinimalMetadataStore
 			childList.clear();
 		}
 	}
-	
-	/**
-	 * Legacy method to remove all child objects.
-	 * @deprecated since v0.4.0, replaced by {@link #clearChildObjects()}
-	 */
-	@Deprecated
-	public void clearPathObjects() {
-		LogTools.warnOnce(logger, "clearPathObjects() is deprecated, use clearChildObjects() instead");
-		clearChildObjects();
-	}
+
 	
 	/**
 	 * Total number of child objects.
@@ -535,22 +486,12 @@ public abstract class PathObject implements Externalizable, MinimalMetadataStore
 	/**
 	 * Check if this object has children, or if its child object list is empty.
 	 * @return
-	 * @since v0.4.0, replaces {@link #hasChildren()} for more consistent naming
+	 * @since v0.4.0
 	 */
 	public boolean hasChildObjects() {
 		return childList != null && !childList.isEmpty();
 	}
-	
-	/**
-	 * Legacy method to check for child objects.
-	 * @return
-	 * @deprecated since v0.4.0, replaced by {@link #hasChildObjects()}
-	 */
-	@Deprecated
-	public boolean hasChildren() {
-		LogTools.warnOnce(logger, "hasChildren() is deprecated - use hasChildObjects() instead");
-		return hasChildObjects();
-	}
+
 	
 	/**
 	 * Returns true if this object has a ROI.
@@ -871,7 +812,6 @@ public abstract class PathObject implements Externalizable, MinimalMetadataStore
 	 * <p>
 	 * This may be null if no color has been set.
 	 * @return
-	 * @see #setColorRGB(Integer)
 	 * @see ColorTools#red(int)
 	 * @see ColorTools#green(int)
 	 * @see ColorTools#blue(int)
@@ -879,30 +819,6 @@ public abstract class PathObject implements Externalizable, MinimalMetadataStore
 	 */
 	public Integer getColor() {
 		return color;
-	}
-	
-	/**
-	 * Return any stored color as a packed RGB value.
-	 * <p>
-	 * This may be null if no color has been set
-	 * @return
-	 * @deprecated since v0.4.0, use {@link #getColor()} instead.
-	 */
-	@Deprecated
-	public Integer getColorRGB() {
-		LogTools.warnOnce(logger, "PathObject.getColorRGB() is deprecated since v0.4.0 - use getColor() instead");
-		return getColor();
-	}
-	
-	/**
-	 * Set the display color.
-	 * @param color
-	 * @deprecated since v0.4.0, use {@link #setColor(Integer)} instead.
-	 */
-	@Deprecated
-	public void setColorRGB(Integer color) {
-		LogTools.warnOnce(logger, "PathObject.setColorRGB(Integer) is deprecated since v0.4.0 - use setColor(Integer) instead");
-		setColor(color);
 	}
 	
 	/**
