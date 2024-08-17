@@ -134,9 +134,9 @@ public class TestPathObject {
 	@MethodSource("provideObjects")
 	public void test_measurementMapAndList(PathObject p) {
 		
-		p.getMeasurementList().addMeasurement("added", 1);
+		p.getMeasurementList().put("added", 1);
 		assertEquals(1, p.getMeasurementList().size());
-		p.getMeasurementList().addMeasurement("added", 2);
+		p.getMeasurementList().put("added", 2);
 		assertEquals(1, p.getMeasurementList().size());
 		assertEquals(2, p.getMeasurementList().get("added"));
 		

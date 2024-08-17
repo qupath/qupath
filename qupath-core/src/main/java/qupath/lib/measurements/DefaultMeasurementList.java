@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -24,9 +24,9 @@
 package qupath.lib.measurements;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * A MeasurementList implementation that simply stores a list of Measurement objects.
@@ -62,10 +62,14 @@ class DefaultMeasurementList implements MeasurementList {
 	
 	@Override
 	public synchronized List<String> getMeasurementNames() {
-		List<String> names = new ArrayList<>();
-		for (Measurement m : list)
-			names.add(m.getName());
-		return Collections.unmodifiableList(names);
+		return list.stream()
+				.map(Measurement::getName)
+				.toList();
+	}
+
+	@Override
+	public synchronized String getMeasurementName(int ind) {
+		return list.get(ind).getName();
 	}
 	
 	@Override
@@ -91,22 +95,6 @@ class DefaultMeasurementList implements MeasurementList {
 				return true;
 		return false;
 	}
-	
-	@Override
-	public synchronized String getMeasurementName(int ind) {
-		return list.get(ind).getName();
-	}
-
-//	@Override
-//	public void setMeasurement(int ind, double value) {
-//		set(ind, MeasurementFactory.createMeasurement(
-//				getMeasurementName(ind), value));
-//	}
-
-	@Override
-	public boolean supportsDynamicMeasurements() {
-		return true;
-	}
 
 	@Override
 	public int size() {
@@ -118,36 +106,9 @@ class DefaultMeasurementList implements MeasurementList {
 		return list.isEmpty();
 	}
 
-//	@Override
-//	public void clear() {
-//		list.clear();
-//	}
-
 	private void compactStorage() {
 		list.trimToSize();
 	}
-
-	@Override
-	public synchronized Measurement putMeasurement(Measurement measurement) {
-		// Ensure we aren't adding duplicate measurements
-		String name = measurement.getName();
-		int ind = 0;
-		for (Measurement m : list) {
-			if (m.getName().equals(name))
-				break;
-			ind++;
-		}
-		if (ind < list.size()) {
-			return list.set(ind, measurement);
-		}
-		list.add(measurement);
-		return null;
-	}
-
-//	@Override
-//	public boolean remove(Object o) {
-//		return list.remove(o);
-//	}
 
 	@Override
 	public synchronized void close() {
@@ -156,7 +117,18 @@ class DefaultMeasurementList implements MeasurementList {
 
 	@Override
 	public synchronized void put(String name, double value) {
-		putMeasurement(MeasurementFactory.createMeasurement(name, value));
+		// Ensure we aren't adding duplicate measurements
+		var measurement = MeasurementFactory.createMeasurement(name, value);
+		int ind = 0;
+		for (Measurement m : list) {
+			if (m.getName().equals(name))
+				break;
+			ind++;
+		}
+		if (ind < list.size()) {
+			list.set(ind, measurement);
+		}
+		list.add(measurement);
 	}
 
 	@Override
@@ -187,16 +159,13 @@ class DefaultMeasurementList implements MeasurementList {
 	
 	@Override
 	public synchronized String toString() {
-		StringBuilder sb = new StringBuilder();
-		int n = size();
-		sb.append("[");
-		for (int i = 0; i < n; i++) {
-			sb.append(getMeasurementName(i)).append(": ").append(getMeasurementValue(i));
-			if (i < n - 1)
-				sb.append(", ");
-		}
-		sb.append("]");
-		return sb.toString();
+		return "[" + list.stream()
+				.map(DefaultMeasurementList::toString)
+				.collect(Collectors.joining(", ")) + "]";
+	}
+
+	private static String toString(Measurement m) {
+		return m.getName() + ": " + m.getValue();
 	}
 	
 }
