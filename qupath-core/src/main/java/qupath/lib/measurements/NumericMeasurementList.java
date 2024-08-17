@@ -282,7 +282,7 @@ class NumericMeasurementList {
 		}
 
 		@Override
-		public synchronized void removeMeasurements(String... measurementNames) {
+		public synchronized void removeAll(String... measurementNames) {
 			isClosed = isClosed();
 			for (String name : measurementNames) {
 				remove(name);
@@ -322,15 +322,15 @@ class NumericMeasurementList {
 			if (n == 0)
 				return Collections.emptyList();
 			else if (n == 1)
-				return List.of(getMeasurement(0));
+				return List.of(getByIndex(0));
 			else
 				return IntStream.range(0, n)
-					.mapToObj(this::getMeasurement)
+					.mapToObj(this::getByIndex)
 					.toList();
 		}
 
 		@Override
-		public synchronized Measurement getMeasurement(int ind) {
+		public synchronized Measurement getByIndex(int ind) {
 			return MeasurementFactory.createMeasurement(names.get(ind), values[ind]);
 		}
 
@@ -411,15 +411,15 @@ class NumericMeasurementList {
 			if (n == 0)
 				return Collections.emptyList();
 			else if (n == 1)
-				return List.of(getMeasurement(0));
+				return List.of(getByIndex(0));
 			else
 				return IntStream.range(0, n)
-						.mapToObj(this::getMeasurement)
+						.mapToObj(this::getByIndex)
 						.toList();
 		}
 
 		@Override
-		public synchronized Measurement getMeasurement(int ind) {
+		public synchronized Measurement getByIndex(int ind) {
 			return MeasurementFactory.createMeasurement(names.get(ind), values[ind]);
 		}
 		

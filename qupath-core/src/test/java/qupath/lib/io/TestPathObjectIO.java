@@ -171,8 +171,8 @@ public class TestPathObjectIO {
 		assertEquals(ml1.size(), ml2.size());
 		assertEquals(ml1.getNames(), ml2.getNames());
 		for (int i = 0; i < ml1.size(); i++) {
-			double val1 = ml1.getMeasurement(i).getValue();
-			double val2 = ml2.getMeasurement(i).getValue();
+			double val1 = ml1.getByIndex(i).getValue();
+			double val2 = ml2.getByIndex(i).getValue();
 			if (Double.isNaN(val1))
 				assertTrue(Double.isNaN(val2));
 			else

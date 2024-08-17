@@ -90,7 +90,7 @@ public interface MeasurementList extends Serializable, AutoCloseable {
 	 * This provides a snapshot of the current measurement, and should not be affected by changes to the list.
 	 * @return
 	 */
-	Measurement getMeasurement(int ind);
+	Measurement getByIndex(int ind);
 
 	/**
 	 * Get the specified measurement, or the provided default value if it is not contained in the list.
@@ -254,7 +254,17 @@ public interface MeasurementList extends Serializable, AutoCloseable {
 	 * Remove all the measurements with the specified names.
 	 * @param measurementNames
 	 */
-	void removeMeasurements(String... measurementNames);
+	void removeAll(String... measurementNames);
+
+	/**
+	 * Remove all the measurements with the specified names.
+	 * @param measurementNames
+	 * @deprecated v0.6.0 use {@link #removeAll(String...)} instead
+	 */
+	@Deprecated
+	default void removeMeasurements(String... measurementNames) {
+		removeAll(measurementNames);
+	}
 	
 	/**
 	 * Remove all the measurements from the list.

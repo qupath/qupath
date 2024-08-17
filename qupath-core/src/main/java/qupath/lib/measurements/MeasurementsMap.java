@@ -158,7 +158,7 @@ class MeasurementsMap extends AbstractMap<String, Number> implements Map<String,
 
 				@Override
 				public Entry<String, Number> next() {
-					var measurement = list.getMeasurement(i);
+					var measurement = list.getByIndex(i);
 					Entry<String, Number> entry = new SimpleImmutableEntry<>(
 							measurement.getName(), measurement.getValue());
 					i++;

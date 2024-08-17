@@ -162,11 +162,11 @@ public class TestPathObject {
 		// Not expected to pass! val is unboxed internally, precise value not stored
 //		assertSame(val, p.getMeasurements().get("mapAdded"));
 		
-		p.getMeasurementList().removeMeasurements("Not there");
+		p.getMeasurementList().removeAll("Not there");
 		assertEquals(3, p.getMeasurementList().size());
 		assertEquals(3, p.getMeasurements().size());
 		
-		p.getMeasurementList().removeMeasurements("put");
+		p.getMeasurementList().removeAll("put");
 		assertEquals(2, p.getMeasurementList().size());
 		assertEquals(2, p.getMeasurements().size());
 
@@ -196,7 +196,7 @@ public class TestPathObject {
 		double[] listValuesByName = new double[p.getMeasurementList().size()];
 		double[] listValuesAsArray = p.getMeasurementList().values();
 		for (int i = 0; i < listValues.length; i++) {
-			var m = p.getMeasurementList().getMeasurement(i);
+			var m = p.getMeasurementList().getByIndex(i);
 			listValues[i] = m.getValue();
 			listValuesByName[i] = p.getMeasurementList().get(m.getName());
 		}

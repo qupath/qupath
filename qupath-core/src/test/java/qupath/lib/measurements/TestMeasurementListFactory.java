@@ -79,7 +79,7 @@ public class TestMeasurementListFactory {
 		// Check access after removing
 		for (int i = 0; i < 10; i++) {
 			String name = names.remove(i);
-			list.removeMeasurements(name);
+			list.removeAll(name);
 		}
 		assertTrue(list.size() == names.size());
 		assertTrue(list.getNames().containsAll(names));

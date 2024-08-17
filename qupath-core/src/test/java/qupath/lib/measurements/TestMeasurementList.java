@@ -219,7 +219,7 @@ public class TestMeasurementList {
         // Successful remove
         var names = list.getNames();
         var toRemove = names.subList(1, 3);
-        list.removeMeasurements(toRemove.toArray(String[]::new));
+        list.removeAll(toRemove.toArray(String[]::new));
         var newNames = list.getNames();
         assertEquals(n - toRemove.size(), list.size());
         for (var name : toRemove) {

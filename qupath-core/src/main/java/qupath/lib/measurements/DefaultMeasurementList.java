@@ -74,7 +74,7 @@ class DefaultMeasurementList implements MeasurementList {
 	}
 
 	@Override
-	public Measurement getMeasurement(int ind) {
+	public Measurement getByIndex(int ind) {
 		return list.get(ind);
 	}
 
@@ -153,7 +153,7 @@ class DefaultMeasurementList implements MeasurementList {
 	}
 
 	@Override
-	public synchronized void removeMeasurements(String... measurementNames) {
+	public synchronized void removeAll(String... measurementNames) {
 		for (String name : measurementNames) {
 			int ind = 0;
 			for (Measurement m : list) {
