@@ -23,6 +23,8 @@
 
 package qupath.lib.measurements;
 
+import java.util.Objects;
+
 /**
  * Factory for creating new Measurement objects.
  * <p>
@@ -33,8 +35,7 @@ package qupath.lib.measurements;
  * @author Pete Bankhead
  *
  */
-@Deprecated
-public class MeasurementFactory {
+class MeasurementFactory {
 	
 	/**
 	 * Create a measurement with a double value.
@@ -54,6 +55,16 @@ public class MeasurementFactory {
 	 */
 	public static Measurement createMeasurement(final String name, final float value) {
 		return new FloatMeasurement(name, (float)value);
+	}
+
+	static boolean isEqual(Measurement m1, Measurement m2) {
+		if (m1 == m2)
+			return true;
+		return Objects.equals(m1.getName(), m2.getName()) && m1.getValue() == m2.getValue();
+	}
+
+	static int hash(Measurement m) {
+		return Objects.hash(m.getName(), m.getValue());
 	}
 	
 }
@@ -78,7 +89,7 @@ class DoubleMeasurement implements Measurement {
 
 	@Override
 	public String toString() {
-		return getName() + ": " + Double.toString(getValue());
+		return getName() + ": " + getValue();
 	}
 
 	@Override
@@ -87,10 +98,20 @@ class DoubleMeasurement implements Measurement {
 	}
 
 	@Override
-	public boolean isDynamic() {
-		return false;
+	public boolean equals(Object o) {
+		if (this == o)
+			return true;
+		if (o instanceof Measurement that) {
+			return MeasurementFactory.isEqual(this, that);
+		} else {
+			return false;
+		}
 	}
 
+	@Override
+	public int hashCode() {
+		return MeasurementFactory.hash(this);
+	}
 }
 
 
@@ -115,7 +136,7 @@ class FloatMeasurement implements Measurement {
 
 	@Override
 	public String toString() {
-		return getName() + ": " + Double.toString(getValue());
+		return getName() + ": " + getValue();
 	}
 
 	@Override
@@ -124,8 +145,19 @@ class FloatMeasurement implements Measurement {
 	}
 
 	@Override
-	public boolean isDynamic() {
-		return false;
+	public boolean equals(Object o) {
+		if (this == o)
+			return true;
+		if (o instanceof Measurement that) {
+			return MeasurementFactory.isEqual(this, that);
+		} else {
+			return false;
+		}
+	}
+
+	@Override
+	public int hashCode() {
+		return MeasurementFactory.hash(this);
 	}
 
 }

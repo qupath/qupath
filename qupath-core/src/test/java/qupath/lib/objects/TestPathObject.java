@@ -196,8 +196,9 @@ public class TestPathObject {
 		double[] listValuesByName = new double[p.getMeasurementList().size()];
 		double[] listValuesAsArray = p.getMeasurementList().values();
 		for (int i = 0; i < listValues.length; i++) {
-			listValues[i] = p.getMeasurementList().getMeasurementValue(i);
-			listValuesByName[i] = p.getMeasurementList().get(p.getMeasurementList().getMeasurementName(i));
+			var m = p.getMeasurementList().getMeasurement(i);
+			listValues[i] = m.getValue();
+			listValuesByName[i] = p.getMeasurementList().get(m.getName());
 		}
 		double[] mapValues = p.getMeasurements().values().stream().mapToDouble(v -> v.doubleValue()).toArray();
 		double[] mapValuesByIterator = new double[p.getMeasurements().size()];

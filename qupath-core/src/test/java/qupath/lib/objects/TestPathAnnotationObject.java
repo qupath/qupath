@@ -29,7 +29,6 @@ import java.util.Collections;
 
 import org.junit.jupiter.api.Test;
 
-import qupath.lib.measurements.MeasurementFactory;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.measurements.MeasurementListFactory;
 import qupath.lib.objects.classes.PathClass;

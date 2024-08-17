@@ -19,7 +19,6 @@
  * #L%
  */
 
-
 package qupath.lib.measurements;
 
 import org.junit.jupiter.params.ParameterizedTest;
@@ -32,6 +31,7 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class TestMeasurementList {
@@ -60,11 +60,17 @@ public class TestMeasurementList {
         }
     }
 
+    /**
+     * Create a measurement list of the specified type, closed or not.
+     * @param type
+     * @param nMeasurements
+     * @return
+     */
     private static MeasurementList createMeasurementList(ListType type, int nMeasurements) {
         // Create list, permitting resize
         var list = MeasurementListFactory.createMeasurementList(Math.max(1, nMeasurements / 2), type.toMeasurementListType());
         for (int i = 0; i < nMeasurements; i++) {
-            list.put("Measurement " + (i+1), i+1);
+            list.put("Measurement " + i, i);
         }
         if (type.isClosed())
             list.close();
@@ -73,7 +79,7 @@ public class TestMeasurementList {
 
     @ParameterizedTest
     @EnumSource(ListType.class)
-    void checkNamesUnchanged(ListType type) {
+    void test_namesSnapshot(ListType type) {
         var list = createMeasurementList(type, 5);
         // This should give an unmodifiable snapshot of names
         var names = list.getMeasurementNames();
@@ -137,6 +143,147 @@ public class TestMeasurementList {
         assertEquals(0, list.size());
         assertTrue(list.isEmpty());
         assertTrue(list.getMeasurementNames().isEmpty());
+    }
+
+    @ParameterizedTest
+    @EnumSource(ListType.class)
+    void test_removeMissing(ListType type) {
+        var list = createMeasurementList(type, 0);
+        list.put("First", 1.0);
+        list.put("Second", 2.0);
+        list.put("Third", 3.0);
+        assertEquals(3, list.size());
+        // Failed remove
+        var result = list.remove("Not found");
+        assertEquals(3, list.size());
+        assertTrue(Double.isNaN(result));
+    }
+
+    @ParameterizedTest
+    @EnumSource(ListType.class)
+    void test_removeFirst(ListType type) {
+        var list = createMeasurementList(type, 0);
+        list.put("First", 1.0);
+        list.put("Second", 2.0);
+        list.put("Third", 3.0);
+        assertEquals(3, list.size());
+        // Successful remove
+        var result = list.remove("First");
+        assertEquals(2, list.size());
+        assertEquals(1.0, result);
+        assertFalse(list.containsKey("First"));
+        assertEquals(2.0, list.get("Second"));
+        assertEquals(3.0, list.get("Third"));
+    }
+
+    @ParameterizedTest
+    @EnumSource(ListType.class)
+    void test_removeLast(ListType type) {
+        var list = createMeasurementList(type, 0);
+        list.put("First", 1.0);
+        list.put("Second", 2.0);
+        list.put("Third", 3.0);
+        assertEquals(3, list.size());
+        // Successful remove
+        var result = list.remove("Third");
+        assertEquals(2, list.size());
+        assertEquals(3.0, result);
+        assertFalse(list.containsKey("Third"));
+        assertEquals(1.0, list.get("First"));
+        assertEquals(2.0, list.get("Second"));
+    }
+
+    @ParameterizedTest
+    @EnumSource(ListType.class)
+    void test_removeMiddle(ListType type) {
+        var list = createMeasurementList(type, 0);
+        list.put("First", 1.0);
+        list.put("Second", 2.0);
+        list.put("Third", 3.0);
+        assertEquals(3, list.size());
+        // Successful remove
+        var result = list.remove("Second");
+        assertEquals(2, list.size());
+        assertEquals(2.0, result);
+        assertFalse(list.containsKey("Second"));
+        assertEquals(1.0, list.get("First"));
+        assertEquals(3.0, list.get("Third"));
+    }
+
+    @ParameterizedTest
+    @EnumSource(ListType.class)
+    void test_removeAll(ListType type) {
+        int n = 5;
+        var list = createMeasurementList(type, n);
+        assertEquals(n, list.size());
+        // Successful remove
+        var names = list.getMeasurementNames();
+        var toRemove = names.subList(1, 3);
+        list.removeMeasurements(toRemove.toArray(String[]::new));
+        var newNames = list.getMeasurementNames();
+        assertEquals(n - toRemove.size(), list.size());
+        for (var name : toRemove) {
+            assertFalse(newNames.contains(name));
+        }
+    }
+
+    @ParameterizedTest
+    @EnumSource(ListType.class)
+    void test_putAllMeasurements(ListType type) {
+        int n = 5;
+        var list = createMeasurementList(type, n);
+        // Check putting measurements into all list types
+        for (var typeNew : ListType.values()) {
+            var newList = createMeasurementList(typeNew, 0);
+            assertEquals(0, newList.size());
+            newList.putAll(list);
+            assertEquals(n, newList.size());
+            assertEquals(list.getMeasurements(), newList.getMeasurements());
+        }
+    }
+
+    @ParameterizedTest
+    @EnumSource(ListType.class)
+    void test_putAllMeasurementsFromMap(ListType type) {
+        int n = 5;
+        var list = createMeasurementList(type, n);
+        // Check putting measurements into all list types
+        for (var typeNew : ListType.values()) {
+            var newList = createMeasurementList(typeNew, 0);
+            assertEquals(0, newList.size());
+            newList.putAll(list.asMap());
+            assertEquals(n, newList.size());
+            assertEquals(list.getMeasurements(), newList.getMeasurements());
+        }
+    }
+
+    @ParameterizedTest
+    @EnumSource(ListType.class)
+    void test_mapEntriesImmutable(ListType type) {
+        int n = 5;
+        var list = createMeasurementList(type, n);
+        for (var entry : list.asMap().entrySet()) {
+            assertThrows(UnsupportedOperationException.class, () -> entry.setValue(0));
+        }
+    }
+
+    @ParameterizedTest
+    @EnumSource(ListType.class)
+    void test_mapEntryIteration(ListType type) {
+        int n = 5;
+        var list = createMeasurementList(type, n);
+        var entries = list.asMap().entrySet();
+        var iter = entries.iterator();
+        int i = 0;
+        while (iter.hasNext()) {
+            assertEquals(n - i, list.size());
+            var entry = iter.next();
+            iter.remove();
+            i++;
+            assertEquals(n - i, list.size());
+        }
+        assertEquals(n, i);
+        assertTrue(entries.isEmpty());
     }
 
 }

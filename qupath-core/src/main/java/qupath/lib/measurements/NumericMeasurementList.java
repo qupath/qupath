@@ -23,6 +23,7 @@
 
 package qupath.lib.measurements;
 
+import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -30,6 +31,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -196,22 +199,12 @@ class NumericMeasurementList {
 				assert names.size() == namesUnmodifiable.size();
 			return namesUnmodifiable;
 		}
-		
-		@Override
-		public synchronized double get(String name) {
-			return getMeasurementValue(getMeasurementIndex(name));
-		}
 
 		@Override
 		public synchronized boolean containsKey(String measurementName) {
 			if (!isClosed)
 				logger.trace("containsKey called on open NumericMeasurementList - consider closing list earlier for efficiency");
 			return names.contains(measurementName);
-		}
-
-		@Override
-		public synchronized String getMeasurementName(int ind) {
-			return names.get(ind);
 		}
 		
 		@Override
@@ -233,7 +226,6 @@ class NumericMeasurementList {
 		
 		@Override
 		public synchronized void put(String name, double value) {
-			ensureListOpen();
 			int index = getMeasurementIndex(name);
 			if (index >= 0)
 				setValue(index, value);
@@ -263,22 +255,42 @@ class NumericMeasurementList {
 			}
 			return mapView;
 		}
-		
-		
+
 		@Override
-		public String toString() {
-			StringBuilder sb = new StringBuilder();
-			int n = size();
-			sb.append("[");
-			for (int i = 0; i < n; i++) {
-				sb.append(getMeasurementName(i)).append(": ").append(getMeasurementValue(i));
-				if (i < n - 1)
-					sb.append(", ");
-			}
-			sb.append("]");
-			return sb.toString();
+		public synchronized String toString() {
+			return "[" + getMeasurements().stream()
+					.map(AbstractNumericMeasurementList::toString)
+					.collect(Collectors.joining(", ")) + "]";
 		}
-		
+
+		private static String toString(Measurement m) {
+			return m.getName() + ": " + m.getValue();
+		}
+
+		protected abstract Object getValuesArray();
+
+		public synchronized double remove(String name) {
+			int ind = getMeasurementIndex(name);
+			if (ind < 0)
+				return Double.NaN;
+			ensureListOpen();
+			var values = getValuesArray();
+			names.remove(ind);
+			double value = Array.getDouble(values, ind);
+			System.arraycopy(values, ind+1, values, ind, Array.getLength(values)-ind-1);
+			return value;
+		}
+
+		@Override
+		public synchronized void removeMeasurements(String... measurementNames) {
+			isClosed = isClosed();
+			for (String name : measurementNames) {
+				remove(name);
+			}
+			if (isClosed)
+				close();
+		}
+
 	}
 
 
@@ -297,10 +309,34 @@ class NumericMeasurementList {
 		}
 		
 		@Override
-		public synchronized double getMeasurementValue(int ind) {
+		public synchronized double get(String name) {
+			int ind = getMeasurementIndex(name);
 			if (ind >= 0 && ind < size())
 				return values[ind];
 			return Double.NaN;
+		}
+
+		@Override
+		public synchronized List<Measurement> getMeasurements() {
+			int n = size();
+			if (n == 0)
+				return Collections.emptyList();
+			else if (n == 1)
+				return List.of(getMeasurement(0));
+			else
+				return IntStream.range(0, n)
+					.mapToObj(this::getMeasurement)
+					.toList();
+		}
+
+		@Override
+		public synchronized Measurement getMeasurement(int ind) {
+			return MeasurementFactory.createMeasurement(names.get(ind), values[ind]);
+		}
+
+		@Override
+		public synchronized double[] values() {
+			return Arrays.copyOf(values, size());
 		}
 
 		private void ensureArraySize(int length) {
@@ -313,7 +349,7 @@ class NumericMeasurementList {
 			ensureArraySize(index + 1);
 			values[index] = (float)value;
 		}
-		
+
 		@Override
 		public synchronized void compactStorage() {
 			super.compactStorage();
@@ -322,18 +358,10 @@ class NumericMeasurementList {
 				values = Arrays.copyOf(values, size);
 		}
 
-		@Override
-		public synchronized void removeMeasurements(String... measurementNames) {
-			ensureListOpen();
-			for (String name : measurementNames) {
-				int ind = getMeasurementIndex(name);
-				if (ind < 0)
-					continue;
-				names.remove(name);
-				System.arraycopy(values, ind+1, values, ind, values.length-ind-1);
-			}
+		protected Object getValuesArray() {
+			return values;
 		}
-		
+
 	}
 
 
@@ -348,13 +376,6 @@ class NumericMeasurementList {
 			this.values = new float[capacity];
 			// Close from the start... will be opened as needed
 			close();
-		}
-
-		@Override
-		public synchronized double getMeasurementValue(int ind) {
-			if (ind >= 0 && ind < size())
-				return values[ind];
-			return Double.NaN;
 		}
 
 		private synchronized void ensureArraySize(int length) {
@@ -376,17 +397,44 @@ class NumericMeasurementList {
 				values = Arrays.copyOf(values, size);
 		}
 
+		@Override
+		public synchronized double get(String name) {
+			int ind = getMeasurementIndex(name);
+			if (ind >= 0 && ind < size())
+				return values[ind];
+			return Double.NaN;
+		}
+
+		@Override
+		public synchronized List<Measurement> getMeasurements() {
+			int n = size();
+			if (n == 0)
+				return Collections.emptyList();
+			else if (n == 1)
+				return List.of(getMeasurement(0));
+			else
+				return IntStream.range(0, n)
+						.mapToObj(this::getMeasurement)
+						.toList();
+		}
+
+		@Override
+		public synchronized Measurement getMeasurement(int ind) {
+			return MeasurementFactory.createMeasurement(names.get(ind), values[ind]);
+		}
 		
 		@Override
-		public synchronized void removeMeasurements(String... measurementNames) {
-			ensureListOpen();
-			for (String name : measurementNames) {
-				int ind = getMeasurementIndex(name);
-				if (ind < 0)
-					continue;
-				names.remove(name);
-				System.arraycopy(values, ind+1, values, ind, values.length-ind-1);
-			}
+		protected Object getValuesArray() {
+			return values;
+		}
+
+		@Override
+		public synchronized double[] values() {
+			int n = size();
+			double[] result = new double[n];
+			for (int i = 0; i < n; i++)
+				result[i] = values[i];
+			return result;
 		}
 
 	}

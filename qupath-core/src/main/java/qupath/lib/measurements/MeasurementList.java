@@ -24,6 +24,7 @@
 package qupath.lib.measurements;
 
 import java.io.Serializable;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -78,22 +79,18 @@ public interface MeasurementList extends Serializable, AutoCloseable {
 	void put(String name, double value);
 
 	/**
-	 * Get name for the measurement at the specified index in the list.
-	 * @param ind
+	 * Get an unmodifiable list of all measurements.
+	 * This provides a snapshot of the current measurements, and should not be affected by changes to the list.
 	 * @return
-	 * @deprecated since v0.4.0; using names is preferred over indexing but {@link #getMeasurementNames()} can still be used
 	 */
-	@Deprecated
-	String getMeasurementName(int ind);
+	List<Measurement> getMeasurements();
 
 	/**
-	 * Get value for the measurement at the specified index in the list.
-	 * @param ind
+	 * Get an immutable representation of a single measurement.
+	 * This provides a snapshot of the current measurement, and should not be affected by changes to the list.
 	 * @return
-	 * @deprecated since v0.4.0; using {@link #get(String)} is preferred over using an index
 	 */
-	@Deprecated
-	double getMeasurementValue(int ind);
+	Measurement getMeasurement(int ind);
 
 	/**
 	 * Get the specified measurement, or the provided default value if it is not contained in the list.
@@ -119,18 +116,12 @@ public interface MeasurementList extends Serializable, AutoCloseable {
 	}
 	
 	/**
-	 * Get all measurement values as a double array
+	 * Get a snapshot of all measurement values as a double array.
+	 * Changes to the array will not impact the measurement list.
 	 * @return
 	 * @since v0.4.0
 	 */
-	default double[] values() {
-		synchronized(this) {
-			double[] values = new double[size()];
-			for (int i = 0; i < size(); i++)
-				values[i] = getMeasurementValue(i);
-			return values;
-		}
-	}
+	double[] values();
 	
 	/**
 	 * Remove a named measurement
@@ -138,19 +129,7 @@ public interface MeasurementList extends Serializable, AutoCloseable {
 	 * @return the value that was removed, or Double.NaN if the value was not in the list
 	 * @since v0.4.0
 	 */
-	default double remove(String name) {
-		synchronized (this) {
-			int sizeBefore = size();
-			int ind = getMeasurementNames().indexOf(name);
-			double val = Double.NaN;
-			if (ind >= 0) {
-				val = getMeasurementValue(ind);
-				removeMeasurements(name);
-			}
-			assert sizeBefore == size() + 1;
-			return val;
-		}
-	}
+	double remove(String name);
 	
 	/**
 	 * Put all the values from the specified map into this list
@@ -164,14 +143,23 @@ public interface MeasurementList extends Serializable, AutoCloseable {
 	}
 	
 	/**
-	 * Put all the values from the specified list into this one
+	 * Put all the measurements from the specified list into this one
 	 * @param list
 	 * @since v0.4.0
 	 */
 	default void putAll(MeasurementList list) {
-		synchronized (list) {
-			for (String name : list.getMeasurementNames()) {
-				put(name, list.get(name));
+		putAll(list.getMeasurements());
+	}
+
+	/**
+	 * Put all the measurements from the specified list into this one
+	 * @param list
+	 * @since v0.4.0
+	 */
+	default void putAll(Collection<? extends Measurement> list) {
+		synchronized (this) {
+			for (var measurement : list) {
+				put(measurement.getName(), measurement.getValue());
 			}
 		}
 	}

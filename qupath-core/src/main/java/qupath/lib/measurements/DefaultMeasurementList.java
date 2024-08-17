@@ -26,6 +26,7 @@ package qupath.lib.measurements;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
@@ -68,14 +69,32 @@ class DefaultMeasurementList implements MeasurementList {
 	}
 
 	@Override
-	public synchronized String getMeasurementName(int ind) {
-		return list.get(ind).getName();
+	public List<Measurement> getMeasurements() {
+		return List.copyOf(list);
 	}
-	
+
 	@Override
-	public synchronized double getMeasurementValue(int ind) {
-		if (ind >= 0 && ind < size())
-			return list.get(ind).getValue();
+	public Measurement getMeasurement(int ind) {
+		return list.get(ind);
+	}
+
+	@Override
+	public synchronized double[] values() {
+		return list.stream()
+				.mapToDouble(Measurement::getValue)
+				.toArray();
+	}
+
+	@Override
+	public synchronized double remove(String name) {
+		var iter = list.iterator();
+		while (iter.hasNext()) {
+			var next = iter.next();
+			if (next.getName().equals(name)) {
+				iter.remove();
+				return next.getValue();
+			}
+		}
 		return Double.NaN;
 	}
 
@@ -117,6 +136,7 @@ class DefaultMeasurementList implements MeasurementList {
 
 	@Override
 	public synchronized void put(String name, double value) {
+		Objects.requireNonNull(name, "Measurement name cannot be null");
 		// Ensure we aren't adding duplicate measurements
 		var measurement = MeasurementFactory.createMeasurement(name, value);
 		int ind = 0;
