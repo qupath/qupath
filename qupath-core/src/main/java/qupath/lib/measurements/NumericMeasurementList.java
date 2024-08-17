@@ -250,7 +250,7 @@ class NumericMeasurementList {
 			if (mapView == null) {
 				synchronized(this) {
 					if (mapView == null)
-						mapView = new MeasurementsMap(this);
+						mapView = Collections.synchronizedMap(new MeasurementsMap(this));
 				}
 			}
 			return mapView;

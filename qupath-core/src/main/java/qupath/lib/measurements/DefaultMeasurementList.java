@@ -24,6 +24,7 @@
 package qupath.lib.measurements;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -46,7 +47,7 @@ class DefaultMeasurementList implements MeasurementList {
 	
 	private ArrayList<Measurement> list;
 	
-	private transient Map<String, Number> mapView;
+	private transient volatile Map<String, Number> mapView;
 	
 	DefaultMeasurementList() {
 		list = new ArrayList<>();
@@ -172,7 +173,7 @@ class DefaultMeasurementList implements MeasurementList {
 		if (mapView == null) {
 			synchronized(this) {
 				if (mapView == null)
-					mapView = new MeasurementsMap(this);
+					mapView = Collections.synchronizedMap(new MeasurementsMap(this));
 			}
 		}
 		return mapView;
