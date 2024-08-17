@@ -154,17 +154,13 @@ public class TMAExplorer implements Runnable {
 							core.isMissing());
 					
 					MeasurementList ml = core.getMeasurementList();
-					for (int i = 0; i < ml.size(); i++) {
-						String measurement = ml.getMeasurementName(i);
-						double val = ml.getMeasurementValue(i);
+					for (var m : ml.getMeasurements()) {
+						String measurement = m.getName();
+						double val = m.getValue();
 						entry.putMeasurement(measurement, val);
 						if (!Double.isNaN(val)) {
-							RunningStatistics stats = statsMap.get(measurement);
-							if (stats == null) {
-								stats = new RunningStatistics();
-								statsMap.put(measurement, stats);
-							}
-							stats.addValue(val);
+                            RunningStatistics stats = statsMap.computeIfAbsent(measurement, k -> new RunningStatistics());
+                            stats.addValue(val);
 						}
 					}
 					entries.add(entry);

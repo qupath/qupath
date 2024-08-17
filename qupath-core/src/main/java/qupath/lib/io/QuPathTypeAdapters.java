@@ -402,9 +402,9 @@ class QuPathTypeAdapters {
 				if (!measurements.isEmpty()) {
 					out.name("Measurement count");
 					out.value(measurements.size());
-					for (int i = 0; i < measurements.size(); i++) {
-						out.name(measurements.getMeasurementName(i));
-						out.value(measurements.getMeasurementValue(i));
+					for (var m : measurements.getMeasurements()) {
+						out.name(m.getName());
+						out.value(m.getValue());
 					}
 				}
 				var map = value.getMetadata();

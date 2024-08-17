@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -23,6 +23,7 @@
 
 package qupath.lib.measurements;
 
+import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -30,6 +31,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,9 +49,9 @@ import org.slf4j.LoggerFactory;
  * can be rather slow.  Therefore while 'adding' is fast, 'putting' is not.
  * <p>
  * However, upon calling {@code close()}, name lists are shared between similarly closed NumericMeasurementLists,
- * and a map used to improve random access of measurements. Therefore if many lists of the same measurements
- * are made, remembering to close each list when it is fully populated can improve performance and greatly
- * reduce memory requirements.
+ * and a map used to improve random access of measurements.
+ * Therefore, if many lists of the same measurements are made, remembering to close each list when it is fully
+ * populated can improve performance and greatly reduce memory requirements.
  * <p>
  * These lists can be instantiated through the {@link MeasurementListFactory} class.
  * 
@@ -59,7 +62,7 @@ class NumericMeasurementList {
 	
 	private static final Logger logger = LoggerFactory.getLogger(NumericMeasurementList.class);
 	
-	private static Map<List<String>, NameMap> namesPool = Collections.synchronizedMap(new WeakHashMap<>());
+	private static final Map<List<String>, NameMap> namesPool = Collections.synchronizedMap(new WeakHashMap<>());
 	
 
 	private static class NameMap {
@@ -68,7 +71,7 @@ class NumericMeasurementList {
 		private Map<String, Integer> map;
 		
 		NameMap(List<String> names) {
-			this.names = Collections.unmodifiableList(new ArrayList<>(names)); // Make a defensive copy
+			this.names = List.copyOf(names); // Make an unmodifiable defensive copy
 			createHashMap();
 		}
 		
@@ -105,7 +108,7 @@ class NumericMeasurementList {
 
 		private Map<String, Integer> map; // Optional map for fast measurement lookup
 		
-		private transient Map<String, Number> mapView;
+		private transient volatile Map<String, Number> mapView;
 
 		AbstractNumericMeasurementList(int capacity) {
 			names = new ArrayList<>(capacity);
@@ -125,7 +128,7 @@ class NumericMeasurementList {
 		}
 
 		@Override
-		public void close() {
+		public synchronized void close() {
 			if (isClosed())
 				return;
 			compactStorage();
@@ -154,7 +157,7 @@ class NumericMeasurementList {
 		
 
 		@Override
-		public boolean isEmpty() {
+		public synchronized boolean isEmpty() {
 			return names.isEmpty();
 		}
 		
@@ -167,18 +170,18 @@ class NumericMeasurementList {
 			// Read from map, if possible
 			if (map != null) {
 				Integer ind = map.get(name);
-				return ind == null ? -1 : ind.intValue();
+				return ind == null ? -1 : ind;
 			}
 			return names.indexOf(name);
 		}
 		
 		@Override
-		public final int size() {
+		public final synchronized int size() {
 			return names.size();
 		}
 
 		@Override
-		public synchronized List<String> getMeasurementNames() {
+		public synchronized List<String> getNames() {
 			if (names.isEmpty())
 				return Collections.emptyList();
 			// Try to return the same unmodifiable list of names if we can - this speeds up comparisons
@@ -188,32 +191,24 @@ class NumericMeasurementList {
 					namesUnmodifiable = nameMap.getUnmodifiableNames();
 				}
 			}
-			if (namesUnmodifiable == null)
-				namesUnmodifiable = Collections.unmodifiableList(names);
-			else
+			if (namesUnmodifiable == null) {
+				// We need to make a defensive copy, since the underlying list may be modified
+				return List.copyOf(names);
+//				namesUnmodifiable = Collections.unmodifiableList(names);
+			} else
 				assert names.size() == namesUnmodifiable.size();
 			return namesUnmodifiable;
 		}
-		
-		@Override
-		public double get(String name) {
-			return getMeasurementValue(getMeasurementIndex(name));
-		}
 
 		@Override
-		public boolean containsKey(String measurementName) {
+		public synchronized boolean containsKey(String measurementName) {
 			if (!isClosed)
-				logger.trace("containsNamedMeasurement called on open NumericMeasurementList - consider closing list earlier for efficiency");
+				logger.trace("containsKey called on open NumericMeasurementList - consider closing list earlier for efficiency");
 			return names.contains(measurementName);
 		}
-
-		@Override
-		public String getMeasurementName(int ind) {
-			return names.get(ind);
-		}
 		
 		@Override
-		public void clear() {
+		public synchronized void clear() {
 			ensureListOpen();
 			names.clear();
 			namesUnmodifiable = null;
@@ -231,22 +226,15 @@ class NumericMeasurementList {
 		
 		@Override
 		public synchronized void put(String name, double value) {
-			ensureListOpen();
 			int index = getMeasurementIndex(name);
 			if (index >= 0)
 				setValue(index, value);
 			else {
 				// If the list is closed, we have to reopen it
 				ensureListOpen();
-				names.add(name);
+				names.add(name.intern());
 				setValue(size()-1, value);
 			}
-		}
-		
-
-		@Override
-		public boolean supportsDynamicMeasurements() {
-			return false;
 		}
 		
 		void compactStorage() {
@@ -255,42 +243,54 @@ class NumericMeasurementList {
 			if (names instanceof ArrayList)
 				((ArrayList<String>)names).trimToSize();
 		}
-		
-		
-		@Override
-		public Measurement putMeasurement(Measurement measurement) {
-			if (measurement.isDynamic())
-				throw new UnsupportedOperationException("This MeasurementList does not support dynamic measurements");
-			put(measurement.getName(), measurement.getValue());
-			return null;
-		}
+
 		
 		@Override
 		public Map<String, Number> asMap() {
 			if (mapView == null) {
 				synchronized(this) {
 					if (mapView == null)
-						mapView = new MeasurementsMap(this);
+						mapView = Collections.synchronizedMap(new MeasurementsMap(this));
 				}
 			}
 			return mapView;
 		}
-		
-		
+
 		@Override
-		public String toString() {
-			StringBuilder sb = new StringBuilder();
-			int n = size();
-			sb.append("[");
-			for (int i = 0; i < n; i++) {
-				sb.append(getMeasurementName(i)).append(": ").append(getMeasurementValue(i));
-				if (i < n - 1)
-					sb.append(", ");
-			}
-			sb.append("]");
-			return sb.toString();
+		public synchronized String toString() {
+			return "[" + getMeasurements().stream()
+					.map(AbstractNumericMeasurementList::toString)
+					.collect(Collectors.joining(", ")) + "]";
 		}
-		
+
+		private static String toString(Measurement m) {
+			return m.getName() + ": " + m.getValue();
+		}
+
+		protected abstract Object getValuesArray();
+
+		public synchronized double remove(String name) {
+			int ind = getMeasurementIndex(name);
+			if (ind < 0)
+				return Double.NaN;
+			ensureListOpen();
+			var values = getValuesArray();
+			names.remove(ind);
+			double value = Array.getDouble(values, ind);
+			System.arraycopy(values, ind+1, values, ind, Array.getLength(values)-ind-1);
+			return value;
+		}
+
+		@Override
+		public synchronized void removeAll(String... measurementNames) {
+			isClosed = isClosed();
+			for (String name : measurementNames) {
+				remove(name);
+			}
+			if (isClosed)
+				close();
+		}
+
 	}
 
 
@@ -309,10 +309,34 @@ class NumericMeasurementList {
 		}
 		
 		@Override
-		public double getMeasurementValue(int ind) {
+		public synchronized double get(String name) {
+			int ind = getMeasurementIndex(name);
 			if (ind >= 0 && ind < size())
 				return values[ind];
 			return Double.NaN;
+		}
+
+		@Override
+		public synchronized List<Measurement> getMeasurements() {
+			int n = size();
+			if (n == 0)
+				return Collections.emptyList();
+			else if (n == 1)
+				return List.of(getByIndex(0));
+			else
+				return IntStream.range(0, n)
+					.mapToObj(this::getByIndex)
+					.toList();
+		}
+
+		@Override
+		public synchronized Measurement getByIndex(int ind) {
+			return MeasurementFactory.createMeasurement(names.get(ind), values[ind]);
+		}
+
+		@Override
+		public synchronized double[] values() {
+			return Arrays.copyOf(values, size());
 		}
 
 		private void ensureArraySize(int length) {
@@ -321,31 +345,23 @@ class NumericMeasurementList {
 		}
 
 		@Override
-		protected void setValue(int index, double value) {
+		protected synchronized void setValue(int index, double value) {
 			ensureArraySize(index + 1);
 			values[index] = (float)value;
 		}
-		
+
 		@Override
-		public void compactStorage() {
+		public synchronized void compactStorage() {
 			super.compactStorage();
-			if (size() < values.length)
-				values = Arrays.copyOf(values, size());
+			int size = size();
+			if (size < values.length)
+				values = Arrays.copyOf(values, size);
 		}
 
-		@Override
-		public void removeMeasurements(String... measurementNames) {
-			ensureListOpen();
-			for (String name : measurementNames) {
-				int ind = getMeasurementIndex(name);
-				if (ind < 0)
-					continue;
-				names.remove(name);
-				System.arraycopy(values, ind+1, values, ind, values.length-ind-1);
-			}
+		protected Object getValuesArray() {
+			return values;
 		}
 
-		
 	}
 
 
@@ -362,45 +378,65 @@ class NumericMeasurementList {
 			close();
 		}
 
-		@Override
-		public double getMeasurementValue(int ind) {
-			if (ind >= 0 && ind < size())
-				return values[ind];
-			return Double.NaN;
-		}
-
-		private void ensureArraySize(int length) {
+		private synchronized void ensureArraySize(int length) {
 			if (values.length < length)
 				values = Arrays.copyOf(values, Math.max(values.length + EXPAND, length));
 		}
 
 		@Override
-		protected void setValue(int index, double value) {
+		protected synchronized void setValue(int index, double value) {
 			ensureArraySize(index + 1);
 			values[index] = (float)value;
 		}
 		
 		@Override
-		public void compactStorage() {
+		public synchronized void compactStorage() {
 			super.compactStorage();
-			if (size() < values.length)
-				values = Arrays.copyOf(values, size());
+			int size = size();
+			if (size < values.length)
+				values = Arrays.copyOf(values, size);
 		}
 
+		@Override
+		public synchronized double get(String name) {
+			int ind = getMeasurementIndex(name);
+			if (ind >= 0 && ind < size())
+				return values[ind];
+			return Double.NaN;
+		}
+
+		@Override
+		public synchronized List<Measurement> getMeasurements() {
+			int n = size();
+			if (n == 0)
+				return Collections.emptyList();
+			else if (n == 1)
+				return List.of(getByIndex(0));
+			else
+				return IntStream.range(0, n)
+						.mapToObj(this::getByIndex)
+						.toList();
+		}
+
+		@Override
+		public synchronized Measurement getByIndex(int ind) {
+			return MeasurementFactory.createMeasurement(names.get(ind), values[ind]);
+		}
 		
 		@Override
-		public void removeMeasurements(String... measurementNames) {
-			ensureListOpen();
-			for (String name : measurementNames) {
-				int ind = getMeasurementIndex(name);
-				if (ind < 0)
-					continue;
-				names.remove(name);
-				System.arraycopy(values, ind+1, values, ind, values.length-ind-1);
-			}
+		protected Object getValuesArray() {
+			return values;
+		}
+
+		@Override
+		public synchronized double[] values() {
+			int n = size();
+			double[] result = new double[n];
+			for (int i = 0; i < n; i++)
+				result[i] = values[i];
+			return result;
 		}
 
 	}
-	
 
 }

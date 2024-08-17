@@ -65,7 +65,7 @@ public class TestMeasurementListFactory {
 		}
 		
 		// Change same names
-		assertEquals(names, list.getMeasurementNames());
+		assertEquals(names, list.getNames());
 		
 		// Check access
 		Collections.shuffle(names, rand);
@@ -79,10 +79,10 @@ public class TestMeasurementListFactory {
 		// Check access after removing
 		for (int i = 0; i < 10; i++) {
 			String name = names.remove(i);
-			list.removeMeasurements(name);
+			list.removeAll(name);
 		}
 		assertTrue(list.size() == names.size());
-		assertTrue(list.getMeasurementNames().containsAll(names));
+		assertTrue(list.getNames().containsAll(names));
 		assertTrue(checkAgreement(list, map, names));	
 		
 		// Check list after adding (some with same name as previously)
@@ -102,11 +102,11 @@ public class TestMeasurementListFactory {
 		assertTrue(checkAgreement(list, map, names));
 		
 		assertTrue(list.size() == names.size());
-		assertTrue(list.getMeasurementNames().containsAll(names));
+		assertTrue(list.getNames().containsAll(names));
 		
 		list.clear();
 		assertTrue(list.isEmpty());
-		assertTrue(list.getMeasurementNames().isEmpty());
+		assertTrue(list.getNames().isEmpty());
 	}
 	
 	

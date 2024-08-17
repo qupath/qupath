@@ -2975,7 +2975,7 @@ public class QP {
 				continue;
 			// Remove the measurements
 			try (var ml = pathObject.getMeasurementList()) {
-				ml.removeMeasurements(measurementNames);
+				ml.removeAll(measurementNames);
 			}
 		}
 		hierarchy.fireObjectMeasurementsChangedEvent(null, pathObjects);

@@ -134,9 +134,9 @@ public class TestPathObject {
 	@MethodSource("provideObjects")
 	public void test_measurementMapAndList(PathObject p) {
 		
-		p.getMeasurementList().addMeasurement("added", 1);
+		p.getMeasurementList().put("added", 1);
 		assertEquals(1, p.getMeasurementList().size());
-		p.getMeasurementList().addMeasurement("added", 2);
+		p.getMeasurementList().put("added", 2);
 		assertEquals(1, p.getMeasurementList().size());
 		assertEquals(2, p.getMeasurementList().get("added"));
 		
@@ -162,11 +162,11 @@ public class TestPathObject {
 		// Not expected to pass! val is unboxed internally, precise value not stored
 //		assertSame(val, p.getMeasurements().get("mapAdded"));
 		
-		p.getMeasurementList().removeMeasurements("Not there");
+		p.getMeasurementList().removeAll("Not there");
 		assertEquals(3, p.getMeasurementList().size());
 		assertEquals(3, p.getMeasurements().size());
 		
-		p.getMeasurementList().removeMeasurements("put");
+		p.getMeasurementList().removeAll("put");
 		assertEquals(2, p.getMeasurementList().size());
 		assertEquals(2, p.getMeasurements().size());
 
@@ -189,15 +189,16 @@ public class TestPathObject {
 	 * @param p
 	 */
 	private static void checkSameKeysAndValues(PathObject p) {
-		assertEquals(p.getMeasurementList().getMeasurementNames(), new ArrayList<>(p.getMeasurements().keySet()));
-		assertEquals(new LinkedHashSet<>(p.getMeasurementList().getMeasurementNames()), p.getMeasurements().keySet());
+		assertEquals(p.getMeasurementList().getNames(), new ArrayList<>(p.getMeasurements().keySet()));
+		assertEquals(new LinkedHashSet<>(p.getMeasurementList().getNames()), p.getMeasurements().keySet());
 		
 		double[] listValues = new double[p.getMeasurementList().size()];
 		double[] listValuesByName = new double[p.getMeasurementList().size()];
 		double[] listValuesAsArray = p.getMeasurementList().values();
 		for (int i = 0; i < listValues.length; i++) {
-			listValues[i] = p.getMeasurementList().getMeasurementValue(i);
-			listValuesByName[i] = p.getMeasurementList().get(p.getMeasurementList().getMeasurementName(i));
+			var m = p.getMeasurementList().getByIndex(i);
+			listValues[i] = m.getValue();
+			listValuesByName[i] = p.getMeasurementList().get(m.getName());
 		}
 		double[] mapValues = p.getMeasurements().values().stream().mapToDouble(v -> v.doubleValue()).toArray();
 		double[] mapValuesByIterator = new double[p.getMeasurements().size()];

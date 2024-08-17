@@ -2040,7 +2040,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 					measurements = imageData.getHierarchy()
 							.getDetectionObjects()
 							.stream()
-							.flatMap(d -> d.getMeasurementList().getMeasurementNames().stream())
+							.flatMap(d -> d.getMeasurementList().getNames().stream())
 							.distinct()
 							.map(m -> "\"" + m + "\"")
 							.collect(Collectors.joining(join))

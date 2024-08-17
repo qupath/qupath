@@ -29,7 +29,6 @@ import java.util.Collections;
 
 import org.junit.jupiter.api.Test;
 
-import qupath.lib.measurements.MeasurementFactory;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.measurements.MeasurementListFactory;
 import qupath.lib.objects.classes.PathClass;
@@ -86,7 +85,7 @@ public class TestPathAnnotationObject extends TestPathObjectMethods {
 	@Test
 	public void test_MeasurementList() {
 		MeasurementList tML = MeasurementListFactory.createMeasurementList(16, MeasurementList.MeasurementListType.GENERAL);
-		tML.putMeasurement(MeasurementFactory.createMeasurement(nameML, valueML));
+		tML.put(nameML, valueML);
 		PathAnnotationObject tPO = new PathAnnotationObject(myROI, myPC, tML);
 		test_hasMeasurements(myPO, Boolean.FALSE); // no measurements
 		test_nMeasurements(myPO, 0); // no measurements

@@ -542,7 +542,7 @@ class TMADataImporter {
 			core.setMissing(isMissing());
 			core.setName(getName());
 			core.setCaseID(getCaseID());
-			for (String name : getMeasurementList().getMeasurementNames()) {
+			for (String name : getMeasurementList().getNames()) {
 				core.getMeasurementList().put(name, getMeasurementList().get(name));
 			}
 			core.getMeasurementList().close();
@@ -593,7 +593,7 @@ class TMADataImporter {
 		for (Entry<String, String> entry : core.getMetadata().entrySet()) {
 			sb.append(entry.getKey()).append("\t").append(entry.getValue()).append("\n");
 		}
-		for (String name : core.getMeasurementList().getMeasurementNames()) {
+		for (String name : core.getMeasurementList().getNames()) {
 			sb.append(name).append("\t").append(core.getMeasurementList().get(name)).append("\n");
 		}
 		return sb.toString();

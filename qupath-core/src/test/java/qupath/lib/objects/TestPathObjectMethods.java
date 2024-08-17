@@ -69,8 +69,8 @@ class TestPathObjectMethods {
 	}
 	//@Test
 	public void test_equalMeasurementListContent(MeasurementList ML, MeasurementList ML2) {
-		var keys = ML.getMeasurementNames();
-		assertArrayEquals(keys.toArray(), ML2.getMeasurementNames().toArray());
+		var keys = ML.getNames();
+		assertArrayEquals(keys.toArray(), ML2.getNames().toArray());
 		for (String name: keys) {
 			assertEquals(ML.get(name), ML2.get(name));
 		}
