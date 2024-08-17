@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2022 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2022-2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -39,6 +39,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.IntStream;
 
 import org.junit.jupiter.api.Test;
@@ -47,6 +48,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import qupath.lib.measurements.MeasurementList.MeasurementListType;
 import qupath.lib.measurements.MeasurementListFactory;
+import qupath.lib.objects.classes.PathClass;
 import qupath.lib.roi.ROIs;
 
 public class TestPathObject {
@@ -314,7 +316,51 @@ public class TestPathObject {
 			pathObject.addChildObject(child);
 		}
 	}
-	
+
+
+	@Test
+	void test_setClassification() {
+		var pathObject = PathObjects.createAnnotationObject(ROIs.createEmptyROI());
+		assertNull(pathObject.getClassification());
+		assertNull(pathObject.getPathClass());
+		assertTrue(pathObject.getClassifications().isEmpty());
+
+		pathObject.setClassification("Something");
+		assertEquals("Something", pathObject.getClassification());
+		assertEquals(PathClass.getInstance("Something"), pathObject.getPathClass());
+		assertEquals(Set.of("Something"), pathObject.getClassifications());
+
+		pathObject.setClassification("Something:    else");
+		assertEquals("Something: else", pathObject.getClassification());
+		assertEquals(PathClass.fromString("Something: else"), pathObject.getPathClass());
+		assertEquals(PathClass.getInstance("Something"), pathObject.getPathClass().getBaseClass());
+		assertEquals(Set.of("Something", "else"), pathObject.getClassifications());
+
+		pathObject.setClassification(null);
+		assertNull(pathObject.getClassification());
+		assertNull(pathObject.getPathClass());
+		assertTrue(pathObject.getClassifications().isEmpty());
+
+		pathObject.setClassification("");
+		assertNull(pathObject.getClassification());
+		assertNull(pathObject.getPathClass());
+		assertTrue(pathObject.getClassifications().isEmpty());
+
+		pathObject.setClassifications(Set.of());
+		assertNull(pathObject.getClassification());
+		assertNull(pathObject.getPathClass());
+		assertTrue(pathObject.getClassifications().isEmpty());
+
+		pathObject.setPathClass(null);
+		assertNull(pathObject.getClassification());
+		assertNull(pathObject.getPathClass());
+		assertTrue(pathObject.getClassifications().isEmpty());
+
+		pathObject.setPathClass(PathClass.NULL_CLASS);
+		assertNull(pathObject.getClassification());
+		assertNull(pathObject.getPathClass());
+		assertTrue(pathObject.getClassifications().isEmpty());
+	}
 	
 	
 	
