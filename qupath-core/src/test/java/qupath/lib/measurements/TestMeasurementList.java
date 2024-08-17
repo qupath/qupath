@@ -286,4 +286,54 @@ public class TestMeasurementList {
         assertTrue(entries.isEmpty());
     }
 
+    @ParameterizedTest
+    @EnumSource(ListType.class)
+    void test_mapKeyIteration(ListType type) {
+        int n = 5;
+        var list = createMeasurementList(type, n);
+        var keys = list.asMap().keySet();
+        var iter = keys.iterator();
+        int i = 0;
+        while (iter.hasNext()) {
+            assertEquals(n - i, list.size());
+            var entry = iter.next();
+            iter.remove();
+            i++;
+            assertEquals(n - i, list.size());
+        }
+        assertEquals(n, i);
+        assertTrue(keys.isEmpty());
+    }
+
+    @ParameterizedTest
+    @EnumSource(ListType.class)
+    void test_mapKeyRemoval(ListType type) {
+        int n = 5;
+        var list = createMeasurementList(type, n);
+        var names = list.getNames();
+        var toRemove = names.subList(1, 3);
+        var keys = list.asMap().keySet();
+        keys.removeAll(toRemove);
+        assertEquals(n-2, list.size());
+    }
+
+    @ParameterizedTest
+    @EnumSource(ListType.class)
+    void test_mapValueIteration(ListType type) {
+        int n = 5;
+        var list = createMeasurementList(type, n);
+        var values = list.asMap().values();
+        var iter = values.iterator();
+        int i = 0;
+        while (iter.hasNext()) {
+            assertEquals(n - i, list.size());
+            var entry = iter.next();
+            iter.remove();
+            i++;
+            assertEquals(n - i, list.size());
+        }
+        assertEquals(n, i);
+        assertTrue(values.isEmpty());
+    }
+
 }
