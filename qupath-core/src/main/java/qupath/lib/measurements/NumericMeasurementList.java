@@ -232,7 +232,7 @@ class NumericMeasurementList {
 			else {
 				// If the list is closed, we have to reopen it
 				ensureListOpen();
-				names.add(name);
+				names.add(name.intern());
 				setValue(size()-1, value);
 			}
 		}

@@ -336,4 +336,17 @@ public class TestMeasurementList {
         assertTrue(values.isEmpty());
     }
 
+    @ParameterizedTest
+    @EnumSource(ListType.class)
+    void test_stringInterning(ListType type) {
+        var list = createMeasurementList(type, 1);
+        var list2 = createMeasurementList(type, 1);
+        // Shouldn't normally test strings like this!
+        // But here we want to make sure that String.intern() has been called to keep
+        // memory usage down.
+        // Interning is less important when lists are 'closed', so names are reused,
+        // but if the user forgets to do this then memory usage could become *much* higher.
+        assertTrue(list.getNames().get(0) == list2.getNames().get(0));
+    }
+
 }
