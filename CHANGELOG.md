@@ -52,6 +52,9 @@ This is a *work in progress* for the next major release.
 * The `MeasurementList` interface has been substantially revised (https://github.com/qupath/qupath/pulls)
   * Removed methods had been deprecated since v0.4.0; the changes mostly focus on simplifying the API, improving 
     thread-safety, and squashing some bugs.
+* `PathObject` and `PathObjectHierarchy` have also been revised, with deprecated methods removed
+  * New `PathObject.getClassification()` and `PathObject.setClassification(String)` methods 
+    to simplify working with classifications in scripts (https://github.com/qupath/qupath/pull/1593)
 
 ### Dependency updates
 * Bio-Formats 7.3.1

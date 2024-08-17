@@ -23,6 +23,7 @@
 
 package qupath.lib.objects.hierarchy;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -73,7 +74,8 @@ import qupath.lib.roi.interfaces.ROI;
  *
  */
 public final class PathObjectHierarchy implements Serializable {
-	
+
+	@Serial
 	private static final long serialVersionUID = 1L;
 	
 	private static final Logger logger = LoggerFactory.getLogger(PathObjectHierarchy.class);
@@ -81,11 +83,11 @@ public final class PathObjectHierarchy implements Serializable {
 	private TMAGrid tmaGrid = null;
 	private PathObject rootObject = new PathRootObject();
 	
-	private transient PathObjectSelectionModel selectionModel = new PathObjectSelectionModel();
-	private transient List<PathObjectHierarchyListener> listeners = new ArrayList<>();
+	private final transient PathObjectSelectionModel selectionModel = new PathObjectSelectionModel();
+	private final transient List<PathObjectHierarchyListener> listeners = new ArrayList<>();
 
 	// Cache enabling faster access of objects according to location
-	private transient PathObjectTileCache tileCache = new PathObjectTileCache(this);
+	private final transient PathObjectTileCache tileCache = new PathObjectTileCache(this);
 
 	/**
 	 * Default constructor, creates an empty hierarchy.
@@ -107,29 +109,19 @@ public final class PathObjectHierarchy implements Serializable {
 	/**
 	 * Add a hierarchy change listener.
 	 * @param listener
-	 * @since v0.4.0; replaced {@link #addPathObjectListener(PathObjectHierarchyListener)}
+	 * @since v0.4.0; replaced {@code addPathObjectListener(PathObjectHierarchyListener)}
 	 */
 	public void addListener(PathObjectHierarchyListener listener) {
 		synchronized(listeners) {
 			listeners.add(listener);
 		}
 	}
-	
-	/**
-	 * Legacy method to add a hierarchy change listener; use {@link #addListener(PathObjectHierarchyListener)} instead.
-	 * @param listener
-	 * @deprecated since v0.4.0 (the name was confusing because it wasn't intended primarily to listen to changes <i>within</i> individual PathObjects)
-	 */
-	@Deprecated
-	public void addPathObjectListener(PathObjectHierarchyListener listener) {
-		LogTools.warnOnce(logger, "addPathObjectListener() is deprecated, use addListener() instead");
-		addListener(listener);
-	}
+
 	
 	/**
 	 * Remove a hierarchy change listener.
 	 * @param listener
-	 * @since v0.4.0; replaced {@link #removePathObjectListener(PathObjectHierarchyListener)}
+	 * @since v0.4.0; replaced {@code removePathObjectListener(PathObjectHierarchyListener)}
 	 */
 	public void removeListener(PathObjectHierarchyListener listener) {
 		synchronized(listeners) {
@@ -137,16 +129,6 @@ public final class PathObjectHierarchy implements Serializable {
 		}
 	}
 
-	/**
-	 * Legacy method to remove a hierarchy change listener; use {@link #removeListener(PathObjectHierarchyListener)} instead.
-	 * @param listener
-	 * @deprecated since v0.4.0 (the name was confusing because it wasn't intended primarily to listen to changes <i>within</i> individual PathObjects)
-	 */
-	@Deprecated
-	public void removePathObjectListener(PathObjectHierarchyListener listener) {
-		LogTools.warnOnce(logger, "removePathObjectListener() is deprecated, use removeListener() instead");
-		removeListener(listener);
-	}
 
 	/**
 	 * Get the root object. All other objects in the hierarchy are descendants of the root.
@@ -233,7 +215,7 @@ public final class PathObjectHierarchy implements Serializable {
 	public synchronized boolean insertPathObjects(Collection<? extends PathObject> pathObjects) {
 		var selectedObjects =  new ArrayList<>(pathObjects);
 		int nObjects = selectedObjects.size();
-		selectedObjects.removeIf(p -> p.isTMACore());
+		selectedObjects.removeIf(PathObject::isTMACore);
 		if (selectedObjects.size() < nObjects)
 			logger.warn("TMA core objects cannot be inserted - use resolveHierarchy() instead");
 		
@@ -243,7 +225,7 @@ public final class PathObjectHierarchy implements Serializable {
 		selectedObjects.sort(PathObjectHierarchy.HIERARCHY_COMPARATOR.reversed());
 		boolean singleObject = selectedObjects.size() == 1;
 		// We don't want to reset caches for every object if we have only detections, since previously-inserted objects don't impact the potential parent
-		boolean allDetections = selectedObjects.stream().allMatch(p -> p.isDetection());
+		boolean allDetections = selectedObjects.stream().allMatch(PathObject::isDetection);
 		for (var pathObject : selectedObjects) {
 //			hierarchy.insertPathObject(pathObject, true);
 			insertPathObject(getRootObject(), pathObject, singleObject, !singleObject && !allDetections);
@@ -310,7 +292,7 @@ public final class PathObjectHierarchy implements Serializable {
 		}
 
 		var possibleParentObjects = new ArrayList<>(tempSet);
-		Collections.sort(possibleParentObjects, HIERARCHY_COMPARATOR);
+		possibleParentObjects.sort(HIERARCHY_COMPARATOR);
 
 		for (PathObject possibleParent : possibleParentObjects) {
 			if (possibleParent == pathObject || possibleParent.isDetection())
@@ -337,10 +319,10 @@ public final class PathObjectHierarchy implements Serializable {
 				// Reassign child objects if we need to
 				Collection<PathObject> previousChildren = pathObject.isDetection() ? new ArrayList<>() : new ArrayList<>(possibleParent.getChildObjects());
 				// Can't reassign TMA core objects (these must be directly below the root object)
-				previousChildren.removeIf(p -> p.isTMACore());
+				previousChildren.removeIf(PathObject::isTMACore);
 				// Beware that we could have 'orphaned' detections
 				if (possibleParent.isTMACore())
-					possibleParent.getParent().getChildObjects().stream().filter(p -> p.isDetection()).forEach(previousChildren::add);
+					possibleParent.getParent().getChildObjects().stream().filter(PathObject::isDetection).forEach(previousChildren::add);
 				possibleParent.addChildObject(pathObject);
 				if (!previousChildren.isEmpty()) {
 					pathObject.addChildObjects(filterObjectsForROI(pathObject.getROI(), previousChildren));
@@ -435,12 +417,8 @@ public final class PathObjectHierarchy implements Serializable {
 			PathObject parent = pathObject.getParent();
 			if (parent == null)
 				continue;
-			List<PathObject> list = map.get(parent);
-			if (list == null) {
-				list = new ArrayList<>();
-				map.put(parent, list);
-			}
-			list.add(pathObject);
+            List<PathObject> list = map.computeIfAbsent(parent, k -> new ArrayList<>());
+            list.add(pathObject);
 		}
 		
 		if (map.isEmpty())
@@ -526,51 +504,12 @@ public final class PathObjectHierarchy implements Serializable {
 	 * @param pathObject
 	 * @param fireUpdate 
 	 * @return
-	 * @since v0.4.0; replaces {@link #addPathObjectWithoutUpdate(PathObject)}
+	 * @since v0.4.0; replaces {@code addPathObjectWithoutUpdate(PathObject)}
 	 */
 	public boolean addObject(PathObject pathObject, boolean fireUpdate) {
 		return addPathObjectImpl(pathObject, fireUpdate);
 	}
-	
-			
-	/**
-	 * Legacy method to add an object to the hierarchy, firing an event.
-	 * @param pathObject
-	 * @return
-	 * @deprecated since v0.4.0; use {@link #addObject(PathObject)} instead (for naming consistency)
-	 */
-	@Deprecated
-	public boolean addPathObject(PathObject pathObject) {
-		LogTools.warnOnce(logger, "addPathObject(PathObject) is deprecated - use addObject(PathObject) instead");
-		return addObject(pathObject);
-	}
 
-	/**
-	 * Legacy method to add an object to the hierarchy, without firing an event.
-	 * @param pathObject
-	 * @return
-	 * @deprecated since v0.4.0, use {@link #addObject(PathObject, boolean)} instead (for naming consistency)
-	 */
-	@Deprecated
-	public boolean addPathObjectWithoutUpdate(PathObject pathObject) {
-		LogTools.warnOnce(logger, "addPathObjectWithoutUpdate(PathObject) is deprecated - use addObject(PathObject, false) instead");
-		return addObject(pathObject, false);
-	}
-
-	
-	/**
-	 * Legacy method to path object as descendant of the requested parent.
-	 * @param pathObjectParent
-	 * @param pathObject
-	 * @param fireUpdate
-	 * @return
-	 * @deprecated since v0.4.0; use {@link #addObjectBelowParent(PathObject, PathObject, boolean)}
-	 */
-	@Deprecated
-	public boolean addPathObjectBelowParent(PathObject pathObjectParent, PathObject pathObject, boolean fireUpdate) {
-		LogTools.warnOnce(logger, "addPathObjectBelowParent is deprecated - use addObjectBelowParent instead");
-		return addObjectBelowParent(pathObjectParent, pathObject, fireUpdate);
-	}
 	
 	/**
 	 * Add path object as descendant of the requested parent.
@@ -579,7 +518,7 @@ public final class PathObjectHierarchy implements Serializable {
 	 * @param pathObject
 	 * @param fireUpdate
 	 * @return
-	 * @since v0.4.0 (replaces {@link #addPathObjectBelowParent(PathObject, PathObject, boolean)}
+	 * @since v0.4.0 (replaces {@code addPathObjectBelowParent(PathObject, PathObject, boolean)}
 	 */
 	public synchronized boolean addObjectBelowParent(PathObject pathObjectParent, PathObject pathObject, boolean fireUpdate) {
 		if (pathObjectParent == pathObject)
@@ -607,7 +546,7 @@ public final class PathObjectHierarchy implements Serializable {
 	 * Add multiple objects to the hierarchy.
 	 * @param pathObjects
 	 * @return
-	 * @since v0.4.0; replaces {@link #addPathObjects(Collection)}
+	 * @since v0.4.0; replaces {@code addPathObjects(Collection)}
 	 */
 	public synchronized boolean addObjects(Collection<? extends PathObject> pathObjects) {
 		boolean changes = false;
@@ -626,18 +565,6 @@ public final class PathObjectHierarchy implements Serializable {
 			fireHierarchyChangedEvent(getRootObject());
 //			fireChangeEvent(getRootObject());
 		return changes;
-	}
-	
-	/**
-	 * Legacy method to add multiple objects to the hierarchy.
-	 * @param pathObjects
-	 * @return
-	 * @deprecated since v0.4.0; use {@link #addObjects(Collection)} instead
-	 */
-	@Deprecated
-	public boolean addPathObjects(Collection<? extends PathObject> pathObjects) {
-		LogTools.warnOnce(logger, "addPathObjects(Collection) is deprecated - use addObjects(Collection) instead");
-		return addObjects(pathObjects);
 	}
 
 	
@@ -799,8 +726,7 @@ public final class PathObjectHierarchy implements Serializable {
 	 * @return
 	 */
 	public synchronized int nObjects() {
-		int count = PathObjectTools.countDescendants(getRootObject());
-		return count;
+		return PathObjectTools.countDescendants(getRootObject());
 	}
 	
 	/**
@@ -941,7 +867,7 @@ public final class PathObjectHierarchy implements Serializable {
 		// A change in getLocator() overcomes this - but watch out for future problems
 		return pathObjects.parallelStream().filter(child -> {
 			// Test plane first
-			if (!samePlane(roi, child.getROI(), false))
+			if (!sameZT(roi, child.getROI()))
 				return false;
 			
 			if (child.isDetection())
@@ -954,17 +880,13 @@ public final class PathObjectHierarchy implements Serializable {
 	
 	
 	/**
-	 * Check if two ROIs fall in the same plane, optionally testing the channel as well.
+	 * Check if two ROIs fall in the same plane, i.e. have the same Z and T values.
 	 * @param roi1
 	 * @param roi2
-	 * @param checkChannel
 	 * @return
 	 */
-	private static boolean samePlane(ROI roi1, ROI roi2, boolean checkChannel) {
-		if (checkChannel)
-			return roi1.getImagePlane().equals(roi2.getImagePlane());
-		else
-			return roi1.getZ() == roi2.getZ() && roi1.getT() == roi2.getT();
+	private static boolean sameZT(ROI roi1, ROI roi2) {
+		return roi1.getZ() == roi2.getZ() && roi1.getT() == roi2.getT();
 	}
 
 	
@@ -980,7 +902,6 @@ public final class PathObjectHierarchy implements Serializable {
 	 * @see #getAllObjectsForRegion(ImageRegion, Collection)
 	 * @see #getAnnotationsForRegion(ImageRegion, Collection)
 	 * @see #getAllDetectionsForRegion(ImageRegion, Collection)
-	 * @since v0.6.0
 	 */
 	@Deprecated
 	public Collection<PathObject> getObjectsForRegion(Class<? extends PathObject> cls, ImageRegion region, Collection<PathObject> pathObjects) {
