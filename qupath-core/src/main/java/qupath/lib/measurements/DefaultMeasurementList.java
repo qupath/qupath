@@ -127,8 +127,9 @@ class DefaultMeasurementList implements MeasurementList {
 		}
 		if (ind < list.size()) {
 			list.set(ind, measurement);
+		} else {
+			list.add(measurement);
 		}
-		list.add(measurement);
 	}
 
 	@Override
