@@ -502,7 +502,7 @@ public class DelaunayTriangulation implements PathObjectConnectionGroup {
 				node.addNeighborsToSet(neighborSet, averagingSeparation);
 				
 				// Get the smoothed measurements now, since access is likely to be much faster we start modifying it
-				measurementNames = measurementList.getMeasurementNames().toArray(measurementNames);
+				measurementNames = measurementList.getNames().toArray(measurementNames);
 				if (averagedMeasurements.length < measurementNames.length)
 					averagedMeasurements = new double[measurementNames.length];
 				for (int i = 0; i < measurementNames.length; i++) {

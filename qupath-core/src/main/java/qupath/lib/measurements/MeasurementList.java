@@ -167,7 +167,7 @@ public interface MeasurementList extends Serializable, AutoCloseable {
 	/**
 	 * Get all available names as a set.
 	 * @return
-	 * @implNote the current implementation is much less efficient than {@link #getMeasurementNames()}, 
+	 * @implNote the current implementation is much less efficient than {@link #getNames()},
 	 *           but is included to more closely resemble Map behavior.
 	 *           The list of names and size of the returned set here should be identical; if they aren't, 
 	 *           duplicate names seem to be present and a warning is logged.
@@ -176,8 +176,8 @@ public interface MeasurementList extends Serializable, AutoCloseable {
 	 *           please report it!).
 	 */
 	default Set<String> keySet() {
-		var names = getMeasurementNames();
-		var set = Set.copyOf(getMeasurementNames());
+		var names = getNames();
+		var set = Set.copyOf(getNames());
 		// Shouldn't ever happen, but we certainly want to know if it does...
 		if (set.size() < names.size()) {
 			LoggerFactory.getLogger(getClass()).warn("Duplicate measurement names detected! Set size {}, list size {}", set.size(), names.size());
@@ -191,7 +191,19 @@ public interface MeasurementList extends Serializable, AutoCloseable {
 	 * changes to the list.
 	 * @return
 	 */
-	List<String> getMeasurementNames();
+	List<String> getNames();
+
+	/**
+	 * Get the names of all measurements currently in the list.
+	 * Note that this method should return an unmodifiable snapshot of the current names, and not be affected by
+	 * changes to the list.
+	 * @return
+	 * @deprecated v0.6.0 use {@link #getNames()} instead
+	 */
+	@Deprecated
+	default List<String> getMeasurementNames() {
+		return getNames();
+	}
 
 	/**
 	 * Get value for the measurement with the specified name.
@@ -209,7 +221,7 @@ public interface MeasurementList extends Serializable, AutoCloseable {
 	 * @since v0.4.0
 	 */
 	default boolean containsKey(String name) {
-		return getMeasurementNames().contains(name);
+		return getNames().contains(name);
 	}
 
 	/**
@@ -225,7 +237,7 @@ public interface MeasurementList extends Serializable, AutoCloseable {
 	 * @return
 	 */
 	default int size() {
-		return getMeasurementNames().size();
+		return getNames().size();
 	}
 	
 	/**

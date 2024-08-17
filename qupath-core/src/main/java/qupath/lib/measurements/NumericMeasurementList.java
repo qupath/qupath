@@ -181,7 +181,7 @@ class NumericMeasurementList {
 		}
 
 		@Override
-		public synchronized List<String> getMeasurementNames() {
+		public synchronized List<String> getNames() {
 			if (names.isEmpty())
 				return Collections.emptyList();
 			// Try to return the same unmodifiable list of names if we can - this speeds up comparisons

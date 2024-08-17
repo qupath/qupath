@@ -169,7 +169,7 @@ class MeasurementsMap extends AbstractMap<String, Number> implements Map<String,
 				public void remove() {
 					if (i <= 0)
 						throw new IllegalStateException();
-					list.remove(list.getMeasurementNames().get(i - 1));
+					list.remove(list.getNames().get(i - 1));
 					i--;
 				}
 				

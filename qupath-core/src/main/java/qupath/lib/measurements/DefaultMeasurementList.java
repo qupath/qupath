@@ -62,7 +62,7 @@ class DefaultMeasurementList implements MeasurementList {
 	}
 	
 	@Override
-	public synchronized List<String> getMeasurementNames() {
+	public synchronized List<String> getNames() {
 		return list.stream()
 				.map(Measurement::getName)
 				.toList();

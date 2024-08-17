@@ -82,9 +82,9 @@ public class TestMeasurementList {
     void test_namesSnapshot(ListType type) {
         var list = createMeasurementList(type, 5);
         // This should give an unmodifiable snapshot of names
-        var names = list.getMeasurementNames();
+        var names = list.getNames();
         list.put(UUID.randomUUID().toString(), 1.0);
-        var names2 = list.getMeasurementNames();
+        var names2 = list.getNames();
         assertNotEquals(names, names2);
         assertEquals(5, names.size());
         assertEquals(6, names2.size());
@@ -142,7 +142,7 @@ public class TestMeasurementList {
         list.clear();
         assertEquals(0, list.size());
         assertTrue(list.isEmpty());
-        assertTrue(list.getMeasurementNames().isEmpty());
+        assertTrue(list.getNames().isEmpty());
     }
 
     @ParameterizedTest
@@ -217,10 +217,10 @@ public class TestMeasurementList {
         var list = createMeasurementList(type, n);
         assertEquals(n, list.size());
         // Successful remove
-        var names = list.getMeasurementNames();
+        var names = list.getNames();
         var toRemove = names.subList(1, 3);
         list.removeMeasurements(toRemove.toArray(String[]::new));
-        var newNames = list.getMeasurementNames();
+        var newNames = list.getNames();
         assertEquals(n - toRemove.size(), list.size());
         for (var name : toRemove) {
             assertFalse(newNames.contains(name));

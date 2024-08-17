@@ -189,8 +189,8 @@ public class TestPathObject {
 	 * @param p
 	 */
 	private static void checkSameKeysAndValues(PathObject p) {
-		assertEquals(p.getMeasurementList().getMeasurementNames(), new ArrayList<>(p.getMeasurements().keySet()));
-		assertEquals(new LinkedHashSet<>(p.getMeasurementList().getMeasurementNames()), p.getMeasurements().keySet());
+		assertEquals(p.getMeasurementList().getNames(), new ArrayList<>(p.getMeasurements().keySet()));
+		assertEquals(new LinkedHashSet<>(p.getMeasurementList().getNames()), p.getMeasurements().keySet());
 		
 		double[] listValues = new double[p.getMeasurementList().size()];
 		double[] listValuesByName = new double[p.getMeasurementList().size()];

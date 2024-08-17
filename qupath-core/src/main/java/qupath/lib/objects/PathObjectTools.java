@@ -54,7 +54,6 @@ import org.slf4j.LoggerFactory;
 import qupath.lib.geom.Point2;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
-import qupath.lib.interfaces.MinimalMetadataStore;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassTools;
@@ -2057,7 +2056,7 @@ public class PathObjectTools {
 		for (PathObject pathObject : pathObjects) {
 			if (!pathObject.hasMeasurements())
 				continue;
-			List<String> list = pathObject.getMeasurementList().getMeasurementNames();
+			List<String> list = pathObject.getMeasurementList().getNames();
 			if (lastNames != list)
 				featureSet.addAll(list);
 			lastNames = list;

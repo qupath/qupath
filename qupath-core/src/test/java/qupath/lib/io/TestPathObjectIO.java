@@ -169,7 +169,7 @@ public class TestPathObjectIO {
 	
 	private static void assertSameMeasurements(MeasurementList ml1, MeasurementList ml2) {
 		assertEquals(ml1.size(), ml2.size());
-		assertEquals(ml1.getMeasurementNames(), ml2.getMeasurementNames());
+		assertEquals(ml1.getNames(), ml2.getNames());
 		for (int i = 0; i < ml1.size(); i++) {
 			double val1 = ml1.getMeasurement(i).getValue();
 			double val2 = ml2.getMeasurement(i).getValue();
