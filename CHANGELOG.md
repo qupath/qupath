@@ -49,6 +49,9 @@ This is a *work in progress* for the next major release.
   * `qupath.lib.objects.MetadataStore` is deprecated and will be removed in the next release - 
     along with older metadata-related methods in `PathObject` and `ProjectImageEntry`
   * _Extensions with subclasses may need updated for compatibity by implementing `getMetadata()`_
+* The `MeasurementList` interface has been substantially revised (https://github.com/qupath/qupath/pulls)
+  * Removed methods had been deprecated since v0.4.0; the changes mostly focus on simplifying the API, improving 
+    thread-safety, and squashing some bugs.
 
 ### Dependency updates
 * Bio-Formats 7.3.1
