@@ -1557,6 +1557,7 @@ public class ViewerManager implements QuPathViewerListener {
 			}
 //			actionSetClass.setGraphic(r);
 			RadioMenuItem item = ActionUtils.createRadioMenuItem(actionSetClass);
+			item.setMnemonicParsing(false); // Fix display of underscores in classification names
 			item.graphicProperty().unbind();
 			item.setGraphic(shape);
 			item.setToggleGroup(group);

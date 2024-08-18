@@ -196,6 +196,7 @@ class CountingPane implements PathObjectSelectionListener, PathObjectHierarchyLi
 	
 	MenuItem createPathClassMenuItem(PathClass pathClass) {
 		var mi = new MenuItem(pathClass.toString());
+		mi.setMnemonicParsing(false); // Fix display of underscores in menu items
 		var color = pathClass.getColor();
 		var rect = new Rectangle(8, 8, color == null ? ColorToolsFX.TRANSLUCENT_WHITE_FX : ColorToolsFX.getCachedColor(color));
 		mi.setGraphic(rect);
