@@ -723,7 +723,7 @@ public abstract class PathObject implements Externalizable, MinimalMetadataStore
 		if (classifications.isEmpty())
 			resetPathClass();
 		else if (classifications instanceof Set) {
-			setPathClass(PathClass.fromCollection((Set<String>)classifications));
+			setPathClass(PathClass.fromCollection(classifications));
 		} else {
 			// Use LinkedHashSet to maintain ordering
 			var set = new LinkedHashSet<>(classifications);
