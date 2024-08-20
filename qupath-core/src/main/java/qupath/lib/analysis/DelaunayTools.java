@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -123,11 +123,8 @@ public class DelaunayTools {
 				if (!geom2.isEmpty())
 					geom = geom2;
 			}
-			
-//			if (!(geom instanceof Polygon))
-//				logger.warn("Unexpected Geometry: {}", geom);
-			
-			// Making precise is essential! Otherwise there can be small artifacts occurring
+
+			// Making precise is essential! Otherwise, small artifacts can occur
 			var coords = geom.getCoordinates();
 			var output = new LinkedHashSet<Coordinate>();
 			var p2 = precision;
@@ -192,7 +189,7 @@ public class DelaunayTools {
 	 */
 	public static class Builder {
 		
-		private static enum ExtractorType {CUSTOM, CENTROIDS, ROI}
+		private enum ExtractorType {CUSTOM, CENTROIDS, ROI}
 		
 		private ExtractorType extractorType = ExtractorType.CENTROIDS;
 		private boolean preferNucleusROI = true;
@@ -202,7 +199,7 @@ public class DelaunayTools {
 		
 		private double erosion = 1.0;
 		
-		private ImagePlane plane = ImagePlane.getDefaultPlane();
+		private ImagePlane plane;
 		private Collection<PathObject> pathObjects = new ArrayList<>();
 		
 		private Function<PathObject, Collection<Coordinate>> coordinateExtractor;
@@ -308,8 +305,8 @@ public class DelaunayTools {
 			case ROI:
 				extractor = createGeometryExtractor(cal, preferNucleusROI, densify, erosion);
 				break;
-			default:
 			case CUSTOM:
+			default:
 				break;
 			}
 			
@@ -593,24 +590,21 @@ public class DelaunayTools {
 		
 		private static final Logger logger = LoggerFactory.getLogger(Subdivision.class);
 		
-		private Set<PathObject> pathObjects = new LinkedHashSet<>();
-		private Map<Coordinate, PathObject> coordinateMap = new HashMap<>();
-		private Map<PathObject, List<Coordinate>> objectCoordinateMap = new HashMap<>();
-		private QuadEdgeSubdivision subdivision;
+		private final Set<PathObject> pathObjects;
+		private final Map<Coordinate, PathObject> coordinateMap;
+		private final QuadEdgeSubdivision subdivision;
 		
-		private ImagePlane plane;
+		private final ImagePlane plane;
 		
-		private transient Map<PathObject, List<PathObject>> neighbors;
-		private transient Map<PathObject, Geometry> voronoiFaces;
+		private transient volatile Map<PathObject, List<PathObject>> neighbors;
+		private transient volatile Map<PathObject, Geometry> voronoiFaces;
 		
 		
 		private Subdivision(QuadEdgeSubdivision subdivision, Collection<PathObject> pathObjects, Map<Coordinate, PathObject> coordinateMap, ImagePlane plane) {
 			this.subdivision = subdivision;
 			this.plane = plane;
-			this.pathObjects.addAll(pathObjects);
-			this.coordinateMap.putAll(coordinateMap);
-			this.pathObjects = Collections.unmodifiableSet(this.pathObjects);
-			this.coordinateMap = Collections.unmodifiableMap(this.coordinateMap);
+			this.pathObjects = Collections.unmodifiableSet(new LinkedHashSet<>(pathObjects));
+			this.coordinateMap = Map.copyOf(coordinateMap);
 		}
 		
 		/**
@@ -750,9 +744,12 @@ public class DelaunayTools {
 			}
 			return neighbors;
 		}
-		
-		
-		
+
+
+		/**
+		 * Return a map of PathObjects and their neighbors, sorted by distance.
+		 * @return
+		 */
 		private synchronized Map<PathObject, List<PathObject>> calculateAllNeighbors() {
 			
 			logger.debug("Calculating all neighbors for {} objects", getPathObjects().size());
@@ -760,7 +757,7 @@ public class DelaunayTools {
 			@SuppressWarnings("unchecked")
 			var edges = (List<QuadEdge>)subdivision.getVertexUniqueEdges(false);
 			Map<PathObject, List<PathObject>> map = new HashMap<>();
-			var distanceMap = new HashMap<PathObject, Double>();
+			Map<PathObject, Double> distanceMap = new HashMap<>();
 			
 			int missing = 0;
 			for (var edge : edges) {
@@ -787,8 +784,8 @@ public class DelaunayTools {
 						list.add(destObject);
 					}
 				} while ((next = next.oNext()) != edge);
-				Collections.sort(list, Comparator.comparingDouble(p -> distanceMap.get(p)));
-				
+
+				list.sort(Comparator.comparingDouble(distanceMap::get));
 				map.put(pathObject, Collections.unmodifiableList(list));
 			}
 			if (missing > 0)
