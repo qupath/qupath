@@ -36,11 +36,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import qupath.lib.analysis.DelaunayTools;
 import qupath.lib.common.LogTools;
 import qupath.lib.objects.DefaultPathObjectComparator;
 import qupath.lib.objects.PathAnnotationObject;
@@ -55,6 +57,7 @@ import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
 import qupath.lib.objects.hierarchy.events.PathObjectSelectionModel;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent.HierarchyEventType;
+import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.roi.interfaces.ROI;
 
@@ -88,6 +91,9 @@ public final class PathObjectHierarchy implements Serializable {
 
 	// Cache enabling faster access of objects according to location
 	private final transient PathObjectTileCache tileCache = new PathObjectTileCache(this);
+
+	// A map to store subdivisions, useful for finding neighbors
+	private transient SubdivisionManager subdivisionManager = new SubdivisionManager();
 
 	/**
 	 * Default constructor, creates an empty hierarchy.
@@ -278,7 +284,8 @@ public final class PathObjectHierarchy implements Serializable {
 			logger.warn("TMA core objects cannot be inserted - use resolveHierarchy() instead");
 			return false;
 		}
-		
+		resetNeighborsForClass(pathObject.getClass());
+
 		// Get all the annotations that might be a parent of this object
 		var region = ImageRegion.createInstance(pathObject.getROI());
 		Collection<PathObject> tempSet = new HashSet<>();
@@ -393,6 +400,7 @@ public final class PathObjectHierarchy implements Serializable {
 			else
 				fireHierarchyChangedEvent(this, pathObjectParent);
 		}
+		resetNeighborsForClass(pathObject.getClass());
 		return true;
 	}
 	
@@ -441,26 +449,10 @@ public final class PathObjectHierarchy implements Serializable {
 		for (PathObject pathObject : childrenToKeep) {
 			addPathObjectImpl(pathObject, false);
 		}
+		for (var cls : pathObjects.stream().map(PathObject::getClass).distinct().toList()) {
+			resetNeighborsForClass(cls);
+		}
 		fireHierarchyChangedEvent(this);
-		
-		// This previously could result in child objects being deleted even if keepChildren was 
-		// true, depending upon the order in which objects were removed.
-//		// Loop through and remove objects
-//		for (Entry<PathObject, List<PathObject>> entry : map.entrySet()) {
-//			PathObject parent = entry.getKey();
-//			List<PathObject> children = entry.getValue();
-//			parent.removePathObjects(children);
-//			if (keepChildren) {
-//				for (PathObject child : children) {
-//					if (child.hasChildren()) {
-//						List<PathObject> newChildList = new ArrayList<>(child.getChildObjects());
-//						newChildList.removeAll(pathObjects);
-//						parent.addPathObjects(newChildList);
-//					}
-//				}
-//			}
-//		}
-//		fireHierarchyChangedEvent(this);
 	}
 	
 	
@@ -486,6 +478,7 @@ public final class PathObjectHierarchy implements Serializable {
 		// Notify listeners of changes, if required
 		if (fireChangeEvents)
 			fireObjectAddedEvent(this, pathObject);
+		resetNeighborsForClass(pathObject.getClass());
 		return true;
 	}
 	
@@ -561,9 +554,13 @@ public final class PathObjectHierarchy implements Serializable {
 			changes = addPathObjectToList(getRootObject(), pathObject, false) || changes;
 			counter++;
 		}
-		if (changes)
+		if (changes) {
 			fireHierarchyChangedEvent(getRootObject());
 //			fireChangeEvent(getRootObject());
+			for (var cls : pathObjects.stream().map(PathObject::getClass).distinct().toList()) {
+				resetNeighborsForClass(cls);
+			}
+		}
 		return changes;
 	}
 
@@ -574,6 +571,7 @@ public final class PathObjectHierarchy implements Serializable {
 	public synchronized void clearAll() {
 		getRootObject().clearChildObjects();
 		tmaGrid = null;
+		resetNeighbors();
 		fireHierarchyChangedEvent(getRootObject());
 	}
 	
@@ -677,6 +675,7 @@ public final class PathObjectHierarchy implements Serializable {
 		if (inHierarchy(pathObject))
 			removeObject(pathObject, true, false);
 		addPathObjectImpl(pathObject, false);
+		resetNeighborsForClass(pathObject.getClass());
 		fireObjectsChangedEvent(this, Collections.singletonList(pathObject), isChanging);
 //		fireHierarchyChangedEvent(this, pathObject);
 	}
@@ -739,6 +738,7 @@ public final class PathObjectHierarchy implements Serializable {
 			return;
 		rootObject = hierarchy.getRootObject();
 		tmaGrid = hierarchy.tmaGrid;
+		resetNeighbors();
 		fireHierarchyChangedEvent(rootObject);
 	}
 	
@@ -1143,11 +1143,95 @@ public final class PathObjectHierarchy implements Serializable {
 				listener.hierarchyChanged(event);
 		}
 	}
-	
+
+	private synchronized void resetNeighborsForClass(Class<? extends PathObject> cls) {
+		subdivisionManager.clear();
+	}
+
+	private synchronized void resetNeighbors() {
+		subdivisionManager.clear();
+	}
+
+	/**
+	 * Find all neighbors of a PathObject, having the same class as the object (e.g. detection, cell, annotation).
+	 * This is based on centroids and Delaunay triangulation.
+	 * It also assumes 'square' pixels, and searches for neighbors only on the same 2D plane (z and t).
+	 * @param pathObject
+	 * @return
+	 */
+	public synchronized List<PathObject> findAllNeighbors(PathObject pathObject) {
+		var subdivision = getSubdivision(pathObject);
+		return subdivision == null ? Collections.emptyList() : subdivision.getNeighbors(pathObject);
+	}
+
+	/**
+	 * Find the nearest neighbor of a PathObject, having the same class as the object (e.g. detection, cell, annotation).
+	 * This is based on centroids and Delaunay triangulation.
+	 * It also assumes 'square' pixels, and searches for neighbors only on the same 2D plane (z and t).
+	 * @param pathObject
+	 * @return
+	 */
+	public synchronized PathObject findNearestNeighbor(PathObject pathObject) {
+		var subdivision = getSubdivision(pathObject);
+		return subdivision == null ? null : subdivision.getNearestNeighbor(pathObject);
+	}
+
+	/**
+	 * Get the subdivision containing a specific PathObject.
+	 * This is based on centroids and Delaunay triangulation in 2D.
+	 * It supports #findAllNeighbors(PathObject) and #findNearestNeighbor(PathObject); obtaining the subdivision
+	 * enables a wider range of spatial queries.
+	 * @param pathObject
+	 * @return
+	 */
+	public synchronized DelaunayTools.Subdivision getSubdivision(PathObject pathObject) {
+		return subdivisionManager.getSubdivision(pathObject);
+	}
+
+	private DelaunayTools.Subdivision computeSubdivision(Class<? extends PathObject> cls) {
+		var pathObjects = tileCache.getObjectsForRegion(cls,
+				null, null, false);
+		return DelaunayTools.createFromCentroids(pathObjects, true);
+	}
+
 	
 	@Override
 	public String toString() {
 		return "Hierarchy: " + nObjects() + " objects";
+	}
+
+	private class SubdivisionManager {
+
+		private static final DelaunayTools.Subdivision EMPTY = DelaunayTools.createFromCentroids(Collections.emptyList(), true);
+
+		private static final Map<Class<? extends PathObject>,
+				Map<ImagePlane, DelaunayTools.Subdivision>> subdivisionMap = new ConcurrentHashMap<>();
+
+		synchronized DelaunayTools.Subdivision getSubdivision(PathObject pathObject) {
+			if (pathObject == null || !pathObject.hasROI()) {
+				return EMPTY;
+			}
+			var map = subdivisionMap.computeIfAbsent(pathObject.getClass(), k -> new ConcurrentHashMap<>());
+			var plane = pathObject.getROI().getImagePlane();
+			return map.computeIfAbsent(plane, k -> computeSubdivision(pathObject.getClass(), plane));
+		}
+
+		private DelaunayTools.Subdivision computeSubdivision(Class<? extends PathObject> cls, ImagePlane plane) {
+			var pathObjects = tileCache.getObjectsForRegion(cls,
+					ImageRegion.createInstance(-Integer.MAX_VALUE/2, -Integer.MAX_VALUE/2,
+							Integer.MAX_VALUE, Integer.MAX_VALUE, plane.getZ(), plane.getT()),
+					null, false);
+			return DelaunayTools.createFromCentroids(pathObjects, true);
+		}
+
+		private synchronized void clear() {
+			subdivisionMap.clear();
+		}
+
+		private synchronized void clearClass(Class<? extends PathObject> cls) {
+			subdivisionMap.getOrDefault(cls, Collections.emptyMap()).clear();
+		}
+
 	}
 	
 }
