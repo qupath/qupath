@@ -248,12 +248,7 @@ public class PathHierarchyImageServer extends AbstractTileableImageServer implem
 					downsampleFactor,
 					tileRequest.getImagePlane());
 		}
-		
-		
 		g2d.dispose();
-//		long endTime = System.currentTimeMillis();
-//		System.out.println("Number of objects: " + pathObjects.size());
-//		System.out.println("Single tile image creation time: " + (endTime - startTime)/1000.);
 		return img;
 	}
 

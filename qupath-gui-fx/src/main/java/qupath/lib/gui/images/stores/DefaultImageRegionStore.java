@@ -112,7 +112,6 @@ public class DefaultImageRegionStore extends AbstractImageRegionStore<BufferedIm
 					g.drawImage((BufferedImage)result, request.getX(), request.getY(), request.getWidth(), request.getHeight(), observer);
 			} else if (result instanceof TileWorker) {
 				// If we've a tile worker, prepare for requesting its results soon...
-//				System.out.println(((TileWorker)result).getRegion());
 				workers.add((TileWorker<BufferedImage>)result);
 			}
 		}
@@ -182,14 +181,8 @@ public class DefaultImageRegionStore extends AbstractImageRegionStore<BufferedIm
 
 	private void paintRegionInternal(ImageServer<BufferedImage> server, Graphics g, Shape clipShapeVisible, int zPosition, int tPosition, double downsampleFactor, BufferedImage imgThumbnail, ImageObserver observer, ImageRenderer imageDisplay) {
 
-//		// We don't need it... but try to request the thumbnail to keep it present in the cache, if it is there
-//		cache.get(getThumbnailRequest(server, zPosition, tPosition));
-
 		// Check if we have all the regions required for this request
 		List<RegionRequest> requests = ImageRegionStoreHelpers.getTilesToRequest(server, clipShapeVisible, downsampleFactor, zPosition, tPosition, null);
-
-//		System.out.println("Requesting tiles: " + requests.size());
-//		System.out.println("Requesting tiles " + server.getServerPath() + ": " + requests.size());
 
 		// If we should be painting recursively, ending up with the thumbnail, do so
 		if (imgThumbnail != null) {

@@ -97,9 +97,6 @@ public class RoiEditor {
 	 * 						  Normally this should be true, but it may be false if the new ROI being set is part of the same translation event.
 	 */
 	public void setROI(ROI roi, boolean stopTranslating) {
-//		if (stopTranslating)
-//			System.out.println("Stopping translating: " + stopTranslating + " - " + pathROI);
-
 		if (this.pathROI == roi)
 			return;
 		if (isTranslating() && stopTranslating) {
@@ -666,7 +663,6 @@ public class RoiEditor {
 				return roi;
 			activeHandle.setLocation(xNew, yNew);
 			roi = new PolygonROI(createPoint2List(handles), roi.getImagePlane());
-//			System.out.println("UPDATED HANDLES: " + handles.size() + ", " + roi.nVertices());
 			return roi;
 		}
 		
@@ -749,7 +745,6 @@ public class RoiEditor {
 				return roi;
 			activeHandle.setLocation(xNew, yNew);
 			roi = new PolylineROI(createPoint2List(handles), roi.getImagePlane());
-//			System.out.println("UPDATED HANDLES: " + handles.size() + ", " + roi.getNumPoints());
 			return roi;
 		}
 		
@@ -786,7 +781,6 @@ public class RoiEditor {
 			activeHandle = new MutablePoint(x, y);
 			roi = new PolylineROI(createPoint2List(handles), roi.getImagePlane());
 			handles.add(activeHandle);
-//			System.out.println("UPDATED HANDLES BY REQUEST: " + handles.size());
 			return roi;
 		}
 

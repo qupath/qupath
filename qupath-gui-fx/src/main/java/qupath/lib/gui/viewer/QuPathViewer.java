@@ -2981,9 +2981,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 	@Override
 	public void tileAvailable(String serverPath, ImageRegion region, BufferedImage tile) {
-		//		if (serverPath == null || serverPath.equals(getServerPath()))
-//		System.out.println(region);
-		
+
 		if (!hasServer())
 			return;
 		
@@ -2991,8 +2989,6 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		if (serverPath == null || serverPath.contains(getServerPath()))
 			repaintImageRegion(AwtTools.getBounds(region), true);//!serverPath.startsWith(PathHierarchyImageServer.DEFAULT_PREFIX));
 		
-		//		imageUpdated = true;
-		//		repaint();
 	}
 
 

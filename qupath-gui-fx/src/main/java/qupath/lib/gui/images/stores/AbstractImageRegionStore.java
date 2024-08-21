@@ -767,10 +767,7 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 					// Check if we still need the tile... if not, and we go searching, there can be a backlog
 					// making any requests slower to fulfill
 					// (Also, grab a snapshot of the listener list to avoid concurrent modifications)
-//			    	long t1 = System.currentTimeMillis();
 					T img = server.readRegion(request);
-//			    	long t2 = System.currentTimeMillis();
-//			    	System.out.println("Tile request time: " + (t2 - t1));
 					return img;
 				}
 

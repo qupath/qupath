@@ -376,7 +376,6 @@ public class MoveToolEventHandler extends AbstractPathToolEventHandler {
 			if (scale <= 0)
 				return;
 			
-//			System.out.println("Timestamp: " + timestamp + ", New timestamp: " + newTimestamp + ", dx: " + dx + ", dy: " + dy + ", scale: " + scale);
 			timestamp = newTimestamp;
 			dx *= scale;
 			dy *= scale;
@@ -386,7 +385,6 @@ public class MoveToolEventHandler extends AbstractPathToolEventHandler {
 				return;
 			}
 			
-//			System.err.println("Call by distance: " + (Math.sqrt(dx*dx + dy*dy) / Math.sqrt(downsample*downsample)));
 			viewer.setCenterPixelLocation(viewer.getCenterPixelX() - dx, viewer.getCenterPixelY() - dy);
 		}
 		
@@ -400,7 +398,6 @@ public class MoveToolEventHandler extends AbstractPathToolEventHandler {
 			this.dx = dx;
 			this.dy = dy;
 			this.constantVelocity = constantVelocity;
-//			System.out.println("Starting: " + dx + ", " + dy);
 			if (timer == null) {
 				timer = new Timeline(
 						new KeyFrame(

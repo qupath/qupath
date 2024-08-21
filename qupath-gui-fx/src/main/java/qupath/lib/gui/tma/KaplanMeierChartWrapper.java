@@ -509,44 +509,7 @@ class KaplanMeierChartWrapper {
 					.concat(String.format(": p = %.4f", logRankResult.getPValue())));
 			series.setNode(null);
 			chart.getData().add(series);
-			
-//			series = new Series<>();
-//			series.nameProperty().bind(
-//					chart.getData().get(0).nameProperty()
-//					.concat(" vs ")
-//					.concat(chart.getData().get(1).nameProperty())
-//					.concat(": p = " + GeneralTools.getFormatter(3).format(logRankResult.getPValue())));
-//			series.setNode(null);
-//			chart.getData().add(series);
-//			
-//			logRankResult = LogRankTest.computeLogRankTest(kmList.get(0), kmList.get(2));
-//			series = new Series<>();
-//			series.nameProperty().bind(
-//					chart.getData().get(0).nameProperty()
-//					.concat(" vs ")
-//					.concat(chart.getData().get(2).nameProperty())
-//					.concat(": p = " + GeneralTools.getFormatter(3).format(logRankResult.getPValue())));
-//			series.setNode(null);
-//			chart.getData().add(series);
-//
-//			logRankResult = LogRankTest.computeLogRankTest(kmList.get(1), kmList.get(2));
-//			series = new Series<>();
-//			series.nameProperty().bind(
-//					chart.getData().get(1).nameProperty()
-//					.concat(" vs ")
-//					.concat(chart.getData().get(2).nameProperty())
-//					.concat(": p = " + GeneralTools.getFormatter(3).format(logRankResult.getPValue())));
-//			series.setNode(null);
-//			chart.getData().add(series);
 		}
-
-		
-//		for (Series<Number, Number> series : chart.getData()) {
-//			System.out.println(series.getName());
-//			for (Data<Number, Number> data : series.getData()) {
-//				System.err.println(data);
-//			}
-//		}
 		
 	}
 	
