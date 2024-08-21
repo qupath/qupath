@@ -170,7 +170,6 @@ public class TestImageOps {
 					var idxStd = matStdDev.createIndexer();
 					var matOrig = new Mat();
 					for (int i = 0; i < mat.channels(); i++) {
-//						System.err.println("Channel " + i + ", radius " + radius);
 						// Extract channels
 						opencv_core.extractChannel(mat, matOrig, i);
 						// Extract first filtered location
@@ -182,9 +181,6 @@ public class TestImageOps {
 						opencv_core.meanStdDev(matOrig, matLocalMean, matLocalStd, kernel);
 						double localStd = OpenCVTools.extractDoubles(matLocalStd)[0];
 						double localMean = OpenCVTools.extractDoubles(matLocalMean)[0];
-//						OpenCVTools.matToImagePlus(""+radius, mat, matMean, matStdDev).show();
-//						System.err.println("Mean: " + localMean + ": " + mean);
-//						System.err.println("Std.dev: " + localStd + ": " + std);
 						assertEquals(localStd, std, eps);
 						assertEquals(localMean, mean, eps);
 					}
@@ -252,9 +248,6 @@ public class TestImageOps {
 						
 						compareValues(m1, ImageOps.Core.clip(0.25, 2.5), Math.min(2.5, Math.max(0.25, v1)));
 						compareValues(m2, ImageOps.Core.clip(0.25, 2.5), Math.min(2.5, Math.max(0.25, v2)));
-						
-	//					System.err.println("v1: " + v1);
-	//					System.err.println("v2: " + v2);
 						
 						compareValues(m1, ImageOps.Core.exp(), Math.exp(v1));
 						compareValues(m2, ImageOps.Core.exp(), Math.exp(v2));

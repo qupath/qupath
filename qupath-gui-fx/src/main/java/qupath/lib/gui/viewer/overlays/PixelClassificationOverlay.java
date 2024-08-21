@@ -452,7 +452,6 @@ public class PixelClassificationOverlay extends AbstractImageOverlay  {
             	gCopy.drawImage(imgRGB, request.getX(), request.getY(), request.getWidth(), request.getHeight(), null);
 //                g2d.setColor(Color.RED);
 //                g2d.drawRect(request.getX(), request.getY(), request.getWidth(), request.getHeight());
-//                System.err.println(request.getHeight() == imgRGB.getHeight());
                 continue;
             }
             
@@ -540,7 +539,6 @@ public class PixelClassificationOverlay extends AbstractImageOverlay  {
             	if (!pendingRequests.contains(tile) || !currentRequests.add(tile)) {
             		return;
             	}
-//            	System.err.println(tile.hashCode() + " - " + ImageRegion.createInstance(tile.getImageX(), tile.getImageY(), tile.getImageWidth(), tile.getImageHeight(), tile.getZ(), tile.getT()));
             	var changed = new ArrayList<PathObject>();
                 var hierarchy = imageData == null ? null : imageData.getHierarchy();
                 try {

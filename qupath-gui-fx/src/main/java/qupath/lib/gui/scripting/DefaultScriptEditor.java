@@ -1456,8 +1456,6 @@ public class DefaultScriptEditor implements ScriptEditor {
 				doc.appendText(s);
 			else
 				Platform.runLater(() -> doc.appendText(s));
-//			flushCount++;
-//			System.err.println("Flush called: " + flushCount);
 		}
 
 		@Override

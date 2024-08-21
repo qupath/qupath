@@ -233,12 +233,6 @@ public class PathObjectTools {
 	 * @return
 	 */
 	public static int countDescendants(final PathObject pathObject) {
-//		int count = pathObject.nChildObjects();
-//		for (PathObject childObject : pathObject.getChildObjectsAsArray())
-//			count += countDescendants(childObject);
-//		if (count > 0)
-//			System.err.println(count);
-//		return count;
 		return pathObject.nDescendants();
 	}
 

@@ -971,9 +971,6 @@ public class PixelClassifierPane {
 		 else
 			 trainData.shuffleTrainTest();
 
-//		 System.err.println("Train: " + trainData.getTrainResponses());
-//		 System.err.println("Test: " + trainData.getTestResponses());
-		 
 		 // Apply normalization, if we need to
 		 FeaturePreprocessor preprocessor = normalization.build(trainData.getTrainSamples(), false);
 		 if (preprocessor.doesSomething()) {

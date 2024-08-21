@@ -311,18 +311,10 @@ public class Watershed {
 			this.y = y;
 			this.value = value;
 			this.count = count;
-			
-//			System.out.println("My count: " + count);
 		}
 
 		@Override
 		public int compareTo(final PixelWithValue pwv) {
-//			// Profiling indicates that the many comparisons are the slowest part of the algorithm...
-//			if (value == pwv.value) 
-//				return count > pwv.count ? 1 : -1;
-//			else
-//				return value > pwv.value ? -1 : 1;
-					
 			// Profiling indicates that the many comparisons are the slowest part of the algorithm...
 			if (value < pwv.value) {
 				return 1;
@@ -331,13 +323,6 @@ public class Watershed {
 				return -1;
 			}
 			return count > pwv.count ? 1 : -1;
-			
-//			// Profiling indicates that the many comparisons are the slowest part of the algorithm...
-//			if (value > pwv.value)
-//				return 1;
-//			else if (value < pwv.value)
-//				return -1;
-//			return count > pwv.count ? 1 : -1;
 		}
 		
 	}

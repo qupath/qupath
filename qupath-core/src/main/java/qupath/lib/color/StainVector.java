@@ -273,16 +273,6 @@ public class StainVector implements Externalizable {
 		if (Math.abs(1 - Math.sqrt(n1) * Math.sqrt(n2)) < 0.001)
 			return Math.acos(dot) / Math.PI * 180;
 		return Math.acos(dot / (Math.sqrt(n1) * Math.sqrt(n2))) / Math.PI * 180;
-
-		
-//		double val = Math.acos(dot / (Math.sqrt(n1) * Math.sqrt(n2))) / Math.PI * 180;
-//		if (Double.isNaN(val)) {
-//			System.out.println(dot / (Math.sqrt(n1) * Math.sqrt(n2)));
-//			System.out.println(s1 + ", " + s2);
-////			System.out.println(s2);
-//		}
-////		System.out.println(val);
-//		return Math.acos(dot / (Math.sqrt(n1) * Math.sqrt(n2))) / Math.PI * 180;
 	}
 	
 	

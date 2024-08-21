@@ -696,11 +696,7 @@ public class ImageDisplay extends AbstractImageRenderer {
 	 */
 	@Override
 	public BufferedImage applyTransforms(BufferedImage imgInput, BufferedImage imgOutput) {
-//		long startTime = System.currentTimeMillis();
-		
 		BufferedImage imgResult = applyTransforms(imgInput, imgOutput, selectedChannels, displayMode().getValue());
-//		long endTime = System.currentTimeMillis();
-//		System.err.println("Transform time: " + (endTime - startTime));
 		return imgResult;
 	}
 	
@@ -800,15 +796,7 @@ public class ImageDisplay extends AbstractImageRenderer {
 		if (mode.invertColors()) {
 			invertRGB(pixels);
 		}
-
 		imgOutput.getRaster().setDataElements(0, 0, imgOutput.getWidth(), imgOutput.getHeight(), pixels);
-		
-//		imgOutput.setRGB(0, 0, imgOutput.getWidth(), imgOutput.getHeight(), pixels, 0, imgOutput.getWidth());
-
-
-		//		imgOutput.setRGB(0, 0, width, height, pixels, 0, width);
-		//		long endTime = System.currentTimeMillis();
-		//		System.out.println("Time taken: " + (endTime - startTime)/1000.);
 		return imgOutput;
 	}
 	
@@ -910,7 +898,6 @@ public class ImageDisplay extends AbstractImageRenderer {
 			// TODO: Look at other times whenever no histogram will be provided
 			if (!(info instanceof RGBDirectChannelInfo))
 				logger.warn("Cannot set display range for {} - no histogram found", info);
-			//			System.out.println("Cannot set display range for " + info + " - no histogram found");
 			return;
 		}
 		// For unsupported saturation values, just set to the min/max

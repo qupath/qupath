@@ -229,9 +229,7 @@ public class TestPathObjectHierarchyLegacy {
 		// Add another detection inside the core but outside of any annotations
 		var detectionInCore = PathObjects.createDetectionObject(
 				ROIs.createRectangleROI(1000, 510, 1, 1, ImagePlane.getDefaultPlane())
-//				ROIs.createPointsROI(1000, 510, ImagePlane.getDefaultPlane())
 				);
-//		System.err.println("Centroid: " + detectionInCore.getROI().getCentroidX() + ", " + detectionInCore.getROI().getCentroidY());
 		detectionInCore.setName("Detection in core only");
 		hierarchy.addObject(detectionInCore);
 		mapDetections.put(detectionInCore, core);
@@ -271,8 +269,7 @@ public class TestPathObjectHierarchyLegacy {
 		assertEquals(annotationOutsideCore.getParent(), hierarchy.getRootObject()); 
 		
 		for (var entry : mapDetections.entrySet()) {
-//			System.err.println(entry.getKey() + ": " + entry.getKey().getParent() + ", " + entry.getValue());
-			assertEquals(entry.getKey().getParent(), entry.getValue()); 
+			assertEquals(entry.getKey().getParent(), entry.getValue());
 		}
 
 	}
@@ -338,9 +335,7 @@ public class TestPathObjectHierarchyLegacy {
 		// Add another detection inside the core but outside of any annotations
 		var detectionInCore = PathObjects.createDetectionObject(
 				ROIs.createRectangleROI(1000, 510, 1, 1, ImagePlane.getDefaultPlane())
-//				ROIs.createPointsROI(1000, 510, ImagePlane.getDefaultPlane())
 				);
-//		System.err.println("Centroid: " + detectionInCore.getROI().getCentroidX() + ", " + detectionInCore.getROI().getCentroidY());
 		detectionInCore.setName("Detection in core only");
 		hierarchy.addObject(detectionInCore);
 
@@ -399,13 +394,10 @@ class PO_hlistener implements PathObjectHierarchyListener {
 	@Override
 	public void hierarchyChanged(PathObjectHierarchyEvent event) {
 		if (event.getEventType() == PathObjectHierarchyEvent.HierarchyEventType.ADDED)
-			//System.out.println("Added!");
-			this.firedState = 1; 
+			this.firedState = 1;
 		else if (event.getEventType() == PathObjectHierarchyEvent.HierarchyEventType.REMOVED)
-			//System.out.println("Removed!");
 			this.firedState = 2;
 		else if (event.getEventType() == PathObjectHierarchyEvent.HierarchyEventType.OTHER_STRUCTURE_CHANGE)
-			//System.out.println("Other!");
 			this.firedState = 3;
 	}
 

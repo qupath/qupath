@@ -984,21 +984,6 @@ public class ContourTracing {
 		}
 		
 		return traceGeometriesImpl(server, tiles, clipArea, thresholds);
-		
-		// TODO: Consider restricting parallelization
-//		int nThreads = Math.min(Math.max(1, Math.max(thresholds.length, tiles.size())), Runtime.getRuntime().availableProcessors());
-//		var pool = new ForkJoinPool(nThreads);
-//		var task = pool.submit(() -> traceGeometriesImpl(server, tiles, clipArea, thresholds));
-//		pool.shutdown();
-//		try {
-//			return task.get();
-//		} catch (InterruptedException e) {
-//			// TODO Auto-generated catch block
-//			e.printStackTrace();
-//		} catch (ExecutionException e) {
-//			// TODO Auto-generated catch block
-//			e.printStackTrace();
-//		}
 	}
 	
 	
@@ -1126,8 +1111,7 @@ public class ContourTracing {
 			if (!toMerge.isEmpty()) {
 				logger.debug("Computing union for {}/{} polygons", toMerge.size(), allPolygons.size());
 				var mergedGeometry = GeometryTools.union(toMerge);
-//				System.err.println("To merge: " + toMerge.size());
-//				var mergedGeometry = factory.buildGeometry(toMerge).buffer(0);
+
 				var iter = allPolygons.iterator();
 				while (iter.hasNext()) {
 					if (toMerge.contains(iter.next()))

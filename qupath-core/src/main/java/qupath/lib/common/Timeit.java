@@ -454,7 +454,7 @@ public class Timeit {
 			var timeit = new Timeit()
 					.microseconds()
 					.checkpointAndRun("Greeting", () -> {
-						System.out.println("Hello!");
+						logger.info("Hello!");
 						try {
 							Thread.sleep(10L);
 						} catch (Exception e) {}
@@ -464,10 +464,10 @@ public class Timeit {
 			
 			Thread.sleep(100L);
 			
-			System.out.println(timeit);
+			logger.info("{}", timeit);
 
 		} catch (Exception e) {
-			e.printStackTrace();
+			logger.error(e.getMessage(), e);
 		}
 		
 	}

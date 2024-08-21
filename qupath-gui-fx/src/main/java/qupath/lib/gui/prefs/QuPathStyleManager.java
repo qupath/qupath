@@ -564,7 +564,6 @@ public class QuPathStyleManager {
 				m.invoke(styleManager, url);
 				logger.debug("Stylesheet removed {}", url);
 			}
-//			System.err.println("After removal: " + previouslyAddedStyleSheets);
 		} catch (Exception e) {
 			logger.error("Unable to call removeUserAgentStylesheet", e);
 		}
@@ -582,7 +581,6 @@ public class QuPathStyleManager {
 				previouslyAddedStyleSheets.add(url);
 				logger.debug("Stylesheet added {}", url);
 			}
-//			System.err.println("After adding: " + previouslyAddedStyleSheets);
 		} catch (Exception e) {
 			logger.error("Unable to call addUserAgentStylesheet", e);
 		}

@@ -1170,7 +1170,7 @@ class KaplanMeierDisplay implements ParameterChangeListener, PathObjectHierarchy
 						NormalDistribution dist = new NormalDistribution();
 						z = dist.inverseCumulativeProbability(1 - pValue/2);
 						double phi = dist.density(z);
-						//								System.err.println("PHI: " + phi + " for " + z);
+
 						double pValueAdjusted = phi * (z - 1/z) * Math.log((1 - epsilon)*(1 - epsilon)/(epsilon*epsilon)) + 4 * phi/z;
 
 						values.add(df4.format(pValueAdjusted));	

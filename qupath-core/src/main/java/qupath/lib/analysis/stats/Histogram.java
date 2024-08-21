@@ -343,7 +343,6 @@ public class Histogram { // implements Serializable {
 		
 		// Compute running statistics as we iterate through the values
 		// If we don't know for sure if we have integer values, perform a check as we go
-//		System.out.println(values.getClass());
 		isInteger = values.isIntegerWrapper();
 		boolean maybeInteger = !isInteger;
 		stats = new RunningStatistics();
@@ -358,8 +357,7 @@ public class Histogram { // implements Serializable {
 		}
 		if (!isInteger)
 			isInteger = maybeInteger;
-//		System.out.println("Time " + (counter++) + ": " + (System.currentTimeMillis() - t)); t = System.currentTimeMillis();
-		
+
 		// Set min/max values, if required
 		if (Double.isNaN(minEdge))
 			edgeMin = stats.getMin();
@@ -378,11 +376,8 @@ public class Histogram { // implements Serializable {
 		if (!Double.isFinite(binWidth))
 			nBins = 0;
 		else if (binWidth < 1 && isInteger) {
-//			boolean is8Bit = edgeMin == 0 && edgeMax == 255 && nBins == 256;
-//			if (!is8Bit) {
 			binWidth = 1;
 			nBins = (int)(edgeMax - edgeMin + 1);
-//			}
 		}
 		
 		
@@ -396,8 +391,6 @@ public class Histogram { // implements Serializable {
 		// Fill in edges
 		for (int i = 0; i <= nBins; i++)
 			edges[i] = edgeMin + i * binWidth;
-
-//		System.out.println("Time " + (counter++) + ": " + (System.currentTimeMillis() - t)); t = System.currentTimeMillis();
 
 		// Compute counts
 		maxCount = 0;
@@ -414,9 +407,6 @@ public class Histogram { // implements Serializable {
 				maxCount = count;
 			countSum++;
 		}
-		
-//		System.out.println("Time " + (counter++) + ": " + (System.currentTimeMillis() - t)); t = System.currentTimeMillis();
-
 	}
 	
 	/**

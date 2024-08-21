@@ -250,14 +250,8 @@ public class TestBioFormatsImageServer {
 		DebugTools.setRootLevel("error");
 		
 		List<ProjectImageEntry<BufferedImage>> entries = project.getImageList();
-		System.out.println("Testing project with " + entries.size() + " entries: " + Project.getNameFromURI(project.getURI()));
+		logger.info("Testing project with {} entries: {}", entries.size(), Project.getNameFromURI(project.getURI()));
 		for (ProjectImageEntry<BufferedImage> entry : entries) {
-//			String serverPath = entry.getServerPath();
-//			System.out.println("Opening: " + serverPath);
-//			String pathFile = BioFormatsImageServer.splitFilePathAndSeriesName(serverPath)[0];
-//			if (!new File(pathFile).exists()) {
-//				System.err.println("File does not exist for server path " + serverPath + " - will skip");
-//			}
 			BioFormatsImageServer server = null;
 			BufferedImage img = null;
 			BufferedImage imgThumbnail = null;
@@ -268,7 +262,6 @@ public class TestBioFormatsImageServer {
 			try {
 				// Create the server
 				server = (BioFormatsImageServer)entry.getServerBuilder().build();
-//				server = (BioFormatsImageServer)ImageServerProvider.buildServer(serverPath, BufferedImage.class, "--classname", BioFormatsServerBuilder.class.getName());
 				// Read a thumbnail
 				imgThumbnail = server.getDefaultThumbnail(server.nZSlices()/2, 0);
 				// Read from the center of the image
@@ -308,7 +301,7 @@ public class TestBioFormatsImageServer {
 				}
 				
 			} catch (Exception e) {
-				e.printStackTrace();
+				logger.error(e.getMessage(), e);
 			}
 			// Check if we got a server at all
 			assertNotNull(server);

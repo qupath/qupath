@@ -138,8 +138,6 @@ class Scalebar implements QuPathViewerListener {
 			if (lastDownsample == currentDownsample && lastLineThickness == lineThickness)
 				return;
 			
-//			System.out.println("UPDATING SCALE BAR! " + currentDownsample);
-			
 			ImageServer<?> server = viewer.getServer();
 			// The scalebar is shown horizontally - so request the horizontal scale, if known
 			double scale = 1.0;

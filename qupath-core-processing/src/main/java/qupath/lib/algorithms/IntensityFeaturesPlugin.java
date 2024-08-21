@@ -559,15 +559,6 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 				region = RegionRequest.createInstance(server.getPath(), downsample, xStart, yStart, width, height, pathROI.getT(), pathROI.getZ());			
 			}
 			
-//			// Check image large enough to do *anything* of value
-//			if (region.getWidth() / downsample < 1 || region.getHeight() / downsample < 1) {
-//				logger.trace("Requested region is too small! {}", region);
-//				return false;
-//			}
-	
-	//		System.out.println(bounds);
-	//		System.out.println("Size: " + size);
-	
 			BufferedImage img = server.readRegion(region);
 			if (img == null) {
 				logger.error("Could not read image - unable to compute intensity features for {}", pathObject);
@@ -973,14 +964,8 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 					else
 						histogram[bin]++;
 					n++;
-					
-//					testList.add(val);
 				}
 			}
-			
-//			Collections.sort(testList);
-//			System.err.println("Exact median for " + transform + ": " + testList.get(testList.size()/2));
-			
 		}
 
 		@Override
