@@ -301,7 +301,7 @@ public class TestBioFormatsImageServer {
 				}
 				
 			} catch (Exception e) {
-				e.printStackTrace();
+				logger.error(e.getMessage(), e);
 			}
 			// Check if we got a server at all
 			assertNotNull(server);

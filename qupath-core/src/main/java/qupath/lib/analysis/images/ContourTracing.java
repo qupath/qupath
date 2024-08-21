@@ -984,21 +984,6 @@ public class ContourTracing {
 		}
 		
 		return traceGeometriesImpl(server, tiles, clipArea, thresholds);
-		
-		// TODO: Consider restricting parallelization
-//		int nThreads = Math.min(Math.max(1, Math.max(thresholds.length, tiles.size())), Runtime.getRuntime().availableProcessors());
-//		var pool = new ForkJoinPool(nThreads);
-//		var task = pool.submit(() -> traceGeometriesImpl(server, tiles, clipArea, thresholds));
-//		pool.shutdown();
-//		try {
-//			return task.get();
-//		} catch (InterruptedException e) {
-//			// TODO Auto-generated catch block
-//			e.printStackTrace();
-//		} catch (ExecutionException e) {
-//			// TODO Auto-generated catch block
-//			e.printStackTrace();
-//		}
 	}
 	
 	

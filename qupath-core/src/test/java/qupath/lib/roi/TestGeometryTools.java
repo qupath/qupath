@@ -131,8 +131,7 @@ public class TestGeometryTools {
 			var geom2 = GeometryTools.union(geometries);
 			assertTrue(geom2.isValid());
 		} catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getLocalizedMessage());
+			fail(e);
 		}
 		
 	}

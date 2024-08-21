@@ -123,7 +123,6 @@ public class DefaultImageRegionStore extends AbstractImageRegionStore<BufferedIm
 				imgTile = worker.get(timeoutMilliseconds, TimeUnit.MILLISECONDS);
 			} catch (CancellationException e) {
 				logger.debug("Repaint skipped...");
-//				e.printStackTrace();
 				continue;
 			} catch (InterruptedException e) {
 				logger.warn("Tile request interrupted in 'paintRegionCompletely': {}", e.getLocalizedMessage());
