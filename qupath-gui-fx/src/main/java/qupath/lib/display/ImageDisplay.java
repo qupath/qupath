@@ -696,11 +696,7 @@ public class ImageDisplay extends AbstractImageRenderer {
 	 */
 	@Override
 	public BufferedImage applyTransforms(BufferedImage imgInput, BufferedImage imgOutput) {
-//		long startTime = System.currentTimeMillis();
-		
 		BufferedImage imgResult = applyTransforms(imgInput, imgOutput, selectedChannels, displayMode().getValue());
-//		long endTime = System.currentTimeMillis();
-//		System.err.println("Transform time: " + (endTime - startTime));
 		return imgResult;
 	}
 	

@@ -454,7 +454,6 @@ public class DelaunayTriangulation implements PathObjectConnectionGroup {
 		if (!missing.isEmpty()) {
 			logger.warn("Some objects have missing measurements! Statistics will calculated only for objects with measurements available.");
 			logger.warn("Missing measurements: {}", missing);
-//			System.err.println("Missing measurements will be ignored! " + nMissing);
 		}
 		
 	}

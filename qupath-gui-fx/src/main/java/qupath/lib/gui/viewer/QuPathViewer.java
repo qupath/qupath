@@ -740,12 +740,6 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		
 	}
 	
-//	protected void finalize() throws Throwable {
-//		System.err.println("Viewer being removed!");
-//		super.finalize();
-//	}
-	
-	
 	private ListenerManager manager = new ListenerManager();
 	private ListenerManager overlayOptionsManager = new ListenerManager();
 	
@@ -2878,12 +2872,6 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		if ((this.xCenter == x && this.yCenter == y) || Double.isNaN(x + y))
 			return;
 		
-//		double dx = xCenter - x;
-//		double dy = yCenter - y;
-//		if (dx*dx + dy*dy > 1000) {
-//			System.err.println("Moving a lot");
-//		}
-
 		this.xCenter = x;
 		this.yCenter = y;
 		updateAffineTransform();

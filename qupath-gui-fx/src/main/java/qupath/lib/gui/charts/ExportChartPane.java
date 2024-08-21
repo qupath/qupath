@@ -256,11 +256,6 @@ class ExportChartPane {
 	public ExportChartPane(final Chart chart) {
 		this.chart = chart;
 
-		//				Node node = chart2.lookup(".chart-legend");
-		//				System.err.println(node);
-		//				Node node = chart2.lookup(".chart-legend");
-		//				System.err.println(((Region)node).getChildrenUnmodifiable());
-
 		Button btnCopy = new Button("Copy");
 		btnCopy.setOnAction(e -> {
 			Image img = getChartImage();

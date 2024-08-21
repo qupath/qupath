@@ -229,9 +229,7 @@ public class TestPathObjectHierarchyLegacy {
 		// Add another detection inside the core but outside of any annotations
 		var detectionInCore = PathObjects.createDetectionObject(
 				ROIs.createRectangleROI(1000, 510, 1, 1, ImagePlane.getDefaultPlane())
-//				ROIs.createPointsROI(1000, 510, ImagePlane.getDefaultPlane())
 				);
-//		System.err.println("Centroid: " + detectionInCore.getROI().getCentroidX() + ", " + detectionInCore.getROI().getCentroidY());
 		detectionInCore.setName("Detection in core only");
 		hierarchy.addObject(detectionInCore);
 		mapDetections.put(detectionInCore, core);
@@ -271,8 +269,7 @@ public class TestPathObjectHierarchyLegacy {
 		assertEquals(annotationOutsideCore.getParent(), hierarchy.getRootObject()); 
 		
 		for (var entry : mapDetections.entrySet()) {
-//			System.err.println(entry.getKey() + ": " + entry.getKey().getParent() + ", " + entry.getValue());
-			assertEquals(entry.getKey().getParent(), entry.getValue()); 
+			assertEquals(entry.getKey().getParent(), entry.getValue());
 		}
 
 	}
@@ -338,9 +335,7 @@ public class TestPathObjectHierarchyLegacy {
 		// Add another detection inside the core but outside of any annotations
 		var detectionInCore = PathObjects.createDetectionObject(
 				ROIs.createRectangleROI(1000, 510, 1, 1, ImagePlane.getDefaultPlane())
-//				ROIs.createPointsROI(1000, 510, ImagePlane.getDefaultPlane())
 				);
-//		System.err.println("Centroid: " + detectionInCore.getROI().getCentroidX() + ", " + detectionInCore.getROI().getCentroidY());
 		detectionInCore.setName("Detection in core only");
 		hierarchy.addObject(detectionInCore);
 

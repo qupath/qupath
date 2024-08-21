@@ -964,14 +964,8 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 					else
 						histogram[bin]++;
 					n++;
-					
-//					testList.add(val);
 				}
 			}
-			
-//			Collections.sort(testList);
-//			System.err.println("Exact median for " + transform + ": " + testList.get(testList.size()/2));
-			
 		}
 
 		@Override

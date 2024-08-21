@@ -81,7 +81,6 @@ class PathObjectImageManagers {
 	
 		PathObjectTableCell(PathObjectViewer<Canvas> painter, double padding) {
 			super();
-//			System.err.println("New cell: " + counter.incrementAndGet());
 			logger.trace("Creating new cell ({})", + System.identityHashCode(this));
 			this.setContentDisplay(ContentDisplay.CENTER);
 			this.setAlignment(Pos.CENTER);

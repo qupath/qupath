@@ -381,8 +381,6 @@ public class ViewerManager implements QuPathViewerListener {
 	 * @return true if the row was removed, false otherwise
 	 */
 	public boolean removeRow(final QuPathViewer viewer) {
-		//			if (viewer.getServer() != null)
-		//				System.err.println(viewer.getServer().getShortServerName());
 		// Note: These are the internal row numbers... these don't necessarily match with the displayed row (?)
 		int row = splitPaneGrid.getRow(viewer);
 		if (row < 0) {

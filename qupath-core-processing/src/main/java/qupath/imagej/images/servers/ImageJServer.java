@@ -306,8 +306,6 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> implements 
 	@Override
 	public BufferedImage readRegion(RegionRequest request) {
 		
-//		long startTime = System.nanoTime();
-		
 		int z = request.getZ()+1;
 		int t = request.getT()+1;
 		int nChannels = nChannels();
@@ -389,9 +387,6 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> implements 
 		
 		if (colorModel == null)
 			colorModel = img.getColorModel();
-		
-//		long endTime = System.nanoTime();
-//		System.err.println("Duration: " + GeneralTools.formatNumber((endTime - startTime)/1000000.0, 1));
 
 		return img;
 	}

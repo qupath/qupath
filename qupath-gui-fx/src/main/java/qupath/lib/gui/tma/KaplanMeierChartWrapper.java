@@ -188,22 +188,11 @@ class KaplanMeierChartWrapper {
 					text.setTextAlignment(TextAlignment.CENTER);
 				}
 			}
-			
-//			for (TickMark<Number> mark : v.getList()) {
-//				mark.
-//				TickMark.class.getField("")
-//			}
-//				System.err.println(v.getList().get(0).getClass());			
 		});
-//		xAxis.lay
-		
-		
+
 		showAtRisk.addListener((v, o, n) -> {
 			updateChart();
 			chart.layout();
-//			xAxis.requestAxisLayout();
-//			chart.requestLayout();
-//			chart.layout();
 		});
 		
 
@@ -252,25 +241,10 @@ class KaplanMeierChartWrapper {
 			SnapshotParameters params = new SnapshotParameters();
 			params.setTransform(Transform.scale(scale, scale));
 
-			//				for (Node node : chart.getChildrenUnmodifiable()) {
-			//					node.setStyle("-fx-background-color: white");
-			//					System.err.println(node.getClass().getName());
-			//				}
-			//				chart.setStyle(".chart-content {\n"
-			//						+ "-fx-background-color: white;\n"
-			//						+ "}");
-
 			WritableImage img = region.snapshot(params, new WritableImage(w, h));
 			ClipboardContent content = new ClipboardContent();
 			content.putImage(img);
 			Clipboard.getSystemClipboard().setContent(content);
-
-			//				for (Node node : chart.getChildrenUnmodifiable()) {
-			//					node.setStyle(null);
-			//					System.err.println(node.getClass().getName());
-			//				}
-			//				chart.setStyle("");
-
 		});
 
 		MenuItem miCopy = new MenuItem("Chart only");

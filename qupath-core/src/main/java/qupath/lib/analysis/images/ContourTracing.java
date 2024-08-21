@@ -1111,8 +1111,7 @@ public class ContourTracing {
 			if (!toMerge.isEmpty()) {
 				logger.debug("Computing union for {}/{} polygons", toMerge.size(), allPolygons.size());
 				var mergedGeometry = GeometryTools.union(toMerge);
-//				System.err.println("To merge: " + toMerge.size());
-//				var mergedGeometry = factory.buildGeometry(toMerge).buffer(0);
+
 				var iter = allPolygons.iterator();
 				while (iter.hasNext()) {
 					if (toMerge.contains(iter.next()))

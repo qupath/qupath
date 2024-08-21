@@ -442,9 +442,6 @@ public class PolygonROI extends AbstractPathROI implements Serializable {
 		private Object readResolve() {
 			PolygonROI roi = new PolygonROI(x, y, ImagePlane.getPlaneWithChannel(c, z, t), false);
 			roi.stats = this.stats; // Doesn't matter if this is null...
-//			if (roi.stats == null) {
-//				System.err.println("Null count: " + (++nullCounter));
-//			}
 			return roi;
 		}
 		

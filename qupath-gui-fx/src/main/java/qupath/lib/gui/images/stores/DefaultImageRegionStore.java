@@ -283,7 +283,6 @@ public class DefaultImageRegionStore extends AbstractImageRegionStore<BufferedIm
 				}
 				img = imgTemp;
 			}
-//			System.err.println(String.format("%dx%d, %.2f - %.2f", img.getWidth(), img.getHeight(), (double)request.getHeight()/img.getHeight(), request.getDownsample()));
 			g.drawImage(img, request.getX(), request.getY(), request.getWidth(), request.getHeight(), observer);
 			if (DEBUG_TILES) {
 				g.setColor(Color.RED);

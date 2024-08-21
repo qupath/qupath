@@ -204,9 +204,6 @@ public class MoveToolEventHandler extends AbstractPathToolEventHandler {
 					((PathROIObject)viewer.getSelectedObject()).setROI(translatedROI);
 					
 					viewer.getHierarchy().fireObjectsChangedEvent(this, Collections.singleton(viewer.getSelectedObject()), true);				
-	//				System.err.println("Changing... " + viewer.getHierarchy().nObjects());
-					
-//					viewer.repaintImageRegion(boundsIntersection, false);
 				}
 				pDragging = null;
 				return;
