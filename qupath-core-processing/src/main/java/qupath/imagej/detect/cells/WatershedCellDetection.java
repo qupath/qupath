@@ -1251,7 +1251,6 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 
 	@Override
 	protected int getTileOverlap(ImageData<BufferedImage> imageData, ParameterList params) {
-//		double pxSize = getPreferredPixelSizeMicrons(imageData, params);
 		double pxSize = imageData.getServer().getPixelCalibration().getAveragedPixelSizeMicrons();
 		if (!Double.isFinite(pxSize))
 			return params.getDoubleParameterValue("cellExpansion") > 0 ? 25 : 10;
@@ -1261,7 +1260,6 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 		if (cellExpansion > 0)
 			expansionMicrons += params.getDoubleParameterValue("cellExpansionMicrons");
 		int overlap = (int)(expansionMicrons / pxSize * 2.0);
-//		System.out.println("Tile overlap: " + overlap + " pixels");
 		return overlap;
 	}
 		

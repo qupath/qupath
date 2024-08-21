@@ -399,13 +399,10 @@ class PO_hlistener implements PathObjectHierarchyListener {
 	@Override
 	public void hierarchyChanged(PathObjectHierarchyEvent event) {
 		if (event.getEventType() == PathObjectHierarchyEvent.HierarchyEventType.ADDED)
-			//System.out.println("Added!");
-			this.firedState = 1; 
+			this.firedState = 1;
 		else if (event.getEventType() == PathObjectHierarchyEvent.HierarchyEventType.REMOVED)
-			//System.out.println("Removed!");
 			this.firedState = 2;
 		else if (event.getEventType() == PathObjectHierarchyEvent.HierarchyEventType.OTHER_STRUCTURE_CHANGE)
-			//System.out.println("Other!");
 			this.firedState = 3;
 	}
 

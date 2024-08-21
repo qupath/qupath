@@ -179,12 +179,7 @@ public class LocalBinaryPatternsPlugin extends AbstractInteractivePlugin<Buffere
 		
 		RegionRequest region = RegionRequest.createInstance(server.getPath(), downsample, (int)(pathROI.getCentroidX() + .5) - size.width/2, (int)(pathROI.getCentroidY() + .5) - size.height/2, size.width, size.height, pathROI.getT(), pathROI.getZ());
 
-//		System.out.println(bounds);
-//		System.out.println("Size: " + size);
-
 		BufferedImage img = server.readRegion(region);
-
-//		System.out.println("Image size: " + img.getWidth() + " x " + img.getHeight() + " pixels");
 
 		// Get a buffer containing the image pixels
 		int w = img.getWidth();
@@ -244,11 +239,8 @@ public class LocalBinaryPatternsPlugin extends AbstractInteractivePlugin<Buffere
 				for (int x = 0; x < w; x++) {
 					if ((cx - x)*(cx - x) + (cy - y)*(cy - y) > distThreshold)
 						pxImg.setValue(x, y, Float.NaN);
-//					else
-//						count++;
-				}			
+				}
 			}
-//			System.out.println("Masked count: " + count + " for dimension " + w + ", " + h);
 		}
 		
 		

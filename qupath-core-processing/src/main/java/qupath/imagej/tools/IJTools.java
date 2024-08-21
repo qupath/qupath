@@ -1027,8 +1027,6 @@ public class IJTools {
 	 */
 	public static PolygonROI convertToPolygonROI(PolygonRoi roi, Calibration cal, double downsampleFactor, final ImagePlane plane) {
 		List<Point2> points = ROIConverterIJ.convertToPointsList(roi.getFloatPolygon(), cal, downsampleFactor);
-		if (points == null)
-			return null;
 		return ROIs.createPolygonROI(points, plane);
 	}
 

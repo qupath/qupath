@@ -71,16 +71,6 @@ class CoocMatrix {
 	 */
 	public void finalizeMatrix() {
 		logSum = Math.log(sum);
-//J		int max = 0;
-//J		for (int v : mat)
-//J			if (v > max)
-//J				max = v; //J this is not really leading anywhere!
-//		System.out.println("Logs with max " + max);
-//		logTable = new double[max+1];
-//		logTable[0] = Math.log(0.000001);
-//		for (int i = 1; i < logTable.length; i++) {
-//			logTable[i] = Math.log(i);
-//		}
 	}
 
 	/**
