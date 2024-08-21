@@ -188,22 +188,11 @@ class KaplanMeierChartWrapper {
 					text.setTextAlignment(TextAlignment.CENTER);
 				}
 			}
-			
-//			for (TickMark<Number> mark : v.getList()) {
-//				mark.
-//				TickMark.class.getField("")
-//			}
-//				System.err.println(v.getList().get(0).getClass());			
 		});
-//		xAxis.lay
-		
-		
+
 		showAtRisk.addListener((v, o, n) -> {
 			updateChart();
 			chart.layout();
-//			xAxis.requestAxisLayout();
-//			chart.requestLayout();
-//			chart.layout();
 		});
 		
 
@@ -252,25 +241,10 @@ class KaplanMeierChartWrapper {
 			SnapshotParameters params = new SnapshotParameters();
 			params.setTransform(Transform.scale(scale, scale));
 
-			//				for (Node node : chart.getChildrenUnmodifiable()) {
-			//					node.setStyle("-fx-background-color: white");
-			//					System.err.println(node.getClass().getName());
-			//				}
-			//				chart.setStyle(".chart-content {\n"
-			//						+ "-fx-background-color: white;\n"
-			//						+ "}");
-
 			WritableImage img = region.snapshot(params, new WritableImage(w, h));
 			ClipboardContent content = new ClipboardContent();
 			content.putImage(img);
 			Clipboard.getSystemClipboard().setContent(content);
-
-			//				for (Node node : chart.getChildrenUnmodifiable()) {
-			//					node.setStyle(null);
-			//					System.err.println(node.getClass().getName());
-			//				}
-			//				chart.setStyle("");
-
 		});
 
 		MenuItem miCopy = new MenuItem("Chart only");
@@ -509,44 +483,7 @@ class KaplanMeierChartWrapper {
 					.concat(String.format(": p = %.4f", logRankResult.getPValue())));
 			series.setNode(null);
 			chart.getData().add(series);
-			
-//			series = new Series<>();
-//			series.nameProperty().bind(
-//					chart.getData().get(0).nameProperty()
-//					.concat(" vs ")
-//					.concat(chart.getData().get(1).nameProperty())
-//					.concat(": p = " + GeneralTools.getFormatter(3).format(logRankResult.getPValue())));
-//			series.setNode(null);
-//			chart.getData().add(series);
-//			
-//			logRankResult = LogRankTest.computeLogRankTest(kmList.get(0), kmList.get(2));
-//			series = new Series<>();
-//			series.nameProperty().bind(
-//					chart.getData().get(0).nameProperty()
-//					.concat(" vs ")
-//					.concat(chart.getData().get(2).nameProperty())
-//					.concat(": p = " + GeneralTools.getFormatter(3).format(logRankResult.getPValue())));
-//			series.setNode(null);
-//			chart.getData().add(series);
-//
-//			logRankResult = LogRankTest.computeLogRankTest(kmList.get(1), kmList.get(2));
-//			series = new Series<>();
-//			series.nameProperty().bind(
-//					chart.getData().get(1).nameProperty()
-//					.concat(" vs ")
-//					.concat(chart.getData().get(2).nameProperty())
-//					.concat(": p = " + GeneralTools.getFormatter(3).format(logRankResult.getPValue())));
-//			series.setNode(null);
-//			chart.getData().add(series);
 		}
-
-		
-//		for (Series<Number, Number> series : chart.getData()) {
-//			System.out.println(series.getName());
-//			for (Data<Number, Number> data : series.getData()) {
-//				System.err.println(data);
-//			}
-//		}
 		
 	}
 	

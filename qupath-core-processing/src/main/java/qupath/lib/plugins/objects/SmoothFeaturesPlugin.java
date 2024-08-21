@@ -134,7 +134,6 @@ public class SmoothFeaturesPlugin<T> extends AbstractInteractivePlugin<T> {
 				try {
 					if (!parentObject.hasChildObjects())
 						return;
-	//				System.out.println("Smoothing with FWHM " +fwhmPixels);
 					// TODO: MAKE A MORE ELEGANT LIST!!!!
 					List<PathObject> pathObjects = PathObjectTools.getFlattenedObjectList(parentObject, null, false);
 					Iterator<PathObject> iterObjects = pathObjects.iterator();
@@ -177,7 +176,7 @@ public class SmoothFeaturesPlugin<T> extends AbstractInteractivePlugin<T> {
 //					}
 
 				} catch (Exception e) {
-					e.printStackTrace();
+					logger.error(e.getMessage(), e);
 					throw(e);
 				}
 			}
@@ -215,7 +214,6 @@ public class SmoothFeaturesPlugin<T> extends AbstractInteractivePlugin<T> {
 		double maxDistSq = maxDist * maxDist; // Maximum separation
 
 		int nObjects = pathObjects.size();
-		//		int counter = 0;
 
 		// Sort by x-coordinate - this gives us a method of breaking early
 		Collections.sort(pathObjects, new Comparator<>() {
@@ -223,19 +221,7 @@ public class SmoothFeaturesPlugin<T> extends AbstractInteractivePlugin<T> {
             public int compare(PathObject o1, PathObject o2) {
                 double x1 = o1.getROI().getCentroidX();
                 double x2 = o2.getROI().getCentroidX();
-//				int value = Double.compare(x1, x2);
-//				if (value == 0) {
-//					System.out.println(x1 + " vs. " + x2);
-//					System.out.println(String.format("(%.2f, %.2f) vs (%.2f, %.2f)", o1.getROI().getCentroidX(), o1.getROI().getCentroidY(), o2.getROI().getCentroidX(), o2.getROI().getCentroidY()));				}
                 return Double.compare(x1, x2);
-//				if (x1 > x2)
-//					return 1;
-//				if (x2 < x1)
-//					return -1;
-//				System.out.println(x1 + " vs. " + x2);
-//				System.out.println(String.format("(%.2f, %.2f) vs (%.2f, %.2f)", o1.getROI().getCentroidX(), o1.getROI().getCentroidY(), o2.getROI().getCentroidX(), o2.getROI().getCentroidY()));
-//				return 0;
-//				return (int)Math.signum(o1.getROI().getCentroidX() - o2.getROI().getCentroidX());
             }
         });
 		

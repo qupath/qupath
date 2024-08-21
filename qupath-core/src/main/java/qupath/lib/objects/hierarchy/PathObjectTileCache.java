@@ -342,7 +342,6 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 			} else {
 				logger.debug("No envelope found for {}", pathObject);					
 			}
-//				System.err.println("After: " + mapObjects.query(MAX_ENVELOPE).size());
 			// Remove the children
 			if (removeChildren) {
 				for (PathObject child : pathObject.getChildObjectsAsArray())

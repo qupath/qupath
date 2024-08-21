@@ -899,9 +899,6 @@ public class RoiTools {
 				if (geometryLocal.isEmpty())
 					continue;
 				
-//				if (geometry != geometryLocal)
-//					System.err.println("Using row or column geometry!");
-				
 				// Create the tile
 				var rect = GeometryTools.createRectangle(x, y, w + overlap*2, h + overlap*2);
 				

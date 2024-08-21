@@ -959,8 +959,6 @@ public class ColorTransformer {
 	 * @see qupath.lib.common.ColorTools
 	 */
 	public static void transformRGB(int[] buf, int[] bufOutput, ColorTransformer.ColorTransformMethod method, float offset, float scale, boolean useColorLUT) {
-		//		System.out.println("Scale and offset: " + scale + ", " + offset);
-		//		int[] buf = img.getRGB(0, 0, img.getWidth(), img.getHeight(), buf, 0, img.getWidth());
 		ColorModel cm = useColorLUT ? COLOR_MODEL_MAP.get(method) : null;
 		switch (method) {
 		case Original:
@@ -974,8 +972,6 @@ public class ColorTransformer {
 				int r = ColorTools.do8BitRangeCheck((ColorTools.red(rgb) - offset) * scale);
 				int g = ColorTools.do8BitRangeCheck((ColorTools.green(rgb) - offset) * scale);
 				int b = ColorTools.do8BitRangeCheck((ColorTools.blue(rgb) - offset) * scale);
-				//				if (r != g)
-				//					System.out.println(r + ", " + g + ", " + b);
 				bufOutput[i] = ((r<<16) + (g<<8) + b) & ~ColorTools.MASK_ALPHA | (buf[i] & ColorTools.MASK_ALPHA);
 			}
 			return;

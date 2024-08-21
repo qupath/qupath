@@ -190,12 +190,10 @@ public class TestPathObjectPredicates {
 	}
 	
 	static long total(List<PathObject> allObjects, Predicate<PathObject> predicate) {
-//		System.err.println("Calling general");
 		return allObjects.stream().filter(predicate).count();
 	}
 	
 	static long total(List<PathObject> allObjects, PathObjectPredicate predicate) {
-//		System.err.println("Calling specific");
 		return allObjects.stream().filter(predicate).count();
 	}
 	

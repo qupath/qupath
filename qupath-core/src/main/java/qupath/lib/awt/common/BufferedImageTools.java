@@ -478,9 +478,6 @@ public final class BufferedImageTools {
 			}
 			raster2.setSamples(0, 0, finalWidth, finalHeight, b, pixelsOut);
 		}
-		
-//		System.err.println(String.format("Resizing from %d x %d to %d x %d", w, h, finalWidth, finalHeight));
-
 		return new BufferedImage(img.getColorModel(), raster2, img.isAlphaPremultiplied(), null);
 	}
 

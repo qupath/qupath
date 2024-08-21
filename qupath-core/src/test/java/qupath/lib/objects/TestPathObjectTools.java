@@ -156,11 +156,9 @@ public class TestPathObjectTools extends TestPathObjectMethods {
 				var outsideOrIntersects = Streams.concat(pathObjectsOverlaps.stream(), pathObjectsOutside.stream()).collect(Collectors.toSet());
 				
 				var foundOutside = PathObjectTools.findObjectsOutsideRegion(allObjects, region, 0, region.getZ()+1, 0, region.getT()+1, true);
-//				System.err.println(foundOutside.size() + " / " + pathObjectsOutside.size());
 				assertEquals(pathObjectsOutside, new HashSet<>(foundOutside));
 
 				var foundOutsideStrict = PathObjectTools.findObjectsOutsideRegion(allObjects, region, 0, region.getZ()+1, 0, region.getT()+1, false);
-//				System.err.println(foundOutsideStrict.size() + " / " + outsideOrIntersects.size());
 				assertEquals(outsideOrIntersects, new HashSet<>(foundOutsideStrict));
 
 			}			

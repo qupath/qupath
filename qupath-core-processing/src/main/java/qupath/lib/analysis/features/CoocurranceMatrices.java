@@ -97,8 +97,6 @@ public class CoocurranceMatrices {
 		features[1] = new HaralickFeatures(mat45);
 		features[2] = new HaralickFeatures(mat90);
 		features[3] = new HaralickFeatures(mat135);
-//		double n2 = mat0.getN()*mat0.getN();
-//		System.out.println("Num entries: " + mat0.getMean()*n2 + ", " + mat45.getMean()*n2 + ", " + mat90.getMean()*n2 + ", " + mat135.getMean()*n2);
 	}
 	
 	/**

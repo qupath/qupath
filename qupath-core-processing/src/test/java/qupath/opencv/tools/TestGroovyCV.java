@@ -79,8 +79,6 @@ class TestGroovyCV {
 						var m1 = OpenCVTools.scalarMatWithType(v1, opencv_core.CV_64FC(c));
 						var m2 = OpenCVTools.scalarMatWithType(v2, opencv_core.CV_64FC(c));
 						
-//						System.err.println("v1: " + v1 + ", v2: " + v2 + ", c: " + c);
-						
 						checkAllValues(GroovyCV.plus(m1, m1), v1 + v1, c, eps);
 						checkAllValues(GroovyCV.plus(m1, m2), v1 + v2, c, eps);
 						checkAllValues(GroovyCV.plus(m2, m1), v2 + v1, c, eps);

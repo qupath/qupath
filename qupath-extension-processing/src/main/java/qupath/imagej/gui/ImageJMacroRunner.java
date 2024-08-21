@@ -343,8 +343,7 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 				
 //			});
 		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			logger.error(e.getMessage(), e);
 		}
 
 	}
@@ -410,12 +409,8 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 				else {
 					try {
 						SwingUtilities.invokeAndWait(() -> runMacro(params, imageData, null, parentObject, macroText));
-					} catch (InvocationTargetException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					} catch (InterruptedException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
+					} catch (InvocationTargetException | InterruptedException e) {
+						logger.error(e.getMessage(), e);
 					} // TODO: Deal with logging macro text properly
 				}
 			}

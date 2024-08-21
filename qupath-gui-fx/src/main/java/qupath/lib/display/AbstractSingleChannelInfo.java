@@ -80,10 +80,9 @@ abstract class AbstractSingleChannelInfo extends AbstractChannelInfo implements 
 		else if (rgb.length < n)
 			n = rgb.length;
 
-		//			long start = System.currentTimeMillis();
-		for (int i = 0; i < n; i++)
+		for (int i = 0; i < n; i++) {
 			rgb[i] = getRGB(values[i], mode);
-		//			System.out.println("Time: " + (System.currentTimeMillis() - start));
+		}
 		return rgb;
 	}
 

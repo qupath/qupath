@@ -95,13 +95,6 @@ public class ChoiceParameter<S> extends AbstractParameter<S> {
 			}
 		}
 		return false;
-//		try {
-//			return setValue((S)value);
-//		} catch (ClassCastException e) {
-//			System.err.println(e.getLocalizedMessage());
-//			e.printStackTrace();
-//		}
-//		return false;
 	}
 
 	@Override

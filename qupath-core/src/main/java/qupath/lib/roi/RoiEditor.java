@@ -97,9 +97,6 @@ public class RoiEditor {
 	 * 						  Normally this should be true, but it may be false if the new ROI being set is part of the same translation event.
 	 */
 	public void setROI(ROI roi, boolean stopTranslating) {
-//		if (stopTranslating)
-//			System.out.println("Stopping translating: " + stopTranslating + " - " + pathROI);
-
 		if (this.pathROI == roi)
 			return;
 		if (isTranslating() && stopTranslating) {
@@ -294,13 +291,9 @@ public class RoiEditor {
 	 * @return
 	 */
 	public ROI requestNewHandle(double x, double y) {
-//		System.err.println("Requesting new handle: " + activeHandle);
 		if (adjuster == null)
 			return pathROI;
-//		setROI(adjuster.requestNewHandle(x, y), false);
-		
 		pathROI = adjuster.requestNewHandle(x, y);
-
 		return pathROI;
 	}
 
@@ -339,14 +332,10 @@ public class RoiEditor {
 	 * @return
 	 */
 	public ROI setActiveHandlePosition(double x, double y, double minDisplacement, boolean shiftDown) {
-//		System.err.println("Set position: " + activeHandle);
 		// Check if we have an active handle, or have moved it anything worth considering
 		if (adjuster == null || (activeHandle != null && activeHandle.distanceSq(x, y) < minDisplacement*minDisplacement))
 			return pathROI;
-		
-//		setROI(adjuster.updateActiveHandleLocation(x, y, shiftDown), false);
 		pathROI = adjuster.updateActiveHandleLocation(x, y, shiftDown);
-		
 		return pathROI;
 	}
 	
@@ -666,7 +655,6 @@ public class RoiEditor {
 				return roi;
 			activeHandle.setLocation(xNew, yNew);
 			roi = new PolygonROI(createPoint2List(handles), roi.getImagePlane());
-//			System.out.println("UPDATED HANDLES: " + handles.size() + ", " + roi.nVertices());
 			return roi;
 		}
 		
@@ -749,7 +737,6 @@ public class RoiEditor {
 				return roi;
 			activeHandle.setLocation(xNew, yNew);
 			roi = new PolylineROI(createPoint2List(handles), roi.getImagePlane());
-//			System.out.println("UPDATED HANDLES: " + handles.size() + ", " + roi.getNumPoints());
 			return roi;
 		}
 		
@@ -777,16 +764,9 @@ public class RoiEditor {
 //				return roi;
 //			}
 			
-//			// If we have 2 points, which are identical, shift instead of creating
-//			if (handles.size() >= 2 && activeHandle == handles.get(handles.size() - 1) && activeHandle.distanceSq(handles.get(handles.size() - 2)) < 0.000001) {
-//				System.err.println("UPDATING HANDLE");
-//				return updateActiveHandleLocation(x, y, false);
-//			}
-			
 			activeHandle = new MutablePoint(x, y);
 			roi = new PolylineROI(createPoint2List(handles), roi.getImagePlane());
 			handles.add(activeHandle);
-//			System.out.println("UPDATED HANDLES BY REQUEST: " + handles.size());
 			return roi;
 		}
 
@@ -835,7 +815,6 @@ public class RoiEditor {
 			roi = new PointsROI(createPoint2List(handles), roi.getImagePlane());
 			ensureHandlesUpdated();
 			activeHandle = grabHandle(xNew, yNew, Double.POSITIVE_INFINITY, shiftDown);
-//			System.err.println("Calling: " + activeHandle + " - " + (handles == null ? 0 : handles.size()));
 
 			return roi;
 		}
