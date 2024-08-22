@@ -753,6 +753,7 @@ public class QuPathGUI {
 			var action = toolManager.getToolAction(t);
 			registerAccelerator(action);
 		}
+		registerAccelerator(toolManager.getSelectionModeAction());
 	}
 
 
