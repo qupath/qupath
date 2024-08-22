@@ -1188,6 +1188,7 @@ public class PathObjectPainter {
 
 		// We only need to draw connections that intersect with the bounds
 		Rectangle bounds = g2d.getClipBounds();
+		ImageRegion region = ImageRegion.createInstance(bounds.x, bounds.y, bounds.width, bounds.height, plane.getZ(), plane.getT());
 
 		g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
 		g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_SPEED);
@@ -1201,7 +1202,7 @@ public class PathObjectPainter {
 		int nSkipped = 0;
 
 		long startTime = System.currentTimeMillis();
-		for (var pathObject : subdivision.getPathObjects()) {
+		for (var pathObject : subdivision.getObjectsForRegion(region)) {
 			vistedObjects.add(pathObject);
 			ROI roi = PathObjectTools.getROI(pathObject, true);
 			double x1 = roi.getCentroidX();
