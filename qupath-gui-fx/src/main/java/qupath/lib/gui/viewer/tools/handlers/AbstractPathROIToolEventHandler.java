@@ -24,7 +24,11 @@
 package qupath.lib.gui.viewer.tools.handlers;
 
 import java.awt.geom.Point2D;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,11 +39,13 @@ import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.tools.PathTools;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.objects.classes.Reclassifier;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.regions.ImagePlane;
+import qupath.lib.regions.ImageRegion;
 import qupath.lib.roi.PolygonROI;
 import qupath.lib.roi.PolylineROI;
 import qupath.lib.roi.RoiEditor;
@@ -195,7 +201,24 @@ abstract class AbstractPathROIToolEventHandler extends AbstractPathToolEventHand
 		// If we are in selection mode, try to get objects to select
 		if (PathPrefs.selectionModeProperty().get()) {
 			var pathClass = PathPrefs.autoSetAnnotationClassProperty().get();
-			var toSelect = hierarchy.getAllObjectsForROI(currentROI);
+			Collection<PathObject> toSelect;
+			if (currentROI.isArea()) {
+				toSelect = hierarchy.getAllObjectsForROI(currentROI);
+			} else if (currentROI.isPoint()) {
+//				toSelect = hierarchy.getObjectsAtPoint(currentROI.getCentroidX(), currentROI.getCentroidY());
+				toSelect = new HashSet<>();
+				for (var p : currentROI.getAllPoints()) {
+					toSelect.addAll(
+							PathObjectTools.getObjectsForLocation(hierarchy, p.getX(), p.getY(), currentROI.getZ(), currentROI.getT(), 0.0)
+					);
+				}
+			} else {
+				var geom = currentROI.getGeometry();
+				toSelect = hierarchy.getAllDetectionsForRegion(ImageRegion.createInstance(currentROI))
+						.parallelStream()
+						.filter(p -> geom.intersects(p.getROI().getGeometry()))
+						.toList();
+			}
 			if (!toSelect.isEmpty() && pathClass != null) {
 				boolean retainIntensityClass = !(PathClassTools.isPositiveOrGradedIntensityClass(pathClass) || PathClassTools.isNegativeClass(pathClass));
 				var reclassified = toSelect.stream()
