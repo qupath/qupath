@@ -86,6 +86,7 @@ public class ProcessingExtension implements QuPathExtension {
 		
 		@ActionMenu("Menu.Analyze.Spatial")
 		@ActionConfig("Action.Processing.Spatial.delaunay")
+		@Deprecated
 		public final Action actionDelaunay;
 
 		@ActionMenu("Menu.Analyze.CellDetection")
