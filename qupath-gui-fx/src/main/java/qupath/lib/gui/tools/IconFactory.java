@@ -33,6 +33,7 @@ import java.util.WeakHashMap;
 import java.util.function.IntFunction;
 import java.util.function.Supplier;
 
+import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
@@ -41,7 +42,12 @@ import javafx.scene.control.ContentDisplay;
 import javafx.scene.image.Image;
 import javafx.scene.image.WritableImage;
 import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
+import javafx.scene.shape.Arc;
+import javafx.scene.shape.CubicCurveTo;
+import javafx.scene.shape.QuadCurve;
 import javafx.scene.text.TextAlignment;
+import javafx.scene.text.TextBoundsType;
 import javafx.scene.transform.Transform;
 import org.controlsfx.glyphfont.FontAwesome;
 import org.controlsfx.glyphfont.Glyph;
@@ -409,6 +415,8 @@ public class IconFactory {
 		if (path.getClip() == null)
 			path.setClip(new Rectangle(0, 0, width, height));
 
+		bindStrokeToSelectionMode(path.getStrokeDashArray());
+
 		return wrapInGroup(width, height, path);
 	}
 	
@@ -418,8 +426,19 @@ public class IconFactory {
 		var shape = new Rectangle(padX, padY, size-padX*2.0, size-padY*2.0);
 		shape.setStrokeWidth(1.0);
 		bindShapeColorToObjectColor(shape);
+		bindStrokeToSelectionMode(shape.getStrokeDashArray());
 		shape.setFill(Color.TRANSPARENT);
 		return wrapInGroup(size, shape);
+	}
+
+	private static void bindStrokeToSelectionMode(ObservableList<Double> dashList) {
+		PathPrefs.selectionModeProperty().addListener((obs, oldVal, newVal) -> {
+			if (newVal) {
+				dashList.setAll(3.0, 3.0);
+			} else {
+				dashList.clear();
+			}
+		});
 	}
 
 	/**
@@ -499,6 +518,8 @@ public class IconFactory {
 		addNodesToPath(path, Math.max(3.0, size/10.0));
 		bindShapeColorToObjectColor(path);
 
+		bindStrokeToSelectionMode(path.getStrokeDashArray());
+
 		return wrapInGroup(size, addNodesToPath(path, Math.max(2.0, size/10.0)));
 	}
 	
@@ -516,6 +537,7 @@ public class IconFactory {
 //		var transform = Affine.rotate(30.0, size/2.0, size/2.0);
 //		path.getTransforms().add(transform);
 		path.setRotate(30.0);
+		bindStrokeToSelectionMode(path.getStrokeDashArray());
 		bindShapeColorToObjectColor(path);		
 		return wrapInGroup(size, path);
 	}
@@ -533,7 +555,9 @@ public class IconFactory {
 				);
 		
 		bindShapeColorToObjectColor(path);
-		
+
+		bindStrokeToSelectionMode(path.getStrokeDashArray());
+
 		return wrapInGroup(size, addNodesToPath(path, Math.max(2.0, size/10.0)));
 //		return path;
 	}
@@ -576,6 +600,7 @@ public class IconFactory {
 		shape.setStrokeWidth(1.0);
 		bindShapeColorToObjectColor(shape);
 		shape.setFill(Color.TRANSPARENT);
+		bindStrokeToSelectionMode(shape.getStrokeDashArray());
 		return wrapInGroup(size, shape);
 	}
 	
@@ -638,7 +663,68 @@ public class IconFactory {
 		// Because the default selection color yellow, it's not very prominent
 //		bindColorPropertyToRGB(text.fillProperty(), PathPrefs.colorSelectedObjectProperty());
 		bindColorPropertyToRGB(text.fillProperty(), PathPrefs.colorDefaultObjectsProperty());
-		return text;
+
+		var circle = new Circle(size/2.0, size/2.0, size/2.0, Color.TRANSPARENT);
+		bindColorPropertyToRGB(circle.strokeProperty(), PathPrefs.colorDefaultObjectsProperty());
+		circle.getStrokeDashArray().setAll(3.0, 3.0);
+		circle.setOpacity(0.5);
+
+		var stack = new StackPane(circle, text);
+		text.setBoundsType(TextBoundsType.VISUAL);
+
+		return wrapInGroup(size, stack);
+	}
+
+	private static Node drawDashedS(int size) {
+		int pad = 2;
+
+		var path = new Path();
+		double unit = (size - pad) / 6.0;
+		path.getElements().setAll(
+				new MoveTo(-unit*1.5, unit*2),
+				new CubicCurveTo(
+						unit, unit*2.5,
+						unit*3, unit,
+						0, 0),
+				new CubicCurveTo(
+						-unit*3, -unit,
+						-unit, -unit*2.5,
+						unit*1, -unit*2)
+		);
+		path.setTranslateX(size/2.0);
+		path.setTranslateY(size/2.0);
+
+		path.getStrokeDashArray().setAll(2.0, 2.0);
+		path.setFill(Color.TRANSPARENT);
+
+		bindColorPropertyToRGB(path.strokeProperty(), PathPrefs.colorDefaultObjectsProperty());
+
+		return wrapInGroup(size, path);
+	}
+
+
+	private static Node drawLassoNode(int size) {
+		int pad = 2;
+		var ellipse = new Ellipse(size/2.0+pad, pad*2, size/2.0, size/4.0);
+		ellipse.getStrokeDashArray().setAll(3.0, 3.0);
+		ellipse.setFill(Color.TRANSPARENT);
+
+		var circle = new Circle(ellipse.getCenterX(), ellipse.getCenterY()+ellipse.getRadiusY(), size/20.0);
+
+		var arc = new QuadCurve(
+				circle.getCenterX(), circle.getCenterY(),
+				size-pad, size-pad,
+				pad, size-pad);
+		arc.setFill(Color.TRANSPARENT);
+		arc.setStrokeDashOffset(1.0);
+		arc.getStrokeDashArray().setAll(3.0, 3.0);
+
+		bindColorPropertyToRGB(ellipse.strokeProperty(), PathPrefs.colorDefaultObjectsProperty());
+		bindColorPropertyToRGB(circle.strokeProperty(), PathPrefs.colorDefaultObjectsProperty());
+		bindColorPropertyToRGB(circle.fillProperty(), PathPrefs.colorDefaultObjectsProperty());
+		bindColorPropertyToRGB(arc.strokeProperty(), PathPrefs.colorDefaultObjectsProperty());
+
+		return wrapInGroup(size, ellipse, circle, arc);
 	}
 	
 	private static void bindShapeColorToObjectColor(Shape shape) {
