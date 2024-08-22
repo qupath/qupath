@@ -285,7 +285,6 @@ public final class PathObjectHierarchy implements Serializable {
 			logger.warn("TMA core objects cannot be inserted - use resolveHierarchy() instead");
 			return false;
 		}
-		resetNeighborsForClass(pathObject.getClass());
 
 		// Get all the annotations that might be a parent of this object
 		var region = ImageRegion.createInstance(pathObject.getROI());
@@ -401,7 +400,6 @@ public final class PathObjectHierarchy implements Serializable {
 			else
 				fireHierarchyChangedEvent(this, pathObjectParent);
 		}
-		resetNeighborsForClass(pathObject.getClass());
 		return true;
 	}
 	
@@ -450,9 +448,6 @@ public final class PathObjectHierarchy implements Serializable {
 		for (PathObject pathObject : childrenToKeep) {
 			addPathObjectImpl(pathObject, false);
 		}
-		for (var cls : pathObjects.stream().map(PathObject::getClass).distinct().toList()) {
-			resetNeighborsForClass(cls);
-		}
 		fireHierarchyChangedEvent(this);
 	}
 	
@@ -479,7 +474,6 @@ public final class PathObjectHierarchy implements Serializable {
 		// Notify listeners of changes, if required
 		if (fireChangeEvents)
 			fireObjectAddedEvent(this, pathObject);
-		resetNeighborsForClass(pathObject.getClass());
 		return true;
 	}
 	
@@ -557,10 +551,6 @@ public final class PathObjectHierarchy implements Serializable {
 		}
 		if (changes) {
 			fireHierarchyChangedEvent(getRootObject());
-//			fireChangeEvent(getRootObject());
-			for (var cls : pathObjects.stream().map(PathObject::getClass).distinct().toList()) {
-				resetNeighborsForClass(cls);
-			}
 		}
 		return changes;
 	}
@@ -572,7 +562,6 @@ public final class PathObjectHierarchy implements Serializable {
 	public synchronized void clearAll() {
 		getRootObject().clearChildObjects();
 		tmaGrid = null;
-		resetNeighbors();
 		fireHierarchyChangedEvent(getRootObject());
 	}
 	
@@ -676,7 +665,6 @@ public final class PathObjectHierarchy implements Serializable {
 		if (inHierarchy(pathObject))
 			removeObject(pathObject, true, false);
 		addPathObjectImpl(pathObject, false);
-		resetNeighborsForClass(pathObject.getClass());
 		fireObjectsChangedEvent(this, Collections.singletonList(pathObject), isChanging);
 //		fireHierarchyChangedEvent(this, pathObject);
 	}
@@ -739,7 +727,6 @@ public final class PathObjectHierarchy implements Serializable {
 			return;
 		rootObject = hierarchy.getRootObject();
 		tmaGrid = hierarchy.tmaGrid;
-		resetNeighbors();
 		fireHierarchyChangedEvent(rootObject);
 	}
 	
@@ -1140,6 +1127,20 @@ public final class PathObjectHierarchy implements Serializable {
 	
 	synchronized void fireEvent(PathObjectHierarchyEvent event) {
 		synchronized(listeners) {
+			if (!event.isChanging()) {
+				if (event.isStructureChangeEvent()) {
+					var changed = event.getChangedObjects();
+					var classes = changed.stream().map(PathObject::getClass).distinct().toList();
+					if (classes.isEmpty() || classes.contains(PathRootObject.class))
+						resetNeighbors();
+					else {
+						for (var cls : classes) {
+							resetNeighborsForClass(cls);
+						}
+					}
+				}
+			}
+
 			for (PathObjectHierarchyListener listener : listeners)
 				listener.hierarchyChanged(event);
 		}

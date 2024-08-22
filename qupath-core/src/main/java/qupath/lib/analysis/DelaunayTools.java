@@ -599,14 +599,16 @@ public class DelaunayTools {
 		
 		private final ImagePlane plane;
 		
-		private transient volatile Map<PathObject, List<PathObject>> neighbors;
 		private transient volatile Map<PathObject, Geometry> voronoiFaces;
 
 		/**
-		 * An edge index to speed up finding objects where the edge intersects a specific rectangle.
+		 * A map to lookup neighbors, and an edge index to speed up finding objects where the edge intersects a
+		 * specific rectangle.
 		 * This is used to speed object painting.
 		 */
-		private transient SpatialIndex edgeIndex;
+		private record NeighborMap(Map<PathObject, List<PathObject>> neighbors, SpatialIndex index) {}
+
+		private transient volatile NeighborMap neighbors;
 
 		
 		private Subdivision(QuadEdgeSubdivision subdivision, Collection<PathObject> pathObjects, Map<Coordinate, PathObject> coordinateMap, ImagePlane plane) {
@@ -785,10 +787,14 @@ public class DelaunayTools {
 		 * @return map in which keys correspond to objects and values represent all corresponding neighbors
 		 */
 		public Map<PathObject, List<PathObject>> getAllNeighbors() {
+			return getNeighborMap().neighbors();
+		}
+
+		private NeighborMap getNeighborMap() {
 			if (neighbors == null) {
 				synchronized (this) {
 					if (neighbors == null)
-						neighbors = Collections.unmodifiableMap(calculateAllNeighbors());
+						neighbors = calculateAllNeighbors();
 				}
 			}
 			return neighbors;
@@ -814,7 +820,7 @@ public class DelaunayTools {
 		 * Return a map of PathObjects and their neighbors, sorted by distance.
 		 * @return
 		 */
-		private synchronized Map<PathObject, List<PathObject>> calculateAllNeighbors() {
+		private synchronized NeighborMap calculateAllNeighbors() {
 			
 			logger.debug("Calculating all neighbors for {} objects", size());
 			
@@ -824,7 +830,7 @@ public class DelaunayTools {
 			Map<PathObject, Double> distanceMap = new HashMap<>();
 
 			// TODO: Don't make this a side effect!
-			edgeIndex = new HPRtree();
+			var edgeIndex = new HPRtree();
 
 			int missing = 0;
 			var reusableList = new ArrayList<PathObject>();
@@ -861,15 +867,13 @@ public class DelaunayTools {
 			}
 			if (missing > 0)
 				logger.debug("Number of missing neighbors: {}", missing);
-			return map;
+
+			return new NeighborMap(Map.copyOf(map), edgeIndex);
 		}
 
 		private SpatialIndex getEdgeIndex() {
-			if (edgeIndex == null)
-				getAllNeighbors(); // Ensure the index is created
-			return edgeIndex;
+			return getNeighborMap().index;
 		}
-		
 		
 		private PathObject getPathObject(Vertex vertex) {
 			return coordinateMap.get(vertex.getCoordinate());
@@ -1014,12 +1018,6 @@ public class DelaunayTools {
 				}
 				map.put(pathObject, geometry);
 			}
-			
-//			// Finally now reduce precision
-//			var reducer = new GeometryPrecisionReducer(GeometryTools.getDefaultFactory().getPrecisionModel());
-//			for (var key : map.keySet().toArray(PathObject[]::new))
-//				map.put(key, reducer.reduce(map.get(key)));
-			
 			return map;
 		}
 		
@@ -1067,7 +1065,7 @@ public class DelaunayTools {
 		}
 		
 	}
-	
+
 	
 	/**
 	 * {@link QuadEdgeLocator} that simply starts from the first valid vertex.
