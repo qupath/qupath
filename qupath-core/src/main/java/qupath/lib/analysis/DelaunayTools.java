@@ -590,7 +590,7 @@ public class DelaunayTools {
 		
 		private static final Logger logger = LoggerFactory.getLogger(Subdivision.class);
 		
-		private final Set<PathObject> pathObjects;
+		private final Collection<PathObject> pathObjects;
 		private final Map<Coordinate, PathObject> coordinateMap;
 		private final QuadEdgeSubdivision subdivision;
 		
@@ -603,7 +603,7 @@ public class DelaunayTools {
 		private Subdivision(QuadEdgeSubdivision subdivision, Collection<PathObject> pathObjects, Map<Coordinate, PathObject> coordinateMap, ImagePlane plane) {
 			this.subdivision = subdivision;
 			this.plane = plane;
-			this.pathObjects = Collections.unmodifiableSet(new LinkedHashSet<>(pathObjects));
+			this.pathObjects = pathObjects.stream().distinct().toList();
 			this.coordinateMap = Map.copyOf(coordinateMap);
 		}
 		
@@ -775,6 +775,7 @@ public class DelaunayTools {
 			Map<PathObject, Double> distanceMap = new HashMap<>();
 			
 			int missing = 0;
+			var reusableList = new ArrayList<PathObject>();
 			for (var edge : edges) {
 				var origin = edge.orig();
 				distanceMap.clear();
@@ -784,8 +785,8 @@ public class DelaunayTools {
 					logger.warn("No object found for {}", pathObject);
 					continue;
 				}
-				
-				var list = new ArrayList<PathObject>();
+
+				reusableList.clear();
 				var next = edge;
 				do {
 					var dest = next.dest();
@@ -796,12 +797,12 @@ public class DelaunayTools {
 						missing++;
 					} else {
 						distanceMap.put(destObject, next.getLength());
-						list.add(destObject);
+						reusableList.add(destObject);
 					}
 				} while ((next = next.oNext()) != edge);
 
-				list.sort(Comparator.comparingDouble(distanceMap::get));
-				map.put(pathObject, Collections.unmodifiableList(list));
+				reusableList.sort(Comparator.comparingDouble(distanceMap::get));
+				map.put(pathObject, List.copyOf(reusableList));
 			}
 			if (missing > 0)
 				logger.debug("Number of missing neighbors: {}", missing);

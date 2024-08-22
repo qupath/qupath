@@ -35,6 +35,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import qupath.lib.analysis.DelaunayTools;
 import qupath.lib.awt.common.AwtTools;
 import qupath.lib.color.ColorToolsAwt;
 import qupath.lib.gui.viewer.OverlayOptions;
@@ -198,13 +199,24 @@ public class PathHierarchyImageServer extends AbstractTileableImageServer implem
 		// Get connections
 		Object o = options.getShowConnections() ? imageData.getProperty(DefaultPathObjectConnectionGroup.KEY_OBJECT_CONNECTIONS) : null;
 		PathObjectConnections connections = (o instanceof PathObjectConnections) ? (PathObjectConnections)o : null;
-		
+
+		// If we have cells, show them
+		// Otherwise, show any detections we have
+		DelaunayTools.Subdivision subdivision = null;
+		if (options.getShowConnections()) {
+			subdivision = hierarchy.getCellSubdivision(tileRequest.getImagePlane());
+			if (subdivision.isEmpty())
+				subdivision = hierarchy.getDetectionSubdivision(tileRequest.getImagePlane());
+		}
+
 		List<PathObject> pathObjects = new ArrayList<>(getObjectsToPaint(request));
-		if (pathObjects == null || pathObjects.isEmpty()) {
+		if (pathObjects.isEmpty()) {
 			// We can only return null if no connections - otherwise we might still need to draw something
-			if (connections == null) {
+			if (!options.getShowConnections()) {
 				return null;
 			}
+			if (connections == null && (subdivision == null || subdivision.isEmpty()))
+				return null;
 		}
 		
 		// Because levels *can* change, we need to extract them first to avoid breaking the contract for comparable 
@@ -247,14 +259,9 @@ public class PathHierarchyImageServer extends AbstractTileableImageServer implem
 					imageData.isFluorescence() ? ColorToolsAwt.TRANSLUCENT_WHITE : ColorToolsAwt.TRANSLUCENT_BLACK,
 					downsampleFactor,
 					tileRequest.getImagePlane());
-		} else if (options.getShowConnections()) {
-			// If we have cells, show them
-			// Otherwise, show any detections we have
-			var subdiv = hierarchy.getCellSubdivision(tileRequest.getImagePlane());
-			if (subdiv.isEmpty())
-				subdiv = hierarchy.getDetectionSubdivision(tileRequest.getImagePlane());
+		} else if (subdivision != null) {
 			PathObjectPainter.paintConnections(
-					subdiv,
+					subdivision,
 					hierarchy,
 					g2d,
 					imageData.isFluorescence() ? ColorToolsAwt.TRANSLUCENT_WHITE : ColorToolsAwt.TRANSLUCENT_BLACK,
