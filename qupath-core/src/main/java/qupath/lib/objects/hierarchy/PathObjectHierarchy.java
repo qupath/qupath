@@ -26,6 +26,7 @@ package qupath.lib.objects.hierarchy;
 import java.io.Serial;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -1188,6 +1189,35 @@ public final class PathObjectHierarchy implements Serializable {
 		return subdivisionManager.getSubdivision(pathObject);
 	}
 
+	/**
+	 * Get a subdivision containing detections.
+	 * This does <i>not<</i> include sub-classes such as 'cell' or 'tile'.
+	 * @param plane
+	 * @return
+	 */
+	public synchronized DelaunayTools.Subdivision getDetectionSubdivision(ImagePlane plane) {
+		return subdivisionManager.getSubdivision(PathDetectionObject.class, plane);
+	}
+
+	/**
+	 * Get a subdivision containing cell objects.
+	 * @param plane
+	 * @return
+	 */
+	public synchronized DelaunayTools.Subdivision getCellSubdivision(ImagePlane plane) {
+		return subdivisionManager.getSubdivision(PathCellObject.class, plane);
+	}
+
+	/**
+	 * Get a subdivision containing annotation objects.
+	 * @param plane
+	 * @return
+	 */
+	public synchronized DelaunayTools.Subdivision getAnnotationSubdivision(ImagePlane plane) {
+		return subdivisionManager.getSubdivision(PathAnnotationObject.class, plane);
+	}
+
+
 	private DelaunayTools.Subdivision computeSubdivision(Class<? extends PathObject> cls) {
 		var pathObjects = tileCache.getObjectsForRegion(cls,
 				null, null, false);
@@ -1211,9 +1241,12 @@ public final class PathObjectHierarchy implements Serializable {
 			if (pathObject == null || !pathObject.hasROI()) {
 				return EMPTY;
 			}
-			var map = subdivisionMap.computeIfAbsent(pathObject.getClass(), k -> new ConcurrentHashMap<>());
-			var plane = pathObject.getROI().getImagePlane();
-			return map.computeIfAbsent(plane, k -> computeSubdivision(pathObject.getClass(), plane));
+			return getSubdivision(pathObject.getClass(), pathObject.getROI().getImagePlane());
+		}
+
+		synchronized DelaunayTools.Subdivision getSubdivision(Class<? extends PathObject> cls, ImagePlane plane) {
+			var map = subdivisionMap.computeIfAbsent(cls, k -> new ConcurrentHashMap<>());
+			return map.computeIfAbsent(plane, k -> computeSubdivision(cls, plane));
 		}
 
 		private DelaunayTools.Subdivision computeSubdivision(Class<? extends PathObject> cls, ImagePlane plane) {

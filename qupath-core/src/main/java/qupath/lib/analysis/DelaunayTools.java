@@ -632,7 +632,7 @@ public class DelaunayTools {
 		}
 		
 		/**
-		 * Get a map of Voronoi faces, convered to {@link ROI} objects.
+		 * Get a map of Voronoi faces, converted to {@link ROI} objects.
 		 * @param clip optional region used to clip the total extent of the ROIs
 		 * @return
 		 * @see #getVoronoiFaces()
@@ -745,6 +745,21 @@ public class DelaunayTools {
 			return neighbors;
 		}
 
+		/**
+		 * Query if the subdivision is empty, i.e. it contains no objects.
+		 * @return
+		 */
+		public boolean isEmpty() {
+			return pathObjects.isEmpty();
+		}
+
+		/**
+		 * Get the number of objects in this subdivision.
+		 * @return
+		 */
+		public int size() {
+			return pathObjects.size();
+		}
 
 		/**
 		 * Return a map of PathObjects and their neighbors, sorted by distance.

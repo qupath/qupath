@@ -247,6 +247,19 @@ public class PathHierarchyImageServer extends AbstractTileableImageServer implem
 					imageData.isFluorescence() ? ColorToolsAwt.TRANSLUCENT_WHITE : ColorToolsAwt.TRANSLUCENT_BLACK,
 					downsampleFactor,
 					tileRequest.getImagePlane());
+		} else if (options.getShowConnections()) {
+			// If we have cells, show them
+			// Otherwise, show any detections we have
+			var subdiv = hierarchy.getCellSubdivision(tileRequest.getImagePlane());
+			if (subdiv.isEmpty())
+				subdiv = hierarchy.getDetectionSubdivision(tileRequest.getImagePlane());
+			PathObjectPainter.paintConnections(
+					subdiv,
+					hierarchy,
+					g2d,
+					imageData.isFluorescence() ? ColorToolsAwt.TRANSLUCENT_WHITE : ColorToolsAwt.TRANSLUCENT_BLACK,
+					downsampleFactor,
+					tileRequest.getImagePlane());
 		}
 		g2d.dispose();
 		return img;
