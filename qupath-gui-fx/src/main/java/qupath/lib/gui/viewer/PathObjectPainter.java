@@ -374,7 +374,7 @@ public class PathObjectPainter {
 		} else {
 			double thicknessScale = downsample * (isSelected && !PathPrefs.useSelectedColorProperty().get() ? 1.6 : 1);
 			float thickness = (float)(PathPrefs.annotationStrokeThicknessProperty().get() * thicknessScale);
-			if (isSelected && pathObject.getParent() == null && PathPrefs.selectionModeProperty().get()) {
+			if (isSelected && pathObject.getParent() == null && PathPrefs.selectionModeStatus().get()) {
 				return getCachedStrokeDashed(thickness);
 			} else {
 				return getCachedStroke(thickness);

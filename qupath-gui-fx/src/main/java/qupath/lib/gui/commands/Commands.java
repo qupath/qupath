@@ -199,7 +199,7 @@ public class Commands {
 	 */
 	public static void createFullImageAnnotation(QuPathViewer viewer) {
 		// If we are using selection mode, we should select objects rather that create an annotation
-		if (PathPrefs.selectionModeProperty().get()) {
+		if (PathPrefs.selectionModeStatus().get()) {
 			logger.debug("Select all objects (create full image annotation with selection mode on)");
 			selectObjectsOnCurrentPlane(viewer);
 			return;
