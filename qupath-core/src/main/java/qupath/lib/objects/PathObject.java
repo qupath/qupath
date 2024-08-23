@@ -1061,14 +1061,13 @@ public abstract class PathObject implements Externalizable, MinimalMetadataStore
 	 */
 	@Override
 	public Map<String, String> getMetadata() {
-		var map = metadata;
-		if (map == null) {
+		if (metadata == null) {
 			synchronized (this) {
 				if (metadata == null)
-					metadata = map = new MetadataMap();
+					metadata = new MetadataMap();
 			}
 		}
-		return map;
+		return metadata;
 	}
 	
 	
