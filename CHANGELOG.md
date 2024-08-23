@@ -27,6 +27,7 @@ This is a *work in progress* for the next major release.
   * Experimental - not yet a full feature or available through the user interface!
 * Add `TransformedServerBuilder.convertType(PixelType)` to convert pixel types
 * Right-click on 'Measurement map' colorbar to copy it to the system clipboard (https://github.com/qupath/qupath/pull/1583)
+* Context help can warn if a classification color is similar to the default object color
 * Improvements to 'Selection mode'
   * New icon & other drawing icons change to indicate when they are active in selection mode
   * Selection mode works with line ROIs, selecting any intersecting objects
