@@ -55,8 +55,10 @@ import java.util.WeakHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import qupath.lib.analysis.DelaunayTools;
 import qupath.lib.awt.common.AwtTools;
 import qupath.lib.color.ColorToolsAwt;
+import qupath.lib.common.LogTools;
 import qupath.lib.geom.Point2;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.ColorToolsFX;
@@ -1086,10 +1088,14 @@ public class PathObjectPainter {
 	 * @param color
 	 * @param downsampleFactor
 	 * @param plane
+	 * @deprecated v0.6.0 as #paintConnections(DelaunayTools.Subdivision, PathObjectHierarchy, Graphics2D, Color, double, ImagePlane) is preferred
 	 */
+	@Deprecated
 	public static void paintConnections(final PathObjectConnections connections, final PathObjectHierarchy hierarchy, Graphics2D g2d, final Color color, final double downsampleFactor, final ImagePlane plane) {
 		if (hierarchy == null || connections == null || connections.isEmpty())
 			return;
+
+		LogTools.warnOnce(logger, "Legacy 'Delaunay cluster features 2D' connections are being shown in the viewer - this command is deprecated, and support will be removed in a future version");
 
 		float alpha = (float)(1f - downsampleFactor / 5);
 		alpha = Math.min(alpha, 0.4f);
@@ -1151,6 +1157,74 @@ public class PathObjectPainter {
 					}
 				}
 
+			}
+		}
+		long endTime = System.currentTimeMillis();
+		logger.trace("Drawn {} connections in {} ms ({} skipped)", nDrawn, endTime - startTime, nSkipped);
+		g2d.dispose();
+	}
+
+
+	/**
+	 * Paint connections between objects from a {@link qupath.lib.analysis.DelaunayTools.Subdivision}.
+	 *
+	 * @param subdivision
+	 * @param hierarchy
+	 * @param g2d
+	 * @param color
+	 * @param downsampleFactor
+	 * @param plane
+	 */
+	public static void paintConnections(final DelaunayTools.Subdivision subdivision, final PathObjectHierarchy hierarchy, Graphics2D g2d, final Color color, final double downsampleFactor, final ImagePlane plane) {
+		if (hierarchy == null || subdivision.size() <= 1)
+			return;
+
+		float alpha = (float)(1f - downsampleFactor / 5);
+		alpha = Math.min(alpha, 0.4f);
+		double thickness = PathPrefs.detectionStrokeThicknessProperty().get();
+		if (alpha < .1f || thickness / downsampleFactor <= 0.25)
+			return;
+
+		g2d = (Graphics2D)g2d.create();
+
+		g2d.setStroke(getCachedStroke(thickness));
+
+		g2d.setColor(ColorToolsAwt.getColorWithOpacity(color.getRGB(), alpha));
+
+		// We only need to draw connections that intersect with the bounds
+		Rectangle bounds = g2d.getClipBounds();
+		ImageRegion region = ImageRegion.createInstance(bounds.x, bounds.y, bounds.width, bounds.height, plane.getZ(), plane.getT());
+
+		g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
+		g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_SPEED);
+
+		// Keep reference to visited objects, to avoid painting the same line twice
+		Set<PathObject> vistedObjects = new HashSet<>();
+
+		// Reuse the line and record counts
+		Line2D line = new Line2D.Double();
+		int nDrawn = 0;
+		int nSkipped = 0;
+
+		long startTime = System.currentTimeMillis();
+		for (var pathObject : subdivision.getObjectsForRegion(region)) {
+			vistedObjects.add(pathObject);
+			ROI roi = PathObjectTools.getROI(pathObject, true);
+			double x1 = roi.getCentroidX();
+			double y1 = roi.getCentroidY();
+			for (var neighbor : subdivision.getNeighbors(pathObject)) {
+				if (vistedObjects.contains(neighbor))
+					continue;
+				ROI roi2 = PathObjectTools.getROI(neighbor, true);
+				double x2 = roi2.getCentroidX();
+				double y2 = roi2.getCentroidY();
+				if (bounds.intersectsLine(x1, y1, x2, y2)) {
+					line.setLine(x1, y1, x2, y2);
+					g2d.draw(line);
+					nDrawn++;
+				} else {
+					nSkipped++;
+				}
 			}
 		}
 		long endTime = System.currentTimeMillis();

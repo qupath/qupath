@@ -246,14 +246,31 @@ public class HierarchyOverlay extends AbstractOverlay {
 				PathObjectPainter.paintSpecifiedObjects(g2d, detectionsToPaint, overlayOptions, hierarchy.getSelectionModel(), downsampleFactor);
 
 				if (overlayOptions.getShowConnections()) {
+					// If we have connections from the legacy 'Delaunay cluster features 2D', show those
 					Object connections = imageData.getProperty(DefaultPathObjectConnectionGroup.KEY_OBJECT_CONNECTIONS);
-					if (connections instanceof PathObjectConnections)
-						PathObjectPainter.paintConnections((PathObjectConnections) connections,
+					if (connections instanceof PathObjectConnections conn)
+						PathObjectPainter.paintConnections(conn,
 								hierarchy,
 								g2d,
 								imageData.isFluorescence() ? ColorToolsAwt.TRANSLUCENT_WHITE : ColorToolsAwt.TRANSLUCENT_BLACK,
 								downsampleFactor,
 								imageRegion.getImagePlane());
+					else {
+						// If we have cells, show them
+						// Otherwise, show any detections we have
+						var subdiv = hierarchy.getCellSubdivision(imageRegion.getImagePlane());
+						if (subdiv.isEmpty())
+							subdiv = hierarchy.getDetectionSubdivision(imageRegion.getImagePlane());
+
+						PathObjectPainter.paintConnections(
+								subdiv,
+								hierarchy,
+								g2d,
+								imageData.isFluorescence() ? ColorToolsAwt.TRANSLUCENT_WHITE : ColorToolsAwt.TRANSLUCENT_BLACK,
+								downsampleFactor,
+								imageRegion.getImagePlane()
+						);
+					}
 				}
 			} else {
 				// If the image hasn't been updated, then we are viewing the stationary image - we want to wait for a full repaint then to avoid flickering;

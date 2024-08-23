@@ -104,7 +104,8 @@ public class OverlayActions {
 	@ActionAccelerator("f")
 	@ActionConfig("OverlayActions.fillDetections")
 	public final Action FILL_DETECTIONS;
-	
+
+	@ActionIcon(PathIcons.SHOW_CONNECTIONS)
 	@ActionConfig("OverlayActions.showConnections")
 	public final Action SHOW_CONNECTIONS;
 	

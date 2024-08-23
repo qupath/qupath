@@ -47,6 +47,8 @@ import org.locationtech.jts.geom.Polygonal;
 import org.locationtech.jts.geom.PrecisionModel;
 import org.locationtech.jts.geom.util.AffineTransformation;
 import org.locationtech.jts.geom.util.GeometryCombiner;
+import org.locationtech.jts.index.SpatialIndex;
+import org.locationtech.jts.index.hprtree.HPRtree;
 import org.locationtech.jts.index.quadtree.Quadtree;
 import org.locationtech.jts.precision.GeometryPrecisionReducer;
 import org.locationtech.jts.triangulate.DelaunayTriangulationBuilder;
@@ -59,12 +61,14 @@ import org.locationtech.jts.triangulate.quadedge.Vertex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import qupath.lib.common.LogTools;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.regions.ImagePlane;
+import qupath.lib.regions.ImageRegion;
 import qupath.lib.roi.GeometryTools;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
@@ -199,8 +203,8 @@ public class DelaunayTools {
 		
 		private double erosion = 1.0;
 		
-		private ImagePlane plane;
-		private Collection<PathObject> pathObjects = new ArrayList<>();
+		private final ImagePlane plane;
+		private final Collection<PathObject> pathObjects = new ArrayList<>();
 		
 		private Function<PathObject, Collection<Coordinate>> coordinateExtractor;
 		
@@ -444,8 +448,7 @@ public class DelaunayTools {
 	 * @return
 	 */
 	private static Collection<Coordinate> prepareCoordinates(Collection<Coordinate> coords) {
-		var list = DelaunayTriangulationBuilder.unique(coords.toArray(Coordinate[]::new));
-		return list;
+		return DelaunayTriangulationBuilder.unique(coords.toArray(Coordinate[]::new));
 	}
 	
 	/**
@@ -472,7 +475,7 @@ public class DelaunayTools {
 	
 	/**
 	 * BiPredicate that returns true for objects with ROI boundaries within a specified distance.
-	 * @param maxDistance maximum separation between ROI boundaries
+	 * @param maxDistance maximum separation between ROI boundaries, in pixels
 	 * @param preferNucleus if true, prefer nucleus ROIs for cell objects
 	 * @return true for object pairs with close boundaries
 	 */
@@ -590,20 +593,28 @@ public class DelaunayTools {
 		
 		private static final Logger logger = LoggerFactory.getLogger(Subdivision.class);
 		
-		private final Set<PathObject> pathObjects;
+		private final Collection<PathObject> pathObjects;
 		private final Map<Coordinate, PathObject> coordinateMap;
 		private final QuadEdgeSubdivision subdivision;
 		
 		private final ImagePlane plane;
 		
-		private transient volatile Map<PathObject, List<PathObject>> neighbors;
 		private transient volatile Map<PathObject, Geometry> voronoiFaces;
-		
+
+		/**
+		 * A map to lookup neighbors, and an edge index to speed up finding objects where the edge intersects a
+		 * specific rectangle.
+		 * This is used to speed object painting.
+		 */
+		private record NeighborMap(Map<PathObject, List<PathObject>> neighbors, SpatialIndex index) {}
+
+		private transient volatile NeighborMap neighbors;
+
 		
 		private Subdivision(QuadEdgeSubdivision subdivision, Collection<PathObject> pathObjects, Map<Coordinate, PathObject> coordinateMap, ImagePlane plane) {
 			this.subdivision = subdivision;
 			this.plane = plane;
-			this.pathObjects = Collections.unmodifiableSet(new LinkedHashSet<>(pathObjects));
+			this.pathObjects = pathObjects.stream().distinct().toList();
 			this.coordinateMap = Map.copyOf(coordinateMap);
 		}
 		
@@ -632,7 +643,7 @@ public class DelaunayTools {
 		}
 		
 		/**
-		 * Get a map of Voronoi faces, convered to {@link ROI} objects.
+		 * Get a map of Voronoi faces, converted to {@link ROI} objects.
 		 * @param clip optional region used to clip the total extent of the ROIs
 		 * @return
 		 * @see #getVoronoiFaces()
@@ -654,9 +665,49 @@ public class DelaunayTools {
 		/**
 		 * Get all the objects associated with this subdivision.
 		 * @return
+		 * @deprecated v0.6.0 use {@link #getObjects()} instead.
 		 */
+		@Deprecated
 		public Collection<PathObject> getPathObjects() {
+			LogTools.warnOnce(logger, "getPathObjects() is deprecated; use getObjects() instead");
 			return pathObjects;
+		}
+
+		/**
+		 * Get all the objects associated with this subdivision.
+		 * @return
+		 */
+		public Collection<PathObject> getObjects() {
+			return pathObjects;
+		}
+
+		/**
+		 * Get objects with edges that <i>may</i> intersect a specific region.
+		 * <p>
+		 * This is especially useful for requesting objects that should be considered when drawing edges for a
+		 * specific region, where the objects themselves don't need to fall within the region - but their edge might.
+		 * <p>
+		 * The method should return all objects that have an edge that intersects the region, but it may also return
+		 * additional objects that are not strictly necessary for drawing the region.
+		 * @param region
+		 * @return
+		 */
+		public Collection<PathObject> getObjectsForRegion(ImageRegion region) {
+			if (region.getZ() != plane.getZ() || region.getT() != plane.getT())
+				return Collections.emptyList();
+			var env = new Envelope(
+					region.getX(),
+					region.getX() + region.getWidth(),
+					region.getY(),
+					region.getY() + region.getHeight());
+			var edges = getEdgeIndex().query(env);
+			List<PathObject> pathObjects = new ArrayList<>();
+			for (var item : edges) {
+				QuadEdge edge = (QuadEdge) item;
+				pathObjects.add(getPathObject(edge.orig()));
+				pathObjects.add(getPathObject(edge.dest()));
+			}
+			return pathObjects.stream().distinct().toList();
 		}
 		
 		/**
@@ -736,64 +787,82 @@ public class DelaunayTools {
 		 * @return map in which keys correspond to objects and values represent all corresponding neighbors
 		 */
 		public Map<PathObject, List<PathObject>> getAllNeighbors() {
+			return getNeighborMap().neighbors();
+		}
+
+		private NeighborMap getNeighborMap() {
 			if (neighbors == null) {
 				synchronized (this) {
 					if (neighbors == null)
-						neighbors = Collections.unmodifiableMap(calculateAllNeighbors());
+						neighbors = calculateAllNeighbors();
 				}
 			}
 			return neighbors;
 		}
 
+		/**
+		 * Query if the subdivision is empty, i.e. it contains no objects.
+		 * @return
+		 */
+		public boolean isEmpty() {
+			return pathObjects.isEmpty();
+		}
+
+		/**
+		 * Get the number of objects in this subdivision.
+		 * @return
+		 */
+		public int size() {
+			return pathObjects.size();
+		}
 
 		/**
 		 * Return a map of PathObjects and their neighbors, sorted by distance.
 		 * @return
 		 */
-		private synchronized Map<PathObject, List<PathObject>> calculateAllNeighbors() {
+		private synchronized NeighborMap calculateAllNeighbors() {
 			
-			logger.debug("Calculating all neighbors for {} objects", getPathObjects().size());
+			logger.debug("Calculating all neighbors for {} objects", size());
 			
 			@SuppressWarnings("unchecked")
-			var edges = (List<QuadEdge>)subdivision.getVertexUniqueEdges(false);
-			Map<PathObject, List<PathObject>> map = new HashMap<>();
-			Map<PathObject, Double> distanceMap = new HashMap<>();
-			
-			int missing = 0;
-			for (var edge : edges) {
-				var origin = edge.orig();
-				distanceMap.clear();
-				
-				var pathObject = getPathObject(origin);
-				if (pathObject == null) {
-					logger.warn("No object found for {}", pathObject);
+			var edges = (List<QuadEdge>)subdivision.getEdges()
+					.parallelStream()
+					.sorted(Comparator.comparingDouble(QuadEdge::getLength))
+					.toList();
+
+			Map<PathObject, List<PathObject>> neighbors = new HashMap<>();
+
+			var edgeIndex = new HPRtree();
+			for (QuadEdge edge : edges) {
+				var pathOrigin = getPathObject(edge.orig());
+				var pathDest = getPathObject(edge.dest());
+				if (pathOrigin == null || pathDest == null || pathDest == pathOrigin ||
+					neighbors.getOrDefault(pathOrigin, Collections.emptyList()).contains(pathDest)) {
 					continue;
 				}
-				
-				var list = new ArrayList<PathObject>();
-				var next = edge;
-				do {
-					var dest = next.dest();
-					var destObject = getPathObject(dest);
-					if (destObject == pathObject) {
-						continue;
-					} else if (destObject == null) {
-						missing++;
-					} else {
-						distanceMap.put(destObject, next.getLength());
-						list.add(destObject);
-					}
-				} while ((next = next.oNext()) != edge);
+				neighbors.computeIfAbsent(pathOrigin, a -> new ArrayList<>()).add(pathDest);
+				neighbors.computeIfAbsent(pathDest, a -> new ArrayList<>()).add(pathOrigin);
 
-				list.sort(Comparator.comparingDouble(distanceMap::get));
-				map.put(pathObject, Collections.unmodifiableList(list));
+				var env = createEnvelope(pathOrigin.getROI(), pathDest.getROI());
+				edgeIndex.insert(env, edge);
 			}
-			if (missing > 0)
-				logger.debug("Number of missing neighbors: {}", missing);
-			return map;
+			for (var entry : neighbors.entrySet()) {
+				entry.setValue(List.copyOf(entry.getValue()));
+			}
+			return new NeighborMap(Map.copyOf(neighbors), edgeIndex);
 		}
-		
-		
+
+		private static Envelope createEnvelope(ROI roi1, ROI roi2) {
+			double x1 = Math.min(roi1.getBoundsX(), roi2.getBoundsX());
+			double x2 = Math.max(roi1.getBoundsX() + roi1.getBoundsWidth(), roi2.getBoundsX() + roi2.getBoundsWidth());
+			double y1 = Math.min(roi1.getBoundsY(), roi2.getBoundsY());
+			double y2 = Math.max(roi1.getBoundsY() + roi1.getBoundsHeight(), roi2.getBoundsY() + roi2.getBoundsHeight());
+			return new Envelope(x1, x2, y1, y2);
+		}
+
+		private SpatialIndex getEdgeIndex() {
+			return getNeighborMap().index;
+		}
 		
 		private PathObject getPathObject(Vertex vertex) {
 			return coordinateMap.get(vertex.getCoordinate());
@@ -806,7 +875,7 @@ public class DelaunayTools {
 		 */
 		private synchronized Map<PathObject, Geometry> calculateVoronoiFacesByLocations() {
 			
-			logger.debug("Calculating Voronoi faces for {} objects by location", getPathObjects().size());
+			logger.debug("Calculating Voronoi faces for {} objects by location", size());
 			
 			// We use a new GeometryFactory because we need floating point precision (it seems) to avoid 
 			// invalid polygons being returned
@@ -888,7 +957,7 @@ public class DelaunayTools {
 				return calculateVoronoiFacesByLocations();
 			}
 
-			logger.debug("Calculating Voronoi faces for {} objects", getPathObjects().size());
+			logger.debug("Calculating Voronoi faces for {} objects", size());
 
 			@SuppressWarnings("unchecked")
 			var polygons = (List<Polygon>)subdivision.getVoronoiCellPolygons(GeometryTools.getDefaultFactory());
@@ -938,12 +1007,6 @@ public class DelaunayTools {
 				}
 				map.put(pathObject, geometry);
 			}
-			
-//			// Finally now reduce precision
-//			var reducer = new GeometryPrecisionReducer(GeometryTools.getDefaultFactory().getPrecisionModel());
-//			for (var key : map.keySet().toArray(PathObject[]::new))
-//				map.put(key, reducer.reduce(map.get(key)));
-			
 			return map;
 		}
 		
@@ -962,7 +1025,7 @@ public class DelaunayTools {
 			var alreadyClustered = new HashSet<PathObject>();
 			var output = new ArrayList<Collection<PathObject>>();
 			var neighbors = getFilteredNeighbors(predicate);
-			for (var pathObject : getPathObjects()) {
+			for (var pathObject : getObjects()) {
 				if (!alreadyClustered.contains(pathObject)) {
 					var cluster = buildCluster(pathObject, neighbors, alreadyClustered);
 					output.add(cluster);
@@ -991,7 +1054,7 @@ public class DelaunayTools {
 		}
 		
 	}
-	
+
 	
 	/**
 	 * {@link QuadEdgeLocator} that simply starts from the first valid vertex.
@@ -999,8 +1062,8 @@ public class DelaunayTools {
 	 */
 	static class FirstVertexLocator implements QuadEdgeLocator {
 		
-		private QuadEdgeSubdivision subdiv;
-		private QuadEdge firstLiveEdge;	
+		private final QuadEdgeSubdivision subdiv;
+		private QuadEdge firstLiveEdge;
 		
 		FirstVertexLocator(QuadEdgeSubdivision subdiv) {
 			this.subdiv = subdiv;
@@ -1027,11 +1090,11 @@ public class DelaunayTools {
 	@SuppressWarnings("unused")
 	private static class QuadTreeQuadEdgeLocator implements QuadEdgeLocator {
 		
-		private Quadtree tree;
-		private QuadEdgeSubdivision subdiv;
-		private Envelope env;
+		private final Quadtree tree;
+		private final QuadEdgeSubdivision subdiv;
+		private final Envelope env;
 		private QuadEdge lastEdge;
-		private Set<QuadEdge> existingEdges;
+		private final Set<QuadEdge> existingEdges;
 		
 		private int calledFirst = 0;
 		private int usedCache = 0;

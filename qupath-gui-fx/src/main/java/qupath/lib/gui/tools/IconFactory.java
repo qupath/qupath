@@ -27,11 +27,13 @@ import java.awt.geom.AffineTransform;
 import java.awt.geom.Path2D;
 import java.awt.geom.PathIterator;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
 import java.util.function.IntFunction;
 import java.util.function.Supplier;
+import java.util.stream.Stream;
 
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
@@ -76,6 +78,7 @@ import javafx.scene.shape.QuadCurveTo;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.shape.Shape;
 import javafx.scene.text.Text;
+import qupath.lib.geom.Point2;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
@@ -259,6 +262,10 @@ public class IconFactory {
 			return i -> new DuplicatableNode(() -> drawPixelClassificationIcon(i));
 		}
 
+		static IntFunction<Node> drawConnectionsIcon() {
+			return i -> new DuplicatableNode(() -> IconFactory.drawConnectionsIcon(i));
+		}
+
 		static IntFunction<Node> showNamesIcon() {
 			return i -> new DuplicatableNode(() -> drawShowNamesIcon(i));
 		}
@@ -336,6 +343,7 @@ public class IconFactory {
 
 									SHOW_NAMES(IconSuppliers.showNamesIcon()),
 									SHOW_SCALEBAR(IconSuppliers.icoMoon('\ue917')),
+									SHOW_CONNECTIONS(IconSuppliers.drawConnectionsIcon()),
 									SCREENSHOT(IconSuppliers.icoMoon('\ue918')),
 									
 									TRACKING_REWIND(IconSuppliers.fontAwesome(FontAwesome.Glyph.BACKWARD)),
@@ -534,8 +542,6 @@ public class IconFactory {
 				new QuadCurveTo(size-size/8.0, 0, size/2.0, 0),
 				new ClosePath()
 				);
-//		var transform = Affine.rotate(30.0, size/2.0, size/2.0);
-//		path.getTransforms().add(transform);
 		path.setRotate(30.0);
 		bindStrokeToSelectionMode(path.getStrokeDashArray());
 		bindShapeColorToObjectColor(path);		
@@ -559,7 +565,6 @@ public class IconFactory {
 		bindStrokeToSelectionMode(path.getStrokeDashArray());
 
 		return wrapInGroup(size, addNodesToPath(path, Math.max(2.0, size/10.0)));
-//		return path;
 	}
 	
 	
@@ -587,7 +592,48 @@ public class IconFactory {
 		}
 		return group;
 	}
-	
+
+	private static Node drawConnectionsIcon(int size) {
+		double padX = 2;
+		double padY = 2;
+
+		var ptl = new Point2(padX, padY);
+		var ptr = new Point2(size-padX, padY);
+		var pbl = new Point2(padX, size-padY);
+		var pbr = new Point2(size-padX, size-padY);
+		var pc = new Point2(size/2.0, size/2.0);
+
+		Path path = new Path();
+		path.getElements().setAll(
+				move(ptl), line(ptr),
+				line(pbr), line(pbl),
+				line(ptl), line(pc),
+				line(ptr),
+				move(pc), line(pbl),
+				move(pc), line(pbr)
+		);
+
+		path.setStyle("-fx-stroke: -fx-text-fill; -fx-opacity: 0.4;");
+		var group = new Group(Stream.of(ptl, ptr, pbl, pbr, pc)
+				.map(p -> {
+					var circle = new Circle(p.getX(), p.getY(), 2.0, DETECTION_COLOR);
+					var fillColor = ColorToolsFX.getColorWithOpacity(DETECTION_COLOR, 0.75);
+					circle.setFill(fillColor);
+//					bindShapeColorToObjectColor(circle);
+					return circle;
+				})
+				.toArray(Node[]::new));
+
+		return wrapInGroup(size, path, group);
+	}
+
+	private static MoveTo move(Point2 p) {
+		return new MoveTo(p.getX(), p.getY());
+	}
+
+	private static LineTo line(Point2 p) {
+		return new LineTo(p.getX(), p.getY());
+	}
 	
 	private static Node drawEllipseIcon(int size) {
 		double padX = 2.0;
