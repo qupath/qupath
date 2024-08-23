@@ -188,7 +188,7 @@ public class GeometryTools {
 	
     /**
      * Convert an {@link Envelope} to an {@link ImageRegion}.
-     * @param env envelop
+     * @param env envelope
      * @param z z index for the region (default is 0)
      * @param t timepoint for the region (default is 0)
      * @return the smallest {@link ImageRegion} that contains the specified envelop
@@ -199,6 +199,34 @@ public class GeometryTools {
 		int width = (int)Math.ceil(env.getMaxX()) - x;
 		int height = (int)Math.ceil(env.getMaxY()) - y;
 		return ImageRegion.createInstance(x, y, width, height, z, t);
+	}
+
+	/**
+	 * Convert an {@link ImageRegion} to an {@link Envelope}.
+	 * This will lose z and t information.
+	 * @param region the region
+=	 * @return the smallest {@link Envelope} that contains the specified region
+	 */
+	public static Envelope regionToEnvelope(ImageRegion region) {
+		return new Envelope(
+				region.getMinX(), region.getMaxX(), region.getMinY(), region.getMaxY()
+		);
+	}
+
+	/**
+	 * Convert the bounding box of a {@link ROI} to an {@link Envelope}.
+	 * This will lose z and t information.
+	 * @param roi the ROI
+	 * @return the smallest {@link Envelope} that contains the specified ROI.
+	 *         Note that this does not involve any use of a precision model.
+	 */
+	public static Envelope roiToEnvelope(ROI roi) {
+		return new Envelope(
+				roi.getBoundsX(),
+				roi.getBoundsX() + roi.getBoundsWidth(),
+				roi.getBoundsY(),
+				roi.getBoundsY() + roi.getBoundsHeight()
+		);
 	}
 	
 	

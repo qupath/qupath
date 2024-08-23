@@ -475,7 +475,7 @@ public class DelaunayTools {
 	
 	/**
 	 * BiPredicate that returns true for objects with ROI boundaries within a specified distance.
-	 * @param maxDistance maximum separation between ROI boundaries
+	 * @param maxDistance maximum separation between ROI boundaries, in pixels
 	 * @param preferNucleus if true, prefer nucleus ROIs for cell objects
 	 * @return true for object pairs with close boundaries
 	 */
@@ -825,50 +825,39 @@ public class DelaunayTools {
 			logger.debug("Calculating all neighbors for {} objects", size());
 			
 			@SuppressWarnings("unchecked")
-			var edges = (List<QuadEdge>)subdivision.getVertexUniqueEdges(false);
-			Map<PathObject, List<PathObject>> map = new HashMap<>();
-			Map<PathObject, Double> distanceMap = new HashMap<>();
+			var edges = (List<QuadEdge>)subdivision.getEdges()
+					.parallelStream()
+					.sorted(Comparator.comparingDouble(QuadEdge::getLength))
+					.toList();
 
-			// TODO: Don't make this a side effect!
+			Map<PathObject, List<PathObject>> neighbors = new HashMap<>();
+
 			var edgeIndex = new HPRtree();
-
-			int missing = 0;
-			var reusableList = new ArrayList<PathObject>();
 			for (QuadEdge edge : edges) {
-				Vertex origin = edge.orig();
-				distanceMap.clear();
-
-				var pathObject = getPathObject(origin);
-				if (pathObject == null) {
-					logger.warn("No object found for {}", pathObject);
+				var pathOrigin = getPathObject(edge.orig());
+				var pathDest = getPathObject(edge.dest());
+				if (pathOrigin == null || pathDest == null || pathDest == pathOrigin ||
+					neighbors.getOrDefault(pathOrigin, Collections.emptyList()).contains(pathDest)) {
 					continue;
 				}
+				neighbors.computeIfAbsent(pathOrigin, a -> new ArrayList<>()).add(pathDest);
+				neighbors.computeIfAbsent(pathDest, a -> new ArrayList<>()).add(pathOrigin);
 
-				reusableList.clear();
-				QuadEdge next = edge;
-				do {
-					Vertex dest = next.dest();
-					var destObject = getPathObject(dest);
-					if (destObject == pathObject) {
-						continue;
-					} else if (destObject == null) {
-						missing++;
-					} else {
-						distanceMap.put(destObject, next.getLength());
-						reusableList.add(destObject);
-						// Store the edge in the spatial index
-						var env = new Envelope(next.orig().getCoordinate(), next.dest().getCoordinate());
-						edgeIndex.insert(env, next);
-					}
-				} while ((next = next.oNext()) != edge);
-
-				reusableList.sort(Comparator.comparingDouble(distanceMap::get));
-				map.put(pathObject, List.copyOf(reusableList));
+				var env = createEnvelope(pathOrigin.getROI(), pathDest.getROI());
+				edgeIndex.insert(env, edge);
 			}
-			if (missing > 0)
-				logger.debug("Number of missing neighbors: {}", missing);
+			for (var entry : neighbors.entrySet()) {
+				entry.setValue(List.copyOf(entry.getValue()));
+			}
+			return new NeighborMap(Map.copyOf(neighbors), edgeIndex);
+		}
 
-			return new NeighborMap(Map.copyOf(map), edgeIndex);
+		private static Envelope createEnvelope(ROI roi1, ROI roi2) {
+			double x1 = Math.min(roi1.getBoundsX(), roi2.getBoundsX());
+			double x2 = Math.max(roi1.getBoundsX() + roi1.getBoundsWidth(), roi2.getBoundsX() + roi2.getBoundsWidth());
+			double y1 = Math.min(roi1.getBoundsY(), roi2.getBoundsY());
+			double y2 = Math.max(roi1.getBoundsY() + roi1.getBoundsHeight(), roi2.getBoundsY() + roi2.getBoundsHeight());
+			return new Envelope(x1, x2, y1, y2);
 		}
 
 		private SpatialIndex getEdgeIndex() {
