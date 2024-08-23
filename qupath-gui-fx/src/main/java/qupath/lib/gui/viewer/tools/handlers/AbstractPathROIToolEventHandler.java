@@ -100,7 +100,7 @@ abstract class AbstractPathROIToolEventHandler extends AbstractPathToolEventHand
 		
 		PathObject pathObject = PathObjects.createAnnotationObject(roi, PathPrefs.autoSetAnnotationClassProperty().get());
 		var selectionModel = hierarchy.getSelectionModel();
-		if (PathPrefs.selectionModeProperty().get() && !selectionModel.noSelection())
+		if (PathPrefs.selectionModeStatus().get() && !selectionModel.noSelection())
 			viewer.setSelectedObject(pathObject, true);		
 		else
 			viewer.setSelectedObject(pathObject);
@@ -144,7 +144,7 @@ abstract class AbstractPathROIToolEventHandler extends AbstractPathToolEventHand
 			return;
 						
 		// If we are double-clicking & we don't have a polygon, see if we can access a ROI
-		if (!PathPrefs.selectionModeProperty().get() && e.getClickCount() > 1) {
+		if (!PathPrefs.selectionModeStatus().get() && e.getClickCount() > 1) {
 			// Reset parent... for now
 			resetConstrainingObjects();
 			ToolUtils.tryToSelect(viewer, xx, yy, e.getClickCount()-2, false);
@@ -199,7 +199,7 @@ abstract class AbstractPathROIToolEventHandler extends AbstractPathToolEventHand
 		var currentROI = pathObject.getROI();
 		
 		// If we are in selection mode, try to get objects to select
-		if (PathPrefs.selectionModeProperty().get()) {
+		if (PathPrefs.selectionModeStatus().get()) {
 			var pathClass = PathPrefs.autoSetAnnotationClassProperty().get();
 			Collection<PathObject> toSelect;
 			if (currentROI.isArea()) {

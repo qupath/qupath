@@ -43,7 +43,9 @@ import java.util.prefs.BackingStoreException;
 import java.util.prefs.InvalidPreferencesFormatException;
 import java.util.prefs.Preferences;
 
+import javafx.beans.binding.BooleanBinding;
 import javafx.beans.property.*;
+import javafx.beans.value.ObservableBooleanValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -659,9 +661,28 @@ public class PathPrefs {
 	/**
 	 * Convert drawing tools to select objects, rather than creating new objects.
 	 * @return
+	 * @see #tempSelectionModeProperty()
 	 */
 	public static BooleanProperty selectionModeProperty() {
 		return selectionMode;
+	}
+
+	private static BooleanProperty tempSelectionMode = MANAGER.createTransientBooleanProperty("tempSelectionMode", false);
+
+	/**
+	 * Temporarily request selection mode, without changing the value of #selectionModeProperty().
+	 * This can be used by a key-down shortcut to temporarily switch to selection mode, without changing the main toggle.
+	 * @return
+	 * @see #selectionModeProperty()
+	 */
+	public static BooleanProperty tempSelectionModeProperty() {
+		return tempSelectionMode;
+	}
+
+	private static BooleanBinding selectionModeStatus = selectionModeProperty().or(tempSelectionModeProperty());
+
+	public static ObservableBooleanValue selectionModeStatus() {
+		return selectionModeStatus;
 	}
 
 	

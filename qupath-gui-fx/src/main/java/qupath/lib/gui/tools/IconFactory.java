@@ -440,7 +440,7 @@ public class IconFactory {
 	}
 
 	private static void bindStrokeToSelectionMode(ObservableList<Double> dashList) {
-		PathPrefs.selectionModeProperty().addListener((obs, oldVal, newVal) -> {
+		PathPrefs.selectionModeStatus().addListener((obs, oldVal, newVal) -> {
 			if (newVal) {
 				dashList.setAll(3.0, 3.0);
 			} else {

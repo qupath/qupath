@@ -846,8 +846,10 @@ public class ViewerManager implements QuPathViewerListener {
 		
 		
 		viewer.getView().addEventHandler(KeyEvent.KEY_PRESSED, e -> {
+			if (e.isConsumed())
+				return;
 			PathObject pathObject = viewer.getSelectedObject();
-			if (!e.isConsumed() && pathObject != null) {
+			if (pathObject != null) {
 				if (pathObject.isTMACore()) {
 					TMACoreObject core = (TMACoreObject)pathObject;
 					if (e.getCode() == KeyCode.ENTER) {
@@ -865,6 +867,16 @@ public class ViewerManager implements QuPathViewerListener {
 					}
 				}
 			}
+			// For temporarily setting selection mode, we want to grab any S key presses eagerly
+			if (e.getCode() == KeyCode.S && e.getEventType() == KeyEvent.KEY_PRESSED) {
+				PathPrefs.tempSelectionModeProperty().set(true);
+				e.consume();
+			}
+		});
+		viewer.getView().addEventHandler(KeyEvent.KEY_RELEASED, e -> {
+			// For temporarily setting selection mode, we want to switch off the mode quickly for any key release events -
+			// to reduce the risk of accidentally leaving selection mode 'stuck' on if the S key release is missed
+			PathPrefs.tempSelectionModeProperty().set(false);
 		});
 
 	}

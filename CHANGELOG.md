@@ -30,6 +30,7 @@ This is a *work in progress* for the next major release.
 * Improvements to 'Selection mode'
   * New icon & other drawing icons change to indicate when they are active in selection mode
   * Selection mode works with line ROIs, selecting any intersecting objects
+  * Temporarily active 'Selection mode' by pressing the `S` key while interacting with a viewer
 
 ### Bugs fixed
 * Tile export to .ome.tif can convert to 8-bit unnecessarily (https://github.com/qupath/qupath/issues/1494)
