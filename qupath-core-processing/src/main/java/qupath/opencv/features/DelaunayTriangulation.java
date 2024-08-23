@@ -56,8 +56,9 @@ import qupath.lib.roi.interfaces.ROI;
  * Compute Delaunay triangulation using OpenCV.
  * 
  * @author Pete Bankhead
- *
+ * @deprecated v0.6.0, to be replaced by {@link qupath.lib.analysis.DelaunayTools.Subdivision}
  */
+@Deprecated
 public class DelaunayTriangulation implements PathObjectConnectionGroup {
 	
 	private static final Logger logger = LoggerFactory.getLogger(DelaunayTriangulation.class);

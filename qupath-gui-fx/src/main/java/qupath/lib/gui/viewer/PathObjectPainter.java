@@ -58,6 +58,7 @@ import org.slf4j.LoggerFactory;
 import qupath.lib.analysis.DelaunayTools;
 import qupath.lib.awt.common.AwtTools;
 import qupath.lib.color.ColorToolsAwt;
+import qupath.lib.common.LogTools;
 import qupath.lib.geom.Point2;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.ColorToolsFX;
@@ -1087,10 +1088,14 @@ public class PathObjectPainter {
 	 * @param color
 	 * @param downsampleFactor
 	 * @param plane
+	 * @deprecated v0.6.0 as #paintConnections(DelaunayTools.Subdivision, PathObjectHierarchy, Graphics2D, Color, double, ImagePlane) is preferred
 	 */
+	@Deprecated
 	public static void paintConnections(final PathObjectConnections connections, final PathObjectHierarchy hierarchy, Graphics2D g2d, final Color color, final double downsampleFactor, final ImagePlane plane) {
 		if (hierarchy == null || connections == null || connections.isEmpty())
 			return;
+
+		LogTools.warnOnce(logger, "Legacy 'Delaunay cluster features 2D' connections are being shown in the viewer - this command is deprecated, and support will be removed in a future version");
 
 		float alpha = (float)(1f - downsampleFactor / 5);
 		alpha = Math.min(alpha, 0.4f);

@@ -252,6 +252,7 @@ public class PathHierarchyImageServer extends AbstractTileableImageServer implem
 		
 		// See if we have any connections to draw
 		if (connections != null) {
+			// If we have connections from the legacy 'Delaunay cluster features 2D' command, show these
 			PathObjectPainter.paintConnections(
 					connections,
 					hierarchy,

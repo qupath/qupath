@@ -84,7 +84,7 @@ public class ProcessingExtension implements QuPathExtension {
 	@ActionMenu("Menu.Analyze")
 	public static class OpenCVCommands {
 		
-		@ActionMenu("Menu.Analyze.Spatial")
+		@ActionMenu("Deprecated")
 		@ActionConfig("Action.Processing.Spatial.delaunay")
 		@Deprecated
 		public final Action actionDelaunay;
@@ -105,14 +105,13 @@ public class ProcessingExtension implements QuPathExtension {
 
 				
 		private OpenCVCommands(QuPathGUI qupath) {
-			actionDelaunay = qupath.createPluginAction("Delaunay cluster features 2D", DelaunayClusteringPlugin.class, null);
+			actionDelaunay = qupath.createPluginAction("Delaunay cluster features 2D (deprecated)", DelaunayClusteringPlugin.class, null);
 			actionFastCellCounts = qupath.createPluginAction("Fast cell counts (brightfield)", CellCountsCV.class, null);
 			var densityMapCommand = new DensityMapCommand(qupath);
 			actionDensityMap = qupath.createImageDataAction(imageData -> densityMapCommand.run());
 			
 			var commandLoad = LoadResourceCommand.createLoadDensityMapCommand(qupath);
 			actionDensityMapLoad = qupath.createImageDataAction(imageData -> commandLoad.run());
-
 		}
 
 	}

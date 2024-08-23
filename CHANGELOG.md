@@ -33,6 +33,9 @@ This is a *work in progress* for the next major release.
   * Temporarily active 'Selection mode' by pressing the `S` key while interacting with a viewer
 * New toolbar button to show/hide 'neighbors' in the viewer (https://github.com/qupath/qupath/pull/1597)
   * *Experimental* new code to help with querying neighbors
+  * Note that the *Delaunay cluster features 2D* command is now deprecated - see https://github.com/qupath/qupath/issues/1590 for details
+    * If you use this command, the calculated connections are displayed instead of the default neighbor connections for compatibility.
+      However, this support will be removed in a future version.
 
 ### Bugs fixed
 * Tile export to .ome.tif can convert to 8-bit unnecessarily (https://github.com/qupath/qupath/issues/1494)

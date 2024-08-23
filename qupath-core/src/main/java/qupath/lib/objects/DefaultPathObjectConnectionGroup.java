@@ -48,8 +48,9 @@ import qupath.lib.roi.interfaces.ROI;
  * Simple, default implementation of {@link PathObjectConnectionGroup}.
  * 
  * @author Pete Bankhead
- *
+ * @deprecated v0.6.0, to be replaced by {@link qupath.lib.analysis.DelaunayTools.Subdivision}
  */
+@Deprecated
 public class DefaultPathObjectConnectionGroup implements PathObjectConnectionGroup, Externalizable {
 	
 	private static final long serialVersionUID = 1L;
