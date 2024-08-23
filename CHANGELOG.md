@@ -31,6 +31,8 @@ This is a *work in progress* for the next major release.
   * New icon & other drawing icons change to indicate when they are active in selection mode
   * Selection mode works with line ROIs, selecting any intersecting objects
   * Temporarily active 'Selection mode' by pressing the `S` key while interacting with a viewer
+* New toolbar button to show/hide 'neighbors' in the viewer (https://github.com/qupath/qupath/pull/1597)
+  * *Experimental* new code to help with querying neighbors
 
 ### Bugs fixed
 * Tile export to .ome.tif can convert to 8-bit unnecessarily (https://github.com/qupath/qupath/issues/1494)
