@@ -138,8 +138,12 @@ class PathClassPane {
 		// Intercept space presses because we handle them elsewhere
 		listClasses.addEventFilter(KeyEvent.KEY_PRESSED, this::filterKeyPresses);
 		listClasses.setOnMouseClicked(e -> {
-			if (!e.isPopupTrigger() && e.getClickCount() == 2)
-				promptToEditSelectedClass();
+			if (!e.isPopupTrigger() && e.getClickCount() == 2) {
+				if (promptToEditSelectedClass()) {
+					// This fires a change event to notify any listeners
+					availablePathClasses.setAll(availablePathClasses.stream().toList());
+				}
+			}
 		});
 
 		ContextMenu menuClasses = createClassesMenu();
