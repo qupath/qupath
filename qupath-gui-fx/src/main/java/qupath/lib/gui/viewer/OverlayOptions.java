@@ -75,7 +75,7 @@ public class OverlayOptions {
 	private BooleanProperty showNames = new SimpleBooleanProperty(true);
 	private BooleanProperty showTMAGrid = new SimpleBooleanProperty(true);
 	private BooleanProperty showDetections = new SimpleBooleanProperty(true);
-	private BooleanProperty showConnections = new SimpleBooleanProperty(true);
+	private BooleanProperty showConnections = new SimpleBooleanProperty(false);
 	private BooleanProperty fillDetections = new SimpleBooleanProperty(false);
 	private BooleanProperty fillAnnotations = new SimpleBooleanProperty(false);
 	private BooleanProperty showTMACoreLabels = new SimpleBooleanProperty(false);

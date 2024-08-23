@@ -32,6 +32,7 @@ import qupath.lib.roi.interfaces.ROI;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
@@ -221,6 +222,61 @@ public class TestPathObjectHierarchy {
         assertEquals(4, hierarchy.getAllPointObjects().size());
         assertEquals(2, hierarchy.getAllPointAnnotations().size());
         assertTrue(hierarchy.getAllPointAnnotations().stream().allMatch(PathObject::isAnnotation));
+    }
+
+    @Test
+    public void test_neighbors() {
+        var hierarchy = new PathObjectHierarchy();
+        var plane = ImagePlane.getDefaultPlane();
+        assertTrue(hierarchy.getDetectionSubdivision(plane).isEmpty());
+
+        var topLeft = PathObjects.createDetectionObject(ROIs.createRectangleROI(0, 0, 1, 1, plane));
+        var topRight = PathObjects.createDetectionObject(ROIs.createRectangleROI(10, 0, 1, 1, plane));
+        var bottomLeft = PathObjects.createDetectionObject(ROIs.createRectangleROI(0, 10, 1, 1, plane));
+        var bottomRight = PathObjects.createDetectionObject(ROIs.createRectangleROI(10, 10, 1, 1, plane));
+
+        // Add 4 corner objects
+        hierarchy.addObjects(List.of(topLeft, topRight, bottomLeft, bottomRight));
+
+        // For a square, it's not obvious *which* two triangles will be created by the subdivision -
+        // so we only require that two triangles *are* created
+        if (hierarchy.findAllNeighbors(topLeft).size() == 2) {
+            assertEquals(3, hierarchy.findAllNeighbors(topRight).size());
+            assertEquals(3, hierarchy.findAllNeighbors(bottomLeft).size());
+            assertEquals(2, hierarchy.findAllNeighbors(bottomRight).size());
+        } else {
+            assertEquals(3, hierarchy.findAllNeighbors(topLeft).size());
+            assertEquals(2, hierarchy.findAllNeighbors(topRight).size());
+            assertEquals(2, hierarchy.findAllNeighbors(bottomLeft).size());
+            assertEquals(3, hierarchy.findAllNeighbors(bottomRight).size());
+        }
+
+        // Add center object - so requests to the subdivision should give updated results
+        var center = PathObjects.createDetectionObject(ROIs.createRectangleROI(5, 5, 1, 1, plane));
+        hierarchy.addObject(center);
+        assertEquals(5, hierarchy.getDetectionSubdivision(plane).size());
+
+        // Other planes should have empty subdivisions
+        assertTrue(hierarchy.getDetectionSubdivision(ImagePlane.getPlane(1, 0)).isEmpty());
+        assertTrue(hierarchy.getDetectionSubdivision(ImagePlane.getPlane(0, 1)).isEmpty());
+
+        // Other object types should have empty subdivisions
+        assertTrue(hierarchy.getCellSubdivision(plane).isEmpty());
+
+        // Corners have center as nearest neighbor
+        assertEquals(center, hierarchy.findNearestNeighbor(topLeft));
+        assertEquals(center, hierarchy.findNearestNeighbor(topRight));
+        assertEquals(center, hierarchy.findNearestNeighbor(bottomLeft));
+        assertEquals(center, hierarchy.findNearestNeighbor(bottomRight));
+
+        // Corners have 3 neighbors
+        assertEquals(Set.of(topRight, center, bottomLeft), Set.copyOf(hierarchy.findAllNeighbors(topLeft)));
+        assertEquals(Set.of(topRight, center, bottomLeft), Set.copyOf(hierarchy.findAllNeighbors(bottomRight)));
+
+        // Center has all neighbors
+        assertEquals(Set.of(topLeft, topRight, bottomLeft, bottomRight), Set.copyOf(hierarchy.findAllNeighbors(center)));
+
+        assertTrue(hierarchy.getCellSubdivision(plane).isEmpty());
     }
 
 }

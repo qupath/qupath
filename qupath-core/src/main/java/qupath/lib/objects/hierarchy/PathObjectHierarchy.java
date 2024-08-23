@@ -1159,7 +1159,10 @@ public final class PathObjectHierarchy implements Serializable {
 	 * This is based on centroids and Delaunay triangulation.
 	 * It also assumes 'square' pixels, and searches for neighbors only on the same 2D plane (z and t).
 	 * @param pathObject
+	 * <p>
+	 * This is an <i>experimental method</i> added in v0.6.0, subject to change.
 	 * @return
+	 * @since v0.6.0
 	 */
 	public synchronized List<PathObject> findAllNeighbors(PathObject pathObject) {
 		var subdivision = getSubdivision(pathObject);
@@ -1170,8 +1173,11 @@ public final class PathObjectHierarchy implements Serializable {
 	 * Find the nearest neighbor of a PathObject, having the same class as the object (e.g. detection, cell, annotation).
 	 * This is based on centroids and Delaunay triangulation.
 	 * It also assumes 'square' pixels, and searches for neighbors only on the same 2D plane (z and t).
+	 * <p>
+	 * This is an <i>experimental method</i> added in v0.6.0, subject to change.
 	 * @param pathObject
 	 * @return
+	 * @since v0.6.0
 	 */
 	public synchronized PathObject findNearestNeighbor(PathObject pathObject) {
 		var subdivision = getSubdivision(pathObject);
@@ -1183,8 +1189,11 @@ public final class PathObjectHierarchy implements Serializable {
 	 * This is based on centroids and Delaunay triangulation in 2D.
 	 * It supports #findAllNeighbors(PathObject) and #findNearestNeighbor(PathObject); obtaining the subdivision
 	 * enables a wider range of spatial queries.
+	 * <p>
+	 * This is an <i>experimental method</i> added in v0.6.0, subject to change.
 	 * @param pathObject
 	 * @return
+	 * @since v0.6.0
 	 */
 	public synchronized DelaunayTools.Subdivision getSubdivision(PathObject pathObject) {
 		return subdivisionManager.getSubdivision(pathObject);
@@ -1193,8 +1202,11 @@ public final class PathObjectHierarchy implements Serializable {
 	/**
 	 * Get a subdivision containing detections.
 	 * This does <i>not<</i> include sub-classes such as 'cell' or 'tile'.
+	 * <p>
+	 * This is an <i>experimental method</i> added in v0.6.0, subject to change.
 	 * @param plane
 	 * @return
+	 * @since v0.6.0
 	 */
 	public synchronized DelaunayTools.Subdivision getDetectionSubdivision(ImagePlane plane) {
 		return subdivisionManager.getSubdivision(PathDetectionObject.class, plane);
@@ -1202,8 +1214,11 @@ public final class PathObjectHierarchy implements Serializable {
 
 	/**
 	 * Get a subdivision containing cell objects.
+	 * <p>
+	 * This is an <i>experimental method</i> added in v0.6.0, subject to change.
 	 * @param plane
 	 * @return
+	 * @since v0.6.0
 	 */
 	public synchronized DelaunayTools.Subdivision getCellSubdivision(ImagePlane plane) {
 		return subdivisionManager.getSubdivision(PathCellObject.class, plane);
@@ -1211,8 +1226,11 @@ public final class PathObjectHierarchy implements Serializable {
 
 	/**
 	 * Get a subdivision containing annotation objects.
+	 * <p>
+	 * This is an <i>experimental method</i> added in v0.6.0, subject to change.
 	 * @param plane
 	 * @return
+	 * @since v0.6.0
 	 */
 	public synchronized DelaunayTools.Subdivision getAnnotationSubdivision(ImagePlane plane) {
 		return subdivisionManager.getSubdivision(PathAnnotationObject.class, plane);
