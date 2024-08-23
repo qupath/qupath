@@ -888,6 +888,10 @@ public class QuPathGUI {
 					if (active != null)
 						active.setSpaceDown(pressed.booleanValue());
 				}
+			} else if (e.getCode() == KeyCode.S && e.getEventType() == KeyEvent.KEY_PRESSED) {
+				PathPrefs.tempSelectionModeProperty().set(true);
+			} else if (e.getEventType() == KeyEvent.KEY_RELEASED) {
+				PathPrefs.tempSelectionModeProperty().set(false);
 			}
 		}
 		
