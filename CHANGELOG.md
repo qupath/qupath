@@ -2,6 +2,8 @@
 
 This is a *work in progress* for the next major release.
 
+*QuPath v0.6.0 requires Java 21 or later*
+
 ### Enhancements
 * Read and write OME-Zarr images (https://github.com/qupath/qupath/pull/1474)
 * Improved display of annotation names (https://github.com/qupath/qupath/pull/1532)
