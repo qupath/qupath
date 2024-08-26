@@ -650,7 +650,7 @@ public abstract class PathObject implements Externalizable, MinimalMetadataStore
 	 * The {@code PathClass} object is used as the internal representation of the object's classification,
 	 * encapsulating both the different string components of the classification and the color used for display.
 	 * <p>
-	 * For convenience, {@link #getClassification()} and {@link }{@link #getClassifications()} provide a simpler way to interact with
+	 * For convenience, {@link #getClassification()} and {@link #getClassifications()} provide a simpler way to interact with
 	 * classifications as one or more strings.
 	 * @return
 	 * @see #setPathClass(PathClass)
@@ -667,7 +667,7 @@ public abstract class PathObject implements Externalizable, MinimalMetadataStore
 	 * <p>
 	 * If the classification is null, the object is considered to be unclassified.
 	 * <p>
-	 * For convenience, {@link #setClassification(String)} ()} and {@link }{@link #setClassifications(Collection)} ()}
+	 * For convenience, {@link #setClassification(String)} and {@link #setClassifications(Collection)}
 	 * provide alternative ways to set classifications using strings - but this does not allow for setting the color,
 	 * and internally a {@code PathClass} object will still be used.
 	 * @param pathClass

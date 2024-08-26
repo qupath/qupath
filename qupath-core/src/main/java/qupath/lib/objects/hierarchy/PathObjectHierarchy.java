@@ -1201,7 +1201,7 @@ public final class PathObjectHierarchy implements Serializable {
 
 	/**
 	 * Get a subdivision containing detections.
-	 * This does <i>not<</i> include sub-classes such as 'cell' or 'tile'.
+	 * This does <i>not</i> include sub-classes such as 'cell' or 'tile'.
 	 * <p>
 	 * This is an <i>experimental method</i> added in v0.6.0, subject to change.
 	 * @param plane
