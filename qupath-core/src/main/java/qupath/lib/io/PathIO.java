@@ -580,8 +580,7 @@ public class PathIO {
 	
 	/**
 	 * Read and initialize an {@link ImageData} from a data file.
-	 * @param <T> the generic parameter, usually BufferedImage
-	 * 
+	 *
 	 * @param path path to data file
 	 * @param server an ImageServer to use rather than any that might be stored within the serialized data.
 	 *              Should be null to use the serialized path to build a new server.
