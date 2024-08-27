@@ -68,6 +68,7 @@ import org.slf4j.LoggerFactory;
 import qupath.fx.utils.FXUtils;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.measure.ObservableMeasurementTableData;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
@@ -108,7 +109,7 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 	private final QuPathGUI qupath;
 	private Stage stage;
 	
-	private final StringProperty title = new SimpleStringProperty("Object grid view");
+	private final StringProperty title = new SimpleStringProperty(QuPathResources.getString("GridView.title"));
 	
 	private final QuPathGridView grid = new QuPathGridView();
 	
@@ -179,7 +180,7 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 	 */
 	public static PathObjectGridView createTmaCoreView(QuPathGUI qupath) {
 		var view = createGridView(qupath, PathObjectGridView::getTmaCores);
-		view.title.set("TMA core grid view");
+		view.title.set(QuPathResources.getString("GridView.TMAGridView"));
 		return view;
 	}
 
@@ -190,7 +191,7 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 	 */
 	public static PathObjectGridView createAnnotationView(QuPathGUI qupath) {
 		var view = createGridView(qupath, PathObjectGridView::getAnnotations);
-		view.title.set("Annotation object grid view");
+		view.title.set(QuPathResources.getString("GridView.AnnotationGridView"));
 		return view;
 	}
 
@@ -212,7 +213,7 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 	
 	/**
 	 * Get the stage used to show the grid view.
-	 * @return
+	 * @return The stage
 	 */
 	public Stage getStage() {
 		if (stage == null) {
@@ -253,7 +254,7 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 	
 	private static void sortPathObjects(final ObservableList<? extends PathObject> cores, final ObservableMeasurementTableData model, final String measurementName, final boolean doDescending) {
 		if (measurementName == null) return;
-		if (measurementName.equals("Classification")) {
+		if (measurementName.equals(QuPathResources.getString("GridView.classification"))) {
 			cores.sort((po1, po2) -> {
 				if (po1.getPathClass() == null || po2.getPathClass() == null) return 0;
 				Comparator<PathObject> comp = Comparator.comparing((po) -> po.getPathClass().toString());
@@ -350,22 +351,26 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 		
 		
 		ComboBox<String> comboOrder = new ComboBox<>();
-		comboOrder.getItems().setAll("Ascending", "Descending");
-		comboOrder.getSelectionModel().select("Descending");
-		descending.bind(Bindings.createBooleanBinding(() -> "Descending".equals(comboOrder.getSelectionModel().getSelectedItem()), comboOrder.getSelectionModel().selectedItemProperty()));
+		comboOrder.getItems().setAll(
+				QuPathResources.getString("GridView.ascending"),
+				QuPathResources.getString("GridView.descending"));
+		comboOrder.getSelectionModel().select(QuPathResources.getString("GridView.descending"));
+		descending.bind(Bindings.createBooleanBinding(() ->
+						QuPathResources.getString("GridView.descending").equals(comboOrder.getSelectionModel().getSelectedItem()),
+				comboOrder.getSelectionModel().selectedItemProperty()));
 		
 
 		comboMeasurement = new ComboBox<>();
-		comboMeasurement.setPlaceholder(createPlaceholderText("No measurements!"));
+		comboMeasurement.setPlaceholder(createPlaceholderText(QuPathResources.getString("GridView.noMeasurements")));
 
 		var measureNames = model.getMeasurementNames();
 		ObservableList<String> measureList = FXCollections.observableArrayList(measureNames);
 		measureNames.addListener((ListChangeListener<String>) c -> {
             measureList.clear();
-            measureList.add("Classification");
+            measureList.add(QuPathResources.getString("GridView.classification"));
             measureList.addAll(measureNames);
         });
-		measureList.add("Classification");
+		measureList.add(QuPathResources.getString("GridView.classification"));
 		comboMeasurement.setItems(measureList);
 		if (!comboMeasurement.getItems().isEmpty())
 			comboMeasurement.getSelectionModel().select(0);
@@ -375,11 +380,11 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 		addSortAndFilterer(comboOrder);
 		addSortAndFilterer(comboMeasurement);
 
-		CheckBox cbShowMeasurement = new CheckBox("Show measurement");
+		CheckBox cbShowMeasurement = new CheckBox(QuPathResources.getString("GridView.showMeasurement"));
 		showMeasurement.bind(cbShowMeasurement.selectedProperty());
 		showMeasurement.addListener(c -> updateMeasurement()); // Force an update
 
-		CheckBox cbAnimation = new CheckBox("Animate");
+		CheckBox cbAnimation = new CheckBox(QuPathResources.getString("GridView.animate"));
 		cbAnimation.setSelected(doAnimate.get());
 		doAnimate.bindBidirectional(cbAnimation.selectedProperty());
 
@@ -396,18 +401,18 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 		BorderPane pane = new BorderPane();
 		
 		ToolBar paneTop = new ToolBar();
-		paneTop.getItems().add(new Label("Measurement"));
+		paneTop.getItems().add(new Label(QuPathResources.getString("GridView.measurement")));
 		paneTop.getItems().add(comboMeasurement);
 		paneTop.getItems().add(new Separator(Orientation.VERTICAL));
-		paneTop.getItems().add(new Label("Order"));
+		paneTop.getItems().add(new Label(QuPathResources.getString("GridView.order")));
 		paneTop.getItems().add(comboOrder);
 		paneTop.getItems().add(new Separator(Orientation.VERTICAL));
 		paneTop.getItems().add(cbShowMeasurement);
 		paneTop.getItems().add(new Separator(Orientation.VERTICAL));
-		paneTop.getItems().add(new Label("Size"));
+		paneTop.getItems().add(new Label(QuPathResources.getString("GridView.size")));
 		paneTop.getItems().add(comboDisplaySize);
 		paneTop.getItems().add(new Separator(Orientation.VERTICAL));
-		paneTop.getItems().add(new Label("Classes"));
+		paneTop.getItems().add(new Label(QuPathResources.getString("GridView.classes")));
 		paneTop.getItems().add(classComboBox);
 		paneTop.getItems().add(new Separator(Orientation.VERTICAL));
 		paneTop.getItems().add(cbAnimation);
@@ -464,7 +469,7 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 	private void sortAndFilter() {
 		String m = measurement.getValue();
 		sortPathObjects(backingList, model, m, descending.get());
-		filteredList.setPredicate(p -> (m == null || m.equals("Classification") ||
+		filteredList.setPredicate(p -> (m == null || m.equals(QuPathResources.getString("GridView.classification")) ||
 				!(isMissingCore(p) || Double.isNaN(model.getNumericValue(p, m)))) &&
 				selectedClasses.contains(p.getPathClass())
 		);
@@ -525,18 +530,13 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 		
 		private IntegerProperty imageSize = new SimpleIntegerProperty();
 		
-		private Text textEmpty = createPlaceholderText("No objects available!");
+		private Text textEmpty = createPlaceholderText(QuPathResources.getString("GridView.noObjectsAvailable"));
 		
 		QuPathGridView() {
 			imageSize.addListener(v -> {
 				updateChildren();
 			});
-			list.addListener(new ListChangeListener<>() {
-                @Override
-                public void onChanged(javafx.collections.ListChangeListener.Change<? extends PathObject> c) {
-                    updateChildren();
-                }
-            });
+			list.addListener((ListChangeListener<PathObject>) c -> updateChildren());
 			updateChildren();
 			StackPane.setAlignment(textEmpty, Pos.CENTER);
 		}
@@ -596,7 +596,7 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 				if (m == null || !showMeasurement.get())
 					entry.getValue().setText(" ");
 				else {
-					if (m.equals("Classification")) {
+					if (m.equals(QuPathResources.getString("GridView.classification"))) {
 						entry.getValue().setText(entry.getKey().getPathClass().toString());
 					} else {
 						double val = model.getNumericValue(entry.getKey(), m);
