@@ -213,7 +213,8 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 				ImageServer<BufferedImage> server = imageData.getServer();
 				lastServerPath = imageData.getServerPath();
 				double downsample = ServerTools.getDownsampleFactor(server, getPreferredPixelSizeMicrons(imageData, params));
-				pathImage = IJTools.convertToImagePlus(server, RegionRequest.createInstance(server.getPath(), downsample, pathROI));
+				var request = RegionRequest.createInstance(server.getPath(), downsample, pathROI);
+				pathImage = IJTools.convertToImagePlus(server, request);
 //				pathImage = IJTools.createPathImage(server, pathROI, ServerTools.getDownsampleFactor(server, getPreferredPixelSizeMicrons(imageData, params), false));
 				logger.trace("Cell detection with downsample: {}", pathImage.getDownsampleFactor());
 				this.pathROI = pathROI;
