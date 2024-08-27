@@ -159,9 +159,24 @@ public class PathHierarchyImageServer extends AbstractTileableImageServer implem
 	 */
 	@Override
 	public boolean isEmptyRegion(RegionRequest request) {
-		return !hierarchy.hasObjectsForRegion(PathDetectionObject.class, request) && (!options.getShowConnections() || imageData.getProperty(DefaultPathObjectConnectionGroup.KEY_OBJECT_CONNECTIONS) == null);
+		// We have detections in the region
+		if (hierarchy.hasObjectsForRegion(PathDetectionObject.class, request))
+			return false;
+		// We don't have detections, and we definitely don't have connections to paint
+		if (!options.getShowConnections())
+			return true;
+		// We have legacy connections to paint - these may overlap the region
+		if (imageData.getProperty(DefaultPathObjectConnectionGroup.KEY_OBJECT_CONNECTIONS) != null)
+			return false;
+		// Check if we have a subdivision that overlaps the region
+		if (hierarchy.getCellSubdivision(request.getImagePlane()).getObjectsForRegion(request).isEmpty() &&
+				hierarchy.getDetectionSubdivision(request.getImagePlane()).getObjectsForRegion(request).isEmpty())
+			return true;
+		else
+			return false;
 	}
-	
+
+
 	@Override
 	public void close() {}
 

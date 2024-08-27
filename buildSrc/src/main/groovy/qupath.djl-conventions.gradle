@@ -15,14 +15,6 @@ else if (djlEnginesProp == "none")
 	djlEngines = []
 else
 	djlEngines = djlEnginesProp.split(",").collect(e -> e.toLowerCase().strip()).findAll(e -> !e.isBlank())
-
-// Check for Apple Silicon - TensorFlow currently doesn't work there
-if ('tensorflow' in djlEngines && properties['platform.shortName'] == 'mac' && System.properties['os.arch'] == 'aarch64') {
-	// In v0.4.x we removed TensorFlow, but it's kept here because it is technically possible
-	// to get it working by building TensorFlow Java with Apple Silicon & putting the resulting
-	// dylibs into ~/.djl.ai/tensorflow/2.10.1-cpu-osx-aarch64
-	println 'TensorFlow is not supported on Apple Silicon - engine will not work unless built separately'
-}
 	
 def djlApi = !djlEngines.isEmpty() || project.findProperty('djl.api')
 def djlZero = djlApi && project.findProperty('djl.zero')
