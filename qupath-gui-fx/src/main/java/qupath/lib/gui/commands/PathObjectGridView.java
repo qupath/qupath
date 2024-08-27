@@ -253,7 +253,7 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 	
 	private static void sortPathObjects(final ObservableList<? extends PathObject> cores, final ObservableMeasurementTableData model, final String measurementName, final boolean doDescending) {
 		if (measurementName == null) return;
-		if (measurementName.equals("PathClass")) {
+		if (measurementName.equals("Classification")) {
 			cores.sort((po1, po2) -> {
 				if (po1.getPathClass() == null || po2.getPathClass() == null) return 0;
 				Comparator<PathObject> comp = Comparator.comparing((po) -> po.getPathClass().toString());
@@ -362,10 +362,10 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 		ObservableList<String> measureList = FXCollections.observableArrayList(measureNames);
 		measureNames.addListener((ListChangeListener<String>) c -> {
             measureList.clear();
-            measureList.add("PathClass");
+            measureList.add("Classification");
             measureList.addAll(measureNames);
         });
-		measureList.add("PathClass");
+		measureList.add("Classification");
 		comboMeasurement.setItems(measureList);
 		if (!comboMeasurement.getItems().isEmpty())
 			comboMeasurement.getSelectionModel().select(0);
@@ -464,7 +464,7 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 	private void sortAndFilter() {
 		String m = measurement.getValue();
 		sortPathObjects(backingList, model, m, descending.get());
-		filteredList.setPredicate(p -> (m == null || m.equals("PathClass") ||
+		filteredList.setPredicate(p -> (m == null || m.equals("Classification") ||
 				!(isMissingCore(p) || Double.isNaN(model.getNumericValue(p, m)))) &&
 				selectedClasses.contains(p.getPathClass())
 		);
@@ -596,7 +596,7 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 				if (m == null || !showMeasurement.get())
 					entry.getValue().setText(" ");
 				else {
-					if (m.equals("PathClass")) {
+					if (m.equals("Classification")) {
 						entry.getValue().setText(entry.getKey().getPathClass().toString());
 					} else {
 						double val = model.getNumericValue(entry.getKey(), m);
