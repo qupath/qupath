@@ -613,8 +613,13 @@ public class DelaunayTools {
 		
 		private Subdivision(QuadEdgeSubdivision subdivision, Collection<PathObject> pathObjects, Map<Coordinate, PathObject> coordinateMap, ImagePlane plane) {
 			this.subdivision = subdivision;
-			this.plane = plane;
 			this.pathObjects = pathObjects.stream().distinct().toList();
+			this.plane = plane == null ? pathObjects.stream()
+					.filter(PathObject::hasROI)
+					.map(PathObject::getROI)
+					.map(ROI::getImagePlane)
+					.findFirst()
+					.orElse(ImagePlane.getDefaultPlane()) : plane;
 			this.coordinateMap = Map.copyOf(coordinateMap);
 		}
 		
