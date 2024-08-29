@@ -35,21 +35,34 @@ import java.io.ObjectInputStream;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 import java.util.stream.Collectors;
 
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Polygon;
+import org.locationtech.jts.geom.PrecisionModel;
 import org.locationtech.jts.geom.util.AffineTransformation;
 
+import org.locationtech.jts.operation.polygonize.Polygonizer;
+import org.locationtech.jts.operation.valid.IsValidOp;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.geom.Point2;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
+import qupath.lib.regions.ImagePlane;
+import qupath.lib.roi.interfaces.ROI;
 
 /**
  * Test {@link GeometryTools}. Note that most of the relevant tests for ROI conversion are in {@link TestROIs}.
  */
 public class TestGeometryTools {
-	
+
+	private static final Logger logger = LoggerFactory.getLogger(TestGeometryTools.class);
+
 	/**
 	 * Compare conversion of {@link AffineTransform} and {@link AffineTransformation} objects.
 	 */
@@ -254,6 +267,120 @@ public class TestGeometryTools {
 		assertNotEquals(outer, withHole);
 		assertEquals(outer, GeometryTools.fillHoles(withHole).norm());
 	}
-	
+
+	@Test
+	public void testConvertBowtie() {
+		var polygon = ROIs.createPolygonROI(
+				List.of(
+						new Point2(0, 0),
+						new Point2(10, 0),
+						new Point2(0, 10),
+						new Point2(10, 10)
+				),
+				ImagePlane.getDefaultPlane()
+		);
+		double eps = 1e-6;
+		assertEquals(50, polygon.getArea(), eps);
+		assertEquals(50, polygon.getGeometry().getArea(), eps);
+		assertTrue(polygon.getGeometry().isValid());
+		assertEquals(50, GeometryTools.roiToGeometry(polygon).getArea(), eps);
+		assertTrue(GeometryTools.roiToGeometry(polygon).isValid());
+		assertEquals(50, GeometryTools.shapeToGeometry(RoiTools.getShape(polygon)).getArea(), eps);
+		assertTrue(GeometryTools.shapeToGeometry(RoiTools.getShape(polygon)).isValid());
+	}
+
+
+	/**
+	 * The behavior of Polygonizer is rather... confusing.
+	 * And non-deterministic.
+	 * See https://github.com/locationtech/jts/issues/1063
+	 * This test is ignored, but can be used to investigate the behavior of Polygonizer.
+	 */
+	@Test
+	@Disabled
+	public void randomPolygonize() {
+		Random rng = new Random(100);
+		PrecisionModel pm = new PrecisionModel(100.0);
+		GeometryFactory factory = new GeometryFactory(pm);
+		// Note that increasing this to 1000 will cause the test to fail.
+		int n = 100;
+		Coordinate[] coords = new Coordinate[n];
+		for (int i = 0; i < n-1; i++) {
+			Coordinate c = new Coordinate(rng.nextDouble() * 1000, rng.nextDouble() * 1000);
+			pm.makePrecise(c);
+			coords[i] = c;
+		}
+		coords[coords.length-1] = coords[0];
+
+		var lineString = factory.createLineString(coords).union();
+		assertTrue(lineString.isValid());
+		for (int k = 0; k < 100; k++) {
+			var polygonizer = new Polygonizer(true);
+			polygonizer.add(lineString);
+			var polygons = polygonizer.getGeometry();
+			var err = new IsValidOp(polygons).getValidationError();
+			if (err != null) {
+				logger.warn("Polygonizer gives {} points, error: {}", polygons.getNumPoints(), err);
+			}
+			assertTrue(polygons.isValid());
+		}
+	}
+
+	/**
+	 * Note that Polygonizer is unreliable for complex polygons, but we expect it to succeed
+	 * for simple polygons.
+	 */
+	private static ROI createRandomPolygon() {
+		var rng = new Random(100);
+		var pm = GeometryTools.getDefaultFactory().getPrecisionModel();
+		// Note that increasing this to 1000 will cause the test to fail, and the resulting (multi)polygon will be invalid.
+		// I don't see a good solution to this - it can be considered a limitation of our ROI conversation that it
+		// can't handle *extremely* complicated polygons.
+		int n = 10;
+		double[] x = rng.doubles(n, 0, 1000)
+				.map(pm::makePrecise).toArray();
+		double[] y = rng.doubles(n, 0, 1000)
+				.map(pm::makePrecise).toArray();
+		return ROIs.createPolygonROI(x, y, ImagePlane.getDefaultPlane());
+	}
+
+	@Test
+	public void testConvertRandomPolygonDirect() {
+		var polygon = createRandomPolygon();
+		double area = polygon.getArea();
+		double eps = Math.max(1e-6, area * 0.0001);
+
+		var geom = GeometryTools.roiToGeometry(polygon);
+		var err = new IsValidOp(geom).getValidationError();
+		assertNull(err);
+		assertTrue(geom.isValid());
+		assertEquals(area, geom.getArea(), eps);
+	}
+
+	@Test
+	public void testConvertRandomPolygon() {
+		var polygon = createRandomPolygon();
+		double area = polygon.getArea();
+		double eps = Math.max(1e-6, area * 0.0001);
+
+		var geom = GeometryTools.roiToGeometry(polygon);
+		var err = new IsValidOp(geom).getValidationError();
+		assertNull(err);
+		assertTrue(geom.isValid());
+		assertEquals(area, geom.getArea(), eps);
+	}
+
+	@Test
+	public void testConvertRandomPolygonViaShape() {
+		var polygon = createRandomPolygon();
+		double area = polygon.getArea();
+		double eps = Math.max(1e-6, area * 0.0001);
+
+		var geom = GeometryTools.shapeToGeometry(RoiTools.getShape(polygon));
+		var err = new IsValidOp(geom).getValidationError();
+		assertNull(err);
+		assertTrue(geom.isValid());
+		assertEquals(area, geom.getArea(), eps);
+	}
 
 }
