@@ -886,7 +886,7 @@ public class QuPathGUI {
 					// tools, and we don't want tools to be registered to inactive viewers...)
 					var active = viewerManager.getActiveViewer();
 					if (active != null)
-						active.setSpaceDown(pressed.booleanValue());
+						active.setSpaceDown(pressed);
 				}
 			} else if (e.getCode() == KeyCode.S && e.getEventType() == KeyEvent.KEY_PRESSED) {
 				PathPrefs.tempSelectionModeProperty().set(true);
