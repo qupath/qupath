@@ -469,9 +469,10 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 	private void sortAndFilter() {
 		String m = measurement.getValue();
 		sortPathObjects(backingList, model, m, descending.get());
-		filteredList.setPredicate(p -> (m == null || m.equals(QuPathResources.getString("GridView.classification")) ||
+		filteredList.setPredicate(p ->
+				(m == null || m.equals(QuPathResources.getString("GridView.classification")) ||
 				!(isMissingCore(p) || Double.isNaN(model.getNumericValue(p, m)))) &&
-				selectedClasses.contains(p.getPathClass())
+				(selectedClasses.contains(p.getPathClass()) || p.getPathClass() == null)
 		);
 		grid.getItems().setAll(filteredList);
 	}
@@ -597,7 +598,9 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 					entry.getValue().setText(" ");
 				else {
 					if (m.equals(QuPathResources.getString("GridView.classification"))) {
-						entry.getValue().setText(entry.getKey().getPathClass().toString());
+						PathClass pc = entry.getKey().getPathClass();
+						String text = pc == null ? "Unclassified" : pc.toString();
+						entry.getValue().setText(text);
 					} else {
 						double val = model.getNumericValue(entry.getKey(), m);
 						entry.getValue().setText(GeneralTools.formatNumber(val, 3));
