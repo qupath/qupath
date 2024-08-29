@@ -41,6 +41,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.StringTokenizer;
 import java.util.function.Function;
 import org.locationtech.jts.algorithm.locate.SimplePointInAreaLocator;
@@ -952,21 +953,28 @@ public class GeometryTools {
 	    			return shapeFactory.createRectangle();
 	    		}
 	    	}
-	    	// TODO: Test if this is as reliable
-	    	// Exploratory code for v0.4.0, but rejected to reduce risk.
-	    	// Seems marginally faster, but not by a huge amount
+            // TODO: Test if this is as reliable
+            // Update August 2024... it is not. Tests added to TestGeometryTools show it
+            // fails faster for complex (random) polygons than the old method, which
+            // converts via a java.awt.geom.Area.
+            //
+            // Exploratory code for v0.4.0, but rejected to reduce risk.
+            // Seems marginally faster, but not by a huge amount
 //	    	if (roi instanceof PolygonROI) {
 //		    	PrecisionModel precisionModel = factory.getPrecisionModel();
 //		    	Polygonizer polygonizer = new Polygonizer(true);
 //		    	List<Coordinate> coords = new ArrayList<>();
+//				Coordinate lastCoord = null;
 //		    	for (var p : roi.getAllPoints()) {
 //		    		var c = new Coordinate(p.getX(), p.getY());
 //		    		precisionModel.makePrecise(c);
-//		    		coords.add(c);
+//					if (!Objects.equals(lastCoord, c))
+//			    		coords.add(c);
+//					lastCoord = c;
 //		    	}
 //		    	// Close if needed
-//		    	if (!coords.get(0).equals(coords.get(coords.size()-1)))
-//		    		coords.add(coords.get(0).copy());
+//		    	if (!coords.getFirst().equals(coords.getLast()))
+//		    		coords.add(coords.getFirst().copy());
 //	    		LineString lineString = factory.createLineString(coords.toArray(Coordinate[]::new));
 //		    	polygonizer.add(lineString.union());
 //		    	return polygonizer.getGeometry();
@@ -1041,7 +1049,8 @@ public class GeometryTools {
 	    		LineString lineString = factory.createLineString(array);
 	    		geometries.add(lineString);
 	    	}
-	    	polygonizer.add(factory.buildGeometry(geometries).union());
+			var geom = factory.buildGeometry(geometries).union();
+	    	polygonizer.add(geom);
 	    	return polygonizer.getGeometry();
 
 	    }
