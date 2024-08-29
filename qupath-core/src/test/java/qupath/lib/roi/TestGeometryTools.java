@@ -350,7 +350,7 @@ public class TestGeometryTools {
 		double area = polygon.getArea();
 		double eps = Math.max(1e-6, area * 0.0001);
 
-		var geom = GeometryTools.roiToGeometry(polygon);
+		var geom = polygon.getGeometry();
 		var err = new IsValidOp(geom).getValidationError();
 		assertNull(err);
 		assertTrue(geom.isValid());
