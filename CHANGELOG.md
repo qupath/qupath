@@ -53,6 +53,7 @@ This is a *work in progress* for the next major release.
 * `ImageOps.Core.replace()` does not work as expected (https://github.com/qupath/qupath/issues/1564)
 * QuPath doesn't always use the specified file extension when exporting snapshots (https://github.com/qupath/qupath/issues/1567)
 * Out-of-bounds tiles can result in detected cells being in the wrong place (https://github.com/qupath/qupath/issues/1606)
+* Spacebar can be locked in an 'on' position within viewers (https://github.com/qupath/qupath/issues/1610)
 
 ### API changes
 * New `Map<String, String> getMetadata()` method added to `PathObject`, `Project` and `ProjectImageEntry` (https://github.com/qupath/qupath/pull/1587)
