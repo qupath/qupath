@@ -1024,11 +1024,9 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		if (activeTool != PathTools.MOVE && activeTool != null) {
 			if (spaceDown) {
 				// Temporarily switch to 'move' tool
-				if (activeTool != null)
-					activeTool.deregisterTool(this);
+				activeTool.deregisterTool(this);
 				activeTool = PathTools.MOVE;
-				if (activeTool != null)
-					activeTool.registerTool(this);
+				activeTool.registerTool(this);
 			} else {
 				// Reset tool, as required
 				PathTools.MOVE.deregisterTool(this);

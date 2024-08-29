@@ -248,10 +248,11 @@ public class ViewerManager implements QuPathViewerListener {
 			return;
 
 		ImageData<BufferedImage> imageDataNew = viewer == null ? null : viewer.getImageData();
+		boolean spaceDown = false;
 		if (previousActiveViewer != null) {
+			spaceDown = previousActiveViewer.isSpaceDown();
+			previousActiveViewer.setSpaceDown(false);
 			previousActiveViewer.setBorderColor(null);
-			//				activeViewer.setBorder(BorderFactory.createLineBorder(colorTransparent, borderWidth));
-			//				activeViewer.setBorder(null);
 			deactivateTools(previousActiveViewer);
 
 			// Grab reference to the current annotation, if there is one
@@ -267,6 +268,8 @@ public class ViewerManager implements QuPathViewerListener {
 			viewer.setBorderColor(colorBorder);
 			if (viewer.getServer() != null) {
 				getLastViewerPosition(viewer).update(viewer);
+				if (spaceDown)
+					viewer.setSpaceDown(true);
 			}
 		}
 		logger.debug("Active viewer set to {}", viewer);
