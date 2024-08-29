@@ -470,8 +470,7 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 		String m = measurement.getValue();
 		sortPathObjects(backingList, model, m, descending.get());
 		filteredList.setPredicate(p ->
-				(m == null || m.equals(QuPathResources.getString("GridView.classification")) ||
-				!(isMissingCore(p) || Double.isNaN(model.getNumericValue(p, m)))) &&
+				(m == null || m.equals(QuPathResources.getString("GridView.classification")) || !isMissingCore(p)) &&
 				(selectedClasses.contains(p.getPathClass()) || p.getPathClass() == null)
 		);
 		grid.getItems().setAll(filteredList);
