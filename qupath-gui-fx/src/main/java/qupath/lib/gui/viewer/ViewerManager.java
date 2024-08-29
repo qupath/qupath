@@ -1374,8 +1374,8 @@ public class ViewerManager implements QuPathViewerListener {
 			Collection<PathObject> selectedObjects = viewer.getAllSelectedObjects();
 			PathObject pathObject = viewer.getSelectedObject();
 			menuTMA.setVisible(false);
-			if (pathObject instanceof TMACoreObject) {
-				boolean isMissing = ((TMACoreObject)pathObject).isMissing();
+			if (pathObject instanceof TMACoreObject core) {
+				boolean isMissing = core.isMissing();
 				miTMAValid.setSelected(!isMissing);
 				miTMAMissing.setSelected(isMissing);
 				menuTMA.setVisible(true);
@@ -1398,7 +1398,8 @@ public class ViewerManager implements QuPathViewerListener {
 				menuTools.getItems().addAll(createToolMenu(qupath.getToolManager()));
 			}
 			
-			boolean hasAnnotations = pathObject instanceof PathAnnotationObject || (!selectedObjects.isEmpty() && selectedObjects.stream().allMatch(p -> p.isAnnotation()));
+			boolean hasAnnotations = pathObject instanceof PathAnnotationObject ||
+					(!selectedObjects.isEmpty() && selectedObjects.stream().allMatch(PathObject::isAnnotation));
 			
 			updateSetAnnotationPathClassMenu(menuSetClass, viewer);
 			menuAnnotations.setVisible(hasAnnotations);
@@ -1523,7 +1524,8 @@ public class ViewerManager implements QuPathViewerListener {
 	private void updateSetAnnotationPathClassMenu(final ObservableList<MenuItem> menuSetClassItems, final QuPathViewer viewer, final boolean useFancyIcons) {
 		// We need a viewer and an annotation, as well as some PathClasses, otherwise we just need to ensure the menu isn't visible
 		var availablePathClasses = qupath.getAvailablePathClasses();
-		if (viewer == null || !(viewer.getSelectedObject() instanceof PathAnnotationObject) || availablePathClasses.isEmpty()) {
+		if (viewer == null || availablePathClasses.isEmpty() || viewer.getSelectedObject() == null ||
+			!(viewer.getSelectedObject().isAnnotation() || viewer.getSelectedObject().isTMACore())) {
 			menuSetClassItems.clear();
 			return;
 		}
@@ -1542,7 +1544,7 @@ public class ViewerManager implements QuPathViewerListener {
 			Action actionSetClass = new Action(name, e -> {
 				List<PathObject> changed = new ArrayList<>();
 				for (PathObject pathObject : viewer.getAllSelectedObjects()) {
-					if (!pathObject.isAnnotation() || pathObject.getPathClass() == pathClassToSet)
+					if (pathObject.getPathClass() == pathClassToSet)
 						continue;
 					pathObject.setPathClass(pathClassToSet);
 					changed.add(pathObject);
