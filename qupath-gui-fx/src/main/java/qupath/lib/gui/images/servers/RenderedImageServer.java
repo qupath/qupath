@@ -88,7 +88,7 @@ public class RenderedImageServer extends AbstractTileableImageServer implements 
 		this.renderer = renderer;
 		this.imageData = imageData;
 		this.backgroundColor = backgroundColor;
-		var builder = new ImageServerMetadata.Builder(imageData.getServer().getMetadata())
+		var builder = new ImageServerMetadata.Builder(imageData.getServerMetadata())
 				.rgb(true)
 				.channels(ImageChannel.getDefaultRGBChannels())
 				.pixelType(PixelType.UINT8)

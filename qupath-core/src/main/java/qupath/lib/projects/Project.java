@@ -33,6 +33,7 @@ import qupath.lib.classifiers.object.ObjectClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
+import qupath.lib.objects.MetadataStore;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.projects.ResourceManager.Manager;
 
@@ -43,7 +44,7 @@ import qupath.lib.projects.ResourceManager.Manager;
  *
  * @param <T>
  */
-public interface Project<T> {
+public interface Project<T> extends MetadataStore {
 		
 	/**
 	 * Get an unmodifiable list representing the <code>PathClass</code>es associated with this project.
@@ -283,13 +284,4 @@ public interface Project<T> {
 	public default <S, R extends S> Manager<R> getResources(String location, Class<S> cls, String ext) {
 		return null;
 	}
-	
-	
-//	public List<String> listPixelClassifiers();
-//	
-//	public PixelClassifier loadPixelClassifier(String name);
-//	
-//	public void savePixelClassifier(String name, String PixelClassifier);
-
-	
 }

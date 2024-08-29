@@ -120,7 +120,7 @@ public final class ExportObjectsCommand {
 		File outFile;
 		// Get default name & output directory
 		var project = qupath.getProject();
-		String defaultName = imageData.getServer().getMetadata().getName();
+		String defaultName = imageData.getServerMetadata().getName();
 		if (project != null) {
 			var entry = project.getEntry(imageData);
 			if (entry != null)

@@ -157,7 +157,7 @@ public class TMACoreObject extends PathROIObject implements MetadataStore {
 	}
 	
 	@Override
-	public Map<String, String> getMetadataMap() {
+	public Map<String, String> getMetadata() {
 		return super.getUnmodifiableMetadataMap();
 	}
 	

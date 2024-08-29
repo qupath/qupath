@@ -230,7 +230,7 @@ public class GroovyStyler implements ScriptStyler {
 		
 		var styles = visitor.buildStyles();
 		long endTime = System.currentTimeMillis();
-		logger.debug("Style time: {} (length={})", endTime - startTime, n);
+		logger.trace("Style time: {} (length={})", endTime - startTime, n);
 		
 		return styles;
     }

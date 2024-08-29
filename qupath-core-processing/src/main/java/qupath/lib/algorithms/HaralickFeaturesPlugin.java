@@ -446,7 +446,7 @@ public class HaralickFeaturesPlugin extends AbstractInteractivePlugin<BufferedIm
 	@Override
 	public ParameterList getDefaultParameterList(final ImageData<BufferedImage> imageData) {
 		boolean hasMicrons = imageData.getServer().getPixelCalibration().hasPixelSizeMicrons();
-		boolean hasMagnification = !Double.isNaN(imageData.getServer().getMetadata().getMagnification());
+		boolean hasMagnification = !Double.isNaN(imageData.getServerMetadata().getMagnification());
 		
 		params.getParameters().get("tileSizeMicrons").setHidden(!hasMicrons);
 		params.getParameters().get("tileSizePx").setHidden(hasMicrons);

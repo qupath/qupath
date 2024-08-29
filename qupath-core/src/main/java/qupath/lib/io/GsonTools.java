@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
+import com.google.gson.Strictness;
 import org.locationtech.jts.geom.Geometry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -80,7 +81,7 @@ public class GsonTools {
 	
 	private static GsonBuilder builder = new GsonBuilder()
 			.serializeSpecialFloatingPointValues()
-			.setLenient()
+			.setStrictness(Strictness.LENIENT)
 			.registerTypeAdapterFactory(new QuPathTypeAdapterFactory())
 			.registerTypeAdapter(AffineTransform.class, AffineTransformTypeAdapter.INSTANCE);
 			//.create();
@@ -317,13 +318,23 @@ public class GsonTools {
 	
 	
 	/**
-	 * Get default Gson, capable of serializing/deserializing some key QuPath classes.
+	 * Get default Gson instance, capable of serializing/deserializing some key QuPath classes.
 	 * @return
 	 * 
-	 * @see #getInstance(boolean)
+	 * @see #getPrettyPrintInstance()
 	 */
 	public static Gson getInstance() {
 		return builder.create();
+	}
+
+	/**
+	 * Get Gson instance capable of serializing/deserializing some key QuPath classes, and configured for pretty printing.
+	 * @return
+	 * @see #getInstance(boolean)
+	 * @since v0.6.0
+	 */
+	public static Gson getPrettyPrintInstance() {
+		return getInstance().newBuilder().setPrettyPrinting().create();
 	}
 	
 	/**
@@ -333,10 +344,11 @@ public class GsonTools {
 	 * @return
 	 * 
 	 * @see #getInstance()
+	 * @see #getPrettyPrintInstance()
 	 */
 	public static Gson getInstance(boolean pretty) {
 		if (pretty)
-			return getInstance().newBuilder().setPrettyPrinting().create();
+			return getPrettyPrintInstance();
 		return getInstance();
 	}
 

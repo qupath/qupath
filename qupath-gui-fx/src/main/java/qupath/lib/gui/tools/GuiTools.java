@@ -629,10 +629,7 @@ public class GuiTools {
 	public static String getMagnificationString(final QuPathViewer viewer) {
 		if (viewer == null || !viewer.hasServer())
 			return "";
-//		if (Double.isFinite(viewer.getServer().getMetadata().getMagnification()))
-			return String.format("%.2fx", viewer.getMagnification());
-//		else
-//			return String.format("Scale %.2f", viewer.getDownsampleFactor());
+		return String.format("%.2fx", viewer.getMagnification());
 	}
 
 	/**

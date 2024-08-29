@@ -1525,7 +1525,7 @@ public class PathObjectTools {
 		newObject.setLocked(pathObject.isLocked());
 		// Copy over metadata if we have it
 		if (copyMeasurements && newObject instanceof MetadataStore)
-			((MetadataStore)newObject).getMetadataMap().putAll(pathObject.getUnmodifiableMetadataMap());
+			((MetadataStore)newObject).getMetadata().putAll(pathObject.getUnmodifiableMetadataMap());
 		// Retain the ID, if needed
 		if (!createNewIDs)
 			newObject.setID(pathObject.getID());

@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -25,10 +25,12 @@ package qupath.lib.images;
 
 import java.beans.PropertyChangeListener;
 import java.beans.PropertyChangeSupport;
+import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Supplier;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,6 +39,7 @@ import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.color.ColorDeconvolutionStains.DefaultColorDeconvolutionStains;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ImageServerBuilder;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.ServerTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
@@ -60,8 +63,8 @@ import qupath.lib.plugins.workflow.WorkflowStep;
  * @param <T> 
  *
  */
-public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListener {
-	
+public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListener, AutoCloseable {
+
 	/**
 	 * Enum representing possible image types.
 	 * <p>
@@ -109,12 +112,14 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 	private static final Logger logger = LoggerFactory.getLogger(ImageData.class);
 
 	private transient PropertyChangeSupport pcs;
-	
+
+	private transient ImageServerBuilder.ServerBuilder<T> serverBuilder;
+	private transient ImageServerMetadata lazyMetadata;
+
 	private transient ImageServer<T> server;
 	
 	private String lastSavedPath = null;
 	
-	private String serverPath;
 	private PathObjectHierarchy hierarchy;
 	private ImageType type = ImageType.UNSET;
 	
@@ -134,26 +139,55 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 	
 	/**
 	 * Create a new ImageData with a specified object hierarchy and type.
-	 * @param server
-	 * @param hierarchy 
-	 * @param type
+	 * @param serverBuilder builder to use if the server is to be loaded lazily; may be null to use server instead
+	 * @param server server to use directly; may be null to use builder instead
+	 * @param hierarchy an object hierarchy, or null to create a new one
+	 * @param type the image type, or null to default to ImageType.UNSET
+	 * @throws IllegalArgumentException if neither a server nor a server builder is provided
 	 */
-	public ImageData(ImageServer<T> server, PathObjectHierarchy hierarchy, ImageType type) {
-		pcs = new PropertyChangeSupport(this);
+	private ImageData(ImageServerBuilder.ServerBuilder<T> serverBuilder, ImageServer<T> server, PathObjectHierarchy hierarchy, ImageType type)
+			throws IllegalArgumentException {
+		if (server == null && serverBuilder == null)
+			throw new IllegalArgumentException("Cannot create ImageData without a server or server builder");
+		this.pcs = new PropertyChangeSupport(this);
+		this.serverBuilder = serverBuilder;
 		this.server = server;
 		this.hierarchy = hierarchy == null ? new PathObjectHierarchy() : hierarchy;
-		this.serverPath = server == null ? null : server.getPath(); // TODO: Deal with sub image servers
 		initializeStainMap();
 		if (type == null)
 			type = ImageType.UNSET;
 		setImageType(type);
-		
+
 		// Add listeners for changes
 		this.hierarchy.addListener(this);
 		workflow.addWorkflowListener(this);
-		
+
 		// Discard any changes during construction
 		changes = false;
+	}
+
+	/**
+	 * Create a new ImageData with a lazily-loaded server, hierarchy and type.
+	 * The server builder provides the ImageServer required to access pixels and metadata on demand.
+	 * <p>
+	 * If the server is never requested, then the builder is not used - which can save time and resources.
+	 *
+	 * @param serverBuilder builder to create the ImageServer
+	 * @param hierarchy an object hierarchy, or null to create a new one
+	 * @param type the image type, or null to default to ImageType.UNSET
+	 */
+	public ImageData(ImageServerBuilder.ServerBuilder<T> serverBuilder, PathObjectHierarchy hierarchy, ImageType type) {
+		this(serverBuilder, null, hierarchy, type);
+	}
+
+	/**
+	 * Create a new ImageData with a specified server, hierarchy and type.
+	 * @param server server to use to access pixels and metadata
+	 * @param hierarchy an object hierarchy, or null to create a new one
+	 * @param type the image type, or null to default to ImageType.UNSET
+	 */
+	public ImageData(ImageServer<T> server, PathObjectHierarchy hierarchy, ImageType type) {
+		this(null, server, hierarchy, type);
 	}
 	
 	/**
@@ -173,7 +207,6 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 	public Workflow getHistoryWorkflow() {
 		return workflow;
 	}
-	
 	
 	
 	/**
@@ -218,8 +251,7 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 		pcs.firePropertyChange("stains", stainsOld, stains);
 		
 		addColorDeconvolutionStainsToWorkflow(this);
-//		logger.error("WARNING: Setting color deconvolution stains is not yet scriptable!!!!");
-		
+
 		changes = true;
 	}
 	
@@ -231,20 +263,42 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 	 */
 	public void updateServerMetadata(ImageServerMetadata newMetadata) {
 		Objects.requireNonNull(newMetadata);
+		// Try to check if metadata can be dropped - this is important for lazy loading
+		var currentMetadata = getServerMetadata();
+		if (Objects.equals(currentMetadata, newMetadata)) {
+			logger.trace("Call to updateServerMetadata ignored - metadata is unchanged");
+			return;
+		}
+		// Request the server if we need to update the metadata.
+		// This can trigger lazy-loading, but reduces the risk of inconsistent metadata.
 		logger.trace("Updating server metadata");
+		var server = getServer();
 		var oldMetadata = server.getMetadata();
 		server.setMetadata(newMetadata);
 		pcs.firePropertyChange("serverMetadata", oldMetadata, newMetadata);
 		changes = changes || !oldMetadata.equals(newMetadata);
 	}
-	
-//	public void setColorDeconvolutionStains(final String stainsString) {
-//		setColorDeconvolutionStains(ColorDeconvolutionStains.parseColorDeconvolutionStainsArg(stainsString));
-//	}
-//	
-//	public void setImageType(final String type) {
-//		setImageType(ImageType.valueOf(type));
-//	}
+
+	/**
+	 * Get the metadata for the server.
+	 * <p>
+	 * This is equivalent to {@code getServer().getMetadata()}, <i>unless</i> the server is being loaded lazily
+	 * <i>and</i> it is possible to query the metadata without loading the server.
+	 * @return
+	 */
+	public ImageServerMetadata getServerMetadata() {
+		if (server == null) {
+			if (lazyMetadata != null) {
+				logger.trace("Returning lazy metadata");
+				return lazyMetadata;
+			} else if (serverBuilder != null) {
+				var metadata = serverBuilder.getMetadata().orElse(null);
+				if (metadata != null)
+					return metadata;
+			}
+		}
+		return getServer().getMetadata();
+	}
 	
 	/**
 	 * Returns true if the image type is set to brightfield.
@@ -298,10 +352,7 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 	
 	
 	
-	// TODO: REINTRODUCE LOGGING!
 	private static void addColorDeconvolutionStainsToWorkflow(ImageData<?> imageData) {
-//		logger.warn("Color deconvolution stain logging not currently enabled!");
-
 		ColorDeconvolutionStains stains = imageData.getColorDeconvolutionStains();
 		if (stains == null) {
 			return;
@@ -315,36 +366,54 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 				map,
 				"setColorDeconvolutionStains(\'" + arg + "');");
 		
-//		if (lastStep != null && commandName.equals(lastStep.getName()))
-//			imageData.getHistoryWorkflow().replaceLastStep(newStep);
-//		else
 		if (!Objects.equals(newStep, lastStep))
 			imageData.getHistoryWorkflow().addStep(newStep);
+	}
 
-		
-//		ColorDeconvolutionStains stains = imageData.getColorDeconvolutionStains();
-//		if (stains == null)
-//			return;
-//		
-//		String arg = ColorDeconvolutionStains.getColorDeconvolutionStainsAsString(imageData.getColorDeconvolutionStains(), 5);
-//		Map<String, String> map = GeneralTools.parseArgStringValues(arg);
-//		WorkflowStep lastStep = imageData.getWorkflow().getLastStep();
-//		String commandName = "Set color deconvolution stains";
-//		WorkflowStep newStep = new DefaultScriptableWorkflowStep(commandName,
-//				map,
-//				QP.class.getSimpleName() + ".setColorDeconvolutionStains(\'" + arg + "');");
-//		
-//		if (lastStep != null && commandName.equals(lastStep.getName()))
-//			imageData.getWorkflow().replaceLastStep(newStep);
-//		else
-//			imageData.getWorkflow().addStep(newStep);
+	/**
+	 * Query whether the corresponding ImageServer was lazy-loaded or not,
+	 * If {@code isLoaded()} returns false, then calls to {@link #getServer()} will result
+	 * in an attempt to load the server.
+	 * @return
+	 */
+	public boolean isLoaded() {
+		return this.server != null;
+	}
+
+	/**
+	 * Get the ServerBuilde corresponding to the ImageServer associated with this ImageData.
+	 * <p>
+	 * If the server has not yet been loaded, this will return a cached server builder
+	 * if it is available and null otherwise.
+	 * @return
+	 * @see #getServer()
+	 */
+	public ImageServerBuilder.ServerBuilder<T> getServerBuilder() {
+		return this.isLoaded() ? getServer().getBuilder() : this.serverBuilder;
 	}
 	
 	/**
-	 * Get the ImageServer.
+	 * Get the ImageServer, loading it if necessary.
+	 * <p>
+	 * If no server is available and loading fails, this method may throw an unchecked exception.
 	 * @return
 	 */
 	public ImageServer<T> getServer() {
+		if (server == null && serverBuilder != null) {
+			synchronized (this) {
+				if (server == null) {
+					try {
+						logger.debug("Lazily requesting image server: {}", serverBuilder);
+						server = serverBuilder.build();
+						if (lazyMetadata != null && !lazyMetadata.equals(server.getMetadata())) {
+							updateServerMetadata(lazyMetadata);
+						}
+					} catch (Exception e) {
+						throw new RuntimeException("Failed to load ImageServer", e);
+					}
+				}
+			}
+		}
 		return server;
 	}
 	
@@ -353,7 +422,7 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 	 * @return
 	 */
 	public String getServerPath() {
-		return serverPath;
+		return getServer().getPath();
 	}
 	
 	/**
@@ -424,7 +493,6 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 	    	else
 	    		changes = changes || !oldValue.equals(value);
 	    	logger.trace("Setting property: {}: {}", key, value);
-//	    	System.err.println(changes + " setting " + key + " to " + value);
 	    	if (oldValue != value)
 	    		pcs.firePropertyChange(key, oldValue, value);
 	    	return oldValue;
@@ -506,14 +574,34 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 	public void workflowUpdated(Workflow workflow) {
 		changes = true;
 	}
-	
-	
+
+	/**
+	 * Close the server if it has been loaded.
+	 * Note that this should <i>not</i> be called if the server is still in use.
+	 * @throws Exception
+	 */
+	@Override
+	public void close() throws Exception {
+		if (server != null)
+			server.close();
+	}
+
+
 	@Override
 	public String toString() {
-		if (getServer() == null)
-			return "ImageData: " + getImageType() + ", no server";
-		else
-			return "ImageData: " + getImageType() + ", " + ServerTools.getDisplayableImageName(getServer());
+		String serverName;
+		if (server == null) {
+			if (serverBuilder == null) {
+				serverName = "no server";
+			} else if (lazyMetadata != null){
+				serverName = lazyMetadata.getName() + " (not yet loaded)";
+			} else {
+				serverName = "lazy-loaded server";
+			}
+		} else {
+			serverName = ServerTools.getDisplayableImageName(server);
+		}
+		return "ImageData: " + getImageType() + ", " + serverName;
 	}
 
     

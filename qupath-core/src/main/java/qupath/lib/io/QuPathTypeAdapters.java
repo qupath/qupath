@@ -408,8 +408,7 @@ class QuPathTypeAdapters {
 						out.value(measurements.getMeasurementValue(i));
 					}
 				}
-				if (value instanceof MetadataStore) {
-					MetadataStore store = (MetadataStore)value;
+				if (value instanceof MetadataStore store) {
 					Set<String> keys = store.getMetadataKeys();
 					if (!keys.isEmpty()) {
 						out.name("Metadata count");
@@ -428,7 +427,7 @@ class QuPathTypeAdapters {
 				
 				if (value instanceof MetadataStore) {
 					MetadataStore store = (MetadataStore)value;
-					Map<String, String> map = store.getMetadataMap();
+					Map<String, String> map = store.getMetadata();
 					if (!map.isEmpty()) {
 						out.name("metadata");
 						gson.toJson(map, Map.class, out);

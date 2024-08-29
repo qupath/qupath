@@ -471,7 +471,12 @@ public class UndoRedoManager implements ChangeListener<QuPathViewer>, QuPathView
 	@Override
 	public void hierarchyChanged(PathObjectHierarchyEvent event) {
 		// Try to avoid calling too often
-		if (undoingOrRedoing || event.isChanging() || maxUndoHierarchySize.get() <= 0 || event.getChangedObjects().stream().allMatch(p -> p instanceof ParallelTileObject))
+		if (undoingOrRedoing || event.isChanging() || maxUndoHierarchySize.get() <= 0)
+			return;
+
+		// During processing, we have ParallelTileObjects changing to show which part of the image is being handled
+		// - but we don't want to record these
+		if (!event.getChangedObjects().isEmpty() && event.getChangedObjects().stream().allMatch(p -> p instanceof ParallelTileObject))
 			return;
 		
 		// *Potentially* we might have the same hierarchy in multiple viewers

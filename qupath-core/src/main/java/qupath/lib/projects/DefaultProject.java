@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -28,6 +28,8 @@ import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.io.Reader;
+import java.io.Writer;
 import java.lang.ref.SoftReference;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -63,8 +65,8 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.ImageData.ImageType;
 import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.servers.ServerTools;
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
+import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.io.GsonTools;
 import qupath.lib.io.PathIO;
 import qupath.lib.objects.PathObject;
@@ -89,13 +91,14 @@ class DefaultProject implements Project<BufferedImage> {
 	private static Logger logger = LoggerFactory.getLogger(DefaultProject.class);
 	
 	private final String LATEST_VERSION = GeneralTools.getVersion();
+	private final Map<String, String> metadata;
 	
 	private String version = null;
 
 	/**
 	 * Base directory.
 	 */
-	private File dirBase;
+	private final File dirBase;
 
 	/**
 	 * Project file.
@@ -133,6 +136,7 @@ class DefaultProject implements Project<BufferedImage> {
 			this.dirBase = file.getParentFile();
 		creationTimestamp = System.currentTimeMillis();
 		modificationTimestamp = System.currentTimeMillis();
+		this.metadata = Collections.synchronizedMap(getStoredMetadata(this.dirBase.toPath()));
 	}
 	
 	@Override
@@ -339,6 +343,7 @@ class DefaultProject implements Project<BufferedImage> {
 	public synchronized void syncChanges() throws IOException {
 		writeProject(getFile());
 		writePathClasses(pathClasses);
+		setStoredMetadata(getBasePath(), metadata);
 //		if (file.isDirectory())
 //			file = new File(dirBase, "project.qpproj");
 //		var json = new GsonBuilder().setLenient().setPrettyPrinting().create().toJson(this);
@@ -475,7 +480,9 @@ class DefaultProject implements Project<BufferedImage> {
 				setDescription(description);
 			
 			if (metadataMap != null)
-				metadata.putAll(metadataMap);		
+				metadata.putAll(metadataMap);
+
+			writeServerBuilder();
 		}
 		
 		DefaultProjectImageEntry(final DefaultProjectImageEntry entry) {
@@ -526,6 +533,8 @@ class DefaultProject implements Project<BufferedImage> {
 				Files.copy(entry.getImageDataPath(), getImageDataPath(), StandardCopyOption.REPLACE_EXISTING);
 			if (Files.exists(entry.getDataSummaryPath()))
 				Files.copy(entry.getDataSummaryPath(), getDataSummaryPath(), StandardCopyOption.REPLACE_EXISTING);
+			if (Files.exists(entry.getServerPath()))
+				Files.copy(entry.getServerPath(), getServerPath(), StandardCopyOption.REPLACE_EXISTING);
 			if (getThumbnail() == null && Files.exists(entry.getThumbnailPath()))
 				Files.copy(entry.getThumbnailPath(), getThumbnailPath(), StandardCopyOption.REPLACE_EXISTING);
 		}
@@ -561,6 +570,8 @@ class DefaultProject implements Project<BufferedImage> {
 			var builderBefore = serverBuilder;
 			serverBuilder = serverBuilder.updateURIs(replacements);
 			boolean changes = builderBefore != serverBuilder;
+			if (changes)
+				writeServerBuilder();
 			return changes;
 		}
 		
@@ -688,23 +699,13 @@ class DefaultProject implements Project<BufferedImage> {
 		@Override
 		public synchronized ImageData<BufferedImage> readImageData() throws IOException {
 			Path path = getImageDataPath();
-			ImageServer<BufferedImage> server;
-			try {
-				server = getServerBuilder().build();
-			} catch (IOException e) {
-				throw e;
-			} catch (Exception e) {
-				throw new IOException(e);
-			}
-			if (server == null)
-				return null;
 			ImageData<BufferedImage> imageData = null;
+			// TODO: Consider whether we can set the image name for the lazy-loaded server
 			if (Files.exists(path)) {
-				try (var stream = Files.newInputStream(path)) {
-					imageData = PathIO.readImageData(stream, null, server, BufferedImage.class);
-					imageData.setLastSavedPath(path.toString(), true);
+				try {
+					imageData = PathIO.readImageData(path, getServerBuilder());
 				} catch (Exception e) {
-					logger.error("Error reading image data from " + path, e);
+					logger.error("Error reading image data from {}", path, e);
 				}
 			}
 			// If we find a backup file, try to restore what we can from it
@@ -712,24 +713,26 @@ class DefaultProject implements Project<BufferedImage> {
 			if (imageData == null) {
 				var pathBackup = getBackupImageDataPath();
 				if (Files.exists(pathBackup)) {
-					try (var stream = Files.newInputStream(pathBackup)) {
-						imageData = PathIO.readImageData(stream, null, server, BufferedImage.class);
-						imageData.setLastSavedPath(pathBackup.toString(), true);
+					try {
+						imageData = PathIO.readImageData(pathBackup, getServerBuilder());
 						logger.warn("Restored previous ImageData from {}", pathBackup);
 					} catch (IOException e) {
-						logger.error("Error reading backup image data from " + pathBackup, e);
+						logger.error("Error reading backup image data from {}", pathBackup, e);
 					}
 				}
 			}
 			
 			if (imageData == null)
-				imageData = new ImageData<>(server);
-			// Ensure the names match
-			var name = getOriginalImageName();
-			if (name != null)
-				ServerTools.setImageName(server, name);
+				imageData = new ImageData<>(getServerBuilder(), new PathObjectHierarchy(), ImageType.UNSET);
 			imageData.setProperty(IMAGE_ID, getFullProjectEntryID()); // Required to be able to test for the ID later
 			imageData.setChanged(false);
+			// I don't like it either - but we want to ensure that the server name matches with the image entry name.
+			// This can trigger lazy-loading of the server, but it's necessary to ensure that the server name is correct.
+			imageData.updateServerMetadata(
+					new ImageServerMetadata.Builder(imageData.getServerMetadata())
+							.name(getImageName())
+							.build()
+			);
 			return imageData;
 		}
 
@@ -773,21 +776,11 @@ class DefaultProject implements Project<BufferedImage> {
 			}
 			
 			// If successful, write the server (including metadata)
-			var server = imageData.getServer();
-			var currentServerBuilder = server.getBuilder();
+			var currentServerBuilder = imageData.getServerBuilder();
 			if (currentServerBuilder != null && !currentServerBuilder.equals(this.serverBuilder)) {
 				this.serverBuilder = currentServerBuilder;
-				// Write the server - it isn't used, but it may enable us to rebuild the server from the data directory
-				// if the project is lost.
-				// Note that before v0.5.0, this actually wrote the server builder - but this was missing type
-				// information, so recovery of the actual server was difficult.
-				var pathServer = getServerPath();
-				try (var out = Files.newBufferedWriter(pathServer, StandardCharsets.UTF_8)) {
-					GsonTools.getInstance().toJson(server, out);
-				} catch (Exception e) {
-					logger.warn("Unable to write server to {}", pathServer);
-					Files.deleteIfExists(pathServer);
-				}
+				writeServerBuilder();
+				// This ensures that the metadata is updated in the project file
 //				syncChanges();
 			}
 			
@@ -796,6 +789,22 @@ class DefaultProject implements Project<BufferedImage> {
 				GsonTools.getInstance().toJson(new ImageDataSummary(imageData, timestamp), out);
 			}			
 
+		}
+
+		private void writeServerBuilder() throws IOException {
+			// Write the server - it isn't used, but it may enable us to rebuild the server from the data directory
+			// if the project is lost.
+			// Note that before v0.5.0, this actually wrote the server builder - but this was missing type
+			// information, so recovery of the actual server was difficult.
+			getEntryPath(true); // Ensure the directory exists
+			var pathServer = getServerPath();
+			try (var out = Files.newBufferedWriter(pathServer, StandardCharsets.UTF_8)) {
+				// Important to specify the class as ServerBuilder, so that the type adapter writes the type!
+				GsonTools.getInstance(true).toJson(this.serverBuilder, ServerBuilder.class, out);
+			} catch (Exception e) {
+				logger.warn("Unable to write server to {}", pathServer);
+				Files.deleteIfExists(pathServer);
+			}
 		}
 
 		@Override
@@ -913,7 +922,10 @@ class DefaultProject implements Project<BufferedImage> {
 		
 		ImageDataSummary(ImageData<?> imageData, long timestamp) {
 			this.imageType = imageData.getImageType();
-			this.server = new ServerSummary(imageData.getServer());
+			if (imageData.isLoaded())
+				this.server = new ServerSummary(imageData.getServer());
+			else
+				this.server = new ServerSummary(imageData.getServerMetadata());
 			this.timestamp = timestamp;
 			this.hierarchy = new HierarchySummary(imageData.getHierarchy());
 		}
@@ -941,6 +953,14 @@ class DefaultProject implements Project<BufferedImage> {
 			this.sizeC = server.nChannels();
 			this.sizeZ = server.nZSlices();
 			this.sizeT = server.nTimepoints();
+		}
+
+		ServerSummary(ImageServerMetadata metadata) {
+			this.width = metadata.getWidth();
+			this.height = metadata.getHeight();
+			this.sizeC = metadata.getChannels().size();
+			this.sizeZ = metadata.getSizeZ();
+			this.sizeT = metadata.getSizeZ();
 		}
 		
 	}
@@ -1216,7 +1236,6 @@ class DefaultProject implements Project<BufferedImage> {
 		return null;
 	}
 
-
 	@Override
 	public Project<BufferedImage> createSubProject(String name, Collection<ProjectImageEntry<BufferedImage>> entries) {
 		if (!name.endsWith(ext)) {
@@ -1232,5 +1251,50 @@ class DefaultProject implements Project<BufferedImage> {
 			changes = project.addImage(entry) | changes;
 		return project;
 	}
-	
+
+	/**
+	 * Returns a thread-safe and modifiable map containing the metadata
+	 * of this project.
+	 * <p>
+	 * Modifications to this map are saved when calling {@link #syncChanges()}.
+	 *
+	 * @return the metadata of this project
+	 */
+	@Override
+	public Map<String, String> getMetadata() {
+		return metadata;
+	}
+
+	private static Map<String, String> getStoredMetadata(Path projectPath) {
+		Map<String, String> metadata = new LinkedHashMap<>();
+
+		Path metadataPath = getMetadataPath(projectPath);
+		if (Files.exists(metadataPath)) {
+			try (Reader reader = Files.newBufferedReader(metadataPath, StandardCharsets.UTF_8)) {
+				metadata.putAll(GsonTools.getInstance().fromJson(reader, new TypeToken<Map<String, String>>(){}.getType()));
+			} catch (IOException e) {
+				logger.error("Error while retrieving project metadata", e);
+			}
+		}
+
+		return metadata;
+	}
+
+	private static void setStoredMetadata(Path projectPath, Map<String, String> metadata) {
+		Path metadataPath = getMetadataPath(projectPath);
+
+		try {
+			Files.createDirectories(metadataPath.getParent());
+
+			try (Writer writer = Files.newBufferedWriter(metadataPath, StandardCharsets.UTF_8)) {
+				GsonTools.getInstance().toJson(metadata, writer);
+			}
+		} catch (IOException e) {
+			logger.error("Error while saving project metadata", e);
+		}
+	}
+
+	private static Path getMetadataPath(Path projectPath) {
+		return Paths.get(projectPath.toString(), "data", "metadata.json");
+	}
 }

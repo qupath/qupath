@@ -34,6 +34,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -118,14 +119,14 @@ public interface ImageServerBuilder<T> {
 	 * 
 	 * @param <T>
 	 */
-	public static interface ServerBuilder<T> {
+	interface ServerBuilder<T> {
 		
 		/**
 		 * Build a new ImageServer instance.
 		 * @return
 		 * @throws Exception
 		 */
-		public ImageServer<T> build() throws Exception;
+		ImageServer<T> build() throws Exception;
 		
 		/**
 		 * Get a list of URIs required by this builder.
@@ -134,7 +135,7 @@ public interface ImageServerBuilder<T> {
 		 * 
 		 * @see #updateURIs(Map)
 		 */
-		public Collection<URI> getURIs();
+		Collection<URI> getURIs();
 		
 		/**
 		 * Update the URIs required by this builder.
@@ -145,8 +146,22 @@ public interface ImageServerBuilder<T> {
 		 * 
 		 * @see #getURIs()
 		 */
-		public ServerBuilder<T> updateURIs(Map<URI, URI> updateMap);
-		
+		ServerBuilder<T> updateURIs(Map<URI, URI> updateMap);
+
+		/**
+		 * Optional method to get metadata associated with the image.
+		 * The default implementation returns an empty optional, which indicates that the server itself
+		 * must be built before metadata is available.
+		 * <p>
+		 * Subclasses may override this to provide metadata more efficiently.
+		 * <p>
+		 *
+		 * @return the metadata, or an empty optional if this is not available
+		 */
+		default Optional<ImageServerMetadata> getMetadata() {
+			return Optional.empty();
+		}
+
 	}
 	
 	
@@ -155,7 +170,7 @@ public interface ImageServerBuilder<T> {
 	 *
 	 * @param <T>
 	 */
-	abstract static class AbstractServerBuilder<T> implements ServerBuilder<T> {
+	abstract class AbstractServerBuilder<T> implements ServerBuilder<T> {
 		
 		private ImageServerMetadata metadata;
 		
@@ -164,9 +179,10 @@ public interface ImageServerBuilder<T> {
 		}
 		
 		protected abstract ImageServer<T> buildOriginal() throws Exception;
-		
-		protected ImageServerMetadata getMetadata() {
-			return metadata;
+
+		@Override
+		public Optional<ImageServerMetadata> getMetadata() {
+			return Optional.ofNullable(metadata);
 		}
 		
 		@Override
@@ -383,12 +399,15 @@ public interface ImageServerBuilder<T> {
 			URI uriNew = updateMap.getOrDefault(uri, null);
 			if (uriNew == null)
 				return this;
-			return new DefaultImageServerBuilder<>(providerClassName, uriNew, args, getMetadata());
+			return new DefaultImageServerBuilder<>(providerClassName, uriNew, args, getMetadata().orElse(null));
 		}
 		
 		@Override
 		public String toString() {
-			return String.format("DefaultImageServerBuilder (classname=%s, uri=%s, args=%s)", providerClassName, uri.toString(), String.join(", ", args));
+			return String.format("DefaultServerBuilder (classname=%s, uri=%s, args=%s)",
+					providerClassName,
+					uri.toString(),
+					"[" + String.join(", ", args) + "]");
 		}
 
 		@Override

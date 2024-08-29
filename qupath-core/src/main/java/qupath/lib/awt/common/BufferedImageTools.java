@@ -28,19 +28,26 @@ import java.awt.Graphics2D;
 import java.awt.Image;
 import java.awt.Rectangle;
 import java.awt.Shape;
+import java.awt.image.BandedSampleModel;
 import java.awt.image.BufferedImage;
+import java.awt.image.ColorModel;
 import java.awt.image.DataBuffer;
+import java.awt.image.Raster;
 import java.awt.image.WritableRaster;
 import java.util.Hashtable;
+import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
+import qupath.lib.color.ColorModelFactory;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.servers.AbstractTileableImageServer;
+import qupath.lib.images.servers.ImageChannel;
+import qupath.lib.images.servers.PixelType;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
@@ -655,6 +662,121 @@ public final class BufferedImageTools {
 		}
 		return count;
 	}
+
+	/**
+	 * Convert a raster to have a specified pixel type.
+	 * Note that this is not intended for RGB images, and the output will not be a specific RGB type.
+	 * @param img the input image
+	 * @param targetPixelType the required pixel type of the output
+	 * @param channels the channels used to create the color model; if null, the default channels for the pixel type will be used
+	 * @return a new image containing pixels converted to the required type
+	 * @throws UnsupportedOperationException if the pixel type is not supported (e.g. INT8 or UINT32).
+	 */
+	public static BufferedImage convertImageType(BufferedImage img, PixelType targetPixelType, List<? extends ImageChannel> channels) {
+		var raster = img.getRaster();
+		var newRaster = convertRasterType(raster, targetPixelType);
+		if (channels == null) {
+			channels = ImageChannel.getDefaultChannelList(newRaster.getNumBands());
+		}
+		var colorModel = ColorModelFactory.createColorModel(targetPixelType, channels);
+		return new BufferedImage(colorModel, newRaster, img.isAlphaPremultiplied(), null);
+	}
+
+	/**
+	 * Convert a raster to have a specified pixel type.
+	 * If the output is an integer type, rounding will be applied and values will be clipped to the permitted range.
+	 * @param inputRaster raster containing the input pixels
+	 * @param targetPixelType pixel type to which the raster should be converted
+	 * @return a new raster containing pixels converted to the required type
+	 * @throws UnsupportedOperationException if the pixel type is not supported (e.g. INT8 or UINT32).
+	 */
+	public static WritableRaster convertRasterType(Raster inputRaster, PixelType targetPixelType) throws UnsupportedOperationException  {
+		int width = inputRaster.getWidth();
+		int height = inputRaster.getHeight();
+		int numBands = inputRaster.getNumBands();
+
+		var sampleModel = new BandedSampleModel(getDataBufferType(targetPixelType), width, height, numBands);
+		var buffer = sampleModel.createDataBuffer();
+		var outputRaster = WritableRaster.createWritableRaster(sampleModel, buffer, null);
+
+		double[] values = null;
+		double minValue = targetPixelType.isFloatingPoint() ? Double.NEGATIVE_INFINITY : targetPixelType.getLowerBound().doubleValue();
+		double maxValue = targetPixelType.isFloatingPoint() ? Double.POSITIVE_INFINITY : targetPixelType.getUpperBound().doubleValue();
+		boolean doRounding = targetPixelType.isSignedInteger() || targetPixelType.isUnsignedInteger();
+		for (int i = 0; i < numBands; i++) {
+			values = inputRaster.getSamples(0, 0, width, height, i, values);
+			if (doRounding)
+				roundAndClip(values, minValue, maxValue);
+			outputRaster.setSamples(0, 0, width, height, i, values);
+		}
+		return outputRaster;
+	}
+
+	/**
+	 * Get the appropriate DataBuffer type for a given PixelType.
+	 * @param pixelType the pixel type for which the DataBuffer type is required
+	 * @return the integer corresponding to the DataBuffer type.
+	 * @see DataBuffer
+	 * @throws UnsupportedOperationException if the pixel type is not supported (e.g. INT8 or UINT32).
+	 */
+	public static int getDataBufferType(PixelType pixelType) throws UnsupportedOperationException {
+		switch (pixelType) {
+			case UINT8:
+				return DataBuffer.TYPE_BYTE;
+			case INT16:
+				return DataBuffer.TYPE_SHORT;
+			case UINT16:
+				return DataBuffer.TYPE_USHORT;
+			case INT32:
+				return DataBuffer.TYPE_INT;
+			case FLOAT32:
+				return DataBuffer.TYPE_FLOAT;
+			case FLOAT64:
+				return DataBuffer.TYPE_DOUBLE;
+			case INT8:
+			case UINT32:
+			default:
+				throw new IllegalArgumentException("DataBuffer does not support " + pixelType);
+		}
+	}
+
+
+	private static void roundAndClip(double[] values, double min, double max) {
+		for (int i = 0; i < values.length; i++) {
+			values[i] = GeneralTools.clipValue(Math.round(values[i]), min, max);
+		}
+	}
+
+	/**
+	 * Create a new image with the specified width, height, pixel type, and number of channels.
+	 * Note that this is not intended for RGB images, which already have straightforward BufferedImage constructors.
+	 * @param width the width of the image
+	 * @param height the height of the image
+	 * @param pixelType the pixel type of the image
+	 * @param nChannels the number of channels to use in the image; the default channel colors will be used
+	 * @return a new image with the specified properties
+	 */
+	public static BufferedImage createImage(int width, int height, PixelType pixelType, int nChannels) {
+		return createImage(width, height, pixelType, ImageChannel.getDefaultChannelList(nChannels));
+	}
+
+	/**
+	 * Create a new image with the specified width, height, pixel type, and channels.
+	 * Note that this is not intended for RGB images, which already have straightforward BufferedImage constructors.
+	 * @param width the width of the image
+	 * @param height the height of the image
+	 * @param pixelType the pixel type of the image
+	 * @param channels the channels to use in the image
+	 * @return a new image with the specified properties
+	 */
+	public static BufferedImage createImage(int width, int height, PixelType pixelType, List<? extends ImageChannel> channels) {
+		var sampleModel = new BandedSampleModel(getDataBufferType(pixelType), width, height, channels.size());
+		var buffer = sampleModel.createDataBuffer();
+		var raster = WritableRaster.createWritableRaster(sampleModel, buffer, null);
+		var colorModel = ColorModelFactory.createColorModel(pixelType, channels);
+		return new BufferedImage(colorModel, raster, false, null);
+	}
+
 
 //	/**
 //	 * Resize the image to have the requested width/height, using area averaging and bilinear interpolation.

@@ -107,7 +107,7 @@ public class TMACommands {
 		if (selectedCores.size() == 1) {
 			var core = selectedCores.get(0);
 			prompt = core.getName() == null || core.getName().trim().isEmpty() ? "Core" : core.getName();
-			currentText = core.getMetadataMap().get(NOTE_NAME);
+			currentText = core.getMetadata().get(NOTE_NAME);
 		} else {
 			prompt = selectedCores.size() + " cores";
 		}
