@@ -176,10 +176,6 @@ public class PathHierarchyImageServer extends AbstractTileableImageServer implem
 			return false;
 	}
 
-
-	@Override
-	public void close() {}
-
 	@Override
 	public String getServerType() {
 		return "Overlay";

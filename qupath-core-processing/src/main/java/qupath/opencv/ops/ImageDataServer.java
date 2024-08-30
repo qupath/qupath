@@ -41,6 +41,6 @@ public interface ImageDataServer<T> extends ImageServer<T> {
 	 * Get the {@link ImageData} wrapped by the {@link ImageDataServer}.
 	 * @return
 	 */
-	public ImageData<T> getImageData();
+	ImageData<T> getImageData();
 	
 }

@@ -73,6 +73,8 @@ This is a *work in progress* for the next major release.
 * `ObjectMeasurements` names cell intensity measurements in the order `Compartment: Channel: Measurement`
   * This is a change from `Channel: Compartment: Measurement` to make it easier to find measurements in the list
   * *This will affect the use of the QuPath StarDist extension*
+* `ImageServer.finalize()` is no longer overridden to call `close()` in case the caller forgets
+  * `finalize()` is deprecated for removal; any class that relied on this should consider using `Cleaner`
 
 ### Dependency updates
 * Bio-Formats 7.3.1
