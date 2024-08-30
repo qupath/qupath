@@ -394,6 +394,40 @@ public class ObjectMerger {
     }
 
     /**
+     * Create an object merger that can merge together any objects with sufficiently large intersection over minimum.
+     * <p>
+     * Objects must also have the same classification and be on the same image plane to be mergeable.
+     * <p>
+     * IoM is calculated using Java Topology Suite intersection, union, and getArea calls.
+     * <p>
+     * This merger assumes that you are using an OutputHandler that doesn't clip to tile boundaries (only to region
+     * requests) and that you are using sufficient padding to ensure that objects are being detected in more than on
+     * tile/region request.
+     * You should probably also remove any objects that touch the regionRequest boundaries, as these will probably be
+     * clipped, and merging them will result in weirdly shaped detections.
+     * @param iomThreshold Intersection over minimum threshold; any pairs with values greater than or equal to this are merged.
+     * @return an object merger that can merge together any objects with sufficiently high IoM and the same classification
+     */
+    public static ObjectMerger createIoMinMerger(double iomThreshold) {
+        return new ObjectMerger(
+                ObjectMerger::sameClassTypePlaneTest,
+                createIoMinMergeTest(iomThreshold),
+                0.0625);
+    }
+
+    private static BiPredicate<Geometry, Geometry> createIoMinMergeTest(double iomThreshold) {
+        return (geom, geomOverlap) -> {
+            var i = geom.intersection(geomOverlap);
+            var intersection = i.getArea();
+            double minArea = Math.min(geom.getArea(), geomOverlap.getArea());
+            if (minArea == 0) {
+                return false;
+            }
+            return (intersection / minArea) >= iomThreshold;
+        };
+    }
+
+    /**
      * Method to use as a predicate, indicating that two geometries have the same dimension and also touch.
      * @param geom
      * @param geom2
