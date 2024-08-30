@@ -80,8 +80,9 @@ This is a *work in progress* for the next major release.
 * DeepJavaLibrary 0.29.0
 * Groovy 4.0.22
 * Gson 2.11.0
-* Guava 33.2.0-jre
+* Guava 33.3.0-jre
 * JavaFX 22.0.2
+* Java Topology Suite 1.20.0
 * JFreeSVG 5.0.6
 * JNA 5.14.0
 * Picocli 4.7.6
