@@ -198,8 +198,8 @@ public class ObjectMeasurements {
 		Collection<ShapeFeatures> featureCollection = features.length == 0 ? ALL_SHAPE_FEATURES : Arrays.asList(features);
 		
 		pathObjects.parallelStream().filter(p -> p.hasROI()).forEach(pathObject -> {
-			if (pathObject instanceof PathCellObject) {
-				addCellShapeMeasurements((PathCellObject)pathObject, calibration, featureCollection);
+			if (pathObject instanceof PathCellObject cell) {
+				addCellShapeMeasurements(cell, calibration, featureCollection);
 			} else {
 				try (var ml = pathObject.getMeasurementList()) {
 					addShapeMeasurements(ml, pathObject.getROI(), calibration, "", featureCollection);
@@ -450,8 +450,7 @@ public class ObjectMeasurements {
 		var roiIJ = IJTools.convertToIJRoi(roi, pathImage);
 		bpCell.fill(roiIJ);
 			
-		if (pathObject instanceof PathCellObject) {
-			var cell = (PathCellObject)pathObject;
+		if (pathObject instanceof PathCellObject cell) {
 			ByteProcessor bpNucleus = new ByteProcessor(imp.getWidth(), imp.getHeight());
 			if (cell.getNucleusROI() != null) {
 				bpNucleus.setValue(1.0);
@@ -513,17 +512,53 @@ public class ObjectMeasurements {
 		var imgCells = new PixelImageIJ(ipCells);
 		var imgCytoplasm = new PixelImageIJ(ipCytoplasm);
 		var imgMembrane = new PixelImageIJ(ipMembrane);
-		
-		for (var entry : channels.entrySet()) {
-			var img = new PixelImageIJ(entry.getValue());
-			if (compartments.contains(Compartments.NUCLEUS))
-				measureObjects(img, imgNuclei, array, entry.getKey().trim() + ": " + "Nucleus", measurements);
-			if (compartments.contains(Compartments.CYTOPLASM))
-				measureObjects(img, imgCytoplasm, array, entry.getKey().trim() + ": " + "Cytoplasm", measurements);
-			if (compartments.contains(Compartments.MEMBRANE))
-				measureObjects(img, imgMembrane, array, entry.getKey().trim() + ": " + "Membrane", measurements);
-			if (compartments.contains(Compartments.CELL))
-				measureObjects(img, imgCells, array, entry.getKey().trim() + ": " + "Cell", measurements);
+
+		// Use legacy names, from before QuPath v0.6.0
+		// These encoded the channel name first, rather than after the cell compartment, but this made them less
+		boolean useLegacyNames = Boolean.parseBoolean(System.getProperty("OBJECT_MEASUREMENTS_USE_LEGACY_NAMES", "false").strip());
+
+		if (useLegacyNames) {
+			for (var entry : channels.entrySet()) {
+				var img = new PixelImageIJ(entry.getValue());
+				if (compartments.contains(Compartments.NUCLEUS))
+					measureObjects(img, imgNuclei, array, entry.getKey().trim() + ": " + "Nucleus", measurements);
+				if (compartments.contains(Compartments.CYTOPLASM))
+					measureObjects(img, imgCytoplasm, array, entry.getKey().trim() + ": " + "Cytoplasm", measurements);
+				if (compartments.contains(Compartments.MEMBRANE))
+					measureObjects(img, imgMembrane, array, entry.getKey().trim() + ": " + "Membrane", measurements);
+				if (compartments.contains(Compartments.CELL))
+					measureObjects(img, imgCells, array, entry.getKey().trim() + ": " + "Cell", measurements);
+			}
+		} else {
+			// 'New' names group measurements by compartment first, then channel
+			if (compartments.contains(Compartments.NUCLEUS)) {
+				for (var entry : channels.entrySet()) {
+					var img = new PixelImageIJ(entry.getValue());
+					String channelName = entry.getKey().trim();
+					measureObjects(img, imgNuclei, array, "Nucleus: " + channelName, measurements);
+				}
+			}
+			if (compartments.contains(Compartments.CYTOPLASM)) {
+				for (var entry : channels.entrySet()) {
+					var img = new PixelImageIJ(entry.getValue());
+					String channelName = entry.getKey().trim();
+					measureObjects(img, imgCytoplasm, array, "Cytoplasm: " + channelName, measurements);
+				}
+			}
+			if (compartments.contains(Compartments.MEMBRANE)) {
+				for (var entry : channels.entrySet()) {
+					var img = new PixelImageIJ(entry.getValue());
+					String channelName = entry.getKey().trim();
+					measureObjects(img, imgMembrane, array, "Membrane: " + channelName, measurements);
+				}
+			}
+			if (compartments.contains(Compartments.CELL)) {
+				for (var entry : channels.entrySet()) {
+					var img = new PixelImageIJ(entry.getValue());
+					String channelName = entry.getKey().trim();
+					measureObjects(img, imgCells, array, "Cell: " + channelName, measurements);
+				}
+			}
 		}
 		
 	}
@@ -556,22 +591,6 @@ public class ObjectMeasurements {
 		}
 		return array;
 	}
-	
-//	/**
-//	 * Measure objects within the specified image, adding them to the corresponding measurement lists.
-//	 * @param img intensity values to measure
-//	 * @param imgLabels labels corresponding to objects
-//	 * @param pathObjects map between label values and objects
-//	 * @param baseName base name to include when adding measurements (e.g. the channel name)
-//	 * @param measurements requested measurements
-//	 */
-//	private static void measureObjects(
-//			SimpleImage img, SimpleImage imgLabels,
-//			Map<? extends Number, ? extends PathObject> pathObjects,
-//			String baseName, Collection<Measurements> measurements) {
-//		
-//		measureObjects(img, imgLabels, mapToArray(pathObjects), baseName, measurements);
-//	}
 	
 	/**
 	 * Measure objects within the specified image, adding them to the corresponding measurement lists.

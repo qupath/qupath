@@ -70,6 +70,9 @@ This is a *work in progress* for the next major release.
 * `PathObject` and `PathObjectHierarchy` have also been revised, with deprecated methods removed
   * New `PathObject.getClassification()` and `PathObject.setClassification(String)` methods 
     to simplify working with classifications in scripts (https://github.com/qupath/qupath/pull/1593)
+* `ObjectMeasurements` names cell intensity measurements in the order `Compartment: Channel: Measurement`
+  * This is a change from `Channel: Compartment: Measurement` to make it easier to find measurements in the list
+  * *This will affect the use of the QuPath StarDist extension*
 
 ### Dependency updates
 * Bio-Formats 7.3.1
