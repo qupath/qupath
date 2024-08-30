@@ -843,9 +843,6 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 	}
 
 	@Override
-	public void close() {}
-
-	@Override
 	public String getServerType() {
 		return "Labelled image";
 	}

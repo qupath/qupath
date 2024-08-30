@@ -141,7 +141,7 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 	
 	@Override
 	public void close() throws Exception {
-		logger.trace("Server " + this + " being closed now...");		
+		logger.trace("Server {} is being closed now", this);
 	}
 	
 	@Override
@@ -170,22 +170,6 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 	@Override
 	public PixelType getPixelType() {
 		return getMetadata().getPixelType();
-	}
-	
-	
-	/**
-	 * Attempt to close the server.  While not at all a good idea to rely on this, it may help clean up after some forgotten servers.
-	 */
-	@Override
-	protected void finalize() throws Throwable {
-		// Ensure we close...
-		try{
-			close();
-		} catch(Throwable t){
-			throw t;
-		} finally{
-			super.finalize();
-		}
 	}
 	
 	

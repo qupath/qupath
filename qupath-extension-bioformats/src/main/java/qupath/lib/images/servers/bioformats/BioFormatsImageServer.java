@@ -1331,7 +1331,8 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			}
 			
 			
-			cleanables.add(cleaner.register(this, new ReaderCleaner(Integer.toString(cleanables.size()+1), imageReader)));
+			cleanables.add(cleaner.register(this,
+					new ReaderCleaner(Integer.toString(cleanables.size()+1), imageReader)));
 			
 			return imageReader;
 		}
@@ -1542,6 +1543,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		
 		@Override
 		public void close() throws Exception {
+			logger.debug("Closing ReaderManager");
 			isClosed = true;
 			if (task != null && !task.isDone())
 				task.cancel(true);
@@ -1549,19 +1551,14 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 				try {
 					c.clean();
 				} catch (Exception e) {
-					logger.error("Exception during cleanup: " + e.getLocalizedMessage());
-					logger.debug(e.getLocalizedMessage(), e);
+					logger.error("Exception during cleanup: {}", e.getMessage(), e);
 				}
 			}
-			// Allow the queue to be garbage collected - clearing could result in a queue.poll()
-			// lingering far too long
-//			queue.clear();
 		}
+
 		
-		
-		
-		private static Cleaner cleaner = Cleaner.create();
-		private List<Cleanable> cleanables = new ArrayList<>();
+		private static final Cleaner cleaner = Cleaner.create();
+		private final List<Cleanable> cleanables = new ArrayList<>();
 
 
 		/**
@@ -1677,8 +1674,8 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		 */
 		static class ReaderCleaner implements Runnable {
 
-			private String name;
-			private IFormatReader reader;
+			private final String name;
+			private final IFormatReader reader;
 
 			ReaderCleaner(String name, IFormatReader reader) {
 				this.name = name;
@@ -1687,11 +1684,11 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 
 			@Override
 			public void run() {
-				logger.debug("Cleaner " + name + " called for " + reader + " (" + reader.getCurrentFile() + ")");
+                logger.debug("Cleaner {} called for {} ({})", name, reader, reader.getCurrentFile());
 				try {
 					this.reader.close(false);
 				} catch (IOException e) {
-					logger.warn("Error when calling cleaner for " + name, e);
+                    logger.warn("Error when calling cleaner for {}", name, e);
 				}
 			}
 
