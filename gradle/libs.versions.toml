@@ -14,7 +14,7 @@ deepJavaLibrary = "0.29.0"
 
 groovy          = "4.0.22"
 gson            = "2.11.0"
-guava           = "33.2.0-jre"
+guava           = "33.3.0-jre"
 
 ikonli          = "12.3.1"
 imagej          = "1.54f"
@@ -32,7 +32,7 @@ javafx          = "22.0.2"
 jna             = "5.14.0"
 jfreeSvg        = "5.0.6"
 jfxtras         = "17-r1"
-jts             = "1.19.0"
+jts             = "1.20.0"
 junit           = "5.9.2"
 
 logback         = "1.3.11"
