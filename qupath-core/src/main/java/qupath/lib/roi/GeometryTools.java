@@ -897,15 +897,20 @@ public class GeometryTools {
 	     * 
 	     * @param roi
 	     * @return
+		 * @implNote since v0.6.0 this returns a normalized geometry.
 	     */
 	    public Geometry roiToGeometry(ROI roi) {
+			Geometry geom = null;
 	    	if (roi.isPoint())
-	    		return pointsToGeometry(roi);
+				geom = pointsToGeometry(roi);
 	    	if (roi.isArea())
-	    		return areaToGeometry(roi);
+				geom = areaToGeometry(roi);
 	    	if (roi.isLine())
-	    		return lineToGeometry(roi);
-	    	throw new UnsupportedOperationException("Unknown ROI " + roi + " - cannot convert to a Geometry!");
+				geom = lineToGeometry(roi);
+			if (geom == null)
+		    	throw new UnsupportedOperationException("Unknown ROI " + roi + " - cannot convert to a Geometry!");
+			else
+				return geom.norm();
 	    }
 	    
 	    private Geometry lineToGeometry(ROI roi) {
