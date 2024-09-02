@@ -194,13 +194,17 @@ public class PixelProcessor<S, T, U> {
         }
         List<Runnable> mergeTasks = new ArrayList<>();
         for (var entry : tempObjects.entrySet()) {
+            // Get the original parent object
             var pathObject = entry.getKey();
+            // Get all new objects detected from the tile
             var proxyList = entry.getValue().stream()
                     .flatMap(proxy -> proxy.getChildObjects().stream())
                     .toList();
             if (merger != null) {
+                // Use the merger if we have one
                 mergeTasks.add(() -> mergeAndAddObjects(merger, pathObject, proxyList));
             } else {
+                // Just add the new objects if we have no merger
                 pathObject.clearChildObjects();
                 pathObject.addChildObjects(proxyList);
                 pathObject.setLocked(true);
