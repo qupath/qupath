@@ -30,6 +30,7 @@ import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
 
 import java.util.Arrays;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -195,6 +196,37 @@ public class TestObjectMerger {
 
         var mergedByTouching = ObjectMerger.createTouchingMerger().merge(pathObjects);
         assertEquals(3, mergedByTouching.size());
+    }
+
+    @Test
+    public void test_intesectionOverMinimum() {
+        // Create objects with an IoM of 100%, 50%, 75%, and 25%
+        var poBase = createRectangleObject(0, 0, 100, 100);
+        var poIoM100 = createRectangleObject(0, 0, 100, 200);
+        var poIoM50 = createRectangleObject(50, 0, 100, 200);
+        var poIoM75 = createRectangleObject(25, 0, 100, 200);
+        var poIoM25 = createRectangleObject(75, 0, 100, 200);
+        var poIoM0 = createRectangleObject(100, 0, 100, 200);
+        var poEmpty = createRectangleObject(50, 0, 0, 0);
+
+        // Test for IoM of 0.5
+        assertEquals(1, ObjectMerger.createIoMinMerger(0.5).merge(List.of(poBase, poIoM100)).size());
+        assertEquals(1, ObjectMerger.createIoMinMerger(0.5).merge(List.of(poBase, poIoM75)).size());
+        assertEquals(1, ObjectMerger.createIoMinMerger(0.5).merge(List.of(poBase, poIoM50)).size());
+        assertEquals(2, ObjectMerger.createIoMinMerger(0.5).merge(List.of(poBase, poIoM25)).size());
+        assertEquals(2, ObjectMerger.createIoMinMerger(0.5).merge(List.of(poBase, poIoM0)).size());
+
+        // Empty object always retained
+        assertEquals(2, ObjectMerger.createIoMinMerger(0.5).merge(List.of(poBase, poEmpty)).size());
+
+        // Check close to the threshold
+        assertEquals(2, ObjectMerger.createIoMinMerger(0.5 + 1e-6).merge(List.of(poBase, poIoM50)).size());
+        assertEquals(1, ObjectMerger.createIoMinMerger(0.5 - 1e-6).merge(List.of(poBase, poIoM50)).size());
+    }
+
+    private static PathObject createRectangleObject(double x, double y, double width, double height) {
+        return PathObjects.createDetectionObject(
+                ROIs.createRectangleROI(x, y, width, height, ImagePlane.getDefaultPlane()));
     }
 
 
