@@ -81,11 +81,13 @@ import qupath.lib.roi.interfaces.ROI;
 
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.concurrent.ForkJoinPool;
@@ -113,7 +115,7 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 	
 	private final QuPathGridView grid = new QuPathGridView();
 	
-	private ComboBox<String> comboMeasurement;
+	private ComboBox<String> comboSortBy;
 	
 	private final ObservableList<PathObject> backingList = FXCollections.observableArrayList();
 	private final FilteredList<PathObject> filteredList = new FilteredList<>(backingList);
@@ -250,40 +252,47 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 	public ObjectProperty<ImageData<BufferedImage>> imageDataProperty() {
 		return imageDataProperty;
 	}
-	
+
+
 	
 	private static void sortPathObjects(final ObservableList<? extends PathObject> cores, final ObservableMeasurementTableData model, final String measurementName, final boolean doDescending) {
 		if (measurementName == null) return;
+
+		Comparator<PathObject> sorter;
+
 		if (measurementName.equals(QuPathResources.getString("GridView.classification"))) {
-			cores.sort((po1, po2) -> {
-				if (po1.getPathClass() == null || po2.getPathClass() == null) return 0;
-				Comparator<PathObject> comp = Comparator.comparing((po) -> po.getPathClass().toString());
-				comp = doDescending ? comp.reversed() : comp;
+			sorter = (po1, po2) -> {
+				Comparator<PathObject> comp = Comparator.comparing(po -> po.getPathClass() == null ? "Unclassified" : po.getPathClass().toString());
 				return comp.compare(po1, po2);
-			});
-			return;
-		}
-		cores.sort((po1, po2) -> {
-			double m1 = model.getNumericValue(po1, measurementName);
-			double m2 = model.getNumericValue(po2, measurementName);
-			int comp;
-			if (doDescending)
-				comp = -Double.compare(m1, m2);
-			else
+			};
+		} else if (measurementName.equals(QuPathResources.getString("GridView.name"))) {
+			sorter = (po1, po2) -> {
+				Comparator<PathObject> comp = Comparator.comparing(PathObject::getDisplayedName);
+				return comp.compare(po1, po2);
+			};
+		} else {
+			// if it's a measurement, then we're numeric sorting
+			sorter = (po1, po2) -> {
+				double m1 = model.getNumericValue(po1, measurementName);
+				double m2 = model.getNumericValue(po2, measurementName);
+				int comp;
 				comp = Double.compare(m1, m2);
-			if (comp == 0) {
-				if (Double.isNaN(m1) && !Double.isNaN(m2))
-					return doDescending ? 1 : -1;
-				if (Double.isNaN(m2) && !Double.isNaN(m1))
-					return doDescending ? -1 : 1;
-				
-				if (doDescending)
-					comp = po2.getDisplayedName().compareTo(po1.getDisplayedName());
-				else
+				// resolve ties by checking missingness, and then names
+				if (comp == 0) {
+					// todo: should missing values always be last?
+					if (Double.isNaN(m1) && !Double.isNaN(m2))
+						return 1;
+					if (Double.isNaN(m2) && !Double.isNaN(m1))
+						return -1;
 					comp = po1.getDisplayedName().compareTo(po2.getDisplayedName());
-			}
-			return comp;
-		});
+				}
+				return comp;
+			};
+		}
+		if (doDescending) {
+			sorter = sorter.reversed();
+		}
+		cores.sort(sorter);
 	}
 	
 	
@@ -333,8 +342,8 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 		// Select the first measurement if necessary
 		var names = model.getMeasurementNames();
 		if (m == null || !names.contains(m)) {
-			if (!comboMeasurement.getItems().isEmpty())
-				comboMeasurement.getSelectionModel().selectFirst();
+			if (!comboSortBy.getItems().isEmpty())
+				comboSortBy.getSelectionModel().selectFirst();
 		}
 		
 	}
@@ -358,10 +367,13 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 		descending.bind(Bindings.createBooleanBinding(() ->
 						QuPathResources.getString("GridView.descending").equals(comboOrder.getSelectionModel().getSelectedItem()),
 				comboOrder.getSelectionModel().selectedItemProperty()));
-		
+		descending.addListener((v, o, n) -> sortAndFilter());
+		comboOrder.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> sortAndFilter());
 
-		comboMeasurement = new ComboBox<>();
-		comboMeasurement.setPlaceholder(createPlaceholderText(QuPathResources.getString("GridView.noMeasurements")));
+		comboSortBy = new ComboBox<>();
+		// todo: never needed now because we always have class?
+		comboSortBy.setPlaceholder(createPlaceholderText(QuPathResources.getString("GridView.noMeasurements")));
+		comboSortBy.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> sortAndFilter());
 
 		var measureNames = model.getMeasurementNames();
 		ObservableList<String> measureList = FXCollections.observableArrayList(measureNames);
@@ -371,16 +383,14 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
             measureList.addAll(measureNames);
         });
 		measureList.add(QuPathResources.getString("GridView.classification"));
-		comboMeasurement.setItems(measureList);
-		if (!comboMeasurement.getItems().isEmpty())
-			comboMeasurement.getSelectionModel().select(0);
+		measureList.add(QuPathResources.getString("GridView.name"));
+		comboSortBy.setItems(measureList);
+		if (!comboSortBy.getItems().isEmpty())
+			comboSortBy.getSelectionModel().select(0);
 
-		measurement.bind(comboMeasurement.getSelectionModel().selectedItemProperty());
+		measurement.bind(comboSortBy.getSelectionModel().selectedItemProperty());
 
-		addSortAndFilterer(comboOrder);
-		addSortAndFilterer(comboMeasurement);
-
-		CheckBox cbShowMeasurement = new CheckBox(QuPathResources.getString("GridView.showMeasurement"));
+		CheckBox cbShowMeasurement = new CheckBox(QuPathResources.getString("GridView.showValue"));
 		showMeasurement.bind(cbShowMeasurement.selectedProperty());
 		showMeasurement.addListener(c -> updateMeasurement()); // Force an update
 
@@ -392,6 +402,10 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 		selectedClasses = classComboBox.getCheckModel().getCheckedItems();
 		selectedClasses.addListener((ListChangeListener<PathClass>) c -> sortAndFilter());
 		FXUtils.installSelectAllOrNoneMenu(classComboBox);
+		classComboBox.getCheckModel().getCheckedItems().addListener((ListChangeListener<PathClass>) c -> {
+			classComboBox.setTitle(getCheckComboBoxText(classComboBox));
+		});
+
 
 		updateClasses(classComboBox);
 		qupath.getImageData().getHierarchy().addListener(event -> updateClasses(classComboBox));
@@ -401,8 +415,8 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 		BorderPane pane = new BorderPane();
 		
 		ToolBar paneTop = new ToolBar();
-		paneTop.getItems().add(new Label(QuPathResources.getString("GridView.measurement")));
-		paneTop.getItems().add(comboMeasurement);
+		paneTop.getItems().add(new Label(QuPathResources.getString("GridView.sortBy")));
+		paneTop.getItems().add(comboSortBy);
 		paneTop.getItems().add(new Separator(Orientation.VERTICAL));
 		paneTop.getItems().add(new Label(QuPathResources.getString("GridView.order")));
 		paneTop.getItems().add(comboOrder);
@@ -423,7 +437,7 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 			}
 		}
 
-		comboMeasurement.setMaxWidth(Double.MAX_VALUE);
+		comboSortBy.setMaxWidth(Double.MAX_VALUE);
 		comboOrder.setMaxWidth(Double.MAX_VALUE);
 
 		pane.setTop(paneTop);
@@ -446,21 +460,34 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 	}
 
 	private void updateClasses(CheckComboBox<PathClass> classComboBox) {
-		Set<PathClass> representedClasses = qupath.getImageData().getHierarchy().getFlattenedObjectList(null).stream()
+		// if a new class is added to the hierarchy, then update the list but leave the set of checked classes unchanged
+		var previouslyChecked = new ArrayList<>(classComboBox.getCheckModel().getCheckedItems());
+		List<PathClass> representedClasses = qupath.getImageData().getHierarchy().getFlattenedObjectList(null).stream()
 				.filter(p -> !p.isRootObject())
 				.map(PathObject::getPathClass)
 				.filter(p -> p != null && p != PathClass.NULL_CLASS)
-				.collect(Collectors.toSet());
+				.distinct()
+				.collect(Collectors.toList());
+		representedClasses.add(PathClass.NULL_CLASS);
 		classComboBox.getItems().clear();
 		classComboBox.getItems().addAll(representedClasses);
+		classComboBox.getCheckModel().clearChecks();
+		int[] inds = previouslyChecked.stream().mapToInt(representedClasses::indexOf).toArray();
+		classComboBox.getCheckModel().checkIndices(inds);
 	}
 
-	private void addSortAndFilterer(ComboBox<String> comboMeasurement) {
-		comboMeasurement.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {
-			sortAndFilter();
-		});
-	}
 
+	private static String getCheckComboBoxText(CheckComboBox<PathClass> comboBox) {
+		int n = comboBox.getCheckModel().getCheckedItems().stream()
+				.filter(Objects::nonNull)
+				.toList()
+				.size();
+		if (n == 0)
+			return QuPathResources.getString("GridView.noClassSelected");
+		if (n == 1)
+			return comboBox.getCheckModel().getCheckedItems().getFirst().toString();
+		return String.format(QuPathResources.getString("GridView.nClassSelected"), n);
+	}
 
 	private void updateMeasurement() {
 		sortAndFilter();
@@ -470,8 +497,13 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 		String m = measurement.getValue();
 		sortPathObjects(backingList, model, m, descending.get());
 		filteredList.setPredicate(p ->
-				(m == null || m.equals(QuPathResources.getString("GridView.classification")) || !isMissingCore(p)) &&
-				(selectedClasses.contains(p.getPathClass()) || p.getPathClass() == null)
+				// no measurement selected, we're going by classification or name, or it's not missing, then keep
+				(m == null
+						|| m.equals(QuPathResources.getString("GridView.classification"))
+						|| m.equals(QuPathResources.getString("GridView.name"))
+						|| !isMissingCore(p))
+						// pathclass is present and selected, or missing and we're showing unclassifier
+						&& (selectedClasses.contains(p.getPathClass()) || (p.getPathClass() == null && selectedClasses.contains(PathClass.NULL_CLASS)))
 		);
 		grid.getItems().setAll(filteredList);
 	}
@@ -598,8 +630,10 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 				else {
 					if (m.equals(QuPathResources.getString("GridView.classification"))) {
 						PathClass pc = entry.getKey().getPathClass();
-						String text = pc == null ? "Unclassified" : pc.toString();
+						String text = pc == null ? PathClass.getNullClass().toString() : pc.toString();
 						entry.getValue().setText(text);
+					} else if (m.equals(QuPathResources.getString("GridView.name"))) {
+						entry.getValue().setText(entry.getKey().getDisplayedName());
 					} else {
 						double val = model.getNumericValue(entry.getKey(), m);
 						entry.getValue().setText(GeneralTools.formatNumber(val, 3));
