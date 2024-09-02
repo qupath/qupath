@@ -207,6 +207,7 @@ public class TestObjectMerger {
         var poIoM75 = createRectangleObject(25, 0, 100, 200);
         var poIoM25 = createRectangleObject(75, 0, 100, 200);
         var poIoM0 = createRectangleObject(100, 0, 100, 200);
+        var poEmpty = createRectangleObject(50, 0, 0, 0);
 
         // Test for IoM of 0.5
         assertEquals(1, ObjectMerger.createIoMinMerger(0.5).merge(List.of(poBase, poIoM100)).size());
@@ -214,6 +215,9 @@ public class TestObjectMerger {
         assertEquals(1, ObjectMerger.createIoMinMerger(0.5).merge(List.of(poBase, poIoM50)).size());
         assertEquals(2, ObjectMerger.createIoMinMerger(0.5).merge(List.of(poBase, poIoM25)).size());
         assertEquals(2, ObjectMerger.createIoMinMerger(0.5).merge(List.of(poBase, poIoM0)).size());
+
+        // Empty object always retained
+        assertEquals(2, ObjectMerger.createIoMinMerger(0.5).merge(List.of(poBase, poEmpty)).size());
 
         // Check close to the threshold
         assertEquals(2, ObjectMerger.createIoMinMerger(0.5 + 1e-6).merge(List.of(poBase, poIoM50)).size());

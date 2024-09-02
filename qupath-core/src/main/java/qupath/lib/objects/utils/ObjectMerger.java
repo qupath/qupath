@@ -394,7 +394,12 @@ public class ObjectMerger {
     }
 
     /**
-     * Create an object merger that can merge together any objects with sufficiently large intersection over minimum.
+     * Create an object merger that can merge together any objects with sufficiently large intersection over minimum
+     * area (IoMin).
+     * This is similar to IoU, but uses the minimum area of the two objects as the denominator.
+     * <p>
+     * This is useful in the (common) case where we are happy for small objects falling within larger objects to be
+     * swallowed up by the larger object.
      * <p>
      * Objects must also have the same classification and be on the same image plane to be mergeable.
      * <p>
@@ -407,6 +412,7 @@ public class ObjectMerger {
      * clipped, and merging them will result in weirdly shaped detections.
      * @param iomThreshold Intersection over minimum threshold; any pairs with values greater than or equal to this are merged.
      * @return an object merger that can merge together any objects with sufficiently high IoM and the same classification
+     * @implNote This method does not currently merge objects with zero area. It is assumed that they will be handled separately.
      */
     public static ObjectMerger createIoMinMerger(double iomThreshold) {
         return new ObjectMerger(
@@ -417,12 +423,14 @@ public class ObjectMerger {
 
     private static BiPredicate<Geometry, Geometry> createIoMinMergeTest(double iomThreshold) {
         return (geom, geomOverlap) -> {
-            var i = geom.intersection(geomOverlap);
-            var intersection = i.getArea();
             double minArea = Math.min(geom.getArea(), geomOverlap.getArea());
+            // If the minimum area is zero, then we can't calculate the IoM
+            // Here, we don't merge - assuming that empty ROIs should be handled separately
             if (minArea == 0) {
                 return false;
             }
+            var i = geom.intersection(geomOverlap);
+            var intersection = i.getArea();
             return (intersection / minArea) >= iomThreshold;
         };
     }
