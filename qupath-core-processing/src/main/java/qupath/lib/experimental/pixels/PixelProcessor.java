@@ -94,7 +94,7 @@ public class PixelProcessor<S, T, U> {
                           OutputHandler<S, T, U> outputHandler,
                           Processor<S, T, U> processor,
                           Tiler tiler,
-                           ObjectProcessor objectProcessor,
+                          ObjectProcessor objectProcessor,
                           Padding padding,
                           DownsampleCalculator downsampleCalculator) {
         Objects.requireNonNull(imageSupplier, "Image supplier cannot be null");
