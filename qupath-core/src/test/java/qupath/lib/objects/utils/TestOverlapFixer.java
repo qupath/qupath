@@ -30,6 +30,7 @@ import qupath.lib.roi.interfaces.ROI;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -44,7 +45,7 @@ public class TestOverlapFixer {
         var fixer = OverlapFixer.builder()
                 .keepFragments()
                 .build();
-        assertEquals(2, fixer.fix(large, thin).size());
+        assertEquals(2, fixer.process(List.of(large, thin)).size());
     }
 
     @Test
@@ -55,7 +56,7 @@ public class TestOverlapFixer {
         var fixer = OverlapFixer.builder()
                 .discardFragments()
                 .build();
-        assertEquals(1, fixer.fix(large, thin).size());
+        assertEquals(1, fixer.process(List.of(large, thin)).size());
     }
 
     @Test
@@ -66,7 +67,7 @@ public class TestOverlapFixer {
         var fixer = OverlapFixer.builder()
                 .dropOverlaps()
                 .build();
-        assertEquals(Collections.singletonList(large), fixer.fix(large, small));
+        assertEquals(Collections.singletonList(large), fixer.process(List.of(large, small)));
     }
 
     @Test
@@ -77,8 +78,8 @@ public class TestOverlapFixer {
         var fixer = OverlapFixer.builder()
                 .clipOverlaps()
                 .build();
-        assertEquals(2, fixer.fix(large, small).size());
-        assertEquals(120 * 100, sumAreas(fixer.fix(large, small)));
+        assertEquals(2, fixer.process(List.of(large, small)).size());
+        assertEquals(120 * 100, sumAreas(fixer.process(List.of(large, small))));
     }
 
     @Test
@@ -90,7 +91,7 @@ public class TestOverlapFixer {
                 .clipOverlaps()
                 .build();
         var set = Set.of(large, small);
-        assertEquals(set, Set.copyOf(fixer.fix(large, small)));
+        assertEquals(set, Set.copyOf(fixer.process(List.of(large, small))));
     }
 
     private static double sumAreas(Collection<? extends PathObject> pathObjects) {

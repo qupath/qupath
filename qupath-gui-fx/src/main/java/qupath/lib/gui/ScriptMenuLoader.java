@@ -154,7 +154,7 @@ class ScriptMenuLoader {
 				else
 					menu.getItems().setAll(miOpenDirectory, miCreateScript, new SeparatorMenuItem());
 				Path path = Paths.get(scriptDir);
-				if (path != null && path.getFileName() != null) {
+				if (path.getFileName() != null) {
 					addMenuItemsForPath(menu, path);
 				}
 			} else if (miSetPath != null)
