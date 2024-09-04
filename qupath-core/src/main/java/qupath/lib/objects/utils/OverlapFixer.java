@@ -46,7 +46,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
-public class OverlapFixer {
+public class OverlapFixer implements ObjectProcessor {
 
     private static final Logger logger = LoggerFactory.getLogger(OverlapFixer.class);
 
@@ -83,17 +83,6 @@ public class OverlapFixer {
         this.keepFragments = keepFragments;
     }
 
-    /**
-     * Fix overlaps in an array of PathObjects, by the criteria specified in the builder.
-     * This method is thread-safe.
-     * @param pathObjects the input objects
-     * @return the output objects. This may be the same as the input objects, or contain fewer objects -
-     *         possibly with new (clipped) ROIs - but no object will be added or have its properties changed.
-     */
-    public List<PathObject> fix(PathObject... pathObjects) {
-        return fix(List.of(pathObjects));
-    }
-
 
     /**
      * Fix overlaps in a collection of PathObjects, by the criteria specified in the builder.
@@ -102,7 +91,7 @@ public class OverlapFixer {
      * @return the output objects. This may be the same as the input objects, or contain fewer objects -
      *         possibly with new (clipped) ROIs - but no object will be added or have its properties changed.
      */
-    public List<PathObject> fix(Collection<? extends PathObject> pathObjects) {
+    public List<PathObject> process(Collection<? extends PathObject> pathObjects) {
 
         int nInput = pathObjects.size();
 

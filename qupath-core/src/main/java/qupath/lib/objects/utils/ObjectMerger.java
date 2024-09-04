@@ -49,11 +49,9 @@ import java.util.Objects;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 /**
  * Helper class for merging objects using different criteria.
@@ -62,7 +60,7 @@ import java.util.stream.IntStream;
  *
  * @since v0.5.0
  */
-public class ObjectMerger {
+public class ObjectMerger implements ObjectProcessor {
 
     private static final Logger logger = LoggerFactory.getLogger(ObjectMerger.class);
 
@@ -86,6 +84,17 @@ public class ObjectMerger {
     }
 
     /**
+     * Merge the input objects using the merging strategy.
+     * @param pathObjects the input objects for which merges should be calculated
+     * @return a list of objects, with the same number or fewer than the input
+     * @deprecated Use {@link #process(Collection)} instead
+     */
+    @Deprecated
+    public List<PathObject> merge(Collection<? extends PathObject> pathObjects) {
+        return process(pathObjects);
+    }
+
+    /**
      * Calculate the result of applying the merging strategy to the input objects.
      * <p>
      * The output list will contain the same number of objects or fewer.
@@ -99,7 +108,7 @@ public class ObjectMerger {
      * @param pathObjects the input objects for which merges should be calculated
      * @return a list of objects, with the same number or fewer than the input
      */
-    public List<PathObject> merge(Collection<? extends PathObject> pathObjects) {
+    public List<PathObject> process(Collection<? extends PathObject> pathObjects) {
 
         if (pathObjects == null || pathObjects.isEmpty())
             return Collections.emptyList();
@@ -526,11 +535,14 @@ public class ObjectMerger {
         if (pathObjects.isEmpty())
             return null;
 
-        var pathObject = pathObjects.get(0);
+        var pathObject = pathObjects.getFirst();
         if (pathObjects.size() == 1)
             return pathObject;
 
-        var allROIs = pathObjects.stream().map(PathObject::getROI).filter(Objects::nonNull).collect(Collectors.toList());
+        var allROIs = pathObjects.stream().map(PathObject::getROI)
+                .filter(Objects::nonNull)
+                .distinct()
+                .collect(Collectors.toList());
         ROI mergedROI = RoiTools.union(allROIs);
 
         PathObject mergedObject = null;
@@ -540,6 +552,7 @@ public class ObjectMerger {
             var nucleusROIs = pathObjects.stream()
                     .map(PathObjectTools::getNucleusROI)
                     .filter(Objects::nonNull)
+                    .distinct()
                     .collect(Collectors.toList());
             ROI nucleusROI = nucleusROIs.isEmpty() ? null : RoiTools.union(nucleusROIs);
             mergedObject = PathObjects.createCellObject(mergedROI, nucleusROI, pathObject.getPathClass(), null);
