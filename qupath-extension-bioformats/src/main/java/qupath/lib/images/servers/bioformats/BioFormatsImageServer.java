@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -317,7 +317,8 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		try {
 			var path = GeneralTools.toPath(uri);
 			if (path != null) {
-				filePathOrUrl = path.toString();
+				// Use toRealPath to resolve any symbolic links
+				filePathOrUrl = path.toRealPath().toString();
 			}
 		} catch (Exception e) {
 			logger.error(e.getLocalizedMessage(), e);

@@ -314,13 +314,14 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 			logger.warn("No files given!");
 			return;
 		}
-		
+
 		// Check if we have only jar or css files
 		int nJars = 0;
 		int nCss = 0;
 		int nJson = 0;
 		for (File file : list) {
-			var ext = GeneralTools.getExtension(file).orElse("").toLowerCase();
+			// Use the canonical file in case we have a symlink
+			var ext = GeneralTools.getExtension(file.getCanonicalFile()).orElse("").toLowerCase();
 			if (ext.equals(".jar"))
 				nJars++;
 			else if (ext.equals(".css"))
@@ -378,7 +379,7 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 		// This helps us determine whether or not a zip file contains an image or objects, for example
 		Set<String> allUnzippedExtensions = list.stream().flatMap(f -> {
 			try {
-				return PathIO.unzippedExtensions(f.toPath()).stream();
+				return PathIO.unzippedExtensions(f.getCanonicalFile().toPath()).stream();
 			} catch (IOException e) {
 				logger.debug(e.getLocalizedMessage(), e);
 				return Arrays.stream(new String[0]);
@@ -386,9 +387,10 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 		}).collect(Collectors.toSet());
 		
 		// Extract the first (and possibly only) file
-		File file = list.get(0);
-		
-		String fileName = file.getName().toLowerCase();
+		File file = list.getFirst();
+
+		// Get the name of the file using the canonical file, in case we have a symlink
+		String fileName = file.getCanonicalFile().getName().toLowerCase();
 
 		// Check if this is a hierarchy file
 		if (singleFile && (fileName.endsWith(PathPrefs.getSerializationExtension()))) {
