@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -139,8 +139,9 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 		Path filePath = GeneralTools.toPath(uri);
 		String name;
 		// OpenSlide conventionally expects a file path, but some builds might accept a URI
-		if (Files.exists(filePath)) {
-			osr = OpenSlideLoader.openImage(filePath.toAbsolutePath().toString());
+		if (filePath != null && Files.exists(filePath)) {
+			// We need to use the real path to resolve symlinks
+			osr = OpenSlideLoader.openImage(filePath.toRealPath().toString());
 			name = filePath.getFileName().toString();
 		} else {
 			osr = OpenSlideLoader.openImage(uri.toString());
