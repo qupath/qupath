@@ -56,7 +56,7 @@ public class TestOverlapFixer {
         var fixer = OverlapFixer.builder()
                 .discardFragments()
                 .build();
-        assertEquals(1, fixer.fix(large, thin).size());
+        assertEquals(1, fixer.process(List.of(large, thin)).size());
     }
 
     @Test
