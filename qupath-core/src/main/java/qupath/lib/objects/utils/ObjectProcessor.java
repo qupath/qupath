@@ -24,7 +24,7 @@ public interface ObjectProcessor {
      * @param after the processor to apply next
      * @return a processor that applies this processor first, and then the given processor
      */
-    default ObjectProcessor then(ObjectProcessor after) {
+    default ObjectProcessor andThen(ObjectProcessor after) {
         return (input) -> after.process(process(input));
     }
 
