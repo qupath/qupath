@@ -1348,6 +1348,8 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 							if (getGraphic() == null)
 								setGraphic(viewPane);
 						} else if (!serversFailed.contains(item)) {
+							tooltip.setGraphic(viewTooltip);
+							viewCanvas.getGraphicsContext2D().clearRect(0, 0, viewCanvas.getWidth(), viewCanvas.getHeight());
 							executor.submit(() -> {
 								final ProjectTreeRow objectTemp = getItem();
 								final ProjectImageEntry<BufferedImage> entryTemp = ProjectTreeRow.getEntry(objectTemp);
