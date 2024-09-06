@@ -241,7 +241,7 @@ public class WelcomeStage {
 
 		GridPaneUtils.setToExpandGridPaneWidth(comboThemes, comboUpdates, cbShowStartup, btnStarted, labelExplanation);
 		
-		if (GeneralTools.isMac() && "aarch64".equals(System.getProperty("os.arch"))) {  //$NON-NLS-2$
+		if (GeneralTools.isAppleSilicon()) {  //$NON-NLS-2$
 			var textSilicon = makeMacAarch64Message();
 			textSilicon.setTextAlignment(TextAlignment.CENTER);
 			textSilicon.setOpacity(0.9);
@@ -306,8 +306,8 @@ public class WelcomeStage {
 		int ind1 = text.indexOf("{{");
 		int ind2 = text.lastIndexOf("}}");
 		String startText = text.substring(0, ind1);
-		String linkText = text.substring(ind1+2, ind2);
-		String endText = text.substring(ind2+2);
+		String linkText = text.substring(ind1+2, ind2).strip();
+		String endText = text.substring(ind2+2).strip();
 		textSiliconExperimental.setText(startText);
 		linkSilicon.setText(linkText);
 		textSiliconExperimental2.setText(endText);
