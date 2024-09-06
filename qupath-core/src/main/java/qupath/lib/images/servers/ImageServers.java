@@ -529,6 +529,60 @@ public class ImageServers {
 		}
 		
 	}
+
+	static class SlicedImageServerBuilder extends AbstractServerBuilder<BufferedImage> {
+
+		private final ServerBuilder<BufferedImage> builder;
+		private final int zStart;
+		private final int zEnd;
+		private final int tStart;
+		private final int tEnd;
+
+		public SlicedImageServerBuilder(
+				ImageServerMetadata metadata,
+				ServerBuilder<BufferedImage> builder,
+				int zStart,
+				int zEnd,
+				int tStart,
+				int tEnd
+		) {
+			super(metadata);
+
+			this.builder = builder;
+			this.zStart = zStart;
+			this.zEnd = zEnd;
+			this.tStart = tStart;
+			this.tEnd = tEnd;
+		}
+
+		@Override
+		protected ImageServer<BufferedImage> buildOriginal() throws Exception {
+			return new SlicedImageServer(builder.build(), zStart, zEnd, tStart, tEnd);
+		}
+
+		@Override
+		public Collection<URI> getURIs() {
+			return builder.getURIs();
+		}
+
+		@Override
+		public ServerBuilder<BufferedImage> updateURIs(Map<URI, URI> updateMap) {
+			ServerBuilder<BufferedImage> newBuilder = builder.updateURIs(updateMap);
+			if (newBuilder == builder) {
+				return this;
+			} else {
+				return new SlicedImageServerBuilder(
+						getMetadata().orElse(null),
+						newBuilder,
+						zStart,
+						zEnd,
+						tStart,
+						tEnd
+				);
+			}
+		}
+
+	}
 	
 	static class AffineTransformImageServerBuilder extends AbstractServerBuilder<BufferedImage> {
 		
