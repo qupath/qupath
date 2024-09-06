@@ -724,7 +724,15 @@ public final class GeneralTools {
 	 */
 	public static boolean isMac() {
 		String os = System.getProperty("os.name").toLowerCase();
-		return os.indexOf("mac") >= 0 || os.indexOf("darwin") >= 0;
+		return os.contains("mac") || os.contains("darwin");
+	}
+
+	/**
+	 * Return true if running on macOS and Apple Silicon.
+	 * @return
+	 */
+	public static boolean isAppleSilicon() {
+		return isMac() && "aarch64".equals(System.getProperty("os.arch"));
 	}
 
 	/**
