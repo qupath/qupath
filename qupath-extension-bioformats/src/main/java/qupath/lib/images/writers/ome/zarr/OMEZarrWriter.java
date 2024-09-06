@@ -10,15 +10,19 @@ import com.bc.zarr.ZarrGroup;
 import loci.formats.gui.AWTImageTools;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.lib.images.servers.CroppedImageServer;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServers;
 import qupath.lib.images.servers.PixelCalibration;
+import qupath.lib.images.servers.SlicedImageServer;
 import qupath.lib.images.servers.TileRequest;
 import qupath.lib.images.servers.TileRequestManager;
+import qupath.lib.regions.ImageRegion;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -49,7 +53,7 @@ public class OMEZarrWriter implements AutoCloseable {
     private final ExecutorService executorService;
 
     private OMEZarrWriter(Builder builder) throws IOException {
-        server = ImageServers.pyramidalizeTiled(
+        ImageServer<BufferedImage> pyramidalServer = ImageServers.pyramidalizeTiled(
                 builder.server,
                 getChunkSize(
                         builder.tileWidth > 0 ? builder.tileWidth : builder.server.getMetadata().getPreferredTileWidth(),
@@ -63,6 +67,23 @@ public class OMEZarrWriter implements AutoCloseable {
                 ),
                 builder.downsamples.length == 0 ? builder.server.getPreferredDownsamples() : builder.downsamples
         );
+        ImageServer<BufferedImage> pyramidalAndSlicedServer;
+        if (builder.zStart == 0 && builder.zEnd == builder.server.nZSlices()-1 && builder.tStart == 0 && builder.tEnd == builder.server.nTimepoints()-1) {
+            pyramidalAndSlicedServer = pyramidalServer;
+        } else {
+            pyramidalAndSlicedServer = new SlicedImageServer(
+                    pyramidalServer,
+                    builder.zStart,
+                    builder.zEnd,
+                    builder.tStart,
+                    builder.tEnd
+            );
+        }
+        if (builder.boundingBox == null) {
+            server = pyramidalAndSlicedServer;
+        } else {
+            server = new CroppedImageServer(pyramidalAndSlicedServer, builder.boundingBox);
+        }
 
         OMEZarrAttributesCreator attributes = new OMEZarrAttributesCreator(
                 server.getMetadata().getName(),
@@ -180,6 +201,11 @@ public class OMEZarrWriter implements AutoCloseable {
         private int maxNumberOfChunks = 50;
         private int tileWidth = 512;
         private int tileHeight = 512;
+        private ImageRegion boundingBox = null;
+        private int zStart = 0;
+        private int zEnd;
+        private int tStart = 0;
+        private int tEnd;
 
         /**
          * Create the builder.
@@ -195,6 +221,8 @@ public class OMEZarrWriter implements AutoCloseable {
 
             this.server = server;
             this.path = path;
+            this.zEnd = this.server.nZSlices() - 1;
+            this.tEnd = this.server.nTimepoints() - 1;
         }
 
         /**
@@ -299,6 +327,45 @@ public class OMEZarrWriter implements AutoCloseable {
         }
 
         /**
+         * Define a region (on the x-axis and y-axis) of the input image to consider.
+         *
+         * @param boundingBox the region to consider. Only the x, y, width, and height
+         *                    of this region are taken into account. Can be null to use
+         *                    the entire image
+         * @return this builder
+         */
+        public Builder setBoundingBox(ImageRegion boundingBox) {
+            this.boundingBox = boundingBox;
+            return this;
+        }
+
+        /**
+         * Define the z-slices of the input image to consider.
+         *
+         * @param zStart the 0-based inclusive index of the first z-slice to consider
+         * @param zEnd the 0-based inclusive index of the last z-slice to consider
+         * @return this builder
+         */
+        public Builder setZSlices(int zStart, int zEnd) {
+            this.zStart = zStart;
+            this.zEnd = zEnd;
+            return this;
+        }
+
+        /**
+         * Define the timepoints of the input image to consider.
+         *
+         * @param tStart the 0-based inclusive index of the first timepoint to consider
+         * @param tEnd the 0-based inclusive index of the last timepoint to consider
+         * @return this builder
+         */
+        public Builder setTimepoints(int tStart, int tEnd) {
+            this.tStart = tStart;
+            this.tEnd = tEnd;
+            return this;
+        }
+
+        /**
          * Create a new instance of {@link OMEZarrWriter}. This will also
          * create an empty image on the provided path.
          *
@@ -376,7 +443,7 @@ public class OMEZarrWriter implements AutoCloseable {
             chunks.add(1);
         }
         if (server.nZSlices() > 1) {
-            chunks.add(Math.max(server.getMetadata().getPreferredTileWidth(), server.getMetadata().getPreferredTileHeight()));
+            chunks.add(1);
         }
         chunks.add(server.getMetadata().getPreferredTileHeight());
         chunks.add(server.getMetadata().getPreferredTileWidth());
