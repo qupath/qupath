@@ -34,13 +34,18 @@ This is a *work in progress* for the next major release.
   * New icon & other drawing icons change to indicate when they are active in selection mode
   * Selection mode works with line ROIs, selecting any intersecting objects
   * Temporarily active 'Selection mode' by pressing the `S` key while interacting with a viewer
+* More viewer options are persistent (e.g. show/hide the overview thumbnail, location text, or scalebar)
+* Better support for symbolic links (https://github.com/qupath/qupath/issues/1586)
+
+### Experimental features
+These features are included for testing and feedback.
+They may change or be removed in future versions.
+* 'Dynamic detection line thickness (experimental)' preference (https://github.com/qupath/qupath/pull/1623)
+  * Experimental preference to adjust how detections are displayed when zoomed in
 * New toolbar button to show/hide 'neighbors' in the viewer (https://github.com/qupath/qupath/pull/1597)
-  * *Experimental* new code to help with querying neighbors
   * Note that the *Delaunay cluster features 2D* command is now deprecated - see https://github.com/qupath/qupath/issues/1590 for details
     * If you use this command, the calculated connections are displayed instead of the default neighbor connections for compatibility.
       However, this support will be removed in a future version.
-* More viewer options are persistent (e.g. show/hide the overview thumbnail, location text, or scalebar)
-* Better support for symbolic links (https://github.com/qupath/qupath/issues/1586)
 
 ### Bugs fixed
 * Tile export to .ome.tif can convert to 8-bit unnecessarily (https://github.com/qupath/qupath/issues/1494)

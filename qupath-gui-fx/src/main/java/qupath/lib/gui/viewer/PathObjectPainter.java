@@ -366,8 +366,13 @@ public class PathObjectPainter {
 	}
 
 
+	private static boolean useDetectionStrokeWidth(double downsample) {
+		return downsample >= 1 || !PathPrefs.newDetectionRenderingProperty().get();
+	}
+
+
 	private static Stroke calculateStroke(PathObject pathObject, double downsample, boolean isSelected) {
-		if (pathObject.isDetection() && downsample > 1) {
+		if (pathObject.isDetection() && useDetectionStrokeWidth(downsample)) {
 			// Detections inside detections get half the line width
 			if (pathObject.getParent() instanceof PathDetectionObject)
 				return getCachedStroke(PathPrefs.detectionStrokeThicknessProperty().get() / 2.0);
@@ -1080,6 +1085,34 @@ public class PathObjectPainter {
 	}
 
 	/**
+	 * Return the stroke thickness to use for drawing connection lines between objects.
+	 * @param downsample
+	 * @return
+	 */
+	private static double getConnectionStrokeThickness(double downsample) {
+		double thickness = PathPrefs.detectionStrokeThicknessProperty().get();
+		// Don't try to draw connections if the line is too thin
+		if (thickness / downsample <= 0.25)
+			return 0;
+		// Check if we're using the 'standard' stroke width, or the experimental new rendering
+		if (useDetectionStrokeWidth(downsample))
+			return thickness;
+		else
+			return thickness * Math.min(1, downsample);
+	}
+
+	/**
+	 * Adjust the opacity of connection lines according to the downsample (since rendering a huge number
+	 * is slow, and makes the image look cluttered).
+	 * @param downsample
+	 * @return
+	 */
+	private static float getConnectionAlpha(double downsample) {
+		float alpha = (float)(1f - downsample / 5);
+		return Math.min(alpha, 0.4f);
+	}
+
+	/**
 	 * Paint connections between objects (e.g. from Delaunay triangulation).
 	 * 
 	 * @param connections
@@ -1097,10 +1130,9 @@ public class PathObjectPainter {
 
 		LogTools.warnOnce(logger, "Legacy 'Delaunay cluster features 2D' connections are being shown in the viewer - this command is deprecated, and support will be removed in a future version");
 
-		float alpha = (float)(1f - downsampleFactor / 5);
-		alpha = Math.min(alpha, 0.4f);
-		double thickness = PathPrefs.detectionStrokeThicknessProperty().get();
-		if (alpha < .1f || thickness / downsampleFactor <= 0.25)
+		float alpha = getConnectionAlpha(downsampleFactor);
+		double thickness = getConnectionStrokeThickness(downsampleFactor);
+		if (alpha < .1f || thickness <= 0.0)
 			return;
 
 		g2d = (Graphics2D)g2d.create();
@@ -1179,10 +1211,9 @@ public class PathObjectPainter {
 		if (hierarchy == null || subdivision.size() <= 1)
 			return;
 
-		float alpha = (float)(1f - downsampleFactor / 5);
-		alpha = Math.min(alpha, 0.4f);
-		double thickness = PathPrefs.detectionStrokeThicknessProperty().get() * Math.min(1, downsampleFactor);
-		if (alpha < .1f || thickness / downsampleFactor <= 0.25)
+		float alpha = getConnectionAlpha(downsampleFactor);
+		double thickness = getConnectionStrokeThickness(downsampleFactor);
+		if (alpha < .1f || thickness <= 0.0)
 			return;
 
 		g2d = (Graphics2D)g2d.create();

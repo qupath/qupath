@@ -495,6 +495,9 @@ public class PreferencePane {
 		@DoublePref("Prefs.Objects.detectionLineThickness")
 		public final DoubleProperty detectonStrokeThickness = PathPrefs.detectionStrokeThicknessProperty();
 
+		@BooleanPref("Prefs.Objects.newDetectionRendering")
+		public final BooleanProperty newDetectionRendering = PathPrefs.newDetectionRenderingProperty();
+
 		@BooleanPref("Prefs.Objects.useSelectedColor")
 		public final BooleanProperty useSelectedColor = PathPrefs.useSelectedColorProperty();
 

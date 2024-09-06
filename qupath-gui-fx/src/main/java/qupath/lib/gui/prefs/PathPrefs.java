@@ -1712,6 +1712,18 @@ public class PathPrefs {
     public static DoubleProperty annotationStrokeThicknessProperty() {
     	return strokeThickThickness;
     }
+
+	private static BooleanProperty newDetectionRendering = new SimpleBooleanProperty(false);
+
+	/**
+	 * Flag to enable the new rendering strategy for detections.
+	 * This can be used to temporarily turn on/off the rendering, to help refine the behavior.
+	 * @return
+	 * @since v0.6.0
+	 */
+	public static BooleanProperty newDetectionRenderingProperty() {
+		return newDetectionRendering;
+	}
     
     private static final BooleanProperty usePixelSnapping = createPersistentPreference("usePixelSnapping", true);
     
