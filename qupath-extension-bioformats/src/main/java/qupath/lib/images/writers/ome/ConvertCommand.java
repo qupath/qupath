@@ -236,8 +236,8 @@ public class ConvertCommand implements Runnable, Subcommand {
 							.setTileWidth(tileWidth)
 							.setTileHeight(tileHeight)
 							.setBoundingBox(boundingBox.orElse(null))
-							.setZSlices(zSlicesRange.start(), zSlicesRange.end()-1)
-							.setTimepoints(timepointsRange.start(), timepointsRange.end()-1);
+							.setZSlices(zSlicesRange.start(), zSlicesRange.end())
+							.setTimepoints(timepointsRange.start(), timepointsRange.end());
 
 					if (!parallelize) {
 						builder.setNumberOfThreads(1);
