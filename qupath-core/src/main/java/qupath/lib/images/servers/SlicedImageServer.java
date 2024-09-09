@@ -27,12 +27,12 @@ public class SlicedImageServer extends TransformingImageServer<BufferedImage> {
      *
      * @param inputServer the input image to slice
      * @param zStart the inclusive 0-based index of the first slice to consider
-     * @param zEnd the inclusive 0-based index of the last slide to consider
+     * @param zEnd the exclusive 0-based index of the last slide to consider
      * @param tStart the inclusive 0-based index of the first timepoint to consider
-     * @param tEnd the inclusive 0-based index of the last timepoint to consider
+     * @param tEnd the exclusive 0-based index of the last timepoint to consider
      * @throws IllegalArgumentException when a start index is greater than its corresponding end index
      */
-    public SlicedImageServer(
+    SlicedImageServer(
             ImageServer<BufferedImage> inputServer,
             int zStart,
             int zEnd,
@@ -41,17 +41,17 @@ public class SlicedImageServer extends TransformingImageServer<BufferedImage> {
     ) {
         super(inputServer);
 
-        this.zStart = setNumberInRange(zStart, inputServer.nZSlices() - 1);
-        this.zEnd = setNumberInRange(zEnd, inputServer.nZSlices() - 1);
-        this.tStart = setNumberInRange(tStart, inputServer.nTimepoints() - 1);
-        this.tEnd = setNumberInRange(tEnd, inputServer.nTimepoints() - 1);
+        this.zStart = setNumberInRange(zStart, 0, inputServer.nZSlices() - 1);
+        this.zEnd = setNumberInRange(zEnd, 1, inputServer.nZSlices());
+        this.tStart = setNumberInRange(tStart, 0, inputServer.nTimepoints() - 1);
+        this.tEnd = setNumberInRange(tEnd, 1, inputServer.nTimepoints());
 
         checkOrder(this.zStart, this.zEnd, "z-slice");
         checkOrder(this.tStart, this.tEnd, "timepoint");
 
         metadata = new ImageServerMetadata.Builder(inputServer.getMetadata())
-                .sizeZ(this.zEnd - this.zStart + 1)
-                .sizeT(this.tEnd - this.tStart + 1)
+                .sizeZ(this.zEnd - this.zStart)
+                .sizeT(this.tEnd - this.tStart)
                 .build();
     }
 
@@ -101,8 +101,8 @@ public class SlicedImageServer extends TransformingImageServer<BufferedImage> {
         ));
     }
 
-    private static int setNumberInRange(int number, int max) {
-        return Math.max(0, Math.min(number, max));
+    private static int setNumberInRange(int number, int min, int max) {
+        return Math.max(min, Math.min(number, max));
     }
 
     private static void checkOrder(int min, int max, String name) {

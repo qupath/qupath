@@ -21,7 +21,7 @@ public class TestSlicedImageServer {
         ImageServer<BufferedImage> sampleServer = new SampleImageServer();
         int zStart = 1;
         int zEnd = 3;
-        int expectedNumberOfZSlices = zEnd - zStart + 1;
+        int expectedNumberOfZSlices = zEnd - zStart;
         ImageServer<BufferedImage> slicedServer = new SlicedImageServer(sampleServer, zStart, zEnd, 0, 0);
 
         int numberOfZSlices = slicedServer.nZSlices();
@@ -102,7 +102,7 @@ public class TestSlicedImageServer {
         ImageServer<BufferedImage> sampleServer = new SampleImageServer();
         int tStart = 1;
         int tEnd = 3;
-        int expectedNumberOfTimepoints = tEnd - tStart + 1;
+        int expectedNumberOfTimepoints = tEnd - tStart;
         ImageServer<BufferedImage> slicedServer = new SlicedImageServer(sampleServer, 0, 0, tStart, tEnd);
 
         int numberOfTimepoints = slicedServer.nTimepoints();

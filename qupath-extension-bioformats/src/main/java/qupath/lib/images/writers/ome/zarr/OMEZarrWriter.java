@@ -10,13 +10,12 @@ import com.bc.zarr.ZarrGroup;
 import loci.formats.gui.AWTImageTools;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qupath.lib.images.servers.CroppedImageServer;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServers;
 import qupath.lib.images.servers.PixelCalibration;
-import qupath.lib.images.servers.SlicedImageServer;
 import qupath.lib.images.servers.TileRequest;
 import qupath.lib.images.servers.TileRequestManager;
+import qupath.lib.images.servers.TransformedServerBuilder;
 import qupath.lib.regions.ImageRegion;
 
 import java.awt.image.BufferedImage;
@@ -52,7 +51,7 @@ public class OMEZarrWriter implements AutoCloseable {
     private final ExecutorService executorService;
 
     private OMEZarrWriter(Builder builder) throws IOException {
-        ImageServer<BufferedImage> pyramidalServer = ImageServers.pyramidalizeTiled(
+        TransformedServerBuilder transformedServerBuilder = new TransformedServerBuilder(ImageServers.pyramidalizeTiled(
                 builder.server,
                 getChunkSize(
                         builder.tileWidth > 0 ? builder.tileWidth : builder.server.getMetadata().getPreferredTileWidth(),
@@ -65,24 +64,19 @@ public class OMEZarrWriter implements AutoCloseable {
                         builder.server.getHeight()
                 ),
                 builder.downsamples.length == 0 ? builder.server.getPreferredDownsamples() : builder.downsamples
-        );
-        ImageServer<BufferedImage> pyramidalAndSlicedServer;
-        if (builder.zStart == 0 && builder.zEnd == builder.server.nZSlices()-1 && builder.tStart == 0 && builder.tEnd == builder.server.nTimepoints()-1) {
-            pyramidalAndSlicedServer = pyramidalServer;
-        } else {
-            pyramidalAndSlicedServer = new SlicedImageServer(
-                    pyramidalServer,
+        ));
+        if (builder.zStart != 0 || builder.zEnd != builder.server.nZSlices() || builder.tStart != 0 || builder.tEnd != builder.server.nTimepoints()) {
+            transformedServerBuilder.slice(
                     builder.zStart,
                     builder.zEnd,
                     builder.tStart,
                     builder.tEnd
             );
         }
-        if (builder.boundingBox == null) {
-            server = pyramidalAndSlicedServer;
-        } else {
-            server = new CroppedImageServer(pyramidalAndSlicedServer, builder.boundingBox);
+        if (builder.boundingBox != null) {
+            transformedServerBuilder.crop(builder.boundingBox);
         }
+        server = transformedServerBuilder.build();
 
         OMEZarrAttributesCreator attributes = new OMEZarrAttributesCreator(
                 server.getMetadata().getName(),
@@ -220,8 +214,8 @@ public class OMEZarrWriter implements AutoCloseable {
 
             this.server = server;
             this.path = path;
-            this.zEnd = this.server.nZSlices() - 1;
-            this.tEnd = this.server.nTimepoints() - 1;
+            this.zEnd = this.server.nZSlices();
+            this.tEnd = this.server.nTimepoints();
         }
 
         /**
@@ -342,7 +336,7 @@ public class OMEZarrWriter implements AutoCloseable {
          * Define the z-slices of the input image to consider.
          *
          * @param zStart the 0-based inclusive index of the first z-slice to consider
-         * @param zEnd the 0-based inclusive index of the last z-slice to consider
+         * @param zEnd the 0-based exclusive index of the last z-slice to consider
          * @return this builder
          */
         public Builder setZSlices(int zStart, int zEnd) {
@@ -355,7 +349,7 @@ public class OMEZarrWriter implements AutoCloseable {
          * Define the timepoints of the input image to consider.
          *
          * @param tStart the 0-based inclusive index of the first timepoint to consider
-         * @param tEnd the 0-based inclusive index of the last timepoint to consider
+         * @param tEnd the 0-based exclusive index of the last timepoint to consider
          * @return this builder
          */
         public Builder setTimepoints(int tStart, int tEnd) {

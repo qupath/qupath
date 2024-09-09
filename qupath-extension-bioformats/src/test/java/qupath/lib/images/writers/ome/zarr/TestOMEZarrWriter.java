@@ -274,8 +274,8 @@ public class TestOMEZarrWriter {
         String outputImagePath = Paths.get(Files.createTempDirectory(UUID.randomUUID().toString()).toString(), "image.ome.zarr").toString();
         SampleImageServer sampleImageServer = new SampleImageServer();
         int zStart = 1;
-        int zEnd = 2;
-        int expectedNumberOfZStacks = zEnd - zStart + 1;
+        int zEnd = 3;
+        int expectedNumberOfZStacks = zEnd - zStart;
 
         OMEZarrWriter writer = new OMEZarrWriter.Builder(sampleImageServer, outputImagePath)
                 .setZSlices(zStart, zEnd)
@@ -297,7 +297,7 @@ public class TestOMEZarrWriter {
         String outputImagePath = Paths.get(Files.createTempDirectory(UUID.randomUUID().toString()).toString(), "image.ome.zarr").toString();
         SampleImageServer sampleImageServer = new SampleImageServer();
         int zStart = 1;
-        int zEnd = 2;
+        int zEnd = 3;
         int z = 1;
         int t = 1;
         BufferedImage expectedImage = sampleImageServer.readRegion(RegionRequest.createInstance(
@@ -331,8 +331,8 @@ public class TestOMEZarrWriter {
         String outputImagePath = Paths.get(Files.createTempDirectory(UUID.randomUUID().toString()).toString(), "image.ome.zarr").toString();
         SampleImageServer sampleImageServer = new SampleImageServer();
         int tStart = 1;
-        int tEnd = 1;
-        int expectedNumberOfTimepoints = tEnd - tStart + 1;
+        int tEnd = 2;
+        int expectedNumberOfTimepoints = tEnd - tStart;
 
         OMEZarrWriter writer = new OMEZarrWriter.Builder(sampleImageServer, outputImagePath)
                 .setTimepoints(tStart, tEnd)
@@ -354,7 +354,7 @@ public class TestOMEZarrWriter {
         String outputImagePath = Paths.get(Files.createTempDirectory(UUID.randomUUID().toString()).toString(), "image.ome.zarr").toString();
         SampleImageServer sampleImageServer = new SampleImageServer();
         int tStart = 1;
-        int tEnd = 1;
+        int tEnd = 2;
         int z = 1;
         int t = 1;
         BufferedImage expectedImage = sampleImageServer.readRegion(RegionRequest.createInstance(
