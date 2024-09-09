@@ -378,9 +378,12 @@ public class OMEZarrWriter implements AutoCloseable {
     }
 
     private static int getChunkSize(int tileSize, int maxNumberOfChunks, int imageSize) {
-        return maxNumberOfChunks > 0 ?
-                Math.max(tileSize, imageSize / maxNumberOfChunks) :
-                tileSize;
+        return Math.min(
+                imageSize,
+                maxNumberOfChunks > 0 ?
+                        Math.max(tileSize, imageSize / maxNumberOfChunks) :
+                        tileSize
+        );
     }
 
     private static Map<Integer, ZarrArray> createLevelArrays(

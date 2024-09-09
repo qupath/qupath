@@ -91,7 +91,7 @@ public class TestSlicedImageServer {
                 0
         ));
 
-        Assertions.assertTrue(bufferedImagesEqual(expectedImage, image));
+        assertDoubleBufferedImagesEqual(expectedImage, image);
 
         slicedServer.close();
         sampleServer.close();
@@ -172,7 +172,7 @@ public class TestSlicedImageServer {
                 tToRead
         ));
 
-        Assertions.assertTrue(bufferedImagesEqual(expectedImage, image));
+        assertDoubleBufferedImagesEqual(expectedImage, image);
 
         slicedServer.close();
         sampleServer.close();
@@ -271,18 +271,19 @@ public class TestSlicedImageServer {
         }
     }
 
-    private boolean bufferedImagesEqual(BufferedImage expectedImage, BufferedImage actualImage) {
-        if (expectedImage.getWidth() == actualImage.getWidth() && expectedImage.getHeight() == actualImage.getHeight()) {
-            for (int x = 0; x < expectedImage.getWidth(); x++) {
-                for (int y = 0; y < expectedImage.getHeight(); y++) {
-                    if (expectedImage.getRGB(x, y) != actualImage.getRGB(x, y)) {
-                        return false;
-                    }
-                }
+    private void assertDoubleBufferedImagesEqual(BufferedImage expectedImage, BufferedImage actualImage) {
+        Assertions.assertEquals(expectedImage.getWidth(), actualImage.getWidth());
+        Assertions.assertEquals(expectedImage.getHeight(), actualImage.getHeight());
+
+        double[] expectedPixels = new double[expectedImage.getSampleModel().getNumBands()];
+        double[] actualPixels = new double[actualImage.getSampleModel().getNumBands()];
+        for (int x = 0; x < expectedImage.getWidth(); x++) {
+            for (int y = 0; y < expectedImage.getHeight(); y++) {
+                Assertions.assertArrayEquals(
+                        (double[]) expectedImage.getData().getDataElements(x, y, expectedPixels),
+                        (double[]) actualImage.getData().getDataElements(x, y, actualPixels)
+                );
             }
-            return true;
-        } else {
-            return false;
         }
     }
 }

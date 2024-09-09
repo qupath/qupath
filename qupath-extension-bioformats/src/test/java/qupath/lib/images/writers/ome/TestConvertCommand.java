@@ -246,8 +246,6 @@ public class TestConvertCommand {
         private static final int IMAGE_HEIGHT = 5;
         private static final int NUMBER_OF_Z_SLICES = 3;
         private static final int NUMBER_OF_TIMEPOINTS = 2;
-        private static final double[] DOWNSAMPLES = new double[] {1.0, 2.0};
-        private static final int TILE_SIZE = 1;
 
         public SampleImageServer() {
             super(BufferedImage.class);
@@ -281,7 +279,7 @@ public class TestConvertCommand {
                     .sizeZ(NUMBER_OF_Z_SLICES)
                     .sizeT(NUMBER_OF_TIMEPOINTS)
                     .pixelType(PixelType.FLOAT64)
-                    .preferredTileSize(TILE_SIZE, TILE_SIZE)
+                    .preferredTileSize(1, 1)
                     .channels(List.of(
                             ImageChannel.getInstance("c1", 1),
                             ImageChannel.getInstance("c2", 2),
@@ -290,7 +288,7 @@ public class TestConvertCommand {
                             ImageChannel.getInstance("c5", 5)
                     ))
                     .name("name")
-                    .levelsFromDownsamples(DOWNSAMPLES)
+                    .levelsFromDownsamples(1, 2)
                     .build();
         }
 
@@ -333,7 +331,7 @@ public class TestConvertCommand {
         }
 
         private static double getPixel(int x, int y, int channel, int z, int t) {
-            return z + t + channel + ((double) x / SampleImageServer.IMAGE_WIDTH + (double) y / SampleImageServer.IMAGE_HEIGHT) / 2;
+            return z + t + channel + ((double) x / IMAGE_WIDTH + (double) y / IMAGE_HEIGHT) / 2;
         }
     }
 
