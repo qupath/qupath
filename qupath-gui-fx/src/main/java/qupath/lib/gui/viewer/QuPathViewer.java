@@ -443,42 +443,11 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 			context.strokeRect(0, 0, canvas.getWidth(), canvas.getHeight());
 		}
 		
-		
-		
-//		// Basic code for including the TMA core name
-//		if (getHierarchy().getTMAGrid() != null) {
-//			Point2D pSource = new Point2D.Double();
-//			Point2D pDest = new Point2D.Double();
-//			context.setTextAlign(TextAlignment.CENTER);
-//			context.setTextBaseline(VPos.CENTER);
-//			for (TMACoreObject core : getHierarchy().getTMAGrid().getTMACoreList()) {
-//				if (core.getName() == null)
-//					continue;
-//				double x = core.getROI().getBoundsX() + core.getROI().getBoundsWidth()/2;
-//				double y = core.getROI().getBoundsY() + core.getROI().getBoundsHeight()/2;
-//				pSource.setLocation(x, y);
-//				transform.transform(pSource, pDest);
-//				context.setFill(getSuggestedOverlayColorFX());
-//				context.setStroke(javafx.scene.paint.Color.WHITE);
-//				double xf = pDest.getX();
-//				double yf = pDest.getY();
-//				context.fillText(core.getName(), xf, yf, core.getROI().getBoundsWidth()/getDownsampleFactor()*0.5);
-//			}
-//		}
-		
-		
-//		if (getServer() == null) {
-//			context.setStroke(javafx.scene.paint.Color.GREENYELLOW);
-//			context.setLineWidth(borderLineWidth);
-//			context.strokeRect(0, 0, canvas.getWidth(), canvas.getHeight());
-//		}
-		
 		long time = System.currentTimeMillis();
 		logger.trace("Time since last repaint: {} ms", (time - lastPaint));
 		lastPaint = System.currentTimeMillis();
 		
 		imageDataChanging.set(false);
-//		repaintRequested = false;
 	}
 	
 	/**
@@ -768,7 +737,8 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		
 		// We need a simple repaint for color changes & simple (thick) line changes
 		manager.attachListener(PathPrefs.annotationStrokeThicknessProperty(), repainter);
-		
+		manager.attachListener(PathPrefs.newDetectionRenderingProperty(), repainter);
+
 		gammaProperty.set(PathPrefs.viewerGammaProperty().get());
 		gammaProperty.bind(PathPrefs.viewerGammaProperty());
 		manager.attachListener(gammaProperty, repainterEntire);
