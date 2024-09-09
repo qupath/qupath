@@ -384,6 +384,8 @@ public class TestOMEZarrWriter {
 
     private static class SampleImageServer extends AbstractImageServer<BufferedImage> {
 
+        private static final int IMAGE_WIDTH = 64;
+        private static final int IMAGE_HEIGHT = 64;
 
         public SampleImageServer() {
             super(BufferedImage.class);
@@ -412,8 +414,8 @@ public class TestOMEZarrWriter {
         @Override
         public ImageServerMetadata getOriginalMetadata() {
             return new ImageServerMetadata.Builder()
-                    .width(64)
-                    .height(64)
+                    .width(IMAGE_WIDTH)
+                    .height(IMAGE_HEIGHT)
                     .sizeZ(3)
                     .sizeT(2)
                     .pixelType(PixelType.FLOAT64)
@@ -477,8 +479,8 @@ public class TestOMEZarrWriter {
             return pixels;
         }
 
-        private double getPixel(int x, int y, int channel, int z, int t) {
-            return z + t + channel + ((double) x / getWidth() + (double) y / getHeight()) / 2;
+        private static double getPixel(int x, int y, int channel, int z, int t) {
+            return z + t + channel + ((double) x / IMAGE_WIDTH + (double) y / IMAGE_HEIGHT) / 2;
         }
     }
 
