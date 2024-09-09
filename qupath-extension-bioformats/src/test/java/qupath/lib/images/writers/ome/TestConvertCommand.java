@@ -22,7 +22,9 @@ import java.awt.image.DataBuffer;
 import java.awt.image.DataBufferDouble;
 import java.awt.image.WritableRaster;
 import java.io.File;
+import java.io.IOException;
 import java.net.URI;
+import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.List;
@@ -52,7 +54,7 @@ public class TestConvertCommand {
         void Check_Image_Not_Cropped() throws Exception {
             ConvertCommand convertCommand = new ConvertCommand();
             CommandLine cmd = new CommandLine(convertCommand);
-            String outputImagePath = Paths.get(System.getProperty("java.io.tmpdir"), UUID.randomUUID() + getImageExtension()).toString();
+            String outputImagePath = Paths.get(Files.createTempDirectory(UUID.randomUUID().toString()).toString(), "image" + getImageExtension()).toString();
             int expectedWidth = SampleImageServer.IMAGE_WIDTH;
 
             cmd.execute(inputImagePath, outputImagePath, "-r", "");
@@ -68,7 +70,7 @@ public class TestConvertCommand {
         void Check_Image_Cropped() throws Exception {
             ConvertCommand convertCommand = new ConvertCommand();
             CommandLine cmd = new CommandLine(convertCommand);
-            String outputImagePath = Paths.get(System.getProperty("java.io.tmpdir"), UUID.randomUUID() + getImageExtension()).toString();
+            String outputImagePath = Paths.get(Files.createTempDirectory(UUID.randomUUID().toString()).toString(), "image" + getImageExtension()).toString();
             int expectedWidth = 2;
 
             cmd.execute(inputImagePath, outputImagePath, "-r", String.format("0,0,%d,1", expectedWidth));
@@ -84,7 +86,7 @@ public class TestConvertCommand {
         void Check_Image_Not_Z_Sliced() throws Exception {
             ConvertCommand convertCommand = new ConvertCommand();
             CommandLine cmd = new CommandLine(convertCommand);
-            String outputImagePath = Paths.get(System.getProperty("java.io.tmpdir"), UUID.randomUUID() + getImageExtension()).toString();
+            String outputImagePath = Paths.get(Files.createTempDirectory(UUID.randomUUID().toString()).toString(), "image" + getImageExtension()).toString();
             int expectedZSlices = SampleImageServer.NUMBER_OF_Z_SLICES;
 
             cmd.execute(inputImagePath, outputImagePath, "-z", "all");
@@ -100,7 +102,7 @@ public class TestConvertCommand {
         void Check_Image_Z_Sliced() throws Exception {
             ConvertCommand convertCommand = new ConvertCommand();
             CommandLine cmd = new CommandLine(convertCommand);
-            String outputImagePath = Paths.get(System.getProperty("java.io.tmpdir"), UUID.randomUUID() + getImageExtension()).toString();
+            String outputImagePath = Paths.get(Files.createTempDirectory(UUID.randomUUID().toString()).toString(), "image" + getImageExtension()).toString();
             int expectedZSlices = 1;
 
             cmd.execute(inputImagePath, outputImagePath, "-z", "1");
@@ -116,7 +118,7 @@ public class TestConvertCommand {
         void Check_Image_Z_Sliced_By_Range() throws Exception {
             ConvertCommand convertCommand = new ConvertCommand();
             CommandLine cmd = new CommandLine(convertCommand);
-            String outputImagePath = Paths.get(System.getProperty("java.io.tmpdir"), UUID.randomUUID() + getImageExtension()).toString();
+            String outputImagePath = Paths.get(Files.createTempDirectory(UUID.randomUUID().toString()).toString(), "image" + getImageExtension()).toString();
             int expectedZSlices = 2;
 
             cmd.execute(inputImagePath, outputImagePath, "-z", "1-2");
@@ -132,7 +134,7 @@ public class TestConvertCommand {
         void Check_Image_Not_T_Sliced() throws Exception {
             ConvertCommand convertCommand = new ConvertCommand();
             CommandLine cmd = new CommandLine(convertCommand);
-            String outputImagePath = Paths.get(System.getProperty("java.io.tmpdir"), UUID.randomUUID() + getImageExtension()).toString();
+            String outputImagePath = Paths.get(Files.createTempDirectory(UUID.randomUUID().toString()).toString(), "image" + getImageExtension()).toString();
             int expectedTimepoints = SampleImageServer.NUMBER_OF_TIMEPOINTS;
 
             cmd.execute(inputImagePath, outputImagePath, "-t", "all");
@@ -148,7 +150,7 @@ public class TestConvertCommand {
         void Check_Image_T_Sliced() throws Exception {
             ConvertCommand convertCommand = new ConvertCommand();
             CommandLine cmd = new CommandLine(convertCommand);
-            String outputImagePath = Paths.get(System.getProperty("java.io.tmpdir"), UUID.randomUUID() + getImageExtension()).toString();
+            String outputImagePath = Paths.get(Files.createTempDirectory(UUID.randomUUID().toString()).toString(), "image" + getImageExtension()).toString();
             int expectedTimepoints = 1;
 
             cmd.execute(inputImagePath, outputImagePath, "-t", "1");
@@ -164,7 +166,7 @@ public class TestConvertCommand {
         void Check_Image_T_Sliced_By_Range() throws Exception {
             ConvertCommand convertCommand = new ConvertCommand();
             CommandLine cmd = new CommandLine(convertCommand);
-            String outputImagePath = Paths.get(System.getProperty("java.io.tmpdir"), UUID.randomUUID() + getImageExtension()).toString();
+            String outputImagePath = Paths.get(Files.createTempDirectory(UUID.randomUUID().toString()).toString(), "image" + getImageExtension()).toString();
             int expectedTimepoints = 2;
 
             cmd.execute(inputImagePath, outputImagePath, "-t", "1-2");
@@ -180,7 +182,7 @@ public class TestConvertCommand {
         void Check_Image_Not_Downsampled() throws Exception {
             ConvertCommand convertCommand = new ConvertCommand();
             CommandLine cmd = new CommandLine(convertCommand);
-            String outputImagePath = Paths.get(System.getProperty("java.io.tmpdir"), UUID.randomUUID() + getImageExtension()).toString();
+            String outputImagePath = Paths.get(Files.createTempDirectory(UUID.randomUUID().toString()).toString(), "image" + getImageExtension()).toString();
             int expectedWidth = SampleImageServer.IMAGE_WIDTH;
 
             cmd.execute(inputImagePath, outputImagePath, "-d", "1.0");
@@ -196,7 +198,7 @@ public class TestConvertCommand {
         void Check_Image_Downsampled() throws Exception {
             ConvertCommand convertCommand = new ConvertCommand();
             CommandLine cmd = new CommandLine(convertCommand);
-            String outputImagePath = Paths.get(System.getProperty("java.io.tmpdir"), UUID.randomUUID() + getImageExtension()).toString();
+            String outputImagePath = Paths.get(Files.createTempDirectory(UUID.randomUUID().toString()).toString(), "image" + getImageExtension()).toString();
             float downsample = 2;
             int expectedWidth = (int) (SampleImageServer.IMAGE_WIDTH / downsample);
 
@@ -210,10 +212,10 @@ public class TestConvertCommand {
         }
 
         @Test
-        void Check_Overwritten() {
+        void Check_Overwritten() throws IOException {
             ConvertCommand convertCommand = new ConvertCommand();
             CommandLine cmd = new CommandLine(convertCommand);
-            String outputImagePath = Paths.get(System.getProperty("java.io.tmpdir"), UUID.randomUUID() + getImageExtension()).toString();
+            String outputImagePath = Paths.get(Files.createTempDirectory(UUID.randomUUID().toString()).toString(), "image" + getImageExtension()).toString();
             cmd.execute(inputImagePath, outputImagePath);
 
             int exitCode = cmd.execute(inputImagePath, outputImagePath, "--overwrite");

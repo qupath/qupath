@@ -19,6 +19,7 @@ import java.awt.image.DataBuffer;
 import java.awt.image.DataBufferDouble;
 import java.awt.image.WritableRaster;
 import java.net.URI;
+import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.List;
@@ -29,7 +30,7 @@ public class TestOMEZarrWriter {
     @Test
     void Check_Error_When_Extension_Incorrect() throws Exception {
         String extension = ".wrong.extension";
-        String outputImagePath = Paths.get(System.getProperty("java.io.tmpdir"), UUID.randomUUID() + extension).toString();
+        String outputImagePath = Paths.get(Files.createTempDirectory(UUID.randomUUID().toString()).toString(), "image" + extension).toString();
         SampleImageServer sampleImageServer = new SampleImageServer();
 
         Assertions.assertThrows(
@@ -42,7 +43,7 @@ public class TestOMEZarrWriter {
 
     @Test
     void Check_Full_Image_Pixels() throws Exception {
-        String outputImagePath = Paths.get(System.getProperty("java.io.tmpdir"), UUID.randomUUID() + ".ome.zarr").toString();
+        String outputImagePath = Paths.get(Files.createTempDirectory(UUID.randomUUID().toString()).toString(), "image.ome.zarr").toString();
         SampleImageServer sampleImageServer = new SampleImageServer();
         int level = 0;
         int z = 2;
@@ -81,7 +82,7 @@ public class TestOMEZarrWriter {
 
     @Test
     void Check_Downsampled_Image_Pixels() throws Exception {
-        String outputImagePath = Paths.get(System.getProperty("java.io.tmpdir"), UUID.randomUUID() + ".ome.zarr").toString();
+        String outputImagePath = Paths.get(Files.createTempDirectory(UUID.randomUUID().toString()).toString(), "image.ome.zarr").toString();
         SampleImageServer sampleImageServer = new SampleImageServer();
         int level = 1;
         int z = 2;
@@ -120,7 +121,7 @@ public class TestOMEZarrWriter {
 
     @Test
     void Check_Downsamples_When_Not_Specified() throws Exception {
-        String outputImagePath = Paths.get(System.getProperty("java.io.tmpdir"), UUID.randomUUID() + ".ome.zarr").toString();
+        String outputImagePath = Paths.get(Files.createTempDirectory(UUID.randomUUID().toString()).toString(), "image.ome.zarr").toString();
         SampleImageServer sampleImageServer = new SampleImageServer();
         double[] expectedDownsamples = sampleImageServer.getPreferredDownsamples();
 
@@ -141,7 +142,7 @@ public class TestOMEZarrWriter {
 
     @Test
     void Check_Downsamples_When_Specified() throws Exception {
-        String outputImagePath = Paths.get(System.getProperty("java.io.tmpdir"), UUID.randomUUID() + ".ome.zarr").toString();
+        String outputImagePath = Paths.get(Files.createTempDirectory(UUID.randomUUID().toString()).toString(), "image.ome.zarr").toString();
         SampleImageServer sampleImageServer = new SampleImageServer();
         double[] expectedDownsamples = new double[] {1, 2, 4};
 
@@ -162,7 +163,7 @@ public class TestOMEZarrWriter {
 
     @Test
     void Check_Default_Tile_Width() throws Exception {
-        String outputImagePath = Paths.get(System.getProperty("java.io.tmpdir"), UUID.randomUUID() + ".ome.zarr").toString();
+        String outputImagePath = Paths.get(Files.createTempDirectory(UUID.randomUUID().toString()).toString(), "image.ome.zarr").toString();
         SampleImageServer sampleImageServer = new SampleImageServer();
         int expectedTileWidth = sampleImageServer.getMetadata().getPreferredTileWidth();
 
@@ -183,7 +184,7 @@ public class TestOMEZarrWriter {
 
     @Test
     void Check_Custom_Tile_Width() throws Exception {
-        String outputImagePath = Paths.get(System.getProperty("java.io.tmpdir"), UUID.randomUUID() + ".ome.zarr").toString();
+        String outputImagePath = Paths.get(Files.createTempDirectory(UUID.randomUUID().toString()).toString(), "image.ome.zarr").toString();
         SampleImageServer sampleImageServer = new SampleImageServer();
         int expectedTileWidth = 64;
 
@@ -204,7 +205,7 @@ public class TestOMEZarrWriter {
 
     @Test
     void Check_Default_Tile_Height() throws Exception {
-        String outputImagePath = Paths.get(System.getProperty("java.io.tmpdir"), UUID.randomUUID() + ".ome.zarr").toString();
+        String outputImagePath = Paths.get(Files.createTempDirectory(UUID.randomUUID().toString()).toString(), "image.ome.zarr").toString();
         SampleImageServer sampleImageServer = new SampleImageServer();
         int expectedTileHeight = sampleImageServer.getMetadata().getPreferredTileHeight();
 
@@ -225,7 +226,7 @@ public class TestOMEZarrWriter {
 
     @Test
     void Check_Custom_Tile_Height() throws Exception {
-        String outputImagePath = Paths.get(System.getProperty("java.io.tmpdir"), UUID.randomUUID() + ".ome.zarr").toString();
+        String outputImagePath = Paths.get(Files.createTempDirectory(UUID.randomUUID().toString()).toString(), "image.ome.zarr").toString();
         SampleImageServer sampleImageServer = new SampleImageServer();
         int expectedTileHeight = 64;
 
@@ -246,7 +247,7 @@ public class TestOMEZarrWriter {
 
     @Test
     void Check_Bounding_Box() throws Exception {
-        String outputImagePath = Paths.get(System.getProperty("java.io.tmpdir"), UUID.randomUUID() + ".ome.zarr").toString();
+        String outputImagePath = Paths.get(Files.createTempDirectory(UUID.randomUUID().toString()).toString(), "image.ome.zarr").toString();
         SampleImageServer sampleImageServer = new SampleImageServer();
         int z = 2;
         int t = 1;
@@ -270,7 +271,7 @@ public class TestOMEZarrWriter {
 
     @Test
     void Check_Z_Sliced_Image_Number_Of_Z_Stacks() throws Exception {
-        String outputImagePath = Paths.get(System.getProperty("java.io.tmpdir"), UUID.randomUUID() + ".ome.zarr").toString();
+        String outputImagePath = Paths.get(Files.createTempDirectory(UUID.randomUUID().toString()).toString(), "image.ome.zarr").toString();
         SampleImageServer sampleImageServer = new SampleImageServer();
         int zStart = 1;
         int zEnd = 2;
@@ -293,7 +294,7 @@ public class TestOMEZarrWriter {
 
     @Test
     void Check_Z_Sliced_Image_Pixels() throws Exception {
-        String outputImagePath = Paths.get(System.getProperty("java.io.tmpdir"), UUID.randomUUID() + ".ome.zarr").toString();
+        String outputImagePath = Paths.get(Files.createTempDirectory(UUID.randomUUID().toString()).toString(), "image.ome.zarr").toString();
         SampleImageServer sampleImageServer = new SampleImageServer();
         int zStart = 1;
         int zEnd = 2;
@@ -327,7 +328,7 @@ public class TestOMEZarrWriter {
 
     @Test
     void Check_T_Sliced_Image_Number_Of_Timepoints() throws Exception {
-        String outputImagePath = Paths.get(System.getProperty("java.io.tmpdir"), UUID.randomUUID() + ".ome.zarr").toString();
+        String outputImagePath = Paths.get(Files.createTempDirectory(UUID.randomUUID().toString()).toString(), "image.ome.zarr").toString();
         SampleImageServer sampleImageServer = new SampleImageServer();
         int tStart = 1;
         int tEnd = 1;
@@ -350,7 +351,7 @@ public class TestOMEZarrWriter {
 
     @Test
     void Check_T_Sliced_Image_Pixels() throws Exception {
-        String outputImagePath = Paths.get(System.getProperty("java.io.tmpdir"), UUID.randomUUID() + ".ome.zarr").toString();
+        String outputImagePath = Paths.get(Files.createTempDirectory(UUID.randomUUID().toString()).toString(), "image.ome.zarr").toString();
         SampleImageServer sampleImageServer = new SampleImageServer();
         int tStart = 1;
         int tEnd = 1;
