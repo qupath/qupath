@@ -157,6 +157,7 @@ tasks.register("assembleJavadocs", Copy) {
             }
     into layout.buildDirectory.dir("javadocs")
 }
+tasks.distTar.dependsOn("assembleJavadocs")
 tasks.installDist.dependsOn("assembleJavadocs")
 
 /**
@@ -240,7 +241,7 @@ runtime {
             '--no-header-files',
             '--no-man-pages',
             '--strip-native-commands',
-            '--compress', '2',
+            '--compress', 'zip-6', // jlink option; can be zip-0 (no compression) to zip-9; default is zip-6
             '--bind-services'
     ]
     modules = [
