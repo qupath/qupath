@@ -438,7 +438,6 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 				// This shouldn't happen because we already checked if it's a directory
 				logger.warn("Could not list files in directory {}", file);
 				filesInDirectory = new File[0];
-				return;
 			}
 			List<File> projectFiles = Arrays.stream(filesInDirectory).filter(f -> f.isFile() &&
 						f.getAbsolutePath().toLowerCase().endsWith(ProjectIO.getProjectExtension())).toList();
