@@ -12,7 +12,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServers;
-import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.images.servers.TileRequest;
 import qupath.lib.images.servers.TileRequestManager;
 import qupath.lib.images.servers.TransformedServerBuilder;
@@ -83,7 +82,7 @@ public class OMEZarrWriter implements AutoCloseable {
                 server.nZSlices(),
                 server.nTimepoints(),
                 server.nChannels(),
-                server.getMetadata().getPixelCalibration().getPixelWidthUnit().equals(PixelCalibration.MICROMETER),
+                server.getMetadata().getPixelCalibration(),
                 server.getMetadata().getTimeUnit(),
                 server.getPreferredDownsamples(),
                 server.getMetadata().getChannels(),
