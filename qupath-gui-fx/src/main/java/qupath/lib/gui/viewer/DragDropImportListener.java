@@ -430,19 +430,25 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 		}
 		
 		// Check if this is a directory - if so, look for a single project file
-		if (singleFile && file.isDirectory()) {
+		boolean maybeZarr = file.isDirectory() && file.getName().toLowerCase().endsWith(".zarr");
+		if (singleFile && file.isDirectory() && !maybeZarr) {
 			// Identify all files in the directory, and also all potential project files
 			File[] filesInDirectory = file.listFiles(f -> !f.isHidden());
-			List<File> projectFiles = Arrays.stream(filesInDirectory).filter(f -> f.isFile() && 
-					f.getAbsolutePath().toLowerCase().endsWith(ProjectIO.getProjectExtension())).toList();
+			if (filesInDirectory == null) {
+				// This shouldn't happen because we already checked if it's a directory
+				logger.warn("Could not list files in directory {}", file);
+				filesInDirectory = new File[0];
+			}
+			List<File> projectFiles = Arrays.stream(filesInDirectory).filter(f -> f.isFile() &&
+						f.getAbsolutePath().toLowerCase().endsWith(ProjectIO.getProjectExtension())).toList();
 			if (projectFiles.size() == 1) {
-				file = projectFiles.get(0);
+				file = projectFiles.getFirst();
 				fileName = file.getName().toLowerCase();
 				logger.warn("Selecting project file {}", file);
 			} else if (projectFiles.size() > 1) {
 				// Prompt to select which project file to open
 				logger.debug("Multiple project files found in directory {}", file);
-				String[] fileNames = projectFiles.stream().map(f -> f.getName()).toArray(n -> new String[n]);
+				String[] fileNames = projectFiles.stream().map(File::getName).toArray(String[]::new);
 				String selectedName = Dialogs.showChoiceDialog(
 						QuPathResources.getString("DragDrop.selectProject"),
 						QuPathResources.getString("DragDrop.selectProjectToOpen"), fileNames, fileNames[0]);
@@ -528,7 +534,7 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 		}
 
 		// Assume we have images
-		if (singleFile && file.isFile()) {
+		if (singleFile && (file.isFile() || maybeZarr)) {
 			// Try to open as an image, if the extension is known
 			if (viewer == null) {
 				Dialogs.showErrorMessage(
@@ -540,7 +546,7 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 			return;
 		} else if (qupath.getProject() != null) {
 			// Try importing multiple images to a project
-			String[] potentialFiles = list.stream().filter(f -> f.isFile()).map(f -> f.getAbsolutePath()).toArray(String[]::new);
+			String[] potentialFiles = list.stream().filter(File::isFile).map(File::getAbsolutePath).toArray(String[]::new);
 			if (potentialFiles.length > 0) {
 				ProjectCommands.promptToImportImages(qupath, potentialFiles);
 				return;
