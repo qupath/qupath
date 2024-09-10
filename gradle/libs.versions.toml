@@ -33,22 +33,22 @@ jna             = "5.14.0"
 jfreeSvg        = "5.0.6"
 jfxtras         = "17-r1"
 jts             = "1.20.0"
-junit           = "5.9.2"
+junit           = "5.11.0"
 
-logback         = "1.3.11"
-logviewer       = "0.2.0-SNAPSHOT"
+logback         = "1.5.8"
+logviewer       = "0.2.0"
 
-javadocviewer   = "0.1.1-SNAPSHOT"
+javadocviewer   = "0.1.1"
 
 openslide       = "4.0.0.3"
 
 picocli         = "4.7.6"
-qupath-fxtras   = "0.1.5-SNAPSHOT"
+qupath-fxtras   = "0.1.5"
 
 richtextfx      = "0.11.3"
 
-slf4j           = "2.0.12"
-snakeyaml       = "2.2"
+slf4j           = "2.0.16"
+snakeyaml       = "2.3"
 
 
 [libraries]
@@ -126,6 +126,6 @@ javacpp        = { id = "org.bytedeco.gradle-javacpp-platform",     version.ref 
 # If javafx plugin causes trouble, see https://github.com/openjfx/javafx-gradle-plugin#migrating-from-0014-to-010
 javafx         = { id = "org.openjfx.javafxplugin",                 version = "0.1.0" }
 #javafx         = { id = "org.openjfx.javafxplugin",                 version = "0.0.14" }
-jpackage       = { id = "org.beryx.runtime",                        version = "1.13.0" } # Non-modular
+jpackage       = { id = "org.beryx.runtime",                        version = "1.13.1" } # Non-modular
 # jpackage       = { id = "org.beryx.jlink",                          version = "2.26.0" } # Modular
 license-report = { id = "com.github.jk1.dependency-license-report", version = "2.9" }

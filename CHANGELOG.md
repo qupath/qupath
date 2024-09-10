@@ -93,11 +93,14 @@ They may change or be removed in future versions.
 * Java Topology Suite 1.20.0
 * JFreeSVG 5.0.6
 * JNA 5.14.0
+* JUnit 5.11.0
+* Logback 1.5.8
 * Picocli 4.7.6
 * OpenCV 4.9.0
 * OpenJDK 21
 * RichTextFX 0.11.3
-* slf4j 2.0.12
+* slf4j 2.0.16
+* snakeyaml 2.3
 
 
 ## Version 0.5.1

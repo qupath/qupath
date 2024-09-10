@@ -29,9 +29,9 @@ dependencyResolutionManagement {
     versionCatalogs {
         libs {
             def javafxOverride = System.properties.getOrDefault('javafx-version', null)
-            if (javafxOverride) {
+            if (javafxOverride instanceof String) {
                 println "Overriding JavaFX version to request $javafxOverride"
-                version('javafx', javafxOverride)
+                version('javafx', javafxOverride as String)
             }
         }
     }
