@@ -36,9 +36,9 @@ jts             = "1.20.0"
 junit           = "5.11.0"
 
 logback         = "1.5.8"
-logviewer       = "0.2.0-SNAPSHOT"
+logviewer       = "0.2.0"
 
-javadocviewer   = "0.1.1-SNAPSHOT"
+javadocviewer   = "0.1.1"
 
 openslide       = "4.0.0.3"
 
