@@ -23,6 +23,7 @@ package qupath.lib.images.writers.ome;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.util.Arrays;
 import java.util.Optional;
 import java.util.regex.Pattern;
 import java.util.stream.DoubleStream;
@@ -83,12 +84,15 @@ public class ConvertCommand implements Runnable, Subcommand {
 	})
 	private String timepoints;
 	
-	@Option(names = {"-d", "--downsample"}, defaultValue = "1.0", description = "Downsample the input image by the given factor (default=1).")
+	@Option(names = {"-d", "--downsample"}, defaultValue = "1.0", description = {
+			"Downsample the input image by the given factor (default=1)."
+	})
 	private double downsample;
 	
 	@Option(names = {"-y", "--pyramid-scale"}, defaultValue = "1.0", description = {
 			"Scale factor for pyramidal images.",
-			"Each pyramidal level is scaled down by the specified factor (> 1)."
+			"Each pyramidal level is scaled down by the specified factor (> 1).",
+			"The downsamples of the original image are used if <= 1."
 	})
 	private double pyramid;
 	
@@ -115,7 +119,7 @@ public class ConvertCommand implements Runnable, Subcommand {
 	})
 	private OMEPyramidWriter.CompressionType compression;
 	
-	@Option(names = {"-p", "--parallelize"}, defaultValue = "false", paramLabel = "parallelization", description = "Parallelize tile export if possible.")
+	@Option(names = {"-p", "--parallelize"}, defaultValue = "true", paramLabel = "parallelization", description = "Parallelize tile export if possible.")
 	private boolean parallelize;
 	
 	@Option(names = {"--overwrite"}, defaultValue = "false", description = "Overwrite any existing file with the same name as the output.")
@@ -217,7 +221,10 @@ public class ConvertCommand implements Runnable, Subcommand {
 					if (pyramid > 1) {
 						builder.scaledDownsampling(downsample, pyramid);
 					} else {
-						builder.downsamples(downsample);
+						builder.downsamples(DoubleStream.concat(
+								DoubleStream.of(downsample),
+								Arrays.stream(server.getPreferredDownsamples()).filter(d -> d > downsample)
+						).toArray());
 					}
 
 					if (boundingBox.isPresent()) {
@@ -251,7 +258,10 @@ public class ConvertCommand implements Runnable, Subcommand {
 								d -> d * pyramid
 						).toArray());
 					} else {
-						builder.setDownsamples(downsample);
+						builder.setDownsamples(DoubleStream.concat(
+								DoubleStream.of(downsample),
+								Arrays.stream(server.getPreferredDownsamples()).filter(d -> d > downsample)
+						).toArray());
 					}
 
 					try (OMEZarrWriter writer = builder.build()) {
