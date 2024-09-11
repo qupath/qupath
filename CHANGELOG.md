@@ -60,6 +60,7 @@ They may change or be removed in future versions.
 * QuPath doesn't always use the specified file extension when exporting snapshots (https://github.com/qupath/qupath/issues/1567)
 * Out-of-bounds tiles can result in detected cells being in the wrong place (https://github.com/qupath/qupath/issues/1606)
 * Spacebar can be locked in an 'on' position within viewers (https://github.com/qupath/qupath/issues/1610)
+* Timepoint data is rarely available (or correct) (https://github.com/qupath/qupath/issues/1628)
 
 ### API changes
 * New `Map<String, String> getMetadata()` method added to `PathObject`, `Project` and `ProjectImageEntry` (https://github.com/qupath/qupath/pull/1587)
