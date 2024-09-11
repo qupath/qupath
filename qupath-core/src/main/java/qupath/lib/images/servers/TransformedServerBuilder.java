@@ -66,6 +66,21 @@ public class TransformedServerBuilder {
 		server = new CroppedImageServer(server, region);
 		return this;
 	}
+
+	/**
+	 * Slice a specific region along the z or the t axis.
+	 *
+	 * @param zStart the inclusive 0-based index of the first slice to consider
+	 * @param zEnd the exclusive 0-based index of the last slide to consider
+	 * @param tStart the inclusive 0-based index of the first timepoint to consider
+	 * @param tEnd the exclusive 0-based index of the last timepoint to consider
+	 * @return this builder
+	 * @throws IllegalArgumentException when a start index is greater than its corresponding end index
+	 */
+	public TransformedServerBuilder slice(int zStart, int zEnd, int tStart, int tEnd) {
+		server = new SlicedImageServer(server, zStart, zEnd, tStart, tEnd);
+		return this;
+	}
 	
 	/**
 	 * Apply an {@link AffineTransform} to the server. 

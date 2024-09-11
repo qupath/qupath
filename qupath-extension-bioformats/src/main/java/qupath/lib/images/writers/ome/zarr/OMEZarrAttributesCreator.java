@@ -2,6 +2,7 @@ package qupath.lib.images.writers.ome.zarr;
 
 import qupath.lib.common.ColorTools;
 import qupath.lib.images.servers.ImageChannel;
+import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.images.servers.PixelType;
 
 import java.util.ArrayList;
@@ -22,7 +23,7 @@ class OMEZarrAttributesCreator {
     private final int numberOfZSlices;
     private final int numberOfTimePoints;
     private final int numberOfChannels;
-    private final boolean pixelSizeInMicrometer;
+    private final PixelCalibration pixelCalibration;
     private final TimeUnit timeUnit;
     private final double[] downsamples;
     private final List<ImageChannel> channels;
@@ -43,7 +44,7 @@ class OMEZarrAttributesCreator {
      * @param numberOfZSlices  the number of z-stacks
      * @param numberOfTimePoints  the number of time points
      * @param numberOfChannels  the number of channels
-     * @param pixelSizeInMicrometer  whether pixel sizes are in micrometer
+     * @param pixelCalibration  the pixel calibration
      * @param timeUnit  the unit of the time dimension of the image
      * @param downsamples  the downsamples of the image
      * @param channels  the channels of the image
@@ -55,7 +56,7 @@ class OMEZarrAttributesCreator {
             int numberOfZSlices,
             int numberOfTimePoints,
             int numberOfChannels,
-            boolean pixelSizeInMicrometer,
+            PixelCalibration pixelCalibration,
             TimeUnit timeUnit,
             double[] downsamples,
             List<ImageChannel> channels,
@@ -66,7 +67,7 @@ class OMEZarrAttributesCreator {
         this.numberOfZSlices = numberOfZSlices;
         this.numberOfTimePoints = numberOfTimePoints;
         this.numberOfChannels = numberOfChannels;
-        this.pixelSizeInMicrometer = pixelSizeInMicrometer;
+        this.pixelCalibration = pixelCalibration;
         this.timeUnit = timeUnit;
         this.downsamples = downsamples;
         this.channels = channels;
@@ -196,7 +197,7 @@ class OMEZarrAttributesCreator {
 
         switch (dimension) {
             case X, Y, Z -> {
-                if (pixelSizeInMicrometer) {
+                if (pixelCalibration.getPixelWidthUnit().equals(PixelCalibration.MICROMETER)) {
                     axis.put("unit", "micrometer");
                 }
             }
@@ -217,16 +218,20 @@ class OMEZarrAttributesCreator {
     private Map<String, Object> getCoordinateTransformation(float downsample) {
         List<Float> scales = new ArrayList<>();
         if (numberOfTimePoints > 1) {
-            scales.add(1F);
+            if (!Double.isNaN(pixelCalibration.getTimepoint(0)) && !Double.isNaN(pixelCalibration.getTimepoint(1))) {
+                scales.add((float) (pixelCalibration.getTimepoint(1) - pixelCalibration.getTimepoint(0)));
+            } else {
+                scales.add(1F);
+            }
         }
         if (numberOfChannels > 1) {
             scales.add(1F);
         }
         if (numberOfZSlices > 1) {
-            scales.add(1F);
+            scales.add(pixelCalibration.getZSpacing().floatValue());
         }
-        scales.add(downsample);
-        scales.add(downsample);
+        scales.add(pixelCalibration.getPixelHeight().floatValue() * downsample);
+        scales.add(pixelCalibration.getPixelWidth().floatValue() * downsample);
 
         return Map.of(
                 "type", "scale",
