@@ -2,10 +2,17 @@
 
 This is a *work in progress* for the next major release.
 
+Some things may be added, some things may be removed, and some things may look different before the final release.
+
 *QuPath v0.6.0 requires Java 21 or later*
 
-### Enhancements
+### Major features
+* Support for InstanSeg segmentation (https://github.com/instanseg/instanseg)
 * Read and write OME-Zarr images (https://github.com/qupath/qupath/pull/1474)
+
+### Enhancements
+(These are not yet ordered by interestingness)
+
 * Improved display of annotation names (https://github.com/qupath/qupath/pull/1532)
 * Support log10 counts with histograms (no longer use natural log) (https://github.com/qupath/qupath/pull/1540)
   * Log counts also now available in measurement tables

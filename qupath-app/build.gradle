@@ -108,6 +108,8 @@ def includedProjects = rootProject.subprojects.findAll { !excludedProjects.conta
 dependencies {
     implementation includedProjects
     implementation libs.picocli
+
+    implementation extraLibs.bundles.extensions
 }
 
 
