@@ -353,7 +353,7 @@ public class ConvertCommand implements Runnable, Subcommand {
 		}
 	}
 
-	static boolean isValidRange(Range range, int maxRange) {
+	private static boolean isValidRange(Range range, int maxRange) {
 		return range.start() >= 0 && range.end() <= maxRange && range.start() < range.end();
 	}
 
