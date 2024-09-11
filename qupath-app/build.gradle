@@ -109,7 +109,10 @@ dependencies {
     implementation includedProjects
     implementation libs.picocli
 
-    implementation extraLibs.bundles.extensions
+    implementation(extraLibs.bundles.extensions) {
+        // We don't want to bring in snapshot versions
+        exclude group: 'io.github.qupath'
+    }
 }
 
 

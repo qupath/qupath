@@ -38,11 +38,12 @@ dependencyResolutionManagement {
         // Extra version catalog for bundled extensions
         // This can be useful to make custom QuPath builds with specific versions of extensions
         extraLibs {
-            library('djl', 'io.github.qupath', 'qupath-extension-djl').version('0.4.0-20240911.081508-1')
-            library('instanseg', 'io.github.qupath', 'qupath-extension-instanseg').version('0.0.1-20240911.143129-1')
+            library('djl', 'io.github.qupath', 'qupath-extension-djl').version('0.4.0-20240911.172830-2')
+            library('instanseg', 'io.github.qupath', 'qupath-extension-instanseg').version('0.0.1-20240911.172453-2')
 
-//            bundle('extensions', ['djl'])
+//            bundle('extensions', [])
             bundle('extensions', ['djl', 'instanseg'])
         }
     }
 }
+
