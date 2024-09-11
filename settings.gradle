@@ -34,5 +34,15 @@ dependencyResolutionManagement {
                 version('javafx', javafxOverride as String)
             }
         }
+
+        // Extra version catalog for bundled extensions
+        // This can be useful to make custom QuPath builds with specific versions of extensions
+        extraLibs {
+            library('djl', 'io.github.qupath', 'qupath-extension-djl').version('0.4.0-20240911.081508-1')
+            library('instanseg', 'io.github.qupath', 'qupath-extension-instanseg').version('0.0.1-20240911.143129-1')
+
+//            bundle('extensions', ['djl'])
+            bundle('extensions', ['djl', 'instanseg'])
+        }
     }
 }
