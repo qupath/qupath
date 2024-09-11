@@ -276,7 +276,6 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		// Create variables for metadata
 		int width = 0, height = 0, nChannels = 1, nZSlices = 1, nTimepoints = 1, tileWidth = 0, tileHeight = 0;
 		double pixelWidth = Double.NaN, pixelHeight = Double.NaN, zSpacing = Double.NaN, magnification = Double.NaN;
-		TimeUnit timeUnit = null;
 
 		// Zarr images can be opened by selecting the .zattrs or .zgroup file
 		// In that case, the parent directory contains the whole image
@@ -666,7 +665,8 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			}
 
 			// Try parsing pixel sizes in micrometers
-			double[] timepoints;
+			double[] timepoints = null;
+			TimeUnit timeUnit = null;
 			try {
 				Length xSize = meta.getPixelsPhysicalSizeX(series);
 				Length ySize = meta.getPixelsPhysicalSizeY(series);
@@ -687,25 +687,16 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 				}
 				// TODO: Check the Bioformats TimeStamps
 				if (nTimepoints > 1) {
-					logger.warn("Time stamps read from Bioformats have not been fully verified & should not be relied upon");
-					// Here, we don't try to separate timings by z-slice & channel...
-					int lastTimepoint = -1;
-					int count = 0;
-					timepoints = new double[nTimepoints];
-					logger.debug("Plane count: " + meta.getPlaneCount(series));
-					for (int plane = 0; plane < meta.getPlaneCount(series); plane++) {
-						int timePoint = meta.getPlaneTheT(series, plane).getValue();
-						logger.debug("Checking " + timePoint);
-						if (timePoint != lastTimepoint) {
-							timepoints[count] = meta.getPlaneDeltaT(series, plane).value(UNITS.SECOND).doubleValue();
-							logger.debug(String.format("Timepoint %d: %.3f seconds", count, timepoints[count]));
-							lastTimepoint = timePoint;
-							count++;
+					logger.warn("Time stamps read from Bioformats have not been fully verified & should not be relied upon (values updated in v0.6.0)");
+					var timeIncrement = meta.getPixelsTimeIncrement(series);
+					if (timeIncrement != null) {
+						timepoints = new double[nTimepoints];
+						double timeIncrementSeconds = timeIncrement.value(UNITS.SECOND).doubleValue();
+						for (int t = 0; t < nTimepoints; t++) {
+							timepoints[t] = t * timeIncrementSeconds;
 						}
+						timeUnit = TimeUnit.SECONDS;
 					}
-					timeUnit = TimeUnit.SECONDS;
-				} else {
-					timepoints = new double[0];
 				}
 			} catch (Exception e) {
 				logger.error("Error parsing metadata", e);
@@ -799,7 +790,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			if (Double.isFinite(magnification))
 				builder = builder.magnification(magnification);
 
-			if (timeUnit != null)
+			if (timeUnit != null && timepoints != null)
 				builder = builder.timepoints(timeUnit, timepoints);
 
 			if (Double.isFinite(pixelWidth + pixelHeight))
