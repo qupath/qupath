@@ -106,10 +106,10 @@ public class ConvertCommand implements Runnable, Subcommand {
 	@Option(names = {"--tile-size"}, defaultValue = "-1", description = "Set the tile size (of equal height and width).")
 	private int tileSize;
 	
-	@Option(names = {"--tile-width"}, defaultValue = "512", description = "Set the tile width.")
+	@Option(names = {"--tile-width"}, defaultValue = "512", description = "Set the tile width (default=512).")
 	private int tileWidth;
 	
-	@Option(names = {"--tile-height"}, defaultValue = "512", description = "Set the tile height.")
+	@Option(names = {"--tile-height"}, defaultValue = "512", description = "Set the tile height (default=512).")
 	private int tileHeight;
 	
 	@Option(names = {"-c", "--compression"}, defaultValue = "DEFAULT", description = {
@@ -119,10 +119,13 @@ public class ConvertCommand implements Runnable, Subcommand {
 	})
 	private OMEPyramidWriter.CompressionType compression;
 	
-	@Option(names = {"-p", "--parallelize"}, defaultValue = "true", paramLabel = "parallelization", description = "Parallelize tile export if possible.")
+	@Option(names = {"-p", "--parallelize"}, defaultValue = "true", paramLabel = "parallelization",
+			description = "Parallelize tile export if possible (default=true).",
+			negatable = true)
 	private boolean parallelize;
 	
-	@Option(names = {"--overwrite"}, defaultValue = "false", description = "Overwrite any existing file with the same name as the output.")
+	@Option(names = {"--overwrite"}, defaultValue = "false",
+			description = "Overwrite any existing file with the same name as the output (default=false).")
 	private boolean overwrite = false;
 	
 	@Option(names = {"--series"}, description = {
@@ -197,7 +200,16 @@ public class ConvertCommand implements Runnable, Subcommand {
 			}
 
 			Range zSlicesRange = getRange(zSlices, server.nZSlices(), "zslices");
+			if (!isValidRange(zSlicesRange, server.nZSlices())) {
+				logger.error("Invalid range of --zslices: {}, image supports {}-{}", zSlices, 1, server.nZSlices());
+				System.exit(-1);
+			}
+
 			Range timepointsRange = getRange(timepoints, server.nTimepoints(), "timepoints");
+			if (!isValidRange(timepointsRange, server.nTimepoints())) {
+				logger.error("Invalid range of --timepoints: {}, image supports {}-{}", timepoints, 1, server.nTimepoints());
+				System.exit(-1);
+			}
 			Optional<ImageRegion> boundingBox = getBoundingBox(crop);
 
 			switch (outputType) {
@@ -341,6 +353,10 @@ public class ConvertCommand implements Runnable, Subcommand {
 		}
 	}
 
+	static boolean isValidRange(Range range, int maxRange) {
+		return range.start() >= 0 && range.end() <= maxRange && range.start() < range.end();
+	}
+
 	/**
 	 * Parse the provided bounding box text and return an ImageRegion
 	 * corresponding to it.
@@ -368,4 +384,5 @@ public class ConvertCommand implements Runnable, Subcommand {
 			return Optional.empty();
 		}
 	}
+
 }
