@@ -1,5 +1,6 @@
 package qupath.lib.images.writers.ome;
 
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Nested;
@@ -29,6 +30,7 @@ import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
+import org.apache.commons.io.FileUtils;
 
 public class TestConvertCommand {
 
@@ -40,7 +42,7 @@ public class TestConvertCommand {
 
         @BeforeAll
         static void createInputImage() throws Exception {
-            deleteDir(new File(inputImagePath));
+            deleteImage(inputImagePath);
 
             try (
                     ImageServer<BufferedImage> sampleServer = new SampleImageServer();
@@ -48,6 +50,11 @@ public class TestConvertCommand {
             ) {
                 writer.writeImage();
             }
+        }
+
+        @AfterAll
+        static void deleteInputImage() throws IOException {
+            deleteImage(inputImagePath);
         }
 
         @Test
@@ -64,6 +71,8 @@ public class TestConvertCommand {
                 imageWidth = server.getWidth();
             }
             Assertions.assertEquals(expectedWidth, imageWidth);
+
+            deleteImage(outputImagePath);
         }
 
         @Test
@@ -80,6 +89,8 @@ public class TestConvertCommand {
                 imageWidth = server.getWidth();
             }
             Assertions.assertEquals(expectedWidth, imageWidth);
+
+            deleteImage(outputImagePath);
         }
 
         @Test
@@ -96,6 +107,8 @@ public class TestConvertCommand {
                 zSlices = server.nZSlices();
             }
             Assertions.assertEquals(expectedZSlices, zSlices);
+
+            deleteImage(outputImagePath);
         }
 
         @Test
@@ -112,6 +125,8 @@ public class TestConvertCommand {
                 zSlices = server.nZSlices();
             }
             Assertions.assertEquals(expectedZSlices, zSlices);
+
+            deleteImage(outputImagePath);
         }
 
         @Test
@@ -128,6 +143,8 @@ public class TestConvertCommand {
                 zSlices = server.nZSlices();
             }
             Assertions.assertEquals(expectedZSlices, zSlices);
+
+            deleteImage(outputImagePath);
         }
 
         @Test
@@ -144,6 +161,8 @@ public class TestConvertCommand {
                 timepoints = server.nTimepoints();
             }
             Assertions.assertEquals(expectedTimepoints, timepoints);
+
+            deleteImage(outputImagePath);
         }
 
         @Test
@@ -160,6 +179,8 @@ public class TestConvertCommand {
                 timepoints = server.nTimepoints();
             }
             Assertions.assertEquals(expectedTimepoints, timepoints);
+
+            deleteImage(outputImagePath);
         }
 
         @Test
@@ -176,6 +197,8 @@ public class TestConvertCommand {
                 timepoints = server.nTimepoints();
             }
             Assertions.assertEquals(expectedTimepoints, timepoints);
+
+            deleteImage(outputImagePath);
         }
 
         @Test
@@ -192,6 +215,8 @@ public class TestConvertCommand {
                 width = server.getWidth();
             }
             Assertions.assertEquals(expectedWidth, width);
+
+            deleteImage(outputImagePath);
         }
 
         @Test
@@ -209,6 +234,8 @@ public class TestConvertCommand {
                 width = server.getWidth();
             }
             Assertions.assertEquals(expectedWidth, width);
+
+            deleteImage(outputImagePath);
         }
 
         @Test
@@ -221,6 +248,20 @@ public class TestConvertCommand {
             int exitCode = cmd.execute(inputImagePath, outputImagePath, "--overwrite");
 
             Assertions.assertEquals(0, exitCode);
+
+            deleteImage(outputImagePath);
+        }
+
+        private static void deleteImage(String imagePath) throws IOException {
+            File image = new File(imagePath);
+
+            if (image.exists()) {
+                if (image.isDirectory()) {
+                    FileUtils.deleteDirectory(image);
+                } else {
+                    Files.delete(image.toPath());
+                }
+            }
         }
     }
 
@@ -335,21 +376,5 @@ public class TestConvertCommand {
         private static double getPixel(int x, int y, int channel, int z, int t) {
             return z + t + channel + ((double) x / IMAGE_WIDTH + (double) y / IMAGE_HEIGHT) / 2;
         }
-    }
-
-    private static boolean deleteDir(File dir) {
-        if (dir.isDirectory()) {
-            String[] children = dir.list();
-
-            if (children != null) {
-                for (String child : children) {
-                    boolean success = deleteDir(new File(dir, child));
-                    if (!success) {
-                        return false;
-                    }
-                }
-            }
-        }
-        return dir.delete();
     }
 }
