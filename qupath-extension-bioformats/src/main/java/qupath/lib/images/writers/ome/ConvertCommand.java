@@ -23,11 +23,14 @@ package qupath.lib.images.writers.ome;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.Optional;
 import java.util.regex.Pattern;
 import java.util.stream.DoubleStream;
 
+import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -179,6 +182,18 @@ public class ConvertCommand implements Runnable, Subcommand {
 		if (inputFile.equals(outputFile)) {
 			logger.error("Input and output files are the same!");
 			System.exit(-1);
+		}
+
+		try {
+			if (overwrite && outputFile.exists()) {
+				if (outputFile.isDirectory()) {
+					FileUtils.deleteDirectory(outputFile);
+				} else {
+					Files.delete(outputFile.toPath());
+				}
+			}
+		} catch (IOException e) {
+			logger.error("Error while deleting existing image", e);
 		}
 		
 		String[] args;

@@ -42,7 +42,7 @@ public class TestConvertCommand {
 
         @BeforeAll
         static void createInputImage() throws Exception {
-            deleteImage(inputImagePath);
+            deleteFileOrDirectory(inputImagePath);
 
             try (
                     ImageServer<BufferedImage> sampleServer = new SampleImageServer();
@@ -54,7 +54,7 @@ public class TestConvertCommand {
 
         @AfterAll
         static void deleteInputImage() throws IOException {
-            deleteImage(inputImagePath);
+            deleteFileOrDirectory(inputImagePath);
         }
 
         @Test
@@ -72,7 +72,7 @@ public class TestConvertCommand {
             }
             Assertions.assertEquals(expectedWidth, imageWidth);
 
-            deleteImage(outputImagePath);
+            deleteFileOrDirectory(outputImagePath);
         }
 
         @Test
@@ -90,7 +90,7 @@ public class TestConvertCommand {
             }
             Assertions.assertEquals(expectedWidth, imageWidth);
 
-            deleteImage(outputImagePath);
+            deleteFileOrDirectory(outputImagePath);
         }
 
         @Test
@@ -108,7 +108,7 @@ public class TestConvertCommand {
             }
             Assertions.assertEquals(expectedZSlices, zSlices);
 
-            deleteImage(outputImagePath);
+            deleteFileOrDirectory(outputImagePath);
         }
 
         @Test
@@ -126,7 +126,7 @@ public class TestConvertCommand {
             }
             Assertions.assertEquals(expectedZSlices, zSlices);
 
-            deleteImage(outputImagePath);
+            deleteFileOrDirectory(outputImagePath);
         }
 
         @Test
@@ -144,7 +144,7 @@ public class TestConvertCommand {
             }
             Assertions.assertEquals(expectedZSlices, zSlices);
 
-            deleteImage(outputImagePath);
+            deleteFileOrDirectory(outputImagePath);
         }
 
         @Test
@@ -162,7 +162,7 @@ public class TestConvertCommand {
             }
             Assertions.assertEquals(expectedTimepoints, timepoints);
 
-            deleteImage(outputImagePath);
+            deleteFileOrDirectory(outputImagePath);
         }
 
         @Test
@@ -180,7 +180,7 @@ public class TestConvertCommand {
             }
             Assertions.assertEquals(expectedTimepoints, timepoints);
 
-            deleteImage(outputImagePath);
+            deleteFileOrDirectory(outputImagePath);
         }
 
         @Test
@@ -198,7 +198,7 @@ public class TestConvertCommand {
             }
             Assertions.assertEquals(expectedTimepoints, timepoints);
 
-            deleteImage(outputImagePath);
+            deleteFileOrDirectory(outputImagePath);
         }
 
         @Test
@@ -216,7 +216,7 @@ public class TestConvertCommand {
             }
             Assertions.assertEquals(expectedWidth, width);
 
-            deleteImage(outputImagePath);
+            deleteFileOrDirectory(outputImagePath);
         }
 
         @Test
@@ -235,7 +235,7 @@ public class TestConvertCommand {
             }
             Assertions.assertEquals(expectedWidth, width);
 
-            deleteImage(outputImagePath);
+            deleteFileOrDirectory(outputImagePath);
         }
 
         @Test
@@ -249,10 +249,10 @@ public class TestConvertCommand {
 
             Assertions.assertEquals(0, exitCode);
 
-            deleteImage(outputImagePath);
+            deleteFileOrDirectory(outputImagePath);
         }
 
-        private static void deleteImage(String imagePath) throws IOException {
+        private static void deleteFileOrDirectory(String imagePath) throws IOException {
             File image = new File(imagePath);
 
             if (image.exists()) {
