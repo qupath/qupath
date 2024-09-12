@@ -19,6 +19,9 @@ import qupath.lib.regions.ImageRegion;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -89,12 +92,16 @@ public class OMEZarrWriter implements AutoCloseable {
                 server.isRGB(),
                 server.getPixelType()
         );
+
+        ZarrGroup root = ZarrGroup.create(
+                builder.path,
+                attributes.getGroupAttributes()
+        );
+
+        createOmeSubGroup(root, builder.path);
         levelArrays = createLevelArrays(
                 server,
-                ZarrGroup.create(
-                        builder.path,
-                        attributes.getGroupAttributes()
-                ),
+                root,
                 attributes.getLevelAttributes(),
                 builder.compressor
         );
@@ -377,6 +384,13 @@ public class OMEZarrWriter implements AutoCloseable {
                         Math.max(tileSize, imageSize / maxNumberOfChunks) :
                         tileSize
         );
+    }
+
+    private static void createOmeSubGroup(ZarrGroup root, String imagePath) throws IOException {
+        String name = "OME";
+        root.createSubGroup(name);
+
+        Path omeroMetadataPath = Files.createFile(Paths.get(imagePath, name, "METADATA.ome.xml"));
     }
 
     private static Map<Integer, ZarrArray> createLevelArrays(

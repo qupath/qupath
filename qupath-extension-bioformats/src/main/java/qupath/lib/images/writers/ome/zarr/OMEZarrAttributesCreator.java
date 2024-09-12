@@ -96,7 +96,8 @@ class OMEZarrAttributesCreator {
                                 "defaultZ", 0,
                                 "model", "color"
                         )
-                )
+                ),
+                "bioformats2raw.layout" , 3
         );
     }
 
