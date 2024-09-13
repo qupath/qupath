@@ -46,6 +46,22 @@ public class TestOMEZarrWriter {
     }
 
     @Test
+    void Check_Error_When_Path_Already_Exists() throws Exception {
+        Path path = Files.createTempDirectory(UUID.randomUUID().toString());
+        String outputImagePath = Paths.get(path.toString(), "image.ome.zarr").toString();
+        Files.createFile(Paths.get(outputImagePath));
+        SampleImageServer sampleImageServer = new SampleImageServer();
+
+        Assertions.assertThrows(
+                IllegalArgumentException.class,
+                () -> new OMEZarrWriter.Builder(sampleImageServer, outputImagePath)
+        );
+
+        sampleImageServer.close();
+        FileUtils.deleteDirectory(path.toFile());
+    }
+
+    @Test
     void Check_Full_Image_Pixels() throws Exception {
         Path path = Files.createTempDirectory(UUID.randomUUID().toString());
         String outputImagePath = Paths.get(path.toString(), "image.ome.zarr").toString();

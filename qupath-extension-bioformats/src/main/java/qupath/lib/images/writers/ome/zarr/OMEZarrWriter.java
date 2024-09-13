@@ -18,9 +18,10 @@ import qupath.lib.images.servers.TransformedServerBuilder;
 import qupath.lib.regions.ImageRegion;
 
 import java.awt.image.BufferedImage;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -80,25 +81,14 @@ public class OMEZarrWriter implements AutoCloseable {
         }
         server = transformedServerBuilder.build();
 
-        OMEZarrAttributesCreator attributes = new OMEZarrAttributesCreator(
-                server.getMetadata().getName(),
-                server.nZSlices(),
-                server.nTimepoints(),
-                server.nChannels(),
-                server.getMetadata().getPixelCalibration(),
-                server.getMetadata().getTimeUnit(),
-                server.getPreferredDownsamples(),
-                server.getMetadata().getChannels(),
-                server.isRGB(),
-                server.getPixelType()
-        );
+        OMEZarrAttributesCreator attributes = new OMEZarrAttributesCreator(server.getMetadata());
 
         ZarrGroup root = ZarrGroup.create(
                 builder.path,
                 attributes.getGroupAttributes()
         );
 
-        createOmeSubGroup(root, builder.path);
+        OMEXMLCreator.create(server.getMetadata()).ifPresent(omeXML -> createOmeSubGroup(root, builder.path, omeXML));
         levelArrays = createLevelArrays(
                 server,
                 root,
@@ -210,12 +200,15 @@ public class OMEZarrWriter implements AutoCloseable {
          * Create the builder.
          *
          * @param server  the image to write
-         * @param path  the path where to write the image. It must end with ".ome.zarr"
-         * @throws IllegalArgumentException when the provided path doesn't end with ".ome.zarr"
+         * @param path  the path where to write the image. It must end with ".ome.zarr" and shouldn't already exist
+         * @throws IllegalArgumentException when the provided path doesn't end with ".ome.zarr" or a file/directory already exists at this location
          */
         public Builder(ImageServer<BufferedImage> server, String path) {
             if (!path.endsWith(FILE_EXTENSION)) {
                 throw new IllegalArgumentException(String.format("The provided path (%s) does not have the OME-Zarr extension (%s)", path, FILE_EXTENSION));
+            }
+            if (Files.exists(Paths.get(path))) {
+                throw new IllegalArgumentException(String.format("The provided path (%s) already exists", path));
             }
 
             this.server = server;
@@ -386,11 +379,18 @@ public class OMEZarrWriter implements AutoCloseable {
         );
     }
 
-    private static void createOmeSubGroup(ZarrGroup root, String imagePath) throws IOException {
-        String name = "OME";
-        root.createSubGroup(name);
+    private static void createOmeSubGroup(ZarrGroup mainGroup, String imagePath, String omeXMLContent) {
+        String fileName = "OME";
 
-        Path omeroMetadataPath = Files.createFile(Paths.get(imagePath, name, "METADATA.ome.xml"));
+        try {
+            mainGroup.createSubGroup(fileName);
+
+            try (OutputStream outputStream = new FileOutputStream(Files.createFile(Paths.get(imagePath, fileName, "METADATA.ome.xml")).toString())) {
+                outputStream.write(omeXMLContent.getBytes());
+            }
+        } catch (IOException e) {
+            logger.error("Error while creating OME group or metadata XML file", e);
+        }
     }
 
     private static Map<Integer, ZarrArray> createLevelArrays(
