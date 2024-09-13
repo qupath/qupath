@@ -2,7 +2,7 @@ plugins {
     id 'org.gradle.toolchains.foojay-resolver-convention' version '0.7.0' // to download if needed
 }
 
-gradle.ext.qupathVersion = "0.6.0-rc1"
+gradle.ext.qupathVersion = "0.6.0-SNAPSHOT"
 
 rootProject.name = 'qupath'
 
