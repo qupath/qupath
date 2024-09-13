@@ -1198,9 +1198,12 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			}
 			
 			IFormatReader imageReader;
-			if (new File(id).isDirectory()) {
+			if (new File(id).isDirectory() || id.toLowerCase().endsWith(".zarr")) {
 				// Using new ImageReader() on a directory won't work
 				imageReader = new ZarrReader();
+				if (id.startsWith("https") && imageReader.getMetadataOptions() instanceof DynamicMetadataOptions zarrOptions) {
+					zarrOptions.set("omezarr.alt_store", id);
+				}
 			} else {
 				if (classList != null) {
 					imageReader = new ImageReader(classList);
