@@ -35,6 +35,7 @@ import java.util.concurrent.TimeUnit;
  * <p>
  *     Create an OME-Zarr file writer as described by version 0.4 of the specifications of the
  *     <a href="https://ngff.openmicroscopy.org/0.4/index.html">Next-generation file formats (NGFF)</a>.
+ *     The transitional "bioformats2raw.layout" and "omero" metadata are also considered.
  * </p>
  * <p>
  *     Use a {@link Builder} to create an instance of this class.

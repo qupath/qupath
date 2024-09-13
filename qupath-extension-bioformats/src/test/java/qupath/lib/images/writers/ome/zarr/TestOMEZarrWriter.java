@@ -62,6 +62,22 @@ public class TestOMEZarrWriter {
     }
 
     @Test
+    void Check_OME_XML_File_Exists() throws Exception {
+        Path path = Files.createTempDirectory(UUID.randomUUID().toString());
+        String outputImagePath = Paths.get(path.toString(), "image.ome.zarr").toString();
+        SampleImageServer sampleImageServer = new SampleImageServer();
+
+        try (OMEZarrWriter writer = new OMEZarrWriter.Builder(sampleImageServer, outputImagePath).build()) {
+            writer.writeImage();
+        }
+
+        Assertions.assertTrue(Files.exists(Paths.get(outputImagePath, "OME", "METADATA.ome.xml")));
+
+        sampleImageServer.close();
+        FileUtils.deleteDirectory(path.toFile());
+    }
+
+    @Test
     void Check_Full_Image_Pixels() throws Exception {
         Path path = Files.createTempDirectory(UUID.randomUUID().toString());
         String outputImagePath = Paths.get(path.toString(), "image.ome.zarr").toString();
