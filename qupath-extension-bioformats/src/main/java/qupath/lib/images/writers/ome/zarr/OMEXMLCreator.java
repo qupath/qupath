@@ -77,7 +77,7 @@ class OMEXMLCreator {
                         new DOMSource(document),
                         new StreamResult(new OutputStreamWriter(os, StandardCharsets.UTF_8))
                 );
-                return Optional.ofNullable(os.toString());
+                return Optional.ofNullable(os.toString(StandardCharsets.UTF_8));
             }
         } catch (Exception e) {
             logger.error("Error while creating OME XML content", e);

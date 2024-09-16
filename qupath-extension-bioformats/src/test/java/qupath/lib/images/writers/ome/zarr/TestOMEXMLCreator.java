@@ -253,7 +253,8 @@ public class TestOMEXMLCreator {
 
     @Test
     void Check_Pixel_T_Spacing_Unit() throws IOException, ParserConfigurationException, SAXException {
-        String expectedUnit = "µs";
+        // Required only for Java 17 and earlier, on platforms where UTF-8 is not the default
+        String expectedUnit = new String("µs".getBytes(), StandardCharsets.UTF_8);
 
         String xmlContent = OMEXMLCreator.create(sampleMetadata).orElse("");
 
