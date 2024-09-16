@@ -93,7 +93,7 @@ They may change or be removed in future versions.
 ### Dependency updates
 * Bio-Formats 7.3.1
 * Commonmark 0.22.0
-* DeepJavaLibrary 0.29.0
+* DeepJavaLibrary 0.30.0
 * Groovy 4.0.22
 * Gson 2.11.0
 * Guava 33.3.0-jre

@@ -41,9 +41,9 @@ dependencyResolutionManagement {
             library('djl', 'io.github.qupath', 'qupath-extension-djl').version('0.4.0-20240911.172830-2')
             library('instanseg', 'io.github.qupath', 'qupath-extension-instanseg').version('0.0.1-20240911.172453-2')
 
-//            bundle('extensions', [])
-            bundle('extensions', ['djl', 'instanseg'])
+            // Include or exclude bundled extensions
+            bundle('extensions', [])
+//            bundle('extensions', ['djl', 'instanseg'])
         }
     }
 }
-
