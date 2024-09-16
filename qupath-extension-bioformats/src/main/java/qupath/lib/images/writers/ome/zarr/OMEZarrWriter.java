@@ -18,7 +18,11 @@ import qupath.lib.images.servers.TransformedServerBuilder;
 import qupath.lib.regions.ImageRegion;
 
 import java.awt.image.BufferedImage;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -31,6 +35,7 @@ import java.util.concurrent.TimeUnit;
  * <p>
  *     Create an OME-Zarr file writer as described by version 0.4 of the specifications of the
  *     <a href="https://ngff.openmicroscopy.org/0.4/index.html">Next-generation file formats (NGFF)</a>.
+ *     The transitional "bioformats2raw.layout" and "omero" metadata are also considered.
  * </p>
  * <p>
  *     Use a {@link Builder} to create an instance of this class.
@@ -77,24 +82,17 @@ public class OMEZarrWriter implements AutoCloseable {
         }
         server = transformedServerBuilder.build();
 
-        OMEZarrAttributesCreator attributes = new OMEZarrAttributesCreator(
-                server.getMetadata().getName(),
-                server.nZSlices(),
-                server.nTimepoints(),
-                server.nChannels(),
-                server.getMetadata().getPixelCalibration(),
-                server.getMetadata().getTimeUnit(),
-                server.getPreferredDownsamples(),
-                server.getMetadata().getChannels(),
-                server.isRGB(),
-                server.getPixelType()
+        OMEZarrAttributesCreator attributes = new OMEZarrAttributesCreator(server.getMetadata());
+
+        ZarrGroup root = ZarrGroup.create(
+                builder.path,
+                attributes.getGroupAttributes()
         );
+
+        OMEXMLCreator.create(server.getMetadata()).ifPresent(omeXML -> createOmeSubGroup(root, builder.path, omeXML));
         levelArrays = createLevelArrays(
                 server,
-                ZarrGroup.create(
-                        builder.path,
-                        attributes.getGroupAttributes()
-                ),
+                root,
                 attributes.getLevelAttributes(),
                 builder.compressor
         );
@@ -203,12 +201,15 @@ public class OMEZarrWriter implements AutoCloseable {
          * Create the builder.
          *
          * @param server  the image to write
-         * @param path  the path where to write the image. It must end with ".ome.zarr"
-         * @throws IllegalArgumentException when the provided path doesn't end with ".ome.zarr"
+         * @param path  the path where to write the image. It must end with ".ome.zarr" and shouldn't already exist
+         * @throws IllegalArgumentException when the provided path doesn't end with ".ome.zarr" or a file/directory already exists at this location
          */
         public Builder(ImageServer<BufferedImage> server, String path) {
             if (!path.endsWith(FILE_EXTENSION)) {
                 throw new IllegalArgumentException(String.format("The provided path (%s) does not have the OME-Zarr extension (%s)", path, FILE_EXTENSION));
+            }
+            if (Files.exists(Paths.get(path))) {
+                throw new IllegalArgumentException(String.format("The provided path (%s) already exists", path));
             }
 
             this.server = server;
@@ -377,6 +378,20 @@ public class OMEZarrWriter implements AutoCloseable {
                         Math.max(tileSize, imageSize / maxNumberOfChunks) :
                         tileSize
         );
+    }
+
+    private static void createOmeSubGroup(ZarrGroup mainGroup, String imagePath, String omeXMLContent) {
+        String fileName = "OME";
+
+        try {
+            mainGroup.createSubGroup(fileName);
+
+            try (OutputStream outputStream = new FileOutputStream(Files.createFile(Paths.get(imagePath, fileName, "METADATA.ome.xml")).toString())) {
+                outputStream.write(omeXMLContent.getBytes());
+            }
+        } catch (IOException e) {
+            logger.error("Error while creating OME group or metadata XML file", e);
+        }
     }
 
     private static Map<Integer, ZarrArray> createLevelArrays(

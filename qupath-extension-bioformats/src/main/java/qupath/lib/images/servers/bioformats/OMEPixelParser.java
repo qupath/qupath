@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -86,16 +86,48 @@ public class OMEPixelParser {
      * @return the corresponding image
      */
     public BufferedImage parse(byte[][] pixels, int width, int height, int nChannels, ColorModel colorModel) {
-        DataBuffer dataBuffer = bytesToDataBuffer(pixels);
-        SampleModel sampleModel = createSampleModel(width, height, nChannels, dataBuffer.getDataType());
-        WritableRaster raster = WritableRaster.createWritableRaster(sampleModel, dataBuffer, null);
+        DataBuffer dataBuffer;
+        WritableRaster raster;
+        if (pixelType == PixelType.UINT8 && colorModel.equals(ColorModel.getRGBdefault()) && (pixels.length == 3 || pixels.length == 4)) {
+            // Special case where we need to convert UINT8 RGB(A) to packed ARGB
+            var argb = bytesToPackedARGB(pixels);
+            var img = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+            img.setRGB(0, 0, width, height, argb, 0, width);
+            return img;
+        } else {
+            dataBuffer = bytesToDataBuffer(pixels);
+            var sampleModel = createSampleModel(width, height, nChannels, dataBuffer.getDataType());
+            raster = WritableRaster.createWritableRaster(sampleModel, dataBuffer, null);
+            return new BufferedImage(
+                    colorModel,
+                    raster,
+                    false,
+                    null
+            );
+        }
+    }
 
-        return new BufferedImage(
-                colorModel,
-                raster,
-                false,
-                null
-        );
+    /**
+     * Convert a byte array to ARGB pixel values.
+     * @param pixels
+     * @return
+     */
+    private static int[] bytesToPackedARGB(byte[][] pixels) {
+        // Special case for RGB images - we want a packed byte array
+        int n = pixels[0].length;
+        int[] argb = new int[n];
+        if (pixels.length == 3) {
+            // We assume RGB (no alpha)
+            for (int i = 0; i < n; i++) {
+                argb[i] = (255 << 24) | (pixels[0][i] & 0xFF) << 16 | (pixels[1][i] & 0xFF) << 8 | (pixels[2][i] & 0xFF);
+            }
+        } else if (pixels.length == 4) {
+            // We assume alpha is last (RGBA)
+            for (int i = 0; i < n; i++) {
+                argb[i] = (pixels[3][i] & 0xFF) << 24 | (pixels[0][i] & 0xFF) << 16 | (pixels[1][i] & 0xFF) << 8 | (pixels[2][i] & 0xFF);
+            }
+        }
+        return argb;
     }
 
     private DataBuffer bytesToDataBuffer(byte[][] bytes) {

@@ -1,15 +1,13 @@
 package qupath.lib.images.writers.ome.zarr;
 
 import qupath.lib.common.ColorTools;
-import qupath.lib.images.servers.ImageChannel;
+import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.PixelCalibration;
-import qupath.lib.images.servers.PixelType;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.IntStream;
 
 /**
@@ -19,16 +17,7 @@ import java.util.stream.IntStream;
 class OMEZarrAttributesCreator {
 
     private static final String VERSION = "0.4";
-    private final String imageName;
-    private final int numberOfZSlices;
-    private final int numberOfTimePoints;
-    private final int numberOfChannels;
-    private final PixelCalibration pixelCalibration;
-    private final TimeUnit timeUnit;
-    private final double[] downsamples;
-    private final List<ImageChannel> channels;
-    private final boolean isRGB;
-    private final PixelType pixelType;
+    private final ImageServerMetadata metadata;
     private enum Dimension {
         X,
         Y,
@@ -40,39 +29,10 @@ class OMEZarrAttributesCreator {
     /**
      * Create an instance of the attributes' creator.
      *
-     * @param imageName  the name of the image
-     * @param numberOfZSlices  the number of z-stacks
-     * @param numberOfTimePoints  the number of time points
-     * @param numberOfChannels  the number of channels
-     * @param pixelCalibration  the pixel calibration
-     * @param timeUnit  the unit of the time dimension of the image
-     * @param downsamples  the downsamples of the image
-     * @param channels  the channels of the image
-     * @param isRGB  whether the image stores pixel values with the RGB format
-     * @param pixelType  the type of the pixel values of the image
+     * @param metadata  the metadata of the image
      */
-    public OMEZarrAttributesCreator(
-            String imageName,
-            int numberOfZSlices,
-            int numberOfTimePoints,
-            int numberOfChannels,
-            PixelCalibration pixelCalibration,
-            TimeUnit timeUnit,
-            double[] downsamples,
-            List<ImageChannel> channels,
-            boolean isRGB,
-            PixelType pixelType
-    ) {
-        this.imageName = imageName;
-        this.numberOfZSlices = numberOfZSlices;
-        this.numberOfTimePoints = numberOfTimePoints;
-        this.numberOfChannels = numberOfChannels;
-        this.pixelCalibration = pixelCalibration;
-        this.timeUnit = timeUnit;
-        this.downsamples = downsamples;
-        this.channels = channels;
-        this.isRGB = isRGB;
-        this.pixelType = pixelType;
+    public OMEZarrAttributesCreator(ImageServerMetadata metadata) {
+        this.metadata = metadata;
     }
 
     /**
@@ -84,11 +44,11 @@ class OMEZarrAttributesCreator {
                 "multiscales", List.of(Map.of(
                         "axes", getAxes(),
                         "datasets", getDatasets(),
-                        "name", imageName,
+                        "name", metadata.getName(),
                         "version", VERSION
                 )),
                 "omero", Map.of(
-                        "name", imageName,
+                        "name", metadata.getName(),
                         "version", VERSION,
                         "channels", getChannels(),
                         "rdefs", Map.of(
@@ -96,7 +56,8 @@ class OMEZarrAttributesCreator {
                                 "defaultZ", 0,
                                 "model", "color"
                         )
-                )
+                ),
+                "bioformats2raw.layout" , 3
         );
     }
 
@@ -106,13 +67,13 @@ class OMEZarrAttributesCreator {
      */
     public Map<String, Object> getLevelAttributes() {
         List<String> arrayDimensions = new ArrayList<>();
-        if (numberOfTimePoints > 1) {
+        if (metadata.getSizeT() > 1) {
             arrayDimensions.add("t");
         }
-        if (numberOfChannels > 1) {
+        if (metadata.getSizeC() > 1) {
             arrayDimensions.add("c");
         }
-        if (numberOfZSlices > 1) {
+        if (metadata.getSizeZ() > 1) {
             arrayDimensions.add("z");
         }
         arrayDimensions.add("y");
@@ -124,13 +85,13 @@ class OMEZarrAttributesCreator {
     private List<Map<String, Object>> getAxes() {
         List<Map<String, Object>> axes = new ArrayList<>();
 
-        if (numberOfTimePoints > 1) {
+        if (metadata.getSizeT() > 1) {
             axes.add(getAxis(Dimension.T));
         }
-        if (numberOfChannels > 1) {
+        if (metadata.getSizeC() > 1) {
             axes.add(getAxis(Dimension.C));
         }
-        if (numberOfZSlices > 1) {
+        if (metadata.getSizeZ() > 1) {
             axes.add(getAxis(Dimension.Z));
         }
         axes.add(getAxis(Dimension.Y));
@@ -140,16 +101,16 @@ class OMEZarrAttributesCreator {
     }
 
     private List<Map<String, Object>> getDatasets() {
-        return IntStream.range(0, downsamples.length)
+        return IntStream.range(0, metadata.getPreferredDownsamplesArray().length)
                 .mapToObj(level -> Map.of(
                         "path", "s" + level,
-                        "coordinateTransformations", List.of(getCoordinateTransformation((float) downsamples[level]))
+                        "coordinateTransformations", List.of(getCoordinateTransformation((float) metadata.getPreferredDownsamplesArray()[level]))
                 ))
                 .toList();
     }
 
     private List<Map<String, Object>> getChannels() {
-        Object maxValue = isRGB ? Integer.MAX_VALUE : switch (pixelType) {
+        Object maxValue = metadata.isRGB() ? Integer.MAX_VALUE : switch (metadata.getPixelType()) {
             case UINT8, INT8 -> Byte.MAX_VALUE;
             case UINT16, INT16 -> Short.MAX_VALUE;
             case UINT32, INT32 -> Integer.MAX_VALUE;
@@ -157,7 +118,7 @@ class OMEZarrAttributesCreator {
             case FLOAT64 -> Double.MAX_VALUE;
         };
 
-        return channels.stream()
+        return metadata.getChannels().stream()
                 .map(channel -> Map.of(
                         "active", true,
                         "coefficient", 1d,
@@ -197,11 +158,11 @@ class OMEZarrAttributesCreator {
 
         switch (dimension) {
             case X, Y, Z -> {
-                if (pixelCalibration.getPixelWidthUnit().equals(PixelCalibration.MICROMETER)) {
+                if (metadata.getPixelCalibration().getPixelWidthUnit().equals(PixelCalibration.MICROMETER)) {
                     axis.put("unit", "micrometer");
                 }
             }
-            case T -> axis.put("unit", switch (timeUnit) {
+            case T -> axis.put("unit", switch (metadata.getTimeUnit()) {
                 case NANOSECONDS -> "nanosecond";
                 case MICROSECONDS -> "microsecond";
                 case MILLISECONDS -> "millisecond";
@@ -217,21 +178,21 @@ class OMEZarrAttributesCreator {
 
     private Map<String, Object> getCoordinateTransformation(float downsample) {
         List<Float> scales = new ArrayList<>();
-        if (numberOfTimePoints > 1) {
-            if (!Double.isNaN(pixelCalibration.getTimepoint(0)) && !Double.isNaN(pixelCalibration.getTimepoint(1))) {
-                scales.add((float) (pixelCalibration.getTimepoint(1) - pixelCalibration.getTimepoint(0)));
+        if (metadata.getSizeT() > 1) {
+            if (!Double.isNaN(metadata.getPixelCalibration().getTimepoint(0)) && !Double.isNaN(metadata.getPixelCalibration().getTimepoint(1))) {
+                scales.add((float) (metadata.getPixelCalibration().getTimepoint(1) - metadata.getPixelCalibration().getTimepoint(0)));
             } else {
                 scales.add(1F);
             }
         }
-        if (numberOfChannels > 1) {
+        if (metadata.getSizeC() > 1) {
             scales.add(1F);
         }
-        if (numberOfZSlices > 1) {
-            scales.add(pixelCalibration.getZSpacing().floatValue());
+        if (metadata.getSizeZ() > 1) {
+            scales.add(metadata.getPixelCalibration().getZSpacing().floatValue());
         }
-        scales.add(pixelCalibration.getPixelHeight().floatValue() * downsample);
-        scales.add(pixelCalibration.getPixelWidth().floatValue() * downsample);
+        scales.add(metadata.getPixelCalibration().getPixelHeight().floatValue() * downsample);
+        scales.add(metadata.getPixelCalibration().getPixelWidth().floatValue() * downsample);
 
         return Map.of(
                 "type", "scale",
