@@ -4,12 +4,14 @@ import org.apache.commons.io.FileUtils;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import qupath.lib.color.ColorModelFactory;
+import qupath.lib.common.ColorTools;
 import qupath.lib.images.servers.AbstractImageServer;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerBuilder;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.ImageServerProvider;
+import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.images.servers.PixelType;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
@@ -72,6 +74,90 @@ public class TestOMEZarrWriter {
         }
 
         Assertions.assertTrue(Files.exists(Paths.get(outputImagePath, "OME", "METADATA.ome.xml")));
+
+        sampleImageServer.close();
+        FileUtils.deleteDirectory(path.toFile());
+    }
+
+    @Test
+    void Check_Pixel_Type() throws Exception {
+        Path path = Files.createTempDirectory(UUID.randomUUID().toString());
+        String outputImagePath = Paths.get(path.toString(), "image.ome.zarr").toString();
+        SampleImageServer sampleImageServer = new SampleImageServer();
+        PixelType expectedPixelType = sampleImageServer.getMetadata().getPixelType();
+
+        try (OMEZarrWriter writer = new OMEZarrWriter.Builder(sampleImageServer, outputImagePath).build()) {
+            writer.writeImage();
+        }
+
+        PixelType pixelType;
+        try (ImageServer<BufferedImage> server = ImageServerProvider.buildServer(outputImagePath, BufferedImage.class)) {
+            pixelType = server.getMetadata().getPixelType();
+        }
+        Assertions.assertEquals(expectedPixelType, pixelType);
+
+        sampleImageServer.close();
+        FileUtils.deleteDirectory(path.toFile());
+    }
+
+    @Test
+    void Check_Pixel_Calibration() throws Exception {
+        Path path = Files.createTempDirectory(UUID.randomUUID().toString());
+        String outputImagePath = Paths.get(path.toString(), "image.ome.zarr").toString();
+        SampleImageServer sampleImageServer = new SampleImageServer();
+        PixelCalibration expectedPixelCalibration = sampleImageServer.getMetadata().getPixelCalibration();
+
+        try (OMEZarrWriter writer = new OMEZarrWriter.Builder(sampleImageServer, outputImagePath).build()) {
+            writer.writeImage();
+        }
+
+        PixelCalibration pixelCalibration;
+        try (ImageServer<BufferedImage> server = ImageServerProvider.buildServer(outputImagePath, BufferedImage.class)) {
+            pixelCalibration = server.getMetadata().getPixelCalibration();
+        }
+        Assertions.assertEquals(expectedPixelCalibration, pixelCalibration);
+
+        sampleImageServer.close();
+        FileUtils.deleteDirectory(path.toFile());
+    }
+
+    @Test
+    void Check_Channels() throws Exception {
+        Path path = Files.createTempDirectory(UUID.randomUUID().toString());
+        String outputImagePath = Paths.get(path.toString(), "image.ome.zarr").toString();
+        SampleImageServer sampleImageServer = new SampleImageServer();
+        List<ImageChannel> expectedChannels = sampleImageServer.getMetadata().getChannels();
+
+        try (OMEZarrWriter writer = new OMEZarrWriter.Builder(sampleImageServer, outputImagePath).build()) {
+            writer.writeImage();
+        }
+
+        List<ImageChannel> channels;
+        try (ImageServer<BufferedImage> server = ImageServerProvider.buildServer(outputImagePath, BufferedImage.class)) {
+            channels = server.getMetadata().getChannels();
+        }
+        Assertions.assertEquals(expectedChannels, channels);
+
+        sampleImageServer.close();
+        FileUtils.deleteDirectory(path.toFile());
+    }
+
+    @Test
+    void Check_Magnification() throws Exception {
+        Path path = Files.createTempDirectory(UUID.randomUUID().toString());
+        String outputImagePath = Paths.get(path.toString(), "image.ome.zarr").toString();
+        SampleImageServer sampleImageServer = new SampleImageServer();
+        double expectedMagnification = sampleImageServer.getMetadata().getMagnification();
+
+        try (OMEZarrWriter writer = new OMEZarrWriter.Builder(sampleImageServer, outputImagePath).build()) {
+            writer.writeImage();
+        }
+
+        double magnification;
+        try (ImageServer<BufferedImage> server = ImageServerProvider.buildServer(outputImagePath, BufferedImage.class)) {
+            magnification = server.getMetadata().getMagnification();
+        }
+        Assertions.assertEquals(expectedMagnification, magnification);
 
         sampleImageServer.close();
         FileUtils.deleteDirectory(path.toFile());
@@ -493,14 +579,15 @@ public class TestOMEZarrWriter {
                     .pixelType(PixelType.FLOAT64)
                     .preferredTileSize(32, 32)
                     .channels(List.of(
-                            ImageChannel.getInstance("c1", 1),
-                            ImageChannel.getInstance("c2", 2),
-                            ImageChannel.getInstance("c3", 3),
-                            ImageChannel.getInstance("c4", 4),
-                            ImageChannel.getInstance("c5", 5)
+                            ImageChannel.getInstance("c1", ColorTools.CYAN),
+                            ImageChannel.getInstance("c2", ColorTools.BLUE),
+                            ImageChannel.getInstance("c3", ColorTools.RED),
+                            ImageChannel.getInstance("c4", ColorTools.GREEN),
+                            ImageChannel.getInstance("c5", ColorTools.MAGENTA)
                     ))
                     .name("name")
                     .levelsFromDownsamples(1, 2)
+                    .magnification(2.4)
                     .build();
         }
 

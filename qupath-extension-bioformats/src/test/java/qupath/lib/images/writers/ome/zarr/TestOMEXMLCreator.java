@@ -38,6 +38,7 @@ public class TestOMEXMLCreator {
                     ImageChannel.getInstance("c4", ColorTools.RED)
             ))
             .name("some name")
+            .magnification(4.8)
             .build();
 
     @Test
@@ -50,6 +51,38 @@ public class TestOMEXMLCreator {
                 expectedNamespace,
                 getRootOfXMLText(xmlContent).getAttribute("xmlns")
         );
+    }
+
+    @Test
+    void Check_Instrument_Element_Exists() throws IOException, ParserConfigurationException, SAXException {
+        String xmlContent = OMEXMLCreator.create(sampleMetadata).orElse("");
+
+        Assertions.assertEquals(
+                1,
+                getRootOfXMLText(xmlContent).getElementsByTagName("Instrument").getLength()
+        );
+    }
+
+    @Test
+    void Check_Objective_Element_Exists() throws IOException, ParserConfigurationException, SAXException {
+        String xmlContent = OMEXMLCreator.create(sampleMetadata).orElse("");
+
+        Element instrumentElement = (Element) getRootOfXMLText(xmlContent).getElementsByTagName("Instrument").item(0);
+        Assertions.assertEquals(
+                1,
+                instrumentElement.getElementsByTagName("Objective").getLength()
+        );
+    }
+
+    @Test
+    void Check_Magnification() throws IOException, ParserConfigurationException, SAXException {
+        String expectedMagnification = String.valueOf(sampleMetadata.getMagnification());
+
+        String xmlContent = OMEXMLCreator.create(sampleMetadata).orElse("");
+
+        Element instrumentElement = (Element) getRootOfXMLText(xmlContent).getElementsByTagName("Instrument").item(0);
+        Element objectiveElement = (Element) instrumentElement.getElementsByTagName("Objective").item(0);
+        Assertions.assertEquals(expectedMagnification, objectiveElement.getAttribute("NominalMagnification"));
     }
 
     @Test
@@ -66,7 +99,7 @@ public class TestOMEXMLCreator {
     void Check_Pixels_Element_Exists() throws IOException, ParserConfigurationException, SAXException {
         String xmlContent = OMEXMLCreator.create(sampleMetadata).orElse("");
 
-        Element imageElement = (Element) getRootOfXMLText(xmlContent).getFirstChild();
+        Element imageElement = (Element) getRootOfXMLText(xmlContent).getElementsByTagName("Image").item(0);
         Assertions.assertEquals(
                 1,
                 imageElement.getElementsByTagName("Pixels").getLength()
@@ -79,8 +112,8 @@ public class TestOMEXMLCreator {
 
         String xmlContent = OMEXMLCreator.create(sampleMetadata).orElse("");
 
-        Element imageElement = (Element) getRootOfXMLText(xmlContent).getFirstChild();
-        Element pixelsElement = (Element) imageElement.getFirstChild();
+        Element imageElement = (Element) getRootOfXMLText(xmlContent).getElementsByTagName("Image").item(0);
+        Element pixelsElement = (Element) imageElement.getElementsByTagName("Pixels").item(0);
         Assertions.assertEquals(expectedWidth, pixelsElement.getAttribute("SizeX"));
     }
 
@@ -90,8 +123,8 @@ public class TestOMEXMLCreator {
 
         String xmlContent = OMEXMLCreator.create(sampleMetadata).orElse("");
 
-        Element imageElement = (Element) getRootOfXMLText(xmlContent).getFirstChild();
-        Element pixelsElement = (Element) imageElement.getFirstChild();
+        Element imageElement = (Element) getRootOfXMLText(xmlContent).getElementsByTagName("Image").item(0);
+        Element pixelsElement = (Element) imageElement.getElementsByTagName("Pixels").item(0);
         Assertions.assertEquals(expectedWidth, pixelsElement.getAttribute("SizeY"));
     }
 
@@ -101,8 +134,8 @@ public class TestOMEXMLCreator {
 
         String xmlContent = OMEXMLCreator.create(sampleMetadata).orElse("");
 
-        Element imageElement = (Element) getRootOfXMLText(xmlContent).getFirstChild();
-        Element pixelsElement = (Element) imageElement.getFirstChild();
+        Element imageElement = (Element) getRootOfXMLText(xmlContent).getElementsByTagName("Image").item(0);
+        Element pixelsElement = (Element) imageElement.getElementsByTagName("Pixels").item(0);
         Assertions.assertEquals(expectedWidth, pixelsElement.getAttribute("SizeZ"));
     }
 
@@ -112,8 +145,8 @@ public class TestOMEXMLCreator {
 
         String xmlContent = OMEXMLCreator.create(sampleMetadata).orElse("");
 
-        Element imageElement = (Element) getRootOfXMLText(xmlContent).getFirstChild();
-        Element pixelsElement = (Element) imageElement.getFirstChild();
+        Element imageElement = (Element) getRootOfXMLText(xmlContent).getElementsByTagName("Image").item(0);
+        Element pixelsElement = (Element) imageElement.getElementsByTagName("Pixels").item(0);
         Assertions.assertEquals(expectedWidth, pixelsElement.getAttribute("SizeC"));
     }
 
@@ -123,8 +156,8 @@ public class TestOMEXMLCreator {
 
         String xmlContent = OMEXMLCreator.create(sampleMetadata).orElse("");
 
-        Element imageElement = (Element) getRootOfXMLText(xmlContent).getFirstChild();
-        Element pixelsElement = (Element) imageElement.getFirstChild();
+        Element imageElement = (Element) getRootOfXMLText(xmlContent).getElementsByTagName("Image").item(0);
+        Element pixelsElement = (Element) imageElement.getElementsByTagName("Pixels").item(0);
         Assertions.assertEquals(expectedWidth, pixelsElement.getAttribute("SizeT"));
     }
 
@@ -134,8 +167,8 @@ public class TestOMEXMLCreator {
 
         String xmlContent = OMEXMLCreator.create(sampleMetadata).orElse("");
 
-        Element imageElement = (Element) getRootOfXMLText(xmlContent).getFirstChild();
-        Element pixelsElement = (Element) imageElement.getFirstChild();
+        Element imageElement = (Element) getRootOfXMLText(xmlContent).getElementsByTagName("Image").item(0);
+        Element pixelsElement = (Element) imageElement.getElementsByTagName("Pixels").item(0);
         Assertions.assertEquals(expectedPixelType, pixelsElement.getAttribute("Type"));
     }
 
@@ -145,8 +178,8 @@ public class TestOMEXMLCreator {
 
         String xmlContent = OMEXMLCreator.create(sampleMetadata).orElse("");
 
-        Element imageElement = (Element) getRootOfXMLText(xmlContent).getFirstChild();
-        Element pixelsElement = (Element) imageElement.getFirstChild();
+        Element imageElement = (Element) getRootOfXMLText(xmlContent).getElementsByTagName("Image").item(0);
+        Element pixelsElement = (Element) imageElement.getElementsByTagName("Pixels").item(0);
         Assertions.assertEquals(expectedValue, pixelsElement.getAttribute("PhysicalSizeX"));
     }
 
@@ -156,8 +189,8 @@ public class TestOMEXMLCreator {
 
         String xmlContent = OMEXMLCreator.create(sampleMetadata).orElse("");
 
-        Element imageElement = (Element) getRootOfXMLText(xmlContent).getFirstChild();
-        Element pixelsElement = (Element) imageElement.getFirstChild();
+        Element imageElement = (Element) getRootOfXMLText(xmlContent).getElementsByTagName("Image").item(0);
+        Element pixelsElement = (Element) imageElement.getElementsByTagName("Pixels").item(0);
         Assertions.assertEquals(expectedUnit, pixelsElement.getAttribute("PhysicalSizeXUnit"));
     }
 
@@ -167,8 +200,8 @@ public class TestOMEXMLCreator {
 
         String xmlContent = OMEXMLCreator.create(sampleMetadata).orElse("");
 
-        Element imageElement = (Element) getRootOfXMLText(xmlContent).getFirstChild();
-        Element pixelsElement = (Element) imageElement.getFirstChild();
+        Element imageElement = (Element) getRootOfXMLText(xmlContent).getElementsByTagName("Image").item(0);
+        Element pixelsElement = (Element) imageElement.getElementsByTagName("Pixels").item(0);
         Assertions.assertEquals(expectedValue, pixelsElement.getAttribute("PhysicalSizeY"));
     }
 
@@ -178,8 +211,8 @@ public class TestOMEXMLCreator {
 
         String xmlContent = OMEXMLCreator.create(sampleMetadata).orElse("");
 
-        Element imageElement = (Element) getRootOfXMLText(xmlContent).getFirstChild();
-        Element pixelsElement = (Element) imageElement.getFirstChild();
+        Element imageElement = (Element) getRootOfXMLText(xmlContent).getElementsByTagName("Image").item(0);
+        Element pixelsElement = (Element) imageElement.getElementsByTagName("Pixels").item(0);
         Assertions.assertEquals(expectedUnit, pixelsElement.getAttribute("PhysicalSizeYUnit"));
     }
 
@@ -189,8 +222,8 @@ public class TestOMEXMLCreator {
 
         String xmlContent = OMEXMLCreator.create(sampleMetadata).orElse("");
 
-        Element imageElement = (Element) getRootOfXMLText(xmlContent).getFirstChild();
-        Element pixelsElement = (Element) imageElement.getFirstChild();
+        Element imageElement = (Element) getRootOfXMLText(xmlContent).getElementsByTagName("Image").item(0);
+        Element pixelsElement = (Element) imageElement.getElementsByTagName("Pixels").item(0);
         Assertions.assertEquals(expectedValue, pixelsElement.getAttribute("PhysicalSizeZ"));
     }
 
@@ -200,8 +233,8 @@ public class TestOMEXMLCreator {
 
         String xmlContent = OMEXMLCreator.create(sampleMetadata).orElse("");
 
-        Element imageElement = (Element) getRootOfXMLText(xmlContent).getFirstChild();
-        Element pixelsElement = (Element) imageElement.getFirstChild();
+        Element imageElement = (Element) getRootOfXMLText(xmlContent).getElementsByTagName("Image").item(0);
+        Element pixelsElement = (Element) imageElement.getElementsByTagName("Pixels").item(0);
         Assertions.assertEquals(expectedUnit, pixelsElement.getAttribute("PhysicalSizeZUnit"));
     }
 
@@ -213,8 +246,8 @@ public class TestOMEXMLCreator {
 
         String xmlContent = OMEXMLCreator.create(sampleMetadata).orElse("");
 
-        Element imageElement = (Element) getRootOfXMLText(xmlContent).getFirstChild();
-        Element pixelsElement = (Element) imageElement.getFirstChild();
+        Element imageElement = (Element) getRootOfXMLText(xmlContent).getElementsByTagName("Image").item(0);
+        Element pixelsElement = (Element) imageElement.getElementsByTagName("Pixels").item(0);
         Assertions.assertEquals(expectedValue, pixelsElement.getAttribute("TimeIncrement"));
     }
 
@@ -224,8 +257,8 @@ public class TestOMEXMLCreator {
 
         String xmlContent = OMEXMLCreator.create(sampleMetadata).orElse("");
 
-        Element imageElement = (Element) getRootOfXMLText(xmlContent).getFirstChild();
-        Element pixelsElement = (Element) imageElement.getFirstChild();
+        Element imageElement = (Element) getRootOfXMLText(xmlContent).getElementsByTagName("Image").item(0);
+        Element pixelsElement = (Element) imageElement.getElementsByTagName("Pixels").item(0);
         Assertions.assertEquals(expectedUnit, pixelsElement.getAttribute("TimeIncrementUnit"));
     }
 
@@ -235,8 +268,8 @@ public class TestOMEXMLCreator {
 
         String xmlContent = OMEXMLCreator.create(sampleMetadata).orElse("");
 
-        Element imageElement = (Element) getRootOfXMLText(xmlContent).getFirstChild();
-        Element pixelsElement = (Element) imageElement.getFirstChild();
+        Element imageElement = (Element) getRootOfXMLText(xmlContent).getElementsByTagName("Image").item(0);
+        Element pixelsElement = (Element) imageElement.getElementsByTagName("Pixels").item(0);
         Assertions.assertEquals(
                 expectedNumberOfChannels,
                 pixelsElement.getElementsByTagName("Channel").getLength()
@@ -250,8 +283,8 @@ public class TestOMEXMLCreator {
 
         String xmlContent = OMEXMLCreator.create(sampleMetadata).orElse("");
 
-        Element imageElement = (Element) getRootOfXMLText(xmlContent).getFirstChild();
-        Element pixelsElement = (Element) imageElement.getFirstChild();
+        Element imageElement = (Element) getRootOfXMLText(xmlContent).getElementsByTagName("Image").item(0);
+        Element pixelsElement = (Element) imageElement.getElementsByTagName("Pixels").item(0);
         Element channelElement = (Element) pixelsElement.getChildNodes().item(channelIndex);
         Assertions.assertEquals(expectedName, channelElement.getAttribute("Name"));
     }
@@ -263,8 +296,8 @@ public class TestOMEXMLCreator {
 
         String xmlContent = OMEXMLCreator.create(sampleMetadata).orElse("");
 
-        Element imageElement = (Element) getRootOfXMLText(xmlContent).getFirstChild();
-        Element pixelsElement = (Element) imageElement.getFirstChild();
+        Element imageElement = (Element) getRootOfXMLText(xmlContent).getElementsByTagName("Image").item(0);
+        Element pixelsElement = (Element) imageElement.getElementsByTagName("Pixels").item(0);
         Element channelElement = (Element) pixelsElement.getChildNodes().item(channelIndex);
         int colorRGBA = Integer.parseInt(channelElement.getAttribute("Color"));
         int colorRGB = ColorTools.packRGB(

@@ -5,7 +5,10 @@ import ome.units.quantity.Length;
 import ome.units.quantity.Time;
 import ome.xml.model.Channel;
 import ome.xml.model.Image;
+import ome.xml.model.Instrument;
 import ome.xml.model.OME;
+import ome.xml.model.Objective;
+import ome.xml.model.ObjectiveSettings;
 import ome.xml.model.Pixels;
 import ome.xml.model.enums.DimensionOrder;
 import ome.xml.model.enums.PixelType;
@@ -35,7 +38,12 @@ import java.util.Optional;
 class OMEXMLCreator {
 
     private static final Logger logger = LoggerFactory.getLogger(OMEXMLCreator.class);
+    private static final String NAMESPACE_ATTRIBUTE = "xmlns";
     private static final String NAMESPACE = "http://www.openmicroscopy.org/Schemas/OME/2016-06";
+    private static final String INSTRUMENT_ID = "Instrument:0";
+    private static final String IMAGE_ID = "Image:0";
+    private static final String OBJECTIVE_ID = "Objective:0";
+    private static final String PIXELS_ID = "Pixels:0";
 
     private OMEXMLCreator() {
         throw new RuntimeException("This class is not instantiable.");
@@ -51,12 +59,17 @@ class OMEXMLCreator {
      */
     public static Optional<String> create(ImageServerMetadata metadata) {
         OME ome = new OME();
-        ome.addImage(createImage(metadata));
+
+        Instrument instrument = Double.isNaN(metadata.getMagnification()) ? null : createInstrument(metadata.getMagnification());
+        if (instrument != null) {
+            ome.addInstrument(instrument);
+        }
+        ome.addImage(createImage(metadata, instrument));
 
         try {
             Document document = DocumentBuilderFactory.newInstance().newDocumentBuilder().newDocument();
             Element root = ome.asXMLElement(document);
-            root.setAttribute("xmlns", NAMESPACE);
+            root.setAttribute(NAMESPACE_ATTRIBUTE, NAMESPACE);
             document.appendChild(root);
 
             try (ByteArrayOutputStream os = new ByteArrayOutputStream()) {
@@ -72,19 +85,45 @@ class OMEXMLCreator {
         }
     }
 
-    private static Image createImage(ImageServerMetadata metadata) {
+    private static Instrument createInstrument(double magnification) {
+        Instrument instrument = new Instrument();
+
+        instrument.setID(INSTRUMENT_ID);
+        instrument.addObjective(createObjective(magnification));
+
+        return instrument;
+    }
+
+    private static Image createImage(ImageServerMetadata metadata, Instrument instrument) {
         Image image = new Image();
 
-        image.setID("Image:0");
+        image.setID(IMAGE_ID);
         image.setPixels(createPixels(metadata));
 
+        if (instrument != null) {
+            image.linkInstrument(instrument);
+
+            ObjectiveSettings settings = new ObjectiveSettings();
+            settings.setID(OBJECTIVE_ID);
+            image.setObjectiveSettings(settings);
+        }
+
         return image;
+    }
+
+    private static Objective createObjective(double magnification) {
+        Objective objective = new Objective();
+
+        objective.setID(OBJECTIVE_ID);
+        objective.setNominalMagnification(magnification);
+
+        return objective;
     }
 
     private static Pixels createPixels(ImageServerMetadata metadata) {
         Pixels pixels = new Pixels();
 
-        pixels.setID("Pixels:0");
+        pixels.setID(PIXELS_ID);
 
         pixels.setSizeX(new PositiveInteger(metadata.getWidth()));
         pixels.setSizeY(new PositiveInteger(metadata.getHeight()));
@@ -164,6 +203,6 @@ class OMEXMLCreator {
         return ((r & 0xff)<<24) +
                 ((g & 0xff)<<16) +
                 ((b & 0xff)<<8) +
-                (1 & 0xff);
+                (0xff);
     }
 }
