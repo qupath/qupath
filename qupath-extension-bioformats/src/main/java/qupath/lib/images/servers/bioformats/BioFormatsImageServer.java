@@ -489,8 +489,18 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			// The first resolution is the highest, i.e. the largest image
 			width = reader.getSizeX();
 			height = reader.getSizeY();
+
+			// When opening Zarr images, reader.getOptimalTileWidth/Height() returns by default
+			// the chunk width/height of the lowest resolution image. See
+			// https://github.com/qupath/qupath/pull/1645#issue-2533834067 for why it may be a problem.
+			// A workaround to get the chunk size of the full resolution image is to set the resolution
+			// to 0 with the Zarr reader
+			if (reader instanceof ZarrReader zarrReader) {
+				zarrReader.setResolution(0, true);
+			}
 			tileWidth = reader.getOptimalTileWidth();
 			tileHeight = reader.getOptimalTileHeight();
+
 			nChannels = reader.getSizeC();
 
 			// Make sure tile sizes are within range
