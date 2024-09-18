@@ -389,7 +389,8 @@ public class CommandFinderTools {
 
 		table.setOnMouseClicked(e -> {
 			if (e.getClickCount() > 1 && !(e.getTarget() instanceof TableColumnHeader)) {
-				if (runSelectedCommand(table.getSelectionModel().getSelectedItem())) {
+				var selected = table.getSelectionModel().getSelectedItem();
+				if (runSelectedCommand(selected)) {
 					if (cbAutoClose.isSelected()) {
 						stage.hide();
 					}
@@ -566,10 +567,12 @@ public class CommandFinderTools {
 				if (!runSelectedCommand(table.getSelectionModel().getSelectedItem()))
 					return;
 				
-				if (clearTextOnRun)
+				if (clearTextOnRun) {
 					textField.clear();
-				if (hideDialogOnRun != null && hideDialogOnRun.get() && dialog != null)
+				}
+				if (hideDialogOnRun != null && hideDialogOnRun.get() && dialog != null) {
 					dialog.hide();
+				}
 				e.consume();
 			} else if (e.getCode() == KeyCode.DOWN) {
 				if (table.getItems().size() == 1)
@@ -775,12 +778,15 @@ public class CommandFinderTools {
 				logger.error("'{}' command is not currently available!", menuItem.getText());
 				return false;
 			}
-			if (menuItem instanceof CheckMenuItem)
-				fireMenuItem((CheckMenuItem)menuItem);
-			else if (menuItem instanceof RadioMenuItem)
-				fireMenuItem((RadioMenuItem)menuItem);
-			else
-				menuItem.fire();
+			if (menuItem instanceof CheckMenuItem) {
+				fireMenuItem((CheckMenuItem) menuItem);
+			} else if (menuItem instanceof RadioMenuItem) {
+				fireMenuItem((RadioMenuItem) menuItem);
+			} else {
+				// Running this later helps deal with
+				// https://github.com/qupath/qupath/issues/1647
+				Platform.runLater(menuItem::fire);
+			}
 			return true;
 		}
 		

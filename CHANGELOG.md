@@ -68,6 +68,7 @@ They may change or be removed in future versions.
 * Out-of-bounds tiles can result in detected cells being in the wrong place (https://github.com/qupath/qupath/issues/1606)
 * Spacebar can be locked in an 'on' position within viewers (https://github.com/qupath/qupath/issues/1610)
 * Timepoint data is rarely available (or correct) (https://github.com/qupath/qupath/issues/1628)
+* Some commands cannot be run from 'Command List' (https://github.com/qupath/qupath/issues/1647)
 
 ### API changes
 * New `Map<String, String> getMetadata()` method added to `PathObject`, `Project` and `ProjectImageEntry` (https://github.com/qupath/qupath/pull/1587)
