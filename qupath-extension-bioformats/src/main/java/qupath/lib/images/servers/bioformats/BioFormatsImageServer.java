@@ -489,8 +489,18 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			// The first resolution is the highest, i.e. the largest image
 			width = reader.getSizeX();
 			height = reader.getSizeY();
+
+			// When opening Zarr images, reader.getOptimalTileWidth/Height() returns by default
+			// the chunk width/height of the lowest resolution image, which can be too low
+			// for the full resolution image, which makes the image slow to read (especially
+			// for remote images).
+			// A workaround to get the chunk size of the full resolution image is to set the resolution
+			// to 0 and read some bytes from the full resolution image, like below:
+			reader.setResolution(0);
+			reader.openBytes(reader.getIndex(0, 0, 0), 0, 0, 1, 1);
 			tileWidth = reader.getOptimalTileWidth();
 			tileHeight = reader.getOptimalTileHeight();
+
 			nChannels = reader.getSizeC();
 
 			// Make sure tile sizes are within range
