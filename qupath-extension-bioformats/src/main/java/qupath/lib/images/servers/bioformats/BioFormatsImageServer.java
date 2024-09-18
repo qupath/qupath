@@ -491,9 +491,8 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			height = reader.getSizeY();
 
 			// When opening Zarr images, reader.getOptimalTileWidth/Height() returns by default
-			// the chunk width/height of the lowest resolution image, which can be too low
-			// for the full resolution image, which makes the image slow to read (especially
-			// for remote images).
+			// the chunk width/height of the lowest resolution image. See
+			// https://github.com/qupath/qupath/pull/1645#issue-2533834067 for why it may be a problem.
 			// A workaround to get the chunk size of the full resolution image is to set the resolution
 			// to 0 and read some bytes from the full resolution image, like below:
 			reader.setResolution(0);
