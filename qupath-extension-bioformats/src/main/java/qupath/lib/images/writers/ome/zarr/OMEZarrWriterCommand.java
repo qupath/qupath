@@ -83,51 +83,12 @@ public class OMEZarrWriterCommand implements Runnable {
         }
         updatePreferences(parameters);
 
-        File fileOutput = FileChoosers.promptToSaveFile(
-                QuPathResources.getString("Action.BioFormats.writeOMEZarr"),
-                null,
-                FileChoosers.createExtensionFilter(QuPathResources.getString("Action.BioFormats.omeZarr"), ".ome.zarr")
-        );
+        File fileOutput = promptOutputDirectory();
         if (fileOutput == null) {
             return;
         }
-        if (!fileOutput.getAbsolutePath().endsWith(".ome.zarr")) {
-            Dialogs.showErrorMessage(
-                    QuPathResources.getString("Action.BioFormats.omeZarrWriter"),
-                    QuPathResources.getString("Action.BioFormats.invalidZarrExtension")
-            );
-            return;
-        }
-        if (fileOutput.exists()) {
-            Dialogs.showErrorMessage(
-                    QuPathResources.getString("Action.BioFormats.omeZarrWriter"),
-                    QuPathResources.getString("Action.BioFormats.directoryAlreadyExists")
-            );
-            return;
-        }
 
-        OMEZarrWriter.Builder builder = new OMEZarrWriter.Builder(imageData.getServer(), fileOutput.getAbsolutePath())
-                .setNumberOfThreads(parameters.getIntParameterValue("numberOfThreads"))
-                .setTileWidth(parameters.getIntParameterValue("tileSize"))
-                .setTileHeight(parameters.getIntParameterValue("tileSize"))
-                .setDownsamples(DoubleStream.iterate(
-                        1,
-                        d -> (int) (imageData.getServer().getWidth() / d) > parameters.getIntParameterValue("tileSize") &&
-                                (int) (imageData.getServer().getHeight() / d) > parameters.getIntParameterValue("tileSize"),
-                        d -> d * parameters.getIntParameterValue("scaledDownsample")).toArray()
-                );
-
-        if (!parameters.getBooleanParameterValue("allZ")) {
-            builder.setZSlices(qupath.getViewer().getZPosition(), qupath.getViewer().getZPosition()+1);
-        }
-        if (!parameters.getBooleanParameterValue("allT")) {
-            builder.setTimepoints(qupath.getViewer().getTPosition(), qupath.getViewer().getTPosition()+1);
-        }
-
-        PathObject selected = imageData.getHierarchy().getSelectionModel().getSelectedObject();
-        if (selected != null && selected.hasROI() && selected.getROI().isArea()) {
-            builder.setBoundingBox(ImageRegion.createInstance(selected.getROI()));
-        }
+        OMEZarrWriter.Builder builder = createBuilder(parameters, imageData, fileOutput);
 
         task = executor.submit(() -> {
             try (OMEZarrWriter writer = builder.build()) {
@@ -209,5 +170,58 @@ public class OMEZarrWriterCommand implements Runnable {
         allZ.set(parameters.getBooleanParameterValue("allZ"));
         allT.set(parameters.getBooleanParameterValue("allT"));
         numberOfThreads.set(parameters.getIntParameterValue("numberOfThreads"));
+    }
+
+    private static File promptOutputDirectory() {
+        File fileOutput = FileChoosers.promptToSaveFile(
+                QuPathResources.getString("Action.BioFormats.writeOMEZarr"),
+                null,
+                FileChoosers.createExtensionFilter(QuPathResources.getString("Action.BioFormats.omeZarr"), ".ome.zarr")
+        );
+
+        if (fileOutput == null) {
+            return null;
+        } else if (!fileOutput.getAbsolutePath().endsWith(".ome.zarr")) {
+            Dialogs.showErrorMessage(
+                    QuPathResources.getString("Action.BioFormats.omeZarrWriter"),
+                    QuPathResources.getString("Action.BioFormats.invalidZarrExtension")
+            );
+            return null;
+        } else if (fileOutput.exists()) {
+            Dialogs.showErrorMessage(
+                    QuPathResources.getString("Action.BioFormats.omeZarrWriter"),
+                    QuPathResources.getString("Action.BioFormats.directoryAlreadyExists")
+            );
+            return null;
+        } else {
+            return fileOutput;
+        }
+    }
+
+    private OMEZarrWriter.Builder createBuilder(ParameterList parameters, ImageData<BufferedImage> imageData, File fileOutput) {
+        OMEZarrWriter.Builder builder = new OMEZarrWriter.Builder(imageData.getServer(), fileOutput.getAbsolutePath())
+                .setNumberOfThreads(parameters.getIntParameterValue("numberOfThreads"))
+                .setTileWidth(parameters.getIntParameterValue("tileSize"))
+                .setTileHeight(parameters.getIntParameterValue("tileSize"))
+                .setDownsamples(DoubleStream.iterate(
+                        1,
+                        d -> (int) (imageData.getServer().getWidth() / d) > parameters.getIntParameterValue("tileSize") &&
+                                (int) (imageData.getServer().getHeight() / d) > parameters.getIntParameterValue("tileSize"),
+                        d -> d * parameters.getIntParameterValue("scaledDownsample")).toArray()
+                );
+
+        if (!parameters.getBooleanParameterValue("allZ")) {
+            builder.setZSlices(qupath.getViewer().getZPosition(), qupath.getViewer().getZPosition()+1);
+        }
+        if (!parameters.getBooleanParameterValue("allT")) {
+            builder.setTimepoints(qupath.getViewer().getTPosition(), qupath.getViewer().getTPosition()+1);
+        }
+
+        PathObject selected = imageData.getHierarchy().getSelectionModel().getSelectedObject();
+        if (selected != null && selected.hasROI() && selected.getROI().isArea()) {
+            builder.setBoundingBox(ImageRegion.createInstance(selected.getROI()));
+        }
+
+        return builder;
     }
 }
