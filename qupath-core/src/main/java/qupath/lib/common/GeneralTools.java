@@ -182,7 +182,7 @@ public final class GeneralTools {
 	
 	
 	private static List<String> DEFAULT_EXTENSIONS = Arrays.asList(
-			".ome.tif", ".ome.tiff", ".tar.gz"
+			".ome.tif", ".ome.tiff", ".tar.gz", ".ome.zarr"
 			);
 	
 	/**

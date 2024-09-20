@@ -9,6 +9,8 @@ Some things may be added, some things may be removed, and some things may look d
 ### Major features
 * Support for InstanSeg segmentation (https://github.com/instanseg/instanseg)
 * Read and write OME-Zarr images (https://github.com/qupath/qupath/pull/1474)
+  * Use `convert-ome` to write OME-Zarr from a command line
+  * Use *File → Export images... → OME-Zarr* to export images from the user interface
 
 ### Enhancements
 (These are not yet ordered by interestingness)

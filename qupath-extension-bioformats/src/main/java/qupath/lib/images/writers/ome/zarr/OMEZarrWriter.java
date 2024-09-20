@@ -103,13 +103,23 @@ public class OMEZarrWriter implements AutoCloseable {
     /**
      * Close this writer. This will wait until all pending tiles
      * are written.
+     * <p>
+     * If this function is interrupted, all pending and active tasks
+     * are cancelled.
      *
      * @throws InterruptedException when the waiting is interrupted
      */
     @Override
     public void close() throws InterruptedException {
         executorService.shutdown();
-        executorService.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
+
+        try {
+            executorService.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
+        } catch (InterruptedException e) {
+            logger.debug("Waiting interrupted. Stopping tasks", e);
+            executorService.shutdownNow();
+            throw e;
+        }
     }
 
     /**
