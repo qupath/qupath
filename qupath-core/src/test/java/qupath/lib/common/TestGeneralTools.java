@@ -76,7 +76,7 @@ public class TestGeneralTools {
 		assertNull(GeneralTools.getExtension(noExt).orElse(null));
 		
 		String baseName = "anything a all. here or there";
-		for (String ext : Arrays.asList(".ext", ".tif", ".ome.tiff", ".tar.gz", ".ome.tif")) {
+		for (String ext : Arrays.asList(".ext", ".tif", ".ome.tiff", ".tar.gz", ".ome.tif", ".ome.zarr")) {
 			File file = new File(baseName + ext);
 			String parsed = GeneralTools.getExtension(file).orElse(null);
 			assertEquals(ext, parsed);

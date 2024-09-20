@@ -194,7 +194,7 @@ public class BioFormatsOptionsExtension implements QuPathExtension {
 		public final Action actionWriter;
 		
 		OmeTiffWriterAction(QuPathGUI qupath) {
-			actionWriter = ActionTools.createAction(new OMEPyramidWriterCommand(qupath), "OME TIFF");
+			actionWriter = ActionTools.createAction(new OMEPyramidWriterCommand(qupath), "OME-TIFF");
 		}
 	}
 
@@ -205,7 +205,7 @@ public class BioFormatsOptionsExtension implements QuPathExtension {
 		public final Action actionWriter;
 
 		public OmeZarrWriterAction(QuPathGUI qupath) {
-			actionWriter = ActionTools.createAction(new OMEZarrWriterCommand(qupath), "OME Zarr");
+			actionWriter = ActionTools.createAction(new OMEZarrWriterCommand(qupath), "OME-Zarr");
 		}
 	}
 }
