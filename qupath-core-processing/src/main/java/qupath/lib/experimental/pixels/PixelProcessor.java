@@ -185,7 +185,8 @@ public class PixelProcessor<S, T, U> {
                 tasks.add(new ProcessorTask(imageData, pathObject, processor, proxy));
         }
         // Run the tasks
-        runner.runTasks(tasks);
+        String message = tasks.size() == 1 ? "Processing 1 tile" : "Processing " + tasks.size() + " tiles";
+        runner.runTasks(message, tasks);
 
         // Reassign the proxy objects to the parent
         // If merging is involved, this can be slow - so pass these as new tasks
@@ -212,7 +213,7 @@ public class PixelProcessor<S, T, U> {
             }
         }
         if (!mergeTasks.isEmpty())
-           runner.runTasks(mergeTasks);
+           runner.runTasks("Post-processing", mergeTasks);
     }
 
     /**

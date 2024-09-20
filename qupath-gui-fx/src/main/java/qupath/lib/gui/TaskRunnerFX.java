@@ -96,12 +96,12 @@ public class TaskRunnerFX extends AbstractTaskRunner {
 	}
 	
 	@Override
-	public synchronized void runTasks(Collection<? extends Runnable> tasks) {
+	public synchronized void runTasks(String message, Collection<? extends Runnable> tasks) {
 		var viewer = qupath == null || repaintDelayMillis <= 0 ? null : qupath.getViewer();
 		if (viewer != null)
 			viewer.setMinimumRepaintSpacingMillis(repaintDelayMillis);
 		try {
-			super.runTasks(tasks);
+			super.runTasks(message, tasks);
 		} catch (Exception e) {
 			throw(e);
 		} finally {
@@ -319,7 +319,7 @@ public class TaskRunnerFX extends AbstractTaskRunner {
 			int progressPercent = (int)Math.round((double)progressValue / maxProgress * 100.0);
 			// Update the display
 			// Don't update the label if cancel was pressed, since this is probably already giving a more informative message
-			if (!cancelPressed)
+			if (!cancelPressed && STARTING_MESSAGE.equals(progressDialog.getDialogPane().getHeaderText()))
 				progressDialog.getDialogPane().setHeaderText(RUNNING_MESSAGE);
 
 			if (lastMessage == null)
