@@ -26,7 +26,7 @@ import java.util.concurrent.Future;
 import java.util.stream.DoubleStream;
 
 /**
- * A GUI command to export the current ImageServer to an OME Zarr file
+ * A GUI command to export the current ImageServer to an OME Zarr directory.
  */
 public class OMEZarrWriterCommand implements Runnable {
 
