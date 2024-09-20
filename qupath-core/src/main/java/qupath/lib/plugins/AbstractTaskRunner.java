@@ -83,7 +83,7 @@ public abstract class AbstractTaskRunner implements TaskRunner {
 	protected abstract SimpleProgressMonitor makeProgressMonitor();
 	
 	@Override
-	public synchronized void runTasks(Collection<? extends Runnable> tasks) {
+	public synchronized void runTasks(String message, Collection<? extends Runnable> tasks) {
 		
 		if (tasks.isEmpty())
 			return;
@@ -101,7 +101,7 @@ public abstract class AbstractTaskRunner implements TaskRunner {
 			service = new ExecutorCompletionService<>(pool);
 		
 		monitor = makeProgressMonitor();
-		monitor.startMonitoring(null, tasks.size(), true);
+		monitor.startMonitoring(message, tasks.size(), true);
 		for (Runnable task : tasks) {
 			// If a task if null, then skip it - otherwise the monitor can get stuck
 			if (task == null) {
