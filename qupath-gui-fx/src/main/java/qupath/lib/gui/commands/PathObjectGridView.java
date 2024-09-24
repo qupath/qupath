@@ -81,14 +81,12 @@ import qupath.lib.roi.interfaces.ROI;
 
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Objects;
-import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.concurrent.ForkJoinPool;
 import java.util.function.Function;
@@ -132,14 +130,14 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 	private ObservableList<PathClass> selectedClasses;
 
 
-	public static enum GridDisplaySize {
+	public enum GridDisplaySize {
 			TINY("Tiny", 60),
 			SMALL("Small", 100),
 			MEDIUM("Medium", 200),
 			LARGE("Large", 300);
 		
-		private String name;
-		private int size;
+		private final String name;
+		private final int size;
 		
 		GridDisplaySize(final String name, final int size) {
 			this.name = name;
@@ -155,10 +153,10 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 			return size;
 		}
 		
-	};
-	
+	}
 
-	private PathObjectGridView(final QuPathGUI qupath, final Function<PathObjectHierarchy, Collection<? extends PathObject>> extractor) {
+
+    private PathObjectGridView(final QuPathGUI qupath, final Function<PathObjectHierarchy, Collection<? extends PathObject>> extractor) {
 		this.qupath = qupath;
 		this.objectExtractor = extractor;
 		this.imageDataProperty().bind(qupath.imageDataProperty());
@@ -169,17 +167,14 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 	 * Create a grid view for a custom object extractor.
 	 * @param qupath QuPath instance
 	 * @param objectExtractor function to select the objects to display
-	 * @return
-	 */
+     */
 	public static PathObjectGridView createGridView(QuPathGUI qupath, Function<PathObjectHierarchy, Collection<? extends PathObject>> objectExtractor) {
 		return new PathObjectGridView(qupath, objectExtractor);
 	}
 	
 	/**
 	 * Create a grid view for TMA core objects.
-	 * @param qupath
-	 * @return
-	 */
+     */
 	public static PathObjectGridView createTmaCoreView(QuPathGUI qupath) {
 		var view = createGridView(qupath, PathObjectGridView::getTmaCores);
 		view.title.set(QuPathResources.getString("GridView.TMAGridView"));
@@ -188,8 +183,6 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 
 	/**
 	 * Create a grid view for annotations.
-	 * @param qupath
-	 * @return
 	 */
 	public static PathObjectGridView createAnnotationView(QuPathGUI qupath) {
 		var view = createGridView(qupath, PathObjectGridView::getAnnotations);
@@ -304,7 +297,6 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 		var currentImageData = imageDataProperty.get();
 		if (currentImageData != null) {
 			currentImageData.getHierarchy().removeListener(this);
-			currentImageData = null;
 		}
 		
 		// Ensure we aren't holding on a reference to anything
@@ -353,9 +345,7 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 
 		ComboBox<GridDisplaySize> comboDisplaySize = new ComboBox<>();
 		comboDisplaySize.getItems().setAll(GridDisplaySize.values());
-		comboDisplaySize.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {
-			grid.imageSize.set(n.getSize());
-		});
+		comboDisplaySize.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> grid.imageSize.set(n.getSize()));
 		comboDisplaySize.getSelectionModel().select(GridDisplaySize.SMALL);
 		
 		
@@ -402,9 +392,7 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 		selectedClasses = classComboBox.getCheckModel().getCheckedItems();
 		selectedClasses.addListener((ListChangeListener<PathClass>) c -> sortAndFilter());
 		FXUtils.installSelectAllOrNoneMenu(classComboBox);
-		classComboBox.getCheckModel().getCheckedItems().addListener((ListChangeListener<PathClass>) c -> {
-			classComboBox.setTitle(getCheckComboBoxText(classComboBox));
-		});
+		classComboBox.getCheckModel().getCheckedItems().addListener((ListChangeListener<PathClass>) c -> classComboBox.setTitle(getCheckComboBoxText(classComboBox)));
 
 
 		updateClasses(classComboBox);
@@ -511,8 +499,6 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 
 	/**
 	 * Check if an object is a TMA core flagged as missing
-	 * @param pathObject
-	 * @return
 	 */
 	private static boolean isMissingCore(PathObject pathObject) {
 		if (pathObject instanceof TMACoreObject)
@@ -556,19 +542,17 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 	
 	class QuPathGridView extends StackPane {
 		
-		private ObservableList<PathObject> list = FXCollections.observableArrayList();
-		private WeakHashMap<Node, TranslateTransition> translationMap = new WeakHashMap<>();
-		private WeakHashMap<PathObject, Label> nodeMap = new WeakHashMap<>();
+		private final ObservableList<PathObject> list = FXCollections.observableArrayList();
+		private final WeakHashMap<Node, TranslateTransition> translationMap = new WeakHashMap<>();
+		private final WeakHashMap<PathObject, Label> nodeMap = new WeakHashMap<>();
 		
-		private IntegerProperty imageSize = new SimpleIntegerProperty();
+		private final IntegerProperty imageSize = new SimpleIntegerProperty();
 		
-		private Text textEmpty = createPlaceholderText(QuPathResources.getString("GridView.noObjectsAvailable"));
+		private final Text textEmpty = createPlaceholderText(QuPathResources.getString("GridView.noObjectsAvailable"));
 		
 		QuPathGridView() {
-			imageSize.addListener(v -> {
-				updateChildren();
-			});
-			list.addListener((ListChangeListener<PathObject>) c -> updateChildren());
+			imageSize.addListener(v -> updateChildren());
+			list.addListener((ListChangeListener<PathObject>) c -> Platform.runLater(this::updateChildren));
 			updateChildren();
 			StackPane.setAlignment(textEmpty, Pos.CENTER);
 		}
@@ -657,9 +641,9 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 			int padding = 5;
 			int dx = imageSize.get() + padding;
 			int w = Math.max(dx, (int)getWidth());
-			int nx = (int)Math.floor(w / dx);
+			int nx = (int) (double) (w / dx);
 			nx = Math.max(1, nx);
-			int spaceX = (int)((w - (dx) * nx) / (nx)); // Space to divide equally
+			int spaceX = (w - (dx) * nx) / (nx); // Space to divide equally
 			
 			int x = spaceX/2;
 			int y = padding;
@@ -668,7 +652,7 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 				if (x + dx > w) {
 					x = spaceX/2;
 					if (node instanceof Label label)
-						y += label.getHeight() + spaceX + 2;
+						y += (int) (label.getHeight() + spaceX + 2);
 					else
 						y += imageSize.get() + spaceX + 2;
 				}
