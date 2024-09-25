@@ -505,7 +505,7 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 						// pathclass is present and selected, or missing and we're showing unclassifier
 						&& (selectedClasses.contains(p.getPathClass()) || (p.getPathClass() == null && selectedClasses.contains(PathClass.NULL_CLASS)))
 		);
-		grid.getItems().setAll(filteredList);
+		Platform.runLater(() -> grid.getItems().setAll(filteredList));
 	}
 
 
@@ -584,24 +584,22 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 			}
 			List<Node> images = new ArrayList<>();
 			for (PathObject pathObject : list) {
-				Label viewNode = nodeMap.get(pathObject);
-				if (viewNode == null) {
-					
+				Label viewNode = nodeMap.computeIfAbsent(pathObject, po -> {
 					var painter = PathObjectImageManagers.createImageViewPainter(
-							 qupath.getViewer(), imageDataProperty.get().getServer(), true, 
-							 ForkJoinPool.commonPool());
+							qupath.getViewer(), imageDataProperty.get().getServer(), true,
+							ForkJoinPool.commonPool());
 
 					var imageView = painter.getNode();
 					imageView.fitWidthProperty().bind(imageSize);
 					imageView.fitHeightProperty().bind(imageSize);
-					
-					painter.setPathObject(pathObject);
-					
-					viewNode = new Label("", imageView);
-					StackPane.setAlignment(viewNode, Pos.TOP_LEFT);
-					
-					Tooltip.install(viewNode, new Tooltip(pathObject.getName()));
-					viewNode.setOnMouseClicked(e -> {
+
+					painter.setPathObject(po);
+
+					var out = new Label("", imageView);
+					StackPane.setAlignment(out, Pos.TOP_LEFT);
+
+					Tooltip.install(out, new Tooltip(pathObject.getName()));
+					out.setOnMouseClicked(e -> {
 						var imageData = imageDataProperty.get();
 						if (imageData != null) {
 							imageData.getHierarchy().getSelectionModel().setSelectedObject(pathObject);
@@ -612,10 +610,8 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 							}
 						}
 					});
-					
-					viewNode.setEffect(new DropShadow(8, -2, 2, Color.GRAY));
-					nodeMap.put(pathObject, viewNode);
-				}
+					return out;
+				});
 				images.add(viewNode);
 			}
 			updateMeasurementText();
@@ -655,22 +651,23 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 			}
 			
 			int padding = 5;
-			int dx = imageSize.get() + padding;
-			int w = Math.max(dx, (int)getWidth());
-			int nx = (int)Math.floor(w / dx);
+			int dxy = imageSize.get() + padding;
+			int w = Math.max(dxy, (int)getWidth());
+			int nx = (int) (double) (w / dxy);
 			nx = Math.max(1, nx);
-			int spaceX = (int)((w - (dx) * nx) / (nx)); // Space to divide equally
+			int spaceX = (w - dxy * nx) / nx; // Space to divide equally
 			
 			int x = spaceX/2;
 			int y = padding;
-			
+
+			double h = imageSize.get();
 			for (Node node : getChildren()) {
-				if (x + dx > w) {
+				if (node instanceof Label label) {
+					h = label.getHeight();
+				}
+				if (x + dxy > w) {
 					x = spaceX/2;
-					if (node instanceof Label label)
-						y += label.getHeight() + spaceX + 2;
-					else
-						y += imageSize.get() + spaceX + 2;
+					y += (int) (h + spaceX + 2);
 				}
 				
 				if (doAnimate.get()) {
@@ -701,11 +698,10 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 					node.setTranslateX(x);
 					node.setTranslateY(y);
 				}
-				x += (dx + spaceX);
+				x += dxy + spaceX;
 			}
-			
-			setHeight(y + dx);
-			setPrefHeight(y + dx);
+			setHeight(y + h + padding);
+			setPrefHeight(y + h + padding);
 		}
 
 	}
