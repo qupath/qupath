@@ -45,6 +45,8 @@ Some things may be added, some things may be removed, and some things may look d
   * Temporarily active 'Selection mode' by pressing the `S` key while interacting with a viewer
 * More viewer options are persistent (e.g. show/hide the overview thumbnail, location text, or scalebar)
 * Better support for symbolic links (https://github.com/qupath/qupath/issues/1586)
+* Bio-Formats preference to open remote images is now turned on by default (https://github.com/qupath/qupath/pull/1653)
+  * This is needed to open remote ome.zarr images - but can be turned off in the preferences if necessary
 
 ### Experimental features
 These features are included for testing and feedback.
