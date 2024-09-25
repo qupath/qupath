@@ -259,15 +259,9 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 		}
 
 		Comparator<PathObject> sorter;
-
 		if (measurementName.equals(QuPathResources.getString("GridView.classification"))) {
 			sorter = (po1, po2) -> {
 				Comparator<PathObject> comp = Comparator.comparing(po -> po.getPathClass() == null ? "Unclassified" : po.getPathClass().toString());
-				return comp.compare(po1, po2);
-			};
-		} else if (measurementName.equals(QuPathResources.getString("GridView.name"))) {
-			sorter = (po1, po2) -> {
-				Comparator<PathObject> comp = Comparator.comparing(PathObject::getDisplayedName);
 				return comp.compare(po1, po2);
 			};
 		} else {
@@ -505,7 +499,12 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 						// pathclass is present and selected, or missing and we're showing unclassifier
 						&& (selectedClasses.contains(p.getPathClass()) || (p.getPathClass() == null && selectedClasses.contains(PathClass.NULL_CLASS)))
 		);
-		Platform.runLater(() -> grid.getItems().setAll(filteredList));
+		Runnable r = () -> grid.getItems().setAll(filteredList);
+		if (Platform.isFxApplicationThread()) {
+			r.run();
+		} else {
+			Platform.runLater(r);
+		}
 	}
 
 
@@ -580,40 +579,42 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 			}
 			List<Node> images = new ArrayList<>();
 			for (PathObject pathObject : list) {
-				Label viewNode = nodeMap.computeIfAbsent(pathObject, po -> {
-					var painter = PathObjectImageManagers.createImageViewPainter(
-							qupath.getViewer(), imageDataProperty.get().getServer(), true,
-							ForkJoinPool.commonPool());
-
-					var imageView = painter.getNode();
-					imageView.fitWidthProperty().bind(imageSize);
-					imageView.fitHeightProperty().bind(imageSize);
-
-					painter.setPathObject(po);
-
-					var out = new Label("", imageView);
-					StackPane.setAlignment(out, Pos.TOP_LEFT);
-
-					Tooltip.install(out, new Tooltip(pathObject.getName()));
-					out.setOnMouseClicked(e -> {
-						var imageData = imageDataProperty.get();
-						if (imageData != null) {
-							imageData.getHierarchy().getSelectionModel().setSelectedObject(pathObject);
-							if (e.getClickCount() > 1 && pathObject.hasROI()) {
-								ROI roi = pathObject.getROI();
-								if (roi != null && qupath.getViewer().getImageData() == imageData)
-									qupath.getViewer().setCenterPixelLocation(roi.getCentroidX(), roi.getCentroidY());
-							}
-						}
-					});
-					return out;
-				});
+				Label viewNode = nodeMap.computeIfAbsent(pathObject, po -> getLabel(pathObject));
 				images.add(viewNode);
 			}
 			updateMeasurementText();
 			getChildren().setAll(images);
 		}
-		
+
+		private Label getLabel(PathObject pathObject) {
+			var painter = PathObjectImageManagers.createImageViewPainter(
+					qupath.getViewer(), imageDataProperty.get().getServer(), true,
+					ForkJoinPool.commonPool());
+
+			var imageView = painter.getNode();
+			imageView.fitWidthProperty().bind(imageSize);
+			imageView.fitHeightProperty().bind(imageSize);
+
+			painter.setPathObject(pathObject);
+
+			var out = new Label("", imageView);
+			StackPane.setAlignment(out, Pos.TOP_LEFT);
+
+			Tooltip.install(out, new Tooltip(pathObject.getName()));
+			out.setOnMouseClicked(e -> {
+				var imageData = imageDataProperty.get();
+				if (imageData != null) {
+					imageData.getHierarchy().getSelectionModel().setSelectedObject(pathObject);
+					if (e.getClickCount() > 1 && pathObject.hasROI()) {
+						ROI roi = pathObject.getROI();
+						if (roi != null && qupath.getViewer().getImageData() == imageData)
+							qupath.getViewer().setCenterPixelLocation(roi.getCentroidX(), roi.getCentroidY());
+					}
+				}
+			});
+			return out;
+		}
+
 		void updateMeasurementText() {
 			String m = measurement == null ? null : measurement.get();
 			for (Entry<PathObject, Label> entry : nodeMap.entrySet()) {
