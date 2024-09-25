@@ -55,10 +55,8 @@ import javafx.scene.control.ScrollPane.ScrollBarPolicy;
 import javafx.scene.control.Separator;
 import javafx.scene.control.ToolBar;
 import javafx.scene.control.Tooltip;
-import javafx.scene.effect.DropShadow;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.StackPane;
-import javafx.scene.paint.Color;
 import javafx.scene.text.Text;
 import javafx.stage.Stage;
 import javafx.util.Duration;
@@ -81,14 +79,12 @@ import qupath.lib.roi.interfaces.ROI;
 
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Objects;
-import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.concurrent.ForkJoinPool;
 import java.util.function.Function;
@@ -138,8 +134,8 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 			MEDIUM("Medium", 200),
 			LARGE("Large", 300);
 		
-		private String name;
-		private int size;
+		private final String name;
+		private final int size;
 		
 		GridDisplaySize(final String name, final int size) {
 			this.name = name;
@@ -155,7 +151,7 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 			return size;
 		}
 		
-	};
+	}
 	
 
 	private PathObjectGridView(final QuPathGUI qupath, final Function<PathObjectHierarchy, Collection<? extends PathObject>> extractor) {
@@ -169,7 +165,6 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 	 * Create a grid view for a custom object extractor.
 	 * @param qupath QuPath instance
 	 * @param objectExtractor function to select the objects to display
-	 * @return
 	 */
 	public static PathObjectGridView createGridView(QuPathGUI qupath, Function<PathObjectHierarchy, Collection<? extends PathObject>> objectExtractor) {
 		return new PathObjectGridView(qupath, objectExtractor);
@@ -177,8 +172,6 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 	
 	/**
 	 * Create a grid view for TMA core objects.
-	 * @param qupath
-	 * @return
 	 */
 	public static PathObjectGridView createTmaCoreView(QuPathGUI qupath) {
 		var view = createGridView(qupath, PathObjectGridView::getTmaCores);
@@ -188,8 +181,6 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 
 	/**
 	 * Create a grid view for annotations.
-	 * @param qupath
-	 * @return
 	 */
 	public static PathObjectGridView createAnnotationView(QuPathGUI qupath) {
 		var view = createGridView(qupath, PathObjectGridView::getAnnotations);
@@ -511,8 +502,6 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 
 	/**
 	 * Check if an object is a TMA core flagged as missing
-	 * @param pathObject
-	 * @return
 	 */
 	private static boolean isMissingCore(PathObject pathObject) {
 		if (pathObject instanceof TMACoreObject)
@@ -556,18 +545,16 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 	
 	class QuPathGridView extends StackPane {
 		
-		private ObservableList<PathObject> list = FXCollections.observableArrayList();
-		private WeakHashMap<Node, TranslateTransition> translationMap = new WeakHashMap<>();
-		private WeakHashMap<PathObject, Label> nodeMap = new WeakHashMap<>();
+		private final ObservableList<PathObject> list = FXCollections.observableArrayList();
+		private final WeakHashMap<Node, TranslateTransition> translationMap = new WeakHashMap<>();
+		private final WeakHashMap<PathObject, Label> nodeMap = new WeakHashMap<>();
 		
-		private IntegerProperty imageSize = new SimpleIntegerProperty();
+		private final IntegerProperty imageSize = new SimpleIntegerProperty();
 		
-		private Text textEmpty = createPlaceholderText(QuPathResources.getString("GridView.noObjectsAvailable"));
+		private final Text textEmpty = createPlaceholderText(QuPathResources.getString("GridView.noObjectsAvailable"));
 		
 		QuPathGridView() {
-			imageSize.addListener(v -> {
-				updateChildren();
-			});
+			imageSize.addListener(v -> updateChildren());
 			list.addListener((ListChangeListener<PathObject>) c -> updateChildren());
 			updateChildren();
 			StackPane.setAlignment(textEmpty, Pos.CENTER);
