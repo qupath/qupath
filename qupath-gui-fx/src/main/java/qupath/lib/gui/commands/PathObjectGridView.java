@@ -249,6 +249,15 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 	private static void sortPathObjects(final ObservableList<? extends PathObject> cores, final ObservableMeasurementTableData model, final String measurementName, final boolean doDescending) {
 		if (measurementName == null) return;
 
+		// special case for eg A-1, A-10 for TMA cores
+		if (measurementName.equals(QuPathResources.getString("GridView.name"))) {
+			GeneralTools.smartStringSort(cores, PathObject::getDisplayedName);
+			if (!doDescending) {
+				Collections.reverse(cores);
+			}
+			return;
+		}
+
 		Comparator<PathObject> sorter;
 
 		if (measurementName.equals(QuPathResources.getString("GridView.classification"))) {
