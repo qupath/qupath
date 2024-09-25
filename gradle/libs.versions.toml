@@ -5,7 +5,7 @@ bioimageIoSpec  = "0.1.0"
 omeZarrReader   = "0.5.2"
 blosc           = "1.21.5"
 
-commonmark      = "0.22.0"
+commonmark      = "0.23.0"
 commonsMath3    = "3.6.1"
 commonsText     = "1.10.0"
 controlsFX      = "11.1.2"
@@ -14,7 +14,7 @@ deepJavaLibrary = "0.30.0"
 
 groovy          = "4.0.22"
 gson            = "2.11.0"
-guava           = "33.3.0-jre"
+guava           = "33.3.1-jre"
 
 ikonli          = "12.3.1"
 imagej          = "1.54f"
@@ -28,7 +28,7 @@ opencv          = "4.9.0-1.5.10"
 cuda            = "12.3-8.9-1.5.10"
 
 # Warning! JavaFX 20.0.1 and later seem to break search links in Javadocs
-javafx          = "22.0.2"
+javafx          = "23"
 jna             = "5.14.0"
 jfreeSvg        = "5.0.6"
 jfxtras         = "17-r1"

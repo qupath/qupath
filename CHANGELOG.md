@@ -97,12 +97,12 @@ They may change or be removed in future versions.
 
 ### Dependency updates
 * Bio-Formats 7.3.1
-* Commonmark 0.22.0
+* Commonmark 0.23.0
 * DeepJavaLibrary 0.30.0
 * Groovy 4.0.22
 * Gson 2.11.0
-* Guava 33.3.0-jre
-* JavaFX 22.0.2
+* Guava 33.3.1-jre
+* JavaFX 23
 * Java Topology Suite 1.20.0
 * JFreeSVG 5.0.6
 * JNA 5.14.0
