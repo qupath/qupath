@@ -55,10 +55,8 @@ import javafx.scene.control.ScrollPane.ScrollBarPolicy;
 import javafx.scene.control.Separator;
 import javafx.scene.control.ToolBar;
 import javafx.scene.control.Tooltip;
-import javafx.scene.effect.DropShadow;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.StackPane;
-import javafx.scene.paint.Color;
 import javafx.scene.text.Text;
 import javafx.stage.Stage;
 import javafx.util.Duration;
@@ -81,14 +79,12 @@ import qupath.lib.roi.interfaces.ROI;
 
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Objects;
-import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.concurrent.ForkJoinPool;
 import java.util.function.Function;
@@ -138,8 +134,8 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 			MEDIUM("Medium", 200),
 			LARGE("Large", 300);
 		
-		private String name;
-		private int size;
+		private final String name;
+		private final int size;
 		
 		GridDisplaySize(final String name, final int size) {
 			this.name = name;
@@ -155,7 +151,7 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 			return size;
 		}
 		
-	};
+	}
 	
 
 	private PathObjectGridView(final QuPathGUI qupath, final Function<PathObjectHierarchy, Collection<? extends PathObject>> extractor) {
@@ -169,7 +165,6 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 	 * Create a grid view for a custom object extractor.
 	 * @param qupath QuPath instance
 	 * @param objectExtractor function to select the objects to display
-	 * @return
 	 */
 	public static PathObjectGridView createGridView(QuPathGUI qupath, Function<PathObjectHierarchy, Collection<? extends PathObject>> objectExtractor) {
 		return new PathObjectGridView(qupath, objectExtractor);
@@ -177,8 +172,6 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 	
 	/**
 	 * Create a grid view for TMA core objects.
-	 * @param qupath
-	 * @return
 	 */
 	public static PathObjectGridView createTmaCoreView(QuPathGUI qupath) {
 		var view = createGridView(qupath, PathObjectGridView::getTmaCores);
@@ -188,8 +181,6 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 
 	/**
 	 * Create a grid view for annotations.
-	 * @param qupath
-	 * @return
 	 */
 	public static PathObjectGridView createAnnotationView(QuPathGUI qupath) {
 		var view = createGridView(qupath, PathObjectGridView::getAnnotations);
@@ -258,16 +249,19 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 	private static void sortPathObjects(final ObservableList<? extends PathObject> cores, final ObservableMeasurementTableData model, final String measurementName, final boolean doDescending) {
 		if (measurementName == null) return;
 
-		Comparator<PathObject> sorter;
+		// special case for eg A-1, A-10 for TMA cores
+		if (measurementName.equals(QuPathResources.getString("GridView.name"))) {
+			GeneralTools.smartStringSort(cores, PathObject::getDisplayedName);
+			if (!doDescending) {
+				Collections.reverse(cores);
+			}
+			return;
+		}
 
+		Comparator<PathObject> sorter;
 		if (measurementName.equals(QuPathResources.getString("GridView.classification"))) {
 			sorter = (po1, po2) -> {
 				Comparator<PathObject> comp = Comparator.comparing(po -> po.getPathClass() == null ? "Unclassified" : po.getPathClass().toString());
-				return comp.compare(po1, po2);
-			};
-		} else if (measurementName.equals(QuPathResources.getString("GridView.name"))) {
-			sorter = (po1, po2) -> {
-				Comparator<PathObject> comp = Comparator.comparing(PathObject::getDisplayedName);
 				return comp.compare(po1, po2);
 			};
 		} else {
@@ -505,14 +499,17 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 						// pathclass is present and selected, or missing and we're showing unclassifier
 						&& (selectedClasses.contains(p.getPathClass()) || (p.getPathClass() == null && selectedClasses.contains(PathClass.NULL_CLASS)))
 		);
-		grid.getItems().setAll(filteredList);
+		Runnable r = () -> grid.getItems().setAll(filteredList);
+		if (Platform.isFxApplicationThread()) {
+			r.run();
+		} else {
+			Platform.runLater(r);
+		}
 	}
 
 
 	/**
 	 * Check if an object is a TMA core flagged as missing
-	 * @param pathObject
-	 * @return
 	 */
 	private static boolean isMissingCore(PathObject pathObject) {
 		if (pathObject instanceof TMACoreObject)
@@ -556,18 +553,16 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 	
 	class QuPathGridView extends StackPane {
 		
-		private ObservableList<PathObject> list = FXCollections.observableArrayList();
-		private WeakHashMap<Node, TranslateTransition> translationMap = new WeakHashMap<>();
-		private WeakHashMap<PathObject, Label> nodeMap = new WeakHashMap<>();
+		private final ObservableList<PathObject> list = FXCollections.observableArrayList();
+		private final WeakHashMap<Node, TranslateTransition> translationMap = new WeakHashMap<>();
+		private final WeakHashMap<PathObject, Label> nodeMap = new WeakHashMap<>();
 		
-		private IntegerProperty imageSize = new SimpleIntegerProperty();
+		private final IntegerProperty imageSize = new SimpleIntegerProperty();
 		
-		private Text textEmpty = createPlaceholderText(QuPathResources.getString("GridView.noObjectsAvailable"));
+		private final Text textEmpty = createPlaceholderText(QuPathResources.getString("GridView.noObjectsAvailable"));
 		
 		QuPathGridView() {
-			imageSize.addListener(v -> {
-				updateChildren();
-			});
+			imageSize.addListener(v -> updateChildren());
 			list.addListener((ListChangeListener<PathObject>) c -> updateChildren());
 			updateChildren();
 			StackPane.setAlignment(textEmpty, Pos.CENTER);
@@ -584,44 +579,42 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 			}
 			List<Node> images = new ArrayList<>();
 			for (PathObject pathObject : list) {
-				Label viewNode = nodeMap.get(pathObject);
-				if (viewNode == null) {
-					
-					var painter = PathObjectImageManagers.createImageViewPainter(
-							 qupath.getViewer(), imageDataProperty.get().getServer(), true, 
-							 ForkJoinPool.commonPool());
-
-					var imageView = painter.getNode();
-					imageView.fitWidthProperty().bind(imageSize);
-					imageView.fitHeightProperty().bind(imageSize);
-					
-					painter.setPathObject(pathObject);
-					
-					viewNode = new Label("", imageView);
-					StackPane.setAlignment(viewNode, Pos.TOP_LEFT);
-					
-					Tooltip.install(viewNode, new Tooltip(pathObject.getName()));
-					viewNode.setOnMouseClicked(e -> {
-						var imageData = imageDataProperty.get();
-						if (imageData != null) {
-							imageData.getHierarchy().getSelectionModel().setSelectedObject(pathObject);
-							if (e.getClickCount() > 1 && pathObject.hasROI()) {
-								ROI roi = pathObject.getROI();
-								if (roi != null && qupath.getViewer().getImageData() == imageData)
-									qupath.getViewer().setCenterPixelLocation(roi.getCentroidX(), roi.getCentroidY());
-							}
-						}
-					});
-					
-					viewNode.setEffect(new DropShadow(8, -2, 2, Color.GRAY));
-					nodeMap.put(pathObject, viewNode);
-				}
+				Label viewNode = nodeMap.computeIfAbsent(pathObject, po -> getLabel(pathObject));
 				images.add(viewNode);
 			}
 			updateMeasurementText();
 			getChildren().setAll(images);
 		}
-		
+
+		private Label getLabel(PathObject pathObject) {
+			var painter = PathObjectImageManagers.createImageViewPainter(
+					qupath.getViewer(), imageDataProperty.get().getServer(), true,
+					ForkJoinPool.commonPool());
+
+			var imageView = painter.getNode();
+			imageView.fitWidthProperty().bind(imageSize);
+			imageView.fitHeightProperty().bind(imageSize);
+
+			painter.setPathObject(pathObject);
+
+			var out = new Label("", imageView);
+			StackPane.setAlignment(out, Pos.TOP_LEFT);
+
+			Tooltip.install(out, new Tooltip(pathObject.getName()));
+			out.setOnMouseClicked(e -> {
+				var imageData = imageDataProperty.get();
+				if (imageData != null) {
+					imageData.getHierarchy().getSelectionModel().setSelectedObject(pathObject);
+					if (e.getClickCount() > 1 && pathObject.hasROI()) {
+						ROI roi = pathObject.getROI();
+						if (roi != null && qupath.getViewer().getImageData() == imageData)
+							qupath.getViewer().setCenterPixelLocation(roi.getCentroidX(), roi.getCentroidY());
+					}
+				}
+			});
+			return out;
+		}
+
 		void updateMeasurementText() {
 			String m = measurement == null ? null : measurement.get();
 			for (Entry<PathObject, Label> entry : nodeMap.entrySet()) {
@@ -655,22 +648,23 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 			}
 			
 			int padding = 5;
-			int dx = imageSize.get() + padding;
-			int w = Math.max(dx, (int)getWidth());
-			int nx = (int)Math.floor(w / dx);
+			int dxy = imageSize.get() + padding;
+			int w = Math.max(dxy, (int)getWidth());
+			int nx = (int) (double) (w / dxy);
 			nx = Math.max(1, nx);
-			int spaceX = (int)((w - (dx) * nx) / (nx)); // Space to divide equally
+			int spaceX = (w - dxy * nx) / nx; // Space to divide equally
 			
 			int x = spaceX/2;
 			int y = padding;
-			
+
+			double h = imageSize.get();
 			for (Node node : getChildren()) {
-				if (x + dx > w) {
+				if (node instanceof Label label) {
+					h = label.getHeight();
+				}
+				if (x + dxy > w) {
 					x = spaceX/2;
-					if (node instanceof Label label)
-						y += label.getHeight() + spaceX + 2;
-					else
-						y += imageSize.get() + spaceX + 2;
+					y += (int) (h + spaceX + 2);
 				}
 				
 				if (doAnimate.get()) {
@@ -701,11 +695,10 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 					node.setTranslateX(x);
 					node.setTranslateY(y);
 				}
-				x += (dx + spaceX);
+				x += dxy + spaceX;
 			}
-			
-			setHeight(y + dx);
-			setPrefHeight(y + dx);
+			setHeight(y + h + padding);
+			setPrefHeight(y + h + padding);
 		}
 
 	}
