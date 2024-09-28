@@ -377,13 +377,13 @@ public class ImageDisplay extends AbstractImageRenderer {
 		rgbDirectChannelInfo = new RGBDirectChannelInfo(imageData);
 		rgbNormalizedChannelInfo = new RGBNormalizedChannelInfo(imageData);
 
-		// Add simple channel separation
-		rgbBasicChannels.add(new RBGColorTransformInfo(imageData, ColorTransformMethod.Red, false));
-		rgbBasicChannels.add(new RBGColorTransformInfo(imageData, ColorTransformMethod.Green, false));
-		rgbBasicChannels.add(new RBGColorTransformInfo(imageData, ColorTransformMethod.Blue, false));
-//		rgbBasicChannels.add(new ChannelDisplayInfo.MultiChannelInfo("Red", 8, 0, 255, 0, 0));
-//		rgbBasicChannels.add(new ChannelDisplayInfo.MultiChannelInfo("Green", 8, 1, 0, 255, 0));
-//		rgbBasicChannels.add(new ChannelDisplayInfo.MultiChannelInfo("Blue", 8, 2, 0, 0, 255));
+		// Add simple channel separation (changed for v0.6.0)
+		rgbBasicChannels.add(new DirectServerChannelInfo(imageData, 0));
+		rgbBasicChannels.add(new DirectServerChannelInfo(imageData, 1));
+		rgbBasicChannels.add(new DirectServerChannelInfo(imageData, 2));
+//		rgbBasicChannels.add(new RBGColorTransformInfo(imageData, ColorTransformMethod.Red, false));
+//		rgbBasicChannels.add(new RBGColorTransformInfo(imageData, ColorTransformMethod.Green, false));
+//		rgbBasicChannels.add(new RBGColorTransformInfo(imageData, ColorTransformMethod.Blue, false));
 		rgbBasicChannels.add(new RBGColorTransformInfo(imageData, ColorTransformer.ColorTransformMethod.Hue, false));
 		rgbBasicChannels.add(new RBGColorTransformInfo(imageData, ColorTransformer.ColorTransformMethod.Saturation, false));
 		rgbBasicChannels.add(new RBGColorTransformInfo(imageData, ColorTransformer.ColorTransformMethod.RGB_mean, false));

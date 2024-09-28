@@ -78,6 +78,18 @@ class RBGColorTransformInfo extends AbstractSingleChannelInfo {
 	
 	@Override
 	public String getName() {
+		// For RGB images, the channel names can sometimes be specified
+		var server = getImageServer();
+		if (server != null) {
+			switch (method) {
+				case Red:
+					return server.getChannel(0).getName();
+				case Green:
+					return server.getChannel(1).getName();
+				case Blue:
+					return server.getChannel(2).getName();
+			}
+		}
 		return method.toString();
 	}
 

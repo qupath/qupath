@@ -1410,9 +1410,6 @@ public class QP {
 	 */
 	public static void setChannels(ImageData<?> imageData, ImageChannel... channels) {
 		var metadata = imageData.getServerMetadata();
-		if (metadata.isRGB()) {
-			throw new IllegalArgumentException("Cannot set channels for RGB images");
-		}
 		List<ImageChannel> oldChannels = metadata.getChannels();
 		List<ImageChannel> newChannels = Arrays.asList(channels);
 		if (oldChannels.equals(newChannels)) {
@@ -1421,7 +1418,17 @@ public class QP {
 		}
 		if (oldChannels.size() != newChannels.size())
 			throw new IllegalArgumentException("Cannot set channels - require " + oldChannels.size() + " channels but you provided " + channels.length);
-		
+
+		// Can't adjust channel colors for RGB images - but changing names is permitted
+		if (metadata.isRGB()) {
+			if (!Arrays.equals(
+					oldChannels.stream().mapToInt(ImageChannel::getColor).toArray(),
+					newChannels.stream().mapToInt(ImageChannel::getColor).toArray()
+					)) {
+				throw new IllegalArgumentException("Cannot set channel colors for RGB images");
+			}
+		}
+
 		// Set the metadata
 		var metadata2 = new ImageServerMetadata.Builder(metadata)
 				.channels(newChannels)
