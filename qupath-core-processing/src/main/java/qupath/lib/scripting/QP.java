@@ -1400,7 +1400,7 @@ public class QP {
 	 * Set the channels for the specified ImageData.
 	 * Note that number of channels provided must match the number of channels of the current image.
 	 * <p>
-	 * Also, currently it is not possible to set channels for RGB images - attempting to do so 
+	 * Also, currently it is not possible to set channel colors for RGB images - attempting to do so
 	 * will throw an IllegalArgumentException.
 	 * 
 	 * @param imageData 
@@ -1421,10 +1421,9 @@ public class QP {
 
 		// Can't adjust channel colors for RGB images - but changing names is permitted
 		if (metadata.isRGB()) {
-			if (!Arrays.equals(
-					oldChannels.stream().mapToInt(ImageChannel::getColor).toArray(),
-					newChannels.stream().mapToInt(ImageChannel::getColor).toArray()
-					)) {
+			int[] oldColors = oldChannels.stream().mapToInt(ImageChannel::getColor).toArray();
+			int[] newColors = newChannels.stream().mapToInt(ImageChannel::getColor).toArray();
+			if (!Arrays.equals(oldColors, newColors)) {
 				throw new IllegalArgumentException("Cannot set channel colors for RGB images");
 			}
 		}
