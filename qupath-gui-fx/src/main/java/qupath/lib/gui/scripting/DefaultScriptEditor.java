@@ -2002,7 +2002,6 @@ public class DefaultScriptEditor implements ScriptEditor {
 	
 	Action createExitAction(final String name) {
 		Action action = new Action(name, e -> {
-//			requestClose();
 			if (dialog != null)
 				dialog.hide();
 			e.consume();
