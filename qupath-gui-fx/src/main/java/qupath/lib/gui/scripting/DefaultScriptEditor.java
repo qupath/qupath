@@ -539,6 +539,9 @@ public class DefaultScriptEditor implements ScriptEditor {
 			if (tab == null) {
 				break;
 			}
+			// We're probably quitting QuPath - if we're prompting for changes, then we should show the tab
+			if (dialog != null && !dialog.isShowing() && tab.isModifiedProperty().get() && tab.hasScript())
+				dialog.show();
 			ret = promptToClose(tab);
 		}
 		if (ret && dialog != null) {
@@ -741,7 +744,8 @@ public class DefaultScriptEditor implements ScriptEditor {
 		});
 
 		dialog.setOnCloseRequest(e -> {
-			if (!requestClose()) {
+			if (dialog != null) {
+				dialog.hide();
 				e.consume();
 			}
 		});
@@ -1998,7 +2002,9 @@ public class DefaultScriptEditor implements ScriptEditor {
 	
 	Action createExitAction(final String name) {
 		Action action = new Action(name, e -> {
-			requestClose();
+//			requestClose();
+			if (dialog != null)
+				dialog.hide();
 			e.consume();
 		});
 		action.setAccelerator(new KeyCodeCombination(KeyCode.W, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
