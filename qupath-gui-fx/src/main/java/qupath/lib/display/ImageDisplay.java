@@ -99,7 +99,8 @@ public class ImageDisplay extends AbstractImageRenderer {
 	// Lists to store the different kinds of channels we might need
 	private RGBDirectChannelInfo rgbDirectChannelInfo;
 	private RGBNormalizedChannelInfo rgbNormalizedChannelInfo;
-	private List<ChannelDisplayInfo> rgbBasicChannels = new ArrayList<>();
+	private List<ChannelDisplayInfo> rgbDirectChannels = new ArrayList<>();
+	private List<ChannelDisplayInfo> rgbHsvChannels = new ArrayList<>();
 	private List<ChannelDisplayInfo> rgbBrightfieldChannels = new ArrayList<>();
 	private List<ChannelDisplayInfo> rgbChromaticityChannels = new ArrayList<>();
 
@@ -367,7 +368,8 @@ public class ImageDisplay extends AbstractImageRenderer {
 		rgbDirectChannelInfo = null;
 		rgbNormalizedChannelInfo = null;
 
-		rgbBasicChannels.clear();
+		rgbDirectChannels.clear();
+		rgbHsvChannels.clear();
 		rgbBrightfieldChannels.clear();
 		rgbChromaticityChannels.clear();
 		
@@ -378,15 +380,12 @@ public class ImageDisplay extends AbstractImageRenderer {
 		rgbNormalizedChannelInfo = new RGBNormalizedChannelInfo(imageData);
 
 		// Add simple channel separation (changed for v0.6.0)
-		rgbBasicChannels.add(new DirectServerChannelInfo(imageData, 0));
-		rgbBasicChannels.add(new DirectServerChannelInfo(imageData, 1));
-		rgbBasicChannels.add(new DirectServerChannelInfo(imageData, 2));
-//		rgbBasicChannels.add(new RBGColorTransformInfo(imageData, ColorTransformMethod.Red, false));
-//		rgbBasicChannels.add(new RBGColorTransformInfo(imageData, ColorTransformMethod.Green, false));
-//		rgbBasicChannels.add(new RBGColorTransformInfo(imageData, ColorTransformMethod.Blue, false));
-		rgbBasicChannels.add(new RBGColorTransformInfo(imageData, ColorTransformer.ColorTransformMethod.Hue, false));
-		rgbBasicChannels.add(new RBGColorTransformInfo(imageData, ColorTransformer.ColorTransformMethod.Saturation, false));
-		rgbBasicChannels.add(new RBGColorTransformInfo(imageData, ColorTransformer.ColorTransformMethod.RGB_mean, false));
+		rgbDirectChannels.add(new DirectServerChannelInfo(imageData, 0));
+		rgbDirectChannels.add(new DirectServerChannelInfo(imageData, 1));
+		rgbDirectChannels.add(new DirectServerChannelInfo(imageData, 2));
+		rgbHsvChannels.add(new RBGColorTransformInfo(imageData, ColorTransformer.ColorTransformMethod.Hue, false));
+		rgbHsvChannels.add(new RBGColorTransformInfo(imageData, ColorTransformer.ColorTransformMethod.Saturation, false));
+		rgbHsvChannels.add(new RBGColorTransformInfo(imageData, ColorTransformer.ColorTransformMethod.RGB_mean, false));
 
 		// Add optical density & color deconvolution options for brightfield images
 		rgbBrightfieldChannels.add(new RBGColorDeconvolutionInfo(imageData, ColorTransformMethod.Stain_1));
@@ -467,15 +466,18 @@ public class ImageDisplay extends AbstractImageRenderer {
 				tempChannelOptions.addAll(rgbBrightfieldChannels);
 				tempChannelOptions.add(rgbNormalizedChannelInfo);
 			}
-			if (showAllRGBTransforms.get()) {
-				tempChannelOptions.addAll(rgbBasicChannels);
+			tempChannelOptions.addAll(rgbDirectChannels);
+			if (imageData.getImageType() != ImageData.ImageType.FLUORESCENCE && showAllRGBTransforms.get()) {
+				// Change v0.6.0 - don't show all channels for fluorescence (as they are more distracting than helpful)
+				// If they are needed, using ImageType.OTHER
+				tempChannelOptions.addAll(rgbHsvChannels);
 				tempChannelOptions.addAll(rgbChromaticityChannels);
 			}
 			// Remove any invalid channels
 			tempSelectedChannels.retainAll(tempChannelOptions);
 			// Select the original channel (RGB)
 			if (tempSelectedChannels.isEmpty())
-				tempSelectedChannels.add(tempChannelOptions.get(0));
+				tempSelectedChannels.add(tempChannelOptions.getFirst());
 		} else if (serverChanged) {
 			if (server.nChannels() == 1) {
 				tempChannelOptions.add(new DirectServerChannelInfo(imageData, 0));
