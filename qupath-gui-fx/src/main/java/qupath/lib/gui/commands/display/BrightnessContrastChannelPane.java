@@ -720,15 +720,19 @@ public class BrightnessContrastChannelPane extends BorderPane {
             setGraphic(colorPicker);
             updateStyle();
 
-            Integer rgb = item.getColor();
+            // Check if we have an RGB image - if we do, we shouldn't allow the colors to change
+            var imageData = getImageData();
+            var isRGB = imageData != null && imageData.getServerMetadata().isRGB();
+
+            Integer channelRGB = item.getColor();
             // Can only set the color for direct, non-RGB channels
-            boolean canChangeColor = rgb != null && item instanceof DirectServerChannelInfo;
+            boolean canChangeColor = !isRGB && channelRGB != null && item instanceof DirectServerChannelInfo;
             colorPicker.setDisable(!canChangeColor);
             colorPicker.setOnShowing(null);
-            if (rgb == null) {
+            if (channelRGB == null) {
                 colorPicker.setValue(Color.TRANSPARENT);
             } else {
-                Color color = ColorToolsFX.getCachedColor(rgb);
+                Color color = ColorToolsFX.getCachedColor(channelRGB);
                 setColorQuietly(color);
                 colorPicker.setOnShowing(e -> {
                     if (customColors == null)
