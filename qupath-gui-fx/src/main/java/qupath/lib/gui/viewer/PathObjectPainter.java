@@ -358,8 +358,8 @@ public class PathObjectPainter {
 		if (color != null)
 			return color;
 
-		MeasurementMapper mapper = pathObject.isDetection() ? getValidMeasurementMapperOrNull(overlayOptions) : null;
-		if (mapper != null)
+		MeasurementMapper mapper = getValidMeasurementMapperOrNull(overlayOptions);
+		if (mapper != null && mapper.supportsObject(pathObject))
 			return getColorFromMeasurementMapperOrNull(pathObject, mapper);
 		Integer rgb = ColorToolsFX.getDisplayedColorARGB(pathObject);
 		return ColorToolsAwt.getCachedColor(rgb);
