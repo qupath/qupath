@@ -481,11 +481,19 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 				int width2 = (int)Math.max(1, Math.round((maxX - request.getMinX()) / request.getDownsample() - 1e-9));
 				int height2 = (int)Math.max(1, Math.round((maxY - request.getMinY()) / request.getDownsample() - 1e-9));
 				// Be cautious with size adjustments - only permit changing by one pixel
-				if (expectedWidth == width2+1 || expectedHeight == height2+1) {
-					logger.trace("RGB image size updated from {}x{} to {}x{} to avoid border problems",
-							expectedWidth, expectedHeight, width2, height2);
-					imgWidth = width2;
-					imgHeight = height2;
+				int adjustedWidth = expectedWidth;
+				int adjustedHeight = expectedHeight;
+				if (expectedWidth == width2+1) {
+					adjustedWidth = width2;
+				}
+				if (expectedHeight == height2+1) {
+					adjustedHeight = height2;
+				}
+				if (expectedWidth != adjustedWidth || expectedHeight != adjustedHeight) {
+					logger.debug("RGB image size updated from {}x{} to {}x{} to avoid border problems",
+							expectedWidth, expectedHeight, adjustedWidth, adjustedHeight);
+					imgWidth = adjustedWidth;
+					imgHeight = adjustedHeight;
 				}
 			}
 		}
