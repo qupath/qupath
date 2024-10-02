@@ -104,7 +104,7 @@ public class TestSlicedImageServer {
                 0,
                 sampleServer.getWidth(),
                 sampleServer.getHeight(),
-                zToRead * zStep + zStart,
+                5,
                 0
         ));
 
@@ -226,7 +226,7 @@ public class TestSlicedImageServer {
                 sampleServer.getWidth(),
                 sampleServer.getHeight(),
                 0,
-                tToRead * tStep + tStart
+                3
         ));
 
         ImageServer<BufferedImage> slicedServer = new SlicedImageServer(sampleServer, 0, 1, 1, tStart, tEnd, tStep);
