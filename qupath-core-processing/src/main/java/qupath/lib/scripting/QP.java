@@ -1400,7 +1400,7 @@ public class QP {
 	 * Set the channels for the specified ImageData.
 	 * Note that number of channels provided must match the number of channels of the current image.
 	 * <p>
-	 * Also, currently it is not possible to set channels for RGB images - attempting to do so 
+	 * Also, currently it is not possible to set channel colors for RGB images - attempting to do so
 	 * will throw an IllegalArgumentException.
 	 * 
 	 * @param imageData 
@@ -1410,9 +1410,6 @@ public class QP {
 	 */
 	public static void setChannels(ImageData<?> imageData, ImageChannel... channels) {
 		var metadata = imageData.getServerMetadata();
-		if (metadata.isRGB()) {
-			throw new IllegalArgumentException("Cannot set channels for RGB images");
-		}
 		List<ImageChannel> oldChannels = metadata.getChannels();
 		List<ImageChannel> newChannels = Arrays.asList(channels);
 		if (oldChannels.equals(newChannels)) {
@@ -1421,7 +1418,16 @@ public class QP {
 		}
 		if (oldChannels.size() != newChannels.size())
 			throw new IllegalArgumentException("Cannot set channels - require " + oldChannels.size() + " channels but you provided " + channels.length);
-		
+
+		// Can't adjust channel colors for RGB images - but changing names is permitted
+		if (metadata.isRGB()) {
+			int[] oldColors = oldChannels.stream().mapToInt(ImageChannel::getColor).toArray();
+			int[] newColors = newChannels.stream().mapToInt(ImageChannel::getColor).toArray();
+			if (!Arrays.equals(oldColors, newColors)) {
+				throw new IllegalArgumentException("Cannot set channel colors for RGB images");
+			}
+		}
+
 		// Set the metadata
 		var metadata2 = new ImageServerMetadata.Builder(metadata)
 				.channels(newChannels)
