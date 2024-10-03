@@ -47,6 +47,9 @@ Some things may be added, some things may be removed, and some things may look d
 * Better support for symbolic links (https://github.com/qupath/qupath/issues/1586)
 * Bio-Formats preference to open remote images is now turned on by default (https://github.com/qupath/qupath/pull/1653)
   * This is needed to open remote ome.zarr images - but can be turned off in the preferences if necessary
+* Self-contained projects that contain all images inside the project directory no longer prompt the user to update URIs if moved (https://github.com/qupath/qupath/pull/1668)
+* Channel names can now be set for all fluorescence images, even if they are RGB (https://github.com/qupath/qupath/pull/1659)
+  * Note that channel colors still only be set for non-RGB images
 
 ### Experimental features
 These features are included for testing and feedback.
