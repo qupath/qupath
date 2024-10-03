@@ -78,7 +78,24 @@ public class TransformedServerBuilder {
 	 * @throws IllegalArgumentException when a start index is greater than its corresponding end index
 	 */
 	public TransformedServerBuilder slice(int zStart, int zEnd, int tStart, int tEnd) {
-		server = new SlicedImageServer(server, zStart, zEnd, tStart, tEnd);
+		return slice(zStart, zEnd, 1, tStart, tEnd, 1);
+	}
+
+	/**
+	 * Slice a specific region along the z or the t axis with a step.
+	 *
+	 * @param zStart the inclusive 0-based index of the first slice to consider
+	 * @param zEnd the exclusive 0-based index of the last slide to consider
+	 * @param zStep a step to indicate which slides to consider
+	 * @param tStart the inclusive 0-based index of the first timepoint to consider
+	 * @param tEnd the exclusive 0-based index of the last timepoint to consider
+	 * @param tStep a step to indicate which timepoints to consider
+	 * @return this builder
+	 * @throws IllegalArgumentException when a start index is greater than its corresponding end index,
+	 * or when a step is less than or equal to 0
+	 */
+	public TransformedServerBuilder slice(int zStart, int zEnd, int zStep, int tStart, int tEnd, int tStep) {
+		server = new SlicedImageServer(server, zStart, zEnd, zStep, tStart, tEnd, tStep);
 		return this;
 	}
 	

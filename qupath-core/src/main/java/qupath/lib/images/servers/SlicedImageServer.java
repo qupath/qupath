@@ -6,6 +6,7 @@ import qupath.lib.regions.RegionRequest;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.Map;
+import java.util.stream.Stream;
 
 /**
  * ImageServer that treats a particular set of z-slices and timepoints of another ImageServer
@@ -13,11 +14,13 @@ import java.util.Map;
  */
 public class SlicedImageServer extends TransformingImageServer<BufferedImage> {
 
-    private final ImageServerMetadata metadata;
     private final int zStart;
     private final int zEnd;
+    private final int zStep;
     private final int tStart;
     private final int tEnd;
+    private final int tStep;
+    private final ImageServerMetadata metadata;
 
     /**
      * Create an ImageServer that represents a particular set of z-slices and timepoints of another ImageServer.
@@ -28,30 +31,46 @@ public class SlicedImageServer extends TransformingImageServer<BufferedImage> {
      * @param inputServer the input image to slice
      * @param zStart the inclusive 0-based index of the first slice to consider
      * @param zEnd the exclusive 0-based index of the last slide to consider
+     * @param zStep a step to indicate which slides to consider
      * @param tStart the inclusive 0-based index of the first timepoint to consider
      * @param tEnd the exclusive 0-based index of the last timepoint to consider
-     * @throws IllegalArgumentException when a start index is greater than its corresponding end index
+     * @param tStep a step to indicate which timepoints to consider
+     * @throws IllegalArgumentException when a start index is greater than its corresponding end index,
+     * or when a step is less than or equal to 0
      */
     SlicedImageServer(
             ImageServer<BufferedImage> inputServer,
             int zStart,
             int zEnd,
+            int zStep,
             int tStart,
-            int tEnd
+            int tEnd,
+            int tStep
     ) {
         super(inputServer);
 
         this.zStart = setNumberInRange(zStart, 0, inputServer.nZSlices() - 1);
         this.zEnd = setNumberInRange(zEnd, 1, inputServer.nZSlices());
+        this.zStep = zStep;
         this.tStart = setNumberInRange(tStart, 0, inputServer.nTimepoints() - 1);
         this.tEnd = setNumberInRange(tEnd, 1, inputServer.nTimepoints());
+        this.tStep = tStep;
 
         checkOrder(this.zStart, this.zEnd, "z-slice");
+        checkStep(this.zStep);
         checkOrder(this.tStart, this.tEnd, "timepoint");
+        checkStep(this.tStep);
 
         metadata = new ImageServerMetadata.Builder(inputServer.getMetadata())
-                .sizeZ(this.zEnd - this.zStart)
-                .sizeT(this.tEnd - this.tStart)
+                .sizeZ((this.zEnd - this.zStart + this.zStep - 1) / this.zStep)
+                .sizeT((this.tEnd - this.tStart + this.tStep - 1) / this.tStep)
+                .zSpacingMicrons(inputServer.getMetadata().getZSpacingMicrons() * this.zStep)
+                .timepoints(
+                        inputServer.getMetadata().getPixelCalibration().getTimeUnit(),
+                        Stream.iterate(this.tStart, t -> t < this.tEnd, t -> t + this.tStep)
+                                .mapToDouble(i -> inputServer.getMetadata().getPixelCalibration().getTimepoint(i))
+                                .toArray()
+                )
                 .build();
     }
 
@@ -62,8 +81,10 @@ public class SlicedImageServer extends TransformingImageServer<BufferedImage> {
                 getWrappedServer().getBuilder(),
                 zStart,
                 zEnd,
+                zStep,
                 tStart,
-                tEnd
+                tEnd,
+                tStep
         );
     }
 
@@ -72,8 +93,10 @@ public class SlicedImageServer extends TransformingImageServer<BufferedImage> {
         return getClass().getName() + ": + " + getWrappedServer().getPath() + " " + GsonTools.getInstance().toJson(Map.of(
                 "minZSlice", zStart,
                 "maxZSlice", zEnd,
+                "stepZSlice", zStep,
                 "minTimepoint", tStart,
-                "maxTimepoint", tEnd
+                "maxTimepoint", tEnd,
+                "stepTimepoint", tStep
         ));
     }
 
@@ -96,8 +119,8 @@ public class SlicedImageServer extends TransformingImageServer<BufferedImage> {
                 request.getY(),
                 request.getWidth(),
                 request.getHeight(),
-                request.getZ() + zStart,
-                request.getT() + tStart
+                request.getZ() * zStep + zStart,
+                request.getT() * tStep + tStart
         ));
     }
 
@@ -108,6 +131,12 @@ public class SlicedImageServer extends TransformingImageServer<BufferedImage> {
     private static void checkOrder(int min, int max, String name) {
         if (min > max) {
             throw new IllegalArgumentException(String.format("The min %s is greater than the max %s", name, name));
+        }
+    }
+
+    private static void checkStep(int step) {
+        if (step < 1) {
+            throw new IllegalArgumentException(String.format("The step %s is less than or equal to 0", step));
         }
     }
 }

@@ -13,20 +13,22 @@ import java.awt.image.WritableRaster;
 import java.net.URI;
 import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.IntStream;
 
 public class TestSlicedImageServer {
 
     @Test
     void Check_Number_Of_Z_Slices() throws Exception {
         ImageServer<BufferedImage> sampleServer = new SampleImageServer();
-        int zStart = 1;
-        int zEnd = 3;
-        int expectedNumberOfZSlices = zEnd - zStart;
-        ImageServer<BufferedImage> slicedServer = new SlicedImageServer(sampleServer, zStart, zEnd, 0, 0);
+        int zStart = 3;
+        int zEnd = 8;
+        int zStep = 2;
+        int expectedNumberOfZSlices = 3;
 
-        int numberOfZSlices = slicedServer.nZSlices();
+        ImageServer<BufferedImage> slicedServer = new SlicedImageServer(sampleServer, zStart, zEnd, zStep, 0, 1, 1);
 
-        Assertions.assertEquals(expectedNumberOfZSlices, numberOfZSlices);
+        Assertions.assertEquals(expectedNumberOfZSlices, slicedServer.nZSlices());
 
         slicedServer.close();
         sampleServer.close();
@@ -38,11 +40,10 @@ public class TestSlicedImageServer {
         int zStart = -1;
         int zEnd = sampleServer.nZSlices() + 10;
         int expectedNumberOfZSlices = sampleServer.nZSlices();
-        ImageServer<BufferedImage> slicedServer = new SlicedImageServer(sampleServer, zStart, zEnd, 0, 0);
 
-        int numberOfZSlices = slicedServer.nZSlices();
+        ImageServer<BufferedImage> slicedServer = new SlicedImageServer(sampleServer, zStart, zEnd, 1, 0, 1, 1);
 
-        Assertions.assertEquals(expectedNumberOfZSlices, numberOfZSlices);
+        Assertions.assertEquals(expectedNumberOfZSlices, slicedServer.nZSlices());
 
         slicedServer.close();
         sampleServer.close();
@@ -55,7 +56,7 @@ public class TestSlicedImageServer {
         int zEnd = zStart - 2;
 
         Assertions.assertThrows(IllegalArgumentException.class, () -> {
-            ImageServer<BufferedImage> slicedServer = new SlicedImageServer(sampleServer, zStart, zEnd, 0, 0);
+            ImageServer<BufferedImage> slicedServer = new SlicedImageServer(sampleServer, zStart, zEnd, 1,0, 1, 1);
             slicedServer.close();
         });
 
@@ -63,35 +64,65 @@ public class TestSlicedImageServer {
     }
 
     @Test
+    void Check_Number_Of_Z_Slices_When_Step_Invalid() throws Exception {
+        ImageServer<BufferedImage> sampleServer = new SampleImageServer();
+        int zStep = 0;
+
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+            ImageServer<BufferedImage> slicedServer = new SlicedImageServer(sampleServer, 0, 1, zStep,0, 1, 1);
+            slicedServer.close();
+        });
+
+        sampleServer.close();
+    }
+
+    @Test
+    void Check_Z_Spacing_With_Step() throws Exception {
+        ImageServer<BufferedImage> sampleServer = new SampleImageServer();
+        int zStep = 4;
+        double expectedZSpacing = sampleServer.getMetadata().getPixelCalibration().getZSpacingMicrons() * zStep;
+
+        ImageServer<BufferedImage> slicedServer = new SlicedImageServer(sampleServer, 0, 1, zStep,0, 1, 1);
+
+        Assertions.assertEquals(expectedZSpacing, slicedServer.getMetadata().getZSpacingMicrons());
+
+        slicedServer.close();
+        sampleServer.close();
+    }
+
+    @Test
     void Check_Correct_Slice_Read() throws Exception {
         ImageServer<BufferedImage> sampleServer = new SampleImageServer();
-        int zStart = 1;
-        int zEnd = 3;
+        int zStart = 3;
+        int zEnd = 8;
+        int zStep = 2;
         int zToRead = 1;
-        ImageServer<BufferedImage> slicedServer = new SlicedImageServer(sampleServer, zStart, zEnd, 0, 0);
         BufferedImage expectedImage = sampleServer.readRegion(RegionRequest.createInstance(
-                slicedServer.getPath(),
+                sampleServer.getPath(),
                 1,
                 0,
                 0,
-                slicedServer.getWidth(),
-                slicedServer.getHeight(),
-                zToRead + zStart,
+                sampleServer.getWidth(),
+                sampleServer.getHeight(),
+                5,
                 0
         ));
 
-        BufferedImage image = slicedServer.readRegion(RegionRequest.createInstance(
-                slicedServer.getPath(),
-                1,
-                0,
-                0,
-                slicedServer.getWidth(),
-                slicedServer.getHeight(),
-                zToRead,
-                0
-        ));
+        ImageServer<BufferedImage> slicedServer = new SlicedImageServer(sampleServer, zStart, zEnd, zStep, 0, 1, 1);
 
-        assertDoubleBufferedImagesEqual(expectedImage, image);
+        assertDoubleBufferedImagesEqual(
+                expectedImage,
+                slicedServer.readRegion(RegionRequest.createInstance(
+                        slicedServer.getPath(),
+                        1,
+                        0,
+                        0,
+                        slicedServer.getWidth(),
+                        slicedServer.getHeight(),
+                        zToRead,
+                        0
+                ))
+        );
 
         slicedServer.close();
         sampleServer.close();
@@ -101,13 +132,13 @@ public class TestSlicedImageServer {
     void Check_Number_Of_Timepoints() throws Exception {
         ImageServer<BufferedImage> sampleServer = new SampleImageServer();
         int tStart = 1;
-        int tEnd = 3;
-        int expectedNumberOfTimepoints = tEnd - tStart;
-        ImageServer<BufferedImage> slicedServer = new SlicedImageServer(sampleServer, 0, 0, tStart, tEnd);
+        int tEnd = 6;
+        int tStep = 2;
+        int expectedNumberOfTimepoints = 3;
 
-        int numberOfTimepoints = slicedServer.nTimepoints();
+        ImageServer<BufferedImage> slicedServer = new SlicedImageServer(sampleServer, 0, 1, 1, tStart, tEnd, tStep);
 
-        Assertions.assertEquals(expectedNumberOfTimepoints, numberOfTimepoints);
+        Assertions.assertEquals(expectedNumberOfTimepoints, slicedServer.nTimepoints());
 
         slicedServer.close();
         sampleServer.close();
@@ -119,7 +150,7 @@ public class TestSlicedImageServer {
         int tStart = -1;
         int tEnd = sampleServer.nTimepoints() + 10;
         int expectedNumberOfTimepoints = sampleServer.nTimepoints();
-        ImageServer<BufferedImage> slicedServer = new SlicedImageServer(sampleServer, 0, 0, tStart, tEnd);
+        ImageServer<BufferedImage> slicedServer = new SlicedImageServer(sampleServer, 0, 1, 1, tStart, tEnd, 1);
 
         int numberOfTimepoints = slicedServer.nTimepoints();
 
@@ -136,7 +167,7 @@ public class TestSlicedImageServer {
         int tEnd = tStart - 2;
 
         Assertions.assertThrows(IllegalArgumentException.class, () -> {
-            ImageServer<BufferedImage> slicedServer = new SlicedImageServer(sampleServer, 0, 0, tStart, tEnd);
+            ImageServer<BufferedImage> slicedServer = new SlicedImageServer(sampleServer, 0, 1, 1, tStart, tEnd, 1);
             slicedServer.close();
         });
 
@@ -144,35 +175,75 @@ public class TestSlicedImageServer {
     }
 
     @Test
+    void Check_Number_Of_Timepoints_When_Step_Invalid() throws Exception {
+        ImageServer<BufferedImage> sampleServer = new SampleImageServer();
+        int tStep = 0;
+
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+            ImageServer<BufferedImage> slicedServer = new SlicedImageServer(sampleServer, 0, 1, 1,0, 0, tStep);
+            slicedServer.close();
+        });
+
+        sampleServer.close();
+    }
+
+    @Test
+    void Check_Timepoints_With_Step() throws Exception {
+        ImageServer<BufferedImage> sampleServer = new SampleImageServer();
+        int tStart = 2;
+        int tEnd = 7;
+        int tStep = 4;
+        double[] expectedTimepoints = new double[] {
+                sampleServer.getMetadata().getTimepoint(tStart),
+                sampleServer.getMetadata().getTimepoint(tStart + tStep)
+        };
+
+        ImageServer<BufferedImage> slicedServer = new SlicedImageServer(sampleServer, 0, 1, 1, tStart, tEnd, tStep);
+
+        Assertions.assertArrayEquals(
+                expectedTimepoints,
+                IntStream.range(0, slicedServer.getMetadata().getPixelCalibration().nTimepoints())
+                        .mapToDouble(t -> slicedServer.getMetadata().getTimepoint(t))
+                        .toArray()
+        );
+
+        slicedServer.close();
+        sampleServer.close();
+    }
+
+    @Test
     void Check_Correct_Timepoint_Read() throws Exception {
         ImageServer<BufferedImage> sampleServer = new SampleImageServer();
         int tStart = 1;
-        int tEnd = 3;
+        int tEnd = 6;
+        int tStep = 2;
         int tToRead = 1;
-        ImageServer<BufferedImage> slicedServer = new SlicedImageServer(sampleServer, 0, 0, tStart, tEnd);
         BufferedImage expectedImage = sampleServer.readRegion(RegionRequest.createInstance(
-                slicedServer.getPath(),
+                sampleServer.getPath(),
                 1,
                 0,
                 0,
-                slicedServer.getWidth(),
-                slicedServer.getHeight(),
+                sampleServer.getWidth(),
+                sampleServer.getHeight(),
                 0,
-                tToRead + tStart
+                3
         ));
 
-        BufferedImage image = slicedServer.readRegion(RegionRequest.createInstance(
-                slicedServer.getPath(),
-                1,
-                0,
-                0,
-                slicedServer.getWidth(),
-                slicedServer.getHeight(),
-                0,
-                tToRead
-        ));
+        ImageServer<BufferedImage> slicedServer = new SlicedImageServer(sampleServer, 0, 1, 1, tStart, tEnd, tStep);
 
-        assertDoubleBufferedImagesEqual(expectedImage, image);
+        assertDoubleBufferedImagesEqual(
+                expectedImage,
+                slicedServer.readRegion(RegionRequest.createInstance(
+                        slicedServer.getPath(),
+                        1,
+                        0,
+                        0,
+                        slicedServer.getWidth(),
+                        slicedServer.getHeight(),
+                        0,
+                        tToRead
+                ))
+        );
 
         slicedServer.close();
         sampleServer.close();
@@ -183,7 +254,28 @@ public class TestSlicedImageServer {
         private static final int IMAGE_WIDTH = 50;
         private static final int IMAGE_HEIGHT = 25;
         private static final int NUMBER_OF_Z_SLICES = 10;
-        private static final int NUMBER_OF_TIMEPOINTS = 5;
+        private static final int NUMBER_OF_TIMEPOINTS = 8;
+        private final ImageServerMetadata metadata = new ImageServerMetadata.Builder()
+                .width(IMAGE_WIDTH)
+                .height(IMAGE_HEIGHT)
+                .sizeZ(NUMBER_OF_Z_SLICES)
+                .sizeT(NUMBER_OF_TIMEPOINTS)
+                .pixelType(PixelType.FLOAT64)
+                .channels(List.of(
+                        ImageChannel.getInstance("c1", 1),
+                        ImageChannel.getInstance("c2", 2),
+                        ImageChannel.getInstance("c3", 3),
+                        ImageChannel.getInstance("c4", 4),
+                        ImageChannel.getInstance("c5", 5)
+                ))
+                .zSpacingMicrons(0.45)
+                .timepoints(
+                        TimeUnit.MICROSECONDS,
+                        IntStream.range(0, NUMBER_OF_TIMEPOINTS)
+                                .mapToDouble( t -> Math.random())
+                                .toArray()
+                )
+                .build();
 
         public SampleImageServer() {
             super(BufferedImage.class);
@@ -211,21 +303,7 @@ public class TestSlicedImageServer {
 
         @Override
         public ImageServerMetadata getOriginalMetadata() {
-            return new ImageServerMetadata.Builder()
-                    .width(IMAGE_WIDTH)
-                    .height(IMAGE_HEIGHT)
-                    .sizeZ(NUMBER_OF_Z_SLICES)
-                    .sizeT(NUMBER_OF_TIMEPOINTS)
-                    .pixelType(PixelType.FLOAT64)
-                    .channels(List.of(
-                            ImageChannel.getInstance("c1", 1),
-                            ImageChannel.getInstance("c2", 2),
-                            ImageChannel.getInstance("c3", 3),
-                            ImageChannel.getInstance("c4", 4),
-                            ImageChannel.getInstance("c5", 5)
-                    ))
-                    .name("name")
-                    .build();
+            return metadata;
         }
 
         @Override

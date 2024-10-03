@@ -535,29 +535,35 @@ public class ImageServers {
 		private final ServerBuilder<BufferedImage> builder;
 		private final int zStart;
 		private final int zEnd;
+		private final int zStep;
 		private final int tStart;
 		private final int tEnd;
+		private final int tStep;
 
 		public SlicedImageServerBuilder(
 				ImageServerMetadata metadata,
 				ServerBuilder<BufferedImage> builder,
 				int zStart,
 				int zEnd,
+				int zStep,
 				int tStart,
-				int tEnd
+				int tEnd,
+				int tStep
 		) {
 			super(metadata);
 
 			this.builder = builder;
 			this.zStart = zStart;
 			this.zEnd = zEnd;
+			this.zStep = zStep;
 			this.tStart = tStart;
 			this.tEnd = tEnd;
+			this.tStep = tStep;
 		}
 
 		@Override
 		protected ImageServer<BufferedImage> buildOriginal() throws Exception {
-			return new SlicedImageServer(builder.build(), zStart, zEnd, tStart, tEnd);
+			return new SlicedImageServer(builder.build(), zStart, zEnd, zStep, tStart, tEnd, tStep);
 		}
 
 		@Override
@@ -576,8 +582,10 @@ public class ImageServers {
 						newBuilder,
 						zStart,
 						zEnd,
+						zStep,
 						tStart,
-						tEnd
+						tEnd,
+						tStep
 				);
 			}
 		}
