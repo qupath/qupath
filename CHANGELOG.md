@@ -15,6 +15,7 @@ Some things may be added, some things may be removed, and some things may look d
 ### Enhancements
 (These are not yet ordered by interestingness)
 
+* Support system light/dark color themes
 * Improved display of annotation names (https://github.com/qupath/qupath/pull/1532)
 * Support log10 counts with histograms (no longer use natural log) (https://github.com/qupath/qupath/pull/1540)
   * Log counts also now available in measurement tables
