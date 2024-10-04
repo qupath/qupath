@@ -573,8 +573,16 @@ public class BrightnessContrastCommand implements Runnable {
 			var imageDisplay = imageDisplayProperty.getValue();
 			if (imageDisplay != null) {
 				if (evt.getPropertyName().equals("serverMetadata") ||
-						((evt.getSource() instanceof ImageData<?>) && evt.getPropertyName().equals("imageType")))
+						((evt.getSource() instanceof ImageData<?>) && evt.getPropertyName().equals("imageType"))) {
+					var available = List.copyOf(imageDisplay.availableChannels());
 					imageDisplay.refreshChannelOptions();
+					// When channels change (e.g. setting RGB image to fluorescence),
+					// this is needed to trigger viewer repaint & to save the channels in the properties -
+					// otherwise we can get a black image if we save now and reload.
+					if (!available.equals(imageDisplay.availableChannels())) {
+						imageDisplay.saveChannelColorProperties();
+					}
+				}
 			}
 
 			table.updateTable();

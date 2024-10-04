@@ -460,8 +460,6 @@ public class BrightnessContrastChannelPane extends BorderPane {
             int c = multiInfo.getChannel();
             var channel = imageData.getServerMetadata().getChannel(c);
 
-            boolean canChangeColor = !imageData.getServerMetadata().isRGB();
-
             Color color = ColorToolsFX.getCachedColor(multiInfo.getColor());
             picker.setValue(color);
 
@@ -482,10 +480,7 @@ public class BrightnessContrastChannelPane extends BorderPane {
             var labelColor = new Label("Channel color");
             labelColor.setLabelFor(picker);
             String colorTooltipText = "Choose the color for the current channel";
-            if (!canChangeColor) {
-                picker.setDisable(true);
-                colorTooltipText = "Color cannot be changed for RGB images";
-            }
+
             GridPaneUtils.setFillWidth(Boolean.TRUE, picker, tfName);
             GridPaneUtils.addGridRow(paneColor, r++, 0,
                     colorTooltipText, labelColor, picker);
@@ -726,7 +721,8 @@ public class BrightnessContrastChannelPane extends BorderPane {
 
             Integer channelRGB = item.getColor();
             // Can only set the color for direct, non-RGB channels
-            boolean canChangeColor = !isRGB && channelRGB != null && item instanceof DirectServerChannelInfo;
+//            boolean canChangeColor = !isRGB && channelRGB != null && item instanceof DirectServerChannelInfo;
+            boolean canChangeColor = channelRGB != null && item instanceof DirectServerChannelInfo;
             colorPicker.setDisable(!canChangeColor);
             colorPicker.setOnShowing(null);
             if (channelRGB == null) {
