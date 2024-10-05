@@ -8,3 +8,32 @@ body {
     /* Don't display built-in search, as it fails within a WebView */
     display: none;
 }
+
+/*CSS that can be copied to different files*/
+
+blockquote {
+    background: #f9f9f909;
+    border-left: 10px solid #ccc4;
+    margin: 1.5em 10px;
+    padding: 0.25em 10px;
+}
+
+blockquote.tip {
+    background: rgba(40, 200, 40, 0.1);
+    border-left: 10px solid rgba(40, 200, 40, 0.4);
+}
+
+blockquote.info {
+    background: rgba(80,  100, 200, 0.1);
+    border-left: 10px solid rgba(80,  100, 200, 0.4);
+}
+
+blockquote.warn {
+    background: rgba(200, 40, 40, 0.1);
+    border-left: 10px solid rgba(200, 40, 40, 0.4);
+}
+
+blockquote.caution {
+    background: rgba(220, 180, 40, 0.1);
+    border-left: 10px solid rgba(220, 180, 40, 0.4);
+}
