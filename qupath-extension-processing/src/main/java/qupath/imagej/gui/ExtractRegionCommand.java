@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2022, 2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -41,6 +41,11 @@ import java.util.Collections;
 import java.util.List;
 import javax.swing.SwingUtilities;
 
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.SimpleDoubleProperty;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,6 +57,7 @@ import qupath.lib.display.SingleChannelDisplayInfo;
 import qupath.lib.gui.QuPathGUI;
 import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.images.servers.ChannelDisplayTransformServer;
+import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.QuPathViewer;
@@ -82,13 +88,13 @@ class ExtractRegionCommand implements Runnable {
 	
 	private static final String PIXELS_UNIT = "Pixels (downsample)";
 	
-	private double resolution = 1;
-	private String resolutionUnit = PIXELS_UNIT;
-	private boolean includeROI = true;
-	private boolean includeOverlay = true;
-	private boolean doTransforms = false;
-	private boolean doZ = false;
-	private boolean doT = false;
+	private DoubleProperty resolution = PathPrefs.createPersistentPreference("ext.ij.extract.resolution", 1.0);
+	private StringProperty resolutionUnit = PathPrefs.createPersistentPreference("ext.ij.extract.resolutionUnit", PIXELS_UNIT);
+	private BooleanProperty includeROI = PathPrefs.createPersistentPreference("ext.ij.extract.includeROI", true);
+	private BooleanProperty includeOverlay = PathPrefs.createPersistentPreference("ext.ij.extract.includeOverlay", true);
+	private BooleanProperty doTransforms = PathPrefs.createPersistentPreference("ext.ij.extract.doTransforms", false);
+	private BooleanProperty doZ = PathPrefs.createPersistentPreference("ext.ij.extract.doZ", false);
+	private BooleanProperty doT = PathPrefs.createPersistentPreference("ext.ij.extract.doT", false);
 	
 	/**
 	 * Constructor.
@@ -122,18 +128,19 @@ class ExtractRegionCommand implements Runnable {
 		String unit = server.getPixelCalibration().getPixelWidthUnit();
 		if (unit.equals(server.getPixelCalibration().getPixelHeightUnit()) && !unit.equals(PixelCalibration.PIXEL))
 			unitOptions.add(unit);
-		
+
+		String resolutionUnit = this.resolutionUnit.get();
 		if (!unitOptions.contains(resolutionUnit))
 			resolutionUnit = PIXELS_UNIT;
 		
 		ParameterList params = new ParameterList()
-				.addDoubleParameter("resolution", "Resolution", resolution, null, "Resolution at which the image will be exported, defined as the 'pixel size' in Resolution units")
+				.addDoubleParameter("resolution", "Resolution", resolution.get(), null, "Resolution at which the image will be exported, defined as the 'pixel size' in Resolution units")
 				.addChoiceParameter("resolutionUnit", "Resolution unit", resolutionUnit, unitOptions, "Units defining the export resolution; if 'pixels' then the resolution is the same as a downsample value")
-				.addBooleanParameter("includeROI", "Include ROI", includeROI, "Include the primary object defining the exported region as an active ROI in ImageJ")
-				.addBooleanParameter("includeOverlay", "Include overlay", includeOverlay, "Include any objects overlapping the exported region as ROIs on an ImageJ overlay")
-				.addBooleanParameter("doTransforms", "Apply color transforms", doTransforms, "Optionally apply any color transforms when sending the pixels to ImageJ")
-				.addBooleanParameter("doZ", "All z-slices", doZ, "Optionally include all slices of a z-stack")
-				.addBooleanParameter("doT", "All timepoints", doT, "Optionally include all timepoints of a time series")
+				.addBooleanParameter("includeROI", "Include ROI", includeROI.get(), "Include the primary object defining the exported region as an active ROI in ImageJ")
+				.addBooleanParameter("includeOverlay", "Include overlay", includeOverlay.get(), "Include any objects overlapping the exported region as ROIs on an ImageJ overlay")
+				.addBooleanParameter("doTransforms", "Apply color transforms", doTransforms.get(), "Optionally apply any color transforms when sending the pixels to ImageJ")
+				.addBooleanParameter("doZ", "All z-slices", doZ.get(), "Optionally include all slices of a z-stack")
+				.addBooleanParameter("doT", "All timepoints", doT.get(), "Optionally include all timepoints of a time series")
 				;
 		
 //		params.setHiddenParameters(unitOptions.size() <= 1, "resolutionUnit");
@@ -143,14 +150,23 @@ class ExtractRegionCommand implements Runnable {
 		if (!GuiTools.showParameterDialog("Send region to ImageJ", params))
 			return;
 		
-		// Parse values
-		resolution = params.getDoubleParameterValue("resolution");
+		// Parse values - store as local variables now, make persistent later
+		double resolution = params.getDoubleParameterValue("resolution");
 		resolutionUnit = (String)params.getChoiceParameterValue("resolutionUnit");
-		includeROI = params.getBooleanParameterValue("includeROI");
-		includeOverlay = params.getBooleanParameterValue("includeOverlay");
-		doTransforms = params.getBooleanParameterValue("doTransforms");
-		doZ = params.getBooleanParameterValue("doZ");
-		doT = params.getBooleanParameterValue("doT");
+		boolean includeROI = params.getBooleanParameterValue("includeROI");
+		boolean includeOverlay = params.getBooleanParameterValue("includeOverlay");
+		boolean doTransforms = params.getBooleanParameterValue("doTransforms");
+		boolean doZ = params.getBooleanParameterValue("doZ");
+		boolean doT = params.getBooleanParameterValue("doT");
+
+		// Now make persistent
+		this.resolution.set(resolution);
+		this.resolutionUnit.set(resolutionUnit);
+		this.includeROI.set(includeROI);
+		this.includeOverlay.set(includeOverlay);
+		this.doTransforms.set(doTransforms);
+		this.doZ.set(doZ);
+		this.doT.set(doT);
 		
 		// Calculate downsample
 		double downsample = resolution;
