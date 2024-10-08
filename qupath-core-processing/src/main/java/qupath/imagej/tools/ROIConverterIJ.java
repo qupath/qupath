@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2020, 2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -41,6 +41,7 @@ import qupath.lib.roi.PolygonROI;
 import qupath.lib.roi.PolylineROI;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.RectangleROI;
+import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
 import ij.gui.Line;
 import ij.gui.OvalRoi;
@@ -67,14 +68,6 @@ class ROIConverterIJ {
 		return y / downsample + yOrigin;
 	}
 	
-	@Deprecated
-	static <T extends Roi> T setIJRoiProperties(T roi, ROI pathROI) {
-////		roi.setStrokeColor(pathROI.getStrokeColor());
-////		roi.setStrokeWidth(pathROI.getStrokeWidth());
-//		roi.setName(pathROI.getName());
-		return roi;
-	}
-
 	private static Rectangle2D getTransformedBounds(ROI pathROI, double xOrigin, double yOrigin, double downsampleFactor) {
 		Rectangle2D bounds = AwtTools.getBounds2D(pathROI);
 		double x1 = convertXtoIJ(bounds.getMinX(), xOrigin, downsampleFactor);
@@ -109,34 +102,49 @@ class ROIConverterIJ {
 
 	static Roi getRectangleROI(RectangleROI pathRectangle, double xOrigin, double yOrigin, double downsampleFactor) {
 		Rectangle2D bounds = getTransformedBounds(pathRectangle, xOrigin, yOrigin, downsampleFactor);
-		return setIJRoiProperties(new Roi(bounds.getX(), bounds.getY(), bounds.getWidth(), bounds.getHeight()), pathRectangle);
+		return new Roi(bounds.getX(), bounds.getY(), bounds.getWidth(), bounds.getHeight());
 	}
 
 	static OvalRoi convertToOvalROI(EllipseROI pathOval, double xOrigin, double yOrigin, double downsampleFactor) {
 		Rectangle2D bounds = getTransformedBounds(pathOval, xOrigin, yOrigin, downsampleFactor);
-		return setIJRoiProperties(new OvalRoi(bounds.getX(), bounds.getY(), bounds.getWidth(), bounds.getHeight()), pathOval);
+		return new OvalRoi(bounds.getX(), bounds.getY(), bounds.getWidth(), bounds.getHeight());
 	}
 
 	static Line convertToLineROI(LineROI pathLine, double xOrigin, double yOrigin, double downsampleFactor) {
-		return setIJRoiProperties(new Line(convertXtoIJ(pathLine.getX1(), xOrigin, downsampleFactor),
+		return new Line(convertXtoIJ(pathLine.getX1(), xOrigin, downsampleFactor),
 											convertYtoIJ(pathLine.getY1(), yOrigin, downsampleFactor),
 											convertXtoIJ(pathLine.getX2(), xOrigin, downsampleFactor),
-											convertYtoIJ(pathLine.getY2(), yOrigin, downsampleFactor)), pathLine);		
+											convertYtoIJ(pathLine.getY2(), yOrigin, downsampleFactor));
 	}
 
 	static PointRoi convertToPointROI(PointsROI pathPoints, double xOrigin, double yOrigin, double downsampleFactor) {
 		float[][] points = getTransformedPoints(pathPoints.getAllPoints(), xOrigin, yOrigin, downsampleFactor);
-		return setIJRoiProperties(new PointRoi(points[0], points[1]), pathPoints);
+		return new PointRoi(points[0], points[1]);
 	}
 
 	static PolygonRoi convertToPolygonROI(PolygonROI pathPolygon, double xOrigin, double yOrigin, double downsampleFactor) {
 		float[][] points = getTransformedPoints(pathPolygon.getAllPoints(), xOrigin, yOrigin, downsampleFactor);
-		return setIJRoiProperties(new PolygonRoi(points[0], points[1], Roi.POLYGON), pathPolygon);
+		return new PolygonRoi(points[0], points[1], Roi.POLYGON);
 	}
 	
 	static PolygonRoi convertToPolygonROI(PolylineROI pathPolygon, double xOrigin, double yOrigin, double downsampleFactor) {
 		float[][] points = getTransformedPoints(pathPolygon.getAllPoints(), xOrigin, yOrigin, downsampleFactor);
-		return setIJRoiProperties(new PolygonRoi(points[0], points[1], Roi.POLYLINE), pathPolygon);
+		return new PolygonRoi(points[0], points[1], Roi.POLYLINE);
+	}
+
+	static ShapeRoi convertToShapeRoi(ROI roi, double xOrigin, double yOrigin, double downsampleFactor) {
+		if (roi != null && roi.isArea()) { // TODO: Deal with non-AWT area ROIs!
+			Shape shape = RoiTools.getArea(roi);
+			return convertToShapeRoi(shape, xOrigin, yOrigin, downsampleFactor);
+		} else {
+			throw new UnsupportedOperationException("Only ROIs representing areas can be converted to a ShapeRoi!");
+		}
+	}
+
+	private static ShapeRoi convertToShapeRoi(Shape shape, double xOrigin, double yOrigin, double downsampleFactor) {
+		shape = new AffineTransform(1.0/downsampleFactor, 0, 0, 1.0/downsampleFactor, xOrigin, yOrigin)
+				.createTransformedShape(shape);
+		return new ShapeRoi(shape);
 	}
 	
 	/**
@@ -161,8 +169,8 @@ class ROIConverterIJ {
 	
 	static ROI convertToPolygonOrAreaROI(Roi roi, double xOrigin, double yOrigin, double downsampleFactor, final int c, final int z, final int t) {
 		Shape shape;
-		if (roi instanceof ShapeRoi)
-			shape = ((ShapeRoi)roi).getShape();
+		if (roi instanceof ShapeRoi shapeRoi)
+			shape = shapeRoi.getShape();
 		else
 			shape = new ShapeRoi(roi).getShape();
 		AffineTransform transform = new AffineTransform();
@@ -170,7 +178,6 @@ class ROIConverterIJ {
 		transform.translate(roi.getXBase(), roi.getYBase());
 		transform.translate(-xOrigin, -yOrigin);
 		return ROIs.createAreaROI(new Area(transform.createTransformedShape(shape)), ImagePlane.getPlaneWithChannel(c, z, t));
-//		return setPathROIProperties(new PathAreaROI(transform.createTransformedShape(shape)), roi);
 	}
 	
 	static ROI convertToAreaROI(ShapeRoi roi, double xOrigin, double yOrigin, double downsampleFactor, final int c, final int z, final int t) {
@@ -179,7 +186,6 @@ class ROIConverterIJ {
 		transform.scale(downsampleFactor, downsampleFactor);
 		transform.translate(roi.getXBase(), roi.getYBase());
 		transform.translate(-xOrigin, -yOrigin);
-//		return setPathROIProperties(PathROIHelpers.getShapeROI(new Area(transform.createTransformedShape(shape)), 0, 0, 0), roi);
 		return ROIs.createAreaROI(new Area(transform.createTransformedShape(shape)), ImagePlane.getPlaneWithChannel(c, z, t));
 	}
 	
@@ -192,12 +198,6 @@ class ROIConverterIJ {
 		double y2 = convertLocationfromIJ(bounds.getMaxY(), yOrigin, downsampleFactor);
 		return new Rectangle2D.Double(
 				x1, y1, x2-x1, y2-y1);
-		
-//		return new Rectangle2D.Double(
-//				convertXfromIJ(bounds.getX(), cal, downsampleFactor),
-//				convertYfromIJ(bounds.getY(), cal, downsampleFactor),
-//				convertXfromIJ(bounds.getWidth(), null, downsampleFactor),
-//				convertYfromIJ(bounds.getHeight(), null, downsampleFactor));
 	}
 	
 	
@@ -218,18 +218,10 @@ class ROIConverterIJ {
 		double y2 = convertLocationfromIJ(roi.y2d, yOrigin, downsampleFactor);
 		return ROIs.createLineROI(x1, y1, x2, y2, ImagePlane.getPlaneWithChannel(c, z, t));		
 	}
-	
-	private static ROI convertToPointROI(PolygonRoi roi, Calibration cal, double downsampleFactor, final int c, final int z, final int t) {
-		double x = cal == null ? 0 : cal.xOrigin;
-		double y = cal == null ? 0 : cal.yOrigin;
-		return convertToPointROI(roi, x, y, downsampleFactor, c, z, t);
-	}
 
 	static ROI convertToPointROI(PolygonRoi roi, double xOrigin, double yOrigin, double downsampleFactor, final int c, final int z, final int t) {
 		List<Point2> points = convertToPointsList(roi.getFloatPolygon(), xOrigin, yOrigin, downsampleFactor);
-		if (points == null)
-			return null;
-		return ROIs.createPointsROI(points, ImagePlane.getPlaneWithChannel(c, z, t));
+        return ROIs.createPointsROI(points, ImagePlane.getPlaneWithChannel(c, z, t));
 	}
 	
 	static List<Point2> convertToPointsList(FloatPolygon polygon, Calibration cal, double downsampleFactor) {

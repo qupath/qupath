@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2022, 2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -24,8 +24,6 @@
 package qupath.imagej.tools;
 
 import java.awt.Color;
-import java.awt.Shape;
-import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBuffer;
 import java.awt.image.SampleModel;
@@ -41,6 +39,7 @@ import java.util.zip.ZipFile;
 
 import javax.swing.SwingUtilities;
 
+import org.locationtech.jts.geom.Polygon;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -94,7 +93,6 @@ import qupath.lib.roi.PolygonROI;
 import qupath.lib.roi.PolylineROI;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.RectangleROI;
-import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
@@ -173,7 +171,7 @@ public class IJTools {
 						   "Try again with a smaller region, or a higher downsample factor,"+
 						   "or modify the memory threshold using IJTools.setMemoryThreshold(double threshold)");
 		
-		return (approxPixelCount > 2147480000L || approxMemory > presumableFreeMemory * MEMORY_THRESHOLD);
+		return approxMemory > presumableFreeMemory * MEMORY_THRESHOLD;
 	}
 
 
@@ -1037,11 +1035,11 @@ public class IJTools {
 		 * @param xOrigin x-origin indicating relationship of ImagePlus to the original image, as stored in ImageJ Calibration object
 		 * @param yOrigin y-origin indicating relationship of ImagePlus to the original image, as stored in ImageJ Calibration object
 		 * @param downsampleFactor downsample factor at which the ImagePlus was extracted from the full-resolution image
-		 * @return
+		 * @return the converted ROI, or null if no input ROI was provided
 		 */
 		public static <T extends PathImage<ImagePlus>> Roi convertToIJRoi(ROI pathROI, double xOrigin, double yOrigin, double downsampleFactor) {
-			if (pathROI instanceof PolygonROI)
-				return ROIConverterIJ.convertToPolygonROI((PolygonROI)pathROI, xOrigin, yOrigin, downsampleFactor);
+			if (pathROI == null)
+				return null;
 			if (pathROI instanceof RectangleROI)
 				return ROIConverterIJ.getRectangleROI((RectangleROI)pathROI, xOrigin, yOrigin, downsampleFactor);
 			if (pathROI instanceof EllipseROI)
@@ -1052,15 +1050,18 @@ public class IJTools {
 				return ROIConverterIJ.convertToPolygonROI((PolylineROI)pathROI, xOrigin, yOrigin, downsampleFactor);
 			if (pathROI instanceof PointsROI)
 				return ROIConverterIJ.convertToPointROI((PointsROI)pathROI, xOrigin, yOrigin, downsampleFactor);
-			// If we have any other kind of shape, create a general shape roi
-			if (pathROI != null && pathROI.isArea()) { // TODO: Deal with non-AWT area ROIs!
-				Shape shape = RoiTools.getArea(pathROI);
-	//			"scaleX", "shearY", "shearX", "scaleY", "translateX", "translateY"
-				shape = new AffineTransform(1.0/downsampleFactor, 0, 0, 1.0/downsampleFactor, xOrigin, yOrigin).createTransformedShape(shape);
-				return ROIConverterIJ.setIJRoiProperties(new ShapeRoi(shape), pathROI);
+			if (pathROI instanceof PolygonROI) {
+				// We should only use a PolygonROI if we have a simple polygon, without holes or self-intersections
+				// See https://github.com/qupath/qupath/issues/1674
+				var geom = pathROI.getGeometry();
+				if (geom instanceof Polygon && geom.getNumGeometries() == 1 && ((Polygon) geom).getNumInteriorRing() == 0)
+					return ROIConverterIJ.convertToPolygonROI((PolygonROI) pathROI, xOrigin, yOrigin, downsampleFactor);
 			}
-			// TODO: Integrate ROI not supported exception...?
-			return null;		
+			// If we have any other kind of area, create a general shape roi
+			if (pathROI.isArea()) {
+				return ROIConverterIJ.convertToShapeRoi(pathROI, xOrigin, yOrigin, downsampleFactor);
+			}
+			throw new UnsupportedOperationException("Unknown ROI " + pathROI + " - cannot convert to ImageJ Roi");
 		}
 
 	/**
@@ -1142,17 +1143,5 @@ public class IJTools {
 		FloatProcessor fpStain3 = new FloatProcessor(width, height, ColorTransformer.getTransformedPixels(rgb, ColorTransformMethod.Stain_3, null, stains));
 		return new FloatProcessor[] {fpStain1, fpStain2, fpStain3};
 	}
-
-//	private static PathImage<ImagePlus> createPathImage(final ImageServer<BufferedImage> server, final RegionRequest request) {
-//		return new PathImagePlus(server, request, null);
-//	}
-//
-//	private static PathImage<ImagePlus> createPathImage(final ImageServer<BufferedImage> server, final double downsample) {
-//		return createPathImage(server, RegionRequest.createInstance(server.getPath(), downsample, 0, 0, server.getWidth(), server.getHeight()));
-//	}
-//
-//	private static PathImage<ImagePlus> createPathImage(final ImageServer<BufferedImage> server, final ROI pathROI, final double downsample) {
-//		return createPathImage(server, RegionRequest.createInstance(server.getPath(), downsample, pathROI));
-//	}
 
 }
