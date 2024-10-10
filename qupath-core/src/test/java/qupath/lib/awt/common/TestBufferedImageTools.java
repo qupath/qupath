@@ -235,15 +235,47 @@ public class TestBufferedImageTools {
 		assertEquals(BufferedImage.TYPE_INT_BGR, BufferedImageTools.ensureBufferedImageType(img, BufferedImage.TYPE_INT_BGR).getType());
 		assertEquals(BufferedImage.TYPE_INT_ARGB, BufferedImageTools.ensureBufferedImageType(img, BufferedImage.TYPE_INT_ARGB).getType());
 	}
-	
+
 	@Test
 	public void test_ensureBufferedImage() {
-		Image img = new BufferedImage(250, 250, BufferedImage.TYPE_INT_RGB);
-		assertEquals(img, BufferedImageTools.ensureBufferedImage(img));
-		// TODO: Check with other types of images
-		
+		var img = createEllipseImage(100, 200, BufferedImage.TYPE_INT_RGB, Color.MAGENTA, Color.GREEN);
+		var imgScaled = img.getScaledInstance(50, -1, Image.SCALE_SMOOTH);
+		var imgConverted = BufferedImageTools.ensureBufferedImage(imgScaled);
+		assertEquals(BufferedImage.class, imgConverted.getClass());
+		assertEquals(50, imgConverted.getWidth());
+		assertEquals(100, imgConverted.getHeight());
 	}
-	
+
+	@Test
+	public void test_doNotStripAlpha() {
+		var img = new BufferedImage(50, 50, BufferedImage.TYPE_INT_ARGB);
+		var g2d = img.createGraphics();
+		g2d.setBackground(new Color(0, 0, 0, 0));
+		g2d.clearRect(0, 0, 50, 50);
+		g2d.setColor(Color.RED);
+		g2d.fillOval(0, 0, 50, 50);
+		g2d.dispose();
+		assertEquals(BufferedImage.TYPE_INT_ARGB, img.getType());
+		var imgConverted = BufferedImageTools.stripEmptyAlpha(img);
+		assertEquals(BufferedImage.TYPE_INT_ARGB, imgConverted.getType());
+	}
+
+	@Test
+	public void test_doStripAlpha() {
+		var img = new BufferedImage(50, 50, BufferedImage.TYPE_INT_ARGB);
+		var g2d = img.createGraphics();
+		g2d.setBackground(new Color(0, 0, 0, 255));
+		g2d.clearRect(0, 0, 50, 50);
+		g2d.setColor(Color.RED);
+		g2d.fillOval(0, 0, 50, 50);
+		g2d.dispose();
+		assertEquals(BufferedImage.TYPE_INT_ARGB, img.getType());
+		var imgConverted = BufferedImageTools.stripEmptyAlpha(img);
+		assertEquals(BufferedImage.TYPE_INT_RGB, imgConverted.getType());
+	}
+
+
+
 	@Test
 	public void test_duplicate() {
 		
@@ -663,5 +695,7 @@ public class TestBufferedImageTools {
 		assertArrayEquals(new double[]{255.0, 0.0},
 				BufferedImageTools.convertRasterType(raster, PixelType.UINT8).getPixels(0, 0, 1, 1, (double[])null));
 	}
+
+
 
 }
