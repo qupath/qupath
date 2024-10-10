@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2020, 2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -24,13 +24,13 @@
 package qupath.lib.gui.tools;
 
 import java.util.Collection;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.color.ColorMaps.ColorMap;
-import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
-import qupath.lib.objects.PathTileObject;
+import qupath.lib.objects.PathObjectFilter;
 
 /**
  * Helpers class that can be used to map an object's measurement to a color (packed RGB int).
@@ -45,7 +45,8 @@ import qupath.lib.objects.PathTileObject;
 public class MeasurementMapper {
 	
 	private static final Logger logger = LoggerFactory.getLogger(MeasurementMapper.class);
-	
+
+	private PathObjectFilter filter;
 	private ColorMap colorMapper;
 
 	// Data min & max values
@@ -66,8 +67,10 @@ public class MeasurementMapper {
 	 * @param mapper color mapper (lookup table)
 	 * @param measurement the measurement to colorize
 	 * @param pathObjects an initial collection of objects used to determine display ranges (i.e. find the min/max values of the specified measurement)
+	 * @param objectFilter the filter used to select objects to recolor; this can be used to switch between annotations and detections
 	 */
-	public MeasurementMapper(ColorMap mapper, String measurement, Collection<? extends PathObject> pathObjects) {
+	public MeasurementMapper(ColorMap mapper, String measurement, Collection<? extends PathObject> pathObjects, PathObjectFilter objectFilter) {
+		this.filter = objectFilter;
 		this.colorMapper = mapper;
 		this.measurement = measurement;
 		isClassProbability = measurement.toLowerCase().trim().equals("class probability");
@@ -88,10 +91,19 @@ public class MeasurementMapper {
 		// Set display range to match the data
 		minValue = minValueData;
 		maxValue = maxValueData;
-		logger.debug("Measurement mapper limits for " + measurement + ": " + minValueData + ", " + maxValueData);
+        logger.debug("Measurement mapper limits for {}: {}, {}", measurement, minValueData, maxValueData);
 	}
-	
 
+
+	/**
+	 * Test whether a specific object is supported by this mapper.
+	 * This applies the filter to the object.
+	 * @param pathObject
+	 * @return true if the mapper should be applied to the object, false otherwise
+	 */
+	public boolean supportsObject(PathObject pathObject) {
+		return filter.test(pathObject);
+	}
 	
 	
 	/**
@@ -134,11 +146,7 @@ public class MeasurementMapper {
 	 */
 	public Integer getColorForObject(PathObject pathObject) {
 
-//		if (!(colorMapper instanceof RedAlphaColorMapper6))
-//			colorMapper = new RedAlphaColorMapper6();
-
-		//		if (!pathObject.isDetection())
-		if (!(pathObject instanceof PathDetectionObject || pathObject instanceof PathTileObject))
+		if (!filter.test(pathObject))
 			return ColorToolsFX.getDisplayedColorARGB(pathObject);
 
 		// Replace NaNs with the minimum value
@@ -149,8 +157,6 @@ public class MeasurementMapper {
 
 		if (Double.isNaN(value))
 			return null;
-		//		if (Double.isNaN(value))
-		//			value = minValue;
 
 		// Map value to color
 		return colorMapper.getColor(value, minValue, maxValue);
