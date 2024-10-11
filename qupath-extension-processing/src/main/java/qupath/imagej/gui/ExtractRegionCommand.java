@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2022, 2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -36,11 +36,16 @@ import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import javax.swing.SwingUtilities;
 
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.StringProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,6 +57,7 @@ import qupath.lib.display.SingleChannelDisplayInfo;
 import qupath.lib.gui.QuPathGUI;
 import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.images.servers.ChannelDisplayTransformServer;
+import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.QuPathViewer;
@@ -62,6 +68,7 @@ import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.regions.RegionRequest;
+import qupath.lib.roi.RectangleROI;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
@@ -77,18 +84,46 @@ import qupath.lib.roi.interfaces.ROI;
 class ExtractRegionCommand implements Runnable {
 	
 	private static Logger logger = LoggerFactory.getLogger(ExtractRegionCommand.class);
-	
+
+	/**
+	 * Enum to control whether ROIs are included when sending regions to ImageJ.
+	 */
+	public enum RoiInclude {
+		/**
+		 * Include all ROIs
+		 */
+		YES,
+		/**
+		 * Include no ROIs
+		 */
+		NO,
+		/**
+		 * Only include non-rectangular ROIs.
+		 * Because the image is a rectangle, a rectangular ROI includes the entire image -
+		 * so is often not very useful.
+		 */
+		NON_RECTANGLE;
+
+		public String toString() {
+			return switch (this) {
+				case YES -> "Yes";
+				case NO -> "No";
+				case NON_RECTANGLE -> "Non-rectangles only";
+			};
+		}
+	}
+
 	private QuPathGUI qupath;
 	
 	private static final String PIXELS_UNIT = "Pixels (downsample)";
 	
-	private double resolution = 1;
-	private String resolutionUnit = PIXELS_UNIT;
-	private boolean includeROI = true;
-	private boolean includeOverlay = true;
-	private boolean doTransforms = false;
-	private boolean doZ = false;
-	private boolean doT = false;
+	private DoubleProperty resolution = PathPrefs.createPersistentPreference("ext.ij.extract.resolution", 1.0);
+	private StringProperty resolutionUnit = PathPrefs.createPersistentPreference("ext.ij.extract.resolutionUnit", PIXELS_UNIT);
+	private ObjectProperty<RoiInclude> includeROI = PathPrefs.createPersistentPreference("ext.ij.extract.includeROI", RoiInclude.YES, RoiInclude.class);
+	private BooleanProperty includeOverlay = PathPrefs.createPersistentPreference("ext.ij.extract.includeOverlay", true);
+	private BooleanProperty doTransforms = PathPrefs.createPersistentPreference("ext.ij.extract.doTransforms", false);
+	private BooleanProperty doZ = PathPrefs.createPersistentPreference("ext.ij.extract.doZ", false);
+	private BooleanProperty doT = PathPrefs.createPersistentPreference("ext.ij.extract.doT", false);
 	
 	/**
 	 * Constructor.
@@ -122,20 +157,21 @@ class ExtractRegionCommand implements Runnable {
 		String unit = server.getPixelCalibration().getPixelWidthUnit();
 		if (unit.equals(server.getPixelCalibration().getPixelHeightUnit()) && !unit.equals(PixelCalibration.PIXEL))
 			unitOptions.add(unit);
-		
+
+		String resolutionUnit = this.resolutionUnit.get();
 		if (!unitOptions.contains(resolutionUnit))
 			resolutionUnit = PIXELS_UNIT;
 		
 		ParameterList params = new ParameterList()
-				.addDoubleParameter("resolution", "Resolution", resolution, null, "Resolution at which the image will be exported, defined as the 'pixel size' in Resolution units")
+				.addDoubleParameter("resolution", "Resolution", resolution.get(), null, "Resolution at which the image will be exported, defined as the 'pixel size' in Resolution units")
 				.addChoiceParameter("resolutionUnit", "Resolution unit", resolutionUnit, unitOptions, "Units defining the export resolution; if 'pixels' then the resolution is the same as a downsample value")
-				.addBooleanParameter("includeROI", "Include ROI", includeROI, "Include the primary object defining the exported region as an active ROI in ImageJ")
-				.addBooleanParameter("includeOverlay", "Include overlay", includeOverlay, "Include any objects overlapping the exported region as ROIs on an ImageJ overlay")
-				.addBooleanParameter("doTransforms", "Apply color transforms", doTransforms, "Optionally apply any color transforms when sending the pixels to ImageJ")
-				.addBooleanParameter("doZ", "All z-slices", doZ, "Optionally include all slices of a z-stack")
-				.addBooleanParameter("doT", "All timepoints", doT, "Optionally include all timepoints of a time series")
+				.addChoiceParameter("includeROI", "Include ROI", includeROI.get(), Arrays.asList(RoiInclude.values()), "Include the primary object defining the exported region as an active ROI in ImageJ")
+				.addBooleanParameter("includeOverlay", "Include overlay", includeOverlay.get(), "Include any objects overlapping the exported region as ROIs on an ImageJ overlay")
+				.addBooleanParameter("doTransforms", "Apply color transforms", doTransforms.get(), "Optionally apply any color transforms when sending the pixels to ImageJ")
+				.addBooleanParameter("doZ", "All z-slices", doZ.get(), "Optionally include all slices of a z-stack")
+				.addBooleanParameter("doT", "All timepoints", doT.get(), "Optionally include all timepoints of a time series")
 				;
-		
+
 //		params.setHiddenParameters(unitOptions.size() <= 1, "resolutionUnit");
 		params.setHiddenParameters(server.nZSlices() == 1, "doZ");
 		params.setHiddenParameters(server.nTimepoints() == 1, "doT");
@@ -143,14 +179,23 @@ class ExtractRegionCommand implements Runnable {
 		if (!GuiTools.showParameterDialog("Send region to ImageJ", params))
 			return;
 		
-		// Parse values
-		resolution = params.getDoubleParameterValue("resolution");
+		// Parse values - store as local variables now, make persistent later
+		double resolution = params.getDoubleParameterValue("resolution");
 		resolutionUnit = (String)params.getChoiceParameterValue("resolutionUnit");
-		includeROI = params.getBooleanParameterValue("includeROI");
-		includeOverlay = params.getBooleanParameterValue("includeOverlay");
-		doTransforms = params.getBooleanParameterValue("doTransforms");
-		doZ = params.getBooleanParameterValue("doZ");
-		doT = params.getBooleanParameterValue("doT");
+		RoiInclude includeROI = (RoiInclude)params.getChoiceParameterValue("includeROI");
+		boolean includeOverlay = params.getBooleanParameterValue("includeOverlay");
+		boolean doTransforms = params.getBooleanParameterValue("doTransforms");
+		boolean doZ = params.getBooleanParameterValue("doZ");
+		boolean doT = params.getBooleanParameterValue("doT");
+
+		// Now make persistent
+		this.resolution.set(resolution);
+		this.resolutionUnit.set(resolutionUnit);
+		this.includeROI.set(includeROI);
+		this.includeOverlay.set(includeOverlay);
+		this.doTransforms.set(doTransforms);
+		this.doZ.set(doZ);
+		this.doT.set(doT);
 		
 		// Calculate downsample
 		double downsample = resolution;
@@ -230,7 +275,14 @@ class ExtractRegionCommand implements Runnable {
 				if (pathObjects.size() == 1 && !Dialogs.showYesNoDialog("Send region to ImageJ", String.format("Attempting to extract this region is likely to require > %.2f MB - are you sure you want to continue?", memory/1024/1024)))
 					return;
 			}
-			
+
+			// Determine if we really do what to send the ROI
+			boolean doIncludeRoi = switch (includeROI) {
+				case NON_RECTANGLE -> roi != null && !(roi instanceof RectangleROI);
+				case YES -> true;
+				case NO -> false;
+			};
+
 			// We should switch to the event dispatch thread when interacting with ImageJ
 			try {
 				ImagePlus imp;
@@ -239,7 +291,7 @@ class ExtractRegionCommand implements Runnable {
 				if (zEnd - zStart > 1 || tEnd - tStart > 1) {
 					// TODO: Handle overlays
 					imp = IJTools.extractHyperstack(server, region, zStart, zEnd, tStart, tEnd);
-					if (includeROI && roi != null) {
+					if (doIncludeRoi && roi != null) {
 						Roi roiIJ = IJTools.convertToIJRoi(roi, imp.getCalibration(), region.getDownsample());
 						imp.setRoi(roiIJ);
 					}
@@ -263,23 +315,22 @@ class ExtractRegionCommand implements Runnable {
 							imp.setOverlay(overlay);
 					}
 				} else if (includeOverlay)
-					imp = IJExtension.extractROIWithOverlay(server, pathObject, hierarchy, region, includeROI, options).getImage();			
+					imp = IJExtension.extractROIWithOverlay(server, pathObject, hierarchy, region, doIncludeRoi, options).getImage();
 				else
-					imp = IJExtension.extractROIWithOverlay(server, pathObject, null, region, includeROI, options).getImage();			
+					imp = IJExtension.extractROIWithOverlay(server, pathObject, null, region, doIncludeRoi, options).getImage();
 				
 				// Set display ranges and invert LUTs if we should (and can)
 				boolean invertLUTs = imageDisplay.useInvertedBackground();
 				// We can't set the LUTs for an RGB image in ImageJ
 //				if (invertLUTs)
 //					imp = CompositeConverter.makeComposite(imp);
-				if (viewer != null && imp instanceof CompositeImage) {
+				if (imp instanceof CompositeImage impComp) {
 					var tempChannels = channels == null ? imageDisplay.availableChannels() : channels;
 					var availableSingleChannels = tempChannels.stream()
 							.filter(c -> c instanceof SingleChannelDisplayInfo)
 							.map(c -> (SingleChannelDisplayInfo)c)
 							.toList();
 					
-					CompositeImage impComp = (CompositeImage)imp;
 					// If we're displaying with an inverted background, we need to set this property for the composite mode
 					if (invertLUTs) {
 						impComp.setProp("CompositeProjection", "invert");
@@ -313,7 +364,7 @@ class ExtractRegionCommand implements Runnable {
 					}
 				} else if (selectedChannels.size() == 1 && imp.getType() != ImagePlus.COLOR_RGB) {
 					// Setting the display range for non-RGB images can give unexpected results (changing pixel values)
-					var channel = selectedChannels.get(0);
+					var channel = selectedChannels.getFirst();
 					imp.setDisplayRange(channel.getMinDisplay(), channel.getMaxDisplay());
 				}
 				imps.add(imp);

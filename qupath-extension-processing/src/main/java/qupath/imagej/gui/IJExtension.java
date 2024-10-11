@@ -35,7 +35,6 @@ import javafx.application.Platform;
 import javafx.beans.property.StringProperty;
 import javafx.geometry.Orientation;
 import javafx.scene.control.Menu;
-import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.Separator;
 import javafx.scene.control.Tooltip;
@@ -51,6 +50,11 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
@@ -135,11 +139,7 @@ public class IJExtension implements QuPathExtension {
 	private static final AwtMenuBarBlocker menuBarBlocker = new AwtMenuBarBlocker();
 
 	static {
-		// Try to default to the most likely ImageJ path on a Mac
-		if (GeneralTools.isMac() && new File("/Applications/ImageJ/").isDirectory())
-			imageJPath = PathPrefs.createPersistentPreference("ijPath", "/Applications/ImageJ");
-		else
-			imageJPath = PathPrefs.createPersistentPreference("ijPath", null);
+		imageJPath = PathPrefs.createPersistentPreference("ijPath", null);
 	}
 	
 	/**
@@ -186,7 +186,7 @@ public class IJExtension implements QuPathExtension {
 		return getImageJInstanceOnEDT();
 	}
 
-	private static Set<ImageJ> installedPlugins = Collections.newSetFromMap(new WeakHashMap<>());
+	private static final Set<ImageJ> installedPlugins = Collections.newSetFromMap(new WeakHashMap<>());
 	
 	/**
 	 * Ensure we have installed the necessary plugins.
@@ -527,8 +527,8 @@ public class IJExtension implements QuPathExtension {
 		public final Action SEP_3 = ActionTools.createSeparator();
 		
 		@ActionMenu(value = {"Menu.Extensions", "ImageJ>"})
-		@ActionConfig("Action.ImageJ.setPluginsDirectory")
-		public final Action actionPlugins = ActionTools.createAction(() -> promptToSetPluginsDirectory());
+		@ActionConfig("Action.ImageJ.setImageJDirectory")
+		public final Action actionImageJDirectory = ActionTools.createAction(IJExtension::promptToSetImageJDirectory);
 		
 		@ActionMenu(value = {"Menu.Extensions", "ImageJ>"})
 		public final Action SEP_4 = ActionTools.createSeparator();
@@ -579,12 +579,66 @@ public class IJExtension implements QuPathExtension {
 		
 		
 	}
-		
-	static void promptToSetPluginsDirectory() {
-		String path = getImageJPath();
-		File dir = FileChoosers.promptForDirectory("Set ImageJ plugins directory", path == null ? null : new File(path));
+
+
+	private static void promptToSetImageJDirectory() {
+		String ijPath = getImageJPath();
+		if (ijPath == null) {
+			var likelyPath = searchForDefaultImageJPath();
+			if (likelyPath != null) {
+				ijPath = likelyPath.toString();
+			}
+		}
+		File dir = FileChoosers.promptForDirectory("Set ImageJ directory", ijPath == null ? null : new File(ijPath));
 		if (dir != null && dir.isDirectory())
 			setImageJPath(dir.getAbsolutePath());
+	}
+
+	/**
+	 * Search for a potential ImageJ directory.
+	 * This looks in a collection of (possibly system-dependent) paths to try to find an ImageJ installation.
+	 * @return
+	 */
+	private static Path searchForDefaultImageJPath() {
+		// App names, in order of preference
+		List<String> appNames = List.of("ImageJ.app", "ImageJ", "Fiji", "Fiji.app");
+		List<Path> possiblePaths = new ArrayList<>();
+		for (var appName : appNames) {
+			if (GeneralTools.isMac()) {
+				possiblePaths.add(Paths.get("Applications", appName));
+			}
+			String home = System.getProperty("user.home");
+			if (home != null && !home.isBlank()) {
+				possiblePaths.add(Paths.get(home, appName));
+				possiblePaths.add(Paths.get(home, "Documents", appName));
+				possiblePaths.add(Paths.get(home, "Desktop", appName));
+			}
+		}
+		return findPotentialImageJDirectory(possiblePaths);
+	}
+
+	/**
+	 * Find the first path in a collection that is likely to be a valid ImageJ directory.
+	 * @param paths
+	 * @return
+	 */
+	private static Path findPotentialImageJDirectory(Collection<Path> paths) {
+		return paths.stream()
+				.filter(IJExtension::isImageJDirectory)
+				.findFirst()
+				.orElse(null);
+	}
+
+	/**
+	 * Check whether a path corresponds to a directory that is likely to be a suitable ImageJ directory.
+	 * @param path
+	 * @return
+	 */
+	private static boolean isImageJDirectory(Path path) {
+		if (!Files.isDirectory(path))
+			return false;
+		return Files.isDirectory(path.resolve("plugins")) &&
+				Files.isDirectory(path.resolve("luts"));
 	}
 	
 	
@@ -667,7 +721,7 @@ public class IJExtension implements QuPathExtension {
 			if (imageData == null)
 				return false;
 			
-			var roiFiles = files.stream().filter(f -> IJTools.containsImageJRois(f)).toList();
+			var roiFiles = files.stream().filter(IJTools::containsImageJRois).toList();
 			if (roiFiles.isEmpty())
 				return false;
 			

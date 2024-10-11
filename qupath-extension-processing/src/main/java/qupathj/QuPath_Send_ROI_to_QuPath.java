@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2020, 2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -52,10 +52,10 @@ public class QuPath_Send_ROI_to_QuPath implements PlugIn {
 			return;
 		}
 		
-		var gui = QuPathGUI.getInstance();
-		var viewer = gui == null ? null : gui.getViewer();
+		var qupath = QuPathGUI.getInstance();
+		var viewer = qupath == null ? null : qupath.getViewer();
 		var imageData = viewer == null ? null : viewer.getImageData();
-		if (gui == null) {
+		if (imageData == null) {
 			IJ.showMessage("No active image found in QuPath!");
 			return;
 		}
@@ -74,7 +74,6 @@ public class QuPath_Send_ROI_to_QuPath implements PlugIn {
 		}
 		
 		var pathObject = IJTools.convertToAnnotation(roi, cal.xOrigin, cal.yOrigin, downsample, plane);
-//		PathObject pathObject = IJTools.convertToAnnotation(imp, server, roi, downsample, viewer.getImagePlane());
 		if (pathObject == null) {
 			IJ.error("Sorry, I couldn't convert " + roi + " to a valid QuPath object");
 			return;
