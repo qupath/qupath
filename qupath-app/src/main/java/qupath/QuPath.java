@@ -220,8 +220,8 @@ public class QuPath {
 	private static void initializeDJL() {
 		// Set offline mode - used to prevent DJL downloading anything
 		// except when explicitly requested
-		if (System.getProperty("offline", null) == null)
-			System.setProperty("offline", "true");
+		if (System.getProperty("ai.djl.offline", null) == null)
+			System.setProperty("ai.djl.offline", "true");
 	}
 	
 	/**
