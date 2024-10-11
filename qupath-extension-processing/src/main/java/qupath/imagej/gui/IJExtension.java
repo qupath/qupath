@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2020, 2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -23,12 +23,12 @@
 
 package qupath.imagej.gui;
 
+import ij.Executer;
 import ij.IJ;
 import ij.ImageJ;
 import ij.ImagePlus;
 import ij.Menus;
 import ij.Prefs;
-import ij.gui.ImageWindow;
 import ij.gui.Overlay;
 import ij.gui.Roi;
 import javafx.application.Platform;
@@ -42,10 +42,6 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 
 import java.awt.Color;
-import java.awt.Frame;
-import java.awt.Rectangle;
-import java.awt.event.WindowAdapter;
-import java.awt.event.WindowEvent;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
@@ -78,7 +74,6 @@ import qupath.imagej.detect.tissue.SimpleTissueDetection2;
 import qupath.imagej.superpixels.DoGSuperpixelsPlugin;
 import qupath.imagej.superpixels.SLICSuperpixelsPlugin;
 import qupath.imagej.tools.IJTools;
-import qupath.lib.awt.common.AwtTools;
 import qupath.lib.color.ColorToolsAwt;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.Version;
@@ -127,6 +122,9 @@ public class IJExtension implements QuPathExtension {
 	
 	// Path to ImageJ - used to determine plugins directory
 	private static StringProperty imageJPath = null;
+
+	// Handle quitting ImageJ quietly, without prompts to save images
+	private static ImageJQuitCommandListener quitCommandListener;
 
 	/**
 	 * It is necessary to block MenuBars created with AWT on macOS, otherwise shortcuts
@@ -234,16 +232,19 @@ public class IJExtension implements QuPathExtension {
 			// so here ensure that all remaining displayed images are closed
 			final ImageJ ij = ijTemp;
 			ij.exitWhenQuitting(false);
-			var windowListener = new ImageJWindowListener(ij);
-			ij.addWindowListener(windowListener);
+			if (quitCommandListener == null) {
+				quitCommandListener = new ImageJQuitCommandListener();
+				Executer.addCommandListener(quitCommandListener);
+			}
 
 			// Attempt to block the AWT menu bar when ImageJ is not in focus.
 			// Also try to work around a macOS issue where ImageJ's menubar and QuPath's don't work nicely together,
 			// by ensuring that any system menubar request by QuPath is (temporarily) overridden.
 			if (blockAwtMenuBars)
 				menuBarBlocker.startBlocking();
-			if (ij.isShowing())
-				SystemMenuBar.setOverrideSystemMenuBar(true);
+			if (ij.isShowing()) {
+				Platform.runLater(() -> SystemMenuBar.setOverrideSystemMenuBar(true));
+			}
 
 			logger.debug("Created ImageJ instance: {}", ijTemp);
 		}
@@ -255,43 +256,6 @@ public class IJExtension implements QuPathExtension {
 	}
 
 
-	private static class ImageJWindowListener extends WindowAdapter {
-
-		private final ImageJ ij;
-
-		private ImageJWindowListener(ImageJ ij) {
-			this.ij = ij;
-		}
-
-		@Override
-		public void windowClosing(WindowEvent e) {
-			ij.requestFocus();
-			for (Frame frame : Frame.getFrames()) {
-				// Close any images we have open
-				if (frame instanceof ImageWindow) {
-					ImageWindow win = (ImageWindow) frame;
-					ImagePlus imp = win.getImagePlus();
-					if (imp != null)
-						imp.setIJMenuBar(false);
-					win.setVisible(false);
-					if (imp != null) {
-						// Save message still appears...
-						imp.changes = false;
-						// Initially tried to close, but then ImageJ hung
-						// Flush was ok, unless it was selected to save changes - in which case that didn't work out
-						//							imp.flush();
-						//							imp.close();
-						//								imp.flush();
-					} else
-						win.dispose();
-				}
-			}
-			SystemMenuBar.setOverrideSystemMenuBar(false);
-		}
-
-	}
-	
-	
 	/**
 	 * Extract a region of interest from an image as an ImageJ ImagePlus.
 	 * @param server the image
@@ -304,13 +268,10 @@ public class IJExtension implements QuPathExtension {
 	public static PathImage<ImagePlus> extractROI(ImageServer<BufferedImage> server, ROI pathROI, RegionRequest request, boolean setROI) throws IOException {
 		setROI = setROI && (pathROI != null);
 		// Ensure the ROI bounds & ensure it fits within the image
-		Rectangle bounds = AwtTools.getBounds(request);
-		if (bounds != null)
-			bounds = bounds.intersection(new Rectangle(0, 0, server.getWidth(), server.getHeight()));
-		if (bounds == null) {
+		if (!request.intersects(0, 0, server.getWidth(), server.getHeight())) {
 			return null;
 		}
-	
+
 		PathImage<ImagePlus> pathImage = IJTools.convertToImagePlus(server, request);
 		if (pathImage == null || pathImage.getImage() == null)
 			return null;
@@ -319,10 +280,8 @@ public class IJExtension implements QuPathExtension {
 	
 		if (setROI) {
 			ImagePlus imp = pathImage.getImage();
-//			if (!(pathROI instanceof RectangleROI)) {
-				Roi roi = IJTools.convertToIJRoi(pathROI, pathImage);
-				imp.setRoi(roi);
-//			}
+			Roi roi = IJTools.convertToIJRoi(pathROI, pathImage);
+			imp.setRoi(roi);
 		}
 		return pathImage;
 	}
@@ -363,8 +322,6 @@ public class IJExtension implements QuPathExtension {
 		ROI pathROI;
 		if (pathObject == null || !pathObject.hasROI()) {
 			pathROI = ROIs.createRectangleROI(0, 0, server.getWidth(), server.getHeight(), ImagePlane.getDefaultPlane());
-			//			logger.error("No ROI found to extract!");
-			//			return null;
 		} else
 			pathROI = pathObject.getROI();
 
