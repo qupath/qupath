@@ -23,9 +23,9 @@ package qupath.imagej.gui;
 
 import ij.CommandListener;
 import ij.IJ;
-import ij.ImagePlus;
 import ij.WindowManager;
 import ij.gui.ImageWindow;
+import ij.plugin.frame.Editor;
 import javafx.application.Platform;
 import qupath.lib.gui.prefs.SystemMenuBar;
 
@@ -42,9 +42,30 @@ class ImageJQuitCommandListener implements CommandListener {
 
     @Override
     public String commandExecuting(String command) {
-        if ("quit".equalsIgnoreCase(command))
+        if ("quit".equalsIgnoreCase(command)) {
+            if (hasUnsavedChanges()) {
+                if (!IJ.showMessageWithCancel("Close ImageJ", "Close all ImageJ windows without saving changes?"))
+                    return null;
+            }
             closeWindowsQuietly();
+        }
         return command;
+    }
+
+    private boolean hasUnsavedChanges() {
+        for (var frame : Frame.getFrames()) {
+            if (!frame.isShowing())
+                continue;
+            if (frame instanceof ImageWindow win) {
+                var imp = win.getImagePlus();
+                if (imp != null && imp.changes)
+                    return true;
+            } else if (frame instanceof Editor editor) {
+                if (editor.fileChanged())
+                    return true;
+            }
+        }
+        return false;
     }
 
     /**

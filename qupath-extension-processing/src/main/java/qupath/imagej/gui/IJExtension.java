@@ -724,7 +724,7 @@ public class IJExtension implements QuPathExtension {
 	public static Image getImageJIcon(final int width, final int height) {
 		try {
 			URL url = ImageJ.class.getClassLoader().getResource("microscope.gif");
-			return new Image(url.toString(), width, height, true, true);
+			return url == null ? null : new Image(url.toString(), width, height, true, true);
 		} catch (Exception e) {
 			logger.error("Unable to load ImageJ icon!", e);
 		}	
