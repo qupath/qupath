@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2020, 2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -31,7 +31,6 @@ import java.util.List;
 import qupath.imagej.tools.IJTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.images.ImageData;
-import qupath.lib.images.servers.ImageServer;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.PathObject;
 import qupath.lib.regions.ImagePlane;
@@ -93,8 +92,8 @@ public class QuPath_Send_Overlay_to_QuPath implements PlugIn {
 		if (rois.isEmpty())
 			return;
 
-		var gui = QuPathGUI.getInstance();
-		var viewer = gui == null ? null : gui.getViewer();
+		var qupath = QuPathGUI.getInstance();
+		var viewer = qupath == null ? null : qupath.getViewer();
 		var imageData = viewer == null ? null : viewer.getImageData();
 		if (imageData == null) {
 			IJ.showMessage("No image selected in QuPath!");
@@ -127,7 +126,7 @@ public class QuPath_Send_Overlay_to_QuPath implements PlugIn {
 		ImagePlane plane = currentPlane;
 		if (imp == null)
 			plane = null;
-		else if (imp != null && server.nZSlices() * server.nTimepoints() > 1) {
+		else if (server.nZSlices() * server.nTimepoints() > 1) {
 			if (imp.getNSlices() == server.nZSlices() && imp.getNFrames() == server.nTimepoints())
 				plane = null;
 		}
@@ -141,24 +140,6 @@ public class QuPath_Send_Overlay_to_QuPath implements PlugIn {
 					hierarchy.getSelectionModel().selectObjects(pathObjects);
 			});
 		}
-	}
-
-	/**
-	 * Legacy method to turn an array of ImageJ ROIs into a list of QuPath PathObjects, optionally adding measurements as well.
-	 * @param imp
-	 * @param rois
-	 * @param server
-	 * @param downsample
-	 * @param asDetection
-	 * @param includeMeasurements
-	 * @param plane
-	 * @return
-	 * @deprecated use instead {@link #createObjectsFromROIs(ImagePlus, Collection, double, boolean, boolean, ImagePlane)}
-	 */
-	@Deprecated
-	public static List<PathObject> createPathObjectsFromROIs(final ImagePlus imp, final Roi[] rois, final ImageServer<?> server, 
-			final double downsample, final boolean asDetection, final boolean includeMeasurements, final ImagePlane plane) {
-		return createObjectsFromROIs(imp, Arrays.asList(rois), downsample, asDetection, includeMeasurements, plane);
 	}
 	
 	/**

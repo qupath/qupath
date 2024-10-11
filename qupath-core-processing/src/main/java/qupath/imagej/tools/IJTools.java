@@ -461,7 +461,7 @@ public class IJTools {
 	 * @since v0.4.0
 	 */
 	public static PathObject convertToAnnotation(Roi roi, double xOrigin, double yOrigin, double downsampleFactor, ImagePlane plane) {
-		return convertToPathObject(roi, xOrigin, yOrigin, downsampleFactor, r -> PathObjects.createAnnotationObject(r), plane);
+		return convertToPathObject(roi, xOrigin, yOrigin, downsampleFactor, PathObjects::createAnnotationObject, plane);
 	}
 
 	/**
@@ -571,9 +571,14 @@ public class IJTools {
 		String name = roi.getName();
 		if (name != null && !name.isBlank()) {
 			pathObject.setName(name);
-		} else if (roi.getGroup() > 0) {
+		}
+		if (roi.getGroup() > 0) {
 			// If the group is set, use it as a classification
-			pathObject.setPathClass(PathClass.getInstance("Group " + roi.getGroup(), colorRGB));
+			int group = roi.getGroup();
+			var groupName = Roi.getGroupName(group);
+			if (groupName == null)
+				groupName = "Group " + group;
+			pathObject.setPathClass(PathClass.getInstance(groupName, colorRGB));
 		}
 		if (colorRGB != null && pathObject.getPathClass() == null) {
 			pathObject.setColor(colorRGB);
