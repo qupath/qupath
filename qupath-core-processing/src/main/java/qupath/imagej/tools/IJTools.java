@@ -1005,14 +1005,10 @@ public class IJTools {
 	 * @return
 	 */
 	public static <T extends PathImage<? extends ImagePlus>> ROI convertToROI(Roi roi, T pathImage) {
-		Calibration cal = null;
-		double downsampleFactor = 1;
 		ImageRegion region = pathImage.getImageRegion();
-		if (pathImage != null) {
-			cal = pathImage.getImage().getCalibration();
-			downsampleFactor = pathImage.getDownsampleFactor();
-		}
-		return convertToROI(roi, cal, downsampleFactor, region.getImagePlane());	
+        Calibration cal = pathImage.getImage().getCalibration();
+        double downsampleFactor = pathImage.getDownsampleFactor();
+        return convertToROI(roi, cal, downsampleFactor, region.getImagePlane());
 	}
 
 	/**
@@ -1029,80 +1025,98 @@ public class IJTools {
 	}
 
 	/**
-		 * Convert a QuPath ROI to an ImageJ Roi.
-		 * @param <T>
-		 * @param pathROI
-		 * @param xOrigin x-origin indicating relationship of ImagePlus to the original image, as stored in ImageJ Calibration object
-		 * @param yOrigin y-origin indicating relationship of ImagePlus to the original image, as stored in ImageJ Calibration object
-		 * @param downsampleFactor downsample factor at which the ImagePlus was extracted from the full-resolution image
-		 * @return the converted ROI, or null if no input ROI was provided
-		 */
-		public static <T extends PathImage<ImagePlus>> Roi convertToIJRoi(ROI pathROI, double xOrigin, double yOrigin, double downsampleFactor) {
-			if (pathROI == null)
-				return null;
-			if (pathROI instanceof RectangleROI)
-				return ROIConverterIJ.getRectangleROI((RectangleROI)pathROI, xOrigin, yOrigin, downsampleFactor);
-			if (pathROI instanceof EllipseROI)
-				return ROIConverterIJ.convertToOvalROI((EllipseROI)pathROI, xOrigin, yOrigin, downsampleFactor);
-			if (pathROI instanceof LineROI)
-				return ROIConverterIJ.convertToLineROI((LineROI)pathROI, xOrigin, yOrigin, downsampleFactor);
-			if (pathROI instanceof PolylineROI)
-				return ROIConverterIJ.convertToPolygonROI((PolylineROI)pathROI, xOrigin, yOrigin, downsampleFactor);
-			if (pathROI instanceof PointsROI)
-				return ROIConverterIJ.convertToPointROI((PointsROI)pathROI, xOrigin, yOrigin, downsampleFactor);
-			if (pathROI instanceof PolygonROI) {
-				// We should only use a PolygonROI if we have a simple polygon, without holes or self-intersections
-				// See https://github.com/qupath/qupath/issues/1674
-				var geom = pathROI.getGeometry();
-				if (geom instanceof Polygon && geom.getNumGeometries() == 1 && ((Polygon) geom).getNumInteriorRing() == 0)
-					return ROIConverterIJ.convertToPolygonROI((PolygonROI) pathROI, xOrigin, yOrigin, downsampleFactor);
-			}
-			// If we have any other kind of area, create a general shape roi
-			if (pathROI.isArea()) {
-				return ROIConverterIJ.convertToShapeRoi(pathROI, xOrigin, yOrigin, downsampleFactor);
-			}
-			throw new UnsupportedOperationException("Unknown ROI " + pathROI + " - cannot convert to ImageJ Roi");
+	 * Convert a QuPath ROI to an ImageJ Roi.
+	 * @param roi the QuPath ROI
+	 * @param request the request encoding the bounding box and downsample of the image for which the Roi should be
+	 *                scaled and translated. If null, no scaling or translation will be applied.
+	 * @return the converted ROI, or null if no input ROI was provided
+	 */
+	public static Roi convertToIJRoi(ROI roi, RegionRequest request) {
+		double xOrigin = 0;
+		double yOrigin = 0;
+		double downsampleFactor = 1.0;
+		if (request != null) {
+			downsampleFactor = request.getDownsample();
+			xOrigin = -request.getX() / downsampleFactor;
+			yOrigin = -request.getY() / downsampleFactor;
 		}
+		return convertToIJRoi(roi, xOrigin, yOrigin, downsampleFactor);
+	}
 
 	/**
-		 * Create a ROI from an ImageJ Roi.
-		 * 
-		 * @param roi ImageJ Roi
-		 * @param xOrigin x-origin, as stored in an ImageJ Calibration object
-		 * @param yOrigin y-origin, as stored in an ImageJ Calibration object
-		 * @param downsampleFactor
-		 * @param plane plane defining c, z and t indices
-		 * @return
-		 */
-		public static ROI convertToROI(Roi roi, double xOrigin, double yOrigin, double downsampleFactor, ImagePlane plane) {
-			if (plane == null)
-				plane = getImagePlane(roi, null);
-			int c = plane.getC();
-			int z = plane.getZ();
-			int t = plane.getT();
-	//		if (roi.getType() == Roi.POLYGON || roi.getType() == Roi.TRACED_ROI)
-	//			return convertToPolygonROI((PolygonRoi)roi, cal, downsampleFactor);
-			if (roi.getType() == Roi.RECTANGLE && roi.getCornerDiameter() == 0)
-				return ROIConverterIJ.getRectangleROI(roi, xOrigin, yOrigin, downsampleFactor, c, z, t);
-			if (roi.getType() == Roi.OVAL)
-				return ROIConverterIJ.convertToEllipseROI(roi, xOrigin, yOrigin, downsampleFactor, c, z, t);
-			if (roi instanceof Line)
-				return ROIConverterIJ.convertToLineROI((Line)roi, xOrigin, yOrigin, downsampleFactor, c, z, t);
-			if (roi instanceof PointRoi)
-				return ROIConverterIJ.convertToPointROI((PolygonRoi)roi, xOrigin, yOrigin, downsampleFactor, c, z, t);
-	//		if (roi instanceof ShapeRoi)
-	//			return convertToAreaROI((ShapeRoi)roi, cal, downsampleFactor);
-	//		// Shape ROIs should be able to handle most eventualities
-			if (roi instanceof ShapeRoi)
-				return ROIConverterIJ.convertToAreaROI((ShapeRoi)roi, xOrigin, yOrigin, downsampleFactor, c, z, t);
-			if (roi.isArea())
-				return ROIConverterIJ.convertToPolygonOrAreaROI(roi, xOrigin, yOrigin, downsampleFactor, c, z, t);
-			if (roi instanceof PolygonRoi) {
-				if (roi.getType() == Roi.FREELINE || roi.getType() == Roi.POLYLINE)
-					return ROIConverterIJ.convertToPolylineROI((PolygonRoi)roi, xOrigin, yOrigin, downsampleFactor, c, z, t);
-			}
-			throw new IllegalArgumentException("Unknown Roi: " + roi);	
+	 * Convert a QuPath ROI to an ImageJ Roi.
+	 * @param pathROI
+	 * @param xOrigin x-origin indicating relationship of ImagePlus to the original image, as stored in ImageJ Calibration object
+	 * @param yOrigin y-origin indicating relationship of ImagePlus to the original image, as stored in ImageJ Calibration object
+	 * @param downsampleFactor downsample factor at which the ImagePlus was extracted from the full-resolution image
+	 * @return the converted ROI, or null if no input ROI was provided
+	 */
+	public static Roi convertToIJRoi(ROI pathROI, double xOrigin, double yOrigin, double downsampleFactor) {
+		if (pathROI == null)
+			return null;
+		if (pathROI instanceof RectangleROI)
+			return ROIConverterIJ.getRectangleROI((RectangleROI)pathROI, xOrigin, yOrigin, downsampleFactor);
+		if (pathROI instanceof EllipseROI)
+			return ROIConverterIJ.convertToOvalROI((EllipseROI)pathROI, xOrigin, yOrigin, downsampleFactor);
+		if (pathROI instanceof LineROI)
+			return ROIConverterIJ.convertToLineROI((LineROI)pathROI, xOrigin, yOrigin, downsampleFactor);
+		if (pathROI instanceof PolylineROI)
+			return ROIConverterIJ.convertToPolygonROI((PolylineROI)pathROI, xOrigin, yOrigin, downsampleFactor);
+		if (pathROI instanceof PointsROI)
+			return ROIConverterIJ.convertToPointROI((PointsROI)pathROI, xOrigin, yOrigin, downsampleFactor);
+		if (pathROI instanceof PolygonROI) {
+			// We should only use a PolygonROI if we have a simple polygon, without holes or self-intersections
+			// See https://github.com/qupath/qupath/issues/1674
+			var geom = pathROI.getGeometry();
+			if (geom instanceof Polygon && geom.getNumGeometries() == 1 && ((Polygon) geom).getNumInteriorRing() == 0)
+				return ROIConverterIJ.convertToPolygonROI((PolygonROI) pathROI, xOrigin, yOrigin, downsampleFactor);
 		}
+		// If we have any other kind of area, create a general shape roi
+		if (pathROI.isArea()) {
+			return ROIConverterIJ.convertToShapeRoi(pathROI, xOrigin, yOrigin, downsampleFactor);
+		}
+		throw new UnsupportedOperationException("Unknown ROI " + pathROI + " - cannot convert to ImageJ Roi");
+	}
+
+	/**
+	 * Create a ROI from an ImageJ Roi.
+	 *
+	 * @param roi ImageJ Roi
+	 * @param xOrigin x-origin, as stored in an ImageJ Calibration object
+	 * @param yOrigin y-origin, as stored in an ImageJ Calibration object
+	 * @param downsampleFactor
+	 * @param plane plane defining c, z and t indices
+	 * @return
+	 */
+	public static ROI convertToROI(Roi roi, double xOrigin, double yOrigin, double downsampleFactor, ImagePlane plane) {
+		if (plane == null)
+			plane = getImagePlane(roi, null);
+		int c = plane.getC();
+		int z = plane.getZ();
+		int t = plane.getT();
+//		if (roi.getType() == Roi.POLYGON || roi.getType() == Roi.TRACED_ROI)
+//			return convertToPolygonROI((PolygonRoi)roi, cal, downsampleFactor);
+		if (roi.getType() == Roi.RECTANGLE && roi.getCornerDiameter() == 0)
+			return ROIConverterIJ.getRectangleROI(roi, xOrigin, yOrigin, downsampleFactor, c, z, t);
+		if (roi.getType() == Roi.OVAL)
+			return ROIConverterIJ.convertToEllipseROI(roi, xOrigin, yOrigin, downsampleFactor, c, z, t);
+		if (roi instanceof Line)
+			return ROIConverterIJ.convertToLineROI((Line)roi, xOrigin, yOrigin, downsampleFactor, c, z, t);
+		if (roi instanceof PointRoi)
+			return ROIConverterIJ.convertToPointROI((PolygonRoi)roi, xOrigin, yOrigin, downsampleFactor, c, z, t);
+//		if (roi instanceof ShapeRoi)
+//			return convertToAreaROI((ShapeRoi)roi, cal, downsampleFactor);
+//		// Shape ROIs should be able to handle most eventualities
+		if (roi instanceof ShapeRoi)
+			return ROIConverterIJ.convertToAreaROI((ShapeRoi)roi, xOrigin, yOrigin, downsampleFactor, c, z, t);
+		if (roi.isArea())
+			return ROIConverterIJ.convertToPolygonOrAreaROI(roi, xOrigin, yOrigin, downsampleFactor, c, z, t);
+		if (roi instanceof PolygonRoi) {
+			if (roi.getType() == Roi.FREELINE || roi.getType() == Roi.POLYLINE)
+				return ROIConverterIJ.convertToPolylineROI((PolygonRoi)roi, xOrigin, yOrigin, downsampleFactor, c, z, t);
+		}
+		throw new IllegalArgumentException("Unknown Roi: " + roi);
+	}
 
 	/**
 	 * Calculate optical density values for the red, green and blue channels, then add these all together.
