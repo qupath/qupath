@@ -221,7 +221,7 @@ class ScriptMenuLoader {
 			}
 			if (!items.isEmpty()) {
 				// Remove placeholder if available
-				if (menu.getItems().size() == 1 && NO_SCRIPTS_NAME.equals(menu.getItems().get(0).getText()))
+				if (menu.getItems().size() == 1 && NO_SCRIPTS_NAME.equals(menu.getItems().getFirst().getText()))
 					menu.getItems().setAll(items);				
 				else
 					menu.getItems().addAll(items);				
