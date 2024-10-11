@@ -36,6 +36,7 @@ import java.awt.image.Raster;
 import java.awt.image.WritableRaster;
 import java.util.Hashtable;
 import java.util.List;
+import java.util.stream.IntStream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -187,12 +188,37 @@ public final class BufferedImageTools {
 	public static BufferedImage ensureBufferedImage(Image image) {
 		if (image instanceof BufferedImage)
 			return (BufferedImage)image;
-		var imgBuf = new BufferedImage(image.getWidth(null), image.getWidth(null), BufferedImage.TYPE_INT_ARGB);
+		var imgBuf = new BufferedImage(image.getWidth(null), image.getHeight(null), BufferedImage.TYPE_INT_ARGB);
 		var g2d = imgBuf.createGraphics();
 		g2d.drawImage(image, 0, 0, null);
 		g2d.dispose();
 		return imgBuf;
 	}
+
+	/**
+	 * Remove the alpha channel for an 8-bit color BufferedImage if it contains only 255 for all pixels.
+	 * Does nothing if {@code is8bitColorType(img.getType())} returns false.
+	 * <p>
+	 * The purpose of this is to get rid of an alpha channel if it has no effect, which may improve
+	 * efficiency or reduce file sizes if the image is saved.
+	 * @param img
+	 * @return the input image unchanged, or a converted image of type {@code TYPE_INT_RGB}.
+	 */
+	public static BufferedImage stripEmptyAlpha(BufferedImage img) {
+		if (!is8bitColorType(img.getType())) {
+			logger.debug("stripEmptyAlpha requires an 8-bit color type - will skip type {}", img.getType());
+			return img;
+		}
+		var raster = img.getAlphaRaster();
+		if (raster == null)
+			return img;
+		int[] alpha = raster.getSamples(0, 0, raster.getWidth(), raster.getHeight(), 0, (int[])null);
+		if (!IntStream.of(alpha).allMatch(i -> i == 255))
+			return img;
+		logger.debug("stripEmptyAlpha converting from type {} to {}", img.getType(), BufferedImage.TYPE_INT_RGB);
+		return BufferedImageTools.ensureBufferedImageType(img, BufferedImage.TYPE_INT_RGB);
+	}
+
 	
 	/**
 	 * Duplicate a BufferedImage. This retains the same color model, but copies the raster.
