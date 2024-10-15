@@ -17,7 +17,7 @@ gson            = "2.11.0"
 guava           = "33.3.1-jre"
 
 ikonli          = "12.3.1"
-imagej          = "1.54f"
+imagej          = "1.54k"
 
 # Compatibility with Java 21 with QuPath v0.6.x
 jdk             = "21"
