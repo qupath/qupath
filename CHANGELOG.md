@@ -107,6 +107,7 @@ They may change or be removed in future versions.
 * Groovy 4.0.22
 * Gson 2.11.0
 * Guava 33.3.1-jre
+* ImageJ 1.54k
 * JavaFX 23
 * Java Topology Suite 1.20.0
 * JFreeSVG 5.0.6
