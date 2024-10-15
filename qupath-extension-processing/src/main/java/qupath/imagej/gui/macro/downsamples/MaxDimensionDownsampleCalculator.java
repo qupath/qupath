@@ -7,11 +7,11 @@ import qupath.lib.regions.ImageRegion;
  * Downsample calculator that aims to ensure that the width and height of an output image
  * are no more than a specified fixed size.
  */
-public class MaxDimensionDownsampleCalculator implements DownsampleCalculator {
+class MaxDimensionDownsampleCalculator implements DownsampleCalculator {
 
     private final double maxDimension;
 
-    public MaxDimensionDownsampleCalculator(double maxDimension) {
+    MaxDimensionDownsampleCalculator(double maxDimension) {
         this.maxDimension = maxDimension;
     }
 

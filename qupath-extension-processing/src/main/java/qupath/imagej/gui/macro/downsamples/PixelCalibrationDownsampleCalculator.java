@@ -14,13 +14,13 @@ import java.util.Objects;
  * Note that the pixel calibration unit of the target resolution should match the unit of the input image.
  * If it does not, the pixel sizes will still be used but a warning will be logged.
  */
-public class PixelCalibrationDownsampleCalculator implements DownsampleCalculator {
+class PixelCalibrationDownsampleCalculator implements DownsampleCalculator {
 
     private static final Logger logger = LoggerFactory.getLogger(PixelCalibrationDownsampleCalculator.class);
 
     private final PixelCalibration targetCalibration;
 
-    public PixelCalibrationDownsampleCalculator(PixelCalibration targetCalibration) {
+    PixelCalibrationDownsampleCalculator(PixelCalibration targetCalibration) {
         this.targetCalibration = targetCalibration;
     }
 

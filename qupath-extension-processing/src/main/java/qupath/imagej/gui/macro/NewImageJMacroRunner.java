@@ -1,5 +1,9 @@
 package qupath.imagej.gui.macro;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
 import ij.IJ;
 import ij.ImagePlus;
 import ij.WindowManager;
@@ -12,16 +16,14 @@ import qupath.fx.dialogs.Dialogs;
 import qupath.fx.utils.FXUtils;
 import qupath.imagej.gui.IJExtension;
 import qupath.imagej.gui.macro.downsamples.DownsampleCalculator;
-import qupath.imagej.gui.macro.downsamples.FixedDownsampleCalculator;
-import qupath.imagej.gui.macro.downsamples.MaxDimensionDownsampleCalculator;
-import qupath.imagej.gui.macro.downsamples.PixelCalibrationDownsampleCalculator;
+import qupath.imagej.gui.macro.downsamples.DownsampleCalculators;
 import qupath.imagej.tools.IJTools;
-import qupath.lib.display.ChannelDisplayInfo;
-import qupath.lib.gui.images.servers.ChannelDisplayTransformServer;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.PathImage;
+import qupath.lib.images.servers.ColorTransforms;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.PixelCalibration;
+import qupath.lib.images.servers.TransformedServerBuilder;
 import qupath.lib.io.GsonTools;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
@@ -31,6 +33,7 @@ import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
+import qupath.lib.scripting.QP;
 import qupathj.QuPath_Send_Overlay_to_QuPath;
 
 import java.awt.image.BufferedImage;
@@ -39,10 +42,14 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
+import java.util.stream.IntStream;
 
 public class NewImageJMacroRunner {
 
@@ -52,174 +59,10 @@ public class NewImageJMacroRunner {
         ANNOTATION, DETECTION, TILE
     }
 
-    public static class MacroParameters {
+    private final MacroParameters params;
 
-        private List<ChannelDisplayInfo> channels;
-        private String macroText;
-
-        private DownsampleCalculator downsample = new MaxDimensionDownsampleCalculator(1024);
-        private boolean setRoi = true;
-        private boolean setOverlay = true;
-
-        // Result parameters
-        private boolean clearChildObjects = true;
-        private PathObjectType activeRoiObjectType = PathObjectType.ANNOTATION;
-        private PathObjectType overlayRoiObjectType = PathObjectType.DETECTION;
-
-        private MacroParameters() {}
-
-        private MacroParameters(MacroParameters params) {
-            channels = params.channels == null ? Collections.emptyList() : List.copyOf(params.channels);
-            macroText = params.macroText;
-            setRoi = params.setRoi;
-            setOverlay = params.setOverlay;
-            clearChildObjects = params.clearChildObjects;
-            activeRoiObjectType = params.activeRoiObjectType;
-            overlayRoiObjectType = params.overlayRoiObjectType;
-        }
-
-        public List<ChannelDisplayInfo> getChannels() {
-            return channels == null ? Collections.emptyList() : channels;
-        }
-
-        public String getMacroText() {
-            return macroText;
-        }
-
-        public DownsampleCalculator getDownsample() {
-            return downsample;
-        }
-
-        public boolean doSetRoi() {
-            return setRoi;
-        }
-
-        public boolean doSetOverlay() {
-            return setOverlay;
-        }
-
-        public boolean doRemoveChildObjects() {
-            return clearChildObjects;
-        }
-
-        public Function<ROI, PathObject> getActiveRoiToObjectFunction() {
-            return getObjectFunction(activeRoiObjectType);
-        }
-
-        public Function<ROI, PathObject> getOverlayRoiToObjectFunction() {
-            return getObjectFunction(overlayRoiObjectType);
-        }
-
-        private Function<ROI, PathObject> getObjectFunction(PathObjectType type) {
-            return switch (type) {
-                case ANNOTATION -> PathObjects::createAnnotationObject;
-                case DETECTION -> PathObjects::createDetectionObject;
-                case TILE -> PathObjects::createTileObject;
-            };
-        }
-
-    }
-
-    public static class Builder {
-
-        private MacroParameters params = new MacroParameters();
-
-        private Builder() {}
-
-        public Builder macroText(String macroText) {
-            params.macroText = macroText;
-            return this;
-        }
-
-        public Builder macro(File file) throws IOException {
-            return macro(file.toPath());
-        }
-
-        public Builder macro(Path path) throws IOException {
-            var text = Files.readString(path, StandardCharsets.UTF_8);
-            return macroText(text);
-        }
-
-        public Builder setImageJRoi() {
-            return setImageJRoi(true);
-        }
-
-        public Builder setImageJRoi(boolean doSet) {
-            params.setRoi = doSet;
-            return this;
-        }
-
-        public Builder setImageJOverlay() {
-            return setImageJOverlay(true);
-        }
-
-        public Builder setImageJOverlay(boolean doSet) {
-            params.setOverlay = doSet;
-            return this;
-        }
-
-        public Builder roiToDetection() {
-            params.activeRoiObjectType = PathObjectType.DETECTION;
-            return this;
-        }
-
-        public Builder roiToAnnotation() {
-            params.activeRoiObjectType = PathObjectType.ANNOTATION;
-            return this;
-        }
-
-        public Builder roiToTile() {
-            params.activeRoiObjectType = PathObjectType.TILE;
-            return this;
-        }
-
-        public Builder overlayToAnnotations() {
-            params.overlayRoiObjectType = PathObjectType.ANNOTATION;
-            return this;
-        }
-
-        public Builder overlayToTiles() {
-            params.overlayRoiObjectType = PathObjectType.TILE;
-            return this;
-        }
-
-        public Builder overlayToDetections() {
-            params.overlayRoiObjectType = PathObjectType.DETECTION;
-            return this;
-        }
-
-        public Builder fixedDownsample(double downsample) {
-            return downsample(new FixedDownsampleCalculator(downsample));
-        }
-
-        public Builder maxDimension(double maxDim) {
-            return downsample(new MaxDimensionDownsampleCalculator(maxDim));
-        }
-
-        public Builder pixelSizeMicrons(double pixelSizeMicrons) {
-            var cal = new PixelCalibration.Builder()
-                    .pixelSizeMicrons(pixelSizeMicrons, pixelSizeMicrons)
-                    .build();
-            return pixelSize(cal);
-        }
-
-        public Builder pixelSize(PixelCalibration targetCalibration) {
-            return downsample(new PixelCalibrationDownsampleCalculator(targetCalibration));
-        }
-
-        public Builder downsample(DownsampleCalculator downsample) {
-            params.downsample = downsample;
-            return this;
-        }
-
-        public NewImageJMacroRunner build() {
-            return fromParams(params);
-        }
-
-    }
-
-    public static Builder builder() {
-        return new Builder();
+    public NewImageJMacroRunner(MacroParameters params) {
+        this.params = params;
     }
 
     public static NewImageJMacroRunner fromParams(MacroParameters params) {
@@ -238,14 +81,30 @@ public class NewImageJMacroRunner {
         return fromJson(GsonTools.getInstance().toJson(paramMap));
     }
 
-
-    private final MacroParameters params;
-
-    public NewImageJMacroRunner(MacroParameters params) {
-        this.params = params;
+    public void run() {
+        run(QP.getCurrentImageData());
     }
 
-    public void runMacro(final ImageData<BufferedImage> imageData, final PathObject pathObject) {
+    public void run(final ImageData<BufferedImage> imageData) {
+        if (imageData == null)
+            throw new IllegalArgumentException("No image data available");
+        var selected = List.copyOf(imageData.getHierarchy().getSelectionModel().getSelectedObjects());
+        if (selected.isEmpty())
+            selected = List.of(imageData.getHierarchy().getRootObject());
+        run(imageData, selected);
+    }
+
+    public void run(final ImageData<BufferedImage> imageData, final Collection<? extends PathObject> pathObjects) {
+        for (var parent : pathObjects) {
+            run(imageData, parent);
+        }
+        addScriptToWorkflow(pathObjects);
+    }
+
+    private void run(final ImageData<BufferedImage> imageData, final PathObject pathObject) {
+
+        if (imageData == null)
+            throw new IllegalArgumentException("No image data available");
 
         // Don't try if interrupted
         if (Thread.currentThread().isInterrupted()) {
@@ -366,13 +225,96 @@ public class NewImageJMacroRunner {
     }
 
 
+    private void addScriptToWorkflow(Collection<? extends PathObject> parents) {
+        var sb = new StringBuilder();
+        if (!parents.isEmpty()) {
+            if (parents.stream().allMatch(PathObject::isAnnotation)) {
+                sb.append("// selectAnnotations()\n");
+            } else if (parents.stream().allMatch(PathObject::isDetection)) {
+                sb.append("// selectDetections()\n");
+            } else if (parents.stream().allMatch(PathObject::isTile)) {
+                sb.append("// selectTiles()\n");
+            } else if (parents.stream().allMatch(PathObject::isTMACore)) {
+                sb.append("// selectTMACores()\n");
+            } else if (parents.stream().allMatch(PathObject::isCell)) {
+                sb.append("// selectCells()\n");
+            }
+        }
+        var gson = GsonTools.getInstance();
+        var obj = gson.fromJson(gson.toJson(params), JsonObject.class);
+
+        sb.append(NewImageJMacroRunner.class.getName()).append(".fromMap(");
+        sb.append(toGroovy(obj));
+//        boolean isFirst = true;
+//        for (var entry : obj.asMap().entrySet()) {
+//            if (!isFirst) {
+//                sb.append(",");
+//            }
+//            sb.append("\n    ");
+//            sb.append(entry.getKey());
+//            sb.append(": ");
+//            appendValue(sb, entry.getValue());
+//            isFirst = false;
+//        }
+        sb.append(").run()");
+
+        logger.info(sb.toString());
+    }
+
+    private static String toGroovy(JsonElement element) {
+        var sb = new StringBuilder();
+        appendValue(sb, element);
+        return sb.toString();
+    }
+
+
+    private static String appendValue(StringBuilder sb, JsonElement val) {
+        switch (val) {
+            case JsonPrimitive primitive -> {
+                if (primitive.isString()) {
+                    String str = val.getAsString();
+                    String quote = "\"";
+                    if (str.contains(quote))
+                        quote = "\"\"\"";
+                    sb.append(quote).append(primitive.getAsString()).append(quote);
+                } else
+                    sb.append(primitive.getAsString());
+            }
+            case JsonArray array -> {
+                for (int i = 0; i < array.size(); i++) {
+                    sb.append(appendValue(sb, array.get(i)));
+                }
+            }
+            case JsonObject obj -> {
+                sb.append("[");
+                boolean isFirst = true;
+                for (var entry : obj.asMap().entrySet()) {
+                    if (!isFirst) {
+                        sb.append(", ");
+                    }
+                    sb.append(entry.getKey()).append(": ");
+                    appendValue(sb, entry.getValue());
+                    isFirst = false;
+                }
+                sb.append("]");
+            }
+            case null, default -> {
+                sb.append("null");
+            }
+        }
+        return sb.toString();
+    }
+
+
     private ImageServer<BufferedImage> getServer(ImageData<BufferedImage> imageData) {
         var server = imageData.getServer();
         var channels = params.getChannels();
         if (channels.isEmpty()) {
             return server;
         } else {
-            return ChannelDisplayTransformServer.createColorTransformServer(server, channels);
+            return new TransformedServerBuilder(server)
+                    .applyColorTransforms(channels.toArray(ColorTransforms.ColorTransform[]::new))
+                    .build();
         }
     }
 
@@ -408,5 +350,197 @@ public class NewImageJMacroRunner {
             return PathObjects.createDetectionObject(roi);
     }
 
+
+    public static class MacroParameters {
+
+        private String macroText;
+        private List<ColorTransforms.ColorTransform> channels;
+
+        private DownsampleCalculator downsample = DownsampleCalculators.maxDimension(1024);
+        private boolean setRoi = true;
+        private boolean setOverlay = true;
+
+        // Result parameters
+        private boolean clearChildObjects = true;
+        private PathObjectType activeRoiObjectType = null;
+        private PathObjectType overlayRoiObjectType = null;
+
+        private MacroParameters() {}
+
+        private MacroParameters(MacroParameters params) {
+            // Store null since then it'll be skipped with json serialization
+            channels = params.channels == null || params.channels.isEmpty() ? null : List.copyOf(params.channels);
+            macroText = params.macroText;
+            setRoi = params.setRoi;
+            setOverlay = params.setOverlay;
+            clearChildObjects = params.clearChildObjects;
+            activeRoiObjectType = params.activeRoiObjectType;
+            overlayRoiObjectType = params.overlayRoiObjectType;
+        }
+
+        public List<ColorTransforms.ColorTransform> getChannels() {
+            return channels == null ? Collections.emptyList() : channels;
+        }
+
+        public String getMacroText() {
+            return macroText;
+        }
+
+        public DownsampleCalculator getDownsample() {
+            return downsample;
+        }
+
+        public boolean doSetRoi() {
+            return setRoi;
+        }
+
+        public boolean doSetOverlay() {
+            return setOverlay;
+        }
+
+        public boolean doRemoveChildObjects() {
+            return clearChildObjects;
+        }
+
+        public Function<ROI, PathObject> getActiveRoiToObjectFunction() {
+            return getObjectFunction(activeRoiObjectType);
+        }
+
+        public Function<ROI, PathObject> getOverlayRoiToObjectFunction() {
+            return getObjectFunction(overlayRoiObjectType);
+        }
+
+        private Function<ROI, PathObject> getObjectFunction(PathObjectType type) {
+            return switch (type) {
+                case ANNOTATION -> PathObjects::createAnnotationObject;
+                case DETECTION -> PathObjects::createDetectionObject;
+                case TILE -> PathObjects::createTileObject;
+            };
+        }
+
+    }
+
+    public static class Builder {
+
+        private MacroParameters params = new MacroParameters();
+
+        private Builder() {}
+
+        public Builder macroText(String macroText) {
+            params.macroText = macroText;
+            return this;
+        }
+
+        public Builder macro(File file) throws IOException {
+            return macro(file.toPath());
+        }
+
+        public Builder macro(Path path) throws IOException {
+            var text = Files.readString(path, StandardCharsets.UTF_8);
+            return macroText(text);
+        }
+
+        public Builder setImageJRoi() {
+            return setImageJRoi(true);
+        }
+
+        public Builder setImageJRoi(boolean doSet) {
+            params.setRoi = doSet;
+            return this;
+        }
+
+        public Builder setImageJOverlay() {
+            return setImageJOverlay(true);
+        }
+
+        public Builder setImageJOverlay(boolean doSet) {
+            params.setOverlay = doSet;
+            return this;
+        }
+
+        public Builder roiToDetection() {
+            params.activeRoiObjectType = PathObjectType.DETECTION;
+            return this;
+        }
+
+        public Builder roiToAnnotation() {
+            params.activeRoiObjectType = PathObjectType.ANNOTATION;
+            return this;
+        }
+
+        public Builder roiToTile() {
+            params.activeRoiObjectType = PathObjectType.TILE;
+            return this;
+        }
+
+        public Builder overlayToAnnotations() {
+            params.overlayRoiObjectType = PathObjectType.ANNOTATION;
+            return this;
+        }
+
+        public Builder overlayToTiles() {
+            params.overlayRoiObjectType = PathObjectType.TILE;
+            return this;
+        }
+
+        public Builder overlayToDetections() {
+            params.overlayRoiObjectType = PathObjectType.DETECTION;
+            return this;
+        }
+
+        public Builder fixedDownsample(double downsample) {
+            return downsample(DownsampleCalculators.fixedDownsample(downsample));
+        }
+
+        public Builder maxDimension(int maxDim) {
+            return downsample(DownsampleCalculators.maxDimension(maxDim));
+        }
+
+        public Builder pixelSizeMicrons(double pixelSizeMicrons) {
+            return downsample(DownsampleCalculators.pixelSizeMicrons(pixelSizeMicrons));
+        }
+
+        public Builder pixelSize(PixelCalibration targetCalibration) {
+            return downsample(DownsampleCalculators.pixelSize(targetCalibration));
+        }
+
+        public Builder downsample(DownsampleCalculator downsample) {
+            params.downsample = downsample;
+            return this;
+        }
+
+        public Builder channelIndices(int... inds) {
+            return channels(
+                    IntStream.of(inds).mapToObj(ColorTransforms::createChannelExtractor).toList()
+            );
+        }
+
+        public Builder channelNames(String... names) {
+            return channels(
+                    Arrays.stream(names).map(ColorTransforms::createChannelExtractor).toList()
+            );
+        }
+
+        public Builder channels(ColorTransforms.ColorTransform channel, ColorTransforms.ColorTransform... channels) {
+            var list = new ArrayList<ColorTransforms.ColorTransform>();
+            list.add(channel);
+            Collections.addAll(list, channels);
+            return channels(list);
+        }
+
+        public Builder channels(Collection<? extends ColorTransforms.ColorTransform> channels) {
+            params.channels = channels == null ? null : List.copyOf(channels);
+            return this;
+        }
+
+        public NewImageJMacroRunner build() {
+            return fromParams(params);
+        }
+
+    }
+
+    public static Builder builder() {
+        return new Builder();
+    }
 
 }

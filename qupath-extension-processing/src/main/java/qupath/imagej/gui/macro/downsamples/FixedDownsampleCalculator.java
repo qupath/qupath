@@ -6,11 +6,11 @@ import qupath.lib.regions.ImageRegion;
 /**
  * Downsample calculator that does not actually calculate anything: it simply uses a fixed downsample.
  */
-public class FixedDownsampleCalculator implements DownsampleCalculator {
+class FixedDownsampleCalculator implements DownsampleCalculator {
 
     private final double downsample;
 
-    public FixedDownsampleCalculator(double downsample) {
+    FixedDownsampleCalculator(double downsample) {
         this.downsample = downsample;
     }
 
