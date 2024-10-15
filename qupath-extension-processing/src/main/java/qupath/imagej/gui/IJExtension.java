@@ -382,14 +382,14 @@ public class IJExtension implements QuPathExtension {
 					Roi roi = IJTools.convertToIJRoi(child.getROI(), xOrigin, yOrigin, downsample);
 					roi.setStrokeColor(color);
 					roi.setName(child.getDisplayedName());
-					//						roi.setStrokeWidth(2);
 					overlay.add(roi);
 				}
 				if (isCell && (options == null || options.getShowCellNuclei())) {
-					ROI nucleus = ((PathCellObject)child).getNucleusROI();
+					PathCellObject cell = (PathCellObject) child;
+					ROI nucleus = cell.getNucleusROI();
 					if (nucleus == null)
 						continue;
-					Roi roi = IJTools.convertToIJRoi(((PathCellObject)child).getNucleusROI(), xOrigin, yOrigin, downsample);
+					Roi roi = IJTools.convertToIJRoi(nucleus, xOrigin, yOrigin, downsample);
 					roi.setStrokeColor(color);
 					roi.setName(child.getDisplayedName() + " - nucleus");
 					overlay.add(roi);
