@@ -216,7 +216,7 @@ public class HierarchyOverlay extends AbstractOverlay {
 				Collections.emptyList();
 
 		// Return if nothing visible
-		if (paintableSelectedObjects.isEmpty() && paintableDetections.isEmpty() && paintableAnnotations.isEmpty())
+		if (!showDetections && paintableSelectedObjects.isEmpty() && paintableDetections.isEmpty() && paintableAnnotations.isEmpty())
 			return;
 
 		// Paint detection objects, if required

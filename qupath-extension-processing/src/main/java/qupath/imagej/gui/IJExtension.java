@@ -89,6 +89,7 @@ import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.prefs.SystemMenuBar;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.tools.IconFactory.PathIcons;
+import qupath.lib.gui.tools.MenuTools;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.DragDropImportListener.DropHandler;
@@ -632,9 +633,14 @@ public class IJExtension implements QuPathExtension {
 			MenuButton btnImageJ = new MenuButton();
 			btnImageJ.setGraphic(imageView);
 			btnImageJ.setTooltip(new Tooltip("ImageJ commands"));
-			btnImageJ.getItems().addAll(
-					ActionTools.createMenuItem(commands.actionExtractRegion),
-					ActionTools.createMenuItem(commands.actionSnapshot)
+			MenuTools.addMenuItems(
+					btnImageJ.getItems(),
+					commands.actionExtractRegion,
+					commands.actionSnapshot,
+					null,
+					commands.actionImageJDirectory,
+					null,
+					commands.actionMacroRunner
 			);
 			toolbar.getItems().add(btnImageJ);
 		} catch (Exception e) {

@@ -73,35 +73,12 @@ public class MenuTools {
 	 * <li>{@code null} (indicating that a separator should be added)</li>
 	 * </ul>
 	 * 
-	 * @param menu
-	 * @param items
+	 * @param menu menu to which items should be added
+	 * @param items the items that should be provided (MenuItems or Actions, or null to insert a separator)
 	 * @return the provided menu, so that this method can be nested inside other calls.
 	 */
 	public static Menu addMenuItems(final Menu menu, final Object... items) {
-		// Check if the last item was a separator -
-		// we don't want two adjacent separators, since this looks a bit weird
-		boolean lastIsSeparator = menu.getItems().isEmpty() ? false : menu.getItems().get(menu.getItems().size()-1) instanceof SeparatorMenuItem;
-		
-		List<MenuItem> newItems = new ArrayList<>();
-		for (Object item : items) {
-			if (item == null) {
-				if (!lastIsSeparator)
-					newItems.add(new SeparatorMenuItem());
-				lastIsSeparator = true;
-			}
-			else if (item instanceof MenuItem) {
-				newItems.add((MenuItem)item);
-				lastIsSeparator = false;
-			}
-			else if (item instanceof Action) {
-				newItems.add(ActionTools.createMenuItem((Action)item));
-				lastIsSeparator = false;
-			} else
-				logger.warn("Could not add menu item {}", item);
-		}
-		if (!newItems.isEmpty()) {
-			menu.getItems().addAll(newItems);
-		}
+		addMenuItems(menu.getItems(), items);
 		return menu;
 	}
 	
@@ -110,14 +87,16 @@ public class MenuTools {
 	 * possible to work also with a {@link ContextMenu} in addition to a standard {@link Menu}.
 	 * 
 	 * @param menuItems existing list to which items should be added, or null if a new list should be created
-	 * @param items the items that should be provided (MenuItems or Actions)
+	 * @param items the items that should be provided (MenuItems or Actions, or null to insert a separator)
 	 * @return the list containing the adding items (same as the original if provided)
 	 */
 	public static List<MenuItem> addMenuItems(List<MenuItem> menuItems, final Object... items) {
 		if (menuItems == null)
 			menuItems = new ArrayList<>();
-		
-		boolean lastIsSeparator = menuItems.isEmpty() ? false : menuItems.get(menuItems.size()-1) instanceof SeparatorMenuItem;
+
+		// Check if the last item was a separator -
+		// we don't want two adjacent separators, since this looks a bit weird
+		boolean lastIsSeparator = !menuItems.isEmpty() && menuItems.getLast() instanceof SeparatorMenuItem;
 		
 		List<MenuItem> newItems = new ArrayList<>();
 		for (Object item : items) {
@@ -126,12 +105,12 @@ public class MenuTools {
 					newItems.add(new SeparatorMenuItem());
 				lastIsSeparator = true;
 			}
-			else if (item instanceof MenuItem) {
-				newItems.add((MenuItem)item);
+			else if (item instanceof MenuItem menuItem) {
+				newItems.add(menuItem);
 				lastIsSeparator = false;
 			}
-			else if (item instanceof Action) {
-				newItems.add(ActionTools.createMenuItem((Action)item));
+			else if (item instanceof Action action) {
+				newItems.add(ActionTools.createMenuItem(action));
 				lastIsSeparator = false;
 			} else
 				logger.warn("Could not add menu item {}", item);

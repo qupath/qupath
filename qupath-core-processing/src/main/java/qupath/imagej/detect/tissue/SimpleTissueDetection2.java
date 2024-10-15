@@ -182,9 +182,9 @@ public class SimpleTissueDetection2 extends AbstractDetectionPlugin<BufferedImag
 	
 			// Apply threshold
 			if (darkBackground)
-				bp = SimpleThresholding.thresholdAbove(bp, (float)threshold);
+				bp = SimpleThresholding.thresholdAbove(bp, threshold);
 			else
-				bp = SimpleThresholding.thresholdBelow(bp, (float)threshold);
+				bp = SimpleThresholding.thresholdBelow(bp, threshold);
 					
 			if (Thread.currentThread().isInterrupted())
 				return null;

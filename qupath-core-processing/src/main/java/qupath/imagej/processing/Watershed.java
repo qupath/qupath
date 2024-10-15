@@ -48,7 +48,7 @@ public class Watershed {
 	 * @param conn8 if true, use 8-connectivity
 	 */
 	public static void watershedExpandLabels(final ImageProcessor ipLabels, final double maxDistance, final boolean conn8) {
-		var bp = SimpleThresholding.thresholdAbove(ipLabels, 0f);
+		var bp = SimpleThresholding.thresholdAbove(ipLabels, 0.0);
 		FloatProcessor fpEDM = new EDM().makeFloatEDM(bp, (byte)255, false);
 		fpEDM.multiply(-1);
 		doWatershed(fpEDM, ipLabels, -maxDistance, conn8);
