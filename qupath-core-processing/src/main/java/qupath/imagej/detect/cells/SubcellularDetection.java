@@ -319,7 +319,7 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 			if (splitByIntensity)
 				bpSpots = new MaximumFinder().findMaxima(fpDetection, detectionThreshold/10.0, detectionThreshold, MaximumFinder.SEGMENTED, false, false);
 			else
-				bpSpots = SimpleThresholding.thresholdAboveEquals(fpDetection, (float)detectionThreshold);
+				bpSpots = SimpleThresholding.thresholdAboveEquals(fpDetection, detectionThreshold);
 			
 			if (splitByShape) {
 				new EDM().toWatershed(bpSpots);

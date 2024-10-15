@@ -781,7 +781,7 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 				}
 				
 				// Threshold the main LoG image
-				bpLoG = SimpleThresholding.thresholdAbove(fpLoG, 0f);
+				bpLoG = SimpleThresholding.thresholdAbove(fpLoG, 0.0);
 				// Need to set the threshold very slightly above zero for ImageJ
 				// TODO: DECIDE ON USING MY WATERSHED OR IMAGEJ'S....
 				fpLoG.setRoi(roi);
@@ -868,7 +868,7 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 				FloatProcessor fpBoundaryCleanup = (FloatProcessor)fpDetection.duplicate();
 				fpBoundaryCleanup.blurGaussian(1);
 				fpBoundaryCleanup.convolve(new float[]{0, -1, 0, -1, 4, -1, 0, -1, 0}, 3, 3);
-				ByteProcessor bp2 = SimpleThresholding.thresholdAbove(fpBoundaryCleanup, 0f);
+				ByteProcessor bp2 = SimpleThresholding.thresholdAbove(fpBoundaryCleanup, 0.0);
 				bp2.copyBits(bp, 0, 0, Blitter.MIN); // Remove everything not detected in bp
 				bp.filter(ByteProcessor.MIN);
 				bp.copyBits(bp2, 0, 0, Blitter.MAX);

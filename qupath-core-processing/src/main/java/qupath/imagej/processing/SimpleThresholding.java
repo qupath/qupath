@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2020, 2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -26,6 +26,7 @@ package qupath.imagej.processing;
 import java.awt.image.BufferedImage;
 import java.awt.image.Raster;
 
+import ij.gui.Roi;
 import ij.plugin.filter.ThresholdToSelection;
 import ij.process.ByteProcessor;
 import ij.process.FloatProcessor;
@@ -85,7 +86,7 @@ public class SimpleThresholding {
 	 * @param threshold
 	 * @return
 	 */
-	public static ByteProcessor thresholdBelow(ImageProcessor ip, float threshold) {
+	public static ByteProcessor thresholdBelow(ImageProcessor ip, double threshold) {
 		ByteProcessor bp =  new ByteProcessor(ip.getWidth(), ip.getHeight());
 		byte[] bpPixels = (byte[])bp.getPixels();
 		for (int i = 0; i < bpPixels.length; i++) {
@@ -96,12 +97,12 @@ public class SimpleThresholding {
 	}
 	
 	/**
-	 * Created a binary image by thresholding pixels to find where ip1 &lt;= threshold
+	 * Created a binary image by thresholding pixels to find where ip1 &leq; threshold
 	 * @param ip
 	 * @param threshold
 	 * @return
 	 */
-	public static ByteProcessor thresholdBelowEquals(ImageProcessor ip, float threshold) {
+	public static ByteProcessor thresholdBelowEquals(ImageProcessor ip, double threshold) {
 		ByteProcessor bp =  new ByteProcessor(ip.getWidth(), ip.getHeight());
 		byte[] bpPixels = (byte[])bp.getPixels();
 		for (int i = 0; i < bpPixels.length; i++) {
@@ -133,7 +134,7 @@ public class SimpleThresholding {
 	 * @param threshold
 	 * @return
 	 */
-	public static ByteProcessor thresholdAbove(ImageProcessor ip, float threshold) {
+	public static ByteProcessor thresholdAbove(ImageProcessor ip, double threshold) {
 		ByteProcessor bp =  new ByteProcessor(ip.getWidth(), ip.getHeight());
 		byte[] bpPixels = (byte[])bp.getPixels();
 		for (int i = 0; i < bpPixels.length; i++) {
@@ -143,12 +144,13 @@ public class SimpleThresholding {
 		return bp;
 	}
 	
-		/**
-		 * Created a binary image by thresholding pixels to find where ip1 &gt;= threshold
-		 * @param ip
-		 * @param threshold
-		 * @return
-		 */	public static ByteProcessor thresholdAboveEquals(ImageProcessor ip, float threshold) {
+	/**
+	 * Created a binary image by thresholding pixels to find where ip1 &gt;= threshold
+	 * @param ip
+	 * @param threshold
+	 * @return
+	 */
+	public static ByteProcessor thresholdAboveEquals(ImageProcessor ip, double threshold) {
 		ByteProcessor bp =  new ByteProcessor(ip.getWidth(), ip.getHeight());
 		byte[] bpPixels = (byte[])bp.getPixels();
 		for (int i = 0; i < bpPixels.length; i++) {
@@ -165,11 +167,11 @@ public class SimpleThresholding {
 	 * @param highThreshold
 	 * @return
 	 */
-	public static ByteProcessor thresholdBetween(ImageProcessor ip, float lowThreshold, float highThreshold) {
+	public static ByteProcessor thresholdBetween(ImageProcessor ip, double lowThreshold, double highThreshold) {
 		ByteProcessor bp =  new ByteProcessor(ip.getWidth(), ip.getHeight());
 		byte[] bpPixels = (byte[])bp.getPixels();
 		for (int i = 0; i < bpPixels.length; i++) {
-			float val = ip.getf(i);
+			double val = ip.getf(i);
 			if (val >= lowThreshold && val <= highThreshold)
 				bpPixels[i] = (byte)255;
 		}
@@ -235,23 +237,12 @@ public class SimpleThresholding {
 	 * @return
 	 */
 	public static ROI thresholdToROI(ImageProcessor ip, RegionRequest request) {
-		// Need to check we have any above-threshold pixels at all
-		int n = ip.getWidth() * ip.getHeight();
-		boolean noPixels = true;
-		double min = ip.getMinThreshold();
-		double max = ip.getMaxThreshold();
-		for (int i = 0; i < n; i++) {
-			double val = ip.getf(i);
-			if (val >= min && val <= max) {
-				noPixels = false;
-				break;
-			}
-		}
-		if (noPixels)
+		// Generate a shape, using the TileRequest if we can
+		var roiIJ = thresholdToRoiIJ(ip);
+		if (roiIJ == null)
 			return null;
 		    	
 		// Generate a shape, using the RegionRequest if we can
-		var roiIJ = new ThresholdToSelection().convert(ip);
 		if (request == null)
 			return IJTools.convertToROI(roiIJ, 0, 0, 1, ImagePlane.getDefaultPlane());
 		return IJTools.convertToROI(
@@ -261,24 +252,12 @@ public class SimpleThresholding {
 				request.getDownsample(), request.getImagePlane());
 	}
 
-	static ROI thresholdToROI(ImageProcessor ip, TileRequest request) {
-		// Need to check we have any above-threshold pixels at all
-		int n = ip.getWidth() * ip.getHeight();
-		boolean noPixels = true;
-		double min = ip.getMinThreshold();
-		double max = ip.getMaxThreshold();
-		for (int i = 0; i < n; i++) {
-			double val = ip.getf(i);
-			if (val >= min && val <= max) {
-				noPixels = false;
-				break;
-			}
-		}
-		if (noPixels)
-			return null;
-		    	
+	private static ROI thresholdToROI(ImageProcessor ip, TileRequest request) {
 		// Generate a shape, using the TileRequest if we can
-		var roiIJ = new ThresholdToSelection().convert(ip);
+		var roiIJ = thresholdToRoiIJ(ip);
+		if (roiIJ == null)
+			return null;
+
 		if (request == null)
 			return IJTools.convertToROI(roiIJ, 0, 0, 1, ImagePlane.getDefaultPlane());
 		return IJTools.convertToROI(
@@ -286,6 +265,37 @@ public class SimpleThresholding {
 				-request.getTileX(),
 				-request.getTileY(),
 				request.getDownsample(), request.getImagePlane());
+	}
+
+	/**
+	 * Create an ImageJ ROI from a thresholded image.
+	 * <p>
+	 * This makes use of {@link ThresholdToSelection}, and returns null if no Roi is found.
+	 * @param ip the image, with min and/or max thresholds already set.
+	 * @return a Roi generated by applying the threshold, or null if there are no thresholded pixels
+	 */
+	public static Roi thresholdToRoiIJ(ImageProcessor ip) {
+		if (!ip.isThreshold())
+			return null;
+
+		// Need to check we have any above-threshold pixels at all
+		int n = ip.getWidth() * ip.getHeight();
+		boolean noPixels = true;
+		double min = ip.getMinThreshold();
+		double max = ip.getMaxThreshold();
+		if (min <= max) {
+			for (int i = 0; i < n; i++) {
+				double val = ip.getf(i);
+				if (val >= min && val <= max) {
+					noPixels = false;
+					break;
+				}
+			}
+		}
+		if (noPixels)
+			return null;
+
+		return new ThresholdToSelection().convert(ip);
 	}
 	
 }
