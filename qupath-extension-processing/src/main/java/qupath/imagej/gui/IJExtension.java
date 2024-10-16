@@ -575,6 +575,8 @@ public class IJExtension implements QuPathExtension {
 //					stage.setTitle(resources.getString("title"));
 					stage.setTitle(title);
 					stage.setResizable(true);
+					stage.setMinWidth(400);
+					stage.setMinHeight(400);
 				} catch (IOException e) {
 					Dialogs.showErrorMessage(title, "GUI loading failed");
 					logger.error("Unable to load InstanSeg FXML", e);

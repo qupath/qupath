@@ -230,6 +230,7 @@ public class MacroRunnerController extends BorderPane {
     void handleRun(ActionEvent event) {
 
         String macroText = textAreaMacro.getText();
+        var downsampleCalculator = choiceResolution.getSelectionModel().getSelectedItem();
 
         Dialogs.showInfoNotification(title, "Run pressed!");
         var runner = NewImageJMacroRunner.builder()
