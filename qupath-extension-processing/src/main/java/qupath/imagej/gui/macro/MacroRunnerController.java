@@ -326,6 +326,7 @@ public class MacroRunnerController extends BorderPane {
                 .roiToObject(roiObjectType)
                 .macroText(macroText)
                 .scriptEngine(estimateScriptEngine(macroText))
+                .addToWorkflow(cbAddToHistory.isSelected())
                 .clearChildObjects(clearChildObjects)
                 .build();
 

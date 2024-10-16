@@ -30,6 +30,7 @@ import qupath.lib.io.GsonTools;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.TMACoreObject;
+import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
@@ -64,6 +65,10 @@ public class NewImageJMacroRunner {
 
     public enum PathObjectType {
         NONE, ANNOTATION, DETECTION, TILE, CELL, TMA_CORE
+    }
+
+    public enum RunForObjects {
+        IMAGE, SELECTED, ANNOTATIONS, DETECTIONS, TILES, CELLS, TMA_CORES
     }
 
     private final MacroParameters params;
@@ -105,7 +110,9 @@ public class NewImageJMacroRunner {
         for (var parent : pathObjects) {
             run(imageData, parent);
         }
-        addScriptToWorkflow(pathObjects);
+        if (params.doAddToWorkflow()) {
+            addScriptToWorkflow(imageData, pathObjects);
+        }
     }
 
     private void run(final ImageData<BufferedImage> imageData, final PathObject pathObject) {
@@ -263,7 +270,7 @@ public class NewImageJMacroRunner {
 
 
 
-    private void addScriptToWorkflow(Collection<? extends PathObject> parents) {
+    private void addScriptToWorkflow(ImageData<?> imageData, Collection<? extends PathObject> parents) {
         var sb = new StringBuilder();
         if (!parents.isEmpty()) {
             if (parents.stream().allMatch(PathObject::isAnnotation)) {
@@ -279,7 +286,9 @@ public class NewImageJMacroRunner {
             }
         }
         var gson = GsonTools.getInstance();
-        var obj = gson.fromJson(gson.toJson(params), JsonObject.class);
+        var json = gson.toJson(params);
+        var obj = gson.fromJson(json, JsonObject.class);
+        var map = gson.fromJson(json, Map.class);
 
         sb.append(NewImageJMacroRunner.class.getName()).append(".fromMap(");
         sb.append(toGroovy(obj));
@@ -295,6 +304,11 @@ public class NewImageJMacroRunner {
 //            isFirst = false;
 //        }
         sb.append(").run()");
+
+        var workflowScript = sb.toString();
+        imageData.getHistoryWorkflow().addStep(
+                new DefaultScriptableWorkflowStep("ImageJ script", map, workflowScript)
+        );
 
         logger.info(sb.toString());
     }
@@ -405,6 +419,8 @@ public class NewImageJMacroRunner {
 
         private String scriptEngine;
 
+        private boolean addToWorkflow = false;
+
         private MacroParameters() {}
 
         private MacroParameters(MacroParameters params) {
@@ -440,6 +456,10 @@ public class NewImageJMacroRunner {
 
         public boolean doRemoveChildObjects() {
             return clearChildObjects;
+        }
+
+        public boolean doAddToWorkflow() {
+            return addToWorkflow;
         }
 
         public String getScriptEngineName() {
@@ -582,6 +602,15 @@ public class NewImageJMacroRunner {
 
         public Builder clearChildObjects(boolean doClear) {
             params.clearChildObjects = doClear;
+            return this;
+        }
+
+        public Builder addToWorkflow() {
+            return addToWorkflow(true);
+        }
+
+        public Builder addToWorkflow(boolean doAdd) {
+            params.addToWorkflow = doAdd;
             return this;
         }
 
