@@ -358,10 +358,10 @@ public class NewImageJMacroRunner {
 
         private DownsampleCalculator downsample = DownsampleCalculators.maxDimension(1024);
         private boolean setRoi = true;
-        private boolean setOverlay = true;
+        private boolean setOverlay = false;
 
         // Result parameters
-        private boolean clearChildObjects = true;
+        private boolean clearChildObjects = false;
         private PathObjectType activeRoiObjectType = null;
         private PathObjectType overlayRoiObjectType = null;
 
@@ -462,32 +462,45 @@ public class NewImageJMacroRunner {
         }
 
         public Builder roiToDetection() {
-            params.activeRoiObjectType = PathObjectType.DETECTION;
-            return this;
+            return roiToObject(PathObjectType.DETECTION);
         }
 
         public Builder roiToAnnotation() {
-            params.activeRoiObjectType = PathObjectType.ANNOTATION;
-            return this;
+            return roiToObject(PathObjectType.ANNOTATION);
         }
 
         public Builder roiToTile() {
-            params.activeRoiObjectType = PathObjectType.TILE;
+            return roiToObject(PathObjectType.TILE);
+        }
+
+        public Builder roiToObject(PathObjectType type) {
+            params.activeRoiObjectType = type;
             return this;
         }
 
         public Builder overlayToAnnotations() {
-            params.overlayRoiObjectType = PathObjectType.ANNOTATION;
-            return this;
+            return overlayToObjects(PathObjectType.TILE);
         }
 
         public Builder overlayToTiles() {
-            params.overlayRoiObjectType = PathObjectType.TILE;
-            return this;
+            return overlayToObjects(PathObjectType.TILE);
         }
 
         public Builder overlayToDetections() {
-            params.overlayRoiObjectType = PathObjectType.DETECTION;
+            return overlayToObjects(PathObjectType.DETECTION);
+        }
+
+        public Builder overlayToObjects(PathObjectType type) {
+            params.overlayRoiObjectType = type;
+            return this;
+        }
+
+        public Builder clearChildObjects() {
+            return clearChildObjects(true);
+        }
+
+        public Builder clearChildObjects(boolean doClear) {
+            params.clearChildObjects = doClear;
             return this;
         }
 

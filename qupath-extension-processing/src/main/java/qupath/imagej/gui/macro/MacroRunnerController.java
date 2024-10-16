@@ -2,6 +2,8 @@ package qupath.imagej.gui.macro;
 
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.property.StringProperty;
+import javafx.beans.value.ObservableValue;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -13,19 +15,26 @@ import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TitledPane;
 import javafx.scene.layout.BorderPane;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.fx.dialogs.Dialogs;
 import qupath.imagej.gui.macro.downsamples.DownsampleCalculator;
 import qupath.imagej.gui.macro.downsamples.DownsampleCalculators;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.images.ImageData;
 import qupath.lib.scripting.QP;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.text.NumberFormat;
 import java.util.List;
+import java.util.Map;
 import java.util.ResourceBundle;
 
 public class MacroRunnerController extends BorderPane {
+
+    private static final Logger logger = LoggerFactory.getLogger(MacroRunnerController.class);
 
     private final QuPathGUI qupath;
 
@@ -45,7 +54,15 @@ public class MacroRunnerController extends BorderPane {
             };
         }
 
-        public DownsampleCalculator createCalculator(double value) {
+        private String getResourceKey() {
+            return switch (this) {
+                case PIXEL_SIZE -> "ui.resolution.fixed";
+                case FIXED_DOWNSAMPLE -> "ui.resolution.pixelSize";
+                case LARGEST_DIMENSION -> "ui.resolution.maxDim";
+            };
+        }
+
+        private DownsampleCalculator createCalculator(double value) {
             return switch (this) {
                 case PIXEL_SIZE -> DownsampleCalculators.pixelSizeMicrons(value);
                 case FIXED_DOWNSAMPLE -> DownsampleCalculators.fixedDownsample(value);
@@ -53,6 +70,18 @@ public class MacroRunnerController extends BorderPane {
             };
         }
     }
+
+    /**
+     * A map to store persistent preferences or each resolution option.
+     */
+    private Map<ResolutionOption, StringProperty> resolutionOptionStringMap = Map.of(
+            ResolutionOption.FIXED_DOWNSAMPLE,
+            PathPrefs.createPersistentPreference("ij.macro.resolution.fixed", "10"),
+            ResolutionOption.PIXEL_SIZE,
+            PathPrefs.createPersistentPreference("ij.macro.resolution.pixelSize", "1"),
+            ResolutionOption.LARGEST_DIMENSION,
+            PathPrefs.createPersistentPreference("ij.macro.resolution.maxDim", "1024")
+    );
 
     private ObjectProperty<ImageData<BufferedImage>> imageDataProperty = new SimpleObjectProperty<>();
 
@@ -104,6 +133,17 @@ public class MacroRunnerController extends BorderPane {
     @FXML
     private TitledPane titledOptions;
 
+    private ObjectProperty<DownsampleCalculator> downsampleCalculatorProperty = new SimpleObjectProperty<>();
+
+    /**
+     * Create a new instance.
+     * @param qupath the QuPath instance in which the macro runner should be used.
+     * @return the macro runner
+     * @throws IOException if the macro runner couldn't be initialized (probably an fxml issue)
+     */
+    public static MacroRunnerController createInstance(QuPathGUI qupath) throws IOException {
+        return new MacroRunnerController(qupath);
+    }
 
     private MacroRunnerController(QuPathGUI qupath) throws IOException {
         this.qupath = qupath;
@@ -127,7 +167,26 @@ public class MacroRunnerController extends BorderPane {
 
     private void initResolutionChoices() {
         choiceResolution.getItems().setAll(ResolutionOption.values());
+        choiceResolution.getSelectionModel().selectedItemProperty().addListener(this::resolutionChoiceChanged);
+        tfResolution.textProperty().addListener(o -> refreshDownsampleCalculator());
+
         choiceResolution.getSelectionModel().selectFirst();
+    }
+
+    private void resolutionChoiceChanged(ObservableValue<? extends ResolutionOption> value, ResolutionOption oldValue, ResolutionOption newValue) {
+        if (oldValue != null) {
+            var prop = resolutionOptionStringMap.get(oldValue);
+            prop.unbind();
+        }
+        if (newValue != null) {
+            var prop = resolutionOptionStringMap.get(newValue);
+            String val = prop.getValue();
+            prop.bind(tfResolution.textProperty());
+            tfResolution.setText(val);
+
+            labelResolution.setText(resources.getString(newValue.getResourceKey() + ".label"));
+            labelResolution.getTooltip().setText(resources.getString(newValue.getResourceKey() + ".tooltip"));
+        }
     }
 
     private void initReturnObjectTypeChoices() {
@@ -193,13 +252,27 @@ public class MacroRunnerController extends BorderPane {
     private void initRunButton() {
         btnRunMacro.disableProperty().bind(imageDataProperty.isNull().or(
                 textAreaMacro.textProperty().isEmpty()
-        ));
+        ).or(downsampleCalculatorProperty.isNull()));
     }
 
 
-    public static MacroRunnerController createInstance(QuPathGUI qupath) throws IOException {
-        return new MacroRunnerController(qupath);
+    private void refreshDownsampleCalculator() {
+        var resolution = choiceResolution.getSelectionModel().getSelectedItem();
+        var text = tfResolution.getText();
+        if (resolution == null || text == null || text.isBlank()) {
+            logger.trace("Downsample calculator cannot be set");
+            downsampleCalculatorProperty.set(null);
+            return;
+        }
+        try {
+            var number = NumberFormat.getNumberInstance().parse(text);
+            downsampleCalculatorProperty.set(resolution.createCalculator(number.doubleValue()));
+        } catch (Exception e) {
+            logger.debug("Error creating downsample calculator: {}", e.getMessage(), e);
+        }
     }
+
+
 
     @FXML
     void handleMakeSelection(ActionEvent event) {
@@ -230,15 +303,30 @@ public class MacroRunnerController extends BorderPane {
     void handleRun(ActionEvent event) {
 
         String macroText = textAreaMacro.getText();
-        var downsampleCalculator = choiceResolution.getSelectionModel().getSelectedItem();
+        var downsampleCalculator = downsampleCalculatorProperty.get();
+        boolean setImageJRoi = cbSetImageJRoi.isSelected();
+        boolean setImageJOverlay = cbSetImageJOverlay.isSelected();
+
+        var roiObjectType = choiceReturnRoi.getSelectionModel().getSelectedItem();
+        var overlayObjectType = choiceReturnOverlay.getSelectionModel().getSelectedItem();
+        boolean clearChildObjects = cbDeleteExistingObjects.isSelected() &&
+                !(isNone(roiObjectType) && isNone(overlayObjectType));
 
         Dialogs.showInfoNotification(title, "Run pressed!");
         var runner = NewImageJMacroRunner.builder()
-                .setImageJRoi(cbSetImageJRoi.isSelected())
-                .setImageJOverlay(cbSetImageJOverlay.isSelected())
+                .setImageJRoi(setImageJRoi)
+                .setImageJOverlay(setImageJOverlay)
+                .downsample(downsampleCalculator)
+                .overlayToObjects(overlayObjectType)
+                .roiToObject(roiObjectType)
                 .macroText(macroText)
+                .clearChildObjects(clearChildObjects)
                 .build();
         new Thread(runner::run, "macro-runner").start();
+    }
+
+    private static boolean isNone(NewImageJMacroRunner.PathObjectType type) {
+        return type != null && type != NewImageJMacroRunner.PathObjectType.NONE;
     }
 
 }
