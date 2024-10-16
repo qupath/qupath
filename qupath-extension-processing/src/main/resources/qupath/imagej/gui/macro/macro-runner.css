@@ -1,0 +1,7 @@
+.title {
+    -fx-font-weight: bold;
+}
+
+.macro {
+    -fx-font-family: monospace;
+}

@@ -55,8 +55,8 @@ public class NewImageJMacroRunner {
 
     private static final Logger logger = LoggerFactory.getLogger(NewImageJMacroRunner.class);
 
-    private enum PathObjectType {
-        ANNOTATION, DETECTION, TILE
+    public enum PathObjectType {
+        NONE, ANNOTATION, DETECTION, TILE, CELL, TMA_CORE
     }
 
     private final MacroParameters params;
@@ -415,6 +415,9 @@ public class NewImageJMacroRunner {
                 case ANNOTATION -> PathObjects::createAnnotationObject;
                 case DETECTION -> PathObjects::createDetectionObject;
                 case TILE -> PathObjects::createTileObject;
+                case CELL -> r -> PathObjects.createCellObject(r, null);
+                case NONE -> null;
+                case TMA_CORE -> throw new IllegalArgumentException("TMA core is not a valid object type!");
             };
         }
 

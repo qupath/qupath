@@ -34,6 +34,7 @@ import ij.gui.Roi;
 import javafx.application.Platform;
 import javafx.beans.property.StringProperty;
 import javafx.geometry.Orientation;
+import javafx.scene.Scene;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.Separator;
@@ -58,6 +59,8 @@ import java.util.WeakHashMap;
 import java.util.function.Predicate;
 import javax.swing.SwingUtilities;
 
+import javafx.scene.layout.BorderPane;
+import javafx.stage.Stage;
 import org.controlsfx.control.action.Action;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -71,6 +74,7 @@ import qupath.imagej.detect.cells.WatershedCellMembraneDetection;
 import qupath.imagej.detect.dearray.TMADearrayerPluginIJ;
 import qupath.imagej.detect.tissue.PositivePixelCounterIJ;
 import qupath.imagej.detect.tissue.SimpleTissueDetection2;
+import qupath.imagej.gui.macro.MacroRunnerController;
 import qupath.imagej.superpixels.DoGSuperpixelsPlugin;
 import qupath.imagej.superpixels.SLICSuperpixelsPlugin;
 import qupath.imagej.tools.IJTools;
@@ -506,7 +510,8 @@ public class IJExtension implements QuPathExtension {
 			var screenshotCommand = new ScreenshotCommand(qupath);
 			actionSnapshot = ActionTools.createAction(screenshotCommand);		
 			
-			actionMacroRunner = createPluginAction(new ImageJMacroRunner(qupath));
+//			actionMacroRunner = createPluginAction(new ImageJMacroRunner(qupath));
+			actionMacroRunner = new MacroRunnerWrapper(qupath).createAction();
 			
 			actionSLIC = createPluginAction(SLICSuperpixelsPlugin.class);
 			actionDoG = createPluginAction(DoGSuperpixelsPlugin.class);
@@ -536,6 +541,43 @@ public class IJExtension implements QuPathExtension {
 		}
 		
 		
+	}
+
+	private static class MacroRunnerWrapper {
+
+		private final QuPathGUI qupath;
+
+		private Stage stage;
+
+		private MacroRunnerWrapper(QuPathGUI qupath) {
+			this.qupath = qupath;
+		}
+
+		Action createAction() {
+			return new Action(e -> showStage());
+		}
+
+		private void showStage() {
+			if (stage == null) {
+				String title = "ImageJ macro runner";
+				try {
+					stage = new Stage();
+					var pane = MacroRunnerController.createInstance(qupath);
+					Scene scene = new Scene(new BorderPane(pane));
+//					pane.heightProperty().addListener((v, o, n) -> handleStageHeightChange());
+					stage.setScene(scene);
+					stage.initOwner(QuPathGUI.getInstance().getStage());
+//					stage.setTitle(resources.getString("title"));
+					stage.setTitle(title);
+					stage.setResizable(true);
+				} catch (IOException e) {
+					Dialogs.showErrorMessage(title, "GUI loading failed");
+					logger.error("Unable to load InstanSeg FXML", e);
+				}
+			}
+			stage.show();
+		}
+
 	}
 
 
