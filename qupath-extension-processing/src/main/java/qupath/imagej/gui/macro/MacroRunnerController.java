@@ -31,6 +31,7 @@ import java.text.NumberFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.ResourceBundle;
+import java.util.concurrent.Future;
 
 public class MacroRunnerController extends BorderPane {
 
@@ -84,6 +85,8 @@ public class MacroRunnerController extends BorderPane {
     );
 
     private ObjectProperty<ImageData<BufferedImage>> imageDataProperty = new SimpleObjectProperty<>();
+
+    private ObjectProperty<Future<?>> runningTask = new SimpleObjectProperty<>();
 
     @FXML
     private Button btnMakeSelection;
@@ -250,9 +253,11 @@ public class MacroRunnerController extends BorderPane {
 
 
     private void initRunButton() {
-        btnRunMacro.disableProperty().bind(imageDataProperty.isNull().or(
-                textAreaMacro.textProperty().isEmpty()
-        ).or(downsampleCalculatorProperty.isNull()));
+        btnRunMacro.disableProperty().bind(
+                imageDataProperty.isNull()
+                        .or(textAreaMacro.textProperty().isEmpty())
+                        .or(downsampleCalculatorProperty.isNull())
+                        .or(runningTask.isNotNull()));
     }
 
 
@@ -320,9 +325,26 @@ public class MacroRunnerController extends BorderPane {
                 .overlayToObjects(overlayObjectType)
                 .roiToObject(roiObjectType)
                 .macroText(macroText)
+                .scriptEngine(estimateScriptEngine(macroText))
                 .clearChildObjects(clearChildObjects)
                 .build();
-        new Thread(runner::run, "macro-runner").start();
+
+        runningTask.setValue(qupath.getThreadPoolManager()
+                .getSingleThreadExecutor(this)
+                .submit(() -> {
+                    try {
+                        runner.run();
+                    } finally {
+                        runningTask.set(null);
+                    }
+                }));
+    }
+
+    private static String estimateScriptEngine(String macroText) {
+        if (macroText.contains("import ij") || macroText.contains("ij.IJ"))
+            return "groovy";
+        else
+            return null;
     }
 
     private static boolean isNone(NewImageJMacroRunner.PathObjectType type) {

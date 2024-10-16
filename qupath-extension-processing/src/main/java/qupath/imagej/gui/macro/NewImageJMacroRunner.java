@@ -12,12 +12,14 @@ import ij.macro.Interpreter;
 import ij.measure.Calibration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.event.Level;
 import qupath.fx.dialogs.Dialogs;
 import qupath.fx.utils.FXUtils;
 import qupath.imagej.gui.IJExtension;
 import qupath.imagej.gui.macro.downsamples.DownsampleCalculator;
 import qupath.imagej.gui.macro.downsamples.DownsampleCalculators;
 import qupath.imagej.tools.IJTools;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.PathImage;
 import qupath.lib.images.servers.ColorTransforms;
@@ -33,9 +35,13 @@ import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
+import qupath.lib.scripting.LoggingTools;
 import qupath.lib.scripting.QP;
 import qupathj.QuPath_Send_Overlay_to_QuPath;
 
+import javax.script.ScriptEngine;
+import javax.script.ScriptEngineManager;
+import javax.script.SimpleScriptContext;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
@@ -46,6 +52,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -160,13 +167,34 @@ public class NewImageJMacroRunner {
             ImagePlus impResult = null;
             try {
                 IJ.redirectErrorMessages();
-                Interpreter interpreter = new Interpreter();
-                impResult = interpreter.runBatchMacro(params.getMacroText(), imp);
 
-                // If we had an error, return
-                if (interpreter.wasError()) {
-                    Thread.currentThread().interrupt();
-                    return;
+                String script = params.getMacroText();
+                var engine = getScriptEngine();
+                if (engine != null) {
+                    // We have a script engine (probably for Groovy)
+                    try {
+                        var context = new SimpleScriptContext();
+                        var writer = LoggingTools.createLogWriter(logger, Level.INFO);
+                        var errorWriter = LoggingTools.createLogWriter(logger, Level.ERROR);
+                        context.setWriter(writer);
+                        context.setErrorWriter(errorWriter);
+                        engine.setContext(context);
+                        engine.eval(script);
+                    } catch (Exception e) {
+                        Dialogs.showErrorNotification("ImageJ script", e);
+                        Thread.currentThread().interrupt();
+                        return;
+                    }
+                } else {
+                    // ImageJ macro
+                    Interpreter interpreter = new Interpreter();
+                    impResult = interpreter.runBatchMacro(script, imp);
+
+                    // If we had an error, return
+                    if (interpreter.wasError()) {
+                        Thread.currentThread().interrupt();
+                        return;
+                    }
                 }
 
                 // Get the resulting image, if available
@@ -200,6 +228,7 @@ public class NewImageJMacroRunner {
                 var pathObjectNew = createNewObject(activeRoiToObject, roi, cal, downsampleFactor, region.getImagePlane(), pathROI);
                 if (pathObjectNew != null) {
                     pathObject.addChildObject(pathObjectNew);
+                    pathObject.setLocked(true); // Lock if we add anything
                     changes = true;
                 }
             }
@@ -211,6 +240,7 @@ public class NewImageJMacroRunner {
                         List.of(overlay.toArray()), downsampleFactor, overlayRoiToObject, true, region.getImagePlane());
                 if (!childObjects.isEmpty()) {
                     pathObject.addChildObjects(childObjects);
+                    pathObject.setLocked(true); // Lock if we add anything
                     changes = true;
                 }
             }
@@ -223,6 +253,14 @@ public class NewImageJMacroRunner {
         }
 
     }
+
+
+    private ScriptEngine getScriptEngine() {
+        if (params.scriptEngine == null || params.scriptEngine.equalsIgnoreCase("imagej") || params.scriptEngine.equalsIgnoreCase("macro"))
+            return null;
+        return new ScriptEngineManager().getEngineByName(params.scriptEngine);
+    }
+
 
 
     private void addScriptToWorkflow(Collection<? extends PathObject> parents) {
@@ -365,6 +403,8 @@ public class NewImageJMacroRunner {
         private PathObjectType activeRoiObjectType = null;
         private PathObjectType overlayRoiObjectType = null;
 
+        private String scriptEngine;
+
         private MacroParameters() {}
 
         private MacroParameters(MacroParameters params) {
@@ -402,6 +442,10 @@ public class NewImageJMacroRunner {
             return clearChildObjects;
         }
 
+        public String getScriptEngineName() {
+            return scriptEngine;
+        }
+
         public Function<ROI, PathObject> getActiveRoiToObjectFunction() {
             return getObjectFunction(activeRoiObjectType);
         }
@@ -425,6 +469,17 @@ public class NewImageJMacroRunner {
 
     public static class Builder {
 
+        // Cache of script engine names from file extensions, so that we don't need to
+        // do a more expensive check
+        private static Map<String, String> scriptEngineNameCache = new HashMap<>();
+
+        static {
+            scriptEngineNameCache.put(null, null);
+            scriptEngineNameCache.put(".ijm", null);
+            scriptEngineNameCache.put(".txt", null);
+            scriptEngineNameCache.put(".groovy", "groovy");
+        }
+
         private MacroParameters params = new MacroParameters();
 
         private Builder() {}
@@ -440,7 +495,33 @@ public class NewImageJMacroRunner {
 
         public Builder macro(Path path) throws IOException {
             var text = Files.readString(path, StandardCharsets.UTF_8);
+            updateScriptEngineFromFilename(path.getFileName().toString());
             return macroText(text);
+        }
+
+        private void updateScriptEngineFromFilename(String name) {
+            if (params.scriptEngine != null)
+                return;
+            var ext = GeneralTools.getExtension(name).orElse(null);
+            if (ext != null) {
+                var engineName = scriptEngineNameCache.computeIfAbsent(ext.toLowerCase(), this::scriptEngineForExtension);
+                if (engineName != null) {
+                    params.scriptEngine = engineName;
+                }
+            }
+        }
+
+        private String scriptEngineForExtension(String ext) {
+            var engine = new ScriptEngineManager().getEngineByExtension(ext);
+            if (engine != null)
+                return engine.getFactory().getEngineName();
+            else
+                return null;
+        }
+
+        public Builder scriptEngine(String scriptEngine) {
+            params.scriptEngine = scriptEngine;
+            return this;
         }
 
         public Builder setImageJRoi() {
