@@ -1,9 +1,11 @@
 package qupath.imagej.gui.macro;
 
+import javafx.application.Platform;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.event.ActionEvent;
@@ -13,6 +15,8 @@ import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.MenuBar;
+import javafx.scene.control.MenuItem;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TitledPane;
@@ -28,6 +32,7 @@ import qupath.imagej.gui.macro.downsamples.DownsampleCalculators;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.TaskRunnerFX;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.prefs.SystemMenuBar;
 import qupath.lib.images.ImageData;
 import qupath.lib.scripting.QP;
 
@@ -165,9 +170,25 @@ public class MacroRunnerController extends BorderPane {
     @FXML
     private TitledPane titledOptions;
 
+    @FXML
+    private MenuBar menuBar;
+
+    @FXML
+    private MenuItem miUndo;
+
+    @FXML
+    private MenuItem miRedo;
+
+    @FXML
+    private MenuItem miRun;
+
     private ObjectProperty<DownsampleCalculator> downsampleCalculatorProperty = new SimpleObjectProperty<>();
 
-    private String lastSavedText = "";
+    private StringProperty macroText = new SimpleStringProperty("");
+    private StringProperty lastSavedText = new SimpleStringProperty("");
+    private ObjectProperty<Path> lastSavedFile = new SimpleObjectProperty<>(null);
+    private BooleanBinding unsavedChanges = lastSavedText.isNotEqualTo(macroText)
+            .and(lastSavedText.isNotEmpty());
 
     /**
      * Create a new instance.
@@ -194,10 +215,12 @@ public class MacroRunnerController extends BorderPane {
 
     private void init() {
         this.imageDataProperty.bind(qupath.imageDataProperty());
+        this.macroText.bind(textAreaMacro.textProperty());
         initResolutionChoices();
         initReturnObjectTypeChoices();
         initSelectObjectTypeChoices();
         bindPreferences();
+        initMenus();
     }
 
     private void bindPreferences() {
@@ -294,11 +317,17 @@ public class MacroRunnerController extends BorderPane {
     private void initRunButton() {
         btnRunMacro.disableProperty().bind(
                 imageDataProperty.isNull()
-                        .or(textAreaMacro.textProperty().isEmpty())
+                        .or(macroText.isEmpty())
                         .or(downsampleCalculatorProperty.isNull())
                         .or(runningTask.isNotNull()));
+        miRun.disableProperty().bind(btnRunMacro.disableProperty());
     }
 
+    private void initMenus() {
+        miUndo.disableProperty().bind(textAreaMacro.undoableProperty().not());
+        miRedo.disableProperty().bind(textAreaMacro.redoableProperty().not());
+        SystemMenuBar.manageChildMenuBar(menuBar);
+    }
 
     private void refreshDownsampleCalculator() {
         var resolution = resolutionProperty.get();
@@ -316,19 +345,23 @@ public class MacroRunnerController extends BorderPane {
         }
     }
 
+    @FXML
     void promptToOpenMacro() {
         var file = FileChoosers.promptForFile(FXUtils.getWindow(this), title, getExtensionFilters());
         if (file != null)
             openMacro(file.toPath());
     }
 
+    @FXML
     void promptToSaveMacro() {
         var file = FileChoosers.promptToSaveFile(FXUtils.getWindow(this), title, null, getExtensionFilters());
         if (file != null) {
             try {
-                var text = textAreaMacro.getText();
+                var text = macroText.get();
+                var path = file.toPath();
                 Files.writeString(file.toPath(), text);
-                lastSavedText = text;
+                lastSavedText.set(text);
+                lastSavedFile.set(path);
             } catch (IOException e) {
                 Dialogs.showErrorNotification(title, "Error writing macro to " + file.getName());
             }
@@ -339,26 +372,61 @@ public class MacroRunnerController extends BorderPane {
         return FileChoosers.createExtensionFilter("ImageJ macros", ".ijm", ".txt");
     }
 
+    @FXML
+    public void promptToCreateNewMacro() {
+        if (!macroText.getValueSafe().isBlank() && unsavedChanges.get()) {
+            if (!Dialogs.showYesNoDialog(title, "Discard unsaved changes?"))
+                return;
+        }
+        textAreaMacro.setText("");
+        lastSavedText.set("");
+        lastSavedFile.set(null);
+    }
+
+    @FXML
+    public void doCopy() {
+        textAreaMacro.copy();
+    }
+
+    @FXML
+    public void doPaste() {
+        textAreaMacro.paste();
+    }
+
+    @FXML
+    public void doCut() {
+        textAreaMacro.cut();
+    }
+
+    @FXML
+    public void doUndo() {
+        textAreaMacro.undo();
+    }
+
+    @FXML
+    public void doRedo() {
+        textAreaMacro.redo();
+    }
+
     public void openMacro(Path path) {
         try {
             var text = Files.readString(path);
-            var currentText = textAreaMacro.getText();
+            var currentText = macroText.get();
             if (currentText == null)
                 currentText = "";
             if (Objects.equals(currentText, text)) {
                 // No changes
                 return;
-            } else if (currentText.isBlank() || Objects.equals(lastSavedText.strip(), currentText.strip())) {
-                // Changes saved
-                textAreaMacro.setText(text);
-                lastSavedText = text;
-            } else {
+            } else if (!currentText.isBlank() && unsavedChanges.get()) {
                 // Prompt
-                if (Dialogs.showYesNoDialog(title, "Replace current macro?")) {
-                    textAreaMacro.setText(text);
-                    lastSavedText = text;
+                if (!Dialogs.showYesNoDialog(title, "Replace current macro?")) {
+                    return;
                 }
             }
+            // Changes saved
+            textAreaMacro.setText(text);
+            lastSavedText.set(text);
+            lastSavedFile.set(path);
         } catch (IOException e) {
             Dialogs.showErrorNotification(title, "Error reading macro from " + path.getFileName());
         }
@@ -394,7 +462,7 @@ public class MacroRunnerController extends BorderPane {
     @FXML
     void handleRun(ActionEvent event) {
 
-        String macroText = this.textAreaMacro.getText();
+        String macroText = this.macroText.get();
         var downsampleCalculator = this.downsampleCalculatorProperty.get();
         boolean setImageJRoi = this.setImageJRoi.get();
         boolean setImageJOverlay = this.setImageJOverlay.get();
@@ -423,7 +491,11 @@ public class MacroRunnerController extends BorderPane {
                     try {
                         runner.run();
                     } finally {
-                        runningTask.set(null);
+                        if (Platform.isFxApplicationThread()) {
+                            runningTask.set(null);
+                        } else {
+                            Platform.runLater(() -> runningTask.set(null));
+                        }
                     }
                 }));
     }
