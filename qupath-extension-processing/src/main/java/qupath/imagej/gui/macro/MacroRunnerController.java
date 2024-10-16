@@ -1,5 +1,7 @@
 package qupath.imagej.gui.macro;
 
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -15,7 +17,10 @@ import qupath.fx.dialogs.Dialogs;
 import qupath.imagej.gui.macro.downsamples.DownsampleCalculator;
 import qupath.imagej.gui.macro.downsamples.DownsampleCalculators;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.images.ImageData;
+import qupath.lib.scripting.QP;
 
+import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.List;
 import java.util.ResourceBundle;
@@ -49,8 +54,13 @@ public class MacroRunnerController extends BorderPane {
         }
     }
 
+    private ObjectProperty<ImageData<BufferedImage>> imageDataProperty = new SimpleObjectProperty<>();
+
     @FXML
     private Button btnMakeSelection;
+
+    @FXML
+    private Button btnClearSelection;
 
     @FXML
     private Button btnRunMacro;
@@ -68,7 +78,7 @@ public class MacroRunnerController extends BorderPane {
     private CheckBox cbSetImageJRoi;
 
     @FXML
-    private ChoiceBox<?> choiceResolution;
+    private ChoiceBox<ResolutionOption> choiceResolution;
 
     @FXML
     private ChoiceBox<NewImageJMacroRunner.PathObjectType> choiceReturnOverlay;
@@ -100,17 +110,25 @@ public class MacroRunnerController extends BorderPane {
         var url = MacroRunnerController.class.getResource("macro-runner.fxml");
         FXMLLoader loader = new FXMLLoader(url, resources);
         loader.setRoot(this);
-        loader.setController(this);
+        if (loader.getController() == null)
+            loader.setController(this);
         loader.load();
 
         init();
+        initRunButton();
     }
 
     private void init() {
+        this.imageDataProperty.bind(qupath.imageDataProperty());
+        initResolutionChoices();
         initReturnObjectTypeChoices();
         initSelectObjectTypeChoices();
     }
 
+    private void initResolutionChoices() {
+        choiceResolution.getItems().setAll(ResolutionOption.values());
+        choiceResolution.getSelectionModel().selectFirst();
+    }
 
     private void initReturnObjectTypeChoices() {
         var availableTypes = List.of(
@@ -158,14 +176,24 @@ public class MacroRunnerController extends BorderPane {
         choiceSelectAll.getItems().setAll(availableTypes);
         choiceSelectAll.setConverter(
                 MappedStringConverter.createFromFunction(
-                        MacroRunnerController::typeToPluralName, NewImageJMacroRunner.PathObjectType.values()));
+                        MacroRunnerController::typeToName, NewImageJMacroRunner.PathObjectType.values()));
         // TODO: Create persistent preference
         choiceSelectAll.getSelectionModel().selectFirst();
 
         var selectObjectsChoice = choiceSelectAll.getSelectionModel().selectedItemProperty();
         btnMakeSelection.disableProperty().bind(
-                selectObjectsChoice.isNull()
+                imageDataProperty.isNull().or(selectObjectsChoice.isNull())
         );
+        btnClearSelection.disableProperty().bind(
+                imageDataProperty.isNull()
+        );
+    }
+
+
+    private void initRunButton() {
+        btnRunMacro.disableProperty().bind(imageDataProperty.isNull().or(
+                textAreaMacro.textProperty().isEmpty()
+        ));
     }
 
 
@@ -175,16 +203,39 @@ public class MacroRunnerController extends BorderPane {
 
     @FXML
     void handleMakeSelection(ActionEvent event) {
+        var imageData = imageDataProperty.get();
+        if (imageData == null)
+            return;
+        // TODO: Add to the command history!
+        var hierarchy = imageData.getHierarchy();
+        switch (choiceSelectAll.getValue()) {
+            case CELL -> QP.selectCells(hierarchy);
+            case DETECTION -> QP.selectDetections(hierarchy);
+            case ANNOTATION -> QP.selectAnnotations(hierarchy);
+            case TILE -> QP.selectTiles(hierarchy);
+            case TMA_CORE -> QP.selectTMACores(hierarchy, false);
+        }
+    }
 
+    @FXML
+    void handleClearSelection(ActionEvent event) {
+        var imageData = imageDataProperty.get();
+        if (imageData == null)
+            return;
+        // TODO: Add to the command history!
+        imageData.getHierarchy().getSelectionModel().clearSelection();
     }
 
     @FXML
     void handleRun(ActionEvent event) {
+
+        String macroText = textAreaMacro.getText();
+
         Dialogs.showInfoNotification(title, "Run pressed!");
         var runner = NewImageJMacroRunner.builder()
                 .setImageJRoi(cbSetImageJRoi.isSelected())
                 .setImageJOverlay(cbSetImageJOverlay.isSelected())
-                .macroText(textAreaMacro.getText())
+                .macroText(macroText)
                 .build();
         new Thread(runner::run, "macro-runner").start();
     }

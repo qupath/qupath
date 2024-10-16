@@ -496,6 +496,11 @@ public class IJExtension implements QuPathExtension {
 		public final Action SEP_4 = ActionTools.createSeparator();
 
 		@ActionMenu(value = {"Menu.Extensions", "ImageJ>"})
+		@ActionConfig("Action.ImageJ.legacyMacroRunner")
+		@Deprecated
+		public final Action actionLegacyMacroRunner;
+
+		@ActionMenu(value = {"Menu.Extensions", "ImageJ>"})
 		@ActionConfig("Action.ImageJ.macroRunner")
 		public final Action actionMacroRunner;
 				
@@ -508,9 +513,9 @@ public class IJExtension implements QuPathExtension {
 			actionExtractRegion = qupath.createImageDataAction(imageData -> commandExtractRegionCustom.run());
 
 			var screenshotCommand = new ScreenshotCommand(qupath);
-			actionSnapshot = ActionTools.createAction(screenshotCommand);		
-			
-//			actionMacroRunner = createPluginAction(new ImageJMacroRunner(qupath));
+			actionSnapshot = ActionTools.createAction(screenshotCommand);
+
+			actionLegacyMacroRunner = createPluginAction(new ImageJMacroRunner(qupath));
 			actionMacroRunner = new MacroRunnerWrapper(qupath).createAction();
 			
 			actionSLIC = createPluginAction(SLICSuperpixelsPlugin.class);

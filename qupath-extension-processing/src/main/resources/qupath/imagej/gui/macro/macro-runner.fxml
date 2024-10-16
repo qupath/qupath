@@ -9,56 +9,87 @@
 <?import javafx.scene.control.TextArea?>
 <?import javafx.scene.control.TextField?>
 <?import javafx.scene.control.TitledPane?>
+<?import javafx.scene.control.Tooltip?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
 
-<fx:root maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="500.0" prefWidth="600.0" stylesheets="@macro-runner.css" type="BorderPane" xmlns="http://javafx.com/javafx/23" xmlns:fx="http://javafx.com/fxml/1">
+<fx:root maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="-Infinity" minWidth="-Infinity" prefHeight="500.0" prefWidth="600.0" stylesheets="@macro-runner.css" type="BorderPane" xmlns="http://javafx.com/javafx/23" xmlns:fx="http://javafx.com/fxml/1">
    <center>
-      <TitledPane fx:id="titledMacro" collapsible="false" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" text="Macro" BorderPane.alignment="CENTER">
+      <TitledPane fx:id="titledMacro" collapsible="false" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" text="%ui.title.macro" BorderPane.alignment="CENTER">
          <content>
-            <TextArea fx:id="textAreaMacro" promptText="Add your macro text here" styleClass="macro" />
+            <TextArea fx:id="textAreaMacro" promptText="%ui.macro.placeholder" styleClass="macro" />
          </content>
       </TitledPane>
    </center>
    <bottom>
       <VBox BorderPane.alignment="CENTER">
          <children>
-            <TitledPane fx:id="titledOptions" text="Options" VBox.vgrow="ALWAYS">
+            <TitledPane fx:id="titledOptions" text="%ui.title.options" VBox.vgrow="ALWAYS">
                <content>
                   <VBox spacing="5.0">
                      <children>
-                        <Label styleClass="title" text="Image sent to ImageJ" />
+                        <Label styleClass="title" text="%ui.title.toImageJ" />
                         <HBox spacing="10.0">
                            <children>
-                              <Label maxHeight="1.7976931348623157E308" prefWidth="150.0" text="Image resolution" />
+                              <Label maxHeight="1.7976931348623157E308" prefWidth="150.0" text="%ui.resolution.label">
+                                 <tooltip>
+                                    <Tooltip text="%ui.resolution.tooltip" />
+                                 </tooltip></Label>
                               <ChoiceBox fx:id="choiceResolution" prefWidth="150.0" />
                               <Separator orientation="VERTICAL" />
-                              <Label fx:id="labelResolution" maxHeight="1.7976931348623157E308" text="Label" />
-                              <TextField fx:id="tfResolution" />
+                              <Label fx:id="labelResolution" maxHeight="1.7976931348623157E308" prefWidth="150.0" text="%ui.resolution.fixed.label">
+                                 <tooltip>
+                                    <Tooltip text="%ui.resolution.tooltip" />
+                                 </tooltip></Label>
+                              <TextField fx:id="tfResolution" prefWidth="80.0">
+                                 <tooltip>
+                                    <Tooltip text="%ui.resolution.tooltip" />
+                                 </tooltip></TextField>
                            </children>
                         </HBox>
-                        <CheckBox fx:id="cbSetImageJRoi" mnemonicParsing="false" text="Set ImageJ Roi" />
-                        <CheckBox fx:id="cbSetImageJOverlay" mnemonicParsing="false" text="Set ImageJ overlay" />
+                        <CheckBox fx:id="cbSetImageJRoi" mnemonicParsing="false" text="%ui.setRoi.label">
+                           <tooltip>
+                              <Tooltip text="%ui.setRoi.label.tooltip" />
+                           </tooltip></CheckBox>
+                        <CheckBox fx:id="cbSetImageJOverlay" mnemonicParsing="false" text="%ui.setOverlay.label">
+                           <tooltip>
+                              <Tooltip text="%ui.setOverlay.label.tooltip" />
+                           </tooltip></CheckBox>
                         <Separator prefWidth="200.0">
                            <padding>
                               <Insets left="25.0" right="25.0" top="5.0" />
                            </padding>
                         </Separator>
-                        <Label styleClass="title" text="Results sent to QuPath" />
+                        <Label styleClass="title" text="%ui.title.toQuPath" />
                         <HBox spacing="10.0">
                            <children>
-                              <Label maxHeight="1.7976931348623157E308" prefWidth="150.0" text="Return ImageJ Roi as" />
-                              <ChoiceBox fx:id="choiceReturnRoi" prefWidth="150.0" />
+                              <Label maxHeight="1.7976931348623157E308" prefWidth="150.0" text="%ui.returnRoi.label">
+                                 <tooltip>
+                                    <Tooltip text="%ui.returnRoi.label.tooltip" />
+                                 </tooltip></Label>
+                              <ChoiceBox fx:id="choiceReturnRoi" prefWidth="150.0">
+                                 <tooltip>
+                                    <Tooltip text="%ui.returnRoi.label.tooltip" />
+                                 </tooltip></ChoiceBox>
                            </children>
                         </HBox>
                         <HBox spacing="10.0">
                            <children>
-                              <Label maxHeight="1.7976931348623157E308" prefWidth="150.0" text="Return ImageJ overlay as" />
-                              <ChoiceBox fx:id="choiceReturnOverlay" prefWidth="150.0" />
+                              <Label maxHeight="1.7976931348623157E308" prefWidth="150.0" text="%ui.returnOverlay.label">
+                                 <tooltip>
+                                    <Tooltip text="%ui.returnOverlay.label.tooltip" />
+                                 </tooltip></Label>
+                              <ChoiceBox fx:id="choiceReturnOverlay" prefWidth="150.0">
+                                 <tooltip>
+                                    <Tooltip text="%ui.returnOverlay.label.tooltip" />
+                                 </tooltip></ChoiceBox>
                            </children>
                         </HBox>
-                        <CheckBox fx:id="cbDeleteExistingObjects" mnemonicParsing="false" text="Delete existing child objects" />
+                        <CheckBox fx:id="cbDeleteExistingObjects" mnemonicParsing="false" text="%ui.deleteChildObjects.label">
+                           <tooltip>
+                              <Tooltip text="%ui.deleteChildObjects.label.tooltip" />
+                           </tooltip></CheckBox>
                      </children>
                   </VBox>
                </content>
@@ -67,13 +98,34 @@
                <children>
                   <HBox spacing="10.0">
                      <children>
-                        <Label maxHeight="1.7976931348623157E308" prefWidth="150.0" text="Select all" />
-                        <ChoiceBox fx:id="choiceSelectAll" prefWidth="150.0" />
-                        <Button fx:id="btnMakeSelection" mnemonicParsing="false" text="Make selection" />
+                        <Label maxHeight="1.7976931348623157E308" prefWidth="150.0" text="%ui.selectAll.label">
+                           <tooltip>
+                              <Tooltip text="%ui.selectAll.label.tooltip" />
+                           </tooltip></Label>
+                        <ChoiceBox fx:id="choiceSelectAll" prefWidth="150.0">
+                           <tooltip>
+                              <Tooltip text="%ui.selectAll.label.tooltip" />
+                           </tooltip></ChoiceBox>
+                        <Button fx:id="btnMakeSelection" mnemonicParsing="false" onAction="#handleMakeSelection" text="%ui.button.select">
+                           <tooltip>
+                              <Tooltip text="%ui.button.select.tooltip" />
+                           </tooltip></Button>
+                        <Separator orientation="VERTICAL" />
+                        <Button fx:id="btnClearSelection" mnemonicParsing="false" onAction="#handleClearSelection" text="%ui.button.deselect">
+                           <tooltip>
+                              <Tooltip text="%ui.button.deselect.tooltip" />
+                           </tooltip>
+                        </Button>
                      </children>
                   </HBox>
-                  <CheckBox fx:id="cbAddToHistory" mnemonicParsing="false" text="Add to command history" />
-                  <Button fx:id="btnRunMacro" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#handleRun" text="Run macro" />
+                  <CheckBox fx:id="cbAddToHistory" mnemonicParsing="false" text="%ui.commandHistory.label">
+                     <tooltip>
+                        <Tooltip text="%ui.commandHistory.label.tooltip" />
+                     </tooltip></CheckBox>
+                  <Button fx:id="btnRunMacro" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#handleRun" text="%ui.button.run">
+                     <tooltip>
+                        <Tooltip text="%ui.button.run.tooltip" />
+                     </tooltip></Button>
                </children>
                <VBox.margin>
                   <Insets bottom="5.0" left="10.0" right="10.0" top="5.0" />
