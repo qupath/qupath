@@ -17,9 +17,12 @@ import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TitledPane;
 import javafx.scene.layout.BorderPane;
+import javafx.stage.FileChooser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.fx.dialogs.Dialogs;
+import qupath.fx.dialogs.FileChoosers;
+import qupath.fx.utils.FXUtils;
 import qupath.imagej.gui.macro.downsamples.DownsampleCalculator;
 import qupath.imagej.gui.macro.downsamples.DownsampleCalculators;
 import qupath.lib.gui.QuPathGUI;
@@ -30,9 +33,12 @@ import qupath.lib.scripting.QP;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.text.NumberFormat;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.ResourceBundle;
 import java.util.concurrent.Future;
 
@@ -89,10 +95,6 @@ public class MacroRunnerController extends BorderPane {
             PathPrefs.createPersistentPreference(PREFS_KEY + "resolution.maxDim", "1024")
     );
 
-    private ObjectProperty<ImageData<BufferedImage>> imageDataProperty = new SimpleObjectProperty<>();
-
-    private ObjectProperty<Future<?>> runningTask = new SimpleObjectProperty<>();
-
     private BooleanProperty setImageJRoi = PathPrefs.createPersistentPreference(PREFS_KEY + "setImageJRoi", false);
     private BooleanProperty setImageJOverlay = PathPrefs.createPersistentPreference(PREFS_KEY + "setImageJOverlay", false);
     private BooleanProperty deleteChildObjects = PathPrefs.createPersistentPreference(PREFS_KEY + "deleteChildObjects", false);
@@ -108,8 +110,12 @@ public class MacroRunnerController extends BorderPane {
             PathPrefs.createPersistentPreference(PREFS_KEY + "returnOverlayType", NewImageJMacroRunner.PathObjectType.NONE, NewImageJMacroRunner.PathObjectType.class);
 
     // No objects should be returned from the macro
-    private BooleanBinding noReturn = (returnRoiType.isNull().or(returnRoiType.isEqualTo(NewImageJMacroRunner.PathObjectType.NONE)))
+    private BooleanBinding noReturnObjects = (returnRoiType.isNull().or(returnRoiType.isEqualTo(NewImageJMacroRunner.PathObjectType.NONE)))
             .and(returnOverlayType.isNull().or(returnOverlayType.isEqualTo(NewImageJMacroRunner.PathObjectType.NONE)));
+
+    private ObjectProperty<ImageData<BufferedImage>> imageDataProperty = new SimpleObjectProperty<>();
+
+    private ObjectProperty<Future<?>> runningTask = new SimpleObjectProperty<>();
 
     @FXML
     private Button btnMakeSelection;
@@ -161,6 +167,8 @@ public class MacroRunnerController extends BorderPane {
 
     private ObjectProperty<DownsampleCalculator> downsampleCalculatorProperty = new SimpleObjectProperty<>();
 
+    private String lastSavedText = "";
+
     /**
      * Create a new instance.
      * @param qupath the QuPath instance in which the macro runner should be used.
@@ -198,7 +206,7 @@ public class MacroRunnerController extends BorderPane {
         cbDeleteExistingObjects.selectedProperty().bindBidirectional(deleteChildObjects);
         cbAddToHistory.selectedProperty().bindBidirectional(addToCommandHistory);
 
-        cbDeleteExistingObjects.disableProperty().bind(noReturn);
+        cbDeleteExistingObjects.disableProperty().bind(noReturnObjects);
     }
 
     private void initResolutionChoices() {
@@ -308,6 +316,54 @@ public class MacroRunnerController extends BorderPane {
         }
     }
 
+    void promptToOpenMacro() {
+        var file = FileChoosers.promptForFile(FXUtils.getWindow(this), title, getExtensionFilters());
+        if (file != null)
+            openMacro(file.toPath());
+    }
+
+    void promptToSaveMacro() {
+        var file = FileChoosers.promptToSaveFile(FXUtils.getWindow(this), title, null, getExtensionFilters());
+        if (file != null) {
+            try {
+                var text = textAreaMacro.getText();
+                Files.writeString(file.toPath(), text);
+                lastSavedText = text;
+            } catch (IOException e) {
+                Dialogs.showErrorNotification(title, "Error writing macro to " + file.getName());
+            }
+        }
+    }
+
+    private static FileChooser.ExtensionFilter getExtensionFilters() {
+        return FileChoosers.createExtensionFilter("ImageJ macros", ".ijm", ".txt");
+    }
+
+    public void openMacro(Path path) {
+        try {
+            var text = Files.readString(path);
+            var currentText = textAreaMacro.getText();
+            if (currentText == null)
+                currentText = "";
+            if (Objects.equals(currentText, text)) {
+                // No changes
+                return;
+            } else if (currentText.isBlank() || Objects.equals(lastSavedText.strip(), currentText.strip())) {
+                // Changes saved
+                textAreaMacro.setText(text);
+                lastSavedText = text;
+            } else {
+                // Prompt
+                if (Dialogs.showYesNoDialog(title, "Replace current macro?")) {
+                    textAreaMacro.setText(text);
+                    lastSavedText = text;
+                }
+            }
+        } catch (IOException e) {
+            Dialogs.showErrorNotification(title, "Error reading macro from " + path.getFileName());
+        }
+
+    }
 
 
     @FXML
@@ -345,7 +401,7 @@ public class MacroRunnerController extends BorderPane {
 
         var roiObjectType = returnRoiType.get();
         var overlayObjectType = returnOverlayType.get();
-        boolean clearChildObjects = this.deleteChildObjects.get() && !this.noReturn.get();
+        boolean clearChildObjects = this.deleteChildObjects.get() && !this.noReturnObjects.get();
 
         Dialogs.showInfoNotification(title, "Run pressed!");
         var runner = NewImageJMacroRunner.builder()
