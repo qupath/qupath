@@ -1,5 +1,7 @@
 package qupath.imagej.gui.macro;
 
+import javafx.beans.binding.BooleanBinding;
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.StringProperty;
@@ -21,6 +23,7 @@ import qupath.fx.dialogs.Dialogs;
 import qupath.imagej.gui.macro.downsamples.DownsampleCalculator;
 import qupath.imagej.gui.macro.downsamples.DownsampleCalculators;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.TaskRunnerFX;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.images.ImageData;
 import qupath.lib.scripting.QP;
@@ -39,9 +42,11 @@ public class MacroRunnerController extends BorderPane {
 
     private final QuPathGUI qupath;
 
-    private ResourceBundle resources = ResourceBundle.getBundle("qupath.imagej.gui.macro.strings");
+    private static final ResourceBundle resources = ResourceBundle.getBundle("qupath.imagej.gui.macro.strings");
 
-    private static final String title = "Macro runner";
+    private static final String title = resources.getString("title");
+
+    private static final String PREFS_KEY = "ij.macro.";
 
     public enum ResolutionOption {
 
@@ -57,8 +62,8 @@ public class MacroRunnerController extends BorderPane {
 
         private String getResourceKey() {
             return switch (this) {
-                case PIXEL_SIZE -> "ui.resolution.fixed";
-                case FIXED_DOWNSAMPLE -> "ui.resolution.pixelSize";
+                case PIXEL_SIZE -> "ui.resolution.pixelSize";
+                case FIXED_DOWNSAMPLE -> "ui.resolution.fixed";
                 case LARGEST_DIMENSION -> "ui.resolution.maxDim";
             };
         }
@@ -77,16 +82,34 @@ public class MacroRunnerController extends BorderPane {
      */
     private Map<ResolutionOption, StringProperty> resolutionOptionStringMap = Map.of(
             ResolutionOption.FIXED_DOWNSAMPLE,
-            PathPrefs.createPersistentPreference("ij.macro.resolution.fixed", "10"),
+            PathPrefs.createPersistentPreference(PREFS_KEY + "resolution.fixed", "10"),
             ResolutionOption.PIXEL_SIZE,
-            PathPrefs.createPersistentPreference("ij.macro.resolution.pixelSize", "1"),
+            PathPrefs.createPersistentPreference(PREFS_KEY + "resolution.pixelSize", "1"),
             ResolutionOption.LARGEST_DIMENSION,
-            PathPrefs.createPersistentPreference("ij.macro.resolution.maxDim", "1024")
+            PathPrefs.createPersistentPreference(PREFS_KEY + "resolution.maxDim", "1024")
     );
 
     private ObjectProperty<ImageData<BufferedImage>> imageDataProperty = new SimpleObjectProperty<>();
 
     private ObjectProperty<Future<?>> runningTask = new SimpleObjectProperty<>();
+
+    private BooleanProperty setImageJRoi = PathPrefs.createPersistentPreference(PREFS_KEY + "setImageJRoi", false);
+    private BooleanProperty setImageJOverlay = PathPrefs.createPersistentPreference(PREFS_KEY + "setImageJOverlay", false);
+    private BooleanProperty deleteChildObjects = PathPrefs.createPersistentPreference(PREFS_KEY + "deleteChildObjects", false);
+    private BooleanProperty addToCommandHistory = PathPrefs.createPersistentPreference(PREFS_KEY + "addToCommandHistory", false);
+
+    private ObjectProperty<ResolutionOption> resolutionProperty =
+            PathPrefs.createPersistentPreference(PREFS_KEY + "resolutionProperty", ResolutionOption.LARGEST_DIMENSION, ResolutionOption.class);
+
+    private ObjectProperty<NewImageJMacroRunner.PathObjectType> returnRoiType =
+            PathPrefs.createPersistentPreference(PREFS_KEY + "returnRoiType", NewImageJMacroRunner.PathObjectType.NONE, NewImageJMacroRunner.PathObjectType.class);
+
+    private ObjectProperty<NewImageJMacroRunner.PathObjectType> returnOverlayType =
+            PathPrefs.createPersistentPreference(PREFS_KEY + "returnOverlayType", NewImageJMacroRunner.PathObjectType.NONE, NewImageJMacroRunner.PathObjectType.class);
+
+    // No objects should be returned from the macro
+    private BooleanBinding noReturn = (returnRoiType.isNull().or(returnRoiType.isEqualTo(NewImageJMacroRunner.PathObjectType.NONE)))
+            .and(returnOverlayType.isNull().or(returnOverlayType.isEqualTo(NewImageJMacroRunner.PathObjectType.NONE)));
 
     @FXML
     private Button btnMakeSelection;
@@ -166,14 +189,24 @@ public class MacroRunnerController extends BorderPane {
         initResolutionChoices();
         initReturnObjectTypeChoices();
         initSelectObjectTypeChoices();
+        bindPreferences();
+    }
+
+    private void bindPreferences() {
+        cbSetImageJRoi.selectedProperty().bindBidirectional(setImageJRoi);
+        cbSetImageJOverlay.selectedProperty().bindBidirectional(setImageJOverlay);
+        cbDeleteExistingObjects.selectedProperty().bindBidirectional(deleteChildObjects);
+        cbAddToHistory.selectedProperty().bindBidirectional(addToCommandHistory);
+
+        cbDeleteExistingObjects.disableProperty().bind(noReturn);
     }
 
     private void initResolutionChoices() {
         choiceResolution.getItems().setAll(ResolutionOption.values());
-        choiceResolution.getSelectionModel().selectedItemProperty().addListener(this::resolutionChoiceChanged);
+        resolutionProperty.addListener(this::resolutionChoiceChanged);
         tfResolution.textProperty().addListener(o -> refreshDownsampleCalculator());
-
-        choiceResolution.getSelectionModel().selectFirst();
+        choiceResolution.valueProperty().bindBidirectional(resolutionProperty);
+        resolutionChoiceChanged(resolutionProperty, null, resolutionProperty.getValue());
     }
 
     private void resolutionChoiceChanged(ObservableValue<? extends ResolutionOption> value, ResolutionOption oldValue, ResolutionOption newValue) {
@@ -203,15 +236,13 @@ public class MacroRunnerController extends BorderPane {
         choiceReturnRoi.setConverter(
                 MappedStringConverter.createFromFunction(
                         MacroRunnerController::typeToName, NewImageJMacroRunner.PathObjectType.values()));
-        // TODO: Create persistent preference
-        choiceReturnRoi.getSelectionModel().selectFirst();
+        choiceReturnRoi.valueProperty().bindBidirectional(returnRoiType);
 
         choiceReturnOverlay.getItems().setAll(availableTypes);
         choiceReturnOverlay.setConverter(
                 MappedStringConverter.createFromFunction(
                         MacroRunnerController::typeToPluralName, NewImageJMacroRunner.PathObjectType.values()));
-        // TODO: Create persistent preference
-        choiceReturnOverlay.getSelectionModel().selectFirst();
+        choiceReturnOverlay.valueProperty().bindBidirectional(returnOverlayType);
     }
 
     private static String typeToName(NewImageJMacroRunner.PathObjectType type) {
@@ -262,7 +293,7 @@ public class MacroRunnerController extends BorderPane {
 
 
     private void refreshDownsampleCalculator() {
-        var resolution = choiceResolution.getSelectionModel().getSelectedItem();
+        var resolution = resolutionProperty.get();
         var text = tfResolution.getText();
         if (resolution == null || text == null || text.isBlank()) {
             logger.trace("Downsample calculator cannot be set");
@@ -307,15 +338,14 @@ public class MacroRunnerController extends BorderPane {
     @FXML
     void handleRun(ActionEvent event) {
 
-        String macroText = textAreaMacro.getText();
-        var downsampleCalculator = downsampleCalculatorProperty.get();
-        boolean setImageJRoi = cbSetImageJRoi.isSelected();
-        boolean setImageJOverlay = cbSetImageJOverlay.isSelected();
+        String macroText = this.textAreaMacro.getText();
+        var downsampleCalculator = this.downsampleCalculatorProperty.get();
+        boolean setImageJRoi = this.setImageJRoi.get();
+        boolean setImageJOverlay = this.setImageJOverlay.get();
 
-        var roiObjectType = choiceReturnRoi.getSelectionModel().getSelectedItem();
-        var overlayObjectType = choiceReturnOverlay.getSelectionModel().getSelectedItem();
-        boolean clearChildObjects = cbDeleteExistingObjects.isSelected() &&
-                !(isNone(roiObjectType) && isNone(overlayObjectType));
+        var roiObjectType = returnRoiType.get();
+        var overlayObjectType = returnOverlayType.get();
+        boolean clearChildObjects = this.deleteChildObjects.get() && !this.noReturn.get();
 
         Dialogs.showInfoNotification(title, "Run pressed!");
         var runner = NewImageJMacroRunner.builder()
@@ -327,6 +357,7 @@ public class MacroRunnerController extends BorderPane {
                 .macroText(macroText)
                 .scriptEngine(estimateScriptEngine(macroText))
                 .addToWorkflow(cbAddToHistory.isSelected())
+                .taskRunner(new TaskRunnerFX(qupath))
                 .clearChildObjects(clearChildObjects)
                 .build();
 

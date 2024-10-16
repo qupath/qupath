@@ -30,6 +30,8 @@ import qupath.lib.io.GsonTools;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.TMACoreObject;
+import qupath.lib.plugins.TaskRunner;
+import qupath.lib.plugins.TaskRunnerUtils;
 import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.ImageRegion;
@@ -107,9 +109,14 @@ public class NewImageJMacroRunner {
     }
 
     public void run(final ImageData<BufferedImage> imageData, final Collection<? extends PathObject> pathObjects) {
+        var taskRunner = params.getTaskRunner();
+
+        List<Runnable> tasks = new ArrayList<>();
         for (var parent : pathObjects) {
-            run(imageData, parent);
+            tasks.add(() -> run(imageData, parent));
         }
+        taskRunner.runTasks("ImageJ scripts", tasks);
+
         if (params.doAddToWorkflow()) {
             addScriptToWorkflow(imageData, pathObjects);
         }
@@ -421,6 +428,9 @@ public class NewImageJMacroRunner {
 
         private boolean addToWorkflow = false;
 
+        private int nThreads = -1;
+        private TaskRunner taskRunner;
+
         private MacroParameters() {}
 
         private MacroParameters(MacroParameters params) {
@@ -464,6 +474,13 @@ public class NewImageJMacroRunner {
 
         public String getScriptEngineName() {
             return scriptEngine;
+        }
+
+        public TaskRunner getTaskRunner() {
+            if (taskRunner == null)
+                return TaskRunnerUtils.getDefaultInstance().createTaskRunner(nThreads);
+            else
+                return taskRunner;
         }
 
         public Function<ROI, PathObject> getActiveRoiToObjectFunction() {
@@ -632,6 +649,16 @@ public class NewImageJMacroRunner {
 
         public Builder downsample(DownsampleCalculator downsample) {
             params.downsample = downsample;
+            return this;
+        }
+
+        public Builder nThreads(int nThreads) {
+            params.nThreads = nThreads;
+            return this;
+        }
+
+        public Builder taskRunner(TaskRunner taskRunner) {
+            params.taskRunner = taskRunner;
             return this;
         }
 
