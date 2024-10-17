@@ -723,12 +723,13 @@ public class PathObjectPainter {
 
 		private static Shape simplifyByDownsample(final Shape shape, final double downsample) {
 			try {
+				int pointCountThreshold = 10;
 				if (downsample > 50)
-					return ShapeSimplifier.simplifyPath(shape instanceof Path2D ? (Path2D)shape : new Path2D.Float(shape), 50);
+					return ShapeSimplifier.simplifyPath(shape instanceof Path2D ? (Path2D)shape : new Path2D.Float(shape), 50, pointCountThreshold);
 				if (downsample > 20)
-					return ShapeSimplifier.simplifyPath(shape instanceof Path2D ? (Path2D)shape : new Path2D.Float(shape), 20);
+					return ShapeSimplifier.simplifyPath(shape instanceof Path2D ? (Path2D)shape : new Path2D.Float(shape), 20, pointCountThreshold);
 				if (downsample > 10)
-					return ShapeSimplifier.simplifyPath(shape instanceof Path2D ? (Path2D)shape : new Path2D.Float(shape), 10);
+					return ShapeSimplifier.simplifyPath(shape instanceof Path2D ? (Path2D)shape : new Path2D.Float(shape), 10, pointCountThreshold);
 			} catch (Exception e) {
 				logger.warn("Unable to simplify path: {}", e.getLocalizedMessage());
 				logger.debug("", e);
