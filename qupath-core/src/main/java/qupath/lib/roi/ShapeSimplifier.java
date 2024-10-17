@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2020, 2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -68,18 +68,7 @@ public class ShapeSimplifier {
 			return;
 		
 		// Remove duplicates first
-		var iter = points.iterator();
-		Point2 lastPoint = iter.next();
-		while (iter.hasNext()) {
-			var nextPoint = iter.next();
-			if (nextPoint.equals(lastPoint))
-				iter.remove();
-			else
-				lastPoint = nextPoint;
-		}
-		if (lastPoint.equals(points.get(0)))
-			iter.remove();
-		
+		removeDuplicates(points);
 		
 		if (points.size() <= 3)
 			return;
@@ -89,8 +78,8 @@ public class ShapeSimplifier {
 		// Populate the priority queue
 		PriorityQueue<PointWithArea> queue = new PriorityQueue<>();
 		
-		Point2 pPrevious = points.get(points.size()-1);
-		Point2 pCurrent = points.get(0);
+		Point2 pPrevious = points.getLast();
+		Point2 pCurrent = points.getFirst();
 		PointWithArea pwaPrevious = null;
 		PointWithArea pwaFirst = null;
 		for (int i = 0; i < n; i++) {
@@ -151,8 +140,25 @@ public class ShapeSimplifier {
 		}
 		points.removeAll(toRemove);
 	}
-	
-	
+
+	/**
+	 * Remove consecutive duplicate points from a list, in-place.
+	 * Assumes the list is mutable.
+	 * @param points
+	 */
+	private static void removeDuplicates(List<Point2> points) {
+		var iter = points.iterator();
+		Point2 lastPoint = iter.next();
+		while (iter.hasNext()) {
+			var nextPoint = iter.next();
+			if (nextPoint.equals(lastPoint))
+				iter.remove();
+			else
+				lastPoint = nextPoint;
+		}
+		if (lastPoint.equals(points.getFirst()))
+			iter.remove();
+	}
 	
 	
 	/**
@@ -285,7 +291,8 @@ public class ShapeSimplifier {
 	
 	/**
 	 * 
-	 * Create a simplified path (fewer coordinates) using method based on Visvalingam's Algorithm.
+	 * Create a simplified path (fewer coordinates) using method based on Visvalingam's Algorithm,
+	 * processing all segments.
 	 * <p>
 	 * See references:
 	 * https://hydra.hull.ac.uk/resources/hull:8338
@@ -295,9 +302,36 @@ public class ShapeSimplifier {
 	 * @param path
 	 * @param altitudeThreshold
 	 * @return
+	 * @see #simplifyPath(Path2D, double, int)
 	 */
 	public static Path2D simplifyPath(Path2D path, double altitudeThreshold) {
-		
+		return simplifyPath(path, altitudeThreshold, -1);
+	}
+
+	/**
+	 *
+	 * Create a simplified path (fewer coordinates) using method based on Visvalingam's Algorithm,
+	 * optionally skipping segments with few points.
+	 * <p>
+	 * This method introduces {@code segmentPointThreshold} because simplifying multipolygons can produce a
+	 * 'jagged' effect when the simplification is applied to segments that contain only a few vertices.
+	 * This was particularly noticeable in QuPath's viewer, where a high altitude threshold is used.
+	 * <p>
+	 * See references:
+	 * https://hydra.hull.ac.uk/resources/hull:8338
+	 * https://www.jasondavies.com/simplify/
+	 * http://bost.ocks.org/mike/simplify/
+	 *
+	 * @param path the path to simplify
+	 * @param altitudeThreshold the altitude threshold
+	 * @param segmentPointThreshold the minimum number of points in a closed segment for simplification to be applied;
+	 *                              segments with fewer points (after removing duplicates) will be retained unchanged.
+	 * @return
+	 * @see #simplifyPath(Path2D, double)
+	 * @since v0.6.0
+	 */
+	public static Path2D simplifyPath(Path2D path, double altitudeThreshold, int segmentPointThreshold) {
+
 		List<Point2> points = new ArrayList<>();
 		PathIterator iter = path.getPathIterator(null, 0.5);
 //		int nVerticesBefore = 0;
@@ -310,8 +344,15 @@ public class ShapeSimplifier {
 //			nVerticesBefore += points.size();
 			if (points.isEmpty())
 				break;
-			
-			ShapeSimplifier.simplifyPolygonPoints(points, altitudeThreshold);
+
+			boolean doSimplify = true;
+			if (segmentPointThreshold >= 0) {
+				removeDuplicates(points);
+				doSimplify = points.size() >= segmentPointThreshold;
+			}
+
+			if (doSimplify)
+				ShapeSimplifier.simplifyPolygonPoints(points, altitudeThreshold);
 //			nVerticesAfter += points.size();
 			
 			boolean firstPoint = true;
