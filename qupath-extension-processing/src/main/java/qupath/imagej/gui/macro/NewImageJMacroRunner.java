@@ -298,18 +298,11 @@ public class NewImageJMacroRunner {
         var map = gson.fromJson(json, Map.class);
 
         sb.append(NewImageJMacroRunner.class.getName()).append(".fromMap(");
-        sb.append(toGroovy(obj));
-//        boolean isFirst = true;
-//        for (var entry : obj.asMap().entrySet()) {
-//            if (!isFirst) {
-//                sb.append(",");
-//            }
-//            sb.append("\n    ");
-//            sb.append(entry.getKey());
-//            sb.append(": ");
-//            appendValue(sb, entry.getValue());
-//            isFirst = false;
-//        }
+        var groovyMap = toGroovy(obj);
+        if (groovyMap.startsWith("[") && groovyMap.endsWith("]")) {
+            groovyMap = groovyMap.substring(1, groovyMap.length()-1);
+        }
+        sb.append(groovyMap);
         sb.append(").run()");
 
         var workflowScript = sb.toString();

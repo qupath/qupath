@@ -471,7 +471,6 @@ public class MacroRunnerController extends BorderPane {
         var overlayObjectType = returnOverlayType.get();
         boolean clearChildObjects = this.deleteChildObjects.get() && !this.noReturnObjects.get();
 
-        Dialogs.showInfoNotification(title, "Run pressed!");
         var runner = NewImageJMacroRunner.builder()
                 .setImageJRoi(setImageJRoi)
                 .setImageJOverlay(setImageJOverlay)
