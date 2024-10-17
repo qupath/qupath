@@ -429,7 +429,7 @@ public class NewImageJMacroRunner {
         private boolean addToWorkflow = false;
 
         private int nThreads = -1;
-        private TaskRunner taskRunner;
+        private transient TaskRunner taskRunner;
 
         private MacroParameters() {}
 
