@@ -723,7 +723,7 @@ public class PathObjectPainter {
 
 		private static Shape simplifyByDownsample(final Shape shape, final double downsample) {
 			try {
-				int pointCountThreshold = -1;
+				int pointCountThreshold = 10;
 				if (downsample > 50)
 					return ShapeSimplifier.simplifyPath(shape instanceof Path2D ? (Path2D)shape : new Path2D.Float(shape), 50, pointCountThreshold);
 				if (downsample > 20)
