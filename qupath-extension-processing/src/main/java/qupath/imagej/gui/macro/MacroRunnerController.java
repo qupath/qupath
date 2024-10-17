@@ -3,6 +3,7 @@ package qupath.imagej.gui.macro;
 import javafx.application.Platform;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
@@ -17,6 +18,8 @@ import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.Spinner;
+import javafx.scene.control.SpinnerValueFactory;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TitledPane;
@@ -29,12 +32,12 @@ import qupath.fx.dialogs.FileChoosers;
 import qupath.fx.utils.FXUtils;
 import qupath.imagej.gui.macro.downsamples.DownsampleCalculator;
 import qupath.imagej.gui.macro.downsamples.DownsampleCalculators;
+import qupath.lib.common.ThreadTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.TaskRunnerFX;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.prefs.SystemMenuBar;
 import qupath.lib.images.ImageData;
-import qupath.lib.scripting.QP;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
@@ -105,6 +108,8 @@ public class MacroRunnerController extends BorderPane {
     private BooleanProperty deleteChildObjects = PathPrefs.createPersistentPreference(PREFS_KEY + "deleteChildObjects", false);
     private BooleanProperty addToCommandHistory = PathPrefs.createPersistentPreference(PREFS_KEY + "addToCommandHistory", false);
 
+    private IntegerProperty nThreadsProperty = PathPrefs.createPersistentPreference(PREFS_KEY + "nThreads", ThreadTools.getParallelism());
+
     private ObjectProperty<ResolutionOption> resolutionProperty =
             PathPrefs.createPersistentPreference(PREFS_KEY + "resolutionProperty", ResolutionOption.LARGEST_DIMENSION, ResolutionOption.class);
 
@@ -123,13 +128,13 @@ public class MacroRunnerController extends BorderPane {
     private ObjectProperty<Future<?>> runningTask = new SimpleObjectProperty<>();
 
     @FXML
-    private Button btnMakeSelection;
-
-    @FXML
-    private Button btnClearSelection;
-
-    @FXML
     private Button btnRunMacro;
+
+    @FXML
+    private Button btnTest;
+
+    @FXML
+    private Spinner<Integer> spinnerThreads;
 
     @FXML
     private CheckBox cbAddToHistory;
@@ -210,17 +215,28 @@ public class MacroRunnerController extends BorderPane {
         loader.load();
 
         init();
-        initRunButton();
     }
 
     private void init() {
         this.imageDataProperty.bind(qupath.imageDataProperty());
         this.macroText.bind(textAreaMacro.textProperty());
+        initThreads();
         initResolutionChoices();
         initReturnObjectTypeChoices();
         initSelectObjectTypeChoices();
         bindPreferences();
         initMenus();
+        initRunButton();
+    }
+
+    private void initThreads() {
+        int min = 1;
+        int value = Math.max(min, nThreadsProperty.getValue());
+        int max = Math.max(value, Runtime.getRuntime().availableProcessors());
+        int step = 1;
+        spinnerThreads.setValueFactory(
+                new SpinnerValueFactory.IntegerSpinnerValueFactory(min, max, value, step));
+        nThreadsProperty.bind(spinnerThreads.valueProperty());
     }
 
     private void bindPreferences() {
@@ -303,14 +319,6 @@ public class MacroRunnerController extends BorderPane {
                         MacroRunnerController::typeToName, NewImageJMacroRunner.PathObjectType.values()));
         // TODO: Create persistent preference
         choiceSelectAll.getSelectionModel().selectFirst();
-
-        var selectObjectsChoice = choiceSelectAll.getSelectionModel().selectedItemProperty();
-        btnMakeSelection.disableProperty().bind(
-                imageDataProperty.isNull().or(selectObjectsChoice.isNull())
-        );
-        btnClearSelection.disableProperty().bind(
-                imageDataProperty.isNull()
-        );
     }
 
 
@@ -321,6 +329,7 @@ public class MacroRunnerController extends BorderPane {
                         .or(downsampleCalculatorProperty.isNull())
                         .or(runningTask.isNotNull()));
         miRun.disableProperty().bind(btnRunMacro.disableProperty());
+        btnTest.disableProperty().bind(btnRunMacro.disableProperty());
     }
 
     private void initMenus() {
@@ -435,32 +444,18 @@ public class MacroRunnerController extends BorderPane {
 
 
     @FXML
-    void handleMakeSelection(ActionEvent event) {
-        var imageData = imageDataProperty.get();
-        if (imageData == null)
-            return;
-        // TODO: Add to the command history!
-        var hierarchy = imageData.getHierarchy();
-        switch (choiceSelectAll.getValue()) {
-            case CELL -> QP.selectCells(hierarchy);
-            case DETECTION -> QP.selectDetections(hierarchy);
-            case ANNOTATION -> QP.selectAnnotations(hierarchy);
-            case TILE -> QP.selectTiles(hierarchy);
-            case TMA_CORE -> QP.selectTMACores(hierarchy, false);
-        }
-    }
-
-    @FXML
-    void handleClearSelection(ActionEvent event) {
-        var imageData = imageDataProperty.get();
-        if (imageData == null)
-            return;
-        // TODO: Add to the command history!
-        imageData.getHierarchy().getSelectionModel().clearSelection();
+    void handleRunTest(ActionEvent event) {
+        handleRun(true);
     }
 
     @FXML
     void handleRun(ActionEvent event) {
+        handleRun(false);
+    }
+
+    private void handleRun(boolean isTest) {
+
+        var imageData = imageDataProperty.get();
 
         String macroText = this.macroText.get();
         var downsampleCalculator = this.downsampleCalculatorProperty.get();
@@ -471,6 +466,10 @@ public class MacroRunnerController extends BorderPane {
         var overlayObjectType = returnOverlayType.get();
         boolean clearChildObjects = this.deleteChildObjects.get() && !this.noReturnObjects.get();
 
+        boolean addToWorkflow = !isTest && cbAddToHistory.isSelected();
+
+        int nThreads = nThreadsProperty.get();
+
         var runner = NewImageJMacroRunner.builder()
                 .setImageJRoi(setImageJRoi)
                 .setImageJOverlay(setImageJOverlay)
@@ -479,8 +478,9 @@ public class MacroRunnerController extends BorderPane {
                 .roiToObject(roiObjectType)
                 .macroText(macroText)
                 .scriptEngine(estimateScriptEngine(macroText))
-                .addToWorkflow(cbAddToHistory.isSelected())
-                .taskRunner(new TaskRunnerFX(qupath))
+                .addToWorkflow(addToWorkflow)
+                .nThreads(nThreads)
+                .taskRunner(new TaskRunnerFX(qupath, nThreads))
                 .clearChildObjects(clearChildObjects)
                 .build();
 
@@ -488,7 +488,11 @@ public class MacroRunnerController extends BorderPane {
                 .getSingleThreadExecutor(this)
                 .submit(() -> {
                     try {
-                        runner.run();
+                        if (isTest) {
+                            runner.test(imageData);
+                        } else {
+                            runner.run(imageData);
+                        }
                     } finally {
                         if (Platform.isFxApplicationThread()) {
                             runningTask.set(null);
@@ -504,10 +508,6 @@ public class MacroRunnerController extends BorderPane {
             return "groovy";
         else
             return null;
-    }
-
-    private static boolean isNone(NewImageJMacroRunner.PathObjectType type) {
-        return type != null && type != NewImageJMacroRunner.PathObjectType.NONE;
     }
 
 }

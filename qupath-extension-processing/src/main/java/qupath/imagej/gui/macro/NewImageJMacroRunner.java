@@ -30,6 +30,7 @@ import qupath.lib.io.GsonTools;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.TMACoreObject;
+import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.plugins.TaskRunner;
 import qupath.lib.plugins.TaskRunnerUtils;
 import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
@@ -102,18 +103,15 @@ public class NewImageJMacroRunner {
     public void run(final ImageData<BufferedImage> imageData) {
         if (imageData == null)
             throw new IllegalArgumentException("No image data available");
-        var selected = List.copyOf(imageData.getHierarchy().getSelectionModel().getSelectedObjects());
-        if (selected.isEmpty())
-            selected = List.of(imageData.getHierarchy().getRootObject());
-        run(imageData, selected);
+        run(imageData, getObjectsToProcess(imageData.getHierarchy()));
     }
 
-    public void run(final ImageData<BufferedImage> imageData, final Collection<? extends PathObject> pathObjects) {
+    private void run(final ImageData<BufferedImage> imageData, final Collection<? extends PathObject> pathObjects) {
         var taskRunner = params.getTaskRunner();
 
         List<Runnable> tasks = new ArrayList<>();
         for (var parent : pathObjects) {
-            tasks.add(() -> run(imageData, parent));
+            tasks.add(() -> run(imageData, parent, false));
         }
         taskRunner.runTasks("ImageJ scripts", tasks);
 
@@ -122,7 +120,25 @@ public class NewImageJMacroRunner {
         }
     }
 
-    private void run(final ImageData<BufferedImage> imageData, final PathObject pathObject) {
+    public void test() {
+        test(QP.getCurrentImageData());
+    }
+
+    public void test(final ImageData<BufferedImage> imageData) {
+        if (imageData == null)
+            throw new IllegalArgumentException("No image data available");
+        run(imageData, getObjectsToProcess(imageData.getHierarchy()).getFirst(), true);
+    }
+
+    private List<PathObject> getObjectsToProcess(PathObjectHierarchy hierarchy) {
+        var selected = List.copyOf(hierarchy.getSelectionModel().getSelectedObjects());
+        if (selected.isEmpty())
+           return List.of(hierarchy.getRootObject());
+        else
+            return selected;
+    }
+
+    private void run(final ImageData<BufferedImage> imageData, final PathObject pathObject, boolean isTest) {
 
         if (imageData == null)
             throw new IllegalArgumentException("No image data available");
@@ -193,7 +209,11 @@ public class NewImageJMacroRunner {
                         context.setWriter(writer);
                         context.setErrorWriter(errorWriter);
                         engine.setContext(context);
+
+                        if (isTest)
+                            imp.show();
                         engine.eval(script);
+
                     } catch (Exception e) {
                         Dialogs.showErrorNotification("ImageJ script", e);
                         Thread.currentThread().interrupt();
@@ -202,7 +222,12 @@ public class NewImageJMacroRunner {
                 } else {
                     // ImageJ macro
                     Interpreter interpreter = new Interpreter();
-                    impResult = interpreter.runBatchMacro(script, imp);
+                    if (isTest) {
+                        imp.show();
+                        interpreter.run(script);
+                    } else {
+                        impResult = interpreter.runBatchMacro(script, imp);
+                    }
 
                     // If we had an error, return
                     if (interpreter.wasError()) {

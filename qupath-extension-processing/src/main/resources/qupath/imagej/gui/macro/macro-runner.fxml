@@ -10,6 +10,7 @@
 <?import javafx.scene.control.MenuItem?>
 <?import javafx.scene.control.Separator?>
 <?import javafx.scene.control.SeparatorMenuItem?>
+<?import javafx.scene.control.Spinner?>
 <?import javafx.scene.control.TextArea?>
 <?import javafx.scene.control.TextField?>
 <?import javafx.scene.control.TitledPane?>
@@ -44,7 +45,7 @@
                                           <Tooltip text="%ui.resolution.tooltip" />
                                        </tooltip>
                                     </Label>
-                                    <ChoiceBox fx:id="choiceResolution" maxWidth="1.7976931348623157E308" prefWidth="140.0" HBox.hgrow="SOMETIMES" />
+                                    <ChoiceBox fx:id="choiceResolution" maxWidth="1.7976931348623157E308" prefWidth="150.0" HBox.hgrow="SOMETIMES" />
                                  </children>
                               </HBox>
                               <HBox spacing="10.0">
@@ -54,7 +55,7 @@
                                           <Tooltip text="%ui.resolution.tooltip" />
                                        </tooltip>
                                     </Label>
-                                    <TextField fx:id="tfResolution" maxWidth="1.7976931348623157E308" prefWidth="140.0" HBox.hgrow="SOMETIMES">
+                                    <TextField fx:id="tfResolution" maxWidth="1.7976931348623157E308" prefWidth="150.0" HBox.hgrow="SOMETIMES">
                                        <tooltip>
                                           <Tooltip text="%ui.resolution.tooltip" />
                                        </tooltip>
@@ -88,7 +89,7 @@
                                           <Tooltip text="%ui.returnRoi.label.tooltip" />
                                        </tooltip>
                                     </Label>
-                                    <ChoiceBox fx:id="choiceReturnRoi" maxWidth="1.7976931348623157E308" prefWidth="140.0" HBox.hgrow="SOMETIMES">
+                                    <ChoiceBox fx:id="choiceReturnRoi" maxWidth="1.7976931348623157E308" prefWidth="150.0" HBox.hgrow="SOMETIMES">
                                        <tooltip>
                                           <Tooltip text="%ui.returnRoi.label.tooltip" />
                                        </tooltip>
@@ -102,7 +103,7 @@
                                           <Tooltip text="%ui.returnOverlay.label.tooltip" />
                                        </tooltip>
                                     </Label>
-                                    <ChoiceBox fx:id="choiceReturnOverlay" maxWidth="1.7976931348623157E308" prefWidth="140.0" HBox.hgrow="SOMETIMES">
+                                    <ChoiceBox fx:id="choiceReturnOverlay" maxWidth="1.7976931348623157E308" prefWidth="150.0" HBox.hgrow="SOMETIMES">
                                        <tooltip>
                                           <Tooltip text="%ui.returnOverlay.label.tooltip" />
                                        </tooltip>
@@ -129,24 +130,29 @@
                <children>
                   <HBox spacing="10.0">
                      <children>
-                        <Label maxHeight="1.7976931348623157E308" prefWidth="150.0" text="%ui.selectAll.label">
+                        <Label maxHeight="1.7976931348623157E308" prefWidth="90.0" text="%ui.apply.label">
                            <tooltip>
-                              <Tooltip text="%ui.selectAll.label.tooltip" />
+                              <Tooltip text="%ui.apply.label.tooltip" />
                            </tooltip></Label>
-                        <ChoiceBox fx:id="choiceSelectAll" prefWidth="150.0">
+                        <ChoiceBox fx:id="choiceSelectAll" prefWidth="182.0">
                            <tooltip>
-                              <Tooltip text="%ui.selectAll.label.tooltip" />
+                              <Tooltip text="%ui.apply.label.tooltip" />
                            </tooltip></ChoiceBox>
-                        <Button fx:id="btnMakeSelection" mnemonicParsing="false" onAction="#handleMakeSelection" text="%ui.button.select">
-                           <tooltip>
-                              <Tooltip text="%ui.button.select.tooltip" />
-                           </tooltip></Button>
                         <Separator orientation="VERTICAL" />
-                        <Button fx:id="btnClearSelection" mnemonicParsing="false" onAction="#handleClearSelection" text="%ui.button.deselect">
+                        <Label maxHeight="1.7976931348623157E308" text="%ui.threads.label">
                            <tooltip>
-                              <Tooltip text="%ui.button.deselect.tooltip" />
+                              <Tooltip text="%ui.threads.label" />
                            </tooltip>
-                        </Button>
+                        </Label>
+                        <Spinner fx:id="spinnerThreads" maxWidth="1.7976931348623157E308" prefWidth="80.0" HBox.hgrow="SOMETIMES">
+                           <tooltip>
+                              <Tooltip text="%ui.threads.label" />
+                           </tooltip>
+                        </Spinner>
+                        <Button fx:id="btnTest" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#handleRunTest" text="%ui.button.test" HBox.hgrow="SOMETIMES">
+                           <tooltip>
+                              <Tooltip text="%ui.button.test.tooltip" />
+                           </tooltip></Button>
                      </children>
                   </HBox>
                   <Button fx:id="btnRunMacro" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#handleRun" text="%ui.button.run">
