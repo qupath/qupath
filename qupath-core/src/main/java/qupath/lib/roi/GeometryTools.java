@@ -1334,7 +1334,7 @@ public class GeometryTools {
 	    	if (geometry.isEmpty())
 	    		return ROIs.createEmptyROI(plane);
 	    	
-	    	// Make sure out Geometry is all of the same type
+	    	// Make sure our Geometry is all of the same type
 	    	var geometry2 = homogenizeGeometryCollection(geometry);
 	    	if (geometry2 != geometry) {
 	    		logger.warn("Geometries must all be of the same type when converting to a ROI! Converted {} to {}.", geometry.getGeometryType(), geometry2.getGeometryType());
