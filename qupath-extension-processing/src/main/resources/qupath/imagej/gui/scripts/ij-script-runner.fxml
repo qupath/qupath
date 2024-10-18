@@ -185,12 +185,17 @@
                         <KeyCodeCombination alt="UP" code="O" control="UP" meta="UP" shift="UP" shortcut="DOWN" />
                      </accelerator>
                   </MenuItem>
-                  <MenuItem mnemonicParsing="false" onAction="#promptToSaveMacro" text="%menu.file.saveAs">
+                  <MenuItem mnemonicParsing="false" onAction="#handleSave" text="%menu.file.save">
+                     <accelerator>
+                        <KeyCodeCombination alt="UP" code="S" control="UP" meta="UP" shift="UP" shortcut="DOWN" />
+                     </accelerator>
+                  </MenuItem>
+                  <MenuItem mnemonicParsing="false" onAction="#handleSaveAs" text="%menu.file.saveAs">
                      <accelerator>
                         <KeyCodeCombination alt="UP" code="S" control="UP" meta="UP" shift="DOWN" shortcut="DOWN" />
                      </accelerator>
                   </MenuItem>
-              <MenuItem mnemonicParsing="false" text="%menu.file.close">
+              <MenuItem mnemonicParsing="false" onAction="#handleClose" text="%menu.file.close">
                      <accelerator>
                         <KeyCodeCombination alt="UP" code="W" control="UP" meta="UP" shift="UP" shortcut="DOWN" />
                      </accelerator>

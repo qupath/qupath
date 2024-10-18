@@ -40,6 +40,7 @@ import qupath.lib.gui.prefs.SystemMenuBar;
 import qupath.lib.images.ImageData;
 
 import java.awt.image.BufferedImage;
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -393,22 +394,46 @@ public class ImageJScriptRunnerController extends BorderPane {
     }
 
     @FXML
-    void promptToSaveMacro() {
+    void handleSave() {
+        var lastSavedFile = this.lastSavedFile.map(Path::toFile).getValue();
+        if (lastSavedFile == null) {
+            handleSaveAs();
+            return;
+        }
+        if (!unsavedChanges.get() || Dialogs.showYesNoDialog(title, "Overwrite " + lastSavedFile.getName() + "?")) {
+            tryToSave(lastSavedFile);
+        }
+    }
+
+    @FXML
+    void handleSaveAs() {
         var file = FileChoosers.promptToSaveFile(
                 FXUtils.getWindow(this),
                 title,
                 lastSavedFile.map(Path::toFile).getValue(),
                 getExtensionFilters());
         if (file != null) {
-            try {
-                var text = macroText.getValueSafe();
-                var path = file.toPath();
-                Files.writeString(file.toPath(), text);
-                lastSavedText.set(text);
-                lastSavedFile.set(path);
-            } catch (IOException e) {
-                Dialogs.showErrorNotification(title, "Error writing macro to " + file.getName());
-            }
+            tryToSave(file);
+        }
+    }
+
+    @FXML
+    void handleClose() {
+        var window = FXUtils.getWindow(this);
+        if (window != null)
+            window.hide();
+    }
+
+    private void tryToSave(File file) {
+        try {
+            var text = macroText.getValueSafe();
+            var path = file.toPath();
+            Files.writeString(path, text);
+            logger.info("Script saved to {}", path);
+            lastSavedText.set(text);
+            lastSavedFile.set(path);
+        } catch (IOException e) {
+            Dialogs.showErrorNotification(title, "Error writing macro to " + file.getName());
         }
     }
 
@@ -475,6 +500,14 @@ public class ImageJScriptRunnerController extends BorderPane {
             Dialogs.showErrorNotification(title, "Error reading macro from " + path.getFileName());
         }
 
+    }
+
+    /**
+     * Get the title to use for this window.
+     * @return
+     */
+    public static String getTitle() {
+        return resources.getString("title");
     }
 
 

@@ -555,7 +555,7 @@ public class IJExtension implements QuPathExtension {
 
 		private final QuPathGUI qupath;
 
-		private final String title = "ImageJ macro runner";
+		private final String title = ImageJScriptRunnerController.getTitle();
 
 		private Stage stage;
 		private ImageJScriptRunnerController controller;
@@ -581,7 +581,6 @@ public class IJExtension implements QuPathExtension {
 					stage = new Stage();
 					controller = ImageJScriptRunnerController.createInstance(qupath);
 					Scene scene = new Scene(new BorderPane(controller));
-//					pane.heightProperty().addListener((v, o, n) -> handleStageHeightChange());
 					stage.setScene(scene);
 					stage.initOwner(QuPathGUI.getInstance().getStage());
 //					stage.setTitle(resources.getString("title"));
