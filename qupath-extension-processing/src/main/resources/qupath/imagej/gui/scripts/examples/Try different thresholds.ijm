@@ -12,8 +12,12 @@ methods = newArray("IJ_IsoData", "Otsu", "Triangle");
 // Uncomment the following line if you want to try *all* methods
 // methods = getList("threshold.methods");
 
-// Switch to true if we have a dark background
-darkBackground = false;
+// Check if the image has a property specifying a dark background
+// Override this by setting the value to true or false
+if (Property.get("qupath.image.background")=="dark")
+    darkBackground = true;
+else
+    darkBackground = false;
 
 // Ensure we have an 8-bit image
 run("8-bit");

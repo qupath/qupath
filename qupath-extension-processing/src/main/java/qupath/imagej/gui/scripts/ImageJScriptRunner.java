@@ -16,6 +16,7 @@ import org.slf4j.event.Level;
 import qupath.fx.dialogs.Dialogs;
 import qupath.fx.utils.FXUtils;
 import qupath.imagej.gui.IJExtension;
+import qupath.imagej.gui.ImagePlusProperties;
 import qupath.imagej.gui.scripts.downsamples.DownsampleCalculator;
 import qupath.imagej.gui.scripts.downsamples.DownsampleCalculators;
 import qupath.imagej.tools.IJTools;
@@ -29,7 +30,6 @@ import qupath.lib.images.servers.TransformedServerBuilder;
 import qupath.lib.io.GsonTools;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
-import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.plugins.TaskRunner;
 import qupath.lib.plugins.TaskRunnerUtils;
@@ -268,16 +268,13 @@ public class ImageJScriptRunner {
             return;
         }
 
-        // Determine a sensible argument to pass
-        String argument;
-        if (pathObject instanceof TMACoreObject || !pathObject.hasROI())
-            argument = pathObject.getDisplayedName();
-        else
-            argument = String.format("Region (%d, %d, %d, %d)", region.getX(), region.getY(), region.getWidth(), region.getHeight());
+        // Set some useful properties
+        final ImagePlus imp = pathImage.getImage();
+        ImagePlusProperties.setBackgroundProperty(imp, imageData.getImageType());
+        ImagePlusProperties.setTypeProperty(imp, imageData.getImageType());
+        ImagePlusProperties.setRegionProperty(imp, region);
 
         // Actually run the macro
-        final ImagePlus imp = pathImage.getImage();
-        imp.setProperty("QuPath region", argument);
         WindowManager.setTempCurrentImage(imp);
         IJExtension.getImageJInstance(); // Ensure we've requested an instance, since this also loads any required extra plugins
 
