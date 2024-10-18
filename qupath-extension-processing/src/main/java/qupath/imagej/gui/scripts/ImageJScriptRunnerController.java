@@ -24,6 +24,9 @@ import javafx.scene.control.SpinnerValueFactory;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TitledPane;
+import javafx.scene.input.DragEvent;
+import javafx.scene.input.Dragboard;
+import javafx.scene.input.TransferMode;
 import javafx.scene.layout.BorderPane;
 import javafx.stage.FileChooser;
 import org.slf4j.Logger;
@@ -248,6 +251,7 @@ public class ImageJScriptRunnerController extends BorderPane {
         bindPreferences();
         initMenus();
         initRunButton();
+        initDragDrop();
     }
 
     private void initTitle() {
@@ -370,6 +374,32 @@ public class ImageJScriptRunnerController extends BorderPane {
         SystemMenuBar.manageChildMenuBar(menuBar);
     }
 
+    private void initDragDrop() {
+        setOnDragOver(this::handleDragOver);
+        setOnDragDropped(this::handleDragDropped);
+    }
+
+    private void handleDragOver(DragEvent event) {
+        event.acceptTransferModes(TransferMode.COPY);
+        event.consume();
+    }
+
+    private void handleDragDropped(DragEvent event) {
+        Dragboard dragboard = event.getDragboard();
+        if (dragboard.hasFiles()) {
+            var file = dragboard.getFiles()
+                    .stream()
+                    .filter(f -> f.length() < 1024L * 1024L)
+                    .map(File::toPath)
+                    .findFirst()
+                    .orElse(null);
+            if (file != null) {
+                openMacro(file);
+                event.consume();
+            }
+        }
+    }
+
     private void refreshDownsampleCalculator() {
         var resolution = resolutionProperty.get();
         var text = tfResolution.getText();
@@ -400,7 +430,9 @@ public class ImageJScriptRunnerController extends BorderPane {
             handleSaveAs();
             return;
         }
-        if (!unsavedChanges.get() || Dialogs.showYesNoDialog(title, "Overwrite " + lastSavedFile.getName() + "?")) {
+        if (!unsavedChanges.get() ||
+                Dialogs.showYesNoDialog(title,
+                        String.format(resources.getString("dialogs.overwrite"), lastSavedFile.getName()))) {
             tryToSave(lastSavedFile);
         }
     }
@@ -433,18 +465,24 @@ public class ImageJScriptRunnerController extends BorderPane {
             lastSavedText.set(text);
             lastSavedFile.set(path);
         } catch (IOException e) {
-            Dialogs.showErrorNotification(title, "Error writing macro to " + file.getName());
+            Dialogs.showErrorNotification(title,
+                    String.format(resources.getString("dialogs.error.writing"), file.getName()));
         }
     }
 
-    private static FileChooser.ExtensionFilter getExtensionFilters() {
-        return FileChoosers.createExtensionFilter("ImageJ macros", ".ijm", ".txt");
+    private static FileChooser.ExtensionFilter[] getExtensionFilters() {
+        return new FileChooser.ExtensionFilter[] {
+                FileChoosers.createExtensionFilter(
+                        resources.getString("chooser.validFiles"),
+                        ".ijm", ".txt", ".groovy"),
+                FileChoosers.FILTER_ALL_FILES
+        };
     }
 
     @FXML
     public void promptToCreateNewMacro() {
         if (!macroText.getValueSafe().isBlank() && unsavedChanges.get()) {
-            if (!Dialogs.showYesNoDialog(title, "Discard unsaved changes?"))
+            if (!Dialogs.showYesNoDialog(title, resources.getString("dialogs.discardUnsaved")))
                 return;
         }
         textAreaMacro.setText("");
@@ -488,7 +526,7 @@ public class ImageJScriptRunnerController extends BorderPane {
                 return;
             } else if (!currentText.isBlank() && unsavedChanges.get()) {
                 // Prompt
-                if (!Dialogs.showYesNoDialog(title, "Replace current macro?")) {
+                if (!Dialogs.showYesNoDialog(title, resources.getString("dialogs.replaceCurrent"))) {
                     return;
                 }
             }
@@ -497,7 +535,8 @@ public class ImageJScriptRunnerController extends BorderPane {
             lastSavedText.set(text);
             lastSavedFile.set(path);
         } catch (IOException e) {
-            Dialogs.showErrorNotification(title, "Error reading macro from " + path.getFileName());
+            Dialogs.showErrorNotification(title,
+                    String.format(resources.getString("dialogs.error.reading"), path.getFileName()));
         }
 
     }
