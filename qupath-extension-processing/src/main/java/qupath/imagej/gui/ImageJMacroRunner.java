@@ -82,11 +82,11 @@ import qupathj.QuPath_Send_Overlay_to_QuPath;
 /**
  * QuPath plugin for running ImageJ macros &amp; returning detected regions.
  * 
- * TODO: Support script recording.
- * 
  * @author Pete Bankhead
- *
+ * @deprecated since v0.6.0; use {@link qupath.imagej.gui.scripts.ImageJScriptRunner} and
+ *             {@link qupath.imagej.gui.scripts.ImageJScriptRunnerController }instead.
  */
+@Deprecated
 public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 
 	private static Logger logger = LoggerFactory.getLogger(ImageJMacroRunner.class);

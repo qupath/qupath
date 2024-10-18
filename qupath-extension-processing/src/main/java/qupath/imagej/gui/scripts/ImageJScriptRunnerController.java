@@ -17,8 +17,10 @@ import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.Spinner;
 import javafx.scene.control.SpinnerValueFactory;
 import javafx.scene.control.TextArea;
@@ -36,6 +38,7 @@ import qupath.fx.dialogs.FileChoosers;
 import qupath.fx.utils.FXUtils;
 import qupath.imagej.gui.scripts.downsamples.DownsampleCalculator;
 import qupath.imagej.gui.scripts.downsamples.DownsampleCalculators;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.TaskRunnerFX;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -45,14 +48,22 @@ import qupath.lib.images.ImageData;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.file.FileSystem;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.text.NumberFormat;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.ResourceBundle;
 import java.util.concurrent.Future;
+import java.util.stream.Collectors;
 
 /**
  * Controller class for the ImageJ script runner.
@@ -203,6 +214,9 @@ public class ImageJScriptRunnerController extends BorderPane {
     private MenuBar menuBar;
 
     @FXML
+    private Menu menuExamples;
+
+    @FXML
     private MenuItem miUndo;
 
     @FXML
@@ -215,7 +229,7 @@ public class ImageJScriptRunnerController extends BorderPane {
 
     private StringProperty macroText = new SimpleStringProperty("");
     private StringProperty lastSavedText = new SimpleStringProperty("");
-    private ObjectProperty<Path> lastSavedFile = new SimpleObjectProperty<>(null);
+    private ObjectProperty<Path> lastSavedPath = new SimpleObjectProperty<>(null);
     private BooleanBinding unsavedChanges = lastSavedText.isNotEqualTo(macroText)
             .and(lastSavedText.isNotEmpty());
 
@@ -372,6 +386,15 @@ public class ImageJScriptRunnerController extends BorderPane {
         miUndo.disableProperty().bind(textAreaMacro.undoableProperty().not());
         miRedo.disableProperty().bind(textAreaMacro.redoableProperty().not());
         SystemMenuBar.manageChildMenuBar(menuBar);
+
+        menuExamples.visibleProperty().bind(Bindings.isNotEmpty(menuExamples.getItems()));
+
+        try {
+            var examples = loadExampleMacros();
+            menuExamples.getItems().setAll(examples);
+        } catch (Exception e) {
+            logger.error("Error loading default examples: {}", e.getMessage(), e);
+        }
     }
 
     private void initDragDrop() {
@@ -416,6 +439,63 @@ public class ImageJScriptRunnerController extends BorderPane {
         }
     }
 
+    /**
+     * Get a file object for the last saved file.
+     * Note that this can return null even if lastSavedPath is not null, because the path is from a
+     * different file system (e.g. we have read an example script from a jar).
+     * @return
+     */
+    private File getLastSavedFile() {
+        var path = lastSavedPath.get();
+        if (path == null || !Objects.equals(path.getFileSystem(), FileSystems.getDefault()))
+            return null;
+        else
+            return path.toFile();
+    }
+
+    private List<MenuItem> loadExampleMacros() throws URISyntaxException, IOException {
+        List<MenuItem> items = new ArrayList<>();
+        Path dirExamples;
+        var url = ImageJScriptRunnerController.class.getResource("examples");
+        if (url == null)
+            return items;
+        URI uri = url.toURI();
+        if (uri.getScheme().equals("jar")) {
+            FileSystem fileSystem = FileSystems.newFileSystem(uri, Map.of());
+            dirExamples = fileSystem.getPath(uri.toString().substring(uri.toString().indexOf("!")+1));
+        } else {
+            dirExamples = Paths.get(uri);
+        }
+        try (var stream = Files.list(dirExamples)) {
+            Map<String, List<Path>> map = stream
+                    .sorted(Comparator.comparing(p -> p.getFileName().toString()))
+                    .filter(p -> getFileExtension(p) != null)
+                    .collect(Collectors.groupingBy(ImageJScriptRunnerController::getFileExtension));
+
+            for (var entry : map.entrySet()) {
+                if (!items.isEmpty())
+                    items.add(new SeparatorMenuItem());
+                for (var path : entry.getValue()) {
+                    var item = createMenuItemForExample(path);
+                    items.add(item);
+                }
+            }
+        }
+        return items;
+    }
+
+    private MenuItem createMenuItemForExample(Path path) {
+        var name = path.getFileName().toString();
+        var item = new MenuItem(name.replaceAll("_", " "));
+        item.setOnAction(e -> openMacro(path));
+        return item;
+    }
+
+    private static String getFileExtension(Path p) {
+        return GeneralTools.getExtension(p.getFileName().toString()).orElse(null);
+    }
+
+
     @FXML
     void promptToOpenMacro() {
         var file = FileChoosers.promptForFile(FXUtils.getWindow(this), title, getExtensionFilters());
@@ -425,7 +505,7 @@ public class ImageJScriptRunnerController extends BorderPane {
 
     @FXML
     void handleSave() {
-        var lastSavedFile = this.lastSavedFile.map(Path::toFile).getValue();
+        var lastSavedFile = getLastSavedFile();
         if (lastSavedFile == null) {
             handleSaveAs();
             return;
@@ -442,7 +522,7 @@ public class ImageJScriptRunnerController extends BorderPane {
         var file = FileChoosers.promptToSaveFile(
                 FXUtils.getWindow(this),
                 title,
-                lastSavedFile.map(Path::toFile).getValue(),
+                getLastSavedFile(),
                 getExtensionFilters());
         if (file != null) {
             tryToSave(file);
@@ -463,7 +543,7 @@ public class ImageJScriptRunnerController extends BorderPane {
             Files.writeString(path, text);
             logger.info("Script saved to {}", path);
             lastSavedText.set(text);
-            lastSavedFile.set(path);
+            lastSavedPath.set(path);
         } catch (IOException e) {
             Dialogs.showErrorNotification(title,
                     String.format(resources.getString("dialogs.error.writing"), file.getName()));
@@ -487,7 +567,7 @@ public class ImageJScriptRunnerController extends BorderPane {
         }
         textAreaMacro.setText("");
         lastSavedText.set("");
-        lastSavedFile.set(null);
+        lastSavedPath.set(null);
     }
 
     @FXML
@@ -533,7 +613,7 @@ public class ImageJScriptRunnerController extends BorderPane {
             // Changes saved
             textAreaMacro.setText(text);
             lastSavedText.set(text);
-            lastSavedFile.set(path);
+            lastSavedPath.set(path);
         } catch (IOException e) {
             Dialogs.showErrorNotification(title,
                     String.format(resources.getString("dialogs.error.reading"), path.getFileName()));
