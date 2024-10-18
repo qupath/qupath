@@ -29,7 +29,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.function.Function;
 
-import qupath.imagej.gui.macro.NewImageJMacroRunner;
+import qupath.imagej.gui.scripts.ImageJScriptRunner;
 import qupath.imagej.tools.IJTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.images.ImageData;
@@ -42,7 +42,6 @@ import ij.ImagePlus;
 import ij.WindowManager;
 import ij.gui.GenericDialog;
 import ij.gui.Overlay;
-import ij.gui.PointRoi;
 import ij.gui.Roi;
 import ij.measure.Calibration;
 import ij.measure.ResultsTable;
@@ -163,7 +162,7 @@ public class QuPath_Send_Overlay_to_QuPath implements PlugIn {
 		Function<ROI, PathObject> creator;
 		if (asDetection) {
 			// Legacy behavior - create detections if requested, unless we have a point ROI - in which case we can only create annotations
-			creator = NewImageJMacroRunner::createDetectionOrPointAnnotation;
+			creator = ImageJScriptRunner::createDetectionOrPointAnnotation;
 		} else {
 			creator = PathObjects::createAnnotationObject;
 		}

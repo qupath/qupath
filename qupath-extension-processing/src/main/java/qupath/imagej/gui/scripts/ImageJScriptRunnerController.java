@@ -1,6 +1,7 @@
-package qupath.imagej.gui.macro;
+package qupath.imagej.gui.scripts;
 
 import javafx.application.Platform;
+import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.IntegerProperty;
@@ -30,9 +31,8 @@ import org.slf4j.LoggerFactory;
 import qupath.fx.dialogs.Dialogs;
 import qupath.fx.dialogs.FileChoosers;
 import qupath.fx.utils.FXUtils;
-import qupath.imagej.gui.macro.downsamples.DownsampleCalculator;
-import qupath.imagej.gui.macro.downsamples.DownsampleCalculators;
-import qupath.lib.common.ThreadTools;
+import qupath.imagej.gui.scripts.downsamples.DownsampleCalculator;
+import qupath.imagej.gui.scripts.downsamples.DownsampleCalculators;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.TaskRunnerFX;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -50,22 +50,41 @@ import java.util.Objects;
 import java.util.ResourceBundle;
 import java.util.concurrent.Future;
 
-public class MacroRunnerController extends BorderPane {
+/**
+ * Controller class for the ImageJ script runner.
+ * @since v0.6.0
+ */
+public class ImageJScriptRunnerController extends BorderPane {
 
-    private static final Logger logger = LoggerFactory.getLogger(MacroRunnerController.class);
+    private static final Logger logger = LoggerFactory.getLogger(ImageJScriptRunnerController.class);
 
     private final QuPathGUI qupath;
 
-    private static final ResourceBundle resources = ResourceBundle.getBundle("qupath.imagej.gui.macro.strings");
+    private static final ResourceBundle resources = ResourceBundle.getBundle("qupath.imagej.gui.scripts.strings");
 
     private static final String title = resources.getString("title");
 
-    private static final String PREFS_KEY = "ij.macro.";
+    private static final String PREFS_KEY = "ij.scripts.";
 
+    /**
+     * Options for specifying how the resolution of an image region is determined.
+     */
     public enum ResolutionOption {
 
-        FIXED_DOWNSAMPLE, PIXEL_SIZE, LARGEST_DIMENSION;
+        /**
+         * Use a fixed downsample value;
+         */
+        FIXED_DOWNSAMPLE,
+        /**
+         * Resize to a target pixel size.
+         */
+        PIXEL_SIZE,
+        /**
+         * Resize so that the width and height are &leq; a fixed length;
+         */
+        LARGEST_DIMENSION;
 
+        @Override
         public String toString() {
             return switch (this) {
                 case PIXEL_SIZE -> "Pixel size (µm)";
@@ -108,20 +127,21 @@ public class MacroRunnerController extends BorderPane {
     private BooleanProperty deleteChildObjects = PathPrefs.createPersistentPreference(PREFS_KEY + "deleteChildObjects", false);
     private BooleanProperty addToCommandHistory = PathPrefs.createPersistentPreference(PREFS_KEY + "addToCommandHistory", false);
 
-    private IntegerProperty nThreadsProperty = PathPrefs.createPersistentPreference(PREFS_KEY + "nThreads", ThreadTools.getParallelism());
+    // Default to 1 thread, as multiple threads may be problematic for some macros (e.g. with duplicate images)
+    private IntegerProperty nThreadsProperty = PathPrefs.createPersistentPreference(PREFS_KEY + "nThreads", 1);
 
     private ObjectProperty<ResolutionOption> resolutionProperty =
             PathPrefs.createPersistentPreference(PREFS_KEY + "resolutionProperty", ResolutionOption.LARGEST_DIMENSION, ResolutionOption.class);
 
-    private ObjectProperty<NewImageJMacroRunner.PathObjectType> returnRoiType =
-            PathPrefs.createPersistentPreference(PREFS_KEY + "returnRoiType", NewImageJMacroRunner.PathObjectType.NONE, NewImageJMacroRunner.PathObjectType.class);
+    private ObjectProperty<ImageJScriptRunner.PathObjectType> returnRoiType =
+            PathPrefs.createPersistentPreference(PREFS_KEY + "returnRoiType", ImageJScriptRunner.PathObjectType.NONE, ImageJScriptRunner.PathObjectType.class);
 
-    private ObjectProperty<NewImageJMacroRunner.PathObjectType> returnOverlayType =
-            PathPrefs.createPersistentPreference(PREFS_KEY + "returnOverlayType", NewImageJMacroRunner.PathObjectType.NONE, NewImageJMacroRunner.PathObjectType.class);
+    private ObjectProperty<ImageJScriptRunner.PathObjectType> returnOverlayType =
+            PathPrefs.createPersistentPreference(PREFS_KEY + "returnOverlayType", ImageJScriptRunner.PathObjectType.NONE, ImageJScriptRunner.PathObjectType.class);
 
     // No objects should be returned from the macro
-    private BooleanBinding noReturnObjects = (returnRoiType.isNull().or(returnRoiType.isEqualTo(NewImageJMacroRunner.PathObjectType.NONE)))
-            .and(returnOverlayType.isNull().or(returnOverlayType.isEqualTo(NewImageJMacroRunner.PathObjectType.NONE)));
+    private BooleanBinding noReturnObjects = (returnRoiType.isNull().or(returnRoiType.isEqualTo(ImageJScriptRunner.PathObjectType.NONE)))
+            .and(returnOverlayType.isNull().or(returnOverlayType.isEqualTo(ImageJScriptRunner.PathObjectType.NONE)));
 
     private ObjectProperty<ImageData<BufferedImage>> imageDataProperty = new SimpleObjectProperty<>();
 
@@ -152,13 +172,13 @@ public class MacroRunnerController extends BorderPane {
     private ChoiceBox<ResolutionOption> choiceResolution;
 
     @FXML
-    private ChoiceBox<NewImageJMacroRunner.PathObjectType> choiceReturnOverlay;
+    private ChoiceBox<ImageJScriptRunner.PathObjectType> choiceReturnOverlay;
 
     @FXML
-    private ChoiceBox<NewImageJMacroRunner.PathObjectType> choiceReturnRoi;
+    private ChoiceBox<ImageJScriptRunner.PathObjectType> choiceReturnRoi;
 
     @FXML
-    private ChoiceBox<NewImageJMacroRunner.PathObjectType> choiceSelectAll;
+    private ChoiceBox<ImageJScriptRunner.PathObjectType> choiceSelectAll;
 
     @FXML
     private Label labelResolution;
@@ -201,19 +221,18 @@ public class MacroRunnerController extends BorderPane {
      * @return the macro runner
      * @throws IOException if the macro runner couldn't be initialized (probably an fxml issue)
      */
-    public static MacroRunnerController createInstance(QuPathGUI qupath) throws IOException {
-        return new MacroRunnerController(qupath);
+    public static ImageJScriptRunnerController createInstance(QuPathGUI qupath) throws IOException {
+        return new ImageJScriptRunnerController(qupath);
     }
 
-    private MacroRunnerController(QuPathGUI qupath) throws IOException {
+    private ImageJScriptRunnerController(QuPathGUI qupath) throws IOException {
         this.qupath = qupath;
-        var url = MacroRunnerController.class.getResource("macro-runner.fxml");
+        var url = ImageJScriptRunnerController.class.getResource("ij-script-runner.fxml");
         FXMLLoader loader = new FXMLLoader(url, resources);
         loader.setRoot(this);
         if (loader.getController() == null)
             loader.setController(this);
         loader.load();
-
         init();
     }
 
@@ -221,12 +240,24 @@ public class MacroRunnerController extends BorderPane {
         this.imageDataProperty.bind(qupath.imageDataProperty());
         this.macroText.bind(textAreaMacro.textProperty());
         initThreads();
+        initTitle();
         initResolutionChoices();
         initReturnObjectTypeChoices();
         initSelectObjectTypeChoices();
         bindPreferences();
         initMenus();
         initRunButton();
+    }
+
+    private void initTitle() {
+        titledMacro.textProperty().bind(
+                Bindings.createStringBinding(this::getMacroPaneTitle, unsavedChanges)
+        );
+    }
+
+    private String getMacroPaneTitle() {
+        var title = resources.getString("ui.title.script");
+        return unsavedChanges.get() ? title + "*" : title;
     }
 
     private void initThreads() {
@@ -274,33 +305,33 @@ public class MacroRunnerController extends BorderPane {
 
     private void initReturnObjectTypeChoices() {
         var availableTypes = List.of(
-                NewImageJMacroRunner.PathObjectType.NONE,
-                NewImageJMacroRunner.PathObjectType.ANNOTATION,
-                NewImageJMacroRunner.PathObjectType.DETECTION,
-                NewImageJMacroRunner.PathObjectType.TILE,
-                NewImageJMacroRunner.PathObjectType.CELL);
+                ImageJScriptRunner.PathObjectType.NONE,
+                ImageJScriptRunner.PathObjectType.ANNOTATION,
+                ImageJScriptRunner.PathObjectType.DETECTION,
+                ImageJScriptRunner.PathObjectType.TILE,
+                ImageJScriptRunner.PathObjectType.CELL);
         choiceReturnRoi.getItems().setAll(availableTypes);
         choiceReturnRoi.setConverter(
                 MappedStringConverter.createFromFunction(
-                        MacroRunnerController::typeToName, NewImageJMacroRunner.PathObjectType.values()));
+                        ImageJScriptRunnerController::typeToName, ImageJScriptRunner.PathObjectType.values()));
         choiceReturnRoi.valueProperty().bindBidirectional(returnRoiType);
 
         choiceReturnOverlay.getItems().setAll(availableTypes);
         choiceReturnOverlay.setConverter(
                 MappedStringConverter.createFromFunction(
-                        MacroRunnerController::typeToPluralName, NewImageJMacroRunner.PathObjectType.values()));
+                        ImageJScriptRunnerController::typeToPluralName, ImageJScriptRunner.PathObjectType.values()));
         choiceReturnOverlay.valueProperty().bindBidirectional(returnOverlayType);
     }
 
-    private static String typeToName(NewImageJMacroRunner.PathObjectType type) {
-        if (type == NewImageJMacroRunner.PathObjectType.NONE)
+    private static String typeToName(ImageJScriptRunner.PathObjectType type) {
+        if (type == ImageJScriptRunner.PathObjectType.NONE)
             return "-";
         String name = type.name();
         return name.substring(0, 1).toUpperCase() + name.substring(1).toLowerCase();
     }
 
-    private static String typeToPluralName(NewImageJMacroRunner.PathObjectType type) {
-        if (type == NewImageJMacroRunner.PathObjectType.NONE)
+    private static String typeToPluralName(ImageJScriptRunner.PathObjectType type) {
+        if (type == ImageJScriptRunner.PathObjectType.NONE)
             return "-";
         return typeToName(type) + "s";
     }
@@ -308,15 +339,15 @@ public class MacroRunnerController extends BorderPane {
 
     private void initSelectObjectTypeChoices() {
         var availableTypes = List.of(
-                NewImageJMacroRunner.PathObjectType.ANNOTATION,
-                NewImageJMacroRunner.PathObjectType.DETECTION,
-                NewImageJMacroRunner.PathObjectType.TILE,
-                NewImageJMacroRunner.PathObjectType.CELL,
-                NewImageJMacroRunner.PathObjectType.TMA_CORE);
+                ImageJScriptRunner.PathObjectType.ANNOTATION,
+                ImageJScriptRunner.PathObjectType.DETECTION,
+                ImageJScriptRunner.PathObjectType.TILE,
+                ImageJScriptRunner.PathObjectType.CELL,
+                ImageJScriptRunner.PathObjectType.TMA_CORE);
         choiceSelectAll.getItems().setAll(availableTypes);
         choiceSelectAll.setConverter(
                 MappedStringConverter.createFromFunction(
-                        MacroRunnerController::typeToName, NewImageJMacroRunner.PathObjectType.values()));
+                        ImageJScriptRunnerController::typeToName, ImageJScriptRunner.PathObjectType.values()));
         // TODO: Create persistent preference
         choiceSelectAll.getSelectionModel().selectFirst();
     }
@@ -363,10 +394,14 @@ public class MacroRunnerController extends BorderPane {
 
     @FXML
     void promptToSaveMacro() {
-        var file = FileChoosers.promptToSaveFile(FXUtils.getWindow(this), title, null, getExtensionFilters());
+        var file = FileChoosers.promptToSaveFile(
+                FXUtils.getWindow(this),
+                title,
+                lastSavedFile.map(Path::toFile).getValue(),
+                getExtensionFilters());
         if (file != null) {
             try {
-                var text = macroText.get();
+                var text = macroText.getValueSafe();
                 var path = file.toPath();
                 Files.writeString(file.toPath(), text);
                 lastSavedText.set(text);
@@ -470,7 +505,7 @@ public class MacroRunnerController extends BorderPane {
 
         int nThreads = nThreadsProperty.get();
 
-        var runner = NewImageJMacroRunner.builder()
+        var runner = ImageJScriptRunner.builder()
                 .setImageJRoi(setImageJRoi)
                 .setImageJOverlay(setImageJOverlay)
                 .downsample(downsampleCalculator)

@@ -1,4 +1,4 @@
-package qupath.imagej.gui.macro;
+package qupath.imagej.gui.scripts;
 
 import javafx.util.StringConverter;
 

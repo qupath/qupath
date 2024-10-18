@@ -1,4 +1,4 @@
-package qupath.imagej.gui.macro.downsamples;
+package qupath.imagej.gui.scripts.downsamples;
 
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.regions.ImageRegion;

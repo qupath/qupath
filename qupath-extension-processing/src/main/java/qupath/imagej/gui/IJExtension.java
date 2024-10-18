@@ -74,7 +74,7 @@ import qupath.imagej.detect.cells.WatershedCellMembraneDetection;
 import qupath.imagej.detect.dearray.TMADearrayerPluginIJ;
 import qupath.imagej.detect.tissue.PositivePixelCounterIJ;
 import qupath.imagej.detect.tissue.SimpleTissueDetection2;
-import qupath.imagej.gui.macro.MacroRunnerController;
+import qupath.imagej.gui.scripts.ImageJScriptRunnerController;
 import qupath.imagej.superpixels.DoGSuperpixelsPlugin;
 import qupath.imagej.superpixels.SLICSuperpixelsPlugin;
 import qupath.imagej.tools.IJTools;
@@ -500,11 +500,11 @@ public class IJExtension implements QuPathExtension {
 		@Deprecated
 		public final Action actionLegacyMacroRunner;
 
-		private final MacroRunnerWrapper macroRunner;
+		private final ScriptRunnerWrapper scriptRunner;
 
 		@ActionMenu(value = {"Menu.Extensions", "ImageJ>"})
-		@ActionConfig("Action.ImageJ.macroRunner")
-		public final Action actionMacroRunner;
+		@ActionConfig("Action.ImageJ.scriptRunner")
+		public final Action actionScriptRunner;
 				
 		IJExtensionCommands(QuPathGUI qupath) {
 			
@@ -518,8 +518,8 @@ public class IJExtension implements QuPathExtension {
 			actionSnapshot = ActionTools.createAction(screenshotCommand);
 
 			actionLegacyMacroRunner = createPluginAction(new ImageJMacroRunner(qupath));
-			macroRunner = new MacroRunnerWrapper(qupath);
-			actionMacroRunner = macroRunner.createAction();
+			scriptRunner = new ScriptRunnerWrapper(qupath);
+			actionScriptRunner = scriptRunner.createAction();
 			
 			actionSLIC = createPluginAction(SLICSuperpixelsPlugin.class);
 			actionDoG = createPluginAction(DoGSuperpixelsPlugin.class);
@@ -551,16 +551,16 @@ public class IJExtension implements QuPathExtension {
 		
 	}
 
-	private static class MacroRunnerWrapper {
+	private static class ScriptRunnerWrapper {
 
 		private final QuPathGUI qupath;
 
 		private final String title = "ImageJ macro runner";
 
 		private Stage stage;
-		private MacroRunnerController controller;
+		private ImageJScriptRunnerController controller;
 
-		private MacroRunnerWrapper(QuPathGUI qupath) {
+		private ScriptRunnerWrapper(QuPathGUI qupath) {
 			this.qupath = qupath;
 		}
 
@@ -579,7 +579,7 @@ public class IJExtension implements QuPathExtension {
 			if (stage == null) {
 				try {
 					stage = new Stage();
-					controller = MacroRunnerController.createInstance(qupath);
+					controller = ImageJScriptRunnerController.createInstance(qupath);
 					Scene scene = new Scene(new BorderPane(controller));
 //					pane.heightProperty().addListener((v, o, n) -> handleStageHeightChange());
 					stage.setScene(scene);
@@ -701,7 +701,7 @@ public class IJExtension implements QuPathExtension {
 					null,
 					commands.actionImageJDirectory,
 					null,
-					commands.actionMacroRunner
+					commands.actionScriptRunner
 			);
 			toolbar.getItems().add(btnImageJ);
 		} catch (Exception e) {
@@ -762,7 +762,7 @@ public class IJExtension implements QuPathExtension {
 		
 		private boolean handleMacro(File file) {
 			if (file.getName().toLowerCase().endsWith(".ijm")) {
-				commands.macroRunner.openMacro(file);
+				commands.scriptRunner.openMacro(file);
 				return true;
 			}
 			return false;

@@ -1,4 +1,4 @@
-package qupath.imagej.gui.macro.downsamples;
+package qupath.imagej.gui.scripts.downsamples;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

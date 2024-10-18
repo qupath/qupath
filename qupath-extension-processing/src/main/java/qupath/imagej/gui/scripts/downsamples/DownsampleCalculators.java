@@ -1,9 +1,12 @@
-package qupath.imagej.gui.macro.downsamples;
+package qupath.imagej.gui.scripts.downsamples;
 
 import com.google.gson.TypeAdapterFactory;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.io.GsonTools;
 
+/**
+ * Helper class to create downsample calculators, which can figure out how much to downsample a specified image region.
+ */
 public class DownsampleCalculators {
 
     private static final TypeAdapterFactory factory = GsonTools.createSubTypeAdapterFactory(
@@ -16,14 +19,31 @@ public class DownsampleCalculators {
         GsonTools.getDefaultBuilder().registerTypeAdapterFactory(factory);
     }
 
+    /**
+     * Create a downsample calculator that resizes an image to ensure that its width and height are &leq;
+     * a specified maximum length.
+     * @param maxDimension
+     * @return
+     */
     public static DownsampleCalculator maxDimension(final int maxDimension) {
         return new MaxDimensionDownsampleCalculator(maxDimension);
     }
 
+    /**
+     * Create a downsample calculator that simply returns a fixed value.
+     * @param downsample
+     * @return
+     */
     public static DownsampleCalculator fixedDownsample(final double downsample) {
         return new FixedDownsampleCalculator(downsample);
     }
 
+    /**
+     * Create a downsample calculator that aims to downsample an image to have a fixed pixel size,
+     * defined in microns.
+     * @param pixelSizeMicrons
+     * @return
+     */
     public static DownsampleCalculator pixelSizeMicrons(double pixelSizeMicrons) {
         var cal = new PixelCalibration.Builder()
                 .pixelSizeMicrons(pixelSizeMicrons, pixelSizeMicrons)
@@ -31,8 +51,13 @@ public class DownsampleCalculators {
         return pixelSize(cal);
     }
 
-    public static DownsampleCalculator pixelSize(PixelCalibration cal) {
-        return new PixelCalibrationDownsampleCalculator(cal);
+    /**
+     * Create a downsample calculator that aims to downsample an image to have a fixed pixel size.
+     * @param targetPixelSize
+     * @return
+     */
+    public static DownsampleCalculator pixelSize(PixelCalibration targetPixelSize) {
+        return new PixelCalibrationDownsampleCalculator(targetPixelSize);
     }
 
 }
