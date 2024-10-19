@@ -190,9 +190,11 @@ public class ImageJScriptRunner {
         int nAfter = idsAfter == null ? 0 : idsAfter.length;
         if (nBefore != nAfter) {
             logger.warn("Number of ImageJ images open before: {}, images open after: {}", nBefore, nAfter);
-            int nClosed = closeNewImages(idsBefore, idsAfter);
-            if (nClosed > 0)
-                logger.debug("Closed {} ImageJ images", nClosed);
+            if (params.doCloseOpenImages()) {
+                int nClosed = closeNewImages(idsBefore, idsAfter);
+                if (nClosed > 0)
+                    logger.debug("Closed {} ImageJ images", nClosed);
+            }
         }
     }
 
@@ -613,6 +615,14 @@ public class ImageJScriptRunner {
          */
         public boolean doAddToWorkflow() {
             return addToWorkflow;
+        }
+
+        /**
+         * Request that any lingering open images are closed after the script has run.
+         * @return
+         */
+        public boolean doCloseOpenImages() {
+            return closeOpenImages;
         }
 
         /**
