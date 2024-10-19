@@ -571,28 +571,33 @@ public class ImageJScriptRunnerController extends BorderPane {
     }
 
     @FXML
-    public void doCopy() {
+    public void doCopy(ActionEvent event) {
         textAreaMacro.copy();
+        event.consume();
     }
 
     @FXML
-    public void doPaste() {
+    public void doPaste(ActionEvent event) {
         textAreaMacro.paste();
+        event.consume();
     }
 
     @FXML
-    public void doCut() {
+    public void doCut(ActionEvent event) {
         textAreaMacro.cut();
+        event.consume();
     }
 
     @FXML
-    public void doUndo() {
+    public void doUndo(ActionEvent event) {
         textAreaMacro.undo();
+        event.consume();
     }
 
     @FXML
-    public void doRedo() {
+    public void doRedo(ActionEvent event) {
         textAreaMacro.redo();
+        event.consume();
     }
 
     public void openMacro(Path path) {

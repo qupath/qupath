@@ -214,21 +214,9 @@
               <MenuItem fx:id="miUndo" mnemonicParsing="false" onAction="#doUndo" text="%menu.edit.undo" />
                   <MenuItem fx:id="miRedo" mnemonicParsing="false" onAction="#doRedo" text="%menu.edit.redo" />
                   <SeparatorMenuItem mnemonicParsing="false" />
-                  <MenuItem mnemonicParsing="false" onAction="#doCut" text="%menu.edit.cut">
-                     <accelerator>
-                        <KeyCodeCombination alt="UP" code="X" control="UP" meta="UP" shift="UP" shortcut="DOWN" />
-                     </accelerator>
-                  </MenuItem>
-                  <MenuItem mnemonicParsing="false" onAction="#doCopy" text="%menu.edit.copy">
-                     <accelerator>
-                        <KeyCodeCombination alt="UP" code="C" control="UP" meta="UP" shift="UP" shortcut="DOWN" />
-                     </accelerator>
-                  </MenuItem>
-                  <MenuItem mnemonicParsing="false" onAction="#doPaste" text="%menu.edit.paste">
-                     <accelerator>
-                        <KeyCodeCombination alt="UP" code="V" control="UP" meta="UP" shift="UP" shortcut="DOWN" />
-                     </accelerator>
-                  </MenuItem>
+                  <MenuItem mnemonicParsing="false" onAction="#doCut" text="%menu.edit.cut" />
+                  <MenuItem mnemonicParsing="false" onAction="#doCopy" text="%menu.edit.copy" />
+                  <MenuItem mnemonicParsing="false" onAction="#doPaste" text="%menu.edit.paste" />
             </items>
           </Menu>
           <Menu mnemonicParsing="false" text="%menu.run">
