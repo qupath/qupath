@@ -70,7 +70,7 @@
                                           <Tooltip text="%ui.channels.label.tooltip" />
                                        </tooltip>
                                     </Label>
-                                    <CheckComboBox fx:id="comboChannels" prefWidth="150.0">
+                                    <CheckComboBox fx:id="comboChannels" maxWidth="1.7976931348623157E308" prefWidth="150.0" HBox.hgrow="SOMETIMES">
                                        <tooltip>
                                           <Tooltip text="%ui.channels.label.tooltip" />
                                        </tooltip>
