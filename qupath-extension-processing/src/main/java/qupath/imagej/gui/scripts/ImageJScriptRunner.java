@@ -448,9 +448,16 @@ public class ImageJScriptRunner {
                     sb.append(primitive.getAsString());
             }
             case JsonArray array -> {
+                sb.append("[");
+                boolean isFirst = true;
                 for (int i = 0; i < array.size(); i++) {
-                    sb.append(appendValue(sb, array.get(i)));
+                    if (!isFirst) {
+                        sb.append(", ");
+                    }
+                    appendValue(sb, array.get(i));
+                    isFirst = false;
                 }
+                sb.append("]");
             }
             case JsonObject obj -> {
                 sb.append("[");

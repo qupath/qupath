@@ -31,6 +31,7 @@ import javafx.scene.input.Dragboard;
 import javafx.scene.input.TransferMode;
 import javafx.scene.layout.BorderPane;
 import javafx.stage.FileChooser;
+import org.controlsfx.control.CheckComboBox;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.fx.dialogs.Dialogs;
@@ -44,6 +45,7 @@ import qupath.lib.gui.TaskRunnerFX;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.prefs.SystemMenuBar;
 import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.ColorTransforms;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
@@ -163,6 +165,9 @@ public class ImageJScriptRunnerController extends BorderPane {
     private ObjectProperty<Future<?>> runningTask = new SimpleObjectProperty<>();
 
     @FXML
+    private CheckComboBox<ColorTransforms.ColorTransform> comboChannels;
+
+    @FXML
     private Button btnRunMacro;
 
     @FXML
@@ -256,6 +261,7 @@ public class ImageJScriptRunnerController extends BorderPane {
 
     private void init() {
         this.imageDataProperty.bind(qupath.imageDataProperty());
+        this.imageDataProperty.addListener(this::handleImageDataChange);
         this.macroText.bind(textAreaMacro.textProperty());
         initThreads();
         initTitle();
@@ -266,6 +272,7 @@ public class ImageJScriptRunnerController extends BorderPane {
         initMenus();
         initRunButton();
         initDragDrop();
+        initChannels();
     }
 
     private void initTitle() {
@@ -277,6 +284,31 @@ public class ImageJScriptRunnerController extends BorderPane {
     private String getMacroPaneTitle() {
         var title = resources.getString("ui.title.script");
         return unsavedChanges.get() ? title + "*" : title;
+    }
+
+    private void handleImageDataChange(ObservableValue<? extends ImageData<BufferedImage>> values,
+                                       ImageData<BufferedImage> oldValue,
+                                       ImageData<BufferedImage> newValue) {
+        updateChannels(newValue);
+    }
+
+    private void initChannels() {
+        updateChannels(imageDataProperty.get());
+        FXUtils.installSelectAllOrNoneMenu(comboChannels);
+    }
+
+    private void updateChannels(ImageData<?> imageData) {
+        if (imageData == null)
+            return;
+        List<ColorTransforms.ColorTransform> availableChannels = new ArrayList<>();
+        for (var channel : imageData.getServer().getMetadata().getChannels()) {
+            availableChannels.add(ColorTransforms.createChannelExtractor(channel.getName()));
+        }
+        if (!Objects.equals(availableChannels, comboChannels.getItems())) {
+            comboChannels.getCheckModel().clearChecks();
+            comboChannels.getItems().setAll(availableChannels);
+            comboChannels.getCheckModel().checkAll();
+        }
     }
 
     private void initThreads() {
@@ -662,6 +694,11 @@ public class ImageJScriptRunnerController extends BorderPane {
 
         int nThreads = nThreadsProperty.get();
 
+        // If we want all 3 channels for an RGB image, don't specify anything
+        var channels = comboChannels.getCheckModel().getCheckedItems();
+        if (imageData.getServer().isRGB() && channels.size() == 3)
+            channels = null;
+
         var runner = ImageJScriptRunner.builder()
                 .setImageJRoi(setImageJRoi)
                 .setImageJOverlay(setImageJOverlay)
@@ -671,6 +708,7 @@ public class ImageJScriptRunnerController extends BorderPane {
                 .macroText(macroText)
                 .scriptEngine(estimateScriptEngine(macroText))
                 .addToWorkflow(addToWorkflow)
+                .channels(channels)
                 .nThreads(nThreads)
                 .taskRunner(new TaskRunnerFX(qupath, nThreads))
                 .clearChildObjects(clearChildObjects)

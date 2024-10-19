@@ -19,6 +19,7 @@
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
+<?import org.controlsfx.control.CheckComboBox?>
 
 <fx:root maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="350.0" minWidth="300.0" prefHeight="500.0" prefWidth="600.0" stylesheets="@ij-script-runner.css" type="BorderPane" xmlns="http://javafx.com/javafx/23" xmlns:fx="http://javafx.com/fxml/1">
    <center>
@@ -60,6 +61,20 @@
                                           <Tooltip text="%ui.resolution.tooltip" />
                                        </tooltip>
                                     </TextField>
+                                 </children>
+                              </HBox>
+                              <HBox spacing="10.0">
+                                 <children>
+                                    <Label fx:id="labelResolution1" maxHeight="1.7976931348623157E308" prefWidth="150.0" text="%ui.channels.label">
+                                       <tooltip>
+                                          <Tooltip text="%ui.channels.label.tooltip" />
+                                       </tooltip>
+                                    </Label>
+                                    <CheckComboBox fx:id="comboChannels" prefWidth="150.0">
+                                       <tooltip>
+                                          <Tooltip text="%ui.channels.label.tooltip" />
+                                       </tooltip>
+                                    </CheckComboBox>
                                  </children>
                               </HBox>
                               <CheckBox fx:id="cbSetImageJRoi" mnemonicParsing="false" text="%ui.setRoi.label">
