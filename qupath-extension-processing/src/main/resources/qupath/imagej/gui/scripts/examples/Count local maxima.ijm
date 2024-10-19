@@ -11,7 +11,7 @@ if (Property.get("qupath.image.background")=="light")
     lightBackground = true;
 else
     lightBackground = false;
-    
+
 // Build the Find Maxima args string
 args = "prominence=" + prominence;
 if (lightBackground)
