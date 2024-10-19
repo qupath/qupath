@@ -25,8 +25,11 @@ import ij.gui.Overlay;
 import ij.gui.PolygonRoi;
 import ij.gui.Roi;
 import ij.gui.Wand;
+import ij.plugin.filter.RankFilters;
 import ij.plugin.filter.ThresholdToSelection;
+import ij.process.Blitter;
 import ij.process.ByteProcessor;
+import ij.process.FloatProcessor;
 import ij.process.FloodFiller;
 import ij.process.ImageProcessor;
 import ij.process.ImageStatistics;
@@ -301,5 +304,76 @@ public class IJProcessing {
         }
         return overlay;
     }
+
+    /**
+     * Pixelwise subtraction of one or more images from the first image passed as a parameter.
+     * The input images are unchanged.
+     * @param ips
+     * @return a new image representing the result of the subtraction.
+     */
+    public static ImageProcessor subtract(ImageProcessor... ips) {
+        return blitter(Blitter.SUBTRACT, ips);
+    }
+
+    /**
+     * Pixelwise sum of input images.
+     * The input images are unchanged.
+     * @param ips
+     * @return a new image representing the result of the addition.
+     */
+    public static ImageProcessor add(ImageProcessor... ips) {
+        return blitter(Blitter.ADD, ips);
+    }
+
+    /**
+     * Pixelwise multiplication of the input images.
+     * The input images are unchanged.
+     * @param ips
+     * @return a new image representing the result of the multiplication.
+     */
+    public static ImageProcessor multiply(ImageProcessor... ips) {
+        return blitter(Blitter.MULTIPLY, ips);
+    }
+
+    /**
+     * Pixelwise division of the input images.
+     * The input images are unchanged.
+     * @param ips
+     * @return a new image representing the result of the division.
+     */
+    public static ImageProcessor divide(ImageProcessor... ips) {
+        return blitter(Blitter.DIVIDE, ips);
+    }
+
+    /**
+     * Pixelwise maximum of the input images.
+     * The input images are unchanged.
+     * @param ips
+     * @return a new image representing the result of the max operation.
+     */
+    public static ImageProcessor max(ImageProcessor... ips) {
+        return blitter(Blitter.MAX, ips);
+    }
+
+    /**
+     * Pixelwise minimum of the input images.
+     * The input images are unchanged.
+     * @param ips
+     * @return a new image representing the result of the min operation.
+     */
+    public static ImageProcessor min(ImageProcessor... ips) {
+        return blitter(Blitter.MIN, ips);
+    }
+
+    private static ImageProcessor blitter(int operation, ImageProcessor... ips) {
+        if (ips.length == 0)
+            return null;
+        ImageProcessor ipResult = ips[0].duplicate();
+        for (int i = 1; i < ips.length; i++) {
+            ipResult.copyBits(ips[i], 0, 0, operation);
+        }
+        return ipResult;
+    }
+
 
 }
