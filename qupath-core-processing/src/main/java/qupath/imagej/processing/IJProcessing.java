@@ -25,11 +25,9 @@ import ij.gui.Overlay;
 import ij.gui.PolygonRoi;
 import ij.gui.Roi;
 import ij.gui.Wand;
-import ij.plugin.filter.RankFilters;
 import ij.plugin.filter.ThresholdToSelection;
 import ij.process.Blitter;
 import ij.process.ByteProcessor;
-import ij.process.FloatProcessor;
 import ij.process.FloodFiller;
 import ij.process.ImageProcessor;
 import ij.process.ImageStatistics;
@@ -157,8 +155,9 @@ public class IJProcessing {
      * @return
      */
     private static DoublePredicate createThresholdPredicate(ImageProcessor ip) {
-        if (!ip.isThreshold())
+        if (!ip.isThreshold()) {
             return v -> false;
+        }
         double minThreshold = ip.getMinThreshold();
         double maxThreshold = ip.getMaxThreshold();
         return v -> v >= minThreshold && v <= maxThreshold;
@@ -308,69 +307,73 @@ public class IJProcessing {
     /**
      * Pixelwise subtraction of one or more images from the first image passed as a parameter.
      * The input images are unchanged.
-     * @param ips
+     * @param ip the first image
+     * @param ipOthers additional images
      * @return a new image representing the result of the subtraction.
      */
-    public static ImageProcessor subtract(ImageProcessor... ips) {
-        return blitter(Blitter.SUBTRACT, ips);
+    public static <T extends ImageProcessor> T subtract(T ip, ImageProcessor... ipOthers) {
+        return blitter(Blitter.SUBTRACT, ip, ipOthers);
     }
 
     /**
      * Pixelwise sum of input images.
      * The input images are unchanged.
-     * @param ips
+     * @param ip the first image
+     * @param ipOthers additional images
      * @return a new image representing the result of the addition.
      */
-    public static ImageProcessor add(ImageProcessor... ips) {
-        return blitter(Blitter.ADD, ips);
+    public static <T extends ImageProcessor> T add(T ip, ImageProcessor... ipOthers) {
+        return blitter(Blitter.ADD, ip, ipOthers);
     }
 
     /**
      * Pixelwise multiplication of the input images.
      * The input images are unchanged.
-     * @param ips
+     * @param ip the first image
+     * @param ipOthers additional images
      * @return a new image representing the result of the multiplication.
      */
-    public static ImageProcessor multiply(ImageProcessor... ips) {
-        return blitter(Blitter.MULTIPLY, ips);
+    public static <T extends ImageProcessor> T multiply(T ip, ImageProcessor... ipOthers) {
+        return blitter(Blitter.MULTIPLY, ip, ipOthers);
     }
 
     /**
      * Pixelwise division of the input images.
      * The input images are unchanged.
-     * @param ips
+     * @param ip the first image
+     * @param ipOthers additional images
      * @return a new image representing the result of the division.
      */
-    public static ImageProcessor divide(ImageProcessor... ips) {
-        return blitter(Blitter.DIVIDE, ips);
+    public static <T extends ImageProcessor> T divide(T ip, ImageProcessor... ipOthers) {
+        return blitter(Blitter.DIVIDE, ip, ipOthers);
     }
 
     /**
      * Pixelwise maximum of the input images.
      * The input images are unchanged.
-     * @param ips
+     * @param ip the first image
+     * @param ipOthers additional images
      * @return a new image representing the result of the max operation.
      */
-    public static ImageProcessor max(ImageProcessor... ips) {
-        return blitter(Blitter.MAX, ips);
+    public static <T extends ImageProcessor> T max(T ip, ImageProcessor... ipOthers) {
+        return blitter(Blitter.MAX, ip, ipOthers);
     }
 
     /**
      * Pixelwise minimum of the input images.
      * The input images are unchanged.
-     * @param ips
+     * @param ip the first image
+     * @param ipOthers additional images
      * @return a new image representing the result of the min operation.
      */
-    public static ImageProcessor min(ImageProcessor... ips) {
-        return blitter(Blitter.MIN, ips);
+    public static <T extends ImageProcessor> T min(T ip, ImageProcessor... ipOthers) {
+        return blitter(Blitter.MIN, ip, ipOthers);
     }
 
-    private static ImageProcessor blitter(int operation, ImageProcessor... ips) {
-        if (ips.length == 0)
-            return null;
-        ImageProcessor ipResult = ips[0].duplicate();
-        for (int i = 1; i < ips.length; i++) {
-            ipResult.copyBits(ips[i], 0, 0, operation);
+    private static <T extends ImageProcessor> T blitter(int operation, T ip, ImageProcessor... ipOthers) {
+        T ipResult = (T)ip.duplicate();
+        for (var ip2 : ipOthers) {
+            ipResult.copyBits(ip2, 0, 0, operation);
         }
         return ipResult;
     }
