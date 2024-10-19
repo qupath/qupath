@@ -41,7 +41,6 @@ import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
 import qupath.lib.scripting.LoggingTools;
 import qupath.lib.scripting.QP;
-import qupathj.QuPath_Send_Overlay_to_QuPath;
 
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
@@ -88,8 +87,21 @@ public class ImageJScriptRunner {
         NONE, ANNOTATION, DETECTION, TILE, CELL, TMA_CORE
     }
 
-    public enum RunForObjects {
-        IMAGE, SELECTED, ANNOTATIONS, DETECTIONS, TILES, CELLS, TMA_CORES
+    public enum ApplyToObjects {
+        SELECTED, IMAGE, ANNOTATIONS, DETECTIONS, TILES, CELLS, TMA_CORES;
+
+        @Override
+        public String toString() {
+            return switch(this) {
+                case IMAGE -> "Whole image";
+                case SELECTED -> "Selected objects";
+                case ANNOTATIONS -> "All annotations";
+                case DETECTIONS -> "All detections";
+                case TILES -> "All tiles";
+                case CELLS -> "All cells";
+                case TMA_CORES -> "All TMA cores";
+            };
+        }
     }
 
     private final ImageJScriptParameters params;
@@ -174,6 +186,11 @@ public class ImageJScriptRunner {
     }
 
     private void run(final ImageData<BufferedImage> imageData, final Collection<? extends PathObject> pathObjects) {
+        if (pathObjects.isEmpty()) {
+            logger.warn("No objects found for script (requested {})", params.applyToObjects);
+            return;
+        }
+
         var taskRunner = params.getTaskRunner();
 
         int[] idsBefore = WindowManager.getIDList();
@@ -225,11 +242,40 @@ public class ImageJScriptRunner {
     }
 
     private List<PathObject> getObjectsToProcess(PathObjectHierarchy hierarchy) {
-        var selected = List.copyOf(hierarchy.getSelectionModel().getSelectedObjects());
-        if (selected.isEmpty())
-           return List.of(hierarchy.getRootObject());
-        else
-            return selected;
+        return getObjectsToProcess(hierarchy, params.getApplyToObjects());
+    }
+
+
+    /**
+     * Query which objects in a hierarchy would be used with the specified {@link ApplyToObjects} value.
+     * @param hierarchy
+     * @param applyTo
+     * @return a list of all objects that are compatible with the type
+     */
+    public static List<PathObject> getObjectsToProcess(PathObjectHierarchy hierarchy, ApplyToObjects applyTo) {
+        if (applyTo == null || hierarchy == null)
+            return Collections.emptyList();
+        return switch (applyTo) {
+            case IMAGE -> List.of(hierarchy.getRootObject());
+            case ANNOTATIONS -> List.copyOf(hierarchy.getAnnotationObjects());
+            case DETECTIONS -> List.copyOf(hierarchy.getDetectionObjects());
+            case CELLS -> List.copyOf(hierarchy.getCellObjects());
+            case TILES -> List.copyOf(hierarchy.getTileObjects());
+            case TMA_CORES -> hierarchy.getTMAGrid() == null ? List.of() : List.copyOf(hierarchy.getTMAGrid().getTMACoreList());
+            case SELECTED -> {
+                // We want the main selected object to be first, so that it is the one used during testing
+                var selected = new ArrayList<>(hierarchy.getSelectionModel().getSelectedObjects());
+                var mainSelected = hierarchy.getSelectionModel().getSelectedObject();
+                if (mainSelected != null && !(!selected.isEmpty() && selected.getFirst() == mainSelected)) {
+                    selected.remove(mainSelected);
+                    selected.addFirst(mainSelected);
+                }
+//                if (selected.isEmpty())
+//                    yield List.of(hierarchy.getRootObject());
+//                else
+                yield selected;
+            }
+        };
     }
 
     private void run(final ImageData<BufferedImage> imageData, final PathObject pathObject, boolean isTest) {
@@ -563,6 +609,8 @@ public class ImageJScriptRunner {
         private PathObjectType activeRoiObjectType = null;
         private PathObjectType overlayRoiObjectType = null;
 
+        private ApplyToObjects applyToObjects = ApplyToObjects.SELECTED;
+
         private String scriptEngine;
 
         private boolean addToWorkflow = false;
@@ -662,6 +710,16 @@ public class ImageJScriptRunner {
          */
         public String getScriptEngineName() {
             return scriptEngine;
+        }
+
+        /**
+         * Get the objects to which this script should be applied.
+         * By default this is {@link ApplyToObjects#SELECTED}, but it is possible to request that
+         * the script is always applied to objects of a specific type.
+         * @return
+         */
+        public ApplyToObjects getApplyToObjects() {
+            return applyToObjects;
         }
 
         /**
@@ -995,6 +1053,16 @@ public class ImageJScriptRunner {
          */
         public Builder addToWorkflow(boolean doAdd) {
             params.addToWorkflow = doAdd;
+            return this;
+        }
+
+        /**
+         * Specify the objects that the script should be applied to.
+         * @param objectType
+         * @return this builder
+         */
+        public Builder applyToObjects(ApplyToObjects objectType) {
+            params.applyToObjects = objectType;
             return this;
         }
 

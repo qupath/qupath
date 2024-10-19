@@ -149,7 +149,7 @@
                            <tooltip>
                               <Tooltip text="%ui.apply.label.tooltip" />
                            </tooltip></Label>
-                        <ChoiceBox fx:id="choiceSelectAll" prefWidth="182.0">
+                        <ChoiceBox fx:id="choiceApplyTo" prefWidth="182.0">
                            <tooltip>
                               <Tooltip text="%ui.apply.label.tooltip" />
                            </tooltip></ChoiceBox>

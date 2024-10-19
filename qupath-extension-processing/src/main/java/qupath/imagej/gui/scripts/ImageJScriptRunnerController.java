@@ -156,6 +156,9 @@ public class ImageJScriptRunnerController extends BorderPane {
     private ObjectProperty<ImageJScriptRunner.PathObjectType> returnOverlayType =
             PathPrefs.createPersistentPreference(PREFS_KEY + "returnOverlayType", ImageJScriptRunner.PathObjectType.NONE, ImageJScriptRunner.PathObjectType.class);
 
+    private ObjectProperty<ImageJScriptRunner.ApplyToObjects> applyToObjects =
+            PathPrefs.createPersistentPreference(PREFS_KEY + "applyToObjects", ImageJScriptRunner.ApplyToObjects.SELECTED, ImageJScriptRunner.ApplyToObjects.class);
+
     // No objects should be returned from the macro
     private BooleanBinding noReturnObjects = (returnRoiType.isNull().or(returnRoiType.isEqualTo(ImageJScriptRunner.PathObjectType.NONE)))
             .and(returnOverlayType.isNull().or(returnOverlayType.isEqualTo(ImageJScriptRunner.PathObjectType.NONE)));
@@ -198,7 +201,7 @@ public class ImageJScriptRunnerController extends BorderPane {
     private ChoiceBox<ImageJScriptRunner.PathObjectType> choiceReturnRoi;
 
     @FXML
-    private ChoiceBox<ImageJScriptRunner.PathObjectType> choiceSelectAll;
+    private ChoiceBox<ImageJScriptRunner.ApplyToObjects> choiceApplyTo;
 
     @FXML
     private Label labelResolution;
@@ -267,7 +270,7 @@ public class ImageJScriptRunnerController extends BorderPane {
         initTitle();
         initResolutionChoices();
         initReturnObjectTypeChoices();
-        initSelectObjectTypeChoices();
+        initApplyToObjectTypes();
         bindPreferences();
         initMenus();
         initRunButton();
@@ -388,19 +391,13 @@ public class ImageJScriptRunnerController extends BorderPane {
     }
 
 
-    private void initSelectObjectTypeChoices() {
-        var availableTypes = List.of(
-                ImageJScriptRunner.PathObjectType.ANNOTATION,
-                ImageJScriptRunner.PathObjectType.DETECTION,
-                ImageJScriptRunner.PathObjectType.TILE,
-                ImageJScriptRunner.PathObjectType.CELL,
-                ImageJScriptRunner.PathObjectType.TMA_CORE);
-        choiceSelectAll.getItems().setAll(availableTypes);
-        choiceSelectAll.setConverter(
+    private void initApplyToObjectTypes() {
+        var availableTypes = List.of(ImageJScriptRunner.ApplyToObjects.values());
+        choiceApplyTo.getItems().setAll(availableTypes);
+        choiceApplyTo.setConverter(
                 MappedStringConverter.createFromFunction(
-                        ImageJScriptRunnerController::typeToName, ImageJScriptRunner.PathObjectType.values()));
-        // TODO: Create persistent preference
-        choiceSelectAll.getSelectionModel().selectFirst();
+                        ImageJScriptRunner.ApplyToObjects::toString, ImageJScriptRunner.ApplyToObjects.values()));
+        applyToObjects.bindBidirectional(choiceApplyTo.valueProperty());
     }
 
 
@@ -409,7 +406,9 @@ public class ImageJScriptRunnerController extends BorderPane {
                 imageDataProperty.isNull()
                         .or(macroText.isEmpty())
                         .or(downsampleCalculatorProperty.isNull())
-                        .or(runningTask.isNotNull()));
+                        .or(runningTask.isNotNull())
+                        .or(applyToObjects.isNull())
+        );
         miRun.disableProperty().bind(btnRunMacro.disableProperty());
         btnTest.disableProperty().bind(btnRunMacro.disableProperty());
     }
@@ -680,6 +679,9 @@ public class ImageJScriptRunnerController extends BorderPane {
     private void handleRun(boolean isTest) {
 
         var imageData = imageDataProperty.get();
+        var applyToType = applyToObjects.get();
+        if (!checkForCompatibleObjects(imageData, applyToType))
+            return;
 
         String macroText = this.macroText.get();
         var downsampleCalculator = this.downsampleCalculatorProperty.get();
@@ -711,6 +713,7 @@ public class ImageJScriptRunnerController extends BorderPane {
                 .channels(channels)
                 .nThreads(nThreads)
                 .taskRunner(new TaskRunnerFX(qupath, nThreads))
+                .applyToObjects(applyToType)
                 .clearChildObjects(clearChildObjects)
                 .build();
 
@@ -732,6 +735,18 @@ public class ImageJScriptRunnerController extends BorderPane {
                     }
                 }));
     }
+
+    private static boolean checkForCompatibleObjects(ImageData<?> imageData, ImageJScriptRunner.ApplyToObjects applyType) {
+        if (imageData == null) {
+            return false;
+        }
+       if (ImageJScriptRunner.getObjectsToProcess(imageData.getHierarchy(), applyType).isEmpty()) {
+           Dialogs.showWarningNotification(title, "No compatible objects found for the option '" + applyType + "'");
+           return false;
+       }
+       return true;
+    }
+
 
     private static String estimateScriptEngine(String macroText) {
         if (macroText.contains("import ij") || macroText.contains("ij.IJ"))
