@@ -58,8 +58,11 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.IntStream;
 
@@ -276,6 +279,17 @@ public class ImageJScriptRunner {
         ImagePlusProperties.setTypeProperty(imp, imageData.getImageType());
         ImagePlusProperties.setRegionProperty(imp, region);
 
+        // Retain a reference to the original Rois that were sent, to ensure we don't just convert them straight back
+        Set<Roi> roisSent = new HashSet<>();
+        if (imp.getRoi() != null)
+            roisSent.add(imp.getRoi());
+        var overlaySent = imp.getOverlay();
+        if (overlaySent != null) {
+            for (var r : overlaySent.toArray()) {
+                roisSent.add(r);
+            }
+        }
+
         // Actually run the macro
         WindowManager.setTempCurrentImage(imp);
         IJExtension.getImageJInstance(); // Ensure we've requested an instance, since this also loads any required extra plugins
@@ -349,10 +363,12 @@ public class ImageJScriptRunner {
                 changes = true;
             }
             var activeRoiToObject = params.getActiveRoiToObjectFunction();
-            if (activeRoiToObject != null && impResult.getRoi() != null) {
+            // If we set the ROI in ImageJ, use it to mask what we get back
+            var maskROI = params.doSetRoi() ? pathROI : null;
+            if (activeRoiToObject != null && impResult.getRoi() != null && !roisSent.contains(impResult.getRoi())) {
                 Roi roi = impResult.getRoi();
                 Calibration cal = impResult.getCalibration();
-                var pathObjectNew = createNewObject(activeRoiToObject, roi, cal, downsampleFactor, region.getImagePlane(), pathROI);
+                var pathObjectNew = createNewObject(activeRoiToObject, roi, cal, downsampleFactor, region.getImagePlane(), maskROI);
                 if (pathObjectNew != null) {
                     pathObject.addChildObject(pathObjectNew);
                     pathObject.setLocked(true); // Lock if we add anything
@@ -363,8 +379,13 @@ public class ImageJScriptRunner {
             var overlayRoiToObject = params.getOverlayRoiToObjectFunction();
             if (overlayRoiToObject != null && impResult.getOverlay() != null) {
                 var overlay = impResult.getOverlay();
-                List<PathObject> childObjects = QuPath_Send_Overlay_to_QuPath.createObjectsFromROIs(imp,
-                        List.of(overlay.toArray()), downsampleFactor, overlayRoiToObject, true, region.getImagePlane());
+                Calibration cal = impResult.getCalibration();
+                var childObjects = Arrays.stream(overlay.toArray())
+                        .parallel()
+                        .filter(r -> !roisSent.contains(r))
+                        .map(r -> createNewObject(overlayRoiToObject, r, cal, downsampleFactor, region.getImagePlane(), maskROI))
+                        .filter(Objects::nonNull)
+                        .toList();
                 if (!childObjects.isEmpty()) {
                     pathObject.addChildObjects(childObjects);
                     pathObject.setLocked(true); // Lock if we add anything

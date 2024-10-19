@@ -24,6 +24,9 @@ run("8-bit");
 
 // Loop through thresholds
 for (i=0; i < methods.length; i++) {
+    // Reset the Roi so it isn't influencing the threshold
+    run("Select None");
+
     // Set the threshold
     method = methods[i];
     if (darkBackground) {
@@ -35,7 +38,7 @@ for (i=0; i < methods.length; i++) {
     run("Create Selection");
     // Assign group (classification) & add Roi to the overlay
     if (selectionType != -1) {
-        Roi.setGroup(i);
+        Roi.setGroup(i+1);
         Overlay.addSelection();
     } else {
         print("No Roi for " + method);
