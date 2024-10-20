@@ -27,7 +27,6 @@ import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -96,13 +95,8 @@ public class CodeAreaControl implements ScriptEditorControl<VirtualizedScrollPan
 	private Popup popup;
 	private ListView<AutoCompletions.Completion> listCompletions;
 
-	CodeAreaControl(boolean isEditable) {
-		this(new CodeArea(), isEditable);
-	}
-	
-	CodeAreaControl(final CodeArea codeArea, boolean isEditable) {
-		Objects.requireNonNull(codeArea);
-		this.codeArea = codeArea;
+	private CodeAreaControl(boolean isEditable) {
+		this.codeArea = createCodeArea();
 		this.codeArea.setEditable(isEditable);
 		this.codeArea.textProperty().addListener((o, v, n) -> textProperty.set(n));
 		textProperty.addListener((o, v, n) -> {
@@ -114,7 +108,25 @@ public class CodeAreaControl implements ScriptEditorControl<VirtualizedScrollPan
 		scrollpane = new VirtualizedScrollPane<>(this.codeArea);
 		if (isEditable) {
 			initializeEditable();
+		} else {
+			initializeLog();
 		}
+	}
+
+	/**
+	 * Create a code area with some 'standard' customizations (e.g. style sheet).
+	 * @return
+	 */
+	private static CodeArea createCodeArea() {
+		var codeArea = new CustomCodeArea();
+		// Turned off by default in CodeArea... but I think it helps by retaining the most recent style
+		// Particularly noticeable with markdown
+		codeArea.setUseInitialStyleForInsertion(false);
+		// Be sure to add stylesheet
+		var url = RichScriptEditor.class.getClassLoader().getResource("scripting_styles.css");
+		if (url != null)
+			codeArea.getStylesheets().add(url.toExternalForm());
+		return codeArea;
 	}
 
 	/**
@@ -140,6 +152,34 @@ public class CodeAreaControl implements ScriptEditorControl<VirtualizedScrollPan
 		this.initEditableCleanup();
 		this.codeArea.addEventFilter(KeyEvent.KEY_TYPED, this::handleKeyTyped);
 		this.codeArea.addEventFilter(KeyEvent.KEY_PRESSED, this::handleKeyPressed);
+	}
+
+	private void initializeLog() {
+		codeArea.plainTextChanges()
+				.subscribe(c -> {
+					// If anything was removed, do full reformatting
+					// Otherwise, format from the position of the edit
+					int start = Integer.MAX_VALUE;
+					if (!c.getRemoved().isEmpty()) {
+						start = 0;
+					} else
+						start = Math.min(start, c.getPosition());
+					if (start < Integer.MAX_VALUE) {
+						String text = codeArea.getText();
+						// Make sure we return to the last newline
+						while (start > 0 && text.charAt(start) != '\n')
+							start--;
+
+						if (start > 0) {
+							text = text.substring(start);
+						}
+						var styler = this.styler;
+						if (styler == null)
+							styler = ScriptStylerProvider.PLAIN;
+						codeArea.setStyleSpans(start, styler.computeConsoleStyles(text, true));
+					}
+				});
+		codeArea.setEditable(false);
 	}
 	
 	@Override

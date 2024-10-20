@@ -1794,18 +1794,28 @@ public class DefaultScriptEditor implements ScriptEditor {
 		}
 		
 	};
-	
-	
-	protected static String getClipboardText(boolean escapeCharacters) {
+
+	/**
+	 * Get the text from the system clipboard, optionally escaping characters.
+	 * This is useful when trying to avoid path trouble on Windows with unescaped characters.
+	 * <p>
+	 * This command also queries the clipboard for files, using their paths where available.
+	 *
+	 * @param escapeCharacters if true, escape characters using Java language rules
+	 * @return the clipboard text
+	 */
+	public static String getClipboardText(boolean escapeCharacters) {
 		var clipboard = Clipboard.getSystemClipboard();
 		var files = clipboard.getFiles();
 		String text = clipboard.getString();
 		if (files != null && !files.isEmpty()) {
 			String s;
 			if (files.size() == 1)
-				s = files.get(0).getAbsolutePath();
+				s = files.getFirst().getAbsolutePath();
 			else {
-				s = "[" + files.stream().map(f -> "\"" + f.getAbsolutePath() + "\"").collect(Collectors.joining("," + System.lineSeparator())) + "]";
+				s = "[" + files.stream()
+						.map(f -> "\"" + f.getAbsolutePath() + "\"")
+						.collect(Collectors.joining("," + System.lineSeparator())) + "]";
 			}
 			if ("\\".equals(File.separator)) {
 				s = s.replace("\\", "/");

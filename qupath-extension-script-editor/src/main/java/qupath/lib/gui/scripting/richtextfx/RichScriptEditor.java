@@ -23,24 +23,15 @@
 
 package qupath.lib.gui.scripting.richtextfx;
 
-import javafx.beans.value.ObservableValue;
-import org.fxmisc.richtext.CodeArea;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleObjectProperty;
-import javafx.beans.value.ObservableBooleanValue;
-import javafx.beans.value.ObservableObjectValue;
 import javafx.scene.control.ContextMenu;
-import javafx.scene.input.Clipboard;
 import javafx.scene.layout.Region;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.scripting.DefaultScriptEditor;
 import qupath.lib.gui.scripting.ScriptEditorControl;
-import qupath.lib.gui.scripting.richtextfx.stylers.ScriptStyler;
 import qupath.lib.gui.tools.MenuTools;
-import qupath.lib.scripting.languages.ScriptLanguage;
 
 /*
  * 
@@ -73,8 +64,6 @@ public class RichScriptEditor extends DefaultScriptEditor {
 	
 	private static final Logger logger = LoggerFactory.getLogger(RichScriptEditor.class);
 
-	private final ObjectProperty<ScriptStyler> scriptStyler = new SimpleObjectProperty<>();
-
 	private ContextMenu menu;
 	
 	/**
@@ -103,16 +92,10 @@ public class RichScriptEditor extends DefaultScriptEditor {
 
 	}
 
-	private void handleLanguageChange(ObservableValue<? extends ScriptLanguage> value, ScriptLanguage oldValue,
-									  ScriptLanguage newValue) {
-		var tab = getCurrentScriptTab();
-
-	}
-
 	@Override
 	protected ScriptEditorControl<? extends Region> getNewEditor() {
 		try {
-			var editor = createEditor();
+			var editor = CodeAreaControl.createCodeEditor();
 			var codeArea = editor.getRegion().getContent();
 			codeArea.setOnContextMenuRequested(e -> menu.show(codeArea.getScene().getWindow(), e.getScreenX(), e.getScreenY()));
 			return editor;
@@ -123,83 +106,20 @@ public class RichScriptEditor extends DefaultScriptEditor {
 		}
 	}
 
-	private static CodeAreaControl createEditor() {
-		CodeArea codeArea = createCodeArea();
-		return new CodeAreaControl(codeArea, true);
+	static CodeAreaControl createLogConsole() {
+		return CodeAreaControl.createLog();
 	}
-	
-	
-	static CodeAreaControl createLogConsole(ObservableObjectValue<ScriptStyler> scriptStyler, ObservableBooleanValue useLogHighlighting) {
-		
-		CodeArea codeArea = createCodeArea();
-		codeArea.plainTextChanges()
-			.subscribe(c -> {
-			// If anything was removed, do full reformatting
-			// Otherwise, format from the position of the edit
-			int start = Integer.MAX_VALUE;
-			if (!c.getRemoved().isEmpty()) {
-				start = 0;
-			} else
-				start = Math.min(start, c.getPosition());
-			if (start < Integer.MAX_VALUE) {
-				String text = codeArea.getText();
-				// Make sure we return to the last newline
-				while (start > 0 && text.charAt(start) != '\n')
-					start--;
-				
-				if (start > 0) {
-					text = text.substring(start);
-				}
-				codeArea.setStyleSpans(start, scriptStyler.get().computeConsoleStyles(text, useLogHighlighting.get()));
-			}
-		});
-		codeArea.setEditable(false);
-		return new CodeAreaControl(codeArea, false);
 
-	}
-	
-	
-	/**
-	 * Create a code area with some 'standard' customizations (e.g. style sheet).
-	 * @return 
-	 */
-	static CodeArea createCodeArea() {
-		var codeArea = new CustomCodeArea();
-		// Turned off by default in CodeArea... but I think it helps by retaining the most recent style
-		// Particularly noticeable with markdown
-		codeArea.setUseInitialStyleForInsertion(false);
-		// Be sure to add stylesheet
-		codeArea.getStylesheets().add(RichScriptEditor.class.getClassLoader().getResource("scripting_styles.css").toExternalForm());
-		return codeArea;
-	}
-	
-	
 	
 	@Override
 	protected ScriptEditorControl<? extends Region> getNewConsole() {
 		try {
-			return createLogConsole(scriptStyler, sendLogToConsoleProperty());
+			return createLogConsole();
 		} catch (Exception e) {
 			// Default to superclass implementation
 			logger.error("Unable to create console area", e);
 			return super.getNewEditor();
 		}
 	}
-	
-	static class CustomCodeArea extends CodeArea {
-		
-		/**
-		 * We need to override the default Paste command to handle escaping
-		 */
-		@Override
-		public void paste() {
-			var text = getClipboardText(false);
-			if (text != null) {
-				if (text.equals(Clipboard.getSystemClipboard().getString()))
-					super.paste();
-				else
-					replaceSelection(text);
-			}
-		}
-	}
+
 }
