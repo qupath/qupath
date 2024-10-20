@@ -23,7 +23,7 @@
 
 <fx:root maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="350.0" minWidth="300.0" prefHeight="500.0" prefWidth="600.0" stylesheets="@ij-script-runner.css" type="BorderPane" xmlns="http://javafx.com/javafx/23" xmlns:fx="http://javafx.com/fxml/1">
    <center>
-      <TitledPane fx:id="titledMacro" collapsible="false" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" text="%ui.title.script" BorderPane.alignment="CENTER">
+      <TitledPane fx:id="titledScript" collapsible="false" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" text="%ui.title.script" BorderPane.alignment="CENTER">
          <content>
             <TextArea fx:id="textAreaMacro" promptText="%ui.macro.placeholder" styleClass="macro" />
          </content>

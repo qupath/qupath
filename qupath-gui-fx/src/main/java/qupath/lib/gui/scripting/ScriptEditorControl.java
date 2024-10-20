@@ -31,6 +31,7 @@ import javafx.scene.control.ContextMenu;
 import javafx.scene.control.IndexRange;
 import javafx.scene.layout.Region;
 import qupath.lib.gui.logging.TextAppendable;
+import qupath.lib.scripting.languages.ScriptLanguage;
 
 /**
  * Basic script editor control using JavaFX.
@@ -48,79 +49,79 @@ public interface ScriptEditorControl<T extends Region>  extends TextAppendable, 
 	 * Text currently in the editor control.
 	 * @return
 	 */
-	public StringProperty textProperty();
+	StringProperty textProperty();
 		
 	/**
 	 * Get the range of the currently-selected text.
 	 * @return
 	 */
-	public IndexRange getSelection();
+	IndexRange getSelection();
 	
 	@Override
-	public default int getSelectionStart() {
+	default int getSelectionStart() {
 		return getSelection().getStart();
 	}
 
 	@Override
-	public default int getSelectionEnd() {
+	default int getSelectionEnd() {
 		return getSelection().getEnd();
 	}
 	
 	/**
 	 * Request paste from the system clipboard.
 	 */
-	public void paste();
+	void paste();
 
 
 	/**
 	 * Text currently selected in the editor control.
 	 * @return
 	 */
-	public ObservableValue<String> selectedTextProperty();
+	ObservableValue<String> selectedTextProperty();
 		
 	/**
 	 * Returns true if 'undo' can be applied to the control.
 	 * @return
 	 */
-	public boolean isUndoable();
+	boolean isUndoable();
 	
 	/**
 	 * Returns true if 'redo' can be applied to the control.
 	 * @return
 	 */
-	public boolean isRedoable();
+	boolean isRedoable();
 	
 	/**
 	 * Get the region representing this control, so it may be added to a scene.
 	 * @return
 	 */
-	public T getRegion();
+	T getRegion();
 	
 	/**
 	 * Request undo.
 	 */
-	public void undo();
+	void undo();
 	
 	/**
 	 * Request redo.
 	 */
-	public void redo();
+	void redo();
 	
 	/**
 	 * Request copy the current selection.
 	 */
-	public void copy();
+	void copy();
 	
 	/**
 	 * Request cut the current selection.
 	 */
-	public void cut();
+	void cut();
 	
 	/**
 	 * Request wordwrap.
 	 * @return
 	 */
-	public BooleanProperty wrapTextProperty();
+	BooleanProperty wrapTextProperty();
 
 	/**
 	 * Request that the X and Y scrolls are adjusted to ensure the caret is visible.
@@ -128,7 +129,7 @@ public interface ScriptEditorControl<T extends Region>  extends TextAppendable, 
 	 * This method does nothing by default. 
 	 * This means that a class extending this interface must specifically implement this method if a different behavior is expected.
 	 */
-	public default void requestFollowCaret() {
+	default void requestFollowCaret() {
 		return;
 	}
 	
@@ -138,25 +139,45 @@ public interface ScriptEditorControl<T extends Region>  extends TextAppendable, 
 	 * @see #getCaretPosition()
 	 * @see #positionCaret(int)
 	 */
-	public ReadOnlyIntegerProperty caretPositionProperty();
+	ReadOnlyIntegerProperty caretPositionProperty();
 	
 	/**
 	 * Set the context menu for the control.
 	 * @param menu
 	 */
-	public void setContextMenu(ContextMenu menu);
+	void setContextMenu(ContextMenu menu);
 	
 	/**
 	 * Get the context menu for the control.
 	 * @return
 	 */
-	public ContextMenu getContextMenu();
+	ContextMenu getContextMenu();
 
 	/**
 	 * Request that the control is focused.
 	 */
 	default void requestFocus() {
 		getRegion().requestFocus();
+	}
+
+	/**
+	 * Set the language for text to be displayed by this control.
+	 * <p>
+	 * The default implementation does nothing.
+	 * Implementing classes may choose to change the control's behavior based on the language.
+	 * @param language
+	 */
+	default void setLanguage(ScriptLanguage language) {}
+
+	/**
+	 * Get any language stored for text to be displayed by this control.
+	 * <p>
+	 * The default implementation always returns null.
+	 * Implementing classes may choose to store any set language, and modify the control's behavior accordingly.
+	 * @return
+	 */
+	default ScriptLanguage getLanguage() {
+		return null;
 	}
 
 }

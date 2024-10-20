@@ -707,6 +707,10 @@ public class DefaultScriptEditor implements ScriptEditor {
 		return new TextAreaControl(false);
 	}
 
+	public ScriptEditorControl<?> createNewEditor() {
+		return getNewEditor();
+	}
+
 	protected ScriptEditorControl<?> getNewEditor() {
 		TextArea editor = new CustomTextArea();
 		editor.setFont(fontMain);
@@ -723,7 +727,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	        } else if (e.isShortcutDown() && e.getCode() == KeyCode.SLASH) {
 	        	syntax.handleLineComment(control);
 	        	e.consume();
-	        } else if (e.getCode() == KeyCode.ENTER && control.getSelectedText().length() == 0) {
+	        } else if (e.getCode() == KeyCode.ENTER && control.getSelectedText().isEmpty()) {
 	        	syntax.handleNewLine(control, smartEditing.get());
 				e.consume();
 			}

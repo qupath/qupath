@@ -39,13 +39,17 @@ import qupath.fx.dialogs.FileChoosers;
 import qupath.fx.utils.FXUtils;
 import qupath.imagej.gui.scripts.downsamples.DownsampleCalculator;
 import qupath.imagej.gui.scripts.downsamples.DownsampleCalculators;
+import qupath.imagej.gui.scripts.macro.ImageJMacroLanguage;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.TaskRunnerFX;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.prefs.SystemMenuBar;
+import qupath.lib.gui.scripting.ScriptEditorControl;
+import qupath.lib.gui.scripting.TextAreaControl;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ColorTransforms;
+import qupath.lib.scripting.languages.ScriptLanguage;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
@@ -213,7 +217,7 @@ public class ImageJScriptRunnerController extends BorderPane {
     private TextField tfResolution;
 
     @FXML
-    private TitledPane titledMacro;
+    private TitledPane titledScript;
 
     @FXML
     private TitledPane titledOptions;
@@ -234,6 +238,8 @@ public class ImageJScriptRunnerController extends BorderPane {
     private MenuItem miRun;
 
     private ObjectProperty<DownsampleCalculator> downsampleCalculatorProperty = new SimpleObjectProperty<>();
+
+    private ScriptEditorControl<?> scriptEditorControl;
 
     private StringProperty macroText = new SimpleStringProperty("");
     private StringProperty lastSavedText = new SimpleStringProperty("");
@@ -265,7 +271,7 @@ public class ImageJScriptRunnerController extends BorderPane {
     private void init() {
         this.imageDataProperty.bind(qupath.imageDataProperty());
         this.imageDataProperty.addListener(this::handleImageDataChange);
-        this.macroText.bind(textAreaMacro.textProperty());
+        initEditor();
         initThreads();
         initTitle();
         initResolutionChoices();
@@ -278,10 +284,39 @@ public class ImageJScriptRunnerController extends BorderPane {
         initChannels();
     }
 
+    private void initEditor() {
+        try {
+            this.scriptEditorControl = createScriptEditorControl();
+            this.titledScript.setContent(this.scriptEditorControl.getRegion());
+        } catch (Exception e) {
+            this.scriptEditorControl = null;
+            logger.warn("Unable to create editor from the default script editor: {}", e.getMessage(), e);
+        }
+        // If something goes horribly wrong, wrap our existing text area
+        if (this.scriptEditorControl == null)
+            this.scriptEditorControl = new TextAreaControl(textAreaMacro, true);
+        this.macroText.bind(scriptEditorControl.textProperty());
+    }
+
     private void initTitle() {
-        titledMacro.textProperty().bind(
+        titledScript.textProperty().bind(
                 Bindings.createStringBinding(this::getMacroPaneTitle, unsavedChanges)
         );
+    }
+
+    private static ScriptEditorControl<?> createScriptEditorControl() {
+        try {
+            // Try to get the rich text control by reflection
+            var cls = Class.forName("qupath.lib.gui.scripting.richtextfx.CodeAreaControl");
+            var method = cls.getMethod("createCodeEditor");
+            var editor = method.invoke(null);
+            var methodLanguage = cls.getMethod("setLanguage", ScriptLanguage.class);
+            methodLanguage.invoke(editor, ImageJMacroLanguage.getInstance());
+            return (ScriptEditorControl<?>) editor;
+        } catch (Exception | Error e) {
+            logger.warn("Unable to find rich text code editor - will default to basic editor");
+            return new TextAreaControl(true);
+        }
     }
 
     private String getMacroPaneTitle() {
@@ -397,7 +432,10 @@ public class ImageJScriptRunnerController extends BorderPane {
         choiceApplyTo.setConverter(
                 MappedStringConverter.createFromFunction(
                         ImageJScriptRunner.ApplyToObjects::toString, ImageJScriptRunner.ApplyToObjects.values()));
-        applyToObjects.bindBidirectional(choiceApplyTo.valueProperty());
+        choiceApplyTo.valueProperty().bindBidirectional(applyToObjects);
+        if (choiceApplyTo.valueProperty().get() == null)
+            choiceApplyTo.setValue(ImageJScriptRunner.ApplyToObjects.SELECTED);
+
     }
 
 
@@ -414,8 +452,10 @@ public class ImageJScriptRunnerController extends BorderPane {
     }
 
     private void initMenus() {
-        miUndo.disableProperty().bind(textAreaMacro.undoableProperty().not());
-        miRedo.disableProperty().bind(textAreaMacro.redoableProperty().not());
+        if (scriptEditorControl.getRegion() instanceof TextArea textArea) {
+            miUndo.disableProperty().bind(textArea.undoableProperty().not());
+            miRedo.disableProperty().bind(textArea.redoableProperty().not());
+        }
         SystemMenuBar.manageChildMenuBar(menuBar);
 
         menuExamples.visibleProperty().bind(Bindings.isNotEmpty(menuExamples.getItems()));
@@ -596,38 +636,38 @@ public class ImageJScriptRunnerController extends BorderPane {
             if (!Dialogs.showYesNoDialog(title, resources.getString("dialogs.discardUnsaved")))
                 return;
         }
-        textAreaMacro.setText("");
+        scriptEditorControl.setText("");
         lastSavedText.set("");
         lastSavedPath.set(null);
     }
 
     @FXML
     public void doCopy(ActionEvent event) {
-        textAreaMacro.copy();
+        scriptEditorControl.copy();
         event.consume();
     }
 
     @FXML
     public void doPaste(ActionEvent event) {
-        textAreaMacro.paste();
+        scriptEditorControl.paste();
         event.consume();
     }
 
     @FXML
     public void doCut(ActionEvent event) {
-        textAreaMacro.cut();
+        scriptEditorControl.cut();
         event.consume();
     }
 
     @FXML
     public void doUndo(ActionEvent event) {
-        textAreaMacro.undo();
+        scriptEditorControl.undo();
         event.consume();
     }
 
     @FXML
     public void doRedo(ActionEvent event) {
-        textAreaMacro.redo();
+        scriptEditorControl.redo();
         event.consume();
     }
 
@@ -647,7 +687,7 @@ public class ImageJScriptRunnerController extends BorderPane {
                 }
             }
             // Changes saved
-            textAreaMacro.setText(text);
+            scriptEditorControl.setText(text);
             lastSavedText.set(text);
             lastSavedPath.set(path);
         } catch (IOException e) {
