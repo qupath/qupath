@@ -123,10 +123,14 @@ tasks.register("assembleJavadocs", Copy) {
     group = "documentation"
     description = "Copies the Javadoc jars to a directory for access within QuPath"
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-    dependsOn rootProject.subprojects.tasks.collect {it.withType(Jar)}
+
+    dependsOn rootProject.subprojects.collect {it.tasks.withType(Jar)}
 
     def subProjectsJavadoc = rootProject.subprojects
-            .collect {it.layout.buildDirectory.dir("libs").get().getAsFileTree().getFiles().findAll {it.name.contains("javadoc")}}
+            .collect {it.layout.buildDirectory.dir("libs").get()
+                    .getAsFileTree()
+                    .getFiles()
+                    .findAll {it.name.contains("javadoc")}}
             .findAll {it.size() == 1}
             .collect {it.toList().get(0)}
     def dependenciesJavadoc = dependencies.createArtifactResolutionQuery()
@@ -223,7 +227,9 @@ distributions {
             }
             // Copy javadocs
             into('lib/docs') {
-                from layout.buildDirectory.dir("javadocs")
+                from javadocJar
+                from this.project.layout.buildDirectory.dir("javadocs").get()
+                include '*.jar'
             }
         }
     }
