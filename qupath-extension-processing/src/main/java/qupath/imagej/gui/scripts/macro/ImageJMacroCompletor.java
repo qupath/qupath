@@ -19,7 +19,6 @@
  * #L%
  */
 
-
 package qupath.imagej.gui.scripts.macro;
 
 import ij.macro.MacroConstants;

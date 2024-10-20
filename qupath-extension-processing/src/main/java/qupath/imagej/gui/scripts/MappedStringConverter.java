@@ -8,7 +8,8 @@ import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-public class MappedStringConverter<T> extends StringConverter<T> {
+// TODO: Move this to qupath-fxtras
+class MappedStringConverter<T> extends StringConverter<T> {
 
     private final Map<T, String> map;
 

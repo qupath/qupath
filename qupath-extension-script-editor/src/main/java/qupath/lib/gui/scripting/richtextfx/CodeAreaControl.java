@@ -27,6 +27,7 @@ import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -350,20 +351,32 @@ public class CodeAreaControl implements ScriptEditorControl<VirtualizedScrollPan
 		return caretReadOnly;
 	}
 
+	@Override
 	public void setLanguage(ScriptLanguage language) {
+		if (Objects.equals(this.language, language))
+			return;
 		this.language = language;
 		updateSyntax();
 		updateStyler();
 	}
 
+	@Override
 	public ScriptLanguage getLanguage() {
 		return language;
 	}
 
+	/**
+	 * Request smart editing, e.g. to insert closing parentheses.
+	 * @param smartEditing
+	 */
 	public void setSmartEditing(boolean smartEditing) {
 		this.smartEditing = smartEditing;
 	}
 
+	/**
+	 * Check whether smart editing is requested.
+	 * @return
+	 */
 	public boolean getSmartEditing() {
 		return smartEditing;
 	}

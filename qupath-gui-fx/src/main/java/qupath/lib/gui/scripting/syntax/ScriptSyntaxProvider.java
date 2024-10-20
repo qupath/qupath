@@ -48,7 +48,7 @@ public class ScriptSyntaxProvider {
 
 
 	private static ServiceLoader<ScriptSyntax> serviceLoader = ServiceLoader.load(ScriptSyntax.class);
-//
+
 	private static final Collection<ScriptSyntax> availableSyntaxes = loadAvailableScriptSyntaxes();
 	
 
@@ -105,7 +105,14 @@ public class ScriptSyntaxProvider {
 		logger.debug("No syntax found for {}", name);
 		return PLAIN;
 	}
-	
-	
+
+	/**
+	 * Install a new {@link ScriptSyntax} programmatically.
+	 * @param syntax
+	 * @return
+	 */
+	public static boolean installSyntax(ScriptSyntax syntax) {
+		return availableSyntaxes.add(syntax);
+	}
 	
 }

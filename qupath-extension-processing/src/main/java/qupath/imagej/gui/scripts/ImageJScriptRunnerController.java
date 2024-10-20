@@ -40,6 +40,7 @@ import qupath.fx.utils.FXUtils;
 import qupath.imagej.gui.scripts.downsamples.DownsampleCalculator;
 import qupath.imagej.gui.scripts.downsamples.DownsampleCalculators;
 import qupath.imagej.gui.scripts.macro.ImageJMacroLanguage;
+import qupath.imagej.gui.scripts.macro.ImageJMacroSyntax;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.TaskRunnerFX;
@@ -47,6 +48,8 @@ import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.prefs.SystemMenuBar;
 import qupath.lib.gui.scripting.ScriptEditorControl;
 import qupath.lib.gui.scripting.TextAreaControl;
+import qupath.lib.gui.scripting.languages.ScriptLanguageProvider;
+import qupath.lib.gui.scripting.syntax.ScriptSyntaxProvider;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ColorTransforms;
 import qupath.lib.scripting.languages.ScriptLanguage;
@@ -64,6 +67,7 @@ import java.nio.file.Paths;
 import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -81,11 +85,17 @@ public class ImageJScriptRunnerController extends BorderPane {
 
     private final QuPathGUI qupath;
 
+    static {
+        ScriptSyntaxProvider.installSyntax(new ImageJMacroSyntax());
+    }
+
     private static final ResourceBundle resources = ResourceBundle.getBundle("qupath.imagej.gui.scripts.strings");
 
     private static final String title = resources.getString("title");
 
     private static final String PREFS_KEY = "ij.scripts.";
+
+    private static final Map<String, ScriptLanguage> languageCache = new HashMap<>();
 
     /**
      * Options for specifying how the resolution of an image region is determined.
@@ -296,6 +306,8 @@ public class ImageJScriptRunnerController extends BorderPane {
         if (this.scriptEditorControl == null)
             this.scriptEditorControl = new TextAreaControl(textAreaMacro, true);
         this.macroText.bind(scriptEditorControl.textProperty());
+        this.macroText.addListener((v, o, n) -> updateLanguage());
+        updateLanguage();
     }
 
     private void initTitle() {
@@ -317,6 +329,22 @@ public class ImageJScriptRunnerController extends BorderPane {
             logger.warn("Unable to find rich text code editor - will default to basic editor");
             return new TextAreaControl(true);
         }
+    }
+
+    /**
+     * Currently, we 'guess' language based on the macro contents.
+     * In the future, it may be possible to set this explicitly.
+     */
+    private void updateLanguage() {
+        var text = macroText.getValueSafe();
+        ScriptLanguage language = null;
+        if (text.contains("IJ.getImage()") || text.contains("import ")) {
+            language = languageCache.computeIfAbsent("groovy", ScriptLanguageProvider::fromString);
+        }
+        if (language == null)
+            this.scriptEditorControl.setLanguage(ImageJMacroLanguage.getInstance());
+        else
+            this.scriptEditorControl.setLanguage(language);
     }
 
     private String getMacroPaneTitle() {
