@@ -19,14 +19,15 @@
  * #L%
  */
 
-package qupath.imagej.gui.scripts.macro;
+package qupath.lib.gui.scripting.languages;
 
-import qupath.lib.gui.scripting.languages.DefaultScriptLanguage;
+import qupath.lib.gui.scripting.completors.ImageJMacroCompletor;
+import qupath.lib.scripting.languages.ScriptAutoCompletor;
+import qupath.lib.scripting.languages.ScriptLanguage;
 
 import java.util.Collections;
-import java.util.ServiceLoader;
 
-public class ImageJMacroLanguage extends DefaultScriptLanguage {
+public class ImageJMacroLanguage extends ScriptLanguage {
 
     /**
      * Constant representing the name of this language.
@@ -34,21 +35,12 @@ public class ImageJMacroLanguage extends DefaultScriptLanguage {
      */
     public static final String NAME = "ImageJ macro";
 
-    /**
-     * Instance of this language. Can't be final because of {@link ServiceLoader}.
-     */
     private static final ImageJMacroLanguage INSTANCE = new ImageJMacroLanguage();
 
-    /**
-     * Constructor for ImageJ macro language. This constructor should never be
-     * called. Instead, use the static {@link #getInstance()} method.
-     * <p>
-     * Note: this has to be public for the {@link ServiceLoader} to work.
-     */
+    private ImageJMacroCompletor completor = new ImageJMacroCompletor();
+
     private ImageJMacroLanguage() {
-        super(NAME, Collections.singleton(".ijm"), new ImageJMacroCompletor());
-        if (INSTANCE != null)
-            throw new UnsupportedOperationException("Language classes cannot be instantiated more than once!");
+        super(NAME, Collections.singleton(".ijm"));
     }
 
     /**
@@ -57,6 +49,11 @@ public class ImageJMacroLanguage extends DefaultScriptLanguage {
      */
     public static ImageJMacroLanguage getInstance() {
         return INSTANCE;
+    }
+
+    @Override
+    public ScriptAutoCompletor getAutoCompletor() {
+        return completor;
     }
 
 }

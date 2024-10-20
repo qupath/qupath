@@ -19,20 +19,20 @@
  * #L%
  */
 
-package qupath.imagej.gui.scripts.macro;
+package qupath.lib.gui.scripting.syntax;
 
-import qupath.lib.gui.scripting.syntax.GeneralCodeSyntax;
+import qupath.lib.gui.scripting.languages.ImageJMacroLanguage;
 
 import java.util.Set;
 
 /**
  * Basic syntax support for the ImageJ macro language.
  */
-public class ImageJMacroSyntax extends GeneralCodeSyntax {
+class ImageJMacroSyntax extends GeneralCodeSyntax {
 
     @Override
     public Set<String> getLanguageNames() {
-        return Set.of("ImageJ macro");
+        return Set.of(ImageJMacroLanguage.NAME);
     }
 
     @Override

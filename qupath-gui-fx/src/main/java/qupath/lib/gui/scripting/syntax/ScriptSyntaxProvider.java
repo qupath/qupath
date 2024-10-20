@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2022 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2022, 2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -25,6 +25,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.ServiceLoader;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,6 +43,7 @@ public class ScriptSyntaxProvider {
 	public static final ScriptSyntax XML = new XmlSyntax();
 	public static final ScriptSyntax YAML = new YamlSyntax();
 	public static final ScriptSyntax JSON = new JsonSyntax();
+	public static final ScriptSyntax IMAGEJ_MACRO = new ImageJMacroSyntax();
 	public static final ScriptSyntax PLAIN = new PlainSyntax();
 	public static final ScriptSyntax PROPERTIES = new PropertiesSyntax();
 	public static final ScriptSyntax PYTHON = new PythonSyntax();
@@ -68,10 +70,11 @@ public class ScriptSyntaxProvider {
 		availableSyntaxes.add(XML);
 		availableSyntaxes.add(YAML);
 		availableSyntaxes.add(JSON);
+		availableSyntaxes.add(IMAGEJ_MACRO);
 		availableSyntaxes.add(PYTHON);
 		availableSyntaxes.add(PLAIN);
 		availableSyntaxes.add(PROPERTIES);
-		
+
 		logger.debug("Number of script syntax items loaded: {}", availableSyntaxes.size());
 		return availableSyntaxes;
 	}

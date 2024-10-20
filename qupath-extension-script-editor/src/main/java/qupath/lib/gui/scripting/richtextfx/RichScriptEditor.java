@@ -96,6 +96,7 @@ public class RichScriptEditor extends DefaultScriptEditor {
 	protected ScriptEditorControl<? extends Region> getNewEditor() {
 		try {
 			var editor = CodeAreaControl.createCodeEditor();
+			editor.setLanguage(getCurrentLanguage());
 			var codeArea = editor.getRegion().getContent();
 			codeArea.setOnContextMenuRequested(e -> menu.show(codeArea.getScene().getWindow(), e.getScreenX(), e.getScreenY()));
 			return editor;

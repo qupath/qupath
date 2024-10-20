@@ -19,17 +19,17 @@
  * #L%
  */
 
-package qupath.imagej.gui.scripts.macro;
+package qupath.lib.gui.scripting.completors;
 
 import ij.macro.MacroConstants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qupath.lib.gui.scripting.completors.DefaultAutoCompletor;
 import qupath.lib.scripting.languages.AutoCompletions;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -43,7 +43,7 @@ public class ImageJMacroCompletor extends DefaultAutoCompletor  {
      * Constructor.
      */
     public ImageJMacroCompletor() {
-        super(false);
+        super(Collections.emptyList());
         try {
             addCompletions(readCompletionsFromResource());
         } catch (Exception e) {

@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2023 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2023 - 2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -21,10 +21,8 @@
 
 package qupath.lib.gui.scripting.languages;
 
-import java.util.ServiceLoader;
 import java.util.Set;
 
-import qupath.lib.scripting.languages.ScriptAutoCompletor;
 import qupath.lib.scripting.languages.ScriptLanguage;
 
 /**
@@ -35,25 +33,10 @@ import qupath.lib.scripting.languages.ScriptLanguage;
  */
 public class PropertiesLanguage extends ScriptLanguage {
 	
-	/**
-	 * Instance of this language. Can't be final because of {@link ServiceLoader}.
-	 */
-	private static PropertiesLanguage INSTANCE;
+	private static final PropertiesLanguage INSTANCE = new PropertiesLanguage();
 
-	/**
-	 * Constructor for a Java properties as a script editor language. This constructor should never be 
-	 * called. Instead, use the static {@link #getInstance()} method.
-	 * <p>
-	 * Note: this has to be public for the {@link ServiceLoader} to work.
-	 */
-	public PropertiesLanguage() {
+	private PropertiesLanguage() {
 		super("Properties", Set.of(".properties", ".cfg"));
-		
-		if (INSTANCE != null)
-			throw new UnsupportedOperationException("Language classes cannot be instantiated more than once!");
-		
-		// Because of ServiceLoader, have to assign INSTANCE here.
-		PropertiesLanguage.INSTANCE = this;
 	}
 	
 	/**
@@ -63,9 +46,5 @@ public class PropertiesLanguage extends ScriptLanguage {
 	public static PropertiesLanguage getInstance() {
 		return INSTANCE;
 	}
-	
-	@Override
-	public ScriptAutoCompletor getAutoCompletor() {
-		return null;
-	}
+
 }

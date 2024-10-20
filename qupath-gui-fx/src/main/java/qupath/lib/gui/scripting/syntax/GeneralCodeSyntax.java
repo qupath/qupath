@@ -28,7 +28,7 @@ import qupath.lib.gui.scripting.EditableText;
  * @author Melvin Gelbard
  * @since v0.4.0
  */
-public abstract class GeneralCodeSyntax implements ScriptSyntax {
+abstract class GeneralCodeSyntax implements ScriptSyntax {
 
 	/**
 	 * Handle left parentheses '{@code (}' by automatically adding a right parenthesis '{@code )}' after if not already present.

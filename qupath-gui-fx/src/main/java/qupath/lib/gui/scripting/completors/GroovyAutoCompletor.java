@@ -24,6 +24,7 @@ package qupath.lib.gui.scripting.completors;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
@@ -56,12 +57,18 @@ public class GroovyAutoCompletor extends DefaultAutoCompletor {
 	}
 	
 	/**
-	 * Constructor.
-	 * @param addQuPathCompletions if true, add standard Java completions for core QuPath classes.
+	 * Constructor using the default code completions for QuPath.
 	 */
-	public GroovyAutoCompletor(boolean addQuPathCompletions) {
-		super(addQuPathCompletions);
+	public GroovyAutoCompletor() {
+		super();
 		addCompletions(GROOVY_AUTOCOMPLETIONS);		
+	}
+
+	/**
+	 * Constructor that supports a custom set of completions.
+	 */
+	public GroovyAutoCompletor(Collection<? extends Completion> completions) {
+		super(completions);
 	}
 
 }
