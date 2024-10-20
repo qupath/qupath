@@ -23,20 +23,58 @@
 package qupath.imagej.gui.scripts.macro;
 
 import ij.macro.MacroConstants;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.lib.gui.scripting.completors.DefaultAutoCompletor;
 import qupath.lib.scripting.languages.AutoCompletions;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.util.List;
 
 /**
  * And autocompletor for the ImageJ macro language.
  */
 public class ImageJMacroCompletor extends DefaultAutoCompletor  {
 
+    private static final Logger logger = LoggerFactory.getLogger(ImageJMacroCompletor.class);
+
     /**
      * Constructor.
      */
     public ImageJMacroCompletor() {
         super(false);
+        try {
+            addCompletions(readCompletionsFromResource());
+        } catch (Exception e) {
+            logger.debug("Unable to read ImageJ macro autocompletions: {}", e.getMessage(), e);
+            addCompletionsFromCode();
+        }
+    }
 
+    /**
+     * Attempt to read autocompletions from a resource file containing built-in macro functions.
+     * @return
+     * @throws IOException
+     */
+    private List<AutoCompletions.Completion> readCompletionsFromResource() throws IOException {
+        try (var stream = ImageJMacroCompletor.class.getResourceAsStream("ij-macro-functions.txt")) {
+            try (var reader = new BufferedReader(new InputStreamReader(stream))) {
+                return reader.lines()
+                        .map(String::strip)
+                        .filter(l -> !l.isBlank() && !l.startsWith("//") && !l.startsWith("#"))
+                        .map(ImageJMacroCompletor::resourceCompletion)
+                        .toList();
+            }
+        }
+    }
+
+    /**
+     * Add autocompletions by querying MacroConstants.
+     * These aren't as informative as using a resource that contains more information.
+     */
+    private void addCompletionsFromCode() {
         for (var keyword : MacroConstants.keywords) {
             addCompletion(keywordCompletion(keyword, null));
         }
@@ -57,6 +95,33 @@ public class ImageJMacroCompletor extends DefaultAutoCompletor  {
         }
         for (var fun : MacroConstants.stringFunctions) {
             addCompletion(functionCompletion(fun, "string function"));
+        }
+    }
+
+    private static AutoCompletions.Completion resourceCompletion(String text) {
+        return AutoCompletions.createJavaCompletion(null, text, textToCompletion(text));
+    }
+
+    private static String textToCompletion(String text) {
+        int indParen = text.indexOf("(");
+        if (indParen <= 0) {
+            // No parentheses needed
+            return text;
+        }
+        int indParenClose = text.indexOf(")");
+        if (indParenClose <= indParen+1) {
+            // No arguments - use unchanged
+            return text;
+        }
+        String functionName = text.substring(0, indParen);
+        String arg = text.substring(indParen+1, indParenClose).strip();
+        if (arg.startsWith("\"") && arg.endsWith("\"") &&
+                arg.replaceAll("\"", "").length() == arg.length() - 2) {
+            // We have a function taking a single constant text argument - so we use that unchanged
+            return text;
+        } else {
+            // We have a function taking some other arguments - the user will need to figure out which
+            return functionName + "()";
         }
     }
 
