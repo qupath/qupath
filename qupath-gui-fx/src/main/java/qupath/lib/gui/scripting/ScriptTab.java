@@ -151,7 +151,7 @@ public class ScriptTab {
 	}
 	
 	boolean hasScript() {
-		return editor.getText().length() > 0;
+		return !editor.getText().isEmpty();
 	}
 
 	ScriptEditorControl<? extends Region> getConsoleControl() {
@@ -218,6 +218,7 @@ public class ScriptTab {
 	
 	void setLanguage(final ScriptLanguage language) {
 		this.language = language;
+		this.editor.setLanguage(language);
 	}
 	
 	Set<String> getRequestedExtensions() {

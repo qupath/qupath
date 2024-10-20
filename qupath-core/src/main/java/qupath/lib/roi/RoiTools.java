@@ -112,9 +112,13 @@ public class RoiTools {
 		case ADD:
 			return GeometryTools.geometryToROI(area1.union(area2), shape1.getImagePlane());
 		case INTERSECT:
-			return GeometryTools.geometryToROI(area1.intersection(area2), shape1.getImagePlane());
+			return GeometryTools.geometryToROI(
+					GeometryTools.homogenizeGeometryCollection(area1.intersection(area2)),
+					shape1.getImagePlane());
 		case SUBTRACT:
-			return GeometryTools.geometryToROI(area1.difference(area2), shape1.getImagePlane());
+			return GeometryTools.geometryToROI(
+					GeometryTools.homogenizeGeometryCollection(area1.difference(area2)),
+					shape1.getImagePlane());
 		default:
 			throw new IllegalArgumentException("Unknown op " + op);
 		}

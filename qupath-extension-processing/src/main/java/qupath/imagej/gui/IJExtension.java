@@ -34,6 +34,7 @@ import ij.gui.Roi;
 import javafx.application.Platform;
 import javafx.beans.property.StringProperty;
 import javafx.geometry.Orientation;
+import javafx.scene.Scene;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.Separator;
@@ -58,6 +59,8 @@ import java.util.WeakHashMap;
 import java.util.function.Predicate;
 import javax.swing.SwingUtilities;
 
+import javafx.scene.layout.BorderPane;
+import javafx.stage.Stage;
 import org.controlsfx.control.action.Action;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -71,6 +74,7 @@ import qupath.imagej.detect.cells.WatershedCellMembraneDetection;
 import qupath.imagej.detect.dearray.TMADearrayerPluginIJ;
 import qupath.imagej.detect.tissue.PositivePixelCounterIJ;
 import qupath.imagej.detect.tissue.SimpleTissueDetection2;
+import qupath.imagej.gui.scripts.ImageJScriptRunnerController;
 import qupath.imagej.superpixels.DoGSuperpixelsPlugin;
 import qupath.imagej.superpixels.SLICSuperpixelsPlugin;
 import qupath.imagej.tools.IJTools;
@@ -382,14 +386,14 @@ public class IJExtension implements QuPathExtension {
 					Roi roi = IJTools.convertToIJRoi(child.getROI(), xOrigin, yOrigin, downsample);
 					roi.setStrokeColor(color);
 					roi.setName(child.getDisplayedName());
-					//						roi.setStrokeWidth(2);
 					overlay.add(roi);
 				}
 				if (isCell && (options == null || options.getShowCellNuclei())) {
-					ROI nucleus = ((PathCellObject)child).getNucleusROI();
+					PathCellObject cell = (PathCellObject) child;
+					ROI nucleus = cell.getNucleusROI();
 					if (nucleus == null)
 						continue;
-					Roi roi = IJTools.convertToIJRoi(((PathCellObject)child).getNucleusROI(), xOrigin, yOrigin, downsample);
+					Roi roi = IJTools.convertToIJRoi(nucleus, xOrigin, yOrigin, downsample);
 					roi.setStrokeColor(color);
 					roi.setName(child.getDisplayedName() + " - nucleus");
 					overlay.add(roi);
@@ -492,8 +496,15 @@ public class IJExtension implements QuPathExtension {
 		public final Action SEP_4 = ActionTools.createSeparator();
 
 		@ActionMenu(value = {"Menu.Extensions", "ImageJ>"})
-		@ActionConfig("Action.ImageJ.macroRunner")
-		public final Action actionMacroRunner;
+		@ActionConfig("Action.ImageJ.legacyMacroRunner")
+		@Deprecated
+		public final Action actionLegacyMacroRunner;
+
+		private final ScriptRunnerWrapper scriptRunner;
+
+		@ActionMenu(value = {"Menu.Extensions", "ImageJ>"})
+		@ActionConfig("Action.ImageJ.scriptRunner")
+		public final Action actionScriptRunner;
 				
 		IJExtensionCommands(QuPathGUI qupath) {
 			
@@ -504,9 +515,11 @@ public class IJExtension implements QuPathExtension {
 			actionExtractRegion = qupath.createImageDataAction(imageData -> commandExtractRegionCustom.run());
 
 			var screenshotCommand = new ScreenshotCommand(qupath);
-			actionSnapshot = ActionTools.createAction(screenshotCommand);		
-			
-			actionMacroRunner = createPluginAction(new ImageJMacroRunner(qupath));
+			actionSnapshot = ActionTools.createAction(screenshotCommand);
+
+			actionLegacyMacroRunner = createPluginAction(new ImageJMacroRunner(qupath));
+			scriptRunner = new ScriptRunnerWrapper(qupath);
+			actionScriptRunner = scriptRunner.createAction();
 			
 			actionSLIC = createPluginAction(SLICSuperpixelsPlugin.class);
 			actionDoG = createPluginAction(DoGSuperpixelsPlugin.class);
@@ -536,6 +549,53 @@ public class IJExtension implements QuPathExtension {
 		}
 		
 		
+	}
+
+	private static class ScriptRunnerWrapper {
+
+		private final QuPathGUI qupath;
+
+		private final String title = ImageJScriptRunnerController.getTitle();
+
+		private Stage stage;
+		private ImageJScriptRunnerController controller;
+
+		private ScriptRunnerWrapper(QuPathGUI qupath) {
+			this.qupath = qupath;
+		}
+
+		Action createAction() {
+			return new Action(e -> showStage());
+		}
+
+		void openMacro(File file) {
+			showStage();
+			if (file != null) {
+				controller.openMacro(file.toPath());
+			}
+		}
+
+		private void showStage() {
+			if (stage == null) {
+				try {
+					stage = new Stage();
+					controller = ImageJScriptRunnerController.createInstance(qupath);
+					Scene scene = new Scene(new BorderPane(controller));
+					stage.setScene(scene);
+					stage.initOwner(QuPathGUI.getInstance().getStage());
+//					stage.setTitle(resources.getString("title"));
+					stage.setTitle(title);
+					stage.setResizable(true);
+					stage.setMinWidth(400);
+					stage.setMinHeight(400);
+				} catch (IOException e) {
+					Dialogs.showErrorMessage(title, "GUI loading failed");
+					logger.error("Unable to load InstanSeg FXML", e);
+				}
+			}
+			stage.show();
+		}
+
 	}
 
 
@@ -640,7 +700,7 @@ public class IJExtension implements QuPathExtension {
 					null,
 					commands.actionImageJDirectory,
 					null,
-					commands.actionMacroRunner
+					commands.actionScriptRunner
 			);
 			toolbar.getItems().add(btnImageJ);
 		} catch (Exception e) {
@@ -653,27 +713,27 @@ public class IJExtension implements QuPathExtension {
 		// TODO: Switch to use @ActionConfig
 		var actionTMADearray = qupath.createPluginAction(QuPathResources.getString("Action.ImageJ.tmaDearrayer"), TMADearrayerPluginIJ.class, null);
 		actionTMADearray.setLongText(QuPathResources.getString("Action.ImageJ.tmaDearrayer.description"));
-		menuTMA.getItems().add(0,
-						ActionTools.createMenuItem(actionTMADearray)
-				);
+		menuTMA.getItems().addFirst(ActionTools.createMenuItem(actionTMADearray));
 		
-		qupath.getDefaultDragDropListener().addFileDropHandler(new ImageJDropHandler(qupath));
+		qupath.getDefaultDragDropListener().addFileDropHandler(new ImageJDropHandler(qupath, commands));
 		
 	}
-	
+
 	
 	static class ImageJDropHandler implements DropHandler<File> {
 		
-		private QuPathGUI qupath;
+		private final QuPathGUI qupath;
+		private final IJExtensionCommands commands;
 		
-		private ImageJDropHandler(QuPathGUI qupath) {
+		private ImageJDropHandler(QuPathGUI qupath, IJExtensionCommands commands) {
 			this.qupath = qupath;
+			this.commands = commands;
 		}
 
 		@Override
 		public boolean handleDrop(QuPathViewer viewer, List<File> list) {
 			if (list.size() == 1) {
-				if (handleMacro(list.get(0)))
+				if (handleMacro(list.getFirst()))
 					return true;
 			}
 			return handleRois(viewer, list);
@@ -700,17 +760,9 @@ public class IJExtension implements QuPathExtension {
 		
 		
 		private boolean handleMacro(File file) {
-			// TODO: Handle embedding useful running info within ImageJ macro comments
 			if (file.getName().toLowerCase().endsWith(".ijm")) {
-				String macro;
-				try {
-					macro = GeneralTools.readFileAsString(file.getAbsolutePath());
-					qupath.runPlugin(new ImageJMacroRunner(qupath), macro, true);
-					return true;
-				} catch (Exception e) {
-					Dialogs.showErrorMessage("Error opening ImageJ macro", e);
-					logger.error(e.getMessage(), e);
-				}
+				commands.scriptRunner.openMacro(file);
+				return true;
 			}
 			return false;
 		}

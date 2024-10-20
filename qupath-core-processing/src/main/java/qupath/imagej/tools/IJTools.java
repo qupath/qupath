@@ -63,7 +63,7 @@ import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
 import ij.process.LUT;
 import ij.process.ShortProcessor;
-import qupath.imagej.processing.RoiLabeling;
+import qupath.imagej.processing.IJProcessing;
 import qupath.lib.analysis.images.SimpleImage;
 import qupath.lib.analysis.images.SimpleImages;
 import qupath.lib.awt.common.BufferedImageTools;
@@ -677,9 +677,9 @@ public class IJTools {
 					continue;
 				
 				wandNuclei.autoOutline(x, y, labelNucleus, labelNucleus, wandMode);
-				var nucleusRoi = RoiLabeling.wandToRoi(wandNuclei);
+				var nucleusRoi = IJProcessing.wandToRoi(wandNuclei);
 				wandCells.autoOutline(x, y, labelCell, labelCell, wandMode);
-				var cellRoi = RoiLabeling.wandToRoi(wandCells);
+				var cellRoi = IJProcessing.wandToRoi(wandCells);
 				
 				var roiNucleus = convertToROI(nucleusRoi, xOrigin, yOrigin, downsample, plane);
 				var roiCell = convertToROI(cellRoi, xOrigin, yOrigin, downsample, plane);
@@ -704,7 +704,7 @@ public class IJTools {
 				if (label == 0 || bpDone.get(x, y) != (byte)0)
 					continue;
 				wandCells.autoOutline(x, y, label, label, wandMode);
-				var cellRoi = RoiLabeling.wandToRoi(wandCells);
+				var cellRoi = IJProcessing.wandToRoi(wandCells);
 				var roiCell = convertToROI(cellRoi, xOrigin, yOrigin, downsample, plane);
 				// Use putIfAbsent as we'd rather retain the first cell (which might have a nucleus associated with it)
 				var previous = cells.putIfAbsent(label, PathObjects.createCellObject(roiCell, null, null, null));

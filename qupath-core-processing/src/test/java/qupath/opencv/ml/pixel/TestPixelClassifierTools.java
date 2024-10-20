@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2020, 2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -46,7 +46,7 @@ import org.slf4j.LoggerFactory;
 
 import ij.process.ByteProcessor;
 import ij.process.ImageStatistics;
-import qupath.imagej.processing.RoiLabeling;
+import qupath.imagej.processing.IJProcessing;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
@@ -70,14 +70,14 @@ class TestPixelClassifierTools {
 	/**
 	 * Optionally print areas (not just check they match)
 	 */
-	private static boolean printAreas = false;
+	private static final boolean printAreas = false;
 	
 	/**
 	 * Turn this on with caution... can be extremely slow for large images
 	 */
-	private static boolean alwaysCheckValidity = false;
+	private static final boolean alwaysCheckValidity = false;
 	
-	private static int MAX_POINTS_FOR_VALIDITY = 50_000;
+	private static final int MAX_POINTS_FOR_VALIDITY = 50_000;
 
 	
 	@ParameterizedTest
@@ -118,18 +118,14 @@ class TestPixelClassifierTools {
 		
 		// Check ImageJ labelling
 		var bpLabels = new ByteProcessor(img); 
-		var rois = RoiLabeling.labelsToConnectedROIs(bpLabels, max+1);
-		for (int i = 0; i < max+1; i++) {
+		var rois = IJProcessing.labelsToRoisArray(bpLabels);
+		for (int i = 0; i < max; i++) {
 			var roi = rois[i];
-			if (i >= max)
-				assertNull(roi);
-			else {
-				bpLabels.setRoi(roi);
-				int count = ImageStatistics.getStatistics(bpLabels).pixelCount;
-				assertEquals(count, hist[i+1]);
-				double area = ImageStatistics.getStatistics(bpLabels).area;
-				assertEquals(area, hist[i+1]);
-			}
+			bpLabels.setRoi(roi);
+			int count = ImageStatistics.getStatistics(bpLabels).pixelCount;
+			assertEquals(count, hist[i+1]);
+			double area = ImageStatistics.getStatistics(bpLabels).area;
+			assertEquals(area, hist[i+1]);
 		}
 		
 		// Create objects for all distinct pixel values (including 0)
@@ -172,7 +168,7 @@ class TestPixelClassifierTools {
 				server,
 				hierarchy,
 				Collections.singleton(hierarchy.getRootObject()),
-				r -> PathObjects.createAnnotationObject(r),
+                PathObjects::createAnnotationObject,
 				0, 0);
 		assertTrue(success);
 		
@@ -181,13 +177,13 @@ class TestPixelClassifierTools {
 		assertEquals(hist.length, annotations.size());
 		
 		// Check areas for all our annotations
-		Collections.sort(annotations, Comparator.comparingInt(a -> classificationLabelsReverse.get(a.getPathClass())));
+		annotations.sort(Comparator.comparingInt(a -> classificationLabelsReverse.get(a.getPathClass())));
 		for (var annotation : annotations) {
 			int label = classificationLabelsReverse.get(annotation.getPathClass());
 			var roi = annotation.getROI();
 			double area = roi.getArea();
 			if (printAreas)
-				logger.debug(hist[label] + ": \t" + area);
+                logger.debug("{}: \t{}", hist[label], area);
 			assertEquals(hist[label], area);
 			var geom = roi.getGeometry();
 			if (alwaysCheckValidity || geom.getNumPoints() < MAX_POINTS_FOR_VALIDITY) {
@@ -207,7 +203,7 @@ class TestPixelClassifierTools {
 				server,
 				hierarchy,
 				Collections.singleton(hierarchy.getRootObject()),
-				r -> PathObjects.createAnnotationObject(r),
+                PathObjects::createAnnotationObject,
 				0, 0,
 				CreateObjectOptions.DELETE_EXISTING, CreateObjectOptions.SPLIT);
 		assertTrue(success);

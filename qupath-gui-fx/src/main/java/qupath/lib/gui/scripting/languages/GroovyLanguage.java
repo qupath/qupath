@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2022, 2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -23,10 +23,11 @@
 
 package qupath.lib.gui.scripting.languages;
 
+import java.util.Collection;
 import java.util.Collections;
-import java.util.ServiceLoader;
 
 import qupath.lib.gui.scripting.completors.GroovyAutoCompletor;
+import qupath.lib.scripting.languages.AutoCompletions;
 import qupath.lib.scripting.languages.ExecutableLanguage;
 
 /**
@@ -38,34 +39,34 @@ import qupath.lib.scripting.languages.ExecutableLanguage;
  * @since v0.4.0
  */
 public class GroovyLanguage extends DefaultScriptLanguage implements ExecutableLanguage {
-	
-	/**
-	 * Instance of this language. Can't be final because of {@link ServiceLoader}.
-	 */
-	private static GroovyLanguage INSTANCE;
-	
-	/**
-	 * Constructor for Groovy Language. This constructor should never be 
-	 * called. Instead, use the static {@link #getInstance()} method.
-	 * <p>
-	 * Note: this has to be public for the {@link ServiceLoader} to work.
-	 */
-	public GroovyLanguage() {
-		super("Groovy", Collections.singleton(".groovy"), new GroovyAutoCompletor(true));
-		
-		if (INSTANCE != null)
-			throw new UnsupportedOperationException("Language classes cannot be instantiated more than once!");
-		
-		// Because of ServiceLoader, have to assign INSTANCE here.
-		GroovyLanguage.INSTANCE = this;
+
+	private static final GroovyLanguage INSTANCE_WITH_COMPLETIONS = new GroovyLanguage();
+	private static final GroovyLanguage INSTANCE_NO_COMPLETIONS = new GroovyLanguage(Collections.emptyList());
+
+	private GroovyLanguage(Collection<? extends AutoCompletions.Completion> completions) {
+		super("Groovy", Collections.singleton(".groovy"), new GroovyAutoCompletor(completions));
+	}
+
+	private GroovyLanguage() {
+		super("Groovy", Collections.singleton(".groovy"), new GroovyAutoCompletor());
 	}
 	
 	/**
-	 * Get the static instance of this class.
+	 * Get the static instance of this class, using the default code completions.
 	 * @return instance
 	 */
 	public static GroovyLanguage getInstance() {
-		return INSTANCE;
+		return INSTANCE_WITH_COMPLETIONS;
+	}
+
+	/**
+	 * Get an instead of this class that uses the specified code completions, rather than the defaults.
+	 * @return instance
+	 */
+	public static GroovyLanguage getInstanceWithCompletions(Collection<? extends AutoCompletions.Completion> completions) {
+		if (completions == null || completions.isEmpty())
+			return INSTANCE_NO_COMPLETIONS;
+		return new GroovyLanguage(completions);
 	}
 	
 	@Override
