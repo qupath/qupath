@@ -5,6 +5,7 @@ import ij.gui.Roi;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.images.ImageData;
+import qupath.lib.io.GsonTools;
 import qupath.lib.objects.PathObject;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
@@ -48,10 +49,16 @@ public class IJProperties {
     public static final String BACKGROUND_LIGHT = "light";
 
     /**
-     * Key for an {@link ImagePlus} property to store a string representing a QuPath
-     * {@link ImageRegion}.
+     * Key for a {@link ImagePlus} properties to store the bounding box of a QuPath {@link ImageRegion}.
+     * Each value (x, y, width, height) is stored as a separate entry.
      */
-    public static final String IMAGE_REGION = "qupath.image.region";
+    public static final String IMAGE_REGION_ROOT = "qupath.image.region.";
+
+    /**
+     * Key for an {@link ImagePlus} property to store a json representation of a {@link RegionRequest} used
+     * to request the image.
+     */
+    public static final String IMAGE_REQUEST = "qupath.image.request";
 
 
     /**
@@ -69,26 +76,26 @@ public class IJProperties {
             return null;
         String prop = String.format("[x=%d, y=%d, w=%d, h=%d, z=%d, t=%d]",
                 region.getX(), region.getY(), region.getWidth(), region.getHeight(), region.getZ(), region.getT());
-        imp.setProp(IMAGE_REGION, prop);
-        imp.setProp(IMAGE_REGION + ".x", region.getX());
-        imp.setProp(IMAGE_REGION + ".y", region.getY());
-        imp.setProp(IMAGE_REGION + ".width", region.getWidth());
-        imp.setProp(IMAGE_REGION + ".height", region.getHeight());
-        imp.setProp(IMAGE_REGION + ".z", region.getZ());
-        imp.setProp(IMAGE_REGION + ".t", region.getT());
+        imp.setProp(IMAGE_REGION_ROOT, prop);
+        imp.setProp(IMAGE_REGION_ROOT + "x", region.getX());
+        imp.setProp(IMAGE_REGION_ROOT + "y", region.getY());
+        imp.setProp(IMAGE_REGION_ROOT + "width", region.getWidth());
+        imp.setProp(IMAGE_REGION_ROOT + "height", region.getHeight());
+        imp.setProp(IMAGE_REGION_ROOT + "z", region.getZ());
+        imp.setProp(IMAGE_REGION_ROOT + "t", region.getT());
         if (region instanceof RegionRequest request) {
-            imp.setProp(IMAGE_REGION + ".downsample", request.getDownsample());
+            imp.setProp(IMAGE_REGION_ROOT + "downsample", request.getDownsample());
         }
         return prop;
     }
 
     public static ImageRegion getImageRegion(ImagePlus imp) {
-        String sx = imp.getProp(IMAGE_REGION + ".x");
-        String sy = imp.getProp(IMAGE_REGION + ".y");
-        String swidth = imp.getProp(IMAGE_REGION + ".width");
-        String sheight = imp.getProp(IMAGE_REGION + ".height");
-        String sz = imp.getProp(IMAGE_REGION + ".z");
-        String st = imp.getProp(IMAGE_REGION + ".t");
+        String sx = imp.getProp(IMAGE_REGION_ROOT + "x");
+        String sy = imp.getProp(IMAGE_REGION_ROOT + "y");
+        String swidth = imp.getProp(IMAGE_REGION_ROOT + "width");
+        String sheight = imp.getProp(IMAGE_REGION_ROOT + "height");
+        String sz = imp.getProp(IMAGE_REGION_ROOT + "z");
+        String st = imp.getProp(IMAGE_REGION_ROOT + "t");
         if (sx == null || sy == null || swidth == null || sheight == null)
             return null;
         int z = sz == null ? 0 : Integer.parseInt(sz);
@@ -104,6 +111,30 @@ public class IJProperties {
             logger.debug(e.getMessage(), e);
             return null;
         }
+    }
+
+    /**
+     * Store a json representation of a RegionRequest as a property in an image.
+     * @param imp the image
+     * @param request the request that corresponds to the image
+     * @return the json representation that is stored
+     * @see #IMAGE_REQUEST
+     */
+    public static String setRegionRequest(ImagePlus imp, RegionRequest request) {
+        var json = GsonTools.getInstance().toJson(request);
+        imp.setProp(IMAGE_REQUEST, json);
+        return json;
+    }
+
+    /**
+     * Get a RegionRequest by reading the json representation stored as a property in the image.
+     * @param imp the image
+     * @return the RegionRequest, or null if none is found
+     * @see #IMAGE_REQUEST
+     */
+    public static RegionRequest getRegionRequest(ImagePlus imp) {
+        var json = imp.getProp(IMAGE_REQUEST);
+        return json == null ? null : GsonTools.getInstance().fromJson(json, RegionRequest.class);
     }
 
     /**
@@ -140,6 +171,11 @@ public class IJProperties {
         return prop;
     }
 
+    /**
+     * Get the image background property value
+     * @param imp
+     * @return one of {@code "dark"}, {@code "light"} or {@code null}.
+     */
     public static String getImageBackground(ImagePlus imp) {
         return imp.getProp(IMAGE_BACKGROUND);
     }

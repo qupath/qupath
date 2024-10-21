@@ -361,9 +361,15 @@ public class ImageJScriptRunner {
         }
 
         // Set some useful properties
-        IJProperties.setImageBackground(imp, imageData.getImageType());
-        IJProperties.setImageType(imp, imageData.getImageType());
-        IJProperties.setImageRegion(imp, request);
+        try {
+            IJProperties.setImageBackground(imp, imageData.getImageType());
+            IJProperties.setImageType(imp, imageData.getImageType());
+            IJProperties.setImageRegion(imp, request);
+            IJProperties.setRegionRequest(imp, request);
+        } catch (Exception e) {
+            logger.warn("Exception setting properties: {}", e.getMessage());
+            logger.debug(e.getMessage(), e);
+        }
 
         // Actually run the macro or script
         WindowManager.setTempCurrentImage(imp);
