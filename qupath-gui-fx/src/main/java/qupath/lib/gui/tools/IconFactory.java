@@ -79,6 +79,7 @@ import javafx.scene.shape.Rectangle;
 import javafx.scene.shape.Shape;
 import javafx.scene.text.Text;
 import qupath.lib.geom.Point2;
+import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
@@ -960,6 +961,27 @@ public class IconFactory {
 			return null;
 		}
 	}
+
+
+	/**
+	 * Create a node from a FontAwesome Glyph.
+	 * @param glyph the glyph (should be part of the free FontAwesome collection supported by ControlsFX)
+	 * @param size the glyph size
+	 * @return a duplicatable node
+	 */
+	public static Node createNode(FontAwesome.Glyph glyph, int size) {
+		return new DuplicatableNode(() -> IconSuppliers.fontAwesome(glyph).apply(size));
+	}
+
+	/**
+	 * Create a node from a FontAwesome Glyph with the default size for toolbars.
+	 * @param glyph the glyph (should be part of the free FontAwesome collection supported by ControlsFX)
+	 * @return a duplicatable node
+	 */
+	public static Node createNode(FontAwesome.Glyph glyph) {
+		return new DuplicatableNode(() -> IconSuppliers.fontAwesome(glyph).apply(QuPathGUI.TOOLBAR_ICON_SIZE));
+	}
+
 
 	/**
 	 * Create an image from a default icon glyph.
