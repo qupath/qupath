@@ -568,21 +568,51 @@ public class IJTools {
 	public static void calibrateObject(PathObject pathObject, Roi roi) {
 		Color color = roi.getStrokeColor();
 		Integer colorRGB = color == null ? null : color.getRGB();
-		String name = roi.getName();
+		// Take name from properties first, then from Roi name
+		String name = IJProperties.getObjectName(roi);
+		if (name == null)
+			name = roi.getName();
 		if (name != null && !name.isBlank()) {
 			pathObject.setName(name);
 		}
-		if (roi.getGroup() > 0) {
-			// If the group is set, use it as a classification
-			int group = roi.getGroup();
-			var groupName = Roi.getGroupName(group);
-			if (groupName == null)
-				groupName = "Group " + group;
-			pathObject.setPathClass(PathClass.getInstance(groupName, colorRGB));
+		// Take classification from properties first
+		var classification = IJProperties.getClassification(roi);
+		if (classification != null) {
+			var pathClass = PathClass.fromString(classification, colorRGB);
+			pathObject.setPathClass(pathClass);
+		} else{
+			// Take classification from Roi group
+			if (roi.getGroup() > 0) {
+				// If the group is set, use it as a classification
+				int group = roi.getGroup();
+				var groupName = Roi.getGroupName(group);
+				if (groupName == null)
+					groupName = "Group " + group;
+				pathObject.setPathClass(PathClass.getInstance(groupName, colorRGB));
+			}
 		}
+		// Set color if we haven't already assigned a color via the classification
 		if (colorRGB != null && pathObject.getPathClass() == null) {
 			pathObject.setColor(colorRGB);
 		}
+		// Set ID if it is stored
+		var id = IJProperties.getObjectId(roi);
+		if (id != null) {
+			pathObject.setID(id);
+		}
+		// Set measurements, if stored
+		var measurements = IJProperties.getAllMeasurements(roi);
+		if (!measurements.isEmpty()) {
+			pathObject.getMeasurementList().putAll(measurements);
+		}
+	}
+
+
+	public static void calibrateRoi(Roi roi, PathObject pathObject) {
+		IJProperties.setClassification(roi, pathObject);
+		IJProperties.setObjectName(roi, pathObject);
+		IJProperties.setObjectId(roi, pathObject);
+		roi.setProperty("qupath.object.type", PathObjectTools.getSuitableName(pathObject.getClass(), false));
 	}
 	
 	
@@ -970,6 +1000,27 @@ public class IJTools {
 		double x = cal == null ? 0 : cal.xOrigin;
 		double y = cal == null ? 0 : cal.yOrigin;
 		return IJTools.convertToROI(roi, x, y, downsampleFactor, plane);
+	}
+
+	/**
+	 * Convert an ImageJ Roi to a QuPath ROI.
+	 * @param roi the ImageJ ROI
+	 * @param request the region request for the image that defines the coordinate space for the Roi
+	 * @return the QuPath ROI
+	 * @since v0.6.0
+	 */
+	public static ROI convertToROI(Roi roi, RegionRequest request) {
+		double xOrigin = 0;
+		double yOrigin = 0;
+		double downsampleFactor = 1.0;
+		ImagePlane plane = ImagePlane.getDefaultPlane();
+		if (request != null) {
+			downsampleFactor = request.getDownsample();
+			xOrigin = -request.getX() / downsampleFactor;
+			yOrigin = -request.getY() / downsampleFactor;
+			plane = request.getImagePlane();
+		}
+		return convertToROI(roi, xOrigin, yOrigin, downsampleFactor, plane);
 	}
 	
 	
