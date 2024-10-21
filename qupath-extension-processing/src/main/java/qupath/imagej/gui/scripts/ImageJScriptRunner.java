@@ -17,8 +17,8 @@ import qupath.fx.dialogs.Dialogs;
 import qupath.fx.utils.FXUtils;
 import qupath.imagej.gui.IJExtension;
 import qupath.imagej.tools.IJProperties;
-import qupath.imagej.gui.scripts.downsamples.DownsampleCalculator;
-import qupath.imagej.gui.scripts.downsamples.DownsampleCalculators;
+import qupath.lib.images.servers.downsamples.DownsampleCalculator;
+import qupath.lib.images.servers.downsamples.DownsampleCalculators;
 import qupath.imagej.tools.IJTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
@@ -61,6 +61,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.WeakHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.IntStream;
@@ -206,12 +207,19 @@ public class ImageJScriptRunner {
         int[] idsBefore = WindowManager.getIDList();
 
         List<Runnable> tasks = new ArrayList<>();
+        AtomicInteger successCount = new AtomicInteger();
+        AtomicInteger failCount = new AtomicInteger();
         for (var parent : pathObjects) {
-            tasks.add(() -> run(imageData, parent, false));
+            tasks.add(() -> {
+                if (run(imageData, parent, false))
+                    successCount.incrementAndGet();
+                else
+                    failCount.incrementAndGet();
+            });
         }
         taskRunner.runTasks("ImageJ scripts", tasks);
 
-        if (params.doAddToWorkflow()) {
+        if (params.doAddToWorkflow() && successCount.get() > 0) {
             addScriptToWorkflow(imageData, pathObjects);
         }
 
@@ -228,6 +236,11 @@ public class ImageJScriptRunner {
         }
         FXUtils.runOnApplicationThread(() -> imageData.getHierarchy().fireHierarchyChangedEvent(this));
         engineMap.clear();
+
+        if (failCount.get() > 0) {
+            Dialogs.showErrorMessage("ImageJ script runner",
+                    failCount.get() + "/" + tasks.size() + " tasks failed - see log for details");
+        }
     }
 
     /**
@@ -290,7 +303,7 @@ public class ImageJScriptRunner {
         };
     }
 
-    private void run(final ImageData<BufferedImage> imageData, final PathObject pathObject, boolean isTest) {
+    private boolean run(final ImageData<BufferedImage> imageData, final PathObject pathObject, boolean isTest) {
 
         if (imageData == null)
             throw new IllegalArgumentException("No image data available");
@@ -298,7 +311,7 @@ public class ImageJScriptRunner {
         // Don't try if interrupted
         if (Thread.currentThread().isInterrupted()) {
             logger.warn("Skipping macro for {} - thread interrupted", pathObject);
-            return;
+            return false;
         }
 
         // Extract parameters
@@ -306,19 +319,31 @@ public class ImageJScriptRunner {
 
         ImageServer<BufferedImage> server = getServer(imageData);
         var request = createRequest(server, pathObject);
+        if (request.getDownsample() <= 0) {
+            logger.warn("Downsample must be > 0, but it was {}", request.getDownsample());
+            return false;
+        }
 
         // Check the size of the region to extract - abort if it is too large of if there isn't enough RAM
         try {
-            double approxPixels = (double)request.getWidth() / request.getDownsample()
-                    * (double)request.getHeight() / request.getDownsample()
-                    * server.nChannels();
+            int width = (int)Math.round(request.getWidth() / request.getDownsample());
+            int height = (int)Math.round(request.getHeight() / request.getDownsample());
+            String propName = "qupath.imagej.scripts.maxDim";
+            int maxDim = Integer.parseInt(System.getProperty(propName, "20000"));
+            if (width > maxDim || height > maxDim) {
+                logger.error("Image would be {} x {} after downsampling, but max supported dimension is {}",
+                        width, height, maxDim);
+                logger.debug("Use System.setProperty(\"{}\", \"value\") to increase this value", propName);
+                return false;
+            }
             // Memory checks are expensive, so don't do them unless we have a big region
+            double approxPixels = (double)width * height * server.nChannels();
             if (approxPixels > 4096 * 4096 * 8) {
                 IJTools.isMemorySufficient(request, imageData);
             }
         } catch (Exception e1) {
-            Dialogs.showErrorMessage("ImageJ macro error", e1.getMessage());
-            return;
+            logger.error("Unable to process image: {}", e1.getMessage(), e1);
+            return false;
         }
 
         // Maintain a map of Rois we sent, so that we don't create unnecessary duplicate objects
@@ -357,7 +382,7 @@ public class ImageJScriptRunner {
             }
         } catch (IOException e) {
             logger.error("Unable to extract image region {}", request, e);
-            return;
+            return false;
         }
 
         // Set some useful properties
@@ -392,22 +417,33 @@ public class ImageJScriptRunner {
                     } catch (Exception e) {
                         Dialogs.showErrorNotification("ImageJ script", e);
                         Thread.currentThread().interrupt();
-                        return;
+                        return false;
                     }
                 } else {
                     // ImageJ macro
                     Interpreter interpreter = new Interpreter();
+
                     if (isTest) {
                         imp.show();
                         interpreter.run(script);
                     } else {
+                        // The error messages via AWT are really obtrusive - it's better to ignore them
+                        // and log them for the user
+                        interpreter.setIgnoreErrors(true);
                         impResult = interpreter.runBatchMacro(script, imp);
                     }
 
                     // If we had an error, return
-                    if (interpreter.wasError()) {
+                    var errorMessage = interpreter.getErrorMessage();
+                    if (interpreter.wasError() || errorMessage != null) {
                         Thread.currentThread().interrupt();
-                        return;
+                        if (isTest) {
+                            Dialogs.showErrorMessage("ImageJ", "Script failed at line " + interpreter.getLineNumber()
+                                    + "\n" + errorMessage);
+                        } else {
+                            logger.error("Error running script: {}", errorMessage);
+                        }
+                        return false;
                     }
                 }
 
@@ -422,7 +458,7 @@ public class ImageJScriptRunner {
                 WindowManager.setTempCurrentImage(null);
             }
             if (cancelled)
-                return;
+                return false;
 
 
             // Get the current image when the macro has finished - which may or may not be the same as the original
@@ -463,8 +499,10 @@ public class ImageJScriptRunner {
                     pathObject.setLocked(true); // Lock if we add anything
                 }
             }
+            return true;
         } catch (Exception e) {
             logger.error(e.getMessage(), e);
+            return false;
         }
 
     }
