@@ -518,19 +518,18 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 			return;
 		}
 
+		
+		// Check handlers
+		for (DropHandler<File> handler: dropHandlers) {
+			if (handler.handleDrop(viewer, list))
+				return;
+		}
 
 		// Open file with an extension supported by the Script Editor
 		ScriptEditor scriptEditor = qupath.getScriptEditor();
 		if (scriptEditor instanceof DefaultScriptEditor && ((DefaultScriptEditor)scriptEditor).supportsFile(file)) {
 			scriptEditor.showScript(file);
 			return;
-		}
-
-		
-		// Check handlers
-		for (DropHandler<File> handler: dropHandlers) {
-			if (handler.handleDrop(viewer, list))
-				return;
 		}
 
 		// Assume we have images
