@@ -27,6 +27,7 @@ import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.images.servers.TransformedServerBuilder;
 import qupath.lib.io.GsonTools;
+import qupath.lib.objects.PathCellObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
@@ -36,6 +37,7 @@ import qupath.lib.plugins.TaskRunnerUtils;
 import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
+import qupath.lib.roi.ROIs;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
 import qupath.lib.scripting.LoggingTools;
@@ -115,7 +117,7 @@ public class ImageJScriptRunner {
     private static final Writer writer = LoggingTools.createLogWriter(logger, Level.INFO);
     private static final Writer errorWriter = LoggingTools.createLogWriter(logger, Level.ERROR);
 
-    private Map<Thread, ScriptEngine> engineMap = new WeakHashMap<>();
+    private final Map<Thread, ScriptEngine> engineMap = new WeakHashMap<>();
 
     public ImageJScriptRunner(ImageJScriptParameters params) {
         this.params = params;
@@ -295,9 +297,6 @@ public class ImageJScriptRunner {
                     selected.remove(mainSelected);
                     selected.addFirst(mainSelected);
                 }
-//                if (selected.isEmpty())
-//                    yield List.of(hierarchy.getRootObject());
-//                else
                 yield selected;
             }
         };
@@ -355,7 +354,7 @@ public class ImageJScriptRunner {
             Predicate<PathObject> filter = null;
             // Add the main Roi, if needed
             if (params.doSetRoi() && pathObject.hasROI()) {
-                var roi = createRoi(pathObject, request);
+                var roi = createRois(pathObject, request, 0).getFirst();
                 if (roi != null) {
                     sentRois.put(roi, pathObject);
                     imp.setRoi(roi);
@@ -371,12 +370,14 @@ public class ImageJScriptRunner {
                 } else {
                     overlayObjects = imageData.getHierarchy().getAllObjectsForRegion(request);
                 }
+                int count = 0;
                 for (var temp : overlayObjects) {
                     if (filter != null && !filter.test(temp))
                         continue;
-                    var roi = createRoi(temp, request);
-                    sentRois.put(roi, temp);
-                    overlay.add(roi);
+                    for (var roi : createRois(temp, request, ++count)) {
+                        sentRois.put(roi, temp);
+                        overlay.add(roi);
+                    }
                 }
                 imp.setOverlay(overlay);
             }
@@ -521,10 +522,27 @@ public class ImageJScriptRunner {
             return IJTools.convertToImagePlus(server, request).getImage();
     }
 
-    private static Roi createRoi(PathObject pathObject, RegionRequest request) {
+    private static List<Roi> createRois(PathObject pathObject, RegionRequest request, int count) {
         var roi = IJTools.convertToIJRoi(pathObject.getROI(), request);
+        String defaultName = PathObjectTools.getSuitableName(pathObject.getClass(), false);
+        if (count > 0)
+            defaultName += " (" + count + ")";
+        roi.setName(defaultName);
         IJTools.calibrateRoi(roi, pathObject);
-        return roi;
+        if (pathObject instanceof PathCellObject cell) {
+            var nucleusRoi = cell.getNucleusROI();
+            String key = "qupath.object.type";
+            roi.setProperty(key, "cell");
+            if (nucleusRoi != null) {
+                var roi2 = IJTools.convertToIJRoi(nucleusRoi, request);
+                roi2.setName(defaultName);
+                IJTools.calibrateRoi(roi2, pathObject);
+                roi2.setName(roi2.getName() + "-nucleus");
+                roi2.setProperty(key, "cell.nucleus");
+                return List.of(roi, roi2);
+            }
+        }
+        return Collections.singletonList(roi);
     }
 
 
@@ -671,6 +689,13 @@ public class ImageJScriptRunner {
         ROI newROI = IJTools.convertToROI(roi, request);
         if (RoiTools.isShapeROI(clipROI) && RoiTools.isShapeROI(newROI)) {
             newROI = RoiTools.combineROIs(clipROI, newROI, RoiTools.CombineOp.INTERSECT);
+        } else if (RoiTools.isShapeROI(clipROI) && newROI != null && newROI.isPoint()) {
+            newROI = ROIs.createPointsROI(
+                    newROI.getAllPoints()
+                            .stream()
+                            .filter(p -> clipROI.contains(p.getX(), p.getY()))
+                            .toList()
+                    , newROI.getImagePlane());
         }
         if (newROI == null || newROI.isEmpty())
             return null;
