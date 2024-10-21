@@ -65,6 +65,8 @@ import org.slf4j.LoggerFactory;
 import com.google.common.collect.ObjectArrays;
 
 import qupath.bioimageio.spec.BioimageIoSpec;
+import qupath.imagej.processing.IJFilters;
+import qupath.imagej.tools.IJProperties;
 import qupath.imagej.tools.IJTools;
 import qupath.lib.analysis.DelaunayTools;
 import qupath.lib.analysis.DistanceTools;
@@ -304,6 +306,8 @@ public class QP {
 			PathClassTools.class,
 			GeometryTools.class,
 			IJTools.class,
+			IJProperties.class,
+			IJFilters.class,
 			OpenCVTools.class,
 			NumpyTools.class,
 			DnnTools.class,

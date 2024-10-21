@@ -1,4 +1,4 @@
-package qupath.imagej.gui.scripts.downsamples;
+package qupath.lib.images.servers.downsamples;
 
 import com.google.gson.TypeAdapterFactory;
 import qupath.lib.images.servers.PixelCalibration;

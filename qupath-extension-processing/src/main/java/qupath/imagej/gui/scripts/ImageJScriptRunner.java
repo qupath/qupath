@@ -7,36 +7,37 @@ import com.google.gson.JsonPrimitive;
 import ij.IJ;
 import ij.ImagePlus;
 import ij.WindowManager;
+import ij.gui.Overlay;
 import ij.gui.Roi;
 import ij.macro.Interpreter;
-import ij.measure.Calibration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.event.Level;
 import qupath.fx.dialogs.Dialogs;
 import qupath.fx.utils.FXUtils;
 import qupath.imagej.gui.IJExtension;
-import qupath.imagej.gui.ImagePlusProperties;
-import qupath.imagej.gui.scripts.downsamples.DownsampleCalculator;
-import qupath.imagej.gui.scripts.downsamples.DownsampleCalculators;
+import qupath.imagej.tools.IJProperties;
+import qupath.lib.images.servers.downsamples.DownsampleCalculator;
+import qupath.lib.images.servers.downsamples.DownsampleCalculators;
 import qupath.imagej.tools.IJTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
-import qupath.lib.images.PathImage;
 import qupath.lib.images.servers.ColorTransforms;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.images.servers.TransformedServerBuilder;
 import qupath.lib.io.GsonTools;
+import qupath.lib.objects.PathCellObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.plugins.TaskRunner;
 import qupath.lib.plugins.TaskRunnerUtils;
 import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
-import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
+import qupath.lib.roi.ROIs;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
 import qupath.lib.scripting.LoggingTools;
@@ -48,6 +49,7 @@ import javax.script.SimpleScriptContext;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -57,12 +59,13 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
+import java.util.WeakHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.IntStream;
 
 /**
@@ -87,6 +90,9 @@ public class ImageJScriptRunner {
         NONE, ANNOTATION, DETECTION, TILE, CELL, TMA_CORE
     }
 
+    /**
+     * Enum representing the objects that the script should be applied to.
+     */
     public enum ApplyToObjects {
         SELECTED, IMAGE, ANNOTATIONS, DETECTIONS, TILES, CELLS, TMA_CORES;
 
@@ -105,6 +111,13 @@ public class ImageJScriptRunner {
     }
 
     private final ImageJScriptParameters params;
+
+    private transient ScriptEngineManager scriptEngineManager;
+
+    private static final Writer writer = LoggingTools.createLogWriter(logger, Level.INFO);
+    private static final Writer errorWriter = LoggingTools.createLogWriter(logger, Level.ERROR);
+
+    private final Map<Thread, ScriptEngine> engineMap = new WeakHashMap<>();
 
     public ImageJScriptRunner(ImageJScriptParameters params) {
         this.params = params;
@@ -196,12 +209,19 @@ public class ImageJScriptRunner {
         int[] idsBefore = WindowManager.getIDList();
 
         List<Runnable> tasks = new ArrayList<>();
+        AtomicInteger successCount = new AtomicInteger();
+        AtomicInteger failCount = new AtomicInteger();
         for (var parent : pathObjects) {
-            tasks.add(() -> run(imageData, parent, false));
+            tasks.add(() -> {
+                if (run(imageData, parent, false))
+                    successCount.incrementAndGet();
+                else
+                    failCount.incrementAndGet();
+            });
         }
         taskRunner.runTasks("ImageJ scripts", tasks);
 
-        if (params.doAddToWorkflow()) {
+        if (params.doAddToWorkflow() && successCount.get() > 0) {
             addScriptToWorkflow(imageData, pathObjects);
         }
 
@@ -216,6 +236,13 @@ public class ImageJScriptRunner {
                     logger.debug("Closed {} ImageJ images", nClosed);
             }
         }
+        FXUtils.runOnApplicationThread(() -> imageData.getHierarchy().fireHierarchyChangedEvent(this));
+        engineMap.clear();
+
+        if (failCount.get() > 0) {
+            Dialogs.showErrorMessage("ImageJ script runner",
+                    failCount.get() + "/" + tasks.size() + " tasks failed - see log for details");
+        }
     }
 
     /**
@@ -226,7 +253,7 @@ public class ImageJScriptRunner {
      */
     private static int closeNewImages(int[] idsBefore, int[] idsAfter) {
         int count = 0;
-        if (idsAfter == null || idsAfter.length == 0)
+        if (idsAfter == null)
             return count;
         for (int id : idsAfter) {
             if (idsBefore == null || Arrays.stream(idsBefore).noneMatch(i -> i == id)) {
@@ -270,15 +297,12 @@ public class ImageJScriptRunner {
                     selected.remove(mainSelected);
                     selected.addFirst(mainSelected);
                 }
-//                if (selected.isEmpty())
-//                    yield List.of(hierarchy.getRootObject());
-//                else
                 yield selected;
             }
         };
     }
 
-    private void run(final ImageData<BufferedImage> imageData, final PathObject pathObject, boolean isTest) {
+    private boolean run(final ImageData<BufferedImage> imageData, final PathObject pathObject, boolean isTest) {
 
         if (imageData == null)
             throw new IllegalArgumentException("No image data available");
@@ -286,57 +310,94 @@ public class ImageJScriptRunner {
         // Don't try if interrupted
         if (Thread.currentThread().isInterrupted()) {
             logger.warn("Skipping macro for {} - thread interrupted", pathObject);
-            return;
+            return false;
         }
-
-        PathImage<ImagePlus> pathImage;
 
         // Extract parameters
         ROI pathROI = pathObject.getROI();
 
         ImageServer<BufferedImage> server = getServer(imageData);
-
-        ImageRegion region = pathROI == null ? RegionRequest.createInstance(server) : ImageRegion.createInstance(pathROI);
-        double downsampleFactor = params.getDownsample().getDownsample(server, region);
-        RegionRequest request = RegionRequest.createInstance(server.getPath(), downsampleFactor, region);
-
-        // Check the size of the region to extract - abort if it is too large of if ther isn't enough RAM
-        try {
-            IJTools.isMemorySufficient(request, imageData);
-        } catch (Exception e1) {
-            Dialogs.showErrorMessage("ImageJ macro error", e1.getMessage());
-            return;
+        var request = createRequest(server, pathObject);
+        if (request.getDownsample() <= 0) {
+            logger.warn("Downsample must be > 0, but it was {}", request.getDownsample());
+            return false;
         }
 
+        // Check the size of the region to extract - abort if it is too large of if there isn't enough RAM
         try {
-            boolean sendROI = params.doSetRoi();
-            if (params.doSetOverlay())
-                pathImage = IJExtension.extractROIWithOverlay(server, pathObject, imageData.getHierarchy(), request, sendROI, null);
-            else
-                pathImage = IJExtension.extractROI(server, pathObject, request, sendROI);
+            int width = (int)Math.round(request.getWidth() / request.getDownsample());
+            int height = (int)Math.round(request.getHeight() / request.getDownsample());
+            String propName = "qupath.imagej.scripts.maxDim";
+            int maxDim = Integer.parseInt(System.getProperty(propName, "20000"));
+            if (width > maxDim || height > maxDim) {
+                logger.error("Image would be {} x {} after downsampling, but max supported dimension is {}",
+                        width, height, maxDim);
+                logger.debug("Use System.setProperty(\"{}\", \"value\") to increase this value", propName);
+                return false;
+            }
+            // Memory checks are expensive, so don't do them unless we have a big region
+            double approxPixels = (double)width * height * server.nChannels();
+            if (approxPixels > 4096 * 4096 * 8) {
+                IJTools.isMemorySufficient(request, imageData);
+            }
+        } catch (Exception e1) {
+            logger.error("Unable to process image: {}", e1.getMessage(), e1);
+            return false;
+        }
+
+        // Maintain a map of Rois we sent, so that we don't create unnecessary duplicate objects
+        Map<Roi, PathObject> sentRois = new HashMap<>();
+
+        ImagePlus imp;
+        try {
+            imp = extractImage(server, request, false); // TODO: Consider hyperstack support
+            Predicate<PathObject> filter = null;
+            // Add the main Roi, if needed
+            if (params.doSetRoi() && pathObject.hasROI()) {
+                var roi = createRois(pathObject, request, 0).getFirst();
+                if (roi != null) {
+                    sentRois.put(roi, pathObject);
+                    imp.setRoi(roi);
+                    filter = p -> p != pathObject && !PathObjectTools.isAncestor(pathObject, p);
+                }
+            }
+            // Add an overlay, if needed
+            if (params.doSetOverlay()) {
+                var overlay = new Overlay();
+                Collection<PathObject> overlayObjects;
+                if (pathROI != null && params.doSetRoi()) {
+                    overlayObjects = imageData.getHierarchy().getAllObjectsForROI(pathROI);
+                } else {
+                    overlayObjects = imageData.getHierarchy().getAllObjectsForRegion(request);
+                }
+                int count = 0;
+                for (var temp : overlayObjects) {
+                    if (filter != null && !filter.test(temp))
+                        continue;
+                    for (var roi : createRois(temp, request, ++count)) {
+                        sentRois.put(roi, temp);
+                        overlay.add(roi);
+                    }
+                }
+                imp.setOverlay(overlay);
+            }
         } catch (IOException e) {
-            logger.error("Unable to extract image region {}", region, e);
-            return;
+            logger.error("Unable to extract image region {}", request, e);
+            return false;
         }
 
         // Set some useful properties
-        final ImagePlus imp = pathImage.getImage();
-        ImagePlusProperties.setBackgroundProperty(imp, imageData.getImageType());
-        ImagePlusProperties.setTypeProperty(imp, imageData.getImageType());
-        ImagePlusProperties.setRegionProperty(imp, region);
-
-        // Retain a reference to the original Rois that were sent, to ensure we don't just convert them straight back
-        Set<Roi> roisSent = new HashSet<>();
-        if (imp.getRoi() != null)
-            roisSent.add(imp.getRoi());
-        var overlaySent = imp.getOverlay();
-        if (overlaySent != null) {
-            for (var r : overlaySent.toArray()) {
-                roisSent.add(r);
-            }
+        try {
+            IJProperties.setImageBackground(imp, imageData.getImageType());
+            IJProperties.setImageType(imp, imageData.getImageType());
+            IJProperties.setImageRegion(imp, request);
+            IJProperties.setRegionRequest(imp, request);
+        } catch (Exception e) {
+            logger.warn("Exception setting properties: {}", e.getMessage());
+            logger.debug(e.getMessage(), e);
         }
 
-        // Actually run the macro
+        // Actually run the macro or script
         WindowManager.setTempCurrentImage(imp);
         IJExtension.getImageJInstance(); // Ensure we've requested an instance, since this also loads any required extra plugins
 
@@ -351,36 +412,39 @@ public class ImageJScriptRunner {
                 if (engine != null) {
                     // We have a script engine (probably for Groovy)
                     try {
-                        var context = new SimpleScriptContext();
-                        var writer = LoggingTools.createLogWriter(logger, Level.INFO);
-                        var errorWriter = LoggingTools.createLogWriter(logger, Level.ERROR);
-                        context.setWriter(writer);
-                        context.setErrorWriter(errorWriter);
-                        engine.setContext(context);
-
                         if (isTest)
                             imp.show();
                         engine.eval(script);
-
                     } catch (Exception e) {
                         Dialogs.showErrorNotification("ImageJ script", e);
                         Thread.currentThread().interrupt();
-                        return;
+                        return false;
                     }
                 } else {
                     // ImageJ macro
                     Interpreter interpreter = new Interpreter();
+
                     if (isTest) {
                         imp.show();
                         interpreter.run(script);
                     } else {
+                        // The error messages via AWT are really obtrusive - it's better to ignore them
+                        // and log them for the user
+                        interpreter.setIgnoreErrors(true);
                         impResult = interpreter.runBatchMacro(script, imp);
                     }
 
                     // If we had an error, return
-                    if (interpreter.wasError()) {
+                    var errorMessage = interpreter.getErrorMessage();
+                    if (interpreter.wasError() || errorMessage != null) {
                         Thread.currentThread().interrupt();
-                        return;
+                        if (isTest) {
+                            Dialogs.showErrorMessage("ImageJ", "Script failed at line " + interpreter.getLineNumber()
+                                    + "\n" + errorMessage);
+                        } else {
+                            logger.error("Error running script: {}", errorMessage);
+                        }
+                        return false;
                     }
                 }
 
@@ -395,57 +459,90 @@ public class ImageJScriptRunner {
                 WindowManager.setTempCurrentImage(null);
             }
             if (cancelled)
-                return;
+                return false;
 
 
             // Get the current image when the macro has finished - which may or may not be the same as the original
             if (impResult == null)
                 impResult = imp;
 
-
-            boolean changes = false;
             if (params.doRemoveChildObjects()) {
                 pathObject.clearChildObjects();
-                changes = true;
             }
             var activeRoiToObject = params.getActiveRoiToObjectFunction();
             // If we set the ROI in ImageJ, use it to mask what we get back
             var maskROI = params.doSetRoi() ? pathROI : null;
-            if (activeRoiToObject != null && impResult.getRoi() != null && !roisSent.contains(impResult.getRoi())) {
+            if (activeRoiToObject != null && impResult.getRoi() != null) {
                 Roi roi = impResult.getRoi();
-                Calibration cal = impResult.getCalibration();
-                var pathObjectNew = createNewObject(activeRoiToObject, roi, cal, downsampleFactor, region.getImagePlane(), maskROI);
-                if (pathObjectNew != null) {
-                    pathObject.addChildObject(pathObjectNew);
-                    pathObject.setLocked(true); // Lock if we add anything
-                    changes = true;
+                var existingObject = sentRois.getOrDefault(roi, null);
+                if (existingObject == null) {
+                    var pathObjectNew = createNewObject(activeRoiToObject, roi,  request, maskROI);
+                    // Add an object if it isn't already there
+                    if (pathObjectNew != null && !PathObjectTools.hierarchyContainsObject(imageData.getHierarchy(), pathObjectNew)) {
+                        pathObject.addChildObject(pathObjectNew);
+                        pathObject.setLocked(true); // Lock if we add anything
+                    }
+                } else {
+                    IJTools.calibrateObject(existingObject, roi);
                 }
             }
 
             var overlayRoiToObject = params.getOverlayRoiToObjectFunction();
             if (overlayRoiToObject != null && impResult.getOverlay() != null) {
                 var overlay = impResult.getOverlay();
-                Calibration cal = impResult.getCalibration();
                 var childObjects = Arrays.stream(overlay.toArray())
                         .parallel()
-                        .filter(r -> !roisSent.contains(r))
-                        .map(r -> createNewObject(overlayRoiToObject, r, cal, downsampleFactor, region.getImagePlane(), maskROI))
+                        .map(r -> createOrUpdateObject(overlayRoiToObject, r, request, maskROI, sentRois))
                         .filter(Objects::nonNull)
                         .toList();
                 if (!childObjects.isEmpty()) {
                     pathObject.addChildObjects(childObjects);
                     pathObject.setLocked(true); // Lock if we add anything
-                    changes = true;
                 }
             }
-
-            if (changes) {
-                FXUtils.runOnApplicationThread(() -> imageData.getHierarchy().fireHierarchyChangedEvent(null));
-            }
+            return true;
         } catch (Exception e) {
             logger.error(e.getMessage(), e);
+            return false;
         }
 
+    }
+
+    private RegionRequest createRequest(ImageServer<?> server, PathObject parent) {
+        var pathROI = parent.getROI();
+        ImageRegion region = pathROI == null ? RegionRequest.createInstance(server) : ImageRegion.createInstance(pathROI);
+        double downsampleFactor = params.getDownsample().getDownsample(server, region);
+        return RegionRequest.createInstance(server.getPath(), downsampleFactor, region);
+    }
+
+    private static ImagePlus extractImage(ImageServer<BufferedImage> server, RegionRequest request, boolean requestHyperstack) throws IOException {
+        if (requestHyperstack)
+            return IJTools.extractHyperstack(server, request);
+        else
+            return IJTools.convertToImagePlus(server, request).getImage();
+    }
+
+    private static List<Roi> createRois(PathObject pathObject, RegionRequest request, int count) {
+        var roi = IJTools.convertToIJRoi(pathObject.getROI(), request);
+        String defaultName = PathObjectTools.getSuitableName(pathObject.getClass(), false);
+        if (count > 0)
+            defaultName += " (" + count + ")";
+        roi.setName(defaultName);
+        IJTools.calibrateRoi(roi, pathObject);
+        if (pathObject instanceof PathCellObject cell) {
+            var nucleusRoi = cell.getNucleusROI();
+            String key = "qupath.object.type";
+            roi.setProperty(key, "cell");
+            if (nucleusRoi != null) {
+                var roi2 = IJTools.convertToIJRoi(nucleusRoi, request);
+                roi2.setName(defaultName);
+                IJTools.calibrateRoi(roi2, pathObject);
+                roi2.setName(roi2.getName() + "-nucleus");
+                roi2.setProperty(key, "cell.nucleus");
+                return List.of(roi, roi2);
+            }
+        }
+        return Collections.singletonList(roi);
     }
 
 
@@ -454,7 +551,25 @@ public class ImageJScriptRunner {
                 params.scriptEngine.equalsIgnoreCase(ENGINE_NAME_MACRO) ||
                 params.scriptEngine.equalsIgnoreCase("imagej"))
             return null;
-        return new ScriptEngineManager().getEngineByName(params.scriptEngine);
+        var engine = engineMap.computeIfAbsent(
+                Thread.currentThread(), t -> getScriptEngineManager().getEngineByName(params.scriptEngine));
+        if (engine != null) {
+            var context = new SimpleScriptContext();
+            context.setWriter(writer);
+            context.setErrorWriter(errorWriter);
+            engine.setContext(context);
+        }
+        return engine;
+    }
+
+    private ScriptEngineManager getScriptEngineManager() {
+        if (scriptEngineManager != null)
+            return scriptEngineManager;
+        synchronized (this) {
+            if (scriptEngineManager == null)
+                scriptEngineManager = new ScriptEngineManager();
+            return scriptEngineManager;
+        }
     }
 
 
@@ -559,12 +674,28 @@ public class ImageJScriptRunner {
         }
     }
 
+    private static PathObject createOrUpdateObject(Function<ROI, PathObject> creator, Roi roi, RegionRequest request, ROI clipROI,
+                                              Map<Roi, PathObject> existingObjects) {
+        var existing = existingObjects.getOrDefault(roi, null);
+        if (existing == null)
+            return createNewObject(creator, roi, request, clipROI);
+        else {
+            IJTools.calibrateObject(existing, roi);
+            return existing;
+        }
+    }
 
-    private static PathObject createNewObject(Function<ROI, PathObject> creator, Roi roi, Calibration cal,
-                                              double downsampleFactor, ImagePlane plane, ROI clipROI) {
-        ROI newROI = IJTools.convertToROI(roi, cal.xOrigin, cal.yOrigin, downsampleFactor, plane);
-        if (newROI != null && clipROI != null && RoiTools.isShapeROI(clipROI) && RoiTools.isShapeROI(newROI)) {
+    private static PathObject createNewObject(Function<ROI, PathObject> creator, Roi roi, RegionRequest request, ROI clipROI) {
+        ROI newROI = IJTools.convertToROI(roi, request);
+        if (RoiTools.isShapeROI(clipROI) && RoiTools.isShapeROI(newROI)) {
             newROI = RoiTools.combineROIs(clipROI, newROI, RoiTools.CombineOp.INTERSECT);
+        } else if (RoiTools.isShapeROI(clipROI) && newROI != null && newROI.isPoint()) {
+            newROI = ROIs.createPointsROI(
+                    newROI.getAllPoints()
+                            .stream()
+                            .filter(p -> clipROI.contains(p.getX(), p.getY()))
+                            .toList()
+                    , newROI.getImagePlane());
         }
         if (newROI == null || newROI.isEmpty())
             return null;
