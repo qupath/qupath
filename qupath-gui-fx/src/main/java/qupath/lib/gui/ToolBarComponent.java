@@ -142,6 +142,7 @@ class ToolBarComponent {
 		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(overlayActions.SHOW_TMA_GRID));
 		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(overlayActions.SHOW_DETECTIONS));
 		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(overlayActions.FILL_DETECTIONS));
+		// TODO: Consider removing 'Show connections' button until it becomes more useful
 		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(overlayActions.SHOW_CONNECTIONS));
 		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(overlayActions.SHOW_PIXEL_CLASSIFICATION));
 
