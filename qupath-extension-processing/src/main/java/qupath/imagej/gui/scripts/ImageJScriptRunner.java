@@ -328,7 +328,7 @@ public class ImageJScriptRunner {
             int width = (int)Math.round(request.getWidth() / request.getDownsample());
             int height = (int)Math.round(request.getHeight() / request.getDownsample());
             String propName = "qupath.imagej.scripts.maxDim";
-            int maxDim = Integer.parseInt(System.getProperty(propName, "20000"));
+            int maxDim = Integer.parseInt(System.getProperty(propName, "10000"));
             if (width > maxDim || height > maxDim) {
                 logger.error("Image would be {} x {} after downsampling, but max supported dimension is {}",
                         width, height, maxDim);

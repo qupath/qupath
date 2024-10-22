@@ -1,3 +1,4 @@
+package qupath.imagej.gui.scripts.examples.hidden
 /*
  * Groovy script showing how a QuPath object can be classified.
  * You will need to send the current object as a Roi, and also

@@ -40,11 +40,11 @@ dependencyResolutionManagement {
         extraLibs {
             library('djl', 'io.github.qupath', 'qupath-extension-djl').version('0.4.0-20240911.172830-2')
             library('instanseg', 'io.github.qupath', 'qupath-extension-instanseg').version('0.0.1-20241020.174720-4')
-            library('training', 'io.github.qupath', 'qupath-extension-training').version('0.0.1-20241021.201124-1')
+            library('training', 'io.github.qupath', 'qupath-extension-training').version('0.0.1-20241022.065038-2')
             library('py4j', 'io.github.qupath', 'qupath-extension-py4j').version('0.1.0-20241021.201937-1')
             // Include or exclude bundled extensions
-//            bundle('extensions', [])
-            bundle('extensions', ['djl', 'instanseg', 'training', 'py4j'])
+            bundle('extensions', [])
+//            bundle('extensions', ['djl', 'instanseg', 'training', 'py4j'])
         }
     }
 }

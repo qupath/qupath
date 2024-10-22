@@ -145,9 +145,9 @@ public class ImageJScriptRunnerController extends BorderPane {
             PathPrefs.createPersistentPreference(PREFS_KEY + "resolution.maxDim", "1024")
     );
 
-    private BooleanProperty setImageJRoi = PathPrefs.createPersistentPreference(PREFS_KEY + "setImageJRoi", false);
+    private BooleanProperty setImageJRoi = PathPrefs.createPersistentPreference(PREFS_KEY + "setImageJRoi", true);
     private BooleanProperty setImageJOverlay = PathPrefs.createPersistentPreference(PREFS_KEY + "setImageJOverlay", false);
-    private BooleanProperty deleteChildObjects = PathPrefs.createPersistentPreference(PREFS_KEY + "deleteChildObjects", false);
+    private BooleanProperty deleteChildObjects = PathPrefs.createPersistentPreference(PREFS_KEY + "deleteChildObjects", true);
     private BooleanProperty addToCommandHistory = PathPrefs.createPersistentPreference(PREFS_KEY + "addToCommandHistory", false);
 
     // Default to 1 thread, as multiple threads may be problematic for some macros (e.g. with duplicate images)
@@ -554,16 +554,22 @@ public class ImageJScriptRunnerController extends BorderPane {
         } else {
             dirExamples = Paths.get(uri);
         }
-        try (var stream = Files.list(dirExamples)) {
+        try (var stream = Files.walk(dirExamples, 2)) {
             Map<String, List<Path>> map = stream
                     .sorted(Comparator.comparing(p -> p.getFileName().toString()))
                     .filter(p -> getFileExtension(p) != null)
                     .collect(Collectors.groupingBy(ImageJScriptRunnerController::getFileExtension));
 
-            for (var entry : map.entrySet()) {
+            // Ensure macros come first
+            var keys = new ArrayList<>(map.keySet());
+            if (keys.contains(".ijm")) {
+                keys.remove(".ijm");
+                keys.addFirst(".ijm");
+            }
+            for (var key : keys) {
                 if (!items.isEmpty())
                     items.add(new SeparatorMenuItem());
-                for (var path : entry.getValue()) {
+                for (var path : map.get(key)) {
                     var item = createMenuItemForExample(path);
                     items.add(item);
                 }
